@@ -2,6 +2,11 @@
 
 > Desktop application to manage your 3D printing filament inventory via NFC RFID tags and the TigerTag API.
 
+### ⬇ [Download the latest version](https://github.com/TigerTag-Project/TigerTag_Studio_Manager/releases/latest)
+> Available for **macOS** · **Windows** · **Linux** — no installation knowledge required.
+
+---
+
 [![Build & Release](https://github.com/TigerTag-Project/TigerTag_Studio_Manager/actions/workflows/build.yml/badge.svg)](https://github.com/TigerTag-Project/TigerTag_Studio_Manager/actions/workflows/build.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-orange.svg)](LICENSE)
 [![Electron](https://img.shields.io/badge/Electron-41-blue)](https://www.electronjs.org/)
@@ -19,6 +24,18 @@
 - **Multi-language** — English and French UI, easily extensible to other languages
 - **Auto-updater** — Receives updates automatically via GitHub Releases
 - **Cross-platform** — Windows, macOS (Intel + Apple Silicon), Linux
+
+---
+
+## Download
+
+**[⬇ Download the latest release](https://github.com/TigerTag-Project/TigerTag_Studio_Manager/releases/latest)**
+
+| Platform | File |
+|---|---|
+| macOS | `.dmg` |
+| Windows | `.exe` |
+| Linux | `.AppImage` |
 
 ---
 
