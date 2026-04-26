@@ -1,16 +1,18 @@
 {
   "name": "tigertag-inventory",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "TigerTag Studio Manager — desktop app",
   "main": "main.js",
-  "engines": { "node": ">=24" },
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "start": "electron .",
     "postinstall": "electron-rebuild",
-    "build:win":   "electron-builder --win",
-    "build:mac":   "electron-builder --mac",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
     "build:linux": "electron-builder --linux",
-    "build:all":   "electron-builder -wml"
+    "build:all": "electron-builder -wml"
   },
   "dependencies": {
     "electron-updater": "^6.1.7",
@@ -38,11 +40,26 @@
       "assets/**"
     ],
     "win": {
-      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
       "icon": "assets/img/icon.ico"
     },
     "mac": {
-      "target": [{ "target": "dmg", "arch": ["x64", "arm64"] }],
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
       "icon": "assets/img/icon.icns",
       "category": "public.app-category.utilities",
       "hardenedRuntime": true,
@@ -52,7 +69,14 @@
       "notarize": true
     },
     "linux": {
-      "target": [{ "target": "AppImage", "arch": ["x64"] }],
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
       "icon": "assets/img/icon.png",
       "category": "Utility"
     },

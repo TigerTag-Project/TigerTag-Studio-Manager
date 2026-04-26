@@ -38,14 +38,193 @@
   }
 
   /* ── layout ── */
-  .container {
-    max-width: 1200px; margin: 0 auto; padding: 16px 20px 12px;
-    height: 100%; display: flex; flex-direction: column; overflow: hidden;
+  .app-layout {
+    height: 100%; display: flex; flex-direction: row; overflow: hidden;
+  }
+  /* sidebar */
+  .sidebar {
+    width: 240px; flex-shrink: 0;
+    background: linear-gradient(175deg, #0f1117 0%, #18101f 100%);
+    border-right: none;
+    display: flex; flex-direction: column; overflow: hidden;
+    transition: width .25s cubic-bezier(.4,0,.2,1);
+    box-shadow: 2px 0 24px rgba(0,0,0,.25);
+    position: relative;
+  }
+  .sidebar::after {
+    content: ""; position: absolute; top: 0; right: 0; bottom: 0; width: 1px;
+    background: linear-gradient(180deg, rgba(255,122,24,.3) 0%, rgba(255,122,24,.0) 60%);
+    pointer-events: none;
+  }
+  .sidebar.collapsed { width: 60px; }
+
+  /* header / brand */
+  .sb-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 12px 12px; border-bottom: 1px solid rgba(255,255,255,.06); flex-shrink: 0;
+  }
+  .sidebar.collapsed .sb-header { justify-content: center; }
+  .sb-brand { display: flex; align-items: center; gap: 9px; overflow: hidden; min-width: 0; }
+  .sb-brand-dot {
+    width: 28px; height: 28px; flex-shrink: 0; border-radius: 8px;
+    background: linear-gradient(135deg, var(--primary), #ffb056);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 800; color: #fff;
+    box-shadow: 0 2px 10px rgba(255,122,24,.4);
+  }
+  .sb-brand-name { font-size: 13px; font-weight: 700; color: rgba(255,255,255,.85); white-space: nowrap; letter-spacing: -.01em; }
+  .sidebar.collapsed .sb-brand { display: none; }
+  .sb-toggle {
+    width: 28px; height: 28px; padding: 0; border-radius: 50%; flex-shrink: 0;
+    background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12);
+    color: rgba(255,255,255,.45);
+    display: flex; align-items: center; justify-content: center;
+    transition: background .2s, border-color .2s, box-shadow .2s, color .2s;
+  }
+  .sb-toggle:hover {
+    background: rgba(255,122,24,.18) !important; border-color: rgba(255,122,24,.55) !important;
+    box-shadow: 0 0 12px rgba(255,122,24,.25); color: var(--primary) !important;
+  }
+  .sb-chevron {
+    display: block; flex-shrink: 0; pointer-events: none;
+    transition: transform .25s cubic-bezier(.4,0,.2,1);
+  }
+  .sidebar.collapsed .sb-chevron { transform: rotate(180deg); }
+
+  /* user section */
+  .sb-user {
+    padding: 20px 14px 16px; border-bottom: 1px solid rgba(255,255,255,.06);
+    flex-shrink: 0; display: flex; flex-direction: column; align-items: center;
+  }
+  .sb-avatar {
+    width: 54px; height: 54px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), #ffb056);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; font-weight: 700; color: #fff; letter-spacing: -1px;
+    box-shadow: 0 0 0 3px rgba(255,122,24,.25), 0 4px 20px rgba(255,122,24,.2);
+    transition: box-shadow .3s; flex-shrink: 0;
+  }
+  .sb-avatar:hover { box-shadow: 0 0 0 4px rgba(255,122,24,.45), 0 4px 28px rgba(255,122,24,.3); }
+  .sb-name {
+    font-size: 14px; font-weight: 600; color: #fff; text-align: center;
+    margin-top: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%;
+  }
+  .sb-sub {
+    font-size: 10px; color: rgba(255,255,255,.32); text-align: center;
+    font-family: var(--mono); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%;
+  }
+  .sb-actions { display: flex; flex-direction: column; gap: 7px; margin-top: 14px; width: 100%; }
+  .sb-actions button {
+    height: 32px; font-size: 12px; width: 100%; justify-content: center; border-radius: 8px;
+  }
+  .sb-actions .primary { background: var(--primary); border-color: var(--primary); box-shadow: 0 2px 10px rgba(255,122,24,.35); }
+  .sb-actions .primary:hover { background: var(--primary-hover) !important; box-shadow: 0 3px 14px rgba(255,122,24,.45); }
+  .sb-actions button:not(.primary) {
+    background: rgba(255,255,255,.07); border-color: rgba(255,255,255,.1);
+    color: rgba(255,255,255,.6);
+  }
+  .sb-actions button:not(.primary):hover { background: rgba(255,255,255,.12) !important; color: #fff !important; }
+  .sb-sub-welcome { font-size: 11px; color: rgba(255,255,255,.38); text-align: center; margin-top: 4px; }
+  .sidebar.collapsed .sb-name,
+  .sidebar.collapsed .sb-sub,
+  .sidebar.collapsed .sb-sub-welcome,
+  .sidebar.collapsed .sb-actions { display: none; }
+  .sidebar.collapsed .sb-user { padding: 14px 8px; }
+  .sidebar.collapsed .sb-avatar { width: 40px; height: 40px; font-size: 15px; }
+
+  /* config section */
+  .sb-config { flex-shrink: 0; border-top: 1px solid rgba(255,255,255,.06); }
+  .sb-config-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 9px 14px; cursor: pointer; user-select: none;
+    font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+    color: rgba(255,255,255,.3); transition: color .15s;
+  }
+  .sb-config-header:hover { color: rgba(255,255,255,.65); }
+  .sb-config-chevron { font-size: 9px; transition: transform .2s; }
+  .sb-config.open .sb-config-chevron { transform: rotate(90deg); }
+  .sb-config-body { padding: 0 12px 12px; display: flex; flex-direction: column; gap: 8px; }
+  .sb-field-wrap { display: flex; flex-direction: column; gap: 4px; }
+  .sb-field-label { font-size: 10px; color: rgba(255,255,255,.28); text-transform: uppercase; letter-spacing: .06em; }
+  .sb-field-row { display: flex; gap: 4px; }
+  .sb-field-input {
+    flex: 1; height: 30px; padding: 0 9px; font-size: 11px; font-family: var(--mono);
+    background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.1);
+    border-radius: 7px; color: rgba(255,255,255,.8); outline: none; min-width: 0;
+    transition: border-color .15s, background .15s;
+  }
+  .sb-field-input:focus { border-color: var(--primary); background: rgba(255,122,24,.08); }
+  .sb-eye {
+    width: 30px; height: 30px; padding: 0; border-radius: 7px; flex-shrink: 0;
+    background: rgba(255,255,255,.07); border-color: rgba(255,255,255,.1); color: rgba(255,255,255,.35);
+    display: flex; align-items: center; justify-content: center;
+    transition: background .15s, color .15s;
+  }
+  .sb-eye svg { display: block; }
+  .sb-eye:hover { background: rgba(255,255,255,.13) !important; color: rgba(255,255,255,.8) !important; }
+  .sb-config-save {
+    height: 30px; font-size: 12px; background: var(--primary); border-color: var(--primary);
+    color: #fff; border-radius: 7px; width: 100%; justify-content: center; margin-top: 2px;
+  }
+  .sb-config-save:hover { background: var(--primary-hover) !important; }
+  .sidebar.collapsed .sb-config { display: none; }
+
+  /* stats */
+  .sb-stats-wrap {
+    flex: 1; overflow-y: auto; padding: 14px 12px 12px;
+    display: flex; flex-direction: column; gap: 7px;
+  }
+  .sb-stats-wrap::-webkit-scrollbar { width: 3px; }
+  .sb-stats-wrap::-webkit-scrollbar-track { background: transparent; }
+  .sb-stats-wrap::-webkit-scrollbar-thumb { background: rgba(255,255,255,.15); border-radius: 2px; }
+  .sb-stats-section-label {
+    font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+    color: rgba(255,255,255,.25); padding: 4px 2px 6px;
+  }
+  .sb-stat {
+    background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.07);
+    border-radius: 10px; padding: 10px 12px;
+    transition: background .15s, border-color .15s; cursor: default;
+  }
+  .sb-stat:hover { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.11); }
+  .sb-stat .label {
+    font-size: 10px; color: rgba(255,255,255,.38); text-transform: uppercase;
+    letter-spacing: .06em; display: flex; align-items: center; gap: 6px;
+  }
+  .sb-stat .label::before {
+    content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--primary);
+    flex-shrink: 0; box-shadow: 0 0 6px rgba(255,122,24,.6);
+  }
+  .sb-stat .value {
+    font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums;
+    color: #fff; margin-top: 4px; letter-spacing: -.02em;
+  }
+  .sidebar.collapsed .sb-stats-wrap { display: none; }
+
+  /* login / idle state */
+  .sb-login {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; padding: 20px 14px; gap: 10px;
+  }
+  .sb-login-logo {
+    width: 44px; height: 44px; border-radius: 12px;
+    background: linear-gradient(135deg, var(--primary), #ffb056);
+    display: flex; align-items: center; justify-content: center; font-size: 22px;
+    box-shadow: 0 4px 20px rgba(255,122,24,.35);
+  }
+  .sb-login-title { font-size: 14px; font-weight: 700; color: rgba(255,255,255,.85); text-align: center; }
+  .sb-login-text { font-size: 11px; color: rgba(255,255,255,.28); text-align: center; line-height: 1.75; }
+  .sidebar.collapsed .sb-login { display: none; }
+  /* main column */
+  .main-col {
+    flex: 1; min-width: 0;
+    padding: 16px 20px 12px;
+    display: flex; flex-direction: column; overflow: hidden;
   }
 
   header.top {
     display: flex; align-items: center; justify-content: space-between;
-    gap: 12px; margin-bottom: 24px; flex-wrap: wrap;
+    gap: 12px; margin-bottom: 14px; flex-wrap: wrap;
   }
   header.top h1 { margin: 0; font-size: 24px; letter-spacing: -.01em; display: flex; align-items: center; gap: 10px; }
   header.top h1 .dot { width: 12px; height: 12px; border-radius: 4px; background: linear-gradient(135deg, var(--primary), #ffb056); display: inline-block; }
@@ -140,7 +319,7 @@
   .view-toggle button.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
 
   /* ── grid view ── */
-  .inv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-top: 12px; }
+  .inv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); grid-auto-rows: min-content; align-content: start; gap: 8px; margin-top: 12px; }
   .spool-card {
     background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
     overflow: hidden; cursor: pointer; transition: box-shadow .15s, transform .1s, border-color .15s;
@@ -187,8 +366,8 @@
   .panel-close { width: 32px; height: 32px; border: none; background: var(--surface-2); border-radius: 8px; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; color: var(--muted); }
   .panel-close:hover { background: var(--border); color: var(--text); }
   .panel-body { flex: 1; overflow-y: auto; padding: 0 0 24px; }
-  .panel-img { width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; background: #1c2030; }
-  .panel-img-placeholder { width: 100%; aspect-ratio: 16/9; background: linear-gradient(135deg,#1c2030,#2a1a0e); display: flex; align-items: center; justify-content: center; }
+  .panel-img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; background: #1c2030; }
+  .panel-img-placeholder { width: 100%; aspect-ratio: 1; background: linear-gradient(135deg,#1c2030,#2a1a0e); display: flex; align-items: center; justify-content: center; }
   .panel-img-placeholder img { width: 40%; opacity: .5; }
   .panel-section { padding: 14px 16px; border-bottom: 1px solid var(--border); }
   .panel-section:last-child { border-bottom: none; }
@@ -245,18 +424,6 @@
     box-shadow: 0 1px 6px rgba(255,122,24,.5); cursor: grab;
   }
 
-  /* ── welcome ── */
-  .welcome-card { background: linear-gradient(135deg,#1c2030 0%,#2a1a0e 100%); border: 1px solid #3a2a1a; border-radius: var(--radius); padding: 20px 22px; box-shadow: var(--shadow); display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-  .welcome-left { display: flex; align-items: center; gap: 16px; }
-  .welcome-avatar { width: 54px; height: 54px; border-radius: 50%; background: linear-gradient(135deg,var(--primary),#ffb056); display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 700; color: #fff; box-shadow: 0 0 0 4px rgba(255,122,24,.25); flex-shrink: 0; letter-spacing: -1px; }
-  .welcome-text .hey { font-size: 13px; color: rgba(255,255,255,.45); margin-bottom: 2px; }
-  .welcome-text .name { font-size: 20px; font-weight: 700; color: #fff; letter-spacing: -.02em; }
-  .welcome-text .sub { font-size: 12px; color: rgba(255,255,255,.35); margin-top: 2px; font-family: var(--mono); }
-  .welcome-actions { display: flex; gap: 8px; align-items: center; }
-  .welcome-actions button { background: rgba(255,255,255,.07); border-color: rgba(255,255,255,.12); color: rgba(255,255,255,.65); font-size: 13px; }
-  .welcome-actions button:hover { background: rgba(255,255,255,.13); color: #fff; }
-  .welcome-actions .btn-reload { background: var(--primary); border-color: var(--primary); color: #fff; }
-  .welcome-actions .btn-reload:hover { background: var(--primary-hover); }
 
   /* ── debug ── */
   details.debug summary { cursor: pointer; color: var(--muted); font-size: 13px; list-style: none; user-select: none; display: flex; align-items: center; gap: 8px; }
@@ -287,125 +454,183 @@
   .update-banner .ub-text strong { color: #fff; }
   @keyframes slideUp { from { opacity:0; transform: translateX(-50%) translateY(12px); } to { opacity:1; transform: translateX(-50%) translateY(0); } }
 
+  #debugPanel .panel-body { overflow: hidden; }
+  #debugBody { flex: 1; min-height: 0; max-height: none !important; }
+
   .hidden { display: none !important; }
   .gap-1 { gap: 8px; }
   .footer-note { margin-top: 24px; text-align: center; color: var(--muted); font-size: 12px; }
 </style>
 </head>
 <body>
-<div class="container">
+<div class="app-layout">
 
-  <header class="top">
-    <div>
-      <h1><span class="dot"></span>TigerTag Studio Manager</h1>
-      <div class="subtitle" data-i18n="appSubtitle">View and manage your filament spools</div>
-    </div>
-    <div style="display:flex;gap:12px;align-items:center">
-      <div class="lang-toggle">
-        <button class="lang-btn active" data-lang="en">EN</button>
-        <button class="lang-btn" data-lang="fr">FR</button>
+  <!-- ── sidebar ── -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sb-header">
+      <div class="sb-brand">
+        <div class="sb-brand-dot">T</div>
+        <span class="sb-brand-name">Studio Manager</span>
       </div>
-      <div class="health" id="rfidStatus" style="display:none"><span class="pulse"></span><span id="rfidLabel">RFID: —</span></div>
-      <div class="health" id="health"><span class="pulse"></span><span id="healthLabel">Backend: idle</span></div>
+      <button id="btnSidebarToggle" class="sb-toggle" title="Toggle sidebar"><svg class="sb-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
     </div>
-  </header>
 
-  <!-- welcome bar -->
-  <div id="welcome-bar" class="welcome-card hidden" style="margin-bottom:18px">
-    <div class="welcome-left">
-      <div class="welcome-avatar" id="welcomeAvatar">?</div>
-      <div class="welcome-text">
-        <div class="hey" data-i18n="welcomeBack">👋 Welcome back,</div>
-        <div class="name" id="welcomeName">—</div>
-        <div class="sub" id="welcomeSub">—</div>
+    <!-- user section (shown when connected) -->
+    <div class="sb-user hidden" id="sbUser">
+      <div class="sb-avatar" id="sbAvatar">?</div>
+      <div class="sb-sub-welcome" id="sbWelcome">👋 Welcome back,</div>
+      <div class="sb-name" id="sbName">—</div>
+      <div class="sb-actions">
+        <button id="btnSbReload" class="primary"><span class="spinner"></span><span class="label" data-i18n="btnRefresh">↻ Refresh</span></button>
+        <button id="btnSbSwitch"><span class="label" data-i18n="btnSwitchAccount">Switch account</span></button>
       </div>
     </div>
-    <div class="welcome-actions">
-      <button id="btnWelcomeReload" class="btn-reload"><span class="spinner"></span><span class="label" data-i18n="btnRefresh">↻ Refresh</span></button>
-      <button id="btnWelcomeSwitch" data-i18n="btnSwitchAccount">Switch account</button>
-    </div>
-  </div>
 
-  <!-- credentials -->
-  <section class="card" id="card-creds" style="margin-bottom:18px">
-    <h2><span class="num">1</span><span data-i18n="credTitle">Credentials</span></h2>
-    <div class="row gap-1">
-      <label class="field" style="flex:2 1 260px">
-        <span data-i18n="credEmail">Email</span>
-        <input id="email" type="email" autocomplete="email" placeholder="you@example.com" />
-      </label>
-      <label class="field" style="flex:1 1 150px">
-        <span data-i18n="credApiKey">API Key</span>
-        <input id="apiKey" class="mono" type="text" placeholder="E0F8LJ" maxlength="32" autocomplete="off" />
-      </label>
-      <div style="display:flex;flex-direction:column;gap:6px">
-        <span style="font-size:12px;color:var(--muted)" data-i18n="credStatus">Status</span>
-        <span id="keyStatus" class="badge">—</span>
+    <!-- config / credentials (collapsible, shown when connected) -->
+    <div class="sb-config hidden" id="sbConfig">
+      <div class="sb-config-header" id="btnSbConfigToggle">
+        <span>⚙ Configuration</span>
+        <span class="sb-config-chevron">▸</span>
       </div>
-    </div>
-    <div class="row gap-1" style="margin-top:12px">
-      <button id="btnLoadInv" class="primary"><span class="spinner"></span><span class="label" data-i18n="btnLoadInv">Load inventory</span></button>
-      <button id="btnTestKey"><span class="spinner"></span><span class="label" data-i18n="btnTestKey">Test API key</span></button>
-      <button id="btnClearSaved" class="ghost"><span class="label" data-i18n="btnClearSaved">Clear saved data</span></button>
-    </div>
-    <div id="credsResult"></div>
-  </section>
-
-  <!-- inventory -->
-  <section class="card" id="card-inv">
-    <div class="row between">
-      <h2 style="margin:0"><span class="num">2</span><span data-i18n="invTitle">Inventory</span> <span id="invCount" class="badge info hidden" style="margin-left:6px;text-transform:none;font-size:12px">0</span></h2>
-      <div class="row gap-1">
-        <div class="view-toggle">
-          <button id="btnViewTable" class="active" data-i18n="btnViewTable">☰ Table</button>
-          <button id="btnViewGrid" data-i18n="btnViewGrid">⊞ Grid</button>
+      <div class="sb-config-body hidden" id="sbConfigBody">
+        <div class="sb-field-wrap">
+          <span class="sb-field-label">Email</span>
+          <div class="sb-field-row">
+            <input class="sb-field-input" id="sbEmailField" type="password" autocomplete="off" data-lpignore="true" placeholder="you@example.com" />
+            <button class="sb-eye" id="btnToggleSbEmail" type="button" title="Show / hide"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg></button>
+          </div>
         </div>
-        <button id="btnFilter" class="ghost sm"><span class="label" id="filterLabel" data-i18n="btnShowDeleted">Show deleted</span></button>
-        <button id="btnExport" class="ghost sm"><span class="label" data-i18n="btnExport">↓ JSON</span></button>
+        <div class="sb-field-wrap">
+          <span class="sb-field-label">API Key</span>
+          <div class="sb-field-row">
+            <input class="sb-field-input" id="sbApiKeyField" type="password" autocomplete="off" data-lpignore="true" placeholder="••••••" />
+            <button class="sb-eye" id="btnToggleSbApiKey" type="button" title="Show / hide"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg></button>
+          </div>
+        </div>
+        <button class="sb-config-save primary" id="btnSbSaveCreds"><span class="spinner"></span><span class="label">Save &amp; reload</span></button>
       </div>
     </div>
-    <div style="margin-top:10px">
-      <input id="searchInv" type="text" placeholder="Search material, brand, color, UID…" data-i18n-placeholder="searchPlaceholder" style="max-width:340px" />
-    </div>
-    <div id="invStats" class="stats hidden" style="margin-top:12px"></div>
-    <div id="invEmpty" class="empty">No inventory loaded yet.</div>
 
-    <!-- table view -->
-    <div id="invTableWrap" class="table-wrap hidden">
-      <table>
-        <thead>
-          <tr>
-            <th></th>
-            <th data-i18n="thType">Type</th>
-            <th data-i18n="thMaterial">Material</th>
-            <th data-i18n="thBrand">Brand</th>
-            <th data-i18n="thColor">Color / Name</th>
-            <th data-i18n="thWeight">Weight avail.</th>
-            <th data-i18n="thCapacity">Capacity</th>
-            <th data-i18n="thUpdated">Updated</th>
-          </tr>
-        </thead>
-        <tbody id="invBody"></tbody>
-      </table>
+    <!-- login hint (shown when not connected) -->
+    <div class="sb-login" id="sbLogin">
+      <div class="sb-login-logo">🏷</div>
+      <div class="sb-login-title">TigerTag</div>
+      <div class="sb-login-text">Enter your credentials to load your filament inventory</div>
     </div>
 
-    <!-- grid view -->
-    <div id="invGrid" class="inv-grid hidden"></div>
+    <!-- stats (shown when inventory loaded) -->
+    <div class="sb-stats-wrap hidden" id="sbStats"></div>
+  </aside>
 
-    <!-- debug -->
-    <details class="debug" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);flex-shrink:0">
-      <summary><strong data-i18n="debugLabel">Debug</strong><span data-i18n="debugSubtitle"> — last API request &amp; response</span></summary>
-      <div class="debug-meta" id="debugMeta" data-i18n="debugNoReqs">No requests yet.</div>
-      <pre class="json" id="debugBody">{}</pre>
-    </details>
-  </section>
-</div>
+  <!-- ── main column ── -->
+  <div class="main-col">
+
+    <header class="top">
+      <div>
+        <h1><span class="dot"></span>TigerTag Studio Manager</h1>
+        <div class="subtitle" data-i18n="appSubtitle">View and manage your filament spools</div>
+      </div>
+      <div style="display:flex;gap:12px;align-items:center">
+        <div class="lang-toggle">
+          <button class="lang-btn active" data-lang="en">EN</button>
+          <button class="lang-btn" data-lang="fr">FR</button>
+        </div>
+        <div class="health" id="rfidStatus" style="display:none"><span class="pulse"></span><span id="rfidLabel">RFID: —</span></div>
+        <div class="health" id="health"><span class="pulse"></span><span id="healthLabel">Backend: idle</span></div>
+      </div>
+    </header>
+
+    <!-- credentials -->
+    <section class="card" id="card-creds" style="margin-bottom:18px">
+      <h2><span class="num">1</span><span data-i18n="credTitle">Credentials</span></h2>
+      <div class="row gap-1">
+        <label class="field" style="flex:2 1 260px">
+          <span data-i18n="credEmail">Email</span>
+          <input id="email" type="email" autocomplete="email" placeholder="you@example.com" />
+        </label>
+        <label class="field" style="flex:1 1 150px">
+          <span data-i18n="credApiKey">API Key</span>
+          <input id="apiKey" class="mono" type="text" placeholder="E0F8LJ" maxlength="32" autocomplete="off" />
+        </label>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <span style="font-size:12px;color:var(--muted)" data-i18n="credStatus">Status</span>
+          <span id="keyStatus" class="badge">—</span>
+        </div>
+      </div>
+      <div class="row gap-1" style="margin-top:12px">
+        <button id="btnLoadInv" class="primary"><span class="spinner"></span><span class="label" data-i18n="btnLoadInv">Load inventory</span></button>
+        <button id="btnTestKey"><span class="spinner"></span><span class="label" data-i18n="btnTestKey">Test API key</span></button>
+        <button id="btnClearSaved" class="ghost"><span class="label" data-i18n="btnClearSaved">Clear saved data</span></button>
+      </div>
+      <div id="credsResult"></div>
+    </section>
+
+    <!-- inventory -->
+    <section class="card" id="card-inv">
+      <div class="row between">
+        <h2 style="margin:0"><span class="num">2</span><span data-i18n="invTitle">Inventory</span> <span id="invCount" class="badge info hidden" style="margin-left:6px;text-transform:none;font-size:12px">0</span></h2>
+        <div class="row gap-1">
+          <div class="view-toggle">
+            <button id="btnViewTable" class="active" data-i18n="btnViewTable">☰ Table</button>
+            <button id="btnViewGrid" data-i18n="btnViewGrid">⊞ Grid</button>
+          </div>
+          <button id="btnExport" class="ghost sm"><span class="label" data-i18n="btnExport">↓ JSON</span></button>
+        </div>
+      </div>
+      <div style="margin-top:10px">
+        <input id="searchInv" type="text" placeholder="Search material, brand, color, UID…" data-i18n-placeholder="searchPlaceholder" style="max-width:340px" />
+      </div>
+      <div id="invEmpty" class="empty">No inventory loaded yet.</div>
+
+      <!-- table view -->
+      <div id="invTableWrap" class="table-wrap hidden">
+        <table>
+          <thead>
+            <tr>
+              <th></th>
+              <th data-i18n="thType">Type</th>
+              <th data-i18n="thMaterial">Material</th>
+              <th data-i18n="thBrand">Brand</th>
+              <th data-i18n="thColor">Color / Name</th>
+              <th data-i18n="thWeight">Weight avail.</th>
+              <th data-i18n="thCapacity">Capacity</th>
+              <th data-i18n="thUpdated">Updated</th>
+            </tr>
+          </thead>
+          <tbody id="invBody"></tbody>
+        </table>
+      </div>
+
+      <!-- grid view -->
+      <div id="invGrid" class="inv-grid hidden"></div>
+
+      <!-- debug trigger -->
+      <div style="padding-top:10px;border-top:1px solid var(--border);flex-shrink:0;display:flex;justify-content:flex-end">
+        <button id="btnDebug" class="ghost sm" style="font-size:11px;color:var(--muted)">⌥ Debug</button>
+      </div>
+    </section>
+
+  </div><!-- /.main-col -->
+</div><!-- /.app-layout -->
 
 <!-- update banner -->
 <div id="updateBanner" class="update-banner hidden">
   <span class="ub-icon">⬆</span>
   <span class="ub-text" id="updateMsg"><strong>Update available</strong> — downloading…</span>
   <button id="btnInstallUpdate" class="primary sm hidden">Restart &amp; update</button>
+</div>
+
+<!-- debug panel -->
+<div class="panel-overlay" id="debugOverlay"></div>
+<div class="detail-panel" id="debugPanel">
+  <div class="panel-header">
+    <span class="panel-title" data-i18n="debugLabel">Debug</span>
+    <button class="panel-close" id="debugPanelClose">✕</button>
+  </div>
+  <div class="panel-body" style="padding:16px;display:flex;flex-direction:column;gap:10px">
+    <div class="debug-meta" id="debugMeta" data-i18n="debugNoReqs">No requests yet.</div>
+    <pre class="json" id="debugBody" style="flex:1;margin:0">{}</pre>
+  </div>
 </div>
 
 <!-- detail panel -->
@@ -541,7 +766,6 @@
     document.querySelectorAll("[data-i18n]").forEach(el => { el.textContent = t(el.dataset.i18n); });
     document.querySelectorAll("[data-i18n-placeholder]").forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
     document.querySelectorAll(".lang-btn").forEach(btn => btn.classList.toggle("active", btn.dataset.lang === state.lang));
-    $("filterLabel").textContent = t(state.showDeleted ? "btnHideDeleted" : "btnShowDeleted");
     if (state.keyValid === true) setKeyStatus("ok");
     else if (state.keyValid === false) setKeyStatus("bad");
     else setKeyStatus("untested");
@@ -687,30 +911,86 @@
   /* ── connected state ── */
   function setConnected(displayName, email, apiKey) {
     state.displayName = displayName;
-    const initials = displayName ? displayName.split(" ").map(w=>w[0]).join("").toUpperCase().slice(0,2) : (email||"?")[0].toUpperCase();
-    $("welcomeAvatar").textContent = initials;
-    $("welcomeName").textContent = displayName || email || "—";
-    $("welcomeSub").textContent = `${email||""}  ·  key: ${apiKey||""}`;
-    $("welcome-bar").classList.remove("hidden");
+    const initials = displayName
+      ? displayName.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2)
+      : (email || "?")[0].toUpperCase();
+    $("sbAvatar").textContent = initials;
+    $("sbWelcome").textContent = t("welcomeBack");
+    $("sbName").textContent = displayName || email || "—";
+    // populate config fields (masked, not visible until user reveals)
+    $("sbEmailField").value  = email  || "";
+    $("sbApiKeyField").value = apiKey || "";
+    $("sbUser").classList.remove("hidden");
+    $("sbConfig").classList.remove("hidden");
+    $("sbLogin").classList.add("hidden");
     $("card-creds").classList.add("hidden");
   }
   function setDisconnected() {
     state.displayName = null; state.keyValid = null;
-    $("welcome-bar").classList.add("hidden");
+    $("sbUser").classList.add("hidden");
+    $("sbConfig").classList.add("hidden");
+    $("sbStats").classList.add("hidden");
+    $("sbLogin").classList.remove("hidden");
     $("card-creds").classList.remove("hidden");
     setKeyStatus("untested"); $("credsResult").innerHTML = "";
   }
-  $("btnWelcomeSwitch").addEventListener("click", () => {
+  $("btnSbSwitch").addEventListener("click", () => {
     localStorage.removeItem(STORAGE_KEY); localStorage.removeItem(STORAGE_INV);
     $("email").value = ""; $("apiKey").value = "";
     state.inventory = null; state.rows = [];
     renderStats(); renderInventory(); setDisconnected();
   });
-  $("btnWelcomeReload").addEventListener("click", async () => {
-    setLoading($("btnWelcomeReload"), true);
+  $("btnSbReload").addEventListener("click", async () => {
+    setLoading($("btnSbReload"), true);
     await loadInventory();
-    setLoading($("btnWelcomeReload"), false);
+    setLoading($("btnSbReload"), false);
   });
+
+  /* ── config panel ── */
+  $("btnSbConfigToggle").addEventListener("click", () => {
+    const section = $("sbConfig");
+    const body    = $("sbConfigBody");
+    section.classList.toggle("open");
+    body.classList.toggle("hidden");
+  });
+
+  const SVG_EYE_OFF = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`;
+  const SVG_EYE_ON  = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
+
+  function makeEyeToggle(btnId, fieldId) {
+    const btn   = $(btnId);
+    const field = $(fieldId);
+    btn.addEventListener("click", () => {
+      const reveal    = field.type === "password";
+      field.type      = reveal ? "text" : "password";
+      btn.innerHTML   = reveal ? SVG_EYE_ON : SVG_EYE_OFF;
+    });
+  }
+  makeEyeToggle("btnToggleSbEmail",  "sbEmailField");
+  makeEyeToggle("btnToggleSbApiKey", "sbApiKeyField");
+
+  $("btnSbSaveCreds").addEventListener("click", async () => {
+    const email  = $("sbEmailField").value.trim();
+    const apiKey = $("sbApiKeyField").value.trim();
+    if (!email || !apiKey) return;
+    $("email").value  = email;
+    $("apiKey").value = apiKey;
+    setLoading($("btnSbSaveCreds"), true);
+    await loadInventory();
+    setLoading($("btnSbSaveCreds"), false);
+  });
+
+  /* ── sidebar collapse toggle ── */
+  (function() {
+    const sidebar = $("sidebar");
+    if (localStorage.getItem("tigertag.sidebar") === "collapsed") {
+      sidebar.classList.add("collapsed");
+    }
+    $("btnSidebarToggle").addEventListener("click", () => {
+      const collapsed = sidebar.classList.toggle("collapsed");
+      localStorage.setItem("tigertag.sidebar", collapsed ? "collapsed" : "expanded");
+    });
+  })();
 
   /* ── persistence ── */
   function saveCreds() {
@@ -815,14 +1095,14 @@
     const all = state.rows; const active = all.filter(r => !r.deleted);
     const plus = active.filter(r => r.isPlus);
     const totalW = active.reduce((s, r) => s + (Number(r.weightAvailable)||0), 0);
-    const el = $("invStats");
+    const el = $("sbStats");
     if (!all.length) { el.classList.add("hidden"); return; }
     el.innerHTML = [
       { label: t("statActive"), value: active.length },
       { label: t("statPlus"),   value: plus.length },
       { label: t("statDiy"),    value: active.length - plus.length },
       { label: t("statTotal"),  value: `${(totalW / 1000).toLocaleString(undefined, {minimumFractionDigits:1, maximumFractionDigits:2})} kg` },
-    ].map(s => `<div class="stat"><div class="label">${s.label}</div><div class="value">${s.value}</div></div>`).join("");
+    ].map(s => `<div class="sb-stat"><div class="label">${s.label}</div><div class="value">${s.value}</div></div>`).join("");
     el.classList.remove("hidden");
   }
 
@@ -933,11 +1213,6 @@
   });
   if (state.viewMode === "grid") { $("btnViewGrid").classList.add("active"); $("btnViewTable").classList.remove("active"); }
 
-  $("btnFilter").addEventListener("click", () => {
-    state.showDeleted = !state.showDeleted;
-    $("filterLabel").textContent = t(state.showDeleted ? "btnHideDeleted" : "btnShowDeleted");
-    renderInventory();
-  });
   $("searchInv").addEventListener("input", e => { state.search = e.target.value.trim(); renderInventory(); });
 
   $("btnExport").addEventListener("click", () => {
@@ -1179,6 +1454,14 @@
     } catch (e) { toast($("panelWeightResult"), "bad", e.message || t("networkError")); }
     finally { setLoading(btn, false); }
   }
+
+  /* ── debug panel ── */
+  function openDebug()  { $("debugPanel").classList.add("open");  $("debugOverlay").classList.add("open"); }
+  function closeDebug() { $("debugPanel").classList.remove("open"); $("debugOverlay").classList.remove("open"); }
+  $("btnDebug").addEventListener("click", openDebug);
+  $("debugPanelClose").addEventListener("click", closeDebug);
+  $("debugOverlay").addEventListener("click", closeDebug);
+  document.addEventListener("keydown", e => { if (e.key === "Escape") closeDebug(); });
 
   /* ── language toggle ── */
   document.querySelectorAll(".lang-btn").forEach(btn => {
