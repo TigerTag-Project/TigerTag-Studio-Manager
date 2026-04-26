@@ -5,9 +5,13 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: macos-latest
@@ -24,16 +28,19 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
-      - name: Install dependencies (Linux)
+      - name: Install Linux system dependencies
         if: matrix.os == 'ubuntu-latest'
-        run: sudo apt-get install -y libpcsclite-dev
-
-      - name: Install dependencies (Windows)
-        if: matrix.os == 'windows-latest'
-        run: choco install visualstudio2022buildtools --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools"
-        continue-on-error: true
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y \
+            libpcsclite-dev \
+            libusb-1.0-0-dev \
+            build-essential \
+            python3 \
+            rpm \
+            fakeroot
 
       - run: npm ci
 

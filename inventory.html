@@ -261,6 +261,26 @@
   pre.json { margin: 0; padding: 12px; background: #0e1422; color: #e7ebf3; border-radius: var(--radius-sm); font-family: var(--mono); font-size: 12.5px; line-height: 1.5; overflow: auto; max-height: 360px; }
   pre.json .k { color: #ffb45b; } pre.json .s { color: #b8e1a8; } pre.json .n { color: #7fb6ff; } pre.json .b { color: #ff8aa3; }
 
+  /* ── lang toggle ── */
+  .lang-toggle { display:flex; gap:2px; background:var(--surface-2); padding:3px; border-radius:var(--radius-sm); }
+  .lang-btn { height:26px; padding:0 10px; font-size:12px; font-weight:700; letter-spacing:.04em; border:none; background:transparent; color:var(--muted); border-radius:7px; cursor:pointer; font-family:inherit; }
+  .lang-btn.active { background:var(--surface); color:var(--text); box-shadow:0 1px 3px rgba(0,0,0,.08); }
+  .lang-btn:hover:not(.active) { background:rgba(0,0,0,.04); }
+
+  /* ── update banner ── */
+  .update-banner {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: #1c2030; color: #fff; border-radius: var(--radius);
+    padding: 12px 18px; display: flex; align-items: center; gap: 14px;
+    box-shadow: 0 4px 24px rgba(0,0,0,.35); z-index: 200;
+    font-size: 13px; white-space: nowrap;
+    animation: slideUp .25s cubic-bezier(.4,0,.2,1);
+  }
+  .update-banner .ub-icon { font-size: 18px; }
+  .update-banner .ub-text { color: rgba(255,255,255,.75); }
+  .update-banner .ub-text strong { color: #fff; }
+  @keyframes slideUp { from { opacity:0; transform: translateX(-50%) translateY(12px); } to { opacity:1; transform: translateX(-50%) translateY(0); } }
+
   .hidden { display: none !important; }
   .gap-1 { gap: 8px; }
   .footer-note { margin-top: 24px; text-align: center; color: var(--muted); font-size: 12px; }
@@ -272,9 +292,13 @@
   <header class="top">
     <div>
       <h1><span class="dot"></span>TigerTag Inventory</h1>
-      <div class="subtitle">View and manage your filament spools</div>
+      <div class="subtitle" data-i18n="appSubtitle">View and manage your filament spools</div>
     </div>
     <div style="display:flex;gap:12px;align-items:center">
+      <div class="lang-toggle">
+        <button class="lang-btn active" data-lang="en">EN</button>
+        <button class="lang-btn" data-lang="fr">FR</button>
+      </div>
       <div class="health" id="rfidStatus" style="display:none"><span class="pulse"></span><span id="rfidLabel">RFID: —</span></div>
       <div class="health" id="health"><span class="pulse"></span><span id="healthLabel">Backend: idle</span></div>
     </div>
@@ -285,38 +309,38 @@
     <div class="welcome-left">
       <div class="welcome-avatar" id="welcomeAvatar">?</div>
       <div class="welcome-text">
-        <div class="hey">👋 Welcome back,</div>
+        <div class="hey" data-i18n="welcomeBack">👋 Welcome back,</div>
         <div class="name" id="welcomeName">—</div>
         <div class="sub" id="welcomeSub">—</div>
       </div>
     </div>
     <div class="welcome-actions">
-      <button id="btnWelcomeReload" class="btn-reload"><span class="spinner"></span><span class="label">↻ Refresh</span></button>
-      <button id="btnWelcomeSwitch">Switch account</button>
+      <button id="btnWelcomeReload" class="btn-reload"><span class="spinner"></span><span class="label" data-i18n="btnRefresh">↻ Refresh</span></button>
+      <button id="btnWelcomeSwitch" data-i18n="btnSwitchAccount">Switch account</button>
     </div>
   </div>
 
   <!-- credentials -->
   <section class="card" id="card-creds" style="margin-bottom:18px">
-    <h2><span class="num">1</span>Credentials</h2>
+    <h2><span class="num">1</span><span data-i18n="credTitle">Credentials</span></h2>
     <div class="row gap-1">
       <label class="field" style="flex:2 1 260px">
-        <span>Email</span>
+        <span data-i18n="credEmail">Email</span>
         <input id="email" type="email" autocomplete="email" placeholder="you@example.com" />
       </label>
       <label class="field" style="flex:1 1 150px">
-        <span>API Key</span>
+        <span data-i18n="credApiKey">API Key</span>
         <input id="apiKey" class="mono" type="text" placeholder="E0F8LJ" maxlength="32" autocomplete="off" />
       </label>
       <div style="display:flex;flex-direction:column;gap:6px">
-        <span style="font-size:12px;color:var(--muted)">Status</span>
-        <span id="keyStatus" class="badge">untested</span>
+        <span style="font-size:12px;color:var(--muted)" data-i18n="credStatus">Status</span>
+        <span id="keyStatus" class="badge">—</span>
       </div>
     </div>
     <div class="row gap-1" style="margin-top:12px">
-      <button id="btnLoadInv" class="primary"><span class="spinner"></span><span class="label">Load inventory</span></button>
-      <button id="btnTestKey"><span class="spinner"></span><span class="label">Test API key</span></button>
-      <button id="btnClearSaved" class="ghost"><span class="label">Clear saved data</span></button>
+      <button id="btnLoadInv" class="primary"><span class="spinner"></span><span class="label" data-i18n="btnLoadInv">Load inventory</span></button>
+      <button id="btnTestKey"><span class="spinner"></span><span class="label" data-i18n="btnTestKey">Test API key</span></button>
+      <button id="btnClearSaved" class="ghost"><span class="label" data-i18n="btnClearSaved">Clear saved data</span></button>
     </div>
     <div id="credsResult"></div>
   </section>
@@ -324,18 +348,18 @@
   <!-- inventory -->
   <section class="card" id="card-inv">
     <div class="row between">
-      <h2 style="margin:0"><span class="num">2</span>Inventory <span id="invCount" class="badge info hidden" style="margin-left:6px;text-transform:none;font-size:12px">0</span></h2>
+      <h2 style="margin:0"><span class="num">2</span><span data-i18n="invTitle">Inventory</span> <span id="invCount" class="badge info hidden" style="margin-left:6px;text-transform:none;font-size:12px">0</span></h2>
       <div class="row gap-1">
         <div class="view-toggle">
-          <button id="btnViewTable" class="active">☰ Table</button>
-          <button id="btnViewGrid">⊞ Grid</button>
+          <button id="btnViewTable" class="active" data-i18n="btnViewTable">☰ Table</button>
+          <button id="btnViewGrid" data-i18n="btnViewGrid">⊞ Grid</button>
         </div>
-        <button id="btnFilter" class="ghost sm"><span class="label" id="filterLabel">Show deleted</span></button>
-        <button id="btnExport" class="ghost sm"><span class="label">↓ JSON</span></button>
+        <button id="btnFilter" class="ghost sm"><span class="label" id="filterLabel" data-i18n="btnShowDeleted">Show deleted</span></button>
+        <button id="btnExport" class="ghost sm"><span class="label" data-i18n="btnExport">↓ JSON</span></button>
       </div>
     </div>
     <div style="margin-top:10px">
-      <input id="searchInv" type="text" placeholder="Search material, brand, color, UID…" style="max-width:340px" />
+      <input id="searchInv" type="text" placeholder="Search material, brand, color, UID…" data-i18n-placeholder="searchPlaceholder" style="max-width:340px" />
     </div>
     <div id="invStats" class="stats hidden" style="margin-top:12px"></div>
     <div id="invEmpty" class="empty">No inventory loaded yet.</div>
@@ -346,14 +370,14 @@
         <thead>
           <tr>
             <th></th>
-            <th>UID</th>
-            <th>Type</th>
-            <th>Material</th>
-            <th>Brand</th>
-            <th>Color / Name</th>
-            <th>Weight avail.</th>
-            <th>Capacity</th>
-            <th>Updated</th>
+            <th data-i18n="thUid">UID</th>
+            <th data-i18n="thType">Type</th>
+            <th data-i18n="thMaterial">Material</th>
+            <th data-i18n="thBrand">Brand</th>
+            <th data-i18n="thColor">Color / Name</th>
+            <th data-i18n="thWeight">Weight avail.</th>
+            <th data-i18n="thCapacity">Capacity</th>
+            <th data-i18n="thUpdated">Updated</th>
           </tr>
         </thead>
         <tbody id="invBody"></tbody>
@@ -369,13 +393,20 @@
   <!-- debug -->
   <section class="card">
     <details class="debug">
-      <summary><strong>Debug</strong> — last API request &amp; response</summary>
-      <div class="debug-meta" id="debugMeta">No requests yet.</div>
+      <summary><strong data-i18n="debugLabel">Debug</strong><span data-i18n="debugSubtitle"> — last API request &amp; response</span></summary>
+      <div class="debug-meta" id="debugMeta" data-i18n="debugNoReqs">No requests yet.</div>
       <pre class="json" id="debugBody">{}</pre>
     </details>
   </section>
 
   <div class="footer-note">https://cdn.tigertag.io</div>
+</div>
+
+<!-- update banner -->
+<div id="updateBanner" class="update-banner hidden">
+  <span class="ub-icon">⬆</span>
+  <span class="ub-text" id="updateMsg"><strong>Update available</strong> — downloading…</span>
+  <button id="btnInstallUpdate" class="primary sm hidden">Restart &amp; update</button>
 </div>
 
 <!-- detail panel -->
@@ -395,6 +426,92 @@
   const STORAGE_INV = "tigertag.inventory";
   const LOGO_PATH = "assets/svg/tigertag_logo.svg";
 
+  /* ── Translations ── */
+  const TRANSLATIONS = {
+    en: {
+      appSubtitle: "View and manage your filament spools",
+      backendIdle: "Backend: idle", backendOk: "Backend: ok",
+      backendErr: n => `Backend: ${n}`, backendOffline: "Backend: offline",
+      rfidConnected: name => `RFID: ${name || "connected"}`, rfidNoReader: "RFID: no reader",
+      rfidScanned: uid => `RFID: ${uid.slice(-6)}`,
+      rfidNotFound: uid => `RFID scanned: ${uid} — spool not found in current inventory.`,
+      welcomeBack: "👋 Welcome back,", btnRefresh: "↻ Refresh", btnSwitchAccount: "Switch account",
+      credTitle: "Credentials", credEmail: "Email", credApiKey: "API Key", credStatus: "Status",
+      statusUntested: "untested", statusValid: "valid", statusInvalid: "invalid", statusChecking: "checking…",
+      btnLoadInv: "Load inventory", btnTestKey: "Test API key", btnClearSaved: "Clear saved data",
+      invTitle: "Inventory", btnViewTable: "☰ Table", btnViewGrid: "⊞ Grid",
+      btnShowDeleted: "Show deleted", btnHideDeleted: "Hide deleted",
+      btnExport: "↓ JSON", searchPlaceholder: "Search material, brand, color, UID…",
+      noInventory: "No inventory loaded yet.", noMatch: "No spools match the filters.",
+      statActive: "Active spools", statPlus: "TigerTag+", statDiy: "TigerTag DIY", statTotal: "Total available",
+      thUid: "UID", thType: "Type", thMaterial: "Material", thBrand: "Brand",
+      thColor: "Color / Name", thWeight: "Weight avail.", thCapacity: "Capacity", thUpdated: "Updated",
+      debugLabel: "Debug", debugSubtitle: " — last API request & response", debugNoReqs: "No requests yet.",
+      sectionColors: n => `Color${n > 1 ? "s" : ""}`, sectionPrint: "Print settings",
+      sectionWeight: "Weight", sectionLinks: "Documents & links",
+      sectionDetails: "Details", sectionRaw: "Raw JSON — spool data",
+      lbNozzle: "Nozzle", lbBed: "Bed", lbDryTemp: "Dry temp", lbDryTime: "Dry time", lbDensity: "Density",
+      weightTotal: cap => `${cap} g total`, weightContainer: cw => `Container: ${cw} g`,
+      btnUpdate: "Update", btnEditManually: "✎ Edit manually", btnCloseManual: "✕ Close",
+      rawScaleLabel: "▸ Use raw scale weight (with container)",
+      rawScaleHint: "Weigh spool + container on the scale — the server subtracts the container weight.",
+      linkYt: "▶ YouTube", linkFood: "Food safe",
+      detUid: "UID", detSeries: "Series", detBrand: "Brand", detMaterial: "Material",
+      detDiameter: "Diameter", detTagType: "Tag type", detSku: "SKU", detBarcode: "Barcode",
+      detContainer: "Container", detTwin: "Twin tag", detUpdated: "Updated",
+      badgeRefill: "♻ Refill", badgeRecycled: "🌿 Recycled", badgeFilled: "◈ Filled", badgeDeleted: "Deleted",
+      loadedSpools: n => `Loaded ${n} spools.`,
+      invError: r => `Inventory error: ${r}`, invalidKey: r => `Invalid: ${r}`, networkError: "Network error",
+      enterNumeric: "Enter a numeric weight.",
+      weightOk: (wa, w, cw, twin) => `✓ ${wa} g available (${w} g − ${cw} g container)${twin ? " · twin updated" : ""}`,
+      weightErr: (r, c) => `${r}${c != null ? " · computed: " + c + " g" : ""}`,
+      updateDownloading: "<strong>Update available</strong> — downloading…",
+      updateReady: "<strong>Update ready!</strong> Restart to install.",
+      btnRestartUpdate: "Restart & update",
+    },
+    fr: {
+      appSubtitle: "Consultez et gérez vos bobines de filament",
+      backendIdle: "Serveur : inactif", backendOk: "Serveur : ok",
+      backendErr: n => `Serveur : ${n}`, backendOffline: "Serveur : hors ligne",
+      rfidConnected: name => `RFID : ${name || "connecté"}`, rfidNoReader: "RFID : aucun lecteur",
+      rfidScanned: uid => `RFID : ${uid.slice(-6)}`,
+      rfidNotFound: uid => `RFID lu : ${uid} — bobine introuvable dans l'inventaire.`,
+      welcomeBack: "👋 Bienvenue,", btnRefresh: "↻ Actualiser", btnSwitchAccount: "Changer de compte",
+      credTitle: "Identifiants", credEmail: "E-mail", credApiKey: "Clé API", credStatus: "Statut",
+      statusUntested: "non testé", statusValid: "valide", statusInvalid: "invalide", statusChecking: "vérification…",
+      btnLoadInv: "Charger l'inventaire", btnTestKey: "Tester la clé API", btnClearSaved: "Effacer les données",
+      invTitle: "Inventaire", btnViewTable: "☰ Tableau", btnViewGrid: "⊞ Grille",
+      btnShowDeleted: "Afficher supprimés", btnHideDeleted: "Masquer supprimés",
+      btnExport: "↓ JSON", searchPlaceholder: "Rechercher matière, marque, couleur, UID…",
+      noInventory: "Aucun inventaire chargé.", noMatch: "Aucune bobine ne correspond aux filtres.",
+      statActive: "Bobines actives", statPlus: "TigerTag+", statDiy: "TigerTag DIY", statTotal: "Poids total disponible",
+      thUid: "UID", thType: "Type", thMaterial: "Matière", thBrand: "Marque",
+      thColor: "Couleur / Nom", thWeight: "Poids dispo.", thCapacity: "Capacité", thUpdated: "Mis à jour",
+      debugLabel: "Debug", debugSubtitle: " — dernière requête & réponse API", debugNoReqs: "Aucune requête effectuée.",
+      sectionColors: n => `Couleur${n > 1 ? "s" : ""}`, sectionPrint: "Paramètres d'impression",
+      sectionWeight: "Poids", sectionLinks: "Documents & liens",
+      sectionDetails: "Détails", sectionRaw: "JSON brut — données bobine",
+      lbNozzle: "Buse", lbBed: "Plateau", lbDryTemp: "Temp. séchage", lbDryTime: "Durée séchage", lbDensity: "Densité",
+      weightTotal: cap => `${cap} g total`, weightContainer: cw => `Contenant : ${cw} g`,
+      btnUpdate: "Mettre à jour", btnEditManually: "✎ Saisir manuellement", btnCloseManual: "✕ Fermer",
+      rawScaleLabel: "▸ Poids brut avec contenant",
+      rawScaleHint: "Pesez la bobine + le contenant — le serveur soustrait le poids du contenant.",
+      linkYt: "▶ YouTube", linkFood: "Alimentaire",
+      detUid: "UID", detSeries: "Série", detBrand: "Marque", detMaterial: "Matière",
+      detDiameter: "Diamètre", detTagType: "Type de tag", detSku: "SKU", detBarcode: "Code-barres",
+      detContainer: "Contenant", detTwin: "Tag jumeau", detUpdated: "Mis à jour",
+      badgeRefill: "♻ Rechargeable", badgeRecycled: "🌿 Recyclé", badgeFilled: "◈ Rempli", badgeDeleted: "Supprimé",
+      loadedSpools: n => `${n} bobine${n > 1 ? "s" : ""} chargée${n > 1 ? "s" : ""}.`,
+      invError: r => `Erreur inventaire : ${r}`, invalidKey: r => `Invalide : ${r}`, networkError: "Erreur réseau",
+      enterNumeric: "Entrez un poids numérique.",
+      weightOk: (wa, w, cw, twin) => `✓ ${wa} g disponibles (${w} g − ${cw} g contenant)${twin ? " · jumeau mis à jour" : ""}`,
+      weightErr: (r, c) => `${r}${c != null ? " · calculé : " + c + " g" : ""}`,
+      updateDownloading: "<strong>Mise à jour disponible</strong> — téléchargement…",
+      updateReady: "<strong>Mise à jour prête !</strong> Redémarrez pour installer.",
+      btnRestartUpdate: "Redémarrer & installer",
+    },
+  };
+
   const state = {
     inventory: null,
     rows: [],
@@ -404,10 +521,28 @@
     showDeleted: false,
     search: "",
     viewMode: localStorage.getItem("tigertag.view") || "table",
+    lang: localStorage.getItem("tigertag.lang") || "en",
     db: { brand: [], material: [], aspect: [], type: [], diameter: [], unit: [], version: [] }
   };
 
   const $ = id => document.getElementById(id);
+
+  function t(key, ...args) {
+    const dict = TRANSLATIONS[state.lang] || TRANSLATIONS.en;
+    const val = (key in dict) ? dict[key] : (TRANSLATIONS.en[key] ?? key);
+    return typeof val === "function" ? val(...args) : (val ?? key);
+  }
+
+  function applyTranslations() {
+    document.documentElement.lang = state.lang;
+    document.querySelectorAll("[data-i18n]").forEach(el => { el.textContent = t(el.dataset.i18n); });
+    document.querySelectorAll("[data-i18n-placeholder]").forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
+    document.querySelectorAll(".lang-btn").forEach(btn => btn.classList.toggle("active", btn.dataset.lang === state.lang));
+    $("filterLabel").textContent = t(state.showDeleted ? "btnHideDeleted" : "btnShowDeleted");
+    if (state.keyValid === true) setKeyStatus("ok");
+    else if (state.keyValid === false) setKeyStatus("bad");
+    else setKeyStatus("untested");
+  }
 
   /* ── helpers ── */
   function v(val) { return (val === undefined || val === null || val === "" || val === "--") ? "-" : val; }
@@ -530,8 +665,8 @@
       const r = await fetch(`${API_BASE}/healthz/`);
       $("health").classList.toggle("ok", r.ok);
       $("health").classList.toggle("bad", !r.ok);
-      $("healthLabel").textContent = r.ok ? "Backend: ok" : `Backend: ${r.status}`;
-    } catch { $("health").classList.add("bad"); $("healthLabel").textContent = "Backend: offline"; }
+      $("healthLabel").textContent = r.ok ? t("backendOk") : t("backendErr", r.status);
+    } catch { $("health").classList.add("bad"); $("healthLabel").textContent = t("backendOffline"); }
   }
   pingHealth();
 
@@ -608,10 +743,10 @@
   /* ── key status ── */
   function setKeyStatus(s) {
     const el = $("keyStatus"); el.classList.remove("ok","bad","warn","info");
-    if (s === "ok")       { el.classList.add("ok");  el.textContent = "valid"; }
-    else if (s === "bad") { el.classList.add("bad"); el.textContent = "invalid"; }
-    else if (s === "checking") { el.textContent = "checking…"; }
-    else { el.textContent = "untested"; }
+    if (s === "ok")        { el.classList.add("ok");  el.textContent = t("statusValid"); }
+    else if (s === "bad")  { el.classList.add("bad"); el.textContent = t("statusInvalid"); }
+    else if (s === "checking") { el.textContent = t("statusChecking"); }
+    else { el.textContent = t("statusUntested"); }
   }
   $("apiKey").addEventListener("input", () => { state.keyValid = null; setKeyStatus("untested"); });
 
@@ -623,8 +758,8 @@
       const ok = r.ok && r.body && r.body.success === true;
       state.keyValid = ok; setKeyStatus(ok ? "ok" : "bad");
       if (ok) { saveCreds(); setConnected(r.body.displayName || r.body.uid || "", $("email").value.trim(), key); }
-      else toast($("credsResult"), "bad", `Invalid: ${(r.body && r.body.reason) || "HTTP " + r.status}`);
-    } catch (e) { setKeyStatus("bad"); toast($("credsResult"), "bad", e.message || "Network error"); }
+      else toast($("credsResult"), "bad", t("invalidKey", (r.body && r.body.reason) || "HTTP " + r.status));
+    } catch (e) { setKeyStatus("bad"); toast($("credsResult"), "bad", e.message || t("networkError")); }
     finally { setLoading(btn, false); }
   });
 
@@ -645,15 +780,15 @@
       if (!r.ok || (r.body && r.body.success === false)) {
         const reason = (r.body && r.body.reason) || `HTTP ${r.status}`;
         state.inventory = null; state.rows = []; renderInventory(); renderStats(); setKeyStatus("bad");
-        toast($("credsResult"), "bad", `Inventory error: ${reason}`); return;
+        toast($("credsResult"), "bad", t("invError", reason)); return;
       }
       state.inventory = r.body || {};
       state.rows = Object.entries(state.inventory).map(([k,vv]) => normalizeRow(k, vv||{}));
       sortRows(); state.keyValid = true; setKeyStatus("ok"); saveCreds(); saveInventory(state.inventory);
       setConnected(state.displayName, email, key);
-      toast($("credsResult"), "ok", `Loaded ${state.rows.length} spools.`);
+      toast($("credsResult"), "ok", t("loadedSpools", state.rows.length));
       renderStats(); renderInventory();
-    } catch (e) { toast($("credsResult"), "bad", e.message || "Network error"); }
+    } catch (e) { toast($("credsResult"), "bad", e.message || t("networkError")); }
     finally { setLoading(btn, false); }
   }
 
@@ -669,10 +804,10 @@
     const el = $("invStats");
     if (!all.length) { el.classList.add("hidden"); return; }
     el.innerHTML = [
-      { label: "Active spools", value: active.length },
-      { label: "TigerTag+",     value: plus.length },
-      { label: "TigerTag DIY",  value: active.length - plus.length },
-      { label: "Total available", value: `${totalW.toLocaleString()} g` },
+      { label: t("statActive"), value: active.length },
+      { label: t("statPlus"),   value: plus.length },
+      { label: t("statDiy"),    value: active.length - plus.length },
+      { label: t("statTotal"),  value: `${totalW.toLocaleString()} g` },
     ].map(s => `<div class="stat"><div class="label">${s.label}</div><div class="value">${s.value}</div></div>`).join("");
     el.classList.remove("hidden");
   }
@@ -700,7 +835,7 @@
     $("invCount").classList.toggle("hidden", state.rows.length === 0);
     if (rows.length === 0) {
       $("invTableWrap").classList.add("hidden"); $("invGrid").classList.add("hidden");
-      $("invEmpty").textContent = state.rows.length === 0 ? "No inventory loaded yet." : "No spools match the filters.";
+      $("invEmpty").textContent = state.rows.length === 0 ? t("noInventory") : t("noMatch");
       $("invEmpty").classList.remove("hidden"); return;
     }
     $("invEmpty").classList.add("hidden");
@@ -787,7 +922,7 @@
 
   $("btnFilter").addEventListener("click", () => {
     state.showDeleted = !state.showDeleted;
-    $("filterLabel").textContent = state.showDeleted ? "Hide deleted" : "Show deleted";
+    $("filterLabel").textContent = t(state.showDeleted ? "btnHideDeleted" : "btnShowDeleted");
     renderInventory();
   });
   $("searchInv").addEventListener("input", e => { state.search = e.target.value.trim(); renderInventory(); });
@@ -834,7 +969,7 @@
 
     $("btnManualEdit").addEventListener("click", () => {
       const nowHidden = manualRow.classList.toggle("hidden");
-      $("btnManualEdit").textContent = nowHidden ? "✎ Edit manually" : "✕ Close";
+      $("btnManualEdit").textContent = nowHidden ? t("btnEditManually") : t("btnCloseManual");
       if (!nowHidden) { manualIn.value = slider.value; manualIn.focus(); manualIn.select(); }
     });
 
@@ -852,7 +987,6 @@
 
   function buildPanelHTML(r) {
     const mat = r.materialData;
-    const pct = (r.weightAvailable!=null && r.capacity) ? Math.max(0,Math.min(100,Math.round(r.weightAvailable/r.capacity*100))) : null;
 
     // image
     let imgSection = "";
@@ -870,27 +1004,27 @@
       colorsHtml = `<div class="color-dots"><div class="color-dot" style="background:${r.colorHex}"></div></div>`;
     }
 
-    // print settings — from raw data2-data7 (direct), fallback to id_material lookup
-    const t = r.temps;
-    const hasDirect = t.nozzleMin || t.nozzleMax || t.bedMin || t.bedMax || t.dryTemp || t.dryTime;
+    // print settings — renamed local var to avoid shadowing t()
+    const temps = r.temps;
+    const hasDirect = temps.nozzleMin || temps.nozzleMax || temps.bedMin || temps.bedMax || temps.dryTemp || temps.dryTime;
     const rec = mat && mat.recommended;
     let tempHtml = "";
     if (hasDirect || rec) {
-      const nozzle = t.nozzleMin && t.nozzleMax ? `${t.nozzleMin}–${t.nozzleMax} °C`
+      const nozzle = temps.nozzleMin && temps.nozzleMax ? `${temps.nozzleMin}–${temps.nozzleMax} °C`
                    : rec ? `${rec.nozzleTempMin}–${rec.nozzleTempMax} °C` : "—";
-      const bed    = t.bedMin && t.bedMax ? `${t.bedMin}–${t.bedMax} °C`
+      const bed    = temps.bedMin && temps.bedMax ? `${temps.bedMin}–${temps.bedMax} °C`
                    : rec ? `${rec.bedTempMin}–${rec.bedTempMax} °C` : "—";
-      const dryT   = t.dryTemp ? `${t.dryTemp} °C` : rec ? `${rec.dryTemp} °C` : "—";
-      const dryH   = t.dryTime ? `${t.dryTime} h`  : rec ? `${rec.dryTime} h`  : "—";
-      const density = mat && mat.density ? `<div style="margin-top:8px;font-size:12px;color:var(--muted)">Density: ${mat.density} g/cm³</div>` : "";
+      const dryT   = temps.dryTemp ? `${temps.dryTemp} °C` : rec ? `${rec.dryTemp} °C` : "—";
+      const dryH   = temps.dryTime ? `${temps.dryTime} h`  : rec ? `${rec.dryTime} h`  : "—";
+      const density = mat && mat.density ? `<div style="margin-top:8px;font-size:12px;color:var(--muted)">${t("lbDensity")}: ${mat.density} g/cm³</div>` : "";
       tempHtml = `
       <div class="panel-section">
-        <div class="panel-label">Print settings</div>
+        <div class="panel-label">${t("sectionPrint")}</div>
         <div class="temp-grid">
-          <div class="temp-chip"><div class="tc-label">Nozzle</div><div class="tc-value">${nozzle}</div></div>
-          <div class="temp-chip"><div class="tc-label">Bed</div><div class="tc-value">${bed}</div></div>
-          <div class="temp-chip"><div class="tc-label">Dry temp</div><div class="tc-value">${dryT}</div></div>
-          <div class="temp-chip"><div class="tc-label">Dry time</div><div class="tc-value">${dryH}</div></div>
+          <div class="temp-chip"><div class="tc-label">${t("lbNozzle")}</div><div class="tc-value">${nozzle}</div></div>
+          <div class="temp-chip"><div class="tc-label">${t("lbBed")}</div><div class="tc-value">${bed}</div></div>
+          <div class="temp-chip"><div class="tc-label">${t("lbDryTemp")}</div><div class="tc-value">${dryT}</div></div>
+          <div class="temp-chip"><div class="tc-label">${t("lbDryTime")}</div><div class="tc-value">${dryH}</div></div>
         </div>
         ${density}
       </div>`;
@@ -898,25 +1032,25 @@
 
     // info badges (Refill / Recycled / Filled)
     const infoBadges = [
-      r.isRefill   ? "♻ Refill"   : null,
-      r.isRecycled ? "🌿 Recycled" : null,
-      r.isFilled   ? "◈ Filled"   : null,
+      r.isRefill   ? t("badgeRefill")   : null,
+      r.isRecycled ? t("badgeRecycled") : null,
+      r.isFilled   ? t("badgeFilled")   : null,
     ].filter(Boolean);
     const infoHtml2 = infoBadges.length ? `<div class="aspect-chips" style="margin-top:8px">${infoBadges.map(b=>`<span class="aspect-chip">${b}</span>`).join("")}</div>` : "";
 
     // links
     const linkDefs = [
-      { key: "youtube", label: "▶ YouTube" },
+      { key: "youtube", label: t("linkYt") },
       { key: "msds",    label: "MSDS" },
       { key: "tds",     label: "TDS" },
       { key: "rohs",    label: "RoHS" },
       { key: "reach",   label: "REACH" },
-      { key: "food",    label: "Food safe" },
+      { key: "food",    label: t("linkFood") },
     ];
     const activeLinks = linkDefs.filter(l => r.links[l.key]);
     const linksHtml = activeLinks.length ? `
       <div class="panel-section">
-        <div class="panel-label">Documents & links</div>
+        <div class="panel-label">${t("sectionLinks")}</div>
         <div class="links-row">${activeLinks.map(l => `<a class="link-btn" href="${esc(r.links[l.key])}" target="_blank" rel="noopener">${l.label}</a>`).join("")}</div>
       </div>` : "";
 
@@ -925,11 +1059,11 @@
     const curW = r.weightAvailable != null ? r.weightAvailable : 0;
     const weightHtml = `
       <div class="panel-section">
-        <div class="panel-label">Weight</div>
+        <div class="panel-label">${t("sectionWeight")}</div>
         <div class="weight-bar-wrap">
           <div class="wb-labels">
             <div class="wb-val" id="sliderDisplay">${curW}<span>g</span></div>
-            <div class="wb-cap">${cap} g total</div>
+            <div class="wb-cap">${t("weightTotal", cap)}</div>
           </div>
           <div class="wb-track">
             <div class="wb-fill" id="wbFill" style="width:${Math.round(curW/cap*100)}%"></div>
@@ -941,9 +1075,9 @@
         </div>
 
         <div style="display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap">
-          <button id="panelWeightBtn" class="primary sm"><span class="spinner"></span><span class="label">Update</span></button>
-          <button id="btnManualEdit" class="ghost sm">✎ Edit manually</button>
-          <span style="font-size:11px;color:var(--muted)">Container: ${v(r.containerWeight)} g</span>
+          <button id="panelWeightBtn" class="primary sm"><span class="spinner"></span><span class="label">${t("btnUpdate")}</span></button>
+          <button id="btnManualEdit" class="ghost sm">${t("btnEditManually")}</button>
+          <span style="font-size:11px;color:var(--muted)">${t("weightContainer", v(r.containerWeight))}</span>
         </div>
 
         <div class="weight-manual-row hidden" id="manualRow">
@@ -952,12 +1086,12 @@
         </div>
 
         <details style="margin-top:10px">
-          <summary style="font-size:12px;color:var(--muted);cursor:pointer;user-select:none">▸ Use raw scale weight (with container)</summary>
+          <summary style="font-size:12px;color:var(--muted);cursor:pointer;user-select:none">${t("rawScaleLabel")}</summary>
           <div style="margin-top:8px">
-            <div class="weight-mode-hint">Weigh spool + container on the scale — the server subtracts the container weight.</div>
+            <div class="weight-mode-hint">${t("rawScaleHint")}</div>
             <div class="weight-form">
               <input type="number" id="panelWeightRaw" min="0" step="1" placeholder="e.g. ${r.containerWeight ? curW + Number(r.containerWeight) : 800} g" />
-              <button id="panelWeightRawBtn" class="primary sm"><span class="spinner"></span><span class="label">Update</span></button>
+              <button id="panelWeightRawBtn" class="primary sm"><span class="spinner"></span><span class="label">${t("btnUpdate")}</span></button>
             </div>
           </div>
         </details>
@@ -967,34 +1101,33 @@
 
     // info rows
     const infoRows = [
-      ["UID",        r.uid],
-      ["Series",     r.series],
-      ["Brand",      r.brand],
-      ["Material",   r.material],
-      ["Diameter",   r.diameter],
-      // aspect shown as chips above
-      ["Tag type",   r.tagType],
-      ["SKU",        r.sku],
-      ["Barcode",    r.barcode],
-      ["Container",  r.containerId],
-      ["Twin tag",   r.twinUid],
-      ["Updated",    fmtTs(r.lastUpdate)],
+      [t("detUid"),       r.uid],
+      [t("detSeries"),    r.series],
+      [t("detBrand"),     r.brand],
+      [t("detMaterial"),  r.material],
+      [t("detDiameter"),  r.diameter],
+      [t("detTagType"),   r.tagType],
+      [t("detSku"),       r.sku],
+      [t("detBarcode"),   r.barcode],
+      [t("detContainer"), r.containerId],
+      [t("detTwin"),      r.twinUid],
+      [t("detUpdated"),   fmtTs(r.lastUpdate)],
     ].filter(([,val]) => val && val !== "-");
 
     const infoHtml = `
       <div class="panel-section">
-        <div class="panel-label">Details</div>
+        <div class="panel-label">${t("sectionDetails")}</div>
         ${infoRows.map(([k,val]) => `<div class="panel-row"><span class="pk">${k}</span><span class="pv">${esc(String(val))}</span></div>`).join("")}
         <div style="margin-top:8px;display:flex;gap:6px">
           ${r.isPlus ? '<span class="tag-plus">TigerTag+</span>' : '<span class="tag-diy">TigerTag DIY</span>'}
-          ${r.deleted ? '<span class="badge bad" style="font-size:11px">Deleted</span>' : ""}
+          ${r.deleted ? `<span class="badge bad" style="font-size:11px">${t("badgeDeleted")}</span>` : ""}
         </div>
       </div>`;
 
     return `
       ${imgSection}
       <div class="panel-section">
-        <div class="panel-label">Color${r.colorList.length > 1 ? "s" : ""} &amp; Aspect</div>
+        <div class="panel-label">${t("sectionColors", r.colorList.length)} &amp; Aspect</div>
         ${colorsHtml || ""}
         ${[r.aspect1, r.aspect2].filter(a => a && a !== "-" && a !== "None").length ? `
         <div class="aspect-chips">
@@ -1008,7 +1141,7 @@
       ${infoHtml}
       <div class="panel-section">
         <details class="debug">
-          <summary><strong>Raw JSON</strong> — spool data</summary>
+          <summary><strong>${t("sectionRaw")}</strong></summary>
           <pre class="json" style="margin-top:10px;max-height:400px">${highlight(r.raw)}</pre>
         </details>
       </div>`;
@@ -1016,7 +1149,7 @@
 
   async function doWeightUpdate(r, mode = "direct", w = "") {
     const key = $("apiKey").value.trim(); if (!key) return;
-    if (w === "" || isNaN(Number(w))) { toast($("panelWeightResult"), "bad", "Enter a numeric weight."); return; }
+    if (w === "" || isNaN(Number(w))) { toast($("panelWeightResult"), "bad", t("enterNumeric")); return; }
     const btn = mode === "raw" ? $("panelWeightRawBtn") : $("panelWeightBtn");
     setLoading(btn, true);
     try {
@@ -1024,17 +1157,31 @@
       const url = `${API_BASE}/setSpoolWeightByRfid?ApiKey=${encodeURIComponent(key)}&uid=${encodeURIComponent(r.spoolId)}&weight=${encodeURIComponent(w)}${extra}`;
       const res = await apiFetch(url); const b = res.body || {};
       if (b.success) {
-        toast($("panelWeightResult"), "ok", `✓ ${b.weight_available} g available (${b.weight} g − ${b.container_weight} g container)${b.twin_updated?" · twin updated":""}`);
+        toast($("panelWeightResult"), "ok", t("weightOk", b.weight_available, b.weight, b.container_weight, b.twin_updated));
         await loadInventory();
         openDetail(r.spoolId);
       } else {
-        toast($("panelWeightResult"), "bad", `${b.reason||"Error"}${b.computed_weight_available!=null?" · computed: "+b.computed_weight_available+" g":""}`);
+        toast($("panelWeightResult"), "bad", t("weightErr", b.reason || "Error", b.computed_weight_available));
       }
-    } catch (e) { toast($("panelWeightResult"), "bad", e.message||"Network error"); }
+    } catch (e) { toast($("panelWeightResult"), "bad", e.message || t("networkError")); }
     finally { setLoading(btn, false); }
   }
 
+  /* ── language toggle ── */
+  document.querySelectorAll(".lang-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      state.lang = btn.dataset.lang;
+      localStorage.setItem("tigertag.lang", state.lang);
+      applyTranslations();
+      renderStats();
+      renderInventory();
+      pingHealth();
+      if (state.selected) openDetail(state.selected);
+    });
+  });
+
   /* ── init ── */
+  applyTranslations();
   loadLookups().then(() => restoreAll());
 
   // ── Electron RFID integration ──
@@ -1047,7 +1194,7 @@
       el.style.display = "flex";
       el.classList.toggle("ok",  connected);
       el.classList.toggle("bad", !connected);
-      lbl.textContent = connected ? `RFID: ${name || "connected"}` : "RFID: no reader";
+      lbl.textContent = connected ? t("rfidConnected", name) : t("rfidNoReader");
     });
 
     // Card scanned → find spool and open detail panel
@@ -1058,7 +1205,7 @@
       const el = $("rfidStatus");
       el.style.display = "flex";
       el.classList.add("ok");
-      $("rfidLabel").textContent = `RFID: ${uid.slice(-6)}`;
+      $("rfidLabel").textContent = t("rfidScanned", uid);
 
       // Search in loaded inventory
       const row = state.rows.find(r => r.uid === uid || r.spoolId === uid);
@@ -1068,24 +1215,26 @@
       }
 
       // Unknown UID — show a toast and pre-fill RFID field if panel is open
-      toast($("credsResult"), "warn",
-        `RFID scanned: ${uid} — spool not found in current inventory.`
-      );
+      toast($("credsResult"), "warn", t("rfidNotFound", uid));
     });
 
     // Auto-update notification
     window.electronAPI.onUpdateStatus(({ status }) => {
+      const banner = $("updateBanner");
+      const msg    = $("updateMsg");
+      const btn    = $("btnInstallUpdate");
       if (status === 'available') {
-        toast($("credsResult"), "muted", "A new version is downloading…");
+        msg.innerHTML = t("updateDownloading");
+        btn.classList.add("hidden");
+        banner.classList.remove("hidden");
       } else if (status === 'ready') {
-        const div = document.createElement("div");
-        div.className = "alert ok";
-        div.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin-top:10px";
-        div.innerHTML = `<span>Update ready to install.</span>
-          <button class="primary sm" onclick="window.electronAPI.installUpdate()">Restart &amp; update</button>`;
-        $("credsResult").appendChild(div);
+        msg.innerHTML = t("updateReady");
+        btn.textContent = t("btnRestartUpdate");
+        btn.classList.remove("hidden");
+        banner.classList.remove("hidden");
       }
     });
+    $("btnInstallUpdate").addEventListener("click", () => window.electronAPI.installUpdate());
   }
 })();
 </script>
