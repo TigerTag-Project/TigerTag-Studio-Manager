@@ -28,7 +28,7 @@
     --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   }
   * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; }
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     background: var(--bg);
@@ -38,7 +38,10 @@
   }
 
   /* ── layout ── */
-  .container { max-width: 1200px; margin: 0 auto; padding: 28px 20px 80px; }
+  .container {
+    max-width: 1200px; margin: 0 auto; padding: 16px 20px 12px;
+    height: 100%; display: flex; flex-direction: column; overflow: hidden;
+  }
 
   header.top {
     display: flex; align-items: center; justify-content: space-between;
@@ -107,7 +110,10 @@
   .stat .value { font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; margin-top: 2px; }
 
   /* ── table ── */
-  .table-wrap { overflow: auto; border: 1px solid var(--border); border-radius: var(--radius-sm); margin-top: 12px; max-height: 60vh; }
+  .table-wrap { overflow: auto; border: 1px solid var(--border); border-radius: var(--radius-sm); margin-top: 12px; }
+  #card-inv { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+  #invTableWrap { flex: 1; min-height: 0; }
+  #invGrid { flex: 1; min-height: 0; overflow-y: auto; margin-top: 12px; }
   table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13.5px; }
   th, td { padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
   thead th { background: var(--surface-2); color: var(--muted); font-weight: 600; font-size: 12px; letter-spacing: .03em; text-transform: uppercase; position: sticky; top: 0; z-index: 1; }
@@ -370,7 +376,6 @@
         <thead>
           <tr>
             <th></th>
-            <th data-i18n="thUid">UID</th>
             <th data-i18n="thType">Type</th>
             <th data-i18n="thMaterial">Material</th>
             <th data-i18n="thBrand">Brand</th>
@@ -386,20 +391,14 @@
 
     <!-- grid view -->
     <div id="invGrid" class="inv-grid hidden"></div>
-  </section>
 
-  <div style="height:18px"></div>
-
-  <!-- debug -->
-  <section class="card">
-    <details class="debug">
+    <!-- debug -->
+    <details class="debug" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);flex-shrink:0">
       <summary><strong data-i18n="debugLabel">Debug</strong><span data-i18n="debugSubtitle"> — last API request &amp; response</span></summary>
       <div class="debug-meta" id="debugMeta" data-i18n="debugNoReqs">No requests yet.</div>
       <pre class="json" id="debugBody">{}</pre>
     </details>
   </section>
-
-  <div class="footer-note">https://cdn.tigertag.io</div>
 </div>
 
 <!-- update banner -->
@@ -468,6 +467,8 @@
       updateDownloading: "<strong>Update available</strong> — downloading…",
       updateReady: "<strong>Update ready!</strong> Restart to install.",
       btnRestartUpdate: "Restart & update",
+      agoNow: "just now", agoMin: m => `${m}m ago`, agoHour: h => `${h}h ago`,
+      agoDay: d => `${d}d ago`, agoMonth: mo => `${mo}mo ago`, agoYear: y => `${y}y ago`,
     },
     fr: {
       appSubtitle: "Consultez et gérez vos bobines de filament",
@@ -509,6 +510,8 @@
       updateDownloading: "<strong>Mise à jour disponible</strong> — téléchargement…",
       updateReady: "<strong>Mise à jour prête !</strong> Redémarrez pour installer.",
       btnRestartUpdate: "Redémarrer & installer",
+      agoNow: "à l'instant", agoMin: m => `il y a ${m}min`, agoHour: h => `il y a ${h}h`,
+      agoDay: d => `il y a ${d}j`, agoMonth: mo => `il y a ${mo} mois`, agoYear: y => `il y a ${y}an${y > 1 ? "s" : ""}`,
     },
   };
 
@@ -550,6 +553,17 @@
     if ([r,g,b].some(c => typeof c !== "number")) return null;
     const h = n => Math.max(0,Math.min(255,n|0)).toString(16).padStart(2,"0");
     return `#${h(r)}${h(g)}${h(b)}`;
+  }
+  function timeAgo(secOrMs) {
+    if (!secOrMs) return "-";
+    const ms = secOrMs > 1e12 ? secOrMs : secOrMs * 1000;
+    const s = Math.max(0, Math.floor((Date.now() - ms) / 1000));
+    if (s < 60)                    return t("agoNow");
+    const m = Math.floor(s / 60);  if (m < 60)   return t("agoMin", m);
+    const h = Math.floor(m / 60);  if (h < 24)   return t("agoHour", h);
+    const d = Math.floor(h / 24);  if (d < 30)   return t("agoDay", d);
+    const mo = Math.floor(d / 30); if (mo < 12)  return t("agoMonth", mo);
+    return t("agoYear", Math.floor(mo / 12));
   }
   function fmtTs(secOrMs) {
     if (!secOrMs) return "-";
@@ -807,7 +821,7 @@
       { label: t("statActive"), value: active.length },
       { label: t("statPlus"),   value: plus.length },
       { label: t("statDiy"),    value: active.length - plus.length },
-      { label: t("statTotal"),  value: `${totalW.toLocaleString()} g` },
+      { label: t("statTotal"),  value: `${(totalW / 1000).toLocaleString(undefined, {minimumFractionDigits:1, maximumFractionDigits:2})} kg` },
     ].map(s => `<div class="stat"><div class="label">${s.label}</div><div class="value">${s.value}</div></div>`).join("");
     el.classList.remove("hidden");
   }
@@ -866,14 +880,13 @@
       }
       tr.innerHTML = `
         <td style="width:36px">${thumbHTML(r)}</td>
-        <td class="id-cell" title="${esc(r.uid)}">${esc(r.uid.slice(-8))}</td>
         <td>${r.isPlus ? '<span class="tag-plus">TigerTag+</span>' : '<span class="tag-diy">DIY</span>'}</td>
         <td>${esc(v(r.material))}</td>
         <td>${esc(v(r.brand))}</td>
         <td>${swatch}${esc(v(r.colorName))}</td>
         <td style="font-variant-numeric:tabular-nums">${wCell}</td>
         <td style="font-variant-numeric:tabular-nums">${v(r.capacity)}${r.capacity!=null?" g":""}</td>
-        <td>${esc(fmtTs(r.lastUpdate))}</td>`;
+        <td title="${esc(fmtTs(r.lastUpdate))}">${esc(timeAgo(r.lastUpdate))}</td>`;
       tr.addEventListener("click", () => openDetail(r.spoolId));
       tbody.appendChild(tr);
     }
