@@ -1,0 +1,58 @@
+{
+  "name": "tigertag-inventory",
+  "version": "1.0.0",
+  "description": "TigerTag Inventory Manager — desktop app",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "postinstall": "electron-rebuild",
+    "build:win":   "electron-builder --win",
+    "build:mac":   "electron-builder --mac",
+    "build:linux": "electron-builder --linux",
+    "build:all":   "electron-builder -wml"
+  },
+  "dependencies": {
+    "electron-updater": "^6.1.7",
+    "nfc-pcsc": "^0.8.1"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^4.0.4",
+    "electron": "^41.3.0",
+    "electron-builder": "^26.8.1"
+  },
+  "build": {
+    "appId": "io.tigertag.inventory",
+    "productName": "TigerTag Inventory",
+    "copyright": "TigerTag",
+    "publish": {
+      "provider": "github",
+      "owner": "TigerTag-Project",
+      "repo": "TigerTag_Studio_Manager"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "inventory.html",
+      "dada_base/**",
+      "assets/**"
+    ],
+    "win": {
+      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "icon": "assets/img/icon.ico"
+    },
+    "mac": {
+      "target": [{ "target": "dmg", "arch": ["x64", "arm64"] }],
+      "icon": "assets/img/icon.icns",
+      "category": "public.app-category.utilities"
+    },
+    "linux": {
+      "target": [{ "target": "AppImage", "arch": ["x64"] }],
+      "icon": "assets/img/icon.png",
+      "category": "Utility"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

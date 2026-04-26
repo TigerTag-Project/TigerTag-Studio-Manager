@@ -1,0 +1,1093 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>TigerTag Inventory</title>
+<style>
+  :root {
+    --bg: #f6f7fb;
+    --surface: #ffffff;
+    --surface-2: #f1f3f9;
+    --border: #e3e6ef;
+    --text: #1c2030;
+    --muted: #6b7287;
+    --primary: #ff7a18;
+    --primary-hover: #e96900;
+    --primary-soft: #ffe9d6;
+    --success: #1aaf6c;
+    --success-soft: #e1f6ec;
+    --danger: #d83b3b;
+    --danger-soft: #fbe3e3;
+    --warning: #b97a00;
+    --warning-soft: #fff5dc;
+    --neutral: #8b91a3;
+    --shadow: 0 1px 2px rgba(20,24,40,.04), 0 8px 24px rgba(20,24,40,.06);
+    --radius: 14px;
+    --radius-sm: 10px;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.45;
+  }
+
+  /* ── layout ── */
+  .container { max-width: 1200px; margin: 0 auto; padding: 28px 20px 80px; }
+
+  header.top {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; margin-bottom: 24px; flex-wrap: wrap;
+  }
+  header.top h1 { margin: 0; font-size: 24px; letter-spacing: -.01em; display: flex; align-items: center; gap: 10px; }
+  header.top h1 .dot { width: 12px; height: 12px; border-radius: 4px; background: linear-gradient(135deg, var(--primary), #ffb056); display: inline-block; }
+  header.top .subtitle { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .health { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+  .health .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--neutral); }
+  .health.ok .pulse { background: var(--success); box-shadow: 0 0 0 4px var(--success-soft); }
+  .health.bad .pulse { background: var(--danger); box-shadow: 0 0 0 4px var(--danger-soft); }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow); }
+  .card h2 { font-size: 15px; margin: 0 0 12px; letter-spacing: .02em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+  .card h2 .num { width: 22px; height: 22px; border-radius: 6px; background: var(--surface-2); color: var(--text); font-size: 12px; display: inline-flex; align-items: center; justify-content: center; font-weight: 600; }
+  .card .desc { color: var(--muted); font-size: 13px; margin: -6px 0 14px; }
+
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .row.between { justify-content: space-between; }
+
+  label.field { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--muted); flex: 1 1 180px; }
+  input[type="text"], input[type="email"], input[type="number"] {
+    height: 40px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    background: var(--surface); color: var(--text); font-size: 14px;
+    transition: border-color .15s, box-shadow .15s; font-family: inherit; width: 100%;
+  }
+  input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+  input.mono { font-family: var(--mono); letter-spacing: .04em; }
+
+  button {
+    height: 40px; padding: 0 14px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    background: var(--surface); color: var(--text); font-size: 14px; cursor: pointer; font-weight: 500;
+    transition: background .15s, border-color .15s, transform .05s;
+    display: inline-flex; align-items: center; gap: 6px; font-family: inherit;
+  }
+  button:hover { background: var(--surface-2); }
+  button:active { transform: translateY(1px); }
+  button:disabled { opacity: .55; cursor: not-allowed; }
+  button.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+  button.primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); }
+  button.ghost { background: transparent; border-color: transparent; color: var(--muted); }
+  button.ghost:hover { background: var(--surface-2); color: var(--text); }
+  button.sm { height: 32px; font-size: 12px; padding: 0 10px; }
+  button .spinner { width: 14px; height: 14px; border-radius: 50%; border: 2px solid currentColor; border-top-color: transparent; animation: spin .8s linear infinite; display: none; }
+  button.loading .spinner { display: inline-block; }
+  button.loading .label { opacity: .7; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 500; background: var(--surface-2); color: var(--muted); }
+  .badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .badge.ok { background: var(--success-soft); color: var(--success); }
+  .badge.bad { background: var(--danger-soft); color: var(--danger); }
+  .badge.info { background: var(--primary-soft); color: var(--primary); }
+
+  .alert { padding: 10px 12px; border-radius: var(--radius-sm); font-size: 13px; border: 1px solid var(--border); margin-top: 10px; }
+  .alert.warn { background: var(--warning-soft); border-color: #f1d989; color: #6e4a00; }
+  .alert.bad { background: var(--danger-soft); border-color: #f0bcbc; color: var(--danger); }
+  .alert.ok { background: var(--success-soft); border-color: #c0e6cf; color: var(--success); }
+  .alert.muted { background: var(--surface-2); color: var(--muted); }
+
+  /* ── stats ── */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-top: 10px; }
+  .stat { background: var(--surface-2); border-radius: var(--radius-sm); padding: 10px 12px; }
+  .stat .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+  .stat .value { font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; margin-top: 2px; }
+
+  /* ── table ── */
+  .table-wrap { overflow: auto; border: 1px solid var(--border); border-radius: var(--radius-sm); margin-top: 12px; max-height: 60vh; }
+  table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13.5px; }
+  th, td { padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  thead th { background: var(--surface-2); color: var(--muted); font-weight: 600; font-size: 12px; letter-spacing: .03em; text-transform: uppercase; position: sticky; top: 0; z-index: 1; }
+  tbody tr { cursor: pointer; transition: background .1s; }
+  tbody tr:hover { background: var(--surface-2); }
+  tbody tr.selected { background: var(--primary-soft); }
+  tbody tr.deleted { opacity: .45; }
+  tbody tr:last-child td { border-bottom: none; }
+  td.id-cell { font-family: var(--mono); font-size: 11px; color: var(--muted); max-width: 120px; overflow: hidden; text-overflow: ellipsis; }
+  .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; border: 1px solid rgba(0,0,0,.1); vertical-align: middle; margin-right: 5px; flex-shrink: 0; }
+  .bar { width: 64px; height: 5px; background: var(--surface-2); border-radius: 3px; overflow: hidden; display: inline-block; vertical-align: middle; margin-left: 6px; }
+  .bar > span { display: block; height: 100%; background: var(--primary); border-radius: 3px; }
+  .thumb { width: 28px; height: 28px; border-radius: 6px; object-fit: cover; background: #1c2030; flex-shrink: 0; }
+  .thumb-placeholder { width: 28px; height: 28px; border-radius: 6px; background: #1c2030; display: inline-flex; align-items: center; justify-content: center; }
+  .thumb-placeholder img { width: 22px; height: 22px; opacity: .6; }
+
+  /* ── tag type badges ── */
+  .tag-plus { background: linear-gradient(90deg,#ff7a18,#ffb056); color:#fff; font-size:10px; padding:2px 7px; border-radius:999px; font-weight:700; letter-spacing:.03em; }
+  .tag-diy { background: var(--surface-2); color: var(--muted); font-size:10px; padding:2px 7px; border-radius:999px; font-weight:600; letter-spacing:.03em; }
+
+  /* ── view toggle ── */
+  .view-toggle { display: flex; gap: 2px; background: var(--surface-2); padding: 3px; border-radius: var(--radius-sm); }
+  .view-toggle button { height: 30px; padding: 0 10px; font-size: 13px; border: none; background: transparent; color: var(--muted); border-radius: 8px; }
+  .view-toggle button.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+
+  /* ── grid view ── */
+  .inv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-top: 12px; }
+  .spool-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    overflow: hidden; cursor: pointer; transition: box-shadow .15s, transform .1s, border-color .15s;
+  }
+  .spool-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.1); transform: translateY(-1px); }
+  .spool-card.selected { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+  .spool-card.deleted { opacity: .45; }
+  .spool-card .card-img {
+    width: 100%; aspect-ratio: 1; object-fit: cover; display: block; background: #1c2030;
+  }
+  .spool-card .card-img-placeholder {
+    width: 100%; aspect-ratio: 1; background: #1c2030;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .spool-card .card-img-placeholder img { width: 65%; opacity: .55; }
+  .spool-card .card-body { padding: 10px 10px 8px; }
+  .spool-card .card-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .spool-card .card-sub { font-size: 11px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .spool-card .card-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
+  .spool-card .card-weight { font-size: 12px; font-variant-numeric: tabular-nums; }
+  .spool-card .card-bar { height: 3px; background: var(--surface-2); border-radius: 2px; overflow: hidden; margin-top: 6px; }
+  .spool-card .card-bar > span { display: block; height: 100%; background: var(--primary); border-radius: 2px; }
+
+  .empty { padding: 28px; text-align: center; color: var(--muted); font-size: 14px; }
+
+  /* ── detail panel ── */
+  .panel-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.3); z-index: 100;
+    opacity: 0; pointer-events: none; transition: opacity .2s;
+  }
+  .panel-overlay.open { opacity: 1; pointer-events: all; }
+  .detail-panel {
+    position: fixed; top: 0; right: 0; bottom: 0; width: 420px; max-width: 95vw;
+    background: var(--surface); box-shadow: -8px 0 32px rgba(0,0,0,.12);
+    z-index: 101; transform: translateX(100%); transition: transform .25s cubic-bezier(.4,0,.2,1);
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .detail-panel.open { transform: translateX(0); }
+  .panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+  }
+  .panel-header .panel-title { font-size: 15px; font-weight: 600; }
+  .panel-close { width: 32px; height: 32px; border: none; background: var(--surface-2); border-radius: 8px; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; color: var(--muted); }
+  .panel-close:hover { background: var(--border); color: var(--text); }
+  .panel-body { flex: 1; overflow-y: auto; padding: 0 0 24px; }
+  .panel-img { width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; background: #1c2030; }
+  .panel-img-placeholder { width: 100%; aspect-ratio: 16/9; background: linear-gradient(135deg,#1c2030,#2a1a0e); display: flex; align-items: center; justify-content: center; }
+  .panel-img-placeholder img { width: 40%; opacity: .5; }
+  .panel-section { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+  .panel-section:last-child { border-bottom: none; }
+  .panel-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 8px; font-weight: 600; }
+  .panel-row { display: flex; justify-content: space-between; align-items: center; font-size: 13px; margin-bottom: 5px; }
+  .panel-row .pk { color: var(--muted); }
+  .panel-row .pv { font-weight: 500; text-align: right; max-width: 60%; }
+  .panel-row .pv a { color: var(--primary); text-decoration: none; }
+  .panel-row .pv a:hover { text-decoration: underline; }
+  .color-dots { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+  .color-dot { width: 24px; height: 24px; border-radius: 6px; border: 1px solid rgba(0,0,0,.1); }
+  .temp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 4px; }
+  .temp-chip { background: var(--surface-2); border-radius: var(--radius-sm); padding: 8px 10px; }
+  .temp-chip .tc-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .temp-chip .tc-value { font-size: 15px; font-weight: 600; margin-top: 2px; }
+  .aspect-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+  .aspect-chip { padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--surface-2); border: 1px solid var(--border); color: var(--text); }
+  .links-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+  .link-btn { height: 30px; padding: 0 10px; font-size: 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; text-decoration: none; color: var(--text); display: inline-flex; align-items: center; gap: 5px; font-family: inherit; }
+  .link-btn:hover { background: var(--primary-soft); border-color: var(--primary); color: var(--primary); }
+  .weight-mode-hint { font-size: 11px; color: var(--muted); margin: 6px 0 8px; line-height: 1.5; }
+  .weight-form { display: flex; gap: 8px; align-items: flex-end; margin-top: 4px; }
+  .weight-form input { flex: 1; }
+  .weight-manual-row { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+  .weight-manual-row input { width: 110px; flex: none; }
+  .weight-bar-wrap { margin-top: 10px; }
+  .weight-bar-wrap .wb-labels { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .weight-bar-wrap .wb-val { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .weight-bar-wrap .wb-val span { font-size: 12px; font-weight: 400; color: var(--muted); margin-left: 2px; }
+  .weight-bar-wrap .wb-cap { font-size: 12px; color: var(--muted); }
+  .weight-bar-wrap .wb-track {
+    position: relative; height: 10px;
+    background: var(--surface-2); border-radius: 5px; overflow: visible;
+  }
+  .weight-bar-wrap .wb-fill {
+    height: 100%; background: linear-gradient(90deg, var(--primary), #ffb056);
+    border-radius: 5px; pointer-events: none; transition: width .08s;
+  }
+  .weight-bar-wrap input[type="range"] {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    -webkit-appearance: none; appearance: none;
+    background: transparent; cursor: pointer;
+    margin: 0; padding: 0; border: none; outline: none;
+  }
+  .weight-bar-wrap input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%;
+    background: #fff; border: 3px solid var(--primary);
+    box-shadow: 0 1px 6px rgba(255,122,24,.5); cursor: grab;
+  }
+  .weight-bar-wrap input[type="range"]:active::-webkit-slider-thumb { cursor: grabbing; }
+  .weight-bar-wrap input[type="range"]::-moz-range-thumb {
+    width: 20px; height: 20px; border-radius: 50%;
+    background: #fff; border: 3px solid var(--primary);
+    box-shadow: 0 1px 6px rgba(255,122,24,.5); cursor: grab;
+  }
+
+  /* ── welcome ── */
+  .welcome-card { background: linear-gradient(135deg,#1c2030 0%,#2a1a0e 100%); border: 1px solid #3a2a1a; border-radius: var(--radius); padding: 20px 22px; box-shadow: var(--shadow); display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .welcome-left { display: flex; align-items: center; gap: 16px; }
+  .welcome-avatar { width: 54px; height: 54px; border-radius: 50%; background: linear-gradient(135deg,var(--primary),#ffb056); display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 700; color: #fff; box-shadow: 0 0 0 4px rgba(255,122,24,.25); flex-shrink: 0; letter-spacing: -1px; }
+  .welcome-text .hey { font-size: 13px; color: rgba(255,255,255,.45); margin-bottom: 2px; }
+  .welcome-text .name { font-size: 20px; font-weight: 700; color: #fff; letter-spacing: -.02em; }
+  .welcome-text .sub { font-size: 12px; color: rgba(255,255,255,.35); margin-top: 2px; font-family: var(--mono); }
+  .welcome-actions { display: flex; gap: 8px; align-items: center; }
+  .welcome-actions button { background: rgba(255,255,255,.07); border-color: rgba(255,255,255,.12); color: rgba(255,255,255,.65); font-size: 13px; }
+  .welcome-actions button:hover { background: rgba(255,255,255,.13); color: #fff; }
+  .welcome-actions .btn-reload { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .welcome-actions .btn-reload:hover { background: var(--primary-hover); }
+
+  /* ── debug ── */
+  details.debug summary { cursor: pointer; color: var(--muted); font-size: 13px; list-style: none; user-select: none; display: flex; align-items: center; gap: 8px; }
+  details.debug summary::-webkit-details-marker { display: none; }
+  details.debug summary::before { content: "▸"; font-size: 10px; transition: transform .15s; }
+  details.debug[open] summary::before { transform: rotate(90deg); }
+  .debug-meta { margin: 10px 0 6px; font-size: 12px; color: var(--muted); font-family: var(--mono); word-break: break-all; }
+  pre.json { margin: 0; padding: 12px; background: #0e1422; color: #e7ebf3; border-radius: var(--radius-sm); font-family: var(--mono); font-size: 12.5px; line-height: 1.5; overflow: auto; max-height: 360px; }
+  pre.json .k { color: #ffb45b; } pre.json .s { color: #b8e1a8; } pre.json .n { color: #7fb6ff; } pre.json .b { color: #ff8aa3; }
+
+  .hidden { display: none !important; }
+  .gap-1 { gap: 8px; }
+  .footer-note { margin-top: 24px; text-align: center; color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header class="top">
+    <div>
+      <h1><span class="dot"></span>TigerTag Inventory</h1>
+      <div class="subtitle">View and manage your filament spools</div>
+    </div>
+    <div style="display:flex;gap:12px;align-items:center">
+      <div class="health" id="rfidStatus" style="display:none"><span class="pulse"></span><span id="rfidLabel">RFID: —</span></div>
+      <div class="health" id="health"><span class="pulse"></span><span id="healthLabel">Backend: idle</span></div>
+    </div>
+  </header>
+
+  <!-- welcome bar -->
+  <div id="welcome-bar" class="welcome-card hidden" style="margin-bottom:18px">
+    <div class="welcome-left">
+      <div class="welcome-avatar" id="welcomeAvatar">?</div>
+      <div class="welcome-text">
+        <div class="hey">👋 Welcome back,</div>
+        <div class="name" id="welcomeName">—</div>
+        <div class="sub" id="welcomeSub">—</div>
+      </div>
+    </div>
+    <div class="welcome-actions">
+      <button id="btnWelcomeReload" class="btn-reload"><span class="spinner"></span><span class="label">↻ Refresh</span></button>
+      <button id="btnWelcomeSwitch">Switch account</button>
+    </div>
+  </div>
+
+  <!-- credentials -->
+  <section class="card" id="card-creds" style="margin-bottom:18px">
+    <h2><span class="num">1</span>Credentials</h2>
+    <div class="row gap-1">
+      <label class="field" style="flex:2 1 260px">
+        <span>Email</span>
+        <input id="email" type="email" autocomplete="email" placeholder="you@example.com" />
+      </label>
+      <label class="field" style="flex:1 1 150px">
+        <span>API Key</span>
+        <input id="apiKey" class="mono" type="text" placeholder="E0F8LJ" maxlength="32" autocomplete="off" />
+      </label>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <span style="font-size:12px;color:var(--muted)">Status</span>
+        <span id="keyStatus" class="badge">untested</span>
+      </div>
+    </div>
+    <div class="row gap-1" style="margin-top:12px">
+      <button id="btnLoadInv" class="primary"><span class="spinner"></span><span class="label">Load inventory</span></button>
+      <button id="btnTestKey"><span class="spinner"></span><span class="label">Test API key</span></button>
+      <button id="btnClearSaved" class="ghost"><span class="label">Clear saved data</span></button>
+    </div>
+    <div id="credsResult"></div>
+  </section>
+
+  <!-- inventory -->
+  <section class="card" id="card-inv">
+    <div class="row between">
+      <h2 style="margin:0"><span class="num">2</span>Inventory <span id="invCount" class="badge info hidden" style="margin-left:6px;text-transform:none;font-size:12px">0</span></h2>
+      <div class="row gap-1">
+        <div class="view-toggle">
+          <button id="btnViewTable" class="active">☰ Table</button>
+          <button id="btnViewGrid">⊞ Grid</button>
+        </div>
+        <button id="btnFilter" class="ghost sm"><span class="label" id="filterLabel">Show deleted</span></button>
+        <button id="btnExport" class="ghost sm"><span class="label">↓ JSON</span></button>
+      </div>
+    </div>
+    <div style="margin-top:10px">
+      <input id="searchInv" type="text" placeholder="Search material, brand, color, UID…" style="max-width:340px" />
+    </div>
+    <div id="invStats" class="stats hidden" style="margin-top:12px"></div>
+    <div id="invEmpty" class="empty">No inventory loaded yet.</div>
+
+    <!-- table view -->
+    <div id="invTableWrap" class="table-wrap hidden">
+      <table>
+        <thead>
+          <tr>
+            <th></th>
+            <th>UID</th>
+            <th>Type</th>
+            <th>Material</th>
+            <th>Brand</th>
+            <th>Color / Name</th>
+            <th>Weight avail.</th>
+            <th>Capacity</th>
+            <th>Updated</th>
+          </tr>
+        </thead>
+        <tbody id="invBody"></tbody>
+      </table>
+    </div>
+
+    <!-- grid view -->
+    <div id="invGrid" class="inv-grid hidden"></div>
+  </section>
+
+  <div style="height:18px"></div>
+
+  <!-- debug -->
+  <section class="card">
+    <details class="debug">
+      <summary><strong>Debug</strong> — last API request &amp; response</summary>
+      <div class="debug-meta" id="debugMeta">No requests yet.</div>
+      <pre class="json" id="debugBody">{}</pre>
+    </details>
+  </section>
+
+  <div class="footer-note">https://cdn.tigertag.io</div>
+</div>
+
+<!-- detail panel -->
+<div class="panel-overlay" id="panelOverlay"></div>
+<div class="detail-panel" id="detailPanel">
+  <div class="panel-header">
+    <span class="panel-title" id="panelTitle">Spool details</span>
+    <button class="panel-close" id="panelClose">✕</button>
+  </div>
+  <div class="panel-body" id="panelBody"></div>
+</div>
+
+<script>
+(() => {
+  const API_BASE = "https://cdn.tigertag.io";
+  const STORAGE_KEY = "tigertag.creds";
+  const STORAGE_INV = "tigertag.inventory";
+  const LOGO_PATH = "assets/svg/tigertag_logo.svg";
+
+  const state = {
+    inventory: null,
+    rows: [],
+    selected: null,
+    keyValid: null,
+    displayName: null,
+    showDeleted: false,
+    search: "",
+    viewMode: localStorage.getItem("tigertag.view") || "table",
+    db: { brand: [], material: [], aspect: [], type: [], diameter: [], unit: [], version: [] }
+  };
+
+  const $ = id => document.getElementById(id);
+
+  /* ── helpers ── */
+  function v(val) { return (val === undefined || val === null || val === "" || val === "--") ? "-" : val; }
+  function toHex(r, g, b) {
+    if ([r,g,b].some(c => typeof c !== "number")) return null;
+    const h = n => Math.max(0,Math.min(255,n|0)).toString(16).padStart(2,"0");
+    return `#${h(r)}${h(g)}${h(b)}`;
+  }
+  function fmtTs(secOrMs) {
+    if (!secOrMs) return "-";
+    const ms = secOrMs > 1e12 ? secOrMs : secOrMs * 1000;
+    const d = new Date(ms); return isNaN(d.getTime()) ? "-" : d.toLocaleString();
+  }
+  function setLoading(btn, on) { btn.classList.toggle("loading", !!on); btn.disabled = !!on; }
+  function toast(el, kind, msg) {
+    if (!el) return; el.innerHTML = "";
+    const div = document.createElement("div"); div.className = `alert ${kind}`; div.textContent = msg; el.appendChild(div);
+  }
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
+  }
+  function highlight(json) {
+    if (typeof json !== "string") json = JSON.stringify(json, null, 2);
+    json = esc(json);
+    return json.replace(/("(?:\\u[a-fA-F0-9]{4}|\\[^u]|[^\\"])*"(?:\s*:)?|\b(?:true|false|null)\b|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g, m => {
+      let c = "n";
+      if (/^"/.test(m)) c = /:$/.test(m) ? "k" : "s";
+      else if (/true|false|null/.test(m)) c = "b";
+      return `<span class="${c}">${m}</span>`;
+    });
+  }
+  function debug(meta, body) { $("debugMeta").textContent = meta; $("debugBody").innerHTML = highlight(body); }
+  async function apiFetch(url, opts = {}) {
+    const t0 = performance.now(); let res, text, body;
+    try { res = await fetch(url, opts); text = await res.text(); }
+    catch (e) { debug(`${opts.method||"GET"} ${url}\n${e.message}`, {error: String(e)}); throw e; }
+    try { body = JSON.parse(text); } catch { body = text; }
+    debug(`${opts.method||"GET"} ${url}\n→ ${res.status} ${res.statusText}  ·  ${Math.round(performance.now()-t0)} ms`, body);
+    return { ok: res.ok, status: res.status, body };
+  }
+
+  /* ── lookups ── */
+  async function loadLookups() {
+    const files = ["id_brand","id_material","id_aspect","id_type","id_diameter","id_measure_unit","id_version"];
+    const keys  = ["brand",   "material",   "aspect",   "type",   "diameter",   "unit",            "version"];
+    await Promise.all(files.map(async (f, i) => {
+      try {
+        const r = await fetch(`dada_base/${f}.json`);
+        if (r.ok) state.db[keys[i]] = await r.json();
+      } catch {}
+    }));
+  }
+  function dbFind(key, id) { return state.db[key].find(x => x.id === id) || null; }
+  function brandName(id) { const b = dbFind("brand", id); return b ? b.name : "-"; }
+  function materialLabel(id) { const m = dbFind("material", id); return m ? m.label : "-"; }
+  function aspectLabel(id) { const a = dbFind("aspect", id); return a ? a.label : null; }
+  function diamLabel(id) { const d = dbFind("diameter", id); return d ? d.label + " mm" : null; }
+  function versionName(id) { const vv = dbFind("version", id); return vv ? vv.name : null; }
+  function materialFull(id) { return dbFind("material", id); }
+
+  /* ── normalize ── */
+  function normalizeRow(spoolId, data) {
+    const hex = toHex(data.color_r, data.color_g, data.color_b);
+    const isPlus = data.url_img && data.url_img !== "--" && data.url_img !== "";
+    const mat = materialFull(data.id_material);
+    return {
+      spoolId: String(spoolId),
+      uid: data.uid != null ? String(data.uid) : String(spoolId),
+      material: mat ? mat.label : (data.material || data.series || "-"),
+      materialData: mat,
+      brand: brandName(data.id_brand),
+      colorName: data.color_name || data.name || data.message || "-",
+      colorHex: hex,
+      colorList: Array.isArray(data.online_color_list) ? data.online_color_list : [],
+      colorType: data.online_color_type || null,
+      aspect1: aspectLabel(data.id_aspect1),
+      aspect2: aspectLabel(data.id_aspect2),
+      diameter: diamLabel(data.data1),
+      tagType: versionName(data.id_tigertag),
+      weightAvailable: data.weight_available,
+      containerWeight: data.container_weight,
+      capacity: data.measure_gr || data.measure,
+      imgUrl: isPlus ? data.url_img : null,
+      isPlus,
+      series: data.series || null,
+      label: data.label && data.label !== "--" ? data.label : null,
+      productName: data.name && data.name !== "--" ? data.name : null,
+      sku: data.sku && data.sku !== "--" ? data.sku : null,
+      barcode: data.barcode && data.barcode !== "--" ? data.barcode : null,
+      isRefill:   !!data.info1,
+      isRecycled: !!data.info2,
+      isFilled:   !!data.info3,
+      temps: {
+        nozzleMin: data.data2 || null,
+        nozzleMax: data.data3 || null,
+        dryTemp:   data.data4 || null,
+        dryTime:   data.data5 || null,
+        bedMin:    data.data6 || null,
+        bedMax:    data.data7 || null,
+      },
+      links: {
+        youtube: data.LinkYoutube && data.LinkYoutube !== "--" ? data.LinkYoutube : null,
+        msds:    data.LinkMSDS    && data.LinkMSDS    !== "--" ? data.LinkMSDS    : null,
+        tds:     data.LinkTDS     && data.LinkTDS     !== "--" ? data.LinkTDS     : null,
+        rohs:    data.LinkROHS    && data.LinkROHS    !== "--" ? data.LinkROHS    : null,
+        reach:   data.LinkREACH   && data.LinkREACH   !== "--" ? data.LinkREACH   : null,
+        food:    data.LinkFOOD    && data.LinkFOOD    !== "--" ? data.LinkFOOD    : null,
+      },
+      twinUid: data.twin_tag_uid || null,
+      containerId: data.container_id || null,
+      lastUpdate: data.last_update || (data.updated_at && data.updated_at._seconds),
+      deleted: !!data.deleted,
+      raw: data,
+    };
+  }
+
+  /* ── health ── */
+  async function pingHealth() {
+    try {
+      const r = await fetch(`${API_BASE}/healthz/`);
+      $("health").classList.toggle("ok", r.ok);
+      $("health").classList.toggle("bad", !r.ok);
+      $("healthLabel").textContent = r.ok ? "Backend: ok" : `Backend: ${r.status}`;
+    } catch { $("health").classList.add("bad"); $("healthLabel").textContent = "Backend: offline"; }
+  }
+  pingHealth();
+
+  /* ── connected state ── */
+  function setConnected(displayName, email, apiKey) {
+    state.displayName = displayName;
+    const initials = displayName ? displayName.split(" ").map(w=>w[0]).join("").toUpperCase().slice(0,2) : (email||"?")[0].toUpperCase();
+    $("welcomeAvatar").textContent = initials;
+    $("welcomeName").textContent = displayName || email || "—";
+    $("welcomeSub").textContent = `${email||""}  ·  key: ${apiKey||""}`;
+    $("welcome-bar").classList.remove("hidden");
+    $("card-creds").classList.add("hidden");
+  }
+  function setDisconnected() {
+    state.displayName = null; state.keyValid = null;
+    $("welcome-bar").classList.add("hidden");
+    $("card-creds").classList.remove("hidden");
+    setKeyStatus("untested"); $("credsResult").innerHTML = "";
+  }
+  $("btnWelcomeSwitch").addEventListener("click", () => {
+    localStorage.removeItem(STORAGE_KEY); localStorage.removeItem(STORAGE_INV);
+    $("email").value = ""; $("apiKey").value = "";
+    state.inventory = null; state.rows = [];
+    renderStats(); renderInventory(); setDisconnected();
+  });
+  $("btnWelcomeReload").addEventListener("click", async () => {
+    setLoading($("btnWelcomeReload"), true);
+    await loadInventory();
+    setLoading($("btnWelcomeReload"), false);
+  });
+
+  /* ── persistence ── */
+  function saveCreds() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ email: $("email").value.trim(), apiKey: $("apiKey").value.trim() }));
+  }
+  function saveInventory(raw) { try { localStorage.setItem(STORAGE_INV, JSON.stringify(raw)); } catch {} }
+
+  async function restoreAll() {
+    try {
+      const c = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+      if (c.email)  $("email").value  = c.email;
+      if (c.apiKey) $("apiKey").value = c.apiKey;
+    } catch {}
+    try {
+      const raw = JSON.parse(localStorage.getItem(STORAGE_INV) || "null");
+      if (raw && typeof raw === "object") {
+        state.inventory = raw;
+        state.rows = Object.entries(raw).map(([k,vv]) => normalizeRow(k, vv||{}));
+        sortRows(); renderStats(); renderInventory();
+      }
+    } catch {}
+    const savedKey  = $("apiKey").value.trim();
+    const savedMail = $("email").value.trim();
+    if (savedKey) {
+      fetch(`${API_BASE}/pingbyapikey?ApiKey=${encodeURIComponent(savedKey)}`)
+        .then(r => r.json())
+        .then(b => {
+          if (b && b.success) {
+            setConnected(b.displayName || b.uid || "", savedMail, savedKey);
+            setKeyStatus("ok");
+            loadInventory();
+          }
+        }).catch(() => {});
+    }
+  }
+
+  $("btnClearSaved").addEventListener("click", () => {
+    localStorage.removeItem(STORAGE_KEY); localStorage.removeItem(STORAGE_INV);
+    $("email").value = ""; $("apiKey").value = "";
+    state.inventory = null; state.rows = [];
+    setKeyStatus("untested"); renderStats(); renderInventory(); setDisconnected();
+  });
+
+  /* ── key status ── */
+  function setKeyStatus(s) {
+    const el = $("keyStatus"); el.classList.remove("ok","bad","warn","info");
+    if (s === "ok")       { el.classList.add("ok");  el.textContent = "valid"; }
+    else if (s === "bad") { el.classList.add("bad"); el.textContent = "invalid"; }
+    else if (s === "checking") { el.textContent = "checking…"; }
+    else { el.textContent = "untested"; }
+  }
+  $("apiKey").addEventListener("input", () => { state.keyValid = null; setKeyStatus("untested"); });
+
+  $("btnTestKey").addEventListener("click", async () => {
+    const key = $("apiKey").value.trim(); if (!key) return;
+    const btn = $("btnTestKey"); setLoading(btn, true); setKeyStatus("checking");
+    try {
+      const r = await apiFetch(`${API_BASE}/pingbyapikey?ApiKey=${encodeURIComponent(key)}`);
+      const ok = r.ok && r.body && r.body.success === true;
+      state.keyValid = ok; setKeyStatus(ok ? "ok" : "bad");
+      if (ok) { saveCreds(); setConnected(r.body.displayName || r.body.uid || "", $("email").value.trim(), key); }
+      else toast($("credsResult"), "bad", `Invalid: ${(r.body && r.body.reason) || "HTTP " + r.status}`);
+    } catch (e) { setKeyStatus("bad"); toast($("credsResult"), "bad", e.message || "Network error"); }
+    finally { setLoading(btn, false); }
+  });
+
+  /* ── inventory load ── */
+  function sortRows() {
+    state.rows.sort((a, b) => {
+      if (a.deleted !== b.deleted) return a.deleted ? 1 : -1;
+      return a.uid.localeCompare(b.uid);
+    });
+  }
+  async function loadInventory() {
+    const email = $("email").value.trim(); const key = $("apiKey").value.trim();
+    if (!email || !key) return;
+    const btn = $("btnLoadInv"); setLoading(btn, true);
+    try {
+      const url = `${API_BASE}/exportInventory?ApiKey=${encodeURIComponent(key)}&email=${encodeURIComponent(email)}`;
+      const r = await apiFetch(url);
+      if (!r.ok || (r.body && r.body.success === false)) {
+        const reason = (r.body && r.body.reason) || `HTTP ${r.status}`;
+        state.inventory = null; state.rows = []; renderInventory(); renderStats(); setKeyStatus("bad");
+        toast($("credsResult"), "bad", `Inventory error: ${reason}`); return;
+      }
+      state.inventory = r.body || {};
+      state.rows = Object.entries(state.inventory).map(([k,vv]) => normalizeRow(k, vv||{}));
+      sortRows(); state.keyValid = true; setKeyStatus("ok"); saveCreds(); saveInventory(state.inventory);
+      setConnected(state.displayName, email, key);
+      toast($("credsResult"), "ok", `Loaded ${state.rows.length} spools.`);
+      renderStats(); renderInventory();
+    } catch (e) { toast($("credsResult"), "bad", e.message || "Network error"); }
+    finally { setLoading(btn, false); }
+  }
+
+  $("btnLoadInv").addEventListener("click", loadInventory);
+  $("apiKey").addEventListener("keydown", e => { if (e.key==="Enter") loadInventory(); });
+  $("email").addEventListener("keydown",  e => { if (e.key==="Enter") loadInventory(); });
+
+  /* ── stats ── */
+  function renderStats() {
+    const all = state.rows; const active = all.filter(r => !r.deleted);
+    const plus = active.filter(r => r.isPlus);
+    const totalW = active.reduce((s, r) => s + (Number(r.weightAvailable)||0), 0);
+    const el = $("invStats");
+    if (!all.length) { el.classList.add("hidden"); return; }
+    el.innerHTML = [
+      { label: "Active spools", value: active.length },
+      { label: "TigerTag+",     value: plus.length },
+      { label: "TigerTag DIY",  value: active.length - plus.length },
+      { label: "Total available", value: `${totalW.toLocaleString()} g` },
+    ].map(s => `<div class="stat"><div class="label">${s.label}</div><div class="value">${s.value}</div></div>`).join("");
+    el.classList.remove("hidden");
+  }
+
+  /* ── filter ── */
+  function filteredRows() {
+    let rows = state.rows.slice();
+    if (!state.showDeleted) rows = rows.filter(r => !r.deleted);
+    if (state.search) {
+      const q = state.search.toLowerCase();
+      rows = rows.filter(r =>
+        r.uid.toLowerCase().includes(q) ||
+        String(r.material).toLowerCase().includes(q) ||
+        String(r.brand).toLowerCase().includes(q) ||
+        String(r.colorName).toLowerCase().includes(q)
+      );
+    }
+    return rows;
+  }
+
+  /* ── render ── */
+  function renderInventory() {
+    const rows = filteredRows();
+    $("invCount").textContent = rows.length;
+    $("invCount").classList.toggle("hidden", state.rows.length === 0);
+    if (rows.length === 0) {
+      $("invTableWrap").classList.add("hidden"); $("invGrid").classList.add("hidden");
+      $("invEmpty").textContent = state.rows.length === 0 ? "No inventory loaded yet." : "No spools match the filters.";
+      $("invEmpty").classList.remove("hidden"); return;
+    }
+    $("invEmpty").classList.add("hidden");
+    if (state.viewMode === "grid") {
+      $("invTableWrap").classList.add("hidden"); $("invGrid").classList.remove("hidden"); renderGrid(rows);
+    } else {
+      $("invGrid").classList.add("hidden"); $("invTableWrap").classList.remove("hidden"); renderTable(rows);
+    }
+  }
+
+  function thumbHTML(row, size = 28) {
+    if (row.imgUrl) return `<img class="thumb" src="${esc(row.imgUrl)}" width="${size}" height="${size}" loading="lazy" onerror="this.style.display='none'" />`;
+    return `<span class="thumb-placeholder" style="width:${size}px;height:${size}px"><img src="${LOGO_PATH}" width="${size-6}" /></span>`;
+  }
+
+  function renderTable(rows) {
+    const tbody = $("invBody"); tbody.innerHTML = "";
+    for (const r of rows) {
+      const tr = document.createElement("tr");
+      tr.dataset.id = r.spoolId;
+      if (state.selected === r.spoolId) tr.classList.add("selected");
+      if (r.deleted) tr.classList.add("deleted");
+      const swatch = r.colorHex ? `<span class="swatch" style="background:${r.colorHex}"></span>` : "";
+      let wCell = "-";
+      if (r.weightAvailable != null) {
+        wCell = `${r.weightAvailable} g`;
+        if (r.capacity) { const p = Math.max(0,Math.min(100,Math.round(r.weightAvailable/r.capacity*100))); wCell += `<span class="bar" title="${p}%"><span style="width:${p}%"></span></span>`; }
+      }
+      tr.innerHTML = `
+        <td style="width:36px">${thumbHTML(r)}</td>
+        <td class="id-cell" title="${esc(r.uid)}">${esc(r.uid.slice(-8))}</td>
+        <td>${r.isPlus ? '<span class="tag-plus">TigerTag+</span>' : '<span class="tag-diy">DIY</span>'}</td>
+        <td>${esc(v(r.material))}</td>
+        <td>${esc(v(r.brand))}</td>
+        <td>${swatch}${esc(v(r.colorName))}</td>
+        <td style="font-variant-numeric:tabular-nums">${wCell}</td>
+        <td style="font-variant-numeric:tabular-nums">${v(r.capacity)}${r.capacity!=null?" g":""}</td>
+        <td>${esc(fmtTs(r.lastUpdate))}</td>`;
+      tr.addEventListener("click", () => openDetail(r.spoolId));
+      tbody.appendChild(tr);
+    }
+  }
+
+  function renderGrid(rows) {
+    const grid = $("invGrid"); grid.innerHTML = "";
+    for (const r of rows) {
+      const card = document.createElement("div");
+      card.className = "spool-card" + (state.selected===r.spoolId?" selected":"") + (r.deleted?" deleted":"");
+      card.dataset.id = r.spoolId;
+      const imgHtml = r.imgUrl
+        ? `<img class="card-img" src="${esc(r.imgUrl)}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=\\'card-img-placeholder\\'><img src=\\'${LOGO_PATH}\\'></div>'" />`
+        : `<div class="card-img-placeholder"><img src="${LOGO_PATH}" /></div>`;
+      const pct = (r.weightAvailable != null && r.capacity) ? Math.max(0,Math.min(100,Math.round(r.weightAvailable/r.capacity*100))) : null;
+      const swatch = r.colorHex ? `<span class="swatch" style="background:${r.colorHex}"></span>` : "";
+      const badge = r.isPlus ? '<span class="tag-plus">TigerTag+</span>' : '<span class="tag-diy">DIY</span>';
+      card.innerHTML = `
+        ${imgHtml}
+        <div class="card-body">
+          <div class="card-name">${swatch}${esc(v(r.colorName) !== "-" ? r.colorName : r.material)}</div>
+          <div class="card-sub">${esc(v(r.material))} · ${esc(v(r.brand))}</div>
+          <div class="card-footer">
+            <span class="card-weight">${r.weightAvailable!=null ? r.weightAvailable+" g" : "-"}</span>
+            ${badge}
+          </div>
+          ${pct!==null ? `<div class="card-bar"><span style="width:${pct}%"></span></div>` : ""}
+        </div>`;
+      card.addEventListener("click", () => openDetail(r.spoolId));
+      grid.appendChild(card);
+    }
+  }
+
+  /* ── view toggle ── */
+  $("btnViewTable").addEventListener("click", () => {
+    state.viewMode = "table"; localStorage.setItem("tigertag.view","table");
+    $("btnViewTable").classList.add("active"); $("btnViewGrid").classList.remove("active");
+    renderInventory();
+  });
+  $("btnViewGrid").addEventListener("click", () => {
+    state.viewMode = "grid"; localStorage.setItem("tigertag.view","grid");
+    $("btnViewGrid").classList.add("active"); $("btnViewTable").classList.remove("active");
+    renderInventory();
+  });
+  if (state.viewMode === "grid") { $("btnViewGrid").classList.add("active"); $("btnViewTable").classList.remove("active"); }
+
+  $("btnFilter").addEventListener("click", () => {
+    state.showDeleted = !state.showDeleted;
+    $("filterLabel").textContent = state.showDeleted ? "Hide deleted" : "Show deleted";
+    renderInventory();
+  });
+  $("searchInv").addEventListener("input", e => { state.search = e.target.value.trim(); renderInventory(); });
+
+  $("btnExport").addEventListener("click", () => {
+    if (!state.inventory) return;
+    const blob = new Blob([JSON.stringify(state.inventory,null,2)], {type:"application/json"});
+    const url = URL.createObjectURL(blob); const a = document.createElement("a");
+    a.href = url; a.download = `tigertag-${Date.now()}.json`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  });
+
+  /* ── detail panel ── */
+  function openDetail(spoolId) {
+    state.selected = spoolId;
+    document.querySelectorAll("[data-id]").forEach(el => el.classList.toggle("selected", el.dataset.id === spoolId));
+    const r = state.rows.find(x => x.spoolId === spoolId);
+    if (!r) return;
+    $("panelTitle").textContent = r.colorName && r.colorName !== "-" ? r.colorName : r.material;
+    $("panelBody").innerHTML = buildPanelHTML(r);
+    $("detailPanel").classList.add("open"); $("panelOverlay").classList.add("open");
+    // slider ↔ display ↔ manual input
+    const slider    = $("weightSlider");
+    const fill      = $("wbFill");
+    const display   = $("sliderDisplay");
+    const manualIn  = $("panelWeightInput");
+    const manualRow = $("manualRow");
+    const cap       = Number(slider.max);
+
+    function syncFromValue(val) {
+      const w = Math.max(0, Math.min(val, cap));
+      slider.value = w;
+      fill.style.width = cap ? Math.round(w / cap * 100) + "%" : "0%";
+      display.innerHTML = `${w}<span>g</span>`;
+    }
+
+    slider.addEventListener("input", () => {
+      syncFromValue(Number(slider.value));
+      if (!manualRow.classList.contains("hidden")) manualIn.value = slider.value;
+    });
+
+    manualIn && manualIn.addEventListener("input", () => {
+      syncFromValue(Number(manualIn.value) || 0);
+    });
+
+    $("btnManualEdit").addEventListener("click", () => {
+      const nowHidden = manualRow.classList.toggle("hidden");
+      $("btnManualEdit").textContent = nowHidden ? "✎ Edit manually" : "✕ Close";
+      if (!nowHidden) { manualIn.value = slider.value; manualIn.focus(); manualIn.select(); }
+    });
+
+    $("panelWeightBtn").addEventListener("click", () =>
+      doWeightUpdate(r, "direct", slider.value)
+    );
+    $("panelWeightRawBtn") && $("panelWeightRawBtn").addEventListener("click", () =>
+      doWeightUpdate(r, "raw", $("panelWeightRaw").value)
+    );
+  }
+  function closeDetail() { $("detailPanel").classList.remove("open"); $("panelOverlay").classList.remove("open"); }
+  $("panelClose").addEventListener("click", closeDetail);
+  $("panelOverlay").addEventListener("click", closeDetail);
+  document.addEventListener("keydown", e => { if (e.key==="Escape") closeDetail(); });
+
+  function buildPanelHTML(r) {
+    const mat = r.materialData;
+    const pct = (r.weightAvailable!=null && r.capacity) ? Math.max(0,Math.min(100,Math.round(r.weightAvailable/r.capacity*100))) : null;
+
+    // image
+    let imgSection = "";
+    if (r.imgUrl) {
+      imgSection = `<img class="panel-img" src="${esc(r.imgUrl)}" onerror="this.outerHTML='<div class=\\'panel-img-placeholder\\'><img src=\\'${LOGO_PATH}\\'></div>'" />`;
+    } else {
+      imgSection = `<div class="panel-img-placeholder"><img src="${LOGO_PATH}" /></div>`;
+    }
+
+    // colors
+    let colorsHtml = "";
+    if (r.colorList && r.colorList.length > 0) {
+      colorsHtml = `<div class="color-dots">${r.colorList.map(c => `<div class="color-dot" style="background:${esc(c.replace(/FF$/,''))}" title="${esc(c)}"></div>`).join("")}</div>`;
+    } else if (r.colorHex) {
+      colorsHtml = `<div class="color-dots"><div class="color-dot" style="background:${r.colorHex}"></div></div>`;
+    }
+
+    // print settings — from raw data2-data7 (direct), fallback to id_material lookup
+    const t = r.temps;
+    const hasDirect = t.nozzleMin || t.nozzleMax || t.bedMin || t.bedMax || t.dryTemp || t.dryTime;
+    const rec = mat && mat.recommended;
+    let tempHtml = "";
+    if (hasDirect || rec) {
+      const nozzle = t.nozzleMin && t.nozzleMax ? `${t.nozzleMin}–${t.nozzleMax} °C`
+                   : rec ? `${rec.nozzleTempMin}–${rec.nozzleTempMax} °C` : "—";
+      const bed    = t.bedMin && t.bedMax ? `${t.bedMin}–${t.bedMax} °C`
+                   : rec ? `${rec.bedTempMin}–${rec.bedTempMax} °C` : "—";
+      const dryT   = t.dryTemp ? `${t.dryTemp} °C` : rec ? `${rec.dryTemp} °C` : "—";
+      const dryH   = t.dryTime ? `${t.dryTime} h`  : rec ? `${rec.dryTime} h`  : "—";
+      const density = mat && mat.density ? `<div style="margin-top:8px;font-size:12px;color:var(--muted)">Density: ${mat.density} g/cm³</div>` : "";
+      tempHtml = `
+      <div class="panel-section">
+        <div class="panel-label">Print settings</div>
+        <div class="temp-grid">
+          <div class="temp-chip"><div class="tc-label">Nozzle</div><div class="tc-value">${nozzle}</div></div>
+          <div class="temp-chip"><div class="tc-label">Bed</div><div class="tc-value">${bed}</div></div>
+          <div class="temp-chip"><div class="tc-label">Dry temp</div><div class="tc-value">${dryT}</div></div>
+          <div class="temp-chip"><div class="tc-label">Dry time</div><div class="tc-value">${dryH}</div></div>
+        </div>
+        ${density}
+      </div>`;
+    }
+
+    // info badges (Refill / Recycled / Filled)
+    const infoBadges = [
+      r.isRefill   ? "♻ Refill"   : null,
+      r.isRecycled ? "🌿 Recycled" : null,
+      r.isFilled   ? "◈ Filled"   : null,
+    ].filter(Boolean);
+    const infoHtml2 = infoBadges.length ? `<div class="aspect-chips" style="margin-top:8px">${infoBadges.map(b=>`<span class="aspect-chip">${b}</span>`).join("")}</div>` : "";
+
+    // links
+    const linkDefs = [
+      { key: "youtube", label: "▶ YouTube" },
+      { key: "msds",    label: "MSDS" },
+      { key: "tds",     label: "TDS" },
+      { key: "rohs",    label: "RoHS" },
+      { key: "reach",   label: "REACH" },
+      { key: "food",    label: "Food safe" },
+    ];
+    const activeLinks = linkDefs.filter(l => r.links[l.key]);
+    const linksHtml = activeLinks.length ? `
+      <div class="panel-section">
+        <div class="panel-label">Documents & links</div>
+        <div class="links-row">${activeLinks.map(l => `<a class="link-btn" href="${esc(r.links[l.key])}" target="_blank" rel="noopener">${l.label}</a>`).join("")}</div>
+      </div>` : "";
+
+    // weight
+    const cap = r.capacity || 1000;
+    const curW = r.weightAvailable != null ? r.weightAvailable : 0;
+    const weightHtml = `
+      <div class="panel-section">
+        <div class="panel-label">Weight</div>
+        <div class="weight-bar-wrap">
+          <div class="wb-labels">
+            <div class="wb-val" id="sliderDisplay">${curW}<span>g</span></div>
+            <div class="wb-cap">${cap} g total</div>
+          </div>
+          <div class="wb-track">
+            <div class="wb-fill" id="wbFill" style="width:${Math.round(curW/cap*100)}%"></div>
+            <input type="range" id="weightSlider" min="0" max="${cap}" step="1" value="${curW}" />
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:5px">
+            <span>0 g</span><span>${cap} g</span>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap">
+          <button id="panelWeightBtn" class="primary sm"><span class="spinner"></span><span class="label">Update</span></button>
+          <button id="btnManualEdit" class="ghost sm">✎ Edit manually</button>
+          <span style="font-size:11px;color:var(--muted)">Container: ${v(r.containerWeight)} g</span>
+        </div>
+
+        <div class="weight-manual-row hidden" id="manualRow">
+          <input type="number" id="panelWeightInput" min="0" max="${cap}" step="1" placeholder="exact g" />
+          <span style="font-size:12px;color:var(--muted)">g net</span>
+        </div>
+
+        <details style="margin-top:10px">
+          <summary style="font-size:12px;color:var(--muted);cursor:pointer;user-select:none">▸ Use raw scale weight (with container)</summary>
+          <div style="margin-top:8px">
+            <div class="weight-mode-hint">Weigh spool + container on the scale — the server subtracts the container weight.</div>
+            <div class="weight-form">
+              <input type="number" id="panelWeightRaw" min="0" step="1" placeholder="e.g. ${r.containerWeight ? curW + Number(r.containerWeight) : 800} g" />
+              <button id="panelWeightRawBtn" class="primary sm"><span class="spinner"></span><span class="label">Update</span></button>
+            </div>
+          </div>
+        </details>
+
+        <div id="panelWeightResult"></div>
+      </div>`;
+
+    // info rows
+    const infoRows = [
+      ["UID",        r.uid],
+      ["Series",     r.series],
+      ["Brand",      r.brand],
+      ["Material",   r.material],
+      ["Diameter",   r.diameter],
+      // aspect shown as chips above
+      ["Tag type",   r.tagType],
+      ["SKU",        r.sku],
+      ["Barcode",    r.barcode],
+      ["Container",  r.containerId],
+      ["Twin tag",   r.twinUid],
+      ["Updated",    fmtTs(r.lastUpdate)],
+    ].filter(([,val]) => val && val !== "-");
+
+    const infoHtml = `
+      <div class="panel-section">
+        <div class="panel-label">Details</div>
+        ${infoRows.map(([k,val]) => `<div class="panel-row"><span class="pk">${k}</span><span class="pv">${esc(String(val))}</span></div>`).join("")}
+        <div style="margin-top:8px;display:flex;gap:6px">
+          ${r.isPlus ? '<span class="tag-plus">TigerTag+</span>' : '<span class="tag-diy">TigerTag DIY</span>'}
+          ${r.deleted ? '<span class="badge bad" style="font-size:11px">Deleted</span>' : ""}
+        </div>
+      </div>`;
+
+    return `
+      ${imgSection}
+      <div class="panel-section">
+        <div class="panel-label">Color${r.colorList.length > 1 ? "s" : ""} &amp; Aspect</div>
+        ${colorsHtml || ""}
+        ${[r.aspect1, r.aspect2].filter(a => a && a !== "-" && a !== "None").length ? `
+        <div class="aspect-chips">
+          ${[r.aspect1, r.aspect2].filter(a => a && a !== "-" && a !== "None").map(a => `<span class="aspect-chip">${esc(a)}</span>`).join("")}
+        </div>` : (!colorsHtml ? '<span style="color:var(--muted);font-size:13px">—</span>' : "")}
+        ${infoHtml2}
+      </div>
+      ${tempHtml}
+      ${weightHtml}
+      ${linksHtml}
+      ${infoHtml}
+      <div class="panel-section">
+        <details class="debug">
+          <summary><strong>Raw JSON</strong> — spool data</summary>
+          <pre class="json" style="margin-top:10px;max-height:400px">${highlight(r.raw)}</pre>
+        </details>
+      </div>`;
+  }
+
+  async function doWeightUpdate(r, mode = "direct", w = "") {
+    const key = $("apiKey").value.trim(); if (!key) return;
+    if (w === "" || isNaN(Number(w))) { toast($("panelWeightResult"), "bad", "Enter a numeric weight."); return; }
+    const btn = mode === "raw" ? $("panelWeightRawBtn") : $("panelWeightBtn");
+    setLoading(btn, true);
+    try {
+      const extra = mode === "direct" ? "&container_weight=0" : "";
+      const url = `${API_BASE}/setSpoolWeightByRfid?ApiKey=${encodeURIComponent(key)}&uid=${encodeURIComponent(r.spoolId)}&weight=${encodeURIComponent(w)}${extra}`;
+      const res = await apiFetch(url); const b = res.body || {};
+      if (b.success) {
+        toast($("panelWeightResult"), "ok", `✓ ${b.weight_available} g available (${b.weight} g − ${b.container_weight} g container)${b.twin_updated?" · twin updated":""}`);
+        await loadInventory();
+        openDetail(r.spoolId);
+      } else {
+        toast($("panelWeightResult"), "bad", `${b.reason||"Error"}${b.computed_weight_available!=null?" · computed: "+b.computed_weight_available+" g":""}`);
+      }
+    } catch (e) { toast($("panelWeightResult"), "bad", e.message||"Network error"); }
+    finally { setLoading(btn, false); }
+  }
+
+  /* ── init ── */
+  loadLookups().then(() => restoreAll());
+
+  // ── Electron RFID integration ──
+  if (window.electronAPI) {
+
+    // Reader connect / disconnect
+    window.electronAPI.onReaderStatus(({ connected, name }) => {
+      const el = $("rfidStatus");
+      const lbl = $("rfidLabel");
+      el.style.display = "flex";
+      el.classList.toggle("ok",  connected);
+      el.classList.toggle("bad", !connected);
+      lbl.textContent = connected ? `RFID: ${name || "connected"}` : "RFID: no reader";
+    });
+
+    // Card scanned → find spool and open detail panel
+    window.electronAPI.onRfid((uid, rawHex) => {
+      console.log('[RFID] scanned uid:', uid, 'raw:', rawHex);
+
+      // Flash the RFID indicator
+      const el = $("rfidStatus");
+      el.style.display = "flex";
+      el.classList.add("ok");
+      $("rfidLabel").textContent = `RFID: ${uid.slice(-6)}`;
+
+      // Search in loaded inventory
+      const row = state.rows.find(r => r.uid === uid || r.spoolId === uid);
+      if (row) {
+        openDetail(row.spoolId);
+        return;
+      }
+
+      // Unknown UID — show a toast and pre-fill RFID field if panel is open
+      toast($("credsResult"), "warn",
+        `RFID scanned: ${uid} — spool not found in current inventory.`
+      );
+    });
+
+    // Auto-update notification
+    window.electronAPI.onUpdateStatus(({ status }) => {
+      if (status === 'available') {
+        toast($("credsResult"), "muted", "A new version is downloading…");
+      } else if (status === 'ready') {
+        const div = document.createElement("div");
+        div.className = "alert ok";
+        div.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin-top:10px";
+        div.innerHTML = `<span>Update ready to install.</span>
+          <button class="primary sm" onclick="window.electronAPI.installUpdate()">Restart &amp; update</button>`;
+        $("credsResult").appendChild(div);
+      }
+    });
+  }
+})();
+</script>
+</body>
+</html>
