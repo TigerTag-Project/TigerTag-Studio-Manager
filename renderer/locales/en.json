@@ -1,16 +1,13 @@
 {
   "appSubtitle": "View and manage your filament spools",
-
   "backendIdle": "Backend: idle",
   "backendOk": "Backend: ok",
   "backendErr": "Backend: {{n}}",
   "backendOffline": "Backend: offline",
-
   "rfidConnected": "RFID: {{name}}",
   "rfidNoReader": "RFID: no reader",
   "rfidScanned": "RFID: {{uid}}",
   "rfidNotFound": "RFID scanned: {{uid}} — spool not found in current inventory.",
-
   "welcomeBack": [
     "🎉 Welcome back,",
     "🔥 Good to see you,",
@@ -18,27 +15,45 @@
     "🚀 Ready to print,",
     "✨ Hey, glad you're here,"
   ],
-
   "githubBtn": "View on GitHub",
+  "makerWorldBtn": "Free 3D Files",
   "discordBtn": "Join us on Discord",
   "mobileApp": "TigerTag Mobile Apps",
   "mobileScan": "Scan to get the app",
-
-  "settingsOpenBtn": "Settings",
-  "settingsTitle": "Settings",
-  "settingsAccount": "Account",
+  "settingsOpenBtn": "Export",
+  "settingsTitle": "Data & Export",
+  "settingsAccount": "Accounts",
   "settingsData": "Data & Export",
   "settingsLang": "Language",
   "settingsDebug": "Debug",
+  "btnManageProfiles": "Manage profiles",
+  "settingsColor": "Color",
   "settingsSave": "Save & reload",
+  "addAccountSave": "Add & load",
+  "addAccountLabel": "Add account",
+  "editAccountTitle": "Edit account",
+  "btnSignIn": "Sign in",
+  "addAccountAuthError": "Invalid email or API key. Please check your credentials.",
   "settingsApiLink": "Inventory Export URL",
   "settingsExport": "↓ Download JSON",
   "settingsCopied": "Copied!",
   "debugOpenBtn": "⌥ Open debug panel",
-
-  "btnRefresh": "↻ Refresh",
+  "btnRefresh": "Refresh",
   "btnSwitchAccount": "Switch account",
-
+  "noAccounts": "No accounts saved.",
+  "accountActive": "Active",
+  "btnActivate": "Switch",
+  "btnDeleteAccount": "Remove account",
+  "btnEditAccount": "Edit account",
+  "btnDisconnect": "Disconnect",
+  "btnEditApiKey": "Edit API Key",
+  "btnUpdateApiKey": "Verify & sync",
+  "cancelAddAccount": "Cancel",
+  "otherAccounts": "Other accounts",
+  "confirmDeleteAccount": "Remove this account and all its local data?",
+  "delModalTitle": "Disconnect account?",
+  "delModalWarn": "This account will be removed from this device. You can reconnect at any time.",
+  "cancelLabel": "Cancel",
   "credTitle": "Credentials",
   "credEmail": "Email",
   "credApiKey": "API Key",
@@ -47,11 +62,9 @@
   "statusValid": "valid",
   "statusInvalid": "invalid",
   "statusChecking": "checking…",
-
   "btnLoadInv": "Load inventory",
   "btnTestKey": "Test API key",
   "btnClearSaved": "Clear saved data",
-
   "invTitle": "Inventory",
   "btnViewTable": "☰ Table",
   "btnViewGrid": "⊞ Grid",
@@ -61,7 +74,6 @@
   "searchPlaceholder": "Search material, brand, color, UID…",
   "noInventory": "No inventory loaded yet.",
   "noMatch": "No spools match the filters.",
-
   "statActive": "Active spools",
   "statPlus": "TigerTag+",
   "statDiy": "TigerTag",
@@ -70,7 +82,6 @@
   "statPlusMini": "TigerTag+",
   "statDiyMini": "TigerTag",
   "statTotalMini": "Stock",
-
   "thUid": "UID",
   "thType": "Type",
   "thMaterial": "Material",
@@ -80,48 +91,48 @@
   "thWeight": "Weight avail.",
   "thCapacity": "Capacity",
   "thUpdated": "Updated",
-
   "debugLabel": "Debug",
   "debugSubtitle": " — last API request & response",
   "debugNoReqs": "No requests yet.",
-
-  "sectionColors": { "one": "Color", "other": "Colors" },
+  "sectionColors": {
+    "one": "Color",
+    "other": "Colors"
+  },
   "sectionPrint": "Print settings",
   "sectionWeight": "Weight",
   "sectionLinks": "Documents & links",
   "sectionContainer": "Container / Spool",
   "sectionDetails": "Details",
   "sectionRaw": "Raw JSON — spool data",
-
   "lbNozzle": "Nozzle",
   "lbBed": "Bed",
   "lbDryTemp": "Dry temp",
   "lbDryTime": "Dry time",
   "lbDensity": "Density",
-
   "weightTotal": "{{cap}} g total",
   "weightContainer": "Container: {{cw}} g",
   "weightOk": "✓ {{wa}} g available ({{w}} g − {{cw}} g container)",
   "weightOkTwin": " · twin updated",
   "weightErr": "{{r}}",
   "weightErrComputed": " · computed: {{c}} g",
-
-  "loadedSpools": { "one": "Loaded 1 spool.", "other": "Loaded {{n}} spools." },
+  "loadedSpools": {
+    "one": "Loaded 1 spool.",
+    "other": "Loaded {{n}} spools."
+  },
   "invError": "Inventory error: {{r}}",
   "invalidKey": "Invalid: {{r}}",
   "networkError": "Network error",
   "enterNumeric": "Enter a numeric weight.",
-
   "btnUpdate": "Update",
   "btnEditManually": "✎ Edit manually",
   "btnCloseManual": "✕ Close",
   "rawScaleLabel": "▸ Use raw scale weight (with container)",
   "rawScaleHint": "Weigh spool + container on the scale — the server subtracts the container weight.",
-
   "linkYt": "▶ YouTube",
+  "linkVideo": "▶ Watch video",
   "linkFood": "Food safe",
-
   "detUid": "UID",
+  "detType": "Type",
   "detSeries": "Series",
   "detBrand": "Brand",
   "detMaterial": "Material",
@@ -132,21 +143,18 @@
   "detContainer": "Container",
   "detTwin": "Twin tag",
   "detUpdated": "Updated",
-
+  "detManufactured": "Manufactured",
   "badgeRefill": "♻ Refill",
   "badgeRecycled": "🌿 Recycled",
   "badgeFilled": "◈ Filled",
   "badgeDeleted": "Deleted",
-
   "updateDownloading": "<strong>Update available</strong> — downloading…",
   "updateReady": "<strong>Update ready!</strong> Restart to install.",
   "btnRestartUpdate": "Restart & update",
-
   "twinBadge": "2 x RFID",
   "twinTitle": "Spool with 2 linked RFID chips",
   "twinTabThis": "This tag",
   "twinTabTwin": "Twin tag",
-
   "agoNow": "just now",
   "agoMin": "{{n}}m ago",
   "agoHour": "{{n}}h ago",

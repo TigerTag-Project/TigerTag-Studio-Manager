@@ -1,16 +1,13 @@
 {
   "appSubtitle": "Filamentspulen anzeigen und verwalten",
-
   "backendIdle": "Backend: inaktiv",
   "backendOk": "Backend: ok",
   "backendErr": "Backend: {{n}}",
   "backendOffline": "Backend: offline",
-
   "rfidConnected": "RFID: {{name}}",
   "rfidNoReader": "RFID: kein Lesegerät",
   "rfidScanned": "RFID: {{uid}}",
   "rfidNotFound": "RFID gescannt: {{uid}} — Spule nicht im Inventar gefunden.",
-
   "welcomeBack": [
     "🎉 Willkommen zurück,",
     "🔥 Schön dich zu sehen,",
@@ -18,27 +15,45 @@
     "🚀 Bereit zum Drucken,",
     "✨ Hey, gut dass du da bist,"
   ],
-
   "githubBtn": "Auf GitHub ansehen",
+  "makerWorldBtn": "Kostenlose 3D-Dateien",
   "discordBtn": "Discord beitreten",
   "mobileApp": "TigerTag Mobile Apps",
   "mobileScan": "App scannen",
-
-  "settingsOpenBtn": "Einstellungen",
-  "settingsTitle": "Einstellungen",
-  "settingsAccount": "Konto",
+  "settingsOpenBtn": "Export",
+  "settingsTitle": "Daten & Export",
+  "settingsAccount": "Konten",
   "settingsData": "Daten & Export",
   "settingsLang": "Sprache",
   "settingsDebug": "Debug",
+  "btnManageProfiles": "Profile verwalten",
+  "settingsColor": "Farbe",
   "settingsSave": "Speichern & neu laden",
+  "addAccountSave": "Hinzufügen & laden",
+  "addAccountLabel": "Konto hinzufügen",
+  "editAccountTitle": "Konto bearbeiten",
+  "btnSignIn": "Anmelden",
+  "addAccountAuthError": "Ungültige E-Mail oder ungültiger API-Schlüssel. Bitte überprüfen Sie Ihre Angaben.",
   "settingsApiLink": "Inventar-Export-URL",
   "settingsExport": "↓ JSON herunterladen",
   "settingsCopied": "Kopiert!",
   "debugOpenBtn": "⌥ Debug-Panel öffnen",
-
-  "btnRefresh": "↻ Aktualisieren",
+  "btnRefresh": "Aktualisieren",
   "btnSwitchAccount": "Konto wechseln",
-
+  "noAccounts": "Keine Konten gespeichert.",
+  "accountActive": "Aktiv",
+  "btnActivate": "Aktivieren",
+  "btnDeleteAccount": "Konto entfernen",
+  "btnEditAccount": "Konto bearbeiten",
+  "btnDisconnect": "Trennen",
+  "btnEditApiKey": "API-Schlüssel bearbeiten",
+  "btnUpdateApiKey": "Prüfen & synchronisieren",
+  "cancelAddAccount": "Abbrechen",
+  "otherAccounts": "Andere Konten",
+  "confirmDeleteAccount": "Dieses Konto und alle lokalen Daten entfernen?",
+  "delModalTitle": "Konto trennen?",
+  "delModalWarn": "Dieses Konto wird von diesem Gerät entfernt. Sie können sich jederzeit wieder verbinden.",
+  "cancelLabel": "Abbrechen",
   "credTitle": "Anmeldedaten",
   "credEmail": "E-Mail",
   "credApiKey": "API-Schlüssel",
@@ -47,11 +62,9 @@
   "statusValid": "gültig",
   "statusInvalid": "ungültig",
   "statusChecking": "prüfen…",
-
   "btnLoadInv": "Inventar laden",
   "btnTestKey": "API-Schlüssel testen",
   "btnClearSaved": "Daten löschen",
-
   "invTitle": "Inventar",
   "btnViewTable": "☰ Tabelle",
   "btnViewGrid": "⊞ Raster",
@@ -61,7 +74,6 @@
   "searchPlaceholder": "Material, Marke, Farbe, UID suchen…",
   "noInventory": "Noch kein Inventar geladen.",
   "noMatch": "Keine Spulen entsprechen den Filtern.",
-
   "statActive": "Aktive Spulen",
   "statPlus": "TigerTag+",
   "statDiy": "TigerTag",
@@ -70,7 +82,6 @@
   "statPlusMini": "TigerTag+",
   "statDiyMini": "TigerTag",
   "statTotalMini": "Bestand",
-
   "thUid": "UID",
   "thType": "Typ",
   "thMaterial": "Material",
@@ -80,48 +91,48 @@
   "thWeight": "Verf. Gewicht",
   "thCapacity": "Kapazität",
   "thUpdated": "Aktualisiert",
-
   "debugLabel": "Debug",
   "debugSubtitle": " — letzte API-Anfrage & -Antwort",
   "debugNoReqs": "Noch keine Anfragen.",
-
-  "sectionColors": { "one": "Farbe", "other": "Farben" },
+  "sectionColors": {
+    "one": "Farbe",
+    "other": "Farben"
+  },
   "sectionPrint": "Druckeinstellungen",
   "sectionWeight": "Gewicht",
   "sectionLinks": "Dokumente & Links",
   "sectionContainer": "Behälter / Spule",
   "sectionDetails": "Details",
   "sectionRaw": "Rohdaten JSON — Spulendaten",
-
   "lbNozzle": "Düse",
   "lbBed": "Druckbett",
   "lbDryTemp": "Trocknungstemperatur",
   "lbDryTime": "Trocknungsdauer",
   "lbDensity": "Dichte",
-
   "weightTotal": "{{cap}} g gesamt",
   "weightContainer": "Behälter: {{cw}} g",
   "weightOk": "✓ {{wa}} g verfügbar ({{w}} g − {{cw}} g Behälter)",
   "weightOkTwin": " · Zwilling aktualisiert",
   "weightErr": "{{r}}",
   "weightErrComputed": " · berechnet: {{c}} g",
-
-  "loadedSpools": { "one": "1 Spule geladen.", "other": "{{n}} Spulen geladen." },
+  "loadedSpools": {
+    "one": "1 Spule geladen.",
+    "other": "{{n}} Spulen geladen."
+  },
   "invError": "Inventarfehler: {{r}}",
   "invalidKey": "Ungültig: {{r}}",
   "networkError": "Netzwerkfehler",
   "enterNumeric": "Bitte ein numerisches Gewicht eingeben.",
-
   "btnUpdate": "Aktualisieren",
   "btnEditManually": "✎ Manuell eingeben",
   "btnCloseManual": "✕ Schließen",
   "rawScaleLabel": "▸ Rohgewicht mit Behälter verwenden",
   "rawScaleHint": "Spule + Behälter wiegen — der Server zieht das Behältergewicht ab.",
-
   "linkYt": "▶ YouTube",
+  "linkVideo": "▶ Video ansehen",
   "linkFood": "Lebensmittelecht",
-
   "detUid": "UID",
+  "detType": "Typ",
   "detSeries": "Serie",
   "detBrand": "Marke",
   "detMaterial": "Material",
@@ -132,25 +143,25 @@
   "detContainer": "Behälter",
   "detTwin": "Zwillings-Tag",
   "detUpdated": "Aktualisiert",
-
+  "detManufactured": "Hergestellt am",
   "badgeRefill": "♻ Nachfüllbar",
   "badgeRecycled": "🌿 Recycelt",
   "badgeFilled": "◈ Gefüllt",
   "badgeDeleted": "Gelöscht",
-
   "updateDownloading": "<strong>Update verfügbar</strong> — wird heruntergeladen…",
   "updateReady": "<strong>Update bereit!</strong> Neu starten zum Installieren.",
   "btnRestartUpdate": "Neu starten & installieren",
-
   "twinBadge": "2 x RFID",
   "twinTitle": "Spule mit 2 verknüpften RFID-Chips",
   "twinTabThis": "Dieser Tag",
   "twinTabTwin": "Zwillings-Tag",
-
   "agoNow": "gerade eben",
   "agoMin": "vor {{n}} Min.",
   "agoHour": "vor {{n}} Std.",
   "agoDay": "vor {{n}} Tag(en)",
   "agoMonth": "vor {{n}} Mon.",
-  "agoYear": { "one": "vor 1 Jahr", "other": "vor {{n}} Jahren" }
+  "agoYear": {
+    "one": "vor 1 Jahr",
+    "other": "vor {{n}} Jahren"
+  }
 }

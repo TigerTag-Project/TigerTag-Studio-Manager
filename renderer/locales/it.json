@@ -1,16 +1,13 @@
 {
   "appSubtitle": "Visualizza e gestisci le tue bobine di filamento",
-
   "backendIdle": "Backend: inattivo",
   "backendOk": "Backend: ok",
   "backendErr": "Backend: {{n}}",
   "backendOffline": "Backend: offline",
-
   "rfidConnected": "RFID: {{name}}",
   "rfidNoReader": "RFID: nessun lettore",
   "rfidScanned": "RFID: {{uid}}",
   "rfidNotFound": "RFID scansionato: {{uid}} — bobina non trovata nell'inventario.",
-
   "welcomeBack": [
     "🎉 Bentornato,",
     "🔥 Bello rivederti,",
@@ -18,27 +15,45 @@
     "🚀 Pronto a stampare,",
     "✨ Ciao, felice che tu sia qui,"
   ],
-
   "githubBtn": "Vedi su GitHub",
+  "makerWorldBtn": "File 3D gratuiti",
   "discordBtn": "Unisciti a Discord",
   "mobileApp": "TigerTag App Mobile",
   "mobileScan": "Scansiona per l'app",
-
-  "settingsOpenBtn": "Impostazioni",
-  "settingsTitle": "Impostazioni",
+  "settingsOpenBtn": "Esporta",
+  "settingsTitle": "Dati & Esporta",
   "settingsAccount": "Account",
   "settingsData": "Dati & Esportazione",
   "settingsLang": "Lingua",
   "settingsDebug": "Debug",
+  "btnManageProfiles": "Gestisci profili",
+  "settingsColor": "Colore",
   "settingsSave": "Salva & ricarica",
+  "addAccountSave": "Aggiungi & carica",
+  "addAccountLabel": "Aggiungi account",
+  "editAccountTitle": "Modifica account",
+  "btnSignIn": "Accedi",
+  "addAccountAuthError": "Email o chiave API non validi. Controlla le tue credenziali.",
   "settingsApiLink": "URL esportazione inventario",
   "settingsExport": "↓ Scarica JSON",
   "settingsCopied": "Copiato!",
   "debugOpenBtn": "⌥ Apri pannello debug",
-
-  "btnRefresh": "↻ Aggiorna",
+  "btnRefresh": "Aggiorna",
   "btnSwitchAccount": "Cambia account",
-
+  "noAccounts": "Nessun account salvato.",
+  "accountActive": "Attivo",
+  "btnActivate": "Attiva",
+  "btnDeleteAccount": "Rimuovi account",
+  "btnEditAccount": "Modifica account",
+  "btnDisconnect": "Disconnetti",
+  "btnEditApiKey": "Modifica chiave API",
+  "btnUpdateApiKey": "Verifica & sincronizza",
+  "cancelAddAccount": "Annulla",
+  "otherAccounts": "Altri account",
+  "confirmDeleteAccount": "Rimuovere questo account e tutti i suoi dati locali?",
+  "delModalTitle": "Disconnettere account?",
+  "delModalWarn": "Questo account verrà rimosso dal dispositivo. Puoi riconnetterti in qualsiasi momento.",
+  "cancelLabel": "Annulla",
   "credTitle": "Credenziali",
   "credEmail": "Email",
   "credApiKey": "Chiave API",
@@ -47,11 +62,9 @@
   "statusValid": "valida",
   "statusInvalid": "non valida",
   "statusChecking": "verifica…",
-
   "btnLoadInv": "Carica inventario",
   "btnTestKey": "Testa chiave API",
   "btnClearSaved": "Cancella dati salvati",
-
   "invTitle": "Inventario",
   "btnViewTable": "☰ Tabella",
   "btnViewGrid": "⊞ Griglia",
@@ -61,7 +74,6 @@
   "searchPlaceholder": "Cerca materiale, marca, colore, UID…",
   "noInventory": "Nessun inventario caricato.",
   "noMatch": "Nessuna bobina corrisponde ai filtri.",
-
   "statActive": "Bobine attive",
   "statPlus": "TigerTag+",
   "statDiy": "TigerTag",
@@ -70,7 +82,6 @@
   "statPlusMini": "TigerTag+",
   "statDiyMini": "TigerTag",
   "statTotalMini": "Stock",
-
   "thUid": "UID",
   "thType": "Tipo",
   "thMaterial": "Materiale",
@@ -80,48 +91,48 @@
   "thWeight": "Peso disp.",
   "thCapacity": "Capacità",
   "thUpdated": "Aggiornato",
-
   "debugLabel": "Debug",
   "debugSubtitle": " — ultima richiesta & risposta API",
   "debugNoReqs": "Nessuna richiesta ancora.",
-
-  "sectionColors": { "one": "Colore", "other": "Colori" },
+  "sectionColors": {
+    "one": "Colore",
+    "other": "Colori"
+  },
   "sectionPrint": "Impostazioni di stampa",
   "sectionWeight": "Peso",
   "sectionLinks": "Documenti & link",
   "sectionContainer": "Contenitore / Bobina",
   "sectionDetails": "Dettagli",
   "sectionRaw": "JSON grezzo — dati bobina",
-
   "lbNozzle": "Ugello",
   "lbBed": "Piano di stampa",
   "lbDryTemp": "Temp. essiccazione",
   "lbDryTime": "Durata essiccazione",
   "lbDensity": "Densità",
-
   "weightTotal": "{{cap}} g totale",
   "weightContainer": "Contenitore: {{cw}} g",
   "weightOk": "✓ {{wa}} g disponibili ({{w}} g − {{cw}} g contenitore)",
   "weightOkTwin": " · gemello aggiornato",
   "weightErr": "{{r}}",
   "weightErrComputed": " · calcolato: {{c}} g",
-
-  "loadedSpools": { "one": "1 bobina caricata.", "other": "{{n}} bobine caricate." },
+  "loadedSpools": {
+    "one": "1 bobina caricata.",
+    "other": "{{n}} bobine caricate."
+  },
   "invError": "Errore inventario: {{r}}",
   "invalidKey": "Non valido: {{r}}",
   "networkError": "Errore di rete",
   "enterNumeric": "Inserisci un peso numerico.",
-
   "btnUpdate": "Aggiorna",
   "btnEditManually": "✎ Modifica manualmente",
   "btnCloseManual": "✕ Chiudi",
   "rawScaleLabel": "▸ Peso lordo con contenitore",
   "rawScaleHint": "Pesa la bobina + il contenitore — il server sottrae il peso del contenitore.",
-
   "linkYt": "▶ YouTube",
+  "linkVideo": "▶ Guarda il video",
   "linkFood": "Sicuro per alimenti",
-
   "detUid": "UID",
+  "detType": "Tipo",
   "detSeries": "Serie",
   "detBrand": "Marca",
   "detMaterial": "Materiale",
@@ -132,25 +143,25 @@
   "detContainer": "Contenitore",
   "detTwin": "Tag gemello",
   "detUpdated": "Aggiornato",
-
+  "detManufactured": "Prodotto il",
   "badgeRefill": "♻ Ricaricabile",
   "badgeRecycled": "🌿 Riciclato",
   "badgeFilled": "◈ Riempito",
   "badgeDeleted": "Eliminato",
-
   "updateDownloading": "<strong>Aggiornamento disponibile</strong> — download in corso…",
   "updateReady": "<strong>Aggiornamento pronto!</strong> Riavvia per installare.",
   "btnRestartUpdate": "Riavvia & installa",
-
   "twinBadge": "2 x RFID",
   "twinTitle": "Bobina con 2 chip RFID collegati",
   "twinTabThis": "Questo tag",
   "twinTabTwin": "Tag gemello",
-
   "agoNow": "proprio ora",
   "agoMin": "{{n}} min fa",
   "agoHour": "{{n}} h fa",
   "agoDay": "{{n}} giorno/i fa",
   "agoMonth": "{{n}} mese/i fa",
-  "agoYear": { "one": "1 anno fa", "other": "{{n}} anni fa" }
+  "agoYear": {
+    "one": "1 anno fa",
+    "other": "{{n}} anni fa"
+  }
 }

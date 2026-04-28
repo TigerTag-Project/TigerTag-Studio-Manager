@@ -20,12 +20,14 @@
 - **Table & Grid views** — Switch between a compact table or a visual card grid
 - **Column sorting** — Click any column header to sort ascending / descending
 - **NFC RFID reading** — Plug in an ACR122U reader to automatically open a spool's detail panel on scan
-- **Weight tracking** — Update spool weight directly from the app (slider or manual entry)
+- **Weight tracking** — Update spool weight directly from the app (slider, manual entry, or raw scale input); inventory auto-refreshes 1 second after a successful update
 - **Material details** — Print temperatures, bed temps, drying settings, density, MSDS/TDS/RoHS links
+- **Product type** — Type label (Filament, Resin, …) resolved from `id_type` and displayed in the detail panel
+- **Manufacturing date** — Chip programming timestamp shown for standard TigerTag (hidden on TigerTag+ to protect factory dates)
 - **Color display** — Smart color circles with conic-gradient (bicolor/tricolor/multi), linear rainbow, and solid color rendering based on spool aspect data
 - **Image cache** — Spool images are downloaded and cached locally; works offline, falls back to color placeholder if the remote link is dead
-- **Multi-account** — Add and switch between multiple TigerTag accounts from the Settings panel
-- **Multi-language** — EN, FR, DE, ES, IT, 中文 — switch any time from Settings
+- **Multi-account** — Add and switch between multiple TigerTag accounts; profiles are shown as vertical cards with per-account color avatars (13 presets + custom color picker)
+- **Multi-language** — EN, FR, DE, ES, IT, PT, 中文 — switch any time from the account modal
 - **Auto-updater** — Receives updates automatically via GitHub Releases
 - **Cross-platform** — Windows, macOS (Intel + Apple Silicon), Linux
 
@@ -99,7 +101,7 @@ npm install
 npm start
 ```
 
-The app launches and asks for your TigerTag **email** and **API key**. Your credentials are saved locally in `localStorage` and never sent anywhere other than `https://cdn.tigertag.io`.
+The app launches directly into the inventory view if an account is already saved, or opens the **Add account** modal on first launch. Credentials are stored locally in `localStorage` and never sent anywhere other than `https://cdn.tigertag.io`.
 
 ---
 
@@ -136,12 +138,13 @@ TigerTag_Studio_Manager/
 ├── main.js                  # Electron main process (window, NFC, image cache, auto-updater)
 ├── preload.js               # IPC bridge (contextBridge)
 ├── renderer/
-│   ├── inventory.html       # Single-page UI (HTML + CSS + JS, no bundler)
+│   ├── inventory.html       # Single-page UI (markup + modals, no inline JS)
 │   ├── inventory.css        # All app styles
-│   └── locales/             # i18n JSON files (en, fr, de, es, it, zh)
+│   ├── inventory.js         # All application logic (IIFE)
+│   └── locales/             # i18n JSON files (en, fr, de, es, it, zh, pt)
 ├── services/
 │   └── tigertagDbService.js # Local JSON DB with offline fallback and remote sync
-├── data/                    # Local JSON lookup tables (brands, materials, aspects…)
+├── data/                    # Local JSON lookup tables (brands, materials, types, aspects…)
 ├── assets/
 │   ├── db/                  # Embedded DB fallback (used when userData/db/ is missing)
 │   ├── img/                 # App icons + spool container images
@@ -151,6 +154,50 @@ TigerTag_Studio_Manager/
 │       └── build.yml        # CI: build + publish on tag push
 └── package.json
 ```
+
+---
+
+## UI overview
+
+### Sidebar
+
+The left sidebar is always visible and shows the active account as soon as the app loads (from `localStorage`, before any API call). It contains:
+
+- **Avatar** — initials with a gradient color (13 presets or custom hex picker); clicking opens the profiles modal or the add-account modal if no account is saved
+- **Stats** — active spools, TigerTag+ count, TigerTag count, total available weight
+- **Refresh button** — reloads the full inventory; the SVG icon spins during loading
+- **Community links** — GitHub, MakerWorld (free 3D files), Discord, mobile app QR code
+- **Export button** — opens the data/export panel
+
+### Profiles modal ("Manage profiles")
+
+Lists all saved accounts as vertical cards (avatar + name + email + chevron). Clicking a card closes the profiles modal and opens the **Edit account** modal for that account.
+
+### Edit account modal
+
+- **Avatar + name/email** displayed side by side (compact horizontal layout)
+- **Color picker** — 13 gradient presets + a custom hex color input; the avatar gradient updates live
+- **Language selector** — changes the UI language instantly (EN / FR / DE / ES / IT / PT / ZH)
+- **API key field** — masked by default (`-webkit-text-security`); eye button reveals/hides without height jump; copy button copies the key to clipboard
+- **Verify & sync** — validates the API key against the server, updates display name, and reloads the inventory
+- **Disconnect** — requires a 1.5-second press-and-hold (animated fill progress) to prevent accidental disconnection
+
+### Inventory
+
+- **Table view** and **Grid view** — toggled from the toolbar
+- **Search** — filters by material, brand, color name, UID
+- **Show / hide deleted** toggle
+- **Detail panel** (right slide-in) — opens on row/card click, shows:
+  - Product image or color placeholder
+  - Color swatches + aspect tags side-by-side (solid, bicolor, tricolor, conic gradient, or rainbow)
+  - Twin RFID badge shown as overlay on the thumbnail (table & grid)
+  - Weight section (slider, manual input, raw scale input) — directly below colors
+  - Container card (when applicable)
+  - Print settings (nozzle, bed, dry temp/time, density)
+  - **Video player** — YouTube links open as a clickable thumbnail (avoids embed restrictions); direct MP4/WebM plays inline at full width
+  - Documents & links with PDF icon (MSDS, TDS, RoHS, REACH, food-safe)
+  - Details rows: UID, **Type** (Filament / Resin / …), Series, Brand, Material, Diameter, Tag type, SKU, Barcode, Container, Twin tag, Updated, **Manufactured** (TigerTag only — hidden on TigerTag+)
+  - Raw JSON viewer with copy button
 
 ---
 
@@ -170,7 +217,7 @@ Spool images (TigerTag+ only) are fetched from `cdn.tigertag.io` on first load a
 
 ## Multi-account
 
-Multiple TigerTag accounts can be added and switched between from the Settings panel. Each account's inventory is loaded independently and cached locally.
+Multiple TigerTag accounts can be added and switched between from the **Manage profiles** modal. Each account has its own color avatar, and its inventory is loaded independently and cached locally under `tigertag.inv.<id>` in `localStorage`.
 
 ---
 
@@ -180,6 +227,7 @@ The app communicates exclusively with `https://cdn.tigertag.io`. No data is coll
 
 | Endpoint | Description |
 |---|---|
+| `GET /healthz/` | Backend health check |
 | `GET /pingbyapikey?ApiKey=XXX` | Validate API key, returns display name |
 | `GET /exportInventory?ApiKey=XXX&email=XXX` | Fetch full inventory JSON |
 | `GET /setSpoolWeightByRfid?ApiKey=XXX&uid=XXX&weight=XXX[&container_weight=0]` | Update spool weight |
@@ -235,16 +283,30 @@ GET /setSpoolWeightByRfid?ApiKey=YOUR_KEY&uid=SPOOL_UID&weight=920
 }
 ```
 
+After a successful update the app automatically waits 1 second and then reloads the full inventory so the new weight is reflected everywhere.
+
 ---
 
-## Adding a language
+## i18n — supported languages
+
+| Code | Language | File |
+|---|---|---|
+| `en` | English | `locales/en.json` |
+| `fr` | Français | `locales/fr.json` |
+| `de` | Deutsch | `locales/de.json` |
+| `es` | Español | `locales/es.json` |
+| `it` | Italiano | `locales/it.json` |
+| `pt` | Português | `locales/pt.json` |
+| `zh` | 中文 | `locales/zh.json` |
+
+### Adding a language
 
 UI strings live in `renderer/locales/<lang>.json`. To add a new language:
 
 1. Copy `renderer/locales/en.json` to `renderer/locales/<lang>.json`
 2. Translate all values (keys must stay identical)
-3. Add `"<lang>"` to the `loadLocales()` array in `renderer/inventory.html`
-4. Add a button in the Settings panel lang-toggle: `<button class="lang-btn" data-lang="<lang>">…</button>`
+3. Add `"<lang>"` to the `loadLocales()` array in `renderer/inventory.js`
+4. Add an `<option>` in the `#langSelect` dropdown in `renderer/inventory.html`
 
 ---
 
@@ -261,7 +323,7 @@ Contributions are welcome! Here's how to get started:
 ### Guidelines
 
 - Keep the UI vanilla (no React, Vue, etc.) — the goal is zero build step for the renderer
-- New strings must be added to all locale files in `renderer/locales/`
+- New i18n strings must be added to **all 7 locale files** in `renderer/locales/`
 - Don't commit `node_modules/`, `dist/`, or any credentials
 - One feature / fix per PR
 

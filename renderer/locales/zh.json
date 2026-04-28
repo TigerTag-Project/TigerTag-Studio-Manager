@@ -1,16 +1,13 @@
 {
   "appSubtitle": "查看并管理您的耗材卷轴",
-
   "backendIdle": "后端：空闲",
   "backendOk": "后端：正常",
   "backendErr": "后端：{{n}}",
   "backendOffline": "后端：离线",
-
   "rfidConnected": "RFID：{{name}}",
   "rfidNoReader": "RFID：无读卡器",
   "rfidScanned": "RFID：{{uid}}",
   "rfidNotFound": "RFID 扫描：{{uid}} — 库存中未找到卷轴。",
-
   "welcomeBack": [
     "🎉 欢迎回来，",
     "🔥 很高兴见到你，",
@@ -18,27 +15,45 @@
     "🚀 准备好打印了，",
     "✨ 嘿，很高兴你在这里，"
   ],
-
   "githubBtn": "在 GitHub 上查看",
+  "makerWorldBtn": "免费3D文件",
   "discordBtn": "加入 Discord",
   "mobileApp": "TigerTag 移动应用",
   "mobileScan": "扫描下载应用",
-
-  "settingsOpenBtn": "设置",
-  "settingsTitle": "设置",
+  "settingsOpenBtn": "导出",
+  "settingsTitle": "数据与导出",
   "settingsAccount": "账户",
   "settingsData": "数据 & 导出",
   "settingsLang": "语言",
   "settingsDebug": "调试",
+  "btnManageProfiles": "管理账户",
+  "settingsColor": "颜色",
   "settingsSave": "保存并重新加载",
+  "addAccountSave": "添加并加载",
+  "addAccountLabel": "添加账户",
+  "editAccountTitle": "编辑账户",
+  "btnSignIn": "登录",
+  "addAccountAuthError": "邮箱或 API 密钥无效，请检查您的凭据。",
   "settingsApiLink": "库存导出 URL",
   "settingsExport": "↓ 下载 JSON",
   "settingsCopied": "已复制！",
   "debugOpenBtn": "⌥ 打开调试面板",
-
-  "btnRefresh": "↻ 刷新",
+  "btnRefresh": "刷新",
   "btnSwitchAccount": "切换账户",
-
+  "noAccounts": "没有已保存的账户。",
+  "accountActive": "当前",
+  "btnActivate": "切换",
+  "btnDeleteAccount": "删除账户",
+  "btnEditAccount": "编辑账户",
+  "btnDisconnect": "断开连接",
+  "btnEditApiKey": "修改 API 密钥",
+  "btnUpdateApiKey": "验证并同步",
+  "cancelAddAccount": "取消",
+  "otherAccounts": "其他账户",
+  "confirmDeleteAccount": "删除此账户及其所有本地数据？",
+  "delModalTitle": "断开账户连接？",
+  "delModalWarn": "此账户将从本设备移除，您可以随时重新连接。",
+  "cancelLabel": "取消",
   "credTitle": "凭据",
   "credEmail": "邮箱",
   "credApiKey": "API 密钥",
@@ -47,11 +62,9 @@
   "statusValid": "有效",
   "statusInvalid": "无效",
   "statusChecking": "验证中…",
-
   "btnLoadInv": "加载库存",
   "btnTestKey": "测试 API 密钥",
   "btnClearSaved": "清除已保存数据",
-
   "invTitle": "库存",
   "btnViewTable": "☰ 表格",
   "btnViewGrid": "⊞ 网格",
@@ -61,7 +74,6 @@
   "searchPlaceholder": "搜索材料、品牌、颜色、UID…",
   "noInventory": "尚未加载库存。",
   "noMatch": "没有卷轴符合筛选条件。",
-
   "statActive": "活跃卷轴",
   "statPlus": "TigerTag+",
   "statDiy": "TigerTag",
@@ -70,7 +82,6 @@
   "statPlusMini": "TigerTag+",
   "statDiyMini": "TigerTag",
   "statTotalMini": "库存",
-
   "thUid": "UID",
   "thType": "类型",
   "thMaterial": "材料",
@@ -80,48 +91,48 @@
   "thWeight": "可用重量",
   "thCapacity": "容量",
   "thUpdated": "更新时间",
-
   "debugLabel": "调试",
   "debugSubtitle": " — 最后一次 API 请求 & 响应",
   "debugNoReqs": "暂无请求。",
-
-  "sectionColors": { "one": "颜色", "other": "颜色" },
+  "sectionColors": {
+    "one": "颜色",
+    "other": "颜色"
+  },
   "sectionPrint": "打印设置",
   "sectionWeight": "重量",
   "sectionLinks": "文档 & 链接",
   "sectionContainer": "容器 / 卷轴",
   "sectionDetails": "详情",
   "sectionRaw": "原始 JSON — 卷轴数据",
-
   "lbNozzle": "喷嘴",
   "lbBed": "热床",
   "lbDryTemp": "干燥温度",
   "lbDryTime": "干燥时间",
   "lbDensity": "密度",
-
   "weightTotal": "{{cap}} g 总计",
   "weightContainer": "容器：{{cw}} g",
   "weightOk": "✓ {{wa}} g 可用（{{w}} g − {{cw}} g 容器）",
   "weightOkTwin": " · 双卷轴已更新",
   "weightErr": "{{r}}",
   "weightErrComputed": " · 计算值：{{c}} g",
-
-  "loadedSpools": { "one": "已加载 1 个卷轴。", "other": "已加载 {{n}} 个卷轴。" },
+  "loadedSpools": {
+    "one": "已加载 1 个卷轴。",
+    "other": "已加载 {{n}} 个卷轴。"
+  },
   "invError": "库存错误：{{r}}",
   "invalidKey": "无效：{{r}}",
   "networkError": "网络错误",
   "enterNumeric": "请输入数字重量。",
-
   "btnUpdate": "更新",
   "btnEditManually": "✎ 手动编辑",
   "btnCloseManual": "✕ 关闭",
   "rawScaleLabel": "▸ 含容器的原始重量",
   "rawScaleHint": "称量卷轴 + 容器的重量 — 服务器将自动减去容器重量。",
-
   "linkYt": "▶ YouTube",
+  "linkVideo": "▶ 观看视频",
   "linkFood": "食品安全",
-
   "detUid": "UID",
+  "detType": "类型",
   "detSeries": "系列",
   "detBrand": "品牌",
   "detMaterial": "材料",
@@ -132,25 +143,25 @@
   "detContainer": "容器",
   "detTwin": "双重标签",
   "detUpdated": "更新时间",
-
+  "detManufactured": "生产日期",
   "badgeRefill": "♻ 可填充",
   "badgeRecycled": "🌿 可回收",
   "badgeFilled": "◈ 已填充",
   "badgeDeleted": "已删除",
-
   "updateDownloading": "<strong>有可用更新</strong> — 下载中…",
   "updateReady": "<strong>更新已就绪！</strong>重启以安装。",
   "btnRestartUpdate": "重启 & 安装",
-
   "twinBadge": "2 x RFID",
   "twinTitle": "带有 2 个关联 RFID 芯片的卷轴",
   "twinTabThis": "此标签",
   "twinTabTwin": "双重标签",
-
   "agoNow": "刚刚",
   "agoMin": "{{n}} 分钟前",
   "agoHour": "{{n}} 小时前",
   "agoDay": "{{n}} 天前",
   "agoMonth": "{{n}} 个月前",
-  "agoYear": { "one": "1 年前", "other": "{{n}} 年前" }
+  "agoYear": {
+    "one": "1 年前",
+    "other": "{{n}} 年前"
+  }
 }

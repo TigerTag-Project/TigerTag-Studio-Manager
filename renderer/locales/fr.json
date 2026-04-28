@@ -1,16 +1,13 @@
 {
   "appSubtitle": "Consultez et gérez vos bobines de filament",
-
   "backendIdle": "Serveur : inactif",
   "backendOk": "Serveur : ok",
   "backendErr": "Serveur : {{n}}",
   "backendOffline": "Serveur : hors ligne",
-
   "rfidConnected": "RFID : {{name}}",
   "rfidNoReader": "RFID : aucun lecteur",
   "rfidScanned": "RFID : {{uid}}",
   "rfidNotFound": "RFID lu : {{uid}} — bobine introuvable dans l'inventaire.",
-
   "welcomeBack": [
     "🎉 Content de te revoir,",
     "🔥 Te revoilà,",
@@ -18,27 +15,45 @@
     "🚀 Prêt à imprimer,",
     "✨ Hé, bienvenue,"
   ],
-
   "githubBtn": "Voir sur GitHub",
+  "makerWorldBtn": "Fichiers 3D gratuits",
   "discordBtn": "Rejoindre notre Discord",
   "mobileApp": "TigerTag Mobile Apps",
   "mobileScan": "Scanner pour l'app",
-
-  "settingsOpenBtn": "Paramètres",
-  "settingsTitle": "Paramètres",
-  "settingsAccount": "Compte",
+  "settingsOpenBtn": "Export",
+  "settingsTitle": "Données & Export",
+  "settingsAccount": "Comptes",
   "settingsData": "Données & Export",
   "settingsLang": "Langue",
   "settingsDebug": "Debug",
+  "btnManageProfiles": "Gérer les profils",
+  "settingsColor": "Couleur",
   "settingsSave": "Sauvegarder & recharger",
+  "addAccountSave": "Ajouter & charger",
+  "addAccountLabel": "Ajouter un compte",
+  "editAccountTitle": "Modifier le compte",
+  "btnSignIn": "Connexion",
+  "addAccountAuthError": "E-mail ou clé API incorrect(e). Vérifiez vos identifiants.",
   "settingsApiLink": "URL d'export inventaire",
   "settingsExport": "↓ Télécharger JSON",
   "settingsCopied": "Copié !",
   "debugOpenBtn": "⌥ Ouvrir le panneau debug",
-
-  "btnRefresh": "↻ Actualiser",
+  "btnRefresh": "Actualiser",
   "btnSwitchAccount": "Changer de compte",
-
+  "noAccounts": "Aucun compte enregistré.",
+  "accountActive": "Actif",
+  "btnActivate": "Activer",
+  "btnDeleteAccount": "Supprimer le compte",
+  "btnEditAccount": "Modifier le compte",
+  "btnDisconnect": "Déconnecter",
+  "btnEditApiKey": "Modifier la clé API",
+  "btnUpdateApiKey": "Vérifier & synchroniser",
+  "cancelAddAccount": "Annuler",
+  "otherAccounts": "Autres comptes",
+  "confirmDeleteAccount": "Supprimer ce compte et toutes ses données locales ?",
+  "delModalTitle": "Déconnecter le compte ?",
+  "delModalWarn": "Ce compte sera retiré de cet appareil. Vous pouvez vous reconnecter à tout moment.",
+  "cancelLabel": "Annuler",
   "credTitle": "Identifiants",
   "credEmail": "E-mail",
   "credApiKey": "Clé API",
@@ -47,11 +62,9 @@
   "statusValid": "valide",
   "statusInvalid": "invalide",
   "statusChecking": "vérification…",
-
   "btnLoadInv": "Charger l'inventaire",
   "btnTestKey": "Tester la clé API",
   "btnClearSaved": "Effacer les données",
-
   "invTitle": "Inventaire",
   "btnViewTable": "☰ Tableau",
   "btnViewGrid": "⊞ Grille",
@@ -61,7 +74,6 @@
   "searchPlaceholder": "Rechercher matière, marque, couleur, UID…",
   "noInventory": "Aucun inventaire chargé.",
   "noMatch": "Aucune bobine ne correspond aux filtres.",
-
   "statActive": "Bobines actives",
   "statPlus": "TigerTag+",
   "statDiy": "TigerTag",
@@ -70,7 +82,6 @@
   "statPlusMini": "TigerTag+",
   "statDiyMini": "TigerTag",
   "statTotalMini": "Stock",
-
   "thUid": "UID",
   "thType": "Type",
   "thMaterial": "Matière",
@@ -80,48 +91,48 @@
   "thWeight": "Poids dispo.",
   "thCapacity": "Capacité",
   "thUpdated": "Mis à jour",
-
   "debugLabel": "Debug",
   "debugSubtitle": " — dernière requête & réponse API",
   "debugNoReqs": "Aucune requête effectuée.",
-
-  "sectionColors": { "one": "Couleur", "other": "Couleurs" },
+  "sectionColors": {
+    "one": "Couleur",
+    "other": "Couleurs"
+  },
   "sectionPrint": "Paramètres d'impression",
   "sectionWeight": "Poids",
   "sectionLinks": "Documents & liens",
   "sectionContainer": "Contenant / Bobine",
   "sectionDetails": "Détails",
   "sectionRaw": "JSON brut — données bobine",
-
   "lbNozzle": "Buse",
   "lbBed": "Plateau",
   "lbDryTemp": "Temp. séchage",
   "lbDryTime": "Durée séchage",
   "lbDensity": "Densité",
-
   "weightTotal": "{{cap}} g total",
   "weightContainer": "Contenant : {{cw}} g",
   "weightOk": "✓ {{wa}} g disponibles ({{w}} g − {{cw}} g contenant)",
   "weightOkTwin": " · jumeau mis à jour",
   "weightErr": "{{r}}",
   "weightErrComputed": " · calculé : {{c}} g",
-
-  "loadedSpools": { "one": "1 bobine chargée.", "other": "{{n}} bobines chargées." },
+  "loadedSpools": {
+    "one": "1 bobine chargée.",
+    "other": "{{n}} bobines chargées."
+  },
   "invError": "Erreur inventaire : {{r}}",
   "invalidKey": "Invalide : {{r}}",
   "networkError": "Erreur réseau",
   "enterNumeric": "Entrez un poids numérique.",
-
   "btnUpdate": "Mettre à jour",
   "btnEditManually": "✎ Saisir manuellement",
   "btnCloseManual": "✕ Fermer",
   "rawScaleLabel": "▸ Poids brut avec contenant",
   "rawScaleHint": "Pesez la bobine + le contenant — le serveur soustrait le poids du contenant.",
-
   "linkYt": "▶ YouTube",
+  "linkVideo": "▶ Voir la vidéo",
   "linkFood": "Alimentaire",
-
   "detUid": "UID",
+  "detType": "Type",
   "detSeries": "Série",
   "detBrand": "Marque",
   "detMaterial": "Matière",
@@ -132,25 +143,25 @@
   "detContainer": "Contenant",
   "detTwin": "Tag jumeau",
   "detUpdated": "Mis à jour",
-
-  "badgeRefill": "♻ Rechargeable",
+  "detManufactured": "Fabriqué le",
+  "badgeRefill": "♻ Recharge",
   "badgeRecycled": "🌿 Recyclé",
   "badgeFilled": "◈ Rempli",
   "badgeDeleted": "Supprimé",
-
   "updateDownloading": "<strong>Mise à jour disponible</strong> — téléchargement…",
   "updateReady": "<strong>Mise à jour prête !</strong> Redémarrez pour installer.",
   "btnRestartUpdate": "Redémarrer & installer",
-
   "twinBadge": "2 x RFID",
   "twinTitle": "Bobine avec 2 puces RFID liées",
   "twinTabThis": "Cette puce",
   "twinTabTwin": "Puce jumelle",
-
   "agoNow": "à l'instant",
   "agoMin": "il y a {{n}}min",
   "agoHour": "il y a {{n}}h",
   "agoDay": "il y a {{n}}j",
   "agoMonth": "il y a {{n}} mois",
-  "agoYear": { "one": "il y a 1 an", "other": "il y a {{n}} ans" }
+  "agoYear": {
+    "one": "il y a 1 an",
+    "other": "il y a {{n}} ans"
+  }
 }
