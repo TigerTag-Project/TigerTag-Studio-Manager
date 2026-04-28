@@ -217,7 +217,14 @@ Spool images (TigerTag+ only) are fetched from `cdn.tigertag.io` on first load a
 
 ## Multi-account
 
-Multiple TigerTag accounts can be added and switched between from the **Manage profiles** modal. Each account has its own color avatar, and its inventory is loaded independently and cached locally under `tigertag.inv.<id>` in `localStorage`.
+Multiple TigerTag accounts can be added and switched between at any time:
+
+- **Add account** — click the avatar in the sidebar (or the `+` button in the profiles modal), enter your email and API key, and the inventory loads immediately
+- **Switch account** — open the profiles modal, click any account card; the inventory, language, and avatar switch instantly
+- **Edit account** — color avatar (13 gradient presets or custom hex), language preference, API key management (eye reveal + clipboard copy), verify & sync
+- **Disconnect** — requires a 1.5-second press-and-hold on the disconnect button to prevent accidental removal; the account and its cached inventory are removed from the device
+- **Per-account language** — each account remembers its own UI language; switching accounts automatically restores the correct language
+- **Independent cache** — each account's inventory is cached separately under `tigertag.inv.<id>` in `localStorage` and reloaded on switch without a new API call if the cache is fresh
 
 ---
 
