@@ -570,6 +570,25 @@
   #addAccountModalOverlay .sb-eye { background: var(--surface-2); border-color: var(--border); color: var(--muted); }
   #addAccountModalOverlay .sb-eye:hover { background: var(--border) !important; color: var(--text) !important; }
 
+  /* ── login modal (Firebase) ── */
+  .login-card { width: 360px; }
+  .login-google-btn {
+    width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px;
+    margin-top: 14px; height: 42px; border-radius: 10px;
+    border: 1px solid var(--border); background: var(--surface-2);
+    color: var(--text); font-size: 14px; font-weight: 500; cursor: pointer;
+    transition: background .15s, border-color .15s;
+  }
+  .login-google-btn:hover { background: var(--border); border-color: var(--muted); }
+  .login-google-btn:disabled { opacity: .5; pointer-events: none; }
+  .login-or {
+    display: flex; align-items: center; gap: 10px;
+    margin: 14px 0 4px; color: var(--muted); font-size: 12px;
+  }
+  .login-or::before, .login-or::after {
+    content: ""; flex: 1; height: 1px; background: var(--border);
+  }
+
   /* main column */
   .main-col {
     flex: 1; min-width: 0;

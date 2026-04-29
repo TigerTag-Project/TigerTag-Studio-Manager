@@ -35,10 +35,34 @@ function createWindow() {
 
   mainWindow.loadFile('renderer/inventory.html');
 
-  // Open external links in default browser, not in Electron
+  // Open external links in default browser; allow Firebase auth popup internally
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    // Firebase sign-in popup must open inside Electron so postMessage works
+    if (url.startsWith('https://tigertag-connect.firebaseapp.com/__/auth/')) {
+      return {
+        action: 'allow',
+        overrideBrowserWindowOptions: {
+          width: 540,
+          height: 660,
+          autoHideMenuBar: true,
+          webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true,
+          },
+        },
+      };
+    }
     shell.openExternal(url);
     return { action: 'deny' };
+  });
+
+  // Override user-agent on Firebase auth popup to avoid Google's embedded-webview block
+  mainWindow.webContents.on('did-create-window', (win) => {
+    win.webContents.setUserAgent(
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) ' +
+      'AppleWebKit/537.36 (KHTML, like Gecko) ' +
+      'Chrome/124.0.0.0 Safari/537.36'
+    );
   });
 }
 

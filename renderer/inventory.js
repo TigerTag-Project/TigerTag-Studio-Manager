@@ -1,6 +1,11 @@
 (() => {
   const API_BASE         = "https://cdn.tigertag.io";
 
+  // ── Firebase helpers (SDK initialised in firebase.js) ──────────────────────
+  const fbAuth = () => firebase.auth();
+  const fbDb   = () => firebase.firestore();
+  let _unsubInventory = null; // active Firestore onSnapshot unsubscribe handle
+
   const ACCOUNT_COLORS = {
     orange: ["#f97316","#fb923c"],   // orange vif
     amber:  ["#d97706","#f59e0b"],   // ambre doré
@@ -93,9 +98,6 @@
     document.querySelectorAll("[data-i18n]").forEach(el => { el.textContent = t(el.dataset.i18n); });
     document.querySelectorAll("[data-i18n-placeholder]").forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
     if ($("langSelect")) $("langSelect").value = state.lang;
-    if (state.keyValid === true) setKeyStatus("ok");
-    else if (state.keyValid === false) setKeyStatus("bad");
-    else setKeyStatus("untested");
   }
 
   /* ── helpers ── */
@@ -190,6 +192,15 @@
   function materialFull(id) { return dbFind("material", id); }
   function typeName(id) { const tp = dbFind("type", id); return tp ? tp.label : null; }
 
+  /* ── Firestore Timestamp → epoch ms (accepts number, Timestamp, or {_seconds}) ── */
+  function tsToMs(v) {
+    if (!v) return null;
+    if (typeof v === "number") return v > 1e12 ? v : v * 1000;
+    if (typeof v.toMillis === "function") return v.toMillis();
+    if (v._seconds != null) return v._seconds * 1000;
+    return null;
+  }
+
   /* ── normalize ── */
   function normalizeRow(spoolId, data) {
     const hex  = toHex(data.color_r,  data.color_g,  data.color_b);
@@ -244,8 +255,8 @@
       },
       twinUid: data.twin_tag_uid || null,
       containerId: data.container_id || null,
-      lastUpdate: data.last_update || (data.updated_at && data.updated_at._seconds),
-      deleted: !!data.deleted,
+      lastUpdate: tsToMs(data.last_update) || tsToMs(data.updated_at),
+      deleted: !!data.deleted || !!data.deleted_at,
       productType: typeName(data.id_type),
       chipTimestamp: data.timestamp || null,
       raw: data,
@@ -351,12 +362,6 @@
   /* ── settings panel ── */
   const SVG_COPY = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
   function openSettings() {
-    const acc = activeAccount();
-    const email = acc?.email || "";
-    const key   = acc?.apiKey || "";
-    $("stgApiLink").value = (email && key)
-      ? `${API_BASE}/exportInventory?ApiKey=${encodeURIComponent(key)}&email=${encodeURIComponent(email)}`
-      : "";
     if ($("langSelect")) $("langSelect").value = state.lang;
     $("settingsPanel").classList.add("open"); $("settingsOverlay").classList.add("open");
   }
@@ -368,17 +373,6 @@
   $("settingsOverlay").addEventListener("click", closeSettings);
 
   const SVG_CHECK = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
-  $("btnCopyApiLink").addEventListener("click", async () => {
-    const val = $("stgApiLink").value; if (!val) return;
-    try {
-      await navigator.clipboard.writeText(val);
-      const btn = $("btnCopyApiLink");
-      btn.classList.add("copied", "pop");
-      btn.innerHTML = SVG_CHECK;
-      btn.addEventListener("animationend", () => btn.classList.remove("pop"), { once: true });
-      setTimeout(() => { btn.classList.remove("copied"); btn.innerHTML = SVG_COPY; }, 2000);
-    } catch {}
-  });
 
   $("btnStgExport").addEventListener("click", () => {
     if (!state.inventory) return;
@@ -388,11 +382,7 @@
   });
 
   document.addEventListener("keydown", e => { if (e.key === "Escape") closeSettings(); });
-  $("btnSbReload").addEventListener("click", async () => {
-    setLoading($("btnSbReload"), true);
-    await loadInventory();
-    setLoading($("btnSbReload"), false);
-  });
+  $("btnSbReload").addEventListener("click", () => loadInventory());
 
   const SVG_EYE_OFF = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`;
   const SVG_EYE_ON  = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
@@ -431,10 +421,6 @@
     $("eacName").textContent    = _editingAccount.displayName || "";
     $("eacName").style.display  = _editingAccount.displayName ? "" : "none";
     $("eacEmail").textContent   = _editingAccount.email || "";
-    $("editModalApiKey").value  = _editingAccount.apiKey || "";
-    $("editModalApiKey").classList.remove("revealed");
-    $("btnToggleEditModalApiKey").innerHTML = SVG_EYE_OFF;
-    $("editModalResult").innerHTML = "";
     $("eacAvatar").style.background = getAccGradient(_editingAccount);
     const isCustom = _editingAccount?.color === "custom";
     if (isCustom && _editingAccount.customColor) {
@@ -446,7 +432,6 @@
     );
     $("eacSwatchCustom").classList.toggle("active", isCustom);
     $("editAccountModalOverlay").classList.add("open");
-    setTimeout(() => $("editModalApiKey").focus(), 180);
   }
   function closeEditAccountModal() {
     $("editAccountModalOverlay").classList.remove("open");
@@ -502,63 +487,18 @@
   $("editAccountModalClose").addEventListener("click", closeEditAccountModal);
   $("editAccountModalOverlay").addEventListener("click", e => { if (e.target === $("editAccountModalOverlay")) closeEditAccountModal(); });
   document.addEventListener("keydown", e => { if (e.key === "Escape" && $("editAccountModalOverlay").classList.contains("open")) closeEditAccountModal(); });
-  makeEyeToggle("btnToggleEditModalApiKey", "editModalApiKey");
-  makeCopyBtn("btnCopyApiKey", "editModalApiKey");
-  $("btnEditModalSave").addEventListener("click", async () => {
-    const key = $("editModalApiKey").value.trim(); if (!key) return;
-    setLoading($("btnEditModalSave"), true);
-    try {
-      const r = await apiFetch(`${API_BASE}/pingbyapikey?ApiKey=${encodeURIComponent(key)}`);
-      const ok = r.ok && r.body && r.body.success === true;
-      if (!ok) {
-        toast($("editModalResult"), "bad", t("addAccountAuthError"));
-        setLoading($("btnEditModalSave"), false); return;
-      }
-      const displayName = r.body.displayName || r.body.uid || "";
-      const accounts = getAccounts();
-      const idx = accounts.findIndex(a => a.id === _editingAccount.id);
-      if (idx >= 0) { accounts[idx].apiKey = key; accounts[idx].displayName = displayName; saveAccounts(accounts); }
-      if (_editingAccount.id === state.activeAccountId) {
-        await loadInventory();
-      }
-      renderAccountList();
-      closeEditAccountModal();
-    } catch (err) { toast($("editModalResult"), "bad", err.message || t("networkError")); }
-    setLoading($("btnEditModalSave"), false);
+  // Disconnect = Firebase sign-out
+  $("btnEditModalDisconnect").addEventListener("click", async () => {
+    if (!_editingAccount) return;
+    closeEditAccountModal();
+    await fbSignOut();
   });
-  // Long-press to disconnect (1.5 s) — prevents accidental taps
-  (function() {
-    const btn = $("btnEditModalDisconnect");
-    let _holdTimer = null;
-    const HOLD_MS = 1500;
-    const start = () => {
-      btn.classList.add("holding");
-      _holdTimer = setTimeout(() => {
-        _holdTimer = null;
-        btn.classList.remove("holding");
-        if (!_editingAccount) return;
-        const id = _editingAccount.id;
-        closeEditAccountModal();
-        deleteAccountUI(id);
-      }, HOLD_MS);
-    };
-    const cancel = () => {
-      clearTimeout(_holdTimer); _holdTimer = null;
-      btn.classList.remove("holding");
-    };
-    btn.addEventListener("mousedown", start);
-    btn.addEventListener("mouseup",   cancel);
-    btn.addEventListener("mouseleave",cancel);
-    btn.addEventListener("touchstart", e => { e.preventDefault(); start(); }, { passive: false });
-    btn.addEventListener("touchend",   cancel);
-    btn.addEventListener("touchcancel",cancel);
-  })();
 
-  /* ── modal: add account ── */
+  /* ── modal: login (Firebase) ── */
   function openAddAccountModal() {
-    $("stgEmail").value = ""; $("stgApiKey").value = "";
-    $("stgApiKey").classList.remove("revealed");
-    $("btnToggleStgApiKey").innerHTML = SVG_EYE_OFF;
+    $("stgEmail").value = ""; $("stgPassword").value = "";
+    $("stgPassword").classList.remove("revealed");
+    $("btnToggleStgPassword").innerHTML = SVG_EYE_OFF;
     $("addModalResult").innerHTML = "";
     $("addAccountModalOverlay").classList.add("open");
     setTimeout(() => $("stgEmail").focus(), 180);
@@ -570,36 +510,49 @@
   $("addAccountModalOverlay").addEventListener("click", e => { if (e.target === $("addAccountModalOverlay")) closeAddAccountModal(); });
   document.addEventListener("keydown", e => { if (e.key === "Escape" && $("addAccountModalOverlay").classList.contains("open")) closeAddAccountModal(); });
 
-  // eye toggle for add account modal (static element — wired once at load)
-  makeEyeToggle("btnToggleStgApiKey", "stgApiKey");
+  // eye toggle for password field
+  makeEyeToggle("btnToggleStgPassword", "stgPassword");
 
-  // add account form submit
-  $("btnStgSave").addEventListener("click", async () => {
-    const email = $("stgEmail").value.trim(), key = $("stgApiKey").value.trim();
-    if (!email || !key) return;
-    setLoading($("btnStgSave"), true);
+  // Google sign-in via popup (opens inside Electron, see main.js)
+  $("btnGoogleSignIn").addEventListener("click", async () => {
+    setLoading($("btnGoogleSignIn"), true);
+    $("addModalResult").innerHTML = "";
     try {
-      const r = await apiFetch(`${API_BASE}/pingbyapikey?ApiKey=${encodeURIComponent(key)}`);
-      const ok = r.ok && r.body && r.body.success === true;
-      if (!ok) {
-        toast($("addModalResult"), "bad", t("addAccountAuthError"));
-        setLoading($("btnStgSave"), false); return;
-      }
-      const displayName = r.body.displayName || r.body.uid || "";
-      const accounts = getAccounts();
-      const existing = accounts.find(a => a.email === email);
-      let id;
-      if (existing) {
-        id = existing.id; existing.apiKey = key; existing.displayName = displayName;
-      } else {
-        id = String(Date.now()); accounts.push({ id, email, apiKey: key, displayName });
-      }
-      saveAccounts(accounts); setActiveId(id);
-      await loadInventory();
+      const provider = new firebase.auth.GoogleAuthProvider();
+      await fbAuth().signInWithPopup(provider);
+      // onAuthStateChanged handles the rest
       closeAddAccountModal();
-      renderAccountList();
-    } catch (err) { toast($("addModalResult"), "bad", err.message || t("networkError")); }
+    } catch (err) {
+      const code = err.code || "";
+      if (code !== "auth/popup-closed-by-user") {
+        toast($("addModalResult"), "bad", t("addAccountAuthError"));
+      }
+    } finally { setLoading($("btnGoogleSignIn"), false); }
+  });
+
+  // Email/password sign-in
+  $("btnStgSave").addEventListener("click", async () => {
+    const email = $("stgEmail").value.trim(), password = $("stgPassword").value;
+    if (!email || !password) return;
+    setLoading($("btnStgSave"), true);
+    $("addModalResult").innerHTML = "";
+    try {
+      await fbAuth().signInWithEmailAndPassword(email, password);
+      // onAuthStateChanged handles the rest
+      closeAddAccountModal();
+    } catch (err) {
+      const code = err.code || "";
+      const msg = (code === "auth/wrong-password" || code === "auth/user-not-found" || code === "auth/invalid-credential")
+        ? t("addAccountAuthError")
+        : (err.message || t("networkError"));
+      toast($("addModalResult"), "bad", msg);
+    }
     setLoading($("btnStgSave"), false);
+  });
+
+  // Allow Enter key in password field to submit
+  $("stgPassword").addEventListener("keydown", e => {
+    if (e.key === "Enter") $("btnStgSave").click();
   });
 
   /* ── sidebar collapse toggle ── */
@@ -622,83 +575,151 @@
   function activeAccount() { const id = getActiveId(); return getAccounts().find(a => a.id === id) || null; }
 
   /* ── persistence ── */
-  function saveCreds(displayName) {
-    if (!state.activeAccountId || displayName === undefined) return;
-    const accounts = getAccounts();
-    const idx = accounts.findIndex(a => a.id === state.activeAccountId);
-    if (idx >= 0) { accounts[idx].displayName = displayName; saveAccounts(accounts); }
-  }
   function saveInventory(raw) {
     if (!state.activeAccountId) return;
     try { localStorage.setItem(invKey(state.activeAccountId), JSON.stringify(raw)); } catch {}
   }
 
-  async function restoreAll() {
-    // ── migration from pre-1.2 single-account storage ──
-    const legacyCreds = localStorage.getItem("tigertag.creds");
-    if (legacyCreds && !localStorage.getItem(STORAGE_ACCOUNTS)) {
-      try {
-        const c = JSON.parse(legacyCreds);
-        if (c.email || c.apiKey) {
-          const id = String(Date.now());
-          const legacyInv = localStorage.getItem("tigertag.inventory");
-          saveAccounts([{ id, email: c.email || "", apiKey: c.apiKey || "", displayName: null }]);
-          setActiveId(id);
-          if (legacyInv) localStorage.setItem(invKey(id), legacyInv);
-          localStorage.removeItem("tigertag.inventory");
-        }
-      } catch {}
-      localStorage.removeItem("tigertag.creds");
-    }
+  /* ── forced migration: wipe pre-Firebase accounts (those that have apiKey field) ── */
+  function runMigration() {
+    const accounts = getAccounts();
+    const hasLegacy = accounts.some(a => "apiKey" in a);
+    if (!hasLegacy) return;
+    accounts.forEach(a => localStorage.removeItem(invKey(a.id)));
+    localStorage.removeItem(STORAGE_ACCOUNTS);
+    localStorage.removeItem(STORAGE_ACTIVE);
+    localStorage.removeItem("tigertag.creds");
+    localStorage.removeItem("tigertag.inventory");
+    console.info("[Migration] Legacy API-key accounts wiped. Please sign in with Firebase Auth.");
+  }
 
-    // ── restore active account ──
-    state.activeAccountId = getActiveId();
-    const acc = activeAccount();
+  /* ── Firebase sign-out ── */
+  async function fbSignOut() {
+    unsubscribeInventory();
+    await fbAuth().signOut();
+    // onAuthStateChanged(null) will call setDisconnected() and show login
+  }
 
-    if (!acc) {
-      // Aucun compte → état vide dans la sidebar
-      setDisconnected();
-      // Si vraiment 0 comptes (premier lancement) → ouvrir directement "Ajouter un compte"
-      if (!getAccounts().length) setTimeout(() => openAddAccountModal(), 300);
-      return;
-    }
-
-    // Restaurer la langue de ce compte avant tout rendu
-    if (acc.lang && state.i18n[acc.lang]) {
-      state.lang = acc.lang;
-      localStorage.setItem("tigertag.lang", acc.lang);
-      applyTranslations();
-    }
-
-    // Afficher l'état connecté IMMÉDIATEMENT depuis les données locales (sans attendre l'API)
-    setConnected(acc.displayName || acc.email, acc.email);
-
-    // Charger l'inventaire mis en cache immédiatement
-    try {
-      const raw = JSON.parse(localStorage.getItem(invKey(acc.id)) || "null");
-      if (raw && typeof raw === "object") {
+  /* ── Firestore inventory subscription ── */
+  function subscribeInventory(uid) {
+    unsubscribeInventory();
+    _unsubInventory = fbDb()
+      .collection("users").doc(uid)
+      .collection("inventory")
+      .onSnapshot(snapshot => {
+        const raw = {};
+        snapshot.forEach(doc => { raw[doc.id] = doc.data(); });
         state.inventory = raw;
-        state.rows = Object.entries(raw).map(([k,vv]) => normalizeRow(k, vv||{}));
-        await preCacheImages(state.rows);
-        sortRows(); renderStats(); renderInventory();
-      }
-    } catch {}
+        state.rows = snapshot.docs.map(doc => normalizeRow(doc.id, doc.data()));
+        saveInventory(raw);
+        preCacheImages(state.rows).then(() => { sortRows(); renderStats(); renderInventory(); });
+        // clear any loading state
+        setLoading($("btnSbReload"), false);
+      }, err => {
+        console.error("[Firestore] onSnapshot error:", err.code, err.message);
+        setLoading($("btnSbReload"), false);
+      });
+  }
+  function unsubscribeInventory() {
+    if (_unsubInventory) { _unsubInventory(); _unsubInventory = null; }
+  }
 
-    // Vérifier la clé en arrière-plan, puis rafraîchir l'inventaire si OK
-    if (acc.apiKey) {
-      fetch(`${API_BASE}/pingbyapikey?ApiKey=${encodeURIComponent(acc.apiKey)}`)
-        .then(r => r.json())
-        .then(b => {
-          if (b && b.success) {
-            const dn = b.displayName || b.uid || "";
-            const accounts = getAccounts();
-            const idx = accounts.findIndex(a => a.id === acc.id);
-            if (idx >= 0) { accounts[idx].displayName = dn; saveAccounts(accounts); }
-            setConnected(dn, acc.email);
-            loadInventory();
+  /* ── Auto-provision background API key (for weight updates) ── */
+  async function provisionBgApiKey(uid) {
+    const acc = activeAccount();
+    if (acc?.bgApiKey) return acc.bgApiKey;
+    try {
+      // Try to read existing key from Firestore
+      const keyDoc = await fbDb().collection("users").doc(uid).collection("apiKeys").doc("apiKey1").get();
+      if (keyDoc.exists) {
+        const keyId = keyDoc.data().keyId;
+        const accounts = getAccounts();
+        const idx = accounts.findIndex(a => a.id === uid);
+        if (idx >= 0) { accounts[idx].bgApiKey = keyId; saveAccounts(accounts); }
+        return keyId;
+      }
+      // No key — create one via Cloud Function
+      const idToken = await fbAuth().currentUser?.getIdToken();
+      if (!idToken) return null;
+      const r = await fetch(`${API_BASE}/createAccessKey6`, {
+        headers: { "Authorization": `Bearer ${idToken}` }
+      });
+      if (r.ok) {
+        const body = await r.json();
+        const keyId = body.keyId;
+        if (keyId) {
+          const accounts = getAccounts();
+          const idx = accounts.findIndex(a => a.id === uid);
+          if (idx >= 0) { accounts[idx].bgApiKey = keyId; saveAccounts(accounts); }
+          return keyId;
+        }
+      }
+    } catch (e) { console.warn("[bgApiKey] provisioning failed:", e); }
+    return null;
+  }
+
+  /* ── Firebase auth state → app state ── */
+  function initAuth() {
+    fbAuth().onAuthStateChanged(async (user) => {
+      if (user) {
+        const uid    = user.uid;
+        const email  = user.email  || "";
+        const dispName = user.displayName || "";
+        const photo  = user.photoURL || null;
+
+        // Upsert account in localStorage
+        const accounts = getAccounts();
+        let acc = accounts.find(a => a.id === uid);
+        if (!acc) {
+          acc = { id: uid, email, displayName: dispName, photoURL: photo };
+          accounts.push(acc);
+          saveAccounts(accounts);
+        } else {
+          // Refresh display info from Firebase
+          let changed = false;
+          if (dispName && acc.displayName !== dispName) { acc.displayName = dispName; changed = true; }
+          if (photo && acc.photoURL !== photo) { acc.photoURL = photo; changed = true; }
+          if (changed) saveAccounts(accounts);
+        }
+        setActiveId(uid);
+
+        // Restore this account's language preference
+        if (acc.lang && state.i18n[acc.lang]) {
+          state.lang = acc.lang;
+          localStorage.setItem("tigertag.lang", acc.lang);
+          applyTranslations();
+        }
+
+        // Show connected state immediately
+        setConnected(acc.displayName || dispName || email, email);
+
+        // Display cached inventory while Firestore connects
+        try {
+          const raw = JSON.parse(localStorage.getItem(invKey(uid)) || "null");
+          if (raw && typeof raw === "object") {
+            state.inventory = raw;
+            state.rows = Object.entries(raw).map(([k,vv]) => normalizeRow(k, vv || {}));
+            await preCacheImages(state.rows);
+            sortRows(); renderStats(); renderInventory();
           }
-        }).catch(() => {});
-    }
+        } catch {}
+
+        // Subscribe to live Firestore data
+        subscribeInventory(uid);
+
+        // Provision background API key in the background (non-blocking)
+        provisionBgApiKey(uid).catch(() => {});
+
+      } else {
+        // Signed out
+        unsubscribeInventory();
+        state.inventory = null; state.rows = [];
+        renderStats(); renderInventory();
+        setDisconnected();
+        // Show login modal if no accounts stored
+        if (!getAccounts().length) setTimeout(() => openAddAccountModal(), 300);
+      }
+    });
   }
 
 
@@ -746,32 +767,17 @@
   }
 
   async function switchAccountUI(id) {
-    setActiveId(id);
-    const acc = getAccounts().find(a => a.id === id);
-    if (!acc) return;
-    // restore this account's language before re-rendering
-    if (acc.lang && state.i18n[acc.lang]) {
-      state.lang = acc.lang;
-      localStorage.setItem("tigertag.lang", acc.lang);
-      applyTranslations();
+    // With Firebase Auth there is only one active session at a time.
+    // Switching to a different account signs out the current user and opens the login modal.
+    const currentUser = fbAuth().currentUser;
+    if (currentUser && currentUser.uid === id) {
+      // Already signed in as this account — just close any open panels
+      closeProfilesModal(); closeSettings(); return;
     }
-    try {
-      const raw = JSON.parse(localStorage.getItem(invKey(id)) || "null");
-      if (raw && typeof raw === "object") {
-        state.inventory = raw;
-        state.rows = Object.entries(raw).map(([k,vv]) => normalizeRow(k, vv||{}));
-        await preCacheImages(state.rows);
-        sortRows(); renderStats(); renderInventory();
-      } else {
-        state.inventory = null; state.rows = [];
-        renderStats(); renderInventory(); setDisconnected();
-      }
-    } catch {}
-    setConnected(acc.displayName || acc.email, acc.email);
-    loadInventory();
-    renderAccountList();
-    closeProfilesModal();
-    closeSettings();
+    // Sign out and let onAuthStateChanged open the login modal
+    await fbSignOut();
+    closeProfilesModal(); closeSettings();
+    setTimeout(() => openAddAccountModal(), 250);
   }
 
   function deleteAccountUI(id) {
@@ -781,13 +787,10 @@
     saveAccounts(accounts);
     localStorage.removeItem(invKey(id));
     if (wasActive) {
-      if (accounts.length > 0) { switchAccountUI(accounts[0].id); return; }
-      localStorage.removeItem(STORAGE_ACTIVE);
-      state.activeAccountId = null;
-      state.inventory = null; state.rows = [];
-      renderStats(); renderInventory(); setDisconnected();
+      fbSignOut(); // triggers onAuthStateChanged(null) which cleans up
+    } else {
+      renderAccountList();
     }
-    renderAccountList();
   }
 
   /* ── key status (state only — no DOM badge) ── */
@@ -802,26 +805,13 @@
       return a.uid.localeCompare(b.uid);
     });
   }
-  async function loadInventory() {
-    const acc = activeAccount();
-    const email = acc?.email || ""; const key = acc?.apiKey || "";
-    if (!email || !key) return;
-    const btn = $("btnSbReload"); setLoading(btn, true);
-    try {
-      const url = `${API_BASE}/exportInventory?ApiKey=${encodeURIComponent(key)}&email=${encodeURIComponent(email)}`;
-      const r = await apiFetch(url);
-      if (!r.ok || (r.body && r.body.success === false)) {
-        const reason = (r.body && r.body.reason) || `HTTP ${r.status}`;
-        state.inventory = null; state.rows = []; renderInventory(); renderStats(); setKeyStatus("bad");
-        toast($("mainResult"), "bad", t("invError", {r: reason})); return;
-      }
-      state.inventory = r.body || {};
-      state.rows = Object.entries(state.inventory).map(([k,vv]) => normalizeRow(k, vv||{}));
-      await preCacheImages(state.rows);
-      sortRows(); setKeyStatus("ok"); saveInventory(state.inventory);
-      renderStats(); renderInventory();
-    } catch (e) { toast($("mainResult"), "bad", e.message || t("networkError")); }
-    finally { setLoading(btn, false); }
+  // loadInventory: re-attaches the Firestore listener (called by the Refresh button).
+  // The listener itself calls renderInventory/renderStats via onSnapshot.
+  function loadInventory() {
+    const uid = state.activeAccountId;
+    if (!uid) return;
+    setLoading($("btnSbReload"), true);
+    subscribeInventory(uid); // re-subscribe; listener calls setLoading(false) on first snapshot
   }
 
   /* ── stats ── */
@@ -1425,7 +1415,7 @@
   }
 
   async function doWeightUpdate(r, mode = "direct", w = "") {
-    const key = activeAccount()?.apiKey || ""; if (!key) return;
+    const key = activeAccount()?.bgApiKey || ""; if (!key) return;
     if (w === "" || isNaN(Number(w))) { toast($("panelWeightResult"), "bad", t("enterNumeric")); return; }
     const btn = mode === "raw" ? $("panelWeightRawBtn") : $("panelWeightBtn");
     setLoading(btn, true);
@@ -1487,7 +1477,10 @@
   loadLocales().then(() => {
     applyTranslations();
     return loadLookups();
-  }).then(() => restoreAll());
+  }).then(() => {
+    runMigration(); // wipe legacy API-key accounts before Firebase takes over
+    initAuth();    // start Firebase auth state listener
+  });
 
   // ── Electron RFID integration ──
   if (window.electronAPI) {
