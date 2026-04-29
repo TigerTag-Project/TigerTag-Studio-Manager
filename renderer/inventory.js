@@ -624,40 +624,6 @@
     if (_unsubInventory) { _unsubInventory(); _unsubInventory = null; }
   }
 
-  /* ── Auto-provision background API key (for weight updates) ── */
-  async function provisionBgApiKey(uid) {
-    const acc = activeAccount();
-    if (acc?.bgApiKey) return acc.bgApiKey;
-    try {
-      // Try to read existing key from Firestore
-      const keyDoc = await fbDb().collection("users").doc(uid).collection("apiKeys").doc("apiKey1").get();
-      if (keyDoc.exists) {
-        const keyId = keyDoc.data().keyId;
-        const accounts = getAccounts();
-        const idx = accounts.findIndex(a => a.id === uid);
-        if (idx >= 0) { accounts[idx].bgApiKey = keyId; saveAccounts(accounts); }
-        return keyId;
-      }
-      // No key — create one via Cloud Function
-      const idToken = await fbAuth().currentUser?.getIdToken();
-      if (!idToken) return null;
-      const r = await fetch(`${API_BASE}/createAccessKey6`, {
-        headers: { "Authorization": `Bearer ${idToken}` }
-      });
-      if (r.ok) {
-        const body = await r.json();
-        const keyId = body.keyId;
-        if (keyId) {
-          const accounts = getAccounts();
-          const idx = accounts.findIndex(a => a.id === uid);
-          if (idx >= 0) { accounts[idx].bgApiKey = keyId; saveAccounts(accounts); }
-          return keyId;
-        }
-      }
-    } catch (e) { console.warn("[bgApiKey] provisioning failed:", e); }
-    return null;
-  }
-
   /* ── Firebase auth state → app state ── */
   function initAuth() {
     fbAuth().onAuthStateChanged(async (user) => {
@@ -706,9 +672,6 @@
 
         // Subscribe to live Firestore data
         subscribeInventory(uid);
-
-        // Provision background API key in the background (non-blocking)
-        provisionBgApiKey(uid).catch(() => {});
 
       } else {
         // Signed out
@@ -1415,23 +1378,53 @@
   }
 
   async function doWeightUpdate(r, mode = "direct", w = "") {
-    const key = activeAccount()?.bgApiKey || ""; if (!key) return;
+    // Studio Manager has the full inventory in memory — same model as the mobile app.
+    // Tare and twin logic are client-side; we write directly to Firestore.
+    const uid = state.activeAccountId; if (!uid) return;
     if (w === "" || isNaN(Number(w))) { toast($("panelWeightResult"), "bad", t("enterNumeric")); return; }
+
     const btn = mode === "raw" ? $("panelWeightRawBtn") : $("panelWeightBtn");
     setLoading(btn, true);
     try {
-      const extra = mode === "direct" ? "&container_weight=0" : "";
-      const url = `${API_BASE}/setSpoolWeightByRfid?ApiKey=${encodeURIComponent(key)}&uid=${encodeURIComponent(r.spoolId)}&weight=${encodeURIComponent(w)}${extra}`;
-      const res = await apiFetch(url); const b = res.body || {};
-      if (b.success) {
-        toast($("panelWeightResult"), "ok", t("weightOk", {wa: b.weight_available, w: b.weight, cw: b.container_weight}) + (b.twin_updated ? t("weightOkTwin") : ""));
-        setTimeout(async () => {
-          await loadInventory();
-          if ($("detailPanel").classList.contains("open") && state.selected === r.spoolId) openDetail(r.spoolId);
-        }, 1000);
-      } else {
-        toast($("panelWeightResult"), "bad", t("weightErr", {r: b.reason || "Error"}) + (b.computed_weight_available != null ? t("weightErrComputed", {c: b.computed_weight_available}) : ""));
+      const rawW = Number(w);
+      const cw   = Number(r.containerWeight) || 0;
+      const cap  = Number(r.capacity) || 1000;
+
+      // Tare: raw mode = scale reading includes container; direct mode = net weight
+      const weightAvailable = mode === "raw" ? rawW - cw : rawW;
+      const weightDisplay   = mode === "raw" ? rawW : rawW + cw; // gross for toast
+
+      if (weightAvailable < 0 || weightAvailable > cap) {
+        toast($("panelWeightResult"), "bad", t("weightErr", { r: `${weightAvailable} g — hors plage [0–${cap} g]` }));
+        setLoading(btn, false); return;
       }
+
+      const update = { weight_available: weightAvailable, last_update: Date.now() };
+      const invRef = fbDb().collection("users").doc(uid).collection("inventory");
+      const batch  = fbDb().batch();
+      batch.update(invRef.doc(r.spoolId), update);
+
+      // Twin — client already knows the twin relationship (same as mobile app)
+      let twinUpdated = false;
+      if (r.twinUid) {
+        const twinRow = state.rows.find(row =>
+          row.spoolId !== r.spoolId &&
+          (String(row.uid) === String(r.twinUid) || String(row.spoolId) === String(r.twinUid))
+        );
+        if (twinRow) { batch.update(invRef.doc(twinRow.spoolId), update); twinUpdated = true; }
+      }
+
+      await batch.commit();
+      // onSnapshot propagates the change to the UI automatically — no loadInventory() needed
+      toast($("panelWeightResult"), "ok",
+        t("weightOk", { wa: weightAvailable, w: weightDisplay, cw }) +
+        (twinUpdated ? t("weightOkTwin") : "")
+      );
+      // Refresh detail panel once onSnapshot fires (give Firestore ~500 ms)
+      setTimeout(() => {
+        if ($("detailPanel").classList.contains("open") && state.selected === r.spoolId) openDetail(r.spoolId);
+      }, 500);
+
     } catch (e) { toast($("panelWeightResult"), "bad", e.message || t("networkError")); }
     finally { setLoading(btn, false); }
   }
