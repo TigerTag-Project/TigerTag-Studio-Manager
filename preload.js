@@ -1,5 +1,12 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
+// TD1S color sensor bridge (mirrors window.sensorAPI from TD1SxTigerTag-Electron)
+contextBridge.exposeInMainWorld('td1s', {
+  onSensorData: (callback) => ipcRenderer.on('td1s-data',   (_, data)  => callback(data)),
+  onStatus:     (callback) => ipcRenderer.on('td1s-status', (_, msg)   => callback(msg)),
+  onLog:        (callback) => ipcRenderer.on('td1s-log',    (_, entry) => callback(entry)),
+});
+
 contextBridge.exposeInMainWorld('electronAPI', {
   // True when running inside Electron
   isElectron: true,

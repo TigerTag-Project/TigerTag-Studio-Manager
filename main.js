@@ -126,15 +126,14 @@ function createWindow() {
 
 // ── NFC / RFID reader
 function initNFC() {
-  let NFC;
+  let NFC, nfc;
   try {
     NFC = require('nfc-pcsc');
+    nfc = new NFC();
   } catch (err) {
-    console.warn('[NFC] nfc-pcsc not available:', err.message);
+    console.warn('[NFC] not available:', err.message);
     return;
   }
-
-  const nfc = new NFC();
 
   nfc.on('reader', (reader) => {
     console.log(`[NFC] Reader connected: ${reader.name}`);
@@ -177,6 +176,213 @@ function initNFC() {
   });
 }
 
+
+// ── TD1S color sensor ────────────────────────────────────────────────────────
+function initTD1S() {
+  // Lazy require — same pattern as initNFC(), non-fatal if unavailable
+  let SerialPort, ReadlineParser;
+  try {
+    SerialPort    = require('serialport').SerialPort;
+    ReadlineParser = require('@serialport/parser-readline').ReadlineParser;
+  } catch (err) {
+    console.warn('[TD1S] serialport not available:', err.message);
+    return;
+  }
+
+  const TD1S_VID  = 'e4b2';
+  const TD1S_PID  = '0045';
+  const TD1S_BAUD = 115200;
+
+  let td1sPort      = null;
+  let td1sConnected = false;
+  let td1sLastPair  = null;
+  let td1sReconnect = null;
+
+  // ── State replayed to renderer on every page (re)load ────────────────────
+  let currentStatus  = 'Status: Starting…';
+  let currentTd      = null;
+  let currentHex     = null;
+  const logBuffer    = [];   // ring buffer – last 80 entries
+  const LOG_BUF_MAX  = 80;
+
+  function td1sTs() {
+    const d = new Date();
+    return d.toTimeString().slice(0, 8) + '.' + String(d.getMilliseconds()).padStart(3, '0');
+  }
+
+  function td1sLog(type, message) {
+    const entry = { time: td1sTs(), type, message };
+    logBuffer.push(entry);
+    if (logBuffer.length > LOG_BUF_MAX) logBuffer.shift();
+    mainWindow?.webContents.send('td1s-log', entry);
+    console.log(`[TD1S:${type.toUpperCase()}] ${message}`);
+  }
+
+  function td1sStatus(msg) {
+    currentStatus = msg;
+    mainWindow?.webContents.send('td1s-status', msg);
+  }
+
+  function td1sData(td, hex) {
+    currentTd  = td;
+    currentHex = hex;
+    mainWindow?.webContents.send('td1s-data', { TD: td, HEX: hex });
+  }
+
+  // On every renderer (re)load: replay the log buffer + push current state
+  mainWindow.webContents.on('did-finish-load', () => {
+    for (const entry of logBuffer) {
+      mainWindow.webContents.send('td1s-log', entry);
+    }
+    mainWindow.webContents.send('td1s-status', currentStatus);
+    if (currentTd !== null) {
+      mainWindow.webContents.send('td1s-data', { TD: currentTd, HEX: currentHex });
+    }
+  });
+
+  function extractTdHex(rawLine) {
+    const parts = rawLine.split(',').map(p => p.trim()).filter(p => p.length > 0);
+    let scanTd = null, scanHex = null, hexIndex = null;
+
+    for (let i = 0; i < parts.length; i++) {
+      if (parts[i].toLowerCase().startsWith('td:')) {
+        if (i + 1 < parts.length) {
+          const v = parseFloat(parts[i + 1].replace(',', '.'));
+          if (!isNaN(v)) scanTd = v;
+        }
+        break;
+      }
+    }
+    for (let i = 0; i < parts.length; i++) {
+      const cleaned = parts[i].replace(/\s/g, '');
+      if (cleaned.length === 6 && /^[0-9A-Fa-f]{6}$/.test(cleaned)) {
+        scanHex = cleaned.toUpperCase(); hexIndex = i; break;
+      }
+    }
+    if (scanTd === null && hexIndex !== null) {
+      for (let i = 0; i < hexIndex; i++) {
+        const v = parseFloat(parts[i].replace(',', '.'));
+        if (!isNaN(v) && v >= 0 && v <= 100) { scanTd = v; break; }
+      }
+    }
+    if (scanTd !== null && scanHex !== null) return { td: scanTd.toFixed(1), hex: scanHex };
+    return null;
+  }
+
+  async function td1sFind() {
+    td1sLog('debug', `Scan serial ports (VID=${TD1S_VID} PID=${TD1S_PID})...`);
+    const ports = await SerialPort.list();
+    if (ports.length === 0) { td1sLog('debug', 'No serial ports detected'); return null; }
+    td1sLog('debug', `${ports.length} port(s) found:`);
+    for (const p of ports) {
+      const vid = (p.vendorId || '').toLowerCase();
+      const pid = (p.productId || '').toLowerCase();
+      const label = p.manufacturer ? ` [${p.manufacturer}]` : '';
+      const match = vid === TD1S_VID && pid === TD1S_PID;
+      td1sLog(match ? 'success' : 'debug',
+        `  ${p.path}  VID=${vid || '----'} PID=${pid || '----'}${label}${match ? '  ← MATCH TD1-S' : ''}`
+      );
+      if (match) return p.path;   // use path as-is (tty.* works, no cu.* conversion needed)
+    }
+    return null;
+  }
+
+  function td1sClose() {
+    if (td1sPort) { if (td1sPort.isOpen) td1sPort.close(() => {}); td1sPort = null; }
+    td1sConnected = false;
+  }
+
+  function td1sScheduleReconnect() {
+    if (td1sReconnect || app.isQuitting) return;
+    td1sLog('info', 'Retry in 2 s...');
+    td1sReconnect = setTimeout(() => { td1sReconnect = null; td1sConnect(); }, 2000);
+  }
+
+  async function td1sConnect() {
+    if (td1sConnected || app.isQuitting) return;
+    const portPath = await td1sFind();
+    if (!portPath) {
+      td1sLog('warn', 'TD1-S not found — waiting for connection');
+      td1sStatus('Status: Sensor not detected');
+      td1sScheduleReconnect(); return;
+    }
+    td1sLog('info', `Port found: ${portPath} — opening at ${TD1S_BAUD} baud...`);
+    td1sStatus(`Status: Connecting to ${portPath}...`);
+    try {
+      td1sPort = new SerialPort({ path: portPath, baudRate: TD1S_BAUD, autoOpen: false });
+      await new Promise((resolve, reject) => { td1sPort.open(err => err ? reject(err) : resolve()); });
+      td1sLog('success', `Port ${portPath} opened`);
+
+      const parser = td1sPort.pipe(new ReadlineParser({ delimiter: '\n' }));
+      let state = 'WAITING_READY';
+
+      td1sLog('info', 'Handshake → sending "connect"');
+      td1sPort.write('connect\n');
+
+      parser.on('data', line => {
+        const raw = line.toString().trim();
+        if (state === 'WAITING_READY') {
+          td1sLog('debug', `← received: "${raw}"`);
+          if (raw === 'ready') {
+            td1sLog('success', 'Sensor ready — sending "P" (start stream)');
+            td1sPort.write('P\n');
+            state = 'WAITING_FIRST';
+          } else {
+            td1sLog('warn', `Unexpected response (expected "ready"): "${raw}"`);
+          }
+          return;
+        }
+        if (state === 'WAITING_FIRST') {
+          td1sLog('debug', `← first line discarded: "${raw}"`);
+          state = 'READING'; td1sConnected = true;
+          td1sLog('success', 'Stream active — reading data');
+          td1sStatus('Status: Sensor connected');
+          return;
+        }
+        // READING
+        td1sLog('debug', `← raw: "${raw}"`);
+        const result = extractTdHex(raw);
+        if (!result) { td1sLog('debug', `  ↳ unparseable, ignored`); return; }
+        const pairKey = `${result.td}-${result.hex}`;
+        if (pairKey === td1sLastPair) { td1sLog('debug', `  ↳ duplicate (TD=${result.td} HEX=${result.hex}), ignored`); return; }
+        td1sLastPair = pairKey;
+        td1sLog('data', `  ↳ NEW value  TD=${result.td}  HEX=#${result.hex}`);
+        td1sData(result.td, result.hex);
+      });
+
+      td1sPort.on('close', () => {
+        td1sConnected = false; td1sPort = null;
+        if (!app.isQuitting) {
+          td1sLog('warn', `Port ${portPath} closed (disconnected?)`);
+          td1sStatus('Status: Port closed, reconnecting...');
+          td1sScheduleReconnect();
+        }
+      });
+      td1sPort.on('error', err => {
+        td1sLog('error', `Serial error: ${err.message}`);
+        td1sConnected = false; td1sClose();
+        td1sStatus('Status: Serial error, reconnecting...');
+        td1sScheduleReconnect();
+      });
+    } catch (err) {
+      td1sLog('error', `Cannot open ${portPath}: ${err.message}`);
+      td1sClose();
+      td1sStatus('Status: Connection failed, retrying...');
+      td1sScheduleReconnect();
+    }
+  }
+
+  app.on('before-quit', () => {
+    if (td1sReconnect) { clearTimeout(td1sReconnect); td1sReconnect = null; }
+    td1sClose();
+  });
+
+  // Start immediately — logs before first did-finish-load go into the buffer
+  // and are replayed when the renderer is ready
+  td1sLog('info', `TD1-S bridge ready — Electron ${process.versions.electron}`);
+  td1sLog('info', `Target: VID=0x${TD1S_VID.toUpperCase()} PID=0x${TD1S_PID.toUpperCase()} @ ${TD1S_BAUD} baud`);
+  td1sConnect();
+}
 
 // ── Auto-updater
 function initUpdater() {
@@ -239,6 +445,7 @@ app.whenReady().then(async () => {
 
   createWindow();
   initNFC();
+  initTD1S();
 
   // Check for updates after window is shown (not on dev)
   if (app.isPackaged) {

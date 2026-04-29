@@ -62,6 +62,14 @@
       <div class="sb-stats-wrap hidden" id="sbStats"></div>
     </div>
 
+    <!-- TD1S sensor button -->
+    <div class="sb-td1s-wrap">
+      <button class="sb-td1s-btn" id="btnTD1S">
+        <span class="icon icon-link icon-14"></span>
+        <span class="sb-td1s-label">TD1-S</span>
+      </button>
+    </div>
+
     <!-- community footer (always visible) -->
     <div class="sb-community">
       <div class="sb-community-label">Community</div>
@@ -231,6 +239,47 @@
       <pre class="json" id="fsExplPre" style="flex:1;margin:0;overflow:auto">{}</pre>
     </div>
 
+  </div>
+</div>
+
+<!-- TD1S panel -->
+<div class="panel-overlay" id="td1sOverlay"></div>
+<div class="detail-panel td1s-panel" id="td1sPanel">
+  <div class="panel-resize" id="td1sResize"></div>
+  <div class="panel-header td1s-header">
+    <span class="panel-title">TD1-S</span>
+    <button class="panel-close td1s-close" id="td1sClose">✕</button>
+  </div>
+  <div class="td1s-body">
+    <!-- values row -->
+    <div class="td1s-values">
+      <div class="td1s-val-item"><span class="td1s-val-label">TD:</span> <span id="td1sTdVal">-</span></div>
+      <div class="td1s-val-item"><span class="td1s-val-label">HEX:</span> <span id="td1sHexVal">-</span></div>
+      <div class="td1s-color-circle" id="td1sColorCircle"></div>
+    </div>
+    <!-- console -->
+    <div class="td1s-log-container">
+      <div class="td1s-log-header">
+        <span class="td1s-log-title">Console</span>
+        <button class="td1s-icon-btn" id="td1sCopyBtn" title="Copy log">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="5" y="1" width="9" height="11" rx="1.5"/>
+            <path d="M11 4H2a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V5"/>
+          </svg>
+        </button>
+        <button class="td1s-icon-btn td1s-clear-btn" id="td1sClearBtn" title="Clear log">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="2,4 14,4"/>
+            <path d="M5 4V2h6v2"/>
+            <path d="M6 7v5M10 7v5"/>
+            <rect x="3" y="4" width="10" height="10" rx="1.5"/>
+          </svg>
+        </button>
+      </div>
+      <div class="td1s-log" id="td1sLog"></div>
+    </div>
+    <!-- status bar -->
+    <div class="td1s-status" id="td1sStatus">Status: Starting…</div>
   </div>
 </div>
 

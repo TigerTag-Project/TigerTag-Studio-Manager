@@ -1833,6 +1833,20 @@
 
   makePanelResizable($("detailPanel"), $("detailResize"), "tigertag.panelWidth.detail");
   makePanelResizable($("debugPanel"),  $("debugResize"),  "tigertag.panelWidth.debug");
+  makePanelResizable($("td1sPanel"),   $("td1sResize"),   "tigertag.panelWidth.td1s");
+
+  /* ── TD1S panel ── */
+  function openTD1S() {
+    $("td1sPanel").classList.add("open");
+    $("td1sOverlay").classList.add("open");
+  }
+  function closeTD1S() {
+    $("td1sPanel").classList.remove("open");
+    $("td1sOverlay").classList.remove("open");
+  }
+  $("btnTD1S").addEventListener("click", openTD1S);
+  $("td1sClose").addEventListener("click", closeTD1S);
+  $("td1sOverlay").addEventListener("click", closeTD1S);
 
   /* ── debug panel ── */
   function openDebug() {
@@ -2105,5 +2119,53 @@
       }
     });
     $("btnInstallUpdate").addEventListener("click", () => window.electronAPI.installUpdate());
+  }
+
+  // ── TD1S sensor integration ──
+  if (window.td1s) {
+    const TD1S_MAX = 400;
+    const td1sLogEl = $("td1sLog");
+
+    function td1sEsc(s) {
+      return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function td1sAppendLog({ time, type, message }) {
+      const line = document.createElement('div');
+      line.innerHTML =
+        `<span class="log-time">[${time}]</span> ` +
+        `<span class="log-${type}">${td1sEsc(message)}</span>`;
+      td1sLogEl.appendChild(line);
+      while (td1sLogEl.children.length > TD1S_MAX) td1sLogEl.removeChild(td1sLogEl.firstChild);
+      td1sLogEl.scrollTop = td1sLogEl.scrollHeight;
+    }
+
+    window.td1s.onLog(entry => td1sAppendLog(entry));
+
+    window.td1s.onStatus(msg => {
+      $("td1sStatus").textContent = msg;
+    });
+
+    window.td1s.onSensorData(data => {
+      $("td1sTdVal").textContent  = data.TD  || '-';
+      $("td1sHexVal").textContent = data.HEX ? `#${data.HEX}` : '-';
+      const hex = (data.HEX || '').replace('#', '');
+      $("td1sColorCircle").style.background =
+        /^[0-9A-Fa-f]{6}$/.test(hex) ? `#${hex}` : '#2a2a2a';
+    });
+
+    // Copy log
+    $("td1sCopyBtn").addEventListener("click", () => {
+      const text = Array.from(td1sLogEl.children).map(el => el.textContent).join('\n');
+      navigator.clipboard.writeText(text).then(() => {
+        const btn = $("td1sCopyBtn");
+        btn.style.borderColor = "#6ed46e";
+        btn.style.color = "#6ed46e";
+        setTimeout(() => { btn.style.borderColor = ""; btn.style.color = ""; }, 1500);
+      });
+    });
+
+    // Clear log
+    $("td1sClearBtn").addEventListener("click", () => { td1sLogEl.innerHTML = ''; });
   }
 })();
