@@ -203,5 +203,20 @@
   "containerPickerTitle": "Escolher um recipiente",
   "btnChangeContainer": "Alterar",
   "cwEditWeight": "Editar peso do recipiente",
-  "displayNameLabel": "Nome de apresentação"
+  "displayNameLabel": "Nome de apresentação",
+  "tdEditTitle": "Definir valor TD",
+  "tdEditConnectMsg": "Ligue o sensor TD1S via USB e retire o filamento",
+  "tdEditWaitMsg": "Insira o filamento no sensor TD1S…",
+  "tdEditSaveBtn": "Guardar",
+  "tdNotSet": "Adicionar",
+  "orLabel": "ou",
+  "tdConnectTitle": "Sensor TD1S",
+  "tdConnectMsg": "Ligue o sensor TD1S via USB",
+  "td1sNotDetected": "TD1S: não detectado",
+  "td1sDetected": "TD1S: ligado",
+  "tdEditScannedMsg": "✓ Scan concluído",
+  "colorEditTitle": "Definir cor",
+  "btnTdOnly": "Só TD",
+  "btnColorOnly": "Só cor",
+  "btnSaveAll": "Tudo"
 }

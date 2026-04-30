@@ -24,7 +24,10 @@
 - **Material details** — Print temperatures, bed temps, drying settings, density, MSDS/TDS/RoHS links
 - **Product type** — Type label (Filament, Resin, …) resolved from lookup tables and displayed in the detail panel
 - **Manufacturing date** — Chip programming timestamp shown for standard TigerTag (hidden on TigerTag+ to protect factory dates)
-- **Color display** — Smart color circles with conic-gradient (bicolor/tricolor/multi), linear rainbow, and solid color rendering based on spool aspect data
+- **Color display** — Smart color circles with conic-gradient (bicolor/tricolor/multi), linear rainbow, and solid color rendering; `online_color_list` takes priority for mono-color spools
+- **Color editing** — Click the color circle in the detail panel to open the Set Color modal; choose between a native color picker or the TD1S sensor; save color only or color + TD value together
+- **TD1S sensor integration** — Connect the TD1S sensor via USB to read filament color (HEX) and TD value; TD1S Viewer shows live sensor feed; auto-opens when sensor is detected
+- **Filament identity block** — Brand, Series, Material and Name displayed above the color section in the detail panel; name falls back to aspect labels when absent
 - **Image cache** — Spool images are downloaded and cached locally; works offline, falls back to color placeholder if the remote link is dead
 - **Multi-account** — Add and switch between multiple TigerTag accounts; profiles are shown as vertical cards with per-account color avatars (13 presets + custom color picker)
 - **Multi-language** — EN, FR, DE, ES, IT, PT (Brasil), PT (Portugal), 中文 — switch any time from the account modal
@@ -124,8 +127,8 @@ Built installers are placed in the `dist/` folder (ignored by git).
 Pushing a version tag automatically triggers a build on all three platforms and publishes a GitHub Release with the installers attached.
 
 ```bash
-git tag v1.3.0
-git push origin v1.3.0
+git tag v1.3.2
+git push origin v1.3.2
 ```
 
 The workflow file is at [`.github/workflows/build.yml`](.github/workflows/build.yml).
@@ -197,7 +200,8 @@ Lists all saved accounts as vertical cards (avatar + name + email + chevron). Cl
 - **Show / hide deleted** toggle
 - **Detail panel** (right slide-in) — opens on row/card click, shows:
   - Product image or color placeholder
-  - Color swatches + aspect tags side-by-side (solid, bicolor, tricolor, conic gradient, or rainbow)
+  - **Identity block** — Brand · Series on line 1, Material + Name (or aspect fallback) on line 2
+  - Color circle (clickable) + aspect / badge chips on the same flex-wrap row
   - Twin RFID badge shown as overlay on the thumbnail (table & grid)
   - Weight section (slider + manual input) with real-time Firestore sync
   - Container card — brand, label, image, type, weight; edit button appears on hover

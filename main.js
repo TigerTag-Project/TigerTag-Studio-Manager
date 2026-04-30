@@ -197,6 +197,7 @@ function initTD1S() {
   let td1sConnected = false;
   let td1sLastPair  = null;
   let td1sReconnect = null;
+  let td1sNeedCount = 0;   // how many UI panels currently need TD1S
 
   // ── State replayed to renderer on every page (re)load ────────────────────
   let currentStatus  = 'Status: Starting…';
@@ -280,7 +281,7 @@ function initTD1S() {
       const label = p.manufacturer ? ` [${p.manufacturer}]` : '';
       const match = vid === TD1S_VID && pid === TD1S_PID;
       td1sLog(match ? 'success' : 'debug',
-        `  ${p.path}  VID=${vid || '----'} PID=${pid || '----'}${label}${match ? '  ← MATCH TD1-S' : ''}`
+        `  ${p.path}  VID=${vid || '----'} PID=${pid || '----'}${label}${match ? '  ← MATCH TD1S' : ''}`
       );
       if (match) return p.path;   // use path as-is (tty.* works, no cu.* conversion needed)
     }
@@ -292,19 +293,40 @@ function initTD1S() {
     td1sConnected = false;
   }
 
-  function td1sScheduleReconnect() {
-    if (td1sReconnect || app.isQuitting) return;
-    td1sLog('info', 'Retry in 2 s...');
-    td1sReconnect = setTimeout(() => { td1sReconnect = null; td1sConnect(); }, 2000);
+  // Cancel any pending poll timer
+  function td1sStopWatcher() {
+    if (td1sReconnect) { clearTimeout(td1sReconnect); td1sReconnect = null; }
   }
+
+  // Schedule one connect attempt in 1.5 s (called only when a UI panel needs TD1S)
+  function td1sStartPolling() {
+    if (td1sReconnect || td1sConnected || app.isQuitting) return;
+    td1sLog('info', 'TD1S needed by UI — polling...');
+    td1sReconnect = setTimeout(() => { td1sReconnect = null; td1sConnect(); }, 1500);
+  }
+
+  // IPC: renderer tells us a TD1S-dependent panel opened / closed
+  ipcMain.on('td1s:need', () => {
+    td1sNeedCount++;
+    if (!td1sConnected) td1sStartPolling();
+  });
+  ipcMain.on('td1s:release', () => {
+    td1sNeedCount = Math.max(0, td1sNeedCount - 1);
+    if (td1sNeedCount === 0 && !td1sConnected) {
+      td1sStopWatcher();
+      td1sLog('info', 'No UI needs TD1S — polling stopped.');
+      td1sStatus('Status: Sensor not detected');
+    }
+  });
 
   async function td1sConnect() {
     if (td1sConnected || app.isQuitting) return;
+    td1sStopWatcher();
     const portPath = await td1sFind();
     if (!portPath) {
-      td1sLog('warn', 'TD1-S not found — waiting for connection');
       td1sStatus('Status: Sensor not detected');
-      td1sScheduleReconnect(); return;
+      if (td1sNeedCount > 0) { td1sStartPolling(); } else { td1sLog('info', 'TD1S not found.'); }
+      return;
     }
     td1sLog('info', `Port found: ${portPath} — opening at ${TD1S_BAUD} baud...`);
     td1sStatus(`Status: Connecting to ${portPath}...`);
@@ -341,6 +363,12 @@ function initTD1S() {
         }
         // READING
         td1sLog('debug', `← raw: "${raw}"`);
+        if (raw === 'clearScreen') {
+          td1sLog('debug', `  ↳ screen clear — filament removed`);
+          td1sLastPair = null;   // reset dedup so same value fires again on re-insert
+          mainWindow?.webContents.send('td1s-clear');
+          return;
+        }
         const result = extractTdHex(raw);
         if (!result) { td1sLog('debug', `  ↳ unparseable, ignored`); return; }
         const pairKey = `${result.td}-${result.hex}`;
@@ -354,32 +382,32 @@ function initTD1S() {
         td1sConnected = false; td1sPort = null;
         if (!app.isQuitting) {
           td1sLog('warn', `Port ${portPath} closed (disconnected?)`);
-          td1sStatus('Status: Port closed, reconnecting...');
-          td1sScheduleReconnect();
+          td1sStatus('Status: Sensor not detected');
+          if (td1sNeedCount > 0) td1sStartPolling();
         }
       });
       td1sPort.on('error', err => {
         td1sLog('error', `Serial error: ${err.message}`);
         td1sConnected = false; td1sClose();
-        td1sStatus('Status: Serial error, reconnecting...');
-        td1sScheduleReconnect();
+        td1sStatus('Status: Sensor not detected');
+        if (td1sNeedCount > 0) td1sStartPolling();
       });
     } catch (err) {
       td1sLog('error', `Cannot open ${portPath}: ${err.message}`);
       td1sClose();
-      td1sStatus('Status: Connection failed, retrying...');
-      td1sScheduleReconnect();
+      td1sStatus('Status: Sensor not detected');
+      if (td1sNeedCount > 0) td1sStartPolling();
     }
   }
 
   app.on('before-quit', () => {
-    if (td1sReconnect) { clearTimeout(td1sReconnect); td1sReconnect = null; }
+    td1sStopWatcher();
     td1sClose();
   });
 
   // Start immediately — logs before first did-finish-load go into the buffer
   // and are replayed when the renderer is ready
-  td1sLog('info', `TD1-S bridge ready — Electron ${process.versions.electron}`);
+  td1sLog('info', `TD1S bridge ready — Electron ${process.versions.electron}`);
   td1sLog('info', `Target: VID=0x${TD1S_VID.toUpperCase()} PID=0x${TD1S_PID.toUpperCase()} @ ${TD1S_BAUD} baud`);
   td1sConnect();
 }

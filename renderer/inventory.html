@@ -62,14 +62,6 @@
       <div class="sb-stats-wrap hidden" id="sbStats"></div>
     </div>
 
-    <!-- TD1S sensor button -->
-    <div class="sb-td1s-wrap">
-      <button class="sb-td1s-btn" id="btnTD1S">
-        <span class="icon icon-link icon-14"></span>
-        <span class="sb-td1s-label">TD1-S</span>
-      </button>
-    </div>
-
     <!-- community footer (always visible) -->
     <div class="sb-community">
       <div class="sb-community-label">Community</div>
@@ -102,6 +94,7 @@
       </div>
       <div style="display:flex;gap:12px;align-items:center">
         <div class="health" id="rfidStatus" style="display:none"><span class="pulse"></span><span id="rfidLabel">RFID: —</span></div>
+        <div class="health td1s-health" id="td1sHealth" data-tooltip="TD1S: not detected"><span class="td1s-health-icon"></span></div>
 <div class="health" id="health" data-tooltip="Backend: idle"><span class="icon icon-cloud icon-20"></span></div>
       </div>
     </header>
@@ -192,6 +185,7 @@
     <div>
       <div class="stg-section-label" data-i18n="settingsDebug">Debug</div>
       <button id="btnDebug" class="ghost sm" style="margin-top:10px;font-size:12px;color:var(--muted)" data-i18n="debugOpenBtn">⌥ Open debug panel</button>
+      <button id="btnTD1S" class="ghost sm" style="margin-top:6px;font-size:12px;color:var(--muted)"><span class="td1s-dev-icon"></span>⌥ Open TD1S panel</button>
     </div>
 
   </div>
@@ -242,20 +236,173 @@
   </div>
 </div>
 
+<!-- TD1S Tester Modal (live display, no save/cancel) -->
+<div class="modal-overlay" id="td1sTesterOverlay">
+  <div class="modal-card td1s-connect-card">
+    <div class="modal-header">
+      <span class="modal-title">TD1S Viewer</span>
+      <button class="panel-close" id="td1sTesterClose">✕</button>
+    </div>
+    <div class="td1s-connect-body">
+      <img src="../assets/img/TD1S_Front.png" class="td1s-connect-img" alt="TD1S">
+      <div class="td-edit-result-circle" id="td1sTesterCircle"></div>
+      <div class="td-edit-result-vals">
+        <div class="td-edit-result-row">
+          <span class="td-edit-result-lbl">HEX Code</span>
+          <input type="text" id="td1sTesterHex" class="td-edit-val-input" placeholder="—" readonly maxlength="7" spellcheck="false">
+        </div>
+        <div class="td-edit-result-row">
+          <span class="td-edit-result-lbl">TD Value</span>
+          <input type="text" id="td1sTesterTd" class="td-edit-val-input" placeholder="—" readonly>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TD1S Connect Modal -->
+<div class="modal-overlay" id="td1sConnectModalOverlay">
+  <div class="modal-card td1s-connect-card">
+    <div class="modal-header">
+      <span class="modal-title" data-i18n="tdConnectTitle">TD1S Sensor</span>
+      <button class="panel-close" id="td1sConnectClose">✕</button>
+    </div>
+    <div class="td1s-connect-body">
+      <img src="../assets/img/TD1S_Front.png" class="td1s-connect-img" alt="TD1S">
+      <div class="td1s-connect-status">
+        <div class="td-edit-spinner"></div>
+        <p class="td-edit-state-msg" data-i18n="tdConnectMsg">Connect your TD1S sensor via USB</p>
+      </div>
+    </div>
+    <button class="btn ghost full-w" id="td1sConnectCancelBtn" data-i18n="cancelLabel">Cancel</button>
+  </div>
+</div>
+
+<!-- TD Edit Modal -->
+<div class="modal-overlay" id="tdEditModalOverlay">
+  <div class="modal-card td-edit-card">
+    <div class="modal-header">
+      <span class="modal-title" data-i18n="tdEditTitle">Set TD Value</span>
+      <button class="panel-close" id="tdEditClose">✕</button>
+    </div>
+
+    <!-- State 1: sensor not connected — manual TD entry -->
+    <div class="td-edit-state" id="tdEditStateDisconnected">
+      <img src="../assets/img/TD1S_Front.png" class="td-edit-device-img" alt="TD1S">
+      <p class="td-edit-state-msg" data-i18n="tdEditConnectMsg">Connect your TD1S sensor via USB and remove filament</p>
+      <div class="td-edit-or">
+        <span class="td-edit-or-line"></span>
+        <span class="td-edit-or-text" data-i18n="orLabel">or</span>
+        <span class="td-edit-or-line"></span>
+      </div>
+      <div class="td-edit-manual">
+        <input type="number" id="tdEditManualInput" class="td-edit-manual-input"
+               placeholder="e.g. 6.3" step="0.1" min="0.1" max="100">
+        <button class="btn primary td-edit-icon-btn" id="tdEditManualSaveBtn" title="Save"></button>
+      </div>
+    </div>
+
+    <!-- State 2+3: connected — scan + editable values -->
+    <div class="td-edit-state td-edit-hidden" id="tdEditStateActive">
+      <img src="../assets/img/TD1S_Front.png" class="td-edit-device-img" alt="TD1S">
+      <div class="td-edit-wait-row" id="tdEditWaitRow">
+        <div class="td-edit-spinner" id="tdEditSpinner"></div>
+        <p class="td-edit-state-msg" id="tdEditWaitMsg" data-i18n="tdEditWaitMsg">Insert filament into TD1S sensor…</p>
+      </div>
+      <div class="td-edit-result-circle" id="tdEditCircle"></div>
+      <div class="td-edit-result-vals">
+        <div class="td-edit-result-row">
+          <span class="td-edit-result-lbl">HEX Code</span>
+          <input type="text" id="tdEditHexInput" class="td-edit-val-input" placeholder="—" maxlength="7" spellcheck="false">
+        </div>
+        <div class="td-edit-result-row">
+          <span class="td-edit-result-lbl">TD Value</span>
+          <input type="number" id="tdEditTdInput" class="td-edit-val-input" placeholder="—" step="0.1" min="0.1" max="100">
+        </div>
+      </div>
+      <div class="td-edit-save-row">
+        <button class="btn ghost td-edit-save-half" id="tdEditBtnTdOnly" data-i18n="btnTdOnly">TD Only</button>
+        <button class="btn primary td-edit-save-half" id="tdEditBtnAll" data-i18n="btnSaveAll">All</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Color Edit Modal -->
+<div class="modal-overlay" id="colorEditModalOverlay">
+  <div class="modal-card td-edit-card">
+    <div class="modal-header">
+      <span class="modal-title" data-i18n="colorEditTitle">Set Color Value</span>
+      <button class="panel-close" id="colorEditClose">✕</button>
+    </div>
+
+    <!-- State 1: sensor not connected — native color picker fallback -->
+    <div class="td-edit-state" id="colorEditStateDisconnected">
+      <img src="../assets/img/TD1S_Front.png" class="td-edit-device-img" alt="TD1S">
+      <p class="td-edit-state-msg" data-i18n="tdEditConnectMsg">Connect your TD1S sensor via USB and remove filament</p>
+      <div class="td-edit-or">
+        <span class="td-edit-or-line"></span>
+        <span class="td-edit-or-text" data-i18n="orLabel">or</span>
+        <span class="td-edit-or-line"></span>
+      </div>
+      <div class="ce-picker-row">
+        <button class="ce-swatch" id="colorEditSwatch" type="button"></button>
+        <input type="color" id="colorEditNativePicker" tabindex="-1">
+        <input type="text" id="colorEditManualHex" class="td-edit-val-input ce-hex-input"
+               placeholder="#RRGGBB" maxlength="7" spellcheck="false">
+        <button class="btn primary td-edit-icon-btn" id="colorEditManualSaveBtn" title="Save"></button>
+      </div>
+    </div>
+
+    <!-- State 2+3: connected — scan + editable values -->
+    <div class="td-edit-state td-edit-hidden" id="colorEditStateActive">
+      <img src="../assets/img/TD1S_Front.png" class="td-edit-device-img" alt="TD1S">
+      <div class="td-edit-wait-row" id="colorEditWaitRow">
+        <div class="td-edit-spinner" id="colorEditSpinner"></div>
+        <p class="td-edit-state-msg" id="colorEditWaitMsg" data-i18n="tdEditWaitMsg">Insert filament into TD1S sensor…</p>
+      </div>
+      <div class="td-edit-result-circle" id="colorEditCircle"></div>
+      <div class="td-edit-result-vals">
+        <div class="td-edit-result-row">
+          <span class="td-edit-result-lbl">HEX Code</span>
+          <input type="text" id="colorEditHexInput" class="td-edit-val-input" placeholder="—" maxlength="7" spellcheck="false">
+        </div>
+        <div class="td-edit-result-row">
+          <span class="td-edit-result-lbl">TD Value</span>
+          <input type="number" id="colorEditTdInput" class="td-edit-val-input" placeholder="—" step="0.1" min="0.1" max="100">
+        </div>
+      </div>
+      <div class="td-edit-save-row">
+        <button class="btn ghost td-edit-save-half" id="colorEditBtnColorOnly" data-i18n="btnColorOnly">Color Only</button>
+        <button class="btn primary td-edit-save-half" id="colorEditBtnAll" data-i18n="btnSaveAll">All</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
 <!-- TD1S panel -->
 <div class="panel-overlay" id="td1sOverlay"></div>
 <div class="detail-panel td1s-panel" id="td1sPanel">
   <div class="panel-resize" id="td1sResize"></div>
   <div class="panel-header td1s-header">
-    <span class="panel-title">TD1-S</span>
+    <span class="panel-title">Debug TD1S by Ajax</span>
     <button class="panel-close td1s-close" id="td1sClose">✕</button>
   </div>
   <div class="td1s-body">
-    <!-- values row -->
+    <!-- values block -->
     <div class="td1s-values">
-      <div class="td1s-val-item"><span class="td1s-val-label">TD:</span> <span id="td1sTdVal">-</span></div>
-      <div class="td1s-val-item"><span class="td1s-val-label">HEX:</span> <span id="td1sHexVal">-</span></div>
+      <img src="../assets/img/TD1S_Front.png" class="td1s-device-img" alt="TD1S">
       <div class="td1s-color-circle" id="td1sColorCircle"></div>
+      <div class="td1s-val-block">
+        <span class="td1s-val-label">HEX Code</span>
+        <span class="td1s-val-value" id="td1sHexVal">-</span>
+      </div>
+      <div class="td1s-val-block">
+        <span class="td1s-val-label">TD Value</span>
+        <span class="td1s-val-value" id="td1sTdVal">-</span>
+      </div>
     </div>
     <!-- console -->
     <div class="td1s-log-container">
@@ -287,10 +434,6 @@
 <div class="panel-overlay" id="panelOverlay"></div>
 <div class="detail-panel" id="detailPanel">
   <div class="panel-resize" id="detailResize"></div>
-  <div class="panel-header">
-    <span class="panel-title" id="panelTitle">Spool details</span>
-    <button class="panel-close" id="panelClose">✕</button>
-  </div>
   <div class="panel-body" id="panelBody"></div>
 </div>
 

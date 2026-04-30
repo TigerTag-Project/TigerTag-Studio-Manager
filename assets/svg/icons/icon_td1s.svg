@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 22" fill="none">
+  <rect x="1.2" y="1.2" width="49.6" height="19.6" rx="5.2"
+        fill="currentColor" fill-opacity=".10"
+        stroke="currentColor" stroke-opacity=".9" stroke-width="1.4"/>
+
+  <path d="M1 8.2H3.1C3.8 8.2 4.4 8.8 4.4 9.5V12.5C4.4 13.2 3.8 13.8 3.1 13.8H1"
+        stroke="currentColor" stroke-opacity=".75" stroke-width="1.4"
+        stroke-linecap="round"/>
+
+  <rect x="6" y="4" width="25" height="14" rx="2.2"
+        fill="currentColor" fill-opacity=".18"/>
+
+  <rect x="7.6" y="5.6" width="21.8" height="10.8" rx="1.5"
+        fill="currentColor" fill-opacity=".85"/>
+
+  <rect x="10" y="8.2" width="5.5" height="1.4" rx=".7"
+        fill="white" fill-opacity=".75"/>
+  <rect x="10" y="11.7" width="14.5" height="1.4" rx=".7"
+        fill="white" fill-opacity=".55"/>
+
+  <rect x="36" y="5" width="4.8" height="4.8" rx="1.2"
+        fill="currentColor" fill-opacity=".55"/>
+  <rect x="42.2" y="5" width="4.8" height="4.8" rx="1.2"
+        fill="currentColor" fill-opacity=".55"/>
+
+  <rect x="36" y="13.2" width="11.5" height="1.7" rx=".85"
+        fill="currentColor" fill-opacity=".42"/>
+  <rect x="36" y="16.2" width="7.2" height="1.7" rx=".85"
+        fill="currentColor" fill-opacity=".34"/>
+</svg>

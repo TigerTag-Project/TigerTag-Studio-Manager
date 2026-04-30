@@ -191,5 +191,20 @@
   "containerPickerTitle": "Choisir un conteneur",
   "btnChangeContainer": "Changer",
   "cwEditWeight": "Modifier le poids du récipient",
-  "displayNameLabel": "Nom d'affichage"
+  "displayNameLabel": "Nom d'affichage",
+  "tdEditTitle": "Définir la valeur TD",
+  "tdEditConnectMsg": "Connectez votre capteur TD1S en USB et retirez le filament",
+  "tdEditWaitMsg": "Insérez le filament dans le capteur TD1S…",
+  "tdEditSaveBtn": "Enregistrer",
+  "tdNotSet": "Ajouter",
+  "orLabel": "ou",
+  "tdConnectTitle": "Capteur TD1S",
+  "tdConnectMsg": "Connectez votre capteur TD1S via USB",
+  "td1sNotDetected": "TD1S : non détecté",
+  "td1sDetected": "TD1S : connecté",
+  "tdEditScannedMsg": "✓ Scan terminé",
+  "colorEditTitle": "Définir la couleur",
+  "btnTdOnly": "TD seulement",
+  "btnColorOnly": "Couleur seulement",
+  "btnSaveAll": "Tout"
 }

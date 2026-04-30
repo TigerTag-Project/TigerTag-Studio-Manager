@@ -191,5 +191,20 @@
   "containerPickerTitle": "选择容器",
   "btnChangeContainer": "更换",
   "cwEditWeight": "编辑容器重量",
-  "displayNameLabel": "显示名称"
+  "displayNameLabel": "显示名称",
+  "tdEditTitle": "设置TD值",
+  "tdEditConnectMsg": "请通过USB连接TD1S传感器并取出耗材",
+  "tdEditWaitMsg": "请将耗材插入TD1S传感器…",
+  "tdEditSaveBtn": "保存",
+  "tdNotSet": "添加",
+  "orLabel": "或",
+  "tdConnectTitle": "TD1S传感器",
+  "tdConnectMsg": "通过USB连接TD1S传感器",
+  "td1sNotDetected": "TD1S：未检测到",
+  "td1sDetected": "TD1S：已连接",
+  "tdEditScannedMsg": "✓ 扫描完成",
+  "colorEditTitle": "设置颜色值",
+  "btnTdOnly": "仅TD",
+  "btnColorOnly": "仅颜色",
+  "btnSaveAll": "全部"
 }

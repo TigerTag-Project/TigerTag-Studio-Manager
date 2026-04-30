@@ -71,6 +71,7 @@
     invLoading: false,
     isAdmin: false,
     debugEnabled: false,
+    td1sConnected: false,
     db: { brand: [], material: [], aspect: [], type: [], diameter: [], unit: [], version: [], containers: [] }
   };
 
@@ -102,6 +103,8 @@
     document.querySelectorAll("[data-i18n]").forEach(el => { el.textContent = t(el.dataset.i18n); });
     document.querySelectorAll("[data-i18n-placeholder]").forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
     if ($("langSelect")) $("langSelect").value = state.lang;
+    // Refresh dynamic tooltips
+    $("td1sHealth")?.setAttribute("data-tooltip", t(state.td1sConnected ? "td1sDetected" : "td1sNotDetected"));
   }
 
   /* ── helpers ── */
@@ -257,6 +260,7 @@
         reach:   data.LinkREACH   && data.LinkREACH   !== "--" ? data.LinkREACH   : null,
         food:    data.LinkFOOD    && data.LinkFOOD    !== "--" ? data.LinkFOOD    : null,
       },
+      td: data.TD != null ? data.TD : null,
       twinUid: data.twin_tag_uid || null,
       containerId: data.container_id || null,
       lastUpdate: tsToMs(data.last_update) || tsToMs(data.updated_at),
@@ -1067,8 +1071,13 @@
     const isRainbow  = aspects.some(a => a.includes('rainbow') || a.includes('multicolor'));
     const isTricolor = aspects.some(a => a.includes('tricolor') || a.includes('tri color') || a.includes('tricolore'));
     const isBicolor  = aspects.some(a => a.includes('bicolor')  || a.includes('bi color')  || a.includes('bicolore'));
-    const stripAlpha = c => (c || '').replace(/FF$/i, '').trim();
-    const cls = (row.colorList || []).map(stripAlpha).filter(Boolean);
+    // Normalize each entry: strip optional # and 2-char alpha (only for 8-digit RRGGBBAA), add # for CSS
+    const normalizeColor = c => {
+      const s = (c || '').trim().replace(/^#/, '');
+      const hex6 = s.length === 8 ? s.slice(0, 6) : s;
+      return /^[0-9a-fA-F]{6}$/.test(hex6) ? `#${hex6}` : null;
+    };
+    const cls = (row.colorList || []).map(normalizeColor).filter(Boolean);
     const colorType = row.colorType || '';
     if (cls.length >= 2 && colorType === 'conic_gradient') {
       return `conic-gradient(from 0deg, ${cls.join(', ')}, ${cls[0]})`;
@@ -1078,6 +1087,8 @@
       const step = 360 / cls.length;
       const stops = cls.map((c, i) => `${c} ${i * step}deg ${(i + 1) * step}deg`).join(', ');
       return `conic-gradient(${stops})`;
+    } else if (cls.length === 1) {
+      return cls[0];   // online_color_list mono — takes priority over RFID chip color
     } else if (isRainbow && isTricolor) {
       const [c1=`#ff4d4d`, c2=`#ffd93d`, c3=`#4da3ff`] = cls;
       return `linear-gradient(90deg, ${c1} 0%, ${c2} 50%, ${c3} 100%)`;
@@ -1149,10 +1160,11 @@
   function thumbHTML(row, size = 28) {
     const src = row.imgUrl ? resolvedImg(row.imgUrl) : null;
     const overlay = twinOverlayBadge(row);
+    const tdBadge = row.td != null ? `<span class="thumb-td-badge">TD ${row.td}</span>` : "";
     const inner = src
       ? `<img class="thumb" src="${esc(src)}" width="${size}" height="${size}" loading="lazy" />`
       : `<span class="thumb-color" style="width:${size}px;height:${size}px;background:${colorBg(row)}"><img src="${logoSrc(colorBg(row))}" /></span>`;
-    return `<span class="thumb-wrap">${inner}${overlay}</span>`;
+    return `<span class="thumb-wrap">${inner}${overlay}${tdBadge}</span>`;
   }
 
   function renderTable(rows) {
@@ -1174,7 +1186,7 @@
         <td>${esc(v(r.material))}</td>
         <td>${esc(v(r.brand))}</td>
         <td class="color-cell">${swatch}</td>
-        <td>${esc(v(r.colorName))}</td>
+        <td>${esc(v(r.colorName) !== "-" ? r.colorName : [r.aspect1, r.aspect2].filter(a => a && a !== "-" && a !== "None").join(" ") || r.colorName)}</td>
         <td style="font-variant-numeric:tabular-nums">${wCell}</td>
         <td style="font-variant-numeric:tabular-nums">${v(r.capacity)}${r.capacity!=null?" g":""}</td>
         <td title="${esc(fmtTs(r.lastUpdate))}">${esc(timeAgo(r.lastUpdate))}</td>`;
@@ -1196,10 +1208,11 @@
       const pct = (r.weightAvailable != null && r.capacity) ? Math.max(0,Math.min(100,Math.round(r.weightAvailable/r.capacity*100))) : null;
       const swatch = colorCircleHTML(r);
       const badge = r.isPlus ? '<span class="tag-plus">TigerTag+</span>' : '<span class="tag-diy">TigerTag</span>';
+      const tdBadge = r.td != null ? `<span class="card-td-badge">TD ${r.td}</span>` : "";
       card.innerHTML = `
-        <div class="card-img-wrap">${imgHtml}${twinOverlayBadge(r)}</div>
+        <div class="card-img-wrap">${imgHtml}${twinOverlayBadge(r)}${tdBadge}</div>
         <div class="card-body">
-          <div class="card-name">${swatch}${esc(v(r.colorName) !== "-" ? r.colorName : r.material)}</div>
+          <div class="card-name">${swatch}${esc(v(r.colorName) !== "-" ? r.colorName : [r.aspect1, r.aspect2].filter(a => a && a !== "-" && a !== "None").join(" ") || r.material)}</div>
           <div class="card-sub">${esc(v(r.material))} · ${esc(v(r.brand))}</div>
           <div class="card-footer">
             <span class="card-weight">${r.weightAvailable!=null ? r.weightAvailable+" g" : "-"}</span>
@@ -1252,7 +1265,6 @@
     document.querySelectorAll("[data-id]").forEach(el => el.classList.toggle("selected", el.dataset.id === spoolId));
     const r = state.rows.find(x => x.spoolId === spoolId);
     if (!r) return;
-    $("panelTitle").textContent = r.colorName && r.colorName !== "-" ? r.colorName : r.material;
     $("panelBody").innerHTML = buildPanelHTML(r);
     // copy raw JSON button
     const btnCopyRaw = $("btnCopyRaw");
@@ -1406,6 +1418,15 @@
         if (e.key === "Escape") closeCwEdit();
       });
     }
+
+    // TD edit chip
+    if ($("btnEditTd")) {
+      $("btnEditTd").addEventListener("click", () => openTdEditModal(r));
+    }
+    // Color circle → open color edit modal
+    if ($("btnEditColor")) {
+      $("btnEditColor").addEventListener("click", () => openColorEditModal(r));
+    }
   }
   function closeDetail() {
     // Cancel any pending auto-save (don't fire on close)
@@ -1414,6 +1435,316 @@
     const vp = $("panelVideoPlayer"); if (vp) vp.innerHTML = "";
     $("detailPanel").classList.remove("open"); $("panelOverlay").classList.remove("open");
   }
+
+  /* ── shared helpers ── */
+  // Clamp TD value to valid range [0.1 – 100], returns null if not a number
+  function _tdValClamp(v) {
+    const n = parseFloat(v);
+    if (isNaN(n)) return null;
+    return Math.min(100, Math.max(0.1, n));
+  }
+  function _tdClampInput(el) {
+    if (!el || el.value === "") return;
+    const clamped = _tdValClamp(el.value);
+    if (clamped !== null) el.value = clamped;
+  }
+  function _tdClampLive(el) {
+    if (!el || el.value === "") return;
+    const n = parseFloat(el.value);
+    if (!isNaN(n) && n > 100) el.value = 100;
+  }
+  function _readHex(inputId) {
+    const raw = ($(`${inputId}`)?.value || "").replace(/^#/, "").trim();
+    return /^[0-9A-Fa-f]{6}$/.test(raw) ? raw.toUpperCase() : null;
+  }
+  // Block e/E/+/- keys on number inputs; call saveFn on Enter
+  const _blockBadKeys = (e, saveFn) => {
+    if (["e", "E", "+", "-"].includes(e.key)) { e.preventDefault(); return; }
+    if (e.key === "Enter") saveFn();
+  };
+  // Generic modal-state setter reused by both TD and Color modals
+  function _setEditState(ids, s) {
+    // ids: { disc, active, waitRow, spinner, waitMsg }
+    $(ids.disc).classList.toggle("td-edit-hidden",   s !== "disconnected");
+    $(ids.active).classList.toggle("td-edit-hidden", s === "disconnected");
+    if (s !== "disconnected") {
+      $(ids.waitRow).classList.remove("td-edit-hidden");
+      const sp = $(ids.spinner);
+      if (sp) sp.classList.toggle("td-edit-hidden", s === "result");
+      const msg = $(ids.waitMsg);
+      if (msg) {
+        if (s === "result") { msg.removeAttribute("data-i18n"); msg.textContent = t("tdEditScannedMsg"); }
+        else { msg.setAttribute("data-i18n", "tdEditWaitMsg"); msg.textContent = t("tdEditWaitMsg"); }
+      }
+    }
+  }
+  // Generic Firestore save: writes TD and/or HEX color to a spool + its twin
+  async function _saveTdHex(row, update, lockBtns, unlockBtns, closeFn, tag) {
+    if (!row) return;
+    const uid = state.activeAccountId; if (!uid) return;
+    lockBtns.forEach(b => { if (b) b.disabled = true; });
+    const invRef = fbDb().collection("users").doc(uid).collection("inventory");
+    try {
+      const batch = fbDb().batch();
+      batch.update(invRef.doc(row.spoolId), update);
+      let twin = false;
+      if (row.twinUid) {
+        const tr = state.rows.find(r =>
+          r.spoolId !== row.spoolId &&
+          (String(r.uid) === String(row.twinUid) || String(r.spoolId) === String(row.twinUid))
+        );
+        if (tr) { batch.update(invRef.doc(tr.spoolId), { ...update }); twin = true; }
+      }
+      await batch.commit();
+      closeFn();
+      console.log(`[${tag}] saved`, update, twin ? "(twin)" : "");
+    } catch (err) {
+      console.error(`[${tag}] save error:`, err);
+      unlockBtns.forEach(b => { if (b) b.disabled = false; });
+    }
+  }
+
+  /* ── TD Edit modal ── */
+  let _tdEditRow     = null;
+  let _tdEditWaiting = false;
+  let _tdEditData    = null;
+
+  const _tdIds = { disc: "tdEditStateDisconnected", active: "tdEditStateActive",
+                   waitRow: "tdEditWaitRow", spinner: "tdEditSpinner", waitMsg: "tdEditWaitMsg" };
+
+  function openTdEditModal(r) {
+    _tdEditRow = r; _tdEditWaiting = false; _tdEditData = null;
+    $("tdEditModalOverlay").classList.add("open");
+    window.td1s?.need();
+    _setEditState(_tdIds, state.td1sConnected ? "waiting" : "disconnected");
+    if (state.td1sConnected) _tdEditWaiting = true;
+  }
+
+  function closeTdEditModal() {
+    _tdEditRow = _tdEditData = null; _tdEditWaiting = false;
+    [$("tdEditBtnTdOnly"), $("tdEditBtnAll"), $("tdEditManualSaveBtn")].forEach(b => { if (b) b.disabled = false; });
+    $("tdEditModalOverlay").classList.remove("open");
+    ["tdEditManualInput","tdEditHexInput","tdEditTdInput"].forEach(id => { const el = $(id); if (el) el.value = ""; });
+    const c = $("tdEditCircle"); if (c) c.style.background = "#2a2a2a";
+    const sp = $("tdEditSpinner"); if (sp) sp.classList.remove("td-edit-hidden");
+    const msg = $("tdEditWaitMsg"); if (msg) { msg.setAttribute("data-i18n","tdEditWaitMsg"); msg.textContent = t("tdEditWaitMsg"); }
+    window.td1s?.release();
+  }
+
+  function _tdEditReceiveData(data) {
+    _tdEditWaiting = false; _tdEditData = data;
+    const hex = (data.HEX || "").replace(/^#/, "");
+    const c = $("tdEditCircle"); if (c) c.style.background = /^[0-9A-Fa-f]{6}$/.test(hex) ? `#${hex}` : "#888";
+    const hi = $("tdEditHexInput"); if (hi) hi.value = hex ? `#${hex.toUpperCase()}` : "";
+    const ti = $("tdEditTdInput");  if (ti) ti.value  = data.TD != null ? data.TD : "";
+    _setEditState(_tdIds, "result");
+  }
+
+  function _tdEditSaveTdOnly() {
+    const tdVal = _tdValClamp($("tdEditTdInput")?.value);
+    if (tdVal === null) { $("tdEditTdInput")?.focus(); return; }
+    _saveTdHex(_tdEditRow, { TD: tdVal, last_update: Date.now() },
+      [$("tdEditBtnTdOnly"), $("tdEditBtnAll")], [$("tdEditBtnTdOnly"), $("tdEditBtnAll")],
+      closeTdEditModal, "TD edit");
+  }
+  function _tdEditSaveAll() {
+    const tdVal = _tdValClamp($("tdEditTdInput")?.value);
+    if (tdVal === null) { $("tdEditTdInput")?.focus(); return; }
+    const hexVal = _readHex("tdEditHexInput");
+    const update = { TD: tdVal, last_update: Date.now() };
+    if (hexVal) update.online_color_list = [hexVal];
+    _saveTdHex(_tdEditRow, update,
+      [$("tdEditBtnTdOnly"), $("tdEditBtnAll")], [$("tdEditBtnTdOnly"), $("tdEditBtnAll")],
+      closeTdEditModal, "TD edit");
+  }
+  function _tdEditSaveManual() {
+    const tdVal = _tdValClamp($("tdEditManualInput")?.value);
+    if (tdVal === null) { $("tdEditManualInput")?.focus(); return; }
+    _saveTdHex(_tdEditRow, { TD: tdVal, last_update: Date.now() },
+      [$("tdEditManualSaveBtn")], [$("tdEditManualSaveBtn")],
+      closeTdEditModal, "TD edit manual");
+  }
+
+  // Event listeners — TD modal
+  $("tdEditClose").addEventListener("click", closeTdEditModal);
+  $("tdEditBtnTdOnly").addEventListener("click", _tdEditSaveTdOnly);
+  $("tdEditBtnAll").addEventListener("click", _tdEditSaveAll);
+  $("tdEditManualSaveBtn").addEventListener("click", _tdEditSaveManual);
+  $("tdEditManualInput").addEventListener("keydown", e => _blockBadKeys(e, _tdEditSaveManual));
+  $("tdEditManualInput").addEventListener("blur",  () => _tdClampInput($("tdEditManualInput")));
+  $("tdEditManualInput").addEventListener("input", () => _tdClampLive($("tdEditManualInput")));
+  $("tdEditHexInput").addEventListener("input", () => {
+    const hex = ($("tdEditHexInput").value || "").replace(/^#/, "");
+    const c = $("tdEditCircle");
+    if (c) c.style.background = /^[0-9A-Fa-f]{6}$/.test(hex) ? `#${hex}` : "#2a2a2a";
+  });
+  $("tdEditTdInput").addEventListener("keydown", e => _blockBadKeys(e, _tdEditSaveTdOnly));
+  $("tdEditTdInput").addEventListener("blur",  () => _tdClampInput($("tdEditTdInput")));
+  $("tdEditTdInput").addEventListener("input", () => _tdClampLive($("tdEditTdInput")));
+  $("tdEditModalOverlay").addEventListener("click", e => { if (e.target === $("tdEditModalOverlay")) closeTdEditModal(); });
+
+  /* ── Color Edit modal ── */
+  let _colorEditRow     = null;
+  let _colorEditWaiting = false;
+  let _colorEditData    = null;
+
+  const _ceIds = { disc: "colorEditStateDisconnected", active: "colorEditStateActive",
+                   waitRow: "colorEditWaitRow", spinner: "colorEditSpinner", waitMsg: "colorEditWaitMsg" };
+
+  function _ceSetSwatch(hex6) {
+    const sw = $("colorEditSwatch");
+    const np = $("colorEditNativePicker");
+    const hi = $("colorEditManualHex");
+    const valid = /^[0-9A-Fa-f]{6}$/.test(hex6);
+    if (sw) sw.style.background = valid ? `#${hex6}` : "#2a2a2a";
+    if (np && valid) np.value = `#${hex6}`;
+    if (hi) hi.value = valid ? `#${hex6.toUpperCase()}` : "";
+  }
+
+  function openColorEditModal(r) {
+    _colorEditRow = r; _colorEditWaiting = false; _colorEditData = null;
+    // Pre-fill swatch + hex input with current spool color
+    const cur = (r.colorList && r.colorList[0])
+      ? r.colorList[0].replace(/^#/, "").replace(/FF$/i, "").toUpperCase() : "";
+    _ceSetSwatch(cur);
+    const ci = $("colorEditCircle"); if (ci) ci.style.background = /^[0-9A-Fa-f]{6}$/.test(cur) ? `#${cur}` : "#2a2a2a";
+    $("colorEditModalOverlay").classList.add("open");
+    window.td1s?.need();
+    _setEditState(_ceIds, state.td1sConnected ? "waiting" : "disconnected");
+    if (state.td1sConnected) _colorEditWaiting = true;
+  }
+
+  function closeColorEditModal() {
+    _colorEditRow = _colorEditData = null; _colorEditWaiting = false;
+    [$("colorEditBtnColorOnly"),$("colorEditBtnAll"),$("colorEditManualSaveBtn")].forEach(b => { if (b) b.disabled = false; });
+    $("colorEditModalOverlay").classList.remove("open");
+    ["colorEditHexInput","colorEditTdInput"].forEach(id => { const el = $(id); if (el) el.value = ""; });
+    const sw = $("colorEditSwatch"); if (sw) sw.style.background = "#2a2a2a";
+    const np = $("colorEditNativePicker"); if (np) np.value = "#000000";
+    const mh = $("colorEditManualHex"); if (mh) mh.value = "";
+    const ci = $("colorEditCircle"); if (ci) ci.style.background = "#2a2a2a";
+    const sp = $("colorEditSpinner"); if (sp) sp.classList.remove("td-edit-hidden");
+    const msg = $("colorEditWaitMsg"); if (msg) { msg.setAttribute("data-i18n","tdEditWaitMsg"); msg.textContent = t("tdEditWaitMsg"); }
+    window.td1s?.release();
+  }
+
+  function _colorEditReceiveData(data) {
+    _colorEditWaiting = false; _colorEditData = data;
+    const hex = (data.HEX || "").replace(/^#/, "");
+    const ci = $("colorEditCircle"); if (ci) ci.style.background = /^[0-9A-Fa-f]{6}$/.test(hex) ? `#${hex}` : "#888";
+    const hi = $("colorEditHexInput"); if (hi) hi.value = hex ? `#${hex.toUpperCase()}` : "";
+    const ti = $("colorEditTdInput");  if (ti) ti.value  = data.TD != null ? data.TD : "";
+    _setEditState(_ceIds, "result");
+  }
+
+  function _colorEditSaveColorOnly() {
+    const hexVal = _readHex("colorEditHexInput");
+    if (!hexVal) { $("colorEditHexInput")?.focus(); return; }
+    _saveTdHex(_colorEditRow, { online_color_list: [hexVal], last_update: Date.now() },
+      [$("colorEditBtnColorOnly"),$("colorEditBtnAll")], [$("colorEditBtnColorOnly"),$("colorEditBtnAll")],
+      closeColorEditModal, "Color edit");
+  }
+  function _colorEditSaveAll() {
+    const hexVal = _readHex("colorEditHexInput");
+    if (!hexVal) { $("colorEditHexInput")?.focus(); return; }
+    const tdVal  = _tdValClamp($("colorEditTdInput")?.value);
+    const update = { online_color_list: [hexVal], last_update: Date.now() };
+    if (tdVal !== null) update.TD = tdVal;
+    _saveTdHex(_colorEditRow, update,
+      [$("colorEditBtnColorOnly"),$("colorEditBtnAll")], [$("colorEditBtnColorOnly"),$("colorEditBtnAll")],
+      closeColorEditModal, "Color edit");
+  }
+  function _colorEditSaveManual() {
+    const hexVal = _readHex("colorEditManualHex");
+    if (!hexVal) { $("colorEditManualHex")?.focus(); return; }
+    _saveTdHex(_colorEditRow, { online_color_list: [hexVal], last_update: Date.now() },
+      [$("colorEditManualSaveBtn")], [$("colorEditManualSaveBtn")],
+      closeColorEditModal, "Color edit manual");
+  }
+
+  // Event listeners — Color modal
+  $("colorEditClose").addEventListener("click", closeColorEditModal);
+  $("colorEditBtnColorOnly").addEventListener("click", _colorEditSaveColorOnly);
+  $("colorEditBtnAll").addEventListener("click", _colorEditSaveAll);
+  $("colorEditManualSaveBtn").addEventListener("click", _colorEditSaveManual);
+  // Swatch click → open native color picker
+  $("colorEditSwatch").addEventListener("click", () => $("colorEditNativePicker").click());
+  // Native picker change → sync swatch + text input
+  $("colorEditNativePicker").addEventListener("input", e => {
+    const hex = e.target.value.replace(/^#/, "").toUpperCase();
+    const sw = $("colorEditSwatch"); if (sw) sw.style.background = `#${hex}`;
+    const hi = $("colorEditManualHex"); if (hi) hi.value = `#${hex}`;
+  });
+  // Text HEX input → sync swatch + native picker
+  $("colorEditManualHex").addEventListener("input", () => {
+    const hex = ($("colorEditManualHex").value || "").replace(/^#/, "");
+    const valid = /^[0-9A-Fa-f]{6}$/.test(hex);
+    const sw = $("colorEditSwatch"); if (sw) sw.style.background = valid ? `#${hex}` : "#2a2a2a";
+    const np = $("colorEditNativePicker"); if (np && valid) np.value = `#${hex}`;
+  });
+  // State 2: HEX input live-updates big circle
+  $("colorEditHexInput").addEventListener("input", () => {
+    const hex = ($("colorEditHexInput").value || "").replace(/^#/, "");
+    const ci = $("colorEditCircle");
+    if (ci) ci.style.background = /^[0-9A-Fa-f]{6}$/.test(hex) ? `#${hex}` : "#2a2a2a";
+  });
+  $("colorEditTdInput").addEventListener("keydown", e => _blockBadKeys(e, _colorEditSaveColorOnly));
+  $("colorEditTdInput").addEventListener("blur",  () => _tdClampInput($("colorEditTdInput")));
+  $("colorEditTdInput").addEventListener("input", () => _tdClampLive($("colorEditTdInput")));
+  $("colorEditModalOverlay").addEventListener("click", e => { if (e.target === $("colorEditModalOverlay")) closeColorEditModal(); });
+
+  /* ── TD1S connect modal ── */
+  let _td1sConnectOpen = false;
+
+  function openTd1sConnectModal() {
+    _td1sConnectOpen = true;
+    $("td1sConnectModalOverlay").classList.add("open");
+    if (!state.td1sConnected) window.td1s?.need();
+  }
+
+  function closeTd1sConnectModal() {
+    _td1sConnectOpen = false;
+    $("td1sConnectModalOverlay").classList.remove("open");
+    window.td1s?.release();
+  }
+
+  $("td1sConnectClose").addEventListener("click", closeTd1sConnectModal);
+  $("td1sConnectCancelBtn").addEventListener("click", closeTd1sConnectModal);
+  $("td1sConnectModalOverlay").addEventListener("click", e => {
+    if (e.target === $("td1sConnectModalOverlay")) closeTd1sConnectModal();
+  });
+
+  /* ── TD1S tester modal ── */
+  let _td1sTesterOpen = false;
+
+  function openTd1sTesterModal() {
+    _td1sTesterOpen = true;
+    // Reset display fields
+    const circle = $("td1sTesterCircle");
+    const hexIn  = $("td1sTesterHex");
+    const tdIn   = $("td1sTesterTd");
+    if (circle) circle.style.background = "#2a2a2a";
+    if (hexIn)  hexIn.value  = "";
+    if (tdIn)   tdIn.value   = "";
+    $("td1sTesterOverlay").classList.add("open");
+    window.td1s?.need();
+  }
+
+  function closeTd1sTesterModal() {
+    _td1sTesterOpen = false;
+    $("td1sTesterOverlay").classList.remove("open");
+    window.td1s?.release();
+  }
+
+  $("td1sTesterClose").addEventListener("click", closeTd1sTesterModal);
+  $("td1sTesterOverlay").addEventListener("click", e => {
+    if (e.target === $("td1sTesterOverlay")) closeTd1sTesterModal();
+  });
+
+  $("td1sHealth")?.addEventListener("click", () => {
+    if (state.td1sConnected) { openTd1sTesterModal(); return; }
+    if (!state.td1sConnected) openTd1sConnectModal();
+  });
 
   /* ── container picker ── */
   let _cpRow = null; // spool row currently being edited in the picker
@@ -1481,7 +1812,6 @@
     if (/\.(mp4|webm|ogg|mov)(\?|$)/i.test(url)) return { type: "direct", src: url };
     return { type: "external", src: url };
   }
-  $("panelClose").addEventListener("click", closeDetail);
   $("panelOverlay").addEventListener("click", closeDetail);
   document.addEventListener("keydown", e => { if (e.key==="Escape") { closeDetail(); closeContainerPicker(); } });
 
@@ -1504,7 +1834,10 @@
     const badgeTwin = r.hasTwinPair
       ? `<span class="tag-twin panel-img-badge panel-img-badge--tr"><span class="icon icon-link icon-9"></span>${t("twinBadge")}</span>`
       : "";
-    const overlays = badgeLeft + badgeTwin;
+    const badgeTd = r.td != null
+      ? `<span class="panel-img-badge panel-img-badge--bl panel-td-badge">TD ${r.td}</span>`
+      : "";
+    const overlays = badgeLeft + badgeTwin + badgeTd;
     let imgSection = "";
     const _resolvedPanel = r.imgUrl ? resolvedImg(r.imgUrl) : null;
     if (_resolvedPanel) {
@@ -1514,14 +1847,20 @@
     }
 
     // colors — same circle design as table rows
-    const colorsHtml = colorCircleHTML(r, 40);
+    const colorsHtml = colorCircleHTML(r, 56);
 
     // print settings — renamed local var to avoid shadowing t()
     const temps = r.temps;
     const hasDirect = temps.nozzleMin || temps.nozzleMax || temps.bedMin || temps.bedMax || temps.dryTemp || temps.dryTime;
     const rec = mat && mat.recommended;
+    // TD chip — always editable, always shown in print section
+    const tdChipEl = `<div class="temp-chip temp-chip--editable" id="btnEditTd" title="${t("tdEditTitle")}">
+        <div class="tc-label">TD</div>
+        <div class="tc-value">${r.td != null ? r.td : `<span class="tc-add">${t("tdNotSet")}</span>`}</div>
+      </div>`;
+
     let tempHtml = "";
-    if (hasDirect || rec) {
+    {
       const nozzle = temps.nozzleMin && temps.nozzleMax ? `${temps.nozzleMin}–${temps.nozzleMax} °C`
                    : rec ? `${rec.nozzleTempMin}–${rec.nozzleTempMax} °C` : "—";
       const bed    = temps.bedMin && temps.bedMax ? `${temps.bedMin}–${temps.bedMax} °C`
@@ -1529,15 +1868,15 @@
       const dryT   = temps.dryTemp ? `${temps.dryTemp} °C` : rec ? `${rec.dryTemp} °C` : "—";
       const dryH   = temps.dryTime ? `${temps.dryTime} h`  : rec ? `${rec.dryTime} h`  : "—";
       const density = mat && mat.density ? `<div style="margin-top:8px;font-size:12px;color:var(--muted)">${t("lbDensity")}: ${mat.density} g/cm³</div>` : "";
-      tempHtml = `
-      <div class="panel-section">
-        <div class="panel-label">${t("sectionPrint")}</div>
-        <div class="temp-grid">
+      const tempChips = (hasDirect || rec) ? `
           <div class="temp-chip"><div class="tc-label">${t("lbNozzle")}</div><div class="tc-value">${nozzle}</div></div>
           <div class="temp-chip"><div class="tc-label">${t("lbBed")}</div><div class="tc-value">${bed}</div></div>
           <div class="temp-chip"><div class="tc-label">${t("lbDryTemp")}</div><div class="tc-value">${dryT}</div></div>
-          <div class="temp-chip"><div class="tc-label">${t("lbDryTime")}</div><div class="tc-value">${dryH}</div></div>
-        </div>
+          <div class="temp-chip"><div class="tc-label">${t("lbDryTime")}</div><div class="tc-value">${dryH}</div></div>` : "";
+      tempHtml = `
+      <div class="panel-section">
+        <div class="panel-label">${t("sectionPrint")}</div>
+        <div class="temp-grid">${tempChips}${tdChipEl}</div>
         ${density}
       </div>`;
     }
@@ -1630,6 +1969,7 @@
     const infoRows = [
       [t("detUid"),           r.uid],
       [t("detType"),          r.productType],
+      [t("thName"),           r.colorName !== "-" ? r.colorName : null],
       [t("detSeries"),        r.series],
       [t("detBrand"),         r.brand],
       [t("detMaterial"),      r.material],
@@ -1676,22 +2016,38 @@
         </div>
       </div>` : "";
 
-    // aspects + badges that go to the right of the color circles
+    // aspects + badges — all chips in one wrapping row beside the color circle
     const aspectChips = [r.aspect1, r.aspect2].filter(a => a && a !== "-" && a !== "None");
-    const aspectHtml = aspectChips.length
-      ? `<div class="aspect-chips">${aspectChips.map(a => `<span class="aspect-chip">${esc(a)}</span>`).join("")}</div>`
+    const allChips = [
+      ...aspectChips.map(a => `<span class="aspect-chip">${esc(a)}</span>`),
+      ...infoBadges.map(b => `<span class="aspect-chip">${b}</span>`)
+    ];
+    const aspectHtml = "";
+    const badgeHtml = allChips.length
+      ? `<div class="aspect-chips">${allChips.join("")}</div>`
       : "";
-    const badgeHtml = infoBadges.length
-      ? `<div class="aspect-chips">${infoBadges.map(b => `<span class="aspect-chip">${b}</span>`).join("")}</div>`
-      : "";
+
+    // identity block — Brand + Series on line 1, Material + Name on line 2
+    const hasBrand   = r.brand && r.brand !== "-";
+    const hasSeries  = r.series && r.series !== "-";
+    const hasMat     = r.material && r.material !== "-";
+    const rawName    = r.colorName && r.colorName !== "-" ? r.colorName : null;
+    const aspectFallback = [r.aspect1, r.aspect2].filter(a => a && a !== "-" && a !== "None").join(" ");
+    const displayName = rawName || aspectFallback || null;
+    const identityHtml = `
+      <div class="panel-section panel-identity">
+        ${hasBrand || hasSeries ? `<div class="pi-row1">${[hasBrand ? esc(r.brand) : "", hasSeries ? esc(r.series) : ""].filter(Boolean).join(" ")}</div>` : ""}
+        ${hasMat || displayName ? `<div class="pi-row2">${[hasMat ? esc(r.material) : "", displayName ? esc(displayName) : ""].filter(Boolean).join(" ")}</div>` : ""}
+      </div>`;
 
     return `
       ${imgSection}
+      ${identityHtml}
       <div class="panel-section">
         <div class="panel-label">${t("sectionColors", {n: r.colorList.length})} &amp; Aspect</div>
         <div class="color-aspect-row">
           <div class="color-circles-col">
-            ${colorsHtml || '<span style="color:var(--muted);font-size:13px">—</span>'}
+            <button class="color-edit-trigger" id="btnEditColor" title="${t("colorEditTitle")}">${colorsHtml || '<span style="color:var(--muted);font-size:13px">—</span>'}<span class="color-edit-plus">+</span></button>
           </div>
           <div class="aspect-col">
             ${aspectHtml}
@@ -1839,10 +2195,12 @@
   function openTD1S() {
     $("td1sPanel").classList.add("open");
     $("td1sOverlay").classList.add("open");
+    window.td1s?.need();
   }
   function closeTD1S() {
     $("td1sPanel").classList.remove("open");
     $("td1sOverlay").classList.remove("open");
+    window.td1s?.release();
   }
   $("btnTD1S").addEventListener("click", openTD1S);
   $("td1sClose").addEventListener("click", closeTD1S);
@@ -2144,6 +2502,36 @@
 
     window.td1s.onStatus(msg => {
       $("td1sStatus").textContent = msg;
+      const connected = msg === "Status: Sensor connected";
+      $("btnTD1S")?.classList.toggle("td1s-connected", connected);
+      $("td1sHealth")?.classList.toggle("td1s-connected", connected);
+      $("td1sHealth")?.setAttribute("data-tooltip", t(connected ? "td1sDetected" : "td1sNotDetected"));
+      state.td1sConnected = connected;
+      // Auto-close connect modal when TD1S plugged in, then open viewer
+      if (connected && _td1sConnectOpen) {
+        closeTd1sConnectModal();
+        openTd1sTesterModal();
+      }
+      // Auto-close tester modal when TD1S disconnected
+      if (!connected && _td1sTesterOpen) {
+        closeTd1sTesterModal();
+      }
+      // Update TD edit modal if open
+      if ($("tdEditModalOverlay")?.classList.contains("open")) {
+        if (connected && !_tdEditData) {
+          _setEditState(_tdIds, "waiting"); _tdEditWaiting = true;
+        } else if (!connected && !_tdEditData) {
+          _setEditState(_tdIds, "disconnected"); _tdEditWaiting = false;
+        }
+      }
+      // Update Color edit modal if open
+      if ($("colorEditModalOverlay")?.classList.contains("open")) {
+        if (connected && !_colorEditData) {
+          _setEditState(_ceIds, "waiting"); _colorEditWaiting = true;
+        } else if (!connected && !_colorEditData) {
+          _setEditState(_ceIds, "disconnected"); _colorEditWaiting = false;
+        }
+      }
     });
 
     window.td1s.onSensorData(data => {
@@ -2152,6 +2540,51 @@
       const hex = (data.HEX || '').replace('#', '');
       $("td1sColorCircle").style.background =
         /^[0-9A-Fa-f]{6}$/.test(hex) ? `#${hex}` : '#2a2a2a';
+      // Feed into TD edit modal if waiting for a scan
+      if (_tdEditWaiting && $("tdEditModalOverlay")?.classList.contains("open")) {
+        _tdEditReceiveData(data);
+      }
+      // Feed into Color edit modal if waiting for a scan
+      if (_colorEditWaiting && $("colorEditModalOverlay")?.classList.contains("open")) {
+        _colorEditReceiveData(data);
+      }
+      // Feed into tester modal if open
+      if (_td1sTesterOpen) {
+        const circle = $("td1sTesterCircle");
+        const hexIn  = $("td1sTesterHex");
+        const tdIn   = $("td1sTesterTd");
+        if (circle) circle.style.background = /^[0-9A-Fa-f]{6}$/.test(hex) ? `#${hex}` : "#2a2a2a";
+        if (hexIn)  hexIn.value  = hex ? `#${hex.toUpperCase()}` : "";
+        if (tdIn)   tdIn.value   = data.TD != null ? data.TD : "";
+      }
+    });
+
+    window.td1s.onClear(() => {
+      // Tester modal: blank out all display fields
+      if (_td1sTesterOpen) {
+        const circle = $("td1sTesterCircle");
+        const hexIn  = $("td1sTesterHex");
+        const tdIn   = $("td1sTesterTd");
+        if (circle) circle.style.background = "#2a2a2a";
+        if (hexIn)  hexIn.value  = "";
+        if (tdIn)   tdIn.value   = "";
+      }
+      // TD Edit modal: go back to "waiting" so the user can re-scan
+      if ($("tdEditModalOverlay")?.classList.contains("open") && _tdEditData) {
+        _tdEditData = null; _tdEditWaiting = true;
+        const c = $("tdEditCircle"); if (c) c.style.background = "#2a2a2a";
+        const hi = $("tdEditHexInput"); if (hi) hi.value = "";
+        const ti = $("tdEditTdInput"); if (ti) ti.value = "";
+        _setEditState(_tdIds, "waiting");
+      }
+      // Color Edit modal: go back to "waiting" so the user can re-scan
+      if ($("colorEditModalOverlay")?.classList.contains("open") && _colorEditData) {
+        _colorEditData = null; _colorEditWaiting = true;
+        const ci = $("colorEditCircle"); if (ci) ci.style.background = "#2a2a2a";
+        const hi = $("colorEditHexInput"); if (hi) hi.value = "";
+        const ti = $("colorEditTdInput"); if (ti) ti.value = "";
+        _setEditState(_ceIds, "waiting");
+      }
     });
 
     // Copy log

@@ -188,5 +188,20 @@
   "containerPickerTitle": "Choose a container",
   "btnChangeContainer": "Change",
   "cwEditWeight": "Edit container weight",
-  "displayNameLabel": "Display name"
+  "displayNameLabel": "Display name",
+  "tdEditTitle": "Set TD Value",
+  "tdEditConnectMsg": "Connect your TD1S sensor via USB and remove filament",
+  "tdEditWaitMsg": "Insert filament into TD1S sensor…",
+  "tdEditSaveBtn": "Save",
+  "tdNotSet": "Add",
+  "orLabel": "or",
+  "tdConnectTitle": "TD1S Sensor",
+  "tdConnectMsg": "Connect your TD1S sensor via USB",
+  "td1sNotDetected": "TD1S: not detected",
+  "td1sDetected": "TD1S: connected",
+  "tdEditScannedMsg": "✓ Scan complete",
+  "colorEditTitle": "Set Color Value",
+  "btnTdOnly": "TD Only",
+  "btnColorOnly": "Color Only",
+  "btnSaveAll": "All"
 }

@@ -191,5 +191,20 @@
   "containerPickerTitle": "Elegir un contenedor",
   "btnChangeContainer": "Cambiar",
   "cwEditWeight": "Editar peso del recipiente",
-  "displayNameLabel": "Nombre de usuario"
+  "displayNameLabel": "Nombre de usuario",
+  "tdEditTitle": "Establecer valor TD",
+  "tdEditConnectMsg": "Conecta el sensor TD1S por USB y retira el filamento",
+  "tdEditWaitMsg": "Inserta el filamento en el sensor TD1S…",
+  "tdEditSaveBtn": "Guardar",
+  "tdNotSet": "Añadir",
+  "orLabel": "o",
+  "tdConnectTitle": "Sensor TD1S",
+  "tdConnectMsg": "Conecta el sensor TD1S por USB",
+  "td1sNotDetected": "TD1S: no detectado",
+  "td1sDetected": "TD1S: conectado",
+  "tdEditScannedMsg": "✓ Escaneo completado",
+  "colorEditTitle": "Definir color",
+  "btnTdOnly": "Solo TD",
+  "btnColorOnly": "Solo color",
+  "btnSaveAll": "Todo"
 }

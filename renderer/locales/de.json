@@ -191,5 +191,20 @@
   "containerPickerTitle": "Behälter auswählen",
   "btnChangeContainer": "Ändern",
   "cwEditWeight": "Behältergewicht bearbeiten",
-  "displayNameLabel": "Anzeigename"
+  "displayNameLabel": "Anzeigename",
+  "tdEditTitle": "TD-Wert setzen",
+  "tdEditConnectMsg": "TD1S-Sensor per USB verbinden und Filament entfernen",
+  "tdEditWaitMsg": "Filament in den TD1S-Sensor einführen…",
+  "tdEditSaveBtn": "Speichern",
+  "tdNotSet": "Hinzufügen",
+  "orLabel": "oder",
+  "tdConnectTitle": "TD1S-Sensor",
+  "tdConnectMsg": "TD1S-Sensor über USB verbinden",
+  "td1sNotDetected": "TD1S: nicht erkannt",
+  "td1sDetected": "TD1S: verbunden",
+  "tdEditScannedMsg": "✓ Scan abgeschlossen",
+  "colorEditTitle": "Farbe festlegen",
+  "btnTdOnly": "Nur TD",
+  "btnColorOnly": "Nur Farbe",
+  "btnSaveAll": "Alles"
 }
