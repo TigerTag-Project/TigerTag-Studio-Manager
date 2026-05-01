@@ -2,6 +2,8 @@
 
 Reference sheets extracted from the [OpenRFID](https://github.com/suchmememanyskill/OpenRFID) project (vendored as a Git submodule under `OpenRFID/`). Each sheet documents how to **read** a given vendor's RFID tag in enough detail to write a JavaScript port without re-reading the Python source.
 
+> **Resuming work?** Read [`NEXT_STEPS.md`](./NEXT_STEPS.md) first — it tracks the porting roadmap, recommended order, and the quick-start prompt to relaunch this work in a future session.
+
 > **Read-only** — these specs cover decoding only. Writing/cloning tags is intentionally out of scope.
 
 ## Vendors covered
