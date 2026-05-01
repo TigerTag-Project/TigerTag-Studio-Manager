@@ -219,9 +219,9 @@
   "setupNamePlaceholder": "您的显示名称",
   "setupNameSave": "出发！🚀",
   "setupNameSkip": "稍后",
-  "invWelcomeTitle": "从手机管理\n您的耗材库存。",
-  "invWelcomeSub": "10秒内扫描您的TigerTag线轴，库存实时更新。",
-  "invQrScanHint": "taap.it 自动识别您的设备",
+  "invWelcomeTitle": "用手机管理你的库存。",
+  "invWelcomeSub": "10秒扫描您的TigerTag线轴。库存实时更新。",
+  "invQrScanHint": "扫描二维码,在手机上安装",
   "invQrBetaNote": "仅限 iOS · 需要 TestFlight",
   "friendsTitle": "好友",
   "friendsMyCode": "我的码",
@@ -258,5 +258,9 @@
   "friendInvPermDenied": "权限被拒绝",
   "friendInvErrorRetry": "重试",
   "friendInvErrorRemove": "删除此好友",
-  "addFriendFound": "已找到"
+  "addFriendFound": "已找到",
+  "blacklistTitle": "已屏蔽用户",
+  "unblockBtn": "解除屏蔽",
+  "blockedOn": "屏蔽于 {{date}}",
+  "friendNotSharing": "该用户不希望分享其库存。"
 }

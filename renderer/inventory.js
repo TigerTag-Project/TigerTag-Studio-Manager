@@ -86,6 +86,7 @@
     isPublic: false,
     friends: [],             // [{ uid, displayName, addedAt, key }]
     friendRequests: [],      // [{ uid, displayName, requestedAt }]
+    blacklist: [],           // [{ uid, displayName, blockedAt }]
     unsubFriendRequests: null,
     friendView: null,        // { uid, displayName, avatarColor } — set when viewing a friend's inventory
     td1sConnected: false,
@@ -1001,6 +1002,7 @@
     syncUserDoc(uid);
     subscribeFriendRequests(uid);
     loadFriendsList();  // populate state.friends early so dropdown + profiles modal show friends immediately
+    loadBlacklist();    // populate state.blacklist for the Friends panel
   }
 
   // Track which account ids already have an onAuthStateChanged listener set up.
@@ -1021,7 +1023,7 @@
         state.inventory = null; state.rows = [];
         state.isAdmin = false; state.debugEnabled = false;
         state.publicKey = null; state.privateKey = null;
-        state.friends = []; state.friendRequests = [];
+        state.friends = []; state.friendRequests = []; state.blacklist = [];
         applyDebugMode(); renderStats(); renderInventory();
         renderAccountDropdown();
         setDisconnected();
@@ -1159,7 +1161,7 @@
       state.inventory = null; state.rows = [];
       state.isAdmin = false; state.debugEnabled = false;
       state.publicKey = null; state.privateKey = null;
-      state.friends = []; state.friendRequests = [];
+      state.friends = []; state.friendRequests = []; state.blacklist = [];
       applyDebugMode(); renderStats(); renderInventory();
       setDisconnected();
       // Switch to another account if available, otherwise show login
@@ -1341,8 +1343,8 @@
         $("invWelcome").innerHTML = `
           <div class="inv-welcome">
             <div class="inv-welcome-hero">
-              <div class="inv-welcome-logo">
-                <img src="../assets/svg/logos/logo_tigertag.svg" width="36" height="36" alt="TigerTag" />
+              <div class="inv-welcome-logo inv-welcome-logo--framed">
+                <img src="../assets/img/icon.png" alt="TigerTag" />
               </div>
               <h1 class="inv-welcome-h1">${t("invWelcomeTitle")}</h1>
               <p class="inv-welcome-p">${t("invWelcomeSub")}</p>
@@ -3195,10 +3197,18 @@
     try {
       await sendFriendRequest(adfValue());
       $("adfResult").textContent = "✓ " + t("friendRequestSent");
+      $("adfResult").className = "adf-result adf-result--success";
       $("adfPreview").classList.add("hidden");
       setTimeout(closeAddFriendModal, 1500);
     } catch (e) {
-      $("adfResult").textContent = "⚠ " + t("networkError");
+      console.warn("[sendFriendRequest]", e.code, e.message);
+      // Firestore rejects when the target has blocked us OR isPublic check etc.
+      // Most common case: blacklist → permission-denied. Show a clear, friendly message.
+      const msg = e.code === "permission-denied"
+        ? t("friendNotSharing")
+        : t("networkError");
+      $("adfResult").textContent = "⚠ " + msg;
+      $("adfResult").className = "adf-result adf-result--error";
       $("adfSend").disabled = false;
     }
   });
@@ -3346,6 +3356,10 @@
     });
     batch.delete(myRef.collection("friendRequests").doc(requesterUid));
     await batch.commit();
+    // Update local state + UI immediately
+    state.blacklist = [...state.blacklist.filter(b => b.uid !== requesterUid),
+      { uid: requesterUid, displayName: displayName || requesterUid, blockedAt: Date.now() }];
+    renderBlacklist();
   }
 
   // Remove a friend — deletes from both sides (symmetric)
@@ -3358,6 +3372,65 @@
     await batch.commit();
     state.friends = state.friends.filter(f => f.uid !== friendUid);
     renderFriendsList();
+  }
+
+  // Load blacklisted users from Firestore
+  async function loadBlacklist() {
+    const user = fbAuth().currentUser;
+    if (!user) return;
+    const uid = user.uid;
+    try {
+      const snap = await fbDb(uid).collection("users").doc(uid).collection("blacklist").get();
+      if (uid !== state.activeAccountId) return;
+      state.blacklist = snap.docs.map(d => ({ uid: d.id, ...d.data() }));
+      renderBlacklist();
+    } catch (e) { console.warn("[blacklist]", e.message); }
+  }
+
+  // Remove a user from the blacklist (allows them to send friend requests again)
+  async function unblockUser(blockedUid) {
+    const user = fbAuth().currentUser;
+    if (!user) return;
+    await fbDb().collection("users").doc(user.uid)
+      .collection("blacklist").doc(blockedUid).delete();
+    state.blacklist = state.blacklist.filter(b => b.uid !== blockedUid);
+    renderBlacklist();
+  }
+
+  // Render the blacklist section in the Friends panel
+  function renderBlacklist() {
+    const list = $("fpBlacklistList");
+    const count = $("fpBlacklistCount");
+    const block = $("fpBlacklistBlock");
+    if (!list || !block) return;
+    if (count) count.textContent = state.blacklist.length;
+    // Hide entire section when empty
+    if (!state.blacklist.length) { block.classList.add("hidden"); list.innerHTML = ""; return; }
+    block.classList.remove("hidden");
+    list.innerHTML = state.blacklist.map(b => {
+      const initials = (b.displayName || "?").split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
+      const color = friendColorFallback(b.uid);
+      const date = b.blockedAt ? timeAgo(b.blockedAt.seconds ? b.blockedAt.seconds * 1000 : b.blockedAt) : "";
+      return `<div class="fp-friend fp-blocked" data-uid="${esc(b.uid)}">
+        <div class="fp-friend-avatar" style="background:${color}">${initials}</div>
+        <div class="fp-friend-main">
+          <div class="fp-friend-name">${esc(b.displayName || b.uid)}</div>
+          <div class="fp-friend-date">${date ? t("blockedOn", { date }) : ""}</div>
+        </div>
+        <button class="fp-friend-btn fp-friend-unblock" data-action="unblock" title="${t("unblockBtn")}">
+          ${t("unblockBtn")}
+        </button>
+      </div>`;
+    }).join("");
+    list.querySelectorAll(".fp-friend-unblock").forEach(btn => {
+      btn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        const row = btn.closest(".fp-friend");
+        btn.disabled = true;
+        try { await unblockUser(row.dataset.uid); }
+        catch (err) { console.error("[unblock]", err); btn.disabled = false; }
+      });
+    });
   }
 
   // Claim a unique publicKey via O(1) document lookup + transaction

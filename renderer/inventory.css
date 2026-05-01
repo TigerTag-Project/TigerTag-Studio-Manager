@@ -518,6 +518,29 @@
   .fp-friend-remove .icon { background: var(--muted); }
   .fp-friend-remove:hover .icon { background: var(--danger); }
 
+  /* ── Blacklist section ─────────────────────────────────────────────── */
+  .fp-blacklist-block { margin-top: 10px; flex: 0 0 auto; }
+  .fp-blacklist-block.hidden { display: none; }
+  .fp-list-count--danger { background: var(--danger-soft); color: var(--danger); border: 1px solid rgba(216,59,59,.25); }
+  .fp-blocked {
+    background: var(--danger-soft) !important;
+    border-color: rgba(216,59,59,.2) !important;
+    cursor: default !important;
+  }
+  .fp-blocked:hover { transform: none !important; box-shadow: none !important; }
+  .fp-blocked .fp-friend-actions { opacity: 1; }
+  .fp-friend-unblock {
+    width: auto !important; height: auto !important;
+    padding: 5px 10px;
+    background: transparent; border: 1px solid var(--danger);
+    color: var(--danger); border-radius: 7px;
+    font-size: 11px; font-weight: 600; font-family: inherit;
+    cursor: pointer;
+    transition: background .15s, color .15s;
+  }
+  .fp-friend-unblock:hover { background: var(--danger); color: #fff; }
+  .fp-friend-unblock:disabled { opacity: .5; cursor: not-allowed; }
+
   /* Empty state */
   .fp-empty {
     text-align: center;
@@ -1472,10 +1495,10 @@
   /* ── Welcome screen ─────────────────────────────────────────────────────── */
   .inv-welcome {
     display: flex; flex-direction: column; align-items: center;
-    gap: 36px; padding: 48px 32px 44px; max-width: 640px; margin: 0 auto; text-align: center;
+    gap: 28px; padding: 16px 32px 44px; max-width: 640px; margin: 0 auto; text-align: center;
   }
   /* hero */
-  .inv-welcome-hero { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .inv-welcome-hero { display: flex; flex-direction: column; align-items: center; gap: 6px; }
   .inv-welcome-logo {
     width: 56px; height: 56px; border-radius: 14px;
     background: var(--surface-2); border: 1px solid var(--border);
@@ -1483,6 +1506,21 @@
     box-shadow: 0 2px 8px rgba(0,0,0,.06);
   }
   .inv-welcome-logo img { width: 36px; height: 36px; object-fit: contain; }
+
+  /* Standalone contouring logo — no frame, just a bigger black mark */
+  .inv-welcome-logo--framed {
+    width: auto; height: auto;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+    margin: 0;
+  }
+  .inv-welcome-logo--framed img {
+    width: 180px; height: 180px;
+    object-fit: contain;
+  }
+
   .inv-welcome-h1 {
     font-size: 26px; font-weight: 700; letter-spacing: -.03em;
     color: var(--text); line-height: 1.2; margin: 0;

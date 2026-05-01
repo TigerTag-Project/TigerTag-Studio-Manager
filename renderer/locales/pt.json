@@ -231,9 +231,9 @@
   "setupNamePlaceholder": "Seu nome de exibição",
   "setupNameSave": "Vamos! 🚀",
   "setupNameSkip": "Mais tarde",
-  "invWelcomeTitle": "Gerencie seu inventário\npelo celular.",
-  "invWelcomeSub": "Escaneie seus carretéis TigerTag em 10 segundos. Seu inventário atualiza em tempo real.",
-  "invQrScanHint": "taap.it detecta seu dispositivo automaticamente",
+  "invWelcomeTitle": "Gerencie seu inventário pelo celular.",
+  "invWelcomeSub": "Escaneie suas bobinas TigerTag em 10 segundos. Seu inventário é atualizado em tempo real.",
+  "invQrScanHint": "Escaneie o QR para instalar no celular",
   "invQrBetaNote": "Somente iOS · TestFlight necessário",
   "friendsTitle": "Amigos",
   "friendsMyCode": "Meu código",
@@ -270,5 +270,9 @@
   "friendInvPermDenied": "Permissão negada",
   "friendInvErrorRetry": "Tentar novamente",
   "friendInvErrorRemove": "Remover este amigo",
-  "addFriendFound": "Encontrado"
+  "addFriendFound": "Encontrado",
+  "blacklistTitle": "Usuários bloqueados",
+  "unblockBtn": "Desbloquear",
+  "blockedOn": "Bloqueado {{date}}",
+  "friendNotSharing": "Este usuário não deseja compartilhar seu inventário."
 }

@@ -230,9 +230,9 @@
   "setupNamePlaceholder": "Your display name",
   "setupNameSave": "Zaczynamy! 🚀",
   "setupNameSkip": "Later",
-  "invWelcomeTitle": "Witaj w TigerTag Studio Manager",
-  "invWelcomeSub": "Skanuj swoje szpule za pomocą aplikacji mobilnej, aby tutaj się pojawiły.",
-  "invQrScanHint": "Zeskanuj, aby zainstalować aplikację mobilną",
+  "invWelcomeTitle": "Zarządzaj inwentarzem z telefonu.",
+  "invWelcomeSub": "Zeskanuj swoje szpule TigerTag w 10 sekund. Twój inwentarz aktualizuje się w czasie rzeczywistym.",
+  "invQrScanHint": "Zeskanuj kod QR, aby zainstalować na telefonie",
   "invQrBetaNote": "Zarejestrowani testerzy",
   "friendsTitle": "Znajomi",
   "friendsMyCode": "Mój kod",
@@ -269,5 +269,9 @@
   "friendInvPermDenied": "Odmowa dostępu",
   "friendInvErrorRetry": "Spróbuj ponownie",
   "friendInvErrorRemove": "Usuń tego znajomego",
-  "addFriendFound": "Znaleziono"
+  "addFriendFound": "Znaleziono",
+  "blacklistTitle": "Zablokowani użytkownicy",
+  "unblockBtn": "Odblokuj",
+  "blockedOn": "Zablokowano {{date}}",
+  "friendNotSharing": "Ten użytkownik nie chce udostępniać swojego inwentarza."
 }

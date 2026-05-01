@@ -216,9 +216,9 @@
   "setupNamePlaceholder": "Your display name",
   "setupNameSave": "Let's go! 🚀",
   "setupNameSkip": "Later",
-  "invWelcomeTitle": "Manage your filament\nfrom your phone.",
+  "invWelcomeTitle": "Manage your inventory from your phone.",
   "invWelcomeSub": "Scan your TigerTag spools in 10 seconds. Your inventory updates in real time.",
-  "invQrScanHint": "taap.it auto-detects your device",
+  "invQrScanHint": "Scan QR code to install on your mobile phone",
   "invQrBetaNote": "iOS only · TestFlight required",
   "friendsTitle": "Friends",
   "friendsMyCode": "My code",
@@ -255,5 +255,9 @@
   "friendInvPermDenied": "Permission denied",
   "friendInvErrorRetry": "Retry",
   "friendInvErrorRemove": "Remove this friend",
-  "addFriendFound": "Found"
+  "addFriendFound": "Found",
+  "blacklistTitle": "Blocked users",
+  "unblockBtn": "Unblock",
+  "blockedOn": "Blocked {{date}}",
+  "friendNotSharing": "This user does not wish to share their inventory."
 }
