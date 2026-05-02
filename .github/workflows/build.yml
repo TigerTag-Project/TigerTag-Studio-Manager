@@ -58,7 +58,13 @@ jobs:
           # Export the resolved path for the next step
           echo "APPLE_API_KEY=$HOME/private_keys/AuthKey_${APPLE_API_KEY_ID}.p8" >> "$GITHUB_ENV"
 
-      - name: Build & publish
+      # ─────────────────────────────────────────────────────────────────
+      # macOS / Linux — build & publish in one step (no post-build signing).
+      # Windows is handled in the next 4 steps so we can SIGN the .exe with
+      # Microsoft Trusted Signing (Azure) BEFORE publishing it to the Release.
+      # ─────────────────────────────────────────────────────────────────
+      - name: Build & publish (macOS / Linux)
+        if: matrix.os != 'windows-latest'
         run: npm run build:${{ matrix.platform }}
         env:
           # GitHub Releases publish (electron-builder reads GH_TOKEN automatically)
@@ -73,3 +79,74 @@ jobs:
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      # ─────────────────────────────────────────────────────────────────
+      # Windows path — split into:
+      #   1. Build .exe locally with --publish never (so we can sign first)
+      #   2. Check whether Trusted Signing secrets are configured in repo
+      #   3. Sign .exe artifacts via Microsoft Trusted Signing (skipped
+      #      gracefully when secrets are absent → unsigned build still ships)
+      #   4. Upload .exe (+ .blockmap + latest.yml) to the GitHub Release
+      # ─────────────────────────────────────────────────────────────────
+      - name: Build Windows (no publish — sign first, publish after)
+        if: matrix.os == 'windows-latest'
+        run: npm run build:win:nopublish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check Trusted Signing secrets availability
+        id: check_signing
+        if: matrix.os == 'windows-latest'
+        shell: bash
+        env:
+          AZ_TENANT: ${{ secrets.AZURE_TENANT_ID }}
+          AZ_CLIENT: ${{ secrets.AZURE_CLIENT_ID }}
+          AZ_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          CERT_PROFILE: ${{ vars.TRUSTED_SIGNING_CERT_PROFILE }}
+        run: |
+          if [ -n "$AZ_TENANT" ] && [ -n "$AZ_CLIENT" ] && [ -n "$AZ_SECRET" ] && [ -n "$CERT_PROFILE" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            echo "✓ Trusted Signing secrets present — Windows artifacts will be signed under cert profile '$CERT_PROFILE'."
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "⚠ Trusted Signing secrets / cert profile missing — Windows artifacts will be UNSIGNED for this run."
+            echo "   Configure secrets AZURE_TENANT_ID / AZURE_CLIENT_ID / AZURE_CLIENT_SECRET and repo variable TRUSTED_SIGNING_CERT_PROFILE to enable signing."
+          fi
+
+      - name: Sign Windows artifacts (Microsoft Trusted Signing)
+        if: matrix.os == 'windows-latest' && steps.check_signing.outputs.ready == 'true'
+        uses: azure/trusted-signing-action@v0.5.1
+        with:
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          endpoint: https://weu.codesigning.azure.net/
+          trusted-signing-account-name: TigerTagSigning
+          certificate-profile-name: ${{ vars.TRUSTED_SIGNING_CERT_PROFILE }}
+          files-folder: dist
+          files-folder-filter: exe
+          files-folder-recurse: false
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+
+      # Signing changes the .exe (the authenticode signature is embedded into
+      # the PE binary), which invalidates the SHA-512 + size that
+      # electron-builder wrote into dist/latest.yml. Without this regen step,
+      # auto-updater clients would download the new signed .exe, hash-check it
+      # against the stale latest.yml, mismatch, and refuse the update.
+      - name: Regenerate dist/latest.yml after signing
+        if: matrix.os == 'windows-latest' && steps.check_signing.outputs.ready == 'true'
+        run: node scripts/regen-latest-yml.mjs
+
+      - name: Publish Windows artifacts to GitHub Release
+        if: matrix.os == 'windows-latest'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: |
+            dist/*.exe
+            dist/*.exe.blockmap
+            dist/latest.yml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

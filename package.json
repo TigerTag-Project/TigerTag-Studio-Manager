@@ -10,6 +10,7 @@
     "start": "electron .",
     "postinstall": "electron-rebuild",
     "build:win": "electron-builder --win --publish always",
+    "build:win:nopublish": "electron-builder --win --publish never",
     "build:mac": "electron-builder --mac --publish always",
     "build:mac:local": "bash build/sign-and-notarize.sh",
     "build:mac:unsigned": "electron-builder --mac -c.mac.identity=null -c.mac.notarize=false",
