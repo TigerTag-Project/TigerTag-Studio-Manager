@@ -1,4 +1,4 @@
-# TigerTag Studio Manager — Claude reference
+# Tiger Studio Manager — Claude reference
 
 ## Stack
 Electron (no bundler) + vanilla HTML/CSS/JS. Entry: `main.js`. Renderer: `renderer/inventory.html` + `renderer/inventory.css` + `renderer/inventory.js`. Preload bridge: `preload.js`.

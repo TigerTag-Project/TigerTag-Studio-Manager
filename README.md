@@ -41,6 +41,23 @@
 
 ## Changelog
 
+### v1.4.3 — 2026-05-02
+
+- **Storage view — major UX overhaul.** The rack management screen has been restructured around a dense, scannable toolbar and tighter spatial logic so users with a dozen+ racks can navigate at a glance.
+- **Stats bar.** A row of pill-shaped tiles at the top of Storage exposes the global state in one look: total racks, filled-vs-total slots (with a mini progress bar), empty count, locked count, and a clickable "Not Stored" tile that opens the unranked-spools side panel. The Empty / Locked tiles double as filter chips — clicking them highlights every matching slot across all racks with an animated orange ring.
+- **Inline rack header.** Each rack card now shows `Rack 4 · 5/5` on a single line (name + counter), saving vertical space. The counter dims to muted grey so the rack name remains the dominant element.
+- **Kebab menu (⋮).** Per-rack actions moved into a contextual menu that fades in on rack hover: Edit · Auto-fill · Lock all / Unlock all · Clear all · Delete. Reduces visual noise at rest, surfaces all actions when needed.
+- **Press-and-hold for destructive actions.** Both *Clear all* and *Delete* in the kebab menu require a 1.2-second hold (with an animated progress bar filling left-to-right) before firing — a misclick can no longer wipe a rack or remove it.
+- **Visible drop zones during drag.** When dragging a spool, valid empty slots gently pulse, locked slots dim out, and the slot under the cursor pops with a strong orange ring + 12 % scale-up. Filled drop targets (= swap) get a `⇄` glyph overlay so the user knows it's an exchange, not an overwrite.
+- **Slot animations.** Spools that just landed in a slot bounce in with overshoot. Auto-fill is staggered 30 ms per slot for a left-to-right, top-to-bottom "wave" effect. Clear-all triggers a cascade where every spool flies out to the right toward the unranked panel.
+- **Contextual coordinates.** Shelf letters (A–Z bottom→top) and slot numbers (1–N) are hidden by default to reduce noise. They reveal on rack hover or while dragging a spool, so the user can aim precisely without permanent clutter. Per-slot tooltips still expose `[B3]` etc. on hover.
+- **Rich hover tooltip on filled slots.** Hovering a colored slot opens a custom info bubble showing brand, material · color name, coordinate badge, weight bar with current/total grams + percentage, and a "Locked" tag if applicable. Hidden during drag so it doesn't fight the drop-target ring.
+- **Skyline masonry layout.** Racks of varying widths and heights pack tightly into the available width via a custom skyline-packing algorithm — narrow racks no longer leave dead vertical space below them. Recomputes on resize and after every render via a width-only `ResizeObserver`.
+- **Toolbar styling alignment.** The search input and the brand / material / type quick-filter dropdowns now share the exact same pill style as the stat tiles (same height, padding, radius, and `surface-2` background) so the entire top section reads as one cohesive toolbar.
+- **Spools-not-stored side panel.** Per-row layout shows brand on line 1 and material · color name on line 2 — easier to scan by manufacturer first. The colored puck inside each row matches the rack-slot dimensions exactly (32 × ~53 px, 3/5 ratio).
+- **+ New Rack as a stat tile.** The "create new rack" affordance is the first tile of the stats bar — same height and padding as the data tiles, dashed border to read as a "create" affordance, with a `+` glyph playing the role of a number and "NEW RACK" as its unit label.
+- **Inner rack frame removed.** The white sub-card surrounding the slot grid inside each rack has been dropped; slots now sit directly on the rack-card surface, lightening the layout and removing the nested-container look.
+
 ### v1.4.2 — 2026-05-02
 
 - **CI — macOS code signing + notarization.** Releases for macOS are now signed with our Apple Developer ID Application certificate and notarized by Apple via `notarytool`. Users opening the `.dmg` no longer see any Gatekeeper warning. The auto-updater accepts notarized `.zip` updates from GitHub Releases. The [`build.yml`](./.github/workflows/build.yml) workflow decodes the certificate and the App Store Connect API Key from GitHub Secrets at build time. See the new [Code signing & notarization](#code-signing--notarization-macos) section in this README for verification commands and instructions for setting up signing in a fork.

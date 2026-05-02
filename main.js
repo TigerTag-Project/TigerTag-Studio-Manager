@@ -6,6 +6,23 @@ const http = require('http');
 const crypto = require('crypto');
 const db = require('./services/tigertagDbService');
 
+// ── Single-instance lock ────────────────────────────────────────────────────
+// Prevent multiple Electron processes from sharing the same userData directory
+// (which would deadlock IndexedDB / LevelDB — Firebase Auth, image cache, etc.).
+// If a 2nd launch is attempted, focus the existing window and quit immediately.
+const _hasInstanceLock = app.requestSingleInstanceLock();
+if (!_hasInstanceLock) {
+  app.quit();
+  process.exit(0);
+}
+app.on('second-instance', () => {
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+  }
+});
+
 // ── Minimal static file server so location.protocol === 'http:' (required by Firebase Auth)
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -79,7 +96,7 @@ function createWindow() {
     height: 820,
     minWidth: 900,
     minHeight: 600,
-    title: 'TigerTag Studio Manager',
+    title: 'Tiger Studio Manager',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -479,6 +496,17 @@ ipcMain.handle('db:downloadAndSaveLatestData', ()         => db.downloadAndSaveL
 app.whenReady().then(async () => {
   imgCacheDir = path.join(app.getPath('userData'), 'img_cache');
   fs.mkdirSync(imgCacheDir, { recursive: true });
+
+  // macOS native "About Tiger Studio Manager" menu (Apple menu → About)
+  if (process.platform === 'darwin') {
+    app.setAboutPanelOptions({
+      applicationName:    'Tiger Studio Manager',
+      applicationVersion: app.getVersion(),
+      version:            `Electron ${process.versions.electron}`,
+      copyright:          '© TigerTag Project',
+      website:            'https://github.com/TigerTag-Project/TigerTag_Studio_Manager',
+    });
+  }
 
   await db.initTigerTagDB();
 

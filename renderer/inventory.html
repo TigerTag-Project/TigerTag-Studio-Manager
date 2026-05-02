@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>TigerTag Studio Manager</title>
+<title>Tiger Studio Manager</title>
 <link rel="stylesheet" href="inventory.css" />
 </head>
 <body>
@@ -45,6 +45,7 @@
       <div class="sb-actions">
         <button id="btnSbReload" class="primary"><span class="icon icon-refresh icon-13"></span><span class="label" data-i18n="btnRefresh">Refresh</span></button>
         <button id="btnOpenFriends" class="ghost sb-friends-btn"><span class="icon icon-user icon-13"></span><span class="label" data-i18n="friendsTitle">Friends</span><span id="friendsBadge" class="friends-badge hidden"></span></button>
+        <button id="btnOpenRacks" class="ghost"><span class="icon icon-package icon-13"></span><span class="label" data-i18n="racksTitle">Storage</span></button>
         <button id="btnOpenSettings"><span class="icon icon-download icon-13"></span><span class="label" data-i18n="settingsOpenBtn">Export</span></button>
       </div>
     </div>
@@ -73,6 +74,8 @@
         <div class="sb-qr-label" data-i18n="mobileApp">📱 Mobile App</div>
         <img class="sb-qr-img" src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=https%3A%2F%2Ftaap.it%2FDF1Aqt&bgcolor=0f1117&color=ffffff&margin=8" alt="QR" />
       </div>
+      <!-- App version (always visible, discreet — populated at runtime from preload) -->
+      <div class="sb-version" id="sbVersion">v—</div>
     </div>
   </aside>
 
@@ -81,12 +84,13 @@
 
     <header class="top">
       <div>
-        <h1><span class="dot"></span>TigerTag Studio Manager</h1>
+        <h1><span class="dot"></span>Tiger Studio Manager</h1>
         <div class="subtitle" data-i18n="appSubtitle">View and manage your filament spools</div>
       </div>
       <div style="display:flex;gap:12px;align-items:center">
         <div class="health" id="rfidStatus" style="display:none"><span class="pulse"></span><span id="rfidLabel">RFID: —</span></div>
         <div class="health td1s-health" id="td1sHealth" data-tooltip="TD1S: not detected"><span class="td1s-health-icon"></span></div>
+        <div class="health scale-health" id="scaleHealth" data-tooltip="No scale connected"><span class="scale-health-icon">⚖</span></div>
 <div class="health" id="health" data-tooltip="Backend: idle"><span class="icon icon-cloud icon-20"></span></div>
       </div>
     </header>
@@ -94,7 +98,7 @@
     <!-- sign-in placeholder (visible when no account is active) -->
     <div id="signInPlaceholder" class="signin-placeholder">
       <div class="signin-ph-icon">T</div>
-      <div class="signin-ph-title">TigerTag Studio Manager</div>
+      <div class="signin-ph-title">Tiger Studio Manager</div>
       <div class="signin-ph-sub" data-i18n="loginSignInSubtitle">Manage your filament inventory</div>
       <button class="primary signin-ph-btn" id="btnSignInPlaceholder">
         <span data-i18n="btnSignIn">Sign in</span>
@@ -121,10 +125,25 @@
       <!-- friend-view banner — shown when viewing a friend's inventory -->
       <div id="friendViewBanner" class="fvb hidden"></div>
       <div class="row between" style="gap:10px">
-        <input id="searchInv" type="text" placeholder="Search material, brand, color, UID…" data-i18n-placeholder="searchPlaceholder" style="flex:1;max-width:340px;margin:0" />
+        <div class="inv-search">
+          <input id="searchInv" type="text" placeholder="Search material, brand, color, UID…" data-i18n-placeholder="searchPlaceholder" />
+          <span class="icon icon-search icon-13"></span>
+        </div>
+        <div class="inv-filter-group">
+          <select id="brandFilter" class="inv-brand-filter" title="Filter by brand">
+            <option value="" data-i18n="filterAllBrands">All brands</option>
+          </select>
+          <select id="materialFilter" class="inv-brand-filter" title="Filter by material">
+            <option value="" data-i18n="filterAllMaterials">All materials</option>
+          </select>
+          <select id="typeFilter" class="inv-brand-filter" title="Filter by type">
+            <option value="" data-i18n="filterAllTypes">All types</option>
+          </select>
+        </div>
         <div class="view-toggle" style="flex-shrink:0">
           <button id="btnViewTable" class="active" data-i18n="btnViewTable">☰ Table</button>
           <button id="btnViewGrid" data-i18n="btnViewGrid">⊞ Grid</button>
+          <button id="btnViewRack"><span class="icon icon-package icon-13"></span><span data-i18n="btnViewRack">Storage</span></button>
         </div>
       </div>
       <div id="mainResult"></div>
@@ -152,6 +171,9 @@
 
       <!-- grid view -->
       <div id="invGrid" class="inv-grid hidden"></div>
+
+      <!-- rack view (storage) -->
+      <div id="invRackView" class="inv-rack-view hidden"></div>
 
     </section>
 
@@ -188,10 +210,34 @@
       <button id="btnReportProblem" class="ghost sm" style="margin-top:6px;font-size:12px;color:var(--muted)" data-i18n="errReportBtn">⚑ Report a problem</button>
     </div>
 
+    <!-- About -->
+    <div>
+      <div class="stg-section-label" data-i18n="aboutTitle">About</div>
+      <div class="stg-about" id="stgAbout">
+        <div class="stg-about-name">Tiger Studio Manager</div>
+        <div class="stg-about-version" id="stgAboutVersion">v—</div>
+        <div class="stg-about-tech" id="stgAboutTech">—</div>
+        <button class="stg-about-copy ghost sm" id="btnCopyAbout" title="Copy">
+          <span class="icon icon-copy icon-13"></span>
+          <span data-i18n="aboutCopy">Copy</span>
+        </button>
+      </div>
+    </div>
+
   </div>
 </div>
 
 <!-- friends panel -->
+<!-- Scales panel (slide-in from right — opens when clicking the scale health icon) -->
+<div class="panel-overlay" id="scalesOverlay"></div>
+<div class="detail-panel scales-panel" id="scalesPanel">
+  <div class="panel-header">
+    <span class="panel-title" data-i18n="scalesPanelTitle">Scales</span>
+    <button class="panel-close" id="scalesPanelClose">✕</button>
+  </div>
+  <div class="panel-body" id="scalesPanelBody"></div>
+</div>
+
 <div class="panel-overlay" id="friendsOverlay"></div>
 <div class="detail-panel friends-panel" id="friendsPanel">
   <div class="panel-header">
@@ -262,6 +308,65 @@
   </div>
 </div>
 
+<!-- new/edit rack modal -->
+<div class="modal-overlay" id="rackEditOverlay">
+  <div class="modal-card rec-card">
+    <div class="rec-header">
+      <div class="rec-header-text">
+        <div class="rec-title" id="recTitle" data-i18n="rackNew">New rack</div>
+        <div class="rec-sub" data-i18n="rackEditSub">Pick a preset or create a custom layout</div>
+      </div>
+      <button class="modal-close" id="rackEditClose">✕</button>
+    </div>
+
+    <div class="rec-body">
+      <label class="rec-field">
+        <span class="rec-field-label" data-i18n="rackName">Name</span>
+        <input type="text" id="rackNameInput" maxlength="60" placeholder="Atelier" />
+      </label>
+
+      <div class="rec-field">
+        <span class="rec-field-label" data-i18n="rackPreset">Preset</span>
+        <div class="rec-presets" id="recPresets"></div>
+      </div>
+
+      <div class="rec-dim-row">
+        <label class="rec-field rec-field--dim">
+          <span class="rec-field-label" data-i18n="rackLevels">Number of levels</span>
+          <input type="number" id="rackLevelInput" min="1" max="15" value="5" />
+        </label>
+        <label class="rec-field rec-field--dim">
+          <span class="rec-field-label" data-i18n="rackPositions">Slots per level</span>
+          <input type="number" id="rackPositionInput" min="1" max="20" value="8" />
+        </label>
+      </div>
+      <div class="rec-dim-total" id="recTotalLabel">
+        <span class="rec-dim-total-num" id="recTotalNum">—</span>
+        <span class="rec-dim-total-label" id="recTotalLbl">slots</span>
+      </div>
+
+      <div id="rackEditResult" class="rec-result"></div>
+    </div>
+
+    <div class="rec-footer">
+      <button class="adf-btn adf-btn--danger adf-btn--icon hidden" id="rackEditDelete" title="Hold 1.5s to delete this rack" aria-label="Delete">
+        <span class="hold-progress"></span>
+        <span class="icon icon-trash icon-13"></span>
+      </button>
+      <button class="adf-btn adf-btn--secondary hidden" id="rackEditEmpty" title="Hold 1.5s to clear all spools from this rack">
+        <span class="hold-progress hold-progress--primary"></span>
+        <span class="icon icon-broom icon-13"></span>
+        <span data-i18n="rackClearAll">Clear all</span>
+      </button>
+      <span style="flex:1"></span>
+      <button class="adf-btn adf-btn--primary" id="rackEditSave">
+        <span class="spinner"></span>
+        <span class="label" data-i18n="rackSave">Save</span>
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- friend inventory panel -->
 <div class="panel-overlay" id="friendInvOverlay"></div>
 <div class="detail-panel" id="friendInvPanel">
@@ -295,6 +400,7 @@
     <div class="dbg-tabs">
       <button class="dbg-tab active" data-tab="api">API</button>
       <button class="dbg-tab" data-tab="fs">Firestore</button>
+      <button class="dbg-tab" data-tab="del" data-i18n="dbgDeletedTab">Deleted</button>
     </div>
 
     <!-- API tab -->
@@ -321,6 +427,22 @@
 
       <!-- result -->
       <pre class="json" id="fsExplPre" style="flex:1;margin:0;overflow:auto">{}</pre>
+    </div>
+
+    <!-- Deleted spools tab -->
+    <div class="dbg-pane hidden" id="dbgPaneDel" style="display:flex;flex-direction:column;gap:8px;padding:12px 14px;flex:1;overflow:hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+        <div style="font-size:11px;color:var(--muted)">
+          <span data-i18n="dbgDeletedSub">Soft-deleted spools — click ↺ to restore</span>
+          <span style="margin-left:6px">(<span id="dbgDelCount">0</span>)</span>
+        </div>
+        <button id="dbgDelRefresh" class="ghost sm" title="Refresh">↻</button>
+      </div>
+      <div class="dbg-del-search" style="position:relative;flex-shrink:0">
+        <input id="dbgDelSearch" type="text" data-i18n-placeholder="searchPlaceholder" placeholder="Search material, brand, color, UID…" />
+        <span class="icon icon-search icon-13"></span>
+      </div>
+      <div id="dbgDelList" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding-right:2px"></div>
     </div>
 
   </div>
@@ -717,6 +839,7 @@
     <textarea id="diagBody" class="diag-body" readonly spellcheck="false"></textarea>
     <div class="diag-actions">
       <button class="ghost sm" id="btnDiagClear" data-i18n="errReportClear">Clear log</button>
+      <button class="ghost sm" id="btnDiagDownload" data-i18n="errReportDownload">↓ Download</button>
       <button class="primary" id="btnDiagCopy" data-i18n="errReportCopy">Copy report</button>
     </div>
   </div>

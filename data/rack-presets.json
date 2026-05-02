@@ -1,0 +1,6 @@
+[
+  { "id": "box_6",    "name": "Box 6",    "level": 1, "position": 6, "image": "Box_6_Spools.png" },
+  { "id": "mini",     "name": "Mini",     "level": 3, "position": 9, "image": "Panda_Feed_Rack_Mini.png" },
+  { "id": "standard", "name": "Standard", "level": 5, "position": 9, "image": "Panda_Feed_Rack_Standard.png" },
+  { "id": "extended", "name": "Extended", "level": 7, "position": 9, "image": "Panda_Feed_Rack_Extended.png" }
+]

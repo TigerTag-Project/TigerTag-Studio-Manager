@@ -71,6 +71,10 @@
     displayName: null,
     showDeleted: false,
     search: "",
+    brandFilter: "",                  // exact brand name to keep, "" = all
+    materialFilter: "",               // exact material name to keep, "" = all
+    typeFilter: "",                   // exact product type to keep, "" = all
+
     viewMode: localStorage.getItem("tigertag.view") || "table",
     lang: localStorage.getItem("tigertag.lang") || "en",
     sortCol: null,
@@ -87,6 +91,11 @@
     friends: [],             // [{ uid, displayName, addedAt, key }]
     friendRequests: [],      // [{ uid, displayName, requestedAt }]
     blacklist: [],           // [{ uid, displayName, blockedAt }]
+    racks: [],               // [{ id, name, level, position, order, createdAt, lastUpdate }]
+    rackPresets: [],         // loaded from data/rack-presets.json
+    unsubRacks: null,        // Firestore unsubscribe handle for racks
+    scales: [],              // [{ mac, name, last_seen, last_spool, fw_version, ... }]
+    unsubScales: null,       // Firestore unsubscribe handle for scales
     unsubFriendRequests: null,
     friendView: null,        // { uid, displayName, avatarColor } — set when viewing a friend's inventory
     td1sConnected: false,
@@ -156,6 +165,56 @@
     return isNaN(d.getTime()) ? null : d.toLocaleDateString();
   }
   function setLoading(btn, on) { if (!btn) return; btn.classList.toggle("loading", !!on); btn.disabled = !!on; }
+
+  /* Press-and-hold "destructive action" pattern — replaces a confirm() popup.
+     User must hold the button for `durationMs` ms; the inner .hold-progress
+     fills left→right during the hold. Releasing early cancels & rolls back. */
+  function setupHoldToConfirm(btn, durationMs, onConfirm) {
+    if (!btn) return;
+    const fill = btn.querySelector(".hold-progress");
+    let timer = null;
+    function start(e) {
+      e.preventDefault();
+      if (btn.disabled) return;
+      btn.classList.add("is-holding");
+      if (fill) {
+        fill.style.transition = "width 0s";
+        fill.style.width = "0%";
+        // Force a reflow so the next transition takes effect from 0%
+        // eslint-disable-next-line no-unused-expressions
+        fill.offsetWidth;
+        fill.style.transition = `width ${durationMs}ms linear`;
+        fill.style.width = "100%";
+      }
+      timer = setTimeout(() => {
+        timer = null;
+        btn.classList.remove("is-holding");
+        btn.classList.add("is-confirming");
+        if (fill) { fill.style.width = "100%"; }
+        try { onConfirm(); } finally {
+          // Reset visual state shortly after — the modal usually closes anyway
+          setTimeout(() => {
+            btn.classList.remove("is-confirming");
+            if (fill) { fill.style.transition = "width 0s"; fill.style.width = "0%"; }
+          }, 300);
+        }
+      }, durationMs);
+    }
+    function cancel() {
+      if (timer == null) return;
+      clearTimeout(timer);
+      timer = null;
+      btn.classList.remove("is-holding");
+      if (fill) {
+        fill.style.transition = "width .15s ease-out";
+        fill.style.width = "0%";
+      }
+    }
+    btn.addEventListener("pointerdown", start);
+    btn.addEventListener("pointerup",     cancel);
+    btn.addEventListener("pointerleave",  cancel);
+    btn.addEventListener("pointercancel", cancel);
+  }
   // toast(el, kind, msg, opts?) — opts.err + opts.context add a "Details" link that opens the diagnostic panel
   function toast(el, kind, msg, opts) {
     if (!el) return; el.innerHTML = "";
@@ -187,6 +246,7 @@
     _errorLog.unshift(entry);
     if (_errorLog.length > _ERR_LOG_MAX) _errorLog.length = _ERR_LOG_MAX;
     try { console.error(`[reportError] ${entry.context}`, err); } catch {}
+    // Update badge in settings panel if mounted
     try { renderDiagBadge(); } catch {}
   }
   // Capture globally — anything that bubbles up unhandled lands in the report
@@ -207,7 +267,24 @@
       }
     } catch {}
     if (!_appInfo) _appInfo = { appVersion: "?", platform: navigator.platform || "?", electron: "n/a" };
+    renderAppVersion(_appInfo);
     return _appInfo;
+  }
+
+  // Populate the sidebar footer version + the Settings → About block.
+  function renderAppVersion(info) {
+    const v = info?.appVersion || "?";
+    const sb = document.getElementById("sbVersion");
+    if (sb) sb.textContent = `v${v}`;
+    const sv = document.getElementById("stgAboutVersion");
+    if (sv) sv.textContent = `v${v}`;
+    const st = document.getElementById("stgAboutTech");
+    if (st) {
+      const parts = [];
+      if (info?.platform) parts.push(`${info.platform}${info.arch ? " " + info.arch : ""}`);
+      if (info?.electron && info.electron !== "n/a") parts.push(`Electron ${info.electron}`);
+      st.textContent = parts.join(" · ") || "—";
+    }
   }
 
   function renderDiagBadge() {
@@ -234,7 +311,7 @@
     const info = _appInfo || {};
     const acc = (function(){ try { return JSON.parse(localStorage.getItem("tigertag.accounts") || "[]"); } catch { return []; } })();
     const lines = [];
-    lines.push("# TigerTag Studio Manager — diagnostic report");
+    lines.push("# Tiger Studio Manager — diagnostic report");
     lines.push("");
     lines.push(`- Generated: ${new Date().toISOString()}`);
     lines.push(`- App version: ${info.appVersion || "?"}`);
@@ -272,6 +349,7 @@
     const overlay = document.getElementById("diagModalOverlay");
     if (overlay) overlay.classList.remove("open");
   }
+  // Expose for inline handlers / external use
   window.openDiagnosticModal = openDiagnosticModal;
   function esc(s) {
     return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
@@ -318,6 +396,10 @@
     try {
       const r = await fetch('../data/container_spool/spools_filament.json');
       if (r.ok) state.db.containers = await r.json();
+    } catch {}
+    try {
+      const r = await fetch('../data/rack-presets.json');
+      if (r.ok) state.rackPresets = await r.json();
     } catch {}
   }
   function dbFind(key, id) { return state.db[key].find(x => x.id === id) || null; }
@@ -394,8 +476,14 @@
       td: data.TD != null ? data.TD : null,
       twinUid: data.twin_tag_uid || null,
       containerId: data.container_id || null,
+      rackId:     data.rack_id  || null,
+      rackLevel:  Number.isInteger(data.level)    ? data.level    : null,
+      rackPos:    Number.isInteger(data.position) ? data.position : null,
       lastUpdate: tsToMs(data.last_update) || tsToMs(data.updated_at),
-      deleted: !!data.deleted || !!data.deleted_at,
+      // Only `deleted === true` counts as a tombstone (matches Flutter mobile
+       // semantics). `deleted_at` alone is treated as historical metadata and
+       // does NOT hide the spool.
+      deleted: data.deleted === true,
       productType: typeName(data.id_type),
       chipTimestamp: data.timestamp || null,
       needUpdateAt: data.needUpdateAt || null,
@@ -544,7 +632,13 @@
       btn.addEventListener("click", () => {
         const id = btn.dataset.dropId;
         closeAccountDropdown();
-        if (id !== activeId) switchAccountUI(id);
+        if (id !== activeId) {
+          switchAccountUI(id);
+        } else if (state.friendView) {
+          // Clicking the already-active account while viewing a friend's stock
+          // → exit friend-view and return to own inventory.
+          switchBackToOwnView();
+        }
       });
     });
     list.querySelectorAll("[data-drop-friend-uid]").forEach(btn => {
@@ -601,6 +695,20 @@
   $("btnOpenFriends").addEventListener("click", openFriends);
   $("friendsPanelClose").addEventListener("click", closeFriends);
   $("friendsOverlay").addEventListener("click", closeFriends);
+
+  // Scales panel — opens when clicking the scale health icon in the header
+  function openScalesPanel() {
+    renderScalesPanel();
+    $("scalesPanel").classList.add("open");
+    $("scalesOverlay").classList.add("open");
+  }
+  function closeScalesPanel() {
+    $("scalesPanel").classList.remove("open");
+    $("scalesOverlay").classList.remove("open");
+  }
+  $("scaleHealth")?.addEventListener("click", openScalesPanel);
+  $("scalesPanelClose")?.addEventListener("click", closeScalesPanel);
+  $("scalesOverlay")?.addEventListener("click", closeScalesPanel);
 
   const SVG_CHECK = `<span class="icon icon-check icon-13"></span>`;
 
@@ -885,14 +993,16 @@
       provider.setCustomParameters({ prompt: "select_account" });
       const result = await firebase.auth().signInWithPopup(provider);
       const uid = result.user.uid;
-      // Transfer session to named instance, mark active, then register listener
+      // Transfer session to named instance, mark active, register listener,
+      // then call handleSignedIn EXPLICITLY so the UI updates even if the
+      // named-app onAuthStateChanged doesn't re-fire (Electron popup quirk).
       ensureFirebaseApp(uid);
       await firebase.app(uid).auth().updateCurrentUser(result.user);
-      setActiveId(uid);          // ← must run BEFORE setupNamedAuth so the listener's
-                                  //   getActiveId() === uid check passes on first fire
+      setActiveId(uid);
       setupNamedAuth(uid);
       await firebase.auth().signOut();
       closeAddAccountModal();
+      await handleSignedIn(result.user, uid);   // ← explicit UI refresh
     } catch (err) {
       const code = err.code || "";
       if (code !== "auth/popup-closed-by-user") {
@@ -926,28 +1036,32 @@
           setLoading($("btnStgSave"), false);
           return;
         }
-        // Create on DEFAULT, transfer to named instance, then mark active
+        // Create on DEFAULT, transfer to named instance, register listener,
+        // then call handleSignedIn EXPLICITLY for guaranteed UI refresh.
         const result = await firebase.auth().createUserWithEmailAndPassword(email, password);
         const uid = result.user.uid;
         ensureFirebaseApp(uid);
         await firebase.app(uid).auth().setPersistence(persistence);
         await firebase.app(uid).auth().updateCurrentUser(result.user);
-        setActiveId(uid);          // ← before setupNamedAuth (listener guard fix)
+        setActiveId(uid);
         setupNamedAuth(uid);
         await firebase.auth().signOut();
         toast($("addModalResult"), "ok", t("loginAccountCreated"));
         setTimeout(closeAddAccountModal, 1400);
+        await handleSignedIn(result.user, uid);
       } else {
-        // Sign in on DEFAULT, transfer to named instance, then mark active
+        // Sign in on DEFAULT, transfer to named instance, register listener,
+        // then call handleSignedIn EXPLICITLY for guaranteed UI refresh.
         const result = await firebase.auth().signInWithEmailAndPassword(email, password);
         const uid = result.user.uid;
         ensureFirebaseApp(uid);
         await firebase.app(uid).auth().setPersistence(persistence);
         await firebase.app(uid).auth().updateCurrentUser(result.user);
-        setActiveId(uid);          // ← before setupNamedAuth (listener guard fix)
+        setActiveId(uid);
         setupNamedAuth(uid);
         await firebase.auth().signOut();
         closeAddAccountModal();
+        await handleSignedIn(result.user, uid);
       }
     } catch (err) {
       const code = err.code || "";
@@ -1034,6 +1148,10 @@
         snapshot.forEach(doc => { raw[doc.id] = doc.data(); });
         state.inventory = raw;
         state.rows = snapshot.docs.map(doc => normalizeRow(doc.id, doc.data()));
+        // Factory-bug fix: link twin pairs whose chip timestamps drifted ≤ 2s.
+        // Fire-and-forget — the resulting Firestore writes will trigger a fresh
+        // snapshot which will then see twin_tag_uid filled on both sides.
+        autoLinkTwinsByTimestamp(state.rows);
         saveInventory(raw);
         preCacheImages(state.rows).then(() => {
           sortRows(); renderStats(); renderInventory();
@@ -1041,6 +1159,8 @@
           if (state.selected && $("detailPanel").classList.contains("open")) {
             openDetail(state.selected);
           }
+          // Refresh racks panel if open (positions/fills may have changed)
+          if ($("racksPanel")?.classList.contains("open")) renderRacksList();
         });
         setLoading($("btnSbReload"), false);
       }, err => {
@@ -1059,7 +1179,7 @@
   // Common handler called when a named-instance user session becomes active.
   // uid must equal user.uid and be the current active account.
   async function handleSignedIn(user, uid) {
-    unsubscribeInventory(); unsubscribeFriendRequests();
+    unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeRacks(); unsubscribeScales();
     // Always reset friend-view mode on account change — the new account's own inventory is what we want to show.
     // We also clear the inventory/rows so the previous (friend) data isn't briefly shown as if it belonged to the new account.
     if (state.friendView) {
@@ -1123,6 +1243,8 @@
     subscribeFriendRequests(uid);
     loadFriendsList();  // populate state.friends early so dropdown + profiles modal show friends immediately
     loadBlacklist();    // populate state.blacklist for the Friends panel
+    subscribeRacks(uid);// live-sync the user's storage racks
+    subscribeScales(uid);// live-sync the user's TigerScale heartbeats
   }
 
   // Track which account ids already have an onAuthStateChanged listener set up.
@@ -1139,11 +1261,11 @@
         if (uid === getActiveId()) await handleSignedIn(user, uid);
       } else if (uid === getActiveId()) {
         // Active account's session expired → show login
-        unsubscribeInventory(); unsubscribeFriendRequests();
+        unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeRacks(); unsubscribeScales();
         state.inventory = null; state.rows = [];
         state.isAdmin = false; state.debugEnabled = false;
         state.publicKey = null; state.privateKey = null;
-        state.friends = []; state.friendRequests = []; state.blacklist = [];
+        state.friends = []; state.friendRequests = []; state.blacklist = []; state.racks = [];
         applyDebugMode(); renderStats(); renderInventory();
         renderAccountDropdown();
         setDisconnected();
@@ -1277,11 +1399,11 @@
     // Sign out the named instance so its IndexedDB session is cleared
     try { firebase.app(id).auth().signOut(); } catch (_) {}
     if (wasActive) {
-      unsubscribeInventory(); unsubscribeFriendRequests();
+      unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeRacks(); unsubscribeScales();
       state.inventory = null; state.rows = [];
       state.isAdmin = false; state.debugEnabled = false;
       state.publicKey = null; state.privateKey = null;
-      state.friends = []; state.friendRequests = []; state.blacklist = [];
+      state.friends = []; state.friendRequests = []; state.blacklist = []; state.racks = [];
       applyDebugMode(); renderStats(); renderInventory();
       setDisconnected();
       // Switch to another account if available, otherwise show login
@@ -1364,6 +1486,80 @@
     return result;
   }
 
+  /* ── Auto-link twin pairs broken by a known factory programmer bug ─────────
+     The factory wrote thousands of chips where the two halves of a twin pair
+     ended up with timestamps drifting by ≤ 2 seconds instead of being identical,
+     which prevented twin_tag_uid from being set. We patch it client-side: when
+     two unlinked rows share the same `id_tigertag` and their chip timestamps
+     are within 2s, we write twin_tag_uid on BOTH docs in a single Firestore
+     batch. Pairs already linked are left untouched (idempotent, breaks the
+     snapshot→write→snapshot loop on the second pass). */
+  const _twinAutoLinkAttempted = new Set();   // session memo: "uidA|uidB" sorted
+  async function autoLinkTwinsByTimestamp(rows) {
+    // Hard guards
+    if (state.friendView) return;                // never write to a friend's docs
+    const user = fbAuth().currentUser;
+    if (!user) return;
+
+    // Candidates: not deleted, no twin yet, must have both id_tigertag and timestamp
+    const cand = rows.filter(r =>
+      !r.deleted && !r.twinUid &&
+      r.raw && r.raw.id_tigertag != null &&
+      typeof r.chipTimestamp === "number"
+    );
+    if (cand.length < 2) return;
+
+    // Group by id_tigertag
+    const groups = new Map();
+    for (const r of cand) {
+      const k = String(r.raw.id_tigertag);
+      if (!groups.has(k)) groups.set(k, []);
+      groups.get(k).push(r);
+    }
+
+    // Walk consecutive pairs in time order; pair if |Δt| ≤ 2s and neither was paired yet
+    const pairs = [];
+    const usedSpoolIds = new Set();
+    for (const list of groups.values()) {
+      if (list.length < 2) continue;
+      list.sort((a, b) => a.chipTimestamp - b.chipTimestamp);
+      for (let i = 0; i < list.length - 1; i++) {
+        const a = list[i], b = list[i + 1];
+        if (usedSpoolIds.has(a.spoolId) || usedSpoolIds.has(b.spoolId)) continue;
+        const dt = Math.abs(b.chipTimestamp - a.chipTimestamp);
+        if (dt > 2) continue;
+        // Memoization key — sorted UID pair, never re-attempt this session
+        const memoKey = [a.uid, b.uid].sort().join("|");
+        if (_twinAutoLinkAttempted.has(memoKey)) continue;
+        pairs.push({ a, b, dt, idtt: list[0].raw.id_tigertag });
+        usedSpoolIds.add(a.spoolId); usedSpoolIds.add(b.spoolId);
+        _twinAutoLinkAttempted.add(memoKey);
+      }
+    }
+    if (!pairs.length) return;
+
+    // Single batched write — twin_tag_uid on both sides + lastUpdate timestamp
+    const invRef = fbDb().collection("users").doc(user.uid).collection("inventory");
+    const batch  = fbDb().batch();
+    const ts     = firebase.firestore.FieldValue.serverTimestamp();
+    for (const { a, b, dt, idtt } of pairs) {
+      batch.update(invRef.doc(a.spoolId), { twin_tag_uid: b.uid, last_update: ts });
+      batch.update(invRef.doc(b.spoolId), { twin_tag_uid: a.uid, last_update: ts });
+      console.log(`[twinAutoLink] paired uid=${a.uid} ↔ uid=${b.uid}  (id_tigertag=${idtt}, Δt=${dt}s)`);
+    }
+    try {
+      await batch.commit();
+      console.log(`[twinAutoLink] committed ${pairs.length} pair(s)`);
+    } catch (err) {
+      reportError("twinAutoLink", err);
+      // Roll back the memo so a future snapshot can retry
+      for (const { a, b } of pairs) {
+        const memoKey = [a.uid, b.uid].sort().join("|");
+        _twinAutoLinkAttempted.delete(memoKey);
+      }
+    }
+  }
+
   function sortRows(rows) {
     if (!state.sortCol) return rows;
     const dir = state.sortDir === "asc" ? 1 : -1;
@@ -1390,11 +1586,66 @@
         String(r.colorName).toLowerCase().includes(q)
       );
     }
+    if (state.brandFilter) {
+      rows = rows.filter(r => String(r.brand) === state.brandFilter);
+    }
+    if (state.materialFilter) {
+      rows = rows.filter(r => String(r.material) === state.materialFilter);
+    }
+    if (state.typeFilter) {
+      rows = rows.filter(r => String(r.productType) === state.typeFilter);
+    }
     return sortRows(deduplicateTwins(rows));
   }
 
+  // Refresh quick-filter dropdowns (brand + material) from the current inventory.
+  // Preserves the user's current selection if it still exists.
+  function populateQuickFilters() {
+    populateOneQuickFilter({
+      sel: $("brandFilter"),
+      currentKey: "brandFilter",
+      labelKey: "filterAllBrands",
+      defaultLabel: "All brands",
+      pickValue: r => r.brand,
+    });
+    populateOneQuickFilter({
+      sel: $("materialFilter"),
+      currentKey: "materialFilter",
+      labelKey: "filterAllMaterials",
+      defaultLabel: "All materials",
+      pickValue: r => r.material,
+    });
+    populateOneQuickFilter({
+      sel: $("typeFilter"),
+      currentKey: "typeFilter",
+      labelKey: "filterAllTypes",
+      defaultLabel: "All types",
+      pickValue: r => r.productType,
+    });
+  }
+  function populateOneQuickFilter({ sel, currentKey, labelKey, defaultLabel, pickValue }) {
+    if (!sel) return;
+    const values = Array.from(new Set(
+      state.rows
+        .filter(r => !r.deleted)
+        .map(pickValue)
+        .filter(v => v && v !== "-")
+        .map(v => String(v))
+    )).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+    const current = state[currentKey];
+    const allLabel = t(labelKey) || defaultLabel;
+    sel.innerHTML = `<option value="" data-i18n="${labelKey}">${esc(allLabel)}</option>`
+      + values.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join("");
+    if (current && values.includes(current)) sel.value = current;
+    else { sel.value = ""; state[currentKey] = ""; }
+    sel.classList.toggle("is-active", !!state[currentKey]);
+  }
+  // Backwards-compat alias used in renderInventory()
+  const populateBrandFilter = populateQuickFilters;
+
   /* ── render ── */
   function renderInventory() {
+    populateBrandFilter();      // refresh dropdown options on every render
     const rows = filteredRows();
     renderFriendBanner();
 
@@ -1517,6 +1768,17 @@
     $("card-welcome").classList.add("hidden");
     $("card-inv").classList.remove("hidden");
     $("mainResult").innerHTML = "";  // clear any spinner left by friendView loading
+
+    // Rack view bypasses the rows-empty short-circuit (a rack can be useful even with 0 spools)
+    if (state.viewMode === "rack" && !state.friendView) {
+      $("invTableWrap").classList.add("hidden");
+      $("invGrid").classList.add("hidden");
+      $("invEmpty").classList.add("hidden");
+      $("invRackView").classList.remove("hidden");
+      renderRackView();
+      return;
+    }
+    $("invRackView").classList.add("hidden");
 
     // Filter returned no results
     if (rows.length === 0) {
@@ -1696,22 +1958,49 @@
   }
 
   /* ── view toggle ── */
-  $("btnViewTable").addEventListener("click", () => {
-    state.viewMode = "table"; localStorage.setItem("tigertag.view","table");
-    $("btnViewTable").classList.add("active"); $("btnViewGrid").classList.remove("active");
+  function setViewMode(mode) {
+    const prevMode = state.viewMode;
+    state.viewMode = mode;
+    localStorage.setItem("tigertag.view", mode);
+    $("btnViewTable")?.classList.toggle("active", mode === "table");
+    $("btnViewGrid")?.classList.toggle("active",  mode === "grid");
+    $("btnViewRack")?.classList.toggle("active",  mode === "rack");
+    // Force-open + animate the side panel ONLY when transitioning INTO rack
+    // mode from another view. Re-clicking Storage while already in Storage
+    // is a no-op for the panel.
+    if (mode === "rack" && prevMode !== "rack" && getUnrackedSpools().length > 0) {
+      localStorage.setItem("tigertag.unrackedPanelOpen", "true");
+      _unrackedAnimateOpen = true;
+    }
     renderInventory();
-  });
-  $("btnViewGrid").addEventListener("click", () => {
-    state.viewMode = "grid"; localStorage.setItem("tigertag.view","grid");
-    $("btnViewGrid").classList.add("active"); $("btnViewTable").classList.remove("active");
-    renderInventory();
-  });
-  // Defensive: if a previous build left "rack" in localStorage (Storage feature is gated off
-  // in this build), fall back to "table" so users don't get a blank view.
-  if (state.viewMode === "rack") { state.viewMode = "table"; localStorage.setItem("tigertag.view", "table"); }
+    // Safety re-subscribe when switching to rack mode (handles users connected before this feature)
+    if (mode === "rack" && !state.unsubRacks && state.activeAccountId) {
+      subscribeRacks(state.activeAccountId);
+    }
+  }
+  $("btnViewTable").addEventListener("click", () => setViewMode("table"));
+  $("btnViewGrid").addEventListener("click",  () => setViewMode("grid"));
+  $("btnViewRack")?.addEventListener("click", () => setViewMode("rack"));
+  // Restore active button on boot
   if (state.viewMode === "grid") { $("btnViewGrid").classList.add("active"); $("btnViewTable").classList.remove("active"); }
+  else if (state.viewMode === "rack") { $("btnViewRack")?.classList.add("active"); $("btnViewTable").classList.remove("active"); }
 
   $("searchInv").addEventListener("input", e => { state.search = e.target.value.trim(); renderInventory(); });
+  $("brandFilter")?.addEventListener("change", e => {
+    state.brandFilter = e.target.value;
+    e.target.classList.toggle("is-active", !!state.brandFilter);
+    renderInventory();
+  });
+  $("materialFilter")?.addEventListener("change", e => {
+    state.materialFilter = e.target.value;
+    e.target.classList.toggle("is-active", !!state.materialFilter);
+    renderInventory();
+  });
+  $("typeFilter")?.addEventListener("change", e => {
+    state.typeFilter = e.target.value;
+    e.target.classList.toggle("is-active", !!state.typeFilter);
+    renderInventory();
+  });
 
   function updateSortIndicators() {
     document.querySelectorAll("th.sortable").forEach(th => {
@@ -1739,6 +2028,24 @@
     const r = state.rows.find(x => x.spoolId === spoolId);
     if (!r) return;
     $("panelBody").innerHTML = buildPanelHTML(r);
+    // Hold-to-confirm "Mark as deleted" — same 1.5s pattern as the rack delete.
+    // Sets `deleted: true` (matches the mobile semantics — the spool then
+    // appears in Settings → Debug → Deleted where it can be restored).
+    setupHoldToConfirm($("btnSpoolDelete"), 1500, async () => {
+      try {
+        await markSpoolDeleted(r.spoolId);
+        closeDetail();
+      } catch (e) { reportError("spool.markDeleted", e); }
+    });
+    // collapsible "Details" section — toggle + persist preference
+    const btnToggleDetails = $("btnToggleDetails");
+    if (btnToggleDetails) {
+      btnToggleDetails.addEventListener("click", () => {
+        const section = btnToggleDetails.closest(".panel-details");
+        const open = section.classList.toggle("open");
+        localStorage.setItem("tigertag.detailsExpanded", open ? "1" : "0");
+      });
+    }
     // copy raw JSON button
     const btnCopyRaw = $("btnCopyRaw");
     if (btnCopyRaw) {
@@ -2524,13 +2831,21 @@
       ...(!r.isPlus && fmtChipTs(r.chipTimestamp) ? [[t("detManufactured"), fmtChipTs(r.chipTimestamp)]] : []),
     ].filter(([,val]) => val && val !== "-");
 
+    // Details section is collapsible — state persisted in localStorage.
+    // Defaults to collapsed (the user said it's rarely useful and takes space).
+    const detailsOpen = localStorage.getItem("tigertag.detailsExpanded") === "1";
     const infoHtml = `
-      <div class="panel-section">
-        <div class="panel-label">${t("sectionDetails")}</div>
-        ${infoRows.map(([k,val]) => `<div class="panel-row"><span class="pk">${k}</span><span class="pv">${esc(String(val))}</span></div>`).join("")}
-        <div style="margin-top:8px;display:flex;gap:6px">
-          ${r.isPlus ? '<span class="tag-plus">TigerTag+</span>' : '<span class="tag-diy">TigerTag</span>'}
-          ${r.deleted ? `<span class="badge bad" style="font-size:11px">${t("badgeDeleted")}</span>` : ""}
+      <div class="panel-section panel-details${detailsOpen ? " open" : ""}">
+        <button class="panel-details-head" type="button" id="btnToggleDetails">
+          <span class="panel-label">${t("sectionDetails")}</span>
+          <span class="panel-details-chevron">›</span>
+        </button>
+        <div class="panel-details-body">
+          ${infoRows.map(([k,val]) => `<div class="panel-row"><span class="pk">${k}</span><span class="pv">${esc(String(val))}</span></div>`).join("")}
+          <div style="margin-top:8px;display:flex;gap:6px">
+            ${r.isPlus ? '<span class="tag-plus">TigerTag+</span>' : '<span class="tag-diy">TigerTag</span>'}
+            ${r.deleted ? `<span class="badge bad" style="font-size:11px">${t("badgeDeleted")}</span>` : ""}
+          </div>
         </div>
       </div>`;
 
@@ -2610,6 +2925,14 @@
       ${videoHtml}
       ${linksHtml}
       ${infoHtml}
+      ${state.friendView || r.deleted ? "" : `
+      <div class="panel-section panel-section--delete">
+        <button class="adf-btn adf-btn--danger panel-delete-btn" id="btnSpoolDelete" title="${esc(t("spoolMarkDeletedTip"))}" data-spool-id="${esc(r.spoolId)}">
+          <span class="hold-progress"></span>
+          <span class="icon icon-trash icon-13"></span>
+          <span data-i18n="spoolMarkDeleted">${esc(t("spoolMarkDeleted"))}</span>
+        </button>
+      </div>`}
       <div class="panel-section">
         <details class="debug" id="rawDetails">
           <summary style="display:flex;align-items:center;justify-content:space-between">
@@ -2765,9 +3088,10 @@
   $("btnDebug").addEventListener("click", openDebug);
   $("debugPanelClose").addEventListener("click", closeDebug);
   $("debugOverlay").addEventListener("click", closeDebug);
-  document.addEventListener("keydown", e => { if (e.key === "Escape") closeDebug(); });
 
   /* ── diagnostic / report-problem modal ── */
+  $("dbgDelRefresh")?.addEventListener("click", renderDeletedSpoolsList);
+  $("dbgDelSearch")?.addEventListener("input", renderDeletedSpoolsList);
   $("btnReportProblem")?.addEventListener("click", openDiagnosticModal);
   $("btnReportProblemLogin")?.addEventListener("click", openDiagnosticModal);
   $("diagModalClose")?.addEventListener("click", closeDiagnosticModal);
@@ -2780,6 +3104,7 @@
       btn.textContent = t("errReportCopied"); btn.disabled = true;
       setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 1400);
     } catch {
+      // Fallback: select the textarea so the user can copy manually
       $("diagBody").focus(); $("diagBody").select();
     }
   });
@@ -2788,8 +3113,56 @@
     $("diagBody").value = buildDiagnosticReport();
     renderDiagBadge();
   });
-  // Pre-load app info so the first open is instant
+  $("btnDiagDownload")?.addEventListener("click", () => {
+    const txt = $("diagBody").value || buildDiagnosticReport();
+    // Filename: tigertag-diagnostic-YYYY-MM-DDTHH-MM-SS.md (path-safe ISO timestamp)
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-").replace(/Z$/, "");
+    const blob = new Blob([txt], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `tigertag-diagnostic-${stamp}.md`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
+  // Pre-load app info as soon as possible so the first open is instant
   loadAppInfo();
+
+  // Click-outside to close the "Spools not stored" side panel.
+  // Registered once at startup — works even if the panel is recreated by
+  // renderRackView snapshots (it queries by id at click time).
+  document.addEventListener("mousedown", e => {
+    const aside = document.getElementById("rpUnranked");
+    if (!aside?.classList.contains("is-open")) return;
+    // Click inside the panel itself — keep it open
+    if (aside.contains(e.target)) return;
+    // Whitelist: buttons that own/manage the panel state — let their
+    // own handlers run instead of the click-outside closing behaviour.
+    if (e.target.closest("#btnToggleUnranked")) return;  // header pill toggle
+    if (e.target.closest("#btnViewRack")) return;        // Storage view button (toolbar)
+    if (e.target.closest("#btnOpenRacks")) return;       // Storage button (sidebar)
+    // Otherwise — close
+    aside.classList.remove("is-open");
+    localStorage.setItem("tigertag.unrackedPanelOpen", "false");
+  });
+
+  // Settings → About → "Copy" — copies a one-line summary to clipboard
+  $("btnCopyAbout")?.addEventListener("click", async () => {
+    const info = await loadAppInfo();
+    const txt = `Tiger Studio Manager v${info.appVersion} · ${info.platform || "?"}${info.arch ? " " + info.arch : ""} · Electron ${info.electron} · Chrome ${info.chrome || "?"} · Node ${info.node || "?"}`;
+    try {
+      await navigator.clipboard.writeText(txt);
+      const lbl = $("btnCopyAbout")?.querySelector("[data-i18n='aboutCopy']");
+      if (lbl) {
+        const orig = lbl.textContent;
+        lbl.textContent = t("settingsCopied");
+        setTimeout(() => { lbl.textContent = orig; }, 1400);
+      }
+    } catch {}
+  });
+  document.addEventListener("keydown", e => { if (e.key === "Escape") closeDebug(); });
 
   // debug tab switching
   document.querySelectorAll(".dbg-tab").forEach(btn => {
@@ -2799,9 +3172,184 @@
       const tab = btn.dataset.tab;
       $("dbgPaneApi").classList.toggle("hidden", tab !== "api");
       $("dbgPaneFs").classList.toggle("hidden",  tab !== "fs");
+      $("dbgPaneDel")?.classList.toggle("hidden", tab !== "del");
       if (tab === "fs") fsExplRefresh();
+      if (tab === "del") renderDeletedSpoolsList();
     });
   });
+
+  /* ── Deleted spools list (debug) ──────────────────────────────────────────
+     Lists every spool whose `deleted === true` (matches mobile semantics —
+     `deleted_at` alone is ignored, treated as historical metadata).
+     The Restore button writes `deleted: null` and clears `deleted_at` defensively. */
+  function renderDeletedSpoolsList() {
+    const list = $("dbgDelList");
+    const cnt  = $("dbgDelCount");
+    if (!list) return;
+    if (!state.inventory) {
+      list.innerHTML = `<div style="font-size:12px;color:var(--muted);padding:14px;text-align:center">${t("invLoading")}</div>`;
+      if (cnt) cnt.textContent = "0";
+      return;
+    }
+    // Iterate raw Firestore docs (NOT state.rows — dedup hides one half of twins).
+    const q = ($("dbgDelSearch")?.value || "").trim().toLowerCase();
+    const matches = (d, id) => {
+      if (!q) return true;
+      const r = state.rows.find(x => x.spoolId === id) || normalizeRow(id, d);
+      return [r.uid, r.colorName, r.material, r.brand, r.series, r.sku, r.barcode]
+        .filter(Boolean)
+        .some(v => String(v).toLowerCase().includes(q));
+    };
+    const entries = Object.entries(state.inventory)
+      .filter(([id, d]) => d && d.deleted === true && matches(d, id))
+      .sort(([, a], [, b]) => {
+        const ta = (a.deleted_at?._seconds || a.deleted_at || 0);
+        const tb = (b.deleted_at?._seconds || b.deleted_at || 0);
+        return tb - ta; // most-recently deleted first
+      });
+    if (cnt) cnt.textContent = String(entries.length);
+    if (!entries.length) {
+      list.innerHTML = `<div style="font-size:12px;color:var(--muted);padding:14px;text-align:center">${t("dbgDeletedEmpty")}</div>`;
+      return;
+    }
+    list.innerHTML = entries.map(([id, d]) => {
+      const r = state.rows.find(x => x.spoolId === id) || normalizeRow(id, d);
+      const fillBg = colorBg(r);
+      const titleLine = r.colorName !== "-" ? r.colorName : (r.material || r.uid || "—");
+      const subLine   = [r.brand, r.material].filter(Boolean).join(" · ");
+      const wAvail    = r.weightAvailable != null ? r.weightAvailable : "—";
+      const wCap      = r.capacity || 1000;
+      const delTs = d.deleted_at?._seconds
+        ? new Date(d.deleted_at._seconds * 1000)
+        : (typeof d.deleted_at === "number" ? new Date(d.deleted_at) : null);
+      const delLabel = delTs ? delTs.toLocaleDateString() + " " + delTs.toLocaleTimeString() : "—";
+      const twinNote = d.twin_tag_uid ? ` · twin=${d.twin_tag_uid}` : "";
+      return `
+        <div class="dbg-del-row" data-spool-id="${esc(id)}">
+          <div class="dbg-del-puck" style="background:${fillBg}"></div>
+          <div class="dbg-del-meta">
+            <div class="dbg-del-name">${esc(titleLine)}</div>
+            <div class="dbg-del-sub">${esc(subLine || "—")} · ${wAvail}g/${wCap}g</div>
+            <div class="dbg-del-tech">uid=${esc(String(r.uid))} · deleted=${esc(delLabel)}${twinNote}</div>
+          </div>
+          <button class="ghost sm dbg-del-restore" data-action="restore" title="${t("dbgDeletedRestore")}">↺</button>
+          <button class="ghost sm dbg-del-purge"   data-action="purge"   title="${t("dbgDeletedPurge")}">🗑</button>
+        </div>`;
+    }).join("");
+
+    list.querySelectorAll(".dbg-del-restore").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const row = btn.closest("[data-spool-id]");
+        if (!row) return;
+        const id = row.dataset.spoolId;
+        btn.disabled = true; btn.textContent = "…";
+        try { await restoreDeletedSpool(id); }
+        catch (err) {
+          reportError("debug.restoreSpool", err);
+          btn.disabled = false; btn.textContent = "↺";
+        }
+      });
+    });
+    list.querySelectorAll(".dbg-del-purge").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const row = btn.closest("[data-spool-id]");
+        if (!row) return;
+        const id = row.dataset.spoolId;
+        const d  = state.inventory[id];
+        const r  = state.rows.find(x => x.spoolId === id) || (d ? normalizeRow(id, d) : null);
+        const label = (r?.colorName !== "-" && r?.colorName) || r?.material || id;
+        // Detect twin to show in confirm dialog
+        const twinId = d?.twin_tag_uid && state.inventory[String(d.twin_tag_uid)] ? String(d.twin_tag_uid) : null;
+        const msg = twinId
+          ? t("dbgDeletedPurgeConfirmTwin", { name: label })
+          : t("dbgDeletedPurgeConfirm",     { name: label });
+        if (!confirm(msg)) return;
+        btn.disabled = true; btn.textContent = "…";
+        try { await purgeDeletedSpool(id); }
+        catch (err) {
+          reportError("debug.purgeSpool", err);
+          btn.disabled = false; btn.textContent = "🗑";
+        }
+      });
+    });
+  }
+
+  // Soft-delete a spool (and its twin if any). Uses the mobile-aligned
+  // semantics: `deleted: true` is the only field that hides the spool.
+  // The spool then appears in Settings → Debug → Deleted, restorable from there.
+  async function markSpoolDeleted(spoolId) {
+    const user = fbAuth().currentUser;
+    if (!user) return;
+    const r = state.rows.find(x => x.spoolId === spoolId);
+    if (!r) return;
+    const invRef = fbDb().collection("users").doc(user.uid).collection("inventory");
+    const batch = fbDb().batch();
+    const ts = firebase.firestore.FieldValue.serverTimestamp();
+    const update = { deleted: true, deleted_at: ts, last_update: Date.now() };
+    batch.update(invRef.doc(spoolId), update);
+    // Mirror to twin so both halves stay in sync (just like the weight update flow)
+    if (r.twinUid) {
+      const twin = state.rows.find(x =>
+        x.spoolId !== spoolId &&
+        (String(x.uid) === String(r.twinUid) || String(x.spoolId) === String(r.twinUid))
+      );
+      if (twin) batch.update(invRef.doc(twin.spoolId), update);
+    }
+    await batch.commit();
+    console.log(`[markSpoolDeleted] tombstoned ${spoolId}${r.twinUid ? " (+ twin)" : ""}`);
+  }
+
+  async function restoreDeletedSpool(spoolId) {
+    const user = fbAuth().currentUser;
+    if (!user) return;
+    const invRef = fbDb().collection("users").doc(user.uid).collection("inventory");
+    const ts = firebase.firestore.FieldValue.serverTimestamp();
+    const batch = fbDb().batch();
+    // Clear delete fields on the primary doc
+    batch.update(invRef.doc(spoolId), { deleted: null, deleted_at: null, last_update: ts });
+    // If linked twin exists in inventory and is also deleted, restore it too
+    const primary = state.inventory[spoolId];
+    const twinUid = primary?.twin_tag_uid;
+    if (twinUid) {
+      const twinId = String(twinUid);
+      // The twin doc id may equal twin_tag_uid (the common case) — check existence
+      if (state.inventory[twinId]) {
+        const tw = state.inventory[twinId];
+        if (tw.deleted === true) {
+          batch.update(invRef.doc(twinId), { deleted: null, deleted_at: null, last_update: ts });
+        }
+      }
+    }
+    await batch.commit();
+    console.log(`[restoreDeletedSpool] restored ${spoolId}${twinUid ? " (+ twin)" : ""}`);
+    // The onSnapshot will re-render automatically; refresh the list explicitly
+    setTimeout(renderDeletedSpoolsList, 350);
+  }
+
+  /* Permanently remove the spool doc from Firestore (and its twin if both
+     are tombstoned). Irreversible — used by the 🗑 button in the Deleted tab. */
+  async function purgeDeletedSpool(spoolId) {
+    const user = fbAuth().currentUser;
+    if (!user) return;
+    const invRef = fbDb().collection("users").doc(user.uid).collection("inventory");
+    const batch = fbDb().batch();
+    batch.delete(invRef.doc(spoolId));
+    let purgedTwin = false;
+    const primary = state.inventory[spoolId];
+    const twinUid = primary?.twin_tag_uid;
+    if (twinUid) {
+      const twinId = String(twinUid);
+      // Only auto-purge twin if it ALSO carries a tombstone — avoid removing an
+      // active spool just because its mate was deleted.
+      if (state.inventory[twinId] && state.inventory[twinId].deleted === true) {
+        batch.delete(invRef.doc(twinId));
+        purgedTwin = true;
+      }
+    }
+    await batch.commit();
+    console.log(`[purgeDeletedSpool] hard-deleted ${spoolId}${purgedTwin ? " (+ twin)" : ""}`);
+    setTimeout(renderDeletedSpoolsList, 350);
+  }
 
   /* ── Firestore explorer ── */
   let _fseLastResult = null;
@@ -2914,8 +3462,10 @@
 
   // Read language preference from Firestore and apply if different from local
   function applyDebugMode() {
-    $("btnDebug").classList.toggle("hidden", !state.debugEnabled);
-    if (!state.debugEnabled) closeDebug();
+    // Debug panel is now visible to all users (was admin-only gated by
+    // state.debugEnabled). The panel exposes their OWN Firestore docs only,
+    // limited by Security Rules — no escalation path.
+    $("btnDebug").classList.remove("hidden");
   }
 
   /* ── Friends UI ───────────────────────────────────────────────────────── */
@@ -3064,6 +3614,1643 @@
       if ($("profilesModalOverlay").classList.contains("open")) renderAccountList();
     } catch (e) { console.warn("[friends]", e.message); }
   }
+
+  /* ── Racks (storage shelves) ───────────────────────────────────────────── */
+  function subscribeRacks(uid) {
+    unsubscribeRacks();
+    // No orderBy — Firestore would silently filter out docs without the field.
+    // We sort client-side instead by `order` (fallback createdAt) for stability.
+    state.unsubRacks = fbDb(uid)
+      .collection("users").doc(uid).collection("racks")
+      .onSnapshot(snap => {
+        if (uid !== state.activeAccountId) return;
+        const racks = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        racks.sort((a, b) => {
+          const oa = a.order ?? 999, ob = b.order ?? 999;
+          if (oa !== ob) return oa - ob;
+          const ta = a.createdAt?.seconds || 0;
+          const tb = b.createdAt?.seconds || 0;
+          return ta - tb;
+        });
+        state.racks = racks;
+        console.log(`[racks] snapshot: ${racks.length} rack(s)`, racks.map(r => r.name));
+        renderRacksList();
+      }, err => console.warn("[racks]", err.code, err.message));
+  }
+  function unsubscribeRacks() {
+    if (state.unsubRacks) { state.unsubRacks(); state.unsubRacks = null; }
+  }
+
+  /* ── Scales (TigerScale heartbeat — see tigerscale-firestore-heartbeat-spec.md)
+     Path: users/{uid}/scales/{mac}. Each doc carries a `last_seen` timestamp
+     written by the ESP32 every 30s. Online if last_seen > now − 90s. */
+  const SCALE_ONLINE_THRESHOLD_MS = 90 * 1000;
+  function subscribeScales(uid) {
+    unsubscribeScales();
+    state.unsubScales = fbDb(uid)
+      .collection("users").doc(uid).collection("scales")
+      .onSnapshot(snap => {
+        if (uid !== state.activeAccountId) return;
+        state.scales = snap.docs.map(d => ({ mac: d.id, ...d.data() }));
+        renderScaleHealth();
+        renderScalesPanel();
+      }, err => console.warn("[scales]", err.code, err.message));
+  }
+  function unsubscribeScales() {
+    if (state.unsubScales) { state.unsubScales(); state.unsubScales = null; }
+  }
+  // Convert Firestore Timestamp object to ms (the existing tsToMs at line 366
+  // handles legacy shapes; here we add support for { seconds, nanoseconds }).
+  function scaleTsToMs(ts) {
+    if (!ts) return 0;
+    if (typeof ts === "number") return ts;
+    if (typeof ts.toMillis === "function") return ts.toMillis();
+    if (ts.seconds != null) return ts.seconds * 1000 + Math.round((ts.nanoseconds || 0) / 1e6);
+    return tsToMs(ts) || 0;
+  }
+  function isScaleOnline(s) {
+    return Date.now() - scaleTsToMs(s?.last_seen) < SCALE_ONLINE_THRESHOLD_MS;
+  }
+
+  // Update the header status icon (green if ≥1 scale online, grey otherwise).
+  function renderScaleHealth() {
+    const el = $("scaleHealth");
+    if (!el) return;
+    const total  = state.scales.length;
+    const online = state.scales.filter(isScaleOnline).length;
+    el.classList.toggle("scale-connected", online > 0);
+    if (total === 0)        el.dataset.tooltip = t("scaleHealthNone")    || "No scale connected";
+    else if (online === 0)  el.dataset.tooltip = t("scaleHealthOffline", { n: total }) || `${total} scale(s) — all offline`;
+    else                    el.dataset.tooltip = t("scaleHealthOnline",  { n: online, total }) || `${online}/${total} scale(s) online`;
+  }
+
+  // Render the slide-in panel listing all the user's scales with their state
+  // and their last-seen spool (matched against current inventory).
+  function renderScalesPanel() {
+    const body = $("scalesPanelBody");
+    if (!body) return;
+    if (!state.scales.length) {
+      // Onboarding card — promote the open-source TigerScale repo
+      body.innerHTML = `
+        <div class="scales-empty-card">
+          <img class="scales-empty-img" src="../assets/img/TigerScale_Photo.png" alt="TigerScale" />
+          <div class="scales-empty-title" data-i18n="scaleEmptyTitle">${esc(t("scaleEmptyTitle"))}</div>
+          <div class="scales-empty-sub" data-i18n="scaleEmptySub">${esc(t("scaleEmptySub"))}</div>
+          <ul class="scales-empty-bullets">
+            <li data-i18n="scaleEmptyBullet1">${esc(t("scaleEmptyBullet1"))}</li>
+            <li data-i18n="scaleEmptyBullet2">${esc(t("scaleEmptyBullet2"))}</li>
+            <li data-i18n="scaleEmptyBullet3">${esc(t("scaleEmptyBullet3"))}</li>
+          </ul>
+          <a class="scales-empty-cta" id="scaleGithubLink" href="#">
+            <span class="icon icon-github icon-14"></span>
+            <span data-i18n="scaleEmptyCta">View on GitHub</span>
+          </a>
+          <div class="scales-empty-license" data-i18n="scaleEmptyLicense">${esc(t("scaleEmptyLicense"))}</div>
+        </div>`;
+      // Open the repo in the user's default browser (Electron)
+      $("scaleGithubLink")?.addEventListener("click", e => {
+        e.preventDefault();
+        // Same pattern as the sidebar GitHub button — main.js's setWindowOpenHandler
+        // routes external URLs to the OS browser via shell.openExternal.
+        window.open("https://github.com/TigerTag-Project/TigerTag-Scale");
+      });
+      return;
+    }
+    body.innerHTML = state.scales.map(s => {
+      const online = isScaleOnline(s);
+      const lastSeenMs = scaleTsToMs(s.last_seen);
+      const lastSeenStr = lastSeenMs ? agoString(lastSeenMs) : "—";
+      // Try to match the last_spool against the current inventory for nice display
+      let lastBlock = `<div class="scale-last-empty">${esc(t("scaleNoActivity"))}</div>`;
+      const ls = s.last_spool;
+      if (ls && (ls.uid_a || ls.uid_b)) {
+        const targetUid = String(ls.uid_a || ls.uid_b);
+        const r = state.rows.find(x => String(x.uid) === targetUid || String(x.spoolId) === targetUid)
+              || (ls.uid_b && state.rows.find(x => String(x.uid) === String(ls.uid_b) || String(x.spoolId) === String(ls.uid_b)));
+        const fillBg = r ? colorBg(r) : "rgba(150,150,150,.2)";
+        const fillHtml = r ? slotFillInnerHTML(r) : "";
+        const titleLine = r?.colorName !== "-" && r?.colorName ? r.colorName : (r?.material || targetUid);
+        const subLine   = r ? [r.brand, r.material].filter(Boolean).join(" · ") : `uid=${targetUid}`;
+        const wAvail    = ls.weight_available != null ? ls.weight_available : (r?.weightAvailable ?? "—");
+        const wRaw      = ls.weight_raw != null ? `raw ${ls.weight_raw}g` : "";
+        lastBlock = `
+          <div class="scale-last-spool">
+            <div class="scale-last-puck" style="background:${fillBg}">${fillHtml}</div>
+            <div class="scale-last-meta">
+              <div class="scale-last-name">${esc(String(titleLine))}</div>
+              <div class="scale-last-sub">${esc(subLine)}${wRaw ? " · " + esc(wRaw) : ""}</div>
+            </div>
+            <div class="scale-last-w">${esc(String(wAvail))}<span class="scale-last-w-unit">g</span></div>
+          </div>`;
+      }
+      return `<div class="scale-card${online ? " is-online" : ""}" data-scale-mac="${esc(s.mac)}">
+        <div class="scale-card-head">
+          <span class="scale-card-status" title="${online ? "online" : "offline"}"></span>
+          <div class="scale-card-info">
+            <div class="scale-card-name">${esc(s.name || "TigerScale")}</div>
+            <div class="scale-card-meta">${esc(s.mac)} · ${online ? t("scaleStatusOnline") : `${t("scaleStatusOffline")} · ${esc(lastSeenStr)}`}</div>
+          </div>
+          <div class="scale-card-actions">
+            <button class="scale-card-btn" data-action="delete" title="${t("scaleRemove")}"><span class="icon icon-trash icon-13"></span></button>
+          </div>
+        </div>
+        ${lastBlock}
+        <div class="scale-card-fw">
+          ${s.fw_version ? `fw ${esc(s.fw_version)}` : ""}
+          ${s.battery_pct != null ? `· ${esc(String(s.battery_pct))}% battery` : ""}
+        </div>
+      </div>`;
+    }).join("");
+
+    // Wire delete buttons
+    body.querySelectorAll(".scale-card-btn[data-action='delete']").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const card = btn.closest("[data-scale-mac]");
+        const mac = card?.dataset.scaleMac;
+        if (!mac) return;
+        const s = state.scales.find(x => x.mac === mac);
+        if (!s) return;
+        if (!confirm(t("scaleRemoveConfirm", { name: s.name || mac }))) return;
+        try {
+          const uid = state.activeAccountId;
+          await fbDb(uid).collection("users").doc(uid).collection("scales").doc(mac).delete();
+        } catch (e) { reportError("scale.delete", e); }
+      });
+    });
+  }
+
+  // "5m ago" / "2h ago" — small relative-time helper for last_seen
+  function agoString(ms) {
+    const dt = Math.max(0, Date.now() - ms);
+    const m = Math.floor(dt / 60000);
+    if (m < 1)  return t("agoNow")   || "just now";
+    if (m < 60) return t("agoMin",  { n: m }) || `${m}m`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return t("agoHour", { n: h }) || `${h}h`;
+    const d = Math.floor(h / 24);
+    return t("agoDay", { n: d }) || `${d}d`;
+  }
+
+  // Scale-health icon tick — recompute online status every 10s even without
+  // new snapshots (since "online" depends on "now" against last_seen).
+  setInterval(() => {
+    if (!state.scales.length) return;
+    renderScaleHealth();
+    if ($("scalesPanel")?.classList.contains("open")) renderScalesPanel();
+  }, 10 * 1000);
+
+  async function createRack({ name, level, position }) {
+    const user = fbAuth().currentUser;
+    if (!user) { console.warn("[createRack] no user"); return null; }
+    const ts = firebase.firestore.FieldValue.serverTimestamp();
+    const order = state.racks.length;
+    const payload = {
+      name: name.trim() || "Rack",
+      level: Math.max(1, Math.min(15, parseInt(level, 10) || 1)),
+      position: Math.max(1, Math.min(20, parseInt(position, 10) || 1)),
+      order,
+      createdAt: ts,
+      lastUpdate: ts
+    };
+    console.log(`[createRack] writing to users/${user.uid}/racks/`, payload);
+    const doc = await fbDb().collection("users").doc(user.uid)
+      .collection("racks").add(payload);
+    console.log(`[createRack] OK → id=${doc.id}`);
+    return doc.id;
+  }
+
+  async function updateRack(rackId, fields) {
+    const user = fbAuth().currentUser;
+    if (!user) return;
+    const rackRef = fbDb().collection("users").doc(user.uid).collection("racks").doc(rackId);
+    const batch = fbDb().batch();
+    batch.set(rackRef, {
+      ...fields,
+      lastUpdate: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+
+    // If dimensions shrink, every spool whose slot is out of the new bounds
+    // (level >= newLevel  or  position >= newPosition) is orphaned and must be
+    // returned to the unranked sidebar — same batch so it's atomic.
+    const newLevel = fields.level;
+    const newPos   = fields.position;
+    if (newLevel != null || newPos != null) {
+      const invSnap = await fbDb().collection("users").doc(user.uid)
+        .collection("inventory").where("rack_id", "==", rackId).get();
+      let freed = 0;
+      invSnap.forEach(d => {
+        const data = d.data();
+        const lv = data.level;
+        const ps = data.position;
+        const oobLevel = (newLevel != null && Number.isInteger(lv) && lv >= newLevel);
+        const oobPos   = (newPos   != null && Number.isInteger(ps) && ps >= newPos);
+        if (oobLevel || oobPos) {
+          batch.update(d.ref, { rack_id: null, level: null, position: null });
+          freed++;
+        }
+      });
+      if (freed > 0) console.log(`[updateRack] resized rack ${rackId} → freed ${freed} out-of-bounds spool(s)`);
+    }
+
+    await batch.commit();
+  }
+
+  async function deleteRack(rackId) {
+    const user = fbAuth().currentUser;
+    if (!user) return;
+    // Free all spools assigned to this rack
+    const invSnap = await fbDb().collection("users").doc(user.uid)
+      .collection("inventory").where("rack_id", "==", rackId).get();
+    const batch = fbDb().batch();
+    invSnap.forEach(d => batch.update(d.ref, {
+      rack_id: null, level: null, position: null
+    }));
+    batch.delete(fbDb().collection("users").doc(user.uid)
+      .collection("racks").doc(rackId));
+    await batch.commit();
+  }
+
+  // Unassign all spools from a rack but keep the rack itself.
+  // Returns the number of spools that were freed.
+  async function emptyRack(rackId) {
+    const user = fbAuth().currentUser;
+    if (!user) return 0;
+    // Cascade animation BEFORE the Firestore writes — fade + slide each filled
+    // slot toward the unranked panel one by one (top→bottom, left→right).
+    // We pause for the cascade to play out, then commit the batch. The
+    // Firestore snapshot then rebuilds the DOM with the slots empty.
+    await playEmptyRackCascade(rackId);
+    const invSnap = await fbDb().collection("users").doc(user.uid)
+      .collection("inventory").where("rack_id", "==", rackId).get();
+    if (invSnap.empty) return 0;
+    const batch = fbDb().batch();
+    invSnap.forEach(d => batch.update(d.ref, {
+      rack_id: null, level: null, position: null
+    }));
+    await batch.commit();
+    return invSnap.size;
+  }
+
+  // Visually animate every filled slot of a rack flying out to the unranked
+  // panel, with a stagger. Resolves once the last slot has finished its
+  // animation. Pure visual — does not touch Firestore.
+  function playEmptyRackCascade(rackId) {
+    return new Promise(resolve => {
+      const card = document.querySelector(`#invRackView .rp-rack[data-rack-id="${CSS.escape(rackId)}"]`);
+      if (!card) return resolve();
+      const filled = Array.from(card.querySelectorAll(".rp-slot--filled"));
+      if (!filled.length) return resolve();
+      // Sort top→bottom, left→right
+      filled.sort((a, b) => {
+        const lvA = parseInt(a.dataset.level, 10), lvB = parseInt(b.dataset.level, 10);
+        if (lvA !== lvB) return lvB - lvA;
+        return parseInt(a.dataset.pos, 10) - parseInt(b.dataset.pos, 10);
+      });
+      const STAGGER = 30;
+      const ANIM_MS = 280;
+      filled.forEach((el, i) => {
+        el.style.animationDelay = (i * STAGGER) + "ms";
+        el.classList.add("rp-slot--cascade-out");
+      });
+      const totalMs = (filled.length - 1) * STAGGER + ANIM_MS + 20;
+      setTimeout(resolve, totalMs);
+    });
+  }
+
+  // Set of spoolIds that just landed in a slot — used by renderRackView to
+  // trigger a one-time "bounce-in" animation when the snapshot rebuilds the DOM.
+  // Cleared as each animation fires.
+  const _justPlacedSpools = new Set();
+  // Set of "rackId|lv|pos" coordinates that should bounce on next render
+  // (for empty-rack moves where the spoolId may have moved to unranked sidebar).
+  const _justFilledSlots = new Set();
+
+  // Assign / move / unassign a spool to a slot. Performs a swap if the target
+  // slot is already occupied (in a single Firestore batch for atomicity).
+  async function assignSpoolToSlot(spoolId, rackId, level, position) {
+    const user = fbAuth().currentUser;
+    if (!user) return;
+    const invRef = fbDb().collection("users").doc(user.uid).collection("inventory");
+    const batch  = fbDb().batch();
+
+    // Find any spool currently in the target slot
+    const occupant = state.rows.find(r =>
+      !r.deleted && r.rackId === rackId && r.rackLevel === level && r.rackPos === position
+      && r.spoolId !== spoolId
+    );
+    // Where the moved spool is coming from (may be null = unranked)
+    const moving = state.rows.find(r => r.spoolId === spoolId);
+
+    if (occupant && moving && moving.rackId) {
+      // Swap: occupant moves to the moving spool's previous slot
+      batch.update(invRef.doc(occupant.spoolId), {
+        rack_id:  moving.rackId,
+        level:    moving.rackLevel,
+        position: moving.rackPos
+      });
+    } else if (occupant) {
+      // Coming from unranked → push the occupant out as unranked
+      batch.update(invRef.doc(occupant.spoolId), {
+        rack_id: null, level: null, position: null
+      });
+    }
+    // Place the new spool into the target slot
+    batch.update(invRef.doc(spoolId), {
+      rack_id:  rackId,
+      level:    level,
+      position: position
+    });
+    // Tag this spool for the next render — bounce-in animation
+    _justPlacedSpools.add(spoolId);
+    await batch.commit();
+  }
+
+  async function unassignSpool(spoolId) {
+    const user = fbAuth().currentUser;
+    if (!user) return;
+    await fbDb().collection("users").doc(user.uid).collection("inventory")
+      .doc(spoolId).update({ rack_id: null, level: null, position: null });
+  }
+
+
+  // Render the racks list inside the racks panel
+  // Inner HTML for a chip / filled slot — uses colorBg(row) to support any
+  // color style (mono / bicolor / tricolor / rainbow / conic_gradient) and
+  // overlays a fill level matching the remaining weight.
+  function slotFillInnerHTML(row) {
+    const cap = row.capacity || 1000;
+    const cur = row.weightAvailable != null ? row.weightAvailable : 0;
+    const pct = Math.max(0, Math.min(100, Math.round((cur / cap) * 100)));
+    const bg  = colorBg(row);  // CSS background expression (may be a gradient)
+    return `<div class="rp-fill" style="height:${pct}%;background:${bg}"></div>`;
+  }
+
+  // Cache: which spool is currently in (rackId, level, position)?
+  function findSpoolInSlot(rackId, level, position) {
+    return state.rows.find(r =>
+      !r.deleted && r.rackId === rackId &&
+      r.rackLevel === level && r.rackPos === position
+    );
+  }
+
+  /* ── Slot locking ───────────────────────────────────────────────────────
+     A locked slot blocks drag-out (if filled) and drag-in (if empty).
+     Stored as an array of "<level>:<position>" strings on the rack doc. */
+  function slotLockKey(level, position) { return `${level}:${position}`; }
+  function isSlotLocked(rackId, level, position) {
+    const r = state.racks.find(x => x.id === rackId);
+    if (!r) return false;
+    return Array.isArray(r.lockedSlots)
+      && r.lockedSlots.includes(slotLockKey(level, position));
+  }
+  async function toggleSlotLock(rackId, level, position) {
+    const user = fbAuth().currentUser;
+    if (!user) return;
+    const r = state.racks.find(x => x.id === rackId);
+    if (!r) return;
+    const key = slotLockKey(level, position);
+    const cur = Array.isArray(r.lockedSlots) ? r.lockedSlots : [];
+    const next = cur.includes(key) ? cur.filter(k => k !== key) : [...cur, key];
+    await fbDb().collection("users").doc(user.uid)
+      .collection("racks").doc(rackId)
+      .update({
+        lockedSlots: next,
+        lastUpdate: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+  }
+  // Lock every slot in a rack (used by the kebab "Lock all" menu item).
+  async function lockAllSlots(rackId) {
+    const user = fbAuth().currentUser;
+    if (!user) return;
+    const r = state.racks.find(x => x.id === rackId);
+    if (!r) return;
+    const all = [];
+    for (let lv = 0; lv < (r.level || 0); lv++) {
+      for (let pos = 0; pos < (r.position || 0); pos++) {
+        all.push(slotLockKey(lv, pos));
+      }
+    }
+    await fbDb().collection("users").doc(user.uid)
+      .collection("racks").doc(rackId)
+      .update({
+        lockedSlots: all,
+        lastUpdate: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+  }
+  async function unlockAllSlots(rackId) {
+    const user = fbAuth().currentUser;
+    if (!user) return;
+    await fbDb().collection("users").doc(user.uid)
+      .collection("racks").doc(rackId)
+      .update({
+        lockedSlots: [],
+        lastUpdate: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+  }
+  // Position a kebab menu against its anchor button. Uses fixed positioning so
+  // the menu escapes the rack card's overflow + the racks-col flex layout.
+  // Flips to the left if the button is too close to the right edge.
+  function positionRackMenu(menu, anchorBtn) {
+    const rect = anchorBtn.getBoundingClientRect();
+    menu.style.position = "fixed";
+    menu.style.zIndex = "1000";
+    // Measure menu (it's now visible, so offsetWidth/Height are real)
+    const mw = menu.offsetWidth || 180;
+    const mh = menu.offsetHeight || 200;
+    // Default: align right edge to anchor right edge, drop down from anchor
+    let left = rect.right - mw;
+    let top  = rect.bottom + 4;
+    // Keep inside viewport
+    const maxLeft = window.innerWidth - mw - 8;
+    if (left > maxLeft) left = maxLeft;
+    if (left < 8) left = 8;
+    // Flip up if not enough room below
+    if (top + mh > window.innerHeight - 8) {
+      top = rect.top - mh - 4;
+      if (top < 8) top = 8;
+    }
+    menu.style.left = left + "px";
+    menu.style.top  = top + "px";
+  }
+
+  /* ── Auto-fill: assign unranked spools to empty (and unlocked) slots,
+     iterating racks in order, top→bottom, left→right.  Single Firestore
+     batch so the snapshot updates atomically. */
+  // If `rackId` is provided, fill ONLY that rack. Otherwise fill all racks.
+  async function autoFillEmptySlots(rackId) {
+    const user = fbAuth().currentUser;
+    if (!user) return 0;
+    const pool = getUnrackedSpools().slice();
+    if (!pool.length || !state.racks.length) return 0;
+    const targets = rackId
+      ? state.racks.filter(r => r.id === rackId)
+      : state.racks;
+    if (!targets.length) return 0;
+    const batch = fbDb().batch();
+    let placed = 0;
+    outer:
+    for (const r of targets) {
+      for (let lv = r.level - 1; lv >= 0; lv--) {
+        for (let pos = 0; pos < r.position; pos++) {
+          if (!pool.length) break outer;
+          if (isSlotLocked(r.id, lv, pos)) continue;
+          if (findSpoolInSlot(r.id, lv, pos)) continue;
+          const spool = pool.shift();
+          const ref = fbDb().collection("users").doc(user.uid)
+            .collection("inventory").doc(spool.spoolId);
+          batch.update(ref, { rack_id: r.id, level: lv, position: pos });
+          // Mark each newly-filled slot for staggered bounce-in
+          _justPlacedSpools.add(spool.spoolId);
+          placed++;
+        }
+      }
+    }
+    if (!placed) return 0;
+    await batch.commit();
+    return placed;
+  }
+
+  // Greys out filled rack slots whose spool doesn't match the main search bar
+  // (#searchInv) AND/OR the brand/material quick-filters.
+  function applyRackSearchDim() {
+    const q = (state.search || "").trim().toLowerCase();
+    const brand = state.brandFilter || "";
+    const material = state.materialFilter || "";
+    const noFilter = !q && !brand && !material;
+    document.querySelectorAll("#invRackView .rp-slot--filled").forEach(el => {
+      if (noFilter) { el.classList.remove("rp-dim"); return; }
+      const sid = el.dataset.spoolId;
+      const r = state.rows.find(x => x.spoolId === sid);
+      if (!r) { el.classList.add("rp-dim"); return; }
+      const matchSearch = !q || [r.uid, r.colorName, r.material, r.brand, r.series, r.sku, r.barcode]
+        .filter(Boolean).some(v => String(v).toLowerCase().includes(q));
+      const matchBrand = !brand || String(r.brand) === brand;
+      const matchMaterial = !material || String(r.material) === material;
+      const type = state.typeFilter || "";
+      const matchType = !type || String(r.productType) === type;
+      el.classList.toggle("rp-dim", !(matchSearch && matchBrand && matchMaterial && matchType));
+    });
+  }
+
+  // Filter unranked spools (rack_id is null/missing, not deleted).
+  function getUnrackedSpools() {
+    const search = ($("rpUnrackedSearch")?.value || "").trim().toLowerCase();
+    return state.rows.filter(r => {
+      if (r.deleted) return false;
+      if (r.rackId) return false;   // already placed
+      if (!search) return true;
+      return (
+        (r.uid || "").toLowerCase().includes(search) ||
+        String(r.material || "").toLowerCase().includes(search) ||
+        String(r.brand || "").toLowerCase().includes(search) ||
+        String(r.colorName || "").toLowerCase().includes(search)
+      );
+    });
+  }
+
+  // Backwards-compat alias — older code paths called renderRacksList()
+  function renderRacksList() { renderRackView(); }
+
+  // Build a single unranked-spool row (for the right sidebar).
+  // Layout: line 1 = brand (primary identity), line 2 = material · colorName
+  // so the user can scan brands first then drill into the variant.
+  function unrackedRowHTML(row) {
+    const tip = `${esc(row.brand || "")} · ${esc(row.material || "")}\n${esc(row.colorName || row.uid || "")}`;
+    const titleLine = row.brand || row.material || row.uid || "—";
+    const subLine   = [row.material, row.colorName].filter(Boolean).join(" · ");
+    const wAvail    = row.weightAvailable != null ? row.weightAvailable : "—";
+    const wCap      = row.capacity || 1000;
+    return `<div class="rp-side-row" draggable="true" data-spool-id="${esc(row.spoolId)}" title="${tip}">
+      <div class="rp-side-puck">${slotFillInnerHTML(row)}</div>
+      <div class="rp-side-meta">
+        <div class="rp-side-name">${esc(titleLine)}</div>
+        <div class="rp-side-sub">${esc(subLine || "—")}</div>
+      </div>
+      <div class="rp-side-w">${wAvail}<span class="rp-side-w-unit">/${wCap}g</span></div>
+    </div>`;
+  }
+
+  // Set by a side-row dragend, used to defer renderRackView so the panel
+  // slide-back animation isn't cut off by an incoming Firestore snapshot.
+  let _unrackedSettleUntil = 0;
+  let _rackRenderDeferred = false;
+  // Set by setViewMode("rack") when force-opening the panel — triggers a
+  // slide-in animation on the next render instead of appearing already open.
+  let _unrackedAnimateOpen = false;
+  // Currently-dragged rack id for drag-and-drop reordering, or null.
+  let _draggingRackId = null;
+
+  /* ── Skyline-packing masonry layout ────────────────────────────────────
+     Places each .rp-racks-col child at the leftmost-lowest free position
+     so racks of varying widths AND heights pack tightly (Pinterest-style).
+     Children become position:absolute; the container's height is set to
+     match the tallest column so the page reflows correctly.
+     Re-runs on:
+       - every renderRackView (after innerHTML)
+       - window resize (debounced)
+       - ResizeObserver on the container (panel toggles, etc.)
+     Skyline = sorted array of {x, end, y} segments representing the current
+     bottom of every reserved horizontal interval.  */
+  let _masonryRO = null;
+  let _masonryResizeTimer = null;
+  let _masonryLastWidth = 0;
+  function layoutRacksMasonry() {
+    const container = document.querySelector("#invRackView .rp-racks-col");
+    if (!container) return;
+    const items = Array.from(container.children);
+    if (!items.length) { container.style.height = ""; return; }
+
+    // Reset positioning so we can measure natural sizes
+    container.style.position = "relative";
+    items.forEach(el => {
+      el.style.position = "";
+      el.style.left = "";
+      el.style.top = "";
+    });
+
+    const containerWidth = container.clientWidth;
+    if (!containerWidth) return;
+    const GAP_X = 14;
+    const GAP_Y = 14;
+
+    // Force a reflow to get accurate dimensions after the reset
+    const dims = items.map(el => ({ el, w: el.offsetWidth, h: el.offsetHeight }));
+
+    // Skyline: array of horizontal segments at given y
+    let skyline = [{ x: 0, end: containerWidth, y: 0 }];
+
+    function maxYInRange(x, end) {
+      let m = 0;
+      for (const seg of skyline) {
+        if (seg.end <= x) continue;
+        if (seg.x >= end) break;
+        if (seg.y > m) m = seg.y;
+      }
+      return m;
+    }
+    function reserve(x, w, newY) {
+      const end = x + w;
+      const next = [];
+      for (const seg of skyline) {
+        if (seg.end <= x || seg.x >= end) {
+          next.push(seg);
+        } else {
+          if (seg.x < x)   next.push({ x: seg.x, end: x,        y: seg.y });
+          if (seg.end > end) next.push({ x: end, end: seg.end,  y: seg.y });
+        }
+      }
+      next.push({ x, end, y: newY });
+      next.sort((a, b) => a.x - b.x);
+      // Merge adjacent segments at same y
+      const merged = [];
+      for (const seg of next) {
+        const last = merged[merged.length - 1];
+        if (last && last.end === seg.x && last.y === seg.y) last.end = seg.end;
+        else merged.push(seg);
+      }
+      skyline = merged;
+    }
+
+    let totalHeight = 0;
+    dims.forEach(({ el, w, h }) => {
+      if (!w || !h) return;
+      // Candidate x positions = skyline segment starts. Pick lowest y, then leftmost x.
+      let best = null;
+      for (const seg of skyline) {
+        const x = seg.x;
+        if (x + w > containerWidth) continue;
+        const y = maxYInRange(x, x + w);
+        if (best === null || y < best.y || (y === best.y && x < best.x)) best = { x, y };
+      }
+      if (!best) {
+        // Doesn't fit horizontally — drop on a new row at x=0
+        best = { x: 0, y: skyline.reduce((m, s) => Math.max(m, s.y), 0) };
+      }
+      el.style.position = "absolute";
+      el.style.left = best.x + "px";
+      el.style.top  = best.y + "px";
+      // Reserve [x, x + w + GAP_X] at height (y + h + GAP_Y) so the next
+      // item placed in this x-range has a vertical gap, and any item starting
+      // immediately to the right is pushed out by GAP_X.
+      reserve(best.x, w + GAP_X, best.y + h + GAP_Y);
+      const bottom = best.y + h;
+      if (bottom > totalHeight) totalHeight = bottom;
+    });
+    container.style.height = totalHeight + "px";
+  }
+  function scheduleMasonryRelayout() {
+    clearTimeout(_masonryResizeTimer);
+    _masonryResizeTimer = setTimeout(layoutRacksMasonry, 60);
+  }
+  // One global window-resize listener (registered lazily, never duplicated)
+  if (typeof window !== "undefined" && !window._racksMasonryWired) {
+    window._racksMasonryWired = true;
+    window.addEventListener("resize", scheduleMasonryRelayout);
+  }
+
+  /* Reorder racks: move srcId before/after targetId in the visual order, then
+     write the new `order` index back to Firestore for every rack that shifted.
+     The state.racks array is sorted client-side by `order` so the next snapshot
+     re-render reflects the new positions. */
+  async function reorderRacks(srcId, targetId, beforeTarget) {
+    const user = fbAuth().currentUser;
+    if (!user) return;
+    const list = state.racks.slice();
+    const srcIdx = list.findIndex(r => r.id === srcId);
+    if (srcIdx === -1) return;
+    const [moved] = list.splice(srcIdx, 1);
+    let targetIdx = list.findIndex(r => r.id === targetId);
+    if (targetIdx === -1) return;
+    list.splice(beforeTarget ? targetIdx : targetIdx + 1, 0, moved);
+    // Write new order indices in a single batch — only for racks whose index changed
+    const ref = fbDb().collection("users").doc(user.uid).collection("racks");
+    const batch = fbDb().batch();
+    const ts = firebase.firestore.FieldValue.serverTimestamp();
+    let writes = 0;
+    list.forEach((r, i) => {
+      if (r.order !== i) {
+        batch.update(ref.doc(r.id), { order: i, lastUpdate: ts });
+        writes++;
+      }
+    });
+    if (writes) await batch.commit();
+    console.log(`[reorderRacks] moved ${srcId} ${beforeTarget ? "before" : "after"} ${targetId} — wrote ${writes} order(s)`);
+  }
+
+  /* ── Rich hover tooltip for filled rack slots ──────────────────────────
+     A single floating element (#rackHoverTip) is reused for every slot. On
+     mouseenter we populate it with the spool data and position it above
+     (or below) the hovered slot; mouseleave hides it. Hidden while a
+     drag is in progress so the bubble doesn't fight the drag-target ring.
+     Uses event delegation on #invRackView so it auto-applies to every
+     re-render without re-wiring per slot. */
+  function ensureRackTooltipEl() {
+    let tip = document.getElementById("rackHoverTip");
+    if (tip) return tip;
+    tip = document.createElement("div");
+    tip.id = "rackHoverTip";
+    tip.setAttribute("role", "tooltip");
+    tip.setAttribute("aria-hidden", "true");
+    document.body.appendChild(tip);
+    return tip;
+  }
+  function buildRackTooltipHTML(row, coord, locked) {
+    const cap = row.capacity || 1000;
+    const cur = row.weightAvailable != null ? row.weightAvailable : 0;
+    const pct = Math.max(0, Math.min(100, Math.round((cur / cap) * 100)));
+    const bg  = colorBg(row);
+    const brand = row.brand || "—";
+    const material = row.material || "—";
+    const colorName = row.colorName || "";
+    return `
+      <div class="rht-head">
+        <div class="rht-puck"><div class="rht-puck-fill" style="height:${pct}%;background:${bg}"></div></div>
+        <div class="rht-titles">
+          <div class="rht-brand">${esc(brand)}</div>
+          <div class="rht-mat">${esc(material)}${colorName ? ` · ${esc(colorName)}` : ""}</div>
+        </div>
+        ${coord ? `<div class="rht-coord">${esc(coord)}</div>` : ""}
+      </div>
+      <div class="rht-weight">
+        <div class="rht-weight-line">
+          <span class="rht-weight-cur">${cur}</span><span class="rht-weight-sep">/</span><span class="rht-weight-cap">${cap} g</span>
+          <span class="rht-weight-pct">${pct}%</span>
+        </div>
+        <div class="rht-weight-bar"><div class="rht-weight-bar-fill" style="width:${pct}%"></div></div>
+      </div>
+      ${locked ? `<div class="rht-locked"><span class="icon icon-lock icon-13"></span>${esc(t("rackLockedTip"))}</div>` : ""}
+    `;
+  }
+  function positionRackTooltip(tip, slot) {
+    const rect = slot.getBoundingClientRect();
+    const tw = tip.offsetWidth;
+    const th = tip.offsetHeight;
+    const PAD = 8;
+    // Default: above the slot, horizontally centered on it
+    let left = rect.left + rect.width / 2 - tw / 2;
+    let top  = rect.top - th - PAD;
+    // Clamp horizontally
+    if (left < PAD) left = PAD;
+    if (left + tw > window.innerWidth - PAD) left = window.innerWidth - tw - PAD;
+    // Flip below if not enough room above
+    if (top < PAD) top = rect.bottom + PAD;
+    tip.style.left = left + "px";
+    tip.style.top  = top + "px";
+  }
+  function showRackTooltipFor(slot) {
+    if (document.body.classList.contains("is-dragging-spool")) return;
+    const sid = slot.dataset.spoolId;
+    if (!sid) return;
+    const row = state.rows.find(r => r.spoolId === sid);
+    if (!row) return;
+    const tip = ensureRackTooltipEl();
+    const coord = slot.dataset.coord || "";
+    const locked = slot.classList.contains("rp-slot--locked");
+    tip.innerHTML = buildRackTooltipHTML(row, coord, locked);
+    tip.classList.add("is-open");
+    tip.setAttribute("aria-hidden", "false");
+    // Defer positioning to next frame so we have correct measured size
+    requestAnimationFrame(() => positionRackTooltip(tip, slot));
+  }
+  function hideRackTooltip() {
+    const tip = document.getElementById("rackHoverTip");
+    if (!tip) return;
+    tip.classList.remove("is-open");
+    tip.setAttribute("aria-hidden", "true");
+  }
+  // Wire delegated mouseover/mouseout on #invRackView ONCE — survives re-renders.
+  function wireRackTooltipDelegation() {
+    const root = $("invRackView");
+    if (!root || root._tooltipWired) return;
+    root._tooltipWired = true;
+    root.addEventListener("mouseover", e => {
+      const slot = e.target.closest(".rp-slot--filled");
+      if (!slot) return;
+      // Only fire when the cursor first enters the slot (not on child re-targets)
+      if (e.relatedTarget && slot.contains(e.relatedTarget)) return;
+      showRackTooltipFor(slot);
+    });
+    root.addEventListener("mouseout", e => {
+      const slot = e.target.closest(".rp-slot--filled");
+      if (!slot) return;
+      if (e.relatedTarget && slot.contains(e.relatedTarget)) return;
+      hideRackTooltip();
+    });
+    // Hide on scroll inside the rack view (the slot moves but the tip stays)
+    root.addEventListener("scroll", hideRackTooltip, true);
+  }
+
+  function renderRackView() {
+    const list = $("invRackView");
+    if (!list) return;
+    wireRackTooltipDelegation();
+    // If a side-row drag just ended, defer rebuild until the slide-back finishes
+    const remaining = _unrackedSettleUntil - Date.now();
+    if (remaining > 0 && !_rackRenderDeferred) {
+      _rackRenderDeferred = true;
+      setTimeout(() => { _rackRenderDeferred = false; renderRackView(); }, remaining);
+      return;
+    }
+
+    // ── Stats bar — global overview at the top of Storage. Shows: rack count,
+    // filled-vs-total slots (with mini progress bar), empty count, locked count,
+    // and the "Spools not stored" toggle on the right.
+    const unrankedCount = getUnrackedSpools().length;
+    const racksCount   = state.racks.length;
+    let totalSlotsAll = 0, filledSlotsAll = 0, lockedSlotsAll = 0;
+    state.racks.forEach(r => {
+      const cap = (r.level || 0) * (r.position || 0);
+      totalSlotsAll += cap;
+      lockedSlotsAll += Array.isArray(r.lockedSlots) ? r.lockedSlots.length : 0;
+    });
+    filledSlotsAll = state.rows.filter(x => !x.deleted && x.rackId).length;
+    const emptySlotsAll = Math.max(0, totalSlotsAll - filledSlotsAll);
+    const fillPctAll = totalSlotsAll > 0 ? Math.round((filledSlotsAll / totalSlotsAll) * 100) : 0;
+    const racksLabel = t("rackStatsRacks", { n: racksCount });
+    // The unranked panel is opened/closed by the "not stored" tile in the
+    // stats bar (we still need this read here to set the tile's active state).
+    const panelOpenInit = localStorage.getItem("tigertag.unrackedPanelOpen") !== "false";
+    let html = `
+      <div class="rv-header">
+        <div class="rv-stats" role="group" aria-label="Storage overview">
+          <button id="btnNewRackTile" class="rv-stat rv-stat-add" title="${esc(t("rackNew"))}" aria-label="${esc(t("rackNew"))}">
+            <div class="rv-stat-num rv-stat-num--plus">+</div>
+            <div class="rv-stat-lbl">${esc(t("rackNew"))}</div>
+          </button>
+          ${racksCount ? `
+          <div class="rv-stat" data-stat="racks" title="${esc(racksLabel)}">
+            <div class="rv-stat-num">${racksCount}</div>
+            <div class="rv-stat-lbl">${esc(racksLabel)}</div>
+          </div>
+          <div class="rv-stat rv-stat--wide rv-stat--slots" data-stat="slots" title="${filledSlotsAll}/${totalSlotsAll} ${esc(t("rackStatsSlots"))}">
+            <div class="rv-stat-line">
+              <span class="rv-stat-num"><span class="rv-stat-num-strong">${filledSlotsAll}</span><span class="rv-stat-num-sep">/</span><span class="rv-stat-num-soft">${totalSlotsAll}</span></span>
+              <span class="rv-stat-lbl rv-stat-lbl--inline">${esc(t("rackStatsSlots"))}</span>
+            </div>
+            <div class="rv-stat-bar"><div class="rv-stat-bar-fill" style="width:${fillPctAll}%"></div></div>
+          </div>
+          <div class="rv-stat rv-stat--clickable" data-stat="empty" title="Highlight empty slots">
+            <div class="rv-stat-num">${emptySlotsAll}</div>
+            <div class="rv-stat-lbl">${esc(t("rackStatsEmpty"))}</div>
+          </div>
+          <div class="rv-stat rv-stat--clickable" data-stat="locked" title="Highlight locked slots">
+            <div class="rv-stat-num">${lockedSlotsAll}</div>
+            <div class="rv-stat-lbl">${esc(t("rackStatsLocked"))}</div>
+          </div>` : ``}
+          <div id="btnToggleUnranked" class="rv-stat rv-stat--clickable rv-stat--orange${panelOpenInit ? " rv-stat--active" : ""}" data-stat="unranked" title="${esc(t("rackUnrackedTitle"))}" role="button" tabindex="0" aria-pressed="${panelOpenInit ? "true" : "false"}">
+            <div class="rv-stat-body">
+              <div class="rv-stat-num">${unrankedCount}</div>
+              <div class="rv-stat-lbl">${esc(t("rackStatsUnranked"))}</div>
+            </div>
+            <span class="rv-stat-chev icon icon-chevron-r icon-20" aria-hidden="true"></span>
+          </div>
+        </div>
+      </div>`;
+
+    // ── Two-column layout: left = racks (or empty-state when none),
+    //    right = unranked sidebar (always shown so the user can see/manage
+    //    their filaments even before creating a first rack).
+    const unranked = getUnrackedSpools();
+    const sideRows = unranked.map(unrackedRowHTML).join("")
+                  || `<div class="rp-unranked-empty">${t("rackAllPlaced")}</div>`;
+
+    // Empty-state card replaces the rack list when there's no rack yet.
+    const emptyHTML = !state.racks.length
+      ? `<div class="rp-empty">
+          <img class="rp-empty-img" src="../assets/img/Panda_Feed_Rack.png" alt="" />
+          <div class="rp-empty-sub">${t("racksEmptySub")}</div>
+          <button class="rp-cta rp-empty-cta" id="btnNewRackEmpty">
+            <span class="icon icon-plus icon-14"></span>
+            <span data-i18n="rackNew">${t("rackNew")}</span>
+          </button>
+        </div>`
+      : "";
+
+    const racksHTML = state.racks.map(r => {
+      const rows = [];
+      // Coordinate system: bottom shelf = "A" (going up to B, C, …), slots
+      // numbered 1..N from left. A slot is referenced as "B3" = shelf B, slot 3.
+      const shelfLetter = (lv) => String.fromCharCode(65 + lv);
+      // Column header: 1 2 3 … N (font mono, muted, small)
+      const colHeaderCells = [];
+      for (let pos = 0; pos < r.position; pos++) {
+        colHeaderCells.push(`<span class="rp-col-label">${pos + 1}</span>`);
+      }
+      rows.push(`<div class="rp-row rp-row--header"><span class="rp-row-label"></span><div class="rp-row-slots" style="--slots:${r.position}">${colHeaderCells.join("")}</div></div>`);
+      // Render top shelf first (level r.level-1 at top, level 0 at bottom — physical layout)
+      for (let lv = r.level - 1; lv >= 0; lv--) {
+        const cells = [];
+        for (let pos = 0; pos < r.position; pos++) {
+          const occ    = findSpoolInSlot(r.id, lv, pos);
+          const locked = isSlotLocked(r.id, lv, pos);
+          const lockCls = locked ? " rp-slot--locked" : "";
+          const coord = `${shelfLetter(lv)}${pos + 1}`;
+          if (occ) {
+            // Bounce-in marker if this spool was just placed (drop / auto-fill).
+            // The class is consumed once and stripped after the animation.
+            const justPlaced = _justPlacedSpools.has(occ.spoolId) || _justFilledSlots.has(`${r.id}|${lv}|${pos}`);
+            const bounceCls = justPlaced ? " rp-slot--just-placed" : "";
+            // No native title — the rich custom tooltip (#rackHoverTip) handles
+            // the on-hover info bubble. draggable=false on locked filled slots.
+            cells.push(`<div class="rp-slot rp-slot--filled${lockCls}${bounceCls}" draggable="${locked ? "false" : "true"}"
+                              data-rack="${esc(r.id)}" data-level="${lv}" data-pos="${pos}"
+                              data-spool-id="${esc(occ.spoolId)}"
+                              data-coord="${coord}">${slotFillInnerHTML(occ)}</div>`);
+          } else {
+            const tip = locked ? `[${coord}] 🔒 ${t("rackLockedTip")}` : `[${coord}]`;
+            cells.push(`<div class="rp-slot${lockCls}" data-rack="${esc(r.id)}" data-level="${lv}" data-pos="${pos}" title="${tip}" data-coord="${coord}"></div>`);
+          }
+        }
+        rows.push(`<div class="rp-row"><span class="rp-row-label">${shelfLetter(lv)}</span><div class="rp-row-slots" style="--slots:${r.position}">${cells.join("")}</div></div>`);
+      }
+      const totalSlots = r.level * r.position;
+      const filled     = state.rows.filter(x => !x.deleted && x.rackId === r.id).length;
+      const lockedCnt  = Array.isArray(r.lockedSlots) ? r.lockedSlots.length : 0;
+      const allLocked  = lockedCnt > 0 && lockedCnt === totalSlots;
+      return `<div class="rp-rack" data-rack-id="${esc(r.id)}">
+        <div class="rp-rack-head">
+          <span class="rp-rack-grip" title="Drag to reorder" draggable="true" data-rack-drag-id="${esc(r.id)}">⋮⋮</span>
+          <div class="rp-rack-info">
+            <div class="rp-rack-name">
+              <span class="rp-rack-name-text">${esc(r.name)}</span>
+              <span class="rp-rack-count">·</span>
+              <span class="rp-rack-count-num">${filled}/${totalSlots}</span>
+            </div>
+          </div>
+          <div class="rp-rack-actions">
+            <button class="rp-rack-btn rp-rack-kebab" data-action="kebab" title="${esc(t("rackActionMore"))}" aria-label="${esc(t("rackActionMore"))}" aria-haspopup="menu" aria-expanded="false"><span class="icon icon-kebab icon-18"></span></button>
+            <div class="rp-menu" data-menu-for="${esc(r.id)}" hidden>
+              <button class="rp-menu-item" data-action="edit"><span class="icon icon-edit icon-14"></span><span>${esc(t("rackActionEdit"))}</span></button>
+              <button class="rp-menu-item" data-action="autofill"><span class="icon icon-sparkle icon-14"></span><span>${esc(t("rackActionAutofill"))}</span></button>
+              <button class="rp-menu-item" data-action="${allLocked ? "unlockall" : "lockall"}"><span class="icon icon-lock icon-14"></span><span>${esc(allLocked ? t("rackActionUnlockAll") : t("rackActionLockAll"))}</span></button>
+              <button class="rp-menu-item rp-menu-item--hold" data-action="empty"><span class="hold-progress hold-progress--primary"></span><span class="icon icon-broom icon-14"></span><span class="rp-menu-label">${esc(t("rackActionEmpty"))}</span></button>
+              <div class="rp-menu-sep"></div>
+              <button class="rp-menu-item rp-menu-item--danger rp-menu-item--hold" data-action="delete"><span class="hold-progress"></span><span class="icon icon-trash icon-14"></span><span class="rp-menu-label">${esc(t("rackActionDelete"))}</span></button>
+            </div>
+          </div>
+        </div>
+        <div class="rp-frame">
+          <div class="rp-grid">${rows.join("")}</div>
+        </div>
+      </div>`;
+    }).join("");
+
+    // The unranked panel is now a slide-in (fixed positioning), opened on
+    // demand via the "not stored" tile in the stats bar. The DOM stays inside
+    // #invRackView so the existing drag/drop selectors keep working.
+    html += `
+      <div class="rp-racks-col">${racksHTML || emptyHTML}</div>
+      <aside class="rp-side${panelOpenInit ? " is-open" : ""}" id="rpUnranked">
+        <div class="rp-side-head">
+          <span class="rp-side-count">${unranked.length}</span>
+          <span class="rp-side-title">${t("rackUnrackedTitle")}</span>
+          <button class="rp-side-close" id="rpUnrackedClose" title="Hide panel" aria-label="Close">✕</button>
+        </div>
+        <div class="rp-side-search">
+          <input id="rpUnrackedSearch" type="text" placeholder="${t("searchShort")}" />
+          <span class="icon icon-search icon-13"></span>
+        </div>
+        <div class="rp-side-list" id="rpUnrackedStrip">${sideRows}</div>
+      </aside>`;
+
+    list.innerHTML = html;
+
+    // ── Run the masonry packing AFTER the DOM is in place. requestAnimationFrame
+    // gives the browser a frame to compute natural dimensions, then we measure
+    // and absolutely-position each rack at its skyline-best position.
+    // Also (re)wire a ResizeObserver so panel toggles / viewport tweaks reflow.
+    requestAnimationFrame(() => {
+      layoutRacksMasonry();
+      const target = document.querySelector("#invRackView .rp-racks-col");
+      if (target && typeof ResizeObserver !== "undefined") {
+        if (_masonryRO) _masonryRO.disconnect();
+        // Only react to WIDTH changes — height changes are caused by US
+        // setting container.style.height, which would loop.
+        _masonryRO = new ResizeObserver(entries => {
+          const w = Math.round(entries[0]?.contentRect?.width || 0);
+          if (w && Math.abs(w - _masonryLastWidth) > 1) {
+            _masonryLastWidth = w;
+            scheduleMasonryRelayout();
+          }
+        });
+        _masonryRO.observe(target);
+        _masonryLastWidth = Math.round(target.clientWidth);
+      }
+    });
+
+    // ── Staggered bounce-in for newly placed slots
+    // For drag-drop: 1 slot pops in ~immediately (220ms anim).
+    // For auto-fill: many slots pop in with a 30ms inter-slot delay so the
+    // rack visibly fills "left to right, top to bottom" in waves.
+    const justPlaced = list.querySelectorAll(".rp-slot--just-placed");
+    if (justPlaced.length) {
+      // Sort by visual order (rack order, then top→bottom, then left→right)
+      const ordered = Array.from(justPlaced).sort((a, b) => {
+        const ra = a.closest(".rp-rack"); const rb = b.closest(".rp-rack");
+        if (ra !== rb) {
+          // Use index in the racks col to break racks tie
+          const allRacks = Array.from(list.querySelectorAll(".rp-rack"));
+          return allRacks.indexOf(ra) - allRacks.indexOf(rb);
+        }
+        const lvA = parseInt(a.dataset.level, 10), lvB = parseInt(b.dataset.level, 10);
+        if (lvA !== lvB) return lvB - lvA;   // top shelf first
+        return parseInt(a.dataset.pos, 10) - parseInt(b.dataset.pos, 10);
+      });
+      ordered.forEach((el, i) => {
+        const delay = Math.min(i * 30, 1200);   // cap so very long fills finish in reasonable time
+        el.style.animationDelay = delay + "ms";
+        // Strip the class once the animation has had time to run, so a
+        // subsequent re-render doesn't replay the bounce.
+        setTimeout(() => {
+          el.classList.remove("rp-slot--just-placed");
+          el.style.animationDelay = "";
+        }, delay + 400);
+      });
+      _justPlacedSpools.clear();
+      _justFilledSlots.clear();
+    }
+
+    // ── Stat-bar filter chips: clicking "empty" or "locked" highlights all
+    // matching slots with a glow ring. Click the same chip again to clear.
+    list.querySelectorAll(".rv-stat--clickable").forEach(tile => {
+      tile.addEventListener("click", () => {
+        const kind = tile.dataset.stat;   // "empty" | "locked"
+        const wasActive = tile.classList.contains("rv-stat--active");
+        // Reset all chips + clear all glow rings
+        list.querySelectorAll(".rv-stat--active").forEach(t => t.classList.remove("rv-stat--active"));
+        list.querySelectorAll(".rp-slot--highlight").forEach(s => s.classList.remove("rp-slot--highlight"));
+        if (wasActive) return;
+        tile.classList.add("rv-stat--active");
+        if (kind === "empty") {
+          list.querySelectorAll(".rp-slot:not(.rp-slot--filled):not(.rp-slot--locked)")
+            .forEach(s => s.classList.add("rp-slot--highlight"));
+        } else if (kind === "locked") {
+          list.querySelectorAll(".rp-slot--locked").forEach(s => s.classList.add("rp-slot--highlight"));
+        }
+      });
+    });
+
+    // If we just entered Storage mode with unranked spools, animate the side
+    // panel sliding in (otherwise it would already be at translateX(0) on the
+    // first paint — no transition). Render with .is-open OFF, then add it on
+    // the next frame so the CSS transition fires.
+    if (_unrackedAnimateOpen) {
+      _unrackedAnimateOpen = false;
+      const aside = $("rpUnranked");
+      if (aside) {
+        aside.classList.remove("is-open");
+        // Two rAFs: first paints the closed state, second triggers the open.
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => aside.classList.add("is-open"));
+        });
+      }
+    }
+
+    // ── Wire rack head kebab → opens contextual menu
+    list.querySelectorAll(".rp-rack-kebab").forEach(btn => {
+      btn.addEventListener("click", e => {
+        e.stopPropagation();
+        const card = btn.closest("[data-rack-id]");
+        if (!card) return;
+        const menu = card.querySelector(".rp-menu");
+        if (!menu) return;
+        const isOpen = !menu.hidden;
+        // Close any other open menus first
+        document.querySelectorAll(".rp-menu").forEach(m => { m.hidden = true; });
+        document.querySelectorAll(".rp-rack-kebab[aria-expanded='true']").forEach(b => b.setAttribute("aria-expanded", "false"));
+        if (isOpen) return;
+        menu.hidden = false;
+        btn.setAttribute("aria-expanded", "true");
+        // Position the menu — anchor to the kebab button. Use fixed positioning
+        // so the menu can escape rack overflow. Compute on open and on resize.
+        positionRackMenu(menu, btn);
+      });
+    });
+    // Click-away → close any open kebab menu
+    if (!list._kebabOutsideWired) {
+      list._kebabOutsideWired = true;
+      document.addEventListener("click", e => {
+        if (e.target.closest(".rp-menu")) return;
+        if (e.target.closest(".rp-rack-kebab")) return;
+        document.querySelectorAll(".rp-menu").forEach(m => { m.hidden = true; });
+        document.querySelectorAll(".rp-rack-kebab[aria-expanded='true']").forEach(b => b.setAttribute("aria-expanded", "false"));
+      });
+    }
+    // Wire all menu items. Two flavours:
+    //   • Regular click → action runs immediately (Edit, Auto-fill, Lock all)
+    //   • Hold-to-confirm (.rp-menu-item--hold) → action only runs after a 1.2s
+    //     press, with a fill animation. Used for irreversible / destructive
+    //     actions (Clear all, Delete) so a misclick can't wipe the rack.
+    list.querySelectorAll(".rp-menu-item").forEach(btn => {
+      const card = btn.closest("[data-rack-id]");
+      if (!card) return;
+      const rackId = card.dataset.rackId;
+      const action = btn.dataset.action;
+      const closeMenu = () => {
+        const menu = card.querySelector(".rp-menu");
+        if (menu) menu.hidden = true;
+        const kebab = card.querySelector(".rp-rack-kebab");
+        if (kebab) kebab.setAttribute("aria-expanded", "false");
+      };
+      const runAction = async () => {
+        const rack = state.racks.find(r => r.id === rackId);
+        if (!rack) return;
+        try {
+          if (action === "edit")           openRackEditModal(rack);
+          else if (action === "delete")    await deleteRack(rack.id);
+          else if (action === "autofill")  await autoFillEmptySlots(rack.id);
+          else if (action === "lockall")   await lockAllSlots(rack.id);
+          else if (action === "unlockall") await unlockAllSlots(rack.id);
+          else if (action === "empty")     await emptyRack(rack.id);
+        } catch (err) { reportError("rack.menu." + action, err); }
+      };
+      if (btn.classList.contains("rp-menu-item--hold")) {
+        // Hold-to-confirm: 1.2s press. Click without hold = no-op (the click
+        // event still fires after pointerup, but the timer was cancelled).
+        // We swallow the regular click to avoid triggering the action.
+        btn.addEventListener("click", e => { e.stopPropagation(); e.preventDefault(); });
+        setupHoldToConfirm(btn, 1200, () => {
+          closeMenu();
+          runAction();
+        });
+      } else {
+        btn.addEventListener("click", e => {
+          e.stopPropagation();
+          closeMenu();
+          runAction();
+        });
+      }
+    });
+
+    // ── Live search — re-renders unranked sidebar AND dims non-matching rack slots
+    const search = $("rpUnrackedSearch");
+    if (search) {
+      search.addEventListener("input", () => {
+        const strip = $("rpUnrackedStrip");
+        const cnt   = $("rpUnranked")?.querySelector(".rp-side-count");
+        if (!strip) return;
+        const filtered = getUnrackedSpools();
+        if (cnt) cnt.textContent = filtered.length;
+        // Keep the stats-bar tile in sync with the filter so it shows the
+        // visible count, not the total.
+        const tileNum = $("btnToggleUnranked")?.querySelector(".rv-stat-num");
+        if (tileNum) tileNum.textContent = filtered.length;
+        strip.innerHTML = filtered.map(unrackedRowHTML).join("")
+                       || `<div class="rp-unranked-empty">${t("noMatch")}</div>`;
+        wireDragSources();
+        // Re-wire click for newly rendered side rows
+        strip.querySelectorAll(".rp-side-row").forEach(el => {
+          el.addEventListener("click", () => {
+            if (el._wasDragged) { el._wasDragged = false; return; }
+            const sid = el.dataset.spoolId; if (sid) openDetail(sid);
+          });
+        });
+      });
+    }
+    // Apply dim from the main search bar at every rack-view render
+    applyRackSearchDim();
+
+    // ── Click on a filled slot or unranked row → open the spool detail panel
+    list.querySelectorAll(".rp-slot--filled, .rp-side-row").forEach(el => {
+      el.addEventListener("click", e => {
+        // Avoid firing if it was a drag (drag fires its own events)
+        if (el._wasDragged) { el._wasDragged = false; return; }
+        const sid = el.dataset.spoolId;
+        if (!sid) return;
+        openDetail(sid);
+      });
+    });
+
+    // ── "+ Rack" buttons (after rack list + empty-state CTA when no rack yet)
+    $("btnNewRackTile")?.addEventListener("click", () => openRackEditModal(null));
+    $("btnNewRackEmpty")?.addEventListener("click", () => openRackEditModal(null));
+
+    // ── Drag-and-drop to reorder racks (grip handle on the rack head)
+    list.querySelectorAll(".rp-rack-grip").forEach(grip => {
+      grip.addEventListener("dragstart", e => {
+        const rackId = grip.dataset.rackDragId;
+        if (!rackId) { e.preventDefault(); return; }
+        e.dataTransfer.setData("application/x-rack-id", rackId);
+        e.dataTransfer.effectAllowed = "move";
+        _draggingRackId = rackId;
+        grip.closest(".rp-rack")?.classList.add("rp-rack--dragging");
+      });
+      grip.addEventListener("dragend", () => {
+        grip.closest(".rp-rack")?.classList.remove("rp-rack--dragging");
+        _draggingRackId = null;
+        document.querySelectorAll(".rp-rack--drop-before, .rp-rack--drop-after").forEach(el => {
+          el.classList.remove("rp-rack--drop-before", "rp-rack--drop-after");
+        });
+      });
+    });
+    list.querySelectorAll(".rp-rack").forEach(card => {
+      card.addEventListener("dragover", e => {
+        if (!_draggingRackId) return;
+        if (_draggingRackId === card.dataset.rackId) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        const rect = card.getBoundingClientRect();
+        const before = e.clientX < rect.left + rect.width / 2;
+        card.classList.toggle("rp-rack--drop-before", before);
+        card.classList.toggle("rp-rack--drop-after", !before);
+      });
+      card.addEventListener("dragleave", () => {
+        card.classList.remove("rp-rack--drop-before", "rp-rack--drop-after");
+      });
+      card.addEventListener("drop", async e => {
+        if (!_draggingRackId) return;
+        e.preventDefault();
+        const targetId = card.dataset.rackId;
+        const before = card.classList.contains("rp-rack--drop-before");
+        card.classList.remove("rp-rack--drop-before", "rp-rack--drop-after");
+        if (_draggingRackId === targetId) return;
+        const srcId = _draggingRackId;
+        _draggingRackId = null;
+        try { await reorderRacks(srcId, targetId, before); }
+        catch (err) { reportError("rack.reorder", err); }
+      });
+    });
+
+    // Toggle unranked panel (slide in/out from the right, NO backdrop overlay).
+    // The trigger is the "not stored" tile in the stats bar (rv-stat--toggle).
+    // We sync its aria-pressed + .rv-stat--active state so the tile reads as
+    // selected while the panel is open.
+    function setUnrackedOpen(open) {
+      const aside = $("rpUnranked");
+      if (aside) aside.classList.toggle("is-open", open);
+      const tile = $("btnToggleUnranked");
+      if (tile) {
+        tile.classList.toggle("rv-stat--active", open);
+        tile.setAttribute("aria-pressed", open ? "true" : "false");
+      }
+      localStorage.setItem("tigertag.unrackedPanelOpen", open ? "true" : "false");
+    }
+    $("btnToggleUnranked")?.addEventListener("click", () => {
+      const aside = $("rpUnranked");
+      const open = !aside?.classList.contains("is-open");
+      setUnrackedOpen(open);
+    });
+    // The toggle is a <div role=button> — wire keyboard activation manually
+    // (Enter / Space) so it stays accessible without a real <button> element.
+    $("btnToggleUnranked")?.addEventListener("keydown", e => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        e.target.click();
+      }
+    });
+    $("rpUnrackedClose")?.addEventListener("click", () => setUnrackedOpen(false));
+
+    // ── Right-click on a slot → toggle its lock state
+    list.querySelectorAll(".rp-slot").forEach(slot => {
+      slot.addEventListener("contextmenu", async e => {
+        e.preventDefault();
+        const rackId = slot.dataset.rack;
+        const lv     = parseInt(slot.dataset.level, 10);
+        const pos    = parseInt(slot.dataset.pos, 10);
+        if (!rackId || isNaN(lv) || isNaN(pos)) return;
+        try { await toggleSlotLock(rackId, lv, pos); }
+        catch (err) { reportError("rack.toggleLock", err); }
+      });
+    });
+
+    // ── Drag-and-drop wiring
+    wireDragSources();
+    wireDropTargets();
+  }
+
+  function wireDragSources() {
+    document.querySelectorAll("#invRackView .rp-side-row, #invRackView .rp-chip, #invRackView .rp-slot--filled").forEach(el => {
+      el.addEventListener("dragstart", e => {
+        const sid = el.dataset.spoolId;
+        if (!sid) { e.preventDefault(); return; }
+        // Block drag-out from a locked filled slot
+        const rackId = el.dataset.rack;
+        if (rackId) {
+          const lv  = parseInt(el.dataset.level, 10);
+          const pos = parseInt(el.dataset.pos, 10);
+          if (isSlotLocked(rackId, lv, pos)) { e.preventDefault(); return; }
+        }
+        e.dataTransfer.setData("text/plain", sid);
+        e.dataTransfer.effectAllowed = "move";
+        el.classList.add("rp-dragging");
+        el._wasDragged = true;
+        // Globally signal "spool drag in progress" so the rack view can light
+        // up valid drop targets, dim locked slots, and reveal coordinates to
+        // help the user aim. Cleared on dragend.
+        document.body.classList.add("is-dragging-spool");
+        // Hide any visible hover tooltip so it doesn't fight the drop ring
+        hideRackTooltip();
+        // Hide the unranked side panel while dragging FROM it, so the racks
+        // behind it become accessible as drop targets. Persistent open/close
+        // state is left untouched — the panel slides back in on dragend.
+        if (el.classList.contains("rp-side-row")) {
+          $("rpUnranked")?.classList.add("is-dragging");
+        }
+        // Reset the click-suppression flag shortly after the drag completes
+        setTimeout(() => { el._wasDragged = false; }, 400);
+      });
+      el.addEventListener("dragend", () => {
+        el.classList.remove("rp-dragging");
+        document.body.classList.remove("is-dragging-spool");
+        // Wipe any leftover drop-target highlight (e.g. user released outside
+        // a slot, or dragleave didn't fire for some reason).
+        document.querySelectorAll("#invRackView .rp-slot--drop, #invRackView .rp-slot--drop-deny").forEach(s => {
+          s.classList.remove("rp-slot--drop");
+          s.classList.remove("rp-slot--drop-deny");
+        });
+        // Only set the settle window if we dragged FROM the side panel — the
+        // panel needs ~300ms to slide back in, and we mustn't let the Firestore
+        // snapshot rebuild the DOM mid-animation. For inter-rack drags the
+        // panel is untouched, so we don't want to delay the visual update.
+        if (el.classList.contains("rp-side-row")) {
+          $("rpUnranked")?.classList.remove("is-dragging");
+          _unrackedSettleUntil = Date.now() + 320;
+        }
+      });
+    });
+  }
+
+  // Helper: clear the "active drop target" highlight from every slot except
+  // the one we're keeping. Prevents two slots being highlighted simultaneously
+  // (which can happen because dragleave fires AFTER dragenter on the next slot,
+  // and especially because we scale-up the active slot — so the cursor can be
+  // briefly inside two overlapping slots at once).
+  function clearOtherDropHighlights(keepSlot) {
+    document.querySelectorAll("#invRackView .rp-slot--drop, #invRackView .rp-slot--drop-deny").forEach(s => {
+      if (s !== keepSlot) {
+        s.classList.remove("rp-slot--drop");
+        s.classList.remove("rp-slot--drop-deny");
+      }
+    });
+  }
+  function wireDropTargets() {
+    // Slots accept drops (filled = swap, empty = place). Locked slots reject all drops.
+    document.querySelectorAll("#invRackView .rp-slot").forEach(slot => {
+      // dragenter is the moment the cursor first crosses into the slot —
+      // perfect place to flip the highlight ON and clear any stale highlight
+      // on a previously-hovered slot.
+      slot.addEventListener("dragenter", e => {
+        const rackId = slot.dataset.rack;
+        const lv  = parseInt(slot.dataset.level, 10);
+        const pos = parseInt(slot.dataset.pos, 10);
+        clearOtherDropHighlights(slot);
+        if (isSlotLocked(rackId, lv, pos)) {
+          slot.classList.remove("rp-slot--drop");
+          slot.classList.add("rp-slot--drop-deny");
+        } else {
+          slot.classList.remove("rp-slot--drop-deny");
+          slot.classList.add("rp-slot--drop");
+        }
+      });
+      slot.addEventListener("dragover", e => {
+        const rackId = slot.dataset.rack;
+        const lv  = parseInt(slot.dataset.level, 10);
+        const pos = parseInt(slot.dataset.pos, 10);
+        if (isSlotLocked(rackId, lv, pos)) {
+          e.dataTransfer.dropEffect = "none";
+          // Keep dragenter's class set; don't toggle on every dragover frame
+          return;
+        }
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        // Make sure this slot still has the highlight (in case dragenter
+        // got skipped, e.g. when the drag started on this very slot).
+        if (!slot.classList.contains("rp-slot--drop")) {
+          clearOtherDropHighlights(slot);
+          slot.classList.add("rp-slot--drop");
+        }
+      });
+      slot.addEventListener("dragleave", e => {
+        // Ignore spurious leaves caused by entering child elements (.rp-fill)
+        // or when the cursor moves from the slot to its scaled-up portion.
+        // relatedTarget is the element being entered — if it's still inside
+        // the slot, we ignore the leave.
+        if (e.relatedTarget && slot.contains(e.relatedTarget)) return;
+        slot.classList.remove("rp-slot--drop");
+        slot.classList.remove("rp-slot--drop-deny");
+      });
+      slot.addEventListener("drop", async e => {
+        e.preventDefault();
+        slot.classList.remove("rp-slot--drop");
+        slot.classList.remove("rp-slot--drop-deny");
+        const sid = e.dataTransfer.getData("text/plain");
+        if (!sid) return;
+        const rackId = slot.dataset.rack;
+        const level  = parseInt(slot.dataset.level, 10);
+        const pos    = parseInt(slot.dataset.pos, 10);
+        if (isSlotLocked(rackId, level, pos)) return;   // locked target rejects
+        try { await assignSpoolToSlot(sid, rackId, level, pos); }
+        catch (err) { console.warn("[assignSpoolToSlot]", err.message); }
+      });
+    });
+
+    // The unranked strip also accepts drops (= unassign)
+    const strip = $("rpUnrackedStrip");
+    if (strip) {
+      strip.addEventListener("dragover", e => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        strip.classList.add("rp-unranked-strip--drop");
+      });
+      strip.addEventListener("dragleave", () => strip.classList.remove("rp-unranked-strip--drop"));
+      strip.addEventListener("drop", async e => {
+        e.preventDefault();
+        strip.classList.remove("rp-unranked-strip--drop");
+        const sid = e.dataTransfer.getData("text/plain");
+        if (!sid) return;
+        try { await unassignSpool(sid); }
+        catch (err) { console.warn("[unassignSpool]", err.message); }
+      });
+    }
+  }
+
+  // (Old openRacks() removed — view switching is now handled by setViewMode("rack").
+  //  Kept for callers from earlier code paths that might still reference it.)
+
+  /* ── Rack create/edit modal ── */
+  let _editingRackId = null;
+  function openRackEditModal(rack) {
+    _editingRackId = rack?.id || null;
+    $("recTitle").textContent = rack ? t("rackEdit") : t("rackNew");
+    // Default name for a new rack — "Rack N" where N = next index in the list
+    const defaultName = `Rack ${(state.racks?.length || 0) + 1}`;
+    $("rackNameInput").value = rack?.name ?? defaultName;
+    $("rackLevelInput").value = rack?.level || 5;
+    $("rackPositionInput").value = rack?.position || 8;
+    $("rackEditResult").textContent = "";
+    // Reset any leftover field-level error bubbles from a previous open
+    document.querySelectorAll("#rackEditOverlay .rec-field.is-invalid").forEach(f => {
+      f.classList.remove("is-invalid");
+      f.querySelector(".rec-field-err")?.remove();
+    });
+    // Save button label depends on mode: edit → "Save", new → "Create".
+    // We update only the inner .label span so the .spinner sibling stays intact.
+    const saveBtn = $("rackEditSave");
+    const saveLabel = saveBtn?.querySelector(".label");
+    if (saveLabel) saveLabel.textContent = rack ? t("rackSave") : t("rackCreate");
+    if (saveBtn) saveBtn.classList.remove("loading");   // reset any leftover state
+    // Delete + Empty buttons only visible in edit mode.
+    // Cancel button removed — the ✕ in the corner is the only way to dismiss.
+    const delBtn = $("rackEditDelete");
+    if (delBtn) delBtn.classList.toggle("hidden", !rack);
+    const emptyBtn = $("rackEditEmpty");
+    if (emptyBtn) emptyBtn.classList.toggle("hidden", !rack);
+    renderRackPresets();
+    updateRackTotalLabel();
+    $("rackEditOverlay").classList.add("open");
+    setTimeout(() => $("rackNameInput").focus(), 80);
+  }
+  function closeRackEditModal() {
+    $("rackEditOverlay").classList.remove("open");
+    _editingRackId = null;
+  }
+
+  function renderRackPresets() {
+    const el = $("recPresets");
+    if (!el) return;
+    const currentLevel = parseInt($("rackLevelInput").value, 10);
+    const currentPos   = parseInt($("rackPositionInput").value, 10);
+    const presets = state.rackPresets || [];
+    const presetMatches = presets.find(p => p.level === currentLevel && p.position === currentPos);
+    const isCustom = !presetMatches;
+    const IMG = "../assets/img/Panda_Feed_Rack.png";
+
+    // Two-column layout: a single big Panda image on the left,
+    // the 4 preset buttons stacked vertically on the right.
+    const slotsLabel = t("rackSlots") || "slots";
+    const imgFor = p => `../assets/img/${p?.image || "Panda_Feed_Rack.png"}`;
+    // The big image on the left reflects the currently active preset.
+    // Custom (no match) → generic Panda_Feed_Rack.png
+    const activeImg = presetMatches ? imgFor(presetMatches) : IMG;
+
+    let rows = presets.map(p => {
+      const matches = p === presetMatches;
+      const total = p.level * p.position;
+      return `<button class="rec-preset${matches ? " rec-preset--active" : ""}" data-preset-id="${esc(p.id)}">
+        <span class="rec-preset-name">${esc(p.name)}</span>
+        <span class="rec-preset-dim">${p.level} × ${p.position} · <strong>${total}</strong> ${esc(slotsLabel)}</span>
+      </button>`;
+    }).join("");
+    const customTotal = (Number.isFinite(currentLevel) && Number.isFinite(currentPos))
+      ? currentLevel * currentPos : 0;
+    rows += `<button class="rec-preset rec-preset--custom${isCustom ? " rec-preset--active" : ""}" data-preset-id="__custom__">
+      <span class="rec-preset-name">${esc(t("rackPresetCustom"))}</span>
+      <span class="rec-preset-dim">${isCustom ? `${currentLevel} × ${currentPos} · <strong>${customTotal}</strong> ${esc(slotsLabel)}` : "—"}</span>
+    </button>`;
+
+    el.innerHTML = `
+      <div class="rec-presets-grid">
+        <img class="rec-presets-img" id="recPresetsImg" src="${activeImg}" alt="" />
+        <div class="rec-presets-list">${rows}</div>
+      </div>`;
+    el.querySelectorAll("[data-preset-id]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const id = btn.dataset.presetId;
+        // Custom is non-mutating — just mark it active visually; the user
+        // adjusts the level / position inputs manually below.
+        if (id === "__custom__") {
+          $("rackLevelInput").focus();
+          return;
+        }
+        const p = presets.find(x => x.id === id);
+        if (!p) return;
+        // Only update dimensions — never overwrite the name (per user spec)
+        $("rackLevelInput").value = p.level;
+        $("rackPositionInput").value = p.position;
+        renderRackPresets();
+        updateRackTotalLabel();   // setting .value programmatically doesn't fire 'input' — refresh manually
+      });
+    });
+  }
+
+  function confirmDeleteRack(rack) {
+    const msg = t("rackDeleteConfirm", { name: rack.name });
+    if (!confirm(msg)) return;
+    deleteRack(rack.id).catch(e => console.warn("[deleteRack]", e.message));
+  }
+
+  // Sidebar "Storage" button still routes to the rack view in the main panel.
+  // (btnNewRack is rendered dynamically inside the rack view header — wired in renderRackView.)
+  $("btnOpenRacks")?.addEventListener("click", () => setViewMode("rack"));
+  $("rackEditClose")?.addEventListener("click", closeRackEditModal);
+  // Hold-to-confirm wiring — 1.5s press-and-hold replaces the confirm() dialog.
+  // Prevents accidental clicks; shows a fill animation as the user holds.
+  setupHoldToConfirm($("rackEditDelete"), 1500, () => {
+    if (!_editingRackId) return;
+    deleteRack(_editingRackId)
+      .then(() => closeRackEditModal())
+      .catch(e => { reportError("rack.delete", e); $("rackEditResult").textContent = "⚠ " + (e.message || t("networkError")); });
+  });
+  // Hold-to-confirm Clear all — same 1.5s press-and-hold pattern as Delete,
+  // but uses the orange (primary) fill instead of red since the action is
+  // reversible (spools just go back to Unranked, the rack stays).
+  setupHoldToConfirm($("rackEditEmpty"), 1500, async () => {
+    if (!_editingRackId) return;
+    try {
+      await emptyRack(_editingRackId);
+    } catch (e) {
+      reportError("rack.empty", e);
+      $("rackEditResult").textContent = "⚠ " + (e.message || t("networkError"));
+    }
+  });
+  $("rackEditOverlay")?.addEventListener("click", e => {
+    if (e.target === $("rackEditOverlay")) closeRackEditModal();
+  });
+  function updateRackTotalLabel() {
+    const lv = parseInt($("rackLevelInput")?.value, 10);
+    const ps = parseInt($("rackPositionInput")?.value, 10);
+    const num = $("recTotalNum");
+    const lbl = $("recTotalLbl");
+    if (!num || !lbl) return;
+    const total = (Number.isFinite(lv) && Number.isFinite(ps) && lv > 0 && ps > 0) ? lv * ps : null;
+    num.textContent = total != null ? String(total) : "—";
+    lbl.textContent = t("rackSlots") || "slots";
+  }
+  $("rackLevelInput")?.addEventListener("input", () => { renderRackPresets(); updateRackTotalLabel(); });
+  $("rackPositionInput")?.addEventListener("input", () => { renderRackPresets(); updateRackTotalLabel(); });
+
+  // Field-level validation helpers — red border + tooltip bubble next to the field
+  function setFieldError(input, msg) {
+    if (!input) return;
+    const field = input.closest(".rec-field");
+    if (!field) return;
+    field.classList.add("is-invalid");
+    let bubble = field.querySelector(".rec-field-err");
+    if (!bubble) {
+      bubble = document.createElement("div");
+      bubble.className = "rec-field-err";
+      field.appendChild(bubble);
+    }
+    bubble.textContent = msg;
+  }
+  function clearFieldError(input) {
+    if (!input) return;
+    const field = input.closest(".rec-field");
+    if (!field) return;
+    field.classList.remove("is-invalid");
+    field.querySelector(".rec-field-err")?.remove();
+  }
+  // Auto-clear errors as soon as the user types in a field
+  ["rackNameInput", "rackLevelInput", "rackPositionInput"].forEach(id => {
+    $(id)?.addEventListener("input", () => clearFieldError($(id)));
+  });
+
+  $("rackEditSave")?.addEventListener("click", async () => {
+    const name     = $("rackNameInput").value.trim();
+    const level    = parseInt($("rackLevelInput").value, 10);
+    const position = parseInt($("rackPositionInput").value, 10);
+    // Clear any previous errors before re-validating
+    [$("rackNameInput"), $("rackLevelInput"), $("rackPositionInput")].forEach(clearFieldError);
+    let firstInvalid = null;
+    if (!name) {
+      setFieldError($("rackNameInput"), t("rackNameRequired"));
+      firstInvalid ||= $("rackNameInput");
+    }
+    if (!level || level < 1 || level > 15) {
+      setFieldError($("rackLevelInput"), t("rackLevelInvalid"));
+      firstInvalid ||= $("rackLevelInput");
+    }
+    if (!position || position < 1 || position > 20) {
+      setFieldError($("rackPositionInput"), t("rackPositionInvalid"));
+      firstInvalid ||= $("rackPositionInput");
+    }
+    if (firstInvalid) { firstInvalid.focus(); return; }
+
+    setLoading($("rackEditSave"), true);   // spinner + disabled until Firestore confirms
+    try {
+      if (_editingRackId) {
+        await updateRack(_editingRackId, { name, level, position });
+      } else {
+        await createRack({ name, level, position });
+      }
+      closeRackEditModal();
+    } catch (e) {
+      // Network / Firestore failures stay in the global result line
+      $("rackEditResult").textContent = "⚠ " + (e.message || t("networkError"));
+    } finally {
+      setLoading($("rackEditSave"), false);
+    }
+  });
 
   /* ── Friend inventory panel ──────────────────────────────────────────────── */
   function openFriendInventory(friendUid, friendName, avatarColor) {
