@@ -647,7 +647,7 @@ ipcMain.handle('auth:google-loopback', async () => {
           return;
         }
 
-        renderPage('Signed in', 'You can close this tab and return to the app.', '#10b981');
+        renderPage('Signed in', 'Returning to Tiger Studio Manager…', '#10b981');
         resolve(code);
       });
     });
@@ -656,6 +656,24 @@ ipcMain.handle('auth:google-loopback', async () => {
     await shell.openExternal(authUrl.toString());
 
     const code = await codePromise;
+
+    // Bring the Electron app to the foreground the instant the OAuth
+    // hand-shake lands. Safari can't close its own tab via window.close()
+    // (the tab wasn't opened by a JS window.open(), so the browser
+    // sandbox blocks the close), but raising our window means the user
+    // is immediately back in the app — the dangling Safari tab becomes
+    // a non-issue, they can close it whenever. `app.focus({ steal })`
+    // on macOS actually pulls focus from Safari; on Win/Linux it's a
+    // no-op or polite focus request.
+    try {
+      if (mainWindow) {
+        if (mainWindow.isMinimized()) mainWindow.restore();
+        mainWindow.show();
+        mainWindow.focus();
+      }
+      if (process.platform === 'darwin') app.focus({ steal: true });
+      else app.focus();
+    } catch { /* focus is best-effort, never block the auth flow */ }
 
     // Exchange the code for tokens. Desktop clients use PKCE instead of
     // a client_secret, so we don't need to ship anything truly secret in
