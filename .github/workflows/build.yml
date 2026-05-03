@@ -8,15 +8,6 @@ on:
 permissions:
   contents: write
 
-# Opt every JS-based action in this workflow into Node.js 24. softprops/
-# action-gh-release@v2 still ships Node 20 binaries today and GitHub
-# Actions has scheduled the Node-20 deprecation for June 2026 / removal
-# in September 2026. Setting this flag now silences the deprecation
-# warning and aligns the action's runtime with our `actions/setup-node`
-# version (24).
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
-
 jobs:
   build:
     strategy:
@@ -150,7 +141,10 @@ jobs:
 
       - name: Publish Windows artifacts to GitHub Release
         if: matrix.os == 'windows-latest'
-        uses: softprops/action-gh-release@v2
+        # v3.0.0 (2026-04-12) moved the action runtime from Node 20 to
+        # Node 24, silencing the GitHub Actions deprecation warning that
+        # v2.6.2 emits. Same inputs/outputs, no breaking API changes.
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.ref_name }}
           files: |
