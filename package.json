@@ -53,7 +53,8 @@
           ]
         }
       ],
-      "icon": "assets/img/icon.ico"
+      "icon": "assets/img/icon.ico",
+      "artifactName": "Tiger-Studio-Manager-Setup-${version}.${ext}"
     },
     "mac": {
       "target": [
