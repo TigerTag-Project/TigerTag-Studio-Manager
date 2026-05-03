@@ -1,6 +1,6 @@
 {
   "name": "tigertag-inventory",
-  "version": "1.4.5",
+  "version": "1.4.6",
   "description": "Tiger Studio Manager — desktop app",
   "main": "main.js",
   "engines": {
@@ -99,7 +99,8 @@
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "publisherName": []
     }
   }
 }

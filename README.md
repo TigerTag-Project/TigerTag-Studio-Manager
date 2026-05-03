@@ -41,6 +41,13 @@
 
 ## Changelog
 
+### v1.4.6 — 2026-05-03
+
+Hot-fix release for two Windows-side issues that surfaced during the v1.4.5 rollout. Same feature set as v1.4.5; only Windows packaging changed.
+
+- **Windows artifact name standardised.** `package.json` `win.artifactName` set to `Tiger-Studio-Manager-Setup-${version}.${ext}`. The default electron-builder NSIS naming used spaces, which GitHub auto-rewrote to dots on upload — but `latest.yml` then referenced the file with dashes (electron-builder's URL encoding), so the auto-updater hit a 404 on every check. With an explicit space-free `artifactName`, all three layers (local `dist/`, asset on the GitHub release, manifest URL in `latest.yml`) now agree. (Existing v1.4.5 release was hot-patched in place by re-uploading the binary under the dashed name.)
+- **Windows code-signature check temporarily disabled.** `nsis.publisherName: []` added. electron-builder was auto-deriving the Windows publisher name from the macOS Apple Developer ID `3D France (RT4W5WC9P2)`, which never matches the unsigned `.exe` we currently ship, so electron-updater on Windows was failing every update check with `New version is not signed by the application owner`. With an empty `publisherName` array, the authenticode verification step is skipped — the SHA-512 + size check in `latest.yml` is still enforced, so update integrity is preserved over the HTTPS download. Once Microsoft Trusted Signing for STARGATE GROUP is approved (currently `In Progress` at Microsoft), the `.exe` will be signed and we'll restore `publisherName: ["TigerTag Project"]` (or the actual cert subject) so the check re-engages.
+
 ### v1.4.5 — 2026-05-03
 
 - **Google sign-in via Touch ID / passkey.** Replaced `firebase.auth().signInWithPopup()` (whose Chromium popup couldn't reach macOS authd, leaving "Use your passkey" inert) with the loopback OAuth flow (RFC 8252 + PKCE). The system browser opens for the auth step, so Touch ID, passkeys, and hardware keys work natively. After the auth handshake completes, the Electron window is brought back to the foreground automatically. Falls back to popup gracefully if the loopback step fails for any reason.
