@@ -317,7 +317,10 @@
   "rackAutoFill": "Preencher auto",
   "rackAutoFillTip": "Coloca bobines não atribuídas em espaços vazios e desbloqueados",
   "rackLockedTip": "Bloqueado · clique-direito num espaço para (des)bloquear",
-  "rackStatsRacks": {"one": "rack", "other": "racks"},
+  "rackStatsRacks": {
+    "one": "rack",
+    "other": "racks"
+  },
   "rackStatsSlots": "espaços",
   "rackStatsEmpty": "livres",
   "rackStatsLocked": "bloqueados",
@@ -383,5 +386,20 @@
   "rackClearAll": "Esvaziar tudo",
   "rackClearAllConfirm": "Esvaziar todas as bobines de \"{{name}}\"? Voltam para \"Não atribuídas\" (a prateleira permanece).",
   "spoolMarkDeleted": "Remover do inventário",
-  "spoolMarkDeletedTip": "Mantenha 1,5s para remover esta bobina do inventário (aparecerá em Definições → Debug → Deleted, restaurável a partir daí)"
+  "spoolMarkDeletedTip": "Mantenha 1,5s para remover esta bobina do inventário (aparecerá em Definições → Debug → Deleted, restaurável a partir daí)",
+  "uidMigrConfirmTitle": "Atualização do formato do inventário disponível",
+  "uidMigrConfirmMsg": "{{count}} bobinas no seu inventário usam o formato de armazenamento antigo. A atualização converte-as para o novo formato. Tempo estimado: cerca de {{duration}} — por favor, não feche a aplicação durante a atualização.",
+  "uidMigrConfirmRemind": "Lembrar-me mais tarde",
+  "uidMigrConfirmAccept": "Atualizar agora",
+  "uidMigrProgressTitle": "Atualização do formato do inventário em curso",
+  "uidMigrProgressMsg": "O seu inventário está a ser atualizado para um novo formato de armazenamento mais eficiente. Por favor, não feche a aplicação até concluir. Cada bobina demora apenas uma fração de segundo.",
+  "uidMigrProgressWarn": "⚠ Fechar a aplicação agora apenas retomaria no próximo arranque — mas para a melhor experiência, deixe-a terminar.",
+  "uidMigrDurationSeconds": {
+    "one": "{{n}} segundo",
+    "other": "{{n}} segundos"
+  },
+  "uidMigrDurationMinutes": {
+    "one": "{{n}} minuto",
+    "other": "{{n}} minutos"
+  }
 }

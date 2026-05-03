@@ -305,7 +305,10 @@
   "rackAutoFill": "Remplir auto",
   "rackAutoFillTip": "Place les bobines non rangées dans les slots vides non verrouillés",
   "rackLockedTip": "Verrouillé · clic-droit sur un slot pour (dé)verrouiller",
-  "rackStatsRacks": {"one": "rack", "other": "racks"},
+  "rackStatsRacks": {
+    "one": "rack",
+    "other": "racks"
+  },
   "rackStatsSlots": "slots",
   "rackStatsEmpty": "libres",
   "rackStatsLocked": "verrouillés",
@@ -373,5 +376,20 @@
   "rackClearAll": "Vider tout",
   "rackClearAllConfirm": "Vider toutes les bobines de « {{name}} » ? Elles retournent dans « Non rangées » (le rack reste).",
   "spoolMarkDeleted": "Retirer de l'inventaire",
-  "spoolMarkDeletedTip": "Maintiens 1,5s pour retirer cette bobine de l'inventaire (elle apparaîtra dans Paramètres → Debug → Deleted, restaurable depuis là)"
+  "spoolMarkDeletedTip": "Maintiens 1,5s pour retirer cette bobine de l'inventaire (elle apparaîtra dans Paramètres → Debug → Deleted, restaurable depuis là)",
+  "uidMigrConfirmTitle": "Mise à jour du format d'inventaire disponible",
+  "uidMigrConfirmMsg": "{{count}} bobines de votre inventaire utilisent l'ancien format de stockage. La mise à jour les convertit vers le nouveau format. Durée estimée : environ {{duration}} — veuillez ne pas fermer l'application pendant la mise à jour.",
+  "uidMigrConfirmRemind": "Me rappeler plus tard",
+  "uidMigrConfirmAccept": "Mettre à jour",
+  "uidMigrProgressTitle": "Mise à jour de l'inventaire en cours",
+  "uidMigrProgressMsg": "Votre inventaire est en cours de mise à jour vers un nouveau format de stockage plus efficace. Veuillez ne pas fermer l'application jusqu'à la fin. Chaque bobine ne prend qu'une fraction de seconde.",
+  "uidMigrProgressWarn": "⚠ Fermer l'application maintenant la reprendrait au prochain démarrage — mais pour une expérience optimale, laissez-la terminer.",
+  "uidMigrDurationSeconds": {
+    "one": "{{n}} seconde",
+    "other": "{{n}} secondes"
+  },
+  "uidMigrDurationMinutes": {
+    "one": "{{n}} minute",
+    "other": "{{n}} minutes"
+  }
 }

@@ -316,7 +316,10 @@
   "rackAutoFill": "Wypełnij auto",
   "rackAutoFillTip": "Umieszcza nieprzypisane szpule w pustych odblokowanych slotach",
   "rackLockedTip": "Zablokowane · prawy klik na slocie aby (od)blokować",
-  "rackStatsRacks": {"one": "regał", "other": "regały"},
+  "rackStatsRacks": {
+    "one": "regał",
+    "other": "regały"
+  },
   "rackStatsSlots": "sloty",
   "rackStatsEmpty": "wolne",
   "rackStatsLocked": "zablokowane",
@@ -384,5 +387,20 @@
   "rackClearAll": "Opróżnij wszystko",
   "rackClearAllConfirm": "Opróżnić wszystkie szpule z \"{{name}}\"? Wrócą do \"Nieprzypisanych\" (regał pozostaje).",
   "spoolMarkDeleted": "Usuń z inwentarza",
-  "spoolMarkDeletedTip": "Przytrzymaj 1,5s aby usunąć tę szpulę z inwentarza (pojawi się w Ustawienia → Debug → Deleted, można ją tam przywrócić)"
+  "spoolMarkDeletedTip": "Przytrzymaj 1,5s aby usunąć tę szpulę z inwentarza (pojawi się w Ustawienia → Debug → Deleted, można ją tam przywrócić)",
+  "uidMigrConfirmTitle": "Dostępna aktualizacja formatu inwentarza",
+  "uidMigrConfirmMsg": "{{count}} szpul w Twoim inwentarzu używa starego formatu przechowywania. Aktualizacja konwertuje je do nowego formatu. Szacowany czas: około {{duration}} — proszę nie zamykać aplikacji w trakcie.",
+  "uidMigrConfirmRemind": "Przypomnij mi później",
+  "uidMigrConfirmAccept": "Zaktualizuj teraz",
+  "uidMigrProgressTitle": "Aktualizacja formatu inwentarza w toku",
+  "uidMigrProgressMsg": "Twój inwentarz jest aktualizowany do nowego, bardziej wydajnego formatu przechowywania. Proszę nie zamykać aplikacji do zakończenia. Każda szpula zajmuje tylko ułamek sekundy.",
+  "uidMigrProgressWarn": "⚠ Zamknięcie aplikacji teraz wznowiłoby ją przy następnym uruchomieniu — ale dla najlepszego doświadczenia pozwól jej zakończyć.",
+  "uidMigrDurationSeconds": {
+    "one": "{{n}} sekunda",
+    "other": "{{n}} sekund"
+  },
+  "uidMigrDurationMinutes": {
+    "one": "{{n}} minuta",
+    "other": "{{n}} minut"
+  }
 }

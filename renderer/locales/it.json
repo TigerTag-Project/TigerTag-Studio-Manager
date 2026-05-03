@@ -305,7 +305,10 @@
   "rackAutoFill": "Riempi auto",
   "rackAutoFillTip": "Inserisce le bobine non assegnate negli slot vuoti sbloccati",
   "rackLockedTip": "Bloccato · clic-destro su uno slot per (s)bloccare",
-  "rackStatsRacks": {"one": "rastrelliera", "other": "rastrelliere"},
+  "rackStatsRacks": {
+    "one": "rastrelliera",
+    "other": "rastrelliere"
+  },
   "rackStatsSlots": "slot",
   "rackStatsEmpty": "liberi",
   "rackStatsLocked": "bloccati",
@@ -373,5 +376,20 @@
   "rackClearAll": "Svuota tutto",
   "rackClearAllConfirm": "Rimuovere tutte le bobine da \"{{name}}\"? Torneranno in \"Non assegnate\" (lo scaffale rimane).",
   "spoolMarkDeleted": "Rimuovi dall'inventario",
-  "spoolMarkDeletedTip": "Tieni premuto 1,5s per rimuovere questa bobina dall'inventario (apparirà in Impostazioni → Debug → Deleted, ripristinabile da lì)"
+  "spoolMarkDeletedTip": "Tieni premuto 1,5s per rimuovere questa bobina dall'inventario (apparirà in Impostazioni → Debug → Deleted, ripristinabile da lì)",
+  "uidMigrConfirmTitle": "Aggiornamento del formato dell'inventario disponibile",
+  "uidMigrConfirmMsg": "{{count}} bobine nel tuo inventario utilizzano il vecchio formato di archiviazione. L'aggiornamento le converte nel nuovo formato. Tempo stimato: circa {{duration}} — non chiudere l'app durante l'aggiornamento.",
+  "uidMigrConfirmRemind": "Ricordamelo più tardi",
+  "uidMigrConfirmAccept": "Aggiorna ora",
+  "uidMigrProgressTitle": "Aggiornamento del formato dell'inventario in corso",
+  "uidMigrProgressMsg": "Il tuo inventario viene aggiornato a un nuovo formato di archiviazione più efficiente. Non chiudere l'app fino al termine. Ogni bobina richiede solo una frazione di secondo.",
+  "uidMigrProgressWarn": "⚠ Chiudere l'app ora la riprenderebbe al prossimo avvio — ma per un'esperienza ottimale, lasciala finire.",
+  "uidMigrDurationSeconds": {
+    "one": "{{n}} secondo",
+    "other": "{{n}} secondi"
+  },
+  "uidMigrDurationMinutes": {
+    "one": "{{n}} minuto",
+    "other": "{{n}} minuti"
+  }
 }

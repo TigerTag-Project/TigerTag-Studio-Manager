@@ -305,7 +305,10 @@
   "rackAutoFill": "自动填充",
   "rackAutoFillTip": "将未排列的线轴放入空的未锁定槽位",
   "rackLockedTip": "已锁定 · 右键单击槽位以锁定/解锁",
-  "rackStatsRacks": {"one": "货架", "other": "货架"},
+  "rackStatsRacks": {
+    "one": "货架",
+    "other": "货架"
+  },
   "rackStatsSlots": "槽位",
   "rackStatsEmpty": "可用",
   "rackStatsLocked": "已锁定",
@@ -371,5 +374,20 @@
   "rackClearAll": "全部清空",
   "rackClearAllConfirm": "清空\"{{name}}\"中的所有线轴？它们将返回到\"未分配\"（货架保留）。",
   "spoolMarkDeleted": "从库存中移除",
-  "spoolMarkDeletedTip": "按住 1.5 秒以将此线轴从库存中移除（将出现在设置 → 调试 → Deleted 中，可从那里恢复）"
+  "spoolMarkDeletedTip": "按住 1.5 秒以将此线轴从库存中移除（将出现在设置 → 调试 → Deleted 中，可从那里恢复）",
+  "uidMigrConfirmTitle": "库存格式升级可用",
+  "uidMigrConfirmMsg": "您库存中的 {{count}} 个线轴使用旧存储格式。升级会将它们转换为新格式。预计时间：约 {{duration}} — 升级过程中请勿关闭应用程序。",
+  "uidMigrConfirmRemind": "稍后提醒我",
+  "uidMigrConfirmAccept": "立即更新",
+  "uidMigrProgressTitle": "库存格式升级进行中",
+  "uidMigrProgressMsg": "您的库存正在升级为新的、更高效的存储格式。请勿关闭应用程序，直到完成。每个线轴只需一瞬间。",
+  "uidMigrProgressWarn": "⚠ 现在关闭应用程序只会在下次启动时恢复 — 但为了获得最佳体验，请让它完成。",
+  "uidMigrDurationSeconds": {
+    "one": "{{n}} 秒",
+    "other": "{{n}} 秒"
+  },
+  "uidMigrDurationMinutes": {
+    "one": "{{n}} 分钟",
+    "other": "{{n}} 分钟"
+  }
 }

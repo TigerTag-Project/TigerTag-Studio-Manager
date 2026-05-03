@@ -302,7 +302,10 @@
   "rackAutoFill": "Auto-fill",
   "rackAutoFillTip": "Place unranked spools into empty unlocked slots",
   "rackLockedTip": "Locked · right-click a slot to lock/unlock",
-  "rackStatsRacks": {"one": "rack", "other": "racks"},
+  "rackStatsRacks": {
+    "one": "rack",
+    "other": "racks"
+  },
   "rackStatsSlots": "slots",
   "rackStatsEmpty": "free",
   "rackStatsLocked": "locked",
@@ -370,5 +373,20 @@
   "rackClearAll": "Clear all",
   "rackClearAllConfirm": "Clear all spools from \"{{name}}\"? They will be returned to \"Unranked spools\" (the rack stays).",
   "spoolMarkDeleted": "Remove from inventory",
-  "spoolMarkDeletedTip": "Hold 1.5s to remove this spool from your inventory (it will appear in Settings → Debug → Deleted, restorable from there)"
+  "spoolMarkDeletedTip": "Hold 1.5s to remove this spool from your inventory (it will appear in Settings → Debug → Deleted, restorable from there)",
+  "uidMigrConfirmTitle": "Inventory format upgrade available",
+  "uidMigrConfirmMsg": "{{count}} spools in your inventory use the legacy storage format. Upgrading converts them to the new format. Estimated time: about {{duration}} — please do not close the app while it's running.",
+  "uidMigrConfirmRemind": "Remind me later",
+  "uidMigrConfirmAccept": "Update now",
+  "uidMigrProgressTitle": "Inventory format upgrade in progress",
+  "uidMigrProgressMsg": "Your inventory is being upgraded to a new, more efficient storage format. Please do not close the app until this finishes. Each spool only takes a fraction of a second.",
+  "uidMigrProgressWarn": "⚠ Closing the app now would just resume on next launch — but for the cleanest experience, let it finish.",
+  "uidMigrDurationSeconds": {
+    "one": "{{n}} second",
+    "other": "{{n}} seconds"
+  },
+  "uidMigrDurationMinutes": {
+    "one": "{{n}} minute",
+    "other": "{{n}} minutes"
+  }
 }

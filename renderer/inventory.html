@@ -1020,6 +1020,51 @@
   </div>
 </div>
 
+<!-- ─── UID format migration — phase 1: user consent ───────────────────────
+     Asked once per session when Studio detects legacy decimal-format spool
+     ids. Three actions:
+       • Update now      → starts the migration (phase-2 lock-screen modal opens)
+       • Remind me later → snoozes for 24 h (persisted in localStorage)
+       • Later           → defers for the rest of this session only
+     If the user dismisses with the close X (top-right) we treat it as "Later". -->
+<div class="modal-overlay uid-migr-confirm-overlay" id="uidMigrationConfirmOverlay">
+  <div class="modal-card uid-migr-confirm-card" role="dialog" aria-labelledby="uidMigrationConfirmTitle">
+    <div class="uid-migr-icon uid-migr-confirm-icon"><span class="icon icon-refresh icon-22"></span></div>
+    <h2 class="uid-migr-title" id="uidMigrationConfirmTitle" data-i18n="uidMigrConfirmTitle">Inventory format upgrade available</h2>
+    <p class="uid-migr-msg" id="uidMigrationConfirmMsg">
+      <!-- Dynamic content with {{count}} — populated by JS t() at show time -->
+    </p>
+    <div class="uid-migr-confirm-actions">
+      <button class="ghost uid-migr-confirm-btn" id="uidMigrationConfirmRemind" data-i18n="uidMigrConfirmRemind">Remind me later</button>
+      <button class="primary uid-migr-confirm-btn" id="uidMigrationConfirmAccept" data-i18n="uidMigrConfirmAccept">Update now</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── UID format migration — phase 2: lock-screen progress ──────────────
+     Opens AFTER the user clicked "Update now" on phase 1. NON-DISMISSIBLE
+     while the queue drains. Cmd+Q during this phase pops a confirm dialog
+     in main.js (see migration:set-in-flight IPC). After the last commit it
+     transitions to a success state and auto-closes 1.8 s later. -->
+<div class="modal-overlay uid-migr-overlay" id="uidMigrationOverlay">
+  <div class="modal-card uid-migr-card" role="alertdialog" aria-live="polite" aria-busy="true">
+    <div class="uid-migr-icon"><span class="icon icon-refresh icon-22"></span></div>
+    <h2 class="uid-migr-title" id="uidMigrationTitle" data-i18n="uidMigrProgressTitle">Inventory format upgrade in progress</h2>
+    <p class="uid-migr-msg" id="uidMigrationMsg" data-i18n="uidMigrProgressMsg">
+      Your inventory is being upgraded to a new, more efficient storage format. Please do not close the app until this finishes. Each spool only takes a fraction of a second.
+    </p>
+    <div class="uid-migr-progress">
+      <div class="uid-migr-progress-track">
+        <div class="uid-migr-progress-fill" id="uidMigrationBar"></div>
+      </div>
+      <div class="uid-migr-count" id="uidMigrationCount">0 / 0</div>
+    </div>
+    <div class="uid-migr-warn" id="uidMigrationWarn" data-i18n="uidMigrProgressWarn">
+      ⚠ Closing the app now would just resume on next launch — but for the cleanest experience, let it finish.
+    </div>
+  </div>
+</div>
+
 <script src="lib/firebase/firebase-app-compat.js"></script>
 <script src="lib/firebase/firebase-auth-compat.js"></script>
 <script src="lib/firebase/firebase-firestore-compat.js"></script>

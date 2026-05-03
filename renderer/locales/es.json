@@ -305,7 +305,10 @@
   "rackAutoFill": "Llenar auto",
   "rackAutoFillTip": "Coloca las bobinas sin asignar en los espacios vacíos desbloqueados",
   "rackLockedTip": "Bloqueado · clic-derecho en un espacio para (des)bloquear",
-  "rackStatsRacks": {"one": "estantería", "other": "estanterías"},
+  "rackStatsRacks": {
+    "one": "estantería",
+    "other": "estanterías"
+  },
   "rackStatsSlots": "espacios",
   "rackStatsEmpty": "libres",
   "rackStatsLocked": "bloqueados",
@@ -373,5 +376,20 @@
   "rackClearAll": "Vaciar todo",
   "rackClearAllConfirm": "¿Vaciar todas las bobinas de \"{{name}}\"? Volverán a \"No asignadas\" (el estante permanece).",
   "spoolMarkDeleted": "Quitar del inventario",
-  "spoolMarkDeletedTip": "Mantén 1,5s para quitar esta bobina del inventario (aparecerá en Ajustes → Debug → Deleted, restaurable desde ahí)"
+  "spoolMarkDeletedTip": "Mantén 1,5s para quitar esta bobina del inventario (aparecerá en Ajustes → Debug → Deleted, restaurable desde ahí)",
+  "uidMigrConfirmTitle": "Actualización del formato de inventario disponible",
+  "uidMigrConfirmMsg": "{{count}} bobinas de su inventario usan el formato de almacenamiento antiguo. La actualización las convierte al nuevo formato. Tiempo estimado: aproximadamente {{duration}} — por favor, no cierre la aplicación mientras se ejecuta.",
+  "uidMigrConfirmRemind": "Recordarme más tarde",
+  "uidMigrConfirmAccept": "Actualizar ahora",
+  "uidMigrProgressTitle": "Actualización del formato de inventario en curso",
+  "uidMigrProgressMsg": "Su inventario se está actualizando a un nuevo formato de almacenamiento más eficiente. Por favor, no cierre la aplicación hasta que termine. Cada bobina solo tarda una fracción de segundo.",
+  "uidMigrProgressWarn": "⚠ Cerrar la aplicación ahora simplemente reanudaría en el próximo inicio — pero para una mejor experiencia, déjela terminar.",
+  "uidMigrDurationSeconds": {
+    "one": "{{n}} segundo",
+    "other": "{{n}} segundos"
+  },
+  "uidMigrDurationMinutes": {
+    "one": "{{n}} minuto",
+    "other": "{{n}} minutos"
+  }
 }

@@ -305,7 +305,10 @@
   "rackAutoFill": "Auto-Füllen",
   "rackAutoFillTip": "Nicht zugewiesene Spulen in leere freie Slots einsortieren",
   "rackLockedTip": "Gesperrt · Rechtsklick auf einen Slot zum (Ent)Sperren",
-  "rackStatsRacks": {"one": "Rack", "other": "Racks"},
+  "rackStatsRacks": {
+    "one": "Rack",
+    "other": "Racks"
+  },
   "rackStatsSlots": "Slots",
   "rackStatsEmpty": "frei",
   "rackStatsLocked": "gesperrt",
@@ -373,5 +376,20 @@
   "rackClearAll": "Alles leeren",
   "rackClearAllConfirm": "Alle Spulen aus \"{{name}}\" entfernen? Sie kehren zu \"Nicht zugewiesen\" zurück (das Regal bleibt).",
   "spoolMarkDeleted": "Aus dem Inventar entfernen",
-  "spoolMarkDeletedTip": "1,5s gedrückt halten, um diese Spule aus dem Inventar zu entfernen (sie erscheint in Einstellungen → Debug → Deleted, dort wiederherstellbar)"
+  "spoolMarkDeletedTip": "1,5s gedrückt halten, um diese Spule aus dem Inventar zu entfernen (sie erscheint in Einstellungen → Debug → Deleted, dort wiederherstellbar)",
+  "uidMigrConfirmTitle": "Inventarformat-Aktualisierung verfügbar",
+  "uidMigrConfirmMsg": "{{count}} Spulen in Ihrem Inventar verwenden das alte Speicherformat. Die Aktualisierung konvertiert sie ins neue Format. Geschätzte Dauer: ca. {{duration}} — bitte schließen Sie die App während der Aktualisierung nicht.",
+  "uidMigrConfirmRemind": "Später erinnern",
+  "uidMigrConfirmAccept": "Jetzt aktualisieren",
+  "uidMigrProgressTitle": "Inventarformat wird aktualisiert",
+  "uidMigrProgressMsg": "Ihr Inventar wird auf ein neues, effizienteres Speicherformat aktualisiert. Bitte schließen Sie die App nicht, bis dies abgeschlossen ist. Jede Spule dauert nur einen Bruchteil einer Sekunde.",
+  "uidMigrProgressWarn": "⚠ Wenn Sie die App jetzt schließen, wird sie beim nächsten Start fortgesetzt — aber für ein bestmögliches Erlebnis lassen Sie es bitte beenden.",
+  "uidMigrDurationSeconds": {
+    "one": "{{n}} Sekunde",
+    "other": "{{n}} Sekunden"
+  },
+  "uidMigrDurationMinutes": {
+    "one": "{{n}} Minute",
+    "other": "{{n}} Minuten"
+  }
 }

@@ -561,6 +561,13 @@
     $("sbStats").classList.add("hidden");
     // Hide the top-header user/friend chip when not signed in.
     $("friendViewBanner")?.classList.add("hidden");
+    // Reset migration consent flags so the next sign-in / account switch
+    // re-prompts the user. We deliberately do NOT clear the localStorage
+    // snooze — that's a per-machine, time-bounded preference that should
+    // outlive a sign-out.
+    _uidMigrationUserAccepted = false;
+    _uidMigrationDeferredThisSession = false;
+    _uidMigrationInitialSweepDone = false;
     $("signInPlaceholder").classList.remove("hidden");
     $("card-inv").classList.add("hidden");
     $("card-welcome").classList.add("hidden");
@@ -1335,6 +1342,26 @@
   const _uidMigrationQueue = [];        // [decimalId, ...] — pending
   let   _uidMigrationDraining = false;
   const _uidMigrationStats = { migrated: 0, skipped: 0, failed: 0 };
+  // ── UI state for the migration flow ─────────────────────────────────
+  // Two modals coordinate the experience:
+  //   1. Confirm modal — shown ONCE per session when decimal docs are
+  //      first detected. The user picks "Update now" / "Remind me later"
+  //      / "Later". Until they choose "Update now", we never queue a
+  //      migration.
+  //   2. Progress lock-screen — shown only after consent, while the
+  //      backlog is being drained. Once that initial sweep completes,
+  //      subsequent migrations (mobile app creating one new decimal doc
+  //      here and there) run silently — they're too quick to bother.
+  let   _uidMigrationInitialSweepDone = false;
+  let   _uidMigrationModalOpen        = false;
+  let   _uidMigrationInitialTotal     = 0;
+  // User-consent gating — read at the start of every snapshot. Reset on
+  // every sign-out / account switch / app launch, which is exactly what
+  // we want: "Remind me later" defers for the current session only and
+  // re-prompts on the next launch. No persistent snooze.
+  let   _uidMigrationUserAccepted     = false;
+  let   _uidMigrationDeferredThisSession = false;
+  let   _uidMigrationConfirmOpen      = false;
   // Pure decimal string check. We exclude leading zeros (other than the
   // standalone "0") because a real BigInt's toString() never has them —
   // a leading zero would mean someone wrote a malformed id we shouldn't
@@ -1350,12 +1377,164 @@
   function maybeMigrateDecimalSpoolIds(ownerUid) {
     if (state.friendView) return;
     if (!ownerUid || !state.inventory) return;
+    // Consent gating — never enqueue or migrate without explicit user
+    // acceptance. The user can defer this session ("Remind me later")
+    // or accept ("Update now"). The deferred flag resets on sign-out /
+    // account switch / app relaunch, so the prompt re-fires next session.
+    if (_uidMigrationDeferredThisSession) return;
+    // Count decimal docs visible in the current snapshot
+    const decimalIds = [];
     for (const docId of Object.keys(state.inventory)) {
-      if (!isDecimalSpoolId(docId)) continue;
-      if (_uidMigrationQueue.includes(docId)) continue;
-      _uidMigrationQueue.push(docId);
+      if (isDecimalSpoolId(docId)) decimalIds.push(docId);
     }
-    drainUidMigrationQueue(ownerUid);
+    if (decimalIds.length === 0) return;
+    // Branch 1 — user already accepted earlier in this session: just
+    // enqueue any newly-discovered decimal docs (mobile app concurrent
+    // writes) and let the drain run.
+    if (_uidMigrationUserAccepted) {
+      let queuedNow = 0;
+      for (const docId of decimalIds) {
+        if (_uidMigrationQueue.includes(docId)) continue;
+        _uidMigrationQueue.push(docId);
+        queuedNow++;
+      }
+      // First-sweep heuristic — only show the progress modal when the
+      // backlog is non-trivial. Subsequent single-doc concurrent
+      // migrations during the same session run silently.
+      if (!_uidMigrationInitialSweepDone &&
+          !_uidMigrationModalOpen &&
+          _uidMigrationQueue.length >= 3) {
+        _uidMigrationInitialTotal = _uidMigrationQueue.length;
+        showUidMigrationModal(_uidMigrationInitialTotal);
+        _uidMigrationModalOpen = true;
+      }
+      if (_uidMigrationModalOpen && queuedNow > 0) {
+        const completed = _uidMigrationStats.migrated + _uidMigrationStats.skipped + _uidMigrationStats.failed;
+        _uidMigrationInitialTotal = Math.max(
+          _uidMigrationInitialTotal,
+          completed + _uidMigrationQueue.length
+        );
+        updateUidMigrationModalProgress(completed, _uidMigrationInitialTotal);
+      }
+      drainUidMigrationQueue(ownerUid);
+      return;
+    }
+    // Branch 2 — first time we discover decimal docs this session and
+    // the user hasn't been asked yet: pop the consent modal. Until they
+    // click "Update now", we don't enqueue anything.
+    if (!_uidMigrationConfirmOpen) {
+      showUidMigrationConfirmModal(decimalIds.length, ownerUid);
+    }
+  }
+
+  // ── Phase 1 — consent modal ──────────────────────────────────────────
+  // Estimated migration duration based on observed throughput (~0.75 s
+  // per spool when the queue is small enough for the 250 ms politeness
+  // gap, ~1.0 s per spool above the 50-spool threshold which triggers
+  // the 500 ms gap). The estimate is rounded to a humane unit (whole
+  // seconds below 60, whole minutes above) and pluralised via i18n.
+  function estimateMigrationDurationSeconds(spoolCount) {
+    if (spoolCount <= 0) return 0;
+    if (spoolCount <= 50) return Math.round(spoolCount * 0.75);
+    return Math.round(50 * 0.75 + (spoolCount - 50) * 1.0);
+  }
+  function formatMigrationDuration(spoolCount) {
+    const sec = estimateMigrationDurationSeconds(spoolCount);
+    if (sec < 60) {
+      const n = Math.max(1, sec);   // never display "0 seconds"
+      return t("uidMigrDurationSeconds", { n });
+    }
+    const minutes = Math.max(1, Math.round(sec / 60));
+    return t("uidMigrDurationMinutes", { n: minutes });
+  }
+
+  function showUidMigrationConfirmModal(decimalCount, ownerUid) {
+    const overlay = $("uidMigrationConfirmOverlay");
+    if (!overlay) return;
+    _uidMigrationConfirmOpen = true;
+    // Title + buttons get translated from data-i18n via applyTranslations(),
+    // but the message carries a `{{count}}` and a `{{duration}}` that we
+    // can only resolve once we know the spool count, so we render it here.
+    const titleEl = $("uidMigrationConfirmTitle");
+    const msgEl   = $("uidMigrationConfirmMsg");
+    const remindBtn = $("uidMigrationConfirmRemind");
+    const acceptBtn = $("uidMigrationConfirmAccept");
+    const duration = formatMigrationDuration(decimalCount);
+    if (titleEl)   titleEl.textContent   = t("uidMigrConfirmTitle");
+    if (msgEl)     msgEl.textContent     = t("uidMigrConfirmMsg", { count: decimalCount, duration });
+    if (remindBtn) remindBtn.textContent = t("uidMigrConfirmRemind");
+    if (acceptBtn) acceptBtn.textContent = t("uidMigrConfirmAccept");
+    overlay.classList.add("open");
+
+    // Re-bind buttons every time we open. We replace the nodes with a
+    // clone to drop any previously attached listener — simpler than
+    // tracking handler references across multiple opens.
+    const rebind = (id, handler) => {
+      const old = $(id);
+      if (!old) return;
+      const fresh = old.cloneNode(true);
+      old.parentNode.replaceChild(fresh, old);
+      fresh.addEventListener("click", handler);
+    };
+
+    rebind("uidMigrationConfirmAccept", () => {
+      _uidMigrationConfirmOpen = false;
+      _uidMigrationUserAccepted = true;
+      overlay.classList.remove("open");
+      // Re-trigger the snapshot path so we enqueue + drain right away.
+      maybeMigrateDecimalSpoolIds(ownerUid);
+    });
+    rebind("uidMigrationConfirmRemind", () => {
+      _uidMigrationConfirmOpen = false;
+      // Defer this session only — the prompt will re-fire on the next
+      // app launch / sign-in (no persistent snooze).
+      _uidMigrationDeferredThisSession = true;
+      overlay.classList.remove("open");
+    });
+  }
+
+  // ── Modal helpers — full lock-screen during the initial sweep ────────
+  function showUidMigrationModal(total) {
+    const overlay = $("uidMigrationOverlay");
+    if (!overlay) return;
+    overlay.classList.add("open");
+    const card = overlay.querySelector(".uid-migr-card");
+    card?.classList.remove("uid-migr--done");
+    // Translate the static text via i18n on every open so a language
+    // switch between sessions takes effect.
+    const titleEl = $("uidMigrationTitle");
+    const msgEl   = $("uidMigrationMsg");
+    const warnEl  = $("uidMigrationWarn");
+    if (titleEl) titleEl.textContent = t("uidMigrProgressTitle");
+    if (msgEl)   msgEl.textContent   = t("uidMigrProgressMsg");
+    if (warnEl)  warnEl.textContent  = t("uidMigrProgressWarn");
+    updateUidMigrationModalProgress(0, total);
+    // Tell main we're in flight so Cmd+Q gets a confirm dialog. Ignored
+    // gracefully if running outside Electron (web build).
+    try { window.electronAPI?.setMigrationInFlight?.(true); } catch {}
+  }
+  function updateUidMigrationModalProgress(done, total) {
+    const countEl = $("uidMigrationCount");
+    const barEl   = $("uidMigrationBar");
+    if (!countEl || !barEl) return;
+    countEl.textContent = `${done} / ${total}`;
+    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+    barEl.style.width = `${pct}%`;
+  }
+  function hideUidMigrationModalWithSuccess() {
+    const overlay = $("uidMigrationOverlay");
+    if (!overlay) return;
+    const card = overlay.querySelector(".uid-migr-card");
+    // Show "done" state for ~1.8 s so the user gets a clear "OK it's
+    // finished" cue before we whisk the modal away.
+    card?.classList.add("uid-migr--done");
+    updateUidMigrationModalProgress(_uidMigrationInitialTotal, _uidMigrationInitialTotal);
+    // Release the quit-block so future Cmd+Q goes through immediately.
+    try { window.electronAPI?.setMigrationInFlight?.(false); } catch {}
+    setTimeout(() => {
+      overlay.classList.remove("open");
+      card?.classList.remove("uid-migr--done");
+    }, 1800);
   }
 
   async function drainUidMigrationQueue(ownerUid) {
@@ -1374,12 +1553,36 @@
           console.warn("[uidMigration] failed", decimalId, e?.message || e);
           _uidMigrationStats.failed++;
         }
-        // Politeness — small gap between writes so we don't dominate the
-        // user's Firestore quota during initial backfill.
-        await new Promise(r => setTimeout(r, 200));
+        // Live progress update on the modal (if it's up). Total may have
+        // grown since we started thanks to mobile-app concurrent writes;
+        // maybeMigrateDecimalSpoolIds bumped the total in that case.
+        if (_uidMigrationModalOpen) {
+          const completed = _uidMigrationStats.migrated + _uidMigrationStats.skipped + _uidMigrationStats.failed;
+          updateUidMigrationModalProgress(completed, _uidMigrationInitialTotal);
+        }
+        // Politeness — small gap between writes so we don't burst the
+        // user's per-second Firestore quota during initial backfill.
+        // Adaptive: slow down further if the backlog is huge (the user
+        // can't tell the difference between 50 spools/min and 100, but
+        // we don't want to blow past Firestore's per-document write
+        // throughput cap or the project's daily write quota).
+        //
+        // Per-migration cost: 1 doc.get() + 1 limit(2) query + 1 batch
+        // commit (3-5 ops). Default cadence ≈ 4 spools/sec, halved when
+        // the queue exceeds 50 to keep large user backlogs well-behaved.
+        const gapMs = _uidMigrationQueue.length > 50 ? 500 : 250;
+        await new Promise(r => setTimeout(r, gapMs));
       }
     } finally {
       _uidMigrationDraining = false;
+      // First-sweep done — close the modal with a success state. Future
+      // single-doc migrations during the same session run silently.
+      if (_uidMigrationModalOpen && _uidMigrationQueue.length === 0) {
+        _uidMigrationInitialSweepDone = true;
+        _uidMigrationModalOpen = false;
+        hideUidMigrationModalWithSuccess();
+        console.log(`[uidMigration] initial sweep done — migrated:${_uidMigrationStats.migrated} skipped:${_uidMigrationStats.skipped} failed:${_uidMigrationStats.failed}`);
+      }
     }
   }
 
@@ -1422,8 +1625,13 @@
 
     // Find every OTHER inventory doc whose twin_tag_uid pointed at this
     // decimal id — typically one (the twin partner) but theoretically zero
-    // or more.
-    const reverseTwins = await invRef.where("twin_tag_uid", "==", decimalId).get();
+    // or more. limit(2) keeps the query polite vs. the soft-rollout
+    // `request.query.limit` rule in firestore.rules and detects the
+    // anomaly case where >1 docs reference the same id (data corruption).
+    const reverseTwins = await invRef
+      .where("twin_tag_uid", "==", decimalId)
+      .limit(2)
+      .get();
 
     const batch = db.batch();
     // merge:true so a partial decimal stub re-written by the mobile app
@@ -4309,8 +4517,24 @@
     if (ts.seconds != null) return ts.seconds * 1000 + Math.round((ts.nanoseconds || 0) / 1e6);
     return tsToMs(ts) || 0;
   }
+  // ── Scale v2 field accessors ───────────────────────────────────────
+  // Studio Manager reads scale documents using the v2 schema documented
+  // in `tigerscale-doc-schema.md` — no v1 fallback. Firmwares writing
+  // the legacy v1 names (`last_seen`, `last_spool`, `name`, `rssi`,
+  // `battery_pct`) will appear OFFLINE / unnamed in the UI until they
+  // are updated to v2. This is intentional: forcing a clean cut keeps
+  // the codebase from accumulating dual-read shims indefinitely.
+  function scaleHeartbeatAt(s)        { return s?.last_heartbeat_at   ?? null; }
+  function scaleDisplayName(s)        { return s?.display_name        ?? null; }
+  function scaleCurrentSpoolUid1(s)   { return s?.current_spool_uid_1 ?? null; }
+  function scaleCurrentSpoolUid2(s)   { return s?.current_spool_uid_2 ?? null; }
+  function scaleWifiSignalDbm(s)      { return s?.wifi_signal_dbm     ?? null; }
+  function scaleBatteryPercent(s)     { return s?.battery_percent     ?? null; }
+  function scaleIsCharging(s)         { return s?.is_charging         ?? null; }
+  function scalePowerSource(s)        { return s?.power_source        ?? null; }
+  function scaleHardwareRevision(s)   { return s?.hardware_revision   ?? null; }
   function isScaleOnline(s) {
-    return Date.now() - scaleTsToMs(s?.last_seen) < SCALE_ONLINE_THRESHOLD_MS;
+    return Date.now() - scaleTsToMs(scaleHeartbeatAt(s)) < SCALE_ONLINE_THRESHOLD_MS;
   }
 
   // Update the header status icon — three visual tiers:
@@ -4363,36 +4587,57 @@
     }
     body.innerHTML = state.scales.map(s => {
       const online = isScaleOnline(s);
-      const lastSeenMs = scaleTsToMs(s.last_seen);
+      const lastSeenMs = scaleTsToMs(scaleHeartbeatAt(s));
       const lastSeenStr = lastSeenMs ? agoString(lastSeenMs) : "—";
-      // Try to match the last_spool against the current inventory for nice display
-      let lastBlock = `<div class="scale-last-empty">${esc(t("scaleNoActivity"))}</div>`;
-      const ls = s.last_spool;
-      if (ls && (ls.uid_a || ls.uid_b)) {
-        const targetUid = String(ls.uid_a || ls.uid_b);
-        const r = state.rows.find(x => String(x.uid) === targetUid || String(x.spoolId) === targetUid)
-              || (ls.uid_b && state.rows.find(x => String(x.uid) === String(ls.uid_b) || String(x.spoolId) === String(ls.uid_b)));
-        const fillBg = r ? colorBg(r) : "rgba(150,150,150,.2)";
+      // v2 schema: current_spool_uid_1 / _2 are plain UID strings (the
+      // ids of the inventory docs the firmware just detected on the
+      // platform). We cross-reference against state.rows to render the
+      // friendly title / colour / brand / live remaining weight.
+      const uid1 = scaleCurrentSpoolUid1(s);
+      const uid2 = scaleCurrentSpoolUid2(s);
+      const findRowByUid = uid => state.rows.find(x =>
+        String(x.uid) === String(uid) || String(x.spoolId) === String(uid));
+      const renderSpool = (uid) => {
+        if (!uid) return "";
+        const r = findRowByUid(uid);
+        const fillBg   = r ? colorBg(r) : "rgba(150,150,150,.2)";
         const fillHtml = r ? slotFillInnerHTML(r) : "";
-        const titleLine = r?.colorName !== "-" && r?.colorName ? r.colorName : (r?.material || targetUid);
-        const subLine   = r ? [r.brand, r.material].filter(Boolean).join(" · ") : `uid=${targetUid}`;
-        const wAvail    = ls.weight_available != null ? ls.weight_available : (r?.weightAvailable ?? "—");
-        const wRaw      = ls.weight_raw != null ? `raw ${ls.weight_raw}g` : "";
-        lastBlock = `
+        const titleLn  = r?.colorName && r.colorName !== "-" ? r.colorName : (r?.material || uid);
+        const subLn    = r ? [r.brand, r.material].filter(Boolean).join(" · ") : `uid=${uid}`;
+        const wAvail   = r?.weightAvailable ?? "—";
+        return `
           <div class="scale-last-spool">
             <div class="scale-last-puck" style="background:${fillBg}">${fillHtml}</div>
             <div class="scale-last-meta">
-              <div class="scale-last-name">${esc(String(titleLine))}</div>
-              <div class="scale-last-sub">${esc(subLine)}${wRaw ? " · " + esc(wRaw) : ""}</div>
+              <div class="scale-last-name">${esc(String(titleLn))}</div>
+              <div class="scale-last-sub">${esc(subLn)}</div>
             </div>
             <div class="scale-last-w">${esc(String(wAvail))}<span class="scale-last-w-unit">g</span></div>
           </div>`;
+      };
+      // If both UIDs reference the same physical spool (twin tags),
+      // render one card; otherwise render both. We detect twin pairs
+      // by checking whether one row's twin_tag_uid points at the
+      // other UID.
+      let lastBlock;
+      if (!uid1 && !uid2) {
+        lastBlock = `<div class="scale-last-empty">${esc(t("scaleNoActivity"))}</div>`;
+      } else if (uid1 && uid2) {
+        const r1 = findRowByUid(uid1);
+        const r2 = findRowByUid(uid2);
+        const isTwinPair = r1?.twinUid && (String(r1.twinUid) === String(uid2)) ||
+                           r2?.twinUid && (String(r2.twinUid) === String(uid1));
+        lastBlock = isTwinPair ? renderSpool(uid1) : (renderSpool(uid1) + renderSpool(uid2));
+      } else {
+        lastBlock = renderSpool(uid1 || uid2);
       }
+      const dispName = scaleDisplayName(s) || "TigerScale";
+      const battery  = scaleBatteryPercent(s);
       return `<div class="scale-card${online ? " is-online" : ""}" data-scale-mac="${esc(s.mac)}">
         <div class="scale-card-head">
           <span class="scale-card-status" title="${online ? "online" : "offline"}"></span>
           <div class="scale-card-info">
-            <div class="scale-card-name">${esc(s.name || "TigerScale")}</div>
+            <div class="scale-card-name">${esc(dispName)}</div>
             <div class="scale-card-meta">${esc(s.mac)} · ${online ? t("scaleStatusOnline") : `${t("scaleStatusOffline")} · ${esc(lastSeenStr)}`}</div>
           </div>
           <div class="scale-card-actions">
@@ -4402,7 +4647,7 @@
         ${lastBlock}
         <div class="scale-card-fw">
           ${s.fw_version ? `fw ${esc(s.fw_version)}` : ""}
-          ${s.battery_pct != null ? `· ${esc(String(s.battery_pct))}% battery` : ""}
+          ${battery != null ? `· ${esc(String(battery))}% battery` : ""}
         </div>
       </div>`;
     }).join("");
@@ -4415,7 +4660,7 @@
         if (!mac) return;
         const s = state.scales.find(x => x.mac === mac);
         if (!s) return;
-        if (!confirm(t("scaleRemoveConfirm", { name: s.name || mac }))) return;
+        if (!confirm(t("scaleRemoveConfirm", { name: scaleDisplayName(s) || mac }))) return;
         try {
           const uid = state.activeAccountId;
           await fbDb(uid).collection("users").doc(uid).collection("scales").doc(mac).delete();

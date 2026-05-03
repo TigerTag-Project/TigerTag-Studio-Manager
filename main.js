@@ -495,6 +495,48 @@ function initUpdater() {
 }
 
 // IPC: renderer asks to install downloaded update
+// ─────────────────────────────────────────────────────────────────────────
+// UID migration — block accidental app quit during the initial sweep
+// ─────────────────────────────────────────────────────────────────────────
+//
+// Tiger Studio Manager migrates legacy decimal-format inventory ids to hex
+// uppercase in the background (see renderer/inventory.js). On the first
+// launch after the new mobile-app-version cutover, a user with a large
+// pre-existing inventory may have several hundred docs to migrate, taking
+// 30–120 seconds. The renderer puts up a lock-screen modal saying "do not
+// close the app", but a determined user can still hit Cmd+Q.
+//
+// The renderer signals via the `migration:set-in-flight` IPC when the
+// sweep starts/ends. While in flight, we intercept `before-quit` and
+// `mainWindow.close` events and pop a confirm dialog: leaving mid-sweep
+// is safe (next launch resumes), but we want the user to KNOW that.
+let _migrationInFlight = false;
+ipcMain.on('migration:set-in-flight', (_evt, inFlight) => {
+  _migrationInFlight = !!inFlight;
+});
+
+const { dialog } = require('electron');
+let _quitConfirmedDuringMigration = false;
+app.on('before-quit', (event) => {
+  if (!_migrationInFlight || _quitConfirmedDuringMigration) return;
+  // Block this quit attempt and ask the user to confirm
+  event.preventDefault();
+  if (mainWindow) mainWindow.show();
+  const choice = dialog.showMessageBoxSync(mainWindow, {
+    type:    'warning',
+    title:   'Migration in progress',
+    message: 'Inventory upgrade is still running.',
+    detail:  'Closing now is safe — the migration will resume the next time you open Tiger Studio Manager — but for the cleanest experience, please let it finish (it usually takes less than a minute).\n\nQuit anyway?',
+    buttons: ['Wait for it to finish', 'Quit anyway'],
+    defaultId: 0,
+    cancelId:  0,
+  });
+  if (choice === 1) {
+    _quitConfirmedDuringMigration = true;
+    app.quit();   // re-trigger the quit, this time we let it through
+  }
+});
+
 ipcMain.on('install-update', () => {
   autoUpdater.quitAndInstall();
 });

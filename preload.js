@@ -47,6 +47,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // inert. Resolves with `{ ok, idToken, accessToken }` or `{ ok:false, error }`.
   signInWithGoogleLoopback: () => ipcRenderer.invoke('auth:google-loopback'),
 
+  // ── UID migration in-flight signal ─────────────────────────────────────
+  // Renderer announces when the inventory migration sweep starts and
+  // finishes. Main uses this to intercept Cmd+Q / window close and prompt
+  // the user before letting them quit mid-migration (which would leave
+  // a partial state, even though the next launch would resume cleanly).
+  setMigrationInFlight: (inFlight) => ipcRenderer.send('migration:set-in-flight', !!inFlight),
+
   // ── App info (version / platform — used by the diagnostic report) ──────
   getAppInfo: () => ipcRenderer.invoke('app:info'),
 

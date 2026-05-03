@@ -317,7 +317,10 @@
   "rackAutoFill": "Preencher auto",
   "rackAutoFillTip": "Coloca bobinas não atribuídas em espaços vazios e desbloqueados",
   "rackLockedTip": "Bloqueado · clique-direito em um espaço para (des)bloquear",
-  "rackStatsRacks": {"one": "rack", "other": "racks"},
+  "rackStatsRacks": {
+    "one": "rack",
+    "other": "racks"
+  },
   "rackStatsSlots": "espaços",
   "rackStatsEmpty": "livres",
   "rackStatsLocked": "bloqueados",
@@ -385,5 +388,20 @@
   "rackClearAll": "Esvaziar tudo",
   "rackClearAllConfirm": "Esvaziar todas as bobinas de \"{{name}}\"? Elas voltarão para \"Não atribuídas\" (a prateleira permanece).",
   "spoolMarkDeleted": "Remover do inventário",
-  "spoolMarkDeletedTip": "Mantenha 1,5s para remover esta bobina do inventário (aparecerá em Configurações → Debug → Deleted, restaurável a partir daí)"
+  "spoolMarkDeletedTip": "Mantenha 1,5s para remover esta bobina do inventário (aparecerá em Configurações → Debug → Deleted, restaurável a partir daí)",
+  "uidMigrConfirmTitle": "Atualização do formato de inventário disponível",
+  "uidMigrConfirmMsg": "{{count}} bobinas no seu inventário usam o formato de armazenamento legado. A atualização as converte para o novo formato. Tempo estimado: cerca de {{duration}} — por favor, não feche o aplicativo durante a atualização.",
+  "uidMigrConfirmRemind": "Lembrar-me mais tarde",
+  "uidMigrConfirmAccept": "Atualizar agora",
+  "uidMigrProgressTitle": "Atualização do formato de inventário em andamento",
+  "uidMigrProgressMsg": "Seu inventário está sendo atualizado para um novo formato de armazenamento mais eficiente. Por favor, não feche o aplicativo até concluir. Cada bobina leva apenas uma fração de segundo.",
+  "uidMigrProgressWarn": "⚠ Fechar o aplicativo agora apenas retomaria na próxima inicialização — mas para a melhor experiência, deixe terminar.",
+  "uidMigrDurationSeconds": {
+    "one": "{{n}} segundo",
+    "other": "{{n}} segundos"
+  },
+  "uidMigrDurationMinutes": {
+    "one": "{{n}} minuto",
+    "other": "{{n}} minutos"
+  }
 }

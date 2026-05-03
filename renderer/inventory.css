@@ -2836,6 +2836,162 @@
     background: var(--danger) !important; color: #fff !important;
   }
 
+  /* ── UID format migration overlay ─────────────────────────────────────
+     Lock-screen modal shown while Tiger Studio is migrating legacy
+     decimal-format inventory ids to the new hex canonical form. Z-index
+     above everything so the user CAN'T interact with the rest of the UI
+     and CAN'T dismiss the modal until the queue drains. The message
+     explicitly warns the user not to close the app. */
+  .uid-migr-overlay {
+    z-index: 10000;
+  }
+  .uid-migr-card {
+    max-width: 480px;
+    text-align: center;
+    padding: 32px 28px 28px;
+  }
+  .uid-migr-icon {
+    width: 64px; height: 64px;
+    margin: 0 auto 18px;
+    border-radius: 50%;
+    background: var(--primary-soft, rgba(255,122,24,.12));
+    display: flex; align-items: center; justify-content: center;
+    color: var(--primary);
+    animation: uidMigrSpin 1.6s linear infinite;
+  }
+  .uid-migr-icon .icon {
+    background: var(--primary);
+    width: 28px; height: 28px;
+  }
+  .uid-migr-card.uid-migr--done .uid-migr-icon {
+    background: rgba(16,185,129,.14);
+    color: #10b981;
+    animation: none;
+  }
+  .uid-migr-card.uid-migr--done .uid-migr-icon .icon {
+    background: #10b981;
+    /* Switch from refresh-arrow to check via mask swap */
+    -webkit-mask-image: url('../assets/svg/icons/icon_check.svg');
+            mask-image: url('../assets/svg/icons/icon_check.svg');
+  }
+  @keyframes uidMigrSpin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
+  .uid-migr-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text);
+    margin: 0 0 12px;
+    letter-spacing: -.01em;
+  }
+  .uid-migr-msg {
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.5;
+    margin: 0 0 22px;
+  }
+  .uid-migr-msg strong {
+    color: var(--text);
+    font-weight: 700;
+  }
+  .uid-migr-progress {
+    margin-bottom: 16px;
+  }
+  .uid-migr-progress-track {
+    height: 8px;
+    background: var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 8px;
+  }
+  .uid-migr-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary), #ffb056);
+    width: 0%;
+    transition: width .25s ease;
+    border-radius: 8px;
+  }
+  .uid-migr-count {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+  .uid-migr-warn {
+    font-size: 12px;
+    color: var(--muted);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    line-height: 1.4;
+  }
+  .uid-migr-card.uid-migr--done .uid-migr-warn {
+    display: none;
+  }
+  .uid-migr-card.uid-migr--done .uid-migr-msg {
+    /* In success state, simplify to a one-liner */
+    display: none;
+  }
+  .uid-migr-card.uid-migr--done .uid-migr-title::after {
+    content: " — done";
+    color: #10b981;
+  }
+
+  /* ── Confirm modal (phase 1) — user consent before migration starts ──
+     Same visual base as the progress modal but DISMISSIBLE, with three
+     action buttons. The icon doesn't spin (no operation in progress yet). */
+  .uid-migr-confirm-card {
+    max-width: 480px;
+    text-align: center;
+    padding: 32px 28px 24px;
+  }
+  .uid-migr-confirm-icon {
+    animation: none;          /* override the spinning animation from .uid-migr-icon */
+  }
+  #uidMigrationConfirmCount {
+    font-weight: 700;
+    color: var(--text);
+  }
+  .uid-migr-confirm-actions {
+    display: flex; flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 20px;
+  }
+  .uid-migr-confirm-btn {
+    flex: 1 1 auto;
+    min-width: 110px;
+    height: 38px;
+    padding: 0 18px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background .15s, border-color .15s, color .15s;
+  }
+  .uid-migr-confirm-btn.ghost {
+    background: transparent;
+    border: 1.5px solid var(--border);
+    color: var(--text);
+  }
+  .uid-migr-confirm-btn.ghost:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: var(--primary-soft, rgba(255,122,24,.06));
+  }
+  .uid-migr-confirm-btn.primary {
+    background: var(--primary);
+    border: 1.5px solid var(--primary);
+    color: #fff;
+    box-shadow: 0 2px 10px rgba(255,122,24,.25);
+  }
+  .uid-migr-confirm-btn.primary:hover {
+    background: var(--primary-hover, #ff8a30);
+  }
+
   /* Friend view — full error state inside card-inv */
   .friend-inv-error {
     text-align: center;
