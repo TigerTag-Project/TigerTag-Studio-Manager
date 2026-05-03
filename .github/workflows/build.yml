@@ -144,9 +144,19 @@ jobs:
         # v3.0.0 (2026-04-12) moved the action runtime from Node 20 to
         # Node 24, silencing the GitHub Actions deprecation warning that
         # v2.6.2 emits. Same inputs/outputs, no breaking API changes.
+        #
+        # `draft: true` matches the `releaseType: "draft"` set in
+        # package.json so electron-builder (mac/linux) and softprops
+        # (windows) agree on the same release type. With a mismatch,
+        # the second tool to fire either skips its uploads or creates
+        # a duplicate release. The release stays in draft until manually
+        # promoted via the GitHub UI — that's how we want it: lets us
+        # verify all artifacts are present + spot a broken build
+        # before the auto-updater picks the new version.
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.ref_name }}
+          draft: true
           files: |
             dist/*.exe
             dist/*.exe.blockmap
