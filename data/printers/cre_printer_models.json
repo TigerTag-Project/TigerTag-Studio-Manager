@@ -1,0 +1,74 @@
+[
+  {
+    "id": "1",
+    "name": "Hi",
+    "image": "assets/images/cre_printers/hi.png",
+    "features": ["CFS", "Camera"]
+  },
+  {
+    "id": "10",
+    "name": "Ender-3 V4",
+    "image": "assets/images/cre_printers/ender3v4.png",
+    "features": ["CFS", "Camera"]
+  },
+  {
+    "id": "11",
+    "name": "SparkX i7",
+    "image": "assets/images/cre_printers/sparkx_i7.png",
+    "features": ["CFS Lite", "Camera"]
+  },
+  {
+    "id": "2",
+    "name": "K2 Plus",
+    "image": "assets/images/cre_printers/k2plus.png",
+    "features": ["CFS", "Lidar", "Camera", "Enclosed"]
+  },
+  {
+    "id": "3",
+    "name": "K2 Pro",
+    "image": "assets/images/cre_printers/k2pro.png",
+    "features": ["CFS", "Lidar", "Camera", "Enclosed"]
+  },
+  {
+    "id": "4",
+    "name": "K2",
+    "image": "assets/images/cre_printers/k2.png",
+    "features": ["CFS", "Lidar", "Camera", "Enclosed"]
+  },
+  {
+    "id": "5",
+    "name": "K2 SE",
+    "image": "assets/images/cre_printers/k2se.png",
+    "features": ["CFS", "Lidar", "Camera"]
+  },
+  {
+    "id": "6",
+    "name": "K1 SE",
+    "image": "assets/images/cre_printers/k1se.png",
+    "features": ["CFS", "Camera", "Enclosed"]
+  },
+  {
+    "id": "7",
+    "name": "K1",
+    "image": "assets/images/cre_printers/k1.png",
+    "features": ["CFS", "Camera", "Enclosed"]
+  },
+  {
+    "id": "8",
+    "name": "K1C",
+    "image": "assets/images/cre_printers/k1c.png",
+    "features": ["CFS", "Camera", "Enclosed"]
+  },
+  {
+    "id": "9",
+    "name": "K1 Max",
+    "image": "assets/images/cre_printers/k1max.png",
+    "features": ["CFS", "Camera", "Enclosed"]
+  },
+  {
+    "id": "0",
+    "name": "Select Printer",
+    "image": "assets/images/cre_printers/no_printer.png",
+    "features": ["No"]
+  }
+]

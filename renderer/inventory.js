@@ -101,6 +101,8 @@
     unsubRacks: null,        // Firestore unsubscribe handle for racks
     scales: [],              // [{ mac, name, last_seen, last_spool, fw_version, ... }]
     unsubScales: null,       // Firestore unsubscribe handle for scales
+    printers: [],            // [{ id, brand, printerName, printerModelId, isActive, updatedAt, sortIndex, ... }]
+    unsubPrinters: [],       // array of Firestore unsubscribe handles (one per brand subcollection)
     unsubFriendRequests: null,
     friendView: null,        // { uid, displayName, avatarColor } — set when viewing a friend's inventory
     td1sConnected: false,
@@ -406,6 +408,62 @@
       const r = await fetch('../data/rack-presets.json');
       if (r.ok) state.rackPresets = await r.json();
     } catch {}
+    // Printer model catalogs — one per brand, keyed by the same brand id
+    // we use in Firestore (`bambulab`, `creality`, `elegoo`, `flashforge`,
+    // `snapmaker`). The `printerModelId` field on each printer doc matches
+    // either the `id` (preferred) or the `name` of one of these entries.
+    try {
+      const printerCatalogs = [
+        ["bambulab",   "../data/printers/bbl_printer_models.json"],
+        ["creality",   "../data/printers/cre_printer_models.json"],
+        ["elegoo",     "../data/printers/eleg_printer_models.json"],
+        ["flashforge", "../data/printers/ffg_printer_models.json"],
+        ["snapmaker",  "../data/printers/snap_printer_models.json"]
+      ];
+      state.db.printerModels = {};
+      await Promise.all(printerCatalogs.map(async ([brand, url]) => {
+        try {
+          const r = await fetch(url);
+          if (r.ok) state.db.printerModels[brand] = await r.json();
+          else state.db.printerModels[brand] = [];
+        } catch { state.db.printerModels[brand] = []; }
+      }));
+    } catch {}
+  }
+
+  /* ── Printer model lookup ──────────────────────────────────────────────
+     Resolve a Firestore `printerModelId` against the local brand catalog
+     so we can show the human-readable model name + the photo. The catalog
+     `id` is the canonical key, but we accept `name` as a fallback because
+     the data-model spec leaves both shapes valid.                          */
+  function findPrinterModel(brand, modelId) {
+    if (!modelId) return null;
+    const list = state.db.printerModels?.[brand] || [];
+    const wanted = String(modelId).trim();
+    const wantedLower = wanted.toLowerCase();
+    return list.find(m => String(m.id) === wanted)
+        || list.find(m => String(m.name || "").toLowerCase() === wantedLower)
+        || null;
+  }
+  // Catalog paths use "assets/images/<brand>_printers/<file>.png" but the
+  // actual folder on disk is "assets/img/...". This mapper bridges that
+  // gap. Renderer paths are relative to renderer/inventory.html so we
+  // prepend "../" for the file:// fetch.
+  function printerImageUrl(model) {
+    if (!model || !model.image) return null;
+    return "../" + String(model.image).replace(/^assets\/images\//, "assets/img/");
+  }
+  function printerImageUrlFor(brand, modelId) {
+    const m = findPrinterModel(brand, modelId);
+    return printerImageUrl(m);
+  }
+  function printerModelName(brand, modelId) {
+    const m = findPrinterModel(brand, modelId);
+    return m ? m.name : (modelId || "—");
+  }
+  function printerModelFeatures(brand, modelId) {
+    const m = findPrinterModel(brand, modelId);
+    return Array.isArray(m?.features) ? m.features.filter(f => f && f !== "No") : [];
   }
   function dbFind(key, id) { return state.db[key].find(x => x.id === id) || null; }
   function containerFind(id) { return (state.db.containers || []).find(c => c.id === id) || null; }
@@ -481,9 +539,14 @@
       td: data.TD != null ? data.TD : null,
       twinUid: data.twin_tag_uid || null,
       containerId: data.container_id || null,
-      rackId:     data.rack_id  || null,
-      rackLevel:  Number.isInteger(data.level)    ? data.level    : null,
-      rackPos:    Number.isInteger(data.position) ? data.position : null,
+      // Storage location — new shape is `rack: { id, level, position }`,
+      // legacy docs still have flat `rack_id` / `level` / `position`. We
+      // read both so the migration window doesn't blank-out placements.
+      rackId:    (data.rack && typeof data.rack === "object" && data.rack.id) || data.rack_id || null,
+      rackLevel: (data.rack && Number.isInteger(data.rack.level))    ? data.rack.level
+               : (Number.isInteger(data.level)    ? data.level    : null),
+      rackPos:   (data.rack && Number.isInteger(data.rack.position)) ? data.rack.position
+               : (Number.isInteger(data.position) ? data.position : null),
       lastUpdate: tsToMs(data.last_update) || tsToMs(data.updated_at),
       // Only `deleted === true` counts as a tombstone (matches Flutter mobile
        // semantics). `deleted_at` alone is treated as historical metadata and
@@ -568,6 +631,13 @@
     _uidMigrationUserAccepted = false;
     _uidMigrationDeferredThisSession = false;
     _uidMigrationInitialSweepDone = false;
+    // Same reset for the rack-shape migration so its consent prompt
+    // re-fires on the next sign-in.
+    _rackMigrationUserAccepted = false;
+    _rackMigrationDeferredThisSession = false;
+    _rackMigrationInitialSweepDone = false;
+    _rackMigrationQueue = [];
+    _rackMigrationStats = { migrated: 0, failed: 0 };
     $("signInPlaceholder").classList.remove("hidden");
     $("card-inv").classList.add("hidden");
     $("card-welcome").classList.add("hidden");
@@ -1034,6 +1104,15 @@
     const enabled = $("eacDebugToggle").checked;
     state.debugEnabled = enabled;
     applyDebugMode();
+    // Re-render any open detail / side panel so the Raw + Log sections
+    // appear / disappear immediately without forcing the user to close
+    // and reopen them.
+    if (state.selected && $("detailPanel")?.classList.contains("open")) {
+      try { openDetail(state.selected); } catch (_) {}
+    }
+    if (_activePrinter && $("printerPanel")?.classList.contains("open")) {
+      try { renderPrinterDetail(); } catch (_) {}
+    }
     const uid = state.activeAccountId; if (!uid) return;
     try {
       await fbDb().collection("users").doc(uid).set({ Debug: enabled }, { merge: true });
@@ -1374,6 +1453,197 @@
     catch { return null; }
   }
 
+  /* ── Rack-shape migration — flat → nested `rack` object ────────────────
+     Same UX pattern as the UID migration: consent modal (Update now /
+     Remind me later) → progress modal with bar → silent done state.
+     Studio Manager is the SOLE client that touches rack data (the
+     Flutter mobile app and TigerScale firmware ignore these fields)
+     so the migration is safe to be destructive — we drop the legacy
+     `rack_id`/`level`/`position` keys via FieldValue.delete().         */
+  let _rackMigrationConfirmOpen        = false;
+  let _rackMigrationDeferredThisSession = false;
+  let _rackMigrationUserAccepted       = false;
+  let _rackMigrationModalOpen          = false;
+  let _rackMigrationInitialSweepDone   = false;
+  let _rackMigrationInitialTotal       = 0;
+  let _rackMigrationDraining           = false;
+  let _rackMigrationStats              = { migrated: 0, failed: 0 };
+  let _rackMigrationQueue              = []; // array of { spoolId, data }
+
+  function maybeMigrateFlatRackToNested(ownerUid) {
+    if (state.friendView) return;
+    if (!ownerUid || !state.inventory) return;
+    if (_rackMigrationDeferredThisSession) return;
+    // Don't pile a second consent / progress modal on top of the UID
+    // migration — wait for that one to finish first.
+    if (_uidMigrationConfirmOpen || _uidMigrationModalOpen) return;
+
+    // Find every doc still using the flat schema in the current snapshot.
+    const flatDocs = [];
+    for (const [spoolId, data] of Object.entries(state.inventory)) {
+      if (!data) continue;
+      const alreadyNested = data.rack && typeof data.rack === "object" && data.rack.id;
+      if (alreadyNested) continue;
+      if (!data.rack_id) continue;
+      flatDocs.push({ spoolId, data });
+    }
+    if (flatDocs.length === 0) return;
+
+    if (_rackMigrationUserAccepted) {
+      // Already accepted — enqueue any newly-discovered flat docs and
+      // (re-)kick the drain.
+      let added = 0;
+      for (const item of flatDocs) {
+        if (_rackMigrationQueue.some(q => q.spoolId === item.spoolId)) continue;
+        _rackMigrationQueue.push(item);
+        added++;
+      }
+      if (!_rackMigrationInitialSweepDone &&
+          !_rackMigrationModalOpen &&
+          _rackMigrationQueue.length >= 3) {
+        _rackMigrationInitialTotal = _rackMigrationQueue.length;
+        showRackMigrationModal(_rackMigrationInitialTotal);
+        _rackMigrationModalOpen = true;
+      }
+      if (_rackMigrationModalOpen && added > 0) {
+        const completed = _rackMigrationStats.migrated + _rackMigrationStats.failed;
+        _rackMigrationInitialTotal = Math.max(
+          _rackMigrationInitialTotal,
+          completed + _rackMigrationQueue.length
+        );
+        updateRackMigrationModalProgress(completed, _rackMigrationInitialTotal);
+      }
+      drainRackMigrationQueue(ownerUid);
+      return;
+    }
+    // Not asked yet — show the consent modal.
+    if (!_rackMigrationConfirmOpen) {
+      showRackMigrationConfirmModal(flatDocs.length, ownerUid);
+    }
+  }
+
+  // Consent modal — re-uses the UID migration overlay but rewrites the
+  // title / message text from the rackMigr* i18n keys.
+  function showRackMigrationConfirmModal(flatCount, ownerUid) {
+    const overlay = $("uidMigrationConfirmOverlay");
+    if (!overlay) return;
+    _rackMigrationConfirmOpen = true;
+    const titleEl   = $("uidMigrationConfirmTitle");
+    const msgEl     = $("uidMigrationConfirmMsg");
+    const remindBtn = $("uidMigrationConfirmRemind");
+    const acceptBtn = $("uidMigrationConfirmAccept");
+    const duration = formatMigrationDuration(flatCount);
+    // Generic title/message — same as the UID migration prompt so the
+    // user gets a consistent, reassuring experience whichever migration
+    // is queued.
+    if (titleEl)   titleEl.textContent   = t("migrationConfirmTitle");
+    if (msgEl)     msgEl.textContent     = t("migrationConfirmMsg", { count: flatCount, duration });
+    if (remindBtn) remindBtn.textContent = t("uidMigrConfirmRemind");
+    if (acceptBtn) acceptBtn.textContent = t("uidMigrConfirmAccept");
+    overlay.classList.add("open");
+
+    const rebind = (id, handler) => {
+      const old = $(id);
+      if (!old) return;
+      const fresh = old.cloneNode(true);
+      old.parentNode.replaceChild(fresh, old);
+      fresh.addEventListener("click", handler);
+    };
+    rebind("uidMigrationConfirmAccept", () => {
+      _rackMigrationConfirmOpen = false;
+      _rackMigrationUserAccepted = true;
+      overlay.classList.remove("open");
+      maybeMigrateFlatRackToNested(ownerUid);
+    });
+    rebind("uidMigrationConfirmRemind", () => {
+      _rackMigrationConfirmOpen = false;
+      _rackMigrationDeferredThisSession = true;
+      overlay.classList.remove("open");
+    });
+  }
+
+  // Progress modal — same overlay, rack-flavoured text.
+  function showRackMigrationModal(total) {
+    const overlay = $("uidMigrationOverlay");
+    if (!overlay) return;
+    overlay.classList.add("open");
+    const card = overlay.querySelector(".uid-migr-card");
+    card?.classList.remove("uid-migr--done");
+    const titleEl = $("uidMigrationTitle");
+    const msgEl   = $("uidMigrationMsg");
+    const warnEl  = $("uidMigrationWarn");
+    if (titleEl) titleEl.textContent = t("migrationProgressTitle");
+    if (msgEl)   msgEl.textContent   = t("migrationProgressMsg");
+    if (warnEl)  warnEl.textContent  = t("migrationProgressWarn");
+    updateRackMigrationModalProgress(0, total);
+    try { window.electronAPI?.setMigrationInFlight?.(true); } catch {}
+  }
+  function updateRackMigrationModalProgress(done, total) {
+    const countEl = $("uidMigrationCount");
+    const barEl   = $("uidMigrationBar");
+    if (!countEl || !barEl) return;
+    countEl.textContent = `${done} / ${total}`;
+    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+    barEl.style.width = `${pct}%`;
+  }
+  function hideRackMigrationModalWithSuccess() {
+    const overlay = $("uidMigrationOverlay");
+    if (!overlay) return;
+    const card = overlay.querySelector(".uid-migr-card");
+    card?.classList.add("uid-migr--done");
+    updateRackMigrationModalProgress(_rackMigrationInitialTotal, _rackMigrationInitialTotal);
+    try { window.electronAPI?.setMigrationInFlight?.(false); } catch {}
+    setTimeout(() => {
+      overlay.classList.remove("open");
+      card?.classList.remove("uid-migr--done");
+    }, 1800);
+  }
+
+  async function drainRackMigrationQueue(ownerUid) {
+    if (_rackMigrationDraining) return;
+    _rackMigrationDraining = true;
+    const FV = firebase.firestore.FieldValue;
+    const invRef = fbDb().collection("users").doc(ownerUid).collection("inventory");
+    try {
+      while (_rackMigrationQueue.length > 0) {
+        if (state.activeAccountId !== ownerUid) break;
+        if (state.friendView) break;
+        const { spoolId, data } = _rackMigrationQueue.shift();
+        try {
+          const rack = {
+            id: data.rack_id,
+            level:    Number.isInteger(data.level)    ? data.level    : null,
+            position: Number.isInteger(data.position) ? data.position : null
+          };
+          await invRef.doc(spoolId).update({
+            rack,
+            rack_id:  FV.delete(),
+            level:    FV.delete(),
+            position: FV.delete()
+          });
+          _rackMigrationStats.migrated++;
+        } catch (e) {
+          console.warn(`[rackMigration] ${spoolId} failed:`, e?.code, e?.message);
+          _rackMigrationStats.failed++;
+        }
+        if (_rackMigrationModalOpen) {
+          const completed = _rackMigrationStats.migrated + _rackMigrationStats.failed;
+          updateRackMigrationModalProgress(completed, _rackMigrationInitialTotal);
+        }
+        const gapMs = _rackMigrationQueue.length > 50 ? 500 : 250;
+        await new Promise(r => setTimeout(r, gapMs));
+      }
+    } finally {
+      _rackMigrationDraining = false;
+      if (_rackMigrationModalOpen && _rackMigrationQueue.length === 0) {
+        _rackMigrationInitialSweepDone = true;
+        _rackMigrationModalOpen = false;
+        hideRackMigrationModalWithSuccess();
+        console.log(`[rackMigration] initial sweep done — migrated:${_rackMigrationStats.migrated} failed:${_rackMigrationStats.failed}`);
+      }
+    }
+  }
+
   function maybeMigrateDecimalSpoolIds(ownerUid) {
     if (state.friendView) return;
     if (!ownerUid || !state.inventory) return;
@@ -1460,8 +1730,11 @@
     const remindBtn = $("uidMigrationConfirmRemind");
     const acceptBtn = $("uidMigrationConfirmAccept");
     const duration = formatMigrationDuration(decimalCount);
-    if (titleEl)   titleEl.textContent   = t("uidMigrConfirmTitle");
-    if (msgEl)     msgEl.textContent     = t("uidMigrConfirmMsg", { count: decimalCount, duration });
+    // Generic title/message — same wording whatever the migration. The
+    // user only needs reassurance that data stays put + a count + an
+    // ETA; what's actually being repackaged is irrelevant.
+    if (titleEl)   titleEl.textContent   = t("migrationConfirmTitle");
+    if (msgEl)     msgEl.textContent     = t("migrationConfirmMsg", { count: decimalCount, duration });
     if (remindBtn) remindBtn.textContent = t("uidMigrConfirmRemind");
     if (acceptBtn) acceptBtn.textContent = t("uidMigrConfirmAccept");
     overlay.classList.add("open");
@@ -1505,9 +1778,10 @@
     const titleEl = $("uidMigrationTitle");
     const msgEl   = $("uidMigrationMsg");
     const warnEl  = $("uidMigrationWarn");
-    if (titleEl) titleEl.textContent = t("uidMigrProgressTitle");
-    if (msgEl)   msgEl.textContent   = t("uidMigrProgressMsg");
-    if (warnEl)  warnEl.textContent  = t("uidMigrProgressWarn");
+    // Generic progress copy — same modal whatever the underlying migration.
+    if (titleEl) titleEl.textContent = t("migrationProgressTitle");
+    if (msgEl)   msgEl.textContent   = t("migrationProgressMsg");
+    if (warnEl)  warnEl.textContent  = t("migrationProgressWarn");
     updateUidMigrationModalProgress(0, total);
     // Tell main we're in flight so Cmd+Q gets a confirm dialog. Ignored
     // gracefully if running outside Electron (web build).
@@ -1704,6 +1978,10 @@
         // and migrates it in the background. Idempotent + safe vs
         // concurrent mobile-app writes (see the function header).
         maybeMigrateDecimalSpoolIds(uid);
+        // Lazy migration of flat `rack_id` / `level` / `position` →
+        // grouped `rack: { id, level, position }` sub-object. Same
+        // streaming pattern: idempotent, polite, twin-aware.
+        maybeMigrateFlatRackToNested(uid);
         saveInventory(raw);
         preCacheImages(state.rows).then(() => {
           sortRows(); renderStats(); renderInventory();
@@ -1731,7 +2009,7 @@
   // Common handler called when a named-instance user session becomes active.
   // uid must equal user.uid and be the current active account.
   async function handleSignedIn(user, uid) {
-    unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeRacks(); unsubscribeScales();
+    unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeRacks(); unsubscribeScales(); unsubscribePrinters();
     // Always reset friend-view mode on account change — the new account's own inventory is what we want to show.
     // We also clear the inventory/rows so the previous (friend) data isn't briefly shown as if it belonged to the new account.
     if (state.friendView) {
@@ -1797,6 +2075,7 @@
     loadBlacklist();    // populate state.blacklist for the Friends panel
     subscribeRacks(uid);// live-sync the user's storage racks
     subscribeScales(uid);// live-sync the user's TigerScale heartbeats
+    subscribePrinters(uid);// live-sync the user's 3D printers across all 5 brand subcollections
   }
 
   // Track which account ids already have an onAuthStateChanged listener set up.
@@ -1813,11 +2092,11 @@
         if (uid === getActiveId()) await handleSignedIn(user, uid);
       } else if (uid === getActiveId()) {
         // Active account's session expired → show login
-        unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeRacks(); unsubscribeScales();
+        unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeRacks(); unsubscribeScales(); unsubscribePrinters();
         state.inventory = null; state.rows = [];
         state.isAdmin = false; state.debugEnabled = false;
         state.publicKey = null; state.privateKey = null;
-        state.friends = []; state.friendRequests = []; state.blacklist = []; state.racks = [];
+        state.friends = []; state.friendRequests = []; state.blacklist = []; state.racks = []; state.printers = [];
         applyDebugMode(); renderStats(); renderInventory();
         renderAccountDropdown();
         setDisconnected();
@@ -1952,11 +2231,11 @@
     // Sign out the named instance so its IndexedDB session is cleared
     try { firebase.app(id).auth().signOut(); } catch (_) {}
     if (wasActive) {
-      unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeRacks(); unsubscribeScales();
+      unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeRacks(); unsubscribeScales(); unsubscribePrinters();
       state.inventory = null; state.rows = [];
       state.isAdmin = false; state.debugEnabled = false;
       state.publicKey = null; state.privateKey = null;
-      state.friends = []; state.friendRequests = []; state.blacklist = []; state.racks = [];
+      state.friends = []; state.friendRequests = []; state.blacklist = []; state.racks = []; state.printers = [];
       applyDebugMode(); renderStats(); renderInventory();
       setDisconnected();
       // Switch to another account if available, otherwise show login
@@ -2218,7 +2497,23 @@
         $("invEmpty").classList.add("hidden");
         $("mainResult").innerHTML = "";
         $("invRackView").classList.remove("hidden");
+        $("invPrinterView")?.classList.add("hidden");
         renderRackView();
+        return;
+      }
+      // Same defensive handoff for printer view — the printer collection is
+      // independent from the inventory rows, so an empty/loading inventory
+      // is still a perfectly valid moment to show the user's printers.
+      if (state.viewMode === "printer") {
+        $("card-welcome").classList.add("hidden");
+        $("card-inv").classList.remove("hidden");
+        $("invTableWrap").classList.add("hidden");
+        $("invGrid").classList.add("hidden");
+        $("invRackView")?.classList.add("hidden");
+        $("invEmpty").classList.add("hidden");
+        $("mainResult").innerHTML = "";
+        $("invPrinterView").classList.remove("hidden");
+        renderPrintersView();
         return;
       }
       if (state.friendView) {
@@ -2345,10 +2640,22 @@
       $("invGrid").classList.add("hidden");
       $("invEmpty").classList.add("hidden");
       $("invRackView").classList.remove("hidden");
+      $("invPrinterView")?.classList.add("hidden");
       renderRackView();
       return;
     }
     $("invRackView").classList.add("hidden");
+
+    // Printer view — same deal as rack, decoupled from spool rows.
+    if (state.viewMode === "printer") {
+      $("invTableWrap").classList.add("hidden");
+      $("invGrid").classList.add("hidden");
+      $("invEmpty").classList.add("hidden");
+      $("invPrinterView").classList.remove("hidden");
+      renderPrintersView();
+      return;
+    }
+    $("invPrinterView")?.classList.add("hidden");
 
     // Filter returned no results
     if (rows.length === 0) {
@@ -2535,6 +2842,7 @@
     $("btnViewTable")?.classList.toggle("active", mode === "table");
     $("btnViewGrid")?.classList.toggle("active",  mode === "grid");
     $("btnViewRack")?.classList.toggle("active",  mode === "rack");
+    $("btnViewPrinter")?.classList.toggle("active", mode === "printer");
     // Force-open + animate the side panel ONLY when transitioning INTO rack
     // mode from another view. Re-clicking Storage while already in Storage
     // is a no-op for the panel.
@@ -2547,13 +2855,19 @@
     if (mode === "rack" && !state.unsubRacks && state.activeAccountId) {
       subscribeRacks(state.activeAccountId);
     }
+    // Safety re-subscribe when switching to printer mode (handles users connected before this feature)
+    if (mode === "printer" && (!state.unsubPrinters || !state.unsubPrinters.length) && state.activeAccountId) {
+      subscribePrinters(state.activeAccountId);
+    }
   }
   $("btnViewTable").addEventListener("click", () => setViewMode("table"));
   $("btnViewGrid").addEventListener("click",  () => setViewMode("grid"));
   $("btnViewRack")?.addEventListener("click", () => setViewMode("rack"));
+  $("btnViewPrinter")?.addEventListener("click", () => setViewMode("printer"));
   // Restore active button on boot
   if (state.viewMode === "grid") { $("btnViewGrid").classList.add("active"); $("btnViewTable").classList.remove("active"); }
   else if (state.viewMode === "rack") { $("btnViewRack")?.classList.add("active"); $("btnViewTable").classList.remove("active"); }
+  else if (state.viewMode === "printer") { $("btnViewPrinter")?.classList.add("active"); $("btnViewTable").classList.remove("active"); }
 
   $("searchInv").addEventListener("input", e => { state.search = e.target.value.trim(); renderInventory(); });
   $("brandFilter")?.addEventListener("change", e => {
@@ -3596,6 +3910,7 @@
           <span data-i18n="spoolMarkDeleted">${esc(t("spoolMarkDeleted"))}</span>
         </button>
       </div>`}
+      ${state.debugEnabled ? `
       <div class="panel-section">
         <details class="debug" id="rawDetails">
           <summary style="display:flex;align-items:center;justify-content:space-between">
@@ -3616,7 +3931,7 @@
             <pre class="json" id="rawJsonPre" style="max-height:400px" data-raw-a="${encodeURIComponent(JSON.stringify(r.raw, null, 2))}" data-raw-b="${encodeURIComponent(JSON.stringify(twinRaw, null, 2))}">${highlight(r.raw)}</pre>`;
           })()}
         </details>
-      </div>`;
+      </div>` : ""}`;
   }
 
   async function doWeightUpdate(r, mode = "direct", w = "") {
@@ -4508,6 +4823,2481 @@
   function unsubscribeScales() {
     if (state.unsubScales) { state.unsubScales(); state.unsubScales = null; }
   }
+
+  /* ── 3D Printers (per-brand subcollections) ─────────────────────────────
+     Path: users/{uid}/printers/{brand}/devices/{deviceId}.
+     There is no parent brand doc to enumerate, so we subscribe in parallel
+     to one onSnapshot listener per known brand. State is rebuilt by the
+     mergeBrandSnap callback so a snapshot for any brand updates only that
+     brand's slice while preserving the others.
+     See docs/03-data-model.md → users/{uid}/printers/{brand}/devices.       */
+  const PRINTER_BRANDS = ["bambulab", "creality", "elegoo", "flashforge", "snapmaker"];
+
+  function subscribePrinters(uid) {
+    unsubscribePrinters();
+    // Per-brand cache keyed by brand id; flattened into state.printers on every snapshot.
+    const cache = Object.fromEntries(PRINTER_BRANDS.map(b => [b, []]));
+    state._printerCache = cache;
+    state.unsubPrinters = PRINTER_BRANDS.map(brand => {
+      return fbDb(uid)
+        .collection("users").doc(uid)
+        .collection("printers").doc(brand)
+        .collection("devices")
+        .onSnapshot(snap => {
+          if (uid !== state.activeAccountId) return;
+          if (state.friendView) return;
+          cache[brand] = snap.docs.map(d => {
+            const data = d.data();
+            // `updatedAt` is now written via serverTimestamp() — but legacy
+            // docs from earlier versions may still hold a number (Unix ms).
+            // Coerce to ms here once so timeAgo / fmtMs can stay simple.
+            let updatedAtMs = data.updatedAt;
+            if (updatedAtMs && typeof updatedAtMs === "object") {
+              if (typeof updatedAtMs.toMillis === "function") updatedAtMs = updatedAtMs.toMillis();
+              else if (updatedAtMs.seconds != null) updatedAtMs = updatedAtMs.seconds * 1000 + Math.round((updatedAtMs.nanoseconds || 0) / 1e6);
+              else updatedAtMs = null;
+            }
+            return { id: d.id, brand, ...data, updatedAt: updatedAtMs };
+          });
+          // Flatten + sort by sortIndex (user-defined drag order), then by
+          // printerName as a stable tie-breaker so unsorted items don't jitter.
+          // sortIndex is now the primary signal — Active no longer pulls
+          // cards to the top, the user owns the ordering.
+          const all = [].concat(...PRINTER_BRANDS.map(b => cache[b]));
+          all.sort((a, b) => {
+            const sa = Number.isFinite(a.sortIndex) ? a.sortIndex : Number.MAX_SAFE_INTEGER;
+            const sb = Number.isFinite(b.sortIndex) ? b.sortIndex : Number.MAX_SAFE_INTEGER;
+            if (sa !== sb) return sa - sb;
+            return String(a.printerName || "").localeCompare(String(b.printerName || ""));
+          });
+          state.printers = all;
+          if (state.viewMode === "printer") renderPrintersView();
+          // Live-update an open detail panel if it shows one of the changed docs
+          if ($("printerPanel")?.classList.contains("open")) refreshOpenPrinterDetail();
+        }, err => console.warn(`[printers/${brand}]`, err.code, err.message));
+    });
+  }
+
+  function unsubscribePrinters() {
+    if (Array.isArray(state.unsubPrinters)) {
+      for (const fn of state.unsubPrinters) { try { fn(); } catch (_) {} }
+    }
+    state.unsubPrinters = [];
+    state._printerCache = null;
+    // Close any open printer detail panel — its data belonged to the
+    // outgoing account/session.
+    if ($("printerPanel")?.classList.contains("open")) {
+      try { closePrinterDetail(); } catch (_) {}
+    }
+  }
+
+  /* ── Brand metadata for display (label + accent color + connection hint) ── */
+  const PRINTER_BRAND_META = {
+    bambulab:   { label: "Bambu Lab",  accent: "#1ba84e", connection: "MQTT (LAN)" },
+    creality:   { label: "Creality",   accent: "#e22a2a", connection: "WebSocket / Klipper" },
+    elegoo:     { label: "Elegoo",     accent: "#00a3e0", connection: "MQTT" },
+    flashforge: { label: "FlashForge", accent: "#f39c12", connection: "HTTP" },
+    snapmaker:  { label: "Snapmaker",  accent: "#9b59b6", connection: "WebSocket" }
+  };
+
+  /* ── Render the user's 3D printers in the main panel.
+     Read-only listing — adding / editing / deleting printers happens in the
+     mobile companion app. Sensitive fields (broker, password, ip, sn) are
+     intentionally NEVER displayed; we project to the safe subset documented
+     in docs/03-data-model.md → "If you only need to LIST printers".          */
+  function renderPrintersView() {
+    const host = $("invPrinterView");
+    if (!host) return;
+
+    // Friend view → print-friendly empty card (printers are owner-only via Firestore rules anyway)
+    if (state.friendView) {
+      host.innerHTML = `
+        <div class="printers-empty-card">
+          <span class="icon icon-printer icon-32"></span>
+          <div class="printers-empty-title">${esc(t("printersFriendNATitle"))}</div>
+          <div class="printers-empty-sub">${esc(t("printersFriendNASub"))}</div>
+        </div>`;
+      return;
+    }
+
+    if (!state.printers.length) {
+      host.innerHTML = `
+        <div class="printers-empty-card">
+          <span class="icon icon-printer icon-32"></span>
+          <div class="printers-empty-title">${esc(t("printersEmptyTitle"))}</div>
+          <div class="printers-empty-sub">${esc(t("printersEmptySub"))}</div>
+          <ul class="printers-empty-bullets">
+            <li>${esc(t("printersEmptyBullet1"))}</li>
+            <li>${esc(t("printersEmptyBullet2"))}</li>
+            <li>${esc(t("printersEmptyBullet3"))}</li>
+          </ul>
+        </div>`;
+      return;
+    }
+
+    // One flat grid — all brands mixed, ordered strictly by user-defined
+    // sortIndex (set via drag & drop). Each card carries its brand pill so
+    // multi-brand inventories remain visually distinguishable without
+    // forcing brand sections that fight the user's preferred order.
+    const cards = state.printers.map(p => {
+      const meta      = PRINTER_BRAND_META[p.brand] || { label: p.brand, accent: "#888", connection: "" };
+      const modelName = printerModelName(p.brand, p.printerModelId);
+      const imgUrl    = printerImageUrlFor(p.brand, p.printerModelId);
+      const safeName  = esc(p.printerName || "(unnamed)");
+      const safeModel = esc(modelName);
+      const updated   = p.updatedAt ? timeAgo(p.updatedAt) : "";
+      // The thumbnail uses object-fit: contain so the printer photo always
+      // shows in full. Falls back to the per-brand `no_printer.png` placeholder
+      // (declared in every brand catalog as id "0") when modelId is missing.
+      const fallback  = printerImageUrl(findPrinterModel(p.brand, "0"));
+      const imgSrc    = imgUrl || fallback || "";
+      // Trigger an HTTP ping for Snapmaker printers so the online dot
+      // becomes accurate within ~2s of opening the printer view.
+      if (p.brand === "snapmaker" && p.ip) snapPingPrinter(p);
+      const onlineBadge = renderSnapOnlineBadge(p, "card");
+      return `
+        <div class="printer-card${p.isActive ? " printer-card--active" : ""}"
+             data-brand="${esc(p.brand)}" data-id="${esc(p.id)}"
+             data-printer-key="${esc(`${p.brand}:${p.id}`)}"
+             draggable="true">
+          <div class="printer-card-drag" title="${esc(t("printerDragHint"))}" aria-hidden="true">
+            <span class="printer-card-drag-dots"></span>
+          </div>
+          ${imgSrc ? `<div class="printer-card-thumb"><img src="${esc(imgSrc)}" alt="${esc(modelName)}" onerror="this.style.opacity='.15'"/></div>` : ""}
+          <div class="printer-card-head">
+            <span class="printer-brand-pill" style="--brand-accent:${meta.accent}">${esc(meta.label)}</span>
+            ${p.isActive ? `<span class="printer-active-badge">${esc(t("printersActive"))}</span>` : ""}
+          </div>
+          <div class="printer-card-name">${safeName}</div>
+          <div class="printer-card-model">${safeModel}</div>
+          ${onlineBadge}
+          <div class="printer-card-foot">
+            <span class="printer-card-conn">${esc(meta.connection)}</span>
+            ${updated ? `<span class="printer-card-updated">${esc(t("printersUpdated"))} · ${esc(updated)}</span>` : ""}
+          </div>
+        </div>`;
+    }).join("");
+
+    // Trailing "+" card so users can add a new printer directly from the
+    // grid. The card itself isn't draggable / sortable — it's a fixed
+    // affordance that always sits at the end of the flex flow.
+    const addCard = `
+      <button type="button" class="printer-card printer-card--add" id="printerAddCard">
+        <span class="printer-add-plus"><span class="icon icon-plus icon-18"></span></span>
+        <span class="printer-add-title">${esc(t("printerAddTitle"))}</span>
+        <span class="printer-add-sub">${esc(t("printerAddSub"))}</span>
+      </button>`;
+
+    host.innerHTML = `
+      <div class="printers-header">
+        <div class="printers-header-text">
+          <h3 class="printers-h3">${esc(t("printersTitle"))}</h3>
+          <p class="printers-sub">${esc(t("printersSub", { n: state.printers.length }))}</p>
+        </div>
+      </div>
+      <div class="printers-grid printers-grid--flex">${cards}${addCard}</div>`;
+
+    // Wire click → open detail panel. Suppressed when a drag has just
+    // happened so an accidental click at the end of a drop doesn't open
+    // the detail panel for the dragged card.
+    host.querySelectorAll(".printer-card:not(.printer-card--add)").forEach(el => {
+      el.addEventListener("click", () => {
+        if (_printerJustDragged) return;
+        const brand = el.dataset.brand;
+        const id    = el.dataset.id;
+        if (brand && id) openPrinterDetail(brand, id);
+      });
+    });
+    $("printerAddCard")?.addEventListener("click", openPrinterBrandPicker);
+
+    wirePrinterDnd(host);
+  }
+
+  /* ── Printer drag & drop reordering ────────────────────────────────────
+     Uses the native HTML5 DnD API on each card. On drop we persist the
+     new order to Firestore by writing a fresh `sortIndex` (0, 1, 2, …)
+     to every card's doc — a Firestore batch keeps the rewrite atomic
+     even across the 5 brand subcollections. Each printer's brand is
+     known from its `brand` property, which we set when ingesting the
+     snapshot, so the path resolution is local.                            */
+  let _printerJustDragged = false;
+  let _printerDragId = null; // composite "brand:id" of the card being dragged
+
+  function wirePrinterDnd(host) {
+    const cards = Array.from(host.querySelectorAll(".printer-card"));
+    cards.forEach(card => {
+      card.addEventListener("dragstart", e => {
+        _printerDragId = `${card.dataset.brand}:${card.dataset.id}`;
+        // dataTransfer is required on some browsers for the drag image to render.
+        try { e.dataTransfer.setData("text/plain", _printerDragId); } catch (_) {}
+        try { e.dataTransfer.effectAllowed = "move"; } catch (_) {}
+        card.classList.add("printer-card--dragging");
+      });
+      card.addEventListener("dragend", () => {
+        card.classList.remove("printer-card--dragging");
+        host.querySelectorAll(".printer-card--drop-before, .printer-card--drop-after")
+            .forEach(el => el.classList.remove("printer-card--drop-before", "printer-card--drop-after"));
+        _printerDragId = null;
+        // Suppress the click that fires right after a drop; reset on next tick
+        _printerJustDragged = true;
+        setTimeout(() => { _printerJustDragged = false; }, 50);
+      });
+      card.addEventListener("dragover", e => {
+        if (!_printerDragId) return;
+        const me = `${card.dataset.brand}:${card.dataset.id}`;
+        if (me === _printerDragId) return; // can't drop on self
+        e.preventDefault();
+        try { e.dataTransfer.dropEffect = "move"; } catch (_) {}
+        // Choose before/after based on cursor position relative to the card center.
+        const rect = card.getBoundingClientRect();
+        const isVertical = rect.height > rect.width;
+        const before = isVertical
+          ? (e.clientY < rect.top + rect.height / 2)
+          : (e.clientX < rect.left + rect.width / 2);
+        card.classList.toggle("printer-card--drop-before", before);
+        card.classList.toggle("printer-card--drop-after", !before);
+      });
+      card.addEventListener("dragleave", () => {
+        card.classList.remove("printer-card--drop-before", "printer-card--drop-after");
+      });
+      card.addEventListener("drop", e => {
+        if (!_printerDragId) return;
+        const me = `${card.dataset.brand}:${card.dataset.id}`;
+        if (me === _printerDragId) return;
+        e.preventDefault();
+        const before = card.classList.contains("printer-card--drop-before");
+        card.classList.remove("printer-card--drop-before", "printer-card--drop-after");
+        applyPrinterReorder(_printerDragId, me, before);
+      });
+    });
+  }
+
+  // Reorder state.printers by moving `dragId` next to `targetId`, then
+  // persist the new sortIndex 0..N-1 to Firestore.
+  function applyPrinterReorder(dragId, targetId, before) {
+    const all = state.printers.slice();
+    const find = id => all.findIndex(p => `${p.brand}:${p.id}` === id);
+    const di = find(dragId);
+    if (di < 0) return;
+    const [moved] = all.splice(di, 1);
+    let ti = find(targetId);
+    if (ti < 0) return; // shouldn't happen
+    if (!before) ti += 1;
+    all.splice(ti, 0, moved);
+    // Apply new sortIndex 0..N-1 in-memory so the next render is instant.
+    all.forEach((p, idx) => { p.sortIndex = idx; });
+    state.printers = all;
+    renderPrintersView();
+    persistPrinterSortIndices(all);
+  }
+
+  async function persistPrinterSortIndices(orderedPrinters) {
+    const uid = state.activeAccountId;
+    if (!uid) return;
+    try {
+      const db = fbDb(uid);
+      const batch = db.batch();
+      const ts = firebase.firestore.FieldValue.serverTimestamp();
+      orderedPrinters.forEach((p, idx) => {
+        const ref = db.collection("users").doc(uid)
+                      .collection("printers").doc(p.brand)
+                      .collection("devices").doc(p.id);
+        // serverTimestamp ensures `updatedAt` is monotonic across the
+        // 5 brand subcollections even when several clients write at once.
+        batch.update(ref, { sortIndex: idx, updatedAt: ts });
+      });
+      await batch.commit();
+    } catch (e) {
+      // The next snapshot will re-establish the persisted order; we just
+      // log so the user sees something went wrong without breaking the UI.
+      console.warn("[printers] persist sortIndex failed:", e?.code, e?.message);
+    }
+  }
+
+  /* ── Printer detail side panel ─────────────────────────────────────────
+     Slide-in panel mirroring the inventory detail panel. Shows everything
+     the user has on file for one printer, with sensitive credentials
+     (password, MQTT access code, account secrets) masked behind an
+     explicit Show toggle. Sensitive fields are still readable by the
+     owner — the masking is purely a shoulder-surfing / screen-share
+     defense, NOT a security boundary (Firestore rules are).               */
+  let _activePrinter = null; // currently-open printer { brand, id, ...data }
+
+  function openPrinterDetail(brand, id) {
+    const printer = state.printers.find(p => p.brand === brand && p.id === id);
+    if (!printer) return;
+    _activePrinter = printer;
+    renderPrinterDetail();
+    $("printerPanel").classList.add("open");
+    $("printerOverlay").classList.add("open");
+    // Snapmaker U1 talks Moonraker over a local WebSocket — connect when
+    // the sidebar opens so we can stream live temps + filament + job state.
+    if (printer.brand === "snapmaker" && printer.ip) {
+      snapConnect(printer);
+    }
+  }
+  function closePrinterDetail() {
+    $("printerPanel").classList.remove("open");
+    $("printerOverlay").classList.remove("open");
+    // Tear down the Snapmaker live connection if any was active for this
+    // printer — keeps long-lived sockets from leaking when the sidebar
+    // closes or when the user switches printers.
+    if (_activePrinter?.brand === "snapmaker") {
+      snapDisconnect(snapKey(_activePrinter));
+    }
+    _activePrinter = null;
+  }
+  $("printerPanelClose")?.addEventListener("click", closePrinterDetail);
+  $("printerOverlay")?.addEventListener("click", closePrinterDetail);
+  // Gear button — opens the Printers Settings modal pre-filled with the
+  // current printer's data so the user can edit fields and confirm.
+  $("printerEditBtn")?.addEventListener("click", () => {
+    if (!_activePrinter) return;
+    openPrinterAddForm(_activePrinter.brand, _activePrinter);
+  });
+
+  // Re-render the detail panel against the live state.printers (so a
+  // Firestore snapshot that updates the open printer is reflected without
+  // closing the panel). Called on every snapshot when the panel is open.
+  function refreshOpenPrinterDetail() {
+    if (!_activePrinter) return;
+    const fresh = state.printers.find(p => p.brand === _activePrinter.brand && p.id === _activePrinter.id);
+    if (!fresh) { closePrinterDetail(); return; } // doc was deleted
+    _activePrinter = fresh;
+    renderPrinterDetail();
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════
+     Snapmaker Live integration (Moonraker over WebSocket)
+     ══════════════════════════════════════════════════════════════════════
+     Ported from the Flutter `SnapmakerWebSocketPage` (snapmaker_websocket_page.dart).
+     Snapmaker U1 runs a Klipper / Moonraker stack on the printer; we open a
+     WebSocket to ws://{ip}:7125/websocket and subscribe to printer objects
+     to stream live temperatures, the filament loaded in each of up to 4
+     extruders, and the active print job state.
+     Phase 1 (this turn): read-only display + auto reconnect + camera embed.
+     Phase 2 (later): manual filament edit, NFC scan, thumbnail metadata.
+     ══════════════════════════════════════════════════════════════════════ */
+
+  // Per-printer live state. Keyed by `${brand}:${id}` (same composite key
+  // we use elsewhere). Value carries the WebSocket, latest snapshot, and
+  // reconnect bookkeeping. Stays in module scope (not in `state`) since
+  // it's transient — never persisted.
+  const _snapConns = new Map();
+
+  // Lightweight reachability cache, populated by snapPingPrinter (HTTP
+  // GET to /server/info on the Moonraker port). Used to drive the
+  // "Online / Offline" indicator in the printer grid + side card hero
+  // even when no WebSocket session is open. Refreshed every 30 s.
+  const _snapPings = new Map(); // key -> { online: bool|null, lastChecked: number }
+
+  function snapKey(p) { return `${p.brand}:${p.id}`; }
+
+  // Authoritative "is this Snapmaker reachable?" reading.
+  // 1. If a live WebSocket exists, use its status (most accurate).
+  // 2. Otherwise fall back to the last HTTP ping result.
+  // 3. Returns `null` when we have no signal yet (renders as a "checking" dot).
+  function snapIsOnline(printer) {
+    if (printer?.brand !== "snapmaker") return null;
+    const k = snapKey(printer);
+    const conn = _snapConns.get(k);
+    if (conn) return conn.status === "connected";
+    const ping = _snapPings.get(k);
+    return ping ? ping.online : null;
+  }
+
+  async function snapPingPrinter(printer) {
+    if (!printer || printer.brand !== "snapmaker" || !printer.ip) return;
+    const k = snapKey(printer);
+    const cached = _snapPings.get(k);
+    const now = Date.now();
+    // 30 s cache — avoid pinging the same printer on every render.
+    if (cached && now - cached.lastChecked < 30_000) return;
+    _snapPings.set(k, { online: cached?.online ?? null, lastChecked: now });
+    try {
+      const ctrl = new AbortController();
+      const tm = setTimeout(() => ctrl.abort(), 2000);
+      const res = await fetch(`http://${printer.ip}:7125/server/info`, {
+        method: "GET",
+        signal: ctrl.signal,
+        cache: "no-store"
+      });
+      clearTimeout(tm);
+      _snapPings.set(k, { online: res.ok, lastChecked: now });
+    } catch (_) {
+      _snapPings.set(k, { online: false, lastChecked: now });
+    }
+    // Patch the affected card / side-card without rebuilding everything.
+    snapRefreshOnlineUI(k);
+  }
+
+  function snapPingAllPrinters() {
+    for (const p of state.printers) {
+      if (p.brand === "snapmaker" && p.ip) snapPingPrinter(p);
+    }
+  }
+  // Background refresh — kicks in once the user has signed in and
+  // state.printers is populated. We only ping while at least one
+  // Snapmaker is in the list, otherwise it's a no-op.
+  setInterval(snapPingAllPrinters, 30_000);
+
+  // Surgical DOM update — replaces just the status dot + label in the
+  // affected card and (if open) the side-card hero. Avoids re-rendering
+  // the whole grid on every ping resolution.
+  function snapRefreshOnlineUI(key) {
+    document.querySelectorAll(`[data-printer-key="${key}"] .printer-online`).forEach(el => {
+      const p = state.printers.find(x => snapKey(x) === key);
+      el.outerHTML = renderSnapOnlineBadge(p, "card");
+    });
+    if (_activePrinter && snapKey(_activePrinter) === key) {
+      const host = $("ppOnlineRow");
+      if (host) host.outerHTML = renderSnapOnlineBadge(_activePrinter, "side");
+    }
+  }
+
+  // Single source of truth for the badge HTML — used in both the grid
+  // card and the side-card. `where` toggles a class for slightly
+  // different styling between the two locations.
+  function renderSnapOnlineBadge(printer, where) {
+    if (!printer || printer.brand !== "snapmaker") return "";
+    const online = snapIsOnline(printer);
+    const cls = online === true ? "is-online" : (online === false ? "is-offline" : "is-checking");
+    const lbl = online === true ? t("snapStatusOnline")
+              : online === false ? t("snapStatusOffline")
+              : t("snapStatusConnecting");
+    const id  = where === "side" ? ` id="ppOnlineRow"` : "";
+    return `<span class="printer-online printer-online--${esc(where)} ${cls}"${id}>
+              <span class="printer-online-dot"></span>
+              <span class="printer-online-lbl">${esc(lbl)}</span>
+            </span>`;
+  }
+
+  // Open or refresh the connection for a printer. Idempotent — calling
+  // again on the same printer is a no-op while the socket is OPEN.
+  function snapConnect(printer) {
+    const key = snapKey(printer);
+    const existing = _snapConns.get(key);
+    if (existing && existing.ws && (existing.ws.readyState === WebSocket.OPEN || existing.ws.readyState === WebSocket.CONNECTING)) {
+      // Already connected/connecting — if the ip changed, tear down first.
+      if (existing.ip === printer.ip) return;
+      snapDisconnect(key);
+    }
+    const conn = {
+      ip: printer.ip,
+      key,
+      ws: null,
+      status: "connecting", // "connecting" | "connected" | "offline" | "error"
+      lastError: null,
+      retry: 0,
+      retryTimer: null,
+      // Latest parsed data — kept flat for cheap reads in the renderer.
+      data: {
+        temps: {},          // { e1_temp, e1_target, e2_temp, ... bed_temp, bed_target }
+        filaments: [],      // [{ color: "#RRGGBB", vendor, type, subType, official }] × up to 4
+        printState: null,   // "standby" | "printing" | "paused" | "complete" | "error"
+        printFilename: null,
+        printDuration: 0,
+        progress: 0,        // 0..1
+        currentLayer: 0,
+        totalLayer: 0,
+        printPreviewUrl: null,  // slicer thumbnail (set by snapFetchMetadata)
+        printEstimated: null    // estimated_time in seconds (from metadata)
+      }
+    };
+    _snapConns.set(key, conn);
+    snapOpenSocket(conn);
+  }
+
+  function snapOpenSocket(conn) {
+    if (!conn.ip) { conn.status = "error"; conn.lastError = "no IP"; return; }
+    const url = `ws://${conn.ip}:7125/websocket`;
+    let ws;
+    try { ws = new WebSocket(url); }
+    catch (e) {
+      console.warn("[snap] WS construct failed:", e?.message);
+      conn.status = "error";
+      conn.lastError = String(e?.message || e);
+      snapNotifyChange(conn);
+      snapScheduleReconnect(conn);
+      return;
+    }
+    conn.ws = ws;
+    conn.status = "connecting";
+    snapNotifyChange(conn);
+
+    // Wrap send so every outbound payload is captured for the log view.
+    const sendLogged = (obj) => {
+      const json = JSON.stringify(obj);
+      snapLogPush(conn, "→", json);
+      ws.send(json);
+    };
+
+    ws.addEventListener("open", () => {
+      conn.status = "connected";
+      conn.lastError = null;
+      conn.retry = 0;
+      // Subscribe to all the printer objects we care about. The 4 extruder
+      // names match the Snapmaker U1 4-tool firmware naming convention.
+      sendLogged({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "printer.objects.subscribe",
+        params: { objects: {
+          print_task_config: null,
+          print_stats: null,
+          virtual_sdcard: null,
+          display_status: null,
+          extruder:  ["temperature", "target"],
+          extruder1: ["temperature", "target"],
+          extruder2: ["temperature", "target"],
+          extruder3: ["temperature", "target"],
+          heater_bed:["temperature", "target"]
+        }}
+      });
+      // Initial snapshot — `subscribe` returns the current state synchronously
+      // but we send a query too in case the firmware version doesn't.
+      sendLogged({
+        jsonrpc: "2.0", id: 1001,
+        method: "printer.objects.query",
+        params: { objects: {
+          print_stats: null, virtual_sdcard: null, display_status: null,
+          extruder: null, extruder1: null, extruder2: null, extruder3: null,
+          heater_bed: null
+        }}
+      });
+      // Status changed (connecting → connected) — the hero camera depends
+      // on this, so we ask for a full re-render not just the live block.
+      snapNotifyChange(conn, /*statusChanged*/ true);
+    });
+
+    ws.addEventListener("message", ev => {
+      // Capture every inbound frame for the log first — so even non-status
+      // notifications (logs / RPC results we don't otherwise inspect) are
+      // visible to the developer.
+      snapLogPush(conn, "←", ev.data);
+
+      let obj; try { obj = JSON.parse(ev.data); } catch { return; }
+      let status = null;
+      if (obj.result && obj.result.status) status = obj.result.status;
+      else if ((obj.method === "notify_status_update" || obj.method === "notify_status_changed")
+               && Array.isArray(obj.params) && obj.params[0]) {
+        status = obj.params[0];
+      }
+      if (status && typeof status === "object") snapMergeStatus(conn, status);
+      // Always notify so the log row appears even when the payload didn't
+      // carry a status update (RPC results, etc.).
+      snapNotifyChange(conn);
+    });
+
+    ws.addEventListener("close", () => {
+      conn.status = "offline";
+      snapNotifyChange(conn, /*statusChanged*/ true);
+      snapScheduleReconnect(conn);
+    });
+
+    ws.addEventListener("error", () => {
+      // The 'close' handler will fire next; just record the error here.
+      conn.lastError = "websocket error";
+    });
+  }
+
+  function snapScheduleReconnect(conn) {
+    if (conn.retryTimer) return;
+    if (!_snapConns.has(conn.key)) return; // disposed
+    // Capped exponential backoff: 2s, 4s, 8s, 16s, then 30s.
+    conn.retry = Math.min(conn.retry + 1, 5);
+    const delay = Math.min(2000 * (1 << (conn.retry - 1)), 30000);
+    conn.retryTimer = setTimeout(() => {
+      conn.retryTimer = null;
+      // The user might have closed the panel in the meantime.
+      if (!_snapConns.has(conn.key)) return;
+      snapOpenSocket(conn);
+    }, delay);
+  }
+
+  function snapDisconnect(key) {
+    const conn = _snapConns.get(key);
+    if (!conn) return;
+    if (conn.retryTimer) { clearTimeout(conn.retryTimer); conn.retryTimer = null; }
+    if (conn.ws) {
+      try { conn.ws.close(); } catch (_) {}
+      conn.ws = null;
+    }
+    _snapConns.delete(key);
+  }
+
+  // Merge a Moonraker `status` payload into our flat `data` shape.
+  function snapMergeStatus(conn, status) {
+    const d = conn.data;
+
+    // Live temps: extruder*, heater_bed
+    const tempPair = (objName, prefix) => {
+      const obj = status[objName];
+      if (!obj || typeof obj !== "object") return;
+      if (typeof obj.temperature === "number") d.temps[`${prefix}_temp`]   = obj.temperature;
+      if (typeof obj.target === "number")      d.temps[`${prefix}_target`] = obj.target;
+    };
+    tempPair("extruder",   "e1");
+    tempPair("extruder1",  "e2");
+    tempPair("extruder2",  "e3");
+    tempPair("extruder3",  "e4");
+    tempPair("heater_bed", "bed");
+
+    // Filament info — `print_task_config` carries arrays of length 4.
+    const cfg = status.print_task_config;
+    if (cfg && typeof cfg === "object") {
+      const colors  = Array.isArray(cfg.filament_color_rgba) ? cfg.filament_color_rgba : null;
+      const vendors = Array.isArray(cfg.filament_vendor)     ? cfg.filament_vendor     : null;
+      const types   = Array.isArray(cfg.filament_type)       ? cfg.filament_type       : null;
+      const subs    = Array.isArray(cfg.filament_sub_type)   ? cfg.filament_sub_type   : null;
+      const offs    = Array.isArray(cfg.filament_official)   ? cfg.filament_official   : null;
+      // Only overwrite if at least one array landed — `notify_status_update`
+      // for a single field would otherwise nuke the others.
+      if (colors || vendors || types || subs || offs) {
+        const merged = d.filaments.length === 4 ? d.filaments.slice() : [{},{},{},{}];
+        for (let i = 0; i < 4; i++) {
+          merged[i] = { ...(merged[i] || {}) };
+          if (colors  && colors[i]  != null) merged[i].color    = snapParseRgbaHex(String(colors[i]));
+          if (vendors && vendors[i] != null) merged[i].vendor   = String(vendors[i]);
+          if (types   && types[i]   != null) merged[i].type     = String(types[i]);
+          if (subs    && subs[i]    != null) merged[i].subType  = String(subs[i]);
+          if (offs    && offs[i]    != null) merged[i].official = !!offs[i];
+        }
+        d.filaments = merged;
+      }
+    }
+
+    // Print job state
+    const ps = status.print_stats;
+    if (ps && typeof ps === "object") {
+      if (typeof ps.state === "string")          d.printState = ps.state;
+      if (typeof ps.filename === "string")       d.printFilename = ps.filename;
+      if (typeof ps.print_duration === "number") d.printDuration = ps.print_duration;
+      // Layer counters live under `print_stats.info` — Moonraker schema.
+      if (ps.info && typeof ps.info === "object") {
+        if (typeof ps.info.current_layer === "number") d.currentLayer = ps.info.current_layer;
+        if (typeof ps.info.total_layer   === "number") d.totalLayer   = ps.info.total_layer;
+      }
+      // Trigger an HTTP metadata fetch for the slicer-rendered thumbnail.
+      // Only does work when the filename actually changes.
+      const rel = snapFilenameRel(d.printFilename);
+      if (rel) snapFetchMetadata(conn, rel);
+    }
+    const ds = status.display_status;
+    if (ds && typeof ds === "object" && typeof ds.progress === "number") {
+      d.progress = ds.progress;
+    }
+    const vsd = status.virtual_sdcard;
+    if (vsd && typeof vsd === "object" && typeof vsd.progress === "number" && !d.progress) {
+      d.progress = vsd.progress;
+    }
+  }
+
+  /* ── Snapmaker manual filament edit — bottom sheet ───────────────
+     Click on a colour square (or its edit icon) → opens a modal
+     pre-filled with the current filament data. Confirming sends the
+     SET_PRINT_FILAMENT_CONFIG g-code via the existing WebSocket so
+     the printer's `print_task_config` updates and the new values
+     stream back through `notify_status_update`.                       */
+  // 24 colour presets shown in the "Select Color" screen, ordered to
+  // match the mobile companion app's palette (5 per row, neutrals → cool
+  // → green → warm → red/pink → purple). The 25th slot is a "custom"
+  // chip that opens the native colour picker.
+  const SNAP_FIL_COLOR_PRESETS = [
+    "#000000", "#808080", "#CDCDCD", "#FFFFFF", "#135E7E",
+    "#B6C3CB", "#4AB1F0", "#2641E9", "#2CDCA6", "#157F5F",
+    "#1CB01C", "#C2E58C", "#FFE600", "#FF9933", "#6E4519",
+    "#B58137", "#F0E6D6", "#D4C8AA", "#ED1C24", "#EC5A85",
+    "#FF00FF", "#C8A4D6", "#8526D3", "#4B1F97"
+  ];
+  // Vendor → materials map — iso to the mobile companion. The mobile
+  // ships with these 8 brands and the Generic 10-material catalogue;
+  // each brand falls back to the Generic list when it has no specific
+  // products (matches the Flutter "vendorToLabels.putIfAbsent + union
+  // fallback" pattern).
+  const SNAP_FIL_VENDOR_MATERIALS = {
+    "Generic":   ["PLA", "PETG", "ABS", "TPU", "ABS-AF", "ABS-CF", "ASA", "ASA-CF", "ASA-GF", "Biopolymer"],
+    "JamgHe":    [],
+    "Landu":     [],
+    "R3D":       [],
+    "Rosa3D":    [],
+    "Snapmaker": [],
+    "Sunlu":     [],
+    "eSun":      []
+  };
+  // Backwards compat — the chip-based code paths still reference these.
+  const SNAP_FIL_BRANDS    = Object.keys(SNAP_FIL_VENDOR_MATERIALS);
+  const SNAP_FIL_MATERIALS = SNAP_FIL_VENDOR_MATERIALS["Generic"];
+
+  // Sort materials with priority — PLA / PETG / ABS / TPU come first
+  // when they appear EXACTLY (variants like "ABS-AF" or "PLA Matte"
+  // fall to the alphabetical section, matching the mobile app's order).
+  const SNAP_FIL_PRIORITY = ["PLA", "PETG", "ABS", "TPU"];
+  function snapSortMaterials(list) {
+    const upper    = list.map(s => s.toUpperCase());
+    const used     = new Set();
+    const priority = [];
+    for (const p of SNAP_FIL_PRIORITY) {
+      const idx = upper.findIndex((u, i) => !used.has(i) && u === p);
+      if (idx >= 0) { priority.push(list[idx]); used.add(idx); }
+    }
+    const rest = list.filter((_, i) => !used.has(i))
+                     .sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+    return [...priority, ...rest];
+  }
+  let _snapFilEdit = null; // { brand, deviceId, extruderIndex, conn }
+  let _sfeSelectedBrand = "";    // last chip-or-text value picked
+  let _sfeSelectedMaterial = ""; // last chip-or-text value picked
+
+  // Convert "#RRGGBB" or "#RRGGBBAA" to a Klipper-friendly 8-char
+  // lowercase RGBA hex string. We default alpha to ff (full opacity).
+  function snapColorToRgbaHex(hex) {
+    let v = (hex || "").trim();
+    if (v.startsWith("#")) v = v.slice(1);
+    if (v.length === 6) v += "ff";
+    return v.toLowerCase().slice(0, 8);
+  }
+
+  // Sanitise free-text inputs so the resulting g-code line stays
+  // parseable on the Klipper side (no embedded spaces, no quotes).
+  function snapSanitiseGcodeArg(s) {
+    return String(s || "").trim().replace(/\s+/g, "-").replace(/["'`]/g, "");
+  }
+
+  // Send a single g-code line via the printer's existing WebSocket.
+  // Logs the outbound frame so it's visible in the request log too.
+  function snapSendGcode(conn, script) {
+    if (!conn?.ws || conn.ws.readyState !== WebSocket.OPEN) return false;
+    const msg = {
+      jsonrpc: "2.0", id: 201,
+      method: "printer.gcode.script",
+      params: { script }
+    };
+    const json = JSON.stringify(msg);
+    snapLogPush(conn, "→", json);
+    conn.ws.send(json);
+    return true;
+  }
+
+  // Render the LEFT column: list of vendors. Selected one is highlighted.
+  function snapFilRenderVendorList(selected) {
+    return SNAP_FIL_BRANDS.map(v => {
+      const meta = PRINTER_BRAND_META[v.toLowerCase().replace(/\s+/g, "")];
+      const accentStyle = meta ? `style="--brand-accent:${meta.accent}"` : "";
+      const isSel = v.toLowerCase() === (selected || "").toLowerCase();
+      return `<button type="button" class="sfe-fil-row${isSel ? " is-selected" : ""}${meta ? " sfe-fil-row--brand" : ""}"
+                      data-val="${esc(v)}" ${accentStyle}>${esc(v)}</button>`;
+    }).join("");
+  }
+  // Render the RIGHT column: materials for the chosen vendor. Falls back
+  // to the Generic catalogue when the vendor has no specific products.
+  function snapFilRenderMaterialList(vendor, selectedMat) {
+    const list  = (SNAP_FIL_VENDOR_MATERIALS[vendor]?.length
+                   ? SNAP_FIL_VENDOR_MATERIALS[vendor]
+                   : SNAP_FIL_VENDOR_MATERIALS["Generic"]);
+    const sorted = snapSortMaterials(list);
+    return sorted.map(m => {
+      const isSel = m.toLowerCase() === (selectedMat || "").toLowerCase();
+      return `<button type="button" class="sfe-fil-row${isSel ? " is-selected" : ""}" data-val="${esc(m)}">
+                <span class="sfe-fil-row-text">${esc(m)}</span>
+                ${isSel ? `<span class="sfe-fil-row-check">✓</span>` : ""}
+              </button>`;
+    }).join("");
+  }
+
+  function openSnapFilamentEdit(printer, extruderIndex) {
+    const conn = _snapConns.get(snapKey(printer));
+    // The modal opens whatever the WS state — opening it should always
+    // feel responsive on click. If the connection is down the Send
+    // button will surface the error at submit time.
+    const fil = (conn?.data?.filaments?.[extruderIndex]) || {};
+    if (fil.official) return; // RFID-locked, never editable
+    _snapFilEdit = { brand: printer.brand, deviceId: printer.id, extruderIndex, key: snapKey(printer) };
+    _sfeSelectedBrand    = fil.vendor  || "";
+    _sfeSelectedMaterial = fil.type    || "";
+
+    // Pre-fill form values
+    const colorInp = $("sfeColorInput");
+    const vendorInp= $("sfeVendor");
+    const matInp   = $("sfeMaterial");
+    const subInp   = $("sfeSubtype");
+    if (colorInp) colorInp.value = (fil.color && /^#[0-9a-f]{6}/i.test(fil.color)) ? fil.color.slice(0, 7) : "#FF5722";
+    // Custom-text inputs: only show a value when the current vendor/material
+    // is NOT in the predefined chip lists (otherwise the chip + the input
+    // would echo the same value, which is noisy).
+    if (vendorInp) vendorInp.value = SNAP_FIL_BRANDS.some(b => b.toLowerCase() === _sfeSelectedBrand.toLowerCase()) ? "" : (fil.vendor || "");
+    if (matInp)    matInp.value    = SNAP_FIL_MATERIALS.some(m => m.toLowerCase() === _sfeSelectedMaterial.toLowerCase()) ? "" : (fil.type || "");
+
+    // Sub-type select — populated from the id_aspect catalog so we
+    // always send a documented value to the printer. Filter out the
+    // "-" / "None" placeholders. Sort alphabetically but pin "Basic"
+    // to the top since it's the default + most common.
+    if (subInp && subInp.tagName === "SELECT") {
+      const aspects = (state.db.aspect || [])
+        .filter(a => a && a.label && a.label !== "-" && a.label.toLowerCase() !== "none")
+        .map(a => a.label);
+      aspects.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+      const basicIdx = aspects.findIndex(l => l.toLowerCase() === "basic");
+      if (basicIdx > 0) { aspects.splice(basicIdx, 1); aspects.unshift("Basic"); }
+      // Add the current value as a custom option if it doesn't match any
+      // aspect — preserves user-typed legacy values without silently
+      // dropping them.
+      const cur = String(fil.subType || "").trim();
+      const isKnown = !!cur && aspects.some(a => a.toLowerCase() === cur.toLowerCase());
+      const opts = [];
+      if (cur && !isKnown) opts.push(`<option value="${esc(cur)}" selected>${esc(cur)} (custom)</option>`);
+      for (const label of aspects) {
+        const isSel = isKnown ? cur.toLowerCase() === label.toLowerCase()
+                              : label === "Basic";
+        opts.push(`<option value="${esc(label)}"${isSel ? " selected" : ""}>${esc(label)}</option>`);
+      }
+      subInp.innerHTML = opts.join("");
+    }
+
+    // Header sub on the summary screen
+    // Subtitle deliberately blank — the user already sees which
+    // printer + extruder they tapped from in the side card behind the
+    // sheet, no need to repeat it here.
+    $("snapFilEditSub").textContent = "";
+    $("sfeError").hidden = true;
+
+    // Render the colour grid (24 presets + 1 custom). The native picker
+    // The custom slot has its own inline <input type="color"> rendered
+    // by sfeRenderColorGrid — we just feed it the initial colour.
+    const initialColor = (fil.color && /^#[0-9a-f]{6}/i.test(fil.color)) ? fil.color.slice(0, 7) : "#FF5722";
+    sfeRenderColorGrid(initialColor);
+
+    // Two-column filament picker. Pre-select the vendor that matches
+    // the current filament (or the first one if nothing matches).
+    const vendorList = $("sfeVendorList");
+    const matList    = $("sfeMaterialList");
+    if (vendorList) {
+      const vendorMatch = SNAP_FIL_BRANDS.find(b => b.toLowerCase() === _sfeSelectedBrand.toLowerCase())
+                       || SNAP_FIL_BRANDS[0];
+      _sfeSelectedBrand = vendorMatch;
+      vendorList.innerHTML = snapFilRenderVendorList(vendorMatch);
+    }
+    if (matList) {
+      matList.innerHTML = snapFilRenderMaterialList(_sfeSelectedBrand, _sfeSelectedMaterial);
+    }
+
+    // Always start with the sub-pickers closed so only the summary shows.
+    sfeCloseFilamentSheet();
+    sfeCloseColorSheet();
+    sfeUpdateSummary();
+
+    // Show the sheet
+    $("snapFilEditSheet").classList.add("open");
+    $("snapFilEditSheet").setAttribute("aria-hidden", "false");
+    $("snapFilEditBackdrop").classList.add("open");
+  }
+
+  // Both sub-pickers (Filament + Colour) are now standalone sheets that
+  // STACK on top of the summary sheet — the summary stays visible
+  // behind so the user keeps their context. Each has its own slide-up
+  // animation triggered by the .open class.
+  function sfeOpenFilamentSheet() {
+    $("sfeFilamentSheet")?.classList.add("open");
+    $("sfeFilamentSheet")?.setAttribute("aria-hidden", "false");
+  }
+  function sfeCloseFilamentSheet() {
+    $("sfeFilamentSheet")?.classList.remove("open");
+    $("sfeFilamentSheet")?.setAttribute("aria-hidden", "true");
+  }
+  function sfeOpenColorSheet() {
+    $("sfeColorSheet")?.classList.add("open");
+    $("sfeColorSheet")?.setAttribute("aria-hidden", "false");
+  }
+  function sfeCloseColorSheet() {
+    $("sfeColorSheet")?.classList.remove("open");
+    $("sfeColorSheet")?.setAttribute("aria-hidden", "true");
+  }
+
+  // Refresh the summary screen — Line 1 (filament summary text), Line 2
+  // (colour dot). Called whenever a sub-screen commits a new value.
+  function sfeUpdateSummary() {
+    const v   = _sfeSelectedBrand    || "—";
+    const m   = _sfeSelectedMaterial || "—";
+    const sub = $("sfeSubtype")?.value?.trim() || "";
+    const summary = sub ? `${v} ${m} ${sub}` : `${v} ${m}`;
+    const valEl = $("sfeFilSummaryVal");
+    if (valEl) valEl.textContent = summary;
+    const dot = $("sfeColorSummaryDot");
+    if (dot) dot.style.background = $("sfeColorInput")?.value || "#888";
+  }
+
+  // Render the colour grid: 24 presets + a 25th "custom" slot. The
+  // custom slot is a wrapper containing a transparent `<input
+  // type="color">` overlaid on top — the wrapper shows the current
+  // colour + edit icon, the input receives the click and anchors the
+  // OS-native picker right where it lives. Without this overlay trick
+  // the picker pops up in the top-left of the window because a
+  // `display:none` input has no visual anchor.
+  function sfeRenderColorGrid(currentColor) {
+    const grid = $("sfeColorGrid");
+    if (!grid) return;
+    const cur = (currentColor || "").toLowerCase();
+    const presetCells = SNAP_FIL_COLOR_PRESETS.map(c => {
+      const isSel = c.toLowerCase() === cur;
+      return `<button type="button" class="sfe-color-cell${isSel ? " is-selected" : ""}"
+                      data-color="${esc(c)}"
+                      style="background:${esc(c)}"
+                      title="${esc(c)}"></button>`;
+    }).join("");
+    const safeColor = currentColor && /^#[0-9a-f]{6}$/i.test(currentColor) ? currentColor : "#888888";
+    const customCell = `
+      <div class="sfe-color-cell sfe-color-cell--custom" id="sfeColorCustomBtn"
+           style="background:${esc(safeColor)}"
+           title="${esc(t("snapFilEditCustomColor") || "Custom")}">
+        <span class="icon icon-edit icon-13"></span>
+        <input type="color" class="sfe-color-cell-native" id="sfeColorPickerInline"
+               value="${esc(safeColor)}" aria-label="Custom color"/>
+      </div>`;
+    grid.innerHTML = presetCells + customCell;
+  }
+
+  function closeSnapFilamentEdit() {
+    $("snapFilEditSheet")?.classList.remove("open");
+    $("snapFilEditSheet")?.setAttribute("aria-hidden", "true");
+    $("snapFilEditBackdrop")?.classList.remove("open");
+    // Both stacked sub-sheets follow the summary down so nothing is
+    // left dangling when the whole edit flow is closed.
+    sfeCloseFilamentSheet();
+    sfeCloseColorSheet();
+    _snapFilEdit = null;
+  }
+  // ✕ on the SUMMARY closes the whole flow (summary + any open picker).
+  // ✕ on a picker only closes that picker (handled separately below).
+  $("snapFilEditClose")?.addEventListener("click", closeSnapFilamentEdit);
+  $("snapFilEditBackdrop")?.addEventListener("click", closeSnapFilamentEdit);
+  $("sfeColorClose")?.addEventListener("click", () => {
+    sfeUpdateSummary();
+    sfeCloseColorSheet();
+  });
+
+  // ── Summary → sub-sheet navigation. Each sub-picker is its own sheet
+  // that stacks on top of the summary; the summary stays visible behind. ─
+  $("sfeOpenFilament")?.addEventListener("click", () => {
+    sfeOpenFilamentSheet();
+    // Auto-scroll the selected vendor into view in the left column.
+    setTimeout(() => {
+      const sel = $("sfeVendorList")?.querySelector(".is-selected");
+      if (sel) sel.scrollIntoView({ block: "center", behavior: "auto" });
+    }, 0);
+  });
+  $("sfeOpenColor")?.addEventListener("click", () => sfeOpenColorSheet());
+
+  // Back buttons on the stacked sub-sheets — close the sheet, leave
+  // the summary visible behind, and refresh its preview values.
+  $("sfeFilamentBack")?.addEventListener("click", () => {
+    sfeUpdateSummary();
+    sfeCloseFilamentSheet();
+  });
+  $("sfeColorBack")?.addEventListener("click", () => {
+    sfeUpdateSummary();
+    sfeCloseColorSheet();
+  });
+  // Filament close (X on the picker header) — same behaviour as Back
+  // (both keep the summary alive, only kill the picker).
+  $("sfeFilamentClose")?.addEventListener("click", () => {
+    sfeUpdateSummary();
+    sfeCloseFilamentSheet();
+  });
+
+  // Sub-type changes update the summary line live. `change` covers
+  // <select> dropdowns; `input` covers any future free-text fallback.
+  $("sfeSubtype")?.addEventListener("change", sfeUpdateSummary);
+  $("sfeSubtype")?.addEventListener("input",  sfeUpdateSummary);
+
+  // ── Filament screen — vendor/material clicks ──────────────────────
+  $("sfeVendorList")?.addEventListener("click", e => {
+    const row = e.target.closest(".sfe-fil-row");
+    if (!row) return;
+    _sfeSelectedBrand = row.dataset.val || "";
+    $("sfeVendorList").querySelectorAll(".sfe-fil-row").forEach(r =>
+      r.classList.toggle("is-selected", r === row));
+    const matList = $("sfeMaterialList");
+    if (matList) matList.innerHTML = snapFilRenderMaterialList(_sfeSelectedBrand, _sfeSelectedMaterial);
+    const v = $("sfeVendor"); if (v) v.value = "";
+  });
+  // Tapping a material commits the (vendor, material) pair and goes
+  // back to the summary screen — same flow as the mobile app. Picking
+  // a new filament also wipes the sub-type input: the previous
+  // sub-type was specific to the old filament and is meaningless for
+  // the new one (e.g. "Speed Matt" stops making sense once you switch
+  // from Rosa3D ASA to Bambu Lab PETG).
+  $("sfeMaterialList")?.addEventListener("click", e => {
+    const row = e.target.closest(".sfe-fil-row");
+    if (!row) return;
+    _sfeSelectedMaterial = row.dataset.val || "";
+    const m = $("sfeMaterial"); if (m) m.value = "";
+    // Reset the sub-type to "Basic" when picking a new filament — the
+    // previous sub-type was specific to the old filament. Falls back
+    // to the first option if "Basic" isn't there for some reason.
+    const sub = $("sfeSubtype");
+    if (sub && sub.tagName === "SELECT") {
+      const basicOpt = Array.from(sub.options).find(o => o.value.toLowerCase() === "basic");
+      if (basicOpt) sub.value = basicOpt.value;
+      else if (sub.options.length) sub.selectedIndex = 0;
+    } else if (sub) {
+      sub.value = "";
+    }
+    // Re-render with the green check, then close the picker — the
+    // summary sheet underneath shows the new "Brand Material" line.
+    $("sfeMaterialList").innerHTML = snapFilRenderMaterialList(_sfeSelectedBrand, _sfeSelectedMaterial);
+    setTimeout(() => {
+      sfeUpdateSummary();
+      sfeCloseFilamentSheet();
+    }, 180);
+  });
+
+  // ── Color screen — preset cell click + custom slot inline input ──
+  // The custom slot has its native <input type="color"> overlaid on top
+  // (transparent), so a click on the slot opens the OS picker anchored
+  // to the slot itself. We listen to `input` (live drag) and `change`
+  // (final pick) via delegation since the grid is re-rendered on each
+  // colour change.
+  $("sfeColorGrid")?.addEventListener("click", e => {
+    // Don't intercept clicks bubbling from the inline picker — let the
+    // native input handle them (it's covered by the wrapper anyway).
+    if (e.target.closest("#sfeColorPickerInline")) return;
+    const cell = e.target.closest(".sfe-color-cell:not(.sfe-color-cell--custom)");
+    if (!cell) return;
+    const c = cell.dataset.color;
+    if (!c) return;
+    $("sfeColorInput").value = c;
+    sfeRenderColorGrid(c);
+    setTimeout(() => {
+      sfeUpdateSummary();
+      sfeCloseColorSheet();
+    }, 150);
+  });
+  // Live preview while the user drags the OS picker — updates the
+  // hidden input + repaints the custom slot so it reflects the chosen
+  // hue in real time. Delegated since the grid re-renders.
+  $("sfeColorGrid")?.addEventListener("input", e => {
+    if (!e.target.matches?.("#sfeColorPickerInline")) return;
+    const c = e.target.value;
+    $("sfeColorInput").value = c;
+    // Update just the wrapper background — re-rendering the whole grid
+    // here would close the OS picker mid-drag.
+    const wrap = e.target.closest(".sfe-color-cell--custom");
+    if (wrap) wrap.style.background = c;
+  });
+  // Final commit (the user closed the OS picker) — re-render the grid
+  // so the new colour shows as "selected" if it matches a preset, then
+  // bounce back to the summary.
+  $("sfeColorGrid")?.addEventListener("change", e => {
+    if (!e.target.matches?.("#sfeColorPickerInline")) return;
+    const c = e.target.value;
+    $("sfeColorInput").value = c;
+    sfeRenderColorGrid(c);
+    setTimeout(() => {
+      sfeUpdateSummary();
+      sfeCloseColorSheet();
+    }, 100);
+  });
+
+  // Send button → build the SET_PRINT_FILAMENT_CONFIG line and push it
+  // to the printer. Format ported from the Flutter mobile app.
+  $("snapFilEditSave")?.addEventListener("click", async () => {
+    if (!_snapFilEdit) return;
+    const conn = _snapConns.get(_snapFilEdit.key);
+    if (!conn) return;
+    const errEl = $("sfeError");
+    errEl.hidden = true;
+
+    // Vendor + material come either from a chip (last clicked) or from
+    // the custom-text input — whichever the user touched most recently.
+    const vendor   = snapSanitiseGcodeArg($("sfeVendor").value || _sfeSelectedBrand)    || "Generic";
+    const material = snapSanitiseGcodeArg($("sfeMaterial").value || _sfeSelectedMaterial) || "PLA";
+    const subtype  = snapSanitiseGcodeArg($("sfeSubtype").value);
+    const rgba     = snapColorToRgbaHex($("sfeColorInput").value);
+
+    // Snapmaker firmware requires every named arg to be present in the
+    // command line — omitting `FILAMENT_SUBTYPE` causes it to silently
+    // ignore the whole call. We always emit the key, with an empty
+    // value when the user didn't provide a sub-type.
+    const parts = [
+      "SET_PRINT_FILAMENT_CONFIG",
+      `CONFIG_EXTRUDER=${_snapFilEdit.extruderIndex}`,
+      `VENDOR=${vendor}`,
+      `FILAMENT_TYPE=${material}`,
+      `FILAMENT_SUBTYPE=${subtype}`,
+      `FILAMENT_COLOR_RGBA=${rgba}`
+    ];
+    const script = parts.join(" ");
+
+    // Mirror the outgoing g-code to DevTools so the user can verify the
+    // exact line that was pushed to Klipper without scrolling the log.
+    console.log("[snap] → gcode:", script);
+
+    const btn = $("snapFilEditSave");
+    btn.classList.add("loading");
+    btn.disabled = true;
+    try {
+      const ok = snapSendGcode(conn, script);
+      if (!ok) throw new Error("websocket not open");
+      // Close immediately; the printer's notify_status_update will arrive
+      // moments later and refresh the colour square / vendor labels.
+      closeSnapFilamentEdit();
+    } catch (e) {
+      console.warn("[snap] filament edit send failed:", e?.message);
+      errEl.textContent = t("snapFilEditError");
+      errEl.hidden = false;
+    } finally {
+      btn.classList.remove("loading");
+      btn.disabled = false;
+    }
+  });
+
+  /* ── Moonraker file path / thumbnail helpers ──────────────────────
+     Klipper exposes the active job's filename as something like
+     "/printer_data/gcodes/folder/Lame ryobi.gcode" — we have to peel it
+     down to "folder/Lame ryobi.gcode" before we can pass it to the
+     metadata endpoint, and again to build thumbnail URLs.              */
+  function snapNormalizePath(path) {
+    const out = [];
+    for (const raw of String(path || "").split("/")) {
+      const part = raw.trim();
+      if (!part || part === ".") continue;
+      if (part === "..") { if (out.length) out.pop(); continue; }
+      out.push(part);
+    }
+    return out.join("/");
+  }
+  function snapJoinPath(a, b) {
+    const left  = (a || "").trim();
+    const right = (b || "").trim();
+    if (!left)  return snapNormalizePath(right);
+    if (!right) return snapNormalizePath(left);
+    return snapNormalizePath(`${left}/${right}`);
+  }
+  function snapFilenameRel(absPath) {
+    let s = String(absPath || "").trim();
+    if (!s) return "";
+    if (s.startsWith("/")) {
+      const i = s.indexOf("/gcodes/");
+      if (i >= 0) s = s.slice(i + "/gcodes/".length);
+      else {
+        const i2 = s.indexOf("/printer_data/gcodes/");
+        if (i2 >= 0) s = s.slice(i2 + "/printer_data/gcodes/".length);
+      }
+    } else if (s.startsWith("gcodes/")) {
+      s = s.slice("gcodes/".length);
+    }
+    return snapNormalizePath(s);
+  }
+  function snapParentFolder(filename) {
+    const c = snapNormalizePath(filename);
+    const i = c.lastIndexOf("/");
+    return i <= 0 ? "" : c.substring(0, i);
+  }
+  function snapFileUrl(ip, relativePath) {
+    const cleaned = snapNormalizePath(relativePath);
+    const parts = cleaned.split("/").filter(Boolean).map(encodeURIComponent);
+    return `http://${ip}:7125/server/files/gcodes/${parts.join("/")}`;
+  }
+  function snapBestThumb(metadata) {
+    const arr = metadata?.thumbnails;
+    if (!Array.isArray(arr) || !arr.length) return null;
+    let best = null, bestScore = -1;
+    for (const t of arr) {
+      if (!t || typeof t !== "object") continue;
+      const w = +t.width || 0, h = +t.height || 0, sz = +t.size || 0;
+      const score = (w > 0 && h > 0) ? (w * h) : sz;
+      if (score >= bestScore) { bestScore = score; best = t; }
+    }
+    return best;
+  }
+  function snapThumbUrl(ip, filename, metadata) {
+    const t = snapBestThumb(metadata);
+    if (!t) return null;
+    const rel = String(t.relative_path || t.thumbnail_path || "").trim();
+    if (!rel) return null;
+    const folder = snapParentFolder(filename);
+    return snapFileUrl(ip, snapJoinPath(folder, rel));
+  }
+
+  // GET http://{ip}:7125/server/files/metadata?filename=...
+  // Stores the slicer thumbnail URL + estimated print time on the
+  // connection so the job card can render them. Idempotent — guarded by
+  // `_lastMetaFile` so we don't refetch on every WS frame.
+  async function snapFetchMetadata(conn, relFilename) {
+    if (!relFilename || !conn.ip) return;
+    if (conn.data._lastMetaFile === relFilename) return;
+    conn.data._lastMetaFile = relFilename;
+    const url = `http://${conn.ip}:7125/server/files/metadata?filename=${encodeURIComponent(relFilename)}`;
+    try {
+      const res = await fetch(url, { method: "GET" });
+      if (!res.ok) return;
+      const json = await res.json();
+      const meta = (json && json.result) ? json.result : json;
+      if (!meta || typeof meta !== "object") return;
+      conn.data.printPreviewUrl = snapThumbUrl(conn.ip, relFilename, meta) || null;
+      conn.data.printEstimated  = (typeof meta.estimated_time === "number") ? meta.estimated_time : null;
+      snapNotifyChange(conn);
+    } catch (_) {
+      // Network failure is non-fatal — the card falls back to the
+      // printer's catalog image and skips the estimated-time display.
+    }
+  }
+
+  // Convert a Klipper RGBA-hex string ("#RRGGBBAA" or "RRGGBB") to a
+  // browser-friendly "#RRGGBB" string, dropping the alpha.
+  function snapParseRgbaHex(s) {
+    let v = (s || "").trim();
+    if (!v) return null;
+    if (v.startsWith("#")) v = v.slice(1);
+    if (v.length === 8) v = v.slice(0, 6); // drop alpha
+    if (v.length !== 6) return null;
+    return "#" + v.toUpperCase();
+  }
+
+  // Whenever the live data changes we update the side card if it's
+  // still showing this printer.
+  //   • Default path: cheap re-render of `#snapLive` (data updates only).
+  //   • statusChanged=true: full re-render of the side card via
+  //     renderPrinterDetail — needed because the hero camera iframe is
+  //     conditional on the connection being open.
+  let _snapRenderRaf = null;
+  let _snapRenderStatusFlag = false;
+  function snapNotifyChange(conn, statusChanged = false) {
+    if (!_activePrinter) return;
+    if (snapKey(_activePrinter) !== conn.key) return;
+    if (statusChanged) _snapRenderStatusFlag = true;
+    if (_snapRenderRaf) return; // coalesce bursts
+    _snapRenderRaf = requestAnimationFrame(() => {
+      _snapRenderRaf = null;
+      const fullRerender = _snapRenderStatusFlag;
+      _snapRenderStatusFlag = false;
+      if (fullRerender) {
+        renderPrinterDetail();
+      } else {
+        // Live data block
+        const liveHost = $("snapLive");
+        if (liveHost) liveHost.innerHTML = renderSnapmakerLiveInner(_activePrinter);
+        // Request-log block — the log no longer has a nested scroll
+        // (the panel body scrolls instead), so a plain innerHTML swap
+        // is enough. Older entries stay visible above; new ones append
+        // at the top of the list because we sort newest-first.
+        const logHost = $("snapLog");
+        if (logHost) logHost.innerHTML = renderSnapmakerLogInner(_activePrinter);
+        const countEl = $("snapLogCount");
+        if (countEl) {
+          const c = _snapConns.get(snapKey(_activePrinter))?.log?.length || 0;
+          countEl.textContent = String(c);
+        }
+      }
+    });
+  }
+
+  // Format helpers for the live block
+  function snapFmtTemp(v) { return (typeof v === "number" && isFinite(v)) ? `${Math.round(v)}` : "—"; }
+  function snapFmtTempPair(cur, tgt) {
+    return `${snapFmtTemp(cur)}/${snapFmtTemp(tgt)}°C`;
+  }
+  function snapFmtDuration(seconds) {
+    const s = Math.max(0, Math.floor(seconds || 0));
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    return h > 0 ? `${h}h ${m.toString().padStart(2, "0")}m` : `${m}m`;
+  }
+  // Pick black or white text for a coloured background using sRGB luma —
+  // matches the contrast convention used elsewhere in the app.
+  function snapTextColor(hex) {
+    if (!hex || hex.length < 7) return "#fff";
+    const r = parseInt(hex.slice(1, 3), 16) / 255;
+    const g = parseInt(hex.slice(3, 5), 16) / 255;
+    const b = parseInt(hex.slice(5, 7), 16) / 255;
+    const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    return lum > 0.55 ? "#000" : "#fff";
+  }
+  // Inline SVGs for the small temp icons — kept as renderer constants so
+  // they pick up `currentColor` from the parent without extra CSS wiring.
+  const SNAP_ICON_NOZZLE = `<svg class="snap-temp-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6v6l-3 4-3-4z"/><path d="M9 17q1 2 0 4"/><path d="M12 17q1 2 0 4"/><path d="M15 17q1 2 0 4"/></svg>`;
+  const SNAP_ICON_BED    = `<svg class="snap-temp-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="16" x2="21" y2="16"/><path d="M7 12q1-3 0-5"/><path d="M12 12q1-3 0-5"/><path d="M17 12q1-3 0-5"/></svg>`;
+  const SNAP_ICON_CLOCK  = `<svg class="snap-job-time-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg>`;
+
+  // Returns the inner HTML for the Snapmaker live container.
+  // Layout (matches the TigerTag mobile companion app):
+  //   1. Connection header (LED + status + IP)
+  //   2. Camera (full-width, on top — first signal of "yes the printer is there")
+  //   3. Print-job card (only when actively printing)
+  //   4. Temperature row — compact pills "26/0°C" for each E + bed
+  //   5. Filament grid — big coloured squares with material name centered,
+  //      vendor + sub-type below
+  function renderSnapmakerLiveInner(p) {
+    const conn = _snapConns.get(snapKey(p));
+    if (!conn) {
+      return `
+        <div class="snap-empty">
+          <span class="icon icon-cloud icon-18"></span>
+          <span>${esc(t("snapNoConnection"))}</span>
+        </div>`;
+    }
+    const d = conn.data;
+
+    // ── Connection header removed — the Online/Offline badge now lives
+    // in the panel-title (next to the brand+model pills). See
+    // renderPrinterDetail() for that markup. We keep the function
+    // structure so partial re-renders only patch the data blocks below.
+
+    // ── Camera was here previously — now lives in the hero (replaces the
+    // static product photo when the printer is connected). See
+    // renderPrinterDetail() for the swap logic.
+
+    // ── 3. Print-job card ────────────────────────────────────────────
+    // Always visible — gives the user a constant snapshot of the
+    // printer's state. When the printer is idle (no active job) we
+    // fall back to a "Standby" presentation with placeholder values.
+    const jobState  = d.printState || "standby";
+    const isActive  = !["standby", "complete", "cancelled"].includes(jobState);
+    const pct       = isActive ? Math.round(((d.progress || 0) * 100)) : 0;
+    const leafName  = isActive && d.printFilename
+                    ? snapFilenameRel(d.printFilename).split("/").pop()
+                    : "";
+    // Thumbnail: prefer the slicer preview from /server/files/metadata.
+    // Fallback to the printer's catalog image so the card never looks
+    // empty even before metadata has loaded.
+    const fallbackImg = printerImageUrlFor(p.brand, p.printerModelId)
+                     || printerImageUrl(findPrinterModel(p.brand, "0"));
+    const thumbUrl  = (isActive && d.printPreviewUrl) ? d.printPreviewUrl : (fallbackImg || "");
+    const layerText = isActive && (d.currentLayer || d.totalLayer)
+                    ? `${d.currentLayer || 0}/${d.totalLayer || 0}` : "";
+    const durationText = isActive ? snapFmtDuration(d.printDuration) : "0m";
+    const stateLabel = t("snapState_" + jobState) || jobState;
+    const nameLine = leafName
+      ? `<div class="snap-job-name" title="${esc(leafName)}">${esc(leafName)}</div>`
+      : `<div class="snap-job-name snap-job-name--idle">${esc(t("snapJobNoActive") || "—")}</div>`;
+    const jobHtml = `
+      <div class="snap-job snap-job--${esc(jobState)}">
+        <div class="snap-job-thumb"${thumbUrl ? ` style="background-image:url('${esc(thumbUrl)}')"` : ""}></div>
+        <div class="snap-job-info">
+          ${nameLine}
+          <div class="snap-job-stats">
+            <span class="snap-job-pct">${pct}%</span>
+            <span class="snap-job-time">${SNAP_ICON_CLOCK} <span>${esc(durationText)}</span></span>
+          </div>
+          <div class="snap-job-bar"><span style="width:${pct}%"></span></div>
+          <div class="snap-job-foot">
+            <span class="snap-job-state snap-job-state--${esc(jobState)}">${esc(stateLabel)}</span>
+            ${layerText ? `<span class="snap-job-layers">${esc(layerText)}</span>` : ""}
+          </div>
+        </div>
+      </div>`;
+
+    // ── 4. Temperature row — one pill per active extruder + bed ─────
+    // "Active" = the firmware reported either a current or a target temp
+    // for this tool. We always include the bed if it reports anything.
+    const tempPills = [];
+    for (let i = 1; i <= 4; i++) {
+      const cur = d.temps[`e${i}_temp`];
+      const tgt = d.temps[`e${i}_target`];
+      if (typeof cur !== "number" && typeof tgt !== "number") continue;
+      const heating = (typeof tgt === "number" && tgt > 0 && typeof cur === "number" && cur < tgt - 1);
+      tempPills.push(`
+        <div class="snap-temp${heating ? " snap-temp--heating" : ""}">
+          ${SNAP_ICON_NOZZLE}
+          <span class="snap-temp-val">${esc(snapFmtTempPair(cur, tgt))}</span>
+        </div>`);
+    }
+    if (typeof d.temps.bed_temp === "number" || typeof d.temps.bed_target === "number") {
+      const cur = d.temps.bed_temp, tgt = d.temps.bed_target;
+      const heating = (typeof tgt === "number" && tgt > 0 && typeof cur === "number" && cur < tgt - 1);
+      tempPills.push(`
+        <div class="snap-temp snap-temp--bed${heating ? " snap-temp--heating" : ""}">
+          ${SNAP_ICON_BED}
+          <span class="snap-temp-val">${esc(snapFmtTempPair(cur, tgt))}</span>
+        </div>`);
+    }
+    const tempsHtml = tempPills.length
+      ? `<section class="snap-block">
+           <h4 class="snap-block-title">${esc(t("snapTemperatureTitle"))}</h4>
+           <div class="snap-temps">${tempPills.join("")}</div>
+         </section>`
+      : "";
+
+    // ── 5. Filament grid — big coloured squares ─────────────────────
+    // We render a square for every extruder slot that has either a
+    // filament definition OR a reported temp (so a slot with no filament
+    // loaded still appears, with an empty/dashed square).
+    const filCards = [];
+    for (let i = 1; i <= 4; i++) {
+      const fil  = d.filaments[i - 1] || {};
+      const cur  = d.temps[`e${i}_temp`];
+      const tgt  = d.temps[`e${i}_target`];
+      const has  = !!(fil.color || fil.vendor || fil.type || fil.subType
+                    || typeof cur === "number" || typeof tgt === "number");
+      if (!has) continue;
+      const color = fil.color || null;
+      const fg    = color ? snapTextColor(color) : "var(--text)";
+      const main  = fil.subType || fil.type || t("snapNoFilament");
+      // The whole card is the click-target when the slot is NOT
+      // RFID-locked (`fil.official === true`). The colour square, the
+      // edit icon, the vendor / matter labels — anywhere in the card
+      // opens the bottom-sheet. The data attribute is on the parent so
+      // the closest() walk catches every inner click.
+      const editable = !fil.official;
+      filCards.push(`
+        <div class="snap-fil${editable ? " snap-fil--editable" : ""}"
+             ${editable ? `data-snap-fil-edit="1"` : ""}
+             data-extruder-idx="${i - 1}"
+             title="${editable ? esc(t("snapFilEditableTip")) : esc(t("snapFilLockedTip"))}">
+          <div class="snap-fil-tag">E${i}</div>
+          <div class="snap-fil-square${color ? "" : " snap-fil-square--empty"}"
+               style="${color ? `background:${esc(color)};color:${esc(fg)};border-color:${esc(color)};` : ""}">
+            <span class="snap-fil-main">${esc(main)}</span>
+          </div>
+          <div class="snap-fil-meta">
+            <span class="snap-fil-status icon ${fil.official ? "icon-eye-on snap-fil-status--locked" : "icon-edit"} icon-13"
+                  aria-hidden="true"></span>
+            <div class="snap-fil-vendor">${esc(fil.vendor || "—")}</div>
+            <div class="snap-fil-sub">${esc(fil.subType || fil.type || "—")}</div>
+          </div>
+        </div>`);
+    }
+    const filamentsHtml = filCards.length
+      ? `<section class="snap-block">
+           <h4 class="snap-block-title">${esc(t("snapFilamentTitle"))}</h4>
+           <div class="snap-fil-grid">${filCards.join("")}</div>
+         </section>`
+      : "";
+
+    return `
+      ${jobHtml}
+      ${tempsHtml}
+      ${filamentsHtml}`;
+  }
+
+  /* ── Request log — what we send / what the printer answers ──────────
+     Stored on `conn.log` as an array of { dir: "→"|"←", ts, summary, raw }.
+     The UI is a collapsible section at the bottom of the live block.
+     Each line is clickable to copy the raw JSON to the clipboard.       */
+  // Visible-buffer cap. Older entries fall off so we never grow without
+  // bound — 100 frames is enough to debug a request flow without bloating
+  // memory on long-running sessions.
+  const SNAP_LOG_MAX = 100;
+  function snapLogPush(conn, dir, raw) {
+    // When the user has frozen the log via the Pause toggle, drop new
+    // frames so what's on screen stays stable for inspection.
+    if (conn.logPaused) return;
+    if (!conn.log) conn.log = [];
+    let summary = "";
+    try {
+      const obj = typeof raw === "string" ? JSON.parse(raw) : raw;
+      if (obj?.method) summary = obj.method;
+      else if (obj?.result && typeof obj.result === "object") {
+        const keys = obj.result.status ? Object.keys(obj.result.status) : Object.keys(obj.result);
+        summary = "result · " + keys.slice(0, 4).join(", ");
+      } else summary = "(no method)";
+      if (typeof obj?.id !== "undefined") summary += `  id:${obj.id}`;
+    } catch { summary = "(non-json)"; }
+    const ts = new Date().toLocaleTimeString([], { hour12: false });
+    const rawStr = typeof raw === "string" ? raw : JSON.stringify(raw);
+    conn.log.push({ dir, ts, summary, raw: rawStr });
+    if (conn.log.length > SNAP_LOG_MAX) conn.log.splice(0, conn.log.length - SNAP_LOG_MAX);
+  }
+
+  // Inner contents of the log container — replaced on every re-render.
+  // Rows are click-to-expand: each shows a one-line summary; on click,
+  // the full pretty-printed JSON appears inline with its own copy
+  // button. Pausing the stream (via the toolbar) freezes the log so the
+  // user can inspect a long frame at their own pace.
+  // Send a hand-crafted JSON-RPC frame from the paste textarea straight
+  // through the WebSocket. Useful for testing custom Moonraker calls
+  // without leaving the UI. The pasted payload is forwarded VERBATIM —
+  // we don't wrap it in a JSON-RPC envelope, the user is expected to
+  // provide a complete `{ jsonrpc, id, method, params }` object.
+  function snapSendCustomJson() {
+    const ta  = $("snapLogPasteInput");
+    const err = $("snapLogPasteError");
+    if (!ta || !err) return;
+    err.hidden = true;
+
+    const conn = _activePrinter ? _snapConns.get(snapKey(_activePrinter)) : null;
+    if (!conn?.ws || conn.ws.readyState !== WebSocket.OPEN) {
+      err.textContent = t("snapPasteNotConnected") || "Printer not connected.";
+      err.hidden = false;
+      return;
+    }
+
+    let obj;
+    try { obj = JSON.parse(ta.value); }
+    catch (e) {
+      err.textContent = (t("snapPasteInvalidJson") || "Invalid JSON:") + " " + (e?.message || e);
+      err.hidden = false;
+      return;
+    }
+
+    const json = JSON.stringify(obj);
+    snapLogPush(conn, "→", json);
+    try {
+      conn.ws.send(json);
+    } catch (e) {
+      err.textContent = (t("snapPasteSendError") || "Send failed:") + " " + (e?.message || e);
+      err.hidden = false;
+      return;
+    }
+    // Re-render the log so the new outbound frame appears at the top.
+    const host = $("snapLog");
+    if (host) host.innerHTML = renderSnapmakerLogInner(_activePrinter);
+    const countEl = $("snapLogCount");
+    if (countEl) countEl.textContent = String(conn.log?.length || 0);
+    // Visual confirmation on the Send button.
+    const btn = $("snapLogPasteSendBtn");
+    if (btn) {
+      btn.classList.add("snap-log-paste-send--ok");
+      setTimeout(() => btn.classList.remove("snap-log-paste-send--ok"), 700);
+    }
+  }
+
+  function renderSnapmakerLogInner(p) {
+    const conn = _snapConns.get(snapKey(p));
+    const log = conn?.log || [];
+    if (!log.length) {
+      return `<div class="snap-log-empty">${esc(t("snapLogEmpty"))}</div>`;
+    }
+    const rows = log.slice().reverse().map((e, i) => {
+      let pretty = e.raw;
+      try { pretty = JSON.stringify(JSON.parse(e.raw), null, 2); } catch (_) {}
+      // We index from the END (newest first) because that's the visible
+      // order. The expanded flag lives on the entry object so it persists
+      // across partial re-renders (when paused, no re-render happens; when
+      // streaming, expansions reset — that's the trade-off).
+      const expanded = !!e.expanded;
+      return `
+        <div class="snap-log-row snap-log-row--${e.dir === "→" ? "out" : "in"}${expanded ? " snap-log-row--expanded" : ""}"
+             data-log-idx="${log.length - 1 - i}">
+          <button type="button" class="snap-log-row-head" data-row-toggle="1">
+            <span class="snap-log-dir">${esc(e.dir)}</span>
+            <span class="snap-log-ts">${esc(e.ts)}</span>
+            <span class="snap-log-summary">${esc(e.summary)}</span>
+            <span class="snap-log-row-chev icon icon-chevron-r icon-13"></span>
+          </button>
+          <div class="snap-log-detail"${expanded ? "" : " hidden"}>
+            <button type="button" class="snap-log-detail-copy" data-copy="${esc(pretty)}" title="${esc(t("copyLabel"))}">
+              <span class="icon icon-copy icon-13"></span>
+              <span>${esc(t("copyLabel"))}</span>
+            </button>
+            <pre class="snap-log-detail-pre">${esc(pretty)}</pre>
+          </div>
+        </div>`;
+    }).join("");
+    return `<div class="snap-log">${rows}</div>`;
+  }
+
+  function renderPrinterDetail() {
+    const p = _activePrinter;
+    if (!p) return;
+    const meta = PRINTER_BRAND_META[p.brand] || { label: p.brand, accent: "#888", connection: "" };
+
+    // Title shown in the panel header. Brand + model pills are injected
+    // next to it (was previously inside the hero — moved up so the user
+    // doesn't see the printer name twice).
+    $("printerPanelTitle").textContent = p.printerName || t("printerPanelTitle");
+
+    // Resolve catalog metadata for the model
+    const modelName    = printerModelName(p.brand, p.printerModelId);
+    const heroImgUrl   = printerImageUrlFor(p.brand, p.printerModelId)
+                      || printerImageUrl(findPrinterModel(p.brand, "0"));
+    const features     = printerModelFeatures(p.brand, p.printerModelId);
+    const featuresHtml = features.length
+      ? `<div class="pp-features">${features.map(f => `<span class="pp-feature">${esc(f)}</span>`).join("")}</div>`
+      : "";
+
+    // Body — read-only summary. Identity / Connection / Credentials are
+    // edited through the gear button which opens the Printers Settings
+    // modal in edit mode. The remaining hero is purely informational and
+    // the Raw data section is kept as a debug aid.
+    // For Snapmaker we want the camera to span the FULL width of the side
+    // card (edge-to-edge, no rounded frame). It sits ABOVE the hero block
+    // so it reads as the headline media. When the WS isn't connected we
+    // fall back to the static product photo INSIDE the hero (existing).
+    const snapConn = (p.brand === "snapmaker") ? _snapConns.get(snapKey(p)) : null;
+    const showCam  = !!(snapConn && snapConn.status === "connected" && snapConn.ip);
+
+    // The TigerTag mobile app uses the WebRTC player page exposed by
+    // Snapmaker / Crowsnest — same approach we take here. The iframe
+    // loads the printer's own player HTML (`/webcam/webrtc`) which knows
+    // how to negotiate the stream. MJPEG via `/?action=stream` returned
+    // a black frame on Snapmaker U1, so WebRTC is the working path.
+    const camBannerHtml = showCam
+      ? `<div class="pp-cam-full">
+           <iframe class="snap-camera-frame" src="${esc(`http://${snapConn.ip}/webcam/webrtc`)}"
+                   sandbox="allow-scripts allow-same-origin"
+                   loading="lazy" referrerpolicy="no-referrer"
+                   allow="autoplay"></iframe>
+         </div>`
+      : "";
+
+    // Hero photo — only when the camera is NOT taking over.
+    const heroImgHtml = (!showCam && heroImgUrl)
+      ? `<div class="pp-hero-img"><img src="${esc(heroImgUrl)}" alt="${esc(modelName)}" onerror="this.style.opacity='.15'"/></div>`
+      : "";
+
+    // Snapmaker live data block (no wrapping section — direct child of
+    // the panel body, snap-head + temps + filaments inline). Re-rendered
+    // partially via #snapLive on every WS frame.
+    const snapLiveHtml = (p.brand === "snapmaker")
+      ? `<div id="snapLive" class="snap-live-host">${renderSnapmakerLiveInner(p)}</div>`
+      : "";
+
+    // Snapmaker WS request log — sibling collapsible section at the
+    // bottom, same visual style as the Raw data section. Re-rendered
+    // partially via #snapLog on every WS frame.
+    const isPaused = !!(snapConn?.logPaused);
+    const snapLogHtml = (p.brand === "snapmaker")
+      ? `<section class="pp-section pp-section--collapsible snap-log-section" data-collapsed="true">
+           <button class="pp-section-head pp-section-head--btn" type="button">
+             <span>${esc(t("snapLogTitle"))}
+                   <span class="snap-log-count" id="snapLogCount">${(snapConn?.log?.length) || 0}</span>
+                   ${isPaused ? `<span class="snap-log-paused-tag" id="snapLogPausedTag">${esc(t("snapLogPaused"))}</span>` : ""}
+             </span>
+             <span class="pp-chev icon icon-chevron-r icon-14"></span>
+           </button>
+           <div class="pp-section-body">
+             <div class="snap-log-toolbar">
+               <button type="button" class="snap-log-btn snap-log-btn--pause${isPaused ? " is-paused" : ""}" id="snapLogPauseBtn"
+                       data-paused="${isPaused ? "true" : "false"}">
+                 <span class="icon ${isPaused ? "icon-play" : "icon-pause"} icon-13"></span>
+                 <span class="label">${esc(t(isPaused ? "snapLogResume" : "snapLogPause"))}</span>
+               </button>
+               <button type="button" class="snap-log-btn" id="snapLogClearBtn">
+                 <span class="icon icon-trash icon-13"></span>
+                 <span>${esc(t("snapLogClear"))}</span>
+               </button>
+             </div>
+
+             <!-- Custom JSON paste zone — for hand-crafted Moonraker calls. -->
+             <details class="snap-log-paste">
+               <summary>${esc(t("snapPasteTitle"))}</summary>
+               <textarea class="snap-log-paste-input" id="snapLogPasteInput"
+                         spellcheck="false" autocapitalize="off" autocomplete="off"
+                         placeholder='{
+  "jsonrpc": "2.0",
+  "id": 999,
+  "method": "printer.objects.query",
+  "params": { "objects": { "extruder": ["temperature", "target"] } }
+}'></textarea>
+               <div class="snap-log-paste-row">
+                 <span class="snap-log-paste-error" id="snapLogPasteError" hidden></span>
+                 <button type="button" class="snap-log-btn snap-log-paste-send" id="snapLogPasteSendBtn">
+                   <span class="icon icon-play icon-13"></span>
+                   <span>${esc(t("snapPasteSend"))}</span>
+                 </button>
+               </div>
+             </details>
+
+             <div id="snapLog">${renderSnapmakerLogInner(p)}</div>
+           </div>
+         </section>`
+      : "";
+
+    // Build the pills HTML for the panel-title slot. Brand pill (filled,
+    // brand colour) + model pill (outline) + online status (Snapmaker
+    // only — driven by the WebSocket / HTTP ping reachability).
+    const titlePillsHtml = `
+      <span class="pp-brand-pill pp-brand-pill--sm" style="--brand-accent:${meta.accent}">${esc(meta.label)}</span>
+      ${modelName && modelName !== "—" ? `<span class="pp-model-pill pp-model-pill--sm">${esc(modelName)}</span>` : ""}
+      ${renderSnapOnlineBadge(p, "side")}
+    `;
+    $("printerPanelPills").innerHTML = titlePillsHtml;
+
+    // Online status now lives in the panel header (next to the pills),
+    // not under the camera. Trigger a fresh ping anyway so the badge
+    // updates as soon as the side card opens.
+    if (p.brand === "snapmaker" && p.ip) snapPingPrinter(p);
+
+    $("printerPanelBody").innerHTML = `
+      ${camBannerHtml}
+      <div class="pp-hero">
+        ${p.isActive ? `<span class="pp-active">${esc(t("printersActive"))}</span>` : ""}
+        ${heroImgHtml}
+        ${featuresHtml}
+      </div>
+
+      ${snapLiveHtml}
+
+      ${state.debugEnabled ? `
+      <section class="pp-section pp-section--collapsible" data-collapsed="true">
+        <button class="pp-section-head pp-section-head--btn" type="button">
+          <span>${esc(t("printerSecRaw"))}</span>
+          <span class="pp-chev icon icon-chevron-r icon-14"></span>
+        </button>
+        <div class="pp-section-body">
+          <div class="pp-raw-wrap">
+            <button class="pp-raw-copy pp-copy" data-copy-raw="1" title="${esc(t("copyLabel"))}">
+              <span class="icon icon-copy icon-13"></span>
+              <span>${esc(t("copyLabel"))}</span>
+            </button>
+            <pre class="pp-raw">${esc(JSON.stringify(p, null, 2))}</pre>
+          </div>
+        </div>
+      </section>
+
+      ${snapLogHtml}` : ""}`;
+
+    // Wire interactions
+    const body = $("printerPanelBody");
+    body.querySelectorAll(".pp-eye").forEach(btn => {
+      btn.addEventListener("click", e => {
+        e.stopPropagation();
+        const wrap = btn.closest(".pp-row-val");
+        const sec  = wrap?.querySelector(".pp-secret");
+        if (!sec) return;
+        const revealed = sec.dataset.revealed === "true";
+        if (revealed) {
+          sec.dataset.revealed = "false";
+          const val = sec.dataset.secret || "";
+          sec.textContent = "•".repeat(Math.min(12, val.length));
+          btn.title = t("printerSecretShow");
+        } else {
+          sec.dataset.revealed = "true";
+          sec.textContent = sec.dataset.secret || "";
+          btn.title = t("printerSecretHide");
+        }
+      });
+    });
+    body.querySelectorAll(".pp-copy").forEach(btn => {
+      btn.addEventListener("click", e => {
+        e.stopPropagation();
+        // Two flavors: per-row copy (data-copy="value") and the raw-JSON
+        // copy in the collapsible Raw data section (data-copy-raw="1").
+        // Reading the JSON from _activePrinter rather than a frozen
+        // dataset string keeps the copy in sync with live snapshots.
+        let v = "";
+        if (btn.dataset.copyRaw === "1") {
+          v = _activePrinter ? JSON.stringify(_activePrinter, null, 2) : "";
+        } else {
+          v = btn.dataset.copy || "";
+        }
+        if (!v) return;
+        try {
+          navigator.clipboard.writeText(v);
+          btn.classList.add("pp-copy--ok");
+          setTimeout(() => btn.classList.remove("pp-copy--ok"), 900);
+        } catch (_) {}
+      });
+    });
+    body.querySelectorAll(".pp-section--collapsible .pp-section-head--btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const sec = btn.closest(".pp-section");
+        const collapsed = sec.dataset.collapsed === "true";
+        sec.dataset.collapsed = collapsed ? "false" : "true";
+      });
+    });
+
+    // Snapmaker log interactions — delegated on the panel body so partial
+    // re-renders of #snapLog don't lose the wiring. (The collapsible
+    // section header itself is wired by the standard pass above — adding
+    // it here would double-toggle and the section would never visibly open.)
+    if (!body.dataset.snapDelegated) {
+      body.dataset.snapDelegated = "1";
+      body.addEventListener("click", e => {
+        // Filament edit — color square or edit icon (only when editable).
+        const filEditTrigger = e.target.closest("[data-snap-fil-edit]");
+        if (filEditTrigger) {
+          const card = filEditTrigger.closest(".snap-fil");
+          const idx = parseInt(card?.dataset?.extruderIdx ?? "-1", 10);
+          if (idx >= 0 && _activePrinter) openSnapFilamentEdit(_activePrinter, idx);
+          return;
+        }
+        // Pause / Resume — surgical update. We deliberately AVOID a full
+        // renderPrinterDetail() here because that resets the section's
+        // `data-collapsed` attribute to its template default, which
+        // would close the Request Log section right under the user.
+        if (e.target.closest("#snapLogPauseBtn")) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (!_activePrinter) return;
+          const conn = _snapConns.get(snapKey(_activePrinter));
+          if (!conn) return;
+          conn.logPaused = !conn.logPaused;
+          const btn  = $("snapLogPauseBtn");
+          const icon = btn?.querySelector(".icon");
+          const lbl  = btn?.querySelector(".label");
+          if (btn) {
+            btn.classList.toggle("is-paused", conn.logPaused);
+            btn.dataset.paused = String(conn.logPaused);
+          }
+          if (icon) {
+            icon.classList.toggle("icon-pause", !conn.logPaused);
+            icon.classList.toggle("icon-play",   conn.logPaused);
+          }
+          if (lbl) lbl.textContent = t(conn.logPaused ? "snapLogResume" : "snapLogPause");
+          // PAUSED tag next to the count — create / remove on the fly.
+          let tag = $("snapLogPausedTag");
+          if (conn.logPaused && !tag) {
+            const headSpan = btn?.closest(".snap-log-section")
+                                ?.querySelector(".pp-section-head--btn > span");
+            if (headSpan) {
+              tag = document.createElement("span");
+              tag.id = "snapLogPausedTag";
+              tag.className = "snap-log-paused-tag";
+              tag.textContent = t("snapLogPaused");
+              headSpan.appendChild(tag);
+            }
+          } else if (!conn.logPaused && tag) {
+            tag.remove();
+          }
+          return;
+        }
+        // Clear — wipe the visible buffer in place.
+        if (e.target.closest("#snapLogClearBtn")) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (!_activePrinter) return;
+          const conn = _snapConns.get(snapKey(_activePrinter));
+          if (!conn) return;
+          conn.log = [];
+          const host = $("snapLog");
+          if (host) host.innerHTML = renderSnapmakerLogInner(_activePrinter);
+          const countEl = $("snapLogCount");
+          if (countEl) countEl.textContent = "0";
+          return;
+        }
+        // Send custom JSON — paste zone in the log section.
+        if (e.target.closest("#snapLogPasteSendBtn")) {
+          e.preventDefault();
+          e.stopPropagation();
+          snapSendCustomJson();
+          return;
+        }
+        // Copy button inside an expanded row — copies the pretty JSON.
+        const copyBtn = e.target.closest(".snap-log-detail-copy");
+        if (copyBtn) {
+          e.stopPropagation();
+          const v = copyBtn.dataset.copy || "";
+          if (!v) return;
+          try {
+            navigator.clipboard.writeText(v);
+            copyBtn.classList.add("snap-log-detail-copy--ok");
+            setTimeout(() => copyBtn.classList.remove("snap-log-detail-copy--ok"), 700);
+          } catch (_) {}
+          return;
+        }
+        // Row head click — toggle expansion. We persist the flag on the
+        // log entry object so it survives the next partial re-render
+        // (typical when paused — no new pushes mean the rows array is
+        // stable and the index → entry mapping holds).
+        const head = e.target.closest("[data-row-toggle]");
+        if (head) {
+          const rowEl = head.closest(".snap-log-row");
+          if (!rowEl || !_activePrinter) return;
+          const conn = _snapConns.get(snapKey(_activePrinter));
+          const idx = parseInt(rowEl.dataset.logIdx || "-1", 10);
+          if (conn?.log?.[idx]) conn.log[idx].expanded = !conn.log[idx].expanded;
+          // DOM swap — toggle the hidden attribute + the row's class
+          rowEl.classList.toggle("snap-log-row--expanded");
+          const detail = rowEl.querySelector(".snap-log-detail");
+          if (detail) detail.toggleAttribute("hidden");
+        }
+      });
+    }
+
+    // Inline-edit wiring for every [data-edit-field] node — connection rows,
+    // credentials, and the hero printerName.
+    body.querySelectorAll("[data-edit-field]").forEach(el => {
+      // Click on a child .pp-eye / .pp-copy / .pp-pencil should NOT enter
+      // edit mode (the pencil is a visual hint; the row itself is the
+      // hit target). The eye/copy buttons stop propagation themselves.
+      el.addEventListener("click", e => {
+        // Ignore clicks that originated on a button inside the cell —
+        // those have their own behaviour (eye toggle, copy).
+        if (e.target.closest(".pp-eye, .pp-copy")) return;
+        startInlineEdit(el);
+      });
+      el.addEventListener("keydown", e => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          startInlineEdit(el);
+        }
+      });
+    });
+  }
+
+  // Replace the cell content with an <input>. Enter/blur saves, Escape cancels.
+  function startInlineEdit(cellEl) {
+    if (cellEl.classList.contains("pp-row-val--editing")) return;
+    if (!_activePrinter) return;
+    const field    = cellEl.dataset.editField;
+    const isSecret = cellEl.dataset.editSecret === "1";
+    const raw      = cellEl.dataset.editRaw || "";
+    if (!field) return;
+
+    cellEl.classList.add("pp-row-val--editing");
+
+    // Stash original DOM so we can restore on cancel without re-rendering
+    const originalHtml = cellEl.innerHTML;
+
+    const input = document.createElement("input");
+    input.type = "text"; // password fields stay text — the row already had a reveal toggle, which we drop while editing
+    input.className = "pp-edit-input";
+    input.value = raw;
+    input.setAttribute("aria-label", t("printerEditHint"));
+    input.spellcheck = false;
+    input.autocomplete = "off";
+    input.autocapitalize = "off";
+
+    cellEl.innerHTML = "";
+    cellEl.appendChild(input);
+    input.focus();
+    input.select();
+
+    let committed = false;
+    const cancel = () => {
+      if (committed) return;
+      committed = true;
+      cellEl.innerHTML = originalHtml;
+      cellEl.classList.remove("pp-row-val--editing");
+    };
+    const commit = async () => {
+      if (committed) return;
+      committed = true;
+      const newVal = input.value.trim();
+      if (newVal === raw) {
+        // Nothing changed — just restore.
+        cellEl.innerHTML = originalHtml;
+        cellEl.classList.remove("pp-row-val--editing");
+        return;
+      }
+      cellEl.classList.add("pp-row-val--saving");
+      cellEl.innerHTML = `<span class="pp-edit-spin"></span><span>${esc(t("printerEditSaving"))}</span>`;
+      try {
+        await savePrinterField(_activePrinter.brand, _activePrinter.id, field, newVal);
+        // The Firestore snapshot will trigger refreshOpenPrinterDetail() and
+        // re-render the row with the new value. We just clean up the
+        // intermediate state.
+        cellEl.classList.remove("pp-row-val--editing", "pp-row-val--saving");
+      } catch (e) {
+        console.warn("[printers] save failed:", e?.code, e?.message);
+        cellEl.classList.remove("pp-row-val--saving");
+        cellEl.innerHTML = `<span class="pp-edit-error">${esc(t("printerEditError"))}</span>`;
+        // After 1.4 s revert to the original so the user can try again.
+        setTimeout(() => {
+          cellEl.innerHTML = originalHtml;
+          cellEl.classList.remove("pp-row-val--editing");
+        }, 1400);
+      }
+    };
+
+    input.addEventListener("keydown", e => {
+      if (e.key === "Enter")  { e.preventDefault(); commit(); }
+      if (e.key === "Escape") { e.preventDefault(); cancel(); }
+    });
+    input.addEventListener("blur", () => commit());
+  }
+
+  // Single Firestore write path. Always stamps `updatedAt` with a
+  // server-side timestamp so cross-client ordering stays monotonic.
+  async function savePrinterField(brand, deviceId, fieldName, newValue) {
+    const uid = state.activeAccountId;
+    if (!uid) throw new Error("no active account");
+    const db  = fbDb(uid);
+    const ref = db.collection("users").doc(uid)
+                  .collection("printers").doc(brand)
+                  .collection("devices").doc(deviceId);
+    await ref.update({
+      [fieldName]: newValue,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  }
+
+  /* ── Add a printer — two-step flow ─────────────────────────────────────
+     Step 1 — brand picker: a small modal listing the 5 supported brands
+     with their connection method, so the user picks the right type.
+     Step 2 — form: a per-brand form with the documented field set
+     (printerName + printerModelId always; brand-specific ip / sn /
+     account / serialNumber / password / mqttPassword as needed).
+     On submit we create a Firestore doc under
+       users/{uid}/printers/{brand}/devices/{auto-id}
+     with serverTimestamp updatedAt and a sortIndex equal to the current
+     printer count (so the new card lands at the end).                     */
+  // Per-brand form definition. Each schema is grouped into named sections
+  // so the rendered form reads like a guided wizard rather than a flat
+  // list of inputs. The `helperKey` block at the top is brand-specific
+  // pre-flight guidance (where to find the credentials, how to enable LAN
+  // mode, etc.) — this is what makes each modal feel native to the brand
+  // even though they share a layout.
+  //
+  // Field options:
+  //   • `secret: true`   → password input + eye toggle
+  //   • `mono: true`     → monospace input (IPs, SNs, codes)
+  //   • `hintKey`        → small grey hint under the input
+  //   • `optional: true` → renders the "(optional)" suffix instead of "*"
+  const PRINTER_ADD_SCHEMA = {
+    bambulab: {
+      docsUrl: "https://wiki.bambulab.com/en/x1/manual/lan-mode",
+      sections: [
+        { titleKey: "printerSecConnection", fields: [
+          { key: "broker", labelKey: "printerLblIP", hintKey: "printerHintBambuIP", placeholder: "192.168.1.42", mono: true, required: true }
+        ]},
+        { titleKey: "printerSecCredentials", fields: [
+          { key: "password",     labelKey: "printerLblAccessCode", hintKey: "printerHintBambuCode",   placeholder: "12345678",     mono: true, required: true, secret: true },
+          { key: "serialNumber", labelKey: "printerLblSerial",     hintKey: "printerHintBambuSerial", placeholder: "01S00C123456", mono: true, required: true }
+        ]}
+      ]
+    },
+    creality: {
+      docsUrl: "https://wiki.creality.com/",
+      sections: [
+        { titleKey: "printerSecConnection", fields: [
+          { key: "ip", labelKey: "printerLblIP", hintKey: "printerHintCrealityIP", placeholder: "192.168.1.50", mono: true, required: true }
+        ]},
+        // "Root" is a fixed brand-side username on Creality K-series — it is
+        // never translated. The labelText override bypasses i18n. It sits
+        // before the password by design (matches Creality's own UI order).
+        { titleKey: "printerSecCredentials", fields: [
+          { key: "account",  labelText: "Root",              hintKey: "printerHintCrealityAccount",  placeholder: "Root",     mono: true, required: true },
+          { key: "password", labelKey: "printerLblPassword", hintKey: "printerHintCrealityPassword", placeholder: "••••••••", mono: true, required: true, secret: true }
+        ]}
+      ]
+    },
+    elegoo: {
+      docsUrl: null,
+      sections: [
+        { titleKey: "printerSecConnection", fields: [
+          { key: "ip", labelKey: "printerLblIP",     hintKey: "printerHintElegooIP",     placeholder: "192.168.1.51", mono: true, required: true },
+          { key: "sn", labelKey: "printerLblSerial", hintKey: "printerHintElegooSerial", placeholder: "0CCN201XXXX",  mono: true, required: true }
+        ]},
+        { titleKey: "printerSecCredentialsOptional", fields: [
+          { key: "mqttPassword", labelKey: "printerLblMqttPassword", hintKey: "printerHintElegooMqtt", placeholder: "—", mono: true, required: false, secret: true, optional: true }
+        ]}
+      ]
+    },
+    flashforge: {
+      docsUrl: null,
+      sections: [
+        { titleKey: "printerSecConnection", fields: [
+          { key: "ip", labelKey: "printerLblIP", hintKey: "printerHintFFGIP", placeholder: "192.168.1.52", mono: true, required: true }
+        ]},
+        { titleKey: "printerSecCredentials", fields: [
+          { key: "serialNumber", labelKey: "printerLblSerial",   hintKey: "printerHintFFGSerial",   placeholder: "FF-AD5X-XXXX", mono: true, required: true },
+          { key: "password",     labelKey: "printerLblPassword", hintKey: "printerHintFFGPassword", placeholder: "••••••••",     mono: true, required: true, secret: true }
+        ]}
+      ]
+    },
+    snapmaker: {
+      docsUrl: null,
+      sections: [
+        { titleKey: "printerSecConnection", fields: [
+          { key: "ip", labelKey: "printerLblIP", hintKey: "printerHintSnapIP", placeholder: "192.168.1.53", mono: true, required: true }
+        ]}
+      ]
+    }
+  };
+
+  // Brand-specific helper banner shown above the form. The label is the
+  // i18n key for a short title; bullets is the array of step keys.
+  // Together they tell the user where to find each credential before
+  // they start typing.
+  const PRINTER_ADD_HELPER = {
+    bambulab:   { titleKey: "printerHelperBambuTitle",   bulletsKey: "printerHelperBambuBullets" },
+    creality:   { titleKey: "printerHelperCrealityTitle",bulletsKey: "printerHelperCrealityBullets" },
+    elegoo:     { titleKey: "printerHelperElegooTitle",  bulletsKey: "printerHelperElegooBullets" },
+    flashforge: { titleKey: "printerHelperFFGTitle",     bulletsKey: "printerHelperFFGBullets" },
+    snapmaker:  { titleKey: "printerHelperSnapTitle",    bulletsKey: "printerHelperSnapBullets" }
+  };
+
+  let _printerAddBrand = null;        // brand selected in step 1, used by step 2
+  let _printerEditContext = null;     // { brand, deviceId } when editing an existing printer (gear button)
+
+  function openPrinterBrandPicker() {
+    const list = $("printerBrandPickerList");
+    if (!list) return;
+    // One card per brand — visual cue (color dot) + label + connection hint.
+    list.innerHTML = PRINTER_BRANDS.map(brand => {
+      const meta = PRINTER_BRAND_META[brand];
+      return `
+        <button type="button" class="pba-brand" data-brand="${esc(brand)}">
+          <span class="pba-brand-dot" style="background:${meta.accent}"></span>
+          <span class="pba-brand-text">
+            <span class="pba-brand-label">${esc(meta.label)}</span>
+            <span class="pba-brand-conn">${esc(meta.connection)}</span>
+          </span>
+          <span class="icon icon-chevron-r icon-14 pba-brand-chev"></span>
+        </button>`;
+    }).join("");
+    list.querySelectorAll(".pba-brand").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const brand = btn.dataset.brand;
+        closePrinterBrandPicker();
+        openPrinterAddForm(brand);
+      });
+    });
+    $("printerBrandPickerOverlay").classList.add("open");
+  }
+  function closePrinterBrandPicker() {
+    $("printerBrandPickerOverlay")?.classList.remove("open");
+  }
+  $("printerBrandPickerClose")?.addEventListener("click", closePrinterBrandPicker);
+  $("printerBrandPickerOverlay")?.addEventListener("click", e => {
+    if (e.target.id === "printerBrandPickerOverlay") closePrinterBrandPicker();
+  });
+
+  // openPrinterAddForm doubles as the edit modal. When `editPrinter` is
+  // provided, the form pre-fills every field with the existing values,
+  // hides the Back button, switches the primary CTA to "Save changes",
+  // and routes the submit through an UPDATE rather than an auto-id SET.
+  function openPrinterAddForm(brand, editPrinter = null) {
+    if (!brand || !PRINTER_ADD_SCHEMA[brand]) return;
+    _printerAddBrand = brand;
+    _printerEditContext = editPrinter ? { brand, deviceId: editPrinter.id } : null;
+    const meta   = PRINTER_BRAND_META[brand];
+    const schema = PRINTER_ADD_SCHEMA[brand];
+    const helper = PRINTER_ADD_HELPER[brand];
+    const isEdit = !!editPrinter;
+
+    // Title is fixed ("Printers Settings") via the data-i18n attribute on
+    // .pba-title; the sub keeps the brand label so the user still sees
+    // which workflow they're in.
+    $("printerAddSub").textContent = meta.label;
+
+    // Adjust footer for edit mode: hide Back, swap save label.
+    const backBtn = $("printerAddBack");
+    if (backBtn) backBtn.style.display = isEdit ? "none" : "";
+    const saveLabel = $("printerAddSave")?.querySelector(".label");
+    if (saveLabel) saveLabel.textContent = t(isEdit ? "printerEditSave" : "printerAddSave");
+
+    // Per-brand model catalog. We KEEP the id="0" placeholder (the "Select
+    // Printer" entry shipped in every brand JSON) and pin it to the top so
+    // it acts as a visible "no model yet" choice. The picker still uses
+    // the entry's image (no_printer.png) — this matches the convention
+    // used elsewhere in the TigerTag stack.
+    const allModels = state.db.printerModels?.[brand] || [];
+    const placeholderModel = allModels.find(m => String(m.id) === "0");
+    const otherModels = allModels.filter(m => String(m.id) !== "0");
+    const models = placeholderModel ? [placeholderModel, ...otherModels] : otherModels;
+
+    // Render a single field. Supports labelText (raw, never i18n'd) for
+    // protocol-mandated literals like Creality's "Root".
+    const renderField = f => {
+      const labelHtml = f.labelText ? esc(f.labelText) : esc(t(f.labelKey));
+      const reqMark = f.optional ? `<span class="pba-field-opt">${esc(t("printerOptional"))}</span>`
+                                 : (f.required ? '<span class="pba-field-req">*</span>' : "");
+      const hint = f.hintKey ? `<span class="pba-field-hint">${esc(t(f.hintKey))}</span>` : "";
+      // Secret fields get an eye toggle on the right of the input.
+      // Both icons (eye-on + eye-off) are pre-rendered stacked so the
+      // toggle is purely a class flip — no DOM swap, no layout jump.
+      if (f.secret) {
+        return `
+          <label class="pba-field">
+            <span class="pba-field-label">${labelHtml} ${reqMark}</span>
+            <span class="pba-input-wrap pba-input-wrap--secret">
+              <input type="password"
+                     class="pba-input${f.mono ? " pba-input--mono" : ""}"
+                     name="${esc(f.key)}"
+                     placeholder="${esc(f.placeholder)}"
+                     autocomplete="off" autocapitalize="off" spellcheck="false"
+                     ${f.required ? "required" : ""}/>
+              <button type="button" class="pba-input-eye" data-eye-target="${esc(f.key)}" title="${esc(t("printerSecretShow"))}">
+                <span class="pba-eye-stack">
+                  <span class="pba-eye-icon pba-eye-icon--on  icon icon-eye-on  icon-14"></span>
+                  <span class="pba-eye-icon pba-eye-icon--off icon icon-eye-off icon-14"></span>
+                </span>
+              </button>
+            </span>
+            ${hint}
+          </label>`;
+      }
+      return `
+        <label class="pba-field">
+          <span class="pba-field-label">${labelHtml} ${reqMark}</span>
+          <input type="text"
+                 class="pba-input${f.mono ? " pba-input--mono" : ""}"
+                 name="${esc(f.key)}"
+                 placeholder="${esc(f.placeholder)}"
+                 autocomplete="off" autocapitalize="off" spellcheck="false"
+                 ${f.required ? "required" : ""}/>
+          ${hint}
+        </label>`;
+    };
+
+    // Render a section with a small caps header.
+    const renderSection = (s) => `
+      <section class="pba-section">
+        <header class="pba-section-head">${esc(t(s.titleKey))}</header>
+        ${s.fields.map(renderField).join("")}
+      </section>`;
+
+    const sectionsHtml = schema.sections.map(renderSection).join("");
+
+    // Helper banner removed — the per-field hints already give all the
+    // setup context the user needs. Keeping `helper` referenced via
+    // PRINTER_ADD_HELPER + the bullets translations in case we want to
+    // reintroduce it elsewhere (e.g. a "?" tooltip).
+    const helperHtml = "";
+
+    // Custom model picker — a select element can't render thumbnails, so
+    // we build a button + popup list. A hidden <input> stores the chosen
+    // model id so the form-collection step keeps working unchanged.
+    const modelPickerOptions = models.map(m => {
+      const imgUrl = printerImageUrl(m);
+      const imgHtml = imgUrl ? `<img src="${esc(imgUrl)}" alt="" onerror="this.style.opacity='.15'"/>` : "";
+      return `
+        <button type="button" class="pba-mp-opt" data-id="${esc(m.id)}" data-name="${esc(m.name)}">
+          <span class="pba-mp-thumb">${imgHtml}</span>
+          <span class="pba-mp-name">${esc(m.name)}</span>
+        </button>`;
+    }).join("");
+
+    // Pre-select either the printer's current model (in edit mode) or
+    // the placeholder "Select Printer" entry (id 0) so the dropdown
+    // always opens with a meaningful state.
+    const editModel = isEdit
+      ? findPrinterModel(brand, editPrinter.printerModelId)
+      : null;
+    const defaultModel    = editModel || placeholderModel || models[0] || null;
+    const defaultModelId  = defaultModel ? String(defaultModel.id) : "";
+    const defaultModelName= defaultModel ? defaultModel.name : t("printerAddModelPh");
+    const defaultModelImg = defaultModel ? printerImageUrl(defaultModel) : null;
+    const defaultThumbHtml= defaultModelImg
+      ? `<img src="${esc(defaultModelImg)}" alt="" onerror="this.style.opacity='.15'"/>`
+      : "";
+
+    $("printerAddBody").innerHTML = `
+      ${helperHtml}
+
+      <section class="pba-section">
+        <header class="pba-section-head">${esc(t("printerSecIdentity"))}</header>
+
+        <div class="pba-field">
+          <span class="pba-field-label">${esc(t("printerLblModel"))} <span class="pba-field-req">*</span></span>
+          <div class="pba-modelpicker" id="pbaModelPicker">
+            <button type="button" class="pba-mp-trigger" id="pbaMpTrigger" aria-haspopup="listbox" aria-expanded="false">
+              <span class="pba-mp-thumb pba-mp-thumb--trigger" id="pbaMpTriggerThumb">${defaultThumbHtml}</span>
+              <span class="pba-mp-trigger-text" id="pbaMpTriggerText">${esc(defaultModelName)}</span>
+              <span class="icon icon-chevron-r icon-13 pba-mp-chev"></span>
+            </button>
+            <input type="hidden" name="printerModelId" id="pbaMpValue" value="${esc(defaultModelId)}" />
+            <div class="pba-mp-list" id="pbaMpList" role="listbox" hidden>
+              ${modelPickerOptions}
+            </div>
+          </div>
+        </div>
+
+        <label class="pba-field">
+          <span class="pba-field-label">${esc(t("printerLblName"))} <span class="pba-field-req">*</span></span>
+          <input type="text" class="pba-input" name="printerName" placeholder="${esc(t("printerAddNamePh"))}" required />
+        </label>
+      </section>
+
+      ${sectionsHtml}
+
+      <div class="pba-error" id="printerAddError" hidden></div>`;
+
+    wireModelPicker(brand, models);
+    wirePasswordEyes($("printerAddBody"));
+
+    // Pre-fill every field with the existing printer's values when in
+    // edit mode. We iterate the schema explicitly (rather than dumping
+    // the whole `editPrinter` object into the DOM) so that fields the
+    // form doesn't expose — id, sortIndex, isActive, deleted, etc.
+    // remain untouched on the doc.
+    if (isEdit) {
+      const body = $("printerAddBody");
+      const setVal = (name, v) => {
+        const el = body.querySelector(`input[name="${name}"]`);
+        if (el && v != null) el.value = String(v);
+      };
+      setVal("printerName", editPrinter.printerName);
+      schema.sections.forEach(sec => {
+        sec.fields.forEach(f => setVal(f.key, editPrinter[f.key]));
+      });
+    }
+
+    $("printerAddOverlay").classList.add("open");
+    setTimeout(() => {
+      // In edit mode focus the printer name (the most likely thing the
+      // user wants to tweak); in add mode keep focus on the model picker.
+      if (isEdit) {
+        const ni = $("printerAddBody").querySelector("input[name=printerName]");
+        ni?.focus();
+        ni?.select();
+      } else {
+        $("pbaMpTrigger")?.focus();
+      }
+    }, 50);
+  }
+
+  /* ── Custom model picker — opens a list of models with thumbnails.
+     Selecting a model:
+       1. Updates the hidden input `printerModelId` (form payload key)
+       2. Updates the visible trigger label + thumbnail
+       3. Pre-fills the empty-or-not `printerName` field with the model
+          name as a courtesy (the user can still override it).            */
+  function wireModelPicker(brand, models) {
+    const trigger = $("pbaMpTrigger");
+    const list    = $("pbaMpList");
+    const value   = $("pbaMpValue");
+    const text    = $("pbaMpTriggerText");
+    const thumb   = $("pbaMpTriggerThumb");
+    if (!trigger || !list) return;
+
+    const open = () => {
+      list.hidden = false;
+      trigger.setAttribute("aria-expanded", "true");
+      trigger.classList.add("pba-mp-trigger--open");
+    };
+    const close = () => {
+      list.hidden = true;
+      trigger.setAttribute("aria-expanded", "false");
+      trigger.classList.remove("pba-mp-trigger--open");
+    };
+    trigger.addEventListener("click", e => {
+      e.stopPropagation();
+      list.hidden ? open() : close();
+    });
+    // Outside-click closes the popup.
+    document.addEventListener("click", e => {
+      if (!list.hidden && !list.contains(e.target) && e.target !== trigger) close();
+    });
+
+    list.querySelectorAll(".pba-mp-opt").forEach(opt => {
+      opt.addEventListener("click", () => {
+        const id   = opt.dataset.id;
+        const name = opt.dataset.name;
+        const m    = models.find(x => String(x.id) === id);
+        const url  = printerImageUrl(m);
+        value.value = id;
+        text.textContent = name;
+        thumb.innerHTML = url ? `<img src="${esc(url)}" alt="" onerror="this.style.opacity='.15'"/>` : "";
+        // Pre-fill printerName when empty so the user keeps moving forward.
+        // We skip the placeholder entry (id=="0", "Select Printer") since
+        // its name is a meta-label, not an actual model name. When the
+        // user picks the placeholder we leave printerName empty so they
+        // type something meaningful themselves.
+        const nameInput = $("printerAddBody").querySelector("input[name=printerName]");
+        if (nameInput && id !== "0" && !nameInput.value.trim()) nameInput.value = name;
+        close();
+        nameInput?.focus();
+        nameInput?.select();
+      });
+    });
+  }
+
+  // For each <input type=password> wrapped in .pba-input-wrap--secret,
+  // wire the eye button to toggle the type between "password" and "text".
+  // The icon flips between eye-on (hidden) and eye-off (revealed) so the
+  // visual matches the current state.
+  function wirePasswordEyes(scope) {
+    scope.querySelectorAll(".pba-input-eye").forEach(btn => {
+      btn.addEventListener("click", e => {
+        e.preventDefault();
+        e.stopPropagation();
+        const wrap = btn.closest(".pba-input-wrap--secret");
+        const inp  = wrap?.querySelector("input");
+        if (!inp) return;
+        const showing = inp.type === "text";
+        inp.type = showing ? "password" : "text";
+        btn.title = showing ? t("printerSecretShow") : t("printerSecretHide");
+        btn.classList.toggle("pba-input-eye--on", !showing);
+        const iconSpan = btn.querySelector(".icon");
+        if (iconSpan) {
+          iconSpan.classList.toggle("icon-eye-on", showing);
+          iconSpan.classList.toggle("icon-eye-off", !showing);
+        }
+      });
+    });
+  }
+  function closePrinterAddForm() {
+    $("printerAddOverlay")?.classList.remove("open");
+    _printerAddBrand = null;
+    _printerEditContext = null;
+  }
+  $("printerAddClose")?.addEventListener("click", closePrinterAddForm);
+  $("printerAddBack")?.addEventListener("click", () => {
+    closePrinterAddForm();
+    openPrinterBrandPicker();
+  });
+  $("printerAddOverlay")?.addEventListener("click", e => {
+    if (e.target.id === "printerAddOverlay") closePrinterAddForm();
+  });
+  $("printerAddSave")?.addEventListener("click", () => submitPrinterAdd());
+
+  async function submitPrinterAdd() {
+    const brand = _printerAddBrand;
+    if (!brand) return;
+    const uid = state.activeAccountId;
+    if (!uid) return;
+
+    const isEdit = !!_printerEditContext;
+
+    const body = $("printerAddBody");
+    const err  = $("printerAddError");
+    err.hidden = true;
+
+    // Collect inputs. We capture EVERY field listed in the schema (even
+    // if the user cleared an optional one) so an empty string can be
+    // written back to wipe the previous value rather than leaving stale
+    // data on the doc.
+    const schema = PRINTER_ADD_SCHEMA[brand];
+    const data = {};
+    const nameInput = body.querySelector("input[name=printerName]");
+    data.printerName = (nameInput?.value || "").trim();
+    const modelInput = body.querySelector("input[name=printerModelId]");
+    if (modelInput) data.printerModelId = (modelInput.value || "").trim();
+    schema.sections.forEach(sec => sec.fields.forEach(f => {
+      const el = body.querySelector(`input[name="${f.key}"]`);
+      const v  = (el?.value || "").trim();
+      data[f.key] = v;
+    }));
+
+    if (!data.printerName) {
+      err.textContent = t("printerAddErrName");
+      err.hidden = false;
+      return;
+    }
+    // Required brand-specific fields
+    const missing = schema.sections.flatMap(s => s.fields)
+      .filter(f => f.required && !data[f.key]);
+    if (missing.length) {
+      err.textContent = t("printerAddErrMissing", { fields: missing.map(f => f.labelText || t(f.labelKey)).join(", ") });
+      err.hidden = false;
+      return;
+    }
+
+    const btn = $("printerAddSave");
+    btn.classList.add("loading");
+    btn.disabled = true;
+    try {
+      const db  = fbDb(uid);
+      if (isEdit) {
+        // ── EDIT: update the existing doc, leaving id/isActive/sortIndex
+        //         untouched. We DO write empty strings so the user can
+        //         clear an optional secret field (e.g. mqttPassword).
+        const ref = db.collection("users").doc(uid)
+                      .collection("printers").doc(brand)
+                      .collection("devices").doc(_printerEditContext.deviceId);
+        await ref.update({
+          ...data,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      } else {
+        // ── ADD: auto-id under the brand subcollection.
+        const ref = db.collection("users").doc(uid)
+                      .collection("printers").doc(brand)
+                      .collection("devices").doc();
+        const sortIndex = state.printers.length; // append to the end
+        await ref.set({
+          ...data,
+          id: ref.id,
+          isActive: false,
+          sortIndex,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      }
+      closePrinterAddForm();
+    } catch (e) {
+      console.warn(`[printers] ${isEdit ? "update" : "create"} failed:`, e?.code, e?.message);
+      err.textContent = t("printerAddErrSave");
+      err.hidden = false;
+    } finally {
+      btn.classList.remove("loading");
+      btn.disabled = false;
+    }
+  }
   // Convert Firestore Timestamp object to ms (the existing tsToMs at line 366
   // handles legacy shapes; here we add support for { seconds, nanoseconds }).
   function scaleTsToMs(ts) {
@@ -4712,6 +7502,7 @@
   async function updateRack(rackId, fields) {
     const user = fbAuth().currentUser;
     if (!user) return;
+    const invRef = fbDb().collection("users").doc(user.uid).collection("inventory");
     const rackRef = fbDb().collection("users").doc(user.uid).collection("racks").doc(rackId);
     const batch = fbDb().batch();
     batch.set(rackRef, {
@@ -4720,22 +7511,19 @@
     }, { merge: true });
 
     // If dimensions shrink, every spool whose slot is out of the new bounds
-    // (level >= newLevel  or  position >= newPosition) is orphaned and must be
-    // returned to the unranked sidebar — same batch so it's atomic.
+    // is orphaned and must return to the unranked sidebar — same batch so
+    // it's atomic. We iterate `state.rows` (already normalised, reads both
+    // legacy flat and nested rack schemas) so the query stays schema-agnostic.
     const newLevel = fields.level;
     const newPos   = fields.position;
     if (newLevel != null || newPos != null) {
-      const invSnap = await fbDb().collection("users").doc(user.uid)
-        .collection("inventory").where("rack_id", "==", rackId).get();
       let freed = 0;
-      invSnap.forEach(d => {
-        const data = d.data();
-        const lv = data.level;
-        const ps = data.position;
-        const oobLevel = (newLevel != null && Number.isInteger(lv) && lv >= newLevel);
-        const oobPos   = (newPos   != null && Number.isInteger(ps) && ps >= newPos);
+      state.rows.forEach(row => {
+        if (row.rackId !== rackId || row.deleted) return;
+        const oobLevel = (newLevel != null && Number.isInteger(row.rackLevel) && row.rackLevel >= newLevel);
+        const oobPos   = (newPos   != null && Number.isInteger(row.rackPos)   && row.rackPos   >= newPos);
         if (oobLevel || oobPos) {
-          batch.update(d.ref, { rack_id: null, level: null, position: null });
+          batch.update(invRef.doc(row.spoolId), { rack: null });
           freed++;
         }
       });
@@ -4748,13 +7536,16 @@
   async function deleteRack(rackId) {
     const user = fbAuth().currentUser;
     if (!user) return;
-    // Free all spools assigned to this rack
-    const invSnap = await fbDb().collection("users").doc(user.uid)
-      .collection("inventory").where("rack_id", "==", rackId).get();
+    const invRef = fbDb().collection("users").doc(user.uid).collection("inventory");
     const batch = fbDb().batch();
-    invSnap.forEach(d => batch.update(d.ref, {
-      rack_id: null, level: null, position: null
-    }));
+    // Free all spools currently assigned to this rack — `state.rows` is
+    // schema-agnostic so we catch both legacy (flat) and migrated (nested)
+    // docs in one pass.
+    state.rows.forEach(row => {
+      if (row.rackId === rackId && !row.deleted) {
+        batch.update(invRef.doc(row.spoolId), { rack: null });
+      }
+    });
     batch.delete(fbDb().collection("users").doc(user.uid)
       .collection("racks").doc(rackId));
     await batch.commit();
@@ -4765,20 +7556,14 @@
   async function emptyRack(rackId) {
     const user = fbAuth().currentUser;
     if (!user) return 0;
-    // Cascade animation BEFORE the Firestore writes — fade + slide each filled
-    // slot toward the unranked panel one by one (top→bottom, left→right).
-    // We pause for the cascade to play out, then commit the batch. The
-    // Firestore snapshot then rebuilds the DOM with the slots empty.
     await playEmptyRackCascade(rackId);
-    const invSnap = await fbDb().collection("users").doc(user.uid)
-      .collection("inventory").where("rack_id", "==", rackId).get();
-    if (invSnap.empty) return 0;
+    const invRef = fbDb().collection("users").doc(user.uid).collection("inventory");
+    const targets = state.rows.filter(r => r.rackId === rackId && !r.deleted);
+    if (!targets.length) return 0;
     const batch = fbDb().batch();
-    invSnap.forEach(d => batch.update(d.ref, {
-      rack_id: null, level: null, position: null
-    }));
+    targets.forEach(row => batch.update(invRef.doc(row.spoolId), { rack: null }));
     await batch.commit();
-    return invSnap.size;
+    return targets.length;
   }
 
   // Visually animate every filled slot of a rack flying out to the unranked
@@ -4815,8 +7600,24 @@
   // (for empty-rack moves where the spoolId may have moved to unranked sidebar).
   const _justFilledSlots = new Set();
 
+  // Some spools are physically two RFID tags glued to the same spool
+  // (a "twin" pair). Their inventory docs are linked via `twin_tag_uid` /
+  // `twinUid`. Storage location must mirror to BOTH docs so a scan of
+  // either tag returns the correct rack/level/position. This helper
+  // returns the twin's spoolId or null when there's no twin.
+  function twinSpoolIdOf(row) {
+    if (!row || !row.twinUid) return null;
+    const twin = state.rows.find(r =>
+      r.spoolId !== row.spoolId &&
+      (String(r.uid) === String(row.twinUid) || String(r.spoolId) === String(row.twinUid))
+    );
+    return twin ? twin.spoolId : null;
+  }
+
   // Assign / move / unassign a spool to a slot. Performs a swap if the target
   // slot is already occupied (in a single Firestore batch for atomicity).
+  // Twin pairs (linked RFID tags) are written together so both docs stay
+  // in sync.
   async function assignSpoolToSlot(spoolId, rackId, level, position) {
     const user = fbAuth().currentUser;
     if (!user) return;
@@ -4831,25 +7632,26 @@
     // Where the moved spool is coming from (may be null = unranked)
     const moving = state.rows.find(r => r.spoolId === spoolId);
 
+    // Mirror an update to the twin's doc when the row has a twin.
+    const writeWithTwin = (row, fields, fallbackId) => {
+      const id = row?.spoolId || fallbackId;
+      if (!id) return;
+      batch.update(invRef.doc(id), fields);
+      const twinId = row ? twinSpoolIdOf(row) : null;
+      if (twinId) batch.update(invRef.doc(twinId), fields);
+    };
+
     if (occupant && moving && moving.rackId) {
       // Swap: occupant moves to the moving spool's previous slot
-      batch.update(invRef.doc(occupant.spoolId), {
-        rack_id:  moving.rackId,
-        level:    moving.rackLevel,
-        position: moving.rackPos
+      writeWithTwin(occupant, {
+        rack: { id: moving.rackId, level: moving.rackLevel, position: moving.rackPos }
       });
     } else if (occupant) {
       // Coming from unranked → push the occupant out as unranked
-      batch.update(invRef.doc(occupant.spoolId), {
-        rack_id: null, level: null, position: null
-      });
+      writeWithTwin(occupant, { rack: null });
     }
-    // Place the new spool into the target slot
-    batch.update(invRef.doc(spoolId), {
-      rack_id:  rackId,
-      level:    level,
-      position: position
-    });
+    // Place the new spool into the target slot (mirror to twin if any)
+    writeWithTwin(moving, { rack: { id: rackId, level, position } }, spoolId);
     // Tag this spool for the next render — bounce-in animation
     _justPlacedSpools.add(spoolId);
     await batch.commit();
@@ -4858,8 +7660,19 @@
   async function unassignSpool(spoolId) {
     const user = fbAuth().currentUser;
     if (!user) return;
-    await fbDb().collection("users").doc(user.uid).collection("inventory")
-      .doc(spoolId).update({ rack_id: null, level: null, position: null });
+    const invRef = fbDb().collection("users").doc(user.uid).collection("inventory");
+    const row = state.rows.find(r => r.spoolId === spoolId);
+    const twinId = row ? twinSpoolIdOf(row) : null;
+    const fields = { rack: null };
+    if (twinId) {
+      // Twin pair → atomic batch so both docs flip together.
+      const batch = fbDb().batch();
+      batch.update(invRef.doc(spoolId), fields);
+      batch.update(invRef.doc(twinId),  fields);
+      await batch.commit();
+    } else {
+      await invRef.doc(spoolId).update(fields);
+    }
   }
 
 
@@ -4997,9 +7810,12 @@
           if (isSlotLocked(r.id, lv, pos)) continue;
           if (findSpoolInSlot(r.id, lv, pos)) continue;
           const spool = pool.shift();
-          const ref = fbDb().collection("users").doc(user.uid)
-            .collection("inventory").doc(spool.spoolId);
-          batch.update(ref, { rack_id: r.id, level: lv, position: pos });
+          const invCol = fbDb().collection("users").doc(user.uid).collection("inventory");
+          const fields = { rack: { id: r.id, level: lv, position: pos } };
+          batch.update(invCol.doc(spool.spoolId), fields);
+          // Mirror the location to the linked twin tag, if any.
+          const twinId = twinSpoolIdOf(spool);
+          if (twinId) batch.update(invCol.doc(twinId), fields);
           // Mark each newly-filled slot for staggered bounce-in
           _justPlacedSpools.add(spool.spoolId);
           placed++;
@@ -5059,10 +7875,12 @@
       if (!user) return;
       const invRef = fbDb().collection("users").doc(user.uid).collection("inventory");
       const batch  = fbDb().batch();
+      const clearFields = { rack: null };
       targets.forEach(t => {
-        batch.update(invRef.doc(t.spoolId), {
-          rack_id: null, level: null, position: null,
-        });
+        batch.update(invRef.doc(t.spoolId), clearFields);
+        // Mirror the unstore to the linked twin tag, if any.
+        const twinId = twinSpoolIdOf(t);
+        if (twinId) batch.update(invRef.doc(twinId), clearFields);
       });
       await batch.commit();
       console.log(`[autoUnstorage] freed ${targets.length} depleted spool(s)`);
@@ -5088,9 +7906,20 @@
         for (let pos = 0; pos < (rack.position || 0); pos++) {
           if (isSlotLocked(rack.id, lv, pos)) continue;
           if (findSpoolInSlot(rack.id, lv, pos)) continue;
-          await fbDb().collection("users").doc(user.uid)
-            .collection("inventory").doc(spoolId)
-            .update({ rack_id: rack.id, level: lv, position: pos });
+          // Twin-aware write: when the spool has a paired twin tag we
+          // mirror the location to the twin's doc inside one batch so
+          // both stay synchronised.
+          const invCol = fbDb().collection("users").doc(user.uid).collection("inventory");
+          const fields = { rack: { id: rack.id, level: lv, position: pos } };
+          const twinId = twinSpoolIdOf(spool);
+          if (twinId) {
+            const batch = fbDb().batch();
+            batch.update(invCol.doc(spoolId), fields);
+            batch.update(invCol.doc(twinId),  fields);
+            await batch.commit();
+          } else {
+            await invCol.doc(spoolId).update(fields);
+          }
           // Tag for the bounce-in animation on next render
           _justPlacedSpools.add(spoolId);
           return { rackId: rack.id, level: lv, position: pos, rackName: rack.name };

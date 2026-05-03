@@ -1,0 +1,16 @@
+[
+  {
+    "id": "1",
+    "name": "Centaury Carbon 2",
+    "image": "assets/images/eleg_printers/cc2.png",
+    "features": ["Camera"],
+    "open_firmware": ""
+  },
+  {
+    "id": "0",
+    "name": "Select Printer",
+    "image": "assets/images/eleg_printers/no_printer.png",
+    "features": ["No"],
+    "open_firmware": null
+  }
+]

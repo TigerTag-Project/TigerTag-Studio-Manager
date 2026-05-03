@@ -1,0 +1,87 @@
+[
+  {
+    "id": "10",
+    "name": "P2S",
+    "image": "assets/images/bbl_printers/p2s.png",
+    "features": ["AMS", "Camera", "Enclosed"],
+    "open_firmware": null
+  },
+  {
+    "id": "11",
+    "name": "H2C",
+    "image": "assets/images/bbl_printers/h2c.png",
+    "features": ["AMS", "Camera", "Enclosed"],
+    "open_firmware": null
+  },
+  {
+    "id": "9",
+    "name": "H2D Pro",
+    "image": "assets/images/bbl_printers/h2dpro.png",
+    "features": ["AMS", "Lidar", "Camera", "Enclosed"],
+    "open_firmware": null
+  },
+  {
+    "id": "8",
+    "name": "H2D",
+    "image": "assets/images/bbl_printers/h2d.png",
+    "features": ["AMS", "Lidar", "Camera", "Enclosed"],
+    "open_firmware": null
+  },
+  {
+    "id": "7",
+    "name": "H2S",
+    "image": "assets/images/bbl_printers/h2s.png",
+    "features": ["AMS", "Lidar", "Camera", "Enclosed"],
+    "open_firmware": null
+  },
+  {
+    "id": "6",
+    "name": "X1E",
+    "image": "assets/images/bbl_printers/x1c.png",
+    "features": ["AMS", "Lidar", "Camera", "Enclosed"],
+    "open_firmware": "01.08.02.00"
+  },
+  {
+    "id": "5",
+    "name": "X1C",
+    "image": "assets/images/bbl_printers/x1c.png",
+    "features": ["AMS", "Lidar", "Camera", "Enclosed"],
+    "open_firmware": "01.08.02.00"
+  },
+  {
+    "id": "4",
+    "name": "P1P",
+    "image": "assets/images/bbl_printers/p1p.png",
+    "description": "Entry-level CoreXY 3D printer",    
+    "features": ["AMS Optional", "Camera"],
+    "open_firmware": "01.08.01.00"
+  },
+  {
+    "id": "3",
+    "name": "P1S",
+    "image": "assets/images/bbl_printers/p1s.png",
+    "features": ["AMS Optional", "Camera"],
+    "open_firmware": "01.08.01.00"
+  },
+  {
+    "id": "2",
+    "name": "A1",
+    "image": "assets/images/bbl_printers/a1.png",
+    "features": ["AMS Optional", "Camera"],
+    "open_firmware": "01.04.00.00"
+  },
+  {
+    "id": "1",
+    "name": "A1 Mini",
+    "image": "assets/images/bbl_printers/a1-mini.png",
+    "features": ["Camera"],
+    "open_firmware": "01.04.00.00"
+  },
+  {
+    "id": "0",
+    "name": "Select Printer",
+    "image": "assets/images/bbl_printers/no_printer.png",
+    "features": ["No"],
+    "open_firmware": null
+  }
+]

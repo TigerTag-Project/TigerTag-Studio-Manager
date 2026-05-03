@@ -161,6 +161,7 @@
           <button id="btnViewTable" class="active" data-i18n="btnViewTable">☰ Table</button>
           <button id="btnViewGrid" data-i18n="btnViewGrid">⊞ Grid</button>
           <button id="btnViewRack"><span class="icon icon-package icon-13"></span><span data-i18n="btnViewRack">Storage</span></button>
+          <button id="btnViewPrinter"><span class="icon icon-printer icon-13"></span><span data-i18n="btnViewPrinter">Printers</span></button>
         </div>
       </div>
       <div id="mainResult"></div>
@@ -191,6 +192,9 @@
 
       <!-- rack view (storage) -->
       <div id="invRackView" class="inv-rack-view hidden"></div>
+
+      <!-- printer view (3D printers from users/{uid}/printers/{brand}/devices) -->
+      <div id="invPrinterView" class="inv-printer-view hidden"></div>
 
     </section>
 
@@ -318,6 +322,165 @@
     <button class="panel-close" id="scalesPanelClose">✕</button>
   </div>
   <div class="panel-body" id="scalesPanelBody"></div>
+</div>
+
+<!-- Printer detail panel (slide-in from right — opens when clicking a printer card) -->
+<div class="panel-overlay" id="printerOverlay"></div>
+<div class="detail-panel printer-panel" id="printerPanel">
+  <div class="panel-header">
+    <span class="panel-title">
+      <span id="printerPanelTitle" data-i18n="printerPanelTitle">Printer details</span>
+      <span id="printerPanelPills" class="pp-title-pills"></span>
+    </span>
+    <button class="panel-action" id="printerEditBtn" title="Edit printer settings" aria-label="Edit printer settings">
+      <span class="icon icon-settings icon-16"></span>
+    </button>
+    <button class="panel-close" id="printerPanelClose">✕</button>
+  </div>
+  <div class="panel-body" id="printerPanelBody"></div>
+</div>
+
+<!-- Snapmaker filament edit — bottom sheet that slides up from the
+     bottom of the printer side card. Iso to the Flutter mobile app:
+     three stacked screens (summary, filament picker, colour picker).
+     The summary screen has compact rows; tapping a row swaps to the
+     dedicated picker screen for that field. Apply pushes the
+     SET_PRINT_FILAMENT_CONFIG g-code via Moonraker. -->
+<div class="sfe-backdrop" id="snapFilEditBackdrop"></div>
+<aside class="sfe-sheet" id="snapFilEditSheet" aria-hidden="true">
+  <div class="sfe-grip" aria-hidden="true"></div>
+
+  <!-- ── Screen 1: SUMMARY ──────────────────────────────────────────── -->
+  <section class="sfe-screen sfe-screen--summary" id="sfeScreenSummary">
+    <header class="sfe-screen-head sfe-screen-head--right">
+      <div class="sfe-screen-head-text">
+        <div class="sfe-title" id="snapFilEditTitle" data-i18n="snapFilEditTitle">Edit filament</div>
+        <div class="sfe-sub" id="snapFilEditSub"></div>
+      </div>
+      <button class="modal-close" id="snapFilEditClose">✕</button>
+    </header>
+
+    <div class="sfe-body">
+      <!-- Line 1: Filaments — current "Brand Type SubType", chevron right -->
+      <button type="button" class="sfe-line" id="sfeOpenFilament">
+        <span class="sfe-line-lbl" data-i18n="snapFilEditPickFilament">Filaments</span>
+        <span class="sfe-line-val" id="sfeFilSummaryVal">—</span>
+        <span class="sfe-line-chev icon icon-chevron-r icon-13"></span>
+      </button>
+
+      <!-- Line 2: Color — circle of current colour, chevron right -->
+      <button type="button" class="sfe-line" id="sfeOpenColor">
+        <span class="sfe-line-lbl" data-i18n="snapFilEditColor">Color</span>
+        <span class="sfe-line-color-dot" id="sfeColorSummaryDot"></span>
+        <span class="sfe-line-chev icon icon-chevron-r icon-13"></span>
+      </button>
+
+      <!-- Line 3: Sub-type — picked from the id_aspect catalog so the
+           value is always one of the documented aspects (Basic, Matt,
+           Silk, Translucent…). Defaults to "Basic" so we always have
+           something to send to the printer. -->
+      <label class="sfe-line sfe-line--input">
+        <span class="sfe-line-lbl">
+          <span data-i18n="snapFilEditSubtype">Sub-type</span>
+        </span>
+        <select id="sfeSubtype" class="sfe-line-input sfe-line-input--select"></select>
+      </label>
+
+      <!-- Hidden inputs that hold the custom-brand/material fallback,
+           kept around so the existing submit pipeline still finds them. -->
+      <input type="hidden" id="sfeVendor"/>
+      <input type="hidden" id="sfeMaterial"/>
+      <input type="hidden" id="sfeColorInput" value="#ff5722"/>
+
+      <div class="sfe-error" id="sfeError" hidden></div>
+    </div>
+
+    <div class="sfe-footer">
+      <button class="adf-btn adf-btn--primary sfe-apply" id="snapFilEditSave">
+        <span class="label" data-i18n="snapFilEditApply">Apply</span>
+        <span class="spinner"></span>
+      </button>
+    </div>
+  </section>
+
+</aside>
+
+<!-- ── Standalone filament-picker sheet — stacks ON TOP of the summary
+     sheet (same pattern as the colour sheet). The summary stays in
+     place behind so the user keeps their context. -->
+<aside class="sfe-sheet sfe-sheet--filament" id="sfeFilamentSheet" aria-hidden="true">
+  <div class="sfe-grip" aria-hidden="true"></div>
+  <header class="sfe-screen-head">
+    <button type="button" class="sfe-back" id="sfeFilamentBack" aria-label="Back">
+      <span class="icon icon-chevron-l icon-14"></span>
+    </button>
+    <span class="sfe-title" data-i18n="snapFilSelectFilament">Select Filament</span>
+    <button class="modal-close" id="sfeFilamentClose">✕</button>
+  </header>
+  <div class="sfe-body sfe-body--picker">
+    <div class="sfe-fil-picker">
+      <div class="sfe-fil-vendors" id="sfeVendorList" role="listbox" aria-label="Vendors"></div>
+      <div class="sfe-fil-divider" aria-hidden="true"></div>
+      <div class="sfe-fil-materials" id="sfeMaterialList" role="listbox" aria-label="Materials"></div>
+    </div>
+  </div>
+</aside>
+
+<!-- ── Standalone colour-picker sheet — slides up ON TOP of the summary
+     sheet (higher z-index) so the user keeps the context behind. The
+     summary sheet doesn't move, the colour sheet just appears on top. -->
+<aside class="sfe-sheet sfe-sheet--color" id="sfeColorSheet" aria-hidden="true">
+  <div class="sfe-grip" aria-hidden="true"></div>
+  <header class="sfe-screen-head">
+    <button type="button" class="sfe-back" id="sfeColorBack" aria-label="Back">
+      <span class="icon icon-chevron-l icon-14"></span>
+    </button>
+    <span class="sfe-title" data-i18n="snapFilSelectColor">Select Color</span>
+    <button class="modal-close" id="sfeColorClose">✕</button>
+  </header>
+  <div class="sfe-body sfe-body--picker">
+    <div class="sfe-color-grid" id="sfeColorGrid"></div>
+    <!-- Hidden native picker triggered by the custom slot -->
+  </div>
+</aside>
+
+<!-- Add printer — step 1: brand picker -->
+<div class="modal-overlay" id="printerBrandPickerOverlay">
+  <div class="modal-card pba-card">
+    <div class="pba-header">
+      <div class="pba-header-text">
+        <div class="pba-title" data-i18n="printersSettingsTitle">Printers Settings</div>
+        <div class="pba-sub" data-i18n="printerAddPickSub">Choose the manufacturer of your 3D printer</div>
+      </div>
+      <button class="modal-close" id="printerBrandPickerClose">✕</button>
+    </div>
+    <div class="pba-brands" id="printerBrandPickerList"></div>
+  </div>
+</div>
+
+<!-- Add printer — step 2: form -->
+<div class="modal-overlay" id="printerAddOverlay">
+  <div class="modal-card pba-card">
+    <div class="pba-header">
+      <div class="pba-header-text">
+        <div class="pba-title" data-i18n="printersSettingsTitle">Printers Settings</div>
+        <div class="pba-sub" id="printerAddSub"></div>
+      </div>
+      <button class="modal-close" id="printerAddClose">✕</button>
+    </div>
+    <div class="pba-body" id="printerAddBody"></div>
+    <div class="pba-footer">
+      <button class="adf-btn adf-btn--secondary" id="printerAddBack">
+        <span class="icon icon-chevron-l icon-13"></span>
+        <span data-i18n="printerAddBack">Back</span>
+      </button>
+      <button class="adf-btn adf-btn--primary" id="printerAddSave">
+        <span class="icon icon-plus icon-13"></span>
+        <span class="label" data-i18n="printerAddSave">Add printer</span>
+        <span class="spinner"></span>
+      </button>
+    </div>
+  </div>
 </div>
 
 <div class="panel-overlay" id="friendsOverlay"></div>

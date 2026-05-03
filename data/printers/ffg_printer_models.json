@@ -1,0 +1,32 @@
+[
+  {
+    "id": "1",
+    "name": "AD5X",
+    "image": "assets/images/ffg_printers/ad5x.png",
+    "features": ["CFS", "Camera"]
+  },
+  {
+    "id": "2",
+    "name": "5M",
+    "image": "assets/images/ffg_printers/5m.png",
+    "features": ["CFS", "Lidar", "Camera", "Enclosed"]
+  },
+  {
+    "id": "3",
+    "name": "5M Pro",
+    "image": "assets/images/ffg_printers/5mpro.png",
+    "features": ["CFS", "Lidar", "Camera", "Enclosed"]
+  },
+  {
+    "id": "4",
+    "name": "A5",
+    "image": "assets/images/ffg_printers/a5.png",
+    "features": ["CFS", "Lidar", "Camera", "Enclosed"]
+  },
+  {
+    "id": "0",
+    "name": "Select Printer",
+    "image": "assets/images/ffg_printers/no_printer.png",
+    "features": ["No"]
+  }
+]
