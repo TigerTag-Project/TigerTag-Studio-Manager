@@ -3,11 +3,14 @@
 ## Stack
 Electron (no bundler) + vanilla HTML/CSS/JS. Entry: `main.js`. Renderer: `renderer/inventory.html` + modular CSS in `renderer/css/` + `renderer/inventory.js`. Preload bridge: `preload.js`.
 
+> **`renderer/CODEMAP.md`** maps every feature in the 12k-line `inventory.js` to a line range and key function names. Read it BEFORE searching the file — it's faster, cheaper, and less error-prone than grepping. Keep it in sync when you move sections.
+
 ## File map
 ```
 renderer/
   inventory.html   — pure markup + modals
-  inventory.js     — all application logic (IIFE)
+  inventory.js     — all application logic (IIFE) — see CODEMAP.md for line ranges
+  CODEMAP.md       — feature → line range index for inventory.js (read first, grep last)
   css/             — split inventory styles, loaded in order via 8 <link> tags
     00-base.css         — root vars, reset, sidebar, header, app-layout
     10-settings.css     — Settings panel
