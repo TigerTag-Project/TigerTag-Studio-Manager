@@ -57,6 +57,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // ── App info (version / platform — used by the diagnostic report) ──────
   getAppInfo: () => ipcRenderer.invoke('app:info'),
 
+  // ── Local network — list active /24 LAN subnets (e.g. "192.168.1") so
+  // the renderer can scan them for Snapmaker / Moonraker printers. Falls
+  // back to common defaults in the renderer if this returns nothing.
+  getLocalSubnets: () => ipcRenderer.invoke('net:get-local-subnets'),
+
+  // ── mDNS — browse `_snapmaker._tcp.local.` for instant Snapmaker
+  // discovery. Returns { ok, candidates: [{ name, host, port, fqdn,
+  // addresses: [...], txt: { ip, machine_type, device_name, sn,
+  // version, link_mode, ... } }] }. Empty array means either no
+  // Snapmaker on the LAN OR mDNS multicast is filtered (firewall /
+  // multi-VLAN without reflector) — renderer falls back to port-scan.
+  mdnsBrowseSnapmaker: () => ipcRenderer.invoke('mdns:browse-snapmaker'),
+
   // ── Image cache (main-process side) ─────────────────────────────────────
   imgGet: (url) => ipcRenderer.invoke('img:get', url),
 

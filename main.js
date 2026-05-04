@@ -787,6 +787,103 @@ ipcMain.handle('img:get', async (_, url) => {
   }
 });
 
+// ── Network — list active LAN /24 subnets for printer scanning. ──────────
+// Used by the Snapmaker LAN-scan flow (Add Printer → Scan). Returns a
+// deduplicated array of "<a>.<b>.<c>" prefixes, derived from every
+// non-internal IPv4 interface that's currently up. The renderer then
+// iterates 1..254 on each prefix to probe Moonraker `/printer/info` +
+// `/server/info`. Falls back to a small set of common defaults so the
+// scan still works on machines where `os.networkInterfaces()` returns
+// nothing useful (eg. behind weird VPN setups).
+ipcMain.handle('net:get-local-subnets', () => {
+  const ifaces = require('os').networkInterfaces();
+  const prefixes = new Set();
+  for (const list of Object.values(ifaces)) {
+    for (const ni of list || []) {
+      if (ni.internal) continue;
+      if (ni.family !== 'IPv4' && ni.family !== 4) continue;
+      const parts = String(ni.address).split('.');
+      if (parts.length !== 4) continue;
+      const a = +parts[0];
+      // Skip loopback, link-local, multicast, broadcast.
+      if (a === 0 || a === 127 || a === 169 || a >= 224) continue;
+      prefixes.add(`${parts[0]}.${parts[1]}.${parts[2]}`);
+    }
+  }
+  return Array.from(prefixes);
+});
+
+// ── mDNS — browse for `_snapmaker._tcp.local.` (gold-standard discovery).
+// Snapmaker firmware advertises this service on every printer (hardcoded in
+// u1-moonraker/components/zeroconf.py: ZC_SERVICE_TYPE = "_snapmaker._tcp.local.").
+// The TXT record carries everything we need to pre-fill the add form
+// without ANY HTTP probe:
+//   - ip            (e.g. "192.168.20.118")
+//   - machine_type  (e.g. "Snapmaker U1")
+//   - device_name   (user nickname, e.g. "U1-showroom")
+//   - sn            (serial number)
+//   - version       (firmware version)
+//   - link_mode     (lan|cloud)
+// This is dramatically faster than a port-scan and works across VLANs IF
+// the network has an mDNS reflector (Avahi bridge / OPNsense / UniFi
+// site-to-site mDNS). Single-VLAN networks (the common case) get
+// instant discovery (≤ 2 sec) with zero probes.
+ipcMain.handle('mdns:browse-snapmaker', async () => {
+  // Lazy require so a failed install doesn't take down the whole app —
+  // browse silently returns [] and the renderer falls back to port-scan.
+  let Bonjour;
+  try { ({ Bonjour } = require('bonjour-service')); }
+  catch (e) {
+    console.warn('[mdns] bonjour-service not available:', e.message);
+    return { ok: false, error: 'bonjour-service not installed', candidates: [] };
+  }
+  const bj = new Bonjour();
+  const seen = new Map(); // dedupe by fqdn (handles re-broadcasts during the browse window)
+  // 2.5s is enough for any printer that's announced in the last 60s to
+  // reply to our query — bonjour fires the question immediately and
+  // collects answers continuously. Snapmakers reply within ~50ms on a
+  // healthy LAN.
+  const BROWSE_MS = 2500;
+  return await new Promise((resolve) => {
+    let browser;
+    let resolved = false;
+    const finish = () => {
+      if (resolved) return; resolved = true;
+      try { browser?.stop(); } catch {}
+      try { bj.destroy(); } catch {}
+      resolve({ ok: true, candidates: Array.from(seen.values()) });
+    };
+    try {
+      browser = bj.find({ type: 'snapmaker' }, (svc) => {
+        // svc shape (bonjour-service):
+        //   { name, host, port, fqdn, addresses: [...], txt: {...} }
+        // We keep both `addresses` (the actual A records resolved during
+        // the browse — the most reliable IP source) and `txt.ip` (what
+        // the firmware itself thinks its IP is — sanity check).
+        if (!svc) return;
+        const fqdn = svc.fqdn || svc.name;
+        if (seen.has(fqdn)) return;
+        seen.set(fqdn, {
+          name:      svc.name      || null,
+          host:      svc.host      || null,
+          port:      svc.port      || null,
+          fqdn:      svc.fqdn      || null,
+          addresses: Array.isArray(svc.addresses) ? svc.addresses : [],
+          txt:       svc.txt       || {},
+        });
+      });
+      browser.on?.('error', (err) => {
+        console.warn('[mdns] browse error:', err?.message || err);
+      });
+    } catch (e) {
+      console.warn('[mdns] browse setup failed:', e?.message || e);
+      finish();
+      return;
+    }
+    setTimeout(finish, BROWSE_MS);
+  });
+});
+
 // ── App info (used by the diagnostic / error report panel) ─────────────────
 ipcMain.handle('app:info', () => ({
   appVersion:     app.getVersion(),

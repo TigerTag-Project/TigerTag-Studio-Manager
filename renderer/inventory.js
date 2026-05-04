@@ -88,6 +88,11 @@
     i18n: {},
     imgCache: new Map(),
     invLoading: false,
+    // True between subscribePrinters() and the first snapshot from any
+    // of the 5 brand subcollections firing. Drives the "loading…" UI
+    // in the printers view so we don't flash the empty state while
+    // Firestore is still on its way back.
+    printersLoading: false,
     isAdmin: false,
     debugEnabled: false,
     publicKey: null,
@@ -136,6 +141,16 @@
     document.documentElement.lang = state.lang;
     document.querySelectorAll("[data-i18n]").forEach(el => { el.textContent = t(el.dataset.i18n); });
     document.querySelectorAll("[data-i18n-placeholder]").forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
+    // data-i18n-title — used for icon-only buttons that need a localised
+    // tooltip + accessible label without any visible text.
+    document.querySelectorAll("[data-i18n-title]").forEach(el => {
+      const v = t(el.dataset.i18nTitle);
+      el.setAttribute("title", v);
+      // Mirror the same value to aria-label so screen readers get the
+      // localised name too (the static aria-label in the markup is
+      // English-only, this keeps it in sync with the user's language).
+      el.setAttribute("aria-label", v);
+    });
     if ($("langSelect")) $("langSelect").value = state.lang;
     // Refresh dynamic tooltips
     $("td1sHealth")?.setAttribute("data-tooltip", t(state.td1sConnected ? "td1sDetected" : "td1sNotDetected"));
@@ -2392,6 +2407,72 @@
     }
   }
 
+  /* ── Manual twin pairing — user-assisted repair tool ───────────────────
+     The auto-linker (autoLinkTwinsByTimestamp) only pairs spools whose
+     chip timestamps differ by ≤ 2 s. When the factory programmer left
+     a wider gap, both halves of a real twin pair end up as separate
+     inventory entries — and they stay separate forever because no
+     batch above can prove they belong together. This trio of helpers
+     gives the user a manual repair path:
+       - findTwinCandidates(row)  → list of compatible peers (same
+         brand / material / type / version / colour, not already paired,
+         not deleted, not the source itself)
+       - linkTwinPair(rowA, rowB) → write twin_tag_uid both ways in a
+         single batch (same shape as the auto-linker, so the rest of
+         the app — writeWithTwin, hasTwinPair, etc. — picks them up
+         immediately on the next snapshot)
+       - unlinkTwinPair(row)      → debug-only inverse operation,
+         clears twin_tag_uid on both docs                           */
+  function findTwinCandidates(row) {
+    if (!row || !row.raw) return [];
+    const src = row.raw;
+    return state.rows.filter(r => {
+      if (r.spoolId === row.spoolId) return false;     // not self
+      if (r.deleted) return false;                     // not tombstoned
+      if (r.twinUid) return false;                     // already paired (excluded per UX spec)
+      if (!r.raw) return false;
+      const o = r.raw;
+      // Identity quartet — must all match for it to be the SAME spool model.
+      if (o.id_brand    !== src.id_brand)    return false;
+      if (o.id_material !== src.id_material) return false;
+      if (o.id_type     !== src.id_type)     return false;
+      if (o.id_tigertag !== src.id_tigertag) return false;
+      // Colour — exact RGB triplet match. The factory writes identical
+      // R/G/B on both halves of a twin pair so this is safe; a soft
+      // tolerance would only invite false positives.
+      if (o.color_r !== src.color_r) return false;
+      if (o.color_g !== src.color_g) return false;
+      if (o.color_b !== src.color_b) return false;
+      return true;
+    });
+  }
+  async function linkTwinPair(rowA, rowB) {
+    if (!rowA || !rowB || rowA.spoolId === rowB.spoolId) return;
+    const user = fbAuth().currentUser;
+    if (!user) return;
+    const invRef = fbDb().collection("users").doc(user.uid).collection("inventory");
+    const batch  = fbDb().batch();
+    const ts     = firebase.firestore.FieldValue.serverTimestamp();
+    batch.update(invRef.doc(rowA.spoolId), { twin_tag_uid: rowB.uid, last_update: ts });
+    batch.update(invRef.doc(rowB.spoolId), { twin_tag_uid: rowA.uid, last_update: ts });
+    await batch.commit();
+    console.log(`[twinManualLink] paired uid=${rowA.uid} ↔ uid=${rowB.uid}`);
+  }
+  async function unlinkTwinPair(row) {
+    if (!row) return;
+    const user = fbAuth().currentUser;
+    if (!user) return;
+    const invRef = fbDb().collection("users").doc(user.uid).collection("inventory");
+    const twinId = twinSpoolIdOf(row);
+    const batch  = fbDb().batch();
+    const ts     = firebase.firestore.FieldValue.serverTimestamp();
+    const clear  = { twin_tag_uid: firebase.firestore.FieldValue.delete(), last_update: ts };
+    batch.update(invRef.doc(row.spoolId), clear);
+    if (twinId) batch.update(invRef.doc(twinId), clear);
+    await batch.commit();
+    console.log(`[twinManualLink] unpaired spoolId=${row.spoolId}${twinId ? " ↔ " + twinId : ""}`);
+  }
+
   function sortRows(rows) {
     if (!state.sortCol) return rows;
     const dir = state.sortDir === "asc" ? 1 : -1;
@@ -2920,6 +3001,48 @@
         await markSpoolDeleted(r.spoolId);
         closeDetail();
       } catch (e) { reportError("spool.markDeleted", e); }
+    });
+
+    // Manual twin-pair repair button — opens the picker pre-filtered to
+    // candidates compatible with this spool. Only present when the spool
+    // is not already part of a twin pair (the panel render gates this).
+    $("btnTwinLink")?.addEventListener("click", () => openTwinLinkPicker(r));
+
+    // Debug-only "Unlink" — undoes a twin pairing. Same 1.5s hold-to-
+    // confirm pattern used elsewhere for non-trivial actions.
+    setupHoldToConfirm($("btnTwinUnlink"), 1500, async () => {
+      try {
+        await unlinkTwinPair(r);
+      } catch (e) { reportError("spool.twinUnlink", e); }
+    });
+
+    // ── Toolbox actions ─────────────────────────────────────────────
+    // TD1S — measure colour. If the device isn't connected we open
+    // the connect modal first; once it's connected the colour-edit
+    // modal is the natural next step.
+    $("btnToolMeasureColor")?.addEventListener("click", () => {
+      if (!state.td1sConnected) { openTd1sConnectModal(); return; }
+      openColorEditModal(r);
+    });
+    // TD1S — measure TD. Same pattern as the colour tool.
+    $("btnToolMeasureTd")?.addEventListener("click", () => {
+      if (!state.td1sConnected) { openTd1sConnectModal(); return; }
+      openTdEditModal(r);
+    });
+    // Remove from rack — hold-to-confirm so an accidental tap doesn't
+    // unrank a placed spool. Reuses the eject animation that void-drop
+    // fires so the visual language stays consistent.
+    setupHoldToConfirm($("btnToolRemoveFromRack"), 1500, async () => {
+      try {
+        // Snapshot the row before async — state.rows might rebuild
+        // between the await and the animation trigger.
+        const snapshot = { ...r };
+        // Fire the eject animation FIRST (covers the gap until the
+        // Firestore listener rebuilds the rack view), then unassign.
+        playUnrankAnimation(snapshot).catch(() => {});
+        await unassignSpool(r.spoolId);
+        closeDetail();
+      } catch (e) { reportError("spool.removeFromRack", e); }
     });
     // Locate-in-storage: clicking the placed-state storage-loc row jumps
     // to the Storage view with the search prefilled to the spool's RFID
@@ -3496,6 +3619,73 @@
     if (!state.td1sConnected) openTd1sConnectModal();
   });
 
+  /* ── twin-link picker ──────────────────────────────────────────────────
+     Manual repair flow for twin spool pairs the auto-linker missed.
+     Opens with a list of candidates returned by findTwinCandidates(),
+     each rendered as a clickable card. A click triggers linkTwinPair
+     directly — no confirmation step (the action is reversible via
+     debug Unlink, and the candidate list is already strict). */
+  let _twinLinkSrc = null;
+  function openTwinLinkPicker(srcRow) {
+    if (!srcRow) return;
+    _twinLinkSrc = srcRow;
+    const sub  = $("twinLinkPickerSub");
+    const list = $("twinLinkPickerList");
+    const empty = $("twinLinkPickerEmpty");
+    if (sub) sub.textContent = t("twinLinkPickerSub")
+                            || "Pick the matching half of this spool.";
+    const cands = findTwinCandidates(srcRow);
+    if (list) list.innerHTML = "";
+    if (empty) empty.hidden = cands.length > 0;
+    if (cands.length && list) {
+      for (const c of cands) {
+        const node = document.createElement("button");
+        node.type = "button";
+        node.className = "twin-link-card";
+        // Use the same colour rendering helper the inventory list does
+        // so the candidate visually reads as the same product as the
+        // source — same colour swatch + brand + material text.
+        const swatch = `<span class="twin-link-card-swatch" style="background:${colorBg(c)}"></span>`;
+        const subText = [c.colorName, c.material].filter(s => s && s !== "-").join(" · ");
+        node.innerHTML = `
+          ${swatch}
+          <span class="twin-link-card-main">
+            <span class="twin-link-card-title">${esc(c.brand || "—")}</span>
+            <span class="twin-link-card-sub">${esc(subText || c.uid)}</span>
+            <span class="twin-link-card-uid">${esc(c.uid)}</span>
+          </span>
+          <span class="icon icon-chevron-r icon-13 twin-link-card-chev"></span>
+        `;
+        node.addEventListener("click", async () => {
+          if (node.classList.contains("is-loading")) return;
+          node.classList.add("is-loading");
+          try {
+            await linkTwinPair(srcRow, c);
+            closeTwinLinkPicker();
+          } catch (e) {
+            reportError("spool.twinLink", e);
+            node.classList.remove("is-loading");
+          }
+        });
+        list.appendChild(node);
+      }
+    }
+    $("twinLinkPickerOverlay").classList.add("open");
+  }
+  function closeTwinLinkPicker() {
+    $("twinLinkPickerOverlay")?.classList.remove("open");
+    _twinLinkSrc = null;
+  }
+  $("twinLinkPickerClose")?.addEventListener("click", closeTwinLinkPicker);
+  $("twinLinkPickerOverlay")?.addEventListener("click", e => {
+    if (e.target.id === "twinLinkPickerOverlay") closeTwinLinkPicker();
+  });
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape" && $("twinLinkPickerOverlay")?.classList.contains("open")) {
+      closeTwinLinkPicker();
+    }
+  });
+
   /* ── container picker ── */
   let _cpRow = null; // spool row currently being edited in the picker
 
@@ -3902,14 +4092,120 @@
       ${videoHtml}
       ${linksHtml}
       ${infoHtml}
-      ${state.friendView || r.deleted ? "" : `
-      <div class="panel-section panel-section--delete">
-        <button class="adf-btn adf-btn--danger panel-delete-btn" id="btnSpoolDelete" title="${esc(t("spoolMarkDeletedTip"))}" data-spool-id="${esc(r.spoolId)}">
-          <span class="hold-progress"></span>
-          <span class="icon icon-trash icon-13"></span>
-          <span data-i18n="spoolMarkDeleted">${esc(t("spoolMarkDeleted"))}</span>
-        </button>
-      </div>`}
+      ${(() => {
+        // ── Toolbox — bundles every action available on this spool.
+        // Hidden in friend view (read-only) and on tombstoned rows
+        // (deleted spools have nothing to act on).
+        if (state.friendView || r.deleted) return "";
+        const tools = [];
+
+        // 1. TD1S — measure colour. Always shown; if the device isn't
+        //    connected the click opens the connect modal first so the
+        //    user has a clear path to fixing it.
+        tools.push({
+          id: "btnToolMeasureColor",
+          icon: "icon-palette",
+          label: t("toolMeasureColor"),
+          variant: "default",
+        });
+
+        // 2. TD1S — measure TD (transparency). Same pattern.
+        tools.push({
+          id: "btnToolMeasureTd",
+          icon: "icon-search",
+          label: t("toolMeasureTd"),
+          variant: "default",
+        });
+
+        // 3. Twin pairing — three possible visibilities:
+        //    - paired (normal user)        → row hidden (the twin
+        //      badge on the photo + the raw-data tab already convey
+        //      the paired state; an extra info row would just take
+        //      vertical space without giving the user an action)
+        //    - paired (debug user)         → "Unlink" tool (delete
+        //      pairing, hold-to-confirm)
+        //    - unpaired + has candidates   → "Link to a twin spool"
+        //    - unpaired + no candidates    → row hidden
+        if (r.hasTwinPair) {
+          if (state.debugEnabled) {
+            tools.push({
+              id: "btnTwinUnlink",
+              icon: "icon-link",
+              label: t("twinLinkUnlink"),
+              variant: "danger-soft",
+              holdConfirm: true,
+              title: t("twinLinkUnlinkHint"),
+              dataAttrs: `data-spool-id="${esc(r.spoolId)}"`,
+            });
+          }
+          // Normal users: no twin row at all when already paired.
+        } else if (findTwinCandidates(r).length > 0) {
+          tools.push({
+            id: "btnTwinLink",
+            icon: "icon-link",
+            label: t("twinLinkAction"),
+            variant: "default",
+            dataAttrs: `data-spool-id="${esc(r.spoolId)}"`,
+          });
+        }
+
+        // 4. Remove from rack — only when the spool IS placed in a
+        //    rack. Hold-to-confirm + reuses the eject animation that
+        //    void-drop fires.
+        if (r.rackId) {
+          tools.push({
+            id: "btnToolRemoveFromRack",
+            icon: "icon-package",
+            label: t("toolRemoveFromRack"),
+            variant: "danger-soft",
+            holdConfirm: true,
+            dataAttrs: `data-spool-id="${esc(r.spoolId)}"`,
+          });
+        }
+
+        // 5. Delete — moved out of its own section into the toolbox.
+        tools.push({
+          id: "btnSpoolDelete",
+          icon: "icon-trash",
+          label: t("spoolMarkDeleted"),
+          variant: "danger",
+          holdConfirm: true,
+          title: t("spoolMarkDeletedTip"),
+          dataAttrs: `data-spool-id="${esc(r.spoolId)}"`,
+        });
+
+        // Render — each tool is a row (button or div with trailing
+        // button). Hold-confirm rows include the .hold-progress fill
+        // span that setupHoldToConfirm targets for the animation.
+        const rowsHtml = tools.map(tool => {
+          const cls = `toolbox-row toolbox-row--${tool.variant}${tool.holdConfirm ? " toolbox-row--hold" : ""}${tool.inert ? " toolbox-row--inert" : ""}`;
+          const titleAttr = tool.title ? ` title="${esc(tool.title)}"` : "";
+          const dataAttrs = tool.dataAttrs || "";
+          // Inert rows render as a <div> with a trailing <button> for the
+          // action; clickable rows render as a <button> directly.
+          if (tool.inert) {
+            return `
+              <div class="${cls}" id="${esc(tool.id)}"${titleAttr} ${dataAttrs}>
+                <span class="icon ${esc(tool.icon)} icon-14 toolbox-row-icon"></span>
+                <span class="toolbox-row-label">${esc(tool.label)}</span>
+                ${tool.trailing || ""}
+              </div>`;
+          }
+          return `
+            <button type="button" class="${cls}" id="${esc(tool.id)}"${titleAttr} ${dataAttrs}>
+              ${tool.holdConfirm ? '<span class="hold-progress"></span>' : ""}
+              <span class="icon ${esc(tool.icon)} icon-14 toolbox-row-icon"></span>
+              <span class="toolbox-row-label">${esc(tool.label)}</span>
+              <span class="icon icon-chevron-r icon-13 toolbox-row-chev"></span>
+            </button>`;
+        }).join("");
+
+        return `
+          <div class="panel-section panel-section--toolbox">
+            <div class="panel-label">${esc(t("toolboxTitle"))}</div>
+            <div class="toolbox-list">${rowsHtml}</div>
+          </div>`;
+      })()}
       ${state.debugEnabled ? `
       <div class="panel-section">
         <details class="debug" id="rawDetails">
@@ -4838,6 +5134,21 @@
     // Per-brand cache keyed by brand id; flattened into state.printers on every snapshot.
     const cache = Object.fromEntries(PRINTER_BRANDS.map(b => [b, []]));
     state._printerCache = cache;
+    // Loading flag — flipped to false the FIRST time any brand listener
+    // emits a snapshot (cached or live). Tracking per-brand "first
+    // snapshot received" lets the empty state appear only once Firestore
+    // has actually answered for every brand, instead of flickering as
+    // brands trickle in. We also re-render once on flip so the spinner
+    // fades to either the empty card or the printer grid.
+    state.printersLoading = true;
+    // Mirror the inventory pattern: trigger an immediate re-render so the
+    // spinner appears the moment the subscription is fired, without
+    // waiting for the first Firestore snapshot to round-trip. Otherwise
+    // a fresh login lands on whatever stale content was in the host
+    // (often the empty card from a previous session) until snapshots
+    // populate, and the user never sees the loading state.
+    if (state.viewMode === "printer") renderPrintersView();
+    const firstSnapSeen = Object.fromEntries(PRINTER_BRANDS.map(b => [b, false]));
     state.unsubPrinters = PRINTER_BRANDS.map(brand => {
       return fbDb(uid)
         .collection("users").doc(uid)
@@ -4846,6 +5157,13 @@
         .onSnapshot(snap => {
           if (uid !== state.activeAccountId) return;
           if (state.friendView) return;
+          // Mark this brand as "answered" — if all five have, drop the loading flag.
+          if (!firstSnapSeen[brand]) {
+            firstSnapSeen[brand] = true;
+            if (Object.values(firstSnapSeen).every(Boolean)) {
+              state.printersLoading = false;
+            }
+          }
           cache[brand] = snap.docs.map(d => {
             const data = d.data();
             // `updatedAt` is now written via serverTimestamp() — but legacy
@@ -4884,6 +5202,10 @@
     }
     state.unsubPrinters = [];
     state._printerCache = null;
+    // Mirror the inventory model: when no subscription is active we're
+    // not "loading", we just have nothing to show. The flag is flipped
+    // back to true on the next subscribePrinters() call.
+    state.printersLoading = false;
     // Close any open printer detail panel — its data belonged to the
     // outgoing account/session.
     if ($("printerPanel")?.classList.contains("open")) {
@@ -4920,7 +5242,25 @@
       return;
     }
 
+    // Loading — Firestore subscription is still warming up. We use the
+    // same `.inv-loading` spinner the inventory view uses, just labelled
+    // for printers. This avoids flashing the empty state while data
+    // is on its way (cached snapshot can land in 50-100ms but a fresh
+    // network round-trip can take several hundred ms).
+    if (state.printersLoading && !state.printers.length) {
+      host.innerHTML = `
+        <div class="inv-loading printers-loading">
+          <div class="inv-loading-spin"></div>
+          <span>${esc(t("printersLoading") || t("invLoading"))}</span>
+        </div>`;
+      return;
+    }
+
     if (!state.printers.length) {
+      // Empty state — title + sub + 3 bullets explaining what printers
+      // are for. Plus the same "Add a printer" call-to-action that
+      // appears on the grid view, so a brand-new user has a one-click
+      // path to their first printer right from the empty card.
       host.innerHTML = `
         <div class="printers-empty-card">
           <span class="icon icon-printer icon-32"></span>
@@ -4931,7 +5271,13 @@
             <li>${esc(t("printersEmptyBullet2"))}</li>
             <li>${esc(t("printersEmptyBullet3"))}</li>
           </ul>
+          <button type="button" class="adf-btn adf-btn--primary printers-empty-cta" id="printersEmptyAddBtn">
+            <span class="icon icon-plus icon-13"></span>
+            <span>${esc(t("printerAddTitle"))}</span>
+          </button>
         </div>`;
+      // Wire the CTA → same handler as the grid's "+" card.
+      $("printersEmptyAddBtn")?.addEventListener("click", openPrinterBrandPicker);
       return;
     }
 
@@ -5137,6 +5483,15 @@
     }
   }
   function closePrinterDetail() {
+    // If the filament-edit bottom-sheet is open over this side-panel,
+    // close it FIRST so the user doesn't end up with an orphaned
+    // sheet floating over the rest of the app. Triggered when the
+    // user clicks the dim area to the left of the panel — without
+    // this, the panel slid out but the sheet stayed pinned to the
+    // (now empty) right edge.
+    if ($("snapFilEditSheet")?.classList.contains("open")) {
+      try { closeSnapFilamentEdit(); } catch {}
+    }
     $("printerPanel").classList.remove("open");
     $("printerOverlay").classList.remove("open");
     // Tear down the Snapmaker live connection if any was active for this
@@ -5149,6 +5504,14 @@
   }
   $("printerPanelClose")?.addEventListener("click", closePrinterDetail);
   $("printerOverlay")?.addEventListener("click", closePrinterDetail);
+  // Escape key — closes the printer detail side-panel when it's open.
+  // Replaces the role previously played by the visible ✕ button (now
+  // removed). Backdrop click + Esc are the two close affordances.
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape" && $("printerPanel")?.classList.contains("open")) {
+      closePrinterDetail();
+    }
+  });
   // Gear button — opens the Printers Settings modal pre-filled with the
   // current printer's data so the user can edit fields and confirm.
   $("printerEditBtn")?.addEventListener("click", () => {
@@ -5611,8 +5974,27 @@
     // feel responsive on click. If the connection is down the Send
     // button will surface the error at submit time.
     const fil = (conn?.data?.filaments?.[extruderIndex]) || {};
-    if (fil.official) return; // RFID-locked, never editable
-    _snapFilEdit = { brand: printer.brand, deviceId: printer.id, extruderIndex, key: snapKey(printer) };
+    // RFID-locked filaments (`fil.official === true`) still open the
+    // sheet, but in READ-ONLY mode: SAME layout / order / presentation
+    // as the editable sheet, controls just disabled. The user reads
+    // what the printer reported but can't mutate it.
+    const readonly = !!fil.official;
+    const sheetEl = $("snapFilEditSheet");
+    if (sheetEl) sheetEl.classList.toggle("sfe-sheet--readonly", readonly);
+    // Title swaps between "Edit filament" and "Read-only filament".
+    const titleEl = $("snapFilEditTitle");
+    if (titleEl) {
+      const newKey = readonly ? "snapFilEditTitleReadonly" : "snapFilEditTitle";
+      titleEl.textContent = t(newKey);
+      titleEl.dataset.i18n = newKey; // keep i18n applier in sync if locale changes
+    }
+    // Native disabled flips — same controls, just inert. We re-apply
+    // every open since the sheet is reused for every extruder click.
+    const subEl   = $("sfeSubtype");
+    const applyEl = $("snapFilEditSave");
+    if (subEl)   subEl.disabled   = readonly;
+    if (applyEl) applyEl.disabled = readonly;
+    _snapFilEdit = { brand: printer.brand, deviceId: printer.id, extruderIndex, key: snapKey(printer), readonly };
     _sfeSelectedBrand    = fil.vendor  || "";
     _sfeSelectedMaterial = fil.type    || "";
 
@@ -5778,6 +6160,11 @@
   // ── Summary → sub-sheet navigation. Each sub-picker is its own sheet
   // that stacks on top of the summary; the summary stays visible behind. ─
   $("sfeOpenFilament")?.addEventListener("click", () => {
+    // Read-only mode (RFID-locked filament): the summary rows are
+    // still visible but the user can't dive into sub-pickers — the
+    // chevron is hidden but the underlying button still listens, so
+    // we guard here so clicks don't pop open the picker silently.
+    if (_snapFilEdit?.readonly) return;
     sfeOpenFilamentSheet();
     // Auto-scroll the selected vendor into view in the left column.
     setTimeout(() => {
@@ -5785,7 +6172,10 @@
       if (sel) sel.scrollIntoView({ block: "center", behavior: "auto" });
     }, 0);
   });
-  $("sfeOpenColor")?.addEventListener("click", () => sfeOpenColorSheet());
+  $("sfeOpenColor")?.addEventListener("click", () => {
+    if (_snapFilEdit?.readonly) return; // read-only: no colour picker
+    sfeOpenColorSheet();
+  });
 
   // Back buttons on the stacked sub-sheets — close the sheet, leave
   // the summary visible behind, and refresh its preview values.
@@ -6148,44 +6538,51 @@
     // renderPrinterDetail() for the swap logic.
 
     // ── 3. Print-job card ────────────────────────────────────────────
-    // Always visible — gives the user a constant snapshot of the
-    // printer's state. When the printer is idle (no active job) we
-    // fall back to a "Standby" presentation with placeholder values.
-    const jobState  = d.printState || "standby";
-    const isActive  = !["standby", "complete", "cancelled"].includes(jobState);
-    const pct       = isActive ? Math.round(((d.progress || 0) * 100)) : 0;
-    const leafName  = isActive && d.printFilename
-                    ? snapFilenameRel(d.printFilename).split("/").pop()
-                    : "";
-    // Thumbnail: prefer the slicer preview from /server/files/metadata.
-    // Fallback to the printer's catalog image so the card never looks
-    // empty even before metadata has loaded.
-    const fallbackImg = printerImageUrlFor(p.brand, p.printerModelId)
-                     || printerImageUrl(findPrinterModel(p.brand, "0"));
-    const thumbUrl  = (isActive && d.printPreviewUrl) ? d.printPreviewUrl : (fallbackImg || "");
-    const layerText = isActive && (d.currentLayer || d.totalLayer)
-                    ? `${d.currentLayer || 0}/${d.totalLayer || 0}` : "";
-    const durationText = isActive ? snapFmtDuration(d.printDuration) : "0m";
-    const stateLabel = t("snapState_" + jobState) || jobState;
-    const nameLine = leafName
-      ? `<div class="snap-job-name" title="${esc(leafName)}">${esc(leafName)}</div>`
-      : `<div class="snap-job-name snap-job-name--idle">${esc(t("snapJobNoActive") || "—")}</div>`;
-    const jobHtml = `
-      <div class="snap-job snap-job--${esc(jobState)}">
-        <div class="snap-job-thumb"${thumbUrl ? ` style="background-image:url('${esc(thumbUrl)}')"` : ""}></div>
-        <div class="snap-job-info">
-          ${nameLine}
-          <div class="snap-job-stats">
-            <span class="snap-job-pct">${pct}%</span>
-            <span class="snap-job-time">${SNAP_ICON_CLOCK} <span>${esc(durationText)}</span></span>
+    // Only rendered when the WebSocket is actually connected — otherwise
+    // we'd be showing a frozen snapshot (potentially with stale "printing"
+    // state from before the link dropped) which is more confusing than
+    // helpful. While disconnected the panel hero already carries the
+    // Online/Offline badge, so the user has the connection signal they
+    // need without this card.
+    const isConnected = conn.status === "connected";
+    let jobHtml = "";
+    if (isConnected) {
+      const jobState  = d.printState || "standby";
+      const isActive  = !["standby", "complete", "cancelled"].includes(jobState);
+      const pct       = isActive ? Math.round(((d.progress || 0) * 100)) : 0;
+      const leafName  = isActive && d.printFilename
+                      ? snapFilenameRel(d.printFilename).split("/").pop()
+                      : "";
+      // Thumbnail: prefer the slicer preview from /server/files/metadata.
+      // Fallback to the printer's catalog image so the card never looks
+      // empty even before metadata has loaded.
+      const fallbackImg = printerImageUrlFor(p.brand, p.printerModelId)
+                       || printerImageUrl(findPrinterModel(p.brand, "0"));
+      const thumbUrl  = (isActive && d.printPreviewUrl) ? d.printPreviewUrl : (fallbackImg || "");
+      const layerText = isActive && (d.currentLayer || d.totalLayer)
+                      ? `${d.currentLayer || 0}/${d.totalLayer || 0}` : "";
+      const durationText = isActive ? snapFmtDuration(d.printDuration) : "0m";
+      const stateLabel = t("snapState_" + jobState) || jobState;
+      const nameLine = leafName
+        ? `<div class="snap-job-name" title="${esc(leafName)}">${esc(leafName)}</div>`
+        : `<div class="snap-job-name snap-job-name--idle">${esc(t("snapJobNoActive") || "—")}</div>`;
+      jobHtml = `
+        <div class="snap-job snap-job--${esc(jobState)}">
+          <div class="snap-job-thumb"${thumbUrl ? ` style="background-image:url('${esc(thumbUrl)}')"` : ""}></div>
+          <div class="snap-job-info">
+            ${nameLine}
+            <div class="snap-job-stats">
+              <span class="snap-job-pct">${pct}%</span>
+              <span class="snap-job-time">${SNAP_ICON_CLOCK} <span>${esc(durationText)}</span></span>
+            </div>
+            <div class="snap-job-bar"><span style="width:${pct}%"></span></div>
+            <div class="snap-job-foot">
+              <span class="snap-job-state snap-job-state--${esc(jobState)}">${esc(stateLabel)}</span>
+              ${layerText ? `<span class="snap-job-layers">${esc(layerText)}</span>` : ""}
+            </div>
           </div>
-          <div class="snap-job-bar"><span style="width:${pct}%"></span></div>
-          <div class="snap-job-foot">
-            <span class="snap-job-state snap-job-state--${esc(jobState)}">${esc(stateLabel)}</span>
-            ${layerText ? `<span class="snap-job-layers">${esc(layerText)}</span>` : ""}
-          </div>
-        </div>
-      </div>`;
+        </div>`;
+    }
 
     // ── 4. Temperature row — one pill per active extruder + bed ─────
     // "Active" = the firmware reported either a current or a target temp
@@ -6232,28 +6629,39 @@
       if (!has) continue;
       const color = fil.color || null;
       const fg    = color ? snapTextColor(color) : "var(--text)";
-      const main  = fil.subType || fil.type || t("snapNoFilament");
-      // The whole card is the click-target when the slot is NOT
-      // RFID-locked (`fil.official === true`). The colour square, the
-      // edit icon, the vendor / matter labels — anywhere in the card
-      // opens the bottom-sheet. The data attribute is on the parent so
-      // the closest() walk catches every inner click.
+      // Inside the coloured square: the BASE material (type) only —
+      // never the subtype. e.g. "PLA", "PETG", "ABS".
+      const squareLabel = fil.type || t("snapNoFilament");
+      // Below the square: brand on the first line, full identity
+      // ("Type Subtype") on the second — same hierarchy a user reads
+      // from a real spool label. Falls back gracefully when subtype
+      // isn't reported (older firmware).
+      const typeAndSub = fil.type
+        ? (fil.subType ? `${fil.type} ${fil.subType}` : fil.type)
+        : (fil.subType || "—");
+      // The whole card is the click-target. Editable slots open the
+      // sheet in mutate mode; RFID-locked slots open the SAME sheet
+      // in read-only mode (no chevrons / no subtype select / no
+      // Apply button). The `data-snap-fil-edit` attribute is set on
+      // ALL filament cards so the closest() walk in the click
+      // delegation catches every inner click — readonly state is
+      // resolved inside openSnapFilamentEdit by reading fil.official.
       const editable = !fil.official;
       filCards.push(`
-        <div class="snap-fil${editable ? " snap-fil--editable" : ""}"
-             ${editable ? `data-snap-fil-edit="1"` : ""}
+        <div class="snap-fil snap-fil--editable${editable ? "" : " snap-fil--locked"}"
+             data-snap-fil-edit="1"
              data-extruder-idx="${i - 1}"
              title="${editable ? esc(t("snapFilEditableTip")) : esc(t("snapFilLockedTip"))}">
           <div class="snap-fil-tag">E${i}</div>
           <div class="snap-fil-square${color ? "" : " snap-fil-square--empty"}"
                style="${color ? `background:${esc(color)};color:${esc(fg)};border-color:${esc(color)};` : ""}">
-            <span class="snap-fil-main">${esc(main)}</span>
+            <span class="snap-fil-main">${esc(squareLabel)}</span>
           </div>
           <div class="snap-fil-meta">
             <span class="snap-fil-status icon ${fil.official ? "icon-eye-on snap-fil-status--locked" : "icon-edit"} icon-13"
                   aria-hidden="true"></span>
             <div class="snap-fil-vendor">${esc(fil.vendor || "—")}</div>
-            <div class="snap-fil-sub">${esc(fil.subType || fil.type || "—")}</div>
+            <div class="snap-fil-sub">${esc(typeAndSub)}</div>
           </div>
         </div>`);
     }
@@ -6397,14 +6805,13 @@
     // doesn't see the printer name twice).
     $("printerPanelTitle").textContent = p.printerName || t("printerPanelTitle");
 
-    // Resolve catalog metadata for the model
+    // Resolve catalog metadata for the model. The legacy `featuresHtml`
+    // (camera / multi-extruder / etc. pills under the photo) was
+    // removed — it took vertical space without conveying anything the
+    // user couldn't already see in the live blocks below the hero.
     const modelName    = printerModelName(p.brand, p.printerModelId);
     const heroImgUrl   = printerImageUrlFor(p.brand, p.printerModelId)
                       || printerImageUrl(findPrinterModel(p.brand, "0"));
-    const features     = printerModelFeatures(p.brand, p.printerModelId);
-    const featuresHtml = features.length
-      ? `<div class="pp-features">${features.map(f => `<span class="pp-feature">${esc(f)}</span>`).join("")}</div>`
-      : "";
 
     // Body — read-only summary. Identity / Connection / Credentials are
     // edited through the gear button which opens the Printers Settings
@@ -6494,15 +6901,19 @@
          </section>`
       : "";
 
-    // Build the pills HTML for the panel-title slot. Brand pill (filled,
-    // brand colour) + model pill (outline) + online status (Snapmaker
-    // only — driven by the WebSocket / HTTP ping reachability).
+    // Pills (next to the printer name on the title row): brand + model.
+    // The online/offline status badge is rendered SEPARATELY on its
+    // own row beneath the title — see #printerPanelStatus below.
     const titlePillsHtml = `
       <span class="pp-brand-pill pp-brand-pill--sm" style="--brand-accent:${meta.accent}">${esc(meta.label)}</span>
       ${modelName && modelName !== "—" ? `<span class="pp-model-pill pp-model-pill--sm">${esc(modelName)}</span>` : ""}
-      ${renderSnapOnlineBadge(p, "side")}
     `;
     $("printerPanelPills").innerHTML = titlePillsHtml;
+    // Status row UNDER the title — currently Snapmaker-only (driven by
+    // the WebSocket / HTTP ping reachability). Empty for other brands
+    // so the status row collapses to zero height.
+    const statusEl = $("printerPanelStatus");
+    if (statusEl) statusEl.innerHTML = renderSnapOnlineBadge(p, "side");
 
     // Online status now lives in the panel header (next to the pills),
     // not under the camera. Trigger a fresh ping anyway so the badge
@@ -6514,7 +6925,6 @@
       <div class="pp-hero">
         ${p.isActive ? `<span class="pp-active">${esc(t("printersActive"))}</span>` : ""}
         ${heroImgHtml}
-        ${featuresHtml}
       </div>
 
       ${snapLiveHtml}
@@ -6902,6 +7312,11 @@
 
   let _printerAddBrand = null;        // brand selected in step 1, used by step 2
   let _printerEditContext = null;     // { brand, deviceId } when editing an existing printer (gear button)
+  // Pending discovery payload captured by the Snapmaker scan / manual probe,
+  // waiting to be written onto the Firestore device doc when the user
+  // hits "Add". Cleared on close so a subsequent add (re-opened blank)
+  // doesn't accidentally inherit the previous run's data.
+  let _printerAddDiscovery = null;
 
   function openPrinterBrandPicker() {
     const list = $("printerBrandPickerList");
@@ -6923,7 +7338,16 @@
       btn.addEventListener("click", () => {
         const brand = btn.dataset.brand;
         closePrinterBrandPicker();
-        openPrinterAddForm(brand);
+        // Snapmaker has a dedicated discovery flow that opens the scan
+        // modal directly: it auto-scans the LAN AND exposes an inline
+        // "Add by IP" field for users whose printer is on a non-broadcast
+        // path (cross-VLAN, etc). Other brands jump straight to the
+        // empty add form.
+        if (brand === "snapmaker") {
+          openSnapmakerScan();
+        } else {
+          openPrinterAddForm(brand);
+        }
       });
     });
     $("printerBrandPickerOverlay").classList.add("open");
@@ -6936,14 +7360,1535 @@
     if (e.target.id === "printerBrandPickerOverlay") closePrinterBrandPicker();
   });
 
+  /* ── Snapmaker discovery flow ────────────────────────────────────────────
+     Snapmaker U-series ships with a Klipper + Moonraker stack on every
+     printer; the Moonraker REST API on port 7125 advertises the machine
+     model, hostname and firmware versions through `/printer/info` and
+     `/server/info`. Hitting those endpoints across the local /24 subnets
+     lets us auto-discover printers AND pre-fill the add form with what we
+     learn (machine_model → printerName, ip → ip).
+
+     The flow is split into 3 modals:
+        choice  → user picks Scan or Manual
+        scan    → live results as we iterate the LAN
+        manual  → user types one IP, we probe just that one
+     Each path lands on the standard openPrinterAddForm() with a `prefill`
+     option so the user only confirms / tweaks fields before saving.       */
+
+  // moonraker port — same as Flutter app; fixed at the firmware level.
+  const SNAP_MOONRAKER_PORT = 7125;
+  // ~340 ms per host matches the Flutter scanner — long enough that a
+  // sleeping Snapmaker can wake its stack and answer, short enough that
+  // 254 dead hosts don't drag the scan past ~4 seconds.
+  const SNAP_PROBE_TIMEOUT_MS = 350;
+  // Parallelism per /24 prefix. Different defaults per subnet source:
+  //
+  //   LOCAL (own LAN, no firewall in front of probes)
+  //     → 24 simultaneous fetches, scans a /24 in ~3-5s.
+  //
+  //   EXTRA (user-declared subnets, typically reached via inter-VLAN
+  //   routing through a firewall that may flag burst traffic as port-
+  //   scan attack)
+  //     → 4 simultaneous fetches with a small inter-batch pause, scans
+  //       a /24 in ~25s. Tested on a UniFi/OPNsense-class router with
+  //       IDS/IPS active: batch=24 was silently dropped (0 hits in 2s),
+  //       batch=4 successfully discovered the printer.
+  const SNAP_SCAN_BATCH_LOCAL = 24;
+  const SNAP_SCAN_BATCH_EXTRA = 4;
+  // Inter-batch pause (only on EXTRA subnets) — gives the firewall's
+  // rate-limiter time to forget the previous burst.
+  const SNAP_SCAN_BATCH_GAP_MS_EXTRA = 80;
+  // If an EXTRA subnet completes with 0 hits in < this much wall-clock
+  // time, almost certainly the firewall dropped our SYNs. We surface a
+  // hint pointing at Manual Add. Tuned just above the unblocked best-
+  // case (a healthy /24 with batch=4 takes ~25s) to avoid false alarms.
+  const SNAP_FIREWALL_BLOCK_HINT_MS = 4000;
+  // No hardcoded subnet defaults. We rely entirely on os.networkInterfaces()
+  // (via the `net:get-local-subnets` IPC) to enumerate the user's ACTUAL
+  // active /24 prefixes — covering Wi-Fi, Ethernet, VPN, phone hotspot,
+  // anything bound to a non-internal IPv4 NIC. Pre-baking common prefixes
+  // like 192.168.1 / 192.168.40 was biased toward one workflow and just
+  // wasted ~250 dead-host probes for everyone else (10.x, 172.16.x,
+  // 192.168.50.x, etc.). When the printer is reachable from this machine
+  // its subnet is already in the list; when it isn't, no fixed default
+  // could fix that anyway.
+
+  // Returned by snapProbeIp() / pushed into the scan results list.
+  // Mirrors the Flutter SnapmakerScanCandidate, minus the qualityScore (we
+  // don't sort by score in the UI — first-found is good enough for a LAN scan).
+  let _snapScanAbort = null;     // AbortController for the in-flight scan
+  let _snapManualAbort = null;   // AbortController for the manual probe
+
+  /* ── User-declared extra subnets ──────────────────────────────────────
+     For multi-VLAN networks where the Mac can REACH a subnet via routing
+     but doesn't have an interface on it. os.networkInterfaces() and the
+     WebRTC trick both report only the subnets the Mac is *directly* on,
+     so without this list any printer behind a VLAN router is invisible
+     to the auto-scan.
+
+     Stored as a JSON array of "a.b.c" prefixes in localStorage, keyed
+     globally (not per-account) since it describes the user's network
+     topology, which is the same regardless of which TigerTag account
+     they're signed into.                                                */
+  const SNAP_EXTRA_SUBNETS_KEY = "tigertag.snapScanExtraSubnets";
+
+  function snapLoadExtraSubnets() {
+    try {
+      const raw = localStorage.getItem(SNAP_EXTRA_SUBNETS_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      // Defensive: a corrupt/legacy value shouldn't take the scan down.
+      // Filter out anything that doesn't look like an "a.b.c" prefix.
+      return Array.isArray(parsed)
+        ? parsed.filter(p => typeof p === "string" && /^\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(p))
+        : [];
+    } catch { return []; }
+  }
+  function snapSaveExtraSubnets(list) {
+    try {
+      localStorage.setItem(SNAP_EXTRA_SUBNETS_KEY, JSON.stringify(list));
+    } catch {}
+  }
+  // Validate a typed IPv4 address. Accepts "a.b.c.d" with each octet
+  // 0-255 and rejects unroutable / multicast / loopback ranges. Returns
+  // the canonicalised IP string on success, null on failure. Used by
+  // the inline "Add by IP" field in the scan modal.
+  function snapValidateIp(s) {
+    const m = String(s || "").trim().match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+    if (!m) return null;
+    const a = +m[1], b = +m[2], c = +m[3], d = +m[4];
+    if (a > 255 || b > 255 || c > 255 || d > 255) return null;
+    if (a === 0 || a === 127 || a === 169 || a >= 224) return null;
+    return `${a}.${b}.${c}.${d}`;
+  }
+  // Validate a user-typed prefix. Accepts "a.b.c" with each octet 0-255,
+  // and rejects unroutable / multicast / loopback ranges.
+  function snapValidatePrefix(s) {
+    const m = String(s || "").trim().match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+    if (!m) return null;
+    const a = +m[1], b = +m[2], c = +m[3];
+    if (a > 255 || b > 255 || c > 255) return null;
+    if (a === 0 || a === 127 || a === 169 || a >= 224) return null;
+    return `${a}.${b}.${c}`;
+  }
+  function snapRenderExtraSubnetsUI() {
+    const chipsEl = $("snapExtraSubnetsChips");
+    const countEl = $("snapExtraSubnetsCount");
+    if (!chipsEl) return;
+    const list = snapLoadExtraSubnets();
+    if (countEl) countEl.textContent = String(list.length);
+    chipsEl.innerHTML = list.map(p => `
+      <span class="snap-extra-subnets-chip">
+        <span class="snap-extra-subnets-chip-text">${esc(p)}.x</span>
+        <button type="button" class="snap-extra-subnets-chip-x" data-prefix="${esc(p)}" title="${esc(t("snapScanExtraSubnetsRemove") || "Remove")}">✕</button>
+      </span>
+    `).join("");
+    // Wire each remove button — saves + re-renders + leaves the
+    // <details> element open so the user keeps their place.
+    chipsEl.querySelectorAll(".snap-extra-subnets-chip-x").forEach(btn => {
+      btn.addEventListener("click", e => {
+        e.preventDefault(); e.stopPropagation();
+        const p = btn.dataset.prefix;
+        const next = snapLoadExtraSubnets().filter(x => x !== p);
+        snapSaveExtraSubnets(next);
+        snapRenderExtraSubnetsUI();
+      });
+    });
+  }
+  function snapAddExtraSubnetFromInput() {
+    const input = $("snapExtraSubnetsInput");
+    const errEl = $("snapExtraSubnetsErr");
+    if (!input) return;
+    const v = snapValidatePrefix(input.value);
+    if (!v) {
+      if (errEl) {
+        errEl.hidden = false;
+        errEl.textContent = t("snapScanExtraSubnetsBadFormat")
+                          || "Use format a.b.c (e.g. 192.168.40)";
+      }
+      input.focus();
+      return;
+    }
+    if (errEl) errEl.hidden = true;
+    const list = snapLoadExtraSubnets();
+    if (!list.includes(v)) list.push(v);
+    snapSaveExtraSubnets(list);
+    input.value = "";
+    snapRenderExtraSubnetsUI();
+    input.focus();
+  }
+
+  /* ── Debug scan journal ──────────────────────────────────────────────
+     A live, in-modal log of everything the scanner does — only visible
+     when state.debugEnabled is true. Useful for the user to confirm
+     which subnets are being walked, what /printer/info actually answers,
+     and why a host did or didn't qualify. Lines are appended in order;
+     clicking a line copies its raw JSON to the clipboard.              */
+  // Cap so a long-running scan can't blow up the DOM. 600 entries covers
+  // 2 full /24 sweeps with a comfortable safety margin.
+  const SNAP_SCAN_LOG_MAX = 600;
+  let _snapScanLog = [];   // [{ ts, kind, summary, raw }]
+  // Last-scan environment captured at snapScanLan() entry — surfaced via
+  // Export so a bug report includes which subnets were used, not just
+  // the per-host probe results.
+  let _snapScanLastEnv = null; // { startedAt, prefixes, ipcSource, webrtcSource, userExtras }
+
+  // Whether the journal SECTION is shown to the user. The scan log is
+  // a debug-only diagnostic UI; in non-debug mode the panel is hidden
+  // but the underlying log array is STILL maintained (see push() below)
+  // so a user who toggles Debug ON after a scan can immediately inspect
+  // what happened. This decouples scan BEHAVIOUR from debug mode —
+  // there is exactly one scan workflow, the only thing that varies is
+  // whether the journal panel is visible.
+  function snapScanLogVisible() {
+    return !!state.debugEnabled;
+  }
+  function snapScanLogPush(kind, summary, raw) {
+    // ALWAYS record to the in-memory log, regardless of debug state.
+    // Earlier this function returned early when debug was off, which
+    // meant the log array was empty in non-debug runs but ALSO meant
+    // that any side-effect downstream of the push (none today, but a
+    // good defensive guarantee) wouldn't fire. The UI gate is enforced
+    // exclusively by snapScanLogRender().
+    const ts = new Date().toLocaleTimeString([], { hour12: false }) + "." +
+               String(new Date().getMilliseconds()).padStart(3, "0");
+    _snapScanLog.push({ ts, kind, summary, raw: raw == null ? null : raw });
+    if (_snapScanLog.length > SNAP_SCAN_LOG_MAX) {
+      _snapScanLog.splice(0, _snapScanLog.length - SNAP_SCAN_LOG_MAX);
+    }
+    snapScanLogRender();
+  }
+  function snapScanLogClear() {
+    _snapScanLog = [];
+    snapScanLogRender();
+  }
+
+  // Build a self-contained JSON dump of the current scan log + the
+  // environment that produced it (subnets, app version, browser UA,
+  // timestamp). The result is small enough to paste straight into a
+  // chat / GitHub issue. Includes raw printer payloads when present so
+  // a remote diagnosis doesn't need to ask for follow-ups.
+  async function snapScanLogBuildExport() {
+    let appInfo = null;
+    try { appInfo = await window.electronAPI?.getAppInfo?.(); } catch {}
+    return {
+      meta: {
+        kind: "tigertag-snapmaker-scan-log",
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        appVersion: appInfo?.appVersion || null,
+        platform:   appInfo?.platform || null,
+        electron:   appInfo?.electron || null,
+        userAgent:  navigator.userAgent || null,
+        language:   state.lang || null,
+      },
+      environment: _snapScanLastEnv,
+      log: _snapScanLog.map(e => ({
+        ts: e.ts, kind: e.kind, summary: e.summary, raw: e.raw
+      })),
+    };
+  }
+  // User-triggered Export action — copies the JSON dump to clipboard
+  // and flashes the button green for 700ms so the user gets feedback.
+  // Falls back to a textarea + manual select-all if the Clipboard API
+  // is unavailable (eg. very old Electron / non-secure context).
+  async function snapScanLogExport() {
+    const btn = $("snapScanLogExport");
+    const dump = await snapScanLogBuildExport();
+    const text = JSON.stringify(dump, null, 2);
+    let ok = false;
+    try {
+      await navigator.clipboard.writeText(text);
+      ok = true;
+    } catch {
+      // Fallback: hidden textarea + execCommand. Old but reliable.
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.position = "fixed"; ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        ok = document.execCommand("copy");
+        document.body.removeChild(ta);
+      } catch {}
+    }
+    if (btn) {
+      // Flip ONLY the inner label span — the button now contains an
+      // SVG icon and a text span, so a textContent flip on the button
+      // itself would wipe the icon. We target the [data-i18n] span by
+      // name so the icon stays untouched during the feedback flash.
+      const labelEl = btn.querySelector("[data-i18n]");
+      const orig    = labelEl ? labelEl.textContent : btn.textContent;
+      const next    = ok
+        ? (t("snapScanLogExported") || "Copied!")
+        : (t("snapScanLogExportFailed") || "Copy failed");
+      if (labelEl) labelEl.textContent = next; else btn.textContent = next;
+      btn.classList.add(ok ? "snap-scan-log-btn--ok" : "snap-scan-log-btn--err");
+      setTimeout(() => {
+        if (labelEl) labelEl.textContent = orig; else btn.textContent = orig;
+        btn.classList.remove("snap-scan-log-btn--ok", "snap-scan-log-btn--err");
+      }, 1100);
+    }
+  }
+  function snapScanLogRender() {
+    const sec   = $("snapScanLog");
+    const body  = $("snapScanLogBody");
+    const count = $("snapScanLogCount");
+    if (!sec) return;
+    // Hide the whole panel when debug is off.
+    if (!snapScanLogVisible()) {
+      sec.hidden = true;
+      return;
+    }
+    sec.hidden = false;
+    if (count) count.textContent = String(_snapScanLog.length);
+    if (!body || body.hidden) return;
+    // Render incrementally if possible — same DOM elements stay in place
+    // so the user's scroll position is preserved when new lines arrive.
+    const want = _snapScanLog.length;
+    const have = body.children.length;
+    if (have > want) {
+      // Log was cleared: tear down + re-render.
+      body.innerHTML = "";
+    }
+    for (let i = body.children.length; i < want; i++) {
+      const e = _snapScanLog[i];
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = `snap-scan-log-row snap-scan-log-row--${esc(e.kind)}`;
+      row.title = t("snapScanLogCopy") || "Click to copy raw JSON";
+      row.innerHTML = `
+        <span class="snap-scan-log-ts">${esc(e.ts)}</span>
+        <span class="snap-scan-log-kind">${esc(e.kind)}</span>
+        <span class="snap-scan-log-summary">${esc(e.summary)}</span>`;
+      if (e.raw != null) {
+        row.addEventListener("click", () => {
+          const text = typeof e.raw === "string" ? e.raw : JSON.stringify(e.raw, null, 2);
+          navigator.clipboard?.writeText(text).catch(() => {});
+          row.classList.add("snap-scan-log-row--copied");
+          setTimeout(() => row.classList.remove("snap-scan-log-row--copied"), 700);
+        });
+      } else {
+        row.disabled = true;
+      }
+      body.appendChild(row);
+    }
+    // Auto-scroll to bottom so the latest line is always visible.
+    body.scrollTop = body.scrollHeight;
+  }
+
+  // Aborts whatever scan is currently running (if any). Safe to call
+  // multiple times; a second call on an already-aborted controller is a
+  // no-op. Used both when the user cancels and when they restart.
+  function snapAbortScan() {
+    try { _snapScanAbort?.abort(); } catch {}
+    _snapScanAbort = null;
+  }
+
+  // Flatten Moonraker JSON-RPC envelopes by lifting nested `result/detail/
+  // params/data/msg` payloads onto the top level. Mirrors the Flutter
+  // scanner so the same field-name lookup works whichever wrapper this
+  // particular firmware version chose. Non-destructive (top-level keys
+  // win on conflict). Returns the same map when no nesting was found.
+  function snapFlattenJson(map) {
+    if (!map || typeof map !== "object") return {};
+    const out = { ...map };
+    for (const key of ["result", "detail", "params", "data", "msg"]) {
+      const nested = map[key];
+      if (nested && typeof nested === "object" && !Array.isArray(nested)) {
+        for (const k of Object.keys(nested)) {
+          // Top-level keys take precedence over nested ones — same
+          // semantics as Dart's `{...serverFlat, ...printerFlat}` merge.
+          if (!(k in out)) out[k] = nested[k];
+        }
+      }
+    }
+    return out;
+  }
+  // First-non-empty string lookup. Trims and rejects "null"/"" so a
+  // firmware quirk that writes `"null"` as a literal doesn't leak through.
+  function snapFirstStr(map, keys) {
+    for (const k of keys) {
+      const v = map?.[k];
+      if (v == null) continue;
+      const s = String(v).trim();
+      if (s && s !== "null") return s;
+    }
+    return null;
+  }
+
+  // Hits Moonraker on `http://{ip}:7125/printer/info` + `/server/info`.
+  // If EITHER endpoint returns at least one recognisable identity field,
+  // returns a candidate; otherwise null.
+  //
+  // This is intentionally lenient — a generic Moonraker host will be
+  // listed alongside real Snapmakers (e.g. a Voron, a Bambu running a
+  // Klipper mod). The Flutter app does the same; we accept that small
+  // amount of noise because some Snapmaker firmwares don't populate
+  // `machine_model` on /printer/info, so a strict filter would silently
+  // drop the very printers the user is looking for. The user picks the
+  // right one from the result list.
+  async function snapProbeIp(ip, signal) {
+    if (!ip) return null;
+    const base = `http://${ip}:${SNAP_MOONRAKER_PORT}`;
+    // Per-request timeout — separate from the scan-level abort signal so
+    // we time out a hung host without killing the whole scan.
+    const localCtl = new AbortController();
+    const localTimer = setTimeout(() => localCtl.abort(), SNAP_PROBE_TIMEOUT_MS);
+    // Combine the caller's signal with our local timeout: abort if either fires.
+    const onParentAbort = () => localCtl.abort();
+    if (signal) {
+      if (signal.aborted) localCtl.abort();
+      else signal.addEventListener("abort", onParentAbort, { once: true });
+    }
+    // Pull JSON if 2xx, flatten the JSON-RPC envelope, return null on any
+    // failure. Per-endpoint so one slow URL doesn't poison the other.
+    // We track the *unflattened* response too so the debug log can show
+    // exactly what the printer answered, not our derived view.
+    const fetchJson = async (url) => {
+      try {
+        const r = await fetch(url, { signal: localCtl.signal, cache: "no-store" });
+        if (!r.ok) return { flat: null, raw: null, status: r.status };
+        const j = await r.json().catch(() => null);
+        return { flat: j ? snapFlattenJson(j) : null, raw: j, status: r.status };
+      } catch (e) {
+        // Distinguish abort (timeout) from connection refused / no route
+        // — useful in the log when triaging why a real printer was missed.
+        return { flat: null, raw: null, status: 0, err: e?.name || "error" };
+      }
+    };
+    try {
+      const [pi, si, mi] = await Promise.all([
+        fetchJson(`${base}/printer/info`),
+        fetchJson(`${base}/server/info`),
+        // /machine/system_info — the gold-standard identification source.
+        // Returns `product_info.machine_type` (e.g. "Snapmaker U1"),
+        // `product_info.device_name` (the user-set nickname),
+        // `product_info.serial_number`, `product_info.nozzle_diameter[]`.
+        // Available on all Snapmakers running stock firmware. Some
+        // generic Moonraker hosts (Voron, Bambu-Klipper) don't expose
+        // it, so the absence of this route is a useful signal too.
+        fetchJson(`${base}/machine/system_info`),
+      ]);
+      const printerFlat = pi.flat;
+      const serverFlat  = si.flat;
+      const sysFlat     = mi.flat;
+      // If no endpoint replied at all, the host isn't running Moonraker.
+      if (!printerFlat && !serverFlat && !sysFlat) return null;
+      // Pull the rich product_info out of /machine/system_info if present.
+      // Stock Snapmaker firmware nests it as result.system_info.product_info
+      // (one level deeper than the standard JSON-RPC `result` envelope
+      // that snapFlattenJson already unwrapped). We dive one more level
+      // by hand because `system_info` and `product_info` aren't generic
+      // wrapper keys we can blindly flatten across all responses.
+      const sysRoot     = sysFlat?.system_info || sysFlat || {};
+      const productInfo = sysRoot.product_info || {};
+      // Fuse all sources into one lookup map. Priority (highest wins):
+      //   /machine/system_info.product_info  →  most authoritative
+      //   /printer/info                      →  klipper-side info
+      //   /server/info                       →  moonraker meta
+      // Spread order = lowest priority first; later keys overwrite.
+      const combined = {
+        ...(serverFlat  || {}),
+        ...(printerFlat || {}),
+        ...productInfo,
+      };
+      // Field extraction priority — `machine_type` (from system_info) is
+      // now the canonical model field, since /printer/info on Snapmaker
+      // doesn't populate `machine_model` at all.
+      const machineModel    = snapFirstStr(combined, ["machine_type", "machine_model", "machineModel", "model", "printer_model"]);
+      // device_name is the user-given nickname (e.g. "U1-showroom"). We
+      // pull it BEFORE hostName so the form pre-fill picks the friendly
+      // name, falling back to hostname only if device_name is missing.
+      const deviceName      = snapFirstStr(productInfo, ["device_name"]);
+      const hostName        = snapFirstStr(combined, ["hostname", "host_name", "device_name", "name"]);
+      const softwareVersion = snapFirstStr(combined, ["firmware_version", "software_version", "softwareVersion", "version"]);
+      const klippyState     = snapFirstStr(combined, ["klippy_state", "state"]);
+      const moonrakerVersion= snapFirstStr(combined, ["moonraker_version", "moonrakerVersion"]);
+      const serialNumber    = snapFirstStr(productInfo, ["serial_number", "serialNumber"]);
+      let   apiVersion      = snapFirstStr(combined, ["api_version_string", "apiVersion"]);
+      if (!apiVersion && Array.isArray(combined.api_version)) {
+        apiVersion = combined.api_version.join(".");
+      }
+      // Number of extruders — derived from nozzle_diameter[] length when
+      // present. Useful later for pre-checking the form (a U1 has 4, a
+      // J1 has 2, etc). 0 means "unknown — skip pre-fill".
+      const nozzleCount = Array.isArray(productInfo.nozzle_diameter)
+        ? productInfo.nozzle_diameter.length : 0;
+
+      // The brand check — ANY value of machine_type that contains
+      // "Snapmaker" (case-insensitive) is treated as a confirmed
+      // Snapmaker. Covers U1, U2, J1, A350, A250, Artisan, future
+      // models, factory firmwares with extra qualifiers ("Snapmaker
+      // U1 Pro"), etc. Anything else (Voron, Bambu-Klipper, generic
+      // Moonraker host) keeps the lenient identity check below.
+      const isSnapmaker = !!machineModel &&
+                          machineModel.toLowerCase().includes("snapmaker");
+
+      // Accept the candidate as soon as ANY identity field is set —
+      // matches Flutter's `hasIdentity` rule. This is the "chope
+      // d'autres imprimantes" trade-off the user is OK with.
+      const hasIdentity = !!(hostName || machineModel || softwareVersion ||
+                             klippyState || moonrakerVersion || apiVersion);
+      if (!hasIdentity) {
+        snapScanLogPush("ambiguous", `${ip} — Moonraker replied without identity fields`,
+          { printerInfo: pi.raw, serverInfo: si.raw, systemInfo: mi.raw });
+        return null;
+      }
+      // Quality score. A confirmed-Snapmaker hit (machine_type contains
+      // "Snapmaker") jumps straight to the top tier so the right
+      // candidate clusters above noise from generic Moonraker hosts.
+      const qualityScore =
+          (isSnapmaker     ? 8 : 0) +   // confirmed brand match — biggest weight
+          (deviceName      ? 3 : 0) +   // user nickname → high signal
+          (machineModel    ? 4 : 0) +
+          (hostName        ? 2 : 0) +   // hostname is weakest of the three name fields
+          (softwareVersion ? 2 : 0) +
+          (klippyState     ? 1 : 0) +
+          (moonrakerVersion? 1 : 0) +
+          (apiVersion      ? 1 : 0) +
+          (serialNumber    ? 1 : 0);
+      const summary = `${ip} · ${machineModel || deviceName || hostName || "(no model)"}${isSnapmaker ? " ✓" : ""} · score ${qualityScore}`;
+      snapScanLogPush("hit", summary, {
+        printerInfo: pi.raw,
+        serverInfo:  si.raw,
+        systemInfo:  mi.raw,
+        derived: {
+          isSnapmaker, machineModel, deviceName, hostName,
+          softwareVersion, klippyState, moonrakerVersion, apiVersion,
+          serialNumber, nozzleCount, qualityScore
+        }
+      });
+      return {
+        ip, isSnapmaker, machineModel, deviceName, hostName,
+        softwareVersion, klippyState, moonrakerVersion, apiVersion,
+        serialNumber, nozzleCount, qualityScore,
+        source: "http",
+        // Full raw payloads — same convention as the mDNS path. Carried
+        // through the prefill into submitPrinterAdd, which writes the
+        // bundle under `discovery` on the Firestore device doc.
+        raw: {
+          mdns: null, // populated by mDNS+HTTP merge in snapScanLan when both fired for the same IP
+          http: {
+            printerInfo: pi.raw || null,
+            serverInfo:  si.raw || null,
+            systemInfo:  mi.raw || null,
+          },
+        },
+      };
+    } catch {
+      return null;
+    } finally {
+      clearTimeout(localTimer);
+      if (signal) signal.removeEventListener?.("abort", onParentAbort);
+    }
+  }
+
+  // Iterate every active /24 prefix in parallel batches. Calls onCandidate
+  // for each printer found and onProgress on every IP probed (success or
+  // not) so the UI can update its progress bar live.
+  // WebRTC-based fallback for discovering the local IPv4 address. The
+  // browser/renderer trick: open an RTCPeerConnection with a dummy data
+  // channel, gather ICE candidates, and parse the host IP out of each
+  // candidate string. This works even when:
+  //   - Electron is running an old main.js without the net:get-local-subnets
+  //     IPC handler registered (no restart since we shipped that handler)
+  //   - The preload script is older than the renderer (preload IPC bridge
+  //     `getLocalSubnets` isn't on window.electronAPI yet)
+  //   - A VPN or unusual NIC config makes os.networkInterfaces() report
+  //     something different from the active route
+  // Returns an array of /24 prefixes ("a.b.c") it could observe.
+  async function snapDiscoverSubnetsViaWebRTC() {
+    if (typeof RTCPeerConnection === "undefined") return [];
+    const found = new Set();
+    let pc;
+    try {
+      pc = new RTCPeerConnection({ iceServers: [] });
+      pc.createDataChannel("snap-discover");
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      // Gather candidates for ~600ms — long enough to enumerate every
+      // active route, short enough not to hold up the scan launch.
+      await new Promise(resolve => {
+        const tm = setTimeout(resolve, 600);
+        pc.onicecandidate = (e) => {
+          if (!e.candidate) { clearTimeout(tm); resolve(); return; }
+          // Candidate strings look like:
+          //   "candidate:1 1 UDP 1686052607 192.168.20.131 51632 typ host ..."
+          // We pull the IPv4 between two spaces. mDNS `.local` candidates
+          // are skipped (they hide the real IP behind a hash).
+          const s = String(e.candidate.candidate || "");
+          const m = s.match(/(?:^|\s)((?:\d{1,3}\.){3}\d{1,3})(?=\s)/);
+          if (!m) return;
+          const ip = m[1];
+          const parts = ip.split(".");
+          const a = +parts[0];
+          if (a === 0 || a === 127 || a === 169 || a >= 224) return;
+          found.add(`${parts[0]}.${parts[1]}.${parts[2]}`);
+        };
+      });
+    } catch {} finally {
+      try { pc?.close(); } catch {}
+    }
+    return Array.from(found);
+  }
+
+  // Build a Snapmaker candidate object (same shape as snapProbeIp returns)
+  // straight from a mDNS service answer. The TXT record from Snapmaker
+  // firmware contains EVERYTHING needed to pre-fill the form (ip,
+  // machine_type, device_name, sn, version) so we don't even probe
+  // HTTP — the candidate appears in the result list as soon as the
+  // mDNS query returns. Filters out non-Snapmaker matches just in case
+  // someone else publishes _snapmaker._tcp on the LAN (extremely rare).
+  function snapCandidateFromMdns(svc) {
+    if (!svc) return null;
+    const txt = svc.txt || {};
+    // The TXT record fields are documented in u1-moonraker/components/
+    // zeroconf.py: machine_type, device_name, sn, version, ip,
+    // link_mode, region, userid.
+    const machineModel    = (txt.machine_type || "").trim() || null;
+    const deviceName      = (txt.device_name  || "").trim() || null;
+    const serialNumber    = (txt.sn           || "").trim() || null;
+    const softwareVersion = (txt.version      || "").trim() || null;
+    // Pick an IP — the TXT.ip field is what the firmware itself reports;
+    // svc.addresses[] is what mDNS resolved on the wire. They almost
+    // always agree, but the wire address is more authoritative on
+    // multi-homed hosts so we prefer it when present.
+    let ip = null;
+    if (Array.isArray(svc.addresses)) {
+      ip = svc.addresses.find(a => /^(\d{1,3}\.){3}\d{1,3}$/.test(a)) || null;
+    }
+    if (!ip && txt.ip) ip = String(txt.ip).trim();
+    if (!ip) return null;
+    // Strict brand check — we filter to "machine_type contains Snapmaker"
+    // so a non-Snapmaker stray on _snapmaker._tcp can't sneak in. In
+    // practice this can't happen (the service-type itself is unique to
+    // Snapmaker firmware) but defence-in-depth is cheap.
+    const isSnapmaker = !!machineModel &&
+                        machineModel.toLowerCase().includes("snapmaker");
+    if (!isSnapmaker) return null;
+    // Quality score — mDNS hits MAX out the score because the TXT
+    // record is the most authoritative possible source.
+    const qualityScore = 8 /* isSnapmaker */
+                       + (deviceName      ? 3 : 0)
+                       + (machineModel    ? 4 : 0)
+                       + (softwareVersion ? 2 : 0)
+                       + (serialNumber    ? 1 : 0)
+                       + 1 /* mDNS bonus — confirms the LAN-broadcast identity */;
+    return {
+      ip, isSnapmaker, machineModel, deviceName,
+      hostName: svc.host || null,
+      softwareVersion, klippyState: null,
+      moonrakerVersion: null, apiVersion: null,
+      serialNumber, nozzleCount: 0,
+      qualityScore,
+      // Mark the source so the UI/journal can distinguish mDNS-found
+      // from probe-found candidates.
+      source: "mdns",
+      // Full raw payload — kept verbatim so the Add flow can persist
+      // EVERYTHING the printer told us about itself onto the Firestore
+      // device doc (under `discovery`). Useful later for debug,
+      // model-detection improvements, or surfacing fields we don't
+      // currently render in the UI without an extra round-trip.
+      raw: {
+        mdns: {
+          name: svc.name || null,
+          host: svc.host || null,
+          port: svc.port || null,
+          fqdn: svc.fqdn || null,
+          addresses: Array.isArray(svc.addresses) ? svc.addresses.slice() : [],
+          txt: svc.txt ? { ...svc.txt } : {},
+        },
+        http: null, // mDNS-only candidate — HTTP probe data is added by the merge in snapScanLan
+      },
+    };
+  }
+
+  async function snapScanLan({ onCandidate, onProgress, signal } = {}) {
+    // Capture an environment snapshot for the Export button — gets
+    // populated as we discover sources below, so a copy-to-clipboard
+    // includes EVERY layer we tried, not just per-host results.
+    _snapScanLastEnv = {
+      startedAt: new Date().toISOString(),
+      mdnsHits: null,
+      ipcSubnets: null,
+      webrtcSubnets: null,
+      userExtras: null,
+      prefixes: null,
+      probeTimeoutMs: SNAP_PROBE_TIMEOUT_MS,
+      batchSizeLocal: SNAP_SCAN_BATCH_LOCAL,
+      batchSizeExtra: SNAP_SCAN_BATCH_EXTRA,
+      port: SNAP_MOONRAKER_PORT,
+    };
+
+    // Track which IPs we've already surfaced so the port-scan phase
+    // doesn't re-probe what mDNS already found (would be a duplicate
+    // candidate in the UI, AND wastes a network round-trip).
+    const seenIps = new Set();
+    let hits = 0;
+
+    // ── Phase 0: mDNS browse (instant on healthy LANs) ─────────────
+    // Snapmaker firmware advertises `_snapmaker._tcp.local.` with a
+    // TXT record carrying everything we need. When the network has a
+    // working multicast path (single VLAN, or VLAN with mDNS reflector)
+    // this returns the printer in ≤ 2 sec with ZERO probes. When mDNS
+    // is filtered (typical multi-VLAN without reflector), we just get
+    // an empty list and fall through to the port-scan phase.
+    try {
+      const mdnsRes = await window.electronAPI?.mdnsBrowseSnapmaker?.();
+      const cands = Array.isArray(mdnsRes?.candidates) ? mdnsRes.candidates : [];
+      if (_snapScanLastEnv) _snapScanLastEnv.mdnsHits = cands.length;
+      if (mdnsRes?.ok === false) {
+        snapScanLogPush("error",
+          `mDNS browse failed: ${mdnsRes.error || "unknown"} — falling back to port-scan only`,
+          { source: "mdns", error: mdnsRes.error });
+      } else {
+        snapScanLogPush("info",
+          `mDNS browse → ${cands.length} _snapmaker._tcp instance${cands.length === 1 ? "" : "s"}`,
+          { source: "mdns", raw: cands });
+      }
+      for (const svc of cands) {
+        const c = snapCandidateFromMdns(svc);
+        if (!c) continue;
+        if (seenIps.has(c.ip)) continue;
+        seenIps.add(c.ip);
+        hits++;
+        snapScanLogPush("hit",
+          `mDNS · ${c.ip} · ${c.machineModel} · score ${c.qualityScore} (no HTTP probe)`,
+          { source: "mdns", service: svc, derived: c });
+        onCandidate?.(c);
+      }
+    } catch (e) {
+      snapScanLogPush("error", `mDNS browse threw: ${e?.message || e}`, null);
+    }
+
+    // ── Phase 1: enumerate subnets to port-scan ─────────────────────
+    // Each subnet is tagged with its source so we can pick the right
+    // batch size + know whether an empty result means "firewall block"
+    // (extras) or just "no Snapmakers on this NIC" (locals).
+    /** @type {Array<{ prefix: string, source: "local"|"extra" }>} */
+    const queue = [];
+    const seenPrefixes = new Set();
+    const pushPrefix = (p, source) => {
+      if (!p || seenPrefixes.has(p)) return;
+      seenPrefixes.add(p);
+      queue.push({ prefix: p, source });
+    };
+
+    // 1a. main-process os.networkInterfaces() via IPC.
+    let ipcWorked = false;
+    try {
+      const got = await window.electronAPI?.getLocalSubnets?.();
+      if (Array.isArray(got)) {
+        ipcWorked = true;
+        if (_snapScanLastEnv) _snapScanLastEnv.ipcSubnets = got;
+        got.forEach(p => pushPrefix(p, "local"));
+        snapScanLogPush("info",
+          `IPC getLocalSubnets → [${got.join(", ") || "(empty)"}]`,
+          { source: "ipc", subnets: got });
+      } else {
+        snapScanLogPush("info",
+          `IPC getLocalSubnets unavailable (returned ${typeof got}) — falling back to WebRTC discovery. Restart Electron to enable the native IPC bridge.`,
+          null);
+      }
+    } catch (e) {
+      snapScanLogPush("error", `getLocalSubnets failed: ${e?.message || e}`, null);
+    }
+    // 1b. WebRTC ICE-candidate IPs (cheap fallback when the IPC bridge
+    //     isn't loaded yet, OR for setups with weird routing tables).
+    try {
+      const webrtc = await snapDiscoverSubnetsViaWebRTC();
+      if (_snapScanLastEnv) _snapScanLastEnv.webrtcSubnets = webrtc;
+      const fresh = webrtc.filter(p => !seenPrefixes.has(p));
+      if (fresh.length || (!ipcWorked && webrtc.length)) {
+        snapScanLogPush("info",
+          `WebRTC discovery → [${webrtc.join(", ")}]${fresh.length ? ` (added: ${fresh.join(", ")})` : " (already known)"}`,
+          { source: "webrtc", subnets: webrtc, added: fresh });
+      } else if (!ipcWorked) {
+        snapScanLogPush("info", "WebRTC discovery returned no candidates", null);
+      }
+      fresh.forEach(p => pushPrefix(p, "local"));
+    } catch (e) {
+      snapScanLogPush("error", `WebRTC discovery failed: ${e?.message || e}`, null);
+    }
+    // 1c. User-declared extras — tagged as "extra" so we use the
+    //     gentle batch size that survives anti-scan firewalls.
+    const extras = snapLoadExtraSubnets();
+    if (_snapScanLastEnv) _snapScanLastEnv.userExtras = extras;
+    if (extras.length) {
+      const fresh = extras.filter(p => !seenPrefixes.has(p));
+      snapScanLogPush("info",
+        `User extras → [${extras.join(", ")}]${fresh.length ? ` (added: ${fresh.join(", ")})` : " (already known)"}`,
+        { source: "user", subnets: extras, added: fresh });
+      fresh.forEach(p => pushPrefix(p, "extra"));
+    }
+
+    if (_snapScanLastEnv) _snapScanLastEnv.prefixes = queue.slice();
+    snapScanLogPush("info",
+      `Port-scan starting — ${queue.length} subnet${queue.length === 1 ? "" : "s"}: ${queue.map(q => q.prefix + "(" + q.source + ")").join(", ") || "(none)"}`,
+      { queue, batchLocal: SNAP_SCAN_BATCH_LOCAL, batchExtra: SNAP_SCAN_BATCH_EXTRA });
+
+    // ── Phase 2: port-scan ─────────────────────────────────────────
+    // We track per-subnet stats so we can flag suspected firewall
+    // blocks AFTER the scan completes (not during, to avoid false
+    // alarms while the subnet is still mid-walk).
+    const total = queue.length * 254;
+    let done = 0;
+    onProgress?.({ done, total, prefixes: queue.map(q => q.prefix) });
+
+    const scanStart = performance.now();
+    /** @type {Array<{ prefix:string, source:string, hits:number, elapsedMs:number, suspicious:boolean }>} */
+    const subnetStats = [];
+
+    for (const { prefix, source } of queue) {
+      if (signal?.aborted) {
+        snapScanLogPush("info", "Scan aborted by user", null);
+        return;
+      }
+      const isExtra  = source === "extra";
+      const batch    = isExtra ? SNAP_SCAN_BATCH_EXTRA : SNAP_SCAN_BATCH_LOCAL;
+      const gapMs    = isExtra ? SNAP_SCAN_BATCH_GAP_MS_EXTRA : 0;
+      snapScanLogPush("info",
+        `Scanning ${prefix}.1–254 (source=${source}, batch=${batch}${gapMs ? `, gap=${gapMs}ms` : ""})`,
+        null);
+      const subnetStart = performance.now();
+      let subnetHits = 0;
+      for (let start = 1; start <= 254; start += batch) {
+        if (signal?.aborted) {
+          snapScanLogPush("info", "Scan aborted by user", null);
+          return;
+        }
+        const end = Math.min(start + batch - 1, 254);
+        const ips = [];
+        for (let i = start; i <= end; i++) {
+          const ip = `${prefix}.${i}`;
+          // Skip IPs we already surfaced via mDNS — avoids duplicates
+          // and saves a probe each (over a /24, that's up to a couple
+          // of seconds shaved off when mDNS was effective).
+          if (seenIps.has(ip)) { done++; continue; }
+          ips.push(ip);
+        }
+        const results = await Promise.all(ips.map(ip =>
+          snapProbeIp(ip, signal).catch(() => null)
+        ));
+        for (const r of results) {
+          done++;
+          if (!r) continue;
+          // Filter — only Snapmakers reach the UI. Other Moonraker
+          // hosts (Voron, Bambu-Klipper, Creality K1, etc.) get logged
+          // in debug as "ambiguous" so the user sees them when they
+          // open the journal, but they don't pollute the result list.
+          // (snapProbeIp already calls snapScanLogPush('hit') for
+          // every Moonraker reply; this guard only governs the UI.)
+          if (!r.isSnapmaker) {
+            snapScanLogPush("ambiguous",
+              `${r.ip} — Moonraker host but not a Snapmaker (machine_type=${r.machineModel || "?"}) — skipped`,
+              { ip: r.ip, machineModel: r.machineModel, derived: r });
+            continue;
+          }
+          if (seenIps.has(r.ip)) continue;
+          seenIps.add(r.ip);
+          hits++;
+          subnetHits++;
+          onCandidate?.(r);
+        }
+        onProgress?.({ done, total, prefixes: queue.map(q => q.prefix) });
+        // Inter-batch breathing room — only on EXTRA. Without it, the
+        // anti-scan rate-limiter on a typical home firewall will lump
+        // consecutive batches into a single "scan attack" event and
+        // drop them all.
+        if (gapMs && start + batch <= 254) {
+          await new Promise(r => setTimeout(r, gapMs));
+        }
+      }
+      const subnetElapsedMs = Math.round(performance.now() - subnetStart);
+      // Suspicious = an EXTRA subnet that completed too fast with 0
+      // hits. "Too fast" = anything under SNAP_FIREWALL_BLOCK_HINT_MS,
+      // because a healthy /24 with batch=4 takes ≥ 25s (254 hosts ×
+      // 350ms / 4 ≈ 22s + gaps). Sub-4s with 0 hits ⇒ firewall ate it.
+      const suspicious = isExtra && subnetHits === 0 &&
+                         subnetElapsedMs < SNAP_FIREWALL_BLOCK_HINT_MS;
+      subnetStats.push({ prefix, source, hits: subnetHits,
+                         elapsedMs: subnetElapsedMs, suspicious });
+      if (suspicious) {
+        snapScanLogPush("error",
+          `${prefix}.0/24 finished in ${(subnetElapsedMs/1000).toFixed(1)}s with 0 hits — your firewall likely blocked the scan. Try Manual Add with the printer's exact IP.`,
+          { prefix, elapsedMs: subnetElapsedMs, hits: 0, hint: "firewall_block_suspected" });
+      }
+    }
+
+    const elapsedMs = Math.round(performance.now() - scanStart);
+    snapScanLogPush("info",
+      `Scan complete — ${hits} Snapmaker hit${hits === 1 ? "" : "s"} in ${(elapsedMs / 1000).toFixed(1)}s (${total} probes)`,
+      { hits, totalProbes: total, elapsedMs, subnetStats });
+    if (_snapScanLastEnv) _snapScanLastEnv.subnetStats = subnetStats;
+  }
+
+  /* ── LAN scanner (the choice-modal middleman was retired — brand-pick
+     Snapmaker now opens this panel directly with both an inline
+     "Add by IP" + the auto-scan running in the background). ─────── */
+  // Bundle a candidate's discovery data into the shape we'll persist on
+  // the Firestore device doc (under `discovery`). Includes:
+  //   - `discoveredAt` — ISO timestamp so we know when the scan ran
+  //   - `source`       — "mdns" | "http"
+  //   - `derived`      — the parsed identity fields
+  //   - `raw`          — verbatim payloads (mDNS service + HTTP responses)
+  //
+  // We intentionally store the RAW payloads, not just the derived fields:
+  // future features (firmware-version-aware features, model detection
+  // improvements, etc.) can re-parse the same source data without a
+  // re-scan, and this is invaluable for triaging support tickets.
+  /* ── One-click add — write a discovered Snapmaker straight to Firestore.
+     Used by the scan-card click handler so the user doesn't have to
+     pass through the add form for printers we already know everything
+     about (mDNS / Moonraker probe gave us name + IP + model). Mirrors
+     the document shape that `submitPrinterAdd()` writes for the
+     manual path so the inventory schema stays consistent. Resolves
+     to the new device id on success, or null on failure (caller can
+     fall back to the form). */
+  async function snapAddDiscoveredPrinter(c) {
+    if (!c) {
+      console.warn("[snap-scan] add aborted: no candidate");
+      return null;
+    }
+    const uid = state.activeAccountId;
+    if (!uid) {
+      console.warn("[snap-scan] add aborted: no active account (state.activeAccountId is null)");
+      return null;
+    }
+    const brand = "snapmaker";
+    const printerName = c.deviceName || c.machineModel || c.hostName || `Snapmaker ${c.ip}`;
+    const printerModelId = snapModelIdFromMachineModel(c.machineModel || c.hostName);
+    try {
+      const db  = fbDb(uid);
+      const ref = db.collection("users").doc(uid)
+                    .collection("printers").doc(brand)
+                    .collection("devices").doc();
+      const sortIndex = state.printers.length;
+      // Build the payload defensively. Firestore rejects undefined
+      // values — we coerce every potentially-undefined field to null
+      // (or a safe default) before the write, AND we strip nested
+      // undefineds from the discovery payload so a stray `undefined`
+      // somewhere in the raw mDNS/HTTP responses can't kill the write.
+      const discovery = snapBuildDiscoveryRecord(c);
+      const cleanDiscovery = discovery ? JSON.parse(JSON.stringify(discovery)) : null;
+      const payload = {
+        printerName,
+        printerModelId,
+        ip: c.ip || "",
+        id: ref.id,
+        isActive: false,
+        sortIndex,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        discovery: cleanDiscovery,
+      };
+      console.log("[snap-scan] writing printer doc", { uid, brand, id: ref.id, name: printerName });
+      await ref.set(payload);
+      console.log("[snap-scan] printer doc written successfully", ref.id);
+      return ref.id;
+    } catch (e) {
+      console.error("[snap-scan] Firestore write failed:", {
+        code: e?.code,
+        message: e?.message,
+        full: e
+      });
+      return null;
+    }
+  }
+
+  function snapBuildDiscoveryRecord(c) {
+    if (!c) return null;
+    return {
+      discoveredAt: new Date().toISOString(),
+      source: c.source || null,
+      derived: {
+        ip: c.ip || null,
+        isSnapmaker: !!c.isSnapmaker,
+        machineModel:    c.machineModel    || null,
+        deviceName:      c.deviceName      || null,
+        hostName:        c.hostName        || null,
+        softwareVersion: c.softwareVersion || null,
+        klippyState:     c.klippyState     || null,
+        moonrakerVersion:c.moonrakerVersion|| null,
+        apiVersion:      c.apiVersion      || null,
+        serialNumber:    c.serialNumber    || null,
+        nozzleCount:     c.nozzleCount     || 0,
+        qualityScore:    c.qualityScore    || 0,
+      },
+      raw: c.raw || null,
+    };
+  }
+
+  // Resolve a Moonraker `machine_model` string against the local Snapmaker
+  // catalog so we can pre-fill the model picker with the matching entry
+  // (and fall back to the placeholder "Select Printer" id=0 when nothing
+  // matches — e.g. firmware reporting a model we don't have art for yet).
+  function snapModelIdFromMachineModel(machineModel) {
+    if (!machineModel) return "0";
+    const list = state.db.printerModels?.snapmaker || [];
+    const hay = String(machineModel).toLowerCase().replace(/[\s_-]+/g, "");
+    // Try exact / contains match against name OR id, normalised. We strip
+    // separators on both sides so "Snapmaker U1" matches catalog entries
+    // like "U1", "snapmaker-u1" or "Snapmaker_U1" alike.
+    let hit = list.find(m => {
+      const mn = String(m.name || "").toLowerCase().replace(/[\s_-]+/g, "");
+      const mi = String(m.id   || "").toLowerCase().replace(/[\s_-]+/g, "");
+      return mn === hay || mi === hay || (mn && hay.includes(mn)) || (mn && mn.includes(hay));
+    });
+    return hit ? String(hit.id) : "0";
+  }
+
+  function snapCandidateCardHtml(c) {
+    // Title line — prefer the user's nickname (device_name) over the
+    // model over the codename hostname over the bare IP. This is the
+    // exact same priority we use to pre-fill the form, so the card
+    // visibly previews what the form will be seeded with.
+    const title = c.deviceName || c.machineModel || c.hostName || c.ip;
+    // Model + firmware version — the "what is this printer" line.
+    const modelParts = [];
+    if (c.machineModel && c.machineModel !== title) modelParts.push(c.machineModel);
+    if (c.softwareVersion) modelParts.push(`v${c.softwareVersion}`);
+    const modelLine = modelParts.join(" · ");
+    // Hostname — only shown when it's not redundant with the title.
+    const hostLine  = (c.hostName && c.hostName !== title && c.hostName !== c.machineModel)
+                    ? c.hostName : "";
+    // Serial number on its own row (formatted with the "S/N" prefix to
+    // match how the field is displayed on the printer's own touchscreen
+    // and in the support tooling).
+    const serialLine = c.serialNumber ? `S/N · ${c.serialNumber}` : "";
+    // Confidence tier. With the new scoring (isSnapmaker = +8), a
+    // confirmed Snapmaker always lands in the "high" tier, generic
+    // Moonraker hosts in low/med depending on what they reveal.
+    const score = c.qualityScore || 0;
+    const tier  = score >= 10 ? "high" : (score >= 5 ? "med" : "low");
+    // Brand badge — only shown when machine_type contained "Snapmaker".
+    // Visual confirmation that THIS row is a real Snapmaker, not a
+    // Klipper-running NAS or someone's Voron.
+    const brandBadge = c.isSnapmaker
+      ? `<span class="snap-scan-card-badge" title="${esc(t("snapScanCardBrandConfirmed") || "Confirmed Snapmaker (machine_type contains 'Snapmaker')")}">Snapmaker</span>`
+      : "";
+    // Resolve the model image so the card previews which printer this
+    // is. Falls back to the per-brand "Select Printer" entry image
+    // (which IS no_printer.png in the catalog) when machine_type didn't
+    // match anything we know — keeps the layout stable instead of
+    // showing an empty thumbnail box.
+    const modelId    = snapModelIdFromMachineModel(c.machineModel || c.hostName);
+    const matched    = findPrinterModel("snapmaker", modelId);
+    const fallback   = findPrinterModel("snapmaker", "0"); // catalog placeholder = no_printer.png
+    const imgUrl     = printerImageUrl(matched) || printerImageUrl(fallback);
+    const thumbHtml  = imgUrl
+      ? `<img src="${esc(imgUrl)}" alt="" onerror="this.style.opacity='.15'"/>`
+      : "";
+    // Card markup — uses a <div role="button"> rather than a real
+    // <button>. Reason: browsers refuse to honour `display: flex` on a
+    // <button> with multiple block children predictably; the rendering
+    // collapses to inline-block height in some contexts (visible bug:
+    // thumbnail bleeding below the visible card box). A div with the
+    // proper a11y attributes (role, tabindex, key handler) gives us
+    // perfect control over the layout AND keeps the keyboard story
+    // working (Enter / Space trigger via the wired keydown handler).
+    return `
+      <div class="snap-scan-card snap-scan-card--${tier}${c.isSnapmaker ? " snap-scan-card--snap" : ""}"
+           role="button" tabindex="0"
+           data-ip="${esc(c.ip)}" data-model="${esc(c.machineModel || "")}" data-host="${esc(c.hostName || "")}">
+        <span class="snap-scan-card-thumb">${thumbHtml}</span>
+        <span class="snap-scan-card-main">
+          <span class="snap-scan-card-title">
+            <span class="snap-scan-card-title-text">${esc(title)}</span>
+            ${brandBadge}
+          </span>
+          <span class="snap-scan-card-ip">${esc(c.ip)}</span>
+          ${modelLine  ? `<span class="snap-scan-card-line snap-scan-card-line--model">${esc(modelLine)}</span>` : ""}
+          ${hostLine   ? `<span class="snap-scan-card-line snap-scan-card-line--host" title="${esc(hostLine)}">${esc(hostLine)}</span>` : ""}
+          ${serialLine ? `<span class="snap-scan-card-line snap-scan-card-line--sn"   title="${esc(c.serialNumber)}">${esc(serialLine)}</span>` : ""}
+        </span>
+        <span class="snap-scan-card-score" title="${esc(t("snapScanScore", { n: score }) || `Match score: ${score}`)}">${score}</span>
+        <span class="icon icon-chevron-r icon-14 snap-scan-card-chev"></span>
+      </div>`;
+  }
+
+  function openSnapmakerScan() {
+    // Side-panel pattern (matches scales / printer-detail / friends):
+    // two elements driven by `.open` — `#snapScanOverlay` (the dim
+    // backdrop) and `#snapScanPanel` (the slide-in card itself).
+    const overlay = $("snapScanOverlay");
+    const panel   = $("snapScanPanel");
+    if (!overlay || !panel) return;
+    const sub      = $("snapScanSub");
+    const bar      = $("snapScanBar");
+    const stats    = $("snapScanStats");
+    const results  = $("snapScanResults");
+    const empty    = $("snapScanEmpty");
+    if (results) results.innerHTML = "";
+    if (empty)   empty.hidden = false;
+    if (bar)     bar.style.width = "0%";
+    if (stats)   stats.textContent = "0 / 0";
+    if (sub)     sub.textContent = t("snapScanStarting") || "Starting scan…";
+    // Reset the debug log on every (re)scan so the user sees only the
+    // current run's output. Render shows/hides the panel based on the
+    // current debugEnabled flag.
+    snapScanLogClear();
+    // Refresh the user-declared extra-subnets chips every time the modal
+    // opens so they reflect the latest localStorage state (e.g. if the
+    // user opened settings in another window).
+    snapRenderExtraSubnetsUI();
+    // Reset the Add-by-IP widget so reopening doesn't carry stale state
+    // (a half-typed IP, an "Invalid" tip, etc.) from the previous session.
+    // Closing the <details> triggers the `toggle` listener above, which
+    // already wipes the input/tip/button/status — so we only need to
+    // collapse the wrapper and abort any in-flight probe here.
+    const ipDetails = $("snapAddIpDetails");
+    if (ipDetails) ipDetails.open = false;
+    try { _snapAddIpAbort?.abort(); } catch {}
+    _snapAddIpAbort = null;
+    // Slide the panel in + dim the backdrop. Both get `.open` so the
+    // CSS transitions on each fire in lockstep.
+    overlay.classList.add("open");
+    panel.classList.add("open");
+
+    // Cancel any previous scan, then start fresh.
+    snapAbortScan();
+    const ctl = new AbortController();
+    _snapScanAbort = ctl;
+
+    let foundCount = 0;
+    // Track which IPs we've already rendered so we can update the row in
+    // place rather than appending a duplicate when /printer/info answers
+    // after /server/info has already produced a (lower-score) candidate.
+    const rendered = new Map(); // ip -> { card, score }
+    snapScanLan({
+      signal: ctl.signal,
+      onCandidate: (c) => {
+        if (empty) empty.hidden = true;
+        const wrap = document.createElement("div");
+        wrap.innerHTML = snapCandidateCardHtml(c);
+        const card = wrap.firstElementChild;
+        if (!card) return;
+        // One-click add — write directly to Firestore, close the scan
+        // panel, and open the detail panel for the just-added printer.
+        const triggerAdd = async () => {
+          console.log("[snap-scan] triggerAdd fired for", c.ip);
+          if (card.classList.contains("snap-scan-card--loading")) return;
+          card.classList.add("snap-scan-card--loading");
+          const newId = await snapAddDiscoveredPrinter(c);
+          if (!newId) {
+            card.classList.remove("snap-scan-card--loading");
+            console.warn("[snap-scan] one-click add returned null — see preceding warning");
+            return;
+          }
+          // Close the scan panel + abort any in-flight scan.
+          snapAbortScan();
+          closeSnapmakerScan();
+          // Wait briefly for the Firestore listener (subscribePrinters)
+          // to populate state.printers with the new doc, then open the
+          // detail side-panel. Polls every 40ms up to ~2s. If the
+          // listener never fires (extremely rare), we silently bail.
+          const start = Date.now();
+          let printer = null;
+          while (Date.now() - start < 2000) {
+            printer = state.printers.find(p => p.brand === "snapmaker" && p.id === newId);
+            if (printer) break;
+            await new Promise(r => setTimeout(r, 40));
+          }
+          if (printer) {
+            openPrinterDetail("snapmaker", newId);
+          } else {
+            console.warn("[snap-scan] printer doc was written but Firestore listener didn't update state.printers within 2s — open it manually from the grid");
+          }
+        };
+        card.addEventListener("click", triggerAdd);
+        card.addEventListener("keydown", e => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            triggerAdd();
+          }
+        });
+        const prev = rendered.get(c.ip);
+        if (prev) {
+          // Existing entry — replace it only if the new probe scored
+          // higher (more identity fields filled in). Otherwise drop the
+          // duplicate so the list stays stable.
+          if ((c.qualityScore || 0) > prev.score) {
+            prev.card.replaceWith(card);
+            rendered.set(c.ip, { card, score: c.qualityScore || 0 });
+          }
+        } else {
+          foundCount++;
+          rendered.set(c.ip, { card, score: c.qualityScore || 0 });
+          if (results) results.appendChild(card);
+        }
+        // Re-sort visible rows by score (desc) so the strongest match
+        // bubbles to the top as scan results stream in. Tie-break on IP
+        // so the order is stable when scores equal.
+        if (results) {
+          const sorted = Array.from(results.children).sort((a, b) => {
+            const sa = +(a.querySelector(".snap-scan-card-score")?.textContent || 0);
+            const sb = +(b.querySelector(".snap-scan-card-score")?.textContent || 0);
+            if (sb !== sa) return sb - sa;
+            return (a.dataset.ip || "").localeCompare(b.dataset.ip || "", undefined, { numeric: true });
+          });
+          sorted.forEach(el => results.appendChild(el));
+        }
+      },
+      onProgress: ({ done, total, prefixes }) => {
+        if (bar)   bar.style.width = total ? `${Math.min(100, (done / total) * 100)}%` : "0%";
+        if (stats) stats.textContent = `${done} / ${total}`;
+        if (sub) {
+          // No active NIC ⇒ os.networkInterfaces() returned nothing
+          // useful. Tell the user to check the connection rather than
+          // silently spinning at 0/0.
+          if (total === 0) {
+            sub.textContent = t("snapScanNoSubnets")
+                            || "No active network detected — connect to Wi-Fi or Ethernet.";
+            return;
+          }
+          if (done >= total) {
+            sub.textContent = t("snapScanDone", { n: foundCount }) || `Scan complete — ${foundCount} found`;
+            // When the scan finished with 0 Snapmaker hits, swap the
+            // generic empty state for a more actionable one if any
+            // user-declared subnet looks firewall-blocked. Reads
+            // _snapScanLastEnv.subnetStats which snapScanLan populated.
+            if (foundCount === 0 && empty) {
+              const blocked = (_snapScanLastEnv?.subnetStats || [])
+                .filter(s => s.suspicious)
+                .map(s => `${s.prefix}.0/24`);
+              if (blocked.length) {
+                empty.innerHTML = esc(t("snapScanEmptyFirewall", { p: blocked.join(", ") })
+                  || `Your firewall likely dropped probes on ${blocked.join(", ")} — try Manual Add with the printer's exact IP.`);
+                empty.classList.add("snap-scan-empty--warn");
+              } else {
+                empty.textContent = t("snapScanEmpty")
+                  || "No Snapmaker found yet — make sure the printer is on the same Wi-Fi network.";
+                empty.classList.remove("snap-scan-empty--warn");
+              }
+            }
+          } else {
+            sub.textContent = t("snapScanProgress", { p: prefixes.join(", ") })
+                            || `Scanning ${prefixes.join(", ")}…`;
+          }
+        }
+      }
+    }).catch(() => {/* aborted or per-host failure already swallowed */});
+  }
+  function closeSnapmakerScan() {
+    snapAbortScan();
+    $("snapScanOverlay")?.classList.remove("open");
+    $("snapScanPanel")?.classList.remove("open");
+  }
+  $("snapScanClose")?.addEventListener("click", closeSnapmakerScan);
+  // Backdrop click closes the panel (same UX as scales / printer detail).
+  $("snapScanOverlay")?.addEventListener("click", closeSnapmakerScan);
+  // Escape key — replaces the visible ✕ button (now removed).
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape" && $("snapScanPanel")?.classList.contains("open")) {
+      closeSnapmakerScan();
+    }
+  });
+  // The "Back" button was removed — brand-pick now opens this panel
+  // directly, so there is no previous step to return to. Closing is
+  // done via the X in the header or by clicking the backdrop.
+  $("snapScanRestart")?.addEventListener("click", () => {
+    // Re-run the scan in-place (don't close + reopen — preserves overlay focus).
+    openSnapmakerScan();
+  });
+  // Debug log: collapsible header (chevron flips), Clear button wipes
+  // the in-memory buffer + DOM. Both are no-ops when state.debugEnabled
+  // is false because the panel is hidden in that case.
+  $("snapScanLogToggle")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const body = $("snapScanLogBody");
+    const btn  = $("snapScanLogToggle");
+    if (!body || !btn) return;
+    const open = body.hidden;
+    body.hidden = !open;
+    btn.setAttribute("aria-expanded", open ? "true" : "false");
+    btn.classList.toggle("snap-scan-log-toggle--open", open);
+    if (open) snapScanLogRender(); // flush queued lines on first open
+  });
+  $("snapScanLogClear")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    snapScanLogClear();
+  });
+  $("snapScanLogExport")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    snapScanLogExport();
+  });
+  // Extra-subnets widget: Add button + Enter key submits; the input
+  // clears + chip appears immediately. The list is read fresh from
+  // localStorage at every snapScanLan() call, so changes take effect
+  // on the very next scan with no extra plumbing.
+  $("snapExtraSubnetsAdd")?.addEventListener("click", (e) => {
+    e.preventDefault(); e.stopPropagation();
+    snapAddExtraSubnetFromInput();
+  });
+  $("snapExtraSubnetsInput")?.addEventListener("keydown", e => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      snapAddExtraSubnetFromInput();
+    }
+  });
+
+  /* ── Inline "Add by IP" — live IPv4 validation + direct probe.
+     Drives 4 visual states on the input + button:
+       1. EMPTY     — neutral border, button disabled, no tip
+       2. TYPING    — neutral border (still incomplete), button disabled, no tip
+       3. INVALID   — red border, info bubble visible, button disabled
+       4. VALID     — green border, info bubble hidden, button enabled
+     Clicking the button (or pressing Enter on a valid input) probes the
+     IP and either pre-fills the add form (success) or shows an error
+     state below the row (no reply).                                       */
+  let _snapAddIpAbort = null;
+  // Validation is now CLICK-DRIVEN, not live. While the user types, the
+  // input stays neutral (no red border, no bubble) — feedback only fires
+  // when they hit Validate and the IP doesn't parse. Two responsibilities
+  // for the input handler:
+  //   1. Enable the Validate button as soon as there is ANY text (so the
+  //      user can click to receive validation feedback).
+  //   2. If a previous click left the input in an error state, clear
+  //      that state on the next keystroke so the user gets feedback
+  //      they're "fixing" the problem.
+  function snapAddIpUpdateState() {
+    const inp = $("snapAddIpInput");
+    const tip = $("snapAddIpTip");
+    const btn = $("snapAddIpBtn");
+    const status = $("snapAddIpStatus");
+    if (!inp || !tip || !btn) return;
+    const raw = (inp.value || "").trim();
+    // Drop any sticky error UI as soon as the user resumes typing.
+    if (inp.classList.contains("snap-add-ip-input--err")) {
+      inp.classList.remove("snap-add-ip-input--err");
+      tip.hidden = true;
+    }
+    // Button is enabled the moment the input is non-empty. We don't try
+    // to validate live — the user clicks, THEN we validate.
+    btn.disabled = raw.length === 0;
+    // Clear any stale probe-status row when the user resumes typing.
+    if (status && !status.hidden && !btn.classList.contains("loading")) {
+      status.hidden = true;
+      status.textContent = "";
+      status.className = "snap-add-ip-status";
+    }
+  }
+  // Keystroke filter — only digits + dots. Block everything else
+  // (letters, spaces, etc.) at input time so the field is always parseable.
+  // Toggle reactions on the <details> wrapper:
+  //   - on EXPAND: focus the input so the user can type immediately
+  //     (saves a click compared to "click trigger → click input").
+  //   - on COLLAPSE: clear the input + any stale validation/error UI
+  //     so reopening starts fresh.
+  $("snapAddIpDetails")?.addEventListener("toggle", () => {
+    const details = $("snapAddIpDetails");
+    const inp     = $("snapAddIpInput");
+    const tip     = $("snapAddIpTip");
+    const btn     = $("snapAddIpBtn");
+    const status  = $("snapAddIpStatus");
+    if (!details) return;
+    if (details.open) {
+      // Defer focus until after the browser has painted the expanded
+      // body — calling focus() before that on Safari/Webkit can race
+      // with the open transition and silently no-op.
+      setTimeout(() => inp?.focus(), 30);
+    } else {
+      try { _snapAddIpAbort?.abort(); } catch {}
+      _snapAddIpAbort = null;
+      if (inp)    { inp.value = ""; inp.classList.remove("snap-add-ip-input--err", "snap-add-ip-input--ok"); }
+      if (tip)    tip.hidden = true;
+      if (btn)    { btn.disabled = true; btn.classList.remove("loading"); }
+      if (status) { status.hidden = true; status.textContent = ""; status.className = "snap-add-ip-status"; }
+    }
+  });
+
+  $("snapAddIpInput")?.addEventListener("beforeinput", e => {
+    if (e.inputType && e.inputType.startsWith("delete")) return; // allow deletions
+    const data = e.data;
+    if (data == null) return;
+    if (!/^[\d.]+$/.test(data)) e.preventDefault();
+  });
+  $("snapAddIpInput")?.addEventListener("input", snapAddIpUpdateState);
+  $("snapAddIpInput")?.addEventListener("keydown", e => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const btn = $("snapAddIpBtn");
+      if (btn && !btn.disabled) btn.click();
+    }
+  });
+
+  $("snapAddIpBtn")?.addEventListener("click", async () => {
+    const inp = $("snapAddIpInput");
+    const btn = $("snapAddIpBtn");
+    const status = $("snapAddIpStatus");
+    if (!inp || !btn) return;
+    const ip = snapValidateIp(inp.value);
+    if (!ip) {
+      // Defensive — UI keeps the button disabled when the IP is invalid,
+      // but in case some path bypasses the disabled state we still
+      // refuse to probe.
+      snapAddIpUpdateState();
+      return;
+    }
+    btn.classList.add("loading");
+    btn.disabled = true;
+    if (status) {
+      status.hidden = false;
+      status.className = "snap-add-ip-status snap-add-ip-status--info";
+      status.textContent = t("snapManualProbing", { ip }) || `Reaching ${ip}…`;
+    }
+    try { _snapAddIpAbort?.abort(); } catch {}
+    const ctl = new AbortController();
+    _snapAddIpAbort = ctl;
+    const c = await snapProbeIp(ip, ctl.signal);
+    btn.classList.remove("loading");
+    btn.disabled = false;
+    if (!c) {
+      // No reply — keep the user on the scan modal so they can fix the
+      // IP or try anyway. Reuses the same "Continue anyway" button as
+      // the legacy manual modal.
+      if (status) {
+        status.className = "snap-add-ip-status snap-add-ip-status--err";
+        status.innerHTML = `
+          <span>${esc(t("snapManualNoReply", { ip }) || `No reply from ${ip}.`)}</span>
+          <button type="button" class="snap-add-ip-anyway" id="snapAddIpAnyway">${esc(t("snapManualContinueAnyway") || "Continue anyway")}</button>
+        `;
+        $("snapAddIpAnyway")?.addEventListener("click", () => {
+          // Close the scan modal first so the add form is on top.
+          closeSnapmakerScan();
+          openPrinterAddForm("snapmaker", null, {
+            ip,
+            printerName: `Snapmaker ${ip}`,
+            modelId: "0",
+          });
+        });
+      }
+      return;
+    }
+    // Success — open the add form pre-filled, identical priorities to
+    // the scan-card click + legacy manual probe path.
+    closeSnapmakerScan();
+    openPrinterAddForm("snapmaker", null, {
+      ip:          c.ip,
+      printerName: c.deviceName || c.machineModel || c.hostName || `Snapmaker ${c.ip}`,
+      modelId:     snapModelIdFromMachineModel(c.machineModel || c.hostName),
+      discovery:   snapBuildDiscoveryRecord(c),
+    });
+  });
+
+  /* ── Step 2b — manual IP probe ─────────────────────────────────────── */
+  function openSnapmakerManual() {
+    const overlay = $("snapManualOverlay");
+    if (!overlay) return;
+    const ip      = $("snapManualIp");
+    const status  = $("snapManualStatus");
+    const probe   = $("snapManualProbe");
+    if (ip)     ip.value = "";
+    if (status) { status.hidden = true; status.textContent = ""; status.className = "snap-manual-status"; }
+    if (probe)  probe.classList.remove("loading");
+    overlay.classList.add("open");
+    setTimeout(() => ip?.focus(), 50);
+  }
+  function closeSnapmakerManual() {
+    try { _snapManualAbort?.abort(); } catch {}
+    _snapManualAbort = null;
+    $("snapManualOverlay")?.classList.remove("open");
+  }
+  $("snapManualClose")?.addEventListener("click", closeSnapmakerManual);
+  $("snapManualOverlay")?.addEventListener("click", e => {
+    if (e.target.id === "snapManualOverlay") closeSnapmakerManual();
+  });
+  // Legacy manual modal — kept around for now but its only entry path
+  // (the choice modal) has been retired, so the Back button just closes
+  // the modal without reopening anything (otherwise it would call the
+  // deleted openSnapmakerAddChoice and throw).
+  $("snapManualBack")?.addEventListener("click", () => {
+    closeSnapmakerManual();
+  });
+  $("snapManualIp")?.addEventListener("keydown", e => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      $("snapManualProbe")?.click();
+    }
+  });
+  $("snapManualProbe")?.addEventListener("click", async () => {
+    const ipEl    = $("snapManualIp");
+    const status  = $("snapManualStatus");
+    const probeBt = $("snapManualProbe");
+    const ip      = (ipEl?.value || "").trim();
+    // Loose IPv4 validation. Snapmaker sits on private LAN so we don't try
+    // to be cleverer than .x.x.x.x — we just want to catch typos.
+    if (!/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.test(ip)) {
+      if (status) {
+        status.hidden = false;
+        status.className = "snap-manual-status snap-manual-status--err";
+        status.textContent = t("snapManualBadIp") || "Please enter a valid IPv4 address.";
+      }
+      ipEl?.focus();
+      return;
+    }
+    // Live status while we probe so the user knows we didn't freeze.
+    if (status) {
+      status.hidden = false;
+      status.className = "snap-manual-status snap-manual-status--info";
+      status.textContent = t("snapManualProbing", { ip }) || `Reaching ${ip}…`;
+    }
+    probeBt?.classList.add("loading");
+
+    try { _snapManualAbort?.abort(); } catch {}
+    const ctl = new AbortController();
+    _snapManualAbort = ctl;
+    const c = await snapProbeIp(ip, ctl.signal);
+    probeBt?.classList.remove("loading");
+    if (!c) {
+      // Failed probe — keep the user on this modal so they can fix the IP
+      // or try anyway (we still let them continue to the empty form).
+      if (status) {
+        status.className = "snap-manual-status snap-manual-status--err";
+        status.innerHTML = `
+          <span>${esc(t("snapManualNoReply", { ip }) || `No reply from ${ip}.`)}</span>
+          <button type="button" class="snap-manual-anyway" id="snapManualAnyway">${esc(t("snapManualContinueAnyway") || "Continue anyway")}</button>
+        `;
+        $("snapManualAnyway")?.addEventListener("click", () => {
+          closeSnapmakerManual();
+          openPrinterAddForm("snapmaker", null, {
+            ip,
+            printerName: `Snapmaker ${ip}`,
+            modelId: "0",
+          });
+        });
+      }
+      return;
+    }
+    closeSnapmakerManual();
+    // Same prefill priority as the scan path: prefer the user nickname
+    // (device_name from /machine/system_info) over the model name over
+    // the firmware codename hostname.
+    openPrinterAddForm("snapmaker", null, {
+      ip:          c.ip,
+      printerName: c.deviceName || c.machineModel || c.hostName || `Snapmaker ${c.ip}`,
+      modelId:     snapModelIdFromMachineModel(c.machineModel || c.hostName),
+      discovery:   snapBuildDiscoveryRecord(c),
+    });
+  });
+
   // openPrinterAddForm doubles as the edit modal. When `editPrinter` is
   // provided, the form pre-fills every field with the existing values,
   // hides the Back button, switches the primary CTA to "Save changes",
   // and routes the submit through an UPDATE rather than an auto-id SET.
-  function openPrinterAddForm(brand, editPrinter = null) {
+  //
+  // `prefill` is for the discovery flow (Snapmaker scan / manual probe):
+  // shape `{ ip?, printerName?, modelId? }`. It seeds the empty add form
+  // with the values we just learned from the printer so the user only has
+  // to confirm + add. Ignored when `editPrinter` is set (edit takes over).
+  function openPrinterAddForm(brand, editPrinter = null, prefill = null) {
     if (!brand || !PRINTER_ADD_SCHEMA[brand]) return;
     _printerAddBrand = brand;
     _printerEditContext = editPrinter ? { brand, deviceId: editPrinter.id } : null;
+    // Stash the discovery payload (if any) — the form's submit handler
+    // will pull this out and write it to the Firestore doc. Edit mode
+    // doesn't get a new discovery (we never overwrite an existing one
+    // from the edit form), so we only set it on the add path.
+    _printerAddDiscovery = (!editPrinter && prefill && prefill.discovery) ? prefill.discovery : null;
     const meta   = PRINTER_BRAND_META[brand];
     const schema = PRINTER_ADD_SCHEMA[brand];
     const helper = PRINTER_ADD_HELPER[brand];
@@ -6954,11 +8899,19 @@
     // which workflow they're in.
     $("printerAddSub").textContent = meta.label;
 
-    // Adjust footer for edit mode: hide Back, swap save label.
+    // Adjust footer for edit mode: hide Back, swap save label, reveal
+    // the hold-to-confirm Delete (icon-only trash button) — same pattern
+    // and 1.5s hold duration as the Rack delete in the storage view.
     const backBtn = $("printerAddBack");
     if (backBtn) backBtn.style.display = isEdit ? "none" : "";
     const saveLabel = $("printerAddSave")?.querySelector(".label");
     if (saveLabel) saveLabel.textContent = t(isEdit ? "printerEditSave" : "printerAddSave");
+    const delBtn = $("printerAddDelete");
+    if (delBtn) {
+      delBtn.classList.toggle("hidden", !isEdit);
+      delBtn.title = t("printerEditDeleteHint")
+                   || "Hold 1.5s to delete this printer";
+    }
 
     // Per-brand model catalog. We KEEP the id="0" placeholder (the "Select
     // Printer" entry shipped in every brand JSON) and pin it to the top so
@@ -7042,13 +8995,17 @@
         </button>`;
     }).join("");
 
-    // Pre-select either the printer's current model (in edit mode) or
+    // Pre-select either the printer's current model (in edit mode), the
+    // model derived from a discovery probe (Snapmaker scan / manual), or
     // the placeholder "Select Printer" entry (id 0) so the dropdown
     // always opens with a meaningful state.
+    const prefillModel = (!isEdit && prefill && prefill.modelId)
+      ? findPrinterModel(brand, prefill.modelId)
+      : null;
     const editModel = isEdit
       ? findPrinterModel(brand, editPrinter.printerModelId)
       : null;
-    const defaultModel    = editModel || placeholderModel || models[0] || null;
+    const defaultModel    = editModel || prefillModel || placeholderModel || models[0] || null;
     const defaultModelId  = defaultModel ? String(defaultModel.id) : "";
     const defaultModelName= defaultModel ? defaultModel.name : t("printerAddModelPh");
     const defaultModelImg = defaultModel ? printerImageUrl(defaultModel) : null;
@@ -7105,14 +9062,29 @@
       schema.sections.forEach(sec => {
         sec.fields.forEach(f => setVal(f.key, editPrinter[f.key]));
       });
+    } else if (prefill) {
+      // Discovery flow (Snapmaker scan / manual probe): seed only the
+      // values we learned from the network. We DON'T touch the model id
+      // here — that's already wired through `defaultModel` above so the
+      // trigger button + thumbnail render correctly on first paint.
+      const body = $("printerAddBody");
+      const setVal = (name, v) => {
+        const el = body.querySelector(`input[name="${name}"]`);
+        if (el && v != null && v !== "") el.value = String(v);
+      };
+      if (prefill.printerName) setVal("printerName", prefill.printerName);
+      if (prefill.ip)          setVal("ip",          prefill.ip);
     }
 
     $("printerAddOverlay").classList.add("open");
     setTimeout(() => {
       // In edit mode focus the printer name (the most likely thing the
-      // user wants to tweak); in add mode keep focus on the model picker.
-      if (isEdit) {
-        const ni = $("printerAddBody").querySelector("input[name=printerName]");
+      // user wants to tweak); in prefill mode (discovery) the user has
+      // already picked the IP/model, so focus the name input so they can
+      // rename if they want; in plain add mode keep focus on the model picker.
+      const body = $("printerAddBody");
+      if (isEdit || prefill) {
+        const ni = body.querySelector("input[name=printerName]");
         ni?.focus();
         ni?.select();
       } else {
@@ -7205,6 +9177,7 @@
     $("printerAddOverlay")?.classList.remove("open");
     _printerAddBrand = null;
     _printerEditContext = null;
+    _printerAddDiscovery = null;
   }
   $("printerAddClose")?.addEventListener("click", closePrinterAddForm);
   $("printerAddBack")?.addEventListener("click", () => {
@@ -7215,6 +9188,35 @@
     if (e.target.id === "printerAddOverlay") closePrinterAddForm();
   });
   $("printerAddSave")?.addEventListener("click", () => submitPrinterAdd());
+
+  // Hold-to-confirm Delete — same 1.5s press-and-hold pattern + visual
+  // fill animation as the rack delete in storage view. Only fires when
+  // an edit context is active (the trash button is hidden in add mode
+  // anyway, but we double-check here as a defensive guard against a
+  // stale class-toggle race).
+  setupHoldToConfirm($("printerAddDelete"), 1500, async () => {
+    const ctx = _printerEditContext;
+    if (!ctx) return;
+    const uid = state.activeAccountId;
+    if (!uid) return;
+    const err = $("printerAddError");
+    try {
+      const ref = fbDb(uid).collection("users").doc(uid)
+                    .collection("printers").doc(ctx.brand)
+                    .collection("devices").doc(ctx.deviceId);
+      await ref.delete();
+      // Close the form — onSnapshot will refresh the list. We don't
+      // explicitly remove the doc from `state.printers` because the
+      // Firestore listener handles that within ~50 ms.
+      closePrinterAddForm();
+    } catch (e) {
+      console.warn("[printers] delete failed:", e?.code, e?.message);
+      if (err) {
+        err.textContent = t("printerDeleteErr") || "Failed to delete the printer.";
+        err.hidden = false;
+      }
+    }
+  });
 
   async function submitPrinterAdd() {
     const brand = _printerAddBrand;
@@ -7267,26 +9269,66 @@
         // ── EDIT: update the existing doc, leaving id/isActive/sortIndex
         //         untouched. We DO write empty strings so the user can
         //         clear an optional secret field (e.g. mqttPassword).
+        const editId = _printerEditContext.deviceId;
         const ref = db.collection("users").doc(uid)
                       .collection("printers").doc(brand)
-                      .collection("devices").doc(_printerEditContext.deviceId);
+                      .collection("devices").doc(editId);
         await ref.update({
           ...data,
           updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
+        // Reconnect Snapmaker live channel after a settings edit.
+        // The user may have changed the IP (or any other connection
+        // field) — the existing WebSocket is still wired to the OLD
+        // address and would silently keep streaming stale data, so we
+        // tear it down and reconnect with the freshly-saved values.
+        // We wait briefly for the Firestore listener to refresh
+        // state.printers, then call snapConnect with the new doc.
+        // snapConnect itself is idempotent: if the IP didn't actually
+        // change, it's a no-op.
+        if (brand === "snapmaker") {
+          const start = Date.now();
+          let updated = null;
+          while (Date.now() - start < 2000) {
+            updated = state.printers.find(p => p.brand === "snapmaker" && p.id === editId);
+            // Wait for a state with the post-update timestamp + matching ip
+            if (updated && updated.ip === data.ip) break;
+            await new Promise(r => setTimeout(r, 40));
+          }
+          if (updated && updated.ip) {
+            snapDisconnect(snapKey(updated));
+            snapConnect(updated);
+            // Refresh any open detail panel so the live block re-renders
+            // against the new connection state.
+            if (_activePrinter && snapKey(_activePrinter) === snapKey(updated)) {
+              _activePrinter = updated;
+              try { renderPrinterDetail(); } catch {}
+            }
+          }
+        }
       } else {
         // ── ADD: auto-id under the brand subcollection.
         const ref = db.collection("users").doc(uid)
                       .collection("printers").doc(brand)
                       .collection("devices").doc();
         const sortIndex = state.printers.length; // append to the end
-        await ref.set({
+        const docPayload = {
           ...data,
           id: ref.id,
           isActive: false,
           sortIndex,
           updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
+        };
+        // Persist the full discovery payload when the printer was added
+        // via Scan / Manual probe. The bundle holds the raw mDNS TXT
+        // record + raw /printer/info, /server/info, /machine/system_info
+        // responses + the derived identity fields, so future code can
+        // re-parse without a re-scan and support tickets get a complete
+        // snapshot of what the printer reported.
+        if (_printerAddDiscovery) {
+          docPayload.discovery = _printerAddDiscovery;
+        }
+        await ref.set(docPayload);
       }
       closePrinterAddForm();
     } catch (e) {
@@ -7960,7 +10002,20 @@
     });
   }
 
+  // True when a spool has been used up (weight_available ≤ 0). Used
+  // to exclude empties from various COUNTS (unranked total, stats
+  // tile, search counter) without removing them from the actual
+  // display lists — the user still wants to SEE the empty spool.
+  // Negative numbers are also treated as empty (some chips ship with
+  // a slightly miscalibrated zero point).
+  function isEmptyRow(r) {
+    const w = Number(r?.weightAvailable);
+    return Number.isFinite(w) && w <= 0;
+  }
+
   // Filter unranked spools (rack_id is null/missing, not deleted).
+  // Empty spools ARE kept visible (user can still see / manage them)
+  // — they are only excluded from COUNTS via isEmptyRow().
   function getUnrackedSpools() {
     const search = ($("rpUnrackedSearch")?.value || "").trim().toLowerCase();
     return state.rows.filter(r => {
@@ -8270,7 +10325,9 @@
     // ── Stats bar — global overview at the top of Storage. Shows: rack count,
     // filled-vs-total slots (with mini progress bar), empty count, locked count,
     // and the "Spools not stored" toggle on the right.
-    const unrankedCount = getUnrackedSpools().length;
+    // The count excludes empty spools (weight ≤ 0) — they stay visible in
+    // the panel but don't inflate the headline number.
+    const unrankedCount = getUnrackedSpools().filter(r => !isEmptyRow(r)).length;
     const racksCount   = state.racks.length;
     let totalSlotsAll = 0, filledSlotsAll = 0, lockedSlotsAll = 0;
     state.racks.forEach(r => {
@@ -8290,7 +10347,12 @@
     const racksLabel = t("rackStatsRacks", { n: racksCount });
     // The unranked panel is opened/closed by the "not stored" tile in the
     // stats bar (we still need this read here to set the tile's active state).
-    const panelOpenInit = localStorage.getItem("tigertag.unrackedPanelOpen") !== "false";
+    // Forced closed when the active count is 0 — there's nothing actionable
+    // to show, so the panel sliding in just wastes screen real estate. The
+    // user's persisted preference is preserved (we don't overwrite it),
+    // we just don't honour it when the panel would open empty.
+    const userWantsPanelOpen = localStorage.getItem("tigertag.unrackedPanelOpen") !== "false";
+    const panelOpenInit = userWantsPanelOpen && unrankedCount > 0;
     let html = `
       <div class="rv-header">
         <div class="rv-stats" role="group" aria-label="Storage overview">
@@ -8429,7 +10491,7 @@
       <div class="rp-racks-col">${racksHTML || emptyHTML}</div>
       <aside class="rp-side${panelOpenInit ? " is-open" : ""}" id="rpUnranked">
         <div class="rp-side-head">
-          <span class="rp-side-count">${unranked.length}</span>
+          <span class="rp-side-count">${unranked.filter(r => !isEmptyRow(r)).length}</span>
           <span class="rp-side-title">${t("rackUnrackedTitle")}</span>
           <button class="rp-side-close" id="rpUnrackedClose" title="Hide panel" aria-label="Close">✕</button>
         </div>
@@ -8662,11 +10724,13 @@
         const cnt   = $("rpUnranked")?.querySelector(".rp-side-count");
         if (!strip) return;
         const filtered = getUnrackedSpools();
-        if (cnt) cnt.textContent = filtered.length;
-        // Keep the stats-bar tile in sync with the filter so it shows the
-        // visible count, not the total.
+        // Both counters exclude empty spools — they're visible in the
+        // list but shouldn't be tallied (consumed spools don't count
+        // as "to be stored"). Keep the rendered list at full length.
+        const activeCount = filtered.filter(r => !isEmptyRow(r)).length;
+        if (cnt) cnt.textContent = activeCount;
         const tileNum = $("btnToggleUnranked")?.querySelector(".rv-stat-num");
-        if (tileNum) tileNum.textContent = filtered.length;
+        if (tileNum) tileNum.textContent = activeCount;
         strip.innerHTML = filtered.map(unrackedRowHTML).join("")
                        || `<div class="rp-unranked-empty">${t("noMatch")}</div>`;
         wireDragSources();
@@ -8932,6 +10996,10 @@
       });
       slot.addEventListener("drop", async e => {
         e.preventDefault();
+        // Stop the event from bubbling up to the rack-view's "drop in
+        // empty space → unassign" fallback. Without this, a drop on a
+        // slot would assign AND immediately unassign.
+        e.stopPropagation();
         slot.classList.remove("rp-slot--drop");
         slot.classList.remove("rp-slot--drop-deny");
         const sid = e.dataTransfer.getData("text/plain");
@@ -8956,6 +11024,9 @@
       strip.addEventListener("dragleave", () => strip.classList.remove("rp-unranked-strip--drop"));
       strip.addEventListener("drop", async e => {
         e.preventDefault();
+        // Stop propagation so the rack-view fallback (below) doesn't ALSO
+        // try to unassign the same spool a second time.
+        e.stopPropagation();
         strip.classList.remove("rp-unranked-strip--drop");
         const sid = e.dataTransfer.getData("text/plain");
         if (!sid) return;
@@ -8963,6 +11034,87 @@
         catch (err) { console.warn("[unassignSpool]", err.message); }
       });
     }
+
+    // ── Drop in TRUE empty space → unassign ───────────────────────────
+    // The cursor must be OUTSIDE every rack card (not just outside a
+    // slot). Dropping on rack padding / title / between slots inside
+    // the same rack does NOT unassign — that prevents accidental
+    // dismissal when the user lifts the spool a few pixels and drops
+    // it back without crossing into another rack.
+    //
+    // Rule of thumb: if `closest(".rp-rack")` is null, we're in the
+    // void. Same logic for the unranked strip and sidebar rows (still
+    // skipped since those have their own handlers).
+    const view = $("invRackView");
+    if (view) {
+      const isVoidTarget = (target) => {
+        if (!target) return false;
+        // Don't override when the cursor is over a real drop target.
+        if (target.closest(".rp-slot, #rpUnrackedStrip, .rp-side-row")) return false;
+        // The cursor must be outside ALL rack cards. If the user is
+        // hovering rack padding / title bar / inter-slot gap — that's
+        // INSIDE a rack and should NOT unassign.
+        if (target.closest(".rp-rack")) return false;
+        return true;
+      };
+      view.addEventListener("dragover", e => {
+        if (!document.body.classList.contains("is-dragging-spool")) return;
+        if (!isVoidTarget(e.target)) {
+          // Drop the highlight if we just left the void into a rack.
+          view.classList.remove("rp-view--drop-void");
+          return;
+        }
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        view.classList.add("rp-view--drop-void");
+      });
+      view.addEventListener("dragleave", e => {
+        if (e.relatedTarget && view.contains(e.relatedTarget)) return;
+        view.classList.remove("rp-view--drop-void");
+      });
+      view.addEventListener("drop", async e => {
+        view.classList.remove("rp-view--drop-void");
+        // Only fire on a TRUE void — closest(".rp-rack") must be null.
+        if (!isVoidTarget(e.target)) return;
+        e.preventDefault();
+        const sid = e.dataTransfer.getData("text/plain");
+        if (!sid) return;
+        const row = state.rows.find(r => r.spoolId === sid);
+        if (!row || !row.rackId) return; // already unranked → no-op
+        // Visual confirmation BEFORE the Firestore round-trip — so the
+        // user sees their action register instantly even on slow links.
+        // The animation is a ghost copy of the source slot that flies
+        // toward the unranked panel and fades out, while the unranked
+        // panel pulses briefly to signal "the spool just landed here".
+        playUnrankAnimation(row).catch(() => {});
+        try { await unassignSpool(sid); }
+        catch (err) { console.warn("[unassignSpool void-drop]", err.message); }
+      });
+    }
+  }
+
+  // Animate a single spool leaving the rack via void-drop.
+  // Reuses the existing `rp-slot--cascade-out` keyframe (the same one
+  // playEmptyRackCascade fires on every slot when emptying a full
+  // rack), so a single eject reads visually as "one slice of the
+  // empty-rack animation". We also flag the spool with
+  // `_justPlacedSpools` so it gets the bounce-in landing animation in
+  // the unranked sidebar once the Firestore listener rebuilds.
+  function playUnrankAnimation(row) {
+    return new Promise(resolve => {
+      if (!row || !row.rackId) { resolve(); return; }
+      const sourceSlot = document.querySelector(
+        `#invRackView .rp-slot[data-rack="${CSS.escape(row.rackId)}"][data-level="${row.rackLevel}"][data-pos="${row.rackPos}"]`
+      );
+      // Tag the spool so the next render bounces it in at its new home.
+      // Same mechanism that auto-fill / auto-store use for landed spools.
+      _justPlacedSpools.add(row.spoolId);
+      if (!sourceSlot) { resolve(); return; }
+      sourceSlot.classList.add("rp-slot--cascade-out");
+      // 280 ms matches the keyframe duration; we resolve a hair later
+      // so the slot has fully faded before Firestore rebuilds the row.
+      setTimeout(resolve, 300);
+    });
   }
 
   // (Old openRacks() removed — view switching is now handled by setViewMode("rack").

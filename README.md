@@ -34,6 +34,10 @@
 - **Friend inventory view** — A friend appears as a switchable pseudo-account in the avatar dropdown and profiles modal; clicking opens their inventory in the same table/grid UI with a "Read-only" banner and a quick "← My inventory" button
 - **3D printer management** — Dedicated "Printers" tab with a drag-and-drop grid of all your printers across the 5 supported brands (Bambu Lab / Creality / Elegoo / FlashForge / Snapmaker); per-brand "Add" flow with model picker, side card with editable connection details, and online / offline indicator driven by an HTTP ping
 - **Snapmaker live integration** — Real-time WebRTC camera, live extruder + bed temperatures, filament data per slot (color, brand, material) with click-to-edit, and active-print job card (preview thumbnail + progress + state + layer counter) over the Moonraker WebSocket
+- **Snapmaker LAN discovery** — Side-panel scanner that finds Snapmaker printers on the local network: instant mDNS browse on `_snapmaker._tcp.local.` (TXT record carries IP / model / device name / serial), parallel Moonraker port-scan as fallback (port 7125 with `/printer/info` + `/server/info` + `/machine/system_info`), per-source batch sizing (24 on local LAN, 4 on user-declared extras to survive anti-scan firewalls), brand-confirmed candidates only (`machine_type` containing "Snapmaker"), one-click add that writes the printer doc directly to Firestore and opens its detail panel, plus inline "Add by IP" with live IPv4 validation
+- **Twin-pair manual repair** — User-assisted tool to link two RFID tags that the auto-linker missed (timestamps drifted > 2 s at programming). The spool detail panel offers a "Link to a twin spool" picker filtered to candidates with the same brand, material, type, version (`id_tigertag`) and exact RGB; one click writes `twin_tag_uid` cross-referenced on both docs in a single Firestore batch. Empty when no compatible candidate exists, hidden when already paired
+- **Spool toolbox** — Action-bundling section in the spool detail panel: scan colour with TD1S, scan TD with TD1S, link to a twin spool (when applicable), remove from rack (when placed) with eject animation, and delete (hold-to-confirm). Contextual visibility — empty rows are skipped so the toolbox never shows a button without a target
+- **Rack drag-to-void** — Drop a spool anywhere outside a rack card to unassign it. Slot uses the same cascade-out animation as Empty rack, the spool bounces in at its new home in the unranked panel — same visual grammar as auto-store / auto-fill
 - **Multi-language** — EN, FR, DE, ES, IT, PL, PT (Brasil), PT (Portugal), 中文 — switch any time from the account modal
 - **Auto-updater** — Receives updates automatically via GitHub Releases
 - **Diagnostic report** — Built-in error-capture system: every uncaught error is logged with its stack and context. Users can open **Settings → Debug → Report a problem** (or the same link inside the Sign-in modal) to copy a self-contained Markdown report — app version, Electron/Chrome/Node versions, platform, locale, and the last 50 errors with stack traces — to send to support
@@ -42,6 +46,60 @@
 ---
 
 ## Changelog
+
+### v1.4.8 — 2026-05-04
+
+Discovery, repair & ergonomics release. Adds Snapmaker LAN auto-discovery, manual twin-pair repair for spools the auto-linker missed, a unified spool toolbox, and several rack-management refinements.
+
+#### Snapmaker LAN discovery (Add Printer → Snapmaker)
+- **Side-panel scan** sliding in from the right — same width as the printer detail panel for visual continuity. Replaces the previous centred modal so the user can keep an eye on the rest of the app while scanning.
+- **mDNS browse** of `_snapmaker._tcp.local.` via `bonjour-service` (lazy-loaded in main process, IPC bridge `mdns:browse-snapmaker`). The TXT record published by stock Snapmaker firmware carries `ip` / `machine_type` / `device_name` / `sn` / `version` — enough to render a candidate card without any HTTP probe. Browses for 2.5 s; instant on healthy single-VLAN networks.
+- **Port-scan fallback** when mDNS multicast is filtered (typical multi-VLAN setup without an Avahi reflector). Iterates discovered subnets (IPC `os.networkInterfaces()` + WebRTC ICE candidates + user-declared extras) in parallel batches, hitting `/printer/info` + `/server/info` + `/machine/system_info`. The latter is the gold-standard identification source — `machine_type` (e.g. "Snapmaker U1") + `device_name` (user nickname) + `serial_number` + `firmware_version` are extracted with a strict "machine_type contains Snapmaker" filter so generic Moonraker hosts (Voron, Bambu-Klipper, Creality K1) get logged in debug as ambiguous but never appear in the result list.
+- **Per-source batch sizing** — local subnets scan with batch=24 (no firewall in the way), user-declared "extra subnets" scan with batch=4 + 80 ms inter-batch gap (gentle enough to survive UniFi/OPNsense IDS/IPS that flag bursts as port-scan attacks). When an extra subnet finishes in < 4 s with 0 hits, the empty state shows a firewall-block hint pointing at "Add by IP".
+- **One-click add** — clicking a candidate writes the printer doc directly to Firestore (`users/{uid}/printers/snapmaker/devices/{auto-id}`) with the full discovery payload preserved under `discovery` (raw mDNS TXT + raw HTTP responses + derived identity), then closes the scan panel and opens the new printer's detail card with the WebSocket already connecting. No form, no confirmation step.
+- **Add by IP** collapsible — inline IPv4 validation, error bubble on invalid format, "Validate" button that probes the typed IP and pre-fills the printer using whatever the device returned. Falls back to a "Continue anyway" path when the host doesn't reply.
+- **Extra subnets** widget — persisted in `localStorage` (`tigertag.snapScanExtraSubnetsKey`) so a once-declared `192.168.40` keeps being scanned on every future run. Validation rejects loopback / link-local / multicast prefixes.
+- **Debug-only scan log** — every step (mDNS browse, IPC subnet, WebRTC discovery, user extras, scanning ranges, hits, ambiguous Moonraker hosts, scan completion timing) lands in an in-memory journal. The "Export" button copies a self-contained JSON dump (meta + environment + log entries) to the clipboard so users can share their network state for support tickets.
+- **Settings reconnect** — saving printer settings with a changed IP automatically tears down the old WebSocket and reconnects with the new address; idempotent when other fields change.
+
+#### Twin-pair manual repair
+- **Repair tool** for cases where the factory programmer left > 2 s between writing the two halves of a twin pair, breaking the existing `autoLinkTwinsByTimestamp` heuristic. The spool detail panel now exposes a "Link to a twin spool" entry in the toolbox when the spool isn't paired AND at least one compatible candidate exists.
+- **Strict candidate filter** — same `id_brand` + `id_material` + `id_type` (Filament / Resin) + `id_tigertag` (TigerTag / TigerTag+) + exact RGB triplet. Excludes spools already paired and tombstoned rows. Shown as a list of cards with colour swatch, brand, material, and the candidate's RFID UID.
+- **Atomic batch write** — `twin_tag_uid: B.uid` on A, `twin_tag_uid: A.uid` on B, single Firestore batch with `serverTimestamp()` `last_update`. The rest of the codebase (`writeWithTwin`, `hasTwinPair`, twin badge, "This tag" / "Twin tag" raw JSON tabs) picks up the pair on the next snapshot with no further glue.
+- **Debug-only Unlink** — when Debug mode is on, a paired spool exposes a hold-to-confirm "Unlink" tool in the toolbox that clears `twin_tag_uid` on both docs.
+
+#### Spool toolbox (in the detail panel)
+- New **Toolbox** section bundles every action available on a spool — Scan colour (TD1S), Scan TD (TD1S), Link/Unlink twin, Remove from rack, Delete. Each row uses native `disabled` attributes when the prerequisite isn't met (TD1S not connected → opens the connect modal first).
+- **Apple-style row design** — borderless soft surface, capsule shapes, hover bg only, hold-to-confirm fill animation in the row itself for destructive actions (Remove from rack with amber palette, Delete with red palette).
+- **Contextual visibility** — Remove from rack only appears when the spool is placed; Link only when there are compatible candidates; the previously-bottom Delete button moved into the toolbox so all spool-level actions live in one place.
+
+#### Rack management
+- **Drop-to-void unassign** — dragging a spool out of a rack slot and dropping it ANYWHERE outside a rack card sends it back to the unranked panel. The cursor must be strictly outside every `.rp-rack` (slot padding / titles / inter-slot gaps DON'T count) to prevent accidental unassigns when lifting a spool a few pixels then dropping it back on the same rack.
+- **Eject animation** for the void-drop reuses the existing `rp-slot-cascade-out` keyframe (the same one Empty Rack fires on every slot at once), and the landed spool bounces in at its new home via `_justPlacedSpools` — same visual grammar as auto-store / auto-fill.
+- **Empty-spool handling in unranked** — spools with `weight_available ≤ 0` stay visible in the unranked side panel but are excluded from every count (panel header badge, stats-bar tile, search counter). The unranked panel no longer auto-opens when the active count is 0 — saves screen real estate without overriding the user's persisted preference.
+- **Per-spool "Remove from rack"** — a dedicated tool in the spool detail panel toolbox (hold 1.5 s) for users who prefer pointing-and-clicking over drag-and-drop. Same eject animation, same Firestore batch.
+
+#### Filament slot UI (Snapmaker live block)
+- **Cleaner colour square layout** — the big coloured square inside each extruder slot now shows the BASE material only (`PLA`, `PETG`, etc.) — no more cluttered "PLA Speed Matt" text-wrap. The full identity (`Type Subtype`) appears below the brand name, matching the hierarchy a user reads from a real spool label.
+- **Read-only filament sheet** — clicking an RFID-locked filament slot (eye icon) now opens the bottom-sheet in read-only mode with the SAME layout, order and presentation as the editable mode. The `<select>` and "Apply" button use their native `disabled` state, the title swaps to "Read-only filament", and the sub-picker handlers no-op so even an accidental click doesn't slip through.
+- **Card visibility fixes** — the U1's `machine_type` field is reported on `/machine/system_info` (not `/printer/info`), so the scan now interrogates all three Moonraker endpoints and prefers `machine_type` over the old `hostname` codename for model resolution.
+
+#### Printer detail panel
+- **Online status moved** under the printer name on its own row (was inline next to the brand pill). The brand + model pills stay on the title row; the online/offline badge sits below in a smaller, muted style.
+- **Cleaner hero block** — feature pills (Camera / Multi-extruder / etc.) under the photo were removed; the horizontal separator between the photo (or live camera) and the live block was dropped; padding tightened so the photo flows directly into the print-job card and the temperature row.
+- **Print-job card frame removed** — the thumbnail + progress + state + layer counter render flush in the live block (no more border around the card) for a more integrated look.
+- **No print-job card when disconnected** — when the WebSocket isn't connected the card is hidden entirely instead of showing a frozen snapshot of stale state.
+- **Backdrop click closes everything** — clicking the dim area outside the printer side-panel now also closes the filament-edit bottom-sheet if it's open, instead of leaving an orphan sheet floating after the panel slid out.
+- **No more ✕ button** — the printer detail panel and the Snapmaker scan panel now close on backdrop click + Escape only.
+- **Toolbox replaces standalone delete + twin-link sections** — see the Spool toolbox section above; the Delete button moved out of its own panel section into the toolbox.
+
+#### Brand picker → Snapmaker direct
+- **Choice modal removed** — picking "Snapmaker" in the brand list now opens the Scan panel directly. The previous "+ Scan Add / + Manual Add" intermediate modal was retired since both paths are now exposed inline on the scan panel itself (auto-scan in the background + collapsible "Add by IP" widget).
+
+#### i18n
+- ~30 new translation keys across the 9 supported locales for the discovery flow, twin-link picker, toolbox actions, scan log, firewall-block hint, and read-only filament sheet title.
+
+---
 
 ### v1.4.7 — 2026-05-04
 
