@@ -9,7 +9,7 @@ renderer/
   inventory.html   — pure markup + modals
   inventory.css    — all styles
   inventory.js     — all application logic (IIFE)
-  locales/         — en.json fr.json de.json es.json it.json zh.json pt.json pt-pt.json
+  locales/         — en.json fr.json de.json es.json it.json zh.json pt.json pt-pt.json pl.json
 data/
   id_brand.json id_material.json id_aspect.json id_type.json
   id_diameter.json id_measure_unit.json id_version.json
@@ -25,7 +25,7 @@ assets/svg/
 | `tigertag.activeAccount` | active account id string |
 | `tigertag.inv.<id>` | cached inventory JSON for that account |
 | `tigertag.view` | `"table"` \| `"grid"` |
-| `tigertag.lang` | `"en"` \| `"fr"` \| `"de"` \| `"es"` \| `"it"` \| `"zh"` \| `"pt"` \| `"pt-pt"` |
+| `tigertag.lang` | `"en"` \| `"fr"` \| `"de"` \| `"es"` \| `"it"` \| `"zh"` \| `"pt"` \| `"pt-pt"` \| `"pl"` |
 | `tigertag.sidebar` | `"collapsed"` \| `"expanded"` |
 | `tigertag.panelWidth.detail` | detail panel width in px (user-resized) |
 | `tigertag.panelWidth.debug` | debug panel width in px (user-resized) |
@@ -251,7 +251,27 @@ Google real name (`user.displayName` from Firebase Auth) is saved to Firestore a
 ---
 
 ## i18n keys — complete reference
-Do NOT re-read locale JSON files; use this table instead. All **8 locales** (en/fr/de/es/it/zh/pt/pt-pt) have every key below.
+Do NOT re-read locale JSON files; use this table instead. All **9 locales** (en/fr/de/es/it/zh/pt/pt-pt/pl) have every key below.
+
+### Adding new keys — use the helper script
+**Never edit the 9 locale files by hand.** Use `npm run i18n:add` instead — it writes every locale in one shot, validates JSON, and falls back to the EN value when a translation is missing.
+
+```bash
+# Append at end of every locale file
+npm run i18n:add -- myKey en="Hello" fr="Bonjour" de="Hallo" es="Hola" it="Ciao" zh="你好" pt="Olá" pt-pt="Olá" pl="Cześć"
+
+# Insert just after an existing key (keeps related keys grouped)
+npm run i18n:add -- myKey --after toolboxTitle en="Hello" fr="Bonjour" ...
+
+# JSON payload form (handy for programmatic use)
+npm run i18n:add -- myKey --json '{"en":"Hello","fr":"Bonjour"}'
+```
+
+Behaviour:
+- Updates the value in-place if the key already exists (preserves order).
+- Missing locales fall back to the EN value with a stderr warning.
+- Re-parses every file after write — aborts the entire run if any output isn't valid JSON.
+- Source: `scripts/i18n-add.mjs`.
 
 ### App / status
 | Key | Purpose |
@@ -468,7 +488,7 @@ Do NOT re-read locale JSON files; use this table instead. All **8 locales** (en/
 ---
 
 ## Rules
-- **i18n**: always add all **8** translations (en/fr/de/es/it/zh/pt/pt-pt) in the same edit batch — never add a key to only one locale.
+- **i18n**: always add all **9** translations (en/fr/de/es/it/zh/pt/pt-pt/pl) in the same edit batch. **Use `npm run i18n:add` — do NOT hand-edit the locale JSON files.** See the *Adding new keys* section above for syntax.
 - **Commits**: no `Co-Authored-By` line.
 - **JS**: all logic lives in `inventory.js`. Do not inline JS in `inventory.html`.
 - **CSS**: all styles in `inventory.css`. Scoped to `#editAccountModalOverlay`, `#addAccountModalOverlay`, etc. where needed.
