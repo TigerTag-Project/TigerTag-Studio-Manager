@@ -139,18 +139,42 @@ Today, only **one** reader is supported (single-card detail-panel-open flow). Th
 - **Effort**: M (NDEF record format is well documented + widely implemented).
 - **Risk**: low (erase is pure overwrite, NDEF is standard).
 
+#### 🔧 Sub-feature E — Sync edits back to chip (write-when-present)
+
+The user can already edit TD and color from the spool detail panel today (TD modal + Color modal → Firestore). The chip is **not** updated automatically — instead, the spool gets flagged `needUpdateAt = Date.now()`, a refresh badge appears in the table / grid / detail panel, and a banner offers a "Updated" button which the user clicks **after** re-programming the chip with a separate tool. With the POD, this last step becomes automatic.
+
+Existing infrastructure to reuse (already in `renderer/inventory.js`):
+- `CHIP_FIELDS = ["TD", "online_color_list"]` — list of fields that live on the chip
+- `_saveTdHex()` — sets `needUpdateAt = Date.now()` when a `CHIP_FIELDS` member is included in the update; writes both spools in a single batch when the spool has a twin
+- `chipPendingHint` / `btnChipDone` — banner + clear-flag UX already wired and translated in 9 locales
+- Badges: `chip-badge thumb-chip-badge` (table), `card-chip-badge` (grid), `panel-img-icon-badge` (detail panel hero), `chip-update-banner` (detail panel section)
+
+What changes with the POD:
+- **Detect-on-slot logic**: when a chip lands on the POD AND `state.rows.find(r.uid==chipUid).needUpdateAt != null`, instead of opening the detail panel, open a **"Sync changes" modal** showing a diff (`color: #6e6e6e → #d83b3b`, `TD: 1.85 → 2.10`) with a single "Apply to chip" button.
+- **Batched diff write**: on confirm, the renderer asks main.js to write all diff fields in one APDU sequence (fewer writes = lower risk of partial state). On success → batch-clear `needUpdateAt` on the spool + its twin (already wired by the existing "Updated" button code path — just trigger it programmatically).
+- **Read-back-and-verify** after every write — refuse to clear `needUpdateAt` if any byte didn't take.
+- **Multi-pending UX**: if 3 fields were edited since the last sync, the modal shows all 3 in one list — same chip write, one round trip. (The existing `needUpdateAt` is just a timestamp, but at sync time we re-parse the chip and compare to the Firestore doc, so the diff is automatically the union of all pending edits — no need to track per-field flags.)
+- **Writable field set**: the spec at [`docs/rfid-vendors/tigertag.md`](docs/rfid-vendors/tigertag.md) suggests we could expand `CHIP_FIELDS` beyond `TD` + `online_color_list` to include `MATERIAL_ID`, `ASPECT1_ID`, `ASPECT2_ID`, `TYPE_ID`, `DIAMETER_ID`. Out of scope for first ship — keep the existing 2-field set, then expand.
+- **Signature**: same open question as Sub-feature C. If the chip carries an ECDSA signature in bytes 80..end, every chip rewrite invalidates it. Either re-sign (Cloud Function) or accept that user-edited chips become unsigned (and document this clearly in the modal copy).
+
+- **Effort**: S (the UI plumbing exists; only the diff modal + the IPC `nfc:write-fields` handler are new — provided Sub-feature C's write infrastructure is in place).
+- **Risk**: low (read-back verification + transactional clear; same code paths as the existing manual flow).
+- **Dependency**: Sub-feature C (write capability). E can ship the **diff modal + UX** independently and stub the actual write to no-op until C lands; that gives users a clearer "what changed" view today even without the chip-write path.
+
 #### 📐 Cross-cutting: POD detection model
 - The app is **not** POD-aware today — it just sees N readers. Detection rule: if the user has ≥ 2 ACR122U readers connected at the same time, surface the "POD mode" UI; otherwise stay in single-reader mode (current behaviour, kept identical).
 - A user-visible toggle in Settings → POD lets them force POD mode even with 1 reader (for testing/debug).
 
 #### 🧮 Total effort
-- A: S, B: M, C: L, D: M → **~XL combined**, but ships incrementally A → B → D → C (write-chip last because of the signing question).
+- A: S, B: M, C: L, D: M, E: S — **~XL combined**, but ships incrementally A → B → E (UX) → D → C → E (write).
 
 #### 🎯 Recommended sequence
 1. **A — multi-reader IPC fix** (clears the way, no UX surface)
 2. **B — scan → inventory + twin auto-detect** (immediate user value; reuses existing parser + twin-link code)
-3. **D — recycle to NDEF** (popular feature, low risk; useful even before write-chip lands)
-4. **C — write fresh chip** (after the signing question is resolved)
+3. **E (UX half) — diff modal for pending chip changes** (the existing `needUpdateAt` flag already drives the UX; the new modal shows *what* would change, even before the chip-write side exists — replace the manual "Updated" button with this richer view)
+4. **D — recycle to NDEF** (popular feature, low risk; useful even before write-chip lands)
+5. **C — write fresh chip** (after the signing question is resolved)
+6. **E (write half)** — once C lands, plug the actual chip-write call in behind the diff modal's "Apply" button. The `needUpdateAt` clear already exists; just promote it from manual to automatic on successful write.
 
 ---
 
