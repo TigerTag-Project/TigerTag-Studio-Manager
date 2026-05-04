@@ -4,6 +4,8 @@
 Electron (no bundler) + vanilla HTML/CSS/JS. Entry: `main.js`. Renderer: `renderer/inventory.html` + modular CSS in `renderer/css/` + `renderer/inventory.js`. Preload bridge: `preload.js`.
 
 > **`renderer/CODEMAP.md`** maps every feature in the 12k-line `inventory.js` to a line range and key function names. Read it BEFORE searching the file — it's faster, cheaper, and less error-prone than grepping. Keep it in sync when you move sections.
+>
+> **`ROADMAP.md`** at the repo root holds the "what's done / next / backlog" picture grouped by domain. Read it BEFORE proposing new features — chances are it's already there with a sizing and risk note. Update it when you ship or pick up an item.
 
 ## File map
 ```

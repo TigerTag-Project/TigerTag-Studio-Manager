@@ -43,6 +43,8 @@
 - **Diagnostic report** — Built-in error-capture system: every uncaught error is logged with its stack and context. Users can open **Settings → Debug → Report a problem** (or the same link inside the Sign-in modal) to copy a self-contained Markdown report — app version, Electron/Chrome/Node versions, platform, locale, and the last 50 errors with stack traces — to send to support
 - **Cross-platform** — Windows, macOS (Intel + Apple Silicon), Linux
 
+> 📋 **What's coming next?** See [`ROADMAP.md`](./ROADMAP.md) for the planned features, the in-flight handoff items, and the backlog.
+
 ---
 
 ## Changelog
