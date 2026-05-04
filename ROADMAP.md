@@ -96,7 +96,7 @@ Items where the spec is written and we know roughly how to do it. Ranked by rati
 
 The TigerTag POD is a desktop hardware unit with **two ACR122U USB NFC readers**. It turns the desktop app into a one-stop tool for the full chip lifecycle — read into inventory, write fresh chips, repurpose chips that are no longer needed.
 
-Today, only **one** reader is supported (single-card detail-panel-open flow). The POD use case requires a richer model: identify which slot fired, treat both slots as a coordinated workstation, and add write/erase capability.
+Today, only **one** reader is supported (single-card detail-panel-open flow). The POD use case requires a richer model: identify which slot fired, treat both slots as a coordinated workstation, and add **surgical page-level write** capability (never erase-and-rewrite — see *Cross-cutting: surgical page-level writes* below).
 
 #### 🔧 Sub-feature A — Multi-reader detection
 - **Where**: [`main.js` L153-200](main.js) — `initNFC()` already binds `nfc.on('reader', …)` per reader, but the IPC payload doesn't carry a stable reader id, so the renderer overwrites slot 1 with slot 2 on every `reader-status` message. Fix: include `reader.name` (or a hashed `slotId`) in every IPC payload, and the renderer keeps a `Map<slotId, status>` instead of one global state.
@@ -118,26 +118,31 @@ Today, only **one** reader is supported (single-card detail-panel-open flow). Th
 - **`nfc-pcsc` API**: supports `reader.write(blockNumber, buffer)` and `reader.transmit(cmd, responseLen)` — raw APDU available. Need to add a new `ipcMain.handle('nfc:write', …)` channel in main.js that takes `(slotId, payloadBytes)`.
 - **UI**: a new "Create chip" wizard in the spool detail panel (visible only when the POD is detected and a blank chip is on slot 2). Steps: pick brand/material/type/diameter → pick color (TD1S sensor, color picker, or copy from another chip) → confirm → write all 4-byte chunks per [tigertag.md](docs/rfid-vendors/tigertag.md). Show a per-page progress bar.
 - **Validation**: read-back-and-compare after write. Refuse to mark the chip as ready if any byte differs.
-- **Open questions**: signing (the spec mentions ECDSA over secp256r1; bytes 80…end are the signature today, OpenRFID doesn't verify but a valid TigerTag chip *should* carry a signed payload). Either skip and write unsigned chips for personal use, or build a small Cloud Function that signs the payload server-side using a TigerTag private key. **Decide before coding.**
-- **Effort**: L
-- **Risk**: medium — chip writes are non-reversible without erase. Need staging tests on disposable NTAGs first.
+- **Signature** *(non-issue by design)*:
+  - **TigerTag (basic)** chips are unsigned — write freely.
+  - **TigerTag+ (premium)** chips carry a factory ECDSA signature computed only over **pages 4 & 5** of the chip — the `TAG_ID` (`OFF_TAG_ID`) + `PRODUCT_ID` (`OFF_PRODUCT_ID`) immutable identity. Every other field (`MATERIAL_ID` onwards, color, TD, aspect, etc.) is on later pages and is **freely rewritable without invalidating the signature**. The signature stays valid because we never touch pages 4-5.
+  - **Implementation guard**: refuse any write whose target page < 6. The write path should refuse to touch the identity region as a safety net even if a future bug computes the wrong offset.
+- **Effort**: M (was L before the signing clarification)
+- **Risk**: low-medium — surgical page-level writes (no erase pass) cut the failure surface, but chip writes are still non-reversible at the byte level. Stage on disposable NTAGs first.
 
 #### 🔧 Sub-feature D — Recycle TigerTag → plain NFC
 - **Goal**: a chip the user is done with (broken spool, weight depleted, sold) gets repurposed as a normal NFC tag — keychain, badge, business card, URL launcher.
-- **Steps**:
-  1. **Read** — confirm it's a TigerTag (so we don't accidentally erase someone else's tag), and confirm the current Firestore spool is either deleted or has `weight_available <= 0`.
-  2. **Erase** — overwrite user-data pages with `0x00`. (System pages 0–3 stay untouched.)
-  3. **Write NDEF** — a single NDEF record matching the user's choice from a small menu of common types:
-     - 🌐 **Web URL** — `nfc:write-url` with text input (auto-https prefix)
-     - 👤 **vCard** — name, email, phone, company; renders as standard vCard 3.0
-     - 📝 **Plain text** — short note (≤ 100 chars)
-     - 📞 **Tel** — `tel:` URI
-     - ✉️ **Email** — `mailto:` URI with subject/body
-     - 🔗 **Wi-Fi** — SSID + password + auth type (WPA2 default)
-- **Confirmation**: hold-to-confirm 1.5 s pattern (same as Delete spool) before each erase. Show "This action cannot be undone — chip data will be replaced."
+- **Record types offered**:
+  - 🌐 **Web URL** — text input with auto-https prefix
+  - 👤 **vCard** — name, email, phone, company; renders as standard vCard 3.0
+  - 📝 **Plain text** — short note (≤ 100 chars)
+  - 📞 **Tel** — `tel:` URI
+  - ✉️ **Email** — `mailto:` URI with subject/body
+  - 🔗 **Wi-Fi** — SSID + password + auth type (WPA2 default)
+- **Steps** (all chip writes obey the surgical page-level rule, see *Cross-cutting* below):
+  1. **Read** — confirm it's a TigerTag (so we don't accidentally repurpose someone else's tag), and confirm the current Firestore spool is either deleted or has `weight_available <= 0`.
+  2. **Compute target layout** — build the full NDEF byte layout for the chosen record type. Pages 4-5 (`TAG_ID` + `PRODUCT_ID`) stay as-is — even on recycle, the immutable identity is never touched, so a "former TigerTag" remains identifiable as such.
+  3. **Diff against current chip pages** — page-by-page comparison; build the minimal write list. Pages that already hold the target bytes get skipped.
+  4. **Write only the diff pages** — using the cross-cutting `nfc:write-pages` helper. No blanket "erase to 0x00" pass.
+- **Confirmation**: hold-to-confirm 1.5 s pattern (same as Delete spool) before triggering the write sequence. Show "This action cannot be undone — chip data will be replaced."
 - **Where in code**: new file `renderer/lib/rfid/tigertag-recycle.js` for the byte-level operations, `renderer/lib/rfid/ndef-builder.js` for the NDEF record generation. UI lives in a new "Recycle" tab inside the existing toolbox of the spool detail panel (visible only for empty/deleted spools when a chip is on the POD).
 - **Effort**: M (NDEF record format is well documented + widely implemented).
-- **Risk**: low (erase is pure overwrite, NDEF is standard).
+- **Risk**: low — surgical writes mean the immutable identity stays intact and the user can always tell the chip was originally a TigerTag.
 
 #### 🔧 Sub-feature E — Sync edits back to chip (write-when-present)
 
@@ -154,8 +159,8 @@ What changes with the POD:
 - **Batched diff write**: on confirm, the renderer asks main.js to write all diff fields in one APDU sequence (fewer writes = lower risk of partial state). On success → batch-clear `needUpdateAt` on the spool + its twin (already wired by the existing "Updated" button code path — just trigger it programmatically).
 - **Read-back-and-verify** after every write — refuse to clear `needUpdateAt` if any byte didn't take.
 - **Multi-pending UX**: if 3 fields were edited since the last sync, the modal shows all 3 in one list — same chip write, one round trip. (The existing `needUpdateAt` is just a timestamp, but at sync time we re-parse the chip and compare to the Firestore doc, so the diff is automatically the union of all pending edits — no need to track per-field flags.)
-- **Writable field set**: the spec at [`docs/rfid-vendors/tigertag.md`](docs/rfid-vendors/tigertag.md) suggests we could expand `CHIP_FIELDS` beyond `TD` + `online_color_list` to include `MATERIAL_ID`, `ASPECT1_ID`, `ASPECT2_ID`, `TYPE_ID`, `DIAMETER_ID`. Out of scope for first ship — keep the existing 2-field set, then expand.
-- **Signature**: same open question as Sub-feature C. If the chip carries an ECDSA signature in bytes 80..end, every chip rewrite invalidates it. Either re-sign (Cloud Function) or accept that user-edited chips become unsigned (and document this clearly in the modal copy).
+- **Writable field set**: the spec at [`docs/rfid-vendors/tigertag.md`](docs/rfid-vendors/tigertag.md) suggests we could expand `CHIP_FIELDS` beyond `TD` + `online_color_list` to include `MATERIAL_ID`, `ASPECT1_ID`, `ASPECT2_ID`, `TYPE_ID`, `DIAMETER_ID`. Out of scope for first ship — keep the existing 2-field set, then expand. All these fields live on pages ≥ 6, safely away from the signature.
+- **Signature**: not an issue (see Sub-feature C). The TigerTag+ factory signature is computed only over pages 4-5 (`TAG_ID` + `PRODUCT_ID` — immutable identity), and Sub-feature E never touches those pages. Basic TigerTag chips are unsigned. The signature stays valid through any number of edit cycles.
 
 - **Effort**: S (the UI plumbing exists; only the diff modal + the IPC `nfc:write-fields` handler are new — provided Sub-feature C's write infrastructure is in place).
 - **Risk**: low (read-back verification + transactional clear; same code paths as the existing manual flow).
@@ -165,15 +170,26 @@ What changes with the POD:
 - The app is **not** POD-aware today — it just sees N readers. Detection rule: if the user has ≥ 2 ACR122U readers connected at the same time, surface the "POD mode" UI; otherwise stay in single-reader mode (current behaviour, kept identical).
 - A user-visible toggle in Settings → POD lets them force POD mode even with 1 reader (for testing/debug).
 
+#### 📐 Cross-cutting: surgical page-level writes (never erase-and-rewrite)
+**Hard rule for every chip-write code path** (B's twin link doesn't write the chip; C writes fresh; D recycles; E syncs edits):
+1. **Read first** — every write operation begins with a fresh chip read.
+2. **Diff at page granularity** — MIFARE Ultralight pages are 4 bytes each. Build the target byte layout, compare page-by-page with the current chip read, produce a list of `{page, bytes}` only for pages whose 4-byte content differs.
+3. **Write only the diff pages** — never blanket-overwrite a region. Each page written = one APDU, one write cycle. Skipping unchanged pages saves write-cycle endurance and rules out partial-state corruption on the unchanged regions.
+4. **Pages 4 & 5 are sacred** — `TAG_ID` + `PRODUCT_ID` (the factory-signed identity). The write helper rejects any `{page < 6}` entry as a defensive guard, even if upstream code asked for it by mistake.
+5. **Read-back-and-verify** — after each write, re-read the page and bit-compare to the intended bytes. If any byte differs, abort the sequence and surface a clear error in the UI (don't pretend the write succeeded).
+6. **No "erase"** — the recycle flow (D) is implemented as "compute the NDEF target layout, diff against current pages, write only the differing pages". The pages that happen to already hold the target bytes get skipped. There's no separate erase pass that overwrites with `0x00`.
+
+Implementation home: `main.js` exposes one IPC handler `nfc:write-pages` that takes `{slotId, pages: [{index, bytes}]}` and runs the read-diff-write-verify loop. All four sub-features (C / D / E and any future write) call through it. Centralising the code path means the safety rules above live in one place.
+
 #### 🧮 Total effort
-- A: S, B: M, C: L, D: M, E: S — **~XL combined**, but ships incrementally A → B → E (UX) → D → C → E (write).
+- A: S, B: M, C: M, D: M, E: S — **~L combined** (was XL before the signing-question removal cut C from L to M).
 
 #### 🎯 Recommended sequence
 1. **A — multi-reader IPC fix** (clears the way, no UX surface)
 2. **B — scan → inventory + twin auto-detect** (immediate user value; reuses existing parser + twin-link code)
 3. **E (UX half) — diff modal for pending chip changes** (the existing `needUpdateAt` flag already drives the UX; the new modal shows *what* would change, even before the chip-write side exists — replace the manual "Updated" button with this richer view)
 4. **D — recycle to NDEF** (popular feature, low risk; useful even before write-chip lands)
-5. **C — write fresh chip** (after the signing question is resolved)
+5. **C — write fresh chip** (no longer blocked on signing — pages 4-5 stay untouched, factory signature stays valid)
 6. **E (write half)** — once C lands, plug the actual chip-write call in behind the diff modal's "Apply" button. The `needUpdateAt` clear already exists; just promote it from manual to automatic on successful write.
 
 ---
