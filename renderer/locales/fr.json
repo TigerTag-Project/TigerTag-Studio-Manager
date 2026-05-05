@@ -586,5 +586,8 @@
   "ffgState_preparing": "Préparation",
   "ffgState_heating": "Chauffage",
   "ffgState_busy": "Occupée",
-  "ffgCameraAlt": "Flux caméra FlashForge"
+  "ffgCameraAlt": "Flux caméra FlashForge",
+  "ffgFilEditTitle": "Changer le filament",
+  "ffgFilEditApply": "Appliquer",
+  "ffgErrNetwork": "Imprimante injoignable — vérifiez l'IP et le réseau."
 }

@@ -598,5 +598,8 @@
   "ffgState_preparing": "Preparando",
   "ffgState_heating": "Aquecendo",
   "ffgState_busy": "Ocupada",
-  "ffgCameraAlt": "Transmissão da câmera FlashForge"
+  "ffgCameraAlt": "Transmissão da câmera FlashForge",
+  "ffgFilEditTitle": "Trocar filamento",
+  "ffgFilEditApply": "Aplicar",
+  "ffgErrNetwork": "Não foi possível alcançar a impressora — verifique o IP e a rede."
 }

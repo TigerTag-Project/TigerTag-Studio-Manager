@@ -454,6 +454,88 @@
   </div>
 </aside>
 
+<!-- ════════════════════════════════════════════════════════════════════
+     FlashForge filament-edit bottom-sheet (mirrors Snapmaker's layout —
+     same .sfe-* CSS classes, distinct ffe* IDs so both flows can
+     coexist without clobbering each other).
+     ──────────────────────────────────────────────────────────────────── -->
+<div class="sfe-backdrop" id="ffgFilEditBackdrop"></div>
+<aside class="sfe-sheet" id="ffgFilEditSheet" aria-hidden="true">
+  <div class="sfe-grip" aria-hidden="true"></div>
+
+  <!-- Screen 1: SUMMARY -->
+  <section class="sfe-screen sfe-screen--summary" id="ffgScreenSummary">
+    <header class="sfe-screen-head sfe-screen-head--right">
+      <div class="sfe-screen-head-text">
+        <div class="sfe-title" id="ffgFilEditTitle" data-i18n="ffgFilEditTitle">Change filament</div>
+        <div class="sfe-sub" id="ffgFilEditSub"></div>
+      </div>
+      <button class="modal-close" id="ffgFilEditClose">✕</button>
+    </header>
+
+    <div class="sfe-body">
+      <button type="button" class="sfe-line" id="ffgOpenFilament">
+        <span class="sfe-line-lbl" data-i18n="snapFilEditPickFilament">Filaments</span>
+        <span class="sfe-line-val" id="ffgFilSummaryVal">—</span>
+        <span class="sfe-line-chev icon icon-chevron-r icon-13"></span>
+      </button>
+
+      <button type="button" class="sfe-line" id="ffgOpenColor">
+        <span class="sfe-line-lbl" data-i18n="snapFilEditColor">Color</span>
+        <span class="sfe-line-color-dot" id="ffgColorSummaryDot"></span>
+        <span class="sfe-line-chev icon icon-chevron-r icon-13"></span>
+      </button>
+
+      <input type="hidden" id="ffgVendor"/>
+      <input type="hidden" id="ffgMaterial"/>
+      <input type="hidden" id="ffgColorInput" value="#ff5722"/>
+
+      <div class="sfe-error" id="ffgError" hidden></div>
+    </div>
+
+    <div class="sfe-footer">
+      <button class="adf-btn adf-btn--primary sfe-apply" id="ffgFilEditSave">
+        <span class="label" data-i18n="ffgFilEditApply">Apply</span>
+        <span class="spinner"></span>
+      </button>
+    </div>
+  </section>
+</aside>
+
+<!-- FlashForge filament-picker sheet (stacks ON TOP of the summary). -->
+<aside class="sfe-sheet sfe-sheet--filament" id="ffgFilamentSheet" aria-hidden="true">
+  <div class="sfe-grip" aria-hidden="true"></div>
+  <header class="sfe-screen-head">
+    <button type="button" class="sfe-back" id="ffgFilamentBack" aria-label="Back">
+      <span class="icon icon-chevron-l icon-14"></span>
+    </button>
+    <span class="sfe-title" data-i18n="snapFilSelectFilament">Select Filament</span>
+    <button class="modal-close" id="ffgFilamentClose">✕</button>
+  </header>
+  <div class="sfe-body sfe-body--picker">
+    <div class="sfe-fil-picker">
+      <div class="sfe-fil-vendors" id="ffgVendorList" role="listbox" aria-label="Vendors"></div>
+      <div class="sfe-fil-divider" aria-hidden="true"></div>
+      <div class="sfe-fil-materials" id="ffgMaterialList" role="listbox" aria-label="Materials"></div>
+    </div>
+  </div>
+</aside>
+
+<!-- FlashForge colour-picker sheet (stacks ON TOP of the summary). -->
+<aside class="sfe-sheet sfe-sheet--color" id="ffgColorSheet" aria-hidden="true">
+  <div class="sfe-grip" aria-hidden="true"></div>
+  <header class="sfe-screen-head">
+    <button type="button" class="sfe-back" id="ffgColorBack" aria-label="Back">
+      <span class="icon icon-chevron-l icon-14"></span>
+    </button>
+    <span class="sfe-title" data-i18n="snapFilSelectColor">Select Color</span>
+    <button class="modal-close" id="ffgColorClose">✕</button>
+  </header>
+  <div class="sfe-body sfe-body--picker">
+    <div class="sfe-color-grid" id="ffgColorGrid"></div>
+  </div>
+</aside>
+
 <!-- Add printer — step 1: brand picker -->
 <div class="modal-overlay" id="printerBrandPickerOverlay">
   <div class="modal-card pba-card">

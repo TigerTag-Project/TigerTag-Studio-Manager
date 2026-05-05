@@ -586,5 +586,8 @@
   "ffgState_preparing": "Vorbereiten",
   "ffgState_heating": "Aufheizen",
   "ffgState_busy": "Beschäftigt",
-  "ffgCameraAlt": "FlashForge-Kamerastream"
+  "ffgCameraAlt": "FlashForge-Kamerastream",
+  "ffgFilEditTitle": "Filament wechseln",
+  "ffgFilEditApply": "Anwenden",
+  "ffgErrNetwork": "Drucker nicht erreichbar — IP und Netzwerk prüfen."
 }

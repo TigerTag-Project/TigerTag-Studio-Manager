@@ -586,5 +586,8 @@
   "ffgState_preparing": "准备中",
   "ffgState_heating": "加热中",
   "ffgState_busy": "繁忙",
-  "ffgCameraAlt": "FlashForge 摄像头视频流"
+  "ffgCameraAlt": "FlashForge 摄像头视频流",
+  "ffgFilEditTitle": "更换耗材",
+  "ffgFilEditApply": "应用",
+  "ffgErrNetwork": "无法连接到打印机 — 请检查 IP 和网络。"
 }

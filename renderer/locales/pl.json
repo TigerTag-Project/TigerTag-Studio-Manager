@@ -597,5 +597,8 @@
   "ffgState_preparing": "Przygotowywanie",
   "ffgState_heating": "Nagrzewanie",
   "ffgState_busy": "Zajęta",
-  "ffgCameraAlt": "Strumień kamery FlashForge"
+  "ffgCameraAlt": "Strumień kamery FlashForge",
+  "ffgFilEditTitle": "Zmień filament",
+  "ffgFilEditApply": "Zastosuj",
+  "ffgErrNetwork": "Nie można połączyć się z drukarką — sprawdź IP i sieć."
 }

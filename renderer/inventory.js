@@ -5501,6 +5501,11 @@
     if ($("snapFilEditSheet")?.classList.contains("open")) {
       try { closeSnapFilamentEdit(); } catch {}
     }
+    // FlashForge — same precaution. Without this the sheet would stay
+    // floating after the side-card slides out.
+    if ($("ffgFilEditSheet")?.classList.contains("open")) {
+      try { closeFlashforgeFilamentEdit(); } catch {}
+    }
     $("printerPanel").classList.remove("open");
     $("printerOverlay").classList.remove("open");
     // Tear down the Snapmaker live connection if any was active for this
@@ -7067,6 +7072,17 @@
           if (idx >= 0 && _activePrinter) openSnapFilamentEdit(_activePrinter, idx);
           return;
         }
+        // FlashForge — same idea, distinct selector so Snapmaker's
+        // bottom-sheet doesn't pop for FlashForge slots.
+        const ffgFilTrigger = e.target.closest("[data-ffg-fil-edit]");
+        if (ffgFilTrigger) {
+          const card = ffgFilTrigger.closest(".snap-fil");
+          const idx = parseInt(card?.dataset?.extruderIdx ?? "-1", 10);
+          if (idx >= 0 && _activePrinter && _activePrinter.brand === "flashforge") {
+            openFlashforgeFilamentEdit(_activePrinter, idx);
+          }
+          return;
+        }
         // Pause / Resume — surgical update. We deliberately AVOID a full
         // renderPrinterDetail() here because that resets the section's
         // `data-collapsed` attribute to its template default, which
@@ -7969,6 +7985,362 @@
       ${tempsHtml}
       ${filamentsHtml}`;
   }
+
+  /* ── Manual filament edit — bottom sheet ──────────────────────────
+     Click on a colour square in the FlashForge live block opens a
+     bottom-sheet pre-filled with the slot's current filament data.
+     On Apply we POST /control with the FlashForge command:
+       • matlStation (4-bay): { cmd: "msConfig_cmd",   args: { slot, mt, rgb } }
+       • independent extruder: { cmd: "ipdMsConfig_cmd", args: { mt, rgb } }
+     Sheet structure mirrors the Snapmaker `.sfe-*` sheet (we even
+     reuse its CSS classes); IDs are `ffg*` / `ffgFilEdit*` so both
+     flows coexist. */
+
+  // Vendor → materials catalogue. FlashForge accepts arbitrary `mt`
+  // strings, but we surface a curated list mirroring the Snapmaker
+  // chooser so the user picks documented values (PLA / PETG / …) by
+  // default. Custom material names still flow through via the typed
+  // input hooks.
+  const FFG_FIL_VENDOR_MATERIALS = {
+    "Generic":   ["PLA", "PETG", "ABS", "TPU", "ASA", "PA", "PC", "PVA", "HIPS", "Wood"],
+    "FlashForge":["PLA", "PETG", "ABS", "TPU", "ASA"],
+    "Bambu Lab": [],
+    "eSun":      [],
+    "Polymaker": [],
+    "Sunlu":     []
+  };
+  const FFG_FIL_BRANDS = Object.keys(FFG_FIL_VENDOR_MATERIALS);
+  const FFG_FIL_PRIORITY = ["PLA", "PETG", "ABS", "TPU"];
+
+  // Same 24-colour preset palette as the Snapmaker sheet so the user
+  // visually recognises the colour grid across brands.
+  const FFG_FIL_COLOR_PRESETS = SNAP_FIL_COLOR_PRESETS;
+
+  function ffgSortMaterials(list) {
+    const upper = list.map(s => s.toUpperCase());
+    const used = new Set();
+    const priority = [];
+    for (const p of FFG_FIL_PRIORITY) {
+      const idx = upper.findIndex((u, i) => !used.has(i) && u === p);
+      if (idx >= 0) { priority.push(list[idx]); used.add(idx); }
+    }
+    const rest = list.filter((_, i) => !used.has(i))
+                     .sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+    return [...priority, ...rest];
+  }
+
+  // FlashForge expects the colour as "#RRGGBB" upper-case (per the
+  // Flutter monolith's _ffgSetMsSlot / _ffgSetExtMaterial calls). The
+  // existing ffgParseHexColor already returns that exact shape.
+  function ffgColorToHash(hex) {
+    return ffgParseHexColor(hex) || "#000000";
+  }
+
+  let _ffgFilEdit = null;             // { brand, deviceId, key, slotId, isMatlStation }
+  let _ffeSelectedBrand = "";
+  let _ffeSelectedMaterial = "";
+
+  function ffgFilRenderVendorList(selected) {
+    return FFG_FIL_BRANDS.map(v => {
+      const isSel = v.toLowerCase() === (selected || "").toLowerCase();
+      return `<button type="button" class="sfe-fil-row${isSel ? " is-selected" : ""}"
+                      data-val="${esc(v)}">${esc(v)}</button>`;
+    }).join("");
+  }
+  function ffgFilRenderMaterialList(vendor, selectedMat) {
+    const list = (FFG_FIL_VENDOR_MATERIALS[vendor]?.length
+                  ? FFG_FIL_VENDOR_MATERIALS[vendor]
+                  : FFG_FIL_VENDOR_MATERIALS["Generic"]);
+    const sorted = ffgSortMaterials(list);
+    return sorted.map(m => {
+      const isSel = m.toLowerCase() === (selectedMat || "").toLowerCase();
+      return `<button type="button" class="sfe-fil-row${isSel ? " is-selected" : ""}" data-val="${esc(m)}">
+                <span class="sfe-fil-row-text">${esc(m)}</span>
+                ${isSel ? `<span class="sfe-fil-row-check">✓</span>` : ""}
+              </button>`;
+    }).join("");
+  }
+
+  function ffeRenderColorGrid(currentColor) {
+    const grid = $("ffgColorGrid");
+    if (!grid) return;
+    const cur = (currentColor || "").toLowerCase();
+    const presetCells = FFG_FIL_COLOR_PRESETS.map(c => {
+      const isSel = c.toLowerCase() === cur;
+      return `<button type="button" class="sfe-color-cell${isSel ? " is-selected" : ""}"
+                      data-color="${esc(c)}"
+                      style="background:${esc(c)}"
+                      title="${esc(c)}"></button>`;
+    }).join("");
+    const safeColor = currentColor && /^#[0-9a-f]{6}$/i.test(currentColor) ? currentColor : "#888888";
+    const customCell = `
+      <div class="sfe-color-cell sfe-color-cell--custom" id="ffgColorCustomBtn"
+           style="background:${esc(safeColor)}"
+           title="${esc(t("snapFilEditCustomColor") || "Custom")}">
+        <span class="icon icon-edit icon-13"></span>
+        <input type="color" class="sfe-color-cell-native" id="ffgColorPickerInline"
+               value="${esc(safeColor)}" aria-label="Custom color"/>
+      </div>`;
+    grid.innerHTML = presetCells + customCell;
+  }
+
+  function ffeOpenFilamentSheet() {
+    $("ffgFilamentSheet")?.classList.add("open");
+    $("ffgFilamentSheet")?.setAttribute("aria-hidden", "false");
+  }
+  function ffeCloseFilamentSheet() {
+    $("ffgFilamentSheet")?.classList.remove("open");
+    $("ffgFilamentSheet")?.setAttribute("aria-hidden", "true");
+  }
+  function ffeOpenColorSheet() {
+    $("ffgColorSheet")?.classList.add("open");
+    $("ffgColorSheet")?.setAttribute("aria-hidden", "false");
+  }
+  function ffeCloseColorSheet() {
+    $("ffgColorSheet")?.classList.remove("open");
+    $("ffgColorSheet")?.setAttribute("aria-hidden", "true");
+  }
+
+  function ffeUpdateSummary() {
+    const v = _ffeSelectedBrand    || "—";
+    const m = _ffeSelectedMaterial || "—";
+    const valEl = $("ffgFilSummaryVal");
+    if (valEl) valEl.textContent = `${v} ${m}`;
+    const dot = $("ffgColorSummaryDot");
+    if (dot) dot.style.background = $("ffgColorInput")?.value || "#888";
+  }
+
+  function openFlashforgeFilamentEdit(printer, extruderIndex) {
+    const conn = _ffgConns.get(ffgKey(printer));
+    const fil = (conn?.data?.filaments?.[extruderIndex]) || {};
+    const fils = conn?.data?.filaments || [];
+    const isMatlStation = fils.length === 4;
+    const slotId = fil.slotId || (extruderIndex + 1);
+    _ffgFilEdit = {
+      brand: printer.brand,
+      deviceId: printer.id,
+      key: ffgKey(printer),
+      slotId,
+      isMatlStation,
+      printer
+    };
+    _ffeSelectedBrand    = fil.vendor || "FlashForge";
+    _ffeSelectedMaterial = fil.type   || "PLA";
+
+    const colorInp = $("ffgColorInput");
+    if (colorInp) colorInp.value = (fil.color && /^#[0-9a-f]{6}/i.test(fil.color))
+                                    ? fil.color.slice(0, 7) : "#FF5722";
+
+    $("ffgFilEditSub").textContent = "";
+    $("ffgError").hidden = true;
+
+    const initialColor = (fil.color && /^#[0-9a-f]{6}/i.test(fil.color))
+                       ? fil.color.slice(0, 7) : "#FF5722";
+    ffeRenderColorGrid(initialColor);
+
+    const vendorList = $("ffgVendorList");
+    const matList    = $("ffgMaterialList");
+    if (vendorList) {
+      const vendorMatch = FFG_FIL_BRANDS.find(b => b.toLowerCase() === _ffeSelectedBrand.toLowerCase())
+                       || FFG_FIL_BRANDS[0];
+      _ffeSelectedBrand = vendorMatch;
+      vendorList.innerHTML = ffgFilRenderVendorList(vendorMatch);
+    }
+    if (matList) {
+      matList.innerHTML = ffgFilRenderMaterialList(_ffeSelectedBrand, _ffeSelectedMaterial);
+    }
+
+    ffeCloseFilamentSheet();
+    ffeCloseColorSheet();
+    ffeUpdateSummary();
+
+    $("ffgFilEditSheet").classList.add("open");
+    $("ffgFilEditSheet").setAttribute("aria-hidden", "false");
+    $("ffgFilEditBackdrop").classList.add("open");
+  }
+
+  function closeFlashforgeFilamentEdit() {
+    $("ffgFilEditSheet")?.classList.remove("open");
+    $("ffgFilEditSheet")?.setAttribute("aria-hidden", "true");
+    $("ffgFilEditBackdrop")?.classList.remove("open");
+    ffeCloseFilamentSheet();
+    ffeCloseColorSheet();
+    _ffgFilEdit = null;
+  }
+
+  // ── Wiring (delegated where useful so re-rendered nodes stay live) ──
+  $("ffgFilEditClose")?.addEventListener("click", closeFlashforgeFilamentEdit);
+  $("ffgFilEditBackdrop")?.addEventListener("click", closeFlashforgeFilamentEdit);
+
+  $("ffgOpenFilament")?.addEventListener("click", () => {
+    ffeOpenFilamentSheet();
+    setTimeout(() => {
+      const sel = $("ffgVendorList")?.querySelector(".is-selected");
+      if (sel) sel.scrollIntoView({ block: "center", behavior: "auto" });
+    }, 0);
+  });
+  $("ffgOpenColor")?.addEventListener("click", () => {
+    ffeOpenColorSheet();
+  });
+
+  $("ffgFilamentBack")?.addEventListener("click", () => {
+    ffeUpdateSummary();
+    ffeCloseFilamentSheet();
+  });
+  $("ffgFilamentClose")?.addEventListener("click", () => {
+    ffeUpdateSummary();
+    ffeCloseFilamentSheet();
+  });
+  $("ffgColorBack")?.addEventListener("click", () => {
+    ffeUpdateSummary();
+    ffeCloseColorSheet();
+  });
+  $("ffgColorClose")?.addEventListener("click", () => {
+    ffeUpdateSummary();
+    ffeCloseColorSheet();
+  });
+
+  $("ffgVendorList")?.addEventListener("click", e => {
+    const row = e.target.closest(".sfe-fil-row");
+    if (!row) return;
+    _ffeSelectedBrand = row.dataset.val || "";
+    $("ffgVendorList").querySelectorAll(".sfe-fil-row").forEach(r =>
+      r.classList.toggle("is-selected", r === row));
+    const matList = $("ffgMaterialList");
+    if (matList) matList.innerHTML = ffgFilRenderMaterialList(_ffeSelectedBrand, _ffeSelectedMaterial);
+    const v = $("ffgVendor"); if (v) v.value = "";
+  });
+  $("ffgMaterialList")?.addEventListener("click", e => {
+    const row = e.target.closest(".sfe-fil-row");
+    if (!row) return;
+    _ffeSelectedMaterial = row.dataset.val || "";
+    const m = $("ffgMaterial"); if (m) m.value = "";
+    $("ffgMaterialList").innerHTML = ffgFilRenderMaterialList(_ffeSelectedBrand, _ffeSelectedMaterial);
+    setTimeout(() => {
+      ffeUpdateSummary();
+      ffeCloseFilamentSheet();
+    }, 180);
+  });
+
+  $("ffgColorGrid")?.addEventListener("click", e => {
+    if (e.target.closest("#ffgColorPickerInline")) return;
+    const cell = e.target.closest(".sfe-color-cell:not(.sfe-color-cell--custom)");
+    if (!cell) return;
+    const c = cell.dataset.color;
+    if (!c) return;
+    $("ffgColorInput").value = c;
+    ffeRenderColorGrid(c);
+    setTimeout(() => {
+      ffeUpdateSummary();
+      ffeCloseColorSheet();
+    }, 150);
+  });
+  $("ffgColorGrid")?.addEventListener("input", e => {
+    if (!e.target.matches?.("#ffgColorPickerInline")) return;
+    const c = e.target.value;
+    $("ffgColorInput").value = c;
+    const wrap = e.target.closest(".sfe-color-cell--custom");
+    if (wrap) wrap.style.background = c;
+  });
+  $("ffgColorGrid")?.addEventListener("change", e => {
+    if (!e.target.matches?.("#ffgColorPickerInline")) return;
+    const c = e.target.value;
+    $("ffgColorInput").value = c;
+    ffeRenderColorGrid(c);
+    setTimeout(() => {
+      ffeUpdateSummary();
+      ffeCloseColorSheet();
+    }, 100);
+  });
+
+  // Apply → POST /control with the right cmd shape based on whether
+  // the printer is a matlStation (slot-based) or single-extruder.
+  $("ffgFilEditSave")?.addEventListener("click", async () => {
+    if (!_ffgFilEdit) return;
+    const conn = _ffgConns.get(_ffgFilEdit.key);
+    const printer = _ffgFilEdit.printer;
+    const errEl = $("ffgError");
+    errEl.hidden = true;
+
+    const vendor   = String($("ffgVendor").value || _ffeSelectedBrand   || "FlashForge").trim();
+    const material = String($("ffgMaterial").value || _ffeSelectedMaterial || "PLA").trim();
+    const rgb      = ffgColorToHash($("ffgColorInput").value);
+
+    // The FlashForge protocol takes the material name in `mt` directly —
+    // no vendor field is sent (per the Flutter _ffgSetMsSlot /
+    // _ffgSetExtMaterial calls). We keep the vendor in our local state
+    // so the UI summary stays in sync, but the wire payload is just
+    // the material + colour pair.
+    const _vendorUnused = vendor; // retained for future extension; suppresses lint
+    void _vendorUnused;
+
+    const base = ffgBaseUrl(printer.ip);
+    if (!base) {
+      errEl.textContent = t("ffgErrNetwork");
+      errEl.hidden = false;
+      return;
+    }
+    const payload = _ffgFilEdit.isMatlStation
+      ? {
+          ...ffgAuthBody(printer),
+          payload: { cmd: "msConfig_cmd",   args: { slot: _ffgFilEdit.slotId, mt: material, rgb } }
+        }
+      : {
+          ...ffgAuthBody(printer),
+          payload: { cmd: "ipdMsConfig_cmd", args: { mt: material, rgb } }
+        };
+
+    const btn = $("ffgFilEditSave");
+    btn.classList.add("loading");
+    btn.disabled = true;
+    try {
+      const ctrl = new AbortController();
+      const tm = setTimeout(() => ctrl.abort(), 5000);
+      const res = await fetch(`${base}/control`, {
+        method: "POST",
+        signal: ctrl.signal,
+        cache: "no-store",
+        headers: { "Content-Type": "application/json", "Accept": "*/*" },
+        body: JSON.stringify(payload)
+      });
+      clearTimeout(tm);
+      let resp = null;
+      try { resp = await res.json(); } catch (_) { resp = { code: -1 }; }
+      if (resp && resp.code !== 0 && resp.code !== undefined) {
+        // Surface the printer's own message verbatim — varies a lot
+        // between firmware revisions and is the most actionable hint.
+        const m = String(resp.message || "").trim();
+        errEl.textContent = m || t("ffgErrNetwork");
+        errEl.hidden = false;
+        return;
+      }
+      // Optimistic local update: the printer will echo the new values
+      // on the next /detail poll (≤ 2 s), but we patch conn.data right
+      // away so the user sees instant feedback.
+      if (conn) {
+        const idx = (_ffgFilEdit.slotId - 1) | 0;
+        const fils = Array.isArray(conn.data.filaments) ? conn.data.filaments.slice() : [];
+        if (fils[idx]) {
+          fils[idx] = {
+            ...fils[idx],
+            color: rgb,
+            type: material,
+            vendor: "FlashForge"
+          };
+          conn.data.filaments = fils;
+          ffgNotifyChange(conn, false);
+        }
+      }
+      closeFlashforgeFilamentEdit();
+    } catch (e) {
+      console.warn("[ffg] filament edit send failed:", e?.message);
+      errEl.textContent = t("ffgErrNetwork");
+      errEl.hidden = false;
+    } finally {
+      btn.classList.remove("loading");
+      btn.disabled = false;
+    }
+  });
 
   /* ── End FlashForge HTTP integration ─────────────────────────── */
 

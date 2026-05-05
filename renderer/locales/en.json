@@ -583,5 +583,8 @@
   "ffgState_preparing": "Preparing",
   "ffgState_heating": "Heating",
   "ffgState_busy": "Busy",
-  "ffgCameraAlt": "FlashForge camera stream"
+  "ffgCameraAlt": "FlashForge camera stream",
+  "ffgFilEditTitle": "Change filament",
+  "ffgFilEditApply": "Apply",
+  "ffgErrNetwork": "Cannot reach the printer — check IP and network."
 }

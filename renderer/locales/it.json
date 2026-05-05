@@ -586,5 +586,8 @@
   "ffgState_preparing": "In preparazione",
   "ffgState_heating": "Riscaldamento",
   "ffgState_busy": "Occupata",
-  "ffgCameraAlt": "Stream camera FlashForge"
+  "ffgCameraAlt": "Stream camera FlashForge",
+  "ffgFilEditTitle": "Cambia filamento",
+  "ffgFilEditApply": "Applica",
+  "ffgErrNetwork": "Impossibile raggiungere la stampante — controlla IP e rete."
 }
