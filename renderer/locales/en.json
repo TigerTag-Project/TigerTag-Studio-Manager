@@ -576,5 +576,7 @@
   "uidMigrConfirmMobileWarn": "Before continuing, make sure your mobile app is updated to version 1.0.3 or later.",
   "migrationProgressTitle": "Update in progress",
   "migrationProgressMsg": "Tidying up your data — please don't close the app. Each item only takes a fraction of a second.",
-  "migrationProgressWarn": "⚠ Closing now would just resume on next launch — but for the cleanest experience, let it finish."
+  "migrationProgressWarn": "⚠ Closing now would just resume on next launch — but for the cleanest experience, let it finish.",
+  "ffgErrSnMismatch": "Bad serial number — please check printer settings",
+  "ffgErrBadPassword": "Bad password — please check printer settings"
 }

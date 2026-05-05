@@ -579,5 +579,7 @@
   "uidMigrConfirmMobileWarn": "Antes de continuar, asegúrese de que su aplicación móvil esté actualizada a la versión 1.0.3 o posterior.",
   "migrationProgressTitle": "Actualización en curso",
   "migrationProgressMsg": "Organizando tus datos — no cierres la aplicación. Cada elemento solo tarda una fracción de segundo.",
-  "migrationProgressWarn": "⚠ Cerrar ahora simplemente reanudaría en el próximo inicio — pero para la mejor experiencia, déjala terminar."
+  "migrationProgressWarn": "⚠ Cerrar ahora simplemente reanudaría en el próximo inicio — pero para la mejor experiencia, déjala terminar.",
+  "ffgErrSnMismatch": "Número de serie incorrecto — comprueba los ajustes de la impresora",
+  "ffgErrBadPassword": "Contraseña incorrecta — comprueba los ajustes de la impresora"
 }

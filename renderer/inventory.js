@@ -7486,23 +7486,229 @@
     ffgMergeStatus(conn, resp);
   }
 
-  // Stub — full implementation lands in F2 (status parser).
-  // Phase 1 only flips connected/offline so the badge reflects reachability.
+  /* ── Status parser ─────────────────────────────────────────────────
+     Flatten a FlashForge /detail response into our common `conn.data`
+     shape, picking the same keys we use for Snapmaker so the renderer
+     in F3 can branch on data, not on protocol. We accept liberal input
+     types because firmware revisions return numbers as strings ("220")
+     or sentinels ("--") interchangeably. */
+
+  // Parse FlashForge / Creality "#RRGGBB" colour strings to a normalised
+  // upper-case hex. Returns null when the input isn't a recognisable hex.
+  function ffgParseHexColor(s) {
+    let v = String(s || "").trim();
+    if (!v) return null;
+    if (v.startsWith("#")) v = v.slice(1);
+    if (v.length === 3) v = v.split("").map(c => c + c).join(""); // "abc" → "aabbcc"
+    if (v.length === 8) v = v.slice(0, 6); // drop alpha if present
+    if (!/^[0-9a-f]{6}$/i.test(v)) return null;
+    return "#" + v.toUpperCase();
+  }
+
+  // Coerce "220" / 220 / "--" / null → number | null.
+  function ffgNum(v) {
+    if (v === null || v === undefined) return null;
+    if (typeof v === "number") return isFinite(v) ? v : null;
+    const s = String(v).trim();
+    if (!s || s === "--" || /^-+$/.test(s)) return null;
+    const n = parseFloat(s);
+    return isFinite(n) ? n : null;
+  }
+
+  // The Flutter UI surfaces these errors as a top-of-screen Flushbar.
+  // We do the equivalent with toast() but throttle to one notification
+  // per session per printer so a user with a misconfigured printer
+  // doesn't get spammed every 2 seconds.
+  const _ffgErrSeen = new Set(); // Set<`${key}:${kind}`>
+  function ffgWarnOnce(conn, kind, message) {
+    const sig = `${conn.key}:${kind}`;
+    if (_ffgErrSeen.has(sig)) return;
+    _ffgErrSeen.add(sig);
+    try { toast(message, "error"); } catch (_) { /* toast may not be ready during very first poll */ }
+  }
+  // Reset the throttle when the user toggles the side-card so the next
+  // open after fixing credentials in the printer surfaces the toast again.
+  function ffgClearWarnings(key) {
+    for (const sig of Array.from(_ffgErrSeen)) {
+      if (sig.startsWith(key + ":")) _ffgErrSeen.delete(sig);
+    }
+  }
+
   function ffgMergeStatus(conn, resp) {
     if (!conn) return;
     const code = resp?.code;
-    const msg  = String(resp?.message || "").toLowerCase();
-    if (code === -2 || /network error/.test(msg)) {
+    const msg  = String(resp?.message || "");
+    const msgLower = msg.toLowerCase();
+
+    // ── Error contract (lifted from the Flutter monolith) ─────────────
+    // Network error → mark offline + schedule reconnect.
+    if (code === -2 || /network error/.test(msgLower)) {
       conn.status = "offline";
-      ffgNotifyChange(conn, true);
+      conn.lastError = msg || "network error";
+      ffgNotifyChange(conn, /*statusChanged*/ true);
       ffgScheduleReconnect(conn);
       return;
     }
-    if (code === 0 || resp?.detail) {
-      conn.status = "connected";
-      conn.retry = 0;
+    // SN mismatch — printer is reachable but the credentials don't match.
+    // Surface a toast once per session, keep polling so reconfiguration
+    // on the printer side recovers the link without a manual restart.
+    if (code === 1 && /sn is different/.test(msgLower)) {
+      conn.status = "error";
+      conn.lastError = msg;
+      conn.data.snMismatch = true;
+      ffgWarnOnce(conn, "sn", t("ffgErrSnMismatch"));
       ffgNotifyChange(conn, true);
+      return;
     }
+    if (code === 1 && /access code is different/.test(msgLower)) {
+      conn.status = "error";
+      conn.lastError = msg;
+      ffgWarnOnce(conn, "pwd", t("ffgErrBadPassword"));
+      ffgNotifyChange(conn, true);
+      return;
+    }
+    // Anything else with code !== 0 and no `detail` payload — stay silent
+    // but keep polling. Status drops back to "connecting" so the badge
+    // doesn't claim the printer is online when we got an unintelligible
+    // response.
+    const detail = resp?.detail;
+    if (!detail || typeof detail !== "object") {
+      if (code !== 0) {
+        conn.status = "connecting";
+        ffgNotifyChange(conn, true);
+      }
+      return;
+    }
+
+    // ── Successful payload — extract every field we know about. We
+    // detect status changes (connecting → connected) so the renderer can
+    // do the more expensive full re-render only when needed.
+    const wasConnected = conn.status === "connected";
+    conn.status = "connected";
+    conn.lastError = null;
+    conn.retry = 0;
+    const d = conn.data;
+
+    // Temperatures — `rightTemp` is the active extruder; on dual-extruder
+    // models `leftTemp` is reported separately. The bed lives at `platTemp`,
+    // chamber at `chamberTemp`. FlashForge does not surface target temps
+    // in the obvious places — leave targets null so the renderer
+    // gracefully renders just "26°C" instead of "26/0°C".
+    const nozzle  = ffgNum(detail.rightTemp ?? detail.leftTemp);
+    const bed     = ffgNum(detail.platTemp);
+    const chamber = ffgNum(detail.chamberTemp);
+    if (nozzle  !== null) d.temps.e1_temp    = nozzle;
+    if (bed     !== null) d.temps.bed_temp   = bed;
+    if (chamber !== null) d.temps.chamber_temp = chamber;
+    // We deliberately DON'T write the *_target keys — the renderer
+    // checks for their presence with `typeof === "number"` and falls
+    // back to the no-target display when they're absent.
+
+    // Filament — two layouts:
+    //   1. matlStation (multi-tray) → matlStationInfo.slotInfos[1..4]
+    //   2. independent (single)     → root materialName / materialColor
+    //                              OR detail.indepMatlInfo.materialName/Color
+    // We prefer matlStation when hasMatlStation is true.
+    const hasMs = detail.hasMatlStation === true || detail.hasMatlStation === 1;
+    if (hasMs && detail.matlStationInfo && typeof detail.matlStationInfo === "object") {
+      const ms = detail.matlStationInfo;
+      const currentSlot = (typeof ms.currentSlot === "number") ? ms.currentSlot : 0;
+      const slots = Array.isArray(ms.slotInfos) ? ms.slotInfos : [];
+      const merged = [{}, {}, {}, {}];
+      for (let i = 1; i <= 4; i++) {
+        const s = slots.find(x => x && x.slotId === i) || {};
+        const has = s.hasFilament === true || s.hasFilament === 1;
+        const name = String(s.materialName || "").trim();
+        const colorHex = ffgParseHexColor(s.materialColor);
+        merged[i - 1] = {
+          slotId: i,
+          color: has && colorHex ? colorHex : null,
+          vendor: "FlashForge",       // monolith doesn't expose a brand field
+          type: has && name ? name : null,
+          subType: null,              // not exposed by /detail
+          official: false,            // FlashForge slots are always editable
+          isActive: has && (i === currentSlot)
+        };
+      }
+      d.filaments = merged;
+    } else {
+      // Independent-extruder fallback — single-slot inventory.
+      const indep = detail.indepMatlInfo;
+      const indepName  = (indep && typeof indep === "object" ? indep.materialName  : null) ?? detail.materialName;
+      const indepColor = (indep && typeof indep === "object" ? indep.materialColor : null) ?? detail.materialColor;
+      const name = String(indepName || "").trim();
+      const colorHex = ffgParseHexColor(indepColor);
+      if (name || colorHex) {
+        d.filaments = [{
+          slotId: 1,
+          color: colorHex,
+          vendor: "FlashForge",
+          type: name || null,
+          subType: null,
+          official: false,
+          isActive: true
+        }];
+      } else {
+        d.filaments = [];
+      }
+    }
+
+    // Print job state. FlashForge `status` strings include: "ready",
+    // "preparing", "heating", "printing", "paused", "completed",
+    // "cancelled", "busy", "idle". We map them onto our internal
+    // vocabulary so the renderer can branch on isActive uniformly.
+    const rawState = String(detail.status || "").toLowerCase().trim();
+    d.printState = rawState || "idle";
+    // `printProgress` may be reported as 0..1 OR as 0..100 depending on
+    // firmware. Detect via magnitude.
+    let progressRaw = ffgNum(detail.printProgress);
+    if (progressRaw === null) progressRaw = 0;
+    if (progressRaw > 1.0001) progressRaw = progressRaw / 100; // 0..100 → 0..1
+    progressRaw = Math.max(0, Math.min(1, progressRaw));
+    d.progress = progressRaw;
+    // Layer counters
+    const cur = ffgNum(detail.printLayer);
+    const tot = ffgNum(detail.targetPrintLayer);
+    d.currentLayer = cur != null ? Math.round(cur) : 0;
+    d.totalLayer   = tot != null ? Math.round(tot) : 0;
+    // Estimated time remaining — surface as `printEstimated` to align with
+    // the Snapmaker conn shape (where the field carries metadata-derived
+    // total estimated time). The renderer treats both as "time hint".
+    const eta = ffgNum(detail.estimatedTime);
+    d.printEstimated = (eta != null && eta > 0) ? eta : null;
+    // Filename — FlashForge exposes either `printFileName` or `printJobName`
+    // depending on firmware. We accept either.
+    const fn = String(detail.printFileName || detail.printJobName || "").trim();
+    d.printFilename = fn || null;
+    // Slicer thumbnail — already a fully-qualified URL, just stash it.
+    const thumb = String(detail.printFileThumbUrl || "").trim();
+    d.printPreviewUrl = thumb || null;
+
+    // Camera — multiple field aliases used across firmware versions.
+    const camUrl = String(
+      detail.cameraStreamUrl
+      || detail.cameraUrl
+      || detail.camera_url
+      || detail.streamUrl
+      || ""
+    ).trim();
+    const camFlag = (
+      detail.camera === true || detail.camera === 1 || detail.camera === "1" ||
+      detail.hasCamera === true || detail.hasCamera === 1 ||
+      detail.cameraEnabled === true || detail.cameraEnabled === 1 || detail.cameraEnabled === "1" ||
+      detail.camera_enabled === true || detail.camera_enabled === 1 || detail.camera_enabled === "1"
+    );
+    d.camera = {
+      url: camUrl || null,
+      enabled: !!camUrl || !!camFlag
+    };
+
+    // The FlashForge `status` string drives our "is the printer actively
+    // printing?" decision — used by the renderer to show / hide the
+    // print-job card. We keep it on `d.printState` so it stays alongside
+    // the Snapmaker equivalent.
+
+    ffgNotifyChange(conn, /*statusChanged*/ !wasConnected);
   }
 
   // Coalesce burst of poll-driven updates into a single rAF re-render.

@@ -590,5 +590,7 @@
   "uidMigrConfirmMobileWarn": "Przed kontynuacją upewnij się, że Twoja aplikacja mobilna jest zaktualizowana do wersji 1.0.3 lub nowszej.",
   "migrationProgressTitle": "Aktualizacja w toku",
   "migrationProgressMsg": "Porządkowanie twoich danych — nie zamykaj aplikacji. Każdy element trwa tylko ułamek sekundy.",
-  "migrationProgressWarn": "⚠ Zamknięcie teraz wznowiłoby przy następnym uruchomieniu — ale dla najlepszego doświadczenia pozwól zakończyć."
+  "migrationProgressWarn": "⚠ Zamknięcie teraz wznowiłoby przy następnym uruchomieniu — ale dla najlepszego doświadczenia pozwól zakończyć.",
+  "ffgErrSnMismatch": "Nieprawidłowy numer seryjny — sprawdź ustawienia drukarki",
+  "ffgErrBadPassword": "Nieprawidłowe hasło — sprawdź ustawienia drukarki"
 }
