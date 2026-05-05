@@ -585,5 +585,6 @@
   "ffgState_ready": "就绪",
   "ffgState_preparing": "准备中",
   "ffgState_heating": "加热中",
-  "ffgState_busy": "繁忙"
+  "ffgState_busy": "繁忙",
+  "ffgCameraAlt": "FlashForge 摄像头视频流"
 }

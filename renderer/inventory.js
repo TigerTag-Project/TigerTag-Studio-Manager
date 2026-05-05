@@ -6835,21 +6835,47 @@
     // so it reads as the headline media. When the WS isn't connected we
     // fall back to the static product photo INSIDE the hero (existing).
     const snapConn = (p.brand === "snapmaker") ? _snapConns.get(snapKey(p)) : null;
-    const showCam  = !!(snapConn && snapConn.status === "connected" && snapConn.ip);
+    const showSnapCam  = !!(snapConn && snapConn.status === "connected" && snapConn.ip);
 
-    // The TigerTag mobile app uses the WebRTC player page exposed by
-    // Snapmaker / Crowsnest — same approach we take here. The iframe
-    // loads the printer's own player HTML (`/webcam/webrtc`) which knows
-    // how to negotiate the stream. MJPEG via `/?action=stream` returned
-    // a black frame on Snapmaker U1, so WebRTC is the working path.
-    const camBannerHtml = showCam
-      ? `<div class="pp-cam-full">
-           <iframe class="snap-camera-frame" src="${esc(`http://${snapConn.ip}/webcam/webrtc`)}"
-                   sandbox="allow-scripts allow-same-origin"
-                   loading="lazy" referrerpolicy="no-referrer"
-                   allow="autoplay"></iframe>
-         </div>`
-      : "";
+    // FlashForge — MJPEG stream URL pulled out of /detail. Only show
+    // the banner when the printer reports a usable URL AND the camera
+    // is enabled (some models report the URL with the camera disabled
+    // server-side; in that case the <img> would 404).
+    const ffgConn = (p.brand === "flashforge") ? _ffgConns.get(ffgKey(p)) : null;
+    const ffgCamUrl = ffgConn?.data?.camera?.url || null;
+    const ffgCamEnabled = !!(ffgConn?.data?.camera?.enabled);
+    const showFfgCam = !!(ffgCamUrl && ffgCamEnabled && ffgConn?.status === "connected");
+
+    const showCam = showSnapCam || showFfgCam;
+
+    // Snapmaker uses a WebRTC player page exposed by Crowsnest — iframe
+    // load. FlashForge exposes a raw MJPEG stream URL — direct <img>.
+    let camBannerHtml = "";
+    if (showSnapCam) {
+      camBannerHtml = `
+        <div class="pp-cam-full">
+          <iframe class="snap-camera-frame" src="${esc(`http://${snapConn.ip}/webcam/webrtc`)}"
+                  sandbox="allow-scripts allow-same-origin"
+                  loading="lazy" referrerpolicy="no-referrer"
+                  allow="autoplay"></iframe>
+        </div>`;
+    } else if (showFfgCam) {
+      // The MJPEG stream is requested as an <img> src — the browser
+      // keeps the connection open and refreshes frame-by-frame. On a
+      // network/decode error we hide the wrapper so the photo
+      // placeholder underneath stays visible. We also disable the
+      // referrer so the printer's nginx doesn't reject the stream
+      // request based on the Origin header.
+      camBannerHtml = `
+        <div class="pp-cam-full ffg-cam-host">
+          <img class="snap-camera-frame ffg-camera-img"
+               src="${esc(ffgCamUrl)}"
+               alt="${esc(t("ffgCameraAlt"))}"
+               loading="lazy"
+               referrerpolicy="no-referrer"
+               onerror="this.closest('.pp-cam-full').style.display='none'"/>
+        </div>`;
+    }
 
     // Hero photo — only when the camera is NOT taking over.
     const heroImgHtml = (!showCam && heroImgUrl)

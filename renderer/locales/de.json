@@ -585,5 +585,6 @@
   "ffgState_ready": "Bereit",
   "ffgState_preparing": "Vorbereiten",
   "ffgState_heating": "Aufheizen",
-  "ffgState_busy": "Beschäftigt"
+  "ffgState_busy": "Beschäftigt",
+  "ffgCameraAlt": "FlashForge-Kamerastream"
 }

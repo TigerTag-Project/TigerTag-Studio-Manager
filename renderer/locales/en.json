@@ -582,5 +582,6 @@
   "ffgState_ready": "Ready",
   "ffgState_preparing": "Preparing",
   "ffgState_heating": "Heating",
-  "ffgState_busy": "Busy"
+  "ffgState_busy": "Busy",
+  "ffgCameraAlt": "FlashForge camera stream"
 }

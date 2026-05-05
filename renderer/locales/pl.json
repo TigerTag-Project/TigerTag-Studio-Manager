@@ -596,5 +596,6 @@
   "ffgState_ready": "Gotowa",
   "ffgState_preparing": "Przygotowywanie",
   "ffgState_heating": "Nagrzewanie",
-  "ffgState_busy": "Zajęta"
+  "ffgState_busy": "Zajęta",
+  "ffgCameraAlt": "Strumień kamery FlashForge"
 }

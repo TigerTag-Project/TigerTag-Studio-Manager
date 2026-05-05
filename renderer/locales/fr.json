@@ -585,5 +585,6 @@
   "ffgState_ready": "Prête",
   "ffgState_preparing": "Préparation",
   "ffgState_heating": "Chauffage",
-  "ffgState_busy": "Occupée"
+  "ffgState_busy": "Occupée",
+  "ffgCameraAlt": "Flux caméra FlashForge"
 }
