@@ -16,6 +16,7 @@
 
 ## Features
 
+- 🌥️ **TigerTag Cloud — 100 % digital filaments, no chip required (v1.4.12)** — Create a fully-formed inventory entry without an RFID chip via the **Add Product** side panel. The doc gets a `CLOUD_<10-digit>` id and the new **TigerTag Cloud** tier badge (purple, distinct from TigerTag+ orange and TigerTag grey). Track filaments you bought before adopting TigerTag, wishlist rolls you plan to buy, or onboard family / studio members who don't own a reader yet. When you eventually program a chip, the doc is atomically renamed to its real 7-byte hex UID and every field you already entered is promoted in place — no second entry, no copy / paste
 - **Inventory management** — Real-time sync with your TigerTag inventory via Firebase/Firestore
 - **Table & Grid views** — Switch between a compact table or a visual card grid
 - **Column sorting** — Click any column header to sort ascending / descending
@@ -52,7 +53,21 @@
 
 ### v1.4.12 — 2026-05-06
 
-Polish release for the **Add Product side panel**: a brand-new mobile-style HSV colour picker, a debug-only RFID Data preview that mirrors the spool Raw JSON surface, and a third tier label — **TigerTag Cloud** — for doc-only inventory entries that don't yet have a physical chip.
+> 🌥️ **The big one: TigerTag goes Cloud.** This release crosses a threshold the project has been building towards for a year — **you can now create a filament in your inventory without owning an RFID chip**. Open Add Product, fill the form, hit Make → a fully-formed inventory entry lands in Firestore with a `CLOUD_<10-digit>` doc id and the new **TigerTag Cloud** tier badge. No reader required. No chip burned. When you eventually get a physical chip and program it, the same doc gets renamed to its 7-byte hex UID and ALL the data you already entered (brand, material, colour, weight, temps, TD, RFID Data preview, …) is promoted in place — no copy / paste, no second entry, no friction.
+
+#### TigerTag Cloud — third tier · the headline feature
+- **100 % digital filaments** — the Add Product side panel (already shipped in v1.4.11) now writes a complete inventory entry shaped exactly like a chip-backed one. Same canonical schema, same fields, same display surfaces, same friend-sharing rules. The only difference is the doc id: `CLOUD_<10 random decimal digits>` instead of a real RFID hex UID. The `CLOUD_` prefix is impossible to confuse with a 7-byte hex UID (no underscores in real chip ids), making the discriminator self-documenting.
+- **Why it matters** —
+  - Track filaments you bought *before* adopting TigerTag (your existing rolls all get a digital twin in seconds).
+  - Plan / wishlist filaments you intend to buy — pre-fill the spec and the colour now, attach the chip later.
+  - Onboard family / studio members who don't own a reader yet — they can manage inventory from day one through the desktop or the mobile companion.
+  - Scale up to brand-managed inventories where the chip writing happens at the factory, not on the user's desk.
+- **Promotion path** — when the user finally programs a physical chip for a Cloud doc, the existing `uidMigrationMap` rename pipeline (the same one that ports legacy decimal UIDs to hex) carries the document over to its real hex id in a single atomic Firestore batch. Twin pointers, rack assignments, weight history, friend ACLs — everything follows the doc through the rename. Idempotent.
+- **New tier label "TigerTag Cloud"** — sits alongside the existing **TigerTag+** (chip linked to an online catalogue product) and **TigerTag** (bare chip / DIY). Cloud takes precedence over Plus when both signals would apply. Shown across the four canonical display points: table row, grid card, panel image overlay, panel details footer.
+- **`isCloud` flag** on every normalised inventory row — `String(spoolId).startsWith("CLOUD_")`. The flag flips back to false automatically the moment a chip is programmed and the doc gets renamed (no extra signal needed — the prefix change is the signal).
+- **`tierBadgeHTML(r, extraClass)`** helper centralises badge rendering across all four display points, so future tiers / theme tweaks live in one place.
+- New CSS class `.tag-cloud` — purple gradient (`#7c4dff → #a37bff`), distinct from `.tag-plus` (orange) and `.tag-twin` (sky blue). Picked specifically so the three tiers are unmistakable at a glance even on a low-contrast monitor.
+- **Mobile companion app** ships the same label in the inventory bottom-sheet header AND the search index — typing `cloud` in the inventory search bar surfaces every Cloud-only entry (Flutter repo).
 
 #### Add Product — full HSV colour picker
 - **Anthracite preset sheet** — the colour preset bottom-sheet now matches the Brand / Material sheets' anthracite canvas (`#1f242e`). Each preset swatch gets a 1 px black ring so light colours stay readable on dark; selected state stacks the black ring with the existing primary halo. Scoped via `.sfe-sheet--color.adp-color-sheet` so the Snapmaker / FlashForge filament-edit colour sheets keep their own theme.
@@ -72,13 +87,6 @@ Polish release for the **Add Product side panel**: a brand-new mobile-style HSV 
 - **Iso to the spool Raw JSON surface** — switched from the previous bespoke card-with-header to the canonical `<details class="debug">` pattern (chevron summary, `pre.json` dark theme). Inherits all the existing styles from `70-detail-misc.css`. Removed the `.adp-rfid-block` / `.adp-rfid-head` / `.adp-rfid-pre` rules.
 - **Copy-JSON button outside the `<summary>`** — rendered as a sibling of `<details>` and absolutely positioned in the top-right corner of the section. Clicking it can never bubble up to toggle the details open/closed. Transparent background, white SVG, soft hover (`rgba(255,255,255,.10)`), `.copied` class flashes green for 1.8 s after a successful clipboard write.
 - **No max-height cap** — the `<pre>` was inheriting `max-height: 360px` from the global `pre.json` rule. Inline override to `max-height: none; overflow: visible` so expanding the chevron now shows the full JSON inline; the Add Product panel body itself owns the vertical scroll.
-
-#### TigerTag Cloud — third tier
-- New tier label **"TigerTag Cloud"** for inventory entries whose doc id starts with `CLOUD_` (the prefix written by the desktop's "Add Product" flow before a physical chip is programmed). Sits alongside **TigerTag+** (chip linked to an online catalogue product) and **TigerTag** (bare chip / DIY).
-- **`isCloud` flag** on every normalised inventory row — `String(spoolId).startsWith("CLOUD_")`. When the user later programs a chip, the doc is renamed to a real 7-byte hex UID and the flag flips back to false automatically — no extra signal needed.
-- **`tierBadgeHTML(r, extraClass)`** helper centralises badge rendering across the four display points (table row, grid card, panel image overlay, panel details footer). Cloud takes precedence over Plus.
-- New CSS class `.tag-cloud` — purple gradient (`#7c4dff → #a37bff`), distinct from `.tag-plus` (orange) and `.tag-twin` (sky blue).
-- Mobile companion app gets the same label in the inventory bottom-sheet header and search index (`uid.startsWith('CLOUD_')` → `"TigerTag Cloud"` regardless of `id_tigertag`) — landed in the Flutter repo.
 
 #### Mobile companion — placeholder cleanup
 - The Flutter inventory write path used to send `'--'` / `'-'` strings to Firestore for any field the online catalogue couldn't fill (sku, barcode, all `Link*` fields, `online_color_type`, `onlineImage`, etc.). New `_isPlaceholderValue` helper in `services/inventory.dart` strips those at three choke points: `updateStock` (the patch merge), `pushOneToFirestore` / `pushAllToFirestore` (the cloud writes), and `addSpoolFromTagData` (the post-scan payload build). Net effect: empty fields are simply omitted from Firestore docs instead of carrying a placeholder string. Existing legacy docs already in the cloud get scrubbed on next push (the new `_stripPlaceholders` filter runs on every full-doc write). Display side already filtered these — `main_inventory.dart` joins non-null fields with `.where(…).join(' ')`.

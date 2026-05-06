@@ -23,6 +23,8 @@ Grouped by domain. Versions in parentheses are the release that landed the featu
 - ✅ **Twin-pair manual repair** — picker filtered by brand/material/type/RGB (v1.4.8)
 - ✅ **Spool toolbox** in detail panel — Scan colour / Scan TD / Twin link / Remove from rack / Delete (v1.4.8)
 - ✅ **Image cache** for spool photos — local persistence, color-fallback if remote dies
+- ✅ **Add Product side panel** — full TigerTag creator iso to the mobile app: Brand / Material picker bottom-sheets with favourites pinned and persisted, mobile-style HSV colour picker (preset grid + custom 2D SV rectangle + rainbow hue slider), advanced mode revealing Type / Diameter / Aspect 1+2 / temps / TD / weight unit, live RFID Data preview (debug only), 28-byte UTF-8 cap on the colour-name field, integer-only fields with live clamp (v1.4.11 + v1.4.12)
+- ✅ **TigerTag Cloud — 100 % digital filaments** — Add Product writes a doc with id `CLOUD_<10-digit>` and the new "TigerTag Cloud" tier badge (purple) when there's no physical chip yet. Promoted in place to a real 7-byte hex UID via the existing `uidMigrationMap` rename pipeline the moment the user programs a chip — every field, twin pointer, rack assignment and friend ACL follows the doc through the rename. Atomic, idempotent. Mobile companion ships the same label in the inventory bottom-sheet header AND the search index (v1.4.12)
 
 ### Multi-account & auth
 - ✅ Firebase auth with **per-account `firebase.app(uid)` instances** (independent sessions) (v1.4+)
