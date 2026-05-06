@@ -67,8 +67,6 @@
              Each chip switches the inventory view to that friend on click.
              Hidden when state.friends is empty. -->
         <div id="sbFriendsList" class="sb-friends-list hidden"></div>
-        <button id="btnOpenRacks" class="ghost"><span class="icon icon-package icon-13"></span><span class="label" data-i18n="racksTitle">Storage</span></button>
-        <button id="btnOpenSettings"><span class="icon icon-settings icon-13"></span><span class="label" data-i18n="settingsOpenBtn">Settings</span></button>
       </div>
     </div>
 
@@ -175,7 +173,9 @@
       </div>
       <!-- View selector lives on its OWN row below the search bar — gives
            the buttons more breathing room and stops them from being squeezed
-           when the user opens the brand/material/type dropdowns above. -->
+           when the user opens the brand/material/type dropdowns above. The
+           "Add product" button is right-aligned on the same row so all
+           inventory-level actions cluster on one line. -->
       <div class="inv-view-row">
         <div class="view-toggle">
           <button id="btnViewTable" class="active" data-i18n="btnViewTable">☰ Table</button>
@@ -183,6 +183,10 @@
           <button id="btnViewRack"><span class="icon icon-package icon-13"></span><span data-i18n="btnViewRack">Storage</span></button>
           <button id="btnViewPrinter"><span class="icon icon-printer icon-13"></span><span data-i18n="btnViewPrinter">Printers</span></button>
         </div>
+        <button id="btnAddProduct" class="inv-add-btn" type="button">
+          <span class="icon icon-plus icon-13"></span>
+          <span data-i18n="addProductBtn">Add product</span>
+        </button>
       </div>
       <div id="mainResult"></div>
       <div id="invEmpty" class="empty hidden"></div>
@@ -1448,6 +1452,403 @@
     </div>
   </div>
 </div>
+
+<!-- ── add product side panel — "TigerTag creator" ──
+     Slides in from the right (same pattern as the printer side panel).
+     Lets the user create a full inventory entry with the same fields a
+     real RFID chip would carry, so the doc can later be migrated 1:1
+     to a physical chip via uidMigrationMap. The doc id uses
+     `CLOUD_<HEX_TIMESTAMP>` until that migration happens — the
+     underscore makes it impossible to confuse with a real 7-byte hex
+     RFID UID. Auto-prefills nozzle/bed/dry temps from
+     id_material.recommended.* when Material changes. -->
+<div class="panel-overlay" id="addProductOverlay"></div>
+<aside class="detail-panel adp-panel" id="addProductPanel">
+  <div class="panel-header adp-head">
+    <div class="adp-head-text">
+      <div class="panel-title" data-i18n="addProductTitle">Add product</div>
+    </div>
+    <button class="modal-close" id="addProductClose" type="button" aria-label="Close">✕</button>
+  </div>
+
+  <div class="panel-body adp-body">
+
+    <!-- TigerTag RFID banner — same image asset as the mobile
+         "Create TigerTag" screen (`TigerTag_Banner.png`). Centred at
+         the top of the body so the visual anchor is iso between the
+         desktop side card and the mobile creator page. -->
+    <div class="adp-banner">
+      <img src="../assets/img/TigerTag_Banner.png" alt="TigerTag" class="adp-banner-logo" />
+    </div>
+
+    <!-- Top row — Select Color circle on the LEFT (with label above
+         and Dual Link toggle below) + identity stack (Brand / Material
+         / Aspect 1) on the RIGHT. 1:1 with the mobile creator screen. -->
+    <section class="adp-section adp-color-section">
+      <div class="adp-color-row">
+        <div class="adp-color-col">
+          <span class="adp-label adp-label--centered" data-i18n="addProductSelectColor">Select Color</span>
+          <button id="adpColorSquare" class="adp-color-circle" type="button" title=""></button>
+          <div class="adp-dual-link">
+            <span class="adp-label" data-i18n="addProductDualLink">Dual Link</span>
+            <button id="adpDualLinkToggle" type="button"
+                    class="adp-toggle" role="switch" aria-checked="false" data-on="false">
+              <span class="adp-toggle-knob"></span>
+            </button>
+          </div>
+        </div>
+        <div class="adp-identity-stack">
+          <label class="adp-row">
+            <span class="adp-label" data-i18n="addProductBrandLbl">Brand</span>
+            <!-- Visible trigger — same styling as the other selects.
+                 Opens the dedicated brand bottom-sheet (search + list
+                 with favourite stars). The hidden <select> still
+                 carries the value so the save path keeps working. -->
+            <button id="adpBrandTrigger" class="adp-select adp-trigger" type="button">
+              <span id="adpBrandLabel" class="adp-trigger-label">—</span>
+              <span class="adp-trigger-chev"></span>
+            </button>
+            <select id="adpBrand" class="adp-select" hidden></select>
+          </label>
+          <label class="adp-row">
+            <span class="adp-label" data-i18n="addProductMaterialLbl">Material</span>
+            <!-- Visible trigger — opens the dedicated material
+                 bottom-sheet (search + list with favourite stars).
+                 Hidden <select> still owns the canonical value so
+                 the save path is unchanged. -->
+            <button id="adpMaterialTrigger" class="adp-select adp-trigger" type="button">
+              <span id="adpMaterialLabel" class="adp-trigger-label">—</span>
+              <span class="adp-trigger-chev"></span>
+            </button>
+            <select id="adpMaterial" class="adp-select" hidden></select>
+          </label>
+          <label class="adp-row">
+            <span class="adp-label" data-i18n="addProductAspect1Lbl">Aspect 1</span>
+            <select id="adpAspect1" class="adp-select"></select>
+          </label>
+        </div>
+        <input id="adpColorHex" type="color" class="adp-color-native" value="#FF5722" />
+      </div>
+
+      <!-- Colour name — full-width row with inline ✕ clear button +
+           28-byte UTF-8 counter pill, just like the mobile mock. -->
+      <div class="adp-color-name-row">
+        <div class="adp-color-name-wrap">
+          <input id="adpColorName" type="text" class="adp-input adp-input--with-clear"
+                 data-i18n-placeholder="addProductColorNamePh"
+                 placeholder="Write a message…" />
+          <button id="adpColorNameClear" type="button"
+                  class="adp-input-clear" hidden aria-label="Clear">
+            <span class="icon icon-close icon-13"></span>
+          </button>
+        </div>
+        <div class="adp-byte-counter" id="adpColorNameBytes" data-byte-state="ok">
+          <span id="adpColorNameBytesUsed">0</span><span class="adp-byte-counter-sep">/</span><span class="adp-byte-counter-max">28</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Stat-card pair — Nozzle Temp + Drying. BASIC view = pure
+         display (decorative cards). The values come from
+         `material.recommended.*` and are sync'd to read-only spans
+         here. Editing happens in the Advanced section below where
+         every field is exposed as a real input. -->
+    <section class="adp-section adp-stats-row">
+      <div class="adp-stat-card">
+        <div class="adp-stat-head">
+          <span class="adp-stat-title" data-i18n="addProductNozzleTemp">Nozzle Temp.</span>
+          <span class="icon icon-local-fire icon-18 adp-stat-icon adp-stat-icon--hot"></span>
+        </div>
+        <div class="adp-stat-grid">
+          <div class="adp-stat-cell">
+            <span class="adp-stat-label" data-i18n="addProductNozzleMinShort">Min</span>
+            <span class="adp-stat-readout" id="adpNozzleMinDisplay">--°C</span>
+          </div>
+          <div class="adp-stat-cell">
+            <span class="adp-stat-label" data-i18n="addProductNozzleMaxShort">Max</span>
+            <span class="adp-stat-readout" id="adpNozzleMaxDisplay">--°C</span>
+          </div>
+        </div>
+      </div>
+      <div class="adp-stat-card">
+        <div class="adp-stat-head">
+          <span class="adp-stat-title" data-i18n="addProductDrying">Drying</span>
+          <span class="icon icon-water icon-18 adp-stat-icon adp-stat-icon--cool"></span>
+        </div>
+        <div class="adp-stat-grid">
+          <div class="adp-stat-cell">
+            <span class="adp-stat-label" data-i18n="addProductDryTempShort">Temp</span>
+            <span class="adp-stat-readout" id="adpDryTempDisplay">--°C</span>
+          </div>
+          <div class="adp-stat-cell">
+            <span class="adp-stat-label" data-i18n="addProductDryTimeShort">Time</span>
+            <span class="adp-stat-readout" id="adpDryTimeDisplay">--h</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Type dropdown (left) + Settings cog & Advanced toggle (right).
+         Cog flips an inner toggle to expose the advanced fields below. -->
+    <section class="adp-section adp-type-row">
+      <select id="adpType" class="adp-select adp-select--type"></select>
+      <div class="adp-type-aside">
+        <span class="icon icon-settings icon-16 adp-type-cog"></span>
+        <button id="adpAdvancedToggle" type="button"
+                class="adp-toggle" role="switch" aria-checked="false" data-on="false">
+          <span class="adp-toggle-knob"></span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Advanced section — revealed by the cog toggle above. Holds
+         Bed Temp, Aspect 2, Diameter, Weight, TD, and the read-only
+         RFID Data JSON preview block. -->
+    <section class="adp-advanced-body" id="adpAdvancedBody" hidden>
+
+      <!-- Type + Diameter -->
+      <div class="adp-grid-2">
+        <label class="adp-row">
+          <span class="adp-label" data-i18n="addProductTypeLbl">Type</span>
+          <select id="adpTypeAdv" class="adp-select"></select>
+        </label>
+        <label class="adp-row">
+          <span class="adp-label" data-i18n="addProductDiameterLbl">Diameter (mm)</span>
+          <select id="adpDiameter" class="adp-select"></select>
+        </label>
+      </div>
+
+      <!-- Aspect 1 + Aspect 2 -->
+      <div class="adp-grid-2">
+        <label class="adp-row">
+          <span class="adp-label" data-i18n="addProductAspect1Lbl">Aspect 1</span>
+          <select id="adpAspect1Adv" class="adp-select"></select>
+        </label>
+        <label class="adp-row">
+          <span class="adp-label" data-i18n="addProductAspect2Lbl">Aspect 2</span>
+          <select id="adpAspect2" class="adp-select"></select>
+        </label>
+      </div>
+
+      <!-- Weight (integer-only, required, max = 2^24-1 = 16,777,215
+           grams since the chip stores it in 3 bytes big-endian) +
+           Unit. No decimals, no commas, no negative — JS strips
+           anything that's not a digit AND clamps to `max` live. -->
+      <div class="adp-grid-2">
+        <label class="adp-row">
+          <span class="adp-label" data-i18n="addProductWeightLbl">Weight</span>
+          <input id="adpWeight" type="number" class="adp-input adp-int-only"
+                 value="1000" min="1" max="16777215" step="1"
+                 inputmode="numeric" required />
+        </label>
+        <label class="adp-row">
+          <span class="adp-label" data-i18n="addProductUnitLbl">Unit</span>
+          <select id="adpUnit" class="adp-select"></select>
+        </label>
+      </div>
+
+      <!-- Nozzle Temp Min + Max — int 0-500, required, live-clamped. -->
+      <div class="adp-grid-2">
+        <label class="adp-row">
+          <span class="adp-label" data-i18n="addProductNozzleMinLbl">Nozzle min (°C)</span>
+          <input id="adpNozzleMin" type="number" class="adp-input adp-int-only"
+                 min="0" max="500" step="1" inputmode="numeric" required />
+        </label>
+        <label class="adp-row">
+          <span class="adp-label" data-i18n="addProductNozzleMaxLbl">Nozzle max (°C)</span>
+          <input id="adpNozzleMax" type="number" class="adp-input adp-int-only"
+                 min="0" max="500" step="1" inputmode="numeric" required />
+        </label>
+      </div>
+
+      <!-- Bed Temp Min + Max — int 0-255 (1 byte upper bound). -->
+      <div class="adp-grid-2">
+        <label class="adp-row">
+          <span class="adp-label" data-i18n="addProductBedMinLbl">Bed min (°C)</span>
+          <input id="adpBedMin" type="number" class="adp-input adp-int-only"
+                 min="0" max="255" step="1" inputmode="numeric" required />
+        </label>
+        <label class="adp-row">
+          <span class="adp-label" data-i18n="addProductBedMaxLbl">Bed max (°C)</span>
+          <input id="adpBedMax" type="number" class="adp-input adp-int-only"
+                 min="0" max="255" step="1" inputmode="numeric" required />
+        </label>
+      </div>
+
+      <!-- Drying Temp 0-130, Time 0-14h. Same int-only / live-clamp
+           treatment so a typo can't push outside the chip range. -->
+      <div class="adp-grid-2">
+        <label class="adp-row">
+          <span class="adp-label" data-i18n="addProductDryTempLbl">Dry temp (°C)</span>
+          <input id="adpDryTemp" type="number" class="adp-input adp-int-only"
+                 min="0" max="130" step="1" inputmode="numeric" />
+        </label>
+        <label class="adp-row">
+          <span class="adp-label" data-i18n="addProductDryTimeLbl">Dry time (h)</span>
+          <input id="adpDryTime" type="number" class="adp-input adp-int-only"
+                 min="0" max="14" step="1" inputmode="numeric" />
+        </label>
+      </div>
+
+      <!-- TD (HueForge) — OPTIONAL decimal 0.1-100. Empty by default
+           and stays valid empty. Comma→dot conversion in JS;
+           type=text + inputmode=decimal lets the user type "0,5"
+           and we flip it silently. -->
+      <label class="adp-row adp-row--full">
+        <span class="adp-label" data-i18n="addProductTdLbl">TD (HueForge)</span>
+        <input id="adpTd" type="text" class="adp-input"
+               value="" placeholder="0.1 – 100" inputmode="decimal" />
+      </label>
+
+    </section>
+
+    <!-- RFID Data preview — DEBUG-ONLY collapsible block, sits OUTSIDE
+         the Advanced section so it stays visible whether advanced mode
+         is expanded or not. Mirrors the spool detail panel's "Raw JSON"
+         surface: a <details class="debug"> with the chevron summary,
+         the canonical dark `pre.json` theme, and a copy-JSON button.
+         The button is rendered AFTER the <summary> (not inside it) and
+         absolutely positioned at the top-right via .adp-rfid-copy so
+         a click on it can never bubble up to toggle the <details>.
+         Visibility is gated by `state.debugEnabled` at panel-open time
+         (inventory.js → openAddProductPanel). -->
+    <div class="panel-section adp-rfid-section" id="adpRfidSection" hidden>
+      <details class="debug adp-rfid-details" id="adpRfidDetails">
+        <summary>
+          <strong data-i18n="addProductRfidDataLbl">RFID Data</strong>
+        </summary>
+        <!-- No `max-height` cap — when the user expands the <details>
+             we show the full JSON inline. The Add Product panel's
+             body itself owns the vertical scroll, so a long preview
+             just makes the panel scroll, never gets clipped. -->
+        <pre class="json" id="adpRfidPreview" style="margin-top:10px;max-height:none;overflow:visible"></pre>
+      </details>
+      <button class="adp-rfid-copy" id="adpBtnCopyRfid" title="Copy JSON" type="button" aria-label="Copy JSON">
+        <span class="icon icon-copy icon-14"></span>
+      </button>
+    </div>
+
+    <!-- Hidden message field — kept on `adpMessage` for save-path
+         compatibility but no longer surfaced (the colour-name input
+         already plays the "write a message" role in the mobile UI). -->
+    <input id="adpMessage" type="hidden" value="" />
+
+    <div id="adpError" class="adp-error" hidden></div>
+  </div>
+
+  <div class="adp-foot">
+    <!-- No "Cancel" button — close affordances are: ✕ in the header,
+         backdrop click outside the panel, or Escape key. -->
+    <button class="adp-btn adp-btn--make" id="adpSave" type="button" data-i18n="addProductMake">Make</button>
+  </div>
+</aside>
+
+<!-- Add-product colour bottom-sheet — preset palette only, titleless
+     so the swatches dominate visually (mirrors the Snapmaker /
+     FlashForge filament-edit colour picker layout). Click on the
+     last "custom" cell opens a SECOND bottom-sheet with a dedicated
+     hex/picker UI rather than the OS dialog directly. -->
+<div class="sfe-backdrop" id="adpColorBackdrop"></div>
+<aside class="sfe-sheet sfe-sheet--color adp-color-sheet" id="adpColorSheet" aria-hidden="true">
+  <div class="sfe-body sfe-body--picker">
+    <div class="sfe-color-grid" id="adpColorGrid"></div>
+  </div>
+</aside>
+
+<!-- Add-product CUSTOM colour bottom-sheet — opens stacked above the
+     preset sheet when the user taps the eyedropper / custom slot.
+     Hosts a hex input + live-preview circle + system-picker trigger.
+     Keeping it as a dedicated sheet (vs spawning the OS dialog
+     directly) lets the user dial a precise hex without losing the
+     visual context of the colour they're configuring. -->
+<div class="sfe-backdrop" id="adpColorCustomBackdrop"></div>
+<aside class="sfe-sheet sfe-sheet--color adp-color-sheet adp-cc-sheet" id="adpColorCustomSheet" aria-hidden="true">
+  <div class="sfe-body adp-cc-body">
+
+    <!-- Hex input row — `#` glyph prefix on the left, raw 6-digit hex
+         in the middle, paste-from-clipboard button on the right. The
+         `#` is purely visual; the input value is the bare hex string. -->
+    <div class="adp-cc-hex-row">
+      <span class="adp-cc-hex-prefix" aria-hidden="true">#</span>
+      <input id="adpCcHex" type="text" class="adp-cc-hex-input"
+             placeholder="FF5722" maxlength="7"
+             autocomplete="off" spellcheck="false" autocapitalize="characters" />
+      <button id="adpCcPaste" type="button" class="adp-cc-hex-paste" title="Paste hex from clipboard" aria-label="Paste">
+        <span class="icon icon-copy icon-14"></span>
+      </button>
+    </div>
+
+    <!-- 2D saturation × value picker. The base layer is a horizontal
+         white→pure-hue gradient (live-set from the hue slider); the
+         second layer is a vertical transparent→black gradient so the
+         four corners read as white / pure hue / black / black. The
+         circular thumb sits at (S, 1−V) in normalised coords. -->
+    <div class="adp-cc-sv" id="adpCcSv">
+      <div class="adp-cc-sv-thumb" id="adpCcSvThumb"></div>
+    </div>
+
+    <!-- Bottom row — current colour preview circle (left) + horizontal
+         hue slider (right). The preview echoes the picker thumb live
+         so the user sees the colour landing as they drag. -->
+    <div class="adp-cc-bottom">
+      <button id="adpCcPreview" class="adp-cc-preview" type="button" title=""></button>
+      <div class="adp-cc-hue" id="adpCcHue">
+        <div class="adp-cc-hue-thumb" id="adpCcHueThumb"></div>
+      </div>
+    </div>
+
+    <!-- OK pill — commits the current colour to the panel and cascades
+         both sheets closed (mirrors the original Apply button). -->
+    <button id="adpCcApply" class="adp-cc-ok" type="button">OK</button>
+
+    <!-- Kept for backward compat — the OS native colour input is no
+         longer surfaced in the UI but the hidden node remains so any
+         external code that pokes #adpCcNative.value still works. -->
+    <input id="adpCcNative" type="color" class="adp-color-native" value="#FF5722" hidden />
+  </div>
+</aside>
+
+<!-- Add-product BRAND bottom-sheet — anthracite background, search
+     bar at top, scrollable list with a star toggle on each row.
+     Favourites get pinned to the top of the list and persist in
+     localStorage (`tigertag.adp.favoriteBrands`) across sessions.
+     Width syncs to the parent panel like the colour sheets do. -->
+<div class="sfe-backdrop" id="adpBrandBackdrop"></div>
+<aside class="sfe-sheet adp-color-sheet adp-brand-sheet" id="adpBrandSheet" aria-hidden="true">
+  <div class="adp-brand-search-row">
+    <div class="adp-brand-search-wrap">
+      <input id="adpBrandSearch" type="text" class="adp-brand-search-input"
+             data-i18n-placeholder="addProductBrandSearchPh"
+             placeholder="Search brands…" autocomplete="off" spellcheck="false" />
+      <button id="adpBrandSearchClear" type="button"
+              class="adp-brand-search-clear" hidden aria-label="Clear">
+        <span class="icon icon-close icon-13"></span>
+      </button>
+      <span class="icon icon-search icon-13 adp-brand-search-icon"></span>
+    </div>
+  </div>
+  <div id="adpBrandList" class="adp-brand-list"></div>
+</aside>
+
+<!-- Add-product MATERIAL bottom-sheet — iso to the Brand picker
+     above (anthracite, 90 vh, search row + list with star toggle,
+     favourites persisted in localStorage `tigertag.adp.favoriteMaterials`). -->
+<div class="sfe-backdrop" id="adpMaterialBackdrop"></div>
+<aside class="sfe-sheet adp-color-sheet adp-brand-sheet" id="adpMaterialSheet" aria-hidden="true">
+  <div class="adp-brand-search-row">
+    <div class="adp-brand-search-wrap">
+      <input id="adpMaterialSearch" type="text" class="adp-brand-search-input"
+             data-i18n-placeholder="addProductMaterialSearchPh"
+             placeholder="Search materials…" autocomplete="off" spellcheck="false" />
+      <button id="adpMaterialSearchClear" type="button"
+              class="adp-brand-search-clear" hidden aria-label="Clear">
+        <span class="icon icon-close icon-13"></span>
+      </button>
+      <span class="icon icon-search icon-13 adp-brand-search-icon"></span>
+    </div>
+  </div>
+  <div id="adpMaterialList" class="adp-brand-list"></div>
+</aside>
 
 <!-- display name setup — shown after first login when no pseudo is set -->
 <div class="modal-overlay" id="displayNameSetupOverlay">

@@ -1299,3 +1299,1345 @@
   }
   input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
   input.mono { font-family: var(--mono); letter-spacing: .04em; }
+
+  /* ── Add product side panel ────────────────────────────────────────
+     Slide-in side card matching the spool detail panel exactly (no
+     width override — inherits `.detail-panel { width: 300px }`). The
+     JS open path reads the user-persisted width from
+     `tigertag.panelWidth.detail` so the add panel always matches the
+     spool detail panel width the user is comfortable with.
+
+     Dark theme — mirrors the mobile companion app's TigerTag creator
+     screen: pure-black canvas, white labels, dark-grey input wells.
+     Local `--surface*` overrides scope the dark palette to this panel
+     only so the rest of the app's light theme stays untouched. */
+  .adp-panel {
+    --adp-bg:        #000;
+    /* Anthracite — slightly bluer than pure grey, mirrors the Flutter
+       "Create TigerTag maker" screen. Inputs sit on this fill, the
+       panel canvas is pure black behind. */
+    --adp-surface:   #1f242e;
+    --adp-surface-2: #2a313e;
+    /* Visible white border on every input/select — user feedback
+       called for inputs that read clearly against the black canvas. */
+    --adp-border:    rgba(255,255,255,.55);
+    --adp-border-soft: rgba(255,255,255,.10);
+    --adp-text:      #fff;
+    --adp-muted:     rgba(255,255,255,.78);
+    color: var(--adp-text);
+    /* Match the Flutter app's typography — Material 3 ships with
+       Roboto on Android, falls back to SF on iOS, both are inherited
+       through `system-ui` on the matching desktop OS. The explicit
+       Roboto / Inter fallbacks pick up on Linux distros that don't
+       map system-ui to Roboto by default. */
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text",
+                 "Roboto", "Inter", "Segoe UI", system-ui, sans-serif;
+    /* Default weight bumped to 700 — every label, value, and section
+       title in this panel reads as bold per user request. Specific
+       overrides (e.g. the byte counter mono digits at 600) sit
+       below this rule and win on element specificity. */
+    font-weight: 700;
+    -webkit-font-smoothing: antialiased;
+  }
+  /* Cascade — every text-bearing descendant of the panel inherits the
+     bold weight unless it specifies otherwise. */
+  .adp-panel,
+  .adp-panel input,
+  .adp-panel select,
+  .adp-panel button,
+  .adp-panel option,
+  .adp-panel label,
+  .adp-panel .panel-title,
+  .adp-panel .adp-label,
+  .adp-panel .adp-section-title,
+  .adp-panel .adp-stat-title,
+  .adp-panel .adp-stat-label,
+  .adp-panel .adp-banner-tag {
+    font-weight: 700;
+  }
+  /* The big stat value (190 / 240 / 50 / 8) — extra heavy so the
+     numbers dominate visually like in the Flutter screen. */
+  .adp-panel .adp-stat-input {
+    font-weight: 800;
+    letter-spacing: -.01em;
+  }
+  /* Use the doubled selector to outrank `.detail-panel { background:
+     var(--surface) }` from 70-detail-misc.css — the loose `.adp-panel`
+     selector loses the cascade race because 70-* loads after 60-*.
+     Two classes + the same file order is enough specificity to pin
+     the background to pure black like the Flutter creator screen. */
+  .adp-panel.detail-panel {
+    background: var(--adp-bg);
+    border-color: rgba(255,255,255,.06);
+  }
+  .adp-panel.detail-panel .panel-body { background: var(--adp-bg); }
+  .adp-panel .panel-header {
+    border-bottom-color: var(--adp-border-soft);
+  }
+  .adp-panel .panel-title { color: var(--adp-text); }
+  .adp-panel .modal-close {
+    color: var(--adp-muted);
+    background: transparent;
+  }
+  .adp-panel .modal-close:hover { color: var(--adp-text); }
+
+  .adp-head {
+    /* Override the default flex-center alignment so the multi-line
+       title + sub stack correctly to the left of the close button. */
+    align-items: flex-start !important;
+  }
+  .adp-head-text { flex: 1; min-width: 0; }
+  .adp-head-sub {
+    margin-top: 3px;
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.4;
+  }
+  /* Side padding token — change `--adp-side-padding` in one place to
+     tighten / loosen ALL of header, body, footer at once. Doubled
+     class selectors (`.adp-panel .panel-body.adp-body`) outrank the
+     global `.panel-body { padding: 0 0 24px }` in 70-detail-misc.css
+     which used to win the cascade race and zero out the side padding. */
+  .adp-panel { --adp-side-padding: 22px; }
+
+  .adp-panel .panel-body.adp-body {
+    padding: 8px var(--adp-side-padding) 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .adp-panel .panel-header {
+    padding: 14px var(--adp-side-padding);
+  }
+  .adp-panel .adp-foot {
+    padding: 12px var(--adp-side-padding) 18px;
+  }
+
+  /* TigerTag RFID banner — same PNG asset as the Flutter creator
+     screen (`TigerTag_Banner.png`). The image already has its own
+     colour palette + subtitle baked in, so no filter / pill needed.
+     Zero padding/margin so the logo hugs the panel edges and the
+     header divider directly. */
+  .adp-banner {
+    display: flex;
+    justify-content: center;
+    margin: 0;
+    padding: 0;
+  }
+  .adp-banner-logo {
+    width: 100%;
+    max-width: 260px;
+    height: auto;
+    display: block;
+    margin: 0;
+  }
+
+  /* Color row — mobile layout: circle + 2 stacks. The colour column
+     adds a "Select Color" label above and a Dual Link toggle below. */
+  .adp-color-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .adp-label--centered { text-align: center; }
+  .adp-dual-link {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding-top: 4px;
+  }
+
+  /* Pill toggle — same visual as the mobile cupertino-style switch. */
+  .adp-toggle {
+    width: 40px; height: 22px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.18);
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    position: relative;
+    transition: background .15s;
+  }
+  .adp-toggle[data-on="true"] { background: #34c759; }
+  .adp-toggle-knob {
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,.4);
+    transition: left .15s;
+  }
+  .adp-toggle[data-on="true"] .adp-toggle-knob { left: 20px; }
+  .adp-section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .adp-section-title {
+    margin: 0;
+    /* Same size / weight / colour as the stat-card titles ("Nozzle
+       Temp." / "Drying") so every visible LABEL across the panel
+       has one consistent visual rank. No uppercase — match the
+       title-case of the stat titles exactly. */
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--adp-text);
+  }
+  .adp-grid-2 {
+    display: grid;
+    /* auto-fit collapses to a single column at narrow widths so the
+       form stays readable when the panel inherits the default 300px
+       spool-detail width. Falls back to 2-col cleanly past ~340px. */
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px 12px;
+  }
+  .adp-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+  .adp-row--full { grid-column: 1 / -1; }
+  .adp-label {
+    /* Aligned to "Nozzle Temp." style: 13px / 700 / white, no
+       uppercase. All field labels (Brand / Material / Aspect 1 /
+       Type / Diameter / Weight / TD / Min / Max / Temp / Time /
+       Select Color / Dual Link) share this single visual rank. */
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--adp-text);
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  /* Dark-theme inputs — scoped to .adp-panel via parent selector so
+     the global form styling stays untouched. Pure-white 1.5 px
+     contour — every identity picker (Brand / Material / Aspect 1 /
+     Type / Diameter selects + the colour-name input) shares the
+     exact same stroke weight, matching the mobile creator screen. */
+  .adp-panel .adp-select,
+  .adp-panel .adp-input {
+    width: 100%;
+    height: 36px;
+    padding: 0 10px;
+    border: 1.5px solid #fff;
+    border-radius: 10px;
+    background: var(--adp-surface);
+    color: var(--adp-text);
+    font-size: 13px;
+    font-family: inherit;
+    box-sizing: border-box;
+    transition: border-color .12s, box-shadow .12s, background .12s;
+  }
+  .adp-panel .adp-select:focus,
+  .adp-panel .adp-input:focus {
+    outline: none;
+    border-color: #fff;
+    background: var(--adp-surface-2);
+    box-shadow: 0 0 0 3px rgba(255,255,255,.12);
+  }
+  /* Native <select> dropdown arrow — replaced with the SAME solid
+     downward triangle the Brand trigger button uses, so every
+     identity picker (Brand button + Material/Type/Aspect/Diameter
+     selects) shares one visual chrome. Inline SVG via data-URI keeps
+     the hit count zero. */
+  .adp-panel .adp-select {
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 5'><path d='M0 0l4 5 4-5z' fill='rgba(255,255,255,0.6)'/></svg>");
+    background-position: right 12px center;
+    background-size: 8px 5px;
+    background-repeat: no-repeat;
+    padding-right: 28px;
+  }
+  /* Drop-down options keep the OS theme — but force readable colours
+     for browsers that respect `option { color }` (Chromium does). */
+  .adp-panel .adp-select option {
+    background: var(--adp-surface);
+    color: var(--adp-text);
+  }
+
+  /* Top row — round swatch on left, identity stack on right.
+     `align-items: stretch` so the stack fills the row's vertical
+     extent; the swatch stays centred via its own `align-self: center`. */
+  .adp-color-row {
+    display: flex;
+    align-items: stretch;
+    gap: 14px;
+  }
+  .adp-color-row > .adp-color-circle { align-self: center; }
+  .adp-identity-stack {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  /* Round colour swatch with a thick white ring — replaces the
+     previous rounded-square. The white border reads on the dark
+     canvas as the colour's "frame", drawing the eye to the swatch.
+     Sized to match the mobile creator screen (was 64px, now 128 —
+     2× upscale). The box-shadow doubles too so the lift / drop
+     stays in proportion. */
+  .adp-color-circle {
+    /* Slightly smaller than 128 — feels more proportional to the
+       three identity selects on its right at this panel width. */
+    width: 104px; height: 104px;
+    border-radius: 50%;
+    /* Thinner ring so the colour reads as the focus, not the border. */
+    border: 2px solid #fff;
+    background: #FF5722;
+    cursor: pointer;
+    padding: 0;
+    flex-shrink: 0;
+    box-shadow: 0 0 0 1px rgba(255,255,255,.12) inset,
+                0 6px 22px rgba(0,0,0,.38);
+    transition: transform .1s, box-shadow .15s;
+  }
+  .adp-color-circle:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 0 0 1px rgba(255,255,255,.20) inset,
+                0 10px 30px rgba(0,0,0,.48);
+  }
+  .adp-color-circle:active { transform: translateY(0); }
+  /* Colour-name row — full width below the colour/identity row.
+     The 28-byte counter sits to the right of the input, vertically
+     centred on the input itself (so it reads as part of the field). */
+  .adp-color-name-row {
+    margin-top: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .adp-color-name-wrap {
+    flex: 1;
+    min-width: 0;
+    position: relative;
+  }
+  .adp-color-name-row .adp-input { flex: 1; min-width: 0; }
+  /* Reserve room for the inline ✕ clear button on the right. */
+  .adp-input--with-clear { padding-right: 38px !important; }
+  /* Doubled selector to outrank the global `input[type="text"]`
+     specificity (0,1,1). Height bumped to ~46 px so the field has
+     the same visual weight as the mobile creator screen (was 36 px
+     and looked squashed). Border width matches the identity selects
+     above (1.5 px white) so every "input you can type / pick into"
+     reads as one consistent surface family. */
+  .adp-panel .adp-color-name-wrap .adp-input--with-clear {
+    border: 1.5px solid #fff;
+    border-radius: 16px;
+    height: 46px;
+    font-size: 14px;
+  }
+  .adp-panel .adp-color-name-wrap .adp-input--with-clear:focus {
+    border-color: #fff;
+    box-shadow: 0 0 0 3px rgba(255,255,255,.12);
+  }
+  /* Re-position the inline ✕ clear button so it stays vertically
+     centred inside the now-taller field. */
+  .adp-color-name-wrap .adp-input-clear {
+    width: 28px;
+    height: 28px;
+  }
+  .adp-input-clear {
+    position: absolute;
+    right: 6px; top: 50%;
+    transform: translateY(-50%);
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.10);
+    border: none;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background .12s;
+  }
+  .adp-input-clear:hover { background: rgba(255,255,255,.20); }
+  .adp-input-clear .icon { background: #fff; }
+  .adp-input-clear[hidden] { display: none; }
+
+  /* Byte counter — visually hidden per user request. The 28-byte
+     truncation logic in the input handler still runs, so paste /
+     typing past the cap is silently capped without showing the pill.
+     Kept in the markup so re-enabling is just `display: flex` here. */
+  .adp-byte-counter {
+    display: none;
+    flex-shrink: 0;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--adp-muted);
+    letter-spacing: .04em;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: var(--adp-surface);
+    border: 1px solid var(--adp-border);
+    transition: color .12s, border-color .12s, background .12s;
+  }
+  .adp-byte-counter[data-byte-state="warn"] {
+    color: #ffb45b;
+    border-color: rgba(255,180,91,.35);
+    background: rgba(255,180,91,.08);
+  }
+  .adp-byte-counter[data-byte-state="full"] {
+    color: #ef4444;
+    border-color: rgba(239,68,68,.45);
+    background: rgba(239,68,68,.10);
+  }
+  .adp-byte-counter-sep { opacity: .5; margin: 0 1px; }
+  .adp-byte-counter-max { opacity: .65; }
+
+  .adp-color-hex {
+    margin-top: 6px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--adp-muted);
+    letter-spacing: .04em;
+  }
+  /* Native <input type="color"> kept off-screen — we drive it from
+     the swatch click handler so users see only the styled circle. */
+  .adp-color-native {
+    position: absolute;
+    width: 1px; height: 1px;
+    opacity: 0; pointer-events: none;
+  }
+
+  /* Mono palette grid — 24 presets plus a custom slot at the end
+     (eyedropper icon → opens native colour picker). 5 columns wide,
+     responsive cell size. */
+  .adp-color-presets {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 6px;
+  }
+  .adp-color-swatch {
+    aspect-ratio: 1 / 1;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    padding: 0;
+    transition: transform .1s, box-shadow .1s;
+    position: relative;
+  }
+  .adp-color-swatch:hover  { transform: scale(1.08); }
+  .adp-color-swatch.is-selected {
+    box-shadow: 0 0 0 2px var(--primary), 0 0 0 4px var(--surface);
+    border-color: var(--primary);
+  }
+  .adp-color-swatch--custom {
+    background: var(--surface-2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .adp-color-swatch--custom .icon {
+    background: var(--muted);
+    width: 14px; height: 14px;
+  }
+
+  /* Advanced toggle — collapsible block bridging the basic form and
+     the RFID data preview. Header is a button row with chevron that
+     rotates 90° when open (same pattern as .pp-section--collapsible). */
+  .adp-advanced-section {
+    border-top: 1px solid var(--adp-border-soft);
+    padding-top: 14px;
+  }
+  .adp-advanced-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 6px 0;
+    background: transparent;
+    border: none;
+    color: var(--adp-text);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: left;
+  }
+  .adp-advanced-head .icon { background: var(--adp-muted); }
+  .adp-advanced-title { flex: 1; }
+  .adp-advanced-chev {
+    transition: transform .15s;
+    background: var(--adp-muted);
+  }
+  .adp-advanced-head[data-collapsed="false"] .adp-advanced-chev {
+    transform: rotate(90deg);
+  }
+  .adp-advanced-body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-top: 10px;
+  }
+
+  /* RFID Data preview — DEBUG ONLY. Now uses the canonical
+     `<details class="debug">` pattern from the spool detail panel
+     (cf. inventory.js → `state.debugEnabled` block + 70-detail-misc.css
+     `details.debug summary`). The container `.adp-rfid-section`
+     gets `[hidden]` toggled at panel-open time so the whole block
+     vanishes for non-debug users.
+     The copy-JSON button is rendered as a SIBLING of the <details>
+     (not inside the <summary>) and absolutely positioned in the
+     top-right corner — that way clicking it can never bubble up to
+     toggle the <details> open/closed. */
+  .adp-rfid-section {
+    position: relative;
+    margin-top: 12px;
+  }
+  .adp-rfid-section .adp-rfid-copy {
+    position: absolute;
+    top: -2px;
+    right: 0;
+    z-index: 2;
+    appearance: none;
+    background: transparent;
+    border: 0;
+    padding: 4px;
+    border-radius: 6px;
+    color: #fff;                      /* propagates to .icon via currentColor */
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background .12s, transform .12s;
+  }
+  .adp-rfid-section .adp-rfid-copy:hover  { background: rgba(255,255,255,.10); }
+  .adp-rfid-section .adp-rfid-copy:active { background: rgba(255,255,255,.18); transform: scale(.96); }
+  /* `.copied` flash — JS toggles this for ~1.8 s after a successful
+     clipboard write. Tints the icon green to confirm without needing
+     a toast. */
+  .adp-rfid-section .adp-rfid-copy.copied { color: #4ade80; }
+
+  /* Add-product colour sheets — width syncs to the parent side panel
+     so the two surfaces feel like one. Backdrop click closes them
+     (no ✕ button) and there's no grip handle either — same minimal
+     look as the mobile creator screen.
+
+     Width is set inline at open time via JS (matches the same value
+     used for `#addProductPanel`), so nothing is hardcoded here. The
+     width override below is a safety floor in case JS doesn't run. */
+  .sfe-sheet.adp-color-sheet {
+    width: 300px;          /* matches .detail-panel default */
+    max-width: 95vw;
+    /* Round all 4 corners since the sheet now has more room around
+       it on the right edge of the screen — looks like a card, not
+       a wedge. */
+    border-radius: 18px 18px 14px 14px;
+  }
+  .sfe-sheet.adp-color-sheet .sfe-grip { display: none; }
+  .sfe-sheet.adp-color-sheet .sfe-body { padding: 16px; }
+
+  /* Anthracite canvas for the colour PRESET + CUSTOM sheets only —
+     scoped via `.sfe-sheet--color.adp-color-sheet` so it never bleeds
+     into the Snapmaker / FlashForge filament-edit colour sheets that
+     also use `.sfe-sheet--color`. The brand / material sheets carry
+     `.adp-brand-sheet` instead, so they keep their own background. */
+  .sfe-sheet--color.adp-color-sheet {
+    background: #1f242e;            /* matches the brand sheet + adp inputs */
+    color: #fff;
+    border-color: rgba(255,255,255,.08);
+  }
+  /* Preset swatches — solid 1 px black ring so every colour reads
+     crisply against the anthracite canvas (the 8 % inset ring used
+     elsewhere disappears on dark backgrounds). The selected ring
+     keeps its primary-coloured outer halo on top of the black border. */
+  .sfe-sheet--color.adp-color-sheet .sfe-color-cell {
+    box-shadow: 0 0 0 1px #000;
+  }
+  .sfe-sheet--color.adp-color-sheet .sfe-color-cell.is-selected {
+    box-shadow: 0 0 0 1px #000, 0 0 0 3px var(--primary);
+  }
+  /* Custom slot — last cell of the grid. JS paints its background to
+     the currently-selected hex so the user can see at a glance which
+     colour the picker will open on. The edit pencil sits on top with
+     a drop-shadow halo so it stays legible on any colour. */
+  .sfe-sheet--color.adp-color-sheet .sfe-color-cell--custom .icon {
+    background: #fff;
+    width: 18px; height: 18px;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,.55))
+            drop-shadow(0 0 1px rgba(0,0,0,.6));
+  }
+
+  /* Add-product sheet backdrops — limited to the panel area (right
+     slice), NOT the full screen. The "outside the panel" region keeps
+     the panel-overlay's normal dim, and a click there cascades both
+     the sheet AND the panel close. Width is set inline by JS to
+     match the panel; the CSS values below are the fallback. */
+  #adpColorBackdrop,
+  #adpColorCustomBackdrop,
+  #adpBrandBackdrop,
+  #adpMaterialBackdrop {
+    /* Anchor to the right edge — same docking as the sheet itself. */
+    left: auto;
+    right: 0;
+    width: 300px;
+    max-width: 95vw;
+    /* Slightly lighter dim than the global .sfe-backdrop (.4) since
+       it's already on top of the panel-overlay's .3 — stacking the
+       two at full opacity is too dark. */
+    background: rgba(0,0,0,.25);
+  }
+
+  /* Trigger buttons — visually iso to .adp-select but click opens a
+     bottom sheet instead of the OS native dropdown. The hidden
+     <select> beside each trigger still owns the canonical value so
+     the save path keeps working unchanged. */
+  .adp-panel .adp-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    text-align: left;
+    cursor: pointer;
+    /* Strip the native button defaults that compete with the styled
+       look inherited from .adp-select. */
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: none;
+  }
+  .adp-trigger-label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .adp-trigger-chev {
+    width: 0; height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid rgba(255,255,255,.6);
+    flex-shrink: 0;
+  }
+
+  /* Brand bottom-sheet — anthracite canvas, 90 vh tall, search at
+     the top, scrollable list of rows below. Inherits the
+     .adp-color-sheet rule for width (synced to panel) + corners. */
+  .adp-brand-sheet {
+    height: 90vh;
+    max-height: 90vh;
+    background: #1f242e;          /* anthracite, matches input wells */
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text",
+                 "Roboto", "Inter", "Segoe UI", system-ui, sans-serif;
+  }
+  /* Search row — pinned at top, anchored above the scroll container. */
+  .adp-brand-search-row {
+    flex-shrink: 0;
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+  }
+  .adp-brand-search-wrap {
+    position: relative;
+    width: 100%;
+  }
+  /* Doubled selector (`.adp-brand-sheet .adp-brand-search-input`)
+     bumps specificity to (0,2,0) so we outrank the global
+     `input[type="text"]` rule (0,1,1) at the bottom of this file
+     which was forcing the input back to the light theme on blur
+     (white bg + dark text). */
+  .adp-brand-sheet .adp-brand-search-input {
+    width: 100%;
+    height: 36px;
+    border: 1px solid rgba(255,255,255,.18);
+    border-radius: 10px;
+    /* Lighter grey than the anthracite sheet so the field reads as
+       a distinct surface — pops out against the #1f242e canvas. */
+    background: #3a4051;
+    color: #fff;
+    /* Same rank as "Nozzle Temp." — 13 px / 700, white when typed.
+       Placeholder stays at the lighter `rgba(255,255,255,.4)` set
+       just below so the empty-state hint remains soft. */
+    font-size: 13px;
+    font-weight: 700;
+    /* Right padding accommodates the clear ✕ + the loupe inside the
+       input, matching the main inventory search pattern. */
+    padding: 0 64px 0 12px;
+    box-sizing: border-box;
+    font-family: inherit;
+  }
+  .adp-brand-sheet .adp-brand-search-input:focus {
+    outline: none;
+    border-color: rgba(255,255,255,.55);
+    background: #444a5c;
+    color: #fff;
+    box-shadow: 0 0 0 3px rgba(255,255,255,.08);
+  }
+  .adp-brand-sheet .adp-brand-search-input::placeholder {
+    color: rgba(255,255,255,.4);
+  }
+  /* Loupe icon — anchored at the right edge inside the input. */
+  .adp-brand-search-icon {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(255,255,255,.55);
+    pointer-events: none;
+  }
+  /* Clear ✕ — sits to the LEFT of the loupe, visible only when the
+     input has a value (renderer toggles `hidden` attr). Mirrors the
+     main inventory search bar's UX. */
+  .adp-brand-search-clear {
+    position: absolute;
+    right: 36px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255,255,255,.18);
+    color: rgba(255,255,255,.85);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background .12s, color .12s, transform .1s;
+  }
+  .adp-brand-search-clear:hover { background: rgba(255,255,255,.30); color: #fff; }
+  .adp-brand-search-clear:active { transform: translateY(-50%) scale(.92); }
+  .adp-brand-search-clear[hidden] { display: none; }
+  .adp-brand-search-clear .icon { background: currentColor; }
+
+  /* Scrollable brand list — extra left padding so rows don't hug the
+     edge. Each row reads as a "card" on the anthracite sheet via the
+     grey fill (matches the search input above for visual continuity). */
+  .adp-brand-list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 6px 14px 12px;          /* + horizontal breathing room */
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .adp-brand-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 14px 10px 18px;     /* extra left for breathing */
+    /* Grey fill iso to the search input — rows feel like part of the
+       same surface family rather than floating on the dark sheet. */
+    background: #3a4051;
+    border: none;
+    border-radius: 10px;
+    color: #fff;                      /* always white text */
+    font-size: 14px;
+    font-weight: 700;
+    text-align: left;
+    cursor: pointer;
+    transition: background .12s, transform .08s;
+  }
+  .adp-brand-row:hover {
+    background: #444a5c;              /* same focus tone as the input */
+  }
+  .adp-brand-row:active { transform: scale(.99); }
+  /* Selected (current) brand — primary stripe on the left + slightly
+     brighter fill so it pops out of the otherwise uniform list. */
+  .adp-brand-row.is-active {
+    background: #4a5165;
+  }
+  .adp-brand-row.is-active::before {
+    content: "";
+    width: 3px; height: 20px;
+    background: var(--primary);
+    border-radius: 2px;
+    margin-left: -8px;
+    margin-right: 8px;
+    flex-shrink: 0;
+  }
+  .adp-brand-row-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #fff;                      /* explicit — defeats any inheritance */
+  }
+  /* Star toggle — outline by default, filled gold when favourited.
+     Click is a no-op for the row selection (event.stopPropagation in JS).
+     Sized to ~2× the original so the star reads as a real interactive
+     anchor on the right side of each row. */
+  .adp-brand-star {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: transparent;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255,255,255,.35);
+    transition: background .12s, color .12s, transform .08s;
+    flex-shrink: 0;
+  }
+  .adp-brand-star:hover { background: rgba(255,255,255,.10); color: rgba(255,255,255,.65); }
+  .adp-brand-star:active { transform: scale(.92); }
+  .adp-brand-star .icon { background: currentColor; }
+  /* Force the icon up to ~24-26px regardless of which `.icon-NN` size
+     class the JS rendered (we ship `icon-14` on the inner span — the
+     containing star is now bigger so we override the size). */
+  .adp-brand-star .icon {
+    width: 26px;
+    height: 26px;
+  }
+  .adp-brand-star.is-fav { color: #ffc400; }
+  .adp-brand-star.is-fav:hover { background: rgba(255,196,0,.12); }
+
+  /* Section divider between favourites and the rest of the list. */
+  .adp-brand-section-label {
+    padding: 8px 16px 4px;
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: rgba(255,255,255,.45);
+  }
+  .adp-brand-empty {
+    padding: 20px 16px;
+    text-align: center;
+    color: rgba(255,255,255,.5);
+    font-size: 13px;
+  }
+
+  /* ── Custom-colour bottom-sheet (HSV picker) ──
+     Mirrors the mobile app's create-TigerTag color picker:
+       1. Hex input row with a "#" prefix glyph and a paste icon
+       2. Big saturation × value rectangle with a circular thumb
+       3. Bottom row — current-colour circle on the left, horizontal
+          rainbow hue slider on the right
+       4. White pill OK button
+     Everything sits on the anthracite canvas (#1f242e) inherited from
+     `.sfe-sheet--color.adp-color-sheet` (cf. block above). */
+  .adp-cc-body {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+    padding: 14px 16px 18px;
+  }
+
+  /* Hex input row — bare on the anthracite canvas (no card / border /
+     radius). Half-width and centered so it reads as a compact display
+     rather than a form field. The `#` glyph and paste icon sit
+     ABSOLUTELY inside the input's padding zone (left and right
+     respectively), so the hex digits float centered between them. */
+  .adp-cc-hex-row {
+    position: relative;
+    width: 50%;
+    align-self: center;
+    padding: 4px 0;
+    background: transparent;
+    border: 0;
+  }
+  .adp-cc-hex-row .adp-cc-hex-prefix {
+    position: absolute;
+    left: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  .adp-cc-hex-row .adp-cc-hex-paste {
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  .adp-cc-hex-prefix {
+    /* Fully transparent — the anthracite painted by the input behind
+       us is contiguous, so adding our own background here would
+       create visible seams from sub-pixel mis-alignment. Only the
+       glyph itself (white on the input's anthracite) reads. */
+    background: transparent;
+    color: #fff;
+    font-size: 18px;
+    font-weight: 600;
+    line-height: 1;
+    user-select: none;
+    /* Slight optical adjustment so the # baseline aligns with the
+       hex value, which is rendered in a heavier weight. */
+    margin-top: 1px;
+    padding: 0;
+  }
+  /* Doubled selector (`.adp-cc-sheet .adp-cc-hex-input`, specificity
+     0,2,0) so we outrank the global `input[type="text"]` rule
+     (0,1,1) at the top of this file that otherwise paints a white
+     fill, a border, a 40 px height, and a rounded corner — which
+     made the field render as a white pill with the # / copy icons
+     invisible against it. Same trick used for `.adp-color-name-wrap
+     .adp-input--with-clear` further down — see CLAUDE.md "Class-only
+     selectors losing to global element+attribute selectors". */
+  .adp-cc-sheet .adp-cc-hex-input {
+    width: 100%;
+    min-width: 0;
+    /* Anthracite — matches the bottom-sheet canvas. Setting it
+       explicitly (rather than relying on `transparent`) defends
+       against the browser's default white fill and Chromium's
+       yellow autofill tint. */
+    background: transparent;
+    border: 0;
+    outline: 0;
+    border-radius: 0;
+    height: auto;
+    /* Symmetric padding (matches the absolute-positioned `#` and paste
+       icon widths) so the centered hex text floats visually between
+       them rather than colliding with either side. */
+    padding: 0 26px;
+    color: #fff;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    text-align: center;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    /* Caret colour — matches the white text. Without this Chromium
+       defaults to a black caret that disappears against the dark fill. */
+    caret-color: #fff;
+    box-shadow: none;
+  }
+  /* Focus override — kills the global `input:focus` rule (primary
+     border + glow halo) so the field keeps its borderless look when
+     the caret lands inside. */
+  .adp-cc-sheet .adp-cc-hex-input:focus {
+    border: 0;
+    outline: 0;
+    box-shadow: none;
+  }
+  /* Autofill override — Chromium forces a pale-yellow background on
+     auto-completed fields. Push it back to anthracite + white text by
+     freezing a thick inset shadow and `-webkit-text-fill-color`. */
+  .adp-cc-sheet .adp-cc-hex-input:-webkit-autofill,
+  .adp-cc-sheet .adp-cc-hex-input:-webkit-autofill:hover,
+  .adp-cc-sheet .adp-cc-hex-input:-webkit-autofill:focus {
+    -webkit-text-fill-color: #fff;
+    -webkit-box-shadow: 0 0 0 1000px #1f242e inset;
+    box-shadow: 0 0 0 1000px #1f242e inset;
+    caret-color: #fff;
+  }
+  .adp-cc-hex-input::placeholder { color: rgba(255,255,255,.35); }
+  .adp-cc-hex-paste {
+    appearance: none;
+    /* Fully transparent — same logic as the # prefix: the input
+       behind us paints anthracite contiguously across the row, so
+       any explicit background here creates visible seams. Hover /
+       active use a translucent white overlay to advertise
+       interactivity without introducing hard fill edges. */
+    background: transparent;
+    border: 0;
+    color: #fff;
+    cursor: pointer;
+    padding: 2px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background .12s;
+  }
+  .adp-cc-hex-paste:hover  { background: rgba(255,255,255,.10); }
+  .adp-cc-hex-paste:active { background: rgba(255,255,255,.18); }
+
+  /* Saturation × value rectangle. Two stacked gradients: horizontal
+     white→hue (the hue is set inline via JS as `--cc-hue`) and
+     vertical transparent→black on top. The circular thumb sits at
+     normalised (S, 1-V), styled white with a 2 px ring so it stays
+     visible on any underlying colour. */
+  .adp-cc-sv {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 5 / 4;
+    border-radius: 8px;
+    overflow: hidden;
+    background:
+      linear-gradient(to top,    #000, transparent),
+      linear-gradient(to right,  #fff, hsl(var(--cc-hue, 0), 100%, 50%));
+    cursor: crosshair;
+    touch-action: none;             /* let pointermove drive drag on mobile */
+    user-select: none;
+  }
+  .adp-cc-sv-thumb {
+    position: absolute;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 1px rgba(0,0,0,.55), 0 1px 4px rgba(0,0,0,.4);
+    background: transparent;
+    transform: translate(-50%, -50%);
+    pointer-events: none;          /* the parent owns drag events */
+    top: 0; left: 100%;             /* JS overrides at open time */
+  }
+
+  /* Bottom row — current-colour circle (purely a preview) and the
+     horizontal hue slider that drives the SV rectangle's base hue. */
+  .adp-cc-bottom {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-top: 2px;
+  }
+  .adp-cc-preview {
+    flex-shrink: 0;
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    border: 0;
+    background: #FF5722;
+    cursor: default;
+    padding: 0;
+    box-shadow: 0 0 0 1px rgba(255,255,255,.25) inset,
+                0 2px 6px rgba(0,0,0,.4);
+  }
+  .adp-cc-hue {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    height: 14px;
+    border-radius: 999px;
+    background: linear-gradient(to right,
+      #ff0000 0%, #ffff00 16.66%, #00ff00 33.33%,
+      #00ffff 50%,  #0000ff 66.66%, #ff00ff 83.33%, #ff0000 100%);
+    cursor: pointer;
+    touch-action: none;
+    user-select: none;
+  }
+  .adp-cc-hue-thumb {
+    position: absolute;
+    top: 50%;
+    left: 0;                        /* JS overrides at open time */
+    transform: translate(-50%, -50%);
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    border: 3px solid #fff;
+    box-shadow: 0 0 0 1px rgba(0,0,0,.55), 0 1px 4px rgba(0,0,0,.4);
+    background: var(--cc-hue-thumb, #f00);
+    pointer-events: none;
+  }
+
+  /* OK pill — white background, dark text, centered in the sheet.
+     Matches the screenshot's CTA. */
+  .adp-cc-ok {
+    align-self: center;
+    appearance: none;
+    background: #fff;
+    color: #2c2540;
+    border: 0;
+    border-radius: 999px;
+    padding: 12px 44px;
+    margin-top: 6px;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(0,0,0,.35);
+    transition: transform .12s, box-shadow .12s;
+  }
+  .adp-cc-ok:hover  { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(0,0,0,.45); background: #fff; }
+  .adp-cc-ok:active { transform: translateY(0); box-shadow: 0 2px 8px rgba(0,0,0,.35); }
+
+  .adp-error {
+    margin: 4px 0 0;
+    padding: 8px 12px;
+    background: rgba(239, 68, 68, .12);
+    color: var(--danger, #ef4444);
+    border: 1px solid rgba(239, 68, 68, .25);
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  /* Footer — pinned at the bottom of the panel, the Make button
+     sits centered and stretches comfortably so it reads as the
+     primary CTA of the whole panel. */
+  .adp-foot {
+    padding: 12px 20px 16px;
+    border-top: 1px solid var(--adp-border-soft);
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    flex-shrink: 0;
+    background: var(--adp-bg);
+  }
+  .adp-btn {
+    height: 36px;
+    padding: 0 18px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: background .12s, color .12s, border-color .12s, filter .12s;
+  }
+  .adp-btn--ghost {
+    background: transparent;
+    color: var(--adp-muted);
+    border-color: var(--adp-border-soft);
+  }
+  .adp-btn--ghost:hover {
+    background: var(--adp-surface);
+    color: var(--adp-text);
+    border-color: var(--adp-border);
+  }
+  .adp-btn--primary {
+    background: var(--primary);
+    color: #fff;
+  }
+  .adp-btn--primary:hover { filter: brightness(1.07); }
+  .adp-btn--primary:disabled {
+    opacity: .55;
+    cursor: not-allowed;
+    filter: none;
+  }
+
+  /* Make button — primary CTA matching the red gradient pill from the
+     mobile creator screen. Wider + centered so it dominates the
+     footer like the mobile "Make" CTA does. */
+  .adp-btn--make {
+    background: linear-gradient(180deg, #c93442 0%, #9b1f2c 100%);
+    color: #fff;
+    padding: 0 36px;
+    height: 44px;
+    min-width: 180px;
+    font-size: 15px;
+    font-weight: 700;
+    text-transform: capitalize;
+    border-radius: 999px;
+    box-shadow: 0 6px 14px rgba(155,31,44,.45);
+    border: none;
+  }
+  /* Re-assert the gradient on :hover — without it the global
+     `button:hover { background: var(--surface-2) }` (specificity
+     0,1,1) wins for the background property since this rule below
+     only declared `filter`, leaving the background unset and
+     inherited from the global → button went white-on-white. */
+  .adp-btn--make:hover {
+    background: linear-gradient(180deg, #c93442 0%, #9b1f2c 100%);
+    filter: brightness(1.07);
+  }
+  .adp-btn--make:active { transform: translateY(1px); }
+  .adp-btn--make:disabled {
+    opacity: .55;
+    cursor: not-allowed;
+    filter: none;
+    box-shadow: none;
+  }
+
+  /* Stat-card pair — Nozzle Temp / Drying / (advanced) Bed Temp. Two
+     cards live side by side via .adp-stats-row, each with a header
+     (title + thermal icon) and a 2-cell grid (label + input + unit). */
+  .adp-stats-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .adp-stat-card {
+    background: var(--adp-surface);
+    border: 1px solid var(--adp-border-soft);
+    border-radius: 14px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .adp-stat-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .adp-stat-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--adp-text);
+  }
+  /* Doubled selector (`.adp-stat-card .adp-stat-icon`) — bumps
+     specificity to (0,2,0) so we outrank the global `.icon
+     { background-color: currentColor }` rule (0,1,0) defined later
+     in 70-detail-misc.css. Without this override the icons would
+     inherit the panel's white text colour and ignore the per-card
+     accent. */
+  .adp-stat-card .adp-stat-icon { background: var(--adp-muted); }
+  /* Flutter `Colors.red` = #F44336 (Material Red 500). */
+  .adp-stat-card .adp-stat-icon--hot  { background: #F44336; }
+  /* Flutter `Colors.lightBlue` = #03A9F4 (Material Light Blue 500). */
+  .adp-stat-card .adp-stat-icon--cool { background: #03A9F4; }
+  .adp-stat-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 10px;
+  }
+  /* Stat cell — flex column with the label on top, then a flex-row
+     for value + unit pinned tight to each other ("190°C", not
+     "190 ........ °C"). Used both for read-only readouts (basic
+     view) and editable inputs (advanced view). */
+  .adp-stat-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    min-width: 0;
+  }
+  /* Read-only readout — pure text "190°C" sitting under its label.
+     Used in the basic view's display-only stat cards. */
+  .adp-stat-readout {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--adp-text);
+    letter-spacing: -.01em;
+    line-height: 1.1;
+  }
+  .adp-stat-label {
+    grid-column: 1 / -1;
+    /* Min / Max / Temp / Time — same rank as every other label
+       (13 px / 700 / white). */
+    font-size: 13px;
+    color: var(--adp-text);
+    font-weight: 700;
+  }
+  /* Editable stat input (advanced view). Doubled selector
+     `.adp-panel .adp-stat-card .adp-stat-input` bumps specificity
+     to (0,3,0) so we outrank the global `input[type="number"]
+     { background: var(--surface); border: 1px solid var(--border) }`
+     rule (0,1,1) — without this override the temp inputs were
+     rendering as bordered white "mini cards" inside the parent
+     stat card. With this rule the input is a pure value with no
+     chrome, sized to fit ~4 chars. */
+  .adp-panel .adp-stat-card .adp-stat-input {
+    width: 4.2ch;
+    min-width: 0;
+    padding: 0;
+    height: auto;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    color: var(--adp-text);
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -.01em;
+    box-sizing: content-box;
+    -moz-appearance: textfield;
+  }
+  .adp-panel .adp-stat-card .adp-stat-input::-webkit-outer-spin-button,
+  .adp-panel .adp-stat-card .adp-stat-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  .adp-panel .adp-stat-card .adp-stat-input:focus {
+    outline: none;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+  }
+  /* Unit suffix — sits IMMEDIATELY after the input/readout in the
+     same flex row, no spacer between. "190" + "°C" reads as one
+     continuous label like "190°C". */
+  .adp-stat-cell .adp-stat-unit {
+    color: var(--adp-muted);
+    font-size: 13px;
+    font-weight: 700;
+    pointer-events: none;
+  }
+  /* Wrap the (input | unit) and (readout | unit) pairs in a flex row.
+     Flexbox via `display: contents` doesn't work for input/span
+     siblings, so we use the cell itself as a column and let label
+     sit on its own row. The value+unit row is implicit via order. */
+  .adp-stat-cell .adp-stat-input,
+  .adp-stat-cell .adp-stat-readout {
+    align-self: flex-start;
+  }
+  /* Make the value+unit a tight inline pair — wrap them in a
+     flex container by treating the cell as `display: grid` with the
+     label on row 1 and a sub-flex on row 2 holding both. We achieve
+     this without extra HTML by using `:has()` + flex on the cell
+     once the readout/input + unit are siblings. CSS-only solution
+     via a 2nd pseudo-row inside the column flex. */
+  .adp-stat-cell {
+    /* Override the column flex above for the value/unit pair: turn
+       the cell into a grid where the readout+unit share a row. */
+    display: grid;
+    grid-template-columns: auto auto 1fr;
+    grid-template-rows: auto auto;
+    column-gap: 4px;
+    row-gap: 2px;
+    align-items: end;
+  }
+  .adp-stat-cell .adp-stat-label {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+  .adp-stat-cell .adp-stat-input,
+  .adp-stat-cell .adp-stat-readout {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .adp-stat-cell .adp-stat-unit {
+    grid-column: 2;
+    grid-row: 2;
+    /* baseline-align to the big number on the left */
+    align-self: end;
+    padding-bottom: 4px;
+  }
+
+  /* Type + cog row — Filament/Resin selector on the LEFT (width
+     adapts to its content, just like the Material picker above), cog
+     + advanced toggle on the RIGHT — all on the SAME line.
+     `flex-direction: row` is set explicitly because the parent
+     `.adp-section` rule sets `column` and we'd inherit that flow
+     otherwise (causing Type to stack above the cog instead of
+     sitting beside it). */
+  .adp-type-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  /* Type select — same chrome as Brand / Material / Aspect 1 (1.5 px
+     white border, anthracite fill, custom triangle caret). Width
+     adapts to its content with a sensible min so the label
+     "Filament" gets a comfortable hit target without forcing the
+     row to wrap. */
+  .adp-select--type {
+    flex: 0 0 auto;
+    width: auto;
+    min-width: 130px;
+    max-width: 60%;
+    padding-right: 32px;     /* room for the custom dropdown caret */
+  }
+  /* Read-only stat inputs — basic view shows preset values that
+     can't be edited unless the user flips the Advanced toggle. The
+     `readonly` attribute is added on the inputs in HTML; this rule
+     softens them visually so the user can tell they're not editable. */
+  .adp-panel .adp-stat-input[readonly] {
+    cursor: not-allowed;
+    opacity: .85;
+  }
+  .adp-panel .adp-stat-input[readonly]:focus {
+    outline: none;
+    box-shadow: none;
+  }
+  .adp-type-aside {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .adp-type-cog { background: var(--adp-muted); }
+
+  /* Advanced body — shown when the cog toggle flips on. Stacks the
+     Bed Temp stat card + the rest of the advanced fields below. */
+  .adp-advanced-body {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .adp-advanced-body[hidden] { display: none; }

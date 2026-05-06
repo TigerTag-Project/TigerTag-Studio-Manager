@@ -505,6 +505,11 @@
     const hex2 = toHex(data.color_r2, data.color_g2, data.color_b2);
     const hex3 = toHex(data.color_r3, data.color_g3, data.color_b3);
     const isPlus = data.url_img && data.url_img !== "--" && data.url_img !== "";
+    // Cloud-only entry: doc id starts with `CLOUD_` (the prefix written by
+    // _adpCloudId() in the Add Product flow). When the user later programs
+    // a physical chip, the doc gets renamed to a real 7-byte hex UID and
+    // this flag flips to false automatically — no extra signal needed.
+    const isCloud = String(spoolId).startsWith("CLOUD_");
     const mat = materialFull(data.id_material);
     return {
       spoolId: String(spoolId),
@@ -527,6 +532,7 @@
       capacity: data.measure_gr || data.measure,
       imgUrl: isPlus ? data.url_img : null,
       isPlus,
+      isCloud,
       series: data.series || null,
       label: data.label && data.label !== "--" ? data.label : null,
       productName: data.name && data.name !== "--" ? data.name : null,
@@ -706,6 +712,10 @@
       <button class="acct-drop-action" data-drop-action="manage-profiles">
         <span class="icon icon-user icon-13"></span>
         <span>${t("btnManageProfiles")}</span>
+      </button>
+      <button class="acct-drop-action" data-drop-action="open-settings">
+        <span class="icon icon-settings icon-13"></span>
+        <span>${t("settingsOpenBtn")}</span>
       </button>`;
 
     // ── Friends section ──
@@ -758,6 +768,7 @@
         const action = btn.dataset.dropAction;
         closeAccountDropdown();
         if (action === "manage-profiles") openProfilesModal();
+        else if (action === "open-settings") openSettings();
         else if (action === "add-friend") openAddFriendModal();
       });
     });
@@ -775,6 +786,1601 @@
     $("profilesModalOverlay").classList.remove("open");
   }
 
+  /* ══════════════════════════════════════════════════════════════════
+     Add Product side panel — full TigerTag creator
+     ══════════════════════════════════════════════════════════════════
+     Slide-in side card (right) mirroring the printer detail panel.
+     Builds an inventory entry with the SAME field shape a real RFID
+     chip carries: id_brand / id_material / id_type / id_aspect1+2 /
+     id_diameter / id_measure_unit / measure_gr / data1..7 (legacy
+     bag of int slots used by the firmware mapper) / color_r/g/b /
+     online_color_list / TD / message / weight_available.
+
+     Until a physical chip is programmed the doc id uses
+     `CLOUD_<HEX_TIMESTAMP>` so:
+       1. The underscore makes it impossible to confuse with a real
+          7-byte hex RFID UID (the rest of the app expects pure hex)
+       2. The `CLOUD_` prefix is self-documenting: this entry is in
+          Firestore only, not on a chip yet
+       3. When the user later programs a chip, a single uidMigrationMap
+          rename (CLOUD_xxx → 1D895E7C004A80) promotes the doc with
+          its full content — same pattern as the legacy decimal→hex
+          migration that already ships in this app.
+
+     Auto-prefills nozzle / bed / dry temps from the chosen material's
+     `recommended` block in id_material.json, so the user gets sensible
+     defaults without consulting a datasheet — mirrors what the mobile
+     companion app does.                                                */
+
+  // Cloud-only doc id — `CLOUD_` prefix + 10 random decimal digits
+  // (per the canonical schema spec). The 10-digit nonce gives ~10^10
+  // unique ids per second of clock; combined with `CLOUD_` it's
+  // impossible to confuse with a real 7-byte hex RFID UID.
+  function _adpCloudId() {
+    let n = "";
+    for (let i = 0; i < 10; i++) n += Math.floor(Math.random() * 10);
+    return "CLOUD_" + n;
+  }
+
+  // Weight unit conversion — always returns grams regardless of the
+  // unit the user picked. Reads `state.db.unit` to resolve the label
+  // (mg / g / kg) and applies the matching factor. Used by save +
+  // preview so `measure_gr` and `weight_available` are guaranteed
+  // canonical (grams) regardless of UI input.
+  function _adpToGrams(value, unitId) {
+    if (!isFinite(value)) return null;
+    const unit = (state.db.unit || []).find(u => u.id === unitId);
+    const lbl = String(unit?.label || "g").toLowerCase().trim();
+    switch (lbl) {
+      case "mg": return value / 1000;
+      case "kg": return value * 1000;
+      case "g":
+      default:   return value;
+    }
+  }
+
+  function _adpHexToRgb(hex) {
+    const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(String(hex || ""));
+    if (!m) return { r: 128, g: 128, b: 128 };
+    return {
+      r: parseInt(m[1], 16),
+      g: parseInt(m[2], 16),
+      b: parseInt(m[3], 16)
+    };
+  }
+
+  // Best-effort label lookups — return "" when the id isn't found so
+  // the RFID Data preview just shows the id rather than crashing.
+  function _adpLabel(category, id) {
+    const list = state.db?.[category] || [];
+    const e = list.find(x => x.id === id);
+    return e ? (e.label || e.name || "") : "";
+  }
+
+  // Render the 24-preset palette (+ custom slot) into the colour
+  // bottom-sheet grid. Mirrors the layout used by Snapmaker / FlashForge
+  // filament-edit colour sheets so the visual grammar is uniform. The
+  // host is `#adpColorGrid` inside `.sfe-sheet--color` — `.sfe-color-*`
+  // styles already apply, no extra CSS needed.
+  function _adpRenderColorPresets(selectedHex) {
+    const host = $("adpColorGrid");
+    if (!host) return;
+    const sel = String(selectedHex || "").toUpperCase();
+    // Fallback for the custom slot when nothing is set yet — same
+    // default the OS picker opens on (orange-red, easy to spot).
+    const customBg = sel || "#FF5722";
+    const cells = SNAP_FIL_COLOR_PRESETS.map(c => {
+      const isSel = c.toUpperCase() === sel;
+      return `<button type="button"
+                       class="sfe-color-cell${isSel ? " is-selected" : ""}"
+                       data-color="${c}"
+                       style="background:${c}"
+                       title="${c}"></button>`;
+    });
+    // Custom slot — last cell of the grid. Paints its background with
+    // the currently-selected hex so the user sees which colour the
+    // picker will reopen on; the edit pencil sits on top to advertise
+    // "click here to tweak" (cf. .sfe-sheet--color.adp-color-sheet
+    // .sfe-color-cell--custom .icon for the legibility halo).
+    cells.push(`<button type="button"
+                         class="sfe-color-cell sfe-color-cell--custom"
+                         data-color-custom="1"
+                         style="background:${customBg}"
+                         title="${esc(t("addProductColorCustom"))}">
+                  <span class="icon icon-edit icon-13"></span>
+                </button>`);
+    host.innerHTML = cells.join("");
+  }
+
+  // Sync the colour bottom-sheet AND its backdrop's width to the Add
+  // product panel so the two surfaces read as one cohesive UI block.
+  // The panel itself either uses the user-resized width
+  // (`tigertag.panelWidth.detail`) or the CSS default (300 px) — we
+  // read whichever ended up applied and stamp it inline.
+  // The backdrop stops at the panel's left edge so the rest of the
+  // viewport (the inventory grid behind) keeps the panel-overlay's
+  // normal dim — and clicks there go through to the panel-overlay
+  // handler, which cascades the close.
+  function _adpSyncColorSheetWidth(sheetId, backdropId) {
+    const sheet = $(sheetId);
+    const panel = $("addProductPanel");
+    if (!sheet || !panel) return;
+    const w = Math.round(panel.getBoundingClientRect().width);
+    if (w >= 200) sheet.style.width = w + "px";
+    if (backdropId) {
+      const bd = $(backdropId);
+      if (bd && w >= 200) bd.style.width = w + "px";
+    }
+  }
+  function openAdpColorSheet() {
+    const hex = String($("adpColorHex")?.value || "#FF5722").toUpperCase();
+    _adpRenderColorPresets(hex);
+    _adpSyncColorSheetWidth("adpColorSheet", "adpColorBackdrop");
+    $("adpColorSheet")?.classList.add("open");
+    $("adpColorSheet")?.setAttribute("aria-hidden", "false");
+    $("adpColorBackdrop")?.classList.add("open");
+  }
+  function closeAdpColorSheet() {
+    $("adpColorSheet")?.classList.remove("open");
+    $("adpColorSheet")?.setAttribute("aria-hidden", "true");
+    $("adpColorBackdrop")?.classList.remove("open");
+  }
+
+  // ── Custom colour bottom-sheet ─────────────────────────────────
+  // Mobile-style HSV picker: 2D saturation × value rectangle on top,
+  // hue slider + preview circle in the middle, hex input at the top
+  // with a paste-from-clipboard affordance. Drives a single piece of
+  // state — `_adpCcState = { h, s, v }` — that every input writes
+  // into and every visual reads from. `_adpCcRender()` is the single
+  // redraw entry point so we never desync the SV thumb, hue thumb,
+  // hex input, preview circle and the SV gradient hue.
+  const _adpCcState = { h: 0, s: 1, v: 1 };
+
+  // ─ Colour-space helpers (no library — hot path, keep tight) ─
+  // hex "#RRGGBB" / "RRGGBB" → {r,g,b} 0..255 or null on parse error.
+  function _adpCcParseHex(raw) {
+    const m = /^#?([0-9a-f]{6})$/i.exec(String(raw || "").trim());
+    if (!m) return null;
+    const n = parseInt(m[1], 16);
+    return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+  }
+  function _adpCcRgbToHex(r, g, b) {
+    const c = (n) => Math.max(0, Math.min(255, Math.round(n)))
+      .toString(16).padStart(2, "0").toUpperCase();
+    return "#" + c(r) + c(g) + c(b);
+  }
+  function _adpCcRgbToHsv(r, g, b) {
+    r /= 255; g /= 255; b /= 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    const d = max - min;
+    let h = 0;
+    if (d !== 0) {
+      switch (max) {
+        case r: h = ((g - b) / d) % 6; break;
+        case g: h = (b - r) / d + 2; break;
+        case b: h = (r - g) / d + 4; break;
+      }
+      h *= 60;
+      if (h < 0) h += 360;
+    }
+    const s = max === 0 ? 0 : d / max;
+    const v = max;
+    return { h, s, v };
+  }
+  function _adpCcHsvToRgb(h, s, v) {
+    const c = v * s;
+    const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+    const m = v - c;
+    let r = 0, g = 0, b = 0;
+    if      (h <  60) { r = c; g = x; b = 0; }
+    else if (h < 120) { r = x; g = c; b = 0; }
+    else if (h < 180) { r = 0; g = c; b = x; }
+    else if (h < 240) { r = 0; g = x; b = c; }
+    else if (h < 300) { r = x; g = 0; b = c; }
+    else              { r = c; g = 0; b = x; }
+    return { r: (r + m) * 255, g: (g + m) * 255, b: (b + m) * 255 };
+  }
+
+  // Pure-hue hex (S=1, V=1) — used for the hue thumb's fill colour.
+  function _adpCcHueHex(h) {
+    const { r, g, b } = _adpCcHsvToRgb(h, 1, 1);
+    return _adpCcRgbToHex(r, g, b);
+  }
+
+  // Single redraw — reads `_adpCcState` and updates: hex input,
+  // native bridge, preview circle, SV background hue, SV thumb
+  // position, hue slider thumb position + colour. The hex input
+  // skips its own writeback if `skipHexInput` is set (e.g. when
+  // the user is currently typing — we don't want to overwrite
+  // their cursor mid-keystroke).
+  function _adpCcRender(opts) {
+    const { h, s, v } = _adpCcState;
+    const { r, g, b } = _adpCcHsvToRgb(h, s, v);
+    const hex = _adpCcRgbToHex(r, g, b);
+
+    const sv = $("adpCcSv");
+    if (sv) sv.style.setProperty("--cc-hue", String(Math.round(h)));
+
+    const svThumb = $("adpCcSvThumb");
+    if (svThumb) {
+      svThumb.style.left = (s * 100) + "%";
+      svThumb.style.top  = ((1 - v) * 100) + "%";
+    }
+
+    const hueThumb = $("adpCcHueThumb");
+    if (hueThumb) {
+      hueThumb.style.left = ((h / 360) * 100) + "%";
+      hueThumb.style.setProperty("--cc-hue-thumb", _adpCcHueHex(h));
+    }
+
+    const prev = $("adpCcPreview");
+    if (prev) prev.style.background = hex;
+
+    const native = $("adpCcNative");
+    if (native) native.value = hex;
+
+    // Live preview on the main panel — paint the big colour circle
+    // (`#adpColorSquare`) as the user drags so they see the change
+    // happen in real time without committing yet. The full sync
+    // (preset re-render + RFID preview refresh + hidden hex input)
+    // still runs only on OK click via `_adpSyncColor`.
+    const panelCircle = $("adpColorSquare");
+    if (panelCircle) panelCircle.style.background = hex;
+
+    if (!opts || !opts.skipHexInput) {
+      const inp = $("adpCcHex");
+      // Display value drops the leading `#` — the visual prefix
+      // already shows the hash so the input only needs the digits.
+      if (inp) inp.value = hex.slice(1);
+    }
+  }
+
+  // Seed the picker state from a hex string (called when the sheet
+  // opens or when the user pastes / types a complete hex value).
+  // Preserves the current hue when the input is greyscale (S=0)
+  // so a "back to white" round trip doesn't reset the rainbow.
+  function _adpCcSetFromHex(hex, opts) {
+    const rgb = _adpCcParseHex(hex);
+    if (!rgb) return false;
+    const { h, s, v } = _adpCcRgbToHsv(rgb.r, rgb.g, rgb.b);
+    if (s > 0) _adpCcState.h = h;     // keep last hue when achromatic
+    _adpCcState.s = s;
+    _adpCcState.v = v;
+    _adpCcRender(opts);
+    return true;
+  }
+
+  function openAdpColorCustomSheet() {
+    const hex = String($("adpColorHex")?.value || "#FF5722").toUpperCase();
+    _adpCcSetFromHex(hex);
+    _adpSyncColorSheetWidth("adpColorCustomSheet", "adpColorCustomBackdrop");
+    $("adpColorCustomSheet")?.classList.add("open");
+    $("adpColorCustomSheet")?.setAttribute("aria-hidden", "false");
+    $("adpColorCustomBackdrop")?.classList.add("open");
+    // Re-render after the sheet is visible so the SV thumb's
+    // percentage-based positioning resolves against the final
+    // rectangle width (not the off-screen 0×0 one).
+    requestAnimationFrame(_adpCcRender);
+  }
+  function closeAdpColorCustomSheet() {
+    $("adpColorCustomSheet")?.classList.remove("open");
+    $("adpColorCustomSheet")?.setAttribute("aria-hidden", "true");
+    $("adpColorCustomBackdrop")?.classList.remove("open");
+  }
+
+  // Pointer-driven drag for both the SV rectangle and the hue slider.
+  // `onMove(fractionX, fractionY)` receives normalised coords in
+  // [0..1] for each axis — the caller maps them to S/V or hue and
+  // calls `_adpCcRender()`. Captures the pointer so dragging outside
+  // the element keeps tracking until release.
+  function _adpCcAttachDrag(el, onMove) {
+    if (!el) return;
+    const handle = (ev) => {
+      const rect = el.getBoundingClientRect();
+      const fx = Math.max(0, Math.min(1, (ev.clientX - rect.left) / rect.width));
+      const fy = Math.max(0, Math.min(1, (ev.clientY - rect.top)  / rect.height));
+      onMove(fx, fy);
+    };
+    el.addEventListener("pointerdown", (ev) => {
+      ev.preventDefault();
+      el.setPointerCapture(ev.pointerId);
+      handle(ev);
+    });
+    el.addEventListener("pointermove", (ev) => {
+      // Buttons bitfield: 1 = primary mouse, 0 when not pressed.
+      if (ev.buttons === 0) return;
+      handle(ev);
+    });
+    el.addEventListener("pointerup", (ev) => {
+      try { el.releasePointerCapture(ev.pointerId); } catch (_) {}
+    });
+  }
+  // ── Brand bottom-sheet ────────────────────────────────────────
+  // Replaces the native <select> dropdown with a styled picker that
+  // shows favourites first (starred → pinned to the top), supports
+  // a live search filter at the top, and persists favs in
+  // localStorage so they carry across sessions per user.
+  const ADP_FAV_BRANDS_KEY = "tigertag.adp.favoriteBrands";
+  function _adpLoadFavBrands() {
+    try {
+      const raw = localStorage.getItem(ADP_FAV_BRANDS_KEY);
+      const parsed = JSON.parse(raw || "[]");
+      return Array.isArray(parsed) ? parsed.map(n => parseInt(n, 10)).filter(isFinite) : [];
+    } catch { return []; }
+  }
+  function _adpSaveFavBrands(ids) {
+    try { localStorage.setItem(ADP_FAV_BRANDS_KEY, JSON.stringify(ids)); }
+    catch (_) { /* swallow quota / disabled-storage errors */ }
+  }
+  function _adpToggleFavBrand(id) {
+    const favs = _adpLoadFavBrands();
+    const i = favs.indexOf(id);
+    if (i >= 0) favs.splice(i, 1);
+    else favs.push(id);
+    _adpSaveFavBrands(favs);
+    return i < 0;  // returns true when newly-favourited
+  }
+
+  function _adpRenderBrandList(filter) {
+    const host = $("adpBrandList");
+    if (!host) return;
+    const q = String(filter || "").trim().toLowerCase();
+    const all = (state.db.brand || []).slice();
+    const favs = new Set(_adpLoadFavBrands());
+    const activeId = parseInt($("adpBrand")?.value, 10);
+
+    // Match by name (case-insensitive) — empty filter = all.
+    const matches = q
+      ? all.filter(b => String(b.name || "").toLowerCase().includes(q))
+      : all;
+
+    // Split into favourites (top) + rest (alphabetical).
+    const fav = matches.filter(b => favs.has(b.id))
+                       .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+    const rest = matches.filter(b => !favs.has(b.id))
+                        .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+
+    if (matches.length === 0) {
+      host.innerHTML = `<div class="adp-brand-empty">${esc(t("addProductBrandNoMatch") || "No brand matches")}</div>`;
+      return;
+    }
+
+    const rowFor = b => {
+      const isFav = favs.has(b.id);
+      const isAct = b.id === activeId;
+      return `<button type="button" class="adp-brand-row${isAct ? " is-active" : ""}" data-brand-id="${b.id}">
+        <span class="adp-brand-row-name">${esc(b.name || `#${b.id}`)}</span>
+        <span class="adp-brand-star${isFav ? " is-fav" : ""}" data-fav-id="${b.id}" role="button"
+              aria-label="${esc(isFav ? (t("addProductBrandUnfav") || "Unfavourite") : (t("addProductBrandFav") || "Favourite"))}">
+          <span class="icon ${isFav ? "icon-star-fill" : "icon-star"} icon-14"></span>
+        </span>
+      </button>`;
+    };
+
+    let html = "";
+    if (fav.length) {
+      html += `<div class="adp-brand-section-label">${esc(t("addProductBrandFavorites") || "Favourites")}</div>`;
+      html += fav.map(rowFor).join("");
+    }
+    if (rest.length) {
+      if (fav.length) {
+        html += `<div class="adp-brand-section-label">${esc(t("addProductBrandAll") || "All brands")}</div>`;
+      }
+      html += rest.map(rowFor).join("");
+    }
+    host.innerHTML = html;
+  }
+
+  function openAdpBrandSheet() {
+    _adpSyncColorSheetWidth("adpBrandSheet", "adpBrandBackdrop");
+    const search = $("adpBrandSearch");
+    if (search) search.value = "";
+    _adpRenderBrandList("");
+    // Hide the clear ✕ on open — the input is empty so there's
+    // nothing to clear yet.
+    const clr = $("adpBrandSearchClear");
+    if (clr) clr.hidden = true;
+    $("adpBrandSheet")?.classList.add("open");
+    $("adpBrandSheet")?.setAttribute("aria-hidden", "false");
+    $("adpBrandBackdrop")?.classList.add("open");
+    setTimeout(() => $("adpBrandSearch")?.focus(), 80);
+  }
+  function closeAdpBrandSheet() {
+    $("adpBrandSheet")?.classList.remove("open");
+    $("adpBrandSheet")?.setAttribute("aria-hidden", "true");
+    $("adpBrandBackdrop")?.classList.remove("open");
+  }
+
+  // Pick a brand: stamp the hidden <select> + the visible label, fire
+  // a `change` event so the rest of the panel (RFID preview, material
+  // defaults, etc.) reacts as if the user used the native dropdown.
+  function _adpPickBrand(id) {
+    const sel = $("adpBrand");
+    const lbl = $("adpBrandLabel");
+    if (!sel) return;
+    sel.value = String(id);
+    const name = (state.db.brand || []).find(b => b.id === id)?.name || "";
+    if (lbl) lbl.textContent = name || "—";
+    sel.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
+  // ── Material bottom-sheet ─────────────────────────────────────
+  // 1:1 with the Brand picker above — same anthracite sheet, same
+  // search row, same favourites-on-top behaviour. Different storage
+  // key so brand and material favs don't collide.
+  const ADP_FAV_MATERIALS_KEY = "tigertag.adp.favoriteMaterials";
+  function _adpLoadFavMaterials() {
+    try {
+      const raw = localStorage.getItem(ADP_FAV_MATERIALS_KEY);
+      const parsed = JSON.parse(raw || "[]");
+      return Array.isArray(parsed) ? parsed.map(n => parseInt(n, 10)).filter(isFinite) : [];
+    } catch { return []; }
+  }
+  function _adpSaveFavMaterials(ids) {
+    try { localStorage.setItem(ADP_FAV_MATERIALS_KEY, JSON.stringify(ids)); }
+    catch (_) {}
+  }
+  function _adpToggleFavMaterial(id) {
+    const favs = _adpLoadFavMaterials();
+    const i = favs.indexOf(id);
+    if (i >= 0) favs.splice(i, 1);
+    else favs.push(id);
+    _adpSaveFavMaterials(favs);
+    return i < 0;
+  }
+
+  function _adpRenderMaterialList(filter) {
+    const host = $("adpMaterialList");
+    if (!host) return;
+    const q = String(filter || "").trim().toLowerCase();
+    const all = (state.db.material || []).slice();
+    const favs = new Set(_adpLoadFavMaterials());
+    const activeId = parseInt($("adpMaterial")?.value, 10);
+
+    const matches = q
+      ? all.filter(m => String(m.label || "").toLowerCase().includes(q))
+      : all;
+
+    const fav = matches.filter(m => favs.has(m.id))
+                       .sort((a, b) => String(a.label || "").localeCompare(String(b.label || "")));
+    const rest = matches.filter(m => !favs.has(m.id))
+                        .sort((a, b) => String(a.label || "").localeCompare(String(b.label || "")));
+
+    if (matches.length === 0) {
+      host.innerHTML = `<div class="adp-brand-empty">${esc(t("addProductMaterialNoMatch") || "No material matches")}</div>`;
+      return;
+    }
+
+    const rowFor = m => {
+      const isFav = favs.has(m.id);
+      const isAct = m.id === activeId;
+      return `<button type="button" class="adp-brand-row${isAct ? " is-active" : ""}" data-mat-id="${m.id}">
+        <span class="adp-brand-row-name">${esc(m.label || `#${m.id}`)}</span>
+        <span class="adp-brand-star${isFav ? " is-fav" : ""}" data-mat-fav-id="${m.id}" role="button"
+              aria-label="${esc(isFav ? (t("addProductMaterialUnfav") || "Unfavourite") : (t("addProductMaterialFav") || "Favourite"))}">
+          <span class="icon ${isFav ? "icon-star-fill" : "icon-star"} icon-14"></span>
+        </span>
+      </button>`;
+    };
+
+    let html = "";
+    if (fav.length) {
+      html += `<div class="adp-brand-section-label">${esc(t("addProductBrandFavorites") || "Favourites")}</div>`;
+      html += fav.map(rowFor).join("");
+    }
+    if (rest.length) {
+      if (fav.length) {
+        html += `<div class="adp-brand-section-label">${esc(t("addProductMaterialAll") || "All materials")}</div>`;
+      }
+      html += rest.map(rowFor).join("");
+    }
+    host.innerHTML = html;
+  }
+
+  function openAdpMaterialSheet() {
+    _adpSyncColorSheetWidth("adpMaterialSheet", "adpMaterialBackdrop");
+    const search = $("adpMaterialSearch");
+    if (search) search.value = "";
+    _adpRenderMaterialList("");
+    const clr = $("adpMaterialSearchClear");
+    if (clr) clr.hidden = true;
+    $("adpMaterialSheet")?.classList.add("open");
+    $("adpMaterialSheet")?.setAttribute("aria-hidden", "false");
+    $("adpMaterialBackdrop")?.classList.add("open");
+    setTimeout(() => $("adpMaterialSearch")?.focus(), 80);
+  }
+  function closeAdpMaterialSheet() {
+    $("adpMaterialSheet")?.classList.remove("open");
+    $("adpMaterialSheet")?.setAttribute("aria-hidden", "true");
+    $("adpMaterialBackdrop")?.classList.remove("open");
+  }
+
+  function _adpPickMaterial(id) {
+    const sel = $("adpMaterial");
+    const lbl = $("adpMaterialLabel");
+    if (!sel) return;
+    sel.value = String(id);
+    const name = (state.db.material || []).find(m => m.id === id)?.label || "";
+    if (lbl) lbl.textContent = name || "—";
+    // `change` event → triggers _adpApplyMaterialDefaults which
+    // overwrites Type + temp presets per the user's "always reset"
+    // policy.
+    sel.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
+  function _adpCcCurrentHex() {
+    // The picker is fully driven by `_adpCcState` (HSV) — the hex
+    // input is just a display + manual-entry surface. Derive the
+    // canonical "#RRGGBB" from state so SV/hue dragging that hasn't
+    // round-tripped through the hex input is captured correctly.
+    const { h, s, v } = _adpCcState;
+    const { r, g, b } = _adpCcHsvToRgb(h, s, v);
+    return _adpCcRgbToHex(r, g, b);
+  }
+
+  // Refresh both the big square + the hex label + the preset selection
+  // ring so the trio reads as a single colour state.
+  function _adpSyncColor(hex) {
+    const value = String(hex || "#FF5722").toUpperCase();
+    const sq = $("adpColorSquare");
+    if (sq) sq.style.background = value;
+    const native = $("adpColorHex");
+    if (native) native.value = value;
+    const lbl = $("adpColorHexLabel");
+    if (lbl) lbl.textContent = value;
+    _adpRenderColorPresets(value);
+    _adpRefreshRfidPreview();
+  }
+
+  // ── 28-byte UTF-8 limit on the colour-name field ───────────────
+  // The RFID chip stores `color_name` in a fixed 28-byte slot — the
+  // wire format is UTF-8, so an emoji or a multi-byte CJK character
+  // counts as 3-4 bytes. HTML's `maxlength` counts CHARACTERS not
+  // bytes so we enforce the byte limit ourselves: every input event
+  // truncates to the longest prefix that still fits in 28 bytes, and
+  // the counter pill on the right turns amber at 80% / red at 100%.
+  const ADP_COLOR_NAME_MAX_BYTES = 28;
+  function _adpByteLength(str) {
+    return new TextEncoder().encode(String(str || "")).length;
+  }
+  function _adpTruncateToBytes(str, maxBytes) {
+    const enc = new TextEncoder();
+    const buf = enc.encode(String(str || ""));
+    if (buf.length <= maxBytes) return String(str || "");
+    // TextDecoder in fatal mode rejects an over-budget cut that lands
+    // in the middle of a multi-byte sequence — walk back one byte at
+    // a time until we hit a valid UTF-8 boundary. Worst case: 3 retries
+    // (4-byte char). Returns the decoded prefix.
+    const dec = new TextDecoder("utf-8", { fatal: true });
+    for (let n = maxBytes; n > 0; n--) {
+      try { return dec.decode(buf.slice(0, n)); }
+      catch (_) { /* try the next shorter prefix */ }
+    }
+    return "";
+  }
+  function _adpRefreshColorNameCounter() {
+    const inp = $("adpColorName");
+    const tag = $("adpColorNameBytes");
+    const used = $("adpColorNameBytesUsed");
+    if (!inp || !tag) return;
+    const n = _adpByteLength(inp.value);
+    if (used) used.textContent = String(n);
+    // Visual progression: green / muted by default, amber > 80%, red
+    // at the cap. The cap itself is enforced by the input handler so
+    // "full" only flashes during paste-truncate UX.
+    let state = "ok";
+    if (n >= ADP_COLOR_NAME_MAX_BYTES) state = "full";
+    else if (n >= Math.floor(ADP_COLOR_NAME_MAX_BYTES * 0.8)) state = "warn";
+    tag.dataset.byteState = state;
+  }
+  // Show / hide the inline ✕ clear button on the colour-name field.
+  function _adpToggleClearVisibility(value) {
+    const btn = $("adpColorNameClear");
+    if (!btn) return;
+    btn.hidden = !value || !String(value).length;
+  }
+
+  // Sync the basic-view readout spans with the editable inputs in
+  // the advanced section. Called after every material change AND
+  // after every manual edit in the advanced inputs so the basic
+  // display stays in lock-step with whatever the user picked.
+  function _adpUpdateBasicReadouts() {
+    const pairs = [
+      ["adpNozzleMin", "adpNozzleMinDisplay", "°C"],
+      ["adpNozzleMax", "adpNozzleMaxDisplay", "°C"],
+      ["adpDryTemp",   "adpDryTempDisplay",   "°C"],
+      ["adpDryTime",   "adpDryTimeDisplay",   "h"]
+    ];
+    for (const [inputId, displayId, unit] of pairs) {
+      const inp = $(inputId);
+      const dsp = $(displayId);
+      if (!inp || !dsp) continue;
+      const v = String(inp.value || "").trim();
+      dsp.textContent = v ? (v + unit) : ("--" + unit);
+    }
+  }
+
+  // Apply a material's `recommended` defaults to the print-preset
+  // inputs. Selecting a material is treated as an EXPLICIT reset —
+  // any user-edited values in the advanced form are overwritten
+  // with the material's canonical presets from id_material.json.
+  // The previous behaviour (preserve user edits via
+  // `data-user-edited`) was confusing because it left stale values
+  // hanging around when the user picked a different material to
+  // start over.
+  function _adpApplyMaterialDefaults(materialId) {
+    const mat = (state.db.material || []).find(x => x.id === materialId);
+    const rec = mat?.recommended || {};
+    const fields = [
+      ["adpNozzleMin", rec.nozzleTempMin],
+      ["adpNozzleMax", rec.nozzleTempMax],
+      ["adpBedMin",    rec.bedTempMin],
+      ["adpBedMax",    rec.bedTempMax],
+      ["adpDryTemp",   rec.dryTemp],
+      ["adpDryTime",   rec.dryTime]
+    ];
+    for (const [id, val] of fields) {
+      const el = $(id);
+      if (!el) continue;
+      el.value = val != null ? String(val) : "";
+      // Clear the user-edited flag — picking a material wipes the
+      // slate clean for these temp fields.
+      delete el.dataset.userEdited;
+    }
+    // Type also resets from the material's product_type_id (142 =
+    // Filament, 173 = Resin). Both basic and advanced mirrors flip.
+    const typeSel = $("adpType");
+    const typeAdv = $("adpTypeAdv");
+    if (mat?.product_type_id != null) {
+      const tv = String(mat.product_type_id);
+      if (typeSel) typeSel.value = tv;
+      if (typeAdv) typeAdv.value = tv;
+      if (typeSel) delete typeSel.dataset.userEdited;
+      if (typeAdv) delete typeAdv.dataset.userEdited;
+    }
+    _adpUpdateBasicReadouts();
+    _adpRefreshRfidPreview();
+  }
+
+  // Build the read-only RFID Data block. Renders a structured JSON
+  // object — same visual presentation as the Raw JSON debug surfaces
+  // elsewhere in the app (canonical `pre.json` + `highlight()` helper:
+  // dark `#0e1422` background, syntax-coloured keys/strings/numbers).
+  // Each field includes both the raw id AND the resolved label so the
+  // block is self-documenting — e.g. `"id_brand": 65535` next to
+  // `"brand": "Generic"`. Mirrors the per-field layout the mobile app
+  // shows under its "RFID Data" expandable card.
+  function _adpRefreshRfidPreview() {
+    const pre = $("adpRfidPreview");
+    if (!pre) return;
+    // The whole block is gated to debug mode (`state.debugEnabled` flips
+    // the `[hidden]` attribute on `#adpRfidSection` at panel-open time).
+    // Skip the JSON build when the section is hidden — nothing reads
+    // the pre's innerHTML in that state, so it's pure waste.
+    const section = $("adpRfidSection");
+    if (section && section.hasAttribute("hidden")) return;
+    const get = id => $(id)?.value;
+    // Decimal-aware parsers — see the same helpers in saveAddProduct.
+    const intOrNull = v => {
+      const n = parseInt(String(v || "").trim(), 10);
+      return isFinite(n) ? n : null;
+    };
+    const floatOrNull = v => {
+      const n = parseFloat(String(v || "").replace(",", "."));
+      return isFinite(n) ? n : null;
+    };
+    const hex = String(get("adpColorHex") || "#FF5722").toUpperCase();
+    const { r, g, b } = _adpHexToRgb(hex);
+    const brandId  = intOrNull(get("adpBrand"));
+    const matId    = intOrNull(get("adpMaterial"));
+    const typeId   = intOrNull(get("adpType"));
+    const aspect1  = intOrNull(get("adpAspect1"));
+    const aspect2  = intOrNull(get("adpAspect2"));
+    const diamId   = intOrNull(get("adpDiameter"));
+    const unitId   = intOrNull(get("adpUnit"));
+    const weight   = floatOrNull(get("adpWeight"));
+    const nozzMin  = floatOrNull(get("adpNozzleMin"));
+    const nozzMax  = floatOrNull(get("adpNozzleMax"));
+    const bedMin   = floatOrNull(get("adpBedMin"));
+    const bedMax   = floatOrNull(get("adpBedMax"));
+    const dryTemp  = intOrNull(get("adpDryTemp"));
+    const dryTime  = intOrNull(get("adpDryTime"));
+    // TD is OPTIONAL. Empty input → null (mirrors the save path so
+    // the JSON preview shows exactly what will hit Firestore).
+    const tdRaw    = String(get("adpTd") || "").trim();
+    const td       = tdRaw === "" ? null : floatOrNull(get("adpTd"));
+    const message  = String(get("adpMessage") || "");
+    const colorName = String(get("adpColorName") || "");
+
+    // Mirror the canonical chip schema field-for-field so what the
+    // user sees in the RFID Data block IS exactly what hits Firestore
+    // (and a future RFID burn). Only the fields in the user-provided
+    // spec — no extras (TD / Link* / manual_entry / cloud_only stay
+    // off the canonical preview). See saveAddProduct for the matching
+    // write block.
+    const ID_PRODUCT_UNSET = 4294967295;
+    const aspect2Resolved = aspect2 != null ? aspect2 : 255;
+    // Stable preview tigertag id — derived from the cloud id so
+    // re-renders during a single open don't churn the number. The
+    // ACTUAL value written is `Math.random()` at save time (also a
+    // u32) — preview is for UX only.
+    const previewTt = _pendingCloudId
+      ? Math.abs(parseInt(String(_pendingCloudId).replace(/\D/g, "").slice(0, 9), 10)) % ID_PRODUCT_UNSET
+      : 0;
+    const obj = {
+      uid: _pendingCloudId || "(generated on save)",
+      id_brand:    brandId,
+      id_material: matId,
+      id_type:     typeId    != null ? typeId    : 142,
+      id_aspect1:  aspect1   != null ? aspect1   : 104,
+      id_aspect2:  aspect2Resolved,
+      id_unit:     unitId    != null ? unitId    : 21,
+      id_product:  ID_PRODUCT_UNSET,
+      id_tigertag: previewTt,
+      color_r: r, color_g: g, color_b: b, color_a: 255,
+      data1: diamId    != null ? diamId    : 56,
+      data2: nozzMin   != null ? nozzMin   : 0,
+      data3: nozzMax   != null ? nozzMax   : 0,
+      data4: dryTemp   != null ? dryTemp   : 0,
+      data5: dryTime   != null ? dryTime   : 0,
+      data6: bedMin    != null ? bedMin    : 0,
+      data7: bedMax    != null ? bedMax    : 0,
+      // `measure` = user-entered raw value, `measure_gr` =
+      // converted to grams (mg → /1000, kg → ×1000, g → identity).
+      // `weight_available` mirrors measure_gr (full at creation).
+      measure:          weight != null ? weight : 0,
+      measure_gr:       weight != null ? _adpToGrams(weight, unitId) : 0,
+      weight_available: weight != null ? _adpToGrams(weight, unitId) : 0,
+      message: colorName || message || "",
+      // TD — null when empty (optional field), otherwise clamped
+      // to 0.1-100 — matches the save path so the JSON preview
+      // shows exactly what will hit Firestore.
+      TD: td === null
+            ? null
+            : Math.max(0.1, Math.min(100, isFinite(td) && td > 0 ? td : 0.1)),
+      timestamp:   Math.floor(Date.now() / 1000),
+      // Drives the "needs chip program" indicator across the rest
+      // of the app once this entry hits Firestore.
+      needUpdateAt: Date.now(),
+      deleted:     null,
+      deleted_at:  null
+    };
+    // Conditional multi-colour fields — same gate as the save path.
+    if (aspect2Resolved === 252 || aspect2Resolved === 24 || aspect2Resolved === 145) {
+      obj.color_r2 = 255; obj.color_g2 = 255; obj.color_b2 = 255;
+    }
+    if (aspect2Resolved === 24 || aspect2Resolved === 145) {
+      obj.color_r3 = 33;  obj.color_g3 = 150; obj.color_b3 = 243;
+    }
+    // The `highlight()` helper returns HTML — caller injects via
+    // innerHTML. The container has `class="json"` and lives inside a
+    // `<details class="debug">`, both styled by 70-detail-misc.css —
+    // dark JSON theme, syntax-coloured spans, chevron summary.
+    pre.innerHTML = highlight(obj);
+  }
+
+  // Stash the cloud id at open time so it stays stable while the user
+  // edits — only rotates on next open. Cleared on close.
+  let _pendingCloudId = null;
+
+  function openAddProductPanel() {
+    if (!state.activeAccountId) {
+      try { toast(t("invalidKey", { r: "no account" }), "error"); } catch (_) {}
+      return;
+    }
+
+    _pendingCloudId = _adpCloudId();
+
+    // Populate dropdowns. Brand by name asc, material by label asc;
+    // type / aspect / diameter sorted by label too. The `value` is the
+    // numeric id so the save path can recover it directly.
+    const optList = (arr, valueKey, labelKey) => arr
+      .slice()
+      .sort((a, b) => String(a[labelKey] || "").localeCompare(String(b[labelKey] || "")))
+      .map(e => `<option value="${e[valueKey]}">${esc(e[labelKey] || `#${e[valueKey]}`)}</option>`)
+      .join("");
+
+    const brandSel    = $("adpBrand");
+    const matSel      = $("adpMaterial");
+    const typeSel     = $("adpType");        // basic view (cog row)
+    const typeAdv     = $("adpTypeAdv");     // advanced mirror
+    const aspect1Sel  = $("adpAspect1");     // basic view (color row)
+    const aspect1Adv  = $("adpAspect1Adv");  // advanced mirror
+    const aspect2Sel  = $("adpAspect2");
+    const diamSel     = $("adpDiameter");
+    const unitSel     = $("adpUnit");
+
+    const brandList    = optList(state.db.brand    || [], "id", "name");
+    const matList      = optList(state.db.material || [], "id", "label");
+    const typeList     = optList(state.db.type     || [], "id", "label");
+    // Aspect 1 = surface finish only (Basic, Mat, Clear, etc.).
+    // Filter: keep only `color_count === 1` — drops both the "-"
+    // placeholder (color_count 0) AND bicolor/tricolor/rainbow
+    // (color_count ≥ 2). Aspect 1 is a required pick, no "no aspect"
+    // affordance.
+    const aspect1Pool  = (state.db.aspect || []).filter(a => (a.color_count || 0) === 1);
+    const aspect1List  = optList(aspect1Pool, "id", "label");
+    // Aspect 2 keeps the full list (None + multi-colour aspects).
+    const aspectList   = optList(state.db.aspect   || [], "id", "label");
+    const diamList     = optList(state.db.diameter || [], "id", "label");
+    // Unit list — restrict to weight units (`type === "weight"` in the
+    // catalogue) so users don't accidentally pick "ml" or similar.
+    const unitWeights  = (state.db.unit || []).filter(u => !u.type || u.type === "weight");
+    const unitList     = unitWeights
+      .slice()
+      .sort((a, b) => String(a.label || "").localeCompare(String(b.label || "")))
+      .map(u => `<option value="${u.id}">${esc(u.label || `#${u.id}`)}</option>`)
+      .join("");
+
+    if (brandSel)    brandSel.innerHTML    = brandList;
+    if (matSel)      matSel.innerHTML      = matList;
+    if (typeSel)     typeSel.innerHTML     = typeList;
+    if (typeAdv)     typeAdv.innerHTML     = typeList;
+    // Aspect 1 uses the filtered pool (mono / "-" only); Aspect 2
+    // gets the full list (incl. bicolor / tricolor / rainbow).
+    if (aspect1Sel)  aspect1Sel.innerHTML  = aspect1List;
+    if (aspect1Adv)  aspect1Adv.innerHTML  = aspect1List;
+    if (aspect2Sel)  aspect2Sel.innerHTML  = aspectList;
+    if (diamSel)     diamSel.innerHTML     = diamList;
+    if (unitSel)     unitSel.innerHTML     = unitList;
+
+    // Default selections — sensible starting points for a fresh entry.
+    const findId = (cat, predicate) =>
+      (state.db[cat] || []).find(predicate)?.id;
+    // Generic brand if it exists
+    const genericBrand = findId("brand", b => /generic/i.test(b.name || ""));
+    if (genericBrand != null && brandSel) brandSel.value = String(genericBrand);
+    // Sync the visible Brand + Material trigger labels with the
+    // resolved selections — hidden <select>s carry the values, the
+    // buttons show the resolved names.
+    const brandLbl = $("adpBrandLabel");
+    if (brandLbl && brandSel) {
+      const id = parseInt(brandSel.value, 10);
+      const name = (state.db.brand || []).find(b => b.id === id)?.name || "—";
+      brandLbl.textContent = name;
+    }
+    const matLbl = $("adpMaterialLabel");
+    if (matLbl && matSel) {
+      const id = parseInt(matSel.value, 10);
+      const name = (state.db.material || []).find(m => m.id === id)?.label || "—";
+      matLbl.textContent = name;
+    }
+    // PLA material as the default canvas
+    const plaId = findId("material", m =>
+      String(m.label || "").trim().toUpperCase() === "PLA"
+    );
+    if (plaId != null && matSel) matSel.value = String(plaId);
+    // 1.75 diameter
+    const d175 = findId("diameter", d => String(d.label || "").startsWith("1.75"));
+    if (d175 != null && diamSel) diamSel.value = String(d175);
+    // Aspect 1 — first non-"-" entry (often "Basic" / "Mat" / etc.)
+    const basic = findId("aspect", a => /basic/i.test(a.label || ""));
+    if (basic != null) {
+      if (aspect1Sel) aspect1Sel.value = String(basic);
+      if (aspect1Adv) aspect1Adv.value = String(basic);
+    }
+    // Aspect 2 — "-" / "None" by default
+    const noneAspect = findId("aspect", a => a.label === "-");
+    if (noneAspect != null && aspect2Sel) aspect2Sel.value = String(noneAspect);
+    // Unit — default to grams (id 21 per the canonical schema).
+    if (unitSel) unitSel.value = "21";
+
+    // Color resets to the same warm orange that's a friendly default.
+    $("adpColorName") && ($("adpColorName").value = "");
+    $("adpWeight")    && ($("adpWeight").value    = "1000");
+    $("adpTd")        && ($("adpTd").value        = "");
+    $("adpMessage")   && ($("adpMessage").value   = "");
+    _adpRefreshColorNameCounter();
+    // Reset user-edited flags so material defaults seed the temps.
+    ["adpType", "adpTypeAdv", "adpAspect1Adv", "adpTd",
+     "adpNozzleMin", "adpNozzleMax", "adpBedMin", "adpBedMax",
+     "adpDryTemp", "adpDryTime"].forEach(id => {
+      const el = $(id);
+      if (el) delete el.dataset.userEdited;
+    });
+
+    _adpSyncColor("#FF5722");
+    if (matSel) _adpApplyMaterialDefaults(parseInt(matSel.value, 10));
+    _adpToggleClearVisibility($("adpColorName")?.value);
+
+    // Advanced toggle — off by default (matches the mobile basic view).
+    // The basic Nozzle / Drying cards stay as display-only readouts;
+    // editing only happens after the user flips the cog toggle.
+    const advTog = $("adpAdvancedToggle");
+    const advBody = $("adpAdvancedBody");
+    if (advTog && advBody) {
+      advTog.dataset.on = "false";
+      advTog.setAttribute("aria-checked", "false");
+      advBody.hidden = true;
+    }
+    // Dual Link toggle — off by default. Reset every open so the
+    // panel never opens with a stale-positive switch.
+    const dualTog = $("adpDualLinkToggle");
+    if (dualTog) {
+      dualTog.dataset.on = "false";
+      dualTog.setAttribute("aria-checked", "false");
+    }
+
+    const errEl = $("adpError");
+    if (errEl) { errEl.hidden = true; errEl.textContent = ""; }
+
+    // Match the spool detail panel width — same UX as the rest of
+    // the app. The user-resized value from `tigertag.panelWidth.detail`
+    // is reused so this panel always feels familiar regardless of
+    // how wide the user has set their inventory side card.
+    const panel = $("addProductPanel");
+    if (panel) {
+      const persisted = parseInt(localStorage.getItem("tigertag.panelWidth.detail"), 10);
+      if (isFinite(persisted) && persisted >= 280) {
+        panel.style.width = Math.min(persisted, Math.round(window.innerWidth * 0.85)) + "px";
+      } else {
+        panel.style.width = ""; // fall back to the CSS default (300px)
+      }
+    }
+
+    // RFID Data panel — admin/debug surface. Show only when the user
+    // is in debug mode (cf. CLAUDE.md "Debug mode" section). Hidden
+    // attribute is the visibility gate; `_adpRefreshRfidPreview` also
+    // early-returns when the section is hidden so the JSON build is
+    // skipped for non-debug users.
+    const rfidSection = $("adpRfidSection");
+    if (rfidSection) {
+      if (state.debugEnabled) rfidSection.removeAttribute("hidden");
+      else                    rfidSection.setAttribute("hidden", "");
+    }
+
+    $("addProductPanel")?.classList.add("open");
+    $("addProductOverlay")?.classList.add("open");
+    setTimeout(() => $("adpBrand")?.focus(), 80);
+  }
+
+  function closeAddProductPanel() {
+    $("addProductPanel")?.classList.remove("open");
+    $("addProductOverlay")?.classList.remove("open");
+    _pendingCloudId = null;
+  }
+
+  async function saveAddProduct() {
+    const errEl = $("adpError");
+    const showErr = msg => { if (errEl) { errEl.textContent = msg; errEl.hidden = false; } };
+    if (errEl) errEl.hidden = true;
+
+    const uid = state.activeAccountId;
+    if (!uid) return showErr(t("invalidKey", { r: "no account" }));
+
+    const get = id => $(id)?.value;
+    const colorHex = String(get("adpColorHex") || "#FF5722").toUpperCase();
+    const { r, g, b } = _adpHexToRgb(colorHex);
+
+    // Decimal-aware parsers — comma separators (`0,5`) are accepted
+     // alongside dot-decimals so the user can paste localised values
+     // without a manual conversion step.
+    const numF = v => {
+      const n = parseFloat(String(v || "").replace(",", "."));
+      return isFinite(n) ? n : NaN;
+    };
+    const numI = v => {
+      const n = parseInt(String(v || "").trim(), 10);
+      return isFinite(n) ? n : NaN;
+    };
+
+    const brandId   = numI(get("adpBrand"));
+    const matId     = numI(get("adpMaterial"));
+    const typeId    = numI(get("adpType"));
+    const aspect1Id = numI(get("adpAspect1"));
+    const aspect2Id = numI(get("adpAspect2"));
+    const diamId    = numI(get("adpDiameter"));
+    const unitId    = numI(get("adpUnit"));
+    const weight    = numF(get("adpWeight"));      // decimal
+    const nozzleMin = numF(get("adpNozzleMin"));   // decimal
+    const nozzleMax = numF(get("adpNozzleMax"));   // decimal
+    const bedMin    = numF(get("adpBedMin"));      // decimal
+    const bedMax    = numF(get("adpBedMax"));      // decimal
+    const dryTemp   = numI(get("adpDryTemp"));     // 0-130 int
+    const dryTime   = numI(get("adpDryTime"));     // 0-24  int
+    // TD is optional. Empty input stays as `null` here so the save
+    // path can write `null` straight through (versus the canonical
+    // 0.1-100 clamp when the user actually typed a value).
+    const tdRaw     = String(get("adpTd") || "").trim();
+    const td        = tdRaw === "" ? null : numF(get("adpTd"));
+    const colorName = String(get("adpColorName") || "").trim();
+    const message   = String(get("adpMessage")   || "").trim();
+
+    if (!isFinite(brandId) || !isFinite(matId)) {
+      return showErr(t("addProductErrMissing"));
+    }
+    // Required integer fields — Weight, Nozzle Min/Max, Bed Min/Max
+    // can never be empty. The browser's `required` attribute would
+    // catch this on a real form submit, but this panel uses a manual
+    // save click so we validate here. Empty / non-numeric values
+    // surface a clear error and focus the offending input.
+    const required = [
+      ["adpWeight",    weight,    "addProductErrCapacity"],
+      ["adpNozzleMin", nozzleMin, "addProductErrMissingTemp"],
+      ["adpNozzleMax", nozzleMax, "addProductErrMissingTemp"],
+      ["adpBedMin",    bedMin,    "addProductErrMissingTemp"],
+      ["adpBedMax",    bedMax,    "addProductErrMissingTemp"]
+    ];
+    for (const [fieldId, value, errKey] of required) {
+      if (!isFinite(value) || value < 0 || (fieldId === "adpWeight" && value < 1)) {
+        try { $(fieldId)?.focus(); } catch (_) {}
+        return showErr(t(errKey) || t("addProductErrCapacity"));
+      }
+    }
+    // Aspect 1 ≠ Aspect 2 — they share an id pool, but with the
+    // post-filter Aspect 1 = mono only, the only collision is when
+    // both equal a real selection (the "-" placeholder is fine
+    // since it shouldn't end up the same in both sides; if it does
+    // — both empty — block too so the user picks at least one).
+    if (isFinite(aspect1Id) && isFinite(aspect2Id) && aspect1Id === aspect2Id) {
+      try { $("adpAspect2")?.focus(); } catch (_) {}
+      return showErr(t("addProductErrAspectSame") || "Aspect 1 and Aspect 2 can't be the same.");
+    }
+
+    const cloudId  = _pendingCloudId || _adpCloudId();
+
+    // ── Canonical chip schema ──────────────────────────────────────
+    // Strictly the fields the user spec'd, no extras. Anything not on
+    // the canonical list (TD, Link*, manual_entry, cloud_only,
+    // online_color_*) was removed so a future chip-burn is a straight
+    // copy of the doc — nothing to filter, nothing extra to clear.
+    //
+    //   id_unit       21          → grams
+    //   id_product    0xFFFFFFFF  → unset (real chips overwrite)
+    //   id_tigertag   random u32  → cloud-only nonce, real chip id
+    //                              replaces this on programming
+    //   color_a       255          → opaque
+    //   color_2 / 3                 ONLY written when dual (id_aspect2
+    //                              ∈ {252, 145}) or tri (id_aspect2
+    //                              ∈ {24, 145}). Mono = omitted.
+    //   data1..7      firmware slot map (diameter / nozzle min/max /
+    //                 dry temp/time / bed min/max)
+    //   timestamp     unix seconds → chip programming time; stamped
+    //                              now for cloud-only, overwritten at
+    //                              burn time.
+    //   deleted /     null         → tombstone fields kept null on
+    //   deleted_at                  fresh entries.
+    const ID_PRODUCT_UNSET = 4294967295;       // 0xFFFFFFFF
+    const data = {
+      uid: cloudId,
+
+      // ── Identity ────────────────────────────────────────────────
+      id_brand:    brandId,
+      id_material: matId,
+      id_type:     isFinite(typeId)    ? typeId    : 142,  // default Filament
+      id_aspect1:  isFinite(aspect1Id) ? aspect1Id : 104,
+      id_aspect2:  isFinite(aspect2Id) ? aspect2Id : 255,
+      // Unit — pulled from the advanced Unit picker. Falls back to
+      // grams (id 21) when the user hasn't opened Advanced.
+      id_unit:     isFinite(unitId)    ? unitId    : 21,
+      id_product:  ID_PRODUCT_UNSET,
+      // Random 32-bit TigerTag ID for cloud-only entries — the real
+      // chip replaces this at programming time.
+      id_tigertag: Math.floor(Math.random() * ID_PRODUCT_UNSET),
+
+      // ── Colour 1 (RGBA) — always written ───────────────────────
+      color_r: r, color_g: g, color_b: b, color_a: 255,
+
+      // ── Firmware data slots ─────────────────────────────────────
+      data1: isFinite(diamId)    ? diamId    : 56,        // default 1.75
+      data2: isFinite(nozzleMin) ? nozzleMin : 0,
+      data3: isFinite(nozzleMax) ? nozzleMax : 0,
+      data4: isFinite(dryTemp)   ? dryTemp   : 0,
+      data5: isFinite(dryTime)   ? dryTime   : 0,
+      data6: isFinite(bedMin)    ? bedMin    : 0,
+      data7: isFinite(bedMax)    ? bedMax    : 0,
+
+      // ── Measure ─────────────────────────────────────────────────
+      // `measure` keeps the raw user-entered value in their chosen
+      // unit (kg / g / mg). `measure_gr` is the same value converted
+      // to GRAMS, regardless of the unit picked — so the rest of
+      // the app can read "how many grams in this spool" without
+      // worrying about the unit. `weight_available` mirrors
+      // measure_gr at creation since the spool is full out of the
+      // box; it'll diverge later as filament gets used.
+      measure:          weight,
+      measure_gr:       _adpToGrams(weight, unitId),
+      weight_available: _adpToGrams(weight, unitId),
+
+      // ── Misc text ──────────────────────────────────────────────
+      // The colour-name input doubles as the message in the mobile
+      // creator UI — surface its value here so the round-trip stays
+      // 1:1 with what the user typed.
+      message: colorName || message || "",
+
+      // ── TD (HueForge) — OPTIONAL. Null when the user left the
+      // field empty; otherwise clamped to the spec'd 0.1-100 range.
+      TD: td === null
+            ? null
+            : Math.max(0.1, Math.min(100, isFinite(td) && td > 0 ? td : 0.1)),
+
+      // ── Timestamps + tombstone ─────────────────────────────────
+      timestamp:   Math.floor(Date.now() / 1000),
+      last_update: firebase.firestore.FieldValue.serverTimestamp(),
+      // Cloud-only entries always start with a pending chip-program
+      // flag — the rest of the app (grid view, card view, detail
+      // panel) reads `needUpdateAt` to render a "needs to be written
+      // to a chip" indicator next to the spool. Cleared via the
+      // existing chip-done flow (`needUpdateAt: null`) once the
+      // physical chip has been programmed.
+      needUpdateAt: Date.now(),
+      deleted:     null,
+      deleted_at:  null
+    };
+    // Colours 2 / 3 — only present when the chosen aspect declares
+    // multi-colour content. id_aspect2 mapping (per the spec):
+    //   - mono     → 255 (no extra colours written)
+    //   - dual     → 252 / 145 (write color_*2 only)
+    //   - tri      → 24       (write color_*2 and color_*3)
+    //   - rainbow  → 145      (write color_*2 and color_*3)
+    // The studio creator UI is mono-only for now, so this branch
+    // stays inert until the multi-colour picker lands. Implemented
+    // ahead of time so the schema is forward-compatible.
+    const aspect2 = isFinite(aspect2Id) ? aspect2Id : 255;
+    if (aspect2 === 252 || aspect2 === 24 || aspect2 === 145) {
+      data.color_r2 = 255; data.color_g2 = 255; data.color_b2 = 255;
+    }
+    if (aspect2 === 24 || aspect2 === 145) {
+      data.color_r3 = 33;  data.color_g3 = 150; data.color_b3 = 243;
+    }
+
+    const btn = $("adpSave");
+    if (btn) { btn.disabled = true; btn.textContent = "…"; }
+    try {
+      await fbDb()
+        .collection("users").doc(uid)
+        .collection("inventory").doc(cloudId)
+        .set(data);
+      closeAddProductPanel();
+      try { toast(t("addProductOk"), "success"); } catch (_) {}
+    } catch (e) {
+      console.warn("[addProduct] save failed:", e?.code, e?.message);
+      showErr(`${t("addProductErrSave")} ${e?.message || ""}`.trim());
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = t("addProductSave"); }
+    }
+  }
+
+  // Helper — close any open colour sub-sheet alongside the panel.
+  // Used by every "close everything" affordance (✕ button on the
+  // panel header, Cancel button, panel-overlay click) so a click
+  // outside the side card always tears down the whole cascade.
+  function _adpCloseAllSheetsAndPanel() {
+    closeAdpMaterialSheet();
+    closeAdpBrandSheet();
+    closeAdpColorCustomSheet();
+    closeAdpColorSheet();
+    closeAddProductPanel();
+  }
+
+  // Brand trigger → open the dedicated bottom sheet (search + favs).
+  $("adpBrandTrigger")?.addEventListener("click", openAdpBrandSheet);
+  $("adpBrandBackdrop")?.addEventListener("click", closeAdpBrandSheet);
+  // Show / hide the inline ✕ on the brand search field — only
+  // surfaced when there's a value to clear, mirroring the main
+  // inventory search bar's UX.
+  function _adpBrandSearchClearVisibility(value) {
+    const btn = $("adpBrandSearchClear");
+    if (!btn) return;
+    btn.hidden = !value || !String(value).length;
+  }
+  // Live filter — re-render on every keystroke. Cheap because the
+  // brand list is small (~50 entries) and HTML is rebuilt fully.
+  $("adpBrandSearch")?.addEventListener("input", e => {
+    _adpRenderBrandList(e.target.value);
+    _adpBrandSearchClearVisibility(e.target.value);
+  });
+  // Click ✕ → wipe the input, refocus, re-render the list unfiltered.
+  $("adpBrandSearchClear")?.addEventListener("click", () => {
+    const inp = $("adpBrandSearch");
+    if (!inp) return;
+    inp.value = "";
+    _adpRenderBrandList("");
+    _adpBrandSearchClearVisibility("");
+    inp.focus();
+  });
+  // List click delegation — handles both brand-row pick AND star toggle.
+  $("adpBrandList")?.addEventListener("click", e => {
+    // Star toggle takes priority — even though the row click would also
+    // catch it, we want star = "favourite, don't pick".
+    const star = e.target.closest("[data-fav-id]");
+    if (star) {
+      e.stopPropagation();
+      const id = parseInt(star.dataset.favId, 10);
+      if (!isFinite(id)) return;
+      _adpToggleFavBrand(id);
+      // Re-render in place — keeps the search filter and scroll position
+      // (the list rebuild reuses the same scroll container).
+      _adpRenderBrandList($("adpBrandSearch")?.value || "");
+      return;
+    }
+    const row = e.target.closest("[data-brand-id]");
+    if (!row) return;
+    const id = parseInt(row.dataset.brandId, 10);
+    if (!isFinite(id)) return;
+    _adpPickBrand(id);
+    closeAdpBrandSheet();
+  });
+
+  // ── Material trigger + sheet wiring (mirror of Brand) ─────────
+  function _adpMaterialSearchClearVisibility(value) {
+    const btn = $("adpMaterialSearchClear");
+    if (!btn) return;
+    btn.hidden = !value || !String(value).length;
+  }
+  $("adpMaterialTrigger")?.addEventListener("click", openAdpMaterialSheet);
+  $("adpMaterialBackdrop")?.addEventListener("click", closeAdpMaterialSheet);
+  $("adpMaterialSearch")?.addEventListener("input", e => {
+    _adpRenderMaterialList(e.target.value);
+    _adpMaterialSearchClearVisibility(e.target.value);
+  });
+  $("adpMaterialSearchClear")?.addEventListener("click", () => {
+    const inp = $("adpMaterialSearch");
+    if (!inp) return;
+    inp.value = "";
+    _adpRenderMaterialList("");
+    _adpMaterialSearchClearVisibility("");
+    inp.focus();
+  });
+  $("adpMaterialList")?.addEventListener("click", e => {
+    const star = e.target.closest("[data-mat-fav-id]");
+    if (star) {
+      e.stopPropagation();
+      const id = parseInt(star.dataset.matFavId, 10);
+      if (!isFinite(id)) return;
+      _adpToggleFavMaterial(id);
+      _adpRenderMaterialList($("adpMaterialSearch")?.value || "");
+      return;
+    }
+    const row = e.target.closest("[data-mat-id]");
+    if (!row) return;
+    const id = parseInt(row.dataset.matId, 10);
+    if (!isFinite(id)) return;
+    _adpPickMaterial(id);
+    closeAdpMaterialSheet();
+  });
+
+  $("btnAddProduct")?.addEventListener("click", openAddProductPanel);
+  $("addProductClose")?.addEventListener("click", _adpCloseAllSheetsAndPanel);
+  $("adpCancel")?.addEventListener("click", _adpCloseAllSheetsAndPanel);
+  $("adpSave")?.addEventListener("click", saveAddProduct);
+  // Panel-overlay click — outside-the-card region. Closes any open
+  // colour sheet first, then the panel, so a single click in the
+  // "outside" area dismisses the whole cascade.
+  $("addProductOverlay")?.addEventListener("click", _adpCloseAllSheetsAndPanel);
+
+  // Color square click → open the bottom-sheet palette (24 presets +
+  // custom eyedropper slot). Same pattern as the Snapmaker / FlashForge
+  // filament-edit colour pickers, so the visual grammar is uniform
+  // across "I'm picking a filament colour" surfaces in the app.
+  $("adpColorSquare")?.addEventListener("click", () => {
+    openAdpColorSheet();
+  });
+  // Native colour input — used as the OS picker target when the user
+  // clicks the eyedropper slot. Update every input event so the live
+  // preview as the user drags the OS picker reflects on the square.
+  $("adpColorHex")?.addEventListener("input", e => {
+    _adpSyncColor(e.target.value);
+  });
+
+  // Bottom-sheet close — backdrop click is the only affordance now
+  // (no ✕ button, no grip, matching the mobile creator UX).
+  $("adpColorBackdrop")?.addEventListener("click", closeAdpColorSheet);
+  // Preset cell click delegation — fixed swatches close the sheet
+  // immediately on pick (same UX as Snapmaker's). The CUSTOM cell
+  // (eyedropper) opens a SECOND bottom-sheet dedicated to dialing
+  // a precise hex, rather than spawning the OS dialog directly.
+  $("adpColorGrid")?.addEventListener("click", e => {
+    const btn = e.target.closest(".sfe-color-cell");
+    if (!btn) return;
+    if (btn.dataset.colorCustom === "1") {
+      openAdpColorCustomSheet();
+      return;
+    }
+    const c = btn.dataset.color;
+    if (!c) return;
+    _adpSyncColor(c);
+    closeAdpColorSheet();
+  });
+
+  // Custom-colour sheet wiring — HSV picker drag + hue slider drag +
+  // hex input two-way bind + paste-from-clipboard + OK commit.
+  // Backdrop click is the only close affordance (no ✕, no grip).
+  $("adpColorCustomBackdrop")?.addEventListener("click", closeAdpColorCustomSheet);
+
+  // Hex input — accept "RRGGBB" or "#RRGGBB". Pass `skipHexInput` so
+  // the redraw doesn't clobber what the user is currently typing
+  // (would jump the caret to the end on every keystroke).
+  $("adpCcHex")?.addEventListener("input", e => {
+    _adpCcSetFromHex(e.target.value, { skipHexInput: true });
+  });
+  // On blur, reformat the input so partial / unparseable values snap
+  // back to the canonical 6-digit upper-case form derived from state.
+  $("adpCcHex")?.addEventListener("blur", () => _adpCcRender());
+
+  // Paste icon — pull from the clipboard and treat it as a hex input.
+  // Tolerant: trims whitespace and accepts an optional leading `#`.
+  $("adpCcPaste")?.addEventListener("click", async () => {
+    try {
+      const txt = await navigator.clipboard.readText();
+      if (_adpCcSetFromHex(txt)) return;
+    } catch (_) { /* clipboard denied / unavailable — silent */ }
+  });
+
+  // SV rectangle drag — fx = saturation, fy = inverted value.
+  _adpCcAttachDrag($("adpCcSv"), (fx, fy) => {
+    _adpCcState.s = fx;
+    _adpCcState.v = 1 - fy;
+    _adpCcRender();
+  });
+
+  // Hue slider drag — fx = hue / 360, fy ignored (1D control).
+  _adpCcAttachDrag($("adpCcHue"), (fx) => {
+    _adpCcState.h = fx * 360;
+    _adpCcRender();
+  });
+
+  // OK — commits the current colour to the panel + cascades both
+  // sheets closed (preset + custom). Reuses _adpSyncColor so the
+  // colour name input + RFID preview pick up the change too.
+  $("adpCcApply")?.addEventListener("click", () => {
+    const c = _adpCcCurrentHex();
+    if (!c) return; // shouldn't happen — state always yields a valid hex
+    _adpSyncColor(c);
+    closeAdpColorCustomSheet();
+    closeAdpColorSheet();
+  });
+
+  // Copy-RFID-JSON button (debug only) — same UX as the spool detail
+  // panel's `#btnCopyRaw`: grabs the pre's textContent (strips the
+  // `highlight()` HTML wrappers automatically) and writes it to the
+  // clipboard, with a `.copied` class flash for feedback.
+  $("adpBtnCopyRfid")?.addEventListener("click", e => {
+    e.preventDefault(); e.stopPropagation();
+    const pre = $("adpRfidPreview");
+    if (!pre) return;
+    navigator.clipboard.writeText(pre.textContent).then(() => {
+      const btn = $("adpBtnCopyRfid");
+      if (!btn) return;
+      btn.classList.add("copied");
+      setTimeout(() => btn.classList.remove("copied"), 1800);
+    }).catch(() => {});
+  });
+
+  // Material change → seed defaults (unless the user has overridden
+  // the target field) + refresh the RFID preview.
+  $("adpMaterial")?.addEventListener("change", e => {
+    _adpApplyMaterialDefaults(parseInt(e.target.value, 10));
+  });
+  // Brand / type / aspect / diameter / weight / unit / TD / message
+  // — every input refreshes the RFID Data preview so the user sees
+  // their changes reflected in the read-only block in real time.
+  // Including `adpUnit` is critical because changing the unit alone
+  // re-derives `measure_gr` (e.g. flipping from g to kg multiplies
+  // the gram value by 1000) — without this listener the preview
+  // would show stale grams until the user touched another field.
+  ["adpBrand", "adpType", "adpAspect1", "adpAspect2", "adpDiameter",
+   "adpWeight", "adpUnit", "adpTd", "adpMessage",
+   "adpNozzleMin", "adpNozzleMax", "adpBedMin", "adpBedMax",
+   "adpDryTemp", "adpDryTime"].forEach(id => {
+    const el = $(id);
+    if (!el) return;
+    const evt = el.tagName === "SELECT" ? "change" : "input";
+    el.addEventListener(evt, () => {
+      el.dataset.userEdited = "1";
+      _adpRefreshRfidPreview();
+    });
+  });
+
+  // Colour name has its own handler — enforces the 28-byte UTF-8 limit
+  // (`maxlength` HTML attr counts CHARACTERS, not bytes, so we'd allow
+  // a 28-character string of CJK / emoji that's 84-112 bytes wide and
+  // would overflow the chip slot). Every keystroke truncates to the
+  // longest prefix that still fits, refreshes the counter pill, and
+  // bubbles into the RFID Data preview.
+  $("adpColorName")?.addEventListener("input", e => {
+    const el = e.target;
+    const before = el.value;
+    if (_adpByteLength(before) > ADP_COLOR_NAME_MAX_BYTES) {
+      // Preserve the caret position relative to the truncated tail —
+      // truncation always cuts the END of the string so we keep the
+      // caret where the user is typing.
+      const cut = _adpTruncateToBytes(before, ADP_COLOR_NAME_MAX_BYTES);
+      el.value = cut;
+    }
+    _adpRefreshColorNameCounter();
+    _adpToggleClearVisibility(el.value);
+    _adpRefreshRfidPreview();
+  });
+  // Defend against pasted input — the `paste` event fires before
+  // `input` so we re-run the truncation in case the platform emits
+  // them in an unusual order on this OS.
+  $("adpColorName")?.addEventListener("paste", () => {
+    queueMicrotask(() => {
+      const el = $("adpColorName");
+      if (!el) return;
+      if (_adpByteLength(el.value) > ADP_COLOR_NAME_MAX_BYTES) {
+        el.value = _adpTruncateToBytes(el.value, ADP_COLOR_NAME_MAX_BYTES);
+      }
+      _adpRefreshColorNameCounter();
+      _adpToggleClearVisibility(el.value);
+      _adpRefreshRfidPreview();
+    });
+  });
+
+  // Advanced toggle — pill switch (cog row, right side). Mirrors the
+  // mobile creator screen: toggle ON reveals the full editable form
+  // (Type / Diameter / Aspect 1+2 / Weight+Unit / Nozzle/Bed/Drying
+  // temps / TD / RFID Data preview). Basic view's stat cards stay
+  // as display-only readouts and don't need any read-only toggling
+  // since they're <span>s, not <input>s.
+  $("adpAdvancedToggle")?.addEventListener("click", () => {
+    const tog = $("adpAdvancedToggle");
+    const body = $("adpAdvancedBody");
+    if (!tog || !body) return;
+    const next = tog.dataset.on !== "true";
+    tog.dataset.on = next ? "true" : "false";
+    tog.setAttribute("aria-checked", next ? "true" : "false");
+    body.hidden = !next;
+    if (next) {
+      _adpRefreshRfidPreview();
+      _adpUpdateBasicReadouts();
+    }
+  });
+
+  // Type basic ↔ advanced sync — the basic Type select sits in the
+  // cog row, the advanced one is part of the full Advanced form.
+  // Both write to each other so the value is always consistent.
+  $("adpType")?.addEventListener("change", e => {
+    const adv = $("adpTypeAdv");
+    if (adv) adv.value = e.target.value;
+    _adpRefreshRfidPreview();
+  });
+  $("adpTypeAdv")?.addEventListener("change", e => {
+    const sel = $("adpType");
+    if (sel) sel.value = e.target.value;
+    e.target.dataset.userEdited = "1";
+    _adpRefreshRfidPreview();
+  });
+  // Same for Aspect 1.
+  $("adpAspect1")?.addEventListener("change", e => {
+    const adv = $("adpAspect1Adv");
+    if (adv) adv.value = e.target.value;
+    _adpRefreshRfidPreview();
+  });
+  $("adpAspect1Adv")?.addEventListener("change", e => {
+    const sel = $("adpAspect1");
+    if (sel) sel.value = e.target.value;
+    e.target.dataset.userEdited = "1";
+    _adpRefreshRfidPreview();
+  });
+
+  // Integer-only fields (.adp-int-only) — strip every non-digit
+  // (signs, commas, dots, letters) AND live-clamp to the input's
+  // own `max` attribute. Browser <input type="number"> usually
+  // handles this but is inconsistent across locales / accepts
+  // negatives or huge values. Manual filter = guaranteed clean +
+  // never above the chip's real upper bound.
+  document.querySelectorAll(".adp-int-only").forEach(el => {
+    el.addEventListener("input", () => {
+      const raw = String(el.value || "");
+      // 1. Strip non-digits (no minus sign — these fields can't be
+      //    negative; also strips comma/dot/letters in one pass).
+      let cleaned = raw.replace(/[^\d]/g, "");
+      // 2. Read the max attribute; live-clamp to it. Lets a single
+      //    keystroke ("1234") collapse to "500" instead of letting
+      //    the user end up with "1234" and surprise on save.
+      const maxAttr = parseInt(el.getAttribute("max") || "", 10);
+      if (cleaned !== "" && isFinite(maxAttr)) {
+        const v = parseInt(cleaned, 10);
+        if (isFinite(v) && v > maxAttr) cleaned = String(maxAttr);
+      }
+      if (cleaned !== raw) {
+        el.value = cleaned;
+        // Caret to the end since we may have truncated mid-string.
+        try { el.setSelectionRange(cleaned.length, cleaned.length); }
+        catch (_) {}
+      }
+      el.dataset.userEdited = "1";
+      _adpUpdateBasicReadouts();
+      _adpRefreshRfidPreview();
+    });
+  });
+
+  // TD (HueForge) — decimal field, comma → dot conversion live.
+  // Upper bound clamped IN-LINE on every keystroke (so the user
+  // can't end up with "99999999"); lower bound enforced on blur so
+  // they can still type "0.5" without hitting the 0.1 floor while
+  // mid-stroke at "0".
+  $("adpTd")?.addEventListener("input", e => {
+    const raw = String(e.target.value || "");
+    // Swap commas for dots, then strip anything that isn't a digit
+    // or a single dot — permissive during typing.
+    let cleaned = raw.replace(/,/g, ".").replace(/[^\d.]/g, "");
+    const firstDot = cleaned.indexOf(".");
+    if (firstDot >= 0) {
+      cleaned = cleaned.slice(0, firstDot + 1) +
+                cleaned.slice(firstDot + 1).replace(/\./g, "");
+    }
+    // Upper-bound clamp — if the partial value already exceeds 100,
+    // truncate to "100". This catches "1000" right after the third
+    // zero, and "99.5" only when it crosses 100 (which it never
+    // does, so 99.5 stays). Lets the user keep typing decimals.
+    const numVal = parseFloat(cleaned);
+    if (isFinite(numVal) && numVal > 100) cleaned = "100";
+    if (cleaned !== raw) {
+      e.target.value = cleaned;
+      // Push the caret to the end since we may have truncated mid-string.
+      try { e.target.setSelectionRange(cleaned.length, cleaned.length); }
+      catch (_) {}
+    }
+    e.target.dataset.userEdited = "1";
+    _adpRefreshRfidPreview();
+  });
+  // Blur normalisation — TD is OPTIONAL. Empty stays empty (so the
+  // field never auto-fills when the user doesn't care about
+  // HueForge). When non-empty: clamp to [0.1, 100] and normalise
+  // any leading-zero / partial-decimal noise (e.g. "01.5" → "1.5").
+  $("adpTd")?.addEventListener("blur", e => {
+    const raw = String(e.target.value || "").trim();
+    if (raw === "") return;                 // empty → leave empty
+    const v = parseFloat(raw);
+    if (!isFinite(v))         e.target.value = "";
+    else if (v < 0.1)         e.target.value = "0.1";
+    else if (v > 100)         e.target.value = "100";
+    else                      e.target.value = String(v);
+    _adpRefreshRfidPreview();
+  });
+
+  // Dual Link toggle — tracked locally on the panel for now (the wire
+  // schema doesn't yet have a dedicated field, but mirroring the
+  // mobile UI keeps the visual parity). Read via dataset on save.
+  $("adpDualLinkToggle")?.addEventListener("click", () => {
+    const tog = $("adpDualLinkToggle");
+    if (!tog) return;
+    const next = tog.dataset.on !== "true";
+    tog.dataset.on = next ? "true" : "false";
+    tog.setAttribute("aria-checked", next ? "true" : "false");
+  });
+
+  // Inline ✕ on the colour-name field — visibility synced with the
+  // input value (only shown when there's something to clear).
+  $("adpColorNameClear")?.addEventListener("click", () => {
+    const inp = $("adpColorName");
+    if (!inp) return;
+    inp.value = "";
+    _adpRefreshColorNameCounter();
+    _adpRefreshRfidPreview();
+    _adpToggleClearVisibility("");
+    inp.focus();
+  });
+
+  // Escape — peel one layer at a time: custom-colour sheet → preset
+  // sheet → material sheet → brand sheet → side panel. Same
+  // nested-close UX as the Snapmaker filament edit cascade.
+  document.addEventListener("keydown", e => {
+    if (e.key !== "Escape") return;
+    if ($("adpColorCustomSheet")?.classList.contains("open")) {
+      closeAdpColorCustomSheet();
+      return;
+    }
+    if ($("adpColorSheet")?.classList.contains("open")) {
+      closeAdpColorSheet();
+      return;
+    }
+    if ($("adpMaterialSheet")?.classList.contains("open")) {
+      closeAdpMaterialSheet();
+      return;
+    }
+    if ($("adpBrandSheet")?.classList.contains("open")) {
+      closeAdpBrandSheet();
+      return;
+    }
+    if ($("addProductPanel")?.classList.contains("open")) {
+      closeAddProductPanel();
+    }
+  });
+
   /* ── settings panel ── */
   const SVG_COPY = `<span class="icon icon-copy icon-13"></span>`;
   function openSettings() {
@@ -784,7 +2390,10 @@
   function closeSettings() {
     $("settingsPanel").classList.remove("open"); $("settingsOverlay").classList.remove("open");
   }
-  $("btnOpenSettings").addEventListener("click", openSettings);
+  // (Sidebar Settings button removed — Settings is reached from the
+  // account dropdown, just under "Manage profiles". The dropdown's
+  // delegated handler dispatches `data-drop-action="open-settings"`
+  // → openSettings().)
   $("settingsClose").addEventListener("click", closeSettings);
   $("settingsOverlay").addEventListener("click", closeSettings);
 
@@ -2845,6 +4454,19 @@
   function twinOverlayBadge(r) {
     return r.hasTwinPair ? `<span class="thumb-twin-badge" title="${t('twinBadge')} — ${t('twinTitle')}">${SVG_TWIN_SMALL}</span>` : "";
   }
+
+  // Tier badge shown next to a row everywhere we display its origin:
+  //   • TigerTag Cloud — doc-only, no physical chip yet (CLOUD_ prefix)
+  //   • TigerTag+      — chip linked to an online catalog product (url_img set)
+  //   • TigerTag       — bare chip / DIY entry
+  // Cloud takes precedence over Plus because a CLOUD_ doc cannot also be a
+  // chip-on-shelf — the prefix flips to a real hex UID the moment a chip
+  // is programmed.
+  function tierBadgeHTML(r, extraClass = "") {
+    if (r.isCloud) return `<span class="tag-cloud${extraClass ? " " + extraClass : ""}">TigerTag Cloud</span>`;
+    if (r.isPlus)  return `<span class="tag-plus${extraClass ? " " + extraClass : ""}">TigerTag+</span>`;
+    return `<span class="tag-diy${extraClass ? " " + extraClass : ""}">TigerTag</span>`;
+  }
   function thumbHTML(row, size = 28) {
     const src = row.imgUrl ? resolvedImg(row.imgUrl) : null;
     const overlay = twinOverlayBadge(row);
@@ -2871,7 +4493,7 @@
       }
       tr.innerHTML = `
         <td class="thumb-cell">${thumbHTML(r, 50)}</td>
-        <td>${r.isPlus ? '<span class="tag-plus">TigerTag+</span>' : '<span class="tag-diy">TigerTag</span>'}</td>
+        <td>${tierBadgeHTML(r)}</td>
         <td>${esc(v(r.material))}</td>
         <td>${esc(v(r.brand))}</td>
         <td class="color-cell">${swatch}</td>
@@ -2896,7 +4518,7 @@
         : `<div class="card-img-color-placeholder" style="background:${colorBg(r)}"><img src="${logoSrc(colorBg(r))}" /></div>`;
       const pct = (r.weightAvailable != null && r.capacity) ? Math.max(0,Math.min(100,Math.round(r.weightAvailable/r.capacity*100))) : null;
       const swatch = colorCircleHTML(r);
-      const badge = r.isPlus ? '<span class="tag-plus">TigerTag+</span>' : '<span class="tag-diy">TigerTag</span>';
+      const badge = tierBadgeHTML(r);
       const tdBadge = r.td != null ? `<span class="card-td-badge">TD ${r.td}</span>` : "";
       const chipDot = r.needUpdateAt ? `<span class="chip-badge card-chip-badge" title="${t("chipPendingHint")}"><span class="icon icon-refresh icon-11"></span></span>` : "";
       card.innerHTML = `
@@ -3797,9 +5419,7 @@
     const mat = r.materialData;
 
     // image + badge overlay
-    const badgeLeft = r.isPlus
-      ? '<span class="tag-plus panel-img-badge panel-img-badge--tl">TigerTag+</span>'
-      : '<span class="tag-diy panel-img-badge panel-img-badge--tl">TigerTag</span>';
+    const badgeLeft = tierBadgeHTML(r, "panel-img-badge panel-img-badge--tl");
     const badgeTwin = r.hasTwinPair
       ? `<span class="tag-twin panel-img-badge-tr-item panel-img-icon-badge" title="${t("twinBadge")} — ${t("twinTitle")}"><span class="icon icon-link icon-11"></span></span>`
       : "";
@@ -3992,7 +5612,7 @@
         <div class="panel-details-body">
           ${infoRows.map(([k,val]) => `<div class="panel-row"><span class="pk">${k}</span><span class="pv">${esc(String(val))}</span></div>`).join("")}
           <div style="margin-top:8px;display:flex;gap:6px">
-            ${r.isPlus ? '<span class="tag-plus">TigerTag+</span>' : '<span class="tag-diy">TigerTag</span>'}
+            ${tierBadgeHTML(r)}
             ${r.deleted ? `<span class="badge bad" style="font-size:11px">${t("badgeDeleted")}</span>` : ""}
           </div>
         </div>
@@ -4445,7 +6065,6 @@
     // own handlers run instead of the click-outside closing behaviour.
     if (e.target.closest("#btnToggleUnranked")) return;  // header pill toggle
     if (e.target.closest("#btnViewRack")) return;        // Storage view button (toolbar)
-    if (e.target.closest("#btnOpenRacks")) return;       // Storage button (sidebar)
     // Otherwise — close
     aside.classList.remove("is-open");
     localStorage.setItem("tigertag.unrackedPanelOpen", "false");
@@ -13111,9 +14730,9 @@
     deleteRack(rack.id).catch(e => console.warn("[deleteRack]", e.message));
   }
 
-  // Sidebar "Storage" button still routes to the rack view in the main panel.
-  // (btnNewRack is rendered dynamically inside the rack view header — wired in renderRackView.)
-  $("btnOpenRacks")?.addEventListener("click", () => setViewMode("rack"));
+  // (Sidebar "Storage" button removed — Storage view is reached from the
+  // view-toggle row above the inventory. `btnNewRack` is rendered
+  // dynamically inside the rack view header — wired in renderRackView.)
   $("rackEditClose")?.addEventListener("click", closeRackEditModal);
   // Hold-to-confirm wiring — 1.5s press-and-hold replaces the confirm() dialog.
   // Prevents accidental clicks; shows a fill animation as the user holds.

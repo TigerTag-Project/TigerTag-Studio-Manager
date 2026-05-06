@@ -24,6 +24,18 @@
     "features": ["CFS", "Lidar", "Camera", "Enclosed"]
   },
   {
+    "id": "5",
+    "name": "Creator 5",
+    "image": "assets/images/ffg_printers/creator_5.png",
+    "features": ["CFS", "Lidar", "Camera", "Enclosed"]
+  },
+  {
+    "id": "6",
+    "name": "Creator 5 Pro",
+    "image": "assets/images/ffg_printers/a5.png",
+    "features": ["CFS", "Lidar", "Camera", "Enclosed"]
+  },
+  {
     "id": "0",
     "name": "Select Printer",
     "image": "assets/images/ffg_printers/no_printer.png",

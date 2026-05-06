@@ -39,6 +39,12 @@
   .icon-chevron-r { -webkit-mask-image: url('../../assets/svg/icons/icon_chevron_right.svg'); mask-image: url('../../assets/svg/icons/icon_chevron_right.svg'); }
   .icon-chevrons-r { -webkit-mask-image: url('../../assets/svg/icons/icon_chevrons_right.svg'); mask-image: url('../../assets/svg/icons/icon_chevrons_right.svg'); }
   .icon-plus      { -webkit-mask-image: url('../../assets/svg/icons/icon_plus.svg');         mask-image: url('../../assets/svg/icons/icon_plus.svg'); }
+  .icon-star      { -webkit-mask-image: url('../../assets/svg/icons/icon_star.svg');         mask-image: url('../../assets/svg/icons/icon_star.svg'); }
+  .icon-star-fill { -webkit-mask-image: url('../../assets/svg/icons/icon_star_filled.svg');  mask-image: url('../../assets/svg/icons/icon_star_filled.svg'); }
+  .icon-flame     { -webkit-mask-image: url('../../assets/svg/icons/icon_flame.svg');        mask-image: url('../../assets/svg/icons/icon_flame.svg'); }
+  .icon-local-fire{ -webkit-mask-image: url('../../assets/svg/icons/icon_local_fire.svg');   mask-image: url('../../assets/svg/icons/icon_local_fire.svg'); }
+  .icon-droplets  { -webkit-mask-image: url('../../assets/svg/icons/icon_droplets.svg');     mask-image: url('../../assets/svg/icons/icon_droplets.svg'); }
+  .icon-water     { -webkit-mask-image: url('../../assets/svg/icons/icon_water.svg');        mask-image: url('../../assets/svg/icons/icon_water.svg'); }
   .icon-link      { -webkit-mask-image: url('../../assets/svg/icons/icon_link.svg');         mask-image: url('../../assets/svg/icons/icon_link.svg'); }
   .icon-user      { -webkit-mask-image: url('../../assets/svg/icons/icon_user.svg');         mask-image: url('../../assets/svg/icons/icon_user.svg'); }
   .icon-download  { -webkit-mask-image: url('../../assets/svg/icons/icon_download.svg');     mask-image: url('../../assets/svg/icons/icon_download.svg'); }
@@ -281,6 +287,11 @@
   /* ── tag type badges ── */
   .tag-plus { background: linear-gradient(90deg,#ff7a18,#ffb056); color:#fff; font-size:10px; padding:2px 7px; border-radius:999px; font-weight:700; letter-spacing:.03em; }
   .tag-diy { background: var(--surface-2); color: var(--muted); font-size:10px; padding:2px 7px; border-radius:999px; font-weight:600; letter-spacing:.03em; }
+  /* Cloud-only entry — purple gradient distinct from .tag-plus (orange,
+     real chip + online catalog) and .tag-twin (sky-blue, twin pairing).
+     Tag is awarded to docs whose id starts with `CLOUD_`, i.e. created
+     via the Add Product flow but not yet programmed onto a physical chip. */
+  .tag-cloud { background: linear-gradient(90deg,#7c4dff,#a37bff); color:#fff; font-size:10px; padding:2px 7px; border-radius:999px; font-weight:700; letter-spacing:.03em; }
   .tag-twin { background: linear-gradient(90deg,#3d8ef0,#7ab4ff); color:#fff; font-size:10px; padding:2px 7px; border-radius:999px; font-weight:700; letter-spacing:.03em; display:inline-flex; align-items:center; gap:3px; margin-left:4px; }
 
   /* ── view toggle ── */
@@ -348,12 +359,47 @@
   /* Row dedicated to the view selector — sits directly below the search
      bar and filter dropdowns so the toggle keeps its full size (incl.
      the Storage/Printers labels) regardless of how wide the filters
-     above end up. Slight top margin separates the two rows visually. */
+     above end up. The Add-product button is right-aligned on the same
+     row via `space-between`. Slight top margin separates the two rows. */
   .inv-view-row {
     display: flex;
-    justify-content: flex-start;
+    justify-content: space-between;
+    align-items: center;
     margin-top: 8px;
+    gap: 10px;
   }
+
+  /* Primary action button matching the brand accent. Compact height to
+     align with the .view-toggle buttons (~36px tall combined with their
+     padding) so the row reads as a single horizontal band. */
+  .inv-add-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 36px;
+    padding: 0 14px;
+    border: none;
+    border-radius: 10px;
+    background: var(--primary);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: filter .15s, transform .1s;
+    flex-shrink: 0;
+  }
+  /* Explicitly re-assert the primary background on :hover — without
+     this the global `button:hover { background: var(--surface-2) }`
+     rule (specificity 0,1,1) wins for the `background` property
+     since `.inv-add-btn:hover` (0,2,0) below only declares `filter`,
+     leaving background unspecified and inherited from the global —
+     which made the button go white-on-white on hover. */
+  .inv-add-btn:hover {
+    background: var(--primary);
+    filter: brightness(1.07);
+  }
+  .inv-add-btn:active { transform: translateY(1px); }
+  .inv-add-btn .icon  { background: #fff; }
 
   /* Quick-filter group — keeps the 3 dropdowns clustered together,
      so the search bar can absorb all the remaining horizontal space. */

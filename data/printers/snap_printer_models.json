@@ -1,7 +1,7 @@
 [
   {
     "id": "1",
-    "name": "SnapMaker U1",
+    "name": "U1",
     "image": "assets/images/snap_printers/u1.png",
     "features": ["Camera"],
     "open_firmware": ""

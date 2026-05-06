@@ -50,6 +50,45 @@
 
 ## Changelog
 
+### v1.4.12 — 2026-05-06
+
+Polish release for the **Add Product side panel**: a brand-new mobile-style HSV colour picker, a debug-only RFID Data preview that mirrors the spool Raw JSON surface, and a third tier label — **TigerTag Cloud** — for doc-only inventory entries that don't yet have a physical chip.
+
+#### Add Product — full HSV colour picker
+- **Anthracite preset sheet** — the colour preset bottom-sheet now matches the Brand / Material sheets' anthracite canvas (`#1f242e`). Each preset swatch gets a 1 px black ring so light colours stay readable on dark; selected state stacks the black ring with the existing primary halo. Scoped via `.sfe-sheet--color.adp-color-sheet` so the Snapmaker / FlashForge filament-edit colour sheets keep their own theme.
+- **Custom slot shows the current colour** — the last cell of the preset grid (the eyedropper / "edit colour" affordance) renders with `background: <currentHex>` and the edit-pencil icon overlaid in white-with-shadow. One glance tells the user which colour the picker will reopen on.
+- **Custom-colour bottom-sheet rebuilt as an HSV picker** — the previous hex-input + OS-picker bridge is replaced with a layout that mirrors the Flutter create-TigerTag screen:
+  - Hex input row — bare on the anthracite canvas (no card / border / radius), `#` glyph absolutely positioned on the left, copy/paste icon on the right, hex digits centered between them. Width capped at 50% and centered. The input itself is fully driven from state — `_adpCcState = { h, s, v }` — so dragging the SV thumb / hue slider keeps the field live without round-tripping through the DOM.
+  - Saturation × value rectangle — two stacked CSS gradients (white→pure-hue + transparent→black on top). Circular thumb at normalised `(S, 1−V)`. Pure-hue is driven by a CSS variable `--cc-hue` so changing the hue slider repaints the SV background instantly.
+  - Bottom row — 44 px current-colour preview circle on the left, full-width rainbow hue slider on the right with a thumb that takes the pure-hue colour live (`--cc-hue-thumb`).
+  - White pill **OK** button at the bottom — commits + cascades both sheets closed via `_adpSyncColor` (so colour-name input + RFID preview pick up the change).
+  - Pointer-driven drag (`setPointerCapture`) on both the SV rectangle AND the hue slider — works on touch surfaces too. Clipboard paste tolerates `#RRGGBB` / `RRGGBB` / leading whitespace.
+- **Live main-circle update** — dragging the SV thumb / hue slider / typing in the hex input now repaints the panel's main colour circle (`#adpColorSquare`) on every redraw tick. The full sync (preset re-render + RFID preview rebuild + RGB hidden inputs) still runs only on OK click.
+- **CSS cascade fix** — the global `input[type="text"]` rule (specificity 0,1,1) was painting the new hex input white and giving it a 40 px height + border + radius. Doubled the selector to `.adp-cc-sheet .adp-cc-hex-input` (specificity 0,2,0) so all our overrides take. Same fix applied around `:focus` and `-webkit-autofill`. Documented inline — same bug pattern called out in CLAUDE.md.
+
+#### Add Product — RFID Data debug surface
+- **Debug-mode-only visibility** — the RFID Data preview block is now gated to `state.debugEnabled` (set by `users/{uid}.Debug` in Firestore). Non-admin users no longer see it at all. `_adpRefreshRfidPreview()` early-returns when the section is hidden so we skip the JSON build entirely for them.
+- **Moved out of Advanced mode** — the section is now a sibling of `#adpAdvancedBody` instead of a child. Visible whether Advanced mode is expanded or collapsed; debug users always see it (or never, if they're not).
+- **Iso to the spool Raw JSON surface** — switched from the previous bespoke card-with-header to the canonical `<details class="debug">` pattern (chevron summary, `pre.json` dark theme). Inherits all the existing styles from `70-detail-misc.css`. Removed the `.adp-rfid-block` / `.adp-rfid-head` / `.adp-rfid-pre` rules.
+- **Copy-JSON button outside the `<summary>`** — rendered as a sibling of `<details>` and absolutely positioned in the top-right corner of the section. Clicking it can never bubble up to toggle the details open/closed. Transparent background, white SVG, soft hover (`rgba(255,255,255,.10)`), `.copied` class flashes green for 1.8 s after a successful clipboard write.
+- **No max-height cap** — the `<pre>` was inheriting `max-height: 360px` from the global `pre.json` rule. Inline override to `max-height: none; overflow: visible` so expanding the chevron now shows the full JSON inline; the Add Product panel body itself owns the vertical scroll.
+
+#### TigerTag Cloud — third tier
+- New tier label **"TigerTag Cloud"** for inventory entries whose doc id starts with `CLOUD_` (the prefix written by the desktop's "Add Product" flow before a physical chip is programmed). Sits alongside **TigerTag+** (chip linked to an online catalogue product) and **TigerTag** (bare chip / DIY).
+- **`isCloud` flag** on every normalised inventory row — `String(spoolId).startsWith("CLOUD_")`. When the user later programs a chip, the doc is renamed to a real 7-byte hex UID and the flag flips back to false automatically — no extra signal needed.
+- **`tierBadgeHTML(r, extraClass)`** helper centralises badge rendering across the four display points (table row, grid card, panel image overlay, panel details footer). Cloud takes precedence over Plus.
+- New CSS class `.tag-cloud` — purple gradient (`#7c4dff → #a37bff`), distinct from `.tag-plus` (orange) and `.tag-twin` (sky blue).
+- Mobile companion app gets the same label in the inventory bottom-sheet header and search index (`uid.startsWith('CLOUD_')` → `"TigerTag Cloud"` regardless of `id_tigertag`) — landed in the Flutter repo.
+
+#### Mobile companion — placeholder cleanup
+- The Flutter inventory write path used to send `'--'` / `'-'` strings to Firestore for any field the online catalogue couldn't fill (sku, barcode, all `Link*` fields, `online_color_type`, `onlineImage`, etc.). New `_isPlaceholderValue` helper in `services/inventory.dart` strips those at three choke points: `updateStock` (the patch merge), `pushOneToFirestore` / `pushAllToFirestore` (the cloud writes), and `addSpoolFromTagData` (the post-scan payload build). Net effect: empty fields are simply omitted from Firestore docs instead of carrying a placeholder string. Existing legacy docs already in the cloud get scrubbed on next push (the new `_stripPlaceholders` filter runs on every full-doc write). Display side already filtered these — `main_inventory.dart` joins non-null fields with `.where(…).join(' ')`.
+
+#### Internal — printer catalogue updates
+- **FlashForge Creator 5 + Creator 5 Pro** added to `ffg_printer_models.json` (id 5 + 6).
+- **Snapmaker U1** model name shortened from `"SnapMaker U1"` to `"U1"` for visual consistency with the other catalogue entries.
+
+---
+
 ### v1.4.11 — 2026-05-05
 
 **FlashForge live integration** lands as a first-class brand alongside Snapmaker — same UX language, brand-specific protocol underneath. AD5X / 5M and similar models speak HTTP on port 8898 (`/detail` for read, `/control` for write) with a `serialNumber` + `checkCode` auth body; this release brings the full bay-aware, live-streaming, request-loggable side card to that brand.
