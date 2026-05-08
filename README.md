@@ -52,6 +52,20 @@
 
 ## Changelog
 
+### v1.4.14 — 2026-05-08
+
+#### Add Product — multi-colour picker (Mono / Dual / Tri / Rainbow)
+- New **Mono / Dual / Tri / Rainbow** selector at the top of the colour picker bottom-sheet. In Dual / Tri / Rainbow modes the sheet stays open and shows coloured slot indicator squares — tap a square to switch the active slot, then pick its colour from the preset grid.
+- The colour circle in the panel updates in real time: solid (Mono), hard half-split (Dual), conic-gradient sectors (Tri), smooth linear-gradient (Rainbow).
+- Selecting a mode auto-sets `id_aspect2` to the matching aspect (Bicolor 252 / Tricolor 24 / Rainbow 145 / "-" 0). The link is bidirectional — changing the aspect2 dropdown in Advanced mode also flips the mode selector.
+- `color_r2/g2/b2` and `color_r3/g3/b3` are now written from the actual slot colours picked by the user (no longer hardcoded placeholders).
+
+#### Version / protocol filter
+- The **Type** quick-filter in the inventory toolbar now filters by **protocol version** (TigerTag / TigerTag+ / TigerTag Cloud / TigerTag Init / …) instead of filament product type. A new `protocol` field is derived from `id_tigertag` for chip-based spools and from the `CLOUD_*` doc-id prefix for Cloud spools.
+
+#### Search & filter reset on instance switch
+- The search bar and all quick-filters (Brand / Material / Version) are now automatically cleared when switching between accounts or entering / leaving a friend's inventory view.
+
 ### v1.4.13 — 2026-05-07
 
 #### Custom product image for DIY & Cloud spools

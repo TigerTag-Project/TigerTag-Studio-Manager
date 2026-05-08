@@ -671,5 +671,10 @@
   "ffgConnOffline": "离线",
   "ffgConnReconnecting": "重新连接中…",
   "statCloud": "TigerTag Cloud",
-  "statCloudMini": "云"
+  "statCloudMini": "云",
+  "colorCountMono": "单色",
+  "colorCountDual": "双色",
+  "colorCountTri": "三色",
+  "colorCountRainbow": "彩虹",
+  "filterAllVersions": "所有版本"
 }

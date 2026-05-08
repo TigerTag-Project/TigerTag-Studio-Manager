@@ -530,6 +530,10 @@
       aspect2: aspectLabel(data.id_aspect2),
       diameter: diamLabel(data.data1),
       tagType: versionName(data.id_tigertag),
+      // Protocol / version shown in the filter bar and detail panel.
+      // Cloud spools carry a random id_tigertag so we derive the label
+      // from the spoolId prefix instead of the version table.
+      protocol: isCloud ? "TigerTag Cloud" : (versionName(data.id_tigertag) || null),
       weightAvailable: data.weight_available,
       containerWeight: data.container_weight,
       capacity: data.measure_gr || data.measure,
@@ -917,8 +921,12 @@
     }
   }
   function openAdpColorSheet() {
-    const hex = String($("adpColorHex")?.value || "#FF5722").toUpperCase();
-    _adpRenderColorPresets(hex);
+    // Sync count selector state
+    $("adpColorCountRow")?.querySelectorAll(".adp-color-count-btn").forEach(btn => {
+      btn.classList.toggle("is-active", btn.dataset.mode === _adpColorMode);
+    });
+    _adpRenderSlotRow();
+    _adpRenderColorPresets(_adpColorSlots[_adpActiveSlot]);
     _adpSyncColorSheetWidth("adpColorSheet", "adpColorBackdrop");
     $("adpColorSheet")?.classList.add("open");
     $("adpColorSheet")?.setAttribute("aria-hidden", "false");
@@ -1322,17 +1330,111 @@
     return _adpCcRgbToHex(r, g, b);
   }
 
+  // ── Multi-colour state ────────────────────────────────────────────
+  // _adpColorMode: "mono" | "dual" | "tri" | "rainbow"
+  //   mono    → 1 slot,  id_aspect2 untouched (reset to 255/None)
+  //   dual    → 2 slots, id_aspect2 = 252 (Bicolor)
+  //   tri     → 3 slots, id_aspect2 = 24  (Tricolor)
+  //   rainbow → 3 slots, id_aspect2 = 145 (Rainbow)
+  // _adpColorSlots[0..2] hold the hex for each colour slot.
+  // _adpActiveSlot is the 0-based index the grid is currently editing.
+  let _adpColorMode   = "mono";
+  let _adpColorSlots  = ["#FF5722", "#FFFFFF", "#2196F3"];
+  let _adpActiveSlot  = 0;
+
+  // Slot count derived from the current mode.
+  function _adpSlotCount() {
+    return _adpColorMode === "dual" ? 2 : (_adpColorMode === "mono" ? 1 : 3);
+  }
+
+  // Map a raw aspect2 id → colour mode string.
+  function _adpModeForAspect2(id) {
+    const n = Number(id);
+    if (n === 252) return "dual";
+    if (n === 24)  return "tri";
+    if (n === 145) return "rainbow";
+    return "mono";
+  }
+
+  // Map a colour mode → the aspect2 id to auto-write (null = leave as-is).
+  const _ADP_MODE_TO_ASPECT2 = { dual: 252, tri: 24, rainbow: 145, mono: 0 };
+
+  // Update the circle preview to show a solid colour (mono), half-split
+  // (dual) or three-way conic gradient (tri / rainbow).
+  function _adpUpdateCircle() {
+    const sq = $("adpColorSquare");
+    if (!sq) return;
+    const n = _adpSlotCount();
+    if (n === 1) {
+      sq.style.background = _adpColorSlots[0];
+    } else if (n === 2) {
+      sq.style.background =
+        `linear-gradient(90deg, ${_adpColorSlots[0]} 50%, ${_adpColorSlots[1]} 50%)`;
+    } else if (_adpColorMode === "rainbow") {
+      // Smooth linear gradient — mirrors colorBg() in the inventory.
+      sq.style.background =
+        `linear-gradient(90deg, ${_adpColorSlots[0]}, ${_adpColorSlots[1]}, ${_adpColorSlots[2]})`;
+    } else {
+      // Tri — hard conic sectors (120° each).
+      sq.style.background =
+        `conic-gradient(${_adpColorSlots[0]} 0deg 120deg, ` +
+        `${_adpColorSlots[1]} 120deg 240deg, ${_adpColorSlots[2]} 240deg 360deg)`;
+    }
+  }
+
+  // Render (or hide) the row of coloured slot indicator squares.
+  function _adpRenderSlotRow() {
+    const row = $("adpColorSlotsRow");
+    if (!row) return;
+    const n = _adpSlotCount();
+    row.classList.toggle("hidden", n <= 1);
+    if (n <= 1) { row.innerHTML = ""; return; }
+    row.innerHTML = Array.from({ length: n }, (_, i) =>
+      `<button type="button"
+               class="adp-color-slot-btn${i === _adpActiveSlot ? " is-active" : ""}"
+               data-slot="${i}"
+               style="background:${_adpColorSlots[i]}"
+               aria-label="Slot ${i + 1}"></button>`
+    ).join("");
+  }
+
+  // Switch the colour mode. Updates the selector buttons, auto-syncs
+  // adpAspect2, refreshes the slot row, preset ring, circle, preview.
+  // Pass skipAspect2:true when called FROM the aspect2 listener to
+  // avoid an update loop.
+  function _adpSetColorMode(mode, { skipAspect2 = false } = {}) {
+    _adpColorMode  = mode;
+    _adpActiveSlot = 0;
+    // Selector buttons
+    $("adpColorCountRow")?.querySelectorAll(".adp-color-count-btn").forEach(btn => {
+      btn.classList.toggle("is-active", btn.dataset.mode === mode);
+    });
+    // Sync aspect2 dropdown
+    if (!skipAspect2) {
+      const asp2Id = _ADP_MODE_TO_ASPECT2[mode];
+      const sel    = $("adpAspect2");
+      if (sel && asp2Id != null) sel.value = String(asp2Id);
+    }
+    _adpRenderSlotRow();
+    _adpRenderColorPresets(_adpColorSlots[_adpActiveSlot]);
+    _adpUpdateCircle();
+    _adpRefreshRfidPreview();
+  }
+
   // Refresh both the big square + the hex label + the preset selection
   // ring so the trio reads as a single colour state.
   function _adpSyncColor(hex) {
     const value = String(hex || "#FF5722").toUpperCase();
-    const sq = $("adpColorSquare");
-    if (sq) sq.style.background = value;
+    _adpColorSlots[_adpActiveSlot] = value;
+    _adpUpdateCircle();
+    // Keep the hidden native picker in sync with the active slot so
+    // the custom sheet opens on the right colour.
     const native = $("adpColorHex");
     if (native) native.value = value;
     const lbl = $("adpColorHexLabel");
     if (lbl) lbl.textContent = value;
     _adpRenderColorPresets(value);
+    _adpRenderSlotRow();   // refresh slot square backgrounds
     _adpRefreshRfidPreview();
   }
 
@@ -1473,8 +1575,7 @@
       const n = parseFloat(String(v || "").replace(",", "."));
       return isFinite(n) ? n : null;
     };
-    const hex = String(get("adpColorHex") || "#FF5722").toUpperCase();
-    const { r, g, b } = _adpHexToRgb(hex);
+    const { r, g, b } = _adpHexToRgb(_adpColorSlots[0]);
     const brandId  = intOrNull(get("adpBrand"));
     const matId    = intOrNull(get("adpMaterial"));
     const typeId   = intOrNull(get("adpType"));
@@ -1549,12 +1650,14 @@
       deleted:     null,
       deleted_at:  null
     };
-    // Conditional multi-colour fields — same gate as the save path.
-    if (aspect2Resolved === 252 || aspect2Resolved === 24 || aspect2Resolved === 145) {
-      obj.color_r2 = 255; obj.color_g2 = 255; obj.color_b2 = 255;
+    // Conditional multi-colour fields — driven by the mode selector.
+    if (_adpSlotCount() >= 2) {
+      const { r: r2, g: g2, b: b2 } = _adpHexToRgb(_adpColorSlots[1]);
+      obj.color_r2 = r2; obj.color_g2 = g2; obj.color_b2 = b2;
     }
-    if (aspect2Resolved === 24 || aspect2Resolved === 145) {
-      obj.color_r3 = 33;  obj.color_g3 = 150; obj.color_b3 = 243;
+    if (_adpSlotCount() >= 3) {
+      const { r: r3, g: g3, b: b3 } = _adpHexToRgb(_adpColorSlots[2]);
+      obj.color_r3 = r3; obj.color_g3 = g3; obj.color_b3 = b3;
     }
     // The `highlight()` helper returns HTML — caller injects via
     // innerHTML. The container has `class="json"` and lives inside a
@@ -1684,6 +1787,10 @@
       if (el) delete el.dataset.userEdited;
     });
 
+    // Reset multi-colour state — always opens in Mono with a fresh orange.
+    _adpColorMode   = "mono";
+    _adpColorSlots  = ["#FF5722", "#FFFFFF", "#2196F3"];
+    _adpActiveSlot  = 0;
     _adpSyncColor("#FF5722");
     if (matSel) _adpApplyMaterialDefaults(parseInt(matSel.value, 10));
     _adpToggleClearVisibility($("adpColorName")?.value);
@@ -1757,8 +1864,7 @@
     if (!uid) return showErr(t("invalidKey", { r: "no account" }));
 
     const get = id => $(id)?.value;
-    const colorHex = String(get("adpColorHex") || "#FF5722").toUpperCase();
-    const { r, g, b } = _adpHexToRgb(colorHex);
+    const { r, g, b } = _adpHexToRgb(_adpColorSlots[0]);
 
     // Decimal-aware parsers — comma separators (`0,5`) are accepted
      // alongside dot-decimals so the user can paste localised values
@@ -1922,21 +2028,16 @@
       data.url_img      = imgUrlRaw;
       data.url_img_user = true;
     }
-    // Colours 2 / 3 — only present when the chosen aspect declares
-    // multi-colour content. id_aspect2 mapping (per the spec):
-    //   - mono     → 255 (no extra colours written)
-    //   - dual     → 252 / 145 (write color_*2 only)
-    //   - tri      → 24       (write color_*2 and color_*3)
-    //   - rainbow  → 145      (write color_*2 and color_*3)
-    // The studio creator UI is mono-only for now, so this branch
-    // stays inert until the multi-colour picker lands. Implemented
-    // ahead of time so the schema is forward-compatible.
-    const aspect2 = isFinite(aspect2Id) ? aspect2Id : 255;
-    if (aspect2 === 252 || aspect2 === 24 || aspect2 === 145) {
-      data.color_r2 = 255; data.color_g2 = 255; data.color_b2 = 255;
+    // Colours 2 / 3 — written when mode is dual / tri / rainbow.
+    // Values come directly from _adpColorSlots (set by the in-sheet
+    // colour picker). id_aspect2 is already set correctly by _adpSetColorMode.
+    if (_adpSlotCount() >= 2) {
+      const { r: r2, g: g2, b: b2 } = _adpHexToRgb(_adpColorSlots[1]);
+      data.color_r2 = r2; data.color_g2 = g2; data.color_b2 = b2;
     }
-    if (aspect2 === 24 || aspect2 === 145) {
-      data.color_r3 = 33;  data.color_g3 = 150; data.color_b3 = 243;
+    if (_adpSlotCount() >= 3) {
+      const { r: r3, g: g3, b: b3 } = _adpHexToRgb(_adpColorSlots[2]);
+      data.color_r3 = r3; data.color_g3 = g3; data.color_b3 = b3;
     }
 
     const btn = $("adpSave");
@@ -2101,7 +2202,35 @@
     const c = btn.dataset.color;
     if (!c) return;
     _adpSyncColor(c);
-    closeAdpColorSheet();
+    // In Mono mode close immediately (quick-pick UX).
+    // In Dual / Tri / Rainbow the sheet stays open so the user can pick
+    // each slot without reopening.
+    if (_adpColorMode === "mono") closeAdpColorSheet();
+  });
+
+  // Slot indicator click — switch the active slot and refresh the grid.
+  $("adpColorSlotsRow")?.addEventListener("click", e => {
+    const slotBtn = e.target.closest(".adp-color-slot-btn");
+    if (!slotBtn) return;
+    _adpActiveSlot = Number(slotBtn.dataset.slot);
+    _adpRenderSlotRow();
+    _adpRenderColorPresets(_adpColorSlots[_adpActiveSlot]);
+    const native = $("adpColorHex");
+    if (native) native.value = _adpColorSlots[_adpActiveSlot];
+  });
+
+  // Count selector click — Mono / Dual / Tri / Rainbow.
+  $("adpColorCountRow")?.addEventListener("click", e => {
+    const btn = e.target.closest(".adp-color-count-btn");
+    if (!btn || !btn.dataset.mode) return;
+    _adpSetColorMode(btn.dataset.mode);
+  });
+
+  // aspect2 change → sync colour mode (bidirectional link).
+  // Uses skipAspect2:true to avoid a feedback loop.
+  $("adpAspect2")?.addEventListener("change", e => {
+    const newMode = _adpModeForAspect2(e.target.value);
+    if (newMode !== _adpColorMode) _adpSetColorMode(newMode, { skipAspect2: true });
   });
 
   // Custom-colour sheet wiring — HSV picker drag + hue slider drag +
@@ -3849,6 +3978,7 @@
       state.friendView = null;
       renderFriendBanner();
     }
+    _clearSearchFilters();
     // Check if the target account has an active named Firebase session
     let targetUser = null;
     try { targetUser = firebase.app(id).auth().currentUser; } catch (_) {}
@@ -4141,7 +4271,7 @@
       rows = rows.filter(r => String(r.material) === state.materialFilter);
     }
     if (state.typeFilter) {
-      rows = rows.filter(r => String(r.productType) === state.typeFilter);
+      rows = rows.filter(r => String(r.protocol) === state.typeFilter);
     }
     return sortRows(deduplicateTwins(rows));
   }
@@ -4166,9 +4296,9 @@
     populateOneQuickFilter({
       sel: $("typeFilter"),
       currentKey: "typeFilter",
-      labelKey: "filterAllTypes",
-      defaultLabel: "All types",
-      pickValue: r => r.productType,
+      labelKey: "filterAllVersions",
+      defaultLabel: "All versions",
+      pickValue: r => r.protocol,
     });
   }
   function populateOneQuickFilter({ sel, currentKey, labelKey, defaultLabel, pickValue }) {
@@ -4606,6 +4736,22 @@
     if (!btn) return;
     btn.hidden = !value || !value.length;
   }
+  // Reset the search bar + all quick-filters when switching instance
+  // (account switch or friend view). Called before rendering the new view
+  // so the first render is always unfiltered.
+  function _clearSearchFilters() {
+    state.search        = "";
+    state.brandFilter    = "";
+    state.materialFilter = "";
+    state.typeFilter     = "";
+    const si = $("searchInv");
+    if (si) { si.value = ""; _refreshSearchClearVisibility(""); }
+    ["brandFilter", "materialFilter", "typeFilter"].forEach(id => {
+      const sel = $(id);
+      if (sel) { sel.value = ""; sel.classList.remove("is-active"); }
+    });
+  }
+
   $("searchInv").addEventListener("input", e => {
     const v = e.target.value;
     state.search = v.trim();
@@ -13631,7 +13777,7 @@
       const matchBrand = !brand || String(r.brand) === brand;
       const matchMaterial = !material || String(r.material) === material;
       const type = state.typeFilter || "";
-      const matchType = !type || String(r.productType) === type;
+      const matchType = !type || String(r.protocol) === type;
       const matches = matchSearch && matchBrand && matchMaterial && matchType;
       el.classList.toggle("rp-dim", !matches);
       // Positive match indicator on the slot CONTAINER (border + glow) —
@@ -15121,6 +15267,7 @@
 
   async function switchToFriendView(friendUid, friendName, avatarColor) {
     closeProfilesModal(); closeFriends();
+    _clearSearchFilters();
     const ownerUid = state.activeAccountId;  // capture so async errors land on the right account
     // ── Tear down ALL live subscriptions on the OWNER's data BEFORE mutating
     // state. If we don't, a buffered onSnapshot can fire mid-switch and write
@@ -15189,6 +15336,7 @@
 
   function switchBackToOwnView() {
     if (!state.friendView) return;
+    _clearSearchFilters();
     state.friendView = null;
     state.inventory = null; state.rows = [];
     state.racks = [];                                   // wipe the friend's racks

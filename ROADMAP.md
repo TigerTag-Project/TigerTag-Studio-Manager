@@ -25,6 +25,9 @@ Grouped by domain. Versions in parentheses are the release that landed the featu
 - ✅ **Image cache** for spool photos — local persistence, color-fallback if remote dies
 - ✅ **Add Product side panel** — full TigerTag creator iso to the mobile app: Brand / Material picker bottom-sheets with favourites pinned and persisted, mobile-style HSV colour picker (preset grid + custom 2D SV rectangle + rainbow hue slider), advanced mode revealing Type / Diameter / Aspect 1+2 / temps / TD / weight unit, live RFID Data preview (debug only), 28-byte UTF-8 cap on the colour-name field, integer-only fields with live clamp (v1.4.11 + v1.4.12)
 - ✅ **TigerTag Cloud — 100 % digital filaments** — Add Product writes a doc with id `CLOUD_<10-digit>` and the new "TigerTag Cloud" tier badge (purple) when there's no physical chip yet. Promoted in place to a real 7-byte hex UID via the existing `uidMigrationMap` rename pipeline the moment the user programs a chip — every field, twin pointer, rack assignment and friend ACL follows the doc through the rename. Atomic, idempotent. Mobile companion ships the same label in the inventory bottom-sheet header AND the search index (v1.4.12)
+- ✅ **Custom product image** (`url_img` + `url_img_user: true`) — DIY and TigerTag Cloud spools can carry a product image from any external URL. Edit trigger in the colour square (or toolbox when an image is already set); also available in the Add Product advanced section. Broken URLs fall back to the colour placeholder; `isPlus` stays false so the spool keeps its DIY/Cloud identity. TigerTag+ images (from catalogue) are read-only. (v1.4.13)
+- ✅ **Toolbox — Clear TD split-button** — hold-to-confirm trash button (1 200 ms) on the "Scan TD" toolbox row, visible only when `r.td != null`. Deletes the `TD` field via `FieldValue.delete()`. Row hidden entirely when no TD is set. (v1.4.13)
+- ✅ **TigerTag Cloud stat tile** — purple tile in the inventory header always showing the count of `CLOUD_` spools; DIY count now correctly excludes Cloud entries. (v1.4.13)
 
 ### Multi-account & auth
 - ✅ Firebase auth with **per-account `firebase.app(uid)` instances** (independent sessions) (v1.4+)
@@ -72,6 +75,7 @@ Grouped by domain. Versions in parentheses are the release that landed the featu
 - ✅ **ACR122U NFC reader** (USB) via `nfc-pcsc` — `main.js` ↔ renderer IPC bridge
 - ✅ **TD1S sensor** integration — TD + color reading, auto-detect on USB plug, log panel
 - ✅ **TigerScale heartbeat** — `users/{uid}/scales/{mac}` with 90s online threshold, scale panel render
+- ✅ **TD1S button in Add Product panel** — icon in the ADP header: disconnected → opens connect modal; connected → glows green and auto-fills colour HEX + TD value fields on scan. State syncs on every `onStatus` event and `openAddProductPanel()` call. (v1.4.13)
 
 ### Distribution & i18n
 - ✅ **9 locales** — en · fr · de · es · it · zh · pt (Brasil) · pt-pt · pl
@@ -81,12 +85,15 @@ Grouped by domain. Versions in parentheses are the release that landed the featu
 - ✅ **Windows code signing** via Microsoft Trusted Signing (Azure)
 - ✅ **Cross-platform builds** — macOS (x64 + arm64), Windows (NSIS), Linux (AppImage)
 - ✅ **Diagnostic report** — last 50 errors + env in a copyable Markdown blob
+- ✅ **Dark window chrome** — `nativeTheme.themeSource = 'dark'` forces the native macOS/Windows title bar to dark mode (dark background, white text). `hasShadow: false` removes the OS-level drop shadow along the window edges. (v1.4.13)
+- ✅ **Update status icon** — icon to the right of the cloud health indicator: orange spinning refresh while downloading, green glowing dot when ready to install. Tooltip via the existing `.health[data-tooltip]` system. Click when ready → `installUpdate()`. (v1.4.13)
 
 ### Dev tooling
 - ✅ **`npm run i18n:add`** — one command updates all 9 locales (v1.4.9)
 - ✅ **`npm run i18n:check`** + **pre-commit hook** (.githooks/) — blocks commits on locale drift (v1.4.9)
 - ✅ **CSS modularization** — split 8047-line `inventory.css` into 8 themed files under `renderer/css/` (v1.4.9)
 - ✅ **`renderer/CODEMAP.md`** — feature → line range index for the 12k-line `inventory.js` (post-v1.4.9)
+- ✅ **Panel shadow bleed fix** — `detail-panel`, `sfe-sheet` (Snapmaker filament edit) and `rp-side` (rack side panel) were leaking `box-shadow` into the viewport when translated off-screen. Shadow now applied only on `.open` / `.is-open`; transitions include `box-shadow .25s`. (v1.4.13)
 
 ---
 

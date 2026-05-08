@@ -167,8 +167,8 @@
           <select id="materialFilter" class="inv-brand-filter" title="Filter by material">
             <option value="" data-i18n="filterAllMaterials">All materials</option>
           </select>
-          <select id="typeFilter" class="inv-brand-filter" title="Filter by type">
-            <option value="" data-i18n="filterAllTypes">All types</option>
+          <select id="typeFilter" class="inv-brand-filter" data-i18n-title="filterAllVersions" title="All versions">
+            <option value="" data-i18n="filterAllVersions">All versions</option>
           </select>
         </div>
       </div>
@@ -1759,6 +1759,15 @@
 <div class="sfe-backdrop" id="adpColorBackdrop"></div>
 <aside class="sfe-sheet sfe-sheet--color adp-color-sheet" id="adpColorSheet" aria-hidden="true">
   <div class="sfe-body sfe-body--picker">
+    <!-- Mono / Dual / Tri / Rainbow selector -->
+    <div class="adp-color-count-row" id="adpColorCountRow">
+      <button class="adp-color-count-btn is-active" data-mode="mono"    type="button" data-i18n="colorCountMono">Mono</button>
+      <button class="adp-color-count-btn"            data-mode="dual"    type="button" data-i18n="colorCountDual">Dual</button>
+      <button class="adp-color-count-btn"            data-mode="tri"     type="button" data-i18n="colorCountTri">Tri</button>
+      <button class="adp-color-count-btn"            data-mode="rainbow" type="button" data-i18n="colorCountRainbow">Rainbow</button>
+    </div>
+    <!-- Slot indicators — hidden in Mono mode, rendered by JS in Dual/Tri -->
+    <div class="adp-color-slots-row hidden" id="adpColorSlotsRow"></div>
     <div class="sfe-color-grid" id="adpColorGrid"></div>
   </div>
 </aside>

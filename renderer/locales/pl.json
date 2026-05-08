@@ -682,5 +682,10 @@
   "ffgConnOffline": "Offline",
   "ffgConnReconnecting": "Ponowne łączenie…",
   "statCloud": "TigerTag Cloud",
-  "statCloudMini": "Cloud"
+  "statCloudMini": "Cloud",
+  "colorCountMono": "Mono",
+  "colorCountDual": "Podwójny",
+  "colorCountTri": "Potrójny",
+  "colorCountRainbow": "Tęcza",
+  "filterAllVersions": "Wszystkie wersje"
 }

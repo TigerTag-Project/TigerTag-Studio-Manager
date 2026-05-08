@@ -1916,6 +1916,56 @@
             drop-shadow(0 0 1px rgba(0,0,0,.6));
   }
 
+  /* ── Mono / Dual / Tri colour-count selector ────────────────────── */
+  .adp-color-count-row {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+  .adp-color-count-btn {
+    flex: 1;
+    padding: 6px 0;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface-2);
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .03em;
+    cursor: pointer;
+    transition: background .15s, color .15s, border-color .15s;
+  }
+  .adp-color-count-btn.is-active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+  }
+  .adp-color-count-btn:not(.is-active):hover {
+    background: var(--surface-3);
+    color: var(--fg);
+  }
+
+  /* ── Slot indicator row (Dual / Tri) ───────────────────────────── */
+  .adp-color-slots-row {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-bottom: 12px;
+  }
+  .adp-color-slot-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: border-color .15s, transform .1s;
+  }
+  .adp-color-slot-btn.is-active {
+    border-color: var(--primary);
+    transform: scale(1.1);
+    box-shadow: 0 0 0 2px var(--primary-20, rgba(255,120,0,.25));
+  }
+
   /* Add-product sheet backdrops — limited to the panel area (right
      slice), NOT the full screen. The "outside the panel" region keeps
      the panel-overlay's normal dim, and a click there cascades both
