@@ -8794,7 +8794,10 @@
 
     // Creality — WebRTC camera via Crowsnest (same URL pattern as Snapmaker).
     const creConn = (p.brand === "creality") ? _creConns.get(creKey(p)) : null;
-    const showCreCam  = !!(creConn && creConn.status === "connected" && creConn.data.webrtcSupport && creConn.ip);
+    // Creality reports webrtcSupport:1 AND video:1 — camera page on port 8000.
+    const showCreCam  = !!(creConn && creConn.status === "connected"
+                        && (creConn.data.webrtcSupport || creConn.data.video)
+                        && creConn.ip);
 
     // FlashForge — MJPEG stream URL pulled out of /detail. Only show
     // the banner when the printer reports a usable URL AND the camera
@@ -8826,13 +8829,15 @@
                   allow="autoplay"></iframe>
         </div>`;
     } else if (showCreCam) {
-      // Creality WebRTC via Crowsnest — same iframe pattern as Snapmaker.
+      // Creality WebRTC — the printer serves a self-contained HTML page on
+      // port 8000 that establishes the WebRTC session and renders the video.
+      // (Verified live on Ender-3 V4 — same pattern used by the Flutter app.)
       camBannerHtml = `
         <div class="pp-cam-full">
-          <iframe class="snap-camera-frame" src="${esc(`http://${creConn.ip}/webcam/webrtc`)}"
+          <iframe class="snap-camera-frame" src="${esc(`http://${creConn.ip}:8000/`)}"
                   sandbox="allow-scripts allow-same-origin"
                   loading="lazy" referrerpolicy="no-referrer"
-                  allow="autoplay"></iframe>
+                  allow="autoplay; camera"></iframe>
         </div>`;
     } else if (showFfgCam) {
       // The MJPEG stream is requested as an <img> src — the browser
