@@ -1,6 +1,6 @@
 {
   "name": "tigertag-inventory",
-  "version": "1.4.15",
+  "version": "1.4.16",
   "description": "Tiger Studio Manager — desktop app",
   "main": "main.js",
   "engines": {
