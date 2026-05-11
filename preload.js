@@ -11,6 +11,14 @@ contextBridge.exposeInMainWorld('td1s', {
   release: () => ipcRenderer.send('td1s:release'),
 });
 
+contextBridge.exposeInMainWorld('elegoo', {
+  connect:    (opts)                => ipcRenderer.send('elegoo:connect',    opts),
+  disconnect: (key)                 => ipcRenderer.send('elegoo:disconnect', key),
+  publish:    (key, topic, payload) => ipcRenderer.send('elegoo:publish', key, topic, payload),
+  onMessage:  (cb) => ipcRenderer.on('elegoo:message', (_, key, topic, data) => cb(key, topic, data)),
+  onStatus:   (cb) => ipcRenderer.on('elegoo:status',  (_, key, status)      => cb(key, status)),
+});
+
 contextBridge.exposeInMainWorld('electronAPI', {
   // True when running inside Electron
   isElectron: true,
@@ -73,13 +81,32 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // multi-VLAN without reflector) — renderer falls back to port-scan.
   mdnsBrowseSnapmaker: () => ipcRenderer.invoke('mdns:browse-snapmaker'),
 
+  // ── Snapmaker HTTP GET — bridge through main process to bypass CORS.
+  // Direct fetch() from the renderer to http://<local-ip>:7125 is cross-
+  // origin (page origin is http://localhost:<port>) and blocked by
+  // Chromium. Node's fetch() in main is not subject to CORS, so it goes
+  // through cleanly — identical to what the Flutter http.get() calls do.
+  // timeoutMs is optional (main-process default is 3500 ms).
+  // Returns { ok, status, json } | { ok: false, error }.
+  snapHttpGet: (url, timeoutMs) => ipcRenderer.invoke('snap:http-get', url, timeoutMs),
+
   // ── FlashForge HTTP — bridge through main process to bypass CORS.
   // The FlashForge firmware (port 8898 /detail + /control) doesn't handle
   // CORS preflight, so direct fetch() from the renderer fails. This IPC
   // lets the renderer issue the same POST through Node's fetch (no CORS).
-  // Returns the parsed JSON or { code:-1|-2, message } error envelopes —
-  // identical shape to what the renderer used to build inline.
-  ffgHttpPost: (url, body) => ipcRenderer.invoke('ffg:http-post', url, body),
+  // timeoutMs is optional (default 4000 ms for live polling; 350 ms for scan).
+  // Returns the parsed JSON or { code:-1|-2, message } error envelopes.
+  ffgHttpPost: (url, body, timeoutMs) => ipcRenderer.invoke('ffg:http-post', url, body, timeoutMs),
+
+  // ── FlashForge UDP Multicast discovery (Adventurer 4 era).
+  // Sends "Hello World!" to 225.0.0.9:19000, collects IP+name replies 2.5 s.
+  // Returns { ok, candidates: [{ ip, printerName }] }.
+  ffgMulticastDiscover: () => ipcRenderer.invoke('ffg:multicast-discover'),
+
+  // ── FlashForge TCP probe — port 8899, M115 identity fallback.
+  // Connects to ip:8899, sends ~M115\r\n, parses response (700 ms timeout).
+  // Returns { ok, fields: { machineModel, machineName, firmware, serialNumber, macAddress } }.
+  ffgTcpProbe: (ip) => ipcRenderer.invoke('ffg:tcp-probe', ip),
 
   // ── Image cache (main-process side) ─────────────────────────────────────
   imgGet: (url) => ipcRenderer.invoke('img:get', url),

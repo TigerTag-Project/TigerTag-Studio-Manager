@@ -779,7 +779,7 @@ ipcMain.handle('update:check-now', async () => {
 // match what the Flutter side produces on parse / network errors. The
 // renderer treats those exactly like a regular FlashForge error code.
 const FFG_TIMEOUT_MS = 4000;
-ipcMain.handle('ffg:http-post', async (_evt, url, body) => {
+ipcMain.handle('ffg:http-post', async (_evt, url, body, timeoutMs) => {
   if (!url || typeof url !== 'string') {
     return { code: -2, message: 'Network error: missing url' };
   }
@@ -793,8 +793,10 @@ ipcMain.handle('ffg:http-post', async (_evt, url, body) => {
   if (!ok) {
     return { code: -2, message: 'Network error: path not allowed' };
   }
+  const timeout = (typeof timeoutMs === 'number' && timeoutMs > 0 && timeoutMs <= 10000)
+    ? timeoutMs : FFG_TIMEOUT_MS;
   const ctrl = new AbortController();
-  const tm = setTimeout(() => ctrl.abort(), FFG_TIMEOUT_MS);
+  const tm = setTimeout(() => ctrl.abort(), timeout);
   try {
     const res = await fetch(url, {
       method: 'POST',
@@ -811,6 +813,163 @@ ipcMain.handle('ffg:http-post', async (_evt, url, body) => {
     return parsed;
   } catch (e) {
     return { code: -2, message: `Network error: ${e?.message || e}` };
+  } finally {
+    clearTimeout(tm);
+  }
+});
+
+// ── FlashForge UDP Multicast discovery (Adventurer 4 era) ────────────────────
+// Older FlashForge printers (Adventurer 4 and earlier) don't respond reliably
+// to HTTP probes but DO answer a UDP multicast "Hello World!" broadcast on the
+// standard FlashForge group 225.0.0.9:19000. The reply body is the printer
+// name (null-terminated UTF-8). We collect all replies for 2.5 s then return
+// the IP+name list; the renderer probes each IP via ffg:http-post for details.
+// Runs in parallel with the HTTP subnet scan — complements it for old models.
+ipcMain.handle('ffg:multicast-discover', async () => {
+  const dgram = require('dgram');
+  const MULTICAST_GROUP = '225.0.0.9';
+  const MULTICAST_PORT  = 19000;
+  const BIND_PORT       = 8002;
+  const LISTEN_MS       = 2500;
+  const PAYLOAD         = Buffer.from('Hello World!');
+
+  return new Promise((resolve) => {
+    const candidates = new Map(); // dedupe by source IP
+    let done = false;
+
+    const finish = () => {
+      if (done) return; done = true;
+      try { socket.close(); } catch {}
+      resolve({ ok: true, candidates: Array.from(candidates.values()) });
+    };
+
+    const socket = dgram.createSocket({ type: 'udp4', reuseAddr: true });
+
+    socket.on('error', (err) => {
+      console.warn('[ffg-multicast] socket error:', err.message);
+      if (!done) { done = true; resolve({ ok: false, error: err.message, candidates: [] }); }
+    });
+
+    socket.on('message', (buf, rinfo) => {
+      const ip = rinfo.address;
+      if (candidates.has(ip)) return;
+      const end = buf.indexOf(0); // null-terminator in printer name
+      const printerName = buf.slice(0, end >= 0 ? end : buf.length).toString('utf8').trim();
+      candidates.set(ip, { ip, printerName: printerName || null });
+    });
+
+    socket.bind({ port: BIND_PORT, address: '0.0.0.0' }, () => {
+      try {
+        socket.addMembership(MULTICAST_GROUP);
+        socket.setMulticastTTL(4);
+        socket.send(PAYLOAD, MULTICAST_PORT, MULTICAST_GROUP, (err) => {
+          if (err) console.warn('[ffg-multicast] send error:', err.message);
+        });
+      } catch (e) {
+        console.warn('[ffg-multicast] setup failed:', e.message);
+        finish();
+        return;
+      }
+      setTimeout(finish, LISTEN_MS);
+    });
+  });
+});
+
+// ── FlashForge TCP probe — port 8899, M115 identity command ──────────────────
+// The ~M115 command returns machine type, name, firmware, serial, MAC even when
+// the printer's HTTP /detail response is incomplete. Used as an identity fallback
+// when the HTTP probe returns sparse data (e.g. older firmware with partial JSON).
+// Allowlisted to port 8899 only — not a generic TCP proxy.
+ipcMain.handle('ffg:tcp-probe', async (_evt, ip) => {
+  if (!ip || typeof ip !== 'string') return { ok: false, error: 'missing ip' };
+  if (!/^\d{1,3}(\.\d{1,3}){3}$/.test(ip)) return { ok: false, error: 'invalid ip' };
+
+  const net = require('net');
+  const TIMEOUT_MS = 700;
+
+  return new Promise((resolve) => {
+    let buffer = '';
+    let resolved = false;
+
+    const finish = (result) => {
+      if (resolved) return; resolved = true;
+      try { socket.destroy(); } catch {}
+      resolve(result);
+    };
+
+    const socket = new net.Socket();
+    socket.setTimeout(TIMEOUT_MS);
+
+    socket.on('connect', () => { socket.write('~M115\r\n'); });
+
+    socket.on('data', (chunk) => {
+      buffer += chunk.toString('utf8');
+      if (!buffer.includes('ok')) return; // wait for end marker
+      const fields = {};
+      for (const line of buffer.split('\r\n')) {
+        const m = line.match(/^([^:]+):\s*(.+)$/);
+        if (!m) continue;
+        const key = m[1].trim();
+        const val = m[2].trim();
+        if      (key === 'Machine Type') fields.machineModel  = val;
+        else if (key === 'Machine Name') fields.machineName   = val;
+        else if (key === 'Firmware')     fields.firmware      = val;
+        else if (key === 'SN')           fields.serialNumber  = val.replace(/^SN/i, '');
+        else if (key === 'Mac Address')  fields.macAddress    = val;
+      }
+      finish({ ok: true, fields });
+    });
+
+    socket.on('timeout', () => finish({ ok: false, error: 'timeout' }));
+    socket.on('error',   (e) => finish({ ok: false, error: e.message }));
+
+    socket.connect(8899, ip);
+  });
+});
+
+// ── Snapmaker HTTP GET — main-process bridge (CORS bypass) ───────────────────
+// Mirrors the FlashForge bridge above. The renderer's Chromium engine treats
+// requests from http://localhost:<port> to http://192.168.x.x:7125 as cross-
+// origin, so direct fetch() from probe.js fails silently (no CORS headers on
+// Moonraker). Node's fetch() here in main is not subject to CORS, so it goes
+// through cleanly — exactly like the Flutter http.get() calls.
+//
+// Allowed paths: /printer/info  /server/info  /machine/system_info
+// Returns: { ok: true, status, json } | { ok: false, status, error }
+const SNAP_HTTP_TIMEOUT_MS = 3500;
+ipcMain.handle('snap:http-get', async (_evt, url, timeoutMs) => {
+  if (!url || typeof url !== 'string') {
+    return { ok: false, status: 0, error: 'missing url' };
+  }
+  let parsed;
+  try { parsed = new URL(url); } catch {
+    return { ok: false, status: 0, error: 'invalid url' };
+  }
+  if (!/^https?:$/.test(parsed.protocol)) {
+    return { ok: false, status: 0, error: 'url scheme not allowed' };
+  }
+  // Tight allowlist — only the three Moonraker probe paths used by
+  // snapProbeIp(). Prevents this IPC from becoming a generic HTTP proxy
+  // if the renderer is ever compromised.
+  const ALLOWED = ['/printer/info', '/server/info', '/machine/system_info'];
+  if (!ALLOWED.includes(parsed.pathname)) {
+    return { ok: false, status: 0, error: 'path not allowed' };
+  }
+  const timeout = (typeof timeoutMs === 'number' && timeoutMs > 0 && timeoutMs <= 10000)
+    ? timeoutMs : SNAP_HTTP_TIMEOUT_MS;
+  const ctrl = new AbortController();
+  const tm = setTimeout(() => ctrl.abort(), timeout);
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      signal: ctrl.signal,
+      headers: { 'Accept': 'application/json' },
+    });
+    let json = null;
+    try { json = await res.json(); } catch {}
+    return { ok: res.ok, status: res.status, json };
+  } catch (e) {
+    return { ok: false, status: 0, error: e?.message || String(e) };
   } finally {
     clearTimeout(tm);
   }
@@ -961,6 +1120,79 @@ ipcMain.handle('db:getAllLastUpdateTimestamps', ()         => db.getAllLastUpdat
 ipcMain.handle('db:isUpdateAvailable',       ()           => db.isUpdateAvailable());
 ipcMain.handle('db:updateIfNeeded',          ()           => db.updateIfNeeded());
 ipcMain.handle('db:downloadAndSaveLatestData', ()         => db.downloadAndSaveLatestData());
+
+// ── Elegoo MQTT bridge ───────────────────────────────────────────────────────
+// Each connected printer gets its own mqtt.Client stored in _elegooClients.
+// The renderer sends connect/disconnect/publish; this bridge forwards
+// incoming messages back via webContents.send.
+{
+  const mqtt = require('mqtt');
+  const _elegooClients = new Map(); // key → { client, webContents }
+
+  ipcMain.on('elegoo:connect', (event, opts) => {
+    const { key, host, port, sn, password, clientId, requestId } = opts || {};
+    if (!key || !host || !sn) {
+      event.sender.send('elegoo:status', key, 'error:missing-params');
+      return;
+    }
+    // Tear down any existing client for this key
+    const existing = _elegooClients.get(key);
+    if (existing) { try { existing.client.end(true); } catch (_) {} _elegooClients.delete(key); }
+
+    const client = mqtt.connect({
+      host, port: port || 1883,
+      protocol: 'mqtt',
+      username: 'elegoo',
+      password: password || '123456',
+      clientId: clientId || `TTG_${Math.floor(1000 + Math.random() * 9000)}`,
+      keepalive: 60,
+      connectTimeout: 8000,
+    });
+    _elegooClients.set(key, { client, webContents: event.sender, sn, clientId, requestId });
+
+    client.on('connect', () => {
+      const topics = [
+        `elegoo/${sn}/api_status`,
+        `elegoo/${sn}/${clientId}/api_response`,
+        `elegoo/${sn}/${clientId}_req/register_response`,
+        `elegoo/${sn}/${requestId}/register_response`,
+      ];
+      client.subscribe(topics, (err) => {
+        if (err) { event.sender.send('elegoo:status', key, 'error:subscribe'); return; }
+        event.sender.send('elegoo:status', key, 'connected');
+        // Send registration
+        client.publish(`elegoo/${sn}/api_register`,
+          JSON.stringify({ client_id: clientId, request_id: requestId }));
+      });
+    });
+
+    client.on('message', (topic, payload) => {
+      let data;
+      try { data = JSON.parse(payload.toString()); }
+      catch (_) { data = { _raw: payload.toString() }; }
+      if (!event.sender.isDestroyed()) event.sender.send('elegoo:message', key, topic, data);
+    });
+
+    client.on('error', (err) => {
+      if (!event.sender.isDestroyed()) event.sender.send('elegoo:status', key, `error:${err?.message || err}`);
+    });
+    client.on('close',   () => { if (!event.sender.isDestroyed()) event.sender.send('elegoo:status', key, 'disconnected'); });
+    client.on('offline', () => { if (!event.sender.isDestroyed()) event.sender.send('elegoo:status', key, 'offline'); });
+    client.on('reconnect', () => { if (!event.sender.isDestroyed()) event.sender.send('elegoo:status', key, 'connecting'); });
+  });
+
+  ipcMain.on('elegoo:disconnect', (_evt, key) => {
+    const entry = _elegooClients.get(key);
+    if (entry) { try { entry.client.end(true); } catch (_) {} _elegooClients.delete(key); }
+  });
+
+  ipcMain.on('elegoo:publish', (_evt, key, topic, payload) => {
+    const entry = _elegooClients.get(key);
+    if (!entry) return;
+    try { entry.client.publish(topic, typeof payload === 'string' ? payload : JSON.stringify(payload)); }
+    catch (_) {}
+  });
+}
 
 // ── App lifecycle
 app.whenReady().then(async () => {

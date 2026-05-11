@@ -189,6 +189,25 @@ export function stopCreCam() {
 5. Sonder TCP port 8000 en parallèle (info caméra)
 6. Valider avec `isCrealityLike()`
 
+### Comportement de la probe WS
+
+Après l'ouverture du WebSocket, le scanner envoie immédiatement :
+```json
+{"method": "get", "params": {"printerInfo": 1}}
+```
+Ceci provoque un snapshot complet côté firmware pour obtenir toutes les clés de télémétrie en une seule réponse.
+
+**Accumulation de frames** : le scanner lit les frames successives jusqu'à :
+- `(hasStrongId && frameCount >= 2)` → arrêt précoce si identité forte trouvée après 2 frames
+- `frameCount >= 5` → limite haute
+- timeout `websocketTimeout` (2200 ms) — décompte global
+
+**Credential order** : le scanner essaie d'abord une connexion **sans auth** (unauthenticated), puis teste chaque credential sauvegardé (`Authorization: Basic base64(account:password)`). Il s'arrête dès que `isCrealityLike` est validé.
+
+**Filtre faux-positifs** : `skipUnconfirmed = true` par défaut — les hôtes avec le port 9999 ouvert mais sans réponse JSON Creality validée sont **silencieusement écartés** (NAS, Nagios, domotique…).
+
+**mDNS** : un scanner mDNS (`MDnsScanner`) est disponible mais désactivé sur iOS (pas de droits multicast). Sur Android/desktop il interroge `_services._dns-sd._udp.local` — résultats utiles pour debug uniquement.
+
 ### Règle de validation `isCrealityLike`
 
 **Condition A** (identité forte, au moins une) :

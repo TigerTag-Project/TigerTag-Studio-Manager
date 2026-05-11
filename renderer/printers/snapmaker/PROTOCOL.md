@@ -1048,12 +1048,14 @@ Port sondé : **7125** (Moonraker HTTP REST)
 
 ### 13.2 Endpoints REST sondés
 
-Pour chaque IP candidate :
+Pour chaque IP candidate — **lancés en parallèle** (`Promise.all`) :
 
 ```
-GET http://<IP>:7125/printer/info     (timeout 340ms)
-GET http://<IP>:7125/server/info      (timeout 340ms)
+GET http://<IP>:7125/printer/info     (timeout 340ms indépendant)
+GET http://<IP>:7125/server/info      (timeout 340ms indépendant)
 ```
+
+Un candidat est valide si **au moins un** des deux répond avec du contenu utile. Les deux peuvent échouer indépendamment sans annuler l'autre.
 
 ### 13.3 Réponses attendues
 

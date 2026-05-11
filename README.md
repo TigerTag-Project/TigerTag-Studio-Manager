@@ -35,6 +35,7 @@
 - **Friends system** — Share a 6-character public code (`XXX-XXX`) with friends, send/accept/refuse/block friend requests, view a friend's inventory in the main interface in read-only mode, optional public inventory toggle for frictionless sharing
 - **Friend inventory view** — A friend appears as a switchable pseudo-account in the avatar dropdown and profiles modal; clicking opens their inventory in the same table/grid UI with a "Read-only" banner and a quick "← My inventory" button
 - **3D printer management** — Dedicated "Printers" tab with a drag-and-drop grid of all your printers across the 5 supported brands (Bambu Lab / Creality / Elegoo / FlashForge / Snapmaker); per-brand "Add" flow with model picker, side card with editable connection details, and online / offline indicator driven by an HTTP ping
+- **TigerScale live integration** — Real-time WebSocket connection to the open-source TigerScale ESP32 filament scale. Each scale card shows live weight (56 px display), CONTAINER / FILAMENT split, send-status badge (`idle` → `scanning` → `stable` → `send` → `success`), filament mini-panel (brand + material + colour dot, driven by the WS frame), and a 2-column UID reader grid where the empty slot auto-fills with the Firestore-resolved twin tag in green. TARE is a hold-to-confirm button (1 s) that POSTs `/api/tare`. The card and TARE button hide automatically when the WebSocket is disconnected; a connect/disconnect toggle in the card header gives manual control with auto-reconnect suppression on explicit disconnect.
 - **Snapmaker live integration** — Real-time WebRTC camera, live extruder + bed temperatures, filament data per slot (color, brand, material) with click-to-edit, and active-print job card (preview thumbnail + progress + state + layer counter) over the Moonraker WebSocket
 - **FlashForge live integration** — HTTP polling on port 8898 (`/detail` every 2 s), real-time MJPEG camera with auto-recovery on connection failure (mjpg-streamer's 1-client limit handled gracefully), 5-slot matlStation grid (`Ext.` + `1A` `1B` `1C` `1D`) showing each bay's assigned colour + material — even when empty — so the user knows what to refill where, click-to-edit per slot via FlashForge's `/control` HTTP API (`msConfig_cmd` / `ipdMsConfig_cmd`), and a debug-mode Request log surfacing every outgoing POST + response in real time
 - **Snapmaker LAN discovery** — Side-panel scanner that finds Snapmaker printers on the local network: instant mDNS browse on `_snapmaker._tcp.local.` (TXT record carries IP / model / device name / serial), parallel Moonraker port-scan as fallback (port 7125 with `/printer/info` + `/server/info` + `/machine/system_info`), per-source batch sizing (24 on local LAN, 4 on user-declared extras to survive anti-scan firewalls), brand-confirmed candidates only (`machine_type` containing "Snapmaker"), one-click add that writes the printer doc directly to Firestore and opens its detail panel, plus inline "Add by IP" with live IPv4 validation
@@ -51,6 +52,34 @@
 ---
 
 ## Changelog
+
+### v1.5.0 — 2026-05-11
+
+#### TigerScale — live WebSocket panel
+- **Connect / disconnect toggle button** on each scale card. A single button in the card header opens or closes the WebSocket connection manually; manual disconnect suppresses the 5-second auto-reconnect so the card stays quiet until the user reconnects explicitly.
+- **WS event log** — collapsible `<details>` strip below each scale card showing the last 80 events (connect, raw frames, errors, retries) with direction arrows (← / → / ·) and per-line timestamps. Useful for diagnosing firmware issues without opening DevTools.
+- **CORS fix** — removed the pre-connect `fetch()` ping (blocked by Chromium CORS in Electron renderer when the firmware returns no `Access-Control-Allow-Origin` header). `connectScaleWs` is now synchronous and opens the WebSocket directly; `onclose` handles retries.
+- **Field-name fix** — WS parser corrected from snake_case (`net_weight`, `status`) to the actual camelCase fields the firmware sends (`netWeight`, `scaleStatus`).
+- **Gradient live card** — a second card below the dark info card (head + chips + last spool) shows live data with a purple gradient matching the TigerScale mobile app. Hidden automatically when the WS is disconnected; reappears on reconnect.
+- **Send-status badge** — top-left absolute pill inside the gradient card maps `scaleStatus` firmware values (`idle`, `scanning:N`, `stable:N`, `send`, `success`, `error`, `done`, `ready`) to emoji + text with per-state background colours.
+- **Filament mini-panel** — top-right overlay (dark blur) shows the colour dot (extracted from the firmware `color` field `"Red #FF0000"` format), brand, and material. Appears only when the firmware sends non-empty brand or material; clears automatically when `scaleStatus` becomes `"ready"` (spool removed). Data comes from the WebSocket — no Firestore lookup.
+- **Weight display** — 56 px bold weight number with unit. Container and filament show `—` when zero; main weight shows `0` normally.
+- **UID reader grid** — 2-column grid (Left reader ◀ / Right reader ▶) always visible. A `resolve()` function fills the empty slot with the twin UID (green `#4ade80`) when Firestore resolves it, or `🔗 Twin` as placeholder while waiting. The twin row is never a third row — it appears in the vacant slot.
+- **TARE hold-to-confirm** — 1-second press on the TARE button (`#667eea`) fills a white progress bar then POSTs `/api/tare` to the scale. Button is hidden when disconnected (CSS sibling selector on empty `.scale-card-local`). Success flashes green (`#48bb78`).
+
+#### Elegoo — thumbnail correlation fix
+- History thumbnail responses are now correlated by `_historyThumbPendingFn !== null` rather than by request ID. The Elegoo firmware echoes the method number (1045) as the response `id` — not our incremental request ID — so ID-based matching never worked and history thumbnails were silently dropped.
+
+### v1.4.15 — 2026-05-09
+
+#### Creality live integration
+- Real-time WebSocket connection to Creality printers on port 9999 with automatic heartbeat (request/response polling every 2 s).
+- Live nozzle, bed, and enclosure temperatures with colour-coded indicators; print state (`idle` / `printing` / `finished`), job progress bar, layer counter, and estimated duration.
+- **CFS colour grid** — activated when `cfsConnect=1` and `materialBoxs[]` is non-empty; shows each slot's assigned colour pill and material label.
+- **WebRTC camera** — inline `<iframe>` at `http://$ip/webcam/webrtc` (same pattern as Snapmaker / Crowsnest) when `webrtcSupport=1`.
+- **Print thumbnail** — fetched from `http://$ip/downloads/original/current_print_image.png` while a job is active.
+- WS event log with Pause / Clear / row-expand, same UI as Snapmaker and FlashForge.
+- Online / Offline badge in the printer grid and side panel driven by a lightweight WS probe (open → mark online → close immediately, 30 s TTL).
 
 ### v1.4.14 — 2026-05-08
 
@@ -816,4 +845,10 @@ Please use [GitHub Issues](https://github.com/TigerTag-Project/TigerTag_Studio_M
 
 [MIT](LICENSE) — © TigerTag Project
 
-You are free to use, modify, and distribute this software. See the [LICENSE](LICENSE) file for details.
+You are free to use, modify, and distribute Tiger Studio — including commercially.
+
+The **"TigerTag"** name (RFID protocol + cloud service) is a trademark of the TigerTag Project.
+See [TRADEMARK.md](TRADEMARK.md) for usage conditions (short version: reference freely, don't rebrand a competing service).
+
+All 303 npm dependencies are permissive (MIT / ISC / BSD / Apache — zero copyleft).
+See [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) for the full breakdown.

@@ -11,8 +11,11 @@
 <link rel="stylesheet" href="css/40-printers.css" />
 <link rel="stylesheet" href="css/50-snapmaker.css" />
 <link rel="stylesheet" href="css/55-creality.css" />
+<link rel="stylesheet" href="css/57-elegoo.css" />
 <link rel="stylesheet" href="css/60-modals.css" />
 <link rel="stylesheet" href="css/70-detail-misc.css" />
+<link rel="stylesheet" href="IoT/tigerscale/tigerscale.css" />
+<link rel="stylesheet" href="IoT/td1s/td1s.css" />
 </head>
 <body>
 <div class="app-layout">
@@ -644,6 +647,95 @@
   </div>
 </aside>
 
+<!-- ─── Elegoo file history bottom sheet ───────────────────────── -->
+<div class="sfe-backdrop" id="elgFileSheetBackdrop"></div>
+<aside class="sfe-sheet sfe-sheet--files" id="elgFileSheet" aria-hidden="true">
+  <div class="sfe-grip" aria-hidden="true"></div>
+  <header class="sfe-screen-head sfe-screen-head--right">
+    <div class="sfe-screen-head-text">
+      <div class="sfe-title">Print history</div>
+    </div>
+    <div style="display:flex;gap:6px;align-items:center">
+      <button type="button" class="cre-file-refresh" id="elgFileSheetRefresh" title="Refresh">
+        <span class="icon icon-refresh icon-13"></span>
+      </button>
+      <button class="modal-close" id="elgFileSheetClose">✕</button>
+    </div>
+  </header>
+  <div class="sfe-body sfe-body--files" id="elgFileSheetBody"></div>
+</aside>
+
+<!-- ─── Elegoo filament-edit bottom sheet ──────────────────────── -->
+<div class="sfe-backdrop" id="elgFilEditBackdrop"></div>
+<aside class="sfe-sheet" id="elgFilEditSheet" aria-hidden="true">
+  <div class="sfe-grip" aria-hidden="true"></div>
+  <section class="sfe-screen sfe-screen--summary" id="elgScreenSummary">
+    <header class="sfe-screen-head sfe-screen-head--right">
+      <div class="sfe-screen-head-text">
+        <div class="sfe-title" id="elgFilEditTitle" data-i18n="elgFilEditTitle">Change filament</div>
+        <div class="sfe-sub" id="elgFilEditSub"></div>
+      </div>
+      <button class="modal-close" id="elgFilEditClose">✕</button>
+    </header>
+    <div class="sfe-body">
+      <button type="button" class="sfe-line" id="elgOpenFilament">
+        <span class="sfe-line-lbl" data-i18n="snapFilEditPickFilament">Filaments</span>
+        <span class="sfe-line-val" id="elgFilSummaryVal">—</span>
+        <span class="sfe-line-chev icon icon-chevron-r icon-13"></span>
+      </button>
+      <button type="button" class="sfe-line" id="elgOpenColor">
+        <span class="sfe-line-lbl" data-i18n="snapFilEditColor">Color</span>
+        <span class="sfe-line-color-dot" id="elgColorSummaryDot"></span>
+        <span class="sfe-line-chev icon icon-chevron-r icon-13"></span>
+      </button>
+      <input type="hidden" id="elgVendor"/>
+      <input type="hidden" id="elgMaterial"/>
+      <input type="hidden" id="elgColorInput" value="#ff5722"/>
+      <div class="sfe-error" id="elgError" hidden></div>
+    </div>
+    <div class="sfe-footer">
+      <button class="adf-btn adf-btn--primary sfe-apply" id="elgFilEditSave">
+        <span class="label" data-i18n="elgFilEditApply">Apply</span>
+        <span class="spinner"></span>
+      </button>
+    </div>
+  </section>
+</aside>
+
+<!-- Elegoo filament-picker sheet (stacks ON TOP of the summary). -->
+<aside class="sfe-sheet sfe-sheet--filament" id="elgFilamentSheet" aria-hidden="true">
+  <div class="sfe-grip" aria-hidden="true"></div>
+  <header class="sfe-screen-head">
+    <button type="button" class="sfe-back" id="elgFilamentBack" aria-label="Back">
+      <span class="icon icon-chevron-l icon-14"></span>
+    </button>
+    <span class="sfe-title" data-i18n="snapFilSelectFilament">Select Filament</span>
+    <button class="modal-close" id="elgFilamentClose">✕</button>
+  </header>
+  <div class="sfe-body sfe-body--picker">
+    <div class="sfe-fil-picker">
+      <div class="sfe-fil-vendors" id="elgVendorList" role="listbox" aria-label="Vendors"></div>
+      <div class="sfe-fil-divider" aria-hidden="true"></div>
+      <div class="sfe-fil-materials" id="elgMaterialList" role="listbox" aria-label="Materials"></div>
+    </div>
+  </div>
+</aside>
+
+<!-- Elegoo colour-picker sheet (stacks ON TOP of the summary). -->
+<aside class="sfe-sheet sfe-sheet--color" id="elgColorSheet" aria-hidden="true">
+  <div class="sfe-grip" aria-hidden="true"></div>
+  <header class="sfe-screen-head">
+    <button type="button" class="sfe-back" id="elgColorBack" aria-label="Back">
+      <span class="icon icon-chevron-l icon-14"></span>
+    </button>
+    <span class="sfe-title" data-i18n="snapFilSelectColor">Select Color</span>
+    <button class="modal-close" id="elgColorClose">✕</button>
+  </header>
+  <div class="sfe-body sfe-body--picker">
+    <div class="sfe-color-grid" id="elgColorGrid"></div>
+  </div>
+</aside>
+
 <!-- Add printer — step 1: brand picker -->
 <div class="modal-overlay" id="printerBrandPickerOverlay">
   <div class="modal-card pba-card">
@@ -658,160 +750,6 @@
   </div>
 </div>
 
-<!-- Add printer — step 2: form -->
-<!-- Snapmaker LAN scanner — slide-in side panel (right). Probes
-     /printer/info on every reachable host in the local /24 subnets,
-     lists candidates as they're found, lets the user pick one to
-     pre-fill the standard add form. Side-panel layout (instead of a
-     centred modal) gives a lot more vertical room for the long scan
-     log + multiple candidate cards without scrolling. -->
-<div class="panel-overlay" id="snapScanOverlay"></div>
-<div class="detail-panel snap-scan-panel" id="snapScanPanel">
-  <div class="panel-header">
-    <div class="snap-scan-panel-titles">
-      <span class="panel-title" data-i18n="snapScanTitle">Scanning network…</span>
-      <span class="snap-scan-panel-sub" id="snapScanSub"></span>
-    </div>
-    <!-- Close button removed: panel closes on backdrop click + Escape key. -->
-  </div>
-    <div class="snap-scan-body">
-      <div class="snap-scan-progress">
-        <div class="snap-scan-bar"><span id="snapScanBar"></span></div>
-        <div class="snap-scan-stats" id="snapScanStats">0 / 0</div>
-      </div>
-      <!-- Add by IP — collapsible direct-probe path. Default state is
-           a single trigger button; clicking it expands the IP input
-           with live IPv4 validation, and a "Validate" button below
-           that probes the printer to pull its data.                    -->
-      <details class="snap-add-ip" id="snapAddIpDetails">
-        <summary class="snap-add-ip-summary">
-          <span class="snap-add-ip-summary-icon icon icon-plus icon-13"></span>
-          <span class="snap-add-ip-summary-label" data-i18n="snapAddByIpButton">Add by IP</span>
-          <span class="snap-add-ip-chev icon icon-chevron-r icon-13"></span>
-        </summary>
-        <div class="snap-add-ip-body">
-          <label class="snap-add-ip-label" data-i18n="snapAddByIpLabel">IP address</label>
-          <span class="snap-add-ip-input-wrap">
-            <input type="text" inputmode="decimal" class="snap-add-ip-input" id="snapAddIpInput"
-                   placeholder="192.168.1.42" autocomplete="off" autocapitalize="off" spellcheck="false"
-                   maxlength="15" />
-            <span class="snap-add-ip-tip" id="snapAddIpTip" hidden role="alert">
-              <span class="icon icon-info icon-13"></span>
-              <span data-i18n="snapAddByIpInvalid">Invalid IP address format</span>
-            </span>
-          </span>
-          <button type="button" class="adf-btn adf-btn--primary snap-add-ip-btn" id="snapAddIpBtn" disabled>
-            <span class="icon icon-check icon-13"></span>
-            <span class="label" data-i18n="snapAddByIpValidate">Validate</span>
-            <span class="spinner"></span>
-          </button>
-          <div class="snap-add-ip-status" id="snapAddIpStatus" hidden></div>
-        </div>
-      </details>
-      <!-- Custom subnets — for users on multi-VLAN home networks who can
-           reach the printer subnet via inter-VLAN routing but whose Mac
-           isn't directly on it. Persisted in localStorage. -->
-      <details class="snap-extra-subnets">
-        <summary class="snap-extra-subnets-summary">
-          <span class="snap-extra-subnets-icon icon icon-cloud icon-14"></span>
-          <span class="snap-extra-subnets-label" data-i18n="snapScanExtraSubnetsLabel">Extra subnets to scan</span>
-          <span class="snap-extra-subnets-chev icon icon-chevron-r icon-13"></span>
-        </summary>
-        <div class="snap-extra-subnets-body">
-          <div class="snap-extra-subnets-hint" data-i18n="snapScanExtraSubnetsHint">
-            Add subnets your Mac can reach via routing but isn't directly on (e.g. another VLAN like 192.168.40).
-          </div>
-          <div class="snap-extra-subnets-row">
-            <input type="text" class="snap-extra-subnets-input" id="snapExtraSubnetsInput"
-                   placeholder="192.168.40" autocomplete="off" autocapitalize="off" spellcheck="false"/>
-            <button type="button" class="snap-extra-subnets-add" id="snapExtraSubnetsAdd" data-i18n="snapScanExtraSubnetsAdd">Add</button>
-          </div>
-          <div class="snap-extra-subnets-err" id="snapExtraSubnetsErr" hidden></div>
-          <div class="snap-extra-subnets-chips" id="snapExtraSubnetsChips"></div>
-        </div>
-      </details>
-      <div class="snap-scan-results" id="snapScanResults"></div>
-      <div class="snap-scan-empty" id="snapScanEmpty" hidden data-i18n="snapScanEmpty">
-        No Snapmaker found yet — make sure the printer is on the same Wi-Fi network.
-      </div>
-      <!-- Debug-only scan journal — what subnets we walk, which IPs answer,
-           the raw /printer/info + /server/info JSON for every hit. Hidden
-           outside debug mode. Click a line to copy its raw JSON. -->
-      <section class="snap-scan-log" id="snapScanLog" hidden>
-        <header class="snap-scan-log-head">
-          <button type="button" class="snap-scan-log-toggle" id="snapScanLogToggle"
-                  aria-expanded="false" aria-label="Scan log" data-i18n-title="snapScanLogTitle"
-                  title="Scan log">
-            <span class="icon icon-chevron-r icon-13 snap-scan-log-chev"></span>
-            <span class="icon icon-list icon-13 snap-scan-log-title-icon"></span>
-            <span class="snap-scan-log-count" id="snapScanLogCount">0</span>
-          </button>
-          <span class="snap-scan-log-actions">
-            <!-- Icon-only buttons. Title attribute carries the label for
-                 a hover tooltip + screen readers. We localize via the
-                 same data-i18n-title attribute used elsewhere in the app
-                 so the tooltip follows the user's language. -->
-            <button type="button" class="snap-scan-log-btn snap-scan-log-btn--primary snap-scan-log-btn--icon"
-                    id="snapScanLogExport" data-i18n-title="snapScanLogExport"
-                    aria-label="Export" title="Export">
-              <span class="icon icon-copy icon-13"></span>
-            </button>
-            <button type="button" class="snap-scan-log-btn snap-scan-log-btn--icon"
-                    id="snapScanLogClear" data-i18n-title="snapScanLogClear"
-                    aria-label="Clear" title="Clear">
-              <span class="icon icon-trash icon-13"></span>
-            </button>
-          </span>
-        </header>
-        <div class="snap-scan-log-body" id="snapScanLogBody" hidden></div>
-      </section>
-    </div>
-    <div class="snap-scan-panel-footer">
-      <!-- Restart-scan is the only footer action now: closing the
-           panel uses the X in the header or a backdrop click. The
-           previous "Back" button pointed at the choice modal that
-           was retired (Snapmaker brand-pick now opens the scan
-           panel directly), so it had no destination. -->
-      <button class="adf-btn adf-btn--secondary" id="snapScanRestart">
-        <span class="icon icon-refresh icon-13"></span>
-        <span data-i18n="snapScanRestart">Restart scan</span>
-      </button>
-    </div>
-</div>
-
-<!-- Snapmaker manual IP entry — types an IP, hits /printer/info to pull
-     the machine model + hostname + firmware version, then opens the
-     standard add form pre-filled with whatever could be probed. -->
-<div class="modal-overlay" id="snapManualOverlay">
-  <div class="modal-card pba-card">
-    <div class="pba-header">
-      <div class="pba-header-text">
-        <div class="pba-title" data-i18n="snapManualTitle">Manual add</div>
-        <div class="pba-sub" data-i18n="snapManualSub">Type the printer's local IP — we'll probe it to pre-fill the rest.</div>
-      </div>
-      <button class="modal-close" id="snapManualClose">✕</button>
-    </div>
-    <div class="pba-body">
-      <label class="pba-field">
-        <span class="pba-field-label" data-i18n="printerLblIP">IP address <span class="pba-field-req">*</span></span>
-        <input type="text" class="pba-input pba-input--mono" id="snapManualIp"
-               placeholder="192.168.1.42" autocomplete="off" autocapitalize="off" spellcheck="false"/>
-      </label>
-      <div class="snap-manual-status" id="snapManualStatus" hidden></div>
-    </div>
-    <div class="pba-footer">
-      <button class="adf-btn adf-btn--secondary" id="snapManualBack">
-        <span class="icon icon-chevron-l icon-13"></span>
-        <span data-i18n="printerAddBack">Back</span>
-      </button>
-      <button class="adf-btn adf-btn--primary" id="snapManualProbe">
-        <span class="icon icon-search icon-13"></span>
-        <span class="label" data-i18n="snapManualProbe">Probe + continue</span>
-        <span class="spinner"></span>
-      </button>
-    </div>
-  </div>
-</div>
 
 <div class="modal-overlay" id="printerAddOverlay">
   <div class="modal-card pba-card">

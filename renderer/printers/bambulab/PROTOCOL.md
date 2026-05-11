@@ -855,7 +855,28 @@ Subject: CN=00M09A123456789, O=Bambu Lab
 
 **Taille des batches** : 24 connexions parallèles.
 
-### 12.3 Résolution modèle depuis code ou serial
+### 12.3 Déduplication
+
+Clé de déduplication : **serial number** si non vide, sinon **IP**. Deux entrées avec le même serial (trouvées via SSDP et TLS) sont fusionnées en gardant le candidat au score le plus élevé.
+
+### 12.4 Score de qualité
+
+```dart
+int qualityScore(candidate) {
+  if (printerName?.trim().isNotEmpty)      score += 5;
+  if (printerModelName?.trim().isNotEmpty) score += 4;
+  if (serialNumber?.trim().isNotEmpty)     score += 5;
+  if (firmwareVersion?.trim().isNotEmpty)  score += 1;
+  if (connectMode?.trim().isNotEmpty)      score += 1;
+  if (bindState?.trim().isNotEmpty)        score += 1;
+  if (signal?.trim().isNotEmpty)           score += 1;
+  if (source == 'ssdp')                    score += 3;  // SSDP = plus riche
+  if (source == 'tls')                     score += 1;  // TLS = identité seule
+  // max théorique : 22
+}
+```
+
+### 12.5 Résolution modèle depuis code ou serial
 
 **Par code modèle SSDP** :
 
@@ -868,6 +889,9 @@ Subject: CN=00M09A123456789, O=Bambu Lab
 | `C13` | 6 | X1E |
 | `N7` | 10 | P2S |
 | `00M` | 5 | X1C |
+| `BL-P002` | 5 | X1C (alias) |
+| `3DPRINTER-X1` | 5 | X1C (alias) |
+| `3DPRINTER-X1-CARBON` | 5 | X1C (alias) |
 | `O1D` | 8 | H2D |
 | `O1C` | 11 | H2C |
 | `O1S` | 7 | H2S |

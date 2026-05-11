@@ -1,0 +1,399 @@
+/**
+ * renderer/IoT/td1s/td1s.css
+ *
+ * All TD1S-specific styles: health icon, sidebar panel, connect/tester modals,
+ * live value display, and log viewer.
+ *
+ * Note: the shared `.td-edit-val-input` overrides scoped to
+ * `#td1sTesterOverlay` live in 70-detail-misc.css alongside the same rules
+ * for `#tdEditModalOverlay` and `#colorEditModalOverlay` — they're
+ * intentionally grouped there as a single multi-selector block.
+ *
+ * Icon URL depth: renderer/IoT/td1s/ → 3 levels up to repo root assets/.
+ */
+
+/* ── TD1S tester modal ── */
+#td1sTesterOverlay .modal-card {
+  max-width: 320px; padding: 0 0 20px;
+  background: #000; border: none;
+  overflow: hidden;
+  box-shadow: 0 24px 64px rgba(0,0,0,.7);
+}
+#td1sTesterOverlay .modal-header {
+  background: #000; border-bottom: 1px solid rgba(255,255,255,.08);
+  padding: 14px 16px;
+}
+#td1sTesterOverlay .modal-title { color: #fff; font-size: 15px; }
+#td1sTesterOverlay .panel-close {
+  background: rgba(255,255,255,.1) !important;
+  border: 1px solid rgba(255,255,255,.15) !important;
+  color: rgba(255,255,255,.45) !important;
+}
+#td1sTesterOverlay .panel-close:hover { color: #fff !important; }
+
+/* ── TD1S connect modal ── */
+#td1sConnectModalOverlay .modal-card {
+  max-width: 320px; padding: 0 0 16px;
+  background: #000; border: none;
+  overflow: hidden;
+  box-shadow: 0 24px 64px rgba(0,0,0,.7);
+}
+#td1sConnectModalOverlay .modal-header {
+  background: #000; border-bottom: 1px solid rgba(255,255,255,.08);
+  padding: 14px 16px;
+}
+#td1sConnectModalOverlay .modal-title { color: #fff; font-size: 15px; }
+#td1sConnectModalOverlay .panel-close {
+  background: rgba(255,255,255,.1) !important;
+  border: 1px solid rgba(255,255,255,.15) !important;
+  color: rgba(255,255,255,.45) !important;
+}
+#td1sConnectModalOverlay .panel-close:hover { color: #fff !important; }
+.td1s-connect-body {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 20px 20px 12px; gap: 18px; background: #000;
+}
+.td1s-connect-img {
+  width: 100%; max-width: 230px; border-radius: 10px;
+  opacity: .92; pointer-events: none; user-select: none;
+}
+.td1s-connect-status { display: flex; align-items: center; gap: 10px; }
+#td1sConnectCancelBtn {
+  margin: 6px 20px 0; width: calc(100% - 40px); border-radius: 10px;
+  background: rgba(255,255,255,.06) !important;
+  border: 1px solid rgba(255,255,255,.1) !important;
+  color: rgba(255,255,255,.35) !important;
+  font-size: 15px; padding: 10px;
+}
+#td1sConnectCancelBtn:hover { background: rgba(255,255,255,.1) !important; color: rgba(255,255,255,.6) !important; }
+
+/* ── TD1S health icon (header) ── */
+.td1s-health { cursor: pointer; }
+.td1s-health-icon {
+  display: inline-block; width: 40px; height: 18px;
+  background-color: var(--neutral);
+  -webkit-mask-image: url('../../../assets/svg/icons/icon_td1s.svg');
+  -webkit-mask-size: contain; -webkit-mask-repeat: no-repeat; -webkit-mask-position: center;
+  opacity: .38; transition: opacity .3s, background-color .3s, filter .3s;
+}
+.td1s-health.td1s-connected .td1s-health-icon {
+  background-color: var(--success); opacity: 1;
+  filter: drop-shadow(0 0 5px var(--success));
+}
+
+/* ── TD1S device icon (sidebar settings button) ── */
+.td1s-dev-icon {
+  display: inline-block;
+  width: 42px; height: 18px;
+  vertical-align: middle;
+  margin-right: 7px; margin-bottom: 1px;
+  background-color: currentColor;
+  -webkit-mask-image: url('../../../assets/svg/icons/icon_td1s.svg');
+  -webkit-mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  opacity: .38;
+  transition: opacity .3s, color .3s, filter .3s;
+}
+#btnTD1S.td1s-connected .td1s-dev-icon {
+  color: var(--success);
+  opacity: 1;
+  filter: drop-shadow(0 0 5px var(--success));
+}
+
+/* ── TD1S panel (slide-in, dark theme) ── */
+.td1s-panel { background: #0f1117; width: 380px; }
+.td1s-panel .panel-header {
+  background: #151820; border-bottom: 1px solid rgba(255,255,255,.07);
+}
+.td1s-panel .panel-title { color: rgba(255,255,255,.85); font-size: 14px; }
+.td1s-close {
+  background: rgba(255,255,255,.07) !important;
+  border: 1px solid rgba(255,255,255,.12) !important;
+  color: rgba(255,255,255,.4) !important;
+}
+.td1s-close:hover {
+  background: rgba(255,255,255,.13) !important;
+  color: rgba(255,255,255,.75) !important;
+}
+.td1s-body {
+  flex: 1; display: flex; flex-direction: column; overflow: hidden;
+  padding: 12px 12px 0; gap: 10px; background: #0f1117;
+}
+.td1s-values {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 20px 0 10px; flex-shrink: 0; gap: 14px;
+}
+.td1s-device-img {
+  width: 100%; max-width: 300px;
+  border-radius: 10px;
+  opacity: .85;
+  pointer-events: none; user-select: none;
+  flex-shrink: 0;
+}
+.td1s-color-circle {
+  width: 120px; height: 120px; border-radius: 50%;
+  background: #2a2a2a; border: 4px solid #ffffff;
+  flex-shrink: 0;
+}
+.td1s-val-block {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+}
+.td1s-val-label {
+  font-size: 10px; font-weight: 700; color: rgba(255,255,255,.3);
+  text-transform: uppercase; letter-spacing: .07em;
+}
+.td1s-val-value {
+  font-family: var(--mono); font-size: 18px; font-weight: 600; color: #88c4f5;
+  line-height: 1;
+}
+.td1s-log-container {
+  flex: 1; display: flex; flex-direction: column; min-height: 0;
+}
+.td1s-log-header {
+  display: flex; align-items: center; gap: 4px;
+  margin-bottom: 5px; flex-shrink: 0;
+}
+.td1s-log-title {
+  flex: 1; font-size: 11px; font-weight: 700; color: #555;
+  text-transform: uppercase; letter-spacing: .05em;
+}
+.td1s-icon-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; padding: 0;
+  border: 1px solid #2d2d2d; border-radius: 5px;
+  background: #1e1e1e; cursor: pointer; color: #666;
+  transition: background .1s, border-color .1s, color .1s;
+}
+.td1s-icon-btn:hover { background: #272727; }
+.td1s-clear-btn:hover { border-color: #804040; color: #c05050; }
+.td1s-log {
+  flex: 1; background: #1a1a1a; color: #ccc;
+  font-family: var(--mono); font-size: 10.5px; line-height: 1.55;
+  overflow-y: auto; padding: 6px 8px;
+  border-radius: 6px; border: 1px solid #2d2d2d; min-height: 0;
+}
+.td1s-log .log-time    { color: #555; user-select: none; }
+.td1s-log .log-info    { color: #88c4f5; }
+.td1s-log .log-success { color: #6ed46e; }
+.td1s-log .log-error   { color: #f07070; }
+.td1s-log .log-data    { color: #f0c060; }
+.td1s-log .log-debug   { color: #555; }
+.td1s-log .log-warn    { color: #f0a040; }
+.td1s-status {
+  padding: 6px 0 10px; flex-shrink: 0;
+  font-size: 11px; color: rgba(255,255,255,.3);
+}
+
+/* ── TD Edit modal (Set TD Value) — dark mode ── */
+#tdEditModalOverlay .modal-card {
+  max-width: 360px; padding: 0 0 16px;
+  background: #000; border: none;
+  overflow: hidden;
+  box-shadow: 0 24px 64px rgba(0,0,0,.7);
+}
+#tdEditModalOverlay .modal-header {
+  background: #000; border-bottom: 1px solid rgba(255,255,255,.08);
+  padding: 14px 16px;
+}
+#tdEditModalOverlay .modal-title { color: #fff; font-size: 15px; }
+#tdEditModalOverlay .panel-close {
+  background: rgba(255,255,255,.1) !important;
+  border: 1px solid rgba(255,255,255,.15) !important;
+  color: rgba(255,255,255,.45) !important;
+}
+#tdEditModalOverlay .panel-close:hover { color: #fff !important; }
+
+.td-edit-hidden { display: none !important; }
+.td-edit-state {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 20px 20px 12px; gap: 18px; background: #000;
+}
+.td-edit-device-img {
+  width: 100%; max-width: 230px;
+  border-radius: 10px; opacity: .92;
+  pointer-events: none; user-select: none;
+}
+.td-edit-state-msg {
+  font-size: 14px; color: rgba(255,255,255,.55);
+  text-align: center; line-height: 1.45; margin: 0;
+}
+.td-edit-wait-row {
+  display: flex; align-items: center; gap: 10px;
+}
+.td-edit-spinner {
+  width: 18px; height: 18px; flex-shrink: 0;
+  border: 2px solid rgba(255,255,255,.2);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+}
+.td-edit-result-circle {
+  width: 156px; height: 156px; border-radius: 50%;
+  background: #2a2a2a; border: 4px solid #fff;
+  flex-shrink: 0;
+}
+.td-edit-result-vals {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 16px; width: 100%;
+}
+.td-edit-result-row {
+  display: flex; flex-direction: column; align-items: center; gap: 7px;
+  width: 100%;
+}
+.td-edit-result-lbl {
+  font-size: 15px; font-weight: 700; color: #fff;
+  letter-spacing: .01em;
+}
+.td-edit-result-val {
+  font-family: var(--mono); font-size: 17px; font-weight: 700; color: #fff;
+  background: rgba(255,255,255,.13); border-radius: 99px;
+  padding: 5px 22px; min-width: 90px; text-align: center;
+}
+.td-edit-result-tdval { color: #fff; }
+.btn.full-w { width: 100%; justify-content: center; }
+/* Icon-only save button (both states) */
+.td-edit-icon-btn {
+  width: 44px; height: 44px; padding: 0; flex-shrink: 0;
+  border-radius: 12px; font-size: 0;
+  justify-content: center;
+}
+.td-edit-icon-btn::before { content: "✓"; font-size: 20px; font-weight: 700; }
+/* Wide variant: full-width inside .td-edit-state */
+.td-edit-save-wide {
+  width: 100%; height: 46px; border-radius: 10px; margin-top: 2px;
+}
+
+/* Two-button save row (TD Only + All / Color Only + All) */
+.td-edit-save-row { display: flex; gap: 8px; width: 100%; }
+.td-edit-save-half {
+  flex: 1; height: 46px; border-radius: 10px !important;
+  justify-content: center; font-size: 14px; font-weight: 600;
+}
+#tdEditModalOverlay .td-edit-save-half.btn.ghost,
+#colorEditModalOverlay .td-edit-save-half.btn.ghost {
+  background: rgba(255,255,255,.08) !important;
+  border: 1px solid rgba(255,255,255,.18) !important;
+  color: rgba(255,255,255,.65) !important;
+}
+#tdEditModalOverlay .td-edit-save-half.btn.ghost:hover,
+#colorEditModalOverlay .td-edit-save-half.btn.ghost:hover {
+  background: rgba(255,255,255,.14) !important;
+  color: #fff !important;
+}
+
+/* Color picker row (Color modal state 1) */
+.ce-picker-row { display: flex; align-items: center; gap: 10px; width: 100%; }
+.ce-swatch {
+  width: 40px; height: 40px; flex-shrink: 0; border-radius: 50%;
+  background: #2a2a2a; border: 2px solid rgba(255,255,255,.2);
+  cursor: pointer; padding: 0; transition: border-color .15s, box-shadow .15s;
+}
+.ce-swatch:hover { border-color: rgba(255,255,255,.55); box-shadow: 0 0 0 3px rgba(255,122,24,.25); }
+#colorEditNativePicker { position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none; }
+#colorEditManualHex.td-edit-val-input { width: auto !important; flex: 1 !important; }
+
+/* Clickable color circle in detail panel (trigger to open Color Edit modal) */
+.color-edit-trigger {
+  position: relative; background: transparent !important;
+  border: none; outline: none; padding: 0; margin: 0;
+  cursor: pointer; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  -webkit-appearance: none; transform: none !important;
+}
+.color-edit-trigger .color-circle { margin-right: 0; }
+.color-edit-trigger:hover  { background: transparent !important; }
+.color-edit-trigger:active { background: transparent !important; transform: none !important; }
+.color-edit-plus {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  color: #fff; font-size: 22px; font-weight: 300; line-height: 1;
+  text-shadow: 0 1px 5px rgba(0,0,0,.8);
+  opacity: 0; transition: opacity .15s;
+  pointer-events: none; user-select: none;
+}
+.color-edit-trigger:hover .color-edit-plus { opacity: 1; }
+
+/* OR divider — lives inside .td-edit-state */
+.td-edit-or { display: flex; align-items: center; gap: 10px; width: 100%; }
+.td-edit-or-line { flex: 1; height: 1px; background: rgba(255,255,255,.12); }
+.td-edit-or-text {
+  font-size: 11px; font-weight: 700; color: rgba(255,255,255,.25);
+  text-transform: uppercase; letter-spacing: .08em;
+}
+/* Manual entry row — inside .td-edit-state */
+.td-edit-manual { display: flex; gap: 9px; width: 100%; }
+/* Manual number input (state 1) */
+#tdEditModalOverlay input[type="number"].td-edit-manual-input,
+#colorEditModalOverlay input[type="number"].td-edit-manual-input {
+  flex: 1; height: auto;
+  background: rgba(255,255,255,.09) !important;
+  border: 1px solid rgba(255,255,255,.18) !important;
+  border-radius: 10px !important;
+  padding: 10px 14px !important;
+  color: #fff !important;
+  font-family: var(--mono) !important; font-size: 15px !important;
+  outline: none; -moz-appearance: textfield;
+}
+#tdEditModalOverlay input[type="number"].td-edit-manual-input::placeholder,
+#colorEditModalOverlay input[type="number"].td-edit-manual-input::placeholder { color: rgba(255,255,255,.22) !important; }
+#tdEditModalOverlay input[type="number"].td-edit-manual-input:focus,
+#colorEditModalOverlay input[type="number"].td-edit-manual-input:focus {
+  background: rgba(255,255,255,.13) !important;
+  border-color: rgba(255,255,255,.38) !important;
+  box-shadow: none !important; color: #fff !important;
+}
+#tdEditModalOverlay input[type="number"].td-edit-manual-input::-webkit-inner-spin-button,
+#tdEditModalOverlay input[type="number"].td-edit-manual-input::-webkit-outer-spin-button,
+#colorEditModalOverlay input[type="number"].td-edit-manual-input::-webkit-inner-spin-button,
+#colorEditModalOverlay input[type="number"].td-edit-manual-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+
+/* Editable / display value inputs — shared by TD Edit, Color Edit & TD1S Tester */
+#tdEditModalOverlay input.td-edit-val-input,
+#colorEditModalOverlay input.td-edit-val-input,
+#td1sTesterOverlay input.td-edit-val-input {
+  background: rgba(255,255,255,.09) !important;
+  border: 1px solid rgba(255,255,255,.18) !important;
+  border-radius: 10px !important;
+  padding: 10px 14px !important;
+  color: #fff !important;
+  font-family: var(--mono) !important; font-size: 15px !important;
+  height: auto !important; width: 50% !important;
+  text-align: center !important;
+  outline: none !important; -moz-appearance: textfield;
+}
+#tdEditModalOverlay input.td-edit-val-input::placeholder,
+#colorEditModalOverlay input.td-edit-val-input::placeholder,
+#td1sTesterOverlay input.td-edit-val-input::placeholder { color: rgba(255,255,255,.22) !important; }
+#tdEditModalOverlay input.td-edit-val-input:focus,
+#colorEditModalOverlay input.td-edit-val-input:focus,
+#td1sTesterOverlay input.td-edit-val-input:focus {
+  background: rgba(255,255,255,.13) !important;
+  border-color: rgba(255,255,255,.38) !important;
+  box-shadow: none !important; color: #fff !important;
+}
+#tdEditModalOverlay input[type="number"].td-edit-val-input::-webkit-inner-spin-button,
+#tdEditModalOverlay input[type="number"].td-edit-val-input::-webkit-outer-spin-button,
+#colorEditModalOverlay input[type="number"].td-edit-val-input::-webkit-inner-spin-button,
+#colorEditModalOverlay input[type="number"].td-edit-val-input::-webkit-outer-spin-button,
+#td1sTesterOverlay input[type="number"].td-edit-val-input::-webkit-inner-spin-button,
+#td1sTesterOverlay input[type="number"].td-edit-val-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+
+/* ── Color Edit modal (Set Color Value) — dark, mirrors TD Edit ── */
+#colorEditModalOverlay .modal-card {
+  max-width: 320px; padding: 0 0 16px;
+  background: #000; border: none;
+  overflow: hidden;
+  box-shadow: 0 24px 64px rgba(0,0,0,.7);
+}
+#colorEditModalOverlay .modal-header {
+  background: #000; border-bottom: 1px solid rgba(255,255,255,.08);
+  padding: 14px 16px;
+}
+#colorEditModalOverlay .modal-title { color: #fff; font-size: 15px; }
+#colorEditModalOverlay .panel-close {
+  background: rgba(255,255,255,.1) !important;
+  border: 1px solid rgba(255,255,255,.15) !important;
+  color: rgba(255,255,255,.45) !important;
+}
+#colorEditModalOverlay .panel-close:hover { color: #fff !important; }

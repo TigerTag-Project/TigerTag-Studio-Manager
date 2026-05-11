@@ -44,4 +44,14 @@ export const ctx = {
   // Hold-to-confirm helper — bound to setupHoldToConfirm() in inventory.js.
   // Brand modules call this after injecting dynamic buttons into the DOM.
   setupHoldToConfirm: () => {},
+
+  // Add-flow bridge — populated by inventory.js. Used by brand add-flow
+  // modules to open the global Printer Settings modal and return to the
+  // brand picker without creating circular imports.
+  openPrinterSettings: (brand, printer, prefill) => {},
+  openBrandPicker:     () => {},
+  isDebugEnabled:      () => false,
+  // Re-applies data-i18n translations across the whole document.
+  // Call after dynamically injecting elements that carry data-i18n attributes.
+  applyTranslations:   () => {},
 };

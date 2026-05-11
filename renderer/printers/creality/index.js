@@ -1205,6 +1205,7 @@ document.getElementById("creFilEditSave")?.addEventListener("click", async () =>
   btn.classList.add("loading"); btn.disabled = true;
   try {
     if (!conn?.ws || conn.ws.readyState !== WebSocket.OPEN) throw new Error("ws not open");
+    creLogPush(conn, "→", cmd);
     conn.ws.send(cmd);
     closeCreFilamentEdit();
   } catch (err) {

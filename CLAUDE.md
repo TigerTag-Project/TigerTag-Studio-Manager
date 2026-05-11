@@ -55,6 +55,23 @@ renderer/
     60-modals.css       — Rack-edit / friend / account / login / alert modals
     70-detail-misc.css  — icons, stats, table/grid, detail panel, debug, twin-link, toolbox, TD edit, TD1S, display-name
   locales/         — en.json fr.json de.json es.json it.json zh.json pt.json pt-pt.json pl.json
+  printers/        — one sub-folder per brand; each has PROTOCOL.md + index.js
+    bambulab/
+      PROTOCOL.md  — agent skill: MQTTS port 8883, AMS, SSDP+TLS discovery, camera JPEG/RTSP
+      index.js     — live integration (stub — not yet implemented)
+    creality/
+      PROTOCOL.md  — agent skill: WS port 9999, heartbeat, CFS boxsInfo, WebRTC camera
+      RETRO.md     — live SSH observations on real Ender-3 V4 hardware (reference)
+      index.js     — live integration (implemented)
+    elegoo/
+      PROTOCOL.md  — agent skill: MQTT port 1883, UDP discovery port 52700
+      index.js     — live integration (stub — not yet implemented)
+    flashforge/
+      PROTOCOL.md  — agent skill: HTTP port 8898, TCP 8899, UDP multicast discovery, MJPEG camera
+      index.js     — live integration (implemented)
+    snapmaker/
+      PROTOCOL.md  — agent skill: WS port 7125 (Moonraker), JSON-RPC, HTTP discovery
+      index.js     — live integration (implemented)
 data/
   id_brand.json id_material.json id_aspect.json id_type.json
   id_diameter.json id_measure_unit.json id_version.json
@@ -62,6 +79,20 @@ data/
 assets/svg/
   tigertag_logo.svg  tigertag_logo_contouring.svg
 ```
+
+## Printer agent skills
+
+Each brand under `renderer/printers/<brand>/PROTOCOL.md` is a **self-contained agent skill** — a complete reference that lets an AI implement the integration without reading Flutter source. Read the relevant `PROTOCOL.md` **before** touching any `index.js` in that folder.
+
+| Brand | PROTOCOL.md highlights | index.js status |
+|-------|------------------------|-----------------|
+| **Bambu Lab** | MQTTS 8883 TLS, AMS 16-slot, SSDP+TLS scan, JPEG TCP 6000 / RTSP 322 | stub |
+| **Creality** | WS 9999, heartbeat `"ok"`, CFS boxsInfo type 0/1, WebRTC port 8000 | ✅ implemented |
+| **Elegoo** | MQTT 1883, UDP spray port 52700, filament 4 slots canvas/tray | stub |
+| **FlashForge** | HTTP poll 8898, TCP M-codes 8899, UDP multicast 225.0.0.9:19000 | ✅ implemented |
+| **Snapmaker** | WS 7125 Moonraker + proprietary, RRGGBBAA color, HTTP scan | ✅ implemented |
+
+> **RETRO.md** (Creality only) — raw live-hardware SSH observations; PROTOCOL.md is the authoritative merge.
 
 ## LocalStorage keys
 | Key | Content |

@@ -1,9 +1,29 @@
+// ── TigerScale IoT module ─────────────────────────────────────────────────
+import {
+  initTigerScale,
+  subscribeScales,
+  unsubscribeScales,
+  renderScalesPanel,
+  renderScaleHealth,
+} from './IoT/tigerscale/index.js';
+
+// ── TD1S colour-sensor module ─────────────────────────────────────────────
+import {
+  initTD1S,
+  openTd1sConnectModal,
+  openTd1sTesterModal,
+} from './IoT/td1s/index.js';
+import {
+  initEditModals,
+  openTdEditModal,
+  openColorEditModal,
+} from './IoT/td1s/edit-modals.js';
+
 // ── Printer brand modules — each registers itself into the brands registry.
 // Import order determines registration order (affects brand picker list).
 import { ctx as _printerCtx } from './printers/context.js';
 import { brands } from './printers/registry.js';
 import './printers/bambulab/index.js';
-import './printers/elegoo/index.js';
 import {
   ffgKey, ffgGetConn, ffgIsOnline,
   ffgPingPrinter,
@@ -14,6 +34,8 @@ import {
 } from './printers/flashforge/index.js';
 import { renderFfgCamBanner, ffgRefreshCamBanner } from './printers/flashforge/widget_camera.js';
 import { renderSnapCamBanner } from './printers/snapmaker/widget_camera.js';
+import { openSnapAddFlow } from './printers/snapmaker/add-flow.js';
+import { openFfgAddFlow }  from './printers/flashforge/add-flow.js';
 import { renderCreCamBanner, startCreCam, stopCreCam } from './printers/creality/widget_camera.js';
 import {
   snapKey, snapGetConn, snapIsOnline,
@@ -38,6 +60,14 @@ import {
   creActionLed, creActionPause, creActionStop,
   creLoadFileList, creActionPrintFile, creActionDeleteFile,
 } from './printers/creality/index.js';
+import {
+  elegooKey, elegooGetConn, elegooIsOnline,
+  elegooConnect, elegooDisconnect,
+  renderElegooLiveInner, renderElegooLogInner,
+  openElegooFilamentEdit, closeElegooFilamentEdit,
+  openElegooFileSheet, closeElegooFileSheet,
+} from './printers/elegoo/index.js';
+import { renderElegooCamBanner } from './printers/elegoo/widget_camera.js';
 
   const API_BASE         = "https://cdn.tigertag.io";
 
@@ -2622,19 +2652,22 @@ import {
   $("friendsPanelClose").addEventListener("click", closeFriends);
   $("friendsOverlay").addEventListener("click", closeFriends);
 
-  // Scales panel — opens when clicking the scale health icon in the header
-  function openScalesPanel() {
-    renderScalesPanel();
-    $("scalesPanel").classList.add("open");
-    $("scalesOverlay").classList.add("open");
-  }
-  function closeScalesPanel() {
-    $("scalesPanel").classList.remove("open");
-    $("scalesOverlay").classList.remove("open");
-  }
-  $("scaleHealth")?.addEventListener("click", openScalesPanel);
-  $("scalesPanelClose")?.addEventListener("click", closeScalesPanel);
-  $("scalesOverlay")?.addEventListener("click", closeScalesPanel);
+  // ── TigerScale module init ─────────────────────────────────────────────
+  // Wires panel open/close, health tick, and card event delegation.
+  initTigerScale({
+    state,
+    t,
+    esc,
+    highlight,
+    $,
+    reportError,
+    fbDb,
+    firebase,
+    setupHoldToConfirm,
+    colorBg,
+    slotFillInnerHTML,
+    tsToMs,
+  });
 
   const SVG_CHECK = `<span class="icon icon-check icon-13"></span>`;
 
@@ -5212,331 +5245,34 @@ import {
     $("detailPanel").classList.remove("open"); $("panelOverlay").classList.remove("open");
   }
 
-  /* ── shared helpers ── */
-  // Clamp TD value to valid range [0.1 – 100], returns null if not a number
-  function _tdValClamp(v) {
-    const n = parseFloat(v);
-    if (isNaN(n)) return null;
-    return Math.min(100, Math.max(0.1, n));
-  }
-  function _tdClampInput(el) {
-    if (!el || el.value === "") return;
-    const clamped = _tdValClamp(el.value);
-    if (clamped !== null) el.value = clamped;
-  }
-  function _tdClampLive(el) {
-    if (!el) return;
-    // Strip any character that isn't a digit, dot, or comma; then convert comma → dot.
-    // TD values are always stored with a dot decimal separator (no commas).
-    const cleaned = el.value
-      .replace(/[^\d.,]/g, "")   // keep only digits, dot, comma
-      .replace(/,/g, ".")        // convert comma → dot
-      .replace(/(\..*)\./g, "$1"); // collapse multiple dots into one
-    if (cleaned !== el.value) {
-      const pos = el.selectionStart;
-      el.value = cleaned;
-      try { el.setSelectionRange(pos, pos); } catch (_) {}
-    }
-    if (el.value === "") return;
-    const n = parseFloat(el.value);
-    if (!isNaN(n) && n > 100) el.value = 100;
-  }
-  function _readHex(inputId) {
-    const raw = ($(`${inputId}`)?.value || "").replace(/^#/, "").trim();
-    return /^[0-9A-Fa-f]{6}$/.test(raw) ? raw.toUpperCase() : null;
-  }
-  // Block e/E/+/- keys on number inputs; call saveFn on Enter
-  const _blockBadKeys = (e, saveFn) => {
-    if (["e", "E", "+", "-"].includes(e.key)) { e.preventDefault(); return; }
-    if (e.key === "Enter") saveFn();
-  };
-  // Generic modal-state setter reused by both TD and Color modals
-  function _setEditState(ids, s) {
-    // ids: { disc, active, waitRow, spinner, waitMsg }
-    $(ids.disc).classList.toggle("td-edit-hidden",   s !== "disconnected");
-    $(ids.active).classList.toggle("td-edit-hidden", s === "disconnected");
-    if (s !== "disconnected") {
-      $(ids.waitRow).classList.remove("td-edit-hidden");
-      const sp = $(ids.spinner);
-      if (sp) sp.classList.toggle("td-edit-hidden", s === "result");
-      const msg = $(ids.waitMsg);
-      if (msg) {
-        if (s === "result") { msg.removeAttribute("data-i18n"); msg.textContent = t("tdEditScannedMsg"); }
-        else { msg.setAttribute("data-i18n", "tdEditWaitMsg"); msg.textContent = t("tdEditWaitMsg"); }
+  /* ── TD1S module init ────────────────────────────────────────────────────
+     initEditModals must be called first so the sensor engine hooks are ready.
+     openTd1sConnectModal / openTd1sTesterModal / openTdEditModal /
+     openColorEditModal are all imported from their respective modules and
+     called from the toolbox + ADP header button below.                    */
+  initEditModals({ state, t, $, fbDb });
+
+  initTD1S({
+    state,
+    t,
+    $,
+    makePanelResizable,
+    // Only the ADP panel sync remains here — edit modals are wired in edit-modals.js
+    onAdpData(data) {
+      const hex = (data.HEX || "").replace("#", "").toUpperCase();
+      if ($("addProductPanel")?.classList.contains("open")) {
+        if (/^[0-9A-Fa-f]{6}$/.test(hex)) _adpSyncColor("#" + hex);
+        if (data.TD != null) {
+          const tdInp = $("adpTd");
+          if (tdInp) {
+            tdInp.value = data.TD;
+            tdInp.dataset.userEdited = "1";
+            _adpUpdateBasicReadouts();
+            _adpRefreshRfidPreview();
+          }
+        }
       }
-    }
-  }
-  // Generic Firestore save: writes TD and/or HEX color to a spool + its twin
-  // Fields that live on the physical RFID chip — editing them requires re-tagging the spool
-  const CHIP_FIELDS = ["TD", "online_color_list"];
-
-  async function _saveTdHex(row, update, lockBtns, unlockBtns, closeFn, tag) {
-    if (!row) return;
-    const uid = state.activeAccountId; if (!uid) return;
-    lockBtns.forEach(b => { if (b) b.disabled = true; });
-    // If any chip field is being changed, flag the spool for re-tagging
-    if (CHIP_FIELDS.some(f => f in update)) update.needUpdateAt = Date.now();
-    const invRef = fbDb().collection("users").doc(uid).collection("inventory");
-    try {
-      const batch = fbDb().batch();
-      batch.update(invRef.doc(row.spoolId), update);
-      let twin = false;
-      if (row.twinUid) {
-        const tr = state.rows.find(r =>
-          r.spoolId !== row.spoolId &&
-          (String(r.uid) === String(row.twinUid) || String(r.spoolId) === String(row.twinUid))
-        );
-        if (tr) { batch.update(invRef.doc(tr.spoolId), { ...update }); twin = true; }
-      }
-      await batch.commit();
-      closeFn();
-      console.log(`[${tag}] saved`, update, twin ? "(twin)" : "");
-    } catch (err) {
-      console.error(`[${tag}] save error:`, err);
-      unlockBtns.forEach(b => { if (b) b.disabled = false; });
-    }
-  }
-
-  /* ── TD Edit modal ── */
-  let _tdEditRow     = null;
-  let _tdEditWaiting = false;
-  let _tdEditData    = null;
-
-  const _tdIds = { disc: "tdEditStateDisconnected", active: "tdEditStateActive",
-                   waitRow: "tdEditWaitRow", spinner: "tdEditSpinner", waitMsg: "tdEditWaitMsg" };
-
-  function openTdEditModal(r) {
-    _tdEditRow = r; _tdEditWaiting = false; _tdEditData = null;
-    $("tdEditModalOverlay").classList.add("open");
-    window.td1s?.need();
-    _setEditState(_tdIds, state.td1sConnected ? "waiting" : "disconnected");
-    if (state.td1sConnected) _tdEditWaiting = true;
-  }
-
-  function closeTdEditModal() {
-    _tdEditRow = _tdEditData = null; _tdEditWaiting = false;
-    [$("tdEditBtnTdOnly"), $("tdEditBtnAll"), $("tdEditManualSaveBtn")].forEach(b => { if (b) b.disabled = false; });
-    $("tdEditModalOverlay").classList.remove("open");
-    ["tdEditManualInput","tdEditHexInput","tdEditTdInput"].forEach(id => { const el = $(id); if (el) el.value = ""; });
-    const c = $("tdEditCircle"); if (c) c.style.background = "#2a2a2a";
-    const sp = $("tdEditSpinner"); if (sp) sp.classList.remove("td-edit-hidden");
-    const msg = $("tdEditWaitMsg"); if (msg) { msg.setAttribute("data-i18n","tdEditWaitMsg"); msg.textContent = t("tdEditWaitMsg"); }
-    window.td1s?.release();
-  }
-
-  function _tdEditReceiveData(data) {
-    _tdEditWaiting = false; _tdEditData = data;
-    const hex = (data.HEX || "").replace(/^#/, "");
-    const c = $("tdEditCircle"); if (c) c.style.background = /^[0-9A-Fa-f]{6}$/.test(hex) ? `#${hex}` : "#888";
-    const hi = $("tdEditHexInput"); if (hi) hi.value = hex ? `#${hex.toUpperCase()}` : "";
-    const ti = $("tdEditTdInput");  if (ti) ti.value  = data.TD != null ? data.TD : "";
-    _setEditState(_tdIds, "result");
-  }
-
-  function _tdEditSaveTdOnly() {
-    const tdVal = _tdValClamp($("tdEditTdInput")?.value);
-    if (tdVal === null) { $("tdEditTdInput")?.focus(); return; }
-    _saveTdHex(_tdEditRow, { TD: tdVal, last_update: Date.now() },
-      [$("tdEditBtnTdOnly"), $("tdEditBtnAll")], [$("tdEditBtnTdOnly"), $("tdEditBtnAll")],
-      closeTdEditModal, "TD edit");
-  }
-  function _tdEditSaveAll() {
-    const tdVal = _tdValClamp($("tdEditTdInput")?.value);
-    if (tdVal === null) { $("tdEditTdInput")?.focus(); return; }
-    const hexVal = _readHex("tdEditHexInput");
-    const update = { TD: tdVal, last_update: Date.now() };
-    if (hexVal) update.online_color_list = [hexVal];
-    _saveTdHex(_tdEditRow, update,
-      [$("tdEditBtnTdOnly"), $("tdEditBtnAll")], [$("tdEditBtnTdOnly"), $("tdEditBtnAll")],
-      closeTdEditModal, "TD edit");
-  }
-  function _tdEditSaveManual() {
-    const tdVal = _tdValClamp($("tdEditManualInput")?.value);
-    if (tdVal === null) { $("tdEditManualInput")?.focus(); return; }
-    _saveTdHex(_tdEditRow, { TD: tdVal, last_update: Date.now() },
-      [$("tdEditManualSaveBtn")], [$("tdEditManualSaveBtn")],
-      closeTdEditModal, "TD edit manual");
-  }
-
-  // Event listeners — TD modal
-  $("tdEditClose").addEventListener("click", closeTdEditModal);
-  $("tdEditBtnTdOnly").addEventListener("click", _tdEditSaveTdOnly);
-  $("tdEditBtnAll").addEventListener("click", _tdEditSaveAll);
-  $("tdEditManualSaveBtn").addEventListener("click", _tdEditSaveManual);
-  $("tdEditManualInput").addEventListener("keydown", e => _blockBadKeys(e, _tdEditSaveManual));
-  $("tdEditManualInput").addEventListener("blur",  () => _tdClampInput($("tdEditManualInput")));
-  $("tdEditManualInput").addEventListener("input", () => _tdClampLive($("tdEditManualInput")));
-  $("tdEditHexInput").addEventListener("input", () => {
-    const hex = ($("tdEditHexInput").value || "").replace(/^#/, "");
-    const c = $("tdEditCircle");
-    if (c) c.style.background = /^[0-9A-Fa-f]{6}$/.test(hex) ? `#${hex}` : "#2a2a2a";
-  });
-  $("tdEditTdInput").addEventListener("keydown", e => _blockBadKeys(e, _tdEditSaveTdOnly));
-  $("tdEditTdInput").addEventListener("blur",  () => _tdClampInput($("tdEditTdInput")));
-  $("tdEditTdInput").addEventListener("input", () => _tdClampLive($("tdEditTdInput")));
-  $("tdEditModalOverlay").addEventListener("click", e => { if (e.target === $("tdEditModalOverlay")) closeTdEditModal(); });
-
-  /* ── Color Edit modal ── */
-  let _colorEditRow     = null;
-  let _colorEditWaiting = false;
-  let _colorEditData    = null;
-
-  const _ceIds = { disc: "colorEditStateDisconnected", active: "colorEditStateActive",
-                   waitRow: "colorEditWaitRow", spinner: "colorEditSpinner", waitMsg: "colorEditWaitMsg" };
-
-  function _ceSetSwatch(hex6) {
-    const sw = $("colorEditSwatch");
-    const np = $("colorEditNativePicker");
-    const hi = $("colorEditManualHex");
-    const valid = /^[0-9A-Fa-f]{6}$/.test(hex6);
-    if (sw) sw.style.background = valid ? `#${hex6}` : "#2a2a2a";
-    if (np && valid) np.value = `#${hex6}`;
-    if (hi) hi.value = valid ? `#${hex6.toUpperCase()}` : "";
-  }
-
-  function openColorEditModal(r) {
-    _colorEditRow = r; _colorEditWaiting = false; _colorEditData = null;
-    // Pre-fill swatch + hex input with current spool color
-    const cur = (r.colorList && r.colorList[0])
-      ? r.colorList[0].replace(/^#/, "").replace(/FF$/i, "").toUpperCase() : "";
-    _ceSetSwatch(cur);
-    const ci = $("colorEditCircle"); if (ci) ci.style.background = /^[0-9A-Fa-f]{6}$/.test(cur) ? `#${cur}` : "#2a2a2a";
-    $("colorEditModalOverlay").classList.add("open");
-    window.td1s?.need();
-    _setEditState(_ceIds, state.td1sConnected ? "waiting" : "disconnected");
-    if (state.td1sConnected) _colorEditWaiting = true;
-  }
-
-  function closeColorEditModal() {
-    _colorEditRow = _colorEditData = null; _colorEditWaiting = false;
-    [$("colorEditBtnColorOnly"),$("colorEditBtnAll"),$("colorEditManualSaveBtn")].forEach(b => { if (b) b.disabled = false; });
-    $("colorEditModalOverlay").classList.remove("open");
-    ["colorEditHexInput","colorEditTdInput"].forEach(id => { const el = $(id); if (el) el.value = ""; });
-    const sw = $("colorEditSwatch"); if (sw) sw.style.background = "#2a2a2a";
-    const np = $("colorEditNativePicker"); if (np) np.value = "#000000";
-    const mh = $("colorEditManualHex"); if (mh) mh.value = "";
-    const ci = $("colorEditCircle"); if (ci) ci.style.background = "#2a2a2a";
-    const sp = $("colorEditSpinner"); if (sp) sp.classList.remove("td-edit-hidden");
-    const msg = $("colorEditWaitMsg"); if (msg) { msg.setAttribute("data-i18n","tdEditWaitMsg"); msg.textContent = t("tdEditWaitMsg"); }
-    window.td1s?.release();
-  }
-
-  function _colorEditReceiveData(data) {
-    _colorEditWaiting = false; _colorEditData = data;
-    const hex = (data.HEX || "").replace(/^#/, "");
-    const ci = $("colorEditCircle"); if (ci) ci.style.background = /^[0-9A-Fa-f]{6}$/.test(hex) ? `#${hex}` : "#888";
-    const hi = $("colorEditHexInput"); if (hi) hi.value = hex ? `#${hex.toUpperCase()}` : "";
-    const ti = $("colorEditTdInput");  if (ti) ti.value  = data.TD != null ? data.TD : "";
-    _setEditState(_ceIds, "result");
-  }
-
-  function _colorEditSaveColorOnly() {
-    const hexVal = _readHex("colorEditHexInput");
-    if (!hexVal) { $("colorEditHexInput")?.focus(); return; }
-    _saveTdHex(_colorEditRow, { online_color_list: [hexVal], last_update: Date.now() },
-      [$("colorEditBtnColorOnly"),$("colorEditBtnAll")], [$("colorEditBtnColorOnly"),$("colorEditBtnAll")],
-      closeColorEditModal, "Color edit");
-  }
-  function _colorEditSaveAll() {
-    const hexVal = _readHex("colorEditHexInput");
-    if (!hexVal) { $("colorEditHexInput")?.focus(); return; }
-    const tdVal  = _tdValClamp($("colorEditTdInput")?.value);
-    const update = { online_color_list: [hexVal], last_update: Date.now() };
-    if (tdVal !== null) update.TD = tdVal;
-    _saveTdHex(_colorEditRow, update,
-      [$("colorEditBtnColorOnly"),$("colorEditBtnAll")], [$("colorEditBtnColorOnly"),$("colorEditBtnAll")],
-      closeColorEditModal, "Color edit");
-  }
-  function _colorEditSaveManual() {
-    const hexVal = _readHex("colorEditManualHex");
-    if (!hexVal) { $("colorEditManualHex")?.focus(); return; }
-    _saveTdHex(_colorEditRow, { online_color_list: [hexVal], last_update: Date.now() },
-      [$("colorEditManualSaveBtn")], [$("colorEditManualSaveBtn")],
-      closeColorEditModal, "Color edit manual");
-  }
-
-  // Event listeners — Color modal
-  $("colorEditClose").addEventListener("click", closeColorEditModal);
-  $("colorEditBtnColorOnly").addEventListener("click", _colorEditSaveColorOnly);
-  $("colorEditBtnAll").addEventListener("click", _colorEditSaveAll);
-  $("colorEditManualSaveBtn").addEventListener("click", _colorEditSaveManual);
-  // Swatch click → open native color picker
-  $("colorEditSwatch").addEventListener("click", () => $("colorEditNativePicker").click());
-  // Native picker change → sync swatch + text input
-  $("colorEditNativePicker").addEventListener("input", e => {
-    const hex = e.target.value.replace(/^#/, "").toUpperCase();
-    const sw = $("colorEditSwatch"); if (sw) sw.style.background = `#${hex}`;
-    const hi = $("colorEditManualHex"); if (hi) hi.value = `#${hex}`;
-  });
-  // Text HEX input → sync swatch + native picker
-  $("colorEditManualHex").addEventListener("input", () => {
-    const hex = ($("colorEditManualHex").value || "").replace(/^#/, "");
-    const valid = /^[0-9A-Fa-f]{6}$/.test(hex);
-    const sw = $("colorEditSwatch"); if (sw) sw.style.background = valid ? `#${hex}` : "#2a2a2a";
-    const np = $("colorEditNativePicker"); if (np && valid) np.value = `#${hex}`;
-  });
-  // State 2: HEX input live-updates big circle
-  $("colorEditHexInput").addEventListener("input", () => {
-    const hex = ($("colorEditHexInput").value || "").replace(/^#/, "");
-    const ci = $("colorEditCircle");
-    if (ci) ci.style.background = /^[0-9A-Fa-f]{6}$/.test(hex) ? `#${hex}` : "#2a2a2a";
-  });
-  $("colorEditTdInput").addEventListener("keydown", e => _blockBadKeys(e, _colorEditSaveColorOnly));
-  $("colorEditTdInput").addEventListener("blur",  () => _tdClampInput($("colorEditTdInput")));
-  $("colorEditTdInput").addEventListener("input", () => _tdClampLive($("colorEditTdInput")));
-  $("colorEditModalOverlay").addEventListener("click", e => { if (e.target === $("colorEditModalOverlay")) closeColorEditModal(); });
-
-  /* ── TD1S connect modal ── */
-  let _td1sConnectOpen = false;
-
-  function openTd1sConnectModal() {
-    _td1sConnectOpen = true;
-    $("td1sConnectModalOverlay").classList.add("open");
-    if (!state.td1sConnected) window.td1s?.need();
-  }
-
-  function closeTd1sConnectModal() {
-    _td1sConnectOpen = false;
-    $("td1sConnectModalOverlay").classList.remove("open");
-    window.td1s?.release();
-  }
-
-  $("td1sConnectClose").addEventListener("click", closeTd1sConnectModal);
-  $("td1sConnectCancelBtn").addEventListener("click", closeTd1sConnectModal);
-  $("td1sConnectModalOverlay").addEventListener("click", e => {
-    if (e.target === $("td1sConnectModalOverlay")) closeTd1sConnectModal();
-  });
-
-  /* ── TD1S tester modal ── */
-  let _td1sTesterOpen = false;
-
-  function openTd1sTesterModal() {
-    _td1sTesterOpen = true;
-    // Reset display fields
-    const circle = $("td1sTesterCircle");
-    const hexIn  = $("td1sTesterHex");
-    const tdIn   = $("td1sTesterTd");
-    if (circle) circle.style.background = "#2a2a2a";
-    if (hexIn)  hexIn.value  = "";
-    if (tdIn)   tdIn.value   = "";
-    $("td1sTesterOverlay").classList.add("open");
-    window.td1s?.need();
-  }
-
-  function closeTd1sTesterModal() {
-    _td1sTesterOpen = false;
-    $("td1sTesterOverlay").classList.remove("open");
-    window.td1s?.release();
-  }
-
-  $("td1sTesterClose").addEventListener("click", closeTd1sTesterModal);
-  $("td1sTesterOverlay").addEventListener("click", e => {
-    if (e.target === $("td1sTesterOverlay")) closeTd1sTesterModal();
-  });
-
-  $("td1sHealth")?.addEventListener("click", () => {
-    if (state.td1sConnected) { openTd1sTesterModal(); return; }
-    if (!state.td1sConnected) openTd1sConnectModal();
+    },
   });
 
   /* ── twin-link picker ──────────────────────────────────────────────────
@@ -6308,22 +6044,7 @@ import {
 
   makePanelResizable($("detailPanel"), $("detailResize"), "tigertag.panelWidth.detail");
   makePanelResizable($("debugPanel"),  $("debugResize"),  "tigertag.panelWidth.debug");
-  makePanelResizable($("td1sPanel"),   $("td1sResize"),   "tigertag.panelWidth.td1s");
-
-  /* ── TD1S panel ── */
-  function openTD1S() {
-    $("td1sPanel").classList.add("open");
-    $("td1sOverlay").classList.add("open");
-    window.td1s?.need();
-  }
-  function closeTD1S() {
-    $("td1sPanel").classList.remove("open");
-    $("td1sOverlay").classList.remove("open");
-    window.td1s?.release();
-  }
-  $("btnTD1S").addEventListener("click", openTD1S);
-  $("td1sClose").addEventListener("click", closeTD1S);
-  $("td1sOverlay").addEventListener("click", closeTD1S);
+  // td1sPanel resize + panel open/close are handled by initTD1S (renderer/IoT/td1s/index.js)
 
   /* ── debug panel ── */
   function openDebug() {
@@ -7073,24 +6794,9 @@ import {
     if (state.unsubRacks) { state.unsubRacks(); state.unsubRacks = null; }
   }
 
-  /* ── Scales (TigerScale heartbeat — see tigerscale-firestore-heartbeat-spec.md)
-     Path: users/{uid}/scales/{mac}. Each doc carries a `last_seen` timestamp
-     written by the ESP32 every 30s. Online if last_seen > now − 90s. */
-  const SCALE_ONLINE_THRESHOLD_MS = 90 * 1000;
-  function subscribeScales(uid) {
-    unsubscribeScales();
-    state.unsubScales = fbDb(uid)
-      .collection("users").doc(uid).collection("scales")
-      .onSnapshot(snap => {
-        if (uid !== state.activeAccountId) return;
-        state.scales = snap.docs.map(d => ({ mac: d.id, ...d.data() }));
-        renderScaleHealth();
-        renderScalesPanel();
-      }, err => console.warn("[scales]", err.code, err.message));
-  }
-  function unsubscribeScales() {
-    if (state.unsubScales) { state.unsubScales(); state.unsubScales = null; }
-  }
+  /* ── Scales — subscribeScales / unsubscribeScales / renderScalesPanel /
+     renderScaleHealth are imported from renderer/IoT/tigerscale/index.js.
+     initTigerScale(ctx) is called during DOM setup (see above). */
 
   /* ── 3D Printers (per-brand subcollections) ─────────────────────────────
      Path: users/{uid}/printers/{brand}/devices/{deviceId}.
@@ -7105,6 +6811,9 @@ import {
     unsubscribePrinters();
     // Per-brand cache keyed by brand id; flattened into state.printers on every snapshot.
     const cache = Object.fromEntries(PRINTER_BRANDS.map(b => [b, []]));
+    // Track which Elegoo printer keys are currently auto-connected so we can
+    // detect deletions and tear down the MQTT session cleanly.
+    const _elegooAutoKeys = new Set();
     state._printerCache = cache;
     // Loading flag — flipped to false the FIRST time any brand listener
     // emits a snapshot (cached or live). Tracking per-brand "first
@@ -7161,6 +6870,29 @@ import {
             return String(a.printerName || "").localeCompare(String(b.printerName || ""));
           });
           state.printers = all;
+          // Elegoo: maintain persistent MQTT connections in the background so
+          // the card status badge is always live, even without opening the sidecard.
+          // Only connect when no connection exists yet, or when the IP changed.
+          // Disconnect printers that have been removed from Firestore.
+          {
+            const elegooNow = all.filter(p => p.brand === 'elegoo' && p.ip);
+            const elegooNowKeys = new Set(elegooNow.map(p => elegooKey(p)));
+            for (const key of _elegooAutoKeys) {
+              if (!elegooNowKeys.has(key)) { elegooDisconnect(key); _elegooAutoKeys.delete(key); }
+            }
+            for (const p of elegooNow) {
+              const key = elegooKey(p);
+              const conn = elegooGetConn(key);
+              // Connect when: no conn yet, OR IP changed (forces a fresh attempt).
+              // Skip if already connected/connecting with the same IP, or if the
+              // previous attempt was abandoned (bad IP) — user must fix the IP in
+              // settings before we retry.
+              if (!conn || conn.ip !== p.ip) {
+                elegooConnect(p);
+                _elegooAutoKeys.add(key);
+              }
+            }
+          }
           if (state.viewMode === "printer") renderPrintersView();
           // Live-update an open detail panel if it shows one of the changed docs
           if ($("printerPanel")?.classList.contains("open")) refreshOpenPrinterDetail();
@@ -7178,6 +6910,11 @@ import {
     // not "loading", we just have nothing to show. The flag is flipped
     // back to true on the next subscribePrinters() call.
     state.printersLoading = false;
+    // Tear down all background Elegoo MQTT connections — they persist across
+    // sidecard open/close but must stop when the session ends (logout / switch).
+    (state.printers || []).filter(p => p.brand === 'elegoo').forEach(p => {
+      try { elegooDisconnect(elegooKey(p)); } catch (_) {}
+    });
     // Close any open printer detail panel — its data belonged to the
     // outgoing account/session.
     if ($("printerPanel")?.classList.contains("open")) {
@@ -7276,10 +7013,23 @@ import {
       if (p.brand === "flashforge" && p.ip) ffgPingPrinter(p);
       // Same for Creality — opens a brief WS to port 9999.
       if (p.brand === "creality"   && p.ip) crePingPrinter(p);
+      // Elegoo — online status from active MQTT conn (no dedicated ping; conn drives it).
+      const elgOnline = (p.brand === "elegoo") ? elegooIsOnline(p) : null;
       const onlineBadge = p.brand === "flashforge"
         ? renderFfgOnlineBadge(p, "card")
         : p.brand === "creality"
         ? renderCreOnlineBadge(p, "card")
+        : p.brand === "elegoo"
+        ? (() => {
+            const cls = elgOnline === true ? "is-online" : elgOnline === false ? "is-offline" : "is-checking";
+            const lbl = elgOnline === true  ? t("snapStatusOnline")
+                      : elgOnline === false ? t("snapStatusOffline")
+                      :                       t("snapStatusConnecting");
+            return `<span class="printer-online printer-online--card ${cls}">
+                      <span class="printer-online-dot"></span>
+                      <span class="printer-online-lbl">${esc(lbl)}</span>
+                    </span>`;
+          })()
         : renderSnapOnlineBadge(p, "card");
       return `
         <div class="printer-card${p.isActive ? " printer-card--active" : ""}"
@@ -7477,6 +7227,8 @@ import {
     if (printer.brand === "creality" && printer.ip) {
       creConnect(printer);
     }
+    // Elegoo — MQTT is connected automatically at startup by subscribePrinters()
+    // and stays alive in the background; no need to reconnect on sidecard open.
   }
   function closePrinterDetail() {
     // If the filament-edit bottom-sheet is open over this side-panel,
@@ -7522,6 +7274,15 @@ import {
     if (_activePrinter?.brand === "creality") {
       stopCreCam();
       creDisconnect(creKey(_activePrinter));
+    }
+    // Elegoo — close filament-edit sheet if open. MQTT stays alive in background
+    // (persistent connection for live card status — disconnected only on logout).
+    if ($("elgFilEditSheet")?.classList.contains("open")) {
+      try { closeElegooFilamentEdit(); } catch {}
+    }
+    // Elegoo — close file history sheet if open.
+    if ($("elgFileSheet")?.classList.contains("open")) {
+      try { closeElegooFileSheet(); } catch {}
     }
     _activePrinter = null;
   }
@@ -7571,6 +7332,10 @@ import {
     onPrintersViewChange:  () => renderPrintersView(),
     setupHoldToConfirm,
   });
+  _printerCtx.openPrinterSettings = (brand, printer, prefill) => openPrinterAddForm(brand, printer, prefill);
+  _printerCtx.openBrandPicker     = () => openPrinterBrandPicker();
+  _printerCtx.isDebugEnabled      = () => !!state.debugEnabled;
+  _printerCtx.applyTranslations   = () => applyTranslations();
 
   // Dispatch to the per-brand camera widget. Returns "" when the
   // printer is offline, has no camera, or the brand is unknown.
@@ -7582,6 +7347,7 @@ import {
       case "snapmaker":  return renderSnapCamBanner(p);
       case "creality":   return renderCreCamBanner(p);
       case "flashforge": return renderFfgCamBanner(p);
+      case "elegoo":     return renderElegooCamBanner(p);
       default: return "";
     }
   }
@@ -7646,6 +7412,11 @@ import {
       ? `<div id="creLive" class="snap-live-host">${renderCrealityLiveInner(p)}</div>`
       : "";
 
+    // Elegoo live data block — same reusable .snap-* CSS classes.
+    const elgLiveHtml = (p.brand === "elegoo")
+      ? `<div id="elgLive" class="snap-live-host">${renderElegooLiveInner(p)}</div>`
+      : "";
+
     // FlashForge HTTP request log — same shape as the Snapmaker block
     // below, but driven by /detail polling. Surfaces every outgoing
     // POST + the printer's response so the user can pinpoint where the
@@ -7707,6 +7478,36 @@ import {
                </button>
              </div>
              <div id="creLog">${renderCreLogInner(p)}</div>
+           </div>
+         </section>`
+      : "";
+
+    // Elegoo MQTT request log — same collapsible section shape.
+    const elgConn = (p.brand === "elegoo") ? elegooGetConn(elegooKey(p)) : null;
+    const isElgPaused   = !!(elgConn?.logPaused);
+    const elgLogExpanded = !!(elgConn?.logExpanded);
+    const elgLogHtml = (p.brand === "elegoo")
+      ? `<section class="pp-section pp-section--collapsible snap-log-section" data-collapsed="${elgLogExpanded ? "false" : "true"}">
+           <button class="pp-section-head pp-section-head--btn" type="button">
+             <span>${esc(t("snapLogTitle"))}
+                   <span class="snap-log-count" id="elgLogCount">${(elgConn?.log?.length) || 0}</span>
+                   ${isElgPaused ? `<span class="snap-log-paused-tag" id="elgLogPausedTag">${esc(t("snapLogPaused"))}</span>` : ""}
+             </span>
+             <span class="pp-chev icon icon-chevron-r icon-14"></span>
+           </button>
+           <div class="pp-section-body">
+             <div class="snap-log-toolbar">
+               <button type="button" class="snap-log-btn snap-log-btn--pause${isElgPaused ? " is-paused" : ""}" id="elgLogPauseBtn"
+                       data-paused="${isElgPaused ? "true" : "false"}">
+                 <span class="icon ${isElgPaused ? "icon-play" : "icon-pause"} icon-13"></span>
+                 <span class="label">${esc(t(isElgPaused ? "snapLogResume" : "snapLogPause"))}</span>
+               </button>
+               <button type="button" class="snap-log-btn" id="elgLogClearBtn">
+                 <span class="icon icon-trash icon-13"></span>
+                 <span>${esc(t("snapLogClear"))}</span>
+               </button>
+             </div>
+             <div id="elgLog">${renderElegooLogInner(p)}</div>
            </div>
          </section>`
       : "";
@@ -7775,11 +7576,23 @@ import {
     // an empty string so the row collapses to zero height.
     const statusEl = $("printerPanelStatus");
     if (statusEl) {
-      statusEl.innerHTML = (p.brand === "flashforge")
-        ? renderFfgOnlineBadge(p, "side")
-        : (p.brand === "creality")
-        ? renderCreOnlineBadge(p, "side")
-        : renderSnapOnlineBadge(p, "side");
+      if (p.brand === "elegoo") {
+        const elgOnlineSide = elegooIsOnline(p);
+        const cls = elgOnlineSide === true ? "is-online" : elgOnlineSide === false ? "is-offline" : "is-checking";
+        const lbl = elgOnlineSide === true  ? t("snapStatusOnline")
+                  : elgOnlineSide === false ? t("snapStatusOffline")
+                  :                           t("snapStatusConnecting");
+        statusEl.innerHTML = `<span class="printer-online printer-online--side ${cls}" id="ppOnlineRow">
+                                <span class="printer-online-dot"></span>
+                                <span class="printer-online-lbl">${esc(lbl)}</span>
+                              </span>`;
+      } else {
+        statusEl.innerHTML = (p.brand === "flashforge")
+          ? renderFfgOnlineBadge(p, "side")
+          : (p.brand === "creality")
+          ? renderCreOnlineBadge(p, "side")
+          : renderSnapOnlineBadge(p, "side");
+      }
     }
 
     // Online status now lives in the panel header (next to the pills),
@@ -7807,6 +7620,9 @@ import {
       ${snapLiveHtml}
       ${ffgLiveHtml}
       ${creLiveHtml}
+      ${elgLiveHtml}
+
+      ${elgLogHtml}
 
       ${state.debugEnabled ? `
       <section class="pp-section pp-section--collapsible" data-collapsed="true">
@@ -7941,6 +7757,15 @@ import {
           const slotIdx = parseInt(card?.dataset?.slotIdx ?? "-1", 10);
           if (boxId >= 0 && slotIdx >= 0 && _activePrinter?.brand === "creality") {
             openCreFilamentEdit(_activePrinter, boxId, slotIdx);
+          }
+          return;
+        }
+        // Elegoo — filament edit (tray slot squares)
+        const elgFilTrigger = e.target.closest("[data-elg-fil-edit]");
+        if (elgFilTrigger) {
+          const idx = parseInt(elgFilTrigger.dataset.trayIdx ?? "0", 10);
+          if (_activePrinter?.brand === "elegoo") {
+            openElegooFilamentEdit(_activePrinter, idx);
           }
           return;
         }
@@ -8110,6 +7935,39 @@ import {
           if (countEl) countEl.textContent = "0";
           return;
         }
+        // Elegoo — Pause/Resume MQTT log.
+        if (e.target.closest("#elgLogPauseBtn")) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (!_activePrinter) return;
+          const conn = elegooGetConn(elegooKey(_activePrinter));
+          if (!conn) return;
+          conn.logPaused = !conn.logPaused;
+          const btn = $("elgLogPauseBtn");
+          if (btn) {
+            btn.dataset.paused = conn.logPaused ? "true" : "false";
+            btn.classList.toggle("is-paused", conn.logPaused);
+            const icon  = btn.querySelector(".icon");
+            const label = btn.querySelector(".label");
+            if (icon)  icon.className  = `icon ${conn.logPaused ? "icon-play" : "icon-pause"} icon-13`;
+            if (label) label.textContent = t(conn.logPaused ? "snapLogResume" : "snapLogPause");
+          }
+          return;
+        }
+        // Elegoo — Clear MQTT log buffer.
+        if (e.target.closest("#elgLogClearBtn")) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (!_activePrinter) return;
+          const conn = elegooGetConn(elegooKey(_activePrinter));
+          if (!conn) return;
+          conn.log = [];
+          const host = $("elgLog");
+          if (host) host.innerHTML = renderElegooLogInner(_activePrinter);
+          const countEl = $("elgLogCount");
+          if (countEl) countEl.textContent = "0";
+          return;
+        }
         // Creality — LED toggle (click) + open file sheet (folder button).
         const creActionTrigger = e.target.closest("[data-cre-action]");
         if (creActionTrigger) {
@@ -8122,6 +7980,11 @@ import {
         if (e.target.closest("[data-cre-open-files]")) {
           e.preventDefault(); e.stopPropagation();
           if (_activePrinter?.brand === "creality") openCreFileSheet(_activePrinter);
+          return;
+        }
+        if (e.target.closest("[data-elg-open-files]")) {
+          e.preventDefault(); e.stopPropagation();
+          if (_activePrinter?.brand === "elegoo") openElegooFileSheet(_activePrinter);
           return;
         }
         // Creality file sheet — print button (delete uses hold-to-confirm, bound in sheet).
@@ -8322,13 +8185,12 @@ import {
       btn.addEventListener("click", () => {
         const brand = btn.dataset.brand;
         closePrinterBrandPicker();
-        // Snapmaker has a dedicated discovery flow that opens the scan
-        // modal directly: it auto-scans the LAN AND exposes an inline
-        // "Add by IP" field for users whose printer is on a non-broadcast
-        // path (cross-VLAN, etc). Other brands jump straight to the
-        // empty add form.
+        // Snapmaker and FlashForge have dedicated LAN-discovery flows
+        // (scan + manual IP). Other brands jump straight to the add form.
         if (brand === "snapmaker") {
-          openSnapmakerScan();
+          openSnapAddFlow();
+        } else if (brand === "flashforge") {
+          openFfgAddFlow();
         } else {
           openPrinterAddForm(brand);
         }
@@ -8345,1516 +8207,9 @@ import {
   });
 
   /* ── Snapmaker discovery flow ────────────────────────────────────────────
-     Snapmaker U-series ships with a Klipper + Moonraker stack on every
-     printer; the Moonraker REST API on port 7125 advertises the machine
-     model, hostname and firmware versions through `/printer/info` and
-     `/server/info`. Hitting those endpoints across the local /24 subnets
-     lets us auto-discover printers AND pre-fill the add form with what we
-     learn (machine_model → printerName, ip → ip).
-
-     The flow is split into 3 modals:
-        choice  → user picks Scan or Manual
-        scan    → live results as we iterate the LAN
-        manual  → user types one IP, we probe just that one
-     Each path lands on the standard openPrinterAddForm() with a `prefill`
-     option so the user only confirms / tweaks fields before saving.       */
-
-  // moonraker port — same as Flutter app; fixed at the firmware level.
-  const SNAP_MOONRAKER_PORT = 7125;
-  // ~340 ms per host matches the Flutter scanner — long enough that a
-  // sleeping Snapmaker can wake its stack and answer, short enough that
-  // 254 dead hosts don't drag the scan past ~4 seconds.
-  const SNAP_PROBE_TIMEOUT_MS = 350;
-  // Parallelism per /24 prefix. Different defaults per subnet source:
-  //
-  //   LOCAL (own LAN, no firewall in front of probes)
-  //     → 24 simultaneous fetches, scans a /24 in ~3-5s.
-  //
-  //   EXTRA (user-declared subnets, typically reached via inter-VLAN
-  //   routing through a firewall that may flag burst traffic as port-
-  //   scan attack)
-  //     → 4 simultaneous fetches with a small inter-batch pause, scans
-  //       a /24 in ~25s. Tested on a UniFi/OPNsense-class router with
-  //       IDS/IPS active: batch=24 was silently dropped (0 hits in 2s),
-  //       batch=4 successfully discovered the printer.
-  const SNAP_SCAN_BATCH_LOCAL = 24;
-  const SNAP_SCAN_BATCH_EXTRA = 4;
-  // Inter-batch pause (only on EXTRA subnets) — gives the firewall's
-  // rate-limiter time to forget the previous burst.
-  const SNAP_SCAN_BATCH_GAP_MS_EXTRA = 80;
-  // If an EXTRA subnet completes with 0 hits in < this much wall-clock
-  // time, almost certainly the firewall dropped our SYNs. We surface a
-  // hint pointing at Manual Add. Tuned just above the unblocked best-
-  // case (a healthy /24 with batch=4 takes ~25s) to avoid false alarms.
-  const SNAP_FIREWALL_BLOCK_HINT_MS = 4000;
-  // No hardcoded subnet defaults. We rely entirely on os.networkInterfaces()
-  // (via the `net:get-local-subnets` IPC) to enumerate the user's ACTUAL
-  // active /24 prefixes — covering Wi-Fi, Ethernet, VPN, phone hotspot,
-  // anything bound to a non-internal IPv4 NIC. Pre-baking common prefixes
-  // like 192.168.1 / 192.168.40 was biased toward one workflow and just
-  // wasted ~250 dead-host probes for everyone else (10.x, 172.16.x,
-  // 192.168.50.x, etc.). When the printer is reachable from this machine
-  // its subnet is already in the list; when it isn't, no fixed default
-  // could fix that anyway.
-
-  // Returned by snapProbeIp() / pushed into the scan results list.
-  // Mirrors the Flutter SnapmakerScanCandidate, minus the qualityScore (we
-  // don't sort by score in the UI — first-found is good enough for a LAN scan).
-  let _snapScanAbort = null;     // AbortController for the in-flight scan
-  let _snapManualAbort = null;   // AbortController for the manual probe
-
-  /* ── User-declared extra subnets ──────────────────────────────────────
-     For multi-VLAN networks where the Mac can REACH a subnet via routing
-     but doesn't have an interface on it. os.networkInterfaces() and the
-     WebRTC trick both report only the subnets the Mac is *directly* on,
-     so without this list any printer behind a VLAN router is invisible
-     to the auto-scan.
-
-     Stored as a JSON array of "a.b.c" prefixes in localStorage, keyed
-     globally (not per-account) since it describes the user's network
-     topology, which is the same regardless of which TigerTag account
-     they're signed into.                                                */
-  const SNAP_EXTRA_SUBNETS_KEY = "tigertag.snapScanExtraSubnets";
-
-  function snapLoadExtraSubnets() {
-    try {
-      const raw = localStorage.getItem(SNAP_EXTRA_SUBNETS_KEY);
-      if (!raw) return [];
-      const parsed = JSON.parse(raw);
-      // Defensive: a corrupt/legacy value shouldn't take the scan down.
-      // Filter out anything that doesn't look like an "a.b.c" prefix.
-      return Array.isArray(parsed)
-        ? parsed.filter(p => typeof p === "string" && /^\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(p))
-        : [];
-    } catch { return []; }
-  }
-  function snapSaveExtraSubnets(list) {
-    try {
-      localStorage.setItem(SNAP_EXTRA_SUBNETS_KEY, JSON.stringify(list));
-    } catch {}
-  }
-  // Validate a typed IPv4 address. Accepts "a.b.c.d" with each octet
-  // 0-255 and rejects unroutable / multicast / loopback ranges. Returns
-  // the canonicalised IP string on success, null on failure. Used by
-  // the inline "Add by IP" field in the scan modal.
-  function snapValidateIp(s) {
-    const m = String(s || "").trim().match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
-    if (!m) return null;
-    const a = +m[1], b = +m[2], c = +m[3], d = +m[4];
-    if (a > 255 || b > 255 || c > 255 || d > 255) return null;
-    if (a === 0 || a === 127 || a === 169 || a >= 224) return null;
-    return `${a}.${b}.${c}.${d}`;
-  }
-  // Validate a user-typed prefix. Accepts "a.b.c" with each octet 0-255,
-  // and rejects unroutable / multicast / loopback ranges.
-  function snapValidatePrefix(s) {
-    const m = String(s || "").trim().match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
-    if (!m) return null;
-    const a = +m[1], b = +m[2], c = +m[3];
-    if (a > 255 || b > 255 || c > 255) return null;
-    if (a === 0 || a === 127 || a === 169 || a >= 224) return null;
-    return `${a}.${b}.${c}`;
-  }
-  function snapRenderExtraSubnetsUI() {
-    const chipsEl = $("snapExtraSubnetsChips");
-    const countEl = $("snapExtraSubnetsCount");
-    if (!chipsEl) return;
-    const list = snapLoadExtraSubnets();
-    if (countEl) countEl.textContent = String(list.length);
-    chipsEl.innerHTML = list.map(p => `
-      <span class="snap-extra-subnets-chip">
-        <span class="snap-extra-subnets-chip-text">${esc(p)}.x</span>
-        <button type="button" class="snap-extra-subnets-chip-x" data-prefix="${esc(p)}" title="${esc(t("snapScanExtraSubnetsRemove") || "Remove")}">✕</button>
-      </span>
-    `).join("");
-    // Wire each remove button — saves + re-renders + leaves the
-    // <details> element open so the user keeps their place.
-    chipsEl.querySelectorAll(".snap-extra-subnets-chip-x").forEach(btn => {
-      btn.addEventListener("click", e => {
-        e.preventDefault(); e.stopPropagation();
-        const p = btn.dataset.prefix;
-        const next = snapLoadExtraSubnets().filter(x => x !== p);
-        snapSaveExtraSubnets(next);
-        snapRenderExtraSubnetsUI();
-      });
-    });
-  }
-  function snapAddExtraSubnetFromInput() {
-    const input = $("snapExtraSubnetsInput");
-    const errEl = $("snapExtraSubnetsErr");
-    if (!input) return;
-    const v = snapValidatePrefix(input.value);
-    if (!v) {
-      if (errEl) {
-        errEl.hidden = false;
-        errEl.textContent = t("snapScanExtraSubnetsBadFormat")
-                          || "Use format a.b.c (e.g. 192.168.40)";
-      }
-      input.focus();
-      return;
-    }
-    if (errEl) errEl.hidden = true;
-    const list = snapLoadExtraSubnets();
-    if (!list.includes(v)) list.push(v);
-    snapSaveExtraSubnets(list);
-    input.value = "";
-    snapRenderExtraSubnetsUI();
-    input.focus();
-  }
-
-  /* ── Debug scan journal ──────────────────────────────────────────────
-     A live, in-modal log of everything the scanner does — only visible
-     when state.debugEnabled is true. Useful for the user to confirm
-     which subnets are being walked, what /printer/info actually answers,
-     and why a host did or didn't qualify. Lines are appended in order;
-     clicking a line copies its raw JSON to the clipboard.              */
-  // Cap so a long-running scan can't blow up the DOM. 600 entries covers
-  // 2 full /24 sweeps with a comfortable safety margin.
-  const SNAP_SCAN_LOG_MAX = 600;
-  let _snapScanLog = [];   // [{ ts, kind, summary, raw }]
-  // Last-scan environment captured at snapScanLan() entry — surfaced via
-  // Export so a bug report includes which subnets were used, not just
-  // the per-host probe results.
-  let _snapScanLastEnv = null; // { startedAt, prefixes, ipcSource, webrtcSource, userExtras }
-
-  // Whether the journal SECTION is shown to the user. The scan log is
-  // a debug-only diagnostic UI; in non-debug mode the panel is hidden
-  // but the underlying log array is STILL maintained (see push() below)
-  // so a user who toggles Debug ON after a scan can immediately inspect
-  // what happened. This decouples scan BEHAVIOUR from debug mode —
-  // there is exactly one scan workflow, the only thing that varies is
-  // whether the journal panel is visible.
-  function snapScanLogVisible() {
-    return !!state.debugEnabled;
-  }
-  function snapScanLogPush(kind, summary, raw) {
-    // ALWAYS record to the in-memory log, regardless of debug state.
-    // Earlier this function returned early when debug was off, which
-    // meant the log array was empty in non-debug runs but ALSO meant
-    // that any side-effect downstream of the push (none today, but a
-    // good defensive guarantee) wouldn't fire. The UI gate is enforced
-    // exclusively by snapScanLogRender().
-    const ts = new Date().toLocaleTimeString([], { hour12: false }) + "." +
-               String(new Date().getMilliseconds()).padStart(3, "0");
-    _snapScanLog.push({ ts, kind, summary, raw: raw == null ? null : raw });
-    if (_snapScanLog.length > SNAP_SCAN_LOG_MAX) {
-      _snapScanLog.splice(0, _snapScanLog.length - SNAP_SCAN_LOG_MAX);
-    }
-    snapScanLogRender();
-  }
-  function snapScanLogClear() {
-    _snapScanLog = [];
-    snapScanLogRender();
-  }
-
-  // Build a self-contained JSON dump of the current scan log + the
-  // environment that produced it (subnets, app version, browser UA,
-  // timestamp). The result is small enough to paste straight into a
-  // chat / GitHub issue. Includes raw printer payloads when present so
-  // a remote diagnosis doesn't need to ask for follow-ups.
-  async function snapScanLogBuildExport() {
-    let appInfo = null;
-    try { appInfo = await window.electronAPI?.getAppInfo?.(); } catch {}
-    return {
-      meta: {
-        kind: "tigertag-snapmaker-scan-log",
-        version: 1,
-        exportedAt: new Date().toISOString(),
-        appVersion: appInfo?.appVersion || null,
-        platform:   appInfo?.platform || null,
-        electron:   appInfo?.electron || null,
-        userAgent:  navigator.userAgent || null,
-        language:   state.lang || null,
-      },
-      environment: _snapScanLastEnv,
-      log: _snapScanLog.map(e => ({
-        ts: e.ts, kind: e.kind, summary: e.summary, raw: e.raw
-      })),
-    };
-  }
-  // User-triggered Export action — copies the JSON dump to clipboard
-  // and flashes the button green for 700ms so the user gets feedback.
-  // Falls back to a textarea + manual select-all if the Clipboard API
-  // is unavailable (eg. very old Electron / non-secure context).
-  async function snapScanLogExport() {
-    const btn = $("snapScanLogExport");
-    const dump = await snapScanLogBuildExport();
-    const text = JSON.stringify(dump, null, 2);
-    let ok = false;
-    try {
-      await navigator.clipboard.writeText(text);
-      ok = true;
-    } catch {
-      // Fallback: hidden textarea + execCommand. Old but reliable.
-      try {
-        const ta = document.createElement("textarea");
-        ta.value = text;
-        ta.style.position = "fixed"; ta.style.opacity = "0";
-        document.body.appendChild(ta);
-        ta.select();
-        ok = document.execCommand("copy");
-        document.body.removeChild(ta);
-      } catch {}
-    }
-    if (btn) {
-      // Flip ONLY the inner label span — the button now contains an
-      // SVG icon and a text span, so a textContent flip on the button
-      // itself would wipe the icon. We target the [data-i18n] span by
-      // name so the icon stays untouched during the feedback flash.
-      const labelEl = btn.querySelector("[data-i18n]");
-      const orig    = labelEl ? labelEl.textContent : btn.textContent;
-      const next    = ok
-        ? (t("snapScanLogExported") || "Copied!")
-        : (t("snapScanLogExportFailed") || "Copy failed");
-      if (labelEl) labelEl.textContent = next; else btn.textContent = next;
-      btn.classList.add(ok ? "snap-scan-log-btn--ok" : "snap-scan-log-btn--err");
-      setTimeout(() => {
-        if (labelEl) labelEl.textContent = orig; else btn.textContent = orig;
-        btn.classList.remove("snap-scan-log-btn--ok", "snap-scan-log-btn--err");
-      }, 1100);
-    }
-  }
-  function snapScanLogRender() {
-    const sec   = $("snapScanLog");
-    const body  = $("snapScanLogBody");
-    const count = $("snapScanLogCount");
-    if (!sec) return;
-    // Hide the whole panel when debug is off.
-    if (!snapScanLogVisible()) {
-      sec.hidden = true;
-      return;
-    }
-    sec.hidden = false;
-    if (count) count.textContent = String(_snapScanLog.length);
-    if (!body || body.hidden) return;
-    // Render incrementally if possible — same DOM elements stay in place
-    // so the user's scroll position is preserved when new lines arrive.
-    const want = _snapScanLog.length;
-    const have = body.children.length;
-    if (have > want) {
-      // Log was cleared: tear down + re-render.
-      body.innerHTML = "";
-    }
-    for (let i = body.children.length; i < want; i++) {
-      const e = _snapScanLog[i];
-      const row = document.createElement("button");
-      row.type = "button";
-      row.className = `snap-scan-log-row snap-scan-log-row--${esc(e.kind)}`;
-      row.title = t("snapScanLogCopy") || "Click to copy raw JSON";
-      row.innerHTML = `
-        <span class="snap-scan-log-ts">${esc(e.ts)}</span>
-        <span class="snap-scan-log-kind">${esc(e.kind)}</span>
-        <span class="snap-scan-log-summary">${esc(e.summary)}</span>`;
-      if (e.raw != null) {
-        row.addEventListener("click", () => {
-          const text = typeof e.raw === "string" ? e.raw : JSON.stringify(e.raw, null, 2);
-          navigator.clipboard?.writeText(text).catch(() => {});
-          row.classList.add("snap-scan-log-row--copied");
-          setTimeout(() => row.classList.remove("snap-scan-log-row--copied"), 700);
-        });
-      } else {
-        row.disabled = true;
-      }
-      body.appendChild(row);
-    }
-    // Auto-scroll to bottom so the latest line is always visible.
-    body.scrollTop = body.scrollHeight;
-  }
-
-  // Aborts whatever scan is currently running (if any). Safe to call
-  // multiple times; a second call on an already-aborted controller is a
-  // no-op. Used both when the user cancels and when they restart.
-  function snapAbortScan() {
-    try { _snapScanAbort?.abort(); } catch {}
-    _snapScanAbort = null;
-  }
-
-  // Flatten Moonraker JSON-RPC envelopes by lifting nested `result/detail/
-  // params/data/msg` payloads onto the top level. Mirrors the Flutter
-  // scanner so the same field-name lookup works whichever wrapper this
-  // particular firmware version chose. Non-destructive (top-level keys
-  // win on conflict). Returns the same map when no nesting was found.
-  function snapFlattenJson(map) {
-    if (!map || typeof map !== "object") return {};
-    const out = { ...map };
-    for (const key of ["result", "detail", "params", "data", "msg"]) {
-      const nested = map[key];
-      if (nested && typeof nested === "object" && !Array.isArray(nested)) {
-        for (const k of Object.keys(nested)) {
-          // Top-level keys take precedence over nested ones — same
-          // semantics as Dart's `{...serverFlat, ...printerFlat}` merge.
-          if (!(k in out)) out[k] = nested[k];
-        }
-      }
-    }
-    return out;
-  }
-  // First-non-empty string lookup. Trims and rejects "null"/"" so a
-  // firmware quirk that writes `"null"` as a literal doesn't leak through.
-  function snapFirstStr(map, keys) {
-    for (const k of keys) {
-      const v = map?.[k];
-      if (v == null) continue;
-      const s = String(v).trim();
-      if (s && s !== "null") return s;
-    }
-    return null;
-  }
-
-  // Hits Moonraker on `http://{ip}:7125/printer/info` + `/server/info`.
-  // If EITHER endpoint returns at least one recognisable identity field,
-  // returns a candidate; otherwise null.
-  //
-  // This is intentionally lenient — a generic Moonraker host will be
-  // listed alongside real Snapmakers (e.g. a Voron, a Bambu running a
-  // Klipper mod). The Flutter app does the same; we accept that small
-  // amount of noise because some Snapmaker firmwares don't populate
-  // `machine_model` on /printer/info, so a strict filter would silently
-  // drop the very printers the user is looking for. The user picks the
-  // right one from the result list.
-  async function snapProbeIp(ip, signal) {
-    if (!ip) return null;
-    const base = `http://${ip}:${SNAP_MOONRAKER_PORT}`;
-    // Per-request timeout — separate from the scan-level abort signal so
-    // we time out a hung host without killing the whole scan.
-    const localCtl = new AbortController();
-    const localTimer = setTimeout(() => localCtl.abort(), SNAP_PROBE_TIMEOUT_MS);
-    // Combine the caller's signal with our local timeout: abort if either fires.
-    const onParentAbort = () => localCtl.abort();
-    if (signal) {
-      if (signal.aborted) localCtl.abort();
-      else signal.addEventListener("abort", onParentAbort, { once: true });
-    }
-    // Pull JSON if 2xx, flatten the JSON-RPC envelope, return null on any
-    // failure. Per-endpoint so one slow URL doesn't poison the other.
-    // We track the *unflattened* response too so the debug log can show
-    // exactly what the printer answered, not our derived view.
-    const fetchJson = async (url) => {
-      try {
-        const r = await fetch(url, { signal: localCtl.signal, cache: "no-store" });
-        if (!r.ok) return { flat: null, raw: null, status: r.status };
-        const j = await r.json().catch(() => null);
-        return { flat: j ? snapFlattenJson(j) : null, raw: j, status: r.status };
-      } catch (e) {
-        // Distinguish abort (timeout) from connection refused / no route
-        // — useful in the log when triaging why a real printer was missed.
-        return { flat: null, raw: null, status: 0, err: e?.name || "error" };
-      }
-    };
-    try {
-      const [pi, si, mi] = await Promise.all([
-        fetchJson(`${base}/printer/info`),
-        fetchJson(`${base}/server/info`),
-        // /machine/system_info — the gold-standard identification source.
-        // Returns `product_info.machine_type` (e.g. "Snapmaker U1"),
-        // `product_info.device_name` (the user-set nickname),
-        // `product_info.serial_number`, `product_info.nozzle_diameter[]`.
-        // Available on all Snapmakers running stock firmware. Some
-        // generic Moonraker hosts (Voron, Bambu-Klipper) don't expose
-        // it, so the absence of this route is a useful signal too.
-        fetchJson(`${base}/machine/system_info`),
-      ]);
-      const printerFlat = pi.flat;
-      const serverFlat  = si.flat;
-      const sysFlat     = mi.flat;
-      // If no endpoint replied at all, the host isn't running Moonraker.
-      if (!printerFlat && !serverFlat && !sysFlat) return null;
-      // Pull the rich product_info out of /machine/system_info if present.
-      // Stock Snapmaker firmware nests it as result.system_info.product_info
-      // (one level deeper than the standard JSON-RPC `result` envelope
-      // that snapFlattenJson already unwrapped). We dive one more level
-      // by hand because `system_info` and `product_info` aren't generic
-      // wrapper keys we can blindly flatten across all responses.
-      const sysRoot     = sysFlat?.system_info || sysFlat || {};
-      const productInfo = sysRoot.product_info || {};
-      // Fuse all sources into one lookup map. Priority (highest wins):
-      //   /machine/system_info.product_info  →  most authoritative
-      //   /printer/info                      →  klipper-side info
-      //   /server/info                       →  moonraker meta
-      // Spread order = lowest priority first; later keys overwrite.
-      const combined = {
-        ...(serverFlat  || {}),
-        ...(printerFlat || {}),
-        ...productInfo,
-      };
-      // Field extraction priority — `machine_type` (from system_info) is
-      // now the canonical model field, since /printer/info on Snapmaker
-      // doesn't populate `machine_model` at all.
-      const machineModel    = snapFirstStr(combined, ["machine_type", "machine_model", "machineModel", "model", "printer_model"]);
-      // device_name is the user-given nickname (e.g. "U1-showroom"). We
-      // pull it BEFORE hostName so the form pre-fill picks the friendly
-      // name, falling back to hostname only if device_name is missing.
-      const deviceName      = snapFirstStr(productInfo, ["device_name"]);
-      const hostName        = snapFirstStr(combined, ["hostname", "host_name", "device_name", "name"]);
-      const softwareVersion = snapFirstStr(combined, ["firmware_version", "software_version", "softwareVersion", "version"]);
-      const klippyState     = snapFirstStr(combined, ["klippy_state", "state"]);
-      const moonrakerVersion= snapFirstStr(combined, ["moonraker_version", "moonrakerVersion"]);
-      const serialNumber    = snapFirstStr(productInfo, ["serial_number", "serialNumber"]);
-      let   apiVersion      = snapFirstStr(combined, ["api_version_string", "apiVersion"]);
-      if (!apiVersion && Array.isArray(combined.api_version)) {
-        apiVersion = combined.api_version.join(".");
-      }
-      // Number of extruders — derived from nozzle_diameter[] length when
-      // present. Useful later for pre-checking the form (a U1 has 4, a
-      // J1 has 2, etc). 0 means "unknown — skip pre-fill".
-      const nozzleCount = Array.isArray(productInfo.nozzle_diameter)
-        ? productInfo.nozzle_diameter.length : 0;
-
-      // The brand check — ANY value of machine_type that contains
-      // "Snapmaker" (case-insensitive) is treated as a confirmed
-      // Snapmaker. Covers U1, U2, J1, A350, A250, Artisan, future
-      // models, factory firmwares with extra qualifiers ("Snapmaker
-      // U1 Pro"), etc. Anything else (Voron, Bambu-Klipper, generic
-      // Moonraker host) keeps the lenient identity check below.
-      const isSnapmaker = !!machineModel &&
-                          machineModel.toLowerCase().includes("snapmaker");
-
-      // Accept the candidate as soon as ANY identity field is set —
-      // matches Flutter's `hasIdentity` rule. This is the "chope
-      // d'autres imprimantes" trade-off the user is OK with.
-      const hasIdentity = !!(hostName || machineModel || softwareVersion ||
-                             klippyState || moonrakerVersion || apiVersion);
-      if (!hasIdentity) {
-        snapScanLogPush("ambiguous", `${ip} — Moonraker replied without identity fields`,
-          { printerInfo: pi.raw, serverInfo: si.raw, systemInfo: mi.raw });
-        return null;
-      }
-      // Quality score. A confirmed-Snapmaker hit (machine_type contains
-      // "Snapmaker") jumps straight to the top tier so the right
-      // candidate clusters above noise from generic Moonraker hosts.
-      const qualityScore =
-          (isSnapmaker     ? 8 : 0) +   // confirmed brand match — biggest weight
-          (deviceName      ? 3 : 0) +   // user nickname → high signal
-          (machineModel    ? 4 : 0) +
-          (hostName        ? 2 : 0) +   // hostname is weakest of the three name fields
-          (softwareVersion ? 2 : 0) +
-          (klippyState     ? 1 : 0) +
-          (moonrakerVersion? 1 : 0) +
-          (apiVersion      ? 1 : 0) +
-          (serialNumber    ? 1 : 0);
-      const summary = `${ip} · ${machineModel || deviceName || hostName || "(no model)"}${isSnapmaker ? " ✓" : ""} · score ${qualityScore}`;
-      snapScanLogPush("hit", summary, {
-        printerInfo: pi.raw,
-        serverInfo:  si.raw,
-        systemInfo:  mi.raw,
-        derived: {
-          isSnapmaker, machineModel, deviceName, hostName,
-          softwareVersion, klippyState, moonrakerVersion, apiVersion,
-          serialNumber, nozzleCount, qualityScore
-        }
-      });
-      return {
-        ip, isSnapmaker, machineModel, deviceName, hostName,
-        softwareVersion, klippyState, moonrakerVersion, apiVersion,
-        serialNumber, nozzleCount, qualityScore,
-        source: "http",
-        // Full raw payloads — same convention as the mDNS path. Carried
-        // through the prefill into submitPrinterAdd, which writes the
-        // bundle under `discovery` on the Firestore device doc.
-        raw: {
-          mdns: null, // populated by mDNS+HTTP merge in snapScanLan when both fired for the same IP
-          http: {
-            printerInfo: pi.raw || null,
-            serverInfo:  si.raw || null,
-            systemInfo:  mi.raw || null,
-          },
-        },
-      };
-    } catch {
-      return null;
-    } finally {
-      clearTimeout(localTimer);
-      if (signal) signal.removeEventListener?.("abort", onParentAbort);
-    }
-  }
-
-  // Iterate every active /24 prefix in parallel batches. Calls onCandidate
-  // for each printer found and onProgress on every IP probed (success or
-  // not) so the UI can update its progress bar live.
-  // WebRTC-based fallback for discovering the local IPv4 address. The
-  // browser/renderer trick: open an RTCPeerConnection with a dummy data
-  // channel, gather ICE candidates, and parse the host IP out of each
-  // candidate string. This works even when:
-  //   - Electron is running an old main.js without the net:get-local-subnets
-  //     IPC handler registered (no restart since we shipped that handler)
-  //   - The preload script is older than the renderer (preload IPC bridge
-  //     `getLocalSubnets` isn't on window.electronAPI yet)
-  //   - A VPN or unusual NIC config makes os.networkInterfaces() report
-  //     something different from the active route
-  // Returns an array of /24 prefixes ("a.b.c") it could observe.
-  async function snapDiscoverSubnetsViaWebRTC() {
-    if (typeof RTCPeerConnection === "undefined") return [];
-    const found = new Set();
-    let pc;
-    try {
-      pc = new RTCPeerConnection({ iceServers: [] });
-      pc.createDataChannel("snap-discover");
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      // Gather candidates for ~600ms — long enough to enumerate every
-      // active route, short enough not to hold up the scan launch.
-      await new Promise(resolve => {
-        const tm = setTimeout(resolve, 600);
-        pc.onicecandidate = (e) => {
-          if (!e.candidate) { clearTimeout(tm); resolve(); return; }
-          // Candidate strings look like:
-          //   "candidate:1 1 UDP 1686052607 192.168.20.131 51632 typ host ..."
-          // We pull the IPv4 between two spaces. mDNS `.local` candidates
-          // are skipped (they hide the real IP behind a hash).
-          const s = String(e.candidate.candidate || "");
-          const m = s.match(/(?:^|\s)((?:\d{1,3}\.){3}\d{1,3})(?=\s)/);
-          if (!m) return;
-          const ip = m[1];
-          const parts = ip.split(".");
-          const a = +parts[0];
-          if (a === 0 || a === 127 || a === 169 || a >= 224) return;
-          found.add(`${parts[0]}.${parts[1]}.${parts[2]}`);
-        };
-      });
-    } catch {} finally {
-      try { pc?.close(); } catch {}
-    }
-    return Array.from(found);
-  }
-
-  // Build a Snapmaker candidate object (same shape as snapProbeIp returns)
-  // straight from a mDNS service answer. The TXT record from Snapmaker
-  // firmware contains EVERYTHING needed to pre-fill the form (ip,
-  // machine_type, device_name, sn, version) so we don't even probe
-  // HTTP — the candidate appears in the result list as soon as the
-  // mDNS query returns. Filters out non-Snapmaker matches just in case
-  // someone else publishes _snapmaker._tcp on the LAN (extremely rare).
-  function snapCandidateFromMdns(svc) {
-    if (!svc) return null;
-    const txt = svc.txt || {};
-    // The TXT record fields are documented in u1-moonraker/components/
-    // zeroconf.py: machine_type, device_name, sn, version, ip,
-    // link_mode, region, userid.
-    const machineModel    = (txt.machine_type || "").trim() || null;
-    const deviceName      = (txt.device_name  || "").trim() || null;
-    const serialNumber    = (txt.sn           || "").trim() || null;
-    const softwareVersion = (txt.version      || "").trim() || null;
-    // Pick an IP — the TXT.ip field is what the firmware itself reports;
-    // svc.addresses[] is what mDNS resolved on the wire. They almost
-    // always agree, but the wire address is more authoritative on
-    // multi-homed hosts so we prefer it when present.
-    let ip = null;
-    if (Array.isArray(svc.addresses)) {
-      ip = svc.addresses.find(a => /^(\d{1,3}\.){3}\d{1,3}$/.test(a)) || null;
-    }
-    if (!ip && txt.ip) ip = String(txt.ip).trim();
-    if (!ip) return null;
-    // Strict brand check — we filter to "machine_type contains Snapmaker"
-    // so a non-Snapmaker stray on _snapmaker._tcp can't sneak in. In
-    // practice this can't happen (the service-type itself is unique to
-    // Snapmaker firmware) but defence-in-depth is cheap.
-    const isSnapmaker = !!machineModel &&
-                        machineModel.toLowerCase().includes("snapmaker");
-    if (!isSnapmaker) return null;
-    // Quality score — mDNS hits MAX out the score because the TXT
-    // record is the most authoritative possible source.
-    const qualityScore = 8 /* isSnapmaker */
-                       + (deviceName      ? 3 : 0)
-                       + (machineModel    ? 4 : 0)
-                       + (softwareVersion ? 2 : 0)
-                       + (serialNumber    ? 1 : 0)
-                       + 1 /* mDNS bonus — confirms the LAN-broadcast identity */;
-    return {
-      ip, isSnapmaker, machineModel, deviceName,
-      hostName: svc.host || null,
-      softwareVersion, klippyState: null,
-      moonrakerVersion: null, apiVersion: null,
-      serialNumber, nozzleCount: 0,
-      qualityScore,
-      // Mark the source so the UI/journal can distinguish mDNS-found
-      // from probe-found candidates.
-      source: "mdns",
-      // Full raw payload — kept verbatim so the Add flow can persist
-      // EVERYTHING the printer told us about itself onto the Firestore
-      // device doc (under `discovery`). Useful later for debug,
-      // model-detection improvements, or surfacing fields we don't
-      // currently render in the UI without an extra round-trip.
-      raw: {
-        mdns: {
-          name: svc.name || null,
-          host: svc.host || null,
-          port: svc.port || null,
-          fqdn: svc.fqdn || null,
-          addresses: Array.isArray(svc.addresses) ? svc.addresses.slice() : [],
-          txt: svc.txt ? { ...svc.txt } : {},
-        },
-        http: null, // mDNS-only candidate — HTTP probe data is added by the merge in snapScanLan
-      },
-    };
-  }
-
-  async function snapScanLan({ onCandidate, onProgress, signal } = {}) {
-    // Capture an environment snapshot for the Export button — gets
-    // populated as we discover sources below, so a copy-to-clipboard
-    // includes EVERY layer we tried, not just per-host results.
-    _snapScanLastEnv = {
-      startedAt: new Date().toISOString(),
-      mdnsHits: null,
-      ipcSubnets: null,
-      webrtcSubnets: null,
-      userExtras: null,
-      prefixes: null,
-      probeTimeoutMs: SNAP_PROBE_TIMEOUT_MS,
-      batchSizeLocal: SNAP_SCAN_BATCH_LOCAL,
-      batchSizeExtra: SNAP_SCAN_BATCH_EXTRA,
-      port: SNAP_MOONRAKER_PORT,
-    };
-
-    // Track which IPs we've already surfaced so the port-scan phase
-    // doesn't re-probe what mDNS already found (would be a duplicate
-    // candidate in the UI, AND wastes a network round-trip).
-    const seenIps = new Set();
-    let hits = 0;
-
-    // ── Phase 0: mDNS browse (instant on healthy LANs) ─────────────
-    // Snapmaker firmware advertises `_snapmaker._tcp.local.` with a
-    // TXT record carrying everything we need. When the network has a
-    // working multicast path (single VLAN, or VLAN with mDNS reflector)
-    // this returns the printer in ≤ 2 sec with ZERO probes. When mDNS
-    // is filtered (typical multi-VLAN without reflector), we just get
-    // an empty list and fall through to the port-scan phase.
-    try {
-      const mdnsRes = await window.electronAPI?.mdnsBrowseSnapmaker?.();
-      const cands = Array.isArray(mdnsRes?.candidates) ? mdnsRes.candidates : [];
-      if (_snapScanLastEnv) _snapScanLastEnv.mdnsHits = cands.length;
-      if (mdnsRes?.ok === false) {
-        snapScanLogPush("error",
-          `mDNS browse failed: ${mdnsRes.error || "unknown"} — falling back to port-scan only`,
-          { source: "mdns", error: mdnsRes.error });
-      } else {
-        snapScanLogPush("info",
-          `mDNS browse → ${cands.length} _snapmaker._tcp instance${cands.length === 1 ? "" : "s"}`,
-          { source: "mdns", raw: cands });
-      }
-      for (const svc of cands) {
-        const c = snapCandidateFromMdns(svc);
-        if (!c) continue;
-        if (seenIps.has(c.ip)) continue;
-        seenIps.add(c.ip);
-        hits++;
-        snapScanLogPush("hit",
-          `mDNS · ${c.ip} · ${c.machineModel} · score ${c.qualityScore} (no HTTP probe)`,
-          { source: "mdns", service: svc, derived: c });
-        onCandidate?.(c);
-      }
-    } catch (e) {
-      snapScanLogPush("error", `mDNS browse threw: ${e?.message || e}`, null);
-    }
-
-    // ── Phase 1: enumerate subnets to port-scan ─────────────────────
-    // Each subnet is tagged with its source so we can pick the right
-    // batch size + know whether an empty result means "firewall block"
-    // (extras) or just "no Snapmakers on this NIC" (locals).
-    /** @type {Array<{ prefix: string, source: "local"|"extra" }>} */
-    const queue = [];
-    const seenPrefixes = new Set();
-    const pushPrefix = (p, source) => {
-      if (!p || seenPrefixes.has(p)) return;
-      seenPrefixes.add(p);
-      queue.push({ prefix: p, source });
-    };
-
-    // 1a. main-process os.networkInterfaces() via IPC.
-    let ipcWorked = false;
-    try {
-      const got = await window.electronAPI?.getLocalSubnets?.();
-      if (Array.isArray(got)) {
-        ipcWorked = true;
-        if (_snapScanLastEnv) _snapScanLastEnv.ipcSubnets = got;
-        got.forEach(p => pushPrefix(p, "local"));
-        snapScanLogPush("info",
-          `IPC getLocalSubnets → [${got.join(", ") || "(empty)"}]`,
-          { source: "ipc", subnets: got });
-      } else {
-        snapScanLogPush("info",
-          `IPC getLocalSubnets unavailable (returned ${typeof got}) — falling back to WebRTC discovery. Restart Electron to enable the native IPC bridge.`,
-          null);
-      }
-    } catch (e) {
-      snapScanLogPush("error", `getLocalSubnets failed: ${e?.message || e}`, null);
-    }
-    // 1b. WebRTC ICE-candidate IPs (cheap fallback when the IPC bridge
-    //     isn't loaded yet, OR for setups with weird routing tables).
-    try {
-      const webrtc = await snapDiscoverSubnetsViaWebRTC();
-      if (_snapScanLastEnv) _snapScanLastEnv.webrtcSubnets = webrtc;
-      const fresh = webrtc.filter(p => !seenPrefixes.has(p));
-      if (fresh.length || (!ipcWorked && webrtc.length)) {
-        snapScanLogPush("info",
-          `WebRTC discovery → [${webrtc.join(", ")}]${fresh.length ? ` (added: ${fresh.join(", ")})` : " (already known)"}`,
-          { source: "webrtc", subnets: webrtc, added: fresh });
-      } else if (!ipcWorked) {
-        snapScanLogPush("info", "WebRTC discovery returned no candidates", null);
-      }
-      fresh.forEach(p => pushPrefix(p, "local"));
-    } catch (e) {
-      snapScanLogPush("error", `WebRTC discovery failed: ${e?.message || e}`, null);
-    }
-    // 1c. User-declared extras — tagged as "extra" so we use the
-    //     gentle batch size that survives anti-scan firewalls.
-    const extras = snapLoadExtraSubnets();
-    if (_snapScanLastEnv) _snapScanLastEnv.userExtras = extras;
-    if (extras.length) {
-      const fresh = extras.filter(p => !seenPrefixes.has(p));
-      snapScanLogPush("info",
-        `User extras → [${extras.join(", ")}]${fresh.length ? ` (added: ${fresh.join(", ")})` : " (already known)"}`,
-        { source: "user", subnets: extras, added: fresh });
-      fresh.forEach(p => pushPrefix(p, "extra"));
-    }
-
-    if (_snapScanLastEnv) _snapScanLastEnv.prefixes = queue.slice();
-    snapScanLogPush("info",
-      `Port-scan starting — ${queue.length} subnet${queue.length === 1 ? "" : "s"}: ${queue.map(q => q.prefix + "(" + q.source + ")").join(", ") || "(none)"}`,
-      { queue, batchLocal: SNAP_SCAN_BATCH_LOCAL, batchExtra: SNAP_SCAN_BATCH_EXTRA });
-
-    // ── Phase 2: port-scan ─────────────────────────────────────────
-    // We track per-subnet stats so we can flag suspected firewall
-    // blocks AFTER the scan completes (not during, to avoid false
-    // alarms while the subnet is still mid-walk).
-    const total = queue.length * 254;
-    let done = 0;
-    onProgress?.({ done, total, prefixes: queue.map(q => q.prefix) });
-
-    const scanStart = performance.now();
-    /** @type {Array<{ prefix:string, source:string, hits:number, elapsedMs:number, suspicious:boolean }>} */
-    const subnetStats = [];
-
-    for (const { prefix, source } of queue) {
-      if (signal?.aborted) {
-        snapScanLogPush("info", "Scan aborted by user", null);
-        return;
-      }
-      const isExtra  = source === "extra";
-      const batch    = isExtra ? SNAP_SCAN_BATCH_EXTRA : SNAP_SCAN_BATCH_LOCAL;
-      const gapMs    = isExtra ? SNAP_SCAN_BATCH_GAP_MS_EXTRA : 0;
-      snapScanLogPush("info",
-        `Scanning ${prefix}.1–254 (source=${source}, batch=${batch}${gapMs ? `, gap=${gapMs}ms` : ""})`,
-        null);
-      const subnetStart = performance.now();
-      let subnetHits = 0;
-      for (let start = 1; start <= 254; start += batch) {
-        if (signal?.aborted) {
-          snapScanLogPush("info", "Scan aborted by user", null);
-          return;
-        }
-        const end = Math.min(start + batch - 1, 254);
-        const ips = [];
-        for (let i = start; i <= end; i++) {
-          const ip = `${prefix}.${i}`;
-          // Skip IPs we already surfaced via mDNS — avoids duplicates
-          // and saves a probe each (over a /24, that's up to a couple
-          // of seconds shaved off when mDNS was effective).
-          if (seenIps.has(ip)) { done++; continue; }
-          ips.push(ip);
-        }
-        const results = await Promise.all(ips.map(ip =>
-          snapProbeIp(ip, signal).catch(() => null)
-        ));
-        for (const r of results) {
-          done++;
-          if (!r) continue;
-          // Filter — only Snapmakers reach the UI. Other Moonraker
-          // hosts (Voron, Bambu-Klipper, Creality K1, etc.) get logged
-          // in debug as "ambiguous" so the user sees them when they
-          // open the journal, but they don't pollute the result list.
-          // (snapProbeIp already calls snapScanLogPush('hit') for
-          // every Moonraker reply; this guard only governs the UI.)
-          if (!r.isSnapmaker) {
-            snapScanLogPush("ambiguous",
-              `${r.ip} — Moonraker host but not a Snapmaker (machine_type=${r.machineModel || "?"}) — skipped`,
-              { ip: r.ip, machineModel: r.machineModel, derived: r });
-            continue;
-          }
-          if (seenIps.has(r.ip)) continue;
-          seenIps.add(r.ip);
-          hits++;
-          subnetHits++;
-          onCandidate?.(r);
-        }
-        onProgress?.({ done, total, prefixes: queue.map(q => q.prefix) });
-        // Inter-batch breathing room — only on EXTRA. Without it, the
-        // anti-scan rate-limiter on a typical home firewall will lump
-        // consecutive batches into a single "scan attack" event and
-        // drop them all.
-        if (gapMs && start + batch <= 254) {
-          await new Promise(r => setTimeout(r, gapMs));
-        }
-      }
-      const subnetElapsedMs = Math.round(performance.now() - subnetStart);
-      // Suspicious = an EXTRA subnet that completed too fast with 0
-      // hits. "Too fast" = anything under SNAP_FIREWALL_BLOCK_HINT_MS,
-      // because a healthy /24 with batch=4 takes ≥ 25s (254 hosts ×
-      // 350ms / 4 ≈ 22s + gaps). Sub-4s with 0 hits ⇒ firewall ate it.
-      const suspicious = isExtra && subnetHits === 0 &&
-                         subnetElapsedMs < SNAP_FIREWALL_BLOCK_HINT_MS;
-      subnetStats.push({ prefix, source, hits: subnetHits,
-                         elapsedMs: subnetElapsedMs, suspicious });
-      if (suspicious) {
-        snapScanLogPush("error",
-          `${prefix}.0/24 finished in ${(subnetElapsedMs/1000).toFixed(1)}s with 0 hits — your firewall likely blocked the scan. Try Manual Add with the printer's exact IP.`,
-          { prefix, elapsedMs: subnetElapsedMs, hits: 0, hint: "firewall_block_suspected" });
-      }
-    }
-
-    const elapsedMs = Math.round(performance.now() - scanStart);
-    snapScanLogPush("info",
-      `Scan complete — ${hits} Snapmaker hit${hits === 1 ? "" : "s"} in ${(elapsedMs / 1000).toFixed(1)}s (${total} probes)`,
-      { hits, totalProbes: total, elapsedMs, subnetStats });
-    if (_snapScanLastEnv) _snapScanLastEnv.subnetStats = subnetStats;
-  }
-
-  /* ── LAN scanner (the choice-modal middleman was retired — brand-pick
-     Snapmaker now opens this panel directly with both an inline
-     "Add by IP" + the auto-scan running in the background). ─────── */
-  // Bundle a candidate's discovery data into the shape we'll persist on
-  // the Firestore device doc (under `discovery`). Includes:
-  //   - `discoveredAt` — ISO timestamp so we know when the scan ran
-  //   - `source`       — "mdns" | "http"
-  //   - `derived`      — the parsed identity fields
-  //   - `raw`          — verbatim payloads (mDNS service + HTTP responses)
-  //
-  // We intentionally store the RAW payloads, not just the derived fields:
-  // future features (firmware-version-aware features, model detection
-  // improvements, etc.) can re-parse the same source data without a
-  // re-scan, and this is invaluable for triaging support tickets.
-  /* ── One-click add — write a discovered Snapmaker straight to Firestore.
-     Used by the scan-card click handler so the user doesn't have to
-     pass through the add form for printers we already know everything
-     about (mDNS / Moonraker probe gave us name + IP + model). Mirrors
-     the document shape that `submitPrinterAdd()` writes for the
-     manual path so the inventory schema stays consistent. Resolves
-     to the new device id on success, or null on failure (caller can
-     fall back to the form). */
-  async function snapAddDiscoveredPrinter(c) {
-    if (!c) {
-      console.warn("[snap-scan] add aborted: no candidate");
-      return null;
-    }
-    const uid = state.activeAccountId;
-    if (!uid) {
-      console.warn("[snap-scan] add aborted: no active account (state.activeAccountId is null)");
-      return null;
-    }
-    const brand = "snapmaker";
-    const printerName = c.deviceName || c.machineModel || c.hostName || `Snapmaker ${c.ip}`;
-    const printerModelId = snapModelIdFromMachineModel(c.machineModel || c.hostName);
-    try {
-      const db  = fbDb(uid);
-      const ref = db.collection("users").doc(uid)
-                    .collection("printers").doc(brand)
-                    .collection("devices").doc();
-      const sortIndex = state.printers.length;
-      // Build the payload defensively. Firestore rejects undefined
-      // values — we coerce every potentially-undefined field to null
-      // (or a safe default) before the write, AND we strip nested
-      // undefineds from the discovery payload so a stray `undefined`
-      // somewhere in the raw mDNS/HTTP responses can't kill the write.
-      const discovery = snapBuildDiscoveryRecord(c);
-      const cleanDiscovery = discovery ? JSON.parse(JSON.stringify(discovery)) : null;
-      const payload = {
-        printerName,
-        printerModelId,
-        ip: c.ip || "",
-        id: ref.id,
-        isActive: false,
-        sortIndex,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-        discovery: cleanDiscovery,
-      };
-      console.log("[snap-scan] writing printer doc", { uid, brand, id: ref.id, name: printerName });
-      await ref.set(payload);
-      console.log("[snap-scan] printer doc written successfully", ref.id);
-      return ref.id;
-    } catch (e) {
-      console.error("[snap-scan] Firestore write failed:", {
-        code: e?.code,
-        message: e?.message,
-        full: e
-      });
-      return null;
-    }
-  }
-
-  function snapBuildDiscoveryRecord(c) {
-    if (!c) return null;
-    return {
-      discoveredAt: new Date().toISOString(),
-      source: c.source || null,
-      derived: {
-        ip: c.ip || null,
-        isSnapmaker: !!c.isSnapmaker,
-        machineModel:    c.machineModel    || null,
-        deviceName:      c.deviceName      || null,
-        hostName:        c.hostName        || null,
-        softwareVersion: c.softwareVersion || null,
-        klippyState:     c.klippyState     || null,
-        moonrakerVersion:c.moonrakerVersion|| null,
-        apiVersion:      c.apiVersion      || null,
-        serialNumber:    c.serialNumber    || null,
-        nozzleCount:     c.nozzleCount     || 0,
-        qualityScore:    c.qualityScore    || 0,
-      },
-      raw: c.raw || null,
-    };
-  }
-
-  // Resolve a Moonraker `machine_model` string against the local Snapmaker
-  // catalog so we can pre-fill the model picker with the matching entry
-  // (and fall back to the placeholder "Select Printer" id=0 when nothing
-  // matches — e.g. firmware reporting a model we don't have art for yet).
-  function snapModelIdFromMachineModel(machineModel) {
-    if (!machineModel) return "0";
-    const list = state.db.printerModels?.snapmaker || [];
-    const hay = String(machineModel).toLowerCase().replace(/[\s_-]+/g, "");
-    // Try exact / contains match against name OR id, normalised. We strip
-    // separators on both sides so "Snapmaker U1" matches catalog entries
-    // like "U1", "snapmaker-u1" or "Snapmaker_U1" alike.
-    let hit = list.find(m => {
-      const mn = String(m.name || "").toLowerCase().replace(/[\s_-]+/g, "");
-      const mi = String(m.id   || "").toLowerCase().replace(/[\s_-]+/g, "");
-      return mn === hay || mi === hay || (mn && hay.includes(mn)) || (mn && mn.includes(hay));
-    });
-    return hit ? String(hit.id) : "0";
-  }
-
-  function snapCandidateCardHtml(c) {
-    // Title line — prefer the user's nickname (device_name) over the
-    // model over the codename hostname over the bare IP. This is the
-    // exact same priority we use to pre-fill the form, so the card
-    // visibly previews what the form will be seeded with.
-    const title = c.deviceName || c.machineModel || c.hostName || c.ip;
-    // Model + firmware version — the "what is this printer" line.
-    const modelParts = [];
-    if (c.machineModel && c.machineModel !== title) modelParts.push(c.machineModel);
-    if (c.softwareVersion) modelParts.push(`v${c.softwareVersion}`);
-    const modelLine = modelParts.join(" · ");
-    // Hostname — only shown when it's not redundant with the title.
-    const hostLine  = (c.hostName && c.hostName !== title && c.hostName !== c.machineModel)
-                    ? c.hostName : "";
-    // Serial number on its own row (formatted with the "S/N" prefix to
-    // match how the field is displayed on the printer's own touchscreen
-    // and in the support tooling).
-    const serialLine = c.serialNumber ? `S/N · ${c.serialNumber}` : "";
-    // Confidence tier. With the new scoring (isSnapmaker = +8), a
-    // confirmed Snapmaker always lands in the "high" tier, generic
-    // Moonraker hosts in low/med depending on what they reveal.
-    const score = c.qualityScore || 0;
-    const tier  = score >= 10 ? "high" : (score >= 5 ? "med" : "low");
-    // Brand badge — only shown when machine_type contained "Snapmaker".
-    // Visual confirmation that THIS row is a real Snapmaker, not a
-    // Klipper-running NAS or someone's Voron.
-    const brandBadge = c.isSnapmaker
-      ? `<span class="snap-scan-card-badge" title="${esc(t("snapScanCardBrandConfirmed") || "Confirmed Snapmaker (machine_type contains 'Snapmaker')")}">Snapmaker</span>`
-      : "";
-    // Resolve the model image so the card previews which printer this
-    // is. Falls back to the per-brand "Select Printer" entry image
-    // (which IS no_printer.png in the catalog) when machine_type didn't
-    // match anything we know — keeps the layout stable instead of
-    // showing an empty thumbnail box.
-    const modelId    = snapModelIdFromMachineModel(c.machineModel || c.hostName);
-    const matched    = findPrinterModel("snapmaker", modelId);
-    const fallback   = findPrinterModel("snapmaker", "0"); // catalog placeholder = no_printer.png
-    const imgUrl     = printerImageUrl(matched) || printerImageUrl(fallback);
-    const thumbHtml  = imgUrl
-      ? `<img src="${esc(imgUrl)}" alt="" onerror="this.style.opacity='.15'"/>`
-      : "";
-    // Card markup — uses a <div role="button"> rather than a real
-    // <button>. Reason: browsers refuse to honour `display: flex` on a
-    // <button> with multiple block children predictably; the rendering
-    // collapses to inline-block height in some contexts (visible bug:
-    // thumbnail bleeding below the visible card box). A div with the
-    // proper a11y attributes (role, tabindex, key handler) gives us
-    // perfect control over the layout AND keeps the keyboard story
-    // working (Enter / Space trigger via the wired keydown handler).
-    return `
-      <div class="snap-scan-card snap-scan-card--${tier}${c.isSnapmaker ? " snap-scan-card--snap" : ""}"
-           role="button" tabindex="0"
-           data-ip="${esc(c.ip)}" data-model="${esc(c.machineModel || "")}" data-host="${esc(c.hostName || "")}">
-        <span class="snap-scan-card-thumb">${thumbHtml}</span>
-        <span class="snap-scan-card-main">
-          <span class="snap-scan-card-title">
-            <span class="snap-scan-card-title-text">${esc(title)}</span>
-            ${brandBadge}
-          </span>
-          <span class="snap-scan-card-ip">${esc(c.ip)}</span>
-          ${modelLine  ? `<span class="snap-scan-card-line snap-scan-card-line--model">${esc(modelLine)}</span>` : ""}
-          ${hostLine   ? `<span class="snap-scan-card-line snap-scan-card-line--host" title="${esc(hostLine)}">${esc(hostLine)}</span>` : ""}
-          ${serialLine ? `<span class="snap-scan-card-line snap-scan-card-line--sn"   title="${esc(c.serialNumber)}">${esc(serialLine)}</span>` : ""}
-        </span>
-        <span class="snap-scan-card-score" title="${esc(t("snapScanScore", { n: score }) || `Match score: ${score}`)}">${score}</span>
-        <span class="icon icon-chevron-r icon-14 snap-scan-card-chev"></span>
-      </div>`;
-  }
-
-  function openSnapmakerScan() {
-    // Side-panel pattern (matches scales / printer-detail / friends):
-    // two elements driven by `.open` — `#snapScanOverlay` (the dim
-    // backdrop) and `#snapScanPanel` (the slide-in card itself).
-    const overlay = $("snapScanOverlay");
-    const panel   = $("snapScanPanel");
-    if (!overlay || !panel) return;
-    const sub      = $("snapScanSub");
-    const bar      = $("snapScanBar");
-    const stats    = $("snapScanStats");
-    const results  = $("snapScanResults");
-    const empty    = $("snapScanEmpty");
-    if (results) results.innerHTML = "";
-    if (empty)   empty.hidden = false;
-    if (bar)     bar.style.width = "0%";
-    if (stats)   stats.textContent = "0 / 0";
-    if (sub)     sub.textContent = t("snapScanStarting") || "Starting scan…";
-    // Reset the debug log on every (re)scan so the user sees only the
-    // current run's output. Render shows/hides the panel based on the
-    // current debugEnabled flag.
-    snapScanLogClear();
-    // Refresh the user-declared extra-subnets chips every time the modal
-    // opens so they reflect the latest localStorage state (e.g. if the
-    // user opened settings in another window).
-    snapRenderExtraSubnetsUI();
-    // Reset the Add-by-IP widget so reopening doesn't carry stale state
-    // (a half-typed IP, an "Invalid" tip, etc.) from the previous session.
-    // Closing the <details> triggers the `toggle` listener above, which
-    // already wipes the input/tip/button/status — so we only need to
-    // collapse the wrapper and abort any in-flight probe here.
-    const ipDetails = $("snapAddIpDetails");
-    if (ipDetails) ipDetails.open = false;
-    try { _snapAddIpAbort?.abort(); } catch {}
-    _snapAddIpAbort = null;
-    // Slide the panel in + dim the backdrop. Both get `.open` so the
-    // CSS transitions on each fire in lockstep.
-    overlay.classList.add("open");
-    panel.classList.add("open");
-
-    // Cancel any previous scan, then start fresh.
-    snapAbortScan();
-    const ctl = new AbortController();
-    _snapScanAbort = ctl;
-
-    let foundCount = 0;
-    // Track which IPs we've already rendered so we can update the row in
-    // place rather than appending a duplicate when /printer/info answers
-    // after /server/info has already produced a (lower-score) candidate.
-    const rendered = new Map(); // ip -> { card, score }
-    snapScanLan({
-      signal: ctl.signal,
-      onCandidate: (c) => {
-        if (empty) empty.hidden = true;
-        const wrap = document.createElement("div");
-        wrap.innerHTML = snapCandidateCardHtml(c);
-        const card = wrap.firstElementChild;
-        if (!card) return;
-        // One-click add — write directly to Firestore, close the scan
-        // panel, and open the detail panel for the just-added printer.
-        const triggerAdd = async () => {
-          console.log("[snap-scan] triggerAdd fired for", c.ip);
-          if (card.classList.contains("snap-scan-card--loading")) return;
-          card.classList.add("snap-scan-card--loading");
-          const newId = await snapAddDiscoveredPrinter(c);
-          if (!newId) {
-            card.classList.remove("snap-scan-card--loading");
-            console.warn("[snap-scan] one-click add returned null — see preceding warning");
-            return;
-          }
-          // Close the scan panel + abort any in-flight scan.
-          snapAbortScan();
-          closeSnapmakerScan();
-          // Wait briefly for the Firestore listener (subscribePrinters)
-          // to populate state.printers with the new doc, then open the
-          // detail side-panel. Polls every 40ms up to ~2s. If the
-          // listener never fires (extremely rare), we silently bail.
-          const start = Date.now();
-          let printer = null;
-          while (Date.now() - start < 2000) {
-            printer = state.printers.find(p => p.brand === "snapmaker" && p.id === newId);
-            if (printer) break;
-            await new Promise(r => setTimeout(r, 40));
-          }
-          if (printer) {
-            openPrinterDetail("snapmaker", newId);
-          } else {
-            console.warn("[snap-scan] printer doc was written but Firestore listener didn't update state.printers within 2s — open it manually from the grid");
-          }
-        };
-        card.addEventListener("click", triggerAdd);
-        card.addEventListener("keydown", e => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            triggerAdd();
-          }
-        });
-        const prev = rendered.get(c.ip);
-        if (prev) {
-          // Existing entry — replace it only if the new probe scored
-          // higher (more identity fields filled in). Otherwise drop the
-          // duplicate so the list stays stable.
-          if ((c.qualityScore || 0) > prev.score) {
-            prev.card.replaceWith(card);
-            rendered.set(c.ip, { card, score: c.qualityScore || 0 });
-          }
-        } else {
-          foundCount++;
-          rendered.set(c.ip, { card, score: c.qualityScore || 0 });
-          if (results) results.appendChild(card);
-        }
-        // Re-sort visible rows by score (desc) so the strongest match
-        // bubbles to the top as scan results stream in. Tie-break on IP
-        // so the order is stable when scores equal.
-        if (results) {
-          const sorted = Array.from(results.children).sort((a, b) => {
-            const sa = +(a.querySelector(".snap-scan-card-score")?.textContent || 0);
-            const sb = +(b.querySelector(".snap-scan-card-score")?.textContent || 0);
-            if (sb !== sa) return sb - sa;
-            return (a.dataset.ip || "").localeCompare(b.dataset.ip || "", undefined, { numeric: true });
-          });
-          sorted.forEach(el => results.appendChild(el));
-        }
-      },
-      onProgress: ({ done, total, prefixes }) => {
-        if (bar)   bar.style.width = total ? `${Math.min(100, (done / total) * 100)}%` : "0%";
-        if (stats) stats.textContent = `${done} / ${total}`;
-        if (sub) {
-          // No active NIC ⇒ os.networkInterfaces() returned nothing
-          // useful. Tell the user to check the connection rather than
-          // silently spinning at 0/0.
-          if (total === 0) {
-            sub.textContent = t("snapScanNoSubnets")
-                            || "No active network detected — connect to Wi-Fi or Ethernet.";
-            return;
-          }
-          if (done >= total) {
-            sub.textContent = t("snapScanDone", { n: foundCount }) || `Scan complete — ${foundCount} found`;
-            // When the scan finished with 0 Snapmaker hits, swap the
-            // generic empty state for a more actionable one if any
-            // user-declared subnet looks firewall-blocked. Reads
-            // _snapScanLastEnv.subnetStats which snapScanLan populated.
-            if (foundCount === 0 && empty) {
-              const blocked = (_snapScanLastEnv?.subnetStats || [])
-                .filter(s => s.suspicious)
-                .map(s => `${s.prefix}.0/24`);
-              if (blocked.length) {
-                empty.innerHTML = esc(t("snapScanEmptyFirewall", { p: blocked.join(", ") })
-                  || `Your firewall likely dropped probes on ${blocked.join(", ")} — try Manual Add with the printer's exact IP.`);
-                empty.classList.add("snap-scan-empty--warn");
-              } else {
-                empty.textContent = t("snapScanEmpty")
-                  || "No Snapmaker found yet — make sure the printer is on the same Wi-Fi network.";
-                empty.classList.remove("snap-scan-empty--warn");
-              }
-            }
-          } else {
-            sub.textContent = t("snapScanProgress", { p: prefixes.join(", ") })
-                            || `Scanning ${prefixes.join(", ")}…`;
-          }
-        }
-      }
-    }).catch(() => {/* aborted or per-host failure already swallowed */});
-  }
-  function closeSnapmakerScan() {
-    snapAbortScan();
-    $("snapScanOverlay")?.classList.remove("open");
-    $("snapScanPanel")?.classList.remove("open");
-  }
-  $("snapScanClose")?.addEventListener("click", closeSnapmakerScan);
-  // Backdrop click closes the panel (same UX as scales / printer detail).
-  $("snapScanOverlay")?.addEventListener("click", closeSnapmakerScan);
-  // Escape key — replaces the visible ✕ button (now removed).
-  document.addEventListener("keydown", e => {
-    if (e.key === "Escape" && $("snapScanPanel")?.classList.contains("open")) {
-      closeSnapmakerScan();
-    }
-  });
-  // The "Back" button was removed — brand-pick now opens this panel
-  // directly, so there is no previous step to return to. Closing is
-  // done via the X in the header or by clicking the backdrop.
-  $("snapScanRestart")?.addEventListener("click", () => {
-    // Re-run the scan in-place (don't close + reopen — preserves overlay focus).
-    openSnapmakerScan();
-  });
-  // Debug log: collapsible header (chevron flips), Clear button wipes
-  // the in-memory buffer + DOM. Both are no-ops when state.debugEnabled
-  // is false because the panel is hidden in that case.
-  $("snapScanLogToggle")?.addEventListener("click", (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const body = $("snapScanLogBody");
-    const btn  = $("snapScanLogToggle");
-    if (!body || !btn) return;
-    const open = body.hidden;
-    body.hidden = !open;
-    btn.setAttribute("aria-expanded", open ? "true" : "false");
-    btn.classList.toggle("snap-scan-log-toggle--open", open);
-    if (open) snapScanLogRender(); // flush queued lines on first open
-  });
-  $("snapScanLogClear")?.addEventListener("click", (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    snapScanLogClear();
-  });
-  $("snapScanLogExport")?.addEventListener("click", (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    snapScanLogExport();
-  });
-  // Extra-subnets widget: Add button + Enter key submits; the input
-  // clears + chip appears immediately. The list is read fresh from
-  // localStorage at every snapScanLan() call, so changes take effect
-  // on the very next scan with no extra plumbing.
-  $("snapExtraSubnetsAdd")?.addEventListener("click", (e) => {
-    e.preventDefault(); e.stopPropagation();
-    snapAddExtraSubnetFromInput();
-  });
-  $("snapExtraSubnetsInput")?.addEventListener("keydown", e => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      snapAddExtraSubnetFromInput();
-    }
-  });
-
-  /* ── Inline "Add by IP" — live IPv4 validation + direct probe.
-     Drives 4 visual states on the input + button:
-       1. EMPTY     — neutral border, button disabled, no tip
-       2. TYPING    — neutral border (still incomplete), button disabled, no tip
-       3. INVALID   — red border, info bubble visible, button disabled
-       4. VALID     — green border, info bubble hidden, button enabled
-     Clicking the button (or pressing Enter on a valid input) probes the
-     IP and either pre-fills the add form (success) or shows an error
-     state below the row (no reply).                                       */
-  let _snapAddIpAbort = null;
-  // Validation is now CLICK-DRIVEN, not live. While the user types, the
-  // input stays neutral (no red border, no bubble) — feedback only fires
-  // when they hit Validate and the IP doesn't parse. Two responsibilities
-  // for the input handler:
-  //   1. Enable the Validate button as soon as there is ANY text (so the
-  //      user can click to receive validation feedback).
-  //   2. If a previous click left the input in an error state, clear
-  //      that state on the next keystroke so the user gets feedback
-  //      they're "fixing" the problem.
-  function snapAddIpUpdateState() {
-    const inp = $("snapAddIpInput");
-    const tip = $("snapAddIpTip");
-    const btn = $("snapAddIpBtn");
-    const status = $("snapAddIpStatus");
-    if (!inp || !tip || !btn) return;
-    const raw = (inp.value || "").trim();
-    // Drop any sticky error UI as soon as the user resumes typing.
-    if (inp.classList.contains("snap-add-ip-input--err")) {
-      inp.classList.remove("snap-add-ip-input--err");
-      tip.hidden = true;
-    }
-    // Button is enabled the moment the input is non-empty. We don't try
-    // to validate live — the user clicks, THEN we validate.
-    btn.disabled = raw.length === 0;
-    // Clear any stale probe-status row when the user resumes typing.
-    if (status && !status.hidden && !btn.classList.contains("loading")) {
-      status.hidden = true;
-      status.textContent = "";
-      status.className = "snap-add-ip-status";
-    }
-  }
-  // Keystroke filter — only digits + dots. Block everything else
-  // (letters, spaces, etc.) at input time so the field is always parseable.
-  // Toggle reactions on the <details> wrapper:
-  //   - on EXPAND: focus the input so the user can type immediately
-  //     (saves a click compared to "click trigger → click input").
-  //   - on COLLAPSE: clear the input + any stale validation/error UI
-  //     so reopening starts fresh.
-  $("snapAddIpDetails")?.addEventListener("toggle", () => {
-    const details = $("snapAddIpDetails");
-    const inp     = $("snapAddIpInput");
-    const tip     = $("snapAddIpTip");
-    const btn     = $("snapAddIpBtn");
-    const status  = $("snapAddIpStatus");
-    if (!details) return;
-    if (details.open) {
-      // Defer focus until after the browser has painted the expanded
-      // body — calling focus() before that on Safari/Webkit can race
-      // with the open transition and silently no-op.
-      setTimeout(() => inp?.focus(), 30);
-    } else {
-      try { _snapAddIpAbort?.abort(); } catch {}
-      _snapAddIpAbort = null;
-      if (inp)    { inp.value = ""; inp.classList.remove("snap-add-ip-input--err", "snap-add-ip-input--ok"); }
-      if (tip)    tip.hidden = true;
-      if (btn)    { btn.disabled = true; btn.classList.remove("loading"); }
-      if (status) { status.hidden = true; status.textContent = ""; status.className = "snap-add-ip-status"; }
-    }
-  });
-
-  $("snapAddIpInput")?.addEventListener("beforeinput", e => {
-    if (e.inputType && e.inputType.startsWith("delete")) return; // allow deletions
-    const data = e.data;
-    if (data == null) return;
-    if (!/^[\d.]+$/.test(data)) e.preventDefault();
-  });
-  $("snapAddIpInput")?.addEventListener("input", snapAddIpUpdateState);
-  $("snapAddIpInput")?.addEventListener("keydown", e => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      const btn = $("snapAddIpBtn");
-      if (btn && !btn.disabled) btn.click();
-    }
-  });
-
-  $("snapAddIpBtn")?.addEventListener("click", async () => {
-    const inp = $("snapAddIpInput");
-    const btn = $("snapAddIpBtn");
-    const status = $("snapAddIpStatus");
-    if (!inp || !btn) return;
-    const ip = snapValidateIp(inp.value);
-    if (!ip) {
-      // Defensive — UI keeps the button disabled when the IP is invalid,
-      // but in case some path bypasses the disabled state we still
-      // refuse to probe.
-      snapAddIpUpdateState();
-      return;
-    }
-    btn.classList.add("loading");
-    btn.disabled = true;
-    if (status) {
-      status.hidden = false;
-      status.className = "snap-add-ip-status snap-add-ip-status--info";
-      status.textContent = t("snapManualProbing", { ip }) || `Reaching ${ip}…`;
-    }
-    try { _snapAddIpAbort?.abort(); } catch {}
-    const ctl = new AbortController();
-    _snapAddIpAbort = ctl;
-    const c = await snapProbeIp(ip, ctl.signal);
-    btn.classList.remove("loading");
-    btn.disabled = false;
-    if (!c) {
-      // No reply — keep the user on the scan modal so they can fix the
-      // IP or try anyway. Reuses the same "Continue anyway" button as
-      // the legacy manual modal.
-      if (status) {
-        status.className = "snap-add-ip-status snap-add-ip-status--err";
-        status.innerHTML = `
-          <span>${esc(t("snapManualNoReply", { ip }) || `No reply from ${ip}.`)}</span>
-          <button type="button" class="snap-add-ip-anyway" id="snapAddIpAnyway">${esc(t("snapManualContinueAnyway") || "Continue anyway")}</button>
-        `;
-        $("snapAddIpAnyway")?.addEventListener("click", () => {
-          // Close the scan modal first so the add form is on top.
-          closeSnapmakerScan();
-          openPrinterAddForm("snapmaker", null, {
-            ip,
-            printerName: `Snapmaker ${ip}`,
-            modelId: "0",
-          });
-        });
-      }
-      return;
-    }
-    // Success — open the add form pre-filled, identical priorities to
-    // the scan-card click + legacy manual probe path.
-    closeSnapmakerScan();
-    openPrinterAddForm("snapmaker", null, {
-      ip:          c.ip,
-      printerName: c.deviceName || c.machineModel || c.hostName || `Snapmaker ${c.ip}`,
-      modelId:     snapModelIdFromMachineModel(c.machineModel || c.hostName),
-      discovery:   snapBuildDiscoveryRecord(c),
-    });
-  });
-
-  /* ── Step 2b — manual IP probe ─────────────────────────────────────── */
-  function openSnapmakerManual() {
-    const overlay = $("snapManualOverlay");
-    if (!overlay) return;
-    const ip      = $("snapManualIp");
-    const status  = $("snapManualStatus");
-    const probe   = $("snapManualProbe");
-    if (ip)     ip.value = "";
-    if (status) { status.hidden = true; status.textContent = ""; status.className = "snap-manual-status"; }
-    if (probe)  probe.classList.remove("loading");
-    overlay.classList.add("open");
-    setTimeout(() => ip?.focus(), 50);
-  }
-  function closeSnapmakerManual() {
-    try { _snapManualAbort?.abort(); } catch {}
-    _snapManualAbort = null;
-    $("snapManualOverlay")?.classList.remove("open");
-  }
-  $("snapManualClose")?.addEventListener("click", closeSnapmakerManual);
-  $("snapManualOverlay")?.addEventListener("click", e => {
-    if (e.target.id === "snapManualOverlay") closeSnapmakerManual();
-  });
-  // Legacy manual modal — kept around for now but its only entry path
-  // (the choice modal) has been retired, so the Back button just closes
-  // the modal without reopening anything (otherwise it would call the
-  // deleted openSnapmakerAddChoice and throw).
-  $("snapManualBack")?.addEventListener("click", () => {
-    closeSnapmakerManual();
-  });
-  $("snapManualIp")?.addEventListener("keydown", e => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      $("snapManualProbe")?.click();
-    }
-  });
-  $("snapManualProbe")?.addEventListener("click", async () => {
-    const ipEl    = $("snapManualIp");
-    const status  = $("snapManualStatus");
-    const probeBt = $("snapManualProbe");
-    const ip      = (ipEl?.value || "").trim();
-    // Loose IPv4 validation. Snapmaker sits on private LAN so we don't try
-    // to be cleverer than .x.x.x.x — we just want to catch typos.
-    if (!/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.test(ip)) {
-      if (status) {
-        status.hidden = false;
-        status.className = "snap-manual-status snap-manual-status--err";
-        status.textContent = t("snapManualBadIp") || "Please enter a valid IPv4 address.";
-      }
-      ipEl?.focus();
-      return;
-    }
-    // Live status while we probe so the user knows we didn't freeze.
-    if (status) {
-      status.hidden = false;
-      status.className = "snap-manual-status snap-manual-status--info";
-      status.textContent = t("snapManualProbing", { ip }) || `Reaching ${ip}…`;
-    }
-    probeBt?.classList.add("loading");
-
-    try { _snapManualAbort?.abort(); } catch {}
-    const ctl = new AbortController();
-    _snapManualAbort = ctl;
-    const c = await snapProbeIp(ip, ctl.signal);
-    probeBt?.classList.remove("loading");
-    if (!c) {
-      // Failed probe — keep the user on this modal so they can fix the IP
-      // or try anyway (we still let them continue to the empty form).
-      if (status) {
-        status.className = "snap-manual-status snap-manual-status--err";
-        status.innerHTML = `
-          <span>${esc(t("snapManualNoReply", { ip }) || `No reply from ${ip}.`)}</span>
-          <button type="button" class="snap-manual-anyway" id="snapManualAnyway">${esc(t("snapManualContinueAnyway") || "Continue anyway")}</button>
-        `;
-        $("snapManualAnyway")?.addEventListener("click", () => {
-          closeSnapmakerManual();
-          openPrinterAddForm("snapmaker", null, {
-            ip,
-            printerName: `Snapmaker ${ip}`,
-            modelId: "0",
-          });
-        });
-      }
-      return;
-    }
-    closeSnapmakerManual();
-    // Same prefill priority as the scan path: prefer the user nickname
-    // (device_name from /machine/system_info) over the model name over
-    // the firmware codename hostname.
-    openPrinterAddForm("snapmaker", null, {
-      ip:          c.ip,
-      printerName: c.deviceName || c.machineModel || c.hostName || `Snapmaker ${c.ip}`,
-      modelId:     snapModelIdFromMachineModel(c.machineModel || c.hostName),
-      discovery:   snapBuildDiscoveryRecord(c),
-    });
-  });
-
+     All add-flow UI (choice modal, LAN scanner, manual IP probe, scan log)
+     lives in renderer/printers/snapmaker/add-flow.js. Entry point:
+     openSnapAddFlow() — called from the brand picker above.               */
   // openPrinterAddForm doubles as the edit modal. When `editPrinter` is
   // provided, the form pre-fills every field with the existing values,
   // hides the Back button, switches the primary CTA to "Save changes",
@@ -10094,397 +8449,11 @@ import {
       btn.disabled = false;
     }
   }
-  // Convert Firestore Timestamp object to ms (the existing tsToMs at line 366
-  // handles legacy shapes; here we add support for { seconds, nanoseconds }).
-  function scaleTsToMs(ts) {
-    if (!ts) return 0;
-    if (typeof ts === "number") return ts;
-    if (typeof ts.toMillis === "function") return ts.toMillis();
-    if (ts.seconds != null) return ts.seconds * 1000 + Math.round((ts.nanoseconds || 0) / 1e6);
-    return tsToMs(ts) || 0;
-  }
-  // ── Scale v2 field accessors ───────────────────────────────────────
-  // Studio Manager reads scale documents using the v2 schema documented
-  // in `tigerscale-doc-schema.md` — no v1 fallback. Firmwares writing
-  // the legacy v1 names (`last_seen`, `last_spool`, `name`, `rssi`,
-  // `battery_pct`) will appear OFFLINE / unnamed in the UI until they
-  // are updated to v2. This is intentional: forcing a clean cut keeps
-  // the codebase from accumulating dual-read shims indefinitely.
-  function scaleHeartbeatAt(s)        { return s?.last_heartbeat_at   ?? null; }
-  function scaleDisplayName(s)        { return s?.display_name        ?? null; }
-  function scaleCurrentSpoolUid1(s)   { return s?.current_spool_uid_1 ?? null; }
-  function scaleCurrentSpoolUid2(s)   { return s?.current_spool_uid_2 ?? null; }
-  function scaleWifiSignalDbm(s)      { return s?.wifi_signal_dbm     ?? null; }
-  function scaleBatteryPercent(s)     { return s?.battery_percent     ?? null; }
-  function scaleIsCharging(s)         { return s?.is_charging         ?? null; }
-  function scalePowerSource(s)        { return s?.power_source        ?? null; }
-  function scaleHardwareRevision(s)   { return s?.hardware_revision   ?? null; }
-  function isScaleOnline(s) {
-    return Date.now() - scaleTsToMs(scaleHeartbeatAt(s)) < SCALE_ONLINE_THRESHOLD_MS;
-  }
-
-  // Update the header status icon — three visual tiers:
-  //   • scale-none      → no scale paired at all      (red, bigger, pulsing — invites discovery)
-  //   • scale-connected → ≥1 paired AND online        (green, glow)
-  //   • (default)       → paired but all offline      (muted grey)
-  function renderScaleHealth() {
-    const el = $("scaleHealth");
-    if (!el) return;
-    const total  = state.scales.length;
-    const online = state.scales.filter(isScaleOnline).length;
-    el.classList.toggle("scale-none", total === 0);
-    el.classList.toggle("scale-connected", online > 0);
-    if (total === 0)        el.dataset.tooltip = t("scaleHealthNone")    || "No scale connected";
-    else if (online === 0)  el.dataset.tooltip = t("scaleHealthOffline", { n: total }) || `${total} scale(s) — all offline`;
-    else                    el.dataset.tooltip = t("scaleHealthOnline",  { n: online, total }) || `${online}/${total} scale(s) online`;
-  }
-
-  // Render the slide-in panel listing all the user's scales with their state
-  // and their last-seen spool (matched against current inventory).
-  // ── Scale card helpers ─────────────────────────────────────────────
-  // Signature of the last-rendered scale set. Used by renderScalesPanel
-  // to decide between a full rebuild (MAC set changed — add/remove) vs
-  // an in-place patch of every existing card (data-only update — the
-  // common heartbeat case). Stable in-place patching keeps the <details>
-  // element instances alive, so any user-expanded "Raw JSON" section
-  // survives heartbeats natively without needing to track open state.
-  let _lastRenderedScalesSig = null;
-  // Open-state tracker — used ONLY by the rare full-rebuild path
-  // (scale added or removed) so the user's expanded JSON section
-  // doesn't collapse when the surrounding cards get torn down.
-  const _scalesDebugOpen = new Set();
-
-
-  // Format a raw MAC address (lower-case, no separator) to the canonical
-  // colon-separated upper-case form. Tolerant of inputs that already
-  // carry separators or mixed case.
-  //   "34987ab31f94"     → "34:98:7A:B3:1F:94"
-  //   "34:98:7a:b3:1f:94"→ "34:98:7A:B3:1F:94"   (idempotent)
-  //   "ABCD"             → "AB:CD"               (still works on shorter)
-  function formatMacAddress(raw) {
-    if (typeof raw !== "string" || raw.length === 0) return "";
-    const clean = raw.replace(/[^0-9A-Fa-f]/g, "").toUpperCase();
-    if (clean.length === 0) return raw;
-    return clean.match(/.{1,2}/g).join(":");
-  }
-
-  // Map a Wi-Fi RSSI value (negative dBm) to a human-readable quality
-  // label and a CSS class suffix used by .scale-chip--wifi-<cls> for
-  // colour coding. The colour of the SVG wifi icon carries the level
-  // (green = strong → red = weak); no Unicode bars or emojis.
-  //   ≥ -50 dBm  → "Excellent"   cls "excellent"
-  //   ≥ -60 dBm  → "Good"        cls "good"
-  //   ≥ -70 dBm  → "Fair"        cls "fair"
-  //   < -70 dBm  → "Weak"        cls "weak"
-  function wifiQualityLevel(dbm) {
-    if (dbm >= -50) return { cls: "excellent", label: t("scaleChipWifiQualityExcellent") };
-    if (dbm >= -60) return { cls: "good",      label: t("scaleChipWifiQualityGood") };
-    if (dbm >= -70) return { cls: "fair",      label: t("scaleChipWifiQualityFair") };
-    return            { cls: "weak",      label: t("scaleChipWifiQualityWeak") };
-  }
-
-  function renderScalesPanel() {
-    const body = $("scalesPanelBody");
-    if (!body) return;
-    if (!state.scales.length) {
-      // Onboarding card — promote the open-source TigerScale repo
-      body.innerHTML = `
-        <div class="scales-empty-card">
-          <img class="scales-empty-img" src="../assets/img/TigerScale_Photo.png" alt="TigerScale" />
-          <div class="scales-empty-title" data-i18n="scaleEmptyTitle">${esc(t("scaleEmptyTitle"))}</div>
-          <div class="scales-empty-sub" data-i18n="scaleEmptySub">${esc(t("scaleEmptySub"))}</div>
-          <ul class="scales-empty-bullets">
-            <li data-i18n="scaleEmptyBullet1">${esc(t("scaleEmptyBullet1"))}</li>
-            <li data-i18n="scaleEmptyBullet2">${esc(t("scaleEmptyBullet2"))}</li>
-            <li data-i18n="scaleEmptyBullet3">${esc(t("scaleEmptyBullet3"))}</li>
-          </ul>
-          <a class="scales-empty-cta" id="scaleGithubLink" href="#">
-            <span class="icon icon-github icon-14"></span>
-            <span data-i18n="scaleEmptyCta">View on GitHub</span>
-          </a>
-          <div class="scales-empty-license" data-i18n="scaleEmptyLicense">${esc(t("scaleEmptyLicense"))}</div>
-        </div>`;
-      // Open the repo in the user's default browser (Electron)
-      $("scaleGithubLink")?.addEventListener("click", e => {
-        e.preventDefault();
-        // Same pattern as the sidebar GitHub button — main.js's setWindowOpenHandler
-        // routes external URLs to the OS browser via shell.openExternal.
-        window.open("https://github.com/TigerTag-Project/TigerTag-Scale");
-      });
-      return;
-    }
-    // Two-path render strategy:
-    //   1. MAC set unchanged (typical heartbeat case) → patch each
-    //      existing card in place, leaving the <details> element
-    //      instances alive so any user-expanded JSON section stays
-    //      open across heartbeats.
-    //   2. MAC set changed (scale added or removed) → full rebuild
-    //      and wire fresh event listeners. The _scalesDebugOpen set
-    //      restores any user-expanded sections in this rare path.
-    const sig = state.scales.map(s => s.mac).sort().join("|");
-    const macSetChanged = sig !== _lastRenderedScalesSig;
-
-    if (macSetChanged) {
-      body.innerHTML = state.scales.map(_buildScaleCardHtml).join("");
-      _wireScaleCardEvents(body);
-    } else {
-      state.scales.forEach(s => {
-        const card = body.querySelector(
-          `.scale-card[data-scale-mac="${cssEscape(s.mac)}"]`
-        );
-        if (card) _patchScaleCardInPlace(card, s);
-      });
-    }
-    _lastRenderedScalesSig = sig;
-  }
-
-  // ── Scale card builders & patcher ──────────────────────────────────
-  //
-  // Three pure-ish helpers split the card render into:
-  //   • _buildScaleCardHtml(s)        — full HTML string (used on full rebuild)
-  //   • _buildScaleChipsHtml(s)       — chips row inner HTML (used by patch)
-  //   • _buildScaleSpoolBlockHtml(s)  — current-spool block inner HTML (used by patch)
-  //   • _patchScaleCardInPlace(card,s)— mutates an existing card with new data
-  //                                     without recreating the <details> element
-  //
-  // The card structure has stable host wrappers (.scale-card-chips,
-  // .scale-card-spool-host) whose innerHTML the patch can replace
-  // freely, while the surrounding shell (head, photo, <details>)
-  // stays intact across heartbeats.
-
-  function _buildScaleCardHtml(s) {
-    const online = isScaleOnline(s);
-    const dispName = scaleDisplayName(s) || "TigerScale";
-    const macFmt = formatMacAddress(s.mac);
-    const debugOpen = _scalesDebugOpen.has(s.mac) ? " open" : "";
-    const debugJson = state.debugEnabled
-      ? `<details class="scale-debug" data-debug-mac="${esc(s.mac)}"${debugOpen}>
-           <summary class="scale-debug-summary">Raw JSON (debug)</summary>
-           <pre class="json scale-debug-pre">${highlight(JSON.stringify(s, null, 2))}</pre>
-         </details>`
-      : "";
-
-    return `<div class="scale-card${online ? " is-online" : ""}" data-scale-mac="${esc(s.mac)}">
-      <div class="scale-card-head">
-        <img class="scale-card-photo" src="../assets/img/TigerScale_Photo.png" alt="" draggable="false" />
-        <div class="scale-card-id">
-          <div class="scale-card-name-row">
-            <span class="scale-card-name">${esc(dispName)}</span>
-            <span class="scale-card-status-pill ${online ? "is-online" : "is-offline"}">
-              <span class="scale-card-status-dot"></span>
-              <span class="scale-card-status-pill-text">${online ? t("scaleStatusOnline") : t("scaleStatusOffline")}</span>
-            </span>
-          </div>
-          <div class="scale-card-mac">${esc(macFmt)}</div>
-        </div>
-        <div class="scale-card-actions">
-          <button class="scale-card-btn" data-action="delete" title="${t("scaleRemove")}">
-            <span class="hold-progress"></span>
-            <span class="icon icon-trash icon-13"></span>
-          </button>
-        </div>
-      </div>
-      <div class="scale-card-chips">${_buildScaleChipsHtml(s)}</div>
-      <div class="scale-card-spool-host">${_buildScaleSpoolBlockHtml(s)}</div>
-      ${debugJson}
-    </div>`;
-  }
-
-  // Build the chips strip inner HTML (without the wrapper). Each chip
-  // appears only when its source field is present, so an offline /
-  // sparse doc doesn't render empty pills.
-  function _buildScaleChipsHtml(s) {
-    const online = isScaleOnline(s);
-    const lastSeenMs = scaleTsToMs(scaleHeartbeatAt(s));
-    const lastSeenStr = lastSeenMs ? agoString(lastSeenMs) : "—";
-    const battery = scaleBatteryPercent(s);
-    const charging = scaleIsCharging(s);
-    const power = scalePowerSource(s);
-    const wifiDbm = scaleWifiSignalDbm(s);
-    const fw = s.fw_version;
-
-    const chips = [];
-
-    if (typeof wifiDbm === "number" && isFinite(wifiDbm)) {
-      const q = wifiQualityLevel(wifiDbm);
-      chips.push(`<span class="scale-chip scale-chip--wifi scale-chip--wifi-${q.cls}" title="${esc(q.label)}">
-        <span class="icon icon-wifi icon-12"></span>
-        <span class="scale-chip-text">${esc(String(wifiDbm))} dBm</span>
-      </span>`);
-    }
-
-    if (power) {
-      const isUsb = String(power).toLowerCase() === "usb";
-      const lbl = isUsb ? t("scaleChipPowerUsb") : t("scaleChipPowerBattery");
-      const iconCls = isUsb ? "icon-plug" : "icon-battery";
-      const boltHtml = (charging === true)
-        ? `<span class="icon icon-bolt icon-10 scale-chip-bolt"></span>`
-        : "";
-      chips.push(`<span class="scale-chip scale-chip--power" title="${esc(t("scaleChipPower"))}">
-        <span class="icon ${iconCls} icon-12"></span>
-        <span class="scale-chip-text">${esc(lbl)}</span>
-        ${boltHtml}
-      </span>`);
-    }
-    if (typeof battery === "number" && isFinite(battery)) {
-      const lvl = battery >= 60 ? "high" : battery >= 25 ? "mid" : "low";
-      chips.push(`<span class="scale-chip scale-chip--battery scale-chip--bat-${lvl}" title="${esc(t("scaleChipPowerBattery"))}">
-        <span class="icon icon-battery icon-12"></span>
-        <span class="scale-chip-text">${esc(String(battery))}%</span>
-      </span>`);
-    }
-
-    if (fw) {
-      chips.push(`<span class="scale-chip scale-chip--fw" title="${esc(t("scaleChipFwTooltip"))}">
-        <span class="icon icon-settings icon-12"></span>
-        <span class="scale-chip-text">v${esc(String(fw))}</span>
-      </span>`);
-    }
-
-    if (!online && lastSeenMs) {
-      chips.push(`<span class="scale-chip scale-chip--seen" title="${esc(t("scaleChipLastSeen"))}">
-        <span class="icon icon-clock icon-12"></span>
-        <span class="scale-chip-text">${esc(lastSeenStr)}</span>
-      </span>`);
-    }
-
-    return chips.join("");
-  }
-
-  // Build the current-spool block inner HTML. v2 schema:
-  // current_spool_uid_1 / _2 are plain UID strings — we cross-reference
-  // against state.rows for the friendly label / colour / weight.
-  function _buildScaleSpoolBlockHtml(s) {
-    const uid1 = scaleCurrentSpoolUid1(s);
-    const uid2 = scaleCurrentSpoolUid2(s);
-    const findRowByUid = uid => state.rows.find(x =>
-      String(x.uid) === String(uid) || String(x.spoolId) === String(uid));
-    const renderSpool = (uid) => {
-      if (!uid) return "";
-      const r = findRowByUid(uid);
-      const fillBg = r ? colorBg(r) : "rgba(150,150,150,.2)";
-      const fillHtml = r ? slotFillInnerHTML(r) : "";
-      const titleLn = r?.colorName && r.colorName !== "-" ? r.colorName : (r?.material || uid);
-      const subLn = r ? [r.brand, r.material].filter(Boolean).join(" · ") : `uid=${uid}`;
-      const wAvail = r?.weightAvailable ?? "—";
-      return `
-        <div class="scale-last-spool">
-          <div class="scale-last-puck" style="background:${fillBg}">${fillHtml}</div>
-          <div class="scale-last-meta">
-            <div class="scale-last-name">${esc(String(titleLn))}</div>
-            <div class="scale-last-sub">${esc(subLn)}</div>
-          </div>
-          <div class="scale-last-w">${esc(String(wAvail))}<span class="scale-last-w-unit">g</span></div>
-        </div>`;
-    };
-    if (!uid1 && !uid2) {
-      return `<div class="scale-last-empty">${esc(t("scaleNoActivity"))}</div>`;
-    }
-    if (uid1 && uid2) {
-      const r1 = findRowByUid(uid1);
-      const r2 = findRowByUid(uid2);
-      const isTwinPair = r1?.twinUid && (String(r1.twinUid) === String(uid2)) ||
-                         r2?.twinUid && (String(r2.twinUid) === String(uid1));
-      return isTwinPair ? renderSpool(uid1) : (renderSpool(uid1) + renderSpool(uid2));
-    }
-    return renderSpool(uid1 || uid2);
-  }
-
-  // In-place patch — updates a card's dynamic parts WITHOUT recreating
-  // its <details> element instance. This is the path used at every
-  // Firestore heartbeat (most common). Preserves the user's expanded
-  // Raw JSON section natively because the <details> isn't torn down.
-  function _patchScaleCardInPlace(card, s) {
-    const online = isScaleOnline(s);
-    card.classList.toggle("is-online", online);
-
-    // Status pill
-    const pill = card.querySelector(".scale-card-status-pill");
-    if (pill) {
-      pill.classList.toggle("is-online", online);
-      pill.classList.toggle("is-offline", !online);
-      const txt = pill.querySelector(".scale-card-status-pill-text");
-      if (txt) txt.textContent = online ? t("scaleStatusOnline") : t("scaleStatusOffline");
-    }
-
-    // Display name (rarely changes, but still)
-    const nameEl = card.querySelector(".scale-card-name");
-    if (nameEl) {
-      const dispName = scaleDisplayName(s) || "TigerScale";
-      if (nameEl.textContent !== dispName) nameEl.textContent = dispName;
-    }
-
-    // Chips strip — replace inner HTML of the stable wrapper
-    const chipsHost = card.querySelector(".scale-card-chips");
-    if (chipsHost) chipsHost.innerHTML = _buildScaleChipsHtml(s);
-
-    // Current-spool block — replace inner HTML of the stable wrapper
-    const spoolHost = card.querySelector(".scale-card-spool-host");
-    if (spoolHost) spoolHost.innerHTML = _buildScaleSpoolBlockHtml(s);
-
-    // Debug JSON — update only the <pre> content, NOT the <details>
-    // wrapper, so the user's expanded state survives the heartbeat.
-    if (state.debugEnabled) {
-      const debugPre = card.querySelector(".scale-debug-pre");
-      if (debugPre) debugPre.innerHTML = highlight(JSON.stringify(s, null, 2));
-    }
-  }
-
-  // CSS.escape polyfill for older Electron — ensures we can safely
-  // interpolate a MAC into a CSS attribute selector even if the value
-  // ever contains weird chars. Safe no-op in modern engines.
-  function cssEscape(s) {
-    if (typeof CSS !== "undefined" && CSS.escape) return CSS.escape(s);
-    return String(s).replace(/[^a-zA-Z0-9_-]/g, "\\$&");
-  }
-
-  // Wire delete buttons + Raw JSON toggle listeners. Called once per
-  // full rebuild (i.e. when MAC set changes). Patch-in-place renders
-  // do NOT need re-wiring since the existing element instances are
-  // preserved.
-  function _wireScaleCardEvents(body) {
-    body.querySelectorAll(".scale-card-btn[data-action='delete']").forEach(btn => {
-      setupHoldToConfirm(btn, 1500, async () => {
-        const card = btn.closest("[data-scale-mac]");
-        const mac = card?.dataset.scaleMac;
-        if (!mac) return;
-        try {
-          const uid = state.activeAccountId;
-          await fbDb(uid).collection("users").doc(uid).collection("scales").doc(mac).delete();
-          _scalesDebugOpen.delete(mac);
-        } catch (e) { reportError("scale.delete", e); }
-      });
-    });
-
-    body.querySelectorAll("details.scale-debug[data-debug-mac]").forEach(det => {
-      det.addEventListener("toggle", () => {
-        const mac = det.getAttribute("data-debug-mac");
-        if (!mac) return;
-        if (det.open) _scalesDebugOpen.add(mac);
-        else _scalesDebugOpen.delete(mac);
-      });
-    });
-  }
-
-  // "5m ago" / "2h ago" — small relative-time helper for last_seen
-  function agoString(ms) {
-    const dt = Math.max(0, Date.now() - ms);
-    const m = Math.floor(dt / 60000);
-    if (m < 1)  return t("agoNow")   || "just now";
-    if (m < 60) return t("agoMin",  { n: m }) || `${m}m`;
-    const h = Math.floor(m / 60);
-    if (h < 24) return t("agoHour", { n: h }) || `${h}h`;
-    const d = Math.floor(h / 24);
-    return t("agoDay", { n: d }) || `${d}d`;
-  }
-
-  // Scale-health icon tick — recompute online status every 10s even without
-  // new snapshots (since "online" depends on "now" against last_seen).
-  setInterval(() => {
-    if (!state.scales.length) return;
-    renderScaleHealth();
-    if ($("scalesPanel")?.classList.contains("open")) renderScalesPanel();
-  }, 10 * 1000);
+  // ── Scale functions have moved to renderer/IoT/tigerscale/index.js ─────
+  // All scale rendering, WebSocket, RTDB, accessors, and helpers are now
+  // managed by that module. subscribeScales / unsubscribeScales /          
+  // renderScalesPanel / renderScaleHealth are imported at the top of this  
+  // file and initTigerScale(ctx) is called during DOM setup.               
 
   async function createRack({ name, level, position }) {
     const user = fbAuth().currentUser;
@@ -13244,144 +11213,5 @@ import {
     });
   }
 
-  // ── TD1S sensor integration ──
-  if (window.td1s) {
-    const TD1S_MAX = 400;
-    const td1sLogEl = $("td1sLog");
-
-    function td1sEsc(s) {
-      return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    }
-
-    function td1sAppendLog({ time, type, message }) {
-      const line = document.createElement('div');
-      line.innerHTML =
-        `<span class="log-time">[${time}]</span> ` +
-        `<span class="log-${type}">${td1sEsc(message)}</span>`;
-      td1sLogEl.appendChild(line);
-      while (td1sLogEl.children.length > TD1S_MAX) td1sLogEl.removeChild(td1sLogEl.firstChild);
-      td1sLogEl.scrollTop = td1sLogEl.scrollHeight;
-    }
-
-    window.td1s.onLog(entry => td1sAppendLog(entry));
-
-    window.td1s.onStatus(msg => {
-      $("td1sStatus").textContent = msg;
-      const connected = msg === "Status: Sensor connected";
-      $("btnTD1S")?.classList.toggle("td1s-connected", connected);
-      $("td1sHealth")?.classList.toggle("td1s-connected", connected);
-      $("td1sHealth")?.setAttribute("data-tooltip", t(connected ? "td1sDetected" : "td1sNotDetected"));
-      $("adpTd1sBtn")?.classList.toggle("td1s-connected", connected);
-      state.td1sConnected = connected;
-      // Auto-close connect modal when TD1S plugged in, then open viewer
-      if (connected && _td1sConnectOpen) {
-        closeTd1sConnectModal();
-        openTd1sTesterModal();
-      }
-      // Auto-close tester modal when TD1S disconnected
-      if (!connected && _td1sTesterOpen) {
-        closeTd1sTesterModal();
-      }
-      // Update TD edit modal if open
-      if ($("tdEditModalOverlay")?.classList.contains("open")) {
-        if (connected && !_tdEditData) {
-          _setEditState(_tdIds, "waiting"); _tdEditWaiting = true;
-        } else if (!connected && !_tdEditData) {
-          _setEditState(_tdIds, "disconnected"); _tdEditWaiting = false;
-        }
-      }
-      // Update Color edit modal if open
-      if ($("colorEditModalOverlay")?.classList.contains("open")) {
-        if (connected && !_colorEditData) {
-          _setEditState(_ceIds, "waiting"); _colorEditWaiting = true;
-        } else if (!connected && !_colorEditData) {
-          _setEditState(_ceIds, "disconnected"); _colorEditWaiting = false;
-        }
-      }
-    });
-
-    window.td1s.onSensorData(data => {
-      $("td1sTdVal").textContent  = data.TD  || '-';
-      $("td1sHexVal").textContent = data.HEX ? `#${data.HEX}` : '-';
-      const hex = (data.HEX || '').replace('#', '');
-      $("td1sColorCircle").style.background =
-        /^[0-9A-Fa-f]{6}$/.test(hex) ? `#${hex}` : '#2a2a2a';
-      // Feed into TD edit modal if waiting for a scan
-      if (_tdEditWaiting && $("tdEditModalOverlay")?.classList.contains("open")) {
-        _tdEditReceiveData(data);
-      }
-      // Feed into Color edit modal if waiting for a scan
-      if (_colorEditWaiting && $("colorEditModalOverlay")?.classList.contains("open")) {
-        _colorEditReceiveData(data);
-      }
-      // Feed into tester modal if open
-      if (_td1sTesterOpen) {
-        const circle = $("td1sTesterCircle");
-        const hexIn  = $("td1sTesterHex");
-        const tdIn   = $("td1sTesterTd");
-        if (circle) circle.style.background = /^[0-9A-Fa-f]{6}$/.test(hex) ? `#${hex}` : "#2a2a2a";
-        if (hexIn)  hexIn.value  = hex ? `#${hex.toUpperCase()}` : "";
-        if (tdIn)   tdIn.value   = data.TD != null ? data.TD : "";
-      }
-      // Feed into Add Product panel if open — auto-sets color + TD value
-      // so the user can scan a filament directly from the creator flow
-      // without having to enter values manually.
-      if ($("addProductPanel")?.classList.contains("open")) {
-        const adpHex = hex.toUpperCase();
-        if (/^[0-9A-Fa-f]{6}$/.test(adpHex)) {
-          _adpSyncColor("#" + adpHex);
-        }
-        if (data.TD != null) {
-          const tdInp = $("adpTd");
-          if (tdInp) {
-            tdInp.value = data.TD;
-            tdInp.dataset.userEdited = "1";
-            _adpUpdateBasicReadouts();
-            _adpRefreshRfidPreview();
-          }
-        }
-      }
-    });
-
-    window.td1s.onClear(() => {
-      // Tester modal: blank out all display fields
-      if (_td1sTesterOpen) {
-        const circle = $("td1sTesterCircle");
-        const hexIn  = $("td1sTesterHex");
-        const tdIn   = $("td1sTesterTd");
-        if (circle) circle.style.background = "#2a2a2a";
-        if (hexIn)  hexIn.value  = "";
-        if (tdIn)   tdIn.value   = "";
-      }
-      // TD Edit modal: go back to "waiting" so the user can re-scan
-      if ($("tdEditModalOverlay")?.classList.contains("open") && _tdEditData) {
-        _tdEditData = null; _tdEditWaiting = true;
-        const c = $("tdEditCircle"); if (c) c.style.background = "#2a2a2a";
-        const hi = $("tdEditHexInput"); if (hi) hi.value = "";
-        const ti = $("tdEditTdInput"); if (ti) ti.value = "";
-        _setEditState(_tdIds, "waiting");
-      }
-      // Color Edit modal: go back to "waiting" so the user can re-scan
-      if ($("colorEditModalOverlay")?.classList.contains("open") && _colorEditData) {
-        _colorEditData = null; _colorEditWaiting = true;
-        const ci = $("colorEditCircle"); if (ci) ci.style.background = "#2a2a2a";
-        const hi = $("colorEditHexInput"); if (hi) hi.value = "";
-        const ti = $("colorEditTdInput"); if (ti) ti.value = "";
-        _setEditState(_ceIds, "waiting");
-      }
-    });
-
-    // Copy log
-    $("td1sCopyBtn").addEventListener("click", () => {
-      const text = Array.from(td1sLogEl.children).map(el => el.textContent).join('\n');
-      navigator.clipboard.writeText(text).then(() => {
-        const btn = $("td1sCopyBtn");
-        btn.style.borderColor = "#6ed46e";
-        btn.style.color = "#6ed46e";
-        setTimeout(() => { btn.style.borderColor = ""; btn.style.color = ""; }, 1500);
-      });
-    });
-
-    // Clear log
-    $("td1sClearBtn").addEventListener("click", () => { td1sLogEl.innerHTML = ''; });
-  }
+  // ── TD1S sensor engine (onSensorData/onStatus/onLog/onClear + panel + modals)
+  //    moved to renderer/IoT/td1s/index.js — wired via initTD1S(ctx) above.   

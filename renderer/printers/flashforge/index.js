@@ -122,11 +122,19 @@ export async function ffgPingPrinter(printer) {
   // Same defensive shape as ffgPollOnce — bridge unavailability /
   // rejection / non-object response all collapse to "offline" without
   // breaking the periodic ping.
+  // Resolve conn if already open — log the ping traffic through it so it
+  // appears in the Request Log alongside regular /detail poll entries.
+  // Before the polling loop opens conn is null; we still send the request
+  // but skip logging (no log panel exists yet for this printer).
+  const pingConn = _ffgConns.get(k) || null;
+  const wireBody = ffgAuthBody(printer);
+  if (pingConn) ffgLogPush(pingConn, "→", wireBody, `POST ${base}/detail  (ping)`);
   let online = false;
   try {
     const bridge = window.electronAPI && window.electronAPI.ffgHttpPost;
     if (typeof bridge === "function") {
-      const j = await bridge(`${base}/detail`, ffgAuthBody(printer));
+      const j = await bridge(`${base}/detail`, wireBody);
+      if (pingConn) ffgLogPush(pingConn, "←", j);
       const code = j?.code;
       const msg  = String(j?.message || "");
       // Even an auth failure (code:1, "sn is different") implies the
@@ -1085,7 +1093,12 @@ $("ffgFilEditSave")?.addEventListener("click", async () => {
       errEl.hidden = false;
       return;
     }
+    const cmdLabel = _ffgFilEdit.isMatlStation
+      ? `POST ${base}/control  msConfig_cmd slot:${_ffgFilEdit.slotId}`
+      : `POST ${base}/control  ipdMsConfig_cmd`;
+    ffgLogPush(conn, "→", payload, cmdLabel);
     const resp = await bridge(`${base}/control`, payload);
+    ffgLogPush(conn, "←", resp);
     if (resp && resp.code !== 0 && resp.code !== undefined) {
       // Surface the printer's own message verbatim — varies a lot
       // between firmware revisions and is the most actionable hint.

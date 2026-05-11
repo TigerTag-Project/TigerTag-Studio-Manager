@@ -1,0 +1,608 @@
+/**
+ * renderer/IoT/tigerscale/tigerscale.css
+ *
+ * All TigerScale-specific styles: header health icon, slide-in panel,
+ * scale cards, chip badges, spool block, WebSocket live block.
+ *
+ * Loaded via a <link> tag in inventory.html AFTER the shared base
+ * sheets so these rules inherit all CSS custom properties.
+ */
+
+/* ── Scale health icon (header)
+      • default          : muted grey (paired but all offline)
+      • .scale-connected : green glow (≥1 online)
+      • .scale-none      : red, fixed size, no animation — visual cue
+                           that no TigerScale is paired yet. */
+.scale-health { cursor: pointer; }
+.scale-health-icon {
+  display: inline-block;
+  font-size: 18px; line-height: 1;
+  color: var(--neutral);
+  opacity: .38;
+  transition: opacity .3s, color .3s, filter .3s;
+}
+.scale-health.scale-connected .scale-health-icon {
+  color: var(--success); opacity: 1;
+  filter: drop-shadow(0 0 5px var(--success));
+}
+.scale-health.scale-none .scale-health-icon {
+  color: #ef4444;
+  opacity: 1;
+}
+
+/* ── Scales panel (slide-in from right) ── */
+#scalesPanel { width: min(420px, 92vw); }
+#scalesPanelBody {
+  padding: 16px 18px 24px;
+  display: flex; flex-direction: column; gap: 12px;
+  overflow-y: auto;
+}
+.scales-empty {
+  text-align: center; padding: 36px 18px;
+  border: 1.5px dashed var(--border);
+  border-radius: 14px;
+  background: var(--surface-2);
+  color: var(--muted); font-size: 13px;
+}
+/* Onboarding card — shown when the user has no scale yet, promoting
+   the open-source TigerScale repo. */
+.scales-empty-card {
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 14px; padding: 18px 18px 16px;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  text-align: center;
+}
+.scales-empty-img {
+  width: 100%; max-width: 240px;
+  height: auto; object-fit: contain;
+  margin-bottom: 4px;
+  filter: drop-shadow(0 6px 16px rgba(0,0,0,.22));
+}
+.scales-empty-title {
+  font-size: 15px; font-weight: 700; color: var(--text);
+}
+.scales-empty-sub {
+  font-size: 12.5px; color: var(--muted); line-height: 1.5;
+  max-width: 320px;
+}
+.scales-empty-bullets {
+  list-style: none; padding: 0; margin: 4px 0 0;
+  text-align: left; align-self: stretch;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.scales-empty-bullets li {
+  font-size: 12px; color: var(--text);
+  padding-left: 22px;
+  position: relative;
+  line-height: 1.45;
+}
+.scales-empty-bullets li::before {
+  content: "✓";
+  position: absolute; left: 4px; top: 0;
+  color: var(--success);
+  font-weight: 800;
+}
+.scales-empty-cta {
+  margin-top: 10px;
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 16px;
+  background: var(--text); color: var(--surface);
+  border-radius: 10px;
+  font-size: 13px; font-weight: 600;
+  text-decoration: none;
+  transition: opacity .15s, transform .12s;
+}
+.scales-empty-cta:hover { opacity: .85; transform: translateY(-1px); }
+.scales-empty-cta .icon { background: var(--surface); }
+.scales-empty-license {
+  font-size: 10.5px; color: var(--muted);
+  margin-top: 2px;
+  font-style: italic;
+}
+
+/* ── Scale entry — grouping wrapper (no visual style) ── */
+.scale-entry {
+  display: flex; flex-direction: column; gap: 8px;
+}
+
+/* ── Scale card — dark info card (head + chips + spool only) ── */
+.scale-card {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+
+/* ── Weight live card (gradient) ─────────────────────────────────────
+   Rebuilt by _buildScaleLocalBlockHtml on every WS frame.
+   Gradient matches the TigerScale mobile app. */
+.sc2-live-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 20px;
+  overflow: hidden;
+  position: relative;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+/* ── Status badge — top-left absolute pill ── */
+.send-status {
+  position: absolute;
+  top: 12px; left: 14px;
+  font-size: 11px; font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 999px;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  background: rgba(255,255,255,0.2);
+  color: #fff;
+  letter-spacing: .03em;
+  white-space: nowrap;
+  z-index: 2;
+}
+
+/* ── Filament panel — overlay absolu coin supérieur droit ── */
+.filament-panel {
+  position: absolute;
+  right: 10px; top: 10px;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  background: rgba(0,0,0,0.42);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 12px;
+  padding: 10px 11px;
+  min-width: 76px;
+  border: 1px solid rgba(255,255,255,0.13);
+  z-index: 2;
+  pointer-events: none;
+}
+.filament-color-dot {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  background: #888888;
+  border: 2px solid rgba(255,255,255,0.35);
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}
+.filament-panel-row {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 1px; width: 100%;
+}
+.filament-panel-label {
+  font-size: 0.52em;
+  opacity: 0.6;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+}
+.filament-panel-value {
+  font-size: 0.68em; font-weight: 700;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 70px; text-align: center;
+}
+
+/* ── Inner content (rebuilt on every WS frame) ── */
+.sc2-inner {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 14px;
+  padding: 44px 18px 18px; /* top clears the absolute badge */
+  text-align: center;
+}
+
+/* Scale display name */
+.user-name {
+  font-size: 14px; font-weight: 600;
+  color: rgba(255,255,255,0.75);
+  letter-spacing: .01em;
+}
+
+/* ── Main weight display ── */
+.weight-display {
+  display: flex; align-items: baseline; gap: 5px;
+}
+.sc2-weight-num {
+  font-size: 56px; font-weight: 800;
+  line-height: 1; letter-spacing: -.03em; color: #fff;
+}
+.weight-unit {
+  font-size: 22px; font-weight: 500;
+  color: rgba(255,255,255,0.65);
+}
+
+/* ── Container | Filament split row ── */
+.weight-meta-row {
+  display: flex; align-items: stretch; width: 100%;
+  background: rgba(255,255,255,0.12);
+  border-radius: 12px; overflow: hidden;
+}
+.weight-meta-item {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  gap: 4px; padding: 10px 8px;
+}
+.weight-meta-label {
+  font-size: 9px; font-weight: 700;
+  letter-spacing: .10em; text-transform: uppercase;
+  color: rgba(255,255,255,0.5);
+}
+.weight-meta-value {
+  font-size: 16px; font-weight: 700; color: #fff;
+}
+.weight-meta-sep {
+  width: 1px; background: rgba(255,255,255,0.18); align-self: stretch;
+}
+
+/* ── UID reader rows — grille 2 colonnes ── */
+.uid-rows {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 8px;
+  margin: 4px 0 6px;
+}
+/* Chaque colonne = un lecteur physique : label chip en haut, valeur en bas */
+.uid-row {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 3px;
+}
+.uid-chip-label {
+  background: rgba(255,255,255,0.18);
+  border-radius: 4px;
+  padding: 2px 7px;
+  font-size: 0.65em; font-weight: 700;
+  letter-spacing: .06em;
+  min-width: 34px; text-align: center;
+  opacity: 0.9;
+  position: relative; cursor: default;
+  white-space: nowrap;
+}
+/* Tooltip — caché par défaut, visible au hover */
+.uid-chip-label[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 6px); left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.82);
+  color: #fff;
+  padding: 3px 9px; border-radius: 5px;
+  font-size: 1.1em; font-weight: 500;
+  letter-spacing: .02em;
+  white-space: nowrap; pointer-events: none;
+  opacity: 0;
+  transition: opacity .15s ease;
+  z-index: 10;
+}
+.uid-chip-label[data-tooltip]:hover::after { opacity: 1; }
+.uid-value {
+  font-size: 0.78em;
+  font-family: monospace;
+  letter-spacing: .04em;
+  color: #ffffff;
+  font-weight: 500;
+}
+/* Twin — résolu depuis Firestore, s'affiche dans le slot vide en vert */
+.uid-value--twin { color: #4ade80; }
+
+/* Head — photo (left) + identity column (centre) + actions (right) */
+.scale-card-head {
+  display: flex; align-items: center; gap: 12px;
+}
+.scale-card-photo {
+  width: 56px; height: 56px; flex-shrink: 0;
+  object-fit: contain; border-radius: 10px;
+  background: var(--surface); padding: 4px;
+  border: 1px solid var(--border);
+  user-select: none; -webkit-user-drag: none;
+}
+.scale-card-id { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.scale-card-name-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.scale-card-name {
+  font-size: 14px; font-weight: 700; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  flex: 1; min-width: 0;
+}
+.scale-card-status-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 2px 8px; border-radius: 999px;
+  font-size: 10.5px; font-weight: 600;
+  text-transform: lowercase; letter-spacing: .01em; flex-shrink: 0;
+}
+.scale-card-status-pill.is-online  { background: var(--success-soft); color: var(--success); }
+.scale-card-status-pill.is-offline { background: rgba(150,150,150,.12); color: var(--muted); }
+.scale-card-status-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  display: inline-block; background: currentColor;
+}
+.scale-card.is-online .scale-card-status-pill.is-online .scale-card-status-dot {
+  box-shadow: 0 0 4px currentColor;
+}
+.scale-card-mac {
+  font-size: 10.5px; color: var(--muted);
+  font-family: var(--mono); letter-spacing: .02em;
+}
+.scale-card-actions { display: flex; gap: 4px; flex-shrink: 0; align-self: flex-start; }
+
+/* Legacy scale-card-btn (kept for hold-to-confirm base) */
+.scale-card-actions { display: flex; gap: 4px; flex-shrink: 0; align-self: flex-start; }
+.scale-card-btn {
+  /* Hold-to-confirm container: position:relative + overflow:hidden so
+     the .hold-progress fill child can animate inside without leaking
+     outside the rounded rect. */
+  position: relative; overflow: hidden;
+  width: 30px; height: 30px;
+  display: flex; align-items: center; justify-content: center;
+  background: transparent; border: none; border-radius: 8px;
+  cursor: pointer; transition: background .15s;
+}
+.scale-card-btn:hover { background: var(--danger-soft, rgba(220,38,38,.1)); }
+/* Icon sits above the .hold-progress fill, so the red fill grows
+   UNDER the trash glyph instead of obscuring it. */
+.scale-card-btn .icon {
+  position: relative; z-index: 1;
+  background: var(--muted);
+  transition: background .15s;
+}
+.scale-card-btn:hover .icon { background: var(--danger); }
+/* While holding, lock the icon to the danger colour and bump the
+   button background to the soft-red so the fill animation pops
+   against the surrounding card. */
+.scale-card-btn.is-holding,
+.scale-card-btn.is-confirming {
+  background: var(--danger-soft);
+}
+.scale-card-btn.is-holding .icon,
+.scale-card-btn.is-confirming .icon { background: var(--danger); }
+
+/* WS connect/disconnect button — not destructive, use accent hover instead of danger */
+.scale-card-btn--ws:hover             { background: rgba(99,102,241,.12); }
+.scale-card-btn--ws:hover .icon       { background: var(--accent, #6366f1); }
+/* Connected state: green indicator */
+.scale-card-btn--ws.is-ws-on          { background: rgba(34,197,94,.12); }
+.scale-card-btn--ws.is-ws-on .icon    { background: var(--ok, #22c55e); }
+.scale-card-btn--ws.is-ws-on:hover    { background: rgba(34,197,94,.2); }
+.scale-card-btn--ws.is-ws-on:hover .icon { background: var(--ok, #22c55e); }
+
+/* ── Chips strip — telemetry at a glance.
+   A horizontal row of compact pills, each showing one piece of info
+   (Wi-Fi signal, power source, battery, firmware, last seen). Wraps
+   on narrow viewports so nothing is clipped. */
+.scale-card-chips {
+  display: flex; flex-wrap: wrap; gap: 6px;
+}
+.scale-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 9px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 11px;
+  color: var(--text);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.scale-chip .icon {
+  background: currentColor; /* SVG mask — colour follows chip text */
+  flex-shrink: 0;
+}
+.scale-chip-text { font-weight: 500; }
+/* Bolt overlay shown on the power chip when is_charging == true */
+.scale-chip-bolt {
+  color: var(--warning);
+  margin-left: 1px;
+}
+
+/* Wi-Fi quality colour coding */
+.scale-chip--wifi { color: var(--text); }
+.scale-chip--wifi-excellent { color: var(--success); border-color: var(--success-soft); background: var(--success-soft); }
+.scale-chip--wifi-good      { color: var(--success); }
+.scale-chip--wifi-fair      { color: var(--warning); }
+.scale-chip--wifi-weak      { color: var(--danger); border-color: var(--danger-soft); background: var(--danger-soft); }
+
+/* Battery level colour coding */
+.scale-chip--bat-high { color: var(--success); }
+.scale-chip--bat-mid  { color: var(--warning); }
+.scale-chip--bat-low  { color: var(--danger); border-color: var(--danger-soft); background: var(--danger-soft); }
+
+/* Power chip — neutral by default */
+.scale-chip--power { color: var(--muted); }
+
+/* Firmware chip — subtle, monochrome */
+.scale-chip--fw { color: var(--muted); }
+
+/* Last-seen chip — subtle muted, only shown when offline */
+.scale-chip--seen { color: var(--muted); }
+
+/* Last-spool block inside the scale card — Apple-flat, no inner
+   frame. The data sits directly on the card surface, separated
+   from the chips strip above only by a hairline. */
+.scale-last-spool {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 0 0;
+  border-top: 1px solid var(--border);
+}
+.scale-last-puck {
+  width: 24px; height: 38px;
+  flex-shrink: 0;
+  border-radius: 4px;
+  border: 1px solid rgba(0,0,0,.12);
+  background: rgba(150,150,150,.12);
+  position: relative; overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.18);
+}
+.scale-last-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.scale-last-name {
+  font-size: 12.5px; font-weight: 600; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.scale-last-sub {
+  font-size: 10.5px; color: var(--muted); font-family: var(--mono);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.scale-last-w {
+  font-size: 11px; font-weight: 600; color: var(--text);
+  flex-shrink: 0; font-family: var(--mono);
+  text-align: right;
+}
+.scale-last-w-unit {
+  display: block; font-size: 9px; font-weight: 500;
+  color: var(--muted); margin-top: 1px;
+}
+.scale-last-empty {
+  font-size: 11.5px; color: var(--muted); font-style: italic;
+  padding: 8px 0 0;
+  border-top: 1px solid var(--border);
+}
+
+/* ── Scale card — Debug-only raw JSON viewer ──────────────────────
+   Collapsed by default, click "Raw JSON (debug)" to expand. Shows
+   every field of the Firestore scales/{mac} doc so the developer
+   can spot what the firmware is actually writing. */
+.scale-debug {
+  margin-top: 10px;
+  border-top: 1px dashed var(--border);
+  padding-top: 8px;
+}
+.scale-debug-summary {
+  cursor: pointer;
+  font-size: 11px; font-weight: 600;
+  color: var(--muted);
+  padding: 2px 4px;
+  list-style: none;
+  user-select: none;
+}
+.scale-debug-summary::before {
+  content: "▸ ";
+  display: inline-block;
+  transition: transform .15s ease;
+}
+.scale-debug[open] .scale-debug-summary::before {
+  transform: rotate(90deg);
+}
+.scale-debug-summary:hover { color: var(--text); }
+/* The dark JSON theme + syntax-highlight colours come from the
+   canonical `pre.json` rule (see 70-detail-misc.css).
+   We just add a small top margin so the block breathes. */
+.scale-debug-pre {
+  margin-top: 6px;
+}
+
+/* ── Scale local WebSocket live block ── */
+.scale-card-local:empty { display: none; }
+/* Quand la card WS est vide (déconnecté), masquer aussi le bouton TARE */
+.scale-card-local:empty ~ .tare-hold-btn { display: none; }
+
+/* ── TARE hold-to-confirm button ──────────────────────────────────────
+   Sibling of .scale-card-local in .scale-entry so it is never
+   re-rendered at 10 Hz. Hold 1 s to send POST /api/tare. */
+.tare-hold-btn {
+  position: relative; overflow: hidden;
+  width: 100%;
+  padding: 14px 20px;
+  border: none; border-radius: 10px;
+  background: #667eea;
+  color: #fff;
+  font-size: 0.95em; font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  margin-bottom: 12px;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  display: flex; align-items: center; justify-content: center;
+}
+.tare-hold-btn:hover:not(:disabled) { background: #667eea; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4); }
+.tare-hold-btn:active:not(:disabled) { transform: translateY(0); box-shadow: none; }
+.tare-hold-btn:disabled { opacity: .35; cursor: default; }
+
+/* Visible label — au-dessus du fill */
+.tare-text { position: relative; z-index: 2; }
+
+/* Fill blanc qui grandit de gauche à droite sous le label */
+.tare-progress {
+  position: absolute;
+  left: 0; top: 0;
+  height: 100%; width: 0;
+  background: rgba(255, 255, 255, 0.4);
+  transition: none;
+  z-index: 1;
+}
+.tare-hold-btn.holding .tare-progress {
+  animation: fillProgress 1s linear forwards;
+}
+.tare-hold-btn.success { background: #48bb78 !important; }
+
+@keyframes fillProgress {
+  from { width: 0%; }
+  to   { width: 100%; }
+}
+
+/* ── WS Log panel ── */
+.scale-card-log:empty { display: none; }
+
+.scale-ws-log {
+  margin: 0;
+  border: 1px solid var(--border, rgba(255,255,255,.08));
+  border-radius: 8px;
+  overflow: hidden;
+}
+.swl-summary {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+  background: var(--bg-raised, rgba(255,255,255,.03));
+}
+.swl-summary::-webkit-details-marker { display: none; }
+.swl-summary::before {
+  content: '▶';
+  font-size: 8px;
+  transition: transform .15s;
+  display: inline-block;
+}
+.scale-ws-log[open] .swl-summary::before { transform: rotate(90deg); }
+.swl-count {
+  font-size: 10px;
+  font-weight: 700;
+  background: var(--bg-2, rgba(255,255,255,.06));
+  padding: 1px 5px;
+  border-radius: 4px;
+  color: var(--muted);
+}
+.swl-pre {
+  margin: 0;
+  padding: 8px 10px;
+  font-size: 10px;
+  font-family: 'SF Mono', ui-monospace, monospace;
+  line-height: 1.55;
+  color: var(--text-2, rgba(255,255,255,.7));
+  background: var(--bg-2, rgba(0,0,0,.18));
+  overflow-x: auto;
+  max-height: 220px;
+  overflow-y: auto;
+  white-space: pre;
+}
+.swl-line {
+  display: block;
+}
+.swl-dir {
+  display: inline-block;
+  width: 14px;
+  font-weight: 700;
+  text-align: center;
+  margin-right: 3px;
+}
+.swl-dir--rx  { color: var(--ok,      #22c55e); }
+.swl-dir--tx  { color: var(--accent,  #6366f1); }
+.swl-dir--ev  { color: var(--muted); }
+.swl-ts {
+  color: var(--muted);
+  margin-right: 6px;
+  font-size: 9px;
+}

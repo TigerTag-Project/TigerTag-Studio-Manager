@@ -143,6 +143,45 @@ function qualityScore(c) {
 | `a5`, `adventurer a5` | `"4"` | A5 |
 | (aucun match) | `"0"` | Select Printer |
 
+### 2.6 Découverte UDP Multicast (anciens modèles — Adventurer 4 era)
+
+Les modèles plus anciens (Adventurer 4 et apparentés) répondent à un probe UDP multicast. Cette méthode est complémentaire au scan HTTP §2.2 — elle peut découvrir des imprimantes sur un subnet différent.
+
+| Paramètre | Valeur |
+|-----------|--------|
+| Protocole | UDP datagramme |
+| Groupe multicast | **225.0.0.9** |
+| Port destination | **19000** |
+| Port local (bind) | **8002** |
+| Payload | `"Hello World!"` (ASCII, 12 bytes) |
+| TTL multicast | **4** |
+| Timeout écoute | **2 500 ms** |
+
+**Envoi :**
+```js
+// Rejoindre le groupe multicast + envoyer la probe
+socket.bind({ address: '0.0.0.0', port: 8002 });
+socket.addMembership('225.0.0.9');
+socket.setMulticastTTL(4);
+socket.send(Buffer.from('Hello World!'), 19000, '225.0.0.9');
+```
+
+**Réception :**
+```js
+socket.on('message', (buf, rinfo) => {
+  // buf = null-terminated UTF-8 string = nom de l'imprimante
+  const end = buf.indexOf(0);
+  const printerName = buf.slice(0, end >= 0 ? end : buf.length).toString('utf8');
+  const ip = rinfo.address;   // IP source = IP de l'imprimante
+  // → probe _probeIp(ip) pour obtenir les détails complets
+});
+```
+
+**Stratégie d'intégration :**
+1. Lancer `discoverViaMulticast()` en parallèle du scan HTTP subnet
+2. Après le scan, prober les IPs multicast non encore couvertes via `POST :8898/detail`
+3. Fusionner les résultats par IP (score qualité)
+
 ---
 
 ## 3. Authentification
@@ -565,7 +604,27 @@ function resolveDestination(slot) {
 
 ### 13.5 Pause / reprise / stop
 
-Non documentés dans les sources Flutter lues. Ces commandes existent dans l'API FlashForge mais n'ont pas encore été reverse-engineerées. À implémenter après capture du trafic réseau.
+Ces commandes utilisent le **protocole TCP port 8899** (pas HTTP /control).  
+Elles nécessitent d'acquérir le verrou de session (`~M601 S1`) avant d'être envoyées.
+
+```
+TCP port 8899 — séquence complète :
+
+→ ~M601 S1\r\n          // acquérir le contrôle
+← CMD M601 Received.\r\n
+  Control Success V2.1.\r\nok\r\n
+
+→ ~M25\r\n               // PAUSE
+→ ~M24\r\n               // REPRENDRE
+→ ~M26\r\n               // STOP
+
+← CMD M25 Received.\r\nok\r\n  (idem M24/M26)
+
+→ ~M602\r\n              // libérer le contrôle
+← CMD 602 Received.\r\nok\r\n
+```
+
+Voir §15 pour le protocole TCP complet (liste de commandes, parsing réponses, format file list).
 
 ---
 
@@ -613,7 +672,131 @@ function handleDetailResponse(resp, state) {
 
 ---
 
-## 15. Checklist d'implémentation
+## 15. TCP Port 8899 — Protocole complet (anciens modèles)
+
+> **Portée** : Adventurer 4 et modèles antérieurs (Adventurer 3, Finder…).  
+> Les nouveaux modèles (AD5X, 5M, 5M Pro, A5) utilisent HTTP port 8898 (§5).  
+> Le port 8899 reste disponible sur tous les modèles pour la probe identité M115.
+
+### 15.1 Transport
+
+- Connexion TCP brute (pas HTTP)
+- Commandes : ASCII, préfixe `~`, terminateur `\r\n`
+- Réponses : texte multi-lignes terminé par `ok\r\n`
+- Modèle de session : connexion ouverte le temps de la requête (peut rester ouverte)
+- Commandes de contrôle : nécessitent un verrou M601/M602
+
+### 15.2 Tableau des commandes
+
+| Commande | Trame | Rôle | Verrou requis |
+|----------|-------|------|---------------|
+| Info machine | `~M115\r\n` | Machine type, name, firmware, SN, dimensions, MAC | Non |
+| Status | `~M119\r\n` | MachineStatus, MoveMode, Status flags, LED, CurrentFile | Non |
+| Températures | `~M105\r\n` | Nozzle (T0) et plateau (B) courant/consigne | Non |
+| Progression | `~M27\r\n` | Byte X/Y + Layer:X/Y | Non |
+| Position | `~M114\r\n` | X/Y/Z/A/B | Non |
+| Liste fichiers | `~M661\r\n` | Liste binaire des fichiers | Non |
+| Acquérir ctrl | `~M601 S1\r\n` | Verrou de session | — |
+| Libérer ctrl | `~M602\r\n` | Libérer le verrou | — |
+| Pause | `~M25\r\n` | Pause impression | **Oui** |
+| Reprendre | `~M24\r\n` | Continuer impression | **Oui** |
+| Stop | `~M26\r\n` | Arrêter impression | **Oui** |
+| Imprimer fichier | `~M23 0:/user/<filename>\r\n` | Démarrer impression | **Oui** |
+| LED | `~M146 r<v> g<v> b<v> F0\r\n` | Couleur LED (0–255 par canal) | **Oui** |
+
+### 15.3 Réponses de référence
+
+**M115 (info machine)**
+```
+CMD M115 Received.\r\n
+Machine Type: Flashforge Adventurer 4\r\n
+Machine Name: Adventurer4\r\n
+Firmware: v2.0.9\r\n
+SN: SNADVA9501174\r\n
+X: 220 Y: 200 Z: 250\r\n
+Tool Count: 1\r\n
+Mac Address:88:A9:A7:93:86:F8\n \r\n
+ok\r\n
+```
+
+**M119 (status)**
+```
+CMD M119 Received.\r\n
+Endstop: X-max:0 Y-max:0 Z-max:0\r\n
+MachineStatus: READY\r\n
+MoveMode: READY\r\n
+Status: S:1 L:0 J:0 F:0\r\n
+LED: 0\r\n
+CurrentFile: \r\n
+ok\r\n
+```
+Valeurs `MachineStatus` : `READY`, `BUILDING_FROM_SD`
+
+**M105 (températures)**
+```
+CMD M105 Received.\r\n
+T0:22/0 B:14/0\r\n
+ok\r\n
+```
+Format : `T0:<courant>/<consigne>  B:<courant>/<consigne>`
+
+**M27 (progression)**
+```
+CMD M27 Received.\r\n
+SD printing byte 0/100\r\n
+Layer:48/267\r\n
+ok\r\n
+```
+
+### 15.4 Parsing M119 — regex
+
+```js
+const RE = {
+  machineStatus: /MachineStatus\s?:\s?(.*?)\r\n/,
+  moveMode:      /MoveMode\s?:\s?(.*?)\r\n/,
+  status:        /(?:\n|\A)Status\s?:\s?(.*?)\r\n/,
+  led:           /LED\s?:\s?(.*?)\r\n/,
+  currentFile:   /CurrentFile\s?:\s?(.*?)\r\n/,
+};
+```
+
+### 15.5 Liste fichiers M661 — format binaire
+
+```js
+// Séparateur entre noms de fichiers
+const SEP = Buffer.from([0x3A, 0x3A, 0xA3, 0xA3, 0x00, 0x00, 0x00]); // '::\xa3\xa3\x00\x00\x00'
+
+const parts = response.split(SEP);
+// parts[0] = header de commande
+// parts[1..n] = noms de fichiers (/data/<nom>)
+const files = parts.slice(1)
+  .map(b => b.toString('utf8').replace(/\x00/g, '').trim())
+  .filter(Boolean)
+  .map(f => f.replace(/^\/data\//, '')); // retirer le préfixe /data/
+
+// ⚠ Pour ~M23, le chemin est /user/<nom> (pas /data/)
+const printPath = `/user/${filename}`;
+```
+
+### 15.6 Session lock M601/M602
+
+```js
+async function withControl(socket, fn) {
+  await send(socket, '~M601 S1\r\n');
+  const ack = await readUntil(socket, 'ok');
+  if (!ack.includes('Control Success')) throw new Error('Control failed');
+  try {
+    await fn();
+  } finally {
+    await send(socket, '~M602\r\n');
+    await readUntil(socket, 'ok');
+  }
+}
+```
+
+---
+
+## 16. Checklist d'implémentation
 
 ### Config
 
@@ -628,6 +811,7 @@ function handleDetailResponse(resp, state) {
 - [ ] Parser M115 (lignes `Key: Value`)
 - [ ] Score qualité + tri
 - [ ] Résoudre modèle par tokens (ad5x / 5m pro / 5m / a5)
+- [ ] UDP multicast `225.0.0.9:19000` payload `"Hello World!"` — parallèle au scan, probe les IPs répondantes (anciens modèles §2.6)
 
 ### Connexion et polling
 

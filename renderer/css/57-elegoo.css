@@ -1,0 +1,101 @@
+/* ── Elegoo printer sidecard styles ───────────────────────────────────────
+   Loaded after 55-creality.css (numeric order via <link> tags in
+   inventory.html). Shared .snap-* live-block classes live in
+   50-snapmaker.css — this file only adds Elegoo-specific overrides.
+   Nothing in this file is used outside the Elegoo brand context.
+   ──────────────────────────────────────────────────────────────────────── */
+
+/* Camera host — mirrors .ffg-cam-host from 40-printers.css.
+   The .pp-cam-full container (aspect ratio + positioning) is defined in
+   50-snapmaker.css and shared across all brands. */
+.elg-cam-host {
+  position: relative;
+  overflow: hidden;
+  background: #000;
+  border-radius: 10px 10px 0 0;
+}
+
+/* Live MJPEG stream image */
+.elg-camera-img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  border: none;
+}
+
+/* Fallback overlay when stream fails */
+.elg-cam-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.elg-cam-fallback-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  opacity: 0.6;
+}
+
+.elg-cam-fallback-img--placeholder {
+  background: var(--bg-2);
+}
+
+.elg-cam-fallback-overlay {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.55);
+  width: 100%;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.elg-cam-fallback-icon {
+  background-color: var(--warn, #f59e0b);
+}
+
+.elg-cam-fallback-msg {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.9);
+  text-align: center;
+}
+
+/* Log section — same visual as .snap-log-section in 50-snapmaker.css.
+   No rule needed here unless Elegoo needs a visual difference. */
+.elg-log-host {
+  /* inherits all snap-log-section styles; placeholder for future overrides */
+}
+
+/* ── File explorer — history status badges ─────────────────────────────── */
+.cre-file-thumb--placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-2);
+}
+.cre-file-thumb--placeholder .icon {
+  background-color: var(--muted);
+}
+
+.elg-hist-status {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+.elg-hist-status--ok     { color: var(--ok, #22c55e);   background: rgba(34,197,94,.12); }
+.elg-hist-status--cancel { color: var(--muted);          background: var(--bg-2); }

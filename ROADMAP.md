@@ -78,6 +78,7 @@ Grouped by domain. Versions in parentheses are the release that landed the featu
 - ✅ **ACR122U NFC reader** (USB) via `nfc-pcsc` — `main.js` ↔ renderer IPC bridge
 - ✅ **TD1S sensor** integration — TD + color reading, auto-detect on USB plug, log panel
 - ✅ **TigerScale heartbeat** — `users/{uid}/scales/{mac}` with 90s online threshold, scale panel render
+- ✅ **TigerScale live WebSocket panel** — connect/disconnect toggle, WS event log, gradient live card matching mobile app, send-status badge, filament mini-panel (WS-driven: brand/material/color from firmware), 56 px weight display, UID reader 2-col grid with `resolve()` twin logic (vert = cloud, blanc = physique), TARE hold-to-confirm 1 s → POST `/api/tare`, card + button hidden on disconnect. (v1.5.0)
 - ✅ **TD1S button in Add Product panel** — icon in the ADP header: disconnected → opens connect modal; connected → glows green and auto-fills colour HEX + TD value fields on scan. State syncs on every `onStatus` event and `openAddProductPanel()` call. (v1.4.13)
 
 ### Distribution & i18n
@@ -691,7 +692,7 @@ No commitment, no ETA. Listed roughly by likely impact.
 - **Print history per spool** — track which printer used which spool over time. Needs: schema decision (top-level `printJobs/` collection? embedded in spool doc?), capture hook in Snapmaker WS layer (the print job card already has the data we'd need), history UI in spool detail panel.
 - **Spool predictions** — *"this spool will run out around X day"* based on historical usage. Depends on print history existing first.
 - **Filament cost tracking** — per-spool cost field, aggregate by month / by printer / by material in stats. Pure UI + schema addition.
-- **TigerScale enhancements** — current scale panel shows heartbeat + battery; could add: tare action, multi-spool weighing, automatic transfer of weight to the active spool.
+- **TigerScale — auto weight transfer** — after a successful TARE + send cycle, auto-update the matched spool's `weight_available` in Firestore from `netWeight`.
 - **Marketplace / shared filament profiles** — share a `(material, brand, optimal_settings)` triple to a public registry; users could pull recommended print profiles for a given spool.
 - **Web build** — multiple comments in `inventory.js` mention *"future web build hosted on tigertag-cdn"*. Sidesteps Electron's NFC requirement (no NFC = no scan, but read-only inventory works fine in browser). Needs: Electron-API polyfills/stubs, build target split.
 - **Mobile companion app deep-linking** — the desktop app shows a QR for the mobile app; mobile could deep-link back into a specific spool / printer / friend on desktop.
