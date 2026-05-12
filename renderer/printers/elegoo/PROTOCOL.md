@@ -85,7 +85,7 @@ Méthodes documentées dans le source Flutter mais retournant autre chose sur ce
 | Method | Retour réel observé |
 |---|---|
 | `1042` | `{"error_code":0,"url":"http://{ip}:8080/?action=stream"}` — URL caméra |
-| `1061` | Info filament mono-extruder vide |
+| `1061` | `mono_filament_info` — filament de l'extrudeur unique (utilisé quand Canvas déconnecté) |
 | `1044` | `{"error_code":0}` — liste vide |
 | `1036` | Historique des tâches d'impression (30 dernières) |
 | `1001` | Info machine (hostname, ip, sn, firmware version) |
@@ -374,6 +374,36 @@ Séquence de fin :
 Lire `canvas_list[0].tray_list` (4 entrées, tray_id 0–3).  
 Si `canvas_list` est absent → fallback sur arrays plats dans `params` (§7.1).
 
+### Canvas déconnecté — champ `connected`
+
+Quand le hub Canvas multi-filament est débranché, `canvas_list[0].connected = 0` et tous les slots ont des chaînes vides :
+
+```json
+{
+  "method": 2005,
+  "result": {
+    "canvas_info": {
+      "active_canvas_id": 0,
+      "active_tray_id": -1,
+      "auto_refill": false,
+      "canvas_list": [{
+        "canvas_id": 0,
+        "connected": 0,
+        "tray_list": [
+          {"brand":"","filament_code":"","filament_color":"","filament_name":"","filament_type":"","max_nozzle_temp":0,"min_nozzle_temp":0,"status":0,"tray_id":0},
+          {"brand":"","filament_code":"","filament_color":"","filament_name":"","filament_type":"","max_nozzle_temp":0,"min_nozzle_temp":0,"status":0,"tray_id":0},
+          {"brand":"","filament_code":"","filament_color":"","filament_name":"","filament_type":"","max_nozzle_temp":0,"min_nozzle_temp":0,"status":0,"tray_id":0},
+          {"brand":"","filament_code":"","filament_color":"","filament_name":"","filament_type":"","max_nozzle_temp":0,"min_nozzle_temp":0,"status":0,"tray_id":0}
+        ]
+      }]
+    },
+    "error_code": 0
+  }
+}
+```
+
+Dans ce cas : ne pas utiliser les données du `tray_list` vide. Envoyer la méthode **1061** à la place pour obtenir les infos de l'extrudeur unique (§7.2).
+
 ### Champs par slot
 
 | JSON key | Type | Rôle |
@@ -406,6 +436,37 @@ Certains firmwares poussent les données filament sous forme de tableaux de 4 é
 }
 ```
 Toujours 4 éléments. Slot vide = string vide ou 0.
+
+### 7.2 Mono-extruder — Method 1061 (Canvas déconnecté)
+
+**Observé sur CC2 (hardware live, Canvas débranché) :**
+
+```json
+{
+  "id": 2,
+  "method": 1061,
+  "result": {
+    "error_code": 0,
+    "mono_filament_info": {
+      "brand": "ELEGOO",
+      "filament_code": "0x0000",
+      "filament_color": "#FFFFFF",
+      "filament_name": "PLA",
+      "filament_type": "PLA",
+      "max_nozzle_temp": 230,
+      "min_nozzle_temp": 190,
+      "status": 0,
+      "tray_id": 0
+    }
+  }
+}
+```
+
+**Logique d'intégration :**
+1. Toujours inclure `1061` dans le SNAPSHOT_BURST initial.
+2. Dans le handler `2005` : si `canvas_list[0].connected === 0`, ne pas utiliser `tray_list`, déclencher `1061`.
+3. Dans le handler `1061` : si `_canvasConnected !== true`, écrire `conn.data.filaments` comme un tableau d'un seul slot (traité comme `active: true`).
+4. Format couleur : `#RRGGBB` (pas RRGGBBAA — contrairement à Snapmaker).
 
 ---
 

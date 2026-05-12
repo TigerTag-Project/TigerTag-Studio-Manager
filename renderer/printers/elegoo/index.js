@@ -28,7 +28,9 @@ export function elegooGetConn(key) { return _elegooConns.get(key) ?? null; }
 
 export function elegooIsOnline(printer) {
   if (printer?.brand !== 'elegoo') return null;
-  const conn = _elegooConns.get(elegooKey(printer));
+  const key = elegooKey(printer);
+  if (ctx.isForcedOffline?.(key)) return false; // explicitly disconnected via button
+  const conn = _elegooConns.get(key);
   if (!conn) return null;
   if (conn.status === 'connected') return true;
   if (conn.status === 'disconnected' || conn.status === 'error' || conn.status === 'offline') return false;
@@ -210,10 +212,12 @@ function _startGlobalHandlers() {
 // Method 1002 = comprehensive status (temps + print_status + machine_status).
 // Method 1005 = print_status only (state / filename / uuid / layers / remaining).
 // Method 2005 = filament slots (canvas_info.canvas_list[0].tray_list).
+// Method 1061 = mono-extruder filament info — used when Canvas system is disconnected.
 const SNAPSHOT_BURST = [
   { method: 1002, params: {} },   // temps + print_status + machine_status
   { method: 1005, params: {} },   // print_status detail (state / filename / layers)
-  { method: 2005, params: {} },   // filament slots
+  { method: 2005, params: {} },   // canvas filament slots (4-tray)
+  { method: 1061, params: {} },   // mono-extruder filament fallback (no Canvas)
   { method: 1044, params: { storage_media: 'local', offset: 0, limit: 50 } }, // file list → total layers cache
 ];
 
@@ -259,8 +263,9 @@ function _routeMessage(conn, topic, data) {
     // Both share the same nested structure → same merge function.
     case 1002: _mergeStatus(conn, data); break;
     case 1005: _mergeStatus(conn, data); break;
-    case 2005: _mergeFilaments(conn, data); break;
-    case 1036: _mergeHistory(conn, data);  break;
+    case 2005: _mergeFilaments(conn, data);    break;
+    case 1061: _mergeMonoFilament(conn, data); break;
+    case 1036: _mergeHistory(conn, data);      break;
     case 1044: _mergeLayerMap(conn, data);  break;
     case 1045: _mergeThumbnail(conn, data); break;
     default: break;
@@ -390,9 +395,24 @@ function _mergeFilaments(conn, data) {
   const d = conn.data;
   const r = data.result ?? data;
 
+  // ── Canvas connection state ──────────────────────────────────────────────
+  // canvas_list[0].connected: 1 = Canvas hub present, 0 = no Canvas system.
+  // When Canvas is disconnected all tray entries are empty strings — useless.
+  // In that case fall back to method 1061 (mono_filament_info).
+  const canvasEntry = r?.canvas_info?.canvas_list?.[0];
+  if (canvasEntry !== undefined) {
+    const canvasConnected = canvasEntry.connected === 1;
+    conn.data._canvasConnected = canvasConnected;
+    if (!canvasConnected) {
+      // Canvas hub absent — request mono-extruder filament info instead.
+      _elgPublish(conn, 1061, {});
+      return;
+    }
+  }
+
   // ── Primary path: PROTOCOL.md §7 ────────────────────────────────────────
   // result.canvas_info.canvas_list[0].tray_list
-  let trays = r?.canvas_info?.canvas_list?.[0]?.tray_list ?? null;
+  let trays = canvasEntry?.tray_list ?? null;
 
   // ── Fallback 1: flat arrays in params (PROTOCOL.md §7.1) ────────────────
   if (!Array.isArray(trays) || !trays.length) {
@@ -437,6 +457,34 @@ function _mergeFilaments(conn, data) {
     maxTemp: t.max_nozzle_temp ?? t.maxTemp ?? null,
     active:  !!(t.status === 1 || t.active === true || t.isActive === true),
   }));
+}
+
+// ── Method 1061 — mono-extruder filament info ─────────────────────────────
+// Used when the Canvas multi-filament hub is disconnected. The printer reports
+// its single loaded filament via mono_filament_info instead of tray_list.
+// Only applied when conn.data._canvasConnected is false/undefined.
+function _mergeMonoFilament(conn, data) {
+  if (!data) return;
+  // If canvas became active after we sent 1061, ignore this response.
+  if (conn.data._canvasConnected === true) return;
+  const r = data.result ?? data;
+  const m = r?.mono_filament_info;
+  if (!m) return;
+  const colorRaw = String(m.filament_color || m.color || '').trim();
+  const color    = colorRaw ? `#${colorRaw.replace(/^#/, '')}` : null;
+  const type     = String(m.filament_type  || '').trim() || null;
+  // Skip if no meaningful data (e.g. printer has no filament loaded at all)
+  if (!type && !color) return;
+  conn.data.filaments = [{
+    trayId:  m.tray_id ?? 0,
+    color,
+    type,
+    vendor:  String(m.brand || '').trim() || null,
+    name:    String(m.filament_name || '').trim() || null,
+    minTemp: m.min_nozzle_temp ?? null,
+    maxTemp: m.max_nozzle_temp ?? null,
+    active:  true,  // single slot — treat as always active
+  }];
 }
 
 function _mergeLayerMap(conn, data) {
