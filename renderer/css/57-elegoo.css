@@ -99,3 +99,13 @@
 }
 .elg-hist-status--ok     { color: var(--ok, #22c55e);   background: rgba(34,197,94,.12); }
 .elg-hist-status--cancel { color: var(--muted);          background: var(--bg-2); }
+
+/* ── Mono-extruder filament grid (no Canvas hub) ───────────────────────────
+   Single "Ext." slot aligned left, same size as one slot in the 4-up grid.
+   Gap = 8px, 4 items → each slot width = (100% - 3×8px) / 4 = 25% - 6px. */
+.snap-fil-grid--mono {
+  justify-content: flex-start;
+}
+.snap-fil-grid--mono .snap-fil {
+  flex: 0 0 calc(25% - 6px);
+}

@@ -148,7 +148,7 @@ export function renderElegooFilamentCard(p, conn) {
     return `
       <section class="snap-block">
         <h4 class="snap-block-title">${ctx.esc(ctx.t('snapFilamentTitle'))}</h4>
-        <div class="snap-fil-grid">
+        <div class="snap-fil-grid snap-fil-grid--mono">
           <div class="snap-fil${color ? ' snap-fil--active' : ''}">
             <div class="snap-fil-tag">Ext.</div>
             <div class="${squareCls}" style="${squareStyle}">
