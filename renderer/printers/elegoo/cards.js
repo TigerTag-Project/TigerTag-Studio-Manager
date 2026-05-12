@@ -149,12 +149,16 @@ export function renderElegooFilamentCard(p, conn) {
       <section class="snap-block">
         <h4 class="snap-block-title">${ctx.esc(ctx.t('snapFilamentTitle'))}</h4>
         <div class="snap-fil-grid snap-fil-grid--mono">
-          <div class="snap-fil${color ? ' snap-fil--active' : ''}">
+          <div class="snap-fil snap-fil--editable${color ? ' snap-fil--active' : ''}"
+               data-elg-fil-edit="1"
+               data-tray-idx="0"
+               title="${ctx.esc(ctx.t('snapFilEditableTip') || 'Edit filament')}">
             <div class="snap-fil-tag">Ext.</div>
             <div class="${squareCls}" style="${squareStyle}">
               <span class="snap-fil-main">${ctx.esc(typeLbl)}</span>
             </div>
             <div class="snap-fil-meta">
+              <span class="snap-fil-status icon icon-edit icon-13" aria-hidden="true"></span>
               ${fil.vendor ? `<div class="snap-fil-vendor">${ctx.esc(fil.vendor)}</div>` : ''}
               <div class="snap-fil-sub">${ctx.esc(typeLbl)}</div>
             </div>
