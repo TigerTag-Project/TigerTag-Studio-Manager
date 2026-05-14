@@ -109,3 +109,447 @@
 .snap-fil-grid--mono .snap-fil {
   flex: 0 0 calc(25% - 6px);
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Elegoo File Sheet — tabs + print button
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* Tab bar */
+.elg-fs-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 6px 12px 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+}
+
+.elg-fs-tab {
+  flex: 1;
+  padding: 6px 4px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  transition: color .12s, border-color .12s;
+  margin-bottom: -1px;      /* overlap the border-bottom of the tab bar */
+  border-radius: 6px 6px 0 0;
+}
+.elg-fs-tab:hover { color: var(--text); }
+.elg-fs-tab--active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+/* Print button inside each file row */
+.elg-fs-print-btn {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--primary);
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background .1s, border-color .1s;
+  opacity: 0;                   /* hidden by default — reveals on row hover */
+  pointer-events: none;
+}
+.cre-file-row:hover .elg-fs-print-btn {
+  opacity: 1;
+  pointer-events: auto;
+}
+.elg-fs-print-btn:hover {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+.elg-fs-print-btn:active {
+  background: var(--primary-hover);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Elegoo Control card (.elg-ctrl)
+   widget_control.js — jog pad / fans / LED / print speed
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* icon-fan mask — added here to keep it Elegoo-scoped (only used in .elg-ctrl) */
+.icon-fan {
+  -webkit-mask-image: url('../../assets/svg/icons/icon_fan.svg');
+          mask-image: url('../../assets/svg/icons/icon_fan.svg');
+  -webkit-mask-size: contain;
+          mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+          mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+          mask-position: center;
+  aspect-ratio: 1 / 1;
+}
+
+/* ── Position display — single horizontal line, centred above Step selector */
+.elg-ctrl-pos {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.elg-ctrl-pos b { color: var(--text); font-weight: 700; margin-left: 2px; }
+
+/* ── Right pill: Home X · Home Y (mirrors Z pill) ────────────────────────── */
+.elg-jog-right-pill {
+  width: 40px;
+  height: 110px;
+  border-radius: 20px;
+  background: var(--surface-2);
+  border: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-around;
+  padding: 12px 0;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+/* ── Info column (right of right pill): position + step + speed ──────────── */
+.elg-jog-info-col {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+/* [📁][💡] dans l'info col — côte à côte, même taille que cre-action-btn */
+.elg-ctrl-actions {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+}
+/* annule le margin-left:auto du variant --files quand il est dans cette zone */
+.elg-ctrl-actions .cre-action-btn--files { margin-left: 0; }
+/* pas de bordure sur les boutons Dossier et LED dans la zone de contrôle Elegoo */
+.elg-ctrl-actions .cre-action-btn { border: none; }
+
+/* ── Jog pad ─────────────────────────────────────────────────────────────── */
+
+/* Outer wrapper — transparent, just flex alignment */
+.elg-jog-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0 4px;
+}
+
+/* ── Z pill (left) ── */
+.elg-jog-z-pill {
+  width: 40px;
+  height: 110px;
+  border-radius: 20px;
+  background: var(--surface-2);
+  border: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-evenly;
+  padding: 8px 0;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.elg-jog-z-btn {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--mono);
+  cursor: pointer;
+  width: 100%;
+  padding: 6px 0;
+  text-align: center;
+  border-radius: 6px;
+  transition: color .1s, background .1s;
+  user-select: none;
+  line-height: 1;
+}
+.elg-jog-z-btn:hover  { color: var(--primary); }
+.elg-jog-z-btn:active { color: var(--primary); font-weight: 900; }
+
+/* ── Home button (circle with ⌂ glyph) ── */
+.elg-jog-home-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+  padding: 0;
+  transition: background .1s, border-color .1s;
+  flex-shrink: 0;
+  user-select: none;
+}
+.elg-jog-home-btn:hover  { background: var(--primary); border-color: var(--primary); color: #fff; }
+.elg-jog-home-btn:active { background: var(--primary); border-color: var(--primary); color: #fff; opacity: .8; }
+
+/* ── XY circle ── */
+.elg-jog-xy-circle {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  border: none;
+  flex-shrink: 0;
+  overflow: hidden;   /* clips sector highlights to circle shape */
+}
+
+/* Sector highlights — triangular quadrants clipped by parent border-radius */
+/* Sector highlights — each triangle lit up on button hover */
+.elg-jog-sector {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: var(--primary, #ff7a18);
+  opacity: 0;
+  transition: opacity .15s;
+  z-index: 0;
+}
+.elg-jog-sector--n { clip-path: polygon(50% 50%, 0%   0%,   100% 0%  ); }
+.elg-jog-sector--s { clip-path: polygon(50% 50%, 0%   100%, 100% 100%); }
+.elg-jog-sector--w { clip-path: polygon(50% 50%, 0%   0%,   0%   100%); }
+.elg-jog-sector--e { clip-path: polygon(50% 50%, 100% 0%,   100% 100%); }
+
+/* Show sector when its button is hovered */
+.elg-jog-xy-btn--n:hover ~ .elg-jog-sector--n { opacity: .18; }
+.elg-jog-xy-btn--s:hover ~ .elg-jog-sector--s { opacity: .18; }
+.elg-jog-xy-btn--w:hover ~ .elg-jog-sector--w { opacity: .18; }
+.elg-jog-xy-btn--e:hover ~ .elg-jog-sector--e { opacity: .18; }
+
+/* Direction buttons — no background ever, only color changes so camembert shows */
+.elg-jog-xy-btn {
+  position: absolute;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--mono);
+  letter-spacing: .08em;
+  cursor: pointer;
+  padding: 4px 6px;
+  transition: color .1s;
+  user-select: none;
+  white-space: nowrap;
+  z-index: 2;
+}
+.elg-jog-xy-btn:hover  { color: var(--primary); background: transparent; }
+.elg-jog-xy-btn:active { color: var(--primary); }  /* pas de font-weight: 900 — ça change la taille et casse le transform */
+
+/* Positions + transforms déclarés ensemble pour chaque bouton.
+   Le transform est répété sur :active pour qu'il ne soit jamais perdu. */
+.elg-jog-xy-btn--n,
+.elg-jog-xy-btn--n:active { top: 8px;    left: 50%; transform: translateX(-50%); }
+.elg-jog-xy-btn--s,
+.elg-jog-xy-btn--s:active { bottom: 8px; left: 50%; transform: translateX(-50%); }
+.elg-jog-xy-btn--w,
+.elg-jog-xy-btn--w:active { left: 6px;   top:  50%; transform: translateY(-50%); }
+.elg-jog-xy-btn--e,
+.elg-jog-xy-btn--e:active { right: 6px;  top:  50%; transform: translateY(-50%); }
+
+/* Center home XY — compact circle, fond = surface-2 (même que le cercle),
+   z-index 2 → au-dessus des secteurs orange périphériques */
+.elg-jog-home-btn--xy {
+  position: absolute;
+  top:  calc(50% - 20px);   /* 20px = moitié de height:40px — plus de transform */
+  left: calc(50% - 20px);
+  transform: none;           /* explicite : empêche tout transform hérité ou browser default */
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  font-size: 38px;
+  padding: 0;
+  line-height: 1;
+  z-index: 2;
+}
+.elg-jog-home-btn--xy:hover  { background: var(--primary); border-color: var(--primary); color: #fff; }
+.elg-jog-home-btn--xy:active { background: var(--primary); border-color: var(--primary); color: #fff; opacity: .8; }
+
+/* Z pill home btn — large glyph */
+.elg-jog-z-pill .elg-jog-home-btn { font-size: 40px; }
+
+/* Home SVG icon sizing per context (mask-image icons ignore font-size) */
+.elg-home-icon                    { height: 15px; }  /* right pill X/Y: compact, axis label above */
+.elg-jog-z-pill  .elg-home-icon  { height: 22px; }  /* Z pill: no axis label, more room */
+.elg-jog-home-btn--xy .elg-home-icon { height: 28px; }  /* XY center: largest */
+
+
+/* Axis label (X / Y) sitting above the home icon inside right-pill buttons */
+.elg-jog-home-btn { flex-direction: column; gap: 0; }
+.elg-jog-home-axis {
+  font-size: 9px;
+  font-weight: 700;
+  font-family: var(--mono);
+  line-height: 1;
+  color: var(--muted);
+  display: block;
+}
+.elg-jog-home-btn:hover  .elg-jog-home-axis,
+.elg-jog-home-btn:active .elg-jog-home-axis { color: inherit; }
+
+/* ── Speed / step selectors ─────────────────────────────────────────────── */
+.elg-ctrl-speed-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.elg-ctrl-speed-label {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.elg-ctrl-speed-select {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 11px;
+  cursor: pointer;
+  appearance: auto;
+}
+
+/* ── Fan section (below jog pad) ─────────────────────────────────────────── */
+.elg-fan-section {
+  padding-top: 2px;
+  margin-top: 0;
+}
+
+/* Tous les fans côte à côte */
+.elg-fan-cols {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  justify-content: space-around;
+}
+
+/* Chaque fan dans sa propre card */
+.elg-fan-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  flex: 1;
+  background: var(--surface-2);
+  border: none;
+  border-radius: 8px;
+  padding: 6px 4px;
+}
+
+/* Ligne haute : [🌀] LABEL */
+.elg-fan-col-head {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.elg-fan-col-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  white-space: nowrap;
+}
+
+/* Ligne basse : [−][%][+] */
+.elg-fan-col-controls {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+/* Icon toggle button (grey / green when on) */
+.elg-fan-icon-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: none;
+  background: var(--surface-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background .1s, border-color .1s;
+  padding: 0;
+}
+.elg-fan-icon-btn .icon           { background-color: var(--muted); transition: background-color .1s; }
+.elg-fan-icon-btn:hover           { background: rgba(255,122,24,.10); }
+.elg-fan-icon-btn:hover .icon     { background-color: var(--primary); }
+.elg-fan-icon-btn--on             { background: rgba(34,197,94,.10); }
+.elg-fan-icon-btn--on .icon       { background-color: #22c55e; }
+.elg-fan-icon-btn--on:hover       { background: rgba(34,197,94,.20); }
+
+/* LED icon — amber when on */
+.elg-fan-icon-btn--light.elg-fan-icon-btn--on             { background: rgba(234,179,8,.10); }
+.elg-fan-icon-btn--light.elg-fan-icon-btn--on .icon       { background-color: #d97706; }
+.elg-fan-icon-btn--light.elg-fan-icon-btn--on:hover       { background: rgba(234,179,8,.20); }
+
+/* − / + step buttons */
+.elg-fan-step-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  border: none;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  padding: 0;
+  transition: background .1s;
+  flex-shrink: 0;
+}
+.elg-fan-step-btn:hover  { background: var(--primary); color: #fff; }
+.elg-fan-step-btn:active { background: var(--primary); color: #fff; opacity: .8; }
+
+/* % value */
+.elg-fan-pct {
+  font-size: 11px;
+  font-family: var(--mono);
+  color: var(--muted);
+  width: 32px;
+  text-align: center;
+  flex-shrink: 0;
+}
+

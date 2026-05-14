@@ -12,6 +12,7 @@
 <link rel="stylesheet" href="css/50-snapmaker.css" />
 <link rel="stylesheet" href="css/55-creality.css" />
 <link rel="stylesheet" href="css/57-elegoo.css" />
+<link rel="stylesheet" href="printers/bambulab/bambulab.css" />
 <link rel="stylesheet" href="css/60-modals.css" />
 <link rel="stylesheet" href="css/70-detail-misc.css" />
 <link rel="stylesheet" href="IoT/tigerscale/tigerscale.css" />
@@ -364,11 +365,18 @@
       </span>
       <span id="printerPanelStatus" class="pp-title-status"></span>
     </span>
+    <button class="panel-action" id="printerConnBtn" title="Connect" aria-label="Connect">
+      <span class="icon icon-plug icon-16"></span>
+    </button>
     <button class="panel-action" id="printerEditBtn" title="Edit printer settings" aria-label="Edit printer settings">
       <span class="icon icon-settings icon-16"></span>
     </button>
     <!-- Close button removed: panel closes on backdrop click + Escape key. -->
   </div>
+  <!-- Snapmaker WebRTC camera lives here — outside printerPanelBody so
+       innerHTML rebuilds never destroy the live <iframe>. Cleared for all
+       non-Snapmaker brands by renderPrinterDetail(). -->
+  <div id="ppPersistentCam"></div>
   <div class="panel-body" id="printerPanelBody"></div>
 </div>
 
@@ -653,15 +661,19 @@
   <div class="sfe-grip" aria-hidden="true"></div>
   <header class="sfe-screen-head sfe-screen-head--right">
     <div class="sfe-screen-head-text">
-      <div class="sfe-title">Print history</div>
+      <div class="sfe-title" id="elgFileSheetTitle">Files</div>
     </div>
     <div style="display:flex;gap:6px;align-items:center">
       <button type="button" class="cre-file-refresh" id="elgFileSheetRefresh" title="Refresh">
         <span class="icon icon-refresh icon-13"></span>
       </button>
-      <button class="modal-close" id="elgFileSheetClose">✕</button>
     </div>
   </header>
+  <div class="elg-fs-tabs" id="elgFileSheetTabs">
+    <button class="elg-fs-tab" data-elg-fs-tab="history">History</button>
+    <button class="elg-fs-tab" data-elg-fs-tab="local">Local</button>
+    <button class="elg-fs-tab" data-elg-fs-tab="usb">USB</button>
+  </div>
   <div class="sfe-body sfe-body--files" id="elgFileSheetBody"></div>
 </aside>
 
@@ -670,12 +682,11 @@
 <aside class="sfe-sheet" id="elgFilEditSheet" aria-hidden="true">
   <div class="sfe-grip" aria-hidden="true"></div>
   <section class="sfe-screen sfe-screen--summary" id="elgScreenSummary">
-    <header class="sfe-screen-head sfe-screen-head--right">
+    <header class="sfe-screen-head sfe-screen-head--no-close">
       <div class="sfe-screen-head-text">
         <div class="sfe-title" id="elgFilEditTitle" data-i18n="elgFilEditTitle">Change filament</div>
         <div class="sfe-sub" id="elgFilEditSub"></div>
       </div>
-      <button class="modal-close" id="elgFilEditClose">✕</button>
     </header>
     <div class="sfe-body">
       <button type="button" class="sfe-line" id="elgOpenFilament">

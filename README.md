@@ -53,6 +53,33 @@
 
 ## Changelog
 
+### v1.6.0 — 2026-05-14
+
+#### Elegoo — full MQTT live integration
+- **Real-time MQTT connection** on port 1883 (plain TCP). UDP discovery on port 52700 auto-detects Elegoo printers on the local network; manual IP entry is the fallback.
+- **Job card** — active filename, progress bar + percentage, estimated remaining time, layer counter (`current / total`), print thumbnail (from history or method 1045 correlation fix), and state badge (`printing`, `paused`, `complete`, `standby`, …).
+- **Temperature card** — nozzle `current / target°C`, bed `current / target°C`, chamber temperature; heating indicator when target is set and sensor is below threshold.
+- **Filament card** — mono-extruder mode (`Ext.`) and Canvas hub 4-slot mode (`S1`–`S4`); each slot shows colour square, material type, vendor, and filament name. Partial MQTT updates (method 6000 `mono_filament_info`) merge only the fields present in the payload — existing data (vendor, name, temps) is preserved.
+- **Control card** — jog pad with XY circle (4-direction buttons + sector highlight + centre home-XY), Z pill (Z↑ / home-Z / Z↓), X/Y home pill, step selector (0.1 / 1 / 10 / 30 mm), print-speed selector (Silent / Normal / Sport / Ludicrous), current-position display (X / Y / Z), LED toggle (on/off with colour state), and folder button opening the Files sheet.
+- **Fan cards** — Model / Aux / Case fans shown as three compact column cards each with icon toggle (on = 100%, off = 0%), − / % / + step buttons (±10% per step). Fan toggle sets 100 % on activation.
+- **Files sheet** — two tabs: Print History (thumbnails + filename + duration) and Files (printer-side file list). Refresh button reloads the active tab without closing the sheet.
+- **Filament edit sheet** — change filament per slot: colour preset grid + custom hex picker, material type list (PLA / PETG / ABS / ASA / TPU / PA / …), vendor picker (Generic / ELEGOO / Rosa3D / R3D / Landu / eSun / Sunlu / JamgHe), summary preview showing `"Vendor Material Name"`, sends correct MQTT payloads (method 1055 for mono, method 2003 for Canvas).
+- **No-flash control card** — surgical DOM patch on every MQTT tick: fan percentages, LED state, and XYZ position are updated in-place without re-creating the control card DOM, eliminating the flicker that appeared on each incoming message.
+- **i18n** — all UI strings covered across 9 locales (EN / FR / DE / ES / IT / ZH / PT / PT-PT / PL).
+
+#### Bambu Lab — live integration
+- **MQTTS connection** on port 8883 (TLS). Auth via printer access code (entered once in the connection settings). Requires "LAN mode" enabled on the printer.
+- **Job card** — filename, progress bar, estimated remaining time, layer counter, and print state.
+- **Temperature card** — nozzle, bed, and chamber temperatures with heating indicators.
+- **Filament / AMS card** — layout mirrors Creality CFS: row 1 is `[Ext.] [A1][A2][A3][A4]` (Ext. + first AMS module), additional rows for extra AMS units with an invisible spacer keeping the Ext. column aligned. AMS humidity and temperature shown in the card title when a single module is connected. `Ext.` alone (no AMS) renders at the same proportional width as one AMS slot — not stretched to full width.
+- **Camera widget** — JPEG stream from the printer's built-in camera.
+- **Online badge** — driven by the MQTT connection state, shown in the printer grid and side panel.
+
+#### UI polish — printer live blocks
+- **Elegoo control card** — XY circle, Z pill, X/Y home pill, fan cards, folder and LED buttons all rendered without visible borders for a cleaner look; home buttons keep orange hover/active state.
+- **Fan cards** — columns layout (one card per fan), no borders, 8 px gap between cards.
+- **Filament mono slot** — `Ext.` alone in a `cre-fil-row` is now capped to `max-width: calc((100% - 32px) / 5)` so it renders at the same size as one slot in a full Ext. + AMS row.
+
 ### v1.5.0 — 2026-05-11
 
 #### TigerScale — live WebSocket panel

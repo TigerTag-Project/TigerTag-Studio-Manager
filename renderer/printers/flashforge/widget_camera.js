@@ -83,7 +83,13 @@ function _renderInner(p, busted) {
          src="${ctx.esc(busted)}"
          alt="${ctx.esc(ctx.t("ffgCameraAlt"))}"
          loading="lazy"
-         referrerpolicy="no-referrer"/>`;
+         referrerpolicy="no-referrer"
+         onload="var h=this.closest('.pp-cam-loading');if(h){h.classList.remove('pp-cam-loading');h.querySelector('.pp-cam-loading-overlay')?.remove();}"/>
+    <div class="pp-cam-loading-overlay">
+      <span class="pp-cam-loading-dots">
+        <span></span><span></span><span></span>
+      </span>
+    </div>`;
 }
 
 // ── Public API ────────────────────────────────────────────────────────────
@@ -104,8 +110,10 @@ export function renderFfgCamBanner(p) {
   const enabled = !!(conn?.data?.camera?.enabled);
   const busted  = _bustedUrl(conn);
   if (!busted || !enabled || conn?.status !== "connected") return "";
+  // pp-cam-loading removed by img onload; not added for error/fallback branch.
+  const loadingCls = conn.camFailed ? "" : " pp-cam-loading";
   return `
-    <div id="ffgCamHost" class="pp-cam-full ffg-cam-host">
+    <div id="ffgCamHost" class="pp-cam-full ffg-cam-host${loadingCls}">
       ${_renderInner(p, busted)}
     </div>`;
 }
@@ -128,5 +136,8 @@ export function ffgRefreshCamBanner() {
     return;
   }
   host.style.display = "";
+  // Re-add loading state while the new MJPEG connection is establishing.
+  if (!conn.camFailed) host.classList.add("pp-cam-loading");
+  else                 host.classList.remove("pp-cam-loading");
   host.innerHTML = _renderInner(activePrinter, busted);
 }

@@ -73,6 +73,10 @@ Grouped by domain. Versions in parentheses are the release that landed the featu
 - ✅ **Manual filament edit bottom-sheet** — Filament + Color sub-pickers (v1.4.8)
 - ✅ **Read-only filament sheet** for RFID-locked extruders — same layout, native `disabled` controls (v1.4.8)
 - ✅ **Settings reconnect** — saving an IP change tears down + reconnects WebSocket (v1.4.8)
+- ✅ **FlashForge live integration** — HTTP polling port 8898, MJPEG camera, 5-slot matlStation grid (`Ext.` + `1A`–`1D`), click-to-edit per slot via HTTP API (v1.4.x)
+- ✅ **Creality live integration** — WebSocket port 9999, heartbeat, live temps, CFS colour grid, WebRTC camera (v1.4.15)
+- ✅ **Elegoo live integration** — MQTT port 1883, UDP discovery port 52700; job card, temp card, mono + 4-slot Canvas filament card, control card (XY circle jog pad + Z pill + X/Y home pill + fans + LED + files button), filament edit sheet (colour + material + vendor pickers), Files/History sheet, camera; surgical DOM patch on control card to eliminate MQTT-tick flash (v1.6.0)
+- ✅ **Bambu Lab live integration** — MQTTS port 8883 TLS, LAN mode; job card, temp card, AMS filament grid (Ext. + module rows), camera widget, online badge (v1.6.0)
 
 ### Sensors & devices
 - ✅ **ACR122U NFC reader** (USB) via `nfc-pcsc` — `main.js` ↔ renderer IPC bridge
@@ -390,7 +394,7 @@ After this third implementation, perform the **planned extraction**: identify th
 - `drivers/snapmaker.js` + `drivers/creality.js` — diff them to find the genuinely common parts
 - The result becomes the architectural decision deferred from F1 — backed by 3 concrete data points instead of 1.
 
-##### F3 — Bambu Lab MQTT driver *(headline feature)*  ·  **Effort: L**  ·  **Risk: medium**
+##### ✅ F3 — Bambu Lab MQTT driver *(shipped v1.6.0)*  ·  **Effort: L**  ·  **Risk: medium**
 New driver hitting `mqtts://{ip}:8883` with username `bblp`, password = printer access code, topic `device/{serial}/report` for telemetry, `device/{serial}/request` for commands. **Reuses the Snapmaker live block UI** — filament grid, temps, print-job card. Bambu's protocol carries the same shape of data, just under different field names.
 
 ♻️ **Reuses**:
@@ -413,10 +417,10 @@ Polling design: every 2s call `/control/getStatus` and equivalent. Newer firmwar
 
 **Live block scope**: temps + active job. No mid-print filament editing (Snapmaker's bottom-sheet stays a unique capability — Flashforge's HTTP API doesn't expose the equivalent endpoints today).
 
-##### F5 — Elegoo Centauri MQTT driver *(research-gated)*  ·  **Effort: S + L (gated)**  ·  **Risk: high**
-**Decide first**: does Centauri expose a LAN MQTT endpoint, or is everything through Chitu cloud?
-- If LAN MQTT exists: same scope as F3 (~ L of impl).
-- If cloud-only: **out of scope** (the app is local-first; cloud integrations require a different trust model, secrets handling, OAuth flows, …). Park as a separate feature with its own design doc.
+##### ✅ F5 — Elegoo MQTT driver *(shipped v1.6.0)*  ·  **Effort: L**  ·  **Risk: medium**
+LAN MQTT confirmed on port 1883 (no cloud bridge required). Full implementation shipped: MQTT connect/disconnect, UDP discovery, job card, temp card, filament card (mono + Canvas 4-slot), control card (jog pad, fans, LED, files), filament edit sheet, Files/History sheet, camera.
+- Research confirmed: Elegoo Neptune / Centauri range exposes a plain TCP MQTT endpoint on the LAN — no Chitu cloud relay needed.
+- Surgical DOM patch on control card (fan %, LED state, XYZ position updated in-place) eliminates the per-tick flash.
 
 ♻️ **Reuses** (only if LAN exists):
 - `drivers/bambu-mqtt.js` (output of F3) as a starting point — both are MQTT, payload schemas differ
@@ -623,7 +627,7 @@ Printer control is the highest-risk feature surface (a misclick can damage hardw
 | Klipper-class (Creality K, Wondermaker, generic) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Bambu Lab | ✅ | ✅ | ✅ | ✅ | partial | ✅ |
 | FlashForge | ✅ | ✅ | ✅ | partial | ❌ (no upload API) | ❌ |
-| Elegoo Centauri | TBD | TBD | TBD | TBD | TBD | TBD |
+| Elegoo | ✅ | ✅ | ✅ | ✅ | ✅ | partial |
 
 #### 🎯 Recommended sequence
 1. **G1 — Print job control** for Snapmaker (uses existing `snapSendGcode`). Ship to validate the safety patterns + UX before generalizing.

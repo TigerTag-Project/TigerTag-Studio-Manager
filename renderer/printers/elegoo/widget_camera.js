@@ -1,7 +1,8 @@
 /**
  * printers/elegoo/widget_camera.js — Elegoo MJPEG camera banner widget.
  *
- * Stream: http://{ip}:8080/?action=stream (fixed port, no auth required).
+ * Stream URL: obtained dynamically via MQTT method 1042 (stored in conn.data.cameraUrl).
+ * Fallback: http://{ip}:8080/?action=stream (hardcoded, if 1042 hasn't responded yet).
  * Show when printer is connected. No concurrent-client limit issue (unlike
  * FlashForge mjpg-streamer) so no camSession cache-busting is needed.
  *
@@ -33,7 +34,8 @@ function _modelName(p) {
 export function renderElegooCamBanner(p) {
   const conn = elegooGetConn(elegooKey(p));
   if (!conn || conn.status !== 'connected' || !p.ip) return '';
-  const streamUrl = `http://${p.ip}:8080/?action=stream`;
+  // Use URL returned by method 1042; fall back to the known default if not yet received.
+  const streamUrl = conn.data?.cameraUrl || `http://${p.ip}:8080/?action=stream`;
   return `
     <div id="elgCamHost" class="pp-cam-full elg-cam-host">
       <img class="elg-camera-img"

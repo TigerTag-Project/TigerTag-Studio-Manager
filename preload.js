@@ -11,6 +11,19 @@ contextBridge.exposeInMainWorld('td1s', {
   release: () => ipcRenderer.send('td1s:release'),
 });
 
+contextBridge.exposeInMainWorld('bambulab', {
+  connect:    (opts) => ipcRenderer.send('bambulab:connect',    opts),
+  disconnect: (key)  => ipcRenderer.send('bambulab:disconnect', key),
+  publish:    (key, payload) => ipcRenderer.send('bambulab:publish', key, payload),
+  onMessage:  (cb) => ipcRenderer.on('bambulab:message',   (_, key, topic, data) => cb(key, topic, data)),
+  onStatus:   (cb) => ipcRenderer.on('bambulab:status',    (_, key, status)      => cb(key, status)),
+  camStart:     (opts) => ipcRenderer.send('bambulab:cam-start',      opts),
+  camStop:      (key)  => ipcRenderer.send('bambulab:cam-stop',       key),
+  camStartRtsp: (opts) => ipcRenderer.send('bambulab:cam-start-rtsp', opts),
+  camStopRtsp:  (key)  => ipcRenderer.send('bambulab:cam-stop-rtsp',  key),
+  onCamFrame:   (cb)   => ipcRenderer.on('bambulab:cam-frame', (_, key, b64) => cb(key, b64)),
+});
+
 contextBridge.exposeInMainWorld('elegoo', {
   connect:    (opts)                => ipcRenderer.send('elegoo:connect',    opts),
   disconnect: (key)                 => ipcRenderer.send('elegoo:disconnect', key),
@@ -64,6 +77,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // ── App info (version / platform — used by the diagnostic report) ──────
   getAppInfo:      () => ipcRenderer.invoke('app:info'),
+  // Open a URL in the default system application (e.g. VLC for rtsp://).
+  openExternal: (url) => ipcRenderer.send('shell:open-external', url),
+
   // Absolute path to renderer/ dir — used to build file:// preload paths
   // for <webview> elements (e.g. Creality camera preload script).
   getRendererPath: () => ipcRenderer.invoke('app:renderer-path'),

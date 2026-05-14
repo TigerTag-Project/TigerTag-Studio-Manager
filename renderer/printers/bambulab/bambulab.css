@@ -1,0 +1,122 @@
+/* ── Bambu Lab printer sidecard styles ───────────────────────────────────
+   Loaded after 50-snapmaker.css so Bambu-specific rules can safely
+   reference the shared .pp-cam-full / .snap-* containers defined there.
+   Nothing in this file is used outside the Bambu Lab brand context.
+
+   NOTE: No @media wrapper — the printer side-panel is always dark
+   regardless of system colour scheme, so all rules apply unconditionally.
+   ──────────────────────────────────────────────────────────────────────── */
+
+/* ── Camera — JPEG TCP (A1 / A1 Mini / P1P / P1S) ─────────────────────────
+   Raw JPEG frames streamed by the main process via IPC (port 6000 TLS).
+   Frames are injected into <img id="bblCamImg"> as data: URLs.
+   The image fills the .pp-cam-full 16:9 container absolutely. */
+.bbl-camera-img {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  border: none;
+  display: block;
+  background: #000;
+  object-fit: cover;
+}
+
+/* ── Camera — RTSP info card (kept for reference, not currently used) ───── */
+.bbl-cam-rtsp {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0d0d0d;
+}
+
+.bbl-rtsp-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 20px 24px;
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 14px;
+  text-align: center;
+  max-width: 280px;
+}
+
+.bbl-rtsp-card-icon {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.08);
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 2px;
+}
+.bbl-rtsp-card-icon .icon { background-color: rgba(255,255,255,.7); }
+
+.bbl-rtsp-label {
+  font-size: .82em; font-weight: 700;
+  color: rgba(255,255,255,.9);
+  letter-spacing: .2px;
+  margin: 0;
+}
+
+.bbl-rtsp-hint {
+  font-size: .72em;
+  color: rgba(255,255,255,.45);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.bbl-rtsp-url-row {
+  width: 100%;
+  margin-top: 4px;
+}
+
+.bbl-rtsp-url {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  font-size: .68em;
+  color: rgba(255,255,255,.6);
+  background: rgba(255,255,255,.05);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 6px;
+  padding: 4px 8px;
+  word-break: break-all;
+  font-family: monospace;
+}
+
+.bbl-rtsp-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.bbl-rtsp-actions .snap-log-btn { font-size: .78em; flex: 1; justify-content: center; }
+
+/* ── Camera loading state ─────────────────────────────────────────────────
+   Uses the shared .pp-cam-loading / .pp-cam-loading-overlay /
+   .pp-cam-loading-dots classes defined in 50-snapmaker.css.
+   Only Bambu-specific tweak: hide the broken-image icon on the <img>
+   until the first IPC frame arrives. */
+.pp-cam-loading .bbl-camera-img {
+  opacity: 0;
+}
+
+/* Invisible placeholder for absent AMS slots (e.g. AMS HT has 1 slot).
+   Keeps all rows at 5 flex children so columns stay aligned. */
+.bbl-fil-spacer {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* ── AMS filament slots ───────────────────────────────────────────────────
+   The AMS grid reuses .snap-fil / .snap-fil-square / .snap-fil-grid from
+   50-snapmaker.css. The active-slot ring (.snap-fil--active) is shared
+   across brands and lives in 50-snapmaker.css.
+
+   AMS block meta label (humidity / temp reading next to section title). */
+.snap-block-meta {
+  font-size: .72em;
+  font-weight: 400;
+  color: var(--muted);
+  margin-left: 6px;
+}

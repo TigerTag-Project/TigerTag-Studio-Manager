@@ -58,6 +58,40 @@
   .printers-grid--flex .printer-card {
     flex: 0 1 240px;
   }
+  /* Full-width row that breaks the flex flow between Online / Offline groups.
+     Only rendered when both groups have at least one printer. */
+  .printers-section-hdr {
+    width: 100%;
+    font-size: .72em;
+    font-weight: 600;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 4px 2px 0;
+    margin-bottom: -4px; /* tighten gap before the first card of the group */
+  }
+  .printers-section-hdr--offline {
+    margin-top: 4px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  /* Connect / Disconnect button in the printer side-card header.
+     data-conn="active"   → printer is connected or connecting → danger tint (clicking disconnects)
+     data-conn="inactive" → printer is offline / unknown       → accent tint  (clicking connects) */
+  #printerConnBtn[data-conn="active"] {
+    color: var(--danger, #ef4444);
+  }
+  #printerConnBtn[data-conn="active"]:hover {
+    background: color-mix(in srgb, var(--danger, #ef4444) 12%, transparent);
+    color: var(--danger, #ef4444);
+  }
+  #printerConnBtn[data-conn="inactive"] {
+    color: var(--primary);
+  }
+  #printerConnBtn[data-conn="inactive"]:hover {
+    background: color-mix(in srgb, var(--primary) 12%, transparent);
+    color: var(--primary);
+  }
   .printer-card {
     background: var(--surface);
     border: 1px solid var(--border);

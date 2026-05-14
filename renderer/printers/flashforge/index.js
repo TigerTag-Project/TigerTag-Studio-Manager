@@ -58,6 +58,7 @@ export function ffgTearDownCamera() {
 export function ffgIsOnline(printer) {
   if (printer?.brand !== "flashforge") return null;
   const k = ffgKey(printer);
+  if (ctx.isForcedOffline?.(k)) return false; // explicitly disconnected via button
   const conn = _ffgConns.get(k);
   if (conn) return conn.status === "connected";
   const ping = _ffgPings.get(k);

@@ -51,6 +51,41 @@ Toutes les variables :
 
 ## 3. Séquence d'initialisation
 
+> **Observée live par sniffer MQTT** — le slicer Elegoo officiel utilise deux clients distincts.
+> Tiger Studio n'en utilise qu'un seul (plus simple, suffisant).
+
+### Séquence du slicer Elegoo (référence ISO, observée live)
+
+Le slicer ouvre **deux connexions MQTT simultanées** :
+
+**Client 1 — contrôle imprimante** (client_id = `"1_PC_4447"`, PING toutes les ~10 s)
+```
+PUB elegoo/{sn}/api_register  {"client_id":"1_PC_4447","request_id":"1_PC_4447_req"}
+SUB elegoo/{sn}/1_PC_4447_req/register_response  → {"client_id":"1_PC_4447","error":"ok"}
+
+PUB method:1043  {"hostname":"Elegoo Centauri Carbon 2"}   ← PREMIÈRE commande obligatoire
+PUB method:1002  {}
+PUB method:1001  {}
+```
+
+**Client 2 — fichiers + filaments** (client_id = `"0cli7ebbb5"`, PING toutes les ~45 s)
+```
+PUB elegoo/{sn}/api_register  {"request_id":"0cli7ebbb5","client_id":"0cli7ebbb5"}
+                                ↑ request_id == client_id (format différent du client 1)
+SUB elegoo/{sn}/0cli7ebbb5/register_response  → {"client_id":"0cli7ebbb5","error":"ok"}
+
+PUB method:1036  {}                                      ← historique
+PUB method:2005  {}                                      ← canvas filaments
+PUB method:1044  {"storage_media":"local","offset":0,"limit":20}
+PUB method:1002  {}
+PUB method:1044  {"storage_media":"u-disk","dir":"/","offset":0,"limit":20}
+PUB method:1001  {}
+PUB method:1042  {}                                      ← URL caméra
+PUB method:1061  {}                                      ← mono filament
+```
+
+### Séquence Tiger Studio (client unique)
+
 ```
 1. Créer clientId + requestId
    clientId  = "TTG_XXXX"  (4 chiffres aléatoires)
@@ -60,22 +95,25 @@ Toutes les variables :
 
 3. SUB elegoo/{sn}/api_status
    SUB elegoo/{sn}/{cid}/api_response
-   SUB elegoo/{sn}/{rid}/register_response    ← topic ack observé live
+   SUB elegoo/{sn}/{cid}_req/register_response
+   SUB elegoo/{sn}/{rid}/register_response
 
 4. PUB elegoo/{sn}/api_register
    { "client_id": "{cid}", "request_id": "{rid}" }
 
 5. Sur register_response OU timeout 1200 ms → envoyer la rafale initiale (§4)
    (La rafale ne s'envoie qu'une fois par connexion — guard _initSnapshotSent)
+
+6. PING/PONG toutes les 10 s (voir §11 Règles communes)
 ```
 
 **Register_response observé live** (CC2, SN F01PLJ817DP6Y5Z) :
 
 ```
 PUB  elegoo/F01PLJ.../api_register
-     { "client_id": "TTG_1234", "request_id": "TTG_1234_reg" }
+     { "client_id": "TTG_1234", "request_id": "TTG_1234_req" }
 
-SUB  elegoo/F01PLJ.../TTG_1234_reg/register_response
+SUB  elegoo/F01PLJ.../TTG_1234_req/register_response
      { "client_id": "TTG_1234", "error": "ok" }
 ```
 
@@ -87,26 +125,128 @@ SUB  elegoo/F01PLJ.../TTG_1234_reg/register_response
 
 > **⚠️ Attention** : les IDs de méthodes du document Flutter source ne correspondent pas
 > au firmware Centauri Carbon 2 (testé en live). Tableau corrigé ci-dessous.
+> **Ordre calé sur le slicer Elegoo officiel** — observé live par sniffer MQTT.
 
 Envoyer dans l'ordre, avec **50 ms de délai entre chaque** :
 
 | Ordre | Method | Params | Rôle réel (vérifié live) |
 |---|---|---|---|
-| 1 | `1002` | `{}` | Status complet : extruder/bed/chamber temp + targets + fans + print_status + machine_status (§5.1) |
-| 2 | `1005` | `{}` | print_status seul (state, filename, uuid, current_layer, remaining_time_sec) (§5.2) |
-| 3 | `2005` | `{}` | Filament canvas 4-slots — ou vide si Canvas déconnecté (§8) |
-| 4 | `1061` | `{}` | Filament mono-extruder — fallback quand Canvas absent (§8.2) |
-| 5 | `1044` | `{"storage_media":"local","offset":0,"limit":50}` | Liste fichiers + total layers (§10) |
+| 1 | `1043` | `{"hostname":"TigerTag Studio"}` | **Obligatoire en premier** — annonce l'identité du client ; le slicer l'envoie toujours avant toute autre commande |
+| 2 | `1002` | `{}` | Status complet : extruder/bed/chamber temp + targets + fans + print_status + machine_status (§5.1) |
+| 3 | `1005` | `{}` | print_status seul (state, filename, uuid, current_layer, remaining_time_sec) (§5.2) |
+| 4 | `2005` | `{}` | Filament canvas 4-slots — ou vide si Canvas déconnecté (§8) |
+| 5 | `1061` | `{}` | Filament mono-extruder — fallback quand Canvas absent (§8.2) |
+| 6 | `1042` | `{}` | URL caméra dynamique → `{"url":"http://{ip}:8080/?action=stream"}` (§12) |
+| 7 | `1001` | `{}` | Info machine : hostname, ip, sn, firmware (§4.1) |
+| 8 | `1044` | `{"storage_media":"local","offset":0,"limit":50}` | Liste fichiers + total layers (§10) |
 
-Autres méthodes connues (non utilisées dans le burst) :
+### 4.1 Method 1001 — Machine info
+
+**Payload response** (observé live CC2) :
+```json
+{
+  "id": 6,
+  "method": 1001,
+  "result": {
+    "error_code": 0,
+    "hardware_version": "",
+    "hostname": "Elegoo Centauri Carbon 2",
+    "ip": "192.168.40.113",
+    "machine_model": "Centauri Carbon 2",
+    "protocol_version": "1.0.0",
+    "sn": "F01PLJ817DP6Y5Z",
+    "software_version": {
+      "mcu_version": "00.00.00.00",
+      "ota_version": "01.03.02.51",
+      "soc_version": ""
+    }
+  }
+}
+```
+
+Utile pour afficher la version firmware (`ota_version`) et confirmer le modèle.
+
+### 4.2 Method 1043 — Set hostname
+
+Annonce l'identité du client à l'imprimante. Le slicer l'envoie **en premier**, avant toute autre requête.
+
+```json
+{ "id": 1, "method": 1043, "params": { "hostname": "TigerTag Studio" } }
+```
+
+Réponse : `{"error_code": 0}`. L'imprimante connaît désormais le nom du client connecté.
+
+### 4.3 Autres méthodes connues
 
 | Method | Retour réel observé |
 |---|---|
-| `1042` | `{"error_code":0,"url":"http://{ip}:8080/?action=stream"}` — URL caméra |
-| `1036` | Historique des tâches d'impression (30 dernières) |
-| `1001` | Info machine (hostname, ip, sn, firmware version) |
 | `1003` | machine_status seul (progress, status, sub_status) |
 | `1004` | État des ventilateurs |
+| `1020` | Démarrer une impression — voir §15 |
+| `1021` | Pause impression — voir §15 |
+| `1022` | Reprise impression — voir §15 |
+| `1023` | Annuler impression — voir §15 |
+| `1024` | Inconnu — appelé lors de l'inspection/édition filament — voir §18 |
+| `1025` | Inconnu — appelé lors de l'inspection/édition filament — voir §18 |
+| `1026` | Homing axes — voir §16 |
+| `1027` | Jog axes — voir §16 |
+| `1029` | Contrôle LED — voir §17 |
+| `1030` | Contrôle ventilateurs — voir §17 |
+| `1031` | Mode vitesse — voir §17 |
+| `1036` | Historique des tâches d'impression (30 dernières) — voir §4.4 |
+| `1046` | Métadonnées d'un fichier individuel (color_map, layers, size…) — voir §4.5 |
+
+### 4.4 Method 1036 — Historique
+
+Retourne les 30 dernières tâches d'impression. Chaque entrée :
+```json
+{
+  "task_id":    "2250ae9f-04fb-4057-...",
+  "task_name":  "ECC2_0.4_Hook_Elegoo PLA Matte_0.2_39m3s.gcode",
+  "task_status": 1,
+  "begin_time": 1771806960,
+  "end_time":   1771810040,
+  "time_lapse_video_url": "picture/ECC2_0.4_Hook...gcode20260223083602"
+}
+```
+`task_status` : `1` = succès, `2` = annulé/échoué.
+
+### 4.5 Method 1046 — Métadonnées fichier individuel
+
+Retourne les détails d'un seul fichier (sans télécharger le gcode).
+
+**Request** :
+```json
+{
+  "id": 15,
+  "method": 1046,
+  "params": {
+    "storage_media": "u-disk",
+    "filename": "/3.Model/7.Scraper/ECC2_0.4_Scraper_Elegoo PLA _0.2_1h22m.gcode"
+  }
+}
+```
+
+**Response** :
+```json
+{
+  "id": 15,
+  "method": 1046,
+  "result": {
+    "error_code": 0,
+    "color_map": [
+      {"color": "#000000", "name": "PLA", "t": 0},
+      {"color": "#FFFFFF", "name": "PLA", "t": 1}
+    ],
+    "create_time": 1760665590,
+    "filename": "ECC2_0.4_Scraper_Elegoo PLA _0.2_1h22m.gcode",
+    "layer": 225,
+    "print_time": 4942,
+    "size": 6003025,
+    "total_filament_used": 42.11
+  }
+}
+```
 
 Enveloppe d'une requête :
 ```json
@@ -269,6 +409,30 @@ En idle, seule la température du plateau est poussée (toutes les secondes). L'
 > Ce qui n'est **jamais** dans le push 6000 : `print_status.state`, `print_status.uuid`,
 > `print_status.filename`, `heater_bed` (quand le bed est à température stable).
 
+### Push filament — changement depuis l'écran tactile
+
+**Observé live** : quand l'utilisateur change le filament depuis l'écran de l'imprimante (sans passer par le slicer), l'imprimante pousse immédiatement un message 6000 via `api_status` contenant `mono_filament_info` :
+
+```json
+{
+  "id": 3083,
+  "method": 6000,
+  "result": {
+    "mono_filament_info": {
+      "filament_code":  "0x0A00",
+      "filament_color": "#A03BF7",
+      "filament_name":  "EVA",
+      "filament_type":  "EVA",
+      "max_nozzle_temp": 220,
+      "min_nozzle_temp": 220
+    }
+  }
+}
+```
+
+→ Traiter ce cas dans le handler `api_status` : si `result.mono_filament_info` est présent, appeler `_mergeMonoFilament` en plus de `_mergeStatus`.  
+→ De même pour `result.canvas_info` si le Canvas est connecté et que l'utilisateur change un slot depuis l'écran.
+
 ### Champs poussés par method 6000 (observés en live)
 
 Le push 6000 n'envoie que les champs dont la valeur vient de changer. Les champs absents conservent leur dernière valeur connue.
@@ -287,7 +451,7 @@ Le push 6000 n'envoie que les champs dont la valeur vient de changer. Les champs
 | `result.gcode_move.speed` | *(non stocké)* | Vitesse mm/min (présent quand change) |
 | `result.gcode_move.extruder` | *(non stocké)* | Position extrudeur mm |
 
-> **Note** : `print_status.state`, `print_status.uuid`, `print_status.filename` ne sont **jamais** dans le push 6000.
+> **Correction** : `print_status.state`, `print_status.uuid` et `print_status.filename` **sont** poussés par 6000 au démarrage d'une impression (transition d'état). En cours d'impression, seuls les champs qui changent apparaissent (progress, layer, remaining). Ne jamais les considérer comme "absents définitivement" — les mettre en cache à la première réception.
 > `machine_status.progress` est le seul champ progress disponible — `print_status.progress` n'existe pas.
 
 ### Champs disponibles seulement via poll (method 1002 / 1005)
@@ -341,7 +505,7 @@ Documentés ici pour référence :
 > Tous ces champs sont **optionnels** dans chaque push — seuls les champs qui ont changé sont inclus.
 > Un push typique ne contient que 2–4 champs (ex. température + gcode_move + print_status partiel).
 
-**Fans** — uniquement dans method 1002, jamais poussés par 6000 :
+**Fans** — présents dans method 1002 ET poussés par 6000 quand la vitesse change :
 ```json
 {
   "fans": {
@@ -353,6 +517,9 @@ Documentés ici pour référence :
   }
 }
 ```
+**LED** — également poussée par 6000 quand l'état change : `{"result":{"led":{"status":1}}}`
+
+**Targets températures** — `extruder.target` et `heater_bed.target` sont poussés par 6000 au démarrage de la chauffe.
 
 Ces champs sont **ignorés** dans l'implémentation actuelle — seules températures + progress + layer sont extraits.
 
@@ -598,6 +765,10 @@ Toujours 4 éléments. Slot vide = string vide ou 0.
 3. Dans le handler `1061` : si `_canvasConnected !== true`, écrire `conn.data.filaments` comme un tableau d'un seul slot (traité comme `active: true`).
 4. Format couleur : `#RRGGBB` (pas RRGGBBAA — contrairement à Snapmaker).
 
+> **✅ Écriture possible via méthode 1055** — voir §11.2. `mono_filament_info` est bien
+> modifiable via MQTT : le slicer Elegoo utilise la méthode `1055` (pas `2003` ni `1061`).
+> Le refresh post-save doit envoyer `1061` (pas `2005`) pour lire la valeur mise à jour.
+
 ---
 
 ## 9. Thumbnail — Method 1045
@@ -689,16 +860,13 @@ Si `file_list` est absent ou vide, ne pas afficher de couche totale.
 
 ---
 
-## 11. Écriture filament — Method 2003
+## 11. Écriture filament
 
-> **⚠️ Observation live (Centauri Carbon 2)** : method 2003 retourne
-> `{"error_code": 1009}` sur ce firmware. L'écriture des slots filament
-> peut être bloquée par le firmware ou réservée à l'app officielle.
-> Implémenter mais afficher un message d'erreur si `error_code` ≠ 0.
->
-> Codes d'erreur observés : `1009` = non implémenté / permission refusée.
+Deux méthodes selon si le Canvas est connecté ou non — **observées live par sniffer MQTT sur le trafic du slicer Elegoo officiel**.
 
-Publié sur `elegoo/{sn}/{cid}/api_request`.
+### 11.1 Canvas connecté — Method 2003
+
+Écrit dans un slot du hub Canvas. Requiert que le Canvas soit physiquement branché — sans Canvas, `error_code: 1003` (INVALID_PARAMETER).
 
 ```json
 {
@@ -709,7 +877,7 @@ Publié sur `elegoo/{sn}/{cid}/api_request`.
     "tray_id": 0,
     "brand": "ELEGOO",
     "filament_type": "PLA",
-    "filament_name": "PLA Silk",
+    "filament_name": "PLA",
     "filament_code": "0x0000",
     "filament_color": "#FF5733",
     "filament_min_temp": 190,
@@ -718,26 +886,88 @@ Publié sur `elegoo/{sn}/{cid}/api_request`.
 }
 ```
 
-**Règles** :
-- `canvas_id` : toujours `0`
-- `tray_id` : `0`–`3`
-- `filament_type` : type de base uniquement — supprimer les modificateurs. Ex. `"PLA+ Silk"` → `"PLA"`. Logique : split sur `/[\s+\-_/]+/`, prendre le premier token.
-- `filament_color` : `#RRGGBB` majuscules
-- `filament_code` : `"0x0000"` si inconnu
+Après succès (`error_code === 0`), envoyer `2005` après 1000 ms pour rafraîchir.
 
-Après un 2003 réussi (`error_code === 0`), envoyer un 2005 avec 1000 ms de délai pour rafraîchir le snapshot.
+### 11.2 Sans Canvas (mono-extruder) — Method 1055
+
+**Observé live** : le slicer Elegoo utilise la méthode **1055** pour écrire le filament de l'extrudeur unique quand le Canvas n'est pas connecté. `error_code: 0` confirmé.
+
+```json
+{
+  "id": 29,
+  "method": 1055,
+  "params": {
+    "canvas_id": 0,
+    "tray_id": 0,
+    "brand": "ELEGOO",
+    "filament_type": "PLA",
+    "filament_name": "PLA",
+    "filament_code": "0x0000",
+    "filament_color": "#D4B1DD",
+    "filament_min_temp": 190,
+    "filament_max_temp": 230
+  }
+}
+```
+
+Après succès, envoyer `1061` après 1000 ms pour lire la valeur mise à jour.
+
+**Exemples observés (sniffer) :**
+```
+method:1055  PLA  #D4B1DD  → error_code:0  ✅
+method:1055  PETG #FFF242  filament_code:0x0100 → error_code:0  ✅
+method:1055  PLA  #433089  → error_code:0  ✅
+```
+
+### Règles communes (2003 et 1055)
+- `canvas_id` : toujours `0`
+- `tray_id` : `0`–`3` (Canvas) ou `0` (mono)
+- `filament_type` : type de base uniquement — supprimer les modificateurs. Ex. `"PLA+ Silk"` → `"PLA"`. Logique : split sur `/[\s+\-_\/]+/`, prendre le premier token.
+- `filament_color` : `#RRGGBB` majuscules
+- `filament_code` : `"0x0000"` si inconnu, `"0x0100"` = PETG observé
+- `brand` : `"ELEGOO"` par défaut si inconnu
+- `filament_name` : même valeur que `filament_type` si pas de nom complet
+
+### PING/PONG — heartbeat applicatif
+
+Le slicer envoie un heartbeat custom **en plus** du keepAlive MQTT standard.
+**Recommandé** : sans PING/PONG, certains brokers Elegoo peuvent fermer la session.
+
+```
+PUB elegoo/{sn}/{cid}/api_request  {"type":"PING"}
+SUB elegoo/{sn}/{cid}/api_response {"type":"PONG"}
+```
+
+Intervalles observés :
+- Client contrôle (slicer principal) : **~10 s**
+- Client fichiers/filaments : **~45 s**
+
+Tiger Studio : implémenter à **10 s** (calé sur le client principal du slicer).
+Ignorer les messages `{"type":"PONG"}` dans `_routeMessage` (pas de méthode numérique → `default: break`).
 
 ---
 
 ## 12. Caméra
 
-Flux MJPEG standard, pas d'authentification.
+### URL dynamique via Method 1042
 
-```
-http://{ip}:8080/?action=stream
+Ne jamais hardcoder l'URL — la demander via method 1042 au démarrage :
+
+```json
+// Request
+{ "id": 7, "method": 1042, "params": {} }
+
+// Response (observé live CC2)
+{ "id": 7, "method": 1042, "result": { "error_code": 0, "url": "http://192.168.40.113:8080/?action=stream" } }
 ```
 
-Afficher avec un `<img src="...">` en streaming (même approche que FlashForge). Pas de WebRTC, pas d'iframe — juste un `<img>`.
+Stocker l'URL retournée dans `conn.data.cameraUrl`. L'utiliser pour le flux vidéo.
+
+### Flux
+
+Flux MJPEG standard, pas d'authentification. Afficher avec un `<img src="...">` en streaming (même approche que FlashForge). Pas de WebRTC, pas d'iframe — juste un `<img>`.
+
+Format observé : `http://{ip}:8080/?action=stream`
 
 ---
 
@@ -831,17 +1061,186 @@ Si le datagramme reçu n'est pas un JSON valide, il est conservé **uniquement**
 |------|---------|--------------|
 | `0`  | toutes  | Succès |
 | `1003` | 1045 (thumbnail) | Miniature non trouvée (print pas encore démarrée, ou chauffe) |
-| `1009` | 2003 (write filament) | Non implémenté / permission refusée sur ce firmware |
+| `1003` | 2003 (write canvas filament) | INVALID_PARAMETER — Canvas non connecté ; utiliser 1055 en mode mono |
 
 ---
 
-## 15. Commandes d'impression (non implémentées dans Flutter)
+## 15. Contrôle d'impression — Methods 1020 / 1021 / 1022 / 1023
 
-Les commandes pause / resume / stop **ne sont pas dans le code Flutter source**. Elles devront être reverse-engineered depuis le trafic du slicer Elegoo. Les method IDs pour le contrôle d'impression sont **inconnus** à ce stade.
+**Observées live** par sniffer MQTT (`elegoo/{sn}/{cid}/api_request`) lors d'une session d'impression complète. Toutes renvoient `{"error_code": 0}` en cas de succès.
+
+### 15.1 Démarrer une impression — Method 1020
+
+```json
+{
+  "id": 1,
+  "method": 1020,
+  "params": {
+    "filename": "ECC2_0.4_ELEGOO Nameplate_Elegoo PLA _0.2_17m21s.gcode",
+    "storage_media": "local",
+    "config": {
+      "delay_video": true,
+      "printer_check": true,
+      "print_layout": "A"
+    }
+  }
+}
+```
+
+| Champ | Type | Description |
+|---|---|---|
+| `filename` | string | Nom du fichier gcode sur l'imprimante |
+| `storage_media` | string | `"local"` (stockage interne) ou `"u-disk"` (USB) |
+| `config.delay_video` | bool | Activer le time-lapse vidéo |
+| `config.printer_check` | bool | Vérification de l'imprimante avant impression |
+| `config.print_layout` | string | Layout `"A"` (valeur observée, signification inconnue) |
+
+**Note** : dès le démarrage, le push 6000 émet immédiatement `print_status.state`, `print_status.filename` et `print_status.uuid`.
+
+### 15.2 Pause — Method 1021
+
+```json
+{ "id": 2, "method": 1021, "params": {} }
+```
+
+Aucun paramètre. `error_code: 0` confirmé live.
+
+### 15.3 Reprise (Resume) — Method 1022
+
+```json
+{ "id": 3, "method": 1022, "params": {} }
+```
+
+Aucun paramètre. `error_code: 0` confirmé live.
+
+### 15.4 Annuler — Method 1023
+
+```json
+{ "id": 4, "method": 1023, "params": {} }
+```
+
+Aucun paramètre. `error_code: 0` confirmé live. Après annulation, `print_status.state` passe à `""` (mappé → `"standby"` en UI).
 
 ---
 
-## 16. Checklist d'implémentation pour Tiger Studio
+## 16. Contrôle des axes — Methods 1026 / 1027
+
+**Observées live** lors de commandes de déplacement manuel envoyées via le slicer Elegoo.
+
+### 16.1 Homing — Method 1026
+
+Renvoie tous les axes à la position d'origine.
+
+```json
+{
+  "id": 5,
+  "method": 1026,
+  "params": {
+    "homed_axes": "xyz"
+  }
+}
+```
+
+| Champ | Valeur observée | Description |
+|---|---|---|
+| `homed_axes` | `"xyz"` | Axes à hommer (peut être sous-ensemble, ex. `"z"`) |
+
+### 16.2 Jog (déplacement relatif) — Method 1027
+
+Déplace un axe d'une distance relative en millimètres.
+
+```json
+{
+  "id": 6,
+  "method": 1027,
+  "params": {
+    "axes": "z",
+    "distance": -1
+  }
+}
+```
+
+| Champ | Type | Description |
+|---|---|---|
+| `axes` | string | Axe cible : `"x"`, `"y"`, `"z"` (un seul axe par commande observé) |
+| `distance` | number | Distance en mm, signée (positif = sens +, négatif = sens −) |
+
+**Valeurs observées** : `distance: -1` (descente Z de 1 mm). Pas d'unité autre que mm observée.
+
+---
+
+## 17. LED, ventilateurs, vitesse — Methods 1029 / 1030 / 1031
+
+**Observées live** lors de contrôles manuels via le slicer Elegoo. Toutes renvoient `error_code: 0`. Le push 6000 émet les nouvelles valeurs dès que l'imprimante les applique.
+
+### 17.1 LED — Method 1029
+
+```json
+{
+  "id": 7,
+  "method": 1029,
+  "params": { "power": 1 }
+}
+```
+
+| `power` | Effet |
+|---|---|
+| `1` | LED allumée |
+| `0` | LED éteinte |
+
+### 17.2 Ventilateurs — Method 1030
+
+Chaque ventilateur est contrôlé indépendamment dans un payload séparé.
+
+```json
+{ "id": 8,  "method": 1030, "params": { "fan":     255 } }
+{ "id": 9,  "method": 1030, "params": { "aux_fan": 255 } }
+{ "id": 10, "method": 1030, "params": { "box_fan": 255 } }
+```
+
+| Champ | Description |
+|---|---|
+| `fan` | Ventilateur principal (refroidissement pièce) |
+| `aux_fan` | Ventilateur auxiliaire |
+| `box_fan` | Ventilateur de boîtier (filtration) |
+
+**Plage** : `0` (arrêt) à `255` (pleine vitesse). Les paliers observés du slicer sont des multiples de `25.5` (0, 25, 51, 76, 102, 127, 153, 178, 204, 229, 255 — correspondant à 0 % à 100 % par pas de 10 %).
+
+### 17.3 Mode vitesse d'impression — Method 1031
+
+```json
+{
+  "id": 11,
+  "method": 1031,
+  "params": { "mode": 0 }
+}
+```
+
+| `mode` | Vitesse |
+|---|---|
+| `0` | Normale |
+| `1` | Silencieuse (supposé) |
+| `2` | Sport (supposé) |
+| `3` | Ludicrous (supposé) |
+
+Seul `mode: 0` a été observé live. Les autres valeurs sont extrapolées par analogie avec d'autres firmwares Klipper-dérivés.
+
+---
+
+## 18. Méthodes inconnues — 1024 / 1025
+
+Appelées **séquentiellement** (1024 puis 1025) lors de l'ouverture du panneau d'inspection ou d'édition du filament dans le slicer Elegoo. Aucun paramètre envoyé dans les deux cas. Elles retournent `error_code: 0`.
+
+```json
+{ "id": 12, "method": 1024, "params": {} }
+{ "id": 13, "method": 1025, "params": {} }
+```
+
+**Hypothèse** : 1024 pourrait demander un lock d'accès filament ou initialiser un mode édition ; 1025 pourrait acquitter ou confirmer. À reverse-engineer lors d'une prochaine session de sniffer ciblée sur la réponse complète.
+
+---
+
+## 19. Checklist d'implémentation pour Tiger Studio
 
 - [ ] Paquet npm `mqtt` (déjà présent si Bambu est implémenté)
 - [ ] `printers/elegoo/index.js` — lifecycle MQTT (connect / disconnect / reconnect)

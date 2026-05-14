@@ -43,6 +43,7 @@ export function creGetConn(key) { return _creConns.get(key) ?? null; }
 export function creIsOnline(printer) {
   if (printer?.brand !== "creality") return null;
   const k = creKey(printer);
+  if (ctx.isForcedOffline?.(k)) return false; // explicitly disconnected via button
   const conn = _creConns.get(k);
   if (conn) return conn.status === "connected";
   const ping = _crePings.get(k);
@@ -637,7 +638,11 @@ function creLogPush(conn, dir, raw) {
 
 export function renderCrealityLiveInner(p) {
   const conn = _creConns.get(creKey(p));
-  if (!conn) return `<div class="snap-connecting">${ctx.esc(ctx.t("snapStatusConnecting"))}</div>`;
+  if (!conn) return `
+    <div class="snap-empty">
+      <span class="icon icon-cloud icon-18"></span>
+      <span>${ctx.esc(ctx.t("snapNoConnection"))}</span>
+    </div>`;
   const d = conn.data;
   const ledOn = conn.data.lightSw === 1;
   const ledTip = ctx.esc(ledOn

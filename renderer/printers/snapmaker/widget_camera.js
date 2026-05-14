@@ -23,10 +23,16 @@ export function renderSnapCamBanner(p) {
   const conn = snapGetConn(snapKey(p));
   if (!conn || conn.status !== "connected" || !conn.ip) return "";
   return `
-    <div class="pp-cam-full">
+    <div class="pp-cam-full pp-cam-loading">
       <iframe class="snap-camera-frame" src="${ctx.esc(`http://${conn.ip}/webcam/webrtc`)}"
               sandbox="allow-scripts allow-same-origin"
               loading="lazy" referrerpolicy="no-referrer"
-              allow="autoplay"></iframe>
+              allow="autoplay"
+              onload="var h=this.closest('.pp-cam-loading');if(h){h.classList.remove('pp-cam-loading');h.querySelector('.pp-cam-loading-overlay')?.remove();}"></iframe>
+      <div class="pp-cam-loading-overlay">
+        <span class="pp-cam-loading-dots">
+          <span></span><span></span><span></span>
+        </span>
+      </div>
     </div>`;
 }

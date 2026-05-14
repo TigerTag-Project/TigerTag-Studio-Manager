@@ -97,21 +97,35 @@ export function renderElegooJobCard(p, conn) {
     </div>`;
 }
 
+// Format "current / target°C" — target always shown when the sensor is known,
+// even if target is 0 (heater off). Only omits target when the field is null/undefined.
+function elgFmtTempWithTarget(cur, target) {
+  const curStr = (typeof cur === 'number' && isFinite(cur)) ? `${Math.round(cur)}` : '—';
+  if (typeof target === 'number' && isFinite(target)) {
+    return `${curStr} / ${Math.round(target)}°C`;
+  }
+  return `${curStr}°C`;
+}
+
 export function renderElegooTempCard(conn) {
   const d = conn.data;
   const pills = [];
   if (typeof d.nozzleTemp === 'number') {
+    const heating = typeof d.nozzleTarget === 'number' && d.nozzleTarget > 0
+                 && d.nozzleTemp < d.nozzleTarget - 2;
     pills.push(`
-      <div class="snap-temp">
+      <div class="snap-temp${heating ? ' snap-temp--heating' : ''}">
         ${ctx.SNAP_ICON_NOZZLE}
-        <span class="snap-temp-val">${ctx.esc(elgFmtTemp(d.nozzleTemp))}</span>
+        <span class="snap-temp-val">${ctx.esc(elgFmtTempWithTarget(d.nozzleTemp, d.nozzleTarget))}</span>
       </div>`);
   }
   if (typeof d.bedTemp === 'number') {
+    const heating = typeof d.bedTarget === 'number' && d.bedTarget > 0
+                 && d.bedTemp < d.bedTarget - 2;
     pills.push(`
-      <div class="snap-temp snap-temp--bed">
+      <div class="snap-temp snap-temp--bed${heating ? ' snap-temp--heating' : ''}">
         ${ctx.SNAP_ICON_BED}
-        <span class="snap-temp-val">${ctx.esc(elgFmtTemp(d.bedTemp))}</span>
+        <span class="snap-temp-val">${ctx.esc(elgFmtTempWithTarget(d.bedTemp, d.bedTarget))}</span>
       </div>`);
   }
   if (typeof d.chamberTemp === 'number') {
@@ -160,7 +174,7 @@ export function renderElegooFilamentCard(p, conn) {
             <div class="snap-fil-meta">
               <span class="snap-fil-status icon icon-edit icon-13" aria-hidden="true"></span>
               ${fil.vendor ? `<div class="snap-fil-vendor">${ctx.esc(fil.vendor)}</div>` : ''}
-              <div class="snap-fil-sub">${ctx.esc(typeLbl)}</div>
+              ${fil.name   ? `<div class="snap-fil-sub">${ctx.esc(fil.name)}</div>` : ''}
             </div>
           </div>
         </div>
@@ -197,7 +211,7 @@ export function renderElegooFilamentCard(p, conn) {
         <div class="snap-fil-meta">
           <span class="snap-fil-status icon icon-edit icon-13" aria-hidden="true"></span>
           ${fil.vendor ? `<div class="snap-fil-vendor">${ctx.esc(fil.vendor)}</div>` : ''}
-          <div class="snap-fil-sub">${ctx.esc(type || '—')}</div>
+          ${fil.name   ? `<div class="snap-fil-sub">${ctx.esc(fil.name)}</div>` : ''}
         </div>
       </div>`);
   }

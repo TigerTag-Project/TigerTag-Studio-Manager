@@ -11,6 +11,7 @@ import { ctx } from '../context.js';
 import { registerBrand, brands } from '../registry.js';
 import { meta, schema, helper } from './settings.js';
 import { renderElegooJobCard, renderElegooTempCard, renderElegooFilamentCard } from './cards.js';
+import { renderElegooControlCard, patchElegooControlCard } from './widget_control.js';
 import { schemaWidget } from '../modal-helpers.js';
 
 const $ = id => document.getElementById(id);
@@ -55,13 +56,68 @@ const STATE_LABELS = {
   heating:   'elgState_heating',
 };
 
-// ── Vendor catalogue for filament edit ───────────────────────────────────
-
-const ELG_VENDORS = {
-  'Generic': ['PLA', 'PETG', 'ABS', 'TPU', 'ASA', 'PA', 'PC', 'Resin', 'PVA', 'HIPS'],
-  'ELEGOO':  ['PLA', 'PETG', 'ABS', 'TPU', 'ASA', 'Water-washable Resin', 'Standard Resin'],
+// ── Material preset catalogue — ported from create_elegoo_rfid.dart ──────
+// Each entry: { main: base filament_type, tempMin, tempMax }
+// main  → sent as filament_type  in method 1055/2003
+// key   → sent as filament_name  in method 1055/2003
+// Source: elegooPresetBySubtype in TigerTag Connect Flutter app.
+const ELG_MATERIAL_PRESETS = {
+  // PLA family
+  'PLA':           { main: 'PLA',   tempMin: 190, tempMax: 230 },
+  'PLA+':          { main: 'PLA',   tempMin: 190, tempMax: 230 },
+  'PLA Pro':       { main: 'PLA',   tempMin: 190, tempMax: 230 },
+  'PLA Basic':     { main: 'PLA',   tempMin: 190, tempMax: 230 },
+  'PLA Matte':     { main: 'PLA',   tempMin: 190, tempMax: 230 },
+  'PLA Silk':      { main: 'PLA',   tempMin: 190, tempMax: 230 },
+  'PLA-CF':        { main: 'PLA',   tempMin: 190, tempMax: 230 },
+  'PLA Wood':      { main: 'PLA',   tempMin: 190, tempMax: 230 },
+  'PLA Marble':    { main: 'PLA',   tempMin: 190, tempMax: 230 },
+  'PLA Galaxy':    { main: 'PLA',   tempMin: 190, tempMax: 230 },
+  'PLA Red Copper':{ main: 'PLA',   tempMin: 190, tempMax: 230 },
+  'RAPID PLA+':    { main: 'PLA',   tempMin: 190, tempMax: 230 },
+  // PETG family
+  'PETG':              { main: 'PETG',  tempMin: 220, tempMax: 250 },
+  'PETG-CF':           { main: 'PETG',  tempMin: 220, tempMax: 250 },
+  'PETG-GF':           { main: 'PETG',  tempMin: 220, tempMax: 250 },
+  'PETG Pro':          { main: 'PETG',  tempMin: 220, tempMax: 250 },
+  'PETG Translucent':  { main: 'PETG',  tempMin: 220, tempMax: 250 },
+  'RAPID PETG':        { main: 'PETG',  tempMin: 220, tempMax: 250 },
+  // ABS family
+  'ABS':           { main: 'ABS',   tempMin: 230, tempMax: 260 },
+  // TPU family
+  'TPU 95A':       { main: 'TPU',   tempMin: 210, tempMax: 240 },
+  'RAPID TPU 95A': { main: 'TPU',   tempMin: 210, tempMax: 240 },
+  // ASA
+  'ASA':           { main: 'ASA',   tempMin: 240, tempMax: 260 },
+  // PA family
+  'PAHT-CF':       { main: 'PA',    tempMin: 250, tempMax: 290 },
+  // CPE
+  'CPE':           { main: 'CPE',   tempMin: 240, tempMax: 270 },
+  // PC family
+  'PC':            { main: 'PC',    tempMin: 260, tempMax: 300 },
+  'PC-FR':         { main: 'PC',    tempMin: 260, tempMax: 300 },
+  // PVA / BVOH (support materials)
+  'PVA':           { main: 'PVA',   tempMin: 190, tempMax: 220 },
+  'BVOH':          { main: 'BVOH',  tempMin: 190, tempMax: 220 },
+  // Specialty
+  'EVA':           { main: 'EVA',   tempMin: 180, tempMax: 210 },
+  'HIPS':          { main: 'HIPS',  tempMin: 230, tempMax: 250 },
+  'PP':            { main: 'PP',    tempMin: 220, tempMax: 240 },
+  'PPA':           { main: 'PPA',   tempMin: 280, tempMax: 320 },
+  'PPS':           { main: 'PPS',   tempMin: 300, tempMax: 340 },
 };
-const ELG_VENDOR_NAMES = Object.keys(ELG_VENDORS);
+
+// Full sorted list — priority materials first, rest alphabetical
+const ELG_MATERIAL_LIST = (() => {
+  const priority = ['PLA', 'PLA+', 'PETG', 'ABS', 'TPU 95A', 'ASA'];
+  const all = Object.keys(ELG_MATERIAL_PRESETS);
+  const rest = all.filter(k => !priority.includes(k))
+                  .sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+  return [...priority, ...rest];
+})();
+
+// Vendor names for the brand picker (unchanged)
+const ELG_VENDOR_NAMES = ['Generic', 'ELEGOO', 'Rosa3D', 'R3D', 'Landu', 'eSun', 'Sunlu', 'JamgHe'];
 
 // ── Log helpers ───────────────────────────────────────────────────────────
 
@@ -127,7 +183,23 @@ function elgNotifyChange(conn, statusChanged = false) {
       ctx.onFullRender();
     } else {
       const liveHost = $('elgLive');
-      if (liveHost) liveHost.innerHTML = renderElegooLiveInner(activePrinter);
+      if (liveHost) {
+        const jobEl  = $('elgLiveJob');
+        const ctrlEl = $('elgLiveCtrl');
+        const tempEl = $('elgLiveTemp');
+        const filEl  = $('elgLiveFil');
+        if (jobEl && ctrlEl && tempEl && filEl) {
+          // Patch chirurgical — seules les valeurs changent, pas la structure
+          const b = brands.get('elegoo');
+          jobEl.innerHTML  = b.renderJobCard(activePrinter, conn);
+          patchElegooControlCard(ctrlEl, conn);
+          tempEl.innerHTML = b.renderTempCard(conn);
+          filEl.innerHTML  = b.renderFilamentCard(activePrinter, conn);
+        } else {
+          // Premiers render ou structure absente → innerHTML complet
+          liveHost.innerHTML = renderElegooLiveInner(activePrinter);
+        }
+      }
       const logHost = $('elgLog');
       if (logHost) logHost.innerHTML = renderElegooLogInner(activePrinter);
       const countEl = $('elgLogCount');
@@ -167,6 +239,8 @@ function _startGlobalHandlers() {
           if (!_elegooConns.has(conn.key)) { clearInterval(conn._refreshTimer); return; }
           _elgPublish(conn, 1005, {});
         }, 10_000);
+        // PING/PONG — ISO with Elegoo slicer (every 10 s).
+        _startPingLoop(conn);
       }
     } else if (status.startsWith('error:') || status === 'offline') {
       conn._errorCount++;
@@ -177,6 +251,7 @@ function _startGlobalHandlers() {
         conn._abandoned = true;
         conn.status = 'offline';
         if (conn._refreshTimer) { clearInterval(conn._refreshTimer); conn._refreshTimer = null; }
+        if (conn._pingTimer)    { clearInterval(conn._pingTimer);    conn._pingTimer = null; }
         window.elegoo.disconnect(key); // stops the MQTT client retry loop
         elgLogPush(conn, '✗', `Unreachable after ${MAX} attempts — giving up (check IP)`);
       } else {
@@ -208,16 +283,23 @@ function _startGlobalHandlers() {
 
 // ── Snapshot burst on connect ─────────────────────────────────────────────
 
-// Snapshot burst on connect — real method IDs verified against live hardware.
+// Snapshot burst on connect — order ISO with Elegoo slicer (observed live via MQTT sniffer).
+// Method 1043 = set hostname — MUST be first (slicer always sends it before any data request).
 // Method 1002 = comprehensive status (temps + print_status + machine_status).
 // Method 1005 = print_status only (state / filename / uuid / layers / remaining).
 // Method 2005 = filament slots (canvas_info.canvas_list[0].tray_list).
 // Method 1061 = mono-extruder filament info — used when Canvas system is disconnected.
+// Method 1042 = camera URL → {"url":"http://{ip}:8080/?action=stream"} (dynamic, not hardcoded).
+// Method 1001 = machine info (hostname, firmware version, model, SN).
+// Method 1044 = file list → total layers cache.
 const SNAPSHOT_BURST = [
+  { method: 1043, params: { hostname: 'TigerTag Studio' } },  // announce client identity — FIRST
   { method: 1002, params: {} },   // temps + print_status + machine_status
   { method: 1005, params: {} },   // print_status detail (state / filename / layers)
   { method: 2005, params: {} },   // canvas filament slots (4-tray)
   { method: 1061, params: {} },   // mono-extruder filament fallback (no Canvas)
+  { method: 1042, params: {} },   // camera stream URL (dynamic)
+  { method: 1001, params: {} },   // machine info (firmware version, model)
   { method: 1044, params: { storage_media: 'local', offset: 0, limit: 50 } }, // file list → total layers cache
 ];
 
@@ -228,6 +310,19 @@ function _sendInitSnapshot(conn) {
       _elgPublish(conn, method, params);
     }, i * 50);
   });
+}
+
+// PING/PONG — applicative heartbeat (ISO with Elegoo slicer, every 10 s).
+// The MQTT keepAlive alone is not enough — the slicer sends explicit PING frames.
+// Responses {"type":"PONG"} are silently ignored in _routeMessage (no method number).
+function _startPingLoop(conn) {
+  if (conn._pingTimer) return; // already running
+  conn._pingTimer = setInterval(() => {
+    if (!_elegooConns.has(conn.key)) { clearInterval(conn._pingTimer); return; }
+    if (conn.status !== 'connected') return;
+    const topic = `elegoo/${conn.sn}/${conn.clientId}/api_request`;
+    window.elegoo.publish(conn.key, topic, { type: 'PING' });
+  }, 10_000);
 }
 
 let _elgReqId = 0;
@@ -245,12 +340,34 @@ function _elgPublish(conn, method, params = {}) {
   return payload.id; // caller can use this to correlate the response
 }
 
+// ── Public command API — callable from inventory.js event handlers ────────
+
+/**
+ * Send an arbitrary MQTT command to the printer identified by `key`.
+ * Returns true if the message was queued, false if not connected.
+ *
+ * Caller is responsible for providing valid method / params per PROTOCOL.md.
+ * Used by the Control card event handlers in inventory.js.
+ */
+export function elegooSendCmd(key, method, params = {}) {
+  const conn = _elegooConns.get(key);
+  if (!conn || conn.status !== 'connected') return false;
+  _elgPublish(conn, method, params);
+  return true;
+}
+
 // ── Message routing by method ─────────────────────────────────────────────
 
 function _routeMessage(conn, topic, data) {
-  // api_status — live push broadcast, method is always 6000
+  // api_status — live push broadcast, method is always 6000.
+  // Observed live: the printer also embeds mono_filament_info or canvas_info
+  // in the 6000 push when the user changes filament from the touchscreen.
+  // Both handlers must be called so the filament card updates instantly.
   if (topic.endsWith('/api_status')) {
     _mergeStatus(conn, data);
+    const r = data?.result ?? data;
+    if (r?.mono_filament_info) _mergeMonoFilament(conn, data);
+    if (r?.canvas_info)        _mergeFilaments(conn, data);
     elgNotifyChange(conn, false);
     return;
   }
@@ -268,6 +385,8 @@ function _routeMessage(conn, topic, data) {
     case 1036: _mergeHistory(conn, data);      break;
     case 1044: _mergeLayerMap(conn, data);  break;
     case 1045: _mergeThumbnail(conn, data); break;
+    case 1042: _mergeCameraUrl(conn, data); break;  // camera stream URL (dynamic)
+    // 1043 (set hostname ack), 1001 (machine info), 1055 (filament write ack) — no merge needed
     default: break;
   }
   elgNotifyChange(conn, false);
@@ -373,6 +492,31 @@ function _mergeStatus(conn, data) {
     if (r.remainingTime !== undefined) d.printRemainingMs = Number(r.remainingTime) * 1000;
   }
 
+  // ── Position (gcode_move) — PROTOCOL.md §5.1 ────────────────────────────
+  const gm = r?.gcode_move;
+  if (gm) {
+    if (gm.x          !== undefined) d.posX      = Number(gm.x);
+    if (gm.y          !== undefined) d.posY      = Number(gm.y);
+    if (gm.z          !== undefined) d.posZ      = Number(gm.z);
+    if (gm.speed_mode !== undefined) d.speedMode = Number(gm.speed_mode);
+  }
+
+  // ── Fans — PROTOCOL.md §5.1 / §17 ──────────────────────────────────────
+  const fans = r?.fans;
+  if (fans) {
+    if (fans.fan?.speed     !== undefined) d.fanModel = Number(fans.fan.speed);
+    if (fans.aux_fan?.speed !== undefined) d.fanAux   = Number(fans.aux_fan.speed);
+    if (fans.box_fan?.speed !== undefined) d.fanBox   = Number(fans.box_fan.speed);
+  }
+
+  // ── LED — PROTOCOL.md §5.1 / §17 ───────────────────────────────────────
+  const led = r?.led;
+  if (led?.status !== undefined) d.ledOn = led.status !== 0;
+
+  // ── Homed axes — PROTOCOL.md §5.1 ───────────────────────────────────────
+  const th = r?.tool_head;
+  if (th?.homed_axes !== undefined) d.homedAxes = String(th.homed_axes || '');
+
   // ── Thumbnail request on new filename ───────────────────────────────────
   // PROTOCOL.md §8: correct param is file_name + storage_media:"local".
   // uuid param returns error_code:1003 (confirmed live). Trigger on filename
@@ -475,16 +619,32 @@ function _mergeMonoFilament(conn, data) {
   const type     = String(m.filament_type  || '').trim() || null;
   // Skip if no meaningful data (e.g. printer has no filament loaded at all)
   if (!type && !color) return;
-  conn.data.filaments = [{
-    trayId:  m.tray_id ?? 0,
-    color,
-    type,
-    vendor:  String(m.brand || '').trim() || null,
-    name:    String(m.filament_name || '').trim() || null,
-    minTemp: m.min_nozzle_temp ?? null,
-    maxTemp: m.max_nozzle_temp ?? null,
-    active:  true,  // single slot — treat as always active
-  }];
+
+  const existing = conn.data.filaments?.[0];
+  if (existing) {
+    // Partial push (e.g. only filament_color from a 6000 broadcast) —
+    // only overwrite the fields that are actually present in this payload.
+    if (color)                          existing.color   = color;
+    if (type)                           existing.type    = type;
+    if (m.brand         != null)        existing.vendor  = String(m.brand).trim()         || existing.vendor;
+    if (m.filament_name != null)        existing.name    = String(m.filament_name).trim() || existing.name;
+    if (m.min_nozzle_temp != null)      existing.minTemp = m.min_nozzle_temp;
+    if (m.max_nozzle_temp != null)      existing.maxTemp = m.max_nozzle_temp;
+    if (m.filament_code != null)        existing.code    = String(m.filament_code).trim() || existing.code;
+  } else {
+    // First time we see filament data — create the slot from scratch.
+    conn.data.filaments = [{
+      trayId:  m.tray_id ?? 0,
+      color,
+      type,
+      vendor:  String(m.brand || '').trim() || null,
+      name:    String(m.filament_name || '').trim() || null,
+      minTemp: m.min_nozzle_temp ?? null,
+      maxTemp: m.max_nozzle_temp ?? null,
+      code:    String(m.filament_code || '').trim() || '0x0000',
+      active:  true,
+    }];
+  }
 }
 
 function _mergeLayerMap(conn, data) {
@@ -513,6 +673,41 @@ function _mergeLayerMap(conn, data) {
   if (tot !== undefined && !conn.data.printLayerTotal) {
     conn.data.printLayerTotal = Number(tot);
   }
+
+  // ── File sheet: store list + advance sequential loading ──────────────────
+  // Only runs when the file sheet explicitly requested a listing
+  // (conn._pendingFileMedia is set). Burst-init 1044 (no pending media) is ignored.
+  if (conn._pendingFileMedia) {
+    const parsed = Array.isArray(fileList)
+      ? fileList.map(f => ({
+          filename:   String(f.filename || f.name || '').trim(),
+          size:       Number(f.size        || 0),
+          layer:      f.layer ?? f.total_layer ?? f.totalLayer ?? null,
+          print_time: f.print_time ?? null,
+        })).filter(f => f.filename)
+      : [];
+
+    if (conn._pendingFileMedia === 'local') {
+      conn._localFiles   = parsed;
+      conn._localLoading = false;
+      // Immediately kick off USB request
+      conn._pendingFileMedia = 'usb';
+      conn._usbLoading       = true;
+      _elgPublish(conn, 1044, { storage_media: 'u-disk', dir: '/', offset: 0, limit: 50 });
+    } else if (conn._pendingFileMedia === 'usb') {
+      conn._usbFiles         = parsed;
+      conn._usbLoading       = false;
+      conn._pendingFileMedia = null;
+    }
+    _elgUpdateFileSheet(conn);
+  }
+}
+
+function _mergeCameraUrl(conn, data) {
+  if (!data) return;
+  const r = data.result ?? data;
+  const url = String(r?.url || '').trim();
+  if (url) conn.data.cameraUrl = url;
 }
 
 function _mergeThumbnail(conn, data) {
@@ -589,12 +784,27 @@ export function elegooConnect(printer) {
       thumbnail: null,
       history: [],
       historyLoading: false,
+      cameraUrl: null,      // populated by method 1042 response
+      // Control widget state (from gcode_move / fans / led / tool_head)
+      posX: null, posY: null, posZ: null,
+      fanModel: null, fanAux: null, fanBox: null,
+      ledOn: null,
+      speedMode: null,
+      homedAxes: '',
     },
+    _ctrlStep: 10,          // jog step size in mm — persisted in conn, not re-rendered
+    _activeFileTab: 'history',     // current tab in file sheet: 'history' | 'local' | 'usb'
+    _localFiles: [],               // file list from 1044 storage_media:"local"
+    _usbFiles: [],                 // file list from 1044 storage_media:"u-disk"
+    _localLoading: false,
+    _usbLoading: false,
+    _pendingFileMedia: null,       // tracks sequential 1044 requests from the file sheet
     _layerMap: new Map(),
     _initSnapshotSent: false,
     _thumbnailLastFilename: null,
     _thumbnailLastFetch: 0,
     _refreshTimer: null,
+    _pingTimer: null,       // PING/PONG heartbeat (10 s, ISO with Elegoo slicer)
     _errorCount: 0,   // counts failed attempts; gives up after MAX_CONNECT_ERRORS
     _abandoned: false, // true = bad IP, no more retries until IP changes
     // History thumbnail loader — sequential queue (one request at a time)
@@ -630,6 +840,7 @@ export function elegooConnect(printer) {
 export function elegooDisconnect(key) {
   const conn = _elegooConns.get(key);
   if (conn?._refreshTimer) { clearInterval(conn._refreshTimer); conn._refreshTimer = null; }
+  if (conn?._pingTimer)    { clearInterval(conn._pingTimer);    conn._pingTimer = null; }
   if (window.elegoo) window.elegoo.disconnect(key);
   _elegooConns.delete(key);
 }
@@ -644,20 +855,11 @@ export function renderElegooLiveInner(p) {
       <span>${ctx.esc(ctx.t('snapNoConnection'))}</span>
     </div>`;
   const b = brands.get('elegoo');
-  const headHtml = conn.status === 'connected' ? `
-    <div class="snap-head">
-      <button type="button"
-              class="cre-action-btn"
-              data-elg-open-files="1"
-              title="${ctx.esc(ctx.t('elgFilesTitle') || 'Print history')}">
-        <span class="icon icon-folder icon-16"></span>
-      </button>
-    </div>` : '';
   return `
-    ${headHtml}
-    ${b.renderJobCard(p, conn)}
-    ${b.renderTempCard(conn)}
-    ${b.renderFilamentCard(p, conn)}`;
+    <div id="elgLiveJob">${b.renderJobCard(p, conn)}</div>
+    <div id="elgLiveCtrl">${renderElegooControlCard(p, conn)}</div>
+    <div id="elgLiveTemp">${b.renderTempCard(conn)}</div>
+    <div id="elgLiveFil">${b.renderFilamentCard(p, conn)}</div>`;
 }
 
 export function renderElegooLogInner(p) {
@@ -697,20 +899,6 @@ let _elgFilEdit = null;
 let _elgSelectedVendor = 'Generic';
 let _elgSelectedMaterial = 'PLA';
 
-function _elgSortMaterials(list) {
-  const priority = ['PLA', 'PETG', 'ABS', 'TPU'];
-  const upper = list.map(s => s.toUpperCase());
-  const used = new Set();
-  const head = [];
-  for (const p of priority) {
-    const idx = upper.findIndex((u, i) => !used.has(i) && u === p);
-    if (idx >= 0) { head.push(list[idx]); used.add(idx); }
-  }
-  const rest = list.filter((_, i) => !used.has(i))
-                   .sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
-  return [...head, ...rest];
-}
-
 function _elgRenderVendorList(selected) {
   return ELG_VENDOR_NAMES.map(v => {
     const isSel = v === selected;
@@ -718,13 +906,16 @@ function _elgRenderVendorList(selected) {
   }).join('');
 }
 
-function _elgRenderMaterialList(vendor, selectedMat) {
-  const list = ELG_VENDORS[vendor] || ELG_VENDORS['Generic'];
-  const sorted = _elgSortMaterials(list);
-  return sorted.map(m => {
-    const isSel = m.toLowerCase() === (selectedMat || '').toLowerCase();
+function _elgRenderMaterialList(_vendor, selectedMat) {
+  // All vendors share the same Elegoo-supported preset list.
+  const selLower = (selectedMat || '').toLowerCase();
+  return ELG_MATERIAL_LIST.map(m => {
+    const preset  = ELG_MATERIAL_PRESETS[m];
+    const isSel   = m.toLowerCase() === selLower;
+    const tempHint = preset ? `<span class="sfe-fil-row-temp">${preset.tempMin}–${preset.tempMax}°</span>` : '';
     return `<button type="button" class="sfe-fil-row${isSel ? ' is-selected' : ''}" data-val="${ctx.esc(m)}">
               <span class="sfe-fil-row-text">${ctx.esc(m)}</span>
+              ${tempHint}
               ${isSel ? `<span class="sfe-fil-row-check">✓</span>` : ''}
             </button>`;
   }).join('');
@@ -754,9 +945,10 @@ function _elgRenderColorGrid(currentColor) {
 }
 
 function _elgUpdateSummary() {
-  const m = _elgSelectedMaterial || '—';
-  const valEl = $('elgFilSummaryVal');
-  if (valEl) valEl.textContent = m;
+  const vendor = _elgSelectedVendor  || '';
+  const mat    = _elgSelectedMaterial || '—';
+  const valEl  = $('elgFilSummaryVal');
+  if (valEl) valEl.textContent = vendor ? `${vendor} ${mat}` : mat;
   const dot = $('elgColorSummaryDot');
   if (dot) dot.style.background = $('elgColorInput')?.value || '#888';
 }
@@ -910,16 +1102,20 @@ $('elgColorGrid')?.addEventListener('change', e => {
   }, 100);
 });
 
-// Apply — publish method 2003 to the printer
+// Apply — method 1055 (mono, no Canvas) or 2003 (Canvas connected)
+// Observed live via MQTT sniffer: slicer uses method 1055 for single-extruder write.
 $('elgFilEditSave')?.addEventListener('click', async () => {
   if (!_elgFilEdit) return;
   const conn    = _elegooConns.get(_elgFilEdit.key);
   const errEl   = $('elgError');
   errEl.hidden  = true;
 
-  const rawMaterial = String($('elgMaterial').value || _elgSelectedMaterial || 'PLA').trim();
-  // Extract base type only — split on /[\s+\-_\/]+/, take first token
-  const materialBase = rawMaterial.split(/[\s+\-_\/]+/)[0] || rawMaterial;
+  // Selected material — full subtype name (e.g. "PLA Silk", "RAPID PETG").
+  // Look up in ELG_MATERIAL_PRESETS to get the base filament_type and correct temps.
+  const selectedMat  = String($('elgMaterial').value || _elgSelectedMaterial || 'PLA').trim();
+  const preset       = ELG_MATERIAL_PRESETS[selectedMat];
+  const filamentType = preset?.main || selectedMat.split(/[\s+\-_\/]+/)[0] || selectedMat;
+  const filamentName = selectedMat;   // full subtype → filament_name
 
   let rawColor = String($('elgColorInput').value || '#FF5722').trim();
   if (!/^#[0-9a-f]{6}$/i.test(rawColor)) rawColor = '#FF5722';
@@ -929,12 +1125,20 @@ $('elgFilEditSave')?.addEventListener('click', async () => {
   const fil      = conn?.data?.filaments?.[trayIdx] || {};
   const trayId   = fil.trayId ?? trayIdx;
 
-  const payload2003 = {
-    tray_id:        trayId,
-    canvas_id:      0,
-    filament_type:  materialBase,
-    filament_color: filamentColor,
-    filament_code:  fil.code || '0x0000',
+  // Mono mode (no Canvas): method 1055 — observed live from Elegoo slicer.
+  // Canvas mode: method 2003 — canvas_id always 0.
+  const isMono   = conn?.data?._canvasConnected === false;
+  const method   = isMono ? 1055 : 2003;
+  const payload  = {
+    canvas_id:         0,
+    tray_id:           trayId,
+    brand:             _elgSelectedVendor || fil.vendor || 'Generic',
+    filament_type:     filamentType,   // base type: "PLA", "PETG", "ABS"…
+    filament_name:     filamentName,   // full subtype: "PLA Silk", "RAPID PETG"…
+    filament_code:     fil.code   || '0x0000',
+    filament_color:    filamentColor,
+    filament_min_temp: preset?.tempMin ?? fil.minTemp ?? 190,
+    filament_max_temp: preset?.tempMax ?? fil.maxTemp ?? 230,
   };
 
   if (!conn) {
@@ -948,23 +1152,18 @@ $('elgFilEditSave')?.addEventListener('click', async () => {
   btn.disabled = true;
 
   try {
-    elgLogPush(conn, '→', payload2003, `→ method:2003 tray:${trayId}`);
-    _elgPublish(conn, 2003, payload2003);
+    elgLogPush(conn, '→', payload, `→ method:${method} tray:${trayId}`);
+    _elgPublish(conn, method, payload);
 
-    // Optimistic local update
-    if (conn.data.filaments[trayIdx]) {
-      conn.data.filaments = conn.data.filaments.slice();
-      conn.data.filaments[trayIdx] = {
-        ...conn.data.filaments[trayIdx],
-        type:  materialBase,
-        color: filamentColor,
-      };
-      elgNotifyChange(conn, false);
-    }
-
-    // Refresh filament list after 1s
+    // Capture key/conn before close (closeElegooFilamentEdit nulls _elgFilEdit).
+    // Wait for the printer to confirm before updating the UI:
+    // request a fresh read (1061 mono / 2005 canvas) after the write settles.
+    // _routeMessage will call elgNotifyChange when the response arrives.
+    const connKey = conn.key;
     setTimeout(() => {
-      if (_elegooConns.has(_elgFilEdit?.key)) _elgPublish(conn, 2005, {});
+      const c = _elegooConns.get(connKey);
+      if (!c) return;
+      _elgPublish(c, isMono ? 1061 : 2005, {});
     }, 1000);
 
     closeElegooFilamentEdit();
@@ -1073,7 +1272,7 @@ function _elgHistoryHtml(conn) {
     const thumb     = conn._historyThumbs.get(rawName);
     const thumbHtml = thumb
       ? `<div class="cre-file-thumb" style="background-image:url('${thumb}');background-size:cover;background-position:center"></div>`
-      : `<div class="cre-file-thumb cre-file-thumb--placeholder"><span class="icon icon-cube icon-16"></span></div>`;
+      : `<div class="cre-file-thumb cre-file-thumb--placeholder"><span class="icon icon-printer icon-16"></span></div>`;
     return `
       <div class="cre-file-row${isActive ? ' cre-file-row--active' : ''}">
         ${thumbHtml}
@@ -1087,6 +1286,59 @@ function _elgHistoryHtml(conn) {
             </span>
           </div>
         </div>
+        <button type="button"
+                class="elg-fs-print-btn"
+                data-elg-file-print="${esc(rawName)}"
+                data-elg-file-storage="local"
+                title="${esc(t('elgFilePrint') || 'Print')}">
+          ▶
+        </button>
+      </div>`;
+  }).join('')}</div>`;
+}
+
+function _elgFileListHtml(conn, storage) {
+  const esc      = ctx.esc;
+  const t        = ctx.t;
+  const loading  = storage === 'local' ? conn._localLoading : conn._usbLoading;
+  const files    = storage === 'local' ? conn._localFiles   : conn._usbFiles;
+
+  if (loading && !files.length) {
+    return `<div class="cre-files-empty">${esc(t('elgFilesLoading') || 'Loading…')}</div>`;
+  }
+  if (!files.length) {
+    return `<div class="cre-files-empty">${esc(t('elgFilesEmpty') || 'No files found')}</div>`;
+  }
+
+  function fmtSize(bytes) {
+    if (!bytes) return '';
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  return `<div class="cre-files">${files.map(f => {
+    const cleanName = String(f.filename || '').replace(/\.gcode$/i, '');
+    const isActive  = conn.data.printFilename && f.filename === conn.data.printFilename;
+    const meta      = [
+      f.layer ? `${f.layer} layers` : '',
+      fmtSize(f.size),
+    ].filter(Boolean).join(' · ');
+    return `
+      <div class="cre-file-row${isActive ? ' cre-file-row--active' : ''}">
+        <div class="cre-file-thumb cre-file-thumb--placeholder">
+          <span class="icon icon-printer icon-16"></span>
+        </div>
+        <div class="cre-file-info">
+          <span class="cre-file-name" title="${esc(f.filename)}">${esc(cleanName)}</span>
+          ${meta ? `<span class="cre-file-meta">${esc(meta)}</span>` : ''}
+        </div>
+        <button type="button"
+                class="elg-fs-print-btn"
+                data-elg-file-print="${esc(f.filename)}"
+                data-elg-file-storage="${esc(storage)}"
+                title="${esc(t('elgFilePrint') || 'Print')}">
+          ▶
+        </button>
       </div>`;
   }).join('')}</div>`;
 }
@@ -1097,8 +1349,34 @@ function _elgUpdateFileSheet(conn) {
   const body    = document.getElementById('elgFileSheetBody');
   const refresh = document.getElementById('elgFileSheetRefresh');
   if (!body) return;
-  body.innerHTML = _elgHistoryHtml(conn);
-  if (refresh) refresh.classList.toggle('cre-file-refresh--loading', !!conn.data.historyLoading);
+
+  const tab = conn._activeFileTab || 'history';
+
+  // Sync tab buttons active state
+  document.querySelectorAll('#elgFileSheetTabs .elg-fs-tab').forEach(btn => {
+    btn.classList.toggle('elg-fs-tab--active', btn.dataset.elgFsTab === tab);
+  });
+
+  // Render the right content
+  if (tab === 'history') {
+    body.innerHTML = _elgHistoryHtml(conn);
+    const loading = !!conn.data.historyLoading;
+    if (refresh) refresh.classList.toggle('cre-file-refresh--loading', loading);
+  } else {
+    body.innerHTML = _elgFileListHtml(conn, tab);
+    const loading = tab === 'local' ? conn._localLoading : conn._usbLoading;
+    if (refresh) refresh.classList.toggle('cre-file-refresh--loading', loading);
+  }
+}
+
+function _elgLoadFileLists(conn) {
+  // Sequential: local first, USB after (see _mergeLayerMap for advance logic)
+  conn._localFiles   = [];
+  conn._usbFiles     = [];
+  conn._localLoading = true;
+  conn._usbLoading   = true;
+  conn._pendingFileMedia = 'local';
+  _elgPublish(conn, 1044, { storage_media: 'local', offset: 0, limit: 50 });
 }
 
 export function openElegooFileSheet(printer) {
@@ -1106,15 +1384,44 @@ export function openElegooFileSheet(printer) {
   _elgFileSheetKey = key;
   const conn = _elegooConns.get(key);
   if (!conn) return;
-  _elgUpdateFileSheet(conn);
-  // Kick off a fresh load if empty
+
+  // Default to history tab on first open
+  if (!conn._activeFileTab) conn._activeFileTab = 'history';
+
+  // Fetch history if not yet loaded
   if (!conn.data.history.length) {
     conn.data.historyLoading = true;
     _elgPublish(conn, 1036, {});
   }
+
+  // Always (re)load file lists when opening the sheet
+  _elgLoadFileLists(conn);
+
+  _elgUpdateFileSheet(conn);
   document.getElementById('elgFileSheet')?.classList.add('open');
   document.getElementById('elgFileSheet')?.setAttribute('aria-hidden', 'false');
   document.getElementById('elgFileSheetBackdrop')?.classList.add('open');
+}
+
+/** Switch the visible tab. Called from the inventory.js delegated click handler. */
+export function elegooFileSheetSetTab(tab) {
+  if (!_elgFileSheetKey) return;
+  const conn = _elegooConns.get(_elgFileSheetKey);
+  if (!conn) return;
+  conn._activeFileTab = tab;
+  _elgUpdateFileSheet(conn);
+}
+
+/** Send method 1020 — start a print job. */
+export function elegooStartPrint(key, filename, storage) {
+  const conn = _elegooConns.get(key);
+  if (!conn || conn.status !== 'connected') return false;
+  _elgPublish(conn, 1020, {
+    filename,
+    storage_media: storage,
+    config: { delay_video: true, printer_check: true, print_layout: 'A' },
+  });
+  return true;
 }
 
 export function closeElegooFileSheet() {
@@ -1130,9 +1437,14 @@ document.getElementById('elgFileSheetRefresh')?.addEventListener('click', () => 
   if (!_elgFileSheetKey) return;
   const conn = _elegooConns.get(_elgFileSheetKey);
   if (!conn) return;
-  conn.data.historyLoading = true;
+  const tab = conn._activeFileTab || 'history';
+  if (tab === 'history') {
+    conn.data.historyLoading = true;
+    _elgPublish(conn, 1036, {});
+  } else {
+    _elgLoadFileLists(conn);
+  }
   _elgUpdateFileSheet(conn);
-  _elgPublish(conn, 1036, {});
 });
 
 // ── Self-registration ─────────────────────────────────────────────────────

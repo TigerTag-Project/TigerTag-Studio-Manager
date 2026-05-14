@@ -23,7 +23,13 @@ import {
 // Import order determines registration order (affects brand picker list).
 import { ctx as _printerCtx } from './printers/context.js';
 import { brands } from './printers/registry.js';
-import './printers/bambulab/index.js';
+import {
+  bambuKey, bambuGetConn, bambuIsOnline,
+  bambuConnect, bambuDisconnect, bambuStopCam,
+  renderBambuOnlineBadge,
+  renderBambuLiveInner, renderBambuLogInner,
+} from './printers/bambulab/index.js';
+import { renderBambuCamBanner } from './printers/bambulab/widget_camera.js';
 import {
   ffgKey, ffgGetConn, ffgIsOnline,
   ffgPingPrinter,
@@ -63,11 +69,15 @@ import {
 import {
   elegooKey, elegooGetConn, elegooIsOnline,
   elegooConnect, elegooDisconnect,
+  elegooSendCmd,
+  elegooStartPrint,
+  elegooFileSheetSetTab,
   renderElegooLiveInner, renderElegooLogInner,
   openElegooFilamentEdit, closeElegooFilamentEdit,
   openElegooFileSheet, closeElegooFileSheet,
 } from './printers/elegoo/index.js';
 import { renderElegooCamBanner } from './printers/elegoo/widget_camera.js';
+import { elgFanStep } from './printers/elegoo/widget_control.js';
 
   const API_BASE         = "https://cdn.tigertag.io";
 
@@ -2233,7 +2243,10 @@ import { renderElegooCamBanner } from './printers/elegoo/widget_camera.js';
     closeAdpMaterialSheet();
   });
 
-  $("btnAddProduct")?.addEventListener("click", openAddProductPanel);
+  $("btnAddProduct")?.addEventListener("click", () => {
+    if (state.viewMode === "printer") openPrinterBrandPicker();
+    else openAddProductPanel();
+  });
   $("addProductClose")?.addEventListener("click", _adpCloseAllSheetsAndPanel);
   // TD1S button in ADP header: open connect modal if not detected,
   // open tester if already connected.
@@ -4798,6 +4811,13 @@ import { renderElegooCamBanner } from './printers/elegoo/widget_camera.js';
     if (mode === "printer" && (!state.unsubPrinters || !state.unsubPrinters.length) && state.activeAccountId) {
       subscribePrinters(state.activeAccountId);
     }
+    // Swap the header Add button label between "Add Product" ↔ "Add Device"
+    const _addLbl = $("btnAddProduct")?.querySelector("[data-i18n]");
+    if (_addLbl) {
+      const _key = mode === "printer" ? "addDeviceBtn" : "addProductBtn";
+      _addLbl.dataset.i18n = _key;
+      _addLbl.textContent  = t(_key);
+    }
   }
   $("btnViewTable").addEventListener("click", () => setViewMode("table"));
   $("btnViewGrid").addEventListener("click",  () => setViewMode("grid"));
@@ -4806,7 +4826,12 @@ import { renderElegooCamBanner } from './printers/elegoo/widget_camera.js';
   // Restore active button on boot
   if (state.viewMode === "grid") { $("btnViewGrid").classList.add("active"); $("btnViewTable").classList.remove("active"); }
   else if (state.viewMode === "rack") { $("btnViewRack")?.classList.add("active"); $("btnViewTable").classList.remove("active"); }
-  else if (state.viewMode === "printer") { $("btnViewPrinter")?.classList.add("active"); $("btnViewTable").classList.remove("active"); }
+  else if (state.viewMode === "printer") {
+    $("btnViewPrinter")?.classList.add("active"); $("btnViewTable").classList.remove("active");
+    // Initialise Add button label for printer mode on first load
+    const _al = $("btnAddProduct")?.querySelector("[data-i18n]");
+    if (_al) { _al.dataset.i18n = "addDeviceBtn"; _al.textContent = t("addDeviceBtn"); }
+  }
 
   // Toggle the clear-button visibility in lock-step with the input
   // value — only shown when there's something to clear. The same pass
@@ -6814,6 +6839,10 @@ import { renderElegooCamBanner } from './printers/elegoo/widget_camera.js';
     // Track which Elegoo printer keys are currently auto-connected so we can
     // detect deletions and tear down the MQTT session cleanly.
     const _elegooAutoKeys = new Set();
+    // Same pattern for Bambu Lab — always-on MQTT so the card status badge is
+    // live even without opening the sidecard. Camera is NOT started here; it is
+    // started only when the sidecard opens (bambuConnect called without skipCam).
+    const _bambuAutoKeys = new Set();
     state._printerCache = cache;
     // Loading flag — flipped to false the FIRST time any brand listener
     // emits a snapshot (cached or live). Tracking per-brand "first
@@ -6893,6 +6922,25 @@ import { renderElegooCamBanner } from './printers/elegoo/widget_camera.js';
               }
             }
           }
+          // Bambu Lab: same always-on MQTT pattern — camera skipped here,
+          // started only when the sidecard opens.
+          {
+            const bambuNow = all.filter(p => p.brand === 'bambulab' && (p.broker || p.ip));
+            const bambuNowKeys = new Set(bambuNow.map(p => bambuKey(p)));
+            for (const key of _bambuAutoKeys) {
+              if (!bambuNowKeys.has(key)) { bambuDisconnect(key); _bambuAutoKeys.delete(key); }
+            }
+            for (const p of bambuNow) {
+              const key = bambuKey(p);
+              const conn = bambuGetConn(key);
+              // Connect when: no conn yet, OR IP changed.
+              const ip = p.broker || p.ip || "";
+              if (!conn || conn.ip !== ip) {
+                bambuConnect(p, { skipCam: true });
+                _bambuAutoKeys.add(key);
+              }
+            }
+          }
           if (state.viewMode === "printer") renderPrintersView();
           // Live-update an open detail panel if it shows one of the changed docs
           if ($("printerPanel")?.classList.contains("open")) refreshOpenPrinterDetail();
@@ -6914,6 +6962,10 @@ import { renderElegooCamBanner } from './printers/elegoo/widget_camera.js';
     // sidecard open/close but must stop when the session ends (logout / switch).
     (state.printers || []).filter(p => p.brand === 'elegoo').forEach(p => {
       try { elegooDisconnect(elegooKey(p)); } catch (_) {}
+    });
+    // Same for Bambu Lab — full disconnect (MQTT + camera).
+    (state.printers || []).filter(p => p.brand === 'bambulab').forEach(p => {
+      try { bambuDisconnect(bambuKey(p)); } catch (_) {}
     });
     // Close any open printer detail panel — its data belonged to the
     // outgoing account/session.
@@ -6990,11 +7042,29 @@ import { renderElegooCamBanner } from './printers/elegoo/widget_camera.js';
       return;
     }
 
+    // Helper: is this printer currently online? Returns boolean (false = offline or unknown).
+    // Uses last-known status from each brand's connection map — no new network round-trip.
+    const _isOnline = p => {
+      if (p.brand === "snapmaker")  return snapIsOnline(p)   === true;
+      if (p.brand === "flashforge") return ffgIsOnline(p)    === true;
+      if (p.brand === "creality")   return creIsOnline(p)    === true;
+      if (p.brand === "elegoo")     return elegooIsOnline(p) === true;
+      if (p.brand === "bambulab")   return bambuIsOnline(p)  === true;
+      return false;
+    };
+
+    // Partition into connected / offline while preserving each group's sortIndex order.
+    const _onlineList  = state.printers.filter(p =>  _isOnline(p));
+    const _offlineList = state.printers.filter(p => !_isOnline(p));
+    const _showSections = _onlineList.length > 0 && _offlineList.length > 0;
+    // Render order: online first, then offline. Within each group, sortIndex is preserved.
+    const _orderedPrinters = [..._onlineList, ..._offlineList];
+
     // One flat grid — all brands mixed, ordered strictly by user-defined
     // sortIndex (set via drag & drop). Each card carries its brand pill so
     // multi-brand inventories remain visually distinguishable without
     // forcing brand sections that fight the user's preferred order.
-    const cards = state.printers.map(p => {
+    const _makeCard = p => {
       const meta      = PRINTER_BRAND_META[p.brand] || { label: p.brand, accent: "#888", connection: "" };
       const modelName = printerModelName(p.brand, p.printerModelId);
       const imgUrl    = printerImageUrlFor(p.brand, p.printerModelId);
@@ -7030,6 +7100,8 @@ import { renderElegooCamBanner } from './printers/elegoo/widget_camera.js';
                       <span class="printer-online-lbl">${esc(lbl)}</span>
                     </span>`;
           })()
+        : p.brand === "bambulab"
+        ? renderBambuOnlineBadge(p, "card")
         : renderSnapOnlineBadge(p, "card");
       return `
         <div class="printer-card${p.isActive ? " printer-card--active" : ""}"
@@ -7052,7 +7124,15 @@ import { renderElegooCamBanner } from './printers/elegoo/widget_camera.js';
             ${updated ? `<span class="printer-card-updated">${esc(t("printersUpdated"))} · ${esc(updated)}</span>` : ""}
           </div>
         </div>`;
-    }).join("");
+    };
+
+    // Assemble grid HTML: section headers only when both groups are non-empty.
+    const _hdrOnline  = `<div class="printers-section-hdr">${esc(t("printersSectionOnline"))}</div>`;
+    const _hdrOffline = `<div class="printers-section-hdr printers-section-hdr--offline">${esc(t("printersSectionOffline"))}</div>`;
+    const cards = _showSections
+      ? _hdrOnline  + _onlineList.map(_makeCard).join("")
+      + _hdrOffline + _offlineList.map(_makeCard).join("")
+      : _orderedPrinters.map(_makeCard).join("");
 
     // Trailing "+" card so users can add a new printer directly from the
     // grid. The card itself isn't draggable / sortable — it's a fixed
@@ -7198,6 +7278,10 @@ import { renderElegooCamBanner } from './printers/elegoo/widget_camera.js';
      owner — the masking is purely a shoulder-surfing / screen-share
      defense, NOT a security boundary (Firestore rules are).               */
   let _activePrinter  = null; // currently-open printer { brand, id, ...data }
+  // Tracks printers the user explicitly disconnected via the ⏻ button.
+  // isOnline() functions check this to return false instead of null when
+  // no conn exists after an intentional disconnect (vs. never connected).
+  const _ppForcedOfflineKeys = new Set();
 
   function openPrinterDetail(brand, id) {
     const printer = state.printers.find(p => p.brand === brand && p.id === id);
@@ -7210,6 +7294,15 @@ import { renderElegooCamBanner } from './printers/elegoo/widget_camera.js';
     // the printer may still see the old slot as taken for a few seconds.
     try { ffgTearDownCamera(); } catch (_) {}
     _activePrinter = printer;
+    // Opening the side card is an implicit "connect intent" — clear any
+    // forced-offline flag so the badge and live blocks show the real state
+    // as the brand module establishes (or re-establishes) the connection.
+    const _openKey = printer.brand === "snapmaker"  ? snapKey(printer)
+                   : printer.brand === "flashforge" ? ffgKey(printer)
+                   : printer.brand === "creality"   ? creKey(printer)
+                   : printer.brand === "bambulab"   ? bambuKey(printer)
+                   : printer.brand === "elegoo"     ? elegooKey(printer) : null;
+    if (_openKey) _ppForcedOfflineKeys.delete(_openKey);
     renderPrinterDetail();
     $("printerPanel").classList.add("open");
     $("printerOverlay").classList.add("open");
@@ -7229,6 +7322,10 @@ import { renderElegooCamBanner } from './printers/elegoo/widget_camera.js';
     }
     // Elegoo — MQTT is connected automatically at startup by subscribePrinters()
     // and stays alive in the background; no need to reconnect on sidecard open.
+    // Bambu Lab — connect MQTT TLS (and start JPEG camera if applicable).
+    if (printer.brand === "bambulab" && (printer.broker || printer.ip)) {
+      bambuConnect(printer);
+    }
   }
   function closePrinterDetail() {
     // If the filament-edit bottom-sheet is open over this side-panel,
@@ -7252,38 +7349,29 @@ import { renderElegooCamBanner } from './printers/elegoo/widget_camera.js';
     if ($("creFileSheet")?.classList.contains("open")) {
       try { closeCreFileSheet(); } catch {}
     }
-    // Cut the MJPEG stream BEFORE the panel slides out. The `<img>`
-    // stays in DOM while the .open class is removed (just CSS-hidden),
-    // so without an explicit src reset Chromium keeps the connection
-    // alive — and the FlashForge mjpg-streamer (1 concurrent client
-    // limit) refuses the next open until the held connection drops.
+    // FlashForge MJPEG — reset the <img> src BEFORE the panel slides out so
+    // Chromium releases the connection immediately. The FlashForge mjpg-streamer
+    // allows only ONE concurrent client; holding the img open blocks the next
+    // session. The HTTP polling loop is kept alive in the background so live
+    // data (temps, camera URL) is fresh when the panel reopens.
     try { ffgTearDownCamera(); } catch (_) {}
     $("printerPanel").classList.remove("open");
     $("printerOverlay").classList.remove("open");
-    // Tear down the Snapmaker live connection if any was active for this
-    // printer — keeps long-lived sockets from leaking when the sidebar
-    // closes or when the user switches printers.
-    if (_activePrinter?.brand === "snapmaker") {
-      snapDisconnect(snapKey(_activePrinter));
-    }
-    // FlashForge — same lifecycle: stop the polling loop on close.
-    if (_activePrinter?.brand === "flashforge") {
-      ffgDisconnect(ffgKey(_activePrinter));
-    }
-    // Creality — stop the WebRTC camera, then tear down the WebSocket.
-    if (_activePrinter?.brand === "creality") {
-      stopCreCam();
-      creDisconnect(creKey(_activePrinter));
-    }
-    // Elegoo — close filament-edit sheet if open. MQTT stays alive in background
-    // (persistent connection for live card status — disconnected only on logout).
+    // Creality — stop the WebRTC peer connection; the <video> element is only
+    // valid while the panel is open. The WebSocket (port 9999) stays alive for
+    // live telemetry. startCreCam() is called again when the panel reopens.
+    if (_activePrinter?.brand === "creality") stopCreCam();
+    // Elegoo — close filament-edit / file-history sheets if open.
+    // MQTT connection stays alive in background (disconnected only on logout).
     if ($("elgFilEditSheet")?.classList.contains("open")) {
       try { closeElegooFilamentEdit(); } catch {}
     }
-    // Elegoo — close file history sheet if open.
     if ($("elgFileSheet")?.classList.contains("open")) {
       try { closeElegooFileSheet(); } catch {}
     }
+    // All other brands (Snapmaker WS, FlashForge poll, Creality WS, Bambu MQTT,
+    // Bambu camera stream) stay alive in the background. Reconnecting is a no-op
+    // if the connection is already up when the panel reopens.
     _activePrinter = null;
   }
   $("printerPanelClose")?.addEventListener("click", closePrinterDetail);
@@ -7296,11 +7384,114 @@ import { renderElegooCamBanner } from './printers/elegoo/widget_camera.js';
       closePrinterDetail();
     }
   });
+
+  // Elegoo Control card — step size + print speed selectors (change event, delegated)
+  document.addEventListener("change", e => {
+    if (_activePrinter?.brand !== "elegoo") return;
+    // Step size dropdown
+    const stepSel = e.target.closest("[data-elg-ctrl-step]");
+    if (stepSel) {
+      const s = parseFloat(stepSel.value);
+      if (!isNaN(s)) {
+        const conn = elegooGetConn(elegooKey(_activePrinter));
+        if (conn) {
+          conn._ctrlStep = s;
+          const host = document.getElementById("elgLive");
+          if (host) host.innerHTML = renderElegooLiveInner(_activePrinter);
+        }
+      }
+      return;
+    }
+    // Print speed dropdown
+    const speedSel = e.target.closest("[data-elg-ctrl-speed]");
+    if (speedSel) {
+      const mode = parseInt(speedSel.value, 10);
+      if (!isNaN(mode)) elegooSendCmd(elegooKey(_activePrinter), 1031, { mode });
+    }
+  });
+
+  // Elegoo file sheet — tab + print buttons live OUTSIDE #printerPanelBody,
+  // so they must be delegated on document, not on the panel body.
+  document.addEventListener("click", e => {
+    // Tab switch
+    const fsTab = e.target.closest("[data-elg-fs-tab]");
+    if (fsTab) {
+      e.preventDefault(); e.stopPropagation();
+      elegooFileSheetSetTab(fsTab.dataset.elgFsTab);
+      return;
+    }
+    // Print / re-print a file
+    const fsPrint = e.target.closest("[data-elg-file-print]");
+    if (fsPrint && _activePrinter?.brand === "elegoo") {
+      e.preventDefault(); e.stopPropagation();
+      const filename = fsPrint.dataset.elgFilePrint;
+      const storage  = fsPrint.dataset.elgFileStorage || "local";
+      if (filename) {
+        elegooStartPrint(elegooKey(_activePrinter), filename, storage);
+        closeElegooFileSheet();
+      }
+      return;
+    }
+  });
+
   // Gear button — opens the Printers Settings modal pre-filled with the
   // current printer's data so the user can edit fields and confirm.
   $("printerEditBtn")?.addEventListener("click", () => {
     if (!_activePrinter) return;
     openPrinterAddForm(_activePrinter.brand, _activePrinter);
+  });
+
+  // Connect / Disconnect button — left of the gear button.
+  // Updates its own appearance based on the live connection status.
+  function _updatePrinterConnBtn() {
+    const btn = $("printerConnBtn");
+    if (!btn || !_activePrinter) return;
+    const p = _activePrinter;
+    let connStatus = null;
+    if (p.brand === "snapmaker")  connStatus = snapGetConn(snapKey(p))?.status     ?? null;
+    if (p.brand === "flashforge") connStatus = ffgGetConn(ffgKey(p))?.status       ?? null;
+    if (p.brand === "creality")   connStatus = creGetConn(creKey(p))?.status       ?? null;
+    if (p.brand === "bambulab")   connStatus = bambuGetConn(bambuKey(p))?.status   ?? null;
+    if (p.brand === "elegoo")     connStatus = elegooGetConn(elegooKey(p))?.status ?? null;
+    const active    = connStatus === "connected" || connStatus === "connecting";
+    const labelKey  = active ? "printerDisconnect" : "printerConnect";
+    btn.title       = t(labelKey);
+    btn.ariaLabel   = btn.title;
+    btn.dataset.conn = active ? "active" : "inactive";
+  }
+
+  $("printerConnBtn")?.addEventListener("click", () => {
+    if (!_activePrinter) return;
+    const p      = _activePrinter;
+    const active = $("printerConnBtn")?.dataset.conn === "active";
+    // Resolve the brand key used for the forced-offline tracking set.
+    const _brKey = p.brand === "snapmaker"  ? snapKey(p)
+                 : p.brand === "flashforge" ? ffgKey(p)
+                 : p.brand === "creality"   ? creKey(p)
+                 : p.brand === "bambulab"   ? bambuKey(p)
+                 : p.brand === "elegoo"     ? elegooKey(p) : null;
+    if (active) {
+      // Mark as explicitly offline BEFORE disconnecting so that any
+      // badge refresh callbacks triggered during teardown show "Offline".
+      if (_brKey) _ppForcedOfflineKeys.add(_brKey);
+      if (p.brand === "snapmaker")  snapDisconnect(snapKey(p));
+      if (p.brand === "flashforge") ffgDisconnect(ffgKey(p));
+      if (p.brand === "creality")   { creDisconnect(creKey(p)); stopCreCam(); }
+      if (p.brand === "bambulab")   bambuDisconnect(bambuKey(p));
+      if (p.brand === "elegoo")     elegooDisconnect(elegooKey(p));
+    } else {
+      // Clear forced-offline so isOnline() falls back to live conn status.
+      if (_brKey) _ppForcedOfflineKeys.delete(_brKey);
+      if (p.brand === "snapmaker"  && p.ip)               snapConnect(p);
+      if (p.brand === "flashforge" && p.ip)               ffgConnect(p);
+      if (p.brand === "creality"   && p.ip)               creConnect(p);
+      if (p.brand === "bambulab"   && (p.broker || p.ip)) bambuConnect(p);
+      if (p.brand === "elegoo")                           elegooConnect(p);
+    }
+    // Refresh the panel body and the printer grid immediately so the badge
+    // dots in the card list also flip to offline/connecting right away.
+    try { renderPrinterDetail(); } catch (_) {}
+    if (state.viewMode === "printer") try { renderPrintersView(); } catch (_) {}
   });
 
   // Re-render the detail panel against the live state.printers (so a
@@ -7312,6 +7503,9 @@ import { renderElegooCamBanner } from './printers/elegoo/widget_camera.js';
     if (!fresh) { closePrinterDetail(); return; } // doc was deleted
     _activePrinter = fresh;
     renderPrinterDetail();
+    // renderPrinterDetail already calls _updatePrinterConnBtn at its end.
+    // The extra call here covers surgical updates that skip renderPrinterDetail.
+    _updatePrinterConnBtn();
   }
 
   // Populate the shared printer rendering context for brand card widgets.
@@ -7320,6 +7514,7 @@ import { renderElegooCamBanner } from './printers/elegoo/widget_camera.js';
   Object.assign(_printerCtx, {
     esc, t,
     toast: (msg, type) => toast(msg, type),
+    isForcedOffline: (key) => _ppForcedOfflineKeys.has(key),
     snapFmtTempPair, snapFmtDuration, snapTextColor,
     findPrinterModel, printerImageUrl, printerImageUrlFor,
     snapFilenameRel,
@@ -7327,8 +7522,20 @@ import { renderElegooCamBanner } from './printers/elegoo/widget_camera.js';
     SNAP_FIL_COLOR_PRESETS,
     getActivePrinter:      () => _activePrinter,
     getState:              () => state,
-    onFullRender:          () => renderPrinterDetail(),
-    onPrinterStatusChange: () => { if (typeof refreshOpenPrinterDetail === "function") refreshOpenPrinterDetail(); },
+    onFullRender: () => {
+      renderPrinterDetail();
+      // Re-partition the printer grid (CONNECTED / OFFLINE sections) whenever
+      // a brand status change triggers a full render — keeps the card position
+      // in sync with the live connection state without waiting for a Firestore
+      // snapshot.
+      if (state.viewMode === "printer") try { renderPrintersView(); } catch (_) {}
+    },
+    onPrinterStatusChange: (key, status) => {
+      // When a brand reaches "connected", auto-clear forced-offline so the
+      // badge and panel return to their live state correctly.
+      if (status === "connected" && key) _ppForcedOfflineKeys.delete(key);
+      if (typeof refreshOpenPrinterDetail === "function") refreshOpenPrinterDetail();
+    },
     onPrintersViewChange:  () => renderPrintersView(),
     setupHoldToConfirm,
   });
@@ -7348,6 +7555,7 @@ import { renderElegooCamBanner } from './printers/elegoo/widget_camera.js';
       case "creality":   return renderCreCamBanner(p);
       case "flashforge": return renderFfgCamBanner(p);
       case "elegoo":     return renderElegooCamBanner(p);
+      case "bambulab":   return renderBambuCamBanner(p);
       default: return "";
     }
   }
@@ -7379,11 +7587,39 @@ import { renderElegooCamBanner } from './printers/elegoo/widget_camera.js';
     const snapConn = (p.brand === "snapmaker") ? snapGetConn(snapKey(p)) : null;
     const creConn  = (p.brand === "creality")  ? creGetConn(creKey(p))  : null;
 
-    // Camera banner — delegated entirely to the per-brand widget_camera.js.
-    // Each widget decides visibility and builds the full HTML internally.
-    // Adding a new printer brand never requires touching this file.
-    const camBannerHtml = renderCamBanner(p);
-    const showCam = camBannerHtml !== "";
+    // Snapmaker WebRTC camera — lives in #ppPersistentCam (outside the
+    // scrollable body) so innerHTML rebuilds never destroy the live <iframe>.
+    // We only (re)build the iframe when the connected IP changes; if the IP
+    // is the same as the last render we leave the element untouched so the
+    // WebRTC session continues uninterrupted across panel re-renders / opens.
+    const _snapCamConn  = (p.brand === "snapmaker") ? snapGetConn(snapKey(p)) : null;
+    const _snapCamIp    = (_snapCamConn?.status === "connected" && _snapCamConn?.ip) || null;
+    const _persistEl    = $("ppPersistentCam");
+    if (_persistEl) {
+      if (p.brand === "snapmaker") {
+        const _prevIp = _persistEl.dataset.snapIp || "";
+        if (_snapCamIp && _snapCamIp !== _prevIp) {
+          // New connection or IP changed — build a fresh iframe.
+          _persistEl.dataset.snapIp = _snapCamIp;
+          _persistEl.innerHTML = renderSnapCamBanner(p);
+        } else if (!_snapCamIp && _prevIp) {
+          // Went offline — clear the camera.
+          delete _persistEl.dataset.snapIp;
+          _persistEl.innerHTML = "";
+        }
+        // Same IP → leave #ppPersistentCam entirely alone (WebRTC keeps running).
+      } else {
+        // Different brand — clear any residual Snapmaker camera.
+        _persistEl.innerHTML = "";
+        delete _persistEl.dataset.snapIp;
+      }
+    }
+    const _snapCamVisible = p.brand === "snapmaker" && !!_snapCamIp;
+
+    // Camera banner (non-Snapmaker brands) — delegated to per-brand widget_camera.js.
+    // Snapmaker is handled above via #ppPersistentCam, so it returns "" here.
+    const camBannerHtml = (p.brand === "snapmaker") ? "" : renderCamBanner(p);
+    const showCam = _snapCamVisible || camBannerHtml !== "";
 
     // Hero photo — only when the camera is NOT taking over.
     const heroImgHtml = (!showCam && heroImgUrl)
@@ -7415,6 +7651,11 @@ import { renderElegooCamBanner } from './printers/elegoo/widget_camera.js';
     // Elegoo live data block — same reusable .snap-* CSS classes.
     const elgLiveHtml = (p.brand === "elegoo")
       ? `<div id="elgLive" class="snap-live-host">${renderElegooLiveInner(p)}</div>`
+      : "";
+
+    // Bambu Lab live data block — MQTT TLS, job state + temps + AMS.
+    const bblLiveHtml = (p.brand === "bambulab")
+      ? `<div id="bblLive" class="snap-live-host">${renderBambuLiveInner(p)}</div>`
       : "";
 
     // FlashForge HTTP request log — same shape as the Snapmaker block
@@ -7563,6 +7804,36 @@ import { renderElegooCamBanner } from './printers/elegoo/widget_camera.js';
          </section>`
       : "";
 
+    // Bambu Lab MQTT request log — same collapsible section, debug-only.
+    const bblConn = (p.brand === "bambulab") ? bambuGetConn(bambuKey(p)) : null;
+    const isBblPaused   = !!(bblConn?.logPaused);
+    const bblLogExpanded = !!(bblConn?.logExpanded);
+    const bblLogHtml = (p.brand === "bambulab")
+      ? `<section class="pp-section pp-section--collapsible snap-log-section" data-collapsed="${bblLogExpanded ? "false" : "true"}">
+           <button class="pp-section-head pp-section-head--btn" type="button">
+             <span>${esc(t("snapLogTitle"))}
+                   <span class="snap-log-count" id="bblLogCount">${(bblConn?.log?.length) || 0}</span>
+                   ${isBblPaused ? `<span class="snap-log-paused-tag" id="bblLogPausedTag">${esc(t("snapLogPaused"))}</span>` : ""}
+             </span>
+             <span class="pp-chev icon icon-chevron-r icon-14"></span>
+           </button>
+           <div class="pp-section-body">
+             <div class="snap-log-toolbar">
+               <button type="button" class="snap-log-btn snap-log-btn--pause${isBblPaused ? " is-paused" : ""}" id="bblLogPauseBtn"
+                       data-paused="${isBblPaused ? "true" : "false"}">
+                 <span class="icon ${isBblPaused ? "icon-play" : "icon-pause"} icon-13"></span>
+                 <span class="label">${esc(t(isBblPaused ? "snapLogResume" : "snapLogPause"))}</span>
+               </button>
+               <button type="button" class="snap-log-btn" id="bblLogClearBtn">
+                 <span class="icon icon-trash icon-13"></span>
+                 <span>${esc(t("snapLogClear"))}</span>
+               </button>
+             </div>
+             <div id="bblLog">${renderBambuLogInner(p)}</div>
+           </div>
+         </section>`
+      : "";
+
     // Pills (next to the printer name on the title row): brand + model.
     // The online/offline status badge is rendered SEPARATELY on its
     // own row beneath the title — see #printerPanelStatus below.
@@ -7591,6 +7862,8 @@ import { renderElegooCamBanner } from './printers/elegoo/widget_camera.js';
           ? renderFfgOnlineBadge(p, "side")
           : (p.brand === "creality")
           ? renderCreOnlineBadge(p, "side")
+          : (p.brand === "bambulab")
+          ? renderBambuOnlineBadge(p, "side")
           : renderSnapOnlineBadge(p, "side");
       }
     }
@@ -7621,6 +7894,7 @@ import { renderElegooCamBanner } from './printers/elegoo/widget_camera.js';
       ${ffgLiveHtml}
       ${creLiveHtml}
       ${elgLiveHtml}
+      ${bblLiveHtml}
 
       ${elgLogHtml}
 
@@ -7643,7 +7917,8 @@ import { renderElegooCamBanner } from './printers/elegoo/widget_camera.js';
 
       ${snapLogHtml}
       ${ffgLogHtml}
-      ${creLogHtml}` : ""}`;
+      ${creLogHtml}
+      ${bblLogHtml}` : ""}`;
 
     // Creality camera — start WebRTC after the <video> is in the DOM.
     if (p.brand === "creality" && creConn?.ip) {
@@ -7690,6 +7965,16 @@ import { renderElegooCamBanner } from './printers/elegoo/widget_camera.js';
           btn.classList.add("pp-copy--ok");
           setTimeout(() => btn.classList.remove("pp-copy--ok"), 900);
         } catch (_) {}
+      });
+    });
+
+    // Bambu RTSP "Open" button — opens the rtsps:// URL in VLC / default player.
+    body.querySelectorAll(".bbl-rtsp-open-btn").forEach(btn => {
+      btn.addEventListener("click", e => {
+        e.stopPropagation();
+        const url = btn.dataset.openUrl || "";
+        if (!url) return;
+        try { window.electronAPI?.openExternal(url); } catch (_) {}
       });
     });
     body.querySelectorAll(".pp-section--collapsible .pp-section-head--btn").forEach(btn => {
@@ -7968,6 +8253,39 @@ import { renderElegooCamBanner } from './printers/elegoo/widget_camera.js';
           if (countEl) countEl.textContent = "0";
           return;
         }
+        // Bambu Lab — Pause / Resume MQTT log.
+        if (e.target.closest("#bblLogPauseBtn")) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (!_activePrinter) return;
+          const conn = bambuGetConn(bambuKey(_activePrinter));
+          if (!conn) return;
+          conn.logPaused = !conn.logPaused;
+          const btn = $("bblLogPauseBtn");
+          if (btn) {
+            btn.dataset.paused = conn.logPaused ? "true" : "false";
+            btn.classList.toggle("is-paused", conn.logPaused);
+            const icon  = btn.querySelector(".icon");
+            const label = btn.querySelector(".label");
+            if (icon)  icon.className  = `icon ${conn.logPaused ? "icon-play" : "icon-pause"} icon-13`;
+            if (label) label.textContent = t(conn.logPaused ? "snapLogResume" : "snapLogPause");
+          }
+          return;
+        }
+        // Bambu Lab — Clear MQTT log buffer.
+        if (e.target.closest("#bblLogClearBtn")) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (!_activePrinter) return;
+          const conn = bambuGetConn(bambuKey(_activePrinter));
+          if (!conn) return;
+          conn.log = [];
+          const host = $("bblLog");
+          if (host) host.innerHTML = renderBambuLogInner(_activePrinter);
+          const countEl = $("bblLogCount");
+          if (countEl) countEl.textContent = "0";
+          return;
+        }
         // Creality — LED toggle (click) + open file sheet (folder button).
         const creActionTrigger = e.target.closest("[data-cre-action]");
         if (creActionTrigger) {
@@ -7987,6 +8305,71 @@ import { renderElegooCamBanner } from './printers/elegoo/widget_camera.js';
           if (_activePrinter?.brand === "elegoo") openElegooFileSheet(_activePrinter);
           return;
         }
+
+        // ── Elegoo Control card ─────────────────────────────────────────────
+        // Jog axis: [data-elg-ctrl-jog="x|y|z"] [data-dist="±N"]
+        const jogBtn = e.target.closest("[data-elg-ctrl-jog]");
+        if (jogBtn && _activePrinter?.brand === "elegoo") {
+          e.preventDefault(); e.stopPropagation();
+          const axis = jogBtn.dataset.elgCtrlJog;
+          const dist = parseFloat(jogBtn.dataset.dist);
+          if (axis && !isNaN(dist)) {
+            elegooSendCmd(elegooKey(_activePrinter), 1027, { axes: axis, distance: dist });
+          }
+          return;
+        }
+
+        // Home axes: [data-elg-ctrl-home="xy|z|xyz"]
+        const homeBtn = e.target.closest("[data-elg-ctrl-home]");
+        if (homeBtn && _activePrinter?.brand === "elegoo") {
+          e.preventDefault(); e.stopPropagation();
+          const axes = homeBtn.dataset.elgCtrlHome || "xyz";
+          elegooSendCmd(elegooKey(_activePrinter), 1026, { homed_axes: axes });
+          return;
+        }
+
+        // Fan toggle: [data-elg-ctrl-fan-toggle="fan|aux_fan|box_fan"]
+        const fanToggle = e.target.closest("[data-elg-ctrl-fan-toggle]");
+        if (fanToggle && _activePrinter?.brand === "elegoo") {
+          e.preventDefault(); e.stopPropagation();
+          const fanKey = fanToggle.dataset.elgCtrlFanToggle;
+          const conn   = elegooGetConn(elegooKey(_activePrinter));
+          if (conn && fanKey) {
+            const cur = fanKey === "fan"     ? conn.data.fanModel
+                      : fanKey === "aux_fan" ? conn.data.fanAux
+                      :                       conn.data.fanBox;
+            const newVal = (typeof cur === "number" && cur > 0) ? 0 : 255; // toggle: off→100%, on→off
+            elegooSendCmd(elegooKey(_activePrinter), 1030, { [fanKey]: newVal });
+          }
+          return;
+        }
+
+        // Fan step ±: [data-elg-ctrl-fan-step="fan|aux_fan|box_fan"] [data-step="±26"]
+        const fanStep = e.target.closest("[data-elg-ctrl-fan-step]");
+        if (fanStep && _activePrinter?.brand === "elegoo") {
+          e.preventDefault(); e.stopPropagation();
+          const fanKey = fanStep.dataset.elgCtrlFanStep;
+          const delta  = parseInt(fanStep.dataset.step, 10);
+          const conn   = elegooGetConn(elegooKey(_activePrinter));
+          if (conn && fanKey && !isNaN(delta)) {
+            const cur = fanKey === "fan"     ? conn.data.fanModel
+                      : fanKey === "aux_fan" ? conn.data.fanAux
+                      :                       conn.data.fanBox;
+            elegooSendCmd(elegooKey(_activePrinter), 1030, { [fanKey]: elgFanStep(cur, delta) });
+          }
+          return;
+        }
+
+        // LED toggle: [data-elg-ctrl-led]
+        const ledToggle = e.target.closest("[data-elg-ctrl-led]");
+        if (ledToggle && _activePrinter?.brand === "elegoo") {
+          e.preventDefault(); e.stopPropagation();
+          const conn = elegooGetConn(elegooKey(_activePrinter));
+          const on   = conn?.data?.ledOn ?? false;
+          elegooSendCmd(elegooKey(_activePrinter), 1029, { power: on ? 0 : 1 });
+          return;
+        }
+
         // Creality file sheet — print button (delete uses hold-to-confirm, bound in sheet).
         const printTrigger = e.target.closest("[data-cre-file-print]");
         if (printTrigger) {
@@ -8054,6 +8437,9 @@ import { renderElegooCamBanner } from './printers/elegoo/widget_camera.js';
         }
       });
     });
+
+    // Sync the Connect / Disconnect header button with the current status.
+    _updatePrinterConnBtn();
   }
 
   // Replace the cell content with an <input>. Enter/blur saves, Escape cancels.

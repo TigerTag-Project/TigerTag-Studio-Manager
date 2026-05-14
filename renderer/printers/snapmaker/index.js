@@ -46,6 +46,7 @@ export function snapGetConn(key) { return _snapConns.get(key) ?? null; }
 export function snapIsOnline(printer) {
   if (printer?.brand !== "snapmaker") return null;
   const k = snapKey(printer);
+  if (ctx.isForcedOffline?.(k)) return false; // explicitly disconnected via button
   const conn = _snapConns.get(k);
   if (conn) return conn.status === "connected";
   const ping = _snapPings.get(k);

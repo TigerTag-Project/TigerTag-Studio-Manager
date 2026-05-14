@@ -754,6 +754,10 @@ ipcMain.handle('auth:google-loopback', async () => {
 // IPC: renderer triggers a manual update check (regardless of the
 // auto-update preference — explicit user action). Resolves with the
 // outcome so the UI can show "Checking…" / "Up to date" / etc.
+ipcMain.on('shell:open-external', (_evt, url) => {
+  if (url && typeof url === 'string') shell.openExternal(url);
+});
+
 ipcMain.handle('update:check-now', async () => {
   wireUpdaterEvents();
   try {
@@ -1191,6 +1195,221 @@ ipcMain.handle('db:downloadAndSaveLatestData', ()         => db.downloadAndSaveL
     if (!entry) return;
     try { entry.client.publish(topic, typeof payload === 'string' ? payload : JSON.stringify(payload)); }
     catch (_) {}
+  });
+}
+
+// ── Bambu Lab MQTT (TLS mqtts port 8883) + JPEG-TCP camera (port 6000)
+//    + RTSP camera (X1C / X1E / P2S / H2x — port 322) via ffmpeg
+{
+  const mqtt  = require('mqtt');
+  const tls   = require('tls');
+  const { spawn } = require('child_process');
+
+  // Locate ffmpeg — tries bundled ffmpeg-static first, then common system paths.
+  let _ffmpegBin = null;
+  (function _detectFfmpeg() {
+    const fs = require('fs');
+    const candidates = [];
+    try { const s = require('ffmpeg-static'); if (s) candidates.push(s); } catch (_) {}
+    candidates.push(
+      '/opt/homebrew/bin/ffmpeg',  // macOS Homebrew (Apple Silicon)
+      '/usr/local/bin/ffmpeg',     // macOS Homebrew (Intel)
+      '/usr/bin/ffmpeg',           // Linux
+      'ffmpeg',                    // PATH fallback
+    );
+    for (const p of candidates) {
+      try { fs.accessSync(p, fs.constants.X_OK); _ffmpegBin = p; return; } catch (_) {}
+    }
+  })();
+
+  const _bambuClients    = new Map(); // key → { client, wc }
+  const _bambuCamSockets = new Map(); // key → net.Socket
+
+  // ── MQTT ──────────────────────────────────────────────────────────────
+  ipcMain.on('bambulab:connect', (event, { key, ip, serial, password }) => {
+    if (!key || !ip || !serial || !password) {
+      event.sender.send('bambulab:status', key, 'error:missing-params');
+      return;
+    }
+    const existing = _bambuClients.get(key);
+    if (existing) { try { existing.client.end(true); } catch (_) {} _bambuClients.delete(key); }
+
+    const client = mqtt.connect({
+      host: ip, port: 8883,
+      protocol: 'mqtts',
+      rejectUnauthorized: false,
+      username: 'bblp',
+      password,
+      clientId: `studio_${Date.now()}`,
+      keepalive: 20,
+      clean: true,
+      connectTimeout: 10000,
+    });
+    _bambuClients.set(key, { client, wc: event.sender, serial });
+
+    client.on('connect', () => {
+      if (event.sender.isDestroyed()) return;
+      client.subscribe(`device/${serial}/report`, { qos: 1 });
+      event.sender.send('bambulab:status', key, 'connected');
+    });
+    client.on('message', (topic, payload) => {
+      if (event.sender.isDestroyed()) return;
+      try { event.sender.send('bambulab:message', key, topic, JSON.parse(payload.toString())); }
+      catch (_) {}
+    });
+    client.on('error',    (err) => { if (!event.sender.isDestroyed()) event.sender.send('bambulab:status', key, `error:${err?.message || err}`); });
+    client.on('close',    ()    => { if (!event.sender.isDestroyed()) event.sender.send('bambulab:status', key, 'disconnected'); });
+    client.on('offline',  ()    => { if (!event.sender.isDestroyed()) event.sender.send('bambulab:status', key, 'offline'); });
+    client.on('reconnect',()    => { if (!event.sender.isDestroyed()) event.sender.send('bambulab:status', key, 'connecting'); });
+  });
+
+  ipcMain.on('bambulab:disconnect', (_evt, key) => {
+    const e = _bambuClients.get(key);
+    if (e) { try { e.client.end(true); } catch (_) {} _bambuClients.delete(key); }
+  });
+
+  ipcMain.on('bambulab:publish', (_evt, key, payload) => {
+    const e = _bambuClients.get(key);
+    if (!e) return;
+    try { e.client.publish(`device/${e.serial}/request`, JSON.stringify(payload), { qos: 1 }); }
+    catch (_) {}
+  });
+
+  // ── JPEG TCP camera (A1 / A1 Mini / P1P / P1S — port 6000) ──────────
+  function _bambuCamAuthPacket(password) {
+    const buf = Buffer.alloc(80, 0);
+    buf.writeUInt32LE(0x40, 0);
+    buf.writeUInt32LE(0x3000, 4);
+    Buffer.from('bblp', 'utf8').copy(buf, 16);
+    Buffer.from(password, 'utf8').slice(0, 32).copy(buf, 48);
+    return buf;
+  }
+
+  ipcMain.on('bambulab:cam-start', (event, { key, ip, password }) => {
+    const prev = _bambuCamSockets.get(key);
+    if (prev) { try { prev.destroy(); } catch (_) {} _bambuCamSockets.delete(key); }
+
+    const sock = tls.connect({ host: ip, port: 6000, rejectUnauthorized: false }, () => {
+      sock.write(_bambuCamAuthPacket(password));
+    });
+    _bambuCamSockets.set(key, sock);
+
+    let buf = Buffer.alloc(0);
+    sock.on('data', chunk => {
+      buf = Buffer.concat([buf, chunk]);
+      while (buf.length >= 16) {
+        const payloadSize = buf.readUInt32LE(0);
+        if (payloadSize <= 0 || payloadSize > 8 * 1024 * 1024) { buf = Buffer.alloc(0); break; }
+        if (buf.length < 16 + payloadSize) break;
+        const payload = buf.slice(16, 16 + payloadSize);
+        buf = buf.slice(16 + payloadSize);
+        if (payload[0] === 0xFF && payload[1] === 0xD8 &&
+            payload[payload.length - 2] === 0xFF && payload[payload.length - 1] === 0xD9) {
+          if (!event.sender.isDestroyed())
+            event.sender.send('bambulab:cam-frame', key, payload.toString('base64'));
+        }
+      }
+    });
+    sock.on('error', () => { _bambuCamSockets.delete(key); });
+    sock.on('close', () => { _bambuCamSockets.delete(key); });
+  });
+
+  ipcMain.on('bambulab:cam-stop', (_evt, key) => {
+    const s = _bambuCamSockets.get(key);
+    if (s) { try { s.destroy(); } catch (_) {} _bambuCamSockets.delete(key); }
+  });
+
+  // ── RTSP camera (X1C / X1E / P2S / H2x — port 322 TLS) ─────────────
+  // ffmpeg pulls the rtsps:// stream and outputs MJPEG frames to stdout.
+  // Frames are parsed (SOI=FF D8 … EOI=FF D9) and sent via the same
+  // 'bambulab:cam-frame' IPC channel as the JPEG TCP camera above.
+  const _bambuRtspProcs = new Map(); // key → ChildProcess
+
+  ipcMain.on('bambulab:cam-start-rtsp', (event, { key, ip, password }) => {
+    // Kill any existing process for this key (mark as intentionally stopped)
+    const prev = _bambuRtspProcs.get(key);
+    if (prev) { prev._stopped = true; try { prev.kill('SIGTERM'); } catch (_) {} _bambuRtspProcs.delete(key); }
+
+    if (!_ffmpegBin) {
+      console.warn('[bambu-rtsp] ffmpeg not found — RTSP camera disabled');
+      return;
+    }
+
+    let restarts = 0;
+    const MAX_RESTARTS = 10;
+
+    const launch = () => {
+      if (event.sender.isDestroyed()) return;
+
+      // Never URL-encode the access code — Bambu codes are alphanumeric hex.
+      // encodeURIComponent can corrupt them when ffmpeg parses the URL.
+      const rtspUrl = `rtsps://bblp:${password}@${ip}:322/streaming/live/1`;
+
+      const proc = spawn(_ffmpegBin, [
+        '-loglevel', 'error',          // show errors in main-process console
+        '-rtsp_transport', 'tcp',
+        '-tls_verify',    '0',         // ignore self-signed printer cert
+        '-i', rtspUrl,
+        '-vf', 'fps=5',                // ~5 fps is plenty for a status cam
+        '-f', 'image2pipe',
+        '-vcodec', 'mjpeg',
+        '-qscale:v', '3',
+        'pipe:1',
+      ], { stdio: ['ignore', 'pipe', 'pipe'] }); // pipe stderr for logging
+
+      proc._stopped = false;
+      _bambuRtspProcs.set(key, proc);
+
+      // Forward ffmpeg errors to the main-process console so we can debug.
+      proc.stderr.on('data', chunk => {
+        const msg = chunk.toString().trim();
+        if (msg) console.error(`[bambu-rtsp:${key}]`, msg);
+      });
+
+      // Parse raw stdout for JPEG frames: SOI (FF D8) → EOI (FF D9).
+      // ffmpeg -f image2pipe -vcodec mjpeg outputs raw JPEG files concatenated.
+      let buf = Buffer.alloc(0);
+      proc.stdout.on('data', chunk => {
+        buf = Buffer.concat([buf, chunk]);
+        let start = -1;
+        for (let i = 0; i < buf.length - 1; i++) {
+          if (buf[i] === 0xFF && buf[i + 1] === 0xD8) { start = i; }
+          if (start !== -1 && buf[i] === 0xFF && buf[i + 1] === 0xD9) {
+            const frame = buf.slice(start, i + 2);
+            buf = buf.slice(i + 2);
+            if (!event.sender.isDestroyed())
+              event.sender.send('bambulab:cam-frame', key, frame.toString('base64'));
+            start = -1;
+            i = -1; // restart scan from new buf[0]
+          }
+        }
+      });
+
+      proc.on('close', (code) => {
+        if (_bambuRtspProcs.get(key) === proc) _bambuRtspProcs.delete(key);
+        if (proc._stopped) return; // intentional stop — do not restart
+        if (restarts < MAX_RESTARTS) {
+          restarts++;
+          const delay = Math.min(1500 * restarts, 12000); // 1.5 s → 12 s backoff
+          console.log(`[bambu-rtsp:${key}] exited (code=${code}), retry ${restarts}/${MAX_RESTARTS} in ${delay} ms`);
+          setTimeout(launch, delay);
+        } else {
+          console.warn(`[bambu-rtsp:${key}] gave up after ${MAX_RESTARTS} restarts`);
+        }
+      });
+
+      proc.on('error', (err) => {
+        console.error(`[bambu-rtsp:${key}] spawn error:`, err.message);
+        if (_bambuRtspProcs.get(key) === proc) _bambuRtspProcs.delete(key);
+      });
+    };
+
+    launch();
+  });
+
+  ipcMain.on('bambulab:cam-stop-rtsp', (_evt, key) => {
+    const p = _bambuRtspProcs.get(key);
+    if (p) { p._stopped = true; try { p.kill('SIGTERM'); } catch (_) {} _bambuRtspProcs.delete(key); }
   });
 }
 

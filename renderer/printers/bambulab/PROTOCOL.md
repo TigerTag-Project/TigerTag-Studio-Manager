@@ -330,6 +330,7 @@ Tous les messages reçus sur `device/{serialNumber}/report` sont du JSON. La rac
 | `ipcam` | object | Informations caméra (voir §10) |
 | `device` | object | Températures packed 32-bit nouveaux firmwares (voir §9.2) |
 | `upgrade_state` | object | État de mise à jour firmware |
+| `fun` | int | Bitmask de capacités firmware. Bit `0x20000000` = `MQTT_SIGNATURE_REQUIRED` — les messages publiés doivent être signés (firmwares récents). Ignorer les autres bits pour l'instant. |
 
 ---
 
@@ -441,6 +442,55 @@ Logique de priorité : `gcode_state` > `print_type` > `state` > `status` > `upgr
 | `nozzle_temp_min` | string/int | Temp. buse min recommandée (°C) |
 | `nozzle_temp_max` | string/int | Temp. buse max recommandée (°C) |
 | `bed_temp` | string/int | Temp. plateau recommandée (°C) |
+| `cols[]` | string[] | Couleurs multiples pour filaments dégradés/multicolore |
+| `ctype` | int | Type de couleur : `0` = uni, non-zero = dégradé/spécial |
+| `tray_temp` | string/int | Température de séchage recommandée (°C) |
+| `tray_time` | string/int | Durée de séchage recommandée (h) |
+
+**Détection tray vide** : un tray vide n'envoie que `{"id":"X"}` ou `{"id":"X","state":Y}`. Tout champ supplémentaire au-delà de `id`/`state` indique des données filament. Ne pas utiliser `tray_type == ""` comme critère vide.
+
+### 8.3 Identification du type d'AMS (via `get_version`)
+
+Le type d'AMS est déterminé depuis le message `info` (commande `get_version`), pas depuis le payload `print`. Dans le tableau `module[]` de la réponse, le préfixe du champ `name` identifie le type :
+
+| Préfixe `name` | Type | Slots |
+|----------------|------|-------|
+| `ams/0`, `ams/1`… | AMS standard | **4 slots** |
+| `ams_f1/0`… | AMS Lite | **4 slots** |
+| `n3f/0`… | AMS 2 Pro | **4 slots** |
+| `n3s/0`… | **AMS HT** | **1 slot** |
+
+**AMS HT — comportement spécial** :
+- Un seul slot (id `0`) par unité AMS HT
+- `tray_now` ≥ `128` (0x80) → AMS HT actif, tray index = 0 (la formule standard `ams_index = tray_now >> 2` ne s'applique **pas**)
+- `ams[].humidity_raw` : humidité réelle en % (vs `humidity` qui est une note 1–5)
+- `ams[].dry_time` : temps de séchage restant en minutes
+- Supporte la commande `ams_filament_drying`
+
+### 8.4 Champs AMS supplémentaires (AMS 2 Pro / AMS HT)
+
+| Champ | Type | Description |
+|-------|------|-------------|
+| `humidity_raw` | int | Humidité réelle en % (AMS 2 Pro / AMS HT uniquement) |
+| `dry_time` | int | Temps de séchage restant (minutes) |
+| `dry_setting.dry_temperature` | int | Température de séchage active (°C) |
+| `dry_setting.dry_duration` | int | Durée de séchage active (h) |
+| `dry_setting.dry_filament` | string | Type de filament à sécher |
+
+**Commande de séchage** :
+```json
+{
+  "ams_filament_drying": {
+    "ams_id": 0,
+    "temp": 55,
+    "cooling_temp": 35,
+    "duration": 8,
+    "humidity": 3,
+    "mode": 0,
+    "rotate_tray": true
+  }
+}
+```
 
 ### 8.3 Parsing de la couleur
 
@@ -618,12 +668,12 @@ Bambu Lab utilise **deux protocoles différents** selon la famille de modèle.
 | Famille (model IDs) | Protocole |
 |---------------------|-----------|
 | `1` (A1 Mini), `2` (A1), `3` (P1S), `4` (P1P) | **JPEG TCP** (port 6000) |
-| `5` (X1C), `6` (X1E), `7` (H2S), `8` (H2D), `9` (H2D Pro), `10` (P2S), `11` (H2C) | **RTSP** (port 322) |
+| `5` (X1C), `6` (X1E), `7` (H2S), `8` (H2D), `9` (H2D Pro), `10` (P2S), `11` (H2C), `12` (X2D) | **RTSP** (port 322) |
 | Modèle inconnu | Fallback : lire `print.ipcam.rtsp_url` (RTSP si non vide et non `"disable"`) |
 
-### 10.2 Flux RTSP (X1, P2S, H2x)
+### 10.2 Flux RTSP (X1, P2S, H2x, X2D)
 
-URL construite localement :
+**URL toujours reconstruite localement** à partir des credentials — ne jamais utiliser directement `print.ipcam.rtsp_url` (l'IP auto-rapportée peut être incorrecte sur certains réseaux) :
 
 ```
 rtsps://bblp:{accessCode}@{ip}:322/streaming/live/1
@@ -636,9 +686,25 @@ function buildRtspUrl(ip, accessCode) {
 }
 ```
 
-L'URL `rtsp_url` dans `print.ipcam.rtsp_url` peut être présente mais ne contient pas le mot de passe. **Toujours reconstruire l'URL** avec les credentials locaux.
+Si `print.ipcam.rtsp_url == "disable"` → caméra LAN désactivée par l'utilisateur sur cette session, ne pas afficher ni tenter de connecter.
 
-Si `rtsp_url` == `"disable"`, la caméra LAN est désactivée sur cette session.
+**Implémentation Electron/Node.js** : Chromium ne peut pas jouer `rtsps://` nativement. Le main process spawn un processus `ffmpeg` qui tire le flux RTSP et émet des frames JPEG sur stdout, transmises au renderer via IPC (`bambulab:cam-frame`). Même canal IPC que le flux JPEG TCP — le renderer n'a pas besoin de distinguer les deux protocoles.
+
+```js
+const proc = spawn(ffmpegBin, [
+  '-loglevel', 'quiet',
+  '-rtsp_transport', 'tcp',
+  '-i', rtspUrl,
+  '-vf', 'fps=5',
+  '-f', 'image2pipe',
+  '-vcodec', 'mjpeg',
+  '-qscale:v', '4',
+  'pipe:1',
+], { stdio: ['ignore', 'pipe', 'ignore'] });
+// Parser les frames JPEG (SOI=FF D8 … EOI=FF D9) depuis proc.stdout
+```
+
+**Fallback** : si `ffmpeg` n'est pas disponible, afficher l'URL et un bouton "Copier" / "Ouvrir dans lecteur".
 
 ### 10.3 Flux JPEG TCP (A1, A1 Mini, P1P, P1S)
 
@@ -998,12 +1064,23 @@ Règle de résolution de conflit : **le plus récent (`updatedAt`) gagne**.
 - [ ] Supporter `vt_tray` (anciens firmwares) et `vir_slot[0]` (nouveaux)
 - [ ] Décoder couleur RRGGBBAA hex
 - [ ] Commande `ams_filament_setting` (AMS et bobine externe)
+- [ ] Identifier le type d'AMS via `get_version` module[].name (§8.3) : préfixe `ams/` = 4 slots, `n3s/` = AMS HT (1 slot), `ams_f1/` = AMS Lite, `n3f/` = AMS 2 Pro
+- [ ] Générer les labels de slots avec lettre-rangée + indice 1-based (A1–A4, B1–B4…)
+- [ ] Détecter `tray_now >= 128` = slot AMS HT actif
+- [ ] Parser `humidity_raw` (AMS 2 Pro / HT) en plus de `humidity`
+- [ ] Si `ipcam.rtsp_url === "disable"` : ne pas démarrer la caméra
 
 ### Caméra
-- [ ] Déterminer transport par modèle ID (JPEG TCP vs RTSP)
-- [ ] RTSP : construire URL `rtsps://bblp:{pass}@{ip}:322/streaming/live/1`
+- [ ] Déterminer transport par modèle ID (JPEG TCP vs RTSP, voir Annexe A)
+- [ ] RTSP : construire URL `rtsps://bblp:{pass}@{ip}:322/streaming/live/1` (toujours depuis l'IP connue, ignorer `rtsp_url` auto-rapportée)
+- [ ] Vérifier `ipcam.rtsp_url !== "disable"` avant de démarrer
+- [ ] RTSP Electron : spawner ffmpeg, parser frames JPEG (0xFF 0xD8 … 0xFF 0xD9) depuis stdout
 - [ ] JPEG TCP : TLS port 6000, auth packet 80 octets, lire frames
 - [ ] Vérifier signature JPEG (0xFF 0xD8 / 0xFF 0xD9)
+
+### Firmware / compatibilité
+- [ ] Lire `fun` dans le bloc `print`
+- [ ] Si `fun & 0x20000000` (MQTT_SIGNATURE_REQUIRED) : implémenter la signature des messages publiés (réservé)
 
 ### Miniature
 - [ ] FTPS implicite port 990, TLS, `bblp` / Access Code
@@ -1044,6 +1121,7 @@ Règle de résolution de conflit : **le plus récent (`updatedAt`) gagne**.
 | 9 | H2D Pro | RTSP | — | `O1E` |
 | 10 | P2S | RTSP | `22E` | `N7` |
 | 11 | H2C | RTSP | — | `O1C` |
+| 12 | X2D | RTSP | — | — |
 
 ---
 

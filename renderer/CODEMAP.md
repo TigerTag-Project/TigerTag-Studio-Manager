@@ -195,6 +195,26 @@ Wiring (cross-cutting with Snapmaker):
 
 ---
 
+## Bambu Lab integration (`printers/bambulab/`) (v1.5.x+)
+
+| File | What |
+|------|------|
+| `index.js` | MQTT TLS (port 8883) connect/disconnect/parse. Exports: `bambuKey`, `bambuGetConn`, `bambuIsOnline`, `bambuConnect`, `bambuDisconnect`, `renderBambuOnlineBadge`, `renderBambuLiveInner`, `renderBambuLogInner`. |
+| `cards.js` | `renderBambuJobCard`, `renderBambuTempCard`, `renderBambuFilamentCard` (AMS + ext. spool). |
+| `widget_camera.js` | `renderBambuCamBanner` — JPEG TCP `<img>` (A1/P1P/P1S, model IDs 1–4) or RTSP copy-URL card (X1C+, IDs 5+). |
+| `settings.js` | Brand meta + settings form schema. |
+
+Wiring:
+- `openPrinterDetail` calls `bambuConnect(printer)` for `brand === "bambulab"`.
+- `closePrinterDetail` calls `bambuDisconnect(bambuKey(_activePrinter))`.
+- `renderCamBanner` dispatches to `renderBambuCamBanner(p)`.
+- `renderPrinterDetail` builds `#bblLive` div; MQTT re-renders it via rAF coalescing.
+- Log section `#bblLog` with Pause/Clear buttons wired in the `snapDelegated` click handler.
+- IPC bridge in `main.js` (MQTTS + JPEG TCP port 6000) + `preload.js` (`window.bambulab`).
+- Global IPC listeners registered once at module load — avoids duplicate handler accumulation on panel open/close.
+
+---
+
 ## Add-printer flow (L8347+)
 
 | L | What | Anchors |
