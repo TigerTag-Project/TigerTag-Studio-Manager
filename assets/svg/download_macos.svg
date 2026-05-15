@@ -1,25 +1,34 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="420" height="72" viewBox="0 0 420 72">
+<svg xmlns="http://www.w3.org/2000/svg" width="420" height="68" viewBox="0 0 420 68">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%" stop-color="#1a1a1a"/>
-      <stop offset="100%" stop-color="#2d2d2d"/>
+      <stop offset="0%" stop-color="#1c1c1e"/>
+      <stop offset="100%" stop-color="#2c2c2e"/>
     </linearGradient>
-    <clipPath id="r">
-      <rect width="420" height="72" rx="14"/>
-    </clipPath>
   </defs>
+
   <!-- Background -->
-  <rect width="420" height="72" rx="14" fill="url(#bg)"/>
-  <!-- Apple logo -->
-  <text x="46" y="45" font-family="system-ui, -apple-system, sans-serif" font-size="30" fill="white" text-anchor="middle"></text>
+  <rect width="420" height="68" rx="12" fill="url(#bg)"/>
+
+  <!-- Apple logo (SimpleIcons path, viewBox 0 0 24 24, scaled ×2.1, centered at x=46 y=34) -->
+  <g transform="translate(19.4 6.7) scale(2.1)">
+    <path fill="white" d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.54 9.103 1.519 12.09 1.013 1.46 2.208 3.09 3.792 3.029 1.52-.065 2.09-.987 3.925-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701z"/>
+  </g>
+
   <!-- Divider -->
-  <line x1="80" y1="16" x2="80" y2="56" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
-  <!-- Label -->
-  <text x="172" y="30" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13" font-weight="500" fill="rgba(255,255,255,0.55)" text-anchor="middle" letter-spacing="1">DOWNLOAD FOR</text>
-  <text x="172" y="52" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="22" font-weight="700" fill="white" text-anchor="middle">macOS</text>
-  <!-- File format pill -->
-  <rect x="270" y="22" width="62" height="28" rx="6" fill="rgba(255,255,255,0.1)"/>
-  <text x="301" y="41" font-family="'SF Mono', 'Fira Code', monospace" font-size="13" font-weight="600" fill="rgba(255,255,255,0.75)" text-anchor="middle">.dmg</text>
+  <line x1="80" y1="14" x2="80" y2="54" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+
+  <!-- "DOWNLOAD FOR" label -->
+  <text x="200" y="26" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" font-weight="500" fill="rgba(255,255,255,0.45)" text-anchor="middle" letter-spacing="1.5">DOWNLOAD FOR</text>
+
+  <!-- Platform name -->
+  <text x="200" y="50" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="22" font-weight="700" fill="white" text-anchor="middle" letter-spacing="-0.3">macOS</text>
+
+  <!-- Format pill -->
+  <rect x="322" y="20" width="52" height="26" rx="6" fill="rgba(255,255,255,0.09)"/>
+  <text x="348" y="37" font-family="'SF Mono','Fira Code',monospace" font-size="12" font-weight="600" fill="rgba(255,255,255,0.6)" text-anchor="middle">.dmg</text>
+
   <!-- Download arrow -->
-  <text x="387" y="44" font-family="system-ui" font-size="26" fill="rgba(255,255,255,0.8)" text-anchor="middle">⬇</text>
+  <g transform="translate(393 23)">
+    <path fill="rgba(255,255,255,0.75)" d="M11 4a1 1 0 0 0-2 0v8.586L6.707 10.293a1 1 0 1 0-1.414 1.414l4 4a1 1 0 0 0 1.414 0l4-4a1 1 0 0 0-1.414-1.414L11 12.586V4zM4 18a1 1 0 0 0 0 2h12a1 1 0 0 0 0-2H4z"/>
+  </g>
 </svg>
