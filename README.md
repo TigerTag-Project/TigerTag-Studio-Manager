@@ -71,14 +71,14 @@ Each brand supports: filament edit per slot, printer discovery (mDNS + port-scan
 Plug in a USB ACR122U reader and the app automatically opens the matching spool's detail panel the moment you scan a chip — no button, no search, instant access.
 
 #### TD1S color sensor
-The [TD1S](https://tigertag.io) is TigerTag's USB filament color and transmission density sensor. Place the filament in the sensor and it reads:
+The [TD1S](https://tigertag.io/products/biqu-ajax-td1s-v1-0) is TigerTag's USB filament color and transmission density sensor. Place the filament in the sensor and it reads:
 - **Color** — precise HEX value written directly to the spool's `online_color_list`
 - **TD value** — Transmission Density, a measure of filament transparency used by compatible slicers
 
 The TD1S auto-opens a live viewer when plugged in. In the spool detail panel, scan color and TD separately or together. In the **Add Product** panel, the TD1S icon in the header glows green when connected — scanning auto-fills both fields in the form.
 
 #### TigerScale
-The [TigerScale](https://github.com/TigerTag-Project/TigerScale) is an open-source ESP32-based filament scale. Tiger Studio Manager connects to it over WebSocket and shows a live card per scale:
+The [TigerScale](https://github.com/TigerTag-Project/Tiger-Scale) is an open-source ESP32-based filament scale. Tiger Studio Manager connects to it over WebSocket and shows a live card per scale:
 - **56 px live weight display** with container / filament split
 - **Send-status badge** — tracks the firmware lifecycle: `idle → scanning → stable → send → success`
 - **Filament mini-panel** — color dot, brand, and material pushed directly from the scale firmware
