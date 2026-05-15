@@ -62,9 +62,31 @@ Each brand supports: filament edit per slot, printer discovery (mDNS + port-scan
 - Public inventory toggle for frictionless sharing
 
 ### ⚖ Sensors & Devices
-- **ACR122U NFC reader** — auto-opens the matching spool on scan
-- **TD1S color sensor** — read filament color (HEX) and TD value via USB
-- **TigerScale** — live weight over WebSocket, TARE button, filament mini-panel
+
+#### ACR122U NFC reader
+Plug in a USB ACR122U reader and the app automatically opens the matching spool's detail panel the moment you scan a chip — no button, no search, instant access.
+
+#### TD1S color sensor
+The [TD1S](https://tigertag.io) is TigerTag's USB filament color and transmission density sensor. Place the filament in the sensor and it reads:
+- **Color** — precise HEX value written directly to the spool's `online_color_list`
+- **TD value** — Transmission Density, a measure of filament transparency used by compatible slicers
+
+The TD1S auto-opens a live viewer when plugged in. In the spool detail panel, scan color and TD separately or together. In the **Add Product** panel, the TD1S icon in the header glows green when connected — scanning auto-fills both fields in the form.
+
+#### TigerScale
+The [TigerScale](https://github.com/TigerTag-Project/TigerScale) is an open-source ESP32-based filament scale. Tiger Studio Manager connects to it over WebSocket and shows a live card per scale:
+- **56 px live weight display** with container / filament split
+- **Send-status badge** — tracks the firmware lifecycle: `idle → scanning → stable → send → success`
+- **Filament mini-panel** — color dot, brand, and material pushed directly from the scale firmware
+- **Twin UID reader grid** — two NFC readers (left / right); the empty slot auto-fills with the Firestore-resolved twin tag in green
+- **TARE** — hold-to-confirm button (1 s) that POSTs `/api/tare` to the scale firmware
+
+### 📱 TigerTag RFID Connect — mobile app
+Tiger Studio Manager is the desktop companion to **TigerTag RFID Connect**, the iOS/Android mobile app. Both apps share the same Firebase backend (Firestore inventory, friends, racks) so changes made on one device appear immediately on the other.
+
+The mobile app handles chip programming, NFC scanning on the go, and catalogue browsing. Tiger Studio Manager adds the desktop-class surfaces: multi-account management, rack organization, live printer integration, TD1S and TigerScale hardware, and bulk operations.
+
+A QR code to download the mobile app is always accessible in the sidebar.
 
 ### 🌍 Accounts & i18n
 - Multi-account — switch between multiple TigerTag accounts
