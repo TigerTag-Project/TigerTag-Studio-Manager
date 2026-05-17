@@ -252,20 +252,22 @@ if (typeof window !== "undefined" && window.bambulab) {
     if (!conn) return;
     const firstFrame = !conn.data.lastCamFrame;
     conn.data.lastCamFrame = b64;
-    // Surgical DOM update — only touch the img that belongs to THIS printer.
-    // Multiple Bambu printers can stream simultaneously (cam wall); query by
-    // data-bbl-key so each printer's img is found regardless of DOM order.
-    const img = document.querySelector(`[data-bbl-key="${CSS.escape(key)}"]`);
-    if (!img) return;
-    img.src = `data:image/jpeg;base64,${b64}`;
-    // On the very first frame for this panel, remove the loading overlay.
-    if (firstFrame) {
-      const wrap = img.closest(".pp-cam-loading");
-      if (wrap) {
-        wrap.classList.remove("pp-cam-loading");
-        wrap.querySelector(".pp-cam-loading-overlay")?.remove();
+    // Fan out each frame to ALL imgs with this key — cam wall + sidecard can
+    // both display simultaneously. The main process keeps a single JPEG TCP /
+    // RTSP connection, so no extra load on the printer regardless of how many
+    // consumers are registered in the DOM.
+    const imgs = document.querySelectorAll(`[data-bbl-key="${CSS.escape(key)}"]`);
+    if (!imgs.length) return;
+    imgs.forEach(img => {
+      img.src = `data:image/jpeg;base64,${b64}`;
+      if (firstFrame) {
+        const wrap = img.closest(".pp-cam-loading");
+        if (wrap) {
+          wrap.classList.remove("pp-cam-loading");
+          wrap.querySelector(".pp-cam-loading-overlay")?.remove();
+        }
       }
-    }
+    });
   });
 }
 
