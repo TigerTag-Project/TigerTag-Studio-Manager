@@ -5,6 +5,24 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.7.3 — 2026-05-19
+
+### Hotfix — Firebase Auth broken after v1.7.2 Windows fix
+
+The v1.7.2 fix bound the renderer HTTP server to `127.0.0.1` instead of `localhost`. Firebase Authentication only authorises named hosts — `localhost` is whitelisted by default, raw IP addresses are not. Every user on v1.7.2 received `auth/unauthorized-domain` on Google sign-in.
+
+**Root cause / v1.7.2 mistake**: both the server *bind* host and the `loadURL` origin were changed to `127.0.0.1`. The server bind change was correct; the URL origin change was not.
+
+**Fix**: `startRendererServer` now implements a proper multi-step bind strategy and returns `{ port, host }` instead of just the port number:
+
+1. Try `localhost:5784` — preferred. Origin = `http://localhost:5784`, which Firebase recognises → Google sign-in works.
+2. If `EADDRINUSE` → retry `localhost:0` (any available port, same origin hostname).
+3. If `localhost` bind fails altogether (Windows 10 + IPv6 disabled → `EADDRNOTAVAIL`) → fall back to `127.0.0.1:0`. Google sign-in won't work on this configuration, but the process no longer crashes and email/password auth is unaffected.
+
+`createWindow` uses the actual `host` returned by the server (`http://${host}:${port}/…`) so the two are always in sync.
+
+---
+
 ## v1.7.2 — 2026-05-18
 
 ### Camera wall — size controls & stream stability

@@ -52,47 +52,61 @@ let _devPort;
 const RENDERER_PORT = 5784;
 
 function startRendererServer(rendererDir) {
-  return new Promise((resolve, reject) => {
-    _devServer = http.createServer((req, res) => {
-      let urlPath = req.url.split('?')[0];
-      if (urlPath === '/' || urlPath === '') urlPath = '/inventory.html';
-      const filePath = path.join(rendererDir, urlPath);
-      try {
-        const data = fs.readFileSync(filePath);
-        const ext  = path.extname(filePath).toLowerCase();
-        res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream' });
-        res.end(data);
-      } catch {
-        res.writeHead(404); res.end('Not found');
-      }
+  // Returns Promise<{ port, host }> — never rejects (all error paths resolve).
+  //
+  // Host priority:
+  //   1. 'localhost' on RENDERER_PORT  — preferred: Firebase Auth only allows named
+  //      hosts (not raw IPs), so 'localhost' must be the window origin for Google
+  //      sign-in to work.
+  //   2. 'localhost' on random port    — EADDRINUSE fallback (fixed port taken).
+  //   3. '127.0.0.1' on random port   — last resort for Windows 10 machines where
+  //      'localhost' resolves to ::1 (IPv6) but IPv6 is disabled: bind fails with
+  //      EADDRNOTAVAIL instead of EADDRINUSE. App runs but Google sign-in won't
+  //      work (auth/unauthorized-domain); email/password auth is unaffected.
+  const handler = (req, res) => {
+    let urlPath = req.url.split('?')[0];
+    if (urlPath === '/' || urlPath === '') urlPath = '/inventory.html';
+    const filePath = path.join(rendererDir, urlPath);
+    try {
+      const data = fs.readFileSync(filePath);
+      const ext  = path.extname(filePath).toLowerCase();
+      res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream' });
+      res.end(data);
+    } catch {
+      res.writeHead(404); res.end('Not found');
+    }
+  };
+
+  function tryBind(host, port) {
+    return new Promise((resolve) => {
+      const srv = http.createServer(handler);
+      srv.once('error', (err) => {
+        srv.close();
+        if (err.code === 'EADDRINUSE' && port !== 0) {
+          // Fixed port taken → retry same host on any available port
+          tryBind(host, 0).then(resolve);
+        } else if (host === 'localhost') {
+          // localhost bind failed (e.g. EADDRNOTAVAIL on Win10 with IPv6 disabled)
+          // → last resort: bind explicitly on IPv4 loopback
+          console.warn(`[Renderer] localhost bind failed (${err.code}) — falling back to 127.0.0.1`);
+          tryBind('127.0.0.1', 0).then(resolve);
+        } else {
+          // All options exhausted — should never happen; resolve with port 0 so the
+          // process keeps running rather than crashing with an unhandled rejection.
+          console.error(`[Renderer] all bind attempts failed: ${err.message}`);
+          resolve({ port: 0, host });
+        }
+      });
+      srv.listen(port, host, () => {
+        _devServer = srv;
+        _devPort   = srv.address().port;
+        console.log(`[Renderer] http://${host}:${_devPort}`);
+        resolve({ port: _devPort, host });
+      });
     });
-    _devServer.on('error', (err) => {
-      if (err.code === 'EADDRINUSE') {
-        // Port déjà utilisé → port aléatoire en fallback (session non persistée)
-        console.warn(`[Renderer] port ${RENDERER_PORT} occupé, fallback port aléatoire`);
-        _devServer.listen(0, '127.0.0.1', () => {
-          _devPort = _devServer.address().port;
-          console.log(`[Renderer] http://127.0.0.1:${_devPort} (fallback)`);
-          resolve(_devPort);
-        });
-      } else {
-        // Non-fatal: log and resolve on a random port rather than crashing the process.
-        // On Windows 10, localhost may resolve to ::1 (IPv6); if IPv6 is disabled the
-        // bind fails with EADDRNOTAVAIL. Retrying on 127.0.0.1 avoids the crash.
-        console.error(`[Renderer] listen error (${err.code}) — retrying on 127.0.0.1`);
-        _devServer.listen(0, '127.0.0.1', () => {
-          _devPort = _devServer.address().port;
-          console.log(`[Renderer] http://127.0.0.1:${_devPort} (IPv4 fallback)`);
-          resolve(_devPort);
-        });
-      }
-    });
-    _devServer.listen(RENDERER_PORT, '127.0.0.1', () => {
-      _devPort = RENDERER_PORT;
-      console.log(`[Renderer] http://127.0.0.1:${_devPort}`);
-      resolve(_devPort);
-    });
-  });
+  }
+
+  return tryBind('localhost', RENDERER_PORT);
 }
 
 let imgCacheDir;
@@ -132,10 +146,8 @@ function createWindow() {
     },
   });
 
-  startRendererServer(__dirname).then(port => {
-    mainWindow.loadURL(`http://127.0.0.1:${port}/renderer/inventory.html`);
-  }).catch(err => {
-    console.error('[Renderer] Failed to start server:', err);
+  startRendererServer(__dirname).then(({ port, host }) => {
+    mainWindow.loadURL(`http://${host}:${port}/renderer/inventory.html`);
   });
 
   // Firebase auth popup → ouvrir en interne (postMessage doit fonctionner)
