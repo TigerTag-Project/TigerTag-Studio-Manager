@@ -70,16 +70,26 @@ function startRendererServer(rendererDir) {
       if (err.code === 'EADDRINUSE') {
         // Port déjà utilisé → port aléatoire en fallback (session non persistée)
         console.warn(`[Renderer] port ${RENDERER_PORT} occupé, fallback port aléatoire`);
-        _devServer.listen(0, 'localhost', () => {
+        _devServer.listen(0, '127.0.0.1', () => {
           _devPort = _devServer.address().port;
-          console.log(`[Renderer] http://localhost:${_devPort} (fallback)`);
+          console.log(`[Renderer] http://127.0.0.1:${_devPort} (fallback)`);
           resolve(_devPort);
         });
-      } else { reject(err); }
+      } else {
+        // Non-fatal: log and resolve on a random port rather than crashing the process.
+        // On Windows 10, localhost may resolve to ::1 (IPv6); if IPv6 is disabled the
+        // bind fails with EADDRNOTAVAIL. Retrying on 127.0.0.1 avoids the crash.
+        console.error(`[Renderer] listen error (${err.code}) — retrying on 127.0.0.1`);
+        _devServer.listen(0, '127.0.0.1', () => {
+          _devPort = _devServer.address().port;
+          console.log(`[Renderer] http://127.0.0.1:${_devPort} (IPv4 fallback)`);
+          resolve(_devPort);
+        });
+      }
     });
-    _devServer.listen(RENDERER_PORT, 'localhost', () => {
+    _devServer.listen(RENDERER_PORT, '127.0.0.1', () => {
       _devPort = RENDERER_PORT;
-      console.log(`[Renderer] http://localhost:${_devPort}`);
+      console.log(`[Renderer] http://127.0.0.1:${_devPort}`);
       resolve(_devPort);
     });
   });
@@ -123,7 +133,9 @@ function createWindow() {
   });
 
   startRendererServer(__dirname).then(port => {
-    mainWindow.loadURL(`http://localhost:${port}/renderer/inventory.html`);
+    mainWindow.loadURL(`http://127.0.0.1:${port}/renderer/inventory.html`);
+  }).catch(err => {
+    console.error('[Renderer] Failed to start server:', err);
   });
 
   // Firebase auth popup → ouvrir en interne (postMessage doit fonctionner)

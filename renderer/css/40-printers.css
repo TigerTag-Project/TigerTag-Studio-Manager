@@ -2130,19 +2130,83 @@ details[open] .pba-step-chev { transform: rotate(90deg); }
 .pt-job-idle  { color: var(--muted); font-size: 12px; }
 
 /* ── Printer cam wall ────────────────────────────────────────────────────── */
-.cam-wall { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-            gap: 16px; padding: 8px 0 16px; }
-.cam-wall-card { background: var(--surface); border: 1px solid var(--border);
+.cam-wall { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 16px; padding: 8px 0 16px; align-items: start; }
+/* Normal cards span 2 sub-columns → 320px minimum, same visual as before */
+.cam-wall-card { position: relative; background: var(--surface); border: 1px solid var(--border);
                  border-radius: var(--radius); overflow: hidden;
-                 cursor: pointer; transition: border-color .15s; }
+                 cursor: grab; transition: border-color .15s;
+                 grid-column: span 2; }
 .cam-wall-card:hover { border-color: var(--accent, #6366f1); }
-.cam-wall-card-head { display: flex; align-items: center; gap: 8px;
-                      padding: 10px 12px; border-bottom: 1px solid var(--border); }
-.cam-wall-card-name { font-weight: 500; font-size: 13px; color: var(--text); }
-.cam-wall-card .pp-cam-full { border-radius: 0; }
+/* Drag-and-drop states */
+.cam-wall-card--dragging { opacity: .45; cursor: grabbing; }
+.cam-wall-card--drop-before { box-shadow: -3px 0 0 0 var(--accent, #6366f1); }
+.cam-wall-card--drop-after  { box-shadow:  3px 0 0 0 var(--accent, #6366f1); }
+/* Prevent native image/video drag from intercepting card DnD */
+.cam-wall-card img,
+.cam-wall-card video { -webkit-user-drag: none; }
+
+/* ── Cam wall overlay header ─────────────────────────────────────────────── */
+/* Header floats above the camera feed (absolute positioned). The card height is
+   determined purely by the 16:9 camera content — no wasted space from the header. */
+.cam-wall-card-head {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 10;
+  display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+  background: linear-gradient(to bottom, rgba(0,0,0,.72) 0%, transparent 100%);
+  opacity: 0; transition: opacity .18s;
+}
+.cam-wall-card:hover .cam-wall-card-head { opacity: 1; }
+.cam-wall-card-name { font-weight: 500; font-size: 13px; color: #fff; min-width: 0;
+                      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── Cam wall size controls ──────────────────────────────────────────────── */
+.cam-size-btns { display: flex; gap: 3px; margin-left: auto; flex-shrink: 0; }
+.cam-size-btn {
+  display: flex; align-items: center; justify-content: center;
+  min-width: 22px; height: 20px; padding: 0 5px;
+  font-size: 10px; font-weight: 700; line-height: 1;
+  border: 1px solid rgba(255,255,255,.3); border-radius: 3px;
+  background: rgba(0,0,0,.3); color: rgba(255,255,255,.8);
+  cursor: pointer; transition: background .1s, color .1s, border-color .1s;
+}
+.cam-size-btn:hover { background: rgba(255,255,255,.2); color: #fff; border-color: rgba(255,255,255,.6); }
+.cam-size-btn--active { background: var(--accent, #6366f1); border-color: transparent; color: #fff; }
+.cam-size-btn svg { pointer-events: none; }
+
+/* Camera containers fill full card width — card height = camera height (pure 16:9).
+   min-height: 0 overrides the global pp-cam-full floor (200px) set in 50-snapmaker.css. */
+.cam-wall-card .pp-cam-full { min-height: 0; }
+.cam-wall-card .pp-cam-full,
 .cam-wall-card .snap-camera-frame,
 .cam-wall-card .cre-cam-video,
-.cam-wall-card img[src*="8898"] { width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; }
+.cam-wall-card img[src*="8898"] { display: block; width: 100%; aspect-ratio: 16/9; object-fit: cover; }
+
+/* ½× compact — spans 1 sub-column (half of a normal card) */
+.cam-wall-card--sm { grid-column: span 1; }
+.cam-wall-card--sm .cam-wall-card-head { padding: 5px 7px; gap: 4px; }
+.cam-wall-card--sm .cam-wall-card-name { font-size: 10px; }
+.cam-wall-card--sm .printer-brand-pill { display: none; }
+.cam-wall-card--sm .cam-size-btn { min-width: 18px; height: 16px; font-size: 9px; padding: 0 3px; }
+/* 2× wide — spans 4 sub-columns */
+.cam-wall-card--2x { grid-column: span 4; }
+
+/* Fullscreen — header back in normal flow, always visible */
+.cam-wall-card--fs {
+  position: fixed; inset: 0; z-index: 200;
+  border-radius: 0; border: none;
+  display: flex; flex-direction: column;
+}
+.cam-wall-card--fs .cam-wall-card-head {
+  position: relative; opacity: 1; flex-shrink: 0;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+}
+.cam-wall-card--fs .cam-wall-card-name { color: var(--text); }
+.cam-wall-card--fs .cam-size-btn {
+  border-color: var(--border); color: var(--muted); background: transparent;
+}
+.cam-wall-card--fs .cam-size-btn:hover { background: var(--surface-2); color: var(--text); border-color: var(--border); }
+/* Camera container fills remaining height — override the 16:9 aspect-ratio box */
+.cam-wall-card--fs .pp-cam-full { flex: 1; min-height: 0; aspect-ratio: unset; }
 
 /* Connecting placeholder — shown while the brand module establishes the connection */
 .cam-wall-card--connecting { opacity: .75; }

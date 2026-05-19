@@ -764,5 +764,9 @@
   "snapCtrlSpeed": "Speed",
   "snapCtrlFanPart": "Part Cooling",
   "snapCtrlFanMain": "Main",
-  "snapCtrlFanAssist": "Assist"
+  "snapCtrlFanAssist": "Assist",
+  "camSizeCompact": "Compact (½×)",
+  "camSizeNormal": "Normal (1×)",
+  "camSizeWide": "Wide (2×)",
+  "camSizeFullscreen": "Fullscreen"
 }

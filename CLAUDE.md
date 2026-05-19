@@ -28,9 +28,9 @@ Every file read and grep costs tokens. Follow these rules on every task to keep 
 > Warn the user when context is getting large (> ~60 k tokens used) so they can start a new session before quality degrades.
 
 **Model fit — signal proactively, don't wait to be asked:**
-- **Tâche simple** (CSS tweak, i18n key, valeur à changer, question courte) → suggérer de passer sur **claude-haiku** ou **claude-sonnet** pour économiser. Formulation : *"Cette tâche est simple — tu peux la faire sur Sonnet/Haiku pour économiser des tokens."*
-- **Tâche complexe** (refacto multi-fichiers, nouveau système, débogage multi-couches, architecture) → si tu sens que le raisonnement manque de profondeur ou que tu te trompes, demander de passer sur **claude-opus**. Formulation : *"Cette tâche est complexe — passer sur Opus donnera un meilleur résultat."*
-- Ne pas attendre que l'utilisateur remarque un problème : signaler dès que le mismatch est évident.
+- **Simple task** (CSS tweak, i18n key, value change, short question) → suggest switching to **claude-haiku** or **claude-sonnet** to save tokens. Phrasing: *"This is a simple task — you can run it on Sonnet/Haiku to save tokens."*
+- **Complex task** (multi-file refactor, new system, multi-layer debugging, architecture) → if reasoning feels shallow or you keep making mistakes, ask to switch to **claude-opus**. Phrasing: *"This task is complex — switching to Opus will give a better result."*
+- Do not wait for the user to notice a problem: signal the mismatch as soon as it is obvious.
 
 ## Stack
 Electron (no bundler) + vanilla HTML/CSS/JS. Entry: `main.js`. Renderer: `renderer/inventory.html` + modular CSS in `renderer/css/` + `renderer/inventory.js`. Preload bridge: `preload.js`.
@@ -582,8 +582,9 @@ Source: `scripts/check-i18n-consistency.mjs` + `.githooks/pre-commit`.
 ---
 
 ## Rules
+- **Language**: Conversation with the user is in French. All project content — code comments, commit messages, documentation, instructions — must be written in English.
 - **i18n**: always add all **9** translations (en/fr/de/es/it/zh/pt/pt-pt/pl) in the same edit batch. **Use `npm run i18n:add` — do NOT hand-edit the locale JSON files.** See the *Adding new keys* section above for syntax.
-- **Commits**: no `Co-Authored-By` line.
+- **Commits**: no `Co-Authored-By` line. **Never commit without explicit user instruction** — make the change, then stop and wait for the order to commit.
 - **JS**: all logic lives in `inventory.js`. Do not inline JS in `inventory.html`.
 - **CSS**: split across `renderer/css/00-base.css … 70-detail-misc.css` (loaded in numeric order). Add new rules in the section file that matches the feature — e.g. Snapmaker tweaks go in `50-snapmaker.css`, modal tweaks in `60-modals.css`. Asset URLs use `url('../../assets/svg/icons/…')` (two `..` because we're in `renderer/css/`). Scoped IDs (`#editAccountModalOverlay`, `#addAccountModalOverlay`, etc.) still apply where needed.
 - **displayName**: always read from Firestore `users/{uid}.displayName` (pseudo). Never use Firebase Auth `user.displayName` for UI display — it contains the Google real name.

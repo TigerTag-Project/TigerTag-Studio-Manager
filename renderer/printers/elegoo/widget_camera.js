@@ -24,17 +24,9 @@ function _modelName(p) {
   return m ? m.name : (p.printerModelId || '');
 }
 
-/**
- * Returns the full camera banner HTML for a connected Elegoo printer,
- * or "" when the printer is not connected or has no IP.
- *
- * @param  {object} p — printer record from state.printers
- * @returns {string}  — HTML string safe to assign to innerHTML
- */
 export function renderElegooCamBanner(p) {
   const conn = elegooGetConn(elegooKey(p));
   if (!conn || conn.status !== 'connected' || !p.ip) return '';
-  // Use URL returned by method 1042; fall back to the known default if not yet received.
   const streamUrl = conn.data?.cameraUrl || `http://${p.ip}:8080/?action=stream`;
   return `
     <div id="elgCamHost" class="pp-cam-full elg-cam-host">

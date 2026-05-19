@@ -546,6 +546,13 @@ The page must be simple, responsive, and usable on desktop and tablet.
 
 ---
 
+## Agent behaviour rules
+
+- **Never commit without explicit user instruction.** Make the changes, then stop and wait for the order to commit.
+- **No `Co-Authored-By` line** in commit messages.
+
+---
+
 ## Security Rules for the Page
 
 Never hardcode secrets in the HTML.

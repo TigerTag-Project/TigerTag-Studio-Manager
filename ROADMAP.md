@@ -715,6 +715,7 @@ No commitment, no ETA. Listed roughly by likely impact.
 
 Lower priority but worth noting.
 
+- **Migrate to Firebase v9 modular SDK** — the current app uses the v8 compat bundle (`firebase-app-compat.js` etc.) which calls `eval()` internally. This forces `unsafe-eval` in any Content-Security-Policy, triggering an Electron security warning in dev. Migrating to the v9 modular API (`import { getAuth } from 'firebase/auth'`) eliminates `eval()` usage entirely → a proper restrictive CSP becomes possible → warning disappears. **Effort**: L. **Risk**: medium (v8 `firebase.auth()` / `firebase.firestore()` call style changes significantly to functional API). Has no user-visible impact; purely a dev-quality and security hardening item.
 - **Modularize `inventory.js`** — split the 12k-line IIFE into ES modules (auth, inventory, racks, snapmaker, friends, ui-helpers, …). XL effort, medium risk (every cross-file dep needs an import). Discussed but parked because the CODEMAP gives most of the navigation benefit at zero risk.
 - **TypeScript port** — only worth it after modularization. Would catch a real class of bugs (type mismatches in Firestore schemas, plural-object inconsistencies the i18n hook now catches manually). XL.
 - **Unit tests** — zero unit tests today. Project is UI-heavy so e2e would matter more (Playwright / Spectron). Start with auth flow + i18n consistency + rack drag-drop (the bug-prone bits). L.

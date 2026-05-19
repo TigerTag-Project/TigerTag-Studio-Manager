@@ -778,5 +778,9 @@
   "snapCtrlSpeed": "Prędkość",
   "snapCtrlFanPart": "Chłodzenie",
   "snapCtrlFanMain": "Główny",
-  "snapCtrlFanAssist": "Wspomagający"
+  "snapCtrlFanAssist": "Wspomagający",
+  "camSizeCompact": "Kompaktowy (½×)",
+  "camSizeNormal": "Normalny (1×)",
+  "camSizeWide": "Szeroki (2×)",
+  "camSizeFullscreen": "Pełny ekran"
 }

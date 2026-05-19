@@ -5,6 +5,36 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.7.2 — 2026-05-18
+
+### Camera wall — size controls & stream stability
+
+- **½× compact size mode** — new first button in every cam-wall card header. A ½× card spans one sub-column (~160 px min), so four compact cameras fit in the horizontal space of one 2× card. The card header adapts automatically (smaller padding, brand pill hidden, reduced button size).
+- **Overlay headers** — cam-wall card headers are now `position: absolute` and float over the top of the camera feed with a dark gradient, hidden at rest and revealed on hover. This removes the fixed header height from the card's layout, so card height is determined purely by the 16:9 camera content. Two ½× cameras stacked no longer exceed the height of one 2× camera.
+- **`align-items: start` on the cam wall grid** — cards are sized to their content only; cards in the same grid row no longer stretch to match the tallest neighbour (which caused large black voids below 1× cameras placed next to 2× ones).
+- **Patch-mode render — no stream restart on size/order change** — `_renderPrinterCam` now detects when only `camSize` or `camSortIndex` changed (Firestore echo after a button click or DnD drop). It updates CSS classes and `style.order` in-place on the existing DOM nodes, never touching `host.innerHTML`. iframe WebRTC sessions and MJPEG streams survive size changes and reordering completely.
+- **CSS `order`-based DnD reorder** — drag-and-drop reorder now reassigns `card.style.order` values instead of moving DOM nodes (`insertBefore` / `insertAdjacentElement`). Browsers reload iframes on any DOM detach+reattach; the CSS `order` approach keeps every node in its original DOM position so WebRTC and MJPEG streams are never interrupted.
+- **Fullscreen header** — in `--fs` mode the header reverts to normal document flow (visible, background `--surface`, border-bottom) so the flex column layout fills the viewport correctly.
+- **i18n** — 4 new keys across all 9 locales: `camSizeCompact`, `camSizeNormal`, `camSizeWide`, `camSizeFullscreen`.
+
+### Windows 10 — crash on launch fix
+
+- **Root cause**: `startRendererServer` bound the dev HTTP server to `'localhost'`. On Windows 10 with Node.js 17+ (bundled in Electron 41), `localhost` resolves to `::1` (IPv6). If IPv6 is disabled on the machine, `server.listen` fails with `EADDRNOTAVAIL` — not `EADDRINUSE` — which hit the `else { reject(err); }` branch and raised an unhandled promise rejection. In Node.js 15+, unhandled rejections terminate the process, causing the app to crash silently at every launch.
+- **Fix**: the server now binds to `'127.0.0.1'` explicitly across all code paths (initial listen, EADDRINUSE fallback, other-error fallback). All error branches now call `resolve()` with a fallback random port — the process can never be crashed by a server-bind failure. Added `.catch()` on the `startRendererServer().then()` call in `createWindow()`.
+
+### MJPEG cam_manager — generic mux module
+
+- **`renderer/printers/cam_manager.js`** (new) — brand-agnostic MJPEG stream multiplexer extracted from `flashforge/cam_mux.js`. One `fetch()` per printer key, N consumer `<img>` elements receive each JPEG frame as a `blob:` URL. A 2-second grace period on last-consumer-unregister avoids unnecessary reconnections when the user switches between views (sidecard open/close, cam wall / grid toggle).
+- **`flashforge/cam_mux.js`** now delegates entirely to `cam_manager` via six re-exported aliases (`camStart` → `ffgMuxStart`, etc.). The FlashForge-named public API is preserved for callers.
+
+### Creality — connection stability
+
+- **`creConnect` IP guard** — early-return if no `printer.ip` is configured (avoids silently opening a WebSocket to an empty string).
+- **Abandoned connection fast-path** — `crePingPrinter` skips the HTTP probe and immediately returns `offline` for connections flagged `_abandoned` (3+ consecutive failures), avoiding redundant network round-trips.
+- **Already-managed IP** — `creConnect` now treats any existing conn with the same IP as "already managing" (even if `_abandoned`), deferring to an explicit user reconnect instead of silently replacing it.
+
+---
+
 ## v1.7.1 — 2026-05-17
 
 ### Printer grid & table — live status and progress

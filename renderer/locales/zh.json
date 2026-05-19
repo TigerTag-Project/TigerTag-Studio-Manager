@@ -767,5 +767,9 @@
   "snapCtrlSpeed": "速度",
   "snapCtrlFanPart": "风冷",
   "snapCtrlFanMain": "主风扇",
-  "snapCtrlFanAssist": "辅助"
+  "snapCtrlFanAssist": "辅助",
+  "camSizeCompact": "紧凑 (½×)",
+  "camSizeNormal": "正常 (1×)",
+  "camSizeWide": "宽屏 (2×)",
+  "camSizeFullscreen": "全屏"
 }

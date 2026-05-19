@@ -6977,10 +6977,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
               const key = elegooKey(p);
               const conn = elegooGetConn(key);
               // Connect when: no conn yet, OR IP changed (forces a fresh attempt).
-              // Skip if already connected/connecting with the same IP, or if the
-              // previous attempt was abandoned (bad IP) — user must fix the IP in
-              // settings before we retry.
-              if (!conn || conn.ip !== p.ip) {
+              // Skip if already connected/connecting with the same IP, if the
+              // previous attempt was abandoned (bad IP), or if the user explicitly
+              // disconnected via the sidecard button (forced-offline).
+              if ((!conn || conn.ip !== p.ip) && !_ppForcedOfflineKeys.has(key)) {
                 elegooConnect(p);
                 _elegooAutoKeys.add(key);
               }
@@ -7213,7 +7213,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (p.brand === "flashforge" && p.ip)               ffgConnect(p);
       if (p.brand === "creality"   && p.ip)               creConnect(p);
       if (p.brand === "bambulab"   && (p.broker || p.ip)) bambuConnect(p, { skipCam: true });
-      if (p.brand === "elegoo")                           elegooConnect(p);
+      if (p.brand === "elegoo" && !_ppForcedOfflineKeys.has(elegooKey(p))) elegooConnect(p);
     });
 
     // Helper: is this printer currently online? Returns boolean (false = offline or unknown).
@@ -7326,19 +7326,6 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       </div>
       <div class="printers-grid printers-grid--flex">${cards}${addCard}</div>`;
 
-    // Wire click → open detail panel. Suppressed when a drag has just
-    // happened so an accidental click at the end of a drop doesn't open
-    // the detail panel for the dragged card.
-    host.querySelectorAll(".printer-card:not(.printer-card--add)").forEach(el => {
-      el.addEventListener("click", () => {
-        if (_printerJustDragged) return;
-        const brand = el.dataset.brand;
-        const id    = el.dataset.id;
-        if (brand && id) openPrinterDetail(brand, id);
-      });
-    });
-    $("printerAddCard")?.addEventListener("click", openPrinterBrandPicker);
-
     wirePrinterDnd(host);
   }
 
@@ -7350,7 +7337,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (p.brand === "flashforge" && p.ip)               ffgConnect(p);
       if (p.brand === "creality"   && p.ip)               creConnect(p);
       if (p.brand === "bambulab"   && (p.broker || p.ip)) bambuConnect(p, { skipCam: true });
-      if (p.brand === "elegoo")                           elegooConnect(p);
+      if (p.brand === "elegoo" && !_ppForcedOfflineKeys.has(elegooKey(p))) elegooConnect(p);
     });
 
     const _isOnline = p => {
@@ -7462,43 +7449,20 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       });
     });
 
-    // ── Wire row clicks → open detail panel ──────────────────────────────
-    host.querySelectorAll(".pt-row").forEach(el => {
-      el.addEventListener("click", () => {
-        const brand = el.dataset.brand, id = el.dataset.id;
-        if (brand && id) openPrinterDetail(brand, id);
-      });
-    });
   }
 
   // ── Printer cam wall sub-view ────────────────────────────────────────────
   function _renderPrinterCam(host) {
-    // ── Step 0: Stop all active MJPEG mux streams before rebuilding the cam wall.
-    // The cam-wall imgs are about to be replaced; new ones will be registered below.
-    try { ffgTearDownCamera(); } catch (_) {}
-    state.printers.forEach(p => {
-      if (p.brand === "flashforge") {
-        const conn = ffgGetConn(ffgKey(p));
-        if (conn) conn.camFailed = false;
-      }
-    });
-
-    // ── Step 1: kick off connections for every printer that has an address
-    // but no live connection yet. All connect functions are idempotent — if
-    // the connection is already open or reconnecting they are a no-op.
+    // ── Step 0: Kick connections — idempotent, always safe to call ────────────
     state.printers.forEach(p => {
       if (p.brand === "snapmaker"  && p.ip)               snapConnect(p);
       if (p.brand === "flashforge" && p.ip)               ffgConnect(p);
       if (p.brand === "creality"   && p.ip)               creConnect(p);
-      if (p.brand === "bambulab"   && (p.broker || p.ip)) bambuConnect(p); // no skipCam — start camera immediately
-      if (p.brand === "elegoo")                           elegooConnect(p);
+      if (p.brand === "bambulab"   && (p.broker || p.ip)) bambuConnect(p);
+      if (p.brand === "elegoo" && !_ppForcedOfflineKeys.has(elegooKey(p))) elegooConnect(p);
     });
 
-    // ── Step 2: build cards — only printers that are fully connected ────────
-    // Double-gate: (1) isOnline must be true, (2) renderCamBanner must return
-    // non-empty HTML. Printers still "connecting" are silently skipped — the
-    // brand notify callbacks call renderPrintersView() → _renderPrinterCam()
-    // automatically once the connection is established.
+    // ── Step 1: Determine the set of online printers with an active cam feed ──
     const _isOnline = p => {
       if (p.brand === "snapmaker")  return snapIsOnline(p)   === true;
       if (p.brand === "flashforge") return ffgIsOnline(p)    === true;
@@ -7507,24 +7471,27 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (p.brand === "bambulab")   return bambuIsOnline(p)  === true;
       return false;
     };
-    const camCards = state.printers.map(p => {
-      if (!_isOnline(p)) return "";     // connecting / offline — skip
-      // FlashForge: use the cam-wall variant (data-ffg-cam-key, no src — mux handles it)
-      const camHtml = p.brand === "flashforge" ? renderFfgCamWallBanner(p) : renderCamBanner(p);
-      if (!camHtml) return "";          // connected but no camera feed — skip
+    const _camOrdered = [...state.printers].sort((a, b) => {
+      const sa = Number.isFinite(a.camSortIndex) ? a.camSortIndex : Number.MAX_SAFE_INTEGER;
+      const sb = Number.isFinite(b.camSortIndex) ? b.camSortIndex : Number.MAX_SAFE_INTEGER;
+      if (sa !== sb) return sa - sb;
+      const ga = Number.isFinite(a.sortIndex) ? a.sortIndex : Number.MAX_SAFE_INTEGER;
+      const gb = Number.isFinite(b.sortIndex) ? b.sortIndex : Number.MAX_SAFE_INTEGER;
+      return ga - gb;
+    });
 
-      const meta = PRINTER_BRAND_META[p.brand] || { label: p.brand, accent: "#888" };
-      return `
-        <div class="cam-wall-card" data-brand="${esc(p.brand)}" data-id="${esc(p.id)}">
-          <div class="cam-wall-card-head">
-            <span class="printer-brand-pill" style="--brand-accent:${esc(meta.accent)}">${esc(meta.label)}</span>
-            <span class="cam-wall-card-name">${esc(p.printerName || "(unnamed)")}</span>
-          </div>
-          ${camHtml}
-        </div>`;
-    }).filter(Boolean);
+    // Compute cam HTML once per printer (filter + cache — avoids double call)
+    const _camHtmlMap = new Map();
+    const _onlinePrinters = _camOrdered.filter(p => {
+      if (!_isOnline(p)) return false;
+      const html = p.brand === "flashforge" ? renderFfgCamWallBanner(p) : renderCamBanner(p);
+      if (!html) return false;
+      _camHtmlMap.set(`${p.brand}:${p.id}`, html);
+      return true;
+    });
 
-    if (!camCards.length) {
+    // ── Step 2: Empty state ────────────────────────────────────────────────────
+    if (!_onlinePrinters.length) {
       host.innerHTML = `
         <div class="printers-empty-card">
           <span class="icon icon-eye-on icon-32"></span>
@@ -7533,10 +7500,71 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         </div>`;
       return;
     }
+
+    // ── Step 3: Patch mode — same set of printers, no DOM rebuild needed ──────
+    // When only camSize or camSortIndex changed (e.g. Firestore echo after a
+    // size-button click or a DnD drop), updating CSS classes and style.order on
+    // existing cards preserves live iframe/MJPEG streams completely.
+    const existingWall = host.querySelector(".cam-wall");
+    if (existingWall) {
+      const existingKeys = new Set(
+        Array.from(existingWall.querySelectorAll(".cam-wall-card"))
+          .map(c => `${c.dataset.brand}:${c.dataset.id}`)
+      );
+      const newKeys = new Set(_onlinePrinters.map(p => `${p.brand}:${p.id}`));
+      const sameSet = existingKeys.size === newKeys.size &&
+                      [...newKeys].every(k => existingKeys.has(k));
+      if (sameSet) {
+        _onlinePrinters.forEach((p, idx) => {
+          const card = existingWall.querySelector(
+            `[data-brand="${p.brand}"][data-id="${p.id}"]`
+          );
+          if (!card) return;
+          const csize = p.camSize || _camSizes.get(`${p.brand}:${p.id}`) || "1x";
+          _applyCamSize(card, csize);
+          card.style.order = idx;
+        });
+        return;
+      }
+    }
+
+    // ── Step 4: Full rebuild ───────────────────────────────────────────────────
+    // Only reached when the set of online printers changed (new connection,
+    // disconnect, or first render). Stop MJPEG streams before replacing the DOM.
+    try { ffgTearDownCamera(); } catch (_) {}
+    state.printers.forEach(p => {
+      if (p.brand === "flashforge") {
+        const conn = ffgGetConn(ffgKey(p));
+        if (conn) conn.camFailed = false;
+      }
+    });
+
+    const _sizeBtn = (csize, s, label) => {
+      const titles = { sm: t("camSizeCompact") || "Compact (½×)", "1x": t("camSizeNormal") || "Normal", "2x": t("camSizeWide") || "Wide (2×)", fs: t("camSizeFullscreen") || "Fullscreen" };
+      return `<button class="cam-size-btn${csize === s ? " cam-size-btn--active" : ""}" data-size="${s}" title="${titles[s] || s}">${label}</button>`;
+    };
+    const fsIcon = `<svg width="9" height="9" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M1 5V1h4M9 1h4v4M13 9v4H9M5 13H1V9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+    const camCards = _onlinePrinters.map((p, idx) => {
+      const camHtml = _camHtmlMap.get(`${p.brand}:${p.id}`);
+      const meta    = PRINTER_BRAND_META[p.brand] || { label: p.brand, accent: "#888" };
+      const ckey    = `${p.brand}:${p.id}`;
+      const csize   = p.camSize || _camSizes.get(ckey) || "1x";
+      const sizeCls = csize === "sm" ? " cam-wall-card--sm" : csize === "2x" ? " cam-wall-card--2x" : csize === "fs" ? " cam-wall-card--fs" : "";
+      // style.order is set explicitly so DnD can reorder via CSS without moving DOM nodes.
+      return `
+        <div class="cam-wall-card${sizeCls}" data-brand="${esc(p.brand)}" data-id="${esc(p.id)}" draggable="true" style="order:${idx}">
+          <div class="cam-wall-card-head">
+            <span class="printer-brand-pill" style="--brand-accent:${esc(meta.accent)}">${esc(meta.label)}</span>
+            <span class="cam-wall-card-name">${esc(p.printerName || "(unnamed)")}</span>
+            <div class="cam-size-btns">${_sizeBtn(csize,"sm","½×")}${_sizeBtn(csize,"1x","1×")}${_sizeBtn(csize,"2x","2×")}${_sizeBtn(csize,"fs",fsIcon)}</div>
+          </div>
+          ${camHtml}
+        </div>`;
+    });
+
     host.innerHTML = `<div class="cam-wall">${camCards.join("")}</div>`;
 
-    // FlashForge: start MJPEG mux and register each cam-wall img as a consumer.
-    // ONE fetch per printer — both cam wall and sidecard share the same stream.
     host.querySelectorAll("[data-ffg-cam-key]").forEach(img => {
       const key = img.dataset.ffgCamKey;
       const p   = state.printers.find(x => ffgKey(x) === key);
@@ -7544,16 +7572,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (url) { ffgMuxStart(key, url); ffgMuxRegister(key, img); }
     });
 
-    // Creality: start WebRTC after render (module singleton — first one wins)
     host.querySelectorAll(".cam-wall-card[data-brand='creality']").forEach(card => {
       const p = state.printers.find(x => x.brand === "creality" && x.id === card.dataset.id);
       if (p?.ip) startCreCam(p.ip);
     });
 
-    // Click on any cam card → open the printer sidecard
-    host.querySelectorAll(".cam-wall-card").forEach(card => {
-      card.addEventListener("click", () => openPrinterDetail(card.dataset.brand, card.dataset.id));
-    });
+    wireCamWallDnd(host);
   }
 
   /* ── Printer drag & drop reordering ────────────────────────────────────
@@ -7565,6 +7589,33 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
      snapshot, so the path resolution is local.                            */
   let _printerJustDragged = false;
   let _printerDragId = null; // composite "brand:id" of the card being dragged
+
+  // Per-card size preferences for the cam wall: "1x" | "2x" | "fs".
+  // Persisted in localStorage so the layout survives app restarts.
+  const _camSizes = (() => {
+    const m = new Map();
+    try { Object.entries(JSON.parse(localStorage.getItem("tigertag.camSizes") || "{}")).forEach(([k, v]) => m.set(k, v)); } catch {}
+    return m;
+  })();
+  function _saveCamSizes() {
+    try { localStorage.setItem("tigertag.camSizes", JSON.stringify(Object.fromEntries(_camSizes))); } catch {}
+  }
+  function _applyCamSize(card, size) {
+    card.classList.remove("cam-wall-card--sm", "cam-wall-card--2x", "cam-wall-card--fs");
+    if (size === "sm") card.classList.add("cam-wall-card--sm");
+    if (size === "2x") card.classList.add("cam-wall-card--2x");
+    if (size === "fs") card.classList.add("cam-wall-card--fs");
+    card.querySelectorAll(".cam-size-btn").forEach(b => b.classList.toggle("cam-size-btn--active", b.dataset.size === size));
+  }
+  // Write-through helper: updates localStorage cache + DOM + Firestore atomically.
+  function _setCamSize(card, size) {
+    const ckey = `${card.dataset.brand}:${card.dataset.id}`;
+    _camSizes.set(ckey, size);
+    _saveCamSizes();
+    _applyCamSize(card, size);
+    const p = state.printers.find(x => `${x.brand}:${x.id}` === ckey);
+    if (p) { p.camSize = size; persistCamSize(p, size); }
+  }
 
   function wirePrinterDnd(host) {
     const cards = Array.from(host.querySelectorAll(".printer-card"));
@@ -7655,6 +7706,99 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       // log so the user sees something went wrong without breaking the UI.
       console.warn("[printers] persist sortIndex failed:", e?.code, e?.message);
     }
+  }
+
+  async function persistCamSize(printer, size) {
+    const uid = state.activeAccountId;
+    if (!uid) return;
+    try {
+      await fbDb(uid).collection("users").doc(uid)
+        .collection("printers").doc(printer.brand)
+        .collection("devices").doc(printer.id)
+        .update({ camSize: size });
+    } catch (e) {
+      console.warn("[cam] persist camSize failed:", e?.message);
+    }
+  }
+
+  async function persistCamWallOrder(orderedKeys) {
+    const uid = state.activeAccountId;
+    if (!uid) return;
+    try {
+      const db = fbDb(uid);
+      const batch = db.batch();
+      orderedKeys.forEach(({ brand, id }, idx) => {
+        const ref = db.collection("users").doc(uid)
+          .collection("printers").doc(brand)
+          .collection("devices").doc(id);
+        batch.update(ref, { camSortIndex: idx });
+      });
+      await batch.commit();
+    } catch (e) {
+      console.warn("[cam] persist camSortIndex failed:", e?.message);
+    }
+  }
+
+  function wireCamWallDnd(host) {
+    const grid = host.querySelector(".cam-wall");
+    if (!grid) return;
+    let _camDragId = null;
+    Array.from(grid.querySelectorAll(".cam-wall-card")).forEach(card => {
+      card.addEventListener("dragstart", e => {
+        _camDragId = `${card.dataset.brand}:${card.dataset.id}`;
+        try { e.dataTransfer.setData("text/plain", _camDragId); } catch {}
+        try { e.dataTransfer.effectAllowed = "move"; } catch {}
+        card.classList.add("cam-wall-card--dragging");
+      });
+      card.addEventListener("dragend", () => {
+        card.classList.remove("cam-wall-card--dragging");
+        grid.querySelectorAll(".cam-wall-card--drop-before, .cam-wall-card--drop-after")
+            .forEach(el => el.classList.remove("cam-wall-card--drop-before", "cam-wall-card--drop-after"));
+        _camDragId = null;
+      });
+      card.addEventListener("dragover", e => {
+        if (!_camDragId) return;
+        const me = `${card.dataset.brand}:${card.dataset.id}`;
+        if (me === _camDragId) return;
+        e.preventDefault();
+        try { e.dataTransfer.dropEffect = "move"; } catch {}
+        const rect = card.getBoundingClientRect();
+        const before = e.clientX < rect.left + rect.width / 2;
+        card.classList.toggle("cam-wall-card--drop-before", before);
+        card.classList.toggle("cam-wall-card--drop-after", !before);
+      });
+      card.addEventListener("dragleave", () => {
+        card.classList.remove("cam-wall-card--drop-before", "cam-wall-card--drop-after");
+      });
+      card.addEventListener("drop", e => {
+        if (!_camDragId) return;
+        const me = `${card.dataset.brand}:${card.dataset.id}`;
+        if (me === _camDragId) return;
+        e.preventDefault();
+        const before = card.classList.contains("cam-wall-card--drop-before");
+        card.classList.remove("cam-wall-card--drop-before", "cam-wall-card--drop-after");
+        _applyCamWallReorder(grid, _camDragId, me, before);
+      });
+    });
+  }
+
+  function _applyCamWallReorder(grid, dragId, targetId, before) {
+    // Reorder using CSS `order` — never moves DOM nodes so iframe/WebRTC streams
+    // are not interrupted (browsers reload iframes on any DOM detach+reattach).
+    const cards = Array.from(grid.querySelectorAll(".cam-wall-card"))
+      .sort((a, b) => (parseInt(a.style.order) || 0) - (parseInt(b.style.order) || 0));
+    const dragIdx = cards.findIndex(c => `${c.dataset.brand}:${c.dataset.id}` === dragId);
+    const tgtIdx  = cards.findIndex(c => `${c.dataset.brand}:${c.dataset.id}` === targetId);
+    if (dragIdx === -1 || tgtIdx === -1) return;
+    const [dragCard] = cards.splice(dragIdx, 1);
+    const newTgt = cards.findIndex(c => `${c.dataset.brand}:${c.dataset.id}` === targetId);
+    cards.splice(before ? newTgt : newTgt + 1, 0, dragCard);
+    cards.forEach((card, idx) => {
+      card.style.order = idx;
+      const p = state.printers.find(x => x.brand === card.dataset.brand && x.id === card.dataset.id);
+      if (p) p.camSortIndex = idx;
+    });
+    persistCamWallOrder(cards.map(c => ({ brand: c.dataset.brand, id: c.dataset.id })));
   }
 
   /* ── Printer detail side panel ─────────────────────────────────────────
@@ -7776,15 +7920,55 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // if the connection is already up when the panel reopens.
     _activePrinter = null;
   }
+  // Delegated click handler for all 3 printer sub-views (Grid / Table / Cam).
+  // Brand callbacks call renderPrintersView() (innerHTML rebuild) up to 60 fps
+  // while a printer is actively printing. Per-element listeners were destroyed
+  // on each rebuild before the user's click landed, making it impossible to
+  // open the sidecard. Attaching once to the stable host element survives all
+  // inner rebuilds. Cam view already had this behaviour naturally (its DOM was
+  // not rebuilt on brand updates), which is why the sidecard always worked there.
+  $("invPrinterView")?.addEventListener("click", e => {
+    const card = e.target.closest(".printer-card:not(.printer-card--add)");
+    if (card) {
+      if (_printerJustDragged) return;
+      const brand = card.dataset.brand, id = card.dataset.id;
+      if (brand && id) openPrinterDetail(brand, id);
+      return;
+    }
+    const row = e.target.closest(".pt-row");
+    if (row) {
+      const brand = row.dataset.brand, id = row.dataset.id;
+      if (brand && id) openPrinterDetail(brand, id);
+      return;
+    }
+    // Cam size buttons — checked before .cam-wall-card to prevent sidecard opening
+    const sizeBtn = e.target.closest(".cam-size-btn");
+    if (sizeBtn) {
+      const camCard2 = sizeBtn.closest(".cam-wall-card");
+      if (camCard2) _setCamSize(camCard2, sizeBtn.dataset.size);
+      return;
+    }
+    const camCard = e.target.closest(".cam-wall-card");
+    if (camCard) {
+      if (camCard.classList.contains("cam-wall-card--fs")) {
+        _setCamSize(camCard, "1x");
+        return;
+      }
+      openPrinterDetail(camCard.dataset.brand, camCard.dataset.id);
+      return;
+    }
+    if (e.target.closest("#printerAddCard")) openPrinterBrandPicker();
+  });
   $("printerPanelClose")?.addEventListener("click", closePrinterDetail);
   $("printerOverlay")?.addEventListener("click", closePrinterDetail);
   // Escape key — closes the printer detail side-panel when it's open.
   // Replaces the role previously played by the visible ✕ button (now
   // removed). Backdrop click + Esc are the two close affordances.
   document.addEventListener("keydown", e => {
-    if (e.key === "Escape" && $("printerPanel")?.classList.contains("open")) {
-      closePrinterDetail();
-    }
+    if (e.key !== "Escape") return;
+    if ($("printerPanel")?.classList.contains("open")) closePrinterDetail();
+    const fsCard = document.querySelector(".cam-wall-card--fs");
+    if (fsCard) _setCamSize(fsCard, "1x");
   });
 
   // Snapmaker Control card — step size + speed selectors (change event, delegated)
@@ -8060,7 +8244,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (_brKey) _ppForcedOfflineKeys.delete(_brKey);
       if (p.brand === "snapmaker"  && p.ip)               snapConnect(p);
       if (p.brand === "flashforge" && p.ip)               ffgConnect(p);
-      if (p.brand === "creality"   && p.ip)               creConnect(p);
+      if (p.brand === "creality"   && p.ip)               { creDisconnect(creKey(p)); creConnect(p); }
       if (p.brand === "bambulab"   && (p.broker || p.ip)) bambuConnect(p);
       if (p.brand === "elegoo")                           elegooConnect(p);
     }
@@ -8468,7 +8652,6 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       const oldImg = document.getElementById("ffgCamSideImg");
       if (oldImg) try { ffgMuxUnregister(ffgKey(p), oldImg); } catch {}
     }
-
     $("printerPanelBody").innerHTML = `
       ${camBannerHtml}
       <div class="pp-hero">

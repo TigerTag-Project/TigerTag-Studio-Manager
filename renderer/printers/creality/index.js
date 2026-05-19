@@ -59,6 +59,12 @@ export async function crePingPrinter(printer) {
   const cached = _crePings.get(k);
   const now = Date.now();
   if (cached && now - cached.lastChecked < 30_000) return;
+  // Abandoned conn means 3 failed attempts — definitively offline, no WebSocket needed.
+  if (_creConns.get(k)?._abandoned) {
+    _crePings.set(k, { online: false, lastChecked: now });
+    creRefreshOnlineUI(k);
+    return;
+  }
   _crePings.set(k, { online: cached?.online ?? null, lastChecked: now });
   let resolved = false;
   const done = (online) => {
@@ -112,13 +118,12 @@ export function renderCreOnlineBadge(printer, where) {
 // ── WebSocket lifecycle ───────────────────────────────────────────────────
 
 export function creConnect(printer) {
+  if (!printer.ip) return; // no IP configured — skip silently
   const key = creKey(printer);
   const existing = _creConns.get(key);
-  if (existing && existing.ws &&
-      (existing.ws.readyState === WebSocket.OPEN ||
-       existing.ws.readyState === WebSocket.CONNECTING)) {
-    if (existing.ip === printer.ip) return; // already connected to same IP
-    creDisconnect(key);
+  if (existing) {
+    if (existing.ip === printer.ip) return; // already managing this IP — even if abandoned, wait for explicit reconnect
+    creDisconnect(key); // different IP → replace
   }
   const conn = {
     ip:       printer.ip,
@@ -219,7 +224,7 @@ function creOpenSocket(conn) {
   creNotifyChange(conn);
 
   ws.addEventListener("open", () => {
-    conn.status = "connected"; conn.lastError = null; conn.retry = 0;
+    conn.status = "connected"; conn.lastError = null; conn.retry = 0; conn._abandoned = false;
     // Single init query — the printer pushes updates on its own after this.
     // No polling needed.
     creLogPush(conn, "→", CRE_INIT_QUERY);
@@ -253,10 +258,20 @@ function creOpenSocket(conn) {
   ws.addEventListener("error", () => { conn.lastError = "websocket error"; });
 }
 
+const CRE_MAX_RETRIES = 3;
+
 function creScheduleReconnect(conn) {
   if (conn.retryTimer) return;
   if (!_creConns.has(conn.key)) return; // disposed
-  conn.retry = Math.min(conn.retry + 1, 5);
+  if (conn._abandoned) return;          // already gave up
+  if (conn.retry >= CRE_MAX_RETRIES) {
+    conn._abandoned = true;
+    conn.status = "error";
+    conn.lastError = `Unreachable after ${CRE_MAX_RETRIES} attempts`;
+    creNotifyChange(conn, true);
+    return;
+  }
+  conn.retry++;
   const delay = Math.min(2000 * (1 << (conn.retry - 1)), 30000);
   conn.retryTimer = setTimeout(() => {
     conn.retryTimer = null;
