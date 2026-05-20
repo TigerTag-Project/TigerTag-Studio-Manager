@@ -63,17 +63,16 @@ let _devPort;
 const RENDERER_PORT = 5784;
 
 function startRendererServer(rendererDir) {
-  // Returns Promise<{ port, host }> — never rejects (all error paths resolve).
+  // Returns Promise<{ port }> — never rejects (all error paths resolve).
   //
-  // Host priority:
-  //   1. 'localhost' on RENDERER_PORT  — preferred: Firebase Auth only allows named
-  //      hosts (not raw IPs), so 'localhost' must be the window origin for Google
-  //      sign-in to work.
-  //   2. 'localhost' on random port    — EADDRINUSE fallback (fixed port taken).
-  //   3. '127.0.0.1' on random port   — last resort for Windows 10 machines where
-  //      'localhost' resolves to ::1 (IPv6) but IPv6 is disabled: bind fails with
-  //      EADDRNOTAVAIL instead of EADDRINUSE. App runs but Google sign-in won't
-  //      work (auth/unauthorized-domain); email/password auth is unaffected.
+  // The server always binds to 127.0.0.1 (explicit IPv4 loopback) to avoid
+  // the Windows 10 / Node.js 17+ pitfall where 'localhost' resolves to ::1
+  // (IPv6) and fails with EADDRNOTAVAIL when IPv6 is disabled on the machine.
+  //
+  // The BrowserWindow always loads from http://localhost:PORT (not 127.0.0.1)
+  // so Firebase Authentication sees a named host and Google sign-in works.
+  // Chromium resolves 'localhost' to 127.0.0.1 at TCP level, so the two
+  // sides always connect correctly.
   const handler = (req, res) => {
     let urlPath = req.url.split('?')[0];
     if (urlPath === '/' || urlPath === '') urlPath = '/inventory.html';
@@ -88,36 +87,31 @@ function startRendererServer(rendererDir) {
     }
   };
 
-  function tryBind(host, port) {
+  function tryBind(port) {
     return new Promise((resolve) => {
       const srv = http.createServer(handler);
       srv.once('error', (err) => {
         srv.close();
         if (err.code === 'EADDRINUSE' && port !== 0) {
-          // Fixed port taken → retry same host on any available port
-          tryBind(host, 0).then(resolve);
-        } else if (host === 'localhost') {
-          // localhost bind failed (e.g. EADDRNOTAVAIL on Win10 with IPv6 disabled)
-          // → last resort: bind explicitly on IPv4 loopback
-          console.warn(`[Renderer] localhost bind failed (${err.code}) — falling back to 127.0.0.1`);
-          tryBind('127.0.0.1', 0).then(resolve);
+          // Fixed port taken → retry on any available port
+          tryBind(0).then(resolve);
         } else {
-          // All options exhausted — should never happen; resolve with port 0 so the
-          // process keeps running rather than crashing with an unhandled rejection.
-          console.error(`[Renderer] all bind attempts failed: ${err.message}`);
-          resolve({ port: 0, host });
+          // Should never happen on 127.0.0.1 — resolve safely so the process
+          // keeps running rather than crashing with an unhandled rejection.
+          console.error(`[Renderer] bind failed: ${err.message}`);
+          resolve({ port: 0 });
         }
       });
-      srv.listen(port, host, () => {
+      srv.listen(port, '127.0.0.1', () => {
         _devServer = srv;
         _devPort   = srv.address().port;
-        console.log(`[Renderer] http://${host}:${_devPort}`);
-        resolve({ port: _devPort, host });
+        console.log(`[Renderer] http://127.0.0.1:${_devPort} (loadURL: localhost)`);
+        resolve({ port: _devPort });
       });
     });
   }
 
-  return tryBind('localhost', RENDERER_PORT);
+  return tryBind(RENDERER_PORT);
 }
 
 let imgCacheDir;
@@ -157,8 +151,10 @@ function createWindow() {
     },
   });
 
-  startRendererServer(__dirname).then(({ port, host }) => {
-    mainWindow.loadURL(`http://${host}:${port}/renderer/inventory.html`);
+  startRendererServer(__dirname).then(({ port }) => {
+    // Always load via 'localhost' (not '127.0.0.1') so Firebase Auth
+    // sees a named host and Google sign-in works on all platforms.
+    mainWindow.loadURL(`http://localhost:${port}/renderer/inventory.html`);
   });
 
   // Firebase auth popup → ouvrir en interne (postMessage doit fonctionner)

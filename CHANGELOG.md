@@ -5,6 +5,16 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.7.6 — 2026-05-20
+
+### Windows — renderer server bind fix (definitive)
+
+- **Root cause**: `startRendererServer` tried to bind to `'localhost'` first. On Windows 10/11 with Node.js 17+ (Electron 41+), `localhost` can resolve to `::1` (IPv6). If IPv6 is disabled on the machine, `server.listen` fails with `EADDRNOTAVAIL`. The v1.7.2 / v1.7.3 fallback logic partially addressed this but still sent `http://127.0.0.1:PORT` to `loadURL`, breaking Firebase Google sign-in (`auth/unauthorized-domain`).
+- **Fix**: the server now **always binds to `127.0.0.1`** (explicit IPv4 loopback — never ambiguous, works on all Windows versions regardless of IPv6 state). `BrowserWindow.loadURL` always uses **`http://localhost:PORT`** (Chromium resolves `localhost` → `127.0.0.1` at TCP level, Firebase Auth accepts the named host). The two responsibilities — server bind address and browser origin — are now cleanly separated.
+- `tryBind` simplified: no more host parameter, no more localhost→127.0.0.1 fallback branch. Only the EADDRINUSE (port taken) case is handled, by retrying on port 0.
+
+---
+
 ## v1.7.5 — 2026-05-20
 
 ### Persistent logging
