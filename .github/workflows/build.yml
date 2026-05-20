@@ -80,6 +80,10 @@ jobs:
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
+          # Google Desktop OAuth — Touch ID / loopback sign-in
+          TIGERTAG_GOOGLE_DESKTOP_CLIENT_ID: ${{ secrets.TIGERTAG_GOOGLE_DESKTOP_CLIENT_ID }}
+          TIGERTAG_GOOGLE_DESKTOP_CLIENT_SECRET: ${{ secrets.TIGERTAG_GOOGLE_DESKTOP_CLIENT_SECRET }}
+
       # ─────────────────────────────────────────────────────────────────
       # Windows path — split into:
       #   1. Build .exe locally with --publish never (so we can sign first)
@@ -93,6 +97,10 @@ jobs:
         run: npm run build:win:nopublish
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+          # Google Desktop OAuth — Touch ID / loopback sign-in
+          TIGERTAG_GOOGLE_DESKTOP_CLIENT_ID: ${{ secrets.TIGERTAG_GOOGLE_DESKTOP_CLIENT_ID }}
+          TIGERTAG_GOOGLE_DESKTOP_CLIENT_SECRET: ${{ secrets.TIGERTAG_GOOGLE_DESKTOP_CLIENT_SECRET }}
 
       - name: Check Trusted Signing secrets availability
         id: check_signing
