@@ -161,7 +161,6 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     selected: null,
     keyValid: null,
     displayName: null,
-    showDeleted: false,
     search: "",
     brandFilter: "",                  // exact brand name to keep, "" = all
     materialFilter: "",               // exact material name to keep, "" = all
@@ -696,7 +695,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
                : (Number.isInteger(data.level)    ? data.level    : null),
       rackPos:   (data.rack && Number.isInteger(data.rack.position)) ? data.rack.position
                : (Number.isInteger(data.position) ? data.position : null),
-      lastUpdate: tsToMs(data.last_update) || tsToMs(data.updated_at),
+      lastUpdate: tsToMs(data.updatedAt) || tsToMs(data.last_update) || tsToMs(data.updated_at),
       // Only `deleted === true` counts as a tombstone (matches Flutter mobile
        // semantics). `deleted_at` alone is treated as historical metadata and
        // does NOT hide the spool.
@@ -2130,7 +2129,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
 
       // ── Timestamps + tombstone ─────────────────────────────────
       timestamp:   Math.floor(Date.now() / 1000),
-      last_update: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
       // Cloud-only entries always start with a pending chip-program
       // flag — the rest of the app (grid view, card view, detail
       // panel) reads `needUpdateAt` to render a "needs to be written
@@ -3862,6 +3861,17 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         snapshot.forEach(doc => { raw[doc.id] = doc.data(); });
         state.inventory = raw;
         state.rows = snapshot.docs.map(doc => normalizeRow(doc.id, doc.data()));
+        // One-time migration: remove any legacy soft-delete tombstones
+        // (deleted: true) left over from the pre-v1.7.4 scheme.
+        // Fire-and-forget — errors logged, never blocking.
+        if (!snapshot.metadata.fromCache) {
+          purgeLegacyTombstones(uid, raw).catch(e =>
+            console.warn("[subscribeInventory] legacy tombstone purge failed:", e)
+          );
+          autoAssignMissingContainers(uid, raw).catch(e =>
+            console.warn("[subscribeInventory] container auto-assign failed:", e)
+          );
+        }
         // Factory-bug fix: link twin pairs whose chip timestamps drifted ≤ 2s.
         // Fire-and-forget — the resulting Firestore writes will trigger a fresh
         // snapshot which will then see twin_tag_uid filled on both sides.
@@ -4281,8 +4291,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const batch  = fbDb().batch();
     const ts     = firebase.firestore.FieldValue.serverTimestamp();
     for (const { a, b, dt, idtt } of pairs) {
-      batch.update(invRef.doc(a.spoolId), { twin_tag_uid: b.uid, last_update: ts });
-      batch.update(invRef.doc(b.spoolId), { twin_tag_uid: a.uid, last_update: ts });
+      batch.update(invRef.doc(a.spoolId), { twin_tag_uid: b.uid, updatedAt: ts });
+      batch.update(invRef.doc(b.spoolId), { twin_tag_uid: a.uid, updatedAt: ts });
       console.log(`[twinAutoLink] paired uid=${a.uid} ↔ uid=${b.uid}  (id_tigertag=${idtt}, Δt=${dt}s)`);
     }
     try {
@@ -4344,8 +4354,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const invRef = fbDb().collection("users").doc(user.uid).collection("inventory");
     const batch  = fbDb().batch();
     const ts     = firebase.firestore.FieldValue.serverTimestamp();
-    batch.update(invRef.doc(rowA.spoolId), { twin_tag_uid: rowB.uid, last_update: ts });
-    batch.update(invRef.doc(rowB.spoolId), { twin_tag_uid: rowA.uid, last_update: ts });
+    batch.update(invRef.doc(rowA.spoolId), { twin_tag_uid: rowB.uid, updatedAt: ts });
+    batch.update(invRef.doc(rowB.spoolId), { twin_tag_uid: rowA.uid, updatedAt: ts });
     await batch.commit();
     console.log(`[twinManualLink] paired uid=${rowA.uid} ↔ uid=${rowB.uid}`);
   }
@@ -4357,7 +4367,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const twinId = twinSpoolIdOf(row);
     const batch  = fbDb().batch();
     const ts     = firebase.firestore.FieldValue.serverTimestamp();
-    const clear  = { twin_tag_uid: firebase.firestore.FieldValue.delete(), last_update: ts };
+    const clear  = { twin_tag_uid: firebase.firestore.FieldValue.delete(), updatedAt: ts };
     batch.update(invRef.doc(row.spoolId), clear);
     if (twinId) batch.update(invRef.doc(twinId), clear);
     await batch.commit();
@@ -4380,7 +4390,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
 
   function filteredRows() {
     let rows = state.rows.slice();
-    if (!state.showDeleted) rows = rows.filter(r => !r.deleted);
+    rows = rows.filter(r => !r.deleted); // hard-deleted docs never appear in state.rows
     if (state.search) {
       const q = state.search.toLowerCase();
       rows = rows.filter(r =>
@@ -4975,14 +4985,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const r = state.rows.find(x => x.spoolId === spoolId);
     if (!r) return;
     $("panelBody").innerHTML = buildPanelHTML(r);
-    // Hold-to-confirm "Mark as deleted" — same 1.5s pattern as the rack delete.
-    // Sets `deleted: true` (matches the mobile semantics — the spool then
-    // appears in Settings → Debug → Deleted where it can be restored).
+    // Hold-to-confirm "Delete spool" — 1.5s hold, irreversible hard delete.
+    // Removes the Firestore doc (+ twin) permanently — ISO with printer deletion.
+    // Flutter's cloudSync guard prevents resurrection on the phone.
     setupHoldToConfirm($("btnSpoolDelete"), 1500, async () => {
       try {
         await markSpoolDeleted(r.spoolId);
         closeDetail();
-      } catch (e) { reportError("spool.markDeleted", e); }
+      } catch (e) { reportError("spool.delete", e); }
     });
 
     // Manual twin-pair repair button — opens the picker pre-filtered to
@@ -5021,7 +5031,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         await fbDb(user.uid)
           .collection("users").doc(user.uid)
           .collection("inventory").doc(r.spoolId)
-          .update({ TD: firebase.firestore.FieldValue.delete(), last_update: Date.now() });
+          .update({ TD: firebase.firestore.FieldValue.delete(), updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
       } catch (e) { reportError("spool.clearTd", e); }
     });
     // Remove from rack — hold-to-confirm so an accidental tap doesn't
@@ -5121,9 +5131,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         const user = fbAuth().currentUser;
         if (!user) return;
         const del = firebase.firestore.FieldValue.delete();
+        const ts = firebase.firestore.FieldValue.serverTimestamp();
         const update = val
-          ? { url_img: val, url_img_user: true, last_update: Date.now() }
-          : { url_img: del, url_img_user: del, last_update: Date.now() };
+          ? { url_img: val, url_img_user: true, updatedAt: ts }
+          : { url_img: del, url_img_user: del, updatedAt: ts };
         await fbDb(user.uid)
           .collection("users").doc(user.uid)
           .collection("inventory").doc(r.spoolId)
@@ -5267,7 +5278,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         try {
           await fbDb().collection("users").doc(uid).collection("inventory").doc(r.spoolId).update({
             container_weight: val,
-            last_update:      Date.now()
+            updatedAt:        firebase.firestore.FieldValue.serverTimestamp()
           });
           // onSnapshot propagates change and re-renders the panel automatically
         } catch (e) {
@@ -5471,7 +5482,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       await fbDb().collection("users").doc(uid).collection("inventory").doc(r.spoolId).update({
         container_id:     newContainerId,
         container_weight: c.container_weight,
-        last_update:      Date.now()
+        updatedAt:        firebase.firestore.FieldValue.serverTimestamp()
       });
       closeContainerPicker();
       // onSnapshot propagates change; detail panel refreshes automatically
@@ -6047,7 +6058,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         setLoading(btn, false); return;
       }
 
-      const update = { weight_available: weightAvailable, last_update: Date.now() };
+      const update = { weight_available: weightAvailable, updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
       const invRef = fbDb().collection("users").doc(uid).collection("inventory");
       const batch  = fbDb().batch();
       batch.update(invRef.doc(r.spoolId), update);
@@ -6147,8 +6158,6 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   initRfidTester();
 
   /* ── diagnostic / report-problem modal ── */
-  $("dbgDelRefresh")?.addEventListener("click", renderDeletedSpoolsList);
-  $("dbgDelSearch")?.addEventListener("input", renderDeletedSpoolsList);
   $("btnReportProblem")?.addEventListener("click", openDiagnosticModal);
   $("btnReportProblemLogin")?.addEventListener("click", openDiagnosticModal);
   $("diagModalClose")?.addEventListener("click", closeDiagnosticModal);
@@ -6297,111 +6306,19 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       const tab = btn.dataset.tab;
       $("dbgPaneApi").classList.toggle("hidden", tab !== "api");
       $("dbgPaneFs").classList.toggle("hidden",  tab !== "fs");
-      $("dbgPaneDel")?.classList.toggle("hidden", tab !== "del");
       if (tab === "fs") fsExplRefresh();
-      if (tab === "del") renderDeletedSpoolsList();
     });
   });
 
-  /* ── Deleted spools list (debug) ──────────────────────────────────────────
-     Lists every spool whose `deleted === true` (matches mobile semantics —
-     `deleted_at` alone is ignored, treated as historical metadata).
-     The Restore button writes `deleted: null` and clears `deleted_at` defensively. */
-  function renderDeletedSpoolsList() {
-    const list = $("dbgDelList");
-    const cnt  = $("dbgDelCount");
-    if (!list) return;
-    if (!state.inventory) {
-      list.innerHTML = `<div style="font-size:12px;color:var(--muted);padding:14px;text-align:center">${t("invLoading")}</div>`;
-      if (cnt) cnt.textContent = "0";
-      return;
-    }
-    // Iterate raw Firestore docs (NOT state.rows — dedup hides one half of twins).
-    const q = ($("dbgDelSearch")?.value || "").trim().toLowerCase();
-    const matches = (d, id) => {
-      if (!q) return true;
-      const r = state.rows.find(x => x.spoolId === id) || normalizeRow(id, d);
-      return [r.uid, r.colorName, r.material, r.brand, r.series, r.sku, r.barcode]
-        .filter(Boolean)
-        .some(v => String(v).toLowerCase().includes(q));
-    };
-    const entries = Object.entries(state.inventory)
-      .filter(([id, d]) => d && d.deleted === true && matches(d, id))
-      .sort(([, a], [, b]) => {
-        const ta = (a.deleted_at?._seconds || a.deleted_at || 0);
-        const tb = (b.deleted_at?._seconds || b.deleted_at || 0);
-        return tb - ta; // most-recently deleted first
-      });
-    if (cnt) cnt.textContent = String(entries.length);
-    if (!entries.length) {
-      list.innerHTML = `<div style="font-size:12px;color:var(--muted);padding:14px;text-align:center">${t("dbgDeletedEmpty")}</div>`;
-      return;
-    }
-    list.innerHTML = entries.map(([id, d]) => {
-      const r = state.rows.find(x => x.spoolId === id) || normalizeRow(id, d);
-      const fillBg = colorBg(r);
-      const titleLine = r.colorName !== "-" ? r.colorName : (r.material || r.uid || "—");
-      const subLine   = [r.brand, r.material].filter(Boolean).join(" · ");
-      const wAvail    = r.weightAvailable != null ? r.weightAvailable : "—";
-      const wCap      = r.capacity || 1000;
-      const delTs = d.deleted_at?._seconds
-        ? new Date(d.deleted_at._seconds * 1000)
-        : (typeof d.deleted_at === "number" ? new Date(d.deleted_at) : null);
-      const delLabel = delTs ? delTs.toLocaleDateString() + " " + delTs.toLocaleTimeString() : "—";
-      const twinNote = d.twin_tag_uid ? ` · twin=${d.twin_tag_uid}` : "";
-      return `
-        <div class="dbg-del-row" data-spool-id="${esc(id)}">
-          <div class="dbg-del-puck" style="background:${fillBg}"></div>
-          <div class="dbg-del-meta">
-            <div class="dbg-del-name">${esc(titleLine)}</div>
-            <div class="dbg-del-sub">${esc(subLine || "—")} · ${wAvail}g/${wCap}g</div>
-            <div class="dbg-del-tech">uid=${esc(String(r.uid))} · deleted=${esc(delLabel)}${twinNote}</div>
-          </div>
-          <button class="ghost sm dbg-del-restore" data-action="restore" title="${t("dbgDeletedRestore")}">↺</button>
-          <button class="ghost sm dbg-del-purge"   data-action="purge"   title="${t("dbgDeletedPurge")}">🗑</button>
-        </div>`;
-    }).join("");
+  /* ── Hard-delete a spool (and its twin) from Firestore ────────────────────
+     ISO with the printer hard-delete pattern. No tombstone is written —
+     the doc is gone for good. The Flutter app's cloudSync guard prevents
+     resurrection: once a spool has cloudSync:true and disappears from the
+     cloud, the phone treats it as remotely deleted and removes it locally.
 
-    list.querySelectorAll(".dbg-del-restore").forEach(btn => {
-      btn.addEventListener("click", async () => {
-        const row = btn.closest("[data-spool-id]");
-        if (!row) return;
-        const id = row.dataset.spoolId;
-        btn.disabled = true; btn.textContent = "…";
-        try { await restoreDeletedSpool(id); }
-        catch (err) {
-          reportError("debug.restoreSpool", err);
-          btn.disabled = false; btn.textContent = "↺";
-        }
-      });
-    });
-    list.querySelectorAll(".dbg-del-purge").forEach(btn => {
-      btn.addEventListener("click", async () => {
-        const row = btn.closest("[data-spool-id]");
-        if (!row) return;
-        const id = row.dataset.spoolId;
-        const d  = state.inventory[id];
-        const r  = state.rows.find(x => x.spoolId === id) || (d ? normalizeRow(id, d) : null);
-        const label = (r?.colorName !== "-" && r?.colorName) || r?.material || id;
-        // Detect twin to show in confirm dialog
-        const twinId = d?.twin_tag_uid && state.inventory[String(d.twin_tag_uid)] ? String(d.twin_tag_uid) : null;
-        const msg = twinId
-          ? t("dbgDeletedPurgeConfirmTwin", { name: label })
-          : t("dbgDeletedPurgeConfirm",     { name: label });
-        if (!confirm(msg)) return;
-        btn.disabled = true; btn.textContent = "…";
-        try { await purgeDeletedSpool(id); }
-        catch (err) {
-          reportError("debug.purgeSpool", err);
-          btn.disabled = false; btn.textContent = "🗑";
-        }
-      });
-    });
-  }
-
-  // Soft-delete a spool (and its twin if any). Uses the mobile-aligned
-  // semantics: `deleted: true` is the only field that hides the spool.
-  // The spool then appears in Settings → Debug → Deleted, restorable from there.
+     Legacy migration: purgeLegacyTombstones() is called on the first
+     Firestore snapshot to hard-delete any pre-existing deleted:true docs
+     left over from the old soft-delete scheme.                           */
   async function markSpoolDeleted(spoolId) {
     const user = fbAuth().currentUser;
     if (!user) return;
@@ -6409,71 +6326,96 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (!r) return;
     const invRef = fbDb().collection("users").doc(user.uid).collection("inventory");
     const batch = fbDb().batch();
-    const ts = firebase.firestore.FieldValue.serverTimestamp();
-    const update = { deleted: true, deleted_at: ts, last_update: Date.now() };
-    batch.update(invRef.doc(spoolId), update);
-    // Mirror to twin so both halves stay in sync (just like the weight update flow)
+    batch.delete(invRef.doc(spoolId));
+    // Hard-delete the twin as well — if one half is gone the pair is gone.
     if (r.twinUid) {
       const twin = state.rows.find(x =>
         x.spoolId !== spoolId &&
         (String(x.uid) === String(r.twinUid) || String(x.spoolId) === String(r.twinUid))
       );
-      if (twin) batch.update(invRef.doc(twin.spoolId), update);
+      if (twin) batch.delete(invRef.doc(twin.spoolId));
     }
     await batch.commit();
-    console.log(`[markSpoolDeleted] tombstoned ${spoolId}${r.twinUid ? " (+ twin)" : ""}`);
+    console.log(`[markSpoolDeleted] hard-deleted ${spoolId}${r.twinUid ? " (+ twin)" : ""}`);
   }
 
-  async function restoreDeletedSpool(spoolId) {
-    const user = fbAuth().currentUser;
-    if (!user) return;
-    const invRef = fbDb().collection("users").doc(user.uid).collection("inventory");
+  /* One-time migration: scan the current Firestore snapshot for any legacy
+     deleted:true tombstone docs and hard-delete them. Fire-and-forget — the
+     resulting Firestore writes trigger a clean snapshot that no longer
+     contains those docs, so the migration is automatically idempotent.   */
+  /* ── Auto-assign container to spools that have none ────────────────────────
+     Mirrors Flutter's _resolveSpoolForBrand logic.
+     Triggered on every live Firestore snapshot — once all spools have a
+     container_id the filter finds nothing and the function is a no-op.
+     Also fires implicitly after saveAddProduct() because that write triggers
+     a fresh snapshot, so new spools are covered without touching that path.
+
+     Resolution order (ISO with Flutter):
+       1. First catalog entry whose brandId matches the spool's id_brand.
+       2. Fallback: first entry with brandId == 0 (Generic / custom_cardboard).
+       3. Safety net: very first entry in the catalog.                        */
+
+  function resolveContainerForBrand(brandId) {
+    const catalog = state.db.containers || [];
+    if (!catalog.length) return null;
+    // 1) Brand-specific match
+    if (brandId != null) {
+      const match = catalog.find(c => Number(c.brandId) === Number(brandId));
+      if (match) return match;
+    }
+    // 2) Generic fallback (brandId == 0 → custom_cardboard)
+    const generic = catalog.find(c => Number(c.brandId) === 0);
+    if (generic) return generic;
+    // 3) Safety net
+    return catalog[0];
+  }
+
+  async function autoAssignMissingContainers(uid, inventoryRaw) {
+    // Find spools that have no container_id yet (and are not deleted).
+    const missing = Object.entries(inventoryRaw).filter(
+      ([, data]) => !data.container_id && data.deleted !== true
+    );
+    if (!missing.length) return;
+
+    const invRef = fbDb().collection("users").doc(uid).collection("inventory");
+    let batch = fbDb().batch();
+    let ops = 0;
+    let assigned = 0;
     const ts = firebase.firestore.FieldValue.serverTimestamp();
-    const batch = fbDb().batch();
-    // Clear delete fields on the primary doc
-    batch.update(invRef.doc(spoolId), { deleted: null, deleted_at: null, last_update: ts });
-    // If linked twin exists in inventory and is also deleted, restore it too
-    const primary = state.inventory[spoolId];
-    const twinUid = primary?.twin_tag_uid;
-    if (twinUid) {
-      const twinId = String(twinUid);
-      // The twin doc id may equal twin_tag_uid (the common case) — check existence
-      if (state.inventory[twinId]) {
-        const tw = state.inventory[twinId];
-        if (tw.deleted === true) {
-          batch.update(invRef.doc(twinId), { deleted: null, deleted_at: null, last_update: ts });
-        }
+
+    for (const [spoolId, data] of missing) {
+      const container = resolveContainerForBrand(data.id_brand);
+      if (!container) continue;
+      batch.update(invRef.doc(spoolId), {
+        container_id:     container.id,
+        container_weight: container.container_weight,
+        updatedAt:        ts,
+      });
+      assigned++;
+      if (++ops >= 400) {
+        await batch.commit();
+        batch = fbDb().batch();
+        ops = 0;
       }
     }
-    await batch.commit();
-    console.log(`[restoreDeletedSpool] restored ${spoolId}${twinUid ? " (+ twin)" : ""}`);
-    // The onSnapshot will re-render automatically; refresh the list explicitly
-    setTimeout(renderDeletedSpoolsList, 350);
+    if (ops > 0) await batch.commit();
+    if (assigned > 0)
+      console.log(`[autoAssignMissingContainers] assigned container to ${assigned} spool(s)`);
   }
 
-  /* Permanently remove the spool doc from Firestore (and its twin if both
-     are tombstoned). Irreversible — used by the 🗑 button in the Deleted tab. */
-  async function purgeDeletedSpool(spoolId) {
-    const user = fbAuth().currentUser;
-    if (!user) return;
-    const invRef = fbDb().collection("users").doc(user.uid).collection("inventory");
-    const batch = fbDb().batch();
-    batch.delete(invRef.doc(spoolId));
-    let purgedTwin = false;
-    const primary = state.inventory[spoolId];
-    const twinUid = primary?.twin_tag_uid;
-    if (twinUid) {
-      const twinId = String(twinUid);
-      // Only auto-purge twin if it ALSO carries a tombstone — avoid removing an
-      // active spool just because its mate was deleted.
-      if (state.inventory[twinId] && state.inventory[twinId].deleted === true) {
-        batch.delete(invRef.doc(twinId));
-        purgedTwin = true;
-      }
+  async function purgeLegacyTombstones(uid, inventoryRaw) {
+    const toDelete = Object.keys(inventoryRaw).filter(id => inventoryRaw[id]?.deleted === true);
+    if (!toDelete.length) return;
+    const invRef = fbDb().collection("users").doc(uid).collection("inventory");
+    // Cap at 500 (Firestore batch limit) — in practice there'll be < 50.
+    const chunks = [];
+    for (let i = 0; i < toDelete.length; i += 400) chunks.push(toDelete.slice(i, i + 400));
+    for (const chunk of chunks) {
+      const batch = fbDb().batch();
+      chunk.forEach(id => batch.delete(invRef.doc(id)));
+      await batch.commit();
     }
-    await batch.commit();
-    console.log(`[purgeDeletedSpool] hard-deleted ${spoolId}${purgedTwin ? " (+ twin)" : ""}`);
-    setTimeout(renderDeletedSpoolsList, 350);
+    console.log(`[purgeLegacyTombstones] hard-deleted ${toDelete.length} legacy tombstone(s)`);
   }
 
   /* ── Firestore explorer ── */

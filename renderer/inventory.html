@@ -1072,7 +1072,6 @@
     <div class="dbg-tabs">
       <button class="dbg-tab active" data-tab="api">API</button>
       <button class="dbg-tab" data-tab="fs">Firestore</button>
-      <button class="dbg-tab" data-tab="del" data-i18n="dbgDeletedTab">Deleted</button>
     </div>
 
     <!-- API tab -->
@@ -1099,22 +1098,6 @@
 
       <!-- result -->
       <pre class="json" id="fsExplPre" style="flex:1;margin:0;overflow:auto">{}</pre>
-    </div>
-
-    <!-- Deleted spools tab -->
-    <div class="dbg-pane hidden" id="dbgPaneDel" style="display:flex;flex-direction:column;gap:8px;padding:12px 14px;flex:1;overflow:hidden">
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
-        <div style="font-size:11px;color:var(--muted)">
-          <span data-i18n="dbgDeletedSub">Soft-deleted spools — click ↺ to restore</span>
-          <span style="margin-left:6px">(<span id="dbgDelCount">0</span>)</span>
-        </div>
-        <button id="dbgDelRefresh" class="ghost sm" title="Refresh">↻</button>
-      </div>
-      <div class="dbg-del-search" style="position:relative;flex-shrink:0">
-        <input id="dbgDelSearch" type="text" data-i18n-placeholder="searchPlaceholder" placeholder="Search material, brand, color, UID…" />
-        <span class="icon icon-search icon-13"></span>
-      </div>
-      <div id="dbgDelList" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding-right:2px"></div>
     </div>
 
   </div>

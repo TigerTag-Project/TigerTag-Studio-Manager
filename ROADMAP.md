@@ -15,6 +15,9 @@ Sizes: **S** = a few hours · **M** = a day · **L** = several days · **XL** = 
 Grouped by domain. Versions in parentheses are the release that landed the feature; the changelog has the detail.
 
 ### Inventory & spools
+- ✅ **Hard delete + anti-resurrection (cloudSync)** — spools deleted from Tiger Studio are hard-deleted from Firestore (no tombstone). Flutter's `cloudSync` flag prevents resurrection on reconnect. Legacy `deleted: true` tombstones auto-purged on first live snapshot. ISO with the printer pattern. (v1.7.4)
+- ✅ **`updatedAt` rename** — `last_update` → `updatedAt` (ISO with printer model). All writes use `FieldValue.serverTimestamp()`. Legacy docs handled via `normalizeRow` fallback. (v1.7.4)
+- ✅ **Container auto-assignment** — `resolveContainerForBrand` + `autoAssignMissingContainers`: every spool without a `container_id` gets one automatically on the next live snapshot, matched to its brand. (v1.7.4)
 - ✅ Real-time Firestore sync of inventory · table + grid views · column sort · search filter (v1.0+)
 - ✅ Spool detail side panel — color block, print settings, weight slider with debounced auto-save, links, container, raw JSON (v1.0+)
 - ✅ NFC RFID reading via ACR122U (`nfc-pcsc`) — auto-opens the matching spool (v1.0+)

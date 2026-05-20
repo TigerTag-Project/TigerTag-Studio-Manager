@@ -119,7 +119,7 @@ L…            Add-printer flow (mDNS → port-scan → Add by IP → manual pr
 | 4355-4365 | Debug panel toggle | |
 | 4366-4439 | Diagnostic / report-problem modal | |
 | 4440-4523 | Settings → About → auto-update toggle + "Check for updates now" | |
-| 4524-4696 | **Deleted spools list** (debug tab) | |
+| 4524-4696 | ~~Deleted spools list (debug tab)~~ — **removed in v1.7.4** (hard-delete architecture, no tombstones) | |
 | 4697-4777 | **Firestore explorer** (debug tab) — type a path, fetch JSON, copy | |
 | 4778-4788 | Community buttons (GitHub, Discord, MakerWorld) | |
 | 4789-4813 | Language select | |
@@ -157,8 +157,10 @@ Big section divider at L5533. Ported from the Flutter `SnapmakerWebSocketPage`. 
 | 5946-6159 | **Manual filament edit — bottom sheet (entry)** — vendor/material lists, summary, render flow | `openSnapFilamentEdit`, `closeSnapFilamentEdit` |
 | 6160-6201 | Bottom-sheet sub-pickers (Filament + Color stack on top of summary) | `sfeOpenFilamentSheet`, `sfeOpenColorSheet` |
 | 6202-6243 | Filament screen (vendor → material click handlers) | |
-| 6244-6343 | **Color screen** — 5×5 grid (24 presets + custom), inline custom slot | `sfeRenderColorGrid` |
-| 6344-6486 | **Moonraker file/thumbnail helpers** — path normalize, thumbnail URL, RGBA/hex parse, format temp/duration | `snapFileUrl`, `snapThumbUrl`, `snapParseRgbaHex` |
+| 6244-6321 | **Color screen** — 5×5 grid (24 presets + custom), inline custom slot | `sfeRenderColorGrid` |
+| 6322-6357 | **Hard delete** — `markSpoolDeleted` (batch.delete doc + twin) + `purgeLegacyTombstones` (one-shot auto-cleanup of pre-v1.7.4 `deleted:true` docs) | `markSpoolDeleted`, `purgeLegacyTombstones` |
+| 6358-6405 | **Container auto-assign** — `resolveContainerForBrand` (brand → catalog entry, ISO with Flutter) + `autoAssignMissingContainers` (batch-write on every live snapshot; no-op once all spools have a container) | `resolveContainerForBrand`, `autoAssignMissingContainers` |
+| 6406-6450 | **Moonraker file/thumbnail helpers** — path normalize, thumbnail URL, RGBA/hex parse, format temp/duration | `snapFileUrl`, `snapThumbUrl`, `snapParseRgbaHex` |
 | 6487-6519 | Text-color contrast picker for color squares | `snapTextColor` |
 | 6520-6680 | **Live block render** — `renderSnapmakerLiveInner()`: connection header, camera, print-job card, temperature row, **filament grid (big colored squares)** | `renderSnapmakerLiveInner` |
 | 6681-7130 | **WS request log** — push, custom JSON send, render | `snapLogPush`, `snapSendCustomJson`, `renderSnapmakerLogInner` |

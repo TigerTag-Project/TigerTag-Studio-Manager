@@ -5,6 +5,23 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.7.4 — 2026-05-20
+
+### Spool sync — ISO with printer pattern
+
+- **Hard delete for spools** — `markSpoolDeleted` now issues a Firestore `batch.delete()` instead of writing a `deleted: true` tombstone. Twin is hard-deleted in the same batch. No resurrection possible once the doc is gone.
+- **Anti-resurrection guard** — `cloudSync` flag (local-only, never pushed to Firestore) marks every spool that has ever reached the cloud. If Tiger Studio later hard-deletes it and Flutter reconnects, Flutter's push path skips the entry instead of sending it back. ISO with the existing printer pattern.
+- **`purgeLegacyTombstones`** — on every live Firestore snapshot, any remaining `deleted: true` docs (written by pre-v1.7.4 clients) are automatically hard-deleted. One-shot migration; no-op once migration is complete.
+- **Removed "Show deleted" feature** — spools are now always hard-deleted; the debug panel "Deleted" tab and its HTML/CSS/JS were removed entirely. Cleaner architecture, no stale data accumulation.
+- **`updatedAt` field** — renamed `last_update` → `updatedAt` (ISO with the printer data model). All Firestore writes now use `FieldValue.serverTimestamp()` for `updatedAt`. `normalizeRow` reads `updatedAt` first with fallback to `last_update` for legacy documents already in Firestore.
+
+### Container auto-assignment
+
+- **`resolveContainerForBrand(brandId)`** — mirrors Flutter `_resolveSpoolForBrand`: (1) brand-specific match, (2) Generic fallback (`brandId == 0` → `custom_cardboard`), (3) first catalog entry.
+- **`autoAssignMissingContainers(uid, inventoryRaw)`** — called on every live Firestore snapshot. Finds spools without `container_id`, resolves the container from brand, and batch-writes `container_id` + `container_weight` + `updatedAt`. Self-healing: new spools added via "Add Product" get a container automatically on the next snapshot. No-op once all spools have a container.
+
+---
+
 ## v1.7.3 — 2026-05-19
 
 ### Hotfix — Firebase Auth broken after v1.7.2 Windows fix

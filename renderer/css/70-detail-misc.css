@@ -880,66 +880,6 @@
   .dbg-tab:hover:not(.active) { color: var(--text); }
   .dbg-pane { min-height: 0; }
 
-  /* Deleted-spools list (debug → Deleted tab) */
-  .dbg-del-row {
-    display: flex; align-items: center; gap: 10px;
-    padding: 8px 10px;
-    background: var(--surface-2); border: 1px solid var(--border);
-    border-radius: 8px;
-  }
-  .dbg-del-puck {
-    width: 22px; height: 36px; flex-shrink: 0;
-    border-radius: 4px;
-    border: 1px solid rgba(0,0,0,.12);
-    box-shadow: inset 0 0 0 1px rgba(255,255,255,.18);
-  }
-  .dbg-del-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-  .dbg-del-name {
-    font-size: 12px; font-weight: 600; color: var(--text);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-  .dbg-del-sub {
-    font-size: 10.5px; color: var(--muted);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-  .dbg-del-tech {
-    font-size: 9.5px; color: var(--muted); font-family: var(--mono);
-    opacity: .75;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-  .dbg-del-restore {
-    flex-shrink: 0;
-    width: 30px; height: 30px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 16px;
-  }
-  .dbg-del-restore:hover { color: var(--primary); border-color: var(--primary); }
-  .dbg-del-restore:disabled { opacity: .5; cursor: not-allowed; }
-
-  /* Permanent-delete button — red on hover to signal irreversibility */
-  .dbg-del-purge {
-    flex-shrink: 0;
-    width: 30px; height: 30px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 14px;
-  }
-  .dbg-del-purge:hover { color: var(--danger); border-color: var(--danger); background: var(--danger-soft, rgba(220,38,38,.08)); }
-  .dbg-del-purge:disabled { opacity: .5; cursor: not-allowed; }
-
-  /* Search box for the Deleted tab */
-  .dbg-del-search { position: relative; }
-  .dbg-del-search .icon {
-    position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
-    background: var(--muted); pointer-events: none;
-  }
-  .dbg-del-search input {
-    width: 100%; padding: 7px 30px 7px 10px;
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 8px; color: var(--text); font-size: 12px;
-    font-family: inherit; outline: none;
-    transition: border-color .15s;
-  }
-  .dbg-del-search input:focus { border-color: var(--primary); }
   .dbg-select {
     padding: 6px 8px; background: var(--surface-2); border: 1px solid var(--border);
     border-radius: 8px; font-size: 12px; color: var(--text); outline: none; cursor: pointer;
