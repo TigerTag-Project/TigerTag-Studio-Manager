@@ -3124,14 +3124,18 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         // the IPC promise (the system browser is the real UI here).
         const r = await loopback();
         if (!r?.ok) {
-          // Loopback failed (Client ID not configured, Google error,
-          // user closed the tab, etc.). Fall through to popup so the
-          // user isn't stuck — the popup at least lets them pick
-          // password / SMS code as a fallback.
-          console.warn("[auth.google] loopback failed, falling back to popup:", r?.error);
-          const provider = new firebase.auth.GoogleAuthProvider();
-          provider.setCustomParameters({ prompt: "select_account" });
-          result = await firebase.auth().signInWithPopup(provider);
+          // Loopback failed (user closed the browser tab, network error, etc.).
+          // Do NOT fall back to signInWithPopup — the Electron popup cannot
+          // handle passkeys / Touch ID, and would leave the user stuck on the
+          // "Use your passkey" screen with no way forward.
+          // Instead, show an actionable error so the user can retry the
+          // loopback (reopen browser) or use email/password below.
+          console.warn("[auth.google] loopback failed:", r?.error);
+          toast($("addModalResult"), "bad",
+            "Google sign-in via browser failed — please try again or use email/password.",
+            { context: "auth.google.loopback" }
+          );
+          return; // exit the click handler — user stays on the login form
         } else {
           // Build a Firebase credential from the tokens Google returned.
           // We pass BOTH idToken and accessToken: if the idToken's audience

@@ -5,6 +5,15 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.7.7 — 2026-05-20
+
+### Google sign-in — no more broken passkey popup on loopback failure
+
+- When the loopback OAuth flow fails (user closed the browser tab, network error, etc.), the app no longer silently falls back to `signInWithPopup`. That popup opens a Chromium BrowserWindow which cannot talk to the macOS authd daemon — Google's "Use your passkey" UI appears but is inert, leaving the user stuck.
+- Instead a clear error toast is shown: **"Google sign-in via browser failed — please try again or use email/password."** The user stays on the login form and can retry the loopback flow or switch to email/password.
+
+---
+
 ## v1.7.6 — 2026-05-20
 
 ### Windows — renderer server bind fix (definitive)
