@@ -4,6 +4,17 @@ const path = require('path');
 const fs   = require('fs');
 const http = require('http');
 const crypto = require('crypto');
+
+// ── Persistent logging ─────────────────────────────────────────────────────
+// Writes to:
+//   Windows : %APPDATA%\Tiger Studio Manager\logs\main.log
+//   macOS   : ~/Library/Logs/Tiger Studio Manager/main.log
+//   Linux   : ~/.config/Tiger Studio Manager/logs/main.log
+const log = require('electron-log');
+log.transports.file.maxSize = 5 * 1024 * 1024; // 5 MB max, auto-rotated
+log.transports.file.format  = '[{y}-{m}-{d} {h}:{i}:{s}] [{level}] {text}';
+Object.assign(console, log.functions); // console.log/warn/error → log file
+log.info(`Tiger Studio Manager starting — v${require('./package.json').version}`);
 const db = require('./services/tigertagDbService');
 
 // ── App display name (macOS menu bar, About dialog, Dock, etc.)

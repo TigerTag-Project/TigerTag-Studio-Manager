@@ -5,6 +5,19 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.7.5 — 2026-05-20
+
+### Persistent logging
+
+- **`electron-log`** added — all `console.log / warn / error` calls are now automatically written to a rotating log file (5 MB max):
+  - **Windows** : `%APPDATA%\Tiger Studio Manager\logs\main.log`
+  - **macOS**   : `~/Library/Logs/Tiger Studio Manager/main.log`
+  - **Linux**   : `~/.config/Tiger Studio Manager/logs/main.log`
+- First log line on every launch: `Tiger Studio Manager starting — vX.Y.Z`
+- Useful for diagnosing launch failures on user machines (e.g. Windows IPv6 issues) without requiring users to run from a terminal.
+
+---
+
 ## v1.7.4 — 2026-05-20
 
 ### Spool sync — ISO with printer pattern
