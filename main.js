@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell, session, nativeTheme } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, session, nativeTheme, utilityProcess } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const fs   = require('fs');
@@ -191,71 +191,109 @@ function createWindow() {
 }
 
 // ── NFC / RFID reader
+// nfc-pcsc wraps @pokusew/pcsclite which calls SCardEstablishContext() at init.
+// On Windows machines without an active Smart Card service this call blocks the
+// main V8 thread, preventing loadURL() from running and causing "Not Responding".
+// On macOS, running pcsclite inside a Worker Thread crashes with SIGABRT because
+// the native addon is not thread-safe (it stores the Node env pointer from the
+// thread it was initialised on and asserts it is non-null in async callbacks).
+//
+// Solution: spawn nfc-pcsc in an Electron utilityProcess — a completely isolated
+// process (separate heap, separate libuv loop) with no thread-safety concerns.
+
+let _nfcChild = null;
+const _nfcReadResolvers = new Map(); // reqId → { resolve, timeout }
+
+function _onNfcMessage(msg) {
+  switch (msg.type) {
+    case 'init-error':
+      console.warn('[NFC] not available:', msg.message);
+      break;
+    case 'reader-connected':
+      console.log(`[NFC] Reader connected: ${msg.name}`);
+      _nfcReaders.set(msg.name, true);
+      mainWindow?.webContents.send('rfid-reader-update', { name: msg.name, connected: true });
+      break;
+    case 'reader-disconnected':
+      console.log(`[NFC] Reader disconnected: ${msg.name}`);
+      _nfcReaders.delete(msg.name);
+      _nfcCardPresent.delete(msg.name);
+      mainWindow?.webContents.send('rfid-reader-update', { name: msg.name, connected: false });
+      break;
+    case 'card': {
+      const rawUid = msg.uid;
+      const uid    = hexToDecimalUid(rawUid);
+      console.log(`[NFC] Card present on ${msg.readerName} — uid: ${uid}`);
+      _nfcCardPresent.set(msg.readerName, { uid, rawUid });
+      mainWindow?.webContents.send('rfid-uid', uid, rawUid);
+      mainWindow?.webContents.send('rfid-card-present', { readerName: msg.readerName, uid, rawUid });
+      break;
+    }
+    case 'card-removed':
+      console.log(`[NFC] Card removed from ${msg.readerName}`);
+      _nfcCardPresent.delete(msg.readerName);
+      mainWindow?.webContents.send('rfid-card-present', { readerName: msg.readerName, uid: null, rawUid: null });
+      break;
+    case 'reader-error':
+      console.error(`[NFC] Reader error on ${msg.readerName}:`, msg.message);
+      break;
+    case 'nfc-error':
+      console.error('[NFC] NFC error:', msg.message);
+      break;
+    case 'read-result': {
+      const entry = _nfcReadResolvers.get(msg.reqId);
+      if (!entry) break;
+      clearTimeout(entry.timeout);
+      _nfcReadResolvers.delete(msg.reqId);
+      entry.resolve(msg.ok
+        ? { ok: true, rawPagesHex: msg.rawPagesHex }
+        : { ok: false, error: msg.error });
+      break;
+    }
+  }
+}
+
 function initNFC() {
-  let nfc;
+  const scriptPath = path.join(__dirname, 'services', 'nfc-process.js');
   try {
-    const { NFC } = require('nfc-pcsc');  // named export, not the module object
-    nfc = new NFC();
+    _nfcChild = utilityProcess.fork(scriptPath);
   } catch (err) {
-    console.warn('[NFC] not available:', err.message);
+    console.warn('[NFC] utilityProcess not available:', err.message);
     return;
   }
 
-  nfc.on('reader', (reader) => {
-    const rName = reader.name;
-    console.log(`[NFC] Reader connected: ${rName}`);
-    _nfcReaders.set(rName, reader);
-    mainWindow?.webContents.send('rfid-reader-update', { name: rName, connected: true });
+  _nfcChild.on('message', _onNfcMessage);
 
-    reader.on('card', (card) => {
-      const rawUid = card.uid;
-      const uid    = hexToDecimalUid(rawUid);
-      console.log(`[NFC] Card present on ${rName} — uid: ${uid}`);
-      _nfcCardPresent.set(rName, { uid, rawUid });
-      // Notify inventory for automatic spool lookup
-      mainWindow?.webContents.send('rfid-uid', uid, rawUid);
-      // Notify RFID tester modal — card present, not yet read
-      mainWindow?.webContents.send('rfid-card-present', { readerName: rName, uid, rawUid });
-    });
-
-    reader.on('card.off', () => {
-      console.log(`[NFC] Card removed from ${rName}`);
-      _nfcCardPresent.delete(rName);
-      mainWindow?.webContents.send('rfid-card-present', { readerName: rName, uid: null, rawUid: null });
-    });
-
-    reader.on('error', (err) => {
-      console.error(`[NFC] Reader error on ${rName}:`, err.message);
-    });
-
-    reader.on('end', () => {
-      console.log(`[NFC] Reader disconnected: ${rName}`);
-      _nfcReaders.delete(rName);
-      _nfcCardPresent.delete(rName);
-      mainWindow?.webContents.send('rfid-reader-update', { name: rName, connected: false });
-    });
-  });
-
-  nfc.on('error', (err) => {
-    console.error('[NFC] NFC error:', err.message);
+  _nfcChild.on('exit', (code) => {
+    if (code !== 0) console.warn(`[NFC] Utility process exited with code ${code}`);
+    _nfcChild = null;
   });
 }
 
-// On-demand card read — called by renderer "Read" button in RFID tester
+// On-demand card read — called by renderer "Read" button in RFID tester.
+// Delegates to the NFC utility process and parses the result here in the main
+// process (parseTigerTag cannot be transferred across process boundaries).
 ipcMain.handle('rfid:read-now', async (_evt, readerName) => {
-  const reader = _nfcReaders.get(readerName);
-  if (!reader)                         return { ok: false, error: 'Reader not connected' };
+  if (!_nfcChild)                      return { ok: false, error: 'NFC process not running' };
+  if (!_nfcReaders.has(readerName))    return { ok: false, error: 'Reader not connected' };
   const card = _nfcCardPresent.get(readerName);
   if (!card)                           return { ok: false, error: 'No card present' };
-  try {
-    const data      = await reader.read(0, 180, 4);  // 45 pages × 4 bytes
-    const rawPagesHex = data.toString('hex');
-    const tigerTag  = parseTigerTag(data);
-    console.log('[NFC] read-now result:', tigerTag ? tigerTag.version : 'unknown format');
-    return { ok: true, uid: card.uid, rawUid: card.rawUid, rawPagesHex, tigerTag };
-  } catch (err) {
-    return { ok: false, error: err.message };
-  }
+
+  const reqId = Date.now() + Math.random();
+  const result = await new Promise((resolve) => {
+    const timeout = setTimeout(() => {
+      _nfcReadResolvers.delete(reqId);
+      resolve({ ok: false, error: 'Read timed out' });
+    }, 5000);
+    _nfcReadResolvers.set(reqId, { resolve, timeout });
+    _nfcChild.postMessage({ type: 'read-now', readerName, reqId });
+  });
+
+  if (!result.ok) return result;
+  const rawBytes  = Buffer.from(result.rawPagesHex, 'hex');
+  const tigerTag  = parseTigerTag(rawBytes);
+  console.log('[NFC] read-now result:', tigerTag ? tigerTag.version : 'unknown format');
+  return { ok: true, uid: card.uid, rawUid: card.rawUid, rawPagesHex: result.rawPagesHex, tigerTag };
 });
 
 
@@ -657,16 +695,11 @@ ipcMain.on('update:set-auto', (_evt, enabled) => {
 // the access_token against Google's userinfo endpoint, which has no
 // audience constraint. This dual-token call is what makes the flow
 // portable across project setups.
-const GOOGLE_DESKTOP_CLIENT_ID =
-  process.env.TIGERTAG_GOOGLE_DESKTOP_CLIENT_ID ||
-  // Desktop OAuth client created in Google Cloud Console for the
-  // tigertag-connect project on 2026-05-03 ("Tiger Studio Manager"). This
-  // value is PUBLIC by design — Desktop OAuth clients use PKCE instead of
-  // a client_secret, so even though this string ends up bundled in the
-  // signed app binary, an attacker who extracts it cannot impersonate the
-  // app: each sign-in flow generates a fresh code_verifier that only this
-  // process knows.
-  '298062874545-c3d61latpmhp6qn9l1q87hvhmng8aadi.apps.googleusercontent.com';
+// Injected at build time via GitHub Actions secrets TIGERTAG_GOOGLE_DESKTOP_CLIENT_ID
+// and TIGERTAG_GOOGLE_DESKTOP_CLIENT_SECRET. For local dev, set them in your shell
+// or in a .env file (never commit these values to the repository).
+const GOOGLE_DESKTOP_CLIENT_ID     = process.env.TIGERTAG_GOOGLE_DESKTOP_CLIENT_ID     || '';
+const GOOGLE_DESKTOP_CLIENT_SECRET = process.env.TIGERTAG_GOOGLE_DESKTOP_CLIENT_SECRET || '';
 
 ipcMain.handle('auth:google-loopback', async () => {
   if (!GOOGLE_DESKTOP_CLIENT_ID) {
@@ -789,6 +822,7 @@ ipcMain.handle('auth:google-loopback', async () => {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body:    new URLSearchParams({
         client_id:     GOOGLE_DESKTOP_CLIENT_ID,
+        client_secret: GOOGLE_DESKTOP_CLIENT_SECRET,
         code,
         code_verifier: codeVerifier,
         grant_type:    'authorization_code',
@@ -806,6 +840,7 @@ ipcMain.handle('auth:google-loopback', async () => {
       accessToken: tokens.access_token || null,
     };
   } catch (e) {
+    console.error('[auth.google-loopback] failed:', e?.message || String(e));
     return { ok: false, error: e?.message || String(e) };
   } finally {
     server.close();
@@ -1530,7 +1565,7 @@ app.whenReady().then(async () => {
   await db.initTigerTagDB();
 
   createWindow();
-  initNFC();
+  initNFC();   // spawns isolated utility process — never blocks the main V8 thread
   initTD1S();
 
   // Check for updates after window is shown (not on dev)
