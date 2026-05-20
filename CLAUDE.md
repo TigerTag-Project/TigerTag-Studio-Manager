@@ -72,10 +72,14 @@ renderer/
     snapmaker/
       PROTOCOL.md  — agent skill: WS port 7125 (Moonraker), JSON-RPC, HTTP discovery
       index.js     — live integration (implemented)
-data/
+assets/db/tigertag/           — TigerTag reference data (unified in v1.7.0, served via tigertagDbService IPC)
   id_brand.json id_material.json id_aspect.json id_type.json
   id_diameter.json id_measure_unit.json id_version.json
+  last_update.json              — bundled data age (used to skip unnecessary downloads on first launch)
+data/                           — non-migrated static assets (loaded via direct fetch in renderer)
   container_spool/spools_filament.json
+  rack-presets.json
+  printers/                     — per-brand printer model catalogs (bbl/cre/eleg/ffg/snap)
 assets/svg/
   tigertag_logo.svg  tigertag_logo_contouring.svg
 ```
