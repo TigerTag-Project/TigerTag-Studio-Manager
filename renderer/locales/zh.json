@@ -771,5 +771,10 @@
   "camSizeCompact": "紧凑 (½×)",
   "camSizeNormal": "正常 (1×)",
   "camSizeWide": "宽屏 (2×)",
-  "camSizeFullscreen": "全屏"
+  "camSizeFullscreen": "全屏",
+  "btnAddScan": "+ 自动扫描",
+  "scanPanelTitle": "Pod 扫描",
+  "scanPanelWaiting": "将线轴放入 Pod",
+  "scanPanelNoReader": "未连接 TigerTag Pod",
+  "scanPanelNoReaderSub": "要扫描线轴，请通过 USB 连接 TigerTag Pod。"
 }

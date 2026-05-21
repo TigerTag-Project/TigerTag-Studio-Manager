@@ -36,9 +36,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // True when running inside Electron
   isElectron: true,
 
-  // Called when a card is scanned — callback(uid, rawHex)
+  // Called when a card is scanned — callback(uid) — uid is uppercase hex
   onRfid: (callback) =>
-    ipcRenderer.on('rfid-uid', (_, uid, rawHex) => callback(uid, rawHex)),
+    ipcRenderer.on('rfid-uid', (_, uid) => callback(uid)),
 
   // Called when reader connects/disconnects — callback({ name, connected })
   onReaderStatus: (callback) =>
@@ -52,9 +52,22 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onRfidCardPresent: (callback) =>
     ipcRenderer.on('rfid-card-present', (_, data) => callback(data)),
 
-  // On-demand read: returns { ok, uid, rawUid, rawPagesHex, tigerTag } | { ok:false, error }
+  // Full parsed tag from auto-read on card placement — callback(tagData)
+  onRfidTagScanned: (callback) =>
+    ipcRenderer.on('rfid-tag-scanned', (_, tagData) => callback(tagData)),
+
+  // On-demand read: returns { ok, uid, rawPagesHex, tagData } | { ok:false, error }
   readRfidNow: (readerName) =>
     ipcRenderer.invoke('rfid:read-now', readerName),
+
+  // On-demand tag write.
+  // opts = { readerName, cloudDoc, patch?, surgical? }
+  //   cloudDoc : Firestore doc shape (id_brand, id_material, data1-data7, TD, …)
+  //   patch    : optional snake_case overrides { td_raw, custom_message, … }
+  //   surgical : default true — only writes pages that differ (faster for small patches)
+  // Returns { ok, pagesWritten } | { ok:false, error }
+  writeRfidTag: (opts) =>
+    ipcRenderer.invoke('rfid:write-now', opts),
 
   // Called when an app update is available or ready to install
   onUpdateStatus: (callback) =>

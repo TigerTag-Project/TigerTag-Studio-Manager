@@ -1392,6 +1392,7 @@
   .adp-panel.detail-panel {
     background: var(--adp-bg);
     border-color: rgba(255,255,255,.06);
+    width: 400px; /* wider than the spool detail panel (300px) — more breathing room */
   }
   .adp-panel.detail-panel .panel-body { background: var(--adp-bg); }
   .adp-panel .panel-header {
@@ -1875,7 +1876,7 @@
      used for `#addProductPanel`), so nothing is hardcoded here. The
      width override below is a safety floor in case JS doesn't run. */
   .sfe-sheet.adp-color-sheet {
-    width: 300px;          /* matches .detail-panel default */
+    width: 400px;          /* matches .adp-panel.detail-panel default */
     max-width: 95vw;
     /* Round all 4 corners since the sheet now has more room around
        it on the right edge of the screen — looks like a card, not
@@ -1978,7 +1979,7 @@
     /* Anchor to the right edge — same docking as the sheet itself. */
     left: auto;
     right: 0;
-    width: 300px;
+    width: 400px;
     max-width: 95vw;
     /* Slightly lighter dim than the global .sfe-backdrop (.4) since
        it's already on top of the panel-overlay's .3 — stacking the
@@ -2590,7 +2591,7 @@
   /* Read-only readout — pure text "190°C" sitting under its label.
      Used in the basic view's display-only stat cards. */
   .adp-stat-readout {
-    font-size: 22px;
+    font-size: 15px;
     font-weight: 800;
     color: var(--adp-text);
     letter-spacing: -.01em;
@@ -2622,7 +2623,7 @@
     border-radius: 0;
     box-shadow: none;
     color: var(--adp-text);
-    font-size: 22px;
+    font-size: 15px;
     font-weight: 800;
     letter-spacing: -.01em;
     box-sizing: content-box;

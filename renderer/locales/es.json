@@ -771,5 +771,10 @@
   "camSizeCompact": "Compacto (½×)",
   "camSizeNormal": "Normal (1×)",
   "camSizeWide": "Ancho (2×)",
-  "camSizeFullscreen": "Pantalla completa"
+  "camSizeFullscreen": "Pantalla completa",
+  "btnAddScan": "+ Auto Scan",
+  "scanPanelTitle": "Escaneo Pod",
+  "scanPanelWaiting": "Coloca el carrete en el Pod",
+  "scanPanelNoReader": "Ningún TigerTag Pod conectado",
+  "scanPanelNoReaderSub": "Para escanear bobinas, conecte un TigerTag Pod por USB."
 }

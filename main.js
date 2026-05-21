@@ -123,16 +123,28 @@ const _nfcReaders     = new Map();  // name → reader object
 const _nfcCardPresent = new Map();  // name → { uid, rawUid }
 
 // ── Convert hex UID (e.g. "1D895E7C004A80") to decimal string used by TigerTag
-function hexToDecimalUid(hex) {
-  try {
-    return BigInt('0x' + hex.replace(/[:\s]/g, '')).toString();
-  } catch {
-    return hex;
-  }
+// Normalise a raw UID string from nfc-pcsc to clean uppercase hex, matching
+// the SDK's tag.uidHex format (e.g. "04:AB:CD" → "04ABCD").
+function normalizeUid(raw) {
+  return raw ? raw.replace(/[:\s]/g, '').toUpperCase() : raw;
 }
 
-// ── TigerTag binary parser (isolated module) ──────────────────────────────────
-const { parseTigerTag } = require('./renderer/rfid_protocol/tigertag/parser.js');
+// ── TigerTag JS SDK ───────────────────────────────────────────────────────────
+const { TigerTag } = require('tigertag');
+
+// IPC payload — toRawDict() first, then rawApi() if TigerTag+.
+async function _sdkPayload(tag) {
+  const raw = tag.toRawDict();
+  if (tag.apiUrl) {
+    try {
+      const api = await tag.rawApi();
+      raw._api = api; // attach full API response under _api key
+    } catch (e) {
+      console.warn('[NFC] rawApi() failed, chip data only:', e.message);
+    }
+  }
+  return raw;
+}
 
 // ── Create main window
 function createWindow() {
@@ -202,9 +214,10 @@ function createWindow() {
 // process (separate heap, separate libuv loop) with no thread-safety concerns.
 
 let _nfcChild = null;
-const _nfcReadResolvers = new Map(); // reqId → { resolve, timeout }
+const _nfcReadResolvers  = new Map(); // reqId → { resolve, timeout }
+const _nfcWriteResolvers = new Map(); // reqId → { resolve, timeout }
 
-function _onNfcMessage(msg) {
+async function _onNfcMessage(msg) {
   switch (msg.type) {
     case 'init-error':
       console.warn('[NFC] not available:', msg.message);
@@ -221,12 +234,25 @@ function _onNfcMessage(msg) {
       mainWindow?.webContents.send('rfid-reader-update', { name: msg.name, connected: false });
       break;
     case 'card': {
-      const rawUid = msg.uid;
-      const uid    = hexToDecimalUid(rawUid);
-      console.log(`[NFC] Card present on ${msg.readerName} — uid: ${uid}`);
-      _nfcCardPresent.set(msg.readerName, { uid, rawUid });
-      mainWindow?.webContents.send('rfid-uid', uid, rawUid);
-      mainWindow?.webContents.send('rfid-card-present', { readerName: msg.readerName, uid, rawUid });
+      const uid = normalizeUid(msg.uid); // clean uppercase hex, matches SDK uidHex
+      _nfcCardPresent.set(msg.readerName, { uid });
+      mainWindow?.webContents.send('rfid-uid', uid);
+      mainWindow?.webContents.send('rfid-card-present', { readerName: msg.readerName, uid });
+      // Parse chip and send full tag data when pages were auto-read
+      // rawPagesHex starts at page 0x04 (UID already known from card event, no need to re-read pages 0-3)
+      if (msg.rawPagesHex) {
+        try {
+          const rawBytes = Buffer.from(msg.rawPagesHex, 'hex');
+          const uidBuf   = Buffer.from(uid, 'hex'); // 7 bytes — provided natively by the reader
+          const tag      = TigerTag.fromPages(uidBuf, rawBytes);
+          console.log(`[NFC] Card present on ${msg.readerName} — uid: ${tag.uidHex}`);
+          mainWindow?.webContents.send('rfid-tag-scanned', await _sdkPayload(tag));
+        } catch (e) {
+          console.warn('[NFC] SDK parse failed:', e.message);
+        }
+      } else {
+        console.log(`[NFC] Card present on ${msg.readerName} — uid: ${uid} (no dump)`);
+      }
       break;
     }
     case 'card-removed':
@@ -247,6 +273,16 @@ function _onNfcMessage(msg) {
       _nfcReadResolvers.delete(msg.reqId);
       entry.resolve(msg.ok
         ? { ok: true, rawPagesHex: msg.rawPagesHex }
+        : { ok: false, error: msg.error });
+      break;
+    }
+    case 'write-result': {
+      const entry = _nfcWriteResolvers.get(msg.reqId);
+      if (!entry) break;
+      clearTimeout(entry.timeout);
+      _nfcWriteResolvers.delete(msg.reqId);
+      entry.resolve(msg.ok
+        ? { ok: true, pagesWritten: msg.pagesWritten }
         : { ok: false, error: msg.error });
       break;
     }
@@ -271,8 +307,7 @@ function initNFC() {
 }
 
 // On-demand card read — called by renderer "Read" button in RFID tester.
-// Delegates to the NFC utility process and parses the result here in the main
-// process (parseTigerTag cannot be transferred across process boundaries).
+// Delegates to the NFC utility process and parses the result here in the main process.
 ipcMain.handle('rfid:read-now', async (_evt, readerName) => {
   if (!_nfcChild)                      return { ok: false, error: 'NFC process not running' };
   if (!_nfcReaders.has(readerName))    return { ok: false, error: 'Reader not connected' };
@@ -290,11 +325,123 @@ ipcMain.handle('rfid:read-now', async (_evt, readerName) => {
   });
 
   if (!result.ok) return result;
-  const rawBytes  = Buffer.from(result.rawPagesHex, 'hex');
-  const tigerTag  = parseTigerTag(rawBytes);
-  console.log('[NFC] read-now result:', tigerTag ? tigerTag.version : 'unknown format');
-  return { ok: true, uid: card.uid, rawUid: card.rawUid, rawPagesHex: result.rawPagesHex, tigerTag };
+  let tagData = null;
+  try {
+    const rawBytes = Buffer.from(result.rawPagesHex, 'hex'); // pages 0x04-0x27, UID already in card.uid
+    const uidBuf   = Buffer.from(card.uid, 'hex');           // 7-byte UID, provided natively by reader
+    const tag      = TigerTag.fromPages(uidBuf, rawBytes);
+    tagData        = await _sdkPayload(tag);
+    console.log('[NFC] read-now result: is_maker=%s is_plus=%s is_signed=%s', tag.isMaker, tag.isPlus, tag.isSigned);
+  } catch (e) {
+    console.warn('[NFC] read-now parse failed:', e.message);
+  }
+  return { ok: true, uid: card.uid, rawPagesHex: result.rawPagesHex, tagData };
 });
+
+// Tag write — called by the renderer to program a TigerTag chip.
+//
+// opts = {
+//   readerName : string          — which reader holds the chip
+//   cloudDoc   : object          — Firestore cloud doc shape (id_brand, id_material, data1-data7, TD, …)
+//   patch      : object | null   — optional snake_case overrides applied AFTER fromCloudDoc()
+//                                  e.g. { td_raw: 5, custom_message: "Hello" }
+//   surgical   : boolean         — default true: only write pages that differ from current chip data
+//                                  false: always write all 20 user pages (0x04-0x17)
+// }
+//
+// Returns { ok, pagesWritten } | { ok: false, error }
+//
+// Hardware note — NTAG213/215 page write limit:
+//   The WRITE command (0xA2) writes exactly 4 bytes (1 page) per APDU. There is no
+//   multi-page WRITE APDU for NTAG. "Bulk" in nfc-pcsc means calling write() in a
+//   loop internally — still 1 APDU per page. Surgical mode minimises round-trips by
+//   skipping pages whose bytes haven't changed.
+ipcMain.handle('rfid:write-now', async (_evt, opts) => {
+  const { readerName, cloudDoc, patch = null, surgical = true } = opts || {};
+  if (!_nfcChild)                    return { ok: false, error: 'NFC process not running' };
+  if (!_nfcReaders.has(readerName))  return { ok: false, error: 'Reader not connected' };
+  const card = _nfcCardPresent.get(readerName);
+  if (!card)                         return { ok: false, error: 'No card present' };
+
+  // ── 1. Build the 80-byte payload from cloud doc ─────────────────────────────
+  let newBytes;
+  try {
+    let tag = TigerTag.fromCloudDoc(cloudDoc);
+    if (patch && Object.keys(patch).length > 0) tag.patchFromRawDict(patch);
+    newBytes = tag.toBytes(); // 80 bytes covering pages 0x04-0x17
+  } catch (e) {
+    return { ok: false, error: `SDK build failed: ${e.message}` };
+  }
+
+  // ── 2. Surgical diff — read current chip, skip unchanged pages ───────────────
+  let pages; // [{ index, hexData }] — page indices are absolute (4 = page 0x04)
+  if (surgical) {
+    // Read current chip bytes to compare
+    const reqId = Date.now() + Math.random();
+    const readResult = await new Promise((resolve) => {
+      const timeout = setTimeout(() => {
+        _nfcReadResolvers.delete(reqId);
+        resolve({ ok: false, error: 'Read timed out' });
+      }, 5000);
+      _nfcReadResolvers.set(reqId, { resolve, timeout });
+      _nfcChild.postMessage({ type: 'read-now', readerName, reqId });
+    });
+
+    if (!readResult.ok) {
+      // Fall back to full write if read fails
+      console.warn('[NFC] write surgical read failed, falling back to full write:', readResult.error);
+      pages = _pagesToWrite(newBytes, null);
+    } else {
+      // rawPagesHex now starts at page 0x04 — first 80 bytes are pages 0x04-0x17 (toBytes() range)
+      const oldUserBytes = Buffer.from(readResult.rawPagesHex, 'hex').slice(0, 80);
+      pages = _pagesToWrite(newBytes, oldUserBytes);
+    }
+  } else {
+    pages = _pagesToWrite(newBytes, null); // full write — all 20 pages
+  }
+
+  if (pages.length === 0) {
+    console.log('[NFC] write-now: chip already up-to-date, 0 pages written');
+    return { ok: true, pagesWritten: 0 };
+  }
+
+  console.log(`[NFC] write-now: writing ${pages.length}/20 pages to ${readerName} (${surgical ? 'surgical' : 'full'})`);
+
+  // ── 3. Send pages to NFC utility process ────────────────────────────────────
+  const reqId = Date.now() + Math.random();
+  const result = await new Promise((resolve) => {
+    const timeout = setTimeout(() => {
+      _nfcWriteResolvers.delete(reqId);
+      resolve({ ok: false, error: 'Write timed out' });
+    }, 10000);
+    _nfcWriteResolvers.set(reqId, { resolve, timeout });
+    _nfcChild.postMessage({ type: 'write-now', readerName, reqId, pages });
+  });
+
+  if (result.ok) {
+    console.log(`[NFC] write-now: OK — ${result.pagesWritten} page(s) written`);
+  } else {
+    console.error('[NFC] write-now failed:', result.error);
+  }
+  return result;
+});
+
+// Helper — split 80-byte user-data buffer into page descriptors.
+// If oldUserBytes is provided, only includes pages where bytes differ (surgical mode).
+// Page index is absolute (starts at 4 = chip page 0x04).
+function _pagesToWrite(newUserBytes, oldUserBytes) {
+  const pages = [];
+  for (let i = 0; i < 20; i++) {
+    const offset = i * 4;
+    const newPage = newUserBytes.slice(offset, offset + 4);
+    if (oldUserBytes) {
+      const oldPage = oldUserBytes.slice(offset, offset + 4);
+      if (newPage.equals(oldPage)) continue; // identical — skip
+    }
+    pages.push({ index: 4 + i, hexData: newPage.toString('hex') });
+  }
+  return pages;
+}
 
 
 // ── TD1S color sensor ────────────────────────────────────────────────────────
@@ -364,7 +511,7 @@ function initTD1S() {
       mainWindow.webContents.send('rfid-reader-update', { name, connected: true });
     }
     for (const [name, card] of _nfcCardPresent.entries()) {
-      mainWindow.webContents.send('rfid-card-present', { readerName: name, uid: card.uid, rawUid: card.rawUid });
+      mainWindow.webContents.send('rfid-card-present', { readerName: name, uid: card.uid });
     }
   });
 

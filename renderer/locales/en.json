@@ -768,5 +768,10 @@
   "camSizeCompact": "Compact (½×)",
   "camSizeNormal": "Normal (1×)",
   "camSizeWide": "Wide (2×)",
-  "camSizeFullscreen": "Fullscreen"
+  "camSizeFullscreen": "Fullscreen",
+  "btnAddScan": "+ Auto Scan",
+  "scanPanelTitle": "Pod Scan",
+  "scanPanelWaiting": "Place the spool in the Pod",
+  "scanPanelNoReader": "No TigerTag Pod connected",
+  "scanPanelNoReaderSub": "To scan filament spools you need a TigerTag Pod connected via USB."
 }

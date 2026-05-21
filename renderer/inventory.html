@@ -197,10 +197,16 @@
             <button id="btnViewCam"><span class="icon icon-eye-on icon-13"></span><span>Cam</span></button>
           </div>
         </div>
-        <button id="btnAddProduct" class="inv-add-btn" type="button">
-          <span class="icon icon-plus icon-13"></span>
-          <span data-i18n="addProductBtn">Add product</span>
-        </button>
+        <div class="inv-actions-group">
+          <button id="btnAddScan" class="inv-scan-btn" type="button">
+            <span class="inv-scan-dot"></span>
+            <span data-i18n="btnAddScan">+ Scan</span>
+          </button>
+          <button id="btnAddProduct" class="inv-add-btn" type="button">
+            <span class="icon icon-plus icon-13"></span>
+            <span data-i18n="addProductBtn">Add product</span>
+          </button>
+        </div>
       </div>
       <div id="mainResult"></div>
       <div id="invEmpty" class="empty hidden"></div>
@@ -321,6 +327,7 @@
           <button class="ghost sm" id="btnDebug" data-i18n="debugOpenBtn">⌥ Open debug panel</button>
           <button class="ghost sm" id="btnTD1S"><span class="td1s-dev-icon"></span>⌥ Open TD1S panel</button>
           <button class="ghost sm" id="btnRfidTest">⌥ Open RFID tester</button>
+          <button class="ghost sm" id="btnOpenPodScan">⌥ Open Pod Scan</button>
           <button class="ghost sm" id="btnReportProblem" data-i18n="errReportBtn">⚑ Report a problem</button>
         </div>
       </div>
@@ -2091,5 +2098,64 @@
 <script src="lib/firebase/firebase-firestore-compat.js"></script>
 <script src="firebase.js"></script>
 <script type="module" src="inventory.js"></script>
+
+<!-- Scan Panel — slides in when "+ Scan" is armed; shows waiting state then tag data + raw JSON -->
+<div class="panel-overlay" id="scanPanelOverlay"></div>
+<aside class="detail-panel scan-dp" id="scanPanel" aria-label="Pod Scan">
+  <div class="panel-header">
+    <span class="panel-title" data-i18n="scanPanelTitle">Pod Scan</span>
+    <button class="modal-close" id="scanPanelClose" aria-label="Close">✕</button>
+  </div>
+  <div class="panel-body scan-dp-body">
+    <!-- No-reader state — shown when no NFC reader is connected -->
+    <div id="scanDpNoReader" class="scan-dp-no-reader" hidden>
+      <div class="sdnr-icon"></div>
+      <p class="sdnr-title" data-i18n="scanPanelNoReader">No TigerTag Pod connected</p>
+      <p class="sdnr-sub" data-i18n="scanPanelNoReaderSub">To scan filament spools you need a TigerTag Pod connected via USB.</p>
+      <div class="sdnr-links">
+        <button class="sdnr-link" onclick="window.electronAPI.openExternal('https://makerworld.com/fr/models/1289152-tigertag-io-open-spool-pod-for-rfid-filament#profileId-1318955')">
+          <span class="sdnr-link-icon sdnr-icon-print"></span>
+          <span class="sdnr-link-text">Print the Pod · free on MakerWorld</span>
+        </button>
+        <button class="sdnr-link" onclick="window.electronAPI.openExternal('https://tigertag.io/products/tigertag-player-bundle-2pcs?_pos=3&_sid=a46fafb9e&_ss=r')">
+          <span class="sdnr-link-icon sdnr-icon-shop"></span>
+          <span class="sdnr-link-text">2× TigerTag Player</span>
+        </button>
+        <button class="sdnr-link" onclick="window.electronAPI.openExternal('https://tigertag.io/products/tigertag-splitter?_pos=2&_sid=a46fafb9e&_ss=r')">
+          <span class="sdnr-link-icon sdnr-icon-shop"></span>
+          <span class="sdnr-link-text">TigerTag Splitter (1:2)</span>
+        </button>
+      </div>
+    </div>
+    <!-- Waiting state -->
+    <div id="scanDpWaiting" class="scan-dp-waiting" hidden>
+      <div class="scan-dp-ring"></div>
+      <p class="scan-dp-hint" data-i18n="scanPanelWaiting">Place the spool in the Pod</p>
+    </div>
+    <!-- Result state — hidden until first scan -->
+    <div id="scanDpResult" class="scan-dp-result" hidden>
+      <div class="scan-dp-head-row">
+        <div class="scan-dp-swatch" id="scanDpSwatch"></div>
+        <div class="scan-dp-title" id="scanDpTitle"></div>
+      </div>
+      <div class="scan-dp-meta" id="scanDpMeta"></div>
+      <details class="scan-dp-raw" open>
+        <summary>Raw SDK JSON</summary>
+        <pre id="scanDpJson"></pre>
+      </details>
+    </div>
+  </div>
+</aside>
+
+<!-- RFID scan notification — appears bottom-right after auto-add -->
+<div id="rfidScanNotif" class="rfid-scan-notif" aria-hidden="true" aria-live="polite">
+  <div class="rsn-swatch" id="rfidScanNotifSwatch"></div>
+  <div class="rsn-info">
+    <div class="rsn-title" id="rfidScanNotifTitle"></div>
+    <div class="rsn-sub"   id="rfidScanNotifSub"></div>
+  </div>
+  <button class="rsn-close" id="rfidScanNotifClose" aria-label="Close">✕</button>
+  <div class="rsn-bar" id="rfidScanNotifBar"></div>
+</div>
 </body>
 </html>

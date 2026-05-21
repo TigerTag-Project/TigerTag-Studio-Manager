@@ -199,6 +199,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     unsubFriendRequests: null,
     friendView: null,        // { uid, displayName, avatarColor } — set when viewing a friend's inventory
     td1sConnected: false,
+    scanMode: false,        // true = "+ Scan" active, auto-add on unknown chip
+    nfcReaderCount: 0,      // number of connected NFC readers
     rendererPath: null,  // absolute path to renderer/ dir — used as file:// preload base for <webview>
     db: { brand: [], material: [], aspect: [], type: [], diameter: [], unit: [], version: [], containers: [] }
   };
@@ -1942,10 +1944,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const panel = $("addProductPanel");
     if (panel) {
       const persisted = parseInt(localStorage.getItem("tigertag.panelWidth.detail"), 10);
+      const adpMin = 400; // Add Product panel is wider than the spool detail panel
       if (isFinite(persisted) && persisted >= 280) {
-        panel.style.width = Math.min(persisted, Math.round(window.innerWidth * 0.85)) + "px";
+        panel.style.width = Math.min(Math.max(persisted, adpMin), Math.round(window.innerWidth * 0.85)) + "px";
       } else {
-        panel.style.width = ""; // fall back to the CSS default (300px)
+        panel.style.width = adpMin + "px"; // enforce minimum — never fall back to the 300px CSS default
       }
     }
 
@@ -12472,9 +12475,37 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       lbl.textContent = connected ? t("rfidConnected", {name: name || "—"}) : t("rfidNoReader");
     });
 
-    // Card scanned → find spool and open detail panel
-    window.electronAPI.onRfid((uid, rawHex) => {
-      console.log('[RFID] scanned uid:', uid, 'raw:', rawHex);
+    // ── "+ Auto-add" button ──────────────────────────────────────────────────
+    // No reader → open panel (shows "connect your Pod" info).
+    // Reader connected → toggle auto-add mode only; panel opens on chip scan.
+    $("btnAddScan")?.addEventListener("click", () => {
+      // No reader: open info panel so user knows what hardware to get
+      if (state.nfcReaderCount === 0) _openScanPanel();
+      // Reader connected: scanning is always active — nothing to toggle
+    });
+    $("scanPanelClose")?.addEventListener("click", _closeScanPanel);
+    $("scanPanelOverlay")?.addEventListener("click", _closeScanPanel);
+
+    // Settings > Tools shortcut
+    $("btnOpenPodScan")?.addEventListener("click", _openScanPanel);
+
+    // Update UI state when a reader connects / disconnects
+    window.electronAPI.onRfidReaderUpdate(({ name, connected }) => {
+      state.nfcReaderCount = Math.max(0, state.nfcReaderCount + (connected ? 1 : -1));
+      const hasReader = state.nfcReaderCount > 0;
+
+      // Button: full opacity + pulsing dot when reader active, dimmed when none
+      const btn = $("btnAddScan");
+      btn?.classList.toggle("has-reader", hasReader);
+      btn?.classList.toggle("scanning",   hasReader); // dot animation = reader active
+
+      // Panel is only for "no reader" — close it when first reader connects
+      const panelOpen = $("scanPanel")?.classList.contains("open");
+      if (panelOpen && hasReader) _closeScanPanel();
+    });
+
+    window.electronAPI.onRfid((uid) => {
+      console.log('[RFID] scanned uid:', uid);
 
       // Flash the RFID indicator
       const el = $("rfidStatus");
@@ -12482,16 +12513,194 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       el.classList.add("ok");
       $("rfidLabel").textContent = t("rfidScanned", {uid: uid.slice(-6)});
 
-      // Search in loaded inventory
+      // Known UID (uid is now hex, matching SDK uidHex and stored spoolId)
       const row = state.rows.find(r => r.uid === uid || r.spoolId === uid);
-      if (row) {
-        openDetail(row.spoolId);
-        return;
+      if (row) openDetail(row.spoolId);
+      // Unknown / TigerTag chip → full parse handled by onRfidTagScanned
+    });
+
+    // Full parsed tag on card placement.
+    // Known spool  → detail panel opens (handled by onRfid above).
+    // Unknown spool → auto-add to Firestore if "+ Auto-add" is armed,
+    //                 then open the detail panel once inventory snapshot lands.
+    window.electronAPI.onRfidTagScanned(async (tagData) => {
+      const uid = tagData.uid;
+
+      // Init tags carry no product data — silently skip
+      if (!tagData.id_material && !tagData.id_brand) return;
+
+      // Known spool — open detail directly
+      const knownRow = state.rows.find(r => r.uid === uid || r.spoolId === uid);
+      if (knownRow) { openDetail(knownRow.spoolId); return; }
+
+      // Unknown spool — always auto-add and open detail
+      const user = fbAuth().currentUser;
+      if (!user) return;
+
+      const api = tagData._api || null; // full rawApi() response, null for Maker tags
+
+      // online_color_list — prefer API colors (include alpha), fallback to chip RGB
+      const _toHex = (r, g, b) => `#${[r,g,b].map(v => (v||0).toString(16).padStart(2,'0')).join('')}`;
+      const _isRealColor = (r, g, b) => r || g || b;
+      const colorList = api?.filament?.color_info?.colors
+        ?? [
+          [tagData.color_r,  tagData.color_g,  tagData.color_b],
+          [tagData.color_r2, tagData.color_g2, tagData.color_b2],
+          [tagData.color_r3, tagData.color_g3, tagData.color_b3],
+        ].filter(([r,g,b]) => _isRealColor(r,g,b)).map(([r,g,b]) => _toHex(r,g,b));
+
+      const doc = {
+        // ── Chip fields (toRawDict) ──────────────────────────────────────
+        uid:          tagData.uid,
+        id_brand:     tagData.id_brand    || 0,
+        id_material:  tagData.id_material || 0,
+        id_type:      tagData.id_type     || 142,
+        id_aspect1:   tagData.id_aspect1  || 104,
+        id_aspect2:   tagData.id_aspect2  || 255,
+        id_unit:      tagData.id_unit     || 21,
+        id_product:   tagData.id_product  || 0xFFFFFFFF,
+        id_tigertag:  tagData.id_tigertag || 0,
+        color_r:      tagData.color_r  ?? 0,
+        color_g:      tagData.color_g  ?? 0,
+        color_b:      tagData.color_b  ?? 0,
+        color_a:      tagData.color_a  ?? 255,
+        color_r2:     tagData.color_r2 ?? 0,
+        color_g2:     tagData.color_g2 ?? 0,
+        color_b2:     tagData.color_b2 ?? 0,
+        color_r3:     tagData.color_r3 ?? 0,
+        color_g3:     tagData.color_g3 ?? 0,
+        color_b3:     tagData.color_b3 ?? 0,
+        data1:        tagData.id_diameter || 56,
+        data2:        tagData.nozzle_min  || 0,
+        data3:        tagData.nozzle_max  || 0,
+        data4:        tagData.dry_temp    || 0,
+        data5:        tagData.dry_time    || 0,
+        data6:        tagData.bed_min     || 0,
+        data7:        tagData.bed_max     || 0,
+        measure:          tagData.measure           || 0,
+        measure_gr:       tagData.measure_available || tagData.measure || 0,
+        weight_available: tagData.measure_available || tagData.measure || 0,
+        message:      tagData.message || '',
+        TD:           tagData.td_raw > 0 ? tagData.td_raw : null,
+        timestamp:    tagData.timestamp || Math.floor(Date.now() / 1000),
+        // ── Cloud fields (rawApi) — only present for TigerTag+ ───────────
+        name:               api?.name               ?? '',
+        sku:                api?.sku                ?? '',
+        barcode:            api?.barcode            ?? '',
+        series:             api?.series             ?? '',
+        emoji:              api?.emoji              ?? '',
+        online_color:       api?.filament?.color    ?? null,
+        online_color_list:  colorList,
+        online_color_type:  api?.filament?.color_info?.type ?? null,
+        url_img:            api?.images?.main_src   ?? null,
+        LinkTDS:            api?.links?.tds         ?? '--',
+        LinkMSDS:           api?.links?.msds        ?? '--',
+        LinkROHS:           api?.links?.rohs        ?? '--',
+        LinkREACH:          api?.links?.reach       ?? '--',
+        LinkTIPS:           api?.links?.tips        ?? '--',
+        LinkFOOD:           api?.links?.food        ?? '--',
+        LinkYoutube:        api?.links?.youtube     ?? '--',
+        info1:              api?.filament?.refill   ?? false,
+        info2:              api?.filament?.recycled ?? false,
+        info3:              api?.filament?.filled   ?? false,
+        // ── Metadata ─────────────────────────────────────────────────────
+        last_update:  Date.now(),
+        updatedAt:    firebase.firestore.FieldValue.serverTimestamp(),
+        needUpdateAt: null,
+        deleted:      null,
+        deleted_at:   null,
+      };
+
+      try {
+        await fbDb()
+          .collection('users').doc(user.uid)
+          .collection('inventory').doc(uid)
+          .set(doc);
+        console.log('[RFID] auto-added spool:', uid);
+        // Open detail panel once onSnapshot picks up the new spool (local cache fires fast)
+        setTimeout(() => openDetail(uid), 150);
+      } catch (e) {
+        console.error('[RFID] auto-add failed:', e);
+      }
+    });
+
+    // ── Scan Panel helpers ──────────────────────────────────────────────────
+    // #scanPanel is exclusively the "no reader connected" info screen.
+    function _openScanPanel() {
+      const noReader = $("scanDpNoReader");
+      const waiting  = $("scanDpWaiting");
+      const result   = $("scanDpResult");
+      if (noReader) noReader.hidden = false;
+      if (waiting)  waiting.hidden  = true;
+      if (result)   result.hidden   = true;
+      $("scanPanel")?.classList.add("open");
+      $("scanPanelOverlay")?.classList.add("open");
+    }
+    function _closeScanPanel() {
+      $("scanPanel")?.classList.remove("open");
+      $("scanPanelOverlay")?.classList.remove("open");
+    }
+    // Populate result section with parsed tag data + raw JSON.
+    // `added` = true when the Firestore write succeeded.
+    function _updateScanPanel(tagData, added) {
+      const noReader = $("scanDpNoReader");
+      const waiting  = $("scanDpWaiting");
+      const result   = $("scanDpResult");
+      if (!result) return;
+      if (noReader) noReader.hidden = true;
+
+      // Swatch — compute hex from toRawDict() RGB
+      const _hex = (r,g,b) => `#${[r,g,b].map(v=>(v||0).toString(16).padStart(2,'0')).join('')}`;
+      const swatch = $("scanDpSwatch");
+      if (swatch) swatch.style.background = _hex(tagData.color_r, tagData.color_g, tagData.color_b);
+
+      // Title — brand · material + status badge
+      const brandLabel    = brandName(tagData.id_brand)              || "—";
+      const materialLabel = materialFull(tagData.id_material)?.label || "—";
+      const titleEl = $("scanDpTitle");
+      if (titleEl) {
+        const badge =
+          added === true    ? `<span style="display:block;font-size:10px;font-weight:500;color:var(--success,#4caf50);margin-top:3px">✓ Added to inventory</span>`
+        : added === false   ? `<span style="display:block;font-size:10px;font-weight:500;color:var(--danger,#f44);margin-top:3px">⚠ Firestore write failed</span>`
+        : added === 'known' ? `<span style="display:block;font-size:10px;font-weight:500;color:var(--muted);margin-top:3px">Already in inventory</span>`
+        :                     ''; // null → neutral, no badge
+        titleEl.innerHTML = `<span>${brandLabel} · ${materialLabel}</span>${badge}`;
       }
 
-      // Unknown UID — show a toast and pre-fill RFID field if panel is open
-      toast($("mainResult"), "warn", t("rfidNotFound", {uid}));
-    });
+      // Meta rows — SDK field names as-is
+      const weight = tagData.measure_available || tagData.measure || 0;
+      const metaEl = $("scanDpMeta");
+      if (metaEl) {
+        const rows = [
+          ["uid",               tagData.uid                 || "—"],
+          ["measure_available", weight > 0 ? `${weight} g` : "—"],
+          ["color1",  _hex(tagData.color_r,  tagData.color_g,  tagData.color_b)],
+          ["color2",  _hex(tagData.color_r2, tagData.color_g2, tagData.color_b2)],
+          ["color3",  _hex(tagData.color_r3, tagData.color_g3, tagData.color_b3)],
+          ["id_brand",          tagData.id_brand            ?? "—"],
+          ["id_material",       tagData.id_material         ?? "—"],
+          ["id_diameter",       tagData.id_diameter         ?? "—"],
+          ["nozzle_min/max",    (tagData.nozzle_min || tagData.nozzle_max)
+                                  ? `${tagData.nozzle_min}–${tagData.nozzle_max} °C` : "—"],
+          ["bed_min/max",       (tagData.bed_min || tagData.bed_max)
+                                  ? `${tagData.bed_min}–${tagData.bed_max} °C` : "—"],
+          ["dry_temp/time",     tagData.dry_temp ? `${tagData.dry_temp} °C / ${tagData.dry_time} h` : "—"],
+          ["td_raw",    tagData.td_raw ?? "—"],
+          ["message",   tagData.message || "—"],
+        ];
+        metaEl.innerHTML = rows.map(([k, v]) =>
+          `<div class="scan-dp-meta-row"><span class="k">${k}</span><span class="v">${v}</span></div>`
+        ).join("");
+      }
+
+      // Raw JSON — exact IPC payload, no transformation
+      const jsonEl = $("scanDpJson");
+      if (jsonEl) jsonEl.textContent = JSON.stringify(tagData, null, 2);
+
+      // Switch states
+      if (waiting) waiting.hidden = true;
+      result.hidden = false;
+    }
 
     // Auto-update notification
     window.electronAPI.onUpdateStatus(({ status }) => {
