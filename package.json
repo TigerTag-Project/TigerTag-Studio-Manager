@@ -26,7 +26,8 @@
     "electron-updater": "^6.1.7",
     "mqtt": "^5.15.1",
     "nfc-pcsc": "^0.8.1",
-    "serialport": "^13.0.0"
+    "serialport": "^13.0.0",
+    "tigertag": "1.0.1"
   },
   "devDependencies": {
     "@electron/rebuild": "^4.0.4",

@@ -163,6 +163,7 @@ npm start
 | UI | Vanilla HTML / CSS / JavaScript (no framework, no bundler) |
 | Auth & data | [Firebase](https://firebase.google.com/) (Auth + Firestore) |
 | NFC reading | [nfc-pcsc](https://github.com/pokusew/nfc-pcsc) + ACR122U |
+| NFC parsing | [TigerTag SDK for JavaScript](https://github.com/TigerTag-Project/TigerTag-SDK-JS) — parse, verify, write TigerTag chips |
 | Auto-update | [electron-updater](https://www.electron.build/auto-update) via GitHub Releases |
 | Build & packaging | [electron-builder](https://www.electron.build/) |
 | macOS signing | Apple Developer ID + `notarytool` (App Store Connect API Key) |
