@@ -5,6 +5,14 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.8.1 — 2026-05-23
+
+### Build fix
+- Rebuild to fix CI artifact mismatch (v1.8.0 GitHub release had stale `latest-mac.yml` checksums from an earlier partial build — auto-updater would have failed checksum verification)
+- No code changes from v1.8.0
+
+---
+
 ## v1.8.0 — 2026-05-23
 
 ### Cloud spool → physical chip encoding

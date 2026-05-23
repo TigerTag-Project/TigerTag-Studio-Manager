@@ -4,7 +4,7 @@
 
 Tiger Studio Manager is an Electron (v41) desktop application for managing 3D-printing filament spools tagged with TigerTag RFID chips. It provides real-time Firestore inventory sync, live 3D printer integration for 5 brands, NFC chip read/write, hardware sensors (color sensor, scale), rack storage management, and a friends system — all in a single window without a build step (no bundler).
 
-Current version: **1.8.0** — macOS (Intel + Apple Silicon, signed & notarized), Windows, Linux.
+Current version: **1.8.1** — macOS (Intel + Apple Silicon, signed & notarized), Windows, Linux.
 
 ## Architecture
 
@@ -112,7 +112,7 @@ All brands: printer discovery (mDNS + port scan + manual IP), filament edit per 
 npm run i18n:add -- myKey --after existingKey en="..." fr="..." de="..." es="..." it="..." zh="..." pt="..." pt-pt="..." pl="..."
 npm run i18n:check   # validates consistency (also runs as pre-commit hook)
 ```
-778 keys × 9 locales as of v1.8.0.
+778 keys × 9 locales as of v1.8.1.
 
 ## CSS conventions
 
@@ -145,7 +145,7 @@ npm run i18n:check   # validates consistency (also runs as pre-commit hook)
 ```bash
 npm start                          # dev (no bundler)
 npm run i18n:check                 # validate all 9 locales
-git tag v1.8.0 && git push --tags  # triggers CI: parallel build macOS/Windows/Linux → GitHub Release
+git tag v1.8.1 && git push --tags  # triggers CI: parallel build macOS/Windows/Linux → GitHub Release
 ```
 
 CI: `.github/workflows/build.yml` — Apple Developer ID signing + notarytool on macOS, electron-builder on all platforms, publishes to GitHub Releases.

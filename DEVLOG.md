@@ -5,6 +5,21 @@ Mis à jour en fin de chaque session Claude.
 
 ---
 
+## 2026-05-23 — v1.8.1
+
+### Demandes
+- Bump version 1.8.0 → 1.8.1 : rebuild propre suite à mismatch checksums dans la draft release v1.8.0 (latest-mac.yml de run #54 + binaires de run #55)
+
+### Fichiers modifiés
+| Fichier | Nature de la modification |
+|---------|--------------------------|
+| `package.json` | version `1.8.0` → `1.8.1` |
+| `CHANGELOG.md` | Entrée v1.8.1 (build fix) |
+| `llms.txt` | Version `1.8.0` → `1.8.1` |
+| `DEVLOG.md` | Ce fichier |
+
+---
+
 ## 2026-05-23 — v1.8.0
 
 ### Demandes
