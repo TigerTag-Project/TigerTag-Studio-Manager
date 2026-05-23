@@ -156,6 +156,24 @@ users/
     publicKey     string   — discovery code XXX-XXX (also in publicKeys/{key})
     privateKey    string   — 40-char hex access token (used by Firestore rules)
     isPublic      boolean  — inventory publicly visible
+    studioVersion   string    — last known app version (e.g. "1.8.0"), overwritten each session
+    studioElectron  string    — Electron runtime version (e.g. "33.2.1")
+    studioPlatform  string    — OS platform: "darwin" | "win32" | "linux"
+    studioArch      string    — CPU arch: "arm64" | "x64"
+    studioOsRelease string    — kernel version (e.g. "23.5.0" = macOS Sonoma)
+    studioOsVersion string    — human-readable OS (e.g. "macOS 15.4", "Windows 11 Pro")
+    studioLang      string    — app language setting (e.g. "fr")
+    studioLocale    string    — system locale (e.g. "fr-FR")
+    studioLastSeen  timestamp — server timestamp of last login (deployment targeting / churn)
+
+    telemetry/
+      studio/                 — aggregated lifetime metrics (standard Firebase pattern)
+        sessionsCount number  — total sessions (FieldValue.increment)
+        versionsUsed  string[]— all app versions ever used (FieldValue.arrayUnion)
+        platformsUsed string[]— all platforms ever used (FieldValue.arrayUnion)
+        lastSeen      timestamp — server timestamp of last session
+        td1sUsed      boolean — true once a TD1s sensor was ever connected
+        rfidReadersMax number — max simultaneous RFID readers ever seen (1 or 2)
     
     inventory/
       {spoolId}/            — one document per spool

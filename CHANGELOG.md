@@ -5,6 +5,58 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.8.0 — 2026-05-23
+
+### Cloud spool → physical chip encoding
+
+- **`rfid:encode-cloud` IPC handler** — builds the TigerTag payload once from a Cloud spool Firestore doc, then writes the same bytes (same timestamp) to every target reader. Up to 2 readers (one per TigerPOD slot) receive identical chips atomically.
+- **`_encodeCloud(r)` in renderer** — on success, promotes the Cloud spool: replaces the `CLOUD_…` spoolId with the first chip UID, establishes a twin link when two chips were written, and hard-deletes the Cloud doc. Inventory refreshes via onSnapshot.
+- **`_burnRfid(r)`** — writes updated data (weight, color, …) back to a physical chip that is already linked to a spool. Clears `needUpdateAt` on success.
+
+### NFC process — NTAG page-read fix
+
+- **`blockSize=4`** — the nfc-pcsc `reader.read()` increment formula was producing overlapping pages with `blockSize=16`. Setting it to 4 (one NTAG page = 4 bytes) makes reads fully sequential (pages 4–39, 144 bytes). All chips now parse correctly from first insertion.
+- Reader registry refactored to a `Map` for cleaner per-reader lifecycle.
+- `readerName` forwarded with every `rfid-tag-scanned` event for multi-reader disambiguation.
+
+### TD1s — unified color + TD modal
+
+- `openTdEditModal` now redirects to `openColorEditModal` — a single flow handles both color and TD scanning.
+- Multi-slot support (1–3 colors): slot-switching UI, per-slot hex values, active-slot indicator.
+
+### Telemetry — professional two-level architecture
+
+- **`users/{uid}` (last-known client state)** — `studioVersion`, `studioElectron`, `studioPlatform`, `studioArch`, `studioOsRelease`, `studioOsVersion`, `studioLang`, `studioLocale`, `studioLastSeen`. Overwritten on every session.
+- **`users/{uid}/telemetry/studio` (lifetime aggregates)** — `sessionsCount` (`FieldValue.increment`), `versionsUsed` / `platformsUsed` (`FieldValue.arrayUnion`), `lastSeen`, `td1sUsed` (latched to `true` on first TD1s connection), `rfidReadersMax` (high-water mark of simultaneous readers). Never decremented.
+- `app:info` IPC extended with `osVersion` (human-readable via `os.version()`).
+- Firestore Security Rules updated: `users/{uid}/telemetry/{docId}` enforces `hasOnly()` field guard, `td1sUsed == true` constraint, `rfidReadersMax in [1, 2]` constraint. Deployed.
+
+### TigerPOD modal — complete redesign
+
+- Content sourced from the real MakerWorld page ([#1289152](https://makerworld.com/fr/models/1289152)).
+- **Hero** — gradient purple, animated pulsing rings, "TIGERTAG.IO" brand + "Open Spool Pod" product name.
+- **Stats bar** — `⚡ 12 Boosts · ❤ 21 Likes · Free` overlay at hero bottom.
+- **Feature grid 2×2** — Dual reader slots / Encode 2 chips / No supports / Any 1 kg spool; each cell has an icon + title + subtitle.
+- **Print spec strip** — `🖨 0.2 mm · 8% infill · ~7 h`.
+- **CTA button** — orange primary "Print on MakerWorld" with printer icon. Card width 400 px (was 340 px).
+- **Three triggers** — modal opens from: cloud banner (no reader), "Please update RFID" banner (no reader), red RFID disconnected badge in header.
+
+### RFID badge — always visible
+
+- Badge is always rendered; **disconnected state** shows a red pulsing dot, `cursor: pointer`; clicking opens TigerPOD.
+- Connected states unchanged (green dot; card-present variant for chip-on-reader).
+
+### Banners — fully clickable + smart routing
+
+- **Cloud encode banner** and **chip update banner** are now fully clickable (whole row, not just the button).
+- When no reader is connected, both banners route to the TigerPOD modal instead of silently no-op-ing.
+
+### i18n — 13 new keys (TigerPOD redesign)
+
+`tigerPodBoosts` · `tigerPodLikes` · `tigerPodFree` · `tigerPodFeat1Title/Desc` · `tigerPodFeat2Title/Desc` · `tigerPodFeat3Title/Desc` · `tigerPodFeat4Title/Desc` · `tigerPodPrintSpec`. All 9 locales. `tigerPodModalDesc` updated to shorter copy. Total: 778 keys.
+
+---
+
 ## v1.7.7 — 2026-05-20
 
 ### Google sign-in — no more broken passkey popup on loopback failure

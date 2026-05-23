@@ -69,6 +69,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   writeRfidTag: (opts) =>
     ipcRenderer.invoke('rfid:write-now', opts),
 
+  // Cloud → chip encoding: program one or two blank RFID chips from a Cloud spool.
+  // Same payload (same timestamp) is written to every target reader.
+  // opts = { cloudDoc, targets: [{ readerName, uid }] }
+  // Returns { ok, results: [{ readerName, uid, ok, pagesWritten?, error? }] }
+  encodeCloudSpool: (opts) =>
+    ipcRenderer.invoke('rfid:encode-cloud', opts),
+
   // Called when an app update is available or ready to install
   onUpdateStatus: (callback) =>
     ipcRenderer.on('update-status', (_, info) => callback(info)),

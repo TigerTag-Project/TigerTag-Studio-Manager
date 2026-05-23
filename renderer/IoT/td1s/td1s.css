@@ -268,7 +268,8 @@
 .td-edit-save-row { display: flex; gap: 8px; width: 100%; }
 .td-edit-save-half {
   flex: 1; height: 46px; border-radius: 10px !important;
-  justify-content: center; font-size: 14px; font-weight: 600;
+  justify-content: center; font-size: 13px; font-weight: 600;
+  line-height: 1.25;
 }
 #tdEditModalOverlay .td-edit-save-half.btn.ghost,
 #colorEditModalOverlay .td-edit-save-half.btn.ghost {
@@ -282,16 +283,42 @@
   color: #fff !important;
 }
 
-/* Color picker row (Color modal state 1) */
-.ce-picker-row { display: flex; align-items: center; gap: 10px; width: 100%; }
+/* Color slot rows (Color modal state 1 — dynamic, one row per active color) */
+#ceManualSlots { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+.ce-slot-row { display: flex; align-items: center; gap: 10px; width: 100%; }
+.ce-slot-label {
+  width: 18px; flex-shrink: 0; text-align: center;
+  font-size: 12px; font-weight: 700; color: rgba(255,255,255,.35);
+}
 .ce-swatch {
   width: 40px; height: 40px; flex-shrink: 0; border-radius: 50%;
   background: #2a2a2a; border: 2px solid rgba(255,255,255,.2);
   cursor: pointer; padding: 0; transition: border-color .15s, box-shadow .15s;
 }
 .ce-swatch:hover { border-color: rgba(255,255,255,.55); box-shadow: 0 0 0 3px rgba(255,122,24,.25); }
-#colorEditNativePicker { position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none; }
-#colorEditManualHex.td-edit-val-input { width: auto !important; flex: 1 !important; }
+.ce-hex-input.td-edit-val-input { width: auto !important; flex: 1 !important; }
+
+/* Slot selector tabs (Color modal state 2, TD1S mode — hidden when numColors === 1) */
+.ce-slot-selector {
+  display: flex; gap: 6px; width: 100%;
+  margin-bottom: 6px;
+}
+.ce-slot-tab {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 6px 10px; border-radius: 8px;
+  background: rgba(255,255,255,.07); border: 1.5px solid rgba(255,255,255,.12);
+  color: rgba(255,255,255,.5); font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: background .15s, border-color .15s, color .15s;
+}
+.ce-slot-tab:hover { background: rgba(255,255,255,.12); color: rgba(255,255,255,.8); }
+.ce-slot-tab.active {
+  background: rgba(255,122,24,.18); border-color: var(--primary);
+  color: #fff;
+}
+.ce-slot-dot {
+  width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0;
+  border: 1.5px solid rgba(255,255,255,.25);
+}
 
 /* Clickable color circle in detail panel (trigger to open Color Edit modal) */
 .color-edit-trigger {

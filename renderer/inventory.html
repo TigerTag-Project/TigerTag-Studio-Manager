@@ -118,7 +118,7 @@
            title block, giving immediate at-a-glance KPIs. -->
       <div class="sb-stats-wrap top-stats hidden" id="sbStats"></div>
       <div class="top-status-icons">
-        <div class="health" id="rfidStatus" style="display:none"><span class="pulse"></span><span id="rfidLabel">RFID: —</span></div>
+        <div id="rfidReadersBar" class="rfid-readers-bar"></div>
         <div class="health td1s-health" id="td1sHealth" data-tooltip="TD1S: not detected"><span class="td1s-health-icon"></span></div>
         <div class="health scale-health" id="scaleHealth" data-tooltip="No scale connected"><span class="scale-health-icon">⚖</span></div>
         <div class="health" id="health" data-tooltip="Backend: idle"><span class="icon icon-cloud icon-20"></span></div>
@@ -1219,7 +1219,7 @@
 <div class="modal-overlay" id="colorEditModalOverlay">
   <div class="modal-card td-edit-card">
     <div class="modal-header">
-      <span class="modal-title" data-i18n="colorEditTitle">Set Color Value</span>
+      <span class="modal-title" data-i18n="colorEditTitle">Set Color &amp; TD Value</span>
       <button class="panel-close" id="colorEditClose">✕</button>
     </div>
 
@@ -1232,18 +1232,25 @@
         <span class="td-edit-or-text" data-i18n="orLabel">or</span>
         <span class="td-edit-or-line"></span>
       </div>
-      <div class="ce-picker-row">
-        <button class="ce-swatch" id="colorEditSwatch" type="button"></button>
-        <input type="color" id="colorEditNativePicker" tabindex="-1">
-        <input type="text" id="colorEditManualHex" class="td-edit-val-input ce-hex-input"
-               placeholder="#RRGGBB" maxlength="7" spellcheck="false">
-        <button class="btn primary td-edit-icon-btn" id="colorEditManualSaveBtn" title="Save"></button>
+      <!-- Dynamic color slots — rebuilt by openColorEditModal() for 1/2/3 colors -->
+      <div id="ceManualSlots"></div>
+      <!-- TD input — optional, same modal handles color + TD -->
+      <div class="td-edit-result-row" style="margin-top:4px">
+        <span class="td-edit-result-lbl">TD Value</span>
+        <input type="text" inputmode="decimal" id="ceManualTdInput" class="td-edit-val-input" placeholder="—" pattern="[0-9]*[.,]?[0-9]*">
+      </div>
+      <div class="td-edit-save-row">
+        <button class="btn ghost td-edit-save-half" id="colorEditManualBtnTdOnly">TD<br>Only</button>
+        <button class="btn ghost td-edit-save-half" id="colorEditManualBtnColorOnly">Color<br>Only</button>
+        <button class="btn primary td-edit-save-half" id="colorEditManualSaveBtn" data-i18n="btnSaveAll">Save All</button>
       </div>
     </div>
 
     <!-- State 2+3: connected — scan + editable values -->
     <div class="td-edit-state td-edit-hidden" id="colorEditStateActive">
       <img src="../assets/img/TD1S_Front.png" class="td-edit-device-img" alt="TD1S">
+      <!-- Slot selector — visible only when numColors > 1 -->
+      <div id="ceSlotSelector" class="ce-slot-selector td-edit-hidden"></div>
       <div class="td-edit-wait-row" id="colorEditWaitRow">
         <div class="td-edit-spinner" id="colorEditSpinner"></div>
         <p class="td-edit-state-msg" id="colorEditWaitMsg" data-i18n="tdEditWaitMsg">Insert filament into TD1S sensor…</p>
@@ -1260,7 +1267,8 @@
         </div>
       </div>
       <div class="td-edit-save-row">
-        <button class="btn ghost td-edit-save-half" id="colorEditBtnColorOnly" data-i18n="btnColorOnly">Color Only</button>
+        <button class="btn ghost td-edit-save-half" id="colorEditBtnTdOnly">TD<br>Only</button>
+        <button class="btn ghost td-edit-save-half" id="colorEditBtnColorOnly">Color<br>Only</button>
         <button class="btn primary td-edit-save-half" id="colorEditBtnAll" data-i18n="btnSaveAll">All</button>
       </div>
     </div>
@@ -2156,6 +2164,84 @@
   </div>
   <button class="rsn-close" id="rfidScanNotifClose" aria-label="Close">✕</button>
   <div class="rsn-bar" id="rfidScanNotifBar"></div>
+</div>
+<!-- ── TigerPOD discovery modal ─────────────────────────────────────────── -->
+<div class="modal-overlay" id="tigerPodModalOverlay">
+  <div class="modal-card tigerpod-card">
+    <button class="panel-close tigerpod-close-btn" id="tigerPodClose">✕</button>
+
+    <!-- Hero — purple gradient + pulsing NFC rings + product identity -->
+    <div class="tigerpod-hero">
+      <div class="tigerpod-hero-rings">
+        <div class="tpr tpr1"></div>
+        <div class="tpr tpr2"></div>
+        <div class="tpr tpr3"></div>
+      </div>
+      <span class="icon icon-nfc tigerpod-hero-icon"></span>
+      <div class="tigerpod-hero-name">
+        <span class="tigerpod-hero-brand">TigerTag.io</span>
+        <span class="tigerpod-hero-product">Open Spool Pod</span>
+      </div>
+      <!-- Live stats from MakerWorld -->
+      <div class="tigerpod-stats">
+        <span class="tigerpod-stat">⚡ <strong>12</strong> <span data-i18n="tigerPodBoosts">Boosts</span></span>
+        <span class="tigerpod-stat-sep">·</span>
+        <span class="tigerpod-stat">❤ <strong>21</strong> <span data-i18n="tigerPodLikes">Likes</span></span>
+        <span class="tigerpod-stat-sep">·</span>
+        <span class="tigerpod-stat tigerpod-stat-free" data-i18n="tigerPodFree">Free</span>
+      </div>
+    </div>
+
+    <!-- Body -->
+    <div class="tigerpod-body">
+      <h2 class="tigerpod-title" data-i18n="tigerPodModalTitle">Build your TigerPOD</h2>
+      <p class="tigerpod-desc" data-i18n="tigerPodModalDesc">A 3D-printable stand to program TigerTag RFID chips directly on your filament spools.</p>
+
+      <!-- Key features 2×2 grid -->
+      <div class="tigerpod-features">
+        <div class="tigerpod-feat">
+          <span class="tigerpod-feat-icon tpfi-rfid"></span>
+          <div class="tigerpod-feat-text">
+            <strong data-i18n="tigerPodFeat1Title">Dual reader slots</strong>
+            <span data-i18n="tigerPodFeat1Desc">One on each side</span>
+          </div>
+        </div>
+        <div class="tigerpod-feat">
+          <span class="tigerpod-feat-icon tpfi-bolt"></span>
+          <div class="tigerpod-feat-text">
+            <strong data-i18n="tigerPodFeat2Title">Encode 2 chips</strong>
+            <span data-i18n="tigerPodFeat2Desc">At the same time</span>
+          </div>
+        </div>
+        <div class="tigerpod-feat">
+          <span class="tigerpod-feat-icon tpfi-check"></span>
+          <div class="tigerpod-feat-text">
+            <strong data-i18n="tigerPodFeat3Title">No supports</strong>
+            <span data-i18n="tigerPodFeat3Desc">PLA or PETG</span>
+          </div>
+        </div>
+        <div class="tigerpod-feat">
+          <span class="tigerpod-feat-icon tpfi-package"></span>
+          <div class="tigerpod-feat-text">
+            <strong data-i18n="tigerPodFeat4Title">Any 1 kg spool</strong>
+            <span data-i18n="tigerPodFeat4Desc">Standard diameter</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Print specs strip -->
+      <div class="tigerpod-print-spec">
+        <span class="tigerpod-spec-printer-icon"></span>
+        <span data-i18n="tigerPodPrintSpec">0.2 mm · 8% infill · ~7 h</span>
+      </div>
+
+      <!-- CTA -->
+      <a class="btn primary tigerpod-print-btn" id="tigerPodMakerWorldBtn">
+        <span class="tigerpod-btn-icon"></span>
+        <span data-i18n="tigerPodPrintBtn">Print on MakerWorld</span>
+      </a>
+    </div>
+  </div>
 </div>
 </body>
 </html>

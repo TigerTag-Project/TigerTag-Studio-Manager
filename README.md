@@ -45,7 +45,7 @@ Manage your spool inventory, connect your 3D printers, and keep everything in sy
 Tiger Studio Manager is an Electron desktop app that bridges your physical filament collection with the TigerTag cloud. Scan a spool's NFC chip, see its full profile (material, color, weight, print settings), update its weight on the scale, and push filament data directly to your connected printers — all in one window.
 
 It works standalone (no reader needed), but unlocks its full potential with:
-- an **ACR122U NFC reader** *(coming soon)* for automatic spool identification on scan
+- an **ACR122U NFC reader** for automatic spool identification, chip encoding and Cloud-to-chip promotion
 - a **TigerScale** ESP32 scale for live weight tracking
 - one or more **3D printers** from the 5 supported brands
 
@@ -90,8 +90,8 @@ Each brand supports: filament edit per slot, printer discovery (mDNS + port-scan
 
 ### ⚖ Sensors & Devices
 
-#### ACR122U NFC reader *(coming soon)*
-Plug in a USB ACR122U reader and the app automatically opens the matching spool's detail panel the moment you scan a chip — no button, no search, instant access.
+#### ACR122U NFC reader
+Plug in a USB ACR122U reader and the app automatically opens the matching spool's detail panel the moment you scan a chip — no button, no search, instant access. With a **TigerPOD** (free 3D-printable stand), you can place up to two chips simultaneously and encode a Cloud spool onto both in one click.
 
 #### TD1S color sensor
 The [TD1S](https://tigertag.io/products/biqu-ajax-td1s-v1-0) is TigerTag's USB filament color and transmission density sensor. Place the filament in the sensor and it reads:
@@ -136,7 +136,7 @@ A QR code to download the mobile app is always accessible in the sidebar.
 - **Node.js** 24+
 - **npm** 10+
 - A **TigerTag account** — [tigertag.io](https://tigertag.io)
-- _(Optional)_ An **ACR122U** NFC reader *(coming soon)*
+- _(Optional)_ An **ACR122U** NFC reader for chip read/write
 
 #### Linux only
 

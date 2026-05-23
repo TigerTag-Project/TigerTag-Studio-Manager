@@ -1296,6 +1296,65 @@
   }
   @keyframes updateSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
+  /* ── RFID reader badges (topbar) ── */
+  .rfid-readers-bar { display: flex; align-items: center; gap: 6px; }
+  .rfid-reader-badge {
+    display: flex; align-items: center; gap: 5px;
+    padding: 3px 8px; border-radius: 20px;
+    background: var(--surface-2); border: 1px solid var(--border);
+    font-size: 11px; color: var(--muted); cursor: default;
+    transition: border-color .2s, background .2s;
+    position: relative;
+  }
+  .rfid-reader-badge .rrd-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--muted); flex-shrink: 0;
+    transition: background .2s, box-shadow .2s;
+  }
+  /* reader connected, no card */
+  .rfid-reader-badge.connected .rrd-dot {
+    background: var(--success);
+    box-shadow: 0 0 5px var(--success);
+    animation: rfidPulse 2s ease-in-out infinite;
+  }
+  /* card present on reader */
+  .rfid-reader-badge.card-present {
+    border-color: var(--success); color: var(--text);
+    background: rgba(var(--success-rgb, 74,222,128), .08);
+  }
+  .rfid-reader-badge.card-present .rrd-dot {
+    background: var(--success);
+    box-shadow: 0 0 8px var(--success);
+    animation: none;
+  }
+  /* no reader connected */
+  .rfid-reader-badge.disconnected .rrd-dot {
+    background: var(--danger);
+    box-shadow: 0 0 5px var(--danger);
+    animation: rfidPulse 2s ease-in-out infinite;
+  }
+  .rfid-reader-badge.disconnected { color: var(--danger); border-color: var(--danger); opacity: .7; cursor: pointer; }
+  .rfid-reader-badge.disconnected:hover { opacity: 1; }
+  .rfid-reader-badge .rrd-name { max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rfid-reader-badge .rrd-uid {
+    font-family: monospace; font-size: 10px;
+    color: var(--success); letter-spacing: .03em;
+  }
+  @keyframes rfidPulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: .4; }
+  }
+  /* tooltip */
+  .rfid-reader-badge::after {
+    content: attr(data-tooltip);
+    position: absolute; top: calc(100% + 7px); left: 50%; transform: translateX(-50%);
+    background: #1c2030; color: #fff; border: 1px solid rgba(255,255,255,.1);
+    padding: 5px 10px; border-radius: 7px; font-size: 11px; white-space: nowrap;
+    opacity: 0; pointer-events: none; transition: opacity .15s;
+    box-shadow: 0 4px 12px rgba(0,0,0,.3); z-index: 50;
+  }
+  .rfid-reader-badge:hover::after { opacity: 1; }
+
   .health::after {
     content: attr(data-tooltip);
     position: absolute; top: calc(100% + 7px); right: 0;
@@ -2797,4 +2856,151 @@
   width: 100%;
   border-radius: 10px;
   border: 1px solid var(--border);
+}
+
+/* ── TigerPOD discovery modal ──────────────────────────────────────────── */
+.tigerpod-card {
+  width: 400px; padding: 0; overflow: hidden; position: relative;
+}
+.tigerpod-close-btn {
+  position: absolute; top: 12px; right: 12px; z-index: 2;
+  color: rgba(255,255,255,.7); background: rgba(0,0,0,.25);
+  border-radius: 50%; width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; line-height: 1;
+}
+.tigerpod-close-btn:hover { color: #fff; background: rgba(0,0,0,.45); }
+
+/* ── Hero — purple gradient + pulsing rings + product identity ── */
+.tigerpod-hero {
+  position: relative; height: 200px; overflow: hidden;
+  background: linear-gradient(135deg, #3a1590 0%, #6b3de8 55%, #9a6fff 100%);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 8px;
+  padding-bottom: 36px; /* leave room for stats bar */
+}
+/* Concentric pulsing rings */
+.tigerpod-hero-rings { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+.tpr {
+  position: absolute; border-radius: 50%;
+  border: 1.5px solid rgba(255,255,255,.2);
+  animation: tpr-pulse 2.8s ease-out infinite;
+}
+.tpr1 { width: 70px;  height: 70px;  animation-delay: 0s; }
+.tpr2 { width: 120px; height: 120px; animation-delay: .7s; }
+.tpr3 { width: 180px; height: 180px; animation-delay: 1.4s; }
+@keyframes tpr-pulse {
+  0%   { opacity: .55; transform: scale(.85); }
+  60%  { opacity: .12; }
+  100% { opacity: 0;   transform: scale(1.15); }
+}
+/* NFC icon */
+.tigerpod-hero-icon {
+  position: relative; z-index: 1;
+  height: 30px; aspect-ratio: 48/32;
+  background-color: rgba(255,255,255,.85);
+  -webkit-mask-image: url('../../assets/svg/icons/icon_rfid.svg');
+  -webkit-mask-size: contain; -webkit-mask-repeat: no-repeat; -webkit-mask-position: center;
+}
+/* Product name block */
+.tigerpod-hero-name {
+  position: relative; z-index: 1;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+}
+.tigerpod-hero-brand {
+  font-size: 10px; font-weight: 700; letter-spacing: .1em;
+  color: rgba(255,255,255,.6); text-transform: uppercase;
+}
+.tigerpod-hero-product {
+  font-size: 18px; font-weight: 800; letter-spacing: .02em;
+  color: #fff;
+}
+/* Stats bar — bottom strip inside hero */
+.tigerpod-stats {
+  position: absolute; bottom: 0; left: 0; right: 0; z-index: 1;
+  height: 32px; background: rgba(0,0,0,.25);
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.tigerpod-stat {
+  font-size: 12px; color: rgba(255,255,255,.8);
+}
+.tigerpod-stat strong { color: #fff; font-weight: 700; }
+.tigerpod-stat-sep { color: rgba(255,255,255,.3); font-size: 11px; }
+.tigerpod-stat-free {
+  background: rgba(255,255,255,.15); border-radius: 4px;
+  padding: 1px 6px; font-weight: 700; color: rgba(255,255,255,.95);
+  font-size: 11px; letter-spacing: .04em;
+}
+
+/* ── Body ── */
+.tigerpod-body {
+  padding: 20px 22px 22px;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.tigerpod-title {
+  font-size: 16px; font-weight: 700; color: var(--text); margin: 0; text-align: center;
+}
+.tigerpod-desc {
+  font-size: 13px; color: var(--muted); margin: 0; line-height: 1.5; text-align: center;
+}
+
+/* ── Features 2×2 grid ── */
+.tigerpod-features {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+}
+.tigerpod-feat {
+  display: flex; align-items: flex-start; gap: 9px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 9px; padding: 10px 11px;
+}
+.tigerpod-feat-icon {
+  flex-shrink: 0; height: 16px; aspect-ratio: 1/1; margin-top: 1px;
+  background-color: var(--accent);
+  -webkit-mask-size: contain; -webkit-mask-repeat: no-repeat; -webkit-mask-position: center;
+}
+.tpfi-rfid    { -webkit-mask-image: url('../../assets/svg/icons/icon_rfid.svg');    aspect-ratio: 48/32; height: 14px; margin-top: 2px; }
+.tpfi-bolt    { -webkit-mask-image: url('../../assets/svg/icons/icon_bolt.svg');    }
+.tpfi-check   { -webkit-mask-image: url('../../assets/svg/icons/icon_check.svg');   }
+.tpfi-package { -webkit-mask-image: url('../../assets/svg/icons/icon_package.svg'); }
+.tigerpod-feat-text {
+  display: flex; flex-direction: column; gap: 1px; min-width: 0;
+}
+.tigerpod-feat-text strong {
+  font-size: 12px; font-weight: 700; color: var(--text); white-space: nowrap;
+}
+.tigerpod-feat-text span {
+  font-size: 11px; color: var(--muted); line-height: 1.4;
+}
+
+/* ── Print spec strip ── */
+.tigerpod-print-spec {
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 12px;
+  font-size: 12px; color: var(--muted);
+}
+.tigerpod-spec-printer-icon {
+  flex-shrink: 0; height: 14px; aspect-ratio: 1/1;
+  background-color: var(--muted);
+  -webkit-mask-image: url('../../assets/svg/icons/icon_printer.svg');
+  -webkit-mask-size: contain; -webkit-mask-repeat: no-repeat; -webkit-mask-position: center;
+}
+
+/* ── CTA button ── */
+.tigerpod-print-btn {
+  width: 100%; height: 44px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  font-size: 14px; font-weight: 700; text-decoration: none; cursor: pointer;
+  background: var(--primary); color: #fff; border: 1px solid var(--primary);
+  box-shadow: 0 2px 10px rgba(255,122,24,.35);
+}
+.tigerpod-print-btn:hover {
+  background: var(--primary-hover); border-color: var(--primary-hover);
+  box-shadow: 0 3px 14px rgba(255,122,24,.45);
+}
+.tigerpod-btn-icon {
+  flex-shrink: 0; height: 16px; aspect-ratio: 1/1;
+  background-color: #fff;
+  -webkit-mask-image: url('../../assets/svg/icons/icon_printer.svg');
+  -webkit-mask-size: contain; -webkit-mask-repeat: no-repeat; -webkit-mask-position: center;
 }

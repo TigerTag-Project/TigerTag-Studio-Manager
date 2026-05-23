@@ -64,6 +64,7 @@
   .icon-github    { -webkit-mask-image: url('../../assets/svg/icons/icon_github.svg');       mask-image: url('../../assets/svg/icons/icon_github.svg'); }
   .icon-discord   { -webkit-mask-image: url('../../assets/svg/icons/icon_discord.svg');      mask-image: url('../../assets/svg/icons/icon_discord.svg'); }
   .icon-plug      { -webkit-mask-image: url('../../assets/svg/icons/icon_plug.svg');         mask-image: url('../../assets/svg/icons/icon_plug.svg'); }
+  .icon-nfc       { -webkit-mask-image: url('../../assets/svg/icons/icon_rfid.svg');         mask-image: url('../../assets/svg/icons/icon_rfid.svg');  aspect-ratio: 48 / 32; }
   .icon-battery   { -webkit-mask-image: url('../../assets/svg/icons/icon_battery.svg');      mask-image: url('../../assets/svg/icons/icon_battery.svg'); }
   .icon-bolt      { -webkit-mask-image: url('../../assets/svg/icons/icon_bolt.svg');         mask-image: url('../../assets/svg/icons/icon_bolt.svg'); }
   .icon-bulb      { -webkit-mask-image: url('../../assets/svg/icons/icon_bulb.svg');         mask-image: url('../../assets/svg/icons/icon_bulb.svg'); }
@@ -884,11 +885,10 @@
   .panel-img-placeholder img { width: 40%; opacity: .5; }
   .panel-img-color-placeholder { width: 100%; aspect-ratio: 1; display: flex; align-items: flex-start; justify-content: flex-end; overflow: hidden; }
   .panel-img-logo { width: 22%; margin: 4%; }
-  .panel-section { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+  .panel-section { padding: 14px 16px; }
   .panel-identity { padding-bottom: 10px; }
   .pi-row1 { font-size: 12px; font-weight: 600; color: var(--muted); line-height: 1.4; }
   .pi-row2 { font-size: 13px; color: var(--muted); line-height: 1.4; margin-top: 2px; }
-  .panel-section:last-child { border-bottom: none; }
   .panel-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 8px; font-weight: 600; }
 
   /* Collapsible "Details" section in the spool detail panel */
@@ -934,7 +934,7 @@
   .chip-update-banner {
     display: flex; align-items: center; gap: 8px;
     padding: 8px 14px; background: var(--warning-soft);
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--border); cursor: pointer;
   }
   .chip-update-icon {
     display: inline-flex; align-items: center; justify-content: center;
@@ -943,12 +943,32 @@
   }
   .chip-update-icon .icon { color: #fff; }
   .chip-update-text { font-size: 12px; color: var(--warning); flex: 1; }
-  .chip-update-done {
-    font-size: 11px; padding: 4px 10px; border-radius: 999px;
-    background: var(--warning-soft); color: var(--warning);
-    border: 1px solid var(--warning); white-space: nowrap; flex-shrink: 0;
+  /* ── Cloud encode banner (replaces chip-update banner for Cloud spools) ── */
+  .cloud-encode-banner { background: rgba(124,77,255,.07); cursor: pointer; }
+  .cloud-encode-icon   { background: #7c4dff !important; animation: cloud-nfc-pulse 2s ease-in-out infinite; }
+  @keyframes cloud-nfc-pulse {
+    0%, 100% { box-shadow: 0 0 0 0   rgba(124,77,255,.5); }
+    50%       { box-shadow: 0 0 0 6px rgba(124,77,255,0); }
   }
-  .chip-update-done:hover { background: var(--warning); color: #fff; }
+  .cloud-encode-text { color: #7c4dff !important; }
+  /* Ghost pill — no reader connected (TigerPOD discovery) */
+  .chip-encode-btn {
+    font-size: 11px; padding: 4px 10px; border-radius: 999px;
+    background: transparent; color: #7c4dff;
+    border: 1px solid rgba(124,77,255,.5); white-space: nowrap; flex-shrink: 0;
+    cursor: pointer; transition: background .15s, color .15s;
+  }
+  .chip-encode-btn:hover { background: #7c4dff; color: #fff; border-color: #7c4dff; }
+  /* Active pill — reader + card present (Encode) */
+  .chip-encode-btn.chip-encode-active {
+    background: var(--primary-soft); color: var(--primary); border-color: var(--primary);
+  }
+  .chip-encode-btn.chip-encode-active:hover { background: var(--primary); color: #fff; }
+  /* Warning pill — used in physical-spool "Update RFID" banner */
+  .chip-encode-btn.chip-encode-warning {
+    background: var(--warning-soft); color: var(--warning); border-color: var(--warning);
+  }
+  .chip-encode-btn.chip-encode-warning:hover { background: var(--warning); color: #fff; }
 
   /* ── Chip pending badge (table + grid) ── */
   .chip-badge {

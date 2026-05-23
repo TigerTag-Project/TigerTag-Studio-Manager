@@ -201,6 +201,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     td1sConnected: false,
     scanMode: false,        // true = "+ Scan" active, auto-add on unknown chip
     nfcReaderCount: 0,      // number of connected NFC readers
+    nfcReaders: new Set(),  // names of currently connected NFC readers (for sequential burn)
+    nfcCardPresent: new Map(), // readerName → { uid } — tracks which reader currently holds a card
     rendererPath: null,  // absolute path to renderer/ dir — used as file:// preload base for <webview>
     db: { brand: [], material: [], aspect: [], type: [], diameter: [], unit: [], version: [], containers: [] }
   };
@@ -704,7 +706,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       deleted: data.deleted === true,
       productType: typeName(data.id_type),
       chipTimestamp: data.timestamp || null,
-      needUpdateAt: data.needUpdateAt || null,
+      needUpdateAt: isCloud ? null : (data.needUpdateAt || null),
       raw: data,
     };
   }
@@ -1765,9 +1767,6 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
             ? null
             : Math.max(0.1, Math.min(100, isFinite(td) && td > 0 ? td : 0.1)),
       timestamp:   Math.floor(Date.now() / 1000),
-      // Drives the "needs chip program" indicator across the rest
-      // of the app once this entry hits Firestore.
-      needUpdateAt: Date.now(),
       deleted:     null,
       deleted_at:  null
     };
@@ -2133,13 +2132,6 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       // ── Timestamps + tombstone ─────────────────────────────────
       timestamp:   Math.floor(Date.now() / 1000),
       updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      // Cloud-only entries always start with a pending chip-program
-      // flag — the rest of the app (grid view, card view, detail
-      // panel) reads `needUpdateAt` to render a "needs to be written
-      // to a chip" indicator next to the spool. Cleared via the
-      // existing chip-done flow (`needUpdateAt: null`) once the
-      // physical chip has been programmed.
-      needUpdateAt: Date.now(),
       deleted:     null,
       deleted_at:  null
     };
@@ -4980,6 +4972,165 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     });
   });
 
+  /* ── Encode Cloud → chip ─────────────────────────────────────────────────
+     Programs one or two blank RFID chips from a Cloud spool doc.
+     Same 80-byte payload (same timestamp) written to every reader that has a
+     card present. On success, migrates the Firestore doc:
+       - Creates  inventory/{uid_rfid1}  (new physical chip doc)
+       - Creates  inventory/{uid_rfid2}  if a second chip was written (twin)
+       - Deletes  inventory/CLOUD_XXXX   (the original Cloud doc)
+     Twin cross-links are set when both chips succeed.                       */
+  async function _encodeCloud(r) {
+    if (!window.electronAPI) return;
+    const cloudDoc = state.inventory[r.spoolId];
+    if (!cloudDoc) return;
+
+    // Only target readers that actually have a card present
+    const targets = [...state.nfcCardPresent.entries()]
+      .map(([readerName, { uid }]) => ({ readerName, uid }));
+    if (targets.length === 0) return;
+
+    const btn     = $("btnEncodeCloud");
+    const labelEl = btn?.querySelector(".toolbox-row-label");
+    if (btn) btn.disabled = true;
+    if (labelEl) labelEl.textContent = t("encodeCloudInProgress");
+
+    let result;
+    try {
+      result = await window.electronAPI.encodeCloudSpool({ cloudDoc, targets });
+    } catch (e) {
+      console.error("[encodeCloud] IPC error:", e);
+      if (btn) btn.disabled = false;
+      if (labelEl) labelEl.textContent = t("encodeCloudBtn");
+      return;
+    }
+
+    const successTargets = (result.results || []).filter(x => x.ok);
+    if (successTargets.length === 0) {
+      const err = (result.results || []).map(x => x.error).filter(Boolean).join(", ");
+      console.error("[encodeCloud] all writers failed:", err);
+      if (btn) btn.disabled = false;
+      if (labelEl) {
+        labelEl.textContent = t("encodeCloudError");
+        setTimeout(() => { if (labelEl) labelEl.textContent = t("encodeCloudBtn"); }, 3000);
+      }
+      return;
+    }
+
+    // ── Migrate Firestore ───────────────────────────────────────────────────
+    const ownerUid = state.activeAccountId;
+    if (!ownerUid) return;
+    const invRef = fbDb().collection("users").doc(ownerUid).collection("inventory");
+    const FV     = firebase.firestore.FieldValue;
+
+    // Base doc: copy cloud doc, strip Cloud-specific / lifecycle fields
+    const { needUpdateAt: _nua, deleted: _del, deleted_at: _da, ...baseFields } = cloudDoc;
+    const now = Date.now();
+
+    const [chip1, chip2] = successTargets;
+
+    try {
+      const batch = fbDb().batch();
+
+      // New doc for chip 1
+      const doc1 = {
+        ...baseFields,
+        uid:          chip1.uid,
+        twin_tag_uid: chip2 ? chip2.uid : null,
+        last_update:  now,
+        updatedAt:    FV.serverTimestamp(),
+      };
+      batch.set(invRef.doc(chip1.uid), doc1);
+
+      // New doc for chip 2 (twin)
+      if (chip2) {
+        const doc2 = {
+          ...baseFields,
+          uid:          chip2.uid,
+          twin_tag_uid: chip1.uid,
+          last_update:  now,
+          updatedAt:    FV.serverTimestamp(),
+        };
+        batch.set(invRef.doc(chip2.uid), doc2);
+      }
+
+      // Delete old Cloud doc
+      batch.delete(invRef.doc(r.spoolId));
+
+      await batch.commit();
+      console.log(`[encodeCloud] migrated ${r.spoolId} → ${successTargets.map(x => x.uid).join(" + ")}`);
+      closeDetail();
+    } catch (e) {
+      console.error("[encodeCloud] Firestore migration failed:", e);
+      if (btn) btn.disabled = false;
+      if (labelEl) {
+        labelEl.textContent = t("encodeCloudError");
+        setTimeout(() => { if (labelEl) labelEl.textContent = t("encodeCloudBtn"); }, 3000);
+      }
+    }
+  }
+
+  /* ── Burn RFID — write current doc to all readers that have a card present ──
+     Same mechanism as _encodeCloud: single payload build → same timestamp on
+     all chips. No Firestore doc migration (doc already exists with the right UID).
+     Also clears needUpdateAt on success (chip is now in sync).               */
+  async function _burnRfid(r) {
+    if (!window.electronAPI || state.nfcCardPresent.size === 0) return;
+    const cloudDoc = state.inventory[r.spoolId];
+    if (!cloudDoc) return;
+
+    // Only target readers that actually have a card
+    const targets = [...state.nfcCardPresent.entries()]
+      .map(([readerName, { uid }]) => ({ readerName, uid }));
+    if (targets.length === 0) return;
+
+    // Both buttons that can trigger this action — disable all during write
+    const allBtns = [$("btnBurnRfid"), $("btnChipDone")].filter(Boolean);
+    allBtns.forEach(b => { b.disabled = true; });
+    // Progress label only applies to the toolbox row (has .toolbox-row-label child)
+    const labelEl = $("btnBurnRfid")?.querySelector(".toolbox-row-label");
+    if (labelEl) labelEl.textContent = t("encodeCloudInProgress");
+
+    let result;
+    try {
+      result = await window.electronAPI.encodeCloudSpool({ cloudDoc, targets });
+    } catch (e) {
+      console.error("[burnRfid] IPC error:", e);
+      allBtns.forEach(b => { b.disabled = false; });
+      if (labelEl) labelEl.textContent = t("burnRfidBtn");
+      return;
+    }
+
+    const okCount = (result.results || []).filter(x => x.ok).length;
+    const total   = targets.length;
+
+    allBtns.forEach(b => { b.disabled = false; });
+    if (labelEl) {
+      labelEl.textContent = okCount === total
+        ? t("burnRfidSuccess", { n: okCount })
+        : t("burnRfidError",   { ok: okCount, total });
+      setTimeout(() => { if (labelEl) labelEl.textContent = t("burnRfidBtn"); }, 3000);
+    }
+
+    // Chip is now up to date — clear needUpdateAt on this spool + twin
+    if (okCount > 0 && r.needUpdateAt) {
+      const ownerUid = state.activeAccountId; if (!ownerUid) return;
+      const invRef = fbDb().collection("users").doc(ownerUid).collection("inventory");
+      try {
+        const batch = fbDb().batch();
+        batch.update(invRef.doc(r.spoolId), { needUpdateAt: null });
+        if (r.twinUid) {
+          const tr = state.rows.find(x =>
+            x.spoolId !== r.spoolId &&
+            (String(x.uid) === String(r.twinUid) || String(x.spoolId) === String(r.twinUid))
+          );
+          if (tr) batch.update(invRef.doc(tr.spoolId), { needUpdateAt: null });
+        }
+        await batch.commit();
+      } catch (e) { console.error("[burnRfid] needUpdateAt clear failed:", e); }
+    }
+  }
+
   /* ── detail panel ── */
   function openDetail(spoolId) {
     state.selected = spoolId;
@@ -5097,6 +5248,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         setTimeout(() => { if (btn) btn.disabled = false; }, 800);
       }
     });
+    // Encode Cloud → chip: migrate Cloud doc to physical chip(s)
+    $("btnEncodeCloud")?.addEventListener("click", () => _encodeCloud(r));
+
+    // Burn RFID — write cloud doc to all connected readers, one by one
+    $("btnBurnRfid")?.addEventListener("click", () => _burnRfid(r));
+
     // collapsible "Details" section — toggle + persist preference
     const btnToggleDetails = $("btnToggleDetails");
     if (btnToggleDetails) {
@@ -5305,29 +5462,23 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if ($("btnEditColor")) {
       $("btnEditColor").addEventListener("click", () => openColorEditModal(r));
     }
-    // Chip done → clear needUpdateAt (and twin)
-    if ($("btnChipDone")) {
-      $("btnChipDone").addEventListener("click", async () => {
-        const uid = state.activeAccountId; if (!uid) return;
-        $("btnChipDone").disabled = true;
-        const invRef = fbDb().collection("users").doc(uid).collection("inventory");
-        try {
-          const batch = fbDb().batch();
-          batch.update(invRef.doc(r.spoolId), { needUpdateAt: null });
-          if (r.twinUid) {
-            const tr = state.rows.find(x =>
-              x.spoolId !== r.spoolId &&
-              (String(x.uid) === String(r.twinUid) || String(x.spoolId) === String(r.twinUid))
-            );
-            if (tr) batch.update(invRef.doc(tr.spoolId), { needUpdateAt: null });
-          }
-          await batch.commit();
-        } catch (err) {
-          console.error("[chipDone] error:", err);
-          $("btnChipDone").disabled = false;
-        }
-      });
-    }
+    // Chip update banner — whole banner is clickable
+    // If no reader is connected, redirect to TigerPOD discovery instead of trying to burn
+    $("chipUpdateBanner")?.addEventListener("click", () => {
+      if (state.nfcReaders.size === 0) {
+        openTigerPodModal();
+      } else {
+        _burnRfid(r);
+      }
+    });
+    // Cloud encode banner — whole banner is clickable; re-evaluate card presence at click time
+    $("cloudEncodeBanner")?.addEventListener("click", () => {
+      if ((state.nfcCardPresent?.size ?? 0) > 0) {
+        _encodeCloud(r);
+      } else {
+        openTigerPodModal();
+      }
+    });
   }
   function closeDetail() {
     // Cancel any pending auto-save (don't fire on close)
@@ -5343,6 +5494,30 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
      openColorEditModal are all imported from their respective modules and
      called from the toolbox + ADP header button below.                    */
   initEditModals({ state, t, $, fbDb });
+
+  // ── Usage telemetry — fire-and-forget, one write per session per milestone ──
+  let _telTd1s    = false;  // have we already recorded TD1s usage this session?
+  let _telRfidMax = 0;      // highest RFID reader count recorded this session
+
+  function _recordUsage(fields) {
+    const uid = state.activeAccountId;
+    if (!uid) return;
+    // Write into the dedicated telemetry sub-document, never into the user profile.
+    fbDb(uid).collection("users").doc(uid)
+      .collection("telemetry").doc("studio")
+      .set(fields, { merge: true })
+      .catch(() => {});
+  }
+
+  // Track TD1s first-ever use
+  if (window.td1s) {
+    window.td1s.onStatus(msg => {
+      if (_telTd1s) return;
+      if (msg !== "Status: Sensor connected") return;
+      _telTd1s = true;
+      _recordUsage({ td1sUsed: true });
+    });
+  }
 
   initTD1S({
     state,
@@ -5434,6 +5609,16 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     }
   });
 
+  /* ── TigerPOD discovery modal ── */
+  const TIGERPOD_MAKERWORLD_URL = "https://makerworld.com/fr/models/1289152-tigertag-io-open-spool-pod-for-rfid-filament";
+
+  function openTigerPodModal() {
+    $("tigerPodModalOverlay").classList.add("open");
+  }
+  function closeTigerPodModal() {
+    $("tigerPodModalOverlay").classList.remove("open");
+  }
+
   /* ── container picker ── */
   let _cpRow = null; // spool row currently being edited in the picker
 
@@ -5509,6 +5694,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (!url) return;
     window.electronAPI?.openExternal(url);
   });
+
+  // TigerPOD modal events
+  $("tigerPodClose").addEventListener("click", closeTigerPodModal);
+  $("tigerPodModalOverlay").addEventListener("click", e => { if (e.target === $("tigerPodModalOverlay")) closeTigerPodModal(); });
+  $("tigerPodMakerWorldBtn").addEventListener("click", () => window.electronAPI?.openExternal(TIGERPOD_MAKERWORLD_URL));
 
   // container picker events
   $("containerPickerClose").addEventListener("click", closeContainerPicker);
@@ -5836,12 +6026,30 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         ${hasMat || displayName ? `<div class="pi-row2">${[hasMat ? esc(r.material) : "", displayName ? esc(displayName) : ""].filter(Boolean).join(" ")}</div>` : ""}
       </div>`;
 
-    const chipBannerHtml = r.needUpdateAt ? `
-      <div class="chip-update-banner">
-        <span class="chip-update-icon"><span class="icon icon-refresh icon-13"></span></span>
-        <span class="chip-update-text">${t("chipPendingHint")}</span>
-        <button class="btn chip-update-done" id="btnChipDone">${t("btnChipDone")}</button>
-      </div>` : "";
+    let chipBannerHtml = "";
+    if (r.isCloud) {
+      // Cloud spool — never has a physical chip yet. Show a persistent encode CTA.
+      // When a reader with a card is present: primary "Encode →" button.
+      // Otherwise: ghost "TigerPOD →" button that links to the product page.
+      const hasCard = window.electronAPI && (state.nfcCardPresent?.size ?? 0) > 0;
+      chipBannerHtml = `
+        <div class="chip-update-banner cloud-encode-banner" id="cloudEncodeBanner">
+          <span class="chip-update-icon cloud-encode-icon">
+            <span class="icon icon-nfc icon-13"></span>
+          </span>
+          <span class="chip-update-text cloud-encode-text">${t("cloudNotEncoded")}</span>
+          <span class="chip-encode-btn ${hasCard ? "chip-encode-active" : ""}">
+            ${hasCard ? t("encodeCloudBtn") : t("tigerPodDiscover")}
+          </span>
+        </div>`;
+    } else if (r.needUpdateAt) {
+      chipBannerHtml = `
+        <div class="chip-update-banner" id="chipUpdateBanner">
+          <span class="chip-update-icon"><span class="icon icon-refresh icon-13"></span></span>
+          <span class="chip-update-text">${t("chipPendingHint")}</span>
+          <span class="chip-encode-btn chip-encode-warning">${t("btnChipDone")}</span>
+        </div>`;
+    }
 
     return `
       ${imgSection}
@@ -5957,7 +6165,29 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           });
         }
 
-        // 5. Delete — moved out of its own section into the toolbox.
+        // 5a. Encode Cloud → chip: shown only for Cloud spools when at least one
+        //     reader has a card present. Migrates the Cloud doc to a real RFID doc.
+        if (r.isCloud && window.electronAPI && state.nfcCardPresent.size > 0) {
+          tools.push({
+            id: "btnEncodeCloud",
+            icon: "icon-nfc",
+            label: t("encodeCloudBtn"),
+            variant: "primary",
+          });
+        }
+
+        // 5b. Burn RFID — write cloud doc to all connected readers sequentially.
+        //    Only shown for non-Cloud spools when at least one reader is connected.
+        if (!r.isCloud && window.electronAPI && state.nfcReaderCount > 0) {
+          tools.push({
+            id: "btnBurnRfid",
+            icon: "icon-nfc",
+            label: t("burnRfidBtn"),
+            variant: "default",
+          });
+        }
+
+        // 6. Delete — moved out of its own section into the toolbox.
         tools.push({
           id: "btnSpoolDelete",
           icon: "icon-trash",
@@ -12408,6 +12638,36 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         color:       accPrimaryHex(acc),  // single hex field — simpler than color_r/g/b
       });
 
+      // ── Client telemetry (fire-and-forget, non-critical) ──────────────────
+      const info = await getAppInfo();
+      const FV   = firebase.firestore.FieldValue;
+
+      // 1. users/{uid} — last-known client state (overwritten each session).
+      //    Used for deployment targeting: "push to all darwin arm64 on < 1.8".
+      db.collection("users").doc(uid).set({
+        studioVersion:   info.appVersion       || null,
+        studioElectron:  info.electron         || null,
+        studioPlatform:  info.platform         || null,
+        studioArch:      info.arch             || null,
+        studioOsRelease: info.osRelease        || null,
+        studioOsVersion: info.osVersion        || null,
+        studioLang:      state.lang            || null,
+        studioLocale:    navigator.language    || null,
+        studioLastSeen:  FV.serverTimestamp(),
+      }, { merge: true }).catch(() => {});
+
+      // 2. users/{uid}/telemetry/studio — aggregated lifetime metrics.
+      //    Never overwritten — only grows. Standard Firebase pattern:
+      //    increment() for counters, arrayUnion() for sets, serverTimestamp() for events.
+      db.collection("users").doc(uid)
+        .collection("telemetry").doc("studio")
+        .set({
+          sessionsCount: FV.increment(1),
+          versionsUsed:  FV.arrayUnion(info.appVersion || "?"),
+          platformsUsed: FV.arrayUnion(info.platform   || "?"),
+          lastSeen:      FV.serverTimestamp(),
+        }, { merge: true }).catch(() => {});
+
       // Reflect in open edit-account modal if already open
       if ($("editAccountModalOverlay").classList.contains("open")) {
         $("eacAdminBadge").classList.toggle("hidden", !state.isAdmin);
@@ -12465,164 +12725,247 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // ── Electron RFID integration ──
   if (window.electronAPI) {
 
-    // Reader connect / disconnect (legacy sidebar indicator)
-    window.electronAPI.onReaderStatus(({ connected, name }) => {
-      const el = $("rfidStatus");
-      const lbl = $("rfidLabel");
-      el.style.display = "flex";
-      el.classList.toggle("ok",  connected);
-      el.classList.toggle("bad", !connected);
-      lbl.textContent = connected ? t("rfidConnected", {name: name || "—"}) : t("rfidNoReader");
-    });
+    // ── Reader badge rendering (topbar) ─────────────────────────────────────
+    function renderRfidReaderBadges() {
+      const bar = $("rfidReadersBar");
+      if (!bar) return;
+      if (state.nfcReaders.size === 0) {
+        // No reader connected — always show a placeholder badge in red
+        bar.innerHTML = `<div class="rfid-reader-badge disconnected" data-tooltip="${t("rfidNoReader")}">
+          <span class="rrd-dot"></span>
+          <span class="rrd-name">RFID</span>
+        </div>`;
+        return;
+      }
+      bar.innerHTML = [...state.nfcReaders].map((name, idx) => {
+        const card      = state.nfcCardPresent.get(name);
+        const shortName = `RFID #${idx + 1}`;
+        const cls       = card ? 'rfid-reader-badge connected card-present' : 'rfid-reader-badge connected';
+        const tip       = card ? `UID: ${card.uid}` : shortName;
+        return `<div class="${cls}" data-tooltip="${tip}">
+          <span class="rrd-dot"></span>
+          <span class="rrd-name">${shortName}</span>
+        </div>`;
+      }).join('');
+    }
+
+    // ── Legacy onReaderStatus — noop (rfid-reader-update covers it) ─────────
+    window.electronAPI.onReaderStatus(() => {});
 
     // ── "+ Auto-add" button ──────────────────────────────────────────────────
-    // No reader → open panel (shows "connect your Pod" info).
-    // Reader connected → toggle auto-add mode only; panel opens on chip scan.
     $("btnAddScan")?.addEventListener("click", () => {
-      // No reader: open info panel so user knows what hardware to get
       if (state.nfcReaderCount === 0) _openScanPanel();
-      // Reader connected: scanning is always active — nothing to toggle
     });
     $("scanPanelClose")?.addEventListener("click", _closeScanPanel);
     $("scanPanelOverlay")?.addEventListener("click", _closeScanPanel);
-
-    // Settings > Tools shortcut
     $("btnOpenPodScan")?.addEventListener("click", _openScanPanel);
+    // Show disconnected badge immediately on load
+    renderRfidReaderBadges();
 
-    // Update UI state when a reader connects / disconnects
+    // Clicking the disconnected RFID badge opens TigerPOD discovery modal
+    $("rfidReadersBar")?.addEventListener("click", e => {
+      if (e.target.closest(".rfid-reader-badge.disconnected")) {
+        openTigerPodModal();
+      }
+    });
+
+    // ── Reader connect / disconnect ──────────────────────────────────────────
     window.electronAPI.onRfidReaderUpdate(({ name, connected }) => {
-      state.nfcReaderCount = Math.max(0, state.nfcReaderCount + (connected ? 1 : -1));
+      if (connected) {
+        state.nfcReaders.add(name);
+      } else {
+        state.nfcReaders.delete(name);
+        state.nfcCardPresent.delete(name);
+      }
+      state.nfcReaderCount = state.nfcReaders.size;
       const hasReader = state.nfcReaderCount > 0;
-
-      // Button: full opacity + pulsing dot when reader active, dimmed when none
       const btn = $("btnAddScan");
       btn?.classList.toggle("has-reader", hasReader);
-      btn?.classList.toggle("scanning",   hasReader); // dot animation = reader active
-
-      // Panel is only for "no reader" — close it when first reader connects
+      btn?.classList.toggle("scanning",   hasReader);
       const panelOpen = $("scanPanel")?.classList.contains("open");
       if (panelOpen && hasReader) _closeScanPanel();
+      renderRfidReaderBadges();
+
+      // Track max simultaneous RFID readers (TigerPOD usage telemetry)
+      const n = state.nfcReaders.size;
+      if (n > _telRfidMax) {
+        _telRfidMax = n;
+        _recordUsage({ rfidReadersMax: n });
+      }
     });
 
+    // ── Card present / removed — badge update ───────────────────────────────
+    window.electronAPI.onRfidCardPresent(({ readerName, uid }) => {
+      if (uid) state.nfcCardPresent.set(readerName, { uid });
+      else     state.nfcCardPresent.delete(readerName);
+      renderRfidReaderBadges();
+    });
+
+    // Legacy uid event — open detail if already in inventory
     window.electronAPI.onRfid((uid) => {
-      console.log('[RFID] scanned uid:', uid);
-
-      // Flash the RFID indicator
-      const el = $("rfidStatus");
-      el.style.display = "flex";
-      el.classList.add("ok");
-      $("rfidLabel").textContent = t("rfidScanned", {uid: uid.slice(-6)});
-
-      // Known UID (uid is now hex, matching SDK uidHex and stored spoolId)
       const row = state.rows.find(r => r.uid === uid || r.spoolId === uid);
       if (row) openDetail(row.spoolId);
-      // Unknown / TigerTag chip → full parse handled by onRfidTagScanned
     });
 
-    // Full parsed tag on card placement.
-    // Known spool  → detail panel opens (handled by onRfid above).
-    // Unknown spool → auto-add to Firestore if "+ Auto-add" is armed,
-    //                 then open the detail panel once inventory snapshot lands.
-    window.electronAPI.onRfidTagScanned(async (tagData) => {
-      const uid = tagData.uid;
+    // ── Dual-scan buffer — collects up to 2 readers within 1.5 s ────────────
+    // Both chips of a twin-tag spool arrive within ~500 ms; we wait 1.5 s so
+    // a second scan is always included before processing.
+    const _rfidScanBuffer = new Map(); // readerName → tagData
+    let   _rfidScanTimer  = null;
 
-      // Init tags carry no product data — silently skip
-      if (!tagData.id_material && !tagData.id_brand) return;
+    function _flushRfidScans() {
+      _rfidScanTimer = null;
+      if (_rfidScanBuffer.size === 0) return;
+      const scans = new Map(_rfidScanBuffer);
+      _rfidScanBuffer.clear();
+      _processNfcScans(scans).catch(e => console.error('[RFID] processNfcScans:', e));
+    }
 
-      // Known spool — open detail directly
-      const knownRow = state.rows.find(r => r.uid === uid || r.spoolId === uid);
-      if (knownRow) { openDetail(knownRow.spoolId); return; }
+    window.electronAPI.onRfidTagScanned((tagData) => {
+      const readerName = tagData._readerName || 'reader';
+      _rfidScanBuffer.set(readerName, tagData);
+      clearTimeout(_rfidScanTimer);
+      _rfidScanTimer = setTimeout(_flushRfidScans, 1500);
+    });
 
-      // Unknown spool — always auto-add and open detail
+    // ── Main NFC scan processor ──────────────────────────────────────────────
+    // 1 or 2 chips simultaneously.
+    // Twin detection: |timestamp1 − timestamp2| ≤ 2 s → same spool → auto-link.
+    // Upsert:
+    //   UID absent            → create
+    //   UID present, same ts  → overwrite (data may have changed on chip)
+    //   UID present, diff ts  → chip was erased & rewritten → delete + recreate
+    async function _processNfcScans(scans) {
       const user = fbAuth().currentUser;
       if (!user) return;
 
-      const api = tagData._api || null; // full rawApi() response, null for Maker tags
+      // Drop Init chips (blank, no material/brand)
+      const validScans = [...scans.values()].filter(td => td.id_material || td.id_brand);
+      if (validScans.length === 0) return;
 
-      // online_color_list — prefer API colors (include alpha), fallback to chip RGB
-      const _toHex = (r, g, b) => `#${[r,g,b].map(v => (v||0).toString(16).padStart(2,'0')).join('')}`;
-      const _isRealColor = (r, g, b) => r || g || b;
-      const colorList = api?.filament?.color_info?.colors
-        ?? [
-          [tagData.color_r,  tagData.color_g,  tagData.color_b],
-          [tagData.color_r2, tagData.color_g2, tagData.color_b2],
-          [tagData.color_r3, tagData.color_g3, tagData.color_b3],
-        ].filter(([r,g,b]) => _isRealColor(r,g,b)).map(([r,g,b]) => _toHex(r,g,b));
+      // Twin detection
+      let twinMap = null;
+      if (validScans.length === 2) {
+        const [td1, td2] = validScans;
+        if (Math.abs((td1.timestamp || 0) - (td2.timestamp || 0)) <= 2) {
+          twinMap = { [td1.uid]: td2.uid, [td2.uid]: td1.uid };
+          console.log('[RFID] Twin tags detected:', td1.uid, '↔', td2.uid);
+        }
+      }
 
+      const processedUids = [];
+      for (const tagData of validScans) {
+        const uid = tagData.uid;
+        if (!uid) continue;
+        const twinUid = twinMap ? (twinMap[uid] ?? null) : null;
+        const docRef  = fbDb().collection('users').doc(user.uid)
+          .collection('inventory').doc(uid);
+        try {
+          const existing = await docRef.get();
+          if (existing.exists) {
+            const stored = existing.data();
+            if (stored.timestamp !== tagData.timestamp) {
+              // Chip was fully erased & rewritten — clean slate
+              console.log('[RFID] Chip rewritten (ts changed) — delete + recreate:', uid);
+              await docRef.delete();
+            } else {
+              console.log('[RFID] Updating chip:', uid);
+            }
+          } else {
+            console.log('[RFID] New chip — creating:', uid);
+          }
+          await _writeChipDoc(docRef, tagData, twinUid);
+          processedUids.push(uid);
+        } catch (e) {
+          console.error('[RFID] upsert failed for', uid, ':', e);
+        }
+      }
+
+      // Open detail panel for the first chip (local cache fires fast)
+      if (processedUids.length > 0) {
+        const firstUid = processedUids[0];
+        const _tryOpen = () => {
+          const row = state.rows.find(r => r.uid === firstUid || r.spoolId === firstUid);
+          if (row) openDetail(row.spoolId);
+        };
+        setTimeout(_tryOpen, 150);
+        setTimeout(_tryOpen, 600); // retry if snapshot was slow
+      }
+    }
+
+    // ── Build and write one chip document to Firestore ───────────────────────
+    // tagData  = toRawDict() output  (+ _api for TigerTag+, + _readerName)
+    // twinUid  = partner chip UID, null if solo scan
+    async function _writeChipDoc(docRef, tagData, twinUid) {
+      // Write strictly what the chip reported via SDK toRawDict() — nothing invented.
+      // Field name mapping: SDK snake_case → Firestore schema (data1-7 convention).
       const doc = {
-        // ── Chip fields (toRawDict) ──────────────────────────────────────
-        uid:          tagData.uid,
-        id_brand:     tagData.id_brand    || 0,
-        id_material:  tagData.id_material || 0,
-        id_type:      tagData.id_type     || 142,
-        id_aspect1:   tagData.id_aspect1  || 104,
-        id_aspect2:   tagData.id_aspect2  || 255,
-        id_unit:      tagData.id_unit     || 21,
-        id_product:   tagData.id_product  || 0xFFFFFFFF,
-        id_tigertag:  tagData.id_tigertag || 0,
-        color_r:      tagData.color_r  ?? 0,
-        color_g:      tagData.color_g  ?? 0,
-        color_b:      tagData.color_b  ?? 0,
-        color_a:      tagData.color_a  ?? 255,
-        color_r2:     tagData.color_r2 ?? 0,
-        color_g2:     tagData.color_g2 ?? 0,
-        color_b2:     tagData.color_b2 ?? 0,
-        color_r3:     tagData.color_r3 ?? 0,
-        color_g3:     tagData.color_g3 ?? 0,
-        color_b3:     tagData.color_b3 ?? 0,
-        data1:        tagData.id_diameter || 56,
-        data2:        tagData.nozzle_min  || 0,
-        data3:        tagData.nozzle_max  || 0,
-        data4:        tagData.dry_temp    || 0,
-        data5:        tagData.dry_time    || 0,
-        data6:        tagData.bed_min     || 0,
-        data7:        tagData.bed_max     || 0,
-        measure:          tagData.measure           || 0,
-        measure_gr:       tagData.measure_available || tagData.measure || 0,
-        weight_available: tagData.measure_available || tagData.measure || 0,
-        message:      tagData.message || '',
-        TD:           tagData.td_raw > 0 ? tagData.td_raw : null,
-        timestamp:    tagData.timestamp || Math.floor(Date.now() / 1000),
-        // ── Cloud fields (rawApi) — only present for TigerTag+ ───────────
-        name:               api?.name               ?? '',
-        sku:                api?.sku                ?? '',
-        barcode:            api?.barcode            ?? '',
-        series:             api?.series             ?? '',
-        emoji:              api?.emoji              ?? '',
-        online_color:       api?.filament?.color    ?? null,
-        online_color_list:  colorList,
-        online_color_type:  api?.filament?.color_info?.type ?? null,
-        url_img:            api?.images?.main_src   ?? null,
-        LinkTDS:            api?.links?.tds         ?? '--',
-        LinkMSDS:           api?.links?.msds        ?? '--',
-        LinkROHS:           api?.links?.rohs        ?? '--',
-        LinkREACH:          api?.links?.reach       ?? '--',
-        LinkTIPS:           api?.links?.tips        ?? '--',
-        LinkFOOD:           api?.links?.food        ?? '--',
-        LinkYoutube:        api?.links?.youtube     ?? '--',
-        info1:              api?.filament?.refill   ?? false,
-        info2:              api?.filament?.recycled ?? false,
-        info3:              api?.filament?.filled   ?? false,
-        // ── Metadata ─────────────────────────────────────────────────────
-        last_update:  Date.now(),
-        updatedAt:    firebase.firestore.FieldValue.serverTimestamp(),
-        needUpdateAt: null,
-        deleted:      null,
-        deleted_at:   null,
+        uid:              tagData.uid,
+        id_tigertag:      tagData.id_tigertag  ?? 0,
+        id_product:       tagData.id_product   ?? 0xFFFFFFFF,
+        id_material:      tagData.id_material  ?? 0,
+        id_aspect1:       tagData.id_aspect1   ?? 0,
+        id_aspect2:       tagData.id_aspect2   ?? 0,
+        id_type:          tagData.id_type      ?? 0,
+        id_brand:         tagData.id_brand     ?? 0,
+        id_unit:          tagData.id_unit      ?? 0,
+        color_r:          tagData.color_r      ?? 0,
+        color_g:          tagData.color_g      ?? 0,
+        color_b:          tagData.color_b      ?? 0,
+        color_a:          tagData.color_a      ?? 255,
+        color_r2:         tagData.color_r2     ?? 0,
+        color_g2:         tagData.color_g2     ?? 0,
+        color_b2:         tagData.color_b2     ?? 0,
+        color_r3:         tagData.color_r3     ?? 0,
+        color_g3:         tagData.color_g3     ?? 0,
+        color_b3:         tagData.color_b3     ?? 0,
+        data1:            tagData.id_diameter  ?? 0,
+        data2:            tagData.nozzle_min   ?? 0,
+        data3:            tagData.nozzle_max   ?? 0,
+        data4:            tagData.dry_temp     ?? 0,
+        data5:            tagData.dry_time     ?? 0,
+        data6:            tagData.bed_min      ?? 0,
+        data7:            tagData.bed_max      ?? 0,
+        measure:          tagData.measure      ?? 0,
+        measure_gr:       tagData.measure_gr   ?? 0,
+        weight_available: tagData.measure_available_gr || tagData.measure_gr || 0,
+        td_raw:           tagData.td_raw       ?? 0,
+        timestamp:        tagData.timestamp    ?? 0,
+        // twin_tag_uid is a Studio relationship, not a chip field — preserve as-is
+        twin_tag_uid:     twinUid || null,
+        last_update:      Date.now(),
+        updatedAt:        firebase.firestore.FieldValue.serverTimestamp(),
       };
 
-      try {
-        await fbDb()
-          .collection('users').doc(user.uid)
-          .collection('inventory').doc(uid)
-          .set(doc);
-        console.log('[RFID] auto-added spool:', uid);
-        // Open detail panel once onSnapshot picks up the new spool (local cache fires fast)
-        setTimeout(() => openDetail(uid), 150);
-      } catch (e) {
-        console.error('[RFID] auto-add failed:', e);
+      // message — chip field, but omit when empty (saves space, easier to spot real data)
+      if (tagData.message) doc.message = tagData.message;
+
+      // ── API fields — TigerTag+ only, written only when present in the response ─
+      const api = tagData._api;
+      if (api) {
+        if (api.name)                          doc.name               = api.name;
+        if (api.sku)                           doc.sku                = api.sku;
+        if (api.barcode)                       doc.barcode            = api.barcode;
+        if (api.series)                        doc.series             = api.series;
+        if (api.images?.main_src)              doc.url_img            = api.images.main_src;
+        if (api.filament?.color)               doc.online_color       = api.filament.color;
+        if (api.filament?.color_info?.colors?.length)
+                                               doc.online_color_list  = api.filament.color_info.colors;
+        if (api.filament?.color_info?.type)    doc.online_color_type  = api.filament.color_info.type;
+        if (api.links?.tds)                    doc.LinkTDS            = api.links.tds;
+        if (api.links?.msds)                   doc.LinkMSDS           = api.links.msds;
+        if (api.links?.rohs)                   doc.LinkROHS           = api.links.rohs;
+        if (api.links?.reach)                  doc.LinkREACH          = api.links.reach;
+        if (api.links?.tips)                   doc.LinkTIPS           = api.links.tips;
+        if (api.links?.food)                   doc.LinkFOOD           = api.links.food;
+        if (api.links?.youtube)                doc.LinkYoutube        = api.links.youtube;
+        if (api.filament?.refill)              doc.info1              = true;
+        if (api.filament?.recycled)            doc.info2              = true;
+        if (api.filament?.filled)              doc.info3              = true;
       }
-    });
+
+      await docRef.set(doc);
+    }
 
     // ── Scan Panel helpers ──────────────────────────────────────────────────
     // #scanPanel is exclusively the "no reader connected" info screen.

@@ -5,6 +5,37 @@ Mis à jour en fin de chaque session Claude.
 
 ---
 
+## 2026-05-23 — v1.8.0
+
+### Demandes
+- Cloud spool encoding : écrire un Cloud spool sur 1 ou 2 puces physiques (TigerPOD)
+- Fix NFC NTAG read (blockSize=4)
+- TD1s : multi-slot color scan (1-3 couleurs)
+- Telemetrie pro deux niveaux (last-known state + lifetime aggregates)
+- Badge RFID toujours visible, rouge quand déconnecté
+- TigerPOD modal : refonte complète basée sur la page MakerWorld
+- Banners cloud + chip update entièrement cliquables + routing vers TigerPOD quand pas de lecteur
+- Badge RFID header → clic → TigerPOD modal
+- Firestore Security Rules pour telemetry/studio (dépôt séparé, déployé)
+
+### Fichiers modifiés
+| Fichier | Nature de la modification |
+|---------|--------------------------|
+| `main.js` | `rfid:encode-cloud` IPC handler (payload once, write to N readers); `app:info` → `osVersion` via `os.version()` |
+| `preload.js` | Expose `encodeCloudSpool` au renderer |
+| `services/nfc-process.js` | NTAG read: `READ_BLOCK_SIZE=4` (fix overlap); reader registry `Map`; `readerName` dans `rfid-tag-scanned` |
+| `renderer/IoT/td1s/edit-modals.js` | `openTdEditModal` redirige vers `openColorEditModal`; multi-slot 1-3 couleurs |
+| `renderer/IoT/td1s/td1s.css` | Styles multi-slot color edit |
+| `renderer/inventory.js` | `_encodeCloud`, `_burnRfid`, `_recordUsage`, `openTigerPodModal`/`closeTigerPodModal`; `renderRfidReaderBadges` (always visible, disconnected state); banner click handlers (cloud + chip update); RFID badge header → TigerPOD; telemetrie dans `syncUserDoc` + guards TD1s + RFID max; 3 triggers TigerPOD modal |
+| `renderer/inventory.html` | TigerPOD modal refondu (hero+stats bar, grid 2×2 features, print spec strip, CTA orange) |
+| `renderer/css/60-modals.css` | TigerPOD card 400px, hero product name + stats bar, features grid, print spec, CTA button; RFID disconnected badge (red, pulse, pointer, hover) |
+| `renderer/css/70-detail-misc.css` | `.chip-update-banner` cursor:pointer; `.chip-encode-btn.chip-encode-warning` variant |
+| `renderer/locales/*.json` | +13 clés TigerPOD redesign; `tigerPodModalDesc` raccourci; 778 clés × 9 locales |
+| `CLAUDE.md` | Schema Firestore telemetry documenté |
+| `../TigerTag_Firebase_Backend/firestore.rules` | Règles `users/{uid}/telemetry/{docId}`; déployé |
+
+---
+
 ## 2026-05-11 — v1.5.0
 
 ### Demandes

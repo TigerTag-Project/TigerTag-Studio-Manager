@@ -133,8 +133,9 @@ function normalizeUid(raw) {
 const { TigerTag } = require('tigertag');
 
 // IPC payload — toRawDict() first, then rawApi() if TigerTag+.
-async function _sdkPayload(tag) {
+async function _sdkPayload(tag, readerName = null) {
   const raw = tag.toRawDict();
+  if (readerName) raw._readerName = readerName;
   if (tag.apiUrl) {
     try {
       const api = await tag.rawApi();
@@ -246,7 +247,7 @@ async function _onNfcMessage(msg) {
           const uidBuf   = Buffer.from(uid, 'hex'); // 7 bytes — provided natively by the reader
           const tag      = TigerTag.fromPages(uidBuf, rawBytes);
           console.log(`[NFC] Card present on ${msg.readerName} — uid: ${tag.uidHex}`);
-          mainWindow?.webContents.send('rfid-tag-scanned', await _sdkPayload(tag));
+          mainWindow?.webContents.send('rfid-tag-scanned', await _sdkPayload(tag, msg.readerName));
         } catch (e) {
           console.warn('[NFC] SDK parse failed:', e.message);
         }
@@ -424,6 +425,65 @@ ipcMain.handle('rfid:write-now', async (_evt, opts) => {
     console.error('[NFC] write-now failed:', result.error);
   }
   return result;
+});
+
+// Cloud → chip encoding — called when the user wants to program a Cloud spool onto
+// one or two physical RFID chips.
+//
+// opts = {
+//   cloudDoc : Firestore doc (id_material, data1-7, color_*, weight_available, …)
+//   targets  : [{ readerName, uid }]  — readers that currently hold a blank chip
+//              UID is known by the renderer from state.nfcCardPresent
+// }
+//
+// The payload is built ONCE (toBytes() called once) so that both chips receive
+// identical bytes — same timestamp guaranteed.
+//
+// Returns { ok, results: [{ readerName, uid, ok, pagesWritten?, error? }] }
+ipcMain.handle('rfid:encode-cloud', async (_evt, { cloudDoc, targets }) => {
+  if (!_nfcChild) return { ok: false, error: 'NFC process not running' };
+  if (!Array.isArray(targets) || targets.length === 0)
+    return { ok: false, error: 'No target readers provided' };
+
+  // ── Build payload ONCE — same bytes → same timestamp for all chips ──────────
+  let pages;
+  try {
+    const tag      = TigerTag.fromCloudDoc(cloudDoc).patch({ timestamp: Math.floor(Date.now() / 1000) });
+    const newBytes = tag.toBytes(false); // 80 bytes, pages 0x04-0x17
+    pages = _pagesToWrite(newBytes, null); // full write — new blank chips
+  } catch (e) {
+    return { ok: false, error: `SDK build failed: ${e.message}` };
+  }
+
+  // ── Write same pages to every target reader ──────────────────────────────────
+  const results = [];
+  for (const { readerName, uid } of targets) {
+    if (!_nfcReaders.has(readerName)) {
+      results.push({ readerName, uid, ok: false, error: 'Reader not connected' });
+      continue;
+    }
+    if (!_nfcCardPresent.has(readerName)) {
+      results.push({ readerName, uid, ok: false, error: 'No card present' });
+      continue;
+    }
+    const reqId = `encode-${Date.now()}-${Math.random()}`;
+    const result = await new Promise((resolve) => {
+      const timeout = setTimeout(() => {
+        _nfcWriteResolvers.delete(reqId);
+        resolve({ ok: false, error: 'Write timed out' });
+      }, 10000);
+      _nfcWriteResolvers.set(reqId, { resolve, timeout });
+      _nfcChild.postMessage({ type: 'write-now', readerName, reqId, pages });
+    });
+    results.push({ readerName, uid, ok: result.ok, pagesWritten: result.pagesWritten, error: result.error });
+    if (result.ok) {
+      console.log(`[NFC] encode-cloud: ${readerName} (${uid}) — ${result.pagesWritten} pages written`);
+    } else {
+      console.error(`[NFC] encode-cloud: ${readerName} failed:`, result.error);
+    }
+  }
+
+  return { ok: results.some(r => r.ok), results };
 });
 
 // Helper — split 80-byte user-data buffer into page descriptors.
@@ -1345,15 +1405,19 @@ ipcMain.handle('mdns:browse-snapmaker', async () => {
 });
 
 // ── App info (used by the diagnostic / error report panel) ─────────────────
-ipcMain.handle('app:info', () => ({
-  appVersion:     app.getVersion(),
-  electron:       process.versions.electron,
-  chrome:         process.versions.chrome,
-  node:           process.versions.node,
-  platform:       process.platform,
-  arch:           process.arch,
-  osRelease:      require('os').release(),
-}));
+ipcMain.handle('app:info', () => {
+  const os = require('os');
+  return {
+    appVersion:  app.getVersion(),
+    electron:    process.versions.electron,
+    chrome:      process.versions.chrome,
+    node:        process.versions.node,
+    platform:    process.platform,
+    arch:        process.arch,
+    osRelease:   os.release(),
+    osVersion:   os.version(),   // human-readable: "macOS 15.4", "Windows 11 Pro", etc.
+  };
+});
 
 // Expose the absolute renderer directory path so the renderer can build
 // a file:// preload path for <webview> elements (e.g. Creality camera).

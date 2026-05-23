@@ -1,0 +1,159 @@
+# Tiger Studio Manager
+
+> Desktop companion for the TigerTag RFID filament-tracking ecosystem. Electron app — Vanilla JS + Firebase + NFC.
+
+Tiger Studio Manager is an Electron (v41) desktop application for managing 3D-printing filament spools tagged with TigerTag RFID chips. It provides real-time Firestore inventory sync, live 3D printer integration for 5 brands, NFC chip read/write, hardware sensors (color sensor, scale), rack storage management, and a friends system — all in a single window without a build step (no bundler).
+
+Current version: **1.8.0** — macOS (Intel + Apple Silicon, signed & notarized), Windows, Linux.
+
+## Architecture
+
+- **Entry point**: `main.js` (Electron main process)
+- **Renderer**: `renderer/inventory.html` + `renderer/inventory.js` (single IIFE, ~12 000 lines) + modular CSS in `renderer/css/`
+- **Preload bridge**: `preload.js` — exposes IPC handlers to renderer via `window.electronAPI`
+- **NFC**: `services/nfc-process.js` runs as a `utilityProcess` (not a Worker Thread) to avoid SIGABRT on macOS; communicates via IPC
+- **Printer integrations**: `renderer/printers/<brand>/index.js` — one file per brand, loaded dynamically
+- **IoT sensors**: `renderer/IoT/td1s/` (TD1S color sensor), `renderer/IoT/tigerscale/` (TigerScale ESP32)
+- **CSS**: `renderer/css/00-base.css` → `70-detail-misc.css` (8 files, loaded in numeric order via `<link>` tags)
+- **i18n**: `renderer/locales/` — 9 JSON files (en/fr/de/es/it/zh/pt/pt-pt/pl), managed via `npm run i18n:add`
+- **TigerTag SDK**: `@tigertag/sdk` npm package — parse, verify, encode TigerTag NTAG chips (pages 4–39, 144 bytes, blockSize=4)
+
+## Key source files
+
+- `renderer/CODEMAP.md` — maps every feature in `inventory.js` to a line range and anchor function name. **Read this before grepping inventory.js.**
+- `renderer/inventory.js` — all application logic: state management, Firestore subscriptions, UI rendering, NFC handling, printer comms, friends system, telemetry
+- `main.js` — IPC handlers: `app:info`, `rfid:encode-cloud`, `rfid:write-chip`, `rfid:read-chip`, `rfid:reader-update`, window management, auto-update
+- `preload.js` — contextBridge: exposes `electronAPI` (IPC wrappers), `td1s` (TD1S sensor events)
+- `services/nfc-process.js` — NFC utilityProcess: reader lifecycle, NTAG read (READ_START_PAGE=4, READ_LENGTH=144, READ_BLOCK_SIZE=4), card-present events
+
+## State object (renderer)
+
+```
+state = {
+  inventory,        // raw Firestore docs { [spoolId]: data }
+  rows,             // normalizeRow() output array
+  selected,         // open detail panel spoolId
+  nfcReaders,       // Set<readerName> — connected readers
+  nfcCardPresent,   // Map<readerName, {uid}> — readers with a card on them
+  friends, friendRequests,
+  publicKey,        // XXX-XXX discovery code
+  privateKey,       // 40-char hex access token
+  isPublic, isAdmin, debugEnabled,
+  lang, i18n, viewMode, sortCol, sortDir,
+  activeAccountId, displayName, db
+}
+```
+
+## Firestore data model
+
+```
+publicKeys/{key}           → { uid, claimedAt }
+userProfiles/{uid}         → { publicKey, displayName, isPublic, color_* }
+users/{uid}                → { displayName, email, publicKey, privateKey, isPublic, roles, Debug,
+                               studioVersion, studioElectron, studioPlatform, studioArch,
+                               studioOsRelease, studioOsVersion, studioLang, studioLocale,
+                               studioLastSeen }
+  /inventory/{spoolId}     → { uid, id_brand, id_material, color_name, online_color_list,
+                               weight_available, container_weight, container_id, capacity,
+                               updatedAt, deleted, twin_uid }
+  /telemetry/studio        → { sessionsCount, versionsUsed[], platformsUsed[], lastSeen,
+                               td1sUsed, rfidReadersMax }
+  /friends/{friendUid}     → { displayName, addedAt, key }
+  /friendRequests/{uid}    → { displayName, requestedAt, key }
+  /blacklist/{uid}         → { displayName, blockedAt }
+  /racks/{rackId}          → rack layout docs
+  /printers/{brand}/...    → printer connection docs
+  /prefs/app               → { lang }
+  /scales/{mac}            → TigerScale heartbeat
+  /apiKeys/{docId}         → API key docs
+  /telemetry/{docId}       → aggregated usage metrics
+  /uidMigrationMap/{id}    → decimal → hex UID migration
+```
+
+Cloud spools have `spoolId` starting with `CLOUD_`. `normalizeRow()` sets `r.isCloud = true` for these. On encoding, the Cloud doc is promoted: `spoolId` replaced by the chip UID, Cloud doc hard-deleted.
+
+## NFC / RFID system
+
+- **ACR122U** via `nfc-pcsc` in a `utilityProcess` — avoids SIGABRT on macOS
+- **NTAG read**: `reader.read(4, 144, 4)` — start page 4, 144 bytes (36 pages), blockSize=4 (critical: prevents sliding-window overlap)
+- **Chip encode**: `TigerTag.fromCloudDoc(doc).patch({ timestamp }).toBytes(false)` → 80 bytes → write pages 4–0x17
+- **Multi-reader**: up to 2 simultaneous readers; `state.nfcCardPresent` Map tracks which reader has a card
+- **TigerPOD**: free 3D-printable stand (MakerWorld #1289152) with 2 reader slots for dual encoding
+
+RFID badge in header: always visible. Red + pulsing = no reader connected, clicking opens TigerPOD modal. Green = connected. Card-present variant = chip on reader.
+
+TigerPOD modal opens from three triggers: (1) cloud spool banner click with no reader, (2) "Please update RFID" banner click with no reader, (3) red RFID badge click.
+
+## Printer integrations
+
+Each brand has `renderer/printers/<brand>/PROTOCOL.md` (self-contained spec) and `index.js` (implementation).
+
+| Brand | Protocol | Port |
+|---|---|---|
+| Bambu Lab | MQTTS TLS | 8883 |
+| Creality | WebSocket | 9999 |
+| Elegoo | MQTT | 1883 |
+| FlashForge | HTTP poll + TCP M-codes | 8898 / 8899 |
+| Snapmaker | Moonraker WebSocket | 7125 |
+
+All brands: printer discovery (mDNS + port scan + manual IP), filament edit per slot, camera widget.
+
+## Sensors
+
+- **TD1S** (`renderer/IoT/td1s/`) — USB color + TD sensor. `window.td1s.onStatus(cb)` supports multiple listeners (IPC `on`, not `once`). Scan color (1–3 slots) and TD value independently or together.
+- **TigerScale** (`renderer/IoT/tigerscale/`) — ESP32 scale over WebSocket. Live weight, container/filament split, TARE (hold-to-confirm), twin UID grid.
+
+## i18n system
+
+`t(key, params?)` — looks up `state.i18n[state.lang][key]`, fallback chain: requested lang → en → key itself. Supports `{{param}}` interpolation, `["array"]` random pick, `{"one":"…","other":"…"}` plurals.
+
+**Never edit locale JSON files by hand.** Use:
+```bash
+npm run i18n:add -- myKey --after existingKey en="..." fr="..." de="..." es="..." it="..." zh="..." pt="..." pt-pt="..." pl="..."
+npm run i18n:check   # validates consistency (also runs as pre-commit hook)
+```
+778 keys × 9 locales as of v1.8.0.
+
+## CSS conventions
+
+- One dimension + `aspect-ratio` for SVG mask icons (never both `width` and `height`)
+- Asset URLs: `url('../../assets/svg/icons/…')` from `renderer/css/` (two `..` to project root)
+- Specificity: double class selector instead of `!important` when fighting global rules
+- Hold-to-confirm buttons: `setupHoldToConfirm(el, durationMs, cb)` with `<span class="hold-progress"></span>` child
+
+## Key JS patterns
+
+- **Modals**: `.modal-overlay` + `.modal-card`, toggled via `.open` class
+- **Resizable panels**: `makePanelResizable(panelEl, handleEl, storageKey)` — drag handle, localStorage persistence
+- **Weight slider auto-save**: 500 ms debounce → Firestore write; `.wb-saving` pulse class during window
+- **Health indicator**: `#health` cloud icon; `fromCache === false` → green, `true` → red; lazy RTT ping on `mouseenter`
+- **Telemetry**: two-level — `users/{uid}` (last-known, overwrite) + `users/{uid}/telemetry/studio` (lifetime, FieldValue.increment/arrayUnion). Guards `_telTd1s` / `_telRfidMax` prevent duplicate writes per session.
+
+## Auth & security
+
+- Firebase Auth (Google OAuth loopback PKCE + email/password)
+- `displayName` always from Firestore `users/{uid}.displayName` (pseudo), never from Firebase Auth `user.displayName` (Google real name)
+- `roles` and `Debug` fields writable only via Firebase Admin SDK / Cloud Function — never by client
+- Firestore Security Rules enforce owner-only access; friends granted inventory read via presence in `friends/` subcollection
+
+## LocalStorage keys
+
+`tigertag.accounts` · `tigertag.activeAccount` · `tigertag.inv.<id>` · `tigertag.view` · `tigertag.lang` · `tigertag.sidebar` · `tigertag.panelWidth.detail` · `tigertag.panelWidth.debug`
+
+## Build & release
+
+```bash
+npm start                          # dev (no bundler)
+npm run i18n:check                 # validate all 9 locales
+git tag v1.8.0 && git push --tags  # triggers CI: parallel build macOS/Windows/Linux → GitHub Release
+```
+
+CI: `.github/workflows/build.yml` — Apple Developer ID signing + notarytool on macOS, electron-builder on all platforms, publishes to GitHub Releases.
+
+## Optional docs
+
+- `renderer/CODEMAP.md` — line ranges for every feature in `inventory.js`
+- `ROADMAP.md` — what's done / in progress / backlog, grouped by domain
+- `DEVLOG.md` — per-session engineering journal
+- `renderer/printers/<brand>/PROTOCOL.md` — self-contained agent skill per printer brand
+- `TIGERTAG_FIREBASE_INTEGRATION.md` — third-party Firebase integration guide
