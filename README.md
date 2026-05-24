@@ -53,6 +53,21 @@ It works standalone (no reader needed), but unlocks its full potential with:
 
 ---
 
+## Open source ecosystem
+
+Everything around TigerTag is open — the hardware, the firmware, the SDK, and this app.
+
+| Project | What it is | License |
+|---|---|---|
+| **[Tiger Studio Manager](https://github.com/TigerTag-Project/TigerTag-Studio-Manager)** | This app — desktop companion for filament management | MIT |
+| **[TigerTag SDK for JavaScript](https://github.com/TigerTag-Project/TigerTag-SDK-JS)** | Parse, verify, and encode TigerTag NFC chips — used internally by this app | MIT |
+| **[TigerScale](https://github.com/TigerTag-Project/Tiger-Scale)** | ESP32 firmware + hardware for the open-source filament scale | MIT |
+| **[TigerPOD](https://makerworld.com/en/models/1289152)** | Free 3D-printable dual ACR122U reader stand — print it, no purchase needed | Free STL |
+
+The **TigerTag SDK** is the low-level library that handles all NFC chip operations — reading the 144-byte NTAG payload, verifying the TigerTag format, and encoding new chip data. It is published as an npm package (`tigertag`) and can be used independently to build custom TigerTag-compatible tools.
+
+---
+
 ## Features
 
 ### 🗂 Inventory
@@ -78,9 +93,19 @@ Live integrations for 5 brands — real-time temperatures, filament per slot, ac
 Each brand supports: filament edit per slot, printer discovery (mDNS + port-scan + Add by IP), camera widget.
 
 ### 📦 Storage / Racks
-- Drag-and-drop rack editor — Skyline masonry layout, slot locking, auto-fill / auto-store
-- Unranked panel — spools not yet assigned to a rack
-- Rich hover tooltip on filled slots (color, weight bar, coordinates)
+
+<div>
+<img src="assets/img/Panda_Feed_Rack_Standard.png" width="180" alt="Panda Feed Rack Standard" />
+<img src="assets/img/Panda_Feed_Rack_Extended.png" width="180" alt="Panda Feed Rack Extended" />
+<img src="assets/img/Panda_Feed_Rack_Mini.png" width="180" alt="Panda Feed Rack Mini" />
+<img src="assets/img/Box_6_Spools.png" width="180" alt="Box 6 Spools" />
+</div>
+
+Organize your filament collection into physical racks — drag spools onto slots, auto-fill from inventory, and always know where each spool sits:
+- **Drag-and-drop rack editor** — Skyline masonry layout, slot locking, auto-fill / auto-store
+- **Rack presets** — built-in templates for popular racks (Panda Feed Standard, Extended, Mini, Box 6, and more)
+- **Unranked panel** — spools not yet assigned to a rack, always visible at a glance
+- **Rich hover tooltip** on filled slots — color swatch, weight bar, brand, and coordinates
 
 ### 🤝 Friends & Sharing
 - Discovery code `XXX-XXX` — share with friends for O(1) lookup
@@ -91,9 +116,26 @@ Each brand supports: filament edit per slot, printer discovery (mDNS + port-scan
 ### ⚖ Sensors & Devices
 
 #### ACR122U NFC reader
-Plug in a USB ACR122U reader and the app automatically opens the matching spool's detail panel the moment you scan a chip — no button, no search, instant access. With a **TigerPOD** (free 3D-printable stand), you can place up to two chips simultaneously and encode a Cloud spool onto both in one click.
+Plug in a USB ACR122U reader and the app automatically opens the matching spool's detail panel the moment you scan a chip — no button, no search, instant access.
+
+#### 🐯 TigerPOD — free 3D-printable dual reader stand
+
+<video src="assets/video/tiger_pod/helper_tiger_pod_movies.mp4" controls width="100%"></video>
+
+The **TigerPOD** is a free 3D-printable stand designed to hold up to **two ACR122U readers** side by side. Place one or two TigerTag chips on it and encode both in a single click directly from Tiger Studio Manager — no manual positioning, no juggling readers.
+
+| | |
+|---|---|
+| **Print** | No supports needed — print in place, fits 99 % of 1 kg standard spools |
+| **Readers** | 1 or 2 × ACR122U — encode two chips simultaneously (Dual Link) |
+| **License** | Free — download, print, use |
+
+**[⬇ Download free STL on MakerWorld](https://makerworld.com/en/models/1289152)**
 
 #### TD1S color sensor
+
+<img src="assets/img/TD1S_Front.png" width="320" alt="TD1S USB filament color and TD sensor" />
+
 The [TD1S](https://tigertag.io/products/biqu-ajax-td1s-v1-0) is TigerTag's USB filament color and transmission density sensor. Place the filament in the sensor and it reads:
 - **Color** — precise HEX value written directly to the spool's `online_color_list`
 - **TD value** — Transmission Density, a measure of filament transparency used by compatible slicers
@@ -101,6 +143,9 @@ The [TD1S](https://tigertag.io/products/biqu-ajax-td1s-v1-0) is TigerTag's USB f
 The TD1S auto-opens a live viewer when plugged in. In the spool detail panel, scan color and TD separately or together. In the **Add Product** panel, the TD1S icon in the header glows green when connected — scanning auto-fills both fields in the form.
 
 #### TigerScale
+
+<img src="assets/img/TigerScale_Photo.png" width="480" alt="TigerScale ESP32 filament scale" />
+
 The [TigerScale](https://github.com/TigerTag-Project/Tiger-Scale) is an open-source ESP32-based filament scale. Tiger Studio Manager connects to it over WebSocket and shows a live card per scale:
 - **56 px live weight display** with container / filament split
 - **Send-status badge** — tracks the firmware lifecycle: `idle → scanning → stable → send → success`
