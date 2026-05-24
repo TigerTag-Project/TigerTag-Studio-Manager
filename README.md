@@ -63,6 +63,7 @@ Everything around TigerTag is open — the hardware, the firmware, the SDK, and 
 |---|---|---|
 | **[Tiger Studio Manager](https://github.com/TigerTag-Project/TigerTag-Studio-Manager)** | This app — desktop companion for filament management | MIT |
 | **[TigerTag SDK for JavaScript](https://github.com/TigerTag-Project/TigerTag-SDK-JS)** | Parse, verify, and encode TigerTag NFC chips — used internally by this app | MIT |
+| **[TigerTag SDK for Python](https://github.com/TigerTag-Project/TigerTag-SDK-Python)** | Parse, verify, and encode TigerTag NFC chips in Python — for scripts, tools, and automation | MIT |
 | **[TigerScale](https://github.com/TigerTag-Project/Tiger-Scale)** | ESP32 firmware + hardware for the open-source filament scale | MIT |
 | **[TigerPOD](https://makerworld.com/en/models/1289152)** | Free 3D-printable dual ACR122U reader stand — print it, no purchase needed | Free STL |
 
