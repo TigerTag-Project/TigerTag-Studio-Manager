@@ -4,6 +4,8 @@
 
 - **README: TigerPOD section** — dedicated subsection with embedded video, feature table, and MakerWorld download link — `README.md`
 - **README: Open source ecosystem section** — table of all 4 open source components (Studio Manager, SDK JS, TigerScale, TigerPOD) with repo links, licenses, and SDK description — `README.md`
+- **README: Screenshots section** — 6 app screenshots in 3×2 grid (inventory, printers, racks, cam, TD1S, TigerPOD) replacing "coming soon" — `README.md`, `assets/img/screenshots/`
+- **README: TigerPOD video** — replaced `<video>` tag with clickable thumbnail (`screenshot_tigerpod.png`) linking to the mp4 — `README.md`
 - **README: TD1S section** — photo (`TD1S_Front.png`) added above feature description — `README.md`
 - **README: TigerScale section** — photo (`TigerScale_Photo.png`) added above feature list — `README.md`
 - **README: Storage / Racks section** — 4 rack preset photos added (Standard, Extended, Mini, Box 6), feature list expanded with rack presets mention — `README.md`

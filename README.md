@@ -94,12 +94,7 @@ Each brand supports: filament edit per slot, printer discovery (mDNS + port-scan
 
 ### 📦 Storage / Racks
 
-<div>
-<img src="assets/img/Panda_Feed_Rack_Standard.png" width="180" alt="Panda Feed Rack Standard" />
-<img src="assets/img/Panda_Feed_Rack_Extended.png" width="180" alt="Panda Feed Rack Extended" />
-<img src="assets/img/Panda_Feed_Rack_Mini.png" width="180" alt="Panda Feed Rack Mini" />
-<img src="assets/img/Box_6_Spools.png" width="180" alt="Box 6 Spools" />
-</div>
+<img src="assets/img/Panda_Feed_Rack_Standard.png" width="480" alt="Panda Feed Rack Standard" />
 
 Organize your filament collection into physical racks — drag spools onto slots, auto-fill from inventory, and always know where each spool sits:
 - **Drag-and-drop rack editor** — Skyline masonry layout, slot locking, auto-fill / auto-store
@@ -120,7 +115,9 @@ Plug in a USB ACR122U reader and the app automatically opens the matching spool'
 
 #### 🐯 TigerPOD — free 3D-printable dual reader stand
 
-<video src="assets/video/tiger_pod/helper_tiger_pod_movies.mp4" controls width="100%"></video>
+<a href="assets/video/tiger_pod/helper_tiger_pod_movies.mp4">
+  <img src="assets/img/screenshots/screenshot_tigerpod.png" width="100%" alt="▶ Watch TigerPOD demo" />
+</a>
 
 The **TigerPOD** is a free 3D-printable stand designed to hold up to **two ACR122U readers** side by side. Place one or two TigerTag chips on it and encode both in a single click directly from Tiger Studio Manager — no manual positioning, no juggling readers.
 
@@ -170,7 +167,21 @@ A QR code to download the mobile app is always accessible in the sidebar.
 
 ## Screenshots
 
-> _Screenshots coming soon._
+<div>
+
+| Inventory | Printers |
+|---|---|
+| ![Inventory](assets/img/screenshots/screenshot_inventory.png) | ![Printers](assets/img/screenshots/screenshot_printers.png) |
+
+| Storage Racks | Camera Wall |
+|---|---|
+| ![Racks](assets/img/screenshots/screenshot_racks.png) | ![Camera Wall](assets/img/screenshots/screenshot_cam.png) |
+
+| TD1S color sensor | TigerPOD |
+|---|---|
+| ![TD1S](assets/img/screenshots/screenshot_td1s.png) | ![TigerPOD](assets/img/screenshots/screenshot_tigerpod.png) |
+
+</div>
 
 ---
 
