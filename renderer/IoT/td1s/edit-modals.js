@@ -40,6 +40,7 @@ const _tdIds = {
 let _colorEditRow     = null;
 let _colorEditWaiting = false;
 let _colorEditData    = null;
+let _colorEditOnSave  = null;  // optional callback(update) — set by openColorEditModal callers that don't have a real spoolId (e.g. ADP)
 let _ceNumColors      = 1;    // 1, 2, or 3 — driven by r.colorList.length
 let _ceActiveSlot     = 0;    // currently selected slot in TD1S mode
 let _ceSlotValues     = [];   // hex6 strings per slot (no #, no alpha), init from colorList
@@ -92,9 +93,10 @@ export function closeTdEditModal() {
   window.td1s?.release();
 }
 
-export function openColorEditModal(r) {
+export function openColorEditModal(r, onSave = null) {
   const { $, state } = _ctx;
   _colorEditRow = r; _colorEditWaiting = false; _colorEditData = null;
+  _colorEditOnSave = onSave || null;
   _ceActiveSlot = 0;
 
   // Determine color sources:
@@ -147,7 +149,7 @@ export function openColorEditModal(r) {
 
 export function closeColorEditModal() {
   const { $, t } = _ctx;
-  _colorEditRow = _colorEditData = null; _colorEditWaiting = false;
+  _colorEditRow = _colorEditData = null; _colorEditWaiting = false; _colorEditOnSave = null;
   _ceNumColors = 1; _ceActiveSlot = 0; _ceSlotValues = [];
   [$("colorEditBtnTdOnly"), $("colorEditBtnColorOnly"), $("colorEditBtnAll"),
    ..._ceManualBtns()]
@@ -266,6 +268,12 @@ function _setEditState(ids, s) {
 async function _saveTdHex(row, update, lockBtns, unlockBtns, closeFn, tag) {
   const { state, fbDb } = _ctx;
   if (!row) return;
+  // If an onSave callback was registered (e.g. ADP "add product" mode), bypass Firestore.
+  if (_colorEditOnSave && row === _colorEditRow) {
+    _colorEditOnSave(update);
+    closeFn();
+    return;
+  }
   const uid = state.activeAccountId; if (!uid) return;
   lockBtns.forEach(b => { if (b) b.disabled = true; });
   if (CHIP_FIELDS.some(f => f in update)) update.needUpdateAt = Date.now();
@@ -334,6 +342,25 @@ function _tdEditSaveManual() {
 
 // ── Color Edit — slot builder + receive + save ────────────────────────────
 
+// Returns true if the 6-char hex color is perceptually light (needs dark icon + dark hover ring).
+function _ceIsLight(hex) {
+  if (!/^[0-9A-Fa-f]{6}$/.test(hex)) return false;
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.55;
+}
+
+// Apply background color + matching icon color + light/dark class to a swatch button.
+function _ceUpdateSwatch(swatchEl, hex) {
+  const valid = /^[0-9A-Fa-f]{6}$/.test(hex);
+  swatchEl.style.background = valid ? `#${hex}` : "#2a2a2a";
+  const light = valid && _ceIsLight(hex);
+  swatchEl.classList.toggle("ce-swatch--light", light);
+  const ic = swatchEl.querySelector(".ce-swatch-edit");
+  if (ic) ic.style.background = light ? '#000' : '#fff';
+}
+
 // Build N picker rows in #ceManualSlots (State 1, manual / no TD1S)
 function _ceBuildManualSlots() {
   const container = document.getElementById("ceManualSlots");
@@ -347,8 +374,11 @@ function _ceBuildManualSlots() {
     row.dataset.slot = i;
     row.innerHTML = `
       ${_ceNumColors > 1 ? `<span class="ce-slot-label">${i + 1}</span>` : ""}
-      <button class="ce-swatch" id="ceSlot${i}Swatch" type="button"
-        style="background:${valid ? `#${hex}` : "#2a2a2a"}"></button>
+      <button class="ce-swatch${valid && _ceIsLight(hex) ? " ce-swatch--light" : ""}" id="ceSlot${i}Swatch" type="button"
+        style="background:${valid ? `#${hex}` : "#2a2a2a"}">
+        <span class="icon icon-edit icon-12 ce-swatch-edit" aria-hidden="true"
+          style="background:${valid && _ceIsLight(hex) ? '#000' : '#fff'}"></span>
+      </button>
       <input type="color" id="ceSlot${i}Native" tabindex="-1"
         style="position:absolute;opacity:0;width:0;height:0;pointer-events:none"
         ${valid ? `value="#${hex}"` : ""}>
@@ -364,14 +394,14 @@ function _ceBuildManualSlots() {
     // Native picker → sync swatch + hex text
     row.querySelector(`#ceSlot${i}Native`).addEventListener("input", e => {
       const h = e.target.value.replace(/^#/, "").toUpperCase();
-      row.querySelector(`#ceSlot${i}Swatch`).style.background = `#${h}`;
+      _ceUpdateSwatch(row.querySelector(`#ceSlot${i}Swatch`), h);
       row.querySelector(`#ceSlot${i}Hex`).value = `#${h}`;
     });
     // Hex text → sync swatch + native picker
     row.querySelector(`#ceSlot${i}Hex`).addEventListener("input", () => {
       const h = (row.querySelector(`#ceSlot${i}Hex`).value || "").replace(/^#/, "");
       const v = /^[0-9A-Fa-f]{6}$/.test(h);
-      row.querySelector(`#ceSlot${i}Swatch`).style.background = v ? `#${h}` : "#2a2a2a";
+      _ceUpdateSwatch(row.querySelector(`#ceSlot${i}Swatch`), v ? h : "");
       if (v) row.querySelector(`#ceSlot${i}Native`).value = `#${h}`;
     });
   }

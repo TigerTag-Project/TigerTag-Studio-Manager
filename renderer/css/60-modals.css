@@ -736,15 +736,6 @@
     flex-shrink: 0;
     line-height: 1.4;
   }
-  /* Welcome greeting under the name in own-user mode. Subtle muted text,
-     same vertical rhythm as the READ-ONLY badge but without the chip
-     background — it's an emoji-prefixed greeting, not a status flag. */
-  .fvb-welcome {
-    font-size: 11px; color: var(--muted);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    max-width: 160px;
-    line-height: 1.2;
-  }
 
   /* read-only weight bar (no slider) */
   .wb-track--ro { pointer-events: none; }
@@ -1300,41 +1291,52 @@
   .rfid-readers-bar { display: flex; align-items: center; gap: 6px; }
   .rfid-reader-badge {
     display: flex; align-items: center; gap: 5px;
-    padding: 3px 8px; border-radius: 20px;
-    background: var(--surface-2); border: 1px solid var(--border);
-    font-size: 11px; color: var(--muted); cursor: default;
-    transition: border-color .2s, background .2s;
+    padding: 3px 9px; border-radius: 999px;
+    background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.13);
+    font-size: 11px; font-weight: 600; color: var(--muted); cursor: default;
+    transition: border-color .2s, background .2s, color .2s;
     position: relative;
   }
   .rfid-reader-badge .rrd-dot {
-    width: 7px; height: 7px; border-radius: 50%;
+    width: 6px; height: 6px; border-radius: 50%;
     background: var(--muted); flex-shrink: 0;
     transition: background .2s, box-shadow .2s;
   }
-  /* reader connected, no card */
+  /* reader connected, no card — subtle green tint */
+  .rfid-reader-badge.connected {
+    background: rgba(26,175,108,.12);
+    border-color: rgba(26,175,108,.35);
+    color: var(--success);
+  }
   .rfid-reader-badge.connected .rrd-dot {
     background: var(--success);
     box-shadow: 0 0 5px var(--success);
     animation: rfidPulse 2s ease-in-out infinite;
   }
-  /* card present on reader */
+  /* card present — filled green gradient, white text */
   .rfid-reader-badge.card-present {
-    border-color: var(--success); color: var(--text);
-    background: rgba(var(--success-rgb, 74,222,128), .08);
+    background: linear-gradient(90deg, #0d8a52, #1aaf6c);
+    border-color: transparent;
+    color: #fff;
   }
   .rfid-reader-badge.card-present .rrd-dot {
-    background: var(--success);
-    box-shadow: 0 0 8px var(--success);
+    background: rgba(255,255,255,.75);
+    box-shadow: 0 0 6px rgba(255,255,255,.5);
     animation: none;
   }
-  /* no reader connected */
+  /* no reader connected — filled red gradient, white text */
+  .rfid-reader-badge.disconnected {
+    background: linear-gradient(90deg, #be2d2d, #d83b3b);
+    border-color: transparent;
+    color: #fff;
+    opacity: .85; cursor: pointer;
+  }
+  .rfid-reader-badge.disconnected:hover { opacity: 1; }
   .rfid-reader-badge.disconnected .rrd-dot {
-    background: var(--danger);
-    box-shadow: 0 0 5px var(--danger);
+    background: rgba(255,255,255,.75);
+    box-shadow: 0 0 5px rgba(255,255,255,.4);
     animation: rfidPulse 2s ease-in-out infinite;
   }
-  .rfid-reader-badge.disconnected { color: var(--danger); border-color: var(--danger); opacity: .7; cursor: pointer; }
-  .rfid-reader-badge.disconnected:hover { opacity: 1; }
   .rfid-reader-badge .rrd-name { max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .rfid-reader-badge .rrd-uid {
     font-family: monospace; font-size: 10px;
@@ -2873,10 +2875,11 @@
 
 /* ── Hero — purple gradient + pulsing rings + product identity ── */
 .tigerpod-hero {
-  position: relative; height: 200px; overflow: hidden;
+  position: relative; height: 240px; overflow: hidden;
   background: linear-gradient(135deg, #3a1590 0%, #6b3de8 55%, #9a6fff 100%);
   display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 8px;
+  padding-top: 16px;
   padding-bottom: 36px; /* leave room for stats bar */
 }
 /* Concentric pulsing rings */
@@ -2894,13 +2897,13 @@
   60%  { opacity: .12; }
   100% { opacity: 0;   transform: scale(1.15); }
 }
-/* NFC icon */
-.tigerpod-hero-icon {
+/* Helper video */
+.tigerpod-hero-video {
   position: relative; z-index: 1;
-  height: 30px; aspect-ratio: 48/32;
-  background-color: rgba(255,255,255,.85);
-  -webkit-mask-image: url('../../assets/svg/icons/icon_rfid.svg');
-  -webkit-mask-size: contain; -webkit-mask-repeat: no-repeat; -webkit-mask-position: center;
+  height: 156px; width: auto;
+  border-radius: 10px;
+  box-shadow: 0 4px 24px rgba(0,0,0,.45);
+  object-fit: cover;
 }
 /* Product name block */
 .tigerpod-hero-name {
@@ -2931,11 +2934,15 @@
   padding: 1px 6px; font-weight: 700; color: rgba(255,255,255,.95);
   font-size: 11px; letter-spacing: .04em;
 }
+.tigerpod-cta {
+  font-size: 12px; font-weight: 600;
+  color: rgba(255,255,255,.9); letter-spacing: .03em;
+}
 
 /* ── Body ── */
 .tigerpod-body {
-  padding: 20px 22px 22px;
-  display: flex; flex-direction: column; gap: 14px;
+  padding: 28px 26px 28px;
+  display: flex; flex-direction: column; gap: 18px;
 }
 .tigerpod-title {
   font-size: 16px; font-weight: 700; color: var(--text); margin: 0; text-align: center;
@@ -2962,6 +2969,18 @@
 .tpfi-bolt    { -webkit-mask-image: url('../../assets/svg/icons/icon_bolt.svg');    }
 .tpfi-check   { -webkit-mask-image: url('../../assets/svg/icons/icon_check.svg');   }
 .tpfi-package { -webkit-mask-image: url('../../assets/svg/icons/icon_package.svg'); }
+/* Numbered feature badge */
+.tigerpod-feat-num {
+  flex-shrink: 0;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ff7a18, #ffb056);
+  color: #fff;
+  font-size: 11px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+  margin-top: 1px;
+  box-shadow: 0 2px 6px rgba(255,122,24,.4);
+}
 .tigerpod-feat-text {
   display: flex; flex-direction: column; gap: 1px; min-width: 0;
 }

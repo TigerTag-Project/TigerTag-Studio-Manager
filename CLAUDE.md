@@ -32,6 +32,94 @@ Every file read and grep costs tokens. Follow these rules on every task to keep 
 - **Complex task** (multi-file refactor, new system, multi-layer debugging, architecture) → if reasoning feels shallow or you keep making mistakes, ask to switch to **claude-opus**. Phrasing: *"This task is complex — switching to Opus will give a better result."*
 - Do not wait for the user to notice a problem: signal the mismatch as soon as it is obvious.
 
+---
+
+## 📋 WORKLOG.md — running change log
+
+`WORKLOG.md` at the repo root is the **single source of truth** for everything done since the last commit. It replaces memory and makes commit prep instant.
+
+### Rule 1 — Update immediately after every change
+
+Do not batch updates. The moment you finish editing a file, append the entry to `WORKLOG.md`. If you delete something — write it in `Removed`. If you fix a bug in something you just added — merge into the existing entry. The log must reflect reality at all times.
+
+### File format
+
+```markdown
+# Worklog — vX.Y.Z (in progress)
+
+## Added
+- Short description — `file.js`, `file.css`
+
+## Changed
+- Short description — `file.js` (what and why)
+
+## Fixed
+- Bug description — `printers/bambulab/index.js`
+
+## Removed
+- What was deleted and why — `file.js`, `file.css`, i18n keys
+
+## i18n
+- Added: `key1`, `key2` — 9 locales
+- Removed: `oldKey1`, `oldKey2` — 9 locales
+```
+
+Rules:
+- One bullet = one logical change. Group sub-bullets under it if needed.
+- Always name the file(s) touched.
+- For removals: state **what** was removed, **why**, and **which files** it touched (JS + CSS + HTML + locales).
+- i18n section: always list keys by name, never just a count.
+
+### Rule 2 — Keep it clean as you go
+
+WORKLOG.md is a working draft, not a commit log. Apply these edits in real time:
+
+- **Intermediate steps vanish.** If you added a feature and then changed it three times, the final entry describes the end state only — not the journey.
+- **Bugs in the same session collapse.** "Added X" + "Fixed X" → one "Added X (with fix for Y)" entry, not two.
+- **Reverts disappear entirely.** If you added something and then removed it in the same session, delete both entries — it never shipped, it has no place in the log.
+- **No implementation noise.** WORKLOG describes *what changed for the user / codebase*, not how Claude did it ("updated selector on line 42", "added guard in bambuConnect"). One sentence per logical change.
+
+### Rule 3 — Synthesize at commit time
+
+Before writing the `CHANGELOG.md` entry, do one final editorial pass on WORKLOG:
+
+1. **Merge related items.** Several "TigerPOD modal" entries → one grouped bullet with sub-items.
+2. **Drop ephemeral noise.** Version bump, llms.txt update, internal refactors with no user-visible effect → omit or fold into a single "internal" line.
+3. **User-facing language.** CHANGELOG is read by end users. Rewrite technical entries in plain language ("Bambu MQTT: fix _normState null return" → "Bambu Lab: printer state no longer resets to idle when receiving a status update mid-print").
+4. **Verify i18n delta.** Run `npm run i18n:check` — confirm key count matches WORKLOG before writing the CHANGELOG line.
+
+### At commit time (3 steps, in order)
+
+1. **Synthesize `WORKLOG.md`** (Rule 3 above) → write the new `CHANGELOG.md` entry
+2. **Include `WORKLOG.md` in the commit** — it is part of the repo history (future sessions can read it via `git show`)
+3. **Reset `WORKLOG.md`** immediately after committing — replace with the blank template for the next version (bump the version number in the header):
+
+```markdown
+# Worklog — vX.Y.Z (in progress)
+
+## Added
+
+## Changed
+
+## Fixed
+
+## Removed
+
+## i18n
+```
+
+**The old data is not lost** — it exists in two permanent places:
+- `git show HEAD:WORKLOG.md` — the raw working log, forever in git history
+- `CHANGELOG.md` — the synthesized release entry, human-readable
+
+The working file is wiped so it stays clean and unambiguous: whatever is in `WORKLOG.md` right now is *only* what has been done since the last commit, nothing older.
+
+### Before starting any task
+
+`Read WORKLOG.md` at the start of a new session — it tells you exactly what has been done since the last commit, without relying on the conversation summary.
+
+---
+
 ## Stack
 Electron (no bundler) + vanilla HTML/CSS/JS. Entry: `main.js`. Renderer: `renderer/inventory.html` + modular CSS in `renderer/css/` + `renderer/inventory.js`. Preload bridge: `preload.js`.
 

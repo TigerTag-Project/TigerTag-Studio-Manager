@@ -48,7 +48,7 @@ import { renderSnapCamBanner } from './printers/snapmaker/widget_camera.js';
 import { openSnapAddFlow } from './printers/snapmaker/add-flow.js';
 import { snapFanPct, snapFanStep, renderSnapControlCard } from './printers/snapmaker/widget_control.js';
 import { openFfgAddFlow }  from './printers/flashforge/add-flow.js';
-import { renderCreCamBanner, startCreCam, stopCreCam } from './printers/creality/widget_camera.js';
+import { renderCreCamBanner, startCreCam, stopCreCam, reAttachCreCamConsumers, addCreCamConsumer, removeCreCamConsumer } from './printers/creality/widget_camera.js';
 import {
   snapKey, snapGetConn, snapIsOnline,
   snapPingPrinter,
@@ -627,10 +627,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const hex  = toHex(data.color_r,  data.color_g,  data.color_b);
     const hex2 = toHex(data.color_r2, data.color_g2, data.color_b2);
     const hex3 = toHex(data.color_r3, data.color_g3, data.color_b3);
-    // isPlus = true only when url_img comes from the TigerTag API (catalog
-    // product). User-provided images are flagged with url_img_user:true so
-    // they keep their DIY/Cloud tier and the edit row stays visible.
-    const isPlus = data.url_img && data.url_img !== "--" && data.url_img !== "" && !data.url_img_user;
+    // isPlus = true when the chip type is TigerTag+ (id_tigertag resolves to
+    // a version whose name is "TigerTag+"). The old url_img heuristic was
+    // unreliable — the chip type is the authoritative source.
+    const isPlus = versionName(data.id_tigertag) === "TigerTag+";
     // Cloud-only entry: doc id starts with `CLOUD_` (the prefix written by
     // _adpCloudId() in the Add Product flow). When the user later programs
     // a physical chip, the doc gets renamed to a real 7-byte hex UID and
@@ -737,15 +737,25 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     }
   });
 
+  /* ── Display-name helpers ── */
+  // Returns name if set, otherwise the part before @ in email (never shows a
+  // raw email address or "—" to the user — everyone has an email).
+  // Returns a human-friendly display name — never a raw email address.
+  // If name is already an email (stored as fallback), trims it to the prefix.
+  function _shortName(name, email) {
+    if (name) return name.includes("@") ? name.split("@")[0] : name;
+    if (email) return email.split("@")[0];
+    return "—";
+  }
+
   /* ── connected state ── */
   function setConnected(displayName, email) {
-    state.displayName = displayName;
-    const initials = displayName
-      ? displayName.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2)
-      : (email || "?")[0].toUpperCase();
+    state.displayName = displayName; // raw value — empty if not yet chosen by user
+    const shown = _shortName(displayName, email);
+    const initials = shown.split(/[\s._-]+/).filter(Boolean).map(w => w[0]).join("").toUpperCase().slice(0, 2) || "?";
     $("sbAvatar").textContent = initials;   // removes child nodes incl. SVG "+"
     $("sbWelcome").textContent = t("welcomeBack");
-    $("sbName").textContent = displayName || email || "—";
+    $("sbName").textContent = shown;
     $("sbUser").classList.remove("sb-user--empty");
     applyAvatarStyle(activeAccount());
     // Render the top-header chip (own user variant — avatar + display name
@@ -834,7 +844,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     let html = accounts.map(acc => `
       <button class="acct-drop-item${acc.id===activeId?' active':''}" data-drop-id="${esc(acc.id)}">
         <span class="acct-drop-avatar" style="background:${getAccGradient(acc)};color:${readableTextOn(getAccShadow(acc))}">${esc(getInitials(acc))}</span>
-        <span class="acct-drop-name">${esc(acc.displayName || acc.email)}</span>
+        <span class="acct-drop-name">${esc(_shortName(acc.displayName, acc.email))}</span>
         ${acc.id===activeId ? '<span class="acct-drop-check">✓</span>' : ''}
       </button>`).join("");
 
@@ -858,9 +868,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         const color = friendColor(f);
         const fg = readableTextOn(color);
         const isActive = state.friendView?.uid === f.uid;
-        return `<button class="acct-drop-item${isActive ? ' acct-drop-friend-active' : ''}" data-drop-friend-uid="${esc(f.uid)}" data-drop-friend-name="${esc(f.displayName || f.uid)}" data-drop-friend-color="${esc(color)}">
+        return `<button class="acct-drop-item${isActive ? ' acct-drop-friend-active' : ''}" data-drop-friend-uid="${esc(f.uid)}" data-drop-friend-name="${esc(_shortName(f.displayName, f.uid))}" data-drop-friend-color="${esc(color)}">
           <span class="acct-drop-avatar" style="background:${color};color:${fg}">${initials}</span>
-          <span class="acct-drop-name">${esc(f.displayName || f.uid)}</span>
+          <span class="acct-drop-name">${esc(_shortName(f.displayName, f.uid))}</span>
           ${isActive ? '<span class="acct-drop-check">✓</span>' : '<span class="acct-drop-eye"><span class="icon icon-eye-on icon-11"></span></span>'}
         </button>`;
       }).join("");
@@ -2275,11 +2285,24 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     else openAddProductPanel();
   });
   $("addProductClose")?.addEventListener("click", _adpCloseAllSheetsAndPanel);
-  // TD1S button in ADP header: open connect modal if not detected,
-  // open tester if already connected.
+  // TD1S button in ADP header: open "Set Color & TD Value" modal pre-filled
+  // with the current ADP color slots. The callback writes the result back
+  // into _adpColorSlots / adpTd instead of Firestore (no real spoolId yet).
   $("adpTd1sBtn")?.addEventListener("click", () => {
-    if (state.td1sConnected) { openTd1sTesterModal(); return; }
-    openTd1sConnectModal();
+    const colorList = _adpColorSlots.slice(0, _adpSlotCount()).map(h => h.replace(/^#/, ""));
+    const r = { colorList, td: parseFloat($("adpTd")?.value) || null };
+    openColorEditModal(r, update => {
+      if (Array.isArray(update.online_color_list) && update.online_color_list.length) {
+        update.online_color_list.forEach((hex, i) => {
+          if (i < _adpColorSlots.length) _adpColorSlots[i] = `#${hex.replace(/^#/, "")}`;
+        });
+        _adpUpdateCircle();
+        _adpRenderSlotRow();
+      }
+      if (update.TD != null) {
+        const inp = $("adpTd"); if (inp) inp.value = update.TD;
+      }
+    });
   });
   $("adpCancel")?.addEventListener("click", _adpCloseAllSheetsAndPanel);
   $("adpSave")?.addEventListener("click", saveAddProduct);
@@ -2903,16 +2926,19 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     return (ACCOUNT_COLORS[acc?.color] || ACCOUNT_COLORS.orange)[0];
   }
 
-  // Persist avatar colour as RGB integers in users/{uid} so any surface can read it
+  // Persist avatar colour as RGB integers in users/{uid} so any surface can read it,
+  // and sync the single hex field to userProfiles/{uid} so friends see it immediately.
   function saveColorToFirestore(acc) {
     try {
       const user = fbAuth().currentUser;
       if (!user || user.uid !== acc.id) return;
-      const hex = accPrimaryHex(acc).replace(/^#/, "");
+      const primaryHex = accPrimaryHex(acc);
+      const hex = primaryHex.replace(/^#/, "");
       const r = parseInt(hex.slice(0,2), 16);
       const g = parseInt(hex.slice(2,4), 16);
       const b = parseInt(hex.slice(4,6), 16);
-      fbDb().collection("users").doc(user.uid).set({ color_r: r, color_g: g, color_b: b }, { merge: true });
+      fbDb(user.uid).collection("users").doc(user.uid).set({ color_r: r, color_g: g, color_b: b }, { merge: true });
+      syncUserProfile(user.uid, { color: primaryHex });
     } catch (e) { /* non-blocking */ }
   }
 
@@ -2976,13 +3002,16 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       const accounts = getAccounts();
       const idx = accounts.findIndex(a => a.id === _editingAccount.id);
       if (idx >= 0) { accounts[idx].displayName = newName; saveAccounts(accounts); _editingAccount = accounts[idx]; }
-      // 4. Refresh UI
+      // 4. Sync public profile so friends see the new name immediately
+      if (user) syncUserProfile(user.uid, { displayName: newName });
+      // 5. Refresh UI
       $("eacName").textContent = newName; $("eacName").style.display = "";
       $("eacAvatar").textContent = getInitials(_editingAccount);
       if (_editingAccount.id === state.activeAccountId) {
         state.displayName = newName;
         $("sbName").textContent = newName;
         $("sbAvatar").textContent = getInitials(_editingAccount);
+        renderFriendBanner();
       }
       renderAccountDropdown();
       res.style.color = "var(--primary)"; res.textContent = "✓ Saved";
@@ -3855,6 +3884,16 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         snapshot.forEach(doc => { raw[doc.id] = doc.data(); });
         state.inventory = raw;
         state.rows = snapshot.docs.map(doc => normalizeRow(doc.id, doc.data()));
+
+        // On first live snapshot: silently refresh API data for every TigerTag+
+        // spool that has no product image yet. Fire-and-forget — each write
+        // triggers a new snapshot that re-renders the panel automatically.
+        if (wasLoading && !snapshot.metadata.fromCache && window.electronAPI?.refreshApiData) {
+          state.rows
+            .filter(r => r.isPlus && !r.isCloud && !raw[r.spoolId]?.url_img)
+            .forEach(r => _refreshApiData(r, { silent: true }));
+        }
+
         // One-time migration: remove any legacy soft-delete tombstones
         // (deleted: true) left over from the pre-v1.7.4 scheme.
         // Fire-and-forget — errors logged, never blocking.
@@ -3958,7 +3997,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       applyTranslations();
     }
 
-    setConnected(acc.displayName || email, email);
+    setConnected(acc.displayName, email); // _shortName fallback applied inside
 
     // Show cached inventory while Firestore connects
     try {
@@ -4058,14 +4097,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       <div class="prf-section-label">${t("friendsList")}</div>`;
     if (state.friends && state.friends.length) {
       html += `<div class="prf-list">${state.friends.map(f => {
-          const name = esc(f.displayName || f.uid);
+          const name = esc(_shortName(f.displayName, f.uid));
           const color = friendColor(f);
           const fg = readableTextOn(color);
           const initials = (f.displayName || "?").split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
           const isActive = state.friendView?.uid === f.uid;
           return `
           <button class="prf-account-card prf-friend-card${isActive ? " prf-friend-active" : ""}"
-                  data-fv-uid="${esc(f.uid)}" data-fv-name="${esc(f.displayName || f.uid)}" data-fv-color="${esc(color)}">
+                  data-fv-uid="${esc(f.uid)}" data-fv-name="${esc(_shortName(f.displayName, f.uid))}" data-fv-color="${esc(color)}">
             <span class="prf-account-avatar" style="background:${color};color:${fg}">${initials}</span>
             <span class="prf-account-info">
               <span class="prf-account-name">${name}</span>
@@ -4192,15 +4231,17 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (!all.length) { el.classList.add("hidden"); return; }
     const kgFull = `${Math.round(totalW / 1000)} kg`;
     const kgMini = kgFull;
+    const tf = state.typeFilter;
     el.innerHTML = [
-      { label: t("statActive"), mini: t("statActiveMini"), value: active.length, miniVal: active.length },
-      { label: t("statTotal"),  mini: t("statTotalMini"),  value: kgFull,         miniVal: kgMini },
-      { label: t("statDiy"),    mini: t("statDiyMini"),    value: diy,            miniVal: diy },
-      { label: t("statPlus"),   mini: t("statPlusMini"),   value: plus.length,    miniVal: plus.length },
-      { label: t("statCloud"),  mini: t("statCloudMini"),  value: cloud.length,   miniVal: cloud.length, cloud: true },
-    ].map(s =>
-      `<div class="sb-stat${s.cloud ? " sb-stat--cloud" : ""}" data-mini="${s.mini}" data-mini-val="${s.miniVal}"><div class="value">${s.value}</div><div class="label">${s.label}</div></div>`
-    ).join("");
+      { label: t("statActive"), mini: t("statActiveMini"), value: active.length, miniVal: active.length, filter: "reset" },
+      { label: t("statTotal"),  mini: t("statTotalMini"),  value: kgFull,         miniVal: kgMini,        filter: "reset" },
+      { label: '<span class="tag-diy">TigerTag</span>',          mini: t("statDiyMini"),   value: diy,          miniVal: diy,          filter: "TigerTag" },
+      { label: '<span class="tag-plus">TigerTag+</span>',        mini: t("statPlusMini"),  value: plus.length,  miniVal: plus.length,  filter: "TigerTag+" },
+      { label: '<span class="tag-cloud">TigerTag Cloud</span>',  mini: t("statCloudMini"), value: cloud.length, miniVal: cloud.length, filter: "TigerTag Cloud", cloud: true },
+    ].map(s => {
+      const isActive = s.filter !== "reset" && tf === s.filter;
+      return `<div class="sb-stat${s.cloud ? " sb-stat--cloud" : ""}${isActive ? " is-active" : ""}" data-filter="${s.filter}" data-mini="${s.mini}" data-mini-val="${s.miniVal}"><div class="value">${s.value}</div><div class="label">${s.label}</div></div>`;
+    }).join("");
     el.classList.remove("hidden");
   }
 
@@ -4544,16 +4585,24 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         }
         return;
       }
-      $("card-inv").classList.add("hidden");
-      $("card-welcome").classList.remove("hidden");
+      // Keep card-inv visible so the search bar + toolbar remain accessible
+      // even when the inventory is empty — the user must be able to Add product
+      // or Auto Scan their first spool from this empty state.
+      $("card-welcome").classList.add("hidden");
+      $("card-inv").classList.remove("hidden");
+      $("invTableWrap").classList.add("hidden");
+      $("invGrid").classList.add("hidden");
+      $("invEmpty").classList.add("hidden");
+      $("invRackView")?.classList.add("hidden");
+      $("invPrinterView")?.classList.add("hidden");
 
       if (state.invLoading) {
-        $("invWelcome").innerHTML = `<div class="inv-loading"><div class="inv-loading-spin"></div><span>${t("invLoading")}</span></div>`;
+        $("mainResult").innerHTML = `<div class="inv-loading"><div class="inv-loading-spin"></div><span>${t("invLoading")}</span></div>`;
       } else {
         // Connected + 0 spools → Apple-style welcome with 2 QR cards
         const qrUniversal  = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https%3A%2F%2Ftaap.it%2FDF1Aqt&bgcolor=ffffff&color=1d1d1f&margin=16&qzone=1`;
         const qrTestflight = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https%3A%2F%2Ftestflight.apple.com%2Fjoin%2FjVHhmK4C&bgcolor=ffffff&color=1d1d1f&margin=16&qzone=1`;
-        $("invWelcome").innerHTML = `
+        $("mainResult").innerHTML = `
           <div class="inv-welcome">
             <div class="inv-welcome-hero">
               <div class="inv-welcome-logo inv-welcome-logo--framed">
@@ -4801,9 +4850,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       card.className = "spool-card" + (state.selected===r.spoolId?" selected":"") + (r.deleted?" deleted":"");
       card.dataset.id = r.spoolId;
       const _resolvedCard = r.imgUrl ? resolvedImg(r.imgUrl) : null;
-      const imgHtml = _resolvedCard
-        ? `<img class="card-img" src="${esc(_resolvedCard)}" loading="lazy" onerror="this.outerHTML='<div class=\\'card-img-color-placeholder\\'style=\\'background:${colorBg(r)}\\'><img src=\\'${logoSrc(colorBg(r))}\\'></div>'" />`
-        : `<div class="card-img-color-placeholder" style="background:${colorBg(r)}"><img src="${logoSrc(colorBg(r))}" /></div>`;
+      // Always render the colour square as base layer (logo watermark included).
+      // When a product image exists, stack it on top as an absolute overlay so
+      // a broken/slow image gracefully falls back to the colour square instead
+      // of leaving a blank grey box.
+      const imgHtml = `<div class="card-img-color-placeholder" style="background:${colorBg(r)}"><img src="${logoSrc(colorBg(r))}" />${
+        _resolvedCard ? `<img class="card-img--overlay" src="${esc(_resolvedCard)}" loading="lazy" onerror="this.style.display='none'" />` : ''
+      }</div>`;
       const pct = (r.weightAvailable != null && r.capacity) ? Math.max(0,Math.min(100,Math.round(r.weightAvailable/r.capacity*100))) : null;
       const swatch = colorCircleHTML(r);
       const badge = tierBadgeHTML(r);
@@ -4953,6 +5006,27 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     renderInventory();
   });
 
+  // ── Stat tile click → quick type filter ────────────────────────────────────
+  // Clicking a version tile (TigerTag / TigerTag+ / TigerTag Cloud) sets the
+  // typeFilter and highlights the tile. Clicking it again, or clicking a
+  // "reset" tile (SPOOLS / STOCK), clears the filter back to "All versions".
+  $("sbStats")?.addEventListener("click", e => {
+    const tile = e.target.closest(".sb-stat[data-filter]");
+    if (!tile) return;
+    const f = tile.dataset.filter;
+    if (f === "reset" || state.typeFilter === f) {
+      state.typeFilter = "";
+    } else {
+      state.typeFilter = f;
+    }
+    const sel = $("typeFilter");
+    if (sel) {
+      sel.value = state.typeFilter;
+      sel.classList.toggle("is-active", !!state.typeFilter);
+    }
+    renderInventory();
+  });
+
   function updateSortIndicators() {
     document.querySelectorAll("th.sortable").forEach(th => {
       th.classList.toggle("sort-asc",  state.sortCol === th.dataset.sort && state.sortDir === "asc");
@@ -5020,7 +5094,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // ── Migrate Firestore ───────────────────────────────────────────────────
     const ownerUid = state.activeAccountId;
     if (!ownerUid) return;
-    const invRef = fbDb().collection("users").doc(ownerUid).collection("inventory");
+    const db     = fbDb(ownerUid); // named instance — stable after the async IPC call
+    const invRef = db.collection("users").doc(ownerUid).collection("inventory");
     const FV     = firebase.firestore.FieldValue;
 
     // Base doc: copy cloud doc, strip Cloud-specific / lifecycle fields
@@ -5030,7 +5105,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const [chip1, chip2] = successTargets;
 
     try {
-      const batch = fbDb().batch();
+      const batch = db.batch();
 
       // New doc for chip 1
       const doc1 = {
@@ -5115,9 +5190,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // Chip is now up to date — clear needUpdateAt on this spool + twin
     if (okCount > 0 && r.needUpdateAt) {
       const ownerUid = state.activeAccountId; if (!ownerUid) return;
-      const invRef = fbDb().collection("users").doc(ownerUid).collection("inventory");
+      const db     = fbDb(ownerUid); // named instance — stable after async IPC call
+      const invRef = db.collection("users").doc(ownerUid).collection("inventory");
       try {
-        const batch = fbDb().batch();
+        const batch = db.batch();
         batch.update(invRef.doc(r.spoolId), { needUpdateAt: null });
         if (r.twinUid) {
           const tr = state.rows.find(x =>
@@ -5128,6 +5204,147 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         }
         await batch.commit();
       } catch (e) { console.error("[burnRfid] needUpdateAt clear failed:", e); }
+    }
+  }
+
+  // ── Refresh TigerTag+ catalogue data from API ────────────────────────────
+  // Calls rawApi() via IPC (same path as RFID scan), then applies _api fields
+  // to the existing Firestore doc. silent=true suppresses "no change" toast
+  // and error toast (used for automatic background refresh on panel open).
+  async function _refreshApiData(r, { silent = false } = {}) {
+    if (!window.electronAPI?.refreshApiData) return;
+    const rawDoc = state.inventory[r.spoolId];
+    if (!rawDoc) return;
+    const btn = $("btnRefreshApi");
+    if (btn) { btn.disabled = true; btn.querySelector(".toolbox-row-label").textContent = t("toolRefreshApiLoading"); }
+    try {
+      const res = await window.electronAPI.refreshApiData(rawDoc);
+      if (!res.ok) throw new Error(res.error || "unknown");
+      const api = res.api;
+      const update = {};
+      if (api.name)                          update.name               = api.name;
+      if (api.sku)                           update.sku                = api.sku;
+      if (api.barcode)                       update.barcode            = api.barcode;
+      if (api.series)                        update.series             = api.series;
+      if (api.images?.main_src)              update.url_img            = api.images.main_src;
+      if (api.filament?.color)               update.online_color       = api.filament.color;
+      if (api.filament?.color_info?.colors?.length)
+                                             update.online_color_list  = api.filament.color_info.colors;
+      if (api.filament?.color_info?.type)    update.online_color_type  = api.filament.color_info.type;
+      if (api.links?.tds)                    update.LinkTDS            = api.links.tds;
+      if (api.links?.msds)                   update.LinkMSDS           = api.links.msds;
+      if (api.links?.rohs)                   update.LinkROHS           = api.links.rohs;
+      if (api.links?.reach)                  update.LinkREACH          = api.links.reach;
+      if (api.links?.tips)                   update.LinkTIPS           = api.links.tips;
+      if (api.links?.food)                   update.LinkFOOD           = api.links.food;
+      if (api.links?.youtube)                update.LinkYoutube        = api.links.youtube;
+      if (api.filament?.refill)              update.info1              = true;
+      if (api.filament?.recycled)            update.info2              = true;
+      if (api.filament?.filled)              update.info3              = true;
+      if (Object.keys(update).length === 0) {
+        if (!silent) toast(t("toolRefreshApiNoChange"), "info");
+        return;
+      }
+      update.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+      const uid = fbAuth().currentUser?.uid;
+      if (!uid) return;
+      await fbDb().collection("users").doc(uid).collection("inventory").doc(r.spoolId).update(update);
+      toast(t("toolRefreshApiSuccess"), "success");
+    } catch (e) {
+      console.error("[refreshApi]", e);
+      if (!silent) toast(t("toolRefreshApiError"), "error");
+    } finally {
+      if (btn) { btn.disabled = false; btn.querySelector(".toolbox-row-label").textContent = t("toolRefreshApi"); }
+    }
+  }
+
+  // ── Convert TigerTag → TigerTag+ ─────────────────────────────────────────
+  // Step 1: validate product_id against the catalogue API, show a preview.
+  let _convertApiCache = null; // holds last valid api response for _convertToPlus
+  async function _lookupPlusProduct(r) {
+    const input   = $("upgradePlusInput");
+    const preview = $("upgradePlusPreview");
+    const confirm = $("upgradePlusConfirm");
+    const checkBtn = $("upgradePlusCheck");
+    if (!input || !preview) return;
+    const productId = parseInt(input.value, 10);
+    if (!productId || productId <= 0) return;
+    _convertApiCache = null;
+    confirm.style.display = "none";
+    preview.innerHTML = `<span class="upgrade-plus-checking">${t("upgradeToPlusChecking")}</span>`;
+    if (checkBtn) checkBtn.disabled = true;
+    try {
+      const res = await window.electronAPI.lookupProduct(productId);
+      if (!res.ok || !res.api) {
+        preview.innerHTML = `<span class="upgrade-plus-notfound">${t("upgradeToPlusNotFound")}</span>`;
+        return;
+      }
+      _convertApiCache = { productId, api: res.api };
+      const api   = res.api;
+      const img   = api.images?.main_src || api.images?.thumb_src || "";
+      // Build label: Brand · Series · Name · Weight · [Refill]
+      // Use api.brand directly — more reliable than local id_brand lookup at check time.
+      const brandLbl  = api.brand || brandName(r?.id_brand) || "";
+      const seriesLbl = api.series || "";
+      const nameLbl   = api.name   || `Product #${productId}`;
+      const cap       = r?.capacity || 0;
+      const weightLbl = cap >= 1000
+        ? `${+(cap / 1000).toFixed(2).replace(/\.?0+$/, "")}kg`
+        : cap > 0 ? `${cap}g` : "";
+      const refillLbl = api.filament?.refill ? "Refill" : "";
+      const label = [brandLbl, seriesLbl, nameLbl, weightLbl, refillLbl]
+        .filter(Boolean).join(" ");
+      preview.innerHTML = `
+        <div class="upgrade-plus-result">
+          ${img ? `<img class="upgrade-plus-thumb" src="${esc(img)}" alt="">` : ""}
+          <span class="upgrade-plus-name">${esc(label)}</span>
+        </div>`;
+      confirm.style.display = "";
+    } catch (e) {
+      preview.innerHTML = `<span class="upgrade-plus-notfound">${t("upgradeToPlusNotFound")}</span>`;
+    } finally {
+      if (checkBtn) checkBtn.disabled = false;
+    }
+  }
+
+  // Step 2: apply the validated API data to Firestore — spool becomes TigerTag+.
+  async function _convertToPlus(r) {
+    if (!_convertApiCache) return;
+    const { productId, api } = _convertApiCache;
+    const confirm = $("upgradePlusConfirm");
+    if (confirm) confirm.disabled = true;
+    try {
+      const ID_TIGERTAG_PLUS = 0xBC0FCB97; // 3155151767
+      const update = { id_product: productId, id_tigertag: ID_TIGERTAG_PLUS };
+      if (api.name)                        update.name              = api.name;
+      if (api.sku)                         update.sku               = api.sku;
+      if (api.barcode)                     update.barcode           = api.barcode;
+      if (api.series)                      update.series            = api.series;
+      if (api.images?.main_src)            update.url_img           = api.images.main_src;
+      if (api.filament?.color)             update.online_color      = api.filament.color;
+      if (api.filament?.color_info?.colors?.length)
+                                           update.online_color_list = api.filament.color_info.colors;
+      if (api.filament?.color_info?.type)  update.online_color_type = api.filament.color_info.type;
+      if (api.links?.tds)                  update.LinkTDS           = api.links.tds;
+      if (api.links?.msds)                 update.LinkMSDS          = api.links.msds;
+      if (api.links?.rohs)                 update.LinkROHS          = api.links.rohs;
+      if (api.links?.reach)                update.LinkREACH         = api.links.reach;
+      if (api.links?.tips)                 update.LinkTIPS          = api.links.tips;
+      if (api.links?.food)                 update.LinkFOOD          = api.links.food;
+      if (api.links?.youtube)              update.LinkYoutube       = api.links.youtube;
+      if (api.filament?.refill)            update.info1             = true;
+      if (api.filament?.recycled)          update.info2             = true;
+      if (api.filament?.filled)            update.info3             = true;
+      update.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+      const uid = fbAuth().currentUser?.uid;
+      if (!uid) return;
+      await fbDb().collection("users").doc(uid).collection("inventory").doc(r.spoolId).update(update);
+      _convertApiCache = null;
+      toast(t("upgradeToPlusSuccess"), "success");
+    } catch (e) {
+      console.error("[convertToPlus]", e);
+      toast(t("toolRefreshApiError"), "error");
+      if (confirm) confirm.disabled = false;
     }
   }
 
@@ -5253,6 +5470,22 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
 
     // Burn RFID — write cloud doc to all connected readers, one by one
     $("btnBurnRfid")?.addEventListener("click", () => _burnRfid(r));
+
+    // Refresh API — fetch fresh catalogue data for TigerTag+ spools
+    $("btnRefreshApi")?.addEventListener("click", () => _refreshApiData(r));
+
+    // Upgrade to TigerTag+ — banner opens inline form
+    $("upgradePlusBanner")?.addEventListener("click", () => {
+      const form = $("upgradePlusForm");
+      if (form) { form.classList.toggle("open"); $("upgradePlusInput")?.focus(); }
+    });
+    $("upgradePlusCheck")?.addEventListener("click", () => _lookupPlusProduct(r));
+    $("upgradePlusInput")?.addEventListener("keydown", e => { if (e.key === "Enter") _lookupPlusProduct(r); });
+    $("upgradePlusConfirm")?.addEventListener("click", () => _convertToPlus(r));
+    $("upgradePlusListBtn")?.addEventListener("click", () =>
+      window.electronAPI?.openExternal("https://tigertag.io/pages/public-material-list?page=1"));
+    $("upgradePlusHelpBtn")?.addEventListener("click", () =>
+      $("productIdHelpOverlay")?.classList.add("open"));
 
     // collapsible "Details" section — toggle + persist preference
     const btnToggleDetails = $("btnToggleDetails");
@@ -5614,9 +5847,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
 
   function openTigerPodModal() {
     $("tigerPodModalOverlay").classList.add("open");
+    const v = $("tigerPodVideo"); if (v) { v.currentTime = 0; v.play().catch(() => {}); }
   }
   function closeTigerPodModal() {
     $("tigerPodModalOverlay").classList.remove("open");
+    const v = $("tigerPodVideo"); if (v) v.pause();
   }
 
   /* ── container picker ── */
@@ -6034,9 +6269,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       const hasCard = window.electronAPI && (state.nfcCardPresent?.size ?? 0) > 0;
       chipBannerHtml = `
         <div class="chip-update-banner cloud-encode-banner" id="cloudEncodeBanner">
-          <span class="chip-update-icon cloud-encode-icon">
-            <span class="icon icon-nfc icon-13"></span>
-          </span>
+          <img class="rfid-material-icon" src="../assets/img/TigerTag_RFID_Material.png" alt="RFID">
           <span class="chip-update-text cloud-encode-text">${t("cloudNotEncoded")}</span>
           <span class="chip-encode-btn ${hasCard ? "chip-encode-active" : ""}">
             ${hasCard ? t("encodeCloudBtn") : t("tigerPodDiscover")}
@@ -6045,16 +6278,43 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     } else if (r.needUpdateAt) {
       chipBannerHtml = `
         <div class="chip-update-banner" id="chipUpdateBanner">
-          <span class="chip-update-icon"><span class="icon icon-refresh icon-13"></span></span>
+          <img class="rfid-material-icon" src="../assets/img/TigerTag_RFID_Material.png" alt="RFID">
           <span class="chip-update-text">${t("chipPendingHint")}</span>
           <span class="chip-encode-btn chip-encode-warning">${t("btnChipDone")}</span>
+        </div>`;
+    } else if (!r.isPlus && !state.friendView && window.electronAPI?.lookupProduct) {
+      // Regular TigerTag (Maker) — offer upgrade to TigerTag+
+      chipBannerHtml = `
+        <div class="upgrade-plus-banner" id="upgradePlusBanner">
+          <div class="upgrade-plus-banner-left">
+            <span class="upgrade-plus-badge">TigerTag+</span>
+            <span class="upgrade-plus-banner-text">${t("upgradeToPlusBanner")}</span>
+          </div>
+          <span class="upgrade-plus-banner-cta">${t("upgradeToPlusAction")} →</span>
+        </div>
+        <div class="upgrade-plus-form" id="upgradePlusForm">
+          <div class="upgrade-plus-input-row">
+            <input class="upgrade-plus-input" id="upgradePlusInput" type="number" min="1"
+              placeholder="ID (ex: 60)" />
+            <button class="upgrade-plus-check-btn" id="upgradePlusCheck">${t("upgradeToPlusCheck")}</button>
+          </div>
+          <div class="upgrade-plus-form-links">
+            <button class="upgrade-plus-help-link" id="upgradePlusHelpBtn">
+              <span class="icon icon-info icon-12"></span>${esc(t("upgradeToPlusHelpTip"))}
+            </button>
+            <button class="upgrade-plus-list-link" id="upgradePlusListBtn">
+              <span class="icon icon-link icon-12"></span>${esc(t("upgradeToPlusListTip"))}
+            </button>
+          </div>
+          <div class="upgrade-plus-preview" id="upgradePlusPreview"></div>
+          <button class="upgrade-plus-confirm-btn" id="upgradePlusConfirm" style="display:none">${t("upgradeToPlusConvert")}</button>
         </div>`;
     }
 
     return `
       ${imgSection}
-      ${identityHtml}
       ${chipBannerHtml}
+      ${identityHtml}
       <div class="panel-section">
         <div class="panel-label">${t("sectionColors", {n: r.colorList.length})} &amp; Aspect</div>
         <div class="color-aspect-row">
@@ -6183,6 +6443,16 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
             id: "btnBurnRfid",
             icon: "icon-nfc",
             label: t("burnRfidBtn"),
+            variant: "default",
+          });
+        }
+
+        // 5c. Refresh from API — TigerTag+ only (has id_product + apiUrl).
+        if (r.isPlus && !r.isCloud && window.electronAPI?.refreshApiData) {
+          tools.push({
+            id: "btnRefreshApi",
+            icon: "icon-refresh",
+            label: t("toolRefreshApi"),
             variant: "default",
           });
         }
@@ -6394,6 +6664,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   $("btnReportProblemLogin")?.addEventListener("click", openDiagnosticModal);
   $("diagModalClose")?.addEventListener("click", closeDiagnosticModal);
   $("diagModalOverlay")?.addEventListener("click", e => { if (e.target === $("diagModalOverlay")) closeDiagnosticModal(); });
+
+  // ── Product ID help modal ──────────────────────────────────────────────────
+  const _closePidHelp = () => $("productIdHelpOverlay")?.classList.remove("open");
+  $("productIdHelpOverlay")?.addEventListener("click", e => { if (e.target === $("productIdHelpOverlay")) _closePidHelp(); });
+  $("productIdHelpListBtn")?.addEventListener("click", () => {
+    window.electronAPI?.openExternal("https://tigertag.io/pages/public-material-list?page=1");
+    _closePidHelp();
+  });
   $("btnDiagCopy")?.addEventListener("click", async () => {
     const txt = $("diagBody").value;
     try {
@@ -6793,12 +7071,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       // as a fallback for accessibility / when the chip is keyboard-focused.
       return `<button class="sb-friend-chip${isActive ? " is-active" : ""}"
                       data-friend-uid="${esc(f.uid)}"
-                      data-friend-name="${esc(f.displayName || f.uid)}"
+                      data-friend-name="${esc(_shortName(f.displayName, f.uid))}"
                       data-friend-color="${esc(color)}"
-                      data-tooltip="${esc(f.displayName || f.uid)}"
-                      title="${esc(f.displayName || f.uid)}">
+                      data-tooltip="${esc(_shortName(f.displayName, f.uid))}"
+                      title="${esc(_shortName(f.displayName, f.uid))}">
         <span class="sb-friend-avatar" style="background:${color};color:${fg}">${esc(initials)}</span>
-        <span class="sb-friend-name">${esc(f.displayName || f.uid)}</span>
+        <span class="sb-friend-name">${esc(_shortName(f.displayName, f.uid))}</span>
         ${isActive ? '<span class="sb-friend-active-dot" aria-hidden="true"></span>' : ""}
       </button>`;
     }).join("");
@@ -6868,7 +7146,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
 
     const search = ($("fpSearch")?.value || "").trim().toLowerCase();
     const filtered = search
-      ? state.friends.filter(f => (f.displayName || f.uid).toLowerCase().includes(search))
+      ? state.friends.filter(f => (_shortName(f.displayName, f.uid)).toLowerCase().includes(search))
       : state.friends;
 
     if (!filtered.length) {
@@ -6881,10 +7159,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       const color = friendColor(f);
       const fg = readableTextOn(color);
       const date = f.addedAt ? timeAgo(f.addedAt.seconds ? f.addedAt.seconds * 1000 : f.addedAt) : "";
-      return `<div class="fp-friend" data-uid="${esc(f.uid)}" data-name="${esc(f.displayName || f.uid)}" data-color="${esc(color)}">
+      return `<div class="fp-friend" data-uid="${esc(f.uid)}" data-name="${esc(_shortName(f.displayName, f.uid))}" data-color="${esc(color)}">
         <div class="fp-friend-avatar" style="background:${color};color:${fg}">${initials}</div>
         <div class="fp-friend-main">
-          <div class="fp-friend-name">${esc(f.displayName || f.uid)}</div>
+          <div class="fp-friend-name">${esc(_shortName(f.displayName, f.uid))}</div>
           <div class="fp-friend-date">${date ? t("friendAddedOn", { date }) : ""}</div>
         </div>
         <div class="fp-friend-actions">
@@ -7179,7 +7457,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
               }
             }
           }
-          if (_isPrinterMode(state.viewMode)) renderPrintersView();
+          if (_isPrinterMode(state.viewMode)) {
+            // In cam mode, patch CSS/order only — never rebuild DOM so live
+            // iframe/WebRTC streams survive Firestore echoes (e.g. camSize writes).
+            if (state.viewMode === "printer-cam") _patchCamWall();
+            else renderPrintersView();
+          }
           // Live-update an open detail panel if it shows one of the changed docs
           if ($("printerPanel")?.classList.contains("open")) refreshOpenPrinterDetail();
         }, err => console.warn(`[printers/${brand}]`, err.code, err.message));
@@ -7625,6 +7908,49 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
 
   }
 
+  // ── Serialize online cameras for the detached cam window ────────────────
+  // Returns an array of CamDescriptor objects understood by renderer/cam/cam.js.
+  function _serializeCamerasForDetach() {
+    return state.printers.flatMap(p => {
+      const name = p.printerName || "(unnamed)";
+      if (p.brand === "snapmaker") {
+        const conn = snapGetConn(snapKey(p));
+        if (!conn || conn.status !== "connected" || !conn.ip) return [];
+        return [{ brand: "snapmaker", id: p.id, name, camType: "iframe",
+                  url: `http://${conn.ip}/webcam/webrtc`, bblKey: null, ip: null }];
+      }
+      if (p.brand === "creality") {
+        const conn = creGetConn(creKey(p));
+        if (!conn || conn.status !== "connected" || !conn.ip) return [];
+        return [{ brand: "creality", id: p.id, name, camType: "webrtc",
+                  ip: conn.ip, url: null, bblKey: null }];
+      }
+      if (p.brand === "flashforge") {
+        const url = ffgCamBaseUrl(p);
+        if (!url) return [];
+        // FlashForge allows only ONE MJPEG client — the mux already holds that
+        // connection. Use BroadcastChannel to relay frames from the mux to the
+        // cam window without opening a second HTTP connection.
+        return [{ brand: "flashforge", id: p.id, name, camType: "ffg_bc",
+                  ffgKey: ffgKey(p), url: null, bblKey: null, ip: null }];
+      }
+      if (p.brand === "bambulab") {
+        const conn = bambuGetConn(bambuKey(p));
+        if (!conn || conn.status !== "connected") return [];
+        return [{ brand: "bambulab", id: p.id, name, camType: "bbl_ipc",
+                  bblKey: bambuKey(p), url: null, ip: null }];
+      }
+      if (p.brand === "elegoo") {
+        const conn = elegooGetConn(elegooKey(p));
+        if (!conn || conn.status !== "connected" || !p.ip) return [];
+        const streamUrl = conn.data?.cameraUrl || `http://${p.ip}:8080/?action=stream`;
+        return [{ brand: "elegoo", id: p.id, name, camType: "mjpeg",
+                  url: streamUrl, bblKey: null, ip: null }];
+      }
+      return [];
+    });
+  }
+
   // ── Printer cam wall sub-view ────────────────────────────────────────────
   function _renderPrinterCam(host) {
     // ── Step 0: Kick connections — idempotent, always safe to call ────────────
@@ -7737,7 +8063,17 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         </div>`;
     });
 
-    host.innerHTML = `<div class="cam-wall">${camCards.join("")}</div>`;
+    const detachBtn = window.electronAPI?.openCamWindow
+      ? `<button class="cam-wall-detach-btn" id="camWallDetach" title="Open in separate window">
+           <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+             <path d="M6 2H2a1 1 0 00-1 1v9a1 1 0 001 1h9a1 1 0 001-1V8M9 1h4m0 0v4m0-4L7 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+           </svg>
+           Detach
+         </button>`
+      : "";
+    host.innerHTML = `
+      <div class="cam-wall-toolbar">${detachBtn}</div>
+      <div class="cam-wall">${camCards.join("")}</div>`;
 
     host.querySelectorAll("[data-ffg-cam-key]").forEach(img => {
       const key = img.dataset.ffgCamKey;
@@ -7746,9 +8082,22 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (url) { ffgMuxStart(key, url); ffgMuxRegister(key, img); }
     });
 
-    host.querySelectorAll(".cam-wall-card[data-brand='creality']").forEach(card => {
-      const p = state.printers.find(x => x.brand === "creality" && x.id === card.dataset.id);
-      if (p?.ip) startCreCam(p.ip);
+    // Start (or reuse) the Creality WebRTC connection for each online Creality card,
+    // then register ALL .cre-cam-video elements in the new DOM as stream consumers.
+    // reAttachCreCamConsumers() handles both the "first render" and the "came back
+    // after navigating to table/grid" cases without reopening a peer connection.
+    {
+      const crePrinters = _onlinePrinters.filter(p => p.brand === "creality" && p.ip);
+      if (crePrinters.length) {
+        startCreCam(crePrinters[0].ip); // idempotent; re-attaches if already live
+      }
+      reAttachCreCamConsumers();
+    }
+
+    // Detach button — opens / focuses the standalone camera window
+    host.querySelector("#camWallDetach")?.addEventListener("click", () => {
+      const cameras = _serializeCamerasForDetach();
+      window.electronAPI?.openCamWindow(cameras);
     });
 
     wireCamWallDnd(host);
@@ -7781,6 +8130,39 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (size === "fs") card.classList.add("cam-wall-card--fs");
     card.querySelectorAll(".cam-size-btn").forEach(b => b.classList.toggle("cam-size-btn--active", b.dataset.size === size));
   }
+
+  // Lightweight cam-wall patch — updates only CSS (size + order) on existing
+  // .cam-wall-card elements.  Never rebuilds DOM / destroys live streams.
+  // Used in cam mode whenever a Firestore echo or brand status tick arrives so
+  // changing one card's size does not reload the iframes/WebRTC of all others.
+  // If the wall does not exist yet (first render / empty state), delegates to
+  // renderPrintersView() so the initial build still happens correctly.
+  function _patchCamWall() {
+    const host = $("invPrinterView");
+    if (!host) return;
+    const wall = host.querySelector(".cam-wall");
+    if (!wall) { renderPrintersView(); return; }
+
+    const _camOrdered = [...state.printers].sort((a, b) => {
+      const sa = Number.isFinite(a.camSortIndex) ? a.camSortIndex : Number.MAX_SAFE_INTEGER;
+      const sb = Number.isFinite(b.camSortIndex) ? b.camSortIndex : Number.MAX_SAFE_INTEGER;
+      if (sa !== sb) return sa - sb;
+      const ga = Number.isFinite(a.sortIndex) ? a.sortIndex : Number.MAX_SAFE_INTEGER;
+      const gb = Number.isFinite(b.sortIndex) ? b.sortIndex : Number.MAX_SAFE_INTEGER;
+      return ga - gb;
+    });
+
+    let orderIdx = 0;
+    _camOrdered.forEach(p => {
+      const card = wall.querySelector(`[data-brand="${p.brand}"][data-id="${p.id}"]`);
+      if (!card) return; // not currently displayed — skip (structural changes are
+                         // handled by the onPrinterStatusChange debounce)
+      const csize = p.camSize || _camSizes.get(`${p.brand}:${p.id}`) || "1x";
+      _applyCamSize(card, csize);
+      card.style.order = orderIdx++;
+    });
+  }
+
   // Write-through helper: updates localStorage cache + DOM + Firestore atomically.
   function _setCamSize(card, size) {
     const ckey = `${card.dataset.brand}:${card.dataset.id}`;
@@ -7982,7 +8364,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
      explicit Show toggle. Sensitive fields are still readable by the
      owner — the masking is purely a shoulder-surfing / screen-share
      defense, NOT a security boundary (Firestore rules are).               */
-  let _activePrinter  = null; // currently-open printer { brand, id, ...data }
+  let _activePrinter    = null; // currently-open printer { brand, id, ...data }
+  let _camStatusDebounce = null; // debounce handle for cam-wall refresh on status change
   // Tracks printers the user explicitly disconnected via the ⏻ button.
   // isOnline() functions check this to return false instead of null when
   // no conn exists after an intentional disconnect (vs. never connected).
@@ -8073,10 +8456,19 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     }
     $("printerPanel").classList.remove("open");
     $("printerOverlay").classList.remove("open");
-    // Creality — stop the WebRTC peer connection; the <video> element is only
-    // valid while the panel is open. The WebSocket (port 9999) stays alive for
-    // live telemetry. startCreCam() is called again when the panel reopens.
-    if (_activePrinter?.brand === "creality") stopCreCam();
+    // Creality — unregister the sidecard's <video> from the stream consumer set.
+    // The WebRTC peer connection keeps running as long as the cam wall is also
+    // showing this printer; stopCreCam() is only called when there are no more
+    // consumers (the cam wall is also gone or the printer went offline).
+    if (_activePrinter?.brand === "creality") {
+      const _creSidecardVideo = $("creCamContainer")?.querySelector(".cre-cam-video");
+      if (_creSidecardVideo) removeCreCamConsumer(_creSidecardVideo);
+      // If no other consumer remains (cam wall not visible), close the connection.
+      // We check via the exported _consumers size indirectly: stopCreCam() is
+      // called from creCamStop context when the brand layer needs it; here we
+      // simply drop the sidecard consumer and let the connection idle if the cam
+      // wall still needs it.
+    }
     // Bambu Lab — close filament-edit sheet if open.
     if ($("bblFilEditSheet")?.classList.contains("open")) {
       try { closeBambuFilamentEdit(); } catch {}
@@ -8095,15 +8487,37 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     _activePrinter = null;
   }
   // Delegated click handler for all 3 printer sub-views (Grid / Table / Cam).
-  // Brand callbacks call renderPrintersView() (innerHTML rebuild) up to 60 fps
-  // while a printer is actively printing. Per-element listeners were destroyed
-  // on each rebuild before the user's click landed, making it impossible to
-  // open the sidecard. Attaching once to the stable host element survives all
-  // inner rebuilds. Cam view already had this behaviour naturally (its DOM was
-  // not rebuilt on brand updates), which is why the sidecard always worked there.
+  // Brand callbacks call renderPrintersView() (innerHTML rebuild) while a
+  // printer is connecting or printing. If a rebuild fires between mousedown
+  // and mouseup the card DOM node may have shifted position (section headers
+  // inserted/removed) so the click event no longer resolves to a .printer-card.
+  // Fix: record brand+id at mousedown time and use it as a fallback in click.
+  let _pendingPrinterOpen = null; // { brand, id } captured on mousedown
+  $("invPrinterView")?.addEventListener("mousedown", e => {
+    const card = e.target.closest(".printer-card:not(.printer-card--add)");
+    const row  = e.target.closest(".pt-row");
+    if (card) _pendingPrinterOpen = { brand: card.dataset.brand, id: card.dataset.id };
+    else if (row) _pendingPrinterOpen = { brand: row.dataset.brand, id: row.dataset.id };
+    else _pendingPrinterOpen = null;
+  });
+  // Last-resort fallback: if a DOM rebuild between mousedown and click caused
+  // the click event to fire on a detached element (which does not bubble to
+  // #invPrinterView), fire openPrinterDetail from the document mouseup instead.
+  // A 0-ms timeout lets the synchronous click handler run first; if it already
+  // consumed _pendingPrinterOpen (set it to null) this is a no-op.
+  document.addEventListener("mouseup", () => {
+    if (!_pendingPrinterOpen?.brand || !_pendingPrinterOpen?.id) return;
+    const intent = _pendingPrinterOpen;
+    setTimeout(() => {
+      if (_pendingPrinterOpen !== intent) return; // click handler already handled it
+      _pendingPrinterOpen = null;
+      if (!_printerJustDragged) openPrinterDetail(intent.brand, intent.id);
+    }, 0);
+  });
   $("invPrinterView")?.addEventListener("click", e => {
     const card = e.target.closest(".printer-card:not(.printer-card--add)");
     if (card) {
+      _pendingPrinterOpen = null;
       if (_printerJustDragged) return;
       const brand = card.dataset.brand, id = card.dataset.id;
       if (brand && id) openPrinterDetail(brand, id);
@@ -8111,10 +8525,19 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     }
     const row = e.target.closest(".pt-row");
     if (row) {
+      _pendingPrinterOpen = null;
       const brand = row.dataset.brand, id = row.dataset.id;
       if (brand && id) openPrinterDetail(brand, id);
       return;
     }
+    // Fallback: DOM was rebuilt between mousedown and click.
+    if (_pendingPrinterOpen?.brand && _pendingPrinterOpen?.id) {
+      const { brand, id } = _pendingPrinterOpen;
+      _pendingPrinterOpen = null;
+      if (!_printerJustDragged) openPrinterDetail(brand, id);
+      return;
+    }
+    _pendingPrinterOpen = null;
     // Cam size buttons — checked before .cam-wall-card to prevent sidecard opening
     const sizeBtn = e.target.closest(".cam-size-btn");
     if (sizeBtn) {
@@ -8425,7 +8848,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // Refresh the panel body and the printer grid immediately so the badge
     // dots in the card list also flip to offline/connecting right away.
     try { renderPrinterDetail(); } catch (_) {}
-    if (_isPrinterMode(state.viewMode)) try { renderPrintersView(); } catch (_) {}
+    if (_isPrinterMode(state.viewMode)) {
+      if (state.viewMode === "printer-cam") try { _patchCamWall(); } catch (_) {}
+      else try { renderPrintersView(); } catch (_) {}
+    }
   });
 
   // Re-render the detail panel against the live state.printers (so a
@@ -8462,15 +8888,29 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       // a brand status change triggers a full render — keeps the card position
       // in sync with the live connection state without waiting for a Firestore
       // snapshot.
-      if (_isPrinterMode(state.viewMode)) try { renderPrintersView(); } catch (_) {}
+      // In cam mode, patch CSS/order only — brand status ticks (e.g. MQTT
+      // heartbeats) must not reload iframes or WebRTC streams.
+      if (_isPrinterMode(state.viewMode)) {
+        if (state.viewMode === "printer-cam") try { _patchCamWall(); } catch (_) {}
+        else try { renderPrintersView(); } catch (_) {}
+      }
     },
     onPrinterStatusChange: (key, status) => {
       // When a brand reaches "connected", auto-clear forced-offline so the
       // badge and panel return to their live state correctly.
       if (status === "connected" && key) _ppForcedOfflineKeys.delete(key);
       if (typeof refreshOpenPrinterDetail === "function") refreshOpenPrinterDetail();
+      // In cam mode, a connection/disconnection must refresh the wall so new
+      // feeds appear (or stale cards disappear) without the user leaving the view.
+      // Debounced 500 ms — rapid status flaps coalesce into one rebuild.
+      if (state.viewMode === "printer-cam") {
+        clearTimeout(_camStatusDebounce);
+        _camStatusDebounce = setTimeout(() => {
+          try { renderPrintersView(); } catch (_) {}
+        }, 500);
+      }
     },
-    onPrintersViewChange:  () => renderPrintersView(),
+    onPrintersViewChange:  () => { if (state.viewMode === "printer-cam") _patchCamWall(); else renderPrintersView(); },
     onPrinterGridChange:   () => { if (state.viewMode !== "printer-cam") renderPrintersView(); },
     onGridJobsChange:      () => _patchGridJobs(),
     setupHoldToConfirm,
@@ -8556,10 +8996,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
 
     // Camera banner (non-Snapmaker brands) — delegated to per-brand widget_camera.js.
     // Snapmaker is handled above via #ppPersistentCam, so it returns "" here.
-    // Creality: always inject the camera container so #creCamVideo persists through
+    // Creality: always inject the camera container so the <video> persists through
     // reconnects — statusChanged events only toggle cre-cam-hidden, never rebuild the panel.
+    // Uses class + data-cre-id (not id="creCamVideo") so the sidecard and the cam wall
+    // can coexist without duplicate-ID conflicts; the shared stream is distributed via
+    // addCreCamConsumer() after the HTML is injected into the DOM.
     const camBannerHtml = (p.brand === "snapmaker") ? ""
-      : (p.brand === "creality") ? `<div id="creCamContainer" class="pp-cam-full${creConn?.status === "connected" ? "" : " cre-cam-hidden"}"><video id="creCamVideo" class="cre-cam-video" autoplay muted playsinline></video></div>`
+      : (p.brand === "creality") ? `<div id="creCamContainer" class="pp-cam-full${creConn?.status === "connected" ? "" : " cre-cam-hidden"}"><video class="cre-cam-video" data-cre-id="${esc(p.id)}" autoplay muted playsinline></video></div>`
       : renderCamBanner(p);
     const showCam = _snapCamVisible || (p.brand === "creality" ? creConn?.status === "connected" : camBannerHtml !== "");
 
@@ -8863,11 +9306,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       ${creLogHtml}
       ${bblLogHtml}` : ""}`;
 
-    // Creality camera — start WebRTC after the <video> is in the DOM.
-    // Only when connected — the container is always rendered but the stream
-    // only starts when the printer is reachable.
-    if (p.brand === "creality" && creConn?.status === "connected" && creConn?.ip) {
-      startCreCam(creConn.ip);
+    // Creality camera — register the sidecard's <video> as a stream consumer,
+    // then start (or reuse) the WebRTC connection.  addCreCamConsumer() is
+    // safe to call even before the stream arrives — it queues the element and
+    // attaches srcObject the moment ontrack fires.
+    if (p.brand === "creality") {
+      const _creSidecardVideo = $("creCamContainer")?.querySelector(".cre-cam-video");
+      if (_creSidecardVideo) addCreCamConsumer(_creSidecardVideo);
+      if (creConn?.status === "connected" && creConn?.ip) startCreCam(creConn.ip);
     }
 
     // Wire interactions
@@ -11907,18 +12353,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // ─── Own view (signed in, not previewing a friend) ─────────────
     const acc = activeAccount();
     if (!acc) { banner.classList.add("hidden"); return; }
-    const own = state.displayName || acc.displayName || acc.email || "—";
-    const initials = own.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2) || "?";
+    const own = _shortName(state.displayName || acc.displayName, acc.email);
+    const initials = own.split(/[\s._-]+/).filter(Boolean).map(w => w[0]).join("").toUpperCase().slice(0, 2) || "?";
     const grad = getAccGradient(acc);
     const fg = readableTextOn(getAccShadow(acc));
-    // `t("welcomeBack")` resolves to one of the locale's random greetings
-    // (the i18n helper picks a fresh one per call from the array form).
-    const greeting = t("welcomeBack") || "👋 Welcome back,";
     banner.innerHTML = `
       <span class="fvb-avatar" style="background:${grad};color:${fg}">${esc(initials)}</span>
       <div class="fvb-inner">
         <span class="fvb-name">${esc(own)}</span>
-        <span class="fvb-welcome">${esc(greeting)}</span>
       </div>`;
     banner.classList.add("fvb--own");
     banner.classList.remove("hidden");
@@ -12263,7 +12705,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     try {
       const user = fbAuth().currentUser;
       if (!user) throw new Error("not signed in");
-      await fbDb().collection("users").doc(user.uid).set({ displayName: name }, { merge: true });
+      await fbDb(user.uid).collection("users").doc(user.uid).set({ displayName: name }, { merge: true });
+      syncUserProfile(user.uid, { displayName: name }); // make visible to friends immediately
       // Update local state
       const accounts = getAccounts();
       const acc = accounts.find(a => a.id === user.uid);
@@ -12272,6 +12715,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       $("sbName").textContent = name;
       $("sbAvatar").textContent = getInitials({ displayName: name, email: acc?.email || "" });
       applyAvatarStyle(acc);
+      renderFriendBanner();
       renderAccountDropdown();
       closeDisplayNameSetup();
     } catch (err) {
@@ -12319,9 +12763,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   async function acceptFriendRequest(requesterUid, displayName) {
     const user = fbAuth().currentUser;
     if (!user) return;
-    const batch = fbDb().batch();
-    const myRef    = fbDb().collection("users").doc(user.uid);
-    const theirRef = fbDb().collection("users").doc(requesterUid);
+    const db    = fbDb(user.uid); // named instance — stable across async operations
+    const batch = db.batch();
+    const myRef    = db.collection("users").doc(user.uid);
+    const theirRef = db.collection("users").doc(requesterUid);
     // Add requester to MY friends list
     batch.set(myRef.collection("friends").doc(requesterUid), {
       displayName: displayName || requesterUid,
@@ -12487,18 +12932,19 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   async function sendFriendRequest(targetPublicKey) {
     const user = fbAuth().currentUser;
     if (!user) return null;
+    const db  = fbDb(user.uid); // named instance — stable across async operations
     const key = targetPublicKey.trim().toUpperCase();
     // O(1) lookup in publicKeys/{key} — no query, no index needed
-    const keySnap = await fbDb().collection("publicKeys").doc(key).get();
+    const keySnap = await db.collection("publicKeys").doc(key).get();
     if (!keySnap.exists) return { error: "notFound" };
     const targetUid = keySnap.data().uid;
     if (targetUid === user.uid) return { error: "self" };
     // Fetch display name from userProfiles
-    const profileSnap = await fbDb().collection("userProfiles").doc(targetUid).get();
+    const profileSnap = await db.collection("userProfiles").doc(targetUid).get();
     const displayName = profileSnap.exists ? profileSnap.data().displayName : targetUid;
     // Write request to their friendRequests subcollection.
     // No key needed — Firestore rules now verify friendship presence only (not key match).
-    await fbDb().collection("users").doc(targetUid)
+    await db.collection("users").doc(targetUid)
       .collection("friendRequests").doc(user.uid).set({
         displayName: state.displayName || user.email,
         requestedAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -12522,7 +12968,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // Write safe public fields to userProfiles/{uid} (readable by all authenticated users)
   async function syncUserProfile(uid, fields) {
     try {
-      await fbDb().collection("userProfiles").doc(uid).set(fields, { merge: true });
+      // Use fbDb(uid) — named instance — to avoid writing to the wrong project
+      // if the active account changes while this async call is in flight.
+      await fbDb(uid).collection("userProfiles").doc(uid).set(fields, { merge: true });
     } catch (e) { console.warn("[userProfiles] write:", e.message); }
   }
 
@@ -12583,6 +13031,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         state.displayName         = resolvedName;
         $("sbName").textContent   = resolvedName;
         $("sbAvatar").textContent = getInitials({ displayName: resolvedName, email: acc?.email || "" });
+        renderFriendBanner(); // refresh header chip with authoritative Firestore name
         // If Firestore was missing the name but localStorage had it, write it back
         if (!firestoreName && localName) {
           db.collection("users").doc(uid).set({ displayName: localName }, { merge: true }).catch(() => {});
@@ -12606,6 +13055,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
               state.displayName = name;
               $("sbName").textContent = name;
               $("sbAvatar").textContent = getInitials({ displayName: name, email: a?.email || "" });
+              renderFriendBanner(); // refresh header chip with authoritative Firestore name
               return;
             }
           } catch (_) {}
@@ -12630,10 +13080,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       applyAvatarStyle(acc);
       renderAccountDropdown();
 
-      // Keep userProfiles in sync with latest public info
+      // Keep userProfiles in sync with latest public info.
+      // profileName is never empty: fall back to Google first name then email
+      // prefix so friends always see something meaningful even before the user
+      // has chosen a display name.
+      const profileName = resolvedName || (acc?.email || "").split("@")[0];
       syncUserProfile(uid, {
         publicKey:   data.publicKey,
-        displayName: resolvedName,
+        displayName: profileName,
         isPublic:    data.isPublic || false,
         color:       accPrimaryHex(acc),  // single hex field — simpler than color_r/g/b
       });
@@ -12713,6 +13167,31 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     applyLang(lang);
   });
 
+  /* ── Image skeleton / shimmer ── */
+  // Remove shimmer once an image finishes loading
+  document.addEventListener('load', e => {
+    const img = e.target;
+    if (img.tagName !== 'IMG') return;
+    img.classList.remove('img-skeleton');
+    img.classList.add('img-loaded');
+  }, true);
+
+  // Auto-apply skeleton to every new web image inserted into the DOM
+  const _imgObserver = new MutationObserver(mutations => {
+    for (const m of mutations) {
+      for (const node of m.addedNodes) {
+        if (node.nodeType !== 1) continue;
+        const imgs = node.tagName === 'IMG' ? [node] : [...node.querySelectorAll('img')];
+        for (const img of imgs) {
+          if (img.src?.startsWith('http') && !img.complete) {
+            img.classList.add('img-skeleton');
+          }
+        }
+      }
+    }
+  });
+  _imgObserver.observe(document.body, { childList: true, subtree: true });
+
   /* ── init ── */
   loadLocales().then(() => {
     applyTranslations();
@@ -12754,11 +13233,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
 
     // ── "+ Auto-add" button ──────────────────────────────────────────────────
     $("btnAddScan")?.addEventListener("click", () => {
-      if (state.nfcReaderCount === 0) _openScanPanel();
+      if (state.nfcReaderCount === 0) { openTigerPodModal(); return; }
     });
-    $("scanPanelClose")?.addEventListener("click", _closeScanPanel);
-    $("scanPanelOverlay")?.addEventListener("click", _closeScanPanel);
-    $("btnOpenPodScan")?.addEventListener("click", _openScanPanel);
     // Show disconnected badge immediately on load
     renderRfidReaderBadges();
 
@@ -12782,8 +13258,6 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       const btn = $("btnAddScan");
       btn?.classList.toggle("has-reader", hasReader);
       btn?.classList.toggle("scanning",   hasReader);
-      const panelOpen = $("scanPanel")?.classList.contains("open");
-      if (panelOpen && hasReader) _closeScanPanel();
       renderRfidReaderBadges();
 
       // Track max simultaneous RFID readers (TigerPOD usage telemetry)
@@ -12965,84 +13439,6 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       }
 
       await docRef.set(doc);
-    }
-
-    // ── Scan Panel helpers ──────────────────────────────────────────────────
-    // #scanPanel is exclusively the "no reader connected" info screen.
-    function _openScanPanel() {
-      const noReader = $("scanDpNoReader");
-      const waiting  = $("scanDpWaiting");
-      const result   = $("scanDpResult");
-      if (noReader) noReader.hidden = false;
-      if (waiting)  waiting.hidden  = true;
-      if (result)   result.hidden   = true;
-      $("scanPanel")?.classList.add("open");
-      $("scanPanelOverlay")?.classList.add("open");
-    }
-    function _closeScanPanel() {
-      $("scanPanel")?.classList.remove("open");
-      $("scanPanelOverlay")?.classList.remove("open");
-    }
-    // Populate result section with parsed tag data + raw JSON.
-    // `added` = true when the Firestore write succeeded.
-    function _updateScanPanel(tagData, added) {
-      const noReader = $("scanDpNoReader");
-      const waiting  = $("scanDpWaiting");
-      const result   = $("scanDpResult");
-      if (!result) return;
-      if (noReader) noReader.hidden = true;
-
-      // Swatch — compute hex from toRawDict() RGB
-      const _hex = (r,g,b) => `#${[r,g,b].map(v=>(v||0).toString(16).padStart(2,'0')).join('')}`;
-      const swatch = $("scanDpSwatch");
-      if (swatch) swatch.style.background = _hex(tagData.color_r, tagData.color_g, tagData.color_b);
-
-      // Title — brand · material + status badge
-      const brandLabel    = brandName(tagData.id_brand)              || "—";
-      const materialLabel = materialFull(tagData.id_material)?.label || "—";
-      const titleEl = $("scanDpTitle");
-      if (titleEl) {
-        const badge =
-          added === true    ? `<span style="display:block;font-size:10px;font-weight:500;color:var(--success,#4caf50);margin-top:3px">✓ Added to inventory</span>`
-        : added === false   ? `<span style="display:block;font-size:10px;font-weight:500;color:var(--danger,#f44);margin-top:3px">⚠ Firestore write failed</span>`
-        : added === 'known' ? `<span style="display:block;font-size:10px;font-weight:500;color:var(--muted);margin-top:3px">Already in inventory</span>`
-        :                     ''; // null → neutral, no badge
-        titleEl.innerHTML = `<span>${brandLabel} · ${materialLabel}</span>${badge}`;
-      }
-
-      // Meta rows — SDK field names as-is
-      const weight = tagData.measure_available || tagData.measure || 0;
-      const metaEl = $("scanDpMeta");
-      if (metaEl) {
-        const rows = [
-          ["uid",               tagData.uid                 || "—"],
-          ["measure_available", weight > 0 ? `${weight} g` : "—"],
-          ["color1",  _hex(tagData.color_r,  tagData.color_g,  tagData.color_b)],
-          ["color2",  _hex(tagData.color_r2, tagData.color_g2, tagData.color_b2)],
-          ["color3",  _hex(tagData.color_r3, tagData.color_g3, tagData.color_b3)],
-          ["id_brand",          tagData.id_brand            ?? "—"],
-          ["id_material",       tagData.id_material         ?? "—"],
-          ["id_diameter",       tagData.id_diameter         ?? "—"],
-          ["nozzle_min/max",    (tagData.nozzle_min || tagData.nozzle_max)
-                                  ? `${tagData.nozzle_min}–${tagData.nozzle_max} °C` : "—"],
-          ["bed_min/max",       (tagData.bed_min || tagData.bed_max)
-                                  ? `${tagData.bed_min}–${tagData.bed_max} °C` : "—"],
-          ["dry_temp/time",     tagData.dry_temp ? `${tagData.dry_temp} °C / ${tagData.dry_time} h` : "—"],
-          ["td_raw",    tagData.td_raw ?? "—"],
-          ["message",   tagData.message || "—"],
-        ];
-        metaEl.innerHTML = rows.map(([k, v]) =>
-          `<div class="scan-dp-meta-row"><span class="k">${k}</span><span class="v">${v}</span></div>`
-        ).join("");
-      }
-
-      // Raw JSON — exact IPC payload, no transformation
-      const jsonEl = $("scanDpJson");
-      if (jsonEl) jsonEl.textContent = JSON.stringify(tagData, null, 2);
-
-      // Switch states
-      if (waiting) waiting.hidden = true;
-      result.hidden = false;
     }
 
     // Auto-update notification

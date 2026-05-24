@@ -246,6 +246,21 @@
   "twinLinkUnlinkHint": "长按 1.5 秒以取消关联（调试）",
   "toolboxTitle": "工具箱",
   "burnRfidBtn": "烧录 RFID",
+  "toolRefreshApi": "从API刷新",
+  "toolRefreshApiLoading": "刷新中…",
+  "toolRefreshApiSuccess": "数据已从目录更新",
+  "toolRefreshApiError": "API刷新失败",
+  "toolRefreshApiNoChange": "API无新数据",
+  "upgradeToPlusBanner": "升级为TigerTag+",
+  "upgradeToPlusAction": "输入产品ID",
+  "upgradeToPlusInputPlaceholder": "产品ID（如60）",
+  "upgradeToPlusCheck": "验证",
+  "upgradeToPlusChecking": "验证中…",
+  "upgradeToPlusNotFound": "产品未找到",
+  "upgradeToPlusConvert": "转换为TigerTag+",
+  "upgradeToPlusSuccess": "线轴已转换为TigerTag+！",
+  "upgradeToPlusHelpTip": "如何查找产品ID",
+  "upgradeToPlusListTip": "探索 TigerTag+ 材料列表",
   "encodeCloudBtn": "编码芯片",
   "cloudNotEncoded": "烧录 RFID",
   "tigerPodDiscover": "制作 TigerPOD →",
@@ -258,10 +273,22 @@
   "toolClearTd": "清除TD值",
   "toolRemoveFromRack": "从架子移除",
   "agoNow": "刚刚",
-  "agoMin": {"one":"{{n}} 分钟前","other":"{{n}} 分钟前"},
-  "agoHour": {"one":"{{n}} 小时前","other":"{{n}} 小时前"},
-  "agoDay": {"one":"{{n}} 天前","other":"{{n}} 天前"},
-  "agoMonth": {"one":"{{n}} 个月前","other":"{{n}} 个月前"},
+  "agoMin": {
+    "one": "{{n}} 分钟前",
+    "other": "{{n}} 分钟前"
+  },
+  "agoHour": {
+    "one": "{{n}} 小时前",
+    "other": "{{n}} 小时前"
+  },
+  "agoDay": {
+    "one": "{{n}} 天前",
+    "other": "{{n}} 天前"
+  },
+  "agoMonth": {
+    "one": "{{n}} 个月前",
+    "other": "{{n}} 个月前"
+  },
   "agoYear": {
     "one": "1 年前",
     "other": "{{n}} 年前"
@@ -380,7 +407,10 @@
   "btnViewRack": "存储",
   "btnViewPrinter": "打印机",
   "printersTitle": "我的打印机",
-  "printersSub": {"one": "1 台打印机已连接到您的帐户", "other": "{{n}} 台打印机已连接到您的帐户"},
+  "printersSub": {
+    "one": "1 台打印机已连接到您的帐户",
+    "other": "{{n}} 台打印机已连接到您的帐户"
+  },
   "printersActive": "活动",
   "printersUpdated": "已更新",
   "printersEmptyTitle": "暂无打印机",
@@ -480,15 +510,29 @@
   "printerSecCredentialsOptional": "凭据 (可选)",
   "printerHelperDocsLink": "查看品牌设置指南 →",
   "printerHelperBambuTitle": "开始之前",
-  "printerHelperBambuBullets": ["在打印机上打开 设置 → 通用 → 仅局域网模式。", "记录屏幕上显示的 IP、序列号和 8 位访问码。", "TigerTag 通过本地网络上的 MQTT 连接。"],
+  "printerHelperBambuBullets": [
+    "在打印机上打开 设置 → 通用 → 仅局域网模式。",
+    "记录屏幕上显示的 IP、序列号和 8 位访问码。",
+    "TigerTag 通过本地网络上的 MQTT 连接。"
+  ],
   "printerHelperCrealityTitle": "开始之前",
-  "printerHelperCrealityBullets": ["在 网络 → 打印机信息 中查找 IP。", "用户名始终为 'Root'。", "使用您的 Klipper / Moonraker 访问密码。"],
+  "printerHelperCrealityBullets": [
+    "在 网络 → 打印机信息 中查找 IP。",
+    "用户名始终为 'Root'。",
+    "使用您的 Klipper / Moonraker 访问密码。"
+  ],
   "printerHelperElegooTitle": "Elegoo 设置",
   "printerHelperElegooBullets": "在网络设置中找到IP。序列号在打印机标签或设置菜单中。",
   "printerHelperFFGTitle": "开始之前",
-  "printerHelperFFGBullets": ["在 关于 → 网络 中查找 IP 和序列号。", "使用您在 FlashPrint 或 Orca-Flashforge 中设置的密码。"],
+  "printerHelperFFGBullets": [
+    "在 关于 → 网络 中查找 IP 和序列号。",
+    "使用您在 FlashPrint 或 Orca-Flashforge 中设置的密码。"
+  ],
   "printerHelperSnapTitle": "开始之前",
-  "printerHelperSnapBullets": ["只需输入 Snapmaker 网络屏幕上显示的本地 IP。", "通过 WebSocket 自动配对。"],
+  "printerHelperSnapBullets": [
+    "只需输入 Snapmaker 网络屏幕上显示的本地 IP。",
+    "通过 WebSocket 自动配对。"
+  ],
   "printerHintBambuIP": "仅局域网模式下显示的本地 IP。",
   "printerHintBambuCode": "仅局域网模式屏幕上的 8 位代码。",
   "printerHintBambuSerial": "同一屏幕上访问码下方。",
@@ -782,23 +826,21 @@
   "camSizeWide": "宽屏 (2×)",
   "camSizeFullscreen": "全屏",
   "btnAddScan": "+ 自动扫描",
-  "scanPanelTitle": "Pod 扫描",
-  "scanPanelWaiting": "将线轴放入 Pod",
-  "scanPanelNoReader": "未连接 TigerTag Pod",
-  "scanPanelNoReaderSub": "要扫描线轴，请通过 USB 连接 TigerTag Pod。",
-  "tigerPodModalTitle": "制作你的 TigerPOD",
-  "tigerPodModalDesc": "一款可3D打印的支架，直接在线轴上编程TigerTag RFID芯片。",
-  "tigerPodPrintBtn": "在 MakerWorld 上打印",
+  "tigerPodModalTitle": "立即打印你的TigerPOD！",
+  "tigerPodModalDesc": "一款3D可打印支架，用于直接在线轴上烧录TigerTag RFID芯片。",
+  "tigerPodPrintBtn": "免费下载并打印STL",
   "tigerPodBoosts": "助力",
   "tigerPodLikes": "点赞",
   "tigerPodFree": "免费",
-  "tigerPodFeat1Title": "双读写器插槽",
-  "tigerPodFeat1Desc": "两侧各一个",
-  "tigerPodFeat2Title": "同时编码2个芯片",
-  "tigerPodFeat2Desc": "同时进行",
-  "tigerPodFeat3Title": "无需支撑",
-  "tigerPodFeat3Desc": "PLA 或 PETG",
-  "tigerPodFeat4Title": "兼容全部1kg线轴",
-  "tigerPodFeat4Desc": "标准直径",
-  "tigerPodPrintSpec": "层高 0.2 mm · 填充 8% · 约7小时"
+  "tigerPodFeat1Title": "Dual RFID Reader",
+  "tigerPodFeat1Desc": "1或2个ACR122U读卡器",
+  "tigerPodFeat2Title": "Dual Link",
+  "tigerPodFeat2Desc": "同时2个TigerTag",
+  "tigerPodFeat3Title": "Print in Place",
+  "tigerPodFeat3Desc": "无需支撑优化",
+  "tigerPodFeat4Title": "1kg Standard spool",
+  "tigerPodFeat4Desc": "适配99%的线轴",
+  "tigerPodPrintSpec": "层高 0.2 mm · 填充 8% · 约7小时",
+  "upgradeToPlusHelpBody": "产品ID是TigerTag产品页面URL末尾显示的数字。浏览材料列表，打开任意产品，复制URL末尾的数字。",
+  "tigerPodCta": "Please ⚡Boost & ❤Like"
 }

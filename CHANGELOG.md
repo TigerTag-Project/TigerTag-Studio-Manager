@@ -5,6 +5,96 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.8.2 — 2026-05-24
+
+### TigerPOD modal — full visual redesign
+
+- **Hero video** — replaced the NFC SVG icon with the product helper video (`assets/video/tiger_pod/helper_tiger_pod_movies.mp4`); plays on modal open, pauses on close. Rings animation kept behind the video.
+- **Layout** — title "Tiger POD Free STL" moved above the video; hero `padding-top: 16px` for breathing room; hero height 240 px (was 200 px); video height 156 px (+30 %).
+- **Copy overhaul** (all 9 locales):
+  - Modal title: "Build your TigerPOD" → "Print your TigerPOD Now !"
+  - Description: "program" → "Burn TigerTag RFID chips"
+  - CTA button: "Print on MakerWorld" → "Download & Print STL Free"
+  - Stats bar (⚡12 Boosts · ❤21 Likes · Free) → "Please ⚡Boost & ❤Like"
+  - Brand label "TigerTag.io" removed; product name "Open Spool Pod" → "Tiger POD Free STL"
+  - Print spec strip (`0.2 mm · 8% infill · ~7 h`) removed
+- **Feature cards** — icons replaced by numbered orange gradient badges ①②③④; updated copy: Dual RFID Reader / Dual Link / Print in Place / 1kg Standard spool with matching sub-labels.
+- **AutoScan without reader** — `+ Scan` button now opens the TigerPOD modal when no reader is connected (previously opened the Pod Scan panel).
+
+### Pod Scan side-panel — removed
+
+- `<aside id="scanPanel">`, overlay, and all associated DOM were removed — the panel had no remaining triggers.
+- JS: `_openScanPanel`, `_closeScanPanel`, `_updateScanPanel` and their listeners deleted.
+- CSS: full `.scan-dp` / `.sdnr-*` block removed from `70-detail-misc.css`.
+- i18n: 4 orphan keys removed (`scanPanelTitle`, `scanPanelWaiting`, `scanPanelNoReader`, `scanPanelNoReaderSub`). **791 keys × 9 locales.**
+- Debug panel: "⌥ Open Pod Scan" button removed.
+
+### Bambu Lab MQTT — stability fixes
+
+- **No more data wipe on reconnect** — `bambuConnect` preserves `conn.data` when reconnecting to the same IP; the UI no longer flashes to zero while the MQTT handshake completes.
+- **No more false "idle" overwrite** — `_normState` returns `null` (not `"idle"`) when the message contains no state field; `_bblMerge` only updates `d.printState` when a real state is present (`!= null`).
+- **AMS / external tray merge already correct** — merge-by-ID loop introduced in v1.8.0 preserved; old-firmware temp fallback gated on `!dev`.
+
+### Printer grid/table — click reliability
+
+- **Bambu status changes no longer cause full grid rebuild** — `_bblNotify` only passes `statusChanged=true` (→ `renderPrintersView()`) when the printer actually crosses the online/offline section boundary; intermediate connecting-state transitions just update the badge in-place via `_bambuRefreshOnlineUI`. Eliminates the DOM-rebuild race that swallowed clicks during connection.
+- **Document-level mouseup fallback** — if a DOM rebuild happens between `mousedown` and the `click` event (causing the click to land on a detached element that doesn't bubble), `_pendingPrinterOpen` is consumed by a `document mouseup` + `setTimeout(0)` safety net. Works for both grid and table views.
+
+### Color edit modal (TD1S) — swatch pencil icon
+
+- Edit pencil always visible at 65 % opacity, 95 % on hover.
+- **Light-color detection** (`_ceIsLight`) — perceptual luminance formula `(0.299R + 0.587G + 0.114B)/255 > 0.55`; black icon + dark hover ring applied via `ce-swatch--light` class when the swatch background is light.
+- `_ceUpdateSwatch(swatchEl, hex)` centralises background + icon color + class updates.
+
+### Add Product modal — TD1S integration
+
+- TD1S button in ADP now opens "Set Color & TD Value" modal (was the tester modal).
+- Save writes back to `_adpColorSlots` + `adpTd` input (not Firestore) via the `onSave` callback on `openColorEditModal`.
+
+### Product ID help modal
+
+- ✕ close button removed (backdrop click remains the close affordance).
+- "Explore the TigerTag+ material list" button closes the modal after opening the external link.
+- Label updated: "Browse the TigerTag material list" → "Explore the TigerTag+ material list" (all 9 locales).
+
+### Mini dashboard — badge labels
+
+- Stat chip labels now render actual badge HTML (`<span class="tag-diy">`, `<span class="tag-plus">`, `<span class="tag-cloud">`) instead of plain text.
+- TigerTag Cloud chip styled identically to the other chips (removed purple override).
+
+### RFID reader badges — filled pill redesign
+
+- **Disconnected** — filled red gradient `#be2d2d→#d83b3b`, white text, `opacity: .85`.
+- **Connected** — subtle green tint background, `color: var(--success)`.
+- **Card present** — filled green gradient `#0d8a52→#1aaf6c`, white text.
+
+### Tiger Scales — header badge
+
+- `⚖` emoji replaced by a "Tiger Scales" text pill badge in the header status bar.
+- Three CSS states: gray/transparent (no scale), green tinted (connected), red tinted (no scale paired).
+
+### TigerTag+ product preview
+
+- After clicking "Check" with a product ID, the preview now shows the full label: **Brand · Series · Name · Weight · Refill** (e.g. "R3D PLA High Speed Orange 1kg Refill").
+- Brand name sourced from `api.brand` (catalogue field) — more reliable than the local numeric `id_brand` lookup at check time.
+- "Refill" token only shown when `api.filament.refill === true`.
+- Thumbnail enlarged (44 × 44 px, border added).
+
+### Detached Camera Wall
+
+- New standalone window (`renderer/cam/`) showing all online printer cameras simultaneously — open via the "Detach" toolbar button in the cam view.
+- Supports all camera types: Bambu Lab (MJPEG over IPC), Creality (WebRTC), Snapmaker / FlashForge (iframe).
+- MJPEG and Bambu frames forwarded to the detached window via `BroadcastChannel('cam-frames')` with zero-copy `ArrayBuffer` transfer.
+- Creality WebRTC uses a single `RTCPeerConnection` shared across the cam wall card, the printer sidecard, and the detached window — prevents duplicate connections (firmware only accepts one peer at a time).
+
+### Image loading — skeleton animation
+
+- All web-sourced images now display a shimmer skeleton while loading (TigerTag+ preview, add-from-web, product check, etc.).
+- Auto-applied via `MutationObserver` — no per-site instrumentation needed.
+- Smooth fade-in once the image loads.
+
+---
+
 ## v1.8.1 — 2026-05-23
 
 ### Build fix

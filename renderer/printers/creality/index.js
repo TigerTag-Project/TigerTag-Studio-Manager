@@ -610,8 +610,10 @@ function creNotifyChange(conn, statusChanged = false) {
       _creStatusPending = true;
       requestAnimationFrame(() => {
         _creStatusPending = false;
-        // Grid refresh — same pattern as other brands (cam guard lives in inventory.js)
+        // Grid/table refresh — same pattern as other brands (cam guard lives in inventory.js)
         ctx.onPrinterGridChange();
+        // Cam wall rebuild + forced-offline cleanup (onPrinterGridChange is no-op in cam mode)
+        ctx.onPrinterStatusChange(conn.key, conn.status);
         // Surgical sidecard update — never rebuilds the whole panel, keeps camera alive
         const activePrinter = ctx.getActivePrinter();
         if (activePrinter && activePrinter.brand === "creality" && creKey(activePrinter) === conn.key) {

@@ -121,6 +121,10 @@ export function bambuConnect(printer, { skipCam = false } = {}) {
   // longer stops the camera, so lastCamFrame being non-null means the
   // ffmpeg/JPEG-TCP process is alive — restarting it would cause a
   // brief interruption for no benefit).
+  // Preserve live data across reconnections so UI doesn't flicker to zero.
+  // We only carry it over when the IP hasn't changed (same physical printer).
+  let _prevData = null;
+
   if (existing) {
     if (existing.status === "connected" || existing.status === "connecting") {
       if (existing.ip === ip) {
@@ -134,6 +138,8 @@ export function bambuConnect(printer, { skipCam = false } = {}) {
         return;
       }
     }
+    // Carry data over before tearing down (same IP → reconnect, not a new printer).
+    if (existing.ip === ip && existing.data) _prevData = { ...existing.data };
     bambuDisconnect(key);
   }
 
@@ -150,7 +156,10 @@ export function bambuConnect(printer, { skipCam = false } = {}) {
     log:          [],
     logPaused:    false,
     logExpanded:  false,
-    data: {
+    // On reconnect: keep previous print state/progress so the UI doesn't
+    // flash to zero while the MQTT handshake completes and pushall arrives.
+    // Clear lastCamFrame — the camera stream is being restarted.
+    data: _prevData ? { ..._prevData, lastCamFrame: null } : {
       printState:    null,
       printFilename: null,
       progress:      0,
@@ -228,7 +237,14 @@ if (typeof window !== "undefined" && window.bambulab) {
   window.bambulab.onStatus((key, status) => {
     const conn = _bambuConns.get(key);
     if (!conn) return;
+    // Track the previous online state so we only trigger a full grid rebuild
+    // when the printer actually moves between sections (offline ↔ online).
+    // Intermediate transitions (e.g. connecting → connecting, error → reconnecting)
+    // just update the badge in-place via _bambuRefreshOnlineUI — no full rebuild,
+    // no innerHTML wipe that would cause click events to miss their target.
+    const wasOnline = conn.status === "connected";
     conn.status = status;
+    const isOnline  = conn.status === "connected";
     if (status === "connected") {
       conn.lastError = null;
       // Init sequence: get_version → pushall
@@ -236,7 +252,9 @@ if (typeof window !== "undefined" && window.bambulab) {
       _publish(conn, { pushing: { sequence_id: _nextSeq(), command: "pushall" } });
       _scheduleRefresh(conn);
     }
-    _bblNotify(conn, /*statusChanged*/ true);
+    // Full rebuild only when online ↔ offline section membership changes.
+    // All other badge-only updates are handled by _bambuRefreshOnlineUI below.
+    _bblNotify(conn, /*statusChanged*/ wasOnline !== isOnline);
     _bambuRefreshOnlineUI(key);
   });
 
@@ -281,6 +299,9 @@ function _decodePackedTemp32(raw) {
 
 function _normState(p) {
   const raw = (p.gcode_state || p.print_type || p.state || p.status || "").toLowerCase();
+  // No state field present in this message — return null so the caller
+  // doesn't overwrite an existing valid state with a false "idle".
+  if (!raw) return null;
   if (["failed", "failure", "error"].includes(raw)) {
     const alt = (p.print_type || p.state || p.status || "").toLowerCase();
     if (alt && alt !== raw && ["idle", "finish", "finished"].includes(alt)) return "idle";
@@ -312,7 +333,7 @@ function _bblMerge(conn, msg) {
 
   // State
   const st = _normState(p);
-  if (st) d.printState = st;
+  if (st != null) d.printState = st;
 
   // Progress
   if (p.mc_percent != null) d.progress = +(p.mc_percent) || 0;
@@ -358,38 +379,58 @@ function _bblMerge(conn, msg) {
       d.chamberCurrent = t.current;
     }
   }
-  // Fallback: old-firmware float fields
-  if (d.nozzleCurrent == null && p.nozzle_temper       != null) d.nozzleCurrent = Math.round(+p.nozzle_temper);
-  if (d.nozzleTarget  == null && p.nozzle_target_temper != null) d.nozzleTarget  = Math.round(+p.nozzle_target_temper);
-  if (d.bedCurrent    == null && p.bed_temper           != null) d.bedCurrent    = Math.round(+p.bed_temper);
-  if (d.bedTarget     == null && p.bed_target_temper    != null) d.bedTarget     = Math.round(+p.bed_target_temper);
-  if (d.chamberCurrent == null && p.chamber_temper      != null) d.chamberCurrent = Math.round(+p.chamber_temper);
+  // Fallback: old-firmware float fields — only when the new-firmware `dev`
+  // block was absent in this message (avoids freezing temps on partial updates).
+  if (!dev) {
+    if (p.nozzle_temper        != null) d.nozzleCurrent  = Math.round(+p.nozzle_temper);
+    if (p.nozzle_target_temper != null) d.nozzleTarget   = Math.round(+p.nozzle_target_temper);
+    if (p.bed_temper           != null) d.bedCurrent     = Math.round(+p.bed_temper);
+    if (p.bed_target_temper    != null) d.bedTarget      = Math.round(+p.bed_target_temper);
+    if (p.chamber_temper       != null) d.chamberCurrent = Math.round(+p.chamber_temper);
+  }
 
-  // ── AMS ────────────────────────────────────────────────────────────────
+  // ── AMS — merge by module ID, then by tray ID ──────────────────────────
+  // Never replace the whole array: partial updates only contain changed
+  // modules/trays; untouched entries must be preserved.
   if (p.ams?.ams && Array.isArray(p.ams.ams)) {
-    d.ams = p.ams.ams.map(mod => ({
-      id:       String(mod.id ?? ""),
-      humidity: String(mod.humidity ?? ""),
-      temp:     String(mod.temp ?? ""),
-      tray:     Array.isArray(mod.tray) ? mod.tray.map(t => ({
-        id:     String(t.id ?? ""),
-        color:  _parseColor(t.tray_color),
-        type:   String(t.tray_type || ""),
-        active: t.is_active === true || t.state === 11,
-      })) : [],
-    }));
+    if (!Array.isArray(d.ams)) d.ams = [];
+    for (const mod of p.ams.ams) {
+      const modId = String(mod.id ?? "");
+      let dm = d.ams.find(m => m.id === modId);
+      if (!dm) {
+        dm = { id: modId, humidity: "", temp: "", tray: [] };
+        d.ams.push(dm);
+      }
+      if (mod.humidity !== undefined) dm.humidity = String(mod.humidity ?? "");
+      if (mod.temp     !== undefined) dm.temp     = String(mod.temp ?? "");
+      if (Array.isArray(mod.tray)) {
+        for (const t of mod.tray) {
+          const trayId = String(t.id ?? "");
+          let dt = dm.tray.find(x => x.id === trayId);
+          if (!dt) {
+            dt = { id: trayId, color: null, type: "", active: false };
+            dm.tray.push(dt);
+          }
+          if (t.tray_color !== undefined) dt.color  = _parseColor(t.tray_color);
+          if (t.tray_type  !== undefined) dt.type   = String(t.tray_type || "");
+          if (t.is_active  !== undefined || t.state !== undefined)
+            dt.active = t.is_active === true || t.state === 11;
+        }
+      }
+    }
   }
 
   // ── External spool (vt_tray = old fw, vir_slot[0] = new fw) ────────────
+  // Merge individual fields — never overwrite an existing value with null.
   const ext2 = (p.vt_tray && typeof p.vt_tray === "object") ? p.vt_tray
              : (Array.isArray(p.vir_slot) && p.vir_slot.length > 0) ? p.vir_slot[0]
              : null;
   if (ext2) {
-    d.externalTray = {
-      color:  _parseColor(ext2.tray_color),
-      type:   String(ext2.tray_type || ""),
-      active: ext2.is_active === true || ext2.state === 11,
-    };
+    if (!d.externalTray) d.externalTray = { color: null, type: "", active: false };
+    if (ext2.tray_color !== undefined) d.externalTray.color  = _parseColor(ext2.tray_color);
+    if (ext2.tray_type  !== undefined) d.externalTray.type   = String(ext2.tray_type || "");
+    if (ext2.is_active  !== undefined || ext2.state !== undefined)
+      d.externalTray.active = ext2.is_active === true || ext2.state === 11;
   }
 
   // If partial update has vt_tray but no AMS → schedule a pushall refresh

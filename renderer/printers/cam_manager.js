@@ -16,8 +16,15 @@
 
 const GRACE_MS = 2000;
 
-// Per-key state: { abort, url, consumers: Set<img>, lastFrame, running, graceTimer }
+// Per-key state: { key, abort, url, consumers: Set<img>, lastFrame, running, graceTimer }
 const _streams = new Map();
+
+// Broadcast frames to the detached cam window (same origin — BroadcastChannel
+// works across BrowserWindow instances sharing the same localhost origin).
+// The cam window subscribes via new BroadcastChannel('cam-frames').
+const _bc = typeof BroadcastChannel !== 'undefined'
+  ? new BroadcastChannel('cam-frames')
+  : null;
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
@@ -30,7 +37,7 @@ export function camStart(key, url) {
   }
   if (s) { clearTimeout(s.graceTimer); s.graceTimer = null; }
   _stopStream(s);
-  const stream = { abort: new AbortController(), url, consumers: new Set(),
+  const stream = { key, abort: new AbortController(), url, consumers: new Set(),
                    lastFrame: null, running: true, graceTimer: null };
   _streams.set(key, stream);
   _pump(stream).catch(() => {});
@@ -140,6 +147,13 @@ function _pushFrame(stream, frame) {
   stream.consumers.forEach(el => { try { el.src = blobUrl; } catch {} });
   if (stream.lastFrame) URL.revokeObjectURL(stream.lastFrame);
   stream.lastFrame = blobUrl;
+  // Forward to the detached cam window via BroadcastChannel (zero-copy transfer).
+  if (_bc) {
+    try {
+      const copy = frame.buffer.slice(frame.byteOffset, frame.byteOffset + frame.byteLength);
+      _bc.postMessage({ key: stream.key, frame: copy }, [copy]);
+    } catch (_) {}
+  }
 }
 
 const _te  = new TextEncoder();

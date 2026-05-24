@@ -246,6 +246,21 @@
   "twinLinkUnlinkHint": "Maintenez 1,5 s pour délier (debug)",
   "toolboxTitle": "Boîte à outils",
   "burnRfidBtn": "Graver RFID",
+  "toolRefreshApi": "Actualiser depuis l'API",
+  "toolRefreshApiLoading": "Actualisation…",
+  "toolRefreshApiSuccess": "Données mises à jour depuis le catalogue",
+  "toolRefreshApiError": "Échec de l'actualisation API",
+  "toolRefreshApiNoChange": "Aucune nouvelle donnée de l'API",
+  "upgradeToPlusBanner": "Passer en TigerTag+",
+  "upgradeToPlusAction": "Saisir un ID produit",
+  "upgradeToPlusInputPlaceholder": "ID produit (ex. 60)",
+  "upgradeToPlusCheck": "Vérifier",
+  "upgradeToPlusChecking": "Vérification…",
+  "upgradeToPlusNotFound": "Produit introuvable",
+  "upgradeToPlusConvert": "Convertir en TigerTag+",
+  "upgradeToPlusSuccess": "Bobine convertie en TigerTag+ !",
+  "upgradeToPlusHelpTip": "Comment trouver l'ID produit",
+  "upgradeToPlusListTip": "Explorer la liste de matériaux TigerTag+",
   "encodeCloudBtn": "Encoder la puce",
   "cloudNotEncoded": "Graver la puce RFID",
   "tigerPodDiscover": "Construire TigerPOD →",
@@ -258,10 +273,22 @@
   "toolClearTd": "Effacer la valeur TD",
   "toolRemoveFromRack": "Retirer du rack",
   "agoNow": "à l'instant",
-  "agoMin": {"one":"il y a {{n}}min","other":"il y a {{n}}min"},
-  "agoHour": {"one":"il y a {{n}}h","other":"il y a {{n}}h"},
-  "agoDay": {"one":"il y a {{n}}j","other":"il y a {{n}}j"},
-  "agoMonth": {"one":"il y a {{n}} mois","other":"il y a {{n}} mois"},
+  "agoMin": {
+    "one": "il y a {{n}}min",
+    "other": "il y a {{n}}min"
+  },
+  "agoHour": {
+    "one": "il y a {{n}}h",
+    "other": "il y a {{n}}h"
+  },
+  "agoDay": {
+    "one": "il y a {{n}}j",
+    "other": "il y a {{n}}j"
+  },
+  "agoMonth": {
+    "one": "il y a {{n}} mois",
+    "other": "il y a {{n}} mois"
+  },
   "agoYear": {
     "one": "il y a 1 an",
     "other": "il y a {{n}} ans"
@@ -380,7 +407,10 @@
   "btnViewRack": "Rangement",
   "btnViewPrinter": "Imprimantes",
   "printersTitle": "Mes imprimantes",
-  "printersSub": {"one": "1 imprimante connectée à ton compte", "other": "{{n}} imprimantes connectées à ton compte"},
+  "printersSub": {
+    "one": "1 imprimante connectée à ton compte",
+    "other": "{{n}} imprimantes connectées à ton compte"
+  },
   "printersActive": "Active",
   "printersUpdated": "MAJ",
   "printersEmptyTitle": "Aucune imprimante",
@@ -480,15 +510,29 @@
   "printerSecCredentialsOptional": "Identifiants (optionnel)",
   "printerHelperDocsLink": "Voir le guide de configuration →",
   "printerHelperBambuTitle": "Avant de commencer",
-  "printerHelperBambuBullets": ["Ouvre Réglages → Général → Mode LAN uniquement sur ton imprimante.", "Note l'IP, le numéro de série et le code d'accès à 8 chiffres affichés.", "TigerTag se connecte en MQTT sur ton réseau local."],
+  "printerHelperBambuBullets": [
+    "Ouvre Réglages → Général → Mode LAN uniquement sur ton imprimante.",
+    "Note l'IP, le numéro de série et le code d'accès à 8 chiffres affichés.",
+    "TigerTag se connecte en MQTT sur ton réseau local."
+  ],
   "printerHelperCrealityTitle": "Avant de commencer",
-  "printerHelperCrealityBullets": ["Trouve l'IP dans Réseau → Informations imprimante.", "Le nom d'utilisateur est toujours 'Root'.", "Utilise ton mot de passe d'accès Klipper / Moonraker."],
+  "printerHelperCrealityBullets": [
+    "Trouve l'IP dans Réseau → Informations imprimante.",
+    "Le nom d'utilisateur est toujours 'Root'.",
+    "Utilise ton mot de passe d'accès Klipper / Moonraker."
+  ],
   "printerHelperElegooTitle": "Configuration Elegoo",
   "printerHelperElegooBullets": "Trouvez votre IP dans les paramètres réseau. Le SN est sur l'étiquette ou dans le menu Paramètres.",
   "printerHelperFFGTitle": "Avant de commencer",
-  "printerHelperFFGBullets": ["Trouve l'IP et le numéro de série dans À propos → Réseau.", "Utilise le mot de passe défini dans FlashPrint ou Orca-Flashforge."],
+  "printerHelperFFGBullets": [
+    "Trouve l'IP et le numéro de série dans À propos → Réseau.",
+    "Utilise le mot de passe défini dans FlashPrint ou Orca-Flashforge."
+  ],
   "printerHelperSnapTitle": "Avant de commencer",
-  "printerHelperSnapBullets": ["Saisis simplement l'IP locale affichée sur l'écran réseau de la Snapmaker.", "L'appairage se fait automatiquement en WebSocket."],
+  "printerHelperSnapBullets": [
+    "Saisis simplement l'IP locale affichée sur l'écran réseau de la Snapmaker.",
+    "L'appairage se fait automatiquement en WebSocket."
+  ],
   "printerHintBambuIP": "IP locale affichée en Mode LAN uniquement.",
   "printerHintBambuCode": "Code à 8 chiffres affiché en Mode LAN uniquement.",
   "printerHintBambuSerial": "Indiqué sous le code d'accès, sur le même écran.",
@@ -782,23 +826,21 @@
   "camSizeWide": "Large (2×)",
   "camSizeFullscreen": "Plein écran",
   "btnAddScan": "+ Auto Scan",
-  "scanPanelTitle": "Scan Pod",
-  "scanPanelWaiting": "Posez la bobine dans le Pod",
-  "scanPanelNoReader": "Aucun TigerTag Pod connecté",
-  "scanPanelNoReaderSub": "Pour scanner des bobines, connectez un TigerTag Pod via USB.",
-  "tigerPodModalTitle": "Fabriquez votre TigerPOD",
-  "tigerPodModalDesc": "Un support imprimable en 3D pour programmer les puces RFID TigerTag sur vos bobines.",
-  "tigerPodPrintBtn": "Imprimer sur MakerWorld",
+  "tigerPodModalTitle": "Imprimez votre TigerPOD !",
+  "tigerPodModalDesc": "Un support imprimable en 3D pour graver les puces RFID TigerTag directement sur vos bobines.",
+  "tigerPodPrintBtn": "Télécharger & Imprimer STL Gratuit",
   "tigerPodBoosts": "Boosts",
   "tigerPodLikes": "J'aime",
   "tigerPodFree": "Gratuit",
-  "tigerPodFeat1Title": "Deux emplacements",
-  "tigerPodFeat1Desc": "Un de chaque côté",
-  "tigerPodFeat2Title": "Encoder 2 puces",
-  "tigerPodFeat2Desc": "En même temps",
-  "tigerPodFeat3Title": "Sans support",
-  "tigerPodFeat3Desc": "PLA ou PETG",
-  "tigerPodFeat4Title": "Toute bobine 1 kg",
-  "tigerPodFeat4Desc": "Diamètre standard",
-  "tigerPodPrintSpec": "0,2 mm · remplissage 8 % · ~7 h"
+  "tigerPodFeat1Title": "Dual RFID Reader",
+  "tigerPodFeat1Desc": "1 ou 2 lecteurs ACR122U",
+  "tigerPodFeat2Title": "Dual Link",
+  "tigerPodFeat2Desc": "2 TigerTag en même temps",
+  "tigerPodFeat3Title": "Print in Place",
+  "tigerPodFeat3Desc": "Optimisé sans supports",
+  "tigerPodFeat4Title": "1kg Standard spool",
+  "tigerPodFeat4Desc": "Compatible avec 99% des bobines",
+  "tigerPodPrintSpec": "0,2 mm · remplissage 8 % · ~7 h",
+  "upgradeToPlusHelpBody": "L'ID produit est le numéro affiché dans l'URL d'une page produit TigerTag. Parcourez la liste des matériaux, ouvrez un produit et copiez le numéro à la fin de l'URL.",
+  "tigerPodCta": "Please ⚡Boost & ❤Like"
 }

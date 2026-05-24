@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Camera Wall — Tiger Studio</title>
+  <link rel="stylesheet" href="cam.css" />
+</head>
+<body>
+
+  <div id="camTitlebar">
+    <h1>Camera Wall</h1>
+    <span class="cam-tb-count" id="camCount"></span>
+  </div>
+
+  <div id="camRoot">
+    <div class="cam-empty">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M15 10l4.553-2.069A1 1 0 0121 8.82v6.36a1 1 0 01-1.447.89L15 14M3 8a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/>
+      </svg>
+      <p>Waiting for cameras…</p>
+    </div>
+  </div>
+
+  <script type="module" src="cam.js"></script>
+</body>
+</html>

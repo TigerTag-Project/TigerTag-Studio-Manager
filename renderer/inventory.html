@@ -120,7 +120,7 @@
       <div class="top-status-icons">
         <div id="rfidReadersBar" class="rfid-readers-bar"></div>
         <div class="health td1s-health" id="td1sHealth" data-tooltip="TD1S: not detected"><span class="td1s-health-icon"></span></div>
-        <div class="health scale-health" id="scaleHealth" data-tooltip="No scale connected"><span class="scale-health-icon">⚖</span></div>
+        <div class="health scale-health" id="scaleHealth" data-tooltip="No scale connected"><span class="scale-health-badge">Tiger Scales</span></div>
         <div class="health" id="health" data-tooltip="Backend: idle"><span class="icon icon-cloud icon-20"></span></div>
         <div class="health update-health hidden" id="updateStatusIcon" data-tooltip=""><span class="update-health-icon"></span></div>
       </div>
@@ -327,7 +327,6 @@
           <button class="ghost sm" id="btnDebug" data-i18n="debugOpenBtn">⌥ Open debug panel</button>
           <button class="ghost sm" id="btnTD1S"><span class="td1s-dev-icon"></span>⌥ Open TD1S panel</button>
           <button class="ghost sm" id="btnRfidTest">⌥ Open RFID tester</button>
-          <button class="ghost sm" id="btnOpenPodScan">⌥ Open Pod Scan</button>
           <button class="ghost sm" id="btnReportProblem" data-i18n="errReportBtn">⚑ Report a problem</button>
         </div>
       </div>
@@ -1511,6 +1510,20 @@
 </div>
 
 <!-- Diagnostic / error report modal -->
+<!-- ── Product ID help modal ─────────────────────────────────────────────── -->
+<div class="modal-overlay" id="productIdHelpOverlay">
+  <div class="modal-card pid-help-card">
+    <h2 class="pid-help-title" data-i18n="upgradeToPlusHelpTip">How to find the product ID</h2>
+    <img src="../assets/img/helper/helper_found_product_id.png"
+         class="pid-help-img" alt="Product ID helper" />
+    <p class="pid-help-body" data-i18n="upgradeToPlusHelpBody"></p>
+    <button class="pid-help-list-btn" id="productIdHelpListBtn">
+      <span class="icon icon-link icon-13"></span>
+      <span data-i18n="upgradeToPlusListTip">Browse the TigerTag material list</span>
+    </button>
+  </div>
+</div>
+
 <div class="modal-overlay" id="diagModalOverlay">
   <div class="modal-card diag-card">
     <div class="diag-header">
@@ -2108,52 +2121,6 @@
 <script type="module" src="inventory.js"></script>
 
 <!-- Scan Panel — slides in when "+ Scan" is armed; shows waiting state then tag data + raw JSON -->
-<div class="panel-overlay" id="scanPanelOverlay"></div>
-<aside class="detail-panel scan-dp" id="scanPanel" aria-label="Pod Scan">
-  <div class="panel-header">
-    <span class="panel-title" data-i18n="scanPanelTitle">Pod Scan</span>
-    <button class="modal-close" id="scanPanelClose" aria-label="Close">✕</button>
-  </div>
-  <div class="panel-body scan-dp-body">
-    <!-- No-reader state — shown when no NFC reader is connected -->
-    <div id="scanDpNoReader" class="scan-dp-no-reader" hidden>
-      <div class="sdnr-icon"></div>
-      <p class="sdnr-title" data-i18n="scanPanelNoReader">No TigerTag Pod connected</p>
-      <p class="sdnr-sub" data-i18n="scanPanelNoReaderSub">To scan filament spools you need a TigerTag Pod connected via USB.</p>
-      <div class="sdnr-links">
-        <button class="sdnr-link" onclick="window.electronAPI.openExternal('https://makerworld.com/fr/models/1289152-tigertag-io-open-spool-pod-for-rfid-filament#profileId-1318955')">
-          <span class="sdnr-link-icon sdnr-icon-print"></span>
-          <span class="sdnr-link-text">Print the Pod · free on MakerWorld</span>
-        </button>
-        <button class="sdnr-link" onclick="window.electronAPI.openExternal('https://tigertag.io/products/tigertag-player-bundle-2pcs?_pos=3&_sid=a46fafb9e&_ss=r')">
-          <span class="sdnr-link-icon sdnr-icon-shop"></span>
-          <span class="sdnr-link-text">2× TigerTag Player</span>
-        </button>
-        <button class="sdnr-link" onclick="window.electronAPI.openExternal('https://tigertag.io/products/tigertag-splitter?_pos=2&_sid=a46fafb9e&_ss=r')">
-          <span class="sdnr-link-icon sdnr-icon-shop"></span>
-          <span class="sdnr-link-text">TigerTag Splitter (1:2)</span>
-        </button>
-      </div>
-    </div>
-    <!-- Waiting state -->
-    <div id="scanDpWaiting" class="scan-dp-waiting" hidden>
-      <div class="scan-dp-ring"></div>
-      <p class="scan-dp-hint" data-i18n="scanPanelWaiting">Place the spool in the Pod</p>
-    </div>
-    <!-- Result state — hidden until first scan -->
-    <div id="scanDpResult" class="scan-dp-result" hidden>
-      <div class="scan-dp-head-row">
-        <div class="scan-dp-swatch" id="scanDpSwatch"></div>
-        <div class="scan-dp-title" id="scanDpTitle"></div>
-      </div>
-      <div class="scan-dp-meta" id="scanDpMeta"></div>
-      <details class="scan-dp-raw" open>
-        <summary>Raw SDK JSON</summary>
-        <pre id="scanDpJson"></pre>
-      </details>
-    </div>
-  </div>
-</aside>
 
 <!-- RFID scan notification — appears bottom-right after auto-add -->
 <div id="rfidScanNotif" class="rfid-scan-notif" aria-hidden="true" aria-live="polite">
@@ -2177,18 +2144,16 @@
         <div class="tpr tpr2"></div>
         <div class="tpr tpr3"></div>
       </div>
-      <span class="icon icon-nfc tigerpod-hero-icon"></span>
       <div class="tigerpod-hero-name">
-        <span class="tigerpod-hero-brand">TigerTag.io</span>
-        <span class="tigerpod-hero-product">Open Spool Pod</span>
+        <span class="tigerpod-hero-product">Tiger POD Free STL</span>
       </div>
-      <!-- Live stats from MakerWorld -->
+      <video class="tigerpod-hero-video" id="tigerPodVideo"
+             src="../assets/video/tiger_pod/helper_tiger_pod_movies.mp4"
+             autoplay muted loop playsinline preload="auto">
+      </video>
+      <!-- CTA bar -->
       <div class="tigerpod-stats">
-        <span class="tigerpod-stat">⚡ <strong>12</strong> <span data-i18n="tigerPodBoosts">Boosts</span></span>
-        <span class="tigerpod-stat-sep">·</span>
-        <span class="tigerpod-stat">❤ <strong>21</strong> <span data-i18n="tigerPodLikes">Likes</span></span>
-        <span class="tigerpod-stat-sep">·</span>
-        <span class="tigerpod-stat tigerpod-stat-free" data-i18n="tigerPodFree">Free</span>
+        <span class="tigerpod-cta" data-i18n="tigerPodCta">Please ⚡Boost &amp; ❤Like</span>
       </div>
     </div>
 
@@ -2200,39 +2165,33 @@
       <!-- Key features 2×2 grid -->
       <div class="tigerpod-features">
         <div class="tigerpod-feat">
-          <span class="tigerpod-feat-icon tpfi-rfid"></span>
+          <span class="tigerpod-feat-num">1</span>
           <div class="tigerpod-feat-text">
-            <strong data-i18n="tigerPodFeat1Title">Dual reader slots</strong>
-            <span data-i18n="tigerPodFeat1Desc">One on each side</span>
+            <strong data-i18n="tigerPodFeat1Title">Dual RFID Reader</strong>
+            <span data-i18n="tigerPodFeat1Desc">1 or 2 Reader ACR122U</span>
           </div>
         </div>
         <div class="tigerpod-feat">
-          <span class="tigerpod-feat-icon tpfi-bolt"></span>
+          <span class="tigerpod-feat-num">2</span>
           <div class="tigerpod-feat-text">
-            <strong data-i18n="tigerPodFeat2Title">Encode 2 chips</strong>
-            <span data-i18n="tigerPodFeat2Desc">At the same time</span>
+            <strong data-i18n="tigerPodFeat2Title">Dual Link</strong>
+            <span data-i18n="tigerPodFeat2Desc">2 TigerTag in same time</span>
           </div>
         </div>
         <div class="tigerpod-feat">
-          <span class="tigerpod-feat-icon tpfi-check"></span>
+          <span class="tigerpod-feat-num">3</span>
           <div class="tigerpod-feat-text">
-            <strong data-i18n="tigerPodFeat3Title">No supports</strong>
-            <span data-i18n="tigerPodFeat3Desc">PLA or PETG</span>
+            <strong data-i18n="tigerPodFeat3Title">Print in Place</strong>
+            <span data-i18n="tigerPodFeat3Desc">No support optimisation</span>
           </div>
         </div>
         <div class="tigerpod-feat">
-          <span class="tigerpod-feat-icon tpfi-package"></span>
+          <span class="tigerpod-feat-num">4</span>
           <div class="tigerpod-feat-text">
-            <strong data-i18n="tigerPodFeat4Title">Any 1 kg spool</strong>
-            <span data-i18n="tigerPodFeat4Desc">Standard diameter</span>
+            <strong data-i18n="tigerPodFeat4Title">1kg Standard spool</strong>
+            <span data-i18n="tigerPodFeat4Desc">Boosted fit for 99% of Spools</span>
           </div>
         </div>
-      </div>
-
-      <!-- Print specs strip -->
-      <div class="tigerpod-print-spec">
-        <span class="tigerpod-spec-printer-icon"></span>
-        <span data-i18n="tigerPodPrintSpec">0.2 mm · 8% infill · ~7 h</span>
       </div>
 
       <!-- CTA -->

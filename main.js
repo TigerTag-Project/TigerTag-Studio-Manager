@@ -117,6 +117,7 @@ function startRendererServer(rendererDir) {
 let imgCacheDir;
 
 let mainWindow;
+let _camWindow = null; // detached camera wall window (optional)
 
 // NFC state — replayed to renderer on every (re)load
 const _nfcReaders     = new Map();  // name → reader object
@@ -484,6 +485,58 @@ ipcMain.handle('rfid:encode-cloud', async (_evt, { cloudDoc, targets }) => {
   }
 
   return { ok: results.some(r => r.ok), results };
+});
+
+// ── Refresh TigerTag+ API data from product catalogue ─────────────────────────
+// Takes an existing Firestore raw doc (must have id_product + id_tigertag set),
+// builds a TigerTag via fromCloudDoc(), calls rawApi(), returns the _api payload.
+// Returns { ok: true, api } | { ok: false, error }
+ipcMain.handle('rfid:refresh-api', async (_evt, rawDoc) => {
+  try {
+    if (!rawDoc.id_product || !rawDoc.uid) return { ok: false, error: 'missing_fields' };
+    // fromCloudDoc() doesn't forward uid → uidHex is null → apiUrl has no uid= param → HTTP 400.
+    // Build the URL ourselves: uid must be passed as decimal (BigInt of the hex UID).
+    const uidDecimal = BigInt('0x' + rawDoc.uid).toString();
+    const url = `https://api.tigertag.io/api:tigertag/product/get?uid=${uidDecimal}&product_id=${rawDoc.id_product}`;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 7000);
+    let api;
+    try {
+      const resp = await fetch(url, { signal: controller.signal });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      api = await resp.json();
+    } finally {
+      clearTimeout(timer);
+    }
+    return { ok: true, api };
+  } catch (e) {
+    console.error('[NFC] refresh-api failed:', e.message);
+    return { ok: false, error: e.message };
+  }
+});
+
+// ── Lookup a product by id_product — validate it exists in the TigerTag catalogue ──
+// Uses a fake UID (same pattern as the SDK playground) since no chip is present.
+// Returns { ok: true, api } | { ok: false, error }
+ipcMain.handle('rfid:lookup-product', async (_evt, productId) => {
+  try {
+    if (!productId || productId === 0xFFFFFFFF) return { ok: false, error: 'invalid_id' };
+    const url = `https://api.tigertag.io/api:tigertag/product/get?uid=123456789&product_id=${productId}`;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 7000);
+    let api;
+    try {
+      const resp = await fetch(url, { signal: controller.signal });
+      if (!resp.ok) return { ok: false, error: `HTTP ${resp.status}` };
+      api = await resp.json();
+    } finally {
+      clearTimeout(timer);
+    }
+    return { ok: true, api };
+  } catch (e) {
+    console.error('[NFC] lookup-product failed:', e.message);
+    return { ok: false, error: e.message };
+  }
 });
 
 // Helper — split 80-byte user-data buffer into page descriptors.
@@ -1059,6 +1112,39 @@ ipcMain.handle('auth:google-loopback', async () => {
 // outcome so the UI can show "Checking…" / "Up to date" / etc.
 ipcMain.on('shell:open-external', (_evt, url) => {
   if (url && typeof url === 'string') shell.openExternal(url);
+});
+
+// ── Detached camera wall window ──────────────────────────────────────────────
+// Opens (or focuses) a standalone window that shows all online printer cameras.
+// The window uses its own preload (cam-preload.js) — no Firebase, no inventory.
+// webSecurity:false lets the window reach local-network camera URLs (192.168.x.x)
+// without CORS errors from the localhost origin.
+ipcMain.handle('cam:open-detached', (_evt, cameras) => {
+  if (_camWindow && !_camWindow.isDestroyed()) {
+    _camWindow.focus();
+    _camWindow.webContents.send('cam:update', cameras);
+    return;
+  }
+  _camWindow = new BrowserWindow({
+    width:     1280,
+    height:    720,
+    minWidth:  640,
+    minHeight: 360,
+    title:     'Camera Wall — Tiger Studio',
+    hasShadow: true,
+    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
+    webPreferences: {
+      preload:          path.join(__dirname, 'renderer/cam/cam-preload.js'),
+      contextIsolation: true,
+      nodeIntegration:  false,
+      webSecurity:      false, // allow local-network camera URLs (cross-origin iframes / MJPEG)
+    },
+  });
+  _camWindow.loadURL(`http://localhost:${_devPort}/renderer/cam/cam.html`);
+  _camWindow.webContents.once('did-finish-load', () => {
+    _camWindow?.webContents.send('cam:init', cameras);
+  });
+  _camWindow.on('closed', () => { _camWindow = null; });
 });
 
 ipcMain.handle('update:check-now', async () => {
@@ -1646,8 +1732,12 @@ ipcMain.handle('timelapse:download', async (_evt, videoUrl, suggestedFilename) =
         buf = buf.slice(16 + payloadSize);
         if (payload[0] === 0xFF && payload[1] === 0xD8 &&
             payload[payload.length - 2] === 0xFF && payload[payload.length - 1] === 0xD9) {
+          const b64 = payload.toString('base64');
           if (!event.sender.isDestroyed())
-            event.sender.send('bambulab:cam-frame', key, payload.toString('base64'));
+            event.sender.send('bambulab:cam-frame', key, b64);
+          // Forward to detached cam window if open
+          if (_camWindow && !_camWindow.isDestroyed())
+            _camWindow.webContents.send('bambulab:cam-frame', key, b64);
         }
       }
     });
@@ -1720,6 +1810,9 @@ ipcMain.handle('timelapse:download', async (_evt, videoUrl, suggestedFilename) =
             buf = buf.slice(i + 2);
             if (!event.sender.isDestroyed())
               event.sender.send('bambulab:cam-frame', key, frame.toString('base64'));
+            // Forward to detached cam window if open
+            if (_camWindow && !_camWindow.isDestroyed())
+              _camWindow.webContents.send('bambulab:cam-frame', key, frame.toString('base64'));
             start = -1;
             i = -1; // restart scan from new buf[0]
           }
@@ -1779,9 +1872,15 @@ app.whenReady().then(async () => {
   initNFC();   // spawns isolated utility process — never blocks the main V8 thread
   initTD1S();
 
-  // Check for updates after window is shown (not on dev)
+  // Check for updates only after the renderer has fully painted its first frame,
+  // then wait an additional 6 s so Firebase can connect and the inventory can
+  // load before we fire a background network request. This prevents the updater
+  // from competing with the critical startup traffic on slow connections.
+  // Never runs in dev (npm start) — app.isPackaged is false there.
   if (app.isPackaged) {
-    setTimeout(initUpdater, 3000);
+    mainWindow.webContents.once('did-finish-load', () => {
+      setTimeout(initUpdater, 6000);
+    });
   }
 
   // Sync DB in background — non-blocking, no crash if offline

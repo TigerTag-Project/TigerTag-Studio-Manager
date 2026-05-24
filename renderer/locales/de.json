@@ -246,6 +246,21 @@
   "twinLinkUnlinkHint": "1,5 s halten, um zu trennen (Debug)",
   "toolboxTitle": "Werkzeugkasten",
   "burnRfidBtn": "RFID brennen",
+  "toolRefreshApi": "Von API aktualisieren",
+  "toolRefreshApiLoading": "Aktualisierung…",
+  "toolRefreshApiSuccess": "Daten aus Katalog aktualisiert",
+  "toolRefreshApiError": "API-Aktualisierung fehlgeschlagen",
+  "toolRefreshApiNoChange": "Keine neuen Daten von der API",
+  "upgradeToPlusBanner": "Zu TigerTag+ upgraden",
+  "upgradeToPlusAction": "Produkt-ID eingeben",
+  "upgradeToPlusInputPlaceholder": "Produkt-ID (z.B. 60)",
+  "upgradeToPlusCheck": "Prüfen",
+  "upgradeToPlusChecking": "Prüfung…",
+  "upgradeToPlusNotFound": "Produkt nicht gefunden",
+  "upgradeToPlusConvert": "Zu TigerTag+ konvertieren",
+  "upgradeToPlusSuccess": "Spule zu TigerTag+ konvertiert!",
+  "upgradeToPlusHelpTip": "Wie man die Produkt-ID findet",
+  "upgradeToPlusListTip": "TigerTag+ Materialliste erkunden",
   "encodeCloudBtn": "Chip kodieren",
   "cloudNotEncoded": "RFID brennen",
   "tigerPodDiscover": "TigerPOD bauen →",
@@ -258,10 +273,22 @@
   "toolClearTd": "TD-Wert löschen",
   "toolRemoveFromRack": "Vom Regal entfernen",
   "agoNow": "gerade eben",
-  "agoMin": {"one":"vor {{n}} Min.","other":"vor {{n}} Min."},
-  "agoHour": {"one":"vor {{n}} Std.","other":"vor {{n}} Std."},
-  "agoDay": {"one":"vor 1 Tag","other":"vor {{n}} Tagen"},
-  "agoMonth": {"one":"vor 1 Monat","other":"vor {{n}} Monaten"},
+  "agoMin": {
+    "one": "vor {{n}} Min.",
+    "other": "vor {{n}} Min."
+  },
+  "agoHour": {
+    "one": "vor {{n}} Std.",
+    "other": "vor {{n}} Std."
+  },
+  "agoDay": {
+    "one": "vor 1 Tag",
+    "other": "vor {{n}} Tagen"
+  },
+  "agoMonth": {
+    "one": "vor 1 Monat",
+    "other": "vor {{n}} Monaten"
+  },
   "agoYear": {
     "one": "vor 1 Jahr",
     "other": "vor {{n}} Jahren"
@@ -380,7 +407,10 @@
   "btnViewRack": "Lager",
   "btnViewPrinter": "Drucker",
   "printersTitle": "Meine Drucker",
-  "printersSub": {"one": "1 Drucker mit deinem Konto verbunden", "other": "{{n}} Drucker mit deinem Konto verbunden"},
+  "printersSub": {
+    "one": "1 Drucker mit deinem Konto verbunden",
+    "other": "{{n}} Drucker mit deinem Konto verbunden"
+  },
   "printersActive": "Aktiv",
   "printersUpdated": "Aktualisiert",
   "printersEmptyTitle": "Noch keine Drucker",
@@ -480,15 +510,29 @@
   "printerSecCredentialsOptional": "Zugangsdaten (optional)",
   "printerHelperDocsLink": "Setup-Anleitung der Marke →",
   "printerHelperBambuTitle": "Bevor du beginnst",
-  "printerHelperBambuBullets": ["Öffne Einstellungen → Allgemein → Nur-LAN-Modus auf deinem Drucker.", "Notiere IP, Seriennummer und 8-stelligen Zugangscode vom Bildschirm.", "TigerTag verbindet sich per MQTT in deinem lokalen Netz."],
+  "printerHelperBambuBullets": [
+    "Öffne Einstellungen → Allgemein → Nur-LAN-Modus auf deinem Drucker.",
+    "Notiere IP, Seriennummer und 8-stelligen Zugangscode vom Bildschirm.",
+    "TigerTag verbindet sich per MQTT in deinem lokalen Netz."
+  ],
   "printerHelperCrealityTitle": "Bevor du beginnst",
-  "printerHelperCrealityBullets": ["Finde die IP unter Netzwerk → Druckerinformationen.", "Der Benutzername ist immer 'Root'.", "Nutze dein Klipper / Moonraker Zugangspasswort."],
+  "printerHelperCrealityBullets": [
+    "Finde die IP unter Netzwerk → Druckerinformationen.",
+    "Der Benutzername ist immer 'Root'.",
+    "Nutze dein Klipper / Moonraker Zugangspasswort."
+  ],
   "printerHelperElegooTitle": "Elegoo-Einrichtung",
   "printerHelperElegooBullets": "IP in den Netzwerkeinstellungen. SN auf dem Etikett oder im Menü Einstellungen.",
   "printerHelperFFGTitle": "Bevor du beginnst",
-  "printerHelperFFGBullets": ["Finde IP und Seriennummer unter Über → Netzwerk.", "Nutze das in FlashPrint oder Orca-Flashforge gesetzte Passwort."],
+  "printerHelperFFGBullets": [
+    "Finde IP und Seriennummer unter Über → Netzwerk.",
+    "Nutze das in FlashPrint oder Orca-Flashforge gesetzte Passwort."
+  ],
   "printerHelperSnapTitle": "Bevor du beginnst",
-  "printerHelperSnapBullets": ["Gib einfach die lokale IP vom Snapmaker-Netzwerkbildschirm ein.", "Die Kopplung erfolgt automatisch per WebSocket."],
+  "printerHelperSnapBullets": [
+    "Gib einfach die lokale IP vom Snapmaker-Netzwerkbildschirm ein.",
+    "Die Kopplung erfolgt automatisch per WebSocket."
+  ],
   "printerHintBambuIP": "Lokale IP aus Nur-LAN-Modus.",
   "printerHintBambuCode": "8-stelliger Code aus Nur-LAN-Modus.",
   "printerHintBambuSerial": "Unterhalb des Zugangscodes auf demselben Bildschirm.",
@@ -782,23 +826,21 @@
   "camSizeWide": "Breit (2×)",
   "camSizeFullscreen": "Vollbild",
   "btnAddScan": "+ Auto Scan",
-  "scanPanelTitle": "Pod-Scan",
-  "scanPanelWaiting": "Spule in den Pod legen",
-  "scanPanelNoReader": "Kein TigerTag Pod verbunden",
-  "scanPanelNoReaderSub": "Um Spulen zu scannen, verbinden Sie einen TigerTag Pod über USB.",
-  "tigerPodModalTitle": "Bauen Sie Ihr TigerPOD",
-  "tigerPodModalDesc": "Ein 3D-druckbarer Ständer zum Programmieren von TigerTag RFID-Chips auf Filamentspulen.",
-  "tigerPodPrintBtn": "Auf MakerWorld drucken",
+  "tigerPodModalTitle": "Drucke deinen TigerPOD jetzt!",
+  "tigerPodModalDesc": "Ein 3D-druckbarer Ständer zum Brennen von TigerTag RFID-Chips direkt auf deine Filamentspulen.",
+  "tigerPodPrintBtn": "STL kostenlos herunterladen & drucken",
   "tigerPodBoosts": "Boosts",
   "tigerPodLikes": "Likes",
   "tigerPodFree": "Kostenlos",
-  "tigerPodFeat1Title": "Zwei Leserschlitze",
-  "tigerPodFeat1Desc": "Je einer pro Seite",
-  "tigerPodFeat2Title": "2 Chips kodieren",
-  "tigerPodFeat2Desc": "Gleichzeitig",
-  "tigerPodFeat3Title": "Kein Stützmaterial",
-  "tigerPodFeat3Desc": "PLA oder PETG",
-  "tigerPodFeat4Title": "Jede 1-kg-Spule",
-  "tigerPodFeat4Desc": "Standarddurchmesser",
-  "tigerPodPrintSpec": "0,2 mm · 8 % Füllung · ~7 h"
+  "tigerPodFeat1Title": "Dual RFID Reader",
+  "tigerPodFeat1Desc": "1 oder 2 Leser ACR122U",
+  "tigerPodFeat2Title": "Dual Link",
+  "tigerPodFeat2Desc": "2 TigerTag gleichzeitig",
+  "tigerPodFeat3Title": "Print in Place",
+  "tigerPodFeat3Desc": "Ohne Stützstruktur",
+  "tigerPodFeat4Title": "1kg Standard spool",
+  "tigerPodFeat4Desc": "Passend für 99% der Spulen",
+  "tigerPodPrintSpec": "0,2 mm · 8 % Füllung · ~7 h",
+  "upgradeToPlusHelpBody": "Die Produkt-ID ist die Zahl in der URL einer TigerTag-Produktseite. Durchsuchen Sie die Materialliste, öffnen Sie ein Produkt und kopieren Sie die Zahl am Ende der URL.",
+  "tigerPodCta": "Please ⚡Boost & ❤Like"
 }

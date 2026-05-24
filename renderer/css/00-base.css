@@ -331,6 +331,16 @@
     line-height: 1.2;
     margin-top: 2px;
   }
+  /* Badge spans inside stat labels: reset inherited text-transform + sizing */
+  .top-stats .sb-stat .label .tag-plus,
+  .top-stats .sb-stat .label .tag-diy,
+  .top-stats .sb-stat .label .tag-cloud {
+    text-transform: none;
+    letter-spacing: .03em;
+    font-size: 9px;
+    padding: 1px 6px;
+    vertical-align: middle;
+  }
   /* TigerTag Cloud stat — purple gradient accent */
   .sb-stat--cloud {
     border-color: rgba(124,77,255,.35) !important;
@@ -345,16 +355,28 @@
   /* collapsed sidebar: keep the purple tint on the mini tile */
   .sidebar.collapsed .sb-stat--cloud::before { color: #a37bff; }
   .sidebar.collapsed .sb-stat--cloud::after  { color: rgba(163,123,255,.6); }
-  /* top-stats (header) cloud variant */
-  .top-stats .sb-stat--cloud {
-    border-color: rgba(124,77,255,.35) !important;
-    background: linear-gradient(135deg, rgba(124,77,255,.08), rgba(163,123,255,.04)) !important;
+  /* top-stats (header) cloud variant — identical to other chips; badge handles the colour */
+  .top-stats .sb-stat--cloud          { background: var(--surface-2) !important; border-color: var(--border) !important; }
+  .top-stats .sb-stat--cloud:hover    { background: var(--surface)   !important; border-color: var(--primary) !important; }
+  .top-stats .sb-stat--cloud .value   { color: var(--text); }
+  .top-stats .sb-stat--cloud .label   { color: var(--muted); }
+  /* Stat tile active state — filter is currently applied */
+  .top-stats .sb-stat[data-filter]:not([data-filter="reset"]) { cursor: pointer; }
+  .top-stats .sb-stat[data-filter="reset"] { cursor: default; }
+  .top-stats .sb-stat.is-active {
+    background: rgba(255,122,24,.12) !important;
+    border-color: var(--primary) !important;
   }
-  .top-stats .sb-stat--cloud:hover {
-    border-color: rgba(124,77,255,.55) !important;
+  .top-stats .sb-stat.is-active .value { color: var(--primary); }
+  .top-stats .sb-stat.is-active .label { color: var(--primary); opacity: .75; }
+  .top-stats .sb-stat.is-active:hover  { background: rgba(255,122,24,.18) !important; }
+  /* Cloud active state overrides */
+  .top-stats .sb-stat--cloud.is-active {
+    background: linear-gradient(135deg, rgba(124,77,255,.22), rgba(163,123,255,.14)) !important;
+    border-color: rgba(124,77,255,.75) !important;
   }
-  .top-stats .sb-stat--cloud .value { color: #7c4dff; }
-  .top-stats .sb-stat--cloud .label { color: rgba(124,77,255,.75); }
+  .top-stats .sb-stat--cloud.is-active .value { color: #7c4dff; }
+  .top-stats .sb-stat--cloud.is-active .label { color: rgba(124,77,255,.9); opacity: 1; }
 
 
   /* Sidebar friends quick-access list — plain menu items, no card.
@@ -528,3 +550,26 @@
     letter-spacing: .03em;
   }
   .sidebar.collapsed .sb-version { font-size: 9px; }
+
+/* ── Image skeleton / shimmer ── */
+@keyframes img-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+.img-skeleton {
+  background: linear-gradient(90deg,
+    var(--surface-2) 25%,
+    var(--surface-3, #2a2a2a) 50%,
+    var(--surface-2) 75%);
+  background-size: 200% 100%;
+  animation: img-shimmer 1.4s ease-in-out infinite;
+  /* prevent alt text from showing during load */
+  color: transparent;
+}
+@keyframes img-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+img.img-loaded {
+  animation: img-fade-in .25s ease;
+}

@@ -2130,8 +2130,27 @@ details[open] .pba-step-chev { transform: rotate(90deg); }
 .pt-job-idle  { color: var(--muted); font-size: 12px; }
 
 /* ── Printer cam wall ────────────────────────────────────────────────────── */
+/* Cam wall toolbar — sits above the grid, right-aligned */
+.cam-wall-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 4px 0 8px;
+}
+.cam-wall-detach-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  color: var(--muted);
+  font-size: 12px; font-weight: 500;
+  cursor: pointer;
+  transition: border-color .15s, color .15s;
+}
+.cam-wall-detach-btn:hover { border-color: var(--primary); color: var(--primary); }
+
 .cam-wall { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-            gap: 16px; padding: 8px 0 16px; align-items: start; }
+            gap: 16px; padding: 0 0 16px; align-items: start; }
 /* Normal cards span 2 sub-columns → 320px minimum, same visual as before */
 .cam-wall-card { position: relative; background: var(--surface); border: 1px solid var(--border);
                  border-radius: var(--radius); overflow: hidden;

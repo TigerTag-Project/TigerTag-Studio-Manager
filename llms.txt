@@ -4,7 +4,7 @@
 
 Tiger Studio Manager is an Electron (v41) desktop application for managing 3D-printing filament spools tagged with TigerTag RFID chips. It provides real-time Firestore inventory sync, live 3D printer integration for 5 brands, NFC chip read/write, hardware sensors (color sensor, scale), rack storage management, and a friends system — all in a single window without a build step (no bundler).
 
-Current version: **1.8.1** — macOS (Intel + Apple Silicon, signed & notarized), Windows, Linux.
+Current version: **1.8.2** — macOS (Intel + Apple Silicon, signed & notarized), Windows, Linux.
 
 ## Architecture
 
@@ -80,9 +80,9 @@ Cloud spools have `spoolId` starting with `CLOUD_`. `normalizeRow()` sets `r.isC
 - **Multi-reader**: up to 2 simultaneous readers; `state.nfcCardPresent` Map tracks which reader has a card
 - **TigerPOD**: free 3D-printable stand (MakerWorld #1289152) with 2 reader slots for dual encoding
 
-RFID badge in header: always visible. Red + pulsing = no reader connected, clicking opens TigerPOD modal. Green = connected. Card-present variant = chip on reader.
+RFID badge in header: always visible. Disconnected = filled red gradient pill, clicking opens TigerPOD modal. Connected = green tint. Card-present = filled green gradient.
 
-TigerPOD modal opens from three triggers: (1) cloud spool banner click with no reader, (2) "Please update RFID" banner click with no reader, (3) red RFID badge click.
+TigerPOD modal opens from four triggers: (1) cloud spool banner click with no reader, (2) "Please update RFID" banner click with no reader, (3) red RFID badge click, (4) `+ Scan` button click with no reader.
 
 ## Printer integrations
 
@@ -112,7 +112,7 @@ All brands: printer discovery (mDNS + port scan + manual IP), filament edit per 
 npm run i18n:add -- myKey --after existingKey en="..." fr="..." de="..." es="..." it="..." zh="..." pt="..." pt-pt="..." pl="..."
 npm run i18n:check   # validates consistency (also runs as pre-commit hook)
 ```
-778 keys × 9 locales as of v1.8.1.
+791 keys × 9 locales as of v1.8.2.
 
 ## CSS conventions
 
@@ -145,7 +145,7 @@ npm run i18n:check   # validates consistency (also runs as pre-commit hook)
 ```bash
 npm start                          # dev (no bundler)
 npm run i18n:check                 # validate all 9 locales
-git tag v1.8.1 && git push --tags  # triggers CI: parallel build macOS/Windows/Linux → GitHub Release
+git tag v1.8.2 && git push --tags  # triggers CI: parallel build macOS/Windows/Linux → GitHub Release
 ```
 
 CI: `.github/workflows/build.yml` — Apple Developer ID signing + notarytool on macOS, electron-builder on all platforms, publishes to GitHub Releases.

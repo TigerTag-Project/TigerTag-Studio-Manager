@@ -544,150 +544,6 @@
     to   { transform: scaleX(0); }
   }
 
-  /* ── Scan Panel (lateral slide-in) ─────────────────────────────────────
-     Opens when "+ Scan" is armed; shows a spinning waiting state then
-     tag data + raw SDK JSON once a chip is placed on the Pod.          */
-  .scan-dp { width: 360px; }
-  .scan-dp-body {
-    flex: 1; overflow-y: auto;
-    display: flex; flex-direction: column;
-    padding: 20px;
-  }
-
-  /* Waiting state — centred spinner + hint */
-  /* ── No-reader state ─────────────────────────────────────────────── */
-  /* Scan panel state switching — enforce [hidden] over display:flex */
-  #scanDpNoReader[hidden],
-  #scanDpWaiting[hidden],
-  #scanDpResult[hidden] { display: none !important; }
-
-  .scan-dp-no-reader {
-    flex: 1; display: flex; flex-direction: column;
-    align-items: center; justify-content: flex-start; gap: 10px;
-    text-align: center; padding: 32px 20px 24px;
-  }
-  .sdnr-icon {
-    width: 52px; height: 52px; border-radius: 50%;
-    background: var(--surface-2);
-    border: 2px dashed var(--border);
-    margin-bottom: 6px;
-    position: relative;
-  }
-  .sdnr-icon::after {
-    content: '';
-    position: absolute; inset: 0; margin: auto;
-    width: 22px; height: 22px;
-    background-color: var(--muted);
-    -webkit-mask-image: url('../../assets/svg/icons/icon_rfid.svg');
-    -webkit-mask-size: contain;
-    -webkit-mask-repeat: no-repeat;
-    -webkit-mask-position: center;
-  }
-  .sdnr-title {
-    font-size: 14px; font-weight: 700; color: var(--text); margin: 0;
-  }
-  .sdnr-sub {
-    font-size: 12px; color: var(--muted); margin: 0 0 10px;
-    line-height: 1.5;
-  }
-  .sdnr-links {
-    display: flex; flex-direction: column; gap: 8px; width: 100%;
-  }
-  .sdnr-link {
-    display: flex; align-items: center; gap: 10px;
-    width: 100%; padding: 10px 14px;
-    background: var(--surface-2);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    cursor: pointer;
-    font-size: 13px; font-weight: 500; color: var(--text);
-    text-align: left;
-    transition: background .15s, border-color .15s;
-  }
-  .sdnr-link:hover {
-    background: var(--surface-3, var(--surface-2));
-    border-color: var(--primary);
-    color: var(--primary);
-  }
-  .sdnr-link-icon {
-    width: 18px; height: 18px; flex-shrink: 0;
-    background-color: var(--muted);
-    -webkit-mask-size: contain;
-    -webkit-mask-repeat: no-repeat;
-    -webkit-mask-position: center;
-    transition: background-color .15s;
-  }
-  .sdnr-link:hover .sdnr-link-icon { background-color: var(--primary); }
-  .sdnr-icon-print {
-    -webkit-mask-image: url('../../assets/svg/icons/icon_printer.svg');
-  }
-  .sdnr-icon-shop {
-    -webkit-mask-image: url('../../assets/svg/icons/icon_plug.svg');
-  }
-
-  .scan-dp-waiting {
-    flex: 1; display: flex; flex-direction: column;
-    align-items: center; justify-content: center; gap: 22px;
-    text-align: center; padding: 40px 0;
-  }
-  .scan-dp-ring {
-    width: 64px; height: 64px; border-radius: 50%;
-    border: 3px solid var(--border);
-    border-top-color: var(--primary);
-    animation: scan-dp-spin 1.1s linear infinite;
-  }
-  @keyframes scan-dp-spin { to { transform: rotate(360deg); } }
-  .scan-dp-hint {
-    font-size: 14px; color: var(--muted); line-height: 1.6;
-    max-width: 200px; margin: 0;
-  }
-
-  /* Result state — swatch + title + meta table + raw JSON */
-  .scan-dp-result { display: flex; flex-direction: column; gap: 16px; }
-  .scan-dp-head-row {
-    display: flex; align-items: center; gap: 12px;
-  }
-  .scan-dp-swatch {
-    width: 48px; height: 48px; border-radius: 10px; flex-shrink: 0;
-    border: 1px solid var(--border);
-  }
-  .scan-dp-title {
-    font-size: 14px; font-weight: 600; line-height: 1.4;
-    flex: 1; min-width: 0;
-  }
-  .scan-dp-meta { display: flex; flex-direction: column; }
-  .scan-dp-meta-row {
-    display: flex; justify-content: space-between; align-items: baseline;
-    padding: 5px 0; border-bottom: 1px solid var(--border);
-    font-size: 12px;
-  }
-  .scan-dp-meta-row:last-child { border-bottom: none; }
-  .scan-dp-meta-row .k { color: var(--muted); font-weight: 500; }
-  .scan-dp-meta-row .v {
-    font-weight: 600; color: var(--text);
-    text-align: right; font-family: var(--mono); font-size: 11px;
-  }
-
-  /* Raw JSON collapsible */
-  .scan-dp-raw {
-    border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
-  }
-  .scan-dp-raw > summary {
-    padding: 7px 12px;
-    font-size: 10px; font-weight: 700; text-transform: uppercase;
-    letter-spacing: .07em; cursor: pointer; user-select: none;
-    background: var(--surface); color: var(--muted);
-    list-style: none;
-  }
-  .scan-dp-raw > summary:hover { color: var(--text); }
-  #scanDpJson {
-    margin: 0; padding: 12px;
-    font-size: 10.5px; font-family: var(--mono);
-    line-height: 1.55; overflow-x: auto; overflow-y: auto;
-    background: transparent; color: var(--text);
-    white-space: pre; word-break: normal;
-    max-height: 360px;
-  }
 
   /* Quick-filter group — keeps the 3 dropdowns clustered together,
      so the search bar can absorb all the remaining horizontal space. */
@@ -763,10 +619,15 @@
   }
   .spool-card .card-img-placeholder img { width: 65%; opacity: .55; }
   .spool-card .card-img-color-placeholder {
-    width: 100%; aspect-ratio: 1;
+    width: 100%; aspect-ratio: 1; position: relative;
     display: flex; align-items: flex-start; justify-content: flex-end; overflow: hidden;
   }
-  .spool-card .card-img-color-placeholder img { width: 28%; margin: 8%; }
+  .spool-card .card-img-color-placeholder > img:first-child { width: 28%; margin: 8%; }
+  /* Product photo overlay — sits on top of the colour square; hidden on error */
+  .spool-card .card-img--overlay {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: cover; display: block;
+  }
   .spool-card .card-body { padding: 10px 10px 8px; }
   .spool-card .card-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .spool-card .card-sub { font-size: 11px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -885,8 +746,9 @@
   .panel-img-placeholder img { width: 40%; opacity: .5; }
   .panel-img-color-placeholder { width: 100%; aspect-ratio: 1; display: flex; align-items: flex-start; justify-content: flex-end; overflow: hidden; }
   .panel-img-logo { width: 22%; margin: 4%; }
-  .panel-section { padding: 14px 16px; }
-  .panel-identity { padding-bottom: 10px; }
+  .panel-section { padding: 10px 16px; }
+  .panel-section + .panel-section { border-top: 1px solid var(--border); }
+  .panel-identity { padding-bottom: 6px; }
   .pi-row1 { font-size: 12px; font-weight: 600; color: var(--muted); line-height: 1.4; }
   .pi-row2 { font-size: 13px; color: var(--muted); line-height: 1.4; margin-top: 2px; }
   .panel-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 8px; font-weight: 600; }
@@ -936,12 +798,120 @@
     padding: 8px 14px; background: var(--warning-soft);
     border-bottom: 1px solid var(--border); cursor: pointer;
   }
+
+  /* ── Upgrade to TigerTag+ banner ── */
+  .upgrade-plus-banner {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 7px 14px; background: rgba(124,77,255,.07);
+    border-bottom: 1px solid rgba(124,77,255,.15); cursor: pointer;
+    transition: background .15s;
+  }
+  .upgrade-plus-banner:hover { background: rgba(124,77,255,.12); }
+  .upgrade-plus-banner-left { display: flex; align-items: center; gap: 8px; }
+  .upgrade-plus-badge {
+    font-size: 10px; font-weight: 800; padding: 2px 7px; border-radius: 999px;
+    background: #7c4dff; color: #fff; letter-spacing: .03em; flex-shrink: 0;
+  }
+  .upgrade-plus-banner-text { font-size: 12px; font-weight: 600; color: #7c4dff; }
+  .upgrade-plus-banner-cta  { font-size: 11px; color: rgba(124,77,255,.7); white-space: nowrap; }
+
+  /* Inline form — hidden by default */
+  .upgrade-plus-form {
+    display: none; flex-direction: column; gap: 8px;
+    padding: 10px 14px 12px; background: rgba(124,77,255,.04);
+    border-bottom: 1px solid rgba(124,77,255,.15);
+  }
+  .upgrade-plus-form.open { display: flex; }
+
+  /* Input row */
+  .upgrade-plus-input-row { display: flex; gap: 6px; }
+  .upgrade-plus-input {
+    flex: 1; height: 30px; border-radius: 8px; border: 1px solid rgba(124,77,255,.35);
+    background: var(--surface2); color: var(--text); padding: 0 10px;
+    font-size: 13px; outline: none; min-width: 0;
+  }
+  .upgrade-plus-input:focus { border-color: #7c4dff; box-shadow: 0 0 0 2px rgba(124,77,255,.15); }
+  .upgrade-plus-check-btn {
+    height: 30px; padding: 0 14px; border-radius: 8px; font-size: 12px; font-weight: 700;
+    cursor: pointer; white-space: nowrap; border: 1px solid #7c4dff;
+    background: #7c4dff; color: #fff; flex-shrink: 0; transition: background .15s;
+  }
+  .upgrade-plus-check-btn:hover:not(:disabled) { background: #6a3de0; border-color: #6a3de0; }
+  .upgrade-plus-check-btn:disabled { opacity: .45; cursor: not-allowed; }
+
+  /* Helper links row */
+  .upgrade-plus-form-links { display: flex; gap: 12px; }
+  .upgrade-plus-help-link, .upgrade-plus-list-link {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 11px; color: rgba(124,77,255,.75); background: none; border: none;
+    cursor: pointer; padding: 0; transition: color .15s;
+  }
+  .upgrade-plus-help-link:hover, .upgrade-plus-list-link:hover { color: #7c4dff; }
+
+  /* Tooltip image */
+  /* old inline tooltip — kept but hidden (replaced by #productIdHelpOverlay modal) */
+  .upgrade-plus-tooltip { display: none !important; }
+
+  /* ── Product ID help modal ──────────────────────────────────────── */
+  .pid-help-card {
+    width: min(480px, 92vw);
+    padding: 24px;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .pid-help-title {
+    font-size: 15px; font-weight: 600;
+    color: var(--text); margin: 0; padding-right: 24px;
+  }
+  .pid-help-img {
+    width: 100%; border-radius: 8px; display: block;
+    border: 1px solid var(--border);
+  }
+  .pid-help-body {
+    font-size: 13px; color: var(--muted);
+    line-height: 1.55; margin: 0;
+  }
+  .pid-help-list-btn {
+    display: flex; align-items: center; justify-content: center; gap: 7px;
+    width: 100%;
+    padding: 10px 16px;
+    font-size: 13px; font-weight: 600;
+    color: #7c4dff;
+    background: rgba(124,77,255,.08);
+    border: 1.5px solid rgba(124,77,255,.25);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 150ms, border-color 150ms, color 150ms;
+  }
+  .pid-help-list-btn:hover {
+    background: rgba(124,77,255,.16);
+    border-color: rgba(124,77,255,.5);
+    color: #6a35f5;
+  }
+
+  /* Preview + confirm */
+  .upgrade-plus-preview { min-height: 0; }
+  .upgrade-plus-checking { font-size: 12px; color: var(--muted); }
+  .upgrade-plus-notfound { font-size: 12px; color: var(--danger); }
+  .upgrade-plus-result   { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+  .upgrade-plus-thumb    { width: 44px; height: 44px; border-radius: 8px; object-fit: cover; flex-shrink: 0; border: 1px solid var(--border); }
+  .upgrade-plus-name     { font-size: 13px; font-weight: 600; color: var(--text); line-height: 1.4; }
+  .upgrade-plus-confirm-btn {
+    width: 100%; height: 34px; border-radius: 8px; font-size: 13px; font-weight: 700;
+    cursor: pointer; border: 1px solid #7c4dff; background: #7c4dff; color: #fff;
+    transition: background .15s;
+  }
+  .upgrade-plus-confirm-btn:hover:not(:disabled) { background: #6a3de0; border-color: #6a3de0; }
+  .upgrade-plus-confirm-btn:disabled { opacity: .45; cursor: not-allowed; }
   .chip-update-icon {
     display: inline-flex; align-items: center; justify-content: center;
     width: 22px; height: 22px; border-radius: 50%;
     background: var(--warning); color: #fff; flex-shrink: 0;
   }
   .chip-update-icon .icon { color: #fff; }
+  .rfid-material-icon {
+    height: 52px; aspect-ratio: 1 / 1;
+    border-radius: 8px; flex-shrink: 0; object-fit: cover;
+  }
   .chip-update-text { font-size: 12px; color: var(--warning); flex: 1; }
   /* ── Cloud encode banner (replaces chip-update banner for Cloud spools) ── */
   .cloud-encode-banner { background: rgba(124,77,255,.07); cursor: pointer; }

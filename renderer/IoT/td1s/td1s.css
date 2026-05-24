@@ -291,11 +291,18 @@
   font-size: 12px; font-weight: 700; color: rgba(255,255,255,.35);
 }
 .ce-swatch {
+  position: relative; display: flex; align-items: center; justify-content: center;
   width: 40px; height: 40px; flex-shrink: 0; border-radius: 50%;
   background: #2a2a2a; border: 2px solid rgba(255,255,255,.2);
   cursor: pointer; padding: 0; transition: border-color .15s, box-shadow .15s;
 }
 .ce-swatch:hover { border-color: rgba(255,255,255,.55); box-shadow: 0 0 0 3px rgba(255,122,24,.25); }
+.ce-swatch--light:hover { border-color: rgba(0,0,0,.55); box-shadow: 0 0 0 3px rgba(0,0,0,.25); }
+.ce-swatch-edit {
+  pointer-events: none;
+  opacity: .65; transition: opacity .15s, background .15s;
+}
+.ce-swatch:hover .ce-swatch-edit { opacity: .95; }
 .ce-hex-input.td-edit-val-input { width: auto !important; flex: 1 !important; }
 
 /* Slot selector tabs (Color modal state 2, TD1S mode — hidden when numColors === 1) */

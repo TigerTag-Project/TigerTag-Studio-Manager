@@ -76,6 +76,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   encodeCloudSpool: (opts) =>
     ipcRenderer.invoke('rfid:encode-cloud', opts),
 
+  // Fetch fresh TigerTag+ product data from the catalogue API.
+  // rawDoc must be the Firestore doc shape (needs id_product + id_tigertag).
+  // Returns { ok: true, api } | { ok: false, error }
+  refreshApiData: (rawDoc) =>
+    ipcRenderer.invoke('rfid:refresh-api', rawDoc),
+
+  // Validate a product_id against the TigerTag catalogue (no chip required).
+  // Returns { ok: true, api } | { ok: false, error }
+  lookupProduct: (productId) =>
+    ipcRenderer.invoke('rfid:lookup-product', productId),
+
   // Called when an app update is available or ready to install
   onUpdateStatus: (callback) =>
     ipcRenderer.on('update-status', (_, info) => callback(info)),
@@ -111,6 +122,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAppInfo:      () => ipcRenderer.invoke('app:info'),
   // Open a URL in the default system application (e.g. VLC for rtsp://).
   openExternal: (url) => ipcRenderer.send('shell:open-external', url),
+
+  // ── Detached camera wall window ──────────────────────────────────────────
+  // Opens (or focuses) a standalone window displaying all online printer cameras.
+  // cameras: CamDescriptor[] — built by inventory.js _serializeCamerasForDetach()
+  openCamWindow: (cameras) => ipcRenderer.invoke('cam:open-detached', cameras),
   // Show native Save dialog and stream a timelapse video from the printer to disk.
   downloadTimelapse: (url, filename) => ipcRenderer.invoke('timelapse:download', url, filename),
 
