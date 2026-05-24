@@ -167,6 +167,8 @@ A QR code to download the mobile app is always accessible in the sidebar.
 
 ## Screenshots
 
+<img src="assets/img/screenshots/screenshot_setup_tiger_project.png" width="100%" alt="TigerTag ecosystem setup — Tiger Studio Manager, TigerScale, TD1S, ACR122U and TigerPOD" />
+
 <div>
 
 | Inventory | Printers |
