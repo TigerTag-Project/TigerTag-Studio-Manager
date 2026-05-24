@@ -115,8 +115,8 @@ Plug in a USB ACR122U reader and the app automatically opens the matching spool'
 
 #### 🐯 TigerPOD — free 3D-printable dual reader stand
 
-<a href="assets/video/tiger_pod/helper_tiger_pod_movies.mp4">
-  <img src="assets/img/screenshots/screenshot_tigerpod.png" width="100%" alt="▶ Watch TigerPOD demo" />
+<a href="https://makerworld.com/en/models/1289152">
+  <img src="assets/img/screenshots/screenshot_tigerpod.png" width="100%" alt="Download TigerPOD free STL on MakerWorld" />
 </a>
 
 The **TigerPOD** is a free 3D-printable stand designed to hold up to **two ACR122U readers** side by side. Place one or two TigerTag chips on it and encode both in a single click directly from Tiger Studio Manager — no manual positioning, no juggling readers.
