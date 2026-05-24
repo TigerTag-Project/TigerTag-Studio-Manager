@@ -49,6 +49,8 @@ It works standalone (no reader needed), but unlocks its full potential with:
 - a **TigerScale** ESP32 scale for live weight tracking
 - one or more **3D printers** from the 5 supported brands
 
+<img src="assets/img/screenshots/screenshot_setup_tiger_project.png" width="100%" alt="TigerTag ecosystem setup — Tiger Studio Manager, TigerScale, TD1S, ACR122U and TigerPOD" />
+
 > 🌐 **[tigertag.io](https://tigertag.io)** — official website: buy TigerTag chips, browse the filament catalogue, manage your account.
 
 ---
@@ -166,8 +168,6 @@ A QR code to download the mobile app is always accessible in the sidebar.
 ---
 
 ## Screenshots
-
-<img src="assets/img/screenshots/screenshot_setup_tiger_project.png" width="100%" alt="TigerTag ecosystem setup — Tiger Studio Manager, TigerScale, TD1S, ACR122U and TigerPOD" />
 
 <div>
 
