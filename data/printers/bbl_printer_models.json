@@ -1,9 +1,18 @@
 [
   {
+    "id": "12",
+    "name": "X2D",
+    "image": "assets/images/bbl_printers/x1c.png",
+    "features": ["AMS", "Lidar", "Camera", "Enclosed"],
+    "camera_transport": "rtsp",
+    "open_firmware": null
+  },
+  {
     "id": "10",
     "name": "P2S",
     "image": "assets/images/bbl_printers/p2s.png",
     "features": ["AMS", "Camera", "Enclosed"],
+    "camera_transport": "rtsp",
     "open_firmware": null
   },
   {
@@ -11,6 +20,7 @@
     "name": "H2C",
     "image": "assets/images/bbl_printers/h2c.png",
     "features": ["AMS", "Camera", "Enclosed"],
+    "camera_transport": "rtsp",
     "open_firmware": null
   },
   {
@@ -18,6 +28,7 @@
     "name": "H2D Pro",
     "image": "assets/images/bbl_printers/h2dpro.png",
     "features": ["AMS", "Lidar", "Camera", "Enclosed"],
+    "camera_transport": "rtsp",
     "open_firmware": null
   },
   {
@@ -25,6 +36,7 @@
     "name": "H2D",
     "image": "assets/images/bbl_printers/h2d.png",
     "features": ["AMS", "Lidar", "Camera", "Enclosed"],
+    "camera_transport": "rtsp",
     "open_firmware": null
   },
   {
@@ -32,6 +44,7 @@
     "name": "H2S",
     "image": "assets/images/bbl_printers/h2s.png",
     "features": ["AMS", "Lidar", "Camera", "Enclosed"],
+    "camera_transport": "rtsp",
     "open_firmware": null
   },
   {
@@ -39,6 +52,7 @@
     "name": "X1E",
     "image": "assets/images/bbl_printers/x1c.png",
     "features": ["AMS", "Lidar", "Camera", "Enclosed"],
+    "camera_transport": "rtsp",
     "open_firmware": "01.08.02.00"
   },
   {
@@ -46,14 +60,16 @@
     "name": "X1C",
     "image": "assets/images/bbl_printers/x1c.png",
     "features": ["AMS", "Lidar", "Camera", "Enclosed"],
+    "camera_transport": "rtsp",
     "open_firmware": "01.08.02.00"
   },
   {
     "id": "4",
     "name": "P1P",
     "image": "assets/images/bbl_printers/p1p.png",
-    "description": "Entry-level CoreXY 3D printer",    
+    "description": "Entry-level CoreXY 3D printer",
     "features": ["AMS Optional", "Camera"],
+    "camera_transport": "jpeg_tcp",
     "open_firmware": "01.08.01.00"
   },
   {
@@ -61,6 +77,7 @@
     "name": "P1S",
     "image": "assets/images/bbl_printers/p1s.png",
     "features": ["AMS Optional", "Camera"],
+    "camera_transport": "jpeg_tcp",
     "open_firmware": "01.08.01.00"
   },
   {
@@ -68,6 +85,7 @@
     "name": "A1",
     "image": "assets/images/bbl_printers/a1.png",
     "features": ["AMS Optional", "Camera"],
+    "camera_transport": "jpeg_tcp",
     "open_firmware": "01.04.00.00"
   },
   {
@@ -75,6 +93,7 @@
     "name": "A1 Mini",
     "image": "assets/images/bbl_printers/a1-mini.png",
     "features": ["Camera"],
+    "camera_transport": "jpeg_tcp",
     "open_firmware": "01.04.00.00"
   },
   {
@@ -82,6 +101,7 @@
     "name": "Select Printer",
     "image": "assets/images/bbl_printers/no_printer.png",
     "features": ["No"],
+    "camera_transport": null,
     "open_firmware": null
   }
 ]

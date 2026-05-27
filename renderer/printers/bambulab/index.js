@@ -7,8 +7,9 @@
  * Publish:   device/{serial}/request
  *
  * Camera:
- *   Model IDs 1–4 (A1, A1 Mini, P1P, P1S) → JPEG TCP port 6000 via main process.
- *   Model IDs 5+  (X1C, X1E, P2S, H2x)    → RTSP rtsps://{ip}:322/... (copy-URL only).
+ *   Transport determined by `camera_transport` in bbl_printer_models.json:
+ *   "jpeg_tcp" (A1, A1 Mini, P1P, P1S) → JPEG TCP port 6000 via main process.
+ *   "rtsp"     (X1C, X1E, P2S, H2x…)  → rtsps://{ip}:322/... (copy-URL only).
  *
  * Self-registers into the brands registry at module evaluation time.
  */
@@ -27,24 +28,19 @@ const _bambuConns = new Map();
 
 // ── Model helpers ──────────────────────────────────────────────────────────
 
-// Serial prefix → model ID (fallback when printerModelId is absent).
-const _SERIAL_PREFIX_MODEL = {
-  '039': 2, '030': 1, '01S': 4, '01P': 3,
-  '22E': 10, '03W': 6, '00M': 5,
-};
-
-// Model IDs whose camera uses JPEG TCP (port 6000) instead of RTSP.
-const _JPEG_CAM_IDS = new Set([1, 2, 3, 4]);
-
+/** Returns the numeric model ID stored on the printer object, or 0. */
 export function bambuModelId(p) {
   const id = parseInt(p.printerModelId, 10);
-  if (id >= 1 && id <= 11) return id;
-  const prefix = String(p.serialNumber || "").slice(0, 3).toUpperCase();
-  return _SERIAL_PREFIX_MODEL[prefix] || 0;
+  return isNaN(id) ? 0 : id;
 }
 
+/**
+ * Returns true when the printer uses JPEG TCP (port 6000) for its camera.
+ * Source of truth: `camera_transport` field in bbl_printer_models.json,
+ * loaded into state.db.printerModels and accessible via ctx.findPrinterModel.
+ */
 export function bambuUsesJpegCam(p) {
-  return _JPEG_CAM_IDS.has(bambuModelId(p));
+  return ctx.findPrinterModel('bambulab', p.printerModelId)?.camera_transport === 'jpeg_tcp';
 }
 
 // ── Public key helpers ─────────────────────────────────────────────────────

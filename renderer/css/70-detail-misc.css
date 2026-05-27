@@ -751,6 +751,49 @@
   .panel-identity { padding-bottom: 6px; }
   .pi-row1 { font-size: 12px; font-weight: 600; color: var(--muted); line-height: 1.4; }
   .pi-row2 { font-size: 13px; color: var(--muted); line-height: 1.4; margin-top: 2px; }
+  /* Name line — sits below Brand · Material, slightly more prominent. */
+  .pi-row2--name { font-size: 14px; font-weight: 600; color: var(--text); margin-top: 3px; }
+  /* Secondary message line — sits under a catalogue name (TigerTag+), so
+     it's rendered lighter to read as an extra editable label, not a 2nd title. */
+  .pi-name-msgline--secondary { margin-top: 1px; }
+  .pi-name-msgline--secondary .pi-name-edit { font-size: 13px; font-weight: 500; color: var(--muted); }
+  /* Inline-editable spool name (= `message` chip slot). Spans the full
+     panel width: name text left (truncates), pencil pinned to the right. */
+  .pi-name-edit {
+    display: flex; width: 100%; align-items: center; gap: 8px;
+    justify-content: space-between;
+    margin: 0; padding: 2px 2px 2px 0;
+    background: transparent; border: 0; border-radius: 6px;
+    font-family: inherit; font-size: 14px; font-weight: 600; color: var(--text);
+    cursor: text; text-align: left;
+    transition: background .12s ease;
+  }
+  .pi-name-edit:hover { background: rgba(56, 110, 207, .1); }
+  .pi-name-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pi-name-edit .pi-name-pencil { background: var(--muted); flex-shrink: 0; opacity: .45; transition: opacity .12s ease; }
+  .pi-name-edit:hover .pi-name-pencil { opacity: .9; }
+  .pi-name-placeholder { color: var(--muted); font-style: italic; font-weight: 500; }
+  .pi-name-editwrap { display: flex; flex-direction: column; gap: 3px; width: 100%; }
+  .pi-name-input {
+    width: 100%;
+    font-family: inherit; font-size: 14px; font-weight: 600; color: var(--text);
+    padding: 2px 6px; border-radius: 6px;
+    background: var(--surface-2); border: 1px solid rgba(56, 110, 207, .5);
+    outline: none;
+  }
+  /* Byte-usage bar — no number, just a fill that tracks the 28-byte
+     budget. Blue while there's room, amber near the limit, red when full. */
+  .pi-name-bar {
+    height: 3px; border-radius: 2px; overflow: hidden;
+    background: var(--border);
+  }
+  .pi-name-bar-fill {
+    display: block; height: 100%; width: 0%;
+    background: rgba(56, 110, 207, .85);
+    transition: width .1s linear, background .12s ease;
+  }
+  .pi-name-bar.is-high .pi-name-bar-fill { background: #d97706; }
+  .pi-name-bar.is-full .pi-name-bar-fill { background: #dc2626; }
   .panel-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 8px; font-weight: 600; }
 
   /* Collapsible "Details" section in the spool detail panel */
@@ -1589,6 +1632,40 @@
   }
   .toolbox-row.is-confirming .toolbox-row-icon,
   .toolbox-row.is-confirming .toolbox-row-chev { background: #fff; }
+
+  /* ── Duplicate row — non-destructive hold + quantity stepper ──────────
+     The generic hold fill is red (danger). Duplicate is constructive, so
+     it gets a blue accent fill + blue hold states on the main button
+     (setupHoldToConfirm toggles is-holding / is-confirming on the button
+     element, here the .toolbox-row-main). */
+  #btnToolDuplicate.toolbox-row-main.is-holding    { background: rgba(56, 110, 207, .12); }
+  #btnToolDuplicate.toolbox-row-main.is-confirming { background: rgba(56, 110, 207, .30) !important; color: #fff; }
+  #btnToolDuplicate.toolbox-row-main.is-confirming .toolbox-row-icon,
+  #btnToolDuplicate.toolbox-row-main.is-confirming .toolbox-row-chev { background: #fff; }
+  #btnToolDuplicate .hold-progress { background: rgba(56, 110, 207, .28); }
+
+  /* − N + stepper, sits to the right of the main button (same height). */
+  .dup-stepper {
+    flex-shrink: 0;
+    display: flex; align-items: center; gap: 2px;
+    height: 40px; padding: 0 4px;
+    background: var(--surface-2); border-radius: 10px;
+  }
+  .dup-step-btn {
+    width: 26px; height: 32px;
+    display: flex; align-items: center; justify-content: center;
+    background: transparent; border: 0; border-radius: 8px;
+    cursor: pointer; color: var(--muted);
+    font-family: inherit; font-size: 18px; line-height: 1; font-weight: 600;
+    transition: background .12s ease, color .12s ease;
+  }
+  .dup-step-btn:hover  { background: rgba(56, 110, 207, .12); color: var(--text); }
+  .dup-step-btn:active { transform: scale(.94); }
+  .dup-step-val {
+    min-width: 22px; text-align: center;
+    font-size: 13px; font-weight: 600; color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
 
   /* ── container picker modal ── */
   #containerPickerOverlay .cp-card {

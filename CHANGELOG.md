@@ -5,6 +5,36 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.8.3 — 2026-05-28
+
+### Spool detail — Duplicate (×N)
+
+- New **Duplicate** tool at the top of the spool toolbox (hold 1 s to confirm) with a **− N + quantity stepper** (1–50): mint one or many copies in a single write. The button label tracks the count ("Duplicate ×N").
+- Available for **TigerCloud** and basic **TigerTag** spools; **TigerTag+** can't be duplicated. A basic TigerTag necessarily becomes TigerCloud (a digital clone has no physical chip), so each copy gets a fresh Cloud UID.
+- Copies are identical to the source but carry **no twin link and no rack placement** (nothing physical exists in a Cloud entry). Copy timestamps are staggered **+3 s** apart so identical copies are never auto-paired as twins.
+
+### Spool detail — editable note
+
+- The spool's `message` is now an **inline-editable free-text note**: click the name in the detail panel, type, Enter/blur to save, Escape to cancel. Placeholder "Add a note" when empty.
+- Available on **every spool type** (TigerCloud, basic, TigerTag+) — on TigerTag+ the catalogue name (e.g. "Artic Teal") stays read-only with the editable note below it; on TigerCloud/basic the note is the spool's name.
+- **28-byte UTF-8 cap** (the chip's name slot) with a thin usage bar that fills as the budget is consumed (blue → amber → red), no number shown.
+- Editing the note is a **chip change**: it now flags the spool (and its twin) for re-burn — the chip-update badge + banner appear, exactly like editing TD or colour. Skipped for TigerCloud (no physical chip).
+- Identity block restructured: **Brand · Series · Material on one line**, the note on its own full-width line below.
+
+### TigerCloud — renamed from "TigerTag Cloud"
+
+- The third tier is now called **TigerCloud** everywhere (badge, stat tile, filters).
+
+### Bambu Lab — camera transport
+
+- Camera transport (JPEG-TCP vs RTSP) is now driven by a `camera_transport` field in the printer model catalogue instead of hardcoded serial/ID sets — more robust across the lineup. Added the **X2D** model.
+
+### Fixed
+
+- **Bambu printers — IP now shows in the printers table** (it's stored as the MQTT broker address, which the table/sort now read).
+
+---
+
 ## v1.8.2 — 2026-05-24
 
 ### TigerPOD modal — full visual redesign
@@ -60,7 +90,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 ### Mini dashboard — badge labels
 
 - Stat chip labels now render actual badge HTML (`<span class="tag-diy">`, `<span class="tag-plus">`, `<span class="tag-cloud">`) instead of plain text.
-- TigerTag Cloud chip styled identically to the other chips (removed purple override).
+- TigerCloud chip styled identically to the other chips (removed purple override).
 
 ### RFID reader badges — filled pill redesign
 
@@ -365,7 +395,7 @@ The v1.7.2 fix bound the renderer HTTP server to `127.0.0.1` instead of `localho
 - `color_r2/g2/b2` and `color_r3/g3/b3` now written from the actual slot colours picked.
 
 ### Version / protocol filter
-- The **Type** quick-filter in the inventory toolbar now filters by **protocol version** (TigerTag / TigerTag+ / TigerTag Cloud / TigerTag Init / …) instead of filament product type.
+- The **Type** quick-filter in the inventory toolbar now filters by **protocol version** (TigerTag / TigerTag+ / TigerCloud / TigerTag Init / …) instead of filament product type.
 
 ### Search & filter reset on instance switch
 - The search bar and all quick-filters are now automatically cleared when switching between accounts or entering / leaving a friend's inventory view.
@@ -387,8 +417,8 @@ The v1.7.2 fix bound the renderer HTTP server to `127.0.0.1` instead of `localho
 ### Add Product panel — TD1S sensor button
 - TD1S icon added to the ADP header. **Not connected** → opens the TD1S connect modal. **Connected** → glows green; scanning a filament auto-fills the colour HEX and TD value fields.
 
-### Stats bar — TigerTag Cloud counter
-- New purple stat tile ("TigerTag Cloud") always visible in the inventory header bar. DIY count now correctly excludes Cloud entries.
+### Stats bar — TigerCloud counter
+- New purple stat tile ("TigerCloud") always visible in the inventory header bar. DIY count now correctly excludes Cloud entries.
 
 ### Window chrome
 - **Dark title bar** — `nativeTheme.themeSource = 'dark'` forces the native macOS/Windows title bar to dark mode.
@@ -402,10 +432,10 @@ The v1.7.2 fix bound the renderer HTTP server to `127.0.0.1` instead of `localho
 
 > 🌥️ **The big one: TigerTag goes Cloud.** Create a filament in your inventory without owning an RFID chip. When you eventually program a chip, the doc is atomically renamed to its real hex UID — all fields, twins, rack assignments, and friend ACLs follow with no manual effort.
 
-### TigerTag Cloud — third tier
+### TigerCloud — third tier
 - **100 % digital filaments** — the Add Product side panel writes a complete inventory entry with a `CLOUD_<10-digit>` doc id. Same schema, same fields, same display surfaces, same friend-sharing rules as chip-backed spools.
 - **Promotion path** — when a physical chip is programmed, the `uidMigrationMap` rename pipeline carries the document over atomically. Twin pointers, rack assignments, weight history, friend ACLs — everything follows the rename. Idempotent.
-- **New tier label "TigerTag Cloud"** — sits alongside TigerTag+ (orange) and TigerTag (grey). Cloud takes precedence when both signals would apply. Shown across table row, grid card, panel image overlay, and panel details footer.
+- **New tier label "TigerCloud"** — sits alongside TigerTag+ (orange) and TigerTag (grey). Cloud takes precedence when both signals would apply. Shown across table row, grid card, panel image overlay, and panel details footer.
 - New CSS class `.tag-cloud` — purple gradient (`#7c4dff → #a37bff`).
 
 ### Add Product — full HSV colour picker

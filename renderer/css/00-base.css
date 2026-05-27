@@ -341,7 +341,7 @@
     padding: 1px 6px;
     vertical-align: middle;
   }
-  /* TigerTag Cloud stat — purple gradient accent */
+  /* TigerCloud stat — purple gradient accent */
   .sb-stat--cloud {
     border-color: rgba(124,77,255,.35) !important;
     background: linear-gradient(135deg, rgba(124,77,255,.12), rgba(163,123,255,.07)) !important;

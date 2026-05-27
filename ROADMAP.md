@@ -27,10 +27,10 @@ Grouped by domain. Versions in parentheses are the release that landed the featu
 - ✅ **Spool toolbox** in detail panel — Scan colour / Scan TD / Twin link / Remove from rack / Delete (v1.4.8)
 - ✅ **Image cache** for spool photos — local persistence, color-fallback if remote dies
 - ✅ **Add Product side panel** — full TigerTag creator iso to the mobile app: Brand / Material picker bottom-sheets with favourites pinned and persisted, mobile-style HSV colour picker (preset grid + custom 2D SV rectangle + rainbow hue slider), advanced mode revealing Type / Diameter / Aspect 1+2 / temps / TD / weight unit, live RFID Data preview (debug only), 28-byte UTF-8 cap on the colour-name field, integer-only fields with live clamp (v1.4.11 + v1.4.12)
-- ✅ **TigerTag Cloud — 100 % digital filaments** — Add Product writes a doc with id `CLOUD_<10-digit>` and the new "TigerTag Cloud" tier badge (purple) when there's no physical chip yet. Promoted in place to a real 7-byte hex UID via the existing `uidMigrationMap` rename pipeline the moment the user programs a chip — every field, twin pointer, rack assignment and friend ACL follows the doc through the rename. Atomic, idempotent. Mobile companion ships the same label in the inventory bottom-sheet header AND the search index (v1.4.12)
-- ✅ **Custom product image** (`url_img` + `url_img_user: true`) — DIY and TigerTag Cloud spools can carry a product image from any external URL. Edit trigger in the colour square (or toolbox when an image is already set); also available in the Add Product advanced section. Broken URLs fall back to the colour placeholder; `isPlus` stays false so the spool keeps its DIY/Cloud identity. TigerTag+ images (from catalogue) are read-only. (v1.4.13)
+- ✅ **TigerCloud — 100 % digital filaments** — Add Product writes a doc with id `CLOUD_<10-digit>` and the new "TigerCloud" tier badge (purple) when there's no physical chip yet. Promoted in place to a real 7-byte hex UID via the existing `uidMigrationMap` rename pipeline the moment the user programs a chip — every field, twin pointer, rack assignment and friend ACL follows the doc through the rename. Atomic, idempotent. Mobile companion ships the same label in the inventory bottom-sheet header AND the search index (v1.4.12)
+- ✅ **Custom product image** (`url_img` + `url_img_user: true`) — DIY and TigerCloud spools can carry a product image from any external URL. Edit trigger in the colour square (or toolbox when an image is already set); also available in the Add Product advanced section. Broken URLs fall back to the colour placeholder; `isPlus` stays false so the spool keeps its DIY/Cloud identity. TigerTag+ images (from catalogue) are read-only. (v1.4.13)
 - ✅ **Toolbox — Clear TD split-button** — hold-to-confirm trash button (1 200 ms) on the "Scan TD" toolbox row, visible only when `r.td != null`. Deletes the `TD` field via `FieldValue.delete()`. Row hidden entirely when no TD is set. (v1.4.13)
-- ✅ **TigerTag Cloud stat tile** — purple tile in the inventory header always showing the count of `CLOUD_` spools; DIY count now correctly excludes Cloud entries. (v1.4.13)
+- ✅ **TigerCloud stat tile** — purple tile in the inventory header always showing the count of `CLOUD_` spools; DIY count now correctly excludes Cloud entries. (v1.4.13)
 
 ### Multi-account & auth
 - ✅ Firebase auth with **per-account `firebase.app(uid)` instances** (independent sessions) (v1.4+)
@@ -657,6 +657,101 @@ G1: M, G2: M, G3: M, G4: S, G5: L, G6: M  ·  **~XL combined** for Snapmaker; mu
 **Strict prerequisite**: F1 of *🥈 Multi-brand live integration* (driver layer extraction). Without it, this work would all be locked into the Snapmaker codepath and would have to be ported again afterwards.
 
 **Soft dependency**: the per-printer config in `data/printers/<brand>_printer_models.json` should grow new fields (`max_jog_speed`, `max_nozzle_temp`, `extruder_count`, `has_chamber_heater`) so the UI can clamp inputs and hide unavailable controls per model.
+
+---
+
+### 🏵️ Printer slot storage — assign filaments to machine slots (dual-location)
+
+Today a spool lives in **one** place: its rack slot (`rack: { id, level, position }`). When the user actually mounts that spool in a printer (Ext. spool holder, an AMS bay, an AMS-HT bay…), the app has no concept of it — the printer live block shows what the *firmware* detected, but there's no link back to the user's TigerTag inventory.
+
+**The idea**: when we connect to a printer, materialise a **virtual storage** that mirrors the machine's detected feed slots, then let the user assign their inventory spools to those slots **exactly like racks** — same drag-drop / right-click grammar. Crucially this is a **second, simultaneous location**: assigning a spool to *Bambu Lab → AMS slot A2* must **not** clear its rack assignment. The rack is the spool's **home** (where it physically returns); the printer slot is a **provisional mount** layered on top. So a spool can read as *"Rack B · level 2 · slot 3 — currently loaded in Bambu Lab X1C / AMS A2"* at the same time.
+
+> **Why dual-location and not a move?** Physically a spool is either in the rack or on the printer — but the user wants the home slot remembered so unmounting sends it back to the right place, and so the rack view doesn't "lose" a spool just because it's printing right now. The printer mount is therefore an **overlay**, never a relocation.
+
+#### 🗃️ Data model
+
+- **The PRINTER owns the occupancy — the slot stores the spool UID(s), not a field on the spool.** The printer knows what it contains, not the other way round (this is how an AMS itself reasons). Each slot on the printer doc carries a `uids` array: **empty = free, 1 UID = a plain spool, 2 UIDs = a twin pair** (a single physical spool with two linked tags — both stored so a scan of *either* tag resolves to the slot, without needing the twin link at read time). The spool doc gets **no `mount` field**; mount state is purely derived from the printers.
+- **Slots persisted on the printer doc — NOT recomputed from the live feed.** Live detection is volatile (a powered-off AMS vanishes from the stream), so we never derive the slot list on the fly. Each printer device doc carries a persisted `slots` array, **seeded on first connect**, **updated when the user adds/removes a filament-storage accessory** (AMS / AMS-HT unit, CFS, Canvas…), and **only ever deleted when the printer itself is removed from inventory**. Slots are tied to the printer's lifetime, like rack slots are tied to a rack.
+  ```jsonc
+  // users/{uid}/printers/{brand}/devices/{deviceId}.slots
+  [
+    { "key": "ext",          "kind": "external", "label": "Ext.",     "hwId": null,     "present": true,  "uids": [] },
+    { "key": "ams:3DF1A2:A", "kind": "ams",      "label": "AMS 1 · A", "hwId": "3DF1A2", "present": true,  "uids": ["041E2A8B5C6F80"] },
+    { "key": "ams:3DF1A2:B", "kind": "ams",      "label": "AMS 1 · B", "hwId": "3DF1A2", "present": true,  "uids": ["04AABBCC112233", "04DDEEFF445566"] }, // twin pair
+    { "key": "ams:3DF1A2:C", "kind": "ams",      "label": "AMS 1 · C", "hwId": "3DF1A2", "present": false, "uids": ["CLOUD_4480517985"] } // unit unplugged — occupant kept
+  ]
+  ```
+- **Single-occupancy is intrinsic + eviction is free** — a slot's `uids` IS its occupant, so assigning a spool onto an occupied slot just **overwrites** that slot's `uids`. The displaced spool is no longer referenced by any slot, so its "mounted" indicator clears automatically — **no second write to the old spool**. One write, on the printer doc, per assignment.
+- **Derived in-memory index for fast lookup** — rebuild a `uid → { brand, deviceId, slotKey }` map on every `state.printers` snapshot (already subscribed), inserting **both** UIDs of a twin pair. It's a pure **derived cache** (source of truth stays the slots' `uids`), so it never desyncs and needs no manual upkeep. **Why an index and not a scan:** the filament list re-renders on every search keystroke / sort / filter; a per-render scan would be `O(rows × printers × slots)` (≈ thousands of checks per keystroke on a big inventory), whereas the index makes each row an `O(1)` lookup and is built just once per (rare) printers snapshot. Rule of thumb: **frequent reads (render) → index; one-off writes (assignment) → a direct `state.printers` scan is fine.**
+- **Stable hardware keys for reliable recognition across reconnects** — the slot `key` is anchored to a **stable hardware identifier** (e.g. a Bambu AMS reports a serial/UUID) so the same physical AMS is recognised on every reconnect even if the user reorders units or plugs a second one in. Use `hwId` when the firmware exposes it; fall back to a positional index (`ams:0:A`) only when it doesn't. Anchoring to `hwId` prevents "added a 2nd AMS → all occupants shifted by one bay".
+- **Slots stay ACTIVE even when the printer is offline / disconnected.** Connection state is **orthogonal** to slot availability: a powered-off / asleep / not-currently-connected printer keeps its full last-known slot set (and occupants) **active and assignable**. The user can plan and re-assign filaments to a machine that's off — slots reflect the persisted config, not the live link. (Hence persisting on the doc rather than deriving from the feed.)
+- **Present / absent tracks the ACCESSORY, not the connection.** `present: false` means an accessory (e.g. a specific AMS unit) was **detected as physically removed while connected** — not that the printer is offline. A whole-printer disconnect leaves every slot `present: true` (last-known). A `present: false` accessory's slots — **and their `uids`** — are kept on the doc (so a re-plug restores the occupancy); hard removal happens **only** when the printer is deleted.
+- **Reconciliation runs only while connected** — on a live connection the driver yields the *currently detected* slots and we **merge** into the persisted `slots`: new hardware → appended (`uids: []`), known hardware → `present: true` (+ label refresh, **occupancy preserved**), missing hardware → `present: false` (occupancy preserved). One write per change (no-op when nothing changed), same discipline as `autoAssignMissingContainers`. **While offline we never touch the persisted set.**
+- **Slot identity is logical, not physical RFID** — `uids` is the *user's* intent (which TigerTag spool they put in a bay), independent of whatever RFID the firmware reads there. Reconciling "Studio says A2 = my red PLA" vs "firmware reports A2 = some other tag" is a **Phase 2** concern (highlight mismatches); Phase 1 just stores intent.
+- **Slot taxonomy per brand** — each driver already enumerates its feed slots for the live block; formalise that into a `getSlots(printer)` returning `[{ key, kind, label, hwId }]` from live data, which the reconciler then merges into the persisted set:
+  | Brand | Slots | Stable `hwId` source |
+  |---|---|---|
+  | Bambu Lab | `ext` (external spool) + `ams:<serial>:<A..D>` per AMS / AMS-HT unit | AMS serial/UUID from the MQTT report |
+  | Snapmaker | per-extruder slots (U1 = 4) | extruder index (fixed hardware) |
+  | Creality | `ext` + CFS bays | CFS unit id if exposed, else index |
+  | Elegoo | mono `ext` + Canvas 4 slots | Canvas id if exposed, else index |
+  | FlashForge | `ext` (`1A`) + matlStation `1A`–`1D` | matlStation index |
+
+#### 🔧 Sub-features — recommended ship order
+
+##### P1 — Persisted slots (with occupancy) on the printer doc + per-driver `getSlots()` + reconciler + derived index  ·  **Effort: M**  ·  **Risk: low**
+Add `getSlots(printer)` to the `LiveDriver` interface (F1 of *Multi-brand live*) returning the live-detected slot descriptors (with `hwId`). Add the persisted `slots` array (each with a `uids` occupant list) to the printer device doc and a **reconciler** that, on connect / on accessory change, merges detected slots into the persisted set (append new, `present` toggling, **occupancy preserved**, never silent-delete). Write helpers operate on the **printer doc**: `assignToSlot(brand, deviceId, slotKey, uids)` overwrites that slot's `uids` (intrinsic eviction — no write to the displaced spool) and `clearSlot(brand, deviceId, slotKey)` empties it; `uids` is 1 entry for a plain spool, 2 for a twin pair. Build the derived `uid → { brand, deviceId, slotKey }` index on every `state.printers` snapshot.
+
+##### P2 — Right-click filament → printer → slot assignment  ·  **Effort: M**  ·  **Risk: low**
+Context menu on any inventory row / grid card / detail panel: **"Send to printer →"** → submenu listing **every printer in inventory** (connected or not — slots stay active offline) → submenu of that printer's slots (with the slot's current occupant shown; offline printers may show an online/offline dot but remain selectable). Picking a slot writes the spool's UID(s) into that slot's `uids` (overwriting any previous occupant, which is thereby evicted). Only disabled when the inventory has no printers at all.
+
+##### P3 — Printer-slot storage view (drag-drop parity with racks)  ·  **Effort: M**  ·  **Risk: low**
+Render **every printer in inventory** as a **slot board** (like a small rack card) in the Storage view — or as a drop zone inside the printer detail panel — regardless of connection state (an offline machine still shows its boards, optionally dimmed with an offline marker but fully droppable). Drag a spool from the unranked panel / a rack slot onto a printer slot to mount it; drag it off (or "unmount") to drop the overlay and reveal it back in its rack. Reuses the rack masonry + drag-drop wholesale.
+
+##### P4 — Dual-location indicators in the filament list  ·  **Effort: S**  ·  **Risk: low**
+In table + grid + detail panel, show **both** locations: the rack home (existing) **and** a "mounted in …" pill (printer name + slot), derived from the in-memory index (a spool is mounted if either of its UIDs appears in a slot). A spool mounted in a printer stays visible in its rack slot with a subtle "on printer" marker so the rack view never appears to lose it.
+
+##### P5 (Phase 2) — Firmware reconciliation  ·  **Effort: L**  ·  **Risk: medium**
+Compare the user's slot `uids` mapping against what the printer firmware actually reports in each bay (AMS RFID, Snapmaker slot data…). Flag mismatches ("you mapped red PLA to A2 but the printer reads an empty bay"), offer one-click "adopt firmware state". Research-gated per brand.
+
+##### P6 — Share printer fleet + slot contents with selected friends  ·  **Effort: M**  ·  **Risk: low-medium**
+Let the owner authorise **specific friends** to see their printer fleet and what filament sits in each slot — granular, per-friend, opt-in (not all-or-nothing, not the global `isPublic`).
+- **Per-friend grant** — add `sharePrinters: boolean` (default `false`) on the owner's `friends/{friendUid}` doc. UI: a per-friend toggle in the friends panel ("Show my printers to this friend"). Optional convenience: a "share with all friends" master switch that bulk-sets the flag.
+- **Firestore rule** — a friend may read `users/{ownerUid}/printers/**` **iff** their own entry `users/{ownerUid}/friends/{request.auth.uid}` exists, its `.key == owner.privateKey` (existing friendship gate), **and** `.sharePrinters == true`. This is the rule the *🔒 Firestore rules* section flagged — required for this sub-feature, not deferred.
+- **Friend's app** — in the existing friend-view mode, if authorised, subscribe to the friend's `printers` and render their slot boards **read-only**. Resolve each slot's `uids` against the friend's inventory (already readable via the existing inventory grant) to show the filament puck (colour / material / name) per slot. UIDs that don't resolve (a spool the friend can't see) → generic "occupied" placeholder, never leak data.
+- **Read-only everywhere** — no assignment / drag-drop in friend view; the boards are purely informational.
+- **Revocation** — flipping `sharePrinters` back off (or removing the friend) immediately cuts read access via the rule; the friend's open view falls back to empty on the next snapshot.
+
+♻️ **Reuses**: the friends panel per-friend row UI + toggles, the friend-view subscription/swap-back machinery, the P3 slot-board render (just fed the friend's data, controls stripped), and the existing `privateKey`-gated friend read pattern.
+
+#### ♻️ Reuses
+- **Rack engine** — `wireDragSources` / `wireDropTargets` / drop-to-void / slot-fill HTML / masonry layout / search-dim. The printer board is "just another rack" whose slots come from the printer doc's persisted `slots` array (filtered to `present: true`) instead of the rack doc.
+- **Eviction logic** — even simpler than racks here: overwriting a slot's `uids` evicts intrinsically (no displaced-occupant write needed).
+- **Per-brand slot enumeration** — the live blocks (`renderBambuFilamentCard`, Snapmaker / Elegoo / FlashForge filament grids) already know each machine's slots; `getSlots()` formalises that into one return shape.
+- **Context-menu pattern** — the rack slot right-click (lock/unlock) menu (`positionRackMenu`) is the template for the "Send to printer" menu.
+- **Printer subscription** — `subscribePrinters` already keeps `state.printers` live; the derived `uid → slot` index just rebuilds in its existing snapshot callback.
+
+#### 🐛 Debug surface
+- **🔬 Slot occupancy inspector** — debug-only dump of every printer's `slots` with their `uids`, plus the derived `uid → slot` index, plus any **orphan UIDs** (a slot references a UID that's no longer in inventory).
+- **🔬 Studio-vs-firmware diff** per connected printer — `{ slot → uids }` from the Studio mapping side-by-side with firmware-detected state (feeds P5).
+- **🔬 Force-assign / clear** — debug buttons to write/clear a slot's `uids` directly, surfaced in the existing debug log so test assignments are traceable.
+
+#### 📐 Cross-cutting notes
+- **Slot lifetime = printer lifetime** — persisted `slots` (and their occupancy) live and die with the printer device doc. Deleting the printer removes its slots; nothing else does. Disconnecting an accessory only flips its slots to `present: false` (occupancy kept).
+- **Orphan cleanup** — deleting a printer simply removes its slots (occupancy goes with it, no spool-side write needed). When a spool is **hard-deleted**, sweep the printers and strip its UID(s) from any slot's `uids`. A UID sitting in a `present: false` slot is kept (re-lights when the accessory returns). Same sweep shape as the legacy-tombstone purge.
+- **Friend view** — read-only, no assignment actions. Printer boards + the "mounted in …" pill appear only for friends the owner explicitly authorised (per-friend `sharePrinters`, see **P6**). Unauthorised friends see neither — their view is identical to today.
+- **Cloud spools** — fully eligible (a digital spool can still be "the one I'm pretending is loaded"); no special-casing needed.
+
+#### 🔒 Firestore rules (`#firebase` → `firestore.rules`)
+- **Owner path — no new rule needed.** Slots + `uids` live under `users/{uid}/printers/{brand}/devices/{deviceId}`, the user's own subtree, already covered by the "user manages their own docs" rule. Assignment is just a field write on a doc they own.
+- **Friend read of `printers` — required by P6, gated per-friend.** Friends today get read on `inventory` (via the `privateKey` match) but **not** on `printers`. P6 adds a read grant on `users/{ownerUid}/printers/**` that requires the existing friendship gate (`friends/{request.auth.uid}.key == owner.privateKey`) **plus** that friend's `sharePrinters == true`. So the fleet is visible only to explicitly-authorised friends; revoking the flag cuts access immediately. (Until P6 ships, hide printer boards/pills in friend view — zero rule change.)
+- **Optional hardening** — a validation rule on `slots[*].uids` (array of strings, length ≤ 2) to reject malformed client writes. Defensive, low priority; pairs naturally with the parked *🏅 Firestore Security Rules for `roles` + `Debug`* item.
+
+#### 🧮 Total effort
+P1: M · P2: M · P3: M · P4: S · P5: L (gated) · P6: M → **~L combined** for Phase 1 (P1–P4); P6 (friend sharing) and P5 (firmware reconcile) are independent add-ons on top.
+
+#### 📐 Dependency
+**Soft prerequisite**: F1 of *🥈 Multi-brand live integration* (driver layer) so `getSlots()` has a clean home. Can ship Phase 1 against the current per-brand live code if F1 isn't done yet, then fold into the driver interface during F1.
 
 ---
 

@@ -122,7 +122,7 @@ Mis à jour en fin de chaque session Claude.
 - ADP : sélecteur Mono / Dual / Tri / Rainbow dans la bottom-sheet couleur
 - Lien bidirectionnel mode couleur ↔ `id_aspect2` (252 Bicolor / 24 Tricolor / 145 Rainbow / 0 "-")
 - Rainbow affiche le même dégradé lisse que dans l'inventaire (`linear-gradient`)
-- Filtre "Type" dans la barre de recherche → rebrancher sur la version/protocole (TigerTag, TigerTag+, TigerTag Cloud)
+- Filtre "Type" dans la barre de recherche → rebrancher sur la version/protocole (TigerTag, TigerTag+, TigerCloud)
 - Effacer la search bar + filtres au changement de compte ou de vue ami
 
 ### Fichiers modifiés
@@ -142,7 +142,7 @@ Mis à jour en fin de chaque session Claude.
 - Dual : `linear-gradient(90deg, c1 50%, c2 50%)` (hard cut, pas de dégradé)
 - Tri : `conic-gradient` 120° × 3 secteurs
 - Boucle infinie évitée par `{ skipAspect2: true }` sur le listener aspect2
-- `protocol` dans `normalizeRow` : Cloud → "TigerTag Cloud", sinon `versionName(id_tigertag)`
+- `protocol` dans `normalizeRow` : Cloud → "TigerCloud", sinon `versionName(id_tigertag)`
 - `_clearSearchFilters()` remet aussi les `<select>` DOM à "" et retire `.is-active`
 
 ---
@@ -153,7 +153,7 @@ Mis à jour en fin de chaque session Claude.
 - Custom product image (`url_img` + `url_img_user: true`) — DIY et Cloud uniquement
 - Toolbox : bouton "Clear TD" (hold-to-confirm 1 200 ms) sur la ligne Scan TD
 - Bouton TD1S dans le header du Add Product panel
-- Stat tile "TigerTag Cloud" (violet) dans la barre KPI
+- Stat tile "TigerCloud" (violet) dans la barre KPI
 - Titre de fenêtre en dark mode natif (`nativeTheme.themeSource = 'dark'`)
 - Suppression de l'ombre OS de la fenêtre (`hasShadow: false`)
 - Icône de mise à jour (orange spinning = téléchargement, vert brillant = prêt) à droite du nuage

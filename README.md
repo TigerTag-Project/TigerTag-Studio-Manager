@@ -77,7 +77,7 @@ The **TigerTag SDK** is the low-level library that handles all NFC chip operatio
 - Real-time Firestore sync — table view + grid view, column sort, full-text search
 - Detail side panel — color, print settings, weight slider with auto-save, container, raw JSON
 - Weight tracking — slider or manual entry; instant cloud sync after update
-- **TigerTag Cloud** — create fully-digital spools with no chip; promote to a real chip later, atomically
+- **TigerCloud** — create fully-digital spools with no chip; promote to a real chip later, atomically
 - Custom product image for DIY & Cloud spools
 - Manufacturing date, twin-tag detection and manual repair
 - Spool toolbox — scan color (TD1S), scan TD, link twin, remove from rack, delete

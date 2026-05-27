@@ -656,7 +656,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       // Protocol / version shown in the filter bar and detail panel.
       // Cloud spools carry a random id_tigertag so we derive the label
       // from the spoolId prefix instead of the version table.
-      protocol: isCloud ? "TigerTag Cloud" : (versionName(data.id_tigertag) || null),
+      protocol: isCloud ? "TigerCloud" : (versionName(data.id_tigertag) || null),
       weightAvailable: data.weight_available,
       containerWeight: data.container_weight,
       capacity: data.measure_gr || data.measure,
@@ -4237,7 +4237,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       { label: t("statTotal"),  mini: t("statTotalMini"),  value: kgFull,         miniVal: kgMini,        filter: "reset" },
       { label: '<span class="tag-diy">TigerTag</span>',          mini: t("statDiyMini"),   value: diy,          miniVal: diy,          filter: "TigerTag" },
       { label: '<span class="tag-plus">TigerTag+</span>',        mini: t("statPlusMini"),  value: plus.length,  miniVal: plus.length,  filter: "TigerTag+" },
-      { label: '<span class="tag-cloud">TigerTag Cloud</span>',  mini: t("statCloudMini"), value: cloud.length, miniVal: cloud.length, filter: "TigerTag Cloud", cloud: true },
+      { label: '<span class="tag-cloud">TigerCloud</span>',  mini: t("statCloudMini"), value: cloud.length, miniVal: cloud.length, filter: "TigerCloud", cloud: true },
     ].map(s => {
       const isActive = s.filter !== "reset" && tf === s.filter;
       return `<div class="sb-stat${s.cloud ? " sb-stat--cloud" : ""}${isActive ? " is-active" : ""}" data-filter="${s.filter}" data-mini="${s.mini}" data-mini-val="${s.miniVal}"><div class="value">${s.value}</div><div class="label">${s.label}</div></div>`;
@@ -4793,14 +4793,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   }
 
   // Tier badge shown next to a row everywhere we display its origin:
-  //   • TigerTag Cloud — doc-only, no physical chip yet (CLOUD_ prefix)
+  //   • TigerCloud — doc-only, no physical chip yet (CLOUD_ prefix)
   //   • TigerTag+      — chip linked to an online catalog product (url_img set)
   //   • TigerTag       — bare chip / DIY entry
   // Cloud takes precedence over Plus because a CLOUD_ doc cannot also be a
   // chip-on-shelf — the prefix flips to a real hex UID the moment a chip
   // is programmed.
   function tierBadgeHTML(r, extraClass = "") {
-    if (r.isCloud) return `<span class="tag-cloud${extraClass ? " " + extraClass : ""}">TigerTag Cloud</span>`;
+    if (r.isCloud) return `<span class="tag-cloud${extraClass ? " " + extraClass : ""}">TigerCloud</span>`;
     if (r.isPlus)  return `<span class="tag-plus${extraClass ? " " + extraClass : ""}">TigerTag+</span>`;
     return `<span class="tag-diy${extraClass ? " " + extraClass : ""}">TigerTag</span>`;
   }
@@ -5007,7 +5007,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   });
 
   // ── Stat tile click → quick type filter ────────────────────────────────────
-  // Clicking a version tile (TigerTag / TigerTag+ / TigerTag Cloud) sets the
+  // Clicking a version tile (TigerTag / TigerTag+ / TigerCloud) sets the
   // typeFilter and highlights the tile. Clicking it again, or clicking a
   // "reset" tile (SPOOLS / STOCK), clears the filter back to "All versions".
   $("sbStats")?.addEventListener("click", e => {
@@ -5348,6 +5348,149 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     }
   }
 
+  /* ── Duplicate a spool as fresh TigerCloud entries ──────────────────
+     Clones the spool into `count` new docs, each with its own Cloud UID.
+     The clones are always Cloud and IDENTICAL to each other (same
+     id_tigertag, colour, material…) — only the UID and the timestamp
+     differ. A basic TigerTag loses its physical chip identity (it needs
+     a Cloud UID); TigerTag+ is never duplicable (the toolbox gates it).
+
+     Nothing physical survives the clone — no twin link, no rack
+     placement — because a Cloud entry has no physical existence.
+
+     Twin-conflict avoidance via staggered timestamps: the chip timestamp
+     doubles as the twin-pairing key (the auto-linker pairs two docs that
+     share id_tigertag AND fall within a 2s window). Since the clones are
+     deliberately identical (same id_tigertag), we space their timestamps
+     +3s apart so no two clones — and no clone vs. the source — ever land
+     inside that 2s window. The base is `now`, bumped past the source's
+     own timestamp so even an freshly-created source can't pair with the
+     first clone. These aren't real programming times, but it's the only
+     lever that keeps identical copies from being auto-twinned. */
+  async function duplicateSpoolAsCloud(r, count = 1) {
+    if (state.friendView) return 0;
+    const user = fbAuth().currentUser;
+    if (!user) return 0;
+    const n = Math.max(1, Math.min(50, parseInt(count, 10) || 1));
+    const invRef = fbDb(user.uid).collection("users").doc(user.uid).collection("inventory");
+    const batch  = fbDb(user.uid).batch();
+    const srcTs  = (typeof r.chipTimestamp === "number") ? r.chipTimestamp : 0;
+    const baseTs = Math.max(Math.floor(Date.now() / 1000), srcTs + 3);
+    const usedIds = new Set();
+    for (let i = 0; i < n; i++) {
+      let newId = _adpCloudId();
+      while (usedIds.has(newId)) newId = _adpCloudId();   // no collision within the batch
+      usedIds.add(newId);
+      const data = { ...(r.raw || {}) };
+      data.uid = newId;
+      delete data.twin_tag_uid;
+      delete data.rack; delete data.rack_id; delete data.level; delete data.position;
+      delete data.needUpdateAt;
+      data.timestamp  = baseTs + i * 3;                   // +3s per copy → outside the 2s twin window
+      data.updatedAt  = firebase.firestore.FieldValue.serverTimestamp();
+      data.deleted    = null;
+      data.deleted_at = null;
+      batch.set(invRef.doc(newId), data);
+    }
+    await batch.commit();
+    return n;
+  }
+
+  /* ── Inline edit of the spool message (= editable name) ─────────────
+     Swaps the identity-block name button for a text input. Saves the
+     `message` field to Firestore on Enter / blur, cancels on Escape.
+     Enforces the same 28-byte UTF-8 cap as the chip's color_name slot.
+     After the write we patch the in-memory row + re-render the panel so
+     the new name shows immediately (before the live snapshot lands). */
+  function startMessageInlineEdit(r) {
+    const btn = $("piNameEdit");
+    if (!btn || btn.dataset.editing === "1" || state.friendView) return;
+    const user = fbAuth().currentUser;
+    if (!user) return;
+    btn.dataset.editing = "1";
+    const raw    = btn.dataset.raw || "";
+    const parent = btn.parentNode;
+    // Wrapper holds the input + a thin byte-usage bar (no number shown):
+    // it fills as the 28-byte UTF-8 budget is consumed, amber near the
+    // limit, red when full.
+    const wrap = document.createElement("span");
+    wrap.className = "pi-name-editwrap";
+    const input  = document.createElement("input");
+    input.type = "text";
+    input.className = "pi-name-input";
+    input.value = raw;
+    input.spellcheck = false;
+    input.autocomplete = "off";
+    input.placeholder = t("msgEditAdd");
+    const bar  = document.createElement("span");
+    bar.className = "pi-name-bar";
+    const fill = document.createElement("span");
+    fill.className = "pi-name-bar-fill";
+    bar.appendChild(fill);
+    wrap.appendChild(input);
+    wrap.appendChild(bar);
+    parent.replaceChild(wrap, btn);
+    input.focus();
+    input.select();
+    // 28-byte UTF-8 cap — mirrors the Add Product colour-name field.
+    // Updates the usage bar on every keystroke.
+    const syncBar = () => {
+      const used = _adpByteLength(input.value);
+      const pct  = Math.min(100, (used / ADP_COLOR_NAME_MAX_BYTES) * 100);
+      fill.style.width = pct + "%";
+      bar.classList.toggle("is-high", pct >= 80 && pct < 100);
+      bar.classList.toggle("is-full", pct >= 100);
+    };
+    input.addEventListener("input", () => {
+      const capped = _adpTruncateToBytes(input.value, ADP_COLOR_NAME_MAX_BYTES);
+      if (capped !== input.value) input.value = capped;
+      syncBar();
+    });
+    syncBar();
+    let done = false;
+    const rerender = () => { try { openDetail(r.spoolId); } catch (_) {} };
+    const cancel = () => { if (done) return; done = true; rerender(); };
+    const commit = async () => {
+      if (done) return; done = true;
+      const newVal = input.value.trim();
+      if (newVal === raw.trim()) { rerender(); return; }
+      try {
+        const update = {
+          message:   newVal,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        };
+        // The message lives on the chip (color_name 28-byte slot), so
+        // editing it needs a re-burn — flag needUpdateAt exactly like the
+        // TD / colour edits do (CHIP_FIELDS in edit-modals.js). Physical
+        // chips only: Cloud has no chip yet and normalizeRow nulls the flag.
+        if (!r.isCloud) update.needUpdateAt = Date.now();
+        const invRef = fbDb(user.uid).collection("users").doc(user.uid).collection("inventory");
+        const batch  = fbDb(user.uid).batch();
+        batch.update(invRef.doc(r.spoolId), update);
+        // Twin-aware: mirror onto the paired spool so both chips re-burn.
+        if (r.twinUid) {
+          const tr = state.rows.find(x =>
+            x.spoolId !== r.spoolId &&
+            (String(x.uid) === String(r.twinUid) || String(x.spoolId) === String(r.twinUid))
+          );
+          if (tr) batch.update(invRef.doc(tr.spoolId), { ...update });
+        }
+        await batch.commit();
+        // Patch the in-memory row so the immediate re-render reflects the
+        // change; the live snapshot will re-normalize it shortly after.
+        if (r.raw) { r.raw.message = newVal; if (!r.isCloud) r.raw.needUpdateAt = update.needUpdateAt; }
+        if (!r.raw?.color_name && !r.raw?.name) r.colorName = newVal || "-";
+        if (!r.isCloud) r.needUpdateAt = update.needUpdateAt;
+      } catch (e) { reportError("spool.editMessage", e); }
+      rerender();
+    };
+    input.addEventListener("keydown", e => {
+      if (e.key === "Enter")  { e.preventDefault(); commit(); }
+      if (e.key === "Escape") { e.preventDefault(); cancel(); }
+    });
+    input.addEventListener("blur", () => commit());
+  }
+
   /* ── detail panel ── */
   function openDetail(spoolId) {
     state.selected = spoolId;
@@ -5363,6 +5506,50 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         await markSpoolDeleted(r.spoolId);
         closeDetail();
       } catch (e) { reportError("spool.delete", e); }
+    });
+
+    // Inline message edit — click the identity name to rename the spool
+    // (writes the `message` chip field). Gated to editable (non-Plus /
+    // Cloud) spools by the render.
+    $("piNameEdit")?.addEventListener("click", () => startMessageInlineEdit(r));
+
+    // Duplicate — hold 1s. Clones the spool into N new TigerCloud entries
+    // (fresh Cloud UID each, no twin link, no rack placement, staggered
+    // timestamps). The ± stepper picks N; the main label tracks it
+    // ("Duplicate ×N"). A basic TigerTag becomes Cloud since a digital
+    // clone carries no physical chip.
+    let _dupCount = 1;
+    const _dupSyncUI = () => {
+      const valEl = $("dupCount");
+      if (valEl) valEl.textContent = String(_dupCount);
+      const lblEl = $("btnToolDuplicate")?.querySelector(".toolbox-row-label");
+      if (lblEl) lblEl.textContent = _dupCount > 1 ? `${t("toolDuplicate")} ×${_dupCount}` : t("toolDuplicate");
+    };
+    $("btnDupDec")?.addEventListener("click", e => {
+      e.stopPropagation();
+      _dupCount = Math.max(1, _dupCount - 1);
+      _dupSyncUI();
+    });
+    $("btnDupInc")?.addEventListener("click", e => {
+      e.stopPropagation();
+      _dupCount = Math.min(50, _dupCount + 1);
+      _dupSyncUI();
+    });
+    setupHoldToConfirm($("btnToolDuplicate"), 1000, async () => {
+      try {
+        const made = await duplicateSpoolAsCloud(r, _dupCount);
+        if (made) {
+          // In-place confirmation: flash the result in the button label
+          // (the global toast() needs a container element — there's none
+          // in the detail panel — so we surface feedback right here). The
+          // new copies appear in the inventory list via the live snapshot.
+          const lblEl = $("btnToolDuplicate")?.querySelector(".toolbox-row-label");
+          if (lblEl) {
+            lblEl.textContent = t("toolDuplicateOk", { n: made });
+            setTimeout(() => { _dupSyncUI(); }, 1600);
+          }
+        }
+      } catch (e) { reportError("spool.duplicate", e); }
     });
 
     // Manual twin-pair repair button — opens the picker pre-filtered to
@@ -6252,13 +6439,39 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const hasBrand   = r.brand && r.brand !== "-";
     const hasSeries  = r.series && r.series !== "-";
     const hasMat     = r.material && r.material !== "-";
-    const rawName    = r.colorName && r.colorName !== "-" ? r.colorName : null;
     const aspectFallback = [r.aspect1, r.aspect2].filter(a => a && a !== "-" && a !== "None").join(" ");
-    const displayName = rawName || aspectFallback || null;
+    // Catalogue name = color_name / name (NOT message). TigerTag+ spools
+    // carry it (e.g. "Artic Teal"); Cloud / basic usually don't.
+    const _cn = r.raw?.color_name, _nm = r.raw?.name;
+    const catName = (_cn && _cn !== "--" && _cn !== "") ? String(_cn)
+                  : (_nm && _nm !== "--" && _nm !== "") ? String(_nm)
+                  : null;
+    // The `message` chip slot is an editable label/name, available on every
+    // spool type (Cloud, basic, TigerTag+) outside friend view. When a
+    // catalogue name exists it renders below it as a secondary line; when
+    // it doesn't (Cloud/basic) the message IS the spool's name.
+    const canEditMsg = !state.friendView;
+    const rawMsg     = (r.raw && r.raw.message != null) ? String(r.raw.message) : "";
+    const nameInner = rawMsg.trim()
+      ? `<span class="pi-name-text">${esc(rawMsg)}</span>`
+      : `<span class="pi-name-text pi-name-placeholder">${esc(t("msgEditAdd"))}</span>`;
+    const msgEditHtml = `<button type="button" class="pi-name-edit" id="piNameEdit" data-raw="${esc(rawMsg)}" title="${esc(t("msgEditTip"))}">${nameInner}<span class="icon icon-edit icon-12 pi-name-pencil"></span></button>`;
+    // Line 1: Brand · Series · Material (the catalogue identity).
+    // Then: catalogue name (read-only) if any, then the editable message.
+    const row1Parts = [hasBrand ? esc(r.brand) : "", hasSeries ? esc(r.series) : "", hasMat ? esc(r.material) : ""].filter(Boolean);
+    let nameLinesHtml = "";
+    if (canEditMsg) {
+      if (catName) nameLinesHtml += `<div class="pi-row2 pi-row2--name">${esc(catName)}</div>`;
+      nameLinesHtml += `<div class="pi-row2 pi-row2--name pi-name-msgline${catName ? " pi-name-msgline--secondary" : ""}">${msgEditHtml}</div>`;
+    } else {
+      // Friend view — read-only: show the catalogue name, else the message.
+      const ro = catName || (rawMsg.trim() ? rawMsg : null) || aspectFallback || null;
+      if (ro) nameLinesHtml += `<div class="pi-row2 pi-row2--name">${esc(ro)}</div>`;
+    }
     const identityHtml = `
       <div class="panel-section panel-identity">
-        ${hasBrand || hasSeries ? `<div class="pi-row1">${[hasBrand ? esc(r.brand) : "", hasSeries ? esc(r.series) : ""].filter(Boolean).join(" ")}</div>` : ""}
-        ${hasMat || displayName ? `<div class="pi-row2">${[hasMat ? esc(r.material) : "", displayName ? esc(displayName) : ""].filter(Boolean).join(" ")}</div>` : ""}
+        ${row1Parts.length ? `<div class="pi-row1">${row1Parts.join(" ")}</div>` : ""}
+        ${nameLinesHtml}
       </div>`;
 
     let chipBannerHtml = "";
@@ -6340,6 +6553,32 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         // (deleted spools have nothing to act on).
         if (state.friendView || r.deleted) return "";
         const tools = [];
+
+        // 0. Duplicate — always the first tool. Clones this spool as a new
+        //    TigerCloud entry with a fresh UID. Shown for Cloud spools
+        //    and basic TigerTag spools (a basic one necessarily becomes
+        //    Cloud — a digital clone has no physical chip, so it needs a
+        //    Cloud UID). TigerTag+ is never duplicable (gated by `!r.isPlus`;
+        //    Cloud takes precedence so a Cloud doc stays duplicable). Hold 1s.
+        if (r.isCloud || !r.isPlus) {
+          tools.push({
+            id: "btnToolDuplicate",
+            icon: "icon-copy",
+            label: t("toolDuplicate"),
+            variant: "default",
+            type: "split",
+            holdConfirm: true,
+            title: t("toolDuplicateTip"),
+            // Quantity stepper — pick how many copies to mint in one shot.
+            // The main button label tracks the count ("Duplicate ×N").
+            trailing: `
+              <div class="dup-stepper" title="${esc(t("toolDuplicateCount"))}">
+                <button type="button" class="dup-step-btn" id="btnDupDec" aria-label="−">−</button>
+                <span class="dup-step-val" id="dupCount">1</span>
+                <button type="button" class="dup-step-btn" id="btnDupInc" aria-label="+">+</button>
+              </div>`,
+          });
+        }
 
         // 1. TD1S — measure colour. Always shown; if the device isn't
         //    connected the click opens the connect modal first so the
@@ -6479,9 +6718,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           // secondary button (e.g. trash) on the right, both inside a
           // flex wrapper. Needed when two independent actions share a row.
           if (tool.type === "split") {
+            // When holdConfirm is set the MAIN button becomes a
+            // hold-to-confirm target (gets .hold-progress + the row gets
+            // toolbox-row--hold for the fill animation).
             return `
-              <div class="toolbox-row toolbox-row--split toolbox-row--${tool.variant}">
-                <button type="button" class="toolbox-row-main" id="${esc(tool.id)}">
+              <div class="toolbox-row toolbox-row--split toolbox-row--${tool.variant}${tool.holdConfirm ? " toolbox-row--hold" : ""}">
+                <button type="button" class="toolbox-row-main${tool.holdConfirm ? " toolbox-row-main--hold" : ""}" id="${esc(tool.id)}"${titleAttr}>
+                  ${tool.holdConfirm ? '<span class="hold-progress"></span>' : ""}
                   <span class="icon ${esc(tool.icon)} icon-14 toolbox-row-icon"></span>
                   <span class="toolbox-row-label">${esc(tool.label)}</span>
                   <span class="icon icon-chevron-r icon-13 toolbox-row-chev"></span>
@@ -7818,7 +8061,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (col === "name")    { va = (a.printerName || "").toLowerCase(); vb = (b.printerName || "").toLowerCase(); }
       if (col === "model")   { va = printerModelName(a.brand, a.printerModelId).toLowerCase();
                                vb = printerModelName(b.brand, b.printerModelId).toLowerCase(); }
-      if (col === "ip")      { va = a.ip || "";                          vb = b.ip || ""; }
+      if (col === "ip")      { va = a.ip || a.broker || "";              vb = b.ip || b.broker || ""; }
       if (col === "status")  { va = _isOnline(a) ? 1 : 0;               vb = _isOnline(b) ? 1 : 0; }
       if (col === "job")     { va = (_getPrinterJob(a)?.pct ?? -1);      vb = (_getPrinterJob(b)?.pct ?? -1); }
       if (col === "updated") { va = a.updatedAt || 0;                    vb = b.updatedAt || 0; }
@@ -7863,7 +8106,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           </td>
           <td class="pt-td pt-td--name">${esc(p.printerName || "(unnamed)")}</td>
           <td class="pt-td pt-td--model">${esc(model)}</td>
-          <td class="pt-td pt-td--ip"><code>${esc(p.ip || "—")}</code></td>
+          <td class="pt-td pt-td--ip"><code>${esc(p.ip || p.broker || "—")}</code></td>
           <td class="pt-td pt-td--status">
             <span class="pt-dot${online ? " pt-dot--on" : ""}"></span>
             ${esc(online ? t("snapStatusOnline") : t("snapStatusOffline"))}
