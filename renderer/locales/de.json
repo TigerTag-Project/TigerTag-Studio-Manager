@@ -84,7 +84,7 @@
   "btnTestKey": "API-Schlüssel testen",
   "btnClearSaved": "Daten löschen",
   "invTitle": "Inventar",
-  "btnViewTable": "☰ Tabelle",
+  "btnViewTable": "Tabelle",
   "btnViewGrid": "⊞ Raster",
   "btnShowDeleted": "Gelöschte anzeigen",
   "btnHideDeleted": "Gelöschte ausblenden",
@@ -411,6 +411,7 @@
   "rackUnrackedTitle": "Nicht verstaute Spulen",
   "rackAllPlaced": "Alle deine Spulen sind verstaut.",
   "btnViewRack": "Lager",
+  "btnViewCam": "Kamera",
   "btnViewPrinter": "Drucker",
   "printersTitle": "Meine Drucker",
   "printersSub": {

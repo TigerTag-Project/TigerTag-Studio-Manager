@@ -84,7 +84,7 @@
   "btnTestKey": "Testar chave API",
   "btnClearSaved": "Limpar dados salvos",
   "invTitle": "Inventário",
-  "btnViewTable": "☰ Tabela",
+  "btnViewTable": "Tabela",
   "btnViewGrid": "⊞ Grade",
   "btnShowDeleted": "Mostrar excluídos",
   "btnHideDeleted": "Ocultar excluídos",
@@ -411,6 +411,7 @@
   "rackUnrackedTitle": "Bobinas não armazenadas",
   "rackAllPlaced": "Todas as suas bobinas estão armazenadas.",
   "btnViewRack": "Armazenamento",
+  "btnViewCam": "Câmera",
   "btnViewPrinter": "Impressoras",
   "printersTitle": "Minhas impressoras",
   "printersSub": {

@@ -252,6 +252,8 @@ users/
     studioOsVersion string    — human-readable OS (e.g. "macOS 15.4", "Windows 11 Pro")
     studioLang      string    — app language setting (e.g. "fr")
     studioLocale    string    — system locale (e.g. "fr-FR")
+    studioCountry   string    — country code derived from the locale region (e.g. "FR"); null when the locale has no region. Offline-derived, no IP geolocation
+    studioTimezone  string    — IANA timezone (e.g. "Europe/Paris"), from Intl.DateTimeFormat
     studioLastSeen  timestamp — server timestamp of last login (deployment targeting / churn)
 
     telemetry/
@@ -259,6 +261,8 @@ users/
         sessionsCount number  — total sessions (FieldValue.increment)
         versionsUsed  string[]— all app versions ever used (FieldValue.arrayUnion)
         platformsUsed string[]— all platforms ever used (FieldValue.arrayUnion)
+        langsUsed     string[]— all app languages ever used (FieldValue.arrayUnion)
+        countriesUsed string[]— all country codes ever seen (FieldValue.arrayUnion; only when derivable)
         lastSeen      timestamp — server timestamp of last session
         td1sUsed      boolean — true once a TD1s sensor was ever connected
         rfidReadersMax number — max simultaneous RFID readers ever seen (1 or 2)

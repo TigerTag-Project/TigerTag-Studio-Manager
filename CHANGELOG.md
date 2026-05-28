@@ -5,6 +5,23 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.8.4 — 2026-05-28
+
+### Fixed
+
+- **TigerCloud "Manufactured" date wrong (~2056)** — Cloud spools stored their creation time as a Unix timestamp instead of the TigerTag chip epoch (seconds since 2000), so the decoded manufacturing date overshot by ~30 years. Fixed at creation (Add Product, Duplicate); the display also defensively corrects already-created spools. The stored value is now correct when a Cloud spool is later burned to a physical chip.
+- **Storage — linked (twin) spools counted twice** — a twin pair (one physical spool, two tags) now shows and counts **once** in the "not stored" list, the not-stored count, the free-slot count, and each rack's header count (no more over-capacity like `28/27`). Auto-fill no longer scatters the two tags of a twin into separate slots.
+
+### Changed
+
+- **View toggles — consistent icons + order** — the materials toggle is now **Grid · Table · Storage**; both toggle groups share the same Grid (`⊞`) and Table (list) icons and the same translations (fixes the FR mismatch where the printer "Table" stayed untranslated). The printer "Cam" label is now localised.
+
+### Added
+
+- **Usage telemetry — geographic dimension** — alongside the existing version / OS / language / session metrics, the app now records a locale-derived country code and IANA timezone (offline, no IP geolocation), plus lifetime `langsUsed` / `countriesUsed` aggregates, for future usage statistics.
+
+---
+
 ## v1.8.3 — 2026-05-28
 
 ### Spool detail — Duplicate (×N)

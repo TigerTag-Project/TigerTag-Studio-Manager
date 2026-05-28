@@ -274,8 +274,19 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   }
   // TigerTag chip timestamps use epoch = Jan 1 2000 (946684800 s offset from Unix)
   const CHIP_EPOCH_OFFSET = 946684800;
+  // "Now" as a TigerTag chip timestamp: SECONDS SINCE 2000-01-01 GMT — the
+  // standard the chip + fmtChipTs use. Writing plain Unix seconds (since 1970)
+  // here would over-shoot the decoded "Manufactured" date by ~30 years.
+  function nowChipTs() {
+    return Math.floor(Date.now() / 1000) - CHIP_EPOCH_OFFSET;
+  }
   function fmtChipTs(ts) {
     if (!ts) return null;
+    // Defensive: some Cloud docs were created with a plain Unix timestamp
+    // (seconds since 1970) instead of the chip epoch (seconds since 2000).
+    // A genuine chip timestamp stays well under ~1.4e9 (year 2044) for
+    // decades, so a larger value is a misencoded Unix one → fold it back.
+    if (ts > 1400000000) ts -= CHIP_EPOCH_OFFSET;
     const d = new Date((ts + CHIP_EPOCH_OFFSET) * 1000);
     return isNaN(d.getTime()) ? null : d.toLocaleDateString();
   }
@@ -1776,7 +1787,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       TD: td === null
             ? null
             : Math.max(0.1, Math.min(100, isFinite(td) && td > 0 ? td : 0.1)),
-      timestamp:   Math.floor(Date.now() / 1000),
+      timestamp:   nowChipTs(),
       deleted:     null,
       deleted_at:  null
     };
@@ -2140,7 +2151,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
             : Math.max(0.1, Math.min(100, isFinite(td) && td > 0 ? td : 0.1)),
 
       // ── Timestamps + tombstone ─────────────────────────────────
-      timestamp:   Math.floor(Date.now() / 1000),
+      timestamp:   nowChipTs(),
       updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
       deleted:     null,
       deleted_at:  null
@@ -5374,8 +5385,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const n = Math.max(1, Math.min(50, parseInt(count, 10) || 1));
     const invRef = fbDb(user.uid).collection("users").doc(user.uid).collection("inventory");
     const batch  = fbDb(user.uid).batch();
-    const srcTs  = (typeof r.chipTimestamp === "number") ? r.chipTimestamp : 0;
-    const baseTs = Math.max(Math.floor(Date.now() / 1000), srcTs + 3);
+    // Source timestamp in chip-epoch seconds. Normalise a legacy Unix-epoch
+    // value (misencoded older Cloud docs) so the staggering math stays in one
+    // unit. Base = now (chip epoch), nudged past the source so the 2s twin
+    // auto-linker can't pair a clone back with its source.
+    let srcTs = (typeof r.chipTimestamp === "number") ? r.chipTimestamp : 0;
+    if (srcTs > 1400000000) srcTs -= CHIP_EPOCH_OFFSET;
+    const baseTs = Math.max(nowChipTs(), srcTs + 3);
     const usedIds = new Set();
     for (let i = 0; i < n; i++) {
       let newId = _adpCloudId();
@@ -11186,7 +11202,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // — they are only excluded from COUNTS via isEmptyRow().
   function getUnrackedSpools() {
     const search = ($("rpUnrackedSearch")?.value || "").trim().toLowerCase();
-    return state.rows.filter(r => {
+    const rows = state.rows.filter(r => {
       if (r.deleted) return false;
       if (r.rackId) return false;   // already placed
       if (!search) return true;
@@ -11197,6 +11213,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         String(r.colorName || "").toLowerCase().includes(search)
       );
     });
+    // Collapse twin pairs (one physical spool, two linked tags) so it shows
+    // and counts once — not twice — in the unranked list, its count, and the
+    // auto-fill pool.
+    return deduplicateTwins(rows);
   }
 
   // Backwards-compat alias — older code paths called renderRacksList()
@@ -11503,7 +11523,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       totalSlotsAll += cap;
       lockedSlotsAll += Array.isArray(r.lockedSlots) ? r.lockedSlots.length : 0;
     });
-    filledSlotsAll = state.rows.filter(x => !x.deleted && x.rackId).length;
+    // Count one slot per physical spool — a twin pair (2 linked tags) occupies
+    // a single slot, so collapse it before counting.
+    filledSlotsAll = deduplicateTwins(state.rows.filter(x => !x.deleted && x.rackId)).length;
     const emptySlotsAll = Math.max(0, totalSlotsAll - filledSlotsAll);
     const fillPctAll = totalSlotsAll > 0 ? Math.round((filledSlotsAll / totalSlotsAll) * 100) : 0;
     // Depleted spools: active inventory items where the user has used up
@@ -11621,7 +11643,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         rows.push(`<div class="rp-row"><span class="rp-row-label">${shelfLetter(lv)}</span><div class="rp-row-slots" style="--slots:${r.position}">${cells.join("")}</div></div>`);
       }
       const totalSlots = r.level * r.position;
-      const filled     = state.rows.filter(x => !x.deleted && x.rackId === r.id).length;
+      // Twin pairs share one slot — collapse so the count can't exceed capacity.
+      const filled     = deduplicateTwins(state.rows.filter(x => !x.deleted && x.rackId === r.id)).length;
       const lockedCnt  = Array.isArray(r.lockedSlots) ? r.lockedSlots.length : 0;
       const allLocked  = lockedCnt > 0 && lockedCnt === totalSlots;
       return `<div class="rp-rack" data-rack-id="${esc(r.id)}">
@@ -13339,6 +13362,26 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       const info = await getAppInfo();
       const FV   = firebase.firestore.FieldValue;
 
+      // Country + timezone derived locally (no IP geolocation call — keeps it
+      // offline and privacy-friendly). Country = region subtag of the system
+      // locale ("fr-FR" → "FR"); null when the locale has no region.
+      const country = (() => {
+        try {
+          const loc = navigator.language || "";
+          if (typeof Intl !== "undefined" && Intl.Locale) {
+            const region = new Intl.Locale(loc).region;
+            if (region) return region.toUpperCase();
+          }
+          const parts = loc.split("-");
+          if (parts.length > 1 && parts[1]) return parts[1].toUpperCase();
+        } catch (_) {}
+        return null;
+      })();
+      const timezone = (() => {
+        try { return Intl.DateTimeFormat().resolvedOptions().timeZone || null; }
+        catch (_) { return null; }
+      })();
+
       // 1. users/{uid} — last-known client state (overwritten each session).
       //    Used for deployment targeting: "push to all darwin arm64 on < 1.8".
       db.collection("users").doc(uid).set({
@@ -13350,20 +13393,25 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         studioOsVersion: info.osVersion        || null,
         studioLang:      state.lang            || null,
         studioLocale:    navigator.language    || null,
+        studioCountry:   country,
+        studioTimezone:  timezone,
         studioLastSeen:  FV.serverTimestamp(),
       }, { merge: true }).catch(() => {});
 
       // 2. users/{uid}/telemetry/studio — aggregated lifetime metrics.
       //    Never overwritten — only grows. Standard Firebase pattern:
       //    increment() for counters, arrayUnion() for sets, serverTimestamp() for events.
+      const agg = {
+        sessionsCount: FV.increment(1),
+        versionsUsed:  FV.arrayUnion(info.appVersion || "?"),
+        platformsUsed: FV.arrayUnion(info.platform   || "?"),
+        langsUsed:     FV.arrayUnion(state.lang      || "?"),
+        lastSeen:      FV.serverTimestamp(),
+      };
+      if (country) agg.countriesUsed = FV.arrayUnion(country);
       db.collection("users").doc(uid)
         .collection("telemetry").doc("studio")
-        .set({
-          sessionsCount: FV.increment(1),
-          versionsUsed:  FV.arrayUnion(info.appVersion || "?"),
-          platformsUsed: FV.arrayUnion(info.platform   || "?"),
-          lastSeen:      FV.serverTimestamp(),
-        }, { merge: true }).catch(() => {});
+        .set(agg, { merge: true }).catch(() => {});
 
       // Reflect in open edit-account modal if already open
       if ($("editAccountModalOverlay").classList.contains("open")) {

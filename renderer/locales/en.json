@@ -84,7 +84,7 @@
   "btnTestKey": "Test API key",
   "btnClearSaved": "Clear saved data",
   "invTitle": "Inventory",
-  "btnViewTable": "☰ Table",
+  "btnViewTable": "Table",
   "btnViewGrid": "⊞ Grid",
   "btnShowDeleted": "Show deleted",
   "btnHideDeleted": "Hide deleted",
@@ -411,6 +411,7 @@
   "rackUnrackedTitle": "Spools not stored",
   "rackAllPlaced": "All your spools are stored.",
   "btnViewRack": "Storage",
+  "btnViewCam": "Cam",
   "btnViewPrinter": "Printers",
   "printersTitle": "My printers",
   "printersSub": {

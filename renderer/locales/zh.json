@@ -84,7 +84,7 @@
   "btnTestKey": "测试 API 密钥",
   "btnClearSaved": "清除已保存数据",
   "invTitle": "库存",
-  "btnViewTable": "☰ 表格",
+  "btnViewTable": "表格",
   "btnViewGrid": "⊞ 网格",
   "btnShowDeleted": "显示已删除",
   "btnHideDeleted": "隐藏已删除",
@@ -411,6 +411,7 @@
   "rackUnrackedTitle": "未存放的线轴",
   "rackAllPlaced": "您的所有线轴都已存放。",
   "btnViewRack": "存储",
+  "btnViewCam": "摄像头",
   "btnViewPrinter": "打印机",
   "printersTitle": "我的打印机",
   "printersSub": {

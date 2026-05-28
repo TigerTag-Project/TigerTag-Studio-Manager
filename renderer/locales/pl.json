@@ -83,7 +83,7 @@
   "btnTestKey": "Testuj klucz API",
   "btnClearSaved": "Wyczyść zapisane",
   "invTitle": "Inwentarz",
-  "btnViewTable": "☰ Tabela",
+  "btnViewTable": "Tabela",
   "btnViewGrid": "⊞ Siatka",
   "btnShowDeleted": "Pokaż usunięte",
   "btnHideDeleted": "Ukryj usunięte",
@@ -410,6 +410,7 @@
   "rackUnrackedTitle": "Szpule nieskładowane",
   "rackAllPlaced": "Wszystkie twoje szpule są w magazynie.",
   "btnViewRack": "Magazyn",
+  "btnViewCam": "Kamera",
   "btnViewPrinter": "Drukarki",
   "printersTitle": "Moje drukarki",
   "printersSub": {
