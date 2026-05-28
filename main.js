@@ -1694,14 +1694,19 @@ ipcMain.handle('timelapse:download', async (_evt, videoUrl, suggestedFilename) =
   let _ffmpegBin = null;
   (function _detectFfmpeg() {
     const fs = require('fs');
+    const path = require('path');
     const candidates = [];
-    // Bundled binary. In a packaged app the path lives inside app.asar; remap to
-    // the unpacked copy (see build.asarUnpack) — a binary cannot be spawned from
-    // within the asar archive.
-    try {
-      const s = require('ffmpeg-static');
-      if (s) candidates.push(s.replace('app.asar', 'app.asar.unpacked'));
-    } catch (_) {}
+    // Bundled binary (ffmpeg-static). In a packaged app the binary is unpacked
+    // beside the asar (build.asarUnpack) — build its REAL on-disk path from
+    // resourcesPath. We must NOT use the require('ffmpeg-static') path there: it
+    // points inside app.asar, which fs.accessSync may resolve via the asar shim
+    // but the OS cannot actually spawn. In dev, require() returns the real path.
+    const exe = process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg';
+    if (app.isPackaged) {
+      candidates.push(path.join(process.resourcesPath, 'app.asar.unpacked', 'node_modules', 'ffmpeg-static', exe));
+    } else {
+      try { const s = require('ffmpeg-static'); if (s) candidates.push(s); } catch (_) {}
+    }
     candidates.push(
       '/opt/homebrew/bin/ffmpeg',                    // macOS Homebrew (Apple Silicon)
       '/usr/local/bin/ffmpeg',                       // macOS Homebrew (Intel)
@@ -1711,8 +1716,10 @@ ipcMain.handle('timelapse:download', async (_evt, videoUrl, suggestedFilename) =
       'ffmpeg',                                      // PATH fallback
     );
     for (const p of candidates) {
-      try { fs.accessSync(p, fs.constants.X_OK); _ffmpegBin = p; return; } catch (_) {}
+      try { fs.accessSync(p, fs.constants.X_OK); _ffmpegBin = p; break; } catch (_) {}
     }
+    if (_ffmpegBin) console.log(`[ffmpeg] using ${_ffmpegBin}`);
+    else console.warn(`[ffmpeg] NOT FOUND — checked: ${candidates.join(' · ')}`);
   })();
 
   const _bambuClients    = new Map(); // key → { client, wc }
@@ -1841,6 +1848,7 @@ ipcMain.handle('timelapse:download', async (_evt, videoUrl, suggestedFilename) =
       // Never URL-encode the access code — Bambu codes are alphanumeric hex.
       // encodeURIComponent can corrupt them when ffmpeg parses the URL.
       const rtspUrl = `rtsps://bblp:${password}@${ip}:322/streaming/live/1`;
+      console.log(`[bambu-rtsp:${key}] launching ffmpeg → rtsps://bblp:***@${ip}:322 (bin: ${_ffmpegBin})`);
 
       const proc = spawn(_ffmpegBin, [
         '-loglevel', 'error',          // show errors in main-process console

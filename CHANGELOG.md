@@ -5,6 +5,14 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.8.7 — 2026-05-29
+
+### Fixed
+
+- **Bambu RTSP cameras (X1C / X1E / P2S / H2x) now actually work on Windows** — v1.8.6 bundled ffmpeg, but the app resolved its path inside the read-only `app.asar` archive, which Windows can't launch, so the live camera stayed black. The app now uses the real on-disk binary, so the stream works. (macOS / Linux were unaffected.)
+
+---
+
 ## v1.8.6 — 2026-05-29
 
 ### Fixed
