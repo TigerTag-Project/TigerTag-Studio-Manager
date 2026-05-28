@@ -1264,6 +1264,8 @@
   .health .icon { color: var(--neutral); transition: color .25s, filter .25s; }
   .health.ok  .icon { color: var(--success); filter: drop-shadow(0 0 6px var(--success)); }
   .health.bad .icon { color: var(--danger);  filter: drop-shadow(0 0 6px var(--danger)); }
+  /* header cloud icon: 2× the shared .icon-20 size */
+  #health .icon { width: 40px; height: 40px; }
 
   /* ── update status icon ── */
   .update-health-icon {
@@ -1287,75 +1289,43 @@
   }
   @keyframes updateSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
-  /* ── RFID reader badges (topbar) ── */
-  .rfid-readers-bar { display: flex; align-items: center; gap: 6px; }
-  .rfid-reader-badge {
-    display: flex; align-items: center; gap: 5px;
-    padding: 3px 9px; border-radius: 999px;
-    background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.13);
-    font-size: 11px; font-weight: 600; color: var(--muted); cursor: default;
-    transition: border-color .2s, background .2s, color .2s;
-    position: relative;
+  /* ── RFID readers (topbar) — single TigerPod icon + hover popover ──
+        One Icon_tigerpod_3d.svg in the header (red = no reader · green =
+        connected). Hovering reveals one row per reader (RFID #1 / #2) plus the
+        UID of any chip currently presented in front of it. */
+  .rfid-readers-bar { display: inline-flex; align-items: center; }
+  .rfid-pod { position: relative; display: inline-flex; align-items: center; }
+  .rfid-pod.disconnected { cursor: pointer; }
+  .rfid-pod-icon {
+    display: inline-block; height: 44px; aspect-ratio: 1 / 1; /* Icon_tigerpod_3d.svg viewBox 4267×4267 */
+    background-color: var(--neutral);
+    -webkit-mask-image: url('../../assets/svg/icons/Icon_tigerpod_3d.svg');
+    -webkit-mask-size: contain; -webkit-mask-repeat: no-repeat; -webkit-mask-position: center;
+    transition: background-color .3s, filter .3s;
   }
-  .rfid-reader-badge .rrd-dot {
-    width: 6px; height: 6px; border-radius: 50%;
-    background: var(--muted); flex-shrink: 0;
-    transition: background .2s, box-shadow .2s;
+  .rfid-pod.connected    .rfid-pod-icon { background-color: var(--success); filter: drop-shadow(0 0 4px rgba(26,175,108,.45)); }
+  .rfid-pod.card-present .rfid-pod-icon { filter: drop-shadow(0 0 7px var(--success)); }
+  .rfid-pod.disconnected .rfid-pod-icon { background-color: #ef4444; }
+
+  /* hover popover */
+  .rfid-pod-pop {
+    position: absolute; top: calc(100% + 7px); left: 50%;
+    transform: translateX(-50%) translateY(-4px);
+    background: #1c2030; border: 1px solid rgba(255,255,255,.1); border-radius: 9px;
+    padding: 7px 9px; min-width: 116px; display: flex; flex-direction: column; gap: 5px;
+    opacity: 0; pointer-events: none; transition: opacity .15s, transform .15s;
+    box-shadow: 0 6px 18px rgba(0,0,0,.35); z-index: 60;
   }
-  /* reader connected, no card — subtle green tint */
-  .rfid-reader-badge.connected {
-    background: rgba(26,175,108,.12);
-    border-color: rgba(26,175,108,.35);
-    color: var(--success);
+  .rfid-pod:hover .rfid-pod-pop { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .rfid-pod-row { display: flex; align-items: center; gap: 7px; white-space: nowrap; font-size: 11px; font-weight: 600; color: #fff; }
+  .rfid-pod-row .rrd-dot {
+    width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+    background: var(--success); box-shadow: 0 0 5px var(--success);
   }
-  .rfid-reader-badge.connected .rrd-dot {
-    background: var(--success);
-    box-shadow: 0 0 5px var(--success);
-    animation: rfidPulse 2s ease-in-out infinite;
-  }
-  /* card present — filled green gradient, white text */
-  .rfid-reader-badge.card-present {
-    background: linear-gradient(90deg, #0d8a52, #1aaf6c);
-    border-color: transparent;
-    color: #fff;
-  }
-  .rfid-reader-badge.card-present .rrd-dot {
-    background: rgba(255,255,255,.75);
-    box-shadow: 0 0 6px rgba(255,255,255,.5);
-    animation: none;
-  }
-  /* no reader connected — filled red gradient, white text */
-  .rfid-reader-badge.disconnected {
-    background: linear-gradient(90deg, #be2d2d, #d83b3b);
-    border-color: transparent;
-    color: #fff;
-    opacity: .85; cursor: pointer;
-  }
-  .rfid-reader-badge.disconnected:hover { opacity: 1; }
-  .rfid-reader-badge.disconnected .rrd-dot {
-    background: rgba(255,255,255,.75);
-    box-shadow: 0 0 5px rgba(255,255,255,.4);
-    animation: rfidPulse 2s ease-in-out infinite;
-  }
-  .rfid-reader-badge .rrd-name { max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .rfid-reader-badge .rrd-uid {
-    font-family: monospace; font-size: 10px;
-    color: var(--success); letter-spacing: .03em;
-  }
-  @keyframes rfidPulse {
-    0%, 100% { opacity: 1; }
-    50%       { opacity: .4; }
-  }
-  /* tooltip */
-  .rfid-reader-badge::after {
-    content: attr(data-tooltip);
-    position: absolute; top: calc(100% + 7px); left: 50%; transform: translateX(-50%);
-    background: #1c2030; color: #fff; border: 1px solid rgba(255,255,255,.1);
-    padding: 5px 10px; border-radius: 7px; font-size: 11px; white-space: nowrap;
-    opacity: 0; pointer-events: none; transition: opacity .15s;
-    box-shadow: 0 4px 12px rgba(0,0,0,.3); z-index: 50;
-  }
-  .rfid-reader-badge:hover::after { opacity: 1; }
+  .rfid-pod-row.card-present .rrd-dot { background: #fff; box-shadow: 0 0 6px rgba(255,255,255,.6); }
+  .rfid-pod.disconnected .rfid-pod-row .rrd-dot { background: #ef4444; box-shadow: none; }
+  .rfid-pod-row .rrd-name { max-width: 110px; overflow: hidden; text-overflow: ellipsis; }
+  .rfid-pod-uid { margin-left: auto; padding-left: 10px; font-family: ui-monospace, monospace; font-size: 10px; color: var(--success); letter-spacing: .03em; }
 
   .health::after {
     content: attr(data-tooltip);
@@ -3029,6 +2999,17 @@
   width: min(440px, calc(100vw - 32px));
   display: flex; flex-direction: column; gap: 0; padding: 0; overflow: hidden;
 }
+/* header: centred migration title + close button pinned (slightly inset).
+   Symmetric vertical padding keeps the ✕ (top:50%) aligned with the title. */
+.cem-card .cem-header { position: relative; justify-content: center; text-align: center; padding: 16px 22px; }
+.cem-card .cem-close {
+  position: absolute; top: 50%; right: 14px; transform: translateY(-50%);
+  width: 30px; height: 30px; padding: 0; border: 0; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: transparent; color: var(--muted); cursor: pointer;
+  font-size: 15px; line-height: 1; transition: background .15s ease, color .15s ease;
+}
+.cem-card .cem-close:hover { background: var(--surface-2); color: var(--text); }
 /* title as a migration: TigerCloud → TigerTag */
 .cem-title-migrate { display: inline-flex; align-items: center; gap: 8px; }
 .cem-tag { font-size: 14px; font-weight: 700; padding: 3px 10px; border-radius: 999px; line-height: 1; }
@@ -3039,52 +3020,61 @@
 .cem-body { padding: 8px 22px 6px; display: flex; flex-direction: column; gap: 16px; }
 
 .cem-chips { display: flex; gap: 16px; justify-content: center; }
+/* Each card mimics the physical reader: a dark device plate carrying the white
+   TigerTag logo, with a corner status LED (red = no chip · green = chip present),
+   exactly like the ACR122U's red/green indicator. The plate base stays constant;
+   state is conveyed by the LED colour plus a coloured glow. */
 .cem-chip {
   position: relative;
-  flex: 0 1 132px;
+  flex: 1 1 184px;
   display: flex; align-items: center; justify-content: center;
-  padding: 22px; border-radius: 18px;
-  background: var(--surface); border: 1.5px solid var(--border);
-  color: var(--muted);
-  transition: color .2s ease, border-color .2s ease, background .2s ease, box-shadow .2s ease;
+  padding: 22px 24px; border-radius: 16px;
+  background: linear-gradient(160deg, #4b5468, #363d4e);
+  border: 1.5px solid rgba(255,255,255,.06);
+  box-shadow: 0 4px 14px rgba(20,24,40,.16);
+  transition: box-shadow .25s ease, transform .2s ease;
 }
+.cem-chip-logo {
+  width: 76px; aspect-ratio: 340 / 289.1; /* viewBox of logo_tigertag.svg */
+  background-color: #fff;
+  -webkit-mask: url('../../assets/svg/logos/logo_tigertag.svg') center / contain no-repeat;
+          mask: url('../../assets/svg/logos/logo_tigertag.svg') center / contain no-repeat;
+  transition: transform .2s ease;
+}
+/* corner status LED — also shows the slot number when 2 readers are present */
 .cem-chip-num {
   position: absolute; top: 9px; left: 9px;
   width: 20px; height: 20px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  font-size: 11px; font-weight: 700; line-height: 1;
-  background: var(--border); color: var(--muted);
-  transition: background .2s ease, color .2s ease;
+  font-size: 11px; font-weight: 700; line-height: 1; color: #fff;
+  background: var(--danger);
+  box-shadow: 0 0 0 2px rgba(255,255,255,.2), 0 0 7px rgba(216,59,59,.65);
+  transition: background .2s ease, box-shadow .2s ease;
 }
-.cem-chip-icon {
-  width: 60px; height: 60px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  background: var(--surface-2); color: inherit;
-  transition: background .2s ease, color .2s ease, transform .2s ease;
+.cem-chip-uid { position: absolute; bottom: 4px; left: 0; right: 0; font-size: 9px; color: rgba(255,255,255,.65); font-family: ui-monospace, monospace; text-align: center; }
+
+/* ── per-state: LED colour + plate glow ── */
+.cem-chip--waiting .cem-chip-logo { animation: cemPulse 1.6s ease-in-out infinite; }
+
+.cem-chip--ready .cem-chip-num,
+.cem-chip--writing .cem-chip-num,
+.cem-chip--ok .cem-chip-num {
+  background: var(--success);
+  box-shadow: 0 0 0 2px rgba(255,255,255,.22), 0 0 8px rgba(26,175,108,.7);
 }
-.cem-chip-icon svg { width: 32px; height: 32px; display: block; }
-.cem-chip-uid { position: absolute; bottom: 4px; left: 0; right: 0; font-size: 9px; color: var(--muted); font-family: ui-monospace, monospace; text-align: center; }
 
-/* ── per-state (colour IS the status — no text) ── */
-.cem-chip--waiting .cem-chip-icon { animation: cemPulse 1.6s ease-in-out infinite; }
+.cem-chip--writing { box-shadow: 0 5px 18px rgba(26,175,108,.32); }
+.cem-chip--writing .cem-chip-logo { animation: cemPulse 1s ease-in-out infinite; }
 
-.cem-chip--ready { color: #386ecf; border-color: rgba(56,110,207,.55); box-shadow: 0 4px 14px rgba(56,110,207,.12); }
-.cem-chip--ready .cem-chip-num  { background: rgba(56,110,207,.16); color: #386ecf; }
-.cem-chip--ready .cem-chip-icon { background: rgba(56,110,207,.12); }
+.cem-chip--ok { box-shadow: 0 5px 18px rgba(26,175,108,.42); }
 
-.cem-chip--writing { color: #386ecf; border-color: rgba(56,110,207,.7); box-shadow: 0 4px 16px rgba(56,110,207,.18); }
-.cem-chip--writing .cem-chip-num  { background: rgba(56,110,207,.16); color: #386ecf; }
-.cem-chip--writing .cem-chip-icon { background: rgba(56,110,207,.14); animation: cemPulse 1s ease-in-out infinite; }
+.cem-chip--fail { box-shadow: 0 5px 18px rgba(216,59,59,.36); animation: cemShake .4s ease; }
+.cem-chip--fail .cem-chip-num {
+  background: var(--danger);
+  box-shadow: 0 0 0 2px rgba(255,255,255,.22), 0 0 8px rgba(216,59,59,.7);
+}
 
-.cem-chip--ok { color: var(--success); border-color: var(--success); box-shadow: 0 4px 16px rgba(26,175,108,.18); }
-.cem-chip--ok .cem-chip-num  { background: var(--success); color: #fff; }
-.cem-chip--ok .cem-chip-icon { background: var(--success-soft); }
-
-.cem-chip--fail { color: var(--danger); border-color: var(--danger); box-shadow: 0 4px 16px rgba(216,59,59,.16); animation: cemShake .4s ease; }
-.cem-chip--fail .cem-chip-num  { background: var(--danger); color: #fff; }
-.cem-chip--fail .cem-chip-icon { background: var(--danger-soft); }
-
-.cem-chip--none .cem-chip-icon { opacity: .5; }
+.cem-chip--none { opacity: .5; }
 
 /* ── global progress bar (sequence-wide) ── */
 .cem-progress { width: 100%; height: 6px; border-radius: 4px; background: var(--border); overflow: hidden; }
@@ -3110,6 +3100,7 @@
 .cem-status:empty { display: none; }
 .cem-status--fail { color: var(--danger); font-weight: 600; }
 .cem-actions { display: flex; gap: 10px; padding: 14px 22px 20px; }
+.cem-actions.hidden { display: none; }
 .cem-actions .btn { flex: 1; height: 46px; font-size: 14px; font-weight: 600; }
 .cem-actions .btn.hidden { display: none; }
 .cem-actions .primary:disabled { background: var(--border); border-color: var(--border); color: var(--muted); box-shadow: none; opacity: 1; }

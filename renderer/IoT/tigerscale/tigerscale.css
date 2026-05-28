@@ -14,30 +14,20 @@
       • .scale-none      : red, fixed size, no animation — visual cue
                            that no TigerScale is paired yet. */
 .scale-health { cursor: pointer; }
-.scale-health-badge {
-  display: inline-flex; align-items: center;
-  padding: 2px 7px; border-radius: 999px;
-  font-size: 10px; font-weight: 700; letter-spacing: .04em;
-  text-transform: uppercase;
-  background: rgba(255,255,255,.07);
-  border: 1px solid rgba(255,255,255,.15);
-  color: var(--muted);
-  opacity: .5;
-  transition: opacity .3s, background .3s, border-color .3s, color .3s, box-shadow .3s;
-  white-space: nowrap;
+.scale-health-icon {
+  display: inline-block;
+  height: 44px; aspect-ratio: 1 / 1; /* icon_tigerscale_3d.svg viewBox 1254×1254 */
+  background-color: var(--neutral);
+  -webkit-mask-image: url('../../../assets/svg/icons/icon_tigerscale_3d.svg');
+  -webkit-mask-size: contain; -webkit-mask-repeat: no-repeat; -webkit-mask-position: center;
+  opacity: .38; transition: opacity .3s, background-color .3s, filter .3s;
 }
-.scale-health.scale-connected .scale-health-badge {
-  background: rgba(26,175,108,.15);
-  border-color: rgba(26,175,108,.4);
-  color: var(--success);
-  opacity: 1;
-  box-shadow: 0 0 6px rgba(26,175,108,.25);
+.scale-health.scale-connected .scale-health-icon {
+  background-color: var(--success); opacity: 1;
+  filter: drop-shadow(0 0 5px var(--success));
 }
-.scale-health.scale-none .scale-health-badge {
-  background: rgba(239,68,68,.12);
-  border-color: rgba(239,68,68,.35);
-  color: #ef4444;
-  opacity: 1;
+.scale-health.scale-none .scale-health-icon {
+  background-color: #ef4444; opacity: 1;
 }
 
 /* ── Scales panel (slide-in from right) ── */

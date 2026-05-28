@@ -5126,12 +5126,6 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
      all-or-nothing Firestore migration. Modal closes only on success or
      explicit abort. See ROADMAP "Cloud → chip encode" for the full spec.   */
   const _CEM_EPOCH_MS = Date.UTC(2000, 0, 1);
-  const _CEM_CHIP_SVG = `<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    <rect x="10" y="14" width="28" height="20" rx="3" stroke="currentColor" stroke-width="2.5"/>
-    <circle cx="24" cy="24" r="3" fill="currentColor"/>
-    <path d="M28.5 19.5a6.5 6.5 0 0 1 0 9M32 16a11 11 0 0 1 0 16" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
-    <path d="M19.5 28.5a6.5 6.5 0 0 1 0-9M16 32a11 11 0 0 1 0-16" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
-  </svg>`;
   let _cemRow      = null;                 // spool row being encoded
   let _cemState    = "confirm";            // confirm | burning | failed
   let _cemChip     = new Map();            // readerName → "waiting"|"ready"|"writing"|"ok"|"fail"
@@ -5171,6 +5165,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     _cemAborted = true;
     $("cloudEncodeOverlay")?.classList.remove("open");
     _cemRow = null; _cemState = "confirm";
+  }
+
+  // True while the guided Encode modal is open. A chip presented for encoding
+  // also fires the normal scan path; we use this to suppress the auto side-card
+  // it would otherwise pop over the modal (the chip is about to be overwritten).
+  function _encodeModalOpen() {
+    return !!$("cloudEncodeOverlay")?.classList.contains("open");
   }
 
   // Present readers (connected + holding a card), with their UID, in stable order.
@@ -5216,7 +5217,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       const dbgUid = (state.debugEnabled && card?.uid) ? `<div class="cem-chip-uid">${esc(card.uid)}</div>` : "";
       return `<div class="cem-chip cem-chip--${st}">
         ${numBadge}
-        <div class="cem-chip-icon">${_CEM_CHIP_SVG}</div>
+        <div class="cem-chip-logo"></div>
         ${dbgUid}
       </div>`;
     }).join("");
@@ -5244,36 +5245,32 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (fill) fill.style.width = total ? Math.round((done / total) * 100) + "%" : "0%";
     }
 
-    // Minimal hint — only when the user has to act (no reader / place chips /
-    // same chip twice). Silent when ready or burning: the colours say it all.
-    const subEl = $("cemSub");
-    if (subEl) {
-      subEl.textContent =
-        readers.length === 0 ? t("encNoReader")
-        : burning            ? ""
-        : present.length < readers.length ? t("encPlaceChips")
-        : sameUid            ? t("encSameUid")
-        :                      "";
-      subEl.classList.toggle("hidden", !subEl.textContent);
-    }
+    // The top hint ("Hold the RFID tags in front of the readers") is a fixed
+    // instruction set once from i18n — never toggled here.
+
     // Overwrite section
     const owEl = $("cemOverwrite");
     if (owEl) owEl.classList.toggle("hidden", burning || !nonBlank);
-    // Failure status line (red)
+    // Status line — only for exceptional states (failure / same chip twice /
+    // no reader). Red for the error cases.
     const stEl = $("cemStatus");
     if (stEl) {
-      stEl.textContent = _cemState === "failed" ? t("encFailed") : "";
-      stEl.classList.toggle("cem-status--fail", _cemState === "failed");
+      const isErr = _cemState === "failed" || sameUid;
+      stEl.textContent =
+        _cemState === "failed" ? t("encFailed")
+        : sameUid              ? t("encSameUid")
+        : readers.length === 0 ? t("encNoReader")
+        :                        "";
+      stEl.classList.toggle("cem-status--fail", isErr);
     }
-    // Buttons
+    // Burn button (Cancel removed — close via the ✕ or the backdrop). The whole
+    // actions row is hidden during the burn so there's no dead button.
     const burnBtn = $("cemBurn");
     if (burnBtn) {
       burnBtn.disabled = !gateReady;
       burnBtn.textContent = _cemState === "failed" ? t("encRetry") : t("encBurn");
-      burnBtn.classList.toggle("hidden", burning);
+      burnBtn.closest(".cem-actions")?.classList.toggle("hidden", burning);
     }
-    const abortBtn = $("cemAbort");
-    if (abortBtn) abortBtn.textContent = t("cancelLabel");
   }
 
   // Card appeared/removed while the modal is open.
@@ -6307,13 +6304,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
 
   // Cloud → chip encode modal events (wired once)
   $("cemClose")?.addEventListener("click", closeEncodeModal);
-  $("cemAbort")?.addEventListener("click", closeEncodeModal);
   $("cemBurn")?.addEventListener("click", _cemStartBurn);
   $("cemOwToggle")?.addEventListener("change", _cemRender);
-  // No backdrop-click close during a burn — only the explicit buttons abort,
-  // so an accidental click can't drop the modal mid-sequence.
+  // Close on backdrop click (= abort). Allowed at any time, including mid-burn:
+  // closeEncodeModal sets _cemAborted so the sequence stops and nothing migrates.
   $("cloudEncodeOverlay")?.addEventListener("click", e => {
-    if (e.target === $("cloudEncodeOverlay") && _cemState !== "burning") closeEncodeModal();
+    if (e.target === $("cloudEncodeOverlay")) closeEncodeModal();
   });
 
   // container picker events
@@ -10962,7 +10958,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (!user) return 0;
     await playEmptyRackCascade(rackId);
     const invRef = fbDb().collection("users").doc(user.uid).collection("inventory");
-    const targets = state.rows.filter(r => r.rackId === rackId && !r.deleted);
+    // Locked slots are protected from Clear all — a spool in a locked slot can
+    // only be removed by deleting the spool itself.
+    const targets = state.rows.filter(r =>
+      r.rackId === rackId && !r.deleted && !isSlotLocked(rackId, r.rackLevel, r.rackPos)
+    );
     if (!targets.length) return 0;
     const batch = fbDb().batch();
     targets.forEach(row => batch.update(invRef.doc(row.spoolId), { rack: null }));
@@ -10977,7 +10977,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     return new Promise(resolve => {
       const card = document.querySelector(`#invRackView .rp-rack[data-rack-id="${CSS.escape(rackId)}"]`);
       if (!card) return resolve();
-      const filled = Array.from(card.querySelectorAll(".rp-slot--filled"));
+      const filled = Array.from(card.querySelectorAll(".rp-slot--filled:not(.rp-slot--locked)"));
       if (!filled.length) return resolve();
       // Sort top→bottom, left→right
       filled.sort((a, b) => {
@@ -13673,28 +13673,31 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // ── Electron RFID integration ──
   if (window.electronAPI) {
 
-    // ── Reader badge rendering (topbar) ─────────────────────────────────────
+    // ── Reader indicator rendering (topbar) ─────────────────────────────────
+    // One TigerPod icon (red = no reader · green = connected). The per-reader
+    // detail (RFID #1 / #2 + the UID of any chip presented) shows on hover.
     function renderRfidReaderBadges() {
       const bar = $("rfidReadersBar");
       if (!bar) return;
-      if (state.nfcReaders.size === 0) {
-        // No reader connected — always show a placeholder badge in red
-        bar.innerHTML = `<div class="rfid-reader-badge disconnected" data-tooltip="${t("rfidNoReader")}">
-          <span class="rrd-dot"></span>
-          <span class="rrd-name">RFID</span>
-        </div>`;
-        return;
-      }
-      bar.innerHTML = [...state.nfcReaders].map((name, idx) => {
-        const card      = state.nfcCardPresent.get(name);
-        const shortName = `RFID #${idx + 1}`;
-        const cls       = card ? 'rfid-reader-badge connected card-present' : 'rfid-reader-badge connected';
-        const tip       = card ? `UID: ${card.uid}` : shortName;
-        return `<div class="${cls}" data-tooltip="${tip}">
-          <span class="rrd-dot"></span>
-          <span class="rrd-name">${shortName}</span>
-        </div>`;
-      }).join('');
+      const readers = [...state.nfcReaders];
+      const anyCard = readers.some(name => state.nfcCardPresent.get(name));
+      const stateCls = readers.length === 0 ? "disconnected"
+                     : anyCard               ? "connected card-present"
+                     :                         "connected";
+      const rows = readers.length === 0
+        ? `<div class="rfid-pod-row"><span class="rrd-dot"></span><span class="rrd-name">${esc(t("rfidNoReader"))}</span></div>`
+        : readers.map((name, idx) => {
+            const card = state.nfcCardPresent.get(name);
+            const uid  = card?.uid ? `<span class="rfid-pod-uid">${esc(card.uid)}</span>` : "";
+            return `<div class="rfid-pod-row${card ? " card-present" : ""}">
+              <span class="rrd-dot"></span>
+              <span class="rrd-name">RFID #${idx + 1}</span>${uid}
+            </div>`;
+          }).join("");
+      bar.innerHTML = `<div class="rfid-pod ${stateCls}">
+        <span class="rfid-pod-icon"></span>
+        <div class="rfid-pod-pop">${rows}</div>
+      </div>`;
     }
 
     // ── Legacy onReaderStatus — noop (rfid-reader-update covers it) ─────────
@@ -13707,9 +13710,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // Show disconnected badge immediately on load
     renderRfidReaderBadges();
 
-    // Clicking the disconnected RFID badge opens TigerPOD discovery modal
+    // Clicking the disconnected RFID pod opens TigerPOD discovery modal
     $("rfidReadersBar")?.addEventListener("click", e => {
-      if (e.target.closest(".rfid-reader-badge.disconnected")) {
+      if (e.target.closest(".rfid-pod.disconnected")) {
         openTigerPodModal();
       }
     });
@@ -13748,6 +13751,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
 
     // Legacy uid event — open detail if already in inventory
     window.electronAPI.onRfid((uid) => {
+      if (_encodeModalOpen()) return;   // don't pop a side-card over the encode modal
       const row = state.rows.find(r => r.uid === uid || r.spoolId === uid);
       if (row) openDetail(row.spoolId);
     });
@@ -13826,8 +13830,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         }
       }
 
-      // Open detail panel for the first chip (local cache fires fast)
-      if (processedUids.length > 0) {
+      // Open detail panel for the first chip (local cache fires fast) — but
+      // never while the Encode modal is open (would pop a side-card over it).
+      if (processedUids.length > 0 && !_encodeModalOpen()) {
         const firstUid = processedUids[0];
         const _tryOpen = () => {
           const row = state.rows.find(r => r.uid === firstUid || r.spoolId === firstUid);
@@ -13925,7 +13930,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         // header icon: orange spinner
         icon?.classList.remove("hidden", "ready");
         icon?.classList.add("downloading");
-        icon?.setAttribute("data-tooltip", t("updateDownloading"));
+        icon?.setAttribute("data-tooltip", t("updateDownloading").replace(/<[^>]*>/g, ""));
       } else if (status === 'ready') {
         msg.innerHTML = t("updateReady");
         btn.textContent = t("btnRestartUpdate");
@@ -13934,7 +13939,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         // header icon: green glow
         icon?.classList.remove("hidden", "downloading");
         icon?.classList.add("ready");
-        icon?.setAttribute("data-tooltip", t("updateReady"));
+        icon?.setAttribute("data-tooltip", t("updateReady").replace(/<[^>]*>/g, ""));
       }
     });
     $("btnInstallUpdate").addEventListener("click", () => window.electronAPI.installUpdate());

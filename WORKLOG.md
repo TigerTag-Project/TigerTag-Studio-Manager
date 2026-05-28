@@ -1,22 +1,39 @@
-# Worklog — v1.8.5 (in progress)
+# Worklog — v1.8.6 (in progress)
 
 ## Added
 
-- **Cloud → chip encode — guided dual-chip burn modal** — `renderer/inventory.html`, `renderer/inventory.js`, `renderer/css/60-modals.css`, `main.js`, `services/nfc-process.js`, `preload.js`
-  - New modal (`#cloudEncodeOverlay`) replacing the one-shot `_encodeCloud`. Flow: confirm → presence gate (Burn disabled until every connected reader holds a card; live slot status) → sequential burn with a **100 ms** inter-chip gap → per-chip RFID-chip SVG + progress bar (green=verified / red=fail) → **all-or-nothing** Firestore migration (create physical doc(s) + delete Cloud doc only after every chip verifies).
-  - **Read-back verification** = the success criterion: new `rfid:burn-one` IPC writes one chip then re-reads the written pages and compares byte-for-byte (signature region implicitly excluded — never written); green only on a verified match.
-  - Safety: immutable N-chip contract; presence-loss-mid-burn = failure; overwrite guard (warn + "accept overwrite" toggle when a chip is non-blank, via `readRfidNow`); anti self-twin (same UID = fail); retry restarts from zero; modal closes only on success or abort; discreet success/error beep; detected UIDs shown in debug.
-  - Single chip-epoch timestamp reused for both chips (→ identical bytes → twins). Removed the now-dead `_encodeCloud`.
-  - Polished, light modal UI: title is the migration itself (**TigerCloud → TigerTag** pills + arrow); chip state conveyed purely by **colour** (grey/blue/green/red) — no per-reader text; a **single global progress bar** (not one per reader, blue→green/red); slot numbers only with 2 readers; failure shake; clearly-disabled (grey) Burn; minimal copy (a one-line hint only while waiting, nothing when ready/burning).
+## Changed
+
+- **Encode modal (TigerCloud → TigerTag) UX polish** — `renderer/inventory.html`, `renderer/inventory.js`, `renderer/css/60-modals.css`
+  - Title centred; close ✕ pinned slightly inset with a round grey hover background.
+  - Removed the Cancel button (close via the ✕ or a backdrop click — now allowed any time, including mid-burn = abort).
+  - Instruction moved **above** the readers and made permanent: "Hold the RFID tags in front of the readers" (`encPlaceChips`, no longer toggled). Exceptional states (failure / same chip / no reader) show in the status line below.
+  - Actions row hidden during the burn (no dead button).
+  - While the modal is open, presenting a chip no longer pops the spool side-card over it (`_encodeModalOpen()` guard on both scan→`openDetail` paths) — the chip is about to be overwritten, so the auto side-card was just noise.
+  - Title given top breathing room (`.cem-header` padding, ✕ stays aligned).
+  - Chip cards redesigned to look like the physical reader: a dark device plate carrying the white TigerTag logo (`logo_tigertag.svg` via CSS mask), replacing the NFC-waves icon-in-a-circle. Removed the now-unused `_CEM_CHIP_SVG` constant.
+  - The numbered corner badge now works as a status LED — red when no chip is present, green when detected — mirroring the ACR122U's red/green indicator.
+
+- **Header status indicators unified as 3D icons** — `renderer/inventory.html`, `renderer/inventory.js`, `renderer/css/60-modals.css`, `renderer/IoT/tigerscale/tigerscale.css`, `renderer/IoT/td1s/td1s.css`
+  - TigerScale: replaced the "Tiger Scales" text pill with the `icon_tigerscale_3d.svg` icon (CSS mask + state colour: grey idle / green connected / red none).
+  - TD1S: header health icon now uses `Icon_td1s_3d.svg` (square 22px) instead of the wide `icon_td1s.svg`.
+  - RFID: the two reader badges are replaced by a single `Icon_tigerpod_3d.svg` (red = no reader / green = connected). Hovering reveals one row per reader (RFID #1 / #2) plus the UID of any chip presented. Clicking it while disconnected still opens the TigerPOD discovery modal.
+  - All three header indicators now share a consistent square-icon look.
+  - All four header SVGs doubled in size: TigerPod / TD1S / TigerScale 22→44px, cloud 20→40px (scoped `#health .icon` override, shared `.icon-20` untouched).
 
 ## Changed
 
-- **ROADMAP: "Cloud → chip encode" marked shipped (v1.8.5)** — `ROADMAP.md` (full spec retained as the implementation reference).
+- **Storage: "Clear all" now skips locked slots** — `renderer/inventory.js`
+  - `emptyRack` leaves spools in locked slots in place (both Clear-all entry points: rack kebab menu + rack-edit modal). The empty-rack fly-out cascade also skips locked slots. A spool in a locked slot can now only be removed by deleting the spool itself.
 
 ## Fixed
 
-- **Physical chip "Manufactured" date wrong on burn (~2056)** — `main.js`
-  - The Cloud→chip burn stamped the chip `timestamp` with Unix seconds; the SDK writes it raw and the TigerTag chip epoch is seconds-since-2000, so a compliant reader decoded the physical chip's manufacturing date ~30 years late. Now stamps chip-epoch seconds (`_nowChipTs()`). Same class of bug as the v1.8.4 Cloud-doc fix, here on the chip-write path.
+- **RTSP printer cameras (Bambu X1C/X1E/P2S/H2x) did not work on Windows** — `main.js`, `package.json`
+  - Root cause: no ffmpeg shipped with the app and no Windows path candidate, so `_detectFfmpeg` left `_ffmpegBin = null` on Windows (macOS/Linux silently relied on a system ffmpeg). RTSP cameras transcode via ffmpeg, so they were disabled.
+  - Bundled `ffmpeg-static` (dependency) so an ffmpeg binary ships on every OS. Added `build.asarUnpack` for it and remapped the `app.asar` path to `app.asar.unpacked` in `_detectFfmpeg` (cannot spawn from inside asar). Also added correctly-escaped Windows fallback paths (`C:\\ffmpeg\\bin`, `C:\\Program Files\\ffmpeg\\bin`). CI builds each OS on its own runner, so each bundles the correct native binary.
+
+- **Update icon tooltip showed raw `<strong>` tags** — `renderer/inventory.js`
+  - The `updateDownloading` / `updateReady` i18n values contain `<strong>…</strong>` for the banner (`innerHTML`, bold renders fine), but the same string was set as the update-status icon's `data-tooltip` attribute, which renders as literal CSS text → the tags showed. Now strips tags (`replace(/<[^>]*>/g, "")`) for the tooltip only; the banner keeps the bold.
 
 ## Removed
 

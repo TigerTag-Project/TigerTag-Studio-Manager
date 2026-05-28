@@ -853,7 +853,7 @@
   "encModalTitle": "Graver sur puce",
   "encModalSub": "Placez votre puce sur le lecteur, puis gravez.",
   "encReady": "Prêt à graver.",
-  "encPlaceChips": "Placez chaque puce sur son lecteur pour continuer.",
+  "encPlaceChips": "Maintenez les tags RFID devant les lecteurs",
   "encBurning": "Gravure… laissez la/les puce(s) sur le(s) lecteur(s).",
   "encNoReader": "Aucun lecteur connecté",
   "encSameUid": "Les deux lecteurs voient la même puce — utilisez deux puces distinctes.",

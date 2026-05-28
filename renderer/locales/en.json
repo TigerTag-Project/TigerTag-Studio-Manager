@@ -853,7 +853,7 @@
   "encModalTitle": "Write to chip",
   "encModalSub": "Place your chip on the reader, then burn.",
   "encReady": "Ready to burn.",
-  "encPlaceChips": "Place every chip on its reader to continue.",
+  "encPlaceChips": "Hold the RFID tags in front of the readers",
   "encBurning": "Writing… keep the chip(s) on the reader(s).",
   "encNoReader": "No reader connected",
   "encSameUid": "The two readers see the same chip — use two distinct chips.",

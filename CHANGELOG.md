@@ -5,6 +5,24 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.8.6 — 2026-05-29
+
+### Fixed
+
+- **3D-printer RTSP cameras now work on Windows** (Bambu X1C / X1E / P2S / H2x) — ffmpeg is now bundled with the app on every platform, so the live camera works out of the box with nothing extra to install. Previously Windows had no ffmpeg available, so the RTSP camera stayed disabled.
+- **Update notification tooltip showed raw HTML** — the auto-update status icon no longer displays literal `<strong>` tags in its tooltip.
+
+### Changed
+
+- **Encode modal (TigerCloud → TigerTag) — cleaner and safer**
+  - Centred title; the redundant Cancel button is gone (close via the ✕ or a backdrop click — allowed any time, including mid-burn to abort); a permanent instruction sits above the readers.
+  - Each reader is now drawn as a TigerTag "reader plate" carrying the white logo, with a corner status LED (red = no chip · green = chip detected), mirroring the ACR122U.
+  - Presenting a chip while the modal is open no longer pops a spool side-card over it.
+- **Header status icons unified** — TigerScale, TD1S and the RFID readers now share larger, consistent 3D icons. The two RFID reader badges are replaced by a single TigerPod icon (red = no reader · green = connected); hovering reveals each reader (RFID #1 / #2) and the UID of any chip presented.
+- **Storage — "Clear all" now protects locked slots** — spools in a locked slot stay put when you clear a rack; the only way to remove one is to delete the spool itself.
+
+---
+
 ## v1.8.5 — 2026-05-28
 
 ### TigerCloud → TigerTag — guided encode

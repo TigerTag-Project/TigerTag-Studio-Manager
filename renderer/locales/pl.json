@@ -852,7 +852,7 @@
   "encModalTitle": "Zapisz na chip",
   "encModalSub": "Umieść chip na czytniku i zapisz.",
   "encReady": "Gotowe do zapisu.",
-  "encPlaceChips": "Umieść każdy chip na czytniku, aby kontynuować.",
+  "encPlaceChips": "Trzymaj tagi RFID przy czytnikach",
   "encBurning": "Zapisywanie… nie ruszaj chipów.",
   "encNoReader": "Brak czytnika",
   "encSameUid": "Oba czytniki widzą ten sam chip — użyj dwóch różnych.",

@@ -853,7 +853,7 @@
   "encModalTitle": "Escribir en chip",
   "encModalSub": "Coloca tu chip en el lector y graba.",
   "encReady": "Listo para grabar.",
-  "encPlaceChips": "Coloca cada chip en su lector para continuar.",
+  "encPlaceChips": "Mantén los tags RFID frente a los lectores",
   "encBurning": "Grabando… no muevas los chips.",
   "encNoReader": "Sin lector conectado",
   "encSameUid": "Los dos lectores ven el mismo chip — usa dos chips distintos.",

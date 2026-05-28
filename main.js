@@ -1689,17 +1689,26 @@ ipcMain.handle('timelapse:download', async (_evt, videoUrl, suggestedFilename) =
   const tls   = require('tls');
   const { spawn } = require('child_process');
 
-  // Locate ffmpeg — tries bundled ffmpeg-static first, then common system paths.
+  // Locate ffmpeg — tries the bundled ffmpeg-static binary first (ships on every
+  // OS, so Windows works out of the box), then common system paths.
   let _ffmpegBin = null;
   (function _detectFfmpeg() {
     const fs = require('fs');
     const candidates = [];
-    try { const s = require('ffmpeg-static'); if (s) candidates.push(s); } catch (_) {}
+    // Bundled binary. In a packaged app the path lives inside app.asar; remap to
+    // the unpacked copy (see build.asarUnpack) — a binary cannot be spawned from
+    // within the asar archive.
+    try {
+      const s = require('ffmpeg-static');
+      if (s) candidates.push(s.replace('app.asar', 'app.asar.unpacked'));
+    } catch (_) {}
     candidates.push(
-      '/opt/homebrew/bin/ffmpeg',  // macOS Homebrew (Apple Silicon)
-      '/usr/local/bin/ffmpeg',     // macOS Homebrew (Intel)
-      '/usr/bin/ffmpeg',           // Linux
-      'ffmpeg',                    // PATH fallback
+      '/opt/homebrew/bin/ffmpeg',                    // macOS Homebrew (Apple Silicon)
+      '/usr/local/bin/ffmpeg',                       // macOS Homebrew (Intel)
+      '/usr/bin/ffmpeg',                             // Linux
+      'C:\\ffmpeg\\bin\\ffmpeg.exe',                 // Windows (manual install)
+      'C:\\Program Files\\ffmpeg\\bin\\ffmpeg.exe',  // Windows (manual install)
+      'ffmpeg',                                      // PATH fallback
     );
     for (const p of candidates) {
       try { fs.accessSync(p, fs.constants.X_OK); _ffmpegBin = p; return; } catch (_) {}

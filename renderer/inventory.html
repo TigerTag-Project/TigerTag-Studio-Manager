@@ -120,7 +120,7 @@
       <div class="top-status-icons">
         <div id="rfidReadersBar" class="rfid-readers-bar"></div>
         <div class="health td1s-health" id="td1sHealth" data-tooltip="TD1S: not detected"><span class="td1s-health-icon"></span></div>
-        <div class="health scale-health" id="scaleHealth" data-tooltip="No scale connected"><span class="scale-health-badge">Tiger Scales</span></div>
+        <div class="health scale-health" id="scaleHealth" data-tooltip="No scale connected"><span class="scale-health-icon"></span></div>
         <div class="health" id="health" data-tooltip="Backend: idle"><span class="icon icon-cloud icon-20"></span></div>
         <div class="health update-health hidden" id="updateStatusIcon" data-tooltip=""><span class="update-health-icon"></span></div>
       </div>
@@ -1166,18 +1166,18 @@
 <!-- Cloud → chip encode modal (guided dual-chip burn) -->
 <div class="modal-overlay" id="cloudEncodeOverlay">
   <div class="modal-card cem-card">
-    <div class="modal-header">
+    <div class="modal-header cem-header">
       <span class="modal-title cem-title-migrate">
         <span class="cem-tag cem-tag--cloud">TigerCloud</span>
         <span class="cem-arrow icon icon-chevron-r icon-13"></span>
         <span class="cem-tag cem-tag--phys">TigerTag</span>
       </span>
-      <button class="panel-close" id="cemClose">✕</button>
+      <button class="panel-close cem-close" id="cemClose">✕</button>
     </div>
     <div class="cem-body">
+      <div class="cem-hint" id="cemSub" data-i18n="encPlaceChips">Hold the RFID tags in front of the readers</div>
       <div class="cem-chips" id="cemChips"></div>
       <div class="cem-progress" id="cemProgress"><span class="cem-progress-fill"></span></div>
-      <div class="cem-hint" id="cemSub"></div>
       <div class="cem-overwrite hidden" id="cemOverwrite">
         <div class="cem-ow-warn"><span class="icon icon-info icon-13"></span><span data-i18n="encOverwriteWarn">A chip already contains data — it will be erased.</span></div>
         <label class="cem-ow-toggle"><input type="checkbox" id="cemOwToggle"><span data-i18n="encOverwriteAccept">I understand, overwrite</span></label>
@@ -1185,7 +1185,6 @@
       <div class="cem-status" id="cemStatus"></div>
     </div>
     <div class="cem-actions">
-      <button class="btn ghost" id="cemAbort" data-i18n="encAbort">Cancel</button>
       <button class="btn primary" id="cemBurn" disabled data-i18n="encBurn">Burn</button>
     </div>
   </div>

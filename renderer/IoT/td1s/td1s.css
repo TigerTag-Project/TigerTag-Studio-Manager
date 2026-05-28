@@ -70,9 +70,9 @@
 /* ── TD1S health icon (header) ── */
 .td1s-health { cursor: pointer; }
 .td1s-health-icon {
-  display: inline-block; width: 40px; height: 18px;
+  display: inline-block; height: 44px; aspect-ratio: 1 / 1; /* Icon_td1s_3d.svg viewBox 1254×1254 */
   background-color: var(--neutral);
-  -webkit-mask-image: url('../../../assets/svg/icons/icon_td1s.svg');
+  -webkit-mask-image: url('../../../assets/svg/icons/Icon_td1s_3d.svg');
   -webkit-mask-size: contain; -webkit-mask-repeat: no-repeat; -webkit-mask-position: center;
   opacity: .38; transition: opacity .3s, background-color .3s, filter .3s;
 }

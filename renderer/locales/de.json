@@ -853,7 +853,7 @@
   "encModalTitle": "Auf Chip schreiben",
   "encModalSub": "Lege deinen Chip auf das Lesegerät und brenne.",
   "encReady": "Bereit zum Brennen.",
-  "encPlaceChips": "Lege jeden Chip auf sein Lesegerät.",
+  "encPlaceChips": "Halte die RFID-Tags vor die Lesegeräte",
   "encBurning": "Schreibe… Chips nicht bewegen.",
   "encNoReader": "Kein Lesegerät verbunden",
   "encSameUid": "Beide Lesegeräte sehen denselben Chip — zwei verschiedene Chips nutzen.",
