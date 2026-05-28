@@ -5,6 +5,14 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.8.8 — 2026-05-29
+
+### Fixed
+
+- **Bambu RTSP cameras (X1C / X1E / P2S / H2x) now actually stream** — the camera launched ffmpeg with `-tls_verify 0`, an option the bundled ffmpeg doesn't recognise, so it errored out and showed nothing as soon as it reached a reachable printer. Removed the flag — TLS verification is off by default, so the printer's self-signed certificate is still accepted. This completes the cross-platform camera fix (Windows + macOS), verified live against a P2S.
+
+---
+
 ## v1.8.7 — 2026-05-29
 
 ### Fixed

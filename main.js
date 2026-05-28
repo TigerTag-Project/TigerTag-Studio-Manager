@@ -1853,7 +1853,10 @@ ipcMain.handle('timelapse:download', async (_evt, videoUrl, suggestedFilename) =
       const proc = spawn(_ffmpegBin, [
         '-loglevel', 'error',          // show errors in main-process console
         '-rtsp_transport', 'tcp',
-        '-tls_verify',    '0',         // ignore self-signed printer cert
+        // No -tls_verify: the rtsp demuxer in older ffmpeg (e.g. the bundled
+        // ffmpeg-static 6.0) doesn't expose it → "Option tls_verify not found".
+        // The tls protocol defaults to verify=0 anyway, so the printer's
+        // self-signed cert is accepted without it (works on ffmpeg 6.0 and 8.x).
         '-i', rtspUrl,
         '-vf', 'fps=5',                // ~5 fps is plenty for a status cam
         '-f', 'image2pipe',

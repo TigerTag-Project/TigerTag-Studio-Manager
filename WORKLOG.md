@@ -1,4 +1,4 @@
-# Worklog — v1.8.7 (in progress)
+# Worklog — v1.8.8 (in progress)
 
 ## Added
 
@@ -6,9 +6,8 @@
 
 ## Fixed
 
-- **Bundled ffmpeg not found at runtime on packaged Windows (RTSP camera dead despite v1.8.6)** — `main.js`
-  - `_detectFfmpeg` used `require('ffmpeg-static').replace('app.asar', 'app.asar.unpacked')`, which points inside `app.asar` — a path the OS cannot spawn (and `fs.accessSync` can even false-positive on it via the asar shim, so a bogus binary path gets selected). Now keyed on `app.isPackaged`: in a packaged app the binary path is built straight from `process.resourcesPath` (`…/resources/app.asar.unpacked/node_modules/ffmpeg-static/ffmpeg.exe`, the real on-disk, spawn-safe location); in dev it uses `require('ffmpeg-static')`. Windows manual-install fallbacks kept.
-  - Added diagnostics: `[ffmpeg] using <path>` / `[ffmpeg] NOT FOUND — checked: …` and `[bambu-rtsp:<key>] launching ffmpeg → rtsps://bblp:***@<ip>:322 (bin: …)`, landing in `electron-log` (`%APPDATA%\Tiger Studio Manager\logs\main.log`).
+- **Bambu RTSP camera failed with "Option tls_verify not found" (no stream on bundled ffmpeg)** — `main.js`
+  - The RTSP launch passed `-tls_verify 0` before `-i`, applied to the rtsp demuxer. Older ffmpeg (the bundled ffmpeg-static 6.0) has no `tls_verify` on the rtsp demuxer → ffmpeg exits code 1 when it reaches the TLS stage of a reachable printer. Homebrew ffmpeg 8.x has it, which masked the bug in dev before ffmpeg-static was bundled. Removed the flag — the tls protocol defaults to `verify=0`, so the printer's self-signed cert is still accepted (works on ffmpeg 6.0 and 8.x). This was the real reason the P2S camera showed no stream on Windows (and on macOS once it switched to the bundled binary).
 
 ## Removed
 
