@@ -3023,3 +3023,93 @@
   -webkit-mask-image: url('../../assets/svg/icons/icon_printer.svg');
   -webkit-mask-size: contain; -webkit-mask-repeat: no-repeat; -webkit-mask-position: center;
 }
+
+/* ── Cloud → chip encode modal (guided dual-chip burn) ───────────────────── */
+#cloudEncodeOverlay .cem-card {
+  width: min(440px, calc(100vw - 32px));
+  display: flex; flex-direction: column; gap: 0; padding: 0; overflow: hidden;
+}
+/* title as a migration: TigerCloud → TigerTag */
+.cem-title-migrate { display: inline-flex; align-items: center; gap: 8px; }
+.cem-tag { font-size: 14px; font-weight: 700; padding: 3px 10px; border-radius: 999px; line-height: 1; }
+.cem-tag--cloud { color: #7c3aed; background: rgba(124,58,237,.12); }
+.cem-tag--phys  { color: var(--text); background: var(--surface-2); }
+.cem-arrow { background: var(--muted); flex-shrink: 0; }
+
+.cem-body { padding: 8px 22px 6px; display: flex; flex-direction: column; gap: 16px; }
+
+.cem-chips { display: flex; gap: 16px; justify-content: center; }
+.cem-chip {
+  position: relative;
+  flex: 0 1 132px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 22px; border-radius: 18px;
+  background: var(--surface); border: 1.5px solid var(--border);
+  color: var(--muted);
+  transition: color .2s ease, border-color .2s ease, background .2s ease, box-shadow .2s ease;
+}
+.cem-chip-num {
+  position: absolute; top: 9px; left: 9px;
+  width: 20px; height: 20px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; line-height: 1;
+  background: var(--border); color: var(--muted);
+  transition: background .2s ease, color .2s ease;
+}
+.cem-chip-icon {
+  width: 60px; height: 60px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface-2); color: inherit;
+  transition: background .2s ease, color .2s ease, transform .2s ease;
+}
+.cem-chip-icon svg { width: 32px; height: 32px; display: block; }
+.cem-chip-uid { position: absolute; bottom: 4px; left: 0; right: 0; font-size: 9px; color: var(--muted); font-family: ui-monospace, monospace; text-align: center; }
+
+/* ── per-state (colour IS the status — no text) ── */
+.cem-chip--waiting .cem-chip-icon { animation: cemPulse 1.6s ease-in-out infinite; }
+
+.cem-chip--ready { color: #386ecf; border-color: rgba(56,110,207,.55); box-shadow: 0 4px 14px rgba(56,110,207,.12); }
+.cem-chip--ready .cem-chip-num  { background: rgba(56,110,207,.16); color: #386ecf; }
+.cem-chip--ready .cem-chip-icon { background: rgba(56,110,207,.12); }
+
+.cem-chip--writing { color: #386ecf; border-color: rgba(56,110,207,.7); box-shadow: 0 4px 16px rgba(56,110,207,.18); }
+.cem-chip--writing .cem-chip-num  { background: rgba(56,110,207,.16); color: #386ecf; }
+.cem-chip--writing .cem-chip-icon { background: rgba(56,110,207,.14); animation: cemPulse 1s ease-in-out infinite; }
+
+.cem-chip--ok { color: var(--success); border-color: var(--success); box-shadow: 0 4px 16px rgba(26,175,108,.18); }
+.cem-chip--ok .cem-chip-num  { background: var(--success); color: #fff; }
+.cem-chip--ok .cem-chip-icon { background: var(--success-soft); }
+
+.cem-chip--fail { color: var(--danger); border-color: var(--danger); box-shadow: 0 4px 16px rgba(216,59,59,.16); animation: cemShake .4s ease; }
+.cem-chip--fail .cem-chip-num  { background: var(--danger); color: #fff; }
+.cem-chip--fail .cem-chip-icon { background: var(--danger-soft); }
+
+.cem-chip--none .cem-chip-icon { opacity: .5; }
+
+/* ── global progress bar (sequence-wide) ── */
+.cem-progress { width: 100%; height: 6px; border-radius: 4px; background: var(--border); overflow: hidden; }
+.cem-progress.hidden { display: none; }
+.cem-progress-fill { display: block; height: 100%; width: 0%; border-radius: 4px; background: #386ecf; transition: width .3s ease, background .2s ease; }
+.cem-progress--writing .cem-progress-fill { background-image: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,.45) 50%, rgba(255,255,255,0) 100%); background-size: 40% 100%; background-repeat: no-repeat; animation: cemSheen 1.1s linear infinite; }
+.cem-progress--done .cem-progress-fill { background-color: var(--success); }
+.cem-progress--fail .cem-progress-fill { background-color: var(--danger); }
+
+@keyframes cemPulse { 0%,100% { transform: scale(1); opacity: .8; } 50% { transform: scale(1.06); opacity: 1; } }
+@keyframes cemShake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+@keyframes cemSheen { 0% { background-position: -40% 0; } 100% { background-position: 140% 0; } }
+
+.cem-hint { font-size: 13px; color: var(--muted); line-height: 1.4; text-align: center; }
+.cem-hint.hidden { display: none; }
+.cem-overwrite { display: flex; flex-direction: column; gap: 9px; padding: 12px 14px; border-radius: 12px; background: rgba(234,179,8,.12); border: 1px solid rgba(234,179,8,.28); }
+.cem-overwrite.hidden { display: none; }
+.cem-ow-warn { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 500; color: #92660b; }
+.cem-ow-warn .icon { background: #b45309; flex-shrink: 0; }
+.cem-ow-toggle { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; color: var(--text); cursor: pointer; }
+.cem-ow-toggle input { width: 16px; height: 16px; accent-color: #b45309; cursor: pointer; }
+.cem-status { font-size: 13px; text-align: center; color: var(--muted); }
+.cem-status:empty { display: none; }
+.cem-status--fail { color: var(--danger); font-weight: 600; }
+.cem-actions { display: flex; gap: 10px; padding: 14px 22px 20px; }
+.cem-actions .btn { flex: 1; height: 46px; font-size: 14px; font-weight: 600; }
+.cem-actions .btn.hidden { display: none; }
+.cem-actions .primary:disabled { background: var(--border); border-color: var(--border); color: var(--muted); box-shadow: none; opacity: 1; }

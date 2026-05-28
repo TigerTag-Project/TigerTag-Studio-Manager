@@ -284,11 +284,18 @@ async function _onNfcMessage(msg) {
       clearTimeout(entry.timeout);
       _nfcWriteResolvers.delete(msg.reqId);
       entry.resolve(msg.ok
-        ? { ok: true, pagesWritten: msg.pagesWritten }
+        ? { ok: true, pagesWritten: msg.pagesWritten, verified: msg.verified, mismatchPages: msg.mismatchPages }
         : { ok: false, error: msg.error });
       break;
     }
   }
+}
+
+// TigerTag chip epoch = 2000-01-01 UTC. The chip timestamp field stores
+// seconds since this epoch; passing Unix seconds would decode ~30 years late.
+const _TT_EPOCH_MS = Date.UTC(2000, 0, 1);
+function _nowChipTs() {
+  return Math.max(0, Math.floor((Date.now() - _TT_EPOCH_MS) / 1000));
 }
 
 function initNFC() {
@@ -449,7 +456,7 @@ ipcMain.handle('rfid:encode-cloud', async (_evt, { cloudDoc, targets }) => {
   // ── Build payload ONCE — same bytes → same timestamp for all chips ──────────
   let pages;
   try {
-    const tag      = TigerTag.fromCloudDoc(cloudDoc).patch({ timestamp: Math.floor(Date.now() / 1000) });
+    const tag      = TigerTag.fromCloudDoc(cloudDoc).patch({ timestamp: _nowChipTs() });
     const newBytes = tag.toBytes(false); // 80 bytes, pages 0x04-0x17
     pages = _pagesToWrite(newBytes, null); // full write — new blank chips
   } catch (e) {
@@ -485,6 +492,56 @@ ipcMain.handle('rfid:encode-cloud', async (_evt, { cloudDoc, targets }) => {
   }
 
   return { ok: results.some(r => r.ok), results };
+});
+
+// ── Burn ONE chip with read-back verification ─────────────────────────────────
+// Drives the guided dual-chip encode modal: the renderer orchestrates the
+// sequence (one call per chip, 100 ms gap, presence re-check) and passes a
+// SINGLE fixed `timestamp` (chip-epoch seconds) so both chips get identical
+// bytes → they pair as twins. Returns { ok, verified, uid, pagesWritten,
+// mismatchPages, error }. Success for the caller = ok && verified.
+ipcMain.handle('rfid:burn-one', async (_evt, { cloudDoc, timestamp, readerName }) => {
+  if (!_nfcChild)                     return { ok: false, error: 'NFC process not running' };
+  if (!readerName || !_nfcReaders.has(readerName))
+    return { ok: false, error: 'Reader not connected' };
+  const card = _nfcCardPresent.get(readerName);
+  if (!card)                          return { ok: false, error: 'No card present' };
+
+  let pages;
+  try {
+    const ts  = Number.isFinite(timestamp) ? (timestamp >>> 0) : _nowChipTs();
+    const tag = TigerTag.fromCloudDoc(cloudDoc).patch({ timestamp: ts });
+    pages = _pagesToWrite(tag.toBytes(false), null); // full write — blank chip
+  } catch (e) {
+    return { ok: false, error: `SDK build failed: ${e.message}` };
+  }
+
+  const reqId = `burn-${Date.now()}-${Math.random()}`;
+  const result = await new Promise((resolve) => {
+    const timeout = setTimeout(() => {
+      _nfcWriteResolvers.delete(reqId);
+      resolve({ ok: false, error: 'Write timed out' });
+    }, 10000);
+    _nfcWriteResolvers.set(reqId, { resolve, timeout });
+    _nfcChild.postMessage({ type: 'write-now', readerName, reqId, pages, verify: true });
+  });
+
+  // Capture the UID actually on the reader at write time (the doc id to create).
+  const uid = (_nfcCardPresent.get(readerName) || card).uid || null;
+  const verified = result.ok === true && result.verified === true;
+  if (verified) {
+    console.log(`[NFC] burn-one: ${readerName} (${uid}) — ${result.pagesWritten} pages, verified`);
+  } else {
+    console.error(`[NFC] burn-one: ${readerName} failed:`, result.error || `unverified pages ${JSON.stringify(result.mismatchPages || [])}`);
+  }
+  return {
+    ok: result.ok === true,
+    verified,
+    uid,
+    pagesWritten: result.pagesWritten,
+    mismatchPages: result.mismatchPages || [],
+    error: result.error || null,
+  };
 });
 
 // ── Refresh TigerTag+ API data from product catalogue ─────────────────────────

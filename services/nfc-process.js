@@ -135,8 +135,33 @@ process.parentPort.on('message', async (e) => {
         const buf = Buffer.from(hexData, 'hex'); // always 4 bytes
         await reader.write(index, buf, 4);
       }
+      // Read-back verification (when msg.verify): re-read the user pages and
+      // confirm every page we just wrote matches byte-for-byte. We only
+      // compare the pages we actually wrote — the factory signature region is
+      // never written here, so it is implicitly excluded.
+      let verified = null;
+      const mismatchPages = [];
+      if (msg.verify) {
+        verified = true;
+        try {
+          const back = await reader.read(READ_START_PAGE, READ_LENGTH, READ_BLOCK_SIZE);
+          for (const { index, hexData } of pages) {
+            const off = (index - READ_START_PAGE) * 4;
+            const got = (off >= 0 && off + 4 <= back.length)
+              ? back.slice(off, off + 4).toString('hex')
+              : '';
+            if (got.toLowerCase() !== String(hexData).toLowerCase()) {
+              verified = false;
+              mismatchPages.push(index);
+            }
+          }
+        } catch (e) {
+          verified = false;
+          mismatchPages.push(-1); // read-back itself failed
+        }
+      }
       process.parentPort.postMessage({
-        type: 'write-result', reqId: msg.reqId, ok: true, pagesWritten: pages.length,
+        type: 'write-result', reqId: msg.reqId, ok: true, pagesWritten: pages.length, verified, mismatchPages,
       });
     } catch (err) {
       process.parentPort.postMessage({

@@ -5,6 +5,22 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.8.5 — 2026-05-28
+
+### TigerCloud → TigerTag — guided encode
+
+- Encoding a TigerCloud spool to a physical chip now opens a **guided modal** (titled by the migration itself, *TigerCloud → TigerTag*) instead of a one-shot click.
+- **Presence-gated**: the burn stays locked until every connected reader holds a chip; each reader's state is shown live by colour (no clutter text), with a single global progress bar.
+- **Sequential, verified burn**: chips are written one after another (100 ms apart) and **each write is read back and verified byte-for-byte** — a chip only turns green on a confirmed match.
+- **All-or-nothing**: the Firestore migration (create the physical spool, delete the Cloud one) runs **only after every chip verifies**. Any failure — including a chip moved off the reader mid-write — fails the whole sequence with nothing written to the cloud, and the modal stays open to retry from scratch.
+- Safety: warns before overwriting a non-blank chip (with an "I understand" toggle), refuses two identical chips, and a single chip-epoch timestamp is shared so a twin pair is written identically.
+
+### Fixed
+
+- **Physical chip "Manufactured" date wrong (~2056) on burn** — the chip timestamp was written as Unix seconds instead of the TigerTag chip epoch (seconds since 2000); now corrected, so a freshly-burned chip reports the right manufacturing date.
+
+---
+
 ## v1.8.4 — 2026-05-28
 
 ### Fixed

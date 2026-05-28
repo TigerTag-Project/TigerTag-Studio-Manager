@@ -76,6 +76,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   encodeCloudSpool: (opts) =>
     ipcRenderer.invoke('rfid:encode-cloud', opts),
 
+  // Burn ONE chip with read-back verification (drives the guided encode modal).
+  // The caller picks a single chip-epoch `timestamp` and reuses it for both
+  // chips so they pair as twins. opts = { cloudDoc, timestamp, readerName }
+  // Returns { ok, verified, uid, pagesWritten, mismatchPages, error }
+  burnOneChip: (opts) =>
+    ipcRenderer.invoke('rfid:burn-one', opts),
+
   // Fetch fresh TigerTag+ product data from the catalogue API.
   // rawDoc must be the Firestore doc shape (needs id_product + id_tigertag).
   // Returns { ok: true, api } | { ok: false, error }

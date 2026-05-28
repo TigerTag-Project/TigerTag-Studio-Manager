@@ -5057,108 +5057,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     });
   });
 
-  /* ── Encode Cloud → chip ─────────────────────────────────────────────────
-     Programs one or two blank RFID chips from a Cloud spool doc.
-     Same 80-byte payload (same timestamp) written to every reader that has a
-     card present. On success, migrates the Firestore doc:
-       - Creates  inventory/{uid_rfid1}  (new physical chip doc)
-       - Creates  inventory/{uid_rfid2}  if a second chip was written (twin)
-       - Deletes  inventory/CLOUD_XXXX   (the original Cloud doc)
-     Twin cross-links are set when both chips succeed.                       */
-  async function _encodeCloud(r) {
-    if (!window.electronAPI) return;
-    const cloudDoc = state.inventory[r.spoolId];
-    if (!cloudDoc) return;
-
-    // Only target readers that actually have a card present
-    const targets = [...state.nfcCardPresent.entries()]
-      .map(([readerName, { uid }]) => ({ readerName, uid }));
-    if (targets.length === 0) return;
-
-    const btn     = $("btnEncodeCloud");
-    const labelEl = btn?.querySelector(".toolbox-row-label");
-    if (btn) btn.disabled = true;
-    if (labelEl) labelEl.textContent = t("encodeCloudInProgress");
-
-    let result;
-    try {
-      result = await window.electronAPI.encodeCloudSpool({ cloudDoc, targets });
-    } catch (e) {
-      console.error("[encodeCloud] IPC error:", e);
-      if (btn) btn.disabled = false;
-      if (labelEl) labelEl.textContent = t("encodeCloudBtn");
-      return;
-    }
-
-    const successTargets = (result.results || []).filter(x => x.ok);
-    if (successTargets.length === 0) {
-      const err = (result.results || []).map(x => x.error).filter(Boolean).join(", ");
-      console.error("[encodeCloud] all writers failed:", err);
-      if (btn) btn.disabled = false;
-      if (labelEl) {
-        labelEl.textContent = t("encodeCloudError");
-        setTimeout(() => { if (labelEl) labelEl.textContent = t("encodeCloudBtn"); }, 3000);
-      }
-      return;
-    }
-
-    // ── Migrate Firestore ───────────────────────────────────────────────────
-    const ownerUid = state.activeAccountId;
-    if (!ownerUid) return;
-    const db     = fbDb(ownerUid); // named instance — stable after the async IPC call
-    const invRef = db.collection("users").doc(ownerUid).collection("inventory");
-    const FV     = firebase.firestore.FieldValue;
-
-    // Base doc: copy cloud doc, strip Cloud-specific / lifecycle fields
-    const { needUpdateAt: _nua, deleted: _del, deleted_at: _da, ...baseFields } = cloudDoc;
-    const now = Date.now();
-
-    const [chip1, chip2] = successTargets;
-
-    try {
-      const batch = db.batch();
-
-      // New doc for chip 1
-      const doc1 = {
-        ...baseFields,
-        uid:          chip1.uid,
-        twin_tag_uid: chip2 ? chip2.uid : null,
-        last_update:  now,
-        updatedAt:    FV.serverTimestamp(),
-      };
-      batch.set(invRef.doc(chip1.uid), doc1);
-
-      // New doc for chip 2 (twin)
-      if (chip2) {
-        const doc2 = {
-          ...baseFields,
-          uid:          chip2.uid,
-          twin_tag_uid: chip1.uid,
-          last_update:  now,
-          updatedAt:    FV.serverTimestamp(),
-        };
-        batch.set(invRef.doc(chip2.uid), doc2);
-      }
-
-      // Delete old Cloud doc
-      batch.delete(invRef.doc(r.spoolId));
-
-      await batch.commit();
-      console.log(`[encodeCloud] migrated ${r.spoolId} → ${successTargets.map(x => x.uid).join(" + ")}`);
-      closeDetail();
-    } catch (e) {
-      console.error("[encodeCloud] Firestore migration failed:", e);
-      if (btn) btn.disabled = false;
-      if (labelEl) {
-        labelEl.textContent = t("encodeCloudError");
-        setTimeout(() => { if (labelEl) labelEl.textContent = t("encodeCloudBtn"); }, 3000);
-      }
-    }
-  }
-
   /* ── Burn RFID — write current doc to all readers that have a card present ──
-     Same mechanism as _encodeCloud: single payload build → same timestamp on
-     all chips. No Firestore doc migration (doc already exists with the right UID).
+     Single payload build → same timestamp on all chips. No Firestore doc
+     migration (doc already exists with the right UID).
      Also clears needUpdateAt on success (chip is now in sync).               */
   async function _burnRfid(r) {
     if (!window.electronAPI || state.nfcCardPresent.size === 0) return;
@@ -5216,6 +5117,274 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         await batch.commit();
       } catch (e) { console.error("[burnRfid] needUpdateAt clear failed:", e); }
     }
+  }
+
+  /* ── Cloud → chip encode — guided dual-chip burn modal ───────────────────────
+     State machine: confirm → burning → success | failed. Presence-gated,
+     sequential burn (100 ms gap) with per-chip read-back verification (the
+     IPC `burnOneChip` only returns verified:true on a byte-match read-back),
+     all-or-nothing Firestore migration. Modal closes only on success or
+     explicit abort. See ROADMAP "Cloud → chip encode" for the full spec.   */
+  const _CEM_EPOCH_MS = Date.UTC(2000, 0, 1);
+  const _CEM_CHIP_SVG = `<svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <rect x="10" y="14" width="28" height="20" rx="3" stroke="currentColor" stroke-width="2.5"/>
+    <circle cx="24" cy="24" r="3" fill="currentColor"/>
+    <path d="M28.5 19.5a6.5 6.5 0 0 1 0 9M32 16a11 11 0 0 1 0 16" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+    <path d="M19.5 28.5a6.5 6.5 0 0 1 0-9M16 32a11 11 0 0 1 0-16" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+  </svg>`;
+  let _cemRow      = null;                 // spool row being encoded
+  let _cemState    = "confirm";            // confirm | burning | failed
+  let _cemChip     = new Map();            // readerName → "waiting"|"ready"|"writing"|"ok"|"fail"
+  let _cemBlank    = new Map();            // readerName → true(blank)|false(non-blank)|undefined(unknown)
+  let _cemTargets  = [];                   // [{ readerName, uid }] captured at burn launch
+  let _cemAborted  = false;
+  const _cemDelay  = (ms) => new Promise(res => setTimeout(res, ms));
+
+  function _cemBeep(ok) {
+    try {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      const ac = new Ctx();
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.connect(g); g.connect(ac.destination);
+      o.type = "sine";
+      o.frequency.value = ok ? 880 : 220;
+      g.gain.setValueAtTime(0.0001, ac.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.18, ac.currentTime + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + 0.22);
+      o.start(); o.stop(ac.currentTime + 0.24);
+      o.onended = () => { try { ac.close(); } catch (_) {} };
+    } catch (_) {}
+  }
+
+  function openEncodeModal(r) {
+    if (!window.electronAPI || !r?.isCloud) return;
+    _cemRow = r; _cemState = "confirm"; _cemAborted = false;
+    _cemChip = new Map(); _cemBlank = new Map(); _cemTargets = [];
+    const ow = $("cemOwToggle"); if (ow) ow.checked = false;
+    $("cloudEncodeOverlay")?.classList.add("open");
+    _cemRender();
+    _cemBlankCheck();   // read present chips to detect non-blank → overwrite warning
+  }
+  function closeEncodeModal() {
+    // Closing = user abort. A write already in flight finishes but no migration runs.
+    _cemAborted = true;
+    $("cloudEncodeOverlay")?.classList.remove("open");
+    _cemRow = null; _cemState = "confirm";
+  }
+
+  // Present readers (connected + holding a card), with their UID, in stable order.
+  function _cemPresentTargets() {
+    return [...state.nfcReaders]
+      .filter(n => state.nfcCardPresent.has(n))
+      .map(n => ({ readerName: n, uid: state.nfcCardPresent.get(n)?.uid || null }));
+  }
+
+  async function _cemBlankCheck() {
+    if (!window.electronAPI?.readRfidNow) return;
+    for (const { readerName } of _cemPresentTargets()) {
+      if (_cemBlank.has(readerName)) continue;
+      try {
+        const res = await window.electronAPI.readRfidNow(readerName);
+        // Non-blank when the user pages aren't all 0x00 / 0xFF.
+        const hex = (res?.rawPagesHex || "").toLowerCase();
+        const blank = !hex || /^[0f]*$/.test(hex);
+        _cemBlank.set(readerName, blank);
+      } catch (_) { _cemBlank.set(readerName, undefined); }
+    }
+    if (_cemState === "confirm") _cemRender();
+  }
+
+  function _cemRender() {
+    const overlay = $("cloudEncodeOverlay");
+    if (!overlay || !overlay.classList.contains("open")) return;
+    const readers = [...state.nfcReaders];
+    const present = _cemPresentTargets();
+    const burning = _cemState === "burning";
+
+    // Chip cards — one per connected reader. State is conveyed entirely by
+    // COLOUR (grey=waiting · blue=ready/writing · green=done · red=failed):
+    // no per-chip text, no per-chip bar. Slot number shown only with 2 readers.
+    const showNums = readers.length > 1;
+    const cards = (readers.length ? readers : ["__none__"]).map((name, i) => {
+      const hasReader = name !== "__none__";
+      const card  = hasReader && state.nfcCardPresent.get(name);
+      let st = _cemChip.get(name);
+      if (!burning) st = hasReader ? (card ? "ready" : "waiting") : "none";
+      st = st || "waiting";
+      const numBadge = (hasReader && showNums) ? `<span class="cem-chip-num">${i + 1}</span>` : "";
+      const dbgUid = (state.debugEnabled && card?.uid) ? `<div class="cem-chip-uid">${esc(card.uid)}</div>` : "";
+      return `<div class="cem-chip cem-chip--${st}">
+        ${numBadge}
+        <div class="cem-chip-icon">${_CEM_CHIP_SVG}</div>
+        ${dbgUid}
+      </div>`;
+    }).join("");
+    const chipsEl = $("cemChips"); if (chipsEl) chipsEl.innerHTML = cards;
+
+    // Gate.
+    const nonBlank = present.some(p => _cemBlank.get(p.readerName) === true);
+    const sameUid  = present.length === 2 && present[0].uid && present[0].uid === present[1].uid;
+    const gateReady = !burning && readers.length >= 1 && present.length === readers.length && !sameUid
+      && (!nonBlank || $("cemOwToggle")?.checked);
+
+    // Global progress bar — sequence-wide (NOT per chip). Shown while burning
+    // or after a failure; hidden in confirm/ready (chip colour conveys state).
+    const total      = burning ? _cemTargets.length : (readers.length || 1);
+    const done       = [..._cemChip.values()].filter(s => s === "ok").length;
+    const anyFail    = [..._cemChip.values()].includes("fail");
+    const anyWriting = [..._cemChip.values()].includes("writing");
+    const progEl = $("cemProgress");
+    if (progEl) {
+      progEl.classList.toggle("hidden", !(burning || _cemState === "failed"));
+      progEl.classList.toggle("cem-progress--fail", anyFail);
+      progEl.classList.toggle("cem-progress--done", total > 0 && done === total && !anyFail);
+      progEl.classList.toggle("cem-progress--writing", anyWriting);
+      const fill = progEl.querySelector(".cem-progress-fill");
+      if (fill) fill.style.width = total ? Math.round((done / total) * 100) + "%" : "0%";
+    }
+
+    // Minimal hint — only when the user has to act (no reader / place chips /
+    // same chip twice). Silent when ready or burning: the colours say it all.
+    const subEl = $("cemSub");
+    if (subEl) {
+      subEl.textContent =
+        readers.length === 0 ? t("encNoReader")
+        : burning            ? ""
+        : present.length < readers.length ? t("encPlaceChips")
+        : sameUid            ? t("encSameUid")
+        :                      "";
+      subEl.classList.toggle("hidden", !subEl.textContent);
+    }
+    // Overwrite section
+    const owEl = $("cemOverwrite");
+    if (owEl) owEl.classList.toggle("hidden", burning || !nonBlank);
+    // Failure status line (red)
+    const stEl = $("cemStatus");
+    if (stEl) {
+      stEl.textContent = _cemState === "failed" ? t("encFailed") : "";
+      stEl.classList.toggle("cem-status--fail", _cemState === "failed");
+    }
+    // Buttons
+    const burnBtn = $("cemBurn");
+    if (burnBtn) {
+      burnBtn.disabled = !gateReady;
+      burnBtn.textContent = _cemState === "failed" ? t("encRetry") : t("encBurn");
+      burnBtn.classList.toggle("hidden", burning);
+    }
+    const abortBtn = $("cemAbort");
+    if (abortBtn) abortBtn.textContent = t("cancelLabel");
+  }
+
+  // Card appeared/removed while the modal is open.
+  function _cemPresenceChanged() {
+    if (!_cemRow) return;
+    if (_cemState === "burning") {
+      // A launched chip leaving its reader mid-sequence = failure.
+      for (const tgt of _cemTargets) {
+        if (!state.nfcCardPresent.has(tgt.readerName)) {
+          _cemAborted = true;
+          if (_cemChip.get(tgt.readerName) !== "ok") _cemChip.set(tgt.readerName, "fail");
+        }
+      }
+      _cemRender();
+      return;
+    }
+    // Prune the blank-cache for readers that no longer hold a card, so a
+    // swapped-in chip on the same reader is re-checked.
+    for (const name of [..._cemBlank.keys()]) {
+      if (!state.nfcCardPresent.has(name)) _cemBlank.delete(name);
+    }
+    _cemBlankCheck();
+    _cemRender();
+  }
+
+  async function _cemStartBurn() {
+    if (_cemState === "burning" || !_cemRow) return;
+    const r = _cemRow;
+    const cloudDoc = state.inventory[r.spoolId];
+    if (!cloudDoc) return;
+
+    // Lock in the chips present right now — the immutable N-chip contract.
+    _cemTargets = _cemPresentTargets();
+    if (_cemTargets.length === 0) return;
+    if (_cemTargets.length === 2 && _cemTargets[0].uid && _cemTargets[0].uid === _cemTargets[1].uid) {
+      _cemState = "failed"; _cemRender(); _cemBeep(false); return;
+    }
+
+    _cemState = "burning"; _cemAborted = false;
+    _cemTargets.forEach(t => _cemChip.set(t.readerName, "waiting"));
+    _cemRender();
+
+    // One fixed chip-epoch timestamp for the whole sequence → identical bytes
+    // on every chip → they pair as twins.
+    const timestamp = Math.max(0, Math.floor((Date.now() - _CEM_EPOCH_MS) / 1000));
+    const burned = [];   // { readerName, uid } verified-ok chips
+
+    for (let i = 0; i < _cemTargets.length; i++) {
+      const tgt = _cemTargets[i];
+      if (_cemAborted) break;
+      if (!state.nfcCardPresent.has(tgt.readerName)) {   // moved before its turn
+        _cemChip.set(tgt.readerName, "fail"); _cemAborted = true; _cemRender(); break;
+      }
+      _cemChip.set(tgt.readerName, "writing"); _cemRender();
+      let res;
+      try {
+        res = await window.electronAPI.burnOneChip({ cloudDoc, timestamp, readerName: tgt.readerName });
+      } catch (e) { res = { ok: false, error: String(e) }; }
+      const okv = !_cemAborted && res && res.ok && res.verified && state.nfcCardPresent.has(tgt.readerName);
+      _cemChip.set(tgt.readerName, okv ? "ok" : "fail");
+      _cemRender();
+      if (!okv) { _cemAborted = true; break; }
+      burned.push({ readerName: tgt.readerName, uid: res.uid || tgt.uid });
+      if (i < _cemTargets.length - 1) await _cemDelay(100);   // 100 ms inter-chip gap
+    }
+
+    const fullSuccess = !_cemAborted && burned.length === _cemTargets.length;
+    if (!fullSuccess) {
+      _cemState = "failed"; _cemRender(); _cemBeep(false);
+      return;
+    }
+    // Anti self-twin guard (defensive).
+    if (burned.length === 2 && burned[0].uid && burned[0].uid === burned[1].uid) {
+      _cemState = "failed"; _cemRender(); _cemBeep(false); return;
+    }
+    try {
+      await _cemMigrate(r, cloudDoc, burned);
+      _cemBeep(true);
+      closeEncodeModal();
+      closeDetail();
+    } catch (e) {
+      console.error("[encodeModal] migration failed:", e);
+      _cemState = "failed"; _cemRender(); _cemBeep(false);
+    }
+  }
+
+  // Firestore migration — only after a full verified burn. Creates the physical
+  // doc(s) (twin cross-linked) and deletes the Cloud doc, in one batch.
+  async function _cemMigrate(r, cloudDoc, burned) {
+    const ownerUid = state.activeAccountId;
+    if (!ownerUid) throw new Error("no account");
+    const db     = fbDb(ownerUid);
+    const invRef = db.collection("users").doc(ownerUid).collection("inventory");
+    const FV     = firebase.firestore.FieldValue;
+    const { needUpdateAt: _n, deleted: _d, deleted_at: _da, ...baseFields } = cloudDoc;
+    const now = Date.now();
+    const batch = db.batch();
+    const [c1, c2] = burned;
+    batch.set(invRef.doc(c1.uid), {
+      ...baseFields, uid: c1.uid, twin_tag_uid: c2 ? c2.uid : null,
+      last_update: now, updatedAt: FV.serverTimestamp(),
+    });
+    if (c2) {
+      batch.set(invRef.doc(c2.uid), {
+        ...baseFields, uid: c2.uid, twin_tag_uid: c1.uid,
+        last_update: now, updatedAt: FV.serverTimestamp(),
+      });
+    }
+    batch.delete(invRef.doc(r.spoolId));
+    await batch.commit();
+    console.log(`[encodeModal] migrated ${r.spoolId} → ${burned.map(b => b.uid).join(" + ")}`);
   }
 
   // ── Refresh TigerTag+ catalogue data from API ────────────────────────────
@@ -5669,7 +5838,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       }
     });
     // Encode Cloud → chip: migrate Cloud doc to physical chip(s)
-    $("btnEncodeCloud")?.addEventListener("click", () => _encodeCloud(r));
+    $("btnEncodeCloud")?.addEventListener("click", () => openEncodeModal(r));
 
     // Burn RFID — write cloud doc to all connected readers, one by one
     $("btnBurnRfid")?.addEventListener("click", () => _burnRfid(r));
@@ -5907,13 +6076,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         _burnRfid(r);
       }
     });
-    // Cloud encode banner — whole banner is clickable; re-evaluate card presence at click time
+    // Cloud encode banner — open the guided encode modal when a reader is
+    // connected (it handles the presence gate itself); otherwise guide to POD.
     $("cloudEncodeBanner")?.addEventListener("click", () => {
-      if ((state.nfcCardPresent?.size ?? 0) > 0) {
-        _encodeCloud(r);
-      } else {
-        openTigerPodModal();
-      }
+      if (state.nfcReaderCount > 0) openEncodeModal(r);
+      else openTigerPodModal();
     });
   }
   function closeDetail() {
@@ -6137,6 +6304,17 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   $("tigerPodClose").addEventListener("click", closeTigerPodModal);
   $("tigerPodModalOverlay").addEventListener("click", e => { if (e.target === $("tigerPodModalOverlay")) closeTigerPodModal(); });
   $("tigerPodMakerWorldBtn").addEventListener("click", () => window.electronAPI?.openExternal(TIGERPOD_MAKERWORLD_URL));
+
+  // Cloud → chip encode modal events (wired once)
+  $("cemClose")?.addEventListener("click", closeEncodeModal);
+  $("cemAbort")?.addEventListener("click", closeEncodeModal);
+  $("cemBurn")?.addEventListener("click", _cemStartBurn);
+  $("cemOwToggle")?.addEventListener("change", _cemRender);
+  // No backdrop-click close during a burn — only the explicit buttons abort,
+  // so an accidental click can't drop the modal mid-sequence.
+  $("cloudEncodeOverlay")?.addEventListener("click", e => {
+    if (e.target === $("cloudEncodeOverlay") && _cemState !== "burning") closeEncodeModal();
+  });
 
   // container picker events
   $("containerPickerClose").addEventListener("click", closeContainerPicker);
@@ -13550,6 +13728,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       btn?.classList.toggle("has-reader", hasReader);
       btn?.classList.toggle("scanning",   hasReader);
       renderRfidReaderBadges();
+      _cemPresenceChanged();   // reader count changed → refresh encode modal if open
 
       // Track max simultaneous RFID readers (TigerPOD usage telemetry)
       const n = state.nfcReaders.size;
@@ -13564,6 +13743,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (uid) state.nfcCardPresent.set(readerName, { uid });
       else     state.nfcCardPresent.delete(readerName);
       renderRfidReaderBadges();
+      _cemPresenceChanged();   // live slot status + mid-burn presence watch
     });
 
     // Legacy uid event — open detail if already in inventory

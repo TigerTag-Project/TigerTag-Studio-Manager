@@ -1,33 +1,23 @@
-# Worklog — v1.8.4 (in progress)
+# Worklog — v1.8.5 (in progress)
 
 ## Added
 
-- **Telemetry — country + timezone + language aggregates** — `renderer/inventory.js`, `CLAUDE.md`
-  - Added `studioCountry` (locale region, e.g. "FR" — derived offline from `navigator.language`, no IP geolocation) and `studioTimezone` (IANA tz) to the per-session `users/{uid}` telemetry write.
-  - Added lifetime aggregates `langsUsed` + `countriesUsed` (arrayUnion) to `users/{uid}/telemetry/studio`.
-  - Note: language was already persisted (`prefs/app.lang` cross-device + `studioLang`/`studioLocale` per session); OS / version / arch / sessions were already tracked. This adds the missing geo dimension.
+- **Cloud → chip encode — guided dual-chip burn modal** — `renderer/inventory.html`, `renderer/inventory.js`, `renderer/css/60-modals.css`, `main.js`, `services/nfc-process.js`, `preload.js`
+  - New modal (`#cloudEncodeOverlay`) replacing the one-shot `_encodeCloud`. Flow: confirm → presence gate (Burn disabled until every connected reader holds a card; live slot status) → sequential burn with a **100 ms** inter-chip gap → per-chip RFID-chip SVG + progress bar (green=verified / red=fail) → **all-or-nothing** Firestore migration (create physical doc(s) + delete Cloud doc only after every chip verifies).
+  - **Read-back verification** = the success criterion: new `rfid:burn-one` IPC writes one chip then re-reads the written pages and compares byte-for-byte (signature region implicitly excluded — never written); green only on a verified match.
+  - Safety: immutable N-chip contract; presence-loss-mid-burn = failure; overwrite guard (warn + "accept overwrite" toggle when a chip is non-blank, via `readRfidNow`); anti self-twin (same UID = fail); retry restarts from zero; modal closes only on success or abort; discreet success/error beep; detected UIDs shown in debug.
+  - Single chip-epoch timestamp reused for both chips (→ identical bytes → twins). Removed the now-dead `_encodeCloud`.
+  - Polished, light modal UI: title is the migration itself (**TigerCloud → TigerTag** pills + arrow); chip state conveyed purely by **colour** (grey/blue/green/red) — no per-reader text; a **single global progress bar** (not one per reader, blue→green/red); slot numbers only with 2 readers; failure shake; clearly-disabled (grey) Burn; minimal copy (a one-line hint only while waiting, nothing when ready/burning).
 
 ## Changed
 
-- **View toggles — consistent icons + materials order** — `renderer/inventory.html`, locales
-  - Materials toggle reordered to **Grid · Table · Storage** (was Table · Grid · Storage). Printer toggle order unchanged.
-  - Unified the icons across both groups: the **Grid** button now shows the same `⊞` glyph in both (printer Grid switched from the printer icon to `⊞`), and the **Table** button uses the same `icon-list` SVG in both (materials Table switched from the `☰` glyph to `icon-list`).
-  - i18n `btnViewTable` no longer carries the `☰` glyph (now rendered as an SVG icon) — 9 locales.
-  - i18n consistency: both groups now **share the same keys** (no double translation) — Grid → `btnViewGrid`, Table → `btnViewTable`. Fixed the FR mismatch where the printer Table was hardcoded "Table" while materials showed "Tableau". Printer Cam is now translated via a new `btnViewCam` key (was hardcoded). The leftover orphan key `btnViewPrinter` ("Imprimantes") is unused (left as-is — no i18n remove script).
+- **ROADMAP: "Cloud → chip encode" marked shipped (v1.8.5)** — `ROADMAP.md` (full spec retained as the implementation reference).
 
 ## Fixed
 
-- **TigerCloud "Manufactured" date wrong (~2056)** — `renderer/inventory.js`
-  - Cloud docs were created with a Unix timestamp (seconds since 1970), but the TigerTag standard + `fmtChipTs` use seconds since 2000 — so the decoded date over-shot by ~30 years. Added `nowChipTs()` (chip-epoch seconds) and use it on every Cloud `timestamp` write (Add Product preview + save, Duplicate). This also makes the value correct when the Cloud doc is later burned to a physical chip.
-  - `fmtChipTs` now defensively folds a stray Unix-epoch value back to the 2000 epoch (threshold ~year 2044), so already-created buggy docs display the correct date too. Duplicate normalises a legacy source timestamp before staggering.
-- **Storage — twin pairs double-counted** — `renderer/inventory.js`
-  - `getUnrackedSpools()` now collapses twin pairs (`deduplicateTwins`): a linked spool (one physical spool, two tags) shows once in the "not stored" list and counts once (not-stored count + side count + auto-fill pool).
-  - Slot counts deduped too: total filled slots (→ correct "free" count) and per-rack header count (no more `28/27` over-capacity).
-  - Side effect fixed: auto-fill no longer places the two tags of a twin into two separate slots (the pool is now deduped, and assignment already mirrors the rack to both docs via `writeWithTwin`).
+- **Physical chip "Manufactured" date wrong on burn (~2056)** — `main.js`
+  - The Cloud→chip burn stamped the chip `timestamp` with Unix seconds; the SDK writes it raw and the TigerTag chip epoch is seconds-since-2000, so a compliant reader decoded the physical chip's manufacturing date ~30 years late. Now stamps chip-epoch seconds (`_nowChipTs()`). Same class of bug as the v1.8.4 Cloud-doc fix, here on the chip-write path.
 
 ## Removed
 
 ## i18n
-
-- Added: `btnViewCam` — 9 locales
-- Changed: `btnViewTable` dropped the leading `☰` glyph (now an SVG icon) — 9 locales

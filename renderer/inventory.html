@@ -1163,6 +1163,34 @@
   </div>
 </div>
 
+<!-- Cloud → chip encode modal (guided dual-chip burn) -->
+<div class="modal-overlay" id="cloudEncodeOverlay">
+  <div class="modal-card cem-card">
+    <div class="modal-header">
+      <span class="modal-title cem-title-migrate">
+        <span class="cem-tag cem-tag--cloud">TigerCloud</span>
+        <span class="cem-arrow icon icon-chevron-r icon-13"></span>
+        <span class="cem-tag cem-tag--phys">TigerTag</span>
+      </span>
+      <button class="panel-close" id="cemClose">✕</button>
+    </div>
+    <div class="cem-body">
+      <div class="cem-chips" id="cemChips"></div>
+      <div class="cem-progress" id="cemProgress"><span class="cem-progress-fill"></span></div>
+      <div class="cem-hint" id="cemSub"></div>
+      <div class="cem-overwrite hidden" id="cemOverwrite">
+        <div class="cem-ow-warn"><span class="icon icon-info icon-13"></span><span data-i18n="encOverwriteWarn">A chip already contains data — it will be erased.</span></div>
+        <label class="cem-ow-toggle"><input type="checkbox" id="cemOwToggle"><span data-i18n="encOverwriteAccept">I understand, overwrite</span></label>
+      </div>
+      <div class="cem-status" id="cemStatus"></div>
+    </div>
+    <div class="cem-actions">
+      <button class="btn ghost" id="cemAbort" data-i18n="encAbort">Cancel</button>
+      <button class="btn primary" id="cemBurn" disabled data-i18n="encBurn">Burn</button>
+    </div>
+  </div>
+</div>
+
 <!-- TD Edit Modal -->
 <div class="modal-overlay" id="tdEditModalOverlay">
   <div class="modal-card td-edit-card">

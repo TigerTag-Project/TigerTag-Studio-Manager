@@ -755,6 +755,53 @@ P1: M · P2: M · P3: M · P4: S · P5: L (gated) · P6: M → **~L combined** f
 
 ---
 
+### ✅ 🔥 Cloud → chip encode — guided dual-chip burn modal *(shipped v1.8.5)*
+
+**Shipped**: the guarded modal flow below is implemented — modal (`#cloudEncodeOverlay`) + `openEncodeModal`/`_cemStartBurn`/`_cemMigrate` in `inventory.js`, the new `rfid:burn-one` IPC (`main.js`) with read-back verification in `services/nfc-process.js`, and the chip-epoch timestamp fix. The old one-shot `_encodeCloud` was removed.
+
+Previously `_encodeCloud(r)` + the `rfid:encode-cloud` IPC promoted a TigerCloud spool in a single click: same payload to every reader with a card, then migrate Firestore **if ≥1 chip succeeded** — too loose for an irreversible operation. Replaced with a **guarded, modal-driven flow** — confirm → presence-gate → sequential burn with per-chip read-back verification → **all-or-nothing** migration.
+
+#### Requirements (decided)
+1. **Confirmation modal before any write.** Triggering "Encode" opens a modal first — it never burns immediately. Lets the user position the spool so the chip(s) sit on the reader(s).
+2. **Presence gate + live slot status.** "Burn" stays disabled until **every detected reader has a card present** (2 readers → **both** chips; 1 reader → 1 chip). The chips that count are the ones present **at the moment Burn is launched** — before that the user can swap chips freely. The modal shows **real-time** slot status (e.g. slot 1 ✓ ready · slot 2 ⏳ waiting), updating as chips are placed/removed.
+3. **Per-chip visual.** One **SVG per chip** (slot 1 / slot 2 — we can't tell which physical reader is which) + a **progress bar** each. States: waiting (grey) → writing → **green** (verified OK) → **red** (fail).
+4. **Sequential burn + 100 ms gap.** Burn chip 1, wait **100 ms**, burn chip 2 (hardware breathing room). Add the delay in the `for…of` loop of `rfid:encode-cloud`. Payload built **once** (same bytes, same timestamp → twins). Single pass — never re-burn within one attempt.
+5. **Read-back verification = the success criterion.** After writing a chip, **re-read its written pages** and compare the **byte list** to the payload sent — same byte count, same starting offset → a match means OK. A chip turns **green only on a verified read-back match**; a "write command returned OK" is not enough. **Exclude the signature pages**: a home-made TigerTag / TigerTag+ never sets the factory signature (we don't know it, or there's simply none), so we never write, read, or compare the signature region — it's factory-only data (filament manufacturer). Compare only the pages we actually wrote.
+6. **Per-chip ok/fail** surfaced live in the modal.
+7. **Immutable N-chip contract.** Whatever count is present at launch is binding: start with 2 → must verify on **both**; start with 1 → must verify on that 1. Anything less = **failure**. Chips may be read/write-locked or in an unknown state — if a planned write doesn't verify, it's a failure and the user is told **which** chip(s) failed (1, 2, or both).
+8. **Presence loss = failure.** A chip leaving its reader mid-sequence = failure for that chip → sequence failed. (This also keeps the captured UIDs correct: if the user swaps a chip mid-burn it goes non-present → automatic failure; only chips present at launch are written, with their real UID captured from the write result.)
+9. **Overwrite guard.** Before writing, if a chip already holds data (already a TigerTag / non-blank), **warn** the user it will be erased and ask confirmation. Provide an **"accept overwrite" toggle** (persisted) so advanced users who do this routinely can skip the prompt.
+10. **Anti self-twin.** If the two chips report the **same UID** (one chip seen twice / buggy reader), refuse → failure (a twin needs two distinct UIDs).
+11. **Firestore migration only after full verified success.** Order: burn+verify chip 1 → 100 ms → burn+verify chip 2; **only if all verified OK**, duplicate the Cloud data into the physical doc(s) and **delete the Cloud doc**. On any failure → **no doc created, Cloud doc untouched**. (A failed chip may carry partial bytes physically, but the user has been told it failed.)
+12. **Retry restarts from zero.** From the failed state, retry re-runs the **whole** sequence (presence gate → all chips) — never "retry just the failed chip", because that would let the user swap out an already-succeeded chip between attempts. Always start from 0.
+13. **Modal persistence.** Closes **only** on full verified success or explicit user abort; stays open on failure for retry.
+14. **Debug — show detected UIDs** in the confirm modal (debug mode) so the user can sanity-check which chips are about to be written.
+15. **Sound/feedback** — discreet success chime / error tone.
+
+#### Flow (state machine)
+`confirm` (live slot status; Burn enabled only when the presence gate is satisfied; overwrite prompt if a chip is non-blank) → `burning` (chip 1 write→read-back-verify → 100 ms → chip 2 write→read-back-verify, with live presence watch) → `success` (all verified OK → migrate Firestore: create physical doc(s) + delete Cloud doc → close modal, open the new spool) **or** `failed` (any chip unverified / presence lost / same-UID → red, **no Firestore change**, Retry-from-zero / Abort).
+
+#### ♻️ Reuses
+- `_encodeCloud(r)` Firestore migration batch (`inventory.js` ~L5094-5135) — the create-physical-docs + delete-cloud-doc logic is reused **verbatim**, just gated behind full success and moved after the modal's burn step. Twin cross-link (`twin_tag_uid` both ways) already handled there.
+- `rfid:encode-cloud` (`main.js` L444) — already sequential + builds the payload once; add the **100 ms** inter-chip delay, a **read-back of the written pages** after each write (compare byte list vs `pages`, excluding the signature region), and return per-chip `{ ok, verified, uid, error }`. The NFC child already does page I/O for writes, so reading the same pages back is the same channel.
+- `state.nfcCardPresent` (Map: readerName → `{ uid }`), `state.nfcReaders`, `state.nfcReaderCount` — drive the chip count, the presence gate, and the mid-burn presence watch.
+- Modal chrome (`.modal-overlay` + `.modal-card`), and the `btnEncodeCloud` toolbox row + `cloudEncodeBanner` triggers — they open this modal instead of calling `_encodeCloud` directly.
+- i18n: new keys (modal title, "place both chips", per-chip waiting/writing/ok/fail, sequence failed, retry, abort, success).
+
+#### ⚠️ Fix to fold in
+`main.js` L452 stamps the chip timestamp as `Math.floor(Date.now()/1000)` (Unix seconds) — but the TigerTag chip epoch is **seconds since 2000**, so a compliant reader would decode the physical chip's manufacturing date ~30 years in the future (same class of bug just fixed for Cloud docs). Use a chip-epoch timestamp here (verify what the SDK's `toBytes()` expects first).
+
+#### 🐛 Debug surface
+- Per-chip write log (reader name, slot, pages written, error) shown in the modal in debug mode + pushed to the existing NFC debug feed.
+- **Read-back diff** (debug): the sent vs read-back byte lists side by side, highlighting any mismatching page — the evidence behind a green/red verdict.
+- Detected UIDs shown in the confirm modal (debug).
+- Presence-watch trace (card appear/disappear per reader during the sequence).
+
+#### 🧮 Effort & risk
+**Effort: M** · **Risk: low-medium** (irreversible chip writes — but the confirm step, presence gate, mid-burn watch and all-or-nothing migration make it materially safer than today's one-shot path).
+
+---
+
 ### 🏅 Multi-vendor RFID parsers — 7 vendors remaining
 - **Spec**: [`docs/rfid-vendors/NEXT_STEPS.md`](docs/rfid-vendors/NEXT_STEPS.md) is a complete handoff doc — read it first.
 - **What's there**: OpenRFID submodule + 8 self-contained spec sheets. ACR122U reader stack already done.
