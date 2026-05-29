@@ -181,6 +181,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Returns { ok, fields: { machineModel, machineName, firmware, serialNumber, macAddress } }.
   ffgTcpProbe: (ip) => ipcRenderer.invoke('ffg:tcp-probe', ip),
 
+  // ── Creality TCP probe — port 9999 open/closed fast filter.
+  // Connects to ip:9999 (650 ms timeout) and reports whether the port is
+  // open. The renderer then runs the WebSocket JSON handshake on each open
+  // host to confirm it's a Creality printer (isCrealityLike). Returns
+  // { ok: true } when the port accepts a connection, { ok: false, error } otherwise.
+  creTcpProbe: (ip) => ipcRenderer.invoke('cre:tcp-probe', ip),
+
   // ── Image cache (main-process side) ─────────────────────────────────────
   imgGet: (url) => ipcRenderer.invoke('img:get', url),
 

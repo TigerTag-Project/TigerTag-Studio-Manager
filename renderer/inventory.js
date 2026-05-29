@@ -48,6 +48,7 @@ import { renderSnapCamBanner } from './printers/snapmaker/widget_camera.js';
 import { openSnapAddFlow } from './printers/snapmaker/add-flow.js';
 import { snapFanPct, snapFanStep, renderSnapControlCard } from './printers/snapmaker/widget_control.js';
 import { openFfgAddFlow }  from './printers/flashforge/add-flow.js';
+import { openCreAddFlow }  from './printers/creality/add-flow.js';
 import { renderCreCamBanner, startCreCam, stopCreCam, reAttachCreCamConsumers, addCreCamConsumer, removeCreCamConsumer } from './printers/creality/widget_camera.js';
 import {
   snapKey, snapGetConn, snapIsOnline,
@@ -10586,12 +10587,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       btn.addEventListener("click", () => {
         const brand = btn.dataset.brand;
         closePrinterBrandPicker();
-        // Snapmaker and FlashForge have dedicated LAN-discovery flows
-        // (scan + manual IP). Other brands jump straight to the add form.
+        // Snapmaker, FlashForge and Creality have dedicated LAN-discovery
+        // flows (scan + manual IP). Other brands jump straight to the add form.
         if (brand === "snapmaker") {
           openSnapAddFlow();
         } else if (brand === "flashforge") {
           openFfgAddFlow();
+        } else if (brand === "creality") {
+          openCreAddFlow();
         } else {
           openPrinterAddForm(brand);
         }
@@ -12775,6 +12778,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // click handler reads the same state to decide whether to act as a
     // dropdown trigger or as a one-click "return home" button.
     $("sbUser")?.classList.toggle("sb-user--viewing-friend", !!state.friendView);
+    // A friend's inventory is read-only — hide the write actions (+ Scan and
+    // Add product / Add device) since none of them can act on a friend's docs.
+    $("btnAddScan")?.classList.toggle("hidden", !!state.friendView);
+    $("btnAddProduct")?.classList.toggle("hidden", !!state.friendView);
     if (!banner) return;
     banner.classList.remove("fvb--own", "fvb--error");
     // ─── Friend view ───────────────────────────────────────────────

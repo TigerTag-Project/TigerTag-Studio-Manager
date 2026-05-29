@@ -1377,6 +1377,38 @@ ipcMain.handle('ffg:tcp-probe', async (_evt, ip) => {
   });
 });
 
+// ── Creality TCP probe — port 9999 open/closed fast filter ───────────────────
+// Mirrors ffg:tcp-probe above but is a pure reachability check: it only
+// reports whether the WebSocket control port (9999) accepts a TCP
+// connection. The renderer then opens a real WebSocket on each open host to
+// run the Creality JSON handshake (isCrealityLike) — the browser WebSocket
+// API works cross-origin without CORS, so that part stays in the renderer.
+// Returns { ok: true } when the port is open, { ok: false, error } otherwise.
+ipcMain.handle('cre:tcp-probe', async (_evt, ip) => {
+  if (!ip || typeof ip !== 'string') return { ok: false, error: 'missing ip' };
+  if (!/^\d{1,3}(\.\d{1,3}){3}$/.test(ip)) return { ok: false, error: 'invalid ip' };
+
+  const net = require('net');
+  const TIMEOUT_MS = 650;
+  const CRE_WS_PORT = 9999;
+
+  return new Promise((resolve) => {
+    let resolved = false;
+    const finish = (result) => {
+      if (resolved) return; resolved = true;
+      try { socket.destroy(); } catch {}
+      resolve(result);
+    };
+
+    const socket = new net.Socket();
+    socket.setTimeout(TIMEOUT_MS);
+    socket.on('connect', () => finish({ ok: true }));
+    socket.on('timeout', () => finish({ ok: false, error: 'timeout' }));
+    socket.on('error',   (e) => finish({ ok: false, error: e.message }));
+    socket.connect(CRE_WS_PORT, ip);
+  });
+});
+
 // ── Snapmaker HTTP GET — main-process bridge (CORS bypass) ───────────────────
 // Mirrors the FlashForge bridge above. The renderer's Chromium engine treats
 // requests from http://localhost:<port> to http://192.168.x.x:7125 as cross-

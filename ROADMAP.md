@@ -367,6 +367,35 @@ A possible 7th driver later: `drivers/elegoo-mqtt.js` for Centauri — **researc
 | **Generic Klipper / Wondermaker** | Moonraker WS (`:7125`) | mDNS varies; falls back to manual IP | `klipper-generic` | New driver — at this point we have 3 Klipper-class implementations (Snapmaker + Creality K + Generic) and the empirical common surface is clear, so this is the right moment to extract `_moonraker-base.js`. New brand entry "Klipper machine" with a manual-IP-only flow (auto-discovery is hit-or-miss across Klipper distros). |
 | (Future) Prusa MK4 / MINI | PrusaLink HTTP (`:80`) | mDNS `_prusalink._tcp.local.` | `prusa-http` | Out of scope for first ship; add to the model JSON files later. |
 
+#### 🔎 Multi-brand LAN discovery — unified "Scan network" *(can ship before the live drivers)*  ·  **Effort: M**  ·  **Risk: low**
+
+Mirrors the mobile Flutter scanners on the desktop. Today **+ Add printer → Scan** only finds **Snapmaker** (mDNS `_snapmaker._tcp` + port-scan). Generalize it so a single scan surfaces printers of **every** brand on the LAN, each ready for one-click add — independent of whether that brand has a live driver yet (discovery → add → read-only card is already useful, and the live block lights up later as F2-F5 land).
+
+**Per-brand discovery probe** — all already documented in `renderer/printers/<brand>/PROTOCOL.md` (those specs were derived from the Flutter scanners, e.g. `creality_scan_printers.dart`), so each one is a straight Dart→Node translation:
+
+| Brand | Probe | Spec |
+|---|---|---|
+| Snapmaker | mDNS `_snapmaker._tcp.local.` (✅ done) | — |
+| Bambu Lab | SSDP `M-SEARCH ssdp:discover` → UDP multicast `239.255.255.250:1900` + active TLS cert sniff on `:8883` (cert subject/issuer contains `bambu`/`bbl`) | bambulab PROTOCOL §12 |
+| Creality | TCP `:9999` open → WS handshake → confirm `isCrealityLike` JSON (drop unconfirmed hosts) | creality PROTOCOL §scan |
+| Elegoo | UDP datagram to `:52700` per host → parse reply | elegoo PROTOCOL §13 |
+| FlashForge | HTTP `POST :8898/detail` probe + UDP multicast `225.0.0.9:19000` payload `"Hello World!"` (older Adventurer-era models) | flashforge PROTOCOL §2.1 / §2.6 |
+
+> ⚠️ Spec drift to resolve from the Flutter source: the per-brand status table above lists FlashForge discovery as "UDP broadcast `48899` magic byte", while flashforge PROTOCOL §2.6 says multicast `225.0.0.9:19000` "Hello World!". Confirm against the Flutter scanner before implementing.
+
+**Where the code goes** — all probes run in the **main process** (the Chromium renderer can't open raw UDP/TCP sockets), exposed to the renderer over IPC, exactly like the Snapmaker scan + Bambu MQTT already do:
+- UDP (SSDP, Elegoo, FlashForge multicast): Node `dgram`.
+- TCP / TLS cert sniff (Creality, Bambu): Node `net` / `tls`.
+- mDNS: `bonjour-service` (already a dependency since v1.4.8).
+
+♻️ **Reuses (existing, exploitable)**:
+- `inventory.js` L8030-8226 — subnet enumeration + batched port-scan engine. Already brand-agnostic; feed it the union of brand ports and dispatch the matching probe per open port.
+- `bonjour-service` mDNS in `main.js` — browse extra service types (`_bambu._tcp`, `_octoprint._tcp`, …) alongside `_snapmaker._tcp`.
+- `snapAddDiscoveredPrinter()` (L8241-8633) — the one-click "write printer doc to Firestore + open detail" pattern; generalize to set `brand` from the matched probe.
+- Scan UI panel (`openSnapmakerScan` & friends, L8410+) — rename to a brand-neutral "Scan network" panel grouping candidates by brand.
+
+**Merge / dedupe**: key by serial number when the probe returns one (Bambu SSDP, FlashForge), else by IP. Run all probes in parallel; merge into one list with a per-candidate confidence score (mDNS/SSDP > raw port-open). Same logic as the Bambu §12 dedupe (serial-or-IP, keep highest score).
+
 #### Sub-features — recommended ship order
 
 ##### F1 — Driver interface extraction *(refactor)*  ·  **Effort: M**  ·  **Risk: low**

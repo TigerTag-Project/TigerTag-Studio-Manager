@@ -5,6 +5,19 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.8.9 — 2026-05-29
+
+### Added
+
+- **Creality printers now show up in the network scan** — *Add printer → Creality → Scan network* discovers Creality machines on your LAN (K-series, K2, and current-gen Enders running Klipper, e.g. the Ender-3 V4) and adds them in one click, just like Snapmaker and FlashForge. There's also a manual *Enter IP address* path and an inline *Add by IP* shortcut for printers the scan can't reach directly. The common Creality home subnets (192.168.1.x, 192.168.40.x) are always scanned, and any extra subnets you add now persist across a *Restart scan*. Verified live against an Ender-3 V4.
+
+### Changed
+
+- **Adding a Creality printer no longer requires a username/password** — the *Root* account and password fields are now optional. Most Creality printers expose their control channel without authentication, so you can add and connect to them without entering anything; only fill them in if your printer's firmware enforces a login.
+- **A friend's inventory is cleaner in read-only mode** — when viewing a friend's inventory, the *+ Scan* and *Add* buttons are now hidden, since those actions can't apply to someone else's collection.
+
+---
+
 ## v1.8.8 — 2026-05-29
 
 ### Fixed

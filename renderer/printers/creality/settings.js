@@ -19,11 +19,14 @@ export const schema = {
     // "Root" is a fixed brand-side username on Creality K-series — it is
     // never translated. The labelText override bypasses i18n. It sits
     // before the password by design (matches Creality's own UI order).
+    // Both are OPTIONAL: most Creality printers (incl. the Ender-3 V4) expose
+    // the WebSocket without auth, and the live driver connects fine with empty
+    // credentials. They're only needed on firmware that enforces Basic auth.
     { titleKey: "printerSecCredentials", fields: [
       { key: "account",  labelText: "Root",              hintKey: "printerHintCrealityAccount",
-        placeholder: "Root",     mono: true, required: true },
+        placeholder: "Root",     mono: true },
       { key: "password", labelKey: "printerLblPassword", hintKey: "printerHintCrealityPassword",
-        placeholder: "••••••••", mono: true, required: true, secret: true }
+        placeholder: "••••••••", mono: true, secret: true }
     ]}
   ]
 };
