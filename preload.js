@@ -188,6 +188,28 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // { ok: true } when the port accepts a connection, { ok: false, error } otherwise.
   creTcpProbe: (ip) => ipcRenderer.invoke('cre:tcp-probe', ip),
 
+  // ── Bambu Lab SSDP discovery — multicast 239.255.255.250:1900.
+  // Sends an M-SEARCH (twice, 120 ms apart) and listens 4 s for replies +
+  // unsolicited NOTIFYs. Returns { ok, candidates: [{ip, serial, model, name,
+  // firmware, source:'ssdp'}] } — duplicates already merged by serial.
+  bambulabSsdpDiscover: () => ipcRenderer.invoke('bambu:ssdp-discover'),
+
+  // ── Bambu Lab TLS cert sniff on :8883 — per-IP brand confirmation.
+  // Connects TLS to ip:8883, reads the peer certificate, and reports whether
+  // the subject/issuer identifies it as a Bambu printer. Used by manual
+  // "Add by IP". Returns { ok, serial?, raw:{subject,issuer} }.
+  bambulabTlsProbe: (ip) => ipcRenderer.invoke('bambu:tls-probe', ip),
+
+  // ── Elegoo UDP discovery — unicast spray on :52700 over /24 prefixes.
+  // Sends {"id":0,"method":7000} to every host in the prefix list, listens
+  // 2.4 s for JSON replies. Returns { ok, candidates: [{ip, sn, machineModel,
+  // hostName, source:'udp'}] }.
+  elegooUdpDiscover: (prefixes) => ipcRenderer.invoke('elegoo:udp-discover', prefixes),
+
+  // ── Elegoo UDP probe — targeted single-IP discovery (manual "Add by IP").
+  // Two sends 60 ms apart, 1.4 s listen. Returns { ok, candidate? }.
+  elegooUdpProbe: (ip) => ipcRenderer.invoke('elegoo:udp-probe', ip),
+
   // ── Image cache (main-process side) ─────────────────────────────────────
   imgGet: (url) => ipcRenderer.invoke('img:get', url),
 

@@ -206,9 +206,10 @@ function snapOpenSocket(conn) {
   };
 
   ws.addEventListener("open", () => {
-    conn.status = "connected";
+    // The WebSocket transport is open, but Moonraker hasn't replied yet.
+    // Stay "connecting" — we only flip to "connected" once the first real
+    // frame (subscribe/query response) comes back (see message handler).
     conn.lastError = null;
-    conn.retry = 0;
     // Subscribe to all the printer objects we care about. The 4 extruder
     // names match the Snapmaker U1 4-tool firmware naming convention.
     sendLogged({
@@ -249,9 +250,9 @@ function snapOpenSocket(conn) {
     // Response handled below (id === 9001).
     sendLogged({ jsonrpc: "2.0", id: 9001, method: "printer.objects.list", params: {} });
 
-    // Status changed (connecting → connected) — the hero camera depends
-    // on this, so we ask for a full re-render not just the live block.
-    snapNotifyChange(conn, /*statusChanged*/ true);
+    // Still "connecting" at this point — the badge/grid only flip to online
+    // when the first real frame arrives in the message handler below.
+    snapNotifyChange(conn);
   });
 
   ws.addEventListener("message", ev => {
@@ -261,6 +262,14 @@ function snapOpenSocket(conn) {
     snapLogPush(conn, "←", ev.data);
 
     let obj; try { obj = JSON.parse(ev.data); } catch { return; }
+
+    // First real frame confirms the connection is truly established — only
+    // now do we leave "connecting" for "connected". The hero camera depends
+    // on this status flip, so we ask for a full re-render.
+    if (conn.status !== "connected") {
+      conn.status = "connected"; conn.lastError = null; conn.retry = 0;
+      snapNotifyChange(conn, /*statusChanged*/ true);
+    }
 
     // ── objects.list response → discover filament sensors ─────────────────
     if (obj.id === 9001 && Array.isArray(obj.result?.objects)) {

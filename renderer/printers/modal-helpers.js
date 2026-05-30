@@ -53,11 +53,17 @@ export function renderField(f, { t, esc }) {
     </label>`;
 }
 
-/** Render one schema section (small-caps header + fields). */
+/** Render one schema section (optional small-caps header + fields).
+ *  A section may omit `titleKey` (e.g. a single trailing block under the
+ *  Connection section) — in that case no header is rendered. The fields
+ *  still get the visual spacing of `.pba-section`. */
 export function renderSection(s, { t, esc }) {
+  const headerHtml = s.titleKey
+    ? `<header class="pba-section-head">${esc(t(s.titleKey))}</header>`
+    : "";
   return `
     <section class="pba-section">
-      <header class="pba-section-head">${esc(t(s.titleKey))}</header>
+      ${headerHtml}
       ${s.fields.map(f => renderField(f, { t, esc })).join("")}
     </section>`;
 }
@@ -235,7 +241,16 @@ export function schemaWidget(schema) {
     } else if (prefill) {
       const data = {};
       if (prefill.printerName) data.printerName = prefill.printerName;
-      if (prefill.ip)          data.ip          = prefill.ip;
+      // Prefill every schema field whose key is also present in the prefill
+      // payload. Lets brand discovery flows set arbitrary fields
+      // (Bambu `broker` + `serialNumber`, Elegoo `ip` + `sn`, etc.) without
+      // each having to pass through a hard-coded branch here.
+      schema.sections.forEach(sec => sec.fields.forEach(f => {
+        if (prefill[f.key] != null && prefill[f.key] !== "") data[f.key] = prefill[f.key];
+      }));
+      // Back-compat: legacy flows pass `ip` even when the schema's IP field
+      // uses a different key (e.g. Bambu's `broker`). Map it onto the field.
+      if (prefill.ip && data.ip == null && data.broker == null) data.ip = prefill.ip;
       prefillFields(bodyEl, data);
     }
   };

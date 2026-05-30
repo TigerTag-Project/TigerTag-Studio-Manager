@@ -34,8 +34,10 @@ export function elegooIsOnline(printer) {
   const conn = _elegooConns.get(key);
   if (!conn) return null;
   if (conn.status === 'connected') return true;
-  if (conn.status === 'disconnected' || conn.status === 'error' || conn.status === 'offline') return false;
-  return null; // connecting
+  // Anything that isn't an established connection — including an in-flight
+  // connection attempt ('connecting') — counts as offline. A printer is only
+  // "online" once the connection is really established, never while trying.
+  return false;
 }
 
 // ── Print state groups ────────────────────────────────────────────────────
@@ -239,9 +241,12 @@ function _startGlobalHandlers() {
     const prev = conn.status;
 
     if (status === 'connected') {
-      conn.status = 'connected';
-      conn._errorCount = 0; // reset on successful connect
+      conn._errorCount = 0; // reset on successful broker connect
       elgLogPush(conn, '✓', `MQTT connected — SN:${conn.sn}  client:${conn.clientId}`);
+      // The MQTT broker connection is up, but the printer hasn't answered yet
+      // — stay 'connecting' until the first message arrives (see onMessage).
+      // Only a real exchange counts as really established.
+      if (conn.status !== 'connected') conn.status = 'connecting';
       if (!conn._initSnapshotSent) {
         conn._initSnapshotSent = true;
         _sendInitSnapshot(conn);
@@ -290,6 +295,12 @@ function _startGlobalHandlers() {
     const conn = _elegooConns.get(key);
     if (!conn) return;
     elgLogPush(conn, '←', data);
+    // First real message confirms the connection is truly established — flip
+    // from 'connecting' to 'connected' so the badge/grid go online.
+    if (conn.status !== 'connected') {
+      conn.status = 'connected';
+      elgNotifyChange(conn, /*statusChanged*/ true);
+    }
     _routeMessage(conn, topic, data);
   });
 }

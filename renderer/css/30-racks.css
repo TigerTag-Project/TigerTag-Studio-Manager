@@ -446,6 +446,33 @@
     display: flex; align-items: center; gap: 10px;
     margin-bottom: 8px;
   }
+  /* ── Two-column row: optional material image on the left, content on the
+     right. When there's no image, only `.rht-col` is present and the row
+     collapses to a single column visually identical to the pre-image layout. */
+  #rackHoverTip .rht-row {
+    display: flex; gap: 10px; align-items: stretch;
+  }
+  #rackHoverTip .rht-col {
+    flex: 1; min-width: 0;
+    display: flex; flex-direction: column;
+  }
+  /* Material thumbnail (TigerTag+ url_img) — left column, takes the full
+     height of the tooltip card via `align-self: stretch`. Width is fixed at
+     72 px (visually balanced against the typical right-column content);
+     `object-fit: contain` keeps the full product shot visible regardless of
+     its native aspect ratio. `min-height` prevents the image from collapsing
+     when the right column is very short. */
+  #rackHoverTip .rht-mat-img {
+    width: 72px;
+    align-self: stretch;
+    min-height: 72px;
+    flex-shrink: 0;
+    border-radius: 8px;
+    object-fit: contain;
+    background: rgba(255, 255, 255, .06);
+    border: 1px solid rgba(0, 0, 0, .12);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .12);
+  }
   /* Mini puck preview — same proportion as the rack slots */
   #rackHoverTip .rht-puck {
     width: 22px;

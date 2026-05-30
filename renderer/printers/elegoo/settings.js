@@ -18,9 +18,14 @@ export const schema = {
       { key: "sn", labelKey: "printerLblSerial", hintKey: "printerHintElegooSerial",
         placeholder: "0CCN201XXXX",  mono: true, required: true }
     ]},
-    { titleKey: "printerSecCredentialsOptional", fields: [
-      { key: "mqttPassword", labelKey: "printerLblMqttPassword", hintKey: "printerHintElegooMqtt",
-        placeholder: "—", mono: true, required: false, secret: true, optional: true }
+    // The MQTT access code is REQUIRED on Elegoo: the printer's broker rejects
+    // the CONNECT if the password is empty (silent disconnect, no error). The
+    // factory default is "123456" — the user may change it from the printer's
+    // network settings screen. Reuses the shared `printerLblAccessCode` /
+    // `printerSecCredentials` strings so the UI stays consistent with Bambu.
+    { fields: [
+      { key: "mqttPassword", labelKey: "printerLblAccessCode", hintKey: "printerHintElegooMqtt",
+        placeholder: "—", mono: true, required: true, secret: true }
     ]}
   ]
 };

@@ -5,6 +5,29 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.8.10 — 2026-05-30
+
+### Added
+
+- **Bambu Lab and Elegoo printers now show up in the network scan.** *Add printer → Bambu Lab → Scan network* discovers Bambu printers via SSDP — they announce themselves on the LAN, no setup needed. *Add printer → Elegoo → Scan network* discovers Elegoo printers (Centauri Carbon 2 and later) by sending a quick UDP probe to every host on your local subnets. Each scan offers one-click add with the serial number, model, IP and name already filled in. There's also a manual *Enter IP address* path and an inline *Add by IP* shortcut for printers the scan can't reach directly; the common Elegoo subnets (192.168.1.x, 192.168.40.x) are always scanned, and any extra subnets you add persist across a *Restart scan*. With Creality, Snapmaker and FlashForge already shipping discovery, every supported brand now has it.
+- **Storage view: the hover tooltip on a rack slot now shows the spool's material image** as a full-height left column (for TigerTag+ spools that have a product photo). The bubble keeps everything that was already there — brand, material, color, weight bar, coordinate, lock indicator — on the right. Falls back to the previous single-column layout when no image is available.
+
+### Changed
+
+- **Printers are reported online only once the connection is really established** — i.e. after the first real frame/report/heartbeat arrives — not the instant the network socket opens. Previously Snapmaker and Creality flipped to "online" the moment the WebSocket connected, and Bambu / Elegoo the moment the MQTT broker accepted them, even before the printer itself had answered. Now every brand waits for real data first, so a printer that's reachable but not yet responding stays "offline" exactly as you'd expect. Elegoo printers in "connecting" state are also correctly shown offline instead of "checking", in line with the other brands.
+- **Elegoo: the MQTT credential field is now required and properly named.** What used to be labelled "MQTT password (optional)" in *Printer Settings → Elegoo* is now **"Access code"** and is required — matching the label the printer itself uses on its network settings screen. The hint tells you where to find it (factory default is still `123456`).
+- **Cleaner Printer Settings form.** The small-caps "Credentials" section header and the horizontal divider line between sections are gone across all brands. The form now reads as one continuous block of connection fields instead of looking like several separate cards stacked on each other.
+- **Read-only mode in a friend's inventory hides the write-action buttons.** The *+ Scan* and *Add* buttons no longer appear when you're viewing a friend's inventory — they can't act on someone else's collection anyway. They reappear automatically when you return to your own view.
+- **Header backend-health indicator** uses a new 3D cloud icon design (the other cloud icons elsewhere in the app are unchanged).
+
+### Fixed
+
+- **RFID rescan no longer erases your spool data, and the chip weight now syncs automatically to the database value.** Re-scanning a spool used to silently wipe every Firestore field that wasn't on the chip — container assignment, custom note, capacity, etc. — and replace the current weight with whatever the chip held, which is almost always stale because the weight slider only writes to the database and nothing was ever updating the chip back. Three-part fix: user-edited fields are now preserved on rescan; the weight is no longer rolled back to the chip's value on a regular rescan; and when the database weight differs from what the chip shows, the app writes the new value directly onto the chip while it's still on the reader (only the 3 bytes that hold "Measure Available" are touched). Chip and database now converge every time you tap a spool. New chips and chip-rewrite flows are unchanged.
+- **Password-eye and clear-input buttons no longer jump down** when clicked — a global CSS rule was overriding the absolute-positioning transform on these icon buttons, making them drop ~14 px on every click in Printer Settings, the login modal, and the Add printer form.
+- **Printer Settings inputs no longer change size when you click the eye toggle** to show/hide a password — the field now stays the exact same dimension regardless of whether the password is hidden or shown (was jumping from 36 → 40 px tall and 13 → 14 px text on every toggle).
+
+---
+
 ## v1.8.9 — 2026-05-29
 
 ### Added

@@ -1409,6 +1409,259 @@ ipcMain.handle('cre:tcp-probe', async (_evt, ip) => {
   });
 });
 
+// ── Bambu Lab SSDP discovery — multicast 239.255.255.250:1900 ─────────────────
+// Bambu printers advertise themselves on the SSDP multicast group (and also
+// respond to an explicit M-SEARCH). Both modern and older firmwares expose
+// the same custom DevModel/DevName/DevVersion headers — we parse them all and
+// keep whichever provides the most identity. The single-shot 4 s listen window
+// catches both unsolicited NOTIFYs and replies to our two paced M-SEARCH probes.
+// Returns { ok, candidates: [{ip, serial, model, name, firmware, connect, bind, signal, source:'ssdp'}] }.
+const BBL_SSDP_ADDR = '239.255.255.250';
+const BBL_SSDP_PORT = 1900;
+const BBL_SSDP_LISTEN_MS = 4000;
+const BBL_SSDP_ST = 'urn:bambulab-com:device:3dprinter:1';
+const BBL_MSEARCH = [
+  'M-SEARCH * HTTP/1.1',
+  `HOST: ${BBL_SSDP_ADDR}:${BBL_SSDP_PORT}`,
+  'MAN: "ssdp:discover"',
+  'MX: 1',
+  `ST: ${BBL_SSDP_ST}`,
+  '', ''
+].join('\r\n');
+
+function _parseBambuSsdp(body, srcIp) {
+  // Split headers; skip the request/status line.
+  const lines = String(body || '').split(/\r?\n/).slice(1);
+  const h = {};
+  let hasDevHeader = false;
+  for (const line of lines) {
+    const i = line.indexOf(':');
+    if (i <= 0) continue;
+    const key = line.slice(0, i).trim().toLowerCase();
+    const val = line.slice(i + 1).trim();
+    h[key] = val;
+    if (key.startsWith('dev')) hasDevHeader = true;
+  }
+  const first = (...keys) => {
+    for (const k of keys) { const v = h[k]; if (v) return v; }
+    return null;
+  };
+  // Serial: usn → strip "uuid:" prefix and anything after "::"; then strip non-alphanumeric.
+  let serial = first('usn', 'serial') || '';
+  serial = serial.replace(/^uuid:/i, '').split('::')[0];
+  serial = serial.replace(/[^a-z0-9]/gi, '');
+  // IP: location header (parse URI host), else datagram source.
+  let ip = srcIp || null;
+  const loc = first('location');
+  if (loc) {
+    try { const u = new URL(loc); if (u.hostname) ip = u.hostname; } catch {}
+  }
+  const model    = first('devmodel.bambu.com', 'devmodel', 'model');
+  const name     = first('devname.bambu.com', 'devname', 'friendlyname', 'friendly_name');
+  const firmware = first('devversion.bambu.com', 'devversion', 'firmware', 'version');
+  const connect  = first('devconnect.bambu.com', 'devconnect');
+  const bind     = first('devbind.bambu.com', 'devbind');
+  const signal   = first('devsignal.bambu.com', 'devsignal');
+  // Validity gate: at least one identity field AND (any "dev*" header OR a usable serial).
+  const hasIdentity = !!(serial || model || name);
+  if (!hasIdentity) return null;
+  if (!hasDevHeader && !serial) return null;
+  // Simple quality score for dedupe; the renderer doesn't have to compute it.
+  let score = 0;
+  if (serial)   score += 5;
+  if (model)    score += 4;
+  if (name)     score += 5;
+  if (firmware) score += 1;
+  if (connect)  score += 1;
+  if (bind)     score += 1;
+  if (signal)   score += 1;
+  return { ip, serial: serial || null, model: model || null, name: name || null,
+           firmware: firmware || null, connect: connect || null, bind: bind || null,
+           signal: signal || null, source: 'ssdp', score };
+}
+
+ipcMain.handle('bambu:ssdp-discover', async () => {
+  const dgram = require('dgram');
+  return new Promise((resolve) => {
+    const sock = dgram.createSocket({ type: 'udp4', reuseAddr: true });
+    const candidates = new Map(); // key (serial-or-ip) → candidate
+    let done = false;
+    const finish = (extra = {}) => {
+      if (done) return; done = true;
+      try { sock.close(); } catch {}
+      resolve({ ok: true, candidates: [...candidates.values()], ...extra });
+    };
+    sock.on('error', (e) => { if (done) return; done = true;
+      try { sock.close(); } catch {}
+      resolve({ ok: false, error: e?.message || String(e), candidates: [] });
+    });
+    sock.on('message', (msg, rinfo) => {
+      const cand = _parseBambuSsdp(msg.toString('utf8'), rinfo.address);
+      if (!cand) return;
+      const key = (cand.serial || cand.ip || '').toLowerCase();
+      if (!key) return;
+      const prev = candidates.get(key);
+      if (!prev || (cand.score || 0) > (prev.score || 0)) candidates.set(key, cand);
+    });
+    sock.bind(0, () => {
+      try { sock.addMembership(BBL_SSDP_ADDR); } catch {}
+      const buf = Buffer.from(BBL_MSEARCH);
+      const send = () => { try { sock.send(buf, 0, buf.length, BBL_SSDP_PORT, BBL_SSDP_ADDR); } catch {} };
+      send();
+      setTimeout(send, 120);
+      setTimeout(finish, BBL_SSDP_LISTEN_MS);
+    });
+  });
+});
+
+// ── Bambu Lab TLS cert sniff on :8883 — per-IP brand confirmation ────────────
+// Used by the manual "Add by IP" path to confirm a typed IP is actually a
+// Bambu printer (the TLS cert subject/issuer contains "bambu" or "bbl").
+// Returns { ok, serial?, raw: { subject, issuer } } — `ok` true only when
+// the cert confirms a Bambu device. CN may be the serial; we normalize it.
+ipcMain.handle('bambu:tls-probe', async (_evt, ip) => {
+  if (!ip || typeof ip !== 'string') return { ok: false, error: 'missing ip' };
+  if (!/^\d{1,3}(\.\d{1,3}){3}$/.test(ip)) return { ok: false, error: 'invalid ip' };
+  const tls = require('tls');
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = (r) => { if (done) return; done = true;
+      try { sock.destroy(); } catch {}
+      resolve(r);
+    };
+    const sock = tls.connect({ host: ip, port: 8883, rejectUnauthorized: false, timeout: 600 }, () => {
+      let cert; try { cert = sock.getPeerCertificate(); } catch {}
+      const subjStr = JSON.stringify(cert?.subject || {});
+      const issStr  = JSON.stringify(cert?.issuer  || {});
+      const hay = (subjStr + issStr).toLowerCase();
+      const isBambu = hay.includes('bambu') || hay.includes('bbl');
+      const cn = cert?.subject?.CN || '';
+      const serial = isBambu ? String(cn).replace(/[^a-z0-9]/gi, '') : '';
+      finish({ ok: isBambu, serial: serial || null, raw: { subject: cert?.subject || null, issuer: cert?.issuer || null } });
+    });
+    sock.on('timeout', () => finish({ ok: false, error: 'timeout' }));
+    sock.on('error',   (e) => finish({ ok: false, error: e?.message || 'tls error' }));
+  });
+});
+
+// ── Elegoo UDP discovery — unicast spray on :52700 ───────────────────────────
+// Elegoo printers (Centauri/SDCP family) answer the discovery JSON-RPC
+// `{"id":0,"method":7000}` over UDP. The Flutter scanner sends one datagram
+// per host across each /24 (NOT a broadcast) and listens for replies on the
+// same ephemeral socket. We accept the prefix list from the renderer.
+// Returns { ok, candidates: [{ip, sn, machineModel, hostName, ...}] }.
+const ELG_UDP_PORT = 52700;
+const ELG_UDP_LISTEN_MS = 2400;
+const ELG_UDP_PAYLOAD = Buffer.from('{"id":0,"method":7000}');
+
+function _parseElegooReply(body, srcIp) {
+  const raw = String(body || '').trim();
+  if (!raw) return null;
+  let obj = null;
+  try { obj = JSON.parse(raw); } catch {
+    // Non-JSON fallback: only keep it if the text clearly looks Elegoo.
+    const low = raw.toLowerCase();
+    if (low.includes('elegoo') || low.includes('centauri')) {
+      return { ip: srcIp, sn: null, machineModel: null, hostName: null, message: raw, source: 'udp' };
+    }
+    return null;
+  }
+  // Flatten one nesting level so callers can read fields uniformly.
+  const flat = { ...obj };
+  for (const k of ['result', 'params', 'data', 'msg']) {
+    if (flat[k] && typeof flat[k] === 'object' && !Array.isArray(flat[k])) Object.assign(flat, flat[k]);
+  }
+  const first = (...keys) => { for (const k of keys) { const v = flat[k]; if (v && String(v).trim()) return String(v).trim(); } return null; };
+  const hostName     = first('host_name', 'hostName', 'hostname');
+  const machineModel = first('machine_model', 'machineModel', 'model');
+  const sn           = first('sn', 'serial', 'serial_number');
+  const protoVer     = first('protocol_version', 'protocolVersion');
+  const tokenStatus  = flat.token_status ?? flat.tokenStatus ?? null;
+  const lanStatus    = flat.lan_status ?? flat.lanStatus ?? null;
+  const otaVersion   = flat?.software_version?.ota_version || flat?.softwareVersion?.otaVersion || null;
+  if (!hostName && !machineModel && !sn) return null;
+  let score = 0;
+  if (hostName)     score += 4;
+  if (machineModel) score += 3;
+  if (sn)           score += 5;
+  if (protoVer)     score += 1;
+  if (otaVersion)   score += 1;
+  if (tokenStatus != null) score += 1;
+  if (lanStatus   != null) score += 1;
+  return { ip: srcIp, sn: sn || null, machineModel, hostName, protocolVersion: protoVer,
+           otaVersion, tokenStatus, lanStatus, source: 'udp', score };
+}
+
+ipcMain.handle('elegoo:udp-discover', async (_evt, prefixes) => {
+  const list = Array.isArray(prefixes) ? prefixes.filter(p => /^\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(p)) : [];
+  if (!list.length) return { ok: true, candidates: [] };
+  const dgram = require('dgram');
+  return new Promise((resolve) => {
+    const sock = dgram.createSocket({ type: 'udp4', reuseAddr: true });
+    const candidates = new Map(); // ip → candidate
+    let done = false, sendsLeft = list.length * 254;
+    const finish = () => { if (done) return; done = true;
+      try { sock.close(); } catch {}
+      resolve({ ok: true, candidates: [...candidates.values()] });
+    };
+    sock.on('error', (e) => { if (done) return; done = true;
+      try { sock.close(); } catch {}
+      resolve({ ok: false, error: e?.message || String(e), candidates: [] });
+    });
+    sock.on('message', (msg, rinfo) => {
+      const cand = _parseElegooReply(msg.toString('utf8'), rinfo.address);
+      if (!cand) return;
+      const prev = candidates.get(cand.ip);
+      if (!prev || (cand.score || 0) > (prev.score || 0)) candidates.set(cand.ip, cand);
+    });
+    sock.bind(0, async () => {
+      // Spray one datagram per host, yielding to the event loop every 16
+      // sends so reply messages get processed mid-spray.
+      let i = 0;
+      for (const prefix of list) {
+        for (let host = 1; host <= 254; host++) {
+          if (done) return;
+          const ip = `${prefix}.${host}`;
+          try { sock.send(ELG_UDP_PAYLOAD, 0, ELG_UDP_PAYLOAD.length, ELG_UDP_PORT, ip); } catch {}
+          sendsLeft--;
+          i++;
+          if ((i & 15) === 0) await new Promise(r => setImmediate(r));
+        }
+      }
+      // Listen window starts after the last send.
+      setTimeout(finish, ELG_UDP_LISTEN_MS);
+    });
+  });
+});
+
+// Targeted single-IP UDP probe used by manual "Add by IP".
+// Two sends 60 ms apart, 1400 ms listen.
+ipcMain.handle('elegoo:udp-probe', async (_evt, ip) => {
+  if (!ip || typeof ip !== 'string') return { ok: false, error: 'missing ip' };
+  if (!/^\d{1,3}(\.\d{1,3}){3}$/.test(ip)) return { ok: false, error: 'invalid ip' };
+  const dgram = require('dgram');
+  return new Promise((resolve) => {
+    const sock = dgram.createSocket({ type: 'udp4', reuseAddr: true });
+    let done = false, hit = null;
+    const finish = () => { if (done) return; done = true;
+      try { sock.close(); } catch {}
+      resolve({ ok: !!hit, candidate: hit });
+    };
+    sock.on('error', () => finish());
+    sock.on('message', (msg, rinfo) => {
+      if (rinfo.address !== ip) return;
+      const cand = _parseElegooReply(msg.toString('utf8'), rinfo.address);
+      if (cand) hit = cand;
+    });
+    sock.bind(0, () => {
+      const send = () => { try { sock.send(ELG_UDP_PAYLOAD, 0, ELG_UDP_PAYLOAD.length, ELG_UDP_PORT, ip); } catch {} };
+      send();
+      setTimeout(send, 60);
+      setTimeout(finish, 1400);
+    });
+  });
+});
+
 // ── Snapmaker HTTP GET — main-process bridge (CORS bypass) ───────────────────
 // Mirrors the FlashForge bridge above. The renderer's Chromium engine treats
 // requests from http://localhost:<port> to http://192.168.x.x:7125 as cross-

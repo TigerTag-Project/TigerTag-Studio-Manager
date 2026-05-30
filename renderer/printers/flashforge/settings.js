@@ -16,7 +16,7 @@ export const schema = {
       { key: "ip", labelKey: "printerLblIP", hintKey: "printerHintFFGIP",
         placeholder: "192.168.1.52", mono: true, required: true }
     ]},
-    { titleKey: "printerSecCredentials", fields: [
+    { fields: [
       { key: "serialNumber", labelKey: "printerLblSerial",   hintKey: "printerHintFFGSerial",
         placeholder: "FF-AD5X-XXXX", mono: true, required: true },
       { key: "password",     labelKey: "printerLblPassword", hintKey: "printerHintFFGPassword",

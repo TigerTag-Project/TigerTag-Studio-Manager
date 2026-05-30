@@ -224,17 +224,28 @@ function creOpenSocket(conn) {
   creNotifyChange(conn);
 
   ws.addEventListener("open", () => {
-    conn.status = "connected"; conn.lastError = null; conn.retry = 0; conn._abandoned = false;
+    // The WebSocket transport is open, but the printer hasn't answered yet.
+    // Stay "connecting" — we only flip to "connected" once a real frame comes
+    // back (see message handler). A socket that opens but never speaks is NOT
+    // a really-established connection.
+    conn.lastError = null;
     // Single init query — the printer pushes updates on its own after this.
     // No polling needed.
     creLogPush(conn, "→", CRE_INIT_QUERY);
     ws.send(CRE_INIT_QUERY);
-    creNotifyChange(conn, /*statusChanged*/ true);
+    creNotifyChange(conn);
   });
 
   ws.addEventListener("message", ev => {
     // Fast-path: literal "ok" is an ACK to our sends — ignore
     if (ev.data === "ok") return;
+
+    // First real frame confirms the connection is truly established —
+    // only now do we leave "connecting" for "connected".
+    if (conn.status !== "connected") {
+      conn.status = "connected"; conn.lastError = null; conn.retry = 0; conn._abandoned = false;
+      creNotifyChange(conn, /*statusChanged*/ true);
+    }
 
     creLogPush(conn, "←", ev.data);
     let obj; try { obj = JSON.parse(ev.data); } catch { return; }

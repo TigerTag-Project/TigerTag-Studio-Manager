@@ -239,15 +239,20 @@ if (typeof window !== "undefined" && window.bambulab) {
     // just update the badge in-place via _bambuRefreshOnlineUI — no full rebuild,
     // no innerHTML wipe that would cause click events to miss their target.
     const wasOnline = conn.status === "connected";
-    conn.status = status;
-    const isOnline  = conn.status === "connected";
     if (status === "connected") {
       conn.lastError = null;
-      // Init sequence: get_version → pushall
+      // MQTT broker connection is up, but the printer hasn't sent a report
+      // yet — stay "connecting" until the first message arrives (see
+      // onMessage). Only a real report counts as really established.
+      if (conn.status !== "connected") conn.status = "connecting";
+      // Init sequence: get_version → pushall (these trigger the first report).
       _publish(conn, { info:    { sequence_id: _nextSeq(), command: "get_version" } });
       _publish(conn, { pushing: { sequence_id: _nextSeq(), command: "pushall" } });
       _scheduleRefresh(conn);
+    } else {
+      conn.status = status;
     }
+    const isOnline  = conn.status === "connected";
     // Full rebuild only when online ↔ offline section membership changes.
     // All other badge-only updates are handled by _bambuRefreshOnlineUI below.
     _bblNotify(conn, /*statusChanged*/ wasOnline !== isOnline);
@@ -258,6 +263,14 @@ if (typeof window !== "undefined" && window.bambulab) {
     const conn = _bambuConns.get(key);
     if (!conn) return;
     _bblLogPush(conn, "←", data);
+    // First real report confirms the connection is truly established — flip
+    // from "connecting" to "connected" and re-partition the grid.
+    if (conn.status !== "connected") {
+      conn.status = "connected";
+      conn.lastError = null;
+      _bblNotify(conn, /*statusChanged*/ true);
+      _bambuRefreshOnlineUI(key);
+    }
     _bblMerge(conn, data);
   });
 

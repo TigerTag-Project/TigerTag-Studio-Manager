@@ -575,6 +575,18 @@
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 12px;
   }
+  /* ── Specificity bump — outrank the global `input[type="text"]` rule
+     in 60-modals.css L1354 (specificity 0,1,1). Without this the eye toggle
+     would silently flip the secret input between two different sizes
+     (36 px / 13 px in `password` mode → 40 px / 14 px in `text` mode) the
+     moment the user clicks the show/hide icon — the box would grow and the
+     text would jump bigger. The global rule does NOT match
+     `input[type="password"]`, hence the asymmetric behaviour.
+     Doubling each selector bumps `.pba-input` to 0,2,0 (> 0,1,1) so the
+     same dimensions apply in BOTH password and text modes.
+     ──────────────────────────────────────────────────────────────────── */
+  .pba-input.pba-input            { height: 36px; padding: 0 12px; font-size: 13px; }
+  .pba-input.pba-input--mono      { font-size: 12px; }
   select.pba-input {
     appearance: none;
     -webkit-appearance: none;
@@ -720,6 +732,14 @@
   .pba-input-eye:hover { background: var(--surface-2); color: var(--text); }
   .pba-input-eye .icon { background: currentColor; }
   .pba-input-eye--on { color: var(--primary); }
+  /* Press feedback dedicated to the eye toggle: re-apply the centering
+     transform so the icon stays vertically centered. The global
+     `button:active { transform: translateY(1px); }` rule in 70-detail-misc.css
+     would otherwise overwrite the absolute-positioned eye's centering
+     transform and make the icon drop ~15 px on click. The compound
+     `translateY(calc(-50% + 1px))` keeps the tactile 1 px nudge while
+     preserving vertical centering. */
+  .pba-input-eye:active { transform: translateY(calc(-50% + 1px)); }
 
   /* ── Eye icon stack — both eye-on + eye-off pre-rendered, swap by
      opacity so toggling the password visibility never reflows the icon's
@@ -793,8 +813,11 @@
     display: flex; flex-direction: column; gap: 10px;
     padding-top: 6px;
   }
+  /* Adjacent sections — keep some breathing room with padding/margin, but
+     NO horizontal divider line: the form blocks (identity, connection,
+     credentials) are all part of the same connection setup and should
+     read as one continuous form, not as separate cards. */
   .pba-section + .pba-section {
-    border-top: 1px solid var(--border);
     padding-top: 14px;
     margin-top: 4px;
   }

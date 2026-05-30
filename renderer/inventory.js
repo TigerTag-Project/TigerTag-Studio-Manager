@@ -49,6 +49,8 @@ import { openSnapAddFlow } from './printers/snapmaker/add-flow.js';
 import { snapFanPct, snapFanStep, renderSnapControlCard } from './printers/snapmaker/widget_control.js';
 import { openFfgAddFlow }  from './printers/flashforge/add-flow.js';
 import { openCreAddFlow }  from './printers/creality/add-flow.js';
+import { openBblAddFlow }  from './printers/bambulab/add-flow.js';
+import { openElgAddFlow }  from './printers/elegoo/add-flow.js';
 import { renderCreCamBanner, startCreCam, stopCreCam, reAttachCreCamConsumers, addCreCamConsumer, removeCreCamConsumer } from './printers/creality/widget_camera.js';
 import {
   snapKey, snapGetConn, snapIsOnline,
@@ -10587,14 +10589,17 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       btn.addEventListener("click", () => {
         const brand = btn.dataset.brand;
         closePrinterBrandPicker();
-        // Snapmaker, FlashForge and Creality have dedicated LAN-discovery
-        // flows (scan + manual IP). Other brands jump straight to the add form.
+        // Every brand now has a dedicated LAN-discovery flow (scan + manual IP).
         if (brand === "snapmaker") {
           openSnapAddFlow();
         } else if (brand === "flashforge") {
           openFfgAddFlow();
         } else if (brand === "creality") {
           openCreAddFlow();
+        } else if (brand === "bambulab") {
+          openBblAddFlow();
+        } else if (brand === "elegoo") {
+          openElgAddFlow();
         } else {
           openPrinterAddForm(brand);
         }
@@ -11596,23 +11601,39 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const brand = row.brand || "—";
     const material = row.material || "—";
     const colorName = row.colorName || "";
+    // Two-column layout when a material image (TigerTag+ `url_img`) exists:
+    // image fills the full height on the LEFT, all existing tooltip content
+    // (head / weight / locked) stacks in a column on the RIGHT. When there's
+    // no image, the image cell is simply absent — `.rht-row` collapses to a
+    // single column so the rest of the layout is unchanged.
+    // `onerror="this.remove()"` quietly drops the image cell if the URL fails
+    // (cached URL no longer reachable, offline, etc.) — the tooltip then
+    // reflows into the single-column layout without a broken-image icon.
+    const matImgHtml = row.imgUrl
+      ? `<img class="rht-mat-img" src="${esc(row.imgUrl)}" alt="" onerror="this.remove()"/>`
+      : "";
     return `
-      <div class="rht-head">
-        <div class="rht-puck"><div class="rht-puck-fill" style="height:${pct}%;background:${bg}"></div></div>
-        <div class="rht-titles">
-          <div class="rht-brand">${esc(brand)}</div>
-          <div class="rht-mat">${esc(material)}${colorName ? ` · ${esc(colorName)}` : ""}</div>
+      <div class="rht-row">
+        ${matImgHtml}
+        <div class="rht-col">
+          <div class="rht-head">
+            <div class="rht-puck"><div class="rht-puck-fill" style="height:${pct}%;background:${bg}"></div></div>
+            <div class="rht-titles">
+              <div class="rht-brand">${esc(brand)}</div>
+              <div class="rht-mat">${esc(material)}${colorName ? ` · ${esc(colorName)}` : ""}</div>
+            </div>
+            ${coord ? `<div class="rht-coord">${esc(coord)}</div>` : ""}
+          </div>
+          <div class="rht-weight">
+            <div class="rht-weight-line">
+              <span class="rht-weight-cur">${cur}</span><span class="rht-weight-sep">/</span><span class="rht-weight-cap">${cap} g</span>
+              <span class="rht-weight-pct">${pct}%</span>
+            </div>
+            <div class="rht-weight-bar"><div class="rht-weight-bar-fill" style="width:${pct}%"></div></div>
+          </div>
+          ${locked ? `<div class="rht-locked"><span class="icon icon-lock icon-13"></span>${esc(t("rackLockedTip"))}</div>` : ""}
         </div>
-        ${coord ? `<div class="rht-coord">${esc(coord)}</div>` : ""}
       </div>
-      <div class="rht-weight">
-        <div class="rht-weight-line">
-          <span class="rht-weight-cur">${cur}</span><span class="rht-weight-sep">/</span><span class="rht-weight-cap">${cap} g</span>
-          <span class="rht-weight-pct">${pct}%</span>
-        </div>
-        <div class="rht-weight-bar"><div class="rht-weight-bar-fill" style="width:${pct}%"></div></div>
-      </div>
-      ${locked ? `<div class="rht-locked"><span class="icon icon-lock icon-13"></span>${esc(t("rackLockedTip"))}</div>` : ""}
     `;
   }
   function positionRackTooltip(tip, slot) {
@@ -13818,6 +13839,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           .collection('inventory').doc(uid);
         try {
           const existing = await docRef.get();
+          // Track whether this rescan is on an EXISTING doc with the SAME
+          // chip timestamp — in that case the DB is the source of truth for
+          // weight (the user updates it via the slider; nothing ever writes
+          // back to the chip), so we must NOT overwrite it with the chip's
+          // value on rescan. Fresh writes (new chip / chip rewritten) seed
+          // the weight from the chip as before.
+          let preserveDbWeight = false;
           if (existing.exists) {
             const stored = existing.data();
             if (stored.timestamp !== tagData.timestamp) {
@@ -13826,11 +13854,33 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
               await docRef.delete();
             } else {
               console.log('[RFID] Updating chip:', uid);
+              preserveDbWeight = true;
+              // Auto-sync: push the DB weight onto the chip when they diverge.
+              // The slider only writes to Firestore — nothing else ever updates
+              // the chip's "Measure Available" field — so on rescan the chip
+              // value is usually stale. We rebuild the 80-byte payload from the
+              // existing Firestore doc (which has the up-to-date weight) and
+              // write surgically: only the single page containing the field
+              // (page 0x17, +76, u24 BE) is actually written to the tag.
+              // Fire-and-forget: the chip may be lifted before the write
+              // completes — that's expected, the next scan will retry.
+              const dbWeight   = Number(stored.weight_available ?? 0);
+              const chipWeight = Number(tagData.measure_available_gr || tagData.measure_gr || 0);
+              if (dbWeight !== chipWeight && tagData._readerName && window.electronAPI?.writeRfidTag) {
+                window.electronAPI.writeRfidTag({
+                  readerName: tagData._readerName,
+                  cloudDoc:   stored,
+                  surgical:   true,
+                }).then(res => {
+                  if (res?.ok) console.log(`[RFID] Weight synced to chip ${uid}: ${chipWeight}g → ${dbWeight}g (${res.pagesWritten} page(s))`);
+                  else         console.warn(`[RFID] Weight sync to chip ${uid} failed:`, res?.error);
+                }).catch(e => console.warn(`[RFID] Weight sync threw for ${uid}:`, e?.message || e));
+              }
             }
           } else {
             console.log('[RFID] New chip — creating:', uid);
           }
-          await _writeChipDoc(docRef, tagData, twinUid);
+          await _writeChipDoc(docRef, tagData, twinUid, { preserveDbWeight });
           processedUids.push(uid);
         } catch (e) {
           console.error('[RFID] upsert failed for', uid, ':', e);
@@ -13853,7 +13903,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // ── Build and write one chip document to Firestore ───────────────────────
     // tagData  = toRawDict() output  (+ _api for TigerTag+, + _readerName)
     // twinUid  = partner chip UID, null if solo scan
-    async function _writeChipDoc(docRef, tagData, twinUid) {
+    async function _writeChipDoc(docRef, tagData, twinUid, { preserveDbWeight = false } = {}) {
       // Write strictly what the chip reported via SDK toRawDict() — nothing invented.
       // Field name mapping: SDK snake_case → Firestore schema (data1-7 convention).
       const doc = {
@@ -13885,7 +13935,6 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         data7:            tagData.bed_max      ?? 0,
         measure:          tagData.measure      ?? 0,
         measure_gr:       tagData.measure_gr   ?? 0,
-        weight_available: tagData.measure_available_gr || tagData.measure_gr || 0,
         td_raw:           tagData.td_raw       ?? 0,
         timestamp:        tagData.timestamp    ?? 0,
         // twin_tag_uid is a Studio relationship, not a chip field — preserve as-is
@@ -13893,6 +13942,16 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         last_update:      Date.now(),
         updatedAt:        firebase.firestore.FieldValue.serverTimestamp(),
       };
+
+      // Weight — the chip's `measure_available_gr` is NEVER written back when
+      // the user adjusts the slider, so on a regular rescan the chip value is
+      // almost always stale compared to the DB. Only seed the DB weight from
+      // the chip on a fresh write (new chip, or after a clean-slate delete on
+      // chip rewrite). Long-term direction: push the DB weight back to the
+      // chip on demand so they stay in sync — until then, DB wins on rescan.
+      if (!preserveDbWeight) {
+        doc.weight_available = tagData.measure_available_gr || tagData.measure_gr || 0;
+      }
 
       // message — chip field, but omit when empty (saves space, easier to spot real data)
       if (tagData.message) doc.message = tagData.message;
@@ -13921,7 +13980,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         if (api.filament?.filled)              doc.info3              = true;
       }
 
-      await docRef.set(doc);
+      // Merge — only overwrite the chip-sourced + API fields we just rebuilt.
+      // Without `{ merge: true }` this would replace the entire document and
+      // silently wipe every user-edited field (container_id, container_weight,
+      // capacity, custom_message, etc.) that is NOT on the chip. The "chip
+      // rewritten" branch above already handles the clean-slate case via
+      // an explicit `delete()` followed by this set — merge is a no-op there.
+      await docRef.set(doc, { merge: true });
     }
 
     // Auto-update notification

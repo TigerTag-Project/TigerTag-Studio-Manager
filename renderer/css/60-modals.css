@@ -1133,6 +1133,11 @@
     border-radius: 6px; transition: color .15s;
   }
   #addAccountModalOverlay .lm-eye:hover { color: var(--text); }
+  /* Press feedback: re-apply the centering transform so the icon stays
+     vertically centered on click. Same fix as `.pba-input-eye:active`
+     in 40-printers.css — the global `button:active { transform: translateY(1px); }`
+     would otherwise wipe the centering and make the eye drop ~14 px. */
+  #addAccountModalOverlay .lm-eye:active { transform: translateY(calc(-50% + 1px)); }
   /* remember me + forgot password */
   #addAccountModalOverlay .lm-row {
     display: flex; align-items: center; justify-content: space-between;
@@ -1744,6 +1749,11 @@
   .adp-input-clear:hover { background: rgba(255,255,255,.20); }
   .adp-input-clear .icon { background: #fff; }
   .adp-input-clear[hidden] { display: none; }
+  /* Press feedback: re-apply the centering transform so the button stays
+     vertically centered on click — the global `button:active` would otherwise
+     overwrite this absolute-positioned button's centering transform.
+     Matches the pattern of `.inv-search-clear:active` / `.adp-brand-search-clear:active`. */
+  .adp-input-clear:active { transform: translateY(-50%) scale(.92); }
 
   /* Byte counter — visually hidden per user request. The 28-byte
      truncation logic in the input handler still runs, so paste /

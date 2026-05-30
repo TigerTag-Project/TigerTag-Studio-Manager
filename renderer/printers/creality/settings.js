@@ -22,7 +22,7 @@ export const schema = {
     // Both are OPTIONAL: most Creality printers (incl. the Ender-3 V4) expose
     // the WebSocket without auth, and the live driver connects fine with empty
     // credentials. They're only needed on firmware that enforces Basic auth.
-    { titleKey: "printerSecCredentials", fields: [
+    { fields: [
       { key: "account",  labelText: "Root",              hintKey: "printerHintCrealityAccount",
         placeholder: "Root",     mono: true },
       { key: "password", labelKey: "printerLblPassword", hintKey: "printerHintCrealityPassword",
