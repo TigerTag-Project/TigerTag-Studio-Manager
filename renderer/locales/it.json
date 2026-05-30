@@ -813,6 +813,8 @@
   "bblRtspCopy": "Copia URL",
   "bblRtspOpen": "Apri",
   "addDeviceBtn": "Aggiungi dispositivo",
+  "addRackBtn": "Aggiungi scaffale",
+  "rackNoSpaceHint": "Nessuno spazio libero — aggiungi uno scaffale per riporre le bobine restanti.",
   "printerConnect": "Connetti",
   "printerDisconnect": "Disconnetti",
   "printersSectionOnline": "Connesse",
@@ -873,5 +875,7 @@
   "encSlotReady": "Pronta",
   "encSlotWriting": "Scrittura…",
   "encSlotOk": "Fatto",
-  "encSlotFail": "Errore"
+  "encSlotFail": "Errore",
+  "camWallEmptyTitle": "Nessuna telecamera online",
+  "camWallEmptySub": "Aggiungi una stampante con telecamera per vedere i flussi in diretta qui."
 }

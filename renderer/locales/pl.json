@@ -812,6 +812,8 @@
   "bblRtspCopy": "Kopiuj URL",
   "bblRtspOpen": "Otwórz",
   "addDeviceBtn": "Dodaj urządzenie",
+  "addRackBtn": "Dodaj regał",
+  "rackNoSpaceHint": "Brak miejsca — dodaj regał, aby przechować pozostałe szpule.",
   "printerConnect": "Połącz",
   "printerDisconnect": "Rozłącz",
   "printersSectionOnline": "Połączone",
@@ -872,5 +874,7 @@
   "encSlotReady": "Gotowa",
   "encSlotWriting": "Zapis…",
   "encSlotOk": "Gotowe",
-  "encSlotFail": "Błąd"
+  "encSlotFail": "Błąd",
+  "camWallEmptyTitle": "Brak kamer online",
+  "camWallEmptySub": "Dodaj drukarkę z kamerą, aby zobaczyć tutaj transmisje na żywo."
 }

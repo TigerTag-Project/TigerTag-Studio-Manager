@@ -813,6 +813,8 @@
   "bblRtspCopy": "Copiar URL",
   "bblRtspOpen": "Abrir",
   "addDeviceBtn": "Añadir dispositivo",
+  "addRackBtn": "Añadir estante",
+  "rackNoSpaceHint": "Sin espacio libre — añade un estante para guardar las bobinas restantes.",
   "printerConnect": "Conectar",
   "printerDisconnect": "Desconectar",
   "printersSectionOnline": "Conectadas",
@@ -873,5 +875,7 @@
   "encSlotReady": "Lista",
   "encSlotWriting": "Grabando…",
   "encSlotOk": "Hecho",
-  "encSlotFail": "Fallo"
+  "encSlotFail": "Fallo",
+  "camWallEmptyTitle": "No hay cámaras en línea",
+  "camWallEmptySub": "Añade una impresora con cámara para ver transmisiones en vivo aquí."
 }

@@ -2295,8 +2295,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   });
 
   $("btnAddProduct")?.addEventListener("click", () => {
-    if (_isPrinterMode(state.viewMode)) openPrinterBrandPicker();
-    else openAddProductPanel();
+    // The header Add button is multi-purpose, dispatching by current view:
+    //   - Printer modes (grid / table / cam) → brand picker → add printer
+    //   - Storage (rack) mode                 → new rack modal
+    //   - Inventory (table / grid)            → add product side panel
+    if (_isPrinterMode(state.viewMode))      openPrinterBrandPicker();
+    else if (state.viewMode === "rack")       openRackEditModal(null);
+    else                                      openAddProductPanel();
   });
   $("addProductClose")?.addEventListener("click", _adpCloseAllSheetsAndPanel);
   // TD1S button in ADP header: open "Set Color & TD Value" modal pre-filled
@@ -4926,10 +4931,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (_isPrinterMode(mode) && (!state.unsubPrinters || !state.unsubPrinters.length) && state.activeAccountId) {
       subscribePrinters(state.activeAccountId);
     }
-    // Swap the header Add button label between "Add Product" ↔ "Add Device"
+    // Swap the header Add button label: "Add Product" (inventory) ↔
+    // "Add Device" (printer modes) ↔ "Add Rack" (storage mode).
     const _addLbl = $("btnAddProduct")?.querySelector("[data-i18n]");
     if (_addLbl) {
-      const _key = _isPrinterMode(mode) ? "addDeviceBtn" : "addProductBtn";
+      const _key = _isPrinterMode(mode) ? "addDeviceBtn"
+                 : mode === "rack"        ? "addRackBtn"
+                 :                          "addProductBtn";
       _addLbl.dataset.i18n = _key;
       _addLbl.textContent  = t(_key);
     }
@@ -4942,7 +4950,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   $("btnViewCam")?.addEventListener("click",          () => setViewMode("printer-cam"));
   // Restore active button on boot
   if (state.viewMode === "grid") { $("btnViewGrid").classList.add("active"); $("btnViewTable").classList.remove("active"); }
-  else if (state.viewMode === "rack") { $("btnViewRack")?.classList.add("active"); $("btnViewTable").classList.remove("active"); }
+  else if (state.viewMode === "rack") {
+    $("btnViewRack")?.classList.add("active"); $("btnViewTable").classList.remove("active");
+    // Initialise Add button label for storage mode on first load
+    const _al = $("btnAddProduct")?.querySelector("[data-i18n]");
+    if (_al) { _al.dataset.i18n = "addRackBtn"; _al.textContent = t("addRackBtn"); }
+  }
   else if (state.viewMode === "printer") {
     $("btnViewPrinter")?.classList.add("active"); $("btnViewTable").classList.remove("active");
     // Initialise Add button label for printer mode on first load
@@ -10941,17 +10954,58 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     await batch.commit();
   }
 
+  // One-shot guard so the orphan sweep doesn't fire concurrently with itself
+  // across rapid re-renders of the storage view.
+  let _orphanCleanupInFlight = false;
+
+  // Batch-clear `rack` / `rack_id` / `level` / `position` on a list of spools
+  // whose rackId points to a rack that has been deleted. Same field-clear
+  // semantics as `deleteRack` above, applied retroactively.
+  async function _cleanupOrphanRackRefs(orphans) {
+    if (!orphans?.length) return;
+    const user = fbAuth().currentUser;
+    if (!user) return;
+    const invRef = fbDb().collection("users").doc(user.uid).collection("inventory");
+    const batch = fbDb().batch();
+    const FV = firebase.firestore.FieldValue;
+    orphans.forEach(row => {
+      batch.update(invRef.doc(row.spoolId), {
+        rack:     null,
+        rack_id:  FV.delete(),
+        level:    FV.delete(),
+        position: FV.delete(),
+      });
+    });
+    try {
+      await batch.commit();
+      console.log(`[rack-cleanup] cleared ${orphans.length} orphan rack reference(s)`);
+    } catch (e) {
+      console.warn("[rack-cleanup] batch failed:", e?.message || e);
+    }
+  }
+
   async function deleteRack(rackId) {
     const user = fbAuth().currentUser;
     if (!user) return;
     const invRef = fbDb().collection("users").doc(user.uid).collection("inventory");
     const batch = fbDb().batch();
+    const FV = firebase.firestore.FieldValue;
     // Free all spools currently assigned to this rack — `state.rows` is
     // schema-agnostic so we catch both legacy (flat) and migrated (nested)
-    // docs in one pass.
+    // docs in one pass. Write BOTH shapes:
+    //   - rack: null               (modern nested shape)
+    //   - rack_id/level/position: FV.delete()   (legacy flat fields)
+    // Without the legacy delete, `normalizeRow` still resolves rackId via the
+    // flat fallback (`data.rack_id`) and the spool keeps pointing at the
+    // now-deleted rack — orphan that inflates the storage stats.
     state.rows.forEach(row => {
       if (row.rackId === rackId && !row.deleted) {
-        batch.update(invRef.doc(row.spoolId), { rack: null });
+        batch.update(invRef.doc(row.spoolId), {
+          rack:     null,
+          rack_id:  FV.delete(),
+          level:    FV.delete(),
+          position: FV.delete(),
+        });
       }
     });
     batch.delete(fbDb().collection("users").doc(user.uid)
@@ -11386,11 +11440,16 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // Filter unranked spools (rack_id is null/missing, not deleted).
   // Empty spools ARE kept visible (user can still see / manage them)
   // — they are only excluded from COUNTS via isEmptyRow().
+  // Spools whose rackId points to a rack that no longer exists are surfaced
+  // here too — they're effectively unstored, even if their `rackId` still
+  // has a stale value (the background cleanup will null it shortly).
   function getUnrackedSpools() {
     const search = ($("rpUnrackedSearch")?.value || "").trim().toLowerCase();
+    const liveRackIds = new Set(state.racks.map(rk => rk.id));
     const rows = state.rows.filter(r => {
       if (r.deleted) return false;
-      if (r.rackId) return false;   // already placed
+      // Already placed in a rack that still exists → not unranked.
+      if (r.rackId && liveRackIds.has(r.rackId)) return false;
       if (!search) return true;
       return (
         (r.uid || "").toLowerCase().includes(search) ||
@@ -11719,6 +11778,24 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // the panel but don't inflate the headline number.
     const unrankedCount = getUnrackedSpools().filter(r => !isEmptyRow(r)).length;
     const racksCount   = state.racks.length;
+    // A spool only counts as occupying a slot when:
+    //   1. its `rackId` matches an existing rack (filters out orphans whose
+    //      rack has been deleted);
+    //   2. its `rackLevel` / `rackPos` are integers inside the rack's grid
+    //      (filters out spools with stale / out-of-bounds coords).
+    // Without these guards the count happily exceeds total capacity (e.g.
+    // 130 filled / 117 total when a rack with 53 spools is deleted) and
+    // FREE collapses to 0 via Math.max(0, total - filled).
+    const racksById = new Map(state.racks.map(r => [r.id, r]));
+    const _isInValidSlot = x => {
+      if (x.deleted || !x.rackId) return false;
+      const rk = racksById.get(x.rackId);
+      if (!rk) return false;
+      if (!Number.isInteger(x.rackLevel) || !Number.isInteger(x.rackPos)) return false;
+      if (x.rackLevel < 0 || x.rackLevel >= (rk.level    || 0)) return false;
+      if (x.rackPos   < 0 || x.rackPos   >= (rk.position || 0)) return false;
+      return true;
+    };
     let totalSlotsAll = 0, filledSlotsAll = 0, lockedSlotsAll = 0;
     state.racks.forEach(r => {
       const cap = (r.level || 0) * (r.position || 0);
@@ -11727,7 +11804,25 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     });
     // Count one slot per physical spool — a twin pair (2 linked tags) occupies
     // a single slot, so collapse it before counting.
-    filledSlotsAll = deduplicateTwins(state.rows.filter(x => !x.deleted && x.rackId)).length;
+    filledSlotsAll = deduplicateTwins(state.rows.filter(_isInValidSlot)).length;
+
+    // One-shot cleanup of orphan rack references: spools whose rackId points
+    // to a rack that no longer exists (typically left behind by an old
+    // version of `deleteRack` that didn't FV.delete() the legacy flat
+    // `rack_id` / `level` / `position` fields). Without this they'd stay
+    // ghost-assigned forever — counted nowhere visible but bloating queries.
+    // Guarded so it runs at most once per renderRackView call AND not at all
+    // while inventory or racks are still loading (to avoid clearing valid
+    // rackIds before the rack doc has arrived).
+    if (!state.invLoading && state.racks.length > 0 && !_orphanCleanupInFlight) {
+      const orphans = state.rows.filter(x =>
+        !x.deleted && x.rackId && !racksById.has(x.rackId)
+      );
+      if (orphans.length > 0) {
+        _orphanCleanupInFlight = true;
+        _cleanupOrphanRackRefs(orphans).finally(() => { _orphanCleanupInFlight = false; });
+      }
+    }
     const emptySlotsAll = Math.max(0, totalSlotsAll - filledSlotsAll);
     const fillPctAll = totalSlotsAll > 0 ? Math.round((filledSlotsAll / totalSlotsAll) * 100) : 0;
     // Depleted spools: active inventory items where the user has used up
@@ -11745,13 +11840,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // we just don't honour it when the panel would open empty.
     const userWantsPanelOpen = localStorage.getItem("tigertag.unrackedPanelOpen") !== "false";
     const panelOpenInit = userWantsPanelOpen && unrankedCount > 0;
+    // Note: the in-stats "+ New Rack" tile was removed — the header
+    // "+ Add Rack" button (same one that becomes "Add Product" / "Add
+    // Device" in other views) now owns that action. The empty-state CTA
+    // (`btnNewRackEmpty`) is still rendered when the user has zero racks.
     let html = `
       <div class="rv-header">
         <div class="rv-stats" role="group" aria-label="Storage overview">
-          ${readOnly ? "" : `<button id="btnNewRackTile" class="rv-stat rv-stat-add" title="${esc(t("rackNew"))}" aria-label="${esc(t("rackNew"))}">
-            <div class="rv-stat-num rv-stat-num--plus">+</div>
-            <div class="rv-stat-lbl">${esc(t("rackNew"))}</div>
-          </button>`}
           ${racksCount ? `
           <div class="rv-stat" data-stat="racks" title="${esc(racksLabel)}">
             <div class="rv-stat-num">${racksCount}</div>
@@ -11846,7 +11941,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       }
       const totalSlots = r.level * r.position;
       // Twin pairs share one slot — collapse so the count can't exceed capacity.
-      const filled     = deduplicateTwins(state.rows.filter(x => !x.deleted && x.rackId === r.id)).length;
+      // Reuses `_isInValidSlot` from the stats block above so per-rack and
+      // global numbers stay consistent (excludes orphans / out-of-bounds coords).
+      const filled     = deduplicateTwins(
+        state.rows.filter(x => x.rackId === r.id && _isInValidSlot(x))
+      ).length;
       const lockedCnt  = Array.isArray(r.lockedSlots) ? r.lockedSlots.length : 0;
       const allLocked  = lockedCnt > 0 && lockedCnt === totalSlots;
       return `<div class="rp-rack" data-rack-id="${esc(r.id)}">
@@ -11880,14 +11979,30 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // The unranked panel is now a slide-in (fixed positioning), opened on
     // demand via the "not stored" tile in the stats bar. The DOM stays inside
     // #invRackView so the existing drag/drop selectors keep working.
+    // Contextual "+ Add Rack" CTA in the side panel — shown when the user
+    // has more unranked spools than free slots (= not enough storage left
+    // to absorb the backlog). Hidden when there's still room to drag spools
+    // into existing racks.
+    const _activeUnrankedCount = unranked.filter(r => !isEmptyRow(r)).length;
+    const showSideAddRackCta   = !readOnly && _activeUnrankedCount > 0
+                                 && _activeUnrankedCount > emptySlotsAll;
+
     html += `
       <div class="rp-racks-col">${racksHTML || emptyHTML}</div>
       <aside class="rp-side${panelOpenInit ? " is-open" : ""}" id="rpUnranked">
         <div class="rp-side-head">
-          <span class="rp-side-count">${unranked.filter(r => !isEmptyRow(r)).length}</span>
+          <span class="rp-side-count">${_activeUnrankedCount}</span>
           <span class="rp-side-title">${t("rackUnrackedTitle")}</span>
           <button class="rp-side-close" id="rpUnrackedClose" title="Hide panel" aria-label="Close">✕</button>
         </div>
+        ${showSideAddRackCta ? `
+        <div class="rp-side-add-rack" id="rpSideAddRackBlock">
+          <button class="rp-side-add-rack-btn" id="rpSideAddRackBtn" type="button">
+            <span class="icon icon-plus icon-13"></span>
+            <span>${esc(t("addRackBtn"))}</span>
+          </button>
+          <div class="rp-side-add-rack-hint">${esc(t("rackNoSpaceHint"))}</div>
+        </div>` : ""}
         ${readOnly ? "" : `
         <!-- Auto Storage / Auto Unstorage toggles. They live together in
              a single "Automation" card so the user sees the two opposing
@@ -12150,9 +12265,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       });
     });
 
-    // ── "+ Rack" buttons (after rack list + empty-state CTA when no rack yet)
-    $("btnNewRackTile")?.addEventListener("click", () => openRackEditModal(null));
+    // Empty-state CTA when the user has zero racks. The in-stats "+ New Rack"
+    // tile is gone — the header "+ Add Rack" button is the primary entry point now.
     $("btnNewRackEmpty")?.addEventListener("click", () => openRackEditModal(null));
+    // Contextual CTA inside the "not stored" side panel — appears when there
+    // are more unstored spools than free slots.
+    $("rpSideAddRackBtn")?.addEventListener("click", () => openRackEditModal(null));
 
     // ── Drag-and-drop to reorder racks (grip handle on the rack head)
     list.querySelectorAll(".rp-rack-grip").forEach(grip => {

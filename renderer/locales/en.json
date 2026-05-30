@@ -813,6 +813,8 @@
   "bblRtspCopy": "Copy URL",
   "bblRtspOpen": "Open",
   "addDeviceBtn": "Add Device",
+  "addRackBtn": "Add Rack",
+  "rackNoSpaceHint": "No free space — add a rack to store the remaining spools.",
   "printerConnect": "Connect",
   "printerDisconnect": "Disconnect",
   "printersSectionOnline": "Connected",
@@ -873,5 +875,7 @@
   "encSlotReady": "Ready",
   "encSlotWriting": "Writing…",
   "encSlotOk": "Done",
-  "encSlotFail": "Failed"
+  "encSlotFail": "Failed",
+  "camWallEmptyTitle": "No cameras online",
+  "camWallEmptySub": "Add a printer with a camera to see live feeds here."
 }

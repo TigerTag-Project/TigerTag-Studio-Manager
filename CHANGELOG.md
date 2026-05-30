@@ -5,6 +5,24 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.8.11 — 2026-05-31
+
+### Added
+
+- **Contextual "+ Add Rack" inside the "Spools not stored" side panel.** When you have more unstored spools than free slots — i.e. you actually need more rack capacity — an orange-accented CTA appears right inside the side panel with a short explanation. Hidden when there's still room to drag spools into existing racks, so it doesn't pollute the panel when it isn't needed.
+
+### Changed
+
+- **"+ Add Rack" moved into the main header.** The small "+ New Rack" tile that lived inside the rack stats bar is gone — the standard header "Add" button (which says "Add Product" in inventory views and "Add Device" in printer views) now says **"Add Rack"** when you're in Storage, and clicking it opens the new-rack modal. One consistent place to add things, whichever view you're in. The empty-state CTA when you have zero racks is unchanged.
+
+### Fixed
+
+- **Storage stats no longer count ghost spools.** Both the global header (filled / total slots, free) and the per-rack header (filled/total) used to include any spool that still had a rackId set — even if the rack had been deleted or the spool's level/position were out of bounds. That allowed the filled count to exceed total capacity (e.g. "130/117 slots", "0 free") and per-rack numbers to be larger than what was actually visible in the slots. Stats now require the rackId to match a current rack and the level/position to fall inside its grid, so the numbers always match what you see.
+- **Deleting a rack now fully unassigns the spools that were inside it.** The old code only nulled the new-style `rack` field, leaving the legacy flat `rack_id` / `level` / `position` fields intact — so the spool stayed ghost-assigned to a rack that no longer existed and silently inflated the storage stats. Both shapes are now cleared on rack deletion. Pre-existing orphans from older deletions are also auto-cleaned the first time you open the Storage view, and they show up in **"Spools not stored"** in the meantime so you can see and re-assign them immediately.
+- **Cam view empty state was showing raw key names** ("camWallEmptyTitle" / "camWallEmptySub") instead of localized text after switching back and forth between Cam and Printer Grid. The two missing translations were added across all 9 locales — the empty state now reads "No cameras online — Add a printer with a camera to see live feeds here." in English (and the equivalent in every other language).
+
+---
+
 ## v1.8.10 — 2026-05-30
 
 ### Added

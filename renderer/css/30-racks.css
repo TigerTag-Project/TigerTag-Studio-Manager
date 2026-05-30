@@ -892,6 +892,42 @@
     flex-shrink: 0;     /* badge sits before the title — push close button to the right via the title's flex */
   }
   .rp-side-title { flex: 1; min-width: 0; }
+  /* Contextual "Add Rack" CTA inside the "Spools not stored" side panel.
+     Shown when there are more unstored spools than free slots — i.e. the
+     user is out of capacity. Orange accent to match the "not stored" pill
+     in the stats bar so the two read as related/urgent affordances. */
+  .rp-side-add-rack {
+    display: flex; flex-direction: column; gap: 6px;
+    padding: 10px 12px;
+    background: rgba(255, 122, 24, .08);
+    border: 1px solid rgba(255, 122, 24, .35);
+    border-radius: 8px;
+    flex-shrink: 0;
+  }
+  .rp-side-add-rack-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    gap: 6px;
+    height: 32px;
+    padding: 0 14px;
+    border: none;
+    border-radius: 8px;
+    background: var(--primary);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: filter .15s, transform .1s;
+    align-self: flex-start;
+  }
+  .rp-side-add-rack-btn:hover  { background: var(--primary); filter: brightness(1.07); }
+  .rp-side-add-rack-btn:active { transform: translateY(1px); }
+  .rp-side-add-rack-btn .icon  { background: #fff; }
+  .rp-side-add-rack-hint {
+    font-size: 11.5px;
+    color: var(--muted);
+    line-height: 1.35;
+  }
+
   /* Auto storage / Auto unstorage toggles inside the "Spools not stored"
      panel. The two opposing policies live together in a single bordered
      card with a thin divider between them, so the user reads them as a

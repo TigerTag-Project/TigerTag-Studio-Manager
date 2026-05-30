@@ -813,6 +813,8 @@
   "bblRtspCopy": "复制 URL",
   "bblRtspOpen": "打开",
   "addDeviceBtn": "添加dispositivo",
+  "addRackBtn": "添加货架",
+  "rackNoSpaceHint": "没有空位 — 添加一个货架来存放剩余的耗材。",
   "printerConnect": "连接",
   "printerDisconnect": "断开连接",
   "printersSectionOnline": "已连接",
@@ -873,5 +875,7 @@
   "encSlotReady": "就绪",
   "encSlotWriting": "写入中…",
   "encSlotOk": "完成",
-  "encSlotFail": "失败"
+  "encSlotFail": "失败",
+  "camWallEmptyTitle": "没有在线摄像头",
+  "camWallEmptySub": "添加带摄像头的打印机即可在此处查看实时画面。"
 }
