@@ -5,6 +5,14 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.8.12 — 2026-05-31
+
+### Fixed
+
+- **Storage view no longer flashes on every search keystroke or rack hover.** Typing in the search bar with the Storage view open used to flash the whole grid at every letter, and sweeping the mouse between racks that both contained search matches produced a visible flash too — most noticeably on large inventories like a friend's read-only view. Both issues are now gone. The root causes were CSS animations on properties that force a per-frame GPU repaint (the orange "match" ring pulse), a hover-triggered reflow that decaled every match-slot by 14 px (the column-number coords row used to expand from 0 to 14 px on rack hover), and a full DOM rebuild of all rack slots on every keystroke. Side effect: each rack reserves a small space above the first shelf for the column-number coords in permanence (they still only become visible when you hover the rack), so racks are ever-so-slightly taller than before.
+
+---
+
 ## v1.8.11 — 2026-05-31
 
 ### Added

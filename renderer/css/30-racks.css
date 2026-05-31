@@ -580,16 +580,19 @@
     text-transform: uppercase;
     transition: opacity .18s;
   }
-  /* Column number header — sits above the first shelf, no border, no padding */
+  /* Column number header — sits above the first shelf, no border, no padding.
+     Height is reserved permanently (was height: 0 / 14px on hover): the height
+     transition forced a reflow of every slot on rack-hover, which re-rasterized
+     the compositor layers of `.rp-slot--match` slots (transform: scale animation)
+     and produced a visible flash when sweeping between racks that both contained
+     matches. Reveal is now opacity-only on `.rp-col-label` (compositor-only). */
   .rp-row--header {
     padding-bottom: 4px;
     border-bottom: none;
-    /* Collapse the row when coordinates are hidden so the rack is more compact */
-    height: 0;
+    height: 14px;
     overflow: hidden;
     padding-top: 0;
     margin-bottom: 0;
-    transition: height .18s, padding-top .18s;
   }
   .rp-row--header .rp-col-label {
     font-size: 10px; font-weight: 700; color: var(--muted);
@@ -603,11 +606,6 @@
   .rp-rack:hover .rp-row-label,
   body.is-dragging-spool .rp-row-label {
     opacity: .65;
-  }
-  .rp-rack:hover .rp-row--header,
-  body.is-dragging-spool .rp-row--header {
-    height: 14px;
-    padding-top: 0;
   }
   .rp-rack:hover .rp-row--header .rp-col-label,
   body.is-dragging-spool .rp-row--header .rp-col-label {
@@ -746,10 +744,13 @@
   /* Search dim — applied to filled rack slots that don't match the query.
      The slot stays in place but loses color saturation and most opacity, so
      the matching slots visually pop. */
+  /* No `transition: filter` — animating filter:grayscale per-frame on 100-300
+     slots when the search churns the dim set on every keystroke flashed the
+     entire grid. opacity is compositor-friendly so its transition stays. */
   .rp-slot--filled.rp-dim {
     opacity: .18;
     filter: grayscale(.85);
-    transition: opacity .15s, filter .15s;
+    transition: opacity .15s;
   }
   .rp-slot--filled.rp-dim:hover { opacity: .4; }   /* hint that it's still there */
 
@@ -757,24 +758,37 @@
      out via a border+glow on the box itself, NOT via the inner color fill.
      This is critical for depleted spools (.rp-fill height ~ 0): the slot's
      box still glows in orange so the user sees it when they search. */
+  /* Static shadow uses the midpoint of the old keyframe so visibility is
+     preserved. Pulse is driven by `transform: scale` (compositor-only) instead
+     of animating box-shadow — animating shadow forced a GPU repaint on every
+     frame, saturating Chromium's tile memory (`tile_manager.cc:997 WARNING:
+     tile memory limits exceeded`) when ~15+ matches were on screen. */
   .rp-slot--filled.rp-slot--match {
     border-color: var(--primary) !important;
     box-shadow:
-      0 0 0 2px rgba(249,115,22,.55),
-      0 0 8px rgba(249,115,22,.55),
+      0 0 0 2.5px rgba(249,115,22,.7),
+      0 0 11px rgba(249,115,22,.7),
       inset 0 0 0 1px rgba(255,255,255,.28);
     z-index: 2;
     animation: rp-slot-match-pulse 1.6s ease-in-out infinite;
+    /* Pre-promote to a compositor layer so the rack-hover reveal (which expands
+       `.rp-row--header` from 0 → 14px and shifts every slot below it) doesn't
+       re-rasterize the scaled match-slots — that re-rasterization was visible
+       as a brief flash and also re-triggered `tile_manager` warnings. */
+    will-change: transform;
   }
   @keyframes rp-slot-match-pulse {
-    0%, 100% { box-shadow:
-      0 0 0 2px rgba(249,115,22,.55),
-      0 0 8px rgba(249,115,22,.55),
-      inset 0 0 0 1px rgba(255,255,255,.28); }
-    50%      { box-shadow:
-      0 0 0 3px rgba(249,115,22,.85),
-      0 0 14px rgba(249,115,22,.85),
-      inset 0 0 0 1px rgba(255,255,255,.28); }
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.06); }
+  }
+  /* Hover on a match slot: pause the pulse and snap back to scale(1) — the
+     parent `.rp-slot--filled:hover` rule applies `transform: translateY(-1px)`,
+     which would override the animation's `transform: scale` and cause a visible
+     flash whenever the mouse swept across multiple animating match-slots. The
+     permanent orange ring already provides ample hover affordance here. */
+  .rp-slot--filled.rp-slot--match:hover {
+    animation: none;
+    transform: scale(1);
   }
 
   /* Locked slot — solid amber tint + small lock badge top-right.

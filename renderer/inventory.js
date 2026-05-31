@@ -4995,11 +4995,20 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     });
   }
 
+  // In rack view we skip the full DOM rebuild and just re-classify existing
+  // slots via applyRackSearchDim() — rebuilding all 100-300 rack slots on each
+  // keystroke flashed visually and forced a paint of the entire grid.
+  // Stats (racks / filled / locked) don't depend on the search, so a class
+  // toggle is sufficient.
+  function _onFilterChange() {
+    if (state.viewMode === "rack") { applyRackSearchDim(); return; }
+    renderInventory();
+  }
   $("searchInv").addEventListener("input", e => {
     const v = e.target.value;
     state.search = v.trim();
     _refreshSearchClearVisibility(v);
-    renderInventory();
+    _onFilterChange();
   });
   // Clear button — wipes the input, refocuses for further typing, and
   // re-renders the inventory immediately. We dispatch an `input` event
@@ -5011,7 +5020,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     inp.value = "";
     state.search = "";
     _refreshSearchClearVisibility("");
-    renderInventory();
+    _onFilterChange();
     inp.focus();
   });
   // Initial sync — covers the case where the input was pre-populated
