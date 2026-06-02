@@ -1,16 +1,12 @@
-# Worklog — v1.8.12 (in progress)
+# Worklog — v1.8.13 (in progress)
 
 ## Added
 
 ## Changed
 
 ## Fixed
-- Storage view: stop the GPU `tile_manager.cc:997 WARNING: tile memory limits exceeded` flood and the visual flash that happened on every search keystroke and when hover-sweeping between racks containing search matches. Five coupled changes:
-  - `renderer/css/30-racks.css` — the search-match pulse on `.rp-slot--match` no longer animates `box-shadow` (per-frame GPU repaint that saturated tile memory once ~15+ matches were on screen). It now animates `transform: scale` with `will-change: transform`, keeping the shadow static at the midpoint of the previous keyframe so visibility is preserved.
-  - `renderer/css/30-racks.css` — `.rp-row--header` (the column-number row) now reserves its 14px height permanently instead of expanding from 0 → 14px on rack-hover. The hover-driven height change forced a reflow that re-rasterized every match-slot's compositor layer, producing a visible flash between racks. Coords are now revealed via opacity-only on `.rp-col-label`.
-  - `renderer/css/30-racks.css` — on hover, `.rp-slot--match` cancels the pulse and snaps back to `scale(1)`. The parent `.rp-slot--filled:hover` rule applies `transform: translateY(-1px)`, which overrode the scale animation and produced a visible flash whenever the mouse swept across multiple animating match-slots in quick succession.
-  - `renderer/css/30-racks.css` — `.rp-slot--filled.rp-dim` no longer transitions `filter`. Animating `filter: grayscale` on 100-300 slots whenever the dim set churned (every search keystroke, every filter change) forced a per-frame repaint of the whole grid. Opacity transition stays (compositor-friendly).
-  - `renderer/inventory.js` — search/clear listeners (`#searchInv`) no longer call the full `renderInventory()` → `renderRackView()` rebuild in rack view. They now short-circuit to `applyRackSearchDim()` which just toggles `rp-dim`/`rp-slot--match` classes on existing slots. Stats (racks / filled / locked) don't depend on the search, so the class toggle is sufficient.
+- Grid / Table inventory view: typing in the search bar no longer flashes the whole view at every keystroke. `renderInventory()` used to rebuild every card / row from scratch on each keystroke — `<tbody>.innerHTML = ""` then re-create 100-300 DOM nodes including every `<img>`, which the browser had to re-decode. The render path now renders ALL non-deleted, deduplicated rows once, and `applyInventoryFilter()` toggles `.hidden` on the existing cards / rows when search / brand / material / type changes. Mirrors the rack-view `applyRackSearchDim()` fix from v1.8.12 — `renderer/inventory.js`.
+- Printer Grid view: stop the visible "refresh flash" that fired every few seconds while printers were offline. Every brand reconnect retry (2-30 s exponential backoff per printer) emitted a `statusChanged` event that re-ran `renderPrintersView()` → full `host.innerHTML = ...` rebuild of every card, including a fresh `<img>` for each printer thumbnail. Now `onPrinterGridChange` calls a surgical `_patchGridStatus()` that swaps only the `.printer-online` badge inside each card; it falls back to the full rebuild only when the online set actually changed (card needs to move between the CONNECTED and OFFLINE sections) — `renderer/inventory.js`.
 
 ## Removed
 

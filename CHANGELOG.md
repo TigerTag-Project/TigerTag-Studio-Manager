@@ -5,6 +5,15 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.8.13 — 2026-06-02
+
+### Fixed
+
+- **Filaments Grid and Table views no longer flash on every search keystroke.** Typing in the search bar with the Filaments view open (in Grid mode or Table mode) used to flash the whole view at every letter — every spool card or row was destroyed and rebuilt from scratch, and every `<img>` had to be re-decoded by the browser. The search now toggles a `.hidden` class on the existing cards / rows instead, so the images stay put and the filter feels instant. The same instant behaviour now also applies to the Brand / Material / Version dropdown filters and to the TigerTag / TigerTag+ / TigerCloud stat tiles.
+- **Printer Grid view no longer refreshes constantly when printers are offline.** Every printer reconnect retry (every 2 to 30 seconds, per printer) used to rebuild the whole printer grid — every card image was destroyed and re-decoded, producing a visible refresh flash several times per minute on a 10-printer setup. The grid now updates only the small "online / offline" badge inside each card and leaves the rest of the card alone; the full rebuild only happens when a card actually needs to move between the "Connected" and "Offline" sections.
+
+---
+
 ## v1.8.12 — 2026-05-31
 
 ### Fixed

@@ -4514,9 +4514,20 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   /* ── render ── */
   const _isPrinterMode = m => m === "printer" || m === "printer-table" || m === "printer-cam";
 
+  // All rows that should ever be present in the grid / table DOM — i.e.
+  // everything EXCEPT hard-deleted docs and the secondary tag of a twin pair.
+  // Search / brand / material / type filters are applied later via
+  // applyInventoryFilter() which just toggles `.hidden` on existing nodes,
+  // so each keystroke no longer rebuilds 100-300 DOM elements (which flashed
+  // the whole grid because every `<img>` was destroyed and re-decoded).
+  function allDisplayRows() {
+    let rows = state.rows.slice().filter(r => !r.deleted);
+    return sortRows(deduplicateTwins(rows));
+  }
+
   function renderInventory() {
     populateBrandFilter();      // refresh dropdown options on every render
-    const rows = filteredRows();
+    const rows = allDisplayRows();
     renderFriendBanner();
 
     // ── Loading or truly empty → dedicated welcome card ──────────────────────
@@ -4703,10 +4714,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     }
     $("invPrinterView")?.classList.add("hidden");
 
-    // Filter returned no results
+    // Inventory really empty (no spools at all — `allDisplayRows` already
+    // strips deleted/twin secondaries). `applyInventoryFilter()` handles the
+    // "no match" case below for the active search/filter set.
     if (rows.length === 0) {
       $("invTableWrap").classList.add("hidden"); $("invGrid").classList.add("hidden");
-      $("invEmpty").textContent = t("noMatch");
+      $("invEmpty").textContent = t("noInventory");
       $("invEmpty").classList.remove("hidden");
       return;
     }
@@ -4716,6 +4729,56 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       $("invTableWrap").classList.add("hidden"); $("invGrid").classList.remove("hidden"); renderGrid(rows);
     } else {
       $("invGrid").classList.add("hidden"); $("invTableWrap").classList.remove("hidden"); renderTable(rows);
+    }
+    // Apply the search/brand/material/type filter on the freshly rendered DOM
+    // (hide non-matching cards/rows). Keystroke-driven filter changes go
+    // straight through applyInventoryFilter() to skip the rebuild entirely.
+    applyInventoryFilter();
+  }
+
+  // Toggle `.hidden` on existing grid cards / table rows based on the current
+  // search + brand + material + type filter. Cheaper than rebuilding the DOM
+  // and crucially preserves the `<img>` decoding state, so typing in the
+  // search box no longer flashes the whole grid.
+  function applyInventoryFilter() {
+    const q = (state.search || "").trim().toLowerCase();
+    const brand = state.brandFilter || "";
+    const material = state.materialFilter || "";
+    const type = state.typeFilter || "";
+    const noFilter = !q && !brand && !material && !type;
+    const rowsById = new Map(state.rows.map(r => [r.spoolId, r]));
+    const nodes = document.querySelectorAll("#invGrid .spool-card, #invBody tr");
+    let visible = 0;
+    nodes.forEach(el => {
+      if (noFilter) { el.classList.remove("hidden"); visible++; return; }
+      const r = rowsById.get(el.dataset.id);
+      if (!r) { el.classList.add("hidden"); return; }
+      const matchSearch = !q || [r.uid, r.material, r.brand, r.colorName]
+        .some(v => String(v || "").toLowerCase().includes(q));
+      const matchBrand = !brand || String(r.brand) === brand;
+      const matchMaterial = !material || String(r.material) === material;
+      const matchType = !type || String(r.protocol) === type;
+      const matches = matchSearch && matchBrand && matchMaterial && matchType;
+      el.classList.toggle("hidden", !matches);
+      if (matches) visible++;
+    });
+    // Empty-state swap — only when a filter is active AND nothing matches.
+    // Without a filter we always have at least one card; the no-inventory
+    // path is handled by renderInventory() itself.
+    if (visible === 0 && nodes.length > 0) {
+      $("invEmpty").textContent = t("noMatch");
+      $("invEmpty").classList.remove("hidden");
+      if (state.viewMode === "grid") $("invGrid").classList.add("hidden");
+      else $("invTableWrap").classList.add("hidden");
+    } else if (nodes.length > 0) {
+      $("invEmpty").classList.add("hidden");
+      if (state.viewMode === "grid") {
+        $("invGrid").classList.remove("hidden");
+        $("invTableWrap").classList.add("hidden");
+      } else if (state.viewMode === "table") {
+        $("invTableWrap").classList.remove("hidden");
+        $("invGrid").classList.add("hidden");
+      }
     }
   }
 
@@ -4995,13 +5058,18 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     });
   }
 
-  // In rack view we skip the full DOM rebuild and just re-classify existing
-  // slots via applyRackSearchDim() — rebuilding all 100-300 rack slots on each
-  // keystroke flashed visually and forced a paint of the entire grid.
-  // Stats (racks / filled / locked) don't depend on the search, so a class
-  // toggle is sufficient.
+  // Skip the full DOM rebuild on filter changes and just toggle `.hidden`
+  // (grid/table) or `rp-dim`/`rp-slot--match` (rack) on existing nodes —
+  // rebuilding 100-300 cards/rows on every keystroke flashed the whole view
+  // because every `<img>` was destroyed and re-decoded.
+  // Stats (header counters) don't depend on the search, so the class toggle
+  // is sufficient.
   function _onFilterChange() {
     if (state.viewMode === "rack") { applyRackSearchDim(); return; }
+    if (state.viewMode === "grid" || state.viewMode === "table") {
+      applyInventoryFilter();
+      return;
+    }
     renderInventory();
   }
   $("searchInv").addEventListener("input", e => {
@@ -5029,17 +5097,17 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   $("brandFilter")?.addEventListener("change", e => {
     state.brandFilter = e.target.value;
     e.target.classList.toggle("is-active", !!state.brandFilter);
-    renderInventory();
+    _onFilterChange();
   });
   $("materialFilter")?.addEventListener("change", e => {
     state.materialFilter = e.target.value;
     e.target.classList.toggle("is-active", !!state.materialFilter);
-    renderInventory();
+    _onFilterChange();
   });
   $("typeFilter")?.addEventListener("change", e => {
     state.typeFilter = e.target.value;
     e.target.classList.toggle("is-active", !!state.typeFilter);
-    renderInventory();
+    _onFilterChange();
   });
 
   // ── Stat tile click → quick type filter ────────────────────────────────────
@@ -5060,7 +5128,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       sel.value = state.typeFilter;
       sel.classList.toggle("is-active", !!state.typeFilter);
     }
-    renderInventory();
+    _onFilterChange();
   });
 
   function updateSortIndicators() {
@@ -8054,6 +8122,70 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     return base.length > 28 ? base.slice(0, 26) + "…" : base;
   }
 
+  // Online check + badge HTML lifted out of renderPrintersView so the surgical
+  // patch path (`_patchGridStatus`) can reuse them without rebuilding the
+  // grid. Keeping these as module-scoped helpers also keeps `_makeCard`
+  // single-source for badge rendering.
+  function _isPrinterOnline(p) {
+    if (p.brand === "snapmaker")  return snapIsOnline(p)   === true;
+    if (p.brand === "flashforge") return ffgIsOnline(p)    === true;
+    if (p.brand === "creality")   return creIsOnline(p)    === true;
+    if (p.brand === "elegoo")     return elegooIsOnline(p) === true;
+    if (p.brand === "bambulab")   return bambuIsOnline(p)  === true;
+    return false;
+  }
+  function _makeOnlineBadge(p) {
+    if (p.brand === "flashforge") return renderFfgOnlineBadge(p, "card");
+    if (p.brand === "creality")   return renderCreOnlineBadge(p, "card");
+    if (p.brand === "bambulab")   return renderBambuOnlineBadge(p, "card");
+    if (p.brand === "snapmaker")  return renderSnapOnlineBadge(p, "card");
+    if (p.brand === "elegoo") {
+      const o = elegooIsOnline(p);
+      const cls = o === true ? "is-online" : o === false ? "is-offline" : "is-checking";
+      const lbl = o === true  ? t("snapStatusOnline")
+                : o === false ? t("snapStatusOffline")
+                :               t("snapStatusConnecting");
+      return `<span class="printer-online printer-online--card ${cls}">
+                <span class="printer-online-dot"></span>
+                <span class="printer-online-lbl">${esc(lbl)}</span>
+              </span>`;
+    }
+    return "";
+  }
+
+  // Signature of the current online set — used by `_patchGridStatus` to detect
+  // when only the status badges need refreshing (no card needs to move between
+  // the CONNECTED and OFFLINE sections, no new printer was added/removed).
+  // Computed by joining sorted keys of the currently-online printers.
+  let _lastPrinterGridSignature = "";
+  function _printerGridSignature() {
+    return state.printers
+      .map(p => `${p.brand}:${p.id}:${_isPrinterOnline(p) ? 1 : 0}`)
+      .sort()
+      .join("|");
+  }
+
+  // Surgical refresh: swap the `.printer-online` badge inside each printer
+  // card without touching the rest of the DOM (image, name, job block, foot).
+  // Falls back to a full `renderPrintersView()` when the online set changed
+  // (a card needs to move between CONNECTED and OFFLINE sections).
+  function _patchGridStatus() {
+    if (!_isPrinterMode(state.viewMode)) return;
+    const sig = _printerGridSignature();
+    if (sig !== _lastPrinterGridSignature) {
+      _lastPrinterGridSignature = sig;
+      renderPrintersView();
+      return;
+    }
+    state.printers.forEach(p => {
+      const card = document.querySelector(`[data-printer-key="${esc(p.brand + ":" + p.id)}"]`);
+      if (!card) return;
+      const badge = card.querySelector(".printer-online");
+      if (!badge) return;
+      badge.outerHTML = _makeOnlineBadge(p);
+    });
+  }
+
   /* ── Render the user's 3D printers in the main panel.
      Read-only listing — adding / editing / deleting printers happens in the
      mobile companion app. Sensitive fields (broker, password, ip, sn) are
@@ -8133,14 +8265,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
 
     // Helper: is this printer currently online? Returns boolean (false = offline or unknown).
     // Uses last-known status from each brand's connection map — no new network round-trip.
-    const _isOnline = p => {
-      if (p.brand === "snapmaker")  return snapIsOnline(p)   === true;
-      if (p.brand === "flashforge") return ffgIsOnline(p)    === true;
-      if (p.brand === "creality")   return creIsOnline(p)    === true;
-      if (p.brand === "elegoo")     return elegooIsOnline(p) === true;
-      if (p.brand === "bambulab")   return bambuIsOnline(p)  === true;
-      return false;
-    };
+    const _isOnline = p => _isPrinterOnline(p);
 
     // Partition into connected / offline while preserving each group's sortIndex order.
     const _onlineList  = state.printers.filter(p =>  _isOnline(p));
@@ -8171,26 +8296,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (p.brand === "flashforge" && p.ip) ffgPingPrinter(p);
       // Same for Creality — opens a brief WS to port 9999.
       if (p.brand === "creality"   && p.ip) crePingPrinter(p);
-      // Elegoo — online status from active MQTT conn (no dedicated ping; conn drives it).
-      const elgOnline = (p.brand === "elegoo") ? elegooIsOnline(p) : null;
-      const onlineBadge = p.brand === "flashforge"
-        ? renderFfgOnlineBadge(p, "card")
-        : p.brand === "creality"
-        ? renderCreOnlineBadge(p, "card")
-        : p.brand === "elegoo"
-        ? (() => {
-            const cls = elgOnline === true ? "is-online" : elgOnline === false ? "is-offline" : "is-checking";
-            const lbl = elgOnline === true  ? t("snapStatusOnline")
-                      : elgOnline === false ? t("snapStatusOffline")
-                      :                       t("snapStatusConnecting");
-            return `<span class="printer-online printer-online--card ${cls}">
-                      <span class="printer-online-dot"></span>
-                      <span class="printer-online-lbl">${esc(lbl)}</span>
-                    </span>`;
-          })()
-        : p.brand === "bambulab"
-        ? renderBambuOnlineBadge(p, "card")
-        : renderSnapOnlineBadge(p, "card");
+      const onlineBadge = _makeOnlineBadge(p);
       return `
         <div class="printer-card${p.isActive ? " printer-card--active" : ""}"
              data-brand="${esc(p.brand)}" data-id="${esc(p.id)}"
@@ -8242,6 +8348,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       <div class="printers-grid printers-grid--flex">${cards}${addCard}</div>`;
 
     wirePrinterDnd(host);
+    // Snapshot the online set so the next surgical patch can detect whether
+    // a card needs to move between sections.
+    _lastPrinterGridSignature = _printerGridSignature();
   }
 
   // ── Printer table sub-view ───────────────────────────────────────────────
@@ -9369,7 +9478,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       }
     },
     onPrintersViewChange:  () => { if (state.viewMode === "printer-cam") _patchCamWall(); else renderPrintersView(); },
-    onPrinterGridChange:   () => { if (state.viewMode !== "printer-cam") renderPrintersView(); },
+    // Status-only refresh: in grid/table view we just patch the per-card
+    // online badges (cheap, preserves `<img>` decoding state). Falls back to
+    // a full rebuild inside `_patchGridStatus` when the online set actually
+    // changed (card needs to move between CONNECTED and OFFLINE sections).
+    // Before this, every brand reconnect retry (2-30 s backoff, all 10
+    // printers offline → bursts every few seconds) rebuilt the whole grid
+    // and visibly flashed every card.
+    onPrinterGridChange:   () => { if (state.viewMode !== "printer-cam") _patchGridStatus(); },
     onGridJobsChange:      () => _patchGridJobs(),
     setupHoldToConfirm,
     creCamStart: ip => startCreCam(ip),
