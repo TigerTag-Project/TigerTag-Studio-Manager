@@ -1,12 +1,11 @@
-# Worklog — v1.8.15 (in progress)
+# Worklog — v1.8.16 (in progress)
 
 ## Added
-- Firestore IndexedDB offline persistence on every Firebase app instance (default + per-account named apps). Snapshot listeners now replay from the local cache on cold start and only deltas hit the network — cuts cold-start reads from ~130 (100 spools + 10 racks + 5×printer brands + scales + friends) to near-zero on repeat boots and makes the UI usable while offline. Implemented via `enablePersistence({ synchronizeTabs: true })` right next to `firebase.initializeApp` so it runs before any other Firestore call — `renderer/firebase.js`.
 
 ## Changed
-- Image cache no longer returns base64 `data:` URLs to the renderer. The main-process `img:get` IPC now returns a stable HTTP URL (`/img-cache/<md5>.<ext>`) served by the local dev server straight from the on-disk cache. With a stable HTTP URL, Chromium can keep the decoded bitmap alive across DOM operations — destroying and re-creating an `<img>` element no longer forces a re-decode, so view switches and full rebuilds no longer flash the product thumbnails. The HTTP response carries a 1-day Cache-Control header for good measure — `main.js`.
 
 ## Fixed
+- Spool detail side panel: stop tearing down the panel on every Firestore snapshot. Editing a different spool elsewhere (mobile app, another device, anything firing a Firestore write) used to flash the open side panel — every image and every SVG icon was destroyed and re-created because `subscribeInventory.onSnapshot` unconditionally called `openDetail(state.selected)` → `panelBody.innerHTML = buildPanelHTML(r)`. The snapshot listener now calls `refreshOpenDetail()` which compares a `_rowSignature` of the displayed spool against the last render and only rebuilds the panel when the displayed spool's visible fields actually changed. Editing the open spool's weight still triggers one rebuild (pending-write echo) instead of two or three, since the server-commit echo carries the same signature and is now skipped — `renderer/inventory.js`.
 
 ## Removed
 

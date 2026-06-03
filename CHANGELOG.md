@@ -5,6 +5,14 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.8.16 — 2026-06-03
+
+### Fixed
+
+- **Spool detail side panel no longer flashes when something else changes in Firestore.** Editing a different spool — from the mobile app, from another device, or even just a write echo coming back — used to tear down and rebuild the entire side panel, flashing the product photo and every SVG icon (badges, twin link, chip status). The panel now compares the displayed spool against the last render and skips the rebuild when the visible fields haven't changed. Editing the open spool's own weight still triggers one rebuild instead of two or three, because the server-commit echo carries the same signature as the pending-write update and is now ignored.
+
+---
+
 ## v1.8.15 — 2026-06-03
 
 ### Changed

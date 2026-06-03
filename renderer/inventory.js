@@ -3947,10 +3947,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         saveInventory(raw);
         preCacheImages(state.rows).then(() => {
           sortStateRows(); renderStats(); renderInventory();
-          // Refresh open detail panel with latest data
-          if (state.selected && $("detailPanel").classList.contains("open")) {
-            openDetail(state.selected);
-          }
+          // Refresh open detail panel — short-circuits when the displayed
+          // spool hasn't actually changed (no flash on unrelated edits).
+          refreshOpenDetail();
           // Refresh racks panel if open (positions/fills may have changed)
           if ($("racksPanel")?.classList.contains("open")) renderRacksList();
         });
@@ -5925,11 +5924,21 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   }
 
   /* ── detail panel ── */
+  // Signature of the spool currently displayed in the side panel. Used by
+  // `refreshOpenDetail()` to skip the full `panelBody.innerHTML = ...` rebuild
+  // when a Firestore snapshot arrives that doesn't actually change the
+  // displayed spool — e.g. another filament was edited elsewhere, or a write
+  // came back as a pending/commit echo with no visible diff. Before this
+  // guard, every snapshot tore down all images (large product photo, SVG
+  // icons, badges) and rebuilt them, flashing the sidecard.
+  let _lastDetailSig = "";
+
   function openDetail(spoolId) {
     state.selected = spoolId;
     document.querySelectorAll("[data-id]").forEach(el => el.classList.toggle("selected", el.dataset.id === spoolId));
     const r = state.rows.find(x => x.spoolId === spoolId);
     if (!r) return;
+    _lastDetailSig = _rowSignature(r);
     $("panelBody").innerHTML = buildPanelHTML(r);
     // Hold-to-confirm "Delete spool" — 1.5s hold, irreversible hard delete.
     // Removes the Firestore doc (+ twin) permanently — ISO with printer deletion.
@@ -6337,6 +6346,27 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // Stop any playing video
     const vp = $("panelVideoPlayer"); if (vp) vp.innerHTML = "";
     $("detailPanel").classList.remove("open"); $("panelOverlay").classList.remove("open");
+    _lastDetailSig = "";
+  }
+
+  // Re-evaluate the open detail panel after a Firestore snapshot. Skips the
+  // full rebuild when nothing visible to the panel actually changed (e.g.
+  // another spool was edited, or this snapshot is just a write echo with the
+  // same fields). Replaces the unconditional `openDetail(state.selected)`
+  // that fired on every snapshot and flashed every image (large product
+  // photo, SVG badges) of the sidecard.
+  function refreshOpenDetail() {
+    if (!state.selected) return;
+    if (!$("detailPanel")?.classList.contains("open")) return;
+    const r = state.rows.find(x => x.spoolId === state.selected);
+    if (!r) {
+      // Spool removed (hard delete) — close the panel instead of rebuilding.
+      closeDetail();
+      return;
+    }
+    const newSig = _rowSignature(r);
+    if (newSig === _lastDetailSig) return; // visible content unchanged → skip
+    openDetail(state.selected);            // sig will be updated inside openDetail
   }
 
   /* ── TD1S module init ────────────────────────────────────────────────────
