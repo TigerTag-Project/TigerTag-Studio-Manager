@@ -5,6 +5,15 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.8.15 — 2026-06-03
+
+### Changed
+
+- **Cold start is now instant from cache.** Tiger Studio now stores every Firestore snapshot in a local IndexedDB cache, so on the next launch your inventory, racks and printers appear immediately — even before the network round-trip completes — and the app stays usable when offline. Only the actual changes since your last session hit the network, which also drops your Firebase read bill close to zero on repeat boots.
+- **Product thumbnails no longer flash on view switches.** Cached product images are now served as proper HTTP responses from the local app server instead of being inlined as base64 data URLs. The browser keeps the decoded bitmap alive across DOM operations, so clicking Grid, opening the detail panel, or any Firestore push no longer makes every thumbnail blink while the GPU re-decodes it.
+
+---
+
 ## v1.8.14 — 2026-06-03
 
 ### Fixed

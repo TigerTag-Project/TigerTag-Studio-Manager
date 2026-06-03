@@ -75,6 +75,38 @@ function startRendererServer(rendererDir) {
   // sides always connect correctly.
   const handler = (req, res) => {
     let urlPath = req.url.split('?')[0];
+
+    // Image cache route — serves cached product thumbnails straight from
+    // imgCacheDir as real HTTP responses (proper Content-Type, browser
+    // HTTP cache, decoded-bitmap retention). Previously `img:get` returned
+    // a `data:base64,...` URL stored in `state.imgCache` and pasted into
+    // `<img src="data:...">`, which forced the browser to re-decode the
+    // bitmap every time the `<img>` was destroyed and re-created (full
+    // grid rebuild). With a stable HTTP URL, Chromium can keep the decoded
+    // bitmap alive across DOM operations → no visible flash on view
+    // switches, no flash on Firestore push.
+    if (urlPath.startsWith('/img-cache/')) {
+      const filename = urlPath.slice('/img-cache/'.length);
+      // Defence: only allow the {md5}.{ext} shape we write ourselves, no
+      // traversal, no arbitrary path read.
+      if (/^[a-f0-9]{32}\.[a-z0-9]+$/i.test(filename) && imgCacheDir) {
+        const filePath = path.join(imgCacheDir, filename);
+        try {
+          const data = fs.readFileSync(filePath);
+          const ext  = path.extname(filename).toLowerCase();
+          res.writeHead(200, {
+            'Content-Type':  MIME[ext] || 'image/jpeg',
+            'Cache-Control': 'public, max-age=86400',
+          });
+          res.end(data);
+          return;
+        } catch {
+          res.writeHead(404); res.end('Not found'); return;
+        }
+      }
+      res.writeHead(403); res.end('Forbidden'); return;
+    }
+
     if (urlPath === '/' || urlPath === '') urlPath = '/inventory.html';
     const filePath = path.join(rendererDir, urlPath);
     try {
@@ -1711,26 +1743,30 @@ ipcMain.handle('snap:http-get', async (_evt, url, timeoutMs) => {
 });
 
 // ── Image cache IPC handler ───────────────────────────────────────────────────
+// Returns a stable HTTP URL (`/img-cache/<md5>.<ext>`) served by the local
+// renderer dev server, NOT a `data:base64,...` URL. The HTTP URL lets
+// Chromium keep the decoded bitmap alive across DOM operations — destroying
+// and re-creating the `<img>` element no longer forces a re-decode, which
+// is what produced the visible flash on every full rebuild before.
+// Returns null when the source URL can't be fetched and isn't already cached.
 ipcMain.handle('img:get', async (_, url) => {
   if (!url || url === '--') return null;
-  const hash = crypto.createHash('md5').update(url).digest('hex');
-  const ext  = (url.match(/\.(jpe?g|png|webp|gif|avif)/i) || [])[1] || 'jpg';
-  const file = path.join(imgCacheDir, `${hash}.${ext}`);
-  function toDataUrl(buf, contentType) {
-    const mime = contentType && contentType.startsWith('image/') ? contentType.split(';')[0] : 'image/jpeg';
-    return `data:${mime};base64,${buf.toString('base64')}`;
-  }
+  const hash     = crypto.createHash('md5').update(url).digest('hex');
+  const ext      = (url.match(/\.(jpe?g|png|webp|gif|avif)/i) || [])[1] || 'jpg';
+  const filename = `${hash}.${ext}`;
+  const file     = path.join(imgCacheDir, filename);
+  const httpUrl  = `/img-cache/${filename}`;
   try {
     const resp = await fetch(url);
     if (resp.ok) {
       const buf = Buffer.from(await resp.arrayBuffer());
       fs.writeFileSync(file, buf);
-      return toDataUrl(buf, resp.headers.get('content-type'));
+      return httpUrl;
     }
-    if (fs.existsSync(file)) return toDataUrl(fs.readFileSync(file), null);
+    if (fs.existsSync(file)) return httpUrl;
     return null;
   } catch {
-    if (fs.existsSync(file)) return toDataUrl(fs.readFileSync(file), null);
+    if (fs.existsSync(file)) return httpUrl;
     return null;
   }
 });
