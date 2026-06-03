@@ -1,12 +1,12 @@
-# Worklog — v1.8.13 (in progress)
+# Worklog — v1.8.14 (in progress)
 
 ## Added
 
 ## Changed
 
 ## Fixed
-- Grid / Table inventory view: typing in the search bar no longer flashes the whole view at every keystroke. `renderInventory()` used to rebuild every card / row from scratch on each keystroke — `<tbody>.innerHTML = ""` then re-create 100-300 DOM nodes including every `<img>`, which the browser had to re-decode. The render path now renders ALL non-deleted, deduplicated rows once, and `applyInventoryFilter()` toggles `.hidden` on the existing cards / rows when search / brand / material / type changes. Mirrors the rack-view `applyRackSearchDim()` fix from v1.8.12 — `renderer/inventory.js`.
-- Printer Grid view: stop the visible "refresh flash" that fired every few seconds while printers were offline. Every brand reconnect retry (2-30 s exponential backoff per printer) emitted a `statusChanged` event that re-ran `renderPrintersView()` → full `host.innerHTML = ...` rebuild of every card, including a fresh `<img>` for each printer thumbnail. Now `onPrinterGridChange` calls a surgical `_patchGridStatus()` that swaps only the `.printer-online` badge inside each card; it falls back to the full rebuild only when the online set actually changed (card needs to move between the CONNECTED and OFFLINE sections) — `renderer/inventory.js`.
+- Filaments Grid and Table views no longer flash when a single spool changes in Firestore (e.g. weight slider edit, container assign, twin link, color change). `renderGrid()` and `renderTable()` were wiping their host element (`grid.innerHTML = ""` / `tbody.innerHTML = ""`) and re-creating every card / row from scratch on every Firestore snapshot — every `<img>` was destroyed and the GPU had to re-decode all 100-300 thumbnails. They now do keyed-diff updates: existing cards are reused, only the spool that actually changed is touched, and the affected card's `<img>` overlay is preserved (the URL is updated in place when it changes, not the whole node) — `renderer/inventory.js`.
+- Printer Grid view: the per-card job block (state pill / progress bar / filename) no longer rebuilds on every brand poll tick when nothing actually changed. `_patchGridJobs` now compares a per-card job signature (state + isActive + pct + remainSec + filename) against the previous tick and returns without touching the DOM if identical — this is the steady-state case for any printer that's idle or offline. Brand-agnostic: same guard helps FlashForge (2 s poll), Bambu (5 s pushall), Elegoo (10 s refresh), Snapmaker and Creality (WS heartbeats) — `renderer/inventory.js`.
 
 ## Removed
 

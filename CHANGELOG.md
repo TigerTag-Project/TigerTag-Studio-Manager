@@ -5,6 +5,15 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.8.14 — 2026-06-03
+
+### Fixed
+
+- **Filaments Grid and Table views no longer flash when one spool changes.** Editing a single field on a spool — moving the weight slider, picking a container, linking a twin, changing the color — used to flash the whole Filaments view because every card or row was destroyed and rebuilt from scratch on every Firestore push. Now only the spool that actually changed is touched, the product image of every other spool stays exactly where it was, and even the affected card keeps its product image intact (only the value that changed is updated). The visible flash on save is gone.
+- **Printer Grid view: the per-printer job block (state pill, progress bar, filename) stops rebuilding on every brand poll tick when nothing actually changed.** FlashForge polls every 2 seconds, Bambu every 5, Elegoo every 10 — and the job block was being destroyed and re-created on every one of those, even when the printer was idle or offline. Now the block is only touched when state, progress, remaining time or filename actually changes — eliminating the residual micro-flash on the printer card.
+
+---
+
 ## v1.8.13 — 2026-06-02
 
 ### Fixed

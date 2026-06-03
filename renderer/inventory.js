@@ -4897,67 +4897,225 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     return `<span class="thumb-wrap">${inner}${overlay}${tdBadge}${chipBadge}</span>`;
   }
 
-  function renderTable(rows) {
-    const tbody = $("invBody"); tbody.innerHTML = "";
-    for (const r of rows) {
-      const tr = document.createElement("tr");
-      tr.dataset.id = r.spoolId;
-      if (state.selected === r.spoolId) tr.classList.add("selected");
-      if (r.deleted) tr.classList.add("deleted");
-      const swatch = colorCircleHTML(r, 28);
-      let wCell = "-";
-      if (r.weightAvailable != null) {
-        wCell = `${r.weightAvailable} g`;
-        if (r.capacity) { const p = Math.max(0,Math.min(100,Math.round(r.weightAvailable/r.capacity*100))); wCell += `<span class="bar" title="${p}%"><span style="width:${p}%"></span></span>`; }
+  // ── Keyed-diff helpers for grid / table ────────────────────────────────────
+  // Signature of every value rendered on a card/row. Any Firestore push that
+  // doesn't change one of these fields produces a stable signature → the
+  // diff path returns without touching the DOM at all.
+  //
+  // Before this refactor, every Firestore snapshot (a single weight edit on
+  // one spool) triggered `tbody.innerHTML = ""` / `grid.innerHTML = ""` →
+  // destruction + recreation of all 100-300 nodes including every `<img>`,
+  // which the browser had to re-decode. That's the visible "everything
+  // flashes" on a single-field write.
+  function _rowSignature(r) {
+    return [
+      r.spoolId,
+      state.selected === r.spoolId ? 1 : 0,
+      r.deleted ? 1 : 0,
+      r.imgUrl || "",
+      r.weightAvailable ?? "",
+      r.capacity ?? "",
+      r.colorName || "",
+      r.material || "",
+      r.brand || "",
+      r.aspect1 || "",
+      r.aspect2 || "",
+      r.td ?? "",
+      r.needUpdateAt ? 1 : 0,
+      r.hasTwinPair ? 1 : 0,
+      r.isPlus ? 1 : 0,
+      r.isCloud ? 1 : 0,
+      r.colorHex || "",
+      r.colorHex2 || "",
+      r.colorHex3 || "",
+      (r.colorList || []).join(","),
+      r.colorType || "",
+      r.lastUpdate ?? "",
+    ].join("|");
+  }
+
+  // Build the inner HTML of a grid card from a row. Reused by create and
+  // update paths so the markup stays single-source.
+  function _gridCardInnerHTML(r) {
+    const _resolvedCard = r.imgUrl ? resolvedImg(r.imgUrl) : null;
+    // Colour-square base layer (logo watermark included), product image stacked
+    // on top so a broken/slow image gracefully falls back to the colour square.
+    const imgHtml = `<div class="card-img-color-placeholder" style="background:${colorBg(r)}"><img src="${logoSrc(colorBg(r))}" />${
+      _resolvedCard ? `<img class="card-img--overlay" src="${esc(_resolvedCard)}" loading="lazy" onerror="this.style.display='none'" />` : ''
+    }</div>`;
+    const pct = (r.weightAvailable != null && r.capacity) ? Math.max(0,Math.min(100,Math.round(r.weightAvailable/r.capacity*100))) : null;
+    const swatch = colorCircleHTML(r);
+    const badge = tierBadgeHTML(r);
+    const tdBadge = r.td != null ? `<span class="card-td-badge">TD ${r.td}</span>` : "";
+    const chipDot = r.needUpdateAt ? `<span class="chip-badge card-chip-badge" title="${t("chipPendingHint")}"><span class="icon icon-refresh icon-11"></span></span>` : "";
+    return `
+      <div class="card-img-wrap">${imgHtml}${twinOverlayBadge(r)}${tdBadge}${chipDot}</div>
+      <div class="card-body">
+        <div class="card-name">${swatch}${esc(v(r.colorName) !== "-" ? r.colorName : [r.aspect1, r.aspect2].filter(a => a && a !== "-" && a !== "None").join(" ") || r.material)}</div>
+        <div class="card-sub">${esc(v(r.material))} · ${esc(v(r.brand))}</div>
+        <div class="card-footer">
+          <span class="card-weight">${r.weightAvailable!=null ? r.weightAvailable+" g" : "-"}</span>
+          <span style="display:flex;gap:3px;align-items:center">${badge}</span>
+        </div>
+        ${pct!==null ? `<div class="card-bar"><span style="width:${pct}%"></span></div>` : ""}
+      </div>`;
+  }
+
+  function _createGridCard(r) {
+    const card = document.createElement("div");
+    card.className = "spool-card" + (state.selected===r.spoolId?" selected":"") + (r.deleted?" deleted":"");
+    card.dataset.id = r.spoolId;
+    card.innerHTML = _gridCardInnerHTML(r);
+    card.addEventListener("click", () => openDetail(r.spoolId));
+    card._sig = _rowSignature(r);
+    return card;
+  }
+
+  // Fine-grained card update: never destroy the `<img>` unless its URL
+  // actually changed. Touches only the fields that changed. This is what
+  // makes a single-field Firestore push (e.g. a weight slider edit) cost
+  // 1-2 textContent writes instead of a full innerHTML rebuild with image
+  // re-decoding.
+  function _updateGridCard(card, r) {
+    card.classList.toggle("selected", state.selected === r.spoolId);
+    card.classList.toggle("deleted", !!r.deleted);
+
+    // .card-img-color-placeholder: update background + logo + optional product overlay
+    const placeholder = card.querySelector(".card-img-color-placeholder");
+    if (placeholder) {
+      const newBg = colorBg(r);
+      if (placeholder.style.background !== newBg) placeholder.style.background = newBg;
+      const newLogo = logoSrc(newBg);
+      const logoImg = placeholder.querySelector(":scope > img:not(.card-img--overlay)");
+      if (logoImg && logoImg.getAttribute("src") !== newLogo) logoImg.setAttribute("src", newLogo);
+      let overlay = placeholder.querySelector(".card-img--overlay");
+      const _resolved = r.imgUrl ? resolvedImg(r.imgUrl) : null;
+      if (_resolved) {
+        if (!overlay) {
+          overlay = document.createElement("img");
+          overlay.className = "card-img--overlay";
+          overlay.setAttribute("loading", "lazy");
+          overlay.setAttribute("onerror", "this.style.display='none'");
+          placeholder.appendChild(overlay);
+          overlay.src = _resolved;
+        } else if (overlay.getAttribute("src") !== _resolved) {
+          overlay.src = _resolved;
+        }
+      } else if (overlay) {
+        overlay.remove();
       }
-      tr.innerHTML = `
-        <td class="thumb-cell">${thumbHTML(r, 50)}</td>
-        <td>${tierBadgeHTML(r)}</td>
-        <td>${esc(v(r.material))}</td>
-        <td>${esc(v(r.brand))}</td>
-        <td class="color-cell">${swatch}</td>
-        <td>${esc(v(r.colorName) !== "-" ? r.colorName : [r.aspect1, r.aspect2].filter(a => a && a !== "-" && a !== "None").join(" ") || r.colorName)}</td>
-        <td style="font-variant-numeric:tabular-nums">${wCell}</td>
-        <td style="font-variant-numeric:tabular-nums">${v(r.capacity)}${r.capacity!=null?" g":""}</td>
-        <td title="${esc(fmtTs(r.lastUpdate))}">${esc(timeAgo(r.lastUpdate))}</td>`;
-      tr.addEventListener("click", () => openDetail(r.spoolId));
-      tbody.appendChild(tr);
     }
+
+    // .card-img-wrap badges (twin / td / chip)
+    const wrap = card.querySelector(".card-img-wrap");
+    if (wrap) {
+      wrap.querySelectorAll(".thumb-twin-badge, .card-td-badge, .card-chip-badge").forEach(el => el.remove());
+      const badges = twinOverlayBadge(r)
+        + (r.td != null ? `<span class="card-td-badge">TD ${r.td}</span>` : "")
+        + (r.needUpdateAt ? `<span class="chip-badge card-chip-badge" title="${t("chipPendingHint")}"><span class="icon icon-refresh icon-11"></span></span>` : "");
+      if (badges) wrap.insertAdjacentHTML("beforeend", badges);
+    }
+
+    // .card-body: rebuild — text-only, no `<img>` here so no flash
+    const body = card.querySelector(".card-body");
+    if (body) {
+      const swatch = colorCircleHTML(r);
+      const pct = (r.weightAvailable != null && r.capacity) ? Math.max(0,Math.min(100,Math.round(r.weightAvailable/r.capacity*100))) : null;
+      const badge = tierBadgeHTML(r);
+      const nameText = v(r.colorName) !== "-" ? r.colorName : [r.aspect1, r.aspect2].filter(a => a && a !== "-" && a !== "None").join(" ") || r.material;
+      body.innerHTML = `
+        <div class="card-name">${swatch}${esc(nameText)}</div>
+        <div class="card-sub">${esc(v(r.material))} · ${esc(v(r.brand))}</div>
+        <div class="card-footer">
+          <span class="card-weight">${r.weightAvailable!=null ? r.weightAvailable+" g" : "-"}</span>
+          <span style="display:flex;gap:3px;align-items:center">${badge}</span>
+        </div>
+        ${pct!==null ? `<div class="card-bar"><span style="width:${pct}%"></span></div>` : ""}`;
+    }
+
+    card._sig = _rowSignature(r);
   }
 
   function renderGrid(rows) {
-    const grid = $("invGrid"); grid.innerHTML = "";
-    for (const r of rows) {
-      const card = document.createElement("div");
-      card.className = "spool-card" + (state.selected===r.spoolId?" selected":"") + (r.deleted?" deleted":"");
-      card.dataset.id = r.spoolId;
-      const _resolvedCard = r.imgUrl ? resolvedImg(r.imgUrl) : null;
-      // Always render the colour square as base layer (logo watermark included).
-      // When a product image exists, stack it on top as an absolute overlay so
-      // a broken/slow image gracefully falls back to the colour square instead
-      // of leaving a blank grey box.
-      const imgHtml = `<div class="card-img-color-placeholder" style="background:${colorBg(r)}"><img src="${logoSrc(colorBg(r))}" />${
-        _resolvedCard ? `<img class="card-img--overlay" src="${esc(_resolvedCard)}" loading="lazy" onerror="this.style.display='none'" />` : ''
-      }</div>`;
-      const pct = (r.weightAvailable != null && r.capacity) ? Math.max(0,Math.min(100,Math.round(r.weightAvailable/r.capacity*100))) : null;
-      const swatch = colorCircleHTML(r);
-      const badge = tierBadgeHTML(r);
-      const tdBadge = r.td != null ? `<span class="card-td-badge">TD ${r.td}</span>` : "";
-      const chipDot = r.needUpdateAt ? `<span class="chip-badge card-chip-badge" title="${t("chipPendingHint")}"><span class="icon icon-refresh icon-11"></span></span>` : "";
-      card.innerHTML = `
-        <div class="card-img-wrap">${imgHtml}${twinOverlayBadge(r)}${tdBadge}${chipDot}</div>
-        <div class="card-body">
-          <div class="card-name">${swatch}${esc(v(r.colorName) !== "-" ? r.colorName : [r.aspect1, r.aspect2].filter(a => a && a !== "-" && a !== "None").join(" ") || r.material)}</div>
-          <div class="card-sub">${esc(v(r.material))} · ${esc(v(r.brand))}</div>
-          <div class="card-footer">
-            <span class="card-weight">${r.weightAvailable!=null ? r.weightAvailable+" g" : "-"}</span>
-            <span style="display:flex;gap:3px;align-items:center">${badge}</span>
-          </div>
-          ${pct!==null ? `<div class="card-bar"><span style="width:${pct}%"></span></div>` : ""}
-        </div>`;
-      card.addEventListener("click", () => openDetail(r.spoolId));
-      grid.appendChild(card);
+    const grid = $("invGrid");
+    // Index existing cards by spoolId so we can reuse them.
+    const existing = new Map();
+    grid.querySelectorAll(".spool-card").forEach(el => existing.set(el.dataset.id, el));
+    const seen = new Set();
+    rows.forEach((r, idx) => {
+      seen.add(r.spoolId);
+      let card = existing.get(r.spoolId);
+      const newSig = _rowSignature(r);
+      if (!card) {
+        card = _createGridCard(r);
+      } else if (card._sig !== newSig) {
+        _updateGridCard(card, r);
+      }
+      // Place card at correct position (preserves order without DOM thrash:
+      // insertBefore on an already-positioned node is a no-op in Chromium).
+      const expected = grid.children[idx];
+      if (expected !== card) grid.insertBefore(card, expected || null);
+    });
+    // Remove orphans (spools deleted from inventory)
+    existing.forEach((el, id) => { if (!seen.has(id)) el.remove(); });
+  }
+
+  // Build the inner HTML of a table row from a row. Single-source for create + update.
+  function _tableRowInnerHTML(r) {
+    const swatch = colorCircleHTML(r, 28);
+    let wCell = "-";
+    if (r.weightAvailable != null) {
+      wCell = `${r.weightAvailable} g`;
+      if (r.capacity) { const p = Math.max(0,Math.min(100,Math.round(r.weightAvailable/r.capacity*100))); wCell += `<span class="bar" title="${p}%"><span style="width:${p}%"></span></span>`; }
     }
+    return `
+      <td class="thumb-cell">${thumbHTML(r, 50)}</td>
+      <td>${tierBadgeHTML(r)}</td>
+      <td>${esc(v(r.material))}</td>
+      <td>${esc(v(r.brand))}</td>
+      <td class="color-cell">${swatch}</td>
+      <td>${esc(v(r.colorName) !== "-" ? r.colorName : [r.aspect1, r.aspect2].filter(a => a && a !== "-" && a !== "None").join(" ") || r.colorName)}</td>
+      <td style="font-variant-numeric:tabular-nums">${wCell}</td>
+      <td style="font-variant-numeric:tabular-nums">${v(r.capacity)}${r.capacity!=null?" g":""}</td>
+      <td title="${esc(fmtTs(r.lastUpdate))}">${esc(timeAgo(r.lastUpdate))}</td>`;
+  }
+
+  function _createTableRow(r) {
+    const tr = document.createElement("tr");
+    tr.dataset.id = r.spoolId;
+    if (state.selected === r.spoolId) tr.classList.add("selected");
+    if (r.deleted) tr.classList.add("deleted");
+    tr.innerHTML = _tableRowInnerHTML(r);
+    tr.addEventListener("click", () => openDetail(r.spoolId));
+    tr._sig = _rowSignature(r);
+    return tr;
+  }
+
+  function _updateTableRow(tr, r) {
+    tr.classList.toggle("selected", state.selected === r.spoolId);
+    tr.classList.toggle("deleted", !!r.deleted);
+    tr.innerHTML = _tableRowInnerHTML(r);
+    tr._sig = _rowSignature(r);
+  }
+
+  function renderTable(rows) {
+    const tbody = $("invBody");
+    const existing = new Map();
+    tbody.querySelectorAll("tr").forEach(el => existing.set(el.dataset.id, el));
+    const seen = new Set();
+    rows.forEach((r, idx) => {
+      seen.add(r.spoolId);
+      let tr = existing.get(r.spoolId);
+      const newSig = _rowSignature(r);
+      if (!tr) {
+        tr = _createTableRow(r);
+      } else if (tr._sig !== newSig) {
+        _updateTableRow(tr, r);
+      }
+      const expected = tbody.children[idx];
+      if (expected !== tr) tbody.insertBefore(tr, expected || null);
+    });
+    existing.forEach((el, id) => { if (!seen.has(id)) el.remove(); });
   }
 
   /* ── view toggle ── */
@@ -8081,6 +8239,17 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // Surgical patch: update only the .printer-card-job block inside each grid
   // card without replacing the card element itself. This lets clicks survive
   // live data ticks from brand WebSocket connections.
+  // Per-card job signature → skip the outerHTML swap when the tick brought
+  // no real change. Brand polls (FlashForge 2 s, Bambu pushall 5 s, Elegoo
+  // 10 s, Snapmaker/Creality WS heartbeats) fire `_patchGridJobs` on every
+  // tick, even when state/pct/remain/filename are identical to the previous
+  // value — without this guard, the `.printer-card-job` block was destroyed
+  // and rebuilt at every tick, flashing the progress bar / state pill /
+  // filename on every card. Brand-agnostic: same guard helps all 5 brands.
+  function _jobSignature(job) {
+    if (!job) return "";
+    return `${job.state}|${job.isActive ? 1 : 0}|${job.pct}|${job.remainSec ?? ""}|${job.filename ?? ""}`;
+  }
   function _patchGridJobs() {
     if (!_isPrinterMode(state.viewMode)) return;
     state.printers.forEach(p => {
@@ -8088,7 +8257,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (!card) return;
       const job = _getPrinterJob(p);
       const existing = card.querySelector(".printer-card-job");
-      if (!job) { if (existing) existing.remove(); return; }
+      if (!job) {
+        if (existing) { existing.remove(); card._lastJobSig = ""; }
+        return;
+      }
+      const sig = _jobSignature(job);
+      if (existing && card._lastJobSig === sig) return; // no real change, skip the rebuild
+      card._lastJobSig = sig;
       const html = _jobCardHtml(job);
       if (existing) { existing.outerHTML = html; }
       else {
@@ -8351,6 +8526,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // Snapshot the online set so the next surgical patch can detect whether
     // a card needs to move between sections.
     _lastPrinterGridSignature = _printerGridSignature();
+    // Seed each card's job signature so the first `_patchGridJobs` tick after
+    // a full rebuild can short-circuit when nothing actually changed
+    // (otherwise it would outerHTML-swap the job block once for no reason).
+    state.printers.forEach(p => {
+      const card = host.querySelector(`[data-printer-key="${esc(p.brand + ":" + p.id)}"]`);
+      if (card) card._lastJobSig = _jobSignature(_getPrinterJob(p));
+    });
   }
 
   // ── Printer table sub-view ───────────────────────────────────────────────
