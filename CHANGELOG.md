@@ -5,6 +5,29 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.8.17 — 2026-06-08
+
+### Added
+
+- **New "Balance" weight input mode for kitchen-scale users.** Open the spool detail panel, click the pencil next to the weight, and a small **Net / Balance** toggle now sits next to the ✓/✕ buttons. In Balance mode you type the value your scale shows (filament + container); Studio subtracts the container weight automatically and writes the net to the cloud — no mental math. Hovering the Balance pill shows the live conversion ("= 736 g net (contenant : 165 g)") and the math updates as you type. The chosen mode is remembered across sessions, and you can never type a value that exceeds the spool's capacity: the input is hard-clamped at the spool's max (Net) or the spool's max + container (Balance), on every keystroke.
+
+### Changed
+
+- **Saving a weight no longer reloads the side panel.** Editing the weight from the slider or the manual input used to flash the product image, the "Mettre à jour le RFID" banner, the TigerTag SVG badges, and every other icon for a fraction of a second because the panel rebuilt itself after every save. The visible state now updates in place and the rest of the panel stays exactly where it was.
+- **The verbose green save toast is gone.** Instead of "✓ N g disponibles (G g − C g contenant) · jumeau mis à jour" sitting under the weight bar for a full second, a small green check now pops to the right of the "POIDS" section title and gently fades out. The new value is already on the slider and in the displayed number — the math doesn't need to be spelled out every time.
+- **The weight slider waits for you to actually release before saving to the cloud.** Pausing mid-drag for half a second (still holding the slider) used to burn a Firestore write at every pause; now the write only fires once you release the thumb, and re-grabbing the slider within 500 ms cancels the pending request. Fewer cloud writes, less risk of overwriting an in-progress edit from another device.
+- **If someone else edits the same spool while you're dragging, the server wins.** If your phone — or another logged-in device — updates the weight on the same spool while you have the desktop slider held down, the slider now releases your grip and snaps to the value that just arrived from the cloud (and your pending save is cancelled). The display, the fill bar, and the slider thumb all line up on the new value instead of fighting each other.
+- **Container card layout — the container name now sits in the same column as "Customizable" and the weight in grams**, beside the container thumbnail, instead of sitting on its own line above the card.
+
+### Fixed
+
+- **The "X g — hors plage" error toast can no longer get stuck under the weight bar.** Trying to type a value larger than the spool's capacity used to flash a red error message that had no auto-dismiss and just sat there until you reopened the panel. The input is now clamped at the spool's maximum on the fly — type "9999" on a 1 kg spool and the field sticks at "1000" (or "1165" in Balance mode if your container weighs 165 g). The error toast is gone for good.
+- **The manual-edit input is no longer silently overwritten while you're typing.** Opening the pencil, typing "234", and having the mobile app or another device push an edit to the same spool used to silently replace your "234" with the server's value mid-keystroke; pressing ✓ would then submit the wrong number. The input now keeps what you typed until you confirm or cancel.
+- **The slider thumb no longer jumps out from under your finger.** A remote weight update arriving mid-drag used to make the thumb snap to the server's value while you were still pressing it.
+- **The "Mise à jour" date in the side panel now refreshes after a weight save** instead of showing an old timestamp until the next unrelated change.
+
+---
+
 ## v1.8.16 — 2026-06-03
 
 ### Fixed

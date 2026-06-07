@@ -5924,14 +5924,181 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   }
 
   /* ── detail panel ── */
-  // Signature of the spool currently displayed in the side panel. Used by
-  // `refreshOpenDetail()` to skip the full `panelBody.innerHTML = ...` rebuild
-  // when a Firestore snapshot arrives that doesn't actually change the
-  // displayed spool — e.g. another filament was edited elsewhere, or a write
-  // came back as a pending/commit echo with no visible diff. Before this
-  // guard, every snapshot tore down all images (large product photo, SVG
-  // icons, badges) and rebuilt them, flashing the sidecard.
+  // Two-level signature for the spool currently displayed in the side panel:
+  //   - _lastDetailSig: every visible field. Skipped entirely when identical
+  //     (no-op on unrelated snapshots).
+  //   - _lastDetailStructuralSig: every visible field EXCEPT weight + lastUpdate
+  //     (the parts of the panel that need a full rebuild to update — image,
+  //     badges, color, container, etc.). When this stays identical but the
+  //     total sig changes, only the weight slider / display / fill bar AND the
+  //     "Updated" timestamp row are patched in place — the product `<img>` and
+  //     every SVG icon survive untouched, so editing the weight from the side
+  //     card no longer flashes the panel.
   let _lastDetailSig = "";
+  let _lastDetailStructuralSig = "";
+  // _patchDetailWeight uses `slider.matches(":active")` to detect whether the
+  // user is mid-drag (instead of a manual flag). Reason: pointerup does NOT
+  // fire reliably on `<input type="range">` on Chromium/Electron — clicking
+  // the track, releasing outside the slider, or alt-tabbing mid-drag can all
+  // swallow the event. A manually-tracked flag would get stuck at true and
+  // silently break every future snapshot until close/reopen.
+
+  // Fields that, when changed, require a full panel rebuild. Weight, lastUpdate
+  // and similar high-frequency fields are deliberately excluded so a Firestore
+  // weight edit takes the surgical patch path.
+  function _detailStructuralSig(r) {
+    return [
+      r.spoolId,
+      r.deleted ? 1 : 0,
+      r.imgUrl || "",
+      r.userImg || "",
+      r.material || "",
+      r.brand || "",
+      r.aspect1 || "",
+      r.aspect2 || "",
+      r.td ?? "",
+      r.needUpdateAt ? 1 : 0,
+      r.hasTwinPair ? 1 : 0,
+      r.twinUid || "",
+      r.isPlus ? 1 : 0,
+      r.isCloud ? 1 : 0,
+      r.isRefill ? 1 : 0,
+      r.isRecycled ? 1 : 0,
+      r.isFilled ? 1 : 0,
+      r.containerId || "",
+      r.containerWeight ?? "",
+      r.capacity ?? "",
+      r.colorHex || "",
+      r.colorHex2 || "",
+      r.colorHex3 || "",
+      (r.colorList || []).join(","),
+      r.colorType || "",
+      r.colorName || "",
+      r.rackId || "",
+      r.rackLevel ?? "",
+      r.rackPos ?? "",
+      r.message || "",
+      r.sku || "",
+      r.barcode || "",
+      r.series || "",
+      r.uid || "",
+      r.diameter || "",
+      r.tagType || "",
+      r.productType || "",
+    ].join("|");
+  }
+
+  // Surgical patch of the weight UI in the open panel. Touches only:
+  //   - #weightSlider .value
+  //   - #sliderDisplay first text node (the big number)
+  //   - #wbFill .style.width (progress fill)
+  //   - #wbInlineInput .value (skipped while the manual-edit form is open —
+  //     otherwise a remote snapshot would silently overwrite the value the
+  //     user is typing and confirm would submit the server value instead)
+  //   - friend-view read-only `.wb-val` (no slider)
+  //   - #detUpdatedVal text (the "Updated" row inside the Details section)
+  // Never touches images, SVG icons, badges, or any other panel content.
+  //
+  // Server is authoritative — when a Firestore snapshot arrives we always apply
+  // the patch, even if the user is mid-drag or has a pending debounced write.
+  // Two "force release" side effects make this safe:
+  //   - If `:active` (user pressing the slider), we toggle `disabled` for one
+  //     tick to drop the browser's pointer tracking + `:active` state, so the
+  //     user's continued pointermove can't immediately overwrite the patched
+  //     value. They can re-grab the slider if they want to edit again.
+  //   - If a debounced write is pending, we cancel it. The server's new value
+  //     supersedes whatever the user was about to commit; keeping the pending
+  //     write would silently overwrite the fresh server value 500 ms later.
+  function _patchDetailWeight(r) {
+    const cap   = Number(r.capacity) || 1000;
+    const curW  = r.weightAvailable != null ? r.weightAvailable : 0;
+    const pct   = Math.max(0, Math.min(100, Math.round(curW / cap * 100)));
+    const pctW  = `${pct}%`;
+    const wStr  = String(curW);
+
+    const slider     = $("weightSlider");
+    const wasActive  = slider && slider.matches(":active");
+    const hadPending = _sliderDebounce !== null;
+
+    // Cancel any pending debounced write — the snapshot we're applying is now
+    // the source of truth, and we don't want our pending stale value to land
+    // on Firestore and overwrite it.
+    if (hadPending) {
+      clearTimeout(_sliderDebounce);
+      _sliderDebounce = null;
+      const fillNode = $("wbFill");
+      if (fillNode) fillNode.classList.remove("wb-saving");
+    }
+
+    if (slider && slider.value !== wStr) slider.value = wStr;
+
+    // Force-release the user's pointer interaction so their next pointermove
+    // doesn't snap slider.value back. Toggling `disabled` for one task tick
+    // clears `:active` + pointer capture without a visible style flash (the
+    // re-enable lands before the next paint). The user can re-grab to edit.
+    if (wasActive && slider) {
+      slider.disabled = true;
+      setTimeout(() => { slider.disabled = false; }, 0);
+    }
+
+    const display = $("sliderDisplay");
+    if (display) {
+      const txt = display.firstChild;
+      if (txt && txt.nodeType === Node.TEXT_NODE) {
+        if (txt.nodeValue !== wStr) txt.nodeValue = wStr;
+      } else {
+        // Defensive: structure mismatch (shouldn't happen) → minimal rebuild
+        display.innerHTML = `${wStr}<span>g</span>`;
+      }
+    }
+
+    const fill = $("wbFill");
+    if (fill && fill.style.width !== pctW) fill.style.width = pctW;
+
+    // The manual-edit form (#wbInlineEdit) is shown when the user clicks the
+    // pencil; while it's visible they are actively typing into #wbInlineInput.
+    // Skip the patch in that window — otherwise an unrelated snapshot replaces
+    // their typed value silently and confirm submits the wrong number.
+    const inlineEditOpen = !$("wbInlineEdit")?.classList.contains("hidden");
+    if (!inlineEditOpen) {
+      const inlineInput = $("wbInlineInput");
+      if (inlineInput && inlineInput.value !== wStr) inlineInput.value = wStr;
+    }
+
+    // Friend-view read-only display has no #sliderDisplay; the `.wb-val` div
+    // carries the number directly without an id.
+    if (!display) {
+      const friendVal = document.querySelector("#detailPanel .wb-val");
+      if (friendVal) {
+        const txt = friendVal.firstChild;
+        if (txt && txt.nodeType === Node.TEXT_NODE && txt.nodeValue !== wStr) {
+          txt.nodeValue = wStr;
+        }
+      }
+    }
+
+    // "Updated" row inside the (collapsible) Details section. lastUpdate is in
+    // _rowSignature but not in the structural sig, so a weight-edit echo would
+    // otherwise leave this label frozen until the next structural change.
+    const updatedVal = $("detUpdatedVal");
+    if (updatedVal) {
+      const newTs = fmtTs(r.lastUpdate);
+      if (updatedVal.textContent !== newTs) updatedVal.textContent = newTs;
+    }
+  }
+
+  // Visual confirmation after a successful weight write — pops a green check
+  // next to #wbEditOpen and lets the CSS animation fade it out. Safe no-op
+  // when the detail panel isn't open (element doesn't exist) or in friend
+  // view (no edit affordance). Reflow-trick restarts the animation if the
+  // user saves multiple times in a row.
+  function _wbShowSavedCheck() {
+    const el = document.getElementById("wbSavedCheck");
+    if (!el) return;
+    el.classList.remove("show");
+    void el.offsetWidth;
+    el.classList.add("show");
+  }
 
   function openDetail(spoolId) {
     state.selected = spoolId;
@@ -5939,6 +6106,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const r = state.rows.find(x => x.spoolId === spoolId);
     if (!r) return;
     _lastDetailSig = _rowSignature(r);
+    _lastDetailStructuralSig = _detailStructuralSig(r);
     $("panelBody").innerHTML = buildPanelHTML(r);
     // Hold-to-confirm "Delete spool" — 1.5s hold, irreversible hard delete.
     // Removes the Firestore doc (+ twin) permanently — ISO with printer deletion.
@@ -6219,12 +6387,72 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       fill.classList.remove("wb-saving");
     }
 
+    // Inline weight editor: two modes.
+    //   - "net":   user types the net filament weight (what we write to Firestore).
+    //   - "gross": user types the scale reading (filament + container). Studio
+    //              subtracts r.containerWeight and writes the result. Uses the
+    //              existing doWeightUpdate(r, "raw", val) path which already
+    //              does `weightAvailable = rawW - containerWeight` for us.
+    // Mode persists in localStorage so kitchen-scale users don't have to switch
+    // every time.
+    const WB_MODE_KEY = "tigertag.wbInputMode";
+    const _wbCw = Number(r.containerWeight) || 0;
+
+    function _wbGetMode() {
+      const m = localStorage.getItem(WB_MODE_KEY);
+      return m === "gross" ? "gross" : "net";
+    }
+    function _wbApplyMode(mode) {
+      const isGross = mode === "gross";
+      // Toggle button highlight
+      $("wbModeNet")  ?.classList.toggle("active", !isGross);
+      $("wbModeGross")?.classList.toggle("active",  isGross);
+      // Input bounds — gross can go up to capacity + container, net stops at cap.
+      const inp = $("wbInlineInput");
+      if (inp) {
+        inp.max = String(isGross ? cap + _wbCw : cap);
+        inp.min = "0";
+      }
+      _wbUpdateHint();
+    }
+    // Live tooltip on the Balance pill — always shows the conversion math, in
+    // both modes, so the user can verify what will be written to Firestore at
+    // any time:
+    //   - No container set → "No container — net = balance"
+    //   - Net mode    (input is net)     → net stays the input value
+    //   - Balance mode (input is gross)  → net = max(0, input − cw)
+    // Browser shows it on hover after ~500 ms. Recomputed on every input event
+    // and on every mode switch.
+    function _wbUpdateHint() {
+      const btn = $("wbModeGross"); if (!btn) return;
+      if (_wbCw <= 0) { btn.title = t("wbModeHintNoContainer"); return; }
+      const inp = $("wbInlineInput");
+      const raw = Number(inp?.value) || 0;
+      const isGross = btn.classList.contains("active");
+      const net = isGross ? Math.max(0, raw - _wbCw) : raw;
+      btn.title = t("wbModeHintGross", { net, cw: _wbCw });
+    }
+    function _wbSeedInputForMode(mode) {
+      // Seed the input with the relevant current value so the user starts from
+      // a meaningful baseline (current net for net mode, current scale reading
+      // for gross mode = net + container).
+      const inp = $("wbInlineInput"); if (!inp) return;
+      const curNet = Number(slider.value) || 0;
+      inp.value = mode === "gross" ? String(curNet + _wbCw) : String(curNet);
+    }
+
     function openInlineEdit() {
       cancelSliderDebounce();
+      // Wipe any stale toast (e.g. a previous "out of range" error from before
+      // the input-clamping landed) so the slate is clean on every open.
+      const res = $("panelWeightResult"); if (res) res.innerHTML = "";
       $("sliderDisplay").classList.add("hidden");
       $("wbEditOpen").classList.add("hidden");
       $("wbInlineEdit").classList.remove("hidden");
-      $("wbInlineInput").value = slider.value;
+      const mode = _wbGetMode();
+      _wbApplyMode(mode);
+      _wbSeedInputForMode(mode);
+      _wbUpdateHint();
       $("wbInlineInput").focus();
       $("wbInlineInput").select();
     }
@@ -6234,23 +6462,77 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       $("wbInlineEdit").classList.add("hidden");
     }
     function confirmInlineEdit() {
-      const val = $("wbInlineInput").value;
+      const mode = _wbGetMode();
+      // Belt-and-suspenders clamp at confirm time. Net mode caps at capacity;
+      // Balance mode caps at capacity + container (so the *computed* net still
+      // sits within [0, cap]). The input-event listener already caps as the
+      // user types — this catch-all handles paste, programmatic sets, etc.
+      const maxAllowed = mode === "gross" ? cap + _wbCw : cap;
+      const valRaw = Number($("wbInlineInput").value) || 0;
+      const val    = Math.max(0, Math.min(maxAllowed, valRaw));
       closeInlineEdit();
-      syncFromValue(Number(val) || 0);
-      doWeightUpdate(r, "direct", val);
+      const netPreview = mode === "gross" ? Math.max(0, val - _wbCw) : val;
+      syncFromValue(netPreview);
+      doWeightUpdate(r, mode === "gross" ? "raw" : "direct", val);
     }
 
+    // Mode pill toggle — persist choice + reseed input so the displayed number
+    // matches the new mode (user just clicked "Balance" → show gross weight,
+    // not the net value left over from net mode).
+    $("wbModeNet")?.addEventListener("click", () => {
+      const inp = $("wbInlineInput");
+      const prev = _wbGetMode();
+      if (prev === "net") return;
+      // Convert the typed value: user was in gross, switching to net → subtract cw.
+      const raw = Number(inp?.value) || 0;
+      if (inp) inp.value = String(Math.max(0, raw - _wbCw));
+      localStorage.setItem(WB_MODE_KEY, "net");
+      _wbApplyMode("net");
+      inp?.focus(); inp?.select();
+    });
+    $("wbModeGross")?.addEventListener("click", () => {
+      const inp = $("wbInlineInput");
+      const prev = _wbGetMode();
+      if (prev === "gross") return;
+      // Convert: user was in net, switching to gross → add cw so the displayed
+      // scale reading matches what their balance would show.
+      const net = Number(inp?.value) || 0;
+      if (inp) inp.value = String(net + _wbCw);
+      localStorage.setItem(WB_MODE_KEY, "gross");
+      _wbApplyMode("gross");
+      inp?.focus(); inp?.select();
+    });
+
+    // `input` fires CONTINUOUSLY during drag — keep the local UI in sync, but
+    // DO NOT send anything to Firestore yet (the user might still be moving the
+    // thumb). Cancel any pending write from a prior interaction in case they
+    // re-grabbed the slider during the 500 ms post-release window.
     slider.addEventListener("input", () => {
       syncFromValue(Number(slider.value));
-      // Debounced auto-save: wait 500 ms of inactivity, then write to Firestore
-      clearTimeout(_sliderDebounce);
       fill.classList.add("wb-saving");
+      clearTimeout(_sliderDebounce); _sliderDebounce = null;
+    });
+
+    // `change` fires ONCE when the user releases the slider thumb (or, for a
+    // single track click, immediately after the value commits). That's when we
+    // schedule the Firestore write — 500 ms later, so the user can re-grab the
+    // slider to cancel/refine without burning a request. Capture the value at
+    // change time so a snapshot landing during the 500 ms window can't morph
+    // what we end up writing.
+    slider.addEventListener("change", () => {
+      clearTimeout(_sliderDebounce);
+      const valueToWrite = slider.value;
       _sliderDebounce = setTimeout(() => {
         fill.classList.remove("wb-saving");
         _sliderDebounce = null;
-        doWeightUpdate(r, "direct", slider.value);
+        doWeightUpdate(r, "direct", valueToWrite);
       }, 500);
     });
+
+    // No manual drag-state tracking: _patchDetailWeight uses `:active` to
+    // detect whether the user is pressing the slider — the browser's source
+    // of truth, can't desync. If a snapshot arrives mid-drag, the patch
+    // forces release via a one-tick `disabled` toggle.
 
     $("wbEditOpen").addEventListener("click", openInlineEdit);
     $("wbInlineConfirm").addEventListener("click", confirmInlineEdit);
@@ -6258,6 +6540,18 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     $("wbInlineInput").addEventListener("keydown", e => {
       if (e.key === "Enter") { e.preventDefault(); confirmInlineEdit(); }
       if (e.key === "Escape") closeInlineEdit();
+    });
+    // Live hint refresh + typing clamp. Capping at `max` (Net = capacity,
+    // Balance = capacity + container) means the user can never type a value
+    // that doWeightUpdate would reject as out-of-range. They get instant
+    // visual feedback (cursor sticks at the spool's capacity) instead of an
+    // error toast that has no auto-dismiss.
+    $("wbInlineInput").addEventListener("input", () => {
+      const inp = $("wbInlineInput");
+      const max = Number(inp.max);
+      const val = Number(inp.value);
+      if (max && val > max) inp.value = String(max);
+      _wbUpdateHint();
     });
 
     if ($("btnChangeContainerCard")) {
@@ -6347,14 +6641,25 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const vp = $("panelVideoPlayer"); if (vp) vp.innerHTML = "";
     $("detailPanel").classList.remove("open"); $("panelOverlay").classList.remove("open");
     _lastDetailSig = "";
+    _lastDetailStructuralSig = "";
   }
 
-  // Re-evaluate the open detail panel after a Firestore snapshot. Skips the
-  // full rebuild when nothing visible to the panel actually changed (e.g.
-  // another spool was edited, or this snapshot is just a write echo with the
-  // same fields). Replaces the unconditional `openDetail(state.selected)`
-  // that fired on every snapshot and flashed every image (large product
-  // photo, SVG badges) of the sidecard.
+  // Re-evaluate the open detail panel after a Firestore snapshot. Three paths:
+  //   1. Nothing visible changed → return (most common: unrelated spool was
+  //      edited elsewhere, or pending-write echo with no diff).
+  //   2. Only weight and/or lastUpdate changed → surgical `_patchDetailWeight`
+  //      updates the slider / display / fill bar AND the "Updated" row in the
+  //      Details section. The product image and SVG icons survive untouched,
+  //      so editing the weight from the side card no longer flashes the panel.
+  //      Server is authoritative: if the user is mid-drag, the patch toggles
+  //      `disabled` for one tick to force-release the slider, and if a local
+  //      debounced write is pending it gets cancelled. The user can re-grab
+  //      to edit again. Skips the inline-edit input only while the manual
+  //      editor is open — so a typed value isn't silently overwritten.
+  //   3. Structural change (color, container, twin paired, etc.) → full
+  //      `openDetail` rebuild — rare.
+  // Replaces the unconditional `openDetail(state.selected)` that fired on
+  // every snapshot and rebuilt the whole panel.
   function refreshOpenDetail() {
     if (!state.selected) return;
     if (!$("detailPanel")?.classList.contains("open")) return;
@@ -6365,8 +6670,17 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       return;
     }
     const newSig = _rowSignature(r);
-    if (newSig === _lastDetailSig) return; // visible content unchanged → skip
-    openDetail(state.selected);            // sig will be updated inside openDetail
+    if (newSig === _lastDetailSig) return; // path 1: visible content unchanged
+
+    const newStructSig = _detailStructuralSig(r);
+    if (newStructSig === _lastDetailStructuralSig) {
+      // path 2: weight-only diff → patch in place, no flash
+      _patchDetailWeight(r);
+      _lastDetailSig = newSig;
+      return;
+    }
+    // path 3: structural change → full rebuild
+    openDetail(state.selected);
   }
 
   /* ── TD1S module init ────────────────────────────────────────────────────
@@ -6743,6 +7057,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // weight
     const cap = r.capacity || 1000;
     const curW = r.weightAvailable != null ? r.weightAvailable : 0;
+    // Clamp to 0-100 so a weightAvailable that exceeds capacity (e.g. manual
+    // overrun, or capacity lowered after weighing) doesn't render past the
+    // bar. Must match the clamp in _patchDetailWeight so the path-2 patch and
+    // path-3 full rebuild produce identical widths.
+    const pctFill = Math.max(0, Math.min(100, Math.round(curW / cap * 100)));
     const weightHtml = state.friendView ? `
       <div class="panel-section">
         <div class="panel-label">${t("sectionWeight")}</div>
@@ -6754,7 +7073,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
             <div class="wb-cap">${cap >= 1000 ? (cap/1000).toFixed(cap % 1000 === 0 ? 0 : 1) + ' kg' : cap + ' g'} total</div>
           </div>
           <div class="wb-track wb-track--ro">
-            <div class="wb-fill" style="width:${Math.round(curW/cap*100)}%"></div>
+            <div class="wb-fill" style="width:${pctFill}%"></div>
           </div>
           <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:5px">
             <span>0 g</span><span>${cap} g</span>
@@ -6762,7 +7081,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         </div>
       </div>` : `
       <div class="panel-section">
-        <div class="panel-label">${t("sectionWeight")}</div>
+        <div class="panel-label panel-label--weight">
+          <span>${t("sectionWeight")}</span>
+          <span class="wb-saved-check" id="wbSavedCheck" aria-hidden="true"></span>
+        </div>
         <div class="weight-bar-wrap">
           <div class="wb-labels">
             <div class="wb-val-group">
@@ -6771,15 +7093,21 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
                 <span class="icon icon-edit icon-13"></span>
               </button>
               <div class="wb-inline-edit hidden" id="wbInlineEdit">
-                <input type="number" id="wbInlineInput" min="0" max="${cap}" step="1" value="${curW}" />
-                <button id="wbInlineConfirm" class="wb-inline-ok" title="Confirm">✓</button>
-                <button id="wbInlineCancel" class="wb-inline-cancel" title="Cancel">✕</button>
+                <div class="wb-inline-row">
+                  <input type="number" id="wbInlineInput" min="0" max="${cap}" step="1" value="${curW}" />
+                  <button id="wbInlineConfirm" class="wb-inline-ok" title="Confirm">✓</button>
+                  <button id="wbInlineCancel" class="wb-inline-cancel" title="Cancel">✕</button>
+                  <div class="wb-mode-toggle" id="wbModeToggle">
+                    <button type="button" class="wb-mode-btn active" data-mode="net" id="wbModeNet" title="${t('wbModeNetTitle')}">${t('wbModeNet')}</button>
+                    <button type="button" class="wb-mode-btn"        data-mode="gross" id="wbModeGross" title="${t('wbModeGrossTitle')}">${t('wbModeGross')}</button>
+                  </div>
+                </div>
               </div>
             </div>
             <div class="wb-cap">${cap >= 1000 ? (cap/1000).toFixed(cap % 1000 === 0 ? 0 : 1) + ' kg' : cap + ' g'} total</div>
           </div>
           <div class="wb-track">
-            <div class="wb-fill" id="wbFill" style="width:${Math.round(curW/cap*100)}%"></div>
+            <div class="wb-fill" id="wbFill" style="width:${pctFill}%"></div>
             <input type="range" id="weightSlider" min="0" max="${cap}" step="1" value="${curW}" />
           </div>
           <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:5px">
@@ -6790,7 +7118,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         <div id="panelWeightResult"></div>
       </div>`;
 
-    // info rows
+    // info rows — optional 3rd tuple element is an id placed on the .pv span,
+    // so _patchDetailWeight can refresh that cell without a full rebuild.
     const infoRows = [
       [t("detUid"),           r.uid],
       [t("detType"),          r.productType],
@@ -6804,7 +7133,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       [t("detBarcode"),       r.barcode],
       [t("detContainer"),     r.containerId],
       [t("detTwin"),          r.twinUid],
-      [t("detUpdated"),       fmtTs(r.lastUpdate)],
+      [t("detUpdated"),       fmtTs(r.lastUpdate), "detUpdatedVal"],
       ...(!r.isPlus && fmtChipTs(r.chipTimestamp) ? [[t("detManufactured"), fmtChipTs(r.chipTimestamp)]] : []),
     ].filter(([,val]) => val && val !== "-");
 
@@ -6818,7 +7147,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           <span class="panel-details-chevron">›</span>
         </button>
         <div class="panel-details-body">
-          ${infoRows.map(([k,val]) => `<div class="panel-row"><span class="pk">${k}</span><span class="pv">${esc(String(val))}</span></div>`).join("")}
+          ${infoRows.map(([k,val,pvId]) => `<div class="panel-row"><span class="pk">${k}</span><span class="pv"${pvId ? ` id="${pvId}"` : ""}>${esc(String(val))}</span></div>`).join("")}
           <div style="margin-top:8px;display:flex;gap:6px">
             ${tierBadgeHTML(r)}
             ${r.deleted ? `<span class="badge bad" style="font-size:11px">${t("badgeDeleted")}</span>` : ""}
@@ -6876,10 +7205,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const container = r.containerId ? containerFind(r.containerId) : null;
     const containerHtml = container ? `
       <div class="panel-section cc-section">
-        <div class="cc-head">${esc(container.brand)} · ${esc(container.label)}</div>
         <div class="cc-body">
           <img src="${esc(container.img)}" alt="${esc(container.brand)}" onerror="this.style.display='none'" />
           <div class="cc-meta">
+            <div class="cc-head">${esc(container.brand)} · ${esc(container.label)}</div>
             <div class="cc-type">${esc(container.type)}</div>
             <div class="cc-cw-row">
               <span id="ccCwVal" class="cc-cw">${r.containerWeight} g</span>
@@ -7266,13 +7595,16 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       const cap  = Number(r.capacity) || 1000;
 
       // Tare: raw mode = scale reading includes container; direct mode = net weight
-      const weightAvailable = mode === "raw" ? rawW - cw : rawW;
-      const weightDisplay   = mode === "raw" ? rawW : rawW + cw; // gross for toast
+      const weightRaw = mode === "raw" ? rawW - cw : rawW;
 
-      if (weightAvailable < 0 || weightAvailable > cap) {
-        toast($("panelWeightResult"), "bad", t("weightErr", { r: `${weightAvailable} g — hors plage [0–${cap} g]` }));
-        setLoading(btn, false); return;
-      }
+      // Silent clamp to [0, cap] — the slider has min/max enforced and the
+      // inline editor clamps on `input` + confirm, so this path should never
+      // see out-of-range values from the UI. If something slips through (e.g.
+      // a future programmatic caller), clamp instead of toasting an error.
+      // The user's mental model is "the spool is full" → showing 100 % fill
+      // tells them everything they need. The previous error toast ("X g —
+      // hors plage [0–Y g]") had no auto-dismiss and just sat there.
+      const weightAvailable = Math.max(0, Math.min(cap, weightRaw));
 
       const update = { weight_available: weightAvailable, updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
       const invRef = fbDb().collection("users").doc(uid).collection("inventory");
@@ -7290,15 +7622,18 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       }
 
       await batch.commit();
-      // onSnapshot propagates the change to the UI automatically — no loadInventory() needed
-      toast($("panelWeightResult"), "ok",
-        t("weightOk", { wa: weightAvailable, w: weightDisplay, cw }) +
-        (twinUpdated ? t("weightOkTwin") : "")
-      );
-      // Refresh detail panel once onSnapshot fires (give Firestore ~500 ms)
-      setTimeout(() => {
-        if ($("detailPanel").classList.contains("open") && state.selected === r.spoolId) openDetail(r.spoolId);
-      }, 500);
+      // onSnapshot propagates the change to the UI automatically — no
+      // loadInventory() and no manual openDetail() needed. The surgical
+      // path 2 in refreshOpenDetail() patches the slider/display/fill in
+      // place; the product image and SVG icons survive untouched. The
+      // previous `setTimeout(() => openDetail(r.spoolId), 500)` here was
+      // a leftover from before that refactor — it tore down panelBody.innerHTML
+      // on every save and made the product photo + TigerTag SVGs visibly flash.
+      // Visual confirmation: green check pops next to the edit button and
+      // fades out. Replaced the verbose "wa available (gross − cw container)
+      // [· twin updated]" toast — the slider/display/fill already show the
+      // new value, the user doesn't need the math spelled out every save.
+      _wbShowSavedCheck();
 
     } catch (e) { toast($("panelWeightResult"), "bad", e.message || t("networkError")); }
     finally { setLoading(btn, false); }
