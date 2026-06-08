@@ -5,6 +5,19 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.8.19 — 2026-06-09
+
+### Added
+
+- **Printer connection tutorials, brought over from the mobile app.** Connecting a Bambu Lab — LAN-only mode, developer mode, IP + serial + access code — takes seven steps and a lot of context. The mobile app already walked users through it; the desktop app now does too. Open the Add Printer panel, and any brand with a tutorial (Bambu Lab, FlashForge, Elegoo) shows a "📖 Tutoriel de connexion" pill on its card. Click it and pick your model from the visual grid (A1 mini, A1, P1P, P1S, P2S, X1 Carbon, X1E, H2S, H2D, H2D Pro, H2C — sorted entry-level → flagship) — Studio matches your model to the right step series, walks you through each step with a screenshot and a one-sentence explanation, and lets you navigate with Prev/Next, the dots, or the arrow keys. Localised in all nine languages.
+
+### Changed
+
+- **Printer table sorts by status by default.** Open the Printers view as Tableau and the connected printers come up first, offline ones at the bottom. Click any column header to sort differently, like before.
+- **Cleaner printer cards.** Removed the grey rectangle behind the printer photo in the Printers Grille view — the photo now sits directly on the card.
+
+---
+
 ## v1.8.18 — 2026-06-08
 
 ### Fixed

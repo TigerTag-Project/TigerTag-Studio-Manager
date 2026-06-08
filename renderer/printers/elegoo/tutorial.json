@@ -1,0 +1,16 @@
+{
+  "brand": "elegoo",
+  "estimatedMinutes": 1,
+  "series": [
+    {
+      "id": "default",
+      "label": "Centauri Carbon",
+      "steps": [
+        { "image": "elegoo_lan_only.png", "body": "tutoElegooStep1" }
+      ]
+    }
+  ],
+  "models": [
+    { "id": "cc2", "label": "Centauri Carbon", "image": "models/cc2.png", "series": "default" }
+  ]
+}

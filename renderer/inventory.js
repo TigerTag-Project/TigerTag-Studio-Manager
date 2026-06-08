@@ -173,8 +173,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     lang: localStorage.getItem("tigertag.lang") || "en",
     sortCol: null,
     sortDir: "asc",
-    printerSortCol: null,
-    printerSortDir: "asc",
+    printerSortCol: "status",   // default: online printers at top
+    printerSortDir: "desc",      // status=1 (online) sorts above status=0 (offline)
     activeAccountId: null,
     i18n: {},
     imgCache: new Map(),
@@ -11257,9 +11257,20 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function openPrinterBrandPicker() {
     const list = $("printerBrandPickerList");
     if (!list) return;
+    // Brands with a connection tutorial bundled. Adding a brand here requires
+    // a renderer/printers/<brand>/tutorial.json file alongside its add-flow.js.
+    const _PT_HAS_TUTO = { bambulab: true, flashforge: true, elegoo: true };
     // One card per brand — visual cue (color dot) + label + connection hint.
+    // For brands with a tutorial.json, an inline "📖 Tutoriel de connexion"
+    // pill sits inside the card between the labels and the chevron. Rendered
+    // as a <span role="button"> (not a real <button>) because nesting buttons
+    // is invalid HTML; the click handler is attached directly with
+    // stopPropagation so it doesn't fall through to the brand-select action.
     list.innerHTML = PRINTER_BRANDS.map(brand => {
       const meta = PRINTER_BRAND_META[brand];
+      const tutoLink = _PT_HAS_TUTO[brand]
+        ? `<span class="pba-brand-tuto-link" data-printer-tuto="${esc(brand)}" role="button" tabindex="0">${t("tutoOpenBtn")}</span>`
+        : "";
       return `
         <button type="button" class="pba-brand" data-brand="${esc(brand)}">
           <span class="pba-brand-dot" style="background:${meta.accent}"></span>
@@ -11267,9 +11278,23 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
             <span class="pba-brand-label">${esc(meta.label)}</span>
             <span class="pba-brand-conn">${esc(meta.connection)}</span>
           </span>
+          ${tutoLink}
           <span class="icon icon-chevron-r icon-14 pba-brand-chev"></span>
         </button>`;
     }).join("");
+    // Direct listener on each tutorial pill — fires during bubble phase
+    // BEFORE the parent .pba-brand handler, so stopPropagation prevents the
+    // brand-select dispatch (Add Printer flow) from also firing.
+    list.querySelectorAll(".pba-brand-tuto-link").forEach(pill => {
+      const trigger = (e) => {
+        e.preventDefault(); e.stopPropagation();
+        openPrinterTutorial(pill.dataset.printerTuto, "");
+      };
+      pill.addEventListener("click", trigger);
+      pill.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") trigger(e);
+      });
+    });
     list.querySelectorAll(".pba-brand").forEach(btn => {
       btn.addEventListener("click", () => {
         const brand = btn.dataset.brand;
@@ -11405,6 +11430,199 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (!btn) return;
     e.preventDefault();
     openTutoSheet(btn.dataset.tutoSrc, btn.dataset.tutoTitle || "");
+  });
+
+  // ── Printer connection tutorial (multi-step walkthrough) ──────────────────
+  // Loaded from renderer/printers/<brand>/tutorial.json. Each brand can declare
+  // multiple "models" (e.g. Bambu X1 / P1 / A1 / H2-P2) — if more than one,
+  // we show a picker first; if just one, jump straight to step 1.
+  //
+  // Brand label → URL slug used to find the tutorial.json + asset folder.
+  const _PT_BRAND_LABEL = {
+    bambulab:   "Bambu Lab",
+    flashforge: "FlashForge",
+    elegoo:     "Elegoo",
+    creality:   "Creality",
+    snapmaker:  "Snapmaker",
+  };
+  let _ptCache = {};           // brand → loaded tutorial.json (cached after first fetch)
+  let _ptState = {             // active modal state
+    brand: null,
+    json: null,
+    seriesId: null,            // active series (resolved from picked model)
+    stepIdx: 0,
+  };
+
+  async function _ptLoad(brand) {
+    if (_ptCache[brand]) return _ptCache[brand];
+    try {
+      const res = await fetch(`./printers/${brand}/tutorial.json`);
+      if (!res.ok) return null;
+      const json = await res.json();
+      _ptCache[brand] = json;
+      return json;
+    } catch (_e) { return null; }
+  }
+
+  // The footer (Prev / dots / Next / Finish) is only relevant during step
+  // walkthrough — hidden entirely in the model picker so its empty controls
+  // don't clutter the layout.
+  function _ptHideFooter() {
+    $("printerTutoFoot")?.classList.add("hidden");
+  }
+  function _ptShowFooter() {
+    $("printerTutoFoot")?.classList.remove("hidden");
+  }
+
+  function _ptShowEmpty() {
+    $("printerTutoModels")?.classList.add("hidden");
+    $("printerTutoStep")?.classList.add("hidden");
+    $("printerTutoEmpty")?.classList.remove("hidden");
+    _ptHideFooter();
+    $("printerTutoCounter").textContent = "";
+  }
+
+  // Render the model picker — a grid of printer-model cards with a photo
+  // thumbnail + label. Picking one resolves model.series → the steps list.
+  // Mirrors the mobile app's "Select your model" sheet.
+  function _ptShowModelPicker() {
+    $("printerTutoModels")?.classList.remove("hidden");
+    $("printerTutoStep")?.classList.add("hidden");
+    $("printerTutoEmpty")?.classList.add("hidden");
+    _ptHideFooter();
+    $("printerTutoCounter").textContent = "";
+    // Clean stale dots from a prior step-view session so they don't bleed
+    // into a reopened picker mode.
+    $("printerTutoDots") && ($("printerTutoDots").innerHTML = "");
+    const grid = $("printerTutoModelsGrid"); if (!grid) return;
+    grid.innerHTML = "";
+    const models = _ptState.json?.models || [];
+    models.forEach((m) => {
+      const btn = document.createElement("button");
+      btn.className = "printer-tuto-model-btn"; btn.type = "button";
+      // Name on top, photo below — matches the mobile app and avoids the
+      // step-count clutter (the count is shown once the user is inside the
+      // step view, not in the picker).
+      btn.innerHTML = `
+        <span class="pt-model-name">${esc(m.label)}</span>
+        <img class="pt-model-img" src="./../assets/img/tutorials/${esc(_ptState.brand)}/${esc(m.image)}" alt="" onerror="this.style.visibility='hidden'" />`;
+      btn.addEventListener("click", () => {
+        _ptState.seriesId = m.series;
+        _ptState.stepIdx = 0;
+        _ptRenderStep();
+      });
+      grid.appendChild(btn);
+    });
+    // Ensure the picker opens scrolled to the top — without this, a stale
+    // scroll offset from a previous step view can hide the label + first row.
+    const sc = $("printerTutoModels"); if (sc) sc.scrollTop = 0;
+  }
+
+  function _ptCurrentSeries() {
+    if (!_ptState.json) return null;
+    return (_ptState.json.series || []).find(s => s.id === _ptState.seriesId) || null;
+  }
+
+  function _ptRenderStep() {
+    const series = _ptCurrentSeries();
+    if (!series || !series.steps?.length) { _ptShowEmpty(); return; }
+    const step = series.steps[_ptState.stepIdx];
+    $("printerTutoModels")?.classList.add("hidden");
+    $("printerTutoStep")?.classList.remove("hidden");
+    $("printerTutoEmpty")?.classList.add("hidden");
+    _ptShowFooter();
+    $("printerTutoPrev").classList.remove("hidden");
+    $("printerTutoNext").classList.remove("hidden");
+
+    const img = $("printerTutoImg");
+    img.src = `./../assets/img/tutorials/${_ptState.brand}/${step.image}`;
+    img.alt = "";
+    $("printerTutoBody").textContent = t(step.body);
+    $("printerTutoCounter").textContent = t("tutoStepXOfY", {
+      n: _ptState.stepIdx + 1, total: series.steps.length
+    });
+    $("printerTutoPrev").disabled = _ptState.stepIdx === 0;
+    const isLast = _ptState.stepIdx === series.steps.length - 1;
+    $("printerTutoNext").classList.toggle("hidden", isLast);
+    $("printerTutoFinish").classList.toggle("hidden", !isLast);
+
+    // Step dots
+    const dots = $("printerTutoDots"); dots.innerHTML = "";
+    for (let i = 0; i < series.steps.length; i++) {
+      const d = document.createElement("span");
+      d.className = "pt-dot" + (i === _ptState.stepIdx ? " active" : "");
+      d.addEventListener("click", () => { _ptState.stepIdx = i; _ptRenderStep(); });
+      dots.appendChild(d);
+    }
+  }
+
+  async function openPrinterTutorial(brand, modelHint) {
+    const json = await _ptLoad(brand);
+    const brandLabel = _PT_BRAND_LABEL[brand] || brand;
+    $("printerTutoTitle").textContent = t("tutoTitleFor", { brand: brandLabel });
+    $("printerTutorialOverlay").classList.add("open");
+
+    if (!json || !json.series?.length || !json.models?.length) {
+      _ptState = { brand, json: null, seriesId: null, stepIdx: 0 };
+      _ptShowEmpty();
+      return;
+    }
+    _ptState = { brand, json, seriesId: null, stepIdx: 0 };
+
+    // Try to auto-resolve from the model hint (e.g. "P1S" → matches model id "p1s")
+    let matched = null;
+    if (modelHint) {
+      const lc = String(modelHint).toLowerCase();
+      matched = json.models.find(m =>
+        lc.includes(m.id.toLowerCase()) ||
+        String(m.label).toLowerCase().includes(lc)
+      );
+    }
+    // Brand with a single model → auto-pick.
+    if (!matched && json.models.length === 1) matched = json.models[0];
+
+    if (matched) {
+      _ptState.seriesId = matched.series;
+      _ptRenderStep();
+    } else {
+      _ptShowModelPicker();
+    }
+  }
+
+  function closePrinterTutorial() {
+    $("printerTutorialOverlay").classList.remove("open");
+  }
+
+  $("printerTutoClose")?.addEventListener("click", closePrinterTutorial);
+  $("printerTutorialOverlay")?.addEventListener("click", e => {
+    if (e.target === $("printerTutorialOverlay")) closePrinterTutorial();
+  });
+  $("printerTutoPrev")?.addEventListener("click", () => {
+    if (_ptState.stepIdx > 0) { _ptState.stepIdx--; _ptRenderStep(); }
+  });
+  $("printerTutoNext")?.addEventListener("click", () => {
+    const s = _ptCurrentSeries();
+    if (s && _ptState.stepIdx < s.steps.length - 1) {
+      _ptState.stepIdx++; _ptRenderStep();
+    }
+  });
+  $("printerTutoFinish")?.addEventListener("click", closePrinterTutorial);
+  // Keyboard nav when tutorial open
+  document.addEventListener("keydown", e => {
+    if (!$("printerTutorialOverlay")?.classList.contains("open")) return;
+    if (e.key === "Escape")     { e.preventDefault(); closePrinterTutorial(); }
+    if (e.key === "ArrowLeft")  { e.preventDefault(); $("printerTutoPrev").click(); }
+    if (e.key === "ArrowRight") { e.preventDefault(); $("printerTutoNext").click(); }
+  });
+
+  // Delegate — any `<button data-printer-tuto="bambulab" data-printer-tuto-model="P1S">`
+  // anywhere in the DOM opens the tutorial for that brand (optionally pre-selecting
+  // the matching series).
+  document.addEventListener("click", e => {
+    const btn = e.target.closest("[data-printer-tuto]");
+    if (!btn) return;
+    e.preventDefault(); e.stopPropagation();
+    openPrinterTutorial(btn.dataset.printerTuto, btn.dataset.printerTutoModel || "");
   });
 
   $("printerAddClose")?.addEventListener("click", closePrinterAddForm);

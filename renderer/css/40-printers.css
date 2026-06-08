@@ -102,12 +102,12 @@
     position: relative;
   }
 
-  /* Card thumbnail — printer photo from data/printers/<brand>_printer_models.json */
+  /* Card thumbnail — printer photo from data/printers/<brand>_printer_models.json.
+     No background or border-radius — the photo renders directly on the card
+     surface for a cleaner, less boxed look. */
   .printer-card-thumb {
     width: 100%;
     height: 110px;
-    background: var(--surface-2);
-    border-radius: 10px;
     display: flex; align-items: center; justify-content: center;
     overflow: hidden;
     margin-bottom: 4px;
@@ -2265,3 +2265,7 @@ details[open] .pba-step-chev { transform: rotate(90deg); }
   border-radius: 50%;
   animation: spin .7s linear infinite;
 }
+
+  /* (Earlier .pba-brand-row wrapper removed — tutorial pill now lives inside
+     .pba-brand between the labels and the chevron. Pill styling is in
+     60-modals.css — .pba-brand-tuto-link.) */

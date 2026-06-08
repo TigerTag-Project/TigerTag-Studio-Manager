@@ -1,0 +1,21 @@
+{
+  "brand": "flashforge",
+  "estimatedMinutes": 2,
+  "series": [
+    {
+      "id": "ad5x",
+      "label": "Adventurer 5M / 5M Pro / AD5X / A5",
+      "steps": [
+        { "image": "ad5x/ffg_ad5x_step1.png", "body": "tutoFlashforgeAd5xStep1" },
+        { "image": "ad5x/ffg_ad5x_step2.png", "body": "tutoFlashforgeAd5xStep2" },
+        { "image": "ad5x/ffg_ad5x_step3.png", "body": "tutoFlashforgeAd5xStep3" }
+      ]
+    }
+  ],
+  "models": [
+    { "id": "ad5x",  "label": "Adventurer 5X",      "image": "models/ad5x.png",  "series": "ad5x" },
+    { "id": "5m",    "label": "Adventurer 5M",      "image": "models/5m.png",    "series": "ad5x" },
+    { "id": "5mpro", "label": "Adventurer 5M Pro",  "image": "models/5mpro.png", "series": "ad5x" },
+    { "id": "a5",    "label": "Adventurer A5",      "image": "models/a5.png",    "series": "ad5x" }
+  ]
+}

@@ -2229,5 +2229,45 @@
     </div>
   </div>
 </div>
+
+<!-- Printer connection tutorial — multi-step walkthrough per brand/series.
+     Driven by `renderer/printers/<brand>/tutorial.json` (loaded by openPrinterTutorial). -->
+<div class="modal-overlay" id="printerTutorialOverlay">
+  <div class="modal-card printer-tuto-card">
+    <div class="printer-tuto-head">
+      <div class="printer-tuto-title-wrap">
+        <span class="printer-tuto-title" id="printerTutoTitle"></span>
+        <span class="printer-tuto-step-counter" id="printerTutoCounter"></span>
+      </div>
+      <button class="modal-close" id="printerTutoClose" data-i18n-title="tutoClose">✕</button>
+    </div>
+    <!-- Model picker — shown when the brand has multiple series (Bambu X1/P1/A1/H2-P2) -->
+    <div class="printer-tuto-models hidden" id="printerTutoModels">
+      <div class="printer-tuto-models-label" data-i18n="tutoPickModel">Select your printer model</div>
+      <div class="printer-tuto-models-grid" id="printerTutoModelsGrid"></div>
+    </div>
+    <!-- Step body — image + caption -->
+    <div class="printer-tuto-step hidden" id="printerTutoStep">
+      <div class="printer-tuto-img-wrap">
+        <img class="printer-tuto-img" id="printerTutoImg" alt="" />
+      </div>
+      <div class="printer-tuto-body" id="printerTutoBody"></div>
+    </div>
+    <!-- Empty / fallback when no tutorial for the brand -->
+    <div class="printer-tuto-empty hidden" id="printerTutoEmpty" data-i18n="tutoNone"></div>
+    <div class="printer-tuto-foot" id="printerTutoFoot">
+      <button class="adf-btn adf-btn--secondary" id="printerTutoPrev">
+        <span class="icon icon-chevron-l icon-13"></span>
+        <span data-i18n="tutoPrev">Previous</span>
+      </button>
+      <div class="printer-tuto-dots" id="printerTutoDots"></div>
+      <button class="adf-btn adf-btn--primary" id="printerTutoNext">
+        <span data-i18n="tutoNext">Next</span>
+        <span class="icon icon-chevron-r icon-13"></span>
+      </button>
+      <button class="adf-btn adf-btn--primary hidden" id="printerTutoFinish" data-i18n="tutoFinish">Finish</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>

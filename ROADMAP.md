@@ -831,6 +831,430 @@ Previously `_encodeCloud(r)` + the `rfid:encode-cloud` IPC promoted a TigerCloud
 
 ---
 
+### 🏅 Custom avatar — user-uploaded image (Discord-style, simple)
+Today's avatar is **initials on a colour gradient** (preset or custom hex). Personalisation stops at "pick a colour". Add the ability to upload a custom image — visible to the user and to their friends — while keeping the current colour gradient as the fallback when no image is set.
+
+#### What "simple" means here
+*Like Discord, but no animated avatars, no badges, no Nitro tiers.* One image per account. PNG / JPG / WebP. Auto-cropped to a square, displayed in a circle (CSS clip). Server-side max 1 MB to keep Storage bill at zero.
+
+#### 🗃️ Data model
+- `users/{uid}.avatarUrl` *(string)* — public download URL of the active avatar, or `null` for the colour fallback. Mirrored to `userProfiles/{uid}.avatarUrl` so friends discovered via the friend-system see the same image without read access to the owner's `users` doc.
+- Storage path: `avatars/{uid}/avatar.<ext>` in **Firebase Storage** (this would be the first feature using Storage — see infrastructure note below).
+- Optional `users/{uid}.avatarUpdatedAt` *(timestamp)* so cached image URLs can be busted with a query-string `?v=<ts>`.
+
+#### 🔧 Sub-features — recommended ship order
+
+##### V1 — Upload + crop + store  ·  **Effort: M**  ·  **Risk: low**
+Edit-account modal grows an "Upload avatar" button next to the colour swatches. File picker → in-browser crop to 1:1 (reuse a tiny lib or hand-roll with `<canvas>` since we only need centre-crop + resize to 256×256). Upload to Storage. Write `avatarUrl` + `avatarUpdatedAt` to `users/{uid}` and mirror to `userProfiles/{uid}`.
+
+##### V2 — Display surfaces  ·  **Effort: M**  ·  **Risk: low**
+Every site that calls `getInitials(acc)` + `getAccGradient(acc)` today grows a "if `acc.avatarUrl` then `<img>` else current code" branch. **At least 6 places** to touch:
+- Top-header chip (`renderer/inventory.js` L775)
+- Sidebar account drop row (L860)
+- Profiles modal account rows (L4101, L4126)
+- Edit-account modal preview (L2889, L2913)
+- Friends panel rows + incoming-request modal (existing `friendsList` render)
+- Friend-view banner ("Viewing X's inventory") — `state.friendView.avatarColor` becomes `avatarColor || avatarUrl`
+
+##### V3 — Remove / reset to colour  ·  **Effort: S**  ·  **Risk: low**
+A "Remove image" button in the edit-account modal that deletes the Storage object, nulls `avatarUrl`, falls back to colour rendering everywhere.
+
+##### V4 (optional) — Drag-and-drop straight onto the current avatar tile  ·  **Effort: S**  ·  **Risk: low**
+Quality-of-life: drop a file on the avatar circle, same flow as the picker. Matches the rack-drag UX users already know.
+
+#### ♻️ Reuses
+- **Cropping**: only need 1:1 centre-crop + resize. The `data/container_spool/*` image flow already does `<canvas>`-based resizes in `_resizeImage` (services or main side, search before reimplementing).
+- **Storage upload**: zero existing code — this is the **first feature** using Firebase Storage. Adds `firebase-storage-compat.js` to the v8 compat bundle and roughly 30 lines of upload helper.
+- **Display fallback**: 100 % reuse — `getInitials` + `getAccGradient` stay the source of truth when `avatarUrl` is null. The `<img>` tag is only added on top.
+
+#### 🐛 Debug surface
+- Debug panel → Storage tab (NEW) with: own avatar URL, file size, last-updated timestamp, "Re-upload" button that re-runs the same write to test the path.
+- Console log of every upload attempt with size + content-type — to spot users hitting the 1 MB cap.
+
+#### 📐 Cross-cutting — infrastructure
+- **Firebase Storage activation** — needs a `storage.rules` file alongside `firestore.rules` in `TigerTag_Firebase_Integration/rules/`. Default-deny everything except `read: if true` on `avatars/**` and `write: if request.auth.uid == userId && request.resource.size < 1*1024*1024 && request.resource.contentType.matches('image/.*')` on `avatars/{userId}/**`.
+- **CSP** — current Electron CSP would need to allow `img-src https://firebasestorage.googleapis.com`. Check the security-headers section in `main.js`.
+- **CDN-cache busting** — append `?v=${avatarUpdatedAt}` to every `<img src>` so a re-upload doesn't show the old cached image for ~1 h (Firebase Storage's default `Cache-Control: max-age=3600`).
+
+#### 🔒 Firestore + Storage rules
+- Firestore: `users/{uid}.avatarUrl` writable only by `request.auth.uid == uid` (already covered by the general per-user rule, just confirm it doesn't blacklist `avatarUrl`).
+- Storage: see infrastructure note above. Test in Firebase emulator before deploying.
+
+#### 🧮 Total effort
+~**M + S buffer** for V1 + V2 + V3. V4 is a 1-hour nice-to-have on top.
+
+#### 📐 Dependency
+- Migration to Firebase v9 modular SDK (🌱 dev-experience item) is **not** a blocker — Storage works fine on the v8 compat layer too. But if v9 migration ships first, the upload helper gets cleaner.
+
+---
+
+### 🏪 Showroom mode — brand & reseller accounts (read-only catalogue, not stock)
+Showroom accounts represent **filament brands or stores** that want to expose their catalogue inside Tiger Studio — **not** to track personal stock and consumption, but to present products aesthetically as a virtual storefront. Users add a showroom's friend code to browse its catalogue exactly like a friend's inventory, with two UX shifts when viewing a showroom: (1) the rack / Storage view shows square product photos in place of consumption fill bars, (2) the detail side panel grows a "Where to buy" section listing local resellers and a direct product URL.
+
+#### What changes — and what does NOT change
+**Changes (only when viewing a showroom):**
+- Account type marker on `users/{uid}` (`accountType: "showroom"` vs default `"personal"`)
+- Storage view renders square product photos, no weight fill bar, no consumption %, no "X g left" indicators — meant to feel like a virtual visit of the furniture displaying the spools
+- Detail side panel grows a "Where to buy" section: product URL CTA + showroom-level resellers list
+- Friend system: showroom code adds the storefront as a discoverable entity (showroom inventory is `isPublic: true` by default — no bidirectional friendship needed since the showroom doesn't need to read the user's inventory)
+
+**Does NOT change** *(explicit user spec — "il ne faudrai rien changer a ce qui existe deja")*:
+- Personal account behaviour (zero impact on stock management, consumption tracking, racks of own inventory)
+- Existing friend-view technical detail rendering when viewing a showroom — material, colour, temperatures, links, all unchanged. The showroom additions are **purely additive** in the side panel.
+- The current avatar / colour flow (a showroom uses the same Custom Avatar feature above for its logo)
+
+#### 🗃️ Data model
+```
+users/{uid}/
+  ... existing fields ...
+  accountType:    string   "personal" (default) | "showroom"
+  showroomInfo:   map?     // populated only when accountType == "showroom"
+    storeName:    string   public-facing brand / store name
+    website:      string   homepage URL
+    countries:    string[] ISO-3166-1 alpha-2 codes the showroom serves
+                           (used to bias the reseller list shown to the user)
+    resellers:    map[]    [{ name, url, country?, city? }]
+    socialLinks:  map[]    [{ platform, url }]  // instagram, x, facebook, youtube…
+
+users/{uid}/inventory/{spoolId}/
+  ... existing fields ...
+  productUrl:     string?  // "Buy this filament" CTA — surfaced only in showroom side panel
+```
+
+Mirror `accountType` + `showroomInfo.storeName` + showroom avatar to `userProfiles/{uid}` so the friend-discovery preview can render the showroom badge before any inventory is read.
+
+#### 🔧 Sub-features — recommended ship order
+
+##### SR1 — `accountType` flag + `showroomInfo` schema *(plumbing)*  ·  **Effort: S**  ·  **Risk: low**
+Add the field to `users/{uid}` with default `"personal"`, mirror to `userProfiles/{uid}`, gate who can flip it (see SR9). No UI yet.
+
+##### SR2 — Edit-account modal: showroom form  ·  **Effort: M**  ·  **Risk: low**
+Behind an "Account type → Showroom" switch in the edit-account modal, surface the `showroomInfo` form (storeName, website, countries multiselect, resellers list with add/remove rows, social links list). Hidden by default for personal accounts to keep the modal uncluttered.
+
+##### SR3 — Storage view: showroom rendering mode  ·  **Effort: M**  ·  **Risk: low-medium**
+When `state.friendView?.accountType === "showroom"` (or when the active account is a showroom), the Storage view swaps:
+- Square product photo fills the cell (use the spool `imgUrl` or container image; fall back to colour swatch + brand logo if neither exists)
+- Weight fill bar hidden via a `.rack--showroom` class on the rack root
+- Consumption % / "X g left" / `wb-fill` overlays hidden by the same class
+- Rack/level/position labels stay (G1, R2, etc.) — the virtual-tour feel needs the spatial layout preserved
+- No drag-drop in showroom mode (read-only)
+
+##### SR4 — Side panel "Where to buy" section  ·  **Effort: S**  ·  **Risk: low**
+When the side panel renders a showroom spool, append a new section between the existing "Aspects" chips and the container card:
+- Primary CTA button "Buy this filament" → `spool.productUrl` (hidden if not set)
+- Secondary "Find a local reseller" list — `showroomInfo.resellers`, biased by user's locale (`navigator.language` country code highlighted first)
+- Showroom website + social links as a small footer row
+Nothing else in the side panel changes — the technical info (material, colours, temps, links) renders exactly as in friend-view today.
+
+##### SR5 — Spool edit: `productUrl` field  ·  **Effort: S**  ·  **Risk: low**
+When the active account is a showroom, the inline spool-edit modal grows a "Product URL" input. Hidden for personal accounts (irrelevant for stock).
+
+##### SR6 — Showroom logo via Custom Avatar  ·  **Effort: 0 (reuse)**  ·  **Risk: low**
+Showroom uses the Custom Avatar feature above. No new code — just wire `avatarUrl` into the showroom-specific surfaces (friends row, friend-view banner, side panel header). Friend-view banner text becomes "Viewing **X's catalogue**" instead of "**X's inventory**" when `accountType === "showroom"`.
+
+##### SR7 — Friend system: discovery + badge  ·  **Effort: S**  ·  **Risk: low**
+- Friend-code lookup preview shows a "Showroom" badge + brand name when the target's `accountType === "showroom"`
+- Friends panel rows display the same badge + use `storeName` instead of `displayName`
+- One-way subscribe: adding a showroom doesn't write to the showroom's `friends/` subcollection — it just adds the showroom to the user's friends list. `users/{uid}/inventory/**` is already readable thanks to `isPublic: true` defaulting on for showroom accounts.
+
+##### SR8 — Showroom directory *(optional, nice-to-have)*  ·  **Effort: M**  ·  **Risk: low**
+A dedicated "Showrooms" section in the friends panel (separated from personal friends), listed alphabetically with logo + storeName. Bonus: a "Featured showrooms" public list curated by admins, surfaced for first-time users.
+
+##### SR9 — Gating: who can become a showroom?  ·  **Effort: S**  ·  **Risk: medium (policy)**
+Decision pending — recommended path:
+- **Phase 1**: admin-only flip (`users/{uid}.roles === "admin"` writes `accountType: "showroom"` from a separate admin tool or the Debug panel). Keeps the early stage clean while we onboard official brands.
+- **Phase 2**: self-service "Apply to become a showroom" with terms acceptance + manual review queue.
+
+#### ♻️ Reuses
+- **Friend-view rendering path** — already read-only, already hides edit affordances. Showroom mode is a superset: add `.is-showroom` class to the panel root and rack root, the CSS does the show/hide work.
+- **`isPublic` field** — already in the data model, currently unused for inventory rendering. Defaulting it to `true` on showroom accounts uses the existing plumbing.
+- **Friend system publicKey lookup** — zero new code for discovery, showrooms are just "friends with a different badge".
+- **Custom Avatar** — showroom logo is the same upload + display flow.
+- **Side panel section structure** — "Where to buy" reuses the panel-section markup pattern (every section in the side panel already uses it).
+
+#### 🐛 Debug surface
+- Debug panel grows a "Showroom mode" tab showing: own `accountType`, `showroomInfo`, list of showroom friends with their `storeName` + `countries`. Useful to spot a broken / missing `showroomInfo` on a friend.
+- A `?showroomDebug=1` query string forces showroom rendering on the active account regardless of `accountType`, so we can test the visual swap without flipping accounts.
+
+#### 📐 Cross-cutting notes
+- **i18n**: `accountTypeShowroom`, `viewingCatalogueOf`, `whereToBuy`, `buyThisFilament`, `findLocalReseller`, `localResellers`, `showroomBadge`, `applyToBecomeShowroom` (×9 locales)
+- **CSS**: a single `.is-showroom` modifier on the rack root + side panel root handles 90% of the show/hide. Add a `.rack-cell--showroom` for the square-product-photo cells.
+- **Side panel ordering**: the "Where to buy" section sits between Aspects and Container — high priority for showroom users, low intrusion for personal accounts (it doesn't render at all when not a showroom view).
+- **Search**: showroom inventory should be searchable from the unified search bar — the existing search already runs against `state.rows`, no extra code needed.
+
+#### 🔒 Firestore rules
+- `users/{uid}.accountType` writable only by `request.auth.uid == uid && (resource.data.accountType == null || resource.data.accountType == "personal")` — i.e. user can flip themselves once, then a downgrade requires admin (prevents accidentally turning a personal account into a showroom and getting stuck). Initially gate even the first flip behind admin (SR9 Phase 1).
+- `users/{uid}.showroomInfo.*` writable only by owner.
+- `users/{uid}/inventory/**` already gated by friend / `isPublic` rule — no new rule needed if showroom accounts default `isPublic: true`.
+
+#### 🧮 Total effort
+~**M + S buffer** for SR1 + SR2 + SR3 + SR4 + SR5 + SR7. SR6 is free (depends on Custom Avatar shipping first). SR8 is +M nice-to-have. SR9 is a policy decision, not effort.
+
+#### 📐 Dependency
+- **Custom Avatar feature above** — strong reuse for the showroom logo. Ship Custom Avatar first, then showroom plugs into it. If Custom Avatar is delayed, showroom falls back to the colour-gradient avatar with a "🏪" emoji on top.
+
+---
+
+### ⭐ Favorites — long-term product memory (TigerTag+ only)
+Today a spool's metadata disappears the moment the user consumes the last gram and deletes the doc. The user can't remember "I loved that Polymaker PolyTerra Charcoal — what was the typical price? What temp tower result did I get?". Favourites turn a TigerTag+ **product** (not a physical spool) into a long-lived entity with user-defined metadata that survives every restock cycle.
+
+#### Why TigerTag+ only — and what to do about non-Plus
+**TigerTag+** spools carry a stable `id_product` (32-bit integer, registered in the central API via `lookupProduct(productId)`). Two physical Polymaker PLA Black 1 kg spools share the same `id_product` — perfect primary key for "this product".
+
+**TigerTag (DIY) / TigerCloud** carry user-encoded data with no stable product identity. A user who hand-writes "Polymaker PLA Black" on one chip and "Polymaker · PLA · Black" on another would create two distinct "products" that should logically be one — and we can't auto-merge without parsing brand + material + colour heuristics that will be wrong half the time.
+
+**Decision**: V1 only supports TigerTag+ favourites. The "♥ Favorite" button is hidden on DIY/Cloud spools, with a tooltip *"Favourites need a registered product ID — available on TigerTag+ chips"*. A V2 could add a free-form "wishlist" for DIY (just notes, no auto-link), but it's a different feature — track separately.
+
+**Barcode fallback considered + rejected** for V1: no public GTIN → TigerTag mapping exists, users won't manually type SKUs, and a community-maintained mapping is a separate sub-project. Revisit if a partner gives us their barcode database.
+
+#### 🗃️ Data model
+```
+users/{uid}/
+  favorites/{id_product}/                 // doc id = TigerTag+ product id (integer as string)
+    addedAt:           timestamp
+    addedFrom:         string             // "spool" | "showroom" | "deep-link" | "qr"
+    minStockAlert:     number?            // grams — alert when sum(weight_available) across owned spools of this product < N
+    purchasePrice:     number?
+    purchaseCurrency:  string?            // ISO 4217 (EUR, USD, …)
+    tags:              string[]
+    notes:             string
+    typicalReseller:   string?            // URL where the user usually buys
+    lastInStockAt:     timestamp?         // auto-set when owned spool count > 0
+    inStockNow:        boolean            // derived & cached for fast list-render
+    inStockGrams:      number             // derived: sum(weight_available) across owned spools
+    sourceShowroomUid: string?            // when added from a showroom, remember which one (for "buy from same brand" suggestions)
+```
+
+Product reference data (name, brand, material, colour, image) stays in the central TigerTag API + bundled `assets/db/tigertag/*.json`. Favourites only store the `id_product` + user-private metadata.
+
+#### 🔧 Sub-features — recommended ship order
+
+##### FA1 — Schema + "♥ Favorite" toggle on spool detail  ·  **Effort: S**  ·  **Risk: low**
+Heart icon next to the existing "TigerTag+" tier badge in the spool detail side panel. Tap to add/remove from favorites. Hidden when `!r.isPlus`. Writes `users/{uid}/favorites/{id_product}` with `addedFrom: "spool"`. Tooltip explains the Plus-only restriction for DIY users.
+
+##### FA2 — Favourites page  ·  **Effort: M**  ·  **Risk: low**
+New sidebar entry "⭐ Favorites" between Filaments and Storage. Grid + table view (reuse `_createGridCard` / table render). Each card / row shows: product image, brand, material, colour swatch, "in stock now" badge (green if `inStockGrams > 0`, grey otherwise), min-stock alert chip if set, user tags, last-seen-in-stock timestamp. Sortable by name / brand / addedAt / inStockGrams. Filterable by tag.
+
+##### FA3 — Per-favorite metadata edit  ·  **Effort: S**  ·  **Risk: low**
+Side panel (reuse the existing detail panel pattern) when a favourite is selected: editable fields for `minStockAlert`, `purchasePrice` + currency, `tags`, `notes`, `typicalReseller`. Live-saved with the same debounce + ✓ check pattern just shipped for weight.
+
+##### FA4 — Auto-link spools to favourites + stock aggregation  ·  **Effort: S**  ·  **Risk: low**
+On every Firestore snapshot, for each favourite, sum `weight_available` across owned spools where `id_product === favoriteId`. Cache as `inStockGrams` + `inStockNow` on the favourite doc. Update `lastInStockAt` when transition to `inStockNow: true`. Pure derived data — kept in Firestore for fast list-render without re-summing on every UI update.
+
+##### FA5 — Low-stock alerts  ·  **Effort: S** *(depends on FA4)*  ·  **Risk: low**
+When `inStockGrams` drops below `minStockAlert`, fire an in-app banner + (if Notifications feature ships) a native push. Banner sits in the Favorites page header: *"⚠️ 3 favourites below their min-stock threshold"* with a click-through to the filtered list.
+
+##### FA6 — Deep link from reseller sites  ·  **Effort: M**  ·  **Risk: low-medium**
+Register `tigertag://` as a custom protocol via `app.setAsDefaultProtocolClient('tigertag')` (electron-builder handles installer registration on Win/Mac/Linux). Reseller embeds:
+```html
+<a href="tigertag://favorite/add?id=12345&source=polymerearth.com">Add to TigerTag favourites</a>
+```
+Tiger Studio launches (or focuses) and shows a confirm modal: product preview (via `lookupProduct(12345)`), source domain badge, "Add to favourites" button. `addedFrom: "deep-link"`, `typicalReseller` pre-filled with the source URL.
+
+##### FA7 — QR code generator for showrooms / packaging  ·  **Effort: S** *(depends on FA6)*  ·  **Risk: low**
+Showroom owners (and TigerTag admins) get a "Generate QR code" button on each product in their catalogue: encodes the same `tigertag://favorite/add?id=…` URL into a downloadable PNG. Users scan with their phone → mobile companion or system browser opens → custom protocol launches Tiger Studio → confirm modal.
+
+##### FA8 — Showroom catalogue integration  ·  **Effort: S** *(depends on Showroom + FA1)*  ·  **Risk: low**
+Inside a showroom's catalogue view, every spool gets the same "♥ Favorite" heart. Adds the product with `addedFrom: "showroom"` and `sourceShowroomUid: <showroomUid>` — lets us later suggest "buy from the same brand you favourited X from".
+
+##### FA9 — Import / export favourites  ·  **Effort: S**  ·  **Risk: low**
+JSON dump of the user's favourites collection — sharable, backup-able, importable into another account. Format documented so partners (resellers, dryer firmware) can generate compatible files.
+
+#### ♻️ Reuses
+- **`lookupProduct(productId)` IPC** — already exists, gives us brand / name / images / series / refill flag for any TigerTag+ product. Zero new API code needed.
+- **`tigertagDbService`** — bundled `id_brand.json` / `id_material.json` / etc. — same lookup tables, no new data.
+- **Detail side panel** — reuse the same flexbox layout + section pattern; the favourites panel is structurally identical to the current spool panel, just different fields.
+- **Grid / table render** — `_createGridCard`, `_updateGridCard`, and the table row builder all work as-is by feeding them a "favourite" shape that mimics a spool row.
+- **Custom protocol handler infrastructure** — needs a `protocol` registration block in `main.js` (~30 lines). Once in place, future deep-link features get it for free.
+- **In-app banner system** — already exists for the "update available" notice; reuse for low-stock alerts.
+
+#### 🐛 Debug surface
+- Debug panel → "Favourites" tab: own favourites count, sum of `inStockGrams` across all, list of products below their `minStockAlert`. Force-trigger an alert via a "Test low-stock alert" button.
+- `?favDebug=1` query string logs every snapshot's per-favourite aggregation to console.
+
+#### 📐 Cross-cutting
+- **i18n** — `favoritesTitle`, `addToFavorites`, `removeFromFavorites`, `minStockAlertLabel`, `purchasePriceLabel`, `tagsLabel`, `notesLabel`, `typicalResellerLabel`, `lowStockBannerOne`, `lowStockBannerMany`, `favoritesEmpty`, `favoritePlusOnly` (the explainer tooltip) (×9 locales)
+- **Notifications dependency** — FA5 in-app banner ships standalone; native push is a bonus when the Notifications feature lands.
+- **Deep link safety** — confirm modal is mandatory; never silently add a favourite. Source domain shown so the user spots a phishing attempt.
+
+#### 🔒 Firestore rules
+- `users/{uid}/favorites/**` — read/write only by `request.auth.uid == uid`. No public read (privacy: user's wishlist is sensitive — could reveal purchasing intent).
+- Optional public-favourites in V2: gated by an explicit `users/{uid}.favoritesPublic == true` flag.
+
+#### 🧮 Total effort
+~**M + S buffer** for FA1 → FA5 (the core loop). FA6 + FA7 = additional **S+M** (deep link is the bigger piece). FA8 = trivial once Showroom + FA1 exist. FA9 = S nice-to-have.
+
+#### 📐 Dependency
+- **Showroom mode** — FA8 needs it; FA1-FA7 stand alone
+- **Notifications feature** *(in backlog)* — FA5 ships with an in-app banner without it; native push is the bonus when it lands
+
+---
+
+### 🎨 UX polish — theme, keyboard shortcuts, first-run onboarding
+Three independent quality-of-life items that share a "small effort, big user-love" profile. Each ships standalone — but they cluster naturally because they all touch the chrome / shell rather than any domain feature.
+
+#### UX1 — Dark / Light theme  ·  **Effort: M**  ·  **Risk: low**
+Today the app is light-only. The hardware crowd skews heavily nocturnal — print farms running overnight, garage workshops with low ambient light — so a dark theme is a high-frequency feature request.
+
+- **Detection**: `window.matchMedia('(prefers-color-scheme: dark)')` for system default + manual override in Settings (`tigertag.theme = "auto" | "light" | "dark"`, persisted in localStorage + synced to `users/{uid}/prefs/app.theme`).
+- **CSS work**: most colours already in `var(--…)` form (see `renderer/css/00-base.css` `:root` block). Audit pass to find the hardcoded ones (`color: #1c2030`, `background: #fff`, etc.) and replace with vars. Add a `[data-theme="dark"]` selector that overrides the root vars.
+- **Smooth swap**: 300 ms ease on `body` `transition: background-color .3s, color .3s` so the theme change isn't jarring.
+- **Surface coverage**: side panel, modals, sidebar, racks, printer cards, debug panel, friend-view. Friend view inherits without per-user state since the theme is local (you read someone else's inventory in YOUR theme, not theirs).
+- **Reuses**: existing CSS var system 90 % done; the i18n select pattern in Settings for the auto/light/dark switch.
+- **Risk note**: SVG icons that use `currentColor` for the mask work as-is; the few inline-`fill` SVGs need a sweep. The toast / alert greens-and-reds need a dark-mode-adjusted palette so they stay accessible.
+
+#### UX2 — Global keyboard shortcuts + cheat-sheet  ·  **Effort: S**  ·  **Risk: low**
+Power-users currently click through menus for the same handful of actions every session. A small shortcut layer covers 80 % of those clicks.
+
+- **Bindings** (Mac shown; Ctrl on Win/Linux):
+  - `⌘K` — focus search bar (overlay if not visible)
+  - `⌘N` — add spool / scan
+  - `⌘B` — toggle scan mode
+  - `⌘,` — open Settings
+  - `⌘D` — open Debug panel (admin only)
+  - `⌘/` — open cheat-sheet overlay listing every shortcut
+  - `⌘1`-`⌘5` — switch view (Filaments / Storage / Printers / Friends / Favourites)
+  - `Esc` — close any open modal / overlay (already partial)
+- **Implementation**: one `keydown` listener on `document` with modifier checks. Skip when `document.activeElement` is an `<input>`, `<textarea>`, or `[contenteditable]` to avoid stealing user typing.
+- **Cheat-sheet overlay**: same modal style as the existing Help overlay (`#productIdHelpOverlay` pattern). Lists all bindings with platform-aware modifier symbols.
+- **Reuses**: existing modal overlay pattern; `applyTranslations` for the cheat-sheet content.
+
+#### UX3 — First-run onboarding tour  ·  **Effort: M**  ·  **Risk: low**
+New sign-in goes from "you're authenticated" straight to an empty inventory. A 3-4 step walkthrough demystifies the core flows and bumps day-1 retention.
+
+- **Steps** (skippable, replayable from Settings):
+  1. Header + avatar — *"Set a custom avatar and pick your colour"* (links to Custom Avatar feature if shipped)
+  2. Scan button — *"Place a TigerTag chip on your reader to add a spool"*
+  3. Storage view — *"Drop spools into a rack to track where each one lives"*
+  4. Friends panel — *"Share your inventory by adding a friend's code XXX-XXX"*
+  5. Optional: *"Settings → import from Spoolman if you're migrating"*
+- **Positioning**: `getBoundingClientRect()` of the target element + absolute-positioned tooltip card with arrow. Skip / Back / Next / Finish controls.
+- **State**: `users/{uid}/prefs/app.onboardingCompleted = true` (Firestore-synced so a second device skips it).
+- **Restart**: a "Replay onboarding" button in Settings → Help so users who skipped can come back.
+- **Reuses**: i18n strings (already-translated keys for most labels); modal overlay z-index; the same `setupHoldToConfirm` cancel-on-Esc pattern for the skip button.
+- **i18n**: `onboardStep1Title`, `onboardStep1Body`, …, `onboardSkip`, `onboardNext`, `onboardFinish`, `onboardReplay` (×9 locales)
+
+#### 🧮 Total effort
+~**M + S** for the bundle. Ship in any order; UX2 is the fastest win and can land in an afternoon. UX1 is the most visible. UX3 has the highest impact on first-time conversion.
+
+---
+
+### 📖 Printer connection tutorials — guided setup per brand
+Every brand needs a different LAN-mode dance before Tiger Studio can talk to it: Snapmaker is "just enter the IP", FlashForge is "flip LAN mode then enter the IP", Bambu Lab wants the IP **plus** an 8-digit access code **plus** the serial number, Creality K-series varies by firmware vintage, Elegoo needs LAN + MQTT bridge enabled. New users hit a wall on the printers with multi-step prerequisites and assume the integration is broken when it's actually their printer waiting for a menu toggle. The mobile app already has these step-by-step tutorials — port them to desktop with screen-size adaptation.
+
+#### Why this matters
+- **Day-1 retention** for hardware-heavy brands (Bambu, Creality). Users who can't connect within 5 minutes churn.
+- **Support deflection**: every brand's connect tutorial answers ~80 % of the support tickets we see for that brand.
+- **Trust signal**: a brand with a polished, illustrated tutorial reads as "officially supported"; a brand without one reads as "experimental".
+
+#### 🗃️ Data model
+```
+No new Firestore docs needed — tutorials are static content bundled with the app.
+Optional, sync-friendly:
+  users/{uid}/prefs/app.tutorialsCompleted: string[]   // ["bambu", "snapmaker", …]
+```
+
+Tutorial content lives at `renderer/printers/<brand>/tutorial.json` alongside `PROTOCOL.md`. Same JSON shape as the mobile app so a single source of truth can feed both clients.
+
+```jsonc
+// renderer/printers/bambulab/tutorial.json
+{
+  "brand": "bambulab",
+  "estimatedMinutes": 5,
+  "prerequisites": ["bambuPrereq1", "bambuPrereq2"],   // i18n keys
+  "steps": [
+    {
+      "id": "lan-mode",
+      "title": "bambuStep1Title",                       // i18n key
+      "body":  "bambuStep1Body",
+      "image": "assets/img/tutorials/bambulab/01-lan-mode.png",
+      "verify": { "type": "ping", "host": "{{userIp}}", "port": 8883 }
+    },
+    {
+      "id": "access-code",
+      "title": "bambuStep2Title",
+      "body":  "bambuStep2Body",
+      "image": "assets/img/tutorials/bambulab/02-access-code.png",
+      "verify": { "type": "input-format", "field": "accessCode", "regex": "^[0-9]{8}$" }
+    },
+    …
+  ]
+}
+```
+
+#### 🔧 Sub-features — recommended ship order
+
+##### T1 — Tutorial schema + content port from mobile  ·  **Effort: M**  ·  **Risk: low**
+Define the JSON shape (sub-feature data model above). Port the existing mobile-app tutorial content for the 5 brands: Snapmaker (~3 steps), FlashForge (~4 steps), Elegoo (~5 steps), Creality (~6 steps, possibly 2 variants for K-series vs older), Bambu Lab (~7 steps). Each step's `title` + `body` becomes 5-10 i18n keys; total ~150 new keys × 9 locales (volume but mechanical via the existing `npm run i18n:add` helper).
+
+##### T2 — Tutorial modal UI  ·  **Effort: M**  ·  **Risk: low**
+A slide-over modal (reuse `.modal-overlay` + `.modal-card`) with:
+- Step indicator (e.g. *"Step 3 of 7"*) + progress dots
+- Large illustration (the bundled PNG)
+- Step title + body
+- Optional `verify` block: a small status pill that runs the check (e.g. *"Pinging your printer on port 8883…"* → ✓ / ✗ with retry)
+- Prev / Next / Finish controls + Esc to close
+- "I'm stuck" link → opens the brand's Discord channel / official support URL
+
+##### T3 — Trigger points  ·  **Effort: S**  ·  **Risk: low**
+- **From Add Printer modal**: a "📖 Tutorial — connect a {{brand}}" link under each brand card (5 trigger points, one per brand)
+- **From Settings**: a "Printer connection tutorials" entry that lists all 5 brands with their estimated time + completion checkmark
+- **From an error state**: when the connection attempt fails repeatedly (e.g. 3 timeouts in a row on the same IP), surface a banner *"Need help connecting? Open the {{brand}} tutorial"*
+- **From the empty state**: when the user has zero printers, the empty Printers view shows *"Connect your first printer →"* with the brand picker + tutorial CTA
+
+##### T4 — Live verification hints  ·  **Effort: M**  ·  **Risk: low-medium**
+Per-step `verify` block — different types:
+- `type: "ping"` — TCP / WS / MQTT probe on the IP+port the step requires. Reuses each brand's `probe.js` discovery code.
+- `type: "input-format"` — regex check on the field the user is filling (e.g. Bambu access code = `^[0-9]{8}$`). Live feedback as they type.
+- `type: "lan-discovery"` — runs the brand's LAN scan, surfaces detected devices as clickable rows so the user doesn't have to manually copy the IP.
+
+Each verifier returns `{ ok: boolean, hint: i18nKey }` so the modal can show a localised next-action.
+
+##### T5 — Per-brand quick-tip card *(TL;DR for power users)*  ·  **Effort: S**  ·  **Risk: low**
+A compact 1-paragraph summary shown at the top of the add-printer form for each brand — *"Bambu: enable LAN-only mode → grab access code from screen → serial number is on the bottom sticker"*. Users who already know what they're doing skip the full tutorial; those who don't see the link to T2.
+
+##### T6 — Video embeds *(optional, deferred)*  ·  **Effort: S**  ·  **Risk: low**
+Optional `videoUrl` field on the tutorial JSON — embeds a YouTube thumbnail (reuse the existing `panelVideoBtn` pattern) for brands where a 60-second video explains a menu navigation better than a screenshot.
+
+##### T7 — Shared tutorial source with the mobile app  ·  **Effort: S**  ·  **Risk: low**
+Move the tutorial JSONs to a shared submodule or CDN-served bundle so a content fix lands on both apps without dual maintenance. Initial implementation can keep tutorials inlined for simplicity; refactor to shared source when the second client (mobile) needs an update.
+
+#### ♻️ Reuses
+- **`PROTOCOL.md` per brand** — already documents the technical prerequisites. T1 mines these for the user-facing steps.
+- **`probe.js` per brand** — already does LAN discovery for T4's `lan-discovery` verifier.
+- **Add Printer modal** — T3 adds links inside the existing modal, no new entry point.
+- **Modal overlay pattern + `applyTranslations`** — T2 plugs into the existing modal infrastructure.
+- **YouTube thumbnail pattern** — `panelVideoBtn` from the spool detail panel works as-is for T6.
+- **Bambu / Creality `add-flow.js`** — already collects access code + serial for Bambu, IP for Creality. The tutorial just narrates these existing flows.
+
+#### 🐛 Debug surface
+- Debug panel → "Tutorials" tab: per-brand completion status, last verify result per step, force-replay any tutorial. Useful when the user reports *"the tutorial says ✓ but the printer still doesn't connect"* — gives us the exact probe output to diagnose from.
+- A `?tutorial=<brand>` query-string deep link forces-open a tutorial for screenshot capture in the README + support docs.
+
+#### 📐 Cross-cutting
+- **i18n volume**: ~150 keys × 9 locales = ~1350 string additions. Mechanical via `npm run i18n:add`. Pre-commit hook (`i18n:check`) catches any drift.
+- **Image assets**: bundled PNGs at `assets/img/tutorials/<brand>/NN-step.png`. Compress aggressively (TinyPNG / squoosh) — tutorials add ~5-10 MB to the installer if not careful. Lazy-load (image only fetched when the step is shown).
+- **Trademark caveat**: screenshots of competitor printer UIs are fine for instructional use (fair use / educational), but mention "Screens shown are from manufacturer firmware; trademarks belong to their respective owners" in a one-time footer.
+- **Update flow**: when a brand changes their menu structure (firmware update), the tutorial needs revision. Track per-brand "last updated" in the JSON; show a small "tutorial verified for firmware ≥ X.Y" footer.
+
+#### 🧮 Total effort
+~**M + M buffer** for T1 + T2 + T3 + T5 — the user-visible core. T4 is +M for the verifier framework. T6 is +S. T7 is housekeeping for later.
+
+#### 📐 Dependency
+- **None blocking**. Snapmaker / FlashForge / Creality / Bambu / Elegoo live integrations all already shipped (or stubbed) — the tutorial is purely additive content + UI.
+- **i18n helper** (`npm run i18n:add`) — already in place.
+
+#### Per-brand estimated complexity (for content authoring)
+| Brand | Steps | Has access code / serial | Multiple sub-tutorials |
+|---|---|---|---|
+| **Snapmaker** | ~3 | no | no |
+| **FlashForge** | ~4 | no | no |
+| **Elegoo** | ~5 | sometimes (MQTT broker on some models) | maybe (Centauri vs Saturn) |
+| **Creality** | ~6 | no, but firmware variance | yes (K-series vs older) |
+| **Bambu Lab** | ~7 | **yes** (8-digit code + 16-char serial) | no |
+
+---
+
 ### 🏅 Multi-vendor RFID parsers — 7 vendors remaining
 - **Spec**: [`docs/rfid-vendors/NEXT_STEPS.md`](docs/rfid-vendors/NEXT_STEPS.md) is a complete handoff doc — read it first.
 - **What's there**: OpenRFID submodule + 8 self-contained spec sheets. ACR122U reader stack already done.

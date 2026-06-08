@@ -3114,3 +3114,169 @@
 .cem-actions .btn { flex: 1; height: 46px; font-size: 14px; font-weight: 600; }
 .cem-actions .btn.hidden { display: none; }
 .cem-actions .primary:disabled { background: var(--border); border-color: var(--border); color: var(--muted); box-shadow: none; opacity: 1; }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Printer connection tutorial — multi-step walkthrough modal
+   Loaded from renderer/printers/<brand>/tutorial.json
+   ───────────────────────────────────────────────────────────────────────── */
+/* Override defaults from .modal-card (width: 340px; padding: 28px 24px 22px).
+   Selectors are doubled to outrank specificity from any later .modal-card rules. */
+.printer-tuto-card.printer-tuto-card {
+  width: 92vw; max-width: 720px;
+  height: 78vh; min-height: 480px; max-height: 88vh;
+  padding: 0;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.printer-tuto-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 18px 8px 18px;
+  border-bottom: 1px solid var(--border);
+}
+.printer-tuto-title-wrap {
+  display: flex; flex-direction: column; gap: 2px; min-width: 0;
+}
+.printer-tuto-title {
+  font-size: 15px; font-weight: 700; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.printer-tuto-step-counter {
+  font-size: 11px; color: var(--muted); font-weight: 600;
+  text-transform: uppercase; letter-spacing: .04em;
+  font-variant-numeric: tabular-nums;
+}
+.printer-tuto-card .modal-close {
+  background: none; border: none; color: var(--muted);
+  font-size: 18px; cursor: pointer; padding: 4px 8px;
+  border-radius: 6px; transition: background .15s, color .15s;
+}
+.printer-tuto-card .modal-close:hover { background: var(--surface-2); color: var(--text); }
+
+/* Model picker — claims remaining flex space inside the card so the modal
+   doesn't collapse to its content height. min-height:0 lets the inner grid
+   scroll when there are many models. */
+.printer-tuto-models {
+  flex: 1; min-height: 0;
+  padding: 18px;
+  display: flex; flex-direction: column; gap: 12px;
+  overflow-y: auto;
+}
+.printer-tuto-models-label {
+  font-size: 13px; color: var(--muted); font-weight: 600;
+}
+.printer-tuto-models-grid {
+  /* Explicit 4-column grid — stable layout, fits 11 Bambu models in 3 rows
+     (3 full rows of 4 cards = 12 cells, 11 used). Earlier auto-fill produced
+     unpredictable column counts and overflow at the modal width. */
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  align-items: stretch;        /* cards in same row share height */
+}
+/* Each model card — printer photo on top, label + step count below.
+   Fixed min-height so the grid auto-rows can't collapse the card to just the
+   image and clip the name/step-count spans. */
+.printer-tuto-model-btn {
+  min-width: 0;
+  min-height: 130px;
+  padding: 10px 8px 10px;
+  border: 1.5px solid transparent; border-radius: 12px;
+  background: transparent; color: var(--text);
+  font-size: 12px; font-weight: 600; text-align: center;
+  cursor: pointer; transition: border-color .15s, background .15s, transform .1s;
+  display: flex; flex-direction: column; align-items: stretch; gap: 8px;
+  overflow: hidden;
+}
+.printer-tuto-model-btn:hover { border-color: var(--primary); background: var(--primary-soft); }
+.printer-tuto-model-btn:active { transform: scale(.98); }
+.printer-tuto-model-btn .pt-model-img {
+  width: 100%; height: 80px;
+  object-fit: contain; object-position: center;
+  flex-shrink: 0;
+  display: block;
+}
+.printer-tuto-model-btn .pt-model-name {
+  font-size: 13px; font-weight: 700; line-height: 1.2;
+  width: 100%; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* (.pt-model-steps removed — the step count is shown only in the step view,
+   not in the picker; printing "8 · sur 8" under each model added clutter.) */
+
+/* Step body — image + caption */
+.printer-tuto-step {
+  flex: 1; min-height: 0;
+  display: flex; flex-direction: column; gap: 14px;
+  padding: 18px;
+  overflow-y: auto;
+}
+.printer-tuto-img-wrap {
+  width: 100%; max-height: 50vh;
+  border-radius: 12px; overflow: hidden;
+  background: var(--surface-2);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.printer-tuto-img {
+  width: 100%; height: auto; max-height: 50vh;
+  object-fit: contain; display: block;
+}
+.printer-tuto-body {
+  font-size: 14px; line-height: 1.5; color: var(--text);
+  font-weight: 500;
+}
+
+/* Empty state */
+.printer-tuto-empty {
+  padding: 48px 18px; text-align: center;
+  font-size: 14px; color: var(--muted);
+}
+
+/* Footer — prev / dots / next */
+.printer-tuto-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 18px;
+  border-top: 1px solid var(--border);
+  gap: 12px;
+  flex-shrink: 0;
+}
+.printer-tuto-dots {
+  display: flex; gap: 6px; align-items: center;
+  flex: 1; justify-content: center;
+}
+.printer-tuto-dots .pt-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--border); transition: background .15s, transform .15s;
+  cursor: pointer;
+}
+.printer-tuto-dots .pt-dot.active {
+  background: var(--primary); transform: scale(1.4);
+}
+.printer-tuto-foot .adf-btn {
+  min-width: 96px;
+}
+.printer-tuto-foot .adf-btn:disabled {
+  opacity: .4; cursor: not-allowed;
+}
+.printer-tuto-card .hidden { display: none !important; }
+
+/* "📖 Connection tutorial" pill rendered INSIDE .pba-brand, between the
+   labels (.pba-brand-text) and the chevron (.pba-brand-chev). margin-left:auto
+   pushes the pill to the right edge of the available space, snug against the
+   chevron. Rendered as <span role="button"> (not <button>) to avoid nesting
+   buttons in HTML; click handler is wired directly with stopPropagation so
+   the pill click doesn't fall through to the parent brand-select action. */
+.pba-brand-tuto-link {
+  margin-left: auto;
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 5px 12px;
+  background: var(--primary-soft); color: var(--primary);
+  border: none; border-radius: 999px;
+  font-size: 11px; font-weight: 700; line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.pba-brand-tuto-link:hover,
+.pba-brand-tuto-link:focus-visible {
+  background: var(--primary); color: #fff; outline: none;
+}
