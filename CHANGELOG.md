@@ -5,6 +5,14 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.8.18 — 2026-06-08
+
+### Fixed
+
+- **Auto-update is now more robust against transient GitHub outages.** The app was hitting GitHub with the old project URL (`TigerTag_Studio_Manager`, with underscores) and relying on GitHub to silently redirect to the canonical URL (`TigerTag-Studio-Manager`, with hyphens). Every check therefore made two round-trips instead of one — and any GitHub edge hiccup on the redirect aborted the whole update check. The app now talks to the canonical URL directly, halving the requests and removing a frequent failure surface. Same fix applied to the "GitHub" buttons in the sidebar and the About dialog.
+
+---
+
 ## v1.8.17 — 2026-06-08
 
 ### Added

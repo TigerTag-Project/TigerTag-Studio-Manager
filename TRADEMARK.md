@@ -32,7 +32,7 @@ cloud service, or product brand without explicit written authorization.
 **"Tiger Studio"** is a trademark of the TigerTag Project.
 
 Tiger Studio refers to the **official desktop inventory management application**
-published at [github.com/TigerTag-Project/TigerTag_Studio_Manager](https://github.com/TigerTag-Project/TigerTag_Studio_Manager).
+published at [github.com/TigerTag-Project/TigerTag-Studio-Manager](https://github.com/TigerTag-Project/TigerTag-Studio-Manager).
 
 You **may** fork the Tiger Studio source code (MIT License) and build your own application.
 
@@ -56,19 +56,19 @@ the Tiger Studio codebase, alongside the MIT copyright notice requirement.
 - The app's **README and store listing** (App Store, GitHub, website)
 
 **The attribution must include a link** to
-`https://github.com/TigerTag-Project/TigerTag_Studio_Manager`
+`https://github.com/TigerTag-Project/TigerTag-Studio-Manager`
 or `https://tigertag.io` wherever the format supports hyperlinks.
 
 **Ready-to-use badge** — drop this in your README:
 
 ```markdown
-[![Powered by Tiger Studio](https://raw.githubusercontent.com/TigerTag-Project/TigerTag_Studio_Manager/main/assets/badges/powered-by-tiger-studio.svg)](https://github.com/TigerTag-Project/TigerTag_Studio_Manager)
+[![Powered by Tiger Studio](https://raw.githubusercontent.com/TigerTag-Project/TigerTag-Studio-Manager/main/assets/badges/powered-by-tiger-studio.svg)](https://github.com/TigerTag-Project/TigerTag-Studio-Manager)
 ```
 
 Or in HTML:
 ```html
-<a href="https://github.com/TigerTag-Project/TigerTag_Studio_Manager">
-  <img src="https://raw.githubusercontent.com/TigerTag-Project/TigerTag_Studio_Manager/main/assets/badges/powered-by-tiger-studio.svg" alt="Powered by Tiger Studio">
+<a href="https://github.com/TigerTag-Project/TigerTag-Studio-Manager">
+  <img src="https://raw.githubusercontent.com/TigerTag-Project/TigerTag-Studio-Manager/main/assets/badges/powered-by-tiger-studio.svg" alt="Powered by Tiger Studio">
 </a>
 ```
 

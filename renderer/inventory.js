@@ -8059,13 +8059,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   });
 
   /* ── community buttons ── */
-  $("sbGithubBtn").addEventListener("click", () => window.open("https://github.com/TigerTag-Project/TigerTag_Studio_Manager/"));
+  $("sbGithubBtn").addEventListener("click", () => window.open("https://github.com/TigerTag-Project/TigerTag-Studio-Manager/"));
   $("sbMakerWorldBtn").addEventListener("click", () => window.open("https://makerworld.com/fr/@TigerTag/upload"));
   $("sbDiscordBtn").addEventListener("click", () => window.open("https://discord.gg/3Qv5TSqnJH"));
 
   // Sign-in placeholder buttons
   $("btnSignInPlaceholder").addEventListener("click", openAddAccountModal);
-  $("btnSignInPlaceholderGh").addEventListener("click", () => window.open("https://github.com/TigerTag-Project/TigerTag_Studio_Manager/"));
+  $("btnSignInPlaceholderGh").addEventListener("click", () => window.open("https://github.com/TigerTag-Project/TigerTag-Studio-Manager/"));
   $("btnSignInPlaceholderDiscord").addEventListener("click", () => window.open("https://discord.gg/3Qv5TSqnJH"));
   $("sbQrWrap").addEventListener("click", () => window.open("https://taap.it/DF1Aqt"));
 

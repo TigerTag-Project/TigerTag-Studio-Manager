@@ -2260,7 +2260,7 @@ app.whenReady().then(async () => {
       applicationVersion: app.getVersion(),
       version:            `Electron ${process.versions.electron}`,
       copyright:          '© TigerTag Project',
-      website:            'https://github.com/TigerTag-Project/TigerTag_Studio_Manager',
+      website:            'https://github.com/TigerTag-Project/TigerTag-Studio-Manager',
     });
   }
 
