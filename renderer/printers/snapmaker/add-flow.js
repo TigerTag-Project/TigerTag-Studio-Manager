@@ -21,6 +21,7 @@
  */
 
 import { ctx } from '../context.js';
+import * as extraSubnets from '../extra-subnets.js';
 import {
   snapProbeIp,
   snapScanLan,
@@ -38,35 +39,12 @@ let _snapAddIpAbort = null;    // AbortController for the inline IP probe
 
 // ── User-declared extra subnets ──────────────────────────────────────────────
 // For multi-VLAN networks where the Mac can REACH a subnet via routing
-// but doesn't have an interface on it. os.networkInterfaces() and the
-// WebRTC trick both report only the subnets the Mac is *directly* on,
-// so without this list any printer behind a VLAN router is invisible
-// to the auto-scan.
-//
-// Stored as a JSON array of "a.b.c" prefixes in localStorage, keyed
-// globally (not per-account) since it describes the user's network
-// topology, which is the same regardless of which TigerTag account
-// they're signed into.
+// but doesn't have an interface on it. The list is shared across all five
+// brand scan modals via printers/extra-subnets.js (Firestore-synced — same
+// list whether the user opens Snapmaker / Bambu / Creality / Elegoo /
+// FlashForge). This file just adapts the shared store to Snapmaker's UI ids.
 
-const SNAP_EXTRA_SUBNETS_KEY = "tigertag.snapScanExtraSubnets";
-
-function snapLoadExtraSubnets() {
-  try {
-    const raw = localStorage.getItem(SNAP_EXTRA_SUBNETS_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    // Defensive: a corrupt/legacy value shouldn't take the scan down.
-    // Filter out anything that doesn't look like an "a.b.c" prefix.
-    return Array.isArray(parsed)
-      ? parsed.filter(p => typeof p === "string" && /^\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(p))
-      : [];
-  } catch { return []; }
-}
-function snapSaveExtraSubnets(list) {
-  try {
-    localStorage.setItem(SNAP_EXTRA_SUBNETS_KEY, JSON.stringify(list));
-  } catch {}
-}
+function snapLoadExtraSubnets() { return extraSubnets.loadList(); }
 // Validate a typed IPv4 address. Accepts "a.b.c.d" with each octet
 // 0-255 and rejects unroutable / multicast / loopback ranges. Returns
 // the canonicalised IP string on success, null on failure. Used by
@@ -79,46 +57,27 @@ function snapValidateIp(s) {
   if (a === 0 || a === 127 || a === 169 || a >= 224) return null;
   return `${a}.${b}.${c}.${d}`;
 }
-// Validate a user-typed prefix. Accepts "a.b.c" with each octet 0-255,
-// and rejects unroutable / multicast / loopback ranges.
-function snapValidatePrefix(s) {
-  const m = String(s || "").trim().match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
-  if (!m) return null;
-  const a = +m[1], b = +m[2], c = +m[3];
-  if (a > 255 || b > 255 || c > 255) return null;
-  if (a === 0 || a === 127 || a === 169 || a >= 224) return null;
-  return `${a}.${b}.${c}`;
-}
+// Live-rendered chip list — unsubscribe handle so we don't double-bind
+// when the panel re-opens.
+let _snapChipsUnsub = null;
 function snapRenderExtraSubnetsUI() {
-  const chipsEl = $("snapExtraSubnetsChips");
   const countEl = $("snapExtraSubnetsCount");
-  if (!chipsEl) return;
-  const list = snapLoadExtraSubnets();
-  if (countEl) countEl.textContent = String(list.length);
-  chipsEl.innerHTML = list.map(p => `
-    <span class="snap-extra-subnets-chip">
-      <span class="snap-extra-subnets-chip-text">${ctx.esc(p)}.x</span>
-      <button type="button" class="snap-extra-subnets-chip-x" data-prefix="${ctx.esc(p)}" title="${ctx.esc(ctx.t("snapScanExtraSubnetsRemove") || "Remove")}">✕</button>
-    </span>
-  `).join("");
-  // Wire each remove button — saves + re-renders + leaves the
-  // <details> element open so the user keeps their place.
-  chipsEl.querySelectorAll(".snap-extra-subnets-chip-x").forEach(btn => {
-    btn.addEventListener("click", e => {
-      e.preventDefault(); e.stopPropagation();
-      const p = btn.dataset.prefix;
-      const next = snapLoadExtraSubnets().filter(x => x !== p);
-      snapSaveExtraSubnets(next);
-      snapRenderExtraSubnetsUI();
-    });
+  if (countEl) countEl.textContent = String(extraSubnets.loadList().length);
+  // Re-bind chip-list subscription (idempotent — unsub the previous one).
+  if (_snapChipsUnsub) { _snapChipsUnsub(); _snapChipsUnsub = null; }
+  _snapChipsUnsub = extraSubnets.renderChipsInto("snapExtraSubnetsChips", ctx.esc, ctx.t);
+  // Keep the count in sync when the list changes from another modal.
+  extraSubnets.subscribe(list => {
+    const c = $("snapExtraSubnetsCount");
+    if (c) c.textContent = String(list.length);
   });
 }
 function snapAddExtraSubnetFromInput() {
   const input = $("snapExtraSubnetsInput");
   const errEl = $("snapExtraSubnetsErr");
   if (!input) return;
-  const v = snapValidatePrefix(input.value);
-  if (!v) {
+  const added = extraSubnets.addPrefix(input.value);
+  if (!added) {
     if (errEl) {
       errEl.hidden = false;
       errEl.textContent = ctx.t("snapScanExtraSubnetsBadFormat")
@@ -128,11 +87,7 @@ function snapAddExtraSubnetFromInput() {
     return;
   }
   if (errEl) errEl.hidden = true;
-  const list = snapLoadExtraSubnets();
-  if (!list.includes(v)) list.push(v);
-  snapSaveExtraSubnets(list);
   input.value = "";
-  snapRenderExtraSubnetsUI();
   input.focus();
 }
 

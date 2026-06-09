@@ -18,6 +18,7 @@
  */
 
 import { ctx } from '../context.js';
+import * as extraSubnets from '../extra-subnets.js';
 import {
   creProbeIp,
   creScanLan,
@@ -68,50 +69,15 @@ function creScanLogClear() {
 // survives a "Restart scan" and an app relaunch — it describes the user's
 // network topology, which is independent of the signed-in account.
 
-const CRE_EXTRA_SUBNETS_KEY = "tigertag.creScanExtraSubnets";
+// Shared with all brand scan modals via printers/extra-subnets.js
+// (Firestore-synced). This file just adapts the shared store to Creality's
+// UI ids.
+function creLoadExtraSubnets() { return extraSubnets.loadList(); }
 
-function creLoadExtraSubnets() {
-  try {
-    const raw = localStorage.getItem(CRE_EXTRA_SUBNETS_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    // Defensive: a corrupt/legacy value must not take the scan down.
-    return Array.isArray(parsed)
-      ? parsed.filter(p => typeof p === "string" && /^\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(p))
-      : [];
-  } catch { return []; }
-}
-
-function creSaveExtraSubnets(list) {
-  try { localStorage.setItem(CRE_EXTRA_SUBNETS_KEY, JSON.stringify(list)); } catch {}
-}
-
-function creAddExtraSubnet(prefix) {
-  const p = prefix.trim();
-  if (!p) return;
-  const list = creLoadExtraSubnets();
-  if (list.includes(p)) return;
-  list.push(p);
-  creSaveExtraSubnets(list);
-  _renderExtraSubnetChips();
-}
-
-function creRemoveExtraSubnet(prefix) {
-  creSaveExtraSubnets(creLoadExtraSubnets().filter(p => p !== prefix));
-  _renderExtraSubnetChips();
-}
-
+let _creChipsUnsub = null;
 function _renderExtraSubnetChips() {
-  const el = document.getElementById("creExtraSubnetsChips");
-  if (!el) return;
-  el.innerHTML = creLoadExtraSubnets().map(p => `
-    <span class="snap-extra-subnets-chip">
-      <span class="snap-extra-subnets-chip-text">${ctx.esc(p)}.x</span>
-      <button type="button" class="snap-extra-subnets-chip-x" data-prefix="${ctx.esc(p)}" title="Remove">✕</button>
-    </span>`).join("");
-  el.querySelectorAll(".snap-extra-subnets-chip-x").forEach(btn => {
-    btn.addEventListener("click", () => creRemoveExtraSubnet(btn.dataset.prefix));
-  });
+  if (_creChipsUnsub) { _creChipsUnsub(); _creChipsUnsub = null; }
+  _creChipsUnsub = extraSubnets.renderChipsInto("creExtraSubnetsChips", ctx.esc, ctx.t);
 }
 
 // ── Scan state ────────────────────────────────────────────────────────────────
@@ -472,12 +438,11 @@ function _wireDOM() {
   }
   $("creAddIpBtn")?.addEventListener("click", _handleAddByIp);
 
-  // Extra subnets
+  // Extra subnets — shared store handles validation + dedup
   $("creExtraSubnetsAdd")?.addEventListener("click", () => {
     const input = $("creExtraSubnetsInput");
     if (!input) return;
-    const m = input.value.trim().match(/^(\d{1,3}\.\d{1,3}\.\d{1,3})(?:\.\d+)?(?:\/\d+)?$/);
-    if (m) { creAddExtraSubnet(m[1]); input.value = ""; }
+    if (extraSubnets.addPrefix(input.value)) input.value = "";
   });
   $("creExtraSubnetsInput")?.addEventListener("keydown", e => {
     if (e.key === "Enter") $("creExtraSubnetsAdd")?.click();

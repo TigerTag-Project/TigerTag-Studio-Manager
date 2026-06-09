@@ -808,6 +808,27 @@
   }
   .pba-helper-link:hover { text-decoration: underline; }
 
+  /* "📖 Tutoriel de connexion" pill rendered at the top of the printer
+     settings form (Bambu / FlashForge / Elegoo). Same visual language as
+     the matching pill in the Add Printer brand picker. Click is routed by
+     the global [data-printer-tuto] delegate in inventory.js. */
+  .pba-tuto-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    align-self: flex-start;
+    margin: 0 0 4px;
+    padding: 6px 14px;
+    background: var(--primary-soft); color: var(--primary);
+    border: none; border-radius: 999px;
+    font-size: 12px; font-weight: 700; line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background .15s, color .15s;
+  }
+  .pba-tuto-pill:hover,
+  .pba-tuto-pill:focus-visible {
+    background: var(--primary); color: #fff; outline: none;
+  }
+
   /* ── Sections inside the add form ─────────────────────────────────── */
   .pba-section {
     display: flex; flex-direction: column; gap: 10px;

@@ -36,6 +36,7 @@
  */
 
 import { ctx } from '../context.js';
+import * as extraSubnets from '../extra-subnets.js';
 import {
   ffgProbeIp,
   ffgScanLan,
@@ -86,39 +87,16 @@ function ffgScanLogClear() {
 }
 
 // ── Extra subnets subsystem ───────────────────────────────────────────────────
-// Power-user feature: additional /24 prefixes to include in the scan.
+// Shared with all other brand scan modals via printers/extra-subnets.js
+// (Firestore-synced). This file just adapts the shared store to FlashForge's
+// UI ids.
 
-let _ffgExtraSubnets = []; // string[] of "A.B.C" prefixes
+function ffgLoadExtraSubnets() { return extraSubnets.loadList(); }
 
-/** Return current extra-subnet list (called by ffgScanLan at scan time). */
-function ffgLoadExtraSubnets() { return [..._ffgExtraSubnets]; }
-
-/** Add a user-supplied prefix and refresh the chip list. */
-function ffgAddExtraSubnet(prefix) {
-  const p = prefix.trim();
-  if (!p || _ffgExtraSubnets.includes(p)) return;
-  _ffgExtraSubnets.push(p);
-  _renderExtraSubnetChips();
-}
-
-/** Remove a prefix and refresh the chip list. */
-function ffgRemoveExtraSubnet(prefix) {
-  _ffgExtraSubnets = _ffgExtraSubnets.filter(p => p !== prefix);
-  _renderExtraSubnetChips();
-}
-
-/** Render the chip list inside #ffgExtraSubnetsChips. */
+let _ffgChipsUnsub = null;
 function _renderExtraSubnetChips() {
-  const el = document.getElementById("ffgExtraSubnetsChips");
-  if (!el) return;
-  el.innerHTML = _ffgExtraSubnets.map(p => `
-    <span class="snap-extra-subnets-chip">
-      <span class="snap-extra-subnets-chip-text">${ctx.esc(p)}.x</span>
-      <button type="button" class="snap-extra-subnets-chip-x" data-prefix="${ctx.esc(p)}" title="Remove">✕</button>
-    </span>`).join("");
-  el.querySelectorAll(".snap-extra-subnets-chip-x").forEach(btn => {
-    btn.addEventListener("click", () => ffgRemoveExtraSubnet(btn.dataset.prefix));
-  });
+  if (_ffgChipsUnsub) { _ffgChipsUnsub(); _ffgChipsUnsub = null; }
+  _ffgChipsUnsub = extraSubnets.renderChipsInto("ffgExtraSubnetsChips", ctx.esc, ctx.t);
 }
 
 // ── Scan state ────────────────────────────────────────────────────────────────
@@ -149,9 +127,20 @@ function _ffgCandidateCardHtml(c) {
   const modelLine  = c.machineModel && c.machineModel !== title ? c.machineModel : "";
   const serialLine = c.serialNumber ? `SN · ${c.serialNumber}` : "";
 
+  // Printer-model thumbnail on the left of the card — matches the Flutter
+  // mobile app's scan-result tile. The candidate's `modelId` is populated by
+  // ffgModelIdFromMachineModel(); fall back to the catalog's "Select Printer"
+  // placeholder (id "0") so the card never renders an empty grey box.
+  const thumbUrl =
+    ctx.printerImageUrlFor?.("flashforge", c.modelId) ||
+    ctx.printerImageUrl?.(ctx.findPrinterModel?.("flashforge", "0")) || "";
+
   return `
     <div class="snap-scan-card" role="button" tabindex="0"
          data-ip="${ctx.esc(c.ip)}">
+      <span class="snap-scan-card-thumb">
+        ${thumbUrl ? `<img src="${ctx.esc(thumbUrl)}" alt="" onerror="this.style.visibility='hidden'" />` : ""}
+      </span>
       <span class="snap-scan-card-main">
         <span class="snap-scan-card-title">
           <span class="snap-scan-card-title-text">${ctx.esc(title)}</span>
@@ -482,12 +471,11 @@ function _wireDOM() {
   }
   $("ffgAddIpBtn")?.addEventListener("click", _handleAddByIp);
 
-  // Extra subnets
+  // Extra subnets — shared store handles validation, dedup, persistence
   $("ffgExtraSubnetsAdd")?.addEventListener("click", () => {
     const input = $("ffgExtraSubnetsInput");
     if (!input) return;
-    const m = input.value.trim().match(/^(\d{1,3}\.\d{1,3}\.\d{1,3})(?:\.\d+)?(?:\/\d+)?$/);
-    if (m) { ffgAddExtraSubnet(m[1]); input.value = ""; }
+    if (extraSubnets.addPrefix(input.value)) input.value = "";
   });
   $("ffgExtraSubnetsInput")?.addEventListener("keydown", e => {
     if (e.key === "Enter") $("ffgExtraSubnetsAdd")?.click();
@@ -558,7 +546,9 @@ function _openScanPanel() {
   if (sub)     sub.textContent = ctx.t("snapScanStarting") || "Starting scan…";
 
   ffgScanLogClear();
-  _ffgExtraSubnets = [];
+  // Refresh chip list from localStorage so it reflects any changes made in
+  // a previous scan session. The list itself is NOT cleared on rescan —
+  // that's the user's network topology and they expect it to persist.
   _renderExtraSubnetChips();
 
   // Show/hide the scan log section based on debug mode.

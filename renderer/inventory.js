@@ -14495,6 +14495,23 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       state.privateKey = data.privateKey;
       state.isPublic   = data.isPublic || false;
 
+      // Extra subnets — load from Firestore + wire the persister so every
+      // brand scan modal reads/writes a single shared list (Snapmaker,
+      // Creality, Elegoo, FlashForge). Migration from the 4 legacy
+      // per-brand localStorage keys happens automatically on first run.
+      try {
+        const ExtraSubnets = await import("./printers/extra-subnets.js");
+        ExtraSubnets.setInitialList(Array.isArray(data.scanExtraSubnets) ? data.scanExtraSubnets : []);
+        ExtraSubnets.setPersister(async (list) => {
+          try {
+            await db.collection("users").doc(uid).set(
+              { scanExtraSubnets: list }, { merge: true }
+            );
+          } catch (e) { /* offline / rules — cache layer still keeps the value */ }
+        });
+        ExtraSubnets.migrateLegacyKeys();
+      } catch (e) { console.warn("[extra-subnets] wire failed:", e); }
+
       // Firestore displayName + color are canonical — sync to localStorage
       const accounts = getAccounts();
       const acc = accounts.find(a => a.id === uid);

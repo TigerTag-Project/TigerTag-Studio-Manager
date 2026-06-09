@@ -207,9 +207,47 @@ export function prefillFields(bodyEl, data) {
  * @param {object} schema - { sections: [{ titleKey, fields: [...] }] }
  * @returns {Function}    - renderSettingsWidget(printer, bodyEl, ctx)
  */
+// Brands shipping a `renderer/printers/<brand>/tutorial.json` — these get a
+// "📖 Tutoriel de connexion" pill at the top of their settings panel so a user
+// who skipped the tutorial during scan can still consult it later. Click is
+// routed by the global `[data-printer-tuto]` delegate in inventory.js → opens
+// the multi-step tutorial modal with the printer's series pre-selected.
+const _BRANDS_WITH_TUTO = new Set(["bambulab", "flashforge", "elegoo"]);
+
+// The pill stays *un-pinned* to a specific model — the model hint is filled
+// in dynamically by wireTutorialPill() right before the click bubbles up to
+// the global delegate, so the tutorial always opens for whichever model the
+// user has currently selected in the picker (was stuck on defaultModel before,
+// notably for Bambu where 11 models map to 3 different tutorials).
+function tutorialPillHtml(brand, { t, esc }) {
+  if (!_BRANDS_WITH_TUTO.has(brand)) return "";
+  return `
+    <button type="button" class="pba-tuto-pill" data-printer-tuto="${esc(brand)}">
+      ${esc(t("tutoOpenBtn"))}
+    </button>`;
+}
+
+/**
+ * Bind a click listener that snapshots the live model selection (read from
+ * `#pbaMpTriggerText.textContent`, which the model picker updates on every
+ * change) into the pill's `data-printer-tuto-model` attribute BEFORE the
+ * event bubbles to the global delegate in inventory.js. Bubble order
+ * guarantees this listener fires first.
+ */
+function wireTutorialPill(bodyEl) {
+  const pill = bodyEl.querySelector(".pba-tuto-pill");
+  if (!pill) return;
+  pill.addEventListener("click", () => {
+    const trigger = bodyEl.querySelector("#pbaMpTriggerText");
+    const name = trigger?.textContent?.trim() || "";
+    if (name) pill.dataset.printerTutoModel = name;
+    else      delete pill.dataset.printerTutoModel;
+  });
+}
+
 export function schemaWidget(schema) {
   return function renderSettingsWidget(printer, bodyEl, ctx) {
-    const { models, defaultModel, isEdit, prefill, t, esc, printerImageUrl } = ctx;
+    const { models, defaultModel, isEdit, prefill, t, esc, printerImageUrl, brand } = ctx;
 
     // ── 1. Render ──────────────────────────────────────────────────────────
     const identitySection = `
@@ -223,13 +261,15 @@ export function schemaWidget(schema) {
         </label>
       </section>`;
 
-    bodyEl.innerHTML = identitySection
+    bodyEl.innerHTML = tutorialPillHtml(brand, { t, esc })
+      + identitySection
       + renderSectionsHtml(schema, { t, esc })
       + `<div class="pba-error" id="printerAddError" hidden></div>`;
 
     // ── 2. Wire ────────────────────────────────────────────────────────────
     wireModelPicker(bodyEl, models, { esc, printerImageUrl });
     wirePasswordEyes(bodyEl, t);
+    wireTutorialPill(bodyEl);
 
     // ── 3. Pre-fill ────────────────────────────────────────────────────────
     if (isEdit && printer) {

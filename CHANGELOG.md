@@ -5,6 +5,24 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.8.20 — 2026-06-10
+
+### Added
+
+- **Open the connection tutorial straight from the printer settings.** The pencil/configure panel for a Bambu Lab, FlashForge or Elegoo printer now has a "📖 Tutoriel de connexion" button at the top — for the moment you realise you skipped the tutorial during the scan and still need to find the access code or flip LAN-only mode. The tutorial that opens follows whichever model you have selected in the dropdown, so changing from "X1 Carbon" to "P1S" to "A1 mini" walks you through three different procedures.
+- **Scan results show the printer photo.** A FlashForge tile in the scan results now shows the printer's product photo on the left, like the mobile app — easier to recognise your AD5X vs your 5M Pro at a glance.
+
+### Changed
+
+- **One shared "extra subnets" list across every brand, synced to your account.** The Power-user "Autres réseaux à scanner" widget that appeared inside Snapmaker, Creality, Elegoo and FlashForge now also appears in Bambu Lab, and the list is the **same one** everywhere — declared once, honoured by every scan. The list is saved in your Firebase account so it's there on any device you sign in to. Existing entries from the four old per-brand stores are merged automatically on first launch.
+
+### Fixed
+
+- **FlashForge LAN scan finds printers on routed subnets again.** If your FlashForge sits on a different /24 than your Mac (typical multi-VLAN home network), Studio now finds it the same way the mobile app does. Three small fixes stack: the probe now talks to the printer's TCP `~M115` identity endpoint as a fallback when the HTTP probe returns the firmware's "SN is different" placeholder; the per-host timeout for user-declared subnets jumped from 350 ms to 900 ms (cross-VLAN RTT was clipping replies); and the per-subnet sweep is back to a sensible 16-probe parallelism instead of the over-engineered 4-with-50ms-gap that made a single /24 take 25 s. Live-tested against an AD5X at `192.168.20.141`: now found in seconds.
+- **Connection tutorial in the printer settings now follows the selected model.** Was always opening the same tutorial regardless of the model dropdown — most visible on Bambu Lab where 11 models share 3 different tutorials.
+
+---
+
 ## v1.8.19 — 2026-06-09
 
 ### Added

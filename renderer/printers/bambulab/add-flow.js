@@ -19,6 +19,7 @@
  */
 
 import { ctx } from '../context.js';
+import * as extraSubnets from '../extra-subnets.js';
 import {
   bambuProbeIp,
   bambuScanLan,
@@ -64,6 +65,9 @@ function bblScanLogClear() {
 // ── Scan state ───────────────────────────────────────────────────────────────
 
 let _bblScanCtl = null;
+// Subscription handle for the live chip list bound to the shared extra-subnets
+// store. Released on each scan restart so we don't leak subscribers.
+let _bblChipsUnsub = null;
 
 function bblAbortScan() {
   if (_bblScanCtl && !_bblScanCtl.signal.aborted) _bblScanCtl.abort();
@@ -223,6 +227,33 @@ function _ensureDOM() {
         </div>
       </details>
 
+      <!-- Extra subnets — shared across all brand scan modals via
+           printers/extra-subnets.js. Note: Bambu's SSDP multicast discovery
+           is link-local by nature so adding /24 prefixes here mostly serves
+           as a way to manage the *shared* list from this modal (the prefix
+           will then be honoured the next time the user scans Snapmaker /
+           Creality / Elegoo / FlashForge). Kept here for consistency. -->
+      <details class="snap-extra-subnets">
+        <summary class="snap-extra-subnets-summary">
+          <span class="snap-extra-subnets-icon icon icon-cloud icon-14"></span>
+          <span class="snap-extra-subnets-label" data-i18n="snapScanExtraSubnetsLabel">Extra subnets to scan</span>
+          <span class="snap-extra-subnets-chev icon icon-chevron-r icon-13"></span>
+        </summary>
+        <div class="snap-extra-subnets-body">
+          <div class="snap-extra-subnets-hint" data-i18n="snapScanExtraSubnetsHint">
+            Add subnets your Mac can reach via routing but isn't directly on.
+          </div>
+          <div class="snap-extra-subnets-row">
+            <input type="text" class="snap-extra-subnets-input" id="bblExtraSubnetsInput"
+                   placeholder="192.168.40" autocomplete="off" autocapitalize="off" spellcheck="false"/>
+            <button type="button" class="snap-extra-subnets-add"
+                    id="bblExtraSubnetsAdd" data-i18n="snapScanExtraSubnetsAdd">Add</button>
+          </div>
+          <div class="snap-extra-subnets-err" id="bblExtraSubnetsErr" hidden></div>
+          <div class="snap-extra-subnets-chips" id="bblExtraSubnetsChips"></div>
+        </div>
+      </details>
+
       <div class="snap-scan-results" id="bblScanResults"></div>
 
       <div class="snap-scan-empty" id="bblScanEmpty" hidden data-i18n="bambuScanEmpty">
@@ -348,6 +379,16 @@ function _wireDOM() {
   }
   $('bblAddIpBtn')?.addEventListener('click', _handleAddByIp);
 
+  // Extra subnets — shared store (printers/extra-subnets.js)
+  $('bblExtraSubnetsAdd')?.addEventListener('click', () => {
+    const input = $('bblExtraSubnetsInput');
+    if (!input) return;
+    if (extraSubnets.addPrefix(input.value)) input.value = '';
+  });
+  $('bblExtraSubnetsInput')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') $('bblExtraSubnetsAdd')?.click();
+  });
+
   $('bblScanLogToggle')?.addEventListener('click', () => {
     const body   = $('bblScanLogBody');
     const toggle = $('bblScanLogToggle');
@@ -396,6 +437,12 @@ function _openScanPanel() {
 
   const ipDetails = document.getElementById('bblAddIpDetails');
   if (ipDetails) ipDetails.open = false;
+
+  // Hot-mount the chip list against the shared subnet store (same store the
+  // other 4 brand scan modals read from). Re-bound on every scan start so
+  // we don't leak subscribers across re-opens.
+  if (_bblChipsUnsub) { _bblChipsUnsub(); _bblChipsUnsub = null; }
+  _bblChipsUnsub = extraSubnets.renderChipsInto("bblExtraSubnetsChips", ctx.esc, ctx.t);
 
   _openPanel('bblScanOverlay');
 

@@ -15,6 +15,7 @@
  */
 
 import { ctx } from '../context.js';
+import * as extraSubnets from '../extra-subnets.js';
 import {
   elegooProbeIp,
   elegooScanLan,
@@ -57,47 +58,13 @@ function elgScanLogClear() {
   if (count) count.textContent = '0';
 }
 
-// ── Extra subnets (persisted in localStorage so they survive Restart scan) ───
+// ── Extra subnets — shared store (printers/extra-subnets.js, Firestore-synced) ─
+function elgLoadExtraSubnets() { return extraSubnets.loadList(); }
 
-const ELG_EXTRA_SUBNETS_KEY = 'tigertag.elgScanExtraSubnets';
-
-function elgLoadExtraSubnets() {
-  try {
-    const raw = localStorage.getItem(ELG_EXTRA_SUBNETS_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed)
-      ? parsed.filter(p => typeof p === 'string' && /^\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(p))
-      : [];
-  } catch { return []; }
-}
-function elgSaveExtraSubnets(list) {
-  try { localStorage.setItem(ELG_EXTRA_SUBNETS_KEY, JSON.stringify(list)); } catch {}
-}
-function elgAddExtraSubnet(prefix) {
-  const p = prefix.trim();
-  if (!p) return;
-  const list = elgLoadExtraSubnets();
-  if (list.includes(p)) return;
-  list.push(p);
-  elgSaveExtraSubnets(list);
-  _renderExtraSubnetChips();
-}
-function elgRemoveExtraSubnet(prefix) {
-  elgSaveExtraSubnets(elgLoadExtraSubnets().filter(p => p !== prefix));
-  _renderExtraSubnetChips();
-}
+let _elgChipsUnsub = null;
 function _renderExtraSubnetChips() {
-  const el = document.getElementById('elgExtraSubnetsChips');
-  if (!el) return;
-  el.innerHTML = elgLoadExtraSubnets().map(p => `
-    <span class="snap-extra-subnets-chip">
-      <span class="snap-extra-subnets-chip-text">${ctx.esc(p)}.x</span>
-      <button type="button" class="snap-extra-subnets-chip-x" data-prefix="${ctx.esc(p)}" title="Remove">✕</button>
-    </span>`).join('');
-  el.querySelectorAll('.snap-extra-subnets-chip-x').forEach(btn => {
-    btn.addEventListener('click', () => elgRemoveExtraSubnet(btn.dataset.prefix));
-  });
+  if (_elgChipsUnsub) { _elgChipsUnsub(); _elgChipsUnsub = null; }
+  _elgChipsUnsub = extraSubnets.renderChipsInto("elgExtraSubnetsChips", ctx.esc, ctx.t);
 }
 
 // ── Scan state ───────────────────────────────────────────────────────────────
@@ -394,8 +361,7 @@ function _wireDOM() {
   $('elgExtraSubnetsAdd')?.addEventListener('click', () => {
     const input = $('elgExtraSubnetsInput');
     if (!input) return;
-    const m = input.value.trim().match(/^(\d{1,3}\.\d{1,3}\.\d{1,3})(?:\.\d+)?(?:\/\d+)?$/);
-    if (m) { elgAddExtraSubnet(m[1]); input.value = ''; }
+    if (extraSubnets.addPrefix(input.value)) input.value = '';
   });
   $('elgExtraSubnetsInput')?.addEventListener('keydown', e => {
     if (e.key === 'Enter') $('elgExtraSubnetsAdd')?.click();

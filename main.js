@@ -1342,11 +1342,18 @@ ipcMain.handle('ffg:multicast-discover', async () => {
 
     socket.bind({ port: BIND_PORT, address: '0.0.0.0' }, () => {
       try {
-        socket.addMembership(MULTICAST_GROUP);
+        // Match Flutter's RawDatagramSocket options exactly so behaviour is
+        // identical: TTL=4, loopback=false, then join the group, then send.
         socket.setMulticastTTL(4);
-        socket.send(PAYLOAD, MULTICAST_PORT, MULTICAST_GROUP, (err) => {
+        socket.setMulticastLoopback(false);
+        socket.addMembership(MULTICAST_GROUP);
+        // Send TWO packets (50 ms apart) — first one is occasionally dropped
+        // by a router warming up its IGMP snoop table on a fresh socket.
+        const send = () => socket.send(PAYLOAD, MULTICAST_PORT, MULTICAST_GROUP, (err) => {
           if (err) console.warn('[ffg-multicast] send error:', err.message);
         });
+        send();
+        setTimeout(send, 50);
       } catch (e) {
         console.warn('[ffg-multicast] setup failed:', e.message);
         finish();

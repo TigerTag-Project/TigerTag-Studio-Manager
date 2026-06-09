@@ -22,9 +22,14 @@
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const FFG_PORT             = 8898;
-const FFG_PROBE_TIMEOUT_MS = 350;   // per-host HTTP probe timeout during scan
-const FFG_BATCH_SIZE       = 24;    // parallel probes per subnet batch
+const FFG_PORT                   = 8898;
+const FFG_PROBE_TIMEOUT_MS       = 350;   // per-host HTTP probe timeout during scan (local subnet)
+const FFG_PROBE_TIMEOUT_EXTRA_MS = 900;   // higher cap for user-declared extra subnets — packets
+                                          //  routed across VLANs have higher RTT, 350 ms was
+                                          //  silently dropping FlashForge replies that arrived
+                                          //  at ~400-700 ms (matched what the Flutter app saw
+                                          //  on the same network when it succeeded).
+const FFG_BATCH_SIZE             = 24;    // parallel probes per subnet batch
 
 // Module-level scan environment — read by add-flow.js for debug exports.
 let _ffgScanLastEnv = null;
@@ -121,7 +126,7 @@ function ffgQualityScore(c) {
  * @param {Function} [opts.logPush]  `(kind, summary, raw?) => void` scan-log callback.
  * @returns {Promise<object|null>}  Candidate object or null (no FlashForge found).
  */
-export async function ffgProbeIp(ip, { logPush } = {}) {
+export async function ffgProbeIp(ip, { logPush, timeoutMs } = {}) {
   if (!ip) return null;
   const url = `http://${ip}:${FFG_PORT}/detail`;
 
@@ -131,7 +136,7 @@ export async function ffgProbeIp(ip, { logPush } = {}) {
     const raw = await window.electronAPI.ffgHttpPost(
       url,
       { serialNumber: "", checkCode: "" },
-      FFG_PROBE_TIMEOUT_MS,
+      timeoutMs || FFG_PROBE_TIMEOUT_MS,
     );
     // Network error envelope (code -2) means no FlashForge at this IP.
     if (raw?.code === -2) return null;
@@ -153,16 +158,23 @@ export async function ffgProbeIp(ip, { logPush } = {}) {
   const macAddress   = ffgFirstStr(d, ["macAddr", "macAddress", "mac_address"]);
   const machineName  = ffgFirstStr(d, ["machineName", "machine_name"]);
 
-  // At least one identity field must be present — otherwise this isn't a
-  // FlashForge printer (or it's filtered by firewall).
-  const hasIdentity = hostName || machineModel || serialNumber || macAddress || machineName;
-  if (!hasIdentity) return null;
+  // Two-stage identity check, matching the Flutter scanner:
+  //  - hasIdentity (strong)  → at least one identity field is filled.
+  //  - looksLikeFlashforge (weak) → the JSON shape is a FlashForge response,
+  //    even if it's a placeholder like `{"code":1,"message":"SN is different"}`
+  //    that real AD5X / 5M / 5M Pro firmwares return when probed without a SN.
+  //    These boxes need the TCP M115 fallback to actually identify themselves.
+  //    Without this branch, the renderer used to return null and skip the IP,
+  //    while the mobile app on the same network found the printer fine.
+  const hasIdentity         = hostName || machineModel || serialNumber || macAddress || machineName;
+  const looksLikeFlashforge = "code" in d || "detail" in flat || "message" in d;
 
   let candidate = { ip, hostName, machineModel, machineName, serialNumber, firmware, macAddress };
 
-  // ── TCP fallback (M115) if HTTP response was sparse ──────────────────────
+  // ── TCP fallback (M115) — fired when HTTP gave us nothing useful OR the
+  //    response was the "SN is different" placeholder we can't act on.
   const needsEnrich = !machineModel && !serialNumber;
-  if (needsEnrich) {
+  if (needsEnrich && (hasIdentity || looksLikeFlashforge)) {
     try {
       const tcp = await window.electronAPI.ffgTcpProbe(ip);
       if (tcp?.ok && tcp.fields) {
@@ -177,6 +189,19 @@ export async function ffgProbeIp(ip, { logPush } = {}) {
     } catch {
       // TCP probe is best-effort — ignore errors.
     }
+  }
+
+  // Final identity check. The TCP fallback was the last chance — if we still
+  // have no identifying field, this IP is either a non-FlashForge host that
+  // happened to answer on 8898 with a JSON-shaped error, or a FlashForge that
+  // also doesn't honour M115 on 8899 (firewall/firmware variant). Drop it
+  // rather than surface a row with empty everything.
+  const finalHasIdentity =
+    candidate.hostName || candidate.machineModel || candidate.machineName ||
+    candidate.serialNumber || candidate.macAddress;
+  if (!finalHasIdentity) {
+    logPush?.("info", `${ip}: HTTP responded (${looksLikeFlashforge ? "FF-shaped" : "no FF"}) but TCP M115 gave no identity either — skipping`);
+    return null;
   }
 
   candidate.modelId = ffgModelIdFromMachineModel(
@@ -283,11 +308,13 @@ export async function ffgScanLan({
 
   /**
    * Scan one /24 subnet in batches of FFG_BATCH_SIZE.
-   * @param {string}  prefix   e.g. "192.168.1"
-   * @param {number}  batchSz  Parallelism — reduced for extra subnets.
-   * @param {number}  gapMs    Sleep between batches (0 for primary, small for extra).
+   * @param {string}  prefix         e.g. "192.168.1"
+   * @param {number}  batchSz        Parallelism per batch.
+   * @param {number}  gapMs          Sleep between batches.
+   * @param {number}  probeTimeoutMs Per-host HTTP probe timeout (extras get a
+   *                                 generous timeout — see FFG_PROBE_TIMEOUT_EXTRA_MS).
    */
-  const scanSubnet = async (prefix, batchSz, gapMs) => {
+  const scanSubnet = async (prefix, batchSz, gapMs, probeTimeoutMs) => {
     const stat = { prefix, found: 0, probed: 0, errors: 0 };
     subnetStats.push(stat);
 
@@ -304,7 +331,7 @@ export async function ffgScanLan({
         if (signal?.aborted) return;
         if (seenIps.has(ip)) return;
         try {
-          const c = await ffgProbeIp(ip, { logPush });
+          const c = await ffgProbeIp(ip, { logPush, timeoutMs: probeTimeoutMs });
           stat.probed++;
           if (c) { stat.found++; reportCandidate(c); }
         } catch {
@@ -319,11 +346,15 @@ export async function ffgScanLan({
     return stat;
   };
 
-  // Primary subnets — full batch size, no gap.
-  const primaryScans = primaryPrefixes.map(p => scanSubnet(p, FFG_BATCH_SIZE, 0));
+  // Primary subnets — full batch size, no gap, standard timeout.
+  const primaryScans = primaryPrefixes.map(p => scanSubnet(p, FFG_BATCH_SIZE, 0, FFG_PROBE_TIMEOUT_MS));
 
-  // Extra subnets — smaller batch, small gap to be less disruptive.
-  const extraScans   = extraPrefixes.map(p => scanSubnet(p, 4, 50));
+  // Extra subnets (user-declared, possibly routed) — keep the parallelism
+  // high (batch 16, was 4), drop the artificial 50 ms gap, and grant a
+  // generous per-host timeout so a slow routed reply isn't cut off mid-flight.
+  // The Flutter app does the equivalent and finds printers Electron used to
+  // miss; matching its behaviour closes the gap.
+  const extraScans   = extraPrefixes.map(p => scanSubnet(p, 16, 0, FFG_PROBE_TIMEOUT_EXTRA_MS));
 
   await Promise.all([multicastPromise, ...primaryScans, ...extraScans]);
 
