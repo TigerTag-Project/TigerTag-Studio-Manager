@@ -5,6 +5,14 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.8.21 — 2026-06-11
+
+### Fixed
+
+- **No more flashes or disappearing grid on the built-in Retina display.** On a MacBook's built-in Retina screen in full-screen, opening a spool side card used to make the grid flicker, lose its cards, or leave the side card as a blank rectangle — every interaction in the inventory area would trigger another wave of flashes. The cause was Chromium's compositor running out of tile memory while painting the dense grid + side panel + overlays at 2× pixel density (external monitors at 1× density never tripped the limit). The app now requests a 1 GB compositor budget from the GPU on launch, eight times the default — flashes disappear and the side card opens cleanly over an intact grid. No change for users on external monitors, on Windows, or on Linux; they were already fine.
+
+---
+
 ## v1.8.20 — 2026-06-10
 
 ### Added

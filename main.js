@@ -26,6 +26,27 @@ const db = require('./services/tigertagDbService');
 // Must be called BEFORE app.whenReady() / before any window is created.
 app.setName('Tiger Studio Manager');
 
+// ── Chromium compositor tile budget (Retina + macOS Tahoe mitigation) ────────
+// On the built-in Retina display (DPR 2) at fullscreen, the default tile-memory
+// budget (~128 MB) is blown by the inventory grid + side panel + overlays,
+// triggering thousands of `tile memory limits exceeded` warnings per second
+// and producing the visible flashes the user reported. External monitors
+// (DPR 1) stay under the budget and are unaffected.
+//
+// `force-gpu-mem-available-mb=1024` widens the GPU memory ceiling reported to
+// the cc/tiles compositor → 8× more raster tiles fit before eviction. Tested
+// live on M1 13" / macOS 26.2 Tahoe / Electron 41.3.0:
+//   - Without the switch: ~3 800 warnings per session, grid disappears when
+//     opening the side panel, sidecard renders without background, hover
+//     flashes the whole grid.
+//   - With the switch: 11 warnings at the fullscreen-resize moment only,
+//     side panel opens cleanly over an intact grid, zero hover flashes.
+//
+// 512 MB is NOT enough on a 16 GB M1 with 4 displays attached (tested);
+// 1024 MB is the right level for this workload.
+// Must run BEFORE app.whenReady().
+app.commandLine.appendSwitch('force-gpu-mem-available-mb', '1024');
+
 // ── Single-instance lock ────────────────────────────────────────────────────
 // Prevent multiple Electron processes from sharing the same userData directory
 // (which would deadlock IndexedDB / LevelDB — Firebase Auth, image cache, etc.).
