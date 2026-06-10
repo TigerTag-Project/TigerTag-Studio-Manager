@@ -919,5 +919,28 @@
   "tutoFlashforgeAd5xStep1": "Schritt 1: Tippen Sie auf der Hauptoberfläche unten rechts auf die Schaltfläche „Basic Info\".",
   "tutoFlashforgeAd5xStep2": "Schritt 2: Notieren Sie auf der Seite Basic Info die Seriennummer und IP-Adresse.",
   "tutoFlashforgeAd5xStep3": "Schritt 3: Tippen Sie auf das Zahnrad-Symbol, dann auf „Network Mode\" und notieren Sie die Printer ID.",
-  "tutoElegooStep1": "Wählen Sie auf dem Touchscreen Einstellungen → LAN Only. Aktivieren Sie LAN Only + Zugriffscode und wählen Sie Bestätigen."
+  "tutoElegooStep1": "Wählen Sie auf dem Touchscreen Einstellungen → LAN Only. Aktivieren Sie LAN Only + Zugriffscode und wählen Sie Bestätigen.",
+  "anycubicAddChoiceTitle": "Anycubic-Drucker hinzufügen",
+  "anycubicScanEmpty": "Keine Anycubic-Drucker gefunden — stellen Sie sicher, dass der LAN-Modus am Drucker aktiviert ist",
+  "acuImportChoice": "Aus Anycubic Slicer importieren",
+  "acuImportChoiceHint": "Liest gekoppelte Drucker und Zugangsdaten (empfohlen)",
+  "acuImportTitle": "Aus Anycubic Slicer importieren",
+  "acuImportSub": "In der Slicer-Konfiguration gefundene gekoppelte LAN-Drucker",
+  "acuImportErrNotFound": "AnycubicSlicerNext-Konfiguration nicht gefunden. Installieren Sie den Slicer und koppeln Sie Ihren Drucker (LAN-Modus) einmal.",
+  "acuImportErrNoPrinters": "Keine gekoppelten LAN-Drucker in der Slicer-Konfiguration. Öffnen Sie AnycubicSlicerNext und koppeln Sie den Drucker einmal im LAN-Modus.",
+  "acuImportErrBridge": "Verbindungsbrücke fehlt — beenden Sie die App vollständig und starten Sie sie neu.",
+  "acuNoLayout": "Verbunden — warte auf das ACE-Layout…",
+  "printerLblDeviceId": "Geräte-ID",
+  "printerLblUsername": "Benutzername",
+  "printerHintAnycubicIP": "Lokale IP des Druckers — der LAN-Modus muss aktiviert sein",
+  "printerHintAnycubicModelId": "Numerische Modell-ID (z. B. 20027) — wird vom Slicer-Import ausgefüllt",
+  "printerHintAnycubicDeviceId": "32-stellige Geräte-ID — wird vom Slicer-Import ausgefüllt",
+  "printerHintAnycubicUsername": "Broker-Benutzername — wird vom Slicer-Import ausgefüllt",
+  "printerHintAnycubicPassword": "Broker-Passwort — wird vom Slicer-Import ausgefüllt",
+  "printerHelperAnycubicTitle": "Bevor du beginnst",
+  "printerHelperAnycubicBullets": [
+    "Koppeln Sie den Drucker einmal in AnycubicSlicerNext (LAN-Modus AN).",
+    "Verwenden Sie 'Aus Anycubic Slicer importieren', um alle Felder automatisch auszufüllen.",
+    "Die Zugangsdaten sind dauerhaft — der Slicer wird danach nicht mehr benötigt."
+  ]
 }

@@ -2010,45 +2010,44 @@ ipcMain.handle('timelapse:download', async (_evt, videoUrl, suggestedFilename) =
   });
 }
 
+// ── ffmpeg detection — shared by the Bambu RTSP camera and the Anycubic FLV
+//    camera below. Tries the bundled ffmpeg-static binary first (ships on every
+//    OS, so Windows works out of the box), then common system paths.
+let _ffmpegBin = null;
+(function _detectFfmpeg() {
+  const candidates = [];
+  // Bundled binary (ffmpeg-static). In a packaged app the binary is unpacked
+  // beside the asar (build.asarUnpack) — build its REAL on-disk path from
+  // resourcesPath. We must NOT use the require('ffmpeg-static') path there: it
+  // points inside app.asar, which fs.accessSync may resolve via the asar shim
+  // but the OS cannot actually spawn. In dev, require() returns the real path.
+  const exe = process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg';
+  if (app.isPackaged) {
+    candidates.push(path.join(process.resourcesPath, 'app.asar.unpacked', 'node_modules', 'ffmpeg-static', exe));
+  } else {
+    try { const s = require('ffmpeg-static'); if (s) candidates.push(s); } catch (_) {}
+  }
+  candidates.push(
+    '/opt/homebrew/bin/ffmpeg',                    // macOS Homebrew (Apple Silicon)
+    '/usr/local/bin/ffmpeg',                       // macOS Homebrew (Intel)
+    '/usr/bin/ffmpeg',                             // Linux
+    'C:\\ffmpeg\\bin\\ffmpeg.exe',                 // Windows (manual install)
+    'C:\\Program Files\\ffmpeg\\bin\\ffmpeg.exe',  // Windows (manual install)
+    'ffmpeg',                                      // PATH fallback
+  );
+  for (const p of candidates) {
+    try { fs.accessSync(p, fs.constants.X_OK); _ffmpegBin = p; break; } catch (_) {}
+  }
+  if (_ffmpegBin) console.log(`[ffmpeg] using ${_ffmpegBin}`);
+  else console.warn(`[ffmpeg] NOT FOUND — checked: ${candidates.join(' · ')}`);
+})();
+
 // ── Bambu Lab MQTT (TLS mqtts port 8883) + JPEG-TCP camera (port 6000)
 //    + RTSP camera (X1C / X1E / P2S / H2x — port 322) via ffmpeg
 {
   const mqtt  = require('mqtt');
   const tls   = require('tls');
   const { spawn } = require('child_process');
-
-  // Locate ffmpeg — tries the bundled ffmpeg-static binary first (ships on every
-  // OS, so Windows works out of the box), then common system paths.
-  let _ffmpegBin = null;
-  (function _detectFfmpeg() {
-    const fs = require('fs');
-    const path = require('path');
-    const candidates = [];
-    // Bundled binary (ffmpeg-static). In a packaged app the binary is unpacked
-    // beside the asar (build.asarUnpack) — build its REAL on-disk path from
-    // resourcesPath. We must NOT use the require('ffmpeg-static') path there: it
-    // points inside app.asar, which fs.accessSync may resolve via the asar shim
-    // but the OS cannot actually spawn. In dev, require() returns the real path.
-    const exe = process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg';
-    if (app.isPackaged) {
-      candidates.push(path.join(process.resourcesPath, 'app.asar.unpacked', 'node_modules', 'ffmpeg-static', exe));
-    } else {
-      try { const s = require('ffmpeg-static'); if (s) candidates.push(s); } catch (_) {}
-    }
-    candidates.push(
-      '/opt/homebrew/bin/ffmpeg',                    // macOS Homebrew (Apple Silicon)
-      '/usr/local/bin/ffmpeg',                       // macOS Homebrew (Intel)
-      '/usr/bin/ffmpeg',                             // Linux
-      'C:\\ffmpeg\\bin\\ffmpeg.exe',                 // Windows (manual install)
-      'C:\\Program Files\\ffmpeg\\bin\\ffmpeg.exe',  // Windows (manual install)
-      'ffmpeg',                                      // PATH fallback
-    );
-    for (const p of candidates) {
-      try { fs.accessSync(p, fs.constants.X_OK); _ffmpegBin = p; break; } catch (_) {}
-    }
-    if (_ffmpegBin) console.log(`[ffmpeg] using ${_ffmpegBin}`);
-    else console.warn(`[ffmpeg] NOT FOUND — checked: ${candidates.join(' · ')}`);
-  })();
 
   const _bambuClients    = new Map(); // key → { client, wc }
   const _bambuCamSockets = new Map(); // key → net.Socket
@@ -2249,6 +2248,316 @@ ipcMain.handle('timelapse:download', async (_evt, videoUrl, suggestedFilename) =
   ipcMain.on('bambulab:cam-stop-rtsp', (_evt, key) => {
     const p = _bambuRtspProcs.get(key);
     if (p) { p._stopped = true; try { p.kill('SIGTERM'); } catch (_) {} _bambuRtspProcs.delete(key); }
+  });
+}
+
+// ── Anycubic LAN — MQTT TLS (port 9883) + slicer-config provisioning
+//    Protocol notes: renderer/printers/anycubic/PROTOCOL.md.
+//    The printer's local broker uses a self-signed cert and requests an
+//    OPTIONAL client certificate; TLS 1.3 stacks fail that handshake when no
+//    cert is supplied, so the connection is pinned to TLS 1.2. Credentials are
+//    durable, cloud-issued per pairing, and read from AnycubicSlicerNext's
+//    on-disk config (keyless obfuscation, decoded below) — the slicer never
+//    needs to run for day-to-day communication.
+{
+  const mqtt   = require('mqtt');
+  const net    = require('net');
+  const crypto = require('crypto');
+
+  const _acuClients = new Map(); // key → { client, wc, modelId, deviceId }
+
+  // Command topics are per-endpoint (multiColorBox, print, …); reports all
+  // arrive under the printer's public prefix — subscribe to the whole subtree
+  // so print/tempature/fan/status/lastWill telemetry streams in alongside the
+  // multiColorBox reports (family taxonomy: PROTOCOL.md §5b).
+  const _acuCmdTopic     = (m, d, endpoint) => `anycubic/anycubicCloud/v1/web/printer/${m}/${d}/${endpoint || 'multiColorBox'}`;
+  const _acuReportSubtree = (m, d) => `anycubic/anycubicCloud/v1/printer/public/${m}/${d}/#`;
+
+  // ── MQTT ──────────────────────────────────────────────────────────────
+  ipcMain.on('anycubic:connect', (event, { key, ip, port, modelId, deviceId, username, password }) => {
+    if (!key || !ip || !modelId || !deviceId || !username || !password) {
+      event.sender.send('anycubic:status', key, 'error:missing-params');
+      return;
+    }
+    const existing = _acuClients.get(key);
+    if (existing) { try { existing.client.end(true); } catch (_) {} _acuClients.delete(key); }
+
+    const client = mqtt.connect({
+      host: ip, port: Number(port) || 9883,
+      protocol: 'mqtts',
+      // Self-signed broker cert — identity is proven by username/password.
+      rejectUnauthorized: false,
+      // TLS 1.2 required (broker's optional client-cert request breaks 1.3).
+      minVersion: 'TLSv1.2',
+      maxVersion: 'TLSv1.2',
+      username, password,
+      clientId: `studio_${crypto.randomUUID()}`,
+      keepalive: 20,
+      clean: true,
+      connectTimeout: 10000,
+    });
+    _acuClients.set(key, { client, wc: event.sender, modelId, deviceId });
+
+    client.on('connect', () => {
+      if (event.sender.isDestroyed()) return;
+      client.subscribe(_acuReportSubtree(modelId, deviceId), { qos: 0 });
+      event.sender.send('anycubic:status', key, 'connected');
+    });
+    client.on('message', (topic, payload) => {
+      if (event.sender.isDestroyed()) return;
+      try { event.sender.send('anycubic:message', key, topic, JSON.parse(payload.toString())); }
+      catch (_) {}
+    });
+    client.on('error',    (err) => { if (!event.sender.isDestroyed()) event.sender.send('anycubic:status', key, `error:${err?.message || err}`); });
+    client.on('close',    ()    => { if (!event.sender.isDestroyed()) event.sender.send('anycubic:status', key, 'disconnected'); });
+    client.on('offline',  ()    => { if (!event.sender.isDestroyed()) event.sender.send('anycubic:status', key, 'offline'); });
+    client.on('reconnect',()    => { if (!event.sender.isDestroyed()) event.sender.send('anycubic:status', key, 'connecting'); });
+  });
+
+  ipcMain.on('anycubic:disconnect', (_evt, key) => {
+    const e = _acuClients.get(key);
+    if (e) { try { e.client.end(true); } catch (_) {} _acuClients.delete(key); }
+  });
+
+  // Publishes a request for this printer. The renderer builds the JSON body;
+  // the command topic is derived here from the connect-time modelId/deviceId
+  // plus the endpoint (defaults to multiColorBox for back-compat).
+  ipcMain.on('anycubic:publish', (_evt, key, payload, endpoint) => {
+    const e = _acuClients.get(key);
+    if (!e) return;
+    try { e.client.publish(_acuCmdTopic(e.modelId, e.deviceId, endpoint), JSON.stringify(payload), { qos: 0 }); }
+    catch (_) {}
+  });
+
+  // ── FLV camera (port 18088) via ffmpeg ────────────────────────────────
+  // The printer serves HTTP-FLV at http://<ip>:18088/flv; Chromium can't play
+  // FLV natively, so ffmpeg pulls the stream and outputs MJPEG frames to
+  // stdout (same pattern as the Bambu RTSP camera). Frames are parsed
+  // (SOI=FF D8 … EOI=FF D9) and sent via 'anycubic:cam-frame'.
+  const { spawn: _acuSpawn } = require('child_process');
+  const _acuCamProcs = new Map(); // key → ChildProcess
+
+  ipcMain.on('anycubic:cam-start', (event, { key, ip }) => {
+    const prev = _acuCamProcs.get(key);
+    if (prev) { prev._stopped = true; try { prev.kill('SIGTERM'); } catch (_) {} _acuCamProcs.delete(key); }
+
+    if (!_ffmpegBin) {
+      console.warn('[acu-cam] ffmpeg not found — Anycubic camera disabled');
+      return;
+    }
+    if (!ip) return;
+
+    // The renderer only calls cam-start AFTER an flv-probe returned live, so a
+    // repeated exit means the stream genuinely dropped — give up fast rather
+    // than hammering a dead endpoint (the renderer re-probes on next open).
+    let restarts = 0;
+    const MAX_RESTARTS = 2;
+
+    const launch = () => {
+      if (event.sender.isDestroyed()) return;
+
+      const flvUrl = `http://${ip}:18088/flv`;
+      console.log(`[acu-cam:${key}] launching ffmpeg → ${flvUrl} (bin: ${_ffmpegBin})`);
+
+      const proc = _acuSpawn(_ffmpegBin, [
+        '-loglevel', 'error',
+        '-i', flvUrl,
+        '-vf', 'fps=5',                // ~5 fps is plenty for a status cam
+        '-f', 'image2pipe',
+        '-vcodec', 'mjpeg',
+        '-qscale:v', '3',
+        'pipe:1',
+      ], { stdio: ['ignore', 'pipe', 'pipe'] });
+
+      proc._stopped = false;
+      _acuCamProcs.set(key, proc);
+
+      proc.stderr.on('data', chunk => {
+        const msg = chunk.toString().trim();
+        if (msg) console.error(`[acu-cam:${key}]`, msg);
+      });
+
+      // Parse raw stdout for JPEG frames: SOI (FF D8) → EOI (FF D9).
+      let buf = Buffer.alloc(0);
+      proc.stdout.on('data', chunk => {
+        buf = Buffer.concat([buf, chunk]);
+        let start = -1;
+        for (let i = 0; i < buf.length - 1; i++) {
+          if (buf[i] === 0xFF && buf[i + 1] === 0xD8) { start = i; }
+          if (start !== -1 && buf[i] === 0xFF && buf[i + 1] === 0xD9) {
+            const frame = buf.slice(start, i + 2);
+            buf = buf.slice(i + 2);
+            if (!event.sender.isDestroyed())
+              event.sender.send('anycubic:cam-frame', key, frame.toString('base64'));
+            // Forward to detached cam window if open
+            if (_camWindow && !_camWindow.isDestroyed())
+              _camWindow.webContents.send('anycubic:cam-frame', key, frame.toString('base64'));
+            start = -1;
+            i = -1; // restart scan from new buf[0]
+          }
+        }
+      });
+
+      proc.on('close', (code) => {
+        if (_acuCamProcs.get(key) === proc) _acuCamProcs.delete(key);
+        if (proc._stopped) return; // intentional stop — do not restart
+        if (restarts < MAX_RESTARTS) {
+          restarts++;
+          const delay = Math.min(1000 * restarts, 3000); // 1 s → 3 s backoff
+          console.log(`[acu-cam:${key}] exited (code=${code}), retry ${restarts}/${MAX_RESTARTS} in ${delay} ms`);
+          setTimeout(launch, delay);
+        } else {
+          // Tell the renderer the stream died so it drops back to the idle
+          // state (hero photo) instead of freezing on the last frame.
+          if (!event.sender.isDestroyed()) event.sender.send('anycubic:cam-ended', key);
+          console.warn(`[acu-cam:${key}] gave up after ${MAX_RESTARTS} restarts`);
+        }
+      });
+
+      proc.on('error', (err) => {
+        console.error(`[acu-cam:${key}] spawn error:`, err.message);
+        if (_acuCamProcs.get(key) === proc) _acuCamProcs.delete(key);
+      });
+    };
+
+    launch();
+  });
+
+  ipcMain.on('anycubic:cam-stop', (_evt, key) => {
+    const p = _acuCamProcs.get(key);
+    if (p) { p._stopped = true; try { p.kill('SIGTERM'); } catch (_) {} _acuCamProcs.delete(key); }
+  });
+
+  // ── Slicer on-disk credential reader ──────────────────────────────────
+  // AnycubicSlicerNext caches every paired LAN printer's full broker
+  // credentials in its config under "machine_list_of_LAN", obfuscated with a
+  // keyless transform: stored = base64( +5( base64( +5( JSON ) ) ) ).
+  function _acuDeobfuscate(stored) {
+    const outer = Buffer.from(stored, 'base64');
+    for (let i = 0; i < outer.length; i++) outer[i] = (outer[i] - 5) & 0xff;
+    const inner = Buffer.from(outer.toString('ascii'), 'base64');
+    for (let i = 0; i < inner.length; i++) inner[i] = (inner[i] - 5) & 0xff;
+    return inner.toString('utf8');
+  }
+
+  function _acuConfCandidates() {
+    const os = require('os');
+    const list = [];
+    if (process.platform === 'win32') {
+      if (process.env.APPDATA) list.push(path.join(process.env.APPDATA, 'AnycubicSlicerNext', 'AnycubicSlicerNext.conf'));
+    } else if (process.platform === 'darwin') {
+      list.push(path.join(os.homedir(), 'Library', 'Application Support', 'AnycubicSlicerNext', 'AnycubicSlicerNext.conf'));
+    } else {
+      list.push(path.join(os.homedir(), '.config', 'AnycubicSlicerNext', 'AnycubicSlicerNext.conf'));
+    }
+    return list.flatMap(p => [p, p + '.bak']);
+  }
+
+  // Returns { ok:true, printers:[{ip,port,username,password,deviceId,modelId,name}], confPath }
+  // or { ok:false, error } with a user-readable reason.
+  ipcMain.handle('anycubic:read-slicer-config', async () => {
+    try {
+      const conf = _acuConfCandidates().find(p => { try { return fs.existsSync(p); } catch { return false; } });
+      if (!conf) return { ok: false, error: 'config-not-found' };
+
+      const text = fs.readFileSync(conf, 'utf8');
+      const m = text.match(/"machine_list_of_LAN"\s*:\s*"([^"]*)"/);
+      if (!m || m[1].length === 0) return { ok: false, error: 'no-lan-printers' };
+
+      let arr;
+      try { arr = JSON.parse(_acuDeobfuscate(m[1])); }
+      catch (e) { return { ok: false, error: `decode-failed:${e.message}` }; }
+      if (!Array.isArray(arr)) return { ok: false, error: 'decode-failed:not-a-list' };
+
+      const printers = [];
+      for (const p of arr) {
+        if (!p || typeof p !== 'object') continue;
+        const broker = String(p.broker || '');
+        const bm = broker.match(/mqtts?:\/\/([^:]+):(\d+)/);
+        const printer = {
+          ip:       bm ? bm[1] : String(p.ip || ''),
+          port:     bm ? parseInt(bm[2], 10) : parseInt(p.port, 10) || 9883,
+          username: String(p.username || ''),
+          password: String(p.password || ''),
+          deviceId: String(p.deviceId || ''),
+          // Slicer config uses "modeId" (sic) — accept both spellings.
+          modelId:  String(p.modeId || p.modelId || ''),
+          name:     String(p.name || ''),
+        };
+        if (printer.ip && printer.username && printer.password && printer.deviceId && printer.modelId) {
+          printers.push(printer);
+        }
+      }
+      if (!printers.length) return { ok: false, error: 'no-complete-creds' };
+      return { ok: true, printers, confPath: conf };
+    } catch (e) {
+      return { ok: false, error: e?.message || String(e) };
+    }
+  });
+
+  // ── TCP probe — port 18910 open/closed fast filter for the LAN scan ──
+  // Port 18910 is the printer's plaintext LAN-control/discovery API; it is
+  // only open when the printer is in LAN mode.
+  ipcMain.handle('anycubic:tcp-probe', async (_evt, ip) => {
+    return new Promise((resolve) => {
+      const sock = new net.Socket();
+      let settled = false;
+      const finish = (ok, error) => {
+        if (settled) return; settled = true;
+        try { sock.destroy(); } catch (_) {}
+        resolve(error ? { ok, error } : { ok });
+      };
+      sock.setTimeout(650);
+      sock.once('connect', () => finish(true));
+      sock.once('timeout', () => finish(false, 'timeout'));
+      sock.once('error', (err) => finish(false, err?.code || err?.message || 'error'));
+      try { sock.connect(18910, ip); } catch (e) { finish(false, e?.message || 'connect-throw'); }
+    });
+  });
+
+  // ── FLV liveness probe on :18088 ─────────────────────────────────────
+  // The camera stream is on-demand: GET /flv 404s until the printer is told
+  // to start capturing, and returns 200 + an FLV stream once it is live
+  // (PROTOCOL.md §5c). We probe before spawning ffmpeg so we never loop on a
+  // dead endpoint. Reads only the first chunk (the live response advertises a
+  // bogus 99999999999 Content-Length) then aborts. Returns { ok, live }.
+  ipcMain.handle('anycubic:flv-probe', async (_evt, ip, timeoutMs) => {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), Number(timeoutMs) || 2500);
+    try {
+      const res = await fetch(`http://${ip}:18088/flv`, { signal: ctl.signal });
+      if (res.status !== 200) { try { ctl.abort(); } catch (_) {} return { ok: true, live: false, status: res.status }; }
+      // Confirm the FLV signature in the first bytes, then stop pulling.
+      let live = false;
+      try {
+        const reader = res.body.getReader();
+        const { value } = await reader.read();
+        live = !!value && value.length >= 3 && value[0] === 0x46 && value[1] === 0x4C && value[2] === 0x56; // "FLV"
+      } catch (_) { /* aborted mid-read — treat below */ }
+      try { ctl.abort(); } catch (_) {}
+      return { ok: true, live };
+    } catch (e) {
+      return { ok: false, live: false, error: e?.name === 'AbortError' ? 'timeout' : (e?.message || String(e)) };
+    } finally {
+      clearTimeout(timer);
+    }
+  });
+
+  // ── HTTP /info — unauthenticated device descriptor on :18910 ─────────
+  // Main-process fetch (no CORS). Returns { ok, info } | { ok:false, error }.
+  ipcMain.handle('anycubic:http-info', async (_evt, ip, timeoutMs) => {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), Number(timeoutMs) || 2500);
+    try {
+      const res = await fetch(`http://${ip}:18910/info`, { signal: ctl.signal });
+      if (!res.ok) return { ok: false, error: `http-${res.status}` };
+      const info = await res.json();
+      return { ok: true, info };
+    } catch (e) {
+      return { ok: false, error: e?.name === 'AbortError' ? 'timeout' : (e?.message || String(e)) };
+    } finally {
+      clearTimeout(timer);
+    }
   });
 }
 

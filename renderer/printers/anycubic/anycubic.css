@@ -1,0 +1,24 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   printers/anycubic/anycubic.css — Anycubic-specific styles.
+
+   The live block reuses the shared .snap-* / .cre-fil-* classes; only the
+   camera <img> needs brand rules (same recipe as bambulab.css).
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Camera — FLV→JPEG frames via IPC ─────────────────────────────────────
+   Frames are injected into <img data-acu-key="…"> as data: URLs.
+   The image fills the .pp-cam-full 16:9 container absolutely. */
+.acu-camera-img {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  border: none;
+  display: block;
+  background: #000;
+  object-fit: cover;
+}
+
+/* Hide the broken-image icon on the <img> until the first frame arrives. */
+.pp-cam-loading .acu-camera-img {
+  opacity: 0;
+}

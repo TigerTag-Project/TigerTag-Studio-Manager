@@ -919,5 +919,28 @@
   "tutoFlashforgeAd5xStep1": "Step 1: On the main interface, tap the \"Basic Info\" button at the bottom right of the screen.",
   "tutoFlashforgeAd5xStep2": "Step 2: In the Basic Info page, retrieve the Serial No. and the IP Address.",
   "tutoFlashforgeAd5xStep3": "Step 3: Select the gear icon, tap \"Network Mode\", then retrieve the Printer ID.",
-  "tutoElegooStep1": "On the touch screen, select Settings → LAN Only. Enable LAN Only + Access Code and select Confirm."
+  "tutoElegooStep1": "On the touch screen, select Settings → LAN Only. Enable LAN Only + Access Code and select Confirm.",
+  "anycubicAddChoiceTitle": "Add Anycubic printer",
+  "anycubicScanEmpty": "No Anycubic printers found — make sure LAN mode is enabled on the printer",
+  "acuImportChoice": "Import from Anycubic Slicer",
+  "acuImportChoiceHint": "Reads paired printers and credentials (recommended)",
+  "acuImportTitle": "Import from Anycubic Slicer",
+  "acuImportSub": "Paired LAN printers found in the slicer's configuration",
+  "acuImportErrNotFound": "AnycubicSlicerNext config not found. Install the slicer and pair your printer (LAN mode) once.",
+  "acuImportErrNoPrinters": "No paired LAN printers in the slicer config. Open AnycubicSlicerNext and pair the printer in LAN mode once.",
+  "acuImportErrBridge": "Connection bridge missing — fully quit and relaunch the app.",
+  "acuNoLayout": "Connected — waiting for the ACE layout…",
+  "printerLblDeviceId": "Device ID",
+  "printerLblUsername": "Username",
+  "printerHintAnycubicIP": "Printer's local IP — LAN mode must be ON",
+  "printerHintAnycubicModelId": "Numeric model id (e.g. 20027) — filled by the slicer import",
+  "printerHintAnycubicDeviceId": "32-character device id — filled by the slicer import",
+  "printerHintAnycubicUsername": "Broker username — filled by the slicer import",
+  "printerHintAnycubicPassword": "Broker password — filled by the slicer import",
+  "printerHelperAnycubicTitle": "Before you start",
+  "printerHelperAnycubicBullets": [
+    "Pair the printer once in AnycubicSlicerNext (LAN mode ON).",
+    "Use 'Import from Anycubic Slicer' to fill all fields automatically.",
+    "Credentials are durable — the slicer is not needed afterwards."
+  ]
 }

@@ -20,4 +20,9 @@ contextBridge.exposeInMainWorld('camAPI', {
    *  cb(key: string, b64: string) */
   onBambuFrame: (cb) =>
     ipcRenderer.on('bambulab:cam-frame', (_, key, b64) => cb(key, b64)),
+
+  /** Anycubic JPEG frames (ffmpeg FLV remux) forwarded from the main process.
+   *  cb(key: string, b64: string) */
+  onAcuFrame: (cb) =>
+    ipcRenderer.on('anycubic:cam-frame', (_, key, b64) => cb(key, b64)),
 });

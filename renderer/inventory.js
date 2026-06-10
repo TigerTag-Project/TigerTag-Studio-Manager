@@ -51,6 +51,15 @@ import { openFfgAddFlow }  from './printers/flashforge/add-flow.js';
 import { openCreAddFlow }  from './printers/creality/add-flow.js';
 import { openBblAddFlow }  from './printers/bambulab/add-flow.js';
 import { openElgAddFlow }  from './printers/elegoo/add-flow.js';
+import { openAcuAddFlow }  from './printers/anycubic/add-flow.js';
+import {
+  acuKey, acuGetConn, acuIsOnline,
+  acuConnect, acuDisconnect, acuReleaseCamera,
+  renderAcuOnlineBadge,
+  renderAnycubicLiveInner, renderAnycubicLogInner,
+  openAcuFilamentEdit, closeAcuFilamentEdit,
+} from './printers/anycubic/index.js';
+import { renderAcuCamBanner } from './printers/anycubic/widget_camera.js';
 import { renderCreCamBanner, startCreCam, stopCreCam, reAttachCreCamConsumers, addCreCamConsumer, removeCreCamConsumer } from './printers/creality/widget_camera.js';
 import {
   snapKey, snapGetConn, snapIsOnline,
@@ -564,7 +573,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         ["creality",   "../data/printers/cre_printer_models.json"],
         ["elegoo",     "../data/printers/eleg_printer_models.json"],
         ["flashforge", "../data/printers/ffg_printer_models.json"],
-        ["snapmaker",  "../data/printers/snap_printer_models.json"]
+        ["snapmaker",  "../data/printers/snap_printer_models.json"],
+        ["anycubic",   "../data/printers/acu_printer_models.json"]
       ];
       state.db.printerModels = {};
       await Promise.all(printerCatalogs.map(async ([brand, url]) => {
@@ -8395,7 +8405,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
      mergeBrandSnap callback so a snapshot for any brand updates only that
      brand's slice while preserving the others.
      See docs/03-data-model.md → users/{uid}/printers/{brand}/devices.       */
-  const PRINTER_BRANDS = ["bambulab", "creality", "elegoo", "flashforge", "snapmaker"];
+  const PRINTER_BRANDS = ["bambulab", "creality", "elegoo", "flashforge", "snapmaker", "anycubic"];
 
   function subscribePrinters(uid) {
     unsubscribePrinters();
@@ -8408,6 +8418,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // live even without opening the sidecard. Camera is NOT started here; it is
     // started only when the sidecard opens (bambuConnect called without skipCam).
     const _bambuAutoKeys = new Set();
+    // Same for Anycubic — always-on MQTT to the printer's local broker.
+    const _acuAutoKeys = new Set();
     state._printerCache = cache;
     // Loading flag — flipped to false the FIRST time any brand listener
     // emits a snapshot (cached or live). Tracking per-brand "first
@@ -8506,6 +8518,22 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
               }
             }
           }
+          // Anycubic: same always-on MQTT pattern (no camera to skip).
+          {
+            const acuNow = all.filter(p => p.brand === 'anycubic' && p.ip);
+            const acuNowKeys = new Set(acuNow.map(p => acuKey(p)));
+            for (const key of _acuAutoKeys) {
+              if (!acuNowKeys.has(key)) { acuDisconnect(key); _acuAutoKeys.delete(key); }
+            }
+            for (const p of acuNow) {
+              const key = acuKey(p);
+              const conn = acuGetConn(key);
+              if ((!conn || conn.ip !== p.ip) && !_ppForcedOfflineKeys.has(key)) {
+                acuConnect(p, { skipCam: true });
+                _acuAutoKeys.add(key);
+              }
+            }
+          }
           if (_isPrinterMode(state.viewMode)) {
             // In cam mode, patch CSS/order only — never rebuild DOM so live
             // iframe/WebRTC streams survive Firestore echoes (e.g. camSize writes).
@@ -8536,6 +8564,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // Same for Bambu Lab — full disconnect (MQTT + camera).
     (state.printers || []).filter(p => p.brand === 'bambulab').forEach(p => {
       try { bambuDisconnect(bambuKey(p)); } catch (_) {}
+    });
+    // Same for Anycubic — close the local-broker MQTT sessions.
+    (state.printers || []).filter(p => p.brand === 'anycubic').forEach(p => {
+      try { acuDisconnect(acuKey(p)); } catch (_) {}
     });
     // Close any open printer detail panel — its data belonged to the
     // outgoing account/session.
@@ -8568,6 +8600,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (p.brand === "creality")   { const c = creGetConn(creKey(p));       if (c?.status === "connected") d = c.data; }
     if (p.brand === "elegoo")     { const c = elegooGetConn(elegooKey(p)); if (c?.status === "connected") d = c.data; }
     if (p.brand === "bambulab")   { const c = bambuGetConn(bambuKey(p));   if (c?.status === "connected") d = c.data; }
+    if (p.brand === "anycubic")   { const c = acuGetConn(acuKey(p));       if (c?.status === "connected") d = c.data; }
     if (!d) return null;
 
     // Normalize state across brands (Creality uses numeric state field)
@@ -8581,6 +8614,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     let pct;
     if (p.brand === "elegoo")        pct = Math.round((d.printProgress || 0) * 100);
     else if (p.brand === "bambulab") pct = Math.round(d.progress || 0);
+    else if (p.brand === "anycubic") pct = Math.round(d.progress || 0);
     else if (p.brand === "creality") pct = Math.round(d.printProgress || 0);
     else                             pct = Math.round((d.progress || 0) * 100);
     pct = Math.min(100, Math.max(0, pct));
@@ -8591,6 +8625,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // Remaining time in seconds (normalised from brand-specific units)
     let remainSec = null;
     if (p.brand === "bambulab" && d.remainingTime > 0) remainSec = d.remainingTime * 60;
+    else if (p.brand === "anycubic" && d.remainTime > 0)       remainSec = d.remainTime * 60;
     else if (p.brand === "elegoo"   && d.printRemainingMs > 0) remainSec = Math.round(d.printRemainingMs / 1000);
     else if (p.brand === "creality" && d.printLeftTime > 0)    remainSec = d.printLeftTime;
 
@@ -8672,6 +8707,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (p.brand === "creality")   return creIsOnline(p)    === true;
     if (p.brand === "elegoo")     return elegooIsOnline(p) === true;
     if (p.brand === "bambulab")   return bambuIsOnline(p)  === true;
+    if (p.brand === "anycubic")   return acuIsOnline(p)    === true;
     return false;
   }
   function _makeOnlineBadge(p) {
@@ -8679,6 +8715,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (p.brand === "creality")   return renderCreOnlineBadge(p, "card");
     if (p.brand === "bambulab")   return renderBambuOnlineBadge(p, "card");
     if (p.brand === "snapmaker")  return renderSnapOnlineBadge(p, "card");
+    if (p.brand === "anycubic")   return renderAcuOnlineBadge(p, "card");
     if (p.brand === "elegoo") {
       const o = elegooIsOnline(p);
       const cls = o === true ? "is-online" : o === false ? "is-offline" : "is-checking";
@@ -8801,6 +8838,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (p.brand === "creality"   && p.ip)               creConnect(p);
       if (p.brand === "bambulab"   && (p.broker || p.ip)) bambuConnect(p, { skipCam: true });
       if (p.brand === "elegoo" && !_ppForcedOfflineKeys.has(elegooKey(p))) elegooConnect(p);
+      if (p.brand === "anycubic" && p.ip && !_ppForcedOfflineKeys.has(acuKey(p))) acuConnect(p, { skipCam: true });
     });
 
     // Helper: is this printer currently online? Returns boolean (false = offline or unknown).
@@ -8909,6 +8947,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (p.brand === "creality"   && p.ip)               creConnect(p);
       if (p.brand === "bambulab"   && (p.broker || p.ip)) bambuConnect(p, { skipCam: true });
       if (p.brand === "elegoo" && !_ppForcedOfflineKeys.has(elegooKey(p))) elegooConnect(p);
+      if (p.brand === "anycubic" && p.ip && !_ppForcedOfflineKeys.has(acuKey(p))) acuConnect(p, { skipCam: true });
     });
 
     const _isOnline = p => {
@@ -8917,6 +8956,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (p.brand === "creality")   return creIsOnline(p)    === true;
       if (p.brand === "elegoo")     return elegooIsOnline(p) === true;
       if (p.brand === "bambulab")   return bambuIsOnline(p)  === true;
+      if (p.brand === "anycubic")   return acuIsOnline(p)    === true;
       return false;
     };
 
@@ -9054,6 +9094,15 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         return [{ brand: "bambulab", id: p.id, name, camType: "bbl_ipc",
                   bblKey: bambuKey(p), url: null, ip: null }];
       }
+      if (p.brand === "anycubic") {
+        const conn = acuGetConn(acuKey(p));
+        if (!conn || conn.status !== "connected") return [];
+        // Make sure the ffmpeg FLV stream is running — the detached window
+        // only consumes frames, it can't start the stream itself.
+        acuConnect(p);
+        return [{ brand: "anycubic", id: p.id, name, camType: "acu_ipc",
+                  acuKey: acuKey(p), url: null, bblKey: null, ip: null }];
+      }
       if (p.brand === "elegoo") {
         const conn = elegooGetConn(elegooKey(p));
         if (!conn || conn.status !== "connected" || !p.ip) return [];
@@ -9074,6 +9123,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (p.brand === "creality"   && p.ip)               creConnect(p);
       if (p.brand === "bambulab"   && (p.broker || p.ip)) bambuConnect(p);
       if (p.brand === "elegoo" && !_ppForcedOfflineKeys.has(elegooKey(p))) elegooConnect(p);
+      if (p.brand === "anycubic" && p.ip && !_ppForcedOfflineKeys.has(acuKey(p))) acuConnect(p);
     });
 
     // ── Step 1: Determine the set of online printers with an active cam feed ──
@@ -9083,6 +9133,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (p.brand === "creality")   return creIsOnline(p)    === true;
       if (p.brand === "elegoo")     return elegooIsOnline(p) === true;
       if (p.brand === "bambulab")   return bambuIsOnline(p)  === true;
+      if (p.brand === "anycubic")   return acuIsOnline(p)    === true;
       return false;
     };
     const _camOrdered = [...state.printers].sort((a, b) => {
@@ -9504,6 +9555,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
                    : printer.brand === "flashforge" ? ffgKey(printer)
                    : printer.brand === "creality"   ? creKey(printer)
                    : printer.brand === "bambulab"   ? bambuKey(printer)
+                   : printer.brand === "anycubic"   ? acuKey(printer)
                    : printer.brand === "elegoo"     ? elegooKey(printer) : null;
     if (_openKey) _ppForcedOfflineKeys.delete(_openKey);
     renderPrinterDetail();
@@ -9536,6 +9588,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // Bambu Lab — connect MQTT TLS (and start JPEG camera if applicable).
     if (printer.brand === "bambulab" && (printer.broker || printer.ip)) {
       bambuConnect(printer);
+    }
+    // Anycubic — connect MQTT TLS to the printer's local broker (idempotent).
+    if (printer.brand === "anycubic" && printer.ip) {
+      acuConnect(printer);
     }
   }
   function closePrinterDetail() {
@@ -9586,6 +9642,16 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // Bambu Lab — close filament-edit sheet if open.
     if ($("bblFilEditSheet")?.classList.contains("open")) {
       try { closeBambuFilamentEdit(); } catch {}
+    }
+    // Anycubic — close filament-edit sheet if open.
+    if ($("acuFilEditSheet")?.classList.contains("open")) {
+      try { closeAcuFilamentEdit(); } catch {}
+    }
+    // Anycubic — release the camera (tell the printer to stop capturing +
+    // stop ffmpeg) since the panel is closing. The background MQTT session
+    // stays alive; acuReleaseCamera no-ops if the cam wall is still showing.
+    if (_activePrinter?.brand === "anycubic") {
+      try { acuReleaseCamera(_activePrinter); } catch {}
     }
     // Elegoo — close filament-edit / file-history sheets if open.
     // MQTT connection stays alive in background (disconnected only on logout).
@@ -9924,6 +9990,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (p.brand === "creality")   connStatus = creGetConn(creKey(p))?.status       ?? null;
     if (p.brand === "bambulab")   connStatus = bambuGetConn(bambuKey(p))?.status   ?? null;
     if (p.brand === "elegoo")     connStatus = elegooGetConn(elegooKey(p))?.status ?? null;
+    if (p.brand === "anycubic")   connStatus = acuGetConn(acuKey(p))?.status       ?? null;
     const active    = connStatus === "connected" || connStatus === "connecting";
     const labelKey  = active ? "printerDisconnect" : "printerConnect";
     btn.title       = t(labelKey);
@@ -9940,6 +10007,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
                  : p.brand === "flashforge" ? ffgKey(p)
                  : p.brand === "creality"   ? creKey(p)
                  : p.brand === "bambulab"   ? bambuKey(p)
+                 : p.brand === "anycubic"   ? acuKey(p)
                  : p.brand === "elegoo"     ? elegooKey(p) : null;
     if (active) {
       // Mark as explicitly offline BEFORE disconnecting so that any
@@ -9950,6 +10018,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (p.brand === "creality")   { creDisconnect(creKey(p)); stopCreCam(); }
       if (p.brand === "bambulab")   bambuDisconnect(bambuKey(p));
       if (p.brand === "elegoo")     elegooDisconnect(elegooKey(p));
+      if (p.brand === "anycubic")   acuDisconnect(acuKey(p));
     } else {
       // Clear forced-offline so isOnline() falls back to live conn status.
       if (_brKey) _ppForcedOfflineKeys.delete(_brKey);
@@ -9958,6 +10027,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (p.brand === "creality"   && p.ip)               { creDisconnect(creKey(p)); creConnect(p); }
       if (p.brand === "bambulab"   && (p.broker || p.ip)) bambuConnect(p);
       if (p.brand === "elegoo")                           elegooConnect(p);
+      if (p.brand === "anycubic"   && p.ip)               acuConnect(p);
     }
     // Refresh the panel body and the printer grid immediately so the badge
     // dots in the card list also flip to offline/connecting right away.
@@ -10055,6 +10125,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       case "flashforge": return renderFfgCamBanner(p);
       case "elegoo":     return renderElegooCamBanner(p);
       case "bambulab":   return renderBambuCamBanner(p);
+      case "anycubic":   return renderAcuCamBanner(p);
       default: return "";
     }
   }
@@ -10162,6 +10233,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // Bambu Lab live data block — MQTT TLS, job state + temps + AMS.
     const bblLiveHtml = (p.brand === "bambulab")
       ? `<div id="bblLive" class="snap-live-host">${renderBambuLiveInner(p)}</div>`
+      : "";
+
+    // Anycubic live data block — MQTT TLS, ACE box/slot layout.
+    const acuLiveHtml = (p.brand === "anycubic")
+      ? `<div id="acuLive" class="snap-live-host">${renderAnycubicLiveInner(p)}</div>`
       : "";
 
     // FlashForge HTTP request log — same shape as the Snapmaker block
@@ -10340,6 +10416,36 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
          </section>`
       : "";
 
+    // Anycubic MQTT request log — same collapsible section, debug-only.
+    const acuConn = (p.brand === "anycubic") ? acuGetConn(acuKey(p)) : null;
+    const isAcuPaused    = !!(acuConn?.logPaused);
+    const acuLogExpanded = !!(acuConn?.logExpanded);
+    const acuLogHtml = (p.brand === "anycubic")
+      ? `<section class="pp-section pp-section--collapsible snap-log-section" data-collapsed="${acuLogExpanded ? "false" : "true"}">
+           <button class="pp-section-head pp-section-head--btn" type="button">
+             <span>${esc(t("snapLogTitle"))}
+                   <span class="snap-log-count" id="acuLogCount">${(acuConn?.log?.length) || 0}</span>
+                   ${isAcuPaused ? `<span class="snap-log-paused-tag" id="acuLogPausedTag">${esc(t("snapLogPaused"))}</span>` : ""}
+             </span>
+             <span class="pp-chev icon icon-chevron-r icon-14"></span>
+           </button>
+           <div class="pp-section-body">
+             <div class="snap-log-toolbar">
+               <button type="button" class="snap-log-btn snap-log-btn--pause${isAcuPaused ? " is-paused" : ""}" id="acuLogPauseBtn"
+                       data-paused="${isAcuPaused ? "true" : "false"}">
+                 <span class="icon ${isAcuPaused ? "icon-play" : "icon-pause"} icon-13"></span>
+                 <span class="label">${esc(t(isAcuPaused ? "snapLogResume" : "snapLogPause"))}</span>
+               </button>
+               <button type="button" class="snap-log-btn" id="acuLogClearBtn">
+                 <span class="icon icon-trash icon-13"></span>
+                 <span>${esc(t("snapLogClear"))}</span>
+               </button>
+             </div>
+             <div id="acuLog">${renderAnycubicLogInner(p)}</div>
+           </div>
+         </section>`
+      : "";
+
     // Pills (next to the printer name on the title row): brand + model.
     // The online/offline status badge is rendered SEPARATELY on its
     // own row beneath the title — see #printerPanelStatus below.
@@ -10370,6 +10476,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           ? renderCreOnlineBadge(p, "side")
           : (p.brand === "bambulab")
           ? renderBambuOnlineBadge(p, "side")
+          : (p.brand === "anycubic")
+          ? renderAcuOnlineBadge(p, "side")
           : renderSnapOnlineBadge(p, "side");
       }
     }
@@ -10402,6 +10510,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       ${creLiveHtml}
       ${elgLiveHtml}
       ${bblLiveHtml}
+      ${acuLiveHtml}
 
       ${elgLogHtml}
 
@@ -10425,7 +10534,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       ${snapLogHtml}
       ${ffgLogHtml}
       ${creLogHtml}
-      ${bblLogHtml}` : ""}`;
+      ${bblLogHtml}
+      ${acuLogHtml}` : ""}`;
 
     // Creality camera — register the sidecard's <video> as a stream consumer,
     // then start (or reuse) the WebRTC connection.  addCreCamConsumer() is
@@ -10614,6 +10724,16 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           const trayId = parseInt(bblFilTrigger.dataset.trayId ?? "254", 10);
           if (_activePrinter?.brand === "bambulab") {
             openBambuFilamentEdit(_activePrinter, amsId, trayId);
+          }
+          return;
+        }
+        // Anycubic — filament edit (ACE slot squares + Ext. spool, box -1)
+        const acuFilTrigger = e.target.closest("[data-acu-fil-edit]");
+        if (acuFilTrigger) {
+          const boxId  = parseInt(acuFilTrigger.dataset.boxId  ?? "0", 10);
+          const slotId = parseInt(acuFilTrigger.dataset.slotId ?? "0", 10);
+          if (_activePrinter?.brand === "anycubic") {
+            openAcuFilamentEdit(_activePrinter, boxId, slotId);
           }
           return;
         }
@@ -10849,6 +10969,39 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           const host = $("bblLog");
           if (host) host.innerHTML = renderBambuLogInner(_activePrinter);
           const countEl = $("bblLogCount");
+          if (countEl) countEl.textContent = "0";
+          return;
+        }
+        // Anycubic — Pause / Resume MQTT log.
+        if (e.target.closest("#acuLogPauseBtn")) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (!_activePrinter) return;
+          const conn = acuGetConn(acuKey(_activePrinter));
+          if (!conn) return;
+          conn.logPaused = !conn.logPaused;
+          const btn = $("acuLogPauseBtn");
+          if (btn) {
+            btn.dataset.paused = conn.logPaused ? "true" : "false";
+            btn.classList.toggle("is-paused", conn.logPaused);
+            const icon  = btn.querySelector(".icon");
+            const label = btn.querySelector(".label");
+            if (icon)  icon.className  = `icon ${conn.logPaused ? "icon-play" : "icon-pause"} icon-13`;
+            if (label) label.textContent = t(conn.logPaused ? "snapLogResume" : "snapLogPause");
+          }
+          return;
+        }
+        // Anycubic — Clear MQTT log buffer.
+        if (e.target.closest("#acuLogClearBtn")) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (!_activePrinter) return;
+          const conn = acuGetConn(acuKey(_activePrinter));
+          if (!conn) return;
+          conn.log = [];
+          const host = $("acuLog");
+          if (host) host.innerHTML = renderAnycubicLogInner(_activePrinter);
+          const countEl = $("acuLogCount");
           if (countEl) countEl.textContent = "0";
           return;
         }
@@ -11310,6 +11463,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           openBblAddFlow();
         } else if (brand === "elegoo") {
           openElgAddFlow();
+        } else if (brand === "anycubic") {
+          openAcuAddFlow();
         } else {
           openPrinterAddForm(brand);
         }
@@ -11444,6 +11599,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     elegoo:     "Elegoo",
     creality:   "Creality",
     snapmaker:  "Snapmaker",
+    anycubic:   "Anycubic",
   };
   let _ptCache = {};           // brand → loaded tutorial.json (cached after first fetch)
   let _ptState = {             // active modal state

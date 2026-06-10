@@ -919,5 +919,28 @@
   "tutoFlashforgeAd5xStep1": "Passo 1: Nell'interfaccia principale, tocca il pulsante «Basic Info» in basso a destra.",
   "tutoFlashforgeAd5xStep2": "Passo 2: Nella pagina Basic Info, recupera il numero di serie e l'indirizzo IP.",
   "tutoFlashforgeAd5xStep3": "Passo 3: Tocca l'icona dell'ingranaggio, tocca «Network Mode» e recupera il Printer ID.",
-  "tutoElegooStep1": "Sullo schermo touch, seleziona Impostazioni → LAN Only. Abilita LAN Only + Codice di accesso e seleziona Conferma."
+  "tutoElegooStep1": "Sullo schermo touch, seleziona Impostazioni → LAN Only. Abilita LAN Only + Codice di accesso e seleziona Conferma.",
+  "anycubicAddChoiceTitle": "Aggiungi stampante Anycubic",
+  "anycubicScanEmpty": "Nessuna stampante Anycubic trovata — assicurati che la modalità LAN sia attiva sulla stampante",
+  "acuImportChoice": "Importa da Anycubic Slicer",
+  "acuImportChoiceHint": "Legge le stampanti associate e le credenziali (consigliato)",
+  "acuImportTitle": "Importa da Anycubic Slicer",
+  "acuImportSub": "Stampanti LAN associate trovate nella configurazione dello slicer",
+  "acuImportErrNotFound": "Configurazione di AnycubicSlicerNext non trovata. Installa lo slicer e associa la stampante (modalità LAN) una volta.",
+  "acuImportErrNoPrinters": "Nessuna stampante LAN associata nella configurazione dello slicer. Apri AnycubicSlicerNext e associa la stampante in modalità LAN una volta.",
+  "acuImportErrBridge": "Bridge di connessione mancante — chiudi completamente l'app e riavviala.",
+  "acuNoLayout": "Connesso — in attesa del layout ACE…",
+  "printerLblDeviceId": "ID dispositivo",
+  "printerLblUsername": "Nome utente",
+  "printerHintAnycubicIP": "IP locale della stampante — la modalità LAN deve essere attiva",
+  "printerHintAnycubicModelId": "ID numerico del modello (es. 20027) — compilato dall'importazione dello slicer",
+  "printerHintAnycubicDeviceId": "ID dispositivo di 32 caratteri — compilato dall'importazione dello slicer",
+  "printerHintAnycubicUsername": "Nome utente del broker — compilato dall'importazione dello slicer",
+  "printerHintAnycubicPassword": "Password del broker — compilata dall'importazione dello slicer",
+  "printerHelperAnycubicTitle": "Prima di iniziare",
+  "printerHelperAnycubicBullets": [
+    "Associa la stampante una volta in AnycubicSlicerNext (modalità LAN attiva).",
+    "Usa 'Importa da Anycubic Slicer' per compilare tutti i campi automaticamente.",
+    "Le credenziali sono durature — lo slicer non serve più in seguito."
+  ]
 }

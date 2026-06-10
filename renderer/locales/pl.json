@@ -918,5 +918,28 @@
   "tutoFlashforgeAd5xStep1": "Krok 1: W głównym interfejsie dotknij przycisku \"Basic Info\" w prawym dolnym rogu ekranu.",
   "tutoFlashforgeAd5xStep2": "Krok 2: Na stronie Basic Info odczytaj numer seryjny i adres IP.",
   "tutoFlashforgeAd5xStep3": "Krok 3: Wybierz ikonę koła zębatego, dotknij \"Network Mode\" i odczytaj Printer ID.",
-  "tutoElegooStep1": "Na ekranie dotykowym wybierz Ustawienia → LAN Only. Włącz LAN Only + kod dostępu i wybierz Potwierdź."
+  "tutoElegooStep1": "Na ekranie dotykowym wybierz Ustawienia → LAN Only. Włącz LAN Only + kod dostępu i wybierz Potwierdź.",
+  "anycubicAddChoiceTitle": "Dodaj drukarkę Anycubic",
+  "anycubicScanEmpty": "Nie znaleziono drukarek Anycubic — upewnij się, że tryb LAN jest włączony w drukarce",
+  "acuImportChoice": "Importuj z Anycubic Slicer",
+  "acuImportChoiceHint": "Odczytuje sparowane drukarki i dane logowania (zalecane)",
+  "acuImportTitle": "Importuj z Anycubic Slicer",
+  "acuImportSub": "Sparowane drukarki LAN znalezione w konfiguracji slicera",
+  "acuImportErrNotFound": "Nie znaleziono konfiguracji AnycubicSlicerNext. Zainstaluj slicer i sparuj drukarkę (tryb LAN) jeden raz.",
+  "acuImportErrNoPrinters": "Brak sparowanych drukarek LAN w konfiguracji slicera. Otwórz AnycubicSlicerNext i sparuj drukarkę w trybie LAN jeden raz.",
+  "acuImportErrBridge": "Brak mostka połączenia — całkowicie zamknij aplikację i uruchom ją ponownie.",
+  "acuNoLayout": "Połączono — oczekiwanie na układ ACE…",
+  "printerLblDeviceId": "ID urządzenia",
+  "printerLblUsername": "Nazwa użytkownika",
+  "printerHintAnycubicIP": "Lokalny adres IP drukarki — tryb LAN musi być włączony",
+  "printerHintAnycubicModelId": "Numeryczny identyfikator modelu (np. 20027) — wypełniany przez import ze slicera",
+  "printerHintAnycubicDeviceId": "32-znakowy identyfikator urządzenia — wypełniany przez import ze slicera",
+  "printerHintAnycubicUsername": "Nazwa użytkownika brokera — wypełniana przez import ze slicera",
+  "printerHintAnycubicPassword": "Hasło brokera — wypełniane przez import ze slicera",
+  "printerHelperAnycubicTitle": "Zanim zaczniesz",
+  "printerHelperAnycubicBullets": [
+    "Sparuj drukarkę raz w AnycubicSlicerNext (tryb LAN włączony).",
+    "Użyj 'Importuj z Anycubic Slicer', aby automatycznie wypełnić wszystkie pola.",
+    "Dane logowania są trwałe — slicer nie jest później potrzebny."
+  ]
 }

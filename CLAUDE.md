@@ -160,6 +160,11 @@ renderer/
     snapmaker/
       PROTOCOL.md  — agent skill: WS port 7125 (Moonraker), JSON-RPC, HTTP discovery
       index.js     — live integration (implemented)
+    anycubic/
+      PROTOCOL.md  — agent skill: MQTTS port 9883 (TLS 1.2), multiColorBox ACE slots,
+                     print/tempature report telemetry, FLV camera 18088,
+                     slicer-config credential import, /info discovery port 18910
+      index.js     — live integration (implemented — ACE slots + job/temps + camera)
 assets/db/tigertag/           — TigerTag reference data (unified in v1.7.0, served via tigertagDbService IPC)
   id_brand.json id_material.json id_aspect.json id_type.json
   id_diameter.json id_measure_unit.json id_version.json
@@ -183,6 +188,7 @@ Each brand under `renderer/printers/<brand>/PROTOCOL.md` is a **self-contained a
 | **Elegoo** | MQTT 1883, UDP spray port 52700, filament 4 slots canvas/tray | stub |
 | **FlashForge** | HTTP poll 8898, TCP M-codes 8899, UDP multicast 225.0.0.9:19000 | ✅ implemented |
 | **Snapmaker** | WS 7125 Moonraker + proprietary, RRGGBBAA color, HTTP scan | ✅ implemented |
+| **Anycubic** | MQTTS 9883 TLS 1.2 direct to printer, ACE slots + print/temp telemetry, FLV cam 18088 via ffmpeg, creds imported from AnycubicSlicerNext config, /info scan 18910 | ✅ implemented |
 
 > **RETRO.md** (Creality only) — raw live-hardware SSH observations; PROTOCOL.md is the authoritative merge.
 

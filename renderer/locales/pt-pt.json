@@ -919,5 +919,28 @@
   "tutoFlashforgeAd5xStep1": "Passo 1: Na interface principal, toque no botão \"Basic Info\" no canto inferior direito do ecrã.",
   "tutoFlashforgeAd5xStep2": "Passo 2: Na página Basic Info, obtenha o número de série e o endereço IP.",
   "tutoFlashforgeAd5xStep3": "Passo 3: Toque no ícone da engrenagem, em \"Network Mode\" e obtenha o Printer ID.",
-  "tutoElegooStep1": "No ecrã táctil, selecione Definições → LAN Only. Ative LAN Only + Código de acesso e selecione Confirmar."
+  "tutoElegooStep1": "No ecrã táctil, selecione Definições → LAN Only. Ative LAN Only + Código de acesso e selecione Confirmar.",
+  "anycubicAddChoiceTitle": "Adicionar impressora Anycubic",
+  "anycubicScanEmpty": "Nenhuma impressora Anycubic encontrada — verifique se o modo LAN está ativado na impressora",
+  "acuImportChoice": "Importar do Anycubic Slicer",
+  "acuImportChoiceHint": "Lê as impressoras emparelhadas e as credenciais (recomendado)",
+  "acuImportTitle": "Importar do Anycubic Slicer",
+  "acuImportSub": "Impressoras LAN emparelhadas encontradas na configuração do slicer",
+  "acuImportErrNotFound": "Configuração do AnycubicSlicerNext não encontrada. Instale o slicer e emparelhe a impressora (modo LAN) uma vez.",
+  "acuImportErrNoPrinters": "Nenhuma impressora LAN emparelhada na configuração do slicer. Abra o AnycubicSlicerNext e emparelhe a impressora no modo LAN uma vez.",
+  "acuImportErrBridge": "Ponte de ligação em falta — feche completamente a aplicação e volte a abri-la.",
+  "acuNoLayout": "Ligado — a aguardar o layout do ACE…",
+  "printerLblDeviceId": "ID do dispositivo",
+  "printerLblUsername": "Nome de utilizador",
+  "printerHintAnycubicIP": "IP local da impressora — o modo LAN deve estar ativado",
+  "printerHintAnycubicModelId": "ID numérico do modelo (ex.: 20027) — preenchido pela importação do slicer",
+  "printerHintAnycubicDeviceId": "ID do dispositivo de 32 caracteres — preenchido pela importação do slicer",
+  "printerHintAnycubicUsername": "Utilizador do broker — preenchido pela importação do slicer",
+  "printerHintAnycubicPassword": "Palavra-passe do broker — preenchida pela importação do slicer",
+  "printerHelperAnycubicTitle": "Antes de começar",
+  "printerHelperAnycubicBullets": [
+    "Emparelhe a impressora uma vez no AnycubicSlicerNext (modo LAN ativado).",
+    "Use 'Importar do Anycubic Slicer' para preencher todos os campos automaticamente.",
+    "As credenciais são duradouras — o slicer deixa de ser necessário."
+  ]
 }

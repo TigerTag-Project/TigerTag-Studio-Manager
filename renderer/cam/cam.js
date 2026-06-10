@@ -112,6 +112,18 @@ function buildFeed(cam) {
           <span class="cam-loading-dots"><span></span><span></span><span></span></span>
         </div>`;
 
+    // ── Anycubic IPC frames (ffmpeg FLV remux, updated via onAcuFrame) ───────
+    case 'acu_ipc':
+      return `
+        <img class="cam-frame acu-cam-img"
+             data-acu-key="${esc(cam.acuKey)}"
+             src=""
+             alt="Anycubic camera"
+             draggable="false" />
+        <div class="cam-loading-overlay">
+          <span class="cam-loading-dots"><span></span><span></span><span></span></span>
+        </div>`;
+
     // ── Direct MJPEG stream (Elegoo and any future brand with no mux) ────────
     case 'mjpeg':
       return `
@@ -146,6 +158,15 @@ function buildFeed(cam) {
 
 window.camAPI.onBambuFrame((key, b64) => {
   document.querySelectorAll(`.bbl-cam-img[data-bbl-key="${CSS.escape(key)}"]`).forEach(img => {
+    img.src = `data:image/jpeg;base64,${b64}`;
+    img.closest('.cam-card-body')?.querySelector('.cam-loading-overlay')?.remove();
+  });
+});
+
+// ── Anycubic IPC frame updates ───────────────────────────────────────────────
+
+window.camAPI.onAcuFrame((key, b64) => {
+  document.querySelectorAll(`.acu-cam-img[data-acu-key="${CSS.escape(key)}"]`).forEach(img => {
     img.src = `data:image/jpeg;base64,${b64}`;
     img.closest('.cam-card-body')?.querySelector('.cam-loading-overlay')?.remove();
   });
