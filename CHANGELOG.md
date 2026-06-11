@@ -5,6 +5,23 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.8.23 — 2026-06-12
+
+### Fixed
+
+- **No more flicker on app open — your avatar (and your friends' avatars) now appear in the very first frame.** Previously the sidebar avatar went through "empty circle → wrong letter from your email → real letter from your name → photo" on every cold start, and the friends list in the sidebar dropdown showed up empty until Firestore round-tripped. Now the app paints the cached state (your photo, your name initials, your friends with their photos and colours) instantly from local storage, and only repaints if Firestore returns something genuinely different. Same approach Discord and Slack use.
+- **No more "B" or random wrong letter in your avatar circle.** Before this fix, until Firestore loaded your display name, the avatar fell back to the first letter of your email address — so for `benoit@…` the sidebar briefly showed a "B" in your colour, then jumped to your real "OM" (or whatever your initials are). The avatar now waits silently — gradient only, no letter — until your real display name is known. Cleaner and faster.
+- **No more Google placeholder photo overwriting your custom avatar.** A long-standing bug was overwriting your uploaded avatar with Google's auto-generated profile picture (the "letter on coloured circle" you see when a Google account has no photo) on every sign-in. If you saw a stranger letter / colour combination instead of your uploaded photo, this is fixed; a one-time cleanup runs the next time the app opens for affected users.
+- **No more "+" badge bleeding next to your initials.** A CSS specificity bug was causing the "sign in" plus-icon to show next to your initials in the sidebar avatar when you were already signed in.
+- **Avatar upload on Windows 10 now opens the crop modal reliably.** A race between the file-picker's `focus` and `change` events on Windows 10's I/O scheduler was silently resolving the picker with no file, so the crop modal never opened and the upload silently failed. Switched to the modern `cancel` event for dismiss detection (kept the `focus` listener with a longer grace window as a backstop). macOS and Windows 11 were never affected.
+
+### Changed
+
+- **Avatar rendering centralised.** All eight places in the UI that show a coloured-circle avatar (sidebar, the "OM" header chip, dropdown, profile-management modal, edit-account modal, sidebar friend chips, friends panel, friend-view header) now go through a single rendering pipeline. The visible result: every avatar everywhere matches what's in your account exactly, with no inconsistencies between the same avatar in two places.
+- **Friend chips now use a proper gradient,** matching the look of your own avatar (instead of a flat colour) — cosmetic-only, no behavioural change.
+
+---
+
 ## v1.8.22 — 2026-06-11
 
 ### Added

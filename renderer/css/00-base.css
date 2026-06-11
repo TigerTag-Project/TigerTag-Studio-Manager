@@ -184,8 +184,15 @@
   .sb-sub-welcome { font-size: 11px; color: rgba(255,255,255,.38); text-align: left; margin-top: 0; }
 
   /* ── avatar : état vide (aucun compte) ── */
-  .sb-avatar-plus { display: none; pointer-events: none; }
+  /* Higher specificity (0,2,0) than the generic `.icon` rule defined
+     later in 70-detail-misc.css — without this, `.icon { display:
+     inline-block }` wins on the cascade and the "+" badge leaks next
+     to the user's initials in the signed-in state (visible as "OM+"
+     in the sidebar avatar). */
+  .sb-avatar .sb-avatar-plus { display: none; pointer-events: none; }
   .sb-user--empty .sb-avatar { background: rgba(255,255,255,.08) !important; box-shadow: none !important; cursor: pointer; }
+  /* Specificity 0,3,0 — wins over both the base hide above and any
+     later generic `.icon` rule. */
   .sb-user--empty .sb-avatar .sb-avatar-plus { display: block; }
   .sb-user--empty .sb-avatar:hover { background: rgba(255,255,255,.14) !important; }
 

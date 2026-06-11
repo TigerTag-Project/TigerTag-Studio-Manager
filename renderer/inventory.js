@@ -149,23 +149,127 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (acc?.color === "custom" && acc.customColor) return acc.customColor;
     return (ACCOUNT_COLORS[acc?.color] || ACCOUNT_COLORS.orange)[0];
   }
+  // ─── Avatar rendering — single source of truth ─────────────────────
+  //
+  // Every coloured-circle avatar in Studio (sidebar, header chip,
+  // dropdown, profiles modal, edit-account modal, friend chips,
+  // friend panel) is now painted through ONE pipeline so the
+  // gradient + initials + photo overlay are always computed and
+  // applied atomically. This eliminates the historical class of
+  // "the initial flickered to a wrong letter / the photo was wiped
+  // by a textContent update / back-and-forth between OM and B"
+  // bugs — every site uses the same input → output transform.
+  //
+  // Two public entry points (both delegate to `_buildAvatarParts`):
+  //
+  //   - `paintAvatar(el, source)` — imperative form. Updates an
+  //     existing DOM element in place. Used by code paths that hold
+  //     a stable element reference (sb-avatar, eac-avatar) and want
+  //     to push updates without rebuilding markup.
+  //
+  //   - `avatarMarkup(source, className, extraClass)` — template
+  //     form. Returns the full `<span class="…"> … </span>` HTML
+  //     used inside innerHTML-built lists (dropdown items, friend
+  //     chips, profiles modal rows, friend banner).
+  //
+  // `source` is anything with the shape
+  //   { displayName?, photoURL?, color?, color_r/g/b?, customColor? }
+  // — typically an `Account` from localStorage, a `Friend` from
+  // state.friends, or for the live active user, an object that
+  // mixes state.* and acc.* (see `_avatarSubject` below).
+  //
+  // INVARIANT — initials are derived STRICTLY from `displayName`,
+  // never the email. Empty displayName → empty string → gradient
+  // shown without a letter for ~100 ms until syncUserDoc resolves
+  // and refreshes. This avoids the "B from benoit@…" wrong-letter
+  // flash that the legacy email-fallback paths produced.
+
+  // Resolve the FRESHEST view of an avatar's properties. For the
+  // active account, `state.*` may hold a just-uploaded photo URL or
+  // a just-renamed displayName that hasn't yet been mirrored to
+  // localStorage; pull those first.
+  //
+  // Friend objects carry colour as a single hex string (e.g.
+  // "#ff7a18") instead of an account-style named-or-RGB triplet —
+  // translate that to the `customColor` shape so getAccGradient /
+  // getAccShadow handle it the same as a custom-coloured account.
+  // This makes friend chips render with the same 135° gradient as
+  // own avatars, instead of a flat colour fallback.
+  function _avatarSubject(source) {
+    if (!source) return { displayName: "", photoURL: null };
+    if (source.id && source.id === state.activeAccountId) {
+      return {
+        displayName: state.displayName || source.displayName || "",
+        photoURL:    state.photoURL    || source.photoURL    || null,
+        color: source.color, color_r: source.color_r,
+        color_g: source.color_g, color_b: source.color_b,
+        customColor: source.customColor,
+      };
+    }
+    // Friend / friendView shape with a single hex colour — promote
+    // to a "custom"-flavoured subject so the same gradient pipeline
+    // applies.
+    if (source.color && typeof source.color === "string" && source.color.startsWith("#")) {
+      return Object.assign({}, source, { color: "custom", customColor: source.color });
+    }
+    return source;
+  }
+
+  // Compute the styling + content parts once, reused by both the
+  // imperative and template forms.
+  function _buildAvatarParts(source) {
+    const subject  = _avatarSubject(source);
+    const gradient = getAccGradient(subject);
+    const shadowCol = getAccShadow(subject);
+    return {
+      subject,
+      gradient,
+      shadowCol,
+      bg:       gradient,
+      fg:       readableTextOn(shadowCol),
+      boxShadow: `0 0 0 3px ${shadowCol}40,0 4px 20px ${shadowCol}33`,
+      initials: getInitials(subject),
+      photoURL: subject.photoURL || null,
+    };
+  }
+
+  // Imperative paint — used by sb-avatar (sidebar) and eac-avatar
+  // (edit-account modal). The element MUST contain a child
+  // `<span class="av-initials">` for the text (we never write to the
+  // container's own textContent — that would nuke the photo overlay
+  // and any other siblings like the swap badge). If the span isn't
+  // there yet, we create it on the fly.
+  function paintAvatar(el, source) {
+    if (!el) return;
+    const p = _buildAvatarParts(source);
+    el.style.background = p.bg;
+    el.style.boxShadow  = p.boxShadow;
+    el.style.color      = p.fg;
+    let initEl = el.querySelector(".av-initials");
+    if (!initEl) {
+      initEl = document.createElement("span");
+      initEl.className = "av-initials";
+      el.insertBefore(initEl, el.firstChild);
+    }
+    initEl.textContent = p.initials;
+    _renderAvatarPhotoOverlay(el, p.photoURL);
+  }
+
+  // Template form — returns the full HTML for innerHTML-built lists.
+  function avatarMarkup(source, className, extraClass) {
+    const p = _buildAvatarParts(source);
+    const cls = className + (extraClass ? ' ' + extraClass : '');
+    return `<span class="${cls}" style="background:${p.bg};color:${p.fg}">` +
+      `<span class="av-initials">${esc(p.initials)}</span>` +
+      _avatarPhotoTag(p.photoURL) +
+      `</span>`;
+  }
+
+  // Backward-compatibility shim — existing call sites still invoke
+  // `applyAvatarStyle(acc)` for the sidebar avatar. Delegate to the
+  // new pipeline so they get the centralised behaviour for free.
   function applyAvatarStyle(acc) {
-    const grad = getAccGradient(acc); const sh = getAccShadow(acc);
-    const el = $("sbAvatar");
-    el.style.background = grad;
-    el.style.boxShadow = `0 0 0 3px ${sh}40,0 4px 20px ${sh}33`;
-    // Use the dominant colour to decide whether initials should be black or
-    // white. Without this, picking a near-white custom colour leaves the
-    // initials invisible (white-on-white).
-    el.style.color = readableTextOn(sh);
-    // Photo overlay — when the active account has a custom avatar uploaded,
-    // its Storage download URL is in `state.photoURL`. Render it as an
-    // absolutely-positioned <img> stacked on top of the colour circle;
-    // initials underneath are hidden by the opaque image. When the photo
-    // is removed (or absent), the <img> is taken down and the colour
-    // circle + initials show through again — natural fallback, no
-    // additional render path needed elsewhere.
-    _renderAvatarPhotoOverlay(el, state.photoURL);
+    paintAvatar($("sbAvatar"), acc);
   }
   // Inline template form of the photo overlay — used by `innerHTML`-built
   // avatar variants (dropdown, sidebar friend chips, profiles modal,
@@ -820,12 +924,47 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function setConnected(displayName, email) {
     state.displayName = displayName; // raw value — empty if not yet chosen by user
     const shown = _shortName(displayName, email);
-    const initials = shown.split(/[\s._-]+/).filter(Boolean).map(w => w[0]).join("").toUpperCase().slice(0, 2) || "?";
-    $("sbAvatar").textContent = initials;   // removes child nodes incl. SVG "+"
+    // One-time migration: older builds of onAuthStateChanged
+    // overwrote acc.photoURL with Firebase Auth's `user.photoURL`
+    // (the Google profile-picture CDN URL on lh3.googleusercontent.com),
+    // clobbering any custom Firebase Storage avatar the user had
+    // uploaded. The visible symptom was a Google-generated "B-on-
+    // violet-circle" placeholder in the sidebar avatar. Clear that
+    // legacy URL here so syncUserDoc can re-hydrate from
+    // userProfiles.photoURL with the correct value.
+    {
+      const accs = getAccounts();
+      let dirty = false;
+      for (const a of accs) {
+        if (a.photoURL && /(googleusercontent\.com|googleapis\.com\/.*\/google)/i.test(a.photoURL)) {
+          a.photoURL = null;
+          dirty = true;
+        }
+      }
+      if (dirty) saveAccounts(accs);
+    }
+    // Hydrate state.photoURL synchronously from the cached Account
+    // BEFORE the first paint, so the very first render shows the
+    // avatar (not initials → flicker → avatar). This matches the
+    // Discord pattern: the URL is already in localStorage from the
+    // previous session, browser image cache holds the pixels, paint
+    // is instant. syncUserDoc still refreshes from userProfiles in
+    // the background to catch any change, but does nothing visible
+    // if the URL didn't move.
+    state.photoURL = activeAccount()?.photoURL || null;
+    // Same Discord-style hydration for the friends list — the cached
+    // entries (name + colour + photoURL) drive the first render of
+    // the dropdown / sidebar friend chips; loadFriendsList runs
+    // afterwards and pushes the live delta.
+    _hydrateFriendsCache(state.activeAccountId);
     $("sbWelcome").textContent = t("welcomeBack");
     $("sbName").textContent = shown;
     $("sbUser").classList.remove("sb-user--empty");
-    applyAvatarStyle(activeAccount());
+    // Single source-of-truth paint — gradient, initials (STRICT from
+    // displayName, never email), and photo overlay all applied
+    // atomically. No more textContent-then-applyAvatarStyle dance
+    // that could leak the wrong state between calls.
+    paintAvatar($("sbAvatar"), activeAccount());
     // Render the top-header chip (own user variant — avatar + display name
     // + random welcome greeting) so the chip appears immediately on connect.
     renderFriendBanner();
@@ -914,7 +1053,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // ── Connected accounts ──
     let html = accounts.map(acc => `
       <button class="acct-drop-item${acc.id===activeId?' active':''}" data-drop-id="${esc(acc.id)}">
-        <span class="acct-drop-avatar" style="background:${getAccGradient(acc)};color:${readableTextOn(getAccShadow(acc))}">${esc(getInitials(acc))}${_avatarPhotoTag(acc.id === activeId ? (state.photoURL || acc.photoURL) : acc.photoURL)}</span>
+        ${avatarMarkup(acc, "acct-drop-avatar")}
         <span class="acct-drop-name">${esc(_shortName(acc.displayName, acc.email))}</span>
         ${acc.id===activeId ? '<span class="acct-drop-check">✓</span>' : ''}
       </button>`).join("");
@@ -940,7 +1079,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         const fg = readableTextOn(color);
         const isActive = state.friendView?.uid === f.uid;
         return `<button class="acct-drop-item${isActive ? ' acct-drop-friend-active' : ''}" data-drop-friend-uid="${esc(f.uid)}" data-drop-friend-name="${esc(_shortName(f.displayName, f.uid))}" data-drop-friend-color="${esc(color)}">
-          <span class="acct-drop-avatar" style="background:${color};color:${fg}">${initials}${_avatarPhotoTag(f.photoURL)}</span>
+          ${avatarMarkup(f, "acct-drop-avatar")}
           <span class="acct-drop-name">${esc(_shortName(f.displayName, f.uid))}</span>
           ${isActive ? '<span class="acct-drop-check">✓</span>' : '<span class="acct-drop-eye"><span class="icon icon-eye-on icon-11"></span></span>'}
         </button>`;
@@ -2943,20 +3082,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   let _editingAccount = null;
   function openEditAccountModal(acc) {
     _editingAccount = acc || activeAccount(); if (!_editingAccount) return;
-    // Initials go into the dedicated child span — writing to
-    // $("eacAvatar").textContent would nuke the hover overlay and the
-    // avatar menu children, breaking the click → menu interaction.
-    $("eacAvatarInitials").textContent  = getInitials(_editingAccount);
+    // Atomic paint via the centralised pipeline — gradient,
+    // .av-initials text and the photo overlay all in one shot. No
+    // textContent on #eacAvatar itself (that would wipe the hover
+    // overlay + the avatar menu children, breaking the click flow).
+    paintAvatar($("eacAvatar"), _editingAccount);
     $("eacName").textContent    = _editingAccount.displayName || "";
     $("eacName").style.display  = _editingAccount.displayName ? "" : "none";
     $("eacEmail").textContent   = _editingAccount.email || "";
-    $("eacAvatar").style.background = getAccGradient(_editingAccount);
-    $("eacAvatar").style.color = readableTextOn(getAccShadow(_editingAccount));
-    // Photo overlay on the modal avatar (same helper that drives the
-    // sidebar avatar). The Change/Remove menu opens on click — see the
-    // avatar menu wiring further down.
-    const photoUrl = (_editingAccount.id === state.activeAccountId) ? state.photoURL : null;
-    _renderAvatarPhotoOverlay($("eacAvatar"), photoUrl);
     $("eacAvatarResult").textContent = "";
     $("eacDisplayNameInput").value = _editingAccount.displayName || "";
     $("eacNameResult").textContent = "";
@@ -3163,13 +3296,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (idx >= 0) { accounts[idx].displayName = newName; saveAccounts(accounts); _editingAccount = accounts[idx]; }
       // 4. Sync public profile so friends see the new name immediately
       if (user) syncUserProfile(user.uid, { displayName: newName });
-      // 5. Refresh UI
+      // 5. Refresh UI through the centralised avatar pipeline so
+      //    gradient + initials + photo overlay stay in sync.
       $("eacName").textContent = newName; $("eacName").style.display = "";
-      $("eacAvatar").textContent = getInitials(_editingAccount);
+      paintAvatar($("eacAvatar"), _editingAccount);
       if (_editingAccount.id === state.activeAccountId) {
         state.displayName = newName;
         $("sbName").textContent = newName;
-        $("sbAvatar").textContent = getInitials(_editingAccount);
+        paintAvatar($("sbAvatar"), _editingAccount);
         renderFriendBanner();
       }
       renderAccountDropdown();
@@ -4123,20 +4257,29 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     }
     const email    = user.email       || "";
     const authName = user.displayName || "";
-    const photo    = user.photoURL    || null;
+    // Firebase Auth's user.photoURL is the Google profile picture URL —
+    // typically a Google-generated "B"-on-violet-circle image for users
+    // who haven't set a Google photo. We DELIBERATELY don't use it as
+    // the avatar source. The custom avatar (Firebase Storage URL
+    // mirrored to userProfiles.photoURL) is the source of truth, fed
+    // into acc.photoURL by syncUserDoc. Overwriting acc.photoURL with
+    // user.photoURL here would clobber the user's uploaded avatar on
+    // every signin — that's the bug that caused the "B in violet
+    // circle" flash in the sidebar.
 
     // Upsert account in localStorage
     const accounts = getAccounts();
     let acc = accounts.find(a => a.id === uid);
     if (!acc) {
-      acc = { id: uid, email, displayName: "", photoURL: photo, lang: state.lang };
+      // First time we see this user — start with a null photoURL.
+      // syncUserDoc will populate it from userProfiles a moment later
+      // if the user has a custom avatar.
+      acc = { id: uid, email, displayName: "", photoURL: null, lang: state.lang };
       accounts.push(acc);
       saveAccounts(accounts);
-    } else {
-      let changed = false;
-      if (photo && acc.photoURL !== photo) { acc.photoURL = photo; changed = true; }
-      if (changed) saveAccounts(accounts);
     }
+    // Existing accounts: leave acc.photoURL untouched here. Refresh
+    // happens through syncUserDoc → userProfiles.photoURL only.
     setActiveId(uid);
 
     // Save Google real name to Firestore (admin reference, never shown in UI)
@@ -4218,8 +4361,16 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
 
   /* ── account section UI ── */
   function getInitials(a) {
-    const src = a.displayName || a.email || "?";
-    return src.split(/[\s@]+/).filter(Boolean).map(w => w[0]).join("").toUpperCase().slice(0, 2) || "?";
+    // STRICTLY from displayName — never the email prefix. Falling back
+    // to email produced a wrong letter (e.g. "B" from "benoit@…") on
+    // the very first boot before Firestore's authoritative displayName
+    // resolved, then flipped to the real initials a moment later. The
+    // empty-string return lets every consumer render an avatar with
+    // just the colour gradient (and photo, if any) until the real
+    // name arrives — invisible to the user, no jarring letter swap.
+    const src = (a.displayName || "").trim();
+    if (!src) return "";
+    return src.split(/\s+/).filter(Boolean).map(w => w[0]).join("").toUpperCase().slice(0, 2);
   }
 
   function renderAccountList() {
@@ -4238,7 +4389,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         const name = esc(acc.displayName || acc.email.split("@")[0]);
         return `
         <button class="prf-account-card" data-prf-id="${esc(acc.id)}">
-          <span class="prf-account-avatar" style="background:${getAccGradient(acc)};color:${readableTextOn(getAccShadow(acc))}">${esc(getInitials(acc))}${_avatarPhotoTag(acc.id === state.activeAccountId ? (state.photoURL || acc.photoURL) : acc.photoURL)}</span>
+          ${avatarMarkup(acc, "prf-account-avatar")}
           <span class="prf-account-info">
             <span class="prf-account-name">${name}</span>
             <span class="prf-account-email">${esc(acc.email)}</span>
@@ -4263,7 +4414,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           return `
           <button class="prf-account-card prf-friend-card${isActive ? " prf-friend-active" : ""}"
                   data-fv-uid="${esc(f.uid)}" data-fv-name="${esc(_shortName(f.displayName, f.uid))}" data-fv-color="${esc(color)}">
-            <span class="prf-account-avatar" style="background:${color};color:${fg}">${initials}${_avatarPhotoTag(f.photoURL)}</span>
+            ${avatarMarkup(f, "prf-account-avatar")}
             <span class="prf-account-info">
               <span class="prf-account-name">${name}</span>
               <span class="prf-account-email prf-friend-sub">${t("friendViewInv")}</span>
@@ -8264,7 +8415,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
                       data-friend-color="${esc(color)}"
                       data-tooltip="${esc(_shortName(f.displayName, f.uid))}"
                       title="${esc(_shortName(f.displayName, f.uid))}">
-        <span class="sb-friend-avatar" style="background:${color};color:${fg}">${esc(initials)}${_avatarPhotoTag(f.photoURL)}</span>
+        ${avatarMarkup(f, "sb-friend-avatar")}
         <span class="sb-friend-name">${esc(_shortName(f.displayName, f.uid))}</span>
         ${isActive ? '<span class="sb-friend-active-dot" aria-hidden="true"></span>' : ""}
       </button>`;
@@ -8349,7 +8500,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       const fg = readableTextOn(color);
       const date = f.addedAt ? timeAgo(f.addedAt.seconds ? f.addedAt.seconds * 1000 : f.addedAt) : "";
       return `<div class="fp-friend" data-uid="${esc(f.uid)}" data-name="${esc(_shortName(f.displayName, f.uid))}" data-color="${esc(color)}">
-        <div class="fp-friend-avatar" style="background:${color};color:${fg}">${initials}${_avatarPhotoTag(f.photoURL)}</div>
+        ${avatarMarkup(f, "fp-friend-avatar")}
         <div class="fp-friend-main">
           <div class="fp-friend-name">${esc(_shortName(f.displayName, f.uid))}</div>
           <div class="fp-friend-date">${date ? t("friendAddedOn", { date }) : ""}</div>
@@ -8495,11 +8646,40 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (uid !== state.activeAccountId) return;
 
       state.friends = friends;
+      // Cache the friends list (with each friend's denormalised
+      // displayName, color, photoURL) to localStorage. On the next
+      // app open, `_hydrateFriendsCache` restores state.friends
+      // SYNCHRONOUSLY before the first paint — same Discord-style
+      // pattern as the user's own photoURL. No flicker between "no
+      // friends yet" and "friends loaded".
+      try {
+        const minimal = friends.map(f => ({
+          uid: f.uid, displayName: f.displayName || "",
+          color: f.color || null, photoURL: f.photoURL || null,
+        }));
+        localStorage.setItem(`tigertag.friends.${uid}`, JSON.stringify(minimal));
+      } catch (_) { /* quota / privacy mode — silent */ }
+
       renderFriendsList();
       // Refresh everywhere friends are shown
       renderAccountDropdown();
       if ($("profilesModalOverlay").classList.contains("open")) renderAccountList();
     } catch (e) { console.warn("[friends]", e.message); }
+  }
+
+  // Synchronous hydration of state.friends from the localStorage cache,
+  // called from setConnected so the first render of the dropdown +
+  // sidebar friend chips already has every friend (with their
+  // displayName + photoURL). loadFriendsList runs after and pushes any
+  // delta from Firestore.
+  function _hydrateFriendsCache(uid) {
+    if (!uid) return;
+    try {
+      const raw = localStorage.getItem(`tigertag.friends.${uid}`);
+      if (!raw) return;
+      const cached = JSON.parse(raw);
+      if (Array.isArray(cached)) state.friends = cached;
+    } catch (_) { /* corrupt JSON — ignore, fresh load will overwrite */ }
   }
 
   /* ── Racks (storage shelves) ───────────────────────────────────────────── */
@@ -13965,10 +14145,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // ─── Friend view ───────────────────────────────────────────────
     if (state.friendView) {
       const { displayName, avatarColor, photoURL, error } = state.friendView;
-      const initials = (displayName || "?").split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
-      const fg = readableTextOn(avatarColor || "var(--accent)");
+      // Build a synthetic source so avatarMarkup can pull gradient
+      // from the friend's avatarColor (a single hex, not an RGB
+      // triplet like an account uses).
+      const friendSource = { displayName, photoURL, color: avatarColor };
       banner.innerHTML = `
-        <span class="fvb-avatar" style="background:${avatarColor || "var(--accent)"};color:${fg}">${esc(initials)}${_avatarPhotoTag(photoURL)}</span>
+        ${avatarMarkup(friendSource, "fvb-avatar")}
         <div class="fvb-inner">
           <span class="fvb-name">${esc(displayName || "—")}</span>
           ${error
@@ -13982,12 +14164,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // ─── Own view (signed in, not previewing a friend) ─────────────
     const acc = activeAccount();
     if (!acc) { banner.classList.add("hidden"); return; }
+    // `own` is the chip's displayed text — falls back to the email
+    // prefix when no name is known, so the chip never reads blank.
+    // (Initials are handled separately by avatarMarkup — never from
+    // email — see getInitials.)
     const own = _shortName(state.displayName || acc.displayName, acc.email);
-    const initials = own.split(/[\s._-]+/).filter(Boolean).map(w => w[0]).join("").toUpperCase().slice(0, 2) || "?";
-    const grad = getAccGradient(acc);
-    const fg = readableTextOn(getAccShadow(acc));
     banner.innerHTML = `
-      <span class="fvb-avatar" style="background:${grad};color:${fg}">${esc(initials)}${_avatarPhotoTag(state.photoURL)}</span>
+      ${avatarMarkup(acc, "fvb-avatar")}
       <div class="fvb-inner">
         <span class="fvb-name">${esc(own)}</span>
       </div>`;
@@ -14346,8 +14529,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (acc) { acc.displayName = name; saveAccounts(accounts); }
       state.displayName       = name;
       $("sbName").textContent = name;
-      $("sbAvatar").textContent = getInitials({ displayName: name, email: acc?.email || "" });
-      applyAvatarStyle(acc);
+      // Centralised pipeline — gradient + initials + photo all atomic.
+      paintAvatar($("sbAvatar"), acc);
       renderFriendBanner();
       renderAccountDropdown();
       closeDisplayNameSetup();
@@ -14644,22 +14827,46 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       input.accept = "image/jpeg,image/png,image/webp";
       input.style.display = "none";
       document.body.appendChild(input);
-      // Some browsers don't fire `change` on cancel; we listen to both
-      // change AND a delayed focus event to detect cancel reliably.
       let resolved = false;
       const cleanup = () => { resolved = true; input.remove(); };
+
+      // Primary path: native `change` (file picked) / `cancel` (user
+      // dismissed). `cancel` is the HTML-spec-defined event for the
+      // dismiss case — supported in Chromium 113+. Electron 41 uses
+      // Chromium 134, so both events fire reliably across macOS,
+      // Windows 10, Windows 11 and Linux. This is what fixes the Win10
+      // race observed when the legacy focus/grace-timer approach was
+      // used: on Win10 the OS could return `focus` to the renderer
+      // BEFORE `change` arrived (slow I/O scheduler), causing the
+      // 300 ms grace to expire and the picker to silently resolve
+      // null — the cropper would never open.
       input.addEventListener("change", () => {
         if (resolved) return;
-        const f = input.files?.[0] || null;
         cleanup();
-        resolve(f);
+        resolve(input.files?.[0] || null);
       });
-      // Cancel detection: when the file dialog closes without a pick,
-      // the window regains focus. Give it a grace period for the change
-      // event to fire first; if it didn't, treat as cancel.
-      window.addEventListener("focus", () => {
-        setTimeout(() => { if (!resolved) { cleanup(); resolve(null); } }, 300);
-      }, { once: true });
+      input.addEventListener("cancel", () => {
+        if (resolved) return;
+        cleanup();
+        resolve(null);
+      });
+
+      // Belt-and-braces fallback for environments where neither
+      // `change` nor `cancel` fires (unknown Electron build / WebView
+      // shim). The focus listener arms 200 ms AFTER `input.click()` —
+      // by then the native dialog has stolen focus, so the next
+      // `focus` event truly means "dialog closed". 800 ms grace is
+      // generous enough for the slowest Win10 I/O scheduler to deliver
+      // `change` before this fires. macOS and Win11 always hit the
+      // `change`/`cancel` path first, so this fallback is invisible
+      // to them.
+      setTimeout(() => {
+        if (resolved) return;
+        window.addEventListener("focus", () => {
+          setTimeout(() => { if (!resolved) { cleanup(); resolve(null); } }, 800);
+        }, { once: true });
+      }, 200);
+
       input.click();
     });
   }
@@ -15054,7 +15261,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         if (acc && acc.displayName !== resolvedName) { acc.displayName = resolvedName; localDirty = true; }
         state.displayName         = resolvedName;
         $("sbName").textContent   = resolvedName;
-        $("sbAvatar").textContent = getInitials({ displayName: resolvedName, email: acc?.email || "" });
+        // Atomic avatar repaint via the centralised pipeline —
+        // gradient, .av-initials text, and photo overlay are all
+        // updated in one shot. Replaces the legacy textContent +
+        // _renderAvatarPhotoOverlay dance that left a one-frame
+        // window where the photo was wiped and only the initials
+        // were showing.
+        paintAvatar($("sbAvatar"), acc);
         renderFriendBanner(); // refresh header chip with authoritative Firestore name
         // If Firestore was missing the name but localStorage had it, write it back
         if (!firestoreName && localName) {
@@ -15078,7 +15291,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
               if (a) { a.displayName = name; saveAccounts(accs); }
               state.displayName = name;
               $("sbName").textContent = name;
-              $("sbAvatar").textContent = getInitials({ displayName: name, email: a?.email || "" });
+              // Atomic repaint via the centralised pipeline (same as
+              // the main resolvedName branch above).
+              paintAvatar($("sbAvatar"), a);
               renderFriendBanner(); // refresh header chip with authoritative Firestore name
               return;
             }
@@ -15105,14 +15320,22 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       // Read custom avatar URL from userProfiles. Stored separately from
       // users/{uid} because userProfiles is public-to-signed-in (visible
       // to friends + friend-add preview), while users/{uid} is owner-
-      // only. Failures (offline, no profile doc yet, rules) silently
-      // fall back to state.photoURL = null → applyAvatarStyle below
-      // renders the colour circle + initials as usual.
-      // Also CACHE the URL on the Account object in localStorage — that
-      // way OTHER connected accounts (non-active) render their avatar
-      // in the dropdown / profiles modal without an extra Firestore
-      // read at render time. The cache refreshes every time syncUserDoc
-      // runs for that account (= every time it becomes active).
+      // only. ALSO cache on the Account object so OTHER connected
+      // accounts render their avatar in the dropdown / profiles modal
+      // without an extra Firestore read at render time.
+      //
+      // Idempotency: state.photoURL was hydrated synchronously at
+      // setConnected time from the cached Account. If the live
+      // userProfiles value matches it, we DON'T touch state and DON'T
+      // re-render — no flicker. Only if the URL actually changed
+      // (avatar uploaded / removed from another device) do we push the
+      // new value through.
+      //
+      // Failure path: transient network / offline errors must NOT null
+      // state.photoURL — that would flick the user back to initials
+      // for ~half a second on every flaky connection. Keep the cached
+      // avatar showing; we'll pick up the real value on the next
+      // successful read.
       try {
         const profSnap = await db.collection("userProfiles").doc(uid).get();
         const photoURL = profSnap.exists ? (profSnap.data().photoURL || null) : null;
@@ -15123,11 +15346,17 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           accForPhoto.photoURL = photoURL;
           saveAccounts(accsForPhoto);
         }
-        if (uid === state.activeAccountId) {  // re-check after async
+        if (uid === state.activeAccountId &&
+            (state.photoURL || null) !== photoURL) {
           state.photoURL = photoURL;
+          // URL changed since hydration → push the update through the
+          // existing render points (applyAvatarStyle below + the
+          // renderFriendBanner / renderAccountDropdown calls right
+          // after this block).
         }
       } catch (_) {
-        if (uid === state.activeAccountId) state.photoURL = null;
+        // Keep the cached avatar — don't punish the user for a
+        // transient Firestore blip.
       }
 
       applyAvatarStyle(acc);

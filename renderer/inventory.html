@@ -39,6 +39,10 @@
       <div class="sb-user-row">
         <div class="sb-avatar-wrap">
           <div class="sb-avatar" id="sbAvatar">
+            <!-- Initials live in their OWN span so paintAvatar can
+                 update the text without nuking the photo overlay or
+                 the swap badge. -->
+            <span class="av-initials"></span>
             <span class="icon icon-plus icon-22 sb-avatar-plus"></span>
             <!-- Swap-back badge — visible only when viewing a friend's
                  inventory. The whole avatar acts as a "return to my
@@ -1380,7 +1384,7 @@
           <!-- Initials live in their OWN span so JS can update them
                without wiping the hover overlay + menu siblings via
                textContent on the parent. -->
-          <span class="eac-avatar-initials" id="eacAvatarInitials">?</span>
+          <span class="av-initials eac-avatar-initials" id="eacAvatarInitials"></span>
           <!-- Hover overlay — pure CSS, shows a pen icon and dimming over
                the avatar to signal it's clickable. -->
           <span class="eac-avatar-hover-overlay" aria-hidden="true">
