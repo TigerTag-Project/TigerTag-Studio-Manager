@@ -470,12 +470,145 @@
   .eac-ident { display: flex; flex-direction: row; align-items: center; gap: 14px; }
   .eac-ident-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
   .eac-avatar {
+    position: relative;       /* anchor for the .sb-avatar-photo overlay
+                                 and the absolutely-positioned avatar menu */
     width: 52px; height: 52px; border-radius: 50%; flex-shrink: 0;
     background: linear-gradient(135deg, var(--primary) 0%, #ffb056 100%);
     color: #fff; display: flex; align-items: center; justify-content: center;
     font-size: 18px; font-weight: 700; letter-spacing: -.02em;
     box-shadow: 0 6px 22px rgba(255,122,24,.32);
+    /* overflow: visible so the popover menu can extend below the avatar.
+       The avatar's circle look is preserved because (a) border-radius
+       still clips the background gradient, and (b) the .sb-avatar-photo
+       <img> child carries its own border-radius: 50%. */
   }
+  /* The hover overlay needs its own circular clip since the parent
+     doesn't have overflow:hidden anymore. */
+  .eac-avatar .eac-avatar-hover-overlay { border-radius: 50%; }
+  /* Discord-style hover overlay on the edit-account avatar — pure CSS
+     show/hide on :hover, no JS. Click is wired in the JS to open the
+     avatar-menu popover. */
+  .eac-avatar-editable { cursor: pointer; }
+  .eac-avatar-hover-overlay {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,.55);
+    opacity: 0; transition: opacity .15s;
+    pointer-events: none;        /* clicks reach the parent .eac-avatar */
+    z-index: 2;                  /* on top of any <img class="sb-avatar-photo"> */
+  }
+  .eac-avatar-hover-overlay .icon { background: #fff; }
+  .eac-avatar-editable:hover .eac-avatar-hover-overlay { opacity: 1; }
+
+  /* Popover menu — anchored to the avatar (.eac-avatar is the relative
+     container). Two items max: Change avatar + (optionally) Remove. */
+  .avatar-menu {
+    position: absolute;
+    top: calc(100% + 8px); left: 0;
+    min-width: 180px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 12px 36px rgba(0,0,0,.18);
+    padding: 6px;
+    display: none;
+    z-index: 30;                 /* above the modal-card stacking context */
+  }
+  .avatar-menu.open { display: block; }
+  .avatar-menu-item {
+    display: flex; align-items: center; gap: 9px;
+    width: 100%;
+    padding: 8px 12px;
+    border: none; background: transparent;
+    color: var(--text); font-size: 13px; font-weight: 500;
+    text-align: left;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .avatar-menu-item:hover { background: var(--surface-2); }
+  .avatar-menu-item--danger { color: var(--danger); }
+  .avatar-menu-item--danger:hover { background: var(--danger-soft); }
+  .avatar-menu-item .icon { background: currentColor; }
+
+  /* ─── Avatar cropper modal (Discord-style) ────────────────────── */
+  .avatar-crop-card {
+    width: 360px; max-width: 92vw;
+    padding: 0;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .avatar-crop-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 18px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .avatar-crop-title {
+    margin: 0; font-size: 15px; font-weight: 700; letter-spacing: -.01em;
+  }
+  .avatar-crop-body { padding: 20px 18px 14px; }
+  .avatar-crop-canvas-wrap {
+    position: relative;
+    width: 280px; height: 280px;
+    margin: 0 auto 18px;
+    border-radius: 10px;
+    background: #1a1a1a;
+    overflow: hidden;
+  }
+  .avatar-crop-canvas {
+    display: block;
+    width: 280px; height: 280px;
+    cursor: grab;
+    touch-action: none;
+  }
+  .avatar-crop-canvas:active { cursor: grabbing; }
+  /* Circular mask outline — visualises the final crop area. The actual
+     output is clipped to the same circle inside the export canvas. */
+  .avatar-crop-circle {
+    position: absolute; inset: 0;
+    pointer-events: none;
+    box-shadow: 0 0 0 9999px rgba(20,24,40,.55);
+    border-radius: 50%;
+    border: 2px solid #fff;
+  }
+  .avatar-crop-controls {
+    display: flex; align-items: center; gap: 10px;
+    padding: 0 4px;
+  }
+  .avatar-crop-zoom-icon { color: var(--muted); flex-shrink: 0; }
+  .avatar-crop-zoom-icon--small .icon { width: 12px; height: 12px; background: currentColor; }
+  .avatar-crop-zoom-icon--large .icon { width: 18px; height: 18px; background: currentColor; }
+  .avatar-crop-zoom { flex: 1; height: 4px; cursor: pointer; }
+  .avatar-crop-rotate {
+    width: 32px; height: 32px;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    transition: border-color .15s, color .15s;
+    flex-shrink: 0;
+  }
+  .avatar-crop-rotate .icon { background: currentColor; }
+  .avatar-crop-rotate:hover { border-color: var(--primary); color: var(--primary); }
+  .avatar-crop-footer {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px;
+    padding: 14px 18px 16px;
+    border-top: 1px solid var(--border);
+    background: var(--surface-2);
+  }
+  .avatar-crop-reset {
+    border: none; background: transparent;
+    color: var(--primary); font-weight: 600; font-size: 13px;
+    cursor: pointer; padding: 6px 4px;
+    font-family: inherit;
+  }
+  .avatar-crop-reset:hover { text-decoration: underline; }
+  .avatar-crop-actions { display: flex; gap: 8px; }
+  .avatar-crop-actions .ghost { padding: 8px 16px; }
+  .avatar-crop-actions .primary { padding: 8px 20px; font-weight: 600; }
   .eac-name { font-size: 15px; font-weight: 700; letter-spacing: -.015em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .eac-email { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .eac-body { padding: 20px 24px 22px; display: flex; flex-direction: column; gap: 0; }
@@ -592,9 +725,11 @@
   .acct-drop-item:hover { background: rgba(255,255,255,.07); color: #fff; }
   .acct-drop-item.active { color: #fff; }
   .acct-drop-avatar {
+    position: relative;       /* anchor for the .sb-avatar-photo overlay */
     width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
     display: flex; align-items: center; justify-content: center;
     font-size: 11px; font-weight: 700; color: #fff; letter-spacing: -0.5px;
+    overflow: hidden;
   }
   .acct-drop-name { font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; }
   .acct-drop-check { margin-left: auto; color: var(--primary); font-size: 13px; flex-shrink: 0; }
@@ -651,10 +786,12 @@
     box-shadow: 0 4px 20px rgba(0,0,0,.07), 0 0 0 3px var(--primary-soft);
   }
   .prf-account-avatar {
+    position: relative;       /* anchor for the .sb-avatar-photo overlay */
     width: 46px; height: 46px; border-radius: 50%; flex-shrink: 0;
     display: flex; align-items: center; justify-content: center;
     font-size: 17px; font-weight: 700; color: #fff; letter-spacing: -0.5px;
     box-shadow: 0 3px 12px rgba(0,0,0,.14);
+    overflow: hidden;
   }
   .prf-account-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
   .prf-account-name {
@@ -718,10 +855,12 @@
   /* Avatar size matched to the height of the KPI stat tiles next to it
      so the chip + stats row reads as one visually-balanced strip. */
   .fvb-avatar {
+    position: relative;       /* anchor for the .sb-avatar-photo overlay */
     width: 50px; height: 50px; border-radius: 50%; flex-shrink: 0;
     display: flex; align-items: center; justify-content: center;
     font-size: 18px; font-weight: 700; color: #fff;
     letter-spacing: -.7px;
+    overflow: hidden;
   }
   .fvb-name {
     font-size: 13px; font-weight: 600; color: var(--text);
