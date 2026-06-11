@@ -1377,7 +1377,29 @@
     <div class="eac-hero">
       <button class="modal-close eac-close" id="editAccountModalClose">✕</button>
       <div class="eac-ident">
-        <div class="eac-avatar" id="eacAvatar">?</div>
+        <div class="eac-avatar eac-avatar-editable" id="eacAvatar" title="Change avatar">
+          <!-- Initials live in their OWN span so JS can update them
+               without wiping the hover overlay + menu siblings via
+               textContent on the parent. -->
+          <span class="eac-avatar-initials" id="eacAvatarInitials">?</span>
+          <!-- Hover overlay — pure CSS, shows a pen icon and dimming over
+               the avatar to signal it's clickable. -->
+          <span class="eac-avatar-hover-overlay" aria-hidden="true">
+            <span class="icon icon-edit icon-18"></span>
+          </span>
+          <!-- Popover menu — opened on click via JS. Anchored to the
+               avatar so it appears just under it. -->
+          <div class="avatar-menu" id="avatarMenu" role="menu">
+            <button class="avatar-menu-item" id="avatarMenuChange" role="menuitem">
+              <span class="icon icon-edit icon-13"></span>
+              <span data-i18n="avatarChangeOpt">Change avatar</span>
+            </button>
+            <button class="avatar-menu-item avatar-menu-item--danger" id="avatarMenuRemove" role="menuitem" hidden>
+              <span class="icon icon-trash icon-13"></span>
+              <span data-i18n="avatarRemoveOpt">Remove avatar</span>
+            </button>
+          </div>
+        </div>
         <div class="eac-ident-text">
           <div style="display:flex;align-items:center;gap:7px">
             <div class="eac-name" id="eacName"></div>
@@ -1408,6 +1430,9 @@
     </div>
     <!-- body -->
     <div class="eac-body">
+      <!-- Avatar status message (inline below the hero avatar) -->
+      <div id="eacAvatarResult" style="min-height:16px;font-size:11px;margin-top:-8px;margin-bottom:12px;text-align:center"></div>
+
       <!-- display name -->
       <div class="eac-field-label" data-i18n="displayNameLabel">Display name</div>
       <div class="eac-name-row">
@@ -1448,6 +1473,44 @@
         <span class="icon icon-signout icon-13"></span>
         <span data-i18n="btnDisconnect">Disconnect</span>
       </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── avatar cropper (Discord-style) — opens after a file is picked
+       from the avatar menu. Lets the user zoom, rotate by 90°, drag,
+       and reset before committing. Output is always PNG (transparent
+       outside the circle, opaque inside). ── -->
+<div class="modal-overlay" id="avatarCropOverlay">
+  <div class="modal-card avatar-crop-card">
+    <div class="avatar-crop-header">
+      <h3 class="avatar-crop-title" data-i18n="avatarCropTitle">Edit image</h3>
+      <button class="modal-close" id="avatarCropClose" aria-label="Close">✕</button>
+    </div>
+    <div class="avatar-crop-body">
+      <div class="avatar-crop-canvas-wrap">
+        <canvas id="avatarCropCanvas" class="avatar-crop-canvas"></canvas>
+        <div class="avatar-crop-circle" aria-hidden="true"></div>
+      </div>
+      <div class="avatar-crop-controls">
+        <span class="avatar-crop-zoom-icon avatar-crop-zoom-icon--small">
+          <span class="icon icon-edit icon-13"></span>
+        </span>
+        <input id="avatarCropZoom" class="avatar-crop-zoom" type="range" min="1" max="3" step="0.01" value="1" />
+        <span class="avatar-crop-zoom-icon avatar-crop-zoom-icon--large">
+          <span class="icon icon-edit icon-13"></span>
+        </span>
+        <button class="avatar-crop-rotate" id="btnAvatarCropRotate" type="button" title="Rotate 90°" data-i18n-title="avatarCropRotate">
+          <span class="icon icon-refresh icon-13"></span>
+        </button>
+      </div>
+    </div>
+    <div class="avatar-crop-footer">
+      <button class="avatar-crop-reset" id="btnAvatarCropReset" type="button" data-i18n="avatarCropReset">Reset</button>
+      <div class="avatar-crop-actions">
+        <button class="ghost sm" id="btnAvatarCropCancel" type="button" data-i18n="avatarCropCancel">Cancel</button>
+        <button class="primary sm" id="btnAvatarCropApply" type="button" data-i18n="avatarCropApply">Apply</button>
+      </div>
     </div>
   </div>
 </div>
@@ -2145,6 +2208,7 @@
 <script src="lib/firebase/firebase-app-compat.js"></script>
 <script src="lib/firebase/firebase-auth-compat.js"></script>
 <script src="lib/firebase/firebase-firestore-compat.js"></script>
+<script src="lib/firebase/firebase-storage-compat.js"></script>
 <script src="firebase.js"></script>
 <script type="module" src="inventory.js"></script>
 

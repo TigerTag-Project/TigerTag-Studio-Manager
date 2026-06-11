@@ -113,6 +113,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (appId) { try { return firebase.app(appId).firestore(); } catch (_) {} }
     return firebase.firestore();
   };
+  // Cloud Storage handle, same per-account scoping as fbAuth / fbDb. Used
+  // today only for custom avatars (`avatars/{uid}`). The default-bucket
+  // ref is fine — `storageBucket` is set in firebase.js' FIREBASE_CONFIG.
+  const fbStorage = (id) => {
+    const appId = id || state.activeAccountId;
+    if (appId) { try { return firebase.app(appId).storage(); } catch (_) {} }
+    return firebase.storage();
+  };
   let _unsubInventory  = null; // active Firestore onSnapshot unsubscribe handle
   let _sliderDebounce  = null; // pending auto-save timer for weight slider
 
@@ -159,6 +167,46 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // white. Without this, picking a near-white custom colour leaves the
     // initials invisible (white-on-white).
     el.style.color = readableTextOn(sh);
+    // Photo overlay — when the active account has a custom avatar uploaded,
+    // its Storage download URL is in `state.photoURL`. Render it as an
+    // absolutely-positioned <img> stacked on top of the colour circle;
+    // initials underneath are hidden by the opaque image. When the photo
+    // is removed (or absent), the <img> is taken down and the colour
+    // circle + initials show through again — natural fallback, no
+    // additional render path needed elsewhere.
+    _renderAvatarPhotoOverlay(el, state.photoURL);
+  }
+  // Inline template form of the photo overlay — used by `innerHTML`-built
+  // avatar variants (dropdown, sidebar friend chips, profiles modal,
+  // friend banner). The DOM helper `_renderAvatarPhotoOverlay` below is
+  // the imperative form used after setting `.textContent` (which would
+  // otherwise nuke any pre-existing child <img>).
+  // `onerror` removes the broken <img> so the colour-circle + initials
+  // fall through naturally — same fallback as the DOM helper.
+  function _avatarPhotoTag(url) {
+    if (!url) return "";
+    return `<img class="sb-avatar-photo" src="${esc(url)}" alt="" onerror="this.remove()" />`;
+  }
+  // Insert/update/remove the `<img class="sb-avatar-photo">` overlay on
+  // any avatar container (the sidebar avatar, but also acct-dropdown and
+  // profile-modal rows reuse this helper). Idempotent: same URL twice
+  // doesn't reload, missing URL strips the overlay.
+  function _renderAvatarPhotoOverlay(container, url) {
+    if (!container) return;
+    let img = container.querySelector(".sb-avatar-photo");
+    if (url) {
+      if (!img) {
+        img = document.createElement("img");
+        img.className = "sb-avatar-photo";
+        img.alt = "";
+        // Hide on decode-fail so we fall back to the colour circle silently.
+        img.addEventListener("error", () => img.remove(), { once: true });
+        container.appendChild(img);
+      }
+      if (img.src !== url) img.src = url;
+    } else if (img) {
+      img.remove();
+    }
   }
 
   const STORAGE_ACCOUNTS = "tigertag.accounts";
@@ -197,6 +245,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     debugEnabled: false,
     publicKey: null,
     privateKey: null,
+    // Cloud Storage download URL of the user's custom avatar (or null
+    // when they're still on the colour-circle + initials default).
+    // Mirrored from `userProfiles/{uid}.photoURL`, populated by
+    // syncUserDoc and consumed by `applyAvatarStyle`. The token in the
+    // URL rotates on every upload so we get cache-busting for free.
+    photoURL: null,
     isPublic: false,
     friends: [],             // [{ uid, displayName, addedAt, key }]
     friendRequests: [],      // [{ uid, displayName, requestedAt }]
@@ -793,8 +847,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   }
   function setDisconnected() {
     state.displayName = null; state.keyValid = null;
+    state.photoURL = null;  // clear custom avatar → sign-in placeholder shows
     // Restore "+" SVG inside avatar
     const av = $("sbAvatar");
+    // Strip any custom-avatar <img> overlay from the previous session
+    av.querySelector(".sb-avatar-photo")?.remove();
     av.textContent = "";
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.setAttribute("class", "sb-avatar-plus");
@@ -867,7 +924,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // ── Connected accounts ──
     let html = accounts.map(acc => `
       <button class="acct-drop-item${acc.id===activeId?' active':''}" data-drop-id="${esc(acc.id)}">
-        <span class="acct-drop-avatar" style="background:${getAccGradient(acc)};color:${readableTextOn(getAccShadow(acc))}">${esc(getInitials(acc))}</span>
+        <span class="acct-drop-avatar" style="background:${getAccGradient(acc)};color:${readableTextOn(getAccShadow(acc))}">${esc(getInitials(acc))}${_avatarPhotoTag(acc.id === activeId ? state.photoURL : null)}</span>
         <span class="acct-drop-name">${esc(_shortName(acc.displayName, acc.email))}</span>
         ${acc.id===activeId ? '<span class="acct-drop-check">✓</span>' : ''}
       </button>`).join("");
@@ -893,7 +950,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         const fg = readableTextOn(color);
         const isActive = state.friendView?.uid === f.uid;
         return `<button class="acct-drop-item${isActive ? ' acct-drop-friend-active' : ''}" data-drop-friend-uid="${esc(f.uid)}" data-drop-friend-name="${esc(_shortName(f.displayName, f.uid))}" data-drop-friend-color="${esc(color)}">
-          <span class="acct-drop-avatar" style="background:${color};color:${fg}">${initials}</span>
+          <span class="acct-drop-avatar" style="background:${color};color:${fg}">${initials}${_avatarPhotoTag(f.photoURL)}</span>
           <span class="acct-drop-name">${esc(_shortName(f.displayName, f.uid))}</span>
           ${isActive ? '<span class="acct-drop-check">✓</span>' : '<span class="acct-drop-eye"><span class="icon icon-eye-on icon-11"></span></span>'}
         </button>`;
@@ -2896,12 +2953,21 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   let _editingAccount = null;
   function openEditAccountModal(acc) {
     _editingAccount = acc || activeAccount(); if (!_editingAccount) return;
-    $("eacAvatar").textContent  = getInitials(_editingAccount);
+    // Initials go into the dedicated child span — writing to
+    // $("eacAvatar").textContent would nuke the hover overlay and the
+    // avatar menu children, breaking the click → menu interaction.
+    $("eacAvatarInitials").textContent  = getInitials(_editingAccount);
     $("eacName").textContent    = _editingAccount.displayName || "";
     $("eacName").style.display  = _editingAccount.displayName ? "" : "none";
     $("eacEmail").textContent   = _editingAccount.email || "";
     $("eacAvatar").style.background = getAccGradient(_editingAccount);
     $("eacAvatar").style.color = readableTextOn(getAccShadow(_editingAccount));
+    // Photo overlay on the modal avatar (same helper that drives the
+    // sidebar avatar). The Change/Remove menu opens on click — see the
+    // avatar menu wiring further down.
+    const photoUrl = (_editingAccount.id === state.activeAccountId) ? state.photoURL : null;
+    _renderAvatarPhotoOverlay($("eacAvatar"), photoUrl);
+    $("eacAvatarResult").textContent = "";
     $("eacDisplayNameInput").value = _editingAccount.displayName || "";
     $("eacNameResult").textContent = "";
     $("eacAdminBadge").classList.toggle("hidden", !state.isAdmin);
@@ -3009,6 +3075,80 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   $("editAccountModalClose").addEventListener("click", closeEditAccountModal);
   $("editAccountModalOverlay").addEventListener("click", e => { if (e.target === $("editAccountModalOverlay")) closeEditAccountModal(); });
   document.addEventListener("keydown", e => { if (e.key === "Escape" && $("editAccountModalOverlay").classList.contains("open")) closeEditAccountModal(); });
+
+  // ── Custom avatar — Discord-style edit flow in edit-account modal ──
+  // Click on the avatar opens a small popover menu (Change / Remove),
+  // wired further down. Hover state (the pen icon) is pure CSS, no JS.
+  $("eacAvatar")?.addEventListener("click", e => {
+    e.stopPropagation();
+    _toggleAvatarMenu();
+  });
+  // Close the menu on outside click or Escape — standard popover UX.
+  document.addEventListener("click", e => {
+    if (!$("avatarMenu")?.classList.contains("open")) return;
+    if (e.target.closest("#avatarMenu") || e.target.closest("#eacAvatar")) return;
+    _closeAvatarMenu();
+  });
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape" && $("avatarMenu")?.classList.contains("open")) {
+      _closeAvatarMenu();
+    }
+  });
+
+  // Menu actions. `stopPropagation` is critical — without it the click
+  // bubbles up through #avatarMenu to #eacAvatar, whose own handler
+  // would re-toggle the menu open immediately after we close it.
+  $("avatarMenuChange")?.addEventListener("click", async e => {
+    e.stopPropagation();
+    _closeAvatarMenu();
+    const res = $("eacAvatarResult");
+    // Pick + crop + upload — failures surface in the result line.
+    const file = await _pickAvatarFile();
+    if (!file) return;
+    let bitmap;
+    try { bitmap = await _decodeImageBlob(file); }
+    catch { res.style.color = "var(--danger)"; res.textContent = t("avatarUploadFailed"); return; }
+    const cropped = await openAvatarCropper(bitmap);
+    if (!cropped) return;  // user cancelled in cropper
+    res.style.color = "var(--muted)"; res.textContent = t("avatarUploading");
+    try {
+      const url = await uploadCroppedAvatar(cropped.blob, cropped.contentType);
+      _renderAvatarPhotoOverlay($("eacAvatar"), url);
+      res.style.color = "var(--success)"; res.textContent = t("avatarUploadOk");
+      setTimeout(() => { res.textContent = ""; }, 2000);
+    } catch (e) {
+      console.warn("[avatar.upload]", e);
+      res.style.color = "var(--danger)";
+      res.textContent = t(e.message === "too-large" ? "avatarTooLarge" : "avatarUploadFailed");
+    }
+  });
+  $("avatarMenuRemove")?.addEventListener("click", async e => {
+    e.stopPropagation();
+    _closeAvatarMenu();
+    const res = $("eacAvatarResult");
+    res.style.color = "var(--muted)"; res.textContent = t("avatarRemoving");
+    try {
+      await removeCustomAvatar();
+      _renderAvatarPhotoOverlay($("eacAvatar"), null);
+      res.style.color = "var(--success)"; res.textContent = t("avatarRemoveOk");
+      setTimeout(() => { res.textContent = ""; }, 2000);
+    } catch (e) {
+      console.warn("[avatar.remove]", e);
+      res.style.color = "var(--danger)"; res.textContent = t("avatarRemoveFailed");
+    }
+  });
+
+  // Open/close the popover. "Remove" is gated on state.photoURL so the
+  // menu shows only the relevant options. If there's no photo, only
+  // "Change" appears — same UX as Discord.
+  function _toggleAvatarMenu() {
+    const menu = $("avatarMenu");
+    if (!menu) return;
+    if (menu.classList.contains("open")) { _closeAvatarMenu(); return; }
+    $("avatarMenuRemove").hidden = !state.photoURL;
+    menu.classList.add("open");
+  }
+  function _closeAvatarMenu() { $("avatarMenu")?.classList.remove("open"); }
 
   // Save display name
   async function saveDisplayName() {
@@ -4108,7 +4248,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         const name = esc(acc.displayName || acc.email.split("@")[0]);
         return `
         <button class="prf-account-card" data-prf-id="${esc(acc.id)}">
-          <span class="prf-account-avatar" style="background:${getAccGradient(acc)};color:${readableTextOn(getAccShadow(acc))}">${esc(getInitials(acc))}</span>
+          <span class="prf-account-avatar" style="background:${getAccGradient(acc)};color:${readableTextOn(getAccShadow(acc))}">${esc(getInitials(acc))}${_avatarPhotoTag(acc.id === state.activeAccountId ? state.photoURL : null)}</span>
           <span class="prf-account-info">
             <span class="prf-account-name">${name}</span>
             <span class="prf-account-email">${esc(acc.email)}</span>
@@ -4133,7 +4273,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           return `
           <button class="prf-account-card prf-friend-card${isActive ? " prf-friend-active" : ""}"
                   data-fv-uid="${esc(f.uid)}" data-fv-name="${esc(_shortName(f.displayName, f.uid))}" data-fv-color="${esc(color)}">
-            <span class="prf-account-avatar" style="background:${color};color:${fg}">${initials}</span>
+            <span class="prf-account-avatar" style="background:${color};color:${fg}">${initials}${_avatarPhotoTag(f.photoURL)}</span>
             <span class="prf-account-info">
               <span class="prf-account-name">${name}</span>
               <span class="prf-account-email prf-friend-sub">${t("friendViewInv")}</span>
@@ -8134,7 +8274,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
                       data-friend-color="${esc(color)}"
                       data-tooltip="${esc(_shortName(f.displayName, f.uid))}"
                       title="${esc(_shortName(f.displayName, f.uid))}">
-        <span class="sb-friend-avatar" style="background:${color};color:${fg}">${esc(initials)}</span>
+        <span class="sb-friend-avatar" style="background:${color};color:${fg}">${esc(initials)}${_avatarPhotoTag(f.photoURL)}</span>
         <span class="sb-friend-name">${esc(_shortName(f.displayName, f.uid))}</span>
         ${isActive ? '<span class="sb-friend-active-dot" aria-hidden="true"></span>' : ""}
       </button>`;
@@ -8219,7 +8359,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       const fg = readableTextOn(color);
       const date = f.addedAt ? timeAgo(f.addedAt.seconds ? f.addedAt.seconds * 1000 : f.addedAt) : "";
       return `<div class="fp-friend" data-uid="${esc(f.uid)}" data-name="${esc(_shortName(f.displayName, f.uid))}" data-color="${esc(color)}">
-        <div class="fp-friend-avatar" style="background:${color};color:${fg}">${initials}</div>
+        <div class="fp-friend-avatar" style="background:${color};color:${fg}">${initials}${_avatarPhotoTag(f.photoURL)}</div>
         <div class="fp-friend-main">
           <div class="fp-friend-name">${esc(_shortName(f.displayName, f.uid))}</div>
           <div class="fp-friend-date">${date ? t("friendAddedOn", { date }) : ""}</div>
@@ -8339,6 +8479,15 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           updates.color = liveColor;
         } else if (liveColor) {
           f.color = liveColor;   // always apply in-memory even if already stored
+        }
+        // Custom avatar URL. Stored ONLY in memory — denormalising the
+        // download URL into our friends sub-collection would mean every
+        // avatar change needs to fan-out to every friend's friend doc,
+        // and the URL has a rotating token anyway. Cheap to refresh from
+        // userProfiles on every friends-list load.
+        const livePhoto = pd.photoURL || null;
+        if (livePhoto !== (f.photoURL || null)) {
+          f.photoURL = livePhoto;
         }
 
         if (Object.keys(updates).length) {
@@ -14030,11 +14179,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     banner.classList.remove("fvb--own", "fvb--error");
     // ─── Friend view ───────────────────────────────────────────────
     if (state.friendView) {
-      const { displayName, avatarColor, error } = state.friendView;
+      const { displayName, avatarColor, photoURL, error } = state.friendView;
       const initials = (displayName || "?").split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
       const fg = readableTextOn(avatarColor || "var(--accent)");
       banner.innerHTML = `
-        <span class="fvb-avatar" style="background:${avatarColor || "var(--accent)"};color:${fg}">${esc(initials)}</span>
+        <span class="fvb-avatar" style="background:${avatarColor || "var(--accent)"};color:${fg}">${esc(initials)}${_avatarPhotoTag(photoURL)}</span>
         <div class="fvb-inner">
           <span class="fvb-name">${esc(displayName || "—")}</span>
           ${error
@@ -14053,7 +14202,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const grad = getAccGradient(acc);
     const fg = readableTextOn(getAccShadow(acc));
     banner.innerHTML = `
-      <span class="fvb-avatar" style="background:${grad};color:${fg}">${esc(initials)}</span>
+      <span class="fvb-avatar" style="background:${grad};color:${fg}">${esc(initials)}${_avatarPhotoTag(state.photoURL)}</span>
       <div class="fvb-inner">
         <span class="fvb-name">${esc(own)}</span>
       </div>`;
@@ -14108,7 +14257,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // `state.friendView` guard as defence-in-depth — see subscribeInventory.)
     unsubscribeInventory();
     unsubscribeRacks();
-    state.friendView = { uid: friendUid, displayName: friendName, avatarColor, error: null };
+    // Look up the friend's photoURL from state.friends (already populated
+    // by loadFriendsList from userProfiles). Falls through to null →
+    // friend banner renders the colour-circle + initials fallback.
+    const friendPhoto = state.friends?.find(f => f.uid === friendUid)?.photoURL || null;
+    state.friendView = { uid: friendUid, displayName: friendName, avatarColor, photoURL: friendPhoto, error: null };
     state.inventory = null; state.rows = [];
     state.racks = [];
     state.invLoading = true;
@@ -14669,6 +14822,380 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     } catch (e) { console.warn("[userProfiles] write:", e.message); }
   }
 
+  // ══════════════════════════════════════════════════════════════════
+  //   Custom avatar upload pipeline
+  // ══════════════════════════════════════════════════════════════════
+  // Storage path:  avatars/{uid}            ← predictable, single file
+  // Firestore idx: userProfiles/{uid}.photoURL  ← URL with rotating token
+  //
+  // Full flow on upload:
+  //   1. User picks a file (any image up to ~50 MB on disk).
+  //   2. Decoded to an ImageBitmap (off-main-thread).
+  //   3. Drawn cover-fit into a 512×512 canvas (square crop).
+  //   4. Alpha channel detected by sampling edge pixels; if any are
+  //      non-opaque → encode PNG, else JPEG quality 0.85.
+  //   5. Blob uploaded to Storage with the right Content-Type. The
+  //      200 KB rule on the Storage side is a safety net — at 512×512
+  //      we land well under.
+  //   6. getDownloadURL() returns a URL with a fresh access token.
+  //   7. URL written to userProfiles/{uid}.photoURL (the friend-visible
+  //      mirror) AND to state.photoURL for immediate render.
+  //   8. applyAvatarStyle re-runs → `<img>` overlay appears over the
+  //      colour circle.
+  //
+  // Errors are surfaced via a single throw — caller decides how to
+  // toast/inline-message them. Cancellation (user closes picker) is a
+  // no-op silent return, not an error.
+  const AVATAR_TARGET_PX = 512;
+  const AVATAR_MAX_BYTES = 500 * 1024;  // server-side rule limit (storage.rules)
+
+  // Pick a file via a transient `<input type=file>`. Returns null if the
+  // user cancels. Restricted to image/* MIME up front (the OS native
+  // picker greys out non-images).
+  function _pickAvatarFile() {
+    return new Promise(resolve => {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = "image/jpeg,image/png,image/webp";
+      input.style.display = "none";
+      document.body.appendChild(input);
+      // Some browsers don't fire `change` on cancel; we listen to both
+      // change AND a delayed focus event to detect cancel reliably.
+      let resolved = false;
+      const cleanup = () => { resolved = true; input.remove(); };
+      input.addEventListener("change", () => {
+        if (resolved) return;
+        const f = input.files?.[0] || null;
+        cleanup();
+        resolve(f);
+      });
+      // Cancel detection: when the file dialog closes without a pick,
+      // the window regains focus. Give it a grace period for the change
+      // event to fire first; if it didn't, treat as cancel.
+      window.addEventListener("focus", () => {
+        setTimeout(() => { if (!resolved) { cleanup(); resolve(null); } }, 300);
+      }, { once: true });
+      input.click();
+    });
+  }
+
+  // Decode a File/Blob to an ImageBitmap. Falls back to HTMLImageElement
+  // for environments without createImageBitmap (Electron < 25 etc.).
+  async function _decodeImageBlob(file) {
+    if (typeof createImageBitmap === "function") {
+      try { return await createImageBitmap(file); } catch (_) { /* fall through */ }
+    }
+    return new Promise((res, rej) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload  = () => { URL.revokeObjectURL(url); res(img); };
+      img.onerror = e  => { URL.revokeObjectURL(url); rej(new Error("decode-failed")); };
+      img.src = url;
+    });
+  }
+
+  // Detect transparency by sampling the 4 corners + 4 edge midpoints of
+  // a freshly-drawn canvas. A non-255 alpha anywhere → treat as
+  // alpha-bearing → encode PNG. Otherwise JPEG (5× smaller for photos).
+  function _hasAlpha(ctx, size) {
+    const pts = [
+      [0, 0], [size - 1, 0], [0, size - 1], [size - 1, size - 1],
+      [size >> 1, 0], [size >> 1, size - 1], [0, size >> 1], [size - 1, size >> 1],
+    ];
+    for (const [x, y] of pts) {
+      if (ctx.getImageData(x, y, 1, 1).data[3] < 255) return true;
+    }
+    return false;
+  }
+
+  // Resize + crop cover-fit to AVATAR_TARGET_PX square, encode JPEG or
+  // PNG depending on alpha presence. Returns { blob, contentType }.
+  async function _resizeAvatarToBlob(bitmap) {
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = AVATAR_TARGET_PX;
+    const ctx = canvas.getContext("2d");
+    // Cover-fit: scale so the smaller dimension fills the canvas, crop
+    // the larger one centered. Mirrors `object-fit: cover` in CSS.
+    const srcW = bitmap.width, srcH = bitmap.height;
+    const scale = AVATAR_TARGET_PX / Math.min(srcW, srcH);
+    const dw = srcW * scale, dh = srcH * scale;
+    const dx = (AVATAR_TARGET_PX - dw) / 2;
+    const dy = (AVATAR_TARGET_PX - dh) / 2;
+    // Browser does its own resampling; for 512×512 the difference between
+    // imageSmoothingQuality 'low'/'high' is invisible but 'medium' is the
+    // default and fine.
+    ctx.drawImage(bitmap, dx, dy, dw, dh);
+    const useAlpha = _hasAlpha(ctx, AVATAR_TARGET_PX);
+    return new Promise(resolve => {
+      const type = useAlpha ? "image/png" : "image/jpeg";
+      const quality = useAlpha ? undefined : 0.85;
+      canvas.toBlob(blob => resolve({ blob, contentType: type }), type, quality);
+    });
+  }
+
+  // Top-level entry point — pick + resize + upload + write. Resolves to
+  // the new photoURL (already written to Firestore + state). Throws on
+  // any failure other than user-cancel (which returns null).
+  async function uploadCustomAvatar() {
+    const user = fbAuth().currentUser;
+    if (!user) throw new Error("not-signed-in");
+
+    const file = await _pickAvatarFile();
+    if (!file) return null;  // user cancelled — silent
+
+    const bitmap = await _decodeImageBlob(file);
+    const { blob, contentType } = await _resizeAvatarToBlob(bitmap);
+
+    // Safety net — should never trigger after 512×512 resize, but the
+    // server-side rule would reject it anyway. Friendlier to fail here.
+    if (blob.size > AVATAR_MAX_BYTES) {
+      throw new Error("too-large");
+    }
+
+    // Upload — Storage path is `avatars/{uid}` (no extension; the
+    // Content-Type metadata carries the format). Overwrites any
+    // previous file at that path, generating a fresh access token.
+    const ref = fbStorage(user.uid).ref().child(`avatars/${user.uid}`);
+    const snap = await ref.put(blob, { contentType });
+    const url = await snap.ref.getDownloadURL();
+
+    // Mirror in Firestore so friends see it without a Storage probe.
+    await syncUserProfile(user.uid, { photoURL: url });
+
+    // Reflect locally + re-render the sidebar avatar.
+    state.photoURL = url;
+    applyAvatarStyle(activeAccount());
+    renderFriendBanner();   // header chip variant
+    renderAccountDropdown();
+    return url;
+  }
+
+  // Remove the custom avatar — deletes the Storage blob AND clears the
+  // photoURL field. Idempotent (no error if either is already absent).
+  async function removeCustomAvatar() {
+    const user = fbAuth().currentUser;
+    if (!user) throw new Error("not-signed-in");
+
+    // Delete in two independent try/catches so partial failures still
+    // leave the system in a consistent state. Worst case: a stale blob
+    // remains in Storage with no Firestore reference — harmless.
+    try {
+      await fbStorage(user.uid).ref().child(`avatars/${user.uid}`).delete();
+    } catch (e) {
+      // object-not-found is the common case (user never uploaded) —
+      // ignore. Other errors are non-fatal too; the Firestore clear
+      // below is what matters for the UI fallback to kick in.
+      if (e?.code !== "storage/object-not-found") {
+        console.warn("[avatar.remove] storage delete:", e.message);
+      }
+    }
+    await syncUserProfile(user.uid, { photoURL: firebase.firestore.FieldValue.delete() });
+
+    state.photoURL = null;
+    applyAvatarStyle(activeAccount());
+    renderFriendBanner();
+    renderAccountDropdown();
+  }
+
+  // ── Discord-style cropper ────────────────────────────────────────────
+  // Replaces the original "auto-resize to 512" path so the user can zoom,
+  // rotate (90°) and drag the source image inside a circular mask before
+  // committing. Returns a Promise that resolves with { blob, contentType }
+  // on Apply, or null on Cancel / Escape.
+  //
+  // Geometry:
+  //   - The display canvas is 280 px CSS, but devSize = 280 × DPR for a
+  //     crisp render on Retina.
+  //   - "base scale" is whatever makes the source's smaller dimension
+  //     fill devSize at zoom = 1 (cover-fit).
+  //   - The user-facing zoom slider multiplies on top of that (1× → 3×).
+  //   - Rotation is around the canvas centre; pan is in device pixels.
+  //   - Pan is clamped so the rotated+scaled image always covers the
+  //     circle (no transparent gap edges peeking in).
+  function openAvatarCropper(bitmap) {
+    return new Promise(resolve => {
+      const overlay = $("avatarCropOverlay");
+      const canvas  = $("avatarCropCanvas");
+      const ctx     = canvas.getContext("2d");
+      const zoomEl  = $("avatarCropZoom");
+      const CSS_SIZE = 280;
+      const DPR = window.devicePixelRatio || 1;
+      const devSize = Math.round(CSS_SIZE * DPR);
+      canvas.width = devSize; canvas.height = devSize;
+      canvas.style.width = canvas.style.height = CSS_SIZE + "px";
+
+      let zoom = 1, rotation = 0, panX = 0, panY = 0;
+      let dragStart = null;
+
+      const minDim   = Math.min(bitmap.width, bitmap.height);
+      const baseScale = devSize / minDim;  // zoom 1 = cover-fit
+
+      // Pan constraint: when the rotated+scaled image is laid down centred
+      // at (devSize/2 + pan), make sure no edge of the image enters the
+      // circle of radius devSize/2. With 90° rotations, w/h swap.
+      function clampPan() {
+        const rot = ((rotation % 360) + 360) % 360;
+        const isSide = (rot === 90 || rot === 270);
+        const imgW = (isSide ? bitmap.height : bitmap.width) * baseScale * zoom;
+        const imgH = (isSide ? bitmap.width  : bitmap.height) * baseScale * zoom;
+        const maxX = Math.max(0, (imgW - devSize) / 2);
+        const maxY = Math.max(0, (imgH - devSize) / 2);
+        if (panX >  maxX) panX =  maxX;
+        if (panX < -maxX) panX = -maxX;
+        if (panY >  maxY) panY =  maxY;
+        if (panY < -maxY) panY = -maxY;
+      }
+
+      function render() {
+        ctx.fillStyle = "#1a1a1a";  // backdrop visible only at zoom < 1
+        ctx.fillRect(0, 0, devSize, devSize);
+        ctx.save();
+        ctx.translate(devSize / 2 + panX, devSize / 2 + panY);
+        ctx.rotate(rotation * Math.PI / 180);
+        const s = baseScale * zoom;
+        ctx.scale(s, s);
+        ctx.imageSmoothingQuality = "high";
+        ctx.drawImage(bitmap, -bitmap.width / 2, -bitmap.height / 2);
+        ctx.restore();
+      }
+
+      zoomEl.value = "1";
+      const onZoom = () => { zoom = parseFloat(zoomEl.value); clampPan(); render(); };
+      zoomEl.addEventListener("input", onZoom);
+
+      const onRotate = () => { rotation = (rotation + 90) % 360; clampPan(); render(); };
+      $("btnAvatarCropRotate").addEventListener("click", onRotate);
+
+      const onReset = () => {
+        zoom = 1; rotation = 0; panX = 0; panY = 0;
+        zoomEl.value = "1"; render();
+      };
+      $("btnAvatarCropReset").addEventListener("click", onReset);
+
+      // Drag-to-pan on the canvas. Pointer events handle mouse + touch.
+      const onPointerDown = e => {
+        dragStart = { x: e.clientX, y: e.clientY, panX, panY };
+        canvas.setPointerCapture?.(e.pointerId);
+      };
+      const onPointerMove = e => {
+        if (!dragStart) return;
+        panX = dragStart.panX + (e.clientX - dragStart.x) * DPR;
+        panY = dragStart.panY + (e.clientY - dragStart.y) * DPR;
+        clampPan(); render();
+      };
+      const onPointerUp = e => {
+        dragStart = null;
+        canvas.releasePointerCapture?.(e.pointerId);
+      };
+      canvas.addEventListener("pointerdown", onPointerDown);
+      canvas.addEventListener("pointermove", onPointerMove);
+      canvas.addEventListener("pointerup",   onPointerUp);
+      canvas.addEventListener("pointercancel", onPointerUp);
+
+      function cleanup() {
+        overlay.classList.remove("open");
+        zoomEl.removeEventListener("input", onZoom);
+        $("btnAvatarCropRotate").removeEventListener("click", onRotate);
+        $("btnAvatarCropReset").removeEventListener("click", onReset);
+        canvas.removeEventListener("pointerdown", onPointerDown);
+        canvas.removeEventListener("pointermove", onPointerMove);
+        canvas.removeEventListener("pointerup",   onPointerUp);
+        canvas.removeEventListener("pointercancel", onPointerUp);
+      }
+
+      const onCancel = () => { cleanup(); resolve(null); };
+      const onClose  = () => onCancel();
+      $("btnAvatarCropCancel").onclick = onCancel;
+      $("avatarCropClose").onclick     = onClose;
+      const escHandler = e => {
+        if (e.key === "Escape" && overlay.classList.contains("open")) {
+          document.removeEventListener("keydown", escHandler);
+          onCancel();
+        }
+      };
+      document.addEventListener("keydown", escHandler);
+
+      $("btnAvatarCropApply").onclick = () => {
+        // Auto-detect alpha in the SOURCE bitmap so we pick the right
+        // encoder per case (Slack / WeChat / Discord all do equivalent
+        // probing — saves ~6× on photos while preserving memoji
+        // transparency):
+        //   - Source has alpha (memoji / illustration on transparent
+        //     bg) → PNG square. ~50-150 KB. Display still clips to a
+        //     circle via CSS, but the transparent corners are honoured
+        //     so the avatar circle's gradient bleeds through the empty
+        //     areas (matches what you see in Slack/Discord on memojis).
+        //   - Source is opaque (photo) → JPEG q0.85. ~30-50 KB.
+        //     White backdrop fill is harmless safety against any
+        //     rounding gap at the edge after rotation.
+        //
+        // Output is always SQUARE 512×512 — the circle look is purely
+        // a CSS `border-radius: 50%` decision at render time, not
+        // baked into the file. Smaller AND simpler.
+        //
+        // Probe is a tiny 32×32 redraw that samples 8 edge pixels via
+        // `_hasAlpha` — cheap enough that we can run it every Apply.
+        const probe = document.createElement("canvas");
+        probe.width = probe.height = 32;
+        const probeCtx = probe.getContext("2d");
+        probeCtx.drawImage(bitmap, 0, 0, 32, 32);
+        const sourceHasAlpha = _hasAlpha(probeCtx, 32);
+
+        const TARGET = AVATAR_TARGET_PX;
+        const exp = document.createElement("canvas");
+        exp.width = exp.height = TARGET;
+        const ec = exp.getContext("2d");
+        if (!sourceHasAlpha) {
+          // JPEG path — fill white so any sub-pixel gap at rotation
+          // edges reads as the surface colour rather than black.
+          ec.fillStyle = "#ffffff";
+          ec.fillRect(0, 0, TARGET, TARGET);
+        }
+        // PNG path: leave canvas transparent so source alpha is honoured.
+
+        ec.save();
+        // Same transform chain as the preview, scaled from devSize → TARGET.
+        const k = TARGET / devSize;
+        ec.translate(TARGET / 2 + panX * k, TARGET / 2 + panY * k);
+        ec.rotate(rotation * Math.PI / 180);
+        const s = (TARGET / minDim) * zoom;
+        ec.scale(s, s);
+        ec.imageSmoothingQuality = "high";
+        ec.drawImage(bitmap, -bitmap.width / 2, -bitmap.height / 2);
+        ec.restore();
+
+        const contentType = sourceHasAlpha ? "image/png" : "image/jpeg";
+        const quality = sourceHasAlpha ? undefined : 0.85;
+        exp.toBlob(blob => {
+          document.removeEventListener("keydown", escHandler);
+          cleanup();
+          resolve({ blob, contentType });
+        }, contentType, quality);
+      };
+
+      overlay.classList.add("open");
+      render();
+    });
+  }
+
+  // Used by the avatar-menu Change handler after the cropper resolves.
+  // Identical to the upload tail of the old uploadCustomAvatar — keeps
+  // the Storage + Firestore + UI sync side effects in one place.
+  async function uploadCroppedAvatar(blob, contentType) {
+    const user = fbAuth().currentUser;
+    if (!user) throw new Error("not-signed-in");
+    if (blob.size > AVATAR_MAX_BYTES) throw new Error("too-large");
+    const ref = fbStorage(user.uid).ref().child(`avatars/${user.uid}`);
+    const snap = await ref.put(blob, { contentType });
+    const url = await snap.ref.getDownloadURL();
+    await syncUserProfile(user.uid, { photoURL: url });
+    state.photoURL = url;
+    applyAvatarStyle(activeAccount());
+    renderFriendBanner();
+    renderAccountDropdown();
+    return url;
+  }
+
   async function syncUserDoc(uid) {
     // Always use the named Firestore instance for this specific uid,
     // never fbDb() without parameter — that depends on state.activeAccountId
@@ -14789,8 +15316,28 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       }
 
       if (localDirty && acc) { saveAccounts(accounts); }
+
+      // Read custom avatar URL from userProfiles. Stored separately from
+      // users/{uid} because userProfiles is public-to-signed-in (visible
+      // to friends + friend-add preview), while users/{uid} is owner-
+      // only. Failures (offline, no profile doc yet, rules) silently
+      // fall back to state.photoURL = null → applyAvatarStyle below
+      // renders the colour circle + initials as usual.
+      try {
+        const profSnap = await db.collection("userProfiles").doc(uid).get();
+        if (uid === state.activeAccountId) {  // re-check after async
+          state.photoURL = profSnap.exists ? (profSnap.data().photoURL || null) : null;
+        }
+      } catch (_) {
+        state.photoURL = null;
+      }
+
       applyAvatarStyle(acc);
       renderAccountDropdown();
+      // The top-header "own" banner is rendered at connect time, BEFORE
+      // this userProfiles read completes — re-render it now so the
+      // custom photo (if any) appears in the OM chip too.
+      renderFriendBanner();
 
       // Keep userProfiles in sync with latest public info.
       // profileName is never empty: fall back to Google first name then email
