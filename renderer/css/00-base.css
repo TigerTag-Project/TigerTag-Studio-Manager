@@ -88,12 +88,16 @@
   /* user section */
   .sb-user {
     padding: 20px 14px 16px; border-bottom: 1px solid rgba(255,255,255,.06);
-    flex-shrink: 0; display: flex; flex-direction: column; align-items: stretch;
+    /* Was flex-shrink:0. Now allowed to shrink (grow 0 → no empty stretch
+       when few friends) so the friend list inside can scroll when the
+       sidebar runs out of vertical room — see .sb-friends-list. */
+    flex: 0 1 auto; min-height: 0; display: flex; flex-direction: column; align-items: stretch;
   }
   /* Avatar + (welcome + name) laid out horizontally when expanded. */
   .sb-user-row {
     display: flex; align-items: center; gap: 12px;
     width: 100%;
+    flex-shrink: 0;   /* avatar row never shrinks — only the friend list scrolls */
   }
   .sb-user-info {
     flex: 1; min-width: 0;
@@ -123,6 +127,36 @@
     display: block;
     pointer-events: none;  /* clicks pass through to the avatar button */
   }
+
+  /* ── Avatar tri-state invariant ─────────────────────────────────────
+     Every coloured-circle avatar in Studio (sidebar, header chip,
+     dropdown, profiles modal, edit-account modal, friend chips/panel,
+     friend banner, add-friend preview) is painted by the ONE pipeline in
+     inventory.js (`paintAvatar` / `avatarMarkup`). That pipeline stamps
+     `data-av-mode="empty|initials|photo"` on the host and guarantees the
+     three child nodes exist. These rules — keyed off the attribute, so
+     they apply regardless of the container's size class — make EXACTLY
+     ONE child visible per mode. The invariant no longer depends on the
+     photo merely *covering* the initials, so sub-pixel rounding, z-index
+     ambiguity or transparent-PNG edges can never leak the text again. */
+  [data-av-mode] > .av-initials { position: relative; z-index: 0; line-height: 1; }
+  [data-av-mode] > .av-plus {
+    width: 42%; height: 42%; display: block; pointer-events: none;
+    color: inherit;
+  }
+  [data-av-mode="initials"] > .av-plus,
+  [data-av-mode="initials"] > .sb-avatar-photo,
+  [data-av-mode="empty"]    > .av-initials,
+  [data-av-mode="empty"]    > .sb-avatar-photo,
+  [data-av-mode="photo"]    > .av-initials,
+  [data-av-mode="photo"]    > .av-plus { display: none !important; }
+  /* Empty (no-account) styling — neutral gradient + no shadow. Driven by
+     CSS (not an inline style) so :hover still works on the sidebar host. */
+  .sb-avatar[data-av-mode="empty"] {
+    background: rgba(255,255,255,.08); box-shadow: none;
+    color: rgba(255,255,255,.55); cursor: pointer;
+  }
+  .sb-avatar[data-av-mode="empty"]:hover { background: rgba(255,255,255,.14); }
 
   /* Swap-back badge — a small ⇄ chip pinned to the bottom-right of the
      avatar. Hidden by default, revealed only while we're previewing a
@@ -168,7 +202,9 @@
     font-size: 10px; color: rgba(255,255,255,.32); text-align: left;
     font-family: var(--mono); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
   }
-  .sb-actions { display: flex; flex-direction: column; gap: 7px; margin-top: 14px; width: 100%; }
+  .sb-actions { display: flex; flex-direction: column; gap: 7px; margin-top: 14px; width: 100%; flex: 0 1 auto; min-height: 0; }
+  /* Refresh / Friends buttons keep their height; only the friend list scrolls. */
+  .sb-actions > button { flex-shrink: 0; }
   .sb-actions button {
     height: 32px; font-size: 12px; width: 100%; justify-content: center; border-radius: 8px;
   }
@@ -183,18 +219,11 @@
   .sb-friends-btn .friends-badge { position: absolute; top: -5px; right: -5px; margin: 0; }
   .sb-sub-welcome { font-size: 11px; color: rgba(255,255,255,.38); text-align: left; margin-top: 0; }
 
-  /* ── avatar : état vide (aucun compte) ── */
-  /* Higher specificity (0,2,0) than the generic `.icon` rule defined
-     later in 70-detail-misc.css — without this, `.icon { display:
-     inline-block }` wins on the cascade and the "+" badge leaks next
-     to the user's initials in the signed-in state (visible as "OM+"
-     in the sidebar avatar). */
-  .sb-avatar .sb-avatar-plus { display: none; pointer-events: none; }
-  .sb-user--empty .sb-avatar { background: rgba(255,255,255,.08) !important; box-shadow: none !important; cursor: pointer; }
-  /* Specificity 0,3,0 — wins over both the base hide above and any
-     later generic `.icon` rule. */
-  .sb-user--empty .sb-avatar .sb-avatar-plus { display: block; }
-  .sb-user--empty .sb-avatar:hover { background: rgba(255,255,255,.14) !important; }
+  /* ── avatar : état vide (aucun compte) ──
+     The avatar's own empty styling (gradient, "+" glyph, hover) now lives
+     in the tri-state block above, keyed off data-av-mode="empty". Here we
+     only keep the surrounding ROW layout that reacts to .sb-user--empty
+     (hiding the name / actions column, recentring the avatar). */
 
   /* connecté → cacher état vide; déconnecté → cacher état connecté */
   .sb-user--empty .sb-sub-welcome,
@@ -407,10 +436,20 @@
     gap: 3px;
     margin: 4px 0 6px;
     padding: 0;
-    /* No max-height/overflow — let the list grow naturally so the
-       collapsed-mode hover tooltip can escape horizontally. The list
-       rarely exceeds ~10 items in practice. */
+    /* Scroll like Discord when the friend list outgrows the sidebar. The
+       flex cascade (.sb-user → .sb-actions → here, all shrinkable with
+       min-height:0) lets ONLY this list scroll — the avatar row, the
+       Refresh/Friends buttons and the community footer stay put. The
+       collapsed-mode hover tooltip is body-appended (#sbFriendTip), so the
+       overflow clip here doesn't hide it. */
+    flex: 0 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    /* Scrollable but with NO visible scrollbar (Discord-style). */
+    scrollbar-width: none;        /* Firefox */
   }
+  .sb-friends-list::-webkit-scrollbar { width: 0; height: 0; display: none; }  /* Chromium */
   .sb-friends-list.hidden { display: none; }
   /* `.sb-actions button:not(.primary)` (specificity 0,2,1) would otherwise
      paint a gray pill behind every chip. Use `button.sb-friend-chip`
@@ -573,25 +612,6 @@
   }
   .sidebar.collapsed .sb-version { font-size: 9px; }
 
-/* ── Image skeleton / shimmer ── */
-@keyframes img-shimmer {
-  0%   { background-position: -200% 0; }
-  100% { background-position:  200% 0; }
-}
-.img-skeleton {
-  background: linear-gradient(90deg,
-    var(--surface-2) 25%,
-    var(--surface-3, #2a2a2a) 50%,
-    var(--surface-2) 75%);
-  background-size: 200% 100%;
-  animation: img-shimmer 1.4s ease-in-out infinite;
-  /* prevent alt text from showing during load */
-  color: transparent;
-}
-@keyframes img-fade-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-img.img-loaded {
-  animation: img-fade-in .25s ease;
-}
+/* Image skeleton / shimmer removed — images now hydrate from the local
+   disk cache and paint instantly, so the gliding "loading shine" was both
+   unnecessary and visually noisy. Images just appear, like everywhere else. */

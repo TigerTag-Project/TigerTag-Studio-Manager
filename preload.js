@@ -226,3 +226,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     downloadAndSaveLatestData: ()            => ipcRenderer.invoke('db:downloadAndSaveLatestData'),
   },
 });
+
+// ── Splash gate ──────────────────────────────────────────────────────────
+// The renderer calls window.studio.ready() once its FIRST usable frame is
+// painted (cached avatar + inventory hydrated from localStorage). Main then
+// swaps the hidden main window in for the splash. Main also has a hard
+// fallback timeout, so a missed signal never leaves the app invisible.
+contextBridge.exposeInMainWorld('studio', {
+  ready: () => ipcRenderer.send('studio:ready'),
+});

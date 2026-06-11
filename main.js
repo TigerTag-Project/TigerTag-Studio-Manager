@@ -170,7 +170,80 @@ function startRendererServer(rendererDir) {
 let imgCacheDir;
 
 let mainWindow;
+let splashWindow = null; // lightweight launch splash, closed once renderer is ready
+let _mainRevealed = false; // guard so revealMainWindow() runs exactly once
 let _camWindow = null; // detached camera wall window (optional)
+
+// ── Splash gate ────────────────────────────────────────────────────────────
+// Discord-style launch: a tiny frameless splash shows INSTANTLY (it's a
+// self-contained data: URL, no server / Firebase needed), while the hidden
+// main window loads + hydrates from cache off-screen. The renderer signals
+// `studio:ready` once its first usable frame is painted; we then swap the
+// main window in for the splash. A hard fallback timer guarantees the main
+// window is always revealed even if the signal never arrives.
+//
+// Inline the TigerTag logo (white fill, transparent bg) so it paints with
+// zero extra requests. Strip the XML prolog so it embeds cleanly in HTML;
+// fall back to a lettermark if the file can't be read.
+let _splashLogo = '';
+try {
+  _splashLogo = fs.readFileSync(path.join(__dirname, 'assets', 'svg', 'logos', 'logo_tigertag.svg'), 'utf8')
+    .replace(/<\?xml[^>]*\?>/i, '')
+    .trim();
+} catch (_) { _splashLogo = ''; }
+const _splashMark = _splashLogo
+  ? `<div class="logo">${_splashLogo}</div>`
+  : `<div class="mark">T</div>`;
+function splashDataURL() {
+  return `data:text/html;charset=utf-8,` + encodeURIComponent(`
+<!doctype html><html><head><meta charset="utf-8"><style>
+  html,body{margin:0;height:100%;background:transparent;overflow:hidden;
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;-webkit-user-select:none;cursor:default}
+  .card{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
+    background:#0e0e10;border-radius:16px;box-shadow:0 18px 60px rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.06)}
+  .mark{width:120px;height:120px;border-radius:28px;background:linear-gradient(135deg,#ff7a18,#ffb056);
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:56px;color:#0e0e10;letter-spacing:-1px;
+    box-shadow:0 8px 28px rgba(255,122,24,.35)}
+  .logo{display:flex;align-items:center;justify-content:center}
+  .logo svg{height:180px;width:auto;display:block;filter:drop-shadow(0 10px 30px rgba(255,122,24,.30))}
+  .name{color:#fff;font-size:16px;font-weight:600;letter-spacing:.2px}
+  .ver{color:rgba(255,255,255,.45);font-size:11px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;margin-top:-10px}
+  .sub{color:rgba(255,255,255,.38);font-size:11px}
+  .bar{width:140px;height:3px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden;margin-top:2px}
+  .bar i{display:block;width:40%;height:100%;border-radius:3px;background:linear-gradient(90deg,#ff7a18,#ffb056);
+    animation:slide 1s ease-in-out infinite}
+  @keyframes slide{0%{transform:translateX(-100%)}100%{transform:translateX(320%)}}
+</style></head><body><div class="card">
+  ${_splashMark}
+  <div class="name">Tiger Studio Manager</div>
+  <div class="ver">v${app.getVersion()}</div>
+  <div class="sub">Loading your studio…</div>
+  <div class="bar"><i></i></div>
+</div></body></html>`);
+}
+
+function createSplash() {
+  splashWindow = new BrowserWindow({
+    width: 480, height: 460,
+    frame: false, transparent: true, resizable: false, movable: true,
+    center: true, show: true, hasShadow: false, alwaysOnTop: true,
+    skipTaskbar: true, focusable: false,
+    webPreferences: { contextIsolation: true, nodeIntegration: false },
+  });
+  splashWindow.loadURL(splashDataURL());
+  splashWindow.on('closed', () => { splashWindow = null; });
+}
+
+function revealMainWindow() {
+  if (_mainRevealed) return;
+  _mainRevealed = true;
+  try { if (splashWindow && !splashWindow.isDestroyed()) splashWindow.close(); } catch (_) {}
+  splashWindow = null;
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.show();
+    mainWindow.focus();
+  }
+}
 
 // NFC state — replayed to renderer on every (re)load
 const _nfcReaders     = new Map();  // name → reader object
@@ -210,6 +283,11 @@ function createWindow() {
     minHeight: 600,
     title: 'Tiger Studio Manager',
     hasShadow: false,
+    // Splash gate: start hidden + dark so there's no white flash, then
+    // reveal only once the renderer signals its first usable paint
+    // (studio:ready) — or the safety fallback below fires.
+    show: false,
+    backgroundColor: '#0e0e10',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -217,6 +295,13 @@ function createWindow() {
       webviewTag: true,    // required for <webview> Creality camera (cross-origin JS injection)
     },
   });
+
+  // Primary reveal signal — renderer posts this after hydrating from cache.
+  ipcMain.once('studio:ready', revealMainWindow);
+  // Safety fallback — never leave the app invisible if the signal is missed
+  // (renderer crash, blocked script, etc.). 6 s is well past a normal cold
+  // start; the studio:ready path almost always wins far sooner.
+  setTimeout(revealMainWindow, 6000);
 
   startRendererServer(__dirname).then(({ port }) => {
     // Always load via 'localhost' (not '127.0.0.1') so Firebase Auth
@@ -2291,6 +2376,10 @@ app.whenReady().then(async () => {
       website:            'https://github.com/TigerTag-Project/TigerTag-Studio-Manager',
     });
   }
+
+  // Show the splash IMMEDIATELY — it's a self-contained data: URL, so it
+  // appears before the DB init / renderer server / Firebase even start.
+  createSplash();
 
   await db.initTigerTagDB();
 

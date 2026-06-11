@@ -38,12 +38,13 @@
            sidebar is expanded. Collapsed mode shrinks back to avatar-only. -->
       <div class="sb-user-row">
         <div class="sb-avatar-wrap">
-          <div class="sb-avatar" id="sbAvatar">
-            <!-- Initials live in their OWN span so paintAvatar can
-                 update the text without nuking the photo overlay or
-                 the swap badge. -->
+          <div class="sb-avatar" id="sbAvatar" data-av-mode="empty">
+            <!-- Tri-state avatar — paintAvatar() stamps data-av-mode and
+                 CSS shows exactly ONE child: .av-initials | .av-plus |
+                 .sb-avatar-photo. Initials live in their own span so the
+                 text can update without nuking the photo / swap siblings. -->
             <span class="av-initials"></span>
-            <span class="icon icon-plus icon-22 sb-avatar-plus"></span>
+            <svg class="av-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             <!-- Swap-back badge — visible only when viewing a friend's
                  inventory. The whole avatar acts as a "return to my
                  inventory" button in that mode; this badge is the visual

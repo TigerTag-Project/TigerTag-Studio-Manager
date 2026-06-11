@@ -5,6 +5,22 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.8.24 — 2026-06-12
+
+### Changed
+
+- **The app now opens already populated — like Discord or Slack.** On launch, your inventory, your friends and your avatar appear in the very first frame, painted instantly from the previous session's local cache; the live data from the server then merges on top silently, repainting only what actually changed. Before, the window waited on the network — the inventory showed a spinner until the server replied, and the friends list popped in late. Product thumbnails are now served from a local on-disk cache too, so they no longer re-download on every launch.
+- **New launch splash screen.** A small TigerTag splash with the logo and the app version shows the instant you open the app, and the main window only appears once it's ready to display fully — no more watching the interface assemble itself piece by piece.
+- **Your sidebar friends list now scrolls** when you have more friends than fit on screen, with no visible scrollbar (Discord-style). The avatar, the Refresh / Friends buttons and the community footer stay fixed in place.
+
+### Fixed
+
+- **No more flickering avatars on launch.** Your avatar in the inventory header and your friends' avatars in the sidebar used to flash / reload 2–3 times on every cold start. They now paint once and stay put.
+- **No more "loading shine" sweeping across every image.** A shimmer animation used to glide left-to-right over every image while it loaded (avatars, inventory, printers). Since images now load instantly from the local cache, that effect was removed — images simply appear.
+- **Your initials can no longer show behind or beside your avatar photo,** and the "+" sign-in badge can no longer leak next to your initials. The avatar now always shows exactly one of: the "+" (signed out), your initials (no photo), or your photo — never a mix.
+
+---
+
 ## v1.8.23 — 2026-06-12
 
 ### Fixed

@@ -215,52 +215,88 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     return source;
   }
 
+  // The "+" glyph for the empty (no-account) avatar state. Inline SVG —
+  // NOT a mask `.icon` — so it carries no dependency on the global
+  // `.icon` cascade (which historically leaked it as "OM+" next to the
+  // initials). It inherits `currentColor` from the host's `color`.
+  const AV_PLUS_SVG =
+    '<svg class="av-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+    'stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>';
+  function _makeAvatarPlus() {
+    const tpl = document.createElement("template");
+    tpl.innerHTML = AV_PLUS_SVG;
+    return tpl.content.firstChild;
+  }
+
   // Compute the styling + content parts once, reused by both the
   // imperative and template forms.
+  //
+  // The crucial output is `mode` ∈ { "empty", "initials", "photo" } —
+  // the single decision the whole tri-state invariant hinges on:
+  //   • `source == null`  → "empty"     (signed-out → the "+" glyph)
+  //   • a usable photoURL → "photo"     (photo only, nothing behind)
+  //   • otherwise         → "initials"  (initials, possibly "" → bare gradient)
+  // The host gets `data-av-mode` stamped on it and CSS hides the two
+  // inactive children with `display:none` — so leakage can never happen
+  // through sub-pixel rounding, z-index ambiguity or transparent-PNG
+  // edges. We never again rely on the photo merely "covering" the text.
   function _buildAvatarParts(source) {
     const subject  = _avatarSubject(source);
+    const photoURL = subject.photoURL || null;
+    const initials = getInitials(subject);
+    const mode = !source ? "empty" : (photoURL ? "photo" : "initials");
+    if (mode === "empty") {
+      // Neutral, style-less — the gradient/shadow/colour come from the
+      // `[data-av-mode="empty"]` CSS rule (so :hover keeps working,
+      // which an inline background would defeat). Empty strings clear
+      // any inline styles a previous paint left on the element.
+      return { mode, subject, photoURL: null, initials: "", bg: "", fg: "", boxShadow: "" };
+    }
     const gradient = getAccGradient(subject);
     const shadowCol = getAccShadow(subject);
     return {
-      subject,
-      gradient,
-      shadowCol,
+      mode, subject, photoURL, initials,
       bg:       gradient,
       fg:       readableTextOn(shadowCol),
       boxShadow: `0 0 0 3px ${shadowCol}40,0 4px 20px ${shadowCol}33`,
-      initials: getInitials(subject),
-      photoURL: subject.photoURL || null,
     };
   }
 
   // Imperative paint — used by sb-avatar (sidebar) and eac-avatar
-  // (edit-account modal). The element MUST contain a child
-  // `<span class="av-initials">` for the text (we never write to the
-  // container's own textContent — that would nuke the photo overlay
-  // and any other siblings like the swap badge). If the span isn't
-  // there yet, we create it on the fly.
+  // (edit-account modal). Ensures the three tri-state children exist
+  // (`.av-initials`, `.av-plus`, optional `.sb-avatar-photo`), updates
+  // them, then stamps `data-av-mode` LAST so the CSS invariant resolves
+  // to exactly one visible child. We never write the container's own
+  // textContent (that would nuke the photo / swap badge siblings).
   function paintAvatar(el, source) {
     if (!el) return;
     const p = _buildAvatarParts(source);
     el.style.background = p.bg;
     el.style.boxShadow  = p.boxShadow;
     el.style.color      = p.fg;
-    let initEl = el.querySelector(".av-initials");
+    let initEl = el.querySelector(":scope > .av-initials");
     if (!initEl) {
       initEl = document.createElement("span");
       initEl.className = "av-initials";
       el.insertBefore(initEl, el.firstChild);
     }
     initEl.textContent = p.initials;
+    if (!el.querySelector(":scope > .av-plus")) el.appendChild(_makeAvatarPlus());
     _renderAvatarPhotoOverlay(el, p.photoURL);
+    el.dataset.avMode = p.mode;
   }
 
   // Template form — returns the full HTML for innerHTML-built lists.
+  // Mirrors `paintAvatar`: all three children present, `data-av-mode`
+  // on the host drives the invariant.
   function avatarMarkup(source, className, extraClass) {
     const p = _buildAvatarParts(source);
     const cls = className + (extraClass ? ' ' + extraClass : '');
-    return `<span class="${cls}" style="background:${p.bg};color:${p.fg}">` +
+    const style = p.bg || p.fg ? ` style="${p.bg ? `background:${p.bg};` : ""}${p.fg ? `color:${p.fg}` : ""}"` : "";
+    return `<span class="${cls}" data-av-mode="${p.mode}"${style}>` +
       `<span class="av-initials">${esc(p.initials)}</span>` +
+      AV_PLUS_SVG +
       _avatarPhotoTag(p.photoURL) +
       `</span>`;
   }
@@ -273,40 +309,191 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   }
   // Inline template form of the photo overlay — used by `innerHTML`-built
   // avatar variants (dropdown, sidebar friend chips, profiles modal,
-  // friend banner). The DOM helper `_renderAvatarPhotoOverlay` below is
-  // the imperative form used after setting `.textContent` (which would
-  // otherwise nuke any pre-existing child <img>).
-  // `onerror` removes the broken <img> so the colour-circle + initials
-  // fall through naturally — same fallback as the DOM helper.
+  // friend banner). On decode-fail the <img> removes itself AND flips the
+  // host back to "initials" mode, so the colour-circle + initials reappear
+  // (the tri-state invariant would otherwise keep them hidden).
   function _avatarPhotoTag(url) {
     if (!url) return "";
-    return `<img class="sb-avatar-photo" src="${esc(url)}" alt="" onerror="this.remove()" />`;
+    return `<img class="sb-avatar-photo" src="${esc(url)}" alt="" ` +
+      `onerror="this.remove();if(this.parentNode)this.parentNode.dataset.avMode='initials'" />`;
   }
   // Insert/update/remove the `<img class="sb-avatar-photo">` overlay on
-  // any avatar container (the sidebar avatar, but also acct-dropdown and
-  // profile-modal rows reuse this helper). Idempotent: same URL twice
-  // doesn't reload, missing URL strips the overlay.
+  // any avatar container, and keep `data-av-mode` consistent (so direct
+  // callers — the edit-account upload/remove flows — don't have to).
+  // Idempotent: same URL twice doesn't reload, missing URL strips the
+  // overlay and returns the host to "initials" mode.
   function _renderAvatarPhotoOverlay(container, url) {
     if (!container) return;
-    let img = container.querySelector(".sb-avatar-photo");
+    let img = container.querySelector(":scope > .sb-avatar-photo");
     if (url) {
       if (!img) {
         img = document.createElement("img");
         img.className = "sb-avatar-photo";
         img.alt = "";
-        // Hide on decode-fail so we fall back to the colour circle silently.
-        img.addEventListener("error", () => img.remove(), { once: true });
+        // On decode-fail: drop the <img> and fall back to initials mode.
+        img.addEventListener("error", () => {
+          img.remove();
+          container.dataset.avMode = "initials";
+        }, { once: true });
         container.appendChild(img);
       }
       if (img.src !== url) img.src = url;
+      container.dataset.avMode = "photo";
     } else if (img) {
       img.remove();
+      container.dataset.avMode = "initials";
     }
   }
 
+  // Dev-only self-test (DevTools: `_avatarTest()`). Paints all three
+  // states through BOTH public entry points (`avatarMarkup` template +
+  // `paintAvatar` imperative) into an off-screen host and asserts, via
+  // getComputedStyle, that exactly ONE child is visible per state and the
+  // other two are `display:none`. Returns true on full pass. Gated behind
+  // debug mode so it never runs for end users.
+  function _avatarTest() {
+    if (!state.debugEnabled) { console.warn("[_avatarTest] enable debug mode first"); return false; }
+    const PX = "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";
+    const host = document.createElement("div");
+    host.style.cssText = "position:fixed;left:-9999px;top:0;opacity:0;pointer-events:none";
+    document.body.appendChild(host);
+    const cases = [
+      { mode: "empty",    source: null,                                              show: "av-plus",         hide: ["av-initials", "sb-avatar-photo"] },
+      { mode: "initials", source: { id: "_t", displayName: "Olivia Mars" },          show: "av-initials",     hide: ["av-plus", "sb-avatar-photo"] },
+      { mode: "photo",    source: { id: "_t", displayName: "Olivia Mars", photoURL: PX }, show: "sb-avatar-photo", hide: ["av-plus", "av-initials"] },
+    ];
+    const shown = (av, cls) => { const n = av.querySelector(":scope > ." + cls); return !!n && getComputedStyle(n).display !== "none"; };
+    const rows = [];
+    let pass = true;
+    for (const form of ["markup", "paint"]) {
+      for (const c of cases) {
+        const wrap = document.createElement("div");
+        if (form === "markup") {
+          wrap.innerHTML = avatarMarkup(c.source, "sb-avatar");
+        } else {
+          const el = document.createElement("span");
+          el.className = "sb-avatar";
+          wrap.appendChild(el);
+          paintAvatar(el, c.source);
+        }
+        host.appendChild(wrap);
+        const av = wrap.querySelector("[data-av-mode]");
+        const modeOk = av && av.dataset.avMode === c.mode;
+        const showOk = av && shown(av, c.show);
+        const hideOk = av && c.hide.every(cl => !shown(av, cl));
+        const ok = !!(modeOk && showOk && hideOk);
+        pass = pass && ok;
+        rows.push({ form, expect: c.mode, mode: av && av.dataset.avMode, visible: c.show, showOk, hideOk, ok });
+      }
+    }
+    console.table(rows);
+    host.remove();
+    console[pass ? "log" : "error"]("[_avatarTest] " + (pass ? "PASS — exactly one child visible in all 6 cases ✓" : "FAIL ✗"));
+    return pass;
+  }
+  if (typeof window !== "undefined") window._avatarTest = _avatarTest;
+
   const STORAGE_ACCOUNTS = "tigertag.accounts";
   const STORAGE_ACTIVE   = "tigertag.activeAccount";
-  const invKey = id => `tigertag.inv.${id}`;
+
+  // ── Local-first persistence layer ───────────────────────────────────
+  // ONE registry of every per-uid cache surface + a uniform read/write.
+  // The whole "feels like Discord on launch" behaviour rests on this: a
+  // surface mirrored here can be hydrated SYNCHRONOUSLY before the first
+  // paint (no Firestore round-trip), then the live snapshot merges on top.
+  //
+  // Existing keys are preserved verbatim (`tigertag.inv.<uid>`,
+  // `tigertag.friends.<uid>`) so this is a formalisation, not a migration.
+  // Surfaces marked "L3" are declared now and wired into their subscribe
+  // paths in the diff-only render pass (Level 3). See ARCHITECTURE.md.
+  const Cache = {
+    _key: {
+      inventory:  uid => `tigertag.inv.${uid}`,
+      friends:    uid => `tigertag.friends.${uid}`,
+      userdoc:    uid => `tigertag.userdoc.${uid}`,
+      racks:      uid => `tigertag.racks.${uid}`,      // L3
+      printers:   uid => `tigertag.printers.${uid}`,   // L3
+      scales:     uid => `tigertag.scales.${uid}`,     // L3
+      friendReqs: uid => `tigertag.friendReqs.${uid}`, // L3
+      blocklist:  uid => `tigertag.blocklist.${uid}`,  // L3
+    },
+    read(surface, uid) {
+      const k = uid && this._key[surface];
+      if (!k) return null;
+      try { return JSON.parse(localStorage.getItem(k(uid)) || "null"); } catch { return null; }
+    },
+    write(surface, uid, data) {
+      const k = uid && this._key[surface];
+      if (!k) return;
+      try { localStorage.setItem(k(uid), JSON.stringify(data)); } catch {}
+    },
+    clear(surface, uid) {
+      const k = uid && this._key[surface];
+      if (!k) return;
+      try { localStorage.removeItem(k(uid)); } catch {}
+    },
+  };
+  // Back-compat alias — the inventory key builder predates the Cache layer.
+  const invKey = id => Cache._key.inventory(id);
+
+  // ── Cold-start trace ────────────────────────────────────────────────
+  // Records wall-clock marks across the launch timeline so we can prove
+  // the "first usable paint < 300 ms" target. Zero cost in normal use;
+  // `window._coldStartTrace()` (DevTools) prints the table + deltas.
+  const ColdStart = {
+    marks: [],
+    _firstPaintDone: false,
+    mark(label) { try { this.marks.push({ label, t: performance.now() }); } catch {} },
+  };
+  ColdStart.mark("module-eval");
+  // Idempotent — records "first-paint" exactly once and tells the main
+  // process (via the splash gate) that the first usable frame is ready,
+  // so it can swap the hidden main window in. Safe to call from several
+  // boot paths (signed-in fast path, signed-out, slow auth); the first
+  // call wins, the rest are no-ops.
+  function signalFirstPaint() {
+    if (ColdStart._firstPaintDone) return;
+    ColdStart._firstPaintDone = true;
+    ColdStart.mark("first-paint");
+    try { window.studio?.ready(); } catch {}
+  }
+  function _coldStartTrace() {
+    const m = ColdStart.marks;
+    if (!m.length) { console.warn("[_coldStartTrace] no marks yet"); return; }
+    const t0 = m[0].t;
+    const rows = m.map((x, i) => ({
+      step: x.label,
+      "t (ms)": Math.round(x.t - t0),
+      "Δ prev (ms)": i ? Math.round(x.t - m[i - 1].t) : 0,
+    }));
+    console.table(rows);
+    const fp = m.find(x => x.label === "first-paint");
+    if (fp) console.log(`[_coldStartTrace] first paint @ ${Math.round(fp.t - t0)} ms ` +
+      ((fp.t - t0) < 300 ? "✓ under 300 ms target" : "✗ over 300 ms"));
+    return rows;
+  }
+  if (typeof window !== "undefined") window._coldStartTrace = _coldStartTrace;
+
+  // ── rAF render coalescer ────────────────────────────────────────────
+  // When a single Firestore tick delivers several collections, naive code
+  // re-renders N times in one frame. `scheduleRender(key, fn)` collapses
+  // repeated requests for the same key into ONE call on the next animation
+  // frame → the user sees one consistent paint per tick. Reusable across
+  // every render site.
+  const _rafPending = new Map();
+  let _rafScheduled = false;
+  function scheduleRender(key, fn) {
+    _rafPending.set(key, fn);
+    if (_rafScheduled) return;
+    _rafScheduled = true;
+    requestAnimationFrame(() => {
+      _rafScheduled = false;
+      const jobs = [..._rafPending.values()];
+      _rafPending.clear();
+      for (const job of jobs) { try { job(); } catch (e) { console.warn("[scheduleRender]", e); } }
+    });
+  }
+
   const LOGO_PATH          = "../assets/svg/logos/logo_tigertag.svg";
   const LOGO_PATH_OUTLINE  = "../assets/svg/logos/logo_tigertag_contouring.svg";
 
@@ -968,6 +1155,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // Render the top-header chip (own user variant — avatar + display name
     // + random welcome greeting) so the chip appears immediately on connect.
     renderFriendBanner();
+    // Paint the sidebar friend chips from the hydrated cache RIGHT NOW, so
+    // the friends list is on screen in the first frame instead of popping
+    // in after loadFriendsList()'s Firestore round-trip. The live fetch
+    // re-renders the delta afterwards.
+    renderSidebarFriends();
     $("signInPlaceholder").classList.add("hidden");
     $("card-inv").classList.add("hidden");
     $("card-welcome").classList.add("hidden");
@@ -977,21 +1169,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function setDisconnected() {
     state.displayName = null; state.keyValid = null;
     state.photoURL = null;  // clear custom avatar → sign-in placeholder shows
-    // Restore "+" SVG inside avatar
-    const av = $("sbAvatar");
-    // Strip any custom-avatar <img> overlay from the previous session
-    av.querySelector(".sb-avatar-photo")?.remove();
-    av.textContent = "";
-    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    svg.setAttribute("class", "sb-avatar-plus");
-    svg.setAttribute("width", "22"); svg.setAttribute("height", "22");
-    svg.setAttribute("viewBox", "0 0 24 24");
-    svg.setAttribute("fill", "none"); svg.setAttribute("stroke", "currentColor");
-    svg.setAttribute("stroke-width", "2.5");
-    svg.setAttribute("stroke-linecap", "round"); svg.setAttribute("stroke-linejoin", "round");
-    svg.innerHTML = '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>';
-    av.appendChild(svg);
-    av.style.background = ""; av.style.boxShadow = "";
+    // Single source-of-truth paint of the EMPTY state: passing `null`
+    // resolves to data-av-mode="empty" → the "+" glyph, neutral gradient,
+    // no shadow, photo stripped — all via the central pipeline + CSS.
+    paintAvatar($("sbAvatar"), null);
     $("sbUser").classList.add("sb-user--empty");
     $("sbStats").classList.add("hidden");
     // Hide the top-header user/friend chip when not signed in.
@@ -4148,6 +4329,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   /* ── Firestore inventory subscription ── */
   function subscribeInventory(uid) {
     unsubscribeInventory();
+    // Tracks the first snapshot of THIS subscription. Previously the code
+    // used `state.invLoading` as that proxy, but local-first hydration now
+    // clears invLoading early (cache already painted), so we need an
+    // explicit flag — reset on every (re)subscribe (e.g. account switch).
+    let _firstSnapDone = false;
     _unsubInventory = fbDb()
       .collection("users").doc(uid)
       .collection("inventory")
@@ -4169,10 +4355,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           setHealthLive();
         }
 
-        // Skip data re-processing on metadata-only updates (but never skip the first load)
-        const wasLoading = state.invLoading;
+        // Skip data re-processing on metadata-only updates (but never skip the first snapshot)
+        const isFirstSnap = !_firstSnapDone;
+        _firstSnapDone = true;
         state.invLoading = false;
-        if (!wasLoading && snapshot.docChanges().length === 0 && !snapshot.metadata.hasPendingWrites) return;
+        if (isFirstSnap) ColdStart.mark("firestore-first-snapshot");
+        if (!isFirstSnap && snapshot.docChanges().length === 0 && !snapshot.metadata.hasPendingWrites) return;
         const raw = {};
         snapshot.forEach(doc => { raw[doc.id] = doc.data(); });
         state.inventory = raw;
@@ -4181,7 +4369,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         // On first live snapshot: silently refresh API data for every TigerTag+
         // spool that has no product image yet. Fire-and-forget — each write
         // triggers a new snapshot that re-renders the panel automatically.
-        if (wasLoading && !snapshot.metadata.fromCache && window.electronAPI?.refreshApiData) {
+        if (isFirstSnap && !snapshot.metadata.fromCache && window.electronAPI?.refreshApiData) {
           state.rows
             .filter(r => r.isPlus && !r.isCloud && !raw[r.spoolId]?.url_img)
             .forEach(r => _refreshApiData(r, { silent: true }));
@@ -4220,12 +4408,17 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         maybeMigrateFlatRackToNested(uid);
         saveInventory(raw);
         preCacheImages(state.rows).then(() => {
-          sortStateRows(); renderStats(); renderInventory();
-          // Refresh open detail panel — short-circuits when the displayed
-          // spool hasn't actually changed (no flash on unrelated edits).
-          refreshOpenDetail();
-          // Refresh racks panel if open (positions/fills may have changed)
-          if ($("racksPanel")?.classList.contains("open")) renderRacksList();
+          // Coalesce: if several snapshots land in the same frame (e.g.
+          // inventory + a pending-write echo), collapse them to one paint.
+          scheduleRender("inventory", () => {
+            sortStateRows(); renderStats(); renderInventory();
+            // Refresh open detail panel — short-circuits when the displayed
+            // spool hasn't actually changed (no flash on unrelated edits).
+            refreshOpenDetail();
+            // Refresh racks panel if open (positions/fills may have changed)
+            if ($("racksPanel")?.classList.contains("open")) renderRacksList();
+            if (!ColdStart._secondPaintDone) { ColdStart._secondPaintDone = true; ColdStart.mark("second-paint"); }
+          });
         });
         setLoading($("btnSbReload"), false);
       }, err => {
@@ -4298,18 +4491,45 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       applyTranslations();
     }
 
+    // Local-first hydration of the user doc (roles / debug / keys /
+    // isPublic) BEFORE the first paint, so the debug button + public flag
+    // are correct on frame 1 instead of popping in after the Firestore
+    // round-trip. syncUserDoc() still refreshes from the server and is the
+    // authoritative source; this only primes the cache.
+    hydrateUserDocCache(uid);
+
     setConnected(acc.displayName, email); // _shortName fallback applied inside
 
-    // Show cached inventory while Firestore connects
+    // Show cached inventory while Firestore connects.
+    // CRITICAL: paint SYNCHRONOUSLY from cache — never await the image
+    // precache here. Thumbnails resolve through the persisted img map
+    // (hydrated at boot) to the local /img-cache/* files the renderer's
+    // own HTTP server serves straight off disk, so they're on screen in
+    // the first frame with ZERO network. preCacheImages then warms/refreshes
+    // any NEW images in the background and repaints the delta (coalesced).
     try {
-      const raw = JSON.parse(localStorage.getItem(invKey(uid)) || "null");
-      if (raw && typeof raw === "object") {
+      const raw = Cache.read("inventory", uid);
+      // Only show the cache if it actually has spools — an empty/missing
+      // cache keeps the spinner up until the authoritative snapshot lands
+      // (avoids an "empty → filled" flash on first-ever login).
+      if (raw && typeof raw === "object" && Object.keys(raw).length > 0) {
         state.inventory = raw;
         state.rows = Object.entries(raw).map(([k,vv]) => normalizeRow(k, vv || {}));
-        await preCacheImages(state.rows);
-        sortStateRows(); renderStats(); renderInventory();
+        // CRITICAL: leave the loading state — otherwise renderInventory()
+        // short-circuits to the spinner and the cache is never painted
+        // until the first Firestore snapshot (this was THE thing making
+        // the user wait on every launch).
+        state.invLoading = false;
+        sortStateRows(); renderStats(); renderInventory();           // ← instant paint
+        preCacheImages(state.rows).then(refreshed => {                // ← background warm
+          if (refreshed) scheduleRender("inventory", renderInventory);
+        });
       }
     } catch {}
+    // First usable frame is on screen (cached avatar + inventory). Mark
+    // the trace and tell main.js to swap in the window. rAF so the mark
+    // lands right after the browser actually paints.
+    requestAnimationFrame(signalFirstPaint);
 
     subscribeInventory(uid);
     syncLangFromFirestore(uid);
@@ -5143,15 +5363,47 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     return isColorDark(bg) ? LOGO_PATH : LOGO_PATH_OUTLINE;
   }
 
+  // Persisted url → local-httpUrl map. The local httpUrl (/img-cache/{md5})
+  // is deterministic and the renderer's own HTTP server serves it straight
+  // off disk, so persisting this map lets the NEXT cold start paint every
+  // thumbnail from the local file in the first frame — no network, no IPC.
+  const IMG_MAP_KEY = "tigertag.imgmap";
+  function loadImgMap() {
+    try {
+      const obj = JSON.parse(localStorage.getItem(IMG_MAP_KEY) || "null");
+      if (obj && typeof obj === "object") {
+        for (const [url, local] of Object.entries(obj)) {
+          if (local && !state.imgCache.has(url)) state.imgCache.set(url, local);
+        }
+      }
+    } catch {}
+  }
+  function saveImgMap() {
+    try {
+      const obj = {};
+      for (const [url, local] of state.imgCache) if (local) obj[url] = local;
+      localStorage.setItem(IMG_MAP_KEY, JSON.stringify(obj));
+    } catch {}
+  }
+
+  // Warm the on-disk image cache for any URL we don't already know. Already-
+  // known URLs (hydrated from the persisted map) are skipped → no redundant
+  // network at boot; the local file is already on disk and immutable for the
+  // catalogue. Returns true if at least one NEW image was resolved (so the
+  // caller can repaint the delta). NEVER call this on the first-paint path.
   async function preCacheImages(rows) {
-    if (!window.electronAPI?.imgGet) return;
+    if (!window.electronAPI?.imgGet) return false;
     const urls = [...new Set(rows.map(r => r.imgUrl).filter(Boolean))];
+    let changed = false;
     await Promise.all(urls.map(async url => {
       if (!state.imgCache.has(url)) {
         const local = await window.electronAPI.imgGet(url).catch(() => null);
         state.imgCache.set(url, local); // null = lien mort sans cache
+        if (local) changed = true;
       }
     }));
+    if (changed) saveImgMap();
+    return changed;
   }
 
   function resolvedImg(url) {
@@ -5181,8 +5433,15 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const overlay = twinOverlayBadge(row);
     const tdBadge = row.td != null ? `<span class="thumb-td-badge">TD ${row.td}</span>` : "";
     const chipBadge = row.needUpdateAt ? `<span class="chip-badge thumb-chip-badge" title="${t("chipPendingHint")}"><span class="icon icon-refresh icon-9"></span></span>` : "";
+    // If `src` is a local /img-cache file that 404s (cache purged since the
+    // map was persisted), fall back ONCE to the remote URL — which also
+    // re-warms the disk cache for next time. No fallback when src already IS
+    // the remote URL (avoids an error loop).
+    const fb = (src && row.imgUrl && src !== row.imgUrl)
+      ? ` data-remote="${esc(row.imgUrl)}" onerror="if(this.dataset.remote){this.src=this.dataset.remote;this.removeAttribute('data-remote')}"`
+      : "";
     const inner = src
-      ? `<img class="thumb" src="${esc(src)}" width="${size}" height="${size}" loading="lazy" />`
+      ? `<img class="thumb" src="${esc(src)}" width="${size}" height="${size}" loading="lazy"${fb} />`
       : `<span class="thumb-color" style="width:${size}px;height:${size}px;background:${colorBg(row)}"><img src="${logoSrc(colorBg(row))}" /></span>`;
     return `<span class="thumb-wrap">${inner}${overlay}${tdBadge}${chipBadge}</span>`;
   }
@@ -8391,14 +8650,29 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // in the main sidebar. Each chip is clickable → switches the inventory
   // view to that friend (read-only). Hidden when there are no friends.
   // Highlights the currently-active friend with an "active" border.
+  // Last-rendered signature of the sidebar friend chips. Like the header
+  // banner, this list is re-rendered many times on cold start (setConnected,
+  // every renderAccountDropdown, then loadFriendsList after the network). A
+  // blind innerHTML reassign would destroy + recreate each friend's avatar
+  // <img> → a 2-3× flash. The guard rebuilds the DOM only when the visible
+  // content changes, so identical re-renders keep the existing <img>.
+  let _sbFriendsSig = null;
   function renderSidebarFriends() {
     const el = $("sbFriendsList");
     if (!el) return;
     if (!state.friends || !state.friends.length) {
-      el.classList.add("hidden");
-      el.innerHTML = "";
+      if (_sbFriendsSig !== "empty") { el.classList.add("hidden"); el.innerHTML = ""; _sbFriendsSig = "empty"; }
       return;
     }
+    // Signature captures exactly what each chip paints (avatar mode / photo /
+    // initials / gradient + name) plus which friend is currently being viewed.
+    const activeUid = state.friendView?.uid || "";
+    const sig = "list|" + activeUid + "|" + state.friends.map(f => {
+      const p = _buildAvatarParts(f);
+      return `${f.uid}:${p.mode}:${p.photoURL || ""}:${p.initials}:${p.bg}:${_shortName(f.displayName, f.uid)}`;
+    }).join(",");
+    if (sig === _sbFriendsSig) return;  // identical → keep the <img>s, no flash
+    _sbFriendsSig = sig;
     el.classList.remove("hidden");
     el.innerHTML = state.friends.map(f => {
       const initials = (f.displayName || "?").split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
@@ -8657,7 +8931,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           uid: f.uid, displayName: f.displayName || "",
           color: f.color || null, photoURL: f.photoURL || null,
         }));
-        localStorage.setItem(`tigertag.friends.${uid}`, JSON.stringify(minimal));
+        Cache.write("friends", uid, minimal);
       } catch (_) { /* quota / privacy mode — silent */ }
 
       renderFriendsList();
@@ -8674,12 +8948,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // delta from Firestore.
   function _hydrateFriendsCache(uid) {
     if (!uid) return;
-    try {
-      const raw = localStorage.getItem(`tigertag.friends.${uid}`);
-      if (!raw) return;
-      const cached = JSON.parse(raw);
-      if (Array.isArray(cached)) state.friends = cached;
-    } catch (_) { /* corrupt JSON — ignore, fresh load will overwrite */ }
+    const cached = Cache.read("friends", uid);
+    if (Array.isArray(cached)) state.friends = cached;
   }
 
   /* ── Racks (storage shelves) ───────────────────────────────────────────── */
@@ -14129,6 +14399,15 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // visual frame (avatar | stacked name+sub), so the user gets the same
   // reading rhythm whether they're on their own inventory or peeking at
   // a friend's. Originally Friend-only, hence the historical name.
+  // Last-rendered content signature of the header banner. renderInventory()
+  // calls renderFriendBanner() on every pass, and the cold start fires
+  // several renders in a row (spinner → cache → snapshot → bg images). If we
+  // blindly reassigned innerHTML each time, the avatar <img> would be
+  // destroyed + recreated repeatedly → a 2-3× flash. The signature guard
+  // rebuilds the DOM ONLY when the visible content actually changes, so the
+  // <img> survives identical re-renders (no flash) — same idea as paintAvatar
+  // updating the sidebar avatar in place.
+  let _fvbSig = null;
   function renderFriendBanner() {
     const banner = $("friendViewBanner");
     // Toggle the sidebar avatar's "swap-back" affordance — visible only
@@ -14141,7 +14420,6 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     $("btnAddScan")?.classList.toggle("hidden", !!state.friendView);
     $("btnAddProduct")?.classList.toggle("hidden", !!state.friendView);
     if (!banner) return;
-    banner.classList.remove("fvb--own", "fvb--error");
     // ─── Friend view ───────────────────────────────────────────────
     if (state.friendView) {
       const { displayName, avatarColor, photoURL, error } = state.friendView;
@@ -14149,31 +14427,43 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       // from the friend's avatarColor (a single hex, not an RGB
       // triplet like an account uses).
       const friendSource = { displayName, photoURL, color: avatarColor };
-      banner.innerHTML = `
-        ${avatarMarkup(friendSource, "fvb-avatar")}
-        <div class="fvb-inner">
-          <span class="fvb-name">${esc(displayName || "—")}</span>
-          ${error
-            ? `<span class="fvb-badge fvb-badge--error" title="${esc(error)}">⚠ ${t("friendInvErrorBadge")}</span>`
-            : `<span class="fvb-badge">${t("friendViewReadOnly")}</span>`}
-        </div>`;
+      const p = _buildAvatarParts(friendSource);
+      const sig = `friend|${displayName || ""}|${p.mode}|${p.photoURL || ""}|${p.initials}|${p.bg}|${error || ""}|${state.lang}`;
+      if (sig !== _fvbSig) {
+        _fvbSig = sig;
+        banner.innerHTML = `
+          ${avatarMarkup(friendSource, "fvb-avatar")}
+          <div class="fvb-inner">
+            <span class="fvb-name">${esc(displayName || "—")}</span>
+            ${error
+              ? `<span class="fvb-badge fvb-badge--error" title="${esc(error)}">⚠ ${t("friendInvErrorBadge")}</span>`
+              : `<span class="fvb-badge">${t("friendViewReadOnly")}</span>`}
+          </div>`;
+      }
+      banner.classList.remove("fvb--own");
       banner.classList.toggle("fvb--error", !!error);
       banner.classList.remove("hidden");
       return;
     }
     // ─── Own view (signed in, not previewing a friend) ─────────────
     const acc = activeAccount();
-    if (!acc) { banner.classList.add("hidden"); return; }
+    if (!acc) { banner.classList.add("hidden"); banner.classList.remove("fvb--own", "fvb--error"); _fvbSig = "none"; return; }
     // `own` is the chip's displayed text — falls back to the email
     // prefix when no name is known, so the chip never reads blank.
     // (Initials are handled separately by avatarMarkup — never from
     // email — see getInitials.)
     const own = _shortName(state.displayName || acc.displayName, acc.email);
-    banner.innerHTML = `
-      ${avatarMarkup(acc, "fvb-avatar")}
-      <div class="fvb-inner">
-        <span class="fvb-name">${esc(own)}</span>
-      </div>`;
+    const p = _buildAvatarParts(acc);
+    const sig = `own|${own}|${p.mode}|${p.photoURL || ""}|${p.initials}|${p.bg}`;
+    if (sig !== _fvbSig) {
+      _fvbSig = sig;
+      banner.innerHTML = `
+        ${avatarMarkup(acc, "fvb-avatar")}
+        <div class="fvb-inner">
+          <span class="fvb-name">${esc(own)}</span>
+        </div>`;
+    }
+    banner.classList.remove("fvb--error");
     banner.classList.add("fvb--own");
     banner.classList.remove("hidden");
   }
@@ -15188,6 +15478,22 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     return url;
   }
 
+  // Local-first hydration of the user doc — applies the cached roles /
+  // debug / keys / isPublic synchronously so the debug button and public
+  // flag are correct on the FIRST frame. Authoritative refresh still comes
+  // from syncUserDoc(); this only primes state from localStorage. No-op if
+  // nothing cached yet (first ever login).
+  function hydrateUserDocCache(uid) {
+    const c = Cache.read("userdoc", uid);
+    if (!c) return;
+    state.isAdmin      = c.roles === "admin";
+    state.debugEnabled = state.isAdmin && !!c.Debug;
+    if (c.publicKey)  state.publicKey  = c.publicKey;
+    if (c.privateKey) state.privateKey = c.privateKey;
+    state.isPublic     = !!c.isPublic;
+    try { applyDebugMode(); } catch {}
+  }
+
   async function syncUserDoc(uid) {
     // Always use the named Firestore instance for this specific uid,
     // never fbDb() without parameter — that depends on state.activeAccountId
@@ -15228,6 +15534,18 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       state.publicKey  = data.publicKey;
       state.privateKey = data.privateKey;
       state.isPublic   = data.isPublic || false;
+
+      // Mirror the minimal user-doc shape to the local-first cache so the
+      // NEXT cold start can hydrate roles / debug / keys / isPublic before
+      // the first paint (see hydrateUserDocCache).
+      Cache.write("userdoc", uid, {
+        roles:      data.roles || null,
+        Debug:      !!data.Debug,
+        publicKey:  data.publicKey || null,
+        privateKey: data.privateKey || null,
+        isPublic:   !!data.isPublic,
+        displayName: data.displayName || null,
+      });
 
       // Extra subnets — load from Firestore + wire the persister so every
       // brand scan modal reads/writes a single shared list (Snapmaker,
@@ -15478,38 +15796,21 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     applyLang(lang);
   });
 
-  /* ── Image skeleton / shimmer ── */
-  // Remove shimmer once an image finishes loading
-  document.addEventListener('load', e => {
-    const img = e.target;
-    if (img.tagName !== 'IMG') return;
-    img.classList.remove('img-skeleton');
-    img.classList.add('img-loaded');
-  }, true);
-
-  // Auto-apply skeleton to every new web image inserted into the DOM
-  const _imgObserver = new MutationObserver(mutations => {
-    for (const m of mutations) {
-      for (const node of m.addedNodes) {
-        if (node.nodeType !== 1) continue;
-        const imgs = node.tagName === 'IMG' ? [node] : [...node.querySelectorAll('img')];
-        for (const img of imgs) {
-          if (img.src?.startsWith('http') && !img.complete) {
-            img.classList.add('img-skeleton');
-          }
-        }
-      }
-    }
-  });
-  _imgObserver.observe(document.body, { childList: true, subtree: true });
-
   /* ── init ── */
   loadLocales().then(() => {
     applyTranslations();
+    ColdStart.mark("locales-ready");
     return loadLookups();
   }).then(() => {
+    ColdStart.mark("lookups-ready");
+    loadImgMap();  // hydrate url→local-file map so cached thumbnails paint instantly
     runMigration(); // wipe legacy API-key accounts before Firebase takes over
     initAuth();    // start Firebase auth state listener
+    // Fallback first-paint signal: the signed-in fast path calls
+    // signalFirstPaint() as soon as the cached avatar + inventory are
+    // painted, but a signed-out (or very slow auth) launch has no such
+    // trigger — reveal the window once the shell is on screen. Idempotent.
+    requestAnimationFrame(signalFirstPaint);
   });
 
   // ── Electron RFID integration ──
