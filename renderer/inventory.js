@@ -914,7 +914,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // ── Connected accounts ──
     let html = accounts.map(acc => `
       <button class="acct-drop-item${acc.id===activeId?' active':''}" data-drop-id="${esc(acc.id)}">
-        <span class="acct-drop-avatar" style="background:${getAccGradient(acc)};color:${readableTextOn(getAccShadow(acc))}">${esc(getInitials(acc))}${_avatarPhotoTag(acc.id === activeId ? state.photoURL : null)}</span>
+        <span class="acct-drop-avatar" style="background:${getAccGradient(acc)};color:${readableTextOn(getAccShadow(acc))}">${esc(getInitials(acc))}${_avatarPhotoTag(acc.id === activeId ? (state.photoURL || acc.photoURL) : acc.photoURL)}</span>
         <span class="acct-drop-name">${esc(_shortName(acc.displayName, acc.email))}</span>
         ${acc.id===activeId ? '<span class="acct-drop-check">✓</span>' : ''}
       </button>`).join("");
@@ -4238,7 +4238,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         const name = esc(acc.displayName || acc.email.split("@")[0]);
         return `
         <button class="prf-account-card" data-prf-id="${esc(acc.id)}">
-          <span class="prf-account-avatar" style="background:${getAccGradient(acc)};color:${readableTextOn(getAccShadow(acc))}">${esc(getInitials(acc))}${_avatarPhotoTag(acc.id === state.activeAccountId ? state.photoURL : null)}</span>
+          <span class="prf-account-avatar" style="background:${getAccGradient(acc)};color:${readableTextOn(getAccShadow(acc))}">${esc(getInitials(acc))}${_avatarPhotoTag(acc.id === state.activeAccountId ? (state.photoURL || acc.photoURL) : acc.photoURL)}</span>
           <span class="prf-account-info">
             <span class="prf-account-name">${name}</span>
             <span class="prf-account-email">${esc(acc.email)}</span>
@@ -15108,13 +15108,26 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       // only. Failures (offline, no profile doc yet, rules) silently
       // fall back to state.photoURL = null → applyAvatarStyle below
       // renders the colour circle + initials as usual.
+      // Also CACHE the URL on the Account object in localStorage — that
+      // way OTHER connected accounts (non-active) render their avatar
+      // in the dropdown / profiles modal without an extra Firestore
+      // read at render time. The cache refreshes every time syncUserDoc
+      // runs for that account (= every time it becomes active).
       try {
         const profSnap = await db.collection("userProfiles").doc(uid).get();
+        const photoURL = profSnap.exists ? (profSnap.data().photoURL || null) : null;
+        // Cache on the Account object in localStorage.
+        const accsForPhoto = getAccounts();
+        const accForPhoto = accsForPhoto.find(x => x.id === uid);
+        if (accForPhoto && (accForPhoto.photoURL || null) !== photoURL) {
+          accForPhoto.photoURL = photoURL;
+          saveAccounts(accsForPhoto);
+        }
         if (uid === state.activeAccountId) {  // re-check after async
-          state.photoURL = profSnap.exists ? (profSnap.data().photoURL || null) : null;
+          state.photoURL = photoURL;
         }
       } catch (_) {
-        state.photoURL = null;
+        if (uid === state.activeAccountId) state.photoURL = null;
       }
 
       applyAvatarStyle(acc);

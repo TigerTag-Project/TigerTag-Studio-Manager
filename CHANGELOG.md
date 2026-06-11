@@ -5,6 +5,14 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.8.22 — 2026-06-11
+
+### Added
+
+- **Custom profile picture — upload your own avatar.** The colour-circle + initials avatar everywhere in Studio (sidebar, top "OM" header chip, edit-account modal, account dropdown, profiles modal, friends list, friends panel, friend banner when previewing a friend's inventory) now shows your uploaded photo when you set one. The edit flow lives in the edit-account modal: hover the avatar circle to see an edit pen overlay, click to open a menu with **Change avatar** and **Remove avatar** — same UX as Discord. Picking a file opens a dedicated "Edit image" modal with a circular preview where you can **zoom (1×–3×), rotate by 90°, and drag-to-pan** the source image until the framing is right, then Apply. The cropper auto-picks the best format on Apply: photos go out as JPEG ~30–50 KB, transparent memojis / illustrations go out as PNG that preserves the source's transparent areas (so the avatar's coloured gradient bleeds through, just like Slack and Discord). Removing the photo reverts to the legacy colour circle + your initials. Visible to your friends and to anyone previewing your friend code before sending a request (consistent with how your display name is already shown in that flow). Server-side cap at 500 KB rejects raw multi-megabyte phone photos.
+
+---
+
 ## v1.8.21 — 2026-06-11
 
 ### Fixed
