@@ -19,10 +19,9 @@ by AnycubicSlicerNext. So the integration:
 2. Talks MQTT directly to `mqtts://<printer-ip>:9883` forever after.
 
 A printer is in **LAN mode** or **cloud mode**, never both. Cloud-mode
-printers expose NOTHING locally (no open ports at all) — only LAN-mode
-printers are supported here. (A cloud channel exists and was reproduced in
-ACE-RFID via the `hass-anycubic_cloud` constants, but it needs an expiring
-session token; out of scope for this integration.)
+printers expose NOTHING locally (no open ports at all), so they're reached
+through Anycubic's cloud instead — see **§9 Cloud mode**. Both modes are
+supported and coexist in one printer list (mixed fleet).
 
 ## §2 Port map (LAN mode ON)
 
@@ -138,8 +137,12 @@ Request body (both actions):
 ]}}
 ```
 
-- Box `id` **-1** = external/standalone spool holder; `0..N-1` = ACE units;
-  each box has slots `0..3`.
+- Box `id` **-1** = external/standalone box; `0..N-1` = ACE units. **Every box
+  is a multi-slot unit** — the external box is NOT a single slot: an ACE Pro 2
+  / Kobra X reports box -1 with **4 slots** (verified: id -1, 4 PLA slots), and
+  each ACE unit has slots `0..3`. The UI must render every box (incl. -1) with
+  all of its slots — collapsing -1 to one cell loses 3 external slots.
+  (Example — Kobra X: box -1 (4 slots) + boxes 0,1,2,3 (4 each) = 20 slots.)
 - `model_id` 40001 = ACE Pro, 40002 = ACE Pro 2.
 - ACE Pro 2 boxes add `drying_status`, `feed_status`, `auto_feed`, etc.
 
@@ -301,6 +304,8 @@ they are observed (the value appears in both `/info` and the slicer config).
 
 ## §7 Field mapping — Firestore printer doc
 
+LAN docs (`mode` absent / `"lan"`):
+
 | Doc field        | Source                            | Used for                      |
 |------------------|-----------------------------------|-------------------------------|
 | `ip`             | slicer config `broker` host / scan | MQTT host                     |
@@ -310,6 +315,18 @@ they are observed (the value appears in both `/info` and the slicer config).
 | `username`       | slicer config                      | broker auth                   |
 | `password`       | slicer config                      | broker auth                   |
 | `printerModelId` | catalog match (name heuristics)    | photo + model name in UI      |
+
+Cloud docs (`mode: "cloud"`, doc id `cloud_<cloudPrinterId>`):
+
+| Doc field        | Source                       | Used for                          |
+|------------------|------------------------------|-----------------------------------|
+| `cloudPrinterId` | cloud `getPrinters[].id`     | REST `sendOrder` `printer_id`     |
+| `machineType`    | cloud `getPrinters[].machine_type` | cloud topic `{modelId}` + photo |
+| `acuModelId`     | = `machineType` (string)     | catalog/topic parity with LAN     |
+| `key`            | cloud `getPrinters[].key`    | cloud topic `{key}`               |
+| `cloudToken`     | CDP `GET_TOKEN` (workbench)  | REST + cloud-MQTT auth            |
+| `cloudEmail`     | CDP `GET_USER_INFO` / JWT    | cloud-MQTT login                  |
+| `printerModelId` | catalog match                | photo + model name in UI          |
 
 ## §8 Limitations / honesty notes
 
@@ -324,3 +341,65 @@ they are observed (the value appears in both `/info` and the slicer config).
 - Camera framerate is capped at ~5 fps by the ffmpeg remux (status-cam use
   case); the native FLV stream is full-rate H.264 if a future phase embeds
   a real player (mpegts.js).
+
+## §9 Cloud mode — reaching cloud-mode printers
+
+Cloud-mode printers expose no local ports, so they're driven through Anycubic's
+cloud (authenticated as the account owner). Auth scheme ported from ACE-RFID's
+`CloudApi` (public app constants from the `hass-anycubic_cloud` RE). Validated
+end-to-end on a cloud Kobra 3 V2 (token grab → getPrinters → cloud-MQTT getInfo).
+
+### Token acquisition (the only non-trivial part)
+The workbench API needs a **session token** the slicer mints in memory at login.
+It is **not on disk** (verified): the slicer config's `access_token` is an OAuth
+token (`iss: uc.makeronline.com`) that the workbench rejects (`10001`), and the
+WebView2 localStorage stores the workbench token as `null`. The OAuth token can't
+be exchanged headlessly (`getoauthToken` needs a captcha-gated `code`). So we
+read it the way ACE-RFID does — **CDP, attach-only**:
+- The user runs AnycubicSlicerNext in **bridge mode** themselves
+  (`WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9222`), signed
+  in, Workbench open. We **never launch the slicer** — `anycubic:cloud-cdp-token`
+  attaches to `127.0.0.1:9222`, finds the Workbench page (`url`/`title` matches
+  `workbench`/`orca-ac-web`), and `Runtime.evaluate`s `GET_TOKEN` / `GET_USER_INFO`
+  from the Vuex store. Token + email are stored on the cloud printer doc(s).
+- The token expires (it's a session token, unlike the durable LAN cert) → re-run
+  "Add a cloud printer" to refresh. A hard failure surfaces as the shared cloud
+  client erroring/disconnecting (`anycubic:cloud-status`).
+
+### REST (signed) — `https://cloud-universe.anycubic.com/p/p/workbench/api`
+Every request carries signed headers (Node `https`, **not** `fetch` — the gateway
+is case-sensitive on header names and undici lowercases them):
+`Xx-Signature = md5(AID + ts + VER + SEC + nonce + AID)` with public constants
+`AID=f9b3…`, `SEC=0cf7…`, `VER=V3.0.0`, plus `XX-Token: <session token>`.
+- `GET /work/printer/getPrinters?page=1` → `[{id, name, machine_type, key, device_status}]` (1=online, 2=offline).
+- `POST /work/operation/sendOrder` `{order_id, printer_id, project_id:0, data}` — **1206 = getInfo**, **1211 = setSlot** (`{multi_color_box:[{id,slots:[{color:[r,g,b],index,type}]}]}`).
+- `GET /user/profile/userInfo` → verify token + email.
+
+### Cloud MQTT — `mqtt-universe.anycubic.com:8883`
+Reports come back here (same `…/multiColorBox/report` + telemetry shapes as LAN,
+so the same `_acuMerge` parses them). Connection (`services/anycubicCloudCerts.js`):
+- **bundled client cert** (PKCS#12, empty passphrase) presented as mTLS;
+- `clientId = md5(email+"pcf")`, `mqttToken = base64(RSA_encrypt(token, CA_pubkey, PKCS1))`,
+  `username = "user|pcf|"+email+"|"+md5(clientId+mqttToken+clientId)`, `password = mqttToken`;
+- **TLS 1.2 + `ciphers: DEFAULT:@SECLEVEL=0`** — the Anycubic CA chain uses a weak
+  (SHA1) digest OpenSSL rejects by default; SECLEVEL=0 allows the handshake
+  (matches the slicer/.NET path).
+- One **shared** client per signed-in user; subscribe per printer to
+  `anycubic/anycubicCloud/v1/+/public/{machineType}/{key}/#`. Reports route back
+  to the renderer tagged with the printer's conn key.
+
+### Implementation
+`main.js` (cloud block): `anycubic:cloud-cdp-token`, `:cloud-get-printers`,
+`:cloud-verify`, `:cloud-send-order`, `:cloud-connect`/`:cloud-subscribe`/
+`:cloud-unsubscribe` (+ `:cloud-message`/`:cloud-status`). Renderer driver
+(`index.js`) branches on `printer.mode === "cloud"`: connect = shared-MQTT
+subscribe + REST getInfo; refresh/getInfo/setInfo via REST; reports reuse
+`_acuMerge`; **no camera** (cloud camera is TRTC, §5c). Provisioning UI:
+`add-flow.js` "Add a cloud printer" panel (CDP grab → getPrinters → one-click add,
+written by `ctx.addAnycubicCloudPrinter` as a `mode:"cloud"` doc).
+
+### Limits (cloud)
+- `setInfo` honors only `{index, type, color}` (same as LAN).
+- **Token expires** → occasional re-provision (the slicer in bridge mode again).
+- **No camera** for cloud printers (TRTC; out of scope — §5c).
+- Dev validators: `scripts/acu-cloud-test.mjs` (full path), `acu-mqtt-sniff.mjs`.

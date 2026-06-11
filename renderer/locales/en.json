@@ -942,5 +942,18 @@
     "Pair the printer once in AnycubicSlicerNext (LAN mode ON).",
     "Use 'Import from Anycubic Slicer' to fill all fields automatically.",
     "Credentials are durable — the slicer is not needed afterwards."
-  ]
+  ],
+  "acuCloudChoice": "Add a cloud printer",
+  "acuCloudChoiceHint": "For printers in cloud mode (via the slicer)",
+  "acuCloudTitle": "Add a cloud printer",
+  "acuCloudSub": "Cloud printers on your Anycubic account",
+  "acuCloudConnect": "Connect to slicer",
+  "acuCloudHelpIntro": "Cloud printers are added through AnycubicSlicerNext. Start it with remote debugging, signed in, and open the Workbench:",
+  "acuCloudErrUnreachable": "Slicer not reachable. Launch AnycubicSlicerNext in bridge mode (below), signed in, with the Workbench open.",
+  "acuCloudErrNoWorkbench": "Workbench not found. Open the Workbench tab in the slicer and sign in.",
+  "acuCloudErrNoToken": "Not signed in. Sign in to your Anycubic account in the slicer, then retry.",
+  "acuCloudErrRest": "Couldn't reach the Anycubic cloud. Check your connection and retry.",
+  "acuCloudErrNoPrinters": "No cloud printers on your account.",
+  "acuCloudAddFailed": "Couldn't add the cloud printer.",
+  "printerConnCloud": "Cloud"
 }

@@ -115,10 +115,66 @@ function _acuRequest(action, data, type = "multiColorBox") {
  *   camera, call acuConnect again without skipCam and it activates the stream
  *   (video/startCapture) on the live MQTT session.
  */
+/** Fresh per-connection live-data block (shared by LAN + cloud). */
+function _acuDefaultData() {
+  return {
+    boxes:      [],   // [{ id, modelId, temp, slots: [{ index, type, color }] }]
+    lastReport: null, // epoch ms of the last layout report
+    // Print job (type:"print" reports — PROTOCOL.md §5b)
+    printState:    null,  // printing|preparing|paused|finished|failed|idle
+    printFilename: null,
+    progress:      0,     // 0-100
+    remainTime:    0,     // minutes
+    currLayer:     0,
+    totalLayers:   0,
+    // Temperatures (type:"tempature" + print "updated" reports)
+    nozzleCurrent: null, nozzleTarget: null,
+    bedCurrent:    null, bedTarget:    null,
+    // Misc telemetry
+    fanSpeedPct:   null,
+    printSpeedPct: null,
+    workState:     null,  // "free" | "busy" (type:"status" workReport)
+    // Camera (LAN/FLV only — never used for cloud printers)
+    camWanted:     false,
+    camLive:       false,
+    camSupported:  null,
+    lastCamFrame:  null,
+  };
+}
+
+/** True for cloud-mode printers (reached through Anycubic's cloud). */
+function _acuIsCloud(p) { return p && p.mode === "cloud"; }
+
 export function acuConnect(printer, { skipCam = false } = {}) {
   const key = acuKey(printer);
-  const ip  = printer.ip || "";
   const existing = _acuConns.get(key);
+
+  // ── Cloud mode: shared cloud-MQTT subscription + REST getInfo ─────────────
+  if (_acuIsCloud(printer)) {
+    if (existing && (existing.status === "connected" || existing.status === "connecting")) return;
+    const prev = existing?.data ? { ...existing.data } : null;
+    if (existing) acuDisconnect(key);
+    const conn = {
+      key, ip: "", mode: "cloud", printer,
+      status: "connecting", lastError: null, refreshTimer: null,
+      log: [], logPaused: false, logExpanded: false,
+      data: prev || _acuDefaultData(),
+    };
+    _acuConns.set(key, conn);
+    // Open (idempotent) the shared cloud client, subscribe this printer's topic,
+    // and pull a layout snapshot (also the reachability check). Reports arrive
+    // on cloud.onMessage and flow through the same _acuMerge as LAN.
+    window.anycubic?.cloud?.connect({ email: printer.cloudEmail, token: printer.cloudToken });
+    window.anycubic?.cloud?.subscribe({ connKey: key, machineType: String(printer.machineType || printer.acuModelId || ""), key: printer.key });
+    _acuCloudGetInfo(conn);
+    _scheduleRefresh(conn);
+    _acuNotify(conn, /*statusChanged*/ true);
+    _acuRefreshOnlineUI(key);
+    return;
+  }
+
+  // ── LAN mode (direct local broker) ────────────────────────────────────────
+  const ip  = printer.ip || "";
 
   // Preserve live data across reconnections so the UI doesn't flicker.
   let _prevData = null;
@@ -140,6 +196,7 @@ export function acuConnect(printer, { skipCam = false } = {}) {
   const conn = {
     key,
     ip,
+    mode:         "lan",
     status:       "connecting",
     lastError:    null,
     refreshTimer: null,
@@ -149,29 +206,7 @@ export function acuConnect(printer, { skipCam = false } = {}) {
     // On reconnect: keep previous layout/job so the UI doesn't flash to
     // empty while the handshake completes. Clear lastCamFrame — the camera
     // stream is being restarted.
-    data: _prevData ? { ..._prevData, lastCamFrame: null } : {
-      boxes:      [],   // [{ id, modelId, temp, slots: [{ index, type, color }] }]
-      lastReport: null, // epoch ms of the last layout report
-      // Print job (type:"print" reports — PROTOCOL.md §5b)
-      printState:    null,  // printing|preparing|paused|finished|failed|idle
-      printFilename: null,
-      progress:      0,     // 0-100
-      remainTime:    0,     // minutes
-      currLayer:     0,
-      totalLayers:   0,
-      // Temperatures (type:"tempature" + print "updated" reports)
-      nozzleCurrent: null, nozzleTarget: null,
-      bedCurrent:    null, bedTarget:    null,
-      // Misc telemetry
-      fanSpeedPct:   null,
-      printSpeedPct: null,
-      workState:     null,  // "free" | "busy" (type:"status" workReport)
-      // Camera (on-demand, probe-gated — see header)
-      camWanted:     false, // a panel wants the feed
-      camLive:       false, // probe said live + ffmpeg started
-      camSupported:  null,  // null=unknown, true=local FLV, false=WebRTC/none
-      lastCamFrame:  null,
-    },
+    data: _prevData ? { ..._prevData, lastCamFrame: null } : _acuDefaultData(),
   };
   // A fresh reconnect must not inherit a stale camLive (ffmpeg was stopped).
   if (_prevData) { conn.data.camLive = false; conn.data.camWanted = false; }
@@ -197,6 +232,12 @@ export function acuDisconnect(key) {
   const conn = _acuConns.get(key);
   if (!conn) return;
   if (conn.refreshTimer) { clearTimeout(conn.refreshTimer); conn.refreshTimer = null; }
+  // Cloud: just drop the shared-client subscription (no local broker/camera).
+  if (conn.mode === "cloud") {
+    window.anycubic?.cloud?.unsubscribe(key);
+    _acuConns.delete(key);
+    return;
+  }
   if (conn._camRetry)    { clearTimeout(conn._camRetry);    conn._camRetry = null; }
   // If we activated the camera, tell the printer to stop capturing so it isn't
   // left streaming after we're gone.
@@ -204,6 +245,32 @@ export function acuDisconnect(key) {
   window.anycubic?.camStop(key);
   window.anycubic?.disconnect(key);
   _acuConns.delete(key);
+}
+
+// ── Cloud transport helpers (REST sendOrder; reports arrive via cloud MQTT) ──
+
+const ACU_ORDER_GET_INFO = 1206;
+const ACU_ORDER_SET_SLOT = 1211;
+
+function _acuCloudGetInfo(conn) {
+  const p = conn.printer;
+  if (!p) return;
+  _acuLogPush(conn, "→", { type: "multiColorBox", action: "getInfo", via: "cloud" });
+  window.anycubic?.cloud?.sendOrder({
+    token: p.cloudToken, orderId: ACU_ORDER_GET_INFO, printerId: p.cloudPrinterId,
+    data: { multi_color_box: [] },
+  });
+}
+
+function _acuCloudSetInfo(conn, boxId, slot, type, rgb) {
+  const p = conn.printer;
+  if (!p) return Promise.resolve({ ok: false, error: "no-printer" });
+  _acuLogPush(conn, "→", { type: "multiColorBox", action: "setInfo", via: "cloud",
+    data: { multi_color_box: [{ id: boxId, slots: [{ index: slot, type, color: rgb }] }] } });
+  return window.anycubic?.cloud?.sendOrder({
+    token: p.cloudToken, orderId: ACU_ORDER_SET_SLOT, printerId: p.cloudPrinterId,
+    data: { multi_color_box: [{ id: Number(boxId), slots: [{ color: rgb, index: Number(slot), type: String(type) }] }] },
+  });
 }
 
 /**
@@ -338,7 +405,8 @@ function _scheduleRefresh(conn, delayMs = ACU_REFRESH_MS) {
   conn.refreshTimer = setTimeout(() => {
     conn.refreshTimer = null;
     if (!_acuConns.has(conn.key)) return;
-    _publish(conn, _acuRequest("getInfo"));
+    if (conn.mode === "cloud") _acuCloudGetInfo(conn);
+    else                       _publish(conn, _acuRequest("getInfo"));
     _scheduleRefresh(conn);
   }, delayMs);
 }
@@ -419,6 +487,50 @@ if (typeof window !== "undefined" && window.anycubic) {
     conn.data.lastCamFrame = null;
     ctx.onPrinterStatusChange?.(key, "connected"); // drop banner back to hero
     if (conn.data.camWanted && _acuCameraSurfaceOpen(key)) _acuRequestCamera(conn);
+  });
+}
+
+// ── Cloud listeners (shared cloud-MQTT; reports tagged with the conn key) ────
+
+if (typeof window !== "undefined" && window.anycubic?.cloud) {
+  window.anycubic.cloud.onMessage((connKey, _topic, data) => {
+    const conn = _acuConns.get(connKey);
+    if (!conn || conn.mode !== "cloud") return;
+    _acuLogPush(conn, "←", data);
+    // First report confirms the cloud printer is reachable + the token works.
+    if (conn.status !== "connected") {
+      conn.status = "connected";
+      conn.lastError = null;
+      _acuNotify(conn, /*statusChanged*/ true);
+      _acuRefreshOnlineUI(connKey);
+    }
+    _acuMerge(conn, data);
+  });
+
+  // Shared-client status.
+  window.anycubic.cloud.onStatus((status) => {
+    if (status === "connected") {
+      // The shared MQTT is up and (re)subscribed — (re)request a layout
+      // snapshot for every cloud printer. This is what makes a cloud printer
+      // flip to "online" on startup: the initial getInfo fired during
+      // acuConnect raced the MQTT handshake and its report was missed, so we
+      // re-issue it now that we're guaranteed to be subscribed.
+      for (const conn of _acuConns.values()) {
+        if (conn.mode === "cloud") _acuCloudGetInfo(conn);
+      }
+      return;
+    }
+    // On a hard error/disconnect, drop all cloud printers to offline so the
+    // badges reflect reality (a token expiry surfaces here).
+    const offline = String(status).startsWith("error:") ? "error" : "disconnected";
+    for (const conn of _acuConns.values()) {
+      if (conn.mode === "cloud" && conn.status === "connected") {
+        conn.status = offline;
+        conn.lastError = offline === "error" ? String(status).slice(6) : null;
+        _acuNotify(conn, /*statusChanged*/ true);
+        _acuRefreshOnlineUI(conn.key);
+      }
+    }
   });
 }
 
@@ -958,9 +1070,15 @@ function _acuWireSheet() {
     const safe = hex6 === "000000" ? "010101" : hex6;
     const rgb  = [0, 1, 2].map(i => parseInt(safe.substr(i * 2, 2), 16) || 0);
 
-    _publish(conn, _acuRequest("setInfo", {
-      multi_color_box: [{ id: boxId, slots: [{ index: slotId, type: _acuSelType, color: rgb }] }],
-    }));
+    // Cloud printers set the slot via REST sendOrder; LAN printers publish to
+    // the local broker. Both honor only {index, type, color}.
+    if (conn.mode === "cloud") {
+      _acuCloudSetInfo(conn, boxId, slotId, _acuSelType, rgb);
+    } else {
+      _publish(conn, _acuRequest("setInfo", {
+        multi_color_box: [{ id: boxId, slots: [{ index: slotId, type: _acuSelType, color: rgb }] }],
+      }));
+    }
 
     // Optimistic local update so the slot square changes immediately…
     const box  = (conn.data?.boxes || []).find(b => b.id === boxId);

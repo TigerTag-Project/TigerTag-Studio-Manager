@@ -2561,6 +2561,285 @@ let _ffmpegBin = null;
   });
 }
 
+// ── Anycubic CLOUD — REST control + cloud MQTT (cloud-mode printers)
+//    Reaches printers that are in CLOUD mode (no local ports) via Anycubic's
+//    cloud, authenticated as the account owner. Auth/scheme ported from
+//    ACE-RFID's CloudApi (public app constants from the hass-anycubic_cloud RE).
+//    The user JWT is read from the slicer config on disk (key "access_token",
+//    plaintext, ~90-day validity, email embedded) — same provisioning model as
+//    the LAN creds, no running slicer needed. See PROTOCOL.md §7.
+{
+  const mqtt   = require('mqtt');
+  const crypto = require('crypto');
+  const https  = require('https');
+  const certs  = require('./services/anycubicCloudCerts');
+
+  const AID = 'f9b3528877c94d5c9c5af32245db46ef';
+  const SEC = '0cf75926606049a3937f56b0373b99fb';
+  const VER = 'V3.0.0';
+  const API_ROOT  = 'https://cloud-universe.anycubic.com/p/p/workbench/api';
+  const MQTT_HOST = 'mqtt-universe.anycubic.com';
+  const MQTT_PORT = 8883;
+
+  const _md5hex = (s) => crypto.createHash('md5').update(String(s), 'utf8').digest('hex');
+
+  function _cloudHeaders(token) {
+    const nonce = crypto.randomUUID();
+    const ts = Date.now();
+    return {
+      'Xx-Device-Type': 'pcf',
+      'Xx-Is-Cn': '1',
+      'Xx-Nonce': nonce,
+      'Xx-Signature': _md5hex(AID + ts + VER + SEC + nonce + AID),
+      'Xx-Timestamp': String(ts),
+      'Xx-Version': VER,
+      'XX-LANGUAGE': 'US',
+      'XX-Token': token || '',
+    };
+  }
+
+  // Uses Node https (NOT fetch): the cloud gateway is case-sensitive on header
+  // names (Xx-Signature / XX-Token), and undici/fetch lowercases them, which the
+  // gateway rejects ("request error"). https preserves the case as given.
+  function _cloudFetch(token, method, reqPath, bodyObj, timeoutMs) {
+    return new Promise((resolve) => {
+      let url;
+      try { url = new URL(API_ROOT + reqPath); } catch (e) { return resolve({ status: 0, json: null, text: e.message }); }
+      const headers = _cloudHeaders(token);
+      let body = null;
+      if (bodyObj != null) { body = JSON.stringify(bodyObj); headers['Content-Type'] = 'application/json'; headers['Content-Length'] = Buffer.byteLength(body); }
+      const req = https.request({
+        hostname: url.hostname, port: 443, path: url.pathname + url.search, method, headers,
+        timeout: Number(timeoutMs) || 25000,
+      }, (res) => {
+        let d = ''; res.on('data', c => d += c);
+        res.on('end', () => { let json = null; try { json = JSON.parse(d); } catch (_) {} resolve({ status: res.statusCode, json, text: d }); });
+      });
+      req.on('timeout', () => { req.destroy(); resolve({ status: 0, json: null, text: 'timeout' }); });
+      req.on('error', (e) => resolve({ status: 0, json: null, text: e.message }));
+      if (body) req.write(body);
+      req.end();
+    });
+  }
+
+
+  // ── CDP token grab — read the workbench session token from a RUNNING slicer ──
+  // The workbench API needs a session token the slicer mints in memory at login
+  // (the on-disk access_token is an OAuth token the workbench rejects, and the
+  // workbench token is never persisted — verified). So we read it the way
+  // ACE-RFID does: attach over the Chrome DevTools Protocol to a slicer the user
+  // is already running in bridge mode (--remote-debugging-port) and evaluate the
+  // Workbench Vuex store. We ATTACH ONLY — never launch the slicer.
+  const FIND_STORE_JS =
+    "function findStore(){try{var a=document.getElementById('app');if(a&&a.__vue__&&a.__vue__.$store)return a.__vue__.$store;}catch(e){}" +
+    "try{var all=document.querySelectorAll('*');for(var i=0;i<all.length;i++){var v=all[i].__vue__;if(v&&v.$store)return v.$store;}}catch(e){}return null;}";
+
+  function _cdpEvaluate(wsUrl, expression, timeoutMs) {
+    return new Promise((resolve) => {
+      let settled = false, ws;
+      const done = (v) => { if (settled) return; settled = true; try { ws && ws.close(); } catch (_) {} resolve(v); };
+      try { ws = new WebSocket(wsUrl); } catch (e) { return resolve({ error: 'ws-failed:' + e.message }); }
+      const timer = setTimeout(() => done({ error: 'timeout' }), Number(timeoutMs) || 9000);
+      ws.addEventListener('open', () => {
+        ws.send(JSON.stringify({ id: 1, method: 'Runtime.evaluate',
+          params: { expression, returnByValue: true, awaitPromise: true, userGesture: true } }));
+      });
+      ws.addEventListener('message', (ev) => {
+        let msg; try { msg = JSON.parse(typeof ev.data === 'string' ? ev.data : ''); } catch { return; }
+        if (msg.id !== 1) return; // skip async CDP events
+        clearTimeout(timer);
+        if (msg.result && msg.result.exceptionDetails) return done({ error: 'js-exception' });
+        done({ value: msg.result && msg.result.result ? msg.result.result.value : undefined });
+      });
+      ws.addEventListener('error', () => { clearTimeout(timer); done({ error: 'ws-error' }); });
+      ws.addEventListener('close', () => { clearTimeout(timer); done({ error: 'ws-closed' }); });
+    });
+  }
+
+  // Attach to a running bridge-mode slicer and read the cloud token + email.
+  // Returns { ok, token, email } | { ok:false, error } where error is a machine
+  // code for the renderer to translate: "cdp-unreachable" | "workbench-not-found"
+  // | "no-token" | "no-store" | anything else.
+  ipcMain.handle('anycubic:cloud-cdp-token', async (_evt, port) => {
+    const cdpPort = Number(port) || 9222;
+    try {
+      // 1. Find the Workbench page among the CDP targets (plain HTTP, no header
+      //    case issue — fetch is fine here).
+      let targets;
+      try {
+        const res = await fetch(`http://127.0.0.1:${cdpPort}/json/list`, { signal: AbortSignal.timeout(5000) });
+        targets = await res.json();
+      } catch (_) { return { ok: false, error: 'cdp-unreachable' }; }
+      const wb = (Array.isArray(targets) ? targets : []).find(t =>
+        /workbench|orca-ac-web/i.test(String(t.url || '') + ' ' + String(t.title || '')) && t.webSocketDebuggerUrl);
+      if (!wb) return { ok: false, error: 'workbench-not-found' };
+
+      // 2. Evaluate the store read in the page.
+      const js =
+        "(()=>{try{" + FIND_STORE_JS +
+        "var s=findStore(); if(!s) return JSON.stringify({err:'no-store'});" +
+        "var g=s.getters; var u=g.GET_USER_INFO||{};" +
+        "return JSON.stringify({token:g.GET_TOKEN||'', email:(u.email||u.user_email||'')});" +
+        "}catch(e){return JSON.stringify({err:String(e)});}})()";
+      const r = await _cdpEvaluate(wb.webSocketDebuggerUrl, js, 9000);
+      if (r.error) return { ok: false, error: r.error };
+      let parsed = null; try { parsed = JSON.parse(r.value); } catch (_) {}
+      if (!parsed) return { ok: false, error: 'bad-eval' };
+      if (parsed.err) return { ok: false, error: parsed.err === 'no-store' ? 'no-store' : `workbench:${parsed.err}` };
+      if (!parsed.token) return { ok: false, error: 'no-token' };
+      return { ok: true, token: parsed.token, email: parsed.email || '' };
+    } catch (e) {
+      return { ok: false, error: e?.message || String(e) };
+    }
+  });
+
+  // List the account's cloud printers. Returns { ok, email, printers:[{id,name,
+  // machineType,key,online}] } | { ok:false, error }.
+  ipcMain.handle('anycubic:cloud-get-printers', async (_evt, token) => {
+    try {
+      const r = await _cloudFetch(token, 'GET', '/work/printer/getPrinters?page=1', null);
+      if (!r.json) return { ok: false, error: 'no-response' };
+      if (Number(r.json.code) !== 1) return { ok: false, error: r.json.msg || 'getPrinters-failed', code: r.json.code };
+      const printers = (Array.isArray(r.json.data) ? r.json.data : []).map(p => {
+        const ds = Number(p.device_status || 0);
+        const reason = String(p.reason || '');
+        const online = ds === 1 || (ds !== 2 && !/offline/i.test(reason));
+        return {
+          id: String(p.id || ''),
+          name: String(p.name || ''),
+          machineType: Number(p.machine_type || 0),
+          key: String(p.key || ''),
+          online,
+        };
+      });
+      return { ok: true, printers };
+    } catch (e) {
+      return { ok: false, error: e?.message || String(e) };
+    }
+  });
+
+  // Verify a token (and fetch the email) via userInfo. { ok, email } | { ok:false }.
+  ipcMain.handle('anycubic:cloud-verify', async (_evt, token) => {
+    try {
+      const r = await _cloudFetch(token, 'GET', '/user/profile/userInfo', null);
+      if (!r.json || Number(r.json.code) !== 1) return { ok: false, error: 'invalid-or-expired' };
+      return { ok: true, email: String((r.json.data && (r.json.data.user_email || r.json.data.email)) || '') };
+    } catch (e) {
+      return { ok: false, error: e?.message || String(e) };
+    }
+  });
+
+  // Send an ACE order via REST (1206 = getInfo, 1211 = setSlot). The report
+  // comes back over cloud MQTT (see below). { ok } | { ok:false, error }.
+  ipcMain.handle('anycubic:cloud-send-order', async (_evt, { token, orderId, printerId, data }) => {
+    try {
+      const body = { order_id: Number(orderId), printer_id: Number(printerId), project_id: 0, data: data ?? {} };
+      const r = await _cloudFetch(token, 'POST', '/work/operation/sendOrder', body);
+      if (r.json && Number(r.json.code) === 1) return { ok: true };
+      return { ok: false, error: (r.json && r.json.msg) || `send-failed-${r.status}` };
+    } catch (e) {
+      return { ok: false, error: e?.message || String(e) };
+    }
+  });
+
+  // ── Shared cloud MQTT — one client per signed-in user; reports for every
+  //    subscribed cloud printer arrive on 'anycubic:cloud-message' tagged with
+  //    the renderer conn key set at subscribe time.
+  let _cloudClient = null;
+  let _cloudClientEmail = '';
+  const _cloudSubs = new Map(); // connKey → { machineType, key, wc }
+
+  function _buildCloudLogin(email, token) {
+    const clientId = _md5hex(email + 'pcf');
+    const caDer = Buffer.from(certs.CA_DER_B64, 'base64');
+    const pub = new crypto.X509Certificate(caDer).publicKey;
+    const mqttToken = crypto.publicEncrypt({ key: pub, padding: crypto.constants.RSA_PKCS1_PADDING }, Buffer.from(token, 'utf8')).toString('base64');
+    const sig = _md5hex(clientId + mqttToken + clientId);
+    return { clientId, username: `user|pcf|${email}|${sig}`, password: mqttToken };
+  }
+
+  function _routeCloudMessage(topic, payload) {
+    // topic: anycubic/anycubicCloud/v1/{src}/public/{machineType}/{key}/...
+    const parts = topic.split('/');
+    const mt = parts[5], key = parts[6];
+    let data = null;
+    try { data = JSON.parse(payload.toString('utf8')); } catch (_) { return; }
+    for (const [connKey, sub] of _cloudSubs) {
+      if (String(sub.machineType) === String(mt) && sub.key === key) {
+        if (sub.wc && !sub.wc.isDestroyed()) sub.wc.send('anycubic:cloud-message', connKey, topic, data);
+      }
+    }
+  }
+
+  function _ensureCloudClient(email, token, wc) {
+    if (_cloudClient && _cloudClientEmail === email) return;
+    if (_cloudClient) { try { _cloudClient.end(true); } catch (_) {} _cloudClient = null; }
+    _cloudClientEmail = email;
+    // Wrap the whole setup: a malformed cert / TLS option throws synchronously
+    // from mqtt.connect (BoringSSL), and an uncaught throw here crashes the app
+    // — report it as a cloud-status error instead.
+    let client;
+    try {
+      const login = _buildCloudLogin(email, token);
+      client = mqtt.connect({
+        host: MQTT_HOST, port: MQTT_PORT, protocol: 'mqtts',
+        clientId: login.clientId, username: login.username, password: login.password,
+        // mTLS client identity as PEM cert + key. Two BoringSSL realities drive
+        // this (Electron's main process is BoringSSL, not OpenSSL):
+        //  1. The source PKCS#12 uses legacy (SHA1/RC2) encryption BoringSSL
+        //     can't parse — so we ship the extracted PEM and pass cert/key.
+        //  2. The cert is SHA1-signed; OpenSSL gates that behind SECLEVEL (and
+        //     rejects the `…@SECLEVEL=0` cipher string anyway — INVALID_COMMAND),
+        //     but BoringSSL has no such gate, so it loads with no cipher tweak.
+        //     (The slicer itself is Chromium/BoringSSL talking to this broker.)
+        cert: certs.CLIENT_CERT_PEM, key: certs.CLIENT_KEY_PEM,
+        rejectUnauthorized: false, minVersion: 'TLSv1.2', maxVersion: 'TLSv1.2',
+        keepalive: 30, clean: true, connectTimeout: 12000, reconnectPeriod: 5000,
+      });
+    } catch (e) {
+      _cloudClient = null; _cloudClientEmail = '';
+      if (!wc.isDestroyed()) wc.send('anycubic:cloud-status', `error:${e?.message || e}`);
+      return;
+    }
+    _cloudClient = client;
+    client.on('connect', () => {
+      // Subscribe everything currently registered FIRST, then announce
+      // 'connected' — the renderer re-issues getInfo on that event, and the
+      // subscription must already be active so the reply report isn't missed.
+      for (const sub of _cloudSubs.values()) {
+        client.subscribe(`anycubic/anycubicCloud/v1/+/public/${sub.machineType}/${sub.key}/#`, { qos: 0 });
+      }
+      if (!wc.isDestroyed()) wc.send('anycubic:cloud-status', 'connected');
+    });
+    client.on('message', _routeCloudMessage);
+    client.on('error',   (err) => { if (!wc.isDestroyed()) wc.send('anycubic:cloud-status', `error:${err?.message || err}`); });
+    client.on('close',   ()    => { if (!wc.isDestroyed()) wc.send('anycubic:cloud-status', 'disconnected'); });
+  }
+
+  ipcMain.on('anycubic:cloud-connect', (event, { email, token }) => {
+    if (!email || !token) { event.sender.send('anycubic:cloud-status', 'error:missing-auth'); return; }
+    _ensureCloudClient(email, token, event.sender);
+  });
+
+  ipcMain.on('anycubic:cloud-subscribe', (event, { connKey, machineType, key }) => {
+    if (!connKey || !key) return;
+    _cloudSubs.set(connKey, { machineType, key, wc: event.sender });
+    if (_cloudClient && _cloudClient.connected) {
+      _cloudClient.subscribe(`anycubic/anycubicCloud/v1/+/public/${machineType}/${key}/#`, { qos: 0 });
+    }
+  });
+
+  ipcMain.on('anycubic:cloud-unsubscribe', (_evt, connKey) => {
+    const sub = _cloudSubs.get(connKey);
+    if (sub && _cloudClient && _cloudClient.connected) {
+      try { _cloudClient.unsubscribe(`anycubic/anycubicCloud/v1/+/public/${sub.machineType}/${sub.key}/#`); } catch (_) {}
+    }
+    _cloudSubs.delete(connKey);
+    // Drop the shared client when nothing is left subscribed.
+    if (_cloudSubs.size === 0 && _cloudClient) { try { _cloudClient.end(true); } catch (_) {} _cloudClient = null; _cloudClientEmail = ''; }
+  });
+}
+
 // ── App lifecycle
 app.whenReady().then(async () => {
   imgCacheDir = path.join(app.getPath('userData'), 'img_cache');

@@ -942,5 +942,18 @@
     "在 AnycubicSlicerNext 中配对一次打印机（开启局域网模式）。",
     "使用“从 Anycubic 切片软件导入”自动填写所有字段。",
     "凭据长期有效 — 之后不再需要切片软件。"
-  ]
+  ],
+  "acuCloudChoice": "添加云打印机",
+  "acuCloudChoiceHint": "用于云模式打印机（通过切片软件）",
+  "acuCloudTitle": "添加云打印机",
+  "acuCloudSub": "您 Anycubic 账户中的云打印机",
+  "acuCloudConnect": "连接到切片软件",
+  "acuCloudHelpIntro": "云打印机通过 AnycubicSlicerNext 添加。请以远程调试方式启动、登录并打开 Workbench：",
+  "acuCloudErrUnreachable": "无法连接切片软件。请以桥接模式启动 AnycubicSlicerNext（见下），登录并打开 Workbench。",
+  "acuCloudErrNoWorkbench": "未找到 Workbench。请在切片软件中打开 Workbench 选项卡并登录。",
+  "acuCloudErrNoToken": "未登录。请在切片软件中登录您的 Anycubic 账户后重试。",
+  "acuCloudErrRest": "无法连接 Anycubic 云。请检查网络后重试。",
+  "acuCloudErrNoPrinters": "您的账户中没有云打印机。",
+  "acuCloudAddFailed": "无法添加云打印机。",
+  "printerConnCloud": "云"
 }

@@ -942,5 +942,18 @@
     "Associa la stampante una volta in AnycubicSlicerNext (modalità LAN attiva).",
     "Usa 'Importa da Anycubic Slicer' per compilare tutti i campi automaticamente.",
     "Le credenziali sono durature — lo slicer non serve più in seguito."
-  ]
+  ],
+  "acuCloudChoice": "Aggiungi stampante cloud",
+  "acuCloudChoiceHint": "Per stampanti in modalità cloud (tramite lo slicer)",
+  "acuCloudTitle": "Aggiungi stampante cloud",
+  "acuCloudSub": "Stampanti cloud nel tuo account Anycubic",
+  "acuCloudConnect": "Connetti allo slicer",
+  "acuCloudHelpIntro": "Le stampanti cloud si aggiungono tramite AnycubicSlicerNext. Avvialo con il debug remoto, con l'accesso effettuato, e apri il Workbench:",
+  "acuCloudErrUnreachable": "Slicer non raggiungibile. Avvia AnycubicSlicerNext in modalità bridge (sotto), con l'accesso effettuato e il Workbench aperto.",
+  "acuCloudErrNoWorkbench": "Workbench non trovato. Apri la scheda Workbench nello slicer ed effettua l'accesso.",
+  "acuCloudErrNoToken": "Accesso non effettuato. Accedi al tuo account Anycubic nello slicer e riprova.",
+  "acuCloudErrRest": "Impossibile raggiungere il cloud Anycubic. Controlla la connessione e riprova.",
+  "acuCloudErrNoPrinters": "Nessuna stampante cloud nel tuo account.",
+  "acuCloudAddFailed": "Impossibile aggiungere la stampante cloud.",
+  "printerConnCloud": "Cloud"
 }

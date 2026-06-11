@@ -8520,7 +8520,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           }
           // Anycubic: same always-on MQTT pattern (no camera to skip).
           {
-            const acuNow = all.filter(p => p.brand === 'anycubic' && p.ip);
+            const acuNow = all.filter(p => p.brand === 'anycubic' && (p.ip || p.mode === 'cloud'));
             const acuNowKeys = new Set(acuNow.map(p => acuKey(p)));
             for (const key of _acuAutoKeys) {
               if (!acuNowKeys.has(key)) { acuDisconnect(key); _acuAutoKeys.delete(key); }
@@ -8838,7 +8838,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (p.brand === "creality"   && p.ip)               creConnect(p);
       if (p.brand === "bambulab"   && (p.broker || p.ip)) bambuConnect(p, { skipCam: true });
       if (p.brand === "elegoo" && !_ppForcedOfflineKeys.has(elegooKey(p))) elegooConnect(p);
-      if (p.brand === "anycubic" && p.ip && !_ppForcedOfflineKeys.has(acuKey(p))) acuConnect(p, { skipCam: true });
+      if (p.brand === "anycubic" && (p.ip || p.mode === "cloud") && !_ppForcedOfflineKeys.has(acuKey(p))) acuConnect(p, { skipCam: true });
     });
 
     // Helper: is this printer currently online? Returns boolean (false = offline or unknown).
@@ -8892,7 +8892,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           ${(() => { const job = _getPrinterJob(p); return job ? _jobCardHtml(job) : ""; })()}
           ${onlineBadge}
           <div class="printer-card-foot">
-            <span class="printer-card-conn">${esc(meta.connection)}</span>
+            <span class="printer-card-conn">${esc(p.mode === "cloud" ? t("printerConnCloud") : meta.connection)}</span>
             ${updated ? `<span class="printer-card-updated">${esc(t("printersUpdated"))} · ${esc(updated)}</span>` : ""}
           </div>
         </div>`;
@@ -8947,7 +8947,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (p.brand === "creality"   && p.ip)               creConnect(p);
       if (p.brand === "bambulab"   && (p.broker || p.ip)) bambuConnect(p, { skipCam: true });
       if (p.brand === "elegoo" && !_ppForcedOfflineKeys.has(elegooKey(p))) elegooConnect(p);
-      if (p.brand === "anycubic" && p.ip && !_ppForcedOfflineKeys.has(acuKey(p))) acuConnect(p, { skipCam: true });
+      if (p.brand === "anycubic" && (p.ip || p.mode === "cloud") && !_ppForcedOfflineKeys.has(acuKey(p))) acuConnect(p, { skipCam: true });
     });
 
     const _isOnline = p => {
@@ -9123,7 +9123,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (p.brand === "creality"   && p.ip)               creConnect(p);
       if (p.brand === "bambulab"   && (p.broker || p.ip)) bambuConnect(p);
       if (p.brand === "elegoo" && !_ppForcedOfflineKeys.has(elegooKey(p))) elegooConnect(p);
-      if (p.brand === "anycubic" && p.ip && !_ppForcedOfflineKeys.has(acuKey(p))) acuConnect(p);
+      if (p.brand === "anycubic" && (p.ip || p.mode === "cloud") && !_ppForcedOfflineKeys.has(acuKey(p))) acuConnect(p);
     });
 
     // ── Step 1: Determine the set of online printers with an active cam feed ──
@@ -9590,7 +9590,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       bambuConnect(printer);
     }
     // Anycubic — connect MQTT TLS to the printer's local broker (idempotent).
-    if (printer.brand === "anycubic" && printer.ip) {
+    if (printer.brand === "anycubic" && (printer.ip || printer.mode === "cloud")) {
       acuConnect(printer);
     }
   }
@@ -10027,7 +10027,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (p.brand === "creality"   && p.ip)               { creDisconnect(creKey(p)); creConnect(p); }
       if (p.brand === "bambulab"   && (p.broker || p.ip)) bambuConnect(p);
       if (p.brand === "elegoo")                           elegooConnect(p);
-      if (p.brand === "anycubic"   && p.ip)               acuConnect(p);
+      if (p.brand === "anycubic"   && (p.ip || p.mode === "cloud")) acuConnect(p);
     }
     // Refresh the panel body and the printer grid immediately so the badge
     // dots in the card list also flip to offline/connecting right away.
@@ -10112,6 +10112,40 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   _printerCtx.openBrandPicker     = () => openPrinterBrandPicker();
   _printerCtx.isDebugEnabled      = () => !!state.debugEnabled;
   _printerCtx.applyTranslations   = () => applyTranslations();
+  // Persist an Anycubic CLOUD printer (provisioned via the slicer). Keyed by
+  // cloudPrinterId so re-provisioning upserts (refreshing the token) instead of
+  // creating duplicates. The token/email are denormalised onto the doc so the
+  // driver has everything it needs (mirrors how LAN docs carry their creds).
+  _printerCtx.addAnycubicCloudPrinter = async (rec) => {
+    const uid = state.activeAccountId;
+    if (!uid) return { ok: false, error: "no-account" };
+    try {
+      const ref = fbDb(uid).collection("users").doc(uid)
+        .collection("printers").doc("anycubic")
+        .collection("devices").doc("cloud_" + rec.cloudPrinterId);
+      const existing = state.printers.find(p => p.brand === "anycubic" && p.id === ref.id);
+      await ref.set({
+        id:             ref.id,
+        brand:          "anycubic",
+        mode:           "cloud",
+        cloudPrinterId: String(rec.cloudPrinterId),
+        machineType:    Number(rec.machineType) || 0,
+        acuModelId:     String(rec.machineType || ""), // cloud topic modelId = machineType
+        key:            String(rec.key || ""),
+        cloudToken:     String(rec.cloudToken || ""),
+        cloudEmail:     String(rec.cloudEmail || ""),
+        printerName:    String(rec.printerName || ("Anycubic " + rec.cloudPrinterId)),
+        printerModelId: String(rec.printerModelId || "0"),
+        isActive:       existing ? !!existing.isActive : false,
+        sortIndex:      existing && Number.isFinite(existing.sortIndex) ? existing.sortIndex : state.printers.length,
+        updatedAt:      firebase.firestore.FieldValue.serverTimestamp(),
+      }, { merge: true });
+      return { ok: true, id: ref.id };
+    } catch (e) {
+      console.warn("[anycubic] addAnycubicCloudPrinter failed:", e?.code, e?.message);
+      return { ok: false, error: e?.message || String(e) };
+    }
+  };
 
   // Dispatch to the per-brand camera widget. Returns "" when the
   // printer is offline, has no camera, or the brand is unknown.
@@ -11829,6 +11863,31 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const body = $("printerAddBody");
     const err  = $("printerAddError");
     err.hidden = true;
+
+    // ── Anycubic CLOUD edit guard ─────────────────────────────────────────
+    // Cloud printers carry token/cloudPrinterId/machineType (not the LAN
+    // schema fields shown in this form). Writing the empty LAN fields would
+    // corrupt the doc (esp. acuModelId, which cloud uses for its topic), so a
+    // cloud edit only updates the name + model photo and preserves everything
+    // else. Re-provisioning (Add cloud printer) is how the token is refreshed.
+    const _editingPrinter = isEdit
+      ? state.printers.find(p => p.brand === brand && p.id === _printerEditContext.deviceId) : null;
+    if (isEdit && _editingPrinter?.mode === "cloud") {
+      const nm = (body.querySelector("input[name=printerName]")?.value || "").trim();
+      if (!nm) { err.textContent = t("printerAddErrName"); err.hidden = false; return; }
+      const mi = body.querySelector("input[name=printerModelId]");
+      const patch = { printerName: nm, updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
+      if (mi && mi.value) patch.printerModelId = mi.value.trim();
+      const sb = $("printerAddSave"); sb.classList.add("loading"); sb.disabled = true;
+      try {
+        await fbDb(uid).collection("users").doc(uid).collection("printers").doc(brand)
+          .collection("devices").doc(_printerEditContext.deviceId).update(patch);
+        closePrinterAddForm();
+      } catch (e) {
+        err.textContent = (e?.message || "Save failed"); err.hidden = false;
+      } finally { sb.classList.remove("loading"); sb.disabled = false; }
+      return;
+    }
 
     // Collect inputs. We capture EVERY field listed in the schema (even
     // if the user cleared an optional one) so an empty string can be

@@ -102,9 +102,16 @@ export function renderAcuFilamentCard(_p, conn) {
   const boxes = conn?.data?.boxes;
   if (!Array.isArray(boxes) || !boxes.length) return "";
 
-  // External spool holder reports as box id -1; ACE units are 0..N-1.
-  const extBox  = boxes.find(b => b.id === -1) || null;
-  const aceMods = boxes.filter(b => b.id !== -1).sort((a, b) => a.id - b.id);
+  // Each box is its own row with all of its slots. The "external" box reports
+  // as id -1 and is itself a multi-slot unit (e.g. the Kobra X / ACE Pro 2
+  // external box has 4 slots) — so it must NOT be collapsed to a single cell.
+  // Order: external (-1) first, then ACE units 0,1,2,… ascending.
+  const sorted = [...boxes].sort((a, b) => {
+    if (a.id === b.id) return 0;
+    if (a.id === -1) return -1;
+    if (b.id === -1) return 1;
+    return a.id - b.id;
+  });
 
   // ── slot renderer ──────────────────────────────────────────────────────
   const makeSlot = (tag, s, boxId, slotIdx) => {
@@ -127,46 +134,35 @@ export function renderAcuFilamentCard(_p, conn) {
       </div>`;
   };
 
-  // Invisible placeholders that keep the columns aligned across rows.
-  const extSpacer = `<div class="snap-fil cre-fil-spacer" aria-hidden="true"></div>`;
+  // Invisible placeholder for a slot the box doesn't have (keeps rows aligned).
   const filSpacer = `<div class="snap-fil bbl-fil-spacer" aria-hidden="true"></div>`;
 
-  // One ACE unit row — always 4 cells (slots 0..3), empty ones as spacers.
-  const makeAceRow = (box, rowLetter) => {
+  // Per-box label prefix on each slot tag: external box → "E", ACE units →
+  // A / B / C / … by id. (Box -1 = external, 0 = first ACE, 1 = second, …)
+  const tagPrefix = (boxId) => boxId === -1 ? "E" : String.fromCharCode(65 + boxId);
+
+  // One box row — up to 4 cells (slot indexes 0..3), spacers for any missing.
+  const makeBoxRow = (box) => {
     const byIdx = new Map((box?.slots || []).map(s => [Number(s.index), s]));
+    const slotCount = (box?.slots || []).length;
     const cells = [];
-    for (let i = 0; i < 4; i++) {
+    const pre = tagPrefix(box.id);
+    for (let i = 0; i < Math.max(4, slotCount); i++) {
       const s = byIdx.get(i);
-      cells.push(s ? makeSlot(`${rowLetter}${i + 1}`, s, box.id, i) : filSpacer);
+      cells.push(s ? makeSlot(`${pre}${i + 1}`, s, box.id, i) : filSpacer);
     }
-    return cells.join("");
+    return `<div class="cre-fil-row">${cells.join("")}</div>`;
   };
 
-  const rows = [];
-
-  // ── Row 1: Ext. (only if the printer reports box -1) + first ACE ──────
-  {
-    const row1 = [];
-    if (extBox) {
-      const extSlot = (extBox.slots || [])[0] || null;
-      row1.push(makeSlot("Ext.", extSlot, -1, 0));
-    }
-    if (aceMods.length > 0) row1.push(makeAceRow(aceMods[0], "A"));
-    if (row1.length) rows.push(`<div class="cre-fil-row">${row1.join("")}</div>`);
-  }
-
-  // ── Rows 2+: extra ACE units; Ext. column stays empty when present ────
-  for (let mi = 1; mi < aceMods.length; mi++) {
-    const rowLetter = String.fromCharCode(65 + mi); // 'B', 'C', …
-    rows.push(`<div class="cre-fil-row">${extBox ? extSpacer : ""}${makeAceRow(aceMods[mi], rowLetter)}</div>`);
-  }
-
+  const rows = sorted.map(makeBoxRow);
   if (!rows.length) return "";
 
-  // ACE temperature meta — shown in the title only for a single unit.
+  // Temperature meta — show the highest ACE-unit temp (external box has no
+  // heater). Kept compact in the title.
   let meta = "";
-  if (aceMods.length === 1 && Number.isFinite(aceMods[0].temp)) {
-    meta = `<span class="snap-block-meta">${ctx.esc(String(aceMods[0].temp))}°C</span>`;
+  const temps = sorted.filter(b => b.id !== -1 && Number.isFinite(b.temp)).map(b => b.temp);
+  if (temps.length) {
+    meta = `<span class="snap-block-meta">${ctx.esc(String(Math.max(...temps)))}°C</span>`;
   }
 
   return `

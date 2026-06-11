@@ -63,6 +63,28 @@ contextBridge.exposeInMainWorld('anycubic', {
   // device descriptor (modelId, modelName, deviceName, MAC) without CORS.
   tcpProbe: (ip)            => ipcRenderer.invoke('anycubic:tcp-probe', ip),
   httpInfo: (ip, timeoutMs) => ipcRenderer.invoke('anycubic:http-info', ip, timeoutMs),
+
+  // ── Cloud-mode printers (reached through Anycubic's cloud) ─────────────
+  cloud: {
+    // Attach to a RUNNING bridge-mode slicer (CDP, port 9222) and read the
+    // workbench session token + email. We attach only — never launch the
+    // slicer. Returns { ok, token, email } | { ok:false, error }.
+    cdpToken:    (port)   => ipcRenderer.invoke('anycubic:cloud-cdp-token', port),
+    // Signed REST: list the account's cloud printers / verify a token.
+    getPrinters: (token)  => ipcRenderer.invoke('anycubic:cloud-get-printers', token),
+    verify:      (token)  => ipcRenderer.invoke('anycubic:cloud-verify', token),
+    // Send an ACE order (1206 = getInfo, 1211 = setSlot). The report comes
+    // back over cloud MQTT. opts = { token, orderId, printerId, data }.
+    sendOrder:   (opts)   => ipcRenderer.invoke('anycubic:cloud-send-order', opts),
+    // Shared cloud-MQTT connection (one per signed-in user). connect once,
+    // then subscribe each printer; reports arrive on onMessage tagged with
+    // the renderer conn key passed to subscribe.
+    connect:     (opts)            => ipcRenderer.send('anycubic:cloud-connect', opts),       // { email, token }
+    subscribe:   (opts)            => ipcRenderer.send('anycubic:cloud-subscribe', opts),     // { connKey, machineType, key }
+    unsubscribe: (connKey)         => ipcRenderer.send('anycubic:cloud-unsubscribe', connKey),
+    onMessage:   (cb) => ipcRenderer.on('anycubic:cloud-message', (_, connKey, topic, data) => cb(connKey, topic, data)),
+    onStatus:    (cb) => ipcRenderer.on('anycubic:cloud-status',  (_, status) => cb(status)),
+  },
 });
 
 contextBridge.exposeInMainWorld('electronAPI', {

@@ -187,6 +187,7 @@ function _closeAll() {
   _closePanel('acuImportOverlay');
   _closePanel('acuScanOverlay');
   _closePanel('acuManualOverlay');
+  _closePanel('acuCloudOverlay');
 }
 
 // ── Lazy DOM creation ────────────────────────────────────────────────────────
@@ -238,11 +239,59 @@ function _ensureDOM() {
         </span>
         <span class="icon icon-chevron-r icon-13 pba-brand-chev"></span>
       </button>
+      <button type="button" class="pba-brand" id="acuChoiceCloud">
+        <span class="pba-brand-dot" style="background:#7b61ff"></span>
+        <span class="pba-brand-text">
+          <span class="pba-brand-label" data-i18n="acuCloudChoice">Add a cloud printer</span>
+          <span class="pba-brand-conn"  data-i18n="acuCloudChoiceHint">For printers in cloud mode (via the slicer)</span>
+        </span>
+        <span class="icon icon-chevron-r icon-13 pba-brand-chev"></span>
+      </button>
     </div>
     <div class="pba-footer">
       <button class="adf-btn adf-btn--secondary" id="acuChoiceBack">
         <span class="icon icon-chevron-l icon-13"></span>
         <span data-i18n="printerAddBack">Back</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     Anycubic — Cloud provisioning modal (CDP token grab → getPrinters)
+     ═════════════════════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="acuCloudOverlay" role="dialog" aria-modal="true">
+  <div class="modal-card pba-card">
+    <div class="pba-header">
+      <div class="pba-header-text">
+        <div class="pba-title" data-i18n="acuCloudTitle">Add a cloud printer</div>
+        <div class="pba-sub"   data-i18n="acuCloudSub">Cloud printers on your Anycubic account</div>
+      </div>
+      <button class="modal-close" id="acuCloudClose">✕</button>
+    </div>
+    <div class="snap-scan-body">
+      <div class="snap-scan-results" id="acuCloudResults"></div>
+      <div class="snap-scan-empty" id="acuCloudEmpty" hidden></div>
+      <!-- Instructional block shown when the bridge-mode slicer isn't reachable -->
+      <div class="acu-cloud-help" id="acuCloudHelp" hidden>
+        <p data-i18n="acuCloudHelpIntro">Cloud printers are added through AnycubicSlicerNext. Start it with remote debugging, signed in, and open the Workbench:</p>
+        <pre class="acu-cloud-help-cmd" id="acuCloudHelpCmd">$env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS="--remote-debugging-port=9222"
+&amp; "C:\Program Files\AnycubicSlicerNext\AnycubicSlicerNext.exe"</pre>
+        <button type="button" class="adf-btn adf-btn--secondary acu-cloud-help-copy" id="acuCloudHelpCopy">
+          <span class="icon icon-copy icon-13"></span>
+          <span data-i18n="copyLabel">Copy</span>
+        </button>
+      </div>
+    </div>
+    <div class="pba-footer">
+      <button class="adf-btn adf-btn--secondary" id="acuCloudBack">
+        <span class="icon icon-chevron-l icon-13"></span>
+        <span data-i18n="printerAddBack">Back</span>
+      </button>
+      <button class="adf-btn adf-btn--primary" id="acuCloudRetry">
+        <span class="icon icon-refresh icon-13"></span>
+        <span class="label" data-i18n="acuCloudConnect">Connect to slicer</span>
+        <span class="spinner"></span>
       </button>
     </div>
   </div>
@@ -442,11 +491,21 @@ function _wireDOM() {
   $('acuChoiceImport')?.addEventListener('click', () => { _closePanel('acuChoiceOverlay'); _openImportPanel(); });
   $('acuChoiceScan')?.addEventListener('click', () => { _closePanel('acuChoiceOverlay'); _openScanPanel(); });
   $('acuChoiceManual')?.addEventListener('click', () => { _closePanel('acuChoiceOverlay'); _openManualPanel(); });
+  $('acuChoiceCloud')?.addEventListener('click', () => { _closePanel('acuChoiceOverlay'); _openCloudPanel(); });
 
   $('acuImportClose')?.addEventListener('click', _closeAll);
   $('acuImportOverlay')?.addEventListener('click', e => { if (e.target.id === 'acuImportOverlay') _closeAll(); });
   $('acuImportBack')?.addEventListener('click', () => { _closePanel('acuImportOverlay'); _openPanel('acuChoiceOverlay'); });
   $('acuImportRetry')?.addEventListener('click', () => _runImport());
+
+  $('acuCloudClose')?.addEventListener('click', _closeAll);
+  $('acuCloudOverlay')?.addEventListener('click', e => { if (e.target.id === 'acuCloudOverlay') _closeAll(); });
+  $('acuCloudBack')?.addEventListener('click', () => { _closePanel('acuCloudOverlay'); _openPanel('acuChoiceOverlay'); });
+  $('acuCloudRetry')?.addEventListener('click', () => _runCloudProvision());
+  $('acuCloudHelpCopy')?.addEventListener('click', () => {
+    const cmd = $('acuCloudHelpCmd')?.textContent || '';
+    try { navigator.clipboard.writeText(cmd); } catch (_) {}
+  });
 
   $('acuScanClose')?.addEventListener('click', _closeAll);
   $('acuScanOverlay')?.addEventListener('click', e => { if (e.target.id === 'acuScanOverlay') _closeAll(); });
@@ -561,6 +620,108 @@ function _openImportPanel() {
   _ensureDOM();
   _openPanel('acuImportOverlay');
   _runImport();
+}
+
+// ── Cloud provisioning panel ─────────────────────────────────────────────────
+// Attaches to a RUNNING bridge-mode slicer over CDP (port 9222) to read the
+// workbench token, lists the account's cloud printers, and writes a Firestore
+// cloud doc per pick. We never launch the slicer — if CDP isn't reachable we
+// show the one-time bridge-mode launch instructions.
+
+// Machine error code → i18n key for the cloud empty/help state.
+const _CLOUD_ERR_KEY = {
+  'cdp-unreachable':    'acuCloudErrUnreachable',
+  'workbench-not-found':'acuCloudErrNoWorkbench',
+  'no-token':           'acuCloudErrNoToken',
+  'no-store':           'acuCloudErrNoWorkbench',
+};
+
+function _acuCloudCardHtml(p) {
+  const catalogId = acuCatalogIdFromModel(String(p.machineType), p.name);
+  const matched   = ctx.findPrinterModel('anycubic', catalogId);
+  const fallback  = ctx.findPrinterModel('anycubic', '0');
+  const title     = p.name || (matched && String(matched.id) !== '0' ? matched.name : `Anycubic ${p.id}`);
+  const imgUrl    = ctx.printerImageUrl(matched) || ctx.printerImageUrl(fallback);
+  const thumbHtml = imgUrl ? `<img src="${ctx.esc(imgUrl)}" alt="" onerror="this.style.opacity='.15'"/>` : '';
+  const offline   = !p.online;
+  return `
+    <div class="snap-scan-card${offline ? ' is-disabled' : ''}" role="button" tabindex="${offline ? -1 : 0}"
+         data-cloud-id="${ctx.esc(p.id)}"${offline ? ' aria-disabled="true"' : ''}>
+      <span class="snap-scan-card-thumb">${thumbHtml}</span>
+      <span class="snap-scan-card-main">
+        <span class="snap-scan-card-title">
+          <span class="snap-scan-card-title-text">${ctx.esc(title)}</span>
+        </span>
+        <span class="snap-scan-card-ip">${offline ? ctx.t('snapStatusOffline') : ctx.t('snapStatusOnline')}</span>
+        <span class="snap-scan-card-line snap-scan-card-line--sn">Model ID · ${ctx.esc(String(p.machineType))}</span>
+      </span>
+      <span class="icon icon-chevron-r icon-14 snap-scan-card-chev"></span>
+    </div>`;
+}
+
+async function _runCloudProvision() {
+  const results = document.getElementById('acuCloudResults');
+  const empty   = document.getElementById('acuCloudEmpty');
+  const help    = document.getElementById('acuCloudHelp');
+  const btn     = document.getElementById('acuCloudRetry');
+  if (results) results.innerHTML = '';
+  if (empty) { empty.hidden = true; empty.textContent = ''; }
+  if (help)  help.hidden = true;
+  if (btn) { btn.disabled = true; btn.classList.add('loading'); }
+
+  const fail = (key) => {
+    if (empty) { empty.textContent = ctx.t(key); empty.hidden = false; }
+    // Show the launch instructions whenever the slicer/workbench isn't reachable.
+    if (help && (key === 'acuCloudErrUnreachable' || key === 'acuCloudErrNoWorkbench')) help.hidden = false;
+  };
+
+  // 1. Grab the workbench token from the running bridge-mode slicer.
+  let tok;
+  try { tok = await window.anycubic?.cloud?.cdpToken(9222); }
+  catch (e) { tok = { ok: false, error: e?.message || 'cdp' }; }
+  if (!tok?.ok) { if (btn) { btn.disabled = false; btn.classList.remove('loading'); } return fail(_CLOUD_ERR_KEY[tok?.error] || 'acuCloudErrUnreachable'); }
+
+  // 2. List the account's cloud printers.
+  let res;
+  try { res = await window.anycubic?.cloud?.getPrinters(tok.token); }
+  catch (e) { res = { ok: false, error: e?.message || 'rest' }; }
+  if (btn) { btn.disabled = false; btn.classList.remove('loading'); }
+  if (!res?.ok) return fail('acuCloudErrRest');
+
+  const printers = Array.isArray(res.printers) ? res.printers : [];
+  if (!printers.length) { if (empty) { empty.textContent = ctx.t('acuCloudErrNoPrinters'); empty.hidden = false; } return; }
+
+  for (const p of printers) {
+    const wrap = document.createElement('div');
+    wrap.innerHTML = _acuCloudCardHtml(p);
+    const card = wrap.firstElementChild;
+    if (!card) continue;
+    if (p.online) {
+      const add = async () => {
+        card.classList.add('is-busy');
+        const r = await ctx.addAnycubicCloudPrinter({
+          cloudPrinterId: p.id,
+          machineType:    p.machineType,
+          key:            p.key,
+          cloudToken:     tok.token,
+          cloudEmail:     tok.email,
+          printerName:    p.name,
+          printerModelId: acuCatalogIdFromModel(String(p.machineType), p.name),
+        });
+        if (r?.ok) { _closeAll(); }
+        else { card.classList.remove('is-busy'); ctx.toast?.(ctx.t('acuCloudAddFailed'), 'error'); }
+      };
+      card.addEventListener('click', add);
+      card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); add(); } });
+    }
+    results?.appendChild(card);
+  }
+}
+
+function _openCloudPanel() {
+  _ensureDOM();
+  _openPanel('acuCloudOverlay');
+  _runCloudProvision();
 }
 
 // ── Scan panel logic ─────────────────────────────────────────────────────────

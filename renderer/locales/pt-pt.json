@@ -942,5 +942,18 @@
     "Emparelhe a impressora uma vez no AnycubicSlicerNext (modo LAN ativado).",
     "Use 'Importar do Anycubic Slicer' para preencher todos os campos automaticamente.",
     "As credenciais são duradouras — o slicer deixa de ser necessário."
-  ]
+  ],
+  "acuCloudChoice": "Adicionar impressora na nuvem",
+  "acuCloudChoiceHint": "Para impressoras em modo nuvem (através do slicer)",
+  "acuCloudTitle": "Adicionar impressora na nuvem",
+  "acuCloudSub": "Impressoras na nuvem da sua conta Anycubic",
+  "acuCloudConnect": "Ligar ao slicer",
+  "acuCloudHelpIntro": "As impressoras na nuvem são adicionadas pelo AnycubicSlicerNext. Inicie-o com depuração remota, com sessão iniciada, e abra o Workbench:",
+  "acuCloudErrUnreachable": "Slicer inacessível. Inicie o AnycubicSlicerNext em modo ponte (abaixo), com sessão iniciada e o Workbench aberto.",
+  "acuCloudErrNoWorkbench": "Workbench não encontrado. Abra o separador Workbench no slicer e inicie sessão.",
+  "acuCloudErrNoToken": "Sem sessão. Inicie sessão na sua conta Anycubic no slicer e tente novamente.",
+  "acuCloudErrRest": "Não foi possível aceder à nuvem Anycubic. Verifique a ligação e tente novamente.",
+  "acuCloudErrNoPrinters": "Nenhuma impressora na nuvem na sua conta.",
+  "acuCloudAddFailed": "Não foi possível adicionar a impressora na nuvem.",
+  "printerConnCloud": "Nuvem"
 }

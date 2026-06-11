@@ -941,5 +941,18 @@
     "Sparuj drukarkę raz w AnycubicSlicerNext (tryb LAN włączony).",
     "Użyj 'Importuj z Anycubic Slicer', aby automatycznie wypełnić wszystkie pola.",
     "Dane logowania są trwałe — slicer nie jest później potrzebny."
-  ]
+  ],
+  "acuCloudChoice": "Dodaj drukarkę w chmurze",
+  "acuCloudChoiceHint": "Dla drukarek w trybie chmury (przez slicer)",
+  "acuCloudTitle": "Dodaj drukarkę w chmurze",
+  "acuCloudSub": "Drukarki w chmurze na Twoim koncie Anycubic",
+  "acuCloudConnect": "Połącz ze slicerem",
+  "acuCloudHelpIntro": "Drukarki w chmurze dodaje się przez AnycubicSlicerNext. Uruchom go ze zdalnym debugowaniem, zalogowany, i otwórz Workbench:",
+  "acuCloudErrUnreachable": "Slicer nieosiągalny. Uruchom AnycubicSlicerNext w trybie mostka (poniżej), zalogowany, z otwartym Workbench.",
+  "acuCloudErrNoWorkbench": "Nie znaleziono Workbench. Otwórz kartę Workbench w slicerze i zaloguj się.",
+  "acuCloudErrNoToken": "Nie zalogowano. Zaloguj się do konta Anycubic w slicerze i spróbuj ponownie.",
+  "acuCloudErrRest": "Nie można połączyć się z chmurą Anycubic. Sprawdź połączenie i spróbuj ponownie.",
+  "acuCloudErrNoPrinters": "Brak drukarek w chmurze na Twoim koncie.",
+  "acuCloudAddFailed": "Nie udało się dodać drukarki w chmurze.",
+  "printerConnCloud": "Chmura"
 }

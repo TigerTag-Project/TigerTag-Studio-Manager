@@ -22,3 +22,30 @@
 .pp-cam-loading .acu-camera-img {
   opacity: 0;
 }
+
+/* ── Cloud provisioning — bridge-mode launch instructions ──────────────────
+   Shown in the "Add a cloud printer" modal when the slicer isn't reachable. */
+.acu-cloud-help {
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid var(--border, #2a2a33);
+  border-radius: 10px;
+  background: rgba(123, 97, 255, 0.06);
+}
+.acu-cloud-help p { margin: 0 0 8px; font-size: 13px; color: var(--muted, #9aa0ab); }
+.acu-cloud-help-cmd {
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--code-bg, #15151b);
+  color: var(--text, #e6e6ea);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-all;
+  user-select: all;
+}
+/* Offline cloud printers in the pick list are shown but not selectable. */
+.snap-scan-card.is-disabled { opacity: 0.5; pointer-events: none; }
+.snap-scan-card.is-busy     { opacity: 0.6; pointer-events: none; }
