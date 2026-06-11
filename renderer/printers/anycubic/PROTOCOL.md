@@ -196,6 +196,7 @@ key, and never fail on a missing field.
 | `status` | `workReport`/`free`·`busy` | — (printer busy/idle heartbeat) |
 | `lastWill` | `onlineReport`/`online`·`offline` | — |
 | `multiColorBox` | `getInfo`·`setInfo`·`refresh`/`success` (full layout); `autoUpdateDryStatus`·`setDry`/`success`, `feedFilament`/`done`, `autoUpdateInfo`/`done`, `setAutoFeed`/`done` (**partial** box objects — no `slots`!) | see §5 — only re-flatten the layout on full-layout actions; partial actions carry `temp`, `drying_status`, `loaded_slot`, `feed_status`, `auto_feed` |
+| `extfilbox` | `reportInfo`/`success` (state) | **Standalone external spool** (a printer with NO ACE — e.g. a Kobra 3 — reports its external spool HERE, not in multiColorBox). `data` is a SINGLE spool `{id, type, color:[r,g,b], loaded, status_type, current_status}`. **Get** = order **1230** (`GET_EXTFILBOX_INFO`, data `{}`). **Set** = order **1229** (`EXTFILBOX`), data **`{type, color:[r,g,b]}`** — just type + color, no box/slot/index (captured from the Workbench). The driver synthesizes a box -1 from this for the filament card, and routes its set to 1229 (not multiColorBox 1211). |
 | `file` | `listLocal`·`listUdisk`/`done`, `deleteLocal`·`deleteUdisk`/`success` | `records[]` (file lists) — not used yet |
 | `ota` | `reportVersion`/`done`, `update`/`start`·`downloading`·`updating` | firmware versions/progress — not used yet |
 | `peripherie` | `query`/`done` | `camera`, `multiColorBox`, `udisk` booleans — not used yet |

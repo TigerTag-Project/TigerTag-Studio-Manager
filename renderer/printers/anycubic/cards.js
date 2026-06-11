@@ -99,8 +99,20 @@ export function renderAcuTempCard(conn) {
 // ── Filament / ACE card ───────────────────────────────────────────────────
 
 export function renderAcuFilamentCard(_p, conn) {
-  const boxes = conn?.data?.boxes;
-  if (!Array.isArray(boxes) || !boxes.length) return "";
+  const d = conn?.data || {};
+  const realBoxes = Array.isArray(d.boxes) ? d.boxes : [];
+
+  // A printer with NO ACE (e.g. a Kobra 3) reports only a standalone external
+  // spool, via the `extfilbox` channel, not multiColorBox. Synthesize a box -1
+  // for it so it shows — but only if multiColorBox didn't already report an
+  // external box -1 (ACE printers put their external box there).
+  const hasExtBox = realBoxes.some(b => b.id === -1);
+  let boxes = realBoxes;
+  if (!hasExtBox && d.extShelf) {
+    boxes = [{ id: -1, modelId: null, temp: null,
+               slots: [{ index: 0, type: d.extShelf.type, color: d.extShelf.color }] }, ...realBoxes];
+  }
+  if (!boxes.length) return "";
 
   // Each box is its own row with all of its slots. The "external" box reports
   // as id -1 and is itself a multi-slot unit (e.g. the Kobra X / ACE Pro 2
@@ -141,13 +153,16 @@ export function renderAcuFilamentCard(_p, conn) {
   // A / B / C / … by id. (Box -1 = external, 0 = first ACE, 1 = second, …)
   const tagPrefix = (boxId) => boxId === -1 ? "E" : String.fromCharCode(65 + boxId);
 
-  // One box row — up to 4 cells (slot indexes 0..3), spacers for any missing.
+  // One box row. ACE units always show their 4 slots (spacers for any missing);
+  // the external box (id -1) shows its ACTUAL slot count — 4 on a Kobra X, just
+  // 1 on a Kobra 3 — so we don't paint phantom empty external slots.
   const makeBoxRow = (box) => {
-    const byIdx = new Map((box?.slots || []).map(s => [Number(s.index), s]));
-    const slotCount = (box?.slots || []).length;
-    const cells = [];
+    const slots = box?.slots || [];
+    const byIdx = new Map(slots.map(s => [Number(s.index), s]));
     const pre = tagPrefix(box.id);
-    for (let i = 0; i < Math.max(4, slotCount); i++) {
+    const count = box.id === -1 ? Math.max(1, slots.length) : 4;
+    const cells = [];
+    for (let i = 0; i < count; i++) {
       const s = byIdx.get(i);
       cells.push(s ? makeSlot(`${pre}${i + 1}`, s, box.id, i) : filSpacer);
     }

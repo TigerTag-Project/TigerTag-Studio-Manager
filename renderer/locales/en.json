@@ -972,5 +972,7 @@
   "acuCloudErrRest": "Couldn't reach the Anycubic cloud. Check your connection and retry.",
   "acuCloudErrNoPrinters": "No cloud printers on your account.",
   "acuCloudAddFailed": "Couldn't add the cloud printer.",
-  "printerConnCloud": "Cloud"
+  "printerConnCloud": "Cloud",
+  "acuCloudTokenRefreshed": "Cloud connection refreshed",
+  "acuCloudTokenStale": "Cloud sign-in expired — re-add the printer with the slicer in bridge mode."
 }

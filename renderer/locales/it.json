@@ -972,5 +972,7 @@
   "acuCloudErrRest": "Impossibile raggiungere il cloud Anycubic. Controlla la connessione e riprova.",
   "acuCloudErrNoPrinters": "Nessuna stampante cloud nel tuo account.",
   "acuCloudAddFailed": "Impossibile aggiungere la stampante cloud.",
-  "printerConnCloud": "Cloud"
+  "printerConnCloud": "Cloud",
+  "acuCloudTokenRefreshed": "Connessione cloud aggiornata",
+  "acuCloudTokenStale": "Accesso cloud scaduto — riaggiungi la stampante con lo slicer in modalità bridge."
 }

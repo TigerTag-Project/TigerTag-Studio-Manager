@@ -972,5 +972,7 @@
   "acuCloudErrRest": "Não foi possível aceder à nuvem Anycubic. Verifique a ligação e tente novamente.",
   "acuCloudErrNoPrinters": "Nenhuma impressora na nuvem na sua conta.",
   "acuCloudAddFailed": "Não foi possível adicionar a impressora na nuvem.",
-  "printerConnCloud": "Nuvem"
+  "printerConnCloud": "Nuvem",
+  "acuCloudTokenRefreshed": "Ligação à nuvem atualizada",
+  "acuCloudTokenStale": "Sessão na nuvem expirada — adicione a impressora novamente com o slicer em modo ponte."
 }

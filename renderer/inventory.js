@@ -10295,6 +10295,28 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       return { ok: false, error: e?.message || String(e) };
     }
   };
+  // Refresh the stored cloud token (+ email) on every Anycubic cloud printer —
+  // called by the driver after re-grabbing a token from a bridge-mode slicer
+  // when the old one was revoked. Updates Firestore + in-memory state so
+  // reconnects use the fresh token.
+  _printerCtx.updateAnycubicCloudToken = async (email, token) => {
+    const uid = state.activeAccountId;
+    if (!uid || !token) return { ok: false };
+    try {
+      const db = fbDb(uid);
+      const cloudDocs = (state.printers || []).filter(p => p.brand === "anycubic" && p.mode === "cloud");
+      await Promise.all(cloudDocs.map(p => {
+        p.cloudToken = token; if (email) p.cloudEmail = email; // keep state in sync now
+        return db.collection("users").doc(uid).collection("printers").doc("anycubic")
+          .collection("devices").doc(p.id)
+          .set({ cloudToken: token, ...(email ? { cloudEmail: email } : {}) }, { merge: true });
+      }));
+      return { ok: true, n: cloudDocs.length };
+    } catch (e) {
+      console.warn("[anycubic] updateAnycubicCloudToken failed:", e?.code, e?.message);
+      return { ok: false, error: e?.message || String(e) };
+    }
+  };
 
   // Dispatch to the per-brand camera widget. Returns "" when the
   // printer is offline, has no camera, or the brand is unknown.

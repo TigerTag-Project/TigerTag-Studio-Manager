@@ -2752,12 +2752,16 @@ let _ffmpegBin = null;
 
   // Send an ACE order via REST (1206 = getInfo, 1211 = setSlot). The report
   // comes back over cloud MQTT (see below). { ok } | { ok:false, error }.
+  // code 10001 = "Login information has expired" (the token was revoked by a
+  // newer slicer login). Surface code/msg so the renderer can recover (re-grab
+  // the token from a bridge-mode slicer) rather than silently going offline.
   ipcMain.handle('anycubic:cloud-send-order', async (_evt, { token, orderId, printerId, data }) => {
     try {
       const body = { order_id: Number(orderId), printer_id: Number(printerId), project_id: 0, data: data ?? {} };
       const r = await _cloudFetch(token, 'POST', '/work/operation/sendOrder', body);
-      if (r.json && Number(r.json.code) === 1) return { ok: true };
-      return { ok: false, error: (r.json && r.json.msg) || `send-failed-${r.status}` };
+      const code = r.json ? Number(r.json.code) : 0;
+      if (code === 1) return { ok: true };
+      return { ok: false, code, authError: code === 10001, error: (r.json && r.json.msg) || `send-failed-${r.status}` };
     } catch (e) {
       return { ok: false, error: e?.message || String(e) };
     }
@@ -2768,6 +2772,7 @@ let _ffmpegBin = null;
   //    the renderer conn key set at subscribe time.
   let _cloudClient = null;
   let _cloudClientEmail = '';
+  let _cloudClientToken = '';
   const _cloudSubs = new Map(); // connKey → { machineType, key, wc }
 
   function _buildCloudLogin(email, token) {
@@ -2793,9 +2798,12 @@ let _ffmpegBin = null;
   }
 
   function _ensureCloudClient(email, token, wc) {
-    if (_cloudClient && _cloudClientEmail === email) return;
+    // Rebuild when the token changes too — the MQTT password is derived from
+    // the token, so a refreshed (post-revocation) token must reconnect.
+    if (_cloudClient && _cloudClientEmail === email && _cloudClientToken === token) return;
     if (_cloudClient) { try { _cloudClient.end(true); } catch (_) {} _cloudClient = null; }
     _cloudClientEmail = email;
+    _cloudClientToken = token;
     // Wrap the whole setup: a malformed cert / TLS option throws synchronously
     // from mqtt.connect (BoringSSL), and an uncaught throw here crashes the app
     // — report it as a cloud-status error instead.
@@ -2818,7 +2826,7 @@ let _ffmpegBin = null;
         keepalive: 30, clean: true, connectTimeout: 12000, reconnectPeriod: 5000,
       });
     } catch (e) {
-      _cloudClient = null; _cloudClientEmail = '';
+      _cloudClient = null; _cloudClientEmail = ''; _cloudClientToken = '';
       if (!wc.isDestroyed()) wc.send('anycubic:cloud-status', `error:${e?.message || e}`);
       return;
     }
@@ -2857,7 +2865,7 @@ let _ffmpegBin = null;
     }
     _cloudSubs.delete(connKey);
     // Drop the shared client when nothing is left subscribed.
-    if (_cloudSubs.size === 0 && _cloudClient) { try { _cloudClient.end(true); } catch (_) {} _cloudClient = null; _cloudClientEmail = ''; }
+    if (_cloudSubs.size === 0 && _cloudClient) { try { _cloudClient.end(true); } catch (_) {} _cloudClient = null; _cloudClientEmail = ''; _cloudClientToken = ''; }
   });
 }
 

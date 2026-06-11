@@ -971,5 +971,7 @@
   "acuCloudErrRest": "Nie można połączyć się z chmurą Anycubic. Sprawdź połączenie i spróbuj ponownie.",
   "acuCloudErrNoPrinters": "Brak drukarek w chmurze na Twoim koncie.",
   "acuCloudAddFailed": "Nie udało się dodać drukarki w chmurze.",
-  "printerConnCloud": "Chmura"
+  "printerConnCloud": "Chmura",
+  "acuCloudTokenRefreshed": "Połączenie z chmurą odświeżone",
+  "acuCloudTokenStale": "Sesja w chmurze wygasła — dodaj drukarkę ponownie ze slicerem w trybie mostka."
 }

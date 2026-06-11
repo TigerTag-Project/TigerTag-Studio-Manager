@@ -972,5 +972,7 @@
   "acuCloudErrRest": "No se pudo conectar con la nube de Anycubic. Comprueba tu conexión y reinténtalo.",
   "acuCloudErrNoPrinters": "No hay impresoras en la nube en tu cuenta.",
   "acuCloudAddFailed": "No se pudo añadir la impresora en la nube.",
-  "printerConnCloud": "Nube"
+  "printerConnCloud": "Nube",
+  "acuCloudTokenRefreshed": "Conexión a la nube actualizada",
+  "acuCloudTokenStale": "Sesión en la nube caducada — vuelve a añadir la impresora con el slicer en modo puente."
 }

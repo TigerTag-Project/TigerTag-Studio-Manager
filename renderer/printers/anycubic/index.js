@@ -119,6 +119,7 @@ function _acuRequest(action, data, type = "multiColorBox") {
 function _acuDefaultData() {
   return {
     boxes:      [],   // [{ id, modelId, temp, slots: [{ index, type, color }] }]
+    extShelf:   null, // standalone external spool (no ACE) — { index, type, color }
     lastReport: null, // epoch ms of the last layout report
     // Print job (type:"print" reports — PROTOCOL.md §5b)
     printState:    null,  // printing|preparing|paused|finished|failed|idle
@@ -251,15 +252,80 @@ export function acuDisconnect(key) {
 
 const ACU_ORDER_GET_INFO = 1206;
 const ACU_ORDER_SET_SLOT = 1211;
+const ACU_ORDER_GET_EXTFILBOX = 1230; // standalone external spool (no ACE)
+const ACU_ORDER_SET_EXTFIL    = 1229; // set the standalone external spool
 
-function _acuCloudGetInfo(conn) {
+async function _acuCloudGetInfo(conn) {
   const p = conn.printer;
   if (!p) return;
   _acuLogPush(conn, "→", { type: "multiColorBox", action: "getInfo", via: "cloud" });
-  window.anycubic?.cloud?.sendOrder({
-    token: p.cloudToken, orderId: ACU_ORDER_GET_INFO, printerId: p.cloudPrinterId,
-    data: { multi_color_box: [] },
-  });
+  // Also ask for the standalone external spool (Kobra 3 with no ACE reports it
+  // here, not in multiColorBox). Fire-and-forget — harmless on ACE printers.
+  try {
+    window.anycubic?.cloud?.sendOrder({
+      token: p.cloudToken, orderId: ACU_ORDER_GET_EXTFILBOX, printerId: p.cloudPrinterId, data: {},
+    });
+  } catch (_) {}
+  let res;
+  try {
+    res = await window.anycubic?.cloud?.sendOrder({
+      token: p.cloudToken, orderId: ACU_ORDER_GET_INFO, printerId: p.cloudPrinterId,
+      data: { multi_color_box: [] },
+    });
+  } catch (_) { res = null; }
+  if (res && res.ok === false) {
+    _acuLogPush(conn, "←", { error: res.error, code: res.code });
+    // 10001 = the stored token was revoked by a newer slicer login. Recover by
+    // re-grabbing a fresh token from a bridge-mode slicer (if one is running).
+    if (res.authError) _acuCloudRecover(conn);
+  }
+}
+
+// ── Cloud token recovery (revocation) ───────────────────────────────────────
+// The workbench token isn't short-lived (90-day exp) but is REVOKED when a new
+// slicer session logs in — so a stored token goes stale across sessions. When
+// the cloud rejects it (code 10001), re-grab the current token from a running
+// bridge-mode slicer and persist it; if none is reachable, surface the need to
+// re-provision instead of silently showing offline.
+let _acuCloudRecovering = false;
+let _acuCloudStaleToasted = false;
+
+async function _acuCloudRecover(_conn) {
+  if (_acuCloudRecovering) return;
+  _acuCloudRecovering = true;
+  try {
+    let r = null;
+    try { r = await window.anycubic?.cloud?.cdpToken(9222); } catch (_) { r = null; }
+    if (r && r.ok && r.token) {
+      const email = r.email || _conn?.printer?.cloudEmail || "";
+      // Persist the fresh token to every cloud printer doc + the live conns.
+      try { await ctx.updateAnycubicCloudToken?.(email, r.token); } catch (_) {}
+      for (const c of _acuConns.values()) {
+        if (c.mode === "cloud" && c.printer) {
+          c.printer.cloudToken = r.token;
+          if (email) c.printer.cloudEmail = email;
+          c.lastError = null;
+        }
+      }
+      // Reconnect the shared client with the new token; on 'connected' the
+      // status handler re-issues getInfo for every cloud printer → online.
+      window.anycubic?.cloud?.connect({ email, token: r.token });
+      _acuCloudStaleToasted = false;
+      ctx.toast?.(ctx.t("acuCloudTokenRefreshed"), "success");
+    } else {
+      // No bridge-mode slicer → can't refresh. Mark offline with a reason and
+      // tell the user how to fix it (once).
+      for (const c of _acuConns.values()) {
+        if (c.mode === "cloud") {
+          c.status = "error"; c.lastError = "token-revoked";
+          _acuNotify(c, /*statusChanged*/ true); _acuRefreshOnlineUI(c.key);
+        }
+      }
+      if (!_acuCloudStaleToasted) { _acuCloudStaleToasted = true; ctx.toast?.(ctx.t("acuCloudTokenStale"), "error"); }
+    }
+  } finally {
+    _acuCloudRecovering = false;
+  }
 }
 
 function _acuCloudSetInfo(conn, boxId, slot, type, rgb) {
@@ -271,6 +337,22 @@ function _acuCloudSetInfo(conn, boxId, slot, type, rgb) {
     token: p.cloudToken, orderId: ACU_ORDER_SET_SLOT, printerId: p.cloudPrinterId,
     data: { multi_color_box: [{ id: Number(boxId), slots: [{ color: rgb, index: Number(slot), type: String(type) }] }] },
   });
+}
+
+// Standalone external spool set — its own order (1229), a single spool with just
+// {type, color} (captured from the Workbench). No box/slot/index.
+function _acuCloudSetExtfil(conn, type, rgb) {
+  const p = conn.printer;
+  if (!p) return Promise.resolve({ ok: false, error: "no-printer" });
+  _acuLogPush(conn, "→", { type: "extfilbox", action: "setInfo", via: "cloud", data: { type, color: rgb } });
+  return window.anycubic?.cloud?.sendOrder({
+    token: p.cloudToken, orderId: ACU_ORDER_SET_EXTFIL, printerId: p.cloudPrinterId,
+    data: { type: String(type), color: rgb },
+  });
+}
+
+function _acuLanSetExtfil(conn, type, rgb) {
+  _publish(conn, _acuRequest("setInfo", { type: String(type), color: rgb }, "extfilbox"), "extfilbox");
 }
 
 /**
@@ -398,6 +480,14 @@ function _publish(conn, payload, endpoint) {
   window.anycubic?.publish(conn.key, payload, endpoint);
 }
 
+// LAN layout request — the ACE boxes (multiColorBox) PLUS the standalone
+// external spool (extfilbox), which a no-ACE printer (e.g. a Kobra 3) reports
+// separately. The extfilbox request is harmless on ACE printers.
+function _acuLanGetInfo(conn) {
+  _publish(conn, _acuRequest("getInfo"));
+  _publish(conn, _acuRequest("getInfo", null, "extfilbox"), "extfilbox");
+}
+
 // ── Refresh timer ──────────────────────────────────────────────────────────
 
 function _scheduleRefresh(conn, delayMs = ACU_REFRESH_MS) {
@@ -406,7 +496,7 @@ function _scheduleRefresh(conn, delayMs = ACU_REFRESH_MS) {
     conn.refreshTimer = null;
     if (!_acuConns.has(conn.key)) return;
     if (conn.mode === "cloud") _acuCloudGetInfo(conn);
-    else                       _publish(conn, _acuRequest("getInfo"));
+    else                       _acuLanGetInfo(conn);
     _scheduleRefresh(conn);
   }, delayMs);
 }
@@ -426,7 +516,7 @@ if (typeof window !== "undefined" && window.anycubic) {
       // Stay "connecting" (UI) until the first layout report arrives (see
       // onMessage) — only a real report counts as established.
       if (conn.status !== "connected") conn.status = "connecting";
-      _publish(conn, _acuRequest("getInfo"));
+      _acuLanGetInfo(conn);
       _scheduleRefresh(conn);
       // Activate the camera now if a surface asked for it before the broker
       // was up (the common case — panel open triggers connect + camWanted).
@@ -521,7 +611,7 @@ if (typeof window !== "undefined" && window.anycubic?.cloud) {
       return;
     }
     // On a hard error/disconnect, drop all cloud printers to offline so the
-    // badges reflect reality (a token expiry surfaces here).
+    // badges reflect reality.
     const offline = String(status).startsWith("error:") ? "error" : "disconnected";
     for (const conn of _acuConns.values()) {
       if (conn.mode === "cloud" && conn.status === "connected") {
@@ -530,6 +620,12 @@ if (typeof window !== "undefined" && window.anycubic?.cloud) {
         _acuNotify(conn, /*statusChanged*/ true);
         _acuRefreshOnlineUI(conn.key);
       }
+    }
+    // A broker auth failure can mean the stored token was revoked — try to
+    // recover with a fresh token from a bridge-mode slicer (no-op if none).
+    if (offline === "error") {
+      const anyCloud = [..._acuConns.values()].find(c => c.mode === "cloud");
+      if (anyCloud) _acuCloudRecover(anyCloud);
     }
   });
 }
@@ -642,6 +738,25 @@ function _acuMerge(conn, msg) {
             if (known && Number.isFinite(Number(box.temp))) known.temp = Number(box.temp);
           }
         }
+      }
+      break;
+    }
+    case "extfilbox": {
+      // Standalone external spool (no ACE connected — e.g. a Kobra 3). Reported
+      // separately from multiColorBox as a single spool object
+      // {id, type, color:[r,g,b], loaded, ...} (PROTOCOL.md §5b). We surface it
+      // as a synthetic external box (id -1) so the filament card shows it.
+      if (action === "reportInfo" && data && typeof data === "object") {
+        const col = Array.isArray(data.color) ? data.color : null;
+        const hex = col
+          ? "#" + [0, 1, 2].map(i => Math.max(0, Math.min(255, Number(col[i]) || 0)).toString(16).padStart(2, "0")).join("").toUpperCase()
+          : null;
+        d.extShelf = {
+          index: Number.isFinite(Number(data.id)) ? Number(data.id) : 0,
+          type:  String(data.type || ""),
+          color: hex,
+        };
+        d.lastReport = Date.now();
       }
       break;
     }
@@ -1070,20 +1185,34 @@ function _acuWireSheet() {
     const safe = hex6 === "000000" ? "010101" : hex6;
     const rgb  = [0, 1, 2].map(i => parseInt(safe.substr(i * 2, 2), 16) || 0);
 
-    // Cloud printers set the slot via REST sendOrder; LAN printers publish to
-    // the local broker. Both honor only {index, type, color}.
-    if (conn.mode === "cloud") {
-      _acuCloudSetInfo(conn, boxId, slotId, _acuSelType, rgb);
-    } else {
-      _publish(conn, _acuRequest("setInfo", {
-        multi_color_box: [{ id: boxId, slots: [{ index: slotId, type: _acuSelType, color: rgb }] }],
-      }));
-    }
+    // The synthetic external box (-1) that came from the extfilbox channel
+    // (no real multiColorBox box -1 — e.g. a Kobra 3 with no ACE) is set with
+    // a DIFFERENT order (1229, {type,color}), not multiColorBox setInfo.
+    const isExtfilShelf = boxId === -1
+      && !(conn.data?.boxes || []).some(b => b.id === -1)
+      && conn.data?.extShelf;
 
-    // Optimistic local update so the slot square changes immediately…
-    const box  = (conn.data?.boxes || []).find(b => b.id === boxId);
-    const slot = (box?.slots || []).find(s => s.index === slotId);
-    if (slot) { slot.type = _acuSelType; slot.color = "#" + safe; }
+    if (isExtfilShelf) {
+      if (conn.mode === "cloud") _acuCloudSetExtfil(conn, _acuSelType, rgb);
+      else                       _acuLanSetExtfil(conn, _acuSelType, rgb);
+      // Optimistic update of the external shelf.
+      if (conn.data.extShelf) { conn.data.extShelf.type = _acuSelType; conn.data.extShelf.color = "#" + safe; }
+    } else {
+      // ACE slot (or a real multiColorBox external box -1 like the Kobra X):
+      // cloud sets via REST sendOrder; LAN publishes to the local broker. Both
+      // honor only {index, type, color}.
+      if (conn.mode === "cloud") {
+        _acuCloudSetInfo(conn, boxId, slotId, _acuSelType, rgb);
+      } else {
+        _publish(conn, _acuRequest("setInfo", {
+          multi_color_box: [{ id: boxId, slots: [{ index: slotId, type: _acuSelType, color: rgb }] }],
+        }));
+      }
+      // Optimistic local update so the slot square changes immediately…
+      const box  = (conn.data?.boxes || []).find(b => b.id === boxId);
+      const slot = (box?.slots || []).find(s => s.index === slotId);
+      if (slot) { slot.type = _acuSelType; slot.color = "#" + safe; }
+    }
     _acuNotify(conn);
     // …then confirm against the printer (there is no per-command ack).
     _scheduleRefresh(conn, 1500);

@@ -972,5 +972,7 @@
   "acuCloudErrRest": "Anycubic-Cloud nicht erreichbar. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
   "acuCloudErrNoPrinters": "Keine Cloud-Drucker in Ihrem Konto.",
   "acuCloudAddFailed": "Cloud-Drucker konnte nicht hinzugefügt werden.",
-  "printerConnCloud": "Cloud"
+  "printerConnCloud": "Cloud",
+  "acuCloudTokenRefreshed": "Cloud-Verbindung aktualisiert",
+  "acuCloudTokenStale": "Cloud-Anmeldung abgelaufen — Drucker erneut hinzufügen, Slicer im Bridge-Modus."
 }

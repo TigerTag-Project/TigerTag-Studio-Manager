@@ -972,5 +972,7 @@
   "acuCloudErrRest": "无法连接 Anycubic 云。请检查网络后重试。",
   "acuCloudErrNoPrinters": "您的账户中没有云打印机。",
   "acuCloudAddFailed": "无法添加云打印机。",
-  "printerConnCloud": "云"
+  "printerConnCloud": "云",
+  "acuCloudTokenRefreshed": "云连接已刷新",
+  "acuCloudTokenStale": "云登录已过期 — 请在桥接模式下重新添加打印机。"
 }
