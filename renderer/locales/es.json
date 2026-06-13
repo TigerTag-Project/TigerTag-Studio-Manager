@@ -657,6 +657,8 @@
   "rackAutoFill": "Llenar auto",
   "rackAutoFillTip": "Coloca las bobinas sin asignar en los espacios vacíos desbloqueados",
   "rackLockedTip": "Bloqueado · clic-derecho en un espacio para (des)bloquear",
+  "rackUnusableTip": "Ranura bloqueada — no utilizable para almacenar",
+  "rackPinnedTip": "Fijado — material bloqueado en su sitio",
   "rackStatsRacks": {
     "one": "estantería",
     "other": "estanterías"

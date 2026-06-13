@@ -144,11 +144,21 @@ function buildFeed(cam) {
 
 // ── Bambu IPC frame updates ──────────────────────────────────────────────────
 
+// Frame-drop guard — one pending paint rAF + latest frame per printer key.
+const _bblCamRafs = new Map();
+const _bblCamLast = new Map();
 window.camAPI.onBambuFrame((key, b64) => {
-  document.querySelectorAll(`.bbl-cam-img[data-bbl-key="${CSS.escape(key)}"]`).forEach(img => {
-    img.src = `data:image/jpeg;base64,${b64}`;
-    img.closest('.cam-card-body')?.querySelector('.cam-loading-overlay')?.remove();
-  });
+  _bblCamLast.set(key, b64);
+  if (_bblCamRafs.has(key)) return;   // a paint is already scheduled → newest wins
+  _bblCamRafs.set(key, requestAnimationFrame(() => {
+    _bblCamRafs.delete(key);
+    const latest = _bblCamLast.get(key);
+    if (!latest) return;
+    document.querySelectorAll(`.bbl-cam-img[data-bbl-key="${CSS.escape(key)}"]`).forEach(img => {
+      img.src = `data:image/jpeg;base64,${latest}`;
+      img.closest('.cam-card-body')?.querySelector('.cam-loading-overlay')?.remove();
+    });
+  }));
 });
 
 // ── Creality WebRTC signaling ─────────────────────────────────────────────────

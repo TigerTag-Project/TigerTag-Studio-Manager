@@ -7755,7 +7755,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
             <span class="icon icon-package icon-14"></span>
             <span class="storage-loc-rack">${esc(_rackForSpool.name)}</span>
             <span class="storage-loc-coord">${coord}</span>
-            ${lockedHere ? `<span class="storage-loc-locked icon icon-lock icon-13" title="${esc(t("rackLockedTip"))}"></span>` : ""}
+            ${lockedHere ? `<span class="storage-loc-locked icon icon-lock icon-13" title="${esc(t("rackPinnedTip"))}"></span>` : ""}
             <span class="storage-loc-locate icon icon-chevron-r icon-13" aria-hidden="true"></span>
           </button>
         </div>`;
@@ -13205,7 +13205,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
             </div>
             <div class="rht-weight-bar"><div class="rht-weight-bar-fill" style="width:${pct}%"></div></div>
           </div>
-          ${locked ? `<div class="rht-locked"><span class="icon icon-lock icon-13"></span>${esc(t("rackLockedTip"))}</div>` : ""}
+          ${locked ? `<div class="rht-locked"><span class="icon icon-lock icon-13"></span>${esc(t("rackPinnedTip"))}</div>` : ""}
         </div>
       </div>
     `;
@@ -13311,11 +13311,21 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (x.rackPos   < 0 || x.rackPos   >= (rk.position || 0)) return false;
       return true;
     };
-    let totalSlotsAll = 0, filledSlotsAll = 0, lockedSlotsAll = 0;
+    let totalSlotsAll = 0, filledSlotsAll = 0, lockedSlotsAll = 0, lockedEmptyAll = 0;
     state.racks.forEach(r => {
-      const cap = (r.level || 0) * (r.position || 0);
-      totalSlotsAll += cap;
-      lockedSlotsAll += Array.isArray(r.lockedSlots) ? r.lockedSlots.length : 0;
+      const lvN = r.level || 0, psN = r.position || 0;
+      totalSlotsAll += lvN * psN;
+      const locks = Array.isArray(r.lockedSlots) ? r.lockedSlots : [];
+      lockedSlotsAll += locks.length;
+      // A locked-but-EMPTY slot (case 1, "unusable") is dead space: it can't
+      // hold material, so it's subtracted from the available count below.
+      // A locked-but-FILLED slot (case 2, "pinned") is already counted as filled.
+      locks.forEach(key => {
+        const [klv, kpos] = key.split(":").map(Number);
+        if (klv >= 0 && klv < lvN && kpos >= 0 && kpos < psN && !findSpoolInSlot(r.id, klv, kpos)) {
+          lockedEmptyAll++;
+        }
+      });
     });
     // Count one slot per physical spool — a twin pair (2 linked tags) occupies
     // a single slot, so collapse it before counting.
@@ -13338,8 +13348,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         _cleanupOrphanRackRefs(orphans).finally(() => { _orphanCleanupInFlight = false; });
       }
     }
-    const emptySlotsAll = Math.max(0, totalSlotsAll - filledSlotsAll);
-    const fillPctAll = totalSlotsAll > 0 ? Math.round((filledSlotsAll / totalSlotsAll) * 100) : 0;
+    // Usable capacity = physical total minus locked-EMPTY (unusable) slots:
+    // locking an empty slot takes it out of the rack's storable capacity, so
+    // the "filled / total" denominator drops (198 → 197). Locked-FILLED
+    // (pinned) slots stay counted — they still hold material.
+    const usableSlotsAll = Math.max(0, totalSlotsAll - lockedEmptyAll);
+    // "Available" = usable capacity not yet filled.
+    const emptySlotsAll = Math.max(0, usableSlotsAll - filledSlotsAll);
+    const fillPctAll = usableSlotsAll > 0 ? Math.round((filledSlotsAll / usableSlotsAll) * 100) : 0;
     // Depleted spools: active inventory items where the user has used up
     // all the filament (weightAvailable <= 0). They're still in the
     // database but ready to be discarded / replaced.
@@ -13367,9 +13383,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
             <div class="rv-stat-num">${racksCount}</div>
             <div class="rv-stat-lbl">${esc(racksLabel)}</div>
           </div>
-          <div class="rv-stat rv-stat--wide rv-stat--slots" data-stat="slots" title="${filledSlotsAll}/${totalSlotsAll} ${esc(t("rackStatsSlots"))}">
+          <div class="rv-stat rv-stat--wide rv-stat--slots" data-stat="slots" title="${filledSlotsAll}/${usableSlotsAll} ${esc(t("rackStatsSlots"))}">
             <div class="rv-stat-line">
-              <span class="rv-stat-num"><span class="rv-stat-num-strong">${filledSlotsAll}</span><span class="rv-stat-num-sep">/</span><span class="rv-stat-num-soft">${totalSlotsAll}</span></span>
+              <span class="rv-stat-num"><span class="rv-stat-num-strong">${filledSlotsAll}</span><span class="rv-stat-num-sep">/</span><span class="rv-stat-num-soft">${usableSlotsAll}</span></span>
               <span class="rv-stat-lbl rv-stat-lbl--inline">${esc(t("rackStatsSlots"))}</span>
             </div>
             <div class="rv-stat-bar"><div class="rv-stat-bar-fill" style="width:${fillPctAll}%"></div></div>
@@ -13434,7 +13450,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         for (let pos = 0; pos < r.position; pos++) {
           const occ    = findSpoolInSlot(r.id, lv, pos);
           const locked = isSlotLocked(r.id, lv, pos);
-          const lockCls = locked ? " rp-slot--locked" : "";
+          // Two locked sub-states with distinct meaning + visual:
+          //   pinned   = locked + occupied → material can't be moved / cleared
+          //   unusable = locked + empty    → dead slot, excluded from "available"
+          const lockCls = locked ? (occ ? " rp-slot--locked rp-slot--pinned" : " rp-slot--locked rp-slot--unusable") : "";
           const coord = `${shelfLetter(lv)}${pos + 1}`;
           if (occ) {
             // Bounce-in marker if this spool was just placed (drop / auto-fill).
@@ -13448,7 +13467,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
                               data-spool-id="${esc(occ.spoolId)}"
                               data-coord="${coord}">${slotFillInnerHTML(occ)}</div>`);
           } else {
-            const tip = locked ? `[${coord}] 🔒 ${t("rackLockedTip")}` : `[${coord}]`;
+            const tip = locked ? `[${coord}] ${t("rackUnusableTip")}` : `[${coord}]`;
             cells.push(`<div class="rp-slot${lockCls}" data-rack="${esc(r.id)}" data-level="${lv}" data-pos="${pos}" title="${tip}" data-coord="${coord}"></div>`);
           }
         }
@@ -13463,6 +13482,15 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       ).length;
       const lockedCnt  = Array.isArray(r.lockedSlots) ? r.lockedSlots.length : 0;
       const allLocked  = lockedCnt > 0 && lockedCnt === totalSlots;
+      // Drop locked-empty (unusable) slots from this rack's denominator too,
+      // mirroring the global "usable capacity" count in the stats bar.
+      let lockedEmptyCnt = 0;
+      (Array.isArray(r.lockedSlots) ? r.lockedSlots : []).forEach(key => {
+        const [klv, kpos] = key.split(":").map(Number);
+        if (klv >= 0 && klv < r.level && kpos >= 0 && kpos < r.position
+            && !findSpoolInSlot(r.id, klv, kpos)) lockedEmptyCnt++;
+      });
+      const usableSlots = Math.max(0, totalSlots - lockedEmptyCnt);
       return `<div class="rp-rack" data-rack-id="${esc(r.id)}">
         <div class="rp-rack-head">
           ${readOnly ? "" : `<span class="rp-rack-grip" title="Drag to reorder" draggable="true" data-rack-drag-id="${esc(r.id)}">⋮⋮</span>`}
@@ -13470,7 +13498,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
             <div class="rp-rack-name">
               <span class="rp-rack-name-text">${esc(r.name)}</span>
               <span class="rp-rack-count">·</span>
-              <span class="rp-rack-count-num">${filled}/${totalSlots}</span>
+              <span class="rp-rack-count-num">${filled}/${usableSlots}</span>
             </div>
           </div>
           ${readOnly ? "" : `<div class="rp-rack-actions">

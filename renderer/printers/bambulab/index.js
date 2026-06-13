@@ -25,6 +25,8 @@ const $ = id => document.getElementById(id);
 
 /** Per-printer live state. Keyed by `${brand}:${id}`. */
 const _bambuConns = new Map();
+// One pending camera-paint rAF token per printer key (frame-drop guard).
+const _camRafs = new Map();
 
 // ── Model helpers ──────────────────────────────────────────────────────────
 
@@ -279,22 +281,33 @@ if (typeof window !== "undefined" && window.bambulab) {
     if (!conn) return;
     const firstFrame = !conn.data.lastCamFrame;
     conn.data.lastCamFrame = b64;
-    // Fan out each frame to ALL imgs with this key — cam wall + sidecard can
-    // both display simultaneously. The main process keeps a single JPEG TCP /
-    // RTSP connection, so no extra load on the printer regardless of how many
-    // consumers are registered in the DOM.
-    const imgs = document.querySelectorAll(`[data-bbl-key="${CSS.escape(key)}"]`);
-    if (!imgs.length) return;
-    imgs.forEach(img => {
-      img.src = `data:image/jpeg;base64,${b64}`;
-      if (firstFrame) {
-        const wrap = img.closest(".pp-cam-loading");
-        if (wrap) {
-          wrap.classList.remove("pp-cam-loading");
-          wrap.querySelector(".pp-cam-loading-overlay")?.remove();
+    // Frame-drop via rAF: ffmpeg/JPEG-TCP can push frames faster than the
+    // renderer paints them. If a paint is already scheduled for this key, we
+    // just keep the newest frame in lastCamFrame and let the pending rAF show
+    // it — never queue a second paint. This collapses bursts into one paint
+    // per animation frame, killing the rafale freezes when the tab is busy.
+    if (_camRafs.has(key)) return;
+    _camRafs.set(key, requestAnimationFrame(() => {
+      _camRafs.delete(key);
+      const c = _bambuConns.get(key);
+      if (!c || !c.data.lastCamFrame) return;
+      // Fan out the LATEST frame to ALL imgs with this key — cam wall +
+      // sidecard can both display simultaneously. The main process keeps a
+      // single JPEG TCP / RTSP connection, so no extra load on the printer.
+      const imgs = document.querySelectorAll(`[data-bbl-key="${CSS.escape(key)}"]`);
+      if (!imgs.length) return;
+      const latest = c.data.lastCamFrame;
+      imgs.forEach(img => {
+        img.src = `data:image/jpeg;base64,${latest}`;
+        if (firstFrame) {
+          const wrap = img.closest(".pp-cam-loading");
+          if (wrap) {
+            wrap.classList.remove("pp-cam-loading");
+            wrap.querySelector(".pp-cam-loading-overlay")?.remove();
+          }
         }
-      }
-    });
+      });
+    }));
   });
 }
 

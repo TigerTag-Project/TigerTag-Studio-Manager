@@ -5,6 +5,18 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.8.27 — 2026-06-14
+
+### Added
+
+- **Locked storage slots now have two clear states.** Locking an *empty* slot marks it as unusable — it gets a grey hatched look and is removed from the rack's available capacity (so `130/198` becomes `130/197`). Locking a *filled* slot pins the material in place — it keeps the spool's colour with an amber lock badge, and is protected from moving and from "Clear all", without changing the slot count.
+
+### Fixed
+
+- **Bambu Lab camera: fewer micro-freezes.** Camera frames are now coalesced to one repaint per frame instead of piling up when the app is busy, which removes the stutter bursts on the printer camera view (P2S, H2C, X1 and the rest of the RTSP range, plus the JPEG models).
+
+---
+
 ## v1.8.26 — 2026-06-13
 
 ### Added
