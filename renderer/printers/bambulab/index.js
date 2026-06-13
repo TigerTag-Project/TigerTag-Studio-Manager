@@ -116,7 +116,7 @@ export function bambuConnect(printer, { skipCam = false } = {}) {
   // Idempotent: already connected/connecting with the same IP →
   // only (re-)start the camera if the caller wants it AND the stream
   // is not already delivering frames in the background (panel close no
-  // longer stops the camera, so lastCamFrame being non-null means the
+  // longer stops the camera, so lastCamUrl being non-null means the
   // ffmpeg/JPEG-TCP process is alive — restarting it would cause a
   // brief interruption for no benefit).
   // Preserve live data across reconnections so UI doesn't flicker to zero.
@@ -126,7 +126,7 @@ export function bambuConnect(printer, { skipCam = false } = {}) {
   if (existing) {
     if (existing.status === "connected" || existing.status === "connecting") {
       if (existing.ip === ip) {
-        if (!skipCam && ip && password && !existing.data?.lastCamFrame) {
+        if (!skipCam && ip && password && !existing.data?.lastCamUrl) {
           if (bambuUsesJpegCam(printer)) {
             window.bambulab?.camStart({ key, ip, password });
           } else {
@@ -138,6 +138,9 @@ export function bambuConnect(printer, { skipCam = false } = {}) {
     }
     // Carry data over before tearing down (same IP → reconnect, not a new printer).
     if (existing.ip === ip && existing.data) _prevData = { ...existing.data };
+    // The camera stream restarts on reconnect → free the old Blob URL/bytes
+    // so they don't outlive the connection (they're nulled below in `data`).
+    if (existing.data?.lastCamUrl) URL.revokeObjectURL(existing.data.lastCamUrl);
     bambuDisconnect(key);
   }
 
@@ -156,8 +159,8 @@ export function bambuConnect(printer, { skipCam = false } = {}) {
     logExpanded:  false,
     // On reconnect: keep previous print state/progress so the UI doesn't
     // flash to zero while the MQTT handshake completes and pushall arrives.
-    // Clear lastCamFrame — the camera stream is being restarted.
-    data: _prevData ? { ..._prevData, lastCamFrame: null } : {
+    // Clear the camera frame state — the stream is being restarted.
+    data: _prevData ? { ..._prevData, lastCamUrl: null, lastCamBuf: null } : {
       printState:    null,
       printFilename: null,
       progress:      0,
@@ -169,7 +172,8 @@ export function bambuConnect(printer, { skipCam = false } = {}) {
       chamberCurrent: null,
       ams:           [],
       externalTray:  null,
-      lastCamFrame:  null,
+      lastCamUrl:    null,
+      lastCamBuf:    null,
     },
   };
   _bambuConns.set(key, conn);
@@ -200,6 +204,9 @@ export function bambuDisconnect(key) {
   const conn = _bambuConns.get(key);
   if (!conn) return;
   if (conn.refreshTimer) { clearTimeout(conn.refreshTimer); conn.refreshTimer = null; }
+  // Cancel any pending camera paint + free the live Blob URL for this key.
+  if (_camRafs.has(key)) { cancelAnimationFrame(_camRafs.get(key)); _camRafs.delete(key); }
+  if (conn.data?.lastCamUrl) URL.revokeObjectURL(conn.data.lastCamUrl);
   window.bambulab?.camStop(key);
   window.bambulab?.camStopRtsp(key);
   window.bambulab?.disconnect(key);
@@ -276,29 +283,35 @@ if (typeof window !== "undefined" && window.bambulab) {
     _bblMerge(conn, data);
   });
 
-  window.bambulab.onCamFrame((key, b64) => {
+  window.bambulab.onCamFrame((key, buf) => {
     const conn = _bambuConns.get(key);
     if (!conn) return;
-    const firstFrame = !conn.data.lastCamFrame;
-    conn.data.lastCamFrame = b64;
+    const firstFrame = !conn.data.lastCamUrl;
+    // Keep only the newest raw JPEG bytes; the Blob URL is built once per
+    // painted frame inside the rAF below (not per incoming frame).
+    conn.data.lastCamBuf = buf;
     // Frame-drop via rAF: ffmpeg/JPEG-TCP can push frames faster than the
     // renderer paints them. If a paint is already scheduled for this key, we
-    // just keep the newest frame in lastCamFrame and let the pending rAF show
-    // it — never queue a second paint. This collapses bursts into one paint
-    // per animation frame, killing the rafale freezes when the tab is busy.
+    // just keep the newest bytes and let the pending rAF show them — never
+    // queue a second paint. This collapses bursts into one paint per
+    // animation frame, killing the rafale freezes when the tab is busy.
     if (_camRafs.has(key)) return;
     _camRafs.set(key, requestAnimationFrame(() => {
       _camRafs.delete(key);
       const c = _bambuConns.get(key);
-      if (!c || !c.data.lastCamFrame) return;
-      // Fan out the LATEST frame to ALL imgs with this key — cam wall +
-      // sidecard can both display simultaneously. The main process keeps a
-      // single JPEG TCP / RTSP connection, so no extra load on the printer.
+      if (!c || !c.data.lastCamBuf) return;
+      // Wrap the latest bytes in a Blob URL (no Base64 re-decode) and revoke
+      // the previous one so a single object URL is ever alive per key.
+      const url = URL.createObjectURL(new Blob([c.data.lastCamBuf], { type: "image/jpeg" }));
+      if (c.data.lastCamUrl) URL.revokeObjectURL(c.data.lastCamUrl);
+      c.data.lastCamUrl = url;
+      // Fan out to ALL imgs with this key — cam wall + sidecard can display
+      // simultaneously. The main process keeps a single JPEG TCP / RTSP
+      // connection, so no extra load on the printer.
       const imgs = document.querySelectorAll(`[data-bbl-key="${CSS.escape(key)}"]`);
       if (!imgs.length) return;
-      const latest = c.data.lastCamFrame;
       imgs.forEach(img => {
-        img.src = `data:image/jpeg;base64,${latest}`;
+        img.src = url;
         if (firstFrame) {
           const wrap = img.closest(".pp-cam-loading");
           if (wrap) {

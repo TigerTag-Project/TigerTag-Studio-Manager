@@ -2239,12 +2239,14 @@ ipcMain.handle('timelapse:download', async (_evt, videoUrl, suggestedFilename) =
         buf = buf.slice(16 + payloadSize);
         if (payload[0] === 0xFF && payload[1] === 0xD8 &&
             payload[payload.length - 2] === 0xFF && payload[payload.length - 1] === 0xD9) {
-          const b64 = payload.toString('base64');
+          // Send the raw JPEG Buffer (no Base64): skips a synchronous encode
+          // on the main thread, ~25% smaller IPC payload, and the renderer
+          // wraps it directly in a Blob URL (no re-decode).
           if (!event.sender.isDestroyed())
-            event.sender.send('bambulab:cam-frame', key, b64);
+            event.sender.send('bambulab:cam-frame', key, payload);
           // Forward to detached cam window if open
           if (_camWindow && !_camWindow.isDestroyed())
-            _camWindow.webContents.send('bambulab:cam-frame', key, b64);
+            _camWindow.webContents.send('bambulab:cam-frame', key, payload);
         }
       }
     });
@@ -2320,10 +2322,10 @@ ipcMain.handle('timelapse:download', async (_evt, videoUrl, suggestedFilename) =
             const frame = buf.slice(start, i + 2);
             buf = buf.slice(i + 2);
             if (!event.sender.isDestroyed())
-              event.sender.send('bambulab:cam-frame', key, frame.toString('base64'));
+              event.sender.send('bambulab:cam-frame', key, frame);
             // Forward to detached cam window if open
             if (_camWindow && !_camWindow.isDestroyed())
-              _camWindow.webContents.send('bambulab:cam-frame', key, frame.toString('base64'));
+              _camWindow.webContents.send('bambulab:cam-frame', key, frame);
             start = -1;
             i = -1; // restart scan from new buf[0]
           }

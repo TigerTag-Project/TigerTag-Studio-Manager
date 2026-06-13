@@ -21,7 +21,7 @@ contextBridge.exposeInMainWorld('bambulab', {
   camStop:      (key)  => ipcRenderer.send('bambulab:cam-stop',       key),
   camStartRtsp: (opts) => ipcRenderer.send('bambulab:cam-start-rtsp', opts),
   camStopRtsp:  (key)  => ipcRenderer.send('bambulab:cam-stop-rtsp',  key),
-  onCamFrame:   (cb)   => ipcRenderer.on('bambulab:cam-frame', (_, key, b64) => cb(key, b64)),
+  onCamFrame:   (cb)   => ipcRenderer.on('bambulab:cam-frame', (_, key, buf) => cb(key, buf)),
 });
 
 contextBridge.exposeInMainWorld('elegoo', {

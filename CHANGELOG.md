@@ -5,6 +5,14 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.8.28 — 2026-06-14
+
+### Fixed
+
+- **Bambu Lab camera: smoother, lower-latency video.** The camera stream now carries frames as raw binary instead of Base64 text — that removes image-encoding work from the app's main thread (which also handles the printer connection) and shrinks the data passed around internally, so the picture updates faster and stutters less. Most noticeable on the RTSP models (X1, H2, P2S…). Builds on the frame-smoothing already added in v1.8.27.
+
+---
+
 ## v1.8.27 — 2026-06-14
 
 ### Added
