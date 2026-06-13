@@ -1,6 +1,6 @@
 {
   "name": "tigertag-inventory",
-  "version": "1.8.24",
+  "version": "1.8.25",
   "description": "Tiger Studio Manager — desktop app",
   "main": "main.js",
   "engines": {
@@ -18,6 +18,8 @@
     "build:all": "electron-builder -wml --publish always",
     "i18n:add": "node scripts/i18n-add.mjs",
     "i18n:check": "node scripts/check-i18n-consistency.mjs",
+    "codemap:check": "node scripts/check-codemap.mjs",
+    "lint": "eslint .",
     "prepare": "git config core.hooksPath .githooks 2>/dev/null || true"
   },
   "dependencies": {
@@ -33,7 +35,9 @@
   "devDependencies": {
     "@electron/rebuild": "^4.0.4",
     "electron": "^41.3.0",
-    "electron-builder": "^26.8.1"
+    "electron-builder": "^26.8.1",
+    "eslint": "^10.5.0",
+    "globals": "^17.6.0"
   },
   "build": {
     "appId": "io.tigertag.inventory",

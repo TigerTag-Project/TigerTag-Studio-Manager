@@ -162,7 +162,7 @@ function _wireHealthIcon() {
 function _startSensorEngine() {
   if (!window.td1s) return;
 
-  const { $, t, state, onSensorData, onStatusChange, onClear } = _ctx;
+  const { $, t, state, onSensorData, onStatusChange, onClear, onAdpData } = _ctx;
   const TD1S_MAX  = 400;
   const td1sLogEl = $("td1sLog");
 

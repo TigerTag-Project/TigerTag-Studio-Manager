@@ -1,6 +1,9 @@
 // ── RFID TigerTag tester modal ────────────────────────────────────────────
 import { initRfidTester } from './rfid_protocol/tigertag/index.js';
 
+// ── Offline timezone → country (telemetry, no IP geolocation) ──────────────
+import { tzToCountry } from './tz-country.js';
+
 // ── TigerScale IoT module ─────────────────────────────────────────────────
 import {
   initTigerScale,
@@ -4419,6 +4422,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
             if ($("racksPanel")?.classList.contains("open")) renderRacksList();
             if (!ColdStart._secondPaintDone) { ColdStart._secondPaintDone = true; ColdStart.mark("second-paint"); }
           });
+          // Re-arm the deferred telemetry snapshot now that inventory data is in.
+          scheduleStudioStateRecord();
         });
         setLoading($("btnSbReload"), false);
       }, err => {
@@ -6147,7 +6152,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       _cemState = "failed"; _cemRender(); _cemBeep(false); return;
     }
     try {
-      await _cemMigrate(r, cloudDoc, burned);
+      await _cemMigrate(r, cloudDoc, burned, timestamp);
       _cemBeep(true);
       closeEncodeModal();
       closeDetail();
@@ -6159,7 +6164,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
 
   // Firestore migration — only after a full verified burn. Creates the physical
   // doc(s) (twin cross-linked) and deletes the Cloud doc, in one batch.
-  async function _cemMigrate(r, cloudDoc, burned) {
+  async function _cemMigrate(r, cloudDoc, burned, timestamp) {
     const ownerUid = state.activeAccountId;
     if (!ownerUid) throw new Error("no account");
     const db     = fbDb(ownerUid);
@@ -6169,13 +6174,24 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const now = Date.now();
     const batch = db.batch();
     const [c1, c2] = burned;
+    // CRITICAL: stamp the doc with the SAME chip-epoch timestamp that was just
+    // burned onto the chip (line ~6123). On the next rescan the scan path
+    // compares stored.timestamp vs the chip's timestamp; if they differ it
+    // treats the chip as "rewritten for a different filament" and HARD-DELETES
+    // the doc, wiping container_id / container_weight / the DB weight — which
+    // auto-assign then refills with the generic-cardboard default. Keeping them
+    // equal makes the rescan take the "same chip" branch (preserveDbWeight) and
+    // leaves the user's container + weight intact. Override after the spread so
+    // it wins over any stale cloudDoc.timestamp.
     batch.set(invRef.doc(c1.uid), {
       ...baseFields, uid: c1.uid, twin_tag_uid: c2 ? c2.uid : null,
+      timestamp: timestamp ?? baseFields.timestamp ?? 0,
       last_update: now, updatedAt: FV.serverTimestamp(),
     });
     if (c2) {
       batch.set(invRef.doc(c2.uid), {
         ...baseFields, uid: c2.uid, twin_tag_uid: c1.uid,
+        timestamp: timestamp ?? baseFields.timestamp ?? 0,
         last_update: now, updatedAt: FV.serverTimestamp(),
       });
     }
@@ -8534,6 +8550,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   const FSE_QUICK = [
     { label: "user doc",   path: "users/{uid}" },
     { label: "prefs",      path: "users/{uid}/prefs/app" },
+    { label: "telemetry",  path: "users/{uid}/telemetry/studio" },
     { label: "inventory",  path: "users/{uid}/inventory",  col: true },
     { label: "printers",   path: "users/{uid}/printers",   col: true },
     { label: "tags",       path: "users/{uid}/tags",       col: true },
@@ -8977,6 +8994,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         state.racks = racks;
         console.log(`[racks] snapshot: ${racks.length} rack(s)`, racks.map(r => r.name));
         renderRacksList();
+        scheduleStudioStateRecord();  // re-arm deferred telemetry (rack counts changed)
       }, err => console.warn("[racks]", err.code, err.message));
   }
   function unsubscribeRacks() {
@@ -9063,6 +9081,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
             return String(a.printerName || "").localeCompare(String(b.printerName || ""));
           });
           state.printers = all;
+          scheduleStudioStateRecord();  // re-arm deferred telemetry (printer count changed)
           // Elegoo: maintain persistent MQTT connections in the background so
           // the card status badge is always live, even without opening the sidecard.
           // Only connect when no connection exists yet, or when the IP changed.
@@ -15494,6 +15513,91 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     try { applyDebugMode(); } catch {}
   }
 
+  // ── Country / timezone derivation (offline, no IP geolocation) ──────────
+  function currentTimezone() {
+    try { return Intl.DateTimeFormat().resolvedOptions().timeZone || null; }
+    catch (_) { return null; }
+  }
+  // Country = region subtag of the browser locale ("fr-FR" → "FR"); when the
+  // locale carries no region (plain "fr"), fall back to the IANA timezone
+  // ("Europe/Paris" → "FR"). Pure offline lookup, never an IP call.
+  function deriveCountry(tz = currentTimezone()) {
+    try {
+      const loc = navigator.language || "";
+      if (typeof Intl !== "undefined" && Intl.Locale) {
+        const region = new Intl.Locale(loc).region;
+        if (region) return region.toUpperCase();
+      }
+      const parts = loc.split("-");
+      if (parts.length > 1 && parts[1]) return parts[1].toUpperCase();
+    } catch (_) {}
+    return tzToCountry(tz);
+  }
+
+  // ── Current-state telemetry snapshot (Studio-Manager-dedicated) ─────────
+  // Written to users/{uid}/telemetry/studio AFTER the data subscriptions have
+  // settled — see scheduleStudioStateRecord for the deferred trigger. Fields
+  // here are overwritten each session (current state), distinct from the
+  // lifetime accumulators (sessionsCount, versionsUsed…) written in syncUserDoc.
+  let _studioStateRecordedUid = null;
+  let _studioStateTimer = null;
+
+  function scheduleStudioStateRecord() {
+    const uid = state.activeAccountId;
+    if (!uid) return;
+    if (state.friendView) return;                 // never record while viewing a friend
+    if (_studioStateRecordedUid === uid) return;  // once per account per session
+    clearTimeout(_studioStateTimer);
+    // 7 s debounce: each subscription snapshot (inventory, racks, printers,
+    // scales) re-arms the timer, so it fires once everything has settled.
+    _studioStateTimer = setTimeout(() => recordStudioState(uid), 7000);
+  }
+
+  async function recordStudioState(uid) {
+    if (uid !== state.activeAccountId || state.friendView) return;
+    if (_studioStateRecordedUid === uid) return;
+    _studioStateRecordedUid = uid;  // claim early — avoids double-write if re-armed mid-flight
+    try {
+      const db  = fbDb(uid);
+      const ref = db.collection("users").doc(uid).collection("telemetry").doc("studio");
+      const FV  = firebase.firestore.FieldValue;
+
+      // Current-state counts (overwritten each session).
+      const activeSpools = deduplicateTwins(state.rows.slice()).filter(r => !r.deleted);
+      const rackSlots    = (state.racks || []).reduce(
+        (sum, r) => sum + (r.level || 0) * (r.position || 0), 0);
+
+      const payload = {
+        lang:           state.lang || null,
+        country:        deriveCountry(),
+        hasAvatar:      !!state.photoURL,
+        accountsCount:  getAccounts().length,
+        friendsCount:   (state.friends   || []).length,
+        spoolsCount:    activeSpools.length,
+        racksCount:     (state.racks     || []).length,
+        rackSlotsTotal: rackSlots,
+        scalesCount:    (state.scales    || []).length,
+        printerCount:   (state.printers  || []).length,
+      };
+
+      // Phase 2 — onboarding funnel: stamp each milestone once (the first
+      // session where the user reaches it), plus firstSeen. Read the doc to
+      // know which stamps already exist; never overwrite an existing one.
+      let existing = {};
+      try { existing = (await ref.get()).data() || {}; } catch (_) {}
+      if (!existing.firstSeen)                                 payload.firstSeen    = FV.serverTimestamp();
+      if (payload.spoolsCount  > 0 && !existing.firstSpoolAt)   payload.firstSpoolAt   = FV.serverTimestamp();
+      if (payload.racksCount   > 0 && !existing.firstRackAt)    payload.firstRackAt    = FV.serverTimestamp();
+      if (payload.printerCount > 0 && !existing.firstPrinterAt) payload.firstPrinterAt = FV.serverTimestamp();
+      if (payload.friendsCount > 0 && !existing.firstFriendAt)  payload.firstFriendAt  = FV.serverTimestamp();
+
+      await ref.set(payload, { merge: true });
+    } catch (e) {
+      _studioStateRecordedUid = null;  // allow a retry on the next trigger
+      console.warn("[telemetry] studio state write failed:", e.code || e.message);
+    }
+  }
+
   async function syncUserDoc(uid) {
     // Always use the named Firestore instance for this specific uid,
     // never fbDb() without parameter — that depends on state.activeAccountId
@@ -15697,28 +15801,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       });
 
       // ── Client telemetry (fire-and-forget, non-critical) ──────────────────
-      const info = await getAppInfo();
+      const info = await loadAppInfo();
       const FV   = firebase.firestore.FieldValue;
 
       // Country + timezone derived locally (no IP geolocation call — keeps it
-      // offline and privacy-friendly). Country = region subtag of the system
-      // locale ("fr-FR" → "FR"); null when the locale has no region.
-      const country = (() => {
-        try {
-          const loc = navigator.language || "";
-          if (typeof Intl !== "undefined" && Intl.Locale) {
-            const region = new Intl.Locale(loc).region;
-            if (region) return region.toUpperCase();
-          }
-          const parts = loc.split("-");
-          if (parts.length > 1 && parts[1]) return parts[1].toUpperCase();
-        } catch (_) {}
-        return null;
-      })();
-      const timezone = (() => {
-        try { return Intl.DateTimeFormat().resolvedOptions().timeZone || null; }
-        catch (_) { return null; }
-      })();
+      // offline and privacy-friendly). See deriveCountry() for the two-step
+      // logic (locale region → timezone fallback).
+      const timezone = currentTimezone();
+      const country  = deriveCountry(timezone);
 
       // 1. users/{uid} — last-known client state (overwritten each session).
       //    Used for deployment targeting: "push to all darwin arm64 on < 1.8".
@@ -15734,7 +15824,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         studioCountry:   country,
         studioTimezone:  timezone,
         studioLastSeen:  FV.serverTimestamp(),
-      }, { merge: true }).catch(() => {});
+      }, { merge: true }).catch(e => console.warn("[telemetry] user doc write failed:", e.code));
 
       // 2. users/{uid}/telemetry/studio — aggregated lifetime metrics.
       //    Never overwritten — only grows. Standard Firebase pattern:
@@ -15743,13 +15833,18 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         sessionsCount: FV.increment(1),
         versionsUsed:  FV.arrayUnion(info.appVersion || "?"),
         platformsUsed: FV.arrayUnion(info.platform   || "?"),
-        langsUsed:     FV.arrayUnion(state.lang      || "?"),
         lastSeen:      FV.serverTimestamp(),
       };
-      if (country) agg.countriesUsed = FV.arrayUnion(country);
       db.collection("users").doc(uid)
         .collection("telemetry").doc("studio")
-        .set(agg, { merge: true }).catch(() => {});
+        .set(agg, { merge: true })
+        .catch(e => console.warn("[telemetry] studio aggregate write failed:", e.code));
+
+      // 3. Current-state snapshot + onboarding milestones — deferred until the
+      //    inventory/racks/printers/scales subscriptions have delivered their
+      //    first snapshot, otherwise the counts would all be 0 (see
+      //    recordStudioState / scheduleStudioStateRecord).
+      scheduleStudioStateRecord();
 
       // Reflect in open edit-account modal if already open
       if ($("editAccountModalOverlay").classList.contains("open")) {

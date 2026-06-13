@@ -5,6 +5,14 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.8.25 — 2026-06-13
+
+### Fixed
+
+- **Encoding a custom or third-party spool no longer resets it on the next scan.** When you wrote a tag for a custom spool — or a spool from another manufacturer — and then read it again, the spool reverted to the generic cardboard container and its weight changed back to the value stored on the chip. The app now keeps the container and the weight you set when you re-read an encoded tag.
+
+---
+
 ## v1.8.24 — 2026-06-12
 
 ### Changed
