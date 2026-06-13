@@ -5,6 +5,14 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.8.29 — 2026-06-14
+
+### Added
+
+- **Anycubic printers are now supported** — the 6th brand, alongside Bambu Lab, Creality, Elegoo, FlashForge and Snapmaker. Connect over your local network **or** through Anycubic's cloud (a mixed fleet works in one list), see the ACE multi-colour box and its slots, set a slot's filament (type + colour), and follow live job and temperature info — plus a camera feed on models that expose a local stream. Catalog: Kobra 3 / 3 Combo / 3 V2 / 3 Max / S1 / X. Big thanks to **[@ennisj](https://github.com/ennisj)** (John Ennis) for contributing the whole integration. 🙌
+
+---
+
 ## v1.8.28 — 2026-06-14
 
 ### Fixed
