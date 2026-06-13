@@ -1,0 +1,38 @@
+[
+  {
+    "id": "1",
+    "name": "Kobra 3 Combo",
+    "image": "assets/images/acu_printers/kobra3.png",
+    "features": ["ACE", "Camera"]
+  },
+  {
+    "id": "2",
+    "name": "Kobra 3 V2",
+    "image": "assets/images/acu_printers/kobra3v2.png",
+    "features": ["ACE", "Camera"]
+  },
+  {
+    "id": "3",
+    "name": "Kobra 3 Max",
+    "image": "assets/images/acu_printers/kobra3max.png",
+    "features": ["ACE", "Camera"]
+  },
+  {
+    "id": "4",
+    "name": "Kobra S1 Combo",
+    "image": "assets/images/acu_printers/kobras1.png",
+    "features": ["ACE", "Camera", "Enclosed"]
+  },
+  {
+    "id": "5",
+    "name": "Kobra X",
+    "image": "assets/images/acu_printers/kobrax.png",
+    "features": ["ACE", "Camera", "Enclosed"]
+  },
+  {
+    "id": "0",
+    "name": "Select Printer",
+    "image": "assets/images/acu_printers/no_printer.png",
+    "features": ["No"]
+  }
+]

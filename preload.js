@@ -32,6 +32,61 @@ contextBridge.exposeInMainWorld('elegoo', {
   onStatus:   (cb) => ipcRenderer.on('elegoo:status',  (_, key, status)      => cb(key, status)),
 });
 
+contextBridge.exposeInMainWorld('anycubic', {
+  // MQTT TLS to the printer's local broker (port 9883). opts =
+  // { key, ip, port?, modelId, deviceId, username, password }.
+  connect:    (opts)         => ipcRenderer.send('anycubic:connect',    opts),
+  disconnect: (key)          => ipcRenderer.send('anycubic:disconnect', key),
+  // payload = full request body (getInfo / setInfo / …). The command topic is
+  // built in main from the connect-time modelId/deviceId + the endpoint
+  // (e.g. "multiColorBox", "print" — defaults to multiColorBox).
+  publish:    (key, payload, endpoint) => ipcRenderer.send('anycubic:publish', key, payload, endpoint),
+  onMessage:  (cb) => ipcRenderer.on('anycubic:message', (_, key, topic, data) => cb(key, topic, data)),
+  onStatus:   (cb) => ipcRenderer.on('anycubic:status',  (_, key, status)      => cb(key, status)),
+  // FLV camera (port 18088) — ffmpeg in main turns the stream into JPEG
+  // frames delivered on 'anycubic:cam-frame' (key, base64).
+  // The stream is on-demand: probe /flv first (live only after the printer
+  // starts capturing) and only then call camStart. Returns { ok, live }.
+  flvProbe:   (ip, timeoutMs) => ipcRenderer.invoke('anycubic:flv-probe', ip, timeoutMs),
+  camStart:   (opts) => ipcRenderer.send('anycubic:cam-start', opts),
+  camStop:    (key)  => ipcRenderer.send('anycubic:cam-stop',  key),
+  onCamFrame: (cb)   => ipcRenderer.on('anycubic:cam-frame', (_, key, b64) => cb(key, b64)),
+  // Fired when ffmpeg gives up (stream ended) so the UI drops to idle.
+  onCamEnded: (cb)   => ipcRenderer.on('anycubic:cam-ended', (_, key) => cb(key)),
+  // One-click provisioning: read every paired LAN printer's durable broker
+  // credentials from AnycubicSlicerNext's on-disk config (slicer NOT needed
+  // running). Returns { ok, printers:[{ip,port,username,password,deviceId,
+  // modelId,name}], confPath } | { ok:false, error }.
+  readSlicerConfig: () => ipcRenderer.invoke('anycubic:read-slicer-config'),
+  // LAN scan helpers — port 18910 is the printer's plaintext discovery API
+  // (open only in LAN mode). tcpProbe = fast open check; httpInfo = GET /info
+  // device descriptor (modelId, modelName, deviceName, MAC) without CORS.
+  tcpProbe: (ip)            => ipcRenderer.invoke('anycubic:tcp-probe', ip),
+  httpInfo: (ip, timeoutMs) => ipcRenderer.invoke('anycubic:http-info', ip, timeoutMs),
+
+  // ── Cloud-mode printers (reached through Anycubic's cloud) ─────────────
+  cloud: {
+    // Attach to a RUNNING bridge-mode slicer (CDP, port 9222) and read the
+    // workbench session token + email. We attach only — never launch the
+    // slicer. Returns { ok, token, email } | { ok:false, error }.
+    cdpToken:    (port)   => ipcRenderer.invoke('anycubic:cloud-cdp-token', port),
+    // Signed REST: list the account's cloud printers / verify a token.
+    getPrinters: (token)  => ipcRenderer.invoke('anycubic:cloud-get-printers', token),
+    verify:      (token)  => ipcRenderer.invoke('anycubic:cloud-verify', token),
+    // Send an ACE order (1206 = getInfo, 1211 = setSlot). The report comes
+    // back over cloud MQTT. opts = { token, orderId, printerId, data }.
+    sendOrder:   (opts)   => ipcRenderer.invoke('anycubic:cloud-send-order', opts),
+    // Shared cloud-MQTT connection (one per signed-in user). connect once,
+    // then subscribe each printer; reports arrive on onMessage tagged with
+    // the renderer conn key passed to subscribe.
+    connect:     (opts)            => ipcRenderer.send('anycubic:cloud-connect', opts),       // { email, token }
+    subscribe:   (opts)            => ipcRenderer.send('anycubic:cloud-subscribe', opts),     // { connKey, machineType, key }
+    unsubscribe: (connKey)         => ipcRenderer.send('anycubic:cloud-unsubscribe', connKey),
+    onMessage:   (cb) => ipcRenderer.on('anycubic:cloud-message', (_, connKey, topic, data) => cb(connKey, topic, data)),
+    onStatus:    (cb) => ipcRenderer.on('anycubic:cloud-status',  (_, status) => cb(status)),
+  },
+});
+
 contextBridge.exposeInMainWorld('electronAPI', {
   // True when running inside Electron
   isElectron: true,

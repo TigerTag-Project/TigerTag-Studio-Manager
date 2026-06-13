@@ -53,6 +53,11 @@ export const ctx = {
   openPrinterSettings: (brand, printer, prefill) => {},
   openBrandPicker:     () => {},
   isDebugEnabled:      () => false,
+  // Persist an Anycubic cloud printer (provisioned via the slicer). Returns
+  // { ok, id } | { ok:false, error }. Implemented in inventory.js.
+  addAnycubicCloudPrinter: async (_rec) => ({ ok: false, error: "not-wired" }),
+  // Refresh the cloud token on all Anycubic cloud printers (after a re-grab).
+  updateAnycubicCloudToken: async (_email, _token) => ({ ok: false, error: "not-wired" }),
   // Re-applies data-i18n translations across the whole document.
   // Call after dynamically injecting elements that carry data-i18n attributes.
   applyTranslations:   () => {},
