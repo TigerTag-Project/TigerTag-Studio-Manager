@@ -2565,6 +2565,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         .collection("users").doc(uid)
         .collection("inventory").doc(cloudId)
         .set(data);
+      bumpStudioCounters({ cloudAddedTotal: 1 });
       closeAddProductPanel();
       try { toast(t("addProductOk"), "success"); } catch (_) {}
     } catch (e) {
@@ -6197,6 +6198,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     }
     batch.delete(invRef.doc(r.spoolId));
     await batch.commit();
+    // One TigerCloud spool became a physical chip (a twin burn is still ONE
+    // cloud converted, hence +1 regardless of burned.length).
+    bumpStudioCounters({ cloudToTagTotal: 1 });
     console.log(`[encodeModal] migrated ${r.spoolId} → ${burned.map(b => b.uid).join(" + ")}`);
   }
 
@@ -6332,6 +6336,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       const uid = fbAuth().currentUser?.uid;
       if (!uid) return;
       await fbDb().collection("users").doc(uid).collection("inventory").doc(r.spoolId).update(update);
+      // Conversion to TigerTag+ — classify by the source spool's type.
+      bumpStudioCounters(r.isCloud ? { cloudToPlusTotal: 1 } : { tagToPlusTotal: 1 });
       _convertApiCache = null;
       toast(t("upgradeToPlusSuccess"), "success");
     } catch (e) {
@@ -6391,6 +6397,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       batch.set(invRef.doc(newId), data);
     }
     await batch.commit();
+    bumpStudioCounters({ cloudAddedTotal: n });
     return n;
   }
 
@@ -15598,6 +15605,32 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     }
   }
 
+  // ── Lifetime spool-lifecycle counters (telemetry/studio) ────────────────
+  // Increment-only accumulators that trace a user's spool history over time,
+  // each counting SPOOLS (a twin pair = 1, consistent with the deduped stat):
+  //   cloudAddedTotal  — TigerCloud spools created (Add Product / duplicate)
+  //   tagAddedTotal    — DIY physical tags that arrived already-written
+  //                      (factory/mobile), counted on first scan
+  //   plusAddedTotal   — TigerTag+ tags that arrived already-written
+  //   cloudToTagTotal  — TigerCloud burned to a physical chip (_cemMigrate)
+  //   cloudToPlusTotal — TigerCloud converted to TigerTag+ (_convertToPlus)
+  //   tagToPlusTotal   — DIY TigerTag converted to TigerTag+ (_convertToPlus)
+  // Fire-and-forget; never blocks the user action that triggered it.
+  function bumpStudioCounters(deltas) {
+    const uid = state.activeAccountId;
+    if (!uid || state.friendView) return;
+    const FV = firebase.firestore.FieldValue;
+    const payload = {};
+    for (const k in deltas) {
+      if (deltas[k]) payload[k] = FV.increment(deltas[k]);
+    }
+    if (!Object.keys(payload).length) return;
+    fbDb(uid).collection("users").doc(uid)
+      .collection("telemetry").doc("studio")
+      .set(payload, { merge: true })
+      .catch(e => console.warn("[telemetry] counter bump failed:", e.code || e.message));
+  }
+
   async function syncUserDoc(uid) {
     // Always use the named Firestore instance for this specific uid,
     // never fbDb() without parameter — that depends on state.activeAccountId
@@ -16092,6 +16125,15 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           }
           await _writeChipDoc(docRef, tagData, twinUid, { preserveDbWeight });
           processedUids.push(uid);
+          // Lifetime "added" counter — a brand-new physical spool entered the
+          // inventory by scan (i.e. it arrived already-written: factory/mobile;
+          // chips born from a local burn already exist via _cemMigrate, so they
+          // don't reach this branch). Twin dedup: only the first UID of a pair
+          // increments → a freshly-scanned twin pair counts as one spool.
+          if (!existing.exists && (!twinUid || String(uid) < String(twinUid))) {
+            const isPlusChip = versionName(tagData.id_tigertag) === "TigerTag+";
+            bumpStudioCounters(isPlusChip ? { plusAddedTotal: 1 } : { tagAddedTotal: 1 });
+          }
         } catch (e) {
           console.error('[RFID] upsert failed for', uid, ':', e);
         }

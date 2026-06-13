@@ -5,6 +5,18 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.8.26 — 2026-06-13
+
+### Added
+
+- **Two new spool containers** in the container picker: **Anycubic** masterspool (Black, 218 g) and **DEEPLEE** cardboard spool (Standard, 143 g).
+
+### Changed
+
+- **Internal:** anonymous usage statistics now track spool-lifecycle counts over time (how many TigerCloud / TigerTag / TigerTag+ spools are created, and conversions between them). No personal data, no IP geolocation — same privacy-preserving, aggregate approach as before. No user-facing changes.
+
+---
+
 ## v1.8.25 — 2026-06-13
 
 ### Fixed
