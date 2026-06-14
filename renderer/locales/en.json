@@ -657,6 +657,8 @@
   "rackAutoFill": "Auto-fill",
   "rackAutoFillTip": "Place unranked spools into empty unlocked slots",
   "rackLockedTip": "Locked · right-click a slot to lock/unlock",
+  "rackUnusableTip": "Blocked slot — unusable for storage",
+  "rackPinnedTip": "Pinned — material locked in place",
   "rackStatsRacks": {
     "one": "rack",
     "other": "racks"

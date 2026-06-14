@@ -21,7 +21,7 @@ contextBridge.exposeInMainWorld('bambulab', {
   camStop:      (key)  => ipcRenderer.send('bambulab:cam-stop',       key),
   camStartRtsp: (opts) => ipcRenderer.send('bambulab:cam-start-rtsp', opts),
   camStopRtsp:  (key)  => ipcRenderer.send('bambulab:cam-stop-rtsp',  key),
-  onCamFrame:   (cb)   => ipcRenderer.on('bambulab:cam-frame', (_, key, b64) => cb(key, b64)),
+  onCamFrame:   (cb)   => ipcRenderer.on('bambulab:cam-frame', (_, key, buf) => cb(key, buf)),
 });
 
 contextBridge.exposeInMainWorld('elegoo', {
@@ -280,4 +280,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     updateIfNeeded:           ()             => ipcRenderer.invoke('db:updateIfNeeded'),
     downloadAndSaveLatestData: ()            => ipcRenderer.invoke('db:downloadAndSaveLatestData'),
   },
+});
+
+// ── Splash gate ──────────────────────────────────────────────────────────
+// The renderer calls window.studio.ready() once its FIRST usable frame is
+// painted (cached avatar + inventory hydrated from localStorage). Main then
+// swaps the hidden main window in for the splash. Main also has a hard
+// fallback timeout, so a missed signal never leaves the app invisible.
+contextBridge.exposeInMainWorld('studio', {
+  ready: () => ipcRenderer.send('studio:ready'),
 });

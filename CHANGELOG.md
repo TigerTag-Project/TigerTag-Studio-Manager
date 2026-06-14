@@ -5,6 +5,87 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.8.28 — 2026-06-14
+
+### Fixed
+
+- **Bambu Lab camera: smoother, lower-latency video.** The camera stream now carries frames as raw binary instead of Base64 text — that removes image-encoding work from the app's main thread (which also handles the printer connection) and shrinks the data passed around internally, so the picture updates faster and stutters less. Most noticeable on the RTSP models (X1, H2, P2S…). Builds on the frame-smoothing already added in v1.8.27.
+
+---
+
+## v1.8.27 — 2026-06-14
+
+### Added
+
+- **Locked storage slots now have two clear states.** Locking an *empty* slot marks it as unusable — it gets a grey hatched look and is removed from the rack's available capacity (so `130/198` becomes `130/197`). Locking a *filled* slot pins the material in place — it keeps the spool's colour with an amber lock badge, and is protected from moving and from "Clear all", without changing the slot count.
+
+### Fixed
+
+- **Bambu Lab camera: fewer micro-freezes.** Camera frames are now coalesced to one repaint per frame instead of piling up when the app is busy, which removes the stutter bursts on the printer camera view (P2S, H2C, X1 and the rest of the RTSP range, plus the JPEG models).
+
+---
+
+## v1.8.26 — 2026-06-13
+
+### Added
+
+- **Two new spool containers** in the container picker: **Anycubic** masterspool (Black, 218 g) and **DEEPLEE** cardboard spool (Standard, 143 g).
+
+### Changed
+
+- **Internal:** anonymous usage statistics now track spool-lifecycle counts over time (how many TigerCloud / TigerTag / TigerTag+ spools are created, and conversions between them). No personal data, no IP geolocation — same privacy-preserving, aggregate approach as before. No user-facing changes.
+
+---
+
+## v1.8.25 — 2026-06-13
+
+### Fixed
+
+- **Encoding a custom or third-party spool no longer resets it on the next scan.** When you wrote a tag for a custom spool — or a spool from another manufacturer — and then read it again, the spool reverted to the generic cardboard container and its weight changed back to the value stored on the chip. The app now keeps the container and the weight you set when you re-read an encoded tag.
+
+---
+
+## v1.8.24 — 2026-06-12
+
+### Changed
+
+- **The app now opens already populated — like Discord or Slack.** On launch, your inventory, your friends and your avatar appear in the very first frame, painted instantly from the previous session's local cache; the live data from the server then merges on top silently, repainting only what actually changed. Before, the window waited on the network — the inventory showed a spinner until the server replied, and the friends list popped in late. Product thumbnails are now served from a local on-disk cache too, so they no longer re-download on every launch.
+- **New launch splash screen.** A small TigerTag splash with the logo and the app version shows the instant you open the app, and the main window only appears once it's ready to display fully — no more watching the interface assemble itself piece by piece.
+- **Your sidebar friends list now scrolls** when you have more friends than fit on screen, with no visible scrollbar (Discord-style). The avatar, the Refresh / Friends buttons and the community footer stay fixed in place.
+
+### Fixed
+
+- **No more flickering avatars on launch.** Your avatar in the inventory header and your friends' avatars in the sidebar used to flash / reload 2–3 times on every cold start. They now paint once and stay put.
+- **No more "loading shine" sweeping across every image.** A shimmer animation used to glide left-to-right over every image while it loaded (avatars, inventory, printers). Since images now load instantly from the local cache, that effect was removed — images simply appear.
+- **Your initials can no longer show behind or beside your avatar photo,** and the "+" sign-in badge can no longer leak next to your initials. The avatar now always shows exactly one of: the "+" (signed out), your initials (no photo), or your photo — never a mix.
+
+---
+
+## v1.8.23 — 2026-06-12
+
+### Fixed
+
+- **No more flicker on app open — your avatar (and your friends' avatars) now appear in the very first frame.** Previously the sidebar avatar went through "empty circle → wrong letter from your email → real letter from your name → photo" on every cold start, and the friends list in the sidebar dropdown showed up empty until Firestore round-tripped. Now the app paints the cached state (your photo, your name initials, your friends with their photos and colours) instantly from local storage, and only repaints if Firestore returns something genuinely different. Same approach Discord and Slack use.
+- **No more "B" or random wrong letter in your avatar circle.** Before this fix, until Firestore loaded your display name, the avatar fell back to the first letter of your email address — so for `benoit@…` the sidebar briefly showed a "B" in your colour, then jumped to your real "OM" (or whatever your initials are). The avatar now waits silently — gradient only, no letter — until your real display name is known. Cleaner and faster.
+- **No more Google placeholder photo overwriting your custom avatar.** A long-standing bug was overwriting your uploaded avatar with Google's auto-generated profile picture (the "letter on coloured circle" you see when a Google account has no photo) on every sign-in. If you saw a stranger letter / colour combination instead of your uploaded photo, this is fixed; a one-time cleanup runs the next time the app opens for affected users.
+- **No more "+" badge bleeding next to your initials.** A CSS specificity bug was causing the "sign in" plus-icon to show next to your initials in the sidebar avatar when you were already signed in.
+- **Avatar upload on Windows 10 now opens the crop modal reliably.** A race between the file-picker's `focus` and `change` events on Windows 10's I/O scheduler was silently resolving the picker with no file, so the crop modal never opened and the upload silently failed. Switched to the modern `cancel` event for dismiss detection (kept the `focus` listener with a longer grace window as a backstop). macOS and Windows 11 were never affected.
+
+### Changed
+
+- **Avatar rendering centralised.** All eight places in the UI that show a coloured-circle avatar (sidebar, the "OM" header chip, dropdown, profile-management modal, edit-account modal, sidebar friend chips, friends panel, friend-view header) now go through a single rendering pipeline. The visible result: every avatar everywhere matches what's in your account exactly, with no inconsistencies between the same avatar in two places.
+- **Friend chips now use a proper gradient,** matching the look of your own avatar (instead of a flat colour) — cosmetic-only, no behavioural change.
+
+---
+
+## v1.8.22 — 2026-06-11
+
+### Added
+
+- **Custom profile picture — upload your own avatar.** The colour-circle + initials avatar everywhere in Studio (sidebar, top "OM" header chip, edit-account modal, account dropdown, profiles modal, friends list, friends panel, friend banner when previewing a friend's inventory) now shows your uploaded photo when you set one. The edit flow lives in the edit-account modal: hover the avatar circle to see an edit pen overlay, click to open a menu with **Change avatar** and **Remove avatar** — same UX as Discord. Picking a file opens a dedicated "Edit image" modal with a circular preview where you can **zoom (1×–3×), rotate by 90°, and drag-to-pan** the source image until the framing is right, then Apply. The cropper auto-picks the best format on Apply: photos go out as JPEG ~30–50 KB, transparent memojis / illustrations go out as PNG that preserves the source's transparent areas (so the avatar's coloured gradient bleeds through, just like Slack and Discord). Removing the photo reverts to the legacy colour circle + your initials. Visible to your friends and to anyone previewing your friend code before sending a request (consistent with how your display name is already shown in that flow). Server-side cap at 500 KB rejects raw multi-megabyte phone photos.
+
+---
+
 ## v1.8.21 — 2026-06-11
 
 ### Fixed

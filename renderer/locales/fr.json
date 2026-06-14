@@ -657,6 +657,8 @@
   "rackAutoFill": "Remplir auto",
   "rackAutoFillTip": "Place les bobines non rangées dans les slots vides non verrouillés",
   "rackLockedTip": "Verrouillé · clic-droit sur un slot pour (dé)verrouiller",
+  "rackUnusableTip": "Slot bloqué — inutilisable pour le stockage",
+  "rackPinnedTip": "Épinglé — matériau figé à cet emplacement",
   "rackStatsRacks": {
     "one": "rack",
     "other": "racks"

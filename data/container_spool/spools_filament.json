@@ -126,6 +126,15 @@
     "img": "../assets/img/spool_filament/anycubic_black.png"
   },
   {
+    "id": "anycubic_masterspool_black",
+    "brandId": 15962,
+    "brand": "Anycubic",
+    "label": "Black",
+    "type": "Masterspool",
+    "container_weight": 218,
+    "img": "../assets/img/spool_filament/anycubic_masterspool_black.png"
+  },
+  {
     "id": "arianeplast_black",
     "brandId": 23181,
     "brand": "ArianePlast",
@@ -214,6 +223,15 @@
     "type": "cardboard",
     "container_weight": 154,
     "img": "../assets/img/spool_filament/oem_cardboard.png"
+  },
+  {
+    "id": "deeplee_standard_carton",
+    "brandId": 33594,
+    "brand": "DEEPLEE",
+    "label": "Standard",
+    "type": "cardboard",
+    "container_weight": 143,
+    "img": "../assets/img/spool_filament/deeplee_cardboard.png"
   },
   {
     "id": "esun_epla_carton",

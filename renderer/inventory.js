@@ -1,6 +1,9 @@
 // ── RFID TigerTag tester modal ────────────────────────────────────────────
 import { initRfidTester } from './rfid_protocol/tigertag/index.js';
 
+// ── Offline timezone → country (telemetry, no IP geolocation) ──────────────
+import { tzToCountry } from './tz-country.js';
+
 // ── TigerScale IoT module ─────────────────────────────────────────────────
 import {
   initTigerScale,
@@ -158,60 +161,351 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (acc?.color === "custom" && acc.customColor) return acc.customColor;
     return (ACCOUNT_COLORS[acc?.color] || ACCOUNT_COLORS.orange)[0];
   }
+  // ─── Avatar rendering — single source of truth ─────────────────────
+  //
+  // Every coloured-circle avatar in Studio (sidebar, header chip,
+  // dropdown, profiles modal, edit-account modal, friend chips,
+  // friend panel) is now painted through ONE pipeline so the
+  // gradient + initials + photo overlay are always computed and
+  // applied atomically. This eliminates the historical class of
+  // "the initial flickered to a wrong letter / the photo was wiped
+  // by a textContent update / back-and-forth between OM and B"
+  // bugs — every site uses the same input → output transform.
+  //
+  // Two public entry points (both delegate to `_buildAvatarParts`):
+  //
+  //   - `paintAvatar(el, source)` — imperative form. Updates an
+  //     existing DOM element in place. Used by code paths that hold
+  //     a stable element reference (sb-avatar, eac-avatar) and want
+  //     to push updates without rebuilding markup.
+  //
+  //   - `avatarMarkup(source, className, extraClass)` — template
+  //     form. Returns the full `<span class="…"> … </span>` HTML
+  //     used inside innerHTML-built lists (dropdown items, friend
+  //     chips, profiles modal rows, friend banner).
+  //
+  // `source` is anything with the shape
+  //   { displayName?, photoURL?, color?, color_r/g/b?, customColor? }
+  // — typically an `Account` from localStorage, a `Friend` from
+  // state.friends, or for the live active user, an object that
+  // mixes state.* and acc.* (see `_avatarSubject` below).
+  //
+  // INVARIANT — initials are derived STRICTLY from `displayName`,
+  // never the email. Empty displayName → empty string → gradient
+  // shown without a letter for ~100 ms until syncUserDoc resolves
+  // and refreshes. This avoids the "B from benoit@…" wrong-letter
+  // flash that the legacy email-fallback paths produced.
+
+  // Resolve the FRESHEST view of an avatar's properties. For the
+  // active account, `state.*` may hold a just-uploaded photo URL or
+  // a just-renamed displayName that hasn't yet been mirrored to
+  // localStorage; pull those first.
+  //
+  // Friend objects carry colour as a single hex string (e.g.
+  // "#ff7a18") instead of an account-style named-or-RGB triplet —
+  // translate that to the `customColor` shape so getAccGradient /
+  // getAccShadow handle it the same as a custom-coloured account.
+  // This makes friend chips render with the same 135° gradient as
+  // own avatars, instead of a flat colour fallback.
+  function _avatarSubject(source) {
+    if (!source) return { displayName: "", photoURL: null };
+    if (source.id && source.id === state.activeAccountId) {
+      return {
+        displayName: state.displayName || source.displayName || "",
+        photoURL:    state.photoURL    || source.photoURL    || null,
+        color: source.color, color_r: source.color_r,
+        color_g: source.color_g, color_b: source.color_b,
+        customColor: source.customColor,
+      };
+    }
+    // Friend / friendView shape with a single hex colour — promote
+    // to a "custom"-flavoured subject so the same gradient pipeline
+    // applies.
+    if (source.color && typeof source.color === "string" && source.color.startsWith("#")) {
+      return Object.assign({}, source, { color: "custom", customColor: source.color });
+    }
+    return source;
+  }
+
+  // The "+" glyph for the empty (no-account) avatar state. Inline SVG —
+  // NOT a mask `.icon` — so it carries no dependency on the global
+  // `.icon` cascade (which historically leaked it as "OM+" next to the
+  // initials). It inherits `currentColor` from the host's `color`.
+  const AV_PLUS_SVG =
+    '<svg class="av-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+    'stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>';
+  function _makeAvatarPlus() {
+    const tpl = document.createElement("template");
+    tpl.innerHTML = AV_PLUS_SVG;
+    return tpl.content.firstChild;
+  }
+
+  // Compute the styling + content parts once, reused by both the
+  // imperative and template forms.
+  //
+  // The crucial output is `mode` ∈ { "empty", "initials", "photo" } —
+  // the single decision the whole tri-state invariant hinges on:
+  //   • `source == null`  → "empty"     (signed-out → the "+" glyph)
+  //   • a usable photoURL → "photo"     (photo only, nothing behind)
+  //   • otherwise         → "initials"  (initials, possibly "" → bare gradient)
+  // The host gets `data-av-mode` stamped on it and CSS hides the two
+  // inactive children with `display:none` — so leakage can never happen
+  // through sub-pixel rounding, z-index ambiguity or transparent-PNG
+  // edges. We never again rely on the photo merely "covering" the text.
+  function _buildAvatarParts(source) {
+    const subject  = _avatarSubject(source);
+    const photoURL = subject.photoURL || null;
+    const initials = getInitials(subject);
+    const mode = !source ? "empty" : (photoURL ? "photo" : "initials");
+    if (mode === "empty") {
+      // Neutral, style-less — the gradient/shadow/colour come from the
+      // `[data-av-mode="empty"]` CSS rule (so :hover keeps working,
+      // which an inline background would defeat). Empty strings clear
+      // any inline styles a previous paint left on the element.
+      return { mode, subject, photoURL: null, initials: "", bg: "", fg: "", boxShadow: "" };
+    }
+    const gradient = getAccGradient(subject);
+    const shadowCol = getAccShadow(subject);
+    return {
+      mode, subject, photoURL, initials,
+      bg:       gradient,
+      fg:       readableTextOn(shadowCol),
+      boxShadow: `0 0 0 3px ${shadowCol}40,0 4px 20px ${shadowCol}33`,
+    };
+  }
+
+  // Imperative paint — used by sb-avatar (sidebar) and eac-avatar
+  // (edit-account modal). Ensures the three tri-state children exist
+  // (`.av-initials`, `.av-plus`, optional `.sb-avatar-photo`), updates
+  // them, then stamps `data-av-mode` LAST so the CSS invariant resolves
+  // to exactly one visible child. We never write the container's own
+  // textContent (that would nuke the photo / swap badge siblings).
+  function paintAvatar(el, source) {
+    if (!el) return;
+    const p = _buildAvatarParts(source);
+    el.style.background = p.bg;
+    el.style.boxShadow  = p.boxShadow;
+    el.style.color      = p.fg;
+    let initEl = el.querySelector(":scope > .av-initials");
+    if (!initEl) {
+      initEl = document.createElement("span");
+      initEl.className = "av-initials";
+      el.insertBefore(initEl, el.firstChild);
+    }
+    initEl.textContent = p.initials;
+    if (!el.querySelector(":scope > .av-plus")) el.appendChild(_makeAvatarPlus());
+    _renderAvatarPhotoOverlay(el, p.photoURL);
+    el.dataset.avMode = p.mode;
+  }
+
+  // Template form — returns the full HTML for innerHTML-built lists.
+  // Mirrors `paintAvatar`: all three children present, `data-av-mode`
+  // on the host drives the invariant.
+  function avatarMarkup(source, className, extraClass) {
+    const p = _buildAvatarParts(source);
+    const cls = className + (extraClass ? ' ' + extraClass : '');
+    const style = p.bg || p.fg ? ` style="${p.bg ? `background:${p.bg};` : ""}${p.fg ? `color:${p.fg}` : ""}"` : "";
+    return `<span class="${cls}" data-av-mode="${p.mode}"${style}>` +
+      `<span class="av-initials">${esc(p.initials)}</span>` +
+      AV_PLUS_SVG +
+      _avatarPhotoTag(p.photoURL) +
+      `</span>`;
+  }
+
+  // Backward-compatibility shim — existing call sites still invoke
+  // `applyAvatarStyle(acc)` for the sidebar avatar. Delegate to the
+  // new pipeline so they get the centralised behaviour for free.
   function applyAvatarStyle(acc) {
-    const grad = getAccGradient(acc); const sh = getAccShadow(acc);
-    const el = $("sbAvatar");
-    el.style.background = grad;
-    el.style.boxShadow = `0 0 0 3px ${sh}40,0 4px 20px ${sh}33`;
-    // Use the dominant colour to decide whether initials should be black or
-    // white. Without this, picking a near-white custom colour leaves the
-    // initials invisible (white-on-white).
-    el.style.color = readableTextOn(sh);
-    // Photo overlay — when the active account has a custom avatar uploaded,
-    // its Storage download URL is in `state.photoURL`. Render it as an
-    // absolutely-positioned <img> stacked on top of the colour circle;
-    // initials underneath are hidden by the opaque image. When the photo
-    // is removed (or absent), the <img> is taken down and the colour
-    // circle + initials show through again — natural fallback, no
-    // additional render path needed elsewhere.
-    _renderAvatarPhotoOverlay(el, state.photoURL);
+    paintAvatar($("sbAvatar"), acc);
   }
   // Inline template form of the photo overlay — used by `innerHTML`-built
   // avatar variants (dropdown, sidebar friend chips, profiles modal,
-  // friend banner). The DOM helper `_renderAvatarPhotoOverlay` below is
-  // the imperative form used after setting `.textContent` (which would
-  // otherwise nuke any pre-existing child <img>).
-  // `onerror` removes the broken <img> so the colour-circle + initials
-  // fall through naturally — same fallback as the DOM helper.
+  // friend banner). On decode-fail the <img> removes itself AND flips the
+  // host back to "initials" mode, so the colour-circle + initials reappear
+  // (the tri-state invariant would otherwise keep them hidden).
   function _avatarPhotoTag(url) {
     if (!url) return "";
-    return `<img class="sb-avatar-photo" src="${esc(url)}" alt="" onerror="this.remove()" />`;
+    return `<img class="sb-avatar-photo" src="${esc(url)}" alt="" ` +
+      `onerror="this.remove();if(this.parentNode)this.parentNode.dataset.avMode='initials'" />`;
   }
   // Insert/update/remove the `<img class="sb-avatar-photo">` overlay on
-  // any avatar container (the sidebar avatar, but also acct-dropdown and
-  // profile-modal rows reuse this helper). Idempotent: same URL twice
-  // doesn't reload, missing URL strips the overlay.
+  // any avatar container, and keep `data-av-mode` consistent (so direct
+  // callers — the edit-account upload/remove flows — don't have to).
+  // Idempotent: same URL twice doesn't reload, missing URL strips the
+  // overlay and returns the host to "initials" mode.
   function _renderAvatarPhotoOverlay(container, url) {
     if (!container) return;
-    let img = container.querySelector(".sb-avatar-photo");
+    let img = container.querySelector(":scope > .sb-avatar-photo");
     if (url) {
       if (!img) {
         img = document.createElement("img");
         img.className = "sb-avatar-photo";
         img.alt = "";
-        // Hide on decode-fail so we fall back to the colour circle silently.
-        img.addEventListener("error", () => img.remove(), { once: true });
+        // On decode-fail: drop the <img> and fall back to initials mode.
+        img.addEventListener("error", () => {
+          img.remove();
+          container.dataset.avMode = "initials";
+        }, { once: true });
         container.appendChild(img);
       }
       if (img.src !== url) img.src = url;
+      container.dataset.avMode = "photo";
     } else if (img) {
       img.remove();
+      container.dataset.avMode = "initials";
     }
   }
 
+  // Dev-only self-test (DevTools: `_avatarTest()`). Paints all three
+  // states through BOTH public entry points (`avatarMarkup` template +
+  // `paintAvatar` imperative) into an off-screen host and asserts, via
+  // getComputedStyle, that exactly ONE child is visible per state and the
+  // other two are `display:none`. Returns true on full pass. Gated behind
+  // debug mode so it never runs for end users.
+  function _avatarTest() {
+    if (!state.debugEnabled) { console.warn("[_avatarTest] enable debug mode first"); return false; }
+    const PX = "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";
+    const host = document.createElement("div");
+    host.style.cssText = "position:fixed;left:-9999px;top:0;opacity:0;pointer-events:none";
+    document.body.appendChild(host);
+    const cases = [
+      { mode: "empty",    source: null,                                              show: "av-plus",         hide: ["av-initials", "sb-avatar-photo"] },
+      { mode: "initials", source: { id: "_t", displayName: "Olivia Mars" },          show: "av-initials",     hide: ["av-plus", "sb-avatar-photo"] },
+      { mode: "photo",    source: { id: "_t", displayName: "Olivia Mars", photoURL: PX }, show: "sb-avatar-photo", hide: ["av-plus", "av-initials"] },
+    ];
+    const shown = (av, cls) => { const n = av.querySelector(":scope > ." + cls); return !!n && getComputedStyle(n).display !== "none"; };
+    const rows = [];
+    let pass = true;
+    for (const form of ["markup", "paint"]) {
+      for (const c of cases) {
+        const wrap = document.createElement("div");
+        if (form === "markup") {
+          wrap.innerHTML = avatarMarkup(c.source, "sb-avatar");
+        } else {
+          const el = document.createElement("span");
+          el.className = "sb-avatar";
+          wrap.appendChild(el);
+          paintAvatar(el, c.source);
+        }
+        host.appendChild(wrap);
+        const av = wrap.querySelector("[data-av-mode]");
+        const modeOk = av && av.dataset.avMode === c.mode;
+        const showOk = av && shown(av, c.show);
+        const hideOk = av && c.hide.every(cl => !shown(av, cl));
+        const ok = !!(modeOk && showOk && hideOk);
+        pass = pass && ok;
+        rows.push({ form, expect: c.mode, mode: av && av.dataset.avMode, visible: c.show, showOk, hideOk, ok });
+      }
+    }
+    console.table(rows);
+    host.remove();
+    console[pass ? "log" : "error"]("[_avatarTest] " + (pass ? "PASS — exactly one child visible in all 6 cases ✓" : "FAIL ✗"));
+    return pass;
+  }
+  if (typeof window !== "undefined") window._avatarTest = _avatarTest;
+
   const STORAGE_ACCOUNTS = "tigertag.accounts";
   const STORAGE_ACTIVE   = "tigertag.activeAccount";
-  const invKey = id => `tigertag.inv.${id}`;
+
+  // ── Local-first persistence layer ───────────────────────────────────
+  // ONE registry of every per-uid cache surface + a uniform read/write.
+  // The whole "feels like Discord on launch" behaviour rests on this: a
+  // surface mirrored here can be hydrated SYNCHRONOUSLY before the first
+  // paint (no Firestore round-trip), then the live snapshot merges on top.
+  //
+  // Existing keys are preserved verbatim (`tigertag.inv.<uid>`,
+  // `tigertag.friends.<uid>`) so this is a formalisation, not a migration.
+  // Surfaces marked "L3" are declared now and wired into their subscribe
+  // paths in the diff-only render pass (Level 3). See ARCHITECTURE.md.
+  const Cache = {
+    _key: {
+      inventory:  uid => `tigertag.inv.${uid}`,
+      friends:    uid => `tigertag.friends.${uid}`,
+      userdoc:    uid => `tigertag.userdoc.${uid}`,
+      racks:      uid => `tigertag.racks.${uid}`,      // L3
+      printers:   uid => `tigertag.printers.${uid}`,   // L3
+      scales:     uid => `tigertag.scales.${uid}`,     // L3
+      friendReqs: uid => `tigertag.friendReqs.${uid}`, // L3
+      blocklist:  uid => `tigertag.blocklist.${uid}`,  // L3
+    },
+    read(surface, uid) {
+      const k = uid && this._key[surface];
+      if (!k) return null;
+      try { return JSON.parse(localStorage.getItem(k(uid)) || "null"); } catch { return null; }
+    },
+    write(surface, uid, data) {
+      const k = uid && this._key[surface];
+      if (!k) return;
+      try { localStorage.setItem(k(uid), JSON.stringify(data)); } catch {}
+    },
+    clear(surface, uid) {
+      const k = uid && this._key[surface];
+      if (!k) return;
+      try { localStorage.removeItem(k(uid)); } catch {}
+    },
+  };
+  // Back-compat alias — the inventory key builder predates the Cache layer.
+  const invKey = id => Cache._key.inventory(id);
+
+  // ── Cold-start trace ────────────────────────────────────────────────
+  // Records wall-clock marks across the launch timeline so we can prove
+  // the "first usable paint < 300 ms" target. Zero cost in normal use;
+  // `window._coldStartTrace()` (DevTools) prints the table + deltas.
+  const ColdStart = {
+    marks: [],
+    _firstPaintDone: false,
+    mark(label) { try { this.marks.push({ label, t: performance.now() }); } catch {} },
+  };
+  ColdStart.mark("module-eval");
+  // Idempotent — records "first-paint" exactly once and tells the main
+  // process (via the splash gate) that the first usable frame is ready,
+  // so it can swap the hidden main window in. Safe to call from several
+  // boot paths (signed-in fast path, signed-out, slow auth); the first
+  // call wins, the rest are no-ops.
+  function signalFirstPaint() {
+    if (ColdStart._firstPaintDone) return;
+    ColdStart._firstPaintDone = true;
+    ColdStart.mark("first-paint");
+    try { window.studio?.ready(); } catch {}
+  }
+  function _coldStartTrace() {
+    const m = ColdStart.marks;
+    if (!m.length) { console.warn("[_coldStartTrace] no marks yet"); return; }
+    const t0 = m[0].t;
+    const rows = m.map((x, i) => ({
+      step: x.label,
+      "t (ms)": Math.round(x.t - t0),
+      "Δ prev (ms)": i ? Math.round(x.t - m[i - 1].t) : 0,
+    }));
+    console.table(rows);
+    const fp = m.find(x => x.label === "first-paint");
+    if (fp) console.log(`[_coldStartTrace] first paint @ ${Math.round(fp.t - t0)} ms ` +
+      ((fp.t - t0) < 300 ? "✓ under 300 ms target" : "✗ over 300 ms"));
+    return rows;
+  }
+  if (typeof window !== "undefined") window._coldStartTrace = _coldStartTrace;
+
+  // ── rAF render coalescer ────────────────────────────────────────────
+  // When a single Firestore tick delivers several collections, naive code
+  // re-renders N times in one frame. `scheduleRender(key, fn)` collapses
+  // repeated requests for the same key into ONE call on the next animation
+  // frame → the user sees one consistent paint per tick. Reusable across
+  // every render site.
+  const _rafPending = new Map();
+  let _rafScheduled = false;
+  function scheduleRender(key, fn) {
+    _rafPending.set(key, fn);
+    if (_rafScheduled) return;
+    _rafScheduled = true;
+    requestAnimationFrame(() => {
+      _rafScheduled = false;
+      const jobs = [..._rafPending.values()];
+      _rafPending.clear();
+      for (const job of jobs) { try { job(); } catch (e) { console.warn("[scheduleRender]", e); } }
+    });
+  }
+
   const LOGO_PATH          = "../assets/svg/logos/logo_tigertag.svg";
   const LOGO_PATH_OUTLINE  = "../assets/svg/logos/logo_tigertag_contouring.svg";
 
@@ -830,15 +1124,55 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function setConnected(displayName, email) {
     state.displayName = displayName; // raw value — empty if not yet chosen by user
     const shown = _shortName(displayName, email);
-    const initials = shown.split(/[\s._-]+/).filter(Boolean).map(w => w[0]).join("").toUpperCase().slice(0, 2) || "?";
-    $("sbAvatar").textContent = initials;   // removes child nodes incl. SVG "+"
+    // One-time migration: older builds of onAuthStateChanged
+    // overwrote acc.photoURL with Firebase Auth's `user.photoURL`
+    // (the Google profile-picture CDN URL on lh3.googleusercontent.com),
+    // clobbering any custom Firebase Storage avatar the user had
+    // uploaded. The visible symptom was a Google-generated "B-on-
+    // violet-circle" placeholder in the sidebar avatar. Clear that
+    // legacy URL here so syncUserDoc can re-hydrate from
+    // userProfiles.photoURL with the correct value.
+    {
+      const accs = getAccounts();
+      let dirty = false;
+      for (const a of accs) {
+        if (a.photoURL && /(googleusercontent\.com|googleapis\.com\/.*\/google)/i.test(a.photoURL)) {
+          a.photoURL = null;
+          dirty = true;
+        }
+      }
+      if (dirty) saveAccounts(accs);
+    }
+    // Hydrate state.photoURL synchronously from the cached Account
+    // BEFORE the first paint, so the very first render shows the
+    // avatar (not initials → flicker → avatar). This matches the
+    // Discord pattern: the URL is already in localStorage from the
+    // previous session, browser image cache holds the pixels, paint
+    // is instant. syncUserDoc still refreshes from userProfiles in
+    // the background to catch any change, but does nothing visible
+    // if the URL didn't move.
+    state.photoURL = activeAccount()?.photoURL || null;
+    // Same Discord-style hydration for the friends list — the cached
+    // entries (name + colour + photoURL) drive the first render of
+    // the dropdown / sidebar friend chips; loadFriendsList runs
+    // afterwards and pushes the live delta.
+    _hydrateFriendsCache(state.activeAccountId);
     $("sbWelcome").textContent = t("welcomeBack");
     $("sbName").textContent = shown;
     $("sbUser").classList.remove("sb-user--empty");
-    applyAvatarStyle(activeAccount());
+    // Single source-of-truth paint — gradient, initials (STRICT from
+    // displayName, never email), and photo overlay all applied
+    // atomically. No more textContent-then-applyAvatarStyle dance
+    // that could leak the wrong state between calls.
+    paintAvatar($("sbAvatar"), activeAccount());
     // Render the top-header chip (own user variant — avatar + display name
     // + random welcome greeting) so the chip appears immediately on connect.
     renderFriendBanner();
+    // Paint the sidebar friend chips from the hydrated cache RIGHT NOW, so
+    // the friends list is on screen in the first frame instead of popping
+    // in after loadFriendsList()'s Firestore round-trip. The live fetch
+    // re-renders the delta afterwards.
+    renderSidebarFriends();
     $("signInPlaceholder").classList.add("hidden");
     $("card-inv").classList.add("hidden");
     $("card-welcome").classList.add("hidden");
@@ -848,21 +1182,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function setDisconnected() {
     state.displayName = null; state.keyValid = null;
     state.photoURL = null;  // clear custom avatar → sign-in placeholder shows
-    // Restore "+" SVG inside avatar
-    const av = $("sbAvatar");
-    // Strip any custom-avatar <img> overlay from the previous session
-    av.querySelector(".sb-avatar-photo")?.remove();
-    av.textContent = "";
-    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    svg.setAttribute("class", "sb-avatar-plus");
-    svg.setAttribute("width", "22"); svg.setAttribute("height", "22");
-    svg.setAttribute("viewBox", "0 0 24 24");
-    svg.setAttribute("fill", "none"); svg.setAttribute("stroke", "currentColor");
-    svg.setAttribute("stroke-width", "2.5");
-    svg.setAttribute("stroke-linecap", "round"); svg.setAttribute("stroke-linejoin", "round");
-    svg.innerHTML = '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>';
-    av.appendChild(svg);
-    av.style.background = ""; av.style.boxShadow = "";
+    // Single source-of-truth paint of the EMPTY state: passing `null`
+    // resolves to data-av-mode="empty" → the "+" glyph, neutral gradient,
+    // no shadow, photo stripped — all via the central pipeline + CSS.
+    paintAvatar($("sbAvatar"), null);
     $("sbUser").classList.add("sb-user--empty");
     $("sbStats").classList.add("hidden");
     // Hide the top-header user/friend chip when not signed in.
@@ -924,7 +1247,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // ── Connected accounts ──
     let html = accounts.map(acc => `
       <button class="acct-drop-item${acc.id===activeId?' active':''}" data-drop-id="${esc(acc.id)}">
-        <span class="acct-drop-avatar" style="background:${getAccGradient(acc)};color:${readableTextOn(getAccShadow(acc))}">${esc(getInitials(acc))}${_avatarPhotoTag(acc.id === activeId ? state.photoURL : null)}</span>
+        ${avatarMarkup(acc, "acct-drop-avatar")}
         <span class="acct-drop-name">${esc(_shortName(acc.displayName, acc.email))}</span>
         ${acc.id===activeId ? '<span class="acct-drop-check">✓</span>' : ''}
       </button>`).join("");
@@ -950,7 +1273,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         const fg = readableTextOn(color);
         const isActive = state.friendView?.uid === f.uid;
         return `<button class="acct-drop-item${isActive ? ' acct-drop-friend-active' : ''}" data-drop-friend-uid="${esc(f.uid)}" data-drop-friend-name="${esc(_shortName(f.displayName, f.uid))}" data-drop-friend-color="${esc(color)}">
-          <span class="acct-drop-avatar" style="background:${color};color:${fg}">${initials}${_avatarPhotoTag(f.photoURL)}</span>
+          ${avatarMarkup(f, "acct-drop-avatar")}
           <span class="acct-drop-name">${esc(_shortName(f.displayName, f.uid))}</span>
           ${isActive ? '<span class="acct-drop-check">✓</span>' : '<span class="acct-drop-eye"><span class="icon icon-eye-on icon-11"></span></span>'}
         </button>`;
@@ -2252,6 +2575,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         .collection("users").doc(uid)
         .collection("inventory").doc(cloudId)
         .set(data);
+      bumpStudioCounters({ cloudAddedTotal: 1 });
       closeAddProductPanel();
       try { toast(t("addProductOk"), "success"); } catch (_) {}
     } catch (e) {
@@ -2953,20 +3277,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   let _editingAccount = null;
   function openEditAccountModal(acc) {
     _editingAccount = acc || activeAccount(); if (!_editingAccount) return;
-    // Initials go into the dedicated child span — writing to
-    // $("eacAvatar").textContent would nuke the hover overlay and the
-    // avatar menu children, breaking the click → menu interaction.
-    $("eacAvatarInitials").textContent  = getInitials(_editingAccount);
+    // Atomic paint via the centralised pipeline — gradient,
+    // .av-initials text and the photo overlay all in one shot. No
+    // textContent on #eacAvatar itself (that would wipe the hover
+    // overlay + the avatar menu children, breaking the click flow).
+    paintAvatar($("eacAvatar"), _editingAccount);
     $("eacName").textContent    = _editingAccount.displayName || "";
     $("eacName").style.display  = _editingAccount.displayName ? "" : "none";
     $("eacEmail").textContent   = _editingAccount.email || "";
-    $("eacAvatar").style.background = getAccGradient(_editingAccount);
-    $("eacAvatar").style.color = readableTextOn(getAccShadow(_editingAccount));
-    // Photo overlay on the modal avatar (same helper that drives the
-    // sidebar avatar). The Change/Remove menu opens on click — see the
-    // avatar menu wiring further down.
-    const photoUrl = (_editingAccount.id === state.activeAccountId) ? state.photoURL : null;
-    _renderAvatarPhotoOverlay($("eacAvatar"), photoUrl);
     $("eacAvatarResult").textContent = "";
     $("eacDisplayNameInput").value = _editingAccount.displayName || "";
     $("eacNameResult").textContent = "";
@@ -3173,13 +3491,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (idx >= 0) { accounts[idx].displayName = newName; saveAccounts(accounts); _editingAccount = accounts[idx]; }
       // 4. Sync public profile so friends see the new name immediately
       if (user) syncUserProfile(user.uid, { displayName: newName });
-      // 5. Refresh UI
+      // 5. Refresh UI through the centralised avatar pipeline so
+      //    gradient + initials + photo overlay stay in sync.
       $("eacName").textContent = newName; $("eacName").style.display = "";
-      $("eacAvatar").textContent = getInitials(_editingAccount);
+      paintAvatar($("eacAvatar"), _editingAccount);
       if (_editingAccount.id === state.activeAccountId) {
         state.displayName = newName;
         $("sbName").textContent = newName;
-        $("sbAvatar").textContent = getInitials(_editingAccount);
+        paintAvatar($("sbAvatar"), _editingAccount);
         renderFriendBanner();
       }
       renderAccountDropdown();
@@ -4024,6 +4343,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   /* ── Firestore inventory subscription ── */
   function subscribeInventory(uid) {
     unsubscribeInventory();
+    // Tracks the first snapshot of THIS subscription. Previously the code
+    // used `state.invLoading` as that proxy, but local-first hydration now
+    // clears invLoading early (cache already painted), so we need an
+    // explicit flag — reset on every (re)subscribe (e.g. account switch).
+    let _firstSnapDone = false;
     _unsubInventory = fbDb()
       .collection("users").doc(uid)
       .collection("inventory")
@@ -4045,10 +4369,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           setHealthLive();
         }
 
-        // Skip data re-processing on metadata-only updates (but never skip the first load)
-        const wasLoading = state.invLoading;
+        // Skip data re-processing on metadata-only updates (but never skip the first snapshot)
+        const isFirstSnap = !_firstSnapDone;
+        _firstSnapDone = true;
         state.invLoading = false;
-        if (!wasLoading && snapshot.docChanges().length === 0 && !snapshot.metadata.hasPendingWrites) return;
+        if (isFirstSnap) ColdStart.mark("firestore-first-snapshot");
+        if (!isFirstSnap && snapshot.docChanges().length === 0 && !snapshot.metadata.hasPendingWrites) return;
         const raw = {};
         snapshot.forEach(doc => { raw[doc.id] = doc.data(); });
         state.inventory = raw;
@@ -4057,7 +4383,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         // On first live snapshot: silently refresh API data for every TigerTag+
         // spool that has no product image yet. Fire-and-forget — each write
         // triggers a new snapshot that re-renders the panel automatically.
-        if (wasLoading && !snapshot.metadata.fromCache && window.electronAPI?.refreshApiData) {
+        if (isFirstSnap && !snapshot.metadata.fromCache && window.electronAPI?.refreshApiData) {
           state.rows
             .filter(r => r.isPlus && !r.isCloud && !raw[r.spoolId]?.url_img)
             .forEach(r => _refreshApiData(r, { silent: true }));
@@ -4096,12 +4422,19 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         maybeMigrateFlatRackToNested(uid);
         saveInventory(raw);
         preCacheImages(state.rows).then(() => {
-          sortStateRows(); renderStats(); renderInventory();
-          // Refresh open detail panel — short-circuits when the displayed
-          // spool hasn't actually changed (no flash on unrelated edits).
-          refreshOpenDetail();
-          // Refresh racks panel if open (positions/fills may have changed)
-          if ($("racksPanel")?.classList.contains("open")) renderRacksList();
+          // Coalesce: if several snapshots land in the same frame (e.g.
+          // inventory + a pending-write echo), collapse them to one paint.
+          scheduleRender("inventory", () => {
+            sortStateRows(); renderStats(); renderInventory();
+            // Refresh open detail panel — short-circuits when the displayed
+            // spool hasn't actually changed (no flash on unrelated edits).
+            refreshOpenDetail();
+            // Refresh racks panel if open (positions/fills may have changed)
+            if ($("racksPanel")?.classList.contains("open")) renderRacksList();
+            if (!ColdStart._secondPaintDone) { ColdStart._secondPaintDone = true; ColdStart.mark("second-paint"); }
+          });
+          // Re-arm the deferred telemetry snapshot now that inventory data is in.
+          scheduleStudioStateRecord();
         });
         setLoading($("btnSbReload"), false);
       }, err => {
@@ -4133,20 +4466,29 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     }
     const email    = user.email       || "";
     const authName = user.displayName || "";
-    const photo    = user.photoURL    || null;
+    // Firebase Auth's user.photoURL is the Google profile picture URL —
+    // typically a Google-generated "B"-on-violet-circle image for users
+    // who haven't set a Google photo. We DELIBERATELY don't use it as
+    // the avatar source. The custom avatar (Firebase Storage URL
+    // mirrored to userProfiles.photoURL) is the source of truth, fed
+    // into acc.photoURL by syncUserDoc. Overwriting acc.photoURL with
+    // user.photoURL here would clobber the user's uploaded avatar on
+    // every signin — that's the bug that caused the "B in violet
+    // circle" flash in the sidebar.
 
     // Upsert account in localStorage
     const accounts = getAccounts();
     let acc = accounts.find(a => a.id === uid);
     if (!acc) {
-      acc = { id: uid, email, displayName: "", photoURL: photo, lang: state.lang };
+      // First time we see this user — start with a null photoURL.
+      // syncUserDoc will populate it from userProfiles a moment later
+      // if the user has a custom avatar.
+      acc = { id: uid, email, displayName: "", photoURL: null, lang: state.lang };
       accounts.push(acc);
       saveAccounts(accounts);
-    } else {
-      let changed = false;
-      if (photo && acc.photoURL !== photo) { acc.photoURL = photo; changed = true; }
-      if (changed) saveAccounts(accounts);
     }
+    // Existing accounts: leave acc.photoURL untouched here. Refresh
+    // happens through syncUserDoc → userProfiles.photoURL only.
     setActiveId(uid);
 
     // Save Google real name to Firestore (admin reference, never shown in UI)
@@ -4165,18 +4507,45 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       applyTranslations();
     }
 
+    // Local-first hydration of the user doc (roles / debug / keys /
+    // isPublic) BEFORE the first paint, so the debug button + public flag
+    // are correct on frame 1 instead of popping in after the Firestore
+    // round-trip. syncUserDoc() still refreshes from the server and is the
+    // authoritative source; this only primes the cache.
+    hydrateUserDocCache(uid);
+
     setConnected(acc.displayName, email); // _shortName fallback applied inside
 
-    // Show cached inventory while Firestore connects
+    // Show cached inventory while Firestore connects.
+    // CRITICAL: paint SYNCHRONOUSLY from cache — never await the image
+    // precache here. Thumbnails resolve through the persisted img map
+    // (hydrated at boot) to the local /img-cache/* files the renderer's
+    // own HTTP server serves straight off disk, so they're on screen in
+    // the first frame with ZERO network. preCacheImages then warms/refreshes
+    // any NEW images in the background and repaints the delta (coalesced).
     try {
-      const raw = JSON.parse(localStorage.getItem(invKey(uid)) || "null");
-      if (raw && typeof raw === "object") {
+      const raw = Cache.read("inventory", uid);
+      // Only show the cache if it actually has spools — an empty/missing
+      // cache keeps the spinner up until the authoritative snapshot lands
+      // (avoids an "empty → filled" flash on first-ever login).
+      if (raw && typeof raw === "object" && Object.keys(raw).length > 0) {
         state.inventory = raw;
         state.rows = Object.entries(raw).map(([k,vv]) => normalizeRow(k, vv || {}));
-        await preCacheImages(state.rows);
-        sortStateRows(); renderStats(); renderInventory();
+        // CRITICAL: leave the loading state — otherwise renderInventory()
+        // short-circuits to the spinner and the cache is never painted
+        // until the first Firestore snapshot (this was THE thing making
+        // the user wait on every launch).
+        state.invLoading = false;
+        sortStateRows(); renderStats(); renderInventory();           // ← instant paint
+        preCacheImages(state.rows).then(refreshed => {                // ← background warm
+          if (refreshed) scheduleRender("inventory", renderInventory);
+        });
       }
     } catch {}
+    // First usable frame is on screen (cached avatar + inventory). Mark
+    // the trace and tell main.js to swap in the window. rAF so the mark
+    // lands right after the browser actually paints.
+    requestAnimationFrame(signalFirstPaint);
 
     subscribeInventory(uid);
     syncLangFromFirestore(uid);
@@ -4228,8 +4597,16 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
 
   /* ── account section UI ── */
   function getInitials(a) {
-    const src = a.displayName || a.email || "?";
-    return src.split(/[\s@]+/).filter(Boolean).map(w => w[0]).join("").toUpperCase().slice(0, 2) || "?";
+    // STRICTLY from displayName — never the email prefix. Falling back
+    // to email produced a wrong letter (e.g. "B" from "benoit@…") on
+    // the very first boot before Firestore's authoritative displayName
+    // resolved, then flipped to the real initials a moment later. The
+    // empty-string return lets every consumer render an avatar with
+    // just the colour gradient (and photo, if any) until the real
+    // name arrives — invisible to the user, no jarring letter swap.
+    const src = (a.displayName || "").trim();
+    if (!src) return "";
+    return src.split(/\s+/).filter(Boolean).map(w => w[0]).join("").toUpperCase().slice(0, 2);
   }
 
   function renderAccountList() {
@@ -4248,7 +4625,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         const name = esc(acc.displayName || acc.email.split("@")[0]);
         return `
         <button class="prf-account-card" data-prf-id="${esc(acc.id)}">
-          <span class="prf-account-avatar" style="background:${getAccGradient(acc)};color:${readableTextOn(getAccShadow(acc))}">${esc(getInitials(acc))}${_avatarPhotoTag(acc.id === state.activeAccountId ? state.photoURL : null)}</span>
+          ${avatarMarkup(acc, "prf-account-avatar")}
           <span class="prf-account-info">
             <span class="prf-account-name">${name}</span>
             <span class="prf-account-email">${esc(acc.email)}</span>
@@ -4273,7 +4650,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           return `
           <button class="prf-account-card prf-friend-card${isActive ? " prf-friend-active" : ""}"
                   data-fv-uid="${esc(f.uid)}" data-fv-name="${esc(_shortName(f.displayName, f.uid))}" data-fv-color="${esc(color)}">
-            <span class="prf-account-avatar" style="background:${color};color:${fg}">${initials}${_avatarPhotoTag(f.photoURL)}</span>
+            ${avatarMarkup(f, "prf-account-avatar")}
             <span class="prf-account-info">
               <span class="prf-account-name">${name}</span>
               <span class="prf-account-email prf-friend-sub">${t("friendViewInv")}</span>
@@ -5002,15 +5379,47 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     return isColorDark(bg) ? LOGO_PATH : LOGO_PATH_OUTLINE;
   }
 
+  // Persisted url → local-httpUrl map. The local httpUrl (/img-cache/{md5})
+  // is deterministic and the renderer's own HTTP server serves it straight
+  // off disk, so persisting this map lets the NEXT cold start paint every
+  // thumbnail from the local file in the first frame — no network, no IPC.
+  const IMG_MAP_KEY = "tigertag.imgmap";
+  function loadImgMap() {
+    try {
+      const obj = JSON.parse(localStorage.getItem(IMG_MAP_KEY) || "null");
+      if (obj && typeof obj === "object") {
+        for (const [url, local] of Object.entries(obj)) {
+          if (local && !state.imgCache.has(url)) state.imgCache.set(url, local);
+        }
+      }
+    } catch {}
+  }
+  function saveImgMap() {
+    try {
+      const obj = {};
+      for (const [url, local] of state.imgCache) if (local) obj[url] = local;
+      localStorage.setItem(IMG_MAP_KEY, JSON.stringify(obj));
+    } catch {}
+  }
+
+  // Warm the on-disk image cache for any URL we don't already know. Already-
+  // known URLs (hydrated from the persisted map) are skipped → no redundant
+  // network at boot; the local file is already on disk and immutable for the
+  // catalogue. Returns true if at least one NEW image was resolved (so the
+  // caller can repaint the delta). NEVER call this on the first-paint path.
   async function preCacheImages(rows) {
-    if (!window.electronAPI?.imgGet) return;
+    if (!window.electronAPI?.imgGet) return false;
     const urls = [...new Set(rows.map(r => r.imgUrl).filter(Boolean))];
+    let changed = false;
     await Promise.all(urls.map(async url => {
       if (!state.imgCache.has(url)) {
         const local = await window.electronAPI.imgGet(url).catch(() => null);
         state.imgCache.set(url, local); // null = lien mort sans cache
+        if (local) changed = true;
       }
     }));
+    if (changed) saveImgMap();
+    return changed;
   }
 
   function resolvedImg(url) {
@@ -5040,8 +5449,15 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const overlay = twinOverlayBadge(row);
     const tdBadge = row.td != null ? `<span class="thumb-td-badge">TD ${row.td}</span>` : "";
     const chipBadge = row.needUpdateAt ? `<span class="chip-badge thumb-chip-badge" title="${t("chipPendingHint")}"><span class="icon icon-refresh icon-9"></span></span>` : "";
+    // If `src` is a local /img-cache file that 404s (cache purged since the
+    // map was persisted), fall back ONCE to the remote URL — which also
+    // re-warms the disk cache for next time. No fallback when src already IS
+    // the remote URL (avoids an error loop).
+    const fb = (src && row.imgUrl && src !== row.imgUrl)
+      ? ` data-remote="${esc(row.imgUrl)}" onerror="if(this.dataset.remote){this.src=this.dataset.remote;this.removeAttribute('data-remote')}"`
+      : "";
     const inner = src
-      ? `<img class="thumb" src="${esc(src)}" width="${size}" height="${size}" loading="lazy" />`
+      ? `<img class="thumb" src="${esc(src)}" width="${size}" height="${size}" loading="lazy"${fb} />`
       : `<span class="thumb-color" style="width:${size}px;height:${size}px;background:${colorBg(row)}"><img src="${logoSrc(colorBg(row))}" /></span>`;
     return `<span class="thumb-wrap">${inner}${overlay}${tdBadge}${chipBadge}</span>`;
   }
@@ -5747,7 +6163,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       _cemState = "failed"; _cemRender(); _cemBeep(false); return;
     }
     try {
-      await _cemMigrate(r, cloudDoc, burned);
+      await _cemMigrate(r, cloudDoc, burned, timestamp);
       _cemBeep(true);
       closeEncodeModal();
       closeDetail();
@@ -5759,7 +6175,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
 
   // Firestore migration — only after a full verified burn. Creates the physical
   // doc(s) (twin cross-linked) and deletes the Cloud doc, in one batch.
-  async function _cemMigrate(r, cloudDoc, burned) {
+  async function _cemMigrate(r, cloudDoc, burned, timestamp) {
     const ownerUid = state.activeAccountId;
     if (!ownerUid) throw new Error("no account");
     const db     = fbDb(ownerUid);
@@ -5769,18 +6185,32 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const now = Date.now();
     const batch = db.batch();
     const [c1, c2] = burned;
+    // CRITICAL: stamp the doc with the SAME chip-epoch timestamp that was just
+    // burned onto the chip (line ~6123). On the next rescan the scan path
+    // compares stored.timestamp vs the chip's timestamp; if they differ it
+    // treats the chip as "rewritten for a different filament" and HARD-DELETES
+    // the doc, wiping container_id / container_weight / the DB weight — which
+    // auto-assign then refills with the generic-cardboard default. Keeping them
+    // equal makes the rescan take the "same chip" branch (preserveDbWeight) and
+    // leaves the user's container + weight intact. Override after the spread so
+    // it wins over any stale cloudDoc.timestamp.
     batch.set(invRef.doc(c1.uid), {
       ...baseFields, uid: c1.uid, twin_tag_uid: c2 ? c2.uid : null,
+      timestamp: timestamp ?? baseFields.timestamp ?? 0,
       last_update: now, updatedAt: FV.serverTimestamp(),
     });
     if (c2) {
       batch.set(invRef.doc(c2.uid), {
         ...baseFields, uid: c2.uid, twin_tag_uid: c1.uid,
+        timestamp: timestamp ?? baseFields.timestamp ?? 0,
         last_update: now, updatedAt: FV.serverTimestamp(),
       });
     }
     batch.delete(invRef.doc(r.spoolId));
     await batch.commit();
+    // One TigerCloud spool became a physical chip (a twin burn is still ONE
+    // cloud converted, hence +1 regardless of burned.length).
+    bumpStudioCounters({ cloudToTagTotal: 1 });
     console.log(`[encodeModal] migrated ${r.spoolId} → ${burned.map(b => b.uid).join(" + ")}`);
   }
 
@@ -5916,6 +6346,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       const uid = fbAuth().currentUser?.uid;
       if (!uid) return;
       await fbDb().collection("users").doc(uid).collection("inventory").doc(r.spoolId).update(update);
+      // Conversion to TigerTag+ — classify by the source spool's type.
+      bumpStudioCounters(r.isCloud ? { cloudToPlusTotal: 1 } : { tagToPlusTotal: 1 });
       _convertApiCache = null;
       toast(t("upgradeToPlusSuccess"), "success");
     } catch (e) {
@@ -5975,6 +6407,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       batch.set(invRef.doc(newId), data);
     }
     await batch.commit();
+    bumpStudioCounters({ cloudAddedTotal: n });
     return n;
   }
 
@@ -7332,7 +7765,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
             <span class="icon icon-package icon-14"></span>
             <span class="storage-loc-rack">${esc(_rackForSpool.name)}</span>
             <span class="storage-loc-coord">${coord}</span>
-            ${lockedHere ? `<span class="storage-loc-locked icon icon-lock icon-13" title="${esc(t("rackLockedTip"))}"></span>` : ""}
+            ${lockedHere ? `<span class="storage-loc-locked icon icon-lock icon-13" title="${esc(t("rackPinnedTip"))}"></span>` : ""}
             <span class="storage-loc-locate icon icon-chevron-r icon-13" aria-hidden="true"></span>
           </button>
         </div>`;
@@ -8134,6 +8567,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   const FSE_QUICK = [
     { label: "user doc",   path: "users/{uid}" },
     { label: "prefs",      path: "users/{uid}/prefs/app" },
+    { label: "telemetry",  path: "users/{uid}/telemetry/studio" },
     { label: "inventory",  path: "users/{uid}/inventory",  col: true },
     { label: "printers",   path: "users/{uid}/printers",   col: true },
     { label: "tags",       path: "users/{uid}/tags",       col: true },
@@ -8250,14 +8684,29 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // in the main sidebar. Each chip is clickable → switches the inventory
   // view to that friend (read-only). Hidden when there are no friends.
   // Highlights the currently-active friend with an "active" border.
+  // Last-rendered signature of the sidebar friend chips. Like the header
+  // banner, this list is re-rendered many times on cold start (setConnected,
+  // every renderAccountDropdown, then loadFriendsList after the network). A
+  // blind innerHTML reassign would destroy + recreate each friend's avatar
+  // <img> → a 2-3× flash. The guard rebuilds the DOM only when the visible
+  // content changes, so identical re-renders keep the existing <img>.
+  let _sbFriendsSig = null;
   function renderSidebarFriends() {
     const el = $("sbFriendsList");
     if (!el) return;
     if (!state.friends || !state.friends.length) {
-      el.classList.add("hidden");
-      el.innerHTML = "";
+      if (_sbFriendsSig !== "empty") { el.classList.add("hidden"); el.innerHTML = ""; _sbFriendsSig = "empty"; }
       return;
     }
+    // Signature captures exactly what each chip paints (avatar mode / photo /
+    // initials / gradient + name) plus which friend is currently being viewed.
+    const activeUid = state.friendView?.uid || "";
+    const sig = "list|" + activeUid + "|" + state.friends.map(f => {
+      const p = _buildAvatarParts(f);
+      return `${f.uid}:${p.mode}:${p.photoURL || ""}:${p.initials}:${p.bg}:${_shortName(f.displayName, f.uid)}`;
+    }).join(",");
+    if (sig === _sbFriendsSig) return;  // identical → keep the <img>s, no flash
+    _sbFriendsSig = sig;
     el.classList.remove("hidden");
     el.innerHTML = state.friends.map(f => {
       const initials = (f.displayName || "?").split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
@@ -8274,7 +8723,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
                       data-friend-color="${esc(color)}"
                       data-tooltip="${esc(_shortName(f.displayName, f.uid))}"
                       title="${esc(_shortName(f.displayName, f.uid))}">
-        <span class="sb-friend-avatar" style="background:${color};color:${fg}">${esc(initials)}${_avatarPhotoTag(f.photoURL)}</span>
+        ${avatarMarkup(f, "sb-friend-avatar")}
         <span class="sb-friend-name">${esc(_shortName(f.displayName, f.uid))}</span>
         ${isActive ? '<span class="sb-friend-active-dot" aria-hidden="true"></span>' : ""}
       </button>`;
@@ -8359,7 +8808,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       const fg = readableTextOn(color);
       const date = f.addedAt ? timeAgo(f.addedAt.seconds ? f.addedAt.seconds * 1000 : f.addedAt) : "";
       return `<div class="fp-friend" data-uid="${esc(f.uid)}" data-name="${esc(_shortName(f.displayName, f.uid))}" data-color="${esc(color)}">
-        <div class="fp-friend-avatar" style="background:${color};color:${fg}">${initials}${_avatarPhotoTag(f.photoURL)}</div>
+        ${avatarMarkup(f, "fp-friend-avatar")}
         <div class="fp-friend-main">
           <div class="fp-friend-name">${esc(_shortName(f.displayName, f.uid))}</div>
           <div class="fp-friend-date">${date ? t("friendAddedOn", { date }) : ""}</div>
@@ -8505,11 +8954,36 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (uid !== state.activeAccountId) return;
 
       state.friends = friends;
+      // Cache the friends list (with each friend's denormalised
+      // displayName, color, photoURL) to localStorage. On the next
+      // app open, `_hydrateFriendsCache` restores state.friends
+      // SYNCHRONOUSLY before the first paint — same Discord-style
+      // pattern as the user's own photoURL. No flicker between "no
+      // friends yet" and "friends loaded".
+      try {
+        const minimal = friends.map(f => ({
+          uid: f.uid, displayName: f.displayName || "",
+          color: f.color || null, photoURL: f.photoURL || null,
+        }));
+        Cache.write("friends", uid, minimal);
+      } catch (_) { /* quota / privacy mode — silent */ }
+
       renderFriendsList();
       // Refresh everywhere friends are shown
       renderAccountDropdown();
       if ($("profilesModalOverlay").classList.contains("open")) renderAccountList();
     } catch (e) { console.warn("[friends]", e.message); }
+  }
+
+  // Synchronous hydration of state.friends from the localStorage cache,
+  // called from setConnected so the first render of the dropdown +
+  // sidebar friend chips already has every friend (with their
+  // displayName + photoURL). loadFriendsList runs after and pushes any
+  // delta from Firestore.
+  function _hydrateFriendsCache(uid) {
+    if (!uid) return;
+    const cached = Cache.read("friends", uid);
+    if (Array.isArray(cached)) state.friends = cached;
   }
 
   /* ── Racks (storage shelves) ───────────────────────────────────────────── */
@@ -8537,6 +9011,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         state.racks = racks;
         console.log(`[racks] snapshot: ${racks.length} rack(s)`, racks.map(r => r.name));
         renderRacksList();
+        scheduleStudioStateRecord();  // re-arm deferred telemetry (rack counts changed)
       }, err => console.warn("[racks]", err.code, err.message));
   }
   function unsubscribeRacks() {
@@ -8625,6 +9100,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
             return String(a.printerName || "").localeCompare(String(b.printerName || ""));
           });
           state.printers = all;
+          scheduleStudioStateRecord();  // re-arm deferred telemetry (printer count changed)
           // Elegoo: maintain persistent MQTT connections in the background so
           // the card status badge is always live, even without opening the sidecard.
           // Only connect when no connection exists yet, or when the IP changed.
@@ -12966,7 +13442,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
             </div>
             <div class="rht-weight-bar"><div class="rht-weight-bar-fill" style="width:${pct}%"></div></div>
           </div>
-          ${locked ? `<div class="rht-locked"><span class="icon icon-lock icon-13"></span>${esc(t("rackLockedTip"))}</div>` : ""}
+          ${locked ? `<div class="rht-locked"><span class="icon icon-lock icon-13"></span>${esc(t("rackPinnedTip"))}</div>` : ""}
         </div>
       </div>
     `;
@@ -13072,11 +13548,21 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (x.rackPos   < 0 || x.rackPos   >= (rk.position || 0)) return false;
       return true;
     };
-    let totalSlotsAll = 0, filledSlotsAll = 0, lockedSlotsAll = 0;
+    let totalSlotsAll = 0, filledSlotsAll = 0, lockedSlotsAll = 0, lockedEmptyAll = 0;
     state.racks.forEach(r => {
-      const cap = (r.level || 0) * (r.position || 0);
-      totalSlotsAll += cap;
-      lockedSlotsAll += Array.isArray(r.lockedSlots) ? r.lockedSlots.length : 0;
+      const lvN = r.level || 0, psN = r.position || 0;
+      totalSlotsAll += lvN * psN;
+      const locks = Array.isArray(r.lockedSlots) ? r.lockedSlots : [];
+      lockedSlotsAll += locks.length;
+      // A locked-but-EMPTY slot (case 1, "unusable") is dead space: it can't
+      // hold material, so it's subtracted from the available count below.
+      // A locked-but-FILLED slot (case 2, "pinned") is already counted as filled.
+      locks.forEach(key => {
+        const [klv, kpos] = key.split(":").map(Number);
+        if (klv >= 0 && klv < lvN && kpos >= 0 && kpos < psN && !findSpoolInSlot(r.id, klv, kpos)) {
+          lockedEmptyAll++;
+        }
+      });
     });
     // Count one slot per physical spool — a twin pair (2 linked tags) occupies
     // a single slot, so collapse it before counting.
@@ -13099,8 +13585,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         _cleanupOrphanRackRefs(orphans).finally(() => { _orphanCleanupInFlight = false; });
       }
     }
-    const emptySlotsAll = Math.max(0, totalSlotsAll - filledSlotsAll);
-    const fillPctAll = totalSlotsAll > 0 ? Math.round((filledSlotsAll / totalSlotsAll) * 100) : 0;
+    // Usable capacity = physical total minus locked-EMPTY (unusable) slots:
+    // locking an empty slot takes it out of the rack's storable capacity, so
+    // the "filled / total" denominator drops (198 → 197). Locked-FILLED
+    // (pinned) slots stay counted — they still hold material.
+    const usableSlotsAll = Math.max(0, totalSlotsAll - lockedEmptyAll);
+    // "Available" = usable capacity not yet filled.
+    const emptySlotsAll = Math.max(0, usableSlotsAll - filledSlotsAll);
+    const fillPctAll = usableSlotsAll > 0 ? Math.round((filledSlotsAll / usableSlotsAll) * 100) : 0;
     // Depleted spools: active inventory items where the user has used up
     // all the filament (weightAvailable <= 0). They're still in the
     // database but ready to be discarded / replaced.
@@ -13128,9 +13620,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
             <div class="rv-stat-num">${racksCount}</div>
             <div class="rv-stat-lbl">${esc(racksLabel)}</div>
           </div>
-          <div class="rv-stat rv-stat--wide rv-stat--slots" data-stat="slots" title="${filledSlotsAll}/${totalSlotsAll} ${esc(t("rackStatsSlots"))}">
+          <div class="rv-stat rv-stat--wide rv-stat--slots" data-stat="slots" title="${filledSlotsAll}/${usableSlotsAll} ${esc(t("rackStatsSlots"))}">
             <div class="rv-stat-line">
-              <span class="rv-stat-num"><span class="rv-stat-num-strong">${filledSlotsAll}</span><span class="rv-stat-num-sep">/</span><span class="rv-stat-num-soft">${totalSlotsAll}</span></span>
+              <span class="rv-stat-num"><span class="rv-stat-num-strong">${filledSlotsAll}</span><span class="rv-stat-num-sep">/</span><span class="rv-stat-num-soft">${usableSlotsAll}</span></span>
               <span class="rv-stat-lbl rv-stat-lbl--inline">${esc(t("rackStatsSlots"))}</span>
             </div>
             <div class="rv-stat-bar"><div class="rv-stat-bar-fill" style="width:${fillPctAll}%"></div></div>
@@ -13195,7 +13687,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         for (let pos = 0; pos < r.position; pos++) {
           const occ    = findSpoolInSlot(r.id, lv, pos);
           const locked = isSlotLocked(r.id, lv, pos);
-          const lockCls = locked ? " rp-slot--locked" : "";
+          // Two locked sub-states with distinct meaning + visual:
+          //   pinned   = locked + occupied → material can't be moved / cleared
+          //   unusable = locked + empty    → dead slot, excluded from "available"
+          const lockCls = locked ? (occ ? " rp-slot--locked rp-slot--pinned" : " rp-slot--locked rp-slot--unusable") : "";
           const coord = `${shelfLetter(lv)}${pos + 1}`;
           if (occ) {
             // Bounce-in marker if this spool was just placed (drop / auto-fill).
@@ -13209,7 +13704,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
                               data-spool-id="${esc(occ.spoolId)}"
                               data-coord="${coord}">${slotFillInnerHTML(occ)}</div>`);
           } else {
-            const tip = locked ? `[${coord}] 🔒 ${t("rackLockedTip")}` : `[${coord}]`;
+            const tip = locked ? `[${coord}] ${t("rackUnusableTip")}` : `[${coord}]`;
             cells.push(`<div class="rp-slot${lockCls}" data-rack="${esc(r.id)}" data-level="${lv}" data-pos="${pos}" title="${tip}" data-coord="${coord}"></div>`);
           }
         }
@@ -13224,6 +13719,15 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       ).length;
       const lockedCnt  = Array.isArray(r.lockedSlots) ? r.lockedSlots.length : 0;
       const allLocked  = lockedCnt > 0 && lockedCnt === totalSlots;
+      // Drop locked-empty (unusable) slots from this rack's denominator too,
+      // mirroring the global "usable capacity" count in the stats bar.
+      let lockedEmptyCnt = 0;
+      (Array.isArray(r.lockedSlots) ? r.lockedSlots : []).forEach(key => {
+        const [klv, kpos] = key.split(":").map(Number);
+        if (klv >= 0 && klv < r.level && kpos >= 0 && kpos < r.position
+            && !findSpoolInSlot(r.id, klv, kpos)) lockedEmptyCnt++;
+      });
+      const usableSlots = Math.max(0, totalSlots - lockedEmptyCnt);
       return `<div class="rp-rack" data-rack-id="${esc(r.id)}">
         <div class="rp-rack-head">
           ${readOnly ? "" : `<span class="rp-rack-grip" title="Drag to reorder" draggable="true" data-rack-drag-id="${esc(r.id)}">⋮⋮</span>`}
@@ -13231,7 +13735,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
             <div class="rp-rack-name">
               <span class="rp-rack-name-text">${esc(r.name)}</span>
               <span class="rp-rack-count">·</span>
-              <span class="rp-rack-count-num">${filled}/${totalSlots}</span>
+              <span class="rp-rack-count-num">${filled}/${usableSlots}</span>
             </div>
           </div>
           ${readOnly ? "" : `<div class="rp-rack-actions">
@@ -14186,6 +14690,15 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // visual frame (avatar | stacked name+sub), so the user gets the same
   // reading rhythm whether they're on their own inventory or peeking at
   // a friend's. Originally Friend-only, hence the historical name.
+  // Last-rendered content signature of the header banner. renderInventory()
+  // calls renderFriendBanner() on every pass, and the cold start fires
+  // several renders in a row (spinner → cache → snapshot → bg images). If we
+  // blindly reassigned innerHTML each time, the avatar <img> would be
+  // destroyed + recreated repeatedly → a 2-3× flash. The signature guard
+  // rebuilds the DOM ONLY when the visible content actually changes, so the
+  // <img> survives identical re-renders (no flash) — same idea as paintAvatar
+  // updating the sidebar avatar in place.
+  let _fvbSig = null;
   function renderFriendBanner() {
     const banner = $("friendViewBanner");
     // Toggle the sidebar avatar's "swap-back" affordance — visible only
@@ -14198,36 +14711,50 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     $("btnAddScan")?.classList.toggle("hidden", !!state.friendView);
     $("btnAddProduct")?.classList.toggle("hidden", !!state.friendView);
     if (!banner) return;
-    banner.classList.remove("fvb--own", "fvb--error");
     // ─── Friend view ───────────────────────────────────────────────
     if (state.friendView) {
       const { displayName, avatarColor, photoURL, error } = state.friendView;
-      const initials = (displayName || "?").split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
-      const fg = readableTextOn(avatarColor || "var(--accent)");
-      banner.innerHTML = `
-        <span class="fvb-avatar" style="background:${avatarColor || "var(--accent)"};color:${fg}">${esc(initials)}${_avatarPhotoTag(photoURL)}</span>
-        <div class="fvb-inner">
-          <span class="fvb-name">${esc(displayName || "—")}</span>
-          ${error
-            ? `<span class="fvb-badge fvb-badge--error" title="${esc(error)}">⚠ ${t("friendInvErrorBadge")}</span>`
-            : `<span class="fvb-badge">${t("friendViewReadOnly")}</span>`}
-        </div>`;
+      // Build a synthetic source so avatarMarkup can pull gradient
+      // from the friend's avatarColor (a single hex, not an RGB
+      // triplet like an account uses).
+      const friendSource = { displayName, photoURL, color: avatarColor };
+      const p = _buildAvatarParts(friendSource);
+      const sig = `friend|${displayName || ""}|${p.mode}|${p.photoURL || ""}|${p.initials}|${p.bg}|${error || ""}|${state.lang}`;
+      if (sig !== _fvbSig) {
+        _fvbSig = sig;
+        banner.innerHTML = `
+          ${avatarMarkup(friendSource, "fvb-avatar")}
+          <div class="fvb-inner">
+            <span class="fvb-name">${esc(displayName || "—")}</span>
+            ${error
+              ? `<span class="fvb-badge fvb-badge--error" title="${esc(error)}">⚠ ${t("friendInvErrorBadge")}</span>`
+              : `<span class="fvb-badge">${t("friendViewReadOnly")}</span>`}
+          </div>`;
+      }
+      banner.classList.remove("fvb--own");
       banner.classList.toggle("fvb--error", !!error);
       banner.classList.remove("hidden");
       return;
     }
     // ─── Own view (signed in, not previewing a friend) ─────────────
     const acc = activeAccount();
-    if (!acc) { banner.classList.add("hidden"); return; }
+    if (!acc) { banner.classList.add("hidden"); banner.classList.remove("fvb--own", "fvb--error"); _fvbSig = "none"; return; }
+    // `own` is the chip's displayed text — falls back to the email
+    // prefix when no name is known, so the chip never reads blank.
+    // (Initials are handled separately by avatarMarkup — never from
+    // email — see getInitials.)
     const own = _shortName(state.displayName || acc.displayName, acc.email);
-    const initials = own.split(/[\s._-]+/).filter(Boolean).map(w => w[0]).join("").toUpperCase().slice(0, 2) || "?";
-    const grad = getAccGradient(acc);
-    const fg = readableTextOn(getAccShadow(acc));
-    banner.innerHTML = `
-      <span class="fvb-avatar" style="background:${grad};color:${fg}">${esc(initials)}${_avatarPhotoTag(state.photoURL)}</span>
-      <div class="fvb-inner">
-        <span class="fvb-name">${esc(own)}</span>
-      </div>`;
+    const p = _buildAvatarParts(acc);
+    const sig = `own|${own}|${p.mode}|${p.photoURL || ""}|${p.initials}|${p.bg}`;
+    if (sig !== _fvbSig) {
+      _fvbSig = sig;
+      banner.innerHTML = `
+        ${avatarMarkup(acc, "fvb-avatar")}
+        <div class="fvb-inner">
+          <span class="fvb-name">${esc(own)}</span>
+        </div>`;
+    }
+    banner.classList.remove("fvb--error");
     banner.classList.add("fvb--own");
     banner.classList.remove("hidden");
   }
@@ -14583,8 +15110,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (acc) { acc.displayName = name; saveAccounts(accounts); }
       state.displayName       = name;
       $("sbName").textContent = name;
-      $("sbAvatar").textContent = getInitials({ displayName: name, email: acc?.email || "" });
-      applyAvatarStyle(acc);
+      // Centralised pipeline — gradient + initials + photo all atomic.
+      paintAvatar($("sbAvatar"), acc);
       renderFriendBanner();
       renderAccountDropdown();
       closeDisplayNameSetup();
@@ -14881,22 +15408,46 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       input.accept = "image/jpeg,image/png,image/webp";
       input.style.display = "none";
       document.body.appendChild(input);
-      // Some browsers don't fire `change` on cancel; we listen to both
-      // change AND a delayed focus event to detect cancel reliably.
       let resolved = false;
       const cleanup = () => { resolved = true; input.remove(); };
+
+      // Primary path: native `change` (file picked) / `cancel` (user
+      // dismissed). `cancel` is the HTML-spec-defined event for the
+      // dismiss case — supported in Chromium 113+. Electron 41 uses
+      // Chromium 134, so both events fire reliably across macOS,
+      // Windows 10, Windows 11 and Linux. This is what fixes the Win10
+      // race observed when the legacy focus/grace-timer approach was
+      // used: on Win10 the OS could return `focus` to the renderer
+      // BEFORE `change` arrived (slow I/O scheduler), causing the
+      // 300 ms grace to expire and the picker to silently resolve
+      // null — the cropper would never open.
       input.addEventListener("change", () => {
         if (resolved) return;
-        const f = input.files?.[0] || null;
         cleanup();
-        resolve(f);
+        resolve(input.files?.[0] || null);
       });
-      // Cancel detection: when the file dialog closes without a pick,
-      // the window regains focus. Give it a grace period for the change
-      // event to fire first; if it didn't, treat as cancel.
-      window.addEventListener("focus", () => {
-        setTimeout(() => { if (!resolved) { cleanup(); resolve(null); } }, 300);
-      }, { once: true });
+      input.addEventListener("cancel", () => {
+        if (resolved) return;
+        cleanup();
+        resolve(null);
+      });
+
+      // Belt-and-braces fallback for environments where neither
+      // `change` nor `cancel` fires (unknown Electron build / WebView
+      // shim). The focus listener arms 200 ms AFTER `input.click()` —
+      // by then the native dialog has stolen focus, so the next
+      // `focus` event truly means "dialog closed". 800 ms grace is
+      // generous enough for the slowest Win10 I/O scheduler to deliver
+      // `change` before this fires. macOS and Win11 always hit the
+      // `change`/`cancel` path first, so this fallback is invisible
+      // to them.
+      setTimeout(() => {
+        if (resolved) return;
+        window.addEventListener("focus", () => {
+          setTimeout(() => { if (!resolved) { cleanup(); resolve(null); } }, 800);
+        }, { once: true });
+      }, 200);
+
       input.click();
     });
   }
@@ -15218,6 +15769,133 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     return url;
   }
 
+  // Local-first hydration of the user doc — applies the cached roles /
+  // debug / keys / isPublic synchronously so the debug button and public
+  // flag are correct on the FIRST frame. Authoritative refresh still comes
+  // from syncUserDoc(); this only primes state from localStorage. No-op if
+  // nothing cached yet (first ever login).
+  function hydrateUserDocCache(uid) {
+    const c = Cache.read("userdoc", uid);
+    if (!c) return;
+    state.isAdmin      = c.roles === "admin";
+    state.debugEnabled = state.isAdmin && !!c.Debug;
+    if (c.publicKey)  state.publicKey  = c.publicKey;
+    if (c.privateKey) state.privateKey = c.privateKey;
+    state.isPublic     = !!c.isPublic;
+    try { applyDebugMode(); } catch {}
+  }
+
+  // ── Country / timezone derivation (offline, no IP geolocation) ──────────
+  function currentTimezone() {
+    try { return Intl.DateTimeFormat().resolvedOptions().timeZone || null; }
+    catch (_) { return null; }
+  }
+  // Country = region subtag of the browser locale ("fr-FR" → "FR"); when the
+  // locale carries no region (plain "fr"), fall back to the IANA timezone
+  // ("Europe/Paris" → "FR"). Pure offline lookup, never an IP call.
+  function deriveCountry(tz = currentTimezone()) {
+    try {
+      const loc = navigator.language || "";
+      if (typeof Intl !== "undefined" && Intl.Locale) {
+        const region = new Intl.Locale(loc).region;
+        if (region) return region.toUpperCase();
+      }
+      const parts = loc.split("-");
+      if (parts.length > 1 && parts[1]) return parts[1].toUpperCase();
+    } catch (_) {}
+    return tzToCountry(tz);
+  }
+
+  // ── Current-state telemetry snapshot (Studio-Manager-dedicated) ─────────
+  // Written to users/{uid}/telemetry/studio AFTER the data subscriptions have
+  // settled — see scheduleStudioStateRecord for the deferred trigger. Fields
+  // here are overwritten each session (current state), distinct from the
+  // lifetime accumulators (sessionsCount, versionsUsed…) written in syncUserDoc.
+  let _studioStateRecordedUid = null;
+  let _studioStateTimer = null;
+
+  function scheduleStudioStateRecord() {
+    const uid = state.activeAccountId;
+    if (!uid) return;
+    if (state.friendView) return;                 // never record while viewing a friend
+    if (_studioStateRecordedUid === uid) return;  // once per account per session
+    clearTimeout(_studioStateTimer);
+    // 7 s debounce: each subscription snapshot (inventory, racks, printers,
+    // scales) re-arms the timer, so it fires once everything has settled.
+    _studioStateTimer = setTimeout(() => recordStudioState(uid), 7000);
+  }
+
+  async function recordStudioState(uid) {
+    if (uid !== state.activeAccountId || state.friendView) return;
+    if (_studioStateRecordedUid === uid) return;
+    _studioStateRecordedUid = uid;  // claim early — avoids double-write if re-armed mid-flight
+    try {
+      const db  = fbDb(uid);
+      const ref = db.collection("users").doc(uid).collection("telemetry").doc("studio");
+      const FV  = firebase.firestore.FieldValue;
+
+      // Current-state counts (overwritten each session).
+      const activeSpools = deduplicateTwins(state.rows.slice()).filter(r => !r.deleted);
+      const rackSlots    = (state.racks || []).reduce(
+        (sum, r) => sum + (r.level || 0) * (r.position || 0), 0);
+
+      const payload = {
+        lang:           state.lang || null,
+        country:        deriveCountry(),
+        hasAvatar:      !!state.photoURL,
+        accountsCount:  getAccounts().length,
+        friendsCount:   (state.friends   || []).length,
+        spoolsCount:    activeSpools.length,
+        racksCount:     (state.racks     || []).length,
+        rackSlotsTotal: rackSlots,
+        scalesCount:    (state.scales    || []).length,
+        printerCount:   (state.printers  || []).length,
+      };
+
+      // Phase 2 — onboarding funnel: stamp each milestone once (the first
+      // session where the user reaches it), plus firstSeen. Read the doc to
+      // know which stamps already exist; never overwrite an existing one.
+      let existing = {};
+      try { existing = (await ref.get()).data() || {}; } catch (_) {}
+      if (!existing.firstSeen)                                 payload.firstSeen    = FV.serverTimestamp();
+      if (payload.spoolsCount  > 0 && !existing.firstSpoolAt)   payload.firstSpoolAt   = FV.serverTimestamp();
+      if (payload.racksCount   > 0 && !existing.firstRackAt)    payload.firstRackAt    = FV.serverTimestamp();
+      if (payload.printerCount > 0 && !existing.firstPrinterAt) payload.firstPrinterAt = FV.serverTimestamp();
+      if (payload.friendsCount > 0 && !existing.firstFriendAt)  payload.firstFriendAt  = FV.serverTimestamp();
+
+      await ref.set(payload, { merge: true });
+    } catch (e) {
+      _studioStateRecordedUid = null;  // allow a retry on the next trigger
+      console.warn("[telemetry] studio state write failed:", e.code || e.message);
+    }
+  }
+
+  // ── Lifetime spool-lifecycle counters (telemetry/studio) ────────────────
+  // Increment-only accumulators that trace a user's spool history over time,
+  // each counting SPOOLS (a twin pair = 1, consistent with the deduped stat):
+  //   cloudAddedTotal  — TigerCloud spools created (Add Product / duplicate)
+  //   tagAddedTotal    — DIY physical tags that arrived already-written
+  //                      (factory/mobile), counted on first scan
+  //   plusAddedTotal   — TigerTag+ tags that arrived already-written
+  //   cloudToTagTotal  — TigerCloud burned to a physical chip (_cemMigrate)
+  //   cloudToPlusTotal — TigerCloud converted to TigerTag+ (_convertToPlus)
+  //   tagToPlusTotal   — DIY TigerTag converted to TigerTag+ (_convertToPlus)
+  // Fire-and-forget; never blocks the user action that triggered it.
+  function bumpStudioCounters(deltas) {
+    const uid = state.activeAccountId;
+    if (!uid || state.friendView) return;
+    const FV = firebase.firestore.FieldValue;
+    const payload = {};
+    for (const k in deltas) {
+      if (deltas[k]) payload[k] = FV.increment(deltas[k]);
+    }
+    if (!Object.keys(payload).length) return;
+    fbDb(uid).collection("users").doc(uid)
+      .collection("telemetry").doc("studio")
+      .set(payload, { merge: true })
+      .catch(e => console.warn("[telemetry] counter bump failed:", e.code || e.message));
+  }
+
   async function syncUserDoc(uid) {
     // Always use the named Firestore instance for this specific uid,
     // never fbDb() without parameter — that depends on state.activeAccountId
@@ -15259,6 +15937,18 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       state.privateKey = data.privateKey;
       state.isPublic   = data.isPublic || false;
 
+      // Mirror the minimal user-doc shape to the local-first cache so the
+      // NEXT cold start can hydrate roles / debug / keys / isPublic before
+      // the first paint (see hydrateUserDocCache).
+      Cache.write("userdoc", uid, {
+        roles:      data.roles || null,
+        Debug:      !!data.Debug,
+        publicKey:  data.publicKey || null,
+        privateKey: data.privateKey || null,
+        isPublic:   !!data.isPublic,
+        displayName: data.displayName || null,
+      });
+
       // Extra subnets — load from Firestore + wire the persister so every
       // brand scan modal reads/writes a single shared list (Snapmaker,
       // Creality, Elegoo, FlashForge). Migration from the 4 legacy
@@ -15291,7 +15981,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         if (acc && acc.displayName !== resolvedName) { acc.displayName = resolvedName; localDirty = true; }
         state.displayName         = resolvedName;
         $("sbName").textContent   = resolvedName;
-        $("sbAvatar").textContent = getInitials({ displayName: resolvedName, email: acc?.email || "" });
+        // Atomic avatar repaint via the centralised pipeline —
+        // gradient, .av-initials text, and photo overlay are all
+        // updated in one shot. Replaces the legacy textContent +
+        // _renderAvatarPhotoOverlay dance that left a one-frame
+        // window where the photo was wiped and only the initials
+        // were showing.
+        paintAvatar($("sbAvatar"), acc);
         renderFriendBanner(); // refresh header chip with authoritative Firestore name
         // If Firestore was missing the name but localStorage had it, write it back
         if (!firestoreName && localName) {
@@ -15315,7 +16011,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
               if (a) { a.displayName = name; saveAccounts(accs); }
               state.displayName = name;
               $("sbName").textContent = name;
-              $("sbAvatar").textContent = getInitials({ displayName: name, email: a?.email || "" });
+              // Atomic repaint via the centralised pipeline (same as
+              // the main resolvedName branch above).
+              paintAvatar($("sbAvatar"), a);
               renderFriendBanner(); // refresh header chip with authoritative Firestore name
               return;
             }
@@ -15342,16 +16040,43 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       // Read custom avatar URL from userProfiles. Stored separately from
       // users/{uid} because userProfiles is public-to-signed-in (visible
       // to friends + friend-add preview), while users/{uid} is owner-
-      // only. Failures (offline, no profile doc yet, rules) silently
-      // fall back to state.photoURL = null → applyAvatarStyle below
-      // renders the colour circle + initials as usual.
+      // only. ALSO cache on the Account object so OTHER connected
+      // accounts render their avatar in the dropdown / profiles modal
+      // without an extra Firestore read at render time.
+      //
+      // Idempotency: state.photoURL was hydrated synchronously at
+      // setConnected time from the cached Account. If the live
+      // userProfiles value matches it, we DON'T touch state and DON'T
+      // re-render — no flicker. Only if the URL actually changed
+      // (avatar uploaded / removed from another device) do we push the
+      // new value through.
+      //
+      // Failure path: transient network / offline errors must NOT null
+      // state.photoURL — that would flick the user back to initials
+      // for ~half a second on every flaky connection. Keep the cached
+      // avatar showing; we'll pick up the real value on the next
+      // successful read.
       try {
         const profSnap = await db.collection("userProfiles").doc(uid).get();
-        if (uid === state.activeAccountId) {  // re-check after async
-          state.photoURL = profSnap.exists ? (profSnap.data().photoURL || null) : null;
+        const photoURL = profSnap.exists ? (profSnap.data().photoURL || null) : null;
+        // Cache on the Account object in localStorage.
+        const accsForPhoto = getAccounts();
+        const accForPhoto = accsForPhoto.find(x => x.id === uid);
+        if (accForPhoto && (accForPhoto.photoURL || null) !== photoURL) {
+          accForPhoto.photoURL = photoURL;
+          saveAccounts(accsForPhoto);
+        }
+        if (uid === state.activeAccountId &&
+            (state.photoURL || null) !== photoURL) {
+          state.photoURL = photoURL;
+          // URL changed since hydration → push the update through the
+          // existing render points (applyAvatarStyle below + the
+          // renderFriendBanner / renderAccountDropdown calls right
+          // after this block).
         }
       } catch (_) {
-        state.photoURL = null;
+        // Keep the cached avatar — don't punish the user for a
+        // transient Firestore blip.
       }
 
       applyAvatarStyle(acc);
@@ -15374,28 +16099,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       });
 
       // ── Client telemetry (fire-and-forget, non-critical) ──────────────────
-      const info = await getAppInfo();
+      const info = await loadAppInfo();
       const FV   = firebase.firestore.FieldValue;
 
       // Country + timezone derived locally (no IP geolocation call — keeps it
-      // offline and privacy-friendly). Country = region subtag of the system
-      // locale ("fr-FR" → "FR"); null when the locale has no region.
-      const country = (() => {
-        try {
-          const loc = navigator.language || "";
-          if (typeof Intl !== "undefined" && Intl.Locale) {
-            const region = new Intl.Locale(loc).region;
-            if (region) return region.toUpperCase();
-          }
-          const parts = loc.split("-");
-          if (parts.length > 1 && parts[1]) return parts[1].toUpperCase();
-        } catch (_) {}
-        return null;
-      })();
-      const timezone = (() => {
-        try { return Intl.DateTimeFormat().resolvedOptions().timeZone || null; }
-        catch (_) { return null; }
-      })();
+      // offline and privacy-friendly). See deriveCountry() for the two-step
+      // logic (locale region → timezone fallback).
+      const timezone = currentTimezone();
+      const country  = deriveCountry(timezone);
 
       // 1. users/{uid} — last-known client state (overwritten each session).
       //    Used for deployment targeting: "push to all darwin arm64 on < 1.8".
@@ -15411,7 +16122,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         studioCountry:   country,
         studioTimezone:  timezone,
         studioLastSeen:  FV.serverTimestamp(),
-      }, { merge: true }).catch(() => {});
+      }, { merge: true }).catch(e => console.warn("[telemetry] user doc write failed:", e.code));
 
       // 2. users/{uid}/telemetry/studio — aggregated lifetime metrics.
       //    Never overwritten — only grows. Standard Firebase pattern:
@@ -15420,13 +16131,18 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         sessionsCount: FV.increment(1),
         versionsUsed:  FV.arrayUnion(info.appVersion || "?"),
         platformsUsed: FV.arrayUnion(info.platform   || "?"),
-        langsUsed:     FV.arrayUnion(state.lang      || "?"),
         lastSeen:      FV.serverTimestamp(),
       };
-      if (country) agg.countriesUsed = FV.arrayUnion(country);
       db.collection("users").doc(uid)
         .collection("telemetry").doc("studio")
-        .set(agg, { merge: true }).catch(() => {});
+        .set(agg, { merge: true })
+        .catch(e => console.warn("[telemetry] studio aggregate write failed:", e.code));
+
+      // 3. Current-state snapshot + onboarding milestones — deferred until the
+      //    inventory/racks/printers/scales subscriptions have delivered their
+      //    first snapshot, otherwise the counts would all be 0 (see
+      //    recordStudioState / scheduleStudioStateRecord).
+      scheduleStudioStateRecord();
 
       // Reflect in open edit-account modal if already open
       if ($("editAccountModalOverlay").classList.contains("open")) {
@@ -15473,38 +16189,21 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     applyLang(lang);
   });
 
-  /* ── Image skeleton / shimmer ── */
-  // Remove shimmer once an image finishes loading
-  document.addEventListener('load', e => {
-    const img = e.target;
-    if (img.tagName !== 'IMG') return;
-    img.classList.remove('img-skeleton');
-    img.classList.add('img-loaded');
-  }, true);
-
-  // Auto-apply skeleton to every new web image inserted into the DOM
-  const _imgObserver = new MutationObserver(mutations => {
-    for (const m of mutations) {
-      for (const node of m.addedNodes) {
-        if (node.nodeType !== 1) continue;
-        const imgs = node.tagName === 'IMG' ? [node] : [...node.querySelectorAll('img')];
-        for (const img of imgs) {
-          if (img.src?.startsWith('http') && !img.complete) {
-            img.classList.add('img-skeleton');
-          }
-        }
-      }
-    }
-  });
-  _imgObserver.observe(document.body, { childList: true, subtree: true });
-
   /* ── init ── */
   loadLocales().then(() => {
     applyTranslations();
+    ColdStart.mark("locales-ready");
     return loadLookups();
   }).then(() => {
+    ColdStart.mark("lookups-ready");
+    loadImgMap();  // hydrate url→local-file map so cached thumbnails paint instantly
     runMigration(); // wipe legacy API-key accounts before Firebase takes over
     initAuth();    // start Firebase auth state listener
+    // Fallback first-paint signal: the signed-in fast path calls
+    // signalFirstPaint() as soon as the cached avatar + inventory are
+    // painted, but a signed-out (or very slow auth) launch has no such
+    // trigger — reveal the window once the shell is on screen. Idempotent.
+    requestAnimationFrame(signalFirstPaint);
   });
 
   // ── Electron RFID integration ──
@@ -15691,6 +16390,15 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           }
           await _writeChipDoc(docRef, tagData, twinUid, { preserveDbWeight });
           processedUids.push(uid);
+          // Lifetime "added" counter — a brand-new physical spool entered the
+          // inventory by scan (i.e. it arrived already-written: factory/mobile;
+          // chips born from a local burn already exist via _cemMigrate, so they
+          // don't reach this branch). Twin dedup: only the first UID of a pair
+          // increments → a freshly-scanned twin pair counts as one spool.
+          if (!existing.exists && (!twinUid || String(uid) < String(twinUid))) {
+            const isPlusChip = versionName(tagData.id_tigertag) === "TigerTag+";
+            bumpStudioCounters(isPlusChip ? { plusAddedTotal: 1 } : { tagAddedTotal: 1 });
+          }
         } catch (e) {
           console.error('[RFID] upsert failed for', uid, ':', e);
         }

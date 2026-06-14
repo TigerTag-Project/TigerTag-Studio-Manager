@@ -657,6 +657,8 @@
   "rackAutoFill": "自动填充",
   "rackAutoFillTip": "将未排列的线轴放入空的未锁定槽位",
   "rackLockedTip": "已锁定 · 右键单击槽位以锁定/解锁",
+  "rackUnusableTip": "已封锁格位 — 无法用于存放",
+  "rackPinnedTip": "已固定 — 材料锁定在此位置",
   "rackStatsRacks": {
     "one": "货架",
     "other": "货架"

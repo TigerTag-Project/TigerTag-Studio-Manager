@@ -657,6 +657,8 @@
   "rackAutoFill": "Preencher auto",
   "rackAutoFillTip": "Coloca bobines não atribuídas em espaços vazios e desbloqueados",
   "rackLockedTip": "Bloqueado · clique-direito num espaço para (des)bloquear",
+  "rackUnusableTip": "Ranhura bloqueada — inutilizável para armazenamento",
+  "rackPinnedTip": "Fixado — material bloqueado no lugar",
   "rackStatsRacks": {
     "one": "rack",
     "other": "racks"

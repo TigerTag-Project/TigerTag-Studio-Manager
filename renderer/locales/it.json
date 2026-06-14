@@ -657,6 +657,8 @@
   "rackAutoFill": "Riempi auto",
   "rackAutoFillTip": "Inserisce le bobine non assegnate negli slot vuoti sbloccati",
   "rackLockedTip": "Bloccato · clic-destro su uno slot per (s)bloccare",
+  "rackUnusableTip": "Slot bloccato — inutilizzabile per lo stoccaggio",
+  "rackPinnedTip": "Fissato — materiale bloccato in posizione",
   "rackStatsRacks": {
     "one": "rastrelliera",
     "other": "rastrelliere"

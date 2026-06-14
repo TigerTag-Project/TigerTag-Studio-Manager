@@ -1,4 +1,4 @@
-# Worklog — v1.8.22 (in progress)
+# Worklog — v1.8.28 (in progress)
 
 ## Added
 - **Anycubic printer support (6th brand)** — full LAN integration with the ACE (multi-color box): live box/slot layout in the printer side panel, slot filament editing (base type + RGB), online badge, request log, add-flow and Firestore persistence (`users/{uid}/printers/anycubic/devices`). Protocol: MQTT TLS 1.2 directly to the printer's own broker (`mqtts://<ip>:9883`, self-signed cert, username/password) using the `multiColorBox` getInfo/setInfo channel reverse-engineered in the ACE-RFID project — full reference distilled into `renderer/printers/anycubic/PROTOCOL.md`. New brand folder `renderer/printers/anycubic/` (`index.js` driver + lazy filament-edit sheet, `cards.js` ACE slot card, `probe.js`, `add-flow.js`, `settings.js`, `widget_camera.js` placeholder), `data/printers/acu_printer_models.json` (Kobra 3 / 3 V2 / 3 Max / S1 / X), `assets/img/acu_printers/` (placeholder images — **real product photos still to be added**, filenames already referenced by the catalog), brand wiring across `renderer/inventory.js`, MQTT bridge + IPC in `main.js`, `window.anycubic` bridge in `preload.js`.
@@ -35,6 +35,7 @@
 ## Changed
 
 ## Fixed
+- Bambu Lab camera latency — replaced the Base64 frame transport with raw binary + Blob URL (the bug report's "optimal" fix 4.2, full scope). Main process now sends the JPEG `Buffer` instead of `frame.toString('base64')` (no synchronous encode on the main thread, ~25% smaller IPC payload); renderers build a `URL.createObjectURL(Blob)` per painted frame instead of a `data:` URI (no Base64 re-decode), revoking the previous URL so only one object URL is alive per printer key (freed on reconnect + disconnect). Covers all consumers incl. the detached cam window (`cam/cam.js` + `cam/cam-preload.js`) the report missed. Files: `main.js`, `preload.js`, `renderer/cam/cam-preload.js`, `renderer/cam/cam.js`, `renderer/printers/bambulab/index.js`, `renderer/printers/bambulab/widget_camera.js`. Still needs real-hardware verification (X1C RTSP + A1 JPEG-TCP). The `createImageBitmap`+canvas off-main-thread decode is deliberately deferred to a follow-up to keep the regression surface small.
 
 ## Removed
 

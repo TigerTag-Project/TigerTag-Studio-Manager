@@ -656,6 +656,8 @@
   "rackAutoFill": "Wypełnij auto",
   "rackAutoFillTip": "Umieszcza nieprzypisane szpule w pustych odblokowanych slotach",
   "rackLockedTip": "Zablokowane · prawy klik na slocie aby (od)blokować",
+  "rackUnusableTip": "Zablokowane miejsce — nieużywalne do przechowywania",
+  "rackPinnedTip": "Przypięte — materiał zablokowany w miejscu",
   "rackStatsRacks": {
     "one": "regał",
     "other": "regały"

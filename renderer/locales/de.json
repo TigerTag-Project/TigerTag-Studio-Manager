@@ -657,6 +657,8 @@
   "rackAutoFill": "Auto-Füllen",
   "rackAutoFillTip": "Nicht zugewiesene Spulen in leere freie Slots einsortieren",
   "rackLockedTip": "Gesperrt · Rechtsklick auf einen Slot zum (Ent)Sperren",
+  "rackUnusableTip": "Blockierter Platz — nicht für Lagerung nutzbar",
+  "rackPinnedTip": "Angeheftet — Material fest an diesem Platz",
   "rackStatsRacks": {
     "one": "Rack",
     "other": "Racks"

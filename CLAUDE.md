@@ -12,7 +12,7 @@ Every file read and grep costs tokens. Follow these rules on every task to keep 
 | `Read` with `offset`+`limit` to fetch the exact slice | `Read` without limits on files > 200 lines |
 | `Edit` with the minimal `old_string` that is unique | Rewrite whole sections when only 3 lines change |
 | Run `grep` + `Read` in parallel when targets are independent | Sequential read-then-grep round-trips |
-| Check `CODEMAP.md` line ranges before any `inventory.js` read | Blind grep across the 15 000-line file |
+| Check `CODEMAP.md` line ranges before any `inventory.js` read | Blind grep across the 16 000-line file |
 
 **Workflow for any `inventory.js` change:**
 1. `CODEMAP.md` → find section + anchor function name
@@ -123,7 +123,7 @@ The working file is wiped so it stays clean and unambiguous: whatever is in `WOR
 ## Stack
 Electron (no bundler) + vanilla HTML/CSS/JS. Entry: `main.js`. Renderer: `renderer/inventory.html` + modular CSS in `renderer/css/` + `renderer/inventory.js`. Preload bridge: `preload.js`.
 
-> **`renderer/CODEMAP.md`** maps every feature in the 12k-line `inventory.js` to a line range and key function names. Read it BEFORE searching the file — it's faster, cheaper, and less error-prone than grepping. Keep it in sync when you move sections.
+> **`renderer/CODEMAP.md`** maps every feature in the ~16k-line `inventory.js` to a line range and key function names. Read it BEFORE searching the file — it's faster, cheaper, and less error-prone than grepping. Keep it in sync when you move sections — `npm run codemap:check` (run by the pre-commit hook whenever `inventory.js` or `CODEMAP.md` is staged) fails the commit on major drift.
 >
 > **`ROADMAP.md`** at the repo root holds the "what's done / next / backlog" picture grouped by domain. Read it BEFORE proposing new features — chances are it's already there with a sizing and risk note. Update it when you ship or pick up an item.
 
@@ -131,29 +131,39 @@ Electron (no bundler) + vanilla HTML/CSS/JS. Entry: `main.js`. Renderer: `render
 ```
 renderer/
   inventory.html   — pure markup + modals
-  inventory.js     — all application logic (IIFE) — see CODEMAP.md for line ranges
+  inventory.js     — core renderer logic (ES module, ~16k lines) — see CODEMAP.md for line ranges
   CODEMAP.md       — feature → line range index for inventory.js (read first, grep last)
-  css/             — split inventory styles, loaded in order via 8 <link> tags
+  css/             — split inventory styles, loaded in order via 10 <link> tags
     00-base.css         — root vars, reset, sidebar, header, app-layout
     10-settings.css     — Settings panel
     20-friends.css      — Friends slide-in panel
     30-racks.css        — Storage / rack inventory view + drag-drop + unranked panel
     40-printers.css     — Printers list view + add/scan/manual modals + side panel
     50-snapmaker.css    — Snapmaker live block + filament edit bottom-sheet
+    55-creality.css     — Creality camera (WebRTC video)
+    57-elegoo.css       — Elegoo live block
     60-modals.css       — Rack-edit / friend / account / login / alert modals
     70-detail-misc.css  — icons, stats, table/grid, detail panel, debug, twin-link, toolbox, TD edit, TD1S, display-name
   locales/         — en.json fr.json de.json es.json it.json zh.json pt.json pt-pt.json pl.json
-  printers/        — one sub-folder per brand; each has PROTOCOL.md + index.js
+  IoT/             — extracted device modules (own CSS inside each folder)
+    tigerscale/    — TigerScale: Firestore subscription, panel render, health tick
+    td1s/          — TD1S sensor engine + TD/Color edit modals
+  rfid_protocol/
+    tigertag/      — RFID TigerTag tester modal + chip parser
+  printers/        — one sub-folder per brand (PROTOCOL.md + index.js + add-flow.js +
+                     probe.js + widget_camera.js + settings.js + tutorial.json …)
+                     plus shared: registry.js, context.js, cam_manager.js,
+                     modal-helpers.js, extra-subnets.js
     bambulab/
       PROTOCOL.md  — agent skill: MQTTS port 8883, AMS, SSDP+TLS discovery, camera JPEG/RTSP
-      index.js     — live integration (stub — not yet implemented)
+      index.js     — live integration (implemented — MQTTS via main-process IPC)
     creality/
       PROTOCOL.md  — agent skill: WS port 9999, heartbeat, CFS boxsInfo, WebRTC camera
       RETRO.md     — live SSH observations on real Ender-3 V4 hardware (reference)
       index.js     — live integration (implemented)
     elegoo/
       PROTOCOL.md  — agent skill: MQTT port 1883, UDP discovery port 52700
-      index.js     — live integration (stub — not yet implemented)
+      index.js     — live integration (implemented)
     flashforge/
       PROTOCOL.md  — agent skill: HTTP port 8898, TCP 8899, UDP multicast discovery, MJPEG camera
       index.js     — live integration (implemented)
@@ -183,9 +193,9 @@ Each brand under `renderer/printers/<brand>/PROTOCOL.md` is a **self-contained a
 
 | Brand | PROTOCOL.md highlights | index.js status |
 |-------|------------------------|-----------------|
-| **Bambu Lab** | MQTTS 8883 TLS, AMS 16-slot, SSDP+TLS scan, JPEG TCP 6000 / RTSP 322 | stub |
+| **Bambu Lab** | MQTTS 8883 TLS, AMS 16-slot, SSDP+TLS scan, JPEG TCP 6000 / RTSP 322 | ✅ implemented |
 | **Creality** | WS 9999, heartbeat `"ok"`, CFS boxsInfo type 0/1, WebRTC port 8000 | ✅ implemented |
-| **Elegoo** | MQTT 1883, UDP spray port 52700, filament 4 slots canvas/tray | stub |
+| **Elegoo** | MQTT 1883, UDP spray port 52700, filament 4 slots canvas/tray | ✅ implemented |
 | **FlashForge** | HTTP poll 8898, TCP M-codes 8899, UDP multicast 225.0.0.9:19000 | ✅ implemented |
 | **Snapmaker** | WS 7125 Moonraker + proprietary, RRGGBBAA color, HTTP scan | ✅ implemented |
 | **Anycubic** | LAN: MQTTS 9883 TLS 1.2 direct, ACE slots + print/temp telemetry, FLV cam 18088 via ffmpeg, creds from slicer config, /info scan 18910. Cloud: signed REST + cloud-MQTT (bundled cert), token via attach-only CDP from bridge-mode slicer | ✅ implemented (LAN + cloud) |

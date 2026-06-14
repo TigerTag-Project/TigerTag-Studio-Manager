@@ -1,382 +1,442 @@
 # `renderer/inventory.js` — code map
 
-`inventory.js` is one ~12,400-line IIFE holding **every** runtime behaviour of the renderer. This file maps each feature to its line range so an AI assistant (or human) can jump directly to the right block instead of reading the file linearly.
+`inventory.js` is a ~16,100-line **ES module** holding the core renderer logic. Printer brand integrations, IoT devices (TigerScale, TD1S) and the RFID tester live in **separate modules** (see *Extracted modules* below) and are imported at the top of the file. This map links each feature to its line range and anchor functions so an AI assistant (or human) can jump directly to the right block instead of reading the file linearly.
 
-Keep this map in sync with the code: when you move a section, update the line range here. CI does not enforce it — drift is the cost of skipping the update.
+**Anchor-first navigation**: line numbers drift as the file changes — anchor function names don't. Always `grep -n "anchorName"` and trust the grep result over the L-number written here. The L-ranges are for orientation (which block is where, what's nearby), not for blind `Read offset=N`.
+
+Keep this map in sync: `npm run codemap:check` (also run by the pre-commit hook) verifies that the anchors of each section still fall inside the declared range and fails the commit on major drift.
 
 ---
 
 ## Bird's-eye structure
 
 ```
-L1            (() => {                                        // IIFE opens
-L1-491        Foundation        — Firebase helpers, state, i18n, helpers, lookups
-L492-2917     Inventory pipeline — normalize → render
-                ├── L492-602    data layer (Timestamp, normalizeRow, health)
-                ├── L603-1366   account modals + sidebar
-                ├── L1367-2272  persistence, migrations, auth, Firestore subs
-                └── L2273-2917  load → stats → filter → twin auto-link → render
-L2918-4283    Spool detail panel + per-spool modals
-L4284-5072    App-level UI (resize, debug, settings, language, friends, …)
-L5073-5532    Storage / scales / 3D printers (subscribe + render printers grid)
-L5533-7216    Snapmaker Live integration (Moonraker WebSocket)
-L7288-8345    FlashForge Live integration (HTTP polling + filament edit)
-L…            Creality Live integration (WebSocket polling port 9999)
-L…            Add-printer flow (mDNS → port-scan → Add by IP → manual probe)
-…             Storage view (rack rendering, drag-drop, masonry, rack-edit modal)
-…             Friend view (friend's inventory in main interface)
-…             Display-name setup + Friends system (requests, accept, blacklist)
-…             Public/private key helpers + late utilities
-…             Init bootstrap (loadLocales → loadLookups → wire DOM → start)
-}             })();                                           // IIFE closes
+L1-91          ES-module imports — IoT modules, printer brand registry, RFID tester
+L92-973        Foundation — Firebase helpers, avatar pipeline, state, persistence,
+               cold-start trace, rAF coalescer, i18n, helpers, diagnostics, lookups
+L976-1103      Data layer (tsToMs, normalizeRow, health icon)
+L1104-1350     Account dropdown + connected/disconnected sidebar states
+L1351-3071     Add Product panel (ADP) — color/brand/material sheets, chip schema, save
+L3072-3528     Settings + Friends open/close, TigerScale init, edit-account modal
+L3529-3843     Login modal + localStorage accounts + sign-out + legacy migration
+L3844-4329     Data migrations (decimal UID → hex, flat rack → nested)
+L4330-4731     Firestore inventory subscription + auth orchestration + account list
+L4732-5037     Stats, twin auto-link / manual pairing, sort + quick filters
+L5038-5863     Inventory render — table/grid keyed-diff, view mode, search
+L5864-6190     RFID encode/burn modal (cem)
+L6191-6498     TigerTag+ catalogue refresh / convert / duplicate
+L6499-8192     Spool detail panel (openDetail, buildPanelHTML, weight update)
+L8193-8430     Resizable panels, debug panel, auto-update settings
+L8431-8541     Hard delete + container auto-assign + legacy tombstone purge
+L8542-8659     Firestore explorer + language save + debug mode
+L8660-8955     Friends sidebar quick-list + friends list render
+L8956-9162     Racks + printers Firestore subscriptions
+L9163-10086    Printers views — grid / table / cam wall + drag-drop
+L10087-11855   Printer detail side panel (renderPrinterDetail) + inline edit
+L11856-12391   Add-printer flow (brand picker, form, tutorials, submit)
+L12392-13245   Racks CRUD + slots + locking + auto-fill + masonry + tooltip
+L13246-14328   renderRackView + rack drag-drop + rack edit modal
+L14329-14795   Friend view + add-friend modal
+L14796-14992   Display-name setup + friend requests + blacklist
+L14993-15112   Public/private keys + user profile sync
+L15113-15485   Custom avatar upload + Discord-style cropper
+L15486-15799   syncUserDoc + session telemetry + language sync
+L15800-15815   Init bootstrap (loadLocales → loadLookups → runMigration → initAuth)
+L15816-16140   Electron RFID integration (readers, dual-scan, NFC processor, chip write)
 ```
 
 ---
 
-## Foundation (L1-491)
+## Extracted modules (NOT in inventory.js)
 
-| L | What | Anchors |
+| Module | What | Key exports |
 |---|---|---|
-| 1-3 | IIFE open + `API_BASE` constant | |
-| 4-34 | **Firebase helpers** — per-account named app instances (`firebase.app(uid)`), each with its own auth session | `fbAuth(id)`, `fbDb(id)` |
-| 36-69 | Avatar gradient/shadow helpers | `hexToGradientPair`, `getAccGradient`, `applyAvatarStyle` |
-| 71-120 | **`state` object declaration** — single source of truth (inventory, rows, selected, lang, racks, friends, isAdmin, db, imgCache, …) | `const state = { … }` |
-| 122-138 | **`t(key, params)`** — i18n lookup with fallback, supports `{{param}}`, `["array"]` random pick, `{one,other}` plurals | `function t` |
-| 140-156 | `applyTranslations()` — applies `[data-i18n]`, `[data-i18n-placeholder]`, `[data-i18n-title]`, `.lang-btn.active` | |
-| 159-240 | **General helpers** — `v()`, `toHex()`, `timeAgo()`, `fmtTs()`, `fmtChipTs()`, `setLoading()`, `setupHoldToConfirm()` | |
-| 241-254 | `toast()` — top banner with kind (info/error/success) + auto-dismiss | |
-| 255-396 | **Error reporting / diagnostic system** — `reportError()`, app version line, diag badge, `buildDiagnosticReport()`, modal open/close | |
-| 399-491 | **Lookups** — `loadLocales`, `loadLookups` (brand/material/aspect/type/diameter/version/containers), `findPrinterModel`, `dbFind`, `brandName`, `materialLabel`, `typeName` | |
+| `printers/registry.js` + `context.js` | Brand registry — each brand module registers itself; import order = brand picker order. `context.js` shares `state`/`t`/`$` with brand modules | `brands`, `ctx` |
+| `printers/snapmaker/index.js` | Moonraker WS :7125 — connect, status merge, live block, filament edit, file sheet, print control | `snapConnect`, `snapDisconnect`, `renderSnapmakerLiveInner`, `openSnapFilamentEdit`, `snapSendGcode` |
+| `printers/flashforge/index.js` | HTTP polling :8898 — ping, connect, `/detail` parser, live block, filament edit | `ffgConnect`, `ffgPingPrinter`, `renderFlashforgeLiveInner`, `openFlashforgeFilamentEdit` |
+| `printers/flashforge/cam_mux.js` | Single-fetch MJPEG multiplexer, blob URLs to all `<img>` consumers | `ffgMuxStart`, `ffgMuxRegister` |
+| `printers/creality/index.js` | WS :9999 — heartbeat, CFS boxsInfo, live block, file list, LED/pause/stop | `creConnect`, `renderCrealityLiveInner`, `creActionPrintFile` |
+| `printers/bambulab/index.js` | MQTTS :8883 — connect/parse via main-process IPC, AMS, live block | `bambuConnect`, `renderBambuLiveInner`, `openBambuFilamentEdit` |
+| `printers/elegoo/index.js` | MQTT/WS — connect, live block, file sheet, timelapse | `elegooConnect`, `renderElegooLiveInner`, `openElegooFileSheet` |
+| `printers/anycubic/index.js` | MQTTS :9883 (LAN, TLS 1.2) + cloud — connect/parse via main-process IPC, ACE `multiColorBox` slots, job/temps, on-demand FLV camera, filament edit. `mode:"cloud"` branch routes through Anycubic's cloud (REST `sendOrder` + shared cloud-MQTT). See **§ Anycubic integration** below. | `acuConnect`, `acuDisconnect`, `renderAnycubicLiveInner`, `openAcuFilamentEdit` |
+| `printers/<brand>/widget_camera.js` | Per-brand camera banner (one per brand) — `inventory.js` only dispatches via `renderCamBanner(p)` | `renderSnapCamBanner`, `renderCreCamBanner`, `renderFfgCamBanner`, `renderBambuCamBanner`, `renderElegooCamBanner`, `renderAcuCamBanner` |
+| `printers/<brand>/add-flow.js` | Per-brand Add-printer scan/manual flow (Scan choice modal, slide-in panel, manual IP probe) | `openSnapAddFlow`, `openFfgAddFlow`, `openCreAddFlow`, `openBblAddFlow`, `openElgAddFlow`, `openAcuAddFlow` |
+| `printers/<brand>/probe.js` | Pure network/data discovery layer (no DOM) | per-brand probes |
+| `printers/snapmaker/widget_control.js`, `elegoo/widget_control.js` | Control cards (fan, etc.) | `renderSnapControlCard`, `elgFanStep` |
+| `printers/cam_manager.js`, `modal-helpers.js`, `extra-subnets.js` | Shared cam lifecycle, modal helpers, user-declared subnets widget | |
+| `IoT/tigerscale/index.js` | TigerScale — Firestore subscription, panel render, health tick | `initTigerScale`, `subscribeScales`, `renderScalesPanel`, `renderScaleHealth` |
+| `IoT/td1s/index.js` + `edit-modals.js` | TD1S sensor engine (serial events, panel, modals) + TD/Color edit modals | `initTD1S`, `openTd1sConnectModal`, `openTdEditModal`, `openColorEditModal` |
+| `rfid_protocol/tigertag/index.js` | RFID TigerTag tester modal | `initRfidTester` |
+
+Raw socket probes run in the **main process** over IPC (`ffg:tcp-probe`, `cre:tcp-probe`, `net:get-local-subnets`, `snap:http-get`, `mdns:browse-snapmaker`) — the renderer can open WebSockets but not raw TCP/UDP.
 
 ---
 
-## Inventory pipeline (L492-2917)
+## Foundation (L92-973)
 
-### Data layer (L492-602)
 | L | What | Anchors |
 |---|---|---|
-| 492-501 | `tsToMs()` — Firestore Timestamp → ms (accepts `number`, `Timestamp`, `{_seconds}`) | |
-| 502-576 | **`normalizeRow(spoolId, data)`** — Firestore doc → flat row used by every view (color, online_color_list, weight_available, last_update, container_id, twin_uid, …) | |
-| 577-602 | Health icon driven by Firestore `metadata.fromCache` | `setHealthLive`, `setHealthOffline` |
-
-### Account UI / modals / sidebar (L603-1366)
-| L | What | Anchors |
-|---|---|---|
-| 603-661 | Connected vs no-account UI states | `setConnected`, `renderNoAccount` |
-| 662-765 | **Account dropdown** (avatar click) — connected accounts list, manage profiles, friends section, add friend | `openAccountDropdown`, `closeAccountDropdown` |
-| 766-777 | Profiles modal stub | |
-| 778-962 | **Settings panel** — language, debug toggle, API URL copy, JSON export, auto-update, about | `openSettings`, `closeSettings` |
-| 963-1142 | **Edit account modal** + disconnect-account modal | `openEditAccountModal`, `closeEditAccountModal` |
-| 1144-1354 | **Login modal** (Firebase) — Google sign-in, email/password sign-in + create flow, forgot password | `openAddAccountModal`, `closeAddAccountModal` |
-| 1355-1366 | Sidebar collapse toggle (persisted to `tigertag.sidebar`) | |
-
-### Persistence + migrations + auth (L1367-2272)
-| L | What | Anchors |
-|---|---|---|
-| 1367-1392 | LocalStorage save/load helpers; legacy API-key account wipe | |
-| 1393-1400 | Per-account `firebase.app(uid).auth().signOut()` | |
-| 1401-1469 | **UID format migration** — decimal big-endian → hex uppercase | `runUidMigration` |
-| 1471-1947 | **Rack-shape migration** — flat fields → nested `rack` object (with consent modal + lock-screen sweep) | |
-| 1948-2021 | **Firestore inventory subscription** — `onSnapshot` with friend-view defense-in-depth | `subscribeInventory`, `unsubscribeInventory` |
-| 2022-2132 | **Auth state → app state** — `onAuthStateChanged` orchestrator | |
-| 2133-2272 | Sidebar account section UI + welcome line + friends quick-list | `renderAccountSection`, `renderSidebarFriends` |
-
-### Load → stats → filter → render (L2273-2917)
-| L | What | Anchors |
-|---|---|---|
-| 2273-2293 | Key validation status + inventory load action | |
-| 2294-2311 | **Stats** computed from rows | `renderStats` |
-| 2312-2335 | Search/filter pipeline (case-insensitive on multiple fields) | `applyFilter` |
-| 2336-2409 | **Twin auto-link by timestamp** — bridges 2 RFID tags written within a 2 s window | `autoLinkTwinsByTimestamp` |
-| 2410-2558 | **Manual twin pairing** — user-assisted repair when auto-link missed | `findTwinCandidates`, `linkTwinPair`, `unlinkTwinPair` |
-| 2559-2917 | **`renderInventory()`** — table view + grid view + welcome card; `_justPlacedSpools` bounce-in | |
+| 92 | `API_BASE` constant | |
+| 94-133 | **Firebase helpers** — per-account named app instances (`firebase.app(uid)`), each with its own auth session | `fbAuth(id)`, `fbDb(id)` |
+| 134-396 | **Avatar pipeline** (single source of truth) — gradients, parts builder, paint, photo overlay | `hexToGradientPair`, `getAccGradient`, `paintAvatar`, `avatarMarkup`, `applyAvatarStyle` |
+| 399-438 | **Local-first persistence layer** — cache-first paint | |
+| 439-484 | **Cold-start trace** + first-paint signal + **rAF render coalescer** | `signalFirstPaint`, `scheduleRender` |
+| 500-560 | **`state` object declaration** — single source of truth (inventory, rows, selected, lang, racks, friends, isAdmin, db, imgCache, …) | `const state = {` |
+| 563-600 | **`t(key, params)`** — i18n lookup with fallback, `{{param}}`, `["array"]` random pick, `{one,other}` plurals; `applyTranslations()` | `function t`, `applyTranslations` |
+| 601-692 | **General helpers** — `v()`, `toHex()`, `timeAgo()`, `fmtTs()`, `fmtChipTs()`, `setLoading()`, `setupHoldToConfirm()` | `timeAgo`, `setupHoldToConfirm` |
+| 693-711 | `toast()` — top banner with kind (info/error/success) + auto-dismiss | `toast` |
+| 712-841 | **Error reporting / diagnostic system** — `reportError()`, app version line, diag badge, report builder, modal; `esc`/`highlight`/`debug` | `reportError`, `buildDiagnosticReport`, `openDiagnosticModal` |
+| 842-851 | `apiFetch()` — fetch wrapper feeding the debug panel | `apiFetch` |
+| 852-973 | **Lookups** — locales, TigerTag DB (brand/material/aspect/type/diameter/version/containers), printer model catalog helpers | `loadLocales`, `loadLookups`, `findPrinterModel`, `dbFind`, `brandName`, `materialLabel` |
 
 ---
 
-## Spool detail panel + per-spool modals (L2918-4283)
+## Data layer (L976-1103)
 
 | L | What | Anchors |
 |---|---|---|
-| 2918-2988 | View toggle (table ⇄ grid), persisted | |
-| 2989-3294 | **Detail panel** — header, color block, print settings, weight slider w/ debounce, links, container row, raw JSON, **toolbox** | `openDetail`, `closeDetail`, `buildPanelHTML` |
-| 3019-3294 | (Toolbox actions — Scan colour, Scan TD, Twin link, Remove from rack, Delete) | |
-| 3295-3379 | Shared helpers (color picker math, weight bar render, etc.) | |
-| 3380-3458 | **TD Edit modal** (dark) — TD only / Color only / All | |
-| 3459-3568 | **Color Edit modal** (dark, mirrors TD Edit) | |
-| 3569-3589 | TD1S connect modal | |
-| 3590-3621 | TD1S tester modal | |
-| 3622-3688 | **Twin-link picker modal** — list of compatible candidates | `openTwinLinkPicker` |
-| 3689-4283 | **Container picker modal** — pick from `data/container_spool/spools_filament.json` | `openContainerPicker`, `closeContainerPicker` |
+| 976-984 | `tsToMs()` — Firestore Timestamp → ms (accepts `number`, `Timestamp`, `{_seconds}`) | `tsToMs` |
+| 985-1073 | **`normalizeRow(spoolId, data)`** — Firestore doc → flat row used by every view | `normalizeRow` |
+| 1074-1103 | Health icon driven by Firestore `metadata.fromCache` | `setHealthLive`, `setHealthOffline`, `setHealthIdle` |
 
 ---
 
-## App-level UI (L4284-5072)
+## Account dropdown + sidebar states (L1104-1350)
 
 | L | What | Anchors |
 |---|---|---|
-| 4285-4339 | Resizable panels (detail + debug) — drag handle, persisted width | `makePanelResizable` |
-| 4340-4354 | TD1S panel (slide-in) | |
-| 4355-4365 | Debug panel toggle | |
-| 4366-4439 | Diagnostic / report-problem modal | |
-| 4440-4523 | Settings → About → auto-update toggle + "Check for updates now" | |
-| 4524-4696 | ~~Deleted spools list (debug tab)~~ — **removed in v1.7.4** (hard-delete architecture, no tombstones) | |
-| 4697-4777 | **Firestore explorer** (debug tab) — type a path, fetch JSON, copy | |
-| 4778-4788 | Community buttons (GitHub, Discord, MakerWorld) | |
-| 4789-4813 | Language select | |
-| 4814-5072 | **Friends UI** — friends panel slide-in, list rendering, search | `openFriends`, `closeFriends` |
+| 1104-1200 | Connected vs no-account UI states | `setConnected`, `setDisconnected` |
+| 1201-1309 | **Account dropdown** (avatar click) — connected accounts, manage profiles, friends section, add friend | `openAccountDropdown`, `renderAccountDropdown` |
+| 1310-1350 | Profiles modal | `openProfilesModal` |
 
 ---
 
-## Storage / Scales / Printers (subscribe + render printers grid) (L5073-5532)
+## Add Product panel — ADP (L1351-3071)
+
+Manual spool creation: full chip-schema editor with bottom-sheets. All helpers prefixed `_adp`.
 
 | L | What | Anchors |
 |---|---|---|
-| 5073-5103 | Racks subscription | `subscribeRacks`, `unsubscribeRacks` |
-| 5104-5122 | **Scales** subscription (TigerScale heartbeat, 90 s online threshold) | `subscribeScales` |
-| 5123-5215 | **3D printers** subscription — per-brand subcollections (`users/{uid}/printers/{brand}/devices`) | `subscribePrinters` |
-| 5216-5224 | Brand metadata (label + accent + connection hint) | |
-| 7055-7100 | **Job status helpers** — `_getPrinterJob` returns `{ state, pct, isActive, filename, remainSec }` for all connected printers; `_fmtRemain`, `_truncFilename` | `_getPrinterJob`, `_fmtRemain`, `_truncFilename` |
-| 7101-7146 | **Surgical grid patch** — `_patchGridJobs` updates `.printer-card-job` in-place without replacing the card; `_jobCardHtml` renders ISO state pill + bar | `_patchGridJobs`, `_jobCardHtml` |
-| 7147-7342 | **Grid view** — `renderPrintersView`: auto-connect all brands, online/offline partition, `_makeCard` with ISO status pill + job block, drag-drop wiring | `renderPrintersView`, `_makeCard` |
-| 7346-7474 | **Table view** — `_renderPrinterTable`: sortable columns, same ISO state pill in job cell, row click → sidecard | `_renderPrinterTable` |
-| 7475-7568 | **Cam wall view** — `_renderPrinterCam`: card click → `openPrinterDetail`, MJPEG mux register for FlashForge | `_renderPrinterCam` |
-| 7569-7672 | Printer drag & drop reordering (writes `sortIndex`) | `wirePrinterDnd` |
-| 7673-7850 | **Printer detail side panel** — open/close lifecycle, `renderCamBanner(p)` dispatch to per-brand `widget_camera.js` | `openPrinterDetail`, `closePrinterDetail`, `refreshOpenPrinterDetail`, `renderCamBanner` |
+| 1351-1446 | Field helpers — cloud id, grams conversion, color presets render | `_adpCloudId`, `_adpToGrams`, `_adpRenderColorPresets` |
+| 1447-1639 | **Color sheet + custom colour picker** (HSV math, drag) | `openAdpColorSheet`, `openAdpColorCustomSheet`, `_adpCcRender` |
+| 1640-1747 | **Brand bottom-sheet** with favourites | `openAdpBrandSheet`, `_adpRenderBrandList`, `_adpToggleFavBrand` |
+| 1748-1846 | **Material bottom-sheet** (mirror of Brand) | `openAdpMaterialSheet`, `_adpRenderMaterialList` |
+| 1847-2193 | Multi-colour state, 28-byte colour-name limit, material defaults, RFID preview | `_adpSetColorMode`, `_adpApplyMaterialDefaults`, `_adpRefreshRfidPreview` |
+| 2194-2379 | **Panel open/close** | `openAddProductPanel`, `closeAddProductPanel` |
+| 2380-2578 | **`saveAddProduct()`** — canonical chip schema (identity, RGBA colours, firmware slots, measure, TD, timestamps) → Firestore write | `saveAddProduct` |
+| 2579-3071 | Sheet/search DOM wiring (click delegation, integer-only fields, Escape cascade) | `_adpCloseAllSheetsAndPanel` |
 
 ---
 
-## Snapmaker Live (Moonraker WebSocket) (L5533-7216)
-
-Big section divider at L5533. Ported from the Flutter `SnapmakerWebSocketPage`. Connects to `ws://{ip}:7125/websocket`.
+## Settings / Friends / Account modals (L3072-3528)
 
 | L | What | Anchors |
 |---|---|---|
-| 5557-5639 | Per-printer state map; online detection; Online/Offline badge render | `snapKey`, `snapIsOnline`, `renderSnapOnlineBadge` |
-| 5640-5792 | **WebSocket lifecycle** — open, subscribe, reconnect with backoff, disconnect | `snapConnect`, `snapOpenSocket`, `snapScheduleReconnect`, `snapDisconnect` |
-| 5793-5945 | Status merger (temps, filament, print job); G-code send helper | `snapMergeStatus`, `snapSendGcode` |
-| 5946-6159 | **Manual filament edit — bottom sheet (entry)** — vendor/material lists, summary, render flow | `openSnapFilamentEdit`, `closeSnapFilamentEdit` |
-| 6160-6201 | Bottom-sheet sub-pickers (Filament + Color stack on top of summary) | `sfeOpenFilamentSheet`, `sfeOpenColorSheet` |
-| 6202-6243 | Filament screen (vendor → material click handlers) | |
-| 6244-6321 | **Color screen** — 5×5 grid (24 presets + custom), inline custom slot | `sfeRenderColorGrid` |
-| 6322-6357 | **Hard delete** — `markSpoolDeleted` (batch.delete doc + twin) + `purgeLegacyTombstones` (one-shot auto-cleanup of pre-v1.7.4 `deleted:true` docs) | `markSpoolDeleted`, `purgeLegacyTombstones` |
-| 6358-6405 | **Container auto-assign** — `resolveContainerForBrand` (brand → catalog entry, ISO with Flutter) + `autoAssignMissingContainers` (batch-write on every live snapshot; no-op once all spools have a container) | `resolveContainerForBrand`, `autoAssignMissingContainers` |
-| 6406-6450 | **Moonraker file/thumbnail helpers** — path normalize, thumbnail URL, RGBA/hex parse, format temp/duration | `snapFileUrl`, `snapThumbUrl`, `snapParseRgbaHex` |
-| 6487-6519 | Text-color contrast picker for color squares | `snapTextColor` |
-| 6520-6680 | **Live block render** — `renderSnapmakerLiveInner()`: connection header, camera, print-job card, temperature row, **filament grid (big colored squares)** | `renderSnapmakerLiveInner` |
-| 6681-7130 | **WS request log** — push, custom JSON send, render | `snapLogPush`, `snapSendCustomJson`, `renderSnapmakerLogInner` |
-| 7580-7590 | `renderCamBanner(p)` — dispatch to per-brand camera widget (`renderSnapCamBanner` / `renderCreCamBanner` / `renderFfgCamBanner`). Camera HTML never built inline here. | `renderCamBanner` |
-| 7589-8050 | `renderPrinterDetail()` — composes hero + camera banner + status + live block + log | `renderPrinterDetail` |
-| 7131-7216 | **Inline edit** for printer name / IP / port (pencil hint, click to edit, Enter/Escape) | `startInlineEdit` |
+| 3072-3099 | Settings panel open/close | `openSettings`, `closeSettings` |
+| 3100-3113 | Friends panel open/close (auto-generates publicKey first) | `openFriends`, `closeFriends` |
+| 3114-3155 | **TigerScale module init** — wires panel, health tick, card delegation into `IoT/tigerscale` | `initTigerScale(` |
+| 3156-3263 | API key 6 + eye-toggle / copy-button factories | `getOrCreateApiKey6`, `makeEyeToggle`, `makeCopyBtn` |
+| 3264-3382 | **Edit account modal** + account colour save | `openEditAccountModal`, `saveColorToFirestore` |
+| 3383-3528 | **Custom avatar menu** (Discord-style edit flow entry) + display-name save | `_toggleAvatarMenu`, `saveDisplayName` |
 
 ---
 
-## FlashForge Live (HTTP polling) (L7288-8345)
-
-Big section divider at L7288. Mirrors the Snapmaker block (`snap*` →
-`ffg*` prefix). Polls `POST http://<ip>:8898/detail` every 2 s with
-`{ serialNumber, checkCode }` body. Filament changes go to
-`POST http://<ip>:8898/control` with `cmd: "msConfig_cmd"` (matlStation)
-or `cmd: "ipdMsConfig_cmd"` (independent extruder).
+## Login + accounts persistence (L3529-3843)
 
 | L | What | Anchors |
 |---|---|---|
-| 7288-7320 | Per-printer state map (`_ffgConns`, `_ffgPings`); `ffgKey`, `ffgIsOnline`, `ffgBaseUrl`, `ffgAuthBody` | |
-| 7321-7370 | **`ffgPingPrinter`** — 2.5 s POST probe used for the printer-grid online dot. 30 s cache. | `ffgPingPrinter`, `ffgPingAllPrinters` |
-| 7371-7385 | Surgical DOM update of online badges (grid card + side card) | `ffgRefreshOnlineUI`, `renderFfgOnlineBadge` |
-| 7386-7450 | **Polling lifecycle** — `ffgConnect` opens a 2 s `setInterval`, `ffgDisconnect` tears it down. Capped exponential backoff on offline. | `ffgConnect`, `ffgDisconnect`, `ffgScheduleReconnect` |
-| 7451-7510 | **`ffgPollOnce`** — single `fetch` POST `/detail`, parses JSON, dispatches to `ffgMergeStatus` | `ffgPollOnce` |
-| 7511-7650 | **`ffgMergeStatus`** — full `/detail` parser. Error contract (-2 / sn / pwd), then field extraction (temps, filament matlStation vs indep, print job, camera). Throttles SN/password toasts to one per session per printer. | `ffgMergeStatus`, `ffgWarnOnce` |
-| 7651-7670 | rAF-coalesced re-renders. Full re-render on status change (camera swap), live-only on data change. | `ffgNotifyChange` |
-| 7671-7820 | **Live block render** — `renderFlashforgeLiveInner()` returns the side-card inner HTML. Reuses `.snap-*` CSS classes for visual parity. | `renderFlashforgeLiveInner`, `ffgFmtTempSolo`, `ffgIsActiveState`, `ffgStateLabel`, `ffgFmtDuration` |
-| 7821-7880 | **Filament-edit catalogue** — vendor → materials map, color presets aliased to `SNAP_FIL_COLOR_PRESETS` | `FFG_FIL_VENDOR_MATERIALS`, `ffgSortMaterials` |
-| 7881-7960 | Bottom-sheet open/close + sub-pickers (filament, colour). Mirrors Snapmaker's `sfe*` flow with `ffe*` prefix. | `openFlashforgeFilamentEdit`, `closeFlashforgeFilamentEdit`, `ffeOpenFilamentSheet`, `ffeOpenColorSheet`, `ffeUpdateSummary`, `ffeRenderColorGrid` |
-| 7961-8050 | Click delegation on vendor / material lists + colour grid + native colour picker overlay | |
-| 8051-8345 | **Apply (`POST /control`)** — branches on matlStation vs independent extruder. Optimistic local patch of `conn.data.filaments` so the colour square updates immediately. | `$("ffgFilEditSave") click` |
-
-Wiring (cross-cutting with Snapmaker):
-- `renderPrintersView` (L5300+) emits `renderFfgOnlineBadge` and triggers `ffgPingPrinter` for FlashForge cards.
-- `openPrinterDetail` / `closePrinterDetail` (L5475+) call `ffgConnect` / `ffgDisconnect`.
-- `renderPrinterDetail` (L6800+) builds `#ffgLive`, swaps the side-card hero camera for an MJPEG `<img>` when `ffgConn.data.camera.url` is non-empty.
-- HTML parallel sheets at `inventory.html` L460+ (`#ffgFilEditSheet`, `#ffgFilamentSheet`, `#ffgColorSheet`).
+| 3529-3748 | **Login modal** (Firebase) — Google sign-in, email/password sign-in + create flow, forgot password | `lmSetMode`, `openAddAccountModal` |
+| 3749-3774 | LocalStorage accounts helpers; inventory cache save; legacy API-key account wipe | `getAccounts`, `activeAccount`, `runMigration` |
+| 3775-3843 | Per-account `firebase.app(uid).auth().signOut()` | `fbSignOut` |
 
 ---
 
-## Bambu Lab integration (`printers/bambulab/`) (v1.5.x+)
+## Data migrations (L3844-4329)
 
-| File | What |
-|------|------|
-| `index.js` | MQTT TLS (port 8883) connect/disconnect/parse. Exports: `bambuKey`, `bambuGetConn`, `bambuIsOnline`, `bambuConnect`, `bambuDisconnect`, `renderBambuOnlineBadge`, `renderBambuLiveInner`, `renderBambuLogInner`. |
-| `cards.js` | `renderBambuJobCard`, `renderBambuTempCard`, `renderBambuFilamentCard` (AMS + ext. spool). |
-| `widget_camera.js` | `renderBambuCamBanner` — JPEG TCP `<img>` (A1/P1P/P1S, model IDs 1–4) or RTSP copy-URL card (X1C+, IDs 5+). |
-| `settings.js` | Brand meta + settings form schema. |
+| L | What | Anchors |
+|---|---|---|
+| 3844-3868 | Decimal spoolId detection + hex conversion | `isDecimalSpoolId`, `decimalSpoolIdToHex` |
+| 3869-4042 | **Rack-shape migration** — flat fields → nested `rack` object (consent modal + lock-screen sweep) | `maybeMigrateFlatRackToNested`, `drainRackMigrationQueue` |
+| 4043-4329 | **UID format migration** — decimal big-endian → hex uppercase (consent modal, progress, queue) | `maybeMigrateDecimalSpoolIds`, `drainUidMigrationQueue`, `migrateOneSpoolDecimalToHex` |
 
-Wiring:
-- `openPrinterDetail` calls `bambuConnect(printer)` for `brand === "bambulab"`.
-- `closePrinterDetail` calls `bambuDisconnect(bambuKey(_activePrinter))`.
-- `renderCamBanner` dispatches to `renderBambuCamBanner(p)`.
-- `renderPrinterDetail` builds `#bblLive` div; MQTT re-renders it via rAF coalescing.
-- Log section `#bblLog` with Pause/Clear buttons wired in the `snapDelegated` click handler.
-- IPC bridge in `main.js` (MQTTS + JPEG TCP port 6000) + `preload.js` (`window.bambulab`).
-- Global IPC listeners registered once at module load — avoids duplicate handler accumulation on panel open/close.
+---
+
+## Inventory subscription + auth + account list (L4330-4731)
+
+| L | What | Anchors |
+|---|---|---|
+| 4330-4438 | **Firestore inventory subscription** — `onSnapshot` with friend-view defense-in-depth | `subscribeInventory`, `unsubscribeInventory` |
+| 4439-4582 | **Auth orchestration** — signed-in fast path (cache paint → subs → user doc), named auth setup | `handleSignedIn`, `setupNamedAuth`, `initAuth` |
+| 4583-4731 | Account list render + switch + delete | `renderAccountList`, `switchAccountUI`, `deleteAccountUI` |
+
+---
+
+## Stats / twins / filters (L4732-5037)
+
+| L | What | Anchors |
+|---|---|---|
+| 4732-4777 | Key status, row sort, load action, **stats** | `renderStats`, `loadInventory` |
+| 4778-4940 | **Twin auto-link by timestamp** (2 s window) + manual pairing repair | `autoLinkTwinsByTimestamp`, `findTwinCandidates`, `linkTwinPair`, `unlinkTwinPair` |
+| 4941-5037 | Sort + search/filter pipeline + quick-filter dropdowns | `sortRows`, `filteredRows`, `populateQuickFilters` |
+
+---
+
+## Inventory render (L5038-5863)
+
+| L | What | Anchors |
+|---|---|---|
+| 5038-5252 | **`renderInventory()`** — welcome card, rack-view priority, table/grid dispatch | `renderInventory` |
+| 5253-5448 | Filter application + colour/thumbnail helpers + image pre-cache | `applyInventoryFilter`, `colorBg`, `thumbHTML`, `preCacheImages` |
+| 5449-5670 | **Keyed-diff render** — row signature, create/update grid card + table row (no full rebuild) | `_rowSignature`, `_createGridCard`, `_updateGridCard`, `renderGrid`, `renderTable` |
+| 5671-5863 | View mode toggle (persisted), search clear, filter change, stat-tile quick filter, sort indicators | `setViewMode`, `updateSortIndicators` |
+
+---
+
+## RFID encode / burn modal — cem (L5864-6190)
+
+| L | What | Anchors |
+|---|---|---|
+| 5864-5953 | **`_burnRfid(r)`** — writes a chip from a row | `_burnRfid` |
+| 5954-6098 | Encode modal lifecycle — targets present, blank check, render, presence change | `openEncodeModal`, `_cemBlankCheck`, `_cemRender` |
+| 6099-6190 | Burn start + post-burn cloud migration | `_cemStartBurn`, `_cemMigrate` |
+
+---
+
+## TigerTag+ catalogue (L6191-6498)
+
+| L | What | Anchors |
+|---|---|---|
+| 6191-6287 | Refresh API data for a spool; TigerTag+ product lookup | `_refreshApiData`, `_lookupPlusProduct` |
+| 6288-6346 | **Convert TigerTag → TigerTag+** | `_convertToPlus` |
+| 6347-6498 | Duplicate spool as cloud doc; message inline edit | `duplicateSpoolAsCloud`, `startMessageInlineEdit` |
+
+---
+
+## Spool detail panel (L6499-8192)
+
+| L | What | Anchors |
+|---|---|---|
+| 6499-6652 | Structural signature (patch vs rebuild), weight patch, saved check | `_detailStructuralSig`, `_patchDetailWeight` |
+| 6653-7246 | **`openDetail(spoolId)`** / close / refresh + usage telemetry | `openDetail`, `closeDetail`, `refreshOpenDetail`, `_recordUsage` |
+| 7297-7359 | **Twin-link picker modal** | `openTwinLinkPicker` |
+| 7360-7371 | TigerPOD modal | `openTigerPodModal` |
+| 7372-7427 | **Container picker modal** (46 containers from `data/container_spool/spools_filament.json`) | `openContainerPicker`, `doContainerUpdate` |
+| 7428-7468 | Video URL parser (YouTube/Vimeo embeds) | `parseVideoUrl` |
+| 7469-8133 | **`buildPanelHTML(r)`** — header, colours, print settings, weight slider w/ debounce, storage row, links, container, toolbox, raw JSON | `buildPanelHTML` |
+| 8134-8192 | **Weight update** (direct / raw-scale modes, twin propagation) | `doWeightUpdate` |
+
+---
+
+## Panels / debug / auto-update (L8193-8659)
+
+| L | What | Anchors |
+|---|---|---|
+| 8193-8266 | Resizable panels (detail + debug) — drag handle, persisted width | `makePanelResizable`, `openDebug` |
+| 8267-8343 | Product ID help modal | |
+| 8344-8430 | Settings → About → auto-update toggle + "Check for updates now" | `readAutoUpdatePref`, `showUpdateStatus` |
+| 8431-8541 | **Hard delete** (`batch.delete` doc + twin), container auto-assign on snapshot, legacy tombstone purge | `markSpoolDeleted`, `resolveContainerForBrand`, `autoAssignMissingContainers`, `purgeLegacyTombstones` |
+| 8542-8622 | **Firestore explorer** (debug tab) — path fetch, JSON copy | `fseInit`, `fseFetch` |
+| 8623-8659 | Account language save + debug mode apply | `saveAccountLang`, `applyDebugMode` |
+
+---
+
+## Friends rendering (L8660-8955)
+
+| L | What | Anchors |
+|---|---|---|
+| 8660-8744 | Sidebar friends quick-list + hover tooltip | `renderSidebarFriends`, `showSbFriendTip` |
+| 8745-8861 | Friends list render + avatar colour helpers | `renderFriendsList`, `friendColor`, `readableTextOn` |
+| 8862-8955 | Friends list load (profile fetch) + cache hydration | `loadFriendsList`, `_hydrateFriendsCache` |
+
+---
+
+## Racks + printers subscriptions (L8956-9162)
+
+| L | What | Anchors |
+|---|---|---|
+| 8956-8998 | Racks subscription | `subscribeRacks`, `unsubscribeRacks` |
+| 8999-9162 | **3D printers subscription** — per-brand subcollections (`users/{uid}/printers/{brand}/devices`) | `subscribePrinters`, `unsubscribePrinters` |
+
+*(Scales subscription moved to `IoT/tigerscale/index.js`.)*
+
+---
+
+## Printers views (L9163-10086)
+
+| L | What | Anchors |
+|---|---|---|
+| 9163-9332 | **Job status helpers** + surgical grid patches (job card, online badge, grid signature) | `_getPrinterJob`, `_patchGridJobs`, `_jobCardHtml`, `_isPrinterOnline`, `_patchGridStatus` |
+| 9333-9502 | **Grid view** — auto-connect all brands, online/offline partition, cards | `renderPrintersView` |
+| 9503-9625 | **Table view** — sortable columns, row click → sidecard | `_renderPrinterTable` |
+| 9626-9888 | **Cam wall view** — patch mode, card sizes, detached cam window serializer | `_renderPrinterCam`, `_patchCamWall`, `_serializeCamerasForDetach` |
+| 9889-10086 | Printer + cam-wall drag-drop reordering (writes `sortIndex`) | `wirePrinterDnd`, `wireCamWallDnd`, `persistPrinterSortIndices` |
+
+---
+
+## Printer detail side panel (L10087-12090)
+
+| L | What | Anchors |
+|---|---|---|
+| 10087-10649 | Open/close lifecycle (connect/disconnect per brand), conn button, refresh | `openPrinterDetail`, `closePrinterDetail`, `refreshOpenPrinterDetail` |
+| 10650-10660 | **`renderCamBanner(p)`** — dispatch to per-brand `widget_camera.js` (never builds camera HTML inline) | `renderCamBanner` |
+| 10661-11747 | **`renderPrinterDetail()`** — hero + camera banner + status + per-brand live block + control cards + log | `renderPrinterDetail` |
+| 11748-11855 | Inline edit for printer name / IP / port (pencil, Enter/Escape) + field persist | `startInlineEdit`, `savePrinterField` |
+
+---
+
+## Add-printer flow (L12091-12654)
+
+Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.js` owns the shell.
+
+| L | What | Anchors |
+|---|---|---|
+| 12091-12181 | **Brand picker modal** — dispatches to per-brand add-flow | `openPrinterBrandPicker` |
+| 12182-12248 | Add/edit printer form | `openPrinterAddForm`, `closePrinterAddForm` |
+| 12249-12501 | Tutorial image bottom-sheet + **multi-step connection tutorial** | `openTutoSheet`, `openPrinterTutorial`, `_ptRenderStep` |
+| 12502-12654 | **`submitPrinterAdd()`** — ADD (auto-id) vs EDIT (preserve id/isActive/sortIndex); cloud-edit guard keeps the LAN form from wiping `mode:"cloud"` fields | `submitPrinterAdd` |
 
 ---
 
 ## Anycubic integration (`printers/anycubic/`)
 
+No `inventory.js` line range — the driver lives entirely in the brand subfolder, wired into the printer views/detail/add-flow shells (mirrors Bambu). **Read `printers/anycubic/PROTOCOL.md` before touching this folder.**
+
 | File | What |
 |------|------|
-| `PROTOCOL.md` | Agent skill — MQTTS port 9883 (TLS 1.2 forced), `multiColorBox` getInfo/setInfo, slicer-config credential decode, port map, report-shape pitfalls. **Read it before touching this folder.** |
-| `index.js` | MQTT connect/disconnect/parse via `window.anycubic` IPC. Exports: `acuKey`, `acuGetConn`, `acuIsOnline`, `acuConnect` (`{skipCam}`), `acuDisconnect`, `renderAcuOnlineBadge`, `renderAnycubicLiveInner`, `renderAnycubicLogInner`, `openAcuFilamentEdit`, `closeAcuFilamentEdit`. `_acuMerge` routes the report families (`print`/`tempature`/`fan`/`status`/`multiColorBox` — PROTOCOL.md §5b) into `conn.data`. Filament-edit bottom sheet DOM is created lazily here (inventory.html untouched). |
-| `cards.js` | `renderAcuJobCard` (filename/%/remaining/layers/state), `renderAcuTempCard` (nozzle+bed), `renderAcuFilamentCard` — ACE units + external spool (box -1), slots 0-3, `data-acu-fil-edit` squares. |
-| `probe.js` | `acuReadSlicerCreds` (slicer-config import — the ONLY credential source), `acuProbeIp` / `acuScanLan` (TCP :18910 + `GET /info`), `acuCatalogIdFromModel`. |
-| `add-flow.js` | 3-way choice: **Import from Anycubic Slicer** (primary) / Scan / Manual IP. Scan & manual candidates are merged with slicer credentials by IP (DHCP repair included). |
-| `settings.js` | Brand meta + schema — fields `ip`, `acuModelId` (numeric topic id, ≠ `printerModelId` catalog id), `deviceId`, `username`, `password`. |
-| `widget_camera.js` | `renderAcuCamBanner` — when `camLive`, `<img data-acu-key>` fed by 'anycubic:cam-frame' IPC (ffmpeg remuxes the :18088 HTTP-FLV stream to ~5 fps JPEG in main.js, Bambu-RTSP pattern); when idle, returns "" so the hero photo shows (cam-wall safe). The FLV stream is **on-demand** and the driver **actively controls it**: `_acuRequestCamera`/`_acuStartCapture` publish `video/startCapture`, ffmpeg attaches on the printer's `video/report` `initSuccess` (bounded `flvProbe` covers the race), `acuReleaseCamera` sends `stopCapture` on panel close. Activation command captured via `scripts/acu-mqtt-sniff.mjs`. Cam wall + detached window (`acu_ipc` type in `renderer/cam/cam.js`) reuse the same frames. CSS in `printers/anycubic/anycubic.css`. |
+| `PROTOCOL.md` | Agent skill — LAN MQTTS :9883 (TLS 1.2 forced) `multiColorBox`/`extfilbox` getInfo/setInfo, slicer-config credential decode, FLV camera :18088, `/info` scan :18910, **§9 cloud mode** (signed REST + cloud-MQTT, attach-only CDP token). |
+| `index.js` | Connect/disconnect/parse via `window.anycubic` IPC. Exports: `acuKey`, `acuGetConn`, `acuIsOnline`, `acuConnect` (`{skipCam}`), `acuDisconnect`, `renderAcuOnlineBadge`, `renderAnycubicLiveInner`, `renderAnycubicLogInner`, `openAcuFilamentEdit`, `closeAcuFilamentEdit`. `_acuMerge` routes report families (`print`/`tempature`/`fan`/`status`/`multiColorBox` — PROTOCOL.md §5b) into `conn.data`. `mode:"cloud"` branches to REST `sendOrder` (1206/1211 ACE, 1230/1229 external `extfilbox`) over a shared cloud-MQTT connection; no camera in cloud mode. |
+| `cards.js` | `renderAcuJobCard` (filename/%/remaining/layers/state), `renderAcuTempCard` (nozzle+bed), `renderAcuFilamentCard` — every box renders as its own row with all its slots (ACE A/B/C/D…, external box `id -1` → E1–E4), `data-acu-fil-edit` squares. |
+| `probe.js` | `acuReadSlicerCreds` (slicer-config import — the LAN credential source), `acuProbeIp` / `acuScanLan` (TCP :18910 + `GET /info`), `acuCatalogIdFromModel`. |
+| `add-flow.js` | LAN: 3-way choice (**Import from Anycubic Slicer** / Scan / Manual IP), merged by IP with DHCP repair. Cloud: **Add a cloud printer** panel → `ctx.addAnycubicCloudPrinter` (writes `cloud_<id>` doc, token+email denormalised). |
+| `settings.js` | Brand meta + schema — `ip`, `acuModelId` (numeric topic id ≠ `printerModelId` catalog id), `deviceId`, `username`, `password`. |
+| `widget_camera.js` | `renderAcuCamBanner` — `<img data-acu-key>` fed by `anycubic:cam-frame` IPC (ffmpeg remuxes the :18088 HTTP-FLV stream to ~5 fps JPEG in `main.js`). The FLV stream is **on-demand**: the driver publishes `video/startCapture`, attaches ffmpeg on the printer's `video/report` `initSuccess` (bounded `flvProbe` covers the race), and sends `stopCapture` on panel close. Detached window uses the `acu_ipc` cam type in `cam/cam.js`. Cloud printers have no camera. |
 
-Wiring (mirrors Bambu): always-on MQTT in `subscribePrinters` (skipCam), auto-connect in the grid/table (skipCam) and cam views, `_getPrinterJob` job normalization, `openPrinterDetail`/`closePrinterDetail`, `#acuLive` + debug-only `#acuLog` blocks in `renderPrinterDetail`, `data-acu-fil-edit` + `#acuLogPauseBtn`/`#acuLogClearBtn` in the delegated click handler, `openAcuAddFlow` in the brand picker, `acu_ipc` entry in `_serializeCamerasForDetach`. Main-process IPC: `anycubic:connect/disconnect/publish(endpoint)` (+ `status`/`message` events), `anycubic:cam-start/stop` (+ `cam-frame`), `anycubic:read-slicer-config`, `anycubic:tcp-probe`, `anycubic:http-info`.
-
-**Cloud mode** (`mode:"cloud"` docs — PROTOCOL.md §9): cloud-mode printers are reached through Anycubic's cloud. The driver (`index.js`) branches on `printer.mode === "cloud"`: connect = shared cloud-MQTT subscribe + REST `getInfo`; refresh/getInfo/setInfo via REST `sendOrder` (1206/1211); reports reuse `_acuMerge`; no camera. Token is grabbed **attach-only** over CDP from a user-run bridge-mode slicer (never launched by us). Provisioning UI: `add-flow.js` "Add a cloud printer" panel → `ctx.addAnycubicCloudPrinter` (writes `cloud_<id>` doc with token+email denormalised). Connect guards in `inventory.js` are `(p.ip || p.mode === "cloud")`; a cloud-edit guard in `submitPrinterAdd` prevents the LAN form from wiping cloud fields. Certs: `services/anycubicCloudCerts.js`. Main IPC: `anycubic:cloud-cdp-token`, `:cloud-get-printers`, `:cloud-verify`, `:cloud-send-order`, `:cloud-connect/subscribe/unsubscribe` (+ `:cloud-message`/`:cloud-status`). Dev validator: `scripts/acu-cloud-test.mjs`.
+Wiring (mirrors Bambu): always-on MQTT in the printers subscription (skipCam), grid/table auto-connect (skipCam), `_getPrinterJob` job normalization, `openPrinterDetail`/`closePrinterDetail`, `#acuLive` + debug-only `#acuLog` in `renderPrinterDetail`, `data-acu-fil-edit` + log buttons in the delegated click handler, `openAcuAddFlow` in the brand picker, `acu_ipc` in `_serializeCamerasForDetach`. Connect guards are `(p.ip || p.mode === "cloud")`. Main-process IPC: `anycubic:connect/disconnect/publish`, `:cam-start/stop` (+ `:cam-frame`), `:flv-probe`, `:read-slicer-config`, `:tcp-probe`, `:http-info`; cloud: `:cloud-cdp-token`, `:cloud-get-printers`, `:cloud-verify`, `:cloud-send-order`, `:cloud-connect/subscribe/unsubscribe`. Certs bundled in `services/anycubicCloudCerts.js` (PEM — BoringSSL can't parse the legacy PKCS#12 / `@SECLEVEL=0`).
 
 ---
 
-## Add-printer flow (L8347+)
+## Racks CRUD + slots (L12655-13508)
 
 | L | What | Anchors |
 |---|---|---|
-| 7217-7320 | Two-step flow stub (brand picker → form) | |
-| 7321-7362 | **Brand picker modal** | `openPrinterBrandPicker`, `closePrinterBrandPicker` |
-| 7363-7421 | Snapmaker discovery flow entry | |
-| 7422-7520 | **User-declared extra subnets** widget (persisted in localStorage) | `snapLoadExtraSubnets`, `snapSaveExtraSubnets`, `snapValidateIp`, `snapValidatePrefix` |
-| 7521-8029 | **Debug scan journal** — in-memory log + Export-to-clipboard JSON dump | |
-| 8030-8064 | **Phase 0** — mDNS browse `_snapmaker._tcp.local.` via `bonjour-service` | |
-| 8065-8130 | **Phase 1** — enumerate subnets (IPC `os.networkInterfaces()` + WebRTC ICE candidates + user extras) | |
-| 8131-8226 | **Phase 2** — per-source port-scan (batch=24 local, batch=4+80ms gap for extras to bypass IDS/IPS) | |
-| 8227-8240 | LAN scanner orchestrator | |
-| 8241-8633 | **One-click add** — clicking a candidate writes the printer doc directly to Firestore (with full discovery payload preserved) | `snapAddDiscoveredPrinter` |
-| 8634-8777 | **Add by IP** collapsible — inline IPv4 validation, error bubble, Validate probe | |
-| 8778-9095 | Manual IP probe (step 2b) — `printer/info` + `server/info` + `machine/system_info` | |
-| 9096-9344 | **Custom model picker** — list of models with thumbnails (data/printers/`{brand}_printer_models.json`) | |
+| 12392-12526 | Rack create / update / delete / empty + orphan ref cleanup | `createRack`, `updateRack`, `deleteRack`, `emptyRack` |
+| 12527-12663 | Empty-rack cascade, twin resolver, slot assign/unassign, slot fill HTML | `playEmptyRackCascade`, `assignSpoolToSlot`, `unassignSpool`, `findSpoolInSlot` |
+| 12664-12744 | **Slot locking** — right-click toggle, lock/unlock all, kebab menu positioning | `isSlotLocked`, `toggleSlotLock`, `positionRackMenu` |
+| 12745-12962 | **Auto-fill / auto-store / auto-unstore** + search dim + unranked helpers | `autoFillEmptySlots`, `maybeAutoStoreUnrankedSpools`, `applyRackSearchDim`, `getUnrackedSpools` |
+| 13004-13133 | **Skyline-packing masonry** layout + relayout scheduler + rack reorder | `layoutRacksMasonry`, `reorderRacks` |
+| 13134-13245 | **Rich hover tooltip** for filled slots (mini puck preview) | `buildRackTooltipHTML`, `wireRackTooltipDelegation` |
 
 ---
 
-## Storage view (rack rendering + drag-drop) (L9345-11327)
+## Storage view render + DnD (L13509-14619)
 
 | L | What | Anchors |
 |---|---|---|
-| 9345-9505 | **Scale v2 field accessors** — `scaleHeartbeatAt`, `scaleDisplayName`, `scaleCurrentSpoolUid1/2`, `scaleWifiSignalDbm`, `scaleBatteryPercent`, `isScaleOnline`, `renderScaleHealth`, `renderScalesPanel` | |
-| 9505-9613 | `agoString(ms)` — relative time formatter | |
-| 9614-9727 | Empty-rack cascade animation; twin spoolId resolver; slot fill HTML | `playEmptyRackCascade`, `slotFillInnerHTML` |
-| 9728-9747 | `findSpoolInSlot(rackId, level, position)` | |
-| 9748-9827 | **Slot locking** — right-click toggles lock; persisted in rack doc | `slotLockKey`, `isSlotLocked`, `positionRackMenu` |
-| 9828-10010 | **Auto-fill / Auto-store / Auto-unstorage** — assign unranked spools to empty unlocked slots | |
-| 9976-10010 | Search dim — non-matching slots fade | `applyRackSearchDim` |
-| 10011-10067 | `isEmptyRow`, `getUnrackedSpools`, `unrackedRowHTML` (empty spools visible but not counted) | |
-| 10068-10204 | **Skyline-packing masonry** layout for rack cards | `layoutRacksMasonry`, `scheduleMasonryRelayout` |
-| 10205-10307 | **Rich hover tooltip** for filled rack slots (mini puck preview + filament info) | `ensureRackTooltipEl`, `buildRackTooltipHTML`, `showRackTooltipFor`, `wireRackTooltipDelegation` |
-| 10308-10885 | **`renderRackView()`** — stats bar, two-column layout, masonry, kebab menus, live search wiring, click handlers, "+ Rack" button | `renderRackView` |
-| 10886-10942 | Drag sources (slot puck or unranked row) | `wireDragSources` |
-| 10943-11037 | Drop targets (slot, unranked panel) + cross-target highlight clearing | `wireDropTargets`, `clearOtherDropHighlights` |
-| 11038-11102 | **Drop-to-void unassign** — drop outside any `.rp-rack` sends spool back to unranked | |
-| 11103-11122 | Cascade animation when removing from rack via toolbox | `playUnrankAnimation` |
-| 11123-11327 | **Rack create/edit modal** — name, presets, rows×columns, total slots label | `openRackEditModal`, `closeRackEditModal`, `renderRackPresets`, `confirmDeleteRack` |
+| 13246-13885 | **`renderRackView()`** — biggest function in the file: stats bar + filter chips, two-column layout, masonry, kebab menus, live search, read-only friend mode, rack reorder DnD | `renderRackView` |
+| 13886-14102 | Drag sources (slot puck / unranked row) + drop targets + **drop-to-void unassign** | `wireDragSources`, `wireDropTargets`, `clearOtherDropHighlights` |
+| 14103-14124 | Unrank cascade animation | `playUnrankAnimation` |
+| 14125-14328 | **Rack create/edit modal** — name, presets, rows×columns, delete confirm, field errors | `openRackEditModal`, `renderRackPresets`, `confirmDeleteRack` |
 
 ---
 
-## Friend view (L11328-11765)
+## Friend view (L14620-15086)
 
 | L | What | Anchors |
 |---|---|---|
-| 11328-11383 | Friend inventory subscription (one-shot read, no live updates) | `openFriendInventory` |
-| 11384-11401 | Tear-down on close | `closeFriendInventory` |
-| 11402-11550 | **Friend banner** + main-interface render (friend mode vs own mode) | `renderFriendBanner` |
-| 11448-11550 | Auth helper for friend mode — turns off all owner subscriptions before mutating UI | |
-| 11551-11572 | `switchBackToOwnView()` — restores all owner subscriptions | |
-| 11574-11765 | Friends section render in account dropdown; friend request modal; add-friend modal | `renderFriendsSection`, `showFriendRequestModal`, `openAddFriendModal` |
+| 14329-14410 | Friend inventory open/close (one-shot read, no live updates) | `openFriendInventory`, `closeFriendInventory` |
+| 14411-14602 | **Friend banner** + switch to friend view (tears down ALL owner subscriptions first) / switch back | `renderFriendBanner`, `switchToFriendView`, `switchBackToOwnView`, `prewarmAuthToken` |
+| 14603-14657 | Friends section in dropdown + incoming request modal queue | `renderFriendsSection`, `showFriendRequestModal` |
+| 14658-14795 | **Add-friend modal** — split XXX-XXX field, live preview lookup | `openAddFriendModal`, `_adfChanged` |
 
 ---
 
-## Display name + Friends system (L11766-12027)
+## Display name + friend requests (L15087-15283)
 
 | L | What | Anchors |
 |---|---|---|
-| 11766-11806 | **Display-name setup modal** — first-login pseudo picker | `openDisplayNameSetup`, `closeDisplayNameSetup` |
-| 11807-11824 | Friend requests subscription | `subscribeFriendRequests` |
-| 11828-11922 | Request badge render + accept/decline batch writes (bidirectional) | `renderFriendRequestBadge` |
-| 11923-12027 | Blacklist render + add/remove blacklist entries | `renderBlacklist` |
+| 14796-14839 | **Display-name setup modal** (first-login pseudo picker) | `openDisplayNameSetup` |
+| 14840-14931 | Friend requests subscription + badge + accept/refuse/block/remove (bidirectional batch writes) | `subscribeFriendRequests`, `acceptFriendRequest`, `removeFriend` |
+| 14932-14992 | Blacklist load / unblock / render | `loadBlacklist`, `renderBlacklist` |
 
 ---
 
-## Key helpers + late utilities (L12028-12204)
+## Keys + profile sync (L15284-15511)
 
 | L | What | Anchors |
 |---|---|---|
-| 12028-12035 | `generatePublicKey()` — `XXX-XXX` candidate generator | |
-| 12036-12190 | `generatePrivateKey()` (40-char hex) + `claimPublicKey(uid, oldKey)` atomic transaction (10 retries) | |
-| 12191-12204 | `applyLang(lang)` — switches locale, saves prefs to Firestore | |
+| 14993-15037 | **`claimPublicKey(uid, oldKey)`** atomic transaction (10 retries) + regenerate + send friend request | `claimPublicKey`, `sendFriendRequest` |
+| 15062-15112 | Key generators (`XXX-XXX`, 40-char hex) + `userProfiles/{uid}` sync | `generatePublicKey`, `generatePrivateKey`, `syncUserProfile` |
 
 ---
 
-## Init bootstrap (L12205-12389)
-
-```
-loadLocales()
-  → loadLookups()
-    → runMigration()      // wipe legacy API-key accounts
-    → onAuthStateChanged  // wire Firebase
-    → DOM event listeners // wire all buttons + modals
-    → Electron IPC bridge // RFID + TD1S
-```
+## Custom avatar (L15512-15776)
 
 | L | What | Anchors |
 |---|---|---|
-| 12214-12266 | **Electron RFID integration** — main-process `nfc:scan` events, autofill weight/UID actions | |
-| 12267-12389 | **TD1S sensor integration** — serial port events, log render, copy/clear log | |
+| 15113-15296 | File pick, image decode, alpha detection, resize to blob, upload, remove | `uploadCustomAvatar`, `removeCustomAvatar` |
+| 15297-15485 | **Discord-style cropper** — crop / zoom / rotate + cropped upload | `openAvatarCropper`, `uploadCroppedAvatar` |
+
+---
+
+## User doc sync + telemetry + bootstrap (L15777-16208)
+
+| L | What | Anchors |
+|---|---|---|
+| 15486-15766 | **`syncUserDoc(uid)`** — displayName/roles/Debug/keys/isPublic + **client telemetry** (studio* fields + `telemetry/studio` aggregates, fire-and-forget) | `syncUserDoc`, `hydrateUserDocCache` |
+| 15767-15799 | Language sync from Firestore + `applyLang(lang)` | `syncLangFromFirestore`, `applyLang` |
+| 15800-15815 | **Init bootstrap** — loadLocales → applyTranslations → loadLookups → loadImgMap → runMigration → initAuth → signalFirstPaint | grep "loadLocales().then" |
+
+---
+
+## Electron RFID integration (L16209-16542)
+
+| L | What | Anchors |
+|---|---|---|
+| 15816-15922 | Reader indicator (topbar), auto-add button, reader connect/disconnect, card present/removed badge | |
+| 15923-16017 | Dual-scan buffer (2 readers / 1.5 s) + **main NFC scan processor** | |
+| 16018-16138 | **Build and write one chip document** to Firestore (API fields only for TigerTag+) | |
+| 16139-16140 | TD1S engine moved to `IoT/td1s/index.js` (closing comment) | |
 
 ---
 
 ## "Find X by feature" cookbook
 
-Most common navigation tasks → start here:
+Most common navigation tasks → grep these anchors first:
 
-| You want to … | Open this section first |
+| You want to … | Grep / open |
 |---|---|
-| Add or change an i18n key | `t()` L122, then `applyTranslations()` L140; *use `npm run i18n:add` for the actual write* |
-| Touch the spool detail panel | L2989 (`buildPanelHTML`) → toolbox at L3019 |
-| Touch the weight slider | L2989-3294 (debounced auto-save inside detail panel) |
-| Add/change a modal | L3380 (TD), L3459 (Color), L3622 (Twin link), L3689 (Container), L11125 (Rack edit) |
-| Touch the storage view | `renderRackView` L10308 — biggest function in the file |
-| Touch a rack drag-drop behaviour | `wireDragSources` L10886, `wireDropTargets` L10951, drop-to-void L11038 |
-| Touch the printer detail card | `renderPrinterDetail` L6798 |
-| Touch the Snapmaker WS layer | `snapConnect` L5640, `snapMergeStatus` L5793 |
-| Touch the Snapmaker live block UI | `renderSnapmakerLiveInner` L6520 |
-| Touch the FlashForge HTTP polling | `ffgConnect` L7390, `ffgPollOnce` L7460, `ffgMergeStatus` L7515 |
-| Touch the FlashForge live block UI | `renderFlashforgeLiveInner` L7700 |
-| Touch the FlashForge filament edit sheet | `openFlashforgeFilamentEdit` L7900, Apply at `$("ffgFilEditSave")` L8060 |
-| Touch the Creality WS layer | `creConnect`, `creMergeStatus` |
-| Touch the Creality live block UI | `renderCrealityLiveInner` |
-| Touch the Anycubic MQTT layer | `acuConnect` in `printers/anycubic/index.js` (+ `anycubic:*` IPC in main.js) |
-| Touch the Anycubic live block / ACE card | `renderAnycubicLiveInner`, `renderAcuFilamentCard` |
-| Touch the bottom-sheet filament edit | `openSnapFilamentEdit` L5971, color grid L6244 |
-| Touch the Add-printer scan flow | mDNS L8030, port-scan L8131, one-click add L8241 |
-| Touch the Add by IP widget | L8634 |
-| Touch the Friends system | UI L4814, friend view L11392, requests L11807 |
-| Touch the auth flow | `onAuthStateChanged` L2022, login modal L1144 |
-| Touch the Firestore subscriptions | inventory L1948, racks L5073, scales L5104, printers L5123, friend reqs L11809 |
-| Touch the auto-update banner | L4440 |
-| Touch the diagnostic / report-problem modal | L4366 |
+| Add or change an i18n key | `function t` L563; *use `npm run i18n:add` for the actual write* |
+| Touch the spool detail panel | `buildPanelHTML` L7469, `openDetail` L6653 |
+| Touch the weight slider / weight save | `doWeightUpdate` L8134, `_patchDetailWeight` L6562 |
+| Touch the Add Product panel | `openAddProductPanel` L2194, `saveAddProduct` L2380 |
+| Touch the RFID encode/burn modal | `openEncodeModal` L5954, `_cemStartBurn` L6099 |
+| Touch a modal | Twin link L7297, Container L7372, Rack edit L14125, Login L3529, Edit account L3264 |
+| Touch the storage view | `renderRackView` L13246 — biggest function in the file |
+| Touch rack drag-drop | `wireDragSources` L13886, `wireDropTargets` L13951, drop-to-void L14038 |
+| Touch the printers grid / table / cam wall | `renderPrintersView` L9333, `_renderPrinterTable` L9503, `_renderPrinterCam` L9668 |
+| Touch the printer detail card | `renderPrinterDetail` L10661, `openPrinterDetail` L10087 |
+| Touch a printer brand integration (WS/MQTT/HTTP, live block, filament edit) | `printers/<brand>/index.js` — NOT in this file |
+| Touch a printer camera banner | `printers/<brand>/widget_camera.js`; dispatch at `renderCamBanner` L10650 |
+| Touch the Add-printer scan flow | `printers/<brand>/add-flow.js`; shell at `openPrinterBrandPicker` L11856 |
+| Touch the printer tutorials | `openPrinterTutorial` L12158 |
+| Touch the TigerScale panel | `IoT/tigerscale/index.js`; init wiring at L3114 |
+| Touch the TD1S sensor / TD-Color edit modals | `IoT/td1s/index.js` + `edit-modals.js` |
+| Touch the Friends system | lists L8660, friend view L14329, requests L14840 |
+| Touch the custom avatar / cropper | `openAvatarCropper` L15297, `uploadCustomAvatar` L15221 |
+| Touch the auth flow | `handleSignedIn` L4439, `initAuth` L4572, login modal L3529 |
+| Touch the Firestore subscriptions | inventory L4330, racks L8956, printers L8999, friend reqs L14840 |
+| Touch the telemetry | `syncUserDoc` L15497 (studio* fields), `_recordUsage` L7247 |
+| Touch the auto-update banner | L8344 |
+| Touch the diagnostic / report-problem modal | `reportError` L712, `openDiagnosticModal` L813 |
 
 ---
 
 ## Notes for AI assistants
 
-- **State** is at L71. Read it first when reasoning about anything cross-cutting.
-- **Selectors**: `$` is `document.getElementById`. Many DOM nodes have IDs that match the section (e.g. `#detailPanel`, `#snapScanPanel`, `#friendsPanel`).
+- **State** is at L500. Read it first when reasoning about anything cross-cutting.
+- **ES module**: `inventory.js` imports printer brands, IoT modules and the RFID tester at L1-91. Brand modules receive `state`/`t`/`$` through `printers/context.js` (`ctx`).
+- **Selectors**: `$` is `document.getElementById`. Many DOM nodes have IDs matching the section (e.g. `#detailPanel`, `#friendsPanel`).
 - **i18n**: 9 locales (en/fr/de/es/it/zh/pt/pt-pt/pl) under `renderer/locales/`. Never hand-edit — use `npm run i18n:add`. The `npm run i18n:check` pre-commit hook blocks drift.
-- **CSS**: split into 9 themed files under `renderer/css/` (`00-base.css` → `70-detail-misc.css`, plus `55-creality.css`). When this file references a UI section, the corresponding styles live in the matching CSS module.
-- **Per-brand camera widgets**: each printer folder has a `widget_camera.js` that owns all camera HTML + lifecycle for that brand. `inventory.js` calls `renderCamBanner(p)` which dispatches to the right widget — it never builds camera HTML inline. To add a new brand: create `printers/<brand>/widget_camera.js`, export `render<Brand>CamBanner(p)`, add a `case` in `renderCamBanner`. CSS goes in a matching `renderer/css/5X-<brand>.css`.
-  - `printers/snapmaker/widget_camera.js` → `renderSnapCamBanner` — iframe Crowsnest WebRTC (port 80)
-  - `printers/creality/widget_camera.js` → `renderCreCamBanner`, `startCreCam`, `stopCreCam` — direct RTCPeerConnection + `<video>` (port 8000); `_activeIp` guard prevents restart on WS reconnect; CSS in `55-creality.css`
-  - `printers/flashforge/widget_camera.js` → `renderFfgCamBanner`, `renderFfgCamWallBanner`, `ffgRefreshCamBanner`, `ffgCamBaseUrl` — MJPEG sidecard/cam-wall banners (no src on `<img>` — mux provides frames)
-  - `printers/flashforge/cam_mux.js` → `ffgMuxStart`, `ffgMuxStop`, `ffgMuxStopAll`, `ffgMuxRestart`, `ffgMuxRegister`, `ffgMuxUnregister` — single `fetch()` MJPEG multiplexer; distributes JPEG blob URLs to all `<img>` consumers; auto-stops when last consumer unregisters
-- **Per-brand LAN discovery** (Add Printer → Scan): Snapmaker, FlashForge and Creality each have a `probe.js` (pure network/data layer — no DOM) + `add-flow.js` (Scan/Manual choice modal, slide-in scan panel, manual-IP probe). `inventory.js` imports `openSnapAddFlow` / `openFfgAddFlow` / `openCreAddFlow` and dispatches by brand in `openPrinterBrandPicker` (~L10585). All three reuse the shared `snap*` scan-UI i18n keys + CSS (`snap-scan-*`, `snap-add-ip-*`, `snap-extra-subnets-*` in `40-printers.css`); only the brand title + empty-state strings are brand-specific. Raw socket probes run in the **main process** over IPC (`ffg:tcp-probe`, `cre:tcp-probe`, `net:get-local-subnets`, `snap:http-get`, `mdns:browse-snapmaker`) — the renderer can open WebSockets (Creality `:9999`, Snapmaker `:7125`) but not raw TCP/UDP. Creality probe is two-stage: main-process TCP `:9999` open check, then a renderer WebSocket `printerInfo` handshake validated with `isCrealityLike()`.
-- **Line numbers will drift** as the file changes. If a range looks wrong, grep for the anchor function name rather than trusting the L-number.
+- **CSS**: 10 themed files under `renderer/css/` (`00-base.css` → `70-detail-misc.css`, plus `55-creality.css` and `57-elegoo.css`). When this file references a UI section, the styles live in the matching CSS module.
+- **Per-brand camera widgets**: each printer folder has a `widget_camera.js` that owns all camera HTML + lifecycle. `inventory.js` calls `renderCamBanner(p)` (L10650) which dispatches — it never builds camera HTML inline. To add a brand: create `printers/<brand>/widget_camera.js`, export `render<Brand>CamBanner(p)`, add a case in `renderCamBanner`, CSS in `renderer/css/5X-<brand>.css`.
+- **Line numbers drift** — if a range looks wrong, grep the anchor name. `npm run codemap:check` catches major drift at commit time.

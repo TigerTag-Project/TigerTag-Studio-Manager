@@ -29,9 +29,9 @@ export function renderBambuCamBanner(p) {
   // stream has been started). While connecting, the hero photo is shown.
   if (!conn || conn.status !== "connected") return "";
 
-  const lastFrame = conn.data?.lastCamFrame;
-  const imgSrc    = lastFrame ? `data:image/jpeg;base64,${lastFrame}` : "";
-  const loading   = !lastFrame; // still waiting for first frame from ffmpeg/JPEG-TCP
+  const lastUrl = conn.data?.lastCamUrl;
+  const imgSrc  = lastUrl || "";   // Blob URL of the most recent frame
+  const loading = !lastUrl;        // still waiting for first frame from ffmpeg/JPEG-TCP
 
   // data-bbl-key ties this img to its printer so the global onCamFrame
   // handler only updates the element that belongs to the active side-card.

@@ -20,6 +20,43 @@ cd "$repo_root"
 # accidental deletion of a locale also gets caught.
 node scripts/check-i18n-consistency.mjs
 
+# ── JS syntax check ───────────────────────────────────────────────────
+# `node --check` on every staged .js/.mjs file. Catches syntax errors
+# before they ship — there is no bundler or test suite to catch them.
+# renderer/ files are ES modules (loaded via <script type="module">),
+# so they are checked through stdin with --input-type=module.
+staged_js=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(js|mjs)$' || true)
+for f in $staged_js; do
+  [ -f "$f" ] || continue
+  case "$f" in
+    renderer/*)
+      node --input-type=module --check < "$f" \
+        || { echo "✗ Syntax error in $f (checked as ES module)"; exit 1; } ;;
+    *)
+      node --check "$f" \
+        || { echo "✗ Syntax error in $f"; exit 1; } ;;
+  esac
+done
+
+# ── ESLint regression guard ───────────────────────────────────────────
+# Two rules only (see eslint.config.mjs): no-undef blocks the commit
+# (typo'd / renamed-but-not-updated identifiers — invisible to a pure
+# syntax check), no-unused-vars stays a non-blocking warning.
+# Skipped silently when node_modules isn't installed (fresh clone).
+if [ -n "$staged_js" ] && [ -x node_modules/.bin/eslint ]; then
+  # shellcheck disable=SC2086
+  node_modules/.bin/eslint --quiet $staged_js \
+    || { echo "✗ ESLint found undefined identifiers (no-undef) — fix before committing."; exit 1; }
+fi
+
+# ── CODEMAP drift ─────────────────────────────────────────────────────
+# Verifies renderer/CODEMAP.md anchors still fall inside their declared
+# line ranges in inventory.js (±150 lines) and that the map covers the
+# whole file. Only runs when inventory.js or CODEMAP.md is staged.
+if git diff --cached --name-only | grep -qE '^renderer/(inventory\.js|CODEMAP\.md)$'; then
+  node scripts/check-codemap.mjs
+fi
+
 # Add more checks here. Examples:
 #   • lint
 #   • formatter

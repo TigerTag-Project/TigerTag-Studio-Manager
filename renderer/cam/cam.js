@@ -156,11 +156,27 @@ function buildFeed(cam) {
 
 // ── Bambu IPC frame updates ──────────────────────────────────────────────────
 
-window.camAPI.onBambuFrame((key, b64) => {
-  document.querySelectorAll(`.bbl-cam-img[data-bbl-key="${CSS.escape(key)}"]`).forEach(img => {
-    img.src = `data:image/jpeg;base64,${b64}`;
-    img.closest('.cam-card-body')?.querySelector('.cam-loading-overlay')?.remove();
-  });
+// Frame-drop guard — one pending paint rAF, latest raw bytes, and the live
+// Blob URL per printer key (revoked when replaced so memory stays flat).
+const _bblCamRafs = new Map();
+const _bblCamBuf  = new Map();
+const _bblCamUrl  = new Map();
+window.camAPI.onBambuFrame((key, buf) => {
+  _bblCamBuf.set(key, buf);
+  if (_bblCamRafs.has(key)) return;   // a paint is already scheduled → newest wins
+  _bblCamRafs.set(key, requestAnimationFrame(() => {
+    _bblCamRafs.delete(key);
+    const latest = _bblCamBuf.get(key);
+    if (!latest) return;
+    const url = URL.createObjectURL(new Blob([latest], { type: 'image/jpeg' }));
+    const prev = _bblCamUrl.get(key);
+    if (prev) URL.revokeObjectURL(prev);
+    _bblCamUrl.set(key, url);
+    document.querySelectorAll(`.bbl-cam-img[data-bbl-key="${CSS.escape(key)}"]`).forEach(img => {
+      img.src = url;
+      img.closest('.cam-card-body')?.querySelector('.cam-loading-overlay')?.remove();
+    });
+  }));
 });
 
 // ── Anycubic IPC frame updates ───────────────────────────────────────────────
