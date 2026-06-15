@@ -83,10 +83,11 @@ The **TigerTag SDK** is the low-level library that handles all NFC chip operatio
 - Spool toolbox — scan color (TD1S), scan TD, link twin, remove from rack, delete
 
 ### 🖨 3D Printer integration
-Live integrations for 5 brands — real-time temperatures, filament per slot, active print job, camera:
+Live integrations for 6 brands — real-time temperatures, filament per slot, active print job, camera:
 
 | Brand | Protocol | Status |
 |---|---|---|
+| **Anycubic** | MQTTS 9883 (TLS) / cloud + ACE | ✅ Live |
 | **Bambu Lab** | MQTTS 8883 (TLS) + AMS | ✅ Live |
 | **Creality** | WebSocket 9999 + CFS | ✅ Live |
 | **Elegoo** | MQTT 1883 + Canvas | ✅ Live |
@@ -94,6 +95,8 @@ Live integrations for 5 brands — real-time temperatures, filament per slot, ac
 | **Snapmaker** | Moonraker WebSocket 7125 | ✅ Live |
 
 Each brand supports: filament edit per slot, printer discovery (mDNS + port-scan + Add by IP), camera widget.
+
+Some brands also expose a **live control panel** (Snapmaker, Elegoo, Anycubic): home / jog the axes, set nozzle & bed targets, toggle the light, control the part-cooling fan, pick the print-speed mode, and load / unload filament per slot.
 
 ### 📦 Storage / Racks
 
