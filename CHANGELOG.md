@@ -5,6 +5,18 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.10.1 — 2026-06-16
+
+### Added
+
+- **Anycubic control panel now works in cloud mode too.** Homing, jogging, disabling the motors, the light, nozzle/bed temperatures, the fan, the speed mode and pause/resume/stop now reach cloud-connected printers (they previously only worked over the local network). Temperature, fan, speed and pause/stop apply to the printer's **active job**, so use them while a print is running.
+
+### Fixed
+
+- **Anycubic: editing a filament slot no longer flickers.** When changing a slot's material or colour, the square briefly flashed back to the old value before settling on the new one. It now switches once, cleanly.
+
+---
+
 ## v1.10.0 — 2026-06-15
 
 ### Added

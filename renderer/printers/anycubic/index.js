@@ -255,6 +255,33 @@ const ACU_ORDER_SET_SLOT = 1211;
 const ACU_ORDER_GET_EXTFILBOX = 1230; // standalone external spool (no ACE)
 const ACU_ORDER_SET_EXTFIL    = 1229; // set the standalone external spool
 
+// Control-command order IDs — the cloud has NO MQTT publish path, so each LAN
+// command maps to a REST sendOrder (AnycubicOrderID). Print-state / settings
+// orders also need the active job's project_id (= the print taskid).
+const ACU_ORD = {
+  PAUSE: 2, RESUME: 3, STOP: 4,   // print control (need project_id)
+  PRINT_SETTINGS: 6,              // temps / fan / speed-mode (need project_id) — {settings:{…}}
+  MOVE_AXLE: 201,                 // jog / home — {axis, move_type, distance}
+  MOVE_AXLE_TURN_OFF: 1213,       // disable motors
+  FEED_FILAMENT: 1208,            // load / unload / stop filament
+  SET_LIGHT: 1233,                // light — {type, status, brightness}
+};
+
+// True for a cloud-mode connection (no local broker → must use sendOrder).
+function _acuConnIsCloud(conn) { return conn && conn.mode === "cloud"; }
+
+// Send a control command over the cloud (REST sendOrder). `project:true` orders
+// (pause/resume/stop, print-settings) carry the active job's project_id.
+function _acuCloudOrder(conn, orderId, data, { project = false } = {}) {
+  const p = conn && conn.printer;
+  if (!p) return;
+  const projectId = project ? (conn.data?.jobProjectId || 0) : 0;
+  _acuLogPush(conn, "→", { orderId, projectId, data, via: "cloud" });
+  window.anycubic?.cloud?.sendOrder({
+    token: p.cloudToken, orderId, printerId: p.cloudPrinterId, projectId, data: data ?? {},
+  });
+}
+
 async function _acuCloudGetInfo(conn) {
   const p = conn.printer;
   if (!p) return;
@@ -423,6 +450,10 @@ function _acuStopCapture(conn) {
 /** Pause / resume / stop the active print. `taskid:"-1"` = the current job. */
 export function acuPrintControl(conn, action) {
   if (!conn || !["pause", "resume", "stop"].includes(action)) return;
+  if (_acuConnIsCloud(conn)) {
+    _acuCloudOrder(conn, { pause: ACU_ORD.PAUSE, resume: ACU_ORD.RESUME, stop: ACU_ORD.STOP }[action], null, { project: true });
+    return;
+  }
   _publish(conn, _acuRequest(action, { taskid: "-1" }, "print"), "print");
 }
 
@@ -431,6 +462,11 @@ export function acuPrintControl(conn, action) {
 export function acuSetTemp(conn, which, value) {
   if (!conn) return;
   const v = Math.max(0, Math.round(Number(value) || 0));
+  if (_acuConnIsCloud(conn)) {
+    const settings = which === "bed" ? { target_hotbed_temp: v } : { target_nozzle_temp: v };
+    _acuCloudOrder(conn, ACU_ORD.PRINT_SETTINGS, { settings }, { project: true });
+    return;
+  }
   const data = which === "bed"
     ? { type: 1, target_hotbed_temp: v, target_nozzle_temp: 0 }
     : { type: 0, target_nozzle_temp: v, target_hotbed_temp: 0 };
@@ -440,6 +476,10 @@ export function acuSetTemp(conn, which, value) {
 /** Toggle the chamber/part light (`type:3`). */
 export function acuLight(conn, on) {
   if (!conn) return;
+  if (_acuConnIsCloud(conn)) {
+    _acuCloudOrder(conn, ACU_ORD.SET_LIGHT, { type: 1, status: on ? 1 : 0, brightness: on ? 100 : 0 });
+    return;
+  }
   _publish(conn, _acuRequest("control",
     { type: 3, status: on ? 1 : 0, brightness: on ? 100 : 0 }, "light"), "light");
 }
@@ -450,8 +490,9 @@ export function acuMove(conn, axis, distance) {
   const axisNum = { x: 1, y: 2, z: 3 }[String(axis).toLowerCase()];
   if (!axisNum) return;
   const d = Number(distance) || 0;
-  _publish(conn, _acuRequest("move",
-    { axis: axisNum, move_type: d >= 0 ? 1 : 0, distance: Math.abs(d) }, "axis"), "axis");
+  const data = { axis: axisNum, move_type: d >= 0 ? 1 : 0, distance: Math.abs(d) };
+  if (_acuConnIsCloud(conn)) { _acuCloudOrder(conn, ACU_ORD.MOVE_AXLE, data); return; }
+  _publish(conn, _acuRequest("move", data, "axis"), "axis");
 }
 
 /** Home an axis or all. which = "X"|"Y"|"Z"|"all" (move_type 2, distance 0). */
@@ -459,12 +500,15 @@ export function acuHome(conn, which) {
   if (!conn) return;
   const axisNum = { x: 1, y: 2, z: 3, xy: 4, all: 5 }[String(which).toLowerCase()];
   if (!axisNum) return;
-  _publish(conn, _acuRequest("move", { axis: axisNum, move_type: 2, distance: 0 }, "axis"), "axis");
+  const data = { axis: axisNum, move_type: 2, distance: 0 };
+  if (_acuConnIsCloud(conn)) { _acuCloudOrder(conn, ACU_ORD.MOVE_AXLE, data); return; }
+  _publish(conn, _acuRequest("move", data, "axis"), "axis");
 }
 
 /** Disable the steppers. */
 export function acuMotorsOff(conn) {
   if (!conn) return;
+  if (_acuConnIsCloud(conn)) { _acuCloudOrder(conn, ACU_ORD.MOVE_AXLE_TURN_OFF, null); return; }
   _publish(conn, _acuRequest("turnOff", null, "axis"), "axis");
 }
 
@@ -472,6 +516,10 @@ export function acuMotorsOff(conn) {
 export function acuFan(conn, pct) {
   if (!conn) return;
   const p = Math.max(0, Math.min(100, Math.round(Number(pct) || 0)));
+  if (_acuConnIsCloud(conn)) {
+    _acuCloudOrder(conn, ACU_ORD.PRINT_SETTINGS, { settings: { fan_speed_pct: p } }, { project: true });
+    return;
+  }
   _publish(conn, _acuRequest("setSpeed", { fan_speed_pct: p }, "fan"), "fan");
 }
 
@@ -482,10 +530,9 @@ export function acuFeedFilament(conn, boxId, slotIndex, type) {
   if (!conn) return;
   const t = Number(type) || 0;
   if (![1, 2, 3].includes(t)) return;
-  const payload = _acuRequest("feedFilament", {
-    multi_color_box: [{ id: Number(boxId), feed_status: { slot_index: Number(slotIndex) || 0, type: t } }],
-  });
-  _publish(conn, payload, "multiColorBox");
+  const data = { multi_color_box: [{ id: Number(boxId), feed_status: { slot_index: Number(slotIndex) || 0, type: t } }] };
+  if (_acuConnIsCloud(conn)) { _acuCloudOrder(conn, ACU_ORD.FEED_FILAMENT, data); return; }
+  _publish(conn, _acuRequest("feedFilament", data), "multiColorBox");
 }
 
 /** Set the print-speed mode. mode = 1 (Silent) | 2 (Standard) | 3 (Sport). */
@@ -493,6 +540,10 @@ export function acuSetSpeedMode(conn, mode) {
   if (!conn) return;
   const m = Number(mode) || 0;
   if (![1, 2, 3].includes(m)) return;
+  if (_acuConnIsCloud(conn)) {
+    _acuCloudOrder(conn, ACU_ORD.PRINT_SETTINGS, { settings: { print_speed_mode: m } }, { project: true });
+    return;
+  }
   _publish(conn, _acuRequest("update", { taskid: "-1", settings: { print_speed_mode: m } }, "print"), "print");
 }
 
@@ -833,6 +884,9 @@ function _acuPrintState(action, state) {
 // navigate by key, PROTOCOL.md §5b).
 function _acuMergePrintFields(d, data) {
   if (!data || typeof data !== "object") return;
+  // taskid == the cloud project_id (needed to target print-control / settings
+  // orders at the running job). "-1" = no specific job.
+  if (data.taskid != null && String(data.taskid) !== "-1") d.jobProjectId = Number(data.taskid) || 0;
   if (data.filename     != null) d.printFilename = String(data.filename).split("/").pop();
   if (data.progress     != null) d.progress      = Math.max(0, Math.min(100, Number(data.progress) || 0));
   if (data.remain_time  != null) d.remainTime    = Number(data.remain_time)  || 0; // minutes
@@ -1399,11 +1453,11 @@ function _acuWireSheet() {
         }));
       }
     }
-    // No optimistic write and no forced re-render: we wait for the printer to
-    // echo the new colour. When its report lands, _acuMergeBoxReport patches
-    // the affected slot IN PLACE and _acuNotify refreshes — nothing is wiped or
-    // rebuilt from stale data. A getInfo confirms shortly after.
-    _scheduleRefresh(conn, 1500);
+    // No optimistic write, and NO early confirm-poll: the printer takes ~3 s to
+    // commit a setInfo, and a getInfo fired before then returns the OLD value —
+    // which caused a new(echo)→old(poll)→new(poll) flicker. The setInfo echo
+    // already carries the new value; the regular refresh loop re-confirms later,
+    // after the printer has committed. (Verified from captured report logs.)
 
     closeAcuFilamentEdit();
   });

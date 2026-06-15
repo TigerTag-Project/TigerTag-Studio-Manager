@@ -2933,9 +2933,9 @@ let _ffmpegBin = null;
   // code 10001 = "Login information has expired" (the token was revoked by a
   // newer slicer login). Surface code/msg so the renderer can recover (re-grab
   // the token from a bridge-mode slicer) rather than silently going offline.
-  ipcMain.handle('anycubic:cloud-send-order', async (_evt, { token, orderId, printerId, data }) => {
+  ipcMain.handle('anycubic:cloud-send-order', async (_evt, { token, orderId, printerId, projectId, data }) => {
     try {
-      const body = { order_id: Number(orderId), printer_id: Number(printerId), project_id: 0, data: data ?? {} };
+      const body = { order_id: Number(orderId), printer_id: Number(printerId), project_id: Number(projectId) || 0, data: data ?? {} };
       const r = await _cloudFetch(token, 'POST', '/work/operation/sendOrder', body);
       const code = r.json ? Number(r.json.code) : 0;
       if (code === 1) return { ok: true };
