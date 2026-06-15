@@ -628,14 +628,6 @@ function _openImportPanel() {
 // cloud doc per pick. We never launch the slicer — if CDP isn't reachable we
 // show the one-time bridge-mode launch instructions.
 
-// Machine error code → i18n key for the cloud empty/help state.
-const _CLOUD_ERR_KEY = {
-  'cdp-unreachable':    'acuCloudErrUnreachable',
-  'workbench-not-found':'acuCloudErrNoWorkbench',
-  'no-token':           'acuCloudErrNoToken',
-  'no-store':           'acuCloudErrNoWorkbench',
-};
-
 function _acuCloudCardHtml(p) {
   const catalogId = acuCatalogIdFromModel(String(p.machineType), p.name);
   const matched   = ctx.findPrinterModel('anycubic', catalogId);
@@ -671,15 +663,21 @@ async function _runCloudProvision() {
 
   const fail = (key) => {
     if (empty) { empty.textContent = ctx.t(key); empty.hidden = false; }
-    // Show the launch instructions whenever the slicer/workbench isn't reachable.
-    if (help && (key === 'acuCloudErrUnreachable' || key === 'acuCloudErrNoWorkbench')) help.hidden = false;
+    if (help) help.hidden = true;   // web-login replaces the old Windows bridge instructions
   };
 
-  // 1. Grab the workbench token from the running bridge-mode slicer.
+  // 1. Sign in to the Anycubic cloud (cross-platform): open the official site
+  //    in a window, the user logs in, we read the workbench token. No CDP.
   let tok;
-  try { tok = await window.anycubic?.cloud?.cdpToken(9222); }
-  catch (e) { tok = { ok: false, error: e?.message || 'cdp' }; }
-  if (!tok?.ok) { if (btn) { btn.disabled = false; btn.classList.remove('loading'); } return fail(_CLOUD_ERR_KEY[tok?.error] || 'acuCloudErrUnreachable'); }
+  try { tok = await window.anycubic?.cloud?.webLogin(); }
+  catch (e) { tok = { ok: false, error: e?.message || 'login' }; }
+  if (!tok?.ok) {
+    if (btn) { btn.disabled = false; btn.classList.remove('loading'); }
+    if (help) help.hidden = true;            // no Windows bridge instructions with web login
+    if (tok?.error === 'cancelled') { if (empty) empty.hidden = true; return; } // user closed the window — silent
+    if (empty) { empty.textContent = ctx.t('acuCloudErrRest'); empty.hidden = false; }
+    return;
+  }
 
   // 2. List the account's cloud printers.
   let res;

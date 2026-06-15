@@ -973,7 +973,7 @@
   "acuCloudChoiceHint": "用于云模式打印机（通过切片软件）",
   "acuCloudTitle": "添加云打印机",
   "acuCloudSub": "您 Anycubic 账户中的云打印机",
-  "acuCloudConnect": "连接到切片软件",
+  "acuCloudConnect": "登录 Anycubic 云",
   "acuCloudHelpIntro": "云打印机通过 AnycubicSlicerNext 添加。请以远程调试方式启动、登录并打开 Workbench：",
   "acuCloudErrUnreachable": "无法连接切片软件。请以桥接模式启动 AnycubicSlicerNext（见下），登录并打开 Workbench。",
   "acuCloudErrNoWorkbench": "未找到 Workbench。请在切片软件中打开 Workbench 选项卡并登录。",

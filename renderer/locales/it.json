@@ -973,7 +973,7 @@
   "acuCloudChoiceHint": "Per stampanti in modalità cloud (tramite lo slicer)",
   "acuCloudTitle": "Aggiungi stampante cloud",
   "acuCloudSub": "Stampanti cloud nel tuo account Anycubic",
-  "acuCloudConnect": "Connetti allo slicer",
+  "acuCloudConnect": "Accedi ad Anycubic Cloud",
   "acuCloudHelpIntro": "Le stampanti cloud si aggiungono tramite AnycubicSlicerNext. Avvialo con il debug remoto, con l'accesso effettuato, e apri il Workbench:",
   "acuCloudErrUnreachable": "Slicer non raggiungibile. Avvia AnycubicSlicerNext in modalità bridge (sotto), con l'accesso effettuato e il Workbench aperto.",
   "acuCloudErrNoWorkbench": "Workbench non trovato. Apri la scheda Workbench nello slicer ed effettua l'accesso.",

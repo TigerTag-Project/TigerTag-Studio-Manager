@@ -279,6 +279,22 @@ async function _acuCloudGetInfo(conn) {
     // re-grabbing a fresh token from a bridge-mode slicer (if one is running).
     if (res.authError) _acuCloudRecover(conn);
   }
+
+  // Current nozzle/bed temps — the cloud doesn't push tempature reports at idle,
+  // but the REST printer status carries them in `parameter`. Poll + merge.
+  try {
+    const info = await window.anycubic?.cloud?.printerInfo(p.cloudToken, p.cloudPrinterId);
+    if (info?.ok) {
+      const d = conn.data;
+      if (info.nozzleCurrent != null) d.nozzleCurrent = info.nozzleCurrent;
+      if (info.bedCurrent   != null) d.bedCurrent    = info.bedCurrent;
+      // Active-job preview (signed S3 URL) — null when no print is running.
+      d.printThumb = info.jobThumb || null;
+      _acuNotify(conn);
+    } else if (info && info.authError) {
+      _acuCloudRecover(conn);
+    }
+  } catch (_) {}
 }
 
 // ── Cloud token recovery (revocation) ───────────────────────────────────────
@@ -883,6 +899,18 @@ function _acuMerge(conn, msg) {
       _acuMergePrintFields(d, data);
       if (st === "finished" || st === "idle" || st === "failed") {
         d.remainTime = 0;
+      }
+      break;
+    }
+    // Coarse busy/idle heartbeat (`workReport`). The detailed state comes from
+    // `print` reports; this only lifts "idle" → "preparing" while the printer
+    // is busy with no print tick yet (e.g. auto-leveling at the start of a job)
+    // so the card doesn't wrongly read "Idle". Never overrides an active state.
+    case "status": {
+      if (action === "workReport") {
+        const cur = d.printState || "idle";
+        if (state === "busy" && cur === "idle") d.printState = "preparing";
+        else if (state === "free" && cur === "preparing") d.printState = "idle";
       }
       break;
     }

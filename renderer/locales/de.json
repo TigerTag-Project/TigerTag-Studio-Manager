@@ -973,7 +973,7 @@
   "acuCloudChoiceHint": "Für Drucker im Cloud-Modus (über den Slicer)",
   "acuCloudTitle": "Cloud-Drucker hinzufügen",
   "acuCloudSub": "Cloud-Drucker in Ihrem Anycubic-Konto",
-  "acuCloudConnect": "Mit Slicer verbinden",
+  "acuCloudConnect": "Bei Anycubic Cloud anmelden",
   "acuCloudHelpIntro": "Cloud-Drucker werden über AnycubicSlicerNext hinzugefügt. Starten Sie ihn mit Remote-Debugging, angemeldet, und öffnen Sie die Workbench:",
   "acuCloudErrUnreachable": "Slicer nicht erreichbar. Starten Sie AnycubicSlicerNext im Bridge-Modus (unten), angemeldet, mit geöffneter Workbench.",
   "acuCloudErrNoWorkbench": "Workbench nicht gefunden. Öffnen Sie den Workbench-Tab im Slicer und melden Sie sich an.",

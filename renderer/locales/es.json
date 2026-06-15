@@ -973,7 +973,7 @@
   "acuCloudChoiceHint": "Para impresoras en modo nube (mediante el slicer)",
   "acuCloudTitle": "Añadir impresora en la nube",
   "acuCloudSub": "Impresoras en la nube de tu cuenta Anycubic",
-  "acuCloudConnect": "Conectar al slicer",
+  "acuCloudConnect": "Iniciar sesión en Anycubic Cloud",
   "acuCloudHelpIntro": "Las impresoras en la nube se añaden a través de AnycubicSlicerNext. Inícialo con depuración remota, con sesión iniciada, y abre el Workbench:",
   "acuCloudErrUnreachable": "Slicer no accesible. Inicia AnycubicSlicerNext en modo puente (abajo), con sesión iniciada y el Workbench abierto.",
   "acuCloudErrNoWorkbench": "Workbench no encontrado. Abre la pestaña Workbench en el slicer e inicia sesión.",

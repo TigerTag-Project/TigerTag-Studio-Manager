@@ -70,8 +70,13 @@ contextBridge.exposeInMainWorld('anycubic', {
     // workbench session token + email. We attach only — never launch the
     // slicer. Returns { ok, token, email } | { ok:false, error }.
     cdpToken:    (port)   => ipcRenderer.invoke('anycubic:cloud-cdp-token', port),
+    // Cross-platform login: open the official Anycubic cloud site in a window,
+    // let the user sign in, then read the workbench token (localStorage XX-Token).
+    webLogin:    ()       => ipcRenderer.invoke('anycubic:cloud-web-login'),
     // Signed REST: list the account's cloud printers / verify a token.
     getPrinters: (token)  => ipcRenderer.invoke('anycubic:cloud-get-printers', token),
+    // Per-printer live status (current nozzle/bed temps) via REST `parameter`.
+    printerInfo: (token, printerId) => ipcRenderer.invoke('anycubic:cloud-printer-info', { token, printerId }),
     verify:      (token)  => ipcRenderer.invoke('anycubic:cloud-verify', token),
     // Send an ACE order (1206 = getInfo, 1211 = setSlot). The report comes
     // back over cloud MQTT. opts = { token, orderId, printerId, data }.

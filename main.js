@@ -2764,6 +2764,57 @@ let _ffmpegBin = null;
     });
   }
 
+  // Cross-platform cloud login — open the official Anycubic cloud site in a
+  // window, let the user sign in, then read the workbench token the site mints
+  // into localStorage ('XX-Token') — the very token _cloudFetch sends. No CDP,
+  // no slicer, no platform restriction; we never see the password (login runs
+  // on Anycubic's own page). A persistent partition keeps the session so repeat
+  // logins are one-click. Returns { ok, token, email } | { ok:false, error }.
+  ipcMain.handle('anycubic:cloud-web-login', async () => {
+    return new Promise((resolve) => {
+      let win, done = false, timer = null;
+      const finish = (result) => {
+        if (done) return; done = true;
+        if (timer) clearInterval(timer);
+        try { if (win && !win.isDestroyed()) win.destroy(); } catch (_) {}
+        resolve(result);
+      };
+      try {
+        win = new BrowserWindow({
+          width: 460, height: 760, title: 'Anycubic Cloud — Sign in',
+          autoHideMenuBar: true,
+          webPreferences: { partition: 'persist:anycubic-cloud', nodeIntegration: false, contextIsolation: true },
+        });
+      } catch (e) { return resolve({ ok: false, error: e?.message || 'window-failed' }); }
+
+      win.loadURL('https://cloud-universe.anycubic.com/file').catch(() => {});
+      win.on('closed', () => finish({ ok: false, error: 'cancelled' }));
+
+      const poll = async () => {
+        if (!win || win.isDestroyed()) return finish({ ok: false, error: 'cancelled' });
+        let tok = null;
+        try { tok = await win.webContents.executeJavaScript("window.localStorage.getItem('XX-Token')", true); } catch (_) { return; }
+        if (!tok || String(tok).length < 20) return;
+        // VALIDATE before accepting: the persisted session can hold a STALE /
+        // expired XX-Token (the site shows the login form, but the old token
+        // lingers in localStorage). Only a token userInfo accepts is good — and
+        // that same call gives us the account email the cloud MQTT login needs
+        // (clientId = md5(email+'pcf'), username = user|pcf|email|sig). A bad
+        // token → keep polling until the user signs in fresh.
+        let email = '';
+        try {
+          const r = await _cloudFetch(String(tok), 'GET', '/user/profile/userInfo', null);
+          if (!r.json || Number(r.json.code) !== 1) return; // stale/expired — wait for fresh login
+          email = String((r.json.data && (r.json.data.user_email || r.json.data.email)) || '');
+        } catch (_) { return; }
+        finish({ ok: true, token: String(tok), email });
+      };
+      timer = setInterval(poll, 1200);
+      // Safety cap — give up after 4 min if the user never finishes signing in.
+      setTimeout(() => finish({ ok: false, error: 'cancelled' }), 240000);
+    });
+  });
+
   // Attach to a running bridge-mode slicer and read the cloud token + email.
   // Returns { ok, token, email } | { ok:false, error } where error is a machine
   // code for the renderer to translate: "cdp-unreachable" | "workbench-not-found"
@@ -2821,6 +2872,46 @@ let _ffmpegBin = null;
         };
       });
       return { ok: true, printers };
+    } catch (e) {
+      return { ok: false, error: e?.message || String(e) };
+    }
+  });
+
+  // Per-printer live status via REST — the cloud getPrinters response carries a
+  // `parameter` blob with the CURRENT temps (the printer does NOT push print/
+  // tempature reports over cloud while idle, and there's no temp-query order).
+  // So we poll this to surface nozzle/bed temps even at idle.
+  // Also surfaces the active-job thumbnail: the cloud "project" for the running
+  // task carries a signed S3 preview URL in `img`.
+  // Returns { ok, online, nozzleCurrent, bedCurrent, jobThumb } | { ok:false }.
+  ipcMain.handle('anycubic:cloud-printer-info', async (_evt, { token, printerId }) => {
+    try {
+      const r = await _cloudFetch(token, 'GET', '/work/printer/getPrinters?page=1', null);
+      if (!r.json) return { ok: false, error: 'no-response' };
+      if (Number(r.json.code) !== 1) return { ok: false, code: Number(r.json.code), authError: Number(r.json.code) === 10001, error: r.json.msg || 'failed' };
+      const p = (Array.isArray(r.json.data) ? r.json.data : []).find(x => String(x.id) === String(printerId));
+      if (!p) return { ok: false, error: 'not-found' };
+      const param = p.parameter || {};
+      const num = (v) => (v == null || v === '' ? null : Math.round(Number(v)));
+
+      // Active-job preview — match the printer's currently-printing project and
+      // use its signed `img` URL. No active print → no thumb.
+      let jobThumb = null;
+      try {
+        const pr = await _cloudFetch(token, 'GET', '/work/project/getProjects?page=1&limit=5', null);
+        if (pr.json && Number(pr.json.code) === 1 && Array.isArray(pr.json.data)) {
+          const proj = pr.json.data.find(x => String(x.printer_id) === String(printerId) && Number(x.print_status) === 1 && x.img);
+          if (proj && proj.img) jobThumb = String(proj.img);
+        }
+      } catch (_) {}
+
+      return {
+        ok: true,
+        online: Number(p.device_status || 0) === 1,
+        nozzleCurrent: num(param.curr_nozzle_temp),
+        bedCurrent:    num(param.curr_hotbed_temp),
+        jobThumb,
+      };
     } catch (e) {
       return { ok: false, error: e?.message || String(e) };
     }

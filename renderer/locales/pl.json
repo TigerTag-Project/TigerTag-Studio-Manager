@@ -972,7 +972,7 @@
   "acuCloudChoiceHint": "Dla drukarek w trybie chmury (przez slicer)",
   "acuCloudTitle": "Dodaj drukarkę w chmurze",
   "acuCloudSub": "Drukarki w chmurze na Twoim koncie Anycubic",
-  "acuCloudConnect": "Połącz ze slicerem",
+  "acuCloudConnect": "Zaloguj się do Anycubic Cloud",
   "acuCloudHelpIntro": "Drukarki w chmurze dodaje się przez AnycubicSlicerNext. Uruchom go ze zdalnym debugowaniem, zalogowany, i otwórz Workbench:",
   "acuCloudErrUnreachable": "Slicer nieosiągalny. Uruchom AnycubicSlicerNext w trybie mostka (poniżej), zalogowany, z otwartym Workbench.",
   "acuCloudErrNoWorkbench": "Nie znaleziono Workbench. Otwórz kartę Workbench w slicerze i zaloguj się.",

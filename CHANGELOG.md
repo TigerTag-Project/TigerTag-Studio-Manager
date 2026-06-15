@@ -5,6 +5,20 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.10.0 — 2026-06-15
+
+### Added
+
+- **Anycubic cloud mode now works everywhere — including macOS and Linux.** Adding a cloud printer used to need a Windows-only trick (running the slicer in a special debug mode); now you just click **Sign in to Anycubic Cloud**, log in on Anycubic's own page in a pop-up window, and your cloud printers appear. Once added, a cloud printer shows live status, print progress and layers, **nozzle & bed temperatures**, the ACE filament slots, and — while printing — a **preview thumbnail of the actual job**. Your password is never seen by the app (you sign in on Anycubic's page) and only the session token is kept.
+
+### Fixed
+
+- **Anycubic (cloud): no longer stuck on "Idle" at the start of a print.** While the printer was auto-levelling before the first layer, the card wrongly showed "Idle"; it now shows "Preparing" until printing begins.
+
+> ℹ️ The live **camera** is not available over the cloud — Anycubic gated their video service behind a newer slicer ("Video service upgraded. Update the slicer to enable.").
+
+---
+
 ## v1.9.0 — 2026-06-15
 
 ### Added

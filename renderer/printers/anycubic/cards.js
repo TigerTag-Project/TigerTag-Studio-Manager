@@ -29,7 +29,8 @@ export function renderAcuJobCard(p, conn) {
 
   const fallbackImg = ctx.printerImageUrlFor(p.brand, p.printerModelId)
                    || ctx.printerImageUrl(ctx.findPrinterModel(p.brand, "0"));
-  const thumbUrl = fallbackImg || "";
+  // Active-job preview (cloud signed S3 URL) when printing; else the model render.
+  const thumbUrl = d.printThumb || fallbackImg || "";
 
   const layerText = isActive && (d.currLayer || d.totalLayers)
     ? `${d.currLayer || 0}/${d.totalLayers || 0}` : "";
