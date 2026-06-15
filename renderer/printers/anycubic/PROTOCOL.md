@@ -163,8 +163,16 @@ the field SET differ between ACE generations (ACE Pro starts boxes with
 - The printer honors **only `{index, type, color}`** — richer fields (sku,
   brand, temps, diameter) are accepted (`code:200`) but **silently dropped**.
   Full profiles only enter a slot via an Anycubic RFID tag (out of scope).
-- `type` must be a base material name the ACE accepts (PLA, PLA+, PETG, TPU,
-  ABS, ASA, …) — map display names like "PLA Matte" to a base type first.
+- `type` is a material name the ACE accepts. Captured live from the slicer's
+  filament dropdown — the slicer sends these **verbatim** (variants included,
+  NOT only base types), so the control panel should offer the same list:
+  ```
+  PLA  PLA +  PLA-CF  PLA Matte  PLA Silk  PLA Galaxy  PLA Glow  PLA Marble
+  PLA Metal  PLA SE  PLA Translucent  PLA High Speed
+  PETG  PETG-CF  PET  PET-CF  ABS  ASA  PC  PC-CF/GF
+  PA  PA6-CF  PACF  TPU  TPU for ACE  PVA  HIPS  PE
+  ```
+  (Note the exact spellings: `PLA +` has a space, `PC-CF/GF`, `TPU for ACE`.)
 - **Pure black `[0,0,0]` renders as transparent/empty** on the ACE display —
   nudge to `[1,1,1]` like the slicer does.
 - There is no per-command ACK; a `getInfo` round-trip after `setInfo` (or an
@@ -291,6 +299,95 @@ disable the camera on a hiccup).
 Probe window: the printer can take several seconds to start serving `/flv`
 after `initSuccess` (~6 s observed on a Kobra 3 V2), so the bounded probe
 covers ~15 s before giving up.
+
+## §5d Control commands — the action/set side
+
+The same envelope as §5 is used to **drive** the printer (not just read it).
+Publish to the command topic:
+
+```
+command  anycubic/anycubicCloud/v1/web/printer/{modelId}/{deviceId}/{family}
+```
+```json
+{ "type": "<family>", "action": "<action>", "timestamp": <epoch-ms>,
+  "msgid": "<uuid>", "data": { … } }
+```
+
+There is **no per-command ACK** — the printer reflects the change in the next
+`…/{family}/report` tick (§5b). Confirm by that report, or patch optimistically.
+
+Captured live by sniffing AnycubicSlicerNext's control panel
+(`scripts/acu-mqtt-sniff.mjs`) on a **Kobra X (20030)** over LAN.
+⚠️ High-confidence but model-specific — validate field meanings on other models.
+
+| Function | family | action | `data` |
+|----------|--------|--------|--------|
+| Set nozzle target | `tempature` | `set` | `{ "type": 0, "target_nozzle_temp": <°C>, "target_hotbed_temp": 0 }` |
+| Set bed target | `tempature` | `set` | `{ "type": 1, "target_hotbed_temp": <°C>, "target_nozzle_temp": 0 }` |
+| Preheat both | `tempature` | `set` | `{ "type": 2, "target_nozzle_temp": <°C>, "target_hotbed_temp": <°C> }` |
+| Cooldown | `tempature` | `set` | same, with the relevant target = `0` (`type` selects nozzle `0` / bed `1` / both `2`) |
+| Set slot filament | `multiColorBox` | `setInfo` | `{ "multi_color_box": [ { "id": <box>, "slots": [ { "index": <0-3>, "type": "<material>", "color": [r,g,b] } ] } ] }` — see §5 for the accepted `type` list |
+| Set fan speed | `fan` | `setSpeed` | `{ "fan_speed_pct": <0-100> }` |
+| Light on/off | `light` | `control` | `{ "type": 3, "status": 0\|1, "brightness": <0-100> }` |
+| Jog an axis | `axis` | `move` | `{ "axis": 1\|2\|3, "move_type": 0\|1, "distance": <mm> }` |
+| Home axis / combos | `axis` | `move` | `{ "axis": 1=X\|2=Y\|3=Z\|4=XY\|5=XYZ, "move_type": 2, "distance": 0 }` |
+| Disable steppers | `axis` | `turnOff` | `null` |
+| Load filament | `multiColorBox` | `feedFilament` | `{ "multi_color_box": [ { "id": <box>, "feed_status": { "slot_index": <0-3>, "type": 1 } } ] }` |
+| Unload filament | `multiColorBox` | `feedFilament` | `… "feed_status": { "slot_index": <0-3>, "type": 2 }` |
+| Stop load/unload | `multiColorBox` | `feedFilament` | `… "feed_status": { "slot_index": <0-3>, "type": 3 }` |
+| Camera start/stop | `video` | `startCapture` / `stopCapture` | `null` (see §5c) |
+| Pause print | `print` | `pause` | `{ "taskid": "-1" }` |
+| Resume print | `print` | `resume` | `{ "taskid": "-1" }` |
+| Stop print | `print` | `stop` | `{ "taskid": "-1" }` |
+| Set speed mode | `print` | `update` | `{ "taskid": "-1", "settings": { "print_speed_mode": 1\|2\|3 } }` |
+
+**Axis map** (Kobra X): `axis` `1`=X, `2`=Y, `3`=Z (jog uses 1-3); homing also
+accepts `4`=XY and `5`=XYZ (all). Confirmed live via slicer capture.
+`move_type` `0` = − direction, `1` = + direction, `2` = **home** (always with
+`distance:0`). ⚠️ The printer **refuses jogs until homed** — home first.
+
+**Control-button labels** — exact hover tooltips from AnycubicSlicerNext's
+"Axis Move" panel (reuse verbatim so our UI matches the slicer the user already
+knows):
+
+| Button | Tooltip | Command |
+|--------|---------|---------|
+| Home-all icon | `XYZ Axis Homing` | `axis:5, move_type:2` |
+| XY-circle centre icon | `XY Axis Homing` | `axis:4, move_type:2` |
+| Z-pill centre icon | `Z Axis Homing` | `axis:3, move_type:2` |
+| Hand icon | `Disable Motors, click to manually move the axis` | `axis/turnOff` |
+
+The jog arrows (`X+ X− Y+ Y− Z+ Z−`) and the Print-Setting fields (Bed/Noz Temp,
+Model Fan, Cam Light) carry **no** tooltip in the slicer — their visible label is
+the affordance. The panel also shows a persistent warning: *"Please operate in
+front of the printer and be aware of the distance between the nozzle and the
+hotbed to avoid collisions that may damage the printer."*
+
+**Speed mode**: `print_speed_mode` `1` = Silent, `2` = Standard, `3` = Sport.
+The `print/update` report echoes the active mode in `data.settings.print_speed_mode`,
+so the current mode can be read back (alongside `fan_speed_pct`, target temps, `z_comp`).
+
+**Filament feed `type`**: `1` = load (feed in), `2` = unload (retract),
+`3` = stop. `id` + `slot_index` target the box + slot (box `-1` = external box).
+
+**Slot `status` + box `loaded_slot`** (captured live on a Kobra X ACE):
+`status` `5` = filament **present** in the slot, `4` = **empty** (no spool). The
+box-level `loaded_slot` is the slot index currently fed into the extruder
+(`-1` = none). This gives three UI states per slot:
+- empty (`status 4`) → not-mounted (grey + "?", colour kept as border); no feed.
+- present, not loaded (`status 5`, `loaded_slot ≠ index`) → Feed only.
+- loaded into the extruder (`status 5`, `loaded_slot == index`) → Feed + Retract.
+
+**Temperature `type`**: `0` = nozzle only, `1` = bed only, `2` = **both at once**
+(preheat — `{type:2, target_nozzle_temp:N, target_hotbed_temp:M}`, used by the
+slicer's filament-change preheat). For 0/1 send only the relevant target; the
+other stays `0`.
+
+**Print control `taskid`**: the slicer sends `"-1"` (current/any job) rather than
+the real task id — `"-1"` works for the active print. The matching telemetry
+state transitions (confirm the command landed) are in §5b: `pause` →
+`pausing` → `paused`; `resume` → `resuming` → `resumed`; `stop` → `stopping`
+→ `stoped`(sic). Captured live on a running Kobra X job.
 
 ## §6 Known model ids
 

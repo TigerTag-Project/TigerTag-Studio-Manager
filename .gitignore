@@ -136,3 +136,6 @@ dist
 .pnp.*
 .DS_Store
 assets/**/.DS_Store
+
+# Claude Code session data
+.claude/

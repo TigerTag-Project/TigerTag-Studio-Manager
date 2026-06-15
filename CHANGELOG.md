@@ -5,11 +5,15 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
-## v1.8.29 — 2026-06-14
+## v1.9.0 — 2026-06-15
 
 ### Added
 
-- **Anycubic printers are now supported** — the 6th brand, alongside Bambu Lab, Creality, Elegoo, FlashForge and Snapmaker. Connect over your local network **or** through Anycubic's cloud (a mixed fleet works in one list), see the ACE multi-colour box and its slots, set a slot's filament (type + colour), and follow live job and temperature info — plus a camera feed on models that expose a local stream. Catalog: Kobra 3 / 3 Combo / 3 V2 / 3 Max / S1 / X. Big thanks to **[@ennisj](https://github.com/ennisj)** (John Ennis) for contributing the whole integration. 🙌
+- **Anycubic printers are now supported** — the 6th brand, alongside Bambu Lab, Creality, Elegoo, FlashForge and Snapmaker. Connect over your local network **or** through Anycubic's cloud (a mixed fleet works in one list), see the ACE multi-colour box and its slots, set a slot's filament (type + colour), and follow live job and temperature info — plus a camera feed on models that expose a local stream. Catalog: Kobra 3 / 3 Combo / 3 V2 / 3 Max / S1 / X. The Anycubic integration was contributed by **[@ennisj](https://github.com/ennisj)** (John Ennis) — huge thanks 🙌 — and extended into the full control panel below.
+
+- **Anycubic live control panel** — drive a connected Anycubic printer straight from its side card, like Snapmaker and Elegoo: home the axes (XYZ / XY / Z) or disable the motors to move them by hand, jog X/Y/Z by 1 / 10 / 50 mm, set the nozzle and bed targets, toggle the light, control the part-cooling fan, and choose the print-speed mode (Silent / Standard / Sport). Every icon button shows an instant hover bubble that mirrors Anycubic Slicer's own wording.
+
+- **Anycubic filament management.** Each ACE slot now reflects its real state: a present spool keeps its colour, while an empty (not-mounted) slot shows a grey “?” with the colour kept as an outline so it stays recognisable, and the material name still shows underneath. From a slot you can **Load**, **Unload** or **Stop** the filament feed — and each action is enabled only when it applies (Unload only for the spool currently in the extruder, Load only when a spool is present). The E1–E4 slots now span the full width of the card. Editing a slot no longer makes the filament card flash — it stays in place and updates only when the printer reports the change.
 
 ---
 

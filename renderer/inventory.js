@@ -61,6 +61,8 @@ import {
   renderAcuOnlineBadge,
   renderAnycubicLiveInner, renderAnycubicLogInner,
   openAcuFilamentEdit, closeAcuFilamentEdit,
+  acuPrintControl, acuSetTemp,
+  acuLight, acuMove, acuHome, acuMotorsOff, acuFan, acuSetSpeedMode,
 } from './printers/anycubic/index.js';
 import { renderAcuCamBanner } from './printers/anycubic/widget_camera.js';
 import { renderCreCamBanner, startCreCam, stopCreCam, reAttachCreCamConsumers, addCreCamConsumer, removeCreCamConsumer } from './printers/creality/widget_camera.js';
@@ -11317,6 +11319,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         conn.camFailed = true;
         ffgRefreshCamBanner();
       }, /*useCapture*/ true);
+      // Anycubic — print-speed mode dropdown (Silent/Standard/Sport).
+      body.addEventListener("change", e => {
+        const speedSel = e.target.closest("[data-acu-speed]");
+        if (speedSel && _activePrinter?.brand === "anycubic") {
+          const conn = acuGetConn(acuKey(_activePrinter));
+          if (conn) acuSetSpeedMode(conn, parseInt(speedSel.value, 10) || 0);
+        }
+      });
       body.addEventListener("click", e => {
         // ── Snapmaker temperature target — click pill to set consigne ────
         const tempTrigger = e.target.closest("[data-snap-set-temp]");
@@ -11416,6 +11426,93 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           if (_activePrinter?.brand === "anycubic") {
             openAcuFilamentEdit(_activePrinter, boxId, slotId);
           }
+          return;
+        }
+        // Anycubic — print control (pause / resume / stop), PROTOCOL.md §5d.
+        const acuPrintBtn = e.target.closest("[data-acu-print]");
+        if (acuPrintBtn && _activePrinter?.brand === "anycubic") {
+          const conn = acuGetConn(acuKey(_activePrinter));
+          if (conn) acuPrintControl(conn, acuPrintBtn.dataset.acuPrint);
+          return;
+        }
+        // Anycubic — temperature target: click pill → inline number input
+        // (mirrors the Snapmaker set-consigne UX).
+        const acuTempTrigger = e.target.closest("[data-acu-set-temp]");
+        if (acuTempTrigger && _activePrinter?.brand === "anycubic") {
+          if (acuTempTrigger.classList.contains("snap-temp--editing")) return;
+          const which   = acuTempTrigger.dataset.acuSetTemp;
+          const initVal = parseInt(acuTempTrigger.dataset.acuTempTarget ?? "0", 10);
+          const maxVal  = parseInt(acuTempTrigger.dataset.acuTempMax ?? "300", 10);
+          const valEl   = acuTempTrigger.querySelector(".snap-temp-val");
+          if (!valEl) return;
+          const input = document.createElement("input");
+          input.type = "number"; input.min = "0"; input.max = String(maxVal);
+          input.value = initVal; input.className = "snap-temp-set-input";
+          acuTempTrigger.classList.add("snap-temp--editing");
+          valEl.replaceWith(input);
+          input.focus(); input.select();
+          const restore = () => {
+            if (!input.isConnected) return;
+            input.replaceWith(valEl);
+            acuTempTrigger.classList.remove("snap-temp--editing");
+          };
+          const confirmTemp = () => {
+            const val = parseInt(input.value, 10);
+            if (!isNaN(val) && val >= 0 && val <= maxVal) {
+              const conn = acuGetConn(acuKey(_activePrinter));
+              if (conn) acuSetTemp(conn, which, val);
+            }
+            restore();
+          };
+          input.addEventListener("keydown", ev => {
+            if (ev.key === "Enter")  { ev.preventDefault(); confirmTemp(); }
+            if (ev.key === "Escape") { ev.preventDefault(); restore(); }
+          });
+          input.addEventListener("blur", restore);
+          return;
+        }
+        // Anycubic — light toggle.
+        const acuLightBtn = e.target.closest("[data-acu-light]");
+        if (acuLightBtn && _activePrinter?.brand === "anycubic") {
+          const conn = acuGetConn(acuKey(_activePrinter));
+          if (conn) acuLight(conn, !conn.data?.lightOn);
+          return;
+        }
+        // Anycubic — disable steppers.
+        if (e.target.closest("[data-acu-motors-off]") && _activePrinter?.brand === "anycubic") {
+          const conn = acuGetConn(acuKey(_activePrinter));
+          if (conn) acuMotorsOff(conn);
+          return;
+        }
+        // Anycubic — jog an axis (step read live from the #acuCtrlStep select).
+        const acuJogBtn = e.target.closest("[data-acu-jog]");
+        if (acuJogBtn && _activePrinter?.brand === "anycubic") {
+          const conn = acuGetConn(acuKey(_activePrinter));
+          const stepSel = document.getElementById("acuCtrlStep");
+          const step = stepSel ? (parseFloat(stepSel.value) || 10) : 10;
+          const dir  = acuJogBtn.dataset.acuDir === "-" ? -1 : 1;
+          if (conn) acuMove(conn, acuJogBtn.dataset.acuJog, dir * step);
+          return;
+        }
+        // Anycubic — home an axis / all.
+        const acuHomeBtn = e.target.closest("[data-acu-home]");
+        if (acuHomeBtn && _activePrinter?.brand === "anycubic") {
+          const conn = acuGetConn(acuKey(_activePrinter));
+          if (conn) acuHome(conn, acuHomeBtn.dataset.acuHome);
+          return;
+        }
+        // Anycubic — fan toggle (0 ↔ 100%).
+        if (e.target.closest("[data-acu-fan-toggle]") && _activePrinter?.brand === "anycubic") {
+          const conn = acuGetConn(acuKey(_activePrinter));
+          if (conn) acuFan(conn, (conn.data?.fanSpeedPct || 0) > 0 ? 0 : 100);
+          return;
+        }
+        // Anycubic — fan step ±.
+        const acuFanStepBtn = e.target.closest("[data-acu-fan-step]");
+        if (acuFanStepBtn && _activePrinter?.brand === "anycubic") {
+          const conn  = acuGetConn(acuKey(_activePrinter));
+          const delta = parseInt(acuFanStepBtn.dataset.dist, 10) || 0;
+          if (conn) acuFan(conn, Math.max(0, Math.min(100, (conn.data?.fanSpeedPct || 0) + delta)));
           return;
         }
         // FlashForge — Retry camera button. Restarts the MJPEG mux fetch
@@ -13505,6 +13602,41 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // Hide on scroll inside the rack view (the slot moves but the tip stays)
     root.addEventListener("scroll", hideRackTooltip, true);
   }
+
+  // ── Instant tooltip for control buttons ([data-acu-tip]) ───────────────
+  // A single <body>-level bubble positioned with position:fixed, so it is not
+  // clipped by the .elg-jog-xy-circle overflow:hidden. Appears immediately on
+  // hover (no native `title` delay), wording mirrors AnycubicSlicerNext.
+  (function wireAcuTooltip() {
+    let tipEl = null;
+    const ensure = () => {
+      if (!tipEl) {
+        tipEl = document.createElement("div");
+        tipEl.className = "acu-tip-pop";
+        document.body.appendChild(tipEl);
+      }
+      return tipEl;
+    };
+    document.addEventListener("mouseover", e => {
+      const host = e.target.closest("[data-acu-tip]");
+      if (!host) return;
+      if (e.relatedTarget && host.contains(e.relatedTarget)) return;
+      const txt = host.getAttribute("data-acu-tip");
+      if (!txt) return;
+      const pop = ensure();
+      pop.textContent = txt;
+      const r = host.getBoundingClientRect();
+      pop.style.left = `${r.left + r.width / 2}px`;
+      pop.style.top  = `${r.top}px`;
+      pop.classList.add("show");
+    });
+    document.addEventListener("mouseout", e => {
+      const host = e.target.closest("[data-acu-tip]");
+      if (!host || !tipEl) return;
+      if (e.relatedTarget && host.contains(e.relatedTarget)) return;
+      tipEl.classList.remove("show");
+    });
+  })();
 
   function renderRackView() {
     const list = $("invRackView");

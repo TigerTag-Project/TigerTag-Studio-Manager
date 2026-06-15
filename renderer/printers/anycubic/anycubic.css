@@ -49,3 +49,110 @@
 /* Offline cloud printers in the pick list are shown but not selectable. */
 .snap-scan-card.is-disabled { opacity: 0.5; pointer-events: none; }
 .snap-scan-card.is-busy     { opacity: 0.6; pointer-events: none; }
+
+/* ── Instant control-button tooltip ───────────────────────────────────────
+   Floating bubble for [data-acu-tip] elements. Rendered at <body> level and
+   positioned with position:fixed so it escapes the .elg-jog-xy-circle
+   overflow:hidden clip. Shows immediately on hover (no native title delay). */
+.acu-tip-pop {
+  position: fixed;
+  transform: translate(-50%, calc(-100% - 8px));
+  padding: 5px 9px;
+  border-radius: 7px;
+  background: #1c2030;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.3;
+  text-align: center;
+  white-space: normal;
+  width: max-content;
+  max-width: 200px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 9999;
+  transition: opacity 0.08s;
+}
+.acu-tip-pop.show { opacity: 1; }
+
+/* ── Control jog pad — slicer "Axis Move" layout ──────────────────────────
+   [home-all / disable-motors]  |  XY circle  |  Z pill (Z+ / home / Z−).
+   Left column mirrors AnycubicSlicerNext: two stacked icon wells. */
+.acu-jog-side {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;   /* home pinned top, disable pinned bottom */
+  flex-shrink: 0;
+  align-self: stretch;              /* full row height */
+}
+.acu-jog-side .cre-action-btn {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;            /* round, like the slicer */
+  background: var(--surface-2);
+}
+/* Same hover treatment as the homing buttons (.elg-jog-home-btn): primary
+   fill, white icon. */
+.acu-jog-side .cre-action-btn:hover { background: var(--primary); border-color: var(--primary); }
+.acu-jog-side .cre-action-btn:hover .icon { background-color: #fff; }
+
+/* Filament rows with more than one slot fill the full card width (like Elegoo);
+   the 1/5 cap only applies to a lone external spool. */
+.cre-fil-row--fill .snap-fil { max-width: none; }
+
+/* Jog row — left-aligned and compact, like the Elegoo control card.
+   Far-right column holds the light toggle (top) + jog step + speed below. */
+.acu-ctrl .elg-jog-wrap {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 8px;
+  row-gap: 14px;
+}
+.acu-jog-extra {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;       /* light + selects pinned to the right */
+  gap: 10px;
+  flex-shrink: 0;
+  align-self: stretch;
+  justify-content: flex-start;
+  margin-left: auto;           /* push this column to the right edge */
+}
+.acu-jog-extra .elg-ctrl-speed-row { flex-shrink: 0; }
+.acu-jog-extra .elg-ctrl-speed-label { min-width: 38px; }       /* align Step/Speed selects */
+.acu-jog-extra .elg-ctrl-speed-select { width: 96px; flex: none; }  /* fit "Standard" */
+
+/* ── Filament feed (load / unload / stop) row in the edit sheet ──────────── */
+.acu-feed-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+.acu-feed-btn {
+  flex: 1;
+  justify-content: center;
+}
+.acu-feed-btn--stop {
+  flex: 0 0 auto;
+  min-width: 64px;
+  opacity: .85;
+}
+.acu-feed-btn:disabled {
+  opacity: .35;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* ── Not-mounted filament slot ────────────────────────────────────────────
+   Grey fill + muted "?", but the real filament colour stays as the border
+   (set inline) so the slot is still identifiable. Material shows below. */
+.snap-fil-square--unmounted {
+  background: var(--surface-2);
+  color: var(--muted);
+  box-shadow: none;
+}

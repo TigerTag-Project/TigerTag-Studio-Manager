@@ -30,7 +30,7 @@
 import { ctx } from '../context.js';
 import { registerBrand } from '../registry.js';
 import { meta, schema, helper } from './settings.js';
-import { renderAcuFilamentCard, renderAcuJobCard, renderAcuTempCard } from './cards.js';
+import { renderAcuFilamentCard, renderAcuJobCard, renderAcuTempCard, renderAcuControlCard } from './cards.js';
 import { schemaWidget } from '../modal-helpers.js';
 
 const $ = id => document.getElementById(id);
@@ -402,6 +402,84 @@ function _acuStopCapture(conn) {
   _publish(conn, _acuRequest("stopCapture", null, "video"), "video");
 }
 
+// ── Control commands (PROTOCOL.md §5d) ──────────────────────────────────────
+
+/** Pause / resume / stop the active print. `taskid:"-1"` = the current job. */
+export function acuPrintControl(conn, action) {
+  if (!conn || !["pause", "resume", "stop"].includes(action)) return;
+  _publish(conn, _acuRequest(action, { taskid: "-1" }, "print"), "print");
+}
+
+/** Set a heater target. which = "nozzle" | "bed". The `type` field selects the
+ *  heater (0 = nozzle, 1 = bed); the printer ignores the other target. */
+export function acuSetTemp(conn, which, value) {
+  if (!conn) return;
+  const v = Math.max(0, Math.round(Number(value) || 0));
+  const data = which === "bed"
+    ? { type: 1, target_hotbed_temp: v, target_nozzle_temp: 0 }
+    : { type: 0, target_nozzle_temp: v, target_hotbed_temp: 0 };
+  _publish(conn, _acuRequest("set", data, "tempature"), "tempature");
+}
+
+/** Toggle the chamber/part light (`type:3`). */
+export function acuLight(conn, on) {
+  if (!conn) return;
+  _publish(conn, _acuRequest("control",
+    { type: 3, status: on ? 1 : 0, brightness: on ? 100 : 0 }, "light"), "light");
+}
+
+/** Jog one axis. axis = "x"|"y"|"z"; signed mm (+ → move_type 1, − → 0). */
+export function acuMove(conn, axis, distance) {
+  if (!conn) return;
+  const axisNum = { x: 1, y: 2, z: 3 }[String(axis).toLowerCase()];
+  if (!axisNum) return;
+  const d = Number(distance) || 0;
+  _publish(conn, _acuRequest("move",
+    { axis: axisNum, move_type: d >= 0 ? 1 : 0, distance: Math.abs(d) }, "axis"), "axis");
+}
+
+/** Home an axis or all. which = "X"|"Y"|"Z"|"all" (move_type 2, distance 0). */
+export function acuHome(conn, which) {
+  if (!conn) return;
+  const axisNum = { x: 1, y: 2, z: 3, xy: 4, all: 5 }[String(which).toLowerCase()];
+  if (!axisNum) return;
+  _publish(conn, _acuRequest("move", { axis: axisNum, move_type: 2, distance: 0 }, "axis"), "axis");
+}
+
+/** Disable the steppers. */
+export function acuMotorsOff(conn) {
+  if (!conn) return;
+  _publish(conn, _acuRequest("turnOff", null, "axis"), "axis");
+}
+
+/** Set the part-cooling fan speed (0-100 %). */
+export function acuFan(conn, pct) {
+  if (!conn) return;
+  const p = Math.max(0, Math.min(100, Math.round(Number(pct) || 0)));
+  _publish(conn, _acuRequest("setSpeed", { fan_speed_pct: p }, "fan"), "fan");
+}
+
+/** Load / unload / stop filament feed on a box slot.
+ *  type = 1 (load / feed in) | 2 (unload / retract) | 3 (stop).
+ *  boxId -1 = external box; slotIndex 0-3. */
+export function acuFeedFilament(conn, boxId, slotIndex, type) {
+  if (!conn) return;
+  const t = Number(type) || 0;
+  if (![1, 2, 3].includes(t)) return;
+  const payload = _acuRequest("feedFilament", {
+    multi_color_box: [{ id: Number(boxId), feed_status: { slot_index: Number(slotIndex) || 0, type: t } }],
+  });
+  _publish(conn, payload, "multiColorBox");
+}
+
+/** Set the print-speed mode. mode = 1 (Silent) | 2 (Standard) | 3 (Sport). */
+export function acuSetSpeedMode(conn, mode) {
+  if (!conn) return;
+  const m = Number(mode) || 0;
+  if (![1, 2, 3].includes(m)) return;
+  _publish(conn, _acuRequest("update", { taskid: "-1", settings: { print_speed_mode: m } }, "print"), "print");
+}
+
 /**
  * Determine whether this printer exposes a pullable local FLV camera. Only
  * models that advertise an `rtspUrl` (…:18088/flv) in /info do — e.g. the
@@ -486,6 +564,12 @@ function _publish(conn, payload, endpoint) {
 function _acuLanGetInfo(conn) {
   _publish(conn, _acuRequest("getInfo"));
   _publish(conn, _acuRequest("getInfo", null, "extfilbox"), "extfilbox");
+  // Live machine state — the printer only AUTO-pushes temp/fan/light during a
+  // print, so poll them explicitly like the slicer does (PROTOCOL.md §5d query
+  // commands). Without this, temperatures stay "—/—" on an idle printer.
+  _publish(conn, _acuRequest("query", null, "tempature"), "tempature");
+  _publish(conn, _acuRequest("query", null, "fan"), "fan");
+  _publish(conn, _acuRequest("query", null, "light"), "light");
 }
 
 // ── Refresh timer ──────────────────────────────────────────────────────────
@@ -663,16 +747,50 @@ export function acuFlattenReport(report) {
         index: Number.isFinite(Number(s.index)) ? Number(s.index) : 0,
         type:  String(s.type || ""),
         color: hex,
+        // ACE slot status — observed: 4 = present/ready, 5 = loaded/feeding.
+        // Lower/other values indicate not-mounted (kept raw for the UI to map).
+        status: Number.isFinite(Number(s.status)) ? Number(s.status) : null,
       });
     }
     out.push({
       id,
       modelId: Number.isFinite(Number(box.model_id)) ? Number(box.model_id) : null,
       temp:    Number.isFinite(Number(box.temp))     ? Number(box.temp)     : null,
+      // Which slot index is fed into the extruder (-1 = none). Used to gate
+      // Retract (only the loaded slot can be retracted).
+      loadedSlot: Number.isFinite(Number(box.loaded_slot)) ? Number(box.loaded_slot) : -1,
       slots,
     });
   }
   return out;
+}
+
+// Merge an incoming multiColorBox report into d.boxes IN PLACE — never wipe.
+// Existing boxes/slots are updated field-by-field (only for fields the report
+// actually carries); new boxes/slots are appended. This keeps the filament
+// card present and stable: a partial report (e.g. a setInfo echo with a single
+// slot) updates just that slot instead of replacing the whole layout.
+function _acuMergeBoxReport(d, msg) {
+  const incoming = acuFlattenReport(msg);
+  if (!incoming.length) return;
+  if (!Array.isArray(d.boxes)) d.boxes = [];
+  for (const inb of incoming) {
+    let box = d.boxes.find(b => b.id === inb.id);
+    if (!box) { d.boxes.push(inb); continue; }
+    if (inb.modelId != null)                box.modelId    = inb.modelId;
+    if (Number.isFinite(inb.temp))          box.temp       = inb.temp;
+    if (Number.isFinite(inb.loadedSlot))    box.loadedSlot = inb.loadedSlot;
+    if (!Array.isArray(box.slots)) box.slots = [];
+    for (const ins of inb.slots) {
+      let slot = box.slots.find(s => s.index === ins.index);
+      if (!slot) { box.slots.push(ins); continue; }
+      // Only overwrite a field when the report carries a real value — never
+      // blank out a known type/colour because a partial report omitted it.
+      if (ins.type)            slot.type   = ins.type;
+      if (ins.color != null)   slot.color  = ins.color;
+      if (ins.status != null)  slot.status = ins.status;
+    }
+  }
 }
 
 // Map a print report's action/state pair onto the Manager's normalized job
@@ -712,6 +830,7 @@ function _acuMergePrintFields(d, data) {
     if (s.target_nozzle_temp != null) d.nozzleTarget  = Math.round(Number(s.target_nozzle_temp) || 0);
     if (s.fan_speed_pct      != null) d.fanSpeedPct   = Number(s.fan_speed_pct)   || 0;
     if (s.print_speed_pct    != null) d.printSpeedPct = Number(s.print_speed_pct) || 0;
+    if (s.print_speed_mode   != null) d.speedMode     = Number(s.print_speed_mode) || 0; // 1=Silent 2=Standard 3=Sport
   }
 }
 
@@ -729,14 +848,12 @@ function _acuMerge(conn, msg) {
       // (autoUpdateDryStatus, feedFilament, …) carry PARTIAL box objects
       // (no slots); re-flattening those would wipe the slot colors.
       if (data?.multi_color_box) {
+        // Always merge in place (never wipe). Full-layout actions also stamp
+        // lastReport; partial actions (feedFilament, dry, …) just patch temp /
+        // loaded_slot / any slot fields they happen to carry.
+        _acuMergeBoxReport(d, msg);
         if (action === "getInfo" || action === "setInfo" || action === "refresh") {
-          d.boxes = acuFlattenReport(msg);
           d.lastReport = Date.now();
-        } else {
-          for (const box of data.multi_color_box) {
-            const known = d.boxes.find(b => b.id === Number(box?.id));
-            if (known && Number.isFinite(Number(box.temp))) known.temp = Number(box.temp);
-          }
         }
       }
       break;
@@ -770,11 +887,28 @@ function _acuMerge(conn, msg) {
       break;
     }
     case "tempature": { // (sic — firmware spelling)
-      if (action === "auto" && data) {
+      // Any action carries the same shape — `auto` (auto-push during a print)
+      // AND `done`/`query` (reply to our poll). Parse them all, not just auto,
+      // otherwise an idle printer never shows a temperature.
+      if (data && typeof data === "object") {
         if (data.curr_hotbed_temp   != null) d.bedCurrent    = Math.round(Number(data.curr_hotbed_temp)   || 0);
         if (data.curr_nozzle_temp   != null) d.nozzleCurrent = Math.round(Number(data.curr_nozzle_temp)   || 0);
         if (data.target_hotbed_temp != null) d.bedTarget     = Math.round(Number(data.target_hotbed_temp) || 0);
         if (data.target_nozzle_temp != null) d.nozzleTarget  = Math.round(Number(data.target_nozzle_temp) || 0);
+      }
+      break;
+    }
+    case "fan": {
+      if (data && data.fan_speed_pct != null) d.fanSpeedPct = Number(data.fan_speed_pct) || 0;
+      break;
+    }
+    case "light": {
+      // Shape not fully reverse-engineered — parse defensively. The control
+      // command is `{type:3, status:0|1, brightness}`; the report likely echoes
+      // a similar shape. Track on/off for the toggle.
+      if (data && typeof data === "object") {
+        if (data.status     != null) d.lightOn = !!Number(data.status);
+        if (data.brightness != null) d.lightBrightness = Number(data.brightness) || 0;
       }
       break;
     }
@@ -885,6 +1019,7 @@ export function renderAnycubicLiveInner(p) {
     </div>`;
   const blocks = `
     ${renderAcuJobCard(p, conn)}
+    ${renderAcuControlCard(p, conn)}
     ${renderAcuTempCard(conn)}
     ${renderAcuFilamentCard(p, conn)}`;
   return blocks.trim() ? blocks : `
@@ -992,6 +1127,14 @@ function _acuEnsureSheetDOM() {
       <span class="sfe-line-color-dot" id="acuColorTriggerVal"></span>
       <span class="sfe-line-chev icon icon-chevron-r icon-13"></span>
     </button>
+    <div class="acu-feed-row">
+      <button type="button" class="adf-btn acu-feed-btn" id="acuFeedLoad"
+              data-i18n="acuFeedLoad">Load</button>
+      <button type="button" class="adf-btn acu-feed-btn" id="acuFeedUnload"
+              data-i18n="acuFeedUnload">Unload</button>
+      <button type="button" class="adf-btn acu-feed-btn acu-feed-btn--stop" id="acuFeedStop"
+              data-i18n="acuFeedStop">Stop</button>
+    </div>
   </div>
   <div class="sfe-footer">
     <button class="adf-btn adf-btn--primary sfe-apply" id="acuFilEditSave">
@@ -1117,6 +1260,17 @@ export function openAcuFilamentEdit(printer, boxId, slotId) {
     ? `Ext. · slot ${Number(slotId) + 1}`
     : `ACE #${Number(boxId) + 1} · slot ${Number(slotId) + 1}`;
 
+  // Gate feed buttons on the slot state:
+  //   present (status 5)            → Feed + Stop
+  //   loaded into extruder          → also Retract
+  //   empty (status 4 / no spool)   → nothing
+  const present = slot?.status === 5;
+  const loaded  = present && box?.loadedSlot === Number(slotId);
+  const loadBtn = $("acuFeedLoad"), unloadBtn = $("acuFeedUnload"), stopBtn = $("acuFeedStop");
+  if (loadBtn)   loadBtn.disabled   = !present;
+  if (unloadBtn) unloadBtn.disabled = !loaded;
+  if (stopBtn)   stopBtn.disabled   = !present;
+
   _acuCloseColorSheet();
   _acuCloseTypeSheet();
   _acuUpdateSummary();
@@ -1138,6 +1292,16 @@ function _acuWireSheet() {
   $("acuFilEditBackdrop")?.addEventListener("click", closeAcuFilamentEdit);
   $("acuColorTrigger")?.addEventListener("click", _acuOpenColorSheet);
   $("acuMaterialTrigger")?.addEventListener("click", _acuOpenTypeSheet);
+
+  // Load / unload / stop filament feed for the slot being edited.
+  const _acuFeed = (type) => {
+    if (!_acuFilEdit) return;
+    const conn = _acuConns.get(acuKey(_acuFilEdit.printer));
+    if (conn) acuFeedFilament(conn, _acuFilEdit.boxId, _acuFilEdit.slotId, type);
+  };
+  $("acuFeedLoad")?.addEventListener("click",   () => _acuFeed(1));
+  $("acuFeedUnload")?.addEventListener("click", () => _acuFeed(2));
+  $("acuFeedStop")?.addEventListener("click",   () => _acuFeed(3));
 
   $("acuColorBack")?.addEventListener("click", () => { _acuUpdateSummary(); _acuCloseColorSheet(); });
   $("acuColorClose")?.addEventListener("click", () => { _acuUpdateSummary(); _acuCloseColorSheet(); });
@@ -1195,8 +1359,6 @@ function _acuWireSheet() {
     if (isExtfilShelf) {
       if (conn.mode === "cloud") _acuCloudSetExtfil(conn, _acuSelType, rgb);
       else                       _acuLanSetExtfil(conn, _acuSelType, rgb);
-      // Optimistic update of the external shelf.
-      if (conn.data.extShelf) { conn.data.extShelf.type = _acuSelType; conn.data.extShelf.color = "#" + safe; }
     } else {
       // ACE slot (or a real multiColorBox external box -1 like the Kobra X):
       // cloud sets via REST sendOrder; LAN publishes to the local broker. Both
@@ -1208,13 +1370,11 @@ function _acuWireSheet() {
           multi_color_box: [{ id: boxId, slots: [{ index: slotId, type: _acuSelType, color: rgb }] }],
         }));
       }
-      // Optimistic local update so the slot square changes immediately…
-      const box  = (conn.data?.boxes || []).find(b => b.id === boxId);
-      const slot = (box?.slots || []).find(s => s.index === slotId);
-      if (slot) { slot.type = _acuSelType; slot.color = "#" + safe; }
     }
-    _acuNotify(conn);
-    // …then confirm against the printer (there is no per-command ack).
+    // No optimistic write and no forced re-render: we wait for the printer to
+    // echo the new colour. When its report lands, _acuMergeBoxReport patches
+    // the affected slot IN PLACE and _acuNotify refreshes — nothing is wiped or
+    // rebuilt from stale data. A getInfo confirms shortly after.
     _scheduleRefresh(conn, 1500);
 
     closeAcuFilamentEdit();
