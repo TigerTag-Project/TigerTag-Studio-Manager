@@ -5,6 +5,14 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.10.5 — 2026-06-16
+
+### Added
+
+- **Anycubic Kobra X: live camera now works (LAN).** The Kobra X's camera is now supported over the local network, reusing the same video pipeline as the Kobra 3 V2 — it was previously left off because the Kobra X advertises its stream differently. _Thanks to [@ennisj](https://github.com/ennisj) (PR #2)._
+
+---
+
 ## v1.10.4 — 2026-06-16
 
 ### Added
