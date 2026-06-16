@@ -1674,7 +1674,11 @@ ipcMain.handle('bambu:tls-probe', async (_evt, ip) => {
       try { sock.destroy(); } catch {}
       resolve(r);
     };
-    const sock = tls.connect({ host: ip, port: 8883, rejectUnauthorized: false, timeout: 600 }, () => {
+    // 4 s timeout: the TLS handshake to a Bambu MCU (especially an A1 / A1 Mini,
+    // and more so across a subnet) routinely takes ~1.4 s. The old 600 ms cut it
+    // off mid-handshake and surfaced as "No reply from <ip>" even though the
+    // printer was reachable and port 8883 was open.
+    const sock = tls.connect({ host: ip, port: 8883, rejectUnauthorized: false, timeout: 4000 }, () => {
       let cert; try { cert = sock.getPeerCertificate(); } catch {}
       const subjStr = JSON.stringify(cert?.subject || {});
       const issStr  = JSON.stringify(cert?.issuer  || {});

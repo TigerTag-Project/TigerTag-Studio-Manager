@@ -5,6 +5,14 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.10.3 — 2026-06-16
+
+### Fixed
+
+- **Bambu Lab: adding a printer by IP now works reliably.** Typing your printer's IP could fail with "No reply from …" even when the printer was online and reachable — the check gave up too quickly before the printer finished answering. It now waits long enough, and it also fills in the serial number and detects the model automatically, so you only need to enter the Access Code.
+
+---
+
 ## v1.10.2 — 2026-06-16
 
 ### Changed

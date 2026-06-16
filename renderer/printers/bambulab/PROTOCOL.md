@@ -911,7 +911,12 @@ Pour chaque IP à scanner, tenter une connexion TLS sur port `8883` (timeout 260
 Extraire le serial depuis le CN du certificat :
 ```
 Subject: CN=00M09A123456789, O=Bambu Lab
+Issuer:  C=CN, O=BBL Technologies Co., Ltd, CN=BBL CA
 ```
+
+> ⚠️ **Ajout manuel par IP (mono-hôte) — timeout ≥ 4 s, PAS 260 ms.** Le 260 ms ci-dessus est calibré pour le scan de masse d'un `/24` (la plupart des IP sont mortes ; on ne veut pas attendre). Pour l'ajout manuel d'une IP **connue**, c'est l'inverse : le handshake TLS vers le MCU d'une Bambu est lent — mesuré **~1,4 s sur une A1**, davantage à travers un sous-réseau. Un timeout trop court coupe le handshake en plein milieu et l'utilisateur voit `No reply from <ip>` alors que le port 8883 est ouvert et la printer joignable. Handler `bambu:tls-probe` dans `main.js` → `timeout: 4000`.
+>
+> Le probe mono-hôte **suffit à pré-remplir le formulaire** : `issuer`/`subject` confirme la marque, le **CN = numéro de série complet**, et le préfixe de série (3 car.) résout le modèle (`039` → A1, voir §12.3 / `BBL_SERIAL_PREFIX_TO_ID`). Seul l'Access Code reste à saisir par l'utilisateur (jamais présent dans le certificat).
 
 **Sous-réseaux par défaut scannés** :
 - Le sous-réseau de l'interface WiFi active
