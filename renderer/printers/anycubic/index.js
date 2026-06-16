@@ -282,6 +282,14 @@ function _acuCloudOrder(conn, orderId, data, { project = false } = {}) {
   });
 }
 
+// Strip the query string (S3 signature) so two URLs that point at the same
+// object but were signed at different times compare equal.
+function _acuThumbPath(u) {
+  if (!u) return "";
+  const q = u.indexOf("?");
+  return q === -1 ? u : u.slice(0, q);
+}
+
 async function _acuCloudGetInfo(conn) {
   const p = conn.printer;
   if (!p) return;
@@ -316,7 +324,11 @@ async function _acuCloudGetInfo(conn) {
       if (info.nozzleCurrent != null) d.nozzleCurrent = info.nozzleCurrent;
       if (info.bedCurrent   != null) d.bedCurrent    = info.bedCurrent;
       // Active-job preview (signed S3 URL) — null when no print is running.
-      d.printThumb = info.jobThumb || null;
+      // The signature changes on every poll even for the same image, so only
+      // swap the URL when the underlying object path changes. Otherwise the
+      // rendered background-image would reload (visible flicker) each report.
+      const newThumb = info.jobThumb || null;
+      if (_acuThumbPath(newThumb) !== _acuThumbPath(d.printThumb)) d.printThumb = newThumb;
       _acuNotify(conn);
     } else if (info && info.authError) {
       _acuCloudRecover(conn);
@@ -1062,7 +1074,12 @@ function _acuNotify(conn, statusChanged = false) {
   _raf = requestAnimationFrame(() => {
     _raf = null;
     const liveHost = $("acuLive");
-    if (liveHost) liveHost.innerHTML = renderAnycubicLiveInner(active);
+    // Don't rebuild the live block while the user is editing a temp field
+    // inline — the innerHTML swap would destroy the open <input> and close
+    // the edit on every incoming report. The card refreshes on the next
+    // report once the edit is committed/cancelled (input removed).
+    const editing = liveHost && liveHost.querySelector(".snap-temp--editing");
+    if (liveHost && !editing) liveHost.innerHTML = renderAnycubicLiveInner(active);
     const logHost = $("acuLog");
     if (logHost) logHost.innerHTML = renderAnycubicLogInner(active);
     const countEl = $("acuLogCount");

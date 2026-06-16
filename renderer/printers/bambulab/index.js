@@ -126,7 +126,7 @@ export function bambuConnect(printer, { skipCam = false } = {}) {
   if (existing) {
     if (existing.status === "connected" || existing.status === "connecting") {
       if (existing.ip === ip) {
-        if (!skipCam && ip && password && !existing.data?.lastCamUrl) {
+        if (!skipCam && ip && password && !existing.data?.lastCamUrl && !existing.data?.camDisabled) {
           if (bambuUsesJpegCam(printer)) {
             window.bambulab?.camStart({ key, ip, password });
           } else {
@@ -181,7 +181,7 @@ export function bambuConnect(printer, { skipCam = false } = {}) {
   // Start camera feed — only when the sidecard is open (skipCam = false).
   // JPEG TCP  → A1 / A1 Mini / P1P / P1S (model IDs 1–4), port 6000.
   // RTSP/ffmpeg → X1C / X1E / P2S / H2x  (model IDs 5+),  port 322.
-  if (!skipCam && ip && password) {
+  if (!skipCam && ip && password && !conn.data.camDisabled) {
     if (bambuUsesJpegCam(printer)) {
       window.bambulab?.camStart({ key, ip, password });
     } else {
@@ -387,6 +387,16 @@ function _bblMerge(conn, msg) {
   if (fn) {
     try { d.printFilename = decodeURIComponent(String(fn).split("/").pop()); }
     catch { d.printFilename = String(fn).split("/").pop(); }
+  }
+
+  // Camera disable flag (PROTOCOL.md §10): when the user turns the LAN camera
+  // off on the printer's own screen, pushall reports ipcam.rtsp_url === "disable".
+  // Honor it — stop any running stream and gate future starts (see bambuConnect).
+  // Only act on the transition so we don't spam camStop on every pushall.
+  if (p.ipcam && p.ipcam.rtsp_url != null) {
+    const disabled = p.ipcam.rtsp_url === "disable";
+    if (disabled && !d.camDisabled) { d.camDisabled = true; bambuStopCam(conn.key); }
+    else if (!disabled)             { d.camDisabled = false; }
   }
 
   // ── Temperatures (new-firmware packed 32-bit first, then fallback) ──

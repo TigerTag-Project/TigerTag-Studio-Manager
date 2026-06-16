@@ -5,6 +5,22 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.10.2 — 2026-06-16
+
+### Changed
+
+- **Bambu Lab camera is smoother and more responsive** on RTSP models (X1C, X1E, P2S, H2x…). The live view now runs at 30 fps instead of 5 and starts almost instantly — the several-second delay before the first image is gone.
+
+### Fixed
+
+- **Bambu Lab camera no longer gets stuck on a black screen / spinner** on A1, A1 Mini, P1P and P1S. It now reconnects on its own after a printer reboot, a Wi-Fi drop or a slow start, and gives up quickly (a few seconds instead of up to a minute) when the camera port is blocked or unreachable.
+- **Bambu Lab: the camera stays off when you disable it on the printer.** If you turn the LAN camera off from the printer's own screen, the app no longer keeps trying to open it.
+- **Anycubic: setting a nozzle or bed temperature no longer closes the input.** The value field used to close every time the printer sent a status update; it now stays open while you type.
+- **Anycubic (cloud): the job preview thumbnail no longer flickers.** It no longer reloads on every refresh — the preview stays steady.
+- **Printer Table view: print progress, status and "Updated" now refresh live.** The table used to stay frozen until you clicked Refresh; each row now updates on its own (progress %, remaining time, online status). Affects Bambu Lab, Creality, FlashForge and Snapmaker.
+
+---
+
 ## v1.10.1 — 2026-06-16
 
 ### Added

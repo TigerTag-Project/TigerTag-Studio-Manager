@@ -9300,6 +9300,62 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     });
   }
 
+  // Table view: the job cell HTML. Shared by _renderPrinterTable (initial
+  // build) and _patchTableJobs (live surgical update) so the two never drift.
+  function _jobCellHtml(job) {
+    if (!job) return `<span class="pt-job-idle">—</span>`;
+    if (!job.isActive)
+      return `<span class="snap-job-state snap-job-state--${esc(job.state)} snap-job-state--compact">${esc(t("snapState_" + job.state) || job.state)}</span>`;
+    return `<div class="pt-job-bar"><span style="width:${job.pct}%"></span></div>
+           <div class="pt-job-meta">
+             <span class="snap-job-state snap-job-state--${esc(job.state)} snap-job-state--compact">${esc(t("snapState_" + job.state) || job.state)}</span>
+             <span class="pt-job-pct">${job.pct}%${job.remainSec != null ? ` · ${esc(_fmtRemain(job.remainSec))}` : ""}</span>
+           </div>${job.filename ? `<div class="pt-job-file">${esc(_truncFilename(job.filename))}</div>` : ""}`;
+  }
+
+  // Table-view counterpart to _patchGridJobs: surgically refresh just the
+  // .pt-td--job cell of each row on a job update, so the table stays live
+  // without a full renderPrintersView() rebuild (preserves sort + scroll).
+  // The table <tr>s key off data-brand/data-id (not data-printer-key), which
+  // is why _patchGridJobs alone never touched them.
+  function _patchTableJobs() {
+    if (state.viewMode !== "printer-table") return;
+    state.printers.forEach(p => {
+      const row = document.querySelector(`.pt-row[data-brand="${esc(p.brand)}"][data-id="${esc(p.id)}"]`);
+      if (!row) return;
+      const job = _getPrinterJob(p);
+      const sig = _jobSignature(job);
+      if (row._lastJobSig === sig) return; // no real change, skip the rewrite
+      row._lastJobSig = sig;
+      const td = row.querySelector(".pt-td--job");
+      if (td) td.innerHTML = _jobCellHtml(job);
+    });
+  }
+
+  // Table-view counterpart to _patchGridStatus: refresh each row's online dot,
+  // status label, the Updated cell and the pt-row--online class in place. The
+  // table is one flat sorted list (no CONNECTED/OFFLINE sections), so — unlike
+  // the grid — a status change never needs a full rebuild; we patch the cells
+  // and keep the existing sort order/scroll until the next render.
+  function _patchTableStatus() {
+    if (state.viewMode !== "printer-table") return;
+    state.printers.forEach(p => {
+      const row = document.querySelector(`.pt-row[data-brand="${esc(p.brand)}"][data-id="${esc(p.id)}"]`);
+      if (!row) return;
+      const online = _isPrinterOnline(p);
+      const sig = `${online ? 1 : 0}|${p.updatedAt || 0}`;
+      if (row._lastStatusSig === sig) return; // no real change, skip the rewrite
+      row._lastStatusSig = sig;
+      row.classList.toggle("pt-row--online", online);
+      const st = row.querySelector(".pt-td--status");
+      if (st) st.innerHTML =
+        `<span class="pt-dot${online ? " pt-dot--on" : ""}"></span>
+            ${esc(online ? t("snapStatusOnline") : t("snapStatusOffline"))}`;
+      const up = row.querySelector(".pt-td--updated");
+      if (up) up.textContent = p.updatedAt ? timeAgo(p.updatedAt) : "—";
+    });
+  }
+
   function _jobCardHtml(job) {
     const stateLabel = t("snapState_" + job.state) || job.state;
     const statePill = `<span class="snap-job-state snap-job-state--${esc(job.state)} snap-job-state--compact">${esc(stateLabel)}</span>`;
@@ -9624,15 +9680,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
                    || printerImageUrl(findPrinterModel(p.brand, "0"))
                    || "";
       const job     = _getPrinterJob(p);
-      const jobCell = !job
-        ? `<span class="pt-job-idle">—</span>`
-        : !job.isActive
-        ? `<span class="snap-job-state snap-job-state--${esc(job.state)} snap-job-state--compact">${esc(t("snapState_" + job.state) || job.state)}</span>`
-        : `<div class="pt-job-bar"><span style="width:${job.pct}%"></span></div>
-           <div class="pt-job-meta">
-             <span class="snap-job-state snap-job-state--${esc(job.state)} snap-job-state--compact">${esc(t("snapState_" + job.state) || job.state)}</span>
-             <span class="pt-job-pct">${job.pct}%${job.remainSec != null ? ` · ${esc(_fmtRemain(job.remainSec))}` : ""}</span>
-           </div>${job.filename ? `<div class="pt-job-file">${esc(_truncFilename(job.filename))}</div>` : ""}`;
+      const jobCell = _jobCellHtml(job);
       return `
         <tr class="pt-row${online ? " pt-row--online" : ""}"
             data-brand="${esc(p.brand)}" data-id="${esc(p.id)}">
@@ -10729,8 +10777,15 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // Before this, every brand reconnect retry (2-30 s backoff, all 10
     // printers offline → bursts every few seconds) rebuilt the whole grid
     // and visibly flashed every card.
-    onPrinterGridChange:   () => { if (state.viewMode !== "printer-cam") _patchGridStatus(); },
-    onGridJobsChange:      () => _patchGridJobs(),
+    onPrinterGridChange:   () => {
+      if (state.viewMode === "printer-cam")   return;
+      if (state.viewMode === "printer-table") _patchTableStatus(); // surgical, no rebuild
+      else                                    _patchGridStatus();
+    },
+    onGridJobsChange:      () => {
+      if (state.viewMode === "printer-table") _patchTableJobs();
+      else                                    _patchGridJobs();
+    },
     setupHoldToConfirm,
     creCamStart: ip => startCreCam(ip),
     creCamStop:  ()  => stopCreCam(),

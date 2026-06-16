@@ -2219,43 +2219,78 @@ let _ffmpegBin = null;
   }
 
   ipcMain.on('bambulab:cam-start', (event, { key, ip, password }) => {
+    // Mark the previous socket as an intentional stop so its close handler
+    // doesn't fire a retry while we open a fresh one for the same key.
     const prev = _bambuCamSockets.get(key);
-    if (prev) { try { prev.destroy(); } catch (_) {} _bambuCamSockets.delete(key); }
+    if (prev) { prev._stopped = true; try { prev.destroy(); } catch (_) {} _bambuCamSockets.delete(key); }
 
-    const sock = tls.connect({ host: ip, port: 6000, rejectUnauthorized: false }, () => {
-      sock.write(_bambuCamAuthPacket(password));
-    });
-    _bambuCamSockets.set(key, sock);
+    let restarts = 0;
+    const MAX_RESTARTS = 10;
 
-    let buf = Buffer.alloc(0);
-    sock.on('data', chunk => {
-      buf = Buffer.concat([buf, chunk]);
-      while (buf.length >= 16) {
-        const payloadSize = buf.readUInt32LE(0);
-        if (payloadSize <= 0 || payloadSize > 8 * 1024 * 1024) { buf = Buffer.alloc(0); break; }
-        if (buf.length < 16 + payloadSize) break;
-        const payload = buf.slice(16, 16 + payloadSize);
-        buf = buf.slice(16 + payloadSize);
-        if (payload[0] === 0xFF && payload[1] === 0xD8 &&
-            payload[payload.length - 2] === 0xFF && payload[payload.length - 1] === 0xD9) {
-          // Send the raw JPEG Buffer (no Base64): skips a synchronous encode
-          // on the main thread, ~25% smaller IPC payload, and the renderer
-          // wraps it directly in a Blob URL (no re-decode).
-          if (!event.sender.isDestroyed())
-            event.sender.send('bambulab:cam-frame', key, payload);
-          // Forward to detached cam window if open
-          if (_camWindow && !_camWindow.isDestroyed())
-            _camWindow.webContents.send('bambulab:cam-frame', key, payload);
+    const launch = () => {
+      if (event.sender.isDestroyed()) return;
+
+      // Explicit 10 s connect timeout: a filtered/closed port 6000 would
+      // otherwise hang on the OS TCP timeout (30–75 s) with the loading
+      // spinner spinning the whole time and no way for the user to know.
+      const sock = tls.connect({ host: ip, port: 6000, rejectUnauthorized: false, timeout: 10000 }, () => {
+        sock.write(_bambuCamAuthPacket(password));
+      });
+      sock._stopped = false;
+      _bambuCamSockets.set(key, sock);
+
+      sock.on('timeout', () => { try { sock.destroy(); } catch (_) {} }); // → 'close' → retry
+
+      let buf = Buffer.alloc(0);
+      sock.on('data', chunk => {
+        buf = Buffer.concat([buf, chunk]);
+        while (buf.length >= 16) {
+          const payloadSize = buf.readUInt32LE(0);
+          if (payloadSize <= 0 || payloadSize > 8 * 1024 * 1024) { buf = Buffer.alloc(0); break; }
+          if (buf.length < 16 + payloadSize) break;
+          const payload = buf.slice(16, 16 + payloadSize);
+          buf = buf.slice(16 + payloadSize);
+          if (payload[0] === 0xFF && payload[1] === 0xD8 &&
+              payload[payload.length - 2] === 0xFF && payload[payload.length - 1] === 0xD9) {
+            restarts = 0; // healthy stream — reset the backoff counter
+            // Send the raw JPEG Buffer (no Base64): skips a synchronous encode
+            // on the main thread, ~25% smaller IPC payload, and the renderer
+            // wraps it directly in a Blob URL (no re-decode).
+            if (!event.sender.isDestroyed())
+              event.sender.send('bambulab:cam-frame', key, payload);
+            // Forward to detached cam window if open
+            if (_camWindow && !_camWindow.isDestroyed())
+              _camWindow.webContents.send('bambulab:cam-frame', key, payload);
+          }
         }
-      }
-    });
-    sock.on('error', () => { _bambuCamSockets.delete(key); });
-    sock.on('close', () => { _bambuCamSockets.delete(key); });
+      });
+
+      // Retry with exponential backoff — mirrors the RTSP path. A transient
+      // blip (printer reboot, Wi-Fi drop, slow start) otherwise left the camera
+      // black forever until the user reopened the sidecard. 'error' is swallowed
+      // (a 'close' always follows it); the retry lives on 'close' and is skipped
+      // when the stop was intentional (cam-stop, or a newer cam-start for this key).
+      sock.on('error', () => {});
+      sock.on('close', () => {
+        if (_bambuCamSockets.get(key) === sock) _bambuCamSockets.delete(key);
+        if (sock._stopped) return;
+        if (restarts < MAX_RESTARTS) {
+          restarts++;
+          const delay = Math.min(1500 * restarts, 12000); // 1.5 s → 12 s backoff
+          console.log(`[bambu-cam:${key}] closed, retry ${restarts}/${MAX_RESTARTS} in ${delay} ms`);
+          setTimeout(launch, delay);
+        } else {
+          console.warn(`[bambu-cam:${key}] gave up after ${MAX_RESTARTS} restarts`);
+        }
+      });
+    };
+
+    launch();
   });
 
   ipcMain.on('bambulab:cam-stop', (_evt, key) => {
     const s = _bambuCamSockets.get(key);
-    if (s) { try { s.destroy(); } catch (_) {} _bambuCamSockets.delete(key); }
+    if (s) { s._stopped = true; try { s.destroy(); } catch (_) {} _bambuCamSockets.delete(key); }
   });
 
   // ── RTSP camera (X1C / X1E / P2S / H2x — port 322 TLS) ─────────────
@@ -2288,12 +2323,20 @@ let _ffmpegBin = null;
       const proc = spawn(_ffmpegBin, [
         '-loglevel', 'error',          // show errors in main-process console
         '-rtsp_transport', 'tcp',
+        // Low-latency input: by default ffmpeg buffers/probes the stream for
+        // several seconds before emitting the first frame, which is what makes
+        // the live view lag behind reality. Disable buffering, drop the probe
+        // window to the minimum and start decoding immediately.
+        '-fflags', 'nobuffer',
+        '-flags', 'low_delay',
+        '-probesize', '32',
+        '-analyzeduration', '0',
         // No -tls_verify: the rtsp demuxer in older ffmpeg (e.g. the bundled
         // ffmpeg-static 6.0) doesn't expose it → "Option tls_verify not found".
         // The tls protocol defaults to verify=0 anyway, so the printer's
         // self-signed cert is accepted without it (works on ffmpeg 6.0 and 8.x).
         '-i', rtspUrl,
-        '-vf', 'fps=5',                // ~5 fps is plenty for a status cam
+        '-vf', 'fps=30',               // smooth live view (parity with Bambu Studio)
         '-f', 'image2pipe',
         '-vcodec', 'mjpeg',
         '-qscale:v', '3',

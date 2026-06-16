@@ -39,9 +39,9 @@ L13509-14619   renderRackView + rack drag-drop + rack edit modal
 L14620-15086   Friend view + add-friend modal
 L15087-15283   Display-name setup + friend requests + blacklist
 L15284-15403   Public/private keys + user profile sync
-L15404-15776   Custom avatar upload + Discord-style cropper
-L15777-16190   syncUserDoc + session telemetry + language sync
-L16191-16210   Init bootstrap (loadLocales → loadLookups → runMigration → initAuth)
+L15600-15960   Custom avatar upload + Discord-style cropper
+L15963-16384   syncUserDoc + session telemetry + language sync
+L16385-16400   Init bootstrap (loadLocales → loadLookups → runMigration → initAuth)
 L16211-16543   Electron RFID integration (readers, dual-scan, NFC processor, chip write)
 ```
 
@@ -367,20 +367,20 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Custom avatar (L15404-15776)
+## Custom avatar (L15600-15960)
 
 | L | What | Anchors |
 |---|---|---|
-| 15113-15296 | File pick, image decode, alpha detection, resize to blob, upload, remove | `uploadCustomAvatar`, `removeCustomAvatar` |
-| 15297-15485 | **Discord-style cropper** — crop / zoom / rotate + cropped upload | `openAvatarCropper`, `uploadCroppedAvatar` |
+| 15600-15774 | File pick, image decode, alpha detection, resize to blob, upload, remove | `uploadCustomAvatar`, `removeCustomAvatar` |
+| 15775-15960 | **Discord-style cropper** — crop / zoom / rotate + cropped upload | `openAvatarCropper`, `uploadCroppedAvatar` |
 
 ---
 
-## User doc sync + telemetry + bootstrap (L15777-16210)
+## User doc sync + telemetry + bootstrap (L15963-16400)
 
 | L | What | Anchors |
 |---|---|---|
-| 15486-15766 | **`syncUserDoc(uid)`** — displayName/roles/Debug/keys/isPublic + **client telemetry** (studio* fields + `telemetry/studio` aggregates, fire-and-forget) | `syncUserDoc`, `hydrateUserDocCache` |
+| 15963-16360 | **`syncUserDoc(uid)`** — displayName/roles/Debug/keys/isPublic + **client telemetry** (studio* fields + `telemetry/studio` aggregates, fire-and-forget) | `syncUserDoc`, `hydrateUserDocCache` |
 | 15767-15799 | Language sync from Firestore + `applyLang(lang)` | `syncLangFromFirestore`, `applyLang` |
 | 15800-15815 | **Init bootstrap** — loadLocales → applyTranslations → loadLookups → loadImgMap → runMigration → initAuth → signalFirstPaint | grep "loadLocales().then" |
 
