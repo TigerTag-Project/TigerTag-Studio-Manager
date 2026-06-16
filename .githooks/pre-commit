@@ -50,10 +50,12 @@ if [ -n "$staged_js" ] && [ -x node_modules/.bin/eslint ]; then
 fi
 
 # ── CODEMAP drift ─────────────────────────────────────────────────────
-# Verifies renderer/CODEMAP.md anchors still fall inside their declared
-# line ranges in inventory.js (±150 lines) and that the map covers the
-# whole file. Only runs when inventory.js or CODEMAP.md is staged.
-if git diff --cached --name-only | grep -qE '^renderer/(inventory\.js|CODEMAP\.md)$'; then
+# Verifies each CODEMAP doc's anchors still fall inside their declared line
+# ranges (±150 lines) and that the map covers the whole file:
+#   • renderer/CODEMAP.md ↔ renderer/inventory.js
+#   • CODEMAP-main.md      ↔ main.js
+# Only runs when one of those four files is staged.
+if git diff --cached --name-only | grep -qE '^(renderer/(inventory\.js|CODEMAP\.md)|main\.js|CODEMAP-main\.md)$'; then
   node scripts/check-codemap.mjs
 fi
 

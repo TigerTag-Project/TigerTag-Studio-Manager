@@ -123,7 +123,7 @@ The working file is wiped so it stays clean and unambiguous: whatever is in `WOR
 ## Stack
 Electron (no bundler) + vanilla HTML/CSS/JS. Entry: `main.js`. Renderer: `renderer/inventory.html` + modular CSS in `renderer/css/` + `renderer/inventory.js`. Preload bridge: `preload.js`.
 
-> **`renderer/CODEMAP.md`** maps every feature in the ~16k-line `inventory.js` to a line range and key function names. Read it BEFORE searching the file — it's faster, cheaper, and less error-prone than grepping. Keep it in sync when you move sections — `npm run codemap:check` (run by the pre-commit hook whenever `inventory.js` or `CODEMAP.md` is staged) fails the commit on major drift.
+> **`renderer/CODEMAP.md`** maps every feature in the ~16k-line `inventory.js` to a line range and key function names. **`CODEMAP-main.md`** (repo root) does the same for the ~3k-line `main.js` (Electron main process — IPC handlers, printer transports, cameras). Read the relevant map BEFORE searching the file — it's faster, cheaper, and less error-prone than grepping. Keep them in sync when you move sections — `npm run codemap:check` (run by the pre-commit hook whenever `inventory.js`, `main.js`, or either CODEMAP is staged) validates both and fails the commit on major drift.
 >
 > **`ROADMAP.md`** at the repo root holds the "what's done / next / backlog" picture grouped by domain. Read it BEFORE proposing new features — chances are it's already there with a sizing and risk note. Update it when you ship or pick up an item.
 
