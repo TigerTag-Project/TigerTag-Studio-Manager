@@ -87,6 +87,7 @@ contextBridge.exposeInMainWorld('anycubic', {
     connect:     (opts)            => ipcRenderer.send('anycubic:cloud-connect', opts),       // { email, token }
     subscribe:   (opts)            => ipcRenderer.send('anycubic:cloud-subscribe', opts),     // { connKey, machineType, key }
     unsubscribe: (connKey)         => ipcRenderer.send('anycubic:cloud-unsubscribe', connKey),
+    publish:     (opts)            => ipcRenderer.send('anycubic:cloud-publish', opts),       // { machineType, key, endpoint, payload }
     onMessage:   (cb) => ipcRenderer.on('anycubic:cloud-message', (_, connKey, topic, data) => cb(connKey, topic, data)),
     onStatus:    (cb) => ipcRenderer.on('anycubic:cloud-status',  (_, status) => cb(status)),
   },

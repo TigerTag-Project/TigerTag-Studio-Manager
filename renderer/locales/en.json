@@ -993,5 +993,7 @@
   "acuSpeedSport": "Sport",
   "acuFeedLoad": "Load",
   "acuFeedUnload": "Unload",
-  "acuFeedStop": "Stop"
+  "acuFeedStop": "Stop",
+  "acuErrTitle": "Printer error",
+  "acuErrDismiss": "OK"
 }

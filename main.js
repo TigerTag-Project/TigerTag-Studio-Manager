@@ -2941,14 +2941,22 @@ let _ffmpegBin = null;
       const param = p.parameter || {};
       const num = (v) => (v == null || v === '' ? null : Math.round(Number(v)));
 
-      // Active-job preview — match the printer's currently-printing project and
-      // use its signed `img` URL. No active print → no thumb.
+      // Active-job preview thumbnail + latest project id. The latest project
+      // (active print if any, else the most recent one — even completed) is the
+      // project_id used for PRINT_SETTINGS orders (temps/fan/speed). Anycubic
+      // applies those to the printer even at idle, mirroring hass-anycubic's
+      // `printer.latest_project` (its HA fan/temperature entities work at idle
+      // this way). A printer that has never printed has no project → can't set.
       let jobThumb = null;
+      let latestProjectId = 0;
       try {
         const pr = await _cloudFetch(token, 'GET', '/work/project/getProjects?page=1&limit=5', null);
         if (pr.json && Number(pr.json.code) === 1 && Array.isArray(pr.json.data)) {
-          const proj = pr.json.data.find(x => String(x.printer_id) === String(printerId) && Number(x.print_status) === 1 && x.img);
-          if (proj && proj.img) jobThumb = String(proj.img);
+          const mine = pr.json.data.filter(x => String(x.printer_id) === String(printerId));
+          const active = mine.find(x => Number(x.print_status) === 1);
+          if (active && active.img) jobThumb = String(active.img);
+          const latest = active || mine.slice().sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0))[0];
+          if (latest && latest.id != null) latestProjectId = Number(latest.id) || 0;
         }
       } catch (_) {}
 
@@ -2958,6 +2966,7 @@ let _ffmpegBin = null;
         nozzleCurrent: num(param.curr_nozzle_temp),
         bedCurrent:    num(param.curr_hotbed_temp),
         jobThumb,
+        latestProjectId,
       };
     } catch (e) {
       return { ok: false, error: e?.message || String(e) };
@@ -2982,7 +2991,13 @@ let _ffmpegBin = null;
   // the token from a bridge-mode slicer) rather than silently going offline.
   ipcMain.handle('anycubic:cloud-send-order', async (_evt, { token, orderId, printerId, projectId, data }) => {
     try {
-      const body = { order_id: Number(orderId), printer_id: Number(printerId), project_id: Number(projectId) || 0, data: data ?? {} };
+      // Only attach project_id when it's a real (>0) project. Sending an
+      // explicit `project_id: 0` is not the same as omitting it — base orders
+      // (and the light) work without it; project orders fill it from the
+      // latest project. Omitting the 0 keeps the payload like the slicer's.
+      const body = { order_id: Number(orderId), printer_id: Number(printerId), data: data ?? {} };
+      const pid = Number(projectId) || 0;
+      if (pid > 0) body.project_id = pid;
       const r = await _cloudFetch(token, 'POST', '/work/operation/sendOrder', body);
       const code = r.json ? Number(r.json.code) : 0;
       if (code === 1) return { ok: true };
@@ -3081,6 +3096,17 @@ let _ffmpegBin = null;
     if (_cloudClient && _cloudClient.connected) {
       _cloudClient.subscribe(`anycubic/anycubicCloud/v1/+/public/${machineType}/${key}/#`, { qos: 0 });
     }
+  });
+
+  // Publish a realtime control command over the shared cloud MQTT client — same
+  // {type, action, data} message shape and `web/printer/{m}/{key}/{endpoint}`
+  // topic family as LAN. This is how the slicer drives fan/temp/etc.: they apply
+  // even at idle (no project_id), unlike the REST sendOrder/PRINT_SETTINGS path
+  // which only changes a project's settings.
+  ipcMain.on('anycubic:cloud-publish', (_evt, { machineType, key, endpoint, payload }) => {
+    if (!_cloudClient || !_cloudClient.connected || !key) return;
+    const topic = `anycubic/anycubicCloud/v1/web/printer/${machineType}/${key}/${endpoint || 'multiColorBox'}`;
+    try { _cloudClient.publish(topic, JSON.stringify(payload), { qos: 0 }); } catch (_) {}
   });
 
   ipcMain.on('anycubic:cloud-unsubscribe', (_evt, connKey) => {

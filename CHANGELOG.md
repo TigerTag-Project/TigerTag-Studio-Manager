@@ -5,6 +5,20 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.10.4 — 2026-06-16
+
+### Added
+
+- **Anycubic: printer error alerts.** When the printer refuses a command (for example "Home the axis before moving" if you jog before homing), an alert now pops up with the printer's message and error code, so you know why nothing happened.
+
+### Fixed
+
+- **Anycubic (cloud): the fan, temperatures and speed mode now work at any time** — not only while a print is running. They were previously sent in a way the printer only applied to an active job, so at idle nothing happened. They now use the same realtime channel as the official slicer.
+- **Anycubic (cloud): the light now turns on the right LED.** It was toggling the camera light (which the printer rejects); it now controls the chamber/part light.
+- **Anycubic: editing a nozzle/bed temperature is fixed.** The input no longer errors out, and clicking away now applies the value (Escape still cancels).
+
+---
+
 ## v1.10.3 — 2026-06-16
 
 ### Fixed

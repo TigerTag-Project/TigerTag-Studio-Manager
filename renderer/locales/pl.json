@@ -992,5 +992,7 @@
   "acuSpeedSport": "Sport",
   "acuFeedLoad": "Załaduj",
   "acuFeedUnload": "Wyładuj",
-  "acuFeedStop": "Zatrzymaj"
+  "acuFeedStop": "Zatrzymaj",
+  "acuErrTitle": "Błąd drukarki",
+  "acuErrDismiss": "OK"
 }

@@ -275,11 +275,21 @@ function _acuConnIsCloud(conn) { return conn && conn.mode === "cloud"; }
 function _acuCloudOrder(conn, orderId, data, { project = false } = {}) {
   const p = conn && conn.printer;
   if (!p) return;
-  const projectId = project ? (conn.data?.jobProjectId || 0) : 0;
-  _acuLogPush(conn, "→", { orderId, projectId, data, via: "cloud" });
+  // Project orders carry a project_id. PRINT_SETTINGS (temp/fan/speed) are applied
+  // by Anycubic even at idle against the LATEST project (active if printing, else
+  // the most recent — mirrors hass-anycubic), so fall back to it. pause/resume/stop
+  // only make sense on the active job, but jobProjectId is set then anyway.
+  const projectId = project ? (conn.data?.jobProjectId || conn.data?.latestProjectId || 0) : 0;
+  // Log what's actually sent: main.js only attaches project_id when > 0.
+  const logEntry = { orderId, data, via: "cloud" };
+  if (projectId > 0) logEntry.projectId = projectId;
+  _acuLogPush(conn, "→", logEntry);
   window.anycubic?.cloud?.sendOrder({
     token: p.cloudToken, orderId, printerId: p.cloudPrinterId, projectId, data: data ?? {},
   });
+  // Refresh the request-log UI right away so the outgoing command is visible
+  // immediately instead of only on the next poll tick.
+  _acuNotify(conn);
 }
 
 // Strip the query string (S3 signature) so two URLs that point at the same
@@ -323,6 +333,9 @@ async function _acuCloudGetInfo(conn) {
       const d = conn.data;
       if (info.nozzleCurrent != null) d.nozzleCurrent = info.nozzleCurrent;
       if (info.bedCurrent   != null) d.bedCurrent    = info.bedCurrent;
+      // Latest project id — project_id for PRINT_SETTINGS orders (temp/fan/speed)
+      // so they work even at idle (against the most recent project).
+      if (info.latestProjectId != null) d.latestProjectId = info.latestProjectId;
       // Active-job preview (signed S3 URL) — null when no print is running.
       // The signature changes on every poll even for the same image, so only
       // swap the URL when the underlying object path changes. Otherwise the
@@ -474,11 +487,8 @@ export function acuPrintControl(conn, action) {
 export function acuSetTemp(conn, which, value) {
   if (!conn) return;
   const v = Math.max(0, Math.round(Number(value) || 0));
-  if (_acuConnIsCloud(conn)) {
-    const settings = which === "bed" ? { target_hotbed_temp: v } : { target_nozzle_temp: v };
-    _acuCloudOrder(conn, ACU_ORD.PRINT_SETTINGS, { settings }, { project: true });
-    return;
-  }
+  // Cloud + LAN both use the MQTT `tempature/set` message (`_publish` routes by
+  // mode) so the target applies at idle (preheat), like the slicer.
   const data = which === "bed"
     ? { type: 1, target_hotbed_temp: v, target_nozzle_temp: 0 }
     : { type: 0, target_nozzle_temp: v, target_hotbed_temp: 0 };
@@ -489,7 +499,12 @@ export function acuSetTemp(conn, which, value) {
 export function acuLight(conn, on) {
   if (!conn) return;
   if (_acuConnIsCloud(conn)) {
-    _acuCloudOrder(conn, ACU_ORD.SET_LIGHT, { type: 1, status: on ? 1 : 0, brightness: on ? 100 : 0 });
+    // type:3 = the chamber/part LED (same value as LAN — see PROTOCOL.md). The
+    // hass default of type:1 is the CAMERA light, which the Kobra rejects with
+    // "failed turn on camera light". No project_id needed — the cloud routes
+    // and executes this order fine without one (it failed on the type, not the
+    // project), so we send it as a base order, like the slicer does.
+    _acuCloudOrder(conn, ACU_ORD.SET_LIGHT, { type: 3, status: on ? 1 : 0, brightness: on ? 100 : 0 });
     return;
   }
   _publish(conn, _acuRequest("control",
@@ -528,10 +543,9 @@ export function acuMotorsOff(conn) {
 export function acuFan(conn, pct) {
   if (!conn) return;
   const p = Math.max(0, Math.min(100, Math.round(Number(pct) || 0)));
-  if (_acuConnIsCloud(conn)) {
-    _acuCloudOrder(conn, ACU_ORD.PRINT_SETTINGS, { settings: { fan_speed_pct: p } }, { project: true });
-    return;
-  }
+  // Both LAN and cloud use the MQTT `fan/setSpeed` message (`_publish` routes by
+  // mode) — it applies at idle, like the slicer. The cloud REST PRINT_SETTINGS
+  // path only changes a running job's fan and does nothing at idle.
   _publish(conn, _acuRequest("setSpeed", { fan_speed_pct: p }, "fan"), "fan");
 }
 
@@ -552,10 +566,7 @@ export function acuSetSpeedMode(conn, mode) {
   if (!conn) return;
   const m = Number(mode) || 0;
   if (![1, 2, 3].includes(m)) return;
-  if (_acuConnIsCloud(conn)) {
-    _acuCloudOrder(conn, ACU_ORD.PRINT_SETTINGS, { settings: { print_speed_mode: m } }, { project: true });
-    return;
-  }
+  // MQTT `print/update` via `_publish` (routes LAN/cloud by mode), like the slicer.
   _publish(conn, _acuRequest("update", { taskid: "-1", settings: { print_speed_mode: m } }, "print"), "print");
 }
 
@@ -634,6 +645,20 @@ function _acuCameraSurfaceOpen(key) {
 function _publish(conn, payload, endpoint) {
   if (!conn) return;
   _acuLogPush(conn, "→", payload);
+  if (conn.mode === "cloud") {
+    // Cloud realtime control: publish over the cloud MQTT broker — same message
+    // shape + topic family as LAN. Applies at idle (no project_id needed), which
+    // is how the slicer drives the fan/temps. Refresh the log immediately.
+    const p = conn.printer || {};
+    window.anycubic?.cloud?.publish({
+      machineType: String(p.machineType || p.acuModelId || ""),
+      key: p.key,
+      endpoint: endpoint || "multiColorBox",
+      payload,
+    });
+    _acuNotify(conn);
+    return;
+  }
   window.anycubic?.publish(conn.key, payload, endpoint);
 }
 
@@ -916,6 +941,41 @@ function _acuMergePrintFields(d, data) {
   }
 }
 
+// ── Printer error alert ────────────────────────────────────────────────────
+// A printer-reported command failure (`state:"failed"`) — e.g. trying to move
+// before homing (code 10901). Shows a dismissible bottom-sheet with the code +
+// the printer's message. Mirrors the slicer's "Error Alert" minus its "Go to
+// Message Center" action (we have no message center).
+let _acuErrRoot = null;
+function _acuShowError(code, message) {
+  if (!_acuErrRoot) {
+    _acuErrRoot = document.createElement("div");
+    _acuErrRoot.id = "acuErrRoot";
+    _acuErrRoot.innerHTML = /* html */`
+      <div class="acu-err-backdrop"></div>
+      <aside class="acu-err-sheet" role="alertdialog" aria-modal="true">
+        <button type="button" class="acu-err-x" aria-label="Close">×</button>
+        <div class="acu-err-head">
+          <span class="acu-err-warn" aria-hidden="true">⚠</span>
+          <span class="acu-err-title">${ctx.esc(ctx.t("acuErrTitle") || "Printer error")}</span>
+        </div>
+        <div class="acu-err-card">
+          <div class="acu-err-code"></div>
+          <div class="acu-err-msg"></div>
+        </div>
+        <button type="button" class="adf-btn adf-btn--primary acu-err-ok">${ctx.esc(ctx.t("acuErrDismiss") || "OK")}</button>
+      </aside>`;
+    document.body.appendChild(_acuErrRoot);
+    const close = () => _acuErrRoot.classList.remove("open");
+    _acuErrRoot.querySelector(".acu-err-backdrop").addEventListener("click", close);
+    _acuErrRoot.querySelector(".acu-err-x").addEventListener("click", close);
+    _acuErrRoot.querySelector(".acu-err-ok").addEventListener("click", close);
+  }
+  _acuErrRoot.querySelector(".acu-err-code").textContent = (code != null && code !== "") ? `Code: ${code}` : "";
+  _acuErrRoot.querySelector(".acu-err-msg").textContent  = String(message || "");
+  _acuErrRoot.classList.add("open");
+}
+
 function _acuMerge(conn, msg) {
   if (!msg || typeof msg !== "object") return;
   const d      = conn.data;
@@ -923,6 +983,14 @@ function _acuMerge(conn, msg) {
   const action = String(msg.action || "");
   const state  = String(msg.state  || "");
   const data   = msg.data;
+
+  // Surface a printer-reported command failure — but only for the printer whose
+  // panel is open, so a background printer's error doesn't pop over an unrelated
+  // view. (e.g. {type:"axis", state:"failed", code:10901, msg:"Home the axis…"})
+  if (state === "failed" && (msg.msg || msg.code != null)) {
+    const active = ctx.getActivePrinter?.();
+    if (active && acuKey(active) === conn.key) _acuShowError(msg.code, msg.msg);
+  }
 
   switch (type) {
     case "multiColorBox": {

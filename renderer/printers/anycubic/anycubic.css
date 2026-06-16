@@ -156,3 +156,48 @@
   color: var(--muted);
   box-shadow: none;
 }
+
+/* ── Printer error alert (command-failure report) ───────────────────────────
+   Dismissible bottom-sheet anchored to the side-card footprint (like .sfe-sheet)
+   but on top of it. Shown by _acuShowError() when the printer reports a failed
+   command (e.g. code 10901 "Home the axis before moving"). No message-center
+   action — we don't have one. */
+#acuErrRoot        { display: none; }
+#acuErrRoot.open   { display: block; }
+.acu-err-backdrop {
+  position: fixed; top: 8px; right: 0; bottom: 8px;
+  width: min(440px, 92vw);
+  background: rgba(0, 0, 0, .4);
+  backdrop-filter: blur(2px);
+  border-top-left-radius: 14px; border-bottom-left-radius: 14px;
+  z-index: 9000;
+}
+.acu-err-sheet {
+  position: fixed; right: 0; bottom: 8px;
+  width: min(440px, 92vw);
+  background: var(--surface);
+  border: 1px solid var(--border); border-right: none;
+  border-radius: 18px 0 0 14px;
+  padding: 20px 20px 22px;
+  box-shadow: -8px -4px 32px rgba(0, 0, 0, .22);
+  z-index: 9001;
+  animation: acuErrUp .26s cubic-bezier(.4, 0, .2, 1);
+}
+@keyframes acuErrUp { from { transform: translateY(calc(100% + 8px)); } to { transform: translateY(0); } }
+.acu-err-x {
+  position: absolute; top: 12px; right: 16px;
+  border: 0; background: transparent; cursor: pointer;
+  font-size: 22px; line-height: 1; color: var(--muted);
+}
+.acu-err-head  { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+.acu-err-warn  { font-size: 18px; }
+.acu-err-title { font-weight: 700; font-size: 15px; color: var(--text); }
+.acu-err-card  { background: var(--surface-2); border-radius: 12px; padding: 14px 16px; margin-bottom: 18px; }
+.acu-err-code  { display: block; text-align: right; margin-bottom: 8px; }
+.acu-err-code:empty { display: none; }
+.acu-err-code:not(:empty) {
+  color: var(--danger); font-size: 12px; font-weight: 600;
+  background: var(--danger-soft); border-radius: 6px; padding: 2px 8px;
+}
+.acu-err-msg   { color: var(--text); font-size: 14px; line-height: 1.4; }
+.acu-err-ok    { width: 100%; }

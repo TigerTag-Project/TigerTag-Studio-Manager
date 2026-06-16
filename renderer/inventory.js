@@ -11506,12 +11506,19 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           acuTempTrigger.classList.add("snap-temp--editing");
           valEl.replaceWith(input);
           input.focus(); input.select();
+          // `done` makes restore/confirm idempotent: removing the focused input
+          // fires `blur` synchronously, so without this the Enter path would
+          // re-enter and `replaceWith` would throw NotFoundError on a node that
+          // was already swapped out.
+          let done = false;
           const restore = () => {
-            if (!input.isConnected) return;
-            input.replaceWith(valEl);
+            if (done) return;
+            done = true;
+            if (input.parentNode) { try { input.replaceWith(valEl); } catch (_) {} }
             acuTempTrigger.classList.remove("snap-temp--editing");
           };
           const confirmTemp = () => {
+            if (done) return;
             const val = parseInt(input.value, 10);
             if (!isNaN(val) && val >= 0 && val <= maxVal) {
               const conn = acuGetConn(acuKey(_activePrinter));
@@ -11523,7 +11530,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
             if (ev.key === "Enter")  { ev.preventDefault(); confirmTemp(); }
             if (ev.key === "Escape") { ev.preventDefault(); restore(); }
           });
-          input.addEventListener("blur", restore);
+          // Clicking away applies the value (not cancels) — matches what users
+          // expect; Escape still cancels.
+          input.addEventListener("blur", confirmTemp);
           return;
         }
         // Anycubic — light toggle.

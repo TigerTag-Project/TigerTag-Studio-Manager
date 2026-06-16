@@ -470,8 +470,28 @@ is case-sensitive on header names and undici lowercases them):
 `Xx-Signature = md5(AID + ts + VER + SEC + nonce + AID)` with public constants
 `AID=f9b3…`, `SEC=0cf7…`, `VER=V3.0.0`, plus `XX-Token: <session token>`.
 - `GET /work/printer/getPrinters?page=1` → `[{id, name, machine_type, key, device_status}]` (1=online, 2=offline).
-- `POST /work/operation/sendOrder` `{order_id, printer_id, project_id:0, data}` — **1206 = getInfo**, **1211 = setSlot** (`{multi_color_box:[{id,slots:[{color:[r,g,b],index,type}]}]}`).
+- `POST /work/operation/sendOrder` `{order_id, printer_id, project_id, data}` — **1206 = getInfo**, **1211 = setSlot** (`{multi_color_box:[{id,slots:[{color:[r,g,b],index,type}]}]}`).
+- `GET /work/project/getProjects?page=1&limit=5` → recent projects `[{id, printer_id, print_status, img}]`. `print_status===1` = the **active** print; its `id` is the `project_id` for active-print orders, and its `img` is the live job thumbnail.
 - `GET /user/profile/userInfo` → verify token + email.
+
+> ⚠️ **`project_id` semantics.** `sendOrder` only attaches `project_id` when it's a real (`>0`) value — an explicit `project_id:0` is **omitted** from the body (sending `0` is not the same as omitting; the slicer omits it). Three classes of order:
+>
+> | Order | id | `project_id` | data |
+> |---|---|---|---|
+> | getInfo / setSlot / feed (ACE) | 1206 / 1211 / 1208 | **none** (omit) | as above — hass hardcodes `project_id:0` for these too |
+> | **SET_LIGHT_STATUS** | **1233** | **none** (omit) | `{type:3, status:0\|1, brightness:0\|100}` — **type:3 = chamber/part LED** (same as LAN). `type:1` is the CAMERA light → printer reports "failed turn on camera light". Works at idle; no project needed. |
+> | MOVE_AXLE / TURN_OFF (jog/home/motors) | 201 / 1213 | **none** (omit) | `{axis, move_type, distance}` — hass marks 201 "Not handled", so the shape is best-effort. |
+> | PAUSE / RESUME / STOP | 2 / 3 / 4 | **active print** | `{}` — acts on the running job (only relevant while printing). |
+>
+> **Fan / temperature / speed-mode are NOT `sendOrder`** — the slicer (and our LAN path) drive them with realtime **MQTT publish** messages, which apply **at idle** (no project). Publish `{type, action, timestamp, msgid, data}` to the cloud broker topic `anycubic/anycubicCloud/v1/web/printer/{machineType}/{key}/{endpoint}` (same topic family as LAN):
+>
+> | Control | endpoint | message |
+> |---|---|---|
+> | Fan | `fan` | `{type:"fan", action:"setSpeed", data:{fan_speed_pct}}` |
+> | Nozzle/bed temp | `tempature` | `{type:"tempature", action:"set", data:{type:0\|1, target_nozzle_temp, target_hotbed_temp}}` |
+> | Speed mode | `print` | `{type:"print", action:"update", data:{taskid:"-1", settings:{print_speed_mode}}}` |
+>
+> (`PRINT_SETTINGS` / order 6 changes a *project's* settings only — it does nothing at idle, so it's unused for these.) So: light (sendOrder 1233) + jog/home/feed/ACE (sendOrder, no project) + fan/temp/speed (MQTT publish) all work at idle; pause/stop only matter during a print.
 
 ### Cloud MQTT — `mqtt-universe.anycubic.com:8883`
 Reports come back here (same `…/multiColorBox/report` + telemetry shapes as LAN,

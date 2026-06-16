@@ -993,5 +993,7 @@
   "acuSpeedSport": "运动",
   "acuFeedLoad": "进料",
   "acuFeedUnload": "退料",
-  "acuFeedStop": "停止"
+  "acuFeedStop": "停止",
+  "acuErrTitle": "打印机错误",
+  "acuErrDismiss": "确定"
 }

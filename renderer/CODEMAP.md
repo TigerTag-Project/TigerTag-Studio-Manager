@@ -37,8 +37,8 @@ L12091-12654   Add-printer flow (brand picker, form, tutorials, submit)
 L12655-13508   Racks CRUD + slots + locking + auto-fill + masonry + tooltip
 L13509-14619   renderRackView + rack drag-drop + rack edit modal
 L14620-15086   Friend view + add-friend modal
-L15087-15283   Display-name setup + friend requests + blacklist
-L15284-15403   Public/private keys + user profile sync
+L15087-15475   Display-name setup + friend requests + blacklist
+L15476-15600   Public/private keys + user profile sync
 L15600-15960   Custom avatar upload + Discord-style cropper
 L15963-16384   syncUserDoc + session telemetry + language sync
 L16385-16400   Init bootstrap (loadLocales → loadLookups → runMigration → initAuth)
@@ -348,7 +348,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Display name + friend requests (L15087-15283)
+## Display name + friend requests (L15087-15475)
 
 | L | What | Anchors |
 |---|---|---|
@@ -358,7 +358,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Keys + profile sync (L15284-15403)
+## Keys + profile sync (L15476-15600)
 
 | L | What | Anchors |
 |---|---|---|
