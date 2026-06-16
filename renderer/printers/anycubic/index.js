@@ -139,6 +139,7 @@ function _acuDefaultData() {
     camWanted:     false,
     camLive:       false,
     camSupported:  null,
+    camUrl:        null,  // FLV stream URL from info/report (data.urls.rtspUrl)
     lastCamFrame:  null,
   };
 }
@@ -209,8 +210,9 @@ export function acuConnect(printer, { skipCam = false } = {}) {
     // stream is being restarted.
     data: _prevData ? { ..._prevData, lastCamFrame: null } : _acuDefaultData(),
   };
-  // A fresh reconnect must not inherit a stale camLive (ffmpeg was stopped).
-  if (_prevData) { conn.data.camLive = false; conn.data.camWanted = false; }
+  // A fresh reconnect must not inherit a stale camLive (ffmpeg was stopped) or a
+  // stale camUrl/token (re-learned from the next info/report within ~5 s).
+  if (_prevData) { conn.data.camLive = false; conn.data.camWanted = false; conn.data.camUrl = null; }
   _acuConns.set(key, conn);
 
   // Camera: mark it wanted; the actual activation (video/startCapture) is sent
@@ -571,23 +573,32 @@ export function acuSetSpeedMode(conn, mode) {
 }
 
 /**
- * Determine whether this printer exposes a pullable local FLV camera. Only
- * models that advertise an `rtspUrl` (…:18088/flv) in /info do — e.g. the
- * Kobra 3 V2. Models that stream via WebRTC/TRTC (e.g. Kobra X) advertise no
- * rtspUrl and their /flv never serves (it 400s); activating them would just
- * push to a TRTC room we can't consume. Cached on the conn for its lifetime.
- * Defaults to "supported" when /info is unreachable so a transient hiccup
- * doesn't disable the camera on an FLV model.
+ * Determine whether this printer exposes a pullable local FLV camera. The
+ * stream URL (`rtspUrl`) is advertised in one of two places — both an HTTP-FLV
+ * stream on :18088, just different paths:
+ *   • Kobra 3 V2 — HTTP `/info` (`rtspUrl: …:18088/flv`).
+ *   • Kobra X    — MQTT `info/report` (`data.urls.rtspUrl: …:18088/live/<token>`),
+ *     captured in `_acuMerge` → `conn.data.camUrl`. Its HTTP `/info` omits it.
+ * So we treat the camera as supported once we have a :18088 URL from either
+ * source. When neither has surfaced yet we DON'T conclude "unsupported" — the
+ * periodic MQTT info/report (~every 5 s) provides it, and the bounded probe in
+ * `_acuProbeAndStartCam` self-terminates if no stream ever serves.
  */
 async function _acuCheckCamSupported(conn) {
   if (conn.data.camSupported != null) return conn.data.camSupported;
+  if (conn.data.camUrl) { conn.data.camSupported = true; return true; } // learned via MQTT info/report
   let url = null;
   try { const r = await window.anycubic?.httpInfo?.(conn.ip); if (r?.ok) url = String(r.info?.rtspUrl || ""); }
   catch (_) { url = null; }
   if (!_acuConns.has(conn.key)) return false;
-  if (url == null) return true; // /info unreachable — assume FLV, don't cache
-  conn.data.camSupported = /\/flv\b/i.test(url) || /:18088\//.test(url);
-  return conn.data.camSupported;
+  if (url) {                              // HTTP /info advertised it (Kobra 3 V2)
+    conn.data.camUrl = conn.data.camUrl || url;
+    conn.data.camSupported = /:18088\//.test(url);
+    return conn.data.camSupported;
+  }
+  // No rtspUrl from HTTP /info (Kobra X serves it over MQTT). Attempt without
+  // caching, so a later info/report can confirm support.
+  return true;
 }
 
 /** Activate the camera: request capture, then attach ffmpeg once /flv serves. */
@@ -611,16 +622,19 @@ async function _acuRequestCamera(conn) {
 async function _acuProbeAndStartCam(conn, triesLeft = ACU_CAM_PROBE_TRIES) {
   if (!conn || !conn.ip || conn.data.camLive || conn._camProbing) return;
   if (conn._camRetry) { clearTimeout(conn._camRetry); conn._camRetry = null; }
+  // Prefer the URL the printer advertised (Kobra X: …/live/<token>); fall back
+  // to the Kobra 3 V2 default until the info/report arrives.
+  const url = conn.data.camUrl || `http://${conn.ip}:18088/flv`;
   conn._camProbing = true;
   let live = false;
-  try { const r = await window.anycubic?.flvProbe(conn.ip); live = !!r?.live; }
+  try { const r = await window.anycubic?.flvProbe(conn.ip, undefined, url); live = !!r?.live; }
   catch (_) { live = false; }
   conn._camProbing = false;
   if (!_acuConns.has(conn.key)) return; // disconnected while probing
 
   if (live) {
     conn.data.camLive = true;
-    window.anycubic?.camStart({ key: conn.key, ip: conn.ip });
+    window.anycubic?.camStart({ key: conn.key, ip: conn.ip, url });
     // Re-render surfaces showing this printer: the side panel swaps hero →
     // camera, and (in cam view) the wall rebuilds to add the now-live card.
     ctx.onPrinterStatusChange?.(conn.key, "connected");
@@ -1080,9 +1094,10 @@ function _acuMerge(conn, msg) {
       // viewer); drop to idle. We react regardless of who triggered it, so a
       // stream started in the slicer attaches here too.
       if (action === "startCapture" && state === "initSuccess") {
-        // Don't chase /flv on WebRTC models (camSupported === false). null
-        // (unknown) is allowed through — only a confirmed WebRTC model is
-        // skipped, so a slicer-started stream on an FLV model still attaches.
+        // Attach ffmpeg once the stream is up. The probe targets conn.data.camUrl
+        // (…/live/<token> on a Kobra X, from the info/report) or the /flv default.
+        // camSupported===false (a model with no local camera) is skipped; null
+        // (unknown) is allowed so a slicer-started stream still attaches.
         if (!d.camLive && d.camSupported !== false) _acuProbeAndStartCam(conn, ACU_CAM_PROBE_TRIES);
       } else if (action === "stopCapture" && state === "pushStopped") {
         if (d.camLive) {
@@ -1091,6 +1106,20 @@ function _acuMerge(conn, msg) {
           window.anycubic?.camStop(conn.key);
           ctx.onPrinterStatusChange?.(conn.key, "connected"); // banner → hero
         }
+      }
+      break;
+    }
+    case "info": {
+      // Periodic full-info report (~every 5 s). data.urls.rtspUrl is the camera
+      // stream URL — the ONLY place newer models (Kobra X) advertise it (their
+      // HTTP /info omits it). Shape: …:18088/flv (Kobra 3 V2) or
+      // …:18088/live/<token> (Kobra X). Used verbatim as the ffmpeg source.
+      const rtsp = data && data.urls && typeof data.urls.rtspUrl === "string" ? data.urls.rtspUrl : "";
+      if (/:18088\//.test(rtsp)) {
+        d.camUrl = rtsp;
+        if (d.camSupported == null) d.camSupported = true;
+        // URL just arrived and the camera is wanted but not yet live → attach now.
+        if (d.camWanted && !d.camLive) _acuProbeAndStartCam(conn, ACU_CAM_PROBE_TRIES);
       }
       break;
     }
