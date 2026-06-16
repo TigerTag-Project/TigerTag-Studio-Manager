@@ -139,3 +139,8 @@ assets/**/.DS_Store
 
 # Claude Code session data
 .claude/
+TigerTag-Studio-Manager.code-workspace
+
+# Anycubic camera RE capture (contains device certs/keys + account JWTs — never commit)
+acu-cam-dump.json
+acu-cam-mqtt.json

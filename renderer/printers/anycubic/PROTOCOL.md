@@ -230,10 +230,12 @@ window). Validated on a Kobra 3 V2: ffmpeg pulls it cleanly at ~5 fps.
 opened the camera, `/flv` returns **404** (the HTTP server on 18088 is up and
 404s every path). It only serves the FLV stream **after the printer is told
 to start capturing**. Observed:
-- **Kobra 3 V2** advertises `rtspUrl: http://<ip>:18088/flv` in `/info`;
+- **Kobra 3 V2** advertises `rtspUrl: http://<ip>:18088/flv` in HTTP `/info`;
   `/flv` is 404 at rest and `200`+FLV once a stream is active.
-- **Kobra X** advertises **no `rtspUrl`** at all — its camera path may differ
-  or be WebRTC-only.
+- **Kobra X** does **not** put `rtspUrl` in HTTP `/info`. It advertises a
+  **tokenized** URL `http://<ip>:18088/live/<token>` in the periodic **MQTT
+  `info/report`** (`data.urls.rtspUrl`) instead — same HTTP-FLV, `206`+FLV once
+  active. The 8-char token is validated and device-stable (a bogus token 404s).
 
 ### Activation command (captured — we control the stream)
 
@@ -273,32 +275,38 @@ stop:    same topic, "action":"stopCapture"  → report state "pushStopped"
    (`skipCam`), and `/flv` is never pulled blindly — the 404-until-active
    endpoint can't cause a retry loop.
 
-### Two camera transports — gate on `/info.rtspUrl`
+### Stream URL discovery — `rtspUrl` (HTTP `/info` OR MQTT `info/report`)
 
-There are **two** camera transports across the line-up, distinguished by the
-`rtspUrl` field in `/info`:
+Every FDM model so far streams **HTTP-FLV on :18088**. The only differences are
+the URL path and where it's advertised — both report it as `rtspUrl`:
 
-| | Local FLV (supported) | WebRTC/TRTC (out of scope) |
+| | Kobra 3 V2 (20027) | Kobra X (20030) |
 |--|--|--|
-| Example | **Kobra 3 V2** (20027) | **Kobra X** (20030), likely Kobra S1 / newer enclosed |
-| `/info.rtspUrl` | `http://<ip>:18088/flv` | **absent** |
-| `video/report` states on startCapture | `initSuccess` only | `initSuccess` → **`joinSuccess`** → **`pushStarted`** |
-| `/flv` after activation | `200` + FLV stream | `400`/`404` (never serves) |
-| How it streams | pullable HTTP-FLV on :18088 | joins a Tencent TRTC room (cloud relay) |
+| `rtspUrl` source | HTTP `/info` | MQTT `info/report` (`data.urls.rtspUrl`) |
+| URL | `http://<ip>:18088/flv` | `http://<ip>:18088/live/<token>` |
+| `video/report` on startCapture | `initSuccess` | `initSuccess` → `joinSuccess` → `pushStarted` |
+| stream response | `200` + FLV | `206` + FLV |
+| token | none | 8-char, validated, device-stable (a bogus token 404s) |
 
-The WebRTC path is the same one the cloud uses (hass-anycubic_cloud's
-Tencent-token camera, WIP/unused) — reproducing it needs the TRTC SDK + STS
-tokens, so it's **not implemented**. The driver therefore checks `/info` for
-an `rtspUrl` (`anycubic:http-info`, cached per connection as
-`conn.data.camSupported`) **before** activating: FLV models get
-`startCapture` + ffmpeg; WebRTC models are left on the hero photo and are
-**never** sent `startCapture` (so they don't needlessly join a TRTC room) and
-never probe-spammed. If `/info` is briefly unreachable we assume FLV (don't
-disable the camera on a hiccup).
+> ⚠️ **Earlier RE wrongly concluded the Kobra X was WebRTC/TRTC and out of
+> scope.** Its `joinSuccess`/`pushStarted` states *look* like a Tencent TRTC
+> room join, and its HTTP `/info` omits `rtspUrl` — but it is plain HTTP-FLV; the
+> URL just rides the periodic MQTT `info/report` (confirmed with `scripts/acu-cam-*`:
+> `/live/<token>` returns `206 video/x-flv`). The cloud `CAMERA_OPEN`=1001 Tencent
+> path (hass-anycubic_cloud, WIP/unused) is a *separate* thing relevant only to
+> cloud-mode printers (§9) — not LAN.
 
-Probe window: the printer can take several seconds to start serving `/flv`
-after `initSuccess` (~6 s observed on a Kobra 3 V2), so the bounded probe
-covers ~15 s before giving up.
+The driver treats the camera as supported once it has a `:18088` `rtspUrl` from
+**either** source, stored as `conn.data.camUrl` (captured in `_acuMerge`'s `info`
+case, or via the HTTP `/info` probe). It feeds that exact URL to `flvProbe` +
+ffmpeg, so `/flv` and `/live/<token>` are handled uniformly. The periodic
+`info/report` (~every 5 s) means the URL is usually known before the camera is
+even opened. When neither source has surfaced a URL yet, it does **not** disable
+the camera — it attempts and lets the bounded probe self-terminate.
+
+Probe window: the printer can take several seconds to start serving after
+`initSuccess` (~6 s observed on a Kobra 3 V2), so the bounded probe covers ~15 s
+before giving up.
 
 ## §5d Control commands — the action/set side
 

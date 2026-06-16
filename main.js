@@ -2492,7 +2492,7 @@ let _ffmpegBin = null;
   const { spawn: _acuSpawn } = require('child_process');
   const _acuCamProcs = new Map(); // key → ChildProcess
 
-  ipcMain.on('anycubic:cam-start', (event, { key, ip }) => {
+  ipcMain.on('anycubic:cam-start', (event, { key, ip, url }) => {
     const prev = _acuCamProcs.get(key);
     if (prev) { prev._stopped = true; try { prev.kill('SIGTERM'); } catch (_) {} _acuCamProcs.delete(key); }
 
@@ -2511,7 +2511,10 @@ let _ffmpegBin = null;
     const launch = () => {
       if (event.sender.isDestroyed()) return;
 
-      const flvUrl = `http://${ip}:18088/flv`;
+      // Stream URL: newer models (Kobra X) advertise a tokenized path
+      // (…:18088/live/<token>) via the MQTT info/report; the renderer passes it
+      // here. Falls back to the Kobra 3 V2 default (/flv) when none was learned.
+      const flvUrl = url || `http://${ip}:18088/flv`;
       console.log(`[acu-cam:${key}] launching ffmpeg → ${flvUrl} (bin: ${_ffmpegBin})`);
 
       const proc = _acuSpawn(_ffmpegBin, [
@@ -2676,12 +2679,14 @@ let _ffmpegBin = null;
   // (PROTOCOL.md §5c). We probe before spawning ffmpeg so we never loop on a
   // dead endpoint. Reads only the first chunk (the live response advertises a
   // bogus 99999999999 Content-Length) then aborts. Returns { ok, live }.
-  ipcMain.handle('anycubic:flv-probe', async (_evt, ip, timeoutMs) => {
+  ipcMain.handle('anycubic:flv-probe', async (_evt, ip, timeoutMs, url) => {
     const ctl = new AbortController();
     const timer = setTimeout(() => ctl.abort(), Number(timeoutMs) || 2500);
     try {
-      const res = await fetch(`http://${ip}:18088/flv`, { signal: ctl.signal });
-      if (res.status !== 200) { try { ctl.abort(); } catch (_) {} return { ok: true, live: false, status: res.status }; }
+      const res = await fetch(url || `http://${ip}:18088/flv`, { signal: ctl.signal });
+      // /flv (Kobra 3 V2) answers 200; the tokenized /live/<token> (Kobra X)
+      // answers 206 Partial Content — both are live FLV.
+      if (res.status !== 200 && res.status !== 206) { try { ctl.abort(); } catch (_) {} return { ok: true, live: false, status: res.status }; }
       // Confirm the FLV signature in the first bytes, then stop pulling.
       let live = false;
       try {

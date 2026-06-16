@@ -47,7 +47,7 @@ contextBridge.exposeInMainWorld('anycubic', {
   // frames delivered on 'anycubic:cam-frame' (key, base64).
   // The stream is on-demand: probe /flv first (live only after the printer
   // starts capturing) and only then call camStart. Returns { ok, live }.
-  flvProbe:   (ip, timeoutMs) => ipcRenderer.invoke('anycubic:flv-probe', ip, timeoutMs),
+  flvProbe:   (ip, timeoutMs, url) => ipcRenderer.invoke('anycubic:flv-probe', ip, timeoutMs, url),
   camStart:   (opts) => ipcRenderer.send('anycubic:cam-start', opts),
   camStop:    (key)  => ipcRenderer.send('anycubic:cam-stop',  key),
   onCamFrame: (cb)   => ipcRenderer.on('anycubic:cam-frame', (_, key, b64) => cb(key, b64)),
