@@ -5,6 +5,23 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.10.8 — 2026-06-18
+
+### Added
+
+- **Anycubic cloud-mode camera.** Printers connected in **cloud mode** now show their live camera in the side panel (an Agora WebRTC stream), not just LAN-connected printers. _Thanks to [@ennisj](https://github.com/ennisj) (PR #3)._
+
+### Changed
+
+- **Adding a printer opens its panel automatically.** Once you finish adding a printer, its side-card now opens straight away instead of leaving you on the list.
+- **Closing a printer also closes its settings.** If a printer's Settings form was open, closing the printer now closes that form too — no leftover panel floating on the side.
+
+### Fixed
+
+- **Settings close tab no longer hidden.** With a spool card, a printer's Settings, and a printer panel all open side by side, the spool card painted over the Settings panel's close tab — the tab is now always reachable.
+
+---
+
 ## v1.10.7 — 2026-06-17
 
 ### Added

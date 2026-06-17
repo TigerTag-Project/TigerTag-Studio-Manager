@@ -10357,6 +10357,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     }
   }
   function closePrinterDetail() {
+    // The printer settings panel edits THIS printer — close it too, otherwise
+    // it would linger after the printer side-card slid out.
+    if ($("printerAddPanel")?.classList.contains("open")) {
+      try { closePrinterAddForm(); } catch {}
+    }
     // If the filament-edit bottom-sheet is open over this side-panel,
     // close it FIRST so the user doesn't end up with an orphaned
     // sheet floating over the rest of the app. Triggered when the

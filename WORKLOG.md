@@ -5,8 +5,10 @@
 
 ## Changed
 - Adding a printer now opens the freshly-added printer's side-card automatically. After "Add printer" writes the doc, the form closes and the new printer's side-panel opens once the Firestore listener has propagated it into `state.printers` (`_openPrinterWhenReady` polls up to 3 s). `renderer/inventory.js`
+- Closing a printer's side-card now also closes its open Printer Settings panel (it edits that printer — no orphan form left floating). `renderer/inventory.js`
 
 ## Fixed
+- 3-panel z-index fix: with the material card + Printer Settings + printer panel all open, the material card painted over the Settings panel's `»` close tab (both were z-index 101). Re-laddered the side-panel stacking — panels 101/103/105 (material < settings < printer), tabs 102/104/106 — so each close tab sits above the panel to its left and tucks behind the one to its right. `css/70-detail-misc.css`
 
 ## Removed
 

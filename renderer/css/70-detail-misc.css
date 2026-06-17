@@ -662,9 +662,18 @@
     display: flex; flex-direction: column; overflow: hidden;
   }
   .detail-panel.open { transform: translateX(0); box-shadow: -8px 0 32px rgba(0,0,0,.12); }
-  /* When a spool card and the printer panel are both open, the printer is the
-     FRONT card — the spool card sits to its left and passes behind it. */
-  .detail-panel.printer-panel { z-index: 102; }
+  /* ── 3-layer side-panel stacking (back → front) ──────────────────────────
+     material/spool card (101) < printer settings (103) < printer panel (105).
+     They open side-by-side (each pushed left of the next), so the panels never
+     overlap — but each panel's `»` close tab sits at its OWN left edge, which
+     is the seam with the panel to its LEFT, so the tab DOES overlap that
+     neighbour. A tab must therefore paint ABOVE the panel to its left (be
+     visible) yet BELOW the panel to its right (tuck behind it while sliding
+     closed). That needs a free z-index slot between each pair → the interleaved
+     ladder: panels 101/103/105, tabs 102/104/106 (set below). */
+  .detail-panel.printer-panel { z-index: 105; }   /* printer = front card */
+  #printerAddPanel            { z-index: 103; }    /* printer settings = middle */
+  /* plain .detail-panel (material/spool) keeps z-index 101 = back card */
   /* Close tab — a small handle protruding from the printer panel's left edge
      (»  = "push it back to the right"). JS pins `right` to the panel width. */
   .pp-close-tab {
@@ -681,11 +690,11 @@
   .pp-close-tab[hidden] { display: none; }
   /* Hover: the tab stretches taller (with a slight overshoot) for clear feedback. */
   .pp-close-tab:hover { background: var(--primary-hover); width: 36px; height: 128px; }
-  /* The spool tab belongs to the BACK card (z-index 101), so it must sit below the
-     printer card (102) — otherwise it sweeps in FRONT of the printer while the spool
-     slides closed. It never overlaps its own card (it's outside, to the left), so a
-     lower z-index doesn't hide it. The printer tab keeps 103 (front card). */
-  #detailCloseTab, #printerAddCloseTab { z-index: 101; }
+  /* Tab z-index ladder — see the 3-layer note above. Each tab sits above the
+     panel it overlaps (the one to its left) and below the panel to its right. */
+  #detailCloseTab     { z-index: 102; } /* material tab — behind settings + printer */
+  #printerAddCloseTab { z-index: 104; } /* settings tab — over material, behind printer */
+  #printerCloseTab    { z-index: 106; } /* printer tab — over settings (front-most) */
   /* resize handle — left edge of both panels */
   .panel-resize {
     position: absolute; top: 0; left: 0; bottom: 0; width: 6px;
