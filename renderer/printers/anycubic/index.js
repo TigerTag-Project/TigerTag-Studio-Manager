@@ -32,6 +32,7 @@ import { registerBrand } from '../registry.js';
 import { meta, schema, helper } from './settings.js';
 import { renderAcuFilamentCard, renderAcuJobCard, renderAcuTempCard, renderAcuControlCard } from './cards.js';
 import { schemaWidget } from '../modal-helpers.js';
+import { acuAgoraStart, acuAgoraStop, acuAgoraActive, acuAgoraOnLive } from './agora-cam.js';
 
 const $ = id => document.getElementById(id);
 
@@ -39,6 +40,15 @@ const $ = id => document.getElementById(id);
 
 /** Per-printer live state. Keyed by `${brand}:${id}`. */
 const _acuConns = new Map();
+
+// When the cloud (Agora) camera goes live, flip camLive + re-render so the
+// banner swaps from the hero photo / loading overlay to the <video>.
+acuAgoraOnLive((key) => {
+  const conn = _acuConns.get(key);
+  if (!conn) return;
+  conn.data.camLive = true;
+  ctx.onPrinterStatusChange?.(key, "connected");
+});
 
 // Re-query the layout this often while connected — keeps the slot colors in
 // sync when the user changes filament from the printer / slicer / RFID tag.
@@ -153,7 +163,12 @@ export function acuConnect(printer, { skipCam = false } = {}) {
 
   // ── Cloud mode: shared cloud-MQTT subscription + REST getInfo ─────────────
   if (_acuIsCloud(printer)) {
-    if (existing && (existing.status === "connected" || existing.status === "connecting")) return;
+    if (existing && (existing.status === "connected" || existing.status === "connecting")) {
+      // Already live — a surface (side panel) opening (skipCam=false) wants the
+      // Agora camera; start it if not already running.
+      if (!skipCam) _acuCloudRequestCamera(existing);
+      return;
+    }
     const prev = existing?.data ? { ...existing.data } : null;
     if (existing) acuDisconnect(key);
     const conn = {
@@ -172,6 +187,7 @@ export function acuConnect(printer, { skipCam = false } = {}) {
     _scheduleRefresh(conn);
     _acuNotify(conn, /*statusChanged*/ true);
     _acuRefreshOnlineUI(key);
+    if (!skipCam) _acuCloudRequestCamera(conn);   // side panel open → Agora camera
     return;
   }
 
@@ -235,8 +251,9 @@ export function acuDisconnect(key) {
   const conn = _acuConns.get(key);
   if (!conn) return;
   if (conn.refreshTimer) { clearTimeout(conn.refreshTimer); conn.refreshTimer = null; }
-  // Cloud: just drop the shared-client subscription (no local broker/camera).
+  // Cloud: leave the Agora camera channel + drop the shared-client subscription.
   if (conn.mode === "cloud") {
+    acuAgoraStop(key);
     window.anycubic?.cloud?.unsubscribe(key);
     _acuConns.delete(key);
     return;
@@ -436,11 +453,36 @@ export function acuReleaseCamera(printer) {
   if (!conn) return;
   if (ctx.getState?.()?.viewMode === "printer-cam") return; // cam wall still needs it
   conn.data.camWanted = false;
+  conn.data.camLive = false;
+  if (conn.mode === "cloud") { acuAgoraStop(conn.key); return; } // leave the Agora channel
   if (conn._camRetry) { clearTimeout(conn._camRetry); conn._camRetry = null; }
   if (conn.brokerUp) _acuStopCapture(conn);
   window.anycubic?.camStop(conn.key);
-  conn.data.camLive = false;
   conn.data.lastCamFrame = null;
+}
+
+/**
+ * Start the cloud (Agora) camera for a cloud-mode printer. Fetches the join
+ * credentials via order 1001 (REST `cameraOpen`) and hands them to the Agora
+ * player (`agora-cam.js`), which renders into the `.acu-cam-agora` container.
+ * No-op if already running or the Agora SDK isn't loaded; stays on the hero
+ * photo on any failure (cloud camera is best-effort).
+ */
+async function _acuCloudRequestCamera(conn) {
+  if (!conn || conn.mode !== "cloud" || conn.data.camLive) return;
+  if (acuAgoraActive(conn.key)) return;                          // already joining/streaming
+  if (typeof window === "undefined" || !window.AgoraRTC) return; // SDK missing → hero photo
+  const p = conn.printer;
+  if (!p || !p.cloudToken || p.cloudPrinterId == null) return;
+  conn.data.camWanted = true;
+  let res = null;
+  try { res = await window.anycubic?.cloud?.cameraOpen?.({ token: p.cloudToken, printerId: p.cloudPrinterId }); }
+  catch (_) { res = null; }
+  // Released (panel closed) or disconnected while the REST call was in flight.
+  if (!_acuConns.has(conn.key) || !conn.data.camWanted) return;
+  if (!res || !res.ok || !res.agora) { conn.data.camWanted = false; return; }
+  acuAgoraStart(conn.key, res.agora);
+  ctx.onPrinterStatusChange?.(conn.key, "connected"); // render the (loading) container
 }
 
 // ── Camera (active control: video/startCapture → ffmpeg) ─────────────────────

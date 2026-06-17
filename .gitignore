@@ -144,3 +144,7 @@ TigerTag-Studio-Manager.code-workspace
 # Anycubic camera RE capture (contains device certs/keys + account JWTs — never commit)
 acu-cam-dump.json
 acu-cam-mqtt.json
+
+# Agora Web SDK — vendored from node_modules by `postinstall` (copy-agora-sdk.mjs),
+# not committed (commercial SDK; it's an npm dependency instead)
+renderer/lib/agora/

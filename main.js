@@ -3062,6 +3062,34 @@ let _ffmpegBin = null;
     }
   });
 
+  // ── Cloud camera open (order 1001) → Agora ("shengwang") credentials ──────
+  // The cloud camera is an Agora WebRTC stream. CAMERA_OPEN with the
+  // `shengwang_rtc_support` flag returns the channel + RTC token + the
+  // publisher/subscriber uids + the stream-encryption material (PROTOCOL.md §9).
+  // Unlike sendOrder above we must return the response DATA, not just ok/fail.
+  ipcMain.handle('anycubic:cloud-camera-open', async (_evt, { token, printerId }) => {
+    try {
+      const body = { order_id: 1001, printer_id: Number(printerId), shengwang_rtc_support: true };
+      const r = await _cloudFetch(token, 'POST', '/work/operation/sendOrder', body);
+      const code = r.json ? Number(r.json.code) : 0;
+      if (code !== 1) return { ok: false, code, authError: code === 10001, error: (r.json && r.json.msg) || `order-failed-${r.status}` };
+      const sw = r.json.data && r.json.data.shengwang;
+      if (!sw || !sw.appid || !sw.channel) return { ok: false, error: 'no shengwang creds in response (camera unavailable)' };
+      return { ok: true, agora: {
+        appId:     String(sw.appid),
+        channel:   String(sw.channel),
+        rtcToken:  String(sw.rtc_token || ''),
+        clientUid: Number(sw.client_uid),   // the uid WE join as
+        peerUid:   Number(sw.uid),           // the printer's publisher uid (subscribe target)
+        encKey:    sw.encryption_key || '',
+        encSalt:   sw.encryption_kdf_salt || '',  // base64 (32-byte KDF salt)
+        encMode:   String(sw.encryption_mode || ''),
+      } };
+    } catch (e) {
+      return { ok: false, error: e?.message || String(e) };
+    }
+  });
+
   // ── Shared cloud MQTT — one client per signed-in user; reports for every
   //    subscribed cloud printer arrive on 'anycubic:cloud-message' tagged with
   //    the renderer conn key set at subscribe time.
