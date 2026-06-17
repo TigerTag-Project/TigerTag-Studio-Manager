@@ -275,6 +275,20 @@ stop:    same topic, "action":"stopCapture"  → report state "pushStopped"
    (`skipCam`), and `/flv` is never pulled blindly — the 404-until-active
    endpoint can't cause a retry loop.
 
+> ⚠️ **OPEN ISSUE — Kobra X camera sleep/wake (TODO, not yet RE'd).**
+> Observed on a real Kobra X (LAN): after some idle time the camera goes to
+> **sleep**, and our `video/startCapture` alone no longer wakes it — `/flv`
+> (`…/live/<token>`) stays 404 / never reaches `pushStarted`, so the banner
+> stays on the hero photo. **Launching AnycubicSlicerNext wakes the camera**
+> (after which our driver attaches fine — see step 5), and a **printer reboot**
+> also wakes it. So the slicer sends an extra activation / keep-alive command
+> (likely the step that drives `initSuccess → joinSuccess → pushStarted`) that
+> we don't. **To fix**: sniff the slicer↔printer LAN MQTT (MQTT Explorer on the
+> printer broker subscribed to `#`, or `scripts/acu-cam-cdp.mjs`) while toggling
+> the camera in the slicer, identify the wake command, and replay it in
+> `_acuStartCapture` for the Kobra X. Until then, the Kobra X LAN camera only
+> works while it's already awake (slicer was opened, or post-reboot).
+
 ### Stream URL discovery — `rtspUrl` (HTTP `/info` OR MQTT `info/report`)
 
 Every FDM model so far streams **HTTP-FLV on :18088**. The only differences are

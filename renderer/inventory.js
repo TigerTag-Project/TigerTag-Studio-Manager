@@ -12933,6 +12933,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const btn = $("printerAddSave");
     btn.classList.add("loading");
     btn.disabled = true;
+    let addedId = null; // set on a successful ADD → open its side-card afterwards
     try {
       const db  = fbDb(uid);
       if (isEdit) {
@@ -12999,6 +13000,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           docPayload.discovery = _printerAddDiscovery;
         }
         await ref.set(docPayload);
+        addedId = ref.id;
       }
       closePrinterAddForm();
     } catch (e) {
@@ -13008,6 +13010,22 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     } finally {
       btn.classList.remove("loading");
       btn.disabled = false;
+    }
+    // Freshly added printer → open its side-card once the Firestore listener
+    // has propagated it into state.printers (the doc isn't there synchronously).
+    if (addedId) _openPrinterWhenReady(brand, addedId);
+  }
+
+  // Poll state.printers (up to 3 s) for a just-written printer, then open its
+  // side-card. Used after Add so the user lands straight on the new printer.
+  async function _openPrinterWhenReady(brand, id) {
+    const start = Date.now();
+    while (Date.now() - start < 3000) {
+      if (state.printers.some(p => p.brand === brand && p.id === id)) {
+        openPrinterDetail(brand, id);
+        return;
+      }
+      await new Promise(r => setTimeout(r, 50));
     }
   }
   // ── Scale functions have moved to renderer/IoT/tigerscale/index.js ─────
