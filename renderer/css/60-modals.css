@@ -1272,11 +1272,8 @@
     border-radius: 6px; transition: color .15s;
   }
   #addAccountModalOverlay .lm-eye:hover { color: var(--text); }
-  /* Press feedback: re-apply the centering transform so the icon stays
-     vertically centered on click. Same fix as `.pba-input-eye:active`
-     in 40-printers.css — the global `button:active { transform: translateY(1px); }`
-     would otherwise wipe the centering and make the eye drop ~14 px. */
-  #addAccountModalOverlay .lm-eye:active { transform: translateY(calc(-50% + 1px)); }
+  /* No :active transform hack needed — global press feedback is now
+     `filter: brightness` (70-detail-misc.css); the eye stays centered. */
   /* remember me + forgot password */
   #addAccountModalOverlay .lm-row {
     display: flex; align-items: center; justify-content: space-between;

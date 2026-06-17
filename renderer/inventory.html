@@ -377,6 +377,9 @@
 
 <!-- Printer detail panel (slide-in from right — opens when clicking a printer card) -->
 <div class="panel-overlay" id="printerOverlay"></div>
+<!-- Close tab: a sibling (not a child) so it isn't clipped by the panel's
+     overflow/transform; JS pins it to the panel's left edge while open. -->
+<button class="pp-close-tab" id="printerCloseTab" title="Close" aria-label="Close" hidden>»</button>
 <div class="detail-panel printer-panel" id="printerPanel">
   <div class="panel-header">
     <span class="panel-title pp-title-col">
@@ -1358,6 +1361,9 @@
 
 <!-- detail panel -->
 <div class="panel-overlay" id="panelOverlay"></div>
+<!-- Close tab — sibling (not clipped by the panel's overflow/transform); JS pins
+     it to the panel's left edge while open. Same component as the printer one. -->
+<button class="pp-close-tab" id="detailCloseTab" title="Close" aria-label="Close" hidden>»</button>
 <div class="detail-panel" id="detailPanel">
   <div class="panel-resize" id="detailResize"></div>
   <div class="panel-body" id="panelBody"></div>

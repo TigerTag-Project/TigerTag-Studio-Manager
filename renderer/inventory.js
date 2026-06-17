@@ -6685,6 +6685,39 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     el.classList.add("show");
   }
 
+  // Lay out the two non-modal side cards + their `»` close tabs. When BOTH are
+  // open the printer keeps the right edge and the spool card is pushed to its
+  // left (so a spool can later be dragged into a printer slot). Each card's tab
+  // is pinned to its OWN left edge using final (not mid-transition) positions, so
+  // the .25s slide stays in sync. Re-run on open/close, panel resize, window resize.
+  function _syncPanels() {
+    const dp = $("detailPanel"), pp = $("printerPanel");
+    const dOpen = !!dp?.classList.contains("open");
+    const pOpen = !!pp?.classList.contains("open");
+    const printerW = pp ? pp.offsetWidth : 0;
+    const matRight = (dOpen && pOpen) ? printerW : 0;   // spool card's right offset
+    if (dp) dp.style.right = matRight ? `${matRight}px` : "";
+    _setTab($("detailCloseTab"),  dOpen, matRight + (dp ? dp.offsetWidth : 0));
+    _setTab($("printerCloseTab"), pOpen, printerW);
+  }
+  // Show/position/hide a card's close tab so it slides WITH the panel — its `right`
+  // has the same .25s transition as the panel's slide and travels the same distance
+  // (the panel's width), so the two stay glued instead of the tab popping at its
+  // final spot. Opening: start at the panel's closed left edge (right:0), reflow,
+  // then slide to target. Closing: slide back to the edge, then hide once gone.
+  function _setTab(tab, open, target) {
+    if (!tab) return;
+    if (open) {
+      clearTimeout(tab._hideT);
+      if (tab.hidden) { tab.style.right = "0px"; tab.hidden = false; void tab.offsetWidth; }
+      tab.style.right = `${Math.round(target)}px`;
+    } else if (!tab.hidden) {
+      tab.style.right = "0px";
+      clearTimeout(tab._hideT);
+      tab._hideT = setTimeout(() => { tab.hidden = true; }, 280);
+    }
+  }
+
   function openDetail(spoolId) {
     state.selected = spoolId;
     document.querySelectorAll("[data-id]").forEach(el => el.classList.toggle("selected", el.dataset.id === spoolId));
@@ -6947,7 +6980,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       });
     }
 
-    $("detailPanel").classList.add("open"); $("panelOverlay").classList.add("open");
+    // Non-modal side card: don't dim/block the list behind it — clicking another
+    // spool re-runs openDetail() and switches in place (highlight follows
+    // `state.selected`). Close via the ✕ / Escape. (Overlay kept for the modal
+    // panels — settings, pickers — but not opened for the detail card.)
+    $("detailPanel").classList.add("open");
+    _syncPanels();
     // slider ↔ display ↔ inline edit
     const slider  = $("weightSlider");
     const fill    = $("wbFill");
@@ -7225,6 +7263,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // Stop any playing video
     const vp = $("panelVideoPlayer"); if (vp) vp.innerHTML = "";
     $("detailPanel").classList.remove("open"); $("panelOverlay").classList.remove("open");
+    _syncPanels(); // reset offset + hide the spool card's close tab
     _lastDetailSig = "";
     _lastDetailStructuralSig = "";
   }
@@ -7468,6 +7507,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     return { type: "external", src: url };
   }
   $("panelOverlay").addEventListener("click", closeDetail);
+  $("detailCloseTab")?.addEventListener("click", closeDetail); // » close tab (non-modal card)
   document.addEventListener("keydown", e => { if (e.key==="Escape") { closeDetail(); closeContainerPicker(); } });
 
   // Timelapse: 1051 response dispatches this event → show native save dialog directly.
@@ -8277,6 +8317,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
 
   makePanelResizable($("detailPanel"), $("detailResize"), "tigertag.panelWidth.detail");
   makePanelResizable($("debugPanel"),  $("debugResize"),  "tigertag.panelWidth.debug");
+  // Keep the material card glued to the left edge of the printer panel if the
+  // latter's width changes (e.g. window resize on a narrow viewport).
+  if (window.ResizeObserver) {
+    const _panelRO = new ResizeObserver(_syncPanels);
+    if ($("printerPanel")) _panelRO.observe($("printerPanel"));
+    if ($("detailPanel"))  _panelRO.observe($("detailPanel"));
+  }
+  window.addEventListener("resize", _syncPanels);
   // td1sPanel resize + panel open/close are handled by initTD1S (renderer/IoT/td1s/index.js)
 
   /* ── debug panel ── */
@@ -10234,8 +10282,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
                    : printer.brand === "elegoo"     ? elegooKey(printer) : null;
     if (_openKey) _ppForcedOfflineKeys.delete(_openKey);
     renderPrinterDetail();
+    // Non-modal: don't dim/block the grid behind it — clicking another printer
+    // re-runs openPrinterDetail() and switches in place. Close via ✕ / Escape.
     $("printerPanel").classList.add("open");
-    $("printerOverlay").classList.add("open");
+    _syncPanels(); // lay out both cards + close tabs
     // Snapmaker U1 talks Moonraker over a local WebSocket — connect when
     // the sidebar opens so we can stream live temps + filament + job state.
     if (printer.brand === "snapmaker" && printer.ip) {
@@ -10300,6 +10350,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (img) try { ffgMuxUnregister(ffgKey(_activePrinter), img); } catch {}
     }
     $("printerPanel").classList.remove("open");
+    _syncPanels(); // re-lay-out + hide the printer close tab
     $("printerOverlay").classList.remove("open");
     // Creality — unregister the sidecard's <video> from the stream consumer set.
     // The WebRTC peer connection keeps running as long as the cam wall is also
@@ -10412,7 +10463,16 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (e.target.closest("#printerAddCard")) openPrinterBrandPicker();
   });
   $("printerPanelClose")?.addEventListener("click", closePrinterDetail);
+  $("printerCloseTab")?.addEventListener("click", closePrinterDetail);
   $("printerOverlay")?.addEventListener("click", closePrinterDetail);
+  // Escape closes the (now non-modal) printer panel — unless an inline editor
+  // (temp input, filament sheet, …) is focused, which handles Escape itself.
+  document.addEventListener("keydown", e => {
+    if (e.key !== "Escape" || !$("printerPanel")?.classList.contains("open")) return;
+    const ae = document.activeElement;
+    if (ae && (ae.tagName === "INPUT" || ae.tagName === "SELECT" || ae.tagName === "TEXTAREA" || ae.isContentEditable)) return;
+    closePrinterDetail();
+  });
   // Escape key — closes the printer detail side-panel when it's open.
   // Replaces the role previously played by the visible ✕ button (now
   // removed). Backdrop click + Esc are the two close affordances.

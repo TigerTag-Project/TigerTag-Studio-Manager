@@ -82,7 +82,11 @@
     display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-family: inherit;
   }
   button:hover { background: var(--surface-2); }
-  button:active { transform: translateY(1px); }
+  /* Press feedback via brightness, NOT transform: a global `translateY(1px)`
+     used to OVERRIDE the centering transform of positioned buttons (password
+     eye toggles, etc.) and make them jump down on click. brightness never
+     conflicts with a button's own transform, so no per-button :active hacks. */
+  button:active { filter: brightness(.92); }
   button:disabled { opacity: .55; cursor: not-allowed; }
   button.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
   button.primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); }
@@ -654,10 +658,34 @@
     border: 1px solid var(--border); border-right: none;
     border-top-left-radius: 14px; border-bottom-left-radius: 14px;
     box-shadow: none;
-    z-index: 101; transform: translateX(100%); transition: transform .25s cubic-bezier(.4,0,.2,1), box-shadow .25s;
+    z-index: 101; transform: translateX(100%); transition: transform .25s cubic-bezier(.4,0,.2,1), box-shadow .25s, right .25s cubic-bezier(.4,0,.2,1);
     display: flex; flex-direction: column; overflow: hidden;
   }
   .detail-panel.open { transform: translateX(0); box-shadow: -8px 0 32px rgba(0,0,0,.12); }
+  /* When a spool card and the printer panel are both open, the printer is the
+     FRONT card — the spool card sits to its left and passes behind it. */
+  .detail-panel.printer-panel { z-index: 102; }
+  /* Close tab — a small handle protruding from the printer panel's left edge
+     (»  = "push it back to the right"). JS pins `right` to the panel width. */
+  .pp-close-tab {
+    position: fixed; z-index: 103; right: 0; top: 50%;
+    transform: translateY(-50%);
+    width: 30px; height: 88px; padding: 0;
+    display: flex; align-items: center; justify-content: center;
+    border: none; border-radius: 14px 0 0 14px;
+    background: var(--primary); color: #fff;
+    box-shadow: -6px 0 22px rgba(255,122,24,.45);
+    cursor: pointer; font-size: 19px; font-weight: 800; line-height: 1;
+    transition: right .25s cubic-bezier(.4,0,.2,1), background .15s, width .15s, height .2s cubic-bezier(.34,1.45,.6,1);
+  }
+  .pp-close-tab[hidden] { display: none; }
+  /* Hover: the tab stretches taller (with a slight overshoot) for clear feedback. */
+  .pp-close-tab:hover { background: var(--primary-hover); width: 36px; height: 128px; }
+  /* The spool tab belongs to the BACK card (z-index 101), so it must sit below the
+     printer card (102) — otherwise it sweeps in FRONT of the printer while the spool
+     slides closed. It never overlaps its own card (it's outside, to the left), so a
+     lower z-index doesn't hide it. The printer tab keeps 103 (front card). */
+  #detailCloseTab { z-index: 101; }
   /* resize handle — left edge of both panels */
   .panel-resize {
     position: absolute; top: 0; left: 0; bottom: 0; width: 6px;
@@ -742,6 +770,9 @@
   .panel-action:active { transform: scale(.95); }
   .panel-action .icon { background: currentColor; }
   .panel-body { flex: 1; overflow-y: auto; padding: 0 0 24px; }
+  /* Material card: hide the scrollbar (content still scrolls). */
+  #panelBody { scrollbar-width: none; }
+  #panelBody::-webkit-scrollbar { width: 0; height: 0; }
   .panel-img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; background: #1c2030; }
   .panel-img-placeholder { width: 100%; aspect-ratio: 1; background: linear-gradient(135deg,#1c2030,#2a1a0e); display: flex; align-items: center; justify-content: center; }
   .panel-img-placeholder img { width: 40%; opacity: .5; }

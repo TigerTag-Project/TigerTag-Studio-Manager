@@ -5,6 +5,20 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.10.6 — 2026-06-17
+
+### Changed
+
+- **Spool and printer side-cards no longer dim the screen.** Opening a spool's or printer's detail card used to drop a dark overlay behind it that you had to dismiss first. Now the list stays fully usable — click another spool or printer and the card switches in place, no close-then-reselect. Each card has a clear orange `»` tab on its left edge to close it, and the tab slides in and out attached to the card instead of popping into place.
+- **Spool and printer cards can now sit side by side.** Open a spool's card and a printer's card at the same time and the printer keeps the right edge while the spool card tucks in just to its left (passing neatly behind it), instead of one replacing the other — groundwork for dragging a spool straight onto a printer slot.
+
+### Fixed
+
+- **Buttons no longer jump down when clicked.** Some buttons — most visibly the show/hide-password eye — shifted downward on press. Fixed everywhere.
+- **Spool card's close tab now slides behind the printer card.** When both cards were open and you closed the spool card, its orange `»` tab briefly swept in front of the printer card instead of behind it like the card itself. Fixed.
+
+---
+
 ## v1.10.5 — 2026-06-16
 
 ### Added
