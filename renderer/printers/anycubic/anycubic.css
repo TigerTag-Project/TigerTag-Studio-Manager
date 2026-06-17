@@ -23,6 +23,19 @@
   opacity: 0;
 }
 
+/* ── Cloud camera — Agora WebRTC <video> ──────────────────────────────────
+   .acu-cam-agora is the shared .pp-cam-full banner (position:relative, 16:9),
+   so it must KEEP that sizing — never override it. agora-cam.js calls
+   track.play() into it, which inserts a wrapper <div><video></video></div>;
+   only those inserted elements need to fill the banner. */
+.acu-cam-agora > div,
+.acu-cam-agora video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover;
+  background: #000;
+}
+
 /* ── Cloud provisioning — bridge-mode launch instructions ──────────────────
    Shown in the "Add a cloud printer" modal when the slicer isn't reachable. */
 .acu-cloud-help {

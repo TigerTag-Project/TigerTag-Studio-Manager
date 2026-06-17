@@ -28,18 +28,21 @@ const HOOK = `(() => {
   var T = function(s){ if (s==null) return null; if (typeof s!=='string'){ try{ s = JSON.stringify(s); }catch(e){ s = String(s); } } return s.length>8000 ? s.slice(0,8000)+'…[+'+(s.length-8000)+' chars]' : s; };
   var P = function(kind, url, body){ try{ B.push({ t:Date.now(), kind:kind, url:String(url||''), body:T(body) }); if (B.length>200) B.splice(0, B.length-200); }catch(e){} };
   var SKIP = /\.(?:js|css|png|jpe?g|gif|svg|woff2?|ttf|otf|map|ico|mp3|wav|webp)(?:\\?|$)/i;
+  // Telemetry / media-relay hosts that flood the buffer (Agora stats + edge, analytics).
+  var NOISE = /statscollector|edge\\.agora|cds[\\w-]*\\.agora|sd-rtn\\.com|google-analytics|googletagmanager|posthog|sentry|makeronline|event\\.anycubic/i;
+  var CAP = function(u){ u = String(u||''); return !SKIP.test(u) && !NOISE.test(u); };
   var done = [];
 
   if (!window.__c2_fetch) { window.__c2_fetch = 1; var of = window.fetch;
     if (of) { window.fetch = function(){ var a = arguments, u=''; try{ u = a[0] && (a[0].url||a[0]); }catch(e){} var b = a[1] && a[1].body;
-      if (!SKIP.test(String(u))) P('fetch>', u, b);
+      if (CAP(u)) P('fetch>', u, b);
       var pr = of.apply(this, arguments);
-      try { if (!SKIP.test(String(u))) pr.then(function(res){ try{ res.clone().text().then(function(tx){ P('fetch<', u+' ['+res.status+']', tx); }).catch(function(){}); }catch(e){} }).catch(function(){}); }catch(e){}
+      try { if (CAP(u)) pr.then(function(res){ try{ res.clone().text().then(function(tx){ P('fetch<', u+' ['+res.status+']', tx); }).catch(function(){}); }catch(e){} }).catch(function(){}); }catch(e){}
       return pr; }; done.push('fetch'); } }
 
   if (!window.__c2_xhr) { window.__c2_xhr = 1; var oo = XMLHttpRequest.prototype.open, ose = XMLHttpRequest.prototype.send;
     XMLHttpRequest.prototype.open = function(m,u){ this.__u=u; return oo.apply(this, arguments); };
-    XMLHttpRequest.prototype.send = function(b){ var self=this; try{ if (!SKIP.test(String(self.__u))){ P('xhr>', self.__u, b); self.addEventListener('load', function(){ try{ P('xhr<', self.__u+' ['+self.status+']', self.responseText); }catch(e){} }); } }catch(e){} return ose.apply(this, arguments); }; done.push('xhr'); }
+    XMLHttpRequest.prototype.send = function(b){ var self=this; try{ if (CAP(self.__u)){ P('xhr>', self.__u, b); self.addEventListener('load', function(){ try{ P('xhr<', self.__u+' ['+self.status+']', self.responseText); }catch(e){} }); } }catch(e){} return ose.apply(this, arguments); }; done.push('xhr'); }
 
   if (!window.__c2_rtc && window.RTCPeerConnection) { window.__c2_rtc = 1; var ORTC = window.RTCPeerConnection;
     var H = function(cfg){ try{ P('rtc.new', '', cfg); }catch(e){} var pc = new ORTC(cfg);
@@ -56,12 +59,28 @@ const HOOK = `(() => {
 
   if (!window.__c2_ws && window.WebSocket) { window.__c2_ws = 1; var OWS = window.WebSocket;
     var WH = function(url, protos){ var ws = protos!==undefined ? new OWS(url, protos) : new OWS(url);
-      try{ P('ws.open', url, null); ws.addEventListener('message', function(e){ try{ if (typeof e.data==='string') P('ws<', url, e.data); }catch(x){} }); }catch(x){}
+      try{ if (CAP(url)) P('ws.open', url, null); ws.addEventListener('message', function(e){ try{ if (typeof e.data==='string' && CAP(url)) P('ws<', url, e.data); }catch(x){} }); }catch(x){}
       return ws; };
     WH.prototype = OWS.prototype;
     try { ['CONNECTING','OPEN','CLOSING','CLOSED'].forEach(function(k){ WH[k]=OWS[k]; }); } catch(e){}
     window.WebSocket = WH;
-    var ows = OWS.prototype.send; OWS.prototype.send = function(d){ try{ if (typeof d==='string') P('ws>', this.url, d); }catch(x){} return ows.apply(this, arguments); }; done.push('ws'); }
+    var ows = OWS.prototype.send; OWS.prototype.send = function(d){ try{ if (typeof d==='string' && CAP(this.url)) P('ws>', this.url, d); }catch(x){} return ows.apply(this, arguments); }; done.push('ws'); }
+
+  // Agora Web SDK: capture client.join(appId, channel, token, uid) — the creds
+  // the cloud issued for this camera session. Poll for the (lazily-loaded) global.
+  if (!window.__c2_agora) { window.__c2_agora = 1;
+    var hookAgora = function(){
+      var A = window.AgoraRTC;
+      if (!A || !A.createClient || A.__c2) return !!(A && A.__c2);
+      A.__c2 = 1; var oc = A.createClient;
+      A.createClient = function(){ var client = oc.apply(this, arguments);
+        try { if (client && client.join && !client.__c2j) { client.__c2j = 1; var oj = client.join;
+          client.join = function(appId, channel, token, uid){ try{ P('agora.join','',{appId:appId,channel:channel,token:token,uid:uid}); }catch(e){} return oj.apply(this, arguments); }; } } catch(e){}
+        return client; };
+      return true;
+    };
+    if (!hookAgora()) { var _n=0; var _iv=setInterval(function(){ if (hookAgora() || ++_n>150) clearInterval(_iv); }, 200); }
+  }
 
   return 'hooks:['+done.join(',')+']';
 })()`;
@@ -69,8 +88,8 @@ const HOOK = `(() => {
 const READ = `JSON.stringify({
   events: (window.__acuCam2||[]),
   loc: String(location.href).slice(0,120),
-  sdkGlobals: Object.keys(window).filter(function(k){ return /^(WebRtc|TRTC|TXLive|TXUGC|Tencent|WebRTC|trtc|liteav)/i.test(k); }),
-  sdkScripts: (performance.getEntriesByType('resource')||[]).map(function(e){return e.name;}).filter(function(n){ return /webrtcstreamer|trtc|tencent|webrtc|liteav|txugc/i.test(n); })
+  sdkGlobals: Object.keys(window).filter(function(k){ return /^(WebRtc|Agora|TRTC|TXLive|TXUGC|Tencent|WebRTC|trtc|liteav)/i.test(k); }),
+  sdkScripts: (performance.getEntriesByType('resource')||[]).map(function(e){return e.name;}).filter(function(n){ return /webrtcstreamer|agora|sd-rtn|trtc|tencent|webrtc|liteav|txugc/i.test(n); })
 })`;
 
 // ── minimal CDP session over one WebSocket (id-matched calls + event stream) ──
@@ -175,11 +194,10 @@ for (const e of cam) {
 }
 
 console.log('\n──────── what to look for ────────');
-console.log('• the /live/<token> request: method + body (SDP offer?) and its response (SDP answer?)');
-console.log('• whatever request MINTS the token (precedes /live/<token>)');
-console.log('• rtc.new config.iceServers → empty ⇒ pure-LAN; populated ⇒ STUN/TURN needed');
-console.log('• rtc.remoteSDP m=video recvonly + H264 → we subscribe to one video track');
-console.log('• ws> / ws< frames → if signaling rides a WebSocket instead of HTTP');
+console.log('• agora.join → { appId, channel, token, uid } — the cloud-issued camera creds');
+console.log('• ac.localhost/cloud_mqtt/publish request body → the camera-open command we must send');
+console.log('• LAN: the /live/<token> request + the request that MINTS the token');
+console.log('• rtc.remoteSDP (s=AgoraGateway ⇒ cloud/Agora; recvonly + H264/VP8 = the camera track)');
 
 for (const { s } of sessions) s.close();
 process.exit(0);

@@ -81,6 +81,9 @@ contextBridge.exposeInMainWorld('anycubic', {
     // Send an ACE order (1206 = getInfo, 1211 = setSlot). The report comes
     // back over cloud MQTT. opts = { token, orderId, printerId, data }.
     sendOrder:   (opts)   => ipcRenderer.invoke('anycubic:cloud-send-order', opts),
+    // Open the cloud camera (order 1001) → Agora creds { appId, channel,
+    // rtcToken, clientUid, peerUid, encKey, encSalt, encMode }. opts = { token, printerId }.
+    cameraOpen:  (opts)   => ipcRenderer.invoke('anycubic:cloud-camera-open', opts),
     // Shared cloud-MQTT connection (one per signed-in user). connect once,
     // then subscribe each printer; reports arrive on onMessage tagged with
     // the renderer conn key passed to subscribe.

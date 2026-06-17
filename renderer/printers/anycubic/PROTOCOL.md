@@ -516,16 +516,50 @@ so the same `_acuMerge` parses them). Connection (`services/anycubicCloudCerts.j
 
 ### Implementation
 `main.js` (cloud block): `anycubic:cloud-cdp-token`, `:cloud-get-printers`,
-`:cloud-verify`, `:cloud-send-order`, `:cloud-connect`/`:cloud-subscribe`/
-`:cloud-unsubscribe` (+ `:cloud-message`/`:cloud-status`). Renderer driver
-(`index.js`) branches on `printer.mode === "cloud"`: connect = shared-MQTT
-subscribe + REST getInfo; refresh/getInfo/setInfo via REST; reports reuse
-`_acuMerge`; **no camera** (cloud camera is TRTC, §5c). Provisioning UI:
-`add-flow.js` "Add a cloud printer" panel (CDP grab → getPrinters → one-click add,
-written by `ctx.addAnycubicCloudPrinter` as a `mode:"cloud"` doc).
+`:cloud-verify`, `:cloud-send-order`, `:cloud-camera-open`,
+`:cloud-connect`/`:cloud-subscribe`/`:cloud-unsubscribe`
+(+ `:cloud-message`/`:cloud-status`). Renderer driver (`index.js`) branches on
+`printer.mode === "cloud"`: connect = shared-MQTT subscribe + REST getInfo;
+refresh/getInfo/setInfo via REST; reports reuse `_acuMerge`; camera = Agora
+(below). Provisioning UI: `add-flow.js` "Add a cloud printer" panel (CDP grab →
+getPrinters → one-click add, written by `ctx.addAnycubicCloudPrinter` as a
+`mode:"cloud"` doc).
+
+### §9b Cloud camera — Agora ("shengwang"/声网) WebRTC
+
+Cloud-mode printers have no local ports, so their camera is **not** HTTP-FLV.
+It's an **Agora** WebRTC stream (the printer's `features.shengwang_rdt_support`
+is the tell — "shengwang/声网" *is* Agora). The earlier guess of Tencent TRTC
+was wrong: cloud order **`1001`** with a `shengwang_rtc_support:true` flag
+returns an empty Tencent `token` block **and** a populated `shengwang` block —
+the latter is what's used:
+
+```
+POST /work/operation/sendOrder
+  { "order_id": 1001, "printer_id": <cloudPrinterId>, "shengwang_rtc_support": true }
+→ data.shengwang = {
+    appid, channel (= cloud device id), rtc_token (Agora AccessToken2),
+    client_uid (we join as this), uid (the printer's publisher — subscribe target),
+    encryption_key, encryption_kdf_salt (base64, 32-byte), encryption_mode ("AES_256_GCM2")
+  }
+```
+
+The renderer runs the **Agora Web SDK** (npm dep `agora-rtc-sdk-ng`, global
+`AgoraRTC` — copied from node_modules into `renderer/lib/agora/` by `postinstall`,
+gitignored): `setEncryptionConfig("aes-256-gcm2", key, base64-decoded salt)`
+→ `join(appid, channel, rtc_token, client_uid)` → subscribe to remote `uid`'s
+video → `track.play()` into the `.acu-cam-agora` banner container
+(`renderer/printers/anycubic/agora-cam.js`). IPC: `anycubic:cloud-camera-open`
+(returns the normalized creds). Captured via `scripts/acu-cam-cdp.mjs` (hooks
+`AgoraRTC.join`; the creds arrive over the cloud-MQTT native bridge, so the
+order response is the source).
+
+**Scope:** side panel only for now (cam wall + detached cam window are LAN-FLV
+only — cloud-camera support there is a follow-up). The stream is media-encrypted
+(AES‑256‑GCM2); the SDK handles it from the order's key/salt.
 
 ### Limits (cloud)
 - `setInfo` honors only `{index, type, color}` (same as LAN).
 - **Token expires** → occasional re-provision (the slicer in bridge mode again).
-- **No camera** for cloud printers (TRTC; out of scope — §5c).
+- Camera: Agora WebRTC (§9b) — side panel only; needs the Agora SDK + the per-session order-1001 creds.
 - Dev validators: `scripts/acu-cloud-test.mjs` (full path), `acu-mqtt-sniff.mjs`.
