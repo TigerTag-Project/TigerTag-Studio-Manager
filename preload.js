@@ -245,6 +245,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Returns { ok, fields: { machineModel, machineName, firmware, serialNumber, macAddress } }.
   ffgTcpProbe: (ip) => ipcRenderer.invoke('ffg:tcp-probe', ip),
 
+  // ── FlashForge UDP identity probe — port 19000.
+  // Sends a UDP datagram to ip:19000; modern models (5M, AD5X, Creator 5/Pro)
+  // reply with model + serial WITHOUT credentials — the same way the FlashForge
+  // slicer identifies a printer before asking only for the access code.
+  // Returns { ok, machineModel, serialNumber } (serial stored without the SN prefix).
+  ffgUdpProbe: (ip) => ipcRenderer.invoke('ffg:udp-probe', ip),
+
   // ── Creality TCP probe — port 9999 open/closed fast filter.
   // Connects to ip:9999 (650 ms timeout) and reports whether the port is
   // open. The renderer then runs the WebSocket JSON handshake on each open

@@ -220,6 +220,69 @@ function nextSeqId() {
 }
 ```
 
+### 5.6 Contrôle machine temps réel (lumière, axes, ventilo, température, vitesse)
+
+> ⚠️ **Source : OpenBambuAPI (communauté), pas l'app Flutter.** Contrairement aux
+> commandes §5.1-5.5, ces payloads sont issus de la rétro-ingénierie communautaire
+> (OpenBambuAPI / pybambu / ha-bambulab). Ils fonctionnent sur la plupart des
+> modèles mais le comportement peut varier (ex. la **A1** n'a pas de `chamber_light`
+> mais une lumière de tête). **À valider par modèle sur du vrai matériel.**
+
+Tout passe par le topic `device/{serialNumber}/request`. Les déplacements,
+température, ventilo et home utilisent la commande générique `gcode_line`.
+
+**Lumière** (topic racine `system`, pas `print`) :
+```json
+{ "system": { "sequence_id": "N", "command": "ledctrl",
+  "led_node": "chamber_light", "led_mode": "on",
+  "led_on_time": 500, "led_off_time": 500, "loop_times": 0, "interval_time": 0 } }
+```
+`led_node` = `chamber_light` (X1C/P1S) ou `work_light` (lumière de tête A1).
+`led_mode` = `on` | `off` (`flashing` également supporté). L'état réel revient en
+push dans `print.lights_report` = `[{ "node": "chamber_light", "mode": "on" }]`.
+
+**Jog d'un axe** (mouvement relatif encadré par G91/G90 pour ne pas laisser
+l'imprimante en relatif) :
+```json
+{ "print": { "sequence_id": "N", "command": "gcode_line",
+  "param": "G91\nG1 Z10 F900\nG90\n" } }
+```
+Vitesses conseillées : `F3000` pour X/Y, `F900` pour Z.
+
+**Home** : `G28` (tout), `G28 X Y` (XY), `G28 Z` (Z).
+```json
+{ "print": { "sequence_id": "N", "command": "gcode_line", "param": "G28\n" } }
+```
+
+**Désactiver les moteurs** : `M84` (ou `M18`).
+
+**Ventilos** : `P1` = ventilo de couche (pièce), `P2` = ventilo **auxiliaire** « assist »
+(big fan), `P3` = ventilo de **caisson** « case » (modèles fermés : X1C, etc.), `S` sur 0-255.
+```json
+{ "print": { "sequence_id": "N", "command": "gcode_line", "param": "M106 P1 S255\n" } }
+{ "print": { "sequence_id": "N", "command": "gcode_line", "param": "M106 P2 S255\n" } }
+{ "print": { "sequence_id": "N", "command": "gcode_line", "param": "M106 P3 S255\n" } }
+```
+Le push renvoie la vitesse **réelle** (pas la consigne) : `print.cooling_fan_speed` (P1),
+`print.big_fan1_speed` (P2) et `print.big_fan2_speed` (P3, caisson), en paliers **0-15**
+→ % = `round(v/15*100)`. Comme c'est
+la vitesse réelle (qui rampe/fluctue) et qu'il n'existe pas de champ « consigne », l'UI
+n'accepte une valeur que lorsqu'elle **se répète deux relevés de suite** (stable) — ça
+filtre les valeurs transitoires de la rampe tout en captant un changement fait sur
+l'imprimante. Une commande UI fixe la valeur immédiatement (optimiste).
+
+**Consigne de température** : buse `M104 S{°C}`, plateau `M140 S{°C}`.
+```json
+{ "print": { "sequence_id": "N", "command": "gcode_line", "param": "M104 S220\n" } }
+```
+
+**Niveau de vitesse d'impression** (n'agit que pendant une impression) :
+```json
+{ "print": { "sequence_id": "N", "command": "print_speed", "param": "2" } }
+```
+`param` = `1` (Silencieux) | `2` (Standard) | `3` (Sport) | `4` (Extrême).
+L'état revient en push dans `print.spd_lvl`.
+
 ---
 
 ## 6. Format des messages PUSH (report)

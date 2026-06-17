@@ -732,14 +732,9 @@
   .pba-input-eye:hover { background: var(--surface-2); color: var(--text); }
   .pba-input-eye .icon { background: currentColor; }
   .pba-input-eye--on { color: var(--primary); }
-  /* Press feedback dedicated to the eye toggle: re-apply the centering
-     transform so the icon stays vertically centered. The global
-     `button:active { transform: translateY(1px); }` rule in 70-detail-misc.css
-     would otherwise overwrite the absolute-positioned eye's centering
-     transform and make the icon drop ~15 px on click. The compound
-     `translateY(calc(-50% + 1px))` keeps the tactile 1 px nudge while
-     preserving vertical centering. */
-  .pba-input-eye:active { transform: translateY(calc(-50% + 1px)); }
+  /* No :active transform hack needed any more — global press feedback is now
+     `filter: brightness` (70-detail-misc.css), which can't disturb the eye's
+     centering transform. The icon stays put on click; it just darkens. */
 
   /* ── Eye icon stack — both eye-on + eye-off pre-rendered, swap by
      opacity so toggling the password visibility never reflows the icon's

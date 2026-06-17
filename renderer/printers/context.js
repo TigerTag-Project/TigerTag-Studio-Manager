@@ -58,6 +58,11 @@ export const ctx = {
   addAnycubicCloudPrinter: async (_rec) => ({ ok: false, error: "not-wired" }),
   // Refresh the cloud token on all Anycubic cloud printers (after a re-grab).
   updateAnycubicCloudToken: async (_email, _token) => ({ ok: false, error: "not-wired" }),
+  // Persist a printer's resolved model id (printerModelId) to Firestore.
+  // Used by brand drivers to auto-correct the model after the first
+  // authenticated connection, when the add-by-IP probe couldn't identify it.
+  updatePrinterModel: async (_printer, _modelId) => {},
+
   // Re-applies data-i18n translations across the whole document.
   // Call after dynamically injecting elements that carry data-i18n attributes.
   applyTranslations:   () => {},

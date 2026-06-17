@@ -124,7 +124,12 @@ function ffgAbortScan() {
  */
 function _ffgCandidateCardHtml(c) {
   const title      = c.hostName || c.machineName || c.machineModel || c.ip;
-  const modelLine  = c.machineModel && c.machineModel !== title ? c.machineModel : "";
+  // Unidentified candidates (newer firmware that hides identity behind the SN,
+  // e.g. Creator 5) carry no model/serial. Show a "tap to set up" hint instead
+  // of an empty card so the user knows the row is actionable.
+  const modelLine  = c.unidentified
+    ? (ctx.t?.("ffgScanUnidentified") || "FlashForge — tap to set up")
+    : (c.machineModel && c.machineModel !== title ? c.machineModel : "");
   const serialLine = c.serialNumber ? `SN · ${c.serialNumber}` : "";
 
   // Printer-model thumbnail on the left of the card — matches the Flutter

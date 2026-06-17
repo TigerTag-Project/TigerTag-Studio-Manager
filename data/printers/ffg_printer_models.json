@@ -32,7 +32,7 @@
   {
     "id": "6",
     "name": "Creator 5 Pro",
-    "image": "assets/images/ffg_printers/a5.png",
+    "image": "assets/images/ffg_printers/creator_5_pro.png",
     "features": ["CFS", "Lidar", "Camera", "Enclosed"]
   },
   {

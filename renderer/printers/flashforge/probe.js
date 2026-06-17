@@ -80,10 +80,17 @@ function ffgFirstStr(obj, keys) {
  * Matches the same logic used by the Flutter app.
  *
  * @param {string} model  Raw string from HTTP or M115 response.
- * @returns {string}  "1" AD5X | "2" 5M | "3" 5M Pro | "4" A5 | "0" unknown
+ * @returns {string}  "1" AD5X | "2" 5M | "3" 5M Pro | "4" A5 |
+ *                    "5" Creator 5 | "6" Creator 5 Pro | "0" unknown
  */
 export function ffgModelIdFromMachineModel(model) {
   const s = String(model || "").toLowerCase();
+  // Creator series first — "creator 5 pro" contains "creator 5", so the Pro
+  // check must win. Neither contains "5m"/"5m pro", so they don't collide with
+  // the Adventurer branches below.
+  if (s.includes("creator 5 pro") || s.includes("creator5 pro") ||
+      s.includes("creator 5pro")  || s.includes("creator5pro"))  return "6";
+  if (s.includes("creator 5") || s.includes("creator5"))         return "5";
   if (s.includes("ad5x"))                                   return "1";
   if (s.includes("5m pro") || s.includes("5mpro") ||
       s.includes("adventurer 5m pro"))                      return "3";
@@ -171,10 +178,31 @@ export async function ffgProbeIp(ip, { logPush, timeoutMs } = {}) {
 
   let candidate = { ip, hostName, machineModel, machineName, serialNumber, firmware, macAddress };
 
-  // ── TCP fallback (M115) — fired when HTTP gave us nothing useful OR the
-  //    response was the "SN is different" placeholder we can't act on.
   const needsEnrich = !machineModel && !serialNumber;
+
+  // ── UDP identity probe (port 19000) — the PRIMARY enrichment for modern
+  //    models. The Creator 5 / 5 Pro (and 5M / AD5X) answer a UDP datagram with
+  //    their model name AND serial number WITHOUT credentials — exactly how the
+  //    FlashForge slicer learns the serial before asking only for the access
+  //    code. The serial NEVER appears in the HTTP /detail payload, so this is
+  //    the only credential-free way to obtain it. Fast and works where TCP 8899
+  //    is closed, so we try it before the legacy M115 fallback.
   if (needsEnrich && (hasIdentity || looksLikeFlashforge)) {
+    try {
+      const udp = await window.electronAPI.ffgUdpProbe(ip);
+      if (udp?.ok) {
+        if (udp.machineModel && !candidate.machineModel) candidate.machineModel = udp.machineModel;
+        if (udp.serialNumber && !candidate.serialNumber) candidate.serialNumber = udp.serialNumber;
+        logPush?.("info", `UDP 19000 enriched ${ip}: ${udp.machineModel || "(no model)"} / SN ${udp.serialNumber || "?"}`, udp);
+      }
+    } catch {
+      // UDP probe is best-effort — ignore errors.
+    }
+  }
+
+  // ── TCP fallback (M115, port 8899) — older models (Adventurer 4 era) that
+  //    answer HTTP but not UDP. Only fired when UDP still left us without an id.
+  if (!candidate.machineModel && !candidate.serialNumber && (hasIdentity || looksLikeFlashforge)) {
     try {
       const tcp = await window.electronAPI.ffgTcpProbe(ip);
       if (tcp?.ok && tcp.fields) {
@@ -191,16 +219,31 @@ export async function ffgProbeIp(ip, { logPush, timeoutMs } = {}) {
     }
   }
 
-  // Final identity check. The TCP fallback was the last chance — if we still
-  // have no identifying field, this IP is either a non-FlashForge host that
-  // happened to answer on 8898 with a JSON-shaped error, or a FlashForge that
-  // also doesn't honour M115 on 8899 (firewall/firmware variant). Drop it
-  // rather than surface a row with empty everything.
+  // Final identity check. The TCP fallback was the last chance — two outcomes
+  // remain when no identifying field came back:
+  //
+  //  - looksLikeFlashforge → a genuine FlashForge that answers /detail on 8898
+  //    but validates the serial number *before* returning any data (newer
+  //    models such as the Creator 5 reply `{"code":1,"message":"SN is
+  //    different"}` to an empty-SN probe) AND exposes no TCP 8899 to enrich
+  //    from. We must NOT drop it — that's exactly what blocked the user. Surface
+  //    it as an *unidentified* candidate (modelId "0") so the scan lists it and
+  //    Add-by-IP succeeds; the user then picks the model and enters the SN +
+  //    access code by hand in Printer Settings.
+  //
+  //  - otherwise → a non-FlashForge host that merely answered on 8898 with a
+  //    JSON-shaped body. Drop it.
   const finalHasIdentity =
     candidate.hostName || candidate.machineModel || candidate.machineName ||
     candidate.serialNumber || candidate.macAddress;
   if (!finalHasIdentity) {
-    logPush?.("info", `${ip}: HTTP responded (${looksLikeFlashforge ? "FF-shaped" : "no FF"}) but TCP M115 gave no identity either — skipping`);
+    if (looksLikeFlashforge) {
+      candidate.unidentified = true;
+      candidate.modelId      = "0";
+      logPush?.("found", `${ip} → FlashForge (unidentified — needs model + SN/access code)`, candidate);
+      return candidate;
+    }
+    logPush?.("info", `${ip}: HTTP responded (no FF shape) and TCP M115 gave no identity — skipping`);
     return null;
   }
 

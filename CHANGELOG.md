@@ -5,6 +5,44 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.10.7 — 2026-06-17
+
+### Added
+
+- **Bambu Lab: full machine controls in the printer panel.** The Bambu side-card now has the same live controls as the other brands — pause / resume / stop the current print, jog the X/Y/Z axes, home any axis, toggle the chamber light, disable the motors, set nozzle and bed target temperatures (preheat while idle), choose the print-speed level (Silent / Standard / Sport / Extreme), and control the cooling fans: part-cooling, the auxiliary "assist" fan, and the chamber ("Case") fan on enclosed models such as the X1C. _Pause / resume / stop use Bambu's documented commands; the other controls rely on community-documented commands and may behave differently on some models._
+- **FlashForge Creator 5 & Creator 5 Pro support.** Both models are now recognised. Network discovery and "Add by IP" read the printer's serial number automatically, and the exact model is detected on first connection so the correct name and picture appear without picking them by hand. The Creator 5 Pro is shown as a tool-changer — each of its tools (T1–T4) appears with its own filament slot and its own hotend temperature — and assigning filament to a slot works. _(Tested on real hardware.)_
+
+### Changed
+
+- **Bambu Lab: smoother, flicker-free live cards.** The printer card no longer rebuilds itself every time the printer sends an update — only the values that actually changed are refreshed. Editing a field (temperature, a dropdown…) is no longer interrupted when new data arrives, and the light / fan / speed buttons now react instantly.
+- **Printer settings open beside the printer card.** Opening a printer's settings (gear) now slides the form in next to the printer panel instead of hidden behind it, without dimming the rest of the app, and it has the same `»` close tab as the other side-cards. Switching to another printer closes a leftover settings form.
+
+### Fixed
+
+- **Bambu Lab: correct AMS humidity & temperature.** The A1's AMS Lite has no humidity/temperature sensor, so it no longer shows made-up values. On AMS units that do have a sensor (AMS HT, AMS 2 Pro), humidity now shows the real percentage instead of the internal 1–5 dryness grade, and the temperature is shown as a whole number.
+- **FlashForge: newer models are no longer dropped during discovery.** Printers that don't reveal their identity to the first probe (e.g. Creator 5) now appear in the scan and can be set up via "Add by IP".
+- **FlashForge Creator 5 Pro: filament slots no longer disappear,** and the enclosure ("Case") temperature now uses the correct icon. Fixed the Creator 5 Pro catalog image.
+
+### Notes
+
+- **FlashForge Creator 5 / 5 Pro filament colour** follows the printer's built-in colour palette: a colour outside the manufacturer's official set is rejected by the firmware (it reverts to white). This is a printer-side constraint, not an app issue.
+
+---
+
+## v1.10.6 — 2026-06-17
+
+### Changed
+
+- **Spool and printer side-cards no longer dim the screen.** Opening a spool's or printer's detail card used to drop a dark overlay behind it that you had to dismiss first. Now the list stays fully usable — click another spool or printer and the card switches in place, no close-then-reselect. Each card has a clear orange `»` tab on its left edge to close it, and the tab slides in and out attached to the card instead of popping into place.
+- **Spool and printer cards can now sit side by side.** Open a spool's card and a printer's card at the same time and the printer keeps the right edge while the spool card tucks in just to its left (passing neatly behind it), instead of one replacing the other — groundwork for dragging a spool straight onto a printer slot.
+
+### Fixed
+
+- **Buttons no longer jump down when clicked.** Some buttons — most visibly the show/hide-password eye — shifted downward on press. Fixed everywhere.
+- **Spool card's close tab now slides behind the printer card.** When both cards were open and you closed the spool card, its orange `»` tab briefly swept in front of the printer card instead of behind it like the card itself. Fixed.
+
+---
+
 ## v1.10.5 — 2026-06-16
 
 ### Added
