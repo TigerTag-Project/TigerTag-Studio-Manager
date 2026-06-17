@@ -11,6 +11,7 @@ import { meta, schema, helper } from './settings.js';
 import { renderFfgJobCard, renderFfgTempCard, renderFfgFilamentCard } from './cards.js';
 import { schemaWidget } from '../modal-helpers.js';
 import { ffgMuxStopAll } from './cam_mux.js';
+import { ffgModelIdFromMachineModel } from './probe.js';
 
 const $ = id => document.getElementById(id);
 
@@ -516,13 +517,67 @@ function ffgMergeStatus(conn, resp) {
   //   1. matlStation (multi-tray) → matlStationInfo.slotInfos[1..4]
   //   2. independent (single)     → root materialName / materialColor
   //                              OR detail.indepMatlInfo.materialName/Color
-  // We prefer matlStation when hasMatlStation is true.
-  const hasMs = detail.hasMatlStation === true || detail.hasMatlStation === 1;
+  // We prefer matlStation when it's present. AD5X / 5M firmwares advertise it
+  // with `hasMatlStation`, but the Creator 5 Pro omits that flag and simply
+  // ships `matlStationInfo` with a populated slot list (`slotCnt: 4`). Treat the
+  // station as present whenever the slot data is actually there — otherwise its
+  // 4 CFS slots were silently dropped into the single-extruder fallback below.
+  const ms0 = detail.matlStationInfo;
+  const hasMs =
+    detail.hasMatlStation === true || detail.hasMatlStation === 1 ||
+    (ms0 && typeof ms0 === "object" &&
+      ((Array.isArray(ms0.slotInfos) && ms0.slotInfos.length > 0) ||
+       (typeof ms0.slotCnt === "number" && ms0.slotCnt > 0)));
+  // Tool-changer detection. The Creator 5 Pro is NOT an AD5X-style "one nozzle
+  // fed by a CFS multiplexer" — it's a tool-changer (like the Snapmaker U1): a
+  // moving head that picks up one of N independent nozzles, each with its OWN
+  // dedicated spool. Firmware fingerprint: a per-nozzle temperature array whose
+  // length matches the slot count (nozzleTemps.length === slotCnt > 1). In that
+  // mode slot i is bound 1:1 to nozzle i, so each slot is a *tool* carrying its
+  // own nozzle temperature and there is no independent external extruder.
+  const nozTemps   = Array.isArray(detail.nozzleTemps)       ? detail.nozzleTemps       : null;
+  const nozTargets = Array.isArray(detail.nozzleTargetTemps) ? detail.nozzleTargetTemps : null;
+  const slotCnt = (ms0 && typeof ms0 === "object")
+    ? (typeof ms0.slotCnt === "number" && ms0.slotCnt > 0
+        ? ms0.slotCnt
+        : (Array.isArray(ms0.slotInfos) ? ms0.slotInfos.length : 0))
+    : 0;
+  const toolChanger = hasMs && nozTemps && nozTemps.length > 1 && nozTemps.length === slotCnt;
+  d.toolChanger = !!toolChanger;
+
   if (hasMs && detail.matlStationInfo && typeof detail.matlStationInfo === "object") {
     const ms = detail.matlStationInfo;
     const currentSlot = (typeof ms.currentSlot === "number") ? ms.currentSlot : 0;
     const slots = Array.isArray(ms.slotInfos) ? ms.slotInfos : [];
-    // 5-slot layout: [Ext.] + [1A 1B 1C 1D].
+    const merged = [];
+
+    if (toolChanger) {
+      // Tool-changer (Creator 5 Pro): N tools = N nozzles, one spool each.
+      // No "Ext." entry. Each tool carries its own nozzle temperature so the
+      // renderer can show the per-tool hotend temp, and the head's currently
+      // selected nozzle (currentSlot) is flagged active.
+      for (let i = 1; i <= slotCnt; i++) {
+        const s = slots.find(x => x && x.slotId === i) || {};
+        const has = s.hasFilament === true || s.hasFilament === 1;
+        const name = String(s.materialName || "").trim();
+        const colorHex = ffgParseHexColor(s.materialColor);
+        merged.push({
+          slotId: i,
+          slotKind: "tool",           // dispatches msConfig_cmd slot 1-N (like "ms")
+          hasFilament: has,
+          color: colorHex,
+          vendor: null,
+          type: name || null,
+          subType: null,
+          official: false,
+          isActive: i === currentSlot, // the nozzle the head is currently using
+          nozzleTemp:   ffgNum(nozTemps[i - 1]),
+          nozzleTarget: nozTargets ? ffgNum(nozTargets[i - 1]) : null
+        });
+      }
+      d.filaments = merged;
+    } else {
+    // AD5X / 5M layout: [Ext.] + [1A 1B 1C 1D]. One nozzle, CFS multiplexer.
     //   • Ext.  = indepMatlInfo  → ipdMsConfig_cmd on save
     //   • 1A-D = matlStationInfo → msConfig_cmd with slot 1-4
     // Each entry carries `slotKind` ("ext" | "ms") so the renderer
@@ -542,7 +597,6 @@ function ffgMergeStatus(conn, resp) {
     const anyExtruderHas = (detail.hasLeftFilament === true || detail.hasLeftFilament === 1)
                         || (detail.hasRightFilament === true || detail.hasRightFilament === 1);
     const extActive = currentSlot === 0 && anyExtruderHas;
-    const merged = [];
     merged.push({
       slotId: 0,
       slotKind: "ext",
@@ -578,6 +632,7 @@ function ffgMergeStatus(conn, resp) {
       });
     }
     d.filaments = merged;
+    }
   } else {
     // Independent-extruder fallback — single-slot inventory.
     const indep = detail.indepMatlInfo;
@@ -653,6 +708,25 @@ function ffgMergeStatus(conn, resp) {
     url: camUrl || null,
     enabled: !!camUrl || !!camFlag
   };
+
+  // Auto-correct the stored model on the first authenticated connection.
+  // Newer FlashForge models hide their identity from the unauthenticated
+  // add-by-IP probe, so the printer is usually added as "Select Printer"
+  // (id "0"). Once connected, `detail.model` is reliable — resolve it and
+  // persist if it differs, so the correct name + image show without the user
+  // having to pick the model by hand. Runs once per connection.
+  if (!conn.modelSynced) {
+    const p = conn.printer;
+    const rawModel = String(detail.model || detail.name || "").trim();
+    if (p && rawModel) {
+      conn.modelSynced = true;
+      const resolvedId = ffgModelIdFromMachineModel(rawModel);
+      if (resolvedId !== "0" && String(resolvedId) !== String(p.printerModelId || "")) {
+        p.printerModelId = resolvedId;                 // optimistic local update → image swaps now
+        try { ctx.updatePrinterModel?.(p, resolvedId); } catch (_) { /* best-effort persist */ }
+      }
+    }
+  }
 
   // The FlashForge `status` string drives our "is the printer actively
   // printing?" decision — used by the renderer to show / hide the
@@ -895,7 +969,10 @@ export function openFlashforgeFilamentEdit(printer, extruderIndex) {
   // rigs (Ext + 1A-D), so the old `length === 4` heuristic would
   // mis-dispatch every slot. "ms" → msConfig_cmd with slot 1-4;
   // "ext" → ipdMsConfig_cmd (no slot).
-  const isMatlStation = fil.slotKind === "ms";
+  // "ms" (AD5X CFS) and "tool" (Creator 5 Pro tool-changer) both assign a
+  // material to a numbered station slot → msConfig_cmd slot 1-N. Only "ext"
+  // (independent extruder) uses ipdMsConfig_cmd.
+  const isMatlStation = fil.slotKind === "ms" || fil.slotKind === "tool";
   const slotId = fil.slotId || (extruderIndex + 1);
   _ffgFilEdit = {
     brand: printer.brand,
@@ -1058,7 +1135,14 @@ $("ffgFilEditSave")?.addEventListener("click", async () => {
   // Default Generic — same first-in-list logic as the picker.
   const vendor   = String($("ffgVendor").value || _ffeSelectedBrand   || "Generic").trim();
   const material = String($("ffgMaterial").value || _ffeSelectedMaterial || "PLA").trim();
-  const rgb      = ffgColorToHash($("ffgColorInput").value);
+  // FlashForge /control wants the colour as "#RRGGBB" WITH the leading "#" —
+  // verified by capturing the FlashForge slicer's own request
+  // (`{"cmd":"msConfig_cmd","args":{"slot":1,"mt":"PETG","rgb":"#F82D29"}}`).
+  // NOTE: on lidar models (Creator 5 Pro) the printer auto-detects the loaded
+  // filament's colour — a value that doesn't match the physical spool is
+  // rejected and reverts to #FFFFFF. That's firmware behaviour, not a payload
+  // bug; the AD5X (no lidar) accepts any colour.
+  const rgb      = ffgColorToHash($("ffgColorInput").value); // "#RRGGBB"
 
   // The FlashForge protocol takes the material name in `mt` directly —
   // no vendor field is sent (per the Flutter _ffgSetMsSlot /

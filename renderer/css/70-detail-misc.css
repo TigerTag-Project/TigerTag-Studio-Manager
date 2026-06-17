@@ -685,7 +685,7 @@
      printer card (102) — otherwise it sweeps in FRONT of the printer while the spool
      slides closed. It never overlaps its own card (it's outside, to the left), so a
      lower z-index doesn't hide it. The printer tab keeps 103 (front card). */
-  #detailCloseTab { z-index: 101; }
+  #detailCloseTab, #printerAddCloseTab { z-index: 101; }
   /* resize handle — left edge of both panels */
   .panel-resize {
     position: absolute; top: 0; left: 0; bottom: 0; width: 6px;

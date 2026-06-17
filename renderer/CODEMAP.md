@@ -32,17 +32,17 @@ L8542-8659     Firestore explorer + language save + debug mode
 L8660-8955     Friends sidebar quick-list + friends list render
 L8956-9240     Racks + printers Firestore subscriptions
 L9241-10261    Printers views — grid / table / cam wall + drag-drop
-L10262-12311   Printer detail side panel (renderPrinterDetail) + inline edit
-L12312-12875   Add-printer flow (brand picker, form, tutorials, submit)
-L12876-13764   Racks CRUD + slots + locking + auto-fill + masonry + tooltip
-L13765-14619   renderRackView + rack drag-drop + rack edit modal
-L14620-15086   Friend view + add-friend modal
-L15087-15475   Display-name setup + friend requests + blacklist
-L15476-15600   Public/private keys + user profile sync
-L15600-15960   Custom avatar upload + Discord-style cropper
-L15963-16384   syncUserDoc + session telemetry + language sync
-L16385-16400   Init bootstrap (loadLocales → loadLookups → runMigration → initAuth)
-L16211-16543   Electron RFID integration (readers, dual-scan, NFC processor, chip write)
+L10262-12409   Printer detail side panel (renderPrinterDetail) + inline edit
+L12410-12973   Add-printer flow (brand picker, form, tutorials, submit)
+L12974-13862   Racks CRUD + slots + locking + auto-fill + masonry + tooltip
+L13863-14973   renderRackView + rack drag-drop + rack edit modal
+L14974-15440   Friend view + add-friend modal
+L15441-15637   Display-name setup + friend requests + blacklist
+L15638-15941   Public/private keys + user profile sync
+L15942-16252   Custom avatar upload + Discord-style cropper
+L16253-16546   syncUserDoc + session telemetry + language sync
+L16547-16562   Init bootstrap (loadLocales → loadLookups → runMigration → initAuth)
+L16563-16896   Electron RFID integration (readers, dual-scan, NFC processor, chip write)
 ```
 
 ---
@@ -289,7 +289,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Printer detail side panel (L10262-12311)
+## Printer detail side panel (L10262-12409)
 
 | L | What | Anchors |
 |---|---|---|
@@ -300,7 +300,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Add-printer flow (L12312-12875)
+## Add-printer flow (L12410-12973)
 
 Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.js` owns the shell.
 
@@ -313,7 +313,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Racks CRUD + slots (L12876-13764)
+## Racks CRUD + slots (L12974-13862)
 
 | L | What | Anchors |
 |---|---|---|
@@ -326,7 +326,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Storage view render + DnD (L13765-14619)
+## Storage view render + DnD (L13863-14973)
 
 | L | What | Anchors |
 |---|---|---|
@@ -337,7 +337,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Friend view (L14620-15086)
+## Friend view (L14974-15440)
 
 | L | What | Anchors |
 |---|---|---|
@@ -348,7 +348,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Display name + friend requests (L15087-15475)
+## Display name + friend requests (L15441-15637)
 
 | L | What | Anchors |
 |---|---|---|
@@ -358,7 +358,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Keys + profile sync (L15476-15600)
+## Keys + profile sync (L15638-15941)
 
 | L | What | Anchors |
 |---|---|---|
@@ -367,7 +367,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Custom avatar (L15600-15960)
+## Custom avatar (L15942-16252)
 
 | L | What | Anchors |
 |---|---|---|
@@ -376,7 +376,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## User doc sync + telemetry + bootstrap (L15963-16400)
+## User doc sync + telemetry + bootstrap (L16253-16562)
 
 | L | What | Anchors |
 |---|---|---|
@@ -386,7 +386,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Electron RFID integration (L16211-16543)
+## Electron RFID integration (L16563-16896)
 
 | L | What | Anchors |
 |---|---|---|

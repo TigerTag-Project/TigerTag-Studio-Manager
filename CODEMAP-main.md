@@ -77,7 +77,7 @@ L3128-3180   App lifecycle (whenReady, window-all-closed, activate)
 
 | L | What | Anchors / IPC |
 |---|---|---|
-| 1355-1524 | FlashForge — HTTP POST bridge (`ffg:http-post`), UDP multicast (`ffg:multicast-discover`), TCP M115 probe (`ffg:tcp-probe`) | — |
+| 1355-1580 | FlashForge — HTTP POST bridge (`ffg:http-post`), UDP multicast (`ffg:multicast-discover`), UDP identity probe port 19000 (`ffg:udp-probe`, returns model+serial credential-free), TCP M115 probe (`ffg:tcp-probe`) | `_ffgParseUdpIdentity` |
 | 1525-1556 | Creality — TCP 9999 open-check (`cre:tcp-probe`) | — |
 | 1557-1695 | Bambu Lab — SSDP multicast (`bambu:ssdp-discover`) + TLS cert sniff (`bambu:tls-probe`) | `_parseBambuSsdp` |
 | 1696-1813 | Elegoo — UDP discovery/probe (`elegoo:udp-discover` / `elegoo:udp-probe`) | `_parseElegooReply` |

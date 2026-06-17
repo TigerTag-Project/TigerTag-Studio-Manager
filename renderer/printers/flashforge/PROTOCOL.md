@@ -182,6 +182,49 @@ socket.on('message', (buf, rinfo) => {
 2. Après le scan, prober les IPs multicast non encore couvertes via `POST :8898/detail`
 3. Fusionner les résultats par IP (score qualité)
 
+### 2.7 Découverte UDP unicast/broadcast port 19000 (modèles récents — **source du numéro de série**) ⭐
+
+> **Critique.** C'est le mécanisme exact du slicer FlashForge (FlashPrint / Orca-FlashForge) : il découvre l'imprimante puis ne demande QUE le code d'accès. Le **numéro de série n'apparaît JAMAIS dans `/detail`** — cette probe UDP est la **seule façon de l'obtenir sans authentification**. Vérifié sur Creator 5 Pro (firmware 1.9.2).
+
+Contrairement au §2.6 (multicast `225.0.0.9`, anciens modèles), on envoie un datagramme UDP **en unicast vers l'IP** (ou en broadcast `x.x.x.255` / `255.255.255.255`) sur le port **19000**. Le multicast ne reçoit PAS de réponse sur ces modèles.
+
+| Paramètre | Valeur |
+|-----------|--------|
+| Protocole | UDP datagramme |
+| Destination | IP imprimante (unicast) **ou** broadcast subnet |
+| Port destination | **19000** |
+| Payload | n'importe quoi déclenche la réponse — `"Hello World!"` par parité |
+| Réponse | **280 octets, structure fixe** |
+| Timeout | ~1 200 ms |
+
+**Structure de la réponse (280 octets) :**
+
+| Offset | Taille | Contenu |
+|--------|--------|---------|
+| `0` | 128 | Nom du modèle, ASCII null-padded (ex: `Creator 5 Pro`) |
+| `128` | 18 | En-tête binaire (inclut des octets type MAC — non utilisé) |
+| `146`* | var | **Numéro de série**, ASCII null-padded (ex: `SNMUPF9511513`) |
+
+\* L'offset exact du serial varie ; le plus robuste est de chercher le **premier bloc ASCII imprimable (≥ 4 chars) après l'octet 128**.
+
+**Parsing :**
+```js
+function parseUdpIdentity(buf) {
+  if (!buf || buf.length < 32) return null;
+  const nul = buf.indexOf(0);
+  const machineModel = buf.slice(0, nul >= 0 ? nul : 0).toString('utf8').trim();
+  let serialNumber = '';
+  const m = buf.slice(128).toString('latin1').match(/[\x20-\x7e]{4,}/);
+  if (m) serialNumber = m[0].trim().replace(/^SN/i, ''); // stocker SANS préfixe SN (§3)
+  return (machineModel || serialNumber) ? { machineModel, serialNumber } : null;
+}
+```
+
+**Workflow recommandé (= slicer) :**
+1. Découverte (scan broadcast ou add-by-IP unicast) → `machineModel` + `serialNumber` **sans credentials**.
+2. Demander à l'utilisateur **uniquement le code d'accès**.
+3. Connexion `POST /detail { serialNumber:"SN…", checkCode }` (§5.1).
+
 ---
 
 ## 3. Authentification
@@ -547,7 +590,7 @@ Gérer via `onerror` → vue fallback (photo statique + bouton Retry).
     "args": {
       "slot": 2,
       "mt": "PLA",
-      "rgb": "FF5733"
+      "rgb": "#FF5733"
     }
   }
 }
@@ -556,8 +599,10 @@ Gérer via `onerror` → vue fallback (photo statique + bouton Retry).
 | Champ `args` | Type | Notes |
 |-------------|------|-------|
 | `slot` | int | **1–4** (1-indexé) |
-| `mt` | string | Matière ex: `"PLA"`, `"ABS"`, `"PETG"` |
-| `rgb` | string | Hex 6 chars **SANS `#`** ex: `"FF5733"` |
+| `mt` | string | Matière ex: `"PLA"`, `"ABS"`, `"PETG"` (une matière invalide est ignorée → reset `PLA`) |
+| `rgb` | string | Hex **AVEC `#`** ex: `"#FF5733"` — **vérifié par capture réseau du slicer FlashForge** (`{"cmd":"msConfig_cmd","args":{"slot":1,"mt":"PETG","rgb":"#F82D29"}}`) |
+
+> ⚠️ **Creator 5 Pro — couleur restreinte à une palette.** Testé en réseau (slicer fermé, aucun capteur RFID/scanner sur la machine) : seules certaines valeurs `rgb` « tiennent » (ex: `#F82D29`, `#FFF245`, choisies via le slicer), **toute autre valeur arbitraire** (`#112233`, `#00AABB`, `#1E90FF`…) est rejetée et `materialColor` retombe à `#FFFFFF` — le printer répond quand même `code:0`/Success. Hypothèse : le firmware n'accepte que les couleurs de la **palette officielle des filaments FlashForge** (le slicer fait choisir dedans). Les modèles sans CFS palette (AD5X) acceptent n'importe quelle couleur. **Ce n'est pas un bug de payload.** *(Liste exacte de la palette à déterminer.)*
 
 ### 13.2 Configurer la bobine externe
 
@@ -569,7 +614,7 @@ Gérer via `onerror` → vue fallback (photo statique + bouton Retry).
     "cmd": "ipdMsConfig_cmd",
     "args": {
       "mt": "PLA",
-      "rgb": "FF5733"
+      "rgb": "#FF5733"
     }
   }
 }
@@ -581,12 +626,12 @@ Gérer via `onerror` → vue fallback (photo statique + bouton Retry).
 
 ```js
 function colorToRgb6(r, g, b) {
-  return (
+  return '#' + (
     r.toString(16).padStart(2,'0').toUpperCase() +
     g.toString(16).padStart(2,'0').toUpperCase() +
     b.toString(16).padStart(2,'0').toUpperCase()
   );
-  // ex: { r:255, g:87, b:51 } → "FF5733"  (SANS '#')
+  // ex: { r:255, g:87, b:51 } → "#FF5733"  (AVEC '#' — format slicer vérifié)
 }
 ```
 
@@ -846,7 +891,8 @@ async function withControl(socket, fn) {
 
 - [ ] `ipdMsConfig_cmd` : `{ mt, rgb }` (bobine externe, sans slot)
 - [ ] `msConfig_cmd` : `{ slot: 1-4, mt, rgb }` (CFS)
-- [ ] Couleur → hex 6 chars SANS `#`, majuscules
+- [ ] Couleur → `#` + hex 6 chars, majuscules (format slicer vérifié — voir §13.1)
+- [ ] Creator 5 Pro : couleur restreinte à une palette imposée — une `rgb` hors palette retombe à `#FFFFFF` (pas un bug ; voir §13.1)
 
 ### Modèles supportés
 

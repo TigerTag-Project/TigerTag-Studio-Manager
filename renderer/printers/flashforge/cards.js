@@ -105,7 +105,10 @@ export function renderFfgJobCard(p, conn) {
 export function renderFfgTempCard(conn) {
   const d = conn.data;
   const tempPills = [];
-  if (typeof d.temps.e1_temp === "number") {
+  // On a tool-changer (Creator 5 Pro) each tool shows its OWN nozzle temp on
+  // its filament card, so the single global nozzle pill here would be a
+  // confusing duplicate — keep only bed + chamber.
+  if (!d.toolChanger && typeof d.temps.e1_temp === "number") {
     tempPills.push(`
       <div class="snap-temp">
         ${ctx.SNAP_ICON_NOZZLE}
@@ -120,9 +123,10 @@ export function renderFfgTempCard(conn) {
       </div>`);
   }
   if (typeof d.temps.chamber_temp === "number") {
+    // Print chamber — FlashForge calls this the "Case" temperature.
     tempPills.push(`
       <div class="snap-temp snap-temp--chamber">
-        ${ctx.SNAP_ICON_BED}
+        ${ctx.SNAP_ICON_CHAMBER}
         <span class="snap-temp-val">${ctx.esc(ffgFmtTempSolo(d.temps.chamber_temp))}</span>
       </div>`);
   }
@@ -167,9 +171,16 @@ export function renderFfgFilamentCard(p, conn) {
       : "";
     const slotTag = fil.slotKind === "ext"
       ? "Ext."
+      : fil.slotKind === "tool"
+      ? `T${slotId}`                               // tool-changer nozzle (Creator 5 Pro)
       : fil.slotKind === "ms"
       ? `1${"ABCD"[(slotId - 1) | 0] || ""}`
       : "E1";
+    // Per-tool nozzle temperature (tool-changer only — each tool is its own
+    // hotend). Shown next to the material so the user sees "T2 · 215°C".
+    const toolTempRow = (fil.slotKind === "tool" && typeof fil.nozzleTemp === "number")
+      ? `<div class="snap-fil-temp">${ctx.SNAP_ICON_NOZZLE}<span>${ctx.esc(ffgFmtTempSolo(fil.nozzleTemp))}${typeof fil.nozzleTarget === "number" && fil.nozzleTarget > 0 ? ` / ${Math.round(fil.nozzleTarget)}°C` : ""}</span></div>`
+      : "";
     filCards.push(`
       <div class="snap-fil snap-fil--editable${fil.isActive ? " snap-fil--active" : ""}"
            data-ffg-fil-edit="1"
@@ -185,6 +196,7 @@ export function renderFfgFilamentCard(p, conn) {
           <span class="snap-fil-status icon icon-edit icon-13" aria-hidden="true"></span>
           ${vendorRow}
           <div class="snap-fil-sub">${ctx.esc(typeAndSub)}</div>
+          ${toolTempRow}
         </div>
       </div>`);
   }

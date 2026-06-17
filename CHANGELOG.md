@@ -5,6 +5,30 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.10.7 — 2026-06-17
+
+### Added
+
+- **Bambu Lab: full machine controls in the printer panel.** The Bambu side-card now has the same live controls as the other brands — pause / resume / stop the current print, jog the X/Y/Z axes, home any axis, toggle the chamber light, disable the motors, set nozzle and bed target temperatures (preheat while idle), choose the print-speed level (Silent / Standard / Sport / Extreme), and control the cooling fans: part-cooling, the auxiliary "assist" fan, and the chamber ("Case") fan on enclosed models such as the X1C. _Pause / resume / stop use Bambu's documented commands; the other controls rely on community-documented commands and may behave differently on some models._
+- **FlashForge Creator 5 & Creator 5 Pro support.** Both models are now recognised. Network discovery and "Add by IP" read the printer's serial number automatically, and the exact model is detected on first connection so the correct name and picture appear without picking them by hand. The Creator 5 Pro is shown as a tool-changer — each of its tools (T1–T4) appears with its own filament slot and its own hotend temperature — and assigning filament to a slot works. _(Tested on real hardware.)_
+
+### Changed
+
+- **Bambu Lab: smoother, flicker-free live cards.** The printer card no longer rebuilds itself every time the printer sends an update — only the values that actually changed are refreshed. Editing a field (temperature, a dropdown…) is no longer interrupted when new data arrives, and the light / fan / speed buttons now react instantly.
+- **Printer settings open beside the printer card.** Opening a printer's settings (gear) now slides the form in next to the printer panel instead of hidden behind it, without dimming the rest of the app, and it has the same `»` close tab as the other side-cards. Switching to another printer closes a leftover settings form.
+
+### Fixed
+
+- **Bambu Lab: correct AMS humidity & temperature.** The A1's AMS Lite has no humidity/temperature sensor, so it no longer shows made-up values. On AMS units that do have a sensor (AMS HT, AMS 2 Pro), humidity now shows the real percentage instead of the internal 1–5 dryness grade, and the temperature is shown as a whole number.
+- **FlashForge: newer models are no longer dropped during discovery.** Printers that don't reveal their identity to the first probe (e.g. Creator 5) now appear in the scan and can be set up via "Add by IP".
+- **FlashForge Creator 5 Pro: filament slots no longer disappear,** and the enclosure ("Case") temperature now uses the correct icon. Fixed the Creator 5 Pro catalog image.
+
+### Notes
+
+- **FlashForge Creator 5 / 5 Pro filament colour** follows the printer's built-in colour palette: a colour outside the manufacturer's official set is rejected by the firmware (it reverts to white). This is a printer-side constraint, not an app issue.
+
+---
+
 ## v1.10.6 — 2026-06-17
 
 ### Changed

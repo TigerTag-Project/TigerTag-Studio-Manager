@@ -16,8 +16,9 @@
 import { ctx } from '../context.js';
 import { registerBrand } from '../registry.js';
 import { meta, schema, helper } from './settings.js';
-import { renderBambuJobCard, renderBambuTempCard, renderBambuFilamentCard } from './cards.js';
+import { renderBambuJobCard, renderBambuTempCard, renderBambuFilamentCard, renderBambuControlCard } from './cards.js';
 import { schemaWidget } from '../modal-helpers.js';
+import { morphInner } from '../dom-morph.js';
 
 const $ = id => document.getElementById(id);
 
@@ -221,6 +222,107 @@ function _publish(conn, payload) {
   window.bambulab?.publish(conn.key, payload);
 }
 
+// ── Machine control commands ────────────────────────────────────────────────
+// Pause / resume / stop are documented (PROTOCOL.md §5.1-5.3). Light, jog, home,
+// motors-off, fan and temperature setpoints use the community-documented
+// `system.ledctrl` / `print.gcode_line` / `print.print_speed` payloads
+// (PROTOCOL.md §5.6, sourced from OpenBambuAPI) — behaviour can vary per model.
+
+/** Print control: action = "pause" | "resume" | "stop". */
+export function bambuPrintControl(conn, action) {
+  if (!conn || !["pause", "resume", "stop"].includes(action)) return;
+  _publish(conn, { print: { sequence_id: _nextSeq(), command: action } });
+}
+
+/** Send one or more raw G-code lines (joined by \n, trailing \n appended). */
+function _bblGcode(conn, lines) {
+  if (!conn) return;
+  const param = (Array.isArray(lines) ? lines : [lines]).join("\n") + "\n";
+  _publish(conn, { print: { sequence_id: _nextSeq(), command: "gcode_line", param } });
+}
+
+/** Toggle a light. node = "chamber_light" (X1C) | "work_light" (A1 toolhead). */
+export function bambuLight(conn, on, node = "chamber_light") {
+  if (!conn) return;
+  _publish(conn, { system: {
+    sequence_id: _nextSeq(), command: "ledctrl",
+    led_node: node, led_mode: on ? "on" : "off",
+    led_on_time: 500, led_off_time: 500, loop_times: 0, interval_time: 0,
+  } });
+  if (conn.data) conn.data.lightOn = !!on; // optimistic (telemetry confirms via lights_report)
+  _bblNotify(conn); // repaint now — don't wait for the next report
+}
+
+/** Jog one axis by a signed distance (mm). axis = "x" | "y" | "z". */
+export function bambuMove(conn, axis, distance) {
+  if (!conn) return;
+  const ax = String(axis).toUpperCase();
+  if (!["X", "Y", "Z"].includes(ax)) return;
+  const d = Number(distance) || 0;
+  const feed = ax === "Z" ? 900 : 3000;
+  // Relative move bracketed by G91/G90 so we don't leave the printer in relative mode.
+  _bblGcode(conn, ["G91", `G1 ${ax}${d} F${feed}`, "G90"]);
+}
+
+/** Home axes. which = "all" | "xy" | "x" | "y" | "z". */
+export function bambuHome(conn, which) {
+  if (!conn) return;
+  const w = String(which).toLowerCase();
+  const arg = w === "all" ? "" : w === "xy" ? " X Y" : ` ${w.toUpperCase()}`;
+  _bblGcode(conn, `G28${arg}`);
+}
+
+/** Disable the steppers. */
+export function bambuMotorsOff(conn) {
+  if (!conn) return;
+  _bblGcode(conn, "M84");
+}
+
+// Fan index → the conn.data fields holding its displayed setpoint and the
+// two-in-a-row confirm tracker. 1 = part cooling (M106 P1), 2 = auxiliary
+// "assist" big fan (P2), 3 = chamber/"case" fan (P3, enclosed models only).
+const _BBL_FAN = {
+  1: { pct: "fanSpeedPct",        last: "_fanLast" },
+  2: { pct: "auxFanSpeedPct",     last: "_auxFanLast" },
+  3: { pct: "chamberFanSpeedPct", last: "_chamberFanLast" },
+};
+
+/** Set a fan speed 0-100 %. fan = 1 (part) | 2 (auxiliary) | 3 (chamber). */
+export function bambuFan(conn, pct, fan = 1) {
+  if (!conn) return;
+  const f = _BBL_FAN[fan] ? fan : 1;
+  const p = Math.max(0, Math.min(100, Math.round(Number(pct) || 0)));
+  _bblGcode(conn, `M106 P${f} S${Math.round(p * 255 / 100)}`);
+  if (conn.data) { // optimistic display + reset the two-in-a-row confirm tracker
+    conn.data[_BBL_FAN[f].pct]  = p;
+    conn.data[_BBL_FAN[f].last] = undefined;
+  }
+  _bblNotify(conn); // repaint now — don't wait for the next report
+}
+
+/** Current displayed speed (%) of a fan. fan = 1 | 2 | 3. */
+export function bambuFanPct(conn, fan) {
+  const k = _BBL_FAN[_BBL_FAN[fan] ? fan : 1];
+  return Number(conn?.data?.[k.pct]) || 0;
+}
+
+/** Set a heater target. which = "nozzle" | "bed". */
+export function bambuSetTemp(conn, which, value) {
+  if (!conn) return;
+  const v = Math.max(0, Math.round(Number(value) || 0));
+  _bblGcode(conn, which === "bed" ? `M140 S${v}` : `M104 S${v}`);
+}
+
+/** Set the print-speed level. mode = 1 (Silent) | 2 (Standard) | 3 (Sport) | 4 (Ludicrous). */
+export function bambuSetSpeedMode(conn, mode) {
+  if (!conn) return;
+  const m = Number(mode) || 0;
+  if (![1, 2, 3, 4].includes(m)) return;
+  _publish(conn, { print: { sequence_id: _nextSeq(), command: "print_speed", param: String(m) } });
+  if (conn.data) conn.data.speedMode = m; // optimistic
+  _bblNotify(conn); // repaint now — don't wait for the next report
+}
+
 // ── Refresh timer ──────────────────────────────────────────────────────────
 
 // If no message in 5 s, push a `pushall` to refresh state.
@@ -280,6 +382,7 @@ if (typeof window !== "undefined" && window.bambulab) {
       _bblNotify(conn, /*statusChanged*/ true);
       _bambuRefreshOnlineUI(key);
     }
+    _bblParseModules(conn, data);
     _bblMerge(conn, data);
   });
 
@@ -359,6 +462,28 @@ function _parseColor(hex) {
   // RRGGBBAA (8) or RRGGBB (6) — drop alpha, return #RRGGBB
   if (h.length === 8 || h.length === 6) return "#" + h.slice(0, 6);
   return null;
+}
+
+// Detect each AMS unit's type from the get_version response (PROTOCOL.md §8.3).
+// The `module[].name` prefix identifies the hardware: `ams_f1/` = AMS Lite (no
+// humidity/temp sensor), `n3s/` = AMS HT, `n3f/` = AMS 2 Pro, `ams/` = standard
+// AMS. Stored as conn.data.amsType[unitIndex] and used to decide what the
+// filament card shows (AMS Lite shows neither humidity nor temperature).
+function _bblParseModules(conn, msg) {
+  const mods = msg?.info?.module;
+  if (!Array.isArray(mods)) return;
+  const types = conn.data.amsType || (conn.data.amsType = {});
+  let changed = false;
+  for (const m of mods) {
+    const mm = String(m?.name || "").match(/^(ams_f1|ams|n3f|n3s)\/(\d+)/);
+    if (!mm) continue;
+    const type = mm[1] === "ams_f1" ? "lite"
+               : mm[1] === "n3s"    ? "ht"
+               : mm[1] === "n3f"    ? "pro"
+               :                      "standard";
+    if (types[mm[2]] !== type) { types[mm[2]] = type; changed = true; }
+  }
+  if (changed) _bblNotify(conn); // humidity/temp visibility may have changed
 }
 
 function _bblMerge(conn, msg) {
@@ -443,11 +568,14 @@ function _bblMerge(conn, msg) {
       const modId = String(mod.id ?? "");
       let dm = d.ams.find(m => m.id === modId);
       if (!dm) {
-        dm = { id: modId, humidity: "", temp: "", tray: [] };
+        dm = { id: modId, humidity: "", humidityRaw: "", temp: "", tray: [] };
         d.ams.push(dm);
       }
-      if (mod.humidity !== undefined) dm.humidity = String(mod.humidity ?? "");
-      if (mod.temp     !== undefined) dm.temp     = String(mod.temp ?? "");
+      // `humidity` is a 1-5 desiccant GRADE (not a %); `humidity_raw` is the real
+      // humidity % (AMS 2 Pro / AMS HT only — absent on standard AMS / AMS Lite).
+      if (mod.humidity     !== undefined) dm.humidity    = String(mod.humidity ?? "");
+      if (mod.humidity_raw !== undefined) dm.humidityRaw = String(mod.humidity_raw ?? "");
+      if (mod.temp         !== undefined) dm.temp        = String(mod.temp ?? "");
       if (Array.isArray(mod.tray)) {
         for (const t of mod.tray) {
           const trayId = String(t.id ?? "");
@@ -483,6 +611,50 @@ function _bblMerge(conn, msg) {
     _scheduleRefresh(conn);
   }
 
+  // ── Control state (light / speed level / part-fan) for the control card ──
+  // Light: lights_report = [{ node, mode }]. Prefer chamber_light, else first.
+  if (Array.isArray(p.lights_report) && p.lights_report.length) {
+    const cl = p.lights_report.find(l => l?.node === "chamber_light") || p.lights_report[0];
+    if (cl?.mode) d.lightOn = cl.mode === "on";
+  }
+  // Speed level (1-4): spd_lvl.
+  if (p.spd_lvl != null) {
+    const lv = parseInt(p.spd_lvl, 10);
+    if ([1, 2, 3, 4].includes(lv)) d.speedMode = lv;
+  }
+  // Fans: the printer reports only the *actual* speed (cooling_fan_speed = part,
+  // big_fan1_speed = aux; 0-15 gears), which ramps/fluctuates while it spins
+  // up/down — there is no setpoint field. To show a STABLE value (and still pick
+  // up a change made on the printer itself) without flashing through the ramp,
+  // we accept a telemetry reading only once it REPEATS: the same value two
+  // reports in a row confirms it. Transient ramp values (each different) are
+  // ignored. User commands (bambuFan) set the value optimistically for instant
+  // feedback and reset the confirm tracker so a stale prior value can't snap back.
+  if (p.cooling_fan_speed != null) {
+    const g = parseInt(p.cooling_fan_speed, 10);
+    if (!isNaN(g)) {
+      const pct = Math.round(Math.max(0, Math.min(15, g)) * 100 / 15);
+      if (pct === d._fanLast) d.fanSpeedPct = pct; // confirmed (two in a row)
+      d._fanLast = pct;
+    }
+  }
+  if (p.big_fan1_speed != null) {
+    const g = parseInt(p.big_fan1_speed, 10);
+    if (!isNaN(g)) {
+      const pct = Math.round(Math.max(0, Math.min(15, g)) * 100 / 15);
+      if (pct === d._auxFanLast) d.auxFanSpeedPct = pct; // confirmed (two in a row)
+      d._auxFanLast = pct;
+    }
+  }
+  if (p.big_fan2_speed != null) { // chamber/"case" fan (enclosed models, e.g. X1C)
+    const g = parseInt(p.big_fan2_speed, 10);
+    if (!isNaN(g)) {
+      const pct = Math.round(Math.max(0, Math.min(15, g)) * 100 / 15);
+      if (pct === d._chamberFanLast) d.chamberFanSpeedPct = pct; // confirmed (two in a row)
+      d._chamberFanLast = pct;
+    }
+  }
+
   _bblNotify(conn);
 }
 
@@ -510,10 +682,12 @@ function _bblNotify(conn, statusChanged = false) {
     if (full) {
       ctx.onFullRender();
     } else {
+      // Patch in place (never innerHTML) so an incoming report can't close an
+      // open inline edit / <select> and there's no flicker. See dom-morph.js.
       const liveHost = $("bblLive");
-      if (liveHost) liveHost.innerHTML = renderBambuLiveInner(active);
+      if (liveHost) morphInner(liveHost, renderBambuLiveInner(active));
       const logHost  = $("bblLog");
-      if (logHost)  logHost.innerHTML  = renderBambuLogInner(active);
+      if (logHost)  morphInner(logHost, renderBambuLogInner(active));
       const countEl  = $("bblLogCount");
       if (countEl) countEl.textContent = String(_bambuConns.get(bambuKey(active))?.log?.length || 0);
     }
@@ -554,6 +728,7 @@ export function renderBambuLiveInner(p) {
     </div>`;
   return `
     ${renderBambuJobCard(p, conn)}
+    ${renderBambuControlCard(p, conn)}
     ${renderBambuTempCard(conn)}
     ${renderBambuFilamentCard(p, conn)}`;
 }

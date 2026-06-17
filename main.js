@@ -1470,6 +1470,56 @@ ipcMain.handle('ffg:multicast-discover', async () => {
   });
 });
 
+// ── FlashForge UDP identity probe — port 19000 ───────────────────────────────
+// Modern FlashForge models (5M, AD5X, Creator 5 / 5 Pro) answer a direct UDP
+// datagram on port 19000 with a fixed identity record: the model name at offset
+// 0 (ASCII, NUL-padded), an 18-byte binary header, then the serial number
+// (ASCII, NUL-padded). This is THE mechanism FlashPrint / Orca-FlashForge use to
+// identify a printer before asking for only the access code — the serial never
+// appears in the HTTP /detail payload, so this is the only credential-free way
+// to obtain it. Any payload triggers the reply; we send "Hello World!" for
+// parity with the multicast path. Works via unicast (known IP) or broadcast.
+function _ffgParseUdpIdentity(buf) {
+  if (!buf || buf.length < 32) return null;
+  const nul = buf.indexOf(0);
+  const machineModel = buf.slice(0, nul >= 0 ? nul : 0).toString('utf8').trim();
+  // Serial = first printable-ASCII run (>=4 chars) after the binary header.
+  let serialNumber = '';
+  const m = buf.slice(128).toString('latin1').match(/[\x20-\x7e]{4,}/);
+  if (m) serialNumber = m[0].trim().replace(/^SN/i, '');
+  if (!machineModel && !serialNumber) return null;
+  return { machineModel: machineModel || null, serialNumber: serialNumber || null };
+}
+
+ipcMain.handle('ffg:udp-probe', async (_evt, ip) => {
+  if (!ip || typeof ip !== 'string') return { ok: false, error: 'missing ip' };
+  if (!/^\d{1,3}(\.\d{1,3}){3}$/.test(ip)) return { ok: false, error: 'invalid ip' };
+
+  const dgram = require('dgram');
+  const PORT       = 19000;
+  const TIMEOUT_MS = 1200;
+  const PAYLOAD    = Buffer.from('Hello World!');
+
+  return new Promise((resolve) => {
+    let done = false;
+    const socket = dgram.createSocket({ type: 'udp4', reuseAddr: true });
+    const finish = (res) => { if (done) return; done = true; try { socket.close(); } catch {} resolve(res); };
+
+    socket.on('error', (e) => finish({ ok: false, error: e.message }));
+    socket.on('message', (buf, rinfo) => {
+      if (rinfo.address !== ip) return;            // ignore stray broadcast replies
+      const id = _ffgParseUdpIdentity(buf);
+      if (id) finish({ ok: true, ...id });
+    });
+
+    socket.bind({ port: 0, address: '0.0.0.0' }, () => {
+      try { socket.send(PAYLOAD, PORT, ip, (err) => { if (err) finish({ ok: false, error: err.message }); }); }
+      catch (e) { finish({ ok: false, error: e.message }); return; }
+      setTimeout(() => finish({ ok: false, error: 'timeout' }), TIMEOUT_MS);
+    });
+  });
+});
+
 // ── FlashForge TCP probe — port 8899, M115 identity command ──────────────────
 // The ~M115 command returns machine type, name, firmware, serial, MAC even when
 // the printer's HTTP /detail response is incomplete. Used as an identity fallback

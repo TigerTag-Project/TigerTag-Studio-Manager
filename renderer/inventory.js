@@ -35,6 +35,8 @@ import {
   renderBambuOnlineBadge,
   renderBambuLiveInner, renderBambuLogInner,
   openBambuFilamentEdit, closeBambuFilamentEdit,
+  bambuPrintControl, bambuLight, bambuMove, bambuHome,
+  bambuMotorsOff, bambuFan, bambuFanPct, bambuSetTemp, bambuSetSpeedMode,
 } from './printers/bambulab/index.js';
 import { renderBambuCamBanner } from './printers/bambulab/widget_camera.js';
 import {
@@ -6691,14 +6693,24 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // is pinned to its OWN left edge using final (not mid-transition) positions, so
   // the .25s slide stays in sync. Re-run on open/close, panel resize, window resize.
   function _syncPanels() {
-    const dp = $("detailPanel"), pp = $("printerPanel");
+    const dp = $("detailPanel"), pp = $("printerPanel"), cp = $("printerAddPanel");
     const dOpen = !!dp?.classList.contains("open");
     const pOpen = !!pp?.classList.contains("open");
-    const printerW = pp ? pp.offsetWidth : 0;
-    const matRight = (dOpen && pOpen) ? printerW : 0;   // spool card's right offset
+    const cOpen = !!cp?.classList.contains("open");
+    const printerW = (pOpen && pp) ? pp.offsetWidth : 0;
+    const configW  = (cOpen && cp) ? cp.offsetWidth : 0;
+    // Printer config (add/edit form) tucks to the LEFT of the printer panel when
+    // both are open (edit-from-panel) — visible beside it, like the spool card,
+    // instead of hidden behind. In the add flow (no printer panel) it opens at
+    // the right edge (offset 0).
+    const configRight = (cOpen && pOpen) ? printerW : 0;
+    if (cp) cp.style.right = configRight ? `${configRight}px` : "";
+    // Spool card sits left of whatever else is open on the right (printer + config).
+    const matRight = dOpen ? (printerW + configW) : 0;
     if (dp) dp.style.right = matRight ? `${matRight}px` : "";
-    _setTab($("detailCloseTab"),  dOpen, matRight + (dp ? dp.offsetWidth : 0));
-    _setTab($("printerCloseTab"), pOpen, printerW);
+    _setTab($("detailCloseTab"),     dOpen, matRight + (dp ? dp.offsetWidth : 0));
+    _setTab($("printerCloseTab"),    pOpen, printerW);
+    _setTab($("printerAddCloseTab"), cOpen, configRight + configW);
   }
   // Show/position/hide a card's close tab so it slides WITH the panel — its `right`
   // has the same .25s transition as the panel's slide and travels the same distance
@@ -8321,8 +8333,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // latter's width changes (e.g. window resize on a narrow viewport).
   if (window.ResizeObserver) {
     const _panelRO = new ResizeObserver(_syncPanels);
-    if ($("printerPanel")) _panelRO.observe($("printerPanel"));
-    if ($("detailPanel"))  _panelRO.observe($("detailPanel"));
+    if ($("printerPanel"))    _panelRO.observe($("printerPanel"));
+    if ($("detailPanel"))     _panelRO.observe($("detailPanel"));
+    if ($("printerAddPanel")) _panelRO.observe($("printerAddPanel"));
   }
   window.addEventListener("resize", _syncPanels);
   // td1sPanel resize + panel open/close are handled by initTD1S (renderer/IoT/td1s/index.js)
@@ -10165,6 +10178,24 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     }
   }
 
+  // Persist a printer's resolved model id. Brand drivers call this (via
+  // ctx.updatePrinterModel) to auto-correct the model after the first
+  // authenticated connection — e.g. a FlashForge Creator 5 Pro added by IP
+  // is stored as "Select Printer" because the unauthenticated probe can't
+  // read its identity; once connected, /detail.model is reliable.
+  async function persistPrinterModel(printer, modelId) {
+    const uid = state.activeAccountId;
+    if (!uid || !printer?.brand || !printer?.id) return;
+    try {
+      await fbDb(uid).collection("users").doc(uid)
+        .collection("printers").doc(printer.brand)
+        .collection("devices").doc(printer.id)
+        .update({ printerModelId: String(modelId) });
+    } catch (e) {
+      console.warn("[printer] persist model failed:", e?.message);
+    }
+  }
+
   async function persistCamWallOrder(orderedKeys) {
     const uid = state.activeAccountId;
     if (!uid) return;
@@ -10262,6 +10293,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function openPrinterDetail(brand, id) {
     const printer = state.printers.find(p => p.brand === brand && p.id === id);
     if (!printer) return;
+    // Switching to a DIFFERENT printer's side-card closes the settings panel —
+    // it edits one specific printer, so a stale form for the previous one must
+    // not linger beside the new printer.
+    if (_activePrinter && (_activePrinter.brand !== brand || _activePrinter.id !== id)) {
+      closePrinterAddForm();
+    }
     // FlashForge: unregister the previous sidecard img from the mux (if any).
     // The mux's fetch stays alive — the cam wall keeps receiving frames.
     // We do NOT call ffgTearDownCamera() here anymore; the mux is the single
@@ -10853,6 +10890,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   _printerCtx.openPrinterSettings = (brand, printer, prefill) => openPrinterAddForm(brand, printer, prefill);
   _printerCtx.openBrandPicker     = () => openPrinterBrandPicker();
   _printerCtx.isDebugEnabled      = () => !!state.debugEnabled;
+  _printerCtx.updatePrinterModel  = (printer, modelId) => persistPrinterModel(printer, modelId);
   _printerCtx.applyTranslations   = () => applyTranslations();
   // Persist an Anycubic CLOUD printer (provisioned via the slicer). Keyed by
   // cloudPrinterId so re-provisioning upserts (refreshing the token) instead of
@@ -11441,6 +11479,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           const conn = acuGetConn(acuKey(_activePrinter));
           if (conn) acuSetSpeedMode(conn, parseInt(speedSel.value, 10) || 0);
         }
+        // Bambu Lab — print-speed level dropdown (Silent/Standard/Sport/Ludicrous).
+        const bblSpeedSel = e.target.closest("[data-bbl-speed]");
+        if (bblSpeedSel && _activePrinter?.brand === "bambulab") {
+          const conn = bambuGetConn(bambuKey(_activePrinter));
+          if (conn) bambuSetSpeedMode(conn, parseInt(bblSpeedSel.value, 10) || 0);
+        }
       });
       body.addEventListener("click", e => {
         // ── Snapmaker temperature target — click pill to set consigne ────
@@ -11637,6 +11681,99 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           const conn  = acuGetConn(acuKey(_activePrinter));
           const delta = parseInt(acuFanStepBtn.dataset.dist, 10) || 0;
           if (conn) acuFan(conn, Math.max(0, Math.min(100, (conn.data?.fanSpeedPct || 0) + delta)));
+          return;
+        }
+        // ── Bambu Lab — machine controls (mirrors the Anycubic handlers) ─────
+        // Print control (pause / resume / stop), PROTOCOL.md §5.1-5.3.
+        const bblPrintBtn = e.target.closest("[data-bbl-print]");
+        if (bblPrintBtn && _activePrinter?.brand === "bambulab") {
+          const conn = bambuGetConn(bambuKey(_activePrinter));
+          if (conn) bambuPrintControl(conn, bblPrintBtn.dataset.bblPrint);
+          return;
+        }
+        // Temperature target: click pill → inline number input (preheat).
+        const bblTempTrigger = e.target.closest("[data-bbl-set-temp]");
+        if (bblTempTrigger && _activePrinter?.brand === "bambulab") {
+          if (bblTempTrigger.classList.contains("snap-temp--editing")) return;
+          const which   = bblTempTrigger.dataset.bblSetTemp;
+          const initVal = parseInt(bblTempTrigger.dataset.bblTempTarget ?? "0", 10);
+          const maxVal  = parseInt(bblTempTrigger.dataset.bblTempMax ?? "300", 10);
+          const valEl   = bblTempTrigger.querySelector(".snap-temp-val");
+          if (!valEl) return;
+          const input = document.createElement("input");
+          input.type = "number"; input.min = "0"; input.max = String(maxVal);
+          input.value = initVal; input.className = "snap-temp-set-input";
+          bblTempTrigger.classList.add("snap-temp--editing");
+          valEl.replaceWith(input);
+          input.focus(); input.select();
+          let done = false;
+          const restore = () => {
+            if (done) return;
+            done = true;
+            if (input.parentNode) { try { input.replaceWith(valEl); } catch (_) {} }
+            bblTempTrigger.classList.remove("snap-temp--editing");
+          };
+          const confirmTemp = () => {
+            if (done) return;
+            const val = parseInt(input.value, 10);
+            if (!isNaN(val) && val >= 0 && val <= maxVal) {
+              const conn = bambuGetConn(bambuKey(_activePrinter));
+              if (conn) bambuSetTemp(conn, which, val);
+            }
+            restore();
+          };
+          input.addEventListener("keydown", ev => {
+            if (ev.key === "Enter")  { ev.preventDefault(); confirmTemp(); }
+            if (ev.key === "Escape") { ev.preventDefault(); restore(); }
+          });
+          input.addEventListener("blur", confirmTemp);
+          return;
+        }
+        // Light toggle.
+        const bblLightBtn = e.target.closest("[data-bbl-light]");
+        if (bblLightBtn && _activePrinter?.brand === "bambulab") {
+          const conn = bambuGetConn(bambuKey(_activePrinter));
+          if (conn) bambuLight(conn, !conn.data?.lightOn);
+          return;
+        }
+        // Disable steppers.
+        if (e.target.closest("[data-bbl-motors-off]") && _activePrinter?.brand === "bambulab") {
+          const conn = bambuGetConn(bambuKey(_activePrinter));
+          if (conn) bambuMotorsOff(conn);
+          return;
+        }
+        // Jog an axis (step read live from the #bblCtrlStep select).
+        const bblJogBtn = e.target.closest("[data-bbl-jog]");
+        if (bblJogBtn && _activePrinter?.brand === "bambulab") {
+          const conn = bambuGetConn(bambuKey(_activePrinter));
+          const stepSel = document.getElementById("bblCtrlStep");
+          const step = stepSel ? (parseFloat(stepSel.value) || 10) : 10;
+          const dir  = bblJogBtn.dataset.bblDir === "-" ? -1 : 1;
+          if (conn) bambuMove(conn, bblJogBtn.dataset.bblJog, dir * step);
+          return;
+        }
+        // Home an axis / all.
+        const bblHomeBtn = e.target.closest("[data-bbl-home]");
+        if (bblHomeBtn && _activePrinter?.brand === "bambulab") {
+          const conn = bambuGetConn(bambuKey(_activePrinter));
+          if (conn) bambuHome(conn, bblHomeBtn.dataset.bblHome);
+          return;
+        }
+        // Fan toggle (0 ↔ 100%). fan 1 = part, 2 = auxiliary, 3 = chamber.
+        const bblFanToggle = e.target.closest("[data-bbl-fan-toggle]");
+        if (bblFanToggle && _activePrinter?.brand === "bambulab") {
+          const conn = bambuGetConn(bambuKey(_activePrinter));
+          const fan  = parseInt(bblFanToggle.dataset.bblFanToggle, 10) || 1;
+          if (conn) bambuFan(conn, bambuFanPct(conn, fan) > 0 ? 0 : 100, fan);
+          return;
+        }
+        // Fan step ±.
+        const bblFanStepBtn = e.target.closest("[data-bbl-fan-step]");
+        if (bblFanStepBtn && _activePrinter?.brand === "bambulab") {
+          const conn  = bambuGetConn(bambuKey(_activePrinter));
+          const fan   = parseInt(bblFanStepBtn.dataset.bblFanStep, 10) || 1;
+          const delta = parseInt(bblFanStepBtn.dataset.dist, 10) || 0;
+          if (conn) bambuFan(conn, Math.max(0, Math.min(100, bambuFanPct(conn, fan) + delta)), fan);
           return;
         }
         // FlashForge — Retry camera button. Restarts the MJPEG mux fetch
@@ -12447,8 +12584,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     brandEntry.renderSettingsWidget(editPrinter, bodyEl, widgetCtx);
 
     // ── Open + initial focus ─────────────────────────────────────────────────
-    $("printerAddOverlay").classList.add("open");
+    // Non-modal, like the spool sidecard: no dimming overlay so the list and the
+    // printer panel stay visible/usable. The config tucks to the LEFT of the
+    // printer panel (via _syncPanels) when edited from it, instead of opening
+    // hidden behind it. Closes via ✕ / Back.
     $("printerAddPanel").classList.add("open");
+    _syncPanels();
     setTimeout(() => {
       if (isEdit || prefill) {
         const ni = bodyEl.querySelector("input[name=printerName]");
@@ -12465,6 +12606,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     _printerAddBrand = null;
     _printerEditContext = null;
     _printerAddDiscovery = null;
+    _syncPanels(); // reset the config offset + re-lay-out remaining panels
   }
   // ── Tutorial image bottom-sheet ──────────────────────────────────────────
   function openTutoSheet(src, title) {
@@ -12684,6 +12826,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   });
 
   $("printerAddClose")?.addEventListener("click", closePrinterAddForm);
+  $("printerAddCloseTab")?.addEventListener("click", closePrinterAddForm);
   $("printerAddBack")?.addEventListener("click", () => {
     closePrinterAddForm();
     openPrinterBrandPicker();
