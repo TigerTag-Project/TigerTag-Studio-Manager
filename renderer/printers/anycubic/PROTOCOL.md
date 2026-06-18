@@ -411,6 +411,67 @@ state transitions (confirm the command landed) are in §5b: `pause` →
 `pausing` → `paused`; `resume` → `resuming` → `resumed`; `stop` → `stopping`
 → `stoped`(sic). Captured live on a running Kobra X job.
 
+## §5e File management — on-printer + USB files
+
+The printer stores sliced files in two places: **local** (internal storage) and
+**udisk** (a plugged-in USB stick). Both are browsed, printed and deleted with the
+same order/response scheme used everywhere else — and, like the controls in §5d,
+the **same order IDs** drive both transports: LAN publishes the MQTT request, cloud
+sends it via signed REST `sendOrder` (§9). The **response always arrives over MQTT**
+(`type:"file"`), in both modes.
+
+### Orders (AnycubicOrderID)
+
+| Operation | Order ID | Order data | LAN MQTT request |
+|-----------|----------|------------|------------------|
+| List local files | `103` | — | `{type:"file", action:"listLocal"}` |
+| Delete local file | `104` | `{filename, filetype:-1, path:"/"}` | `{type:"file", action:"deleteLocal", data:{…}}` |
+| List USB files | `101` | — | `{type:"file", action:"listUdisk"}` |
+| Delete USB file | `102` | `{filename, filetype:-1, path:"/"}` | `{type:"file", action:"deleteUdisk", data:{…}}` |
+| **Print** a stored file | `1` (`START_PRINT`) | see below | `{type:"print", action:"start", data:{…}}` |
+
+> **Confidence.** The order *IDs* are confirmed (straight from `hass-anycubic_cloud`,
+> the same source as the working §5d controls). The LAN MQTT request *action strings*
+> (`listLocal`/`deleteLocal`/…) are **inferred** from the response action names below
+> and are easy to verify against real hardware via the in-app debug request log — adjust
+> here if a Kobra 3 disagrees.
+
+### Responses (MQTT `type:"file"`)
+
+```jsonc
+// list local / list udisk  →  action: "listLocal" | "listUdisk", state: "done"
+{ "type":"file", "action":"listLocal", "state":"done",
+  "data": { "records": [
+    { "filename":"benchy.gcode", "timestamp": 1718000000, "size": 5242880, "is_dir": false }
+  ] } }
+
+// delete local / delete udisk  →  state: "success" (no records)
+{ "type":"file", "action":"deleteLocal", "state":"success" }
+```
+
+File record: `{ filename, timestamp (epoch s), size (bytes), is_dir (bool) }`.
+
+### Print-a-stored-file payload — `START_PRINT` (order 1)
+
+`project_id` = `0`. `filetype` selects the source: **1 = local, 2 = udisk**.
+
+```jsonc
+{
+  "filetype": 1,                 // 1 local · 2 udisk
+  "file_key": "", "file_name": "",
+  "task_settings": { "ai_detect": 0, "camera_timelapse": 0 },
+  "filename": "benchy.gcode",
+  "filepath": "/"                // leading slash; "/" = storage root
+}
+```
+
+The printer confirms by transitioning into a `type:"print"` job (`action:"start"` →
+`checking`/`preheating`/`printing`, §5b) — watch that, don't trust the order ack alone.
+
+USB browsing should be gated on the udisk peripheral being present — query
+`QUERY_PERIPHERALS` (order `1231`, response `type:"peripherie"`) or hide the USB tab
+until a stick is detected.
+
 ## §6 Known model ids
 
 | Numeric `modelId` | Printer            |
@@ -571,6 +632,50 @@ order response is the source).
 **Scope:** side panel only for now (cam wall + detached cam window are LAN-FLV
 only — cloud-camera support there is a follow-up). The stream is media-encrypted
 (AES‑256‑GCM2); the SDK handles it from the order's key/salt.
+
+### §9c Cloud-uploaded files (cloud mode only)
+
+Beyond the on-printer/USB files of §5e, the account also has files **uploaded to
+Anycubic Cloud** (sliced in AnycubicSlicerNext → "save to cloud"). These are a
+separate REST subsystem — no MQTT — and are inherently **cloud-mode only** (a
+cloud file is dispatched to the printer through the cloud). All three calls go
+through the same signed `_cloudFetch(token, …)` as the rest of §9.
+
+| Operation | Method + path | Body | Response |
+|-----------|---------------|------|----------|
+| List cloud files | `POST /work/index/files` | `{ page, limit, machine_type?, printable? }` | `data: [ AnycubicCloudFile… ]` |
+| Delete cloud file | `POST /work/index/delFiles` | `{ idArr: [file_id] }` | `data: ""` on success |
+| Print cloud file | `POST /work/operation/sendOrder` (order `1`) | START_PRINT cloud payload ↓ | order ack + `type:"print"` job |
+
+**`AnycubicCloudFile`** (the fields we need): `id` (→ `file_id` for print/delete),
+`filename`, `size`, `time`, `thumbnail` (signed URL), `slice_param`, `slice_size`,
+`gcode_id`, `device_type` / `file_type`. `machine_type`/`printable` filter the list to
+files sliced for this printer (use the printer's machine type; omit to list all).
+
+**Print-cloud-file payload** — `START_PRINT` (order 1), `project_id` = `0`:
+
+```jsonc
+{
+  "filetype": 0,
+  "file_key": "", "file_name": "",
+  "task_settings": { "ai_detect": 0, "camera_timelapse": 0 },
+  "file_id": 12345,                 // = AnycubicCloudFile.id
+  "slice_param": { /* from the file's slice_param */ },
+  "slice_size": null,               // from the file when present
+  "project_type": 1,
+  "matrix": "", "template_id": 0,
+  "hollow_param": null, "punching_param": null,
+  "is_delete_file": 0
+}
+```
+
+`slice_param` carries the file's embedded slicer parameters — pass through the value
+from the list response; the cloud rejects a bare `file_id` without it.
+
+**Implementation plan:** two new `main.js` IPC handlers (`anycubic:cloud-files-list`,
+`anycubic:cloud-file-delete`) that wrap `_cloudFetch` (mirroring `cloud-send-order` /
+`cloud-camera-open`); printing reuses the existing `anycubic:cloud-send-order` with
+`orderId:1` and the payload above. The list endpoint paginates (`page`/`limit`).
 
 ### Limits (cloud)
 - `setInfo` honors only `{index, type, color}` (same as LAN).
