@@ -6,7 +6,7 @@
 export const meta = {
   label: "FlashForge",
   accent: "#f39c12",
-  connection: "HTTP"
+  connection: "HTTP (LAN)"
 };
 
 export const schema = {

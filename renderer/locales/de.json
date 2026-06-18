@@ -441,6 +441,7 @@
   },
   "printersActive": "Aktiv",
   "printersUpdated": "Aktualisiert",
+  "printersLastSeen": "Zuletzt online",
   "printersEmptyTitle": "Noch keine Drucker",
   "printersEmptySub": "Füge deine 3D-Drucker über die TigerTag-Mobile-App hinzu — sie erscheinen hier automatisch.",
   "printersEmptyBullet1": "Bambu Lab, Creality, Elegoo, FlashForge oder Snapmaker",

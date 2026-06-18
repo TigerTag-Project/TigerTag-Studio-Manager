@@ -6,7 +6,7 @@
 export const meta = {
   label: "Snapmaker",
   accent: "#9b59b6",
-  connection: "WebSocket"
+  connection: "WebSocket (LAN)"
 };
 
 export const schema = {

@@ -441,6 +441,7 @@
   },
   "printersActive": "活动",
   "printersUpdated": "已更新",
+  "printersLastSeen": "最后在线",
   "printersEmptyTitle": "暂无打印机",
   "printersEmptySub": "通过 TigerTag 移动应用添加您的 3D 打印机 — 它们将在此处自动显示。",
   "printersEmptyBullet1": "Bambu Lab、Creality、Elegoo、FlashForge 或 Snapmaker",

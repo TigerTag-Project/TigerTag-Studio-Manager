@@ -516,6 +516,22 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   const LOGO_PATH          = "../assets/svg/logos/logo_tigertag.svg";
   const LOGO_PATH_OUTLINE  = "../assets/svg/logos/logo_tigertag_contouring.svg";
 
+  // Persisted sort preference per table. Returns the saved {col, dir} or the
+  // supplied defaults — inventory defaults to Brand ascending, the printer
+  // table to status descending (online on top).
+  const _loadSort = (key, defCol, defDir) => {
+    try {
+      const s = JSON.parse(localStorage.getItem(key));
+      if (s && typeof s.col === "string" && (s.dir === "asc" || s.dir === "desc")) return s;
+    } catch (_) {}
+    return { col: defCol, dir: defDir };
+  };
+  const _saveSort = (key, col, dir) => {
+    try { localStorage.setItem(key, JSON.stringify({ col, dir })); } catch (_) {}
+  };
+  const _invSort     = _loadSort("tigertag.sort.inv", "brand", "asc");
+  const _printerSort = _loadSort("tigertag.sort.printer", "status", "desc");
+
   const state = {
     inventory: null,
     rows: [],
@@ -529,10 +545,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
 
     viewMode: localStorage.getItem("tigertag.view") || "table",
     lang: localStorage.getItem("tigertag.lang") || "en",
-    sortCol: null,
-    sortDir: "asc",
-    printerSortCol: "status",   // default: online printers at top
-    printerSortDir: "desc",      // status=1 (online) sorts above status=0 (offline)
+    sortCol: _invSort.col,       // persisted; default "brand"
+    sortDir: _invSort.dir,       // persisted; default "asc"
+    printerSortCol: _printerSort.col,   // persisted; default "status" (online at top)
+    printerSortDir: _printerSort.dir,   // persisted; default "desc" (status=1 above status=0)
     activeAccountId: null,
     i18n: {},
     imgCache: new Map(),
@@ -5876,6 +5892,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         state.sortCol = th.dataset.sort;
         state.sortDir = "asc";
       }
+      _saveSort("tigertag.sort.inv", state.sortCol, state.sortDir);
       updateSortIndicators();
       renderInventory();
     });
@@ -9119,6 +9136,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // brands trickle in. We also re-render once on flip so the spinner
     // fades to either the empty card or the printer grid.
     state.printersLoading = true;
+    // Seed the "Last seen" map from Firestore (once per uid) so offline
+    // printers show their persisted last-online time on app start, and keep
+    // the per-minute heartbeat running to refresh it while connected.
+    _seedPrinterLastSeen(uid);
+    _startPrinterSeenHeartbeat();
     // Mirror the inventory pattern: trigger an immediate re-render so the
     // spinner appears the moment the subscription is fired, without
     // waiting for the first Firestore snapshot to round-trip. Otherwise
@@ -9408,8 +9430,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       const row = document.querySelector(`.pt-row[data-brand="${esc(p.brand)}"][data-id="${esc(p.id)}"]`);
       if (!row) return;
       const online = _isPrinterOnline(p);
-      const sig = `${online ? 1 : 0}|${p.updatedAt || 0}`;
-      if (row._lastStatusSig === sig) return; // no real change, skip the rewrite
+      if (online) _printerLastSeen.set(`${p.brand}:${p.id}`, Date.now()); // session "last seen online"
+      const sig = `${online ? 1 : 0}`;
+      if (row._lastStatusSig === sig) return; // online state unchanged, skip the rewrite
       row._lastStatusSig = sig;
       row.classList.toggle("pt-row--online", online);
       const st = row.querySelector(".pt-td--status");
@@ -9417,7 +9440,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         `<span class="pt-dot${online ? " pt-dot--on" : ""}"></span>
             ${esc(online ? t("snapStatusOnline") : t("snapStatusOffline"))}`;
       const up = row.querySelector(".pt-td--updated");
-      if (up) up.textContent = p.updatedAt ? timeAgo(p.updatedAt) : "—";
+      if (up) { const _ls = _printerLastSeen.get(`${p.brand}:${p.id}`); up.textContent = online ? t("agoNow") : (_ls ? timeAgo(_ls) : "—"); }
     });
   }
 
@@ -9458,30 +9481,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (p.brand === "anycubic")   return acuIsOnline(p)    === true;
     return false;
   }
-  function _makeOnlineBadge(p) {
-    if (p.brand === "flashforge") return renderFfgOnlineBadge(p, "card");
-    if (p.brand === "creality")   return renderCreOnlineBadge(p, "card");
-    if (p.brand === "bambulab")   return renderBambuOnlineBadge(p, "card");
-    if (p.brand === "snapmaker")  return renderSnapOnlineBadge(p, "card");
-    if (p.brand === "anycubic")   return renderAcuOnlineBadge(p, "card");
-    if (p.brand === "elegoo") {
-      const o = elegooIsOnline(p);
-      const cls = o === true ? "is-online" : o === false ? "is-offline" : "is-checking";
-      const lbl = o === true  ? t("snapStatusOnline")
-                : o === false ? t("snapStatusOffline")
-                :               t("snapStatusConnecting");
-      return `<span class="printer-online printer-online--card ${cls}">
-                <span class="printer-online-dot"></span>
-                <span class="printer-online-lbl">${esc(lbl)}</span>
-              </span>`;
-    }
-    return "";
-  }
-
   // Signature of the current online set — used by `_patchGridStatus` to detect
-  // when only the status badges need refreshing (no card needs to move between
-  // the CONNECTED and OFFLINE sections, no new printer was added/removed).
-  // Computed by joining sorted keys of the currently-online printers.
+  // when the grid needs a re-render (a printer's online bit flipped, or one was
+  // added/removed). Computed by joining sorted keys of the currently-online
+  // printers.
   let _lastPrinterGridSignature = "";
   function _printerGridSignature() {
     return state.printers
@@ -9490,25 +9493,19 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       .join("|");
   }
 
-  // Surgical refresh: swap the `.printer-online` badge inside each printer
-  // card without touching the rest of the DOM (image, name, job block, foot).
-  // Falls back to a full `renderPrintersView()` when the online set changed
-  // (a card needs to move between CONNECTED and OFFLINE sections).
+  // Refresh the grid when the online set changes: re-render so the name dots,
+  // section split (CONNECTED / OFFLINE) and ordering all stay in sync.
   function _patchGridStatus() {
     if (!_isPrinterMode(state.viewMode)) return;
+    // The grid card's only status signal is the dot left of the name, whose
+    // state is baked into the grid signature (online bit per printer). So a
+    // full re-render on signature change is all we need — there is no longer
+    // an in-card badge to patch surgically.
     const sig = _printerGridSignature();
     if (sig !== _lastPrinterGridSignature) {
       _lastPrinterGridSignature = sig;
       renderPrintersView();
-      return;
     }
-    state.printers.forEach(p => {
-      const card = document.querySelector(`[data-printer-key="${esc(p.brand + ":" + p.id)}"]`);
-      if (!card) return;
-      const badge = card.querySelector(".printer-online");
-      if (!badge) return;
-      badge.outerHTML = _makeOnlineBadge(p);
-    });
   }
 
   /* ── Render the user's 3D printers in the main panel.
@@ -9609,7 +9606,6 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       const modelName = printerModelName(p.brand, p.printerModelId);
       const imgUrl    = printerImageUrlFor(p.brand, p.printerModelId);
       const safeName  = esc(p.printerName || modelName);
-      const updated   = p.updatedAt ? timeAgo(p.updatedAt) : "";
       // The thumbnail uses object-fit: contain so the printer photo always
       // shows in full. Falls back to the per-brand `no_printer.png` placeholder
       // (declared in every brand catalog as id "0") when modelId is missing.
@@ -9622,7 +9618,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (p.brand === "flashforge" && p.ip) ffgPingPrinter(p);
       // Same for Creality — opens a brief WS to port 9999.
       if (p.brand === "creality"   && p.ip) crePingPrinter(p);
-      const onlineBadge = _makeOnlineBadge(p);
+      const online      = _isOnline(p);
+      // "Last seen online" — same source as the printers table: currently
+      // connected → "just now"; otherwise the persisted last-online time.
+      const _ls         = _printerLastSeen.get(`${p.brand}:${p.id}`);
+      const lastSeen    = online ? t("agoNow") : (_ls ? timeAgo(_ls) : "—");
       return `
         <div class="printer-card${p.isActive ? " printer-card--active" : ""}"
              data-brand="${esc(p.brand)}" data-id="${esc(p.id)}"
@@ -9631,17 +9631,19 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           <div class="printer-card-drag" title="${esc(t("printerDragHint"))}" aria-hidden="true">
             <span class="printer-card-drag-dots"></span>
           </div>
-          ${imgSrc ? `<div class="printer-card-thumb"><img src="${esc(imgSrc)}" alt="${esc(modelName)}" onerror="this.style.opacity='.15'"/></div>` : ""}
+          <div class="printer-card-name">
+            <span class="printer-card-name-dot${online ? " is-online" : ""}" aria-hidden="true"></span>
+            <span class="printer-card-name-txt">${safeName}</span>
+          </div>
+          ${imgSrc ? `<div class="printer-card-thumb"><img src="${esc(imgSrc)}" alt="${esc(modelName)}" onerror="this.style.opacity='.15'"/>${_BRAND_HAS_LOGO.has(p.brand) ? `<span class="pt-thumb-badge"><span class="pt-thumb-logo" data-brand="${esc(p.brand)}" title="${esc(meta.label)}" aria-label="${esc(meta.label)}"></span></span>` : ""}</div>` : ""}
           <div class="printer-card-head">
             <span class="printer-brand-pill" style="--brand-accent:${meta.accent}">${esc(meta.label)}</span>
             ${p.isActive ? `<span class="printer-active-badge">${esc(t("printersActive"))}</span>` : ""}
           </div>
-          <div class="printer-card-name">${safeName}</div>
           ${(() => { const job = _getPrinterJob(p); return job ? _jobCardHtml(job) : ""; })()}
-          ${onlineBadge}
           <div class="printer-card-foot">
-            <span class="printer-card-conn">${esc(p.mode === "cloud" ? t("printerConnCloud") : meta.connection)}</span>
-            ${updated ? `<span class="printer-card-updated">${esc(t("printersUpdated"))} · ${esc(updated)}</span>` : ""}
+            <span class="printer-card-conn">${esc(p.mode === "cloud" ? t("printerConnCloud") : (meta.connLan || meta.connection))}</span>
+            <span class="printer-card-updated">${esc(t("printersLastSeen"))} · ${esc(lastSeen)}</span>
           </div>
         </div>`;
     };
@@ -9687,6 +9689,51 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   }
 
   // ── Printer table sub-view ───────────────────────────────────────────────
+  // Brands that ship a logo SVG (assets/svg/icons/logo_<brand>.svg) → the Brand
+  // column shows the tinted logo; any other brand falls back to the text pill.
+  const _BRAND_HAS_LOGO = new Set(["anycubic", "bambulab", "creality", "elegoo", "flashforge", "snapmaker"]);
+  // When each printer was last seen online (key `brand:id` → ms timestamp).
+  // Used by the "Last seen" column. Backed by Firestore (see below) so it
+  // survives reloads/restarts; updated live in-memory by the heartbeat + renders.
+  const _printerLastSeen = new Map();
+
+  // ── "Last seen online" persistence ───────────────────────────────────────
+  // Stored in a SEPARATE collection users/{uid}/printerSeen/{brand:id} (NOT the
+  // devices subcollection) so the per-minute heartbeat writes don't fire the
+  // printers onSnapshot — which would rebuild the grid / open side-card every
+  // minute. Seeded once on load; written by the heartbeat while online.
+  let _printerSeenSeededUid = null;
+  let _printerSeenTimer = null;
+  async function _seedPrinterLastSeen(uid) {
+    if (!uid || _printerSeenSeededUid === uid) return;
+    _printerSeenSeededUid = uid;
+    try {
+      const snap = await fbDb(uid).collection("users").doc(uid).collection("printerSeen").get();
+      snap.forEach(doc => { const ts = doc.data()?.ts; if (typeof ts === "number") _printerLastSeen.set(doc.id, ts); });
+      if (_isPrinterMode(state.viewMode)) { try { renderPrintersView(); } catch (_) {} }
+    } catch (_) {}
+  }
+  function _persistPrinterSeen(brand, id, ts) {
+    const uid = state.activeAccountId;
+    if (!uid) return;
+    fbDb(uid).collection("users").doc(uid).collection("printerSeen")
+      .doc(`${brand}:${id}`).set({ ts }).catch(() => {});
+  }
+  // Heartbeat: once a minute, stamp every online printer (in-memory + Firestore).
+  function _startPrinterSeenHeartbeat() {
+    if (_printerSeenTimer) return;
+    _printerSeenTimer = setInterval(() => {
+      if (!state.activeAccountId) return;
+      const now = Date.now();
+      state.printers.forEach(p => {
+        if (_isPrinterOnline(p)) {
+          _printerLastSeen.set(`${p.brand}:${p.id}`, now);
+          _persistPrinterSeen(p.brand, p.id, now);
+        }
+      });
+    }, 60_000);
+  }
+
   function _renderPrinterTable(host) {
     // Auto-connect so _getPrinterJob() has live data (idempotent)
     state.printers.forEach(p => {
@@ -9708,6 +9755,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       return false;
     };
 
+    // Stamp "last seen online" for every currently-online printer (session memory).
+    state.printers.forEach(p => { if (_isOnline(p)) _printerLastSeen.set(`${p.brand}:${p.id}`, Date.now()); });
+
     // ── Sort ────────────────────────────────────────────────────────────
     const col = state.printerSortCol;
     const dir = state.printerSortDir === "asc" ? 1 : -1;
@@ -9720,10 +9770,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (col === "name")    { va = (a.printerName || "").toLowerCase(); vb = (b.printerName || "").toLowerCase(); }
       if (col === "model")   { va = printerModelName(a.brand, a.printerModelId).toLowerCase();
                                vb = printerModelName(b.brand, b.printerModelId).toLowerCase(); }
-      if (col === "ip")      { va = a.ip || a.broker || "";              vb = b.ip || b.broker || ""; }
+      if (col === "ip")      { va = a.mode === "cloud" ? "Cloud" : (a.ip || a.broker || ""); vb = b.mode === "cloud" ? "Cloud" : (b.ip || b.broker || ""); }
       if (col === "status")  { va = _isOnline(a) ? 1 : 0;               vb = _isOnline(b) ? 1 : 0; }
       if (col === "job")     { va = (_getPrinterJob(a)?.pct ?? -1);      vb = (_getPrinterJob(b)?.pct ?? -1); }
-      if (col === "updated") { va = a.updatedAt || 0;                    vb = b.updatedAt || 0; }
+      if (col === "lastseen") { va = _printerLastSeen.get(`${a.brand}:${a.id}`) || 0; vb = _printerLastSeen.get(`${b.brand}:${b.id}`) || 0; }
       if (va === undefined)  return 0;
       return va < vb ? -dir : va > vb ? dir : 0;
     });
@@ -9740,7 +9790,15 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       const meta    = PRINTER_BRAND_META[p.brand] || { label: p.brand, accent: "#888" };
       const model   = printerModelName(p.brand, p.printerModelId);
       const online  = _isOnline(p);
-      const updated = p.updatedAt ? timeAgo(p.updatedAt) : "—";
+      // "Last seen online" — currently-connected printers read "now"; offline
+      // ones show the elapsed time since last seen this session (— if never).
+      const _ls      = _printerLastSeen.get(`${p.brand}:${p.id}`);
+      const lastSeen = online ? t("agoNow") : (_ls ? timeAgo(_ls) : "—");
+      const brandCell = `<span class="printer-brand-pill" style="--brand-accent:${esc(meta.accent)}">${esc(meta.label)}</span>`;
+      // Brand logo in its own column (before the printer image), when we have one.
+      const brandLogoCell = _BRAND_HAS_LOGO.has(p.brand)
+        ? `<span class="pt-thumb-logo" data-brand="${esc(p.brand)}" title="${esc(meta.label)}" aria-label="${esc(meta.label)}"></span>`
+        : "";
       const imgSrc  = printerImageUrlFor(p.brand, p.printerModelId)
                    || printerImageUrl(findPrinterModel(p.brand, "0"))
                    || "";
@@ -9749,21 +9807,20 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       return `
         <tr class="pt-row${online ? " pt-row--online" : ""}"
             data-brand="${esc(p.brand)}" data-id="${esc(p.id)}">
+          <td class="pt-td pt-td--brandlogo">${brandLogoCell}</td>
           <td class="pt-td pt-td--thumb">
             ${imgSrc ? `<img class="pt-thumb" src="${esc(imgSrc)}" onerror="this.style.opacity='.12'" />` : ""}
           </td>
-          <td class="pt-td pt-td--brand">
-            <span class="printer-brand-pill" style="--brand-accent:${esc(meta.accent)}">${esc(meta.label)}</span>
-          </td>
+          <td class="pt-td pt-td--brand">${brandCell}</td>
           <td class="pt-td pt-td--name">${esc(p.printerName || "(unnamed)")}</td>
           <td class="pt-td pt-td--model">${esc(model)}</td>
-          <td class="pt-td pt-td--ip"><code>${esc(p.ip || p.broker || "—")}</code></td>
+          <td class="pt-td pt-td--ip"><code>${p.mode === "cloud" ? "Cloud" : esc(p.ip || p.broker || "—")}</code></td>
           <td class="pt-td pt-td--status">
             <span class="pt-dot${online ? " pt-dot--on" : ""}"></span>
             ${esc(online ? t("snapStatusOnline") : t("snapStatusOffline"))}
           </td>
           <td class="pt-td pt-td--job">${jobCell}</td>
-          <td class="pt-td pt-td--updated">${esc(updated)}</td>
+          <td class="pt-td pt-td--updated">${esc(lastSeen)}</td>
         </tr>`;
     }).join("");
 
@@ -9772,6 +9829,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         <table class="pt-table">
           <thead class="pt-head">
             <tr>
+              <th class="pt-th pt-th--brandlogo"></th>
               <th class="pt-th pt-th--thumb"></th>
               ${th("Brand",   "brand")}
               ${th("Name",    "name")}
@@ -9779,7 +9837,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
               ${th("IP",      "ip")}
               ${th("Status",  "status")}
               ${th("Job",     "job")}
-              ${th("Updated", "updated")}
+              ${th("Last seen", "lastseen")}
             </tr>
           </thead>
           <tbody>${rows}</tbody>
@@ -9796,6 +9854,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           state.printerSortCol = key;
           state.printerSortDir = "asc";
         }
+        _saveSort("tigertag.sort.printer", state.printerSortCol, state.printerSortDir);
         _renderPrinterTable(host);
       });
     });
@@ -10796,6 +10855,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     btn.title       = t(labelKey);
     btn.ariaLabel   = btn.title;
     btn.dataset.conn = active ? "active" : "inactive";
+    // Status dot before the title: green (pulsing) when online, grey otherwise.
+    const dot = $("printerPanelDot");
+    if (dot) dot.classList.toggle("is-online", _isPrinterOnline(p));
   }
 
   $("printerConnBtn")?.addEventListener("click", () => {
@@ -11318,33 +11380,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       ${modelName && modelName !== "—" ? `<span class="pp-model-pill pp-model-pill--sm">${esc(modelName)}</span>` : ""}
     `;
     $("printerPanelPills").innerHTML = titlePillsHtml;
-    // Status row UNDER the title — Snapmaker (WebSocket) + FlashForge (HTTP
-    // poll) both provide reachability info. Other brands fall through to
-    // an empty string so the row collapses to zero height.
+    // Online status is shown as a coloured dot before the title (see
+    // #printerPanelDot / _updatePrinterConnBtn) — the separate badge row was
+    // removed, so keep #printerPanelStatus empty (collapses to zero height).
     const statusEl = $("printerPanelStatus");
-    if (statusEl) {
-      if (p.brand === "elegoo") {
-        const elgOnlineSide = elegooIsOnline(p);
-        const cls = elgOnlineSide === true ? "is-online" : elgOnlineSide === false ? "is-offline" : "is-checking";
-        const lbl = elgOnlineSide === true  ? t("snapStatusOnline")
-                  : elgOnlineSide === false ? t("snapStatusOffline")
-                  :                           t("snapStatusConnecting");
-        statusEl.innerHTML = `<span class="printer-online printer-online--side ${cls}" id="ppOnlineRow">
-                                <span class="printer-online-dot"></span>
-                                <span class="printer-online-lbl">${esc(lbl)}</span>
-                              </span>`;
-      } else {
-        statusEl.innerHTML = (p.brand === "flashforge")
-          ? renderFfgOnlineBadge(p, "side")
-          : (p.brand === "creality")
-          ? renderCreOnlineBadge(p, "side")
-          : (p.brand === "bambulab")
-          ? renderBambuOnlineBadge(p, "side")
-          : (p.brand === "anycubic")
-          ? renderAcuOnlineBadge(p, "side")
-          : renderSnapOnlineBadge(p, "side");
-      }
-    }
+    if (statusEl) statusEl.innerHTML = "";
 
     // Online status now lives in the panel header (next to the pills),
     // not under the camera. Trigger a fresh ping anyway so the badge
@@ -12544,7 +12584,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         : "";
       return `
         <button type="button" class="pba-brand" data-brand="${esc(brand)}">
-          <span class="pba-brand-dot" style="background:${meta.accent}"></span>
+          <span class="pba-brand-logo" data-brand="${esc(brand)}"></span>
           <span class="pba-brand-text">
             <span class="pba-brand-label">${esc(meta.label)}</span>
             <span class="pba-brand-conn">${esc(meta.connection)}</span>

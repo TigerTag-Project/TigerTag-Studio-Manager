@@ -40,9 +40,9 @@ L14974-15440   Friend view + add-friend modal
 L15441-15637   Display-name setup + friend requests + blacklist
 L15638-15941   Public/private keys + user profile sync
 L15942-16252   Custom avatar upload + Discord-style cropper
-L16253-16546   syncUserDoc + session telemetry + language sync
-L16547-16562   Init bootstrap (loadLocales → loadLookups → runMigration → initAuth)
-L16563-16896   Electron RFID integration (readers, dual-scan, NFC processor, chip write)
+L16253-16728   syncUserDoc + session telemetry + language sync
+L16729-16744   Init bootstrap (loadLocales → loadLookups → runMigration → initAuth)
+L16745-17078   Electron RFID integration (readers, dual-scan, NFC processor, chip write)
 ```
 
 ---
@@ -377,17 +377,17 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## User doc sync + telemetry + bootstrap (L16253-16562)
+## User doc sync + telemetry + bootstrap (L16253-16744)
 
 | L | What | Anchors |
 |---|---|---|
-| 15963-16360 | **`syncUserDoc(uid)`** — displayName/roles/Debug/keys/isPublic + **client telemetry** (studio* fields + `telemetry/studio` aggregates, fire-and-forget) | `syncUserDoc`, `hydrateUserDocCache` |
-| 15767-15799 | Language sync from Firestore + `applyLang(lang)` | `syncLangFromFirestore`, `applyLang` |
-| 15800-15815 | **Init bootstrap** — loadLocales → applyTranslations → loadLookups → loadImgMap → runMigration → initAuth → signalFirstPaint | grep "loadLocales().then" |
+| 16253-16695 | **`syncUserDoc(uid)`** — displayName/roles/Debug/keys/isPublic + **client telemetry** (studio* fields + `telemetry/studio` aggregates, fire-and-forget) | `syncUserDoc`, `hydrateUserDocCache` |
+| 16696-16728 | Language sync from Firestore + `applyLang(lang)` | `syncLangFromFirestore`, `applyLang` |
+| 16729-16744 | **Init bootstrap** — loadLocales → applyTranslations → loadLookups → loadImgMap → runMigration → initAuth → signalFirstPaint | grep "loadLocales().then" |
 
 ---
 
-## Electron RFID integration (L16563-16896)
+## Electron RFID integration (L16745-17078)
 
 | L | What | Anchors |
 |---|---|---|

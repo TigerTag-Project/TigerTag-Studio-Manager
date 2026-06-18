@@ -213,6 +213,8 @@ Each brand under `renderer/printers/<brand>/PROTOCOL.md` is a **self-contained a
 | `tigertag.sidebar` | `"collapsed"` \| `"expanded"` |
 | `tigertag.panelWidth.detail` | detail panel width in px (user-resized) |
 | `tigertag.panelWidth.debug` | debug panel width in px (user-resized) |
+| `tigertag.sort.inv` | inventory table sort `{col,dir}` (default `brand`/`asc`) |
+| `tigertag.sort.printer` | printers table sort `{col,dir}` (default `status`/`desc`) |
 
 ## Account object shape
 ```js
