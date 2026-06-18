@@ -1023,5 +1023,14 @@
   "ffgInfoVolume": "Obszar roboczy",
   "ffgInfoGroup": "Grupa",
   "ffgInfoAutoShutdown": "Autowyłączenie",
-  "ffgInfoZComp": "Offset Z"
+  "ffgInfoZComp": "Offset Z",
+  "acuFilesTitle": "Pliki",
+  "acuFilesLoading": "Ładowanie…",
+  "acuFilesEmpty": "Nie znaleziono plików",
+  "acuFilesTabLocal": "Drukarka",
+  "acuFilesTabUsb": "USB",
+  "acuFilesTabCloud": "Chmura",
+  "acuFilePrint": "Drukuj",
+  "acuFileDelete": "Usuń",
+  "acuFileIncompatible": "Pocięto dla innej drukarki"
 }

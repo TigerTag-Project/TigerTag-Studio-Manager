@@ -992,8 +992,11 @@
     text-align: center;
   }
   .sfe-screen-head .modal-close { grid-column: 3; }
-  /* Variant for the summary header — title aligned left, no back button */
-  .sfe-screen-head--right { grid-template-columns: 1fr 32px; }
+  /* Variant for the summary header — title aligned left, no back button.
+     `auto` (not a fixed 32px) so a multi-button right group — e.g. the file
+     sheets' refresh + close pair — sizes to its content instead of overflowing
+     the track and clipping the last button off the sheet's right edge. */
+  .sfe-screen-head--right { grid-template-columns: 1fr auto; }
   .sfe-screen-head--right .sfe-screen-head-text { grid-column: 1; min-width: 0; }
   .sfe-screen-head--right .sfe-title { text-align: left; }
   .sfe-screen-head--right .modal-close { grid-column: 2; }

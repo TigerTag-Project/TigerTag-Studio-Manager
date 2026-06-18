@@ -1024,5 +1024,14 @@
   "ffgInfoVolume": "打印体积",
   "ffgInfoGroup": "分组",
   "ffgInfoAutoShutdown": "自动关机",
-  "ffgInfoZComp": "Z偏移"
+  "ffgInfoZComp": "Z偏移",
+  "acuFilesTitle": "文件",
+  "acuFilesLoading": "加载中…",
+  "acuFilesEmpty": "未找到文件",
+  "acuFilesTabLocal": "打印机",
+  "acuFilesTabUsb": "USB",
+  "acuFilesTabCloud": "云端",
+  "acuFilePrint": "打印",
+  "acuFileDelete": "删除",
+  "acuFileIncompatible": "为其他打印机切片"
 }

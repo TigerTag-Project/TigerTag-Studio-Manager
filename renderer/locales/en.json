@@ -1024,5 +1024,14 @@
   "ffgInfoVolume": "Build volume",
   "ffgInfoGroup": "Group",
   "ffgInfoAutoShutdown": "Auto shutdown",
-  "ffgInfoZComp": "Z offset"
+  "ffgInfoZComp": "Z offset",
+  "acuFilesTitle": "Files",
+  "acuFilesLoading": "Loading…",
+  "acuFilesEmpty": "No files found",
+  "acuFilesTabLocal": "On-printer",
+  "acuFilesTabUsb": "USB",
+  "acuFilesTabCloud": "Cloud",
+  "acuFilePrint": "Print",
+  "acuFileDelete": "Delete",
+  "acuFileIncompatible": "Sliced for a different printer"
 }

@@ -213,3 +213,66 @@
 }
 .acu-err-msg   { color: var(--text); font-size: 14px; line-height: 1.4; }
 .acu-err-ok    { width: 100%; }
+
+/* ── File-management sheet — source tabs (On-printer / USB) ────────────────
+   Mirrors the Elegoo file-sheet tab bar (.elg-fs-tabs). File rows + print/
+   delete buttons reuse the shared .cre-file-* / .cre-files-* classes. */
+.acu-fs-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 6px 12px 0;
+  background: var(--surface);
+  flex-shrink: 0;
+}
+.acu-fs-tabs:empty { display: none; }   /* single-source view → no tab bar */
+.acu-fs-tabs:not(:empty) { border-bottom: 1px solid var(--border); }
+.acu-fs-tab {
+  flex: 1;
+  padding: 6px 4px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  transition: color .12s, border-color .12s;
+  margin-bottom: -1px;      /* overlap the tab bar's border-bottom */
+  border-radius: 6px 6px 0 0;
+}
+.acu-fs-tab:hover { color: var(--text); }
+.acu-fs-tab--active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+/* Print is hold-to-confirm here (it starts a real job) — give it the same
+   fill/feedback as the shared delete button, in green. Scoped to the Anycubic
+   sheet so other brands' click-only print buttons are unaffected. */
+#acuFileSheet .cre-file-btn--print { position: relative; overflow: hidden; }
+#acuFileSheet .cre-file-btn--print .hold-progress {
+  position: absolute; left: 0; top: 0;
+  width: 0; height: 100%;
+  background: rgba(34, 197, 94, .3);
+  pointer-events: none;
+}
+#acuFileSheet .cre-file-btn--print .icon { position: relative; z-index: 1; }
+#acuFileSheet .cre-file-btn--print.is-holding {
+  background: rgba(34, 197, 94, .15); border-color: rgba(34, 197, 94, .4);
+}
+#acuFileSheet .cre-file-btn--print.is-confirming { background: #22c55e; border-color: #22c55e; }
+#acuFileSheet .cre-file-btn--print.is-confirming .icon { background-color: #fff; }
+
+/* Cloud files are account-level (shown for every printer) but a sliced gcode
+   only prints on the machine it was sliced for — so the print button is disabled
+   on incompatible files (and while a job runs). Keep it visibly inert. */
+#acuFileSheet .cre-file-btn--print:disabled {
+  opacity: .35;
+  cursor: not-allowed;
+  background: var(--surface-2);
+  border-color: var(--border);
+}
+#acuFileSheet .cre-file-btn--print:disabled:hover { background: var(--surface-2); border-color: var(--border); }
+#acuFileSheet .cre-file-btn--print:disabled .icon { background-color: var(--muted); }
+#acuFileSheet .cre-file-row--incompatible .cre-file-name { color: var(--muted); }

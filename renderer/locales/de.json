@@ -1024,5 +1024,14 @@
   "ffgInfoVolume": "Bauraum",
   "ffgInfoGroup": "Gruppe",
   "ffgInfoAutoShutdown": "Auto-Abschaltung",
-  "ffgInfoZComp": "Z-Offset"
+  "ffgInfoZComp": "Z-Offset",
+  "acuFilesTitle": "Dateien",
+  "acuFilesLoading": "Wird geladen…",
+  "acuFilesEmpty": "Keine Dateien gefunden",
+  "acuFilesTabLocal": "Drucker",
+  "acuFilesTabUsb": "USB",
+  "acuFilesTabCloud": "Cloud",
+  "acuFilePrint": "Drucken",
+  "acuFileDelete": "Löschen",
+  "acuFileIncompatible": "Für einen anderen Drucker geslict"
 }

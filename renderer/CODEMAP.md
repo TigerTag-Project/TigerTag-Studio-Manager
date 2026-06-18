@@ -37,9 +37,9 @@ L12410-12973   Add-printer flow (brand picker, form, tutorials, submit)
 L12974-13862   Racks CRUD + slots + locking + auto-fill + masonry + tooltip
 L13863-14973   renderRackView + rack drag-drop + rack edit modal
 L14974-15440   Friend view + add-friend modal
-L15441-15637   Display-name setup + friend requests + blacklist
-L15638-15941   Public/private keys + user profile sync
-L15942-16252   Custom avatar upload + Discord-style cropper
+L15441-15828   Display-name setup + friend requests + blacklist
+L15829-15941   Public/private keys + user profile sync
+L15942-16321   Custom avatar upload + Discord-style cropper
 L16253-16728   syncUserDoc + session telemetry + language sync
 L16729-16744   Init bootstrap (loadLocales → loadLookups → runMigration → initAuth)
 L16745-17078   Electron RFID integration (readers, dual-scan, NFC processor, chip write)
@@ -349,7 +349,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Display name + friend requests (L15441-15637)
+## Display name + friend requests (L15441-15828)
 
 | L | What | Anchors |
 |---|---|---|
@@ -368,7 +368,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Custom avatar (L15942-16252)
+## Custom avatar (L15942-16321)
 
 | L | What | Anchors |
 |---|---|---|

@@ -174,6 +174,17 @@ function _acuDefaultData() {
     camSupported:  null,
     camUrl:        null,  // FLV stream URL from info/report (data.urls.rtspUrl)
     lastCamFrame:  null,
+    // Stored files (PROTOCOL.md §5e) — populated on demand by the Files sheet.
+    localFiles:    [],    // [{ filename, timestamp(ms), size(bytes), isDir, plateNumber }]
+    udiskFiles:    [],
+    localFilesAt:  0, udiskFilesAt:  0,   // epoch ms of the last successful list
+    localFilesLoading: false, udiskFilesLoading: false,
+    // Cloud-uploaded files (PROTOCOL.md §9c) — cloud mode only, fetched via REST.
+    cloudFiles:    [],    // [{ id, filename, timestamp(ms), size, thumbnail, sliceParam, sliceSize }]
+    cloudFilesAt:  0, cloudFilesLoading: false,
+    // Peripheral presence (type:"peripherie" query) — gates the USB tab. null =
+    // not yet queried.
+    udiskPresent:  null, cameraPresent: null, mcbPresent: null,
   };
 }
 
@@ -301,12 +312,25 @@ const ACU_ORDER_SET_EXTFIL    = 1229; // set the standalone external spool
 // command maps to a REST sendOrder (AnycubicOrderID). Print-state / settings
 // orders also need the active job's project_id (= the print taskid).
 const ACU_ORD = {
+  START_PRINT: 1,                 // print a stored file — {filetype, filename, filepath, …} (§5e)
   PAUSE: 2, RESUME: 3, STOP: 4,   // print control (need project_id)
   PRINT_SETTINGS: 6,              // temps / fan / speed-mode (need project_id) — {settings:{…}}
+  LIST_UDISK: 101, DELETE_UDISK: 102,  // USB-stick files (§5e)
+  LIST_LOCAL: 103, DELETE_LOCAL: 104,  // on-printer files (§5e)
   MOVE_AXLE: 201,                 // jog / home — {axis, move_type, distance}
   MOVE_AXLE_TURN_OFF: 1213,       // disable motors
   FEED_FILAMENT: 1208,            // load / unload / stop filament
   SET_LIGHT: 1233,                // light — {type, status, brightness}
+  QUERY_PERIPHERALS: 1231,        // attached-peripheral query → type:"peripherie" (§5e)
+};
+
+// File sources (PROTOCOL.md §5e). Each maps a source to its list/delete order
+// pair, the LAN MQTT request action strings (inferred from the response action
+// names — confirm against real hardware via the debug log), and the START_PRINT
+// `filetype` (1 = on-printer, 2 = USB stick).
+const ACU_FILE_SRC = {
+  local: { listOrder: ACU_ORD.LIST_LOCAL, delOrder: ACU_ORD.DELETE_LOCAL, listAction: "listLocal", delAction: "deleteLocal", filetype: 1 },
+  udisk: { listOrder: ACU_ORD.LIST_UDISK, delOrder: ACU_ORD.DELETE_UDISK, listAction: "listUdisk", delAction: "deleteUdisk", filetype: 2 },
 };
 
 // True for a cloud-mode connection (no local broker → must use sendOrder).
@@ -663,6 +687,227 @@ export function acuSetSpeedMode(conn, mode) {
   if (![1, 2, 3].includes(m)) return;
   // MQTT `print/update` via `_publish` (routes LAN/cloud by mode), like the slicer.
   _publish(conn, _acuRequest("update", { taskid: "-1", settings: { print_speed_mode: m } }, "print"), "print");
+}
+
+// ── File management — on-printer + USB files (PROTOCOL.md §5e) ───────────────
+// Same order IDs on both transports: LAN publishes an MQTT `type:"file"` request,
+// cloud sends it via signed REST `sendOrder`. The reply ALWAYS arrives over MQTT
+// (`type:"file"`) in both modes → `_acuMerge` → conn.data.localFiles / udiskFiles.
+
+/**
+ * Request the stored-file listing for a source. source = "local" (internal
+ * storage) | "udisk" (USB stick). Async fire-and-forget — the reply updates
+ * conn.data.{local,udisk}Files when it arrives over MQTT; sets the matching
+ * *FilesLoading flag so the sheet can show a spinner meanwhile.
+ */
+export function acuListFiles(conn, source) {
+  const s = ACU_FILE_SRC[source];
+  if (!conn || !s) return;
+  if (source === "udisk") conn.data.udiskFilesLoading = true;
+  else                    conn.data.localFilesLoading = true;
+  // The firmware rejects a list with no `path` ("path is empty", code 10112) —
+  // "/" is the storage root. Confirmed required on a Kobra 3 V2 over LAN; sent
+  // on the cloud REST path too (harmless — hass omits it but the firmware needs it).
+  const data = { path: "/" };
+  if (_acuConnIsCloud(conn)) _acuCloudOrder(conn, s.listOrder, data);
+  else                       _publish(conn, _acuRequest(s.listAction, data, "file"), "file");
+  _acuNotify(conn);
+}
+
+/**
+ * Print a stored file. source = "local" | "udisk". The printer confirms by
+ * transitioning into a `type:"print"` job (watch printState, not the order ack).
+ * `path` defaults to "/" (storage root); records from §5e carry no sub-path.
+ */
+export function acuPrintFile(conn, source, filename, path = "/") {
+  const s = ACU_FILE_SRC[source];
+  if (!conn || !s || !filename) return;
+  const data = {
+    filetype: s.filetype,           // 1 = on-printer · 2 = USB stick
+    file_key: "", file_name: "",
+    task_settings: { ai_detect: 0, camera_timelapse: 0 },
+    filename,
+    filepath: path || "/",
+  };
+  if (_acuConnIsCloud(conn)) _acuCloudOrder(conn, ACU_ORD.START_PRINT, data);
+  else                       _publish(conn, _acuRequest("start", data, "print"), "print");
+}
+
+/**
+ * Delete a stored file. source = "local" | "udisk". On a `state:"success"` reply
+ * `_acuMerge` re-lists that source automatically, so the sheet refreshes itself.
+ */
+export function acuDeleteFile(conn, source, filename) {
+  const s = ACU_FILE_SRC[source];
+  if (!conn || !s || !filename) return;
+  const data = { filename, filetype: -1, path: "/" };
+  if (_acuConnIsCloud(conn)) _acuCloudOrder(conn, s.delOrder, data);
+  else                       _publish(conn, _acuRequest(s.delAction, data, "file"), "file");
+}
+
+/**
+ * Query attached peripherals (USB stick / camera / multi-color box presence).
+ * Reply: `type:"peripherie"`, action `query`, state `done`, data booleans —
+ * parsed in `_acuMerge` into conn.data.{udisk,camera,mcb}Present. Used to gate
+ * the USB tab in the Files sheet. The LAN request action ("query") is inferred
+ * from the response action — confirm against real hardware via the debug log.
+ */
+export function acuQueryPeripherals(conn) {
+  if (!conn) return;
+  if (_acuConnIsCloud(conn)) _acuCloudOrder(conn, ACU_ORD.QUERY_PERIPHERALS, {});
+  else                       _publish(conn, _acuRequest("query", null, "peripherie"), "peripherie");
+}
+
+/**
+ * Normalize one stored-file record (PROTOCOL.md §5e). On real hardware the reply
+ * is `{ is_dir, filename, timestamp, size, plate_number }` (plus a `list_mode`
+ * wrapper alongside `records`). `timestamp` is epoch MILLISECONDS — a few files
+ * carry a bogus tiny value, so coerce defensively. `plate_number` selects a plate
+ * inside a multi-plate `.gcode.3mf`.
+ */
+function _acuNormFileRecord(r) {
+  if (!r || typeof r !== "object" || !r.filename) return null;
+  return {
+    filename:    String(r.filename),
+    timestamp:   _acuFileTimeMs(r.timestamp),  // epoch ms (0 = unknown)
+    size:        Number(r.size) || 0,          // bytes
+    isDir:       !!r.is_dir,
+    plateNumber: Number(r.plate_number) || 0,
+  };
+}
+
+/** Coerce a firmware file timestamp to epoch ms: values are ms (≥1e12); tolerate
+ *  seconds (1e9–1e12 → ×1000) and discard implausibly small (pre-2001) values. */
+function _acuFileTimeMs(t) {
+  const n = Number(t) || 0;
+  if (n >= 1e12) return n;          // already ms (year ≥ 2001)
+  if (n >= 1e9)  return n * 1000;   // seconds → ms
+  return 0;                          // bogus / unknown
+}
+
+// ── Cloud-uploaded files (PROTOCOL.md §9c) — cloud mode only ─────────────────
+// A separate REST subsystem from §5e: files the user sliced and saved to Anycubic
+// Cloud. List + delete via dedicated workbench endpoints; print reuses the cloud
+// sendOrder (START_PRINT order 1) with the file's embedded slice_param.
+
+/** Normalize one cloud file record (AnycubicCloudFile). Keeps `sliceParam` /
+ *  `sliceSize` raw — the cloud rejects a print without the file's slice_param. */
+function _acuNormCloudFile(r) {
+  if (!r || typeof r !== "object" || r.id == null) return null;
+  return {
+    id:          Number(r.id),
+    filename:    String(r.filename || ""),
+    timestamp:   _acuCloudTimeMs(r.time),  // §9c uses `time` (number or date string)
+    size:        Number(r.size) || 0,      // bytes
+    thumbnail:   String(r.thumbnail || ""),// signed URL
+    sliceParam:  r.slice_param ?? null,    // pass-through for the print payload
+    sliceSize:   r.slice_size ?? null,
+    // Compatibility signals — a sliced gcode targets one machine type; used to
+    // gate which files are printable on the open printer (PROTOCOL.md §9c).
+    machineType: r.machine_type ?? null,
+    deviceType:  r.device_type ?? null,
+    fileType:    r.file_type ?? null,
+    printerNames: r.printer_names ?? null,
+  };
+}
+
+/** Cloud `time` → epoch ms. Accepts a unix number (s/ms) or a date string
+ *  (e.g. "2026-06-01 12:00:00"); 0 when unparseable. */
+function _acuCloudTimeMs(t) {
+  if (t == null) return 0;
+  const n = Number(t);
+  if (Number.isFinite(n) && String(t).trim() !== "") return _acuFileTimeMs(n);
+  const parsed = Date.parse(String(t).replace(" ", "T"));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+/** Fetch ALL the account's cloud-uploaded files (cloud storage is account-level,
+ *  shared across printers). We list everything — print is gated per-file to the
+ *  open printer's machine type (`machine_type`), deletion is allowed for any.
+ *  The server-side `machine_type` filter is intentionally NOT used: it doesn't
+ *  restrict results (a 20027-sliced file is returned for a 20030 printer too), so
+ *  compatibility is enforced client-side. Async; refreshes an open sheet. */
+export async function acuCloudListFiles(conn) {
+  const p = conn && conn.printer;
+  if (!p || !_acuConnIsCloud(conn)) return;
+  conn.data.cloudFilesLoading = true;
+  _acuFileSheetOnData(conn);
+  _acuLogPush(conn, "→", { type: "cloudFiles", action: "list", via: "cloud" });
+  let res;
+  try {
+    res = await window.anycubic?.cloud?.filesList({ token: p.cloudToken, page: 1, limit: 100 });
+  } catch (e) { res = { ok: false, error: e?.message }; }
+  if (!_acuConns.has(conn.key)) return;
+  conn.data.cloudFilesLoading = false;
+  if (res && res.ok && Array.isArray(res.files)) {
+    conn.data.cloudFiles   = res.files.map(_acuNormCloudFile).filter(Boolean);
+    conn.data.cloudFilesAt = Date.now();
+  }
+  _acuLogPush(conn, "←", res && res.ok ? { type: "cloudFiles", count: conn.data.cloudFiles.length } : { type: "cloudFiles", error: res?.error });
+  _acuFileSheetOnData(conn);
+  _acuNotify(conn);
+}
+
+/** True when a cloud file was sliced for this connection's printer (machine type
+ *  match). Used to gate the print button — printing a slice on a printer it
+ *  wasn't sliced for can fail or damage the machine. */
+function _acuCloudFileCompatible(conn, file) {
+  const pmt = Number(conn?.printer?.machineType);
+  const fmt = Number(file?.machineType);
+  return Number.isFinite(pmt) && Number.isFinite(fmt) && pmt === fmt;
+}
+
+/** Human label for a cloud file's target printer(s) (`printer_names`). Accepts an
+ *  array or a JSON-string-encoded array. */
+function _acuPrinterNamesLabel(pn) {
+  let arr = pn;
+  if (typeof pn === "string") { try { arr = JSON.parse(pn); } catch (_) { return pn; } }
+  return Array.isArray(arr) ? arr.join(", ") : (pn ? String(pn) : "");
+}
+
+/** Delete a cloud-uploaded file by id, then re-list. */
+export async function acuCloudDeleteFile(conn, fileId) {
+  const p = conn && conn.printer;
+  if (!p || !_acuConnIsCloud(conn) || fileId == null) return;
+  _acuLogPush(conn, "→", { type: "cloudFiles", action: "delete", fileId, via: "cloud" });
+  let res;
+  try {
+    res = await window.anycubic?.cloud?.fileDelete({ token: p.cloudToken, fileId });
+  } catch (e) { res = { ok: false, error: e?.message }; }
+  if (!_acuConns.has(conn.key)) return;
+  if (res && res.ok) {
+    // Optimistic drop so the row disappears immediately; the re-list confirms.
+    conn.data.cloudFiles = (conn.data.cloudFiles || []).filter(f => f.id !== Number(fileId));
+    _acuFileSheetOnData(conn);
+    acuCloudListFiles(conn);
+  } else {
+    _acuShowError(res?.code, res?.error || "delete failed");
+  }
+}
+
+/** Print a cloud-uploaded file (START_PRINT order 1, §9c payload). The file's
+ *  `sliceParam` must be passed through — the cloud rejects a bare file_id. */
+export function acuCloudPrintFile(conn, file) {
+  if (!conn || !_acuConnIsCloud(conn) || !file || file.id == null) return;
+  // Defense in depth: never dispatch a slice to a printer it wasn't sliced for,
+  // even if a stale/disabled button somehow fires (the UI also gates this).
+  if (!_acuCloudFileCompatible(conn, file)) {
+    _acuShowError(null, ctx.t("acuFileIncompatible") || "This file was sliced for a different printer.");
+    return;
+  }
+  const data = {
+    filetype: 0,
+    file_key: "", file_name: "",
+    task_settings: { ai_detect: 0, camera_timelapse: 0 },
+    file_id: Number(file.id),
+    slice_param: file.sliceParam ?? null,
+    slice_size: file.sliceSize ?? null,
+    project_type: 1,
+    matrix: "", template_id: 0,
+    hollow_param: null, punching_param: null,
+    is_delete_file: 0,
+  };
+  _acuCloudOrder(conn, ACU_ORD.START_PRINT, data);
 }
 
 /**
@@ -1155,10 +1400,15 @@ function _acuMerge(conn, msg) {
     // is busy with no print tick yet (e.g. auto-leveling at the start of a job)
     // so the card doesn't wrongly read "Idle". Never overrides an active state.
     case "status": {
-      if (action === "workReport") {
+      // Coarse busy/idle heartbeat (`workReport`). The detailed state comes from
+      // `print` reports; this only lifts idle→preparing while busy with no print
+      // tick yet, and drops a lingering active state to idle when the printer
+      // reports free (job ended while we weren't watching the transition).
+      if (action === "workReport" && (state === "free" || state === "busy")) {
+        d.workState = state;
         const cur = d.printState || "idle";
         if (state === "busy" && cur === "idle") d.printState = "preparing";
-        else if (state === "free" && cur === "preparing") d.printState = "idle";
+        else if (state === "free" && ["printing", "preparing", "paused"].includes(cur)) d.printState = "idle";
       }
       break;
     }
@@ -1223,19 +1473,29 @@ function _acuMerge(conn, msg) {
       }
       break;
     }
-    case "fan": {
-      if (data?.fan_speed_pct != null) d.fanSpeedPct = Number(data.fan_speed_pct) || 0;
+    case "file": {
+      // Stored-file management (PROTOCOL.md §5e). list* replies carry
+      // data.records; delete* replies just ack state:"success" → re-list that
+      // source so the sheet refreshes itself.
+      if (state === "done" && (action === "listLocal" || action === "listUdisk")) {
+        const recs = Array.isArray(data?.records) ? data.records.map(_acuNormFileRecord).filter(Boolean) : [];
+        if (action === "listUdisk") { d.udiskFiles = recs; d.udiskFilesAt = Date.now(); d.udiskFilesLoading = false; }
+        else                        { d.localFiles = recs; d.localFilesAt = Date.now(); d.localFilesLoading = false; }
+      } else if (state === "success" && (action === "deleteLocal" || action === "deleteUdisk")) {
+        acuListFiles(conn, action === "deleteUdisk" ? "udisk" : "local");
+      }
+      _acuFileSheetOnData(conn);
       break;
     }
-    case "status": {
-      if (action === "workReport" && (state === "free" || state === "busy")) {
-        d.workState = state;
-        // "free" with a stale active print state means the job ended while
-        // we weren't watching the transition — fall back to idle.
-        if (state === "free" && ["printing", "preparing", "paused"].includes(d.printState)) {
-          d.printState = "idle";
-        }
+    case "peripherie": { // (sic — firmware spelling)
+      // Attached-peripheral presence (PROTOCOL.md §5e) — gates the USB tab.
+      // data = { camera, multiColorBox, udisk } booleans (any subset).
+      if (action === "query" && data && typeof data === "object") {
+        if ("udisk"         in data) d.udiskPresent  = !!data.udisk;
+        if ("camera"        in data) d.cameraPresent = !!data.camera;
+        if ("multiColorBox" in data) d.mcbPresent    = !!data.multiColorBox;
       }
+      _acuFileSheetOnData(conn);
       break;
     }
     case "lastWill": {
@@ -1244,8 +1504,7 @@ function _acuMerge(conn, msg) {
       break;
     }
     default:
-      // Unknown family (file, ota, peripherie, …) — visible in the request
-      // log, nothing to merge.
+      // Unknown family (ota, …) — visible in the request log, nothing to merge.
       break;
   }
 
@@ -1313,7 +1572,17 @@ export function renderAnycubicLiveInner(p) {
       <span class="icon icon-cloud icon-18"></span>
       <span>${ctx.esc(ctx.t("snapNoConnection"))}</span>
     </div>`;
+  // Head action row — Files browser (mirrors the Creality head button). Only
+  // when connected; the light/jog/fan controls live in the Control card.
+  const headHtml = conn.status === "connected" ? `
+    <div class="snap-head">
+      <button type="button" class="cre-action-btn cre-action-btn--files"
+              data-acu-open-files="1" title="${ctx.esc(ctx.t("acuFilesTitle") || "Files")}">
+        <span class="icon icon-folder icon-16"></span>
+      </button>
+    </div>` : "";
   const blocks = `
+    ${headHtml}
     ${renderAcuJobCard(p, conn)}
     ${renderAcuControlCard(p, conn)}
     ${renderAcuTempCard(conn)}
@@ -1473,6 +1742,25 @@ function _acuEnsureSheetDOM() {
       </div>
     </div>
   </div>
+</aside>
+
+<!-- ── Anycubic — file-management sheet (PROTOCOL.md §5e) ──────────────────── -->
+<div class="sfe-backdrop" id="acuFileSheetBackdrop"></div>
+<aside class="sfe-sheet sfe-sheet--files" id="acuFileSheet" aria-hidden="true">
+  <div class="sfe-grip" aria-hidden="true"></div>
+  <header class="sfe-screen-head sfe-screen-head--right">
+    <div class="sfe-screen-head-text">
+      <div class="sfe-title" data-i18n="acuFilesTitle">Files</div>
+    </div>
+    <div style="display:flex;gap:6px;align-items:center">
+      <button type="button" class="cre-file-refresh" id="acuFileSheetRefresh" title="">
+        <span class="icon icon-refresh icon-13"></span>
+      </button>
+      <button class="modal-close" id="acuFileSheetClose">✕</button>
+    </div>
+  </header>
+  <div class="acu-fs-tabs" id="acuFileSheetTabs"></div>
+  <div class="sfe-body sfe-body--files" id="acuFileSheetBody"></div>
 </aside>`;
   document.body.appendChild(root);
   _acuWireSheet();
@@ -1589,6 +1877,22 @@ function _acuWireSheet() {
   $("acuColorTrigger")?.addEventListener("click", _acuOpenColorSheet);
   $("acuMaterialTrigger")?.addEventListener("click", _acuOpenTypeSheet);
 
+  // File-management sheet — close / backdrop / refresh.
+  $("acuFileSheetClose")?.addEventListener("click", closeAcuFileSheet);
+  $("acuFileSheetBackdrop")?.addEventListener("click", closeAcuFileSheet);
+  $("acuFileSheetRefresh")?.addEventListener("click", () => {
+    const conn = _acuFileSheetKey ? _acuConns.get(_acuFileSheetKey) : null;
+    if (!conn) return;
+    const tab = conn._activeFileTab || "local";
+    if (tab === "cloud") {
+      acuCloudListFiles(conn);
+    } else {
+      acuQueryPeripherals(conn);    // refresh USB-tab gate
+      acuListFiles(conn, tab);      // reload the active source
+    }
+    _acuUpdateFileSheet(conn);
+  });
+
   // Load / unload / stop filament feed for the slot being edited.
   const _acuFeed = (type) => {
     if (!_acuFilEdit) return;
@@ -1675,6 +1979,190 @@ function _acuWireSheet() {
 
     closeAcuFilamentEdit();
   });
+}
+
+// ── File-management bottom sheet (PROTOCOL.md §5e) ──────────────────────────
+// Tabbed sheet (On-printer / USB) mirroring the Elegoo/Creality file sheets;
+// reuses the shared .sfe-* + .cre-file-* classes (tabs styled in anycubic.css).
+// Print + delete are hold-to-confirm (a print starts a real job). The USB tab is
+// gated on the peripheral query (conn.data.udiskPresent). The Cloud tab (§9c)
+// is added with the cloud-uploads phase.
+
+let _acuFileSheetKey = null;   // key of the printer whose sheet is open
+
+// Available source tabs for a connection, in display order.
+function _acuFileTabs(conn) {
+  const tabs = [{ id: "local", label: ctx.t("acuFilesTabLocal") || "On-printer" }];
+  if (conn.data.udiskPresent === true) tabs.push({ id: "udisk", label: ctx.t("acuFilesTabUsb") || "USB" });
+  if (_acuConnIsCloud(conn))           tabs.push({ id: "cloud", label: ctx.t("acuFilesTabCloud") || "Cloud" });
+  return tabs;
+}
+
+function _acuFmtFileSize(bytes) {
+  const b = Number(bytes) || 0;
+  if (b <= 0) return "";
+  if (b < 1024 * 1024) return `${Math.round(b / 1024)} KB`;
+  return `${(b / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function _acuFmtFileDate(ms) {
+  if (!ms) return "";
+  try { return new Date(ms).toLocaleDateString(); } catch (_) { return ""; }
+}
+
+// Build the row list HTML for one source tab. Cloud files (§9c) carry an id +
+// thumbnail and route to the REST cloud actions; local/udisk (§5e) use filename.
+function _acuFileListHtml(conn, source) {
+  const d       = conn.data;
+  const isCloud = source === "cloud";
+  const loading = isCloud ? d.cloudFilesLoading : (source === "udisk" ? d.udiskFilesLoading : d.localFilesLoading);
+  const raw     = isCloud ? d.cloudFiles        : (source === "udisk" ? d.udiskFiles        : d.localFiles);
+  const files   = (raw || []).filter(f => f && (isCloud || !f.isDir));   // §5e root listing is flat — skip dirs
+
+  if (loading && !files.length) {
+    return `<div class="cre-files-empty">${ctx.esc(ctx.t("acuFilesLoading") || "Loading…")}</div>`;
+  }
+  if (!files.length) {
+    return `<div class="cre-files-empty">${ctx.esc(ctx.t("acuFilesEmpty") || "No files found")}</div>`;
+  }
+
+  const isPrinting = ["printing", "preparing", "paused", "busy"].includes(d.printState);
+  const activeName = String(d.printFilename || "").split("/").pop();
+
+  return `<div class="cre-files">${files.map(f => {
+    const full     = String(f.filename || "");
+    const name     = full.replace(/\.gcode(\.3mf)?$/i, "");
+    const isActive = activeName && (full === activeName || full.endsWith(activeName));
+    const idAttr   = isCloud ? ` data-acu-file-id="${ctx.esc(String(f.id))}"` : "";
+    const thumb    = isCloud && f.thumbnail
+      ? `<div class="cre-file-thumb" style="background-image:url('${ctx.esc(f.thumbnail)}')"></div>`
+      : `<div class="cre-file-thumb cre-file-thumb--placeholder"><span class="icon icon-printer icon-16"></span></div>`;
+    // Cloud files are account-level (shared across printers): show them all + a
+    // target-printer line, but only enable PRINT for files sliced for THIS printer.
+    const compatible = !isCloud || _acuCloudFileCompatible(conn, f);
+    const target     = isCloud ? _acuPrinterNamesLabel(f.printerNames) : "";
+    const metaParts  = [_acuFmtFileSize(f.size), _acuFmtFileDate(f.timestamp)];
+    if (isCloud && target) metaParts.push(target);
+    const meta       = metaParts.filter(Boolean).join(" · ");
+    const printOff   = isPrinting || !compatible;
+    const printTitle = !compatible
+      ? (ctx.t("acuFileIncompatible") || "Sliced for a different printer")
+      : (ctx.t("acuFilePrint") || "Print");
+    return `
+      <div class="cre-file-row${isActive ? " cre-file-row--active" : ""}${compatible ? "" : " cre-file-row--incompatible"}">
+        ${thumb}
+        <div class="cre-file-info">
+          <span class="cre-file-name" title="${ctx.esc(full)}">${ctx.esc(name)}</span>
+          ${meta ? `<span class="cre-file-meta">${ctx.esc(meta)}</span>` : ""}
+        </div>
+        <div class="cre-file-btns">
+          <button type="button" class="cre-file-btn cre-file-btn--print"
+                  data-acu-file-print="${ctx.esc(full)}" data-acu-file-source="${source}"${idAttr}
+                  title="${ctx.esc(printTitle)}"${printOff ? " disabled" : ""}>
+            <span class="icon icon-play icon-13"></span>
+            <span class="hold-progress"></span>
+          </button>
+          <button type="button" class="cre-file-btn cre-file-btn--del"
+                  data-acu-file-delete="${ctx.esc(full)}" data-acu-file-source="${source}"${idAttr}
+                  title="${ctx.esc(ctx.t("acuFileDelete") || "Delete")}">
+            <span class="icon icon-trash icon-13"></span>
+            <span class="hold-progress"></span>
+          </button>
+        </div>
+      </div>`;
+  }).join("")}</div>`;
+}
+
+// Re-render the sheet (tabs + body) and (re)bind tab + hold-to-confirm handlers.
+// Safe to call any time — no-ops if the sheet DOM isn't present.
+function _acuUpdateFileSheet(conn) {
+  const tabsEl  = $("acuFileSheetTabs");
+  const body    = $("acuFileSheetBody");
+  const refresh = $("acuFileSheetRefresh");
+  if (!tabsEl || !body) return;
+
+  const tabs = _acuFileTabs(conn);
+  // Active tab no longer available (e.g. USB removed) → fall back to on-printer.
+  if (!tabs.some(t => t.id === conn._activeFileTab)) conn._activeFileTab = "local";
+  const tab = conn._activeFileTab;
+
+  // Tab bar — hidden when there's only one source.
+  tabsEl.innerHTML = tabs.length > 1
+    ? tabs.map(t => `<button type="button" class="acu-fs-tab${t.id === tab ? " acu-fs-tab--active" : ""}" data-acu-fs-tab="${t.id}">${ctx.esc(t.label)}</button>`).join("")
+    : "";
+  tabsEl.querySelectorAll("[data-acu-fs-tab]").forEach(btn =>
+    btn.addEventListener("click", () => acuFileSheetSetTab(btn.dataset.acuFsTab)));
+
+  // Body + refresh spinner.
+  body.innerHTML = _acuFileListHtml(conn, tab);
+  const loading = tab === "cloud" ? conn.data.cloudFilesLoading
+                : tab === "udisk" ? conn.data.udiskFilesLoading
+                :                    conn.data.localFilesLoading;
+  if (refresh) refresh.classList.toggle("cre-file-refresh--loading", !!loading);
+
+  // Hold-to-confirm: print (1200 ms — reversible) + delete (1500 ms — destructive).
+  // Cloud rows route to the REST cloud actions (by id); local/udisk by filename.
+  body.querySelectorAll("[data-acu-file-print]").forEach(btn => {
+    if (btn.disabled) return;
+    const src = btn.dataset.acuFileSource || "local";
+    if (src === "cloud") {
+      const file = (conn.data.cloudFiles || []).find(f => f.id === Number(btn.dataset.acuFileId));
+      if (file) ctx.setupHoldToConfirm(btn, 1200, () => { acuCloudPrintFile(conn, file); closeAcuFileSheet(); });
+    } else {
+      const filename = btn.dataset.acuFilePrint;
+      ctx.setupHoldToConfirm(btn, 1200, () => { acuPrintFile(conn, src, filename); closeAcuFileSheet(); });
+    }
+  });
+  body.querySelectorAll("[data-acu-file-delete]").forEach(btn => {
+    const src = btn.dataset.acuFileSource || "local";
+    if (src === "cloud") {
+      const id = Number(btn.dataset.acuFileId);
+      ctx.setupHoldToConfirm(btn, 1500, () => acuCloudDeleteFile(conn, id));
+    } else {
+      const filename = btn.dataset.acuFileDelete;
+      ctx.setupHoldToConfirm(btn, 1500, () => acuDeleteFile(conn, src, filename));
+    }
+  });
+}
+
+// Refresh an open sheet when a file/peripherie report lands (called from _acuMerge).
+function _acuFileSheetOnData(conn) {
+  if (_acuFileSheetKey && _acuFileSheetKey === conn.key) _acuUpdateFileSheet(conn);
+}
+
+export function openAcuFileSheet(printer) {
+  _acuEnsureSheetDOM();
+  const key = acuKey(printer);
+  _acuFileSheetKey = key;
+  const conn = _acuConns.get(key);
+  if (!conn) return;
+  if (!conn._activeFileTab) conn._activeFileTab = "local";
+  // Refresh the USB-tab gate + load the on-printer listing (and USB if present).
+  acuQueryPeripherals(conn);
+  acuListFiles(conn, "local");
+  if (conn.data.udiskPresent === true) acuListFiles(conn, "udisk");
+  _acuUpdateFileSheet(conn);
+  $("acuFileSheet")?.classList.add("open");
+  $("acuFileSheet")?.setAttribute("aria-hidden", "false");
+  $("acuFileSheetBackdrop")?.classList.add("open");
+}
+
+export function acuFileSheetSetTab(tab) {
+  const conn = _acuFileSheetKey ? _acuConns.get(_acuFileSheetKey) : null;
+  if (!conn) return;
+  conn._activeFileTab = tab;
+  // Lazy-load a source the first time its tab is shown.
+  if (tab === "udisk" && !conn.data.udiskFilesAt && !conn.data.udiskFilesLoading) acuListFiles(conn, "udisk");
+  if (tab === "local" && !conn.data.localFilesAt && !conn.data.localFilesLoading) acuListFiles(conn, "local");
+  if (tab === "cloud" && !conn.data.cloudFilesAt && !conn.data.cloudFilesLoading) acuCloudListFiles(conn);
+  _acuUpdateFileSheet(conn);
+}
+
+export function closeAcuFileSheet() {
+  _acuFileSheetKey = null;
+  $("acuFileSheet")?.classList.remove("open");
+  $("acuFileSheet")?.setAttribute("aria-hidden", "true");
+  $("acuFileSheetBackdrop")?.classList.remove("open");
 }
 
 // ── Self-registration ──────────────────────────────────────────────────────

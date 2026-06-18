@@ -1024,5 +1024,14 @@
   "ffgInfoVolume": "Volumen",
   "ffgInfoGroup": "Grupo",
   "ffgInfoAutoShutdown": "Apagado auto",
-  "ffgInfoZComp": "Offset Z"
+  "ffgInfoZComp": "Offset Z",
+  "acuFilesTitle": "Archivos",
+  "acuFilesLoading": "Cargando…",
+  "acuFilesEmpty": "No se encontraron archivos",
+  "acuFilesTabLocal": "Impresora",
+  "acuFilesTabUsb": "USB",
+  "acuFilesTabCloud": "Nube",
+  "acuFilePrint": "Imprimir",
+  "acuFileDelete": "Eliminar",
+  "acuFileIncompatible": "Laminado para otra impresora"
 }
