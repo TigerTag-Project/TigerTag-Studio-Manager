@@ -671,6 +671,64 @@ TCP port 8899 — séquence complète :
 
 Voir §15 pour le protocole TCP complet (liste de commandes, parsing réponses, format file list).
 
+> ⚠️ **Modèles récents (AD5X / 5M / Creator 5 / 5 Pro) : pause/reprise/stop se font en HTTP** via `jobCtl_cmd` (§13.7), PAS en TCP 8899. Le TCP 8899 reste pour les anciens modèles.
+
+### 13.6 Lumière (HTTP, modèles récents) — vérifié par capture slicer
+
+```json
+POST /control
+{ "serialNumber":"SN…", "checkCode":"…",
+  "payload": { "cmd": "lightControl_cmd", "args": { "status": "open" } } }   // ou "close"
+```
+Réponse : `{"code":0,"message":"Success"}`. État live lu dans `detail.lightStatus` (`"open"` | `"close"`).
+
+### 13.7 Contrôle d'impression (HTTP, modèles récents) — vérifié par capture slicer
+
+```json
+POST /control
+{ "serialNumber":"SN…", "checkCode":"…",
+  "payload": { "cmd": "jobCtl_cmd", "args": { "jobID": "", "action": "pause" } } }
+```
+| `action` | Effet |
+|----------|-------|
+| `pause` | Pause |
+| `continue` | Reprise |
+| `cancel` | Stop |
+
+`jobID` peut être vide (`""`). Remplace le TCP 8899 M25/M24/M26 (§13.5) sur les modèles récents.
+
+### 13.8 Gestion des fichiers (HTTP, modèles récents) — vérifié par capture slicer
+
+Endpoints dédiés (pas `/control`) sur le port 8898 :
+
+**Liste des fichiers** — `POST /gcodeList`
+```json
+{ "serialNumber":"SN…", "checkCode":"…" }
+→ { "code":0, "gcodeList":["a.3mf","b.gcode", …], "message":"Success" }
+```
+
+**Miniature d'un fichier** — `POST /gcodeThumb`
+```json
+{ "serialNumber":"SN…", "checkCode":"…", "fileName":"a.3mf" }
+→ { "code":0, "imageData":"iVBORw0KGgo…" }   // PNG en base64 (préfixe data:image/png;base64,)
+```
+
+**Lancer une impression** — `POST /printGcode`
+```json
+{ "serialNumber":"SN…", "checkCode":"…",
+  "fileName":"Logo_PLA_10m43s.gcode",
+  "levelingBeforePrint": true,
+  "flowCalibration": true,
+  "firstLayerInspection": false,
+  "timeLapseVideo": true,
+  "useMatlStation": false,     // true si on mappe des slots CFS
+  "gcodeToolCnt": 0,
+  "materialMappings": [] }     // mapping outil→slot pour le multi-matière
+→ { "code":0, "message":"Success" }
+```
+
+> Note : les réponses du firmware portent un `Content-Type: appliation/json` (faute de frappe du firmware) — sans incidence, on parse le corps directement.
+
 ---
 
 ## 14. Gestion des erreurs

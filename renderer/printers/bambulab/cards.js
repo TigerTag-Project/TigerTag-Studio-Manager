@@ -74,17 +74,27 @@ export function renderBambuTempCard(conn, heatedChamber = false) {
   const d = conn.data;
   const pills = [];
 
-  // Nozzle — click pill to set a target (data-bbl-set-temp, inline edit).
-  if (d.nozzleCurrent != null || d.nozzleTarget != null) {
-    const heating = typeof d.nozzleTarget === "number" && d.nozzleTarget > 0
-                 && typeof d.nozzleCurrent === "number" && d.nozzleCurrent < d.nozzleTarget - 1;
+  // Nozzle(s) — click a pill to set its target. H2-series have TWO heads
+  // (id 0 = right, id 1 = left): one pill each, tagged R/L, the active one
+  // highlighted. Single-nozzle models render one pill (no tag, no tool index).
+  const nozzles = Array.isArray(d.nozzles) && d.nozzles.length
+    ? d.nozzles
+    : (d.nozzleCurrent != null || d.nozzleTarget != null)
+      ? [{ id: 0, current: d.nozzleCurrent, target: d.nozzleTarget }] : [];
+  const dual = nozzles.length > 1;
+  nozzles.forEach(n => {
+    const heating = typeof n.target === "number" && n.target > 0
+                 && typeof n.current === "number" && n.current < n.target - 1;
+    const active  = dual && n.id === d.activeNozzle;
+    const nozAttr = dual ? ` data-bbl-nozzle="${n.id}"` : "";
+    const tag     = dual ? `<span class="snap-temp-tag">${n.id === 0 ? "R" : "L"}</span>` : "";
     pills.push(`
-      <div class="snap-temp snap-temp--editable${heating ? " snap-temp--heating" : ""}"
-           data-bbl-set-temp="nozzle" data-bbl-temp-target="${Math.max(0, Math.round(Number(d.nozzleTarget) || 0))}" data-bbl-temp-max="300">
-        ${ctx.SNAP_ICON_NOZZLE}
-        <span class="snap-temp-val">${ctx.esc(_bblFmtTempPair(d.nozzleCurrent, d.nozzleTarget))}</span>
+      <div class="snap-temp snap-temp--editable${heating ? " snap-temp--heating" : ""}${active ? " snap-temp--active" : ""}"
+           data-bbl-set-temp="nozzle"${nozAttr} data-bbl-temp-target="${Math.max(0, Math.round(Number(n.target) || 0))}" data-bbl-temp-max="300">
+        ${ctx.SNAP_ICON_NOZZLE}${tag}
+        <span class="snap-temp-val">${ctx.esc(_bblFmtTempPair(n.current, n.target))}</span>
       </div>`);
-  }
+  });
 
   // Bed — click pill to set a target.
   if (d.bedCurrent != null || d.bedTarget != null) {

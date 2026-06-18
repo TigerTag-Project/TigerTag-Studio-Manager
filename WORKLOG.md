@@ -1,11 +1,22 @@
-# Worklog — v1.10.10 (in progress)
+# Worklog — v1.10.11 (in progress)
 
 ## Added
+- Anycubic **file management** (browse / print / delete of on-printer, USB, and cloud-uploaded files — the last non-hardware Anycubic-vs-Creality gap). A **Files** button on the connected Anycubic side-panel head opens a tabbed bottom sheet (On-printer / USB / Cloud), mirroring the Elegoo/Creality file sheets and reusing the shared `.sfe-*` / `.cre-file-*` classes. Rows show name / size / date; ▶ print and 🗑 delete are hold-to-confirm (print 1200 ms, delete 1500 ms). USB tab gated on the peripheral query (`udiskPresent`); the tab bar hides when only one source exists.
+  - **Driver** (`renderer/printers/anycubic/index.js`): `acuListFiles` / `acuPrintFile` / `acuDeleteFile` / `acuQueryPeripherals` (LAN MQTT `type:"file"` `listLocal`/`deleteLocal`/`listUdisk`/`deleteUdisk` + `peripherie` query; cloud sends the same order IDs 101–104 / START_PRINT 1 / QUERY_PERIPHERALS 1231 via REST `sendOrder`, reply over MQTT). New `case "file"` / `case "peripherie"` in `_acuMerge` populate `conn.data.localFiles` / `udiskFiles` (`{filename, timestamp(ms), size, isDir, plateNumber}`) and `udiskPresent`/`cameraPresent`/`mcbPresent`; delete `success` re-lists.
+  - **Cloud uploads** (§9c, cloud mode only): two signed IPC handlers in `main.js` (`anycubic:cloud-files-list` POST `/work/index/files`, `anycubic:cloud-file-delete` POST `/work/index/delFiles`) wrapping `_cloudFetch`, `preload.js` bridges (`cloud.filesList` / `cloud.fileDelete`); printing reuses `anycubic:cloud-send-order` order 1 with the §9c START_PRINT payload (passes the file's `slice_param`). `acuCloudListFiles` / `acuCloudDeleteFile` / `acuCloudPrintFile` + `_acuNormCloudFile`. Cloud tab + thumbnails (signed URLs).
+  - **Print-compatibility gate**: cloud storage is account-level (same files for every printer), but a sliced gcode only prints on the model it was made for. Each file's `machine_type` is matched to the open printer's `machineType` — the print button is disabled on a mismatch (target printer shown in the row meta), plus a defensive guard in `acuCloudPrintFile`. Delete stays enabled for all. The server-side `machine_type` list filter is not used (it doesn't restrict results), so gating is client-side.
+  - UI/CSS: `renderer/inventory.js` (`data-acu-open-files` wiring + close-on-panel-close), `anycubic.css` (`.acu-fs-tabs` + scoped print hold-fill + disabled/incompatible states), sheet markup injected by `_acuEnsureSheetDOM`, refreshed live from file/peripherie reports.
+  - **Validated on real hardware** (Kobra 3 V2 LAN + Kobra X cloud, via new `scripts/acu-file-confirm.mjs` / `acu-state-query.mjs`): all list/delete actions + the peripheral query; corrected the doc — LAN list **requires `data:{path:"/"}`** (firmware rejects empty path, code 10112) and file `timestamp` is **epoch ms**. All cloud shapes confirmed against `hass-anycubic_cloud`. `PROTOCOL.md` §5e/§9c + `CODEMAP-main.md` updated.
 
 ## Changed
+- Documented the Anycubic **file-management protocol** — `PROTOCOL.md` §5e (on-printer + USB: `sendOrder` 101–104 + `type:"file"` responses + START_PRINT) and §9c (cloud uploads: `/work/index/files`, `/work/index/delFiles`, cloud START_PRINT + the account-level/machine-type gating note).
 
 ## Fixed
+- Anycubic (LAN): **fan stuck at 0 % and temp targets blank on startup** even when set. Publish-before-subscribe race in `main.js` — `anycubic:connect` announced `'connected'` right after *calling* `client.subscribe` (before SUBACK), so the renderer's on-connect state queries (tempature/fan/light) fired before the subscription was live and the replies were dropped (and the printer doesn't auto-push those at idle). Now announces `'connected'` from inside the subscribe callback. `main.js`
+- File-sheet header close (✕) rendered mostly off-screen: `.sfe-screen-head--right` reserved only a fixed `32px` right track, but the file sheets place a refresh + close pair there. Changed the track to `auto`. Affects every file sheet using this header (Creality/Elegoo/Anycubic). `css/50-snapmaker.css`
+- Anycubic: removed two dead duplicate `_acuMerge` switch cases (`fan`, `status`); merged the unreachable `status` block's fuller logic (`workState` tracking + dropping a lingering `printing`/`paused` state to idle on a `free` report) into the live case. `renderer/printers/anycubic/index.js`
 
 ## Removed
 
 ## i18n
+- Added: `acuFilesTitle`, `acuFilesLoading`, `acuFilesEmpty`, `acuFilesTabLocal`, `acuFilesTabUsb`, `acuFilesTabCloud`, `acuFilePrint`, `acuFileDelete`, `acuFileIncompatible` — 9 locales

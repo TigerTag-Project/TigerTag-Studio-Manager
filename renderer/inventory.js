@@ -46,6 +46,9 @@ import {
   renderFfgOnlineBadge,
   renderFlashforgeLiveInner, renderFlashforgeLogInner,
   openFlashforgeFilamentEdit, closeFlashforgeFilamentEdit,
+  ffgSetLight, ffgJobControl, ffgPrintFile,
+  openFlashforgeInfo, closeFlashforgeInfo,
+  openFlashforgeFiles, closeFlashforgeFiles,
 } from './printers/flashforge/index.js';
 import { renderFfgCamBanner, renderFfgCamWallBanner, ffgRefreshCamBanner, ffgCamBaseUrl } from './printers/flashforge/widget_camera.js';
 import { ffgMuxStart, ffgMuxStop, ffgMuxStopAll, ffgMuxRestart, ffgMuxRegister, ffgMuxUnregister } from './printers/flashforge/cam_mux.js';
@@ -10391,6 +10394,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if ($("ffgFilEditSheet")?.classList.contains("open")) {
       try { closeFlashforgeFilamentEdit(); } catch {}
     }
+    if ($("ffgFileSheet")?.classList.contains("open")) {
+      try { closeFlashforgeFiles(); } catch {}
+    }
+    if ($("ffgInfoOverlay")?.classList.contains("open")) {
+      try { closeFlashforgeInfo(); } catch {}
+    }
     // Creality file explorer sheet.
     if ($("creFilEditSheet")?.classList.contains("open")) {
       try { closeCreFilamentEdit(); } catch {}
@@ -11570,6 +11579,56 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           }
           return;
         }
+        // FlashForge — printer info modal
+        const ffgInfoBtn = e.target.closest("[data-ffg-info]");
+        if (ffgInfoBtn && _activePrinter?.brand === "flashforge") {
+          e.preventDefault();
+          openFlashforgeInfo(_activePrinter);
+          return;
+        }
+        // FlashForge — chamber/case light toggle
+        const ffgLightBtn = e.target.closest("[data-ffg-light]");
+        if (ffgLightBtn && _activePrinter?.brand === "flashforge") {
+          e.preventDefault();
+          const on = ffgLightBtn.classList.contains("is-on");
+          ffgSetLight(_activePrinter, !on);
+          return;
+        }
+        // FlashForge — pause / resume
+        const ffgPauseBtn = e.target.closest("[data-ffg-print-pause]");
+        if (ffgPauseBtn && _activePrinter?.brand === "flashforge") {
+          e.preventDefault();
+          const isPaused = ffgPauseBtn.querySelector(".icon-play") != null;
+          ffgJobControl(_activePrinter, isPaused ? "continue" : "pause");
+          return;
+        }
+        // FlashForge — stop print
+        const ffgCancelBtn = e.target.closest("[data-ffg-print-cancel]");
+        if (ffgCancelBtn && _activePrinter?.brand === "flashforge") {
+          e.preventDefault();
+          ffgJobControl(_activePrinter, "cancel");
+          return;
+        }
+        // FlashForge — open on-board file explorer (bottom-sheet)
+        const ffgOpenFiles = e.target.closest("[data-ffg-open-files]");
+        if (ffgOpenFiles && _activePrinter?.brand === "flashforge") {
+          e.preventDefault();
+          openFlashforgeFiles(_activePrinter);
+          return;
+        }
+        // FlashForge — print an on-board file
+        const ffgFilePrint = e.target.closest("[data-ffg-file-print]");
+        if (ffgFilePrint && _activePrinter?.brand === "flashforge") {
+          e.preventDefault();
+          const fileName = ffgFilePrint.dataset.ffgFilePrint;
+          if (fileName) {
+            ffgPrintFile(_activePrinter, fileName).then(resp => {
+              if (resp && resp.code === 0) toast(t("ffgPrintStarted") || "Print started", "success");
+              else toast((resp && resp.message) || t("ffgErrNetwork"), "error");
+            });
+          }
+          return;
+        }
         // Creality — filament edit
         const creFilTrigger = e.target.closest("[data-cre-fil-edit]");
         if (creFilTrigger) {
@@ -11719,6 +11778,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         if (bblTempTrigger && _activePrinter?.brand === "bambulab") {
           if (bblTempTrigger.classList.contains("snap-temp--editing")) return;
           const which   = bblTempTrigger.dataset.bblSetTemp;
+          const nozId   = bblTempTrigger.dataset.bblNozzle != null ? parseInt(bblTempTrigger.dataset.bblNozzle, 10) : undefined;
           const initVal = parseInt(bblTempTrigger.dataset.bblTempTarget ?? "0", 10);
           const maxVal  = parseInt(bblTempTrigger.dataset.bblTempMax ?? "300", 10);
           const valEl   = bblTempTrigger.querySelector(".snap-temp-val");
@@ -11741,7 +11801,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
             const val = parseInt(input.value, 10);
             if (!isNaN(val) && val >= 0 && val <= maxVal) {
               const conn = bambuGetConn(bambuKey(_activePrinter));
-              if (conn) bambuSetTemp(conn, which, val);
+              if (conn) bambuSetTemp(conn, which, val, nozId);
             }
             restore();
           };
