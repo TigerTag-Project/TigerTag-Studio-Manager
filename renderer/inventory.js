@@ -59,7 +59,7 @@ import { openElgAddFlow }  from './printers/elegoo/add-flow.js';
 import { openAcuAddFlow }  from './printers/anycubic/add-flow.js';
 import {
   acuKey, acuGetConn, acuIsOnline,
-  acuConnect, acuDisconnect, acuReleaseCamera,
+  acuConnect, acuDisconnect, acuReleaseCamera, acuReleaseCloudCameras,
   renderAcuOnlineBadge,
   renderAnycubicLiveInner, renderAnycubicLogInner,
   openAcuFilamentEdit, closeAcuFilamentEdit,
@@ -5711,6 +5711,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // when there are no active .ffg-camera-img elements.
     if (prevMode === "printer-cam") {
       try { ffgTearDownCamera(); } catch (_) {}
+      try { acuReleaseCloudCameras(); } catch (_) {} // leave Agora channels when off the wall
     }
     renderInventory();
     // Safety re-subscribe when switching to rack mode (handles users connected before this feature)
@@ -9833,7 +9834,20 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (p.brand === "anycubic") {
         const conn = acuGetConn(acuKey(p));
         if (!conn || conn.status !== "connected") return [];
-        // Make sure the ffmpeg FLV stream is running — the detached window
+        // Only printers with an actually-active camera — mirror the cam wall,
+        // which hides camera-less printers (renderCamBanner returns "" for them:
+        // cloud → no active Agora player; LAN → no live FLV). Without this, a
+        // printer with no camera (e.g. a base Kobra 3) gets a stuck card.
+        if (!renderCamBanner(p)) return [];
+        // Cloud printers stream via Agora WebRTC. The cloud reuses the Agora
+        // subscriber uid, so the detached window can't run its own client — the
+        // main window's single client captures + relays JPEG frames over a
+        // BroadcastChannel and the detached window renders them (camType acu_bc).
+        if (p.mode === "cloud") {
+          return [{ brand: "anycubic", id: p.id, name, camType: "acu_bc",
+                    acuKey: acuKey(p), url: null, bblKey: null, ip: null }];
+        }
+        // LAN: make sure the ffmpeg FLV stream is running — the detached window
         // only consumes frames, it can't start the stream itself.
         acuConnect(p);
         return [{ brand: "anycubic", id: p.id, name, camType: "acu_ipc",

@@ -19,6 +19,9 @@
 
 // ── Active Creality WebRTC connections (ip → RTCPeerConnection) ─────────────
 const _crePeers = new Map();
+// ── Cloud Anycubic frames are relayed from the main window's single Agora
+//    client over a BroadcastChannel — the acuKeys we currently want frames for
+const _acuBcKeys = new Set();
 
 // ── Build UI ─────────────────────────────────────────────────────────────────
 
@@ -54,9 +57,12 @@ function buildWall(cameras) {
   root.innerHTML = `<div class="cam-wall-detached">${cameras.map(buildCard).join('')}</div>`;
 
   // Wire up live feeds after DOM insertion.
+  _acuBcKeys.clear();
   cameras.forEach(cam => {
     if (cam.camType === 'webrtc' && cam.ip) startCrePeer(cam.id, cam.ip);
+    if (cam.camType === 'acu_bc' && cam.acuKey) _acuBcKeys.add(cam.acuKey);
   });
+  _acuBcWantPing(); // ask the main window to start relaying frames now
 }
 
 function buildCard(cam) {
@@ -145,6 +151,19 @@ function buildFeed(cam) {
                data-cre-id="${esc(cam.id)}"
                autoplay muted playsinline>
         </video>
+        <div class="cam-loading-overlay">
+          <span class="cam-loading-dots"><span></span><span></span><span></span></span>
+        </div>`;
+
+    // ── Cloud Anycubic — JPEG frames relayed from the main window's single
+    //    Agora client over BroadcastChannel (acu_bc) ──────────────────────────
+    case 'acu_bc':
+      return `
+        <img class="cam-frame acu-bc-img"
+             data-acu-key="${esc(cam.acuKey)}"
+             src=""
+             alt="Anycubic camera"
+             draggable="false" />
         <div class="cam-loading-overlay">
           <span class="cam-loading-dots"><span></span><span></span><span></span></span>
         </div>`;
@@ -253,6 +272,30 @@ function stopCrePeer(camId) {
 function _stopAllCrePeers() {
   _crePeers.forEach((pc, id) => stopCrePeer(id));
 }
+
+// ── Cloud Anycubic (Agora) frame relay ────────────────────────────────────────
+// The cloud reuses the Agora subscriber uid per cameraOpen, so the detached
+// window can't run its own client — it would kick the main window's. Instead the
+// main window's single Agora client captures its video to JPEG and relays the
+// frames over BroadcastChannel('acu-cam'); we render them as <img> and keep
+// asking with periodic 'want' pings (which also tell the main window when to
+// start/stop capturing). Same idea as FlashForge's ffg_bc relay.
+const _acuBc = (typeof BroadcastChannel !== 'undefined') ? new BroadcastChannel('acu-cam') : null;
+if (_acuBc) {
+  _acuBc.onmessage = ({ data }) => {
+    if (!data || data.type !== 'frame' || !data.key) return;
+    document.querySelectorAll(`.acu-bc-img[data-acu-key="${CSS.escape(data.key)}"]`).forEach(img => {
+      img.src = data.dataUrl;
+      img.closest('.cam-card-body')?.querySelector('.cam-loading-overlay')?.remove();
+    });
+  };
+}
+
+function _acuBcWantPing() {
+  if (!_acuBc) return;
+  _acuBcKeys.forEach(key => _acuBc.postMessage({ type: 'want', key }));
+}
+setInterval(_acuBcWantPing, 1000);
 
 // ── Brand accent colours ─────────────────────────────────────────────────────
 

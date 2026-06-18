@@ -564,16 +564,29 @@ gitignored): `setEncryptionConfig("aes-256-gcm2", key, base64-decoded salt)`
 → `join(appid, channel, rtc_token, client_uid)` → subscribe to remote `uid`'s
 video → `track.play()` into the `.acu-cam-agora` banner container
 (`renderer/printers/anycubic/agora-cam.js`). IPC: `anycubic:cloud-camera-open`
-(returns the normalized creds). Captured via `scripts/acu-cam-cdp.mjs` (hooks
+(returns the normalized creds). The `rtc_token` is short-lived, so the player
+**renews it** on `token-privilege-will-expire` (re-call order 1001 →
+`client.renewToken`, no stream drop) and re-joins on `token-privilege-did-expire`
+— long viewing sessions hold. Captured via `scripts/acu-cam-cdp.mjs` (hooks
 `AgoraRTC.join`; the creds arrive over the cloud-MQTT native bridge, so the
 order response is the source).
 
-**Scope:** side panel only for now (cam wall + detached cam window are LAN-FLV
-only — cloud-camera support there is a follow-up). The stream is media-encrypted
-(AES‑256‑GCM2); the SDK handles it from the order's key/salt.
+**Scope:** side panel, cam wall, **and the detached cam window** — all surfaces.
+Side panel + cam wall use the shared `renderCamBanner` + `acuConnect`-no-skipCam
+path (`acuReleaseCloudCameras()` leaves the Agora channels when you exit the
+wall). The **detached cam window** can't run its own Agora client: the cloud
+reuses the **same subscriber `client_uid`** per `cameraOpen`, so a second client
+kicks the main one (Agora boots a duplicate uid). Instead, the main renderer's
+**single** Agora client captures its video to JPEG (~6 fps canvas grab) and
+relays the frames over `BroadcastChannel('acu-cam')`; the detached window's
+`acu_bc` cam type (`renderer/cam/cam.js`) renders them as an `<img>` — the same
+pattern as FlashForge's `ffg_bc`. The detached window asks with periodic 'want'
+pings, which gate the capture and (via `acuAgoraOnRelayWant`/`OnRelayEnd`) keep
+the player alive while detached and stop it when nothing on-screen needs it.
+The stream is media-encrypted (AES‑256‑GCM2); the SDK decrypts it before capture.
 
 ### Limits (cloud)
 - `setInfo` honors only `{index, type, color}` (same as LAN).
 - **Token expires** → occasional re-provision (the slicer in bridge mode again).
-- Camera: Agora WebRTC (§9b) — side panel only; needs the Agora SDK + the per-session order-1001 creds.
+- Camera: Agora WebRTC (§9b) — side panel + cam wall + detached window; needs the Agora SDK + the per-session order-1001 creds.
 - Dev validators: `scripts/acu-cloud-test.mjs` (full path), `acu-mqtt-sniff.mjs`.
