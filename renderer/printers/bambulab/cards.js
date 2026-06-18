@@ -70,7 +70,7 @@ export function renderBambuJobCard(p, conn) {
 
 // ── Temperature card ──────────────────────────────────────────────────────
 
-export function renderBambuTempCard(conn) {
+export function renderBambuTempCard(conn, heatedChamber = false) {
   const d = conn.data;
   const pills = [];
 
@@ -98,13 +98,26 @@ export function renderBambuTempCard(conn) {
       </div>`);
   }
 
-  // Chamber (X1C only — null for A1)
+  // Chamber. On models with an ACTIVELY HEATED chamber (H2 series) the pill is
+  // editable → chamber-temperature setpoint. On a passive chamber (X1C) it's
+  // read-only. Null on the A1 (no chamber at all).
   if (d.chamberCurrent != null) {
-    pills.push(`
-      <div class="snap-temp snap-temp--chamber">
-        ${ctx.SNAP_ICON_CHAMBER}
-        <span class="snap-temp-val">${ctx.esc(_bblFmtTemp(d.chamberCurrent))}°C</span>
-      </div>`);
+    if (heatedChamber) {
+      const heating = typeof d.chamberTarget === "number" && d.chamberTarget > 0
+                   && typeof d.chamberCurrent === "number" && d.chamberCurrent < d.chamberTarget - 1;
+      pills.push(`
+        <div class="snap-temp snap-temp--chamber snap-temp--editable${heating ? " snap-temp--heating" : ""}"
+             data-bbl-set-temp="chamber" data-bbl-temp-target="${Math.max(0, Math.round(Number(d.chamberTarget) || 0))}" data-bbl-temp-max="65">
+          ${ctx.SNAP_ICON_CHAMBER}
+          <span class="snap-temp-val">${ctx.esc(_bblFmtTempPair(d.chamberCurrent, d.chamberTarget))}</span>
+        </div>`);
+    } else {
+      pills.push(`
+        <div class="snap-temp snap-temp--chamber">
+          ${ctx.SNAP_ICON_CHAMBER}
+          <span class="snap-temp-val">${ctx.esc(_bblFmtTemp(d.chamberCurrent))}°C</span>
+        </div>`);
+    }
   }
 
   if (!pills.length) return "";
@@ -190,23 +203,27 @@ export function renderBambuFilamentCard(_p, conn) {
 
   if (!rows.length) return "";
 
-  // AMS humidity / temp meta — shown in the title only for a single AMS unit.
-  // AMS Lite has NO sensor → show nothing (its `humidity`/`temp` are defaults).
-  // Real humidity % comes ONLY from `humidity_raw` (AMS 2 Pro / HT); the
-  // `humidity` field is a 1-5 desiccant grade and must never be shown as a %.
-  // Temperature is shown only when it's a real reading (> 0).
+  // AMS humidity / temp meta — shown in the title, PER unit (a machine can carry
+  // several AMS: the H2C reports 2). AMS Lite has NO sensor → skipped. Real
+  // humidity % comes ONLY from `humidity_raw` (AMS 2 Pro / HT); the `humidity`
+  // field is a 1-5 desiccant grade and must never be shown as a %. Temperature
+  // is shown only when it's a real reading (> 0). With more than one unit, each
+  // segment is prefixed by its row letter (A / B / …) to match the slot rows.
   let meta = "";
-  if (amsMods.length === 1) {
-    const m0   = amsMods[0];
-    const type = conn?.data?.amsType?.[m0.id]; // "lite" | "standard" | "pro" | "ht" | undefined
-    if (type !== "lite") {
-      const parts = [];
-      const hr = parseFloat(m0.humidityRaw);
-      if (!isNaN(hr) && hr > 0) parts.push(`💧${Math.round(hr)}%`);
-      const tp = parseFloat(m0.temp);
-      if (!isNaN(tp) && tp > 0) parts.push(`${Math.round(tp)}°C`);
-      if (parts.length) meta = `<span class="snap-block-meta">${parts.join(" · ")}</span>`;
-    }
+  {
+    const multi = amsMods.length > 1;
+    const segs = [];
+    amsMods.forEach((m, i) => {
+      if (conn?.data?.amsType?.[m.id] === "lite") return; // no sensor
+      const bits = [];
+      const hr = parseFloat(m.humidityRaw);
+      if (!isNaN(hr) && hr > 0) bits.push(`💧${Math.round(hr)}%`);
+      const tp = parseFloat(m.temp);
+      if (!isNaN(tp) && tp > 0) bits.push(`${Math.round(tp)}°C`);
+      if (!bits.length) return;
+      segs.push((multi ? `${String.fromCharCode(65 + i)} ` : "") + bits.join(" "));
+    });
+    if (segs.length) meta = `<span class="snap-block-meta">${segs.join(" · ")}</span>`;
   }
 
   return `

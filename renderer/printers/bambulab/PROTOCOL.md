@@ -1174,6 +1174,100 @@ Règle de résolution de conflit : **le plus récent (`updatedAt`) gagne**.
 
 ---
 
+## 16. Série H2 — double tête, râtelier de buses, chambre chauffée, airduct
+
+> Source faisant autorité : **ha-bambulab / pybambu** (`commands.py`, `utils.py`,
+> `models.py`, `const.py`). La série H2 = **H2C, H2D, H2D Pro, H2S** (+ X2D proche).
+> Détectées chez nous par `printerModelId` : **H2S 7, H2D 8, H2D Pro 9, H2C 11,
+> X2D 12** (et X1E 6 pour la chambre). pybambu, lui, détecte par `product_name`
+> du `get_version` (ex. `"Bambu Lab H2C"`).
+
+### 16.1 Principe — tout passe par `gcode_line`
+
+Contrairement à ce que laissent croire les ACK `set_fan`/`xyz_ctrl`/`set_airduct`
+vus dans les reports, **pybambu n'envoie PAS de commandes structurées** pour
+chambre/ventilo/temp/mouvement : il construit du **g-code** et l'emballe dans
+`gcode_line`. Les commandes structurées sont réservées à : print control, AMS,
+`print_speed`, `set_airduct` (mode), `ledctrl`, `buzzer_ctrl`, `print_option`.
+
+### 16.2 Chambre chauffée — `M141` + `M145` (mode airduct)
+
+Sur la H2-série, le chauffe-chambre est **conditionné par le mode airduct**
+(`M145 P1` = chauffage, `M145 P0` = refroidissement). Le X1E n'a pas d'airduct
+→ `M141` seul.
+
+```json
+// H2*/X2D — consigne > 40 °C (activer le chauffage)
+{ "print": { "sequence_id":"N", "command":"gcode_line", "param":"M145 P1\nM141 S{T}\n" } }
+// H2*/X2D — consigne ≤ 40 °C (mode refroidissement)
+{ "print": { "sequence_id":"N", "command":"gcode_line", "param":"M141 S{T}\nM145 P0\n" } }
+// X1E uniquement
+{ "print": { "sequence_id":"N", "command":"gcode_line", "param":"M141 S{T}\n" } }
+```
+
+**Lecture** : `print.device.ctc.info.temp` est **packed 32-bit** (`current | (target<<16)`)
+→ courant `& 0xFFFF`, consigne `>> 16 & 0xFFFF`. (`ctc.state` = état.) Fallback
+ancien firmware : `chamber_temper` (courant seul).
+
+> Modèles à chambre **activement chauffée** (consigne éditable) : X1E, H2S, H2D,
+> H2D Pro, H2C, X2D. Le X1C a une chambre **passive** (lecture seule).
+
+### 16.3 Double tête + buses
+
+`print.device.extruder.info[]` = **2 entrées** (`id 0` = buse **droite**, `id 1`
+= **gauche**), chacune avec `temp` packed 32-bit. La **buse active** vient de
+`print.device.extruder.state` : bits 0-3 = nombre d'extrudeurs, bits 4-7 = index
+actif (`(state>>4)&0xF`). Slot AMS actif par tête : `extruder.info[].snow`
+(`ams_index = snow>>8`, `tray = snow & 0x3`).
+
+### 16.4 Râtelier de buses échangeables (Vortek — H2C)
+
+`print.device.nozzle` :
+- `nozzle.info[]` — entrées `id`/`diameter`/`type`/`sn`/`tm`/`wear`/`stat`/`color_m`/`fila_id`.
+  **`id` 0/1 = buses montées** (droite/gauche) ; **`id` 16-21 = slots du râtelier**.
+- `nozzle.exist` — bitmask des slots occupés (`occupé(id) = exist & (1<<id)`).
+- `nozzle.src_id` / `nozzle.tar_id` — slots source/cible d'un échange ; `tar_id`
+  = slot de la buse montée actuellement. `nozzle.state` = état.
+- Dock : `print.device.holder.{pos, stat, step}`.
+- Type buse `type` : ex. `HS01` → 2ᵉ car. `H` = haut-débit ; 2 derniers chiffres =
+  matériau (`00` inox, `01` acier trempé, `05` carbure de tungstène).
+- **Pas de commande client d'échange de buse** dans pybambu — piloté par le job /
+  firmware (`src_id`→`tar_id`), suivi via les stage-ids (13 homing_toolhead,
+  62 hotend_pick_place_test, 64 preparing_hotend).
+
+### 16.5 Ventilos (rappel — identiques aux autres modèles)
+
+`M106 P{n} S{0-255}` via `gcode_line` : **P1** pièce, **P2** auxiliaire, **P3**
+caisson, **P10** aux. secondaire. Lecture : `cooling_fan_speed` (P1),
+`big_fan1_speed` (P2), `big_fan2_speed` (P3) — paliers 0-15.
+
+### 16.6 Airduct (mode ventilation/chauffage) — commande structurée
+
+```json
+{ "print": { "sequence_id":"N", "command":"set_airduct", "modeId":0, "submode":-1 } }
+```
+`modeId` : 0 = cooling, 1 = heating, 2 = laser. Télémétrie : `print.device.airduct.{modeCur, modeList[], parts[]}`. (Le `M145 P0/P1` de §16.2 sélectionne ces modes.)
+
+### 16.7 Autres structurées H2 (référence)
+
+- **Buzzer** (H2D) : `{ "print":{"command":"buzzer_ctrl","mode":0|1|2,"reason":""} }` (0 silent, 1 alarm, 2 beep).
+- **Lumières** : `ledctrl` (topic system) — `chamber_light`, plus `chamber_light2` + `heatbed_light` sur H2.
+- **Son d'invite** : `{ "print":{"command":"print_option","sound_enable":true|false} }`.
+- **AMS séchage** : `{ "print":{"command":"ams_filament_drying","ams_id":N,"temp":…,"cooling_temp":…,"duration":…,"humidity":…,"mode":0,"rotate_tray":false} }` (AMS 2 Pro / HT ; H2C ≥ fw 01.01.50.00).
+
+### 16.8 État d'implémentation (chez nous)
+
+| Élément | État |
+|---------|------|
+| Consigne chambre (`M145`+`M141`, lecture cible packed) | ✅ implémenté |
+| Hygro/temp **multi-AMS** (`humidity_raw` par unité) | ✅ implémenté |
+| Ventilos P1/P2/P3 + jog/home/play-pause-stop/vitesse | ✅ implémenté (g-code) |
+| **Double-tête** (afficher les 2 buses droite/gauche) | ⏳ TODO — on n'affiche que la buse active |
+| **Râtelier de buses** (UI type T1-T… avec type/diamètre/usure) | ⏳ TODO |
+| Airduct UI / buzzer / lumières H2 (chamber_light2, heatbed_light) | ⏳ backlog |
+
+---
+
 ## Annexe A — Modèles et IDs
 
 | Model ID | Nom | Protocole caméra | Préfixe serial | Code SSDP |

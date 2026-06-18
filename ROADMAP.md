@@ -671,6 +671,16 @@ Printer control is the highest-risk feature surface (a misclick can damage hardw
 | FlashForge | ✅ | ✅ | ✅ | partial | ❌ (no upload API) | ❌ |
 | Elegoo | ✅ | ✅ | ✅ | ✅ | ✅ | partial |
 
+#### 🚧 Actual status (2026-06) — full control panel shipped for 4/6 brands
+
+The interactive control panel (jog · home · play/pause/stop · light · fans · nozzle+bed temp setpoints · speed mode) is **shipped** for **Snapmaker, Elegoo, Bambu Lab, and Anycubic** (LAN + cloud). It is **NOT yet done for FlashForge and Creality** — they still render monitoring + filament/material edit only.
+
+**TODO — bring FlashForge and Creality to full control**, mirroring the established pattern exactly (a `renderXxxControlCard` reusing the shared `.elg-jog-*` / `.elg-fan-*` / `.cre-action-btn` CSS + delegated `data-xxx-*` click handlers in `inventory.js`, plus the brand's per-action send-command methods):
+
+- **Creality** (WS `:9999`) — already has **LED + pause/resume/stop** (`creActionLed`, `creActionPause`, `creActionStop`). Missing: **jog pad, homing, fan/temp setpoints, speed**. Send via the existing Creality WS `set` command shape (same channel as `creSendSet`). Effort: **S/M**.
+- **FlashForge** (HTTP `:8898` + TCP M-codes `:8899`) — has material assignment + temps display. Missing: the **full control card** (jog/home/print control/fans/light/temp setpoints) via the TCP M-code channel (`G0/G1/G28/M104/M140/M106`, FlashForge PROTOCOL §TCP). Confirm which M-codes the Creator-5/AD5X firmware accepts on `:8899`. Effort: **M**.
+- ♻️ **Reuses**: the Bambu/Anycubic control card is the cleanest template — `renderBambuControlCard` (cards.js) + the `data-bbl-*` delegated handlers + per-action methods (`bambuMove`/`bambuHome`/`bambuFan`/…). Copy the structure, swap the transport.
+
 #### 🎯 Recommended sequence
 1. **G1 — Print job control** for Snapmaker (uses existing `snapSendGcode`). Ship to validate the safety patterns + UX before generalizing.
 2. **G3 — Temperature & filament** for Snapmaker. Replaces the bottom-sheet filament edit's duplicate temp logic with the shared driver method.

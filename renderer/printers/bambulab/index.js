@@ -152,6 +152,7 @@ export function bambuConnect(printer, { skipCam = false } = {}) {
     ip,
     serial,
     password,
+    modelId:      bambuModelId(printer), // numeric id — used to shape model-specific commands
     status:       "connecting",
     lastError:    null,
     refreshTimer: null,
@@ -306,10 +307,25 @@ export function bambuFanPct(conn, fan) {
   return Number(conn?.data?.[k.pct]) || 0;
 }
 
-/** Set a heater target. which = "nozzle" | "bed". */
+/** Set a heater target. which = "nozzle" | "bed" | "chamber". The chamber
+ *  setpoint (heated-chamber models, e.g. H2C/H2D) uses `M141`; there is no
+ *  chamber target reported in telemetry, so we keep it optimistically. */
 export function bambuSetTemp(conn, which, value) {
   if (!conn) return;
   const v = Math.max(0, Math.round(Number(value) || 0));
+  if (which === "chamber") {
+    // X1E heats the chamber with M141 alone; H2-series / X2D gate the heater
+    // behind the airduct mode — M145 P1 = heating path, P0 = cooling — so the
+    // chamber setpoint is sent as M145+M141 (ported from ha-bambulab's
+    // set_temperature_to_gcode, see PROTOCOL.md §16 H2-series).
+    const gc = conn.modelId === 6   ? `M141 S${v}`              // X1E
+             : v > 40               ? `M145 P1\nM141 S${v}`      // H2*/X2D — enable heat
+             :                        `M141 S${v}\nM145 P0`;     // H2*/X2D — cooling
+    _bblGcode(conn, gc);
+    if (conn.data) conn.data.chamberTarget = v; // optimistic; telemetry confirms via ctc.temp
+    _bblNotify(conn);
+    return;
+  }
   _bblGcode(conn, which === "bed" ? `M140 S${v}` : `M104 S${v}`);
 }
 
@@ -543,10 +559,12 @@ function _bblMerge(conn, msg) {
       const t = _decodePackedTemp32(dev.bed.info.temp);
       d.bedCurrent = t.current; d.bedTarget = t.target;
     }
-    // Chamber
+    // Chamber (packed current|target — heated-chamber models report a setpoint
+    // in the high 16 bits; passive ones report target 0).
     if (dev.ctc?.info?.temp != null) {
       const t = _decodePackedTemp32(dev.ctc.info.temp);
       d.chamberCurrent = t.current;
+      d.chamberTarget  = t.target;
     }
   }
   // Fallback: old-firmware float fields — only when the new-firmware `dev`
@@ -726,10 +744,14 @@ export function renderBambuLiveInner(p) {
       <span class="icon icon-cloud icon-18"></span>
       <span>${ctx.esc(ctx.t("snapNoConnection"))}</span>
     </div>`;
+  // Actively-heated chamber (ha-bambulab ACTIVE_CHAMBER_HEATER): X1E 6, H2S 7,
+  // H2D 8, H2D Pro 9, H2C 11, X2D 12 → chamber pill becomes an editable setpoint.
+  // Passive-chamber models (X1C…) stay read-only.
+  const heatedChamber = [6, 7, 8, 9, 11, 12].includes(bambuModelId(p));
   return `
     ${renderBambuJobCard(p, conn)}
     ${renderBambuControlCard(p, conn)}
-    ${renderBambuTempCard(conn)}
+    ${renderBambuTempCard(conn, heatedChamber)}
     ${renderBambuFilamentCard(p, conn)}`;
 }
 
