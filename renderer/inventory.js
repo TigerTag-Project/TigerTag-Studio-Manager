@@ -63,6 +63,7 @@ import {
   renderAcuOnlineBadge,
   renderAnycubicLiveInner, renderAnycubicLogInner,
   openAcuFilamentEdit, closeAcuFilamentEdit,
+  openAcuFileSheet, closeAcuFileSheet,
   acuPrintControl, acuSetTemp,
   acuLight, acuMove, acuHome, acuMotorsOff, acuFan, acuSetSpeedMode,
 } from './printers/anycubic/index.js';
@@ -10411,9 +10412,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if ($("bblFilEditSheet")?.classList.contains("open")) {
       try { closeBambuFilamentEdit(); } catch {}
     }
-    // Anycubic — close filament-edit sheet if open.
+    // Anycubic — close filament-edit + file-management sheets if open.
     if ($("acuFilEditSheet")?.classList.contains("open")) {
       try { closeAcuFilamentEdit(); } catch {}
+    }
+    if ($("acuFileSheet")?.classList.contains("open")) {
+      try { closeAcuFileSheet(); } catch {}
     }
     // Anycubic — release the camera (tell the printer to stop capturing +
     // stop ffmpeg) since the panel is closing. The background MQTT session
@@ -12066,6 +12070,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         if (e.target.closest("[data-elg-open-files]")) {
           e.preventDefault(); e.stopPropagation();
           if (_activePrinter?.brand === "elegoo") openElegooFileSheet(_activePrinter);
+          return;
+        }
+        if (e.target.closest("[data-acu-open-files]")) {
+          e.preventDefault(); e.stopPropagation();
+          if (_activePrinter?.brand === "anycubic") openAcuFileSheet(_activePrinter);
           return;
         }
 

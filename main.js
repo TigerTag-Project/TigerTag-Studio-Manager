@@ -2505,8 +2505,17 @@ let _ffmpegBin = null;
 
     client.on('connect', () => {
       if (event.sender.isDestroyed()) return;
-      client.subscribe(_acuReportSubtree(modelId, deviceId), { qos: 0 });
-      event.sender.send('anycubic:status', key, 'connected');
+      // Emit 'connected' only AFTER the subscription is acked — the renderer
+      // fires its state queries (tempature/fan/light) the instant it sees
+      // 'connected', and at idle the printer doesn't auto-push those, so the
+      // replies arrive exactly once. Announcing before SUBACK raced the
+      // subscription and dropped them (fan stuck at 0 %, temp target blank until
+      // the 30 s refresh). Subscribe first, announce in the callback.
+      client.subscribe(_acuReportSubtree(modelId, deviceId), { qos: 0 }, (err) => {
+        if (event.sender.isDestroyed()) return;
+        if (err) { event.sender.send('anycubic:status', key, `error:subscribe-${err?.message || err}`); return; }
+        event.sender.send('anycubic:status', key, 'connected');
+      });
     });
     client.on('message', (topic, payload) => {
       if (event.sender.isDestroyed()) return;
@@ -3085,6 +3094,40 @@ let _ffmpegBin = null;
         encSalt:   sw.encryption_kdf_salt || '',  // base64 (32-byte KDF salt)
         encMode:   String(sw.encryption_mode || ''),
       } };
+    } catch (e) {
+      return { ok: false, error: e?.message || String(e) };
+    }
+  });
+
+  // ── Cloud-uploaded files (PROTOCOL.md §9c) — a SEPARATE REST subsystem from
+  //    the on-printer/USB files of §5e (which ride sendOrder + MQTT). List +
+  //    delete go straight through the signed workbench API (POST, the params as
+  //    a JSON body); printing reuses anycubic:cloud-send-order (order 1) with the
+  //    §9c payload. Same {code,msg,data} envelope as the rest — code 1 = success.
+  ipcMain.handle('anycubic:cloud-files-list', async (_evt, { token, page, limit, machineType, printable }) => {
+    try {
+      const body = { page: Number(page) || 1, limit: Number(limit) || 50 };
+      const mt = Number(machineType);
+      if (Number.isFinite(mt) && mt > 0) body.machine_type = mt;   // omit → list all
+      if (printable != null) body.printable = Number(printable);
+      const r = await _cloudFetch(token, 'POST', '/work/index/files', body);
+      const code = r.json ? Number(r.json.code) : 0;
+      if (code !== 1) return { ok: false, code, authError: code === 10001, error: (r.json && r.json.msg) || `list-failed-${r.status}` };
+      const files = Array.isArray(r.json.data) ? r.json.data : [];
+      return { ok: true, files };
+    } catch (e) {
+      return { ok: false, error: e?.message || String(e) };
+    }
+  });
+
+  // Delete a cloud-uploaded file by id. Success returns data:"" (code 1).
+  ipcMain.handle('anycubic:cloud-file-delete', async (_evt, { token, fileId }) => {
+    try {
+      const body = { idArr: [Number(fileId)] };
+      const r = await _cloudFetch(token, 'POST', '/work/index/delFiles', body);
+      const code = r.json ? Number(r.json.code) : 0;
+      if (code === 1) return { ok: true };
+      return { ok: false, code, authError: code === 10001, error: (r.json && r.json.msg) || `delete-failed-${r.status}` };
     } catch (e) {
       return { ok: false, error: e?.message || String(e) };
     }

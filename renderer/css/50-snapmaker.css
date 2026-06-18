@@ -921,7 +921,10 @@
     opacity: 0;
     pointer-events: none;
     transition: opacity .2s;
-    z-index: 102;
+    /* Above the side-panel ladder (material 101 / settings 103 / printer 105,
+       tabs 102/104/106): the sheet overlays the printer side card it springs
+       from, so backdrop 107 < sheet 108 < sub-pickers 109 must clear 106. */
+    z-index: 107;
   }
   .sfe-backdrop.open { opacity: 1; pointer-events: auto; }
 
@@ -936,7 +939,7 @@
     border-bottom-left-radius: 14px;
     border-top-left-radius: 18px;
     box-shadow: none;
-    z-index: 103;
+    z-index: 108;   /* above the printer side panel (105) + its close tab (106) */
     transform: translateY(calc(100% + 8px));
     transition: transform .28s cubic-bezier(.4, 0, .2, 1), box-shadow .28s;
     display: flex; flex-direction: column;
@@ -950,7 +953,7 @@
      underneath, the user keeps their context. */
   .sfe-sheet--color,
   .sfe-sheet--filament {
-    z-index: 104;
+    z-index: 109;   /* one above the summary sheet (108) — stacks on top of it */
     min-height: 60vh;
     max-height: 92vh;
     border-top-left-radius: 22px;
@@ -985,8 +988,11 @@
     text-align: center;
   }
   .sfe-screen-head .modal-close { grid-column: 3; }
-  /* Variant for the summary header — title aligned left, no back button */
-  .sfe-screen-head--right { grid-template-columns: 1fr 32px; }
+  /* Variant for the summary header — title aligned left, no back button.
+     `auto` (not a fixed 32px) so a multi-button right group — e.g. the file
+     sheets' refresh + close pair — sizes to its content instead of overflowing
+     the track and clipping the last button off the sheet's right edge. */
+  .sfe-screen-head--right { grid-template-columns: 1fr auto; }
   .sfe-screen-head--right .sfe-screen-head-text { grid-column: 1; min-width: 0; }
   .sfe-screen-head--right .sfe-title { text-align: left; }
   .sfe-screen-head--right .modal-close { grid-column: 2; }

@@ -998,5 +998,14 @@
   "acuFeedUnload": "Descarregar",
   "acuFeedStop": "Parar",
   "acuErrTitle": "Erro da impressora",
-  "acuErrDismiss": "OK"
+  "acuErrDismiss": "OK",
+  "acuFilesTitle": "Arquivos",
+  "acuFilesLoading": "Carregando…",
+  "acuFilesEmpty": "Nenhum arquivo encontrado",
+  "acuFilesTabLocal": "Impressora",
+  "acuFilesTabUsb": "USB",
+  "acuFilePrint": "Imprimir",
+  "acuFileDelete": "Excluir",
+  "acuFilesTabCloud": "Nuvem",
+  "acuFileIncompatible": "Fatiado para outra impressora"
 }

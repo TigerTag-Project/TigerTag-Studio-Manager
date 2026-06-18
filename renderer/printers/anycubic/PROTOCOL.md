@@ -424,32 +424,43 @@ sends it via signed REST `sendOrder` (§9). The **response always arrives over M
 
 | Operation | Order ID | Order data | LAN MQTT request |
 |-----------|----------|------------|------------------|
-| List local files | `103` | — | `{type:"file", action:"listLocal"}` |
+| List local files | `103` | `{path:"/"}` | `{type:"file", action:"listLocal", data:{path:"/"}}` |
 | Delete local file | `104` | `{filename, filetype:-1, path:"/"}` | `{type:"file", action:"deleteLocal", data:{…}}` |
-| List USB files | `101` | — | `{type:"file", action:"listUdisk"}` |
+| List USB files | `101` | `{path:"/"}` | `{type:"file", action:"listUdisk", data:{path:"/"}}` |
 | Delete USB file | `102` | `{filename, filetype:-1, path:"/"}` | `{type:"file", action:"deleteUdisk", data:{…}}` |
 | **Print** a stored file | `1` (`START_PRINT`) | see below | `{type:"print", action:"start", data:{…}}` |
 
-> **Confidence.** The order *IDs* are confirmed (straight from `hass-anycubic_cloud`,
-> the same source as the working §5d controls). The LAN MQTT request *action strings*
-> (`listLocal`/`deleteLocal`/…) are **inferred** from the response action names below
-> and are easy to verify against real hardware via the in-app debug request log — adjust
-> here if a Kobra 3 disagrees.
+> **Confidence.** Order *IDs* are confirmed (from `hass-anycubic_cloud`). The LAN
+> MQTT `listLocal`/`listUdisk`/`deleteLocal`/`deleteUdisk` requests and the
+> `peripherie` query are all **confirmed on real hardware** (Kobra 3 V2, model
+> 20027, LAN — see `scripts/acu-file-confirm.mjs` + its non-destructive
+> `delprobe`/`deludiskprobe` modes).
+> ⚠️ **List requires a non-empty `data.path`** — a data-less request is rejected
+> with `{state:"failed", code:10112, msg:"path is empty"}`; `"/"` is the storage
+> root (udisk ignores the path value — any accepted, root is implicit). A delete
+> of a non-existent file replies `{state:"failed", code:200, msg:""}` (action
+> recognized → a real file returns `state:"success"`). Only the LAN `print/start`
+> action remains **inferred** (firing it starts a real print) — verify via the UI.
 
 ### Responses (MQTT `type:"file"`)
 
 ```jsonc
 // list local / list udisk  →  action: "listLocal" | "listUdisk", state: "done"
-{ "type":"file", "action":"listLocal", "state":"done",
-  "data": { "records": [
-    { "filename":"benchy.gcode", "timestamp": 1718000000, "size": 5242880, "is_dir": false }
+{ "type":"file", "action":"listLocal", "state":"done", "code":200, "msg":"done",
+  "data": { "list_mode": 0, "records": [
+    { "is_dir":false, "filename":"benchy.gcode.3mf",
+      "timestamp": 1780556673879, "size": 684250, "plate_number": 2 }
   ] } }
 
 // delete local / delete udisk  →  state: "success" (no records)
 { "type":"file", "action":"deleteLocal", "state":"success" }
 ```
 
-File record: `{ filename, timestamp (epoch s), size (bytes), is_dir (bool) }`.
+File record: `{ is_dir (bool), filename, timestamp (epoch **ms**), size (bytes),
+plate_number (int — plate inside a multi-plate .gcode.3mf; 0 for raw .gcode) }`,
+wrapped in `data.{ list_mode, records[] }`. **`timestamp` is milliseconds**, not
+seconds — and a few files carry a bogus tiny value, so coerce defensively. An
+empty source returns `records: []` with `state:"done"` (not an error).
 
 ### Print-a-stored-file payload — `START_PRINT` (order 1)
 
@@ -469,8 +480,10 @@ The printer confirms by transitioning into a `type:"print"` job (`action:"start"
 `checking`/`preheating`/`printing`, §5b) — watch that, don't trust the order ack alone.
 
 USB browsing should be gated on the udisk peripheral being present — query
-`QUERY_PERIPHERALS` (order `1231`, response `type:"peripherie"`) or hide the USB tab
-until a stick is detected.
+`QUERY_PERIPHERALS` (order `1231`). **Confirmed** on a Kobra 3 V2: LAN request
+`{type:"peripherie", action:"query"}` (no data) → reply
+`{type:"peripherie", action:"query", state:"done", data:{camera, multiColorBox, udisk}}`
+with each value `1`/`0`. Hide the USB tab until `udisk` is truthy.
 
 ## §6 Known model ids
 
@@ -649,8 +662,18 @@ through the same signed `_cloudFetch(token, …)` as the rest of §9.
 
 **`AnycubicCloudFile`** (the fields we need): `id` (→ `file_id` for print/delete),
 `filename`, `size`, `time`, `thumbnail` (signed URL), `slice_param`, `slice_size`,
-`gcode_id`, `device_type` / `file_type`. `machine_type`/`printable` filter the list to
-files sliced for this printer (use the printer's machine type; omit to list all).
+`gcode_id`, `device_type` / `file_type`, `printer_names`, and **`machine_type`** (the
+numeric model id it was sliced for — e.g. `20027` = Kobra 3 V2; matches the printer's
+`machineType` from §7). `device_type` is a coarse family ("pcf"), NOT the model.
+
+> ⚠️ **Cloud storage is account-level, not per-printer.** The list returns the
+> SAME files for every printer in the account, and the `machine_type`/`printable`
+> request params do **not** restrict it (confirmed live: a `machine_type:20027`
+> file is returned even when the body asks for `20030`). So gate **client-side**:
+> a sliced gcode prints only on the machine it targets — compare the file's
+> `machine_type` to the printer's `machineType` and disable print on a mismatch
+> (printing a slice on the wrong model can fail or crash the head). **Deletion is
+> account-level** and fine from any printer.
 
 **Print-cloud-file payload** — `START_PRINT` (order 1), `project_id` = `0`:
 

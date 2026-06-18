@@ -998,5 +998,14 @@
   "acuFeedUnload": "退料",
   "acuFeedStop": "停止",
   "acuErrTitle": "打印机错误",
-  "acuErrDismiss": "确定"
+  "acuErrDismiss": "确定",
+  "acuFilesTitle": "文件",
+  "acuFilesLoading": "加载中…",
+  "acuFilesEmpty": "未找到文件",
+  "acuFilesTabLocal": "打印机",
+  "acuFilesTabUsb": "USB",
+  "acuFilePrint": "打印",
+  "acuFileDelete": "删除",
+  "acuFilesTabCloud": "云端",
+  "acuFileIncompatible": "为其他打印机切片"
 }

@@ -997,5 +997,14 @@
   "acuFeedUnload": "Wyładuj",
   "acuFeedStop": "Zatrzymaj",
   "acuErrTitle": "Błąd drukarki",
-  "acuErrDismiss": "OK"
+  "acuErrDismiss": "OK",
+  "acuFilesTitle": "Pliki",
+  "acuFilesLoading": "Ładowanie…",
+  "acuFilesEmpty": "Nie znaleziono plików",
+  "acuFilesTabLocal": "Drukarka",
+  "acuFilesTabUsb": "USB",
+  "acuFilePrint": "Drukuj",
+  "acuFileDelete": "Usuń",
+  "acuFilesTabCloud": "Chmura",
+  "acuFileIncompatible": "Pocięto dla innej drukarki"
 }

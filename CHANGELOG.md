@@ -5,6 +5,20 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.10.9 — 2026-06-18
+
+### Added
+
+- **Anycubic: file management.** The Anycubic printer panel now has a **Files** button that opens a browser for the printer's stored files. Browse **on-printer storage** and a **USB stick** (the USB tab appears once a stick is detected), and — for cloud-connected printers — a **Cloud** tab listing the files you saved to Anycubic Cloud, complete with thumbnails. From any tab you can **start a print** or **delete** a file (both press-and-hold to confirm). Cloud files are shared across all your printers, so a sliced file is only printable on the model it was made for: incompatible files show which printer they belong to and their Print button is disabled (you can still delete them). Works on both LAN- and cloud-connected Anycubic printers. _(Tested on a Kobra 3 V2 and a Kobra X.)_
+
+### Fixed
+
+- **Anycubic: fan speed and target temperatures now load on startup.** On a LAN-connected Anycubic printer the cooling fan always read 0% and the nozzle/bed targets showed blank right after launch even when they were actually set — they now appear immediately on connect.
+- **Printer bottom sheets no longer hidden behind the panel.** The file and filament-edit sheets (Anycubic, Creality, Elegoo) could slide up *behind* the printer side-panel and stay invisible; they now appear in front as intended.
+- **File browser close button no longer cut off.** The ✕ in the file sheet header was rendered partly off the right edge of the window.
+
+---
+
 ## v1.10.8 — 2026-06-18
 
 ### Added

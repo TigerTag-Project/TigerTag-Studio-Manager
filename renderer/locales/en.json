@@ -998,5 +998,14 @@
   "acuFeedUnload": "Unload",
   "acuFeedStop": "Stop",
   "acuErrTitle": "Printer error",
-  "acuErrDismiss": "OK"
+  "acuErrDismiss": "OK",
+  "acuFilesTitle": "Files",
+  "acuFilesLoading": "Loading…",
+  "acuFilesEmpty": "No files found",
+  "acuFilesTabLocal": "On-printer",
+  "acuFilesTabUsb": "USB",
+  "acuFilePrint": "Print",
+  "acuFileDelete": "Delete",
+  "acuFilesTabCloud": "Cloud",
+  "acuFileIncompatible": "Sliced for a different printer"
 }

@@ -84,6 +84,11 @@ contextBridge.exposeInMainWorld('anycubic', {
     // Open the cloud camera (order 1001) → Agora creds { appId, channel,
     // rtcToken, clientUid, peerUid, encKey, encSalt, encMode }. opts = { token, printerId }.
     cameraOpen:  (opts)   => ipcRenderer.invoke('anycubic:cloud-camera-open', opts),
+    // Cloud-uploaded files (PROTOCOL.md §9c). filesList → { ok, files:[…] };
+    // fileDelete → { ok }. opts = { token, page?, limit?, machineType?, printable? }
+    // / { token, fileId }. Printing reuses sendOrder (order 1) with the §9c payload.
+    filesList:   (opts)   => ipcRenderer.invoke('anycubic:cloud-files-list', opts),
+    fileDelete:  (opts)   => ipcRenderer.invoke('anycubic:cloud-file-delete', opts),
     // Shared cloud-MQTT connection (one per signed-in user). connect once,
     // then subscribe each printer; reports arrive on onMessage tagged with
     // the renderer conn key passed to subscribe.
