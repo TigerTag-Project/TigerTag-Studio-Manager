@@ -39,19 +39,40 @@ function _b64ToBytes(b64) {
   catch (_) { return null; }
 }
 
-function _container(key) {
+function _containers(key) {
   const sel = (window.CSS && CSS.escape) ? CSS.escape(key) : key;
-  return document.querySelector(`.acu-cam-agora[data-acu-key="${sel}"]`);
+  return document.querySelectorAll(`.acu-cam-agora[data-acu-key="${sel}"]`);
 }
 
-// Play the remote track into the current container if it isn't already there.
+// Render the remote track into EVERY container for this printer — the side panel
+// AND the cam wall simultaneously. A WebRTC track can't be Agora-`.play()`-ed
+// into more than one element, so we feed the underlying MediaStreamTrack to a
+// <video srcObject> in each container — mirroring how the LAN <img> path fans
+// frames out to all matching elements (so the camera shows in both places).
 function _attach(key) {
   const st = _players.get(key);
   if (!st || !st.track) return;
-  const el = _container(key);
-  if (!el || el.querySelector('video')) return;   // no surface, or already attached
-  try { st.track.play(el, { fit: 'cover' }); } catch (_) { return; }
-  if (!st.live) { st.live = true; try { _onLive && _onLive(key); } catch (_) {} }
+  const mst = st.track.getMediaStreamTrack ? st.track.getMediaStreamTrack() : null;
+  if (!mst) return;
+  const containers = _containers(key);
+  if (!containers.length) return;
+  let shown = false;
+  containers.forEach(container => {
+    let video = container.querySelector('video');
+    if (!video) {
+      video = document.createElement('video');
+      video.autoplay = true; video.muted = true;
+      video.setAttribute('playsinline', '');
+      container.appendChild(video);
+    }
+    const cur = video.srcObject;
+    const already = cur && cur.getVideoTracks && cur.getVideoTracks().indexOf(mst) !== -1;
+    if (!already) {
+      try { video.srcObject = new MediaStream([mst]); const pr = video.play && video.play(); if (pr && pr.catch) pr.catch(() => {}); } catch (_) {}
+    }
+    shown = true;
+  });
+  if (shown && !st.live) { st.live = true; try { _onLive && _onLive(key); } catch (_) {} }
 }
 
 function _ensureHeal() {

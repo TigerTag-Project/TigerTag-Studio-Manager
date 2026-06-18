@@ -59,7 +59,7 @@ import { openElgAddFlow }  from './printers/elegoo/add-flow.js';
 import { openAcuAddFlow }  from './printers/anycubic/add-flow.js';
 import {
   acuKey, acuGetConn, acuIsOnline,
-  acuConnect, acuDisconnect, acuReleaseCamera,
+  acuConnect, acuDisconnect, acuReleaseCamera, acuReleaseCloudCameras,
   renderAcuOnlineBadge,
   renderAnycubicLiveInner, renderAnycubicLogInner,
   openAcuFilamentEdit, closeAcuFilamentEdit,
@@ -5711,6 +5711,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // when there are no active .ffg-camera-img elements.
     if (prevMode === "printer-cam") {
       try { ffgTearDownCamera(); } catch (_) {}
+      try { acuReleaseCloudCameras(); } catch (_) {} // leave Agora channels when off the wall
     }
     renderInventory();
     // Safety re-subscribe when switching to rack mode (handles users connected before this feature)

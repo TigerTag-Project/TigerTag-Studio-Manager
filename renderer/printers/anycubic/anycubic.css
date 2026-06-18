@@ -25,10 +25,9 @@
 
 /* ── Cloud camera — Agora WebRTC <video> ──────────────────────────────────
    .acu-cam-agora is the shared .pp-cam-full banner (position:relative, 16:9),
-   so it must KEEP that sizing — never override it. agora-cam.js calls
-   track.play() into it, which inserts a wrapper <div><video></video></div>;
-   only those inserted elements need to fill the banner. */
-.acu-cam-agora > div,
+   so it must KEEP that sizing — never override it. agora-cam.js inserts a
+   <video srcObject> into each container (one per surface — side panel + cam
+   wall, fed the same MediaStreamTrack); it just needs to fill the banner. */
 .acu-cam-agora video {
   width: 100% !important;
   height: 100% !important;

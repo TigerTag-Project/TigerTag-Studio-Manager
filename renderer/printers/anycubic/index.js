@@ -47,6 +47,12 @@ acuAgoraOnLive((key) => {
   const conn = _acuConns.get(key);
   if (!conn) return;
   conn.data.camLive = true;
+  // A live Agora video proves the printer is reachable. The cloud "connected"
+  // status (from the MQTT getInfo) can lag the video, and the cam wall gates
+  // each card on acuIsOnline — so without this, going straight to the cam wall
+  // (before the side panel made it connect) drops the card. Mark it connected
+  // so the re-render below includes it.
+  if (conn.status !== "connected") conn.status = "connected";
   ctx.onPrinterStatusChange?.(key, "connected");
 });
 
@@ -485,6 +491,24 @@ async function _acuCloudRequestCamera(conn) {
   ctx.onPrinterStatusChange?.(conn.key, "connected"); // render the (loading) container
 }
 
+/**
+ * Stop every cloud (Agora) camera player except the one in the open side panel.
+ * Called when leaving the cam wall: unlike LAN ffmpeg (local), staying joined to
+ * Agora channels off-screen burns the account's RTC minutes + bandwidth, so we
+ * leave the channel as soon as the feed isn't on screen. The side panel (if
+ * open) and the cam wall both re-request their cameras on next render.
+ */
+export function acuReleaseCloudCameras() {
+  const active = ctx.getActivePrinter?.();
+  const activeKey = active ? acuKey(active) : null;
+  for (const conn of _acuConns.values()) {
+    if (conn.mode !== "cloud" || conn.key === activeKey) continue;
+    conn.data.camWanted = false;
+    conn.data.camLive = false;
+    acuAgoraStop(conn.key);
+  }
+}
+
 // ── Camera (active control: video/startCapture → ffmpeg) ─────────────────────
 //
 // The FLV stream on :18088 is ON-DEMAND. We activate it by publishing
@@ -837,6 +861,13 @@ if (typeof window !== "undefined" && window.anycubic?.cloud) {
       conn.lastError = null;
       _acuNotify(conn, /*statusChanged*/ true);
       _acuRefreshOnlineUI(connKey);
+      // The offline→online transition must re-render the cam wall — `_acuNotify`
+      // only fires `onPrinterGridChange`, a no-op there. Without this, going
+      // straight to the cam wall drops the cloud camera card: the Agora player
+      // started during acuConnect, but each card is gated on acuIsOnline, which
+      // only flips true here. (The side panel masked it by making the printer
+      // connect first.)
+      ctx.onPrinterStatusChange?.(connKey, "connected");
     }
     _acuMerge(conn, data);
   });

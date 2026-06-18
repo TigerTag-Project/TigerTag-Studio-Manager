@@ -568,12 +568,16 @@ video → `track.play()` into the `.acu-cam-agora` banner container
 `AgoraRTC.join`; the creds arrive over the cloud-MQTT native bridge, so the
 order response is the source).
 
-**Scope:** side panel only for now (cam wall + detached cam window are LAN-FLV
-only — cloud-camera support there is a follow-up). The stream is media-encrypted
-(AES‑256‑GCM2); the SDK handles it from the order's key/salt.
+**Scope:** side panel **and cam wall** (both use the shared `renderCamBanner` +
+`acuConnect`-no-skipCam path; `acuReleaseCloudCameras()` leaves the Agora
+channels when you exit the wall, so we don't stay joined off-screen). The
+**detached cam window** is still LAN-FLV only — it renders JPEG frames pushed
+over IPC, whereas Agora is WebRTC in the main renderer, so supporting it means
+running the Agora SDK in that separate window (a follow-up). The stream is
+media-encrypted (AES‑256‑GCM2); the SDK handles it from the order's key/salt.
 
 ### Limits (cloud)
 - `setInfo` honors only `{index, type, color}` (same as LAN).
 - **Token expires** → occasional re-provision (the slicer in bridge mode again).
-- Camera: Agora WebRTC (§9b) — side panel only; needs the Agora SDK + the per-session order-1001 creds.
+- Camera: Agora WebRTC (§9b) — side panel + cam wall (detached window still LAN-FLV); needs the Agora SDK + the per-session order-1001 creds.
 - Dev validators: `scripts/acu-cloud-test.mjs` (full path), `acu-mqtt-sniff.mjs`.
