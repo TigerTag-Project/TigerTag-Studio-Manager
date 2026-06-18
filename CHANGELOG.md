@@ -5,6 +5,19 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.10.9 — 2026-06-18
+
+### Added
+
+- **Anycubic cloud camera — everywhere now.** The cloud (Agora) camera shows in the **camera wall** and the **detached camera window** too, not just the printer's side panel, and it keeps streaming through long sessions (automatic RTC-token refresh). _Thanks to [@ennisj](https://github.com/ennisj) (PR #4)._
+- **Bambu Lab heated-chamber control.** On models with an actively heated chamber (X1E, the H2 series, X2D), the chamber temperature is now a setpoint you can tap to set — like the nozzle and bed. Passive-chamber models (X1C) stay read-only.
+
+### Fixed
+
+- **Bambu Lab AMS humidity & temperature now show for every AMS unit.** Machines with more than one AMS (e.g. the H2C, which has two) previously showed nothing; each unit's real humidity % and temperature now appear (labelled A / B / … when there are several). AMS Lite has no sensor and stays blank.
+
+---
+
 ## v1.10.8 — 2026-06-18
 
 ### Added
