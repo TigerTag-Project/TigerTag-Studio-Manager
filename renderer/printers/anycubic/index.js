@@ -484,6 +484,16 @@ export function acuReleaseCamera(printer) {
   conn.data.lastCamFrame = null;
 }
 
+/** Fetch fresh Agora camera join creds (order 1001) for a cloud printer, or null. */
+async function _acuCloudCameraCreds(conn) {
+  const p = conn && conn.printer;
+  if (!p || !p.cloudToken || p.cloudPrinterId == null) return null;
+  try {
+    const res = await window.anycubic?.cloud?.cameraOpen?.({ token: p.cloudToken, printerId: p.cloudPrinterId });
+    return res && res.ok && res.agora ? res.agora : null;
+  } catch (_) { return null; }
+}
+
 /**
  * Start the cloud (Agora) camera for a cloud-mode printer. Fetches the join
  * credentials via order 1001 (REST `cameraOpen`) and hands them to the Agora
@@ -498,13 +508,12 @@ async function _acuCloudRequestCamera(conn) {
   const p = conn.printer;
   if (!p || !p.cloudToken || p.cloudPrinterId == null) return;
   conn.data.camWanted = true;
-  let res = null;
-  try { res = await window.anycubic?.cloud?.cameraOpen?.({ token: p.cloudToken, printerId: p.cloudPrinterId }); }
-  catch (_) { res = null; }
+  const agora = await _acuCloudCameraCreds(conn);
   // Released (panel closed) or disconnected while the REST call was in flight.
   if (!_acuConns.has(conn.key) || !conn.data.camWanted) return;
-  if (!res || !res.ok || !res.agora) { conn.data.camWanted = false; return; }
-  acuAgoraStart(conn.key, res.agora);
+  if (!agora) { conn.data.camWanted = false; return; }
+  // Pass a renew fn so the player can refresh the short-lived RTC token itself.
+  acuAgoraStart(conn.key, agora, () => _acuCloudCameraCreds(conn));
   ctx.onPrinterStatusChange?.(conn.key, "connected"); // render the (loading) container
 }
 

@@ -80,15 +80,28 @@ function _ensureHeal() {
   _heal = setInterval(() => { for (const key of _players.keys()) _attach(key); }, 800);
 }
 
-/** Join the Agora channel for `key` and start rendering. Idempotent per key. */
-export async function acuAgoraStart(key, creds) {
+function _applyEncryption(client, creds) {
+  if (!creds.encKey || !creds.encMode) return;
+  const mode = String(creds.encMode).toLowerCase().replace(/_/g, '-'); // AES_256_GCM2 → aes-256-gcm2
+  const salt = _b64ToBytes(creds.encSalt);
+  try { client.setEncryptionConfig(mode, creds.encKey, salt || undefined); }
+  catch (e) { console.warn('[acu-agora] setEncryptionConfig:', e && e.message); }
+}
+
+/**
+ * Join the Agora channel for `key` and start rendering. Idempotent per key.
+ * `renew` (optional) — an async fn returning a fresh creds object (a new
+ * `cameraOpen`), used to keep the short-lived order-1001 RTC token alive on
+ * long viewing sessions.
+ */
+export async function acuAgoraStart(key, creds, renew) {
   const A = _sdk();
   if (!A) { console.warn('[acu-agora] AgoraRTC SDK not loaded — cloud camera unavailable'); return false; }
   if (_players.has(key)) return true;
   if (!creds || !creds.appId || !creds.channel) return false;
 
   const client = A.createClient({ mode: 'rtc', codec: 'vp8' });
-  const st = { client, track: null, live: false };
+  const st = { client, track: null, live: false, renew: renew || null };
   _players.set(key, st);
   _ensureHeal();
 
@@ -99,13 +112,13 @@ export async function acuAgoraStart(key, creds) {
   };
   client.on('user-published', onPub);
   client.on('user-unpublished', (user, mediaType) => { if (mediaType === 'video' && _players.get(key) === st) st.track = null; });
+  // The order-1001 RTC token is short-lived: renew it ~30 s ahead (will-expire)
+  // without dropping the stream, or re-join if it lapsed entirely (did-expire).
+  client.on('token-privilege-will-expire', () => _renewToken(key, false));
+  client.on('token-privilege-did-expire',  () => _renewToken(key, true));
 
   try {
-    if (creds.encKey && creds.encMode) {
-      const mode = String(creds.encMode).toLowerCase().replace(/_/g, '-'); // AES_256_GCM2 → aes-256-gcm2
-      const salt = _b64ToBytes(creds.encSalt);
-      try { client.setEncryptionConfig(mode, creds.encKey, salt || undefined); } catch (e) { console.warn('[acu-agora] setEncryptionConfig:', e && e.message); }
-    }
+    _applyEncryption(client, creds);
     await client.join(creds.appId, creds.channel, creds.rtcToken || null, creds.clientUid);
     // The printer is usually already publishing when we join — subscribe to it.
     for (const u of client.remoteUsers) {
@@ -119,6 +132,25 @@ export async function acuAgoraStart(key, creds) {
     return false;
   }
   return true;
+}
+
+// Refresh the RTC token via the renew fn (a fresh cameraOpen). `rejoin` = the
+// token already lapsed (did-expire) → re-apply encryption + re-join; otherwise
+// (will-expire) renew in place without interrupting the stream.
+async function _renewToken(key, rejoin) {
+  const st = _players.get(key);
+  if (!st || !st.renew) return;
+  let fresh = null;
+  try { fresh = await st.renew(); } catch (_) {}
+  if (!fresh || !fresh.rtcToken || _players.get(key) !== st) return;
+  try {
+    if (rejoin) {
+      _applyEncryption(st.client, fresh);
+      await st.client.join(fresh.appId, fresh.channel, fresh.rtcToken, fresh.clientUid);
+    } else {
+      await st.client.renewToken(fresh.rtcToken);
+    }
+  } catch (e) { console.warn('[acu-agora] token renew failed:', e && e.message); }
 }
 
 /** Leave the channel and tear down the player for `key`. */

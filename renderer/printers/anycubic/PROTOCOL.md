@@ -564,7 +564,10 @@ gitignored): `setEncryptionConfig("aes-256-gcm2", key, base64-decoded salt)`
 → `join(appid, channel, rtc_token, client_uid)` → subscribe to remote `uid`'s
 video → `track.play()` into the `.acu-cam-agora` banner container
 (`renderer/printers/anycubic/agora-cam.js`). IPC: `anycubic:cloud-camera-open`
-(returns the normalized creds). Captured via `scripts/acu-cam-cdp.mjs` (hooks
+(returns the normalized creds). The `rtc_token` is short-lived, so the player
+**renews it** on `token-privilege-will-expire` (re-call order 1001 →
+`client.renewToken`, no stream drop) and re-joins on `token-privilege-did-expire`
+— long viewing sessions hold. Captured via `scripts/acu-cam-cdp.mjs` (hooks
 `AgoraRTC.join`; the creds arrive over the cloud-MQTT native bridge, so the
 order response is the source).
 
