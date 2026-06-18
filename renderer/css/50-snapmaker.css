@@ -318,6 +318,14 @@
   .snap-temp--heating { color: #ef4444; }
   .snap-temp--heating .snap-temp-val { color: #b91c1c; }
 
+  /* Dual-nozzle (H2 series) — R/L tag + active-head highlight */
+  .snap-temp-tag {
+    font-size: 10px; font-weight: 800; line-height: 1;
+    color: var(--muted); margin: 0 1px 0 2px;
+  }
+  .snap-temp--active { box-shadow: inset 0 0 0 1.5px var(--primary, #386ecf); }
+  .snap-temp--active .snap-temp-tag { color: var(--primary, #386ecf); }
+
   /* Editable pills */
   .snap-temp--editable {
     cursor: pointer;
@@ -921,7 +929,10 @@
     opacity: 0;
     pointer-events: none;
     transition: opacity .2s;
-    z-index: 102;
+    /* Must sit ABOVE the printer side-card ladder (101-106 in 70-detail-misc.css)
+       — the edit sheet shares the right-edge area, so at 102 it was hidden behind
+       the printer panel (105). Modal sheet = top layer when open. */
+    z-index: 110;
   }
   .sfe-backdrop.open { opacity: 1; pointer-events: auto; }
 
@@ -936,7 +947,7 @@
     border-bottom-left-radius: 14px;
     border-top-left-radius: 18px;
     box-shadow: none;
-    z-index: 103;
+    z-index: 111;   /* above the printer panel ladder (max 106) — see .sfe-backdrop */
     transform: translateY(calc(100% + 8px));
     transition: transform .28s cubic-bezier(.4, 0, .2, 1), box-shadow .28s;
     display: flex; flex-direction: column;
@@ -950,7 +961,7 @@
      underneath, the user keeps their context. */
   .sfe-sheet--color,
   .sfe-sheet--filament {
-    z-index: 104;
+    z-index: 112;   /* one above .sfe-sheet so sub-pickers stack on the summary */
     min-height: 60vh;
     max-height: 92vh;
     border-top-left-radius: 22px;
@@ -1970,4 +1981,115 @@
   aspect-ratio: 446.6 / 512; /* viewBox="32.7 0 446.6 512" */
   -webkit-mask-image: url('../../assets/svg/logos/logo_fluidd.svg');
   mask-image: url('../../assets/svg/logos/logo_fluidd.svg');
+}
+
+/* ── FlashForge — light toggle + on-board files (PROTOCOL §13.6 / §13.8) ── */
+.ffg-light-btn.is-on {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+.ffg-light-btn.is-on .icon { background-color: #fff; }
+
+.ffg-files-block .ffg-files-title {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+}
+.ffg-files-refresh {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; border-radius: 7px;
+  border: 1px solid var(--border); background: var(--surface-2);
+  cursor: pointer; padding: 0; flex-shrink: 0;
+}
+.ffg-files-refresh:hover { background: var(--surface); }
+.ffg-files-load {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 8px 14px; border-radius: 9px;
+  border: 1px solid var(--border); background: var(--surface-2);
+  color: var(--text); cursor: pointer; font: inherit;
+}
+.ffg-files-load:hover { background: var(--surface); }
+.ffg-files-empty { color: var(--muted); font-size: 13px; padding: 6px 2px; }
+.ffg-files-list { display: flex; flex-direction: column; gap: 8px; }
+.ffg-file-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px; border-radius: 10px;
+  border: 1px solid var(--border); background: var(--surface-2);
+}
+.ffg-file-thumb {
+  width: 40px; height: 40px; border-radius: 7px; flex-shrink: 0;
+  background: var(--surface) center/cover no-repeat;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.08);
+}
+.ffg-file-name {
+  flex: 1; min-width: 0; font-size: 13px; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ffg-file-print {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0;
+  border: none; background: var(--primary); cursor: pointer; padding: 0;
+}
+.ffg-file-print .icon { background-color: #fff; }
+.ffg-file-print:hover { filter: brightness(1.06); }
+
+/* ── FlashForge — fans / door / error status (PROTOCOL §7) ── */
+.ffg-status-block { padding-bottom: 10px; }
+.ffg-status-row { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* Fan columns — Elegoo-style: [icon LABEL] on top, [− value +] below.
+   No fan-control command on FlashForge → the −/+ are disabled (grey). */
+.ffg-fan-row { display: flex; gap: 8px; margin-top: 8px; }
+.ffg-fan-col {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px;
+  background: var(--surface-2); border-radius: 8px; padding: 6px 4px;
+}
+.ffg-fan-col-head { display: flex; align-items: center; gap: 5px; }
+.ffg-fan-col-head .icon { background-color: var(--muted); }
+.ffg-fan-col-head .icon.ffg-fan-on { background-color: var(--primary); }
+.ffg-fan-col-label {
+  font-size: 10px; font-weight: 600; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .05em; white-space: nowrap;
+}
+.ffg-fan-col-controls { display: flex; align-items: center; gap: 6px; }
+.ffg-fan-pct { font-size: 12px; font-weight: 600; color: var(--text); min-width: 34px; text-align: center; }
+.ffg-fan-step-btn {
+  width: 22px; height: 22px; border-radius: 5px; border: none; padding: 0;
+  background: var(--surface); color: var(--muted); font-size: 15px; line-height: 1;
+}
+.ffg-fan-step-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+.ffg-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 10px; border-radius: 999px; font-size: 12px;
+  border: 1px solid var(--border); background: var(--surface-2); color: var(--muted);
+}
+.ffg-chip .icon { background-color: currentColor; }
+.ffg-chip--on { color: var(--primary); border-color: var(--primary); }
+.ffg-door-chip.is-open {
+  color: #b45309; border-color: #f59e0b; background: rgba(245,158,11,.12);
+}
+.ffg-error-banner {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px; margin-bottom: 10px; border-radius: 10px;
+  background: rgba(239,68,68,.12); border: 1px solid #ef4444; color: #b91c1c;
+  font-size: 13px; font-weight: 600;
+}
+.ffg-error-banner .icon { background-color: #ef4444; flex-shrink: 0; }
+
+/* ── FlashForge — printer-info modal ── */
+.ffg-info-card { width: min(420px, 92vw); }
+.ffg-info-body { padding: 4px 18px 18px; max-height: 70vh; overflow-y: auto; }
+.ffg-info-section { margin-top: 14px; }
+.ffg-info-section-title {
+  font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 6px;
+}
+.ffg-info-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 7px 0; border-bottom: 1px solid var(--border);
+}
+.ffg-info-row:last-child { border-bottom: none; }
+.ffg-info-lbl { color: var(--muted); font-size: 13px; flex-shrink: 0; }
+.ffg-info-val {
+  color: var(--text); font-size: 13px; font-weight: 600; text-align: right;
+  word-break: break-all;
 }

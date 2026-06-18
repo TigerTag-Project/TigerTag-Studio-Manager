@@ -1262,7 +1262,7 @@ caisson, **P10** aux. secondaire. Lecture : `cooling_fan_speed` (P1),
 | Consigne chambre (`M145`+`M141`, lecture cible packed) | ✅ implémenté |
 | Hygro/temp **multi-AMS** (`humidity_raw` par unité) | ✅ implémenté |
 | Ventilos P1/P2/P3 + jog/home/play-pause-stop/vitesse | ✅ implémenté (g-code) |
-| **Double-tête** (afficher les 2 buses droite/gauche) | ⏳ TODO — on n'affiche que la buse active |
+| **Double-tête** (afficher les 2 buses droite/gauche) | ✅ implémenté — 2 pastilles R/L, buse active surlignée, consigne par tête (`M104 T{id}`) |
 | **Râtelier de buses** (UI type T1-T… avec type/diamètre/usure) | ⏳ TODO |
 | Airduct UI / buzzer / lumières H2 (chamber_light2, heatbed_light) | ⏳ backlog |
 

@@ -1375,9 +1375,11 @@ ipcMain.handle('ffg:http-post', async (_evt, url, body, timeoutMs) => {
     return { code: -2, message: 'Network error: invalid url scheme' };
   }
   // Tight allowlist on the path so a renderer compromise can't pivot
-  // this IPC into a generic outbound HTTP proxy. Both endpoints take
-  // the SAME auth body so this list will rarely grow.
-  const ok = /\/(detail|control)$/i.test(new URL(url).pathname);
+  // this IPC into a generic outbound HTTP proxy. All FlashForge HTTP API
+  // endpoints take the same auth body (+ optional fields): live data
+  // (/detail), commands (/control), and file management (/gcodeList,
+  // /gcodeThumb, /printGcode) — see PROTOCOL §13.8.
+  const ok = /\/(detail|control|gcodeList|gcodeThumb|printGcode)$/i.test(new URL(url).pathname);
   if (!ok) {
     return { code: -2, message: 'Network error: path not allowed' };
   }

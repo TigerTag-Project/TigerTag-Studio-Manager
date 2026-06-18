@@ -5,6 +5,27 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.10.10 — 2026-06-18
+
+### Added
+
+- **FlashForge: live monitoring & machine controls.** The FlashForge side panel now shows per-nozzle temperatures (tool-changers like the Creator 5 Pro list each tool **T1…Tn** with the active one highlighted; single-nozzle models show **E1**), plus bed and — on enclosed models — chamber, each as current/target. There's a fan strip, a door open/closed indicator, and a red error banner. You can toggle the **chamber light**, **pause / resume / stop** an active print, and open an on-board **file browser** (with thumbnails) to start a stored print. A new **printer-info button (ⓘ)** opens lifetime stats (filament used, total print time, free disk) and machine specs (model, firmware, nozzle, build volume, …). _Tested on real AD5X + Creator 5 Pro hardware._
+- **FlashForge Creator 5 / 5 Pro: official colour palette.** Setting a filament slot's colour now offers only the printer's 24 built-in "Color Library" swatches — the firmware silently rejects anything else (the slot reverts to white) — so every pick is one the printer actually keeps. Other models keep the free colour picker.
+
+### Changed
+
+- **Bambu Lab H2-series dual nozzle.** Printers with two heads (H2C / H2D / X2D) now show **both** nozzles — tagged **R** (right) and **L** (left), with the active head highlighted — each with its own temperature you can tap to set, instead of only the active head.
+
+### Fixed
+
+- **Filament colour/material editor no longer opens hidden behind the printer panel.** A recent layering change had pushed the printer side-panel above the edit sheet; the sheet now sits above it again. Affects all brands (Snapmaker / Creality / Elegoo / FlashForge).
+
+### Notes
+
+- **FlashForge temperatures and fans are read-only** — the firmware doesn't expose a command to set them, so they're shown for monitoring only.
+
+---
+
 ## v1.10.9 — 2026-06-18
 
 ### Added

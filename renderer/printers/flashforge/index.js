@@ -8,7 +8,7 @@
 import { ctx } from '../context.js';
 import { registerBrand, brands } from '../registry.js';
 import { meta, schema, helper } from './settings.js';
-import { renderFfgJobCard, renderFfgTempCard, renderFfgFilamentCard } from './cards.js';
+import { renderFfgJobCard, renderFfgTempCard, renderFfgFilamentCard, renderFfgStatusCard } from './cards.js';
 import { schemaWidget } from '../modal-helpers.js';
 import { ffgMuxStopAll } from './cam_mux.js';
 import { ffgModelIdFromMachineModel } from './probe.js';
@@ -509,9 +509,47 @@ function ffgMergeStatus(conn, resp) {
   if (nozzle  !== null) d.temps.e1_temp    = nozzle;
   if (bed     !== null) d.temps.bed_temp   = bed;
   if (chamber !== null) d.temps.chamber_temp = chamber;
-  // We deliberately DON'T write the *_target keys — the renderer
-  // checks for their presence with `typeof === "number"` and falls
-  // back to the no-target display when they're absent.
+  // Target setpoints — the Creator 5 Pro & co. DO expose them
+  // (nozzleTargetTemps[], platTargetTemp, chamberTargetTemp). Written only when
+  // a number is present so older models still render "26°C" (no "/target").
+  const _nozTgt0   = Array.isArray(detail.nozzleTargetTemps) ? detail.nozzleTargetTemps[0] : null;
+  const nozzleTgt  = ffgNum(detail.rightTargetTemp ?? detail.leftTargetTemp ?? _nozTgt0);
+  const bedTgt     = ffgNum(detail.platTargetTemp);
+  const chamberTgt = ffgNum(detail.chamberTargetTemp);
+  if (nozzleTgt  !== null) d.temps.e1_target      = nozzleTgt;
+  if (bedTgt     !== null) d.temps.bed_target     = bedTgt;
+  if (chamberTgt !== null) d.temps.chamber_target = chamberTgt;
+
+  // Fans — speeds are 0-100; internal/external report a "open"/"close" status.
+  d.fans = {
+    cooling:  ffgNum(detail.coolingFanSpeed),
+    chamber:  ffgNum(detail.chamberFanSpeed),
+    internal: String(detail.internalFanStatus || "").toLowerCase() === "open",
+    external: String(detail.externalFanStatus || "").toLowerCase() === "open",
+  };
+
+  // Safety / status — surface errors and the door state.
+  d.errorCode  = String(detail.errorCode || "").trim();
+  d.doorStatus = String(detail.doorStatus || "").toLowerCase(); // "open" | "close" | ""
+
+  // Machine info + lifetime stats — shown in the Info modal (openFlashforgeInfo).
+  d.info = {
+    model:        String(detail.model || detail.name || "").trim(),
+    firmware:     String(detail.firmwareVersion || "").trim(),
+    nozzleModel:  String(detail.nozzleModel || "").trim(),
+    nozzleCnt:    ffgNum(detail.nozzleCnt),
+    measure:      String(detail.measure || "").trim(),
+    location:     String(detail.location || "").trim(),
+    ip:           String(detail.ipAddr || "").trim(),
+    mac:          String(detail.macAddr || "").trim(),
+    lidar:        detail.lidar === 1 || detail.lidar === true,
+    tvoc:         ffgNum(detail.tvoc),
+    autoShutdown: String(detail.autoShutdown || "").toLowerCase() === "open",
+    zComp:        ffgNum(detail.zAxisCompensation),
+    cumFilament:  ffgNum(detail.cumulativeFilament),  // metres
+    cumPrintTime: ffgNum(detail.cumulativePrintTime), // minutes
+    diskFree:     ffgNum(detail.remainingDiskSpace),  // GB
+  };
 
   // Filament — two layouts:
   //   1. matlStation (multi-tray) → matlStationInfo.slotInfos[1..4]
@@ -788,8 +826,14 @@ export function renderFlashforgeLiveInner(p) {
       <span>${ctx.esc(ctx.t("snapNoConnection"))}</span>
     </div>`;
   const b = brands.get('flashforge');
+  const err = String(conn.data?.errorCode || "").trim();
+  const errBanner = err
+    ? `<div class="ffg-error-banner"><span class="icon icon-info icon-14"></span><span>${ctx.esc((ctx.t("ffgErrorBanner") || "Printer error: {{code}}").replace("{{code}}", err))}</span></div>`
+    : "";
   return `
+    ${errBanner}
     ${b.renderJobCard(p, conn)}
+    ${renderFfgStatusCard(conn)}
     ${b.renderTempCard(conn)}
     ${b.renderFilamentCard(p, conn)}`;
 }
@@ -909,10 +953,41 @@ function ffgFilRenderMaterialList(vendor, selectedMat) {
   }).join("");
 }
 
+// FlashForge CFS imposed colour palette (Creator 5 / 5 Pro). The firmware only
+// accepts these exact colours — any other value is silently rejected (the slot
+// reverts to #FFFFFF while the printer still ACKs code:0). Captured from a real
+// Creator 5 Pro; matches the slicer's "Color Library". White first, then the
+// 5×5 grid order. See PROTOCOL.md §13.1.
+const FFG_CFS_PALETTE = [
+  "#FFFFFF", "#FFF245", "#DEF578", "#21CC3D", "#167A4B",
+  "#156682", "#24E4A0", "#7BD9F0", "#4CAAF8", "#2E54DD",
+  "#48358C", "#A341F7", "#F435F6", "#D5B4DE", "#FA6173",
+  "#F82D29", "#805003", "#F9903B", "#FCEBD7", "#D5C5A1",
+  "#B17C38", "#8C8C89", "#BEBEBE", "#1B1B1B",
+];
+// Models whose CFS enforces the palette above (by printerModelId).
+const FFG_PALETTE_MODEL_IDS = new Set(["5", "6"]); // Creator 5, Creator 5 Pro
+function ffgIsPaletteModel(printer) {
+  return !!printer && FFG_PALETTE_MODEL_IDS.has(String(printer.printerModelId || ""));
+}
+
 function ffeRenderColorGrid(currentColor) {
   const grid = $("ffgColorGrid");
   if (!grid) return;
   const cur = (currentColor || "").toLowerCase();
+  // Creator 5 / 5 Pro: the CFS only accepts its built-in palette — render ONLY
+  // those swatches and NO free/custom picker, so the user can't pick a colour
+  // the firmware would silently reject.
+  if (ffgIsPaletteModel(_ffgFilEdit?.printer)) {
+    grid.innerHTML = FFG_CFS_PALETTE.map(c => {
+      const isSel = c.toLowerCase() === cur;
+      return `<button type="button" class="sfe-color-cell${isSel ? " is-selected" : ""}"
+                      data-color="${ctx.esc(c)}"
+                      style="background:${ctx.esc(c)}"
+                      title="${ctx.esc(c)}"></button>`;
+    }).join("");
+    return;
+  }
   const presetCells = ctx.SNAP_FIL_COLOR_PRESETS.map(c => {
     const isSel = c.toLowerCase() === cur;
     return `<button type="button" class="sfe-color-cell${isSel ? " is-selected" : ""}"
@@ -992,15 +1067,18 @@ export function openFlashforgeFilamentEdit(printer, extruderIndex) {
                           : "Generic";
   _ffeSelectedMaterial = fil.type   || "PLA";
 
+  // Show the colour the printer actually reports for this slot, as-is — never
+  // override it (even on palette models). The default only applies when the
+  // slot has no valid colour at all.
+  const initialColor = (fil.color && /^#[0-9a-f]{6}/i.test(fil.color))
+                     ? fil.color.slice(0, 7) : "#FF5722";
+
   const colorInp = $("ffgColorInput");
-  if (colorInp) colorInp.value = (fil.color && /^#[0-9a-f]{6}/i.test(fil.color))
-                                  ? fil.color.slice(0, 7) : "#FF5722";
+  if (colorInp) colorInp.value = initialColor;
 
   $("ffgFilEditSub").textContent = "";
   $("ffgError").hidden = true;
 
-  const initialColor = (fil.color && /^#[0-9a-f]{6}/i.test(fil.color))
-                     ? fil.color.slice(0, 7) : "#FF5722";
   ffeRenderColorGrid(initialColor);
 
   const vendorList = $("ffgVendorList");
@@ -1033,11 +1111,236 @@ export function closeFlashforgeFilamentEdit() {
   _ffgFilEdit = null;
 }
 
+// ── Machine controls (HTTP /control) + file management ─────────────────────
+// All verified by capturing the FlashForge slicer against a real Creator 5 Pro
+// — see PROTOCOL §13.6 (light), §13.7 (job control), §13.8 (files).
+
+/** POST a /control command; logs it and returns the parsed JSON. */
+async function ffgControl(printer, payload, label) {
+  const base = ffgBaseUrl(printer?.ip);
+  if (!base) return { code: -2, message: "no ip" };
+  const body = { ...ffgAuthBody(printer), payload };
+  const conn = _ffgConns.get(ffgKey(printer));
+  if (conn) ffgLogPush(conn, "→", body, label || `POST ${base}/control  ${payload?.cmd || ""}`);
+  let resp;
+  try { resp = await window.electronAPI.ffgHttpPost(`${base}/control`, body); }
+  catch (e) { resp = { code: -2, message: String(e?.message || e) }; }
+  if (conn) ffgLogPush(conn, "←", resp);
+  return resp || { code: -2 };
+}
+
+/** Toggle the chamber/case light. Optimistic, reverts on failure. */
+export async function ffgSetLight(printer, on) {
+  const conn = _ffgConns.get(ffgKey(printer));
+  if (conn?.data) { conn.data.lightStatus = on ? "open" : "close"; ffgNotifyChange(conn, false); }
+  const resp = await ffgControl(printer,
+    { cmd: "lightControl_cmd", args: { status: on ? "open" : "close" } },
+    `POST /control  lightControl_cmd ${on ? "open" : "close"}`);
+  if (resp && resp.code !== 0 && resp.code !== undefined) {
+    if (conn?.data) { conn.data.lightStatus = on ? "close" : "open"; ffgNotifyChange(conn, false); }
+    try { ctx.toast(resp.message || ctx.t("ffgErrNetwork"), "error"); } catch (_) {}
+  }
+  return resp;
+}
+
+/** Pause / resume / stop the current print. action: "pause" | "continue" | "cancel". */
+export async function ffgJobControl(printer, action) {
+  return ffgControl(printer,
+    { cmd: "jobCtl_cmd", args: { jobID: "", action } },
+    `POST /control  jobCtl_cmd ${action}`);
+}
+
+/** List the printer's on-board gcode/3mf files. Returns string[] of filenames. */
+export async function ffgListFiles(printer) {
+  const base = ffgBaseUrl(printer?.ip);
+  if (!base) return [];
+  const conn = _ffgConns.get(ffgKey(printer));
+  if (conn) ffgLogPush(conn, "→", ffgAuthBody(printer), `POST ${base}/gcodeList`);
+  try {
+    const resp = await window.electronAPI.ffgHttpPost(`${base}/gcodeList`, ffgAuthBody(printer));
+    if (conn) ffgLogPush(conn, "←", resp);
+    return Array.isArray(resp?.gcodeList) ? resp.gcodeList : [];
+  } catch { return []; }
+}
+
+/** Fetch a file's thumbnail as a `data:image/png;base64,...` URL, or null. */
+export async function ffgFileThumb(printer, fileName) {
+  const base = ffgBaseUrl(printer?.ip);
+  if (!base) return null;
+  try {
+    const resp = await window.electronAPI.ffgHttpPost(`${base}/gcodeThumb`, { ...ffgAuthBody(printer), fileName });
+    return resp?.imageData ? `data:image/png;base64,${resp.imageData}` : null;
+  } catch { return null; }
+}
+
+/** Start printing an on-board file. Uses the slicer's default options. */
+export async function ffgPrintFile(printer, fileName, opts = {}) {
+  const base = ffgBaseUrl(printer?.ip);
+  if (!base) return { code: -2 };
+  const body = {
+    ...ffgAuthBody(printer),
+    fileName,
+    levelingBeforePrint:  opts.leveling !== false,
+    flowCalibration:      opts.flowCalibration !== false,
+    firstLayerInspection: opts.firstLayerInspection === true,
+    timeLapseVideo:       opts.timeLapse !== false,
+    useMatlStation:       opts.useMatlStation === true,
+    gcodeToolCnt:         opts.gcodeToolCnt || 0,
+    materialMappings:     Array.isArray(opts.materialMappings) ? opts.materialMappings : [],
+  };
+  const conn = _ffgConns.get(ffgKey(printer));
+  if (conn) ffgLogPush(conn, "→", body, `POST ${base}/printGcode  ${fileName}`);
+  let resp;
+  try { resp = await window.electronAPI.ffgHttpPost(`${base}/printGcode`, body); }
+  catch (e) { resp = { code: -2, message: String(e?.message || e) }; }
+  if (conn) ffgLogPush(conn, "←", resp);
+  return resp || { code: -2 };
+}
+
+/** Build the file-explorer bottom-sheet body from conn state. */
+function ffgRenderFileSheetBody(conn) {
+  const files   = conn?._files;
+  const loading = !!conn?._filesLoading;
+  const thumbs  = conn?._fileThumbs || {};
+  if (loading && !Array.isArray(files)) {
+    return `<div class="ffg-files-empty">${ctx.esc(ctx.t("invLoading") || "Loading…")}</div>`;
+  }
+  if (!Array.isArray(files) || files.length === 0) {
+    return `<div class="ffg-files-empty">${ctx.esc(ctx.t("ffgFilesEmpty") || "No files on printer")}</div>`;
+  }
+  return `<div class="ffg-files-list">` + files.map((f) => {
+    const thumb = thumbs[f];
+    const thumbStyle = thumb ? ` style="background-image:url('${ctx.esc(thumb)}')"` : "";
+    return `
+      <div class="ffg-file-row">
+        <div class="ffg-file-thumb"${thumbStyle}></div>
+        <div class="ffg-file-name" title="${ctx.esc(f)}">${ctx.esc(f)}</div>
+        <button type="button" class="ffg-file-print" data-ffg-file-print="${ctx.esc(f)}"
+                title="${ctx.esc(ctx.t("ffgFilePrint") || "Print")}">
+          <span class="icon icon-play icon-13"></span>
+        </button>
+      </div>`;
+  }).join("") + `</div>`;
+}
+
+let _ffgFileSheetKey = null; // key of the printer that opened the sheet
+
+/** Patch the open file-sheet body + refresh-spinner from conn state. */
+function _ffgUpdateFileSheet(conn) {
+  if (!conn || conn.key !== _ffgFileSheetKey) return;
+  const body = $("ffgFileSheetBody");
+  if (body) body.innerHTML = ffgRenderFileSheetBody(conn);
+  const refresh = $("ffgFileSheetRefresh");
+  if (refresh) refresh.classList.toggle("cre-file-refresh--loading", !!conn._filesLoading);
+}
+
+/**
+ * Refresh the on-board file list (+ thumbnails) into conn state and repaint the
+ * open file-sheet as it loads. Cached on `conn` so a re-open doesn't re-fetch.
+ */
+export async function ffgRefreshFiles(printer) {
+  const conn = _ffgConns.get(ffgKey(printer));
+  if (!conn || conn._filesLoading) return;
+  conn._filesLoading = true;
+  _ffgUpdateFileSheet(conn);
+  const files = await ffgListFiles(printer);
+  conn._files = files;
+  conn._fileThumbs = conn._fileThumbs || {};
+  // Thumbnails are best-effort; cap to avoid hammering the printer.
+  await Promise.all(files.slice(0, 30).map(async (f) => {
+    if (conn._fileThumbs[f] === undefined) {
+      conn._fileThumbs[f] = await ffgFileThumb(printer, f);
+    }
+  }));
+  conn._filesLoading = false;
+  _ffgUpdateFileSheet(conn);
+}
+
+/** Open the file-explorer bottom-sheet for a printer (auto-loads the list). */
+export function openFlashforgeFiles(printer) {
+  const conn = _ffgConns.get(ffgKey(printer));
+  if (!conn) return;
+  _ffgFileSheetKey = conn.key;
+  const body = $("ffgFileSheetBody");
+  if (body) body.innerHTML = ffgRenderFileSheetBody(conn);
+  $("ffgFileSheet")?.classList.add("open");
+  $("ffgFileSheet")?.setAttribute("aria-hidden", "false");
+  $("ffgFileSheetBackdrop")?.classList.add("open");
+  // Always refresh on open so the list is current (cached thumbs are reused).
+  ffgRefreshFiles(printer);
+}
+export function closeFlashforgeFiles() {
+  $("ffgFileSheet")?.classList.remove("open");
+  $("ffgFileSheet")?.setAttribute("aria-hidden", "true");
+  $("ffgFileSheetBackdrop")?.classList.remove("open");
+  _ffgFileSheetKey = null;
+}
+
+// ── Printer info modal (lifetime stats + machine specs) ─────────────────────
+
+function ffgFmtMinutes(min) {
+  const m = Math.max(0, Math.round(min || 0));
+  const h = Math.floor(m / 60);
+  return h > 0 ? `${h} h ${(m % 60).toString().padStart(2, "0")} min` : `${m} min`;
+}
+
+function ffgInfoRow(label, val) {
+  if (val === null || val === undefined || val === "") return "";
+  return `<div class="ffg-info-row"><span class="ffg-info-lbl">${ctx.esc(label)}</span><span class="ffg-info-val">${ctx.esc(String(val))}</span></div>`;
+}
+function ffgInfoSection(title, rows) {
+  const body = rows.filter(Boolean).join("");
+  return body ? `<div class="ffg-info-section"><div class="ffg-info-section-title">${ctx.esc(title)}</div>${body}</div>` : "";
+}
+
+function ffgRenderInfoBody(info) {
+  if (!info) return `<div class="ffg-files-empty">—</div>`;
+  const t = ctx.t;
+  const yn = (b) => (b ? "✓" : "—");
+  const stats = ffgInfoSection(t("ffgInfoStatsSection") || "Statistics", [
+    typeof info.cumFilament  === "number" ? ffgInfoRow(t("ffgInfoFilamentTotal")  || "Filament used", `${info.cumFilament.toFixed(2)} m`) : "",
+    typeof info.cumPrintTime === "number" ? ffgInfoRow(t("ffgInfoPrintTimeTotal") || "Print time",    ffgFmtMinutes(info.cumPrintTime))     : "",
+    typeof info.diskFree     === "number" ? ffgInfoRow(t("ffgInfoDiskFree")       || "Disk free",     `${info.diskFree.toFixed(1)} GB`)     : "",
+  ]);
+  const machine = ffgInfoSection(t("ffgInfoMachineSection") || "Machine", [
+    ffgInfoRow(t("ffgInfoModel")    || "Model",    info.model),
+    ffgInfoRow(t("ffgInfoFirmware") || "Firmware", info.firmware),
+    ffgInfoRow(t("ffgInfoNozzle")   || "Nozzle",   info.nozzleModel ? (info.nozzleCnt > 1 ? `${info.nozzleModel} ×${info.nozzleCnt}` : info.nozzleModel) : ""),
+    ffgInfoRow(t("ffgInfoVolume")   || "Build volume", info.measure ? `${info.measure.replace(/x/gi, "×")} mm` : ""),
+    ffgInfoRow(t("ffgInfoGroup")    || "Group",    info.location),
+    ffgInfoRow("IP",   info.ip),
+    ffgInfoRow("MAC",  info.mac),
+    ffgInfoRow("Lidar", yn(info.lidar)),
+    typeof info.tvoc === "number" ? ffgInfoRow("TVOC", String(info.tvoc)) : "",
+    ffgInfoRow(t("ffgInfoAutoShutdown") || "Auto shutdown", yn(info.autoShutdown)),
+    typeof info.zComp === "number" ? ffgInfoRow(t("ffgInfoZComp") || "Z offset", `${info.zComp} mm`) : "",
+  ]);
+  return stats + machine;
+}
+
+export function openFlashforgeInfo(printer) {
+  const conn = _ffgConns.get(ffgKey(printer));
+  const body = $("ffgInfoBody");
+  if (body) body.innerHTML = ffgRenderInfoBody(conn?.data?.info);
+  $("ffgInfoOverlay")?.classList.add("open");
+}
+export function closeFlashforgeInfo() {
+  $("ffgInfoOverlay")?.classList.remove("open");
+}
+
 // ── DOM event wiring ──────────────────────────────────────────────────────
 
 // (Delegated where useful so re-rendered nodes stay live)
 $("ffgFilEditClose")?.addEventListener("click", closeFlashforgeFilamentEdit);
 $("ffgFilEditBackdrop")?.addEventListener("click", closeFlashforgeFilamentEdit);
+$("ffgInfoClose")?.addEventListener("click", closeFlashforgeInfo);
+$("ffgInfoOverlay")?.addEventListener("click", (e) => { if (e.target.id === "ffgInfoOverlay") closeFlashforgeInfo(); });
+$("ffgFileSheetClose")?.addEventListener("click", closeFlashforgeFiles);
+$("ffgFileSheetBackdrop")?.addEventListener("click", closeFlashforgeFiles);
+$("ffgFileSheetRefresh")?.addEventListener("click", () => {
+  const p = ctx.getActivePrinter?.();
+  if (p && p.brand === "flashforge") ffgRefreshFiles(p);
+});
 
 $("ffgOpenFilament")?.addEventListener("click", () => {
   ffeOpenFilamentSheet();

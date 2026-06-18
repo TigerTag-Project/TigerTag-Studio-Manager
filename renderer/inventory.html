@@ -606,6 +606,35 @@
   </div>
 </aside>
 
+<!-- ─── FlashForge printer-info modal (stats + machine specs) ──────── -->
+<div class="modal-overlay" id="ffgInfoOverlay">
+  <div class="modal-card ffg-info-card">
+    <div class="modal-header">
+      <span class="modal-title" data-i18n="ffgInfoTitle">Printer info</span>
+      <button class="panel-close" id="ffgInfoClose">✕</button>
+    </div>
+    <div class="ffg-info-body" id="ffgInfoBody"></div>
+  </div>
+</div>
+
+<!-- ─── FlashForge file-explorer bottom sheet ─────────────────────── -->
+<div class="sfe-backdrop" id="ffgFileSheetBackdrop"></div>
+<aside class="sfe-sheet sfe-sheet--files" id="ffgFileSheet" aria-hidden="true">
+  <div class="sfe-grip" aria-hidden="true"></div>
+  <header class="sfe-screen-head sfe-screen-head--right">
+    <div class="sfe-screen-head-text">
+      <div class="sfe-title" data-i18n="ffgFilesTitle">Files</div>
+    </div>
+    <div style="display:flex;gap:6px;align-items:center">
+      <button type="button" class="cre-file-refresh" id="ffgFileSheetRefresh" title="">
+        <span class="icon icon-refresh icon-13"></span>
+      </button>
+      <button class="modal-close" id="ffgFileSheetClose">✕</button>
+    </div>
+  </header>
+  <div class="sfe-body sfe-body--files" id="ffgFileSheetBody"></div>
+</aside>
+
 <!-- ─── Creality file-explorer bottom sheet ──────────────────────── -->
 <div class="sfe-backdrop" id="creFileSheetBackdrop"></div>
 <aside class="sfe-sheet sfe-sheet--files" id="creFileSheet" aria-hidden="true">

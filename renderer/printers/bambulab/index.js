@@ -310,7 +310,7 @@ export function bambuFanPct(conn, fan) {
 /** Set a heater target. which = "nozzle" | "bed" | "chamber". The chamber
  *  setpoint (heated-chamber models, e.g. H2C/H2D) uses `M141`; there is no
  *  chamber target reported in telemetry, so we keep it optimistically. */
-export function bambuSetTemp(conn, which, value) {
+export function bambuSetTemp(conn, which, value, nozzleId) {
   if (!conn) return;
   const v = Math.max(0, Math.round(Number(value) || 0));
   if (which === "chamber") {
@@ -326,7 +326,10 @@ export function bambuSetTemp(conn, which, value) {
     _bblNotify(conn);
     return;
   }
-  _bblGcode(conn, which === "bed" ? `M140 S${v}` : `M104 S${v}`);
+  if (which === "bed") { _bblGcode(conn, `M140 S${v}`); return; }
+  // Nozzle — on a dual-head H2 machine, target a specific head (M104 T{id});
+  // a single-nozzle machine (no id passed) uses plain M104.
+  _bblGcode(conn, (nozzleId === 0 || nozzleId === 1) ? `M104 T${nozzleId} S${v}` : `M104 S${v}`);
 }
 
 /** Set the print-speed level. mode = 1 (Silent) | 2 (Standard) | 3 (Sport) | 4 (Ludicrous). */
@@ -543,15 +546,23 @@ function _bblMerge(conn, msg) {
   // ── Temperatures (new-firmware packed 32-bit first, then fallback) ──
   const dev = p.device;
   if (dev) {
-    // Nozzle
+    // Nozzle(s). H2-series report TWO extruders (id 0 = right, id 1 = left);
+    // single-nozzle models report one (id 0). Keep them all + the active index
+    // (extruder.state bits 4-7), and mirror the active one into the legacy
+    // single-nozzle fields for back-compat.
     const ext = dev.extruder;
     if (ext?.info && Array.isArray(ext.info)) {
       const state = typeof ext.state === "number" ? ext.state : null;
       const activeIdx = state !== null ? (state >> 4) & 0xF : null;
-      const nozzle = (activeIdx !== null && ext.info.find(e => e?.id === activeIdx)) || ext.info[0];
-      if (nozzle?.temp != null) {
-        const t = _decodePackedTemp32(nozzle.temp);
-        d.nozzleCurrent = t.current; d.nozzleTarget = t.target;
+      const list = ext.info
+        .filter(e => e && (e.id === 0 || e.id === 1) && e.temp != null)
+        .map(e => { const t = _decodePackedTemp32(e.temp); return { id: e.id, current: t.current, target: t.target }; })
+        .sort((a, b) => a.id - b.id);
+      if (list.length) {
+        d.nozzles = list;
+        d.activeNozzle = activeIdx;
+        const act = list.find(n => n.id === activeIdx) || list[0];
+        d.nozzleCurrent = act.current; d.nozzleTarget = act.target;
       }
     }
     // Bed
