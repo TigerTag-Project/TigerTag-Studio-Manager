@@ -39,19 +39,40 @@ function _b64ToBytes(b64) {
   catch (_) { return null; }
 }
 
-function _container(key) {
+function _containers(key) {
   const sel = (window.CSS && CSS.escape) ? CSS.escape(key) : key;
-  return document.querySelector(`.acu-cam-agora[data-acu-key="${sel}"]`);
+  return document.querySelectorAll(`.acu-cam-agora[data-acu-key="${sel}"]`);
 }
 
-// Play the remote track into the current container if it isn't already there.
+// Render the remote track into EVERY container for this printer — the side panel
+// AND the cam wall simultaneously. A WebRTC track can't be Agora-`.play()`-ed
+// into more than one element, so we feed the underlying MediaStreamTrack to a
+// <video srcObject> in each container — mirroring how the LAN <img> path fans
+// frames out to all matching elements (so the camera shows in both places).
 function _attach(key) {
   const st = _players.get(key);
   if (!st || !st.track) return;
-  const el = _container(key);
-  if (!el || el.querySelector('video')) return;   // no surface, or already attached
-  try { st.track.play(el, { fit: 'cover' }); } catch (_) { return; }
-  if (!st.live) { st.live = true; try { _onLive && _onLive(key); } catch (_) {} }
+  const mst = st.track.getMediaStreamTrack ? st.track.getMediaStreamTrack() : null;
+  if (!mst) return;
+  const containers = _containers(key);
+  if (!containers.length) return;
+  let shown = false;
+  containers.forEach(container => {
+    let video = container.querySelector('video');
+    if (!video) {
+      video = document.createElement('video');
+      video.autoplay = true; video.muted = true;
+      video.setAttribute('playsinline', '');
+      container.appendChild(video);
+    }
+    const cur = video.srcObject;
+    const already = cur && cur.getVideoTracks && cur.getVideoTracks().indexOf(mst) !== -1;
+    if (!already) {
+      try { video.srcObject = new MediaStream([mst]); const pr = video.play && video.play(); if (pr && pr.catch) pr.catch(() => {}); } catch (_) {}
+    }
+    shown = true;
+  });
+  if (shown && !st.live) { st.live = true; try { _onLive && _onLive(key); } catch (_) {} }
 }
 
 function _ensureHeal() {
@@ -59,15 +80,28 @@ function _ensureHeal() {
   _heal = setInterval(() => { for (const key of _players.keys()) _attach(key); }, 800);
 }
 
-/** Join the Agora channel for `key` and start rendering. Idempotent per key. */
-export async function acuAgoraStart(key, creds) {
+function _applyEncryption(client, creds) {
+  if (!creds.encKey || !creds.encMode) return;
+  const mode = String(creds.encMode).toLowerCase().replace(/_/g, '-'); // AES_256_GCM2 → aes-256-gcm2
+  const salt = _b64ToBytes(creds.encSalt);
+  try { client.setEncryptionConfig(mode, creds.encKey, salt || undefined); }
+  catch (e) { console.warn('[acu-agora] setEncryptionConfig:', e && e.message); }
+}
+
+/**
+ * Join the Agora channel for `key` and start rendering. Idempotent per key.
+ * `renew` (optional) — an async fn returning a fresh creds object (a new
+ * `cameraOpen`), used to keep the short-lived order-1001 RTC token alive on
+ * long viewing sessions.
+ */
+export async function acuAgoraStart(key, creds, renew) {
   const A = _sdk();
   if (!A) { console.warn('[acu-agora] AgoraRTC SDK not loaded — cloud camera unavailable'); return false; }
   if (_players.has(key)) return true;
   if (!creds || !creds.appId || !creds.channel) return false;
 
   const client = A.createClient({ mode: 'rtc', codec: 'vp8' });
-  const st = { client, track: null, live: false };
+  const st = { client, track: null, live: false, renew: renew || null };
   _players.set(key, st);
   _ensureHeal();
 
@@ -78,13 +112,13 @@ export async function acuAgoraStart(key, creds) {
   };
   client.on('user-published', onPub);
   client.on('user-unpublished', (user, mediaType) => { if (mediaType === 'video' && _players.get(key) === st) st.track = null; });
+  // The order-1001 RTC token is short-lived: renew it ~30 s ahead (will-expire)
+  // without dropping the stream, or re-join if it lapsed entirely (did-expire).
+  client.on('token-privilege-will-expire', () => _renewToken(key, false));
+  client.on('token-privilege-did-expire',  () => _renewToken(key, true));
 
   try {
-    if (creds.encKey && creds.encMode) {
-      const mode = String(creds.encMode).toLowerCase().replace(/_/g, '-'); // AES_256_GCM2 → aes-256-gcm2
-      const salt = _b64ToBytes(creds.encSalt);
-      try { client.setEncryptionConfig(mode, creds.encKey, salt || undefined); } catch (e) { console.warn('[acu-agora] setEncryptionConfig:', e && e.message); }
-    }
+    _applyEncryption(client, creds);
     await client.join(creds.appId, creds.channel, creds.rtcToken || null, creds.clientUid);
     // The printer is usually already publishing when we join — subscribe to it.
     for (const u of client.remoteUsers) {
@@ -100,11 +134,31 @@ export async function acuAgoraStart(key, creds) {
   return true;
 }
 
+// Refresh the RTC token via the renew fn (a fresh cameraOpen). `rejoin` = the
+// token already lapsed (did-expire) → re-apply encryption + re-join; otherwise
+// (will-expire) renew in place without interrupting the stream.
+async function _renewToken(key, rejoin) {
+  const st = _players.get(key);
+  if (!st || !st.renew) return;
+  let fresh = null;
+  try { fresh = await st.renew(); } catch (_) {}
+  if (!fresh || !fresh.rtcToken || _players.get(key) !== st) return;
+  try {
+    if (rejoin) {
+      _applyEncryption(st.client, fresh);
+      await st.client.join(fresh.appId, fresh.channel, fresh.rtcToken, fresh.clientUid);
+    } else {
+      await st.client.renewToken(fresh.rtcToken);
+    }
+  } catch (e) { console.warn('[acu-agora] token renew failed:', e && e.message); }
+}
+
 /** Leave the channel and tear down the player for `key`. */
 export async function acuAgoraStop(key) {
   const st = _players.get(key);
   if (!st) return;
   _players.delete(key);
+  _relayDropVideo(key);
   try { st.track && st.track.stop(); } catch (_) {}
   try { await st.client.leave(); } catch (_) {}
   if (_players.size === 0 && _heal) { clearInterval(_heal); _heal = null; }
@@ -114,3 +168,78 @@ export async function acuAgoraStop(key) {
 export function acuAgoraActive(key) { return _players.has(key); }
 /** True once a remote video track is actually playing for `key`. */
 export function acuAgoraLive(key) { const st = _players.get(key); return !!(st && st.live); }
+
+// ── Detached-window frame relay (single client → JPEG over BroadcastChannel) ──
+// A second Agora client (in the detached window) would reuse the same subscriber
+// uid the cloud hands out and kick THIS one. So instead we capture this client's
+// video to JPEG and broadcast it; the detached window renders the frames. It asks
+// via periodic 'want' pings, which gate the capture and — via the callbacks below
+// — start the player when the wall isn't open and stop it when nothing needs it.
+const _relayBC = (typeof BroadcastChannel !== 'undefined') ? new BroadcastChannel('acu-cam') : null;
+const _relayWant = new Map();    // key → last 'want' timestamp
+const _relayVideos = new Map();  // key → hidden <video> capture source
+let _relayCanvas = null;
+let _relayTimer = null;
+let _onRelayWant = null, _onRelayEnd = null;
+const RELAY_TTL = 2500;
+
+/** Register: detached window wants `key` but no player exists → start one. */
+export function acuAgoraOnRelayWant(cb) { _onRelayWant = cb; }
+/** Register: detached window stopped wanting `key` → stop the player if unneeded. */
+export function acuAgoraOnRelayEnd(cb)  { _onRelayEnd = cb; }
+/** True while the detached window is actively asking for this printer's frames. */
+export function acuAgoraRelaying(key) { const t = _relayWant.get(key); return !!t && (Date.now() - t) < RELAY_TTL; }
+
+if (_relayBC) {
+  _relayBC.onmessage = ({ data }) => {
+    if (!data || data.type !== 'want' || !data.key) return;
+    const fresh = !acuAgoraRelaying(data.key);
+    _relayWant.set(data.key, Date.now());
+    if (fresh && !_players.has(data.key)) { try { _onRelayWant && _onRelayWant(data.key); } catch (_) {} }
+    if (!_relayTimer) _relayTimer = setInterval(_relayTick, 160); // ~6 fps
+  };
+}
+
+function _relayCapVideo(key, track) {
+  let v = _relayVideos.get(key);
+  if (v) return v;
+  const mst = track && track.getMediaStreamTrack ? track.getMediaStreamTrack() : null;
+  if (!mst) return null;
+  v = document.createElement('video');
+  v.muted = true; v.autoplay = true; v.setAttribute('playsinline', '');
+  v.style.cssText = 'position:fixed;left:-10000px;top:0;width:2px;height:2px;opacity:0;pointer-events:none';
+  try { v.srcObject = new MediaStream([mst]); v.play().catch(() => {}); } catch (_) { return null; }
+  document.body.appendChild(v);
+  _relayVideos.set(key, v);
+  return v;
+}
+
+function _relayDropVideo(key) {
+  const v = _relayVideos.get(key);
+  if (v) { try { v.srcObject = null; v.remove(); } catch (_) {} _relayVideos.delete(key); }
+}
+
+function _relayTick() {
+  const now = Date.now();
+  let active = false;
+  for (const key of [..._relayWant.keys()]) {
+    if ((now - _relayWant.get(key)) >= RELAY_TTL) {   // detached window stopped asking
+      _relayWant.delete(key); _relayDropVideo(key);
+      try { _onRelayEnd && _onRelayEnd(key); } catch (_) {}
+      continue;
+    }
+    active = true;
+    const st = _players.get(key);
+    if (!st || !st.track) continue;                   // player not (yet) live
+    const v = _relayCapVideo(key, st.track);
+    if (!v || v.readyState < 2 || !v.videoWidth) continue;
+    if (!_relayCanvas) _relayCanvas = document.createElement('canvas');
+    if (_relayCanvas.width !== v.videoWidth)   _relayCanvas.width  = v.videoWidth;
+    if (_relayCanvas.height !== v.videoHeight) _relayCanvas.height = v.videoHeight;
+    try {
+      _relayCanvas.getContext('2d').drawImage(v, 0, 0);
+      _relayBC.postMessage({ type: 'frame', key, dataUrl: _relayCanvas.toDataURL('image/jpeg', 0.55) });
+    } catch (_) {}
+  }
+  if (!active) { clearInterval(_relayTimer); _relayTimer = null; }
+}
