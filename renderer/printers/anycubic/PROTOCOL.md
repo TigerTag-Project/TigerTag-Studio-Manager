@@ -568,16 +568,22 @@ video → `track.play()` into the `.acu-cam-agora` banner container
 `AgoraRTC.join`; the creds arrive over the cloud-MQTT native bridge, so the
 order response is the source).
 
-**Scope:** side panel **and cam wall** (both use the shared `renderCamBanner` +
-`acuConnect`-no-skipCam path; `acuReleaseCloudCameras()` leaves the Agora
-channels when you exit the wall, so we don't stay joined off-screen). The
-**detached cam window** is still LAN-FLV only — it renders JPEG frames pushed
-over IPC, whereas Agora is WebRTC in the main renderer, so supporting it means
-running the Agora SDK in that separate window (a follow-up). The stream is
-media-encrypted (AES‑256‑GCM2); the SDK handles it from the order's key/salt.
+**Scope:** side panel, cam wall, **and the detached cam window** — all surfaces.
+Side panel + cam wall use the shared `renderCamBanner` + `acuConnect`-no-skipCam
+path (`acuReleaseCloudCameras()` leaves the Agora channels when you exit the
+wall). The **detached cam window** can't run its own Agora client: the cloud
+reuses the **same subscriber `client_uid`** per `cameraOpen`, so a second client
+kicks the main one (Agora boots a duplicate uid). Instead, the main renderer's
+**single** Agora client captures its video to JPEG (~6 fps canvas grab) and
+relays the frames over `BroadcastChannel('acu-cam')`; the detached window's
+`acu_bc` cam type (`renderer/cam/cam.js`) renders them as an `<img>` — the same
+pattern as FlashForge's `ffg_bc`. The detached window asks with periodic 'want'
+pings, which gate the capture and (via `acuAgoraOnRelayWant`/`OnRelayEnd`) keep
+the player alive while detached and stop it when nothing on-screen needs it.
+The stream is media-encrypted (AES‑256‑GCM2); the SDK decrypts it before capture.
 
 ### Limits (cloud)
 - `setInfo` honors only `{index, type, color}` (same as LAN).
 - **Token expires** → occasional re-provision (the slicer in bridge mode again).
-- Camera: Agora WebRTC (§9b) — side panel + cam wall (detached window still LAN-FLV); needs the Agora SDK + the per-session order-1001 creds.
+- Camera: Agora WebRTC (§9b) — side panel + cam wall + detached window; needs the Agora SDK + the per-session order-1001 creds.
 - Dev validators: `scripts/acu-cloud-test.mjs` (full path), `acu-mqtt-sniff.mjs`.

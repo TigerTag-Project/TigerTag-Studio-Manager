@@ -126,6 +126,7 @@ export async function acuAgoraStop(key) {
   const st = _players.get(key);
   if (!st) return;
   _players.delete(key);
+  _relayDropVideo(key);
   try { st.track && st.track.stop(); } catch (_) {}
   try { await st.client.leave(); } catch (_) {}
   if (_players.size === 0 && _heal) { clearInterval(_heal); _heal = null; }
@@ -135,3 +136,78 @@ export async function acuAgoraStop(key) {
 export function acuAgoraActive(key) { return _players.has(key); }
 /** True once a remote video track is actually playing for `key`. */
 export function acuAgoraLive(key) { const st = _players.get(key); return !!(st && st.live); }
+
+// ── Detached-window frame relay (single client → JPEG over BroadcastChannel) ──
+// A second Agora client (in the detached window) would reuse the same subscriber
+// uid the cloud hands out and kick THIS one. So instead we capture this client's
+// video to JPEG and broadcast it; the detached window renders the frames. It asks
+// via periodic 'want' pings, which gate the capture and — via the callbacks below
+// — start the player when the wall isn't open and stop it when nothing needs it.
+const _relayBC = (typeof BroadcastChannel !== 'undefined') ? new BroadcastChannel('acu-cam') : null;
+const _relayWant = new Map();    // key → last 'want' timestamp
+const _relayVideos = new Map();  // key → hidden <video> capture source
+let _relayCanvas = null;
+let _relayTimer = null;
+let _onRelayWant = null, _onRelayEnd = null;
+const RELAY_TTL = 2500;
+
+/** Register: detached window wants `key` but no player exists → start one. */
+export function acuAgoraOnRelayWant(cb) { _onRelayWant = cb; }
+/** Register: detached window stopped wanting `key` → stop the player if unneeded. */
+export function acuAgoraOnRelayEnd(cb)  { _onRelayEnd = cb; }
+/** True while the detached window is actively asking for this printer's frames. */
+export function acuAgoraRelaying(key) { const t = _relayWant.get(key); return !!t && (Date.now() - t) < RELAY_TTL; }
+
+if (_relayBC) {
+  _relayBC.onmessage = ({ data }) => {
+    if (!data || data.type !== 'want' || !data.key) return;
+    const fresh = !acuAgoraRelaying(data.key);
+    _relayWant.set(data.key, Date.now());
+    if (fresh && !_players.has(data.key)) { try { _onRelayWant && _onRelayWant(data.key); } catch (_) {} }
+    if (!_relayTimer) _relayTimer = setInterval(_relayTick, 160); // ~6 fps
+  };
+}
+
+function _relayCapVideo(key, track) {
+  let v = _relayVideos.get(key);
+  if (v) return v;
+  const mst = track && track.getMediaStreamTrack ? track.getMediaStreamTrack() : null;
+  if (!mst) return null;
+  v = document.createElement('video');
+  v.muted = true; v.autoplay = true; v.setAttribute('playsinline', '');
+  v.style.cssText = 'position:fixed;left:-10000px;top:0;width:2px;height:2px;opacity:0;pointer-events:none';
+  try { v.srcObject = new MediaStream([mst]); v.play().catch(() => {}); } catch (_) { return null; }
+  document.body.appendChild(v);
+  _relayVideos.set(key, v);
+  return v;
+}
+
+function _relayDropVideo(key) {
+  const v = _relayVideos.get(key);
+  if (v) { try { v.srcObject = null; v.remove(); } catch (_) {} _relayVideos.delete(key); }
+}
+
+function _relayTick() {
+  const now = Date.now();
+  let active = false;
+  for (const key of [..._relayWant.keys()]) {
+    if ((now - _relayWant.get(key)) >= RELAY_TTL) {   // detached window stopped asking
+      _relayWant.delete(key); _relayDropVideo(key);
+      try { _onRelayEnd && _onRelayEnd(key); } catch (_) {}
+      continue;
+    }
+    active = true;
+    const st = _players.get(key);
+    if (!st || !st.track) continue;                   // player not (yet) live
+    const v = _relayCapVideo(key, st.track);
+    if (!v || v.readyState < 2 || !v.videoWidth) continue;
+    if (!_relayCanvas) _relayCanvas = document.createElement('canvas');
+    if (_relayCanvas.width !== v.videoWidth)   _relayCanvas.width  = v.videoWidth;
+    if (_relayCanvas.height !== v.videoHeight) _relayCanvas.height = v.videoHeight;
+    try {
+      _relayCanvas.getContext('2d').drawImage(v, 0, 0);
+      _relayBC.postMessage({ type: 'frame', key, dataUrl: _relayCanvas.toDataURL('image/jpeg', 0.55) });
+    } catch (_) {}
+  }
+  if (!active) { clearInterval(_relayTimer); _relayTimer = null; }
+}

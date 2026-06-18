@@ -32,7 +32,8 @@ import { registerBrand } from '../registry.js';
 import { meta, schema, helper } from './settings.js';
 import { renderAcuFilamentCard, renderAcuJobCard, renderAcuTempCard, renderAcuControlCard } from './cards.js';
 import { schemaWidget } from '../modal-helpers.js';
-import { acuAgoraStart, acuAgoraStop, acuAgoraActive, acuAgoraOnLive } from './agora-cam.js';
+import { acuAgoraStart, acuAgoraStop, acuAgoraActive, acuAgoraOnLive,
+         acuAgoraRelaying, acuAgoraOnRelayWant, acuAgoraOnRelayEnd } from './agora-cam.js';
 
 const $ = id => document.getElementById(id);
 
@@ -54,6 +55,22 @@ acuAgoraOnLive((key) => {
   // so the re-render below includes it.
   if (conn.status !== "connected") conn.status = "connected";
   ctx.onPrinterStatusChange?.(key, "connected");
+});
+
+// Detached cam window relay: it can't run its own Agora client (the cloud reuses
+// the subscriber uid, which would kick the main client), so it asks the main
+// window to capture + relay frames. Start the player if nothing else has, and
+// stop it once the detached window stops asking and no on-screen surface wants it.
+acuAgoraOnRelayWant((key) => {
+  const conn = _acuConns.get(key);
+  if (conn && conn.mode === "cloud") _acuCloudRequestCamera(conn);
+});
+acuAgoraOnRelayEnd((key) => {
+  const conn = _acuConns.get(key);
+  if (conn && conn.mode === "cloud" && !conn.data.camWanted) {
+    conn.data.camLive = false;
+    acuAgoraStop(key);
+  }
 });
 
 // Re-query the layout this often while connected — keeps the slot colors in
@@ -504,6 +521,7 @@ export function acuReleaseCloudCameras() {
   for (const conn of _acuConns.values()) {
     if (conn.mode !== "cloud" || conn.key === activeKey) continue;
     conn.data.camWanted = false;
+    if (acuAgoraRelaying(conn.key)) continue; // detached window still needs the feed
     conn.data.camLive = false;
     acuAgoraStop(conn.key);
   }
