@@ -264,6 +264,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // { ok: true } when the port accepts a connection, { ok: false, error } otherwise.
   creTcpProbe: (ip) => ipcRenderer.invoke('cre:tcp-probe', ip),
 
+  // ── Creality Moonraker HTTP (port 7125) — gcode/script, print-start, delete.
+  // The K-series runs Klipper+Moonraker, which sends NO CORS headers, so a
+  // renderer fetch() is blocked (preflight 405 / unreadable response). Node's
+  // fetch() in main is CORS-exempt — same reason as snapHttpGet. method is
+  // GET|POST|DELETE; query is an optional object appended as a query string.
+  // Returns { ok, status, json } | { ok:false, status:0, error }.
+  creHttp: (ip, method, path, query, timeoutMs) =>
+    ipcRenderer.invoke('cre:http', ip, method, path, query, timeoutMs),
+
   // ── Bambu Lab SSDP discovery — multicast 239.255.255.250:1900.
   // Sends an M-SEARCH (twice, 120 ms apart) and listens 4 s for replies +
   // unsolicited NOTIFYs. Returns { ok, candidates: [{ip, serial, model, name,

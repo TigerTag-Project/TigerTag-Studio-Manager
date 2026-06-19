@@ -93,8 +93,9 @@ import {
   creGetConn,
   openCreFilamentEdit, closeCreFilamentEdit,
   openCreFileSheet, closeCreFileSheet,
-  creActionLed, creActionPause, creActionStop,
+  creActionLed, creActionPause, creActionStop, creActionFeed, creActionFan,
   creLoadFileList, creActionPrintFile, creActionDeleteFile,
+  creGcode, renderCreControlBlock, renderCreFilamentBlock,
 } from './printers/creality/index.js';
 import {
   elegooKey, elegooGetConn, elegooIsOnline,
@@ -10578,6 +10579,35 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         return;
       }
     }
+    if (_activePrinter?.brand === "creality") {
+      const stepSel = e.target.closest("[data-cre-ctrl-step]");
+      if (stepSel) {
+        const s = parseFloat(stepSel.value);
+        const conn = creGetConn(creKey(_activePrinter));
+        if (!isNaN(s) && conn) {
+          conn._ctrlStep = s;
+          const ctrlEl = document.getElementById("creCtrlBlock");
+          if (ctrlEl) ctrlEl.innerHTML = renderCreControlBlock(_activePrinter);
+        }
+        return;
+      }
+      // Fan slider released → commit the speed (M106 via creActionFan).
+      const fanSlider = e.target.closest("[data-cre-fan-slider]");
+      if (fanSlider) {
+        const pct = parseInt(fanSlider.value, 10);
+        if (!isNaN(pct)) creActionFan(_activePrinter, fanSlider.dataset.creFanSlider, pct);
+        return;
+      }
+    }
+  });
+
+  // Fan slider live drag → update only the % readout (no WS spam; commit fires on release).
+  document.addEventListener("input", e => {
+    const fanSlider = e.target.closest("[data-cre-fan-slider]");
+    if (fanSlider && _activePrinter?.brand === "creality") {
+      const pctEl = document.querySelector(`[data-cre-fan-pct="${fanSlider.dataset.creFanSlider}"]`);
+      if (pctEl) pctEl.textContent = `${fanSlider.value}%`;
+    }
   });
 
   // ── Snapmaker file sheet + print controls ────────────────────────────────
@@ -11629,7 +11659,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           }
           return;
         }
-        // Creality — filament edit
+        // Creality — filament edit (pencil button only)
         const creFilTrigger = e.target.closest("[data-cre-fil-edit]");
         if (creFilTrigger) {
           const card    = creFilTrigger.closest(".snap-fil");
@@ -11638,6 +11668,33 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           if (boxId >= 0 && slotIdx >= 0 && _activePrinter?.brand === "creality") {
             openCreFilamentEdit(_activePrinter, boxId, slotIdx);
           }
+          return;
+        }
+        // Creality — filament SELECT (clicking the square sets the active filament,
+        // the context for feed / retract). Edit is the pencil above, checked first.
+        const creFilSelect = e.target.closest("[data-cre-fil-select]");
+        if (creFilSelect && _activePrinter?.brand === "creality") {
+          const boxId   = parseInt(creFilSelect.dataset.boxId   ?? "-1", 10);
+          const slotIdx = parseInt(creFilSelect.dataset.slotIdx ?? "-1", 10);
+          const conn    = creGetConn(creKey(_activePrinter));
+          if (conn && boxId >= 0 && slotIdx >= 0) {
+            conn._selFil = `${boxId}:${slotIdx}`;
+            const block = document.getElementById("creFilBlock");
+            if (block) block.innerHTML = renderCreFilamentBlock(_activePrinter);
+          }
+          return;
+        }
+        // Creality — CFS Feed / Unload of the selected slot (feedInOrOut WS command).
+        const creFeedBtn = e.target.closest("[data-cre-feed]");
+        if (creFeedBtn && _activePrinter?.brand === "creality") {
+          e.preventDefault(); e.stopPropagation();
+          creActionFeed(_activePrinter, creFeedBtn.dataset.boxId, creFeedBtn.dataset.matId, 1);
+          return;
+        }
+        const creUnloadBtn = e.target.closest("[data-cre-unload]");
+        if (creUnloadBtn && _activePrinter?.brand === "creality") {
+          e.preventDefault(); e.stopPropagation();
+          creActionFeed(_activePrinter, creUnloadBtn.dataset.boxId, creUnloadBtn.dataset.matId, 0);
           return;
         }
         // Elegoo — filament edit (tray slot squares)
@@ -12134,6 +12191,109 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           e.stopPropagation();
           if (!_activePrinter || _activePrinter.brand !== "creality") return;
           if (creActionTrigger.dataset.creAction === "led") creActionLed(_activePrinter);
+          return;
+        }
+
+        // ── Creality Control card (Moonraker G-code) ────────────────────────
+        if (_activePrinter?.brand === "creality") {
+          // Jog: [data-cre-ctrl-jog="x|y|z"] [data-dist="±N"]
+          const creJog = e.target.closest("[data-cre-ctrl-jog]");
+          if (creJog) {
+            e.preventDefault(); e.stopPropagation();
+            const axis = creJog.dataset.creCtrlJog?.toUpperCase();
+            const dist = parseFloat(creJog.dataset.dist);
+            if (axis && !isNaN(dist)) {
+              const fr = axis === "Z" ? 600 : 6000;
+              creGcode(_activePrinter, `G91\nG1 ${axis}${dist} F${fr}\nG90`, `jog ${axis}${dist}`);
+            }
+            return;
+          }
+          // Home: [data-cre-ctrl-home="" | "X" | "Y" | "Z"]  ("" = all axes)
+          const creHome = e.target.closest("[data-cre-ctrl-home]");
+          if (creHome) {
+            e.preventDefault(); e.stopPropagation();
+            const axes = (creHome.dataset.creCtrlHome || "").trim().toUpperCase();
+            creGcode(_activePrinter, `G28 ${axes}`.trim(), `home ${axes || "all"}`);
+            return;
+          }
+          // Extrude / retract: [data-cre-ctrl-extrude] [data-dist="±N"]
+          const creExtrude = e.target.closest("[data-cre-ctrl-extrude]");
+          if (creExtrude) {
+            e.preventDefault(); e.stopPropagation();
+            const dist = parseFloat(creExtrude.dataset.dist);
+            if (!isNaN(dist)) creGcode(_activePrinter, `M83\nG1 E${dist} F300`, `extrude ${dist}`);
+            return;
+          }
+          // Disable steppers: [data-cre-ctrl-disable]
+          const creDisable = e.target.closest("[data-cre-ctrl-disable]");
+          if (creDisable) {
+            e.preventDefault(); e.stopPropagation();
+            creGcode(_activePrinter, "M84", "disable motors");
+            return;
+          }
+          // Fan toggle (icon): [data-cre-fan-toggle="modelFanPct|caseFanPct|auxiliaryFanPct"]
+          const creFanToggle = e.target.closest("[data-cre-fan-toggle]");
+          if (creFanToggle) {
+            e.preventDefault(); e.stopPropagation();
+            const key  = creFanToggle.dataset.creFanToggle;
+            const conn = creGetConn(creKey(_activePrinter));
+            if (conn && key) {
+              const cur = conn.data[key] ?? 0;
+              creActionFan(_activePrinter, key, cur > 0 ? 0 : 100);
+            }
+            return;
+          }
+        }
+
+        // Creality — inline target-temperature edit: [data-cre-set-temp="nozzle|bed|chamber"]
+        const creTempPill = e.target.closest("[data-cre-set-temp]");
+        if (creTempPill && _activePrinter?.brand === "creality") {
+          e.preventDefault(); e.stopPropagation();
+          if (creTempPill.dataset.editing === "1") return;       // already editing
+          const field = creTempPill.dataset.creSetTemp;          // "nozzle" | "bed" | "chamber"
+          const conn  = creGetConn(creKey(_activePrinter));
+          if (!conn || conn.status !== "connected") return;
+          const d = conn.data;
+          const curMap = { nozzle: d.nozzleTarget, bed: d.bedTarget, chamber: d.chamberTarget };
+          const maxMap = { nozzle: 320, bed: 120, chamber: 60 };
+          const curMax = maxMap[field] ?? 300;
+          const valSpan = creTempPill.querySelector(".snap-temp-val");
+          if (!valSpan) return;
+
+          creTempPill.dataset.editing = "1";
+          const input = document.createElement("input");
+          input.type      = "number";
+          input.className = "snap-temp-input";
+          input.value     = Math.round(curMap[field] ?? 0);
+          input.min       = 0;
+          input.max       = curMax;
+          valSpan.replaceWith(input);
+          input.focus();
+          input.select();
+
+          const commit = () => {
+            delete creTempPill.dataset.editing;
+            const val = parseInt(input.value, 10);
+            const restore = document.createElement("span");
+            restore.className = "snap-temp-val";
+            const liveMap = { nozzle: d.nozzleTemp, bed: d.bedTemp, chamber: d.chamberTemp };
+            restore.textContent = isNaN(val)
+              ? valSpan.textContent
+              : `${Math.round(liveMap[field] ?? 0)} / ${val}°C`;
+            input.replaceWith(restore);
+            if (!isNaN(val) && val >= 0 && val <= curMax) {
+              if (field === "nozzle")  { d.nozzleTarget  = val; creGcode(_activePrinter, `M104 S${val}`, `nozzle ${val}°C`); }
+              else if (field === "bed"){ d.bedTarget     = val; creGcode(_activePrinter, `M140 S${val}`, `bed ${val}°C`); }
+              // Chamber: M141 is the printer's own macro. It only drives the chamber
+              // heater above 40°C; at/below 40°C it just sets the circulation-fan target.
+              else                     { d.chamberTarget = val; creGcode(_activePrinter, `M141 S${val}`, `chamber ${val}°C`); }
+            }
+          };
+          input.addEventListener("blur", commit, { once: true });
+          input.addEventListener("keydown", ev => {
+            if (ev.key === "Enter")  { ev.preventDefault(); input.blur(); }
+            if (ev.key === "Escape") { input.value = Math.round(curMap[field] ?? 0); input.blur(); }
+          });
           return;
         }
         if (e.target.closest("[data-cre-open-files]")) {

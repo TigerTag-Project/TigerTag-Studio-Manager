@@ -5,6 +5,19 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.10.12 — 2026-06-19
+
+### Added
+
+- **Creality: live machine controls.** The Creality side panel can now drive the printer, not just monitor it. Tap a temperature to set the **nozzle, bed, or chamber** target; **jog** X/Y/Z and **home** the axes; **extrude / retract** filament; **disable the motors**; and control the **part-cooling, case, and side fans** with 1%-precision sliders. The motion pad is hidden during an active print so a stray move can't disturb a job (temperatures stay adjustable). _Tested on a real K2 Plus._
+- **Creality: filament slot selection + CFS load/unload.** Click a filament slot to select it as the active filament — it's highlighted, and **Feed** and **Unload** buttons appear that load or unload that slot through the CFS (the printer auto-heats, cuts and feeds). Slots now clearly show three states — identified (coloured), loaded-but-unidentified, and empty — and RFID-identified slots are locked from editing (the tag defines them); editing moved to a dedicated pencil button, so clicking a slot selects it instead of opening the editor.
+
+### Fixed
+
+- **Creality: starting a print and deleting on-printer files from the app now work** on K-series printers. These actions were silently failing; they now reach the printer correctly.
+
+---
+
 ## v1.10.11 — 2026-06-18
 
 ### Added

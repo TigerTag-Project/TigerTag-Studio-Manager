@@ -1911,6 +1911,58 @@ ipcMain.handle('snap:http-get', async (_evt, url, timeoutMs) => {
   }
 });
 
+// ── Creality Moonraker HTTP IPC (port 7125) ───────────────────────────────────
+// The K-series runs Klipper + Moonraker, which sends NO CORS headers. A renderer
+// fetch() is therefore blocked: a JSON-body / non-GET request triggers a preflight
+// OPTIONS that Moonraker answers with 405, and even a "simple" request's response
+// is unreadable (no Access-Control-Allow-Origin). Node's fetch() here in main is
+// CORS-exempt — same rationale as snap:http-get. Used for live controls
+// (/printer/gcode/script), print-start and file delete.
+// `query` is an optional object appended as a query string (e.g. { script }).
+// Returns { ok, status, json } | { ok:false, status:0, error }.
+const CRE_HTTP_TIMEOUT_MS = 10000;
+ipcMain.handle('cre:http', async (_evt, ip, method, path, query, timeoutMs) => {
+  if (!ip || typeof ip !== 'string' || !/^[\w.\-]+$/.test(ip)) {
+    return { ok: false, status: 0, error: 'invalid ip' };
+  }
+  const m = String(method || 'GET').toUpperCase();
+  if (!['GET', 'POST', 'DELETE'].includes(m)) {
+    return { ok: false, status: 0, error: 'method not allowed' };
+  }
+  // Tight path allowlist — keeps this IPC from becoming a generic outbound HTTP
+  // proxy if the renderer is ever compromised. Only the Moonraker endpoints the
+  // Creality integration actually calls.
+  const p = String(path || '');
+  const ALLOWED = [
+    /^\/printer\/gcode\/script$/,
+    /^\/printer\/print\/start$/,
+    /^\/server\/files\/gcodes\/.+/,
+  ];
+  if (!ALLOWED.some((rx) => rx.test(p))) {
+    return { ok: false, status: 0, error: 'path not allowed' };
+  }
+  let url = `http://${ip}:7125${p}`;
+  if (query && typeof query === 'object') {
+    const qs = new URLSearchParams(query).toString();
+    if (qs) url += `?${qs}`;
+  }
+  // Homing (G28) blocks until done, so allow a generous cap.
+  const timeout = (typeof timeoutMs === 'number' && timeoutMs > 0 && timeoutMs <= 120000)
+    ? timeoutMs : CRE_HTTP_TIMEOUT_MS;
+  const ctrl = new AbortController();
+  const tm = setTimeout(() => ctrl.abort(), timeout);
+  try {
+    const res = await fetch(url, { method: m, signal: ctrl.signal, headers: { 'Accept': 'application/json' } });
+    let json = null;
+    try { json = await res.json(); } catch {}
+    return { ok: res.ok, status: res.status, json };
+  } catch (e) {
+    return { ok: false, status: 0, error: e?.message || String(e) };
+  } finally {
+    clearTimeout(tm);
+  }
+});
+
 // ── Image cache IPC handler ───────────────────────────────────────────────────
 // Returns a stable HTTP URL (`/img-cache/<md5>.<ext>`) served by the local
 // renderer dev server, NOT a `data:base64,...` URL. The HTTP URL lets
