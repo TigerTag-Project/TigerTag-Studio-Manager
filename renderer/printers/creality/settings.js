@@ -6,7 +6,7 @@
 export const meta = {
   label: "Creality",
   accent: "#e22a2a",
-  connection: "WebSocket"
+  connection: "WebSocket (LAN)"
 };
 
 export const schema = {

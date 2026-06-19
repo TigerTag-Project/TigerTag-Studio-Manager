@@ -318,13 +318,9 @@
   .snap-temp--heating { color: #ef4444; }
   .snap-temp--heating .snap-temp-val { color: #b91c1c; }
 
-  /* Dual-nozzle (H2 series) — R/L tag + active-head highlight */
-  .snap-temp-tag {
-    font-size: 10px; font-weight: 800; line-height: 1;
-    color: var(--muted); margin: 0 1px 0 2px;
-  }
+  /* Dual-nozzle (H2 series) — active-head highlight (left/right conveyed by
+     position; no R/L label needed). */
   .snap-temp--active { box-shadow: inset 0 0 0 1.5px var(--primary, #386ecf); }
-  .snap-temp--active .snap-temp-tag { color: var(--primary, #386ecf); }
 
   /* Editable pills */
   .snap-temp--editable {

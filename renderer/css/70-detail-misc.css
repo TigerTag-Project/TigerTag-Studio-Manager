@@ -47,6 +47,7 @@
   .icon-water     { -webkit-mask-image: url('../../assets/svg/icons/icon_water.svg');        mask-image: url('../../assets/svg/icons/icon_water.svg'); }
   .icon-link      { -webkit-mask-image: url('../../assets/svg/icons/icon_link.svg');         mask-image: url('../../assets/svg/icons/icon_link.svg'); }
   .icon-user      { -webkit-mask-image: url('../../assets/svg/icons/icon_user.svg');         mask-image: url('../../assets/svg/icons/icon_user.svg'); }
+  .icon-bell      { -webkit-mask-image: url('../../assets/svg/icons/icon_bell.svg');         mask-image: url('../../assets/svg/icons/icon_bell.svg'); }
   .icon-download  { -webkit-mask-image: url('../../assets/svg/icons/icon_download.svg');     mask-image: url('../../assets/svg/icons/icon_download.svg'); }
   .icon-refresh   { -webkit-mask-image: url('../../assets/svg/icons/icon_refresh.svg');      mask-image: url('../../assets/svg/icons/icon_refresh.svg'); }
   .icon-settings  { -webkit-mask-image: url('../../assets/svg/icons/icon_settings.svg');     mask-image: url('../../assets/svg/icons/icon_settings.svg'); }
@@ -732,8 +733,8 @@
     flex-shrink: 0;
   }
   .pp-title-pills:empty { display: none; }
-  /* Two-row title used by the printer detail panel: top row = name +
-     brand/model pills, bottom row = online/offline status badge. */
+  /* Title used by the printer detail panel: a status dot + the printer name +
+     brand/model pills, all on one row. */
   .pp-title-col {
     flex-direction: column !important;
     align-items: flex-start !important;
@@ -743,6 +744,19 @@
     display: flex; align-items: center; gap: 8px;
     width: 100%; min-width: 0;
     overflow: hidden;
+  }
+  /* Online status dot before the title — green + glow (pulsing) when online,
+     flat grey when offline. Mirrors the grid card's name dot. */
+  .pp-title-dot {
+    width: 10.5px; height: 10.5px;
+    border-radius: 50%;
+    background: #94a3b8;          /* offline — fixed grey */
+    flex-shrink: 0;
+  }
+  .pp-title-dot.is-online {
+    background: #22c55e;
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, .18);
+    animation: printer-name-dot-pulse 1.8s ease-in-out infinite;
   }
   .pp-title-status {
     display: flex; align-items: center;

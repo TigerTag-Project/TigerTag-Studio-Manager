@@ -1329,7 +1329,7 @@ export function renderSnapmakerLogInner(p) {
 // Custom renderer: form fields (no section headers) + two expandable setup steps.
 
 const PAXX_FIRMWARE_URL  = 'https://github.com/paxx12-snapmaker-u1/SnapmakerU1-Extended-Firmware/releases/latest';
-const PAXX_FIRMWARE_BIN  = 'https://github.com/paxx12-snapmaker-u1/SnapmakerU1-Extended-Firmware/releases/download/v1.3.0-paxx12-16/U1_extended_1.3.0-paxx12-16_upgrade.bin';
+const PAXX_FIRMWARE_BIN  = 'https://github.com/paxx12-snapmaker-u1/SnapmakerU1-Extended-Firmware/releases/download/v1.4.1-paxx12-19/U1_extended_1.4.1-paxx12-19_upgrade.bin';
 const PAXX_EXPLAINER_URL = 'https://www.youtube.com/watch?v=-JMjEUDZJzQ';
 const PAXX_COFFEE_URL    = 'https://buymeacoffee.com/paxx12';
 
@@ -1367,7 +1367,6 @@ function _snapRenderSettingsWidget(printer, bodyEl, ctx) {
           <span class="snap-wizard-dot snap-wizard-dot--active" data-wdot="0"></span>
           <span class="snap-wizard-dot" data-wdot="1"></span>
           <span class="snap-wizard-dot" data-wdot="2"></span>
-          <span class="snap-wizard-dot" data-wdot="3"></span>
         </div>
         <button class="snap-wizard-btn snap-wizard-btn--next" id="snapWizNext">Next →</button>
       </div>
@@ -1393,7 +1392,7 @@ function _snapRenderSettingsWidget(printer, bodyEl, ctx) {
           <div class="pba-step-ctas">
             <a class="pba-step-cta" data-open-external="${esc(PAXX_FIRMWARE_BIN)}">
               <span class="pba-step-cta-icon pba-step-cta-icon--download"></span>
-              Download v1.3.0-paxx12-16.bin
+              Download v1.4.1-paxx12-19.bin
             </a>
             <a class="pba-step-cta pba-step-cta--secondary" data-open-external="${esc(PAXX_FIRMWARE_URL)}">
               <span class="pba-step-cta-icon pba-step-cta-icon--github"></span>
@@ -1456,23 +1455,6 @@ function _snapRenderSettingsWidget(printer, bodyEl, ctx) {
           </div>
         </div>
 
-        <!-- Step 4 — openrfid_user.cfg -->
-        <div class="snap-wizard-slide" data-slide="3">
-          <div class="snap-wizard-slide-head">
-            <span class="pba-step-num">4</span>
-            <div class="pba-step-titles">
-              <span class="pba-step-title">Configure openrfid_user.cfg</span>
-              <span class="pba-step-sub">Add [tigertag_tag_processor]</span>
-            </div>
-          </div>
-          <p class="pba-step-desc">
-            Add the following section to your <strong>openrfid_user.cfg</strong> file
-            — or let TigerTag Studio do it automatically:
-          </p>
-          <pre class="pba-step-code">[tigertag_tag_processor]</pre>
-          <div class="snap-cfg-status" id="snapCfgStatus"></div>
-        </div>
-
       </div><!-- /track -->
 
     </div>`;
@@ -1504,26 +1486,15 @@ function _snapRenderSettingsWidget(printer, bodyEl, ctx) {
     }
   });
 
-  // ── Wire wizard navigation + Step 3 cfg check ───────────────────────────
-  const SNAP_CFG_SECTION = '[tigertag_tag_processor]';
+  // ── Wire wizard navigation ──────────────────────────────────────────────
   {
     const wizEl   = bodyEl.querySelector('#snapWizard');
     const slides  = wizEl?.querySelectorAll('.snap-wizard-slide');
     const dots    = wizEl?.querySelectorAll('[data-wdot]');
     const prevBtn = wizEl?.querySelector('#snapWizPrev');
     const nextBtn = wizEl?.querySelector('#snapWizNext');
-    const TOTAL   = 4;
+    const TOTAL   = 3;
     let current   = 0;
-    let cfgChecked = false;
-
-    const getIp = () =>
-      bodyEl.querySelector('input[name="ip"]')?.value?.trim()
-      || (isEdit ? printer?.ip : null);
-
-    const setCfgStatus = html => {
-      const el = bodyEl.querySelector('#snapCfgStatus');
-      if (el) el.innerHTML = html;
-    };
 
     const goTo = (idx, dir = 1) => {
       if (!slides) return;
@@ -1537,99 +1508,12 @@ function _snapRenderSettingsWidget(printer, bodyEl, ctx) {
         nextBtn.textContent = idx === TOTAL - 1 ? 'Done ✓' : 'Next →';
       }
       current = idx;
-      if (idx === 3 && !cfgChecked) { cfgChecked = true; runCfgCheck(); }
     };
 
     prevBtn?.addEventListener('click', () => { if (current > 0)         goTo(current - 1, -1); });
     nextBtn?.addEventListener('click', () => { if (current < TOTAL - 1) goTo(current + 1,  1); });
     dots?.forEach((d, i) => d.addEventListener('click', () => goTo(i, i > current ? 1 : -1)));
 
-    // ── Step 3 cfg check logic ─────────────────────────────────────────────
-    const runCfgCheck = async () => {
-      const ip = getIp();
-      if (!ip) {
-        setCfgStatus(`<span class="snap-cfg-warn">↑ Enter the printer IP first</span>`);
-        return;
-      }
-      setCfgStatus(`<span class="snap-cfg-checking">Checking openrfid_user.cfg…</span>`);
-
-      const CFG_PATH = 'extended/openrfid_user.cfg';
-
-      // Helper: upload (create or overwrite) openrfid_user.cfg
-      const uploadCfg = async (content) => {
-        const blob = new Blob([content], { type: 'text/plain' });
-        const form = new FormData();
-        form.append('file', blob, 'openrfid_user.cfg');
-        form.append('root', 'config');
-        form.append('path', 'extended');
-        const upRes = await fetch(`http://${ip}:7125/server/files/upload`, {
-          method: 'POST', body: form
-        });
-        if (!upRes.ok) throw new Error(`Upload HTTP ${upRes.status}`);
-      };
-
-      // Helper: show "Added" state + Restart button
-      const showAddedState = () => {
-        setCfgStatus(`
-          <span class="snap-cfg-ok">✓ Added — restart firmware to apply</span>
-          <button class="pba-step-cta pba-step-cta--secondary" id="snapCfgRestartBtn">
-            Restart firmware
-          </button>`);
-        bodyEl.querySelector('#snapCfgRestartBtn')?.addEventListener('click', async () => {
-          const restartBtn = bodyEl.querySelector('#snapCfgRestartBtn');
-          if (restartBtn) { restartBtn.disabled = true; restartBtn.textContent = 'Restarting…'; }
-          try {
-            await fetch(`http://${ip}:7125/printer/gcode/script`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ script: 'FIRMWARE_RESTART' })
-            });
-            setCfgStatus(`<span class="snap-cfg-ok">✓ Firmware restarting…</span>`);
-          } catch (err) {
-            setCfgStatus(`<span class="snap-cfg-err">Restart failed: ${esc(err.message)}</span>`);
-          }
-        });
-      };
-
-      // Helper: show "Add" button with a given base content to append to
-      const showAddBtn = (existingContent) => {
-        setCfgStatus(`
-          <button class="pba-step-cta snap-cfg-add-btn" id="snapCfgAddBtn">
-            Add to openrfid_user.cfg automatically
-          </button>`);
-        bodyEl.querySelector('#snapCfgAddBtn')?.addEventListener('click', async () => {
-          const btn = bodyEl.querySelector('#snapCfgAddBtn');
-          if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
-          try {
-            const newContent = existingContent.trimEnd() + '\n\n' + SNAP_CFG_SECTION + '\n';
-            await uploadCfg(newContent);
-            showAddedState();
-          } catch (err) {
-            setCfgStatus(`<span class="snap-cfg-err">Save failed: ${esc(err.message)}</span>`);
-          }
-        });
-      };
-
-      try {
-        const res = await fetch(`http://${ip}:7125/server/files/config/${CFG_PATH}`);
-
-        if (res.status === 404) {
-          // File doesn't exist yet — offer to create it
-          showAddBtn('');
-          return;
-        }
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-        const text = await res.text();
-        if (text.includes(SNAP_CFG_SECTION)) {
-          setCfgStatus(`<span class="snap-cfg-ok">✓ Already configured</span>`);
-        } else {
-          showAddBtn(text);
-        }
-      } catch (err) {
-        setCfgStatus(`<span class="snap-cfg-err">Cannot reach printer: ${esc(err.message)}</span>`);
-      }
-    }; // end runCfgCheck
   }
 
   // ── Pre-fill ─────────────────────────────────────────────────────────────

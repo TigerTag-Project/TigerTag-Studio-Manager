@@ -192,6 +192,43 @@
   .fp-friend-remove .icon { background: var(--muted); }
   .fp-friend-remove:hover .icon { background: var(--danger); }
 
+  /* ── Pending requests section ──────────────────────────────────────── */
+  .fp-reqs-block { flex: 0 0 auto; }
+  .fp-reqs-block.hidden { display: none; }
+  .fp-list-count--accent {
+    background: var(--primary-soft, rgba(249,115,22,.12));
+    color: var(--primary); border: 1px solid rgba(249,115,22,.25);
+  }
+  .fp-req {
+    display: flex; flex-direction: column; gap: 10px;
+    padding: 10px 12px; border-radius: 12px;
+    background: var(--surface-2); border: 1px solid var(--border);
+  }
+  .fp-req-head { display: flex; align-items: center; gap: 11px; }
+  .fp-req-actions { display: flex; gap: 8px; }
+  .fp-req-actions .fp-req-block  { flex: 1; color: var(--danger) !important; font-size: 11px; }
+  .fp-req-actions .fp-req-refuse { flex: 1; }
+  .fp-req-actions .fp-req-accept { flex: 2; }
+
+  /* ── Notification center ───────────────────────────────────────────── */
+  /* Breathing room: the list is the panel's only block, so it carries the
+     padding itself (the Friends panel's children each have their own margins). */
+  .notif-list { gap: 8px; padding: 16px; }
+  .notif-item {
+    display: flex; align-items: center; gap: 11px;
+    padding: 10px 12px; border-radius: 12px;
+    background: var(--surface-2); border: 1px solid var(--border);
+  }
+  .notif-item--unread { border-color: var(--primary); background: var(--primary-soft, rgba(249,115,22,.08)); }
+  .notif-text {
+    font-size: 13px; color: var(--text);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .notif-dismiss { flex-shrink: 0; }
+  .notif-dismiss:hover { background: var(--border); }
+  .notif-dismiss .icon { background: var(--muted); }
+  .notif-empty { margin-top: 20px; }
+
   /* ── Blacklist section ─────────────────────────────────────────────── */
   .fp-blacklist-block { margin-top: 10px; flex: 0 0 auto; }
   .fp-blacklist-block.hidden { display: none; }

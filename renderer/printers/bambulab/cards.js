@@ -82,16 +82,18 @@ export function renderBambuTempCard(conn, heatedChamber = false) {
     : (d.nozzleCurrent != null || d.nozzleTarget != null)
       ? [{ id: 0, current: d.nozzleCurrent, target: d.nozzleTarget }] : [];
   const dual = nozzles.length > 1;
-  nozzles.forEach(n => {
+  // Display order = physical layout: left head (id 1) on the LEFT, right head
+  // (id 0) on the RIGHT → render descending by id.
+  const ordered = dual ? [...nozzles].sort((a, b) => b.id - a.id) : nozzles;
+  ordered.forEach(n => {
     const heating = typeof n.target === "number" && n.target > 0
                  && typeof n.current === "number" && n.current < n.target - 1;
     const active  = dual && n.id === d.activeNozzle;
     const nozAttr = dual ? ` data-bbl-nozzle="${n.id}"` : "";
-    const tag     = dual ? `<span class="snap-temp-tag">${n.id === 0 ? "R" : "L"}</span>` : "";
     pills.push(`
       <div class="snap-temp snap-temp--editable${heating ? " snap-temp--heating" : ""}${active ? " snap-temp--active" : ""}"
            data-bbl-set-temp="nozzle"${nozAttr} data-bbl-temp-target="${Math.max(0, Math.round(Number(n.target) || 0))}" data-bbl-temp-max="300">
-        ${ctx.SNAP_ICON_NOZZLE}${tag}
+        ${ctx.SNAP_ICON_NOZZLE}
         <span class="snap-temp-val">${ctx.esc(_bblFmtTempPair(n.current, n.target))}</span>
       </div>`);
   });
@@ -146,6 +148,9 @@ export function renderBambuTempCard(conn, heatedChamber = false) {
 // No AMS  : [Ext.] alone on row 1.
 
 export function renderBambuFilamentCard(_p, conn) {
+  // Only when live — offline, the filament/AMS state is unknown (stale/empty),
+  // so hide the card entirely (matches the job / control cards).
+  if (conn?.status !== "connected") return "";
   const d = conn?.data;
   if (!d) return "";
 

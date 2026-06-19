@@ -12,7 +12,11 @@
 export const meta = {
   label: "Anycubic",
   accent: "#00a9e0",
-  connection: "MQTT (LAN)"
+  // `connection` is the brand-picker capability description (both modes).
+  // `connLan` is the per-device chip label when the printer is in LAN mode —
+  // the card already swaps to the cloud label when `p.mode === "cloud"`.
+  connection: "MQTT (LAN / Cloud)",
+  connLan: "MQTT (LAN)"
 };
 
 export const schema = {

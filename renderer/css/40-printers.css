@@ -106,6 +106,7 @@
      No background or border-radius — the photo renders directly on the card
      surface for a cleaner, less boxed look. */
   .printer-card-thumb {
+    position: relative;
     width: 100%;
     height: 110px;
     display: flex; align-items: center; justify-content: center;
@@ -120,7 +121,6 @@
     user-select: none;
     -webkit-user-drag: none;
   }
-
   /* ── Drag handle (left edge of every card) ────────────────────────── */
   .printer-card-drag {
     position: absolute; top: 0; left: 0; bottom: 0; width: 18px;
@@ -199,7 +199,27 @@
   }
   .printer-card-name {
     font-size: 15px; font-weight: 600; color: var(--text);
+    display: flex; align-items: center; gap: 7px;
+  }
+  .printer-card-name-txt {
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  /* Status dot left of the title — mirrors the Online badge dot:
+     green + glow (pulsing) when online, flat grey when offline. */
+  .printer-card-name-dot {
+    width: 10.5px; height: 10.5px;
+    border-radius: 50%;
+    background: #94a3b8;       /* offline — fixed grey */
+    flex-shrink: 0;
+  }
+  .printer-card-name-dot.is-online {
+    background: #22c55e;
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, .18);
+    animation: printer-name-dot-pulse 1.8s ease-in-out infinite;
+  }
+  @keyframes printer-name-dot-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, .5); }
+    50%      { box-shadow: 0 0 0 5px rgba(34, 197, 94, 0); }
   }
   .printer-card-model {
     font-size: 12px; color: var(--muted);
@@ -522,6 +542,41 @@
     flex-shrink: 0;
     box-shadow: 0 0 0 3px rgba(0,0,0,.04);
   }
+  /* Brand logo (replaces the colour dot) — single-path SVG masked + tinted with
+     the brand's OWN colour (set per brand below). mask-size:contain keeps each
+     logo's own aspect ratio inside the square box, so no distortion. Black
+     wordmark brands (Creality / FlashForge / Snapmaker) use var(--text) so they
+     read black in light mode and stay visible (white) in dark mode. */
+  /* Shared mask props — brand-picker logo (.pba-brand-logo) + the logo overlaid
+     on the printer-table thumbnail (.pt-thumb-logo). */
+  .pba-brand-logo, .pt-thumb-logo {
+    flex-shrink: 0;
+    background-color: var(--text);
+    -webkit-mask-size: contain;    mask-size: contain;
+    -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+    -webkit-mask-position: center;  mask-position: center;
+  }
+  .pba-brand-logo { width: 26px; height: 26px; }
+  .pt-thumb-logo  { width: 14px; height: 13px; }
+  /* GRID: white chip pinned to the card thumbnail's top-left corner; logo ~2×. */
+  .pt-thumb-badge {
+    position: absolute; top: 4px; left: 4px;
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 40px; height: 40px; border-radius: 9px;
+    background: var(--surface, #fff);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .18);
+  }
+  .pt-thumb-badge .pt-thumb-logo { width: 28px; height: 26px; }
+  /* TABLE: brand logo lives in its own column before the printer image. */
+  .pt-th--brandlogo { width: 34px; }
+  .pt-td--brandlogo { width: 34px; padding: 6px 4px 6px 12px; text-align: center; }
+  .pt-td--brandlogo .pt-thumb-logo { display: inline-block; vertical-align: middle; width: 26px; height: 22px; }
+  .pba-brand-logo[data-brand="anycubic"],   .pt-thumb-logo[data-brand="anycubic"]   { background-color: #00a9e0; -webkit-mask-image: url('../../assets/svg/icons/logo_anycubic.svg');   mask-image: url('../../assets/svg/icons/logo_anycubic.svg'); }
+  .pba-brand-logo[data-brand="bambulab"],    .pt-thumb-logo[data-brand="bambulab"]    { background-color: #00ae42; -webkit-mask-image: url('../../assets/svg/icons/logo_bambulab.svg');   mask-image: url('../../assets/svg/icons/logo_bambulab.svg'); }
+  .pba-brand-logo[data-brand="creality"],    .pt-thumb-logo[data-brand="creality"]    { background-color: #2ee65c; -webkit-mask-image: url('../../assets/svg/icons/logo_creality.svg');   mask-image: url('../../assets/svg/icons/logo_creality.svg'); }
+  .pba-brand-logo[data-brand="elegoo"],      .pt-thumb-logo[data-brand="elegoo"]      { background-color: #1f4ed8; -webkit-mask-image: url('../../assets/svg/icons/logo_elegoo.svg');     mask-image: url('../../assets/svg/icons/logo_elegoo.svg'); }
+  .pba-brand-logo[data-brand="flashforge"],  .pt-thumb-logo[data-brand="flashforge"]  { background-color: var(--text); -webkit-mask-image: url('../../assets/svg/icons/logo_flashforge.svg'); mask-image: url('../../assets/svg/icons/logo_flashforge.svg'); }
+  .pba-brand-logo[data-brand="snapmaker"],   .pt-thumb-logo[data-brand="snapmaker"]   { background-color: var(--text); -webkit-mask-image: url('../../assets/svg/icons/logo_snapmaker.svg');  mask-image: url('../../assets/svg/icons/logo_snapmaker.svg'); }
   .pba-brand-text {
     display: flex; flex-direction: column;
     flex: 1; min-width: 0;
@@ -2134,10 +2189,18 @@ details[open] .pba-step-chev { transform: rotate(90deg); }
 }
 
 /* ── Printer table sub-view ─────────────────────────────────────────────── */
-.pt-wrap { overflow-x: auto; padding: 4px 0 16px; }
-.pt-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
-.pt-head { position: sticky; top: 0; background: var(--surface); z-index: 1; }
-.pt-th { padding: 8px 12px; text-align: left; font-size: 12px; font-weight: 600;
+/* Same finish as the inventory `.table-wrap`: the table scrolls inside a
+   rounded, bordered box (vertically + horizontally), with the header pinned. */
+.pt-wrap {
+  flex: 1; min-height: 0;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.pt-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13.5px; }
+.pt-head { position: sticky; top: 0; background: var(--surface-2); z-index: 1; }
+.pt-th { padding: 9px 12px; text-align: left; font-size: 12px; font-weight: 600;
+         text-transform: uppercase; letter-spacing: .03em;
          color: var(--muted); border-bottom: 1px solid var(--border); white-space: nowrap; }
 .pt-th--sort { cursor: pointer; user-select: none; }
 .pt-th--sort:hover { color: var(--text); }
@@ -2145,6 +2208,7 @@ details[open] .pba-step-chev { transform: rotate(90deg); }
 .pt-th--sort.sort-asc::after  { content: " ▲"; opacity: 1; color: var(--primary); }
 .pt-th--sort.sort-desc::after { content: " ▼"; opacity: 1; color: var(--primary); }
 .pt-td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.pt-row:last-child .pt-td { border-bottom: none; }
 .pt-td--ip code { font-family: var(--mono); font-size: 12px; color: var(--muted); }
 .pt-td--name { font-weight: 500; }
 .pt-row:hover { background: var(--surface-2); }

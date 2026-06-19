@@ -6,7 +6,7 @@
 export const meta = {
   label: "Elegoo",
   accent: "#00a3e0",
-  connection: "MQTT"
+  connection: "MQTT (LAN)"
 };
 
 export const schema = {

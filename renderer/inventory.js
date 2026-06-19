@@ -135,6 +135,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   };
   let _unsubInventory  = null; // active Firestore onSnapshot unsubscribe handle
   let _sliderDebounce  = null; // pending auto-save timer for weight slider
+  const _friendProfileUnsubs = new Map(); // friendUid -> userProfiles onSnapshot unsubscribe
 
   const ACCOUNT_COLORS = {
     orange: ["#f97316","#fb923c"],   // orange vif
@@ -266,6 +267,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const subject  = _avatarSubject(source);
     const photoURL = subject.photoURL || null;
     const initials = getInitials(subject);
+    // When a photo exists we go straight to "photo" mode (initials hidden) — the
+    // coloured-circle gradient shows behind the <img> while it loads, so the
+    // initials LETTER never flashes before the avatar. Decode-fail flips back to
+    // initials via the <img> error handlers.
     const mode = !source ? "empty" : (photoURL ? "photo" : "initials");
     if (mode === "empty") {
       // Neutral, style-less — the gradient/shadow/colour come from the
@@ -518,6 +523,22 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   const LOGO_PATH          = "../assets/svg/logos/logo_tigertag.svg";
   const LOGO_PATH_OUTLINE  = "../assets/svg/logos/logo_tigertag_contouring.svg";
 
+  // Persisted sort preference per table. Returns the saved {col, dir} or the
+  // supplied defaults — inventory defaults to Brand ascending, the printer
+  // table to status descending (online on top).
+  const _loadSort = (key, defCol, defDir) => {
+    try {
+      const s = JSON.parse(localStorage.getItem(key));
+      if (s && typeof s.col === "string" && (s.dir === "asc" || s.dir === "desc")) return s;
+    } catch (_) {}
+    return { col: defCol, dir: defDir };
+  };
+  const _saveSort = (key, col, dir) => {
+    try { localStorage.setItem(key, JSON.stringify({ col, dir })); } catch (_) {}
+  };
+  const _invSort     = _loadSort("tigertag.sort.inv", "brand", "asc");
+  const _printerSort = _loadSort("tigertag.sort.printer", "status", "desc");
+
   const state = {
     inventory: null,
     rows: [],
@@ -531,10 +552,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
 
     viewMode: localStorage.getItem("tigertag.view") || "table",
     lang: localStorage.getItem("tigertag.lang") || "en",
-    sortCol: null,
-    sortDir: "asc",
-    printerSortCol: "status",   // default: online printers at top
-    printerSortDir: "desc",      // status=1 (online) sorts above status=0 (offline)
+    sortCol: _invSort.col,       // persisted; default "brand"
+    sortDir: _invSort.dir,       // persisted; default "asc"
+    printerSortCol: _printerSort.col,   // persisted; default "status" (online at top)
+    printerSortDir: _printerSort.dir,   // persisted; default "desc" (status=1 above status=0)
     activeAccountId: null,
     i18n: {},
     imgCache: new Map(),
@@ -557,6 +578,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     isPublic: false,
     friends: [],             // [{ uid, displayName, addedAt, key }]
     friendRequests: [],      // [{ uid, displayName, requestedAt }]
+    notifications: [],       // [{ id, type, fromUid, fromName, createdAt, read }] — users/{uid}/notifications
     blacklist: [],           // [{ uid, displayName, blockedAt }]
     racks: [],               // [{ id, name, level, position, order, createdAt, lastUpdate }]
     rackPresets: [],         // loaded from data/rack-presets.json
@@ -1166,6 +1188,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // the dropdown / sidebar friend chips; loadFriendsList runs
     // afterwards and pushes the live delta.
     _hydrateFriendsCache(state.activeAccountId);
+    renderFriendsBadge();   // show friend count (or "+") on first paint
     $("sbWelcome").textContent = t("welcomeBack");
     $("sbName").textContent = shown;
     $("sbUser").classList.remove("sb-user--empty");
@@ -3125,6 +3148,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (!state.publicKey) await regeneratePublicKey();
     loadFriendsList();
     renderFriendsSection();
+    renderFriendRequestsList();
     $("friendsPanel").classList.add("open"); $("friendsOverlay").classList.add("open");
   }
   function closeFriends() {
@@ -3133,6 +3157,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   $("btnOpenFriends").addEventListener("click", openFriends);
   $("friendsPanelClose").addEventListener("click", closeFriends);
   $("friendsOverlay").addEventListener("click", closeFriends);
+  $("btnOpenNotifs")?.addEventListener("click", openNotifs);
+  $("notifPanelClose")?.addEventListener("click", closeNotifs);
+  $("notifOverlay")?.addEventListener("click", closeNotifs);
 
   // ── TigerScale module init ─────────────────────────────────────────────
   // Wires panel open/close, health tick, and card event delegation.
@@ -4462,7 +4489,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // Common handler called when a named-instance user session becomes active.
   // uid must equal user.uid and be the current active account.
   async function handleSignedIn(user, uid) {
-    unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeRacks(); unsubscribeScales(); unsubscribePrinters();
+    unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeFriends(); unsubscribeNotifications(); unsubscribeRacks(); unsubscribeScales(); unsubscribePrinters();
     // Always reset friend-view mode on account change — the new account's own inventory is what we want to show.
     // We also clear the inventory/rows so the previous (friend) data isn't briefly shown as if it belonged to the new account.
     if (state.friendView) {
@@ -4560,7 +4587,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     syncLangFromFirestore(uid);
     syncUserDoc(uid);
     subscribeFriendRequests(uid);
-    loadFriendsList();  // populate state.friends early so dropdown + profiles modal show friends immediately
+    subscribeFriends(uid);  // live-sync friends (add/remove on the fly, both sides) + per-friend avatar/name listeners
+    subscribeNotifications(uid);  // live notification center (general notifs + unread badge)
     loadBlacklist();    // populate state.blacklist for the Friends panel
     subscribeRacks(uid);// live-sync the user's storage racks
     subscribeScales(uid);// live-sync the user's TigerScale heartbeats
@@ -4581,11 +4609,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         if (uid === getActiveId()) await handleSignedIn(user, uid);
       } else if (uid === getActiveId()) {
         // Active account's session expired → show login
-        unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeRacks(); unsubscribeScales(); unsubscribePrinters();
+        unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeFriends(); unsubscribeNotifications(); unsubscribeRacks(); unsubscribeScales(); unsubscribePrinters();
         state.inventory = null; state.rows = [];
         state.isAdmin = false; state.debugEnabled = false;
         state.publicKey = null; state.privateKey = null;
-        state.friends = []; state.friendRequests = []; state.blacklist = []; state.racks = []; state.printers = [];
+        state.friends = []; state.friendRequests = []; state.notifications = []; state.blacklist = []; state.racks = []; state.printers = [];
         applyDebugMode(); renderStats(); renderInventory();
         renderAccountDropdown();
         setDisconnected();
@@ -4729,7 +4757,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // Sign out the named instance so its IndexedDB session is cleared
     try { firebase.app(id).auth().signOut(); } catch (_) {}
     if (wasActive) {
-      unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeRacks(); unsubscribeScales(); unsubscribePrinters();
+      unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeFriends(); unsubscribeNotifications(); unsubscribeRacks(); unsubscribeScales(); unsubscribePrinters();
       state.inventory = null; state.rows = [];
       state.isAdmin = false; state.debugEnabled = false;
       state.publicKey = null; state.privateKey = null;
@@ -5878,6 +5906,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         state.sortCol = th.dataset.sort;
         state.sortDir = "asc";
       }
+      _saveSort("tigertag.sort.inv", state.sortCol, state.sortDir);
       updateSortIndicators();
       renderInventory();
     });
@@ -9055,6 +9084,105 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (Array.isArray(cached)) state.friends = cached;
   }
 
+  // Persist the friends list (denormalised displayName/color/photoURL) so the
+  // next launch restores it synchronously via _hydrateFriendsCache.
+  function _cacheFriends(uid, friends) {
+    try {
+      Cache.write("friends", uid, friends.map(f => ({
+        uid: f.uid, displayName: f.displayName || "",
+        color: f.color || null, photoURL: f.photoURL || null,
+      })));
+    } catch (_) { /* quota / privacy mode — silent */ }
+  }
+
+  // Re-render every surface that shows friends (panel list, account dropdown,
+  // profiles modal) after the live friends/profile data changes.
+  function _renderFriendsEverywhere() {
+    renderFriendsList();
+    renderFriendsBadge();
+    renderAccountDropdown();
+    if ($("profilesModalOverlay")?.classList.contains("open")) renderAccountList();
+  }
+
+  // Live friends list. Replaces the one-shot loadFriendsList() get on the main
+  // connect path so an accepted/removed friend appears or disappears on the fly
+  // for BOTH users (friendship is written bidirectionally), and so each friend's
+  // avatar / display name stays live via per-friend userProfiles listeners.
+  function subscribeFriends(uid) {
+    unsubscribeFriends();
+    if (!uid) return;
+    state.unsubFriends = fbDb(uid)
+      .collection("users").doc(uid).collection("friends")
+      .onSnapshot(snap => {
+        if (uid !== state.activeAccountId) return;
+        const prev = new Map((state.friends || []).map(f => [f.uid, f]));
+        const friends = snap.docs.map(d => {
+          const f = { uid: d.id, ...d.data() };
+          // The friend doc stores displayName/color but NOT photoURL — that's
+          // resolved from userProfiles (by the per-friend listener below, or by
+          // loadFriendsList). Carry the freshest already-resolved values over
+          // directly so a membership change (accept/remove) never blanks the
+          // surviving friends' avatars/names.
+          const p = prev.get(f.uid);
+          if (p) {
+            if (p.displayName) f.displayName = p.displayName;
+            if (p.color)       f.color       = p.color;
+            if (p.photoURL)    f.photoURL    = p.photoURL;
+          }
+          return f;
+        });
+        state.friends = friends;
+        _cacheFriends(uid, friends);
+        _renderFriendsEverywhere();
+        _reconcileFriendProfileSubs(uid);
+      }, err => console.warn("[friends:sub]", err?.message));
+  }
+
+  function unsubscribeFriends() {
+    if (state.unsubFriends) { try { state.unsubFriends(); } catch (_) {} state.unsubFriends = null; }
+    _friendProfileUnsubs.forEach(fn => { try { fn(); } catch (_) {} });
+    _friendProfileUnsubs.clear();
+  }
+
+  // One userProfiles listener per friend → live avatar / display name / colour.
+  // Reconciled against the current friends set on every friends snapshot:
+  // drop listeners for removed friends, add them for new ones.
+  function _reconcileFriendProfileSubs(uid) {
+    const db = fbDb(uid);
+    const wanted = new Set((state.friends || []).map(f => f.uid));
+    for (const [fid, fn] of _friendProfileUnsubs) {
+      if (!wanted.has(fid)) { try { fn(); } catch (_) {} _friendProfileUnsubs.delete(fid); }
+    }
+    (state.friends || []).forEach(f => {
+      if (_friendProfileUnsubs.has(f.uid)) return;
+      const unsub = db.collection("userProfiles").doc(f.uid).onSnapshot(ps => {
+        if (uid !== state.activeAccountId) return;
+        if (!ps.exists) return;
+        const pd = ps.data();
+        const fr = (state.friends || []).find(x => x.uid === f.uid);
+        if (!fr) return;
+        const dn = pd.displayName || "";
+        const col = profileColor(pd);          // "#rrggbb" or null
+        const photo = pd.photoURL || null;
+        let changed = false;
+        if (dn && dn !== fr.displayName) { fr.displayName = dn; changed = true; }
+        if (col && col !== fr.color)     { fr.color = col;       changed = true; }
+        if (photo !== (fr.photoURL || null)) { fr.photoURL = photo; changed = true; }
+        if (!changed) return;
+        _cacheFriends(uid, state.friends);
+        _renderFriendsEverywhere();
+        // Keep our denormalised copy fresh for the next cold start.
+        const upd = {};
+        if (dn) upd.displayName = dn;
+        if (col) upd.color = col;
+        if (Object.keys(upd).length) {
+          db.collection("users").doc(uid).collection("friends").doc(f.uid).update(upd).catch(() => {});
+        }
+      }, () => {});
+      _friendProfileUnsubs.set(f.uid, unsub);
+    });
+  }
+
   /* ── Racks (storage shelves) ───────────────────────────────────────────── */
   function subscribeRacks(uid) {
     unsubscribeRacks();
@@ -9121,6 +9249,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // brands trickle in. We also re-render once on flip so the spinner
     // fades to either the empty card or the printer grid.
     state.printersLoading = true;
+    // Seed the "Last seen" map from Firestore (once per uid) so offline
+    // printers show their persisted last-online time on app start, and keep
+    // the per-minute heartbeat running to refresh it while connected.
+    _seedPrinterLastSeen(uid);
+    _startPrinterSeenHeartbeat();
     // Mirror the inventory pattern: trigger an immediate re-render so the
     // spinner appears the moment the subscription is fired, without
     // waiting for the first Firestore snapshot to round-trip. Otherwise
@@ -9410,8 +9543,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       const row = document.querySelector(`.pt-row[data-brand="${esc(p.brand)}"][data-id="${esc(p.id)}"]`);
       if (!row) return;
       const online = _isPrinterOnline(p);
-      const sig = `${online ? 1 : 0}|${p.updatedAt || 0}`;
-      if (row._lastStatusSig === sig) return; // no real change, skip the rewrite
+      if (online) _printerLastSeen.set(`${p.brand}:${p.id}`, Date.now()); // session "last seen online"
+      const sig = `${online ? 1 : 0}`;
+      if (row._lastStatusSig === sig) return; // online state unchanged, skip the rewrite
       row._lastStatusSig = sig;
       row.classList.toggle("pt-row--online", online);
       const st = row.querySelector(".pt-td--status");
@@ -9419,7 +9553,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         `<span class="pt-dot${online ? " pt-dot--on" : ""}"></span>
             ${esc(online ? t("snapStatusOnline") : t("snapStatusOffline"))}`;
       const up = row.querySelector(".pt-td--updated");
-      if (up) up.textContent = p.updatedAt ? timeAgo(p.updatedAt) : "—";
+      if (up) { const _ls = _printerLastSeen.get(`${p.brand}:${p.id}`); up.textContent = online ? t("agoNow") : (_ls ? timeAgo(_ls) : "—"); }
     });
   }
 
@@ -9460,30 +9594,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (p.brand === "anycubic")   return acuIsOnline(p)    === true;
     return false;
   }
-  function _makeOnlineBadge(p) {
-    if (p.brand === "flashforge") return renderFfgOnlineBadge(p, "card");
-    if (p.brand === "creality")   return renderCreOnlineBadge(p, "card");
-    if (p.brand === "bambulab")   return renderBambuOnlineBadge(p, "card");
-    if (p.brand === "snapmaker")  return renderSnapOnlineBadge(p, "card");
-    if (p.brand === "anycubic")   return renderAcuOnlineBadge(p, "card");
-    if (p.brand === "elegoo") {
-      const o = elegooIsOnline(p);
-      const cls = o === true ? "is-online" : o === false ? "is-offline" : "is-checking";
-      const lbl = o === true  ? t("snapStatusOnline")
-                : o === false ? t("snapStatusOffline")
-                :               t("snapStatusConnecting");
-      return `<span class="printer-online printer-online--card ${cls}">
-                <span class="printer-online-dot"></span>
-                <span class="printer-online-lbl">${esc(lbl)}</span>
-              </span>`;
-    }
-    return "";
-  }
-
   // Signature of the current online set — used by `_patchGridStatus` to detect
-  // when only the status badges need refreshing (no card needs to move between
-  // the CONNECTED and OFFLINE sections, no new printer was added/removed).
-  // Computed by joining sorted keys of the currently-online printers.
+  // when the grid needs a re-render (a printer's online bit flipped, or one was
+  // added/removed). Computed by joining sorted keys of the currently-online
+  // printers.
   let _lastPrinterGridSignature = "";
   function _printerGridSignature() {
     return state.printers
@@ -9492,25 +9606,19 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       .join("|");
   }
 
-  // Surgical refresh: swap the `.printer-online` badge inside each printer
-  // card without touching the rest of the DOM (image, name, job block, foot).
-  // Falls back to a full `renderPrintersView()` when the online set changed
-  // (a card needs to move between CONNECTED and OFFLINE sections).
+  // Refresh the grid when the online set changes: re-render so the name dots,
+  // section split (CONNECTED / OFFLINE) and ordering all stay in sync.
   function _patchGridStatus() {
     if (!_isPrinterMode(state.viewMode)) return;
+    // The grid card's only status signal is the dot left of the name, whose
+    // state is baked into the grid signature (online bit per printer). So a
+    // full re-render on signature change is all we need — there is no longer
+    // an in-card badge to patch surgically.
     const sig = _printerGridSignature();
     if (sig !== _lastPrinterGridSignature) {
       _lastPrinterGridSignature = sig;
       renderPrintersView();
-      return;
     }
-    state.printers.forEach(p => {
-      const card = document.querySelector(`[data-printer-key="${esc(p.brand + ":" + p.id)}"]`);
-      if (!card) return;
-      const badge = card.querySelector(".printer-online");
-      if (!badge) return;
-      badge.outerHTML = _makeOnlineBadge(p);
-    });
   }
 
   /* ── Render the user's 3D printers in the main panel.
@@ -9611,7 +9719,6 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       const modelName = printerModelName(p.brand, p.printerModelId);
       const imgUrl    = printerImageUrlFor(p.brand, p.printerModelId);
       const safeName  = esc(p.printerName || modelName);
-      const updated   = p.updatedAt ? timeAgo(p.updatedAt) : "";
       // The thumbnail uses object-fit: contain so the printer photo always
       // shows in full. Falls back to the per-brand `no_printer.png` placeholder
       // (declared in every brand catalog as id "0") when modelId is missing.
@@ -9624,7 +9731,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (p.brand === "flashforge" && p.ip) ffgPingPrinter(p);
       // Same for Creality — opens a brief WS to port 9999.
       if (p.brand === "creality"   && p.ip) crePingPrinter(p);
-      const onlineBadge = _makeOnlineBadge(p);
+      const online      = _isOnline(p);
+      // "Last seen online" — same source as the printers table: currently
+      // connected → "just now"; otherwise the persisted last-online time.
+      const _ls         = _printerLastSeen.get(`${p.brand}:${p.id}`);
+      const lastSeen    = online ? t("agoNow") : (_ls ? timeAgo(_ls) : "—");
       return `
         <div class="printer-card${p.isActive ? " printer-card--active" : ""}"
              data-brand="${esc(p.brand)}" data-id="${esc(p.id)}"
@@ -9633,17 +9744,19 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           <div class="printer-card-drag" title="${esc(t("printerDragHint"))}" aria-hidden="true">
             <span class="printer-card-drag-dots"></span>
           </div>
-          ${imgSrc ? `<div class="printer-card-thumb"><img src="${esc(imgSrc)}" alt="${esc(modelName)}" onerror="this.style.opacity='.15'"/></div>` : ""}
+          <div class="printer-card-name">
+            <span class="printer-card-name-dot${online ? " is-online" : ""}" aria-hidden="true"></span>
+            <span class="printer-card-name-txt">${safeName}</span>
+          </div>
+          ${imgSrc ? `<div class="printer-card-thumb"><img src="${esc(imgSrc)}" alt="${esc(modelName)}" onerror="this.style.opacity='.15'"/>${_BRAND_HAS_LOGO.has(p.brand) ? `<span class="pt-thumb-badge"><span class="pt-thumb-logo" data-brand="${esc(p.brand)}" title="${esc(meta.label)}" aria-label="${esc(meta.label)}"></span></span>` : ""}</div>` : ""}
           <div class="printer-card-head">
             <span class="printer-brand-pill" style="--brand-accent:${meta.accent}">${esc(meta.label)}</span>
             ${p.isActive ? `<span class="printer-active-badge">${esc(t("printersActive"))}</span>` : ""}
           </div>
-          <div class="printer-card-name">${safeName}</div>
           ${(() => { const job = _getPrinterJob(p); return job ? _jobCardHtml(job) : ""; })()}
-          ${onlineBadge}
           <div class="printer-card-foot">
-            <span class="printer-card-conn">${esc(p.mode === "cloud" ? t("printerConnCloud") : meta.connection)}</span>
-            ${updated ? `<span class="printer-card-updated">${esc(t("printersUpdated"))} · ${esc(updated)}</span>` : ""}
+            <span class="printer-card-conn">${esc(p.mode === "cloud" ? t("printerConnCloud") : (meta.connLan || meta.connection))}</span>
+            <span class="printer-card-updated">${esc(t("printersLastSeen"))} · ${esc(lastSeen)}</span>
           </div>
         </div>`;
     };
@@ -9689,6 +9802,51 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   }
 
   // ── Printer table sub-view ───────────────────────────────────────────────
+  // Brands that ship a logo SVG (assets/svg/icons/logo_<brand>.svg) → the Brand
+  // column shows the tinted logo; any other brand falls back to the text pill.
+  const _BRAND_HAS_LOGO = new Set(["anycubic", "bambulab", "creality", "elegoo", "flashforge", "snapmaker"]);
+  // When each printer was last seen online (key `brand:id` → ms timestamp).
+  // Used by the "Last seen" column. Backed by Firestore (see below) so it
+  // survives reloads/restarts; updated live in-memory by the heartbeat + renders.
+  const _printerLastSeen = new Map();
+
+  // ── "Last seen online" persistence ───────────────────────────────────────
+  // Stored in a SEPARATE collection users/{uid}/printerSeen/{brand:id} (NOT the
+  // devices subcollection) so the per-minute heartbeat writes don't fire the
+  // printers onSnapshot — which would rebuild the grid / open side-card every
+  // minute. Seeded once on load; written by the heartbeat while online.
+  let _printerSeenSeededUid = null;
+  let _printerSeenTimer = null;
+  async function _seedPrinterLastSeen(uid) {
+    if (!uid || _printerSeenSeededUid === uid) return;
+    _printerSeenSeededUid = uid;
+    try {
+      const snap = await fbDb(uid).collection("users").doc(uid).collection("printerSeen").get();
+      snap.forEach(doc => { const ts = doc.data()?.ts; if (typeof ts === "number") _printerLastSeen.set(doc.id, ts); });
+      if (_isPrinterMode(state.viewMode)) { try { renderPrintersView(); } catch (_) {} }
+    } catch (_) {}
+  }
+  function _persistPrinterSeen(brand, id, ts) {
+    const uid = state.activeAccountId;
+    if (!uid) return;
+    fbDb(uid).collection("users").doc(uid).collection("printerSeen")
+      .doc(`${brand}:${id}`).set({ ts }).catch(() => {});
+  }
+  // Heartbeat: once a minute, stamp every online printer (in-memory + Firestore).
+  function _startPrinterSeenHeartbeat() {
+    if (_printerSeenTimer) return;
+    _printerSeenTimer = setInterval(() => {
+      if (!state.activeAccountId) return;
+      const now = Date.now();
+      state.printers.forEach(p => {
+        if (_isPrinterOnline(p)) {
+          _printerLastSeen.set(`${p.brand}:${p.id}`, now);
+          _persistPrinterSeen(p.brand, p.id, now);
+        }
+      });
+    }, 60_000);
+  }
+
   function _renderPrinterTable(host) {
     // Auto-connect so _getPrinterJob() has live data (idempotent)
     state.printers.forEach(p => {
@@ -9710,6 +9868,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       return false;
     };
 
+    // Stamp "last seen online" for every currently-online printer (session memory).
+    state.printers.forEach(p => { if (_isOnline(p)) _printerLastSeen.set(`${p.brand}:${p.id}`, Date.now()); });
+
     // ── Sort ────────────────────────────────────────────────────────────
     const col = state.printerSortCol;
     const dir = state.printerSortDir === "asc" ? 1 : -1;
@@ -9722,10 +9883,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (col === "name")    { va = (a.printerName || "").toLowerCase(); vb = (b.printerName || "").toLowerCase(); }
       if (col === "model")   { va = printerModelName(a.brand, a.printerModelId).toLowerCase();
                                vb = printerModelName(b.brand, b.printerModelId).toLowerCase(); }
-      if (col === "ip")      { va = a.ip || a.broker || "";              vb = b.ip || b.broker || ""; }
+      if (col === "ip")      { va = a.mode === "cloud" ? "Cloud" : (a.ip || a.broker || ""); vb = b.mode === "cloud" ? "Cloud" : (b.ip || b.broker || ""); }
       if (col === "status")  { va = _isOnline(a) ? 1 : 0;               vb = _isOnline(b) ? 1 : 0; }
       if (col === "job")     { va = (_getPrinterJob(a)?.pct ?? -1);      vb = (_getPrinterJob(b)?.pct ?? -1); }
-      if (col === "updated") { va = a.updatedAt || 0;                    vb = b.updatedAt || 0; }
+      if (col === "lastseen") { va = _printerLastSeen.get(`${a.brand}:${a.id}`) || 0; vb = _printerLastSeen.get(`${b.brand}:${b.id}`) || 0; }
       if (va === undefined)  return 0;
       return va < vb ? -dir : va > vb ? dir : 0;
     });
@@ -9742,7 +9903,15 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       const meta    = PRINTER_BRAND_META[p.brand] || { label: p.brand, accent: "#888" };
       const model   = printerModelName(p.brand, p.printerModelId);
       const online  = _isOnline(p);
-      const updated = p.updatedAt ? timeAgo(p.updatedAt) : "—";
+      // "Last seen online" — currently-connected printers read "now"; offline
+      // ones show the elapsed time since last seen this session (— if never).
+      const _ls      = _printerLastSeen.get(`${p.brand}:${p.id}`);
+      const lastSeen = online ? t("agoNow") : (_ls ? timeAgo(_ls) : "—");
+      const brandCell = `<span class="printer-brand-pill" style="--brand-accent:${esc(meta.accent)}">${esc(meta.label)}</span>`;
+      // Brand logo in its own column (before the printer image), when we have one.
+      const brandLogoCell = _BRAND_HAS_LOGO.has(p.brand)
+        ? `<span class="pt-thumb-logo" data-brand="${esc(p.brand)}" title="${esc(meta.label)}" aria-label="${esc(meta.label)}"></span>`
+        : "";
       const imgSrc  = printerImageUrlFor(p.brand, p.printerModelId)
                    || printerImageUrl(findPrinterModel(p.brand, "0"))
                    || "";
@@ -9751,21 +9920,20 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       return `
         <tr class="pt-row${online ? " pt-row--online" : ""}"
             data-brand="${esc(p.brand)}" data-id="${esc(p.id)}">
+          <td class="pt-td pt-td--brandlogo">${brandLogoCell}</td>
           <td class="pt-td pt-td--thumb">
             ${imgSrc ? `<img class="pt-thumb" src="${esc(imgSrc)}" onerror="this.style.opacity='.12'" />` : ""}
           </td>
-          <td class="pt-td pt-td--brand">
-            <span class="printer-brand-pill" style="--brand-accent:${esc(meta.accent)}">${esc(meta.label)}</span>
-          </td>
+          <td class="pt-td pt-td--brand">${brandCell}</td>
           <td class="pt-td pt-td--name">${esc(p.printerName || "(unnamed)")}</td>
           <td class="pt-td pt-td--model">${esc(model)}</td>
-          <td class="pt-td pt-td--ip"><code>${esc(p.ip || p.broker || "—")}</code></td>
+          <td class="pt-td pt-td--ip"><code>${p.mode === "cloud" ? "Cloud" : esc(p.ip || p.broker || "—")}</code></td>
           <td class="pt-td pt-td--status">
             <span class="pt-dot${online ? " pt-dot--on" : ""}"></span>
             ${esc(online ? t("snapStatusOnline") : t("snapStatusOffline"))}
           </td>
           <td class="pt-td pt-td--job">${jobCell}</td>
-          <td class="pt-td pt-td--updated">${esc(updated)}</td>
+          <td class="pt-td pt-td--updated">${esc(lastSeen)}</td>
         </tr>`;
     }).join("");
 
@@ -9774,6 +9942,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         <table class="pt-table">
           <thead class="pt-head">
             <tr>
+              <th class="pt-th pt-th--brandlogo"></th>
               <th class="pt-th pt-th--thumb"></th>
               ${th("Brand",   "brand")}
               ${th("Name",    "name")}
@@ -9781,7 +9950,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
               ${th("IP",      "ip")}
               ${th("Status",  "status")}
               ${th("Job",     "job")}
-              ${th("Updated", "updated")}
+              ${th("Last seen", "lastseen")}
             </tr>
           </thead>
           <tbody>${rows}</tbody>
@@ -9798,6 +9967,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           state.printerSortCol = key;
           state.printerSortDir = "asc";
         }
+        _saveSort("tigertag.sort.printer", state.printerSortCol, state.printerSortDir);
         _renderPrinterTable(host);
       });
     });
@@ -10829,6 +10999,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     btn.title       = t(labelKey);
     btn.ariaLabel   = btn.title;
     btn.dataset.conn = active ? "active" : "inactive";
+    // Status dot before the title: green (pulsing) when online, grey otherwise.
+    const dot = $("printerPanelDot");
+    if (dot) dot.classList.toggle("is-online", _isPrinterOnline(p));
   }
 
   $("printerConnBtn")?.addEventListener("click", () => {
@@ -11351,33 +11524,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       ${modelName && modelName !== "—" ? `<span class="pp-model-pill pp-model-pill--sm">${esc(modelName)}</span>` : ""}
     `;
     $("printerPanelPills").innerHTML = titlePillsHtml;
-    // Status row UNDER the title — Snapmaker (WebSocket) + FlashForge (HTTP
-    // poll) both provide reachability info. Other brands fall through to
-    // an empty string so the row collapses to zero height.
+    // Online status is shown as a coloured dot before the title (see
+    // #printerPanelDot / _updatePrinterConnBtn) — the separate badge row was
+    // removed, so keep #printerPanelStatus empty (collapses to zero height).
     const statusEl = $("printerPanelStatus");
-    if (statusEl) {
-      if (p.brand === "elegoo") {
-        const elgOnlineSide = elegooIsOnline(p);
-        const cls = elgOnlineSide === true ? "is-online" : elgOnlineSide === false ? "is-offline" : "is-checking";
-        const lbl = elgOnlineSide === true  ? t("snapStatusOnline")
-                  : elgOnlineSide === false ? t("snapStatusOffline")
-                  :                           t("snapStatusConnecting");
-        statusEl.innerHTML = `<span class="printer-online printer-online--side ${cls}" id="ppOnlineRow">
-                                <span class="printer-online-dot"></span>
-                                <span class="printer-online-lbl">${esc(lbl)}</span>
-                              </span>`;
-      } else {
-        statusEl.innerHTML = (p.brand === "flashforge")
-          ? renderFfgOnlineBadge(p, "side")
-          : (p.brand === "creality")
-          ? renderCreOnlineBadge(p, "side")
-          : (p.brand === "bambulab")
-          ? renderBambuOnlineBadge(p, "side")
-          : (p.brand === "anycubic")
-          ? renderAcuOnlineBadge(p, "side")
-          : renderSnapOnlineBadge(p, "side");
-      }
-    }
+    if (statusEl) statusEl.innerHTML = "";
 
     // Online status now lives in the panel header (next to the pills),
     // not under the camera. Trigger a fresh ping anyway so the badge
@@ -12703,7 +12854,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         : "";
       return `
         <button type="button" class="pba-brand" data-brand="${esc(brand)}">
-          <span class="pba-brand-dot" style="background:${meta.accent}"></span>
+          <span class="pba-brand-logo" data-brand="${esc(brand)}"></span>
           <span class="pba-brand-text">
             <span class="pba-brand-label">${esc(meta.label)}</span>
             <span class="pba-brand-conn">${esc(meta.connection)}</span>
@@ -15542,6 +15693,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (uid) {
       subscribeInventory(uid);
       subscribeRacks(uid);                              // re-attach own racks live-sync
+      subscribeFriends(uid);                            // re-attach own friends live-sync
+      subscribeNotifications(uid);                      // re-attach notification center
     }
   }
 
@@ -15566,13 +15719,43 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (!_requestQueue.length) return;
     _pendingRequest = _requestQueue[0];
     const { uid, data } = _pendingRequest;
+    const av = $("frqAvatar");
     const initials = (data.displayName || "?").split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
-    const color = friendColorFallback(uid);
-    $("frqAvatar").textContent = initials;
-    $("frqAvatar").style.background = color;
-    $("frqAvatar").style.color = readableTextOn(color);
-    $("frqName").textContent = data.displayName || uid;
-    $("friendRequestOverlay").classList.add("open");
+    const fallbackColor = friendColorFallback(uid);
+
+    // Paint the avatar + name and open the modal exactly once. When the friend
+    // has a photo we DON'T show the initials letter: we clear the text and let
+    // the coloured-circle gradient show behind the <img> while it loads, then
+    // the photo paints on top. On decode-fail we fall back to the initials. With
+    // no photo we just show the initials. So the letter never flashes before an
+    // avatar.
+    let opened = false;
+    const open = ({ color, name, photo }) => {
+      if (!_pendingRequest || _pendingRequest.uid !== uid) return;  // a newer request took over
+      av.textContent = photo ? "" : initials;
+      av.style.background = color || fallbackColor;
+      av.style.color = readableTextOn(color || fallbackColor);
+      $("frqName").textContent = name || data.displayName || uid;
+      if (photo) {
+        const img = document.createElement("img");
+        img.className = "frq-avatar-photo";
+        img.alt = "";
+        img.onerror = () => { img.remove(); av.textContent = initials; };
+        img.src = photo;
+        av.appendChild(img);
+      }
+      if (!opened) { opened = true; $("friendRequestOverlay").classList.add("open"); }
+    };
+
+    // Open as soon as the (fast) profile read returns so the avatar is resolved
+    // up front — no initials-then-photo swap. A safety timer opens on the
+    // initials only if the read is unusually slow (offline/cold).
+    const safety = setTimeout(() => open({ color: fallbackColor, name: data.displayName }), 1200);
+    fbDb().collection("userProfiles").doc(uid).get().then(snap => {
+      clearTimeout(safety);
+      const pd = snap.exists ? snap.data() : {};
+      open({ color: profileColor(pd), name: pd.displayName, photo: pd.photoURL || null });
+    }).catch(() => { clearTimeout(safety); open({ color: fallbackColor, name: data.displayName }); });
   }
 
   function _closeRequestModal() {
@@ -15597,6 +15780,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     await blockUser(_pendingRequest.uid, _pendingRequest.data.displayName);
     _closeRequestModal();
   });
+  // Close (✕) — dismiss the modal without acting; the request stays pending in
+  // Firestore (badge keeps it) and the next queued request, if any, shows.
+  $("frqClose").addEventListener("click", () => { if (_pendingRequest) _closeRequestModal(); });
 
   // Add friend modal — split-field XXX-XXX
   const ADF_CHARS = /[^A-Z0-9]/g;
@@ -15788,13 +15974,29 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     state.unsubFriendRequests = fbDb()
       .collection("users").doc(uid)
       .collection("friendRequests")
-      .onSnapshot(snap => {
+      .onSnapshot(async snap => {
         state.friendRequests = snap.docs.map(d => ({ uid: d.id, ...d.data() }));
-        renderFriendRequestBadge();
+        renderNotifBadge();
+        renderFriendRequestsList();
         // Show modal for each new incoming request
         snap.docChanges().forEach(change => {
           if (change.type === "added") showFriendRequestModal(change.doc.id, change.doc.data());
         });
+        // Enrich each request with the requester's public avatar / colour so the
+        // panel list shows their real photo (not just an initials circle).
+        const db = fbDb(uid);
+        await Promise.all(state.friendRequests.map(async r => {
+          try {
+            const ps = await db.collection("userProfiles").doc(r.uid).get();
+            if (!ps.exists) return;
+            const pd = ps.data();
+            r.photoURL = pd.photoURL || null;
+            const col = profileColor(pd);
+            if (col) r.color = col;
+            if (pd.displayName) r.displayName = pd.displayName;
+          } catch (_) {}
+        }));
+        if (uid === state.activeAccountId) renderFriendRequestsList();
       }, err => console.warn("[friendRequests]", err.message));
   }
 
@@ -15802,12 +16004,164 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (state.unsubFriendRequests) { state.unsubFriendRequests(); state.unsubFriendRequests = null; }
   }
 
-  function renderFriendRequestBadge() {
-    const count = state.friendRequests.length;
+  // Friends-button badge = number of friends (neutral count), or a "+" when the
+  // user has none yet (invites them to add one). Pending requests are NOT shown
+  // here anymore — they live on the notification bell.
+  function renderFriendsBadge() {
     const badge = $("friendsBadge");
     if (!badge) return;
-    badge.textContent = count;
-    badge.classList.toggle("hidden", count === 0);
+    const n = (state.friends || []).length;
+    badge.textContent = n > 0 ? String(n) : "+";
+    badge.classList.add("friends-badge--count");
+    badge.classList.remove("hidden");   // always visible (count or "+")
+  }
+
+  // Shared actionable friend-request row (avatar + name + accept/decline/block),
+  // used by both the Friends panel list and the notification center. The row is
+  // NEVER dismissible on its own — it only clears once the user accepts /
+  // declines / blocks (which deletes the underlying friendRequest doc).
+  function _reqRowInnerHtml(r) {
+    const name = _shortName(r.displayName, r.uid);
+    return `
+      <div class="fp-req-head">
+        ${avatarMarkup(r, "fp-friend-avatar")}
+        <div class="fp-friend-main">
+          <div class="fp-friend-name">${esc(name)}</div>
+          <div class="fp-friend-date">${esc(t("friendReqSub"))}</div>
+        </div>
+      </div>
+      <div class="fp-req-actions">
+        <button class="ghost sm fp-req-block"  data-action="block">${esc(t("friendReqBlock"))}</button>
+        <button class="ghost sm fp-req-refuse" data-action="refuse">${esc(t("friendReqRefuse"))}</button>
+        <button class="primary sm fp-req-accept" data-action="accept">${esc(t("friendReqAccept"))}</button>
+      </div>`;
+  }
+  function _wireReqRow(row, r) {
+    row.querySelector(".fp-req-accept")?.addEventListener("click", async () => { await acceptFriendRequest(r.uid, r.displayName); });
+    row.querySelector(".fp-req-refuse")?.addEventListener("click", async () => { await refuseFriendRequest(r.uid); });
+    row.querySelector(".fp-req-block")?.addEventListener("click",  async () => { await blockUser(r.uid, r.displayName); });
+  }
+
+  // Pending incoming requests, listed in the Friends panel so they can be
+  // handled (accept / decline / block) even after the popup modal was closed.
+  function renderFriendRequestsList() {
+    const block = $("fpReqsBlock");
+    const list  = $("fpReqsList");
+    const count = $("fpReqsCount");
+    if (!block || !list) return;
+    const reqs = state.friendRequests || [];
+    block.classList.toggle("hidden", reqs.length === 0);
+    if (count) count.textContent = reqs.length;
+    if (!reqs.length) { list.innerHTML = ""; return; }
+    list.innerHTML = reqs.map(r => `<div class="fp-req" data-uid="${esc(r.uid)}">${_reqRowInnerHtml(r)}</div>`).join("");
+    list.querySelectorAll(".fp-req").forEach(row => {
+      const r = reqs.find(x => x.uid === row.dataset.uid);
+      if (r) _wireReqRow(row, r);
+    });
+    renderNotifCenter();   // keep the notification center in sync
+  }
+
+  /* ── Notification center ──────────────────────────────────────────────
+     A bell in the sidebar opens a panel that aggregates:
+       1. Pending friend requests — ACTIONABLE, non-dismissible (they only
+          clear on accept/decline/block, which deletes the request doc).
+       2. General notifications from users/{uid}/notifications (e.g. "X
+          accepted your friend request") — dismissible, mark-as-read on open.
+     The bell badge counts pending requests + unread notifications. Reusable
+     for any future notification type. */
+  function subscribeNotifications(uid) {
+    unsubscribeNotifications();
+    if (!uid) return;
+    state.unsubNotifs = fbDb(uid)
+      .collection("users").doc(uid).collection("notifications")
+      .onSnapshot(snap => {
+        if (uid !== state.activeAccountId) return;
+        state.notifications = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+          .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+        renderNotifBadge();
+        renderNotifCenter();
+      }, err => console.warn("[notifs]", err?.message));
+  }
+  function unsubscribeNotifications() {
+    if (state.unsubNotifs) { try { state.unsubNotifs(); } catch (_) {} state.unsubNotifs = null; }
+  }
+
+  function _notifText(n) {
+    if (n.type === "friend_accepted") return t("notifAcceptedFriend", { name: _shortName(n.fromName, n.fromUid) });
+    return n.text || "";
+  }
+
+  // Unread = pending friend requests + notifications not yet read.
+  function _notifUnreadCount() {
+    return (state.friendRequests || []).length + (state.notifications || []).filter(n => !n.read).length;
+  }
+  function renderNotifBadge() {
+    const badge = $("notifBadge");
+    if (!badge) return;
+    const n = _notifUnreadCount();
+    badge.textContent = n;
+    badge.classList.toggle("hidden", n === 0);
+  }
+
+  function renderNotifCenter() {
+    const list = $("notifList");
+    const empty = $("notifEmpty");
+    if (!list) return;
+    const reqs   = state.friendRequests || [];
+    const notifs = state.notifications  || [];
+    if (empty) empty.classList.toggle("hidden", !!(reqs.length || notifs.length));
+    // Actionable friend requests first, then dismissible general notifications.
+    const reqHtml = reqs.map(r =>
+      `<div class="fp-req notif-req" data-uid="${esc(r.uid)}">${_reqRowInnerHtml(r)}</div>`).join("");
+    const notifHtml = notifs.map(n => {
+      const subject = { displayName: n.fromName, photoURL: n.photoURL || null, color: n.color || null };
+      const when = n.createdAt ? timeAgo(n.createdAt.seconds ? n.createdAt.seconds * 1000 : n.createdAt) : "";
+      return `<div class="notif-item${n.read ? "" : " notif-item--unread"}" data-id="${esc(n.id)}">
+        ${avatarMarkup(subject, "fp-friend-avatar")}
+        <div class="fp-friend-main">
+          <div class="notif-text">${esc(_notifText(n))}</div>
+          <div class="fp-friend-date">${esc(when)}</div>
+        </div>
+        <button class="fp-friend-btn notif-dismiss" title="${esc(t('cancelLabel'))}"><span class="icon icon-close icon-13"></span></button>
+      </div>`;
+    }).join("");
+    list.innerHTML = reqHtml + notifHtml;
+    list.querySelectorAll(".notif-req").forEach(row => {
+      const r = reqs.find(x => x.uid === row.dataset.uid);
+      if (r) _wireReqRow(row, r);
+    });
+    list.querySelectorAll(".notif-item").forEach(row => {
+      row.querySelector(".notif-dismiss")?.addEventListener("click", () => _dismissNotif(row.dataset.id));
+    });
+  }
+
+  function _dismissNotif(id) {
+    const uid = state.activeAccountId;
+    if (!uid || !id) return;
+    fbDb(uid).collection("users").doc(uid).collection("notifications").doc(id).delete().catch(() => {});
+  }
+
+  // Mark all unread general notifications read (on center open) so the badge clears.
+  function _markNotifsRead() {
+    const uid = state.activeAccountId;
+    const unread = (state.notifications || []).filter(n => !n.read);
+    if (!uid || !unread.length) return;
+    const db = fbDb(uid);
+    const batch = db.batch();
+    unread.forEach(n => batch.update(db.collection("users").doc(uid).collection("notifications").doc(n.id), { read: true }));
+    batch.commit().catch(() => {});
+  }
+
+  function openNotifs() {
+    renderNotifCenter();
+    $("notifPanel").classList.add("open");
+    $("notifOverlay").classList.add("open");
+    _markNotifsRead();
+    renderNotifBadge();
+  }
+  function closeNotifs() {
+    $("notifPanel").classList.remove("open");
+    $("notifOverlay").classList.remove("open");
   }
 
   // Accept a friend request → bidirectional add (rules verify only friendship presence,
@@ -15834,6 +16188,17 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     await batch.commit();
     state.friends = [...state.friends.filter(f => f.uid !== requesterUid),
       { uid: requesterUid, displayName, addedAt: Date.now() }];
+    // Notify the requester that I accepted — written to THEIR notifications
+    // subcollection. Kept OUT of the batch and fire-and-forget so a missing
+    // Firestore rule can never roll back the (successful) friendship above.
+    theirRef.collection("notifications").add({
+      type: "friend_accepted",
+      fromUid: user.uid,
+      fromName: state.displayName || user.email || "",
+      photoURL: state.photoURL || null,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      read: false,
+    }).catch(() => {});
   }
 
   // Refuse a friend request (just delete it — they can request again)

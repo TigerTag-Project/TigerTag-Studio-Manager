@@ -5,7 +5,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
-## v1.10.12 — 2026-06-19
+## v1.10.13 — 2026-06-19
 
 ### Added
 
@@ -18,16 +18,42 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
-## v1.10.11 — 2026-06-18
+## v1.10.12 — 2026-06-19
+
+### Added
+
+- **Notification center.** A new **bell** in the sidebar (with an unread badge) gathers your incoming friend requests and updates in one place. Friend requests shown there are actionable — **Accept / Decline / Block** — and stay until you choose one, so a request is never lost. First update type: **"X accepted your friend request."**
+- **Friend requests are easier to handle.** Pending requests now also appear in the **Friends panel** and the notification center (not just the popup), each showing the requester's real avatar with Accept / Decline / Block.
+
+### Changed
+
+- **Friends list updates live.** Accepting or removing a friend now appears **instantly for both people** without reopening the panel, and a friend's avatar / name / colour changes show up live too.
+- **Friends button** now shows your **number of friends** (or a **"+"** when you have none) instead of the pending-request count — requests moved to the bell.
+- **Friend request popup**: added a **close (✕)** button to dismiss it for later (the request stays pending and can be handled from the bell or Friends panel), and it now shows the requester's **real avatar immediately** — no initials flash.
+
+---
+
+## v1.10.11 — 2026-06-19
 
 ### Added
 
 - **Anycubic: file management.** The Anycubic printer panel now has a **Files** button that opens a browser for the printer's stored files. Browse **on-printer storage** and a **USB stick** (the USB tab appears once a stick is detected), and — for cloud-connected printers — a **Cloud** tab listing the files you saved to Anycubic Cloud, complete with thumbnails. From any tab you can **start a print** or **delete** a file (both press-and-hold to confirm). Cloud files are shared across all your printers, so a sliced file is only printable on the model it was made for: incompatible files show which printer they belong to and their Print button is disabled (you can still delete them). Works on both LAN- and cloud-connected Anycubic printers. _(Tested on a Kobra 3 V2 and a Kobra X.)_
+- **Printer brand logos.** The printer list, grid, and the "add a printer" picker now show each manufacturer's logo (Bambu Lab, Anycubic, Creality, Elegoo, FlashForge, Snapmaker).
+
+### Changed
+
+- **Clearer online status.** A printer's online/offline state is now a small coloured dot next to its name — pulsing green when online, flat grey when offline — in both the grid and the side panel. The old "Online / Offline" badge has been removed as redundant.
+- **"Last seen" instead of "Updated".** The printers list and grid now show when each printer was last seen **online** ("just now" while connected, otherwise how long ago), and it's remembered across restarts.
+- **Tables remember your sort.** The filament and printer tables now keep your last sort column and direction across restarts. By default filaments sort by **Brand** and printers by **status** (online first).
+- **Printers table polish.** The printers table now has the same rounded, scrollable finish — with a pinned header — as the filament table.
+- **Connection labels** now always note **"(LAN)"** for local connections (e.g. "WebSocket (LAN)", "MQTT (LAN)", "HTTP (LAN)").
+- **Snapmaker setup:** updated the Paxx U1 Extended firmware link to **v1.4.1-paxx12-19** and removed the now-unnecessary `openrfid_user.cfg` configuration step.
 
 ### Fixed
 
 - **Anycubic: fan speed and target temperatures now load on startup.** On a LAN-connected Anycubic printer the cooling fan always read 0% and the nozzle/bed targets showed blank right after launch even when they were actually set — they now appear immediately on connect.
 - **File browser close button no longer cut off.** The ✕ in the file sheet header was rendered partly off the right edge of the window.
+- **Bambu Lab: the filament/AMS card no longer appears empty when the printer is offline.**
 
 ---
 
