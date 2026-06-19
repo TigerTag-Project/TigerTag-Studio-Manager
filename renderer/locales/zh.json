@@ -473,8 +473,6 @@
   "snapBed": "热床",
   "snapTemperatureTitle": "温度",
   "creControlTitle": "控制",
-  "creExtrude": "挤出",
-  "creRetract": "回抽",
   "creDisableMotors": "关闭电机",
   "creFanPart": "模型",
   "creFanCase": "机箱",

@@ -473,8 +473,6 @@
   "snapBed": "Bed",
   "snapTemperatureTitle": "Temperature",
   "creControlTitle": "Control",
-  "creExtrude": "Extrude",
-  "creRetract": "Retract",
   "creDisableMotors": "Disable motors",
   "creFanPart": "Part",
   "creFanCase": "Case",

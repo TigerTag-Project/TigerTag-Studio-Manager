@@ -95,7 +95,7 @@ import {
   openCreFileSheet, closeCreFileSheet,
   creActionLed, creActionPause, creActionStop, creActionFeed, creActionFan,
   creLoadFileList, creActionPrintFile, creActionDeleteFile,
-  creGcode, renderCreControlBlock, renderCreFilamentBlock,
+  creGcode, creRefreshLive,
 } from './printers/creality/index.js';
 import {
   elegooKey, elegooGetConn, elegooIsOnline,
@@ -10586,8 +10586,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         const conn = creGetConn(creKey(_activePrinter));
         if (!isNaN(s) && conn) {
           conn._ctrlStep = s;
-          const ctrlEl = document.getElementById("creCtrlBlock");
-          if (ctrlEl) ctrlEl.innerHTML = renderCreControlBlock(_activePrinter);
+          creRefreshLive(_activePrinter);
         }
         return;
       }
@@ -11679,8 +11678,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           const conn    = creGetConn(creKey(_activePrinter));
           if (conn && boxId >= 0 && slotIdx >= 0) {
             conn._selFil = `${boxId}:${slotIdx}`;
-            const block = document.getElementById("creFilBlock");
-            if (block) block.innerHTML = renderCreFilamentBlock(_activePrinter);
+            creRefreshLive(_activePrinter);
           }
           return;
         }
@@ -12214,14 +12212,6 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
             e.preventDefault(); e.stopPropagation();
             const axes = (creHome.dataset.creCtrlHome || "").trim().toUpperCase();
             creGcode(_activePrinter, `G28 ${axes}`.trim(), `home ${axes || "all"}`);
-            return;
-          }
-          // Extrude / retract: [data-cre-ctrl-extrude] [data-dist="±N"]
-          const creExtrude = e.target.closest("[data-cre-ctrl-extrude]");
-          if (creExtrude) {
-            e.preventDefault(); e.stopPropagation();
-            const dist = parseFloat(creExtrude.dataset.dist);
-            if (!isNaN(dist)) creGcode(_activePrinter, `M83\nG1 E${dist} F300`, `extrude ${dist}`);
             return;
           }
           // Disable steppers: [data-cre-ctrl-disable]

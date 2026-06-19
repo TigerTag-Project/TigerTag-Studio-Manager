@@ -717,12 +717,7 @@ function creNotifyChange(conn, statusChanged = false) {
     const activePrinter = ctx.getActivePrinter();
     const isSidecard = activePrinter && activePrinter.brand === "creality" && creKey(activePrinter) === conn.key;
     if (!isSidecard) { ctx.onGridJobsChange(); return; } // already inside RAF
-    const host = document.getElementById("creLive");
-    // Skip the live repaint while a target-temperature input is open inline,
-    // otherwise the ~1.5 s telemetry push would wipe the field mid-edit.
-    if (host && !document.querySelector("[data-cre-set-temp][data-editing='1']")) {
-      host.innerHTML = renderCrealityLiveInner(activePrinter); _creBindHoldBtns(activePrinter);
-    }
+    _creUpdateLive(activePrinter, conn);
     const logHost = document.getElementById("creLog");
     if (logHost) logHost.innerHTML = renderCreLogInner(activePrinter);
     if (_creFileSheetPrinterKey === conn.key) _creUpdateFileSheet(conn);
@@ -755,19 +750,15 @@ function creLogPush(conn, dir, raw) {
 
 // ── Live inner renderers ──────────────────────────────────────────────────
 
-export function renderCrealityLiveInner(p) {
-  const conn = _creConns.get(creKey(p));
-  if (!conn) return `
-    <div class="snap-empty">
-      <span class="icon icon-cloud icon-18"></span>
-      <span>${ctx.esc(ctx.t("snapNoConnection"))}</span>
-    </div>`;
-  const d = conn.data;
-  const ledOn = conn.data.lightSw === 1;
+// Header buttons (Files + LED). Kept as its own renderer so the live panel can be
+// updated block-by-block (see _creUpdateLive) instead of rebuilt wholesale.
+function renderCreHead(conn) {
+  if (conn.status !== "connected") return "";
+  const ledOn  = conn.data.lightSw === 1;
   const ledTip = ctx.esc(ledOn
     ? (ctx.t("creLedOnTip")  || "Turn off LED")
     : (ctx.t("creLedOffTip") || "Turn on LED"));
-  const headHtml = conn.status === "connected" ? `
+  return `
     <div class="snap-head">
       <button type="button"
               class="cre-action-btn cre-action-btn--files"
@@ -780,25 +771,62 @@ export function renderCrealityLiveInner(p) {
               data-cre-action="led" title="${ledTip}">
         <span class="icon icon-bulb icon-16"></span>
       </button>
-    </div>` : "";
+    </div>`;
+}
+
+export function renderCrealityLiveInner(p) {
+  const conn = _creConns.get(creKey(p));
+  if (!conn) return `
+    <div class="snap-empty">
+      <span class="icon icon-cloud icon-18"></span>
+      <span>${ctx.esc(ctx.t("snapNoConnection"))}</span>
+    </div>`;
+  // Each card is wrapped in its own block so telemetry pushes can update only the
+  // blocks that actually changed (see _creUpdateLive) — otherwise rebuilding the
+  // whole panel mid-hover recreates the slot you're over and the hover-lift bounces.
   return `
-    ${headHtml}
-    ${renderCreJobCard(p, conn)}
-    ${renderCreTempCard(conn)}
+    <div id="creHeadBlock">${renderCreHead(conn)}</div>
+    <div id="creJobBlock">${renderCreJobCard(p, conn)}</div>
+    <div id="creTempBlock">${renderCreTempCard(conn)}</div>
     <div id="creCtrlBlock">${renderCreControlCard(p, conn)}</div>
     <div id="creFilBlock">${renderCreFilamentCard(p, conn)}</div>`;
 }
 
-// Re-render only the control block (used after a jog-step change in inventory.js).
-export function renderCreControlBlock(p) {
-  const conn = _creConns.get(creKey(p));
-  return conn ? renderCreControlCard(p, conn) : "";
+// Surgically refresh the live panel: replace a block's HTML only when it actually
+// changed. This keeps the hovered filament slot / dragged fan slider intact across
+// the ~1.5 s telemetry pushes (which only change the job/temp cards). Falls back to
+// a full build if the block structure isn't present yet.
+function _creUpdateLive(p, conn) {
+  const host = document.getElementById("creLive");
+  if (!host) return;
+  if (!document.getElementById("creFilBlock")) {
+    host.innerHTML = renderCrealityLiveInner(p);
+    _creBindHoldBtns(p);
+    return;
+  }
+  // Compare against the LAST GENERATED string stashed on the element — NOT
+  // el.innerHTML (the DOM getter re-serializes markup, so it never byte-matches our
+  // template and the block would rebuild every push, recreating the hovered slot).
+  const upd = (id, html) => {
+    const el = document.getElementById(id);
+    if (!el || el._creHtml === html) return false;
+    el.innerHTML = html; el._creHtml = html;
+    return true;
+  };
+  upd("creHeadBlock", renderCreHead(conn));
+  const jobChanged = upd("creJobBlock", renderCreJobCard(p, conn));
+  // Don't rebuild the temp card while a target is being typed inline.
+  if (!document.querySelector("[data-cre-set-temp][data-editing='1']")) upd("creTempBlock", renderCreTempCard(conn));
+  upd("creCtrlBlock", renderCreControlCard(p, conn));
+  upd("creFilBlock",  renderCreFilamentCard(p, conn));
+  if (jobChanged) _creBindHoldBtns(p);
 }
 
-// Re-render only the filament block (used after a slot selection in inventory.js).
-export function renderCreFilamentBlock(p) {
+// Immediate, single-source live refresh (used by inventory.js after a slot select /
+// step change so it goes through the same per-block diff and seeds `_creHtml`).
+export function creRefreshLive(p) {
   const conn = _creConns.get(creKey(p));
-  return conn ? renderCreFilamentCard(p, conn) : "";
+  if (conn) _creUpdateLive(p, conn);
 }
 
 export function renderCreLogInner(p) {
@@ -1006,7 +1034,6 @@ function renderCreControlCard(p, conn) {
 
   const step    = conn._ctrlStep ?? 10;
   const pos      = creParsePos(d.curPosition);
-  const eStep    = step < 1 ? 1 : step; // never extrude in 0.1 mm dribbles
   // One fan row: toggle icon + label + 1%-granular slider + live % readout.
   // Toggle/slider are wired in inventory.js (slider → creActionFan on release).
   const fanRow = (key, label) => {
@@ -1079,10 +1106,6 @@ function renderCreControlCard(p, conn) {
               ${[0.1, 1, 10, 30].map(s => `
                 <option value="${s}"${s === step ? " selected" : ""}>${s} mm</option>`).join("")}
             </select>
-          </div>
-          <div class="cre-ctrl-extrude">
-            <button type="button" class="cre-ctrl-ebtn" data-cre-ctrl-extrude data-dist="${eStep}"  title="E+${eStep}mm">${ctx.esc(ctx.t("creExtrude"))}</button>
-            <button type="button" class="cre-ctrl-ebtn" data-cre-ctrl-extrude data-dist="${-eStep}" title="E−${eStep}mm">${ctx.esc(ctx.t("creRetract"))}</button>
           </div>
           <button type="button" class="cre-ctrl-disable" data-cre-ctrl-disable title="M84">${ctx.esc(ctx.t("creDisableMotors"))}</button>
         </div>
@@ -1238,30 +1261,30 @@ function renderCreFilamentCard(p, conn) {
     }
   }
 
-  // Feed / Unload footer — acts on the selected slot via the `feedInOrOut` WS command.
-  // CFS slots only (boxId ≥ 1); the external extruder (box 0) uses a different path.
-  let feedFooter = "";
+  // Feed / Unload controls for the selected slot, shown inline on the "Filament"
+  // title row. CFS slots only (boxId ≥ 1); box 0 = external extruder, different path.
+  let feedControls = "";
   if (selKey) {
     const [bId, sIdx] = selKey.split(":").map(Number);
     if (bId >= 1) {
       const label = `${bId}${String.fromCharCode(65 + sIdx)}`;
-      feedFooter = `
+      feedControls = `
         <div class="cre-fil-feed">
           <span class="cre-fil-feed-sel">${ctx.esc(ctx.t("creFilSelected"))} <b>${ctx.esc(label)}</b></span>
-          <div class="cre-fil-feed-btns">
-            <button type="button" class="cre-fil-feed-btn cre-fil-feed-btn--in"
-                    data-cre-feed data-box-id="${bId}" data-mat-id="${sIdx}">${ctx.esc(ctx.t("creFeed"))}</button>
-            <button type="button" class="cre-fil-feed-btn cre-fil-feed-btn--out"
-                    data-cre-unload data-box-id="${bId}" data-mat-id="${sIdx}">${ctx.esc(ctx.t("creUnload"))}</button>
-          </div>
+          <button type="button" class="cre-fil-feed-btn cre-fil-feed-btn--in"
+                  data-cre-feed data-box-id="${bId}" data-mat-id="${sIdx}">${ctx.esc(ctx.t("creFeed"))}</button>
+          <button type="button" class="cre-fil-feed-btn cre-fil-feed-btn--out"
+                  data-cre-unload data-box-id="${bId}" data-mat-id="${sIdx}">${ctx.esc(ctx.t("creUnload"))}</button>
         </div>`;
     }
   }
   return `
     <section class="snap-block">
-      <h4 class="snap-block-title">${ctx.esc(ctx.t("snapFilamentTitle"))}</h4>
+      <div class="cre-fil-head">
+        <h4 class="snap-block-title">${ctx.esc(ctx.t("snapFilamentTitle"))}</h4>
+        ${feedControls}
+      </div>
       <div class="cre-fil-rows">${rows.join("")}</div>
-      ${feedFooter}
     </section>`;
 }
 

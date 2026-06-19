@@ -473,8 +473,6 @@
   "snapBed": "Plateau",
   "snapTemperatureTitle": "Température",
   "creControlTitle": "Contrôle",
-  "creExtrude": "Extruder",
-  "creRetract": "Rétracter",
   "creDisableMotors": "Désactiver moteurs",
   "creFanPart": "Pièce",
   "creFanCase": "Caisson",

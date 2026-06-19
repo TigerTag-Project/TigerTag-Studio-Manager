@@ -473,8 +473,6 @@
   "snapBed": "Piatto",
   "snapTemperatureTitle": "Temperatura",
   "creControlTitle": "Controllo",
-  "creExtrude": "Estrudere",
-  "creRetract": "Ritrarre",
   "creDisableMotors": "Disattiva motori",
   "creFanPart": "Pezzo",
   "creFanCase": "Telaio",

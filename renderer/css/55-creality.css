@@ -30,18 +30,12 @@
    torn down by a panel rebuild; only the visibility changes. */
 .cre-cam-hidden { display: none; }
 
-/* ── Control card — extrude / retract / disable-motors ──────────────────────
+/* ── Control card — disable-motors button ───────────────────────────────────
    The jog pad, step select and fan reuse the shared .elg-* / .snap-ctrl-*
-   styles (50-snapmaker.css / 57-elegoo.css). Only these manual-control
-   buttons are Creality-specific. */
-.cre-ctrl-extrude {
-  display: flex;
-  gap: 6px;
-  margin-top: 6px;
-}
-.cre-ctrl-ebtn,
+   styles (50-snapmaker.css / 57-elegoo.css). Only this button is Creality-specific. */
 .cre-ctrl-disable {
-  flex: 1;
+  width: 100%;
+  margin-top: 6px;
   padding: 5px 8px;
   font-size: 11px;
   font-weight: 600;
@@ -52,17 +46,11 @@
   cursor: pointer;
   transition: background .12s, color .12s, border-color .12s;
 }
-.cre-ctrl-disable {
-  width: 100%;
-  margin-top: 6px;
-}
-.cre-ctrl-ebtn:hover,
 .cre-ctrl-disable:hover {
   color: var(--primary, #386ecf);
   border-color: var(--primary, #386ecf);
   background: rgba(56, 110, 207, .08);
 }
-.cre-ctrl-ebtn:active,
 .cre-ctrl-disable:active { background: rgba(56, 110, 207, .16); }
 
 /* ── Filament slot: pencil edit button (the ONLY edit trigger) ───────────────
@@ -135,23 +123,23 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* ── Filament card: Feed / Unload of the selected CFS slot ───────────────────
-   Sends the proprietary `feedInOrOut` WS command for the slot highlighted with
-   the blue ring. The firmware runs the full auto-heat → cut → feed sequence. */
-.cre-fil-feed {
+/* ── Filament card: title row + Feed / Unload of the selected CFS slot ───────
+   The "Filament" title shares its row with the Selected label and the Feed /
+   Unload buttons, which send the proprietary `feedInOrOut` WS command for the
+   slot highlighted with the blue ring (firmware runs auto-heat → cut → feed). */
+.cre-fil-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid var(--border, rgba(127, 127, 127, .2));
+  gap: 8px;
+  margin-bottom: 8px;
 }
-.cre-fil-feed-sel { font-size: 12px; color: var(--muted); }
+.cre-fil-head .snap-block-title { margin: 0; }
+.cre-fil-feed { display: flex; align-items: center; gap: 6px; }
+.cre-fil-feed-sel { font-size: 12px; color: var(--muted); white-space: nowrap; }
 .cre-fil-feed-sel b { color: var(--primary, #386ecf); font-weight: 800; margin-left: 2px; }
-.cre-fil-feed-btns { display: flex; gap: 6px; }
 .cre-fil-feed-btn {
-  padding: 6px 14px;
+  padding: 4px 11px;
   font-size: 12px;
   font-weight: 700;
   border-radius: 8px;
