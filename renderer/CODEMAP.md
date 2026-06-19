@@ -30,19 +30,19 @@ L8193-8430     Resizable panels, debug panel, auto-update settings
 L8431-8541     Hard delete + container auto-assign + legacy tombstone purge
 L8542-8659     Firestore explorer + language save + debug mode
 L8660-8955     Friends sidebar quick-list + friends list render
-L8956-9240     Racks + printers Firestore subscriptions
-L9241-10261    Printers views — grid / table / cam wall + drag-drop
-L10262-12409   Printer detail side panel (renderPrinterDetail) + inline edit
-L12410-12973   Add-printer flow (brand picker, form, tutorials, submit)
-L12974-13862   Racks CRUD + slots + locking + auto-fill + masonry + tooltip
-L13863-14973   renderRackView + rack drag-drop + rack edit modal
-L14974-15440   Friend view + add-friend modal
-L15441-15828   Display-name setup + friend requests + blacklist
-L15829-15941   Public/private keys + user profile sync
-L15942-16321   Custom avatar upload + Discord-style cropper
-L16253-16728   syncUserDoc + session telemetry + language sync
-L16729-16744   Init bootstrap (loadLocales → loadLookups → runMigration → initAuth)
-L16745-17078   Electron RFID integration (readers, dual-scan, NFC processor, chip write)
+L8956-9421     Racks + printers Firestore subscriptions (+ live friends/notifs)
+L9422-10480    Printers views — grid / table / cam wall + drag-drop
+L10481-12687   Printer detail side panel (renderPrinterDetail) + inline edit
+L12688-13275   Add-printer flow (brand picker, form, tutorials, submit)
+L13276-14164   Racks CRUD + slots + locking + auto-fill + masonry + tooltip
+L14165-15275   renderRackView + rack drag-drop + rack edit modal
+L15276-15777   Friend view + add-friend modal
+L15778-16153   Display-name setup + friend requests + blacklist
+L16154-16381   Public/private keys + user profile sync
+L16382-16646   Custom avatar upload + Discord-style cropper
+L16647-17062   syncUserDoc + session telemetry + language sync
+L17063-17078   Init bootstrap (loadLocales → loadLookups → runMigration → initAuth)
+L17079-17412   Electron RFID integration (readers, dual-scan, NFC processor, chip write)
 ```
 
 ---
@@ -267,7 +267,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Racks + printers subscriptions (L8956-9240)
+## Racks + printers subscriptions (L8956-9421)
 
 | L | What | Anchors |
 |---|---|---|
@@ -278,7 +278,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Printers views (L9241-10261)
+## Printers views (L9422-10480)
 
 | L | What | Anchors |
 |---|---|---|
@@ -290,7 +290,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Printer detail side panel (L10262-12409)
+## Printer detail side panel (L10481-12687)
 
 | L | What | Anchors |
 |---|---|---|
@@ -301,7 +301,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Add-printer flow (L12410-12973)
+## Add-printer flow (L12688-13275)
 
 Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.js` owns the shell.
 
@@ -314,7 +314,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Racks CRUD + slots (L12974-13862)
+## Racks CRUD + slots (L13276-14164)
 
 | L | What | Anchors |
 |---|---|---|
@@ -327,7 +327,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Storage view render + DnD (L13863-14973)
+## Storage view render + DnD (L14165-15275)
 
 | L | What | Anchors |
 |---|---|---|
@@ -338,7 +338,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Friend view (L14974-15440)
+## Friend view (L15276-15777)
 
 | L | What | Anchors |
 |---|---|---|
@@ -349,7 +349,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Display name + friend requests (L15441-15828)
+## Display name + friend requests (L15778-16153)
 
 | L | What | Anchors |
 |---|---|---|
@@ -359,7 +359,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Keys + profile sync (L15638-15941)
+## Keys + profile sync (L16154-16381)
 
 | L | What | Anchors |
 |---|---|---|
@@ -368,7 +368,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Custom avatar (L15942-16321)
+## Custom avatar (L16382-16646)
 
 | L | What | Anchors |
 |---|---|---|
@@ -377,7 +377,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## User doc sync + telemetry + bootstrap (L16253-16744)
+## User doc sync + telemetry + bootstrap (L16647-17078)
 
 | L | What | Anchors |
 |---|---|---|
@@ -387,7 +387,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Electron RFID integration (L16745-17078)
+## Electron RFID integration (L17079-17412)
 
 | L | What | Anchors |
 |---|---|---|

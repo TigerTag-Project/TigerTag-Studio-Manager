@@ -304,18 +304,35 @@
     vertical-align: middle;
   }
   .friends-badge.hidden { display: none; }
+  /* Friend-count variant (neutral) — distinct from the orange alert badge used
+     for the notification bell. */
+  .friends-badge--count {
+    background: var(--surface-2);
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
 
   /* ── Friend request incoming modal ──────────────────────────────────── */
   #friendRequestOverlay .frq-card {
+    position: relative;
     width: min(320px, calc(100vw - 32px));
     display: flex; flex-direction: column; align-items: center;
     gap: 10px; padding: 32px 24px 24px; text-align: center;
   }
+  .frq-close { position: absolute; top: 12px; right: 12px; }
   .frq-avatar {
+    position: relative; overflow: hidden;
     width: 56px; height: 56px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
     font-size: 20px; font-weight: 700; color: #fff;
     box-shadow: 0 2px 12px rgba(0,0,0,.15);
+  }
+  /* Requester's real avatar photo, overlaid on top of the initials circle. */
+  .frq-avatar-photo {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
   }
   .frq-name   { font-size: 18px; font-weight: 700; color: var(--text); }
   .frq-sub    { font-size: 13px; color: var(--muted); margin-top: -4px; }

@@ -47,6 +47,7 @@
   .icon-water     { -webkit-mask-image: url('../../assets/svg/icons/icon_water.svg');        mask-image: url('../../assets/svg/icons/icon_water.svg'); }
   .icon-link      { -webkit-mask-image: url('../../assets/svg/icons/icon_link.svg');         mask-image: url('../../assets/svg/icons/icon_link.svg'); }
   .icon-user      { -webkit-mask-image: url('../../assets/svg/icons/icon_user.svg');         mask-image: url('../../assets/svg/icons/icon_user.svg'); }
+  .icon-bell      { -webkit-mask-image: url('../../assets/svg/icons/icon_bell.svg');         mask-image: url('../../assets/svg/icons/icon_bell.svg'); }
   .icon-download  { -webkit-mask-image: url('../../assets/svg/icons/icon_download.svg');     mask-image: url('../../assets/svg/icons/icon_download.svg'); }
   .icon-refresh   { -webkit-mask-image: url('../../assets/svg/icons/icon_refresh.svg');      mask-image: url('../../assets/svg/icons/icon_refresh.svg'); }
   .icon-settings  { -webkit-mask-image: url('../../assets/svg/icons/icon_settings.svg');     mask-image: url('../../assets/svg/icons/icon_settings.svg'); }

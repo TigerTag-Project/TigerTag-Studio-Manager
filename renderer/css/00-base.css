@@ -215,8 +215,9 @@
     color: rgba(255,255,255,.6);
   }
   .sb-actions button:not(.primary):hover { background: rgba(255,255,255,.12) !important; color: #fff !important; }
-  .sb-friends-btn { position: relative; }
-  .sb-friends-btn .friends-badge { position: absolute; top: -5px; right: -5px; margin: 0; }
+  .sb-friends-btn, .sb-notifs-btn { position: relative; }
+  .sb-friends-btn .friends-badge,
+  .sb-notifs-btn .friends-badge { position: absolute; top: -5px; right: -5px; margin: 0; }
   .sb-sub-welcome { font-size: 11px; color: rgba(255,255,255,.38); text-align: left; margin-top: 0; }
 
   /* ── avatar : état vide (aucun compte) ──

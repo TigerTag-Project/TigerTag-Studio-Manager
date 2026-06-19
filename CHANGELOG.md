@@ -5,6 +5,21 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.10.12 — 2026-06-19
+
+### Added
+
+- **Notification center.** A new **bell** in the sidebar (with an unread badge) gathers your incoming friend requests and updates in one place. Friend requests shown there are actionable — **Accept / Decline / Block** — and stay until you choose one, so a request is never lost. First update type: **"X accepted your friend request."**
+- **Friend requests are easier to handle.** Pending requests now also appear in the **Friends panel** and the notification center (not just the popup), each showing the requester's real avatar with Accept / Decline / Block.
+
+### Changed
+
+- **Friends list updates live.** Accepting or removing a friend now appears **instantly for both people** without reopening the panel, and a friend's avatar / name / colour changes show up live too.
+- **Friends button** now shows your **number of friends** (or a **"+"** when you have none) instead of the pending-request count — requests moved to the bell.
+- **Friend request popup**: added a **close (✕)** button to dismiss it for later (the request stays pending and can be handled from the bell or Friends panel), and it now shows the requester's **real avatar immediately** — no initials flash.
+
+---
+
 ## v1.10.11 — 2026-06-19
 
 ### Added

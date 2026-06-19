@@ -134,6 +134,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   };
   let _unsubInventory  = null; // active Firestore onSnapshot unsubscribe handle
   let _sliderDebounce  = null; // pending auto-save timer for weight slider
+  const _friendProfileUnsubs = new Map(); // friendUid -> userProfiles onSnapshot unsubscribe
 
   const ACCOUNT_COLORS = {
     orange: ["#f97316","#fb923c"],   // orange vif
@@ -265,6 +266,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const subject  = _avatarSubject(source);
     const photoURL = subject.photoURL || null;
     const initials = getInitials(subject);
+    // When a photo exists we go straight to "photo" mode (initials hidden) — the
+    // coloured-circle gradient shows behind the <img> while it loads, so the
+    // initials LETTER never flashes before the avatar. Decode-fail flips back to
+    // initials via the <img> error handlers.
     const mode = !source ? "empty" : (photoURL ? "photo" : "initials");
     if (mode === "empty") {
       // Neutral, style-less — the gradient/shadow/colour come from the
@@ -572,6 +577,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     isPublic: false,
     friends: [],             // [{ uid, displayName, addedAt, key }]
     friendRequests: [],      // [{ uid, displayName, requestedAt }]
+    notifications: [],       // [{ id, type, fromUid, fromName, createdAt, read }] — users/{uid}/notifications
     blacklist: [],           // [{ uid, displayName, blockedAt }]
     racks: [],               // [{ id, name, level, position, order, createdAt, lastUpdate }]
     rackPresets: [],         // loaded from data/rack-presets.json
@@ -1181,6 +1187,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // the dropdown / sidebar friend chips; loadFriendsList runs
     // afterwards and pushes the live delta.
     _hydrateFriendsCache(state.activeAccountId);
+    renderFriendsBadge();   // show friend count (or "+") on first paint
     $("sbWelcome").textContent = t("welcomeBack");
     $("sbName").textContent = shown;
     $("sbUser").classList.remove("sb-user--empty");
@@ -3140,6 +3147,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (!state.publicKey) await regeneratePublicKey();
     loadFriendsList();
     renderFriendsSection();
+    renderFriendRequestsList();
     $("friendsPanel").classList.add("open"); $("friendsOverlay").classList.add("open");
   }
   function closeFriends() {
@@ -3148,6 +3156,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   $("btnOpenFriends").addEventListener("click", openFriends);
   $("friendsPanelClose").addEventListener("click", closeFriends);
   $("friendsOverlay").addEventListener("click", closeFriends);
+  $("btnOpenNotifs")?.addEventListener("click", openNotifs);
+  $("notifPanelClose")?.addEventListener("click", closeNotifs);
+  $("notifOverlay")?.addEventListener("click", closeNotifs);
 
   // ── TigerScale module init ─────────────────────────────────────────────
   // Wires panel open/close, health tick, and card event delegation.
@@ -4477,7 +4488,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // Common handler called when a named-instance user session becomes active.
   // uid must equal user.uid and be the current active account.
   async function handleSignedIn(user, uid) {
-    unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeRacks(); unsubscribeScales(); unsubscribePrinters();
+    unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeFriends(); unsubscribeNotifications(); unsubscribeRacks(); unsubscribeScales(); unsubscribePrinters();
     // Always reset friend-view mode on account change — the new account's own inventory is what we want to show.
     // We also clear the inventory/rows so the previous (friend) data isn't briefly shown as if it belonged to the new account.
     if (state.friendView) {
@@ -4575,7 +4586,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     syncLangFromFirestore(uid);
     syncUserDoc(uid);
     subscribeFriendRequests(uid);
-    loadFriendsList();  // populate state.friends early so dropdown + profiles modal show friends immediately
+    subscribeFriends(uid);  // live-sync friends (add/remove on the fly, both sides) + per-friend avatar/name listeners
+    subscribeNotifications(uid);  // live notification center (general notifs + unread badge)
     loadBlacklist();    // populate state.blacklist for the Friends panel
     subscribeRacks(uid);// live-sync the user's storage racks
     subscribeScales(uid);// live-sync the user's TigerScale heartbeats
@@ -4596,11 +4608,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         if (uid === getActiveId()) await handleSignedIn(user, uid);
       } else if (uid === getActiveId()) {
         // Active account's session expired → show login
-        unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeRacks(); unsubscribeScales(); unsubscribePrinters();
+        unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeFriends(); unsubscribeNotifications(); unsubscribeRacks(); unsubscribeScales(); unsubscribePrinters();
         state.inventory = null; state.rows = [];
         state.isAdmin = false; state.debugEnabled = false;
         state.publicKey = null; state.privateKey = null;
-        state.friends = []; state.friendRequests = []; state.blacklist = []; state.racks = []; state.printers = [];
+        state.friends = []; state.friendRequests = []; state.notifications = []; state.blacklist = []; state.racks = []; state.printers = [];
         applyDebugMode(); renderStats(); renderInventory();
         renderAccountDropdown();
         setDisconnected();
@@ -4744,7 +4756,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // Sign out the named instance so its IndexedDB session is cleared
     try { firebase.app(id).auth().signOut(); } catch (_) {}
     if (wasActive) {
-      unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeRacks(); unsubscribeScales(); unsubscribePrinters();
+      unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeFriends(); unsubscribeNotifications(); unsubscribeRacks(); unsubscribeScales(); unsubscribePrinters();
       state.inventory = null; state.rows = [];
       state.isAdmin = false; state.debugEnabled = false;
       state.publicKey = null; state.privateKey = null;
@@ -9069,6 +9081,105 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (!uid) return;
     const cached = Cache.read("friends", uid);
     if (Array.isArray(cached)) state.friends = cached;
+  }
+
+  // Persist the friends list (denormalised displayName/color/photoURL) so the
+  // next launch restores it synchronously via _hydrateFriendsCache.
+  function _cacheFriends(uid, friends) {
+    try {
+      Cache.write("friends", uid, friends.map(f => ({
+        uid: f.uid, displayName: f.displayName || "",
+        color: f.color || null, photoURL: f.photoURL || null,
+      })));
+    } catch (_) { /* quota / privacy mode — silent */ }
+  }
+
+  // Re-render every surface that shows friends (panel list, account dropdown,
+  // profiles modal) after the live friends/profile data changes.
+  function _renderFriendsEverywhere() {
+    renderFriendsList();
+    renderFriendsBadge();
+    renderAccountDropdown();
+    if ($("profilesModalOverlay")?.classList.contains("open")) renderAccountList();
+  }
+
+  // Live friends list. Replaces the one-shot loadFriendsList() get on the main
+  // connect path so an accepted/removed friend appears or disappears on the fly
+  // for BOTH users (friendship is written bidirectionally), and so each friend's
+  // avatar / display name stays live via per-friend userProfiles listeners.
+  function subscribeFriends(uid) {
+    unsubscribeFriends();
+    if (!uid) return;
+    state.unsubFriends = fbDb(uid)
+      .collection("users").doc(uid).collection("friends")
+      .onSnapshot(snap => {
+        if (uid !== state.activeAccountId) return;
+        const prev = new Map((state.friends || []).map(f => [f.uid, f]));
+        const friends = snap.docs.map(d => {
+          const f = { uid: d.id, ...d.data() };
+          // The friend doc stores displayName/color but NOT photoURL — that's
+          // resolved from userProfiles (by the per-friend listener below, or by
+          // loadFriendsList). Carry the freshest already-resolved values over
+          // directly so a membership change (accept/remove) never blanks the
+          // surviving friends' avatars/names.
+          const p = prev.get(f.uid);
+          if (p) {
+            if (p.displayName) f.displayName = p.displayName;
+            if (p.color)       f.color       = p.color;
+            if (p.photoURL)    f.photoURL    = p.photoURL;
+          }
+          return f;
+        });
+        state.friends = friends;
+        _cacheFriends(uid, friends);
+        _renderFriendsEverywhere();
+        _reconcileFriendProfileSubs(uid);
+      }, err => console.warn("[friends:sub]", err?.message));
+  }
+
+  function unsubscribeFriends() {
+    if (state.unsubFriends) { try { state.unsubFriends(); } catch (_) {} state.unsubFriends = null; }
+    _friendProfileUnsubs.forEach(fn => { try { fn(); } catch (_) {} });
+    _friendProfileUnsubs.clear();
+  }
+
+  // One userProfiles listener per friend → live avatar / display name / colour.
+  // Reconciled against the current friends set on every friends snapshot:
+  // drop listeners for removed friends, add them for new ones.
+  function _reconcileFriendProfileSubs(uid) {
+    const db = fbDb(uid);
+    const wanted = new Set((state.friends || []).map(f => f.uid));
+    for (const [fid, fn] of _friendProfileUnsubs) {
+      if (!wanted.has(fid)) { try { fn(); } catch (_) {} _friendProfileUnsubs.delete(fid); }
+    }
+    (state.friends || []).forEach(f => {
+      if (_friendProfileUnsubs.has(f.uid)) return;
+      const unsub = db.collection("userProfiles").doc(f.uid).onSnapshot(ps => {
+        if (uid !== state.activeAccountId) return;
+        if (!ps.exists) return;
+        const pd = ps.data();
+        const fr = (state.friends || []).find(x => x.uid === f.uid);
+        if (!fr) return;
+        const dn = pd.displayName || "";
+        const col = profileColor(pd);          // "#rrggbb" or null
+        const photo = pd.photoURL || null;
+        let changed = false;
+        if (dn && dn !== fr.displayName) { fr.displayName = dn; changed = true; }
+        if (col && col !== fr.color)     { fr.color = col;       changed = true; }
+        if (photo !== (fr.photoURL || null)) { fr.photoURL = photo; changed = true; }
+        if (!changed) return;
+        _cacheFriends(uid, state.friends);
+        _renderFriendsEverywhere();
+        // Keep our denormalised copy fresh for the next cold start.
+        const upd = {};
+        if (dn) upd.displayName = dn;
+        if (col) upd.color = col;
+        if (Object.keys(upd).length) {
+          db.collection("users").doc(uid).collection("friends").doc(f.uid).update(upd).catch(() => {});
+        }
+      }, () => {});
+      _friendProfileUnsubs.set(f.uid, unsub);
+    });
   }
 
   /* ── Racks (storage shelves) ───────────────────────────────────────────── */
@@ -15432,6 +15543,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (uid) {
       subscribeInventory(uid);
       subscribeRacks(uid);                              // re-attach own racks live-sync
+      subscribeFriends(uid);                            // re-attach own friends live-sync
+      subscribeNotifications(uid);                      // re-attach notification center
     }
   }
 
@@ -15456,13 +15569,43 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (!_requestQueue.length) return;
     _pendingRequest = _requestQueue[0];
     const { uid, data } = _pendingRequest;
+    const av = $("frqAvatar");
     const initials = (data.displayName || "?").split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
-    const color = friendColorFallback(uid);
-    $("frqAvatar").textContent = initials;
-    $("frqAvatar").style.background = color;
-    $("frqAvatar").style.color = readableTextOn(color);
-    $("frqName").textContent = data.displayName || uid;
-    $("friendRequestOverlay").classList.add("open");
+    const fallbackColor = friendColorFallback(uid);
+
+    // Paint the avatar + name and open the modal exactly once. When the friend
+    // has a photo we DON'T show the initials letter: we clear the text and let
+    // the coloured-circle gradient show behind the <img> while it loads, then
+    // the photo paints on top. On decode-fail we fall back to the initials. With
+    // no photo we just show the initials. So the letter never flashes before an
+    // avatar.
+    let opened = false;
+    const open = ({ color, name, photo }) => {
+      if (!_pendingRequest || _pendingRequest.uid !== uid) return;  // a newer request took over
+      av.textContent = photo ? "" : initials;
+      av.style.background = color || fallbackColor;
+      av.style.color = readableTextOn(color || fallbackColor);
+      $("frqName").textContent = name || data.displayName || uid;
+      if (photo) {
+        const img = document.createElement("img");
+        img.className = "frq-avatar-photo";
+        img.alt = "";
+        img.onerror = () => { img.remove(); av.textContent = initials; };
+        img.src = photo;
+        av.appendChild(img);
+      }
+      if (!opened) { opened = true; $("friendRequestOverlay").classList.add("open"); }
+    };
+
+    // Open as soon as the (fast) profile read returns so the avatar is resolved
+    // up front — no initials-then-photo swap. A safety timer opens on the
+    // initials only if the read is unusually slow (offline/cold).
+    const safety = setTimeout(() => open({ color: fallbackColor, name: data.displayName }), 1200);
+    fbDb().collection("userProfiles").doc(uid).get().then(snap => {
+      clearTimeout(safety);
+      const pd = snap.exists ? snap.data() : {};
+      open({ color: profileColor(pd), name: pd.displayName, photo: pd.photoURL || null });
+    }).catch(() => { clearTimeout(safety); open({ color: fallbackColor, name: data.displayName }); });
   }
 
   function _closeRequestModal() {
@@ -15487,6 +15630,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     await blockUser(_pendingRequest.uid, _pendingRequest.data.displayName);
     _closeRequestModal();
   });
+  // Close (✕) — dismiss the modal without acting; the request stays pending in
+  // Firestore (badge keeps it) and the next queued request, if any, shows.
+  $("frqClose").addEventListener("click", () => { if (_pendingRequest) _closeRequestModal(); });
 
   // Add friend modal — split-field XXX-XXX
   const ADF_CHARS = /[^A-Z0-9]/g;
@@ -15678,13 +15824,29 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     state.unsubFriendRequests = fbDb()
       .collection("users").doc(uid)
       .collection("friendRequests")
-      .onSnapshot(snap => {
+      .onSnapshot(async snap => {
         state.friendRequests = snap.docs.map(d => ({ uid: d.id, ...d.data() }));
-        renderFriendRequestBadge();
+        renderNotifBadge();
+        renderFriendRequestsList();
         // Show modal for each new incoming request
         snap.docChanges().forEach(change => {
           if (change.type === "added") showFriendRequestModal(change.doc.id, change.doc.data());
         });
+        // Enrich each request with the requester's public avatar / colour so the
+        // panel list shows their real photo (not just an initials circle).
+        const db = fbDb(uid);
+        await Promise.all(state.friendRequests.map(async r => {
+          try {
+            const ps = await db.collection("userProfiles").doc(r.uid).get();
+            if (!ps.exists) return;
+            const pd = ps.data();
+            r.photoURL = pd.photoURL || null;
+            const col = profileColor(pd);
+            if (col) r.color = col;
+            if (pd.displayName) r.displayName = pd.displayName;
+          } catch (_) {}
+        }));
+        if (uid === state.activeAccountId) renderFriendRequestsList();
       }, err => console.warn("[friendRequests]", err.message));
   }
 
@@ -15692,12 +15854,164 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (state.unsubFriendRequests) { state.unsubFriendRequests(); state.unsubFriendRequests = null; }
   }
 
-  function renderFriendRequestBadge() {
-    const count = state.friendRequests.length;
+  // Friends-button badge = number of friends (neutral count), or a "+" when the
+  // user has none yet (invites them to add one). Pending requests are NOT shown
+  // here anymore — they live on the notification bell.
+  function renderFriendsBadge() {
     const badge = $("friendsBadge");
     if (!badge) return;
-    badge.textContent = count;
-    badge.classList.toggle("hidden", count === 0);
+    const n = (state.friends || []).length;
+    badge.textContent = n > 0 ? String(n) : "+";
+    badge.classList.add("friends-badge--count");
+    badge.classList.remove("hidden");   // always visible (count or "+")
+  }
+
+  // Shared actionable friend-request row (avatar + name + accept/decline/block),
+  // used by both the Friends panel list and the notification center. The row is
+  // NEVER dismissible on its own — it only clears once the user accepts /
+  // declines / blocks (which deletes the underlying friendRequest doc).
+  function _reqRowInnerHtml(r) {
+    const name = _shortName(r.displayName, r.uid);
+    return `
+      <div class="fp-req-head">
+        ${avatarMarkup(r, "fp-friend-avatar")}
+        <div class="fp-friend-main">
+          <div class="fp-friend-name">${esc(name)}</div>
+          <div class="fp-friend-date">${esc(t("friendReqSub"))}</div>
+        </div>
+      </div>
+      <div class="fp-req-actions">
+        <button class="ghost sm fp-req-block"  data-action="block">${esc(t("friendReqBlock"))}</button>
+        <button class="ghost sm fp-req-refuse" data-action="refuse">${esc(t("friendReqRefuse"))}</button>
+        <button class="primary sm fp-req-accept" data-action="accept">${esc(t("friendReqAccept"))}</button>
+      </div>`;
+  }
+  function _wireReqRow(row, r) {
+    row.querySelector(".fp-req-accept")?.addEventListener("click", async () => { await acceptFriendRequest(r.uid, r.displayName); });
+    row.querySelector(".fp-req-refuse")?.addEventListener("click", async () => { await refuseFriendRequest(r.uid); });
+    row.querySelector(".fp-req-block")?.addEventListener("click",  async () => { await blockUser(r.uid, r.displayName); });
+  }
+
+  // Pending incoming requests, listed in the Friends panel so they can be
+  // handled (accept / decline / block) even after the popup modal was closed.
+  function renderFriendRequestsList() {
+    const block = $("fpReqsBlock");
+    const list  = $("fpReqsList");
+    const count = $("fpReqsCount");
+    if (!block || !list) return;
+    const reqs = state.friendRequests || [];
+    block.classList.toggle("hidden", reqs.length === 0);
+    if (count) count.textContent = reqs.length;
+    if (!reqs.length) { list.innerHTML = ""; return; }
+    list.innerHTML = reqs.map(r => `<div class="fp-req" data-uid="${esc(r.uid)}">${_reqRowInnerHtml(r)}</div>`).join("");
+    list.querySelectorAll(".fp-req").forEach(row => {
+      const r = reqs.find(x => x.uid === row.dataset.uid);
+      if (r) _wireReqRow(row, r);
+    });
+    renderNotifCenter();   // keep the notification center in sync
+  }
+
+  /* ── Notification center ──────────────────────────────────────────────
+     A bell in the sidebar opens a panel that aggregates:
+       1. Pending friend requests — ACTIONABLE, non-dismissible (they only
+          clear on accept/decline/block, which deletes the request doc).
+       2. General notifications from users/{uid}/notifications (e.g. "X
+          accepted your friend request") — dismissible, mark-as-read on open.
+     The bell badge counts pending requests + unread notifications. Reusable
+     for any future notification type. */
+  function subscribeNotifications(uid) {
+    unsubscribeNotifications();
+    if (!uid) return;
+    state.unsubNotifs = fbDb(uid)
+      .collection("users").doc(uid).collection("notifications")
+      .onSnapshot(snap => {
+        if (uid !== state.activeAccountId) return;
+        state.notifications = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+          .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+        renderNotifBadge();
+        renderNotifCenter();
+      }, err => console.warn("[notifs]", err?.message));
+  }
+  function unsubscribeNotifications() {
+    if (state.unsubNotifs) { try { state.unsubNotifs(); } catch (_) {} state.unsubNotifs = null; }
+  }
+
+  function _notifText(n) {
+    if (n.type === "friend_accepted") return t("notifAcceptedFriend", { name: _shortName(n.fromName, n.fromUid) });
+    return n.text || "";
+  }
+
+  // Unread = pending friend requests + notifications not yet read.
+  function _notifUnreadCount() {
+    return (state.friendRequests || []).length + (state.notifications || []).filter(n => !n.read).length;
+  }
+  function renderNotifBadge() {
+    const badge = $("notifBadge");
+    if (!badge) return;
+    const n = _notifUnreadCount();
+    badge.textContent = n;
+    badge.classList.toggle("hidden", n === 0);
+  }
+
+  function renderNotifCenter() {
+    const list = $("notifList");
+    const empty = $("notifEmpty");
+    if (!list) return;
+    const reqs   = state.friendRequests || [];
+    const notifs = state.notifications  || [];
+    if (empty) empty.classList.toggle("hidden", !!(reqs.length || notifs.length));
+    // Actionable friend requests first, then dismissible general notifications.
+    const reqHtml = reqs.map(r =>
+      `<div class="fp-req notif-req" data-uid="${esc(r.uid)}">${_reqRowInnerHtml(r)}</div>`).join("");
+    const notifHtml = notifs.map(n => {
+      const subject = { displayName: n.fromName, photoURL: n.photoURL || null, color: n.color || null };
+      const when = n.createdAt ? timeAgo(n.createdAt.seconds ? n.createdAt.seconds * 1000 : n.createdAt) : "";
+      return `<div class="notif-item${n.read ? "" : " notif-item--unread"}" data-id="${esc(n.id)}">
+        ${avatarMarkup(subject, "fp-friend-avatar")}
+        <div class="fp-friend-main">
+          <div class="notif-text">${esc(_notifText(n))}</div>
+          <div class="fp-friend-date">${esc(when)}</div>
+        </div>
+        <button class="fp-friend-btn notif-dismiss" title="${esc(t('cancelLabel'))}"><span class="icon icon-close icon-13"></span></button>
+      </div>`;
+    }).join("");
+    list.innerHTML = reqHtml + notifHtml;
+    list.querySelectorAll(".notif-req").forEach(row => {
+      const r = reqs.find(x => x.uid === row.dataset.uid);
+      if (r) _wireReqRow(row, r);
+    });
+    list.querySelectorAll(".notif-item").forEach(row => {
+      row.querySelector(".notif-dismiss")?.addEventListener("click", () => _dismissNotif(row.dataset.id));
+    });
+  }
+
+  function _dismissNotif(id) {
+    const uid = state.activeAccountId;
+    if (!uid || !id) return;
+    fbDb(uid).collection("users").doc(uid).collection("notifications").doc(id).delete().catch(() => {});
+  }
+
+  // Mark all unread general notifications read (on center open) so the badge clears.
+  function _markNotifsRead() {
+    const uid = state.activeAccountId;
+    const unread = (state.notifications || []).filter(n => !n.read);
+    if (!uid || !unread.length) return;
+    const db = fbDb(uid);
+    const batch = db.batch();
+    unread.forEach(n => batch.update(db.collection("users").doc(uid).collection("notifications").doc(n.id), { read: true }));
+    batch.commit().catch(() => {});
+  }
+
+  function openNotifs() {
+    renderNotifCenter();
+    $("notifPanel").classList.add("open");
+    $("notifOverlay").classList.add("open");
+    _markNotifsRead();
+    renderNotifBadge();
+  }
+  function closeNotifs() {
+    $("notifPanel").classList.remove("open");
+    $("notifOverlay").classList.remove("open");
   }
 
   // Accept a friend request → bidirectional add (rules verify only friendship presence,
@@ -15724,6 +16038,17 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     await batch.commit();
     state.friends = [...state.friends.filter(f => f.uid !== requesterUid),
       { uid: requesterUid, displayName, addedAt: Date.now() }];
+    // Notify the requester that I accepted — written to THEIR notifications
+    // subcollection. Kept OUT of the batch and fire-and-forget so a missing
+    // Firestore rule can never roll back the (successful) friendship above.
+    theirRef.collection("notifications").add({
+      type: "friend_accepted",
+      fromUid: user.uid,
+      fromName: state.displayName || user.email || "",
+      photoURL: state.photoURL || null,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      read: false,
+    }).catch(() => {});
   }
 
   // Refuse a friend request (just delete it — they can request again)

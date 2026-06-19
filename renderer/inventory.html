@@ -75,6 +75,7 @@
       <div class="sb-actions">
         <button id="btnSbReload" class="primary"><span class="icon icon-refresh icon-13"></span><span class="label" data-i18n="btnRefresh">Refresh</span></button>
         <button id="btnOpenFriends" class="ghost sb-friends-btn"><span class="icon icon-user icon-13"></span><span class="label" data-i18n="friendsTitle">Friends</span><span id="friendsBadge" class="friends-badge hidden"></span></button>
+        <button id="btnOpenNotifs" class="ghost sb-notifs-btn"><span class="icon icon-bell icon-13"></span><span class="label" data-i18n="notifsTitle">Notifications</span><span id="notifBadge" class="friends-badge hidden"></span></button>
         <!-- Quick-access friends list (rendered by JS into this container).
              Each chip switches the inventory view to that friend on click.
              Hidden when state.friends is empty. -->
@@ -993,6 +994,15 @@
       </span>
     </label>
 
+    <!-- Pending friend requests (hidden when empty) -->
+    <div class="fp-list-block fp-reqs-block hidden" id="fpReqsBlock">
+      <div class="fp-list-head">
+        <span class="fp-list-title" data-i18n="friendReqsTitle">Pending requests</span>
+        <span class="fp-list-count fp-list-count--accent" id="fpReqsCount">0</span>
+      </div>
+      <div id="fpReqsList" class="fp-list"></div>
+    </div>
+
     <!-- Friends list -->
     <div class="fp-list-block">
       <div class="fp-list-head">
@@ -1023,6 +1033,23 @@
       </button>
     </div>
 
+  </div>
+</div>
+
+<!-- Notifications panel (slide-in from right) -->
+<div class="panel-overlay" id="notifOverlay"></div>
+<div class="detail-panel friends-panel notif-panel" id="notifPanel">
+  <div class="panel-header">
+    <span class="panel-title" data-i18n="notifsTitle">Notifications</span>
+    <button class="panel-close" id="notifPanelClose">✕</button>
+  </div>
+  <div class="panel-body friends-body">
+    <div id="notifList" class="fp-list notif-list"></div>
+    <div class="fp-empty notif-empty hidden" id="notifEmpty">
+      <div class="fp-empty-icon"><span class="icon icon-bell icon-14"></span></div>
+      <div class="fp-empty-title" data-i18n="notifsEmptyTitle">No notifications</div>
+      <div class="fp-empty-sub" data-i18n="notifsEmptySub">Friend requests and updates show up here</div>
+    </div>
   </div>
 </div>
 
@@ -1709,6 +1736,7 @@
 <!-- Friend request incoming modal -->
 <div class="modal-overlay" id="friendRequestOverlay">
   <div class="modal-card frq-card">
+    <button class="modal-close frq-close" id="frqClose" title="Close" aria-label="Close">✕</button>
     <div class="frq-avatar" id="frqAvatar"></div>
     <div class="frq-name" id="frqName">—</div>
     <div class="frq-sub" data-i18n="friendReqSub">wants to see your inventory</div>
