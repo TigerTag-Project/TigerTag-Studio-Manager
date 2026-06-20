@@ -142,6 +142,7 @@ export function creConnect(printer) {
       nozzleTemp:    null,  nozzleTarget: null,
       bedTemp:       null,  bedTarget:    null,
       chamberTemp:   null,  // boxTemp or chamberTemp field
+      chamberTarget: null,  // optimistic: printer rarely reports a chamber setpoint
       state:         0,     // 0=idle, 1=printing, 2=finished
       deviceState:   null,
       feedState:     null,
@@ -161,6 +162,11 @@ export function creConnect(printer) {
       // Peripherals
       lightSw:       null,   // 1 = LED on
       cfsConnect:    null,   // 1 = CFS module plugged in
+      // Fans (percent 0-100) — from the full-state push on connect; updated
+      // optimistically on set. Case + side are otherwise chamber-temp auto-controlled.
+      modelFanPct:     null, // part-cooling fan
+      caseFanPct:      null, // case / exhaust fan
+      auxiliaryFanPct: null, // side / auxiliary fan
       // Motion / live stats
       curFeedratePct:  null, // speed multiplier %
       curFlowratePct:  null, // flow-rate multiplier %
@@ -330,6 +336,68 @@ export function creActionStop(printer) {
   creSendSet(conn, { stop: 1 });
 }
 
+// Load (isFeed=1) or unload (isFeed=0) a CFS slot via the proprietary `feedInOrOut`
+// command on the 9999 WS (captured from Creality Print — see PROTOCOL §6.6). The
+// firmware runs the whole managed sequence itself (auto-heat → cut → feed/retract);
+// we only send the one frame. boxId 1+ = CFS module, materialId = 0-based slot.
+// Feed is hardware-confirmed; unload (isFeed=0) is inferred from the field name.
+export function creActionFeed(printer, boxId, materialId, isFeed) {
+  const conn = _creConns.get(creKey(printer));
+  if (!conn || conn.status !== "connected") return;
+  creSendSet(conn, { feedInOrOut: { boxId: Number(boxId), materialId: Number(materialId), isFeed: isFeed ? 1 : 0 } });
+}
+
+// Set a fan speed (0-100%) via the 9999 WS. `key` is the telemetry field; it maps
+// to the M106 fan index P0/P1/P2 (part/case/side — confirmed by capturing Creality
+// Print, see PROTOCOL §6.7). Sent as a `gcodeCmd` wrapper running `M106 P<i> S<0-255>`
+// (S = round(pct/100·255), so any 1% value works). Optimistic — the printer doesn't
+// reliably echo a fresh read, and case/side are otherwise chamber-temp auto-controlled.
+const CRE_FAN_INDEX = { modelFanPct: 0, caseFanPct: 1, auxiliaryFanPct: 2 };
+export function creActionFan(printer, key, pct) {
+  const conn = _creConns.get(creKey(printer));
+  if (!conn || conn.status !== "connected") return;
+  const P = CRE_FAN_INDEX[key];
+  if (P === undefined) return;
+  const v = Math.max(0, Math.min(100, Math.round(pct)));
+  conn.data[key] = v;                 // optimistic — UI reflects immediately
+  creSendSet(conn, { gcodeCmd: `M106 P${P} S${Math.round(v / 100 * 255)}` });
+  creNotifyChange(conn);
+}
+
+// ── Manual control — Moonraker G-code (port 7125) ─────────────────────────
+// The K-series runs Klipper + Moonraker; the proprietary WS (9999) has no
+// documented move/temperature setters, so machine control goes through the
+// standard `/printer/gcode/script` endpoint (same host we already use for
+// print-start / file-delete). `script` may contain several `\n`-separated
+// lines. Both the request and Moonraker's reply are pushed to the live log
+// so command failures (cold extrude, unknown heater…) are visible on real
+// hardware. Returns true on HTTP 200 without a Klipper error.
+export async function creGcode(printer, script, label) {
+  const conn = _creConns.get(creKey(printer));
+  if (!conn || conn.status !== "connected") return false;
+  creLogPush(conn, "→", JSON.stringify({ gcode: label || script }));
+  try {
+    // Routed through the main process (CORS-exempt). Moonraker sends no CORS
+    // headers, so a direct renderer fetch is blocked: a JSON-body POST triggers a
+    // preflight OPTIONS it answers with 405, and even a "simple" request's response
+    // is unreadable. G28 blocks until homing completes (~30 s) → 90 s timeout.
+    const r = await window.electronAPI.creHttp(conn.ip, "POST", "/printer/gcode/script", { script }, 90000);
+    if (!r?.ok || r?.json?.error) {
+      const m = r?.json?.error?.message || r?.error || `HTTP ${r?.status ?? "?"}`;
+      creLogPush(conn, "←", `gcode error: ${m}`);
+      try { ctx.toast?.(m, "error"); } catch (_) {}
+      creNotifyChange(conn);
+      return false;
+    }
+    creLogPush(conn, "←", JSON.stringify(r.json?.result ?? "ok"));
+    creNotifyChange(conn);
+    return true;
+  } catch (err) {
+    creLogPush(conn, "←", `gcode error: ${err.message}`);
+    return false;
+  }
+}
+
 // ── File explorer — WebSocket `retGcodeFileInfo2` (richer than Moonraker) ─
 
 // Request the file list over the already-open WS (fire-and-forget).
@@ -352,14 +420,10 @@ export async function creActionPrintFile(printer, filename) {
   const conn = _creConns.get(creKey(printer));
   if (!conn || conn.status !== "connected") return;
   try {
-    const resp = await fetch(`http://${conn.ip}:7125/printer/print/start`, {
-      method:  "POST",
-      headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ filename }),
-    });
-    if (!resp.ok) {
-      const j = await resp.json().catch(() => ({}));
-      console.warn("[cre] print start failed:", j?.error?.message || resp.status);
+    // Via the main process (CORS-exempt) — see creGcode for the full explanation.
+    const r = await window.electronAPI.creHttp(conn.ip, "POST", "/printer/print/start", { filename }, 10000);
+    if (!r?.ok || r?.json?.error) {
+      console.warn("[cre] print start failed:", r?.json?.error?.message || r?.error || r?.status);
     }
   } catch (err) {
     console.warn("[cre] print start error:", err.message);
@@ -372,12 +436,12 @@ export async function creActionDeleteFile(printer, filename) {
   const conn = _creConns.get(creKey(printer));
   if (!conn) return;
   try {
-    const resp = await fetch(
-      `http://${conn.ip}:7125/server/files/gcodes/${encodeURIComponent(filename)}`,
-      { method: "DELETE" }
-    );
-    if (resp.ok) conn.data.fileList = (conn.data.fileList || []).filter(f => f.name !== filename);
-    else console.warn("[cre] delete failed:", resp.status);
+    // Via the main process (CORS-exempt) — DELETE would otherwise trigger a
+    // preflight that bare Moonraker rejects. See creGcode for the full explanation.
+    const r = await window.electronAPI.creHttp(
+      conn.ip, "DELETE", `/server/files/gcodes/${encodeURIComponent(filename)}`, null, 10000);
+    if (r?.ok) conn.data.fileList = (conn.data.fileList || []).filter(f => f.name !== filename);
+    else console.warn("[cre] delete failed:", r?.error || r?.status);
   } catch (err) {
     console.warn("[cre] delete error:", err.message);
   }
@@ -571,6 +635,11 @@ function creMergeStatus(conn, obj) {
   if ("lightSw"    in obj) d.lightSw    = asNum(obj.lightSw);
   if ("cfsConnect" in obj) d.cfsConnect = asNum(obj.cfsConnect);
 
+  // ── Fans (percent) — arrive in the full-state push on connect ─────────
+  if ("modelFanPct"     in obj) d.modelFanPct     = asNum(obj.modelFanPct);
+  if ("caseFanPct"      in obj) d.caseFanPct      = asNum(obj.caseFanPct);
+  if ("auxiliaryFanPct" in obj) d.auxiliaryFanPct = asNum(obj.auxiliaryFanPct);
+
   // ── Motion / live stats ───────────────────────────────────────────────
   if ("curFeedratePct"      in obj) d.curFeedratePct     = asNum(obj.curFeedratePct);
   if ("curFlowratePct"      in obj) d.curFlowratePct     = asNum(obj.curFlowratePct);
@@ -648,8 +717,7 @@ function creNotifyChange(conn, statusChanged = false) {
     const activePrinter = ctx.getActivePrinter();
     const isSidecard = activePrinter && activePrinter.brand === "creality" && creKey(activePrinter) === conn.key;
     if (!isSidecard) { ctx.onGridJobsChange(); return; } // already inside RAF
-    const host = document.getElementById("creLive");
-    if (host) { host.innerHTML = renderCrealityLiveInner(activePrinter); _creBindHoldBtns(activePrinter); }
+    _creUpdateLive(activePrinter, conn);
     const logHost = document.getElementById("creLog");
     if (logHost) logHost.innerHTML = renderCreLogInner(activePrinter);
     if (_creFileSheetPrinterKey === conn.key) _creUpdateFileSheet(conn);
@@ -682,19 +750,15 @@ function creLogPush(conn, dir, raw) {
 
 // ── Live inner renderers ──────────────────────────────────────────────────
 
-export function renderCrealityLiveInner(p) {
-  const conn = _creConns.get(creKey(p));
-  if (!conn) return `
-    <div class="snap-empty">
-      <span class="icon icon-cloud icon-18"></span>
-      <span>${ctx.esc(ctx.t("snapNoConnection"))}</span>
-    </div>`;
-  const d = conn.data;
-  const ledOn = conn.data.lightSw === 1;
+// Header buttons (Files + LED). Kept as its own renderer so the live panel can be
+// updated block-by-block (see _creUpdateLive) instead of rebuilt wholesale.
+function renderCreHead(conn) {
+  if (conn.status !== "connected") return "";
+  const ledOn  = conn.data.lightSw === 1;
   const ledTip = ctx.esc(ledOn
     ? (ctx.t("creLedOnTip")  || "Turn off LED")
     : (ctx.t("creLedOffTip") || "Turn on LED"));
-  const headHtml = conn.status === "connected" ? `
+  return `
     <div class="snap-head">
       <button type="button"
               class="cre-action-btn cre-action-btn--files"
@@ -707,12 +771,62 @@ export function renderCrealityLiveInner(p) {
               data-cre-action="led" title="${ledTip}">
         <span class="icon icon-bulb icon-16"></span>
       </button>
-    </div>` : "";
+    </div>`;
+}
+
+export function renderCrealityLiveInner(p) {
+  const conn = _creConns.get(creKey(p));
+  if (!conn) return `
+    <div class="snap-empty">
+      <span class="icon icon-cloud icon-18"></span>
+      <span>${ctx.esc(ctx.t("snapNoConnection"))}</span>
+    </div>`;
+  // Each card is wrapped in its own block so telemetry pushes can update only the
+  // blocks that actually changed (see _creUpdateLive) — otherwise rebuilding the
+  // whole panel mid-hover recreates the slot you're over and the hover-lift bounces.
   return `
-    ${headHtml}
-    ${renderCreJobCard(p, conn)}
-    ${renderCreTempCard(conn)}
-    ${renderCreFilamentCard(p, conn)}`;
+    <div id="creHeadBlock">${renderCreHead(conn)}</div>
+    <div id="creJobBlock">${renderCreJobCard(p, conn)}</div>
+    <div id="creTempBlock">${renderCreTempCard(conn)}</div>
+    <div id="creCtrlBlock">${renderCreControlCard(p, conn)}</div>
+    <div id="creFilBlock">${renderCreFilamentCard(p, conn)}</div>`;
+}
+
+// Surgically refresh the live panel: replace a block's HTML only when it actually
+// changed. This keeps the hovered filament slot / dragged fan slider intact across
+// the ~1.5 s telemetry pushes (which only change the job/temp cards). Falls back to
+// a full build if the block structure isn't present yet.
+function _creUpdateLive(p, conn) {
+  const host = document.getElementById("creLive");
+  if (!host) return;
+  if (!document.getElementById("creFilBlock")) {
+    host.innerHTML = renderCrealityLiveInner(p);
+    _creBindHoldBtns(p);
+    return;
+  }
+  // Compare against the LAST GENERATED string stashed on the element — NOT
+  // el.innerHTML (the DOM getter re-serializes markup, so it never byte-matches our
+  // template and the block would rebuild every push, recreating the hovered slot).
+  const upd = (id, html) => {
+    const el = document.getElementById(id);
+    if (!el || el._creHtml === html) return false;
+    el.innerHTML = html; el._creHtml = html;
+    return true;
+  };
+  upd("creHeadBlock", renderCreHead(conn));
+  const jobChanged = upd("creJobBlock", renderCreJobCard(p, conn));
+  // Don't rebuild the temp card while a target is being typed inline.
+  if (!document.querySelector("[data-cre-set-temp][data-editing='1']")) upd("creTempBlock", renderCreTempCard(conn));
+  upd("creCtrlBlock", renderCreControlCard(p, conn));
+  upd("creFilBlock",  renderCreFilamentCard(p, conn));
+  if (jobChanged) _creBindHoldBtns(p);
+}
+
+// Immediate, single-source live refresh (used by inventory.js after a slot select /
+// step change so it goes through the same per-block diff and seeds `_creHtml`).
+export function creRefreshLive(p) {
+  const conn = _creConns.get(creKey(p));
+  if (conn) _creUpdateLive(p, conn);
 }
 
 export function renderCreLogInner(p) {
@@ -859,10 +973,12 @@ function renderCreJobCard(p, conn) {
 function renderCreTempCard(conn) {
   const d = conn.data;
   const tempPills = [];
+  const editTip = ctx.esc(ctx.t("snapTempEditTip") || "Click to set target temperature");
   if (typeof d.nozzleTemp === "number") {
     const heating = d.nozzleTarget > 0 && d.nozzleTemp < d.nozzleTarget - 1;
     tempPills.push(`
-      <div class="snap-temp${heating ? " snap-temp--heating" : ""}">
+      <div class="snap-temp snap-temp--editable${heating ? " snap-temp--heating" : ""}"
+           data-cre-set-temp="nozzle" title="${editTip}">
         ${ctx.SNAP_ICON_NOZZLE}
         <span class="snap-temp-val">${ctx.esc(ctx.snapFmtTempPair(d.nozzleTemp, d.nozzleTarget))}</span>
       </div>`);
@@ -870,16 +986,19 @@ function renderCreTempCard(conn) {
   if (typeof d.bedTemp === "number") {
     const heating = d.bedTarget > 0 && d.bedTemp < d.bedTarget - 1;
     tempPills.push(`
-      <div class="snap-temp snap-temp--bed${heating ? " snap-temp--heating" : ""}">
+      <div class="snap-temp snap-temp--bed snap-temp--editable${heating ? " snap-temp--heating" : ""}"
+           data-cre-set-temp="bed" title="${editTip}">
         ${ctx.SNAP_ICON_BED}
         <span class="snap-temp-val">${ctx.esc(ctx.snapFmtTempPair(d.bedTemp, d.bedTarget))}</span>
       </div>`);
   }
   if (typeof d.chamberTemp === "number" && d.chamberTemp > 0) {
+    const heating = d.chamberTarget > 0 && d.chamberTemp < d.chamberTarget - 1;
     tempPills.push(`
-      <div class="snap-temp snap-temp--box">
+      <div class="snap-temp snap-temp--box snap-temp--editable${heating ? " snap-temp--heating" : ""}"
+           data-cre-set-temp="chamber" title="${editTip}">
         ${ctx.SNAP_ICON_CHAMBER}
-        <span class="snap-temp-val">${ctx.esc(Math.round(d.chamberTemp) + "°C")}</span>
+        <span class="snap-temp-val">${ctx.esc(ctx.snapFmtTempPair(d.chamberTemp, d.chamberTarget))}</span>
       </div>`);
   }
   if (!tempPills.length) return "";
@@ -887,6 +1006,120 @@ function renderCreTempCard(conn) {
     <section class="snap-block">
       <h4 class="snap-block-title">${ctx.esc(ctx.t("snapTemperatureTitle"))}</h4>
       <div class="snap-temps">${tempPills.join("")}</div>
+    </section>`;
+}
+
+// Parse the printer's "X:0.00 Y:220.00 Z:58.56" position string → {x,y,z}.
+function creParsePos(s) {
+  const m = String(s || "").match(/X:\s*(-?[\d.]+).*?Y:\s*(-?[\d.]+).*?Z:\s*(-?[\d.]+)/i);
+  return m ? { x: m[1], y: m[2], z: m[3] } : null;
+}
+function creFmtPos(v) {
+  const n = parseFloat(v);
+  return isFinite(n) ? n.toFixed(1) : "—";
+}
+
+// Manual control card — jog pad, homing, extrude/retract, disable motors and
+// part-cooling fan. Hidden while a print is active (motion would wreck the job;
+// temperatures stay editable in the temp card above). Sends standard G-code via
+// creGcode() → Moonraker. Reuses the Elegoo/Snapmaker `.elg-*` jog/fan CSS.
+function renderCreControlCard(p, conn) {
+  if (conn?.status !== "connected") return "";
+  const d = conn.data;
+  const progressRaw = Math.max(d.printProgress || 0, d.dProgress || 0);
+  const isFinished  = progressRaw >= 100 || d.state === 2;
+  const isPrinting  = !isFinished && (progressRaw > 0 || d.printLeftTime > 0
+                       || d.printJobTime > 0 || d.layer > 0 || d.isPaused);
+  if (isPrinting) return "";
+
+  const step    = conn._ctrlStep ?? 10;
+  const pos      = creParsePos(d.curPosition);
+  // One fan row: toggle icon + label + 1%-granular slider + live % readout.
+  // Toggle/slider are wired in inventory.js (slider → creActionFan on release).
+  const fanRow = (key, label) => {
+    const pct = Math.max(0, Math.min(100, Math.round(d[key] ?? 0)));
+    return `
+        <div class="cre-fan-row">
+          <button type="button" class="elg-fan-icon-btn${pct > 0 ? " elg-fan-icon-btn--on" : ""}"
+                  data-cre-fan-toggle="${key}" aria-label="${ctx.esc(label)}">
+            <span class="icon icon-fan icon-16" aria-hidden="true"></span>
+          </button>
+          <span class="cre-fan-label">${ctx.esc(label)}</span>
+          <input type="range" class="cre-fan-slider" min="0" max="100" step="1" value="${pct}"
+                 data-cre-fan-slider="${key}" aria-label="${ctx.esc(label)}">
+          <span class="cre-fan-pct" data-cre-fan-pct="${key}">${pct}%</span>
+        </div>`;
+  };
+
+  return `
+    <section class="snap-block elg-ctrl">
+      <h4 class="snap-block-title">${ctx.esc(ctx.t("creControlTitle"))}</h4>
+
+      <div class="elg-jog-wrap">
+
+        <!-- Z pill: Z↑ · home-Z · Z↓ -->
+        <div class="elg-jog-z-pill">
+          <button class="elg-jog-z-btn" data-cre-ctrl-jog="z" data-dist="${step}"  title="Z+${step}mm">Z↑</button>
+          <button class="elg-jog-home-btn" data-cre-ctrl-home="Z" title="Home Z">
+            <span class="icon icon-home elg-home-icon"></span>
+          </button>
+          <button class="elg-jog-z-btn" data-cre-ctrl-jog="z" data-dist="${-step}" title="Z−${step}mm">Z↓</button>
+        </div>
+
+        <!-- XY circle -->
+        <div class="elg-jog-xy-circle">
+          <button class="elg-jog-xy-btn elg-jog-xy-btn--n" data-cre-ctrl-jog="y" data-dist="${step}"  title="Y+${step}mm">Y+</button>
+          <button class="elg-jog-xy-btn elg-jog-xy-btn--s" data-cre-ctrl-jog="y" data-dist="${-step}" title="Y−${step}mm">Y−</button>
+          <button class="elg-jog-xy-btn elg-jog-xy-btn--w" data-cre-ctrl-jog="x" data-dist="${-step}" title="X−${step}mm">X−</button>
+          <button class="elg-jog-xy-btn elg-jog-xy-btn--e" data-cre-ctrl-jog="x" data-dist="${step}"  title="X+${step}mm">X+</button>
+          <button class="elg-jog-home-btn elg-jog-home-btn--xy" data-cre-ctrl-home="" title="Home all">
+            <span class="icon icon-home elg-home-icon" aria-hidden="true"></span>
+          </button>
+          <div class="elg-jog-sector elg-jog-sector--n" aria-hidden="true"></div>
+          <div class="elg-jog-sector elg-jog-sector--s" aria-hidden="true"></div>
+          <div class="elg-jog-sector elg-jog-sector--w" aria-hidden="true"></div>
+          <div class="elg-jog-sector elg-jog-sector--e" aria-hidden="true"></div>
+        </div>
+
+        <!-- Right pill: Home Y · Home X -->
+        <div class="elg-jog-right-pill">
+          <button class="elg-jog-home-btn" data-cre-ctrl-home="Y" title="Home Y">
+            <span class="elg-jog-home-axis">Y</span>
+            <span class="icon icon-home elg-home-icon" aria-hidden="true"></span>
+          </button>
+          <button class="elg-jog-home-btn" data-cre-ctrl-home="X" title="Home X">
+            <span class="elg-jog-home-axis">X</span>
+            <span class="icon icon-home elg-home-icon" aria-hidden="true"></span>
+          </button>
+        </div>
+
+        <!-- Info column: position + step + extrude/retract + disable -->
+        <div class="elg-jog-info-col">
+          <div class="snap-ctrl-pos">
+            <span>X:<b>${ctx.esc(creFmtPos(pos?.x))}</b></span>
+            <span>Y:<b>${ctx.esc(creFmtPos(pos?.y))}</b></span>
+            <span>Z:<b>${ctx.esc(creFmtPos(pos?.z))}</b></span>
+          </div>
+          <div class="elg-ctrl-speed-row">
+            <span class="elg-ctrl-speed-label">${ctx.esc(ctx.t("elgCtrlStep") || "Step")}</span>
+            <select class="elg-ctrl-speed-select" data-cre-ctrl-step="1">
+              ${[0.1, 1, 10, 30].map(s => `
+                <option value="${s}"${s === step ? " selected" : ""}>${s} mm</option>`).join("")}
+            </select>
+          </div>
+          <button type="button" class="cre-ctrl-disable" data-cre-ctrl-disable title="M84">${ctx.esc(ctx.t("creDisableMotors"))}</button>
+        </div>
+
+      </div>
+
+      <!-- Fans — part cooling, case, side. Live % from the connect snapshot, updated
+           optimistically on change. Case + side override the chamber-temp auto control. -->
+      <div class="cre-fan-section">
+        ${fanRow("modelFanPct", ctx.t("creFanPart"))}
+        ${fanRow("caseFanPct", ctx.t("creFanCase"))}
+        ${fanRow("auxiliaryFanPct", ctx.t("creFanSide"))}
+      </div>
+
     </section>`;
 }
 
@@ -918,7 +1151,7 @@ function renderCreFilamentCard(p, conn) {
         color:  parseCreHex(m0.color),
         type:   String(m0.type   || ""),
         vendor: String(m0.vendor || ""),
-        active: m0.state === 1
+        state:  m0.state ?? 0
       };
     } else if (type === 0) {
       moduleEntries.push(e);
@@ -930,21 +1163,56 @@ function renderCreFilamentCard(p, conn) {
   //             row N = CFS module N slots (for N ≥ 2)
   const rows = [];
 
-  const makeSlot = (label, color, fg, typeLbl, vendor, active, boxId, slotIdx) => `
-    <div class="snap-fil snap-fil--editable${active ? " snap-fil--active" : ""}"
-         data-cre-fil-edit="1"
+  // The slot the printer itself reports as selected (boxsInfo materials[].selected===1)
+  // is the default highlight until the user picks one (conn._selFil overrides it).
+  let printerSelKey = null;
+  for (const e of mbox) {
+    const mats = Array.isArray(e?.materials) ? e.materials : [];
+    for (let i = 0; i < mats.length; i++) {
+      if (mats[i]?.selected === 1) { printerSelKey = `${Number(e.id) || 0}:${i}`; break; }
+    }
+    if (printerSelKey) break;
+  }
+  // Follow the printer's loaded slot: if it changed (after a feed here OR a feed from
+  // the printer screen), drop any manual override so the highlight re-syncs to reality.
+  if (conn._lastPrinterSel !== printerSelKey) {
+    conn._selFil = null;
+    conn._lastPrinterSel = printerSelKey;
+  }
+  const selKey = conn._selFil ?? printerSelKey;
+
+  // Per-slot `state`: 0 = empty, ≥1 = filament present, 2 = RFID tag read (locked).
+  // Selectable = any slot with filament (the feed/unload context). The pencil edits
+  // the slot — hidden when RFID-locked (the tag defines it). A blue ring marks the
+  // current selection. Three square looks: coloured = identified, "?" = present but
+  // unidentified, empty = no filament.
+  const makeSlot = (label, color, fg, typeLbl, vendor, state, boxId, slotIdx) => {
+    const key         = `${boxId}:${slotIdx}`;
+    const hasFilament = state !== 0;
+    const rfidLocked  = state === 2;
+    const unknown     = hasFilament && !color;
+    const isSel       = hasFilament && selKey === key;
+    const squareCls   = color ? "" : (unknown ? " snap-fil-square--unknown" : " snap-fil-square--empty");
+    const mainLbl     = unknown ? "?" : typeLbl;
+    return `
+    <div class="snap-fil${hasFilament ? " snap-fil--selectable" : ""}${isSel ? " snap-fil--checked" : ""}"
+         ${hasFilament ? 'data-cre-fil-select="1"' : ""}
          data-box-id="${boxId}"
          data-slot-idx="${slotIdx}">
       <div class="snap-fil-tag">${ctx.esc(label)}</div>
-      <div class="snap-fil-square${color ? "" : " snap-fil-square--empty"}"
+      <div class="snap-fil-square${squareCls}"
            style="${color ? `background:${ctx.esc(color)};color:${ctx.esc(fg)};border-color:${ctx.esc(color)};` : ""}">
-        <span class="snap-fil-main">${ctx.esc(typeLbl)}</span>
+        <span class="snap-fil-main">${ctx.esc(mainLbl)}</span>
       </div>
       <div class="snap-fil-meta">
-        <span class="snap-fil-status icon icon-edit icon-13" aria-hidden="true"></span>
+        ${rfidLocked ? "" : `<button type="button" class="snap-fil-edit-btn" data-cre-fil-edit="1"
+                title="${ctx.esc(ctx.t("creFilEdit"))}" aria-label="${ctx.esc(ctx.t("creFilEdit"))}">
+          <span class="icon icon-edit icon-13" aria-hidden="true"></span>
+        </button>`}
         ${vendor ? `<div class="snap-fil-vendor">${ctx.esc(vendor)}</div>` : ""}
       </div>
     </div>`;
+  };
 
   // Row 1: EXT + first CFS module slots (or just EXT if no CFS)
   {
@@ -953,7 +1221,7 @@ function renderCreFilamentCard(p, conn) {
     {
       const color = extSlot?.color ?? null;
       const fg    = color ? ctx.snapTextColor(color) : "var(--text)";
-      row1.push(makeSlot("Ext.", color, fg, extSlot?.type || "—", extSlot?.vendor || "", true, 0, 0));
+      row1.push(makeSlot("Ext.", color, fg, extSlot?.type || "—", extSlot?.vendor || "", extSlot?.state ?? 0, 0, 0));
     }
     // First CFS module
     if (moduleEntries.length > 0) {
@@ -966,7 +1234,7 @@ function renderCreFilamentCard(p, conn) {
         const color = parseCreHex(m.color);
         const fg    = color ? ctx.snapTextColor(color) : "var(--text)";
         row1.push(makeSlot(`${boxId}${String.fromCharCode(65 + i)}`, color, fg,
-          String(m.type || "—"), String(m.vendor || ""), m.state === 1, boxId, i));
+          String(m.type || "—"), String(m.vendor || ""), m.state ?? 0, boxId, i));
       }
     }
     rows.push(`<div class="cre-fil-row">${row1.join("")}</div>`);
@@ -986,16 +1254,36 @@ function renderCreFilamentCard(p, conn) {
       const color = parseCreHex(m.color);
       const fg    = color ? ctx.snapTextColor(color) : "var(--text)";
       slotHtml.push(makeSlot(`${boxId}${String.fromCharCode(65 + i)}`, color, fg,
-        String(m.type || "—"), String(m.vendor || ""), m.state === 1, boxId, i));
+        String(m.type || "—"), String(m.vendor || ""), m.state ?? 0, boxId, i));
     }
     if (slotHtml.length) {
       rows.push(`<div class="cre-fil-row">${extSpacer}${slotHtml.join("")}</div>`);
     }
   }
 
+  // Feed / Unload controls for the selected slot, shown inline on the "Filament"
+  // title row. CFS slots only (boxId ≥ 1); box 0 = external extruder, different path.
+  let feedControls = "";
+  if (selKey) {
+    const [bId, sIdx] = selKey.split(":").map(Number);
+    if (bId >= 1) {
+      const label = `${bId}${String.fromCharCode(65 + sIdx)}`;
+      feedControls = `
+        <div class="cre-fil-feed">
+          <span class="cre-fil-feed-sel">${ctx.esc(ctx.t("creFilSelected"))} <b>${ctx.esc(label)}</b></span>
+          <button type="button" class="cre-fil-feed-btn cre-fil-feed-btn--in"
+                  data-cre-feed data-box-id="${bId}" data-mat-id="${sIdx}">${ctx.esc(ctx.t("creFeed"))}</button>
+          <button type="button" class="cre-fil-feed-btn cre-fil-feed-btn--out"
+                  data-cre-unload data-box-id="${bId}" data-mat-id="${sIdx}">${ctx.esc(ctx.t("creUnload"))}</button>
+        </div>`;
+    }
+  }
   return `
     <section class="snap-block">
-      <h4 class="snap-block-title">${ctx.esc(ctx.t("snapFilamentTitle"))}</h4>
+      <div class="cre-fil-head">
+        <h4 class="snap-block-title">${ctx.esc(ctx.t("snapFilamentTitle"))}</h4>
+        ${feedControls}
+      </div>
       <div class="cre-fil-rows">${rows.join("")}</div>
     </section>`;
 }

@@ -384,6 +384,46 @@ Plusieurs params dans la même trame acceptés.
 { "method": "set", "params": { "curFlowratePct": 95 } }
 ```
 
+### 6.6 CFS — charger / décharger un slot (`feedInOrOut`) ✅
+
+```json
+{ "method": "set", "params": { "feedInOrOut": { "boxId": 1, "materialId": 2, "isFeed": 1 } } }
+```
+
+| Champ | Type | Notes |
+|-------|------|-------|
+| `boxId` | int | Module CFS (1, 2, 3…). `0` = extrudeur externe (chemin différent, non couvert ici) |
+| `materialId` | int | Index du slot dans le module, **0-based** (`0`=A, `1`=B, `2`=C, `3`=D) |
+| `isFeed` | int | `1` = charger (feed *in*), `0` = décharger (feed *out* / retract) |
+
+Le firmware exécute **toute** la séquence managée tout seul (auto-chauffe → coupe → feed/retract) ; on n'envoie que cette trame. **Commande capturée au MITM sur le WS 9999 entre Creality Print et une K2 Plus réelle** (le screen de l'imprimante, lui, ne passe pas par le 9999). Le `feed` (isFeed=1) est confirmé matériel ; le `unload` (isFeed=0) est déduit du nom du champ.
+
+> ⚠️ Ceci ne passe **PAS** par Moonraker : la macro Klipper `BOX_LOAD_MATERIAL` agit sur le slot « pré-sélectionné » par le canal propriétaire, et la sélection du slot n'est **pas** exposée côté Moonraker (`/printer/gcode/script` ne voit que les effets : déplacement, chauffe, capteur filament, flush). Le seul point d'entrée par slot est ce `feedInOrOut` sur le WS 9999.
+
+### 6.7 Ventilateurs — `gcodeCmd` / `M106` ✅
+
+⚠️ **Ce n'est PAS `{ "modelFanPct": N }`** (ça ne s'applique pas). Le réglage passe par un
+**wrapper `gcodeCmd`** qui exécute un `M106` Klipper — capturé au MITM sur le WS 9999 :
+
+```json
+{ "method": "set", "params": { "gcodeCmd": "M106 P2 S107" } }
+```
+
+| `P` | Ventilateur | Champ télémétrie | Statut |
+|-----|-------------|------------------|--------|
+| `P0` | Refroidissement pièce (part cooling) | `modelFanPct` | ✅ |
+| `P1` | Caisson (case) | `caseFanPct` | ✅ (par élimination) |
+| `P2` | Latéral (side / auxiliary) | `auxiliaryFanPct` | ✅ confirmé (capture, side=42 % → `S107`) |
+
+`S` est sur **0-255** : `S = round(pct/100 · 255)` (42 % → 107) — donc granularité 1 %. `S0` éteint.
+Le `gcodeCmd` permet en fait d'exécuter n'importe quel G-code Klipper via le WS 9999.
+
+Les champs `*FanPct` (+ booléens `fan` / `fanCase` / `fanAuxiliary`) sont en **lecture** dans la
+télémétrie. Le caisson + le latéral sont normalement **auto-pilotés** par la température d'enceinte
+(`temperature_fan`) ; un `M106` manuel **écrase** ce contrôle auto. Les valeurs n'arrivent de façon
+fiable que dans le **push d'état complet à la connexion** (pas de push périodique des ventilos) →
+relecture limitée, suivi optimiste côté UI.
+
 ---
 
 ## 7. Messages reçus — Format et merge d'état
@@ -589,9 +629,9 @@ function deriveDisplayState(s) {
 | `materialBoxs[].type` | `0` | Module CFS multi-slots |
 | `materialBoxs[].temp` | int °C | Capteur interne du module CFS (absent sur EXT) |
 | `materialBoxs[].humidity` | int % | Humidité interne du module CFS |
-| `materials[].state` | `1` | Slot actif / filament présent |
-| `materials[].editStatus` | `1` | Configuré manuellement |
-| `materials[].rfid` | `"0"` | Slot non configuré |
+| `materials[].state` | `0` / `1` / `2` | **`0` = vide** · **`1` = filament présent** · **`2` = tag RFID lu (verrouillé)**. Confirmé sur K2 Plus réel (5 CFS). `≥1` = sélectionnable ; `2` = non éditable (le tag définit le slot) |
+| `materials[].editStatus` | int | `1` = configuré manuellement (un slot RFID édité à la main repasse `state=1`) ; `0`/`2` sinon |
+| `materials[].rfid` | `"0"` / `""` | Slot sans tag RFID valide |
 | `same_material[]` | tableau | Tuples `[rfidCode, colorCode, [{boxId, materialId}], type]` |
 
 ### Layout Ender-3 V4 + CFS
@@ -813,6 +853,7 @@ Utilisé en parallèle du WebSocket pour les actions fichiers.
 | Supprimer fichier | DELETE | `/server/files/gcodes/<filename>` | — |
 | Liste fichiers | GET | `/server/files/list?root=gcodes` | — |
 | Metadata fichier | GET | `/server/files/metadata?filename=<name>` | — |
+| **Contrôle manuel (G-code)** | **POST** | **`/printer/gcode/script`** | **`{"script":"M104 S200"}`** |
 
 ```js
 async function creStartPrint(ip, filename) {
@@ -829,6 +870,56 @@ async function creDeleteFile(ip, filename) {
   });
 }
 ```
+
+### 13.1 Contrôle manuel — `/printer/gcode/script` ✅
+
+Le WS propriétaire (9999) n'expose aucun setter température/mouvement documenté. Comme la
+K-series tourne sous **Klipper + Moonraker**, le contrôle manuel passe par l'endpoint
+G-code standard. `script` peut contenir plusieurs lignes séparées par `\n` ; Moonraker
+exécute tout le bloc. La réponse `{"result":"ok"}` (HTTP 200) confirme l'exécution ;
+une erreur Klipper revient en `{"error":{"message":"…"}}` (ex. extrusion à froid,
+heater inconnu) — à logger et remonter à l'utilisateur.
+
+> ⚠️ **CORS — ne PAS appeler depuis le renderer.** Moonraker ne renvoie **aucun en-tête
+> CORS**. Un `fetch()` depuis le renderer Electron échoue silencieusement : un POST avec
+> `Content-Type: application/json` (ou tout DELETE) déclenche un préflight `OPTIONS` que
+> Moonraker rejette en **405**, et même une « simple request » a sa réponse illisible
+> (pas d'`Access-Control-Allow-Origin`). `curl` n'a pas de préflight — c'est pourquoi le
+> test direct fonctionne mais l'app non. **Solution (comme `snap:http-get` / `ffg:http-post`)**
+> : router l'appel par le **process principal** (IPC `cre:http` → `fetch()` Node, exempt de
+> CORS). Idem pour `print/start` et la suppression de fichiers.
+
+```js
+// Process principal (main.js) — pas de CORS. Le renderer appelle via IPC `cre:http`.
+ipcMain.handle('cre:http', async (_e, ip, method, path, query) => {
+  let url = `http://${ip}:7125${path}`;            // path allow-list omis ici
+  if (query) url += '?' + new URLSearchParams(query); // ex. { script: "M104 S200" }
+  const res = await fetch(url, { method });          // GET | POST | DELETE
+  return { ok: res.ok, status: res.status, json: await res.json().catch(() => null) };
+});
+// G28 bloque jusqu'à la fin du homing (~30 s) → prévoir un timeout large (≥60 s).
+```
+
+| Contrôle | G-code | Notes |
+|----------|--------|-------|
+| Buse (consigne) | `M104 S<t>` | `S0` = éteindre |
+| Plateau (consigne) | `M140 S<t>` | |
+| Enceinte (consigne) | `M141 S<t>` | macro Creality ; ne **chauffe** qu'au-delà de **40 °C**, en-deçà règle juste le ventilateur de circulation. Max ~60 °C (K2 Plus) |
+| Jog X/Y | `G91\nG1 X<d> F6000\nG90` | relatif puis retour absolu |
+| Jog Z | `G91\nG1 Z<d> F600\nG90` | feedrate Z plus lent |
+| Home | `G28` / `G28 X` / `G28 Y` / `G28 Z` | sans argument = tous les axes |
+| Extruder / rétracter | `M83\nG1 E<d> F300` | nécessite buse chaude (`min_extrude_temp`) |
+| Désactiver moteurs | `M84` | |
+| Ventilateur pièce | `M106 S<0-255>` / `M107` | macros Creality (pas de section `[fan]` ; piloté via `output_pin fan0`). L'imprimante ne renvoie pas l'état — suivi optimiste côté UI |
+
+> **Vérifié sur K2 Plus réel** (`192.168.1.4`, Moonraker `:7125`, Fluidd `:4408`) : `M104`/`M140` confirmés
+> par relecture des `target`, `M106`/`M107` font varier `output_pin fan0`, `M84` OK. `M141` est une macro
+> (heater `chamber_heater` au-delà de 40 °C, sinon `temperature_fan chamber_fan`). La K-series n'a **pas**
+> de section `[fan]` standard — `M106`/`M107` passent par des macros gcode qui pilotent `output_pin fan0`.
+
+> **Sécurité** : la carte de contrôle (jog / extrude / désactivation moteurs / ventilateur)
+> est masquée pendant une impression active — un mouvement d'axe ruinerait le job. Les
+> consignes de température restent éditables en cours d'impression (réglage légitime).
 
 ---
 

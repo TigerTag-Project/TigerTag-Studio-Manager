@@ -29,3 +29,133 @@
    The <video> element stays in the DOM so the WebRTC session is never
    torn down by a panel rebuild; only the visibility changes. */
 .cre-cam-hidden { display: none; }
+
+/* ── Control card — disable-motors button ───────────────────────────────────
+   The jog pad, step select and fan reuse the shared .elg-* / .snap-ctrl-*
+   styles (50-snapmaker.css / 57-elegoo.css). Only this button is Creality-specific. */
+.cre-ctrl-disable {
+  width: 100%;
+  margin-top: 6px;
+  padding: 5px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--surface-2, rgba(127, 127, 127, .1));
+  border: 1px solid var(--border, rgba(127, 127, 127, .25));
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background .12s, color .12s, border-color .12s;
+}
+.cre-ctrl-disable:hover {
+  color: var(--primary, #386ecf);
+  border-color: var(--primary, #386ecf);
+  background: rgba(56, 110, 207, .08);
+}
+.cre-ctrl-disable:active { background: rgba(56, 110, 207, .16); }
+
+/* ── Filament slot: pencil edit button (the ONLY edit trigger) ───────────────
+   The square itself is now a select target (.snap-fil--selectable); editing is
+   isolated to this small button so a click no longer means "edit". */
+.snap-fil-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 18px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.snap-fil-edit-btn .icon { background: var(--muted); transition: background .12s; }
+.snap-fil-edit-btn:hover { background: rgba(56, 110, 207, .1); }
+.snap-fil-edit-btn:hover .icon { background: var(--primary, #386ecf); }
+
+/* Filament slot square — three looks:
+   • coloured  = identified filament (RFID or configured)
+   • --empty   = no filament (striped, defined in 50-snapmaker.css)
+   • --unknown = filament present but unidentified — a SOLID neutral chip with a
+     dashed edge + "?" so it reads as "loaded but unknown", distinct from empty. */
+.snap-fil-square--unknown {
+  color: var(--text);
+  background: var(--surface-2);
+  border: 2px dashed var(--muted);
+  box-shadow: none;
+}
+.snap-fil-square--unknown .snap-fil-main {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--muted);
+  text-shadow: none;
+}
+
+/* ── Fans (Part / Case / Side) — one row each, 1%-granular slider ────────────
+   Slider commits on release (M106 via the 9999 WS); the % readout updates live
+   during the drag. Case + side override the chamber-temp auto control. */
+.cre-fan-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border, rgba(127, 127, 127, .2));
+}
+.cre-fan-row { display: flex; align-items: center; gap: 8px; }
+.cre-fan-label {
+  flex: 0 0 34px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.cre-fan-slider {
+  flex: 1 1 auto;
+  height: 4px;
+  cursor: pointer;
+  accent-color: var(--primary, #386ecf);
+}
+.cre-fan-pct {
+  flex: 0 0 34px;
+  text-align: right;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Filament card: title row + Feed / Unload of the selected CFS slot ───────
+   The "Filament" title shares its row with the Selected label and the Feed /
+   Unload buttons, which send the proprietary `feedInOrOut` WS command for the
+   slot highlighted with the blue ring (firmware runs auto-heat → cut → feed). */
+.cre-fil-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.cre-fil-head .snap-block-title { margin: 0; }
+.cre-fil-feed { display: flex; align-items: center; gap: 6px; }
+.cre-fil-feed-sel { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.cre-fil-feed-sel b { color: var(--primary, #386ecf); font-weight: 800; margin-left: 2px; }
+.cre-fil-feed-btn {
+  padding: 4px 11px;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 8px;
+  border: 1px solid var(--border, rgba(127, 127, 127, .25));
+  background: var(--surface-2, rgba(127, 127, 127, .08));
+  color: var(--text);
+  cursor: pointer;
+  transition: background .12s, color .12s, border-color .12s;
+}
+.cre-fil-feed-btn--in:hover {
+  color: #fff;
+  background: var(--primary, #386ecf);
+  border-color: var(--primary, #386ecf);
+}
+.cre-fil-feed-btn--out:hover {
+  color: #b45309;
+  border-color: #d97706;
+  background: rgba(217, 119, 6, .1);
+}
