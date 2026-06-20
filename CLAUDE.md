@@ -236,6 +236,25 @@ https://tigertag-cdn.web.app/__/firebase/init.json
 ```
 Third-party apps can fetch this URL to get the Firebase project config and call `firebase.initializeApp(config)`. Authentication is required — users must sign in with their TigerTag account. The config is intentionally public (standard Firebase pattern); security is enforced server-side via Firestore Security Rules.
 
+### Firestore Security Rules — where & how (read this before touching rules)
+
+Rules are **NOT in this repo**. They live in the **separate backend repo**, already mounted as an additional working dir:
+
+- **File**: `/Users/benglut/Documents/TigerTag_Firebase_Backend/firestore.rules` (single file, self-documented — its header has the **REFLEX** field-whitelist warning; read that before editing).
+- **Project**: `tigertag-connect` (`.firebaserc` default). Storage rules: `storage.rules` in the same repo.
+- **Deploy**: `cd /Users/benglut/Documents/TigerTag_Firebase_Backend && firebase deploy --only firestore:rules --project tigertag-connect` (CLI is installed + authenticated; compiles server-side before release). Then commit `firestore.rules` on `main` and push.
+
+**Model (so you usually don't need to open the file):**
+- Everything under `users/{uid}/**` is **owner-only** (`isOwner()`) by default.
+- **Public reads**: `userProfiles/{uid}` (auth'd) ; `inventory` + `racks` readable by owner / `isPublic` / accepted friend (presence of `users/{uid}/friends/{reader}`).
+- **Cross-user writes** are gated by a prior relationship, never open:
+  - `friendRequests/{requester}` — requester creates their own (unless blacklisted).
+  - `friends/{friendId}` — acceptee writes their entry IFF a `friendRequest` from the owner exists; either party can delete themselves.
+  - `notifications/{id}` — create only if **already a friend** of the recipient, `fromUid == auth.uid`, `type` in a whitelist, fields `hasOnly([...])`. Owner reads/updates(read flag)/deletes.
+- **Field-whitelisted collections** (`telemetry`, `notifications`, …) reject any unlisted field **silently** on the client → when adding a field, add it to the `hasOnly([...])` list and redeploy (see REFLEX header).
+
+When a feature needs a new cross-user write or field, edit + deploy that file; mirror the existing "relationship must already exist" pattern.
+
 ### Firestore data structure
 ```
 publicKeys/
@@ -369,7 +388,7 @@ Same toggle → OFF, or set `users/{uid}.Debug = false` directly in Firestore.
 - **Firestore tab** — path explorer: type any Firestore path, click Fetch, copy JSON result to clipboard. Quick-access chips for `user doc`, `prefs`, `inventory`, `printers`, `tags`
 
 ### Security note
-`roles` and `Debug` fields should only be writable via Firebase Admin SDK / Cloud Function — never by the client. Firestore Security Rules must prevent users from writing these fields themselves. *(Rules implementation pending.)*
+`roles` and `Debug` fields should only be writable via Firebase Admin SDK / Cloud Function — never by the client. Firestore Security Rules must prevent users from writing these fields themselves. *(Rules live in the backend repo — see [Firestore Security Rules](#firestore-security-rules--where--how-read-this-before-touching-rules) above.)*
 
 ---
 
