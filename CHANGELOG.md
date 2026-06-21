@@ -5,6 +5,14 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.10.17 — 2026-06-22
+
+### Fixed
+
+- **Creality: fan controls now match each printer's hardware.** The live control card was showing the part-cooling, case, and side fan sliders on every Creality model, but only the enclosed K-series (K1 and K2 families) actually has all three. Open-frame printers — **Hi, Ender-3 V4, SparkX i7** — and any unidentified model now show only the **part-cooling fan**, so you no longer get sliders for fans the machine doesn't have.
+
+---
+
 ## v1.10.16 — 2026-06-22
 
 ### Added
