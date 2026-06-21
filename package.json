@@ -1,6 +1,6 @@
 {
   "name": "tigertag-inventory",
-  "version": "1.10.15",
+  "version": "1.10.16",
   "description": "Tiger Studio Manager — desktop app",
   "main": "main.js",
   "engines": {
@@ -19,6 +19,9 @@
     "i18n:add": "node scripts/i18n-add.mjs",
     "i18n:check": "node scripts/check-i18n-consistency.mjs",
     "codemap:check": "node scripts/check-codemap.mjs",
+    "whatsnew:add": "node scripts/whatsnew-add.mjs",
+    "whatsnew:import": "node scripts/whatsnew-import-changelog.mjs",
+    "whatsnew:check": "node scripts/whatsnew-check.mjs",
     "lint": "eslint .",
     "prepare": "git config core.hooksPath .githooks 2>/dev/null || true"
   },

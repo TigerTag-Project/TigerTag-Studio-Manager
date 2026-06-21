@@ -59,7 +59,7 @@
           </div>
         </div>
         <div class="sb-user-info">
-          <div class="sb-sub-welcome" id="sbWelcome" data-i18n="welcomeBack">👋 Welcome back,</div>
+          <div class="sb-sub-welcome" id="sbWelcome" data-i18n="welcomeBack">Welcome back,</div>
           <div class="sb-name" id="sbName">—</div>
         </div>
       </div>
@@ -102,7 +102,7 @@
         <span data-i18n="discordBtn">Join us on Discord</span>
       </button>
       <div class="sb-qr-wrap" id="sbQrWrap">
-        <div class="sb-qr-label" data-i18n="mobileApp">📱 Mobile App</div>
+        <div class="sb-qr-label" data-i18n="mobileApp">Mobile App</div>
         <img class="sb-qr-img" src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=https%3A%2F%2Ftaap.it%2FDF1Aqt&bgcolor=0f1117&color=ffffff&margin=8" alt="QR" />
       </div>
       <!-- App version (always visible, discreet — populated at runtime from preload) -->
@@ -360,6 +360,10 @@
         <div class="stg-about-version" id="stgAboutVersion">v—</div>
         <div class="stg-about-tech" id="stgAboutTech">—</div>
         <div class="stg-row-actions">
+          <button class="ghost sm" id="btnWhatsNew" title="">
+            <span class="icon icon-info icon-13"></span>
+            <span data-i18n="whatsNewTitle">What's New</span>
+          </button>
           <button class="ghost sm" id="btnCopyAbout" title="Copy">
             <span class="icon icon-copy icon-13"></span>
             <span data-i18n="aboutCopy">Copy</span>
@@ -619,6 +623,22 @@
 </aside>
 
 <!-- ─── FlashForge printer-info modal (stats + machine specs) ──────── -->
+<!-- ─── What's New (changelog explainer, shown once per version) ──────── -->
+<div class="modal-overlay whatsnew-overlay" id="whatsNewOverlay">
+  <div class="whatsnew-window" id="whatsNewWindow">
+    <header class="whatsnew-titlebar" id="whatsNewDrag">
+      <span class="modal-title whatsnew-title" data-i18n="whatsNewTitle">What's New</span>
+      <select id="whatsNewVersionSelect" class="whatsnew-version-select" aria-label="Version"></select>
+      <button class="whatsnew-close" id="whatsNewClose" aria-label="Close">✕</button>
+    </header>
+    <div class="whatsnew-body" id="whatsNewBody"></div>
+    <footer class="whatsnew-actions">
+      <button class="whatsnew-btn" id="whatsNewLater" data-i18n="whatsNewLater">Later</button>
+      <button class="whatsnew-btn whatsnew-btn--primary" id="whatsNewGotIt" data-i18n="whatsNewGotIt">Got it</button>
+    </footer>
+  </div>
+</div>
+
 <div class="modal-overlay" id="ffgInfoOverlay">
   <div class="modal-card ffg-info-card">
     <div class="modal-header">
@@ -1173,7 +1193,7 @@
       <div style="display:flex;gap:6px;flex-shrink:0">
         <input id="fsePath" class="dbg-select" style="flex:1;font-family:var(--mono);font-size:11px" placeholder="users/{uid}/…" />
         <button id="fseFetch" class="ghost sm">Fetch</button>
-        <button id="fseCopy" class="ghost sm">📋</button>
+        <button id="fseCopy" class="ghost sm"><span class="icon icon-copy icon-13"></span></button>
       </div>
 
       <!-- result label -->
@@ -1525,15 +1545,15 @@
       <!-- language (auto-saves) -->
       <div class="eac-field-label" data-i18n="settingsLang" style="margin-top:12px">Language</div>
       <select class="lang-select" id="langSelect">
-        <option value="en">🇺🇸 English</option>
-        <option value="fr">🇫🇷 Français</option>
-        <option value="de">🇩🇪 Deutsch</option>
-        <option value="es">🇪🇸 Español</option>
-        <option value="it">🇮🇹 Italiano</option>
-        <option value="pl">🇵🇱 Polski</option>
-        <option value="pt">🇧🇷 Português (BR)</option>
-        <option value="pt-pt">🇵🇹 Português (PT)</option>
-        <option value="zh">🇨🇳 中文</option>
+        <option value="en">English</option>
+        <option value="fr">Français</option>
+        <option value="de">Deutsch</option>
+        <option value="es">Español</option>
+        <option value="it">Italiano</option>
+        <option value="pl">Polski</option>
+        <option value="pt">Português (BR)</option>
+        <option value="pt-pt">Português (PT)</option>
+        <option value="zh">中文</option>
       </select>
       <!-- debug toggle (admin only) -->
       <div class="eac-debug-row hidden" id="eacDebugRow">
@@ -1610,15 +1630,15 @@
 
     <!-- language switcher -->
     <select class="lm-lang-select" id="lmLangSelect">
-      <option value="en">🇺🇸 English</option>
-      <option value="fr">🇫🇷 Français</option>
-      <option value="de">🇩🇪 Deutsch</option>
-      <option value="es">🇪🇸 Español</option>
-      <option value="it">🇮🇹 Italiano</option>
-      <option value="pl">🇵🇱 Polski</option>
-      <option value="pt">🇧🇷 Português (BR)</option>
-      <option value="pt-pt">🇵🇹 Português (PT)</option>
-      <option value="zh">🇨🇳 中文</option>
+      <option value="en">English</option>
+      <option value="fr">Français</option>
+      <option value="de">Deutsch</option>
+      <option value="es">Español</option>
+      <option value="it">Italiano</option>
+      <option value="pl">Polski</option>
+      <option value="pt">Português (BR)</option>
+      <option value="pt-pt">Português (PT)</option>
+      <option value="zh">中文</option>
     </select>
 
     <!-- Google sign-in -->
@@ -2220,7 +2240,7 @@
 <div class="modal-overlay" id="displayNameSetupOverlay">
   <div class="modal-card dns-card">
     <div class="dns-hero">
-      <div class="dns-emoji-wrap">👋</div>
+      <div class="dns-emoji-wrap"><span class="icon icon-user icon-32"></span></div>
       <div class="dns-title" data-i18n="setupNameTitle">Choose your display name</div>
     </div>
     <div class="dns-body">
@@ -2328,7 +2348,7 @@
       </video>
       <!-- CTA bar -->
       <div class="tigerpod-stats">
-        <span class="tigerpod-cta" data-i18n="tigerPodCta">Please ⚡Boost &amp; ❤Like</span>
+        <span class="tigerpod-cta" data-i18n="tigerPodCta">Please Boost &amp; Like</span>
       </div>
     </div>
 

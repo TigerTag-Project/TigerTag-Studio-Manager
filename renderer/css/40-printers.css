@@ -858,7 +858,7 @@
   }
   .pba-helper-link:hover { text-decoration: underline; }
 
-  /* "📖 Tutoriel de connexion" pill rendered at the top of the printer
+  /* "Tutoriel de connexion" pill rendered at the top of the printer
      settings form (Bambu / FlashForge / Elegoo). Same visual language as
      the matching pill in the Add Printer brand picker. Click is routed by
      the global [data-printer-tuto] delegate in inventory.js. */

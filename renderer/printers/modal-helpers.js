@@ -208,7 +208,7 @@ export function prefillFields(bodyEl, data) {
  * @returns {Function}    - renderSettingsWidget(printer, bodyEl, ctx)
  */
 // Brands shipping a `renderer/printers/<brand>/tutorial.json` — these get a
-// "📖 Tutoriel de connexion" pill at the top of their settings panel so a user
+// "Tutoriel de connexion" pill at the top of their settings panel so a user
 // who skipped the tutorial during scan can still consult it later. Click is
 // routed by the global `[data-printer-tuto]` delegate in inventory.js → opens
 // the multi-step tutorial modal with the printer's series pre-selected.

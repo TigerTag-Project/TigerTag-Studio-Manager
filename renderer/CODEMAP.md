@@ -89,7 +89,7 @@ Wiring (mirrors Bambu): always-on MQTT in `subscribePrinters` (skipCam), auto-co
 
 ---
 
-## Foundation (L92-973)
+## Foundation (L92-1194)
 
 | L | What | Anchors |
 |---|---|---|
@@ -108,7 +108,7 @@ Wiring (mirrors Bambu): always-on MQTT in `subscribePrinters` (skipCam), auto-co
 
 ---
 
-## Data layer (L976-1103)
+## Data layer (L1195-1329)
 
 | L | What | Anchors |
 |---|---|---|
@@ -118,7 +118,7 @@ Wiring (mirrors Bambu): always-on MQTT in `subscribePrinters` (skipCam), auto-co
 
 ---
 
-## Account dropdown + sidebar states (L1104-1350)
+## Account dropdown + sidebar states (L1330-1576)
 
 | L | What | Anchors |
 |---|---|---|
@@ -128,7 +128,7 @@ Wiring (mirrors Bambu): always-on MQTT in `subscribePrinters` (skipCam), auto-co
 
 ---
 
-## Add Product panel — ADP (L1351-3071)
+## Add Product panel — ADP (L1577-3298)
 
 Manual spool creation: full chip-schema editor with bottom-sheets. All helpers prefixed `_adp`.
 
@@ -145,7 +145,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Settings / Friends / Account modals (L3072-3528)
+## Settings / Friends / Account modals (L3299-3759)
 
 | L | What | Anchors |
 |---|---|---|
@@ -158,7 +158,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Login + accounts persistence (L3529-3843)
+## Login + accounts persistence (L3760-4074)
 
 | L | What | Anchors |
 |---|---|---|
@@ -168,7 +168,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Data migrations (L3844-4329)
+## Data migrations (L4075-4560)
 
 | L | What | Anchors |
 |---|---|---|
@@ -178,7 +178,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Inventory subscription + auth + account list (L4330-4731)
+## Inventory subscription + auth + account list (L4561-4986)
 
 | L | What | Anchors |
 |---|---|---|
@@ -188,7 +188,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Stats / twins / filters (L4732-5037)
+## Stats / twins / filters (L4987-5271)
 
 | L | What | Anchors |
 |---|---|---|
@@ -198,7 +198,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Inventory render (L5042-6171)
+## Inventory render (L5272-6378)
 
 | L | What | Anchors |
 |---|---|---|
@@ -210,7 +210,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## RFID encode / burn modal — cem (L6172-6512)
+## RFID encode / burn modal — cem (L6379-6741)
 
 | L | What | Anchors |
 |---|---|---|
@@ -220,7 +220,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## TigerTag+ catalogue (L6513-6823)
+## TigerTag+ catalogue (L6742-7091)
 
 | L | What | Anchors |
 |---|---|---|
@@ -230,7 +230,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Spool detail panel (L6824-8567)
+## Spool detail panel (L7092-8842)
 
 | L | What | Anchors |
 |---|---|---|
@@ -245,7 +245,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Panels / debug / auto-update (L8568-9044)
+## Panels / debug / auto-update (L8843-9319)
 
 | L | What | Anchors |
 |---|---|---|
@@ -258,7 +258,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Friends rendering (L9045-9439)
+## Friends rendering (L9320-9714)
 
 | L | What | Anchors |
 |---|---|---|
@@ -268,7 +268,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Racks + printers subscriptions (L9440-9675)
+## Racks + printers subscriptions (L9715-9950)
 
 | L | What | Anchors |
 |---|---|---|
@@ -279,7 +279,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Printers views (L9676-10734)
+## Printers views (L9951-11009)
 
 | L | What | Anchors |
 |---|---|---|
@@ -291,7 +291,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Printer detail side panel (L10735-13090)
+## Printer detail side panel (L11010-13365)
 
 | L | What | Anchors |
 |---|---|---|
@@ -302,7 +302,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Add-printer flow (L13091-13678)
+## Add-printer flow (L13366-13953)
 
 Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.js` owns the shell.
 
@@ -315,7 +315,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Racks CRUD + slots (L13679-14567)
+## Racks CRUD + slots (L13954-14842)
 
 | L | What | Anchors |
 |---|---|---|
@@ -328,7 +328,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Storage view render + DnD (L14568-15678)
+## Storage view render + DnD (L14843-15953)
 
 | L | What | Anchors |
 |---|---|---|
@@ -339,7 +339,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Friend view (L15679-16222)
+## Friend view (L15954-16497)
 
 | L | What | Anchors |
 |---|---|---|
@@ -350,7 +350,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Display name + friend requests (L16223-16642)
+## Display name + friend requests (L16498-16917)
 
 | L | What | Anchors |
 |---|---|---|
@@ -360,7 +360,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Keys + profile sync (L16643-16870)
+## Keys + profile sync (L16918-17145)
 
 | L | What | Anchors |
 |---|---|---|
@@ -369,7 +369,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Custom avatar (L16871-17257)
+## Custom avatar (L17146-17532)
 
 | L | What | Anchors |
 |---|---|---|
@@ -378,7 +378,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## User doc sync + telemetry + bootstrap (L17258-17567)
+## User doc sync + telemetry + bootstrap (L17533-17855)
 
 | L | What | Anchors |
 |---|---|---|
@@ -388,7 +388,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Electron RFID integration (L17568-17903)
+## Electron RFID integration (L17856-18191)
 
 | L | What | Anchors |
 |---|---|---|

@@ -379,15 +379,15 @@ function _scaleLocalStatusText(status) {
 /** Map scaleStatus firmware string → { text, bg } for the send-state badge. */
 function _scaleStatusBadgeInfo(status) {
   if (!status) return null;
-  if (status === "idle")    return { text: "🟢 Ready",               bg: "rgba(72,187,120,0.35)" };
-  if (status === "ready")   return { text: "🟢 Ready for next spool",bg: "rgba(72,187,120,0.35)" };
-  if (status.startsWith("scanning:")) return { text: "📡 Scanning RFID…",  bg: "rgba(100,160,255,0.30)" };
-  if (status.startsWith("stable:"))   return { text: "⚖️ Stabilizing…",    bg: "rgba(255,200,80,0.30)"  };
-  if (/^\d+$/.test(status)) return { text: `⏳ Send in ${status}s`,  bg: "rgba(255,255,255,0.22)" };
-  if (status === "send")    return { text: "⏳ Sending…",             bg: "rgba(255,255,255,0.22)" };
-  if (status === "success") return { text: "✅ Sent",                 bg: "rgba(72,187,120,0.40)"  };
-  if (status === "error")   return { text: "❌ Error",                bg: "rgba(245,101,101,0.40)" };
-  if (status === "done")    return { text: "🗑️ Remove spool",         bg: "rgba(255,160,50,0.35)"  };
+  if (status === "idle")    return { text: "Ready",               bg: "rgba(72,187,120,0.35)" };
+  if (status === "ready")   return { text: "Ready for next spool",bg: "rgba(72,187,120,0.35)" };
+  if (status.startsWith("scanning:")) return { text: "Scanning RFID…",  bg: "rgba(100,160,255,0.30)" };
+  if (status.startsWith("stable:"))   return { text: "Stabilizing…",    bg: "rgba(255,200,80,0.30)"  };
+  if (/^\d+$/.test(status)) return { text: `Send in ${status}s`,  bg: "rgba(255,255,255,0.22)" };
+  if (status === "send")    return { text: "Sending…",             bg: "rgba(255,255,255,0.22)" };
+  if (status === "success") return { text: "Sent",                 bg: "rgba(72,187,120,0.40)"  };
+  if (status === "error")   return { text: "Error",                bg: "rgba(245,101,101,0.40)" };
+  if (status === "done")    return { text: "Remove spool",         bg: "rgba(255,160,50,0.35)"  };
   return { text: status, bg: "rgba(255,255,255,0.18)" };
 }
 
@@ -439,7 +439,7 @@ function _buildScaleLocalBlockHtml(mac) {
   const resolve = (physical, otherPhysical) => {
     if (physical)                      return { text: physical, twin: false };
     if (otherPhysical && uidTwin)      return { text: uidTwin,  twin: true  };
-    if (otherPhysical)                 return { text: '🔗 Twin', twin: true };
+    if (otherPhysical)                 return { text: 'Twin', twin: true };
     return                                    { text: '—',       twin: false };
   };
   const L = resolve(uidLeft,  uidRight);

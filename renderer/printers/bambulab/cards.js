@@ -232,7 +232,7 @@ export function renderBambuFilamentCard(_p, conn) {
       if (conn?.data?.amsType?.[m.id] === "lite") return; // no sensor
       const bits = [];
       const hr = parseFloat(m.humidityRaw);
-      if (!isNaN(hr) && hr > 0) bits.push(`💧${Math.round(hr)}%`);
+      if (!isNaN(hr) && hr > 0) bits.push(`<span class="icon icon-droplets icon-11" style="vertical-align:-1px;margin-right:2px"></span>${Math.round(hr)}%`);
       const tp = parseFloat(m.temp);
       if (!isNaN(tp) && tp > 0) bits.push(`${Math.round(tp)}°C`);
       if (!bits.length) return;

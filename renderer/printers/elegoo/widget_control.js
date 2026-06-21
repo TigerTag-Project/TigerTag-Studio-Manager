@@ -5,8 +5,8 @@
  *   [Step ▾] [Speed ▾]
  *   [Z pill] [XY circle] [X/Y/Z pos + Home X + Home Y]
  *   Fans title
- *   [🌀 toggle] [−] [25%] [+]   × 3 fans
- *   [💡 LED toggle]
+ *   [toggle] [−] [25%] [+]   × 3 fans
+ *   [LED toggle]
  */
 import { ctx } from '../context.js';
 

@@ -875,6 +875,216 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function esc(s) {
     return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
   }
+
+  // ── What's New (per-version changelog explainer) ───────────────────────────
+  // Content lives in data/whatsnew.json (keyed by version, 9 locales inline,
+  // full history kept). Shown once after an update: when the running version
+  // has an entry that hasn't been acknowledged. "Got it" marks it seen; "Later"
+  // / ✕ / backdrop leave it unseen so it returns on the next launch.
+  const WHATSNEW_SEEN_KEY = "tigertag.whatsnew.seen";
+  let _whatsNew = {};
+  let _whatsNewSeenVersion = null;   // app version that triggered the modal (for "seen")
+  async function loadWhatsNew() {
+    if (Object.keys(_whatsNew).length) return _whatsNew;
+    try {
+      const r = await fetch("../data/whatsnew.json");
+      if (r.ok) _whatsNew = await r.json();
+    } catch (e) { console.warn("[whatsnew] load failed:", e.message); }
+    return _whatsNew;
+  }
+  function _wnText(map) {
+    if (!map) return "";
+    return map[state.lang] || map.en || "";
+  }
+  // All versions present, newest-first (semver descending).
+  function _wnVersionsDesc() {
+    return Object.keys(_whatsNew).sort((a, b) => {
+      const pa = a.split(".").map(Number), pb = b.split(".").map(Number);
+      return (pb[0] - pa[0]) || (pb[1] - pa[1]) || (pb[2] - pa[2]);
+    });
+  }
+  function _renderWhatsNew(version) {
+    const entry = _whatsNew[version];
+    const body = document.getElementById("whatsNewBody");
+    if (!body) return false;
+    // Release-note heading, e.g. "Tiger Studio Manager 1.10.13 Public Release Note".
+    const head = `<div class="whatsnew-release-title">${esc(t("whatsNewReleaseTitle", { v: version }))}</div>`;
+    if (!entry || !Array.isArray(entry.items) || entry.items.length === 0) {
+      body.innerHTML = head + `<div class="whatsnew-empty">${esc(t("whatsNewEmpty"))}</div>`;
+      body.scrollTop = 0;
+      return false;
+    }
+    body.innerHTML = head + entry.items.map(it => {
+      // icon is an SVG icon-set name (rendered as `.icon icon-<name>`), never an
+      // emoji. Sanitised to a safe class token; falls back to "sparkle".
+      const name = String(it.icon || "sparkle").toLowerCase().replace(/[^a-z0-9-]/g, "") || "sparkle";
+      return `
+      <div class="whatsnew-item">
+        <div class="whatsnew-item-icon"><span class="icon icon-${name} icon-18"></span></div>
+        <div class="whatsnew-item-text">
+          <div class="whatsnew-item-title">${esc(_wnText(it.title))}</div>
+          <div class="whatsnew-item-body">${esc(_wnText(it.body))}</div>
+        </div>
+      </div>`;
+    }).join("");
+    body.scrollTop = 0;
+    return true;
+  }
+  // Fill the version picker (newest-first) and select `selected`.
+  function _populateWhatsNewSelect(selected) {
+    const sel = document.getElementById("whatsNewVersionSelect");
+    if (!sel) return;
+    const vers = _wnVersionsDesc();
+    sel.innerHTML = vers.map(v => {
+      const d = _whatsNew[v]?.date ? " · " + _whatsNew[v].date : "";
+      return `<option value="${esc(v)}">v${esc(v)}${esc(d)}</option>`;
+    }).join("");
+    if (selected && vers.includes(selected)) sel.value = selected;
+  }
+  function openWhatsNew(version, { manual = false } = {}) {
+    _whatsNewSeenVersion = version;   // "Got it" acknowledges THIS (the running) version
+    // Display the requested version if it has notes, else fall back to the most
+    // recent available (manual open from an app version with no entry).
+    const display = _whatsNew[version] ? version : (_wnVersionsDesc()[0] || version);
+    const hasContent = _renderWhatsNew(display);
+    if (!hasContent && !manual) return;   // auto-trigger with nothing to show → skip
+    _populateWhatsNewSelect(display);
+    document.getElementById("whatsNewOverlay")?.classList.add("open");
+    requestAnimationFrame(_placeWhatsNewWin);   // position the floating window
+  }
+  function closeWhatsNew({ markSeen }) {
+    document.getElementById("whatsNewOverlay")?.classList.remove("open");
+    if (markSeen && _whatsNewSeenVersion) {
+      try { localStorage.setItem(WHATSNEW_SEEN_KEY, _whatsNewSeenVersion); } catch {}
+    }
+  }
+  // ── Floating-window behaviour (drag + resize + remembered geometry) ────────
+  const WHATSNEW_WIN_KEY = "tigertag.whatsnew.win";
+  function _whatsNewWin() { return document.getElementById("whatsNewWindow"); }
+  function _saveWhatsNewWin() {
+    const w = _whatsNewWin();
+    if (!w || !document.getElementById("whatsNewOverlay")?.classList.contains("open")) return;
+    const r = w.getBoundingClientRect();
+    try { localStorage.setItem(WHATSNEW_WIN_KEY, JSON.stringify({ left: r.left, top: r.top, w: r.width, h: r.height })); } catch {}
+  }
+  // Restore the saved geometry (clamped to the viewport) or center at the
+  // default size. Always switches to explicit px (clears the CSS transform).
+  function _placeWhatsNewWin() {
+    const w = _whatsNewWin();
+    if (!w) return;
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem(WHATSNEW_WIN_KEY) || "null"); } catch {}
+    if (saved && saved.w) {
+      w.style.width  = Math.min(saved.w, window.innerWidth  * 0.94) + "px";
+      w.style.height = Math.min(saved.h, window.innerHeight * 0.92) + "px";
+    } else {
+      w.style.width = ""; w.style.height = "";   // CSS default size
+    }
+    const ww = w.offsetWidth, wh = w.offsetHeight;
+    let left = saved ? saved.left : (window.innerWidth  - ww) / 2;
+    let top  = saved ? saved.top  : (window.innerHeight - wh) / 2;
+    left = Math.max(8, Math.min(left, window.innerWidth  - ww - 8));
+    top  = Math.max(8, Math.min(top,  window.innerHeight - wh - 8));
+    w.style.transform = "none";
+    w.style.left = left + "px";
+    w.style.top  = top + "px";
+  }
+  function _initWhatsNewWindow() {
+    const w = _whatsNewWin();
+    const handle = document.getElementById("whatsNewDrag");
+    if (!w || !handle) return;
+    let drag = null;
+    handle.addEventListener("mousedown", (e) => {
+      if (e.target.closest("button, select")) return;   // not a drag on controls
+      const r = w.getBoundingClientRect();
+      drag = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+      w.classList.add("dragging");
+      e.preventDefault();
+    });
+    window.addEventListener("mousemove", (e) => {
+      if (!drag) return;
+      let x = e.clientX - drag.dx, y = e.clientY - drag.dy;
+      x = Math.max(8, Math.min(x, window.innerWidth  - w.offsetWidth  - 8));
+      y = Math.max(8, Math.min(y, window.innerHeight - w.offsetHeight - 8));
+      w.style.transform = "none";
+      w.style.left = x + "px"; w.style.top = y + "px";
+    });
+    window.addEventListener("mouseup", () => {
+      if (!drag) return;
+      drag = null; w.classList.remove("dragging"); _saveWhatsNewWin();
+    });
+    // Persist size while the user resizes (debounced to a frame).
+    if (window.ResizeObserver) {
+      let raf = 0;
+      new ResizeObserver(() => { cancelAnimationFrame(raf); raf = requestAnimationFrame(_saveWhatsNewWin); }).observe(w);
+    }
+  }
+  _initWhatsNewWindow();
+
+  // Generic: make a centered `.modal-overlay` modal draggable by a handle.
+  // Switches the card to fixed positioning on first drag, clamps to the
+  // viewport, and re-centers each time the modal re-opens.
+  function _makeDraggableModal(overlayId, cardSel, handleSel) {
+    const overlay = document.getElementById(overlayId);
+    const card = overlay?.querySelector(cardSel);
+    const handle = card?.querySelector(handleSel);
+    if (!overlay || !card || !handle) return;
+    handle.style.cursor = "move";
+    let drag = null, wasOpen = false;
+    const resetPos = () => { card.style.position = ""; card.style.left = ""; card.style.top = ""; card.style.margin = ""; };
+    handle.addEventListener("mousedown", (e) => {
+      if (e.target.closest("button, select, input, a, textarea")) return;
+      const r = card.getBoundingClientRect();
+      card.style.position = "fixed"; card.style.margin = "0";
+      card.style.left = r.left + "px"; card.style.top = r.top + "px";
+      drag = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+      e.preventDefault();
+    });
+    window.addEventListener("mousemove", (e) => {
+      if (!drag) return;
+      let x = e.clientX - drag.dx, y = e.clientY - drag.dy;
+      x = Math.max(8, Math.min(x, window.innerWidth  - card.offsetWidth  - 8));
+      y = Math.max(8, Math.min(y, window.innerHeight - card.offsetHeight - 8));
+      card.style.left = x + "px"; card.style.top = y + "px";
+    });
+    window.addEventListener("mouseup", () => { drag = null; });
+    // Re-center on each open (the overlay toggles `.open`).
+    new MutationObserver(() => {
+      const open = overlay.classList.contains("open");
+      if (open && !wasOpen && !drag) resetPos();
+      wasOpen = open;
+    }).observe(overlay, { attributes: true, attributeFilter: ["class"] });
+  }
+  _makeDraggableModal("colorEditModalOverlay", ".td-edit-card", ".modal-header");
+
+  document.getElementById("whatsNewVersionSelect")?.addEventListener("change", (e) => {
+    _renderWhatsNew(e.target.value);   // browse history — doesn't change the "seen" version
+  });
+  document.getElementById("whatsNewGotIt")?.addEventListener("click", () => closeWhatsNew({ markSeen: true }));
+  document.getElementById("whatsNewLater")?.addEventListener("click", () => closeWhatsNew({ markSeen: false }));
+  document.getElementById("whatsNewClose")?.addEventListener("click", () => closeWhatsNew({ markSeen: false }));
+  document.getElementById("whatsNewOverlay")?.addEventListener("click", (e) => {
+    if (e.target.id === "whatsNewOverlay") closeWhatsNew({ markSeen: false }); // backdrop = Later
+  });
+  document.getElementById("btnWhatsNew")?.addEventListener("click", async () => {
+    await loadWhatsNew();
+    const info = await loadAppInfo();
+    openWhatsNew(info.appVersion, { manual: true });
+  });
+  // Auto-show once per version. Skipped while a blocking modal (login /
+  // display-name setup) is open — it'll surface on the next launch instead.
+  async function maybeShowWhatsNew() {
+    await loadWhatsNew();
+    const info = await loadAppInfo();
+    const v = info?.appVersion;
+    if (!v || v === "?") return;
+    let seen = null;
+    try { seen = localStorage.getItem(WHATSNEW_SEEN_KEY); } catch {}
+    if (seen === v || !_whatsNew[v]) return;
+    if (document.querySelector(".modal-overlay.open")) return;
+    openWhatsNew(v, { manual: false });
+  }
+  window.openWhatsNew = openWhatsNew;
   function highlight(json) {
     if (typeof json !== "string") json = JSON.stringify(json, null, 2);
     json = esc(json);
@@ -5579,32 +5789,28 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // state.rows. A group of 1 renders exactly like an ungrouped row.
   //
   // Keys (resolved against the twin-link identity logic):
-  //   • cloud spools      → null  (random id_tigertag nonce, catalogue-only → solo)
   //   • TigerTag+         → "tt:<id_product>"  (group purely by the on-chip
   //                          product id; id_tigertag only flags the tier. Same
   //                          id_product ⇒ same group, no other condition. Any
   //                          divergent brand/material on chips that share an
   //                          id_product is a data issue fixed by "Refresh from
   //                          API", not by the grouping key.)
-  //   • Maker (id=max)    → "diy:<brand>|<material>|<colorHex>|<aspect1>"
-  //                          (exact hex + same finish/aspect — Maker only)
-  //   • other non-plus    → "diy:<brand>|<material>|<colorHex>"  (no aspect)
+  //   • Everything else   → "diy:<brand>|<material>|<colorHex>|<aspect1>"
+  //                          (TigerTag Maker AND TigerCloud are treated the same
+  //                          and group together — both are user-defined entries,
+  //                          identified by attributes + finish/aspect, not a
+  //                          catalogue product id.)
   function _spoolGroupKey(r) {
-    if (r.isCloud) return null;
-    const ID_UNSET = 4294967295; // 0xFFFFFFFF — unset product id (Maker / blank)
+    const ID_UNSET = 4294967295; // 0xFFFFFFFF — unset product id
     // TigerTag+ : group by id_product alone. 0 / max means "unset" → fall through
     // to the attribute key (an unset id must not lump unrelated products together).
     const pid = r.raw ? Number(r.raw.id_product) : NaN;
     if (r.isPlus && Number.isFinite(pid) && pid !== 0 && pid !== ID_UNSET)
       return "tt:" + pid;
-    // Maker / DIY: same brand + material + exact hex. For genuine Maker chips
-    // (id_tigertag = max sentinel 0xFFFFFFFF) the finish/aspect is set per spool,
-    // so a matte and a glossy spool of the same colour are NOT identical — add
-    // aspect1 to the key for those. Other non-plus chips keep the attribute-only
-    // key (no aspect component).
-    let key = "diy:" + r.brand + "|" + r.material + "|" + r.colorHex;
-    if (r.raw && Number(r.raw.id_tigertag) === ID_UNSET) key += "|" + (r.aspect1 || "");
-    return key;
+    // Maker + Cloud (and any other non-plus): same brand + material + exact hex
+    // + aspect/finish. A matte and a glossy spool of the same colour are NOT
+    // identical, so aspect1 is part of the key.
+    return "diy:" + r.brand + "|" + r.material + "|" + r.colorHex + "|" + (r.aspect1 || "");
   }
 
   // In-memory set of expanded group keys (collapsed by default, not persisted).
@@ -13203,7 +13409,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // a renderer/printers/<brand>/tutorial.json file alongside its add-flow.js.
     const _PT_HAS_TUTO = { bambulab: true, flashforge: true, elegoo: true };
     // One card per brand — visual cue (color dot) + label + connection hint.
-    // For brands with a tutorial.json, an inline "📖 Tutoriel de connexion"
+    // For brands with a tutorial.json, an inline "Tutoriel de connexion"
     // pill sits inside the card between the labels and the chevron. Rendered
     // as a <span role="button"> (not a real <button>) because nesting buttons
     // is invalid HTML; the click handler is attached directly with
@@ -16207,7 +16413,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     _adfFoundUid = null;
     clearTimeout(_adfDebounce);
     if ($("adfA").value.length < 3 || $("adfB").value.length < 3) return;
-    $("adfResult").textContent = "🔍 " + t("friendSearching");
+    $("adfResult").textContent = t("friendSearching");
     _adfDebounce = setTimeout(async () => {
       try {
         // O(1) lookup in publicKeys/{key}
@@ -17680,6 +17886,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // painted, but a signed-out (or very slow auth) launch has no such
     // trigger — reveal the window once the shell is on screen. Idempotent.
     requestAnimationFrame(signalFirstPaint);
+    // After the shell is up, surface the "What's New" modal once if this version
+    // just changed. Delayed so login / display-name modals win priority (the
+    // guard inside skips when any modal-overlay is already open).
+    setTimeout(() => { maybeShowWhatsNew(); }, 2500);
   });
 
   // ── Electron RFID integration ──

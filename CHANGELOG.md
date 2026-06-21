@@ -5,6 +5,23 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.10.16 — 2026-06-22
+
+### Added
+
+- **"What's New" screen.** After an update, a tidy floating window shows what's new in plain language — move it around, resize it, and browse the notes of any past version from the dropdown. Reopen it anytime from **Settings → About → "What's New"**.
+
+### Changed
+
+- **Cleaner, emoji-free interface.** Emojis across the app are now crisp SVG icons (or removed where they were purely decorative), for a more consistent, professional look.
+
+### Fixed
+
+- **Grouping now includes cloud spools.** A TigerCloud spool and a TigerTag (Maker) spool of the same filament now collapse into the same group, instead of the cloud one staying on its own.
+- **The "Set Color & TD Value" dialog can be moved.** Drag it by its header to reposition it.
+
+---
+
 ## v1.10.15 — 2026-06-21
 
 ### Added

@@ -5,7 +5,7 @@
  *   [Step ▾] [Speed ▾]
  *   [Z pill] [XY circle] [Home X · Home Y]
  *   Position: X · Y · Z
- *   Part cooling fan: [🌀 toggle] [−] [25%] [+]
+ *   Part cooling fan: [toggle] [−] [25%] [+]
  *
  * Commands go through snapSendGcode() via Moonraker printer.gcode.script.
  */

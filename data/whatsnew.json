@@ -1,0 +1,3046 @@
+{
+  "1.10.16": {
+    "date": "2026-06-22",
+    "items": [
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "A \"What's New\" screen",
+          "fr": "Un écran « Quoi de neuf »",
+          "de": "Ein \"Neuigkeiten\"-Fenster",
+          "es": "Una pantalla \"Novedades\"",
+          "it": "Una schermata \"Novità\"",
+          "zh": "全新的\"新功能\"窗口",
+          "pt": "Um ecrã \"Novidades\"",
+          "pt-pt": "Um ecrã \"Novidades\"",
+          "pl": "Ekran \"Co nowego\""
+        },
+        "body": {
+          "en": "After each update, a floating window shows what's new in plain language — move it, resize it, and browse past versions. Reopen it anytime from Settings → About.",
+          "fr": "Après chaque mise à jour, une fenêtre flottante présente les nouveautés en clair — déplaçable, redimensionnable, avec l'historique des versions. Rouvrable depuis Réglages → À propos.",
+          "de": "Nach jedem Update zeigt ein frei bewegliches Fenster die Neuerungen in klarer Sprache — verschieben, vergrößern und frühere Versionen durchblättern. Jederzeit über Einstellungen → Über erreichbar.",
+          "es": "Tras cada actualización, una ventana flotante muestra las novedades en lenguaje claro: muévela, cámbiale el tamaño y consulta versiones anteriores. Vuelve a abrirla desde Ajustes → Acerca de.",
+          "it": "Dopo ogni aggiornamento, una finestra mobile mostra le novità in modo chiaro — spostala, ridimensionala e sfoglia le versioni precedenti. Riaprila da Impostazioni → Info.",
+          "zh": "每次更新后，一个可浮动窗口以通俗语言展示新功能——可移动、可调整大小，并可浏览历史版本。可随时从「设置 → 关于」重新打开。",
+          "pt": "Após cada atualização, uma janela flutuante mostra as novidades em linguagem simples — mova-a, redimensione-a e consulte versões anteriores. Reabra em Definições → Acerca.",
+          "pt-pt": "Após cada atualização, uma janela flutuante mostra as novidades em linguagem simples — mova-a, redimensione-a e consulte versões anteriores. Reabra em Definições → Acerca.",
+          "pl": "Po każdej aktualizacji ruchome okno pokazuje nowości prostym językiem — przesuwaj je, zmieniaj rozmiar i przeglądaj poprzednie wersje. Otworzysz je ponownie w Ustawienia → Informacje."
+        }
+      },
+      {
+        "icon": "palette",
+        "title": {
+          "en": "Cleaner, emoji-free look",
+          "fr": "Interface épurée, sans emoji",
+          "de": "Aufgeräumt, ohne Emojis",
+          "es": "Interfaz más limpia, sin emojis",
+          "it": "Interfaccia più pulita, senza emoji",
+          "zh": "更简洁、无表情符号",
+          "pt": "Visual mais limpo, sem emojis",
+          "pt-pt": "Visual mais limpo, sem emojis",
+          "pl": "Czystszy wygląd, bez emoji"
+        },
+        "body": {
+          "en": "Emojis across the app are now crisp SVG icons (or removed where purely decorative) for a more consistent, professional interface.",
+          "fr": "Les emojis de l'application sont remplacés par des icônes SVG nettes (ou retirés là où ils étaient décoratifs) pour une interface plus cohérente et pro.",
+          "de": "Emojis in der App sind jetzt klare SVG-Symbole (oder entfernt, wo sie nur Deko waren) — für eine einheitlichere, professionellere Oberfläche.",
+          "es": "Los emojis de la app ahora son iconos SVG nítidos (o se han quitado donde eran decorativos) para una interfaz más coherente y profesional.",
+          "it": "Gli emoji dell'app sono ora icone SVG nitide (o rimossi dove puramente decorativi) per un'interfaccia più coerente e professionale.",
+          "zh": "应用内的表情符号已替换为清晰的 SVG 图标（纯装饰性的则移除），界面更统一、更专业。",
+          "pt": "Os emojis da app passam a ser ícones SVG nítidos (ou foram removidos onde eram decorativos) para uma interface mais coerente e profissional.",
+          "pt-pt": "Os emojis da aplicação passam a ser ícones SVG nítidos (ou foram removidos onde eram decorativos) para uma interface mais coerente e profissional.",
+          "pl": "Emoji w aplikacji to teraz wyraźne ikony SVG (lub usunięto je tam, gdzie były tylko ozdobą) — interfejs jest spójniejszy i bardziej profesjonalny."
+        }
+      },
+      {
+        "icon": "cloud",
+        "title": {
+          "en": "Cloud spools group too",
+          "fr": "Les bobines cloud se regroupent aussi",
+          "de": "Cloud-Spulen werden ebenfalls gruppiert",
+          "es": "Las bobinas en la nube también se agrupan",
+          "it": "Anche le bobine cloud si raggruppano",
+          "zh": "云端线轴也会合并分组",
+          "pt": "As bobinas na nuvem também se agrupam",
+          "pt-pt": "As bobinas na nuvem também se agrupam",
+          "pl": "Szpule w chmurze też się grupują"
+        },
+        "body": {
+          "en": "A TigerCloud spool and a TigerTag (Maker) spool of the same filament now collapse into the same group, instead of the cloud one staying on its own.",
+          "fr": "Une bobine TigerCloud et une bobine TigerTag (Maker) du même filament se regroupent désormais ensemble, au lieu de laisser la cloud à part.",
+          "de": "Eine TigerCloud-Spule und eine TigerTag-(Maker-)Spule desselben Filaments landen jetzt in derselben Gruppe, statt die Cloud-Spule allein zu lassen.",
+          "es": "Una bobina TigerCloud y una bobina TigerTag (Maker) del mismo filamento ahora se agrupan juntas, en lugar de dejar la de la nube aparte.",
+          "it": "Una bobina TigerCloud e una bobina TigerTag (Maker) dello stesso filamento ora finiscono nello stesso gruppo, invece di lasciare quella cloud da sola.",
+          "zh": "相同耗材的 TigerCloud 线轴与 TigerTag（Maker）线轴现在会合并到同一组，云端线轴不再单独显示。",
+          "pt": "Uma bobina TigerCloud e uma bobina TigerTag (Maker) do mesmo filamento passam a ficar no mesmo grupo, em vez de a da nuvem ficar à parte.",
+          "pt-pt": "Uma bobina TigerCloud e uma bobina TigerTag (Maker) do mesmo filamento passam a ficar no mesmo grupo, em vez de a da nuvem ficar à parte.",
+          "pl": "Szpula TigerCloud i szpula TigerTag (Maker) z tego samego filamentu trafiają teraz do tej samej grupy, zamiast zostawiać chmurową osobno."
+        }
+      },
+      {
+        "icon": "edit",
+        "title": {
+          "en": "Move the colour dialog",
+          "fr": "Déplacer la fenêtre de couleur",
+          "de": "Farbdialog verschieben",
+          "es": "Mover el diálogo de color",
+          "it": "Sposta la finestra del colore",
+          "zh": "可移动颜色对话框",
+          "pt": "Mover a janela de cor",
+          "pt-pt": "Mover a janela de cor",
+          "pl": "Przesuwanie okna koloru"
+        },
+        "body": {
+          "en": "The \"Set Color & TD Value\" dialog can be dragged by its header to reposition it.",
+          "fr": "La fenêtre « Set Color & TD Value » peut être déplacée en l'attrapant par sa barre de titre.",
+          "de": "Der Dialog \"Set Color & TD Value\" lässt sich an seiner Titelleiste verschieben.",
+          "es": "El diálogo \"Set Color & TD Value\" se puede arrastrar por su barra de título para recolocarlo.",
+          "it": "La finestra \"Set Color & TD Value\" può essere spostata trascinandola dalla barra del titolo.",
+          "zh": "「Set Color & TD Value」对话框可通过标题栏拖动来重新摆放。",
+          "pt": "A janela \"Set Color & TD Value\" pode ser arrastada pela barra de título para a reposicionar.",
+          "pt-pt": "A janela \"Set Color & TD Value\" pode ser arrastada pela barra de título para a reposicionar.",
+          "pl": "Okno \"Set Color & TD Value\" można przeciągać za pasek tytułu, aby zmienić jego położenie."
+        }
+      }
+    ]
+  },
+  "1.10.15": {
+    "date": "2026-06-21",
+    "items": [
+      {
+        "icon": "folder",
+        "title": {
+          "en": "Group identical spools",
+          "fr": "Regrouper les bobines identiques",
+          "de": "Identische Spulen gruppieren",
+          "es": "Agrupar bobinas idénticas",
+          "it": "Raggruppa bobine identiche",
+          "zh": "合并相同线轴",
+          "pt": "Agrupar bobinas idênticas",
+          "pt-pt": "Agrupar bobinas idênticas",
+          "pl": "Grupowanie identycznych szpul"
+        },
+        "body": {
+          "en": "The inventory table can now fold identical spools into one expandable line with a count badge — a full shelf reads at a glance. Toggle it with the switch in the toolbar.",
+          "fr": "Le tableau d'inventaire peut désormais regrouper les bobines identiques en une seule ligne dépliable avec un compteur — une étagère entière se lit d'un coup d'œil. Activez-le via l'interrupteur de la barre d'outils.",
+          "de": "Die Bestandstabelle kann identische Spulen jetzt zu einer aufklappbaren Zeile mit Zähler zusammenfassen — ein ganzes Regal auf einen Blick. Über den Schalter in der Symbolleiste umschaltbar.",
+          "es": "La tabla de inventario ahora agrupa las bobinas idénticas en una sola línea desplegable con un contador: un estante entero de un vistazo. Actívalo con el interruptor de la barra de herramientas.",
+          "it": "La tabella dell'inventario può ora raggruppare le bobine identiche in un'unica riga espandibile con un contatore: un intero scaffale a colpo d'occhio. Attivalo dall'interruttore nella barra degli strumenti.",
+          "zh": "库存表格现在可将相同线轴合并为一行（带数量徽章），可展开查看——整架线轴一目了然。通过工具栏的开关切换。",
+          "pt": "A tabela de inventário agora agrupa bobinas idênticas numa única linha expansível com um contador — uma prateleira inteira num relance. Ative pelo interruptor na barra de ferramentas.",
+          "pt-pt": "A tabela de inventário passa a agrupar bobinas idênticas numa única linha expansível com um contador — uma prateleira inteira num relance. Ative no interruptor da barra de ferramentas.",
+          "pl": "Tabela inwentarza może teraz zwijać identyczne szpule w jeden rozwijalny wiersz z licznikiem — cała półka na pierwszy rzut oka. Przełącz to przełącznikiem na pasku narzędzi."
+        }
+      },
+      {
+        "icon": "palette",
+        "title": {
+          "en": "Colour-coded filament gauge",
+          "fr": "Jauge de filament colorée",
+          "de": "Farbcodierte Füllstandsanzeige",
+          "es": "Indicador de filamento por colores",
+          "it": "Indicatore filamento a colori",
+          "zh": "彩色余量条",
+          "pt": "Indicador de filamento colorido",
+          "pt-pt": "Indicador de filamento colorido",
+          "pl": "Kolorowy pasek filamentu"
+        },
+        "body": {
+          "en": "The remaining-filament bar now turns red, orange or green depending on how much is left — matching the mobile app.",
+          "fr": "La barre de filament restant passe au rouge, orange ou vert selon la quantité restante — comme dans l'app mobile.",
+          "de": "Der Balken für das verbleibende Filament wird je nach Restmenge rot, orange oder grün — wie in der mobilen App.",
+          "es": "La barra de filamento restante se vuelve roja, naranja o verde según lo que queda, igual que en la app móvil.",
+          "it": "La barra del filamento residuo diventa rossa, arancione o verde in base a quanto resta — come nell'app mobile.",
+          "zh": "余量条会根据剩余量变为红色、橙色或绿色——与手机 App 一致。",
+          "pt": "A barra de filamento restante fica vermelha, laranja ou verde conforme o que resta — igual à app móvel.",
+          "pt-pt": "A barra de filamento restante fica vermelha, laranja ou verde consoante o que resta — tal como na aplicação móvel.",
+          "pl": "Pasek pozostałego filamentu zmienia kolor na czerwony, pomarańczowy lub zielony zależnie od ilości — tak jak w aplikacji mobilnej."
+        }
+      },
+      {
+        "icon": "refresh",
+        "title": {
+          "en": "Smarter \"Refresh from API\"",
+          "fr": "« Actualiser depuis l'API » plus complet",
+          "de": "Cleveres \"Aus API aktualisieren\"",
+          "es": "\"Actualizar desde la API\" más completo",
+          "it": "\"Aggiorna da API\" più completo",
+          "zh": "更智能的\"从 API 刷新\"",
+          "pt": "\"Atualizar pela API\" mais completo",
+          "pt-pt": "\"Atualizar pela API\" mais completo",
+          "pl": "Lepsze \"Odśwież z API\""
+        },
+        "body": {
+          "en": "Refreshing a TigerTag+ spool now also corrects its brand, material, finish, temperatures and colour from the catalogue. If the chip needs rewriting, the spool is flagged.",
+          "fr": "Actualiser une bobine TigerTag+ corrige aussi sa marque, sa matière, son aspect, ses températures et sa couleur depuis le catalogue. Si la puce doit être réécrite, la bobine est signalée.",
+          "de": "Beim Aktualisieren einer TigerTag+-Spule werden jetzt auch Marke, Material, Oberfläche, Temperaturen und Farbe aus dem Katalog korrigiert. Muss der Chip neu beschrieben werden, wird die Spule markiert.",
+          "es": "Actualizar una bobina TigerTag+ ahora también corrige su marca, material, acabado, temperaturas y color desde el catálogo. Si hay que reescribir el chip, la bobina se marca.",
+          "it": "Aggiornare una bobina TigerTag+ ora corregge anche marca, materiale, finitura, temperature e colore dal catalogo. Se il chip va riscritto, la bobina viene segnalata.",
+          "zh": "刷新 TigerTag+ 线轴现在还会从目录更正其品牌、材料、外观、温度和颜色。若芯片需要重写，该线轴会被标记。",
+          "pt": "Atualizar uma bobina TigerTag+ agora também corrige a marca, material, acabamento, temperaturas e cor a partir do catálogo. Se o chip precisar de ser regravado, a bobina é sinalizada.",
+          "pt-pt": "Atualizar uma bobina TigerTag+ passa a corrigir também a marca, material, acabamento, temperaturas e cor a partir do catálogo. Se o chip precisar de ser regravado, a bobina é sinalizada.",
+          "pl": "Odświeżenie szpuli TigerTag+ poprawia teraz także markę, materiał, wykończenie, temperatury i kolor z katalogu. Jeśli chip wymaga ponownego zapisu, szpula zostaje oznaczona."
+        }
+      },
+      {
+        "icon": "bell",
+        "title": {
+          "en": "Update notifications",
+          "fr": "Notifications de mise à jour",
+          "de": "Update-Benachrichtigungen",
+          "es": "Notificaciones de actualización",
+          "it": "Notifiche di aggiornamento",
+          "zh": "更新通知",
+          "pt": "Notificações de atualização",
+          "pt-pt": "Notificações de atualização",
+          "pl": "Powiadomienia o aktualizacji"
+        },
+        "body": {
+          "en": "When a new version is downloading or ready, you'll see it in the notification bell — with a one-click Restart when it's ready.",
+          "fr": "Quand une nouvelle version se télécharge ou est prête, vous la voyez dans la cloche de notifications — avec un bouton Redémarrer en un clic une fois prête.",
+          "de": "Wenn eine neue Version geladen wird oder bereit ist, erscheint sie in der Benachrichtigungsglocke — mit Neustart per Klick, sobald sie bereit ist.",
+          "es": "Cuando una nueva versión se descarga o está lista, la verás en la campana de notificaciones, con un botón Reiniciar de un clic cuando esté lista.",
+          "it": "Quando una nuova versione si scarica o è pronta, la vedi nella campanella delle notifiche — con riavvio in un clic quando è pronta.",
+          "zh": "当新版本正在下载或已就绪时，你会在通知铃中看到——就绪后可一键重启。",
+          "pt": "Quando uma nova versão está a transferir ou pronta, vê-la no sino de notificações — com Reiniciar num clique quando estiver pronta.",
+          "pt-pt": "Quando uma nova versão está a ser transferida ou pronta, vê-la no sino de notificações — com Reiniciar num clique quando estiver pronta.",
+          "pl": "Gdy nowa wersja się pobiera lub jest gotowa, zobaczysz to w dzwonku powiadomień — z restartem jednym kliknięciem, gdy będzie gotowa."
+        }
+      }
+    ]
+  },
+  "1.10.14": {
+    "date": "2026-06-21",
+    "items": [
+      {
+        "icon": "link",
+        "title": {
+          "en": "Shareable friend links",
+          "fr": "Liens d'ami partageables",
+          "de": "Teilbare Freunde-Links",
+          "es": "Enlaces de amigo para compartir",
+          "it": "Link amico condivisibili",
+          "zh": "可分享的好友链接",
+          "pt": "Links de amigo partilháveis",
+          "pt-pt": "Links de amigo partilháveis",
+          "pl": "Linki znajomych do udostępnienia"
+        },
+        "body": {
+          "en": "The Friends panel has a new \"Share link\" button — send the link anywhere and your friend just opens it to pre-fill the add-friend request (they still confirm).",
+          "fr": "Le panneau Amis a un nouveau bouton « Partager le lien » — envoyez-le où vous voulez ; votre ami l'ouvre et la demande d'ajout est pré-remplie (il confirme quand même).",
+          "de": "Das Freunde-Panel hat einen neuen Button \"Link teilen\" — verschicke ihn beliebig; dein Freund öffnet ihn und die Freundschaftsanfrage ist vorausgefüllt (er bestätigt weiterhin selbst).",
+          "es": "El panel de Amigos tiene un nuevo botón \"Compartir enlace\": envíalo a donde quieras y tu amigo solo tiene que abrirlo para rellenar la solicitud (él confirma).",
+          "it": "Il pannello Amici ha un nuovo pulsante \"Condividi link\" — invialo dove vuoi; il tuo amico lo apre e la richiesta di amicizia è precompilata (conferma lui).",
+          "zh": "好友面板新增\"分享链接\"按钮——随意发送，好友打开后即自动填好添加请求（仍需其确认）。",
+          "pt": "O painel de Amigos tem um novo botão \"Partilhar link\" — envie-o para onde quiser e o seu amigo só precisa de abri-lo para preencher o pedido (ele confirma).",
+          "pt-pt": "O painel de Amigos tem um novo botão \"Partilhar link\" — envie-o para onde quiser e o seu amigo só tem de abri-lo para preencher o pedido (ele confirma).",
+          "pl": "Panel Znajomych ma nowy przycisk \"Udostępnij link\" — wyślij go gdziekolwiek; znajomy otwiera go, a prośba o dodanie jest już wypełniona (i tak potwierdza)."
+        }
+      },
+      {
+        "icon": "bolt",
+        "title": {
+          "en": "Snappier friends & notifications",
+          "fr": "Amis et notifications plus réactifs",
+          "de": "Flinkere Freunde & Benachrichtigungen",
+          "es": "Amigos y notificaciones más ágiles",
+          "it": "Amici e notifiche più reattivi",
+          "zh": "更流畅的好友与通知",
+          "pt": "Amigos e notificações mais rápidos",
+          "pt-pt": "Amigos e notificações mais rápidos",
+          "pl": "Szybsi znajomi i powiadomienia"
+        },
+        "body": {
+          "en": "Friend avatars appear immediately in the add-friend preview, and accepting or dismissing a request or notification now clears it the instant you click.",
+          "fr": "Les avatars d'amis s'affichent immédiatement dans l'aperçu, et accepter ou ignorer une demande ou une notification l'efface dès le clic.",
+          "de": "Freunde-Avatare erscheinen sofort in der Vorschau, und das Annehmen oder Verwerfen einer Anfrage oder Benachrichtigung wirkt jetzt sofort beim Klick.",
+          "es": "Los avatares de amigos aparecen de inmediato en la vista previa, y aceptar o descartar una solicitud o notificación la quita en el instante en que haces clic.",
+          "it": "Gli avatar degli amici compaiono subito nell'anteprima e accettare o ignorare una richiesta o notifica la rimuove all'istante.",
+          "zh": "好友头像在预览中立即显示，接受或忽略请求/通知时点击即刻清除。",
+          "pt": "Os avatares de amigos aparecem imediatamente na pré-visualização, e aceitar ou dispensar um pedido ou notificação remove-o assim que clica.",
+          "pt-pt": "Os avatares de amigos aparecem imediatamente na pré-visualização e aceitar ou dispensar um pedido ou notificação remove-o assim que clica.",
+          "pl": "Awatary znajomych pojawiają się od razu w podglądzie, a akceptacja lub odrzucenie prośby czy powiadomienia działa natychmiast po kliknięciu."
+        }
+      }
+    ]
+  },
+  "1.10.13": {
+    "date": "2026-06-19",
+    "items": [
+      {
+        "icon": "settings",
+        "title": {
+          "en": "Creality: live machine controls",
+          "fr": "Creality : contrôles machine en direct",
+          "de": "Creality: Live-Maschinensteuerung",
+          "es": "Creality: controles en vivo",
+          "it": "Creality: controlli macchina dal vivo",
+          "zh": "Creality：实时机器控制",
+          "pt": "Creality: controlos da máquina ao vivo",
+          "pt-pt": "Creality: controlos da máquina ao vivo",
+          "pl": "Creality: sterowanie maszyną na żywo"
+        },
+        "body": {
+          "en": "Drive your Creality from the side panel — set nozzle, bed and chamber temperatures, jog and home the axes, disable the motors, and control the fans. The motion pad hides during a print to keep jobs safe.",
+          "fr": "Pilotez votre Creality depuis le panneau latéral — réglez les températures buse, plateau et caisson, déplacez et orientez les axes, désactivez les moteurs et gérez les ventilateurs. Le pavé de mouvement se masque pendant une impression pour la protéger.",
+          "de": "Steuere deine Creality über das Seitenpanel — Düsen-, Bett- und Kammertemperatur einstellen, Achsen verfahren und referenzieren, Motoren deaktivieren und Lüfter regeln. Das Bewegungsfeld wird während eines Drucks ausgeblendet.",
+          "es": "Controla tu Creality desde el panel lateral: ajusta las temperaturas de boquilla, cama y cámara, mueve y haz home de los ejes, desactiva los motores y controla los ventiladores. El panel de movimiento se oculta durante una impresión.",
+          "it": "Pilota la tua Creality dal pannello laterale — imposta le temperature di ugello, piano e camera, muovi e azzera gli assi, disattiva i motori e gestisci le ventole. Il pad di movimento si nasconde durante una stampa.",
+          "zh": "在侧面板直接操控 Creality——设置喷嘴、热床和腔室温度，移动和归零各轴，关闭电机并控制风扇。打印期间隐藏移动面板以保护作业。",
+          "pt": "Comande a sua Creality pelo painel lateral — defina temperaturas de bico, mesa e câmara, mova e faça home dos eixos, desative os motores e controle as ventoinhas. O painel de movimento oculta-se durante uma impressão.",
+          "pt-pt": "Comande a sua Creality pelo painel lateral — defina temperaturas de bico, base e câmara, mova e faça home dos eixos, desative os motores e controle as ventoinhas. O painel de movimento esconde-se durante uma impressão.",
+          "pl": "Steruj Creality z panelu bocznego — ustaw temperatury dyszy, stołu i komory, przesuwaj i bazuj osie, wyłącz silniki i steruj wentylatorami. Panel ruchu chowa się podczas druku."
+        }
+      },
+      {
+        "icon": "swap",
+        "title": {
+          "en": "Creality: filament slots & CFS",
+          "fr": "Creality : slots de filament et CFS",
+          "de": "Creality: Filament-Slots & CFS",
+          "es": "Creality: ranuras de filamento y CFS",
+          "it": "Creality: slot filamento e CFS",
+          "zh": "Creality：料槽与 CFS",
+          "pt": "Creality: ranhuras de filamento e CFS",
+          "pt-pt": "Creality: ranhuras de filamento e CFS",
+          "pl": "Creality: sloty filamentu i CFS"
+        },
+        "body": {
+          "en": "Pick a filament slot to feed or unload it through the CFS (auto heat, cut and feed). Slots show identified, loaded and empty states, and RFID-identified slots are locked against accidental edits.",
+          "fr": "Sélectionnez un slot de filament pour le charger ou le décharger via le CFS (chauffe, coupe et charge automatiques). Les slots affichent les états identifié, chargé et vide, et les slots identifiés par RFID sont verrouillés contre les modifications accidentelles.",
+          "de": "Wähle einen Filament-Slot, um ihn über das CFS zu laden oder zu entladen (automatisch heizen, schneiden, fördern). Slots zeigen die Zustände erkannt, geladen und leer; RFID-erkannte Slots sind gegen versehentliche Änderungen gesperrt.",
+          "es": "Selecciona una ranura de filamento para cargarla o descargarla por el CFS (calienta, corta y alimenta solo). Las ranuras muestran los estados identificada, cargada y vacía, y las identificadas por RFID quedan bloqueadas ante ediciones accidentales.",
+          "it": "Seleziona uno slot filamento per caricarlo o scaricarlo tramite il CFS (riscalda, taglia e alimenta in automatico). Gli slot mostrano gli stati identificato, caricato e vuoto; quelli identificati via RFID sono bloccati da modifiche accidentali.",
+          "zh": "选择一个料槽，通过 CFS 进料或退料（自动加热、剪切、送料）。料槽显示已识别、已装载和空三种状态，RFID 识别的料槽锁定以防误改。",
+          "pt": "Selecione uma ranhura de filamento para carregar ou descarregar pelo CFS (aquece, corta e alimenta automaticamente). As ranhuras mostram os estados identificada, carregada e vazia, e as identificadas por RFID ficam bloqueadas contra edições acidentais.",
+          "pt-pt": "Selecione uma ranhura de filamento para carregar ou descarregar pelo CFS (aquece, corta e alimenta automaticamente). As ranhuras mostram os estados identificada, carregada e vazia, e as identificadas por RFID ficam bloqueadas contra edições acidentais.",
+          "pl": "Wybierz slot filamentu, aby załadować go lub wysunąć przez CFS (automatyczne grzanie, cięcie i podawanie). Sloty pokazują stany: zidentyfikowany, załadowany i pusty, a sloty rozpoznane przez RFID są zablokowane przed przypadkową edycją."
+        }
+      }
+    ]
+  },
+  "1.10.12": {
+    "date": "2026-06-19",
+    "items": [
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Notification center"
+        },
+        "body": {
+          "en": "A new bell in the sidebar (with an unread badge) gathers your incoming friend requests and updates in one place. Friend requests shown there are actionable — Accept / Decline / Block — and stay until you choose one, so a request is never…"
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Friend requests are easier to handle"
+        },
+        "body": {
+          "en": "Pending requests now also appear in the Friends panel and the notification center (not just the popup), each showing the requester's real avatar with Accept / Decline / Block."
+        }
+      },
+      {
+        "icon": "wrench",
+        "title": {
+          "en": "Friends list updates live"
+        },
+        "body": {
+          "en": "Accepting or removing a friend now appears instantly for both people without reopening the panel, and a friend's avatar / name / colour changes show up live too."
+        }
+      },
+      {
+        "icon": "wrench",
+        "title": {
+          "en": "Friends button"
+        },
+        "body": {
+          "en": "now shows your number of friends (or a \"+\" when you have none) instead of the pending-request count — requests moved to the bell."
+        }
+      },
+      {
+        "icon": "wrench",
+        "title": {
+          "en": "Friend request popup"
+        },
+        "body": {
+          "en": ": added a close () button to dismiss it for later (the request stays pending and can be handled from the bell or Friends panel), and it now shows the requester's real avatar immediately — no initials flash."
+        }
+      }
+    ]
+  },
+  "1.10.11": {
+    "date": "2026-06-19",
+    "items": [
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Anycubic: file management"
+        },
+        "body": {
+          "en": "The Anycubic printer panel now has a Files button that opens a browser for the printer's stored files. Browse on-printer storage and a USB stick (the USB tab appears once a stick is detected), and — for cloud-connected printers — a Cloud…"
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Printer brand logos"
+        },
+        "body": {
+          "en": "The printer list, grid, and the \"add a printer\" picker now show each manufacturer's logo (Bambu Lab, Anycubic, Creality, Elegoo, FlashForge, Snapmaker)."
+        }
+      },
+      {
+        "icon": "wrench",
+        "title": {
+          "en": "Clearer online status"
+        },
+        "body": {
+          "en": "A printer's online/offline state is now a small coloured dot next to its name — pulsing green when online, flat grey when offline — in both the grid and the side panel. The old \"Online / Offline\" badge has been removed as redundant."
+        }
+      },
+      {
+        "icon": "wrench",
+        "title": {
+          "en": "\"Last seen\" instead of \"Updated\""
+        },
+        "body": {
+          "en": "The printers list and grid now show when each printer was last seen online (\"just now\" while connected, otherwise how long ago), and it's remembered across restarts."
+        }
+      },
+      {
+        "icon": "wrench",
+        "title": {
+          "en": "Tables remember your sort"
+        },
+        "body": {
+          "en": "The filament and printer tables now keep your last sort column and direction across restarts. By default filaments sort by Brand and printers by status (online first)."
+        }
+      },
+      {
+        "icon": "wrench",
+        "title": {
+          "en": "Printers table polish"
+        },
+        "body": {
+          "en": "The printers table now has the same rounded, scrollable finish — with a pinned header — as the filament table."
+        }
+      }
+    ]
+  },
+  "1.10.10": {
+    "date": "2026-06-18",
+    "items": [
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "FlashForge: live monitoring & machine controls"
+        },
+        "body": {
+          "en": "The FlashForge side panel now shows per-nozzle temperatures (tool-changers like the Creator 5 Pro list each tool T1…Tn with the active one highlighted; single-nozzle models show E1), plus bed and — on enclosed models — chamber, each as…"
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "FlashForge Creator 5 / 5 Pro: official colour palette"
+        },
+        "body": {
+          "en": "Setting a filament slot's colour now offers only the printer's 24 built-in \"Color Library\" swatches — the firmware silently rejects anything else (the slot reverts to white) — so every pick is one the printer actually keeps. Other models…"
+        }
+      },
+      {
+        "icon": "wrench",
+        "title": {
+          "en": "Bambu Lab H2-series dual nozzle"
+        },
+        "body": {
+          "en": "Printers with two heads (H2C / H2D / X2D) now show both nozzles — tagged R (right) and L (left), with the active head highlighted — each with its own temperature you can tap to set, instead of only the active head."
+        }
+      },
+      {
+        "icon": "check",
+        "title": {
+          "en": "Filament colour/material editor no longer opens hidden behind the printer panel"
+        },
+        "body": {
+          "en": "A recent layering change had pushed the printer side-panel above the edit sheet; the sheet now sits above it again. Affects all brands (Snapmaker / Creality / Elegoo / FlashForge)."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "FlashForge temperatures and fans are read-only"
+        },
+        "body": {
+          "en": "— the firmware doesn't expose a command to set them, so they're shown for monitoring only."
+        }
+      }
+    ]
+  },
+  "1.10.9": {
+    "date": "2026-06-18",
+    "items": [
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Anycubic cloud camera — everywhere now"
+        },
+        "body": {
+          "en": "The cloud (Agora) camera shows in the camera wall and the detached camera window too, not just the printer's side panel, and it keeps streaming through long sessions (automatic RTC-token refresh). Thanks to @ennisj (PR #4)."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Bambu Lab heated-chamber control"
+        },
+        "body": {
+          "en": "On models with an actively heated chamber (X1E, the H2 series, X2D), the chamber temperature is now a setpoint you can tap to set — like the nozzle and bed. Passive-chamber models (X1C) stay read-only."
+        }
+      },
+      {
+        "icon": "check",
+        "title": {
+          "en": "Bambu Lab AMS humidity & temperature now show for every AMS unit"
+        },
+        "body": {
+          "en": "Machines with more than one AMS (e.g. the H2C, which has two) previously showed nothing; each unit's real humidity % and temperature now appear (labelled A / B / … when there are several). AMS Lite has no sensor and stays blank."
+        }
+      }
+    ]
+  },
+  "1.10.8": {
+    "date": "2026-06-18",
+    "items": [
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Anycubic cloud-mode camera"
+        },
+        "body": {
+          "en": "Printers connected in cloud mode now show their live camera in the side panel (an Agora WebRTC stream), not just LAN-connected printers. Thanks to @ennisj (PR #3)."
+        }
+      },
+      {
+        "icon": "wrench",
+        "title": {
+          "en": "Adding a printer opens its panel automatically"
+        },
+        "body": {
+          "en": "Once you finish adding a printer, its side-card now opens straight away instead of leaving you on the list."
+        }
+      },
+      {
+        "icon": "wrench",
+        "title": {
+          "en": "Closing a printer also closes its settings"
+        },
+        "body": {
+          "en": "If a printer's Settings form was open, closing the printer now closes that form too — no leftover panel floating on the side."
+        }
+      },
+      {
+        "icon": "check",
+        "title": {
+          "en": "Settings close tab no longer hidden"
+        },
+        "body": {
+          "en": "With a spool card, a printer's Settings, and a printer panel all open side by side, the spool card painted over the Settings panel's close tab — the tab is now always reachable."
+        }
+      }
+    ]
+  },
+  "1.10.7": {
+    "date": "2026-06-17",
+    "items": [
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Bambu Lab: full machine controls in the printer panel"
+        },
+        "body": {
+          "en": "The Bambu side-card now has the same live controls as the other brands — pause / resume / stop the current print, jog the X/Y/Z axes, home any axis, toggle the chamber light, disable the motors, set nozzle and bed target temperatures…"
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "FlashForge Creator 5 & Creator 5 Pro support"
+        },
+        "body": {
+          "en": "Both models are now recognised. Network discovery and \"Add by IP\" read the printer's serial number automatically, and the exact model is detected on first connection so the correct name and picture appear without picking them by hand. The…"
+        }
+      },
+      {
+        "icon": "wrench",
+        "title": {
+          "en": "Bambu Lab: smoother, flicker-free live cards"
+        },
+        "body": {
+          "en": "The printer card no longer rebuilds itself every time the printer sends an update — only the values that actually changed are refreshed. Editing a field (temperature, a dropdown…) is no longer interrupted when new data arrives, and the…"
+        }
+      },
+      {
+        "icon": "wrench",
+        "title": {
+          "en": "Printer settings open beside the printer card"
+        },
+        "body": {
+          "en": "Opening a printer's settings (gear) now slides the form in next to the printer panel instead of hidden behind it, without dimming the rest of the app, and it has the same » close tab as the other side-cards. Switching to another printer…"
+        }
+      },
+      {
+        "icon": "check",
+        "title": {
+          "en": "Bambu Lab: correct AMS humidity & temperature"
+        },
+        "body": {
+          "en": "The A1's AMS Lite has no humidity/temperature sensor, so it no longer shows made-up values. On AMS units that do have a sensor (AMS HT, AMS 2 Pro), humidity now shows the real percentage instead of the internal 1–5 dryness grade, and the…"
+        }
+      },
+      {
+        "icon": "check",
+        "title": {
+          "en": "FlashForge: newer models are no longer dropped during discovery"
+        },
+        "body": {
+          "en": "Printers that don't reveal their identity to the first probe (e.g. Creator 5) now appear in the scan and can be set up via \"Add by IP\"."
+        }
+      }
+    ]
+  },
+  "1.10.6": {
+    "date": "2026-06-17",
+    "items": [
+      {
+        "icon": "wrench",
+        "title": {
+          "en": "Spool and printer side-cards no longer dim the screen"
+        },
+        "body": {
+          "en": "Opening a spool's or printer's detail card used to drop a dark overlay behind it that you had to dismiss first. Now the list stays fully usable — click another spool or printer and the card switches in place, no close-then-reselect. Each…"
+        }
+      },
+      {
+        "icon": "wrench",
+        "title": {
+          "en": "Spool and printer cards can now sit side by side"
+        },
+        "body": {
+          "en": "Open a spool's card and a printer's card at the same time and the printer keeps the right edge while the spool card tucks in just to its left (passing neatly behind it), instead of one replacing the other — groundwork for dragging a spool…"
+        }
+      },
+      {
+        "icon": "check",
+        "title": {
+          "en": "Buttons no longer jump down when clicked"
+        },
+        "body": {
+          "en": "Some buttons — most visibly the show/hide-password eye — shifted downward on press. Fixed everywhere."
+        }
+      },
+      {
+        "icon": "check",
+        "title": {
+          "en": "Spool card's close tab now slides behind the printer card"
+        },
+        "body": {
+          "en": "When both cards were open and you closed the spool card, its orange » tab briefly swept in front of the printer card instead of behind it like the card itself. Fixed."
+        }
+      }
+    ]
+  },
+  "1.10.5": {
+    "date": "2026-06-16",
+    "items": [
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Anycubic Kobra X: live camera now works (LAN)"
+        },
+        "body": {
+          "en": "The Kobra X's camera is now supported over the local network, reusing the same video pipeline as the Kobra 3 V2 — it was previously left off because the Kobra X advertises its stream differently. Thanks to @ennisj (PR #2)."
+        }
+      }
+    ]
+  },
+  "1.10.4": {
+    "date": "2026-06-16",
+    "items": [
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Anycubic: printer error alerts"
+        },
+        "body": {
+          "en": "When the printer refuses a command (for example \"Home the axis before moving\" if you jog before homing), an alert now pops up with the printer's message and error code, so you know why nothing happened."
+        }
+      },
+      {
+        "icon": "check",
+        "title": {
+          "en": "Anycubic (cloud): the fan, temperatures and speed mode now work at any time"
+        },
+        "body": {
+          "en": "— not only while a print is running. They were previously sent in a way the printer only applied to an active job, so at idle nothing happened. They now use the same realtime channel as the official slicer."
+        }
+      },
+      {
+        "icon": "check",
+        "title": {
+          "en": "Anycubic (cloud): the light now turns on the right LED"
+        },
+        "body": {
+          "en": "It was toggling the camera light (which the printer rejects); it now controls the chamber/part light."
+        }
+      },
+      {
+        "icon": "check",
+        "title": {
+          "en": "Anycubic: editing a nozzle/bed temperature is fixed"
+        },
+        "body": {
+          "en": "The input no longer errors out, and clicking away now applies the value (Escape still cancels)."
+        }
+      }
+    ]
+  },
+  "1.10.3": {
+    "date": "2026-06-16",
+    "items": [
+      {
+        "icon": "check",
+        "title": {
+          "en": "Bambu Lab: adding a printer by IP now works reliably"
+        },
+        "body": {
+          "en": "Typing your printer's IP could fail with \"No reply from …\" even when the printer was online and reachable — the check gave up too quickly before the printer finished answering. It now waits long enough, and it also fills in the serial…"
+        }
+      }
+    ]
+  },
+  "1.10.2": {
+    "date": "2026-06-16",
+    "items": [
+      {
+        "icon": "wrench",
+        "title": {
+          "en": "Bambu Lab camera is smoother and more responsive"
+        },
+        "body": {
+          "en": "on RTSP models (X1C, X1E, P2S, H2x…). The live view now runs at 30 fps instead of 5 and starts almost instantly — the several-second delay before the first image is gone."
+        }
+      },
+      {
+        "icon": "check",
+        "title": {
+          "en": "Bambu Lab camera no longer gets stuck on a black screen / spinner"
+        },
+        "body": {
+          "en": "on A1, A1 Mini, P1P and P1S. It now reconnects on its own after a printer reboot, a Wi-Fi drop or a slow start, and gives up quickly (a few seconds instead of up to a minute) when the camera port is blocked or unreachable."
+        }
+      },
+      {
+        "icon": "check",
+        "title": {
+          "en": "Bambu Lab: the camera stays off when you disable it on the printer"
+        },
+        "body": {
+          "en": "If you turn the LAN camera off from the printer's own screen, the app no longer keeps trying to open it."
+        }
+      },
+      {
+        "icon": "check",
+        "title": {
+          "en": "Anycubic: setting a nozzle or bed temperature no longer closes the input"
+        },
+        "body": {
+          "en": "The value field used to close every time the printer sent a status update; it now stays open while you type."
+        }
+      },
+      {
+        "icon": "check",
+        "title": {
+          "en": "Anycubic (cloud): the job preview thumbnail no longer flickers"
+        },
+        "body": {
+          "en": "It no longer reloads on every refresh — the preview stays steady."
+        }
+      },
+      {
+        "icon": "check",
+        "title": {
+          "en": "Printer Table view: print progress, status and \"Updated\" now refresh live"
+        },
+        "body": {
+          "en": "The table used to stay frozen until you clicked Refresh; each row now updates on its own (progress %, remaining time, online status). Affects Bambu Lab, Creality, FlashForge and Snapmaker."
+        }
+      }
+    ]
+  },
+  "1.10.1": {
+    "date": "2026-06-16",
+    "items": [
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Anycubic control panel now works in cloud mode too"
+        },
+        "body": {
+          "en": "Homing, jogging, disabling the motors, the light, nozzle/bed temperatures, the fan, the speed mode and pause/resume/stop now reach cloud-connected printers (they previously only worked over the local network). Temperature, fan, speed and…"
+        }
+      },
+      {
+        "icon": "check",
+        "title": {
+          "en": "Anycubic: editing a filament slot no longer flickers"
+        },
+        "body": {
+          "en": "When changing a slot's material or colour, the square briefly flashed back to the old value before settling on the new one. It now switches once, cleanly."
+        }
+      }
+    ]
+  },
+  "1.10.0": {
+    "date": "2026-06-15",
+    "items": [
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Anycubic cloud mode now works everywhere — including macOS and Linux"
+        },
+        "body": {
+          "en": "Adding a cloud printer used to need a Windows-only trick (running the slicer in a special debug mode); now you just click Sign in to Anycubic Cloud, log in on Anycubic's own page in a pop-up window, and your cloud printers appear. Once…"
+        }
+      },
+      {
+        "icon": "check",
+        "title": {
+          "en": "Anycubic (cloud): no longer stuck on \"Idle\" at the start of a print"
+        },
+        "body": {
+          "en": "While the printer was auto-levelling before the first layer, the card wrongly showed \"Idle\"; it now shows \"Preparing\" until printing begins."
+        }
+      }
+    ]
+  },
+  "1.9.0": {
+    "date": "2026-06-15",
+    "items": [
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Anycubic printers are now supported"
+        },
+        "body": {
+          "en": "— the 6th brand, alongside Bambu Lab, Creality, Elegoo, FlashForge and Snapmaker. Connect over your local network or through Anycubic's cloud (a mixed fleet works in one list), see the ACE multi-colour box and its slots, set a slot's…"
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Anycubic live control panel"
+        },
+        "body": {
+          "en": "— drive a connected Anycubic printer straight from its side card, like Snapmaker and Elegoo: home the axes (XYZ / XY / Z) or disable the motors to move them by hand, jog X/Y/Z by 1 / 10 / 50 mm, set the nozzle and bed targets, toggle the…"
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Anycubic filament management"
+        },
+        "body": {
+          "en": "Each ACE slot now reflects its real state: a present spool keeps its colour, while an empty (not-mounted) slot shows a grey “?” with the colour kept as an outline so it stays recognisable, and the material name still shows underneath. From…"
+        }
+      }
+    ]
+  },
+  "1.8.28": {
+    "date": "2026-06-14",
+    "items": [
+      {
+        "icon": "check",
+        "title": {
+          "en": "Bambu Lab camera: smoother, lower-latency video"
+        },
+        "body": {
+          "en": "The camera stream now carries frames as raw binary instead of Base64 text — that removes image-encoding work from the app's main thread (which also handles the printer connection) and shrinks the data passed around internally, so the…"
+        }
+      }
+    ]
+  },
+  "1.8.27": {
+    "date": "2026-06-14",
+    "items": [
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Locked storage slots now have two clear states"
+        },
+        "body": {
+          "en": "Locking an *empty* slot marks it as unusable — it gets a grey hatched look and is removed from the rack's available capacity (so 130/198 becomes 130/197). Locking a *filled* slot pins the material in place — it keeps the spool's colour…"
+        }
+      },
+      {
+        "icon": "check",
+        "title": {
+          "en": "Bambu Lab camera: fewer micro-freezes"
+        },
+        "body": {
+          "en": "Camera frames are now coalesced to one repaint per frame instead of piling up when the app is busy, which removes the stutter bursts on the printer camera view (P2S, H2C, X1 and the rest of the RTSP range, plus the JPEG models)."
+        }
+      }
+    ]
+  },
+  "1.8.26": {
+    "date": "2026-06-13",
+    "items": [
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Two new spool containers"
+        },
+        "body": {
+          "en": "in the container picker: Anycubic masterspool (Black, 218 g) and DEEPLEE cardboard spool (Standard, 143 g)."
+        }
+      },
+      {
+        "icon": "wrench",
+        "title": {
+          "en": "Internal:"
+        },
+        "body": {
+          "en": "anonymous usage statistics now track spool-lifecycle counts over time (how many TigerCloud / TigerTag / TigerTag+ spools are created, and conversions between them). No personal data, no IP geolocation — same privacy-preserving, aggregate…"
+        }
+      }
+    ]
+  },
+  "1.8.25": {
+    "date": "2026-06-13",
+    "items": [
+      {
+        "icon": "check",
+        "title": {
+          "en": "Encoding a custom or third-party spool no longer resets it on the next scan"
+        },
+        "body": {
+          "en": "When you wrote a tag for a custom spool — or a spool from another manufacturer — and then read it again, the spool reverted to the generic cardboard container and its weight changed back to the value stored on the chip. The app now keeps…"
+        }
+      }
+    ]
+  },
+  "1.8.24": {
+    "date": "2026-06-12",
+    "items": [
+      {
+        "icon": "wrench",
+        "title": {
+          "en": "The app now opens already populated — like Discord or Slack"
+        },
+        "body": {
+          "en": "On launch, your inventory, your friends and your avatar appear in the very first frame, painted instantly from the previous session's local cache; the live data from the server then merges on top silently, repainting only what actually…"
+        }
+      },
+      {
+        "icon": "wrench",
+        "title": {
+          "en": "New launch splash screen"
+        },
+        "body": {
+          "en": "A small TigerTag splash with the logo and the app version shows the instant you open the app, and the main window only appears once it's ready to display fully — no more watching the interface assemble itself piece by piece."
+        }
+      },
+      {
+        "icon": "wrench",
+        "title": {
+          "en": "Your sidebar friends list now scrolls"
+        },
+        "body": {
+          "en": "when you have more friends than fit on screen, with no visible scrollbar (Discord-style). The avatar, the Refresh / Friends buttons and the community footer stay fixed in place."
+        }
+      },
+      {
+        "icon": "check",
+        "title": {
+          "en": "No more flickering avatars on launch"
+        },
+        "body": {
+          "en": "Your avatar in the inventory header and your friends' avatars in the sidebar used to flash / reload 2–3 times on every cold start. They now paint once and stay put."
+        }
+      },
+      {
+        "icon": "check",
+        "title": {
+          "en": "No more \"loading shine\" sweeping across every image"
+        },
+        "body": {
+          "en": "A shimmer animation used to glide left-to-right over every image while it loaded (avatars, inventory, printers). Since images now load instantly from the local cache, that effect was removed — images simply appear."
+        }
+      },
+      {
+        "icon": "check",
+        "title": {
+          "en": "Your initials can no longer show behind or beside your avatar photo,"
+        },
+        "body": {
+          "en": "and the \"+\" sign-in badge can no longer leak next to your initials. The avatar now always shows exactly one of: the \"+\" (signed out), your initials (no photo), or your photo — never a mix."
+        }
+      }
+    ]
+  },
+  "1.8.23": {
+    "date": "2026-06-12",
+    "items": [
+      {
+        "icon": "check",
+        "title": {
+          "en": "No more flicker on app open — your avatar (and your friends' avatars) now appear in the very first frame"
+        },
+        "body": {
+          "en": "Previously the sidebar avatar went through \"empty circle wrong letter from your email real letter from your name photo\" on every cold start, and the friends list in the sidebar dropdown showed up empty until Firestore round-tripped. Now…"
+        }
+      },
+      {
+        "icon": "check",
+        "title": {
+          "en": "No more \"B\" or random wrong letter in your avatar circle"
+        },
+        "body": {
+          "en": "Before this fix, until Firestore loaded your display name, the avatar fell back to the first letter of your email address — so for benoit@… the sidebar briefly showed a \"B\" in your colour, then jumped to your real \"OM\" (or whatever your…"
+        }
+      },
+      {
+        "icon": "check",
+        "title": {
+          "en": "No more Google placeholder photo overwriting your custom avatar"
+        },
+        "body": {
+          "en": "A long-standing bug was overwriting your uploaded avatar with Google's auto-generated profile picture (the \"letter on coloured circle\" you see when a Google account has no photo) on every sign-in. If you saw a stranger letter / colour…"
+        }
+      },
+      {
+        "icon": "check",
+        "title": {
+          "en": "No more \"+\" badge bleeding next to your initials"
+        },
+        "body": {
+          "en": "A CSS specificity bug was causing the \"sign in\" plus-icon to show next to your initials in the sidebar avatar when you were already signed in."
+        }
+      },
+      {
+        "icon": "check",
+        "title": {
+          "en": "Avatar upload on Windows 10 now opens the crop modal reliably"
+        },
+        "body": {
+          "en": "A race between the file-picker's focus and change events on Windows 10's I/O scheduler was silently resolving the picker with no file, so the crop modal never opened and the upload silently failed. Switched to the modern cancel event for…"
+        }
+      },
+      {
+        "icon": "wrench",
+        "title": {
+          "en": "Avatar rendering centralised"
+        },
+        "body": {
+          "en": "All eight places in the UI that show a coloured-circle avatar (sidebar, the \"OM\" header chip, dropdown, profile-management modal, edit-account modal, sidebar friend chips, friends panel, friend-view header) now go through a single…"
+        }
+      }
+    ]
+  },
+  "1.8.22": {
+    "date": "2026-06-11",
+    "items": [
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Custom profile picture — upload your own avatar"
+        },
+        "body": {
+          "en": "The colour-circle + initials avatar everywhere in Studio (sidebar, top \"OM\" header chip, edit-account modal, account dropdown, profiles modal, friends list, friends panel, friend banner when previewing a friend's inventory) now shows your…"
+        }
+      }
+    ]
+  },
+  "1.8.21": {
+    "date": "2026-06-11",
+    "items": [
+      {
+        "icon": "check",
+        "title": {
+          "en": "No more flashes or disappearing grid on the built-in Retina display"
+        },
+        "body": {
+          "en": "On a MacBook's built-in Retina screen in full-screen, opening a spool side card used to make the grid flicker, lose its cards, or leave the side card as a blank rectangle — every interaction in the inventory area would trigger another wave…"
+        }
+      }
+    ]
+  },
+  "1.8.20": {
+    "date": "2026-06-10",
+    "items": [
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Open the connection tutorial straight from the printer settings"
+        },
+        "body": {
+          "en": "The pencil/configure panel for a Bambu Lab, FlashForge or Elegoo printer now has a \" Tutoriel de connexion\" button at the top — for the moment you realise you skipped the tutorial during the scan and still need to find the access code or…"
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Scan results show the printer photo"
+        },
+        "body": {
+          "en": "A FlashForge tile in the scan results now shows the printer's product photo on the left, like the mobile app — easier to recognise your AD5X vs your 5M Pro at a glance."
+        }
+      },
+      {
+        "icon": "wrench",
+        "title": {
+          "en": "One shared \"extra subnets\" list across every brand, synced to your account"
+        },
+        "body": {
+          "en": "The Power-user \"Autres réseaux à scanner\" widget that appeared inside Snapmaker, Creality, Elegoo and FlashForge now also appears in Bambu Lab, and the list is the same one everywhere — declared once, honoured by every scan. The list is…"
+        }
+      },
+      {
+        "icon": "check",
+        "title": {
+          "en": "FlashForge LAN scan finds printers on routed subnets again"
+        },
+        "body": {
+          "en": "If your FlashForge sits on a different /24 than your Mac (typical multi-VLAN home network), Studio now finds it the same way the mobile app does. Three small fixes stack: the probe now talks to the printer's TCP ~M115 identity endpoint as…"
+        }
+      },
+      {
+        "icon": "check",
+        "title": {
+          "en": "Connection tutorial in the printer settings now follows the selected model"
+        },
+        "body": {
+          "en": "Was always opening the same tutorial regardless of the model dropdown — most visible on Bambu Lab where 11 models share 3 different tutorials."
+        }
+      }
+    ]
+  },
+  "1.8.19": {
+    "date": "2026-06-09",
+    "items": [
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Printer connection tutorials, brought over from the mobile app"
+        },
+        "body": {
+          "en": "Connecting a Bambu Lab — LAN-only mode, developer mode, IP + serial + access code — takes seven steps and a lot of context. The mobile app already walked users through it; the desktop app now does too. Open the Add Printer panel, and any…"
+        }
+      },
+      {
+        "icon": "wrench",
+        "title": {
+          "en": "Printer table sorts by status by default"
+        },
+        "body": {
+          "en": "Open the Printers view as Tableau and the connected printers come up first, offline ones at the bottom. Click any column header to sort differently, like before."
+        }
+      },
+      {
+        "icon": "wrench",
+        "title": {
+          "en": "Cleaner printer cards"
+        },
+        "body": {
+          "en": "Removed the grey rectangle behind the printer photo in the Printers Grille view — the photo now sits directly on the card."
+        }
+      }
+    ]
+  },
+  "1.8.18": {
+    "date": "2026-06-08",
+    "items": [
+      {
+        "icon": "check",
+        "title": {
+          "en": "Auto-update is now more robust against transient GitHub outages"
+        },
+        "body": {
+          "en": "The app was hitting GitHub with the old project URL (TigerTag_Studio_Manager, with underscores) and relying on GitHub to silently redirect to the canonical URL (TigerTag-Studio-Manager, with hyphens). Every check therefore made two…"
+        }
+      }
+    ]
+  },
+  "1.8.17": {
+    "date": "2026-06-08",
+    "items": [
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "New \"Balance\" weight input mode for kitchen-scale users"
+        },
+        "body": {
+          "en": "Open the spool detail panel, click the pencil next to the weight, and a small Net / Balance toggle now sits next to the / buttons. In Balance mode you type the value your scale shows (filament + container); Studio subtracts the container…"
+        }
+      },
+      {
+        "icon": "wrench",
+        "title": {
+          "en": "Saving a weight no longer reloads the side panel"
+        },
+        "body": {
+          "en": "Editing the weight from the slider or the manual input used to flash the product image, the \"Mettre à jour le RFID\" banner, the TigerTag SVG badges, and every other icon for a fraction of a second because the panel rebuilt itself after…"
+        }
+      },
+      {
+        "icon": "wrench",
+        "title": {
+          "en": "The verbose green save toast is gone"
+        },
+        "body": {
+          "en": "Instead of \" N g disponibles (G g − C g contenant) · jumeau mis à jour\" sitting under the weight bar for a full second, a small green check now pops to the right of the \"POIDS\" section title and gently fades out. The new value is already…"
+        }
+      },
+      {
+        "icon": "wrench",
+        "title": {
+          "en": "The weight slider waits for you to actually release before saving to the cloud"
+        },
+        "body": {
+          "en": "Pausing mid-drag for half a second (still holding the slider) used to burn a Firestore write at every pause; now the write only fires once you release the thumb, and re-grabbing the slider within 500 ms cancels the pending request. Fewer…"
+        }
+      },
+      {
+        "icon": "wrench",
+        "title": {
+          "en": "If someone else edits the same spool while you're dragging, the server wins"
+        },
+        "body": {
+          "en": "If your phone — or another logged-in device — updates the weight on the same spool while you have the desktop slider held down, the slider now releases your grip and snaps to the value that just arrived from the cloud (and your pending…"
+        }
+      },
+      {
+        "icon": "wrench",
+        "title": {
+          "en": "Container card layout — the container name now sits in the same column as \"Customizable\" and the weight in grams"
+        },
+        "body": {
+          "en": ", beside the container thumbnail, instead of sitting on its own line above the card."
+        }
+      }
+    ]
+  },
+  "1.8.16": {
+    "date": "2026-06-03",
+    "items": [
+      {
+        "icon": "check",
+        "title": {
+          "en": "Spool detail side panel no longer flashes when something else changes in Firestore"
+        },
+        "body": {
+          "en": "Editing a different spool — from the mobile app, from another device, or even just a write echo coming back — used to tear down and rebuild the entire side panel, flashing the product photo and every SVG icon (badges, twin link, chip…"
+        }
+      }
+    ]
+  },
+  "1.8.15": {
+    "date": "2026-06-03",
+    "items": [
+      {
+        "icon": "wrench",
+        "title": {
+          "en": "Cold start is now instant from cache"
+        },
+        "body": {
+          "en": "Tiger Studio now stores every Firestore snapshot in a local IndexedDB cache, so on the next launch your inventory, racks and printers appear immediately — even before the network round-trip completes — and the app stays usable when…"
+        }
+      },
+      {
+        "icon": "wrench",
+        "title": {
+          "en": "Product thumbnails no longer flash on view switches"
+        },
+        "body": {
+          "en": "Cached product images are now served as proper HTTP responses from the local app server instead of being inlined as base64 data URLs. The browser keeps the decoded bitmap alive across DOM operations, so clicking Grid, opening the detail…"
+        }
+      }
+    ]
+  },
+  "1.8.14": {
+    "date": "2026-06-03",
+    "items": [
+      {
+        "icon": "check",
+        "title": {
+          "en": "Filaments Grid and Table views no longer flash when one spool changes"
+        },
+        "body": {
+          "en": "Editing a single field on a spool — moving the weight slider, picking a container, linking a twin, changing the color — used to flash the whole Filaments view because every card or row was destroyed and rebuilt from scratch on every…"
+        }
+      },
+      {
+        "icon": "check",
+        "title": {
+          "en": "Printer Grid view: the per-printer job block (state pill, progress bar, filename) stops rebuilding on every brand poll tick when nothing actually changed"
+        },
+        "body": {
+          "en": "FlashForge polls every 2 seconds, Bambu every 5, Elegoo every 10 — and the job block was being destroyed and re-created on every one of those, even when the printer was idle or offline. Now the block is only touched when state, progress…"
+        }
+      }
+    ]
+  },
+  "1.8.13": {
+    "date": "2026-06-02",
+    "items": [
+      {
+        "icon": "check",
+        "title": {
+          "en": "Filaments Grid and Table views no longer flash on every search keystroke"
+        },
+        "body": {
+          "en": "Typing in the search bar with the Filaments view open (in Grid mode or Table mode) used to flash the whole view at every letter — every spool card or row was destroyed and rebuilt from scratch, and every <img> had to be re-decoded by the…"
+        }
+      },
+      {
+        "icon": "check",
+        "title": {
+          "en": "Printer Grid view no longer refreshes constantly when printers are offline"
+        },
+        "body": {
+          "en": "Every printer reconnect retry (every 2 to 30 seconds, per printer) used to rebuild the whole printer grid — every card image was destroyed and re-decoded, producing a visible refresh flash several times per minute on a 10-printer setup…"
+        }
+      }
+    ]
+  },
+  "1.8.12": {
+    "date": "2026-05-31",
+    "items": [
+      {
+        "icon": "check",
+        "title": {
+          "en": "Storage view no longer flashes on every search keystroke or rack hover"
+        },
+        "body": {
+          "en": "Typing in the search bar with the Storage view open used to flash the whole grid at every letter, and sweeping the mouse between racks that both contained search matches produced a visible flash too — most noticeably on large inventories…"
+        }
+      }
+    ]
+  },
+  "1.8.11": {
+    "date": "2026-05-31",
+    "items": [
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Contextual \"+ Add Rack\" inside the \"Spools not stored\" side panel"
+        },
+        "body": {
+          "en": "When you have more unstored spools than free slots — i.e. you actually need more rack capacity — an orange-accented CTA appears right inside the side panel with a short explanation. Hidden when there's still room to drag spools into…"
+        }
+      },
+      {
+        "icon": "wrench",
+        "title": {
+          "en": "\"+ Add Rack\" moved into the main header"
+        },
+        "body": {
+          "en": "The small \"+ New Rack\" tile that lived inside the rack stats bar is gone — the standard header \"Add\" button (which says \"Add Product\" in inventory views and \"Add Device\" in printer views) now says \"Add Rack\" when you're in Storage, and…"
+        }
+      },
+      {
+        "icon": "check",
+        "title": {
+          "en": "Storage stats no longer count ghost spools"
+        },
+        "body": {
+          "en": "Both the global header (filled / total slots, free) and the per-rack header (filled/total) used to include any spool that still had a rackId set — even if the rack had been deleted or the spool's level/position were out of bounds. That…"
+        }
+      },
+      {
+        "icon": "check",
+        "title": {
+          "en": "Deleting a rack now fully unassigns the spools that were inside it"
+        },
+        "body": {
+          "en": "The old code only nulled the new-style rack field, leaving the legacy flat rack_id / level / position fields intact — so the spool stayed ghost-assigned to a rack that no longer existed and silently inflated the storage stats. Both shapes…"
+        }
+      },
+      {
+        "icon": "check",
+        "title": {
+          "en": "Cam view empty state was showing raw key names"
+        },
+        "body": {
+          "en": "(\"camWallEmptyTitle\" / \"camWallEmptySub\") instead of localized text after switching back and forth between Cam and Printer Grid. The two missing translations were added across all 9 locales — the empty state now reads \"No cameras online —…"
+        }
+      }
+    ]
+  },
+  "1.8.10": {
+    "date": "2026-05-30",
+    "items": [
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Bambu Lab and Elegoo printers now show up in the network scan"
+        },
+        "body": {
+          "en": "*Add printer Bambu Lab Scan network* discovers Bambu printers via SSDP — they announce themselves on the LAN, no setup needed. *Add printer Elegoo Scan network* discovers Elegoo printers (Centauri Carbon 2 and later) by sending a quick UDP…"
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Storage view: the hover tooltip on a rack slot now shows the spool's material image"
+        },
+        "body": {
+          "en": "as a full-height left column (for TigerTag+ spools that have a product photo). The bubble keeps everything that was already there — brand, material, color, weight bar, coordinate, lock indicator — on the right. Falls back to the previous…"
+        }
+      },
+      {
+        "icon": "wrench",
+        "title": {
+          "en": "Printers are reported online only once the connection is really established"
+        },
+        "body": {
+          "en": "— i.e. after the first real frame/report/heartbeat arrives — not the instant the network socket opens. Previously Snapmaker and Creality flipped to \"online\" the moment the WebSocket connected, and Bambu / Elegoo the moment the MQTT broker…"
+        }
+      },
+      {
+        "icon": "wrench",
+        "title": {
+          "en": "Elegoo: the MQTT credential field is now required and properly named"
+        },
+        "body": {
+          "en": "What used to be labelled \"MQTT password (optional)\" in *Printer Settings Elegoo* is now \"Access code\" and is required — matching the label the printer itself uses on its network settings screen. The hint tells you where to find it (factory…"
+        }
+      },
+      {
+        "icon": "wrench",
+        "title": {
+          "en": "Cleaner Printer Settings form"
+        },
+        "body": {
+          "en": "The small-caps \"Credentials\" section header and the horizontal divider line between sections are gone across all brands. The form now reads as one continuous block of connection fields instead of looking like several separate cards stacked…"
+        }
+      },
+      {
+        "icon": "wrench",
+        "title": {
+          "en": "Read-only mode in a friend's inventory hides the write-action buttons"
+        },
+        "body": {
+          "en": "The *+ Scan* and *Add* buttons no longer appear when you're viewing a friend's inventory — they can't act on someone else's collection anyway. They reappear automatically when you return to your own view."
+        }
+      }
+    ]
+  },
+  "1.8.9": {
+    "date": "2026-05-29",
+    "items": [
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Creality printers now show up in the network scan"
+        },
+        "body": {
+          "en": "— *Add printer Creality Scan network* discovers Creality machines on your LAN (K-series, K2, and current-gen Enders running Klipper, e.g. the Ender-3 V4) and adds them in one click, just like Snapmaker and FlashForge. There's also a manual…"
+        }
+      },
+      {
+        "icon": "wrench",
+        "title": {
+          "en": "Adding a Creality printer no longer requires a username/password"
+        },
+        "body": {
+          "en": "— the *Root* account and password fields are now optional. Most Creality printers expose their control channel without authentication, so you can add and connect to them without entering anything; only fill them in if your printer's…"
+        }
+      },
+      {
+        "icon": "wrench",
+        "title": {
+          "en": "A friend's inventory is cleaner in read-only mode"
+        },
+        "body": {
+          "en": "— when viewing a friend's inventory, the *+ Scan* and *Add* buttons are now hidden, since those actions can't apply to someone else's collection."
+        }
+      }
+    ]
+  },
+  "1.8.8": {
+    "date": "2026-05-29",
+    "items": [
+      {
+        "icon": "check",
+        "title": {
+          "en": "Bambu RTSP cameras (X1C / X1E / P2S / H2x) now actually stream"
+        },
+        "body": {
+          "en": "— the camera launched ffmpeg with -tls_verify 0, an option the bundled ffmpeg doesn't recognise, so it errored out and showed nothing as soon as it reached a reachable printer. Removed the flag — TLS verification is off by default, so the…"
+        }
+      }
+    ]
+  },
+  "1.8.7": {
+    "date": "2026-05-29",
+    "items": [
+      {
+        "icon": "check",
+        "title": {
+          "en": "Bambu RTSP cameras (X1C / X1E / P2S / H2x) now actually work on Windows"
+        },
+        "body": {
+          "en": "— v1.8.6 bundled ffmpeg, but the app resolved its path inside the read-only app.asar archive, which Windows can't launch, so the live camera stayed black. The app now uses the real on-disk binary, so the stream works. (macOS / Linux were…"
+        }
+      }
+    ]
+  },
+  "1.8.6": {
+    "date": "2026-05-29",
+    "items": [
+      {
+        "icon": "check",
+        "title": {
+          "en": "3D-printer RTSP cameras now work on Windows"
+        },
+        "body": {
+          "en": "(Bambu X1C / X1E / P2S / H2x) — ffmpeg is now bundled with the app on every platform, so the live camera works out of the box with nothing extra to install. Previously Windows had no ffmpeg available, so the RTSP camera stayed disabled."
+        }
+      },
+      {
+        "icon": "check",
+        "title": {
+          "en": "Update notification tooltip showed raw HTML"
+        },
+        "body": {
+          "en": "— the auto-update status icon no longer displays literal <strong> tags in its tooltip."
+        }
+      },
+      {
+        "icon": "wrench",
+        "title": {
+          "en": "Encode modal (TigerCloud TigerTag) — cleaner and safer"
+        },
+        "body": {
+          "en": "Centred title; the redundant Cancel button is gone (close via the or a backdrop click — allowed any time, including mid-burn to abort); a permanent instruction sits above the readers. Each reader is now drawn as a TigerTag \"reader plate\"…"
+        }
+      },
+      {
+        "icon": "wrench",
+        "title": {
+          "en": "Header status icons unified"
+        },
+        "body": {
+          "en": "— TigerScale, TD1S and the RFID readers now share larger, consistent 3D icons. The two RFID reader badges are replaced by a single TigerPod icon (red = no reader · green = connected); hovering reveals each reader (RFID #1 / #2) and the UID…"
+        }
+      },
+      {
+        "icon": "wrench",
+        "title": {
+          "en": "Storage — \"Clear all\" now protects locked slots"
+        },
+        "body": {
+          "en": "— spools in a locked slot stay put when you clear a rack; the only way to remove one is to delete the spool itself."
+        }
+      }
+    ]
+  },
+  "1.8.5": {
+    "date": "2026-05-28",
+    "items": [
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Encoding a TigerCloud spool to a physical chip now opens a g"
+        },
+        "body": {
+          "en": "Encoding a TigerCloud spool to a physical chip now opens a guided modal (titled by the migration itself, *TigerCloud TigerTag*) instead of a one-shot click."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Presence-gated"
+        },
+        "body": {
+          "en": ": the burn stays locked until every connected reader holds a chip; each reader's state is shown live by colour (no clutter text), with a single global progress bar."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Sequential, verified burn"
+        },
+        "body": {
+          "en": ": chips are written one after another (100 ms apart) and each write is read back and verified byte-for-byte — a chip only turns green on a confirmed match."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "All-or-nothing"
+        },
+        "body": {
+          "en": ": the Firestore migration (create the physical spool, delete the Cloud one) runs only after every chip verifies. Any failure — including a chip moved off the reader mid-write — fails the whole sequence with nothing written to the cloud…"
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Safety: warns before overwriting a non-blank chip (with an \""
+        },
+        "body": {
+          "en": "Safety: warns before overwriting a non-blank chip (with an \"I understand\" toggle), refuses two identical chips, and a single chip-epoch timestamp is shared so a twin pair is written identically."
+        }
+      },
+      {
+        "icon": "check",
+        "title": {
+          "en": "Physical chip \"Manufactured\" date wrong (~2056) on burn"
+        },
+        "body": {
+          "en": "— the chip timestamp was written as Unix seconds instead of the TigerTag chip epoch (seconds since 2000); now corrected, so a freshly-burned chip reports the right manufacturing date."
+        }
+      }
+    ]
+  },
+  "1.8.4": {
+    "date": "2026-05-28",
+    "items": [
+      {
+        "icon": "check",
+        "title": {
+          "en": "TigerCloud \"Manufactured\" date wrong (~2056)"
+        },
+        "body": {
+          "en": "— Cloud spools stored their creation time as a Unix timestamp instead of the TigerTag chip epoch (seconds since 2000), so the decoded manufacturing date overshot by ~30 years. Fixed at creation (Add Product, Duplicate); the display also…"
+        }
+      },
+      {
+        "icon": "check",
+        "title": {
+          "en": "Storage — linked (twin) spools counted twice"
+        },
+        "body": {
+          "en": "— a twin pair (one physical spool, two tags) now shows and counts once in the \"not stored\" list, the not-stored count, the free-slot count, and each rack's header count (no more over-capacity like 28/27). Auto-fill no longer scatters the…"
+        }
+      },
+      {
+        "icon": "wrench",
+        "title": {
+          "en": "View toggles — consistent icons + order"
+        },
+        "body": {
+          "en": "— the materials toggle is now Grid · Table · Storage; both toggle groups share the same Grid (⊞) and Table (list) icons and the same translations (fixes the FR mismatch where the printer \"Table\" stayed untranslated). The printer \"Cam\"…"
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Usage telemetry — geographic dimension"
+        },
+        "body": {
+          "en": "— alongside the existing version / OS / language / session metrics, the app now records a locale-derived country code and IANA timezone (offline, no IP geolocation), plus lifetime langsUsed / countriesUsed aggregates, for future usage…"
+        }
+      }
+    ]
+  },
+  "1.8.3": {
+    "date": "2026-05-28",
+    "items": [
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "New Duplicate tool at the top of the spool toolbox (hold 1 s"
+        },
+        "body": {
+          "en": "New Duplicate tool at the top of the spool toolbox (hold 1 s to confirm) with a − N + quantity stepper (1–50): mint one or many copies in a single write. The button label tracks the count (\"Duplicate ×N\")."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Available for TigerCloud and basic TigerTag spools; TigerTag"
+        },
+        "body": {
+          "en": "Available for TigerCloud and basic TigerTag spools; TigerTag+ can't be duplicated. A basic TigerTag necessarily becomes TigerCloud (a digital clone has no physical chip), so each copy gets a fresh Cloud UID."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Copies are identical to the source but carry no twin link an"
+        },
+        "body": {
+          "en": "Copies are identical to the source but carry no twin link and no rack placement (nothing physical exists in a Cloud entry). Copy timestamps are staggered +3 s apart so identical copies are never auto-paired as twins."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "The spool's message is now an inline-editable free-text note"
+        },
+        "body": {
+          "en": "The spool's message is now an inline-editable free-text note: click the name in the detail panel, type, Enter/blur to save, Escape to cancel. Placeholder \"Add a note\" when empty."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Available on every spool type (TigerCloud, basic, TigerTag+)"
+        },
+        "body": {
+          "en": "Available on every spool type (TigerCloud, basic, TigerTag+) — on TigerTag+ the catalogue name (e.g. \"Artic Teal\") stays read-only with the editable note below it; on TigerCloud/basic the note is the spool's name."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "28-byte UTF-8 cap"
+        },
+        "body": {
+          "en": "(the chip's name slot) with a thin usage bar that fills as the budget is consumed (blue amber red), no number shown."
+        }
+      }
+    ]
+  },
+  "1.8.2": {
+    "date": "2026-05-24",
+    "items": [
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Hero video"
+        },
+        "body": {
+          "en": "— replaced the NFC SVG icon with the product helper video (assets/video/tiger_pod/helper_tiger_pod_movies.mp4); plays on modal open, pauses on close. Rings animation kept behind the video."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Layout"
+        },
+        "body": {
+          "en": "— title \"Tiger POD Free STL\" moved above the video; hero padding-top: 16px for breathing room; hero height 240 px (was 200 px); video height 156 px (+30 %)."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Copy overhaul"
+        },
+        "body": {
+          "en": "(all 9 locales): Modal title: \"Build your TigerPOD\" \"Print your TigerPOD Now !\" Description: \"program\" \"Burn TigerTag RFID chips\" CTA button: \"Print on MakerWorld\" \"Download & Print STL Free\" Stats bar (12 Boosts · 21 Likes · Free) \"Please…"
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Feature cards"
+        },
+        "body": {
+          "en": "— icons replaced by numbered orange gradient badges ; updated copy: Dual RFID Reader / Dual Link / Print in Place / 1kg Standard spool with matching sub-labels."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "AutoScan without reader"
+        },
+        "body": {
+          "en": "— + Scan button now opens the TigerPOD modal when no reader is connected (previously opened the Pod Scan panel)."
+        }
+      },
+      {
+        "icon": "trash",
+        "title": {
+          "en": "<aside id=\"scanPanel\">, overlay, and all associated DOM were"
+        },
+        "body": {
+          "en": "<aside id=\"scanPanel\">, overlay, and all associated DOM were removed — the panel had no remaining triggers."
+        }
+      }
+    ]
+  },
+  "1.8.1": {
+    "date": "2026-05-23",
+    "items": [
+      {
+        "icon": "check",
+        "title": {
+          "en": "Rebuild to fix CI artifact mismatch (v1.8.0 GitHub release h"
+        },
+        "body": {
+          "en": "Rebuild to fix CI artifact mismatch (v1.8.0 GitHub release had stale latest-mac.yml checksums from an earlier partial build — auto-updater would have failed checksum verification)"
+        }
+      },
+      {
+        "icon": "check",
+        "title": {
+          "en": "No code changes from v1.8.0"
+        },
+        "body": {
+          "en": "No code changes from v1.8.0"
+        }
+      }
+    ]
+  },
+  "1.8.0": {
+    "date": "2026-05-23",
+    "items": [
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "rfid:encode-cloud IPC handler"
+        },
+        "body": {
+          "en": "— builds the TigerTag payload once from a Cloud spool Firestore doc, then writes the same bytes (same timestamp) to every target reader. Up to 2 readers (one per TigerPOD slot) receive identical chips atomically."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "_encodeCloud(r) in renderer"
+        },
+        "body": {
+          "en": "— on success, promotes the Cloud spool: replaces the CLOUD_… spoolId with the first chip UID, establishes a twin link when two chips were written, and hard-deletes the Cloud doc. Inventory refreshes via onSnapshot."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "_burnRfid(r)"
+        },
+        "body": {
+          "en": "— writes updated data (weight, color, …) back to a physical chip that is already linked to a spool. Clears needUpdateAt on success."
+        }
+      },
+      {
+        "icon": "check",
+        "title": {
+          "en": "blockSize=4"
+        },
+        "body": {
+          "en": "— the nfc-pcsc reader.read() increment formula was producing overlapping pages with blockSize=16. Setting it to 4 (one NTAG page = 4 bytes) makes reads fully sequential (pages 4–39, 144 bytes). All chips now parse correctly from first…"
+        }
+      },
+      {
+        "icon": "check",
+        "title": {
+          "en": "Reader registry refactored to a Map for cleaner per-reader l"
+        },
+        "body": {
+          "en": "Reader registry refactored to a Map for cleaner per-reader lifecycle."
+        }
+      },
+      {
+        "icon": "check",
+        "title": {
+          "en": "readerName forwarded with every rfid-tag-scanned event for m"
+        },
+        "body": {
+          "en": "readerName forwarded with every rfid-tag-scanned event for multi-reader disambiguation."
+        }
+      }
+    ]
+  },
+  "1.7.7": {
+    "date": "2026-05-20",
+    "items": [
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "When the loopback OAuth flow fails (user closed the browser "
+        },
+        "body": {
+          "en": "When the loopback OAuth flow fails (user closed the browser tab, network error, etc.), the app no longer silently falls back to signInWithPopup. That popup opens a Chromium BrowserWindow which cannot talk to the macOS authd daemon —…"
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Instead a clear error toast is shown: \"Google sign-in via br"
+        },
+        "body": {
+          "en": "Instead a clear error toast is shown: \"Google sign-in via browser failed — please try again or use email/password.\" The user stays on the login form and can retry the loopback flow or switch to email/password."
+        }
+      }
+    ]
+  },
+  "1.7.6": {
+    "date": "2026-05-20",
+    "items": [
+      {
+        "icon": "check",
+        "title": {
+          "en": "Root cause"
+        },
+        "body": {
+          "en": ": startRendererServer tried to bind to 'localhost' first. On Windows 10/11 with Node.js 17+ (Electron 41+), localhost can resolve to ::1 (IPv6). If IPv6 is disabled on the machine, server.listen fails with EADDRNOTAVAIL. The v1.7.2 /…"
+        }
+      },
+      {
+        "icon": "check",
+        "title": {
+          "en": "Fix"
+        },
+        "body": {
+          "en": ": the server now always binds to 127.0.0.1 (explicit IPv4 loopback — never ambiguous, works on all Windows versions regardless of IPv6 state). BrowserWindow.loadURL always uses http://localhost:PORT (Chromium resolves localhost 127.0.0.1…"
+        }
+      },
+      {
+        "icon": "check",
+        "title": {
+          "en": "tryBind simplified: no more host parameter, no more localhos"
+        },
+        "body": {
+          "en": "tryBind simplified: no more host parameter, no more localhost127.0.0.1 fallback branch. Only the EADDRINUSE (port taken) case is handled, by retrying on port 0."
+        }
+      }
+    ]
+  },
+  "1.7.5": {
+    "date": "2026-05-20",
+    "items": [
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "electron-log"
+        },
+        "body": {
+          "en": "added — all console.log / warn / error calls are now automatically written to a rotating log file (5 MB max): Windows : %APPDATA%\\Tiger Studio Manager\\logs\\main.log macOS : ~/Library/Logs/Tiger Studio Manager/main.log Linux …"
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "First log line on every launch: Tiger Studio Manager startin"
+        },
+        "body": {
+          "en": "First log line on every launch: Tiger Studio Manager starting — vX.Y.Z"
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Useful for diagnosing launch failures on user machines (e.g."
+        },
+        "body": {
+          "en": "Useful for diagnosing launch failures on user machines (e.g. Windows IPv6 issues) without requiring users to run from a terminal."
+        }
+      }
+    ]
+  },
+  "1.7.4": {
+    "date": "2026-05-20",
+    "items": [
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Hard delete for spools"
+        },
+        "body": {
+          "en": "— markSpoolDeleted now issues a Firestore batch.delete() instead of writing a deleted: true tombstone. Twin is hard-deleted in the same batch. No resurrection possible once the doc is gone."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Anti-resurrection guard"
+        },
+        "body": {
+          "en": "— cloudSync flag (local-only, never pushed to Firestore) marks every spool that has ever reached the cloud. If Tiger Studio later hard-deletes it and Flutter reconnects, Flutter's push path skips the entry instead of sending it back. ISO…"
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "purgeLegacyTombstones"
+        },
+        "body": {
+          "en": "— on every live Firestore snapshot, any remaining deleted: true docs (written by pre-v1.7.4 clients) are automatically hard-deleted. One-shot migration; no-op once migration is complete."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Removed \"Show deleted\" feature"
+        },
+        "body": {
+          "en": "— spools are now always hard-deleted; the debug panel \"Deleted\" tab and its HTML/CSS/JS were removed entirely. Cleaner architecture, no stale data accumulation."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "updatedAt field"
+        },
+        "body": {
+          "en": "— renamed last_update updatedAt (ISO with the printer data model). All Firestore writes now use FieldValue.serverTimestamp() for updatedAt. normalizeRow reads updatedAt first with fallback to last_update for legacy documents already in…"
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "resolveContainerForBrand(brandId)"
+        },
+        "body": {
+          "en": "— mirrors Flutter resolveSpoolForBrand: (1) brand-specific match, (2) Generic fallback (brandId == 0 customcardboard), (3) first catalog entry."
+        }
+      }
+    ]
+  },
+  "1.7.3": {
+    "date": "2026-05-19",
+    "items": []
+  },
+  "1.7.2": {
+    "date": "2026-05-18",
+    "items": [
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "½× compact size mode"
+        },
+        "body": {
+          "en": "— new first button in every cam-wall card header. A ½× card spans one sub-column (~160 px min), so four compact cameras fit in the horizontal space of one 2× card. The card header adapts automatically (smaller padding, brand pill hidden…"
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Overlay headers"
+        },
+        "body": {
+          "en": "— cam-wall card headers are now position: absolute and float over the top of the camera feed with a dark gradient, hidden at rest and revealed on hover. This removes the fixed header height from the card's layout, so card height is…"
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "align-items: start on the cam wall grid"
+        },
+        "body": {
+          "en": "— cards are sized to their content only; cards in the same grid row no longer stretch to match the tallest neighbour (which caused large black voids below 1× cameras placed next to 2× ones)."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Patch-mode render — no stream restart on size/order change"
+        },
+        "body": {
+          "en": "— _renderPrinterCam now detects when only camSize or camSortIndex changed (Firestore echo after a button click or DnD drop). It updates CSS classes and style.order in-place on the existing DOM nodes, never touching host.innerHTML. iframe…"
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "CSS order-based DnD reorder"
+        },
+        "body": {
+          "en": "— drag-and-drop reorder now reassigns card.style.order values instead of moving DOM nodes (insertBefore / insertAdjacentElement). Browsers reload iframes on any DOM detach+reattach; the CSS order approach keeps every node in its original…"
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Fullscreen header"
+        },
+        "body": {
+          "en": "— in --fs mode the header reverts to normal document flow (visible, background --surface, border-bottom) so the flex column layout fills the viewport correctly."
+        }
+      }
+    ]
+  },
+  "1.7.1": {
+    "date": "2026-05-17",
+    "items": [
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Status pills in grid cards and table"
+        },
+        "body": {
+          "en": "— every connected printer now shows its live state (Idle, Printing, Paused, Preparing, Complete, Error, …) directly in the grid card and table row without opening the sidecard. Offline printers show nothing; connected-but-idle printers…"
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "ISO visual style"
+        },
+        "body": {
+          "en": "— the state pills in cards and table use the exact same snap-job-state snap-job-state--{state} classes as the sidecard, scaled via .snap-job-state--compact. Spinning ring animation on printing and preparing, colour-coded per state…"
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Online badge pill"
+        },
+        "body": {
+          "en": "in grid cards now matches the sidecard pill: rounded background + coloured border (green for online, amber for connecting, grey for offline)."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Filename + remaining time"
+        },
+        "body": {
+          "en": "— when a job is active, the truncated filename appears below the progress bar and remaining time is shown alongside the percentage (42% · 1h 23m). BambuLab, Elegoo, and Creality expose remaining time; all brands expose the filename when…"
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Cross-brand normalisation"
+        },
+        "body": {
+          "en": "— _getPrinterJob now returns a uniform { state, pct, isActive, filename, remainSec } for all five brands. Creality's numeric d.state is normalised to idle/printing/complete; remaining time converted from brand-specific units (BambuLab…"
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "New i18n keys"
+        },
+        "body": {
+          "en": "across all 9 locales: snapState_finished, snapState_preparing, snapState_failed, snapState_ready."
+        }
+      }
+    ]
+  },
+  "1.7.0": {
+    "date": "2026-05-15",
+    "items": [
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "tigertagDbService"
+        },
+        "body": {
+          "en": "is now the single source of truth for all TigerTag reference JSON files (brands, materials, aspects, types, diameters, units, versions). The renderer loads these via IPC (window.electronAPI.db.getLookups()) instead of direct fetch() calls…"
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "assets/db/tigertag/"
+        },
+        "body": {
+          "en": "— reference files relocated to assets/db/tigertag/id_*.json (official TigerTag naming). A last_update.json timestamp file is bundled alongside so the app knows the embedded data's age from day one."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "GitHub mirror fallback"
+        },
+        "body": {
+          "en": "— tigertagDbService tries the TigerTag API first; if unreachable it falls back to the auto-synced GitHub mirror (≤ 6 h stale). Offline users still get their last cached copy from userData/db/tigertag/."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Atomic writes with JSON validation"
+        },
+        "body": {
+          "en": "— every dataset is validated (non-empty array, each entry has id) before overwriting the local cache file. A truncated or malformed API response is rejected; the previous good file is kept intact."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "First-launch seed"
+        },
+        "body": {
+          "en": "— on a fresh install, tigertagDbService reads last_update.json bundled in assets/db/tigertag/ and seeds the metadata store so the app skips unnecessary network downloads for data that shipped with the installer."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "ISO layout"
+        },
+        "body": {
+          "en": "— the Bambu filament edit bottom-sheet now matches the Snapmaker / FlashForge / Elegoo design: two rows only (Filament + Color), no summary bar, no close button, no horizontal separators."
+        }
+      }
+    ]
+  },
+  "1.6.0": {
+    "date": "2026-05-14",
+    "items": [
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Real-time MQTT connection"
+        },
+        "body": {
+          "en": "on port 1883 (plain TCP). UDP discovery on port 52700 auto-detects Elegoo printers; manual IP entry is the fallback."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Job card"
+        },
+        "body": {
+          "en": "— active filename, progress bar + percentage, estimated remaining time, layer counter (current / total), print thumbnail, and state badge (printing, paused, complete, standby, …)."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Temperature card"
+        },
+        "body": {
+          "en": "— nozzle current / target°C, bed current / target°C, chamber temperature; heating indicator when target is set and sensor is below threshold."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Filament card"
+        },
+        "body": {
+          "en": "— mono-extruder mode (Ext.) and Canvas hub 4-slot mode (S1–S4); each slot shows colour square, material type, vendor, and filament name. Partial MQTT updates (method 6000 mono_filament_info) merge only the fields present in the payload —…"
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Control card"
+        },
+        "body": {
+          "en": "— jog pad with XY circle (4-direction buttons + sector highlight + centre home-XY), Z pill (Z / home-Z / Z), X/Y home pill, step selector (0.1 / 1 / 10 / 30 mm), print-speed selector (Silent / Normal / Sport / Ludicrous), current-position…"
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Fan cards"
+        },
+        "body": {
+          "en": "— Model / Aux / Case fans as three compact column cards each with icon toggle, − / % / + step buttons (±10% per step)."
+        }
+      }
+    ]
+  },
+  "1.5.0": {
+    "date": "2026-05-11",
+    "items": [
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Connect / disconnect toggle"
+        },
+        "body": {
+          "en": "on each scale card. Manual disconnect suppresses auto-reconnect."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "WS event log"
+        },
+        "body": {
+          "en": "— collapsible strip showing the last 80 events (connect, raw frames, errors, retries) with direction arrows and per-line timestamps."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "CORS fix"
+        },
+        "body": {
+          "en": "— removed the pre-connect fetch() ping (blocked by Chromium CORS in Electron). connectScaleWs now opens the WebSocket directly; onclose handles retries."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Field-name fix"
+        },
+        "body": {
+          "en": "— WS parser corrected from snake_case to the actual camelCase fields the firmware sends (netWeight, scaleStatus)."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Gradient live card"
+        },
+        "body": {
+          "en": "— shows live data with a purple gradient matching the TigerScale mobile app. Hidden when WS is disconnected; reappears on reconnect."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Send-status badge"
+        },
+        "body": {
+          "en": "— maps scaleStatus firmware values (idle, scanning:N, stable:N, send, success, error, done, ready) to emoji + text with per-state background colours."
+        }
+      }
+    ]
+  },
+  "1.4.15": {
+    "date": "2026-05-09",
+    "items": [
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Real-time WebSocket connection on port 9999 with automatic h"
+        },
+        "body": {
+          "en": "Real-time WebSocket connection on port 9999 with automatic heartbeat (polling every 2 s)."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Live nozzle, bed, and enclosure temperatures; print state (i"
+        },
+        "body": {
+          "en": "Live nozzle, bed, and enclosure temperatures; print state (idle / printing / finished), job progress bar, layer counter, estimated duration."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "CFS colour grid"
+        },
+        "body": {
+          "en": "— activated when cfsConnect=1 and materialBoxs[] is non-empty; shows each slot's assigned colour pill and material label."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "WebRTC camera"
+        },
+        "body": {
+          "en": "— inline <iframe> at http://$ip/webcam/webrtc when webrtcSupport=1."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Print thumbnail"
+        },
+        "body": {
+          "en": "— fetched from http://$ip/downloads/original/current_print_image.png while a job is active."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "WS event log with Pause / Clear / row-expand, same UI as Sna"
+        },
+        "body": {
+          "en": "WS event log with Pause / Clear / row-expand, same UI as Snapmaker and FlashForge."
+        }
+      }
+    ]
+  },
+  "1.4.14": {
+    "date": "2026-05-08",
+    "items": [
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "New Mono / Dual / Tri / Rainbow selector in the colour picke"
+        },
+        "body": {
+          "en": "New Mono / Dual / Tri / Rainbow selector in the colour picker bottom-sheet. Tap a colour square to switch the active slot, then pick its colour."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "The colour circle updates in real time: solid (Mono), hard h"
+        },
+        "body": {
+          "en": "The colour circle updates in real time: solid (Mono), hard half-split (Dual), conic-gradient sectors (Tri), smooth linear-gradient (Rainbow)."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Selecting a mode auto-sets id_aspect2 to the matching aspect"
+        },
+        "body": {
+          "en": "Selecting a mode auto-sets id_aspect2 to the matching aspect. The link is bidirectional — changing the aspect2 dropdown also flips the mode selector."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "color_r2/g2/b2 and color_r3/g3/b3 now written from the actua"
+        },
+        "body": {
+          "en": "color_r2/g2/b2 and color_r3/g3/b3 now written from the actual slot colours picked."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "The Type quick-filter in the inventory toolbar now filters b"
+        },
+        "body": {
+          "en": "The Type quick-filter in the inventory toolbar now filters by protocol version (TigerTag / TigerTag+ / TigerCloud / TigerTag Init / …) instead of filament product type."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "The search bar and all quick-filters are now automatically c"
+        },
+        "body": {
+          "en": "The search bar and all quick-filters are now automatically cleared when switching between accounts or entering / leaving a friend's inventory view."
+        }
+      }
+    ]
+  },
+  "1.4.13": {
+    "date": "2026-05-07",
+    "items": [
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "url_img + url_img_user: true"
+        },
+        "body": {
+          "en": "— DIY and Cloud spools can now carry a product image from an external URL. TigerTag+ spools are not editable."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Edit pill in the colour square"
+        },
+        "body": {
+          "en": "— expands rightward on click to reveal the URL input and a confirm button. Enter = confirm, Escape = dismiss."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Toolbox entry"
+        },
+        "body": {
+          "en": "— when a valid user image is already set, the edit action moves to the spool toolbox."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Broken-link recovery"
+        },
+        "body": {
+          "en": "— onerror handler detects failed image loads, swaps in the colour placeholder, and surfaces the edit trigger."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Add Product integration"
+        },
+        "body": {
+          "en": "— the ADP advanced section has an image URL field."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "New split-button on the \"Scan TD\" toolbox row: a hold-to-con"
+        },
+        "body": {
+          "en": "New split-button on the \"Scan TD\" toolbox row: a hold-to-confirm trash button (1 200 ms) appears to the right when r.td != null. Holding it deletes the TD field via FieldValue.delete()."
+        }
+      }
+    ]
+  },
+  "1.4.12": {
+    "date": "2026-05-06",
+    "items": [
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "100 % digital filaments"
+        },
+        "body": {
+          "en": "— the Add Product side panel writes a complete inventory entry with a CLOUD_<10-digit> doc id. Same schema, same fields, same display surfaces, same friend-sharing rules as chip-backed spools."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Promotion path"
+        },
+        "body": {
+          "en": "— when a physical chip is programmed, the uidMigrationMap rename pipeline carries the document over atomically. Twin pointers, rack assignments, weight history, friend ACLs — everything follows the rename. Idempotent."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "New tier label \"TigerCloud\""
+        },
+        "body": {
+          "en": "— sits alongside TigerTag+ (orange) and TigerTag (grey). Cloud takes precedence when both signals would apply. Shown across table row, grid card, panel image overlay, and panel details footer."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "New CSS class .tag-cloud — purple gradient (#7c4dff #a37bff)"
+        },
+        "body": {
+          "en": "New CSS class .tag-cloud — purple gradient (#7c4dff #a37bff)."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Anthracite preset sheet matching the Brand / Material sheets"
+        },
+        "body": {
+          "en": "Anthracite preset sheet matching the Brand / Material sheets."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Custom slot shows the current colour as background."
+        },
+        "body": {
+          "en": "Custom slot shows the current colour as background."
+        }
+      }
+    ]
+  },
+  "1.4.11": {
+    "date": "2026-05-05",
+    "items": [
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "HTTP polling"
+        },
+        "body": {
+          "en": "— 2 s tick on POST /detail, bridged through the Electron main process to bypass CORS. Capped exponential backoff on network errors (2 s 30 s)."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Camera (MJPEG)"
+        },
+        "body": {
+          "en": "— edge-to-edge <img> stream. Handles mjpg-streamer's 1-client limit: cache-buster on open, explicit tear-down on close, graceful fallback + Retry button on error."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "5-slot matlStation grid"
+        },
+        "body": {
+          "en": "— [Ext.] [1A] [1B] [1C] [1D]. Ext. indepMatlInfo; bays slotInfos[1..4]. Three visual states per slot: filled (solid fill), configured-but-empty (coloured inset ring), unconfigured (grey hatch)."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Auto SN-prefix"
+        },
+        "body": {
+          "en": "— auto-prefixes SN when the entered serial is missing it. Idempotent."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Request log (debug mode)"
+        },
+        "body": {
+          "en": "— every poll pushes an outbound + inbound entry. Click to expand JSON; Pause / Clear toolbar; capped at 100 entries (FIFO)."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "View selector moved below the search bar"
+        },
+        "body": {
+          "en": "— own dedicated row under the search, keeping its full width regardless of how wide the filters above end up."
+        }
+      }
+    ]
+  },
+  "1.4.10": {
+    "date": "2026-05-05",
+    "items": [
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Windows auto-update fixed"
+        },
+        "body": {
+          "en": "build.publish.publisherName: null set to skip publisher-name verification on Windows (the SHA-512 hash check from latest.yml still enforces integrity). Fixes the Could not check: New version is not signed by the application owner error…"
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Mobile-app prerequisite warning"
+        },
+        "body": {
+          "en": "added to the inventory format upgrade consent modal — a small amber banner reminds the user to update their TigerTag mobile app to v1.0.3+ before continuing."
+        }
+      }
+    ]
+  },
+  "1.4.9": {
+    "date": "2026-05-04",
+    "items": [
+      {
+        "icon": "check",
+        "title": {
+          "en": "autoUnstorageTitle and autoUnstorageSub were missing from zh"
+        },
+        "body": {
+          "en": "autoUnstorageTitle and autoUnstorageSub were missing from zh.json and pt-pt.json."
+        }
+      },
+      {
+        "icon": "check",
+        "title": {
+          "en": "Five duration keys (agoMin, agoHour, agoDay, agoMonth, agoYe"
+        },
+        "body": {
+          "en": "Five duration keys (agoMin, agoHour, agoDay, agoMonth, agoYear) now use the same plural-object structure ({one, other}) across all 9 locales."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "npm run i18n:add"
+        },
+        "body": {
+          "en": "— single command adds or updates one i18n key across all 9 locale files."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "npm run i18n:check + pre-commit hook"
+        },
+        "body": {
+          "en": "— validates locale consistency on every commit. Wired automatically via core.hooksPath=.githooks/ from the prepare script."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "CSS modularization"
+        },
+        "body": {
+          "en": "— the 8047-line monolithic inventory.css split into 8 themed files under renderer/css/ (00-base.css through 70-detail-misc.css)."
+        }
+      }
+    ]
+  },
+  "1.4.8": {
+    "date": "2026-05-04",
+    "items": [
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Side-panel scan"
+        },
+        "body": {
+          "en": "— slides in from the right. mDNS browse of snapmaker.tcp.local. via bonjour-service (IPC bridge mdns:browse-snapmaker), plus port-scan fallback on Moonraker port 7125."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Per-source batch sizing"
+        },
+        "body": {
+          "en": "— local subnets with batch=24, user-declared extra subnets with batch=4 + 80 ms inter-batch gap."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "One-click add"
+        },
+        "body": {
+          "en": "— writes the printer doc to Firestore and opens the new printer's detail card with the WebSocket already connecting."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Add by IP"
+        },
+        "body": {
+          "en": "collapsible — live IPv4 validation, \"Validate\" probe, \"Continue anyway\" fallback."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Debug-only scan log"
+        },
+        "body": {
+          "en": "— full journal exportable as JSON."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Settings reconnect"
+        },
+        "body": {
+          "en": "— saving an IP change tears down the old WebSocket and reconnects."
+        }
+      }
+    ]
+  },
+  "1.4.7": {
+    "date": "2026-05-04",
+    "items": [
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "New \"Printers\" tab"
+        },
+        "body": {
+          "en": "— drag & drop grid of all printers across 5 brands. Per-card: photo, brand pill, model, online/offline indicator (HTTP ping every 30 s)."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Side card"
+        },
+        "body": {
+          "en": "— slides from the right; hero shows static photo or live WebRTC camera for Snapmaker."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "\"Add a printer\" flow"
+        },
+        "body": {
+          "en": "— brand picker form. Brand-aware model picker with thumbnails. Written to users/{uid}/printers/{brand}/devices/{auto-id} in Firestore."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Inline editing in the side card"
+        },
+        "body": {
+          "en": "— every field editable on click; Enter / blur saves to Firestore."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "WebSocket to ws://{ip}:7125/websocket, JSON-RPC subscribe, c"
+        },
+        "body": {
+          "en": "WebSocket to ws://{ip}:7125/websocket, JSON-RPC subscribe, capped exponential backoff."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Camera"
+        },
+        "body": {
+          "en": "— full-width WebRTC iframe at the top of the side card."
+        }
+      }
+    ]
+  },
+  "1.4.6": {
+    "date": "2026-05-03",
+    "items": [
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Windows artifact name standardised"
+        },
+        "body": {
+          "en": "win.artifactName set to Tiger-Studio-Manager-Setup-${version}.${ext} (space-free). Fixes the auto-updater 404 that resulted from GitHub's spacedot rewrite disagreeing with electron-builder's dash encoding in latest.yml."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Windows code-signature check temporarily disabled"
+        },
+        "body": {
+          "en": "nsis.publisherName: [] added. electron-builder was auto-deriving the publisher name from the macOS Apple Developer ID, which never matches the unsigned .exe. SHA-512 + size check from latest.yml is still enforced."
+        }
+      }
+    ]
+  },
+  "1.4.5": {
+    "date": "2026-05-03",
+    "items": [
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Google sign-in via Touch ID / passkey"
+        },
+        "body": {
+          "en": "Loopback OAuth flow (RFC 8252 + PKCE) — the system browser opens for auth so Touch ID, passkeys, and hardware keys work natively. System browser brought back to foreground automatically after the handshake."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Lazy on-the-fly migration of legacy decimal spool ids hex uppercase"
+        },
+        "body": {
+          "en": "Idempotent, atomic per spool (single Firestore batch per migration), polite (250-500 ms gap between writes). users/{uid}/uidMigrationMap/{decimal_uid} serves as a bridge for in-flight legacy UIDs."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Migration consent + progress UI"
+        },
+        "body": {
+          "en": "Consent modal shows spool count + estimated duration; lock-screen progress modal during the sweep. Cmd+Q during migration intercepted by main process — native dialog asks for confirmation before quitting."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "TigerScale v2 schema cutover"
+        },
+        "body": {
+          "en": "New field names: last_heartbeat_at, display_name, current_spool_uid_1/2, wifi_signal_dbm, power_source, battery_percent, is_charging, hardware_revision."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Twin-pair display on the TigerScale side-card"
+        },
+        "body": {
+          "en": "Two tags that reference each other via twin_tag_uid render as a single physical spool card."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Friend banner repositioned"
+        },
+        "body": {
+          "en": "— the READ-ONLY pill now lives in the top header (left of KPI stats). Own-user mode shows a random welcome greeting instead."
+        }
+      }
+    ]
+  },
+  "1.4.4": {
+    "date": "2026-05-02",
+    "items": [
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Auto-update toggle"
+        },
+        "body": {
+          "en": "New \"Updates\" section in Settings — enable / disable automatic update downloads, and a \"Check for updates now\" button. Preference persisted to <userData>/auto-update.json."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Settings panel rebuilt"
+        },
+        "body": {
+          "en": "Flat panel with hairline-separated sections — Updates / Data / Tools / About — replacing the old card-in-card layout."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Top header KPI stats"
+        },
+        "body": {
+          "en": "4 stat tiles (Spools / Stock / TigerTag / TigerTag+) moved from the sidebar to the top of the main pane."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Storage — EMPTY stat for depleted spools"
+        },
+        "body": {
+          "en": "Slot \"Empty\" \"Free\"; spool \"Depleted\" \"Empty\"."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Spool detail — Storage location row"
+        },
+        "body": {
+          "en": "Shows Rack name · A3 for placed spools; Auto-assign button for unplaced spools."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Auto Storage + Auto Unstorage"
+        },
+        "body": {
+          "en": "toggles — snapshot-driven, _inFlight flag prevents loops."
+        }
+      }
+    ]
+  },
+  "1.4.3": {
+    "date": "2026-05-02",
+    "items": [
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Stats bar"
+        },
+        "body": {
+          "en": "— pill tiles: total racks, filled-vs-total slots (mini progress bar), empty count, locked count, clickable \"Not Stored\" tile. Empty / Locked tiles double as filter chips."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Inline rack header"
+        },
+        "body": {
+          "en": "— Rack 4 · 5/5 on a single line."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Kebab menu (⋮)"
+        },
+        "body": {
+          "en": "— per-rack actions: Edit · Auto-fill · Lock all / Unlock all · Clear all · Delete."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Press-and-hold for destructive actions"
+        },
+        "body": {
+          "en": "— 1.2-second hold for Clear all and Delete."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Visible drop zones during drag"
+        },
+        "body": {
+          "en": "— valid slots pulse, locked slots dim, target slot pops with orange ring + scale-up. Swap targets show glyph overlay."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Slot animations"
+        },
+        "body": {
+          "en": "— bounce-in on land, staggered 30 ms auto-fill wave, cascade-out for clear-all."
+        }
+      }
+    ]
+  },
+  "1.4.2": {
+    "date": "2026-05-02",
+    "items": [
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "CI — macOS code signing + notarization"
+        },
+        "body": {
+          "en": "Releases signed with Apple Developer ID Application + notarized via notarytool. No Gatekeeper warning on download. Certificate and App Store Connect API Key decoded from GitHub Secrets at build time."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Native modules"
+        },
+        "body": {
+          "en": "(@pokusew/pcsclite, @serialport/bindings-cpp) correctly signed inside the bundle via entitlementsInherit and cs.disable-library-validation."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "New build:mac:unsigned script for fast local builds without "
+        },
+        "body": {
+          "en": "New build:mac:unsigned script for fast local builds without Apple credentials."
+        }
+      }
+    ]
+  },
+  "1.4.1": {
+    "date": "2026-05-01",
+    "items": [
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Fix — silent login failure on email/password"
+        },
+        "body": {
+          "en": "sign-in. Auth listener was gated on getActiveId() matching the new uid, but setActiveId() only ran inside the listener. Reordered: setActiveId runs after updateCurrentUser and before setupNamedAuth."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Diagnostic report system"
+        },
+        "body": {
+          "en": "Every caught auth/network error and every window.error / unhandledrejection captured into a circular buffer. Copy a Markdown report from Settings Debug Report a problem — includes app version, Electron/Chrome/Node, OS, locale, account…"
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Storage / Rack feature gated off in this build until the vis"
+        },
+        "body": {
+          "en": "Storage / Rack feature gated off in this build until the visualisation skeleton is finalised."
+        }
+      }
+    ]
+  }
+}

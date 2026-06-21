@@ -343,7 +343,7 @@
   min-width: 0;
 }
 
-/* [📁][💡] dans l'info col — côte à côte, même taille que cre-action-btn */
+/* [][] dans l'info col — côte à côte, même taille que cre-action-btn */
 .elg-ctrl-actions {
   display: flex;
   gap: 4px;
@@ -579,7 +579,7 @@
   padding: 6px 4px;
 }
 
-/* Ligne haute : [🌀] LABEL */
+/* Ligne haute : [] LABEL */
 .elg-fan-col-head {
   display: flex;
   align-items: center;

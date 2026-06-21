@@ -941,7 +941,7 @@ function renderCreJobCard(p, conn) {
         <div class="snap-job-stats">
           <span class="snap-job-pct">${progress}%</span>
           ${durationText ? `<span class="snap-job-time">${ctx.SNAP_ICON_CLOCK}<span>${ctx.esc(durationText)}</span></span>` : ""}
-          ${leftText     ? `<span class="snap-job-time snap-job-time--left">⏳ <span>${ctx.esc(leftText)}</span></span>` : ""}
+          ${leftText     ? `<span class="snap-job-time snap-job-time--left">${ctx.SNAP_ICON_CLOCK}<span>${ctx.esc(leftText)}</span></span>` : ""}
         </div>
         <div class="snap-job-bar"><span style="width:${progress}%"></span></div>
         <div class="snap-job-foot">

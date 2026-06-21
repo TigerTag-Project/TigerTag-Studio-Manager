@@ -91,8 +91,9 @@ Before writing the `CHANGELOG.md` entry, do one final editorial pass on WORKLOG:
 ### At commit time (3 steps, in order)
 
 1. **Synthesize `WORKLOG.md`** (Rule 3 above) → write the new `CHANGELOG.md` entry
-2. **Include `WORKLOG.md` in the commit** — it is part of the repo history (future sessions can read it via `git show`)
-3. **Reset `WORKLOG.md`** immediately after committing — replace with the blank template for the next version (bump the version number in the header):
+2. **Write the "What's New" entry** for the version → `data/whatsnew.json`. Run `npm run whatsnew:add -- <x.y.z> [--items N] [--date YYYY-MM-DD]` to scaffold an empty **9-locale** block, then fill each item's `icon` (emoji) + vulgarised `title`/`body` for **all 9 locales** (history is kept — never delete old versions). Verify with `npm run whatsnew:check` (must pass — no empty locale). This drives the in-app "What's New" modal shown once per version (and re-openable from Settings → About).
+3. **Include `WORKLOG.md` in the commit** — it is part of the repo history (future sessions can read it via `git show`)
+4. **Reset `WORKLOG.md`** immediately after committing — replace with the blank template for the next version (bump the version number in the header):
 
 ```markdown
 # Worklog — vX.Y.Z (in progress)
@@ -182,6 +183,7 @@ assets/db/tigertag/           — TigerTag reference data (unified in v1.7.0, se
 data/                           — non-migrated static assets (loaded via direct fetch in renderer)
   container_spool/spools_filament.json
   rack-presets.json
+  whatsnew.json                 — "What's New" modal content, keyed by version, 9 locales inline (full history, browsable via the in-modal version picker). EN baseline imported from CHANGELOG via `npm run whatsnew:import`; recent versions hand-localised. Scaffold `npm run whatsnew:add`, validate `npm run whatsnew:check` (EN mandatory; entries are EN-only or fully 9-locale)
   printers/                     — per-brand printer model catalogs (bbl/cre/eleg/ffg/snap)
 assets/svg/
   tigertag_logo.svg  tigertag_logo_contouring.svg

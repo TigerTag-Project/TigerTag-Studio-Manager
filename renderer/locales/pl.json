@@ -13,10 +13,10 @@
   "td1sScanned": "TD1S: {{td}}",
   "td1sNotFound": "TD1S scan: {{td}} — spool not found in inventory.",
   "welcomeBack": [
-    "👋 Witaj z powrotem,",
-    "🚀 Gotowy do druku,",
+    "Witaj z powrotem,",
+    "Gotowy do druku,",
     "✨ Miło Cię widzieć,",
-    "🎨 Twórzmy razem,"
+    "Twórzmy razem,"
   ],
   "githubBtn": "Zobacz na GitHubie",
   "makerWorldBtn": "Bezpłatne pliki 3D",
@@ -368,7 +368,7 @@
   "setupNameTitle": "Wybierz pseudonim",
   "setupNameSub": "Tak Twoi znajomi Cię zobaczą",
   "setupNamePlaceholder": "Your display name",
-  "setupNameSave": "Zaczynamy! 🚀",
+  "setupNameSave": "Zaczynamy!",
   "setupNameSkip": "Later",
   "invWelcomeTitle": "Zarządzaj inwentarzem z telefonu.",
   "invWelcomeSub": "Zeskanuj swoje szpule TigerTag w 10 sekund. Twój inwentarz aktualizuje się w czasie rzeczywistym.",
@@ -910,7 +910,7 @@
   "tigerPodFeat4Desc": "Dopasowanie do 99% szpul",
   "tigerPodPrintSpec": "0,2 mm · wypełnienie 8 % · ~7 h",
   "upgradeToPlusHelpBody": "ID produktu to numer widoczny w adresie URL strony produktu TigerTag. Przeglądaj listę materiałów, otwórz dowolny produkt i skopiuj numer z końca adresu URL.",
-  "tigerPodCta": "Please ⚡Boost & ❤Like",
+  "tigerPodCta": "Please Boost & Like",
   "encModalTitle": "Zapisz na chip",
   "encModalSub": "Umieść chip na czytniku i zapisz.",
   "encReady": "Gotowe do zapisu.",
@@ -936,7 +936,7 @@
   "tutoNext": "Dalej",
   "tutoFinish": "Zakończ",
   "tutoClose": "Zamknij",
-  "tutoOpenBtn": "📖 Samouczek połączenia",
+  "tutoOpenBtn": "Samouczek połączenia",
   "tutoTitleFor": "Samouczek połączenia {{brand}}",
   "tutoPickModel": "Wybierz model drukarki",
   "tutoEstimatedMinutes": "~{{n}} min",
@@ -1053,5 +1053,10 @@
   "acuFilesTabCloud": "Chmura",
   "acuFilePrint": "Drukuj",
   "acuFileDelete": "Usuń",
-  "acuFileIncompatible": "Pocięto dla innej drukarki"
+  "acuFileIncompatible": "Pocięto dla innej drukarki",
+  "whatsNewTitle": "Co nowego",
+  "whatsNewReleaseTitle": "Tiger Studio Manager {{v}} — Informacje o wersji",
+  "whatsNewGotIt": "Rozumiem",
+  "whatsNewLater": "Później",
+  "whatsNewEmpty": "Brak informacji dla tej wersji."
 }
