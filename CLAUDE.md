@@ -340,6 +340,7 @@ users/
     prefs/
       app/
         lang      string   — language code, synced across devices
+        groupInv  boolean  — Studio inventory "group identical spools" toggle (Studio-only, synced across devices)
 ```
 
 ### Connecting from a third-party app

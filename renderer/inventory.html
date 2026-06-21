@@ -197,6 +197,16 @@
             <button id="btnViewTable" class="active"><span class="icon icon-list icon-13"></span><span data-i18n="btnViewTable">Table</span></button>
             <button id="btnViewRack"><span class="icon icon-package icon-13"></span><span data-i18n="btnViewRack">Storage</span></button>
           </div>
+          <!-- View-only toggle: collapse identical spools into one ×N entry.
+               Shown only in Table/Grid inventory modes (hidden in rack/printer
+               modes via JS). -->
+          <label id="btnGroupInvLabel" class="group-toggle-btn" data-tooltip="">
+            <span class="icon icon-folder icon-13"></span>
+            <span class="eac-toggle">
+              <input type="checkbox" id="btnGroupInv" role="switch" aria-label="Group identical spools" />
+              <span class="eac-toggle-track"><span class="eac-toggle-thumb"></span></span>
+            </span>
+          </label>
           <span class="vtg-sep" aria-hidden="true"></span>
           <div class="view-toggle vtg-printers">
             <button id="btnViewPrinter" data-i18n="btnViewGrid">⊞ Grid</button>

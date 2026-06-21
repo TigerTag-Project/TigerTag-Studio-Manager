@@ -551,6 +551,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     typeFilter: "",                   // exact product type to keep, "" = all
 
     viewMode: localStorage.getItem("tigertag.view") || "table",
+    // View-only grouping of identical spools (Table + Grid). Default ON. The
+    // group structure is derived at render time — never persisted to Firestore.
+    groupInv: localStorage.getItem("tigertag.inv.group") !== "false",
     lang: localStorage.getItem("tigertag.lang") || "en",
     sortCol: _invSort.col,       // persisted; default "brand"
     sortDir: _invSort.dir,       // persisted; default "asc"
@@ -579,6 +582,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     friends: [],             // [{ uid, displayName, addedAt, key }]
     friendRequests: [],      // [{ uid, displayName, requestedAt }]
     notifications: [],       // [{ id, type, fromUid, fromName, createdAt, read }] — users/{uid}/notifications
+    localNotifications: [],  // [{ id, icon, text, version?, action? }] — per-install, transient (e.g. app update), NOT in Firestore
     blacklist: [],           // [{ uid, displayName, blockedAt }]
     racks: [],               // [{ id, name, level, position, order, createdAt, lastUpdate }]
     rackPresets: [],         // loaded from data/rack-presets.json
@@ -5316,21 +5320,62 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const type = state.typeFilter || "";
     const noFilter = !q && !brand && !material && !type;
     const rowsById = new Map(state.rows.map(r => [r.spoolId, r]));
-    const nodes = document.querySelectorAll("#invGrid .spool-card, #invBody tr");
-    let visible = 0;
-    nodes.forEach(el => {
-      if (noFilter) { el.classList.remove("hidden"); visible++; return; }
-      const r = rowsById.get(el.dataset.id);
-      if (!r) { el.classList.add("hidden"); return; }
+    const rowMatches = r => {
       const matchSearch = !q || [r.uid, r.material, r.brand, r.colorName]
         .some(v => String(v || "").toLowerCase().includes(q));
       const matchBrand = !brand || String(r.brand) === brand;
       const matchMaterial = !material || String(r.material) === material;
       const matchType = !type || String(r.protocol) === type;
-      const matches = matchSearch && matchBrand && matchMaterial && matchType;
+      return matchSearch && matchBrand && matchMaterial && matchType;
+    };
+    let visible = 0;
+
+    // ── Table rows are group-aware ──────────────────────────────────────────
+    // Member rows carry data-group; group headers carry data-groupKey. Without
+    // a filter, collapsed groups keep their members hidden (folder metaphor).
+    // With a filter, groups auto-expand: matching members show, the header
+    // stays only if ≥1 member matches.
+    const groupMatchCount = new Map();   // groupKey → number of matching members
+    const headerRows = [];
+    document.querySelectorAll("#invBody tr").forEach(el => {
+      if (el.dataset.groupKey) { headerRows.push(el); return; }
+      const r = rowsById.get(el.dataset.id);
+      const gk = el.dataset.group || null;
+      if (!r) { el.classList.add("hidden"); return; }
+      const matches = noFilter || rowMatches(r);
+      if (gk) {
+        // Member of a group.
+        const collapsed = !_expandedGroups.has(gk);
+        const show = noFilter ? !collapsed : matches;
+        el.classList.toggle("hidden", !show);
+        if (matches) groupMatchCount.set(gk, (groupMatchCount.get(gk) || 0) + 1);
+        if (show) visible++;
+      } else {
+        // Standalone row (ungrouped or singleton).
+        el.classList.toggle("hidden", !matches);
+        if (matches) visible++;
+      }
+    });
+    headerRows.forEach(el => {
+      const gk = el.dataset.groupKey;
+      const show = noFilter || (groupMatchCount.get(gk) || 0) > 0;
+      el.classList.toggle("hidden", !show);
+      // A header counts toward visibility so a filtered-down-to-groups view
+      // doesn't trip the "no match" empty state when members are collapsed.
+      if (show) visible++;
+    });
+
+    // ── Grid cards (ungrouped in Phase 1) ───────────────────────────────────
+    document.querySelectorAll("#invGrid .spool-card").forEach(el => {
+      if (noFilter) { el.classList.remove("hidden"); visible++; return; }
+      const r = rowsById.get(el.dataset.id);
+      if (!r) { el.classList.add("hidden"); return; }
+      const matches = rowMatches(r);
       el.classList.toggle("hidden", !matches);
       if (matches) visible++;
     });
+
+    const nodes = document.querySelectorAll("#invGrid .spool-card, #invBody tr");
     // Empty-state swap — only when a filter is active AND nothing matches.
     // Without a filter we always have at least one card; the no-inventory
     // path is handled by renderInventory() itself.
@@ -5487,11 +5532,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (r.isPlus)  return `<span class="tag-plus${extraClass ? " " + extraClass : ""}">TigerTag+</span>`;
     return `<span class="tag-diy${extraClass ? " " + extraClass : ""}">TigerTag</span>`;
   }
-  function thumbHTML(row, size = 28) {
+  function thumbHTML(row, size = 28, { badges = true } = {}) {
     const src = row.imgUrl ? resolvedImg(row.imgUrl) : null;
-    const overlay = twinOverlayBadge(row);
-    const tdBadge = row.td != null ? `<span class="thumb-td-badge">TD ${row.td}</span>` : "";
-    const chipBadge = row.needUpdateAt ? `<span class="chip-badge thumb-chip-badge" title="${t("chipPendingHint")}"><span class="icon icon-refresh icon-9"></span></span>` : "";
+    // Group header thumbs pass badges:false — a group line represents many
+    // spools, so per-spool overlays (twin "linked", TD, pending-chip) are
+    // meaningless there.
+    const overlay = badges ? twinOverlayBadge(row) : "";
+    const tdBadge = badges && row.td != null ? `<span class="thumb-td-badge">TD ${row.td}</span>` : "";
+    const chipBadge = badges && row.needUpdateAt ? `<span class="chip-badge thumb-chip-badge" title="${t("chipPendingHint")}"><span class="icon icon-refresh icon-9"></span></span>` : "";
     // If `src` is a local /img-cache file that 404s (cache purged since the
     // map was persisted), fall back ONCE to the remote URL — which also
     // re-warms the disk cache for next time. No fallback when src already IS
@@ -5503,6 +5551,99 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       ? `<img class="thumb" src="${esc(src)}" width="${size}" height="${size}" loading="lazy"${fb} />`
       : `<span class="thumb-color" style="width:${size}px;height:${size}px;background:${colorBg(row)}"><img src="${logoSrc(colorBg(row))}" /></span>`;
     return `<span class="thumb-wrap">${inner}${overlay}${tdBadge}${chipBadge}</span>`;
+  }
+
+  // Fill-bar colour by remaining-filament percentage — kept iso with the
+  // Flutter mobile app: <20% red, <50% orange, ≥50% green (Material palette).
+  function fillBarColor(pct) {
+    if (pct == null || Number.isNaN(pct)) return "var(--primary)";
+    if (pct < 20) return "#F44336";  // Colors.red
+    if (pct < 50) return "#FF9800";  // Colors.orange
+    return "#4CAF50";                // Colors.green
+  }
+
+  // Material label with aspect1 appended (e.g. "PLA" + "Basic" → "PLA Basic").
+  // aspect2 is intentionally not shown. Returns the bare material when aspect1
+  // is missing / "None" / "-".
+  function materialWithAspect(r) {
+    const mat = v(r.material);
+    if (mat === "-") return mat;
+    const asp = r.aspect1;
+    return (asp && asp !== "-" && asp !== "None" && String(asp).trim() !== "")
+      ? `${mat} ${asp}` : mat;
+  }
+
+  // ── Identical-spool grouping (view-only) ───────────────────────────────────
+  // Collapses identical spools into one expandable entry (folder metaphor).
+  // Purely a render-time construct — never written to Firestore, never mutates
+  // state.rows. A group of 1 renders exactly like an ungrouped row.
+  //
+  // Keys (resolved against the twin-link identity logic):
+  //   • cloud spools      → null  (random id_tigertag nonce, catalogue-only → solo)
+  //   • TigerTag+         → "tt:<id_product>"  (group purely by the on-chip
+  //                          product id; id_tigertag only flags the tier. Same
+  //                          id_product ⇒ same group, no other condition. Any
+  //                          divergent brand/material on chips that share an
+  //                          id_product is a data issue fixed by "Refresh from
+  //                          API", not by the grouping key.)
+  //   • Maker (id=max)    → "diy:<brand>|<material>|<colorHex>|<aspect1>"
+  //                          (exact hex + same finish/aspect — Maker only)
+  //   • other non-plus    → "diy:<brand>|<material>|<colorHex>"  (no aspect)
+  function _spoolGroupKey(r) {
+    if (r.isCloud) return null;
+    const ID_UNSET = 4294967295; // 0xFFFFFFFF — unset product id (Maker / blank)
+    // TigerTag+ : group by id_product alone. 0 / max means "unset" → fall through
+    // to the attribute key (an unset id must not lump unrelated products together).
+    const pid = r.raw ? Number(r.raw.id_product) : NaN;
+    if (r.isPlus && Number.isFinite(pid) && pid !== 0 && pid !== ID_UNSET)
+      return "tt:" + pid;
+    // Maker / DIY: same brand + material + exact hex. For genuine Maker chips
+    // (id_tigertag = max sentinel 0xFFFFFFFF) the finish/aspect is set per spool,
+    // so a matte and a glossy spool of the same colour are NOT identical — add
+    // aspect1 to the key for those. Other non-plus chips keep the attribute-only
+    // key (no aspect component).
+    let key = "diy:" + r.brand + "|" + r.material + "|" + r.colorHex;
+    if (r.raw && Number(r.raw.id_tigertag) === ID_UNSET) key += "|" + (r.aspect1 || "");
+    return key;
+  }
+
+  // In-memory set of expanded group keys (collapsed by default, not persisted).
+  const _expandedGroups = new Set();
+
+  // Turn a pre-sorted row list into an ordered list of render items:
+  //   { type:"single", row }
+  //   { type:"group", key, members:[…rows], rep, count, totalAvail, totalCap }
+  // Groups preserve first-seen order, so they come out ordered by their `rep`
+  // (the first member in the already-sorted input). Singletons (null key or a
+  // bucket of 1) pass through untouched. When grouping is off, every row is a
+  // single — callers stay on the exact legacy path.
+  function groupRows(rows) {
+    if (!state.groupInv) return rows.map(row => ({ type: "single", row }));
+    const buckets = new Map();   // key → members[]   (insertion order = sorted order)
+    const order = [];            // render order: group keys + singleton sentinels
+    rows.forEach(row => {
+      const key = _spoolGroupKey(row);
+      if (key == null) { order.push({ single: row }); return; }
+      let arr = buckets.get(key);
+      if (!arr) { arr = []; buckets.set(key, arr); order.push({ groupKey: key }); }
+      arr.push(row);
+    });
+    const items = [];
+    order.forEach(o => {
+      if (o.single) { items.push({ type: "single", row: o.single }); return; }
+      const members = buckets.get(o.groupKey);
+      if (members.length === 1) { items.push({ type: "single", row: members[0] }); return; }
+      let totalAvail = 0, totalCap = 0;
+      members.forEach(m => {
+        if (m.weightAvailable != null) totalAvail += Number(m.weightAvailable) || 0;
+        if (m.capacity != null)        totalCap   += Number(m.capacity) || 0;
+      });
+      items.push({
+        type: "group", key: o.groupKey, members, rep: members[0],
+        count: members.length, totalAvail, totalCap,
+      });
+    });
+    return items;
   }
 
   // ── Keyed-diff helpers for grid / table ────────────────────────────────────
@@ -5565,7 +5706,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           <span class="card-weight">${r.weightAvailable!=null ? r.weightAvailable+" g" : "-"}</span>
           <span style="display:flex;gap:3px;align-items:center">${badge}</span>
         </div>
-        ${pct!==null ? `<div class="card-bar"><span style="width:${pct}%"></span></div>` : ""}
+        ${pct!==null ? `<div class="card-bar"><span style="width:${pct}%;background:${fillBarColor(pct)}"></span></div>` : ""}
       </div>`;
   }
 
@@ -5638,7 +5779,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           <span class="card-weight">${r.weightAvailable!=null ? r.weightAvailable+" g" : "-"}</span>
           <span style="display:flex;gap:3px;align-items:center">${badge}</span>
         </div>
-        ${pct!==null ? `<div class="card-bar"><span style="width:${pct}%"></span></div>` : ""}`;
+        ${pct!==null ? `<div class="card-bar"><span style="width:${pct}%;background:${fillBarColor(pct)}"></span></div>` : ""}`;
     }
 
     card._sig = _rowSignature(r);
@@ -5674,12 +5815,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     let wCell = "-";
     if (r.weightAvailable != null) {
       wCell = `${r.weightAvailable} g`;
-      if (r.capacity) { const p = Math.max(0,Math.min(100,Math.round(r.weightAvailable/r.capacity*100))); wCell += `<span class="bar" title="${p}%"><span style="width:${p}%"></span></span>`; }
+      if (r.capacity) { const p = Math.max(0,Math.min(100,Math.round(r.weightAvailable/r.capacity*100))); wCell += `<span class="bar" title="${p}%"><span style="width:${p}%;background:${fillBarColor(p)}"></span></span>`; }
     }
     return `
       <td class="thumb-cell">${thumbHTML(r, 50)}</td>
       <td>${tierBadgeHTML(r)}</td>
-      <td>${esc(v(r.material))}</td>
+      <td>${esc(materialWithAspect(r))}</td>
       <td>${esc(v(r.brand))}</td>
       <td class="color-cell">${swatch}</td>
       <td>${esc(v(r.colorName) !== "-" ? r.colorName : [r.aspect1, r.aspect2].filter(a => a && a !== "-" && a !== "None").join(" ") || r.colorName)}</td>
@@ -5706,24 +5847,140 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     tr._sig = _rowSignature(r);
   }
 
+  // Aggregate weight bar + total shown on a group header's weight cell.
+  function _groupWeightCell(g) {
+    let cell = `${g.totalAvail} g`;
+    if (g.totalCap) {
+      const p = Math.max(0, Math.min(100, Math.round(g.totalAvail / g.totalCap * 100)));
+      cell += `<span class="bar" title="${p}%"><span style="width:${p}%;background:${fillBarColor(p)}"></span></span>`;
+    }
+    return cell;
+  }
+
+  function _groupHeaderInnerHTML(g) {
+    const rep = g.rep;
+    const swatch = colorCircleHTML(rep, 28);
+    const name = v(rep.colorName) !== "-"
+      ? rep.colorName
+      : [rep.aspect1, rep.aspect2].filter(a => a && a !== "-" && a !== "None").join(" ") || rep.material;
+    const countTitle = esc(t("invGroupCount", { n: g.count }));
+    return `
+      <td class="thumb-cell">
+        <span class="group-thumb-badge">
+          ${thumbHTML(rep, 50, { badges: false })}
+          <span class="group-count-badge" title="${countTitle}">${g.count}</span>
+        </span>
+      </td>
+      <td>${tierBadgeHTML(rep)}</td>
+      <td>${esc(materialWithAspect(rep))}</td>
+      <td>${esc(v(rep.brand))}</td>
+      <td class="color-cell">${swatch}</td>
+      <td><span class="group-name">${esc(name)}</span></td>
+      <td style="font-variant-numeric:tabular-nums">${_groupWeightCell(g)}</td>
+      <td style="font-variant-numeric:tabular-nums">${g.totalCap ? g.totalCap + " g" : "-"}</td>
+      <td></td>`;
+  }
+
+  // Signature of every value rendered on a group header → skip DOM work when
+  // a Firestore push didn't change any aggregate / representative field.
+  function _groupHeaderSig(g, collapsed) {
+    return [
+      g.key, g.count, g.totalAvail, g.totalCap,
+      collapsed ? 1 : 0,
+      g.rep.colorHex || "", g.rep.colorHex2 || "", g.rep.colorHex3 || "",
+      (g.rep.colorList || []).join(","), g.rep.colorType || "",
+      g.rep.material || "", g.rep.brand || "", g.rep.colorName || "",
+      g.rep.imgUrl || "", g.rep.isPlus ? 1 : 0, g.rep.isCloud ? 1 : 0,
+    ].join("|");
+  }
+
+  function _createGroupHeaderRow(g) {
+    const tr = document.createElement("tr");
+    tr.className = "group-header";
+    tr.dataset.groupKey = g.key;
+    const collapsed = !_expandedGroups.has(g.key);
+    tr.classList.toggle("group-collapsed", collapsed);
+    tr.innerHTML = _groupHeaderInnerHTML(g);
+    tr.addEventListener("click", () => _toggleGroupExpanded(g.key));
+    tr._sig = _groupHeaderSig(g, collapsed);
+    return tr;
+  }
+
+  function _updateGroupHeaderRow(tr, g) {
+    const collapsed = !_expandedGroups.has(g.key);
+    tr.classList.toggle("group-collapsed", collapsed);
+    tr.innerHTML = _groupHeaderInnerHTML(g);
+    tr._sig = _groupHeaderSig(g, collapsed);
+  }
+
+  // Decorate a member row with its group attributes (indent + group ownership).
+  function _decorateMemberRow(tr, groupKey) {
+    tr.classList.add("group-child");
+    tr.dataset.group = groupKey;
+  }
+
+  // Toggle one group's expanded state then re-render the table list. The
+  // keyed-diff keeps it flash-free; applyInventoryFilter() re-applies the
+  // (collapsed + search) visibility as the final authority.
+  function _toggleGroupExpanded(key) {
+    if (_expandedGroups.has(key)) _expandedGroups.delete(key);
+    else _expandedGroups.add(key);
+    renderTable(allDisplayRows());
+    applyInventoryFilter();
+  }
+
   function renderTable(rows) {
     const tbody = $("invBody");
     const existing = new Map();
-    tbody.querySelectorAll("tr").forEach(el => existing.set(el.dataset.id, el));
-    const seen = new Set();
-    rows.forEach((r, idx) => {
-      seen.add(r.spoolId);
-      let tr = existing.get(r.spoolId);
-      const newSig = _rowSignature(r);
-      if (!tr) {
-        tr = _createTableRow(r);
-      } else if (tr._sig !== newSig) {
-        _updateTableRow(tr, r);
-      }
-      const expected = tbody.children[idx];
-      if (expected !== tr) tbody.insertBefore(tr, expected || null);
+    // Key by spoolId for member/single rows, "grp:<key>" for group headers.
+    tbody.querySelectorAll("tr").forEach(el => {
+      const k = el.dataset.groupKey ? "grp:" + el.dataset.groupKey : el.dataset.id;
+      existing.set(k, el);
     });
-    existing.forEach((el, id) => { if (!seen.has(id)) el.remove(); });
+    const seen = new Set();
+    let idx = 0;
+    const place = node => {
+      const expected = tbody.children[idx];
+      if (expected !== node) tbody.insertBefore(node, expected || null);
+      idx++;
+    };
+    groupRows(rows).forEach(item => {
+      if (item.type === "single") {
+        const r = item.row;
+        const key = r.spoolId;
+        seen.add(key);
+        let tr = existing.get(key);
+        const newSig = _rowSignature(r);
+        if (!tr || tr.dataset.groupKey) { tr = _createTableRow(r); }
+        else if (tr._sig !== newSig) { _updateTableRow(tr, r); }
+        // A row that used to be a group member must shed its indent.
+        tr.classList.remove("group-child");
+        delete tr.dataset.group;
+        place(tr);
+        return;
+      }
+      // Group: header row first, then its members (indented).
+      const g = item;
+      const hkey = "grp:" + g.key;
+      seen.add(hkey);
+      let header = existing.get(hkey);
+      const collapsed = !_expandedGroups.has(g.key);
+      const hsig = _groupHeaderSig(g, collapsed);
+      if (!header || !header.dataset.groupKey) { header = _createGroupHeaderRow(g); }
+      else if (header._sig !== hsig) { _updateGroupHeaderRow(header, g); }
+      place(header);
+      g.members.forEach(m => {
+        const key = m.spoolId;
+        seen.add(key);
+        let tr = existing.get(key);
+        const newSig = _rowSignature(m);
+        if (!tr || tr.dataset.groupKey) { tr = _createTableRow(m); }
+        else if (tr._sig !== newSig) { _updateTableRow(tr, m); }
+        _decorateMemberRow(tr, g.key);
+        place(tr);
+      });
+    });
+    existing.forEach((el, k) => { if (!seen.has(k)) el.remove(); });
   }
 
   /* ── view toggle ── */
@@ -5753,6 +6010,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       try { acuReleaseCloudCameras(); } catch (_) {} // leave Agora channels when off the wall
     }
     renderInventory();
+    _syncGroupToggleBtn();
     // Safety re-subscribe when switching to rack mode (handles users connected before this feature)
     if (mode === "rack" && !state.unsubRacks && state.activeAccountId) {
       subscribeRacks(state.activeAccountId);
@@ -5778,6 +6036,35 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   $("btnViewPrinter")?.addEventListener("click",      () => setViewMode("printer"));
   $("btnViewPrinterTable")?.addEventListener("click", () => setViewMode("printer-table"));
   $("btnViewCam")?.addEventListener("click",          () => setViewMode("printer-cam"));
+
+  // ── Group-identical-spools toggle ──────────────────────────────────────────
+  // Reflect the active state on the button + only show it in Table/Grid modes
+  // (grouping is meaningless in rack / printer views).
+  function _syncGroupToggleBtn() {
+    const cb = $("btnGroupInv");
+    if (cb && cb.checked !== !!state.groupInv) cb.checked = !!state.groupInv;
+    const label = $("btnGroupInvLabel");
+    // Always visible — it's a persistent on/off switch. Grouping affects the
+    // Table. Explanation shown via a CSS hover bubble (data-tooltip), not title.
+    if (label) label.dataset.tooltip = state.groupInv ? t("invGroupOn") : t("invGroupOff");
+  }
+  $("btnGroupInv")?.addEventListener("change", (e) => {
+    state.groupInv = !!e.target.checked;
+    localStorage.setItem("tigertag.inv.group", state.groupInv ? "true" : "false");
+    // Firestore sync (cross-device, mirrors the lang pref). Writes the owner's
+    // own prefs even in friend view (currentUser is always the owner).
+    const user = fbAuth().currentUser;
+    if (user) {
+      fbDb().collection("users").doc(user.uid)
+        .collection("prefs").doc("app")
+        .set({ groupInv: state.groupInv }, { merge: true })
+        .catch(err => console.warn("[Firestore] saveGroupInv:", err.message));
+    }
+    _syncGroupToggleBtn();
+    renderInventory();
+  });
+  _syncGroupToggleBtn();
+
   // Restore active button on boot
   if (state.viewMode === "grid") { $("btnViewGrid").classList.add("active"); $("btnViewTable").classList.remove("active"); }
   else if (state.viewMode === "rack") {
@@ -6263,6 +6550,28 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // Calls rawApi() via IPC (same path as RFID scan), then applies _api fields
   // to the existing Firestore doc. silent=true suppresses "no change" toast
   // and error toast (used for automatic background refresh on panel open).
+  // Reverse-resolve a TigerTag DB label/name to its numeric id. The catalogue
+  // API returns string labels ("Rosa3D", "PLA", "Basic") while chips store ids
+  // (id_brand, id_material, id_aspect1/2) — this maps back. Case-insensitive,
+  // returns null when no match (caller then leaves the field untouched).
+  function _dbIdByLabel(key, field, value) {
+    if (value == null || value === "") return null;
+    const list = state.db[key] || [];
+    const target = String(value).trim().toLowerCase();
+    const hit = list.find(x => String(x[field] ?? "").trim().toLowerCase() === target);
+    return hit ? hit.id : null;
+  }
+  // Parse "#RRGGBB" / "#RRGGBBAA" → { r, g, b, a }. Missing alpha defaults to 255.
+  function _hexToRgba(hex) {
+    if (!hex) return null;
+    let s = String(hex).trim().replace(/^#/, "");
+    if (s.length === 6) s += "FF";
+    if (s.length !== 8) return null;
+    const r = parseInt(s.slice(0, 2), 16), g = parseInt(s.slice(2, 4), 16),
+          b = parseInt(s.slice(4, 6), 16), a = parseInt(s.slice(6, 8), 16);
+    return [r, g, b, a].some(Number.isNaN) ? null : { r, g, b, a };
+  }
+
   async function _refreshApiData(r, { silent = false } = {}) {
     if (!window.electronAPI?.refreshApiData) return;
     const rawDoc = state.inventory[r.spoolId];
@@ -6293,9 +6602,48 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (api.filament?.refill)              update.info1              = true;
       if (api.filament?.recycled)            update.info2              = true;
       if (api.filament?.filled)              update.info3              = true;
+      // ── Catalogue identity → local ids ────────────────────────────────────
+      // The API returns string labels; the chip stores numeric ids. Reverse-
+      // resolve so a chip whose ids drifted from the catalogue gets corrected
+      // (root cause of two same-id_product spools showing different brand/mat).
+      const _brandId = _dbIdByLabel("brand", "name", api.brand);
+      if (_brandId != null)                  update.id_brand           = _brandId;
+      const _matId = _dbIdByLabel("material", "label", api.filament?.material);
+      if (_matId != null)                    update.id_material        = _matId;
+      const _asp1 = _dbIdByLabel("aspect", "label", api.filament?.aspect1);
+      if (_asp1 != null)                     update.id_aspect1         = _asp1;
+      if (api.filament && "aspect2" in api.filament) {
+        // Explicit aspect2, or "None" (255) when the catalogue has none.
+        const _asp2 = api.filament.aspect2 ? _dbIdByLabel("aspect", "label", api.filament.aspect2) : 255;
+        if (_asp2 != null)                   update.id_aspect2         = _asp2;
+      }
+      // ── Print temperatures (chip data2..data7) ────────────────────────────
+      if (api.nozzle?.temp_min != null)      update.data2              = api.nozzle.temp_min;
+      if (api.nozzle?.temp_max != null)      update.data3              = api.nozzle.temp_max;
+      if (api.dryer?.temp != null)           update.data4              = api.dryer.temp;
+      if (api.dryer?.time != null)           update.data5              = api.dryer.time;
+      if (api.bed?.temp_min != null)         update.data6              = api.bed.temp_min;
+      if (api.bed?.temp_max != null)         update.data7              = api.bed.temp_max;
+      // ── Colour (RRGGBBAA) → chip RGBA channels ────────────────────────────
+      const _rgba = _hexToRgba(api.filament?.color || api.color);
+      if (_rgba) { update.color_r = _rgba.r; update.color_g = _rgba.g; update.color_b = _rgba.b; update.color_a = _rgba.a; }
       if (Object.keys(update).length === 0) {
         if (!silent) toast(t("toolRefreshApiNoChange"), "info");
         return;
+      }
+      // Several refreshed fields live on the physical chip. If any of them
+      // actually CHANGED value, the tag is now out of sync with the record →
+      // flag it for re-burn (the chip-pending badge; cleared by the burn flow).
+      // Compared against the current doc so an already-correct chip isn't
+      // falsely flagged. Cloud entries have no chip → never flagged.
+      const CHIP_FIELDS = [
+        "id_brand", "id_material", "id_aspect1", "id_aspect2",
+        "data2", "data3", "data4", "data5", "data6", "data7",
+        "color_r", "color_g", "color_b", "color_a",
+        "name", "series", "sku", "barcode",
+      ];
+      if (!r.isCloud && CHIP_FIELDS.some(k => k in update && update[k] !== rawDoc[k])) {
+        update.needUpdateAt = Date.now();
       }
       update.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
       const uid = fbAuth().currentUser?.uid;
@@ -6682,6 +7030,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
 
     const fill = $("wbFill");
     if (fill && fill.style.width !== pctW) fill.style.width = pctW;
+    if (fill) { const c = fillBarColor(pct); if (fill.style.background !== c) fill.style.background = c; }
 
     // The manual-edit form (#wbInlineEdit) is shown when the user clicks the
     // pencil; while it's visible they are actively typing into #wbInlineInput.
@@ -7048,7 +7397,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     function syncFromValue(val) {
       const w = Math.max(0, Math.min(val, cap));
       slider.value = w;
-      fill.style.width = cap ? Math.round(w / cap * 100) + "%" : "0%";
+      const wpct = cap ? Math.round(w / cap * 100) : 0;
+      fill.style.width = wpct + "%";
+      fill.style.background = fillBarColor(wpct);
       display.innerHTML = `${w}<span>g</span>`;
       // Keep inline input in sync if open
       const inp = $("wbInlineInput");
@@ -7319,6 +7670,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     _syncPanels(); // reset offset + hide the spool card's close tab
     _lastDetailSig = "";
     _lastDetailStructuralSig = "";
+    // Deselect the associated row/card so its orange highlight clears when the
+    // side card closes (mirrors the selection set in openDetail).
+    state.selected = null;
+    document.querySelectorAll("[data-id].selected").forEach(el => el.classList.remove("selected"));
   }
 
   // Re-evaluate the open detail panel after a Firestore snapshot. Three paths:
@@ -7751,7 +8106,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
             <div class="wb-cap">${cap >= 1000 ? (cap/1000).toFixed(cap % 1000 === 0 ? 0 : 1) + ' kg' : cap + ' g'} total</div>
           </div>
           <div class="wb-track wb-track--ro">
-            <div class="wb-fill" style="width:${pctFill}%"></div>
+            <div class="wb-fill" style="width:${pctFill}%;background:${fillBarColor(pctFill)}"></div>
           </div>
           <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:5px">
             <span>0 g</span><span>${cap} g</span>
@@ -7785,7 +8140,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
             <div class="wb-cap">${cap >= 1000 ? (cap/1000).toFixed(cap % 1000 === 0 ? 0 : 1) + ' kg' : cap + ' g'} total</div>
           </div>
           <div class="wb-track">
-            <div class="wb-fill" id="wbFill" style="width:${pctFill}%"></div>
+            <div class="wb-fill" id="wbFill" style="width:${pctFill}%;background:${fillBarColor(pctFill)}"></div>
             <input type="range" id="weightSlider" min="0" max="${cap}" step="1" value="${curW}" />
           </div>
           <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:5px">
@@ -16150,9 +16505,21 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     return n.text || "";
   }
 
-  // Unread = pending friend requests + notifications not yet read.
+  // Unread = pending friend requests + local notifications + Firestore notifs not yet read.
   function _notifUnreadCount() {
-    return (state.friendRequests || []).length + (state.notifications || []).filter(n => !n.read).length;
+    return (state.friendRequests || []).length
+         + (state.localNotifications || []).length
+         + (state.notifications || []).filter(n => !n.read).length;
+  }
+
+  // Upsert a local (per-install, non-Firestore) notification keyed by id, and
+  // refresh the center + badge. Used for the app-update available/ready events.
+  function _setLocalNotif(notif) {
+    const list = state.localNotifications || (state.localNotifications = []);
+    const i = list.findIndex(n => n.id === notif.id);
+    if (i >= 0) list[i] = notif; else list.push(notif);
+    renderNotifBadge();
+    renderNotifCenter();
   }
   function renderNotifBadge() {
     const badge = $("notifBadge");
@@ -16167,11 +16534,21 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const empty = $("notifEmpty");
     if (!list) return;
     const reqs   = state.friendRequests || [];
+    const locals = state.localNotifications || [];
     const notifs = state.notifications  || [];
-    if (empty) empty.classList.toggle("hidden", !!(reqs.length || notifs.length));
-    // Actionable friend requests first, then dismissible general notifications.
+    if (empty) empty.classList.toggle("hidden", !!(reqs.length || locals.length || notifs.length));
+    // Order: actionable friend requests, then local (app-update) notices, then
+    // dismissible general notifications.
     const reqHtml = reqs.map(r =>
       `<div class="fp-req notif-req" data-uid="${esc(r.uid)}">${_reqRowInnerHtml(r)}</div>`).join("");
+    const localHtml = locals.map(n => `
+      <div class="notif-item notif-item--unread notif-item--local" data-local-id="${esc(n.id)}">
+        <span class="notif-ic"><span class="icon icon-${n.icon === "download" ? "download" : "refresh"} icon-14"></span></span>
+        <div class="fp-friend-main">
+          <div class="notif-text">${esc(n.text)}${n.version ? ` (v${esc(n.version)})` : ""}</div>
+        </div>
+        ${n.action === "restart" ? `<button class="primary sm notif-restart">${esc(t("btnRestartUpdate"))}</button>` : ""}
+      </div>`).join("");
     const notifHtml = notifs.map(n => {
       const subject = { displayName: n.fromName, photoURL: n.photoURL || null, color: n.color || null };
       const when = n.createdAt ? timeAgo(n.createdAt.seconds ? n.createdAt.seconds * 1000 : n.createdAt) : "";
@@ -16184,12 +16561,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         <button class="fp-friend-btn notif-dismiss" title="${esc(t('cancelLabel'))}"><span class="icon icon-close icon-13"></span></button>
       </div>`;
     }).join("");
-    list.innerHTML = reqHtml + notifHtml;
+    list.innerHTML = reqHtml + localHtml + notifHtml;
     list.querySelectorAll(".notif-req").forEach(row => {
       const r = reqs.find(x => x.uid === row.dataset.uid);
       if (r) _wireReqRow(row, r);
     });
-    list.querySelectorAll(".notif-item").forEach(row => {
+    list.querySelectorAll(".notif-restart").forEach(btn =>
+      btn.addEventListener("click", () => window.electronAPI?.installUpdate?.()));
+    list.querySelectorAll(".notif-item:not(.notif-item--local)").forEach(row => {
       row.querySelector(".notif-dismiss")?.addEventListener("click", () => _dismissNotif(row.dataset.id));
     });
   }
@@ -17250,15 +17629,24 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       const doc = await fbDb(uid).collection("users").doc(uid)
         .collection("prefs").doc("app").get();
       if (!doc.exists) return;
-      const cloudLang = doc.data().lang;
-      if (!cloudLang || !state.i18n[cloudLang] || cloudLang === state.lang) return;
-      // Remote has a different (more recent) language — apply it
-      state.lang = cloudLang;
-      localStorage.setItem("tigertag.lang", cloudLang);
-      const accounts = getAccounts();
-      const acc = accounts.find(a => a.id === uid);
-      if (acc) { acc.lang = cloudLang; saveAccounts(accounts); }
-      applyLang(cloudLang);
+      const data = doc.data();
+      // Language — apply if remote differs (more recent on another device).
+      const cloudLang = data.lang;
+      if (cloudLang && state.i18n[cloudLang] && cloudLang !== state.lang) {
+        state.lang = cloudLang;
+        localStorage.setItem("tigertag.lang", cloudLang);
+        const accounts = getAccounts();
+        const acc = accounts.find(a => a.id === uid);
+        if (acc) { acc.lang = cloudLang; saveAccounts(accounts); }
+        applyLang(cloudLang);
+      }
+      // Group-identical-spools toggle — apply if remote differs.
+      if (typeof data.groupInv === "boolean" && data.groupInv !== state.groupInv) {
+        state.groupInv = data.groupInv;
+        localStorage.setItem("tigertag.inv.group", data.groupInv ? "true" : "false");
+        _syncGroupToggleBtn();
+        renderInventory();
+      }
     } catch (err) {
       console.warn("[Firestore] syncLang:", err.message);
     }
@@ -17594,8 +17982,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       await docRef.set(doc, { merge: true });
     }
 
-    // Auto-update notification
-    window.electronAPI.onUpdateStatus(({ status }) => {
+    // Auto-update notification (banner + header icon + notification center)
+    window.electronAPI.onUpdateStatus(({ status, version }) => {
       const banner = $("updateBanner");
       const msg    = $("updateMsg");
       const btn    = $("btnInstallUpdate");
@@ -17608,6 +17996,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         icon?.classList.remove("hidden", "ready");
         icon?.classList.add("downloading");
         icon?.setAttribute("data-tooltip", t("updateDownloading").replace(/<[^>]*>/g, ""));
+        _setLocalNotif({ id: "update", icon: "refresh", text: t("notifUpdateAvailable"), version });
       } else if (status === 'ready') {
         msg.innerHTML = t("updateReady");
         btn.textContent = t("btnRestartUpdate");
@@ -17617,6 +18006,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         icon?.classList.remove("hidden", "downloading");
         icon?.classList.add("ready");
         icon?.setAttribute("data-tooltip", t("updateReady").replace(/<[^>]*>/g, ""));
+        _setLocalNotif({ id: "update", icon: "download", text: t("notifUpdateReady"), version, action: "restart" });
       }
     });
     $("btnInstallUpdate").addEventListener("click", () => window.electronAPI.installUpdate());

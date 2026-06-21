@@ -5,6 +5,24 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.10.15 — 2026-06-21
+
+### Added
+
+- **Group identical spools.** The inventory **Table** can now fold identical spools into a single expandable row with a count badge — a shelf full of the same filament reads as one line instead of many. Click a group to open its spools (each still opens its own detail card); searching auto-opens matching groups. A switch in the toolbar turns grouping on/off, and your choice is remembered across your devices. TigerTag+ spools group by product; your own spools group by brand + material + colour + finish. Display-only — nothing in your data changes.
+- **Update notifications.** When an app update is downloading or ready to install, you now get a notice in the notification bell — the "ready" one has a one-click **Restart** button.
+
+### Changed
+
+- **"Refresh from API" now updates everything.** Refreshing a TigerTag+ spool from the catalogue now also corrects its **brand, material, finish, print temperatures and colour** — not just the name, image and documents — fixing spools whose details had drifted from the catalogue. If a value stored on the physical tag changes, the spool is flagged so you know to re-write the chip.
+- **Colour-coded filament gauge.** The "weight available" bar now changes colour with how much filament is left — red below 20%, orange below 50%, green above — matching the mobile app. Applied across the table, grid, groups and the spool detail panel.
+
+### Fixed
+
+- **No more blinking weight bar.** The weight gauge in the spool detail panel no longer pulses while you drag the slider.
+
+---
+
 ## v1.10.14 — 2026-06-21
 
 ### Added
