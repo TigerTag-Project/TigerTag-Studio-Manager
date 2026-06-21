@@ -105,6 +105,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // True when running inside Electron
   isElectron: true,
 
+  // ── Deep links (tigertag://friend/<code>) ──────────────────────────────
+  // Main forwards a clicked deep link here. The renderer also calls
+  // deepLinkReady() once its handler is wired so main can flush a link that
+  // arrived before the UI finished loading (cold-start launch).
+  onDeepLink:    (cb) => ipcRenderer.on('deep-link', (_, url) => cb(url)),
+  deepLinkReady: ()   => ipcRenderer.send('deep-link:ready'),
+
   // Called when a card is scanned — callback(uid) — uid is uppercase hex
   onRfid: (callback) =>
     ipcRenderer.on('rfid-uid', (_, uid) => callback(uid)),

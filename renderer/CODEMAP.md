@@ -37,12 +37,12 @@ L12688-13275   Add-printer flow (brand picker, form, tutorials, submit)
 L13276-14164   Racks CRUD + slots + locking + auto-fill + masonry + tooltip
 L14165-15275   renderRackView + rack drag-drop + rack edit modal
 L15276-15777   Friend view + add-friend modal
-L15778-16153   Display-name setup + friend requests + blacklist
-L16154-16381   Public/private keys + user profile sync
-L16382-16646   Custom avatar upload + Discord-style cropper
-L16647-17062   syncUserDoc + session telemetry + language sync
-L17063-17078   Init bootstrap (loadLocales → loadLookups → runMigration → initAuth)
-L17079-17412   Electron RFID integration (readers, dual-scan, NFC processor, chip write)
+L15778-16350   Display-name setup + friend requests + blacklist
+L16351-16578   Public/private keys + user profile sync
+L16579-16843   Custom avatar upload + Discord-style cropper
+L16844-17259   syncUserDoc + session telemetry + language sync
+L17260-17275   Init bootstrap (loadLocales → loadLookups → runMigration → initAuth)
+L17276-17609   Electron RFID integration (readers, dual-scan, NFC processor, chip write)
 ```
 
 ---
@@ -349,7 +349,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Display name + friend requests (L15778-16153)
+## Display name + friend requests (L15778-16350)
 
 | L | What | Anchors |
 |---|---|---|
@@ -359,7 +359,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Keys + profile sync (L16154-16381)
+## Keys + profile sync (L16351-16578)
 
 | L | What | Anchors |
 |---|---|---|
@@ -368,7 +368,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Custom avatar (L16382-16646)
+## Custom avatar (L16579-16843)
 
 | L | What | Anchors |
 |---|---|---|
@@ -377,7 +377,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## User doc sync + telemetry + bootstrap (L16647-17078)
+## User doc sync + telemetry + bootstrap (L16844-17275)
 
 | L | What | Anchors |
 |---|---|---|
@@ -387,7 +387,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Electron RFID integration (L17079-17412)
+## Electron RFID integration (L17276-17609)
 
 | L | What | Anchors |
 |---|---|---|

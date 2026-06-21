@@ -5,6 +5,19 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.10.14 — 2026-06-21
+
+### Added
+
+- **Shareable friend links.** The Friends panel has a new **"Share link"** button — it copies a link (`cdn.tigertag.io/friend/…`) you can send anywhere. When a friend opens it on their computer, Tiger Studio Manager pops to the front with the **Add-friend search already filled in** — they just press **Send request**. (A link can never add or accept anyone on its own — you always confirm.) If they don't have the app yet, the page offers a download; on a phone it shows the code to add manually.
+
+### Fixed
+
+- **Friend avatars show up right away.** The add-friend search preview — and a friend you just accepted — now display their real profile photo immediately, instead of only after restarting the app.
+- **The notification center responds instantly.** Accepting / declining / blocking a friend request, or dismissing a notification, now clears it the moment you click instead of lingering for a second.
+
+---
+
 ## v1.10.13 — 2026-06-19
 
 ### Added

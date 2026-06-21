@@ -1210,6 +1210,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     $("card-welcome").classList.add("hidden");
     state.invLoading = true;
     renderInventory(); // show spinner immediately, before first Firestore snapshot
+    // A friend deep link that arrived before sign-in was queued — open it now
+    // that we're authenticated (the add-friend lookup needs auth).
+    if (_pendingFriendCode) {
+      const c = _pendingFriendCode; _pendingFriendCode = null;
+      setTimeout(() => _openAddFriendWithCode(c), 300);
+    }
   }
   function setDisconnected() {
     state.displayName = null; state.keyValid = null;
@@ -15802,6 +15808,35 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   }
   function closeAddFriendModal() { $("addFriendOverlay").classList.remove("open"); }
 
+  // ── Friend deep links (tigertag://friend/<code>) ───────────────────────
+  // A shared friend link (cdn.tigertag.io/friend/<code> → tigertag://friend/
+  // <code>) opens the app here. We PRE-FILL the add-friend search with the
+  // code and run the lookup — the user still presses "Send request", so a link
+  // can never auto-add or auto-accept anyone.
+  let _pendingFriendCode = null;
+  function _openAddFriendWithCode(code) {
+    const m = String(code || "").toUpperCase().match(/^([A-Z0-9]{3})-([A-Z0-9]{3})$/);
+    if (!m) return;
+    openAddFriendModal();           // clears the fields + opens the modal
+    $("adfA").value = m[1];
+    $("adfB").value = m[2];
+    _adfChanged();                  // fires the debounced preview lookup
+  }
+  function _handleFriendDeepLink(url) {
+    // tigertag://friend/XXX-YYY (also tolerant of tigertag://XXX-YYY).
+    const m = String(url || "").toUpperCase().match(/([A-Z0-9]{3})-([A-Z0-9]{3})(?![A-Z0-9])/);
+    if (!m) return;
+    const code = m[1] + "-" + m[2];
+    let user = null;
+    try { user = fbAuth().currentUser; } catch (_) {}
+    if (!user) { _pendingFriendCode = code; return; }   // flushed by setConnected
+    _openAddFriendWithCode(code);
+  }
+  if (window.electronAPI?.onDeepLink) {
+    window.electronAPI.onDeepLink((url) => { try { _handleFriendDeepLink(url); } catch (e) { console.warn("[deep-link]", e); } });
+    window.electronAPI.deepLinkReady();   // tell main to flush any cold-start link
+  }
+
   $("addFriendClose").addEventListener("click", closeAddFriendModal);
   $("adfCancel").addEventListener("click", closeAddFriendModal);
 
@@ -15830,9 +15865,19 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         _adfFoundUid = targetUid; _adfFoundName = p.displayName;
         const initials = (p.displayName || "?").split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
         const color = profileColor(p) || friendColorFallback(targetUid);
-        $("adfPreviewAvatar").textContent = initials;
-        $("adfPreviewAvatar").style.background = color;
-        $("adfPreviewAvatar").style.color = readableTextOn(color);
+        const av = $("adfPreviewAvatar");
+        av.querySelector(".frq-avatar-photo")?.remove();   // clear any previous photo
+        av.textContent = p.photoURL ? "" : initials;       // no letter when there's an avatar
+        av.style.background = color;
+        av.style.color = readableTextOn(color);
+        if (p.photoURL) {
+          const img = document.createElement("img");
+          img.className = "frq-avatar-photo";
+          img.alt = "";
+          img.onerror = () => { img.remove(); av.textContent = initials; };
+          img.src = p.photoURL;
+          av.appendChild(img);
+        }
         $("adfPreviewName").textContent = p.displayName || val;
         $("adfPreview").classList.remove("hidden");
         $("adfResult").textContent = "";
@@ -15902,10 +15947,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // Live search filter
   $("fpSearch")?.addEventListener("input", () => renderFriendsList());
 
-  $("btnCopyPublicKey").addEventListener("click", () => {
+  // Share a one-click invite LINK (not just the code): opens the recipient's
+  // Studio Manager and pre-fills the add-friend search via the cdn landing page.
+  $("btnShareFriendLink")?.addEventListener("click", () => {
     if (!state.publicKey) return;
-    navigator.clipboard.writeText(state.publicKey).then(() => {
-      const btn = $("btnCopyPublicKey");
+    const link = `https://cdn.tigertag.io/friend/${state.publicKey}`;
+    navigator.clipboard.writeText(link).then(() => {
+      const btn = $("btnShareFriendLink");
       btn.classList.add("fp-hero-btn--copied");
       setTimeout(() => btn.classList.remove("fp-hero-btn--copied"), 1500);
     });
@@ -16037,9 +16085,20 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       </div>`;
   }
   function _wireReqRow(row, r) {
-    row.querySelector(".fp-req-accept")?.addEventListener("click", async () => { await acceptFriendRequest(r.uid, r.displayName); });
-    row.querySelector(".fp-req-refuse")?.addEventListener("click", async () => { await refuseFriendRequest(r.uid); });
-    row.querySelector(".fp-req-block")?.addEventListener("click",  async () => { await blockUser(r.uid, r.displayName); });
+    // Drop the request optimistically so the row disappears the INSTANT the user
+    // clicks (the live friendRequests subscription reconciles right after, and
+    // re-adds it only if the action actually failed). We pass `r` to
+    // acceptFriendRequest so it still has the enriched avatar/colour even though
+    // we just removed the request from state.
+    const handle = (action) => {
+      state.friendRequests = (state.friendRequests || []).filter(x => x.uid !== r.uid);
+      renderNotifBadge();
+      renderFriendRequestsList();
+      Promise.resolve(action()).catch((e) => console.warn("[friend-req]", e));
+    };
+    row.querySelector(".fp-req-accept")?.addEventListener("click", () => handle(() => acceptFriendRequest(r.uid, r.displayName, r)));
+    row.querySelector(".fp-req-refuse")?.addEventListener("click", () => handle(() => refuseFriendRequest(r.uid)));
+    row.querySelector(".fp-req-block")?.addEventListener("click",  () => handle(() => blockUser(r.uid, r.displayName)));
   }
 
   // Pending incoming requests, listed in the Friends panel so they can be
@@ -16138,6 +16197,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function _dismissNotif(id) {
     const uid = state.activeAccountId;
     if (!uid || !id) return;
+    // Remove optimistically so the row disappears on click (subscription confirms).
+    state.notifications = (state.notifications || []).filter(n => n.id !== id);
+    renderNotifBadge();
+    renderNotifCenter();
     fbDb(uid).collection("users").doc(uid).collection("notifications").doc(id).delete().catch(() => {});
   }
 
@@ -16166,7 +16229,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
 
   // Accept a friend request → bidirectional add (rules verify only friendship presence,
   // no key check — see firestore.rules /inventory).
-  async function acceptFriendRequest(requesterUid, displayName) {
+  async function acceptFriendRequest(requesterUid, displayName, req) {
     const user = fbAuth().currentUser;
     if (!user) return;
     const db    = fbDb(user.uid); // named instance — stable across async operations
@@ -16186,8 +16249,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // Remove the pending request
     batch.delete(myRef.collection("friendRequests").doc(requesterUid));
     await batch.commit();
+    // Carry the requester's already-resolved avatar/colour (enriched on the
+    // friendRequests doc) into the optimistic friend object — otherwise this
+    // bare object clobbers what the live userProfiles listener sets, and the
+    // avatar wouldn't appear until the next launch.
+    const _req = req || (state.friendRequests || []).find(r => r.uid === requesterUid);
     state.friends = [...state.friends.filter(f => f.uid !== requesterUid),
-      { uid: requesterUid, displayName, addedAt: Date.now() }];
+      { uid: requesterUid, displayName, photoURL: _req?.photoURL || null, color: _req?.color || null, addedAt: Date.now() }];
     // Notify the requester that I accepted — written to THEIR notifications
     // subcollection. Kept OUT of the batch and fire-and-forget so a missing
     // Firestore rule can never roll back the (successful) friendship above.

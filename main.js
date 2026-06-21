@@ -56,13 +56,62 @@ if (!_hasInstanceLock) {
   app.quit();
   process.exit(0);
 }
-app.on('second-instance', () => {
+app.on('second-instance', (_event, argv) => {
   if (mainWindow) {
     if (mainWindow.isMinimized()) mainWindow.restore();
     mainWindow.show();
     mainWindow.focus();
   }
+  // Windows / Linux: a `tigertag://…` click while the app is already running
+  // launches a 2nd instance whose argv carries the URL. Route it.
+  const url = _extractDeepLink(argv);
+  if (url) _handleDeepLink(url);
 });
+
+// ── Custom protocol — deep links (tigertag://friend/<code>) ─────────────────
+// Lets a shared friend link (the cdn.tigertag.io/friend/<code> landing page
+// redirects to tigertag://friend/<code>) open the app and pre-fill the
+// add-friend flow. The renderer parses the URL and only PRE-FILLS the code —
+// the user still confirms, so a link can never auto-add or auto-accept anyone.
+const DEEPLINK_SCHEME = 'tigertag';
+if (process.defaultApp) {
+  // Dev (electron launched with a script path): the scheme must point at the
+  // electron binary + this script so the OS can relaunch us with the URL.
+  if (process.argv.length >= 2) {
+    app.setAsDefaultProtocolClient(DEEPLINK_SCHEME, process.execPath, [path.resolve(process.argv[1])]);
+  }
+} else {
+  app.setAsDefaultProtocolClient(DEEPLINK_SCHEME);
+}
+let _pendingDeepLink = null;   // queued until the renderer signals it's ready
+let _rendererDeepLinkReady = false;
+function _extractDeepLink(argv) {
+  return (argv || []).find((a) => typeof a === 'string' && a.startsWith(DEEPLINK_SCHEME + '://')) || null;
+}
+function _handleDeepLink(url) {
+  if (!url) return;
+  if (_rendererDeepLinkReady && mainWindow && !mainWindow.isDestroyed()) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+    mainWindow.webContents.send('deep-link', url);
+  } else {
+    _pendingDeepLink = url;   // flushed on 'deep-link:ready'
+  }
+}
+// macOS delivers the URL here whether the app was already running or just
+// launched by the click.
+app.on('open-url', (event, url) => { event.preventDefault(); _handleDeepLink(url); });
+// Renderer is ready to receive deep links → flush any that arrived early.
+ipcMain.on('deep-link:ready', () => {
+  _rendererDeepLinkReady = true;
+  if (_pendingDeepLink) { const u = _pendingDeepLink; _pendingDeepLink = null; _handleDeepLink(u); }
+});
+// Cold start on Windows/Linux: the launch URL is in our own argv.
+{
+  const _coldLink = _extractDeepLink(process.argv);
+  if (_coldLink) _pendingDeepLink = _coldLink;
+}
 
 // ── Minimal static file server so location.protocol === 'http:' (required by Firebase Auth)
 const MIME = {
