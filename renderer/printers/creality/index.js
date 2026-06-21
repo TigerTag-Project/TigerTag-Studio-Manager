@@ -347,6 +347,25 @@ export function creActionFeed(printer, boxId, materialId, isFeed) {
   creSendSet(conn, { feedInOrOut: { boxId: Number(boxId), materialId: Number(materialId), isFeed: isFeed ? 1 : 0 } });
 }
 
+// Catalog model ids (data/printers/cre_printer_models.json) that physically have
+// the enclosed-printer fan trio: part (P0) + case (P1) + side/auxiliary (P2).
+// Everything else — open-frame machines (Hi, Ender-3 V4, SparkX i7) and any
+// unrecognized model (id "0") — has only the part-cooling fan. The firmware
+// reports all three *FanPct fields regardless of the hardware (a real Ender-3 V4
+// still pushes caseFanPct/auxiliaryFanPct = 0, see RETRO.md), so field presence
+// is not a reliable signal — we gate the extra fans by model instead.
+const CRE_MULTI_FAN_MODEL_IDS = new Set(["2", "3", "4", "5", "6", "7", "8", "9"]);
+
+// Returns the ordered list of fan telemetry keys this printer exposes in the UI.
+// Multi-fan models get all three; everything else (and unknown models) gets the
+// universal part-cooling fan only.
+function creFanKeysFor(p) {
+  const base = ["modelFanPct"];
+  if (CRE_MULTI_FAN_MODEL_IDS.has(String(p?.printerModelId || "")))
+    base.push("caseFanPct", "auxiliaryFanPct");
+  return base;
+}
+
 // Set a fan speed (0-100%) via the 9999 WS. `key` is the telemetry field; it maps
 // to the M106 fan index P0/P1/P2 (part/case/side — confirmed by capturing Creality
 // Print, see PROTOCOL §6.7). Sent as a `gcodeCmd` wrapper running `M106 P<i> S<0-255>`
@@ -1034,6 +1053,14 @@ function renderCreControlCard(p, conn) {
 
   const step    = conn._ctrlStep ?? 10;
   const pos      = creParsePos(d.curPosition);
+  // Fans present on this model — open-frame printers expose only the part fan
+  // (see CRE_MULTI_FAN_MODEL_IDS). Labelled per key so order stays part/case/side.
+  const fanLabels = {
+    modelFanPct:     ctx.t("creFanPart"),
+    caseFanPct:      ctx.t("creFanCase"),
+    auxiliaryFanPct: ctx.t("creFanSide"),
+  };
+  const fanKeys = creFanKeysFor(p);
   // One fan row: toggle icon + label + 1%-granular slider + live % readout.
   // Toggle/slider are wired in inventory.js (slider → creActionFan on release).
   const fanRow = (key, label) => {
@@ -1112,12 +1139,11 @@ function renderCreControlCard(p, conn) {
 
       </div>
 
-      <!-- Fans — part cooling, case, side. Live % from the connect snapshot, updated
-           optimistically on change. Case + side override the chamber-temp auto control. -->
+      <!-- Fans — part cooling always; case + side only on enclosed K-series
+           (creFanKeysFor). Live % from the connect snapshot, updated optimistically
+           on change. Case + side override the chamber-temp auto control. -->
       <div class="cre-fan-section">
-        ${fanRow("modelFanPct", ctx.t("creFanPart"))}
-        ${fanRow("caseFanPct", ctx.t("creFanCase"))}
-        ${fanRow("auxiliaryFanPct", ctx.t("creFanSide"))}
+        ${fanKeys.map(key => fanRow(key, fanLabels[key])).join("")}
       </div>
 
     </section>`;
