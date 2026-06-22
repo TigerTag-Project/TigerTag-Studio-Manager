@@ -380,6 +380,15 @@
 </div>
 
 <!-- friends panel -->
+<!-- Spool-group panel (slide-in from right — lists the cards of a grid group).
+     Non-modal like the detail card; closed via its ✕ or the » close tab. -->
+<button class="pp-close-tab" id="groupCloseTab" title="Close" aria-label="Close" hidden>»</button>
+<div class="detail-panel group-panel" id="groupPanel">
+  <div class="panel-resize" id="groupResize"></div>
+  <button class="panel-close gp-panel-close" id="groupPanelClose" aria-label="Close">✕</button>
+  <div class="panel-body" id="groupPanelBody"></div>
+</div>
+
 <!-- Scales panel (slide-in from right — opens when clicking the scale health icon) -->
 <div class="panel-overlay" id="scalesOverlay"></div>
 <div class="detail-panel scales-panel" id="scalesPanel">

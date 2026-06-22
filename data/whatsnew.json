@@ -1,4 +1,84 @@
 {
+  "1.10.18": {
+    "date": "2026-06-22",
+    "items": [
+      {
+        "icon": "folder",
+        "title": {
+          "en": "Spool groups in Grid + a group panel",
+          "fr": "Groupes de bobines en Grille + panneau de groupe",
+          "de": "Spulengruppen im Raster + Gruppenpanel",
+          "es": "Grupos de bobinas en Cuadrícula + panel de grupo",
+          "it": "Gruppi di bobine in Griglia + pannello gruppo",
+          "zh": "网格视图的线轴分组 + 分组面板",
+          "pt": "Grupos de bobinas na Grelha + painel de grupo",
+          "pt-pt": "Grupos de bobinas na Grelha + painel de grupo",
+          "pl": "Grupy szpul w widoku siatki + panel grupy"
+        },
+        "body": {
+          "en": "Identical spools also collapse in Grid view into one deck card. Clicking a group (Grid or Table) opens a side panel listing every spool, with a dashboard overview at the top.",
+          "fr": "Les bobines identiques se regroupent aussi en vue Grille en une seule card empilée. Cliquer un groupe (Grille ou Table) ouvre un panneau listant chaque bobine, avec un tableau de bord en tête.",
+          "de": "Identische Spulen werden auch im Raster zu einer Stapel-Karte zusammengefasst. Ein Klick auf eine Gruppe (Raster oder Tabelle) öffnet ein Seitenpanel mit allen Spulen und einer Übersicht oben.",
+          "es": "Las bobinas idénticas también se agrupan en Cuadrícula en una sola tarjeta apilada. Al hacer clic en un grupo (Cuadrícula o Tabla) se abre un panel con todas las bobinas y un resumen arriba.",
+          "it": "Le bobine identiche si raggruppano anche in Griglia in un'unica card impilata. Cliccando un gruppo (Griglia o Tabella) si apre un pannello con tutte le bobine e una panoramica in alto.",
+          "zh": "相同线轴在网格视图中也会合并为一张堆叠卡片。点击分组（网格或表格）会打开侧面板，列出每个线轴，顶部带有概览仪表盘。",
+          "pt": "As bobinas idênticas também se agrupam na Grelha numa única ficha empilhada. Clicar num grupo (Grelha ou Tabela) abre um painel com todas as bobinas e um resumo no topo.",
+          "pt-pt": "As bobinas idênticas também se agrupam na Grelha numa única ficha empilhada. Clicar num grupo (Grelha ou Tabela) abre um painel com todas as bobinas e um resumo no topo.",
+          "pl": "Identyczne szpule zwijają się też w widoku siatki w jedną kartę-stos. Kliknięcie grupy (siatka lub tabela) otwiera panel z listą szpul i podsumowaniem u góry."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Live group overview",
+          "fr": "Aperçu de groupe en temps réel",
+          "de": "Gruppenübersicht in Echtzeit",
+          "es": "Resumen de grupo en vivo",
+          "it": "Panoramica del gruppo in tempo reale",
+          "zh": "实时分组概览",
+          "pt": "Resumo do grupo em tempo real",
+          "pt-pt": "Resumo do grupo em tempo real",
+          "pl": "Podgląd grupy na żywo"
+        },
+        "body": {
+          "en": "The group panel shows a speedometer gauge of the remaining filament, brand, material, combined weight and spool count — and the totals update in real time as you change a spool's weight from the slider or a scale.",
+          "fr": "Le panneau de groupe affiche une jauge type compteur du filament restant, la marque, la matière, le poids cumulé et le nombre de bobines — et les totaux se mettent à jour en temps réel quand vous changez un poids via le curseur ou une balance.",
+          "de": "Das Gruppenpanel zeigt eine Tacho-Anzeige des Restfilaments, Marke, Material, Gesamtgewicht und Spulenzahl — die Summen aktualisieren sich live, wenn Sie ein Gewicht per Regler oder Waage ändern.",
+          "es": "El panel de grupo muestra un indicador tipo velocímetro del filamento restante, la marca, el material, el peso combinado y el número de bobinas; los totales se actualizan en vivo al cambiar un peso con el control o una báscula.",
+          "it": "Il pannello del gruppo mostra un indicatore tipo tachimetro del filamento residuo, marca, materiale, peso combinato e numero di bobine — i totali si aggiornano in tempo reale quando cambi un peso dal cursore o da una bilancia.",
+          "zh": "分组面板以仪表盘显示剩余耗材，并展示品牌、材料、合计重量和线轴数量——当你通过滑块或电子秤更改重量时，合计会实时更新。",
+          "pt": "O painel do grupo mostra um indicador tipo velocímetro do filamento restante, marca, material, peso combinado e número de bobinas — e os totais atualizam em tempo real ao mudar um peso pelo cursor ou por uma balança.",
+          "pt-pt": "O painel do grupo mostra um indicador tipo velocímetro do filamento restante, marca, material, peso combinado e número de bobinas — e os totais atualizam em tempo real ao mudar um peso pelo cursor ou por uma balança.",
+          "pl": "Panel grupy pokazuje wskaźnik (jak prędkościomierz) pozostałego filamentu oraz markę, materiał, łączną wagę i liczbę szpul — sumy aktualizują się na żywo, gdy zmieniasz wagę suwakiem lub wagą."
+        }
+      },
+      {
+        "icon": "close",
+        "title": {
+          "en": "Hold to close every panel",
+          "fr": "Maintenir pour tout fermer",
+          "de": "Halten, um alle Panels zu schließen",
+          "es": "Mantén pulsado para cerrar todo",
+          "it": "Tieni premuto per chiudere tutto",
+          "zh": "长按关闭所有面板",
+          "pt": "Manter para fechar tudo",
+          "pt-pt": "Manter para fechar tudo",
+          "pl": "Przytrzymaj, aby zamknąć wszystko"
+        },
+        "body": {
+          "en": "Press and hold any side panel's close tab for half a second to dismiss every open side card at once (a vertical fill shows the progress).",
+          "fr": "Maintenez l'onglet de fermeture d'un panneau une demi-seconde pour fermer toutes les side cards ouvertes d'un coup (un remplissage vertical indique la progression).",
+          "de": "Halten Sie den Schließen-Tab eines Seitenpanels eine halbe Sekunde gedrückt, um alle offenen Seitenkarten auf einmal zu schließen (eine vertikale Füllung zeigt den Fortschritt).",
+          "es": "Mantén pulsada la pestaña de cierre de cualquier panel medio segundo para cerrar todas las tarjetas laterales abiertas a la vez (un relleno vertical muestra el progreso).",
+          "it": "Tieni premuta la linguetta di chiusura di un pannello per mezzo secondo per chiudere tutte le schede laterali aperte in una volta (un riempimento verticale mostra l'avanzamento).",
+          "zh": "长按任意侧面板的关闭标签半秒，即可一次关闭所有打开的侧卡（垂直填充显示进度）。",
+          "pt": "Mantenha premido o separador de fecho de qualquer painel meio segundo para fechar todos os cartões laterais abertos de uma vez (um preenchimento vertical mostra o progresso).",
+          "pt-pt": "Mantenha premido o separador de fecho de qualquer painel meio segundo para fechar todos os cartões laterais abertos de uma vez (um preenchimento vertical mostra o progresso).",
+          "pl": "Przytrzymaj zakładkę zamykania dowolnego panelu przez pół sekundy, aby zamknąć wszystkie otwarte karty boczne naraz (pionowe wypełnienie pokazuje postęp)."
+        }
+      }
+    ]
+  },
   "1.10.16": {
     "date": "2026-06-22",
     "items": [

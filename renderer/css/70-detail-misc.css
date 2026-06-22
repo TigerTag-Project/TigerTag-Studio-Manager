@@ -682,6 +682,92 @@
   .spool-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.1); transform: translateY(-1px); }
   .spool-card.selected { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
   .spool-card.deleted { opacity: .45; }
+
+  /* ── Grid group "deck" card (identical-spool group) ─────────────────────── */
+  /* Stacked-paper look via layered box-shadows (not clipped by overflow:hidden,
+     and they don't affect layout). + a ×N count badge in the corner. */
+  .spool-card.group-card {
+    position: relative;
+    box-shadow:
+      3px 3px 0 0 var(--surface), 3px 3px 0 1px var(--border),
+      6px 6px 0 0 var(--surface), 6px 6px 0 1px var(--border);
+  }
+  .spool-card.group-card:hover {
+    transform: translateY(-1px);
+    box-shadow:
+      3px 3px 0 0 var(--surface), 3px 3px 0 1px var(--border),
+      6px 6px 0 0 var(--surface), 6px 6px 0 1px var(--border),
+      0 8px 20px rgba(0,0,0,.12);
+  }
+  .group-card-count {
+    position: absolute; top: 6px; right: 6px; z-index: 4;
+    min-width: 20px; height: 20px; padding: 0 6px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--primary, #f97316); color: #fff;
+    font-size: 11px; font-weight: 700; line-height: 1;
+    border-radius: 10px; border: 2px solid var(--surface);
+    box-shadow: 0 1px 4px rgba(0,0,0,.3); pointer-events: none;
+  }
+  /* Group panel — a small grid of the member spool cards. Sits BEHIND the
+     detail card (z 100 < 101) so the filament detail pushes it left. Doubled
+     selector to outrank the later `.detail-panel { z-index: 101 }` base rule. */
+  .group-panel { width: 380px; }
+  .detail-panel.group-panel { z-index: 100; }
+  #groupCloseTab { z-index: 100; } /* group tab — at its left edge, behind the detail card */
+  /* No title bar — the dashboard is the header; the ✕ floats over the top-right. */
+  .gp-panel-close { position: absolute; top: 12px; right: 12px; z-index: 3; }
+  /* Vertical list of horizontal list-cards (image left, info right). */
+  .group-panel .panel-body {
+    display: flex; flex-direction: column; gap: 10px;
+    padding: 16px; overflow-y: auto;
+    scrollbar-width: none;            /* Firefox */
+  }
+  .group-panel .panel-body::-webkit-scrollbar { width: 0; height: 0; display: none; } /* Chromium */
+  /* Micro-dashboard header — NOT a card (no box / not clickable): a circular
+     gauge for remaining filament + group totals, with a separator below it. */
+  .gp-dash {
+    display: flex; align-items: center; gap: 16px;
+    padding: 4px 0 6px 0; margin-bottom: 8px;
+  }
+  /* Speedometer gauge (SVG <path> arcs, gap at the bottom) + spool count below. */
+  .gp-dash-gaugecol { flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .gp-dash-gauge { position: relative; width: 78px; height: 78px; flex-shrink: 0; }
+  .gp-gauge { width: 100%; height: 100%; display: block; }
+  .gp-gauge-track { fill: none; stroke: var(--surface-2); stroke-width: 3.6; stroke-linecap: round; }
+  .gp-gauge-arc { fill: none; stroke-width: 3.6; stroke-linecap: round; transition: stroke .2s ease; }
+  .gp-gauge-center { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 1px; }
+  .gp-gauge-center strong { font-size: 20px; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+  .gp-gauge-center span { font-size: 10px; color: var(--muted); }
+  .gp-dash-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .gp-dash-brand { font-size: 15px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 40px; }
+  .gp-dash-mat { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .gp-dash-weight { line-height: 1.15; margin-top: 1px; }
+  .gp-dash-weight strong { font-size: 21px; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+  .gp-dash-total { color: var(--muted); font-size: 12px; }
+  .gp-dash-count { color: var(--muted); font-size: 11.5px; font-weight: 600; text-align: center; margin-top: -16px; }
+
+  .spool-card.gp-member {
+    display: flex; align-items: center; gap: 12px;
+    padding: 9px 11px; overflow: visible;
+  }
+  /* Left column: image + tier badge underneath it. Image ~30% larger (65px)
+     than the default 50px thumb (the global `.thumb` rule forces 50 on the img,
+     so override it here; the colour-square fallback gets 65 inline from size). */
+  .gp-member-left { flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+  .gp-member-thumb .thumb-wrap { border-radius: 8px; }
+  .gp-member .thumb { width: 65px; height: 65px; }
+  .gp-member-info {
+    flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px;
+  }
+  .gp-member-name {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 13px; font-weight: 600; color: var(--text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .gp-member-sub { font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* Weight in grams on its own line, then the quantity bar full-width below it. */
+  .gp-member-weight { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text); margin-top: 1px; }
+  .gp-member-info .bar { width: 100%; margin-left: 0; margin-top: 1px; }
   .spool-card .card-img-wrap { position: relative; overflow: hidden; }
   .spool-card .card-img {
     width: 100%; aspect-ratio: 1; object-fit: cover; display: block; background: #1c2030;
@@ -756,6 +842,17 @@
     transition: right .25s cubic-bezier(.4,0,.2,1), background .15s, width .15s, height .2s cubic-bezier(.34,1.45,.6,1);
   }
   .pp-close-tab[hidden] { display: none; }
+  /* Long-press on a close tab → vertical fill, then "close all panels". */
+  .pp-close-tab { overflow: hidden; }
+  .cttab-fill {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 0%;
+    background: rgba(255,255,255,.32); pointer-events: none; z-index: 0;
+  }
+  .cttab-glyph { position: relative; z-index: 1; }
+  /* `right` animates the push when panels open/close (smooth follow). During a
+     live resize we kill it so panels + tabs track the dragged edge instantly. */
+  body.panel-resizing .detail-panel,
+  body.panel-resizing .pp-close-tab { transition: none; }
   /* Hover: the tab stretches taller (with a slight overshoot) for clear feedback. */
   .pp-close-tab:hover { background: var(--primary-hover); width: 36px; height: 128px; }
   /* Tab z-index ladder — see the 3-layer note above. Each tab sits above the

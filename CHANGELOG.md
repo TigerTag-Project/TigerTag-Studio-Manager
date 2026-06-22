@@ -5,6 +5,20 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.10.18 — 2026-06-22
+
+### Added
+
+- **Spool grouping in the Grid + a group panel.** Identical spools now also collapse in **Grid** view into one "deck" card with a count badge. Clicking a group (in Grid or Table) opens a side panel: a **dashboard overview** — a speedometer gauge of the group's remaining filament, brand, material, combined weight and spool count — above the list of the individual spools. Opening a spool from there slides its detail card in beside the panel.
+- **Live group totals.** A group's weight (gauge, totals, deck card and table row) now updates in **real time** as you change a spool's weight from the slider or a connected scale.
+- **Close all side panels at once.** Press and hold any panel's `»` close tab for half a second to dismiss every open side card (a vertical fill shows the progress).
+
+### Fixed
+
+- **Group toggle tooltip is now translated** in every language (it previously showed a raw key on first launch).
+
+---
+
 ## v1.10.17 — 2026-06-22
 
 ### Fixed

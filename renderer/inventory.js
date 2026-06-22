@@ -642,6 +642,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if ($("langSelect")) $("langSelect").value = state.lang;
     // Refresh dynamic tooltips
     $("td1sHealth")?.setAttribute("data-tooltip", t(state.td1sConnected ? "td1sDetected" : "td1sNotDetected"));
+    // Group toggle tooltip — set imperatively (state-dependent), so it must be
+    // re-localised here (its first sync runs before locales are loaded).
+    $("btnGroupInvLabel")?.setAttribute("data-tooltip", t(state.groupInv ? "invGroupOn" : "invGroupOff"));
   }
 
   /* ── helpers ── */
@@ -5312,6 +5315,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     populateBrandFilter();      // refresh dropdown options on every render
     const rows = allDisplayRows();
     renderFriendBanner();
+    _refreshGroupPanelIfOpen(); // keep an open group panel's weights live
 
     // ── Loading or truly empty → dedicated welcome card ──────────────────────
     // In friendView, keep card-inv visible so the banner stays; show spinner there
@@ -5575,8 +5579,24 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (show) visible++;
     });
 
-    // ── Grid cards (ungrouped in Phase 1) ───────────────────────────────────
+    // ── Grid cards (group-aware) ────────────────────────────────────────────
+    // A group "deck" card has no member DOM in the grid (members live in the
+    // group panel), so it's shown when ANY spool of that group matches.
+    const matchingGroupKeys = new Set();
+    if (!noFilter) {
+      state.rows.forEach(r => {
+        if (r.deleted || !rowMatches(r)) return;
+        const k = _spoolGroupKey(r);
+        if (k) matchingGroupKeys.add(k);
+      });
+    }
     document.querySelectorAll("#invGrid .spool-card").forEach(el => {
+      if (el.dataset.groupKey) {
+        const show = noFilter || matchingGroupKeys.has(el.dataset.groupKey);
+        el.classList.toggle("hidden", !show);
+        if (show) visible++;
+        return;
+      }
       if (noFilter) { el.classList.remove("hidden"); visible++; return; }
       const r = rowsById.get(el.dataset.id);
       if (!r) { el.classList.add("hidden"); return; }
@@ -5770,6 +5790,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (pct < 20) return "#F44336";  // Colors.red
     if (pct < 50) return "#FF9800";  // Colors.orange
     return "#4CAF50";                // Colors.green
+  }
+
+  // Grams → kg display, locale-aware, 1 decimal max, no trailing ".0"
+  // (e.g. 1587 → "1,6" in fr / "1.6" in en ; 2000 → "2"). Unit added by caller.
+  function _kg(grams) {
+    if (grams == null) return "-";
+    return (Number(grams) / 1000).toLocaleString(state.lang, { maximumFractionDigits: 1 });
   }
 
   // Material label with aspect1 appended (e.g. "PLA" + "Basic" → "PLA Basic").
@@ -5991,29 +6018,247 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     card._sig = _rowSignature(r);
   }
 
+  // ── Grid group card ("deck" of identical spools) ───────────────────────────
+  function _groupGridSig(g) {
+    // Reuse the table header signature + count; collapsed-state is irrelevant
+    // for the grid card (it opens a panel rather than expanding in place).
+    return "G|" + _groupHeaderSig(g, false);
+  }
+  function _groupGridCardInnerHTML(g) {
+    const countTitle = esc(t("invGroupCount", { n: g.count }));
+    // Show the group's COMBINED weight (sum), not the representative's single
+    // weight — matches the table header + the panel dashboard. Keep the rep's
+    // identity (image / colour / name / material / brand). The deck effect is CSS.
+    const repTotal = { ...g.rep, weightAvailable: g.totalAvail, capacity: g.totalCap };
+    return `<span class="group-card-count" title="${countTitle}">${g.count}</span>` + _gridCardInnerHTML(repTotal);
+  }
+  function _createGroupGridCard(g) {
+    const card = document.createElement("div");
+    card.className = "spool-card group-card";
+    card.dataset.groupKey = g.key;
+    card.innerHTML = _groupGridCardInnerHTML(g);
+    card.addEventListener("click", () => _openGroupPanel(g.key));
+    card._sig = _groupGridSig(g);
+    return card;
+  }
+  function _updateGroupGridCard(card, g) {
+    card.innerHTML = _groupGridCardInnerHTML(g);
+    card._sig = _groupGridSig(g);
+  }
+
   function renderGrid(rows) {
     const grid = $("invGrid");
-    // Index existing cards by spoolId so we can reuse them.
+    // Key existing nodes by spoolId (single cards) or "grp:<key>" (group decks).
     const existing = new Map();
-    grid.querySelectorAll(".spool-card").forEach(el => existing.set(el.dataset.id, el));
-    const seen = new Set();
-    rows.forEach((r, idx) => {
-      seen.add(r.spoolId);
-      let card = existing.get(r.spoolId);
-      const newSig = _rowSignature(r);
-      if (!card) {
-        card = _createGridCard(r);
-      } else if (card._sig !== newSig) {
-        _updateGridCard(card, r);
-      }
-      // Place card at correct position (preserves order without DOM thrash:
-      // insertBefore on an already-positioned node is a no-op in Chromium).
-      const expected = grid.children[idx];
-      if (expected !== card) grid.insertBefore(card, expected || null);
+    grid.querySelectorAll(".spool-card").forEach(el => {
+      const k = el.dataset.groupKey ? "grp:" + el.dataset.groupKey : el.dataset.id;
+      existing.set(k, el);
     });
-    // Remove orphans (spools deleted from inventory)
-    existing.forEach((el, id) => { if (!seen.has(id)) el.remove(); });
+    const seen = new Set();
+    let idx = 0;
+    const place = node => {
+      const expected = grid.children[idx];
+      if (expected !== node) grid.insertBefore(node, expected || null);
+      idx++;
+    };
+    groupRows(rows).forEach(item => {
+      if (item.type === "single") {
+        const r = item.row, key = r.spoolId;
+        seen.add(key);
+        let card = existing.get(key);
+        const newSig = _rowSignature(r);
+        if (!card || card.dataset.groupKey) card = _createGridCard(r);
+        else if (card._sig !== newSig) _updateGridCard(card, r);
+        place(card);
+        return;
+      }
+      const g = item, key = "grp:" + g.key;
+      seen.add(key);
+      let card = existing.get(key);
+      const sig = _groupGridSig(g);
+      if (!card || !card.dataset.groupKey) card = _createGroupGridCard(g);
+      else if (card._sig !== sig) _updateGroupGridCard(card, g);
+      place(card);
+    });
+    existing.forEach((el, k) => { if (!seen.has(k)) el.remove(); });
   }
+
+  // Spool ids of the group currently shown in the group panel (used to decide
+  // whether opening a detail card should keep or close the group panel).
+  let _groupPanelMembers = new Set();
+  // ── Group panel (lists the member spools as horizontal list-cards) ─────────
+  // Image on the left, everything else (name, material·brand, weight) on the
+  // right — a wider, list-style card rather than the square grid card.
+  function _groupMemberCardInnerHTML(r) {
+    const name = v(r.colorName) !== "-"
+      ? r.colorName
+      : [r.aspect1, r.aspect2].filter(a => a && a !== "-" && a !== "None").join(" ") || r.material;
+    const pct = (r.weightAvailable != null && r.capacity)
+      ? Math.max(0, Math.min(100, Math.round(r.weightAvailable / r.capacity * 100))) : null;
+    const wTxt = r.weightAvailable != null ? r.weightAvailable + " g" : "-";
+    const bar = pct !== null
+      ? `<span class="bar"><span style="width:${pct}%;background:${fillBarColor(pct)}"></span></span>` : "";
+    return `
+      <div class="gp-member-left">
+        <div class="gp-member-thumb">${thumbHTML(r, 65)}</div>
+        ${tierBadgeHTML(r)}
+      </div>
+      <div class="gp-member-info">
+        <div class="gp-member-name">${colorCircleHTML(r, 13)}${esc(name)}</div>
+        <div class="gp-member-sub">${esc(materialWithAspect(r))} · ${esc(v(r.brand))}</div>
+        <div class="gp-member-weight">${wTxt}</div>
+        ${bar}
+      </div>`;
+  }
+  function _createGroupMemberCard(r) {
+    const card = document.createElement("div");
+    card.className = "spool-card gp-member";
+    card.dataset.id = r.spoolId;
+    if (state.selected === r.spoolId) card.classList.add("selected");
+    card.innerHTML = _groupMemberCardInnerHTML(r);
+    card.addEventListener("click", () => openDetail(r.spoolId));
+    return card;
+  }
+  let _groupPanelKey = null;   // key of the group currently shown in the panel
+  // ── Speedometer gauge geometry (3/5 arc, gap at the bottom) ────────────────
+  // Angles: 0°=top, 90°=right, 180°=bottom, 270°=left (clockwise). The 216° arc
+  // runs from the lower-LEFT (0%) over the top to the lower-RIGHT (100%).
+  const GAUGE_CX = 18, GAUGE_CY = 18, GAUGE_R = 14.5, GAUGE_A0 = -108, GAUGE_SWEEP = 216;
+  function _gaugePolar(deg) {
+    const a = (deg - 90) * Math.PI / 180;
+    return [GAUGE_CX + GAUGE_R * Math.cos(a), GAUGE_CY + GAUGE_R * Math.sin(a)];
+  }
+  function _gaugeArc(a0, a1) {
+    const [x0, y0] = _gaugePolar(a0), [x1, y1] = _gaugePolar(a1);
+    const large = (a1 - a0) > 180 ? 1 : 0;
+    return `M ${x0.toFixed(2)} ${y0.toFixed(2)} A ${GAUGE_R} ${GAUGE_R} 0 ${large} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;
+  }
+  const GAUGE_TRACK_D = _gaugeArc(GAUGE_A0, GAUGE_A0 + GAUGE_SWEEP);
+  function _gaugeValueD(pct) {
+    const f = Math.max(0, Math.min(100, pct)) / 100;
+    if (f <= 0) return "";
+    return _gaugeArc(GAUGE_A0, GAUGE_A0 + GAUGE_SWEEP * f);
+  }
+
+  // Micro-dashboard at the top of the group panel: a speedometer gauge for the
+  // group's remaining-filament %, brand title, material+aspect, and combined
+  // weight. Replaces the (blank) panel title.
+  function _groupDashHTML(g) {
+    const rep = g.rep;
+    const brand = v(rep.brand);
+    const pct = g.totalCap ? Math.max(0, Math.min(100, Math.round(g.totalAvail / g.totalCap * 100))) : 0;
+    const color = fillBarColor(pct);
+    const total = g.totalCap ? `<span class="gp-dash-total">/ ${_kg(g.totalCap)} kg</span>` : "";
+    return `
+      <div class="gp-dash">
+        <div class="gp-dash-gaugecol">
+          <div class="gp-dash-gauge">
+            <svg class="gp-gauge" viewBox="0 0 36 36" aria-hidden="true">
+              <path class="gp-gauge-track" d="${GAUGE_TRACK_D}"></path>
+              <path class="gp-gauge-arc" d="${_gaugeValueD(pct)}" stroke="${color}"></path>
+            </svg>
+            <div class="gp-gauge-center"><strong>${pct}</strong><span>%</span></div>
+          </div>
+          <div class="gp-dash-count">${esc(t("invGroupCount", { n: g.count }))}</div>
+        </div>
+        <div class="gp-dash-info">
+          <div class="gp-dash-brand">${esc(brand)}</div>
+          <div class="gp-dash-mat">${esc(materialWithAspect(rep))}</div>
+          <div class="gp-dash-weight"><strong>${_kg(g.totalAvail)}</strong> ${total}</div>
+        </div>
+      </div>`;
+  }
+  // Render the dashboard header + member list-cards for a group item. The panel
+  // title bar is left empty — the dashboard carries the group identity now.
+  function _renderGroupPanelContents(g) {
+    _groupPanelMembers = new Set(g.members.map(m => m.spoolId));
+    const body = document.getElementById("groupPanelBody");
+    if (body) {
+      body.innerHTML = _groupDashHTML(g);   // micro-dashboard first
+      // Horizontal list-cards; each click → openDetail(m.spoolId). The group
+      // panel STAYS open — the detail card pushes it left (see _syncPanels).
+      g.members.forEach(m => body.appendChild(_createGroupMemberCard(m)));
+    }
+  }
+  function _openGroupPanel(key) {
+    const g = groupRows(allDisplayRows()).find(it => it.type === "group" && it.key === key);
+    if (!g) return;
+    _groupPanelKey = key;
+    _renderGroupPanelContents(g);
+    document.getElementById("groupPanel")?.classList.add("open");
+    _syncPanels();
+  }
+  function _closeGroupPanel() {
+    document.getElementById("groupPanel")?.classList.remove("open");
+    _groupPanelKey = null;
+    _groupPanelMembers = new Set();
+    _syncPanels();
+  }
+  // Keep the open group panel in sync with live inventory changes (weight edits
+  // from the detail card / scale, member add/remove). Called on every render.
+  function _refreshGroupPanelIfOpen() {
+    if (!document.getElementById("groupPanel")?.classList.contains("open") || !_groupPanelKey) return;
+    const g = groupRows(allDisplayRows()).find(it => it.type === "group" && it.key === _groupPanelKey);
+    if (!g) { _closeGroupPanel(); return; }   // group dissolved (e.g. all members deleted)
+    _renderGroupPanelContents(g);
+  }
+  // Live-patch (during slider drag, before the Firestore echo) every place a
+  // spool's group weight shows: the panel member card, the panel dashboard, the
+  // grid deck card and the table group row. Keeps all of them in sync in real time.
+  function _patchGroupMemberWeight(spoolId, w, cap) {
+    // (a) Member card inside the open panel.
+    const body = document.getElementById("groupPanelBody");
+    if (body && document.getElementById("groupPanel")?.classList.contains("open")) {
+      const card = body.querySelector(`.gp-member[data-id="${CSS.escape(String(spoolId))}"]`);
+      if (card) {
+        const wEl = card.querySelector(".gp-member-weight");
+        if (wEl) wEl.textContent = w != null ? `${w} g` : "-";
+        const mb = card.querySelector(".bar > span");
+        if (mb && cap) {
+          const p = Math.max(0, Math.min(100, Math.round(w / cap * 100)));
+          mb.style.width = p + "%"; mb.style.background = fillBarColor(p);
+        }
+      }
+    }
+    // (b) The dragged spool's group TOTAL (substitute the live value; state.rows
+    //     still holds the pre-commit one) → dashboard + grid deck + table row.
+    const g = groupRows(allDisplayRows()).find(it => it.type === "group" && it.members.some(m => m.spoolId === spoolId));
+    if (!g) return;
+    let totAvail = 0, totCap = 0;
+    g.members.forEach(m => {
+      const wa = m.spoolId === spoolId ? w : (m.weightAvailable != null ? Number(m.weightAvailable) : 0);
+      totAvail += Number(wa) || 0;
+      if (m.capacity != null) totCap += Number(m.capacity) || 0;
+    });
+    const pct = totCap ? Math.max(0, Math.min(100, Math.round(totAvail / totCap * 100))) : 0;
+    const color = fillBarColor(pct);
+    if (_groupPanelKey === g.key) _patchGroupSummaryWeight(totAvail, totCap);
+    const gridCard = document.querySelector(`#invGrid .spool-card[data-group-key="${CSS.escape(g.key)}"]`);
+    if (gridCard) {
+      const wEl = gridCard.querySelector(".card-weight");
+      if (wEl) wEl.textContent = totAvail + " g";
+      const gb = gridCard.querySelector(".card-bar > span");
+      if (gb) { gb.style.width = pct + "%"; gb.style.background = color; }
+    }
+    const tr = document.querySelector(`#invBody tr.group-header[data-group-key="${CSS.escape(g.key)}"]`);
+    if (tr && tr.children[6]) tr.children[6].innerHTML = _groupWeightCell({ totalAvail: totAvail, totalCap: totCap });
+  }
+  // Update only the dashboard header's total weight + circular gauge.
+  function _patchGroupSummaryWeight(totalAvail, totalCap) {
+    const dash = document.querySelector("#groupPanelBody .gp-dash");
+    if (!dash) return;
+    const pct = totalCap ? Math.max(0, Math.min(100, Math.round(totalAvail / totalCap * 100))) : 0;
+    const strong = dash.querySelector(".gp-dash-weight strong");
+    if (strong) strong.textContent = _kg(totalAvail);
+    const totalEl = dash.querySelector(".gp-dash-total");
+    if (totalEl && totalCap) totalEl.textContent = `/ ${_kg(totalCap)} kg`;
+    const arc = dash.querySelector(".gp-gauge-arc");
+    if (arc) { arc.setAttribute("d", _gaugeValueD(pct)); arc.setAttribute("stroke", fillBarColor(pct)); }
+    const center = dash.querySelector(".gp-gauge-center strong");
+    if (center) center.textContent = String(pct);
+  }
+  document.getElementById("groupPanelClose")?.addEventListener("click", _closeGroupPanel);
+  document.getElementById("groupCloseTab")?.addEventListener("click", _closeGroupPanel);
 
   // Build the inner HTML of a table row from a row. Single-source for create + update.
   function _tableRowInnerHTML(r) {
@@ -6107,7 +6352,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const collapsed = !_expandedGroups.has(g.key);
     tr.classList.toggle("group-collapsed", collapsed);
     tr.innerHTML = _groupHeaderInnerHTML(g);
-    tr.addEventListener("click", () => _toggleGroupExpanded(g.key));
+    // Click a group row → open the group side panel (same as the grid deck card),
+    // rather than expanding members inline.
+    tr.addEventListener("click", () => _openGroupPanel(g.key));
     tr._sig = _groupHeaderSig(g, collapsed);
     return tr;
   }
@@ -6123,16 +6370,6 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function _decorateMemberRow(tr, groupKey) {
     tr.classList.add("group-child");
     tr.dataset.group = groupKey;
-  }
-
-  // Toggle one group's expanded state then re-render the table list. The
-  // keyed-diff keeps it flash-free; applyInventoryFilter() re-applies the
-  // (collapsed + search) visibility as the final authority.
-  function _toggleGroupExpanded(key) {
-    if (_expandedGroups.has(key)) _expandedGroups.delete(key);
-    else _expandedGroups.add(key);
-    renderTable(allDisplayRows());
-    applyInventoryFilter();
   }
 
   function renderTable(rows) {
@@ -6251,7 +6488,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (cb && cb.checked !== !!state.groupInv) cb.checked = !!state.groupInv;
     const label = $("btnGroupInvLabel");
     // Always visible — it's a persistent on/off switch. Grouping affects the
-    // Table. Explanation shown via a CSS hover bubble (data-tooltip), not title.
+    // Table and the Grid. Explanation shown via a CSS hover bubble (data-tooltip).
     if (label) label.dataset.tooltip = state.groupInv ? t("invGroupOn") : t("invGroupOff");
   }
   $("btnGroupInv")?.addEventListener("change", (e) => {
@@ -7307,6 +7544,15 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     _setTab($("detailCloseTab"),     dOpen, matRight + (dp ? dp.offsetWidth : 0));
     _setTab($("printerCloseTab"),    pOpen, printerW);
     _setTab($("printerAddCloseTab"), cOpen, configRight + configW);
+    // Group panel is the back-most card: it sits LEFT of everything else that's
+    // open on the right (detail, printer config, printer panel), so it's never
+    // hidden behind them.
+    const gp = $("groupPanel");
+    const gOpen = !!gp?.classList.contains("open");
+    const detailW = dOpen && dp ? dp.offsetWidth : 0;
+    const groupRight = gOpen ? (printerW + configW + detailW) : 0;
+    if (gp) gp.style.right = groupRight ? `${groupRight}px` : "";
+    _setTab($("groupCloseTab"), gOpen, groupRight + (gp ? gp.offsetWidth : 0));
   }
   // Show/position/hide a card's close tab so it slides WITH the panel — its `right`
   // has the same .25s transition as the panel's slide and travels the same distance
@@ -7327,6 +7573,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   }
 
   function openDetail(spoolId) {
+    // If a group panel is open, keep it only when the opened spool belongs to
+    // that group (a member clicked from the panel → push). Opening any other
+    // spool makes the group panel irrelevant → close it.
+    if (document.getElementById("groupPanel")?.classList.contains("open") && !_groupPanelMembers.has(spoolId)) {
+      _closeGroupPanel();
+    }
     state.selected = spoolId;
     document.querySelectorAll("[data-id]").forEach(el => el.classList.toggle("selected", el.dataset.id === spoolId));
     const r = state.rows.find(x => x.spoolId === spoolId);
@@ -7607,6 +7859,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       fill.style.width = wpct + "%";
       fill.style.background = fillBarColor(wpct);
       display.innerHTML = `${w}<span>g</span>`;
+      _patchGroupMemberWeight(r.spoolId, w, cap); // live-track in the group panel
       // Keep inline input in sync if open
       const inp = $("wbInlineInput");
       if (inp && !$("wbInlineEdit").classList.contains("hidden")) inp.value = w;
@@ -8897,6 +9150,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     function onUp() {
       handleEl.classList.remove("dragging");
       panelEl.classList.remove("resizing");
+      document.body.classList.remove("panel-resizing");  // restore the smooth open/close push
       document.body.style.cursor  = "";
       document.body.style.userSelect = "";
       const w = parseInt(panelEl.style.width, 10);
@@ -8913,6 +9167,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       startW = panelEl.offsetWidth;
       handleEl.classList.add("dragging");
       panelEl.classList.add("resizing");
+      document.body.classList.add("panel-resizing");  // instant edge tracking during resize
       document.body.style.cursor     = "col-resize";
       document.body.style.userSelect = "none";
       document.addEventListener("mousemove", onMove);
@@ -8924,6 +9179,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       startW = panelEl.offsetWidth;
       handleEl.classList.add("dragging");
       panelEl.classList.add("resizing");
+      document.body.classList.add("panel-resizing");
       document.addEventListener("touchmove", onMove, { passive: true });
       document.addEventListener("touchend",  onUp);
     }, { passive: true });
@@ -8931,6 +9187,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
 
   makePanelResizable($("detailPanel"), $("detailResize"), "tigertag.panelWidth.detail");
   makePanelResizable($("debugPanel"),  $("debugResize"),  "tigertag.panelWidth.debug");
+  makePanelResizable($("groupPanel"),  $("groupResize"),  "tigertag.panelWidth.group");
   // Keep the material card glued to the left edge of the printer panel if the
   // latter's width changes (e.g. window resize on a narrow viewport).
   if (window.ResizeObserver) {
@@ -8938,8 +9195,58 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if ($("printerPanel"))    _panelRO.observe($("printerPanel"));
     if ($("detailPanel"))     _panelRO.observe($("detailPanel"));
     if ($("printerAddPanel")) _panelRO.observe($("printerAddPanel"));
+    if ($("groupPanel"))      _panelRO.observe($("groupPanel"));
   }
   window.addEventListener("resize", _syncPanels);
+
+  // Close every open side card (spool / group / printer) in one go.
+  function _closeAllSidePanels() {
+    if ($("detailPanel")?.classList.contains("open"))     closeDetail();
+    if ($("groupPanel")?.classList.contains("open"))      _closeGroupPanel();
+    if ($("printerPanel")?.classList.contains("open"))    closePrinterDetail();
+    if ($("printerAddPanel")?.classList.contains("open")) closePrinterAddForm();
+  }
+  // Each `»` close tab: a quick click closes its own panel (existing handlers);
+  // a long press (HOLD_MS) closes ALL side cards, with a vertical fill animation
+  // in the tab. To disable this feature, comment out _setupCloseTabHold() below.
+  const CLOSE_TAB_HOLD_MS = 500;
+  function _setupCloseTabHold() {
+    document.querySelectorAll(".pp-close-tab").forEach(tab => {
+      if (tab._holdWired) return;
+      tab._holdWired = true;
+      const glyph = (tab.textContent || "»").trim() || "»";
+      tab.innerHTML = `<span class="cttab-fill"></span><span class="cttab-glyph">${glyph}</span>`;
+      const fill = tab.querySelector(".cttab-fill");
+      let timer = null, fired = false;
+      const reset = () => {
+        if (timer) { clearTimeout(timer); timer = null; }
+        tab.classList.remove("is-holding");
+        fill.style.transition = "height .15s ease-out"; fill.style.height = "0%";
+      };
+      tab.addEventListener("pointerdown", () => {
+        fired = false;
+        tab.classList.add("is-holding");
+        fill.style.transition = "height 0s"; fill.style.height = "0%";
+        fill.offsetHeight; // reflow so the fill animates from 0
+        fill.style.transition = `height ${CLOSE_TAB_HOLD_MS}ms linear`; fill.style.height = "100%";
+        timer = setTimeout(() => {
+          timer = null; fired = true;
+          tab.classList.remove("is-holding");
+          _closeAllSidePanels();
+          setTimeout(() => { fill.style.transition = "height 0s"; fill.style.height = "0%"; }, 200);
+        }, CLOSE_TAB_HOLD_MS);
+      });
+      tab.addEventListener("pointerup", reset);
+      tab.addEventListener("pointerleave", reset);
+      tab.addEventListener("pointercancel", reset);
+      // Swallow the click that follows a completed hold so it doesn't also run
+      // the per-tab "close this panel" handler (capture → runs first).
+      tab.addEventListener("click", (e) => {
+        if (fired) { e.stopImmediatePropagation(); e.preventDefault(); fired = false; }
+      }, true);
+    });
+  }
+  _setupCloseTabHold();
   // td1sPanel resize + panel open/close are handled by initTD1S (renderer/IoT/td1s/index.js)
 
   /* ── debug panel ── */
