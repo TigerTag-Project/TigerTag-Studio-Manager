@@ -73,7 +73,6 @@
         </button>
       </div>
       <div class="sb-actions">
-        <button id="btnSbReload" class="primary"><span class="icon icon-refresh icon-13"></span><span class="label" data-i18n="btnRefresh">Refresh</span></button>
         <button id="btnOpenFriends" class="ghost sb-friends-btn"><span class="icon icon-user icon-13"></span><span class="label" data-i18n="friendsTitle">Friends</span><span id="friendsBadge" class="friends-badge hidden"></span></button>
         <button id="btnOpenNotifs" class="ghost sb-notifs-btn"><span class="icon icon-bell icon-13"></span><span class="label" data-i18n="notifsTitle">Notifications</span><span id="notifBadge" class="friends-badge hidden"></span></button>
         <!-- Quick-access friends list (rendered by JS into this container).
@@ -197,16 +196,8 @@
             <button id="btnViewTable" class="active"><span class="icon icon-list icon-13"></span><span data-i18n="btnViewTable">Table</span></button>
             <button id="btnViewRack"><span class="icon icon-package icon-13"></span><span data-i18n="btnViewRack">Storage</span></button>
           </div>
-          <!-- View-only toggle: collapse identical spools into one ×N entry.
-               Shown only in Table/Grid inventory modes (hidden in rack/printer
-               modes via JS). -->
-          <label id="btnGroupInvLabel" class="group-toggle-btn" data-tooltip="">
-            <span class="icon icon-folder icon-13"></span>
-            <span class="eac-toggle">
-              <input type="checkbox" id="btnGroupInv" role="switch" aria-label="Group identical spools" />
-              <span class="eac-toggle-track"><span class="eac-toggle-thumb"></span></span>
-            </span>
-          </label>
+          <!-- Group-identical-spools toggle moved to Settings → Data
+               (grouped is the default view; only opt-out users need it). -->
           <span class="vtg-sep" aria-hidden="true"></span>
           <div class="view-toggle vtg-printers">
             <button id="btnViewPrinter" data-i18n="btnViewGrid">⊞ Grid</button>
@@ -271,6 +262,7 @@
 
 <!-- settings panel — restructured into clear sectioned cards (v1.4.4) -->
 <div class="panel-overlay" id="settingsOverlay"></div>
+<button class="pp-close-tab" id="settingsCloseTab" title="Close" aria-label="Close" hidden>»</button>
 <div class="detail-panel stg-panel" id="settingsPanel">
   <div class="panel-header">
     <span class="panel-title">
@@ -316,8 +308,22 @@
         <span class="stg-card-chev icon icon-chevron-r icon-14" aria-hidden="true"></span>
       </button>
       <div class="stg-card-body stg-card-body--collapsible">
+        <label id="btnGroupInvLabel" class="stg-row stg-row--toggle">
+          <span class="stg-row-text">
+            <span class="stg-row-title" data-i18n="stgGroupInvTitle">Group identical spools</span>
+            <span class="stg-row-sub" data-i18n="stgGroupInvSub">Collapse identical spools into a single entry</span>
+          </span>
+          <span class="eac-toggle">
+            <input type="checkbox" id="btnGroupInv" role="switch" aria-label="Group identical spools" />
+            <span class="eac-toggle-track"><span class="eac-toggle-thumb"></span></span>
+          </span>
+        </label>
         <p class="stg-row-help" data-i18n="stgDataHelp">Export your inventory locally as JSON, or copy the public API URL.</p>
         <div class="stg-row-actions stg-row-actions--col">
+          <button class="ghost sm" id="btnSbReload" title="Resync inventory from the cloud">
+            <span class="icon icon-refresh icon-13"></span>
+            <span class="label" data-i18n="stgResyncInv">Resync inventory</span>
+          </button>
           <button class="ghost sm" id="btnStgExport">
             <span class="icon icon-download icon-13"></span>
             <span data-i18n="settingsExport">Download JSON</span>
@@ -341,10 +347,10 @@
       <div class="stg-card-body stg-card-body--collapsible">
         <p class="stg-row-help" data-i18n="stgToolsHelp">Diagnostics and troubleshooting utilities.</p>
         <div class="stg-row-actions stg-row-actions--col">
-          <button class="ghost sm" id="btnDebug" data-i18n="debugOpenBtn">⌥ Open debug panel</button>
-          <button class="ghost sm" id="btnTD1S"><span class="td1s-dev-icon"></span>⌥ Open TD1S panel</button>
-          <button class="ghost sm" id="btnRfidTest">⌥ Open RFID tester</button>
-          <button class="ghost sm" id="btnReportProblem" data-i18n="errReportBtn">⚑ Report a problem</button>
+          <button class="ghost sm" id="btnDebug"><span class="icon icon-search icon-13"></span><span data-i18n="debugOpenBtn">Open debug panel</span></button>
+          <button class="ghost sm" id="btnTD1S"><span class="td1s-dev-icon"></span><span>Open TD1S panel</span></button>
+          <button class="ghost sm" id="btnRfidTest"><span class="icon icon-nfc icon-13"></span><span>Open RFID tester</span></button>
+          <button class="ghost sm" id="btnReportProblem"><span class="icon icon-info icon-13"></span><span data-i18n="errReportBtn">Report a problem</span></button>
         </div>
       </div>
     </section>
@@ -1172,6 +1178,7 @@
 
 <!-- debug panel -->
 <div class="panel-overlay" id="debugOverlay"></div>
+<button class="pp-close-tab" id="debugCloseTab" title="Close" aria-label="Close" hidden>»</button>
 <div class="detail-panel" id="debugPanel">
   <div class="panel-resize" id="debugResize"></div>
   <div class="panel-header">
@@ -1758,18 +1765,17 @@
 </div>
 
 <!-- Container picker modal -->
-<div class="modal-overlay" id="containerPickerOverlay">
-  <div class="modal-card cp-card">
-    <div class="cp-header">
-      <span class="cp-title" data-i18n="containerPickerTitle">Choose a container</span>
-      <button class="modal-close cp-close" id="containerPickerClose">✕</button>
-    </div>
-    <div class="cp-search-wrap">
-      <span class="icon icon-search icon-14 cp-search-icon"></span>
-      <input id="containerPickerSearch" class="cp-search" type="search" data-i18n-placeholder="searchPlaceholder" placeholder="Search…" />
-    </div>
-    <div id="containerPickerList" class="cp-list"></div>
+<!-- Container picker — side card that tucks to the RIGHT of the spool detail card -->
+<button class="pp-close-tab" id="containerCloseTab" title="Close" aria-label="Close" hidden>»</button>
+<div class="detail-panel cp-panel" id="containerPanel">
+  <div class="panel-header">
+    <span class="panel-title" data-i18n="containerPickerTitle">Choose a container</span>
   </div>
+  <div class="cp-search-wrap">
+    <span class="icon icon-search icon-14 cp-search-icon"></span>
+    <input id="containerPickerSearch" class="cp-search" type="search" data-i18n-placeholder="searchPlaceholder" placeholder="Search…" />
+  </div>
+  <div id="containerPickerList" class="cp-list"></div>
 </div>
 
 <!-- Friend request incoming modal -->

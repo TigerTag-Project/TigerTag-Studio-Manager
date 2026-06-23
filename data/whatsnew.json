@@ -3122,5 +3122,110 @@
         }
       }
     ]
+  },
+  "1.10.19": {
+    "date": "2026-06-23",
+    "items": [
+      {
+        "icon": "swap",
+        "title": {
+          "en": "Smoother card switching",
+          "fr": "Changement de fiche plus fluide",
+          "de": "Flüssigerer Kartenwechsel",
+          "es": "Cambio de ficha más fluido",
+          "it": "Cambio scheda più fluido",
+          "zh": "更流畅的卡片切换",
+          "pt": "Troca de cartão mais fluida",
+          "pt-pt": "Troca de cartão mais fluida",
+          "pl": "Płynniejsze przełączanie kart"
+        },
+        "body": {
+          "en": "Switching between spools — or between printers — now slides the new card in over the previous one instead of swapping instantly. Spool cards also open scrolled to the top.",
+          "fr": "Passer d'une bobine — ou d'une imprimante — à une autre fait désormais glisser la nouvelle fiche par-dessus l'ancienne au lieu d'un changement sec. Les fiches de bobine s'ouvrent aussi tout en haut.",
+          "de": "Beim Wechsel zwischen Spulen – oder Druckern – schiebt sich die neue Karte jetzt über die vorherige, statt sofort umzuschalten. Spulenkarten öffnen zudem ganz oben.",
+          "es": "Cambiar entre bobinas — o entre impresoras — ahora desliza la nueva ficha sobre la anterior en lugar de un cambio brusco. Las fichas de bobina también se abren desde arriba.",
+          "it": "Passare da una bobina — o da una stampante — all'altra ora fa scorrere la nuova scheda sopra la precedente invece di un cambio netto. Le schede bobina si aprono anche dall'alto.",
+          "zh": "在线材之间（或打印机之间）切换时，新卡片会滑动覆盖到旧卡片上，而不是瞬间替换。线材卡片也会从顶部打开。",
+          "pt": "Alternar entre bobinas — ou entre impressoras — agora desliza o novo cartão sobre o anterior em vez de uma troca instantânea. Os cartões de bobina também abrem no topo.",
+          "pt-pt": "Alternar entre bobinas — ou entre impressoras — agora desliza o novo cartão sobre o anterior em vez de uma troca instantânea. Os cartões de bobina também abrem no topo.",
+          "pl": "Przełączanie między szpulami — lub drukarkami — teraz wsuwa nową kartę nad poprzednią zamiast natychmiastowej zamiany. Karty szpul otwierają się też od góry."
+        }
+      },
+      {
+        "icon": "folder",
+        "title": {
+          "en": "Grouped view by default",
+          "fr": "Vue groupée par défaut",
+          "de": "Gruppierte Ansicht als Standard",
+          "es": "Vista agrupada por defecto",
+          "it": "Vista raggruppata di default",
+          "zh": "默认分组视图",
+          "pt": "Vista agrupada por predefinição",
+          "pt-pt": "Vista agrupada por predefinição",
+          "pl": "Widok pogrupowany domyślnie"
+        },
+        "body": {
+          "en": "Identical spools are now grouped together by default. Prefer a flat list? Turn grouping off in Settings → Data.",
+          "fr": "Les bobines identiques sont désormais regroupées par défaut. Vous préférez une liste à plat ? Désactivez le regroupement dans Réglages → Données.",
+          "de": "Identische Spulen werden jetzt standardmäßig gruppiert. Lieber eine flache Liste? Schalte die Gruppierung in Einstellungen → Daten aus.",
+          "es": "Las bobinas idénticas ahora se agrupan por defecto. ¿Prefieres una lista plana? Desactiva la agrupación en Ajustes → Datos.",
+          "it": "Le bobine identiche ora sono raggruppate per impostazione predefinita. Preferisci un elenco semplice? Disattiva il raggruppamento in Impostazioni → Dati.",
+          "zh": "相同线材现在默认合并分组。想要平铺列表？在 设置 → 数据 中关闭分组。",
+          "pt": "As bobinas idênticas agora são agrupadas por predefinição. Prefere uma lista simples? Desative o agrupamento em Definições → Dados.",
+          "pt-pt": "As bobinas idênticas agora são agrupadas por predefinição. Prefere uma lista simples? Desative o agrupamento em Definições → Dados.",
+          "pl": "Identyczne szpule są teraz domyślnie grupowane. Wolisz płaską listę? Wyłącz grupowanie w Ustawienia → Dane."
+        }
+      },
+      {
+        "icon": "package",
+        "title": {
+          "en": "Pick a container in a side panel",
+          "fr": "Choisir un contenant dans un panneau latéral",
+          "de": "Behälter im Seitenpanel wählen",
+          "es": "Elige un contenedor en un panel lateral",
+          "it": "Scegli un contenitore in un pannello laterale",
+          "zh": "在侧边面板中选择容器",
+          "pt": "Escolha um recipiente num painel lateral",
+          "pt-pt": "Escolha um recipiente num painel lateral",
+          "pl": "Wybierz pojemnik w panelu bocznym"
+        },
+        "body": {
+          "en": "'Choose a container' is no longer a pop-up — it slides in beside the spool, with bigger container images and the weight shown under each type.",
+          "fr": "« Choisir un contenant » n'est plus une fenêtre — il glisse à côté de la bobine, avec des images de contenants plus grandes et le poids affiché sous chaque type.",
+          "de": "„Behälter wählen“ ist kein Pop-up mehr – es schiebt sich neben die Spule, mit größeren Behälterbildern und dem Gewicht unter jedem Typ.",
+          "es": "«Elegir un contenedor» ya no es una ventana emergente: se desliza junto a la bobina, con imágenes de contenedor más grandes y el peso bajo cada tipo.",
+          "it": "«Scegli un contenitore» non è più una finestra pop-up: scorre accanto alla bobina, con immagini dei contenitori più grandi e il peso sotto ogni tipo.",
+          "zh": "“选择容器”不再是弹窗——它会滑出到线材旁边，容器图片更大，重量显示在每个类型下方。",
+          "pt": "«Escolher um recipiente» já não é uma janela — desliza ao lado da bobina, com imagens de recipiente maiores e o peso mostrado sob cada tipo.",
+          "pt-pt": "«Escolher um recipiente» já não é uma janela — desliza ao lado da bobina, com imagens de recipiente maiores e o peso mostrado sob cada tipo.",
+          "pl": "„Wybierz pojemnik“ nie jest już wyskakującym okienkiem — wysuwa się obok szpuli, z większymi obrazami pojemników i wagą pod każdym typem."
+        }
+      },
+      {
+        "icon": "settings",
+        "title": {
+          "en": "Tidier Settings",
+          "fr": "Réglages plus soignés",
+          "de": "Aufgeräumtere Einstellungen",
+          "es": "Ajustes más ordenados",
+          "it": "Impostazioni più ordinate",
+          "zh": "更整洁的设置",
+          "pt": "Definições mais organizadas",
+          "pt-pt": "Definições mais organizadas",
+          "pl": "Schludniejsze ustawienia"
+        },
+        "body": {
+          "en": "Cleaner buttons and hover states, the Debug panel now opens neatly beside Settings, and the inventory Refresh now lives discreetly in Settings → Data.",
+          "fr": "Des boutons et survols plus nets, le panneau Debug s'ouvre proprement à côté des Réglages, et le rafraîchissement de l'inventaire se trouve désormais discrètement dans Réglages → Données.",
+          "de": "Sauberere Schaltflächen und Hover-Effekte, das Debug-Panel öffnet sich jetzt sauber neben den Einstellungen, und die Inventar-Aktualisierung sitzt nun dezent unter Einstellungen → Daten.",
+          "es": "Botones y estados de hover más limpios, el panel de Depuración ahora se abre junto a Ajustes, y la actualización del inventario está ahora discretamente en Ajustes → Datos.",
+          "it": "Pulsanti e stati hover più puliti, il pannello Debug ora si apre accanto alle Impostazioni e l'aggiornamento dell'inventario si trova ora discretamente in Impostazioni → Dati.",
+          "zh": "按钮和悬停效果更简洁，调试面板现在会整齐地在设置旁边打开，库存刷新现在低调地放在 设置 → 数据 中。",
+          "pt": "Botões e estados de hover mais limpos, o painel de Depuração agora abre ao lado das Definições, e a atualização do inventário fica agora discretamente em Definições → Dados.",
+          "pt-pt": "Botões e estados de hover mais limpos, o painel de Depuração agora abre ao lado das Definições, e a atualização do inventário fica agora discretamente em Definições → Dados.",
+          "pl": "Czytelniejsze przyciski i stany najechania, panel Debugowania otwiera się teraz schludnie obok Ustawień, a odświeżanie magazynu znajduje się dyskretnie w Ustawienia → Dane."
+        }
+      }
+    ]
   }
 }

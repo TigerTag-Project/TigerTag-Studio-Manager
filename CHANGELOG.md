@@ -5,6 +5,26 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.10.19 — 2026-06-23
+
+### Added
+
+- **Smoother card transitions.** Switching from one spool — or one printer — to another now slides the new card in over the old one instead of swapping instantly, with the previous card frozen underneath until the new one settles. Spool cards also open scrolled to the top.
+
+### Changed
+
+- **Grouped view is now the default.** Identical spools are collapsed together by default. The on/off switch has moved out of the toolbar into **Settings → Data** ("Group identical spools") for anyone who prefers a flat list.
+- **"Choose a container" is now a side panel** instead of a pop-up: it slides in beside the spool card, with bigger container images and the weight shown under each container type.
+- **Inventory "Refresh" moved to Settings → Data** ("Resync inventory"). Your inventory already syncs live, so the manual refresh is now a discreet safety net rather than a prominent sidebar button.
+- **Tidier Settings.** Cleaner buttons and hover states, emoji-free tool icons, and the Debug panel now opens neatly to the left of Settings instead of on top of it.
+- **"Spools not stored" entries redesigned** to match the group panel — product image and tier badge on the left; name, material, brand, and a colour-coded weight bar on the right.
+
+### Fixed
+
+- **"Spools not stored" panel handle.** The chevron now follows the panel at a consistent speed however it's opened or closed, no longer lags when the panel reopens after a drag-and-drop, reliably closes the panel when clicked, and dragging a spool now grabs the whole row (with a clean square thumbnail) instead of just the image.
+
+---
+
 ## v1.10.18 — 2026-06-22
 
 ### Added

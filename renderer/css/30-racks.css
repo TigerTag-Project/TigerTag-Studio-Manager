@@ -10,7 +10,9 @@
     flex: 1; min-height: 0;
     overflow-y: auto;
     overflow-x: hidden;
+    scrollbar-width: none;            /* hide the vertical scrollbar (still scrolls) */
   }
+  .inv-rack-view::-webkit-scrollbar { display: none; }
   .inv-rack-view.hidden { display: none; }
   .rv-header { display: flex; gap: 8px; }
   .rp-actions { display: flex; gap: 8px; flex-shrink: 0; }
@@ -889,6 +891,28 @@
     box-shadow: none;
   }
   .rp-side.is-open { transform: translateX(0); box-shadow: -8px 0 24px rgba(0,0,0,.12); }
+  /* Persistent chevron handle for the "not stored" panel. Fixed + anchored by
+     `right` (grows leftward on hover → never overlaps the panel). It travels to
+     the panel's left edge when open and to the screen edge when closed; the
+     glyph flips so it always points the way it will move (open ⇄ close). */
+  .rp-side-tab {
+    position: fixed; right: 0; top: 50%; transform: translateY(-50%);
+    width: 30px; height: 88px; padding: 0;
+    display: flex; align-items: center; justify-content: center;
+    border: none; border-radius: 14px 0 0 14px;
+    background: var(--primary); color: #fff;
+    box-shadow: -6px 0 22px rgba(255,122,24,.45);
+    cursor: pointer; font-size: 19px; font-weight: 800; line-height: 1;
+    transition: right .28s cubic-bezier(.4,0,.2,1), background .15s, width .15s, height .2s cubic-bezier(.34,1.45,.6,1);
+    z-index: 31;   /* just above .rp-side (30) */
+  }
+  .rp-side-tab:hover { background: var(--primary-hover); width: 36px; height: 128px; }
+  /* While dragging a spool, the chevron sits at the edge — don't let it eat a
+     drop near the right border. */
+  body.is-dragging-spool .rp-side-tab { pointer-events: none; }
+  .rp-side-tab-glyph { display: inline-block; transition: transform .25s cubic-bezier(.4,0,.2,1); }
+  /* Panel closed → chevron points LEFT ("open it"); open → points right ("close"). */
+  .rp-side-tab:not(.is-panel-open) .rp-side-tab-glyph { transform: rotate(180deg); }
   /* While dragging a spool out of the panel, slide it off-screen so the racks
      behind become available as drop targets. The persistent open/close state
      is left untouched — the panel slides back in on dragend. */
@@ -1021,8 +1045,8 @@
   }
   /* Single unranked-spool row — horizontal: puck + name + weight */
   .rp-side-row {
-    display: flex; align-items: center; gap: 10px;
-    padding: 7px 8px;
+    display: flex; align-items: center; gap: 12px;
+    padding: 9px 11px;
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 10px;
@@ -1035,6 +1059,13 @@
     transform: translateX(-1px);
   }
   .rp-side-row:active { cursor: grabbing; }
+  /* Smaller illustration here (~30% less than the group panel's 65px) — override
+     the `.gp-member .thumb { 65px }` rule (the colour-square gets 45 inline). */
+  .rp-side-row.gp-member .thumb { width: 45px; height: 45px; }
+  /* The whole row is the single drag source: neutralise children so clicking the
+     image (or anything) grabs the CARD, not the native image. */
+  .rp-side-row > * { pointer-events: none; }
+  .rp-side-row img { -webkit-user-drag: none; user-drag: none; }
   .rp-side-puck {
     /* Match the rack-slot dimensions exactly: 32px wide, 3/5 aspect → ~53px
        tall. Visually consistent with what the user sees inside the racks, so

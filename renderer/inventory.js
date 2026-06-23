@@ -642,9 +642,6 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if ($("langSelect")) $("langSelect").value = state.lang;
     // Refresh dynamic tooltips
     $("td1sHealth")?.setAttribute("data-tooltip", t(state.td1sConnected ? "td1sDetected" : "td1sNotDetected"));
-    // Group toggle tooltip — set imperatively (state-dependent), so it must be
-    // re-localised here (its first sync runs before locales are loaded).
-    $("btnGroupInvLabel")?.setAttribute("data-tooltip", t(state.groupInv ? "invGroupOn" : "invGroupOff"));
   }
 
   /* ── helpers ── */
@@ -3340,16 +3337,22 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   const SVG_COPY = `<span class="icon icon-copy icon-13"></span>`;
   function openSettings() {
     if ($("langSelect")) $("langSelect").value = state.lang;
+    // Settings takes over the right side — close any open side card first.
+    _closeAllSidePanels();
     $("settingsPanel").classList.add("open"); $("settingsOverlay").classList.add("open");
+    _layoutSettingsStack();
   }
   function closeSettings() {
+    closeDebug();   // close the Debug panel tucked to Settings' left, if open
     $("settingsPanel").classList.remove("open"); $("settingsOverlay").classList.remove("open");
+    _layoutSettingsStack();
   }
   // (Sidebar Settings button removed — Settings is reached from the
   // account dropdown, just under "Manage profiles". The dropdown's
   // delegated handler dispatches `data-drop-action="open-settings"`
   // → openSettings().)
   $("settingsClose").addEventListener("click", closeSettings);
+  $("settingsCloseTab")?.addEventListener("click", closeSettings);
   $("settingsOverlay").addEventListener("click", closeSettings);
 
   // Settings → collapsible cards (Data / Tools).  Click the header to
@@ -5948,7 +5951,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     card.className = "spool-card" + (state.selected===r.spoolId?" selected":"") + (r.deleted?" deleted":"");
     card.dataset.id = r.spoolId;
     card.innerHTML = _gridCardInnerHTML(r);
-    card.addEventListener("click", () => openDetail(r.spoolId));
+    card.addEventListener("click", () => openDetail(r.spoolId, { animateSwap: true }));
     card._sig = _rowSignature(r);
     return card;
   }
@@ -6089,7 +6092,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // ── Group panel (lists the member spools as horizontal list-cards) ─────────
   // Image on the left, everything else (name, material·brand, weight) on the
   // right — a wider, list-style card rather than the square grid card.
-  function _groupMemberCardInnerHTML(r) {
+  function _groupMemberCardInnerHTML(r, thumbSize = 65) {
     const name = v(r.colorName) !== "-"
       ? r.colorName
       : [r.aspect1, r.aspect2].filter(a => a && a !== "-" && a !== "None").join(" ") || r.material;
@@ -6100,7 +6103,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       ? `<span class="bar"><span style="width:${pct}%;background:${fillBarColor(pct)}"></span></span>` : "";
     return `
       <div class="gp-member-left">
-        <div class="gp-member-thumb">${thumbHTML(r, 65)}</div>
+        <div class="gp-member-thumb">${thumbHTML(r, thumbSize)}</div>
         ${tierBadgeHTML(r)}
       </div>
       <div class="gp-member-info">
@@ -6116,7 +6119,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     card.dataset.id = r.spoolId;
     if (state.selected === r.spoolId) card.classList.add("selected");
     card.innerHTML = _groupMemberCardInnerHTML(r);
-    card.addEventListener("click", () => openDetail(r.spoolId));
+    card.addEventListener("click", () => openDetail(r.spoolId, { animateSwap: true }));
     return card;
   }
   let _groupPanelKey = null;   // key of the group currently shown in the panel
@@ -6184,7 +6187,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const g = groupRows(allDisplayRows()).find(it => it.type === "group" && it.key === key);
     if (!g) return;
     _groupPanelKey = key;
-    _renderGroupPanelContents(g);
+    _renderGroupPanelContents(g);   // sets _groupPanelMembers
+    // If a detail card is open for a spool that doesn't belong to this group,
+    // it's now unrelated → close it (a member's card may stay and be pushed).
+    if ($("detailPanel")?.classList.contains("open") && state.selected && !_groupPanelMembers.has(state.selected)) {
+      closeDetail();
+    }
     document.getElementById("groupPanel")?.classList.add("open");
     _syncPanels();
   }
@@ -6286,7 +6294,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (state.selected === r.spoolId) tr.classList.add("selected");
     if (r.deleted) tr.classList.add("deleted");
     tr.innerHTML = _tableRowInnerHTML(r);
-    tr.addEventListener("click", () => openDetail(r.spoolId));
+    tr.addEventListener("click", () => openDetail(r.spoolId, { animateSwap: true }));
     tr._sig = _rowSignature(r);
     return tr;
   }
@@ -6484,12 +6492,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // Reflect the active state on the button + only show it in Table/Grid modes
   // (grouping is meaningless in rack / printer views).
   function _syncGroupToggleBtn() {
+    // The toggle now lives in Settings → Data (title + sub label there). Just
+    // keep the checkbox in sync with state.groupInv.
     const cb = $("btnGroupInv");
     if (cb && cb.checked !== !!state.groupInv) cb.checked = !!state.groupInv;
-    const label = $("btnGroupInvLabel");
-    // Always visible — it's a persistent on/off switch. Grouping affects the
-    // Table and the Grid. Explanation shown via a CSS hover bubble (data-tooltip).
-    if (label) label.dataset.tooltip = state.groupInv ? t("invGroupOn") : t("invGroupOff");
   }
   $("btnGroupInv")?.addEventListener("change", (e) => {
     state.groupInv = !!e.target.checked;
@@ -7538,21 +7544,42 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // the right edge (offset 0).
     const configRight = (cOpen && pOpen) ? printerW : 0;
     if (cp) cp.style.right = configRight ? `${configRight}px` : "";
-    // Spool card sits left of whatever else is open on the right (printer + config).
+    // Spool card keeps its place on the right (left of printer/config if those open).
     const matRight = dOpen ? (printerW + configW) : 0;
     if (dp) dp.style.right = matRight ? `${matRight}px` : "";
-    _setTab($("detailCloseTab"),     dOpen, matRight + (dp ? dp.offsetWidth : 0));
+    const detailW = dOpen && dp ? dp.offsetWidth : 0;
+    // Container picker is opened FROM the spool card and tucks to its LEFT.
+    const cpp = $("containerPanel");
+    const cppOpen = !!cpp?.classList.contains("open");
+    const cppW = (cppOpen && cpp) ? cpp.offsetWidth : 0;
+    const cppRight = cppOpen ? (matRight + detailW) : 0;
+    if (cpp) cpp.style.right = cppRight ? `${cppRight}px` : "";
+    _setTab($("detailCloseTab"),     dOpen, matRight + detailW);
     _setTab($("printerCloseTab"),    pOpen, printerW);
     _setTab($("printerAddCloseTab"), cOpen, configRight + configW);
+    _setTab($("containerCloseTab"),  cppOpen, cppRight + cppW);
     // Group panel is the back-most card: it sits LEFT of everything else that's
-    // open on the right (detail, printer config, printer panel), so it's never
-    // hidden behind them.
+    // open on the right (container, detail, printer config, printer panel), so
+    // it's never hidden behind them.
     const gp = $("groupPanel");
     const gOpen = !!gp?.classList.contains("open");
-    const detailW = dOpen && dp ? dp.offsetWidth : 0;
-    const groupRight = gOpen ? (printerW + configW + detailW) : 0;
+    const groupRight = gOpen ? (printerW + configW + cppW + detailW) : 0;
     if (gp) gp.style.right = groupRight ? `${groupRight}px` : "";
     _setTab($("groupCloseTab"), gOpen, groupRight + (gp ? gp.offsetWidth : 0));
+  }
+  // Settings + Debug form their own right-side stack, independent of the
+  // inventory panels above (Settings always closes those first). Settings is the
+  // anchor at the right edge; the Debug panel tucks to its LEFT when both are
+  // open — exactly like the printer config beside the printer panel.
+  function _layoutSettingsStack() {
+    const sp = $("settingsPanel"), dbg = $("debugPanel");
+    const sOpen = !!sp?.classList.contains("open");
+    const dOpen = !!dbg?.classList.contains("open");
+    const sW = (sOpen && sp) ? sp.offsetWidth : 0;
+    const dbgRight = (dOpen && sOpen) ? sW : 0;
+    if (dbg) dbg.style.right = dbgRight ? `${dbgRight}px` : "";
+    _setTab($("settingsCloseTab"), sOpen, sW);
+    _setTab($("debugCloseTab"),    dOpen, dbgRight + (dbg ? dbg.offsetWidth : 0));
   }
   // Show/position/hide a card's close tab so it slides WITH the panel — its `right`
   // has the same .25s transition as the panel's slide and travels the same distance
@@ -7572,7 +7599,60 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     }
   }
 
-  function openDetail(spoolId) {
+  // Slide-swap transition: when switching from one open side card to another,
+  // clone the current card as an inert ghost one z-index BEHIND, snap the real
+  // panel off-screen, then slide it back in with the new content ON TOP of the
+  // ghost. The ghost is removed once covered — "new opens, old closes" with just
+  // 2 fixed z slots (real / real-1), never incrementing. Works for any panel
+  // (spool detail, printer); `scrollSel` is the panel's scroll container.
+  function _ghostSwapPanel(panel, scrollSel) {
+    if (!panel || !panel.classList.contains("open")) return;
+    // Keep the clone pixel-identical (do NOT strip ids): some inner styling is
+    // id-scoped (e.g. #panelBody hides its scrollbar) and stripping it would
+    // re-show a scrollbar → narrower content → layout shift. Duplicate ids are
+    // harmless: the ghost is inserted AFTER the real panel, so getElementById
+    // still returns the real one, and the ghost is inert + removed within 400ms.
+    const ghost = panel.cloneNode(true);
+    ghost.classList.add("detail-ghost");   // z-index:100 (behind detail 101 / printer 105), inert
+    ghost.style.right = panel.style.right || "";   // match any stacked offset
+    // Neutralise live media (camera <iframe>/<webview>/<video>) so the clone
+    // doesn't spin up a second stream — swap each for a same-size dark box (sized
+    // from the REAL element, measured before insertion → no flicker / no load).
+    const realMedia = panel.querySelectorAll("iframe, webview, video");
+    ghost.querySelectorAll("iframe, webview, video").forEach((el, i) => {
+      const r = realMedia[i]?.getBoundingClientRect();
+      const ph = document.createElement("div");
+      if (r) { ph.style.width = `${r.width}px`; ph.style.height = `${r.height}px`; }
+      ph.style.background = "#000";
+      el.replaceWith(ph);
+    });
+    panel.parentNode.insertBefore(ghost, panel.nextSibling);  // after → real stays first for getElementById
+    // cloneNode resets scrollTop — restore the outgoing card's scroll on the
+    // ghost so the transition shows exactly what was on screen.
+    if (scrollSel) {
+      const gBody = ghost.querySelector(scrollSel), rBody = panel.querySelector(scrollSel);
+      if (gBody && rBody) gBody.scrollTop = rBody.scrollTop;
+    }
+    panel.style.transition = "none";
+    panel.classList.remove("open");   // snap off-screen (translateX 100%)
+    panel.offsetWidth;                // reflow
+    panel.style.transition = "";      // restore the slide transition
+    requestAnimationFrame(() => requestAnimationFrame(() => panel.classList.add("open")));
+    setTimeout(() => ghost.remove(), 400);
+  }
+
+  function openDetail(spoolId, opts = {}) {
+    // Switching to a different spool → close the container picker (it was anchored
+    // to the previous spool). Same-spool refreshes (snapshots) leave it open.
+    if (state.selected && state.selected !== spoolId
+        && $("containerPanel")?.classList.contains("open")) {
+      closeContainerPicker();
+    }
+    // Switching between two different open cards → animate the swap (test: table).
+    if (opts.animateSwap && $("detailPanel")?.classList.contains("open")
+        && state.selected && state.selected !== spoolId) {
+      _ghostSwapPanel($("detailPanel"), "#panelBody");
+    }
     // If a group panel is open, keep it only when the opened spool belongs to
     // that group (a member clicked from the panel → push). Opening any other
     // spool makes the group panel irrelevant → close it.
@@ -7586,6 +7666,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     _lastDetailSig = _rowSignature(r);
     _lastDetailStructuralSig = _detailStructuralSig(r);
     $("panelBody").innerHTML = buildPanelHTML(r);
+    $("panelBody").scrollTop = 0;   // always show a newly-opened card from the top
     // Hold-to-confirm "Delete spool" — 1.5s hold, irreversible hard delete.
     // Removes the Firestore doc (+ twin) permanently — ISO with printer deletion.
     // Flutter's cloudSync guard prevents resurrection on the phone.
@@ -8121,6 +8202,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     });
   }
   function closeDetail() {
+    // The container picker is anchored to this spool card — close it too.
+    if ($("containerPanel")?.classList.contains("open")) closeContainerPicker();
     // Cancel any pending auto-save (don't fire on close)
     clearTimeout(_sliderDebounce); _sliderDebounce = null;
     // Stop any playing video
@@ -8314,11 +8397,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     _cpRow = r;
     _renderCpList("");
     $("containerPickerSearch").value = "";
-    $("containerPickerOverlay").classList.add("open");
+    $("containerPanel").classList.add("open");   // side card to the LEFT of the spool detail
+    _syncPanels();                                // place the picker + close tabs
     setTimeout(() => $("containerPickerSearch").focus(), 120);
   }
   function closeContainerPicker() {
-    $("containerPickerOverlay").classList.remove("open");
+    $("containerPanel").classList.remove("open");
+    _syncPanels();
     _cpRow = null;
   }
   function _renderCpList(query) {
@@ -8342,8 +8427,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           <div class="cp-item-info">
             <div class="cp-item-name">${esc(c.label)}</div>
             <div class="cp-item-meta">${esc(c.type)}</div>
+            <span class="cp-item-cw">${c.container_weight} g</span>
           </div>
-          <span class="cp-item-cw">${c.container_weight} g</span>
           ${c.id === currentId ? '<span class="cp-check">✓</span>' : ""}
         </button>
       `).join("")}
@@ -8375,7 +8460,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   }
   $("panelOverlay").addEventListener("click", closeDetail);
   $("detailCloseTab")?.addEventListener("click", closeDetail); // » close tab (non-modal card)
-  document.addEventListener("keydown", e => { if (e.key==="Escape") { closeDetail(); closeContainerPicker(); } });
+  document.addEventListener("keydown", e => {
+    if (e.key !== "Escape") return;
+    // Close the top-most card first: container picker (front) before the spool card.
+    if ($("containerPanel")?.classList.contains("open")) { closeContainerPicker(); return; }
+    closeDetail();
+  });
 
   // Timelapse: 1051 response dispatches this event → show native save dialog directly.
   document.addEventListener("elg:timelapse-ready", e => {
@@ -8399,9 +8489,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (e.target === $("cloudEncodeOverlay")) closeEncodeModal();
   });
 
-  // container picker events
-  $("containerPickerClose").addEventListener("click", closeContainerPicker);
-  $("containerPickerOverlay").addEventListener("click", e => { if (e.target === $("containerPickerOverlay")) closeContainerPicker(); });
+  // container picker events (side card — no overlay backdrop, closed via the chevron tab)
+  $("containerCloseTab")?.addEventListener("click", closeContainerPicker);
   $("containerPickerSearch").addEventListener("input", e => _renderCpList(e.target.value));
   $("containerPickerList").addEventListener("click", e => {
     const btn = e.target.closest(".cp-item[data-cid]");
@@ -9196,15 +9285,24 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if ($("detailPanel"))     _panelRO.observe($("detailPanel"));
     if ($("printerAddPanel")) _panelRO.observe($("printerAddPanel"));
     if ($("groupPanel"))      _panelRO.observe($("groupPanel"));
+    // Settings + Debug stack: keep the Debug panel + close tabs glued when
+    // either is resized (the Debug panel is user-resizable).
+    const _stackRO = new ResizeObserver(_layoutSettingsStack);
+    if ($("settingsPanel")) _stackRO.observe($("settingsPanel"));
+    if ($("debugPanel"))    _stackRO.observe($("debugPanel"));
   }
   window.addEventListener("resize", _syncPanels);
+  window.addEventListener("resize", _layoutSettingsStack);
 
-  // Close every open side card (spool / group / printer) in one go.
+  // Close every open side card (spool / group / printer / settings) in one go.
   function _closeAllSidePanels() {
+    if ($("containerPanel")?.classList.contains("open"))  closeContainerPicker();
     if ($("detailPanel")?.classList.contains("open"))     closeDetail();
     if ($("groupPanel")?.classList.contains("open"))      _closeGroupPanel();
     if ($("printerPanel")?.classList.contains("open"))    closePrinterDetail();
     if ($("printerAddPanel")?.classList.contains("open")) closePrinterAddForm();
+    if ($("debugPanel")?.classList.contains("open"))      closeDebug();
+    if ($("settingsPanel")?.classList.contains("open"))   closeSettings();
   }
   // Each `»` close tab: a quick click closes its own panel (existing handlers);
   // a long press (HOLD_MS) closes ALL side cards, with a vertical fill animation
@@ -9252,12 +9350,20 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   /* ── debug panel ── */
   function openDebug() {
     $("debugPanel").classList.add("open");
-    $("debugOverlay").classList.add("open");
+    // No extra backdrop when opened from Settings — Settings' overlay already
+    // dims the page and Debug just tucks to its left.
+    if (!$("settingsPanel")?.classList.contains("open")) $("debugOverlay").classList.add("open");
+    _layoutSettingsStack();
     fsExplRefresh();
   }
-  function closeDebug() { $("debugPanel").classList.remove("open"); $("debugOverlay").classList.remove("open"); }
+  function closeDebug() {
+    $("debugPanel").classList.remove("open");
+    $("debugOverlay").classList.remove("open");
+    _layoutSettingsStack();
+  }
   $("btnDebug").addEventListener("click", openDebug);
   $("debugPanelClose").addEventListener("click", closeDebug);
+  $("debugCloseTab")?.addEventListener("click", closeDebug);
   $("debugOverlay").addEventListener("click", closeDebug);
 
   /* ── RFID tester modal ── */
@@ -9321,10 +9427,17 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // Whitelist: buttons that own/manage the panel state — let their
     // own handlers run instead of the click-outside closing behaviour.
     if (e.target.closest("#btnToggleUnranked")) return;  // header pill toggle
+    if (e.target.closest("#rpUnrackedTab")) return;      // chevron handle (owns its own toggle)
     if (e.target.closest("#btnViewRack")) return;        // Storage view button (toolbar)
-    // Otherwise — close
+    // Otherwise — close. Mirror setUnrackedOpen(false) (which is local to
+    // renderRackView and not reachable here): slide the chevron back to the edge
+    // and reset the toggle tile, so the handle tracks the closing panel.
     aside.classList.remove("is-open");
     localStorage.setItem("tigertag.unrackedPanelOpen", "false");
+    const tab = document.getElementById("rpUnrackedTab");
+    if (tab) { tab.style.right = "0px"; tab.classList.remove("is-panel-open"); }
+    const tile = document.getElementById("btnToggleUnranked");
+    if (tile) { tile.classList.remove("rv-stat--active"); tile.setAttribute("aria-pressed", "false"); }
   });
 
   // Settings → About → "Copy" — copies a one-line summary to clipboard
@@ -11356,6 +11469,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function openPrinterDetail(brand, id) {
     const printer = state.printers.find(p => p.brand === brand && p.id === id);
     if (!printer) return;
+    // Switching from one open printer card to another → slide-swap (ghost of the
+    // outgoing card, new one slides in on top). Same transition as the spool
+    // detail panel. Must run before _activePrinter / renderPrinterDetail change.
+    if ($("printerPanel")?.classList.contains("open")
+        && _activePrinter && (_activePrinter.brand !== brand || _activePrinter.id !== id)) {
+      _ghostSwapPanel($("printerPanel"), ".pp-scroll");
+    }
     // Switching to a DIFFERENT printer's side-card closes the settings panel —
     // it edits one specific printer, so a stale form for the previous one must
     // not linger beside the new printer.
@@ -14871,18 +14991,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function unrackedRowHTML(row) {
     const readOnly = !!state.friendView;
     const tip = `${esc(row.brand || "")} · ${esc(row.material || "")}\n${esc(row.colorName || row.uid || "")}`;
-    const titleLine = row.brand || row.material || row.uid || "—";
-    const subLine   = [row.material, row.colorName].filter(Boolean).join(" · ");
-    const wAvail    = row.weightAvailable != null ? row.weightAvailable : "—";
-    const wCap      = row.capacity || 1000;
-    return `<div class="rp-side-row" draggable="${readOnly ? "false" : "true"}" data-spool-id="${esc(row.spoolId)}" title="${tip}">
-      <div class="rp-side-puck">${slotFillInnerHTML(row)}</div>
-      <div class="rp-side-meta">
-        <div class="rp-side-name">${esc(titleLine)}</div>
-        <div class="rp-side-sub">${esc(subLine || "—")}</div>
-      </div>
-      <div class="rp-side-w">${wAvail}<span class="rp-side-w-unit">/${wCap}g</span></div>
-    </div>`;
+    // Same visual as the group panel's member list-cards (image left, tier badge
+    // under it, name / material·brand / weight + bar right). Keeps `.rp-side-row`
+    // + data-spool-id so the existing drag-to-rack wiring is untouched.
+    return `<div class="rp-side-row gp-member" draggable="${readOnly ? "false" : "true"}" data-spool-id="${esc(row.spoolId)}" title="${tip}">${_groupMemberCardInnerHTML(row, 45)}</div>`;
   }
 
   // Set by a side-row dragend, used to defer renderRackView so the panel
@@ -15498,7 +15610,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           <span class="icon icon-search icon-13"></span>
         </div>
         <div class="rp-side-list" id="rpUnrackedStrip">${sideRows}</div>
-      </aside>`;
+      </aside>
+      <button class="rp-side-tab" id="rpUnrackedTab" type="button" aria-label="Toggle panel"><span class="rp-side-tab-glyph">»</span></button>`;
 
     list.innerHTML = html;
 
@@ -15592,21 +15705,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       });
     });
 
-    // If we just entered Storage mode with unranked spools, animate the side
-    // panel sliding in (otherwise it would already be at translateX(0) on the
-    // first paint — no transition). Render with .is-open OFF, then add it on
-    // the next frame so the CSS transition fires.
-    if (_unrackedAnimateOpen) {
-      _unrackedAnimateOpen = false;
-      const aside = $("rpUnranked");
-      if (aside) {
-        aside.classList.remove("is-open");
-        // Two rAFs: first paints the closed state, second triggers the open.
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => aside.classList.add("is-open"));
-        });
-      }
-    }
+    // The auto-open slide-in on entering Storage is handled below, together with
+    // the chevron, in the setUnrackedOpen(panelOpenInit) setup (see _unrackedAnimateOpen).
 
     // ── Wire rack head kebab → opens contextual menu
     list.querySelectorAll(".rp-rack-kebab").forEach(btn => {
@@ -15706,7 +15806,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         strip.querySelectorAll(".rp-side-row").forEach(el => {
           el.addEventListener("click", () => {
             if (el._wasDragged) { el._wasDragged = false; return; }
-            const sid = el.dataset.spoolId; if (sid) openDetail(sid);
+            const sid = el.dataset.spoolId; if (sid) openDetail(sid, { animateSwap: true });
           });
         });
       });
@@ -15721,7 +15821,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         if (el._wasDragged) { el._wasDragged = false; return; }
         const sid = el.dataset.spoolId;
         if (!sid) return;
-        openDetail(sid);
+        openDetail(sid, { animateSwap: true });
       });
     });
 
@@ -15790,7 +15890,42 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         tile.classList.toggle("rv-stat--active", open);
         tile.setAttribute("aria-pressed", open ? "true" : "false");
       }
+      // Persistent chevron handle: sits at the right edge when closed (points
+      // left → "open"), at the panel's left edge when open (points right →
+      // "close"). Anchored by `right` so it grows leftward on hover (never over
+      // the panel).
+      const tab = $("rpUnrackedTab");
+      if (tab) {
+        tab.style.right = open ? `${(aside ? aside.offsetWidth : 320)}px` : "0px";
+        tab.classList.toggle("is-panel-open", open);
+      }
       localStorage.setItem("tigertag.unrackedPanelOpen", open ? "true" : "false");
+    }
+    if (_unrackedAnimateOpen) {
+      // Just entered Storage with unranked spools: snap panel + chevron CLOSED
+      // (no transition), then animate BOTH open together on the next frame — so
+      // the chevron tracks the panel exactly like a manual open.
+      _unrackedAnimateOpen = false;
+      const aside = $("rpUnranked"), tab = $("rpUnrackedTab");
+      aside?.classList.remove("is-open");
+      if (tab) {
+        tab.style.transition = "none";
+        tab.style.right = "0px";
+        tab.classList.remove("is-panel-open");
+        tab.offsetWidth;            // force reflow so the snap applies
+        tab.style.transition = "";  // restore the CSS transition
+      }
+      requestAnimationFrame(() => requestAnimationFrame(() => setUnrackedOpen(true)));
+    } else {
+      // Steady re-render (e.g. a snapshot after a drop): place the chevron at its
+      // final spot WITHOUT animating. The chevron is recreated fresh each render
+      // at CSS right:0, so animating here would replay the open slide on every
+      // snapshot (the "double movement" after a drop). Only explicit toggles
+      // (chevron/tile click, drag, auto-open) animate.
+      const tab = $("rpUnrackedTab");
+      if (tab) tab.style.transition = "none";
+      setUnrackedOpen(panelOpenInit);   // place + orient the chevron
+      if (tab) { tab.offsetWidth; tab.style.transition = ""; }  // reflow, then restore
     }
     $("btnToggleUnranked")?.addEventListener("click", () => {
       const aside = $("rpUnranked");
@@ -15806,6 +15941,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       }
     });
     $("rpUnrackedClose")?.addEventListener("click", () => setUnrackedOpen(false));
+    $("rpUnrackedTab")?.addEventListener("click", () => {
+      setUnrackedOpen(!$("rpUnranked")?.classList.contains("is-open"));
+    });
 
     // Auto-storage toggle inside the side panel — persisted in localStorage.
     // When flipped ON, fire the auto-fill routine immediately to clear the
@@ -15868,6 +16006,18 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         }
         e.dataTransfer.setData("text/plain", sid);
         e.dataTransfer.effectAllowed = "move";
+        // For the unranked side rows, drag a small rounded thumbnail (just the
+        // image) instead of a ghost of the whole list-card.
+        if (el.classList.contains("rp-side-row") && e.dataTransfer.setDragImage) {
+          // Use `.thumb-wrap` (the square, rounded image box) — not the
+          // `.gp-member-thumb` div, which stretches to the tier-badge width and
+          // would make the ghost a rectangle.
+          const thumb = el.querySelector(".gp-member-thumb .thumb-wrap");
+          if (thumb) {
+            const r = thumb.getBoundingClientRect();
+            e.dataTransfer.setDragImage(thumb, r.width / 2, r.height / 2);
+          }
+        }
         el.classList.add("rp-dragging");
         el._wasDragged = true;
         // Globally signal "spool drag in progress" so the rack view can light
@@ -15881,6 +16031,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         // state is left untouched — the panel slides back in on dragend.
         if (el.classList.contains("rp-side-row")) {
           $("rpUnranked")?.classList.add("is-dragging");
+          // Slide the chevron to the screen edge via `right` (same transition as
+          // a normal close) so it tracks the panel sliding off — and back in on
+          // dragend at the exact same speed.
+          const tab = $("rpUnrackedTab");
+          if (tab) { tab.style.right = "0px"; tab.classList.remove("is-panel-open"); }
         }
         // Reset the click-suppression flag shortly after the drag completes
         setTimeout(() => { el._wasDragged = false; }, 400);
@@ -15900,6 +16055,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         // panel is untouched, so we don't want to delay the visual update.
         if (el.classList.contains("rp-side-row")) {
           $("rpUnranked")?.classList.remove("is-dragging");
+          // Slide the chevron back to the panel's left edge — same `right`
+          // transition as the panel sliding in, so they move together.
+          const aside = $("rpUnranked"), tab = $("rpUnrackedTab");
+          if (tab && aside?.classList.contains("is-open")) {
+            tab.style.right = `${aside.offsetWidth}px`;
+            tab.classList.add("is-panel-open");
+          }
           _unrackedSettleUntil = Date.now() + 320;
         }
       });
@@ -18282,7 +18444,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     window.electronAPI.onRfid((uid) => {
       if (_encodeModalOpen()) return;   // don't pop a side-card over the encode modal
       const row = state.rows.find(r => r.uid === uid || r.spoolId === uid);
-      if (row) openDetail(row.spoolId);
+      if (row) openDetail(row.spoolId, { animateSwap: true });
     });
 
     // ── Dual-scan buffer — collects up to 2 readers within 1.5 s ────────────
@@ -18403,7 +18565,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         const firstUid = processedUids[0];
         const _tryOpen = () => {
           const row = state.rows.find(r => r.uid === firstUid || r.spoolId === firstUid);
-          if (row) openDetail(row.spoolId);
+          if (row) openDetail(row.spoolId, { animateSwap: true });
         };
         setTimeout(_tryOpen, 150);
         setTimeout(_tryOpen, 600); // retry if snapshot was slow

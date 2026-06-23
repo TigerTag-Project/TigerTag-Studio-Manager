@@ -647,32 +647,6 @@
   .vtg-sep { width: 1px; height: 22px; background: var(--border); margin: 0 2px; flex-shrink: 0; }
   .vtg-printers .icon { vertical-align: middle; }
 
-  /* Group-identical-spools toggle — always visible, sits between the inventory
-     view-toggle and the separator. A real on/off switch (reuses the app's
-     .eac-toggle): label + folder icon + sliding switch that turns orange ON. */
-  .group-toggle-btn {
-    display: inline-flex; align-items: center; gap: 8px;
-    height: 36px; padding: 0 10px;
-    border: 1px solid var(--border); border-radius: var(--radius-sm);
-    background: var(--surface-2); color: var(--text);
-    font-size: 13px; cursor: pointer; flex-shrink: 0; user-select: none;
-    transition: border-color .12s;
-    position: relative;          /* anchor for the hover bubble */
-  }
-  .group-toggle-btn:hover { border-color: var(--primary); }
-  .group-toggle-btn .icon { vertical-align: middle; }
-  /* Explanation bubble on hover (pure CSS, reads data-tooltip — not a native
-     title attribute). Same dark style as the health-icon / rack-slot tooltips. */
-  .group-toggle-btn::after {
-    content: attr(data-tooltip);
-    position: absolute; top: calc(100% + 7px); left: 50%; transform: translateX(-50%);
-    background: #1c2030; color: #fff; border: 1px solid rgba(255,255,255,.1);
-    padding: 5px 10px; border-radius: 7px; font-size: 11px; white-space: nowrap;
-    opacity: 0; pointer-events: none; transition: opacity .15s;
-    box-shadow: 0 4px 12px rgba(0,0,0,.3); z-index: 50;
-  }
-  .group-toggle-btn:hover::after { opacity: 1; }
-
   /* ── grid view ── */
   .inv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); grid-auto-rows: min-content; align-content: start; gap: 8px; margin-top: 12px; }
   .spool-card {
@@ -825,9 +799,19 @@
      visible) yet BELOW the panel to its right (tuck behind it while sliding
      closed). That needs a free z-index slot between each pair → the interleaved
      ladder: panels 101/103/105, tabs 102/104/106 (set below). */
+  /* Slide-swap ghost: a static clone of the outgoing card, one slot BEHIND the
+     real panel (101), removed once the new card slides over it. Inert. */
+  .detail-ghost { z-index: 100 !important; pointer-events: none; }
   .detail-panel.printer-panel { z-index: 105; }   /* printer = front card */
   #printerAddPanel            { z-index: 103; }    /* printer settings = middle */
   /* plain .detail-panel (material/spool) keeps z-index 101 = back card */
+  /* Settings + Debug stack: Settings (anchor, right edge) paints above the Debug
+     panel (101) tucked to its left, so the seam stays clean. */
+  #settingsPanel { z-index: 103; }
+  /* Container picker: tucks to the LEFT of the spool detail (which keeps the
+     right edge), so it sits BEHIND it (100, like the group panel). */
+  #containerPanel { z-index: 100; width: 250px; }
+  #containerCloseTab { z-index: 100; }
   /* Close tab — a small handle protruding from the printer panel's left edge
      (»  = "push it back to the right"). JS pins `right` to the panel width. */
   .pp-close-tab {
@@ -860,6 +844,11 @@
   #detailCloseTab     { z-index: 102; } /* material tab — behind settings + printer */
   #printerAddCloseTab { z-index: 104; } /* settings tab — over material, behind printer */
   #printerCloseTab    { z-index: 106; } /* printer tab — over settings (front-most) */
+  /* Settings + Debug stack: Debug tab tucks BEHIND the Settings panel (102 <
+     settings 103) so it slides in from the edge behind Settings, not over it;
+     the Settings tab stays on top (104). */
+  #debugCloseTab      { z-index: 102; }
+  #settingsCloseTab   { z-index: 104; }
   /* resize handle — left edge of both panels */
   .panel-resize {
     position: absolute; top: 0; left: 0; bottom: 0; width: 6px;
@@ -1940,11 +1929,9 @@
     font-variant-numeric: tabular-nums;
   }
 
-  /* ── container picker modal ── */
-  #containerPickerOverlay .cp-card {
-    width: min(480px, calc(100vw - 32px)); max-height: 70vh;
-    display: flex; flex-direction: column; padding: 0; overflow: hidden;
-  }
+  /* ── container picker — side card (tucks right of the spool detail) ── */
+  .cp-list { scrollbar-width: none; }
+  .cp-list::-webkit-scrollbar { display: none; }
   .cp-header {
     display: flex; align-items: center; justify-content: space-between;
     padding: 16px 18px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0;
@@ -1965,27 +1952,28 @@
   }
   .cp-search:focus { border-color: var(--primary); }
   .cp-list {
-    overflow-y: auto; padding: 8px 0; flex: 1;
+    overflow-y: auto; padding: 8px; flex: 1;
   }
   .cp-group-label {
-    padding: 6px 16px 2px; font-size: 10px; font-weight: 700;
+    padding: 6px 12px 2px; font-size: 10px; font-weight: 700;
     text-transform: uppercase; letter-spacing: .06em; color: var(--muted);
   }
   .cp-item {
     display: flex; align-items: center; gap: 12px;
-    width: 100%; padding: 8px 16px; background: none; border: none;
+    width: 100%; min-height: 80px; padding: 8px 12px; box-sizing: border-box;
+    background: none; border: none; border-radius: 10px;
     cursor: pointer; text-align: left; transition: background .1s;
   }
   .cp-item:hover { background: var(--surface-2); }
   .cp-item.active { background: color-mix(in srgb, var(--primary) 10%, transparent); }
   .cp-item img {
-    width: 40px; height: 40px; object-fit: contain; flex-shrink: 0;
-    background: #fff; border-radius: 6px; padding: 3px; border: 1px solid var(--border);
+    width: 64px; height: 64px; object-fit: contain; flex-shrink: 0;
+    background: #fff; border-radius: 8px; padding: 4px; border: 1px solid var(--border);
   }
   .cp-item-info { flex: 1; min-width: 0; }
   .cp-item-name { font-size: 13px; font-weight: 600; color: var(--text); }
   .cp-item-meta { font-size: 11px; color: var(--muted); margin-top: 1px; }
-  .cp-item-cw { font-size: 12px; font-weight: 700; color: var(--text); flex-shrink: 0; }
+  .cp-item-cw { display: block; margin-top: 3px; font-size: 12px; font-weight: 700; color: var(--text); }
   .cp-check { color: var(--primary); font-size: 14px; flex-shrink: 0; }
   .cp-empty { padding: 24px; text-align: center; font-size: 13px; color: var(--muted); }
 

@@ -54,7 +54,11 @@
   .stg-row--toggle {
     cursor: pointer;
     user-select: none;
+    padding: 6px 8px; margin: -2px -8px;
+    border-radius: 9px;
+    transition: background .15s;
   }
+  .stg-row--toggle:hover { background: var(--surface-2); }
   .stg-row-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
   .stg-row-title { font-size: 13px; font-weight: 600; color: var(--text); }
   .stg-row-sub   { font-size: 11px; color: var(--muted); line-height: 1.35; }
@@ -76,13 +80,32 @@
   }
   .stg-row-actions .ghost,
   .stg-row-actions .stg-link-btn {
-    font-size: 12px;
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 6px 12px;
+    font-size: 12px; font-weight: 600;
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 8px 12px;
     text-decoration: none;
     color: var(--text);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    cursor: pointer;
+    transition: background .15s, border-color .15s, color .15s, transform .08s, box-shadow .15s;
   }
+  .stg-row-actions .ghost .icon,
+  .stg-row-actions .stg-link-btn .icon { background: var(--muted); transition: background .15s; }
+  .stg-row-actions .ghost:hover,
+  .stg-row-actions .stg-link-btn:hover {
+    background: var(--surface);
+    border-color: var(--primary);
+    color: var(--primary);
+    box-shadow: 0 2px 10px rgba(0,0,0,.06);
+  }
+  .stg-row-actions .ghost:hover .icon,
+  .stg-row-actions .stg-link-btn:hover .icon { background: var(--primary); }
+  .stg-row-actions .ghost:active,
+  .stg-row-actions .stg-link-btn:active { transform: translateY(1px); box-shadow: none; }
   .stg-row-actions .ghost:disabled { opacity: .5; cursor: not-allowed; }
+  .stg-row-actions .ghost:disabled:hover { background: var(--surface-2); border-color: var(--border); color: var(--text); box-shadow: none; }
 
   /* About content — flat lines directly inside the card body, no inner box */
   #stgAbout .stg-about-name    { font-size: 13px; font-weight: 600; color: var(--text); }
@@ -170,18 +193,21 @@
      Header is a real <button> for accessibility, no chrome around it.
      Hover only changes the title + chevron color, no background fill. */
   .stg-card-head--btn {
-    width: 100%;
-    padding: 0;
+    width: calc(100% + 16px);
+    padding: 6px 8px;
     border: 0;
-    margin: 0 0 10px;
+    margin: -2px -8px 10px;
+    border-radius: 9px;
     cursor: pointer;
     font: inherit;
     color: inherit;
     text-align: left;
     -webkit-appearance: none;
             appearance: none;
+    transition: background .15s;
   }
-  .stg-card--collapsible[data-collapsed="true"] .stg-card-head--btn { margin-bottom: 0; }
+  .stg-card-head--btn:hover { background: var(--surface-2); }
+  .stg-card--collapsible[data-collapsed="true"] .stg-card-head--btn { margin-bottom: -2px; }
   .stg-card-head--btn .stg-card-title {
     flex: 1;
     transition: color .15s;
@@ -191,8 +217,11 @@
     flex-shrink: 0;
     transition: transform .2s cubic-bezier(.4, 0, .2, 1), background .15s;
   }
-  .stg-card-head--btn:hover .stg-card-title,
-  .stg-card-head--btn:hover .stg-card-chev { background: var(--primary); color: var(--primary); }
+  /* On hover: title TEXT turns orange (no background!), the chevron is an SVG
+     mask icon so its `background` IS its fill colour. Setting `background` on the
+     title span made an orange box over the text — that was the bug. */
+  .stg-card-head--btn:hover .stg-card-title { color: var(--primary); }
+  .stg-card-head--btn:hover .stg-card-chev { background: var(--primary); }
   .stg-card-head--btn:focus-visible {
     outline: 2px solid var(--primary);
     outline-offset: 2px;
