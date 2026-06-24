@@ -1,5 +1,13 @@
 [
   {
+    "id": "13",
+    "name": "A2L",
+    "image": "assets/images/bbl_printers/a2l.png",
+    "features": ["AMS Optional", "Camera"],
+    "camera_transport": "jpeg_tcp",
+    "open_firmware": null
+  },
+  {
     "id": "12",
     "name": "X2D",
     "image": "assets/images/bbl_printers/x1c.png",

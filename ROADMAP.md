@@ -797,6 +797,62 @@ P1: M · P2: M · P3: M · P4: S · P5: L (gated) · P6: M → **~L combined** f
 
 ---
 
+### 🛰️ Bambu Lab Cloud — remote status / control from anywhere  ·  **Effort: L**  ·  **Risk: medium**
+
+> **Full spec & data model: [`docs/bambu_connect_cloud.md`](docs/bambu_connect_cloud.md)** — auth flow,
+> MQTT/REST endpoints, telemetry schema, control commands, Firebase model, the multi-device token
+> strategy (§6.1) and security tiers (§6.2). Read it before implementing.
+
+Make a user's Bambu fleet reachable **from anywhere** — Flutter mobile on 4G, a second Studio at
+work — **even when the home machine is off**, without going through Bambu's closed cloud-camera path.
+
+**The hard split (don't conflate the two):**
+- **Status + control** (state, temps, AMS, progress, pause/resume/stop) → works **PC-off** via the
+  Bambu **cloud token** (MQTT `*.mqtt.bambulab.com:8883` + REST `api.bambulab.com`). This is the
+  scope of this entry.
+- **Live camera** → **NOT** unlocked by the token. Bambu's cloud camera is **BRTC** (proprietary,
+  dead end — see [`camera_findings.md`](camera_findings.md) + spec §7). Remote camera **requires a
+  LAN relay kept on** (Studio host, or a small always-on Pi/NAS running go2rtc → WebRTC/HLS, optional
+  STUN + a ~4-6 €/mo coturn for 4G/CGNAT fallback). Tracked separately from this entry.
+
+#### Sub-features
+- **BC1 — Cloud auth + auto-setup** *(S-M)* — email-code login → `accessToken` (+ `expiresAt`,
+  `region`), resolve `uid` via `design-user-service/my/preference`, `bind` → device list (carries
+  `dev_access_code`). Idempotent re-run keyed by `dev_id`. Spec §1, §2, §8.
+- **BC2 — Shared-token multi-device model** *(M)* — **one** token, generated **once**, stored as the
+  single source of truth; every device **reads** it (never regenerates), caches it in its OS keychain,
+  and connects directly to Bambu. Unique MQTT `client_id` per device. Coordinated re-login at
+  expiry (`refreshInProgress` lock **or** a single designated refresher). Spec §6.1.
+- **BC3 — Live telemetry + control over cloud MQTT** *(M)* — subscribe `device/<id>/report` (+ initial
+  `pushall`; P1=deltas, X1=full), publish controls on `device/<id>/request`, `sequence_id` matching.
+  Reuses the existing Bambu live-block UI (already shipping LAN, F3). Spec §3-5.
+- **BC4 — Token security** *(S)* — V1 pragmatic: Firestore `users/{uid}/bambu/**` **`isOwner()`
+  strict** + keychain cache per client. V2 hardened: backend proxy holds the token, clients never see
+  it. Spec §6.2. **Backend rules change is gated on the safeguard below.**
+
+#### ♻️ Reuses
+- The LAN Bambu MQTT driver already shipped (v1.6.0, F3) — same telemetry/command shapes, just the
+  cloud broker + token auth instead of LAN `bblp`/access-code.
+- Firebase auth + `onSnapshot` plumbing (token propagation across devices is the same pattern as the
+  existing per-account inventory sync).
+- `docs/bambu_connect_cloud.md` is the canonical implementation reference (no reverse-engineering
+  needed — built on OpenBambuAPI + validated field notes).
+
+#### 🔒 Firestore rules — additive only, with a regression safeguard
+`users/{uid}/bambu/**` is **already owner-only by default** (per CLAUDE.md: everything under
+`users/{uid}/**` is `isOwner()` unless a public-read exception carves it out — and `inventory`/`racks`
+are the only exceptions). So BC4 should **verify** the default already protects the token rather than
+add broad new rules. Any rules edit in the backend repo (`TigerTag_Firebase_Backend/firestore.rules`)
+must ship with a **rules-emulator test** proving: (a) owner can R/W `bambu/**`, (b) a non-owner
+authed user **cannot** read it, (c) the existing `inventory`/`racks` **friend-read** still works
+unchanged. No silent widening of the friend ACL onto `bambu/**`.
+
+#### 🧮 Total effort
+BC1: S-M · BC2: M · BC3: M · BC4: S → **~L combined.** Camera-from-anywhere (LAN relay + TURN) is a
+separate, optional track.
+
+---
+
 ### ✅ 🔥 Cloud → chip encode — guided dual-chip burn modal *(shipped v1.8.5)*
 
 **Shipped**: the guarded modal flow below is implemented — modal (`#cloudEncodeOverlay`) + `openEncodeModal`/`_cemStartBurn`/`_cemMigrate` in `inventory.js`, the new `rfid:burn-one` IPC (`main.js`) with read-back verification in `services/nfc-process.js`, and the chip-epoch timestamp fix. The old one-shot `_encodeCloud` was removed.

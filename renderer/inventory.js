@@ -6435,10 +6435,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   }
 
   /* ── view toggle ── */
-  function setViewMode(mode) {
+  function setViewMode(mode, opts = {}) {
     const prevMode = state.viewMode;
     state.viewMode = mode;
-    localStorage.setItem("tigertag.view", mode);
+    // Friend view forces "grid" transiently — `persist:false` keeps the owner's
+    // saved preference (restored on switching back to their own account).
+    if (opts.persist !== false) localStorage.setItem("tigertag.view", mode);
     $("btnViewTable")?.classList.toggle("active", mode === "table");
     $("btnViewGrid")?.classList.toggle("active",  mode === "grid");
     $("btnViewRack")?.classList.toggle("active",  mode === "rack");
@@ -9221,13 +9223,16 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   }
 
   /* ── resizable panels ── */
-  function makePanelResizable(panelEl, handleEl, storageKey) {
+  function makePanelResizable(panelEl, handleEl, storageKey, maxW) {
     const MIN_W = 280;
-    const MAX_W = () => Math.round(window.innerWidth * 0.85);
+    // Cap at the smaller of the optional per-panel max (e.g. 2× MIN_W for the
+    // spool card) and 85vw.
+    const MAX_W = () => Math.min(maxW || Infinity, Math.round(window.innerWidth * 0.85));
 
-    // Restore saved width
+    // Restore saved width (clamped to the current max — covers values saved
+    // before a cap was introduced).
     const saved = parseInt(localStorage.getItem(storageKey), 10);
-    if (saved && saved >= MIN_W) panelEl.style.width = saved + "px";
+    if (saved && saved >= MIN_W) panelEl.style.width = Math.min(saved, MAX_W()) + "px";
 
     let startX, startW;
 
@@ -9274,7 +9279,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     }, { passive: true });
   }
 
-  makePanelResizable($("detailPanel"), $("detailResize"), "tigertag.panelWidth.detail");
+  makePanelResizable($("detailPanel"), $("detailResize"), "tigertag.panelWidth.detail", 350); // max width cap
   makePanelResizable($("debugPanel"),  $("debugResize"),  "tigertag.panelWidth.debug");
   makePanelResizable($("groupPanel"),  $("groupResize"),  "tigertag.panelWidth.group");
   // Keep the material card glued to the left edge of the printer panel if the
@@ -9416,29 +9421,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // Pre-load app info as soon as possible so the first open is instant
   loadAppInfo();
 
-  // Click-outside to close the "Spools not stored" side panel.
-  // Registered once at startup — works even if the panel is recreated by
-  // renderRackView snapshots (it queries by id at click time).
-  document.addEventListener("mousedown", e => {
-    const aside = document.getElementById("rpUnranked");
-    if (!aside?.classList.contains("is-open")) return;
-    // Click inside the panel itself — keep it open
-    if (aside.contains(e.target)) return;
-    // Whitelist: buttons that own/manage the panel state — let their
-    // own handlers run instead of the click-outside closing behaviour.
-    if (e.target.closest("#btnToggleUnranked")) return;  // header pill toggle
-    if (e.target.closest("#rpUnrackedTab")) return;      // chevron handle (owns its own toggle)
-    if (e.target.closest("#btnViewRack")) return;        // Storage view button (toolbar)
-    // Otherwise — close. Mirror setUnrackedOpen(false) (which is local to
-    // renderRackView and not reachable here): slide the chevron back to the edge
-    // and reset the toggle tile, so the handle tracks the closing panel.
-    aside.classList.remove("is-open");
-    localStorage.setItem("tigertag.unrackedPanelOpen", "false");
-    const tab = document.getElementById("rpUnrackedTab");
-    if (tab) { tab.style.right = "0px"; tab.classList.remove("is-panel-open"); }
-    const tile = document.getElementById("btnToggleUnranked");
-    if (tile) { tile.classList.remove("rv-stat--active"); tile.setAttribute("aria-pressed", "false"); }
-  });
+  // (The "Spools not stored" panel is a permanent docked column now — no
+  // click-outside-to-close behaviour.)
 
   // Settings → About → "Copy" — copies a one-line summary to clipboard
   $("btnCopyAbout")?.addEventListener("click", async () => {
@@ -11965,6 +11949,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // current printer's data so the user can edit fields and confirm.
   $("printerEditBtn")?.addEventListener("click", () => {
     if (!_activePrinter) return;
+    // Toggle: the gear opens the settings panel, and closes it if already open.
+    if ($("printerAddPanel")?.classList.contains("open")) {
+      closePrinterAddForm();
+      return;
+    }
     openPrinterAddForm(_activePrinter.brand, _activePrinter);
   });
 
@@ -14990,11 +14979,18 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // In read-only mode (friend view) the row is non-draggable.
   function unrackedRowHTML(row) {
     const readOnly = !!state.friendView;
-    const tip = `${esc(row.brand || "")} · ${esc(row.material || "")}\n${esc(row.colorName || row.uid || "")}`;
+    // With Auto Unstorage ON, an empty (0g) spool can't be stored — it would be
+    // freed and returned here the moment it lands in a rack. Lock it: not
+    // draggable + a "why" tooltip + a dimmed/lock visual.
+    const autoUnstorageOn = localStorage.getItem("tigertag.autoUnstorage.enabled") === "true";
+    const locked = !readOnly && autoUnstorageOn && isEmptyRow(row);
+    const tip = locked
+      ? esc(t("rackUnstoreLockedTip"))
+      : `${esc(row.brand || "")} · ${esc(row.material || "")}\n${esc(row.colorName || row.uid || "")}`;
     // Same visual as the group panel's member list-cards (image left, tier badge
     // under it, name / material·brand / weight + bar right). Keeps `.rp-side-row`
     // + data-spool-id so the existing drag-to-rack wiring is untouched.
-    return `<div class="rp-side-row gp-member" draggable="${readOnly ? "false" : "true"}" data-spool-id="${esc(row.spoolId)}" title="${tip}">${_groupMemberCardInnerHTML(row, 45)}</div>`;
+    return `<div class="rp-side-row gp-member${locked ? " rp-side-row--locked" : ""}" draggable="${(readOnly || locked) ? "false" : "true"}" data-spool-id="${esc(row.spoolId)}" title="${tip}">${_groupMemberCardInnerHTML(row, 72)}${locked ? `<span class="icon icon-lock icon-12 rp-side-row-lock" aria-hidden="true"></span>` : ""}</div>`;
   }
 
   // Set by a side-row dragend, used to defer renderRackView so the panel
@@ -15306,6 +15302,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // (vs scattering checks) so future call sites stay consistent.
     const readOnly = !!state.friendView;
     list.classList.toggle("is-read-only", readOnly);
+    // Auto-policy flags (read once per render). When Auto storage is ON, "Clear
+    // all" is hidden from the rack menu (clearing would just re-scatter spools),
+    // and the "not stored" bin can't accept drops (a dropped spool would bounce
+    // straight back into a rack) — `body.autostore-on` drives the CSS for that.
+    const autoStorageOn = localStorage.getItem("tigertag.autoStorage.enabled") === "true";
+    document.body.classList.toggle("autostore-on", autoStorageOn);
     wireRackTooltipDelegation();
     // If a side-row drag just ended, defer rebuild until the slide-back finishes
     const remaining = _unrackedSettleUntil - Date.now();
@@ -15392,14 +15394,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       !x.deleted && (x.weightAvailable != null) && Number(x.weightAvailable) <= 0
     ).length;
     const racksLabel = t("rackStatsRacks", { n: racksCount });
-    // The unranked panel is opened/closed by the "not stored" tile in the
-    // stats bar (we still need this read here to set the tile's active state).
-    // Forced closed when the active count is 0 — there's nothing actionable
-    // to show, so the panel sliding in just wastes screen real estate. The
-    // user's persisted preference is preserved (we don't overwrite it),
-    // we just don't honour it when the panel would open empty.
-    const userWantsPanelOpen = localStorage.getItem("tigertag.unrackedPanelOpen") !== "false";
-    const panelOpenInit = userWantsPanelOpen && unrankedCount > 0;
+    // The unranked panel is a permanent docked column now (rendered only when
+    // there are unranked spools); no open/close state to compute.
     // Note: the in-stats "+ New Rack" tile was removed — the header
     // "+ Add Rack" button (same one that becomes "Add Product" / "Add
     // Device" in other views) now owns that action. The empty-state CTA
@@ -15431,12 +15427,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
             <div class="rv-stat-num">${depletedSpoolsCount}</div>
             <div class="rv-stat-lbl">${esc(t("rackStatsDepleted"))}</div>
           </div>` : ``}
-          <div id="btnToggleUnranked" class="rv-stat rv-stat--clickable rv-stat--orange${panelOpenInit ? " rv-stat--active" : ""}" data-stat="unranked" title="${esc(t("rackUnrackedTitle"))}" role="button" tabindex="0" aria-pressed="${panelOpenInit ? "true" : "false"}">
+          <div id="btnToggleUnranked" class="rv-stat${unrankedCount > 0 ? " rv-stat--orange" : ""}" data-stat="unranked" title="${esc(t("rackUnrackedTitle"))}">
             <div class="rv-stat-body">
               <div class="rv-stat-num">${unrankedCount}</div>
               <div class="rv-stat-lbl">${esc(t("rackStatsUnranked"))}</div>
             </div>
-            <span class="rv-stat-chev icon icon-chevrons-r icon-20" aria-hidden="true"></span>
           </div>
         </div>
       </div>`;
@@ -15445,8 +15440,16 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     //    right = unranked sidebar (always shown so the user can see/manage
     //    their filaments even before creating a first rack).
     const unranked = getUnrackedSpools();
-    const sideRows = unranked.map(unrackedRowHTML).join("")
-                  || `<div class="rp-unranked-empty">${t("rackAllPlaced")}</div>`;
+    const sideRows = unranked.map(unrackedRowHTML).join("");
+    // The drop-zone block is ALWAYS rendered. When the list has rows it's hidden,
+    // but it reappears (and the rows vanish) while a spool is being dragged — so
+    // there's a clear, free area to drop onto. See CSS `.rp-side-list.has-rows`.
+    const dropZone = `<div class="rp-unranked-empty">
+                        <span class="icon icon-download icon-32 rp-unranked-empty-icon"></span>
+                        <span class="rp-unranked-empty-title">${t("rackDropHereTitle")}</span>
+                        <span class="rp-unranked-empty-hint">${t("rackUnrankedEmptyHint")}</span>
+                        <span class="rp-unranked-empty-disabled">${t("rackAutoStoreNoDrop")}</span>
+                      </div>`;
 
     // Empty-state card replaces the rack list when there's no rack yet.
     // In read-only (friend view) we hide the "+ Create rack" CTA — the user
@@ -15536,7 +15539,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
               <button class="rp-menu-item" data-action="edit"><span class="icon icon-edit icon-14"></span><span>${esc(t("rackActionEdit"))}</span></button>
               <button class="rp-menu-item" data-action="autofill"><span class="icon icon-sparkle icon-14"></span><span>${esc(t("rackActionAutofill"))}</span></button>
               <button class="rp-menu-item" data-action="${allLocked ? "unlockall" : "lockall"}"><span class="icon icon-lock icon-14"></span><span>${esc(allLocked ? t("rackActionUnlockAll") : t("rackActionLockAll"))}</span></button>
-              <button class="rp-menu-item rp-menu-item--hold" data-action="empty"><span class="hold-progress hold-progress--primary"></span><span class="icon icon-broom icon-14"></span><span class="rp-menu-label">${esc(t("rackActionEmpty"))}</span></button>
+              ${autoStorageOn ? "" : `<button class="rp-menu-item rp-menu-item--hold" data-action="empty"><span class="hold-progress hold-progress--primary"></span><span class="icon icon-broom icon-14"></span><span class="rp-menu-label">${esc(t("rackActionEmpty"))}</span></button>`}
               <div class="rp-menu-sep"></div>
               <button class="rp-menu-item rp-menu-item--danger rp-menu-item--hold" data-action="delete"><span class="hold-progress"></span><span class="icon icon-trash icon-14"></span><span class="rp-menu-label">${esc(t("rackActionDelete"))}</span></button>
             </div>
@@ -15560,12 +15563,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
                                  && _activeUnrankedCount > emptySlotsAll;
 
     html += `
-      <div class="rp-racks-col">${racksHTML || emptyHTML}</div>
-      <aside class="rp-side${panelOpenInit ? " is-open" : ""}" id="rpUnranked">
+      <div class="rp-board">
+      <div class="rp-racks-scroll"><div class="rp-racks-col">${racksHTML || emptyHTML}</div></div>
+      <aside class="rp-side" id="rpUnranked">
         <div class="rp-side-head">
           <span class="rp-side-count">${_activeUnrankedCount}</span>
           <span class="rp-side-title">${t("rackUnrackedTitle")}</span>
-          <button class="rp-side-close" id="rpUnrackedClose" title="Hide panel" aria-label="Close">✕</button>
         </div>
         ${showSideAddRackCta ? `
         <div class="rp-side-add-rack" id="rpSideAddRackBlock">
@@ -15609,9 +15612,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           <input id="rpUnrackedSearch" type="text" placeholder="${t("searchShort")}" />
           <span class="icon icon-search icon-13"></span>
         </div>
-        <div class="rp-side-list" id="rpUnrackedStrip">${sideRows}</div>
+        <div class="rp-side-list${unranked.length ? " has-rows" : ""}" id="rpUnrackedStrip">${sideRows}${dropZone}</div>
       </aside>
-      <button class="rp-side-tab" id="rpUnrackedTab" type="button" aria-label="Toggle panel"><span class="rp-side-tab-glyph">»</span></button>`;
+      </div>`;
 
     list.innerHTML = html;
 
@@ -15704,9 +15707,6 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         }
       });
     });
-
-    // The auto-open slide-in on entering Storage is handled below, together with
-    // the chevron, in the setUnrackedOpen(panelOpenInit) setup (see _unrackedAnimateOpen).
 
     // ── Wire rack head kebab → opens contextual menu
     list.querySelectorAll(".rp-rack-kebab").forEach(btn => {
@@ -15879,71 +15879,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     });
 
     // Toggle unranked panel (slide in/out from the right, NO backdrop overlay).
-    // The trigger is the "not stored" tile in the stats bar (rv-stat--toggle).
-    // We sync its aria-pressed + .rv-stat--active state so the tile reads as
-    // selected while the panel is open.
-    function setUnrackedOpen(open) {
-      const aside = $("rpUnranked");
-      if (aside) aside.classList.toggle("is-open", open);
-      const tile = $("btnToggleUnranked");
-      if (tile) {
-        tile.classList.toggle("rv-stat--active", open);
-        tile.setAttribute("aria-pressed", open ? "true" : "false");
-      }
-      // Persistent chevron handle: sits at the right edge when closed (points
-      // left → "open"), at the panel's left edge when open (points right →
-      // "close"). Anchored by `right` so it grows leftward on hover (never over
-      // the panel).
-      const tab = $("rpUnrackedTab");
-      if (tab) {
-        tab.style.right = open ? `${(aside ? aside.offsetWidth : 320)}px` : "0px";
-        tab.classList.toggle("is-panel-open", open);
-      }
-      localStorage.setItem("tigertag.unrackedPanelOpen", open ? "true" : "false");
-    }
-    if (_unrackedAnimateOpen) {
-      // Just entered Storage with unranked spools: snap panel + chevron CLOSED
-      // (no transition), then animate BOTH open together on the next frame — so
-      // the chevron tracks the panel exactly like a manual open.
-      _unrackedAnimateOpen = false;
-      const aside = $("rpUnranked"), tab = $("rpUnrackedTab");
-      aside?.classList.remove("is-open");
-      if (tab) {
-        tab.style.transition = "none";
-        tab.style.right = "0px";
-        tab.classList.remove("is-panel-open");
-        tab.offsetWidth;            // force reflow so the snap applies
-        tab.style.transition = "";  // restore the CSS transition
-      }
-      requestAnimationFrame(() => requestAnimationFrame(() => setUnrackedOpen(true)));
-    } else {
-      // Steady re-render (e.g. a snapshot after a drop): place the chevron at its
-      // final spot WITHOUT animating. The chevron is recreated fresh each render
-      // at CSS right:0, so animating here would replay the open slide on every
-      // snapshot (the "double movement" after a drop). Only explicit toggles
-      // (chevron/tile click, drag, auto-open) animate.
-      const tab = $("rpUnrackedTab");
-      if (tab) tab.style.transition = "none";
-      setUnrackedOpen(panelOpenInit);   // place + orient the chevron
-      if (tab) { tab.offsetWidth; tab.style.transition = ""; }  // reflow, then restore
-    }
-    $("btnToggleUnranked")?.addEventListener("click", () => {
-      const aside = $("rpUnranked");
-      const open = !aside?.classList.contains("is-open");
-      setUnrackedOpen(open);
-    });
-    // The toggle is a <div role=button> — wire keyboard activation manually
-    // (Enter / Space) so it stays accessible without a real <button> element.
-    $("btnToggleUnranked")?.addEventListener("keydown", e => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        e.target.click();
-      }
-    });
-    $("rpUnrackedClose")?.addEventListener("click", () => setUnrackedOpen(false));
-    $("rpUnrackedTab")?.addEventListener("click", () => {
-      setUnrackedOpen(!$("rpUnranked")?.classList.contains("is-open"));
-    });
+    // The "not stored" panel is now a permanent docked column (rendered only when
+    // there ARE unranked spools — see the render above), so there's no open/close
+    // machinery, chevron, or toggle tile anymore. Dropping a spool onto it
+    // un-racks it (handled by the #rpUnrackedStrip drop target below).
 
     // Auto-storage toggle inside the side panel — persisted in localStorage.
     // When flipped ON, fire the auto-fill routine immediately to clear the
@@ -15955,7 +15894,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       _autoStoreToggle.addEventListener("change", () => {
         const enabled = _autoStoreToggle.checked;
         localStorage.setItem("tigertag.autoStorage.enabled", enabled ? "true" : "false");
+        document.body.classList.toggle("autostore-on", enabled);
         if (enabled) maybeAutoStoreUnrankedSpools();
+        renderRackView();   // re-render: hide/show "Clear all" + bin drop affordance
       });
     }
     // Auto-unstorage toggle — same pattern, triggers a one-shot pass on flip
@@ -15967,6 +15908,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         const enabled = _autoUnstoreToggle.checked;
         localStorage.setItem("tigertag.autoUnstorage.enabled", enabled ? "true" : "false");
         if (enabled) maybeAutoUnstoreDepletedSpools();
+        renderRackView();   // re-render so empty spools already in the bin lock/unlock immediately
       });
     }
 
@@ -15997,6 +15939,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       el.addEventListener("dragstart", e => {
         const sid = el.dataset.spoolId;
         if (!sid) { e.preventDefault(); return; }
+        // Empty spool locked by Auto Unstorage — can't be stored.
+        if (el.classList.contains("rp-side-row--locked")) { e.preventDefault(); return; }
         // Block drag-out from a locked filled slot
         const rackId = el.dataset.rack;
         if (rackId) {
@@ -16024,44 +15968,31 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         // up valid drop targets, dim locked slots, and reveal coordinates to
         // help the user aim. Cleared on dragend.
         document.body.classList.add("is-dragging-spool");
+        // Only when dragging a spool OUT OF A RACK do we clear the docked panel
+        // (hide its rows, reveal the drop zone) so there's a free area to drop
+        // into. Dragging a row FROM the panel must NOT hide the panel rows —
+        // that would yank the drag source and break placing it into a rack.
+        if (!el.classList.contains("rp-side-row")) {
+          document.body.classList.add("is-dragging-racked");
+        }
         // Hide any visible hover tooltip so it doesn't fight the drop ring
         hideRackTooltip();
-        // Hide the unranked side panel while dragging FROM it, so the racks
-        // behind it become accessible as drop targets. Persistent open/close
-        // state is left untouched — the panel slides back in on dragend.
-        if (el.classList.contains("rp-side-row")) {
-          $("rpUnranked")?.classList.add("is-dragging");
-          // Slide the chevron to the screen edge via `right` (same transition as
-          // a normal close) so it tracks the panel sliding off — and back in on
-          // dragend at the exact same speed.
-          const tab = $("rpUnrackedTab");
-          if (tab) { tab.style.right = "0px"; tab.classList.remove("is-panel-open"); }
-        }
         // Reset the click-suppression flag shortly after the drag completes
         setTimeout(() => { el._wasDragged = false; }, 400);
       });
       el.addEventListener("dragend", () => {
         el.classList.remove("rp-dragging");
         document.body.classList.remove("is-dragging-spool");
+        document.body.classList.remove("is-dragging-racked");
         // Wipe any leftover drop-target highlight (e.g. user released outside
         // a slot, or dragleave didn't fire for some reason).
         document.querySelectorAll("#invRackView .rp-slot--drop, #invRackView .rp-slot--drop-deny").forEach(s => {
           s.classList.remove("rp-slot--drop");
           s.classList.remove("rp-slot--drop-deny");
         });
-        // Only set the settle window if we dragged FROM the side panel — the
-        // panel needs ~300ms to slide back in, and we mustn't let the Firestore
-        // snapshot rebuild the DOM mid-animation. For inter-rack drags the
-        // panel is untouched, so we don't want to delay the visual update.
+        // Briefly defer the next snapshot re-render after dragging from the
+        // panel, so the DOM isn't rebuilt the instant the drag ends.
         if (el.classList.contains("rp-side-row")) {
-          $("rpUnranked")?.classList.remove("is-dragging");
-          // Slide the chevron back to the panel's left edge — same `right`
-          // transition as the panel sliding in, so they move together.
-          const aside = $("rpUnranked"), tab = $("rpUnrackedTab");
-          if (tab && aside?.classList.contains("is-open")) {
-            tab.style.right = `${aside.offsetWidth}px`;
-            tab.classList.add("is-panel-open");
-          }
           _unrackedSettleUntil = Date.now() + 320;
         }
       });
@@ -16163,6 +16094,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         strip.classList.remove("rp-unranked-strip--drop");
         const sid = e.dataTransfer.getData("text/plain");
         if (!sid) return;
+        // Dropping into the bin while Auto storage is ON is an explicit "I want
+        // this OUT" — turn Auto storage off (otherwise it'd bounce straight
+        // back), update the toggle, then un-rack.
+        if (localStorage.getItem("tigertag.autoStorage.enabled") === "true") {
+          localStorage.setItem("tigertag.autoStorage.enabled", "false");
+          document.body.classList.remove("autostore-on");
+          const tgl = $("rpAutoStorageToggle"); if (tgl) tgl.checked = false;
+        }
         try { await unassignSpool(sid); }
         catch (err) { console.warn("[unassignSpool]", err.message); }
       });
@@ -16639,6 +16578,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   async function switchToFriendView(friendUid, friendName, avatarColor) {
     closeProfilesModal(); closeFriends();
     _clearSearchFilters();
+    // Always land on the Materials grid when entering/switching a friend view —
+    // their racks/printers aren't the point, and a stale Storage/printer view
+    // from a previous friend would be confusing. Transient (persist:false) so it
+    // doesn't overwrite the owner's own saved view preference.
+    setViewMode("grid", { persist: false });
     const ownerUid = state.activeAccountId;  // capture so async errors land on the right account
     // ── Tear down ALL live subscriptions on the OWNER's data BEFORE mutating
     // state. If we don't, a buffered onSnapshot can fire mid-switch and write
@@ -16732,6 +16676,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       subscribeFriends(uid);                            // re-attach own friends live-sync
       subscribeNotifications(uid);                      // re-attach notification center
     }
+    // Restore the owner's own saved view (friend view had forced "grid").
+    // Done AFTER the re-subscribe so setViewMode's guarded subscribe is a no-op.
+    setViewMode(localStorage.getItem("tigertag.view") || "table", { persist: false });
   }
 
   // Show public key and toggle in settings panel

@@ -445,6 +445,10 @@
   "rackPositionInvalid": "Sloty muszą być 1-20",
   "rackUnrackedTitle": "Szpule nieskładowane",
   "rackAllPlaced": "Wszystkie twoje szpule są w magazynie.",
+  "rackDropHereTitle": "Upuść tutaj szpulę",
+  "rackUnrankedEmptyHint": "Szpule spoza regału są przechowywane tutaj.",
+  "rackUnstoreLockedTip": "Pusta szpula — automatyczne usuwanie od razu odeśle ją tutaj, nie można jej schować.",
+  "rackAutoStoreNoDrop": "Upuść tutaj, aby zostawić poza regałem (wyłącza Auto-przechowywanie)",
   "btnViewRack": "Magazyn",
   "btnViewCam": "Kamera",
   "btnViewPrinter": "Drukarki",
@@ -1061,5 +1065,7 @@
   "whatsNewReleaseTitle": "Tiger Studio Manager {{v}} — Informacje o wersji",
   "whatsNewGotIt": "Rozumiem",
   "whatsNewLater": "Później",
-  "whatsNewEmpty": "Brak informacji dla tej wersji."
+  "whatsNewEmpty": "Brak informacji dla tej wersji.",
+  "viewGroupMaterials": "Materiały",
+  "viewGroupPrinters": "Drukarki"
 }

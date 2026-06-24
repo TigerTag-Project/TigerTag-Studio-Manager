@@ -446,6 +446,10 @@
   "rackPositionInvalid": "Slots must be 1-20",
   "rackUnrackedTitle": "Spools not stored",
   "rackAllPlaced": "All your spools are stored.",
+  "rackDropHereTitle": "Drop a spool here",
+  "rackUnrankedEmptyHint": "Spools that aren't in a rack are kept here.",
+  "rackUnstoreLockedTip": "Empty spool — Auto Unstorage would send it straight back here, so it can't be stored.",
+  "rackAutoStoreNoDrop": "Drop here to keep it unstored (turns off Auto storage)",
   "btnViewRack": "Storage",
   "btnViewCam": "Cam",
   "btnViewPrinter": "Printers",
@@ -1062,5 +1066,7 @@
   "whatsNewReleaseTitle": "Tiger Studio Manager {{v}} Public Release Note",
   "whatsNewGotIt": "Got it",
   "whatsNewLater": "Later",
-  "whatsNewEmpty": "No release notes for this version."
+  "whatsNewEmpty": "No release notes for this version.",
+  "viewGroupMaterials": "Materials",
+  "viewGroupPrinters": "Printers"
 }

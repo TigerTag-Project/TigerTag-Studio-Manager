@@ -3227,5 +3227,110 @@
         }
       }
     ]
+  },
+  "1.10.20": {
+    "date": "2026-06-24",
+    "items": [
+      {
+        "icon": "package",
+        "title": {
+          "en": "A permanent shelf for unstored spools",
+          "fr": "Une étagère permanente pour les bobines non rangées",
+          "de": "Ein festes Regal für nicht eingelagerte Spulen",
+          "es": "Un estante fijo para bobinas sin almacenar",
+          "it": "Uno scaffale fisso per le bobine non riposte",
+          "zh": "未入库线材的固定货架",
+          "pt": "Uma prateleira fixa para bobinas não armazenadas",
+          "pt-pt": "Uma prateleira fixa para bobinas não armazenadas",
+          "pl": "Stała półka na nieschowane szpule"
+        },
+        "body": {
+          "en": "In Storage, the “not stored” panel is now a fixed column that's always visible — a clear bin for spools that aren't in a rack. Drop a rack spool onto it to take it out, and an empty zone shows exactly where to drop.",
+          "fr": "Dans Rangement, le panneau « non rangées » est désormais une colonne fixe toujours visible — un bac clair pour les bobines hors rack. Déposez-y une bobine d'un rack pour l'en sortir ; une zone vide indique où déposer.",
+          "de": "Im Lager ist das „nicht eingelagert“-Panel jetzt eine feste, immer sichtbare Spalte — ein klarer Behälter für Spulen außerhalb eines Regals. Lege eine Regalspule darauf ab, um sie herauszunehmen; eine leere Zone zeigt, wo.",
+          "es": "En Almacenamiento, el panel «sin almacenar» es ahora una columna fija siempre visible: un contenedor claro para bobinas fuera de un rack. Suelta una bobina de un rack para sacarla; una zona vacía indica dónde soltar.",
+          "it": "In Archiviazione, il pannello «non riposte» ora è una colonna fissa sempre visibile — un contenitore chiaro per le bobine fuori da uno scaffale. Trascinaci una bobina per toglierla; una zona vuota mostra dove rilasciare.",
+          "zh": "在存储视图中，“未入库”面板现在是始终可见的固定列——存放不在货架上线材的清晰容器。把货架上的线材拖到这里即可取出，空白区域会提示放置位置。",
+          "pt": "Em Armazenamento, o painel «não armazenadas» é agora uma coluna fixa sempre visível — um recipiente claro para bobinas fora de um rack. Largue aí uma bobina de um rack para a retirar; uma zona vazia mostra onde largar.",
+          "pt-pt": "Em Armazenamento, o painel «não armazenadas» é agora uma coluna fixa sempre visível — um recipiente claro para bobinas fora de um rack. Largue aí uma bobina de um rack para a retirar; uma zona vazia mostra onde largar.",
+          "pl": "W Magazynie panel „nieschowane” jest teraz stałą, zawsze widoczną kolumną — czytelnym pojemnikiem na szpule spoza regału. Upuść na niego szpulę z regału, aby ją wyjąć; pusta strefa pokazuje, gdzie upuścić."
+        }
+      },
+      {
+        "icon": "list",
+        "title": {
+          "en": "Clearer view switcher",
+          "fr": "Sélecteur de vue plus clair",
+          "de": "Übersichtlicherer Ansichtswechsler",
+          "es": "Selector de vista más claro",
+          "it": "Selettore di vista più chiaro",
+          "zh": "更清晰的视图切换",
+          "pt": "Seletor de vista mais claro",
+          "pt-pt": "Seletor de vista mais claro",
+          "pl": "Czytelniejszy przełącznik widoku"
+        },
+        "body": {
+          "en": "The two Grid/Table button groups are now labelled Materials and Printers, so it's obvious which one switches your filament inventory and which one switches your printers.",
+          "fr": "Les deux groupes de boutons Grille/Table sont désormais étiquetés Matériaux et Imprimantes : on voit tout de suite lequel change l'inventaire des filaments et lequel change les imprimantes.",
+          "de": "Die beiden Raster/Tabelle-Gruppen sind jetzt mit Materialien und Drucker beschriftet — so ist klar, welche das Filament-Inventar und welche die Drucker umschaltet.",
+          "es": "Los dos grupos de botones Cuadrícula/Tabla ahora están etiquetados como Materiales e Impresoras, así se ve cuál cambia el inventario de filamento y cuál las impresoras.",
+          "it": "I due gruppi di pulsanti Griglia/Tabella ora sono etichettati Materiali e Stampanti, così è chiaro quale cambia l'inventario dei filamenti e quale le stampanti.",
+          "zh": "两组“网格/表格”按钮现在分别标注为“材料”和“打印机”，一眼就能看出哪个切换耗材库存、哪个切换打印机。",
+          "pt": "Os dois grupos de botões Grelha/Tabela estão agora identificados como Materiais e Impressoras, por isso vê-se logo qual muda o inventário de filamento e qual muda as impressoras.",
+          "pt-pt": "Os dois grupos de botões Grelha/Tabela estão agora identificados como Materiais e Impressoras, por isso vê-se logo qual muda o inventário de filamento e qual muda as impressoras.",
+          "pl": "Dwie grupy przycisków Siatka/Tabela mają teraz etykiety Materiały i Drukarki, więc od razu wiadomo, która przełącza magazyn filamentu, a która drukarki."
+        }
+      },
+      {
+        "icon": "bolt",
+        "title": {
+          "en": "Smarter auto storage & unstorage",
+          "fr": "Rangement et déstockage auto plus malins",
+          "de": "Intelligenteres Auto-Ein- und Auslagern",
+          "es": "Auto-almacenamiento y desalmacenamiento más inteligentes",
+          "it": "Auto-archiviazione e rimozione più intelligenti",
+          "zh": "更智能的自动入库与移出",
+          "pt": "Auto-armazenamento e remoção mais inteligentes",
+          "pt-pt": "Auto-armazenamento e remoção mais inteligentes",
+          "pl": "Mądrzejsze auto-przechowywanie i usuwanie"
+        },
+        "body": {
+          "en": "With Auto storage on, a rack's “Clear all” is hidden and dropping a spool in the bin simply turns Auto storage off so it stays. With Auto unstorage on, empty (0 g) spools are locked in the bin with a tooltip, since they can't be stored anyway.",
+          "fr": "Avec Auto storage activé, le « Clear all » d'un rack est masqué et déposer une bobine dans le bac désactive simplement Auto storage pour qu'elle y reste. Avec Auto unstorage activé, les bobines vides (0 g) sont verrouillées dans le bac avec une info-bulle, puisqu'elles ne peuvent de toute façon pas être rangées.",
+          "de": "Bei aktivem Auto-Einlagern wird „Alle leeren“ eines Regals ausgeblendet, und eine Spule in den Behälter zu legen schaltet Auto-Einlagern einfach aus, damit sie bleibt. Bei aktivem Auto-Auslagern sind leere (0 g) Spulen im Behälter mit Tooltip gesperrt, da sie ohnehin nicht eingelagert werden können.",
+          "es": "Con Auto-almacenamiento activado, el «Vaciar todo» de un rack se oculta y soltar una bobina en el contenedor simplemente desactiva Auto-almacenamiento para que se quede. Con Auto-desalmacenamiento activado, las bobinas vacías (0 g) quedan bloqueadas en el contenedor con un tooltip, ya que no se pueden almacenar.",
+          "it": "Con Auto-archiviazione attiva, lo «Svuota tutto» di uno scaffale è nascosto e rilasciare una bobina nel contenitore disattiva semplicemente Auto-archiviazione così resta. Con Auto-rimozione attiva, le bobine vuote (0 g) sono bloccate nel contenitore con un tooltip, dato che non possono comunque essere riposte.",
+          "zh": "开启自动入库时，货架的“清空全部”会隐藏，把线材放入容器会直接关闭自动入库以便保留。开启自动移出时，空（0 克）线材会在容器中被锁定并带提示，因为它们本来也无法入库。",
+          "pt": "Com Auto-armazenamento ligado, o «Limpar tudo» de um rack fica oculto e largar uma bobina no recipiente desliga simplesmente o Auto-armazenamento para que fique. Com Auto-remoção ligada, as bobinas vazias (0 g) ficam bloqueadas no recipiente com uma dica, já que não podem ser armazenadas.",
+          "pt-pt": "Com Auto-armazenamento ligado, o «Limpar tudo» de um rack fica oculto e largar uma bobina no recipiente desliga simplesmente o Auto-armazenamento para que fique. Com Auto-remoção ligada, as bobinas vazias (0 g) ficam bloqueadas no recipiente com uma dica, já que não podem ser armazenadas.",
+          "pl": "Przy włączonym auto-przechowywaniu „Wyczyść wszystko” w regale jest ukryte, a upuszczenie szpuli do pojemnika po prostu wyłącza auto-przechowywanie, by tam została. Przy włączonym auto-usuwaniu puste (0 g) szpule są zablokowane w pojemniku z podpowiedzią, bo i tak nie można ich schować."
+        }
+      },
+      {
+        "icon": "printer",
+        "title": {
+          "en": "Bambu Lab A2L support",
+          "fr": "Prise en charge de la Bambu Lab A2L",
+          "de": "Unterstützung für Bambu Lab A2L",
+          "es": "Compatibilidad con la Bambu Lab A2L",
+          "it": "Supporto per Bambu Lab A2L",
+          "zh": "支持 Bambu Lab A2L",
+          "pt": "Suporte para a Bambu Lab A2L",
+          "pt-pt": "Suporte para a Bambu Lab A2L",
+          "pl": "Obsługa Bambu Lab A2L"
+        },
+        "body": {
+          "en": "The new Bambu Lab A2L is now in the printer catalog, so you can add and track it.",
+          "fr": "La nouvelle Bambu Lab A2L est désormais au catalogue des imprimantes : vous pouvez l'ajouter et la suivre.",
+          "de": "Die neue Bambu Lab A2L ist jetzt im Druckerkatalog — du kannst sie hinzufügen und verfolgen.",
+          "es": "La nueva Bambu Lab A2L ya está en el catálogo de impresoras, para añadirla y seguirla.",
+          "it": "La nuova Bambu Lab A2L è ora nel catalogo stampanti: puoi aggiungerla e monitorarla.",
+          "zh": "新的 Bambu Lab A2L 已加入打印机目录，可添加并跟踪。",
+          "pt": "A nova Bambu Lab A2L já está no catálogo de impressoras, para a adicionar e acompanhar.",
+          "pt-pt": "A nova Bambu Lab A2L já está no catálogo de impressoras, para a adicionar e acompanhar.",
+          "pl": "Nowa Bambu Lab A2L jest już w katalogu drukarek — możesz ją dodać i śledzić."
+        }
+      }
+    ]
   }
 }

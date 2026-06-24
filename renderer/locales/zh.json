@@ -446,6 +446,10 @@
   "rackPositionInvalid": "位数必须为1-20",
   "rackUnrackedTitle": "未存放的线轴",
   "rackAllPlaced": "您的所有线轴都已存放。",
+  "rackDropHereTitle": "将线材拖到此处",
+  "rackUnrankedEmptyHint": "不在货架中的线材会保存在这里。",
+  "rackUnstoreLockedTip": "空线材 — 自动移出会立即把它送回这里，无法入库。",
+  "rackAutoStoreNoDrop": "拖到此处保持不入库（将关闭自动入库）",
   "btnViewRack": "存储",
   "btnViewCam": "摄像头",
   "btnViewPrinter": "打印机",
@@ -1062,5 +1066,7 @@
   "whatsNewReleaseTitle": "Tiger Studio Manager {{v}} 版本说明",
   "whatsNewGotIt": "知道了",
   "whatsNewLater": "稍后",
-  "whatsNewEmpty": "此版本暂无说明。"
+  "whatsNewEmpty": "此版本暂无说明。",
+  "viewGroupMaterials": "材料",
+  "viewGroupPrinters": "打印机"
 }

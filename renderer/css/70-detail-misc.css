@@ -642,8 +642,17 @@
   .view-toggle button { height: 30px; padding: 0 10px; font-size: 13px; border: none; background: transparent; color: var(--muted); border-radius: 8px; }
   .view-toggle button.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
 
-  /* Two-group view-toggle layout */
-  .view-toggle-groups { display: flex; align-items: center; gap: 4px; }
+  /* Two-group view-toggle layout — each group is labelled by what it manages
+     (Materials vs Printers) so the otherwise-identical Grid/Table toggles read
+     as two distinct sections. */
+  .view-toggle-groups { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .vtg-group { display: inline-flex; align-items: center; gap: 8px; }
+  .vtg-label {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 12px; font-weight: 600; color: var(--muted);
+    white-space: nowrap; user-select: none;
+  }
+  .vtg-label .icon { background: var(--muted); }
   .vtg-sep { width: 1px; height: 22px; background: var(--border); margin: 0 2px; flex-shrink: 0; }
   .vtg-printers .icon { vertical-align: middle; }
 

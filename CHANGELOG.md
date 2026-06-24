@@ -5,6 +5,22 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.10.20 — 2026-06-24
+
+### Added
+
+- **Bambu Lab A2L** added to the printer catalog, so you can add and track the new A-series machine.
+
+### Changed
+
+- **"Spools not stored" is now a permanent shelf.** In Storage it's a fixed, always-visible column on the right (it no longer slides in and out as you drag) — a clear "bin" for spools that aren't in a rack. Drop a rack spool onto it to take it out of its rack; while you drag, it lights up to show it accepts the drop, and when empty it shows a "Drop a spool here" zone so it's obvious where un-stored spools go. The Storage header now stays put while the racks scroll.
+- **Clearer view switcher.** The two Grid/Table button groups are now labelled **Materials** and **Printers**, so it's obvious which one switches your filament inventory and which one switches your printers.
+- **Friends always open on the Materials grid.** Opening a friend — or switching between friends — now lands on their materials in Grid view instead of a leftover Storage/printer view. Your own preferred view is restored when you go back to your account.
+- **Smarter automation guards.** With **Auto storage** on, a rack's "Clear all" is hidden (it would just re-scatter everything) and dropping a spool into the bin now simply turns Auto storage off so the spool actually stays there. With **Auto unstorage** on, empty (0 g) spools in the bin are locked with a lock badge and a tooltip, since they can't be stored anyway.
+- The "Not stored" counter only turns orange when there's actually a backlog, the printer settings gear now toggles its panel closed, and the container picker / detail card sizing got minor polish.
+
+---
+
 ## v1.10.19 — 2026-06-23
 
 ### Added

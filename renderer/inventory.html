@@ -191,18 +191,22 @@
            inventory-level actions cluster on one line. -->
       <div class="inv-view-row">
         <div class="view-toggle-groups">
-          <div class="view-toggle">
-            <button id="btnViewGrid" data-i18n="btnViewGrid">⊞ Grid</button>
-            <button id="btnViewTable" class="active"><span class="icon icon-list icon-13"></span><span data-i18n="btnViewTable">Table</span></button>
-            <button id="btnViewRack"><span class="icon icon-package icon-13"></span><span data-i18n="btnViewRack">Storage</span></button>
+          <div class="vtg-group">
+            <span class="vtg-label"><span class="icon icon-palette icon-13"></span><span data-i18n="viewGroupMaterials">Materials</span></span>
+            <div class="view-toggle">
+              <button id="btnViewGrid" data-i18n="btnViewGrid">⊞ Grid</button>
+              <button id="btnViewTable" class="active"><span class="icon icon-list icon-13"></span><span data-i18n="btnViewTable">Table</span></button>
+              <button id="btnViewRack"><span class="icon icon-package icon-13"></span><span data-i18n="btnViewRack">Storage</span></button>
+            </div>
           </div>
-          <!-- Group-identical-spools toggle moved to Settings → Data
-               (grouped is the default view; only opt-out users need it). -->
           <span class="vtg-sep" aria-hidden="true"></span>
-          <div class="view-toggle vtg-printers">
-            <button id="btnViewPrinter" data-i18n="btnViewGrid">⊞ Grid</button>
-            <button id="btnViewPrinterTable"><span class="icon icon-list icon-13"></span><span data-i18n="btnViewTable">Table</span></button>
-            <button id="btnViewCam"><span class="icon icon-eye-on icon-13"></span><span data-i18n="btnViewCam">Cam</span></button>
+          <div class="vtg-group">
+            <span class="vtg-label"><span class="icon icon-printer icon-13"></span><span data-i18n="viewGroupPrinters">Printers</span></span>
+            <div class="view-toggle vtg-printers">
+              <button id="btnViewPrinter" data-i18n="btnViewGrid">⊞ Grid</button>
+              <button id="btnViewPrinterTable"><span class="icon icon-list icon-13"></span><span data-i18n="btnViewTable">Table</span></button>
+              <button id="btnViewCam"><span class="icon icon-eye-on icon-13"></span><span data-i18n="btnViewCam">Cam</span></button>
+            </div>
           </div>
         </div>
         <div class="inv-actions-group">

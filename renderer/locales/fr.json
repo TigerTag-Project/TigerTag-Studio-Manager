@@ -446,6 +446,10 @@
   "rackPositionInvalid": "Slots doit être entre 1 et 20",
   "rackUnrackedTitle": "Bobines non rangées",
   "rackAllPlaced": "Toutes tes bobines sont rangées.",
+  "rackDropHereTitle": "Déposez une bobine ici",
+  "rackUnrankedEmptyHint": "Les bobines qui ne sont pas dans un rack sont conservées ici.",
+  "rackUnstoreLockedTip": "Bobine vide — Auto Unstorage la renverrait aussitôt ici, impossible de la ranger.",
+  "rackAutoStoreNoDrop": "Déposez ici pour la garder non rangée (désactive Auto storage)",
   "btnViewRack": "Rangement",
   "btnViewCam": "Caméra",
   "btnViewPrinter": "Imprimantes",
@@ -1062,5 +1066,7 @@
   "whatsNewReleaseTitle": "Tiger Studio Manager {{v}} — Note de version",
   "whatsNewGotIt": "J'ai compris",
   "whatsNewLater": "Plus tard",
-  "whatsNewEmpty": "Aucune note pour cette version."
+  "whatsNewEmpty": "Aucune note pour cette version.",
+  "viewGroupMaterials": "Matériaux",
+  "viewGroupPrinters": "Imprimantes"
 }

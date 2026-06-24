@@ -446,6 +446,10 @@
   "rackPositionInvalid": "Slots müssen 1-20 sein",
   "rackUnrackedTitle": "Nicht verstaute Spulen",
   "rackAllPlaced": "Alle deine Spulen sind verstaut.",
+  "rackDropHereTitle": "Spule hier ablegen",
+  "rackUnrankedEmptyHint": "Spulen, die in keinem Regal sind, werden hier aufbewahrt.",
+  "rackUnstoreLockedTip": "Leere Spule — Auto-Auslagern würde sie sofort hierher zurückschicken, sie kann nicht eingelagert werden.",
+  "rackAutoStoreNoDrop": "Hier ablegen, um sie ausgelagert zu lassen (schaltet Auto-Einlagern aus)",
   "btnViewRack": "Lager",
   "btnViewCam": "Kamera",
   "btnViewPrinter": "Drucker",
@@ -1062,5 +1066,7 @@
   "whatsNewReleaseTitle": "Tiger Studio Manager {{v}} – Versionshinweise",
   "whatsNewGotIt": "Verstanden",
   "whatsNewLater": "Später",
-  "whatsNewEmpty": "Keine Hinweise für diese Version."
+  "whatsNewEmpty": "Keine Hinweise für diese Version.",
+  "viewGroupMaterials": "Materialien",
+  "viewGroupPrinters": "Drucker"
 }

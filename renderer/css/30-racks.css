@@ -5,14 +5,12 @@
   .inv-rack-view {
     display: flex; flex-direction: column; gap: 14px;
     padding: 4px 0;
-    /* Take remaining height inside #card-inv (which is overflow:hidden flex:column),
-       and allow internal scrolling when many racks stack vertically. */
+    /* Take remaining height inside #card-inv (overflow:hidden flex:column). The
+       view itself does NOT scroll — the header stays put, the racks area scrolls
+       on its own, and the docked panel stays full-height beside it. */
     flex: 1; min-height: 0;
-    overflow-y: auto;
-    overflow-x: hidden;
-    scrollbar-width: none;            /* hide the vertical scrollbar (still scrolls) */
+    overflow: hidden;
   }
-  .inv-rack-view::-webkit-scrollbar { display: none; }
   .inv-rack-view.hidden { display: none; }
   .rv-header { display: flex; gap: 8px; }
   .rp-actions { display: flex; gap: 8px; flex-shrink: 0; }
@@ -873,60 +871,25 @@
     /* JS sets position/left/top — no CSS margins (we use explicit gaps in JS) */
     margin: 0;
   }
-  /* Slide-in unranked-spools panel — positioned fixed on the right edge,
-     hidden off-screen by default, slides in via .is-open. NO overlay
-     backdrop so the user keeps drag/drop on the racks behind. */
+  /* Storage board: fills the remaining height. Racks scroll on the left, the
+     "not stored" panel is a full-height docked column on the right. */
+  .rp-board { flex: 1; min-height: 0; display: flex; gap: 14px; align-items: stretch; overflow: hidden; }
+  /* Racks area scrolls on its own (header stays put, panel stays full-height). */
+  .rp-racks-scroll { flex: 1; min-width: 0; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; }
+  .rp-racks-scroll::-webkit-scrollbar { display: none; }
+  .rp-racks-scroll > .rp-racks-col { min-width: 0; }
+  /* Permanently-docked unranked-spools panel — ALWAYS visible (even empty) so it
+     reads as the clear "drop here to un-rack" zone. Full board height; its list
+     scrolls inside. */
   .rp-side {
-    position: fixed;
-    top: 8px; right: 0; bottom: 8px;
-    width: min(320px, 92vw);
+    flex-shrink: 0; width: 300px;
+    align-self: stretch; min-height: 0;
     background: var(--surface-2); border: 1px solid var(--border);
-    border-right: none;
-    border-top-left-radius: 14px; border-bottom-left-radius: 14px;
+    border-radius: 14px;
     padding: 12px;
     display: flex; flex-direction: column; gap: 10px;
-    z-index: 30;                   /* above content, below modals */
-    transform: translateX(100%);
-    transition: transform .28s cubic-bezier(.4, 0, .2, 1);
-    box-shadow: none;
+    overflow: hidden;
   }
-  .rp-side.is-open { transform: translateX(0); box-shadow: -8px 0 24px rgba(0,0,0,.12); }
-  /* Persistent chevron handle for the "not stored" panel. Fixed + anchored by
-     `right` (grows leftward on hover → never overlaps the panel). It travels to
-     the panel's left edge when open and to the screen edge when closed; the
-     glyph flips so it always points the way it will move (open ⇄ close). */
-  .rp-side-tab {
-    position: fixed; right: 0; top: 50%; transform: translateY(-50%);
-    width: 30px; height: 88px; padding: 0;
-    display: flex; align-items: center; justify-content: center;
-    border: none; border-radius: 14px 0 0 14px;
-    background: var(--primary); color: #fff;
-    box-shadow: -6px 0 22px rgba(255,122,24,.45);
-    cursor: pointer; font-size: 19px; font-weight: 800; line-height: 1;
-    transition: right .28s cubic-bezier(.4,0,.2,1), background .15s, width .15s, height .2s cubic-bezier(.34,1.45,.6,1);
-    z-index: 31;   /* just above .rp-side (30) */
-  }
-  .rp-side-tab:hover { background: var(--primary-hover); width: 36px; height: 128px; }
-  /* While dragging a spool, the chevron sits at the edge — don't let it eat a
-     drop near the right border. */
-  body.is-dragging-spool .rp-side-tab { pointer-events: none; }
-  .rp-side-tab-glyph { display: inline-block; transition: transform .25s cubic-bezier(.4,0,.2,1); }
-  /* Panel closed → chevron points LEFT ("open it"); open → points right ("close"). */
-  .rp-side-tab:not(.is-panel-open) .rp-side-tab-glyph { transform: rotate(180deg); }
-  /* While dragging a spool out of the panel, slide it off-screen so the racks
-     behind become available as drop targets. The persistent open/close state
-     is left untouched — the panel slides back in on dragend. */
-  .rp-side.is-open.is-dragging { transform: translateX(100%); }
-  /* Close button in the panel head */
-  .rp-side-close {
-    margin-left: auto;
-    width: 26px; height: 26px;
-    background: transparent; border: none; border-radius: 6px;
-    color: var(--muted); font-size: 14px; line-height: 1;
-    cursor: pointer; transition: background .15s, color .15s;
-  }
-  .rp-side-close:hover { background: var(--border); color: var(--text); }
-
   /* Header toggle — pill button with count badge */
   .rp-toggle-count {
     display: inline-flex; align-items: center; justify-content: center;
@@ -1038,11 +1001,53 @@
     border-radius: 10px;
     background: var(--primary-soft);
   }
-  .rp-unranked-empty {
-    text-align: center;
-    padding: 18px 10px;
-    font-size: 12px; color: var(--muted);
+  /* When the list is EMPTY, the empty-state block already shows its own dashed
+     drop zone — don't add a second outline around it. */
+  .rp-side-list--drop:has(.rp-unranked-empty) { outline: none; background: transparent; }
+  .rp-side-list--drop .rp-unranked-empty {
+    animation: none;                           /* steady (no pulse) while hovered */
+    border-color: var(--primary);
+    background: var(--primary-soft);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 18%, transparent);
   }
+  .rp-unranked-empty {
+    flex: 1; min-height: 140px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+    text-align: center; padding: 18px 12px;
+    font-size: 12px; color: var(--muted);
+    border: 2px dashed var(--border); border-radius: 12px;
+  }
+  /* When the list has spools, the drop-zone block is hidden — UNTIL a spool is
+     being dragged: then the rows vanish and the drop zone takes over, giving a
+     clear free area to drop onto. (When the list is empty it's always shown.) */
+  .rp-side-list.has-rows .rp-unranked-empty { display: none; }
+  /* Gated on is-dragging-RACKED (a spool dragged out of a rack), NOT any drag —
+     dragging a row FROM the panel must keep the rows so the source isn't yanked. */
+  body.is-dragging-racked .rp-side-list.has-rows .rp-side-row { display: none; }
+  body.is-dragging-racked .rp-side-list.has-rows .rp-unranked-empty { display: flex; }
+  .rp-unranked-empty .icon { background: var(--muted); opacity: .55; transition: background .15s, opacity .15s; }
+  .rp-unranked-empty-title { font-weight: 600; color: var(--text); }
+  .rp-unranked-empty-hint { font-size: 11px; line-height: 1.35; opacity: .85; max-width: 200px; }
+  .rp-unranked-empty-disabled { display: none; font-size: 11.5px; line-height: 1.35; max-width: 210px; color: var(--muted); }
+  /* While a spool is being dragged, light the empty drop zone up (WeTransfer-style)
+     so it's obvious it accepts the drop — even before the cursor reaches it. */
+  body.is-dragging-racked .rp-unranked-empty {
+    border-color: var(--primary);
+    background: var(--primary-soft);
+    color: var(--primary);
+    animation: rpDropInvite 1.3s ease-in-out infinite;
+  }
+  body.is-dragging-racked .rp-unranked-empty .icon { background: var(--primary); opacity: 1; }
+  body.is-dragging-racked .rp-unranked-empty-title { color: var(--primary); }
+  @keyframes rpDropInvite {
+    0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--primary) 30%, transparent); }
+    50%      { box-shadow: 0 0 0 6px color-mix(in srgb, var(--primary) 14%, transparent); }
+  }
+  /* Auto storage ON: the bin still accepts the drop (dropping there is an
+     explicit opt-out that turns Auto storage OFF), but the note swaps in to warn
+     about that side effect — shown instead of the normal hint. */
+  body.autostore-on.is-dragging-racked .rp-unranked-empty-hint { display: none; }
+  body.autostore-on.is-dragging-racked .rp-unranked-empty-disabled { display: block; color: var(--primary); }
   /* Single unranked-spool row — horizontal: puck + name + weight */
   .rp-side-row {
     display: flex; align-items: center; gap: 12px;
@@ -1059,9 +1064,17 @@
     transform: translateX(-1px);
   }
   .rp-side-row:active { cursor: grabbing; }
+  /* Empty spool locked by Auto Unstorage — can't be stored (would bounce back). */
+  .rp-side-row--locked {
+    position: relative;
+    opacity: .6; cursor: not-allowed;
+  }
+  .rp-side-row--locked:hover { border-color: var(--border); background: var(--surface); transform: none; }
+  .rp-side-row--locked:active { cursor: not-allowed; }
+  .rp-side-row-lock { position: absolute; top: 8px; right: 8px; background: var(--muted); }
   /* Smaller illustration here (~30% less than the group panel's 65px) — override
      the `.gp-member .thumb { 65px }` rule (the colour-square gets 45 inline). */
-  .rp-side-row.gp-member .thumb { width: 45px; height: 45px; }
+  .rp-side-row.gp-member .thumb { width: 72px; height: auto; object-fit: contain; }
   /* The whole row is the single drag source: neutralise children so clicking the
      image (or anything) grabs the CARD, not the native image. */
   .rp-side-row > * { pointer-events: none; }
