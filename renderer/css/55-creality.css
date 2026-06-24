@@ -90,38 +90,9 @@
   text-shadow: none;
 }
 
-/* ── Fans (Part / Case / Side) — one row each, 1%-granular slider ────────────
-   Slider commits on release (M106 via the 9999 WS); the % readout updates live
-   during the drag. Case + side override the chamber-temp auto control. */
-.cre-fan-section {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border, rgba(127, 127, 127, .2));
-}
-.cre-fan-row { display: flex; align-items: center; gap: 8px; }
-.cre-fan-label {
-  flex: 0 0 34px;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--muted);
-}
-.cre-fan-slider {
-  flex: 1 1 auto;
-  height: 4px;
-  cursor: pointer;
-  accent-color: var(--primary, #386ecf);
-}
-.cre-fan-pct {
-  flex: 0 0 34px;
-  text-align: right;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text);
-  font-variant-numeric: tabular-nums;
-}
+/* ── Fans (Part / Case / Side) — rendered as cards with a [−] [%] [+] stepper,
+   reusing the shared `.elg-fan-*` control-widget styles (see Snapmaker/Elegoo).
+   Step buttons send M106 via the 9999 WS (creActionFan, optimistic). */
 
 /* ── Filament card: title row + Feed / Unload of the selected CFS slot ───────
    The "Filament" title shares its row with the Selected label and the Feed /

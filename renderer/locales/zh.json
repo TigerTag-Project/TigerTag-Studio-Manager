@@ -714,6 +714,8 @@
   "autoStorageSub": "自动放置新线轴",
   "autoUnstorageTitle": "自动取出",
   "autoUnstorageSub": "线轴为 0g 时自动释放槽位",
+  "autoOrganizeTitle": "自动整理",
+  "autoOrganizeSub": "自动放置新线材，并在线材用完时释放槽位。锁定槽位可设例外。",
   "rackStatsDepletedTip": "无剩余耗材的活动线轴（0g）",
   "rackStatsUnranked": "未排列",
   "rackActionMore": "更多操作",
@@ -1068,5 +1070,6 @@
   "whatsNewLater": "稍后",
   "whatsNewEmpty": "此版本暂无说明。",
   "viewGroupMaterials": "材料",
-  "viewGroupPrinters": "打印机"
+  "viewGroupPrinters": "打印机",
+  "camDetach": "分离窗口"
 }

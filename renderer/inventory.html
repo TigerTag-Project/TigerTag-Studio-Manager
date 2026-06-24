@@ -159,40 +159,12 @@
 
     <!-- inventory -->
     <section class="card hidden" id="card-inv">
-      <div class="row between" style="gap:10px">
-        <div class="inv-search">
-          <input id="searchInv" type="text" placeholder="Search material, brand, color, UID…" data-i18n-placeholder="searchPlaceholder" />
-          <!-- Clear button — sits to the LEFT of the magnifier so the loupe
-               stays in its established position when the X appears/hides.
-               `hidden` by default; the renderer toggles visibility based on
-               the input value (see #searchInv `input` handler in inventory.js). -->
-          <button type="button" id="searchInvClear" class="inv-search-clear" hidden
-                  aria-label="Clear search" title="Clear search">
-            <span class="icon icon-close icon-13" aria-hidden="true"></span>
-          </button>
-          <span class="icon icon-search icon-13"></span>
-        </div>
-        <div class="inv-filter-group">
-          <select id="brandFilter" class="inv-brand-filter" title="Filter by brand">
-            <option value="" data-i18n="filterAllBrands">All brands</option>
-          </select>
-          <select id="materialFilter" class="inv-brand-filter" title="Filter by material">
-            <option value="" data-i18n="filterAllMaterials">All materials</option>
-          </select>
-          <select id="typeFilter" class="inv-brand-filter" data-i18n-title="filterAllVersions" title="All versions">
-            <option value="" data-i18n="filterAllVersions">All versions</option>
-          </select>
-        </div>
-      </div>
-      <!-- View selector lives on its OWN row below the search bar — gives
-           the buttons more breathing room and stops them from being squeezed
-           when the user opens the brand/material/type dropdowns above. The
-           "Add product" button is right-aligned on the same row so all
-           inventory-level actions cluster on one line. -->
+      <!-- View selector on its OWN row, ABOVE the search bar (same in every
+           view). The "Scan" / "Add product" actions cluster on the right. -->
       <div class="inv-view-row">
         <div class="view-toggle-groups">
           <div class="vtg-group">
-            <span class="vtg-label"><span class="icon icon-palette icon-13"></span><span data-i18n="viewGroupMaterials">Materials</span></span>
+            <span class="vtg-label"><span data-i18n="viewGroupMaterials">Materials</span></span>
             <div class="view-toggle">
               <button id="btnViewGrid" data-i18n="btnViewGrid">⊞ Grid</button>
               <button id="btnViewTable" class="active"><span class="icon icon-list icon-13"></span><span data-i18n="btnViewTable">Table</span></button>
@@ -201,7 +173,7 @@
           </div>
           <span class="vtg-sep" aria-hidden="true"></span>
           <div class="vtg-group">
-            <span class="vtg-label"><span class="icon icon-printer icon-13"></span><span data-i18n="viewGroupPrinters">Printers</span></span>
+            <span class="vtg-label"><span data-i18n="viewGroupPrinters">Printers</span></span>
             <div class="view-toggle vtg-printers">
               <button id="btnViewPrinter" data-i18n="btnViewGrid">⊞ Grid</button>
               <button id="btnViewPrinterTable"><span class="icon icon-list icon-13"></span><span data-i18n="btnViewTable">Table</span></button>
@@ -218,6 +190,37 @@
             <span class="icon icon-plus icon-13"></span>
             <span data-i18n="addProductBtn">Add product</span>
           </button>
+          <!-- Cam view only: detach the camera wall into its own window. Same
+               orange style as Add Device; shown via #card-inv.is-cam-view. -->
+          <button id="camWallDetachTop" class="inv-add-btn" type="button" hidden>
+            <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+              <path d="M6 2H2a1 1 0 00-1 1v9a1 1 0 001 1h9a1 1 0 001-1V8M9 1h4m0 0v4m0-4L7 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span data-i18n="camDetach">Detach</span>
+          </button>
+        </div>
+      </div>
+      <div class="row between inv-search-row" style="gap:10px">
+        <div class="inv-search">
+          <input id="searchInv" type="text" placeholder="Search material, brand, color, UID…" data-i18n-placeholder="searchPlaceholder" />
+          <!-- Clear button — sits to the LEFT of the magnifier so the loupe
+               stays in its established position when the X appears/hides. -->
+          <button type="button" id="searchInvClear" class="inv-search-clear" hidden
+                  aria-label="Clear search" title="Clear search">
+            <span class="icon icon-close icon-13" aria-hidden="true"></span>
+          </button>
+          <span class="icon icon-search icon-13"></span>
+        </div>
+        <div class="inv-filter-group">
+          <select id="brandFilter" class="inv-brand-filter" title="Filter by brand">
+            <option value="" data-i18n="filterAllBrands">All brands</option>
+          </select>
+          <select id="materialFilter" class="inv-brand-filter" title="Filter by material">
+            <option value="" data-i18n="filterAllMaterials">All materials</option>
+          </select>
+          <select id="typeFilter" class="inv-brand-filter" data-i18n-title="filterAllVersions" title="All versions">
+            <option value="" data-i18n="filterAllVersions">All versions</option>
+          </select>
         </div>
       </div>
       <div id="mainResult"></div>

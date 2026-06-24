@@ -5,6 +5,24 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.10.21 — 2026-06-25
+
+### Added
+
+### Changed
+
+- **Auto storage and Auto unstorage merged into one "Auto-organize" toggle.** It's a single automation: new spools are auto-placed and emptied slots are auto-freed. Lock a slot to make an exception. The setting is now per-account and follows you across devices.
+- **Creality fan controls are now cards with −/+ 10% steppers** (like the other printers), instead of sliders — one card per fan the printer actually has.
+- **Tidier toolbar.** The view switcher (Materials / Printers) sits above the search bar in every view, and the "Spools not stored" header is more compact with hover info bubbles instead of long help text.
+- **Cleaner Cam view.** The search bar and the Scan / Add-device buttons (which don't apply to the camera wall) are hidden, and "Detach" moved up next to the other actions.
+
+### Fixed
+
+- **Switching between accounts could empty your racks.** Bouncing between two accounts while toggling the automation could clear every spool from its rack on the account you came back to, leaving the slot locks behind. Fixed — stale background updates from the previous account are now ignored, the automation only writes to the matching account, and Auto-organize never frees a spool that's in a locked slot.
+- The RFID reader indicator no longer shows a raw text key in its tooltip, and the printer table now lines up with the materials table under the search bar.
+
+---
+
 ## v1.10.20 — 2026-06-24
 
 ### Added

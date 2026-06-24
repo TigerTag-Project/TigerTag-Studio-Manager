@@ -4624,6 +4624,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         // can deliver one last in-flight callback before the unsub takes
         // effect, hence this belt-and-braces check.
         if (state.friendView) return;
+        // ── Account-identity guard. After an account switch Firestore can still
+        // deliver ONE buffered callback from the PREVIOUS account's listener
+        // (the unsub hasn't propagated yet). Its closure `uid` no longer matches
+        // the now-active account, so processing it would load the old account's
+        // rows AND run auto-storage/unstorage writes against the new account
+        // (fbDb()/currentUser already point at it) — cross-account rack
+        // corruption. Drop any snapshot whose account isn't the active one.
+        if (uid !== state.activeAccountId) return;
         // Native connection detection — no ping needed
         if (snapshot.metadata.fromCache) {
           setHealthOffline();
@@ -6482,7 +6490,18 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       _addLbl.dataset.i18n = _key;
       _addLbl.textContent  = t(_key);
     }
+    // Cam view: the search bar + Scan/Add buttons are useless there, so hide
+    // them (via #card-inv.is-cam-view) and surface the cam-wall "Detach" button
+    // in the actions slot instead.
+    const _camView = mode === "printer-cam";
+    $("card-inv")?.classList.toggle("is-cam-view", _camView);
+    const _detachTop = $("camWallDetachTop");
+    if (_detachTop) _detachTop.hidden = !(_camView && window.electronAPI?.openCamWindow);
   }
+  // Detach (top, cam view) → pop the camera wall into its own window.
+  $("camWallDetachTop")?.addEventListener("click", () => {
+    try { window.electronAPI?.openCamWindow(_serializeCamerasForDetach()); } catch (_) {}
+  });
   $("btnViewTable").addEventListener("click", () => setViewMode("table"));
   $("btnViewGrid").addEventListener("click",  () => setViewMode("grid"));
   $("btnViewRack")?.addEventListener("click", () => setViewMode("rack"));
@@ -6537,6 +6556,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     $("btnViewCam")?.classList.add("active"); $("btnViewTable").classList.remove("active");
     const _al = $("btnAddProduct")?.querySelector("[data-i18n]");
     if (_al) { _al.dataset.i18n = "addDeviceBtn"; _al.textContent = t("addDeviceBtn"); }
+    $("card-inv")?.classList.add("is-cam-view");   // hide search + add buttons, show Detach
+    const _dt = $("camWallDetachTop"); if (_dt) _dt.hidden = !window.electronAPI?.openCamWindow;
   }
 
   // Toggle the clear-button visibility in lock-step with the input
@@ -11124,17 +11145,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         </div>`;
     });
 
-    const detachBtn = window.electronAPI?.openCamWindow
-      ? `<button class="cam-wall-detach-btn" id="camWallDetach" title="Open in separate window">
-           <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-             <path d="M6 2H2a1 1 0 00-1 1v9a1 1 0 001 1h9a1 1 0 001-1V8M9 1h4m0 0v4m0-4L7 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-           </svg>
-           Detach
-         </button>`
-      : "";
-    host.innerHTML = `
-      <div class="cam-wall-toolbar">${detachBtn}</div>
-      <div class="cam-wall">${camCards.join("")}</div>`;
+    host.innerHTML = `<div class="cam-wall">${camCards.join("")}</div>`;
 
     host.querySelectorAll("[data-ffg-cam-key]").forEach(img => {
       const key = img.dataset.ffgCamKey;
@@ -11155,11 +11166,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       reAttachCreCamConsumers();
     }
 
-    // Detach button — opens / focuses the standalone camera window
-    host.querySelector("#camWallDetach")?.addEventListener("click", () => {
-      const cameras = _serializeCamerasForDetach();
-      window.electronAPI?.openCamWindow(cameras);
-    });
+    // (The "Detach" button now lives in the toolbar actions slot, shown only in
+    // Cam view — see #camWallDetachTop. No in-wall toolbar anymore.)
 
     wireCamWallDnd(host);
   }
@@ -11738,22 +11746,6 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         }
         return;
       }
-      // Fan slider released → commit the speed (M106 via creActionFan).
-      const fanSlider = e.target.closest("[data-cre-fan-slider]");
-      if (fanSlider) {
-        const pct = parseInt(fanSlider.value, 10);
-        if (!isNaN(pct)) creActionFan(_activePrinter, fanSlider.dataset.creFanSlider, pct);
-        return;
-      }
-    }
-  });
-
-  // Fan slider live drag → update only the % readout (no WS spam; commit fires on release).
-  document.addEventListener("input", e => {
-    const fanSlider = e.target.closest("[data-cre-fan-slider]");
-    if (fanSlider && _activePrinter?.brand === "creality") {
-      const pctEl = document.querySelector(`[data-cre-fan-pct="${fanSlider.dataset.creFanSlider}"]`);
-      if (pctEl) pctEl.textContent = `${fanSlider.value}%`;
     }
   });
 
@@ -13367,6 +13359,19 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
             }
             return;
           }
+          // Fan step ±10%: [data-cre-fan-step="<key>"] [data-dist="±10"]
+          const creFanStep = e.target.closest("[data-cre-fan-step]");
+          if (creFanStep) {
+            e.preventDefault(); e.stopPropagation();
+            const key   = creFanStep.dataset.creFanStep;
+            const delta = parseInt(creFanStep.dataset.dist, 10);
+            const conn  = creGetConn(creKey(_activePrinter));
+            if (conn && key && !isNaN(delta)) {
+              const cur = Math.round(conn.data[key] ?? 0);
+              creActionFan(_activePrinter, key, Math.max(0, Math.min(100, cur + delta)));
+            }
+            return;
+          }
         }
 
         // Creality — inline target-temperature edit: [data-cre-set-temp="nozzle|bed|chamber"]
@@ -14799,6 +14804,31 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     return placed;
   }
 
+  // Persist an auto-policy pref to the account's Firestore prefs/app — per-account
+  // AND synced across devices. localStorage stays the fast read source everywhere;
+  // this just mirrors the change up so a new PC restores it (read back in
+  // syncLangFromFirestore). Guarded to the active account so a stale handler can't
+  // write to the wrong one.
+  function _saveAutoPref(field, value) {
+    const user = fbAuth().currentUser;
+    if (!user || user.uid !== state.activeAccountId) return;
+    fbDb().collection("users").doc(user.uid).collection("prefs").doc("app")
+      .set({ [field]: !!value }, { merge: true })
+      .catch(err => console.warn("[Firestore] saveAutoPref:", err.message));
+  }
+  // Unified "Auto-organize" automation: drives BOTH auto-storage (place new
+  // spools) and auto-unstorage (free a slot when a spool runs out). The old
+  // split toggles were merged — exceptions are now handled by locking a slot.
+  const _autoManageOn = () => localStorage.getItem("tigertag.autoManage.enabled") === "true";
+  // One-shot local migration: if the unified flag was never set on this device
+  // but either legacy split flag was ON, start unified ON. (Per-account values
+  // are reconciled from Firestore in syncLangFromFirestore.)
+  if (localStorage.getItem("tigertag.autoManage.enabled") == null
+      && (localStorage.getItem("tigertag.autoStorage.enabled") === "true"
+          || localStorage.getItem("tigertag.autoUnstorage.enabled") === "true")) {
+    localStorage.setItem("tigertag.autoManage.enabled", "true");
+  }
+
   /* Auto-storage feature — when the toggle in the "Spools not stored" side
      panel is ON, every fresh inventory snapshot triggers this routine to
      drop newly-detected unranked spools into the first free slot.
@@ -14808,7 +14838,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   async function maybeAutoStoreUnrankedSpools() {
     if (_autoStoreInFlight) return;
     if (state.friendView) return;                 // never write on a friend's account
-    if (localStorage.getItem("tigertag.autoStorage.enabled") !== "true") return;
+    // Account-match guard: only write when the active account, the signed-in
+    // Firebase user, and the data we're acting on all agree (prevents writes
+    // derived from a stale snapshot landing on the wrong account).
+    if (fbAuth().currentUser?.uid !== state.activeAccountId) return;
+    if (!_autoManageOn()) return;
     if (!state.racks.length) return;              // nothing to fill into
     _autoStoreInFlight = true;
     try {
@@ -14833,10 +14867,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   async function maybeAutoUnstoreDepletedSpools() {
     if (_autoUnstoreInFlight) return;
     if (state.friendView) return;
-    if (localStorage.getItem("tigertag.autoUnstorage.enabled") !== "true") return;
+    // Account-match guard (see maybeAutoStoreUnrankedSpools).
+    if (fbAuth().currentUser?.uid !== state.activeAccountId) return;
+    if (!_autoManageOn()) return;
     const targets = state.rows.filter(r =>
       !r.deleted &&
       r.rackId != null &&                                  // currently placed
+      !isSlotLocked(r.rackId, r.rackLevel, r.rackPos) &&   // a LOCKED slot keeps its spool even at 0g
       r.weightAvailable != null &&
       Number(r.weightAvailable) <= 0                       // depleted
     );
@@ -14982,8 +15019,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // With Auto Unstorage ON, an empty (0g) spool can't be stored — it would be
     // freed and returned here the moment it lands in a rack. Lock it: not
     // draggable + a "why" tooltip + a dimmed/lock visual.
-    const autoUnstorageOn = localStorage.getItem("tigertag.autoUnstorage.enabled") === "true";
-    const locked = !readOnly && autoUnstorageOn && isEmptyRow(row);
+    const locked = !readOnly && _autoManageOn() && isEmptyRow(row);
     const tip = locked
       ? esc(t("rackUnstoreLockedTip"))
       : `${esc(row.brand || "")} · ${esc(row.material || "")}\n${esc(row.colorName || row.uid || "")}`;
@@ -15302,11 +15338,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // (vs scattering checks) so future call sites stay consistent.
     const readOnly = !!state.friendView;
     list.classList.toggle("is-read-only", readOnly);
-    // Auto-policy flags (read once per render). When Auto storage is ON, "Clear
-    // all" is hidden from the rack menu (clearing would just re-scatter spools),
-    // and the "not stored" bin can't accept drops (a dropped spool would bounce
-    // straight back into a rack) — `body.autostore-on` drives the CSS for that.
-    const autoStorageOn = localStorage.getItem("tigertag.autoStorage.enabled") === "true";
+    // Auto-organize state (read once per render). When ON, a rack's "Clear all"
+    // is hidden (clearing would just re-scatter spools) and the "not stored" bin
+    // signals the opt-out affordance — `body.autostore-on` drives the CSS.
+    const autoStorageOn = _autoManageOn();
     document.body.classList.toggle("autostore-on", autoStorageOn);
     wireRackTooltipDelegation();
     // If a side-row drag just ended, defer rebuild until the slide-back finishes
@@ -15576,37 +15611,22 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
             <span class="icon icon-plus icon-13"></span>
             <span>${esc(t("addRackBtn"))}</span>
           </button>
-          <div class="rp-side-add-rack-hint">${esc(t("rackNoSpaceHint"))}</div>
+          <span class="rp-info" tabindex="0" data-tip="${esc(t("rackNoSpaceHint"))}" aria-label="${esc(t("rackNoSpaceHint"))}"><span class="icon icon-info icon-12"></span></span>
         </div>` : ""}
         ${readOnly ? "" : `
-        <!-- Auto Storage / Auto Unstorage toggles. They live together in
-             a single "Automation" card so the user sees the two opposing
-             policies side-by-side.
-             - Auto Storage    → place new unranked spools in the first free slot
-             - Auto Unstorage  → free the rack slot when a spool reaches 0g
-                                  (data is kept; the spool just returns to the
-                                   "Spools not stored" pile, never deleted) -->
+        <!-- Unified "Auto-organize" — drives both auto-placement of new spools
+             and auto-freeing of emptied slots. Exceptions via slot locks. -->
         <div class="rp-side-auto-card">
-          <label class="rp-side-toggle">
-            <span class="rp-side-toggle-text">
-              <span class="rp-side-toggle-title" data-i18n="autoStorageTitle">Auto storage</span>
-              <span class="rp-side-toggle-sub" data-i18n="autoStorageSub">Place new spools automatically</span>
+          <div class="rp-side-toggle">
+            <span class="rp-side-toggle-label">
+              <span data-i18n="autoOrganizeTitle">Auto-organize</span>
+              <span class="rp-info" tabindex="0" data-tip="${esc(t("autoOrganizeSub"))}" aria-label="${esc(t("autoOrganizeSub"))}"><span class="icon icon-info icon-12"></span></span>
             </span>
-            <span class="eac-toggle">
-              <input type="checkbox" id="rpAutoStorageToggle" />
+            <label class="eac-toggle">
+              <input type="checkbox" id="rpAutoManageToggle" />
               <span class="eac-toggle-track"><span class="eac-toggle-thumb"></span></span>
-            </span>
-          </label>
-          <label class="rp-side-toggle">
-            <span class="rp-side-toggle-text">
-              <span class="rp-side-toggle-title" data-i18n="autoUnstorageTitle">Auto unstorage</span>
-              <span class="rp-side-toggle-sub" data-i18n="autoUnstorageSub">Free the rack slot when a spool reaches 0g</span>
-            </span>
-            <span class="eac-toggle">
-              <input type="checkbox" id="rpAutoUnstorageToggle" />
-              <span class="eac-toggle-track"><span class="eac-toggle-thumb"></span></span>
-            </span>
-          </label>
+            </label>
+          </div>
         </div>`}
         <div class="rp-side-search">
           <input id="rpUnrackedSearch" type="text" placeholder="${t("searchShort")}" />
@@ -15884,31 +15904,20 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // machinery, chevron, or toggle tile anymore. Dropping a spool onto it
     // un-racks it (handled by the #rpUnrackedStrip drop target below).
 
-    // Auto-storage toggle inside the side panel — persisted in localStorage.
-    // When flipped ON, fire the auto-fill routine immediately to clear the
-    // current pile, then let `maybeAutoStoreUnrankedSpools()` handle future
-    // snapshots automatically.
-    const _autoStoreToggle = $("rpAutoStorageToggle");
-    if (_autoStoreToggle) {
-      _autoStoreToggle.checked = localStorage.getItem("tigertag.autoStorage.enabled") === "true";
-      _autoStoreToggle.addEventListener("change", () => {
-        const enabled = _autoStoreToggle.checked;
-        localStorage.setItem("tigertag.autoStorage.enabled", enabled ? "true" : "false");
+    // Unified "Auto-organize" toggle — drives both auto-storage and
+    // auto-unstorage. Per-account + synced (localStorage cache + Firestore).
+    // On flip ON, run both one-shot passes immediately; re-render so the bin
+    // affordances, locked empties and the rack "Clear all" item all update.
+    const _autoManageToggle = $("rpAutoManageToggle");
+    if (_autoManageToggle) {
+      _autoManageToggle.checked = _autoManageOn();
+      _autoManageToggle.addEventListener("change", () => {
+        const enabled = _autoManageToggle.checked;
+        localStorage.setItem("tigertag.autoManage.enabled", enabled ? "true" : "false");
+        _saveAutoPref("autoManage", enabled);
         document.body.classList.toggle("autostore-on", enabled);
-        if (enabled) maybeAutoStoreUnrankedSpools();
-        renderRackView();   // re-render: hide/show "Clear all" + bin drop affordance
-      });
-    }
-    // Auto-unstorage toggle — same pattern, triggers a one-shot pass on flip
-    // so any spool currently at 0g leaves its rack immediately.
-    const _autoUnstoreToggle = $("rpAutoUnstorageToggle");
-    if (_autoUnstoreToggle) {
-      _autoUnstoreToggle.checked = localStorage.getItem("tigertag.autoUnstorage.enabled") === "true";
-      _autoUnstoreToggle.addEventListener("change", () => {
-        const enabled = _autoUnstoreToggle.checked;
-        localStorage.setItem("tigertag.autoUnstorage.enabled", enabled ? "true" : "false");
-        if (enabled) maybeAutoUnstoreDepletedSpools();
-        renderRackView();   // re-render so empty spools already in the bin lock/unlock immediately
+        if (enabled) { maybeAutoUnstoreDepletedSpools(); maybeAutoStoreUnrankedSpools(); }
+        renderRackView();
       });
     }
 
@@ -16094,13 +16103,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         strip.classList.remove("rp-unranked-strip--drop");
         const sid = e.dataTransfer.getData("text/plain");
         if (!sid) return;
-        // Dropping into the bin while Auto storage is ON is an explicit "I want
-        // this OUT" — turn Auto storage off (otherwise it'd bounce straight
-        // back), update the toggle, then un-rack.
-        if (localStorage.getItem("tigertag.autoStorage.enabled") === "true") {
-          localStorage.setItem("tigertag.autoStorage.enabled", "false");
+        // Dropping into the bin while Auto-organize is ON is an explicit "I want
+        // this OUT" — turn it off (otherwise it'd bounce straight back), update
+        // the toggle + persist, then un-rack.
+        if (_autoManageOn()) {
+          localStorage.setItem("tigertag.autoManage.enabled", "false");
+          _saveAutoPref("autoManage", false);
           document.body.classList.remove("autostore-on");
-          const tgl = $("rpAutoStorageToggle"); if (tgl) tgl.checked = false;
+          const tgl = $("rpAutoManageToggle"); if (tgl) tgl.checked = false;
         }
         try { await unassignSpool(sid); }
         catch (err) { console.warn("[unassignSpool]", err.message); }
@@ -18269,6 +18279,23 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         _syncGroupToggleBtn();
         renderInventory();
       }
+      // Auto-organize (unified) — per-account, synced across devices. The
+      // localStorage key is the read source everywhere, so we mirror the remote
+      // value into it. Migrate from the legacy split fields when the unified one
+      // isn't set yet. Only applied when there's an actual remote value (a
+      // never-set account leaves the device default off).
+      let autoManage = data.autoManage;
+      if (typeof autoManage !== "boolean"
+          && (typeof data.autoStorage === "boolean" || typeof data.autoUnstorage === "boolean")) {
+        autoManage = !!(data.autoStorage || data.autoUnstorage);
+      }
+      if (typeof autoManage === "boolean") {
+        localStorage.setItem("tigertag.autoManage.enabled", autoManage ? "true" : "false");
+        document.body.classList.toggle("autostore-on", autoManage);
+        if ($("rpAutoManageToggle")) $("rpAutoManageToggle").checked = autoManage;
+        if (autoManage) { maybeAutoUnstoreDepletedSpools(); maybeAutoStoreUnrankedSpools(); }
+        if (state.viewMode === "rack" && !state.friendView) renderRackView();
+      }
     } catch (err) {
       console.warn("[Firestore] syncLang:", err.message);
     }
@@ -18323,7 +18350,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
                      : anyCard               ? "connected card-present"
                      :                         "connected";
       const rows = readers.length === 0
-        ? `<div class="rfid-pod-row"><span class="rrd-dot"></span><span class="rrd-name">${esc(t("rfidNoReader"))}</span></div>`
+        ? `<div class="rfid-pod-row"><span class="rrd-dot"></span><span class="rrd-name" data-i18n="rfidNoReader">${esc(t("rfidNoReader"))}</span></div>`
         : readers.map((name, idx) => {
             const card = state.nfcCardPresent.get(name);
             const uid  = card?.uid ? `<span class="rfid-pod-uid">${esc(card.uid)}</span>` : "";

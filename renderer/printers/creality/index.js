@@ -1061,20 +1061,26 @@ function renderCreControlCard(p, conn) {
     auxiliaryFanPct: ctx.t("creFanSide"),
   };
   const fanKeys = creFanKeysFor(p);
-  // One fan row: toggle icon + label + 1%-granular slider + live % readout.
-  // Toggle/slider are wired in inventory.js (slider → creActionFan on release).
-  const fanRow = (key, label) => {
+  // One fan CARD: toggle icon + label, then a [−] [pct] [+] stepper (±10%).
+  // Same card layout/classes as the Snapmaker/Elegoo control widgets. Toggle +
+  // step buttons are wired in inventory.js (→ creActionFan, which optimistically
+  // updates conn.data and re-renders).
+  const fanCol = (key, label) => {
     const pct = Math.max(0, Math.min(100, Math.round(d[key] ?? 0)));
     return `
-        <div class="cre-fan-row">
-          <button type="button" class="elg-fan-icon-btn${pct > 0 ? " elg-fan-icon-btn--on" : ""}"
-                  data-cre-fan-toggle="${key}" aria-label="${ctx.esc(label)}">
-            <span class="icon icon-fan icon-16" aria-hidden="true"></span>
-          </button>
-          <span class="cre-fan-label">${ctx.esc(label)}</span>
-          <input type="range" class="cre-fan-slider" min="0" max="100" step="1" value="${pct}"
-                 data-cre-fan-slider="${key}" aria-label="${ctx.esc(label)}">
-          <span class="cre-fan-pct" data-cre-fan-pct="${key}">${pct}%</span>
+        <div class="elg-fan-col">
+          <div class="elg-fan-col-head">
+            <button type="button" class="elg-fan-icon-btn${pct > 0 ? " elg-fan-icon-btn--on" : ""}"
+                    data-cre-fan-toggle="${key}" aria-label="${ctx.esc(label)}">
+              <span class="icon icon-fan icon-16" aria-hidden="true"></span>
+            </button>
+            <span class="elg-fan-col-label">${ctx.esc(label)}</span>
+          </div>
+          <div class="elg-fan-col-controls">
+            <button type="button" class="elg-fan-step-btn" data-cre-fan-step="${key}" data-dist="-10" aria-label="Decrease">−</button>
+            <span class="elg-fan-pct" data-cre-fan-pct="${key}">${pct}%</span>
+            <button type="button" class="elg-fan-step-btn" data-cre-fan-step="${key}" data-dist="10" aria-label="Increase">+</button>
+          </div>
         </div>`;
   };
 
@@ -1142,8 +1148,10 @@ function renderCreControlCard(p, conn) {
       <!-- Fans — part cooling always; case + side only on enclosed K-series
            (creFanKeysFor). Live % from the connect snapshot, updated optimistically
            on change. Case + side override the chamber-temp auto control. -->
-      <div class="cre-fan-section">
-        ${fanKeys.map(key => fanRow(key, fanLabels[key])).join("")}
+      <div class="elg-fan-section">
+        <div class="elg-fan-cols">
+          ${fanKeys.map(key => fanCol(key, fanLabels[key])).join("")}
+        </div>
       </div>
 
     </section>`;

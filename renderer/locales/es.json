@@ -714,6 +714,8 @@
   "autoStorageSub": "Coloca nuevas bobinas automáticamente",
   "autoUnstorageTitle": "Auto-desalmacenamiento",
   "autoUnstorageSub": "Libera el espacio cuando la bobina llega a 0g",
+  "autoOrganizeTitle": "Auto-organizar",
+  "autoOrganizeSub": "Coloca automáticamente las bobinas nuevas y libera el hueco cuando una bobina se agota. Bloquea un hueco para una excepción.",
   "rackStatsDepletedTip": "Bobinas activas sin filamento restante (0g)",
   "rackStatsUnranked": "sin asignar",
   "rackActionMore": "Más acciones",
@@ -1068,5 +1070,6 @@
   "whatsNewLater": "Más tarde",
   "whatsNewEmpty": "Sin notas para esta versión.",
   "viewGroupMaterials": "Materiales",
-  "viewGroupPrinters": "Impresoras"
+  "viewGroupPrinters": "Impresoras",
+  "camDetach": "Separar"
 }

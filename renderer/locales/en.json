@@ -714,6 +714,8 @@
   "autoStorageSub": "Place new spools automatically",
   "autoUnstorageTitle": "Auto unstorage",
   "autoUnstorageSub": "Free the rack slot when a spool reaches 0g",
+  "autoOrganizeTitle": "Auto-organize",
+  "autoOrganizeSub": "Auto-places new spools and frees the slot when a spool runs out. Lock a slot for an exception.",
   "rackStatsDepletedTip": "Active spools with no filament left (weight 0g)",
   "rackStatsUnranked": "not stored",
   "rackActionMore": "More actions",
@@ -1068,5 +1070,6 @@
   "whatsNewLater": "Later",
   "whatsNewEmpty": "No release notes for this version.",
   "viewGroupMaterials": "Materials",
-  "viewGroupPrinters": "Printers"
+  "viewGroupPrinters": "Printers",
+  "camDetach": "Detach"
 }

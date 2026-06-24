@@ -343,6 +343,9 @@ users/
       app/
         lang      string   — language code, synced across devices
         groupInv  boolean  — Studio inventory "group identical spools" toggle (Studio-only, synced across devices)
+        autoManage    boolean — Storage "Auto-organize" toggle (drives both auto-place + auto-free; per-account, synced across devices; localStorage `tigertag.autoManage.enabled` is the fast read cache). Migrated from the legacy split fields below (unified = either-was-on).
+        autoStorage   boolean — LEGACY (pre-merge) "Auto storage" toggle — read only for one-time migration into `autoManage`
+        autoUnstorage boolean — LEGACY (pre-merge) "Auto unstorage" toggle — read only for one-time migration into `autoManage`
 ```
 
 ### Connecting from a third-party app

@@ -714,6 +714,8 @@
   "autoStorageSub": "Neue Spulen automatisch einsortieren",
   "autoUnstorageTitle": "Auto-Auslagerung",
   "autoUnstorageSub": "Slot freigeben wenn die Spule 0g erreicht",
+  "autoOrganizeTitle": "Auto-Organisieren",
+  "autoOrganizeSub": "Legt neue Spulen automatisch ein und gibt den Platz frei, wenn eine Spule leer ist. Sperre einen Platz für eine Ausnahme.",
   "rackStatsDepletedTip": "Aktive Spulen ohne verbleibendes Filament (0g)",
   "rackStatsUnranked": "nicht zugewiesen",
   "rackActionMore": "Weitere Aktionen",
@@ -1068,5 +1070,6 @@
   "whatsNewLater": "Später",
   "whatsNewEmpty": "Keine Hinweise für diese Version.",
   "viewGroupMaterials": "Materialien",
-  "viewGroupPrinters": "Drucker"
+  "viewGroupPrinters": "Drucker",
+  "camDetach": "Abdocken"
 }

@@ -714,6 +714,8 @@
   "autoStorageSub": "Posiziona automaticamente le nuove bobine",
   "autoUnstorageTitle": "Auto-rimozione",
   "autoUnstorageSub": "Libera lo slot quando la bobina raggiunge 0g",
+  "autoOrganizeTitle": "Auto-organizza",
+  "autoOrganizeSub": "Posiziona automaticamente le nuove bobine e libera lo slot quando una bobina si esaurisce. Blocca uno slot per un'eccezione.",
   "rackStatsDepletedTip": "Bobine attive senza filamento residuo (0g)",
   "rackStatsUnranked": "non assegnate",
   "rackActionMore": "Altre azioni",
@@ -1068,5 +1070,6 @@
   "whatsNewLater": "Più tardi",
   "whatsNewEmpty": "Nessuna nota per questa versione.",
   "viewGroupMaterials": "Materiali",
-  "viewGroupPrinters": "Stampanti"
+  "viewGroupPrinters": "Stampanti",
+  "camDetach": "Stacca"
 }

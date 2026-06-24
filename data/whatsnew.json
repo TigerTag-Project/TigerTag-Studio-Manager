@@ -3332,5 +3332,110 @@
         }
       }
     ]
+  },
+  "1.10.21": {
+    "date": "2026-06-25",
+    "items": [
+      {
+        "icon": "swap",
+        "title": {
+          "en": "One Auto-organize toggle",
+          "fr": "Un seul toggle Auto-organisation",
+          "de": "Ein Auto-Organisieren-Schalter",
+          "es": "Un único interruptor Auto-organizar",
+          "it": "Un solo interruttore Auto-organizza",
+          "zh": "统一的自动整理开关",
+          "pt": "Um único botão Auto-organizar",
+          "pt-pt": "Um único botão Auto-organizar",
+          "pl": "Jeden przełącznik Auto-organizacji"
+        },
+        "body": {
+          "en": "Auto storage and Auto unstorage are now one switch: new spools are auto-placed and emptied slots are auto-freed. Lock a slot to keep an exception. Saved per account and synced across devices.",
+          "fr": "Auto storage et Auto unstorage ne font plus qu'un : les nouvelles bobines se rangent toutes seules et les slots vidés se libèrent. Verrouillez un slot pour une exception. Enregistré par compte et synchronisé entre appareils.",
+          "de": "Auto-Einlagern und Auto-Auslagern sind jetzt ein Schalter: neue Spulen werden automatisch eingelagert, leere Plätze automatisch freigegeben. Sperre einen Platz für eine Ausnahme. Pro Konto gespeichert und geräteübergreifend synchronisiert.",
+          "es": "Auto-almacenamiento y Auto-desalmacenamiento ahora son un solo interruptor: las bobinas nuevas se colocan solas y los huecos vacíos se liberan. Bloquea un hueco para una excepción. Se guarda por cuenta y se sincroniza entre dispositivos.",
+          "it": "Auto-archiviazione e Auto-rimozione ora sono un solo interruttore: le nuove bobine si posizionano da sole e gli slot vuoti si liberano. Blocca uno slot per un'eccezione. Salvato per account e sincronizzato tra dispositivi.",
+          "zh": "自动入库和自动移出现在合为一个开关：新线材自动放置，空槽位自动释放。锁定槽位可设例外。按账户保存并跨设备同步。",
+          "pt": "Auto-armazenamento e Auto-remoção são agora um só botão: as bobinas novas colocam-se sozinhas e os slots vazios libertam-se. Bloqueie um slot para uma exceção. Guardado por conta e sincronizado entre dispositivos.",
+          "pt-pt": "Auto-armazenamento e Auto-remoção são agora um só botão: as bobinas novas colocam-se sozinhas e os slots vazios libertam-se. Bloqueie um slot para uma exceção. Guardado por conta e sincronizado entre dispositivos.",
+          "pl": "Auto-przechowywanie i auto-usuwanie to teraz jeden przełącznik: nowe szpule układają się same, a puste miejsca zwalniają. Zablokuj miejsce, aby zrobić wyjątek. Zapisywane per konto i synchronizowane między urządzeniami."
+        }
+      },
+      {
+        "icon": "fan",
+        "title": {
+          "en": "Creality fan controls as cards",
+          "fr": "Ventilateurs Creality en cartes",
+          "de": "Creality-Lüfter als Karten",
+          "es": "Ventiladores Creality en tarjetas",
+          "it": "Ventole Creality come schede",
+          "zh": "Creality 风扇改为卡片",
+          "pt": "Ventiladores Creality em cartões",
+          "pt-pt": "Ventiladores Creality em cartões",
+          "pl": "Wentylatory Creality jako karty"
+        },
+        "body": {
+          "en": "Creality fans are now cards with −/+ 10% steppers, matching the other printers — one card per fan your printer actually has.",
+          "fr": "Les ventilateurs Creality sont désormais des cartes avec des boutons −/+ 10 %, comme les autres imprimantes — une carte par ventilateur réellement présent.",
+          "de": "Creality-Lüfter sind jetzt Karten mit −/+ 10 %-Tasten, wie bei den anderen Druckern — eine Karte pro tatsächlich vorhandenem Lüfter.",
+          "es": "Los ventiladores Creality ahora son tarjetas con botones −/+ 10 %, como las demás impresoras: una tarjeta por cada ventilador que tiene la impresora.",
+          "it": "Le ventole Creality ora sono schede con pulsanti −/+ 10 %, come le altre stampanti — una scheda per ogni ventola realmente presente.",
+          "zh": "Creality 风扇现在是带 −/+ 10% 按钮的卡片，与其他打印机一致——打印机实际拥有的每个风扇一张卡片。",
+          "pt": "Os ventiladores Creality são agora cartões com botões −/+ 10 %, como as outras impressoras — um cartão por cada ventilador que a impressora tem.",
+          "pt-pt": "Os ventiladores Creality são agora cartões com botões −/+ 10 %, como as outras impressoras — um cartão por cada ventilador que a impressora tem.",
+          "pl": "Wentylatory Creality to teraz karty z przyciskami −/+ 10%, jak w innych drukarkach — jedna karta na każdy wentylator, który drukarka faktycznie ma."
+        }
+      },
+      {
+        "icon": "list",
+        "title": {
+          "en": "Tidier toolbar & Cam view",
+          "fr": "Barre d'outils et vue Cam épurées",
+          "de": "Aufgeräumte Symbolleiste & Cam-Ansicht",
+          "es": "Barra y vista Cam más ordenadas",
+          "it": "Barra e vista Cam più ordinate",
+          "zh": "更整洁的工具栏与摄像头视图",
+          "pt": "Barra e vista Cam mais arrumadas",
+          "pt-pt": "Barra e vista Cam mais arrumadas",
+          "pl": "Schludniejszy pasek i widok kamery"
+        },
+        "body": {
+          "en": "The Materials / Printers view switcher now sits above the search bar everywhere, the “not stored” header is more compact, and the Cam view hides the search and add buttons (Detach moved up).",
+          "fr": "Le sélecteur de vue Matériaux / Imprimantes est désormais au-dessus de la barre de recherche partout, l'en-tête « non rangées » est plus compact, et la vue Cam masque la recherche et les boutons d'ajout (Detach remonté).",
+          "de": "Der Ansichtswechsler Materialien / Drucker sitzt jetzt überall über der Suchleiste, der „nicht eingelagert“-Kopf ist kompakter, und die Cam-Ansicht blendet Suche und Hinzufügen-Tasten aus (Detach nach oben).",
+          "es": "El selector de vista Materiales / Impresoras está ahora sobre la barra de búsqueda en todas partes, el encabezado «sin almacenar» es más compacto y la vista Cam oculta la búsqueda y los botones de añadir (Detach subido).",
+          "it": "Il selettore vista Materiali / Stampanti ora è sopra la barra di ricerca ovunque, l'intestazione «non riposte» è più compatta e la vista Cam nasconde la ricerca e i pulsanti di aggiunta (Detach spostato in alto).",
+          "zh": "材料 / 打印机视图切换器现在在各处都位于搜索栏上方，“未入库”标题更紧凑，摄像头视图隐藏了搜索和添加按钮（分离按钮上移）。",
+          "pt": "O seletor de vista Materiais / Impressoras fica agora acima da barra de pesquisa em todo o lado, o cabeçalho «não armazenadas» é mais compacto e a vista Cam oculta a pesquisa e os botões de adicionar (Detach subido).",
+          "pt-pt": "O seletor de vista Materiais / Impressoras fica agora acima da barra de pesquisa em todo o lado, o cabeçalho «não armazenadas» é mais compacto e a vista Cam oculta a pesquisa e os botões de adicionar (Detach subido).",
+          "pl": "Przełącznik widoku Materiały / Drukarki znajduje się teraz wszędzie nad paskiem wyszukiwania, nagłówek „nieschowane“ jest bardziej zwarty, a widok kamery ukrywa wyszukiwanie i przyciski dodawania (Detach przeniesiony w górę)."
+        }
+      },
+      {
+        "icon": "lock",
+        "title": {
+          "en": "Safer account switching",
+          "fr": "Changement de compte plus sûr",
+          "de": "Sichereres Kontowechseln",
+          "es": "Cambio de cuenta más seguro",
+          "it": "Cambio account più sicuro",
+          "zh": "更安全的账户切换",
+          "pt": "Troca de conta mais segura",
+          "pt-pt": "Troca de conta mais segura",
+          "pl": "Bezpieczniejsze przełączanie kont"
+        },
+        "body": {
+          "en": "Switching between accounts while using the automation could clear spools from your racks. That's fixed — and a spool in a locked slot now always stays put.",
+          "fr": "Changer de compte en utilisant l'automatisation pouvait vider des bobines de vos racks. C'est corrigé — et une bobine dans un slot verrouillé y reste toujours.",
+          "de": "Beim Kontowechsel während der Automatisierung konnten Spulen aus den Regalen verschwinden. Das ist behoben — und eine Spule in einem gesperrten Platz bleibt jetzt immer dort.",
+          "es": "Cambiar de cuenta usando la automatización podía vaciar bobinas de tus racks. Se ha corregido, y una bobina en un hueco bloqueado ahora siempre se queda.",
+          "it": "Cambiare account mentre si usa l'automazione poteva svuotare bobine dai tuoi scaffali. È stato corretto — e una bobina in uno slot bloccato ora resta sempre al suo posto.",
+          "zh": "在使用自动整理时切换账户可能会清空货架上的线材。此问题已修复——锁定槽位中的线材现在始终保留。",
+          "pt": "Trocar de conta enquanto usava a automação podia esvaziar bobinas dos teus racks. Foi corrigido — e uma bobina num slot bloqueado fica agora sempre no lugar.",
+          "pt-pt": "Trocar de conta enquanto usava a automação podia esvaziar bobinas dos teus racks. Foi corrigido — e uma bobina num slot bloqueado fica agora sempre no lugar.",
+          "pl": "Przełączanie kont podczas korzystania z automatyzacji mogło usuwać szpule z regałów. Naprawione — a szpula w zablokowanym miejscu zawsze pozostaje na miejscu."
+        }
+      }
+    ]
   }
 }

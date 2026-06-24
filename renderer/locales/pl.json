@@ -713,6 +713,8 @@
   "autoStorageSub": "Automatycznie umieszczaj nowe szpule",
   "autoUnstorageTitle": "Auto-wyjmowanie",
   "autoUnstorageSub": "Zwolnij slot gdy szpula osiągnie 0g",
+  "autoOrganizeTitle": "Auto-organizacja",
+  "autoOrganizeSub": "Automatycznie umieszcza nowe szpule i zwalnia miejsce, gdy szpula się skończy. Zablokuj miejsce, aby zrobić wyjątek.",
   "rackStatsDepletedTip": "Aktywne szpule bez resztki filamentu (0g)",
   "rackStatsUnranked": "nieprzypisane",
   "rackActionMore": "Więcej akcji",
@@ -1067,5 +1069,6 @@
   "whatsNewLater": "Później",
   "whatsNewEmpty": "Brak informacji dla tej wersji.",
   "viewGroupMaterials": "Materiały",
-  "viewGroupPrinters": "Drukarki"
+  "viewGroupPrinters": "Drukarki",
+  "camDetach": "Odłącz"
 }

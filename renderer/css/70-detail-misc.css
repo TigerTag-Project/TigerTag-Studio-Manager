@@ -417,9 +417,14 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-top: 8px;
+    margin: 0 0 10px;   /* sits above the search bar now → gap goes BELOW it */
     gap: 10px;
   }
+  /* Cam view: the search bar + "Scan"/"Add device" buttons don't apply to the
+     camera wall — hide them; the "Detach" button takes the actions slot. */
+  #card-inv.is-cam-view .inv-search-row,
+  #card-inv.is-cam-view #btnAddScan,
+  #card-inv.is-cam-view #btnAddProduct { display: none; }
   .inv-actions-group {
     display: flex;
     align-items: center;

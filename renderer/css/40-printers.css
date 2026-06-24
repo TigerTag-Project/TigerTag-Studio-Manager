@@ -2196,6 +2196,7 @@ details[open] .pba-step-chev { transform: rotate(90deg); }
   overflow: auto;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
+  margin-top: 12px;   /* match the inventory `.table-wrap` gap below the search bar */
 }
 .pt-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13.5px; }
 .pt-head { position: sticky; top: 0; background: var(--surface-2); z-index: 1; }
@@ -2233,24 +2234,7 @@ details[open] .pba-step-chev { transform: rotate(90deg); }
 .pt-job-idle  { color: var(--muted); font-size: 12px; }
 
 /* ── Printer cam wall ────────────────────────────────────────────────────── */
-/* Cam wall toolbar — sits above the grid, right-aligned */
-.cam-wall-toolbar {
-  display: flex;
-  justify-content: flex-end;
-  padding: 4px 0 8px;
-}
-.cam-wall-detach-btn {
-  display: flex; align-items: center; gap: 6px;
-  padding: 5px 12px;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  color: var(--muted);
-  font-size: 12px; font-weight: 500;
-  cursor: pointer;
-  transition: border-color .15s, color .15s;
-}
-.cam-wall-detach-btn:hover { border-color: var(--primary); color: var(--primary); }
+/* (The "Detach" button moved to the toolbar actions slot — see #camWallDetachTop.) */
 
 .cam-wall { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
             gap: 16px; padding: 0 0 16px; align-items: start; }
