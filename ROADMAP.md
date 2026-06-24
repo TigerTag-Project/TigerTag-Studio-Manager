@@ -826,9 +826,12 @@ work — **even when the home machine is off**, without going through Bambu's cl
 - **BC3 — Live telemetry + control over cloud MQTT** *(M)* — subscribe `device/<id>/report` (+ initial
   `pushall`; P1=deltas, X1=full), publish controls on `device/<id>/request`, `sequence_id` matching.
   Reuses the existing Bambu live-block UI (already shipping LAN, F3). Spec §3-5.
-- **BC4 — Token security** *(S)* — V1 pragmatic: Firestore `users/{uid}/bambu/**` **`isOwner()`
-  strict** + keychain cache per client. V2 hardened: backend proxy holds the token, clients never see
-  it. Spec §6.2. **Backend rules change is gated on the safeguard below.**
+- **BC4 — Token security** *(S)* — V1 pragmatic: secrets under
+  `users/{uid}/printers/bambulab/secrets/**` (token in `secrets/cloud_session`, per-device access
+  codes in `secrets/{dev_id}`) — **already owner-only via the existing `printers/{brand}/{document=**}`
+  rule, NO new Firestore rule needed**. Display data stays in `…/printers/bambulab/devices/{id}`.
+  Each client caches the token in its OS keychain. V2 hardened: backend proxy holds the token, clients
+  never see it. Spec §6.2.
 
 #### ♻️ Reuses
 - The LAN Bambu MQTT driver already shipped (v1.6.0, F3) — same telemetry/command shapes, just the
@@ -838,14 +841,19 @@ work — **even when the home machine is off**, without going through Bambu's cl
 - `docs/bambu_connect_cloud.md` is the canonical implementation reference (no reverse-engineering
   needed — built on OpenBambuAPI + validated field notes).
 
-#### 🔒 Firestore rules — additive only, with a regression safeguard
-`users/{uid}/bambu/**` is **already owner-only by default** (per CLAUDE.md: everything under
-`users/{uid}/**` is `isOwner()` unless a public-read exception carves it out — and `inventory`/`racks`
-are the only exceptions). So BC4 should **verify** the default already protects the token rather than
-add broad new rules. Any rules edit in the backend repo (`TigerTag_Firebase_Backend/firestore.rules`)
-must ship with a **rules-emulator test** proving: (a) owner can R/W `bambu/**`, (b) a non-owner
-authed user **cannot** read it, (c) the existing `inventory`/`racks` **friend-read** still works
-unchanged. No silent widening of the friend ACL onto `bambu/**`.
+#### 🔒 Firestore rules — zero new rules, plus a future-proofing guard
+Storing secrets under `users/{uid}/printers/bambulab/secrets/**` means they're **already owner-only**
+via the existing `match /printers/{brand}/{document=**}` rule in
+`TigerTag_Firebase_Backend/firestore.rules` (these rules use explicit per-subcollection matches with
+**no recursive wildcard**, so this path is genuinely covered — and nothing reads `printers` for
+friends today). **No rules change to ship for BC4.**
+
+The guard is for **later**: Firestore rules are a **UNION** of grants — a stricter match on
+`secrets/**` can **not** revoke a broader one. So if the **P6** item (*🏵️ Printer slot storage* →
+friend-read on printers) ever lands, its friend-read **must** be scoped to
+`match /printers/{brand}/devices/{document=**}` (display subtree only), **never**
+`printers/{brand}/{document=**}` — otherwise it would expose `secrets/**` (token + access codes) to
+friends. Secrets live in their own subpath precisely so the future grant can't reach them. Spec §6.2.
 
 #### 🧮 Total effort
 BC1: S-M · BC2: M · BC3: M · BC4: S → **~L combined.** Camera-from-anywhere (LAN relay + TURN) is a

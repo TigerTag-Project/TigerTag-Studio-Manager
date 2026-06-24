@@ -270,34 +270,43 @@ Liste exhaustive + payloads : `mqtt.md`. Les commandes clés (validées / prête
 
 ## 6. Modèle de données Firebase (la partie « stock dans la firebase de l'user »)
 
-OpenBambuAPI ne couvre pas le stockage — voici le modèle recommandé.
+OpenBambuAPI ne couvre pas le stockage — voici le modèle retenu. **Choix clé : on se range
+sous la collection `printers/{brand}/` existante** (déjà `isOwner()` via la règle
+`match /printers/{brand}/{document=**}` côté backend). `secrets/` est rangé **PAR BRAND, en sibling
+exact de `devices/`** (`printers/{brand}/secrets/…` ⟷ `printers/{brand}/devices/…`), et on
+**sépare l'affichage des secrets** dans ces deux sous-chemins distincts. Une règle **explicite**
+`match /printers/{brand}/secrets/{document=**}` (owner-only) est posée côté backend pour ancrer
+l'intention « jamais ami/public ».
 
 ```
-users/{uid}/
-  bambu/
-    account:
-      email: string
-      region: "us" | "eu"
-      bambuUid: number              // 1504114800
-      mqttUsername: "u_1504114800"
-      accessToken: string           // ⚠️ CHIFFRÉ (voir sécurité)
-      tokenExpiresAt: timestamp      // now + expiresIn
-      updatedAt: timestamp
-    printers/{dev_id}:
-      devId: "00M09A322200726"
-      name: "X1C Home"
-      model: "X1 Carbon"            // dev_product_name
-      modelCode: "BL-P001"          // dev_model_name
-      structure: "CoreXY"
-      nozzleDiameter: 0.4
-      accessCode: "da64c712"        // ⚠️ secret (caméra/FTP/MQTT LAN) → CHIFFRÉ
-      online: bool
-      firmware: string
-      camera: { ip: "192.168.20.154", rtspUrl: "rtsps://.../live/1", lanLiveview: bool }
-      lastState:                    // dernier push_status « aplati » (cache d'affichage)
-        gcodeState, mcPercent, remainingMin, layerNum, totalLayerNum,
-        nozzleTemp, bedTemp, chamberTemp, wifi, ams: [...], updatedAt
+users/{uid}/printers/bambulab/
+  devices/{dev_id}              ← AFFICHAGE SEUL (jamais de secret ici)
+    devId: "00M09A322200726"
+    name: "X1C Home"
+    model: "X1 Carbon"          // dev_product_name
+    modelCode: "BL-P001"        // dev_model_name
+    structure: "CoreXY"
+    nozzleDiameter: 0.4
+    online: bool
+    firmware: string
+    cameraIp: "192.168.20.154"  // dérivable, pas secret
+    lastState:                  // dernier push_status « aplati » (cache d'affichage)
+      gcodeState, mcPercent, remainingMin, layerNum, totalLayerNum,
+      nozzleTemp, bedTemp, chamberTemp, wifi, ams: [...], updatedAt
+
+  secrets/                      ← TOUS LES SECRETS, isolés (extensible : futurs secrets ici)
+    cloud_session               ← doc : jeton COMPTE (account-level, partagé multi-device)
+      email, region: "us"|"eu", bambuUid, mqttUsername: "u_<uid>",
+      accessToken, refreshToken, tokenExpiresAt, refreshInProgress?, updatedAt
+    {dev_id}                    ← doc par machine : secrets LAN
+      dev_access_code: "da64c712"   // caméra RTSPS / FTP / MQTT LAN
 ```
+
+> **Pourquoi `secrets/` à part de `devices/`** : Firestore lit en **tout-ou-rien par document** (pas
+> de filtre par champ). Si un jour les amis lisent `devices/**` (item ROADMAP **P6**), tout doc lu est
+> lu **en entier** — un secret laissé dans `devices/{id}` fuirait. En l'isolant dans `secrets/`, le
+> futur grant ami se scope sur `printers/bambulab/devices/**` **seul**, et `secrets/**` n'est
+> **jamais** dans le chemin matché → protégé par construction. Voir §6.2.
 
 ### 6.1 Stratégie token multi-device (le cœur du « depuis n'importe où »)
 
@@ -306,13 +315,14 @@ boulot) **même PC maison éteint**. La caméra, elle, reste gérée à part (re
 **n'a pas besoin** du cloud token. Tout le reste passe par le token.
 
 **Principe : UN seul token, généré UNE fois, partagé. Les appareils le LISENT, ne le régénèrent
-jamais.** `users/{uid}/bambu/account.accessToken` est la **source de vérité unique**.
+jamais.** `users/{uid}/printers/bambulab/secrets/cloud_session.accessToken` est la **source de vérité
+unique**.
 
 ```
 Login Bambu (1 fois, n'importe quel appareil)
         │  écrit le token
         ▼
-   Firestore  users/{uid}/bambu/account.accessToken   ◀── source de vérité unique
+   Firestore  .../printers/bambulab/secrets/cloud_session   ◀── source de vérité unique
         │  onSnapshot / lecture one-shot
    ┌────┼─────────────────────┬─────────────────────┐
    ▼                          ▼                      ▼
@@ -349,16 +359,26 @@ reloggent en parallèle, le second login peut invalider le token tout frais du p
 - **Important** : les *Security Rules* Firestore décident **QUI** lit un champ, elles ne **chiffrent
   rien**. Un token en `isOwner()` reste **en clair** pour le client. « Sécuriser » = choisir *où* il
   vit et *qui* peut le déchiffrer :
-  - **V1 — pragmatique (modèle de Bambu lui-même), retenu** : token en Firestore
-    `users/{uid}/bambu/**` avec règles **`isOwner()` strictes** (`request.auth.uid == uid`, **jamais**
-    le pattern « ami » de `inventory`) → chaque appareil le **lit puis le met en cache dans son coffre
-    OS** (`flutter_secure_storage` = iOS Keychain / Android Keystore ; Electron `safeStorage` =
-    Keychain / DPAPI). Connexion directe Bambu ensuite. Le token n'est exposé qu'à **tes propres
-    appareils de confiance**.
+  - **V1 — pragmatique (modèle de Bambu lui-même), retenu** : secrets sous
+    `users/{uid}/printers/bambulab/secrets/**`, **déjà `isOwner()`** via la règle existante
+    `match /printers/{brand}/{document=**}` → **aucune nouvelle règle à écrire/déployer**. Chaque
+    appareil **lit puis met en cache dans son coffre OS** (`flutter_secure_storage` = iOS Keychain /
+    Android Keystore ; Electron `safeStorage` = Keychain / DPAPI). Connexion directe Bambu ensuite. Le
+    token n'est exposé qu'à **tes propres appareils de confiance**.
   - **V2 — durci (si un jour token « zéro client »)** : un **backend permanent** (pas une Cloud
     Function : le MQTT Bambu est persistant) détient le token, maintient la connexion et relaie l'état
     aux clients via Firebase/WebSocket ; les clients ne voient jamais le token. Plus sûr, mais service
     always-on à héberger.
+- **⚠️ Garde-fou P6 (friend-read sur `printers`)** : les règles Firestore sont une **UNION** de
+  permissions — une règle stricte sur `secrets/**` **ne révoque PAS** un grant plus large. Donc si
+  l'item ROADMAP **P6** ajoute la lecture amie des imprimantes, il **DOIT** être scopé au sous-chemin
+  d'affichage **uniquement** :
+  ```
+  match /printers/{brand}/devices/{document=**} {   // devices/ SEULEMENT — jamais secrets/
+    allow read: if isOwner() || <friend gate + sharePrinters == true>;
+  }
+  ```
+  Ne **jamais** poser un friend-read sur `printers/{brand}/{document=**}` (il engloberait `secrets/`).
 - Ne **jamais** committer `bambu_session.json` / tokens (ajouter au `.gitignore`).
 
 ---
