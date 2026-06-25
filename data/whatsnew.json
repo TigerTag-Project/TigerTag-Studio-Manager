@@ -3437,5 +3437,110 @@
         }
       }
     ]
+  },
+  "1.10.22": {
+    "date": "2026-06-25",
+    "items": [
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "A fresh phone-first welcome",
+          "fr": "Un nouvel écran d'accueil",
+          "de": "Neuer Startbildschirm",
+          "es": "Nueva pantalla de bienvenida",
+          "it": "Nuova schermata di benvenuto",
+          "zh": "全新的欢迎界面",
+          "pt": "Nova tela de boas-vindas",
+          "pt-pt": "Novo ecrã de boas-vindas",
+          "pl": "Nowy ekran powitalny"
+        },
+        "body": {
+          "en": "When your inventory is empty, you now get a clean product preview and a clearer message: scan and manage your spools and 3D printers right from your phone.",
+          "fr": "Quand votre inventaire est vide, vous voyez désormais un bel aperçu du produit et un message plus clair : scannez et gérez vos bobines et imprimantes 3D directement depuis votre téléphone.",
+          "de": "Wenn Ihr Inventar leer ist, sehen Sie jetzt eine schöne Produktvorschau und eine klarere Botschaft: Scannen und verwalten Sie Ihre Spulen und 3D-Drucker direkt vom Handy.",
+          "es": "Cuando tu inventario está vacío, ahora ves una bonita vista del producto y un mensaje más claro: escanea y gestiona tus bobinas e impresoras 3D desde tu teléfono.",
+          "it": "Quando il tuo inventario è vuoto, ora vedi una bella anteprima del prodotto e un messaggio più chiaro: scansiona e gestisci le bobine e le stampanti 3D dal telefono.",
+          "zh": "当库存为空时，现在会显示精美的产品预览和更清晰的提示：用手机扫描并管理您的线材和 3D 打印机。",
+          "pt": "Quando o inventário está vazio, agora você vê uma bela prévia do produto e uma mensagem mais clara: digitalize e gerencie seus filamentos e impressoras 3D pelo telefone.",
+          "pt-pt": "Quando o inventário está vazio, vê agora uma bela pré-visualização do produto e uma mensagem mais clara: digitalize e faça a gestão dos seus filamentos e impressoras 3D a partir do telemóvel.",
+          "pl": "Gdy Twój asortyment jest pusty, zobaczysz teraz ładny podgląd produktu i jaśniejszy komunikat: skanuj i zarządzaj szpulami oraz drukarkami 3D z telefonu."
+        }
+      },
+      {
+        "icon": "bolt",
+        "title": {
+          "en": "Join the beta in one scan",
+          "fr": "Rejoignez la beta en un scan",
+          "de": "Mit einem Scan zur Beta",
+          "es": "Únete a la beta con un escaneo",
+          "it": "Entra nella beta con una scansione",
+          "zh": "扫一扫即可加入测试版",
+          "pt": "Entre na beta com um único scan",
+          "pt-pt": "Entre na beta com uma única leitura",
+          "pl": "Dołącz do bety jednym skanem"
+        },
+        "body": {
+          "en": "The beta card now has a single universal QR. Scan it with any phone — iPhones go to TestFlight, Android phones to the Android beta, automatically.",
+          "fr": "La carte beta a désormais un seul QR universel. Scannez-le avec n'importe quel téléphone — les iPhone vont sur TestFlight, les Android sur la beta Android, automatiquement.",
+          "de": "Die Beta-Karte hat jetzt einen einzigen universellen QR-Code. Scannen Sie ihn mit jedem Handy — iPhones landen bei TestFlight, Android-Geräte bei der Android-Beta, automatisch.",
+          "es": "La tarjeta beta ahora tiene un único QR universal. Escanéalo con cualquier teléfono: los iPhone van a TestFlight y los Android a la beta de Android, automáticamente.",
+          "it": "La scheda beta ora ha un unico QR universale. Scansionalo con qualsiasi telefono: gli iPhone vanno su TestFlight, gli Android sulla beta Android, automaticamente.",
+          "zh": "测试版卡片现在只有一个通用二维码。用任意手机扫描——iPhone 会进入 TestFlight，安卓手机会进入安卓测试版，全自动。",
+          "pt": "O cartão beta agora tem um único QR universal. Digitalize-o com qualquer telefone: iPhones vão para o TestFlight e Android para a beta Android, automaticamente.",
+          "pt-pt": "O cartão beta tem agora um único QR universal. Digitalize-o com qualquer telemóvel: os iPhone vão para o TestFlight e os Android para a beta Android, automaticamente.",
+          "pl": "Karta bety ma teraz jeden uniwersalny kod QR. Zeskanuj go dowolnym telefonem — iPhone'y trafią do TestFlight, a Androidy do bety Android, automatycznie."
+        }
+      },
+      {
+        "icon": "edit",
+        "title": {
+          "en": "Set your avatar from the header",
+          "fr": "Changez votre avatar depuis l'en-tête",
+          "de": "Avatar direkt im Kopfbereich ändern",
+          "es": "Cambia tu avatar desde la cabecera",
+          "it": "Cambia l'avatar dall'intestazione",
+          "zh": "在顶部直接设置头像",
+          "pt": "Defina seu avatar pelo cabeçalho",
+          "pt-pt": "Defina o seu avatar a partir do cabeçalho",
+          "pl": "Ustaw awatar z nagłówka"
+        },
+        "body": {
+          "en": "Hover your avatar at the top-left and click the little edit badge to pick, crop and upload a photo — no need to dig into the menus.",
+          "fr": "Survolez votre avatar en haut à gauche et cliquez sur le petit badge d'édition pour choisir, recadrer et envoyer une photo — sans fouiller dans les menus.",
+          "de": "Fahren Sie oben links über Ihren Avatar und klicken Sie auf das kleine Bearbeiten-Symbol, um ein Foto auszuwählen, zuzuschneiden und hochzuladen — ganz ohne Menüs.",
+          "es": "Pasa el ratón sobre tu avatar (arriba a la izquierda) y haz clic en el pequeño botón de edición para elegir, recortar y subir una foto, sin buscar en los menús.",
+          "it": "Passa il mouse sull'avatar in alto a sinistra e clicca il piccolo badge di modifica per scegliere, ritagliare e caricare una foto, senza cercare nei menu.",
+          "zh": "将鼠标悬停在左上角的头像上，点击小编辑按钮即可选择、裁剪并上传照片，无需进入菜单。",
+          "pt": "Passe o mouse sobre seu avatar no canto superior esquerdo e clique no pequeno selo de edição para escolher, recortar e enviar uma foto, sem vasculhar menus.",
+          "pt-pt": "Passe o rato sobre o seu avatar no canto superior esquerdo e clique no pequeno selo de edição para escolher, recortar e enviar uma foto, sem andar pelos menus.",
+          "pl": "Najedź na awatar w lewym górnym rogu i kliknij małą plakietkę edycji, aby wybrać, przyciąć i przesłać zdjęcie — bez szukania w menu."
+        }
+      },
+      {
+        "icon": "nfc",
+        "title": {
+          "en": "QR codes are now scan-only",
+          "fr": "Les QR codes sont faits pour être scannés",
+          "de": "QR-Codes nur noch zum Scannen",
+          "es": "Los códigos QR ahora solo se escanean",
+          "it": "I codici QR ora sono solo da scansionare",
+          "zh": "二维码现在仅供扫描",
+          "pt": "Os QR codes agora são só para digitalizar",
+          "pt-pt": "Os códigos QR agora são só para digitalizar",
+          "pl": "Kody QR są teraz tylko do skanowania"
+        },
+        "body": {
+          "en": "QR codes no longer react to clicks — they're meant to be scanned with your phone's camera. Plus, the camera \"Detach\" button is hidden when you're viewing a friend.",
+          "fr": "Les QR codes ne réagissent plus au clic — ils sont faits pour être scannés avec l'appareil photo. De plus, le bouton « Détacher » de la caméra est masqué quand vous consultez un ami.",
+          "de": "QR-Codes reagieren nicht mehr auf Klicks — sie sind zum Scannen mit der Handykamera gedacht. Außerdem ist die Kamera-Schaltfläche „Ablösen“ ausgeblendet, wenn Sie einen Freund ansehen.",
+          "es": "Los códigos QR ya no responden a los clics: están pensados para escanearse con la cámara del teléfono. Además, el botón «Separar» de la cámara se oculta cuando ves a un amigo.",
+          "it": "I codici QR non rispondono più ai clic: vanno scansionati con la fotocamera del telefono. Inoltre, il pulsante «Stacca» della fotocamera è nascosto quando guardi un amico.",
+          "zh": "二维码不再响应点击——它们用于通过手机摄像头扫描。此外，查看好友时会隐藏摄像头的“分离”按钮。",
+          "pt": "Os QR codes não respondem mais a cliques — eles devem ser digitalizados com a câmera do telefone. Além disso, o botão \"Destacar\" da câmera fica oculto ao ver um amigo.",
+          "pt-pt": "Os códigos QR já não respondem a cliques — devem ser lidos com a câmara do telemóvel. Além disso, o botão \"Destacar\" da câmara fica oculto quando vê um amigo.",
+          "pl": "Kody QR nie reagują już na kliknięcia — służą do skanowania aparatem telefonu. Dodatkowo przycisk „Odłącz” kamery jest ukryty podczas przeglądania profilu znajomego."
+        }
+      }
+    ]
   }
 }

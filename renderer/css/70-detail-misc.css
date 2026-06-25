@@ -189,8 +189,8 @@
   }
   .inv-welcome-logo img { width: 36px; height: 36px; object-fit: contain; }
 
-  /* Standalone contouring logo — no frame, just a bigger black mark */
-  .inv-welcome-logo--framed {
+  /* Product mockup (laptop + phone) — wide image, no frame, ratio preserved */
+  .inv-welcome-logo--mockup {
     width: auto; height: auto;
     background: transparent;
     border: none;
@@ -198,8 +198,8 @@
     border-radius: 0;
     margin: 0;
   }
-  .inv-welcome-logo--framed img {
-    width: 180px; height: 180px;
+  .inv-welcome-logo--mockup img {
+    width: min(460px, 72vw); height: auto;
     object-fit: contain;
   }
 

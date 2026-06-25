@@ -193,6 +193,30 @@
   .sidebar.collapsed .sb-avatar-swap .icon {
     width: 11px; height: 11px;
   }
+  /* Edit badge — appears on hover in your OWN view; clickable (unlike the swap
+     badge) so you can change your photo straight from the header. */
+  .sb-avatar-edit {
+    position: absolute;
+    right: -3px; bottom: -3px;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--primary); border: none; padding: 0;
+    box-shadow: 0 0 0 2px var(--surface-1, #0e0e10), 0 2px 8px rgba(0,0,0,.4);
+    cursor: pointer;
+    opacity: 0; transform: scale(.6); pointer-events: none;
+    transition: transform .2s cubic-bezier(.34,1.56,.64,1), opacity .15s, filter .15s;
+    z-index: 4;
+  }
+  .sb-avatar-edit .icon { background: #fff; }
+  .sb-avatar-edit:hover { filter: brightness(1.08); }
+  .sb-user:not(.sb-user--viewing-friend) .sb-avatar:hover .sb-avatar-edit {
+    opacity: 1; transform: scale(1); pointer-events: auto;
+  }
+  .sb-avatar[data-av-mode="empty"] .sb-avatar-edit,
+  .sb-user--viewing-friend .sb-avatar-edit { display: none; }
+  .sidebar.collapsed .sb-avatar-edit { width: 18px; height: 18px; right: -2px; bottom: -2px; }
+  .sidebar.collapsed .sb-avatar-edit .icon { width: 10px; height: 10px; }
   .sb-name {
     font-size: 14px; font-weight: 600; color: #fff; text-align: left;
     margin-top: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;

@@ -5,6 +5,18 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.10.22 — 2026-06-25
+
+### Changed
+
+- **Refreshed the "empty inventory" welcome screen.** It now shows a product mockup (Studio + the TigerTag RFID app) with the headline above the image, and the wording highlights that you can scan and manage both your inventory and your 3D printers from your phone.
+- **One beta install card for everyone.** The beta card now mirrors the App Store & Google Play card and carries a single universal link — scanning it sends iPhone users to TestFlight and Android users to the Android beta automatically.
+- **Change your avatar straight from the header.** Hover your own avatar (top-left) and click the little edit badge to pick, crop and upload a new photo — or use the new "Add/Change photo" entry in the account menu.
+- **QR codes are no longer clickable** — they're there to be scanned with your phone camera.
+- The camera **"Detach"** button is now hidden when viewing a friend.
+
+---
+
 ## v1.10.21 — 2026-06-25
 
 ### Added

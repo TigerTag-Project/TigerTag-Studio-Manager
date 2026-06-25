@@ -53,6 +53,11 @@
             <span class="sb-avatar-swap" aria-hidden="true">
               <span class="icon icon-swap icon-13"></span>
             </span>
+            <!-- Edit badge — shown on hover in your OWN view; click = change photo
+                 (the rest of the avatar still opens the account menu). -->
+            <button class="sb-avatar-edit" id="sbAvatarEdit" type="button" aria-label="Change photo" data-i18n-title="changeAvatar" title="Change photo">
+              <span class="icon icon-edit icon-11" aria-hidden="true"></span>
+            </button>
           </div>
           <div class="acct-dropdown" id="acctDropdown">
             <div id="acctDropdownList"></div>
@@ -102,7 +107,7 @@
       </button>
       <div class="sb-qr-wrap" id="sbQrWrap">
         <div class="sb-qr-label" data-i18n="mobileApp">Mobile App</div>
-        <img class="sb-qr-img" src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=https%3A%2F%2Ftaap.it%2FDF1Aqt&bgcolor=0f1117&color=ffffff&margin=8" alt="QR" />
+        <img class="sb-qr-img" src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=https%3A%2F%2Ftaap.it%2FnX7QSrz&bgcolor=0f1117&color=ffffff&margin=8" alt="QR" />
       </div>
       <!-- App version (always visible, discreet — populated at runtime from preload) -->
       <div class="sb-version" id="sbVersion">v—</div>

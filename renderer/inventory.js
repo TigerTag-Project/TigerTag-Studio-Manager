@@ -1504,8 +1504,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         ${acc.id===activeId ? '<span class="acct-drop-check">✓</span>' : ''}
       </button>`).join("");
 
-    // ── Manage profiles action — right under connected accounts ──
+    // ── Add / change avatar — first action, so a user without a photo is
+    //    nudged to add one straight from the top-left. ──
+    const _hasPhoto = !!activeAccount()?.photoURL;
     html += `<div class="acct-drop-sep"></div>
+      <button class="acct-drop-action" data-drop-action="change-avatar">
+        <span class="icon ${_hasPhoto ? "icon-edit" : "icon-plus"} icon-13"></span>
+        <span>${t(_hasPhoto ? "changeAvatar" : "addAvatar")}</span>
+      </button>
       <button class="acct-drop-action" data-drop-action="manage-profiles">
         <span class="icon icon-user icon-13"></span>
         <span>${t("btnManageProfiles")}</span>
@@ -1564,7 +1570,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       btn.addEventListener("click", () => {
         const action = btn.dataset.dropAction;
         closeAccountDropdown();
-        if (action === "manage-profiles") openProfilesModal();
+        if (action === "change-avatar") _changeMyAvatar();
+        else if (action === "manage-profiles") openProfilesModal();
         else if (action === "open-settings") openSettings();
         else if (action === "add-friend") openAddFriendModal();
       });
@@ -3586,6 +3593,30 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     }
     $("acctDropdown").classList.contains("open") ? closeAccountDropdown() : openAccountDropdown();
   });
+  // Pick → crop → upload the active account's avatar, then refresh the header.
+  // Reached from the account menu's "Add/Change photo" item — lets users set an
+  // avatar straight from the top-left without opening the edit-account modal.
+  // Never runs while previewing a friend.
+  async function _changeMyAvatar() {
+    if (state.friendView) return;
+    const file = await _pickAvatarFile();
+    if (!file) return;
+    let bitmap;
+    try { bitmap = await _decodeImageBlob(file); } catch { return; }
+    const cropped = await openAvatarCropper(bitmap);
+    if (!cropped) return;
+    try {
+      await uploadCroppedAvatar(cropped.blob, cropped.contentType);
+      paintAvatar($("sbAvatar"), activeAccount());   // immediate header refresh
+    } catch (e) { console.warn("[avatar.upload]", e); }
+  }
+  // Hover edit badge on the header avatar → change photo directly (stopPropagation
+  // so it doesn't also open the account menu the avatar itself triggers).
+  $("sbAvatarEdit")?.addEventListener("click", e => {
+    e.stopPropagation();
+    if (state.friendView) return;
+    _changeMyAvatar();
+  });
   $("btnAddFirstAccount").addEventListener("click", openAddAccountModal);
   // btnManageProfiles is now rendered dynamically in renderAccountDropdown — listener attached there
 
@@ -5429,14 +5460,16 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       } else {
         // Connected + 0 spools → Apple-style welcome with 2 QR cards
         const qrUniversal  = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https%3A%2F%2Ftaap.it%2FDF1Aqt&bgcolor=ffffff&color=1d1d1f&margin=16&qzone=1`;
-        const qrTestflight = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https%3A%2F%2Ftestflight.apple.com%2Fjoin%2FjVHhmK4C&bgcolor=ffffff&color=1d1d1f&margin=16&qzone=1`;
+        // Universal beta link — routes to the iOS (TestFlight) or Android beta
+        // automatically based on the scanning phone.
+        const qrBeta = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https%3A%2F%2Ftaap.it%2FnX7QSrz&bgcolor=ffffff&color=1d1d1f&margin=16&qzone=1`;
         $("mainResult").innerHTML = `
           <div class="inv-welcome">
             <div class="inv-welcome-hero">
-              <div class="inv-welcome-logo inv-welcome-logo--framed">
-                <img src="../assets/img/icon.png" alt="TigerTag" />
-              </div>
               <h1 class="inv-welcome-h1">${t("invWelcomeTitle")}</h1>
+              <div class="inv-welcome-logo inv-welcome-logo--mockup">
+                <img src="../assets/img/tiger_studio_and_tiger_rfid_connect_mockup.png" alt="Tiger Studio + TigerTag RFID" />
+              </div>
               <p class="inv-welcome-p">${t("invWelcomeSub")}</p>
             </div>
             <div class="inv-welcome-grid">
@@ -5460,22 +5493,26 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
                 </div>
                 <div class="inv-qr-card-foot">${t("invQrScanHint")}</div>
               </div>
-              <!-- Card 2 : TestFlight beta -->
+              <!-- Card 2 : Beta — mirrors the store card; universal beta link (iOS TestFlight / Android beta) -->
               <div class="inv-qr-card">
                 <div class="inv-qr-card-head inv-qr-card-head--orange">
                   <span class="icon icon-apple icon-13"></span>
-                  TestFlight
+                  <span class="icon icon-android icon-13"></span>
+                  App Store &amp; Google Play
                   <span class="inv-qr-beta-badge">BETA</span>
                 </div>
                 <div class="inv-qr-card-body">
-                  <img class="inv-qr-img" src="${qrTestflight}" alt="QR" onerror="this.style.opacity='.15'" />
+                  <img class="inv-qr-img" src="${qrBeta}" alt="QR" onerror="this.style.opacity='.15'" />
                   <div class="inv-qr-store-row">
-                    <a class="inv-qr-store-pill" href="https://testflight.apple.com/join/jVHhmK4C" target="_blank" rel="noopener">
-                      <span class="icon icon-apple icon-12"></span> TestFlight
+                    <a class="inv-qr-store-pill" href="https://taap.it/nX7QSrz" target="_blank" rel="noopener">
+                      <span class="icon icon-apple icon-12"></span> App Store
+                    </a>
+                    <a class="inv-qr-store-pill" href="https://taap.it/nX7QSrz" target="_blank" rel="noopener">
+                      <span class="icon icon-android icon-12"></span> Google Play
                     </a>
                   </div>
                 </div>
-                <div class="inv-qr-card-foot">${t("invQrBetaNote")}</div>
+                <div class="inv-qr-card-foot">${t("invQrScanHint")}</div>
               </div>
             </div>
           </div>`;
@@ -6496,7 +6533,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const _camView = mode === "printer-cam";
     $("card-inv")?.classList.toggle("is-cam-view", _camView);
     const _detachTop = $("camWallDetachTop");
-    if (_detachTop) _detachTop.hidden = !(_camView && window.electronAPI?.openCamWindow);
+    if (_detachTop) _detachTop.hidden = !(_camView && window.electronAPI?.openCamWindow && !state.friendView);
   }
   // Detach (top, cam view) → pop the camera wall into its own window.
   $("camWallDetachTop")?.addEventListener("click", () => {
@@ -6557,7 +6594,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const _al = $("btnAddProduct")?.querySelector("[data-i18n]");
     if (_al) { _al.dataset.i18n = "addDeviceBtn"; _al.textContent = t("addDeviceBtn"); }
     $("card-inv")?.classList.add("is-cam-view");   // hide search + add buttons, show Detach
-    const _dt = $("camWallDetachTop"); if (_dt) _dt.hidden = !window.electronAPI?.openCamWindow;
+    const _dt = $("camWallDetachTop"); if (_dt) _dt.hidden = !(window.electronAPI?.openCamWindow && !state.friendView);
   }
 
   // Toggle the clear-button visibility in lock-step with the input
@@ -9741,7 +9778,6 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   $("btnSignInPlaceholder").addEventListener("click", openAddAccountModal);
   $("btnSignInPlaceholderGh").addEventListener("click", () => window.open("https://github.com/TigerTag-Project/TigerTag-Studio-Manager/"));
   $("btnSignInPlaceholderDiscord").addEventListener("click", () => window.open("https://discord.gg/3Qv5TSqnJH"));
-  $("sbQrWrap").addEventListener("click", () => window.open("https://taap.it/DF1Aqt"));
 
   /* ── language select ── */
   function saveAccountLang(lang) {
