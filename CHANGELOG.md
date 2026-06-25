@@ -5,6 +5,14 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.10.23 — 2026-06-25
+
+### Fixed
+
+- **Switching between two signed-in accounts could knock your spools out of their racks.** If you placed spools in a rack on one account, then jumped to another account and came back, Auto-organize could mistakenly treat those spools as "not stored" and even reassign them to the wrong slots. Fixed — the app now fully resets the previous account's racks on every switch, so your storage layout stays exactly where you put it.
+
+---
+
 ## v1.10.22 — 2026-06-25
 
 ### Changed

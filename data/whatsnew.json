@@ -3542,5 +3542,35 @@
         }
       }
     ]
+  },
+  "1.10.23": {
+    "date": "2026-06-25",
+    "items": [
+      {
+        "icon": "package",
+        "title": {
+          "en": "Your racks survive account switches",
+          "fr": "Vos racks survivent au changement de compte",
+          "de": "Ihre Regale überstehen den Kontowechsel",
+          "es": "Tus estantes sobreviven al cambio de cuenta",
+          "it": "I tuoi scaffali sopravvivono al cambio account",
+          "zh": "切换账户后货架不再丢失",
+          "pt": "Suas estantes sobrevivem à troca de conta",
+          "pt-pt": "As suas prateleiras sobrevivem à troca de conta",
+          "pl": "Twoje regały przetrwają zmianę konta"
+        },
+        "body": {
+          "en": "Fixed a bug where switching between two signed-in accounts could pull your spools out of their racks. Your storage layout now stays exactly where you put it.",
+          "fr": "Correction d'un bug où passer d'un compte à l'autre pouvait sortir vos bobines de leurs racks. Votre rangement reste désormais exactement où vous l'avez placé.",
+          "de": "Ein Fehler wurde behoben, bei dem der Wechsel zwischen zwei angemeldeten Konten Ihre Spulen aus den Regalen entfernen konnte. Ihre Anordnung bleibt jetzt genau dort, wo Sie sie abgelegt haben.",
+          "es": "Se corrigió un error por el que cambiar entre dos cuentas conectadas podía sacar tus bobinas de sus estantes. Tu organización ahora permanece justo donde la dejaste.",
+          "it": "Corretto un bug per cui passare tra due account connessi poteva togliere le bobine dai loro scaffali. La tua disposizione ora resta esattamente dove l'hai messa.",
+          "zh": "修复了在两个已登录账户之间切换时可能导致线材脱离货架的问题。您的收纳布局现在会保持原样。",
+          "pt": "Corrigido um bug em que alternar entre duas contas conectadas podia tirar seus filamentos das estantes. Sua organização agora permanece exatamente onde você a deixou.",
+          "pt-pt": "Corrigido um erro em que alternar entre duas contas com sessão iniciada podia retirar os seus filamentos das prateleiras. A sua organização permanece agora exatamente onde a deixou.",
+          "pl": "Naprawiono błąd, przez który przełączanie między dwoma zalogowanymi kontami mogło wyrzucać szpule z regałów. Twój układ pozostaje teraz dokładnie tam, gdzie go umieściłeś."
+        }
+      }
+    ]
   }
 }

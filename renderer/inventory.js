@@ -4755,6 +4755,19 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // uid must equal user.uid and be the current active account.
   async function handleSignedIn(user, uid) {
     unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeFriends(); unsubscribeNotifications(); unsubscribeRacks(); unsubscribeScales(); unsubscribePrinters();
+    // CRITICAL — drop the previous account's racks immediately. `state.racks`
+    // is derived per-account state that (unlike the inventory/racks SNAPSHOTS,
+    // which are account-guarded) leaks across an account switch: it keeps the
+    // old account's racks until subscribeRacks delivers the new ones. But the
+    // new account's FIRST inventory snapshot fires almost instantly from cache —
+    // before that racks snapshot — and runs Auto-organize. With stale racks,
+    // `getUnrackedSpools()` sees every correctly-placed spool as "unranked"
+    // (its rackId isn't in the old account's rack-id set) and `autoFillEmptySlots`
+    // REWRITES them into the previous account's slot ids → cross-account rack
+    // corruption (spools "leave" their slots when you bounce between accounts).
+    // Clearing here makes Auto-organize a no-op (`!state.racks.length`) until the
+    // new account's racks load. Printers/scales are cleared on their own resubscribe.
+    state.racks = [];
     // Always reset friend-view mode on account change — the new account's own inventory is what we want to show.
     // We also clear the inventory/rows so the previous (friend) data isn't briefly shown as if it belonged to the new account.
     if (state.friendView) {
