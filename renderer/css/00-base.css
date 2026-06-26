@@ -466,6 +466,7 @@
      `.sb-actions button` so the chip becomes a flat row. */
   .sb-actions button.sb-friend-chip,
   button.sb-friend-chip {
+    position: relative;        /* anchor for the active-view pill */
     display: flex; align-items: center; gap: 10px;
     width: 100%;
     /* Height = avatar height (40px) in BOTH expanded and collapsed sidebar, with
@@ -492,10 +493,21 @@
   .sb-friend-chip:hover .sb-friend-avatar {
     box-shadow: 0 0 0 2px rgba(255,255,255,.12);
   }
+  /* Active friend = brighter name only. The orange ring is gone: the sliding
+     active-view pill (left edge) is the single source of "which view is active". */
   .sb-friend-chip.is-active { color: #fff; }
-  .sb-friend-chip.is-active .sb-friend-avatar {
-    box-shadow: 0 0 0 2px var(--primary);
+  /* Active-view pill — ONE bar pinned to the sidebar's (window's) left edge that
+     SLIDES vertically (Pong-style) to line up with the avatar of the view you're
+     currently browsing. Its `top` is set in JS (_positionActiveViewPill); the
+     transition does the glide. */
+  .active-view-pill {
+    position: absolute; left: 0; top: 0; z-index: 6;
+    width: 4px; height: 30px; border-radius: 0 4px 4px 0;
+    background: var(--primary); box-shadow: 0 0 10px rgba(255,122,24,.6);
+    opacity: 0; pointer-events: none;
+    transition: top .34s cubic-bezier(.34,1.25,.5,1), opacity .2s, height .2s;
   }
+  .active-view-pill.show { opacity: 1; }
   /* Friend avatars: same size in both expanded and collapsed sidebar —
      40px matches the user avatar in collapsed mode and the user wanted
      the open state to mirror that. Font scales proportionally. */

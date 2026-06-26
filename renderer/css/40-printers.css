@@ -2198,9 +2198,20 @@ details[open] .pba-step-chev { transform: rotate(90deg); }
          color: var(--muted); border-bottom: 1px solid var(--border); white-space: nowrap; }
 .pt-th--sort { cursor: pointer; user-select: none; }
 .pt-th--sort:hover { color: var(--text); }
-.pt-th--sort::after { content: " ⇅"; opacity: .25; font-size: 10px; }
-.pt-th--sort.sort-asc::after  { content: " ▲"; opacity: 1; color: var(--primary); }
-.pt-th--sort.sort-desc::after { content: " ▼"; opacity: 1; color: var(--primary); }
+.pt-th--sort::after {
+  content: ""; display: inline-block; vertical-align: middle;
+  width: 11px; height: 11px; margin-left: 5px;
+  background-color: currentColor; opacity: .3;
+  -webkit-mask-image: url('../../assets/svg/icons/icon_chevron_right.svg');
+  mask-image: url('../../assets/svg/icons/icon_chevron_right.svg');
+  -webkit-mask-size: contain; mask-size: contain;
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  -webkit-mask-position: center; mask-position: center;
+  transform: rotate(90deg);
+  transition: transform .15s, opacity .15s, background-color .15s;
+}
+.pt-th--sort.sort-asc::after  { opacity: 1; background-color: var(--primary); transform: rotate(-90deg); }
+.pt-th--sort.sort-desc::after { opacity: 1; background-color: var(--primary); transform: rotate(90deg); }
 .pt-td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
 .pt-row:last-child .pt-td { border-bottom: none; }
 .pt-td--ip code { font-family: var(--mono); font-size: 12px; color: var(--muted); }

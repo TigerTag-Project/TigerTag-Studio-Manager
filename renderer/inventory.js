@@ -147,6 +147,15 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const row = state.rows.find(r => r.uid === _scanOpenUid || r.spoolId === _scanOpenUid);
     if (!row) return;
     _scanOpenUid = null;
+    // A twin spool carries TWO RFID chips, so the pod reports two scans for the
+    // same physical spool. If the detail card already shows this spool OR its
+    // twin, don't pop it a second time.
+    if (state.selected) {
+      const open = state.rows.find(r => r.spoolId === state.selected);
+      if (open && (open.spoolId === row.spoolId
+                   || String(open.uid)     === String(row.twinUid)
+                   || String(open.twinUid) === String(row.uid))) return;
+    }
     openDetail(row.spoolId, { animateSwap: true });
   }
   // Readiness barrier for destructive automation. Holds the uid whose racks
@@ -4116,6 +4125,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     $("btnSidebarToggle").addEventListener("click", () => {
       const collapsed = sidebar.classList.toggle("collapsed");
       localStorage.setItem("tigertag.sidebar", collapsed ? "collapsed" : "expanded");
+      // Re-aim the active-view pill during + after the width transition.
+      _positionActiveViewPill();
+      setTimeout(_positionActiveViewPill, 280);
     });
   })();
 
@@ -5054,6 +5066,37 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     $("btnShowAddAccount").addEventListener("click", () => { closeProfilesModal(); openAddAccountModal(); });
   }
 
+  // ── UI sounds (synthesised on the fly — no asset files) ────────────────────
+  let _audioCtx = null;
+  function _uiAudio() {
+    try {
+      if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (_audioCtx.state === "suspended") _audioCtx.resume().catch(() => {});
+      return _audioCtx;
+    } catch { return null; }
+  }
+  function _playTones(notes, { type = "sine", gain = 0.07 } = {}) {
+    const ctx = _uiAudio(); if (!ctx) return;
+    const t0 = ctx.currentTime;
+    for (const n of notes) {
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.type = type;
+      osc.frequency.value = n.f;
+      const start = t0 + (n.t || 0);
+      const dur = n.d || 0.12;
+      g.gain.setValueAtTime(0.0001, start);
+      g.gain.exponentialRampToValueAtTime(gain, start + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+      osc.connect(g); g.connect(ctx.destination);
+      osc.start(start); osc.stop(start + dur + 0.03);
+    }
+  }
+  // Bright ascending blip — switching between your OWN logged-in accounts.
+  function _soundAccountSwitch() { _playTones([{ f: 587.33, d: 0.10 }, { f: 880.00, t: 0.07, d: 0.16 }], { type: "triangle", gain: 0.06 }); }
+  // Softer, lower two-note — distinct cue for peeking into a FRIEND's view.
+  function _soundFriendView()   { _playTones([{ f: 493.88, d: 0.10 }, { f: 392.00, t: 0.09, d: 0.18 }], { type: "sine",     gain: 0.05 }); }
+
   async function switchAccountUI(id) {
     if (id === state.activeAccountId) {
       // Even if active account didn't change, exit friend-view if user is in it
@@ -5072,6 +5115,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
 
     if (targetUser && targetUser.uid === id) {
       // Session alive — switch instantly, no re-authentication needed
+      _soundAccountSwitch();
       setActiveId(id);
       closeProfilesModal(); closeSettings();
       await handleSignedIn(targetUser, id);
@@ -5995,7 +6039,36 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         count: members.length, totalAvail, totalCap,
       });
     });
-    return items;
+    // The rows arrived sorted by INDIVIDUAL spool value, so a group ended up
+    // wherever its first member landed — wrong for the weight/capacity columns,
+    // where a group shows its COMBINED value. Re-sort the items so each group is
+    // ordered by the aggregate it actually displays (totalAvail / totalCap);
+    // other columns fall back to the representative spool, which matches the
+    // members anyway (they share brand / material / name / type).
+    return _sortGroupedItems(items);
+  }
+
+  function _sortGroupedItems(items) {
+    const col = state.sortCol;
+    if (!col) return items;
+    const dir = state.sortDir === "asc" ? 1 : -1;
+    const valOf = (it) => {
+      if (it.type === "group") {
+        if (col === "weightAvailable") return it.totalAvail;
+        if (col === "capacity")        return it.totalCap;
+        return it.rep ? it.rep[col] : null;
+      }
+      return it.row ? it.row[col] : null;
+    };
+    return items.slice().sort((a, b) => {
+      const va = valOf(a), vb = valOf(b);
+      if (va == null && vb == null) return 0;
+      if (va == null) return dir;
+      if (vb == null) return -dir;
+      if (typeof va === "boolean") return dir * ((va ? 1 : 0) - (vb ? 1 : 0));
+      if (typeof va === "number" && typeof vb === "number") return dir * (va - vb);
+      return dir * String(va).localeCompare(String(vb), undefined, { sensitivity: "base" });
+    });
   }
 
   // ── Keyed-diff helpers for grid / table ────────────────────────────────────
@@ -8333,6 +8406,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     });
   }
   function closeDetail() {
+    // Cancel any pending scan-open: a twin spool's second chip can leave a queued
+    // _scanOpenUid that would otherwise pop the card again the moment we close it
+    // (state.selected becomes null, so the twin guard no longer suppresses it).
+    _scanOpenUid = null;
     // The container picker is anchored to this spool card — close it too.
     if ($("containerPanel")?.classList.contains("open")) closeContainerPicker();
     // Cancel any pending auto-save (don't fire on close)
@@ -9888,6 +9965,32 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // <img> → a 2-3× flash. The guard rebuilds the DOM only when the visible
   // content changes, so identical re-renders keep the existing <img>.
   let _sbFriendsSig = null;
+  // Slide the active-view pill (left edge of the sidebar) to line up with the
+  // avatar of the view you're currently browsing — your own, or a friend's.
+  // The CSS `top` transition does the Pong-style glide.
+  function _positionActiveViewPill() {
+    const pill = $("activeViewPill"), sidebar = $("sidebar");
+    if (!pill || !sidebar) return;
+    let activeEl = null;
+    if (state.friendView) {
+      try { activeEl = sidebar.querySelector(`.sb-friend-chip[data-friend-uid="${CSS.escape(state.friendView.uid)}"]`); } catch (_) {}
+    } else {
+      const av = $("sbAvatar");
+      if (av && av.dataset.avMode !== "empty") activeEl = av;
+    }
+    if (!activeEl) { pill.classList.remove("show"); return; }
+    const sb = sidebar.getBoundingClientRect();
+    const el = activeEl.getBoundingClientRect();
+    const ph = pill.offsetHeight || 30;
+    const centerY = (el.top - sb.top) + el.height / 2;
+    // Hide while the active item is scrolled out of the sidebar's visible band.
+    if (centerY < 6 || centerY > sb.height - 6) { pill.classList.remove("show"); return; }
+    pill.style.top = Math.round(centerY - ph / 2) + "px";
+    pill.classList.add("show");
+  }
+  $("sbFriendsList")?.addEventListener("scroll", _positionActiveViewPill, { passive: true });
+  window.addEventListener("resize", _positionActiveViewPill);
+
   function renderSidebarFriends() {
     const el = $("sbFriendsList");
     if (!el) return;
@@ -9930,12 +10033,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         const uid = btn.dataset.friendUid;
         const name = btn.dataset.friendName;
         const color = btn.dataset.friendColor;
-        if (state.friendView?.uid === uid) {
-          // Already viewing this friend → click again to go back to own view
-          switchBackToOwnView();
-        } else {
-          switchToFriendView(uid, name, color);
-        }
+        // Re-clicking the friend you're already viewing does nothing — to return
+        // to your own inventory, use the swap-back badge on your sidebar avatar.
+        if (state.friendView?.uid === uid) return;
+        switchToFriendView(uid, name, color);
       });
       // Custom tooltip on hover, only shown when the sidebar is collapsed
       // (avatar-only mode). Uses a body-appended singleton bubble so the
@@ -9945,6 +10046,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       btn.addEventListener("focus",      () => showSbFriendTip(btn));
       btn.addEventListener("blur",       hideSbFriendTip);
     });
+    _positionActiveViewPill();   // chips rebuilt → re-aim the active-view pill
   }
 
   function ensureSbFriendTipEl() {
@@ -16616,6 +16718,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // click handler reads the same state to decide whether to act as a
     // dropdown trigger or as a one-click "return home" button.
     $("sbUser")?.classList.toggle("sb-user--viewing-friend", !!state.friendView);
+    _positionActiveViewPill();   // slide the active-view pill to the current view
+    requestAnimationFrame(_positionActiveViewPill);   // re-aim once layout settles
     // A friend's inventory is read-only — hide the write action (Add product /
     // Add device) since it can't act on a friend's docs.
     $("btnAddProduct")?.classList.toggle("hidden", !!state.friendView);
@@ -16707,6 +16811,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   }
 
   async function switchToFriendView(friendUid, friendName, avatarColor) {
+    // Already viewing this friend → no-op (don't re-subscribe or replay the sound).
+    if (state.friendView?.uid === friendUid) { closeProfilesModal(); closeFriends(); return; }
+    _soundFriendView();
     closeProfilesModal(); closeFriends();
     _clearSearchFilters();
     // Always land on the Materials grid when entering/switching a friend view —

@@ -283,9 +283,21 @@
   thead th { background: var(--surface-2); color: var(--muted); font-weight: 600; font-size: 12px; letter-spacing: .03em; text-transform: uppercase; position: sticky; top: 0; z-index: 20; }
   th.sortable { cursor: pointer; user-select: none; }
   th.sortable:hover { color: var(--text); }
-  th.sortable::after { content: " ⇅"; opacity: 0.25; font-size: 10px; }
-  th.sort-asc::after  { content: " ▲"; opacity: 1; color: var(--primary); }
-  th.sort-desc::after { content: " ▼"; opacity: 1; color: var(--primary); }
+  /* Sort indicator — a charte chevron (mask icon), rotated up/down. */
+  th.sortable::after {
+    content: ""; display: inline-block; vertical-align: middle;
+    width: 11px; height: 11px; margin-left: 5px;
+    background-color: currentColor; opacity: .3;
+    -webkit-mask-image: url('../../assets/svg/icons/icon_chevron_right.svg');
+    mask-image: url('../../assets/svg/icons/icon_chevron_right.svg');
+    -webkit-mask-size: contain; mask-size: contain;
+    -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+    -webkit-mask-position: center; mask-position: center;
+    transform: rotate(90deg);   /* points down by default */
+    transition: transform .15s, opacity .15s, background-color .15s;
+  }
+  th.sort-asc::after  { opacity: 1; background-color: var(--primary); transform: rotate(-90deg); }
+  th.sort-desc::after { opacity: 1; background-color: var(--primary); transform: rotate(90deg); }
   tbody tr { cursor: pointer; transition: background .1s; }
   tbody tr:hover { background: var(--surface-2); }
   tbody tr.selected { background: var(--primary-soft); }
@@ -295,6 +307,9 @@
   .color-circle { display: inline-block; border-radius: 50%; flex-shrink: 0; vertical-align: middle; margin-right: 5px; border: 1.5px solid; }
   .bar { width: 64px; height: 5px; background: var(--surface-2); border-radius: 3px; overflow: hidden; display: inline-block; vertical-align: middle; margin-left: 6px; }
   .bar > span { display: block; height: 100%; background: var(--primary); border-radius: 3px; }
+  /* In the inventory table, the fill bar drops UNDER the weight value so it can
+     span the full column width instead of a cramped 64px beside the number. */
+  #invBody .bar { display: block; width: 100%; margin-left: 0; margin-top: 4px; }
   .thumb { width: 50px; height: 50px; border-radius: 0; object-fit: cover; background: #1c2030; flex-shrink: 0; display: block; }
   .thumb-placeholder { width: 48px; height: 48px; border-radius: 8px; background: #1c2030; display: inline-flex; align-items: center; justify-content: center; }
   .thumb-placeholder img { width: 30px; height: 30px; opacity: .6; }
@@ -317,8 +332,10 @@
      leading-cell width would grow the first column and shift the whole table
      (especially when a group expands). Hierarchy is shown via background tint
      + the count badge instead. */
-  tbody tr.group-header { background: var(--surface-2); font-weight: 600; }
-  tbody tr.group-header:hover { background: var(--surface-3, var(--surface-2)); }
+  /* Group header sits on the default (white) background like any other row —
+     only bolder — so the hover highlight (surface-2) is actually visible. */
+  tbody tr.group-header { background: transparent; font-weight: 600; }
+  tbody tr.group-header:hover { background: var(--surface-2); }
   .group-name { margin-right: 8px; }
   /* Spool count shown as an alert-style notification badge pinned to the
      top-right corner of the representative product image (first column). */

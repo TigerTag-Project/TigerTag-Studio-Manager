@@ -5,76 +5,76 @@
       {
         "icon": "folder",
         "title": {
-          "en": "Spool groups in Grid + a group panel",
-          "fr": "Groupes de bobines en Grille + panneau de groupe",
-          "de": "Spulengruppen im Raster + Gruppenpanel",
-          "es": "Grupos de bobinas en Cuadrícula + panel de grupo",
-          "it": "Gruppi di bobine in Griglia + pannello gruppo",
-          "zh": "网格视图的线轴分组 + 分组面板",
-          "pt": "Grupos de bobinas na Grelha + painel de grupo",
-          "pt-pt": "Grupos de bobinas na Grelha + painel de grupo",
-          "pl": "Grupy szpul w widoku siatki + panel grupy"
+          "en": "Lookalike spools, neatly stacked",
+          "fr": "Les bobines sosies, bien empilées",
+          "de": "Doppelgänger-Spulen, sauber gestapelt",
+          "es": "Bobinas clon, bien apiladas",
+          "it": "Bobine sosia, ben impilate",
+          "zh": "长得一样的线材，叠得整整齐齐",
+          "pt": "Bobinas gêmeas, bem empilhadas",
+          "pt-pt": "Bobinas gémeas, bem empilhadas",
+          "pl": "Bliźniacze szpule, równo ułożone"
         },
         "body": {
-          "en": "Identical spools also collapse in Grid view into one deck card. Clicking a group (Grid or Table) opens a side panel listing every spool, with a dashboard overview at the top.",
-          "fr": "Les bobines identiques se regroupent aussi en vue Grille en une seule card empilée. Cliquer un groupe (Grille ou Table) ouvre un panneau listant chaque bobine, avec un tableau de bord en tête.",
-          "de": "Identische Spulen werden auch im Raster zu einer Stapel-Karte zusammengefasst. Ein Klick auf eine Gruppe (Raster oder Tabelle) öffnet ein Seitenpanel mit allen Spulen und einer Übersicht oben.",
-          "es": "Las bobinas idénticas también se agrupan en Cuadrícula en una sola tarjeta apilada. Al hacer clic en un grupo (Cuadrícula o Tabla) se abre un panel con todas las bobinas y un resumen arriba.",
-          "it": "Le bobine identiche si raggruppano anche in Griglia in un'unica card impilata. Cliccando un gruppo (Griglia o Tabella) si apre un pannello con tutte le bobine e una panoramica in alto.",
-          "zh": "相同线轴在网格视图中也会合并为一张堆叠卡片。点击分组（网格或表格）会打开侧面板，列出每个线轴，顶部带有概览仪表盘。",
-          "pt": "As bobinas idênticas também se agrupam na Grelha numa única ficha empilhada. Clicar num grupo (Grelha ou Tabela) abre um painel com todas as bobinas e um resumo no topo.",
-          "pt-pt": "As bobinas idênticas também se agrupam na Grelha numa única ficha empilhada. Clicar num grupo (Grelha ou Tabela) abre um painel com todas as bobinas e um resumo no topo.",
-          "pl": "Identyczne szpule zwijają się też w widoku siatki w jedną kartę-stos. Kliknięcie grupy (siatka lub tabela) otwiera panel z listą szpul i podsumowaniem u góry."
+          "en": "Identical spools now stack into one tidy deck in Grid too. Tap a stack to see every spool inside, with a quick overview up top.",
+          "fr": "Les bobines identiques s'empilent désormais en une pile bien rangée, même en Grille. Touchez une pile pour voir chaque bobine, avec un aperçu rapide en haut.",
+          "de": "Identische Spulen stapeln sich jetzt auch in der Rasteransicht zu einem ordentlichen Deck. Tippe auf einen Stapel, um jede Spule zu sehen — mit Kurzüberblick oben.",
+          "es": "Las bobinas idénticas ahora se apilan en un mazo ordenado también en la cuadrícula. Toca un montón para ver cada bobina, con un resumen rápido arriba.",
+          "it": "Le bobine identiche ora si impilano in un bel mazzo anche nella griglia. Tocca una pila per vedere ogni bobina, con un riepilogo veloce in alto.",
+          "zh": "一模一样的线材现在在网格里也会叠成一摞。点一摞就能看到里面的每卷，上方还有快速总览。",
+          "pt": "Bobinas idênticas agora se empilham num baralho arrumado também na grade. Toque numa pilha para ver cada bobina, com um resumo rápido no topo.",
+          "pt-pt": "Bobinas idênticas agora empilham-se num baralho arrumado também na grelha. Toque numa pilha para ver cada bobina, com um resumo rápido no topo.",
+          "pl": "Identyczne szpule układają się teraz w równy stosik także w widoku siatki. Dotknij stosu, by zobaczyć każdą szpulę, z szybkim podglądem na górze."
         }
       },
       {
         "icon": "sparkle",
         "title": {
-          "en": "Live group overview",
-          "fr": "Aperçu de groupe en temps réel",
-          "de": "Gruppenübersicht in Echtzeit",
-          "es": "Resumen de grupo en vivo",
-          "it": "Panoramica del gruppo in tempo reale",
-          "zh": "实时分组概览",
-          "pt": "Resumo do grupo em tempo real",
-          "pt-pt": "Resumo do grupo em tempo real",
-          "pl": "Podgląd grupy na żywo"
+          "en": "Your stash, at a glance",
+          "fr": "Votre stock, d'un coup d'œil",
+          "de": "Dein Vorrat auf einen Blick",
+          "es": "Tu reserva, de un vistazo",
+          "it": "La tua scorta, a colpo d'occhio",
+          "zh": "你的库存，一眼看清",
+          "pt": "Seu estoque, num relance",
+          "pt-pt": "O seu stock, num relance",
+          "pl": "Twój zapas na pierwszy rzut oka"
         },
         "body": {
-          "en": "The group panel shows a speedometer gauge of the remaining filament, brand, material, combined weight and spool count — and the totals update in real time as you change a spool's weight from the slider or a scale.",
-          "fr": "Le panneau de groupe affiche une jauge type compteur du filament restant, la marque, la matière, le poids cumulé et le nombre de bobines — et les totaux se mettent à jour en temps réel quand vous changez un poids via le curseur ou une balance.",
-          "de": "Das Gruppenpanel zeigt eine Tacho-Anzeige des Restfilaments, Marke, Material, Gesamtgewicht und Spulenzahl — die Summen aktualisieren sich live, wenn Sie ein Gewicht per Regler oder Waage ändern.",
-          "es": "El panel de grupo muestra un indicador tipo velocímetro del filamento restante, la marca, el material, el peso combinado y el número de bobinas; los totales se actualizan en vivo al cambiar un peso con el control o una báscula.",
-          "it": "Il pannello del gruppo mostra un indicatore tipo tachimetro del filamento residuo, marca, materiale, peso combinato e numero di bobine — i totali si aggiornano in tempo reale quando cambi un peso dal cursore o da una bilancia.",
-          "zh": "分组面板以仪表盘显示剩余耗材，并展示品牌、材料、合计重量和线轴数量——当你通过滑块或电子秤更改重量时，合计会实时更新。",
-          "pt": "O painel do grupo mostra um indicador tipo velocímetro do filamento restante, marca, material, peso combinado e número de bobinas — e os totais atualizam em tempo real ao mudar um peso pelo cursor ou por uma balança.",
-          "pt-pt": "O painel do grupo mostra um indicador tipo velocímetro do filamento restante, marca, material, peso combinado e número de bobinas — e os totais atualizam em tempo real ao mudar um peso pelo cursor ou por uma balança.",
-          "pl": "Panel grupy pokazuje wskaźnik (jak prędkościomierz) pozostałego filamentu oraz markę, materiał, łączną wagę i liczbę szpul — sumy aktualizują się na żywo, gdy zmieniasz wagę suwakiem lub wagą."
+          "en": "Each stack shows a little speedo gauge of filament left, plus the combined weight and count — and it all ticks up live as you reweigh a spool.",
+          "fr": "Chaque pile affiche un petit compteur de filament restant, le poids cumulé et le nombre — et tout bouge en direct quand vous repesez une bobine.",
+          "de": "Jeder Stapel zeigt eine kleine Tacho-Anzeige des Rest-Filaments plus Gesamtgewicht und Anzahl — und alles tickt live mit, wenn du eine Spule neu wiegst.",
+          "es": "Cada montón muestra un cuentakilómetros del filamento que queda, más el peso total y el recuento — y todo se actualiza en vivo al repesar una bobina.",
+          "it": "Ogni pila mostra un tachimetro del filamento rimasto, più peso totale e numero — e tutto si aggiorna in tempo reale quando ripesi una bobina.",
+          "zh": "每一摞都有个小仪表盘显示剩余线材，还有合计重量和数量——重新称一卷，数字就实时跳动。",
+          "pt": "Cada pilha mostra um velocímetro do filamento restante, mais o peso total e a contagem — e tudo sobe ao vivo quando você repesa uma bobina.",
+          "pt-pt": "Cada pilha mostra um velocímetro do filamento restante, mais o peso total e a contagem — e tudo sobe ao vivo quando repesa uma bobina.",
+          "pl": "Każdy stos pokazuje mały wskaźnik pozostałego filamentu, łączną wagę i liczbę — a wszystko zmienia się na żywo, gdy przeważysz szpulę."
         }
       },
       {
         "icon": "close",
         "title": {
-          "en": "Hold to close every panel",
-          "fr": "Maintenir pour tout fermer",
-          "de": "Halten, um alle Panels zu schließen",
-          "es": "Mantén pulsado para cerrar todo",
-          "it": "Tieni premuto per chiudere tutto",
-          "zh": "长按关闭所有面板",
-          "pt": "Manter para fechar tudo",
-          "pt-pt": "Manter para fechar tudo",
-          "pl": "Przytrzymaj, aby zamknąć wszystko"
+          "en": "One press, everything tucks away",
+          "fr": "Une pression, tout se range",
+          "de": "Einmal halten, alles weg",
+          "es": "Un toque y todo se recoge",
+          "it": "Una pressione e si chiude tutto",
+          "zh": "一按，全部收起",
+          "pt": "Um toque e tudo se recolhe",
+          "pt-pt": "Um toque e tudo se recolhe",
+          "pl": "Jedno przytrzymanie i wszystko znika"
         },
         "body": {
-          "en": "Press and hold any side panel's close tab for half a second to dismiss every open side card at once (a vertical fill shows the progress).",
-          "fr": "Maintenez l'onglet de fermeture d'un panneau une demi-seconde pour fermer toutes les side cards ouvertes d'un coup (un remplissage vertical indique la progression).",
-          "de": "Halten Sie den Schließen-Tab eines Seitenpanels eine halbe Sekunde gedrückt, um alle offenen Seitenkarten auf einmal zu schließen (eine vertikale Füllung zeigt den Fortschritt).",
-          "es": "Mantén pulsada la pestaña de cierre de cualquier panel medio segundo para cerrar todas las tarjetas laterales abiertas a la vez (un relleno vertical muestra el progreso).",
-          "it": "Tieni premuta la linguetta di chiusura di un pannello per mezzo secondo per chiudere tutte le schede laterali aperte in una volta (un riempimento verticale mostra l'avanzamento).",
-          "zh": "长按任意侧面板的关闭标签半秒，即可一次关闭所有打开的侧卡（垂直填充显示进度）。",
-          "pt": "Mantenha premido o separador de fecho de qualquer painel meio segundo para fechar todos os cartões laterais abertos de uma vez (um preenchimento vertical mostra o progresso).",
-          "pt-pt": "Mantenha premido o separador de fecho de qualquer painel meio segundo para fechar todos os cartões laterais abertos de uma vez (um preenchimento vertical mostra o progresso).",
-          "pl": "Przytrzymaj zakładkę zamykania dowolnego panelu przez pół sekundy, aby zamknąć wszystkie otwarte karty boczne naraz (pionowe wypełnienie pokazuje postęp)."
+          "en": "Press and hold a panel's close handle for half a second and every open card folds away at once. Oddly satisfying.",
+          "fr": "Maintenez la poignée de fermeture d'un panneau une demi-seconde et toutes les cartes ouvertes se replient d'un coup. Étonnamment satisfaisant.",
+          "de": "Halte den Schließgriff eines Panels eine halbe Sekunde und alle offenen Karten klappen auf einen Schlag zu. Seltsam befriedigend.",
+          "es": "Mantén pulsado el tirador de cierre de un panel medio segundo y todas las tarjetas abiertas se recogen de golpe. Curiosamente satisfactorio.",
+          "it": "Tieni premuta la maniglia di chiusura di un pannello per mezzo secondo e tutte le schede aperte si richiudono in un colpo. Stranamente soddisfacente.",
+          "zh": "按住某个面板的关闭把手半秒，所有打开的卡片就会一下子全部收起。莫名地解压。",
+          "pt": "Segure a alça de fechar de um painel por meio segundo e todos os cartões abertos se recolhem de uma vez. Estranhamente satisfatório.",
+          "pt-pt": "Segure a pega de fechar de um painel por meio segundo e todos os cartões abertos recolhem-se de uma vez. Estranhamente satisfatório.",
+          "pl": "Przytrzymaj uchwyt zamykania panelu przez pół sekundy, a wszystkie otwarte karty zwiną się naraz. Dziwnie satysfakcjonujące."
         }
       }
     ]
@@ -85,101 +85,101 @@
       {
         "icon": "sparkle",
         "title": {
-          "en": "A \"What's New\" screen",
-          "fr": "Un écran « Quoi de neuf »",
-          "de": "Ein \"Neuigkeiten\"-Fenster",
-          "es": "Una pantalla \"Novedades\"",
-          "it": "Una schermata \"Novità\"",
-          "zh": "全新的\"新功能\"窗口",
-          "pt": "Um ecrã \"Novidades\"",
-          "pt-pt": "Um ecrã \"Novidades\"",
-          "pl": "Ekran \"Co nowego\""
+          "en": "Catch up on what's new",
+          "fr": "Le récap de ce qui change",
+          "de": "Verpass nichts Neues",
+          "es": "Ponte al día",
+          "it": "Scopri le novità",
+          "zh": "看看有什么新变化",
+          "pt": "Fique por dentro das novidades",
+          "pt-pt": "Fique a par das novidades",
+          "pl": "Zobacz, co nowego"
         },
         "body": {
-          "en": "After each update, a floating window shows what's new in plain language — move it, resize it, and browse past versions. Reopen it anytime from Settings → About.",
-          "fr": "Après chaque mise à jour, une fenêtre flottante présente les nouveautés en clair — déplaçable, redimensionnable, avec l'historique des versions. Rouvrable depuis Réglages → À propos.",
-          "de": "Nach jedem Update zeigt ein frei bewegliches Fenster die Neuerungen in klarer Sprache — verschieben, vergrößern und frühere Versionen durchblättern. Jederzeit über Einstellungen → Über erreichbar.",
-          "es": "Tras cada actualización, una ventana flotante muestra las novedades en lenguaje claro: muévela, cámbiale el tamaño y consulta versiones anteriores. Vuelve a abrirla desde Ajustes → Acerca de.",
-          "it": "Dopo ogni aggiornamento, una finestra mobile mostra le novità in modo chiaro — spostala, ridimensionala e sfoglia le versioni precedenti. Riaprila da Impostazioni → Info.",
-          "zh": "每次更新后，一个可浮动窗口以通俗语言展示新功能——可移动、可调整大小，并可浏览历史版本。可随时从「设置 → 关于」重新打开。",
-          "pt": "Após cada atualização, uma janela flutuante mostra as novidades em linguagem simples — mova-a, redimensione-a e consulte versões anteriores. Reabra em Definições → Acerca.",
-          "pt-pt": "Após cada atualização, uma janela flutuante mostra as novidades em linguagem simples — mova-a, redimensione-a e consulte versões anteriores. Reabra em Definições → Acerca.",
-          "pl": "Po każdej aktualizacji ruchome okno pokazuje nowości prostym językiem — przesuwaj je, zmieniaj rozmiar i przeglądaj poprzednie wersje. Otworzysz je ponownie w Ustawienia → Informacje."
+          "en": "After every update, a little window pops in to tell you what changed — in plain words, no tech-speak. Drag it, resize it, and flip back through past versions whenever the mood strikes.",
+          "fr": "À chaque mise à jour, une petite fenêtre vient vous raconter ce qui a changé — en clair, sans charabia. Déplacez-la, redimensionnez-la, et feuilletez les versions passées quand l'envie vous prend.",
+          "de": "Nach jedem Update erzählt dir ein kleines Fenster, was sich getan hat — in Klartext, ohne Fachchinesisch. Verschieben, vergrößern und durch alte Versionen blättern, ganz wie du magst.",
+          "es": "Tras cada actualización, una ventanita te cuenta qué ha cambiado — en cristiano, sin tecnicismos. Muévela, cámbiale el tamaño y curiosea versiones anteriores cuando te apetezca.",
+          "it": "Dopo ogni aggiornamento, una finestrella ti racconta cosa è cambiato — in parole semplici, niente tecnicismi. Spostala, ridimensionala e sfoglia le versioni passate quando ti va.",
+          "zh": "每次更新后，一个小窗口会用大白话告诉你都改了什么。可以拖动、缩放，还能随时翻看以前的版本。",
+          "pt": "A cada atualização, uma janelinha conta o que mudou — em bom português, sem tecniquês. Arraste, redimensione e folheie versões antigas quando bater a curiosidade.",
+          "pt-pt": "A cada atualização, uma janelinha conta o que mudou — em bom português, sem tecniquês. Arraste, redimensione e folheie versões antigas quando lhe apetecer.",
+          "pl": "Po każdej aktualizacji okienko po ludzku opowie, co się zmieniło. Przesuwaj je, zmieniaj rozmiar i przeglądaj starsze wersje, kiedy masz ochotę."
         }
       },
       {
         "icon": "palette",
         "title": {
-          "en": "Cleaner, emoji-free look",
-          "fr": "Interface épurée, sans emoji",
-          "de": "Aufgeräumt, ohne Emojis",
-          "es": "Interfaz más limpia, sin emojis",
-          "it": "Interfaccia più pulita, senza emoji",
-          "zh": "更简洁、无表情符号",
-          "pt": "Visual mais limpo, sem emojis",
-          "pt-pt": "Visual mais limpo, sem emojis",
-          "pl": "Czystszy wygląd, bez emoji"
+          "en": "A sharper look",
+          "fr": "Un look plus net",
+          "de": "Ein schärferer Look",
+          "es": "Un aspecto más nítido",
+          "it": "Un look più nitido",
+          "zh": "更利落的外观",
+          "pt": "Um visual mais nítido",
+          "pt-pt": "Um visual mais nítido",
+          "pl": "Ostrzejszy wygląd"
         },
         "body": {
-          "en": "Emojis across the app are now crisp SVG icons (or removed where purely decorative) for a more consistent, professional interface.",
-          "fr": "Les emojis de l'application sont remplacés par des icônes SVG nettes (ou retirés là où ils étaient décoratifs) pour une interface plus cohérente et pro.",
-          "de": "Emojis in der App sind jetzt klare SVG-Symbole (oder entfernt, wo sie nur Deko waren) — für eine einheitlichere, professionellere Oberfläche.",
-          "es": "Los emojis de la app ahora son iconos SVG nítidos (o se han quitado donde eran decorativos) para una interfaz más coherente y profesional.",
-          "it": "Gli emoji dell'app sono ora icone SVG nitide (o rimossi dove puramente decorativi) per un'interfaccia più coerente e professionale.",
-          "zh": "应用内的表情符号已替换为清晰的 SVG 图标（纯装饰性的则移除），界面更统一、更专业。",
-          "pt": "Os emojis da app passam a ser ícones SVG nítidos (ou foram removidos onde eram decorativos) para uma interface mais coerente e profissional.",
-          "pt-pt": "Os emojis da aplicação passam a ser ícones SVG nítidos (ou foram removidos onde eram decorativos) para uma interface mais coerente e profissional.",
-          "pl": "Emoji w aplikacji to teraz wyraźne ikony SVG (lub usunięto je tam, gdzie były tylko ozdobą) — interfejs jest spójniejszy i bardziej profesjonalny."
+          "en": "We gave the whole app a little glow-up — crisper icons, tidier corners, the works. Same studio, just dressed a bit smarter.",
+          "fr": "On a offert un petit relooking à toute l'app — icônes plus nettes, coins rangés, et tout le tralala. Même studio, juste un peu mieux habillé.",
+          "de": "Die ganze App hat ein kleines Makeover bekommen — knackigere Symbole, aufgeräumte Ecken, das volle Programm. Gleiches Studio, nur schicker angezogen.",
+          "es": "Le hemos dado un lavado de cara a toda la app — iconos más nítidos, esquinas ordenadas y todo lo demás. El mismo estudio, mejor vestido.",
+          "it": "Abbiamo dato una rinfrescata a tutta l'app — icone più nitide, angoli in ordine e compagnia bella. Stesso studio, vestito un po' meglio.",
+          "zh": "我们给整个应用做了点微整形——图标更清晰，边角更整洁，全都焕然一新。还是那个工作室，只是穿得更体面了。",
+          "pt": "Demos um trato na app inteira — ícones mais nítidos, cantos arrumados e tudo mais. Mesmo estúdio, só que mais bem-vestido.",
+          "pt-pt": "Demos um trato a toda a app — ícones mais nítidos, cantos arrumados e tudo o resto. Mesmo estúdio, só que mais bem-vestido.",
+          "pl": "Cała aplikacja dostała mały lifting — wyraźniejsze ikony, uporządkowane rogi i cała reszta. To samo studio, tylko lepiej ubrane."
         }
       },
       {
         "icon": "cloud",
         "title": {
-          "en": "Cloud spools group too",
-          "fr": "Les bobines cloud se regroupent aussi",
-          "de": "Cloud-Spulen werden ebenfalls gruppiert",
-          "es": "Las bobinas en la nube también se agrupan",
-          "it": "Anche le bobine cloud si raggruppano",
-          "zh": "云端线轴也会合并分组",
-          "pt": "As bobinas na nuvem também se agrupam",
-          "pt-pt": "As bobinas na nuvem também se agrupam",
-          "pl": "Szpule w chmurze też się grupują"
+          "en": "Cloud spools join the party",
+          "fr": "Les bobines cloud rejoignent la fête",
+          "de": "Cloud-Spulen feiern mit",
+          "es": "Las bobinas cloud se unen a la fiesta",
+          "it": "Le bobine cloud si uniscono alla festa",
+          "zh": "云端线材也来凑热闹",
+          "pt": "As bobinas na nuvem entram na festa",
+          "pt-pt": "As bobinas na nuvem entram na festa",
+          "pl": "Szpule z chmury dołączają do zabawy"
         },
         "body": {
-          "en": "A TigerCloud spool and a TigerTag (Maker) spool of the same filament now collapse into the same group, instead of the cloud one staying on its own.",
-          "fr": "Une bobine TigerCloud et une bobine TigerTag (Maker) du même filament se regroupent désormais ensemble, au lieu de laisser la cloud à part.",
-          "de": "Eine TigerCloud-Spule und eine TigerTag-(Maker-)Spule desselben Filaments landen jetzt in derselben Gruppe, statt die Cloud-Spule allein zu lassen.",
-          "es": "Una bobina TigerCloud y una bobina TigerTag (Maker) del mismo filamento ahora se agrupan juntas, en lugar de dejar la de la nube aparte.",
-          "it": "Una bobina TigerCloud e una bobina TigerTag (Maker) dello stesso filamento ora finiscono nello stesso gruppo, invece di lasciare quella cloud da sola.",
-          "zh": "相同耗材的 TigerCloud 线轴与 TigerTag（Maker）线轴现在会合并到同一组，云端线轴不再单独显示。",
-          "pt": "Uma bobina TigerCloud e uma bobina TigerTag (Maker) do mesmo filamento passam a ficar no mesmo grupo, em vez de a da nuvem ficar à parte.",
-          "pt-pt": "Uma bobina TigerCloud e uma bobina TigerTag (Maker) do mesmo filamento passam a ficar no mesmo grupo, em vez de a da nuvem ficar à parte.",
-          "pl": "Szpula TigerCloud i szpula TigerTag (Maker) z tego samego filamentu trafiają teraz do tej samej grupy, zamiast zostawiać chmurową osobno."
+          "en": "A cloud spool and its Maker twin of the same filament now huddle into the same group instead of sulking in a corner on their own.",
+          "fr": "Une bobine cloud et sa jumelle Maker du même filament se regroupent désormais ensemble, au lieu de bouder chacune dans son coin.",
+          "de": "Eine Cloud-Spule und ihr Maker-Zwilling aus demselben Filament kuscheln sich jetzt in dieselbe Gruppe, statt allein in der Ecke zu schmollen.",
+          "es": "Una bobina cloud y su gemela Maker del mismo filamento ahora se juntan en el mismo grupo, en vez de enfurruñarse cada una por su lado.",
+          "it": "Una bobina cloud e la sua gemella Maker dello stesso filamento ora si raggruppano insieme, invece di restare imbronciate ognuna per conto suo.",
+          "zh": "同一种线材的云端卷和它的 Maker 双胞胎现在会凑成一组，不再各自在角落里赌气了。",
+          "pt": "Uma bobina na nuvem e a gêmea Maker do mesmo filamento agora ficam no mesmo grupo, em vez de cada uma emburrar no seu canto.",
+          "pt-pt": "Uma bobina na nuvem e a gémea Maker do mesmo filamento agora ficam no mesmo grupo, em vez de cada uma amuar no seu canto.",
+          "pl": "Szpula z chmury i jej bliźniaczka Maker z tego samego filamentu trzymają się teraz razem w jednej grupie, zamiast dąsać się osobno w kącie."
         }
       },
       {
         "icon": "edit",
         "title": {
-          "en": "Move the colour dialog",
-          "fr": "Déplacer la fenêtre de couleur",
-          "de": "Farbdialog verschieben",
-          "es": "Mover el diálogo de color",
+          "en": "Shove the colour window around",
+          "fr": "Baladez la fenêtre de couleur",
+          "de": "Schieb das Farbfenster herum",
+          "es": "Mueve la ventana de color",
           "it": "Sposta la finestra del colore",
-          "zh": "可移动颜色对话框",
-          "pt": "Mover a janela de cor",
-          "pt-pt": "Mover a janela de cor",
-          "pl": "Przesuwanie okna koloru"
+          "zh": "随手挪动颜色窗口",
+          "pt": "Arraste a janela de cor",
+          "pt-pt": "Arraste a janela de cor",
+          "pl": "Przesuwaj okno koloru"
         },
         "body": {
-          "en": "The \"Set Color & TD Value\" dialog can be dragged by its header to reposition it.",
-          "fr": "La fenêtre « Set Color & TD Value » peut être déplacée en l'attrapant par sa barre de titre.",
-          "de": "Der Dialog \"Set Color & TD Value\" lässt sich an seiner Titelleiste verschieben.",
-          "es": "El diálogo \"Set Color & TD Value\" se puede arrastrar por su barra de título para recolocarlo.",
-          "it": "La finestra \"Set Color & TD Value\" può essere spostata trascinandola dalla barra del titolo.",
-          "zh": "「Set Color & TD Value」对话框可通过标题栏拖动来重新摆放。",
-          "pt": "A janela \"Set Color & TD Value\" pode ser arrastada pela barra de título para a reposicionar.",
-          "pt-pt": "A janela \"Set Color & TD Value\" pode ser arrastada pela barra de título para a reposicionar.",
-          "pl": "Okno \"Set Color & TD Value\" można przeciągać za pasek tytułu, aby zmienić jego położenie."
+          "en": "The colour & TD window was glued in place. Now you can grab it and drag it wherever it suits you.",
+          "fr": "La fenêtre couleur & TD était scotchée. Maintenant, attrapez-la et posez-la où ça vous arrange.",
+          "de": "Das Farb- & TD-Fenster klebte fest. Jetzt schnappst du es dir und ziehst es dorthin, wo es dir passt.",
+          "es": "La ventana de color y TD estaba pegada en su sitio. Ahora la agarras y la pones donde te venga bien.",
+          "it": "La finestra colore e TD era incollata. Ora la afferri e la trascini dove ti pare.",
+          "zh": "颜色和 TD 窗口以前是钉死的。现在你可以拎起来，想放哪儿就放哪儿。",
+          "pt": "A janela de cor e TD ficava grudada. Agora é só agarrar e arrastar para onde quiser.",
+          "pt-pt": "A janela de cor e TD ficava colada. Agora é só agarrar e arrastar para onde quiser.",
+          "pl": "Okno koloru i TD było przyklejone. Teraz złap je i przeciągnij, gdzie ci pasuje."
         }
       }
     ]
@@ -3129,101 +3129,101 @@
       {
         "icon": "swap",
         "title": {
-          "en": "Smoother card switching",
-          "fr": "Changement de fiche plus fluide",
-          "de": "Flüssigerer Kartenwechsel",
-          "es": "Cambio de ficha más fluido",
-          "it": "Cambio scheda più fluido",
-          "zh": "更流畅的卡片切换",
-          "pt": "Troca de cartão mais fluida",
-          "pt-pt": "Troca de cartão mais fluida",
-          "pl": "Płynniejsze przełączanie kart"
+          "en": "Cards that glide",
+          "fr": "Des fiches qui glissent",
+          "de": "Karten, die gleiten",
+          "es": "Fichas que se deslizan",
+          "it": "Schede che scivolano",
+          "zh": "会滑动的卡片",
+          "pt": "Cartões que deslizam",
+          "pt-pt": "Cartões que deslizam",
+          "pl": "Karty, które się ślizgają"
         },
         "body": {
-          "en": "Switching between spools — or between printers — now slides the new card in over the previous one instead of swapping instantly. Spool cards also open scrolled to the top.",
-          "fr": "Passer d'une bobine — ou d'une imprimante — à une autre fait désormais glisser la nouvelle fiche par-dessus l'ancienne au lieu d'un changement sec. Les fiches de bobine s'ouvrent aussi tout en haut.",
-          "de": "Beim Wechsel zwischen Spulen – oder Druckern – schiebt sich die neue Karte jetzt über die vorherige, statt sofort umzuschalten. Spulenkarten öffnen zudem ganz oben.",
-          "es": "Cambiar entre bobinas — o entre impresoras — ahora desliza la nueva ficha sobre la anterior en lugar de un cambio brusco. Las fichas de bobina también se abren desde arriba.",
-          "it": "Passare da una bobina — o da una stampante — all'altra ora fa scorrere la nuova scheda sopra la precedente invece di un cambio netto. Le schede bobina si aprono anche dall'alto.",
-          "zh": "在线材之间（或打印机之间）切换时，新卡片会滑动覆盖到旧卡片上，而不是瞬间替换。线材卡片也会从顶部打开。",
-          "pt": "Alternar entre bobinas — ou entre impressoras — agora desliza o novo cartão sobre o anterior em vez de uma troca instantânea. Os cartões de bobina também abrem no topo.",
-          "pt-pt": "Alternar entre bobinas — ou entre impressoras — agora desliza o novo cartão sobre o anterior em vez de uma troca instantânea. Os cartões de bobina também abrem no topo.",
-          "pl": "Przełączanie między szpulami — lub drukarkami — teraz wsuwa nową kartę nad poprzednią zamiast natychmiastowej zamiany. Karty szpul otwierają się też od góry."
+          "en": "Hop from one spool (or printer) to the next and the new card slides in over the old one instead of blinking into place. It even opens scrolled neatly to the top.",
+          "fr": "Passez d'une bobine (ou d'une imprimante) à l'autre : la nouvelle fiche glisse par-dessus l'ancienne au lieu de surgir d'un coup. Et elle s'ouvre bien calée en haut.",
+          "de": "Spring von einer Spule (oder einem Drucker) zur nächsten und die neue Karte gleitet über die alte, statt einfach aufzublitzen. Sie öffnet sich sogar sauber ganz oben.",
+          "es": "Salta de una bobina (o impresora) a otra y la nueva ficha se desliza sobre la anterior en vez de aparecer de golpe. Y se abre bien colocada arriba.",
+          "it": "Passa da una bobina (o stampante) all'altra e la nuova scheda scivola sopra la vecchia invece di comparire di colpo. E si apre ben posizionata in alto.",
+          "zh": "在线材（或打印机）之间切换时，新卡片会滑到旧卡片上方，而不是直接闪出来。打开时还乖乖滚到顶部。",
+          "pt": "Pule de uma bobina (ou impressora) para outra e o novo cartão desliza por cima do anterior em vez de surgir do nada. E abre certinho lá no topo.",
+          "pt-pt": "Salte de uma bobina (ou impressora) para outra e o novo cartão desliza por cima do anterior em vez de surgir do nada. E abre certinho no topo.",
+          "pl": "Przeskocz z jednej szpuli (lub drukarki) na drugą, a nowa karta wsuwa się na starą zamiast nagle wyskakiwać. Otwiera się też ładnie przewinięta na górę."
         }
       },
       {
         "icon": "folder",
         "title": {
-          "en": "Grouped view by default",
-          "fr": "Vue groupée par défaut",
-          "de": "Gruppierte Ansicht als Standard",
-          "es": "Vista agrupada por defecto",
-          "it": "Vista raggruppata di default",
-          "zh": "默认分组视图",
-          "pt": "Vista agrupada por predefinição",
-          "pt-pt": "Vista agrupada por predefinição",
-          "pl": "Widok pogrupowany domyślnie"
+          "en": "Twins together, by default",
+          "fr": "Les jumelles ensemble, par défaut",
+          "de": "Zwillinge zusammen, von Haus aus",
+          "es": "Gemelas juntas, por defecto",
+          "it": "Gemelle insieme, di default",
+          "zh": "双胞胎默认抱团",
+          "pt": "Gêmeas juntas, por padrão",
+          "pt-pt": "Gémeas juntas, por defeito",
+          "pl": "Bliźniaki razem, domyślnie"
         },
         "body": {
-          "en": "Identical spools are now grouped together by default. Prefer a flat list? Turn grouping off in Settings → Data.",
-          "fr": "Les bobines identiques sont désormais regroupées par défaut. Vous préférez une liste à plat ? Désactivez le regroupement dans Réglages → Données.",
-          "de": "Identische Spulen werden jetzt standardmäßig gruppiert. Lieber eine flache Liste? Schalte die Gruppierung in Einstellungen → Daten aus.",
-          "es": "Las bobinas idénticas ahora se agrupan por defecto. ¿Prefieres una lista plana? Desactiva la agrupación en Ajustes → Datos.",
-          "it": "Le bobine identiche ora sono raggruppate per impostazione predefinita. Preferisci un elenco semplice? Disattiva il raggruppamento in Impostazioni → Dati.",
-          "zh": "相同线材现在默认合并分组。想要平铺列表？在 设置 → 数据 中关闭分组。",
-          "pt": "As bobinas idênticas agora são agrupadas por predefinição. Prefere uma lista simples? Desative o agrupamento em Definições → Dados.",
-          "pt-pt": "As bobinas idênticas agora são agrupadas por predefinição. Prefere uma lista simples? Desative o agrupamento em Definições → Dados.",
-          "pl": "Identyczne szpule są teraz domyślnie grupowane. Wolisz płaską listę? Wyłącz grupowanie w Ustawienia → Dane."
+          "en": "Identical spools now group up out of the box. Prefer everything laid out flat? One switch in the settings and you're back to a plain list.",
+          "fr": "Les bobines identiques se regroupent d'office. Vous préférez tout à plat ? Un réglage et vous retrouvez une liste simple.",
+          "de": "Identische Spulen gruppieren sich jetzt von selbst. Lieber alles flach? Ein Schalter in den Einstellungen und du hast wieder eine einfache Liste.",
+          "es": "Las bobinas idénticas ahora se agrupan de serie. ¿Prefieres todo en plano? Un ajuste y vuelves a una lista simple.",
+          "it": "Le bobine identiche ora si raggruppano di serie. Preferisci tutto in piano? Un'opzione e torni a una lista semplice.",
+          "zh": "一模一样的线材现在默认会分组。想全部平铺？设置里点一下就回到普通列表。",
+          "pt": "Bobinas idênticas agora se agrupam de fábrica. Prefere tudo em lista? Um ajuste e você volta à lista simples.",
+          "pt-pt": "Bobinas idênticas agora agrupam-se de fábrica. Prefere tudo em lista? Um ajuste e volta à lista simples.",
+          "pl": "Identyczne szpule grupują się teraz domyślnie. Wolisz wszystko płasko? Jedno ustawienie i wracasz do zwykłej listy."
         }
       },
       {
         "icon": "package",
         "title": {
-          "en": "Pick a container in a side panel",
-          "fr": "Choisir un contenant dans un panneau latéral",
-          "de": "Behälter im Seitenpanel wählen",
-          "es": "Elige un contenedor en un panel lateral",
-          "it": "Scegli un contenitore in un pannello laterale",
-          "zh": "在侧边面板中选择容器",
-          "pt": "Escolha um recipiente num painel lateral",
-          "pt-pt": "Escolha um recipiente num painel lateral",
-          "pl": "Wybierz pojemnik w panelu bocznym"
+          "en": "Pick a container, comfortably",
+          "fr": "Choisissez un contenant, tranquille",
+          "de": "Behälter wählen, ganz bequem",
+          "es": "Elige un contenedor, a gusto",
+          "it": "Scegli un contenitore, comodo",
+          "zh": "挑容器，舒舒服服",
+          "pt": "Escolha um recipiente, à vontade",
+          "pt-pt": "Escolha um recipiente, à vontade",
+          "pl": "Wybierz pojemnik na luzie"
         },
         "body": {
-          "en": "'Choose a container' is no longer a pop-up — it slides in beside the spool, with bigger container images and the weight shown under each type.",
-          "fr": "« Choisir un contenant » n'est plus une fenêtre — il glisse à côté de la bobine, avec des images de contenants plus grandes et le poids affiché sous chaque type.",
-          "de": "„Behälter wählen“ ist kein Pop-up mehr – es schiebt sich neben die Spule, mit größeren Behälterbildern und dem Gewicht unter jedem Typ.",
-          "es": "«Elegir un contenedor» ya no es una ventana emergente: se desliza junto a la bobina, con imágenes de contenedor más grandes y el peso bajo cada tipo.",
-          "it": "«Scegli un contenitore» non è più una finestra pop-up: scorre accanto alla bobina, con immagini dei contenitori più grandi e il peso sotto ogni tipo.",
-          "zh": "“选择容器”不再是弹窗——它会滑出到线材旁边，容器图片更大，重量显示在每个类型下方。",
-          "pt": "«Escolher um recipiente» já não é uma janela — desliza ao lado da bobina, com imagens de recipiente maiores e o peso mostrado sob cada tipo.",
-          "pt-pt": "«Escolher um recipiente» já não é uma janela — desliza ao lado da bobina, com imagens de recipiente maiores e o peso mostrado sob cada tipo.",
-          "pl": "„Wybierz pojemnik“ nie jest już wyskakującym okienkiem — wysuwa się obok szpuli, z większymi obrazami pojemników i wagą pod każdym typem."
+          "en": "Choosing a container no longer hijacks the screen — it slides in next to your spool, with bigger pictures and each weight on show.",
+          "fr": "Choisir un contenant ne prend plus tout l'écran — ça s'ouvre à côté de votre bobine, avec de plus grandes images et chaque poids affiché.",
+          "de": "Einen Behälter zu wählen kapert nicht mehr den Bildschirm — er gleitet neben deine Spule, mit größeren Bildern und sichtbarem Gewicht.",
+          "es": "Elegir un contenedor ya no acapara la pantalla — se abre junto a tu bobina, con imágenes más grandes y cada peso a la vista.",
+          "it": "Scegliere un contenitore non si prende più tutto lo schermo — si apre accanto alla bobina, con immagini più grandi e ogni peso in vista.",
+          "zh": "选容器不再霸占整个屏幕——它会开在线材旁边，图更大，每个重量也都看得见。",
+          "pt": "Escolher um recipiente não toma mais a tela inteira — ele abre ao lado da bobina, com imagens maiores e cada peso à mostra.",
+          "pt-pt": "Escolher um recipiente já não toma o ecrã inteiro — abre ao lado da bobina, com imagens maiores e cada peso à mostra.",
+          "pl": "Wybór pojemnika nie zajmuje już całego ekranu — otwiera się obok szpuli, z większymi obrazkami i widoczną wagą."
         }
       },
       {
         "icon": "settings",
         "title": {
-          "en": "Tidier Settings",
-          "fr": "Réglages plus soignés",
-          "de": "Aufgeräumtere Einstellungen",
-          "es": "Ajustes más ordenados",
-          "it": "Impostazioni più ordinate",
-          "zh": "更整洁的设置",
-          "pt": "Definições mais organizadas",
-          "pt-pt": "Definições mais organizadas",
-          "pl": "Schludniejsze ustawienia"
+          "en": "Settings got a tidy-up",
+          "fr": "Les réglages au carré",
+          "de": "Einstellungen aufgeräumt",
+          "es": "Ajustes ordenados",
+          "it": "Impostazioni in ordine",
+          "zh": "设置整理过了",
+          "pt": "Ajustes arrumados",
+          "pt-pt": "Definições arrumadas",
+          "pl": "Ustawienia ogarnięte"
         },
         "body": {
-          "en": "Cleaner buttons and hover states, the Debug panel now opens neatly beside Settings, and the inventory Refresh now lives discreetly in Settings → Data.",
-          "fr": "Des boutons et survols plus nets, le panneau Debug s'ouvre proprement à côté des Réglages, et le rafraîchissement de l'inventaire se trouve désormais discrètement dans Réglages → Données.",
-          "de": "Sauberere Schaltflächen und Hover-Effekte, das Debug-Panel öffnet sich jetzt sauber neben den Einstellungen, und die Inventar-Aktualisierung sitzt nun dezent unter Einstellungen → Daten.",
-          "es": "Botones y estados de hover más limpios, el panel de Depuración ahora se abre junto a Ajustes, y la actualización del inventario está ahora discretamente en Ajustes → Datos.",
-          "it": "Pulsanti e stati hover più puliti, il pannello Debug ora si apre accanto alle Impostazioni e l'aggiornamento dell'inventario si trova ora discretamente in Impostazioni → Dati.",
-          "zh": "按钮和悬停效果更简洁，调试面板现在会整齐地在设置旁边打开，库存刷新现在低调地放在 设置 → 数据 中。",
-          "pt": "Botões e estados de hover mais limpos, o painel de Depuração agora abre ao lado das Definições, e a atualização do inventário fica agora discretamente em Definições → Dados.",
-          "pt-pt": "Botões e estados de hover mais limpos, o painel de Depuração agora abre ao lado das Definições, e a atualização do inventário fica agora discretamente em Definições → Dados.",
-          "pl": "Czytelniejsze przyciski i stany najechania, panel Debugowania otwiera się teraz schludnie obok Ustawień, a odświeżanie magazynu znajduje się dyskretnie w Ustawienia → Dane."
+          "en": "Cleaner buttons, calmer hovers, and the inventory refresh now sits quietly where it belongs. Nothing dramatic — just nicer.",
+          "fr": "Boutons plus propres, survols plus calmes, et le rafraîchissement de l'inventaire se range discrètement là où il faut. Rien de spectaculaire — juste plus agréable.",
+          "de": "Sauberere Buttons, ruhigere Hover, und das Inventar-Aktualisieren sitzt jetzt still an seinem Platz. Nichts Dramatisches — einfach schöner.",
+          "es": "Botones más limpios, hovers más tranquilos y el refresco del inventario ahora descansa discretamente donde toca. Nada dramático — solo más bonito.",
+          "it": "Pulsanti più puliti, hover più tranquilli e l'aggiornamento dell'inventario ora se ne sta buono al posto giusto. Niente di clamoroso — solo più piacevole.",
+          "zh": "按钮更干净，悬停更安静，库存刷新也乖乖待在它该在的地方。没什么大动作——就是更顺眼。",
+          "pt": "Botões mais limpos, hovers mais calmos, e o atualizar do inventário agora fica quietinho onde deve. Nada de espetacular — só mais agradável.",
+          "pt-pt": "Botões mais limpos, hovers mais calmos, e o atualizar do inventário fica agora quietinho onde deve. Nada de espetacular — só mais agradável.",
+          "pl": "Czystsze przyciski, spokojniejsze najazdy, a odświeżanie magazynu siedzi teraz cicho tam, gdzie trzeba. Nic wielkiego — po prostu milej."
         }
       }
     ]
@@ -3234,101 +3234,101 @@
       {
         "icon": "package",
         "title": {
-          "en": "A permanent shelf for unstored spools",
-          "fr": "Une étagère permanente pour les bobines non rangées",
-          "de": "Ein festes Regal für nicht eingelagerte Spulen",
-          "es": "Un estante fijo para bobinas sin almacenar",
-          "it": "Uno scaffale fisso per le bobine non riposte",
-          "zh": "未入库线材的固定货架",
-          "pt": "Uma prateleira fixa para bobinas não armazenadas",
-          "pt-pt": "Uma prateleira fixa para bobinas não armazenadas",
-          "pl": "Stała półka na nieschowane szpule"
+          "en": "A home for homeless spools",
+          "fr": "Un toit pour les bobines sans rack",
+          "de": "Ein Zuhause für heimatlose Spulen",
+          "es": "Un techo para las bobinas sin estante",
+          "it": "Una casa per le bobine senza scaffale",
+          "zh": "给无家可归的线材安个家",
+          "pt": "Um teto para bobinas sem estante",
+          "pt-pt": "Um teto para bobinas sem estante",
+          "pl": "Dom dla bezdomnych szpul"
         },
         "body": {
-          "en": "In Storage, the “not stored” panel is now a fixed column that's always visible — a clear bin for spools that aren't in a rack. Drop a rack spool onto it to take it out, and an empty zone shows exactly where to drop.",
-          "fr": "Dans Rangement, le panneau « non rangées » est désormais une colonne fixe toujours visible — un bac clair pour les bobines hors rack. Déposez-y une bobine d'un rack pour l'en sortir ; une zone vide indique où déposer.",
-          "de": "Im Lager ist das „nicht eingelagert“-Panel jetzt eine feste, immer sichtbare Spalte — ein klarer Behälter für Spulen außerhalb eines Regals. Lege eine Regalspule darauf ab, um sie herauszunehmen; eine leere Zone zeigt, wo.",
-          "es": "En Almacenamiento, el panel «sin almacenar» es ahora una columna fija siempre visible: un contenedor claro para bobinas fuera de un rack. Suelta una bobina de un rack para sacarla; una zona vacía indica dónde soltar.",
-          "it": "In Archiviazione, il pannello «non riposte» ora è una colonna fissa sempre visibile — un contenitore chiaro per le bobine fuori da uno scaffale. Trascinaci una bobina per toglierla; una zona vuota mostra dove rilasciare.",
-          "zh": "在存储视图中，“未入库”面板现在是始终可见的固定列——存放不在货架上线材的清晰容器。把货架上的线材拖到这里即可取出，空白区域会提示放置位置。",
-          "pt": "Em Armazenamento, o painel «não armazenadas» é agora uma coluna fixa sempre visível — um recipiente claro para bobinas fora de um rack. Largue aí uma bobina de um rack para a retirar; uma zona vazia mostra onde largar.",
-          "pt-pt": "Em Armazenamento, o painel «não armazenadas» é agora uma coluna fixa sempre visível — um recipiente claro para bobinas fora de um rack. Largue aí uma bobina de um rack para a retirar; uma zona vazia mostra onde largar.",
-          "pl": "W Magazynie panel „nieschowane” jest teraz stałą, zawsze widoczną kolumną — czytelnym pojemnikiem na szpule spoza regału. Upuść na niego szpulę z regału, aby ją wyjąć; pusta strefa pokazuje, gdzie upuścić."
+          "en": "In Storage, spools without a rack now have their own always-there shelf. Drag a racked spool onto it to set it free, and an empty zone shows exactly where to drop.",
+          "fr": "Dans le Rangement, les bobines sans rack ont enfin leur étagère toujours présente. Glissez-y une bobine pour la libérer, et une zone vide montre exactement où viser.",
+          "de": "Im Lager haben Spulen ohne Regal jetzt ihr eigenes, immer sichtbares Brett. Zieh eine Spule darauf, um sie zu befreien — eine leere Zone zeigt genau, wo du ablegen sollst.",
+          "es": "En Almacenamiento, las bobinas sin estante ya tienen su propia balda siempre visible. Arrastra una bobina ahí para liberarla, y una zona vacía te indica justo dónde soltarla.",
+          "it": "In Archivio, le bobine senza scaffale hanno finalmente la loro mensola sempre presente. Trascinaci una bobina per liberarla, e una zona vuota mostra esattamente dove lasciarla.",
+          "zh": "在收纳里，没上架的线材现在有了自己始终可见的架子。把已上架的线材拖过去就能解放它，空白区域会清楚标出落点。",
+          "pt": "No Armazenamento, as bobinas sem estante agora têm a sua prateleira sempre visível. Arraste uma bobina para lá e ela se solta, e uma zona vazia mostra exatamente onde largar.",
+          "pt-pt": "No Armazenamento, as bobinas sem estante têm agora a sua prateleira sempre visível. Arraste uma bobina para lá e ela solta-se, e uma zona vazia mostra exatamente onde largar.",
+          "pl": "W Magazynie szpule bez regału mają teraz własną, zawsze widoczną półkę. Przeciągnij na nią szpulę z regału, by ją uwolnić, a pusta strefa pokaże, gdzie dokładnie upuścić."
         }
       },
       {
         "icon": "list",
         "title": {
-          "en": "Clearer view switcher",
-          "fr": "Sélecteur de vue plus clair",
-          "de": "Übersichtlicherer Ansichtswechsler",
-          "es": "Selector de vista más claro",
-          "it": "Selettore di vista più chiaro",
-          "zh": "更清晰的视图切换",
-          "pt": "Seletor de vista mais claro",
-          "pt-pt": "Seletor de vista mais claro",
-          "pl": "Czytelniejszy przełącznik widoku"
+          "en": "Which tab does what?",
+          "fr": "Quel onglet fait quoi ?",
+          "de": "Welcher Tab macht was?",
+          "es": "¿Qué pestaña hace qué?",
+          "it": "Quale scheda fa cosa?",
+          "zh": "哪个标签管什么？",
+          "pt": "Qual aba faz o quê?",
+          "pt-pt": "Que separador faz o quê?",
+          "pl": "Która zakładka co robi?"
         },
         "body": {
-          "en": "The two Grid/Table button groups are now labelled Materials and Printers, so it's obvious which one switches your filament inventory and which one switches your printers.",
-          "fr": "Les deux groupes de boutons Grille/Table sont désormais étiquetés Matériaux et Imprimantes : on voit tout de suite lequel change l'inventaire des filaments et lequel change les imprimantes.",
-          "de": "Die beiden Raster/Tabelle-Gruppen sind jetzt mit Materialien und Drucker beschriftet — so ist klar, welche das Filament-Inventar und welche die Drucker umschaltet.",
-          "es": "Los dos grupos de botones Cuadrícula/Tabla ahora están etiquetados como Materiales e Impresoras, así se ve cuál cambia el inventario de filamento y cuál las impresoras.",
-          "it": "I due gruppi di pulsanti Griglia/Tabella ora sono etichettati Materiali e Stampanti, così è chiaro quale cambia l'inventario dei filamenti e quale le stampanti.",
-          "zh": "两组“网格/表格”按钮现在分别标注为“材料”和“打印机”，一眼就能看出哪个切换耗材库存、哪个切换打印机。",
-          "pt": "Os dois grupos de botões Grelha/Tabela estão agora identificados como Materiais e Impressoras, por isso vê-se logo qual muda o inventário de filamento e qual muda as impressoras.",
-          "pt-pt": "Os dois grupos de botões Grelha/Tabela estão agora identificados como Materiais e Impressoras, por isso vê-se logo qual muda o inventário de filamento e qual muda as impressoras.",
-          "pl": "Dwie grupy przycisków Siatka/Tabela mają teraz etykiety Materiały i Drukarki, więc od razu wiadomo, która przełącza magazyn filamentu, a która drukarki."
+          "en": "The two view switchers are now clearly labelled Materials and Printers, so you always know which one you're flipping.",
+          "fr": "Les deux sélecteurs de vue portent désormais les étiquettes Matériaux et Imprimantes — vous savez toujours lequel vous basculez.",
+          "de": "Die zwei Ansicht-Umschalter heißen jetzt klar Materialien und Drucker — so weißt du immer, welchen du gerade umlegst.",
+          "es": "Los dos selectores de vista ahora se llaman claramente Materiales e Impresoras, así siempre sabes cuál estás cambiando.",
+          "it": "I due selettori di vista ora si chiamano chiaramente Materiali e Stampanti, così sai sempre quale stai cambiando.",
+          "zh": "两个视图切换器现在清楚标着 材料 和 打印机，你随时知道自己在切哪个。",
+          "pt": "Os dois seletores de visão agora se chamam claramente Materiais e Impressoras, então você sempre sabe qual está trocando.",
+          "pt-pt": "Os dois seletores de vista agora chamam-se claramente Materiais e Impressoras, por isso sabe sempre qual está a trocar.",
+          "pl": "Dwa przełączniki widoku są teraz wyraźnie podpisane Materiały i Drukarki, więc zawsze wiesz, który przełączasz."
         }
       },
       {
         "icon": "bolt",
         "title": {
-          "en": "Smarter auto storage & unstorage",
-          "fr": "Rangement et déstockage auto plus malins",
-          "de": "Intelligenteres Auto-Ein- und Auslagern",
-          "es": "Auto-almacenamiento y desalmacenamiento más inteligentes",
-          "it": "Auto-archiviazione e rimozione più intelligenti",
-          "zh": "更智能的自动入库与移出",
-          "pt": "Auto-armazenamento e remoção mais inteligentes",
-          "pt-pt": "Auto-armazenamento e remoção mais inteligentes",
-          "pl": "Mądrzejsze auto-przechowywanie i usuwanie"
+          "en": "Auto-storage with common sense",
+          "fr": "Le rangement auto avec du bon sens",
+          "de": "Auto-Lager mit Hausverstand",
+          "es": "Almacenaje automático con sentido común",
+          "it": "Archiviazione automatica con buon senso",
+          "zh": "会动脑的自动收纳",
+          "pt": "Armazenamento automático com bom senso",
+          "pt-pt": "Armazenamento automático com bom senso",
+          "pl": "Automatyczne chowanie z głową"
         },
         "body": {
-          "en": "With Auto storage on, a rack's “Clear all” is hidden and dropping a spool in the bin simply turns Auto storage off so it stays. With Auto unstorage on, empty (0 g) spools are locked in the bin with a tooltip, since they can't be stored anyway.",
-          "fr": "Avec Auto storage activé, le « Clear all » d'un rack est masqué et déposer une bobine dans le bac désactive simplement Auto storage pour qu'elle y reste. Avec Auto unstorage activé, les bobines vides (0 g) sont verrouillées dans le bac avec une info-bulle, puisqu'elles ne peuvent de toute façon pas être rangées.",
-          "de": "Bei aktivem Auto-Einlagern wird „Alle leeren“ eines Regals ausgeblendet, und eine Spule in den Behälter zu legen schaltet Auto-Einlagern einfach aus, damit sie bleibt. Bei aktivem Auto-Auslagern sind leere (0 g) Spulen im Behälter mit Tooltip gesperrt, da sie ohnehin nicht eingelagert werden können.",
-          "es": "Con Auto-almacenamiento activado, el «Vaciar todo» de un rack se oculta y soltar una bobina en el contenedor simplemente desactiva Auto-almacenamiento para que se quede. Con Auto-desalmacenamiento activado, las bobinas vacías (0 g) quedan bloqueadas en el contenedor con un tooltip, ya que no se pueden almacenar.",
-          "it": "Con Auto-archiviazione attiva, lo «Svuota tutto» di uno scaffale è nascosto e rilasciare una bobina nel contenitore disattiva semplicemente Auto-archiviazione così resta. Con Auto-rimozione attiva, le bobine vuote (0 g) sono bloccate nel contenitore con un tooltip, dato che non possono comunque essere riposte.",
-          "zh": "开启自动入库时，货架的“清空全部”会隐藏，把线材放入容器会直接关闭自动入库以便保留。开启自动移出时，空（0 克）线材会在容器中被锁定并带提示，因为它们本来也无法入库。",
-          "pt": "Com Auto-armazenamento ligado, o «Limpar tudo» de um rack fica oculto e largar uma bobina no recipiente desliga simplesmente o Auto-armazenamento para que fique. Com Auto-remoção ligada, as bobinas vazias (0 g) ficam bloqueadas no recipiente com uma dica, já que não podem ser armazenadas.",
-          "pt-pt": "Com Auto-armazenamento ligado, o «Limpar tudo» de um rack fica oculto e largar uma bobina no recipiente desliga simplesmente o Auto-armazenamento para que fique. Com Auto-remoção ligada, as bobinas vazias (0 g) ficam bloqueadas no recipiente com uma dica, já que não podem ser armazenadas.",
-          "pl": "Przy włączonym auto-przechowywaniu „Wyczyść wszystko” w regale jest ukryte, a upuszczenie szpuli do pojemnika po prostu wyłącza auto-przechowywanie, by tam została. Przy włączonym auto-usuwaniu puste (0 g) szpule są zablokowane w pojemniku z podpowiedzią, bo i tak nie można ich schować."
+          "en": "Auto storage now plays nice: a rack's bulk-clear steps aside so it won't undo itself, and dropping a spool in the bin simply switches the automation off so it actually stays. Empty spools stay put too.",
+          "fr": "Le rangement auto se montre plus futé : le vidage complet d'un rack s'efface pour ne pas se contredire, et jeter une bobine dans le bac coupe simplement l'automatisme pour qu'elle y reste vraiment. Les bobines vides restent en place aussi.",
+          "de": "Das Auto-Lager benimmt sich jetzt: das Komplett-Leeren eines Regals tritt zur Seite, damit es sich nicht selbst widerspricht, und eine Spule in den Korb zu legen schaltet die Automatik einfach ab, damit sie auch bleibt. Leere Spulen bleiben ebenfalls liegen.",
+          "es": "El almacenaje automático ahora se porta bien: vaciar un estante se aparta para no contradecirse, y soltar una bobina en la papelera simplemente apaga la automatización para que se quede de verdad. Las bobinas vacías también se quedan.",
+          "it": "L'archiviazione automatica ora è più educata: lo svuotamento di uno scaffale si fa da parte per non contraddirsi, e buttare una bobina nel cestino spegne semplicemente l'automatismo così resta davvero. Anche le bobine vuote restano al loro posto.",
+          "zh": "自动收纳现在更懂事了：清空货架会自动让位，免得自相矛盾；把线材丢进回收区会直接关掉自动化，让它真的留下。空线材也会乖乖待着。",
+          "pt": "O armazenamento automático agora joga limpo: esvaziar uma estante sai de cena para não se contradizer, e largar uma bobina na lixeira simplesmente desliga a automação para ela ficar de verdade. Bobinas vazias também ficam.",
+          "pt-pt": "O armazenamento automático agora joga limpo: esvaziar uma estante sai de cena para não se contradizer, e largar uma bobina no caixote simplesmente desliga a automação para ela ficar mesmo. Bobinas vazias também ficam.",
+          "pl": "Automatyczne chowanie wreszcie ma rozum: opróżnianie regału usuwa się z drogi, by samo sobie nie przeczyło, a wrzucenie szpuli do kosza po prostu wyłącza automat, żeby naprawdę została. Puste szpule też zostają."
         }
       },
       {
         "icon": "printer",
         "title": {
-          "en": "Bambu Lab A2L support",
-          "fr": "Prise en charge de la Bambu Lab A2L",
-          "de": "Unterstützung für Bambu Lab A2L",
-          "es": "Compatibilidad con la Bambu Lab A2L",
-          "it": "Supporto per Bambu Lab A2L",
-          "zh": "支持 Bambu Lab A2L",
-          "pt": "Suporte para a Bambu Lab A2L",
-          "pt-pt": "Suporte para a Bambu Lab A2L",
-          "pl": "Obsługa Bambu Lab A2L"
+          "en": "Say hello to the Bambu A2L",
+          "fr": "Bienvenue à la Bambu A2L",
+          "de": "Sag Hallo zur Bambu A2L",
+          "es": "Saluda a la Bambu A2L",
+          "it": "Di' ciao alla Bambu A2L",
+          "zh": "跟 Bambu A2L 打个招呼",
+          "pt": "Diga oi para a Bambu A2L",
+          "pt-pt": "Diga olá à Bambu A2L",
+          "pl": "Przywitaj Bambu A2L"
         },
         "body": {
-          "en": "The new Bambu Lab A2L is now in the printer catalog, so you can add and track it.",
-          "fr": "La nouvelle Bambu Lab A2L est désormais au catalogue des imprimantes : vous pouvez l'ajouter et la suivre.",
-          "de": "Die neue Bambu Lab A2L ist jetzt im Druckerkatalog — du kannst sie hinzufügen und verfolgen.",
-          "es": "La nueva Bambu Lab A2L ya está en el catálogo de impresoras, para añadirla y seguirla.",
-          "it": "La nuova Bambu Lab A2L è ora nel catalogo stampanti: puoi aggiungerla e monitorarla.",
-          "zh": "新的 Bambu Lab A2L 已加入打印机目录，可添加并跟踪。",
-          "pt": "A nova Bambu Lab A2L já está no catálogo de impressoras, para a adicionar e acompanhar.",
-          "pt-pt": "A nova Bambu Lab A2L já está no catálogo de impressoras, para a adicionar e acompanhar.",
-          "pl": "Nowa Bambu Lab A2L jest już w katalogu drukarek — możesz ją dodać i śledzić."
+          "en": "The shiny new Bambu Lab A2L is on the guest list — add it and keep an eye on it like the rest of your crew.",
+          "fr": "La toute nouvelle Bambu Lab A2L est sur la liste des invités — ajoutez-la et gardez un œil dessus comme sur le reste de la troupe.",
+          "de": "Die brandneue Bambu Lab A2L steht auf der Gästeliste — füg sie hinzu und behalt sie im Auge wie den Rest deiner Truppe.",
+          "es": "La flamante Bambu Lab A2L está en la lista de invitados — añádela y vigílala como al resto de tu pandilla.",
+          "it": "La nuovissima Bambu Lab A2L è sulla lista degli invitati — aggiungila e tienila d'occhio come il resto della squadra.",
+          "zh": "崭新的 Bambu Lab A2L 已经在嘉宾名单上了——把它加进来，像照看其他成员一样照看它。",
+          "pt": "A novíssima Bambu Lab A2L está na lista de convidados — adicione e fique de olho nela como no resto da turma.",
+          "pt-pt": "A novíssima Bambu Lab A2L está na lista de convidados — adicione e fique de olho nela como no resto do grupo.",
+          "pl": "Nowiutka Bambu Lab A2L jest na liście gości — dodaj ją i miej na oku jak resztę ekipy."
         }
       }
     ]
@@ -3339,101 +3339,101 @@
       {
         "icon": "swap",
         "title": {
-          "en": "One Auto-organize toggle",
-          "fr": "Un seul toggle Auto-organisation",
-          "de": "Ein Auto-Organisieren-Schalter",
-          "es": "Un único interruptor Auto-organizar",
-          "it": "Un solo interruttore Auto-organizza",
-          "zh": "统一的自动整理开关",
-          "pt": "Um único botão Auto-organizar",
-          "pt-pt": "Um único botão Auto-organizar",
-          "pl": "Jeden przełącznik Auto-organizacji"
+          "en": "One switch to rule the racks",
+          "fr": "Un seul bouton pour régner sur les racks",
+          "de": "Ein Schalter für alle Regale",
+          "es": "Un botón para gobernar los estantes",
+          "it": "Un interruttore per domarli tutti",
+          "zh": "一个开关搞定所有货架",
+          "pt": "Um botão para reinar nas estantes",
+          "pt-pt": "Um botão para reinar nas estantes",
+          "pl": "Jeden przełącznik na wszystkie regały"
         },
         "body": {
-          "en": "Auto storage and Auto unstorage are now one switch: new spools are auto-placed and emptied slots are auto-freed. Lock a slot to keep an exception. Saved per account and synced across devices.",
-          "fr": "Auto storage et Auto unstorage ne font plus qu'un : les nouvelles bobines se rangent toutes seules et les slots vidés se libèrent. Verrouillez un slot pour une exception. Enregistré par compte et synchronisé entre appareils.",
-          "de": "Auto-Einlagern und Auto-Auslagern sind jetzt ein Schalter: neue Spulen werden automatisch eingelagert, leere Plätze automatisch freigegeben. Sperre einen Platz für eine Ausnahme. Pro Konto gespeichert und geräteübergreifend synchronisiert.",
-          "es": "Auto-almacenamiento y Auto-desalmacenamiento ahora son un solo interruptor: las bobinas nuevas se colocan solas y los huecos vacíos se liberan. Bloquea un hueco para una excepción. Se guarda por cuenta y se sincroniza entre dispositivos.",
-          "it": "Auto-archiviazione e Auto-rimozione ora sono un solo interruttore: le nuove bobine si posizionano da sole e gli slot vuoti si liberano. Blocca uno slot per un'eccezione. Salvato per account e sincronizzato tra dispositivi.",
-          "zh": "自动入库和自动移出现在合为一个开关：新线材自动放置，空槽位自动释放。锁定槽位可设例外。按账户保存并跨设备同步。",
-          "pt": "Auto-armazenamento e Auto-remoção são agora um só botão: as bobinas novas colocam-se sozinhas e os slots vazios libertam-se. Bloqueie um slot para uma exceção. Guardado por conta e sincronizado entre dispositivos.",
-          "pt-pt": "Auto-armazenamento e Auto-remoção são agora um só botão: as bobinas novas colocam-se sozinhas e os slots vazios libertam-se. Bloqueie um slot para uma exceção. Guardado por conta e sincronizado entre dispositivos.",
-          "pl": "Auto-przechowywanie i auto-usuwanie to teraz jeden przełącznik: nowe szpule układają się same, a puste miejsca zwalniają. Zablokuj miejsce, aby zrobić wyjątek. Zapisywane per konto i synchronizowane między urządzeniami."
+          "en": "Auto-store and auto-free are now a single switch: new spools find a slot, emptied slots open up. Want an exception? Lock a slot. It follows you across your devices.",
+          "fr": "Ranger et libérer automatiquement, c'est désormais un seul bouton : les nouvelles bobines trouvent leur place, les emplacements vidés se libèrent. Une exception ? Verrouillez un emplacement. Et ça vous suit d'un appareil à l'autre.",
+          "de": "Auto-Einräumen und Auto-Freigeben sind jetzt ein Schalter: neue Spulen finden einen Platz, geleerte Plätze öffnen sich. Eine Ausnahme? Sperr einen Platz. Und es folgt dir über deine Geräte.",
+          "es": "Guardar y liberar automáticamente ahora es un solo botón: las bobinas nuevas encuentran hueco, los huecos vaciados se abren. ¿Una excepción? Bloquea un hueco. Y te sigue entre tus dispositivos.",
+          "it": "Riporre e liberare in automatico ora è un solo interruttore: le bobine nuove trovano posto, gli slot svuotati si aprono. Un'eccezione? Blocca uno slot. E ti segue su tutti i dispositivi.",
+          "zh": "自动入位和自动腾位现在合成一个开关：新线材自己找位，腾空的位子自动开放。要破例？锁住某个位子。而且它会跨设备跟着你。",
+          "pt": "Guardar e liberar automaticamente agora é um botão só: bobinas novas acham lugar, lugares vazios abrem. Uma exceção? Trave um lugar. E te acompanha entre seus aparelhos.",
+          "pt-pt": "Guardar e libertar automaticamente é agora um só botão: bobinas novas acham lugar, lugares vazios abrem. Uma exceção? Tranque um lugar. E acompanha-o entre os seus aparelhos.",
+          "pl": "Automatyczne odkładanie i zwalnianie to teraz jeden przełącznik: nowe szpule znajdują miejsce, opróżnione miejsca się otwierają. Wyjątek? Zablokuj miejsce. I podąża za Tobą między urządzeniami."
         }
       },
       {
         "icon": "fan",
         "title": {
-          "en": "Creality fan controls as cards",
-          "fr": "Ventilateurs Creality en cartes",
-          "de": "Creality-Lüfter als Karten",
-          "es": "Ventiladores Creality en tarjetas",
-          "it": "Ventole Creality come schede",
-          "zh": "Creality 风扇改为卡片",
-          "pt": "Ventiladores Creality em cartões",
-          "pt-pt": "Ventiladores Creality em cartões",
-          "pl": "Wentylatory Creality jako karty"
+          "en": "Creality fans, finally civilised",
+          "fr": "Les ventilos Creality enfin civilisés",
+          "de": "Creality-Lüfter, endlich zivilisiert",
+          "es": "Los ventiladores Creality, por fin civilizados",
+          "it": "Le ventole Creality, finalmente civili",
+          "zh": "Creality 风扇终于讲规矩了",
+          "pt": "Os fans da Creality, enfim civilizados",
+          "pt-pt": "As ventoinhas Creality, enfim civilizadas",
+          "pl": "Wentylatory Creality wreszcie ucywilizowane"
         },
         "body": {
-          "en": "Creality fans are now cards with −/+ 10% steppers, matching the other printers — one card per fan your printer actually has.",
-          "fr": "Les ventilateurs Creality sont désormais des cartes avec des boutons −/+ 10 %, comme les autres imprimantes — une carte par ventilateur réellement présent.",
-          "de": "Creality-Lüfter sind jetzt Karten mit −/+ 10 %-Tasten, wie bei den anderen Druckern — eine Karte pro tatsächlich vorhandenem Lüfter.",
-          "es": "Los ventiladores Creality ahora son tarjetas con botones −/+ 10 %, como las demás impresoras: una tarjeta por cada ventilador que tiene la impresora.",
-          "it": "Le ventole Creality ora sono schede con pulsanti −/+ 10 %, come le altre stampanti — una scheda per ogni ventola realmente presente.",
-          "zh": "Creality 风扇现在是带 −/+ 10% 按钮的卡片，与其他打印机一致——打印机实际拥有的每个风扇一张卡片。",
-          "pt": "Os ventiladores Creality são agora cartões com botões −/+ 10 %, como as outras impressoras — um cartão por cada ventilador que a impressora tem.",
-          "pt-pt": "Os ventiladores Creality são agora cartões com botões −/+ 10 %, como as outras impressoras — um cartão por cada ventilador que a impressora tem.",
-          "pl": "Wentylatory Creality to teraz karty z przyciskami −/+ 10%, jak w innych drukarkach — jedna karta na każdy wentylator, który drukarka faktycznie ma."
+          "en": "Creality fans are now neat cards with −/+ 10% buttons, just like the other printers — one card per fan you've actually got.",
+          "fr": "Les ventilateurs Creality deviennent de jolies cartes avec des boutons −/+ 10 %, comme les autres imprimantes — une carte par ventilo que vous avez vraiment.",
+          "de": "Creality-Lüfter sind jetzt schicke Karten mit −/+ 10%-Knöpfen, wie bei den anderen Druckern — eine Karte pro Lüfter, den du wirklich hast.",
+          "es": "Los ventiladores Creality ahora son tarjetas pulcras con botones −/+ 10%, como las demás impresoras — una tarjeta por cada ventilador que de verdad tienes.",
+          "it": "Le ventole Creality ora sono carte ordinate con pulsanti −/+ 10%, come le altre stampanti — una carta per ogni ventola che hai davvero.",
+          "zh": "Creality 风扇现在变成了整齐的卡片，带 −/+ 10% 按钮，和其他打印机一样——你实际有几个风扇就几张卡。",
+          "pt": "Os ventiladores Creality agora são cartões caprichados com botões −/+ 10%, como as outras impressoras — um cartão por ventilador que você realmente tem.",
+          "pt-pt": "As ventoinhas Creality são agora cartões caprichados com botões −/+ 10%, como as outras impressoras — um cartão por ventoinha que realmente tem.",
+          "pl": "Wentylatory Creality to teraz schludne karty z przyciskami −/+ 10%, jak w innych drukarkach — jedna karta na każdy wentylator, który faktycznie masz."
         }
       },
       {
         "icon": "list",
         "title": {
-          "en": "Tidier toolbar & Cam view",
-          "fr": "Barre d'outils et vue Cam épurées",
-          "de": "Aufgeräumte Symbolleiste & Cam-Ansicht",
-          "es": "Barra y vista Cam más ordenadas",
-          "it": "Barra e vista Cam più ordinate",
-          "zh": "更整洁的工具栏与摄像头视图",
-          "pt": "Barra e vista Cam mais arrumadas",
-          "pt-pt": "Barra e vista Cam mais arrumadas",
-          "pl": "Schludniejszy pasek i widok kamery"
+          "en": "A breath of fresh toolbar",
+          "fr": "Une barre d'outils qui respire",
+          "de": "Eine Werkzeugleiste zum Durchatmen",
+          "es": "Una barra que respira",
+          "it": "Una barra che respira",
+          "zh": "让工具栏喘口气",
+          "pt": "Uma barra que respira",
+          "pt-pt": "Uma barra que respira",
+          "pl": "Pasek narzędzi nabiera tchu"
         },
         "body": {
-          "en": "The Materials / Printers view switcher now sits above the search bar everywhere, the “not stored” header is more compact, and the Cam view hides the search and add buttons (Detach moved up).",
-          "fr": "Le sélecteur de vue Matériaux / Imprimantes est désormais au-dessus de la barre de recherche partout, l'en-tête « non rangées » est plus compact, et la vue Cam masque la recherche et les boutons d'ajout (Detach remonté).",
-          "de": "Der Ansichtswechsler Materialien / Drucker sitzt jetzt überall über der Suchleiste, der „nicht eingelagert“-Kopf ist kompakter, und die Cam-Ansicht blendet Suche und Hinzufügen-Tasten aus (Detach nach oben).",
-          "es": "El selector de vista Materiales / Impresoras está ahora sobre la barra de búsqueda en todas partes, el encabezado «sin almacenar» es más compacto y la vista Cam oculta la búsqueda y los botones de añadir (Detach subido).",
-          "it": "Il selettore vista Materiali / Stampanti ora è sopra la barra di ricerca ovunque, l'intestazione «non riposte» è più compatta e la vista Cam nasconde la ricerca e i pulsanti di aggiunta (Detach spostato in alto).",
-          "zh": "材料 / 打印机视图切换器现在在各处都位于搜索栏上方，“未入库”标题更紧凑，摄像头视图隐藏了搜索和添加按钮（分离按钮上移）。",
-          "pt": "O seletor de vista Materiais / Impressoras fica agora acima da barra de pesquisa em todo o lado, o cabeçalho «não armazenadas» é mais compacto e a vista Cam oculta a pesquisa e os botões de adicionar (Detach subido).",
-          "pt-pt": "O seletor de vista Materiais / Impressoras fica agora acima da barra de pesquisa em todo o lado, o cabeçalho «não armazenadas» é mais compacto e a vista Cam oculta a pesquisa e os botões de adicionar (Detach subido).",
-          "pl": "Przełącznik widoku Materiały / Drukarki znajduje się teraz wszędzie nad paskiem wyszukiwania, nagłówek „nieschowane“ jest bardziej zwarty, a widok kamery ukrywa wyszukiwanie i przyciski dodawania (Detach przeniesiony w górę)."
+          "en": "The view switchers moved above the search bar everywhere, the not-stored bar slimmed down, and the camera view drops the clutter it didn't need.",
+          "fr": "Les sélecteurs de vue passent au-dessus de la recherche partout, la barre des non rangées s'affine, et la vue caméra se débarrasse du superflu.",
+          "de": "Die Ansicht-Umschalter sind überall über die Suchleiste gewandert, die Nicht-verstaut-Leiste ist schlanker, und die Kameraansicht wirft unnötigen Ballast ab.",
+          "es": "Los selectores de vista pasaron encima de la búsqueda en todas partes, la barra de no guardadas adelgazó, y la vista de cámara suelta lo que le sobraba.",
+          "it": "I selettori di vista sono passati sopra la ricerca ovunque, la barra delle non riposte si è snellita, e la vista camera si libera del superfluo.",
+          "zh": "视图切换器在各处都挪到了搜索栏上方，未收纳栏瘦了身，摄像头视图也甩掉了多余的东西。",
+          "pt": "Os seletores de visão subiram acima da busca em tudo, a barra de não guardadas emagreceu, e a visão da câmera larga o que não precisava.",
+          "pt-pt": "Os seletores de vista subiram acima da pesquisa em tudo, a barra de não guardadas emagreceu, e a vista da câmara larga o que não precisava.",
+          "pl": "Przełączniki widoku przeniosły się wszędzie nad pasek wyszukiwania, pasek nieschowanych odchudził się, a widok kamery pozbył się zbędnego balastu."
         }
       },
       {
         "icon": "lock",
         "title": {
-          "en": "Safer account switching",
-          "fr": "Changement de compte plus sûr",
-          "de": "Sichereres Kontowechseln",
-          "es": "Cambio de cuenta más seguro",
-          "it": "Cambio account più sicuro",
-          "zh": "更安全的账户切换",
-          "pt": "Troca de conta mais segura",
-          "pt-pt": "Troca de conta mais segura",
-          "pl": "Bezpieczniejsze przełączanie kont"
+          "en": "Your racks, fixed in place",
+          "fr": "Vos racks, bien arrimés",
+          "de": "Deine Regale, fest verankert",
+          "es": "Tus estantes, bien fijados",
+          "it": "I tuoi scaffali, ben ancorati",
+          "zh": "你的货架，纹丝不动",
+          "pt": "Suas estantes, bem fixas",
+          "pt-pt": "As suas estantes, bem fixas",
+          "pl": "Twoje regały, dobrze zakotwiczone"
         },
         "body": {
-          "en": "Switching between accounts while using the automation could clear spools from your racks. That's fixed — and a spool in a locked slot now always stays put.",
-          "fr": "Changer de compte en utilisant l'automatisation pouvait vider des bobines de vos racks. C'est corrigé — et une bobine dans un slot verrouillé y reste toujours.",
-          "de": "Beim Kontowechsel während der Automatisierung konnten Spulen aus den Regalen verschwinden. Das ist behoben — und eine Spule in einem gesperrten Platz bleibt jetzt immer dort.",
-          "es": "Cambiar de cuenta usando la automatización podía vaciar bobinas de tus racks. Se ha corregido, y una bobina en un hueco bloqueado ahora siempre se queda.",
-          "it": "Cambiare account mentre si usa l'automazione poteva svuotare bobine dai tuoi scaffali. È stato corretto — e una bobina in uno slot bloccato ora resta sempre al suo posto.",
-          "zh": "在使用自动整理时切换账户可能会清空货架上的线材。此问题已修复——锁定槽位中的线材现在始终保留。",
-          "pt": "Trocar de conta enquanto usava a automação podia esvaziar bobinas dos teus racks. Foi corrigido — e uma bobina num slot bloqueado fica agora sempre no lugar.",
-          "pt-pt": "Trocar de conta enquanto usava a automação podia esvaziar bobinas dos teus racks. Foi corrigido — e uma bobina num slot bloqueado fica agora sempre no lugar.",
-          "pl": "Przełączanie kont podczas korzystania z automatyzacji mogło usuwać szpule z regałów. Naprawione — a szpula w zablokowanym miejscu zawsze pozostaje na miejscu."
+          "en": "Bouncing between accounts could quietly empty your racks. Not anymore — and a spool you've locked in a slot stays exactly where you left it.",
+          "fr": "Passer d'un compte à l'autre pouvait vider vos racks en douce. C'est fini — et une bobine verrouillée dans son emplacement ne bouge plus d'un poil.",
+          "de": "Hin- und Herspringen zwischen Konten konnte deine Regale heimlich leeren. Vorbei — und eine Spule, die du in einem Platz gesperrt hast, bleibt genau dort.",
+          "es": "Saltar de una cuenta a otra podía vaciar tus estantes a escondidas. Ya no — y una bobina bloqueada en su hueco se queda justo donde la dejaste.",
+          "it": "Saltare tra account poteva svuotare i tuoi scaffali di nascosto. Non più — e una bobina bloccata in uno slot resta esattamente dove l'hai lasciata.",
+          "zh": "在账户之间来回切换，可能会悄悄清空你的货架。再也不会了——锁在位子里的线材会原地不动。",
+          "pt": "Pular entre contas podia esvaziar suas estantes na surdina. Acabou — e uma bobina travada num lugar fica exatamente onde você deixou.",
+          "pt-pt": "Saltar entre contas podia esvaziar as suas estantes às escondidas. Acabou — e uma bobina trancada num lugar fica exatamente onde a deixou.",
+          "pl": "Skakanie między kontami mogło po cichu opróżnić twoje regały. Już nie — a szpula zablokowana w miejscu zostaje dokładnie tam, gdzie ją zostawiłeś."
         }
       }
     ]
@@ -3444,101 +3444,101 @@
       {
         "icon": "sparkle",
         "title": {
-          "en": "A fresh phone-first welcome",
-          "fr": "Un nouvel écran d'accueil",
-          "de": "Neuer Startbildschirm",
-          "es": "Nueva pantalla de bienvenida",
-          "it": "Nuova schermata di benvenuto",
-          "zh": "全新的欢迎界面",
-          "pt": "Nova tela de boas-vindas",
-          "pt-pt": "Novo ecrã de boas-vindas",
-          "pl": "Nowy ekran powitalny"
+          "en": "An empty studio, warmly welcomed",
+          "fr": "Un studio vide, bien accueilli",
+          "de": "Ein leeres Studio, herzlich empfangen",
+          "es": "Un estudio vacío, bien recibido",
+          "it": "Uno studio vuoto, accolto con calore",
+          "zh": "空荡荡的工作室，暖心迎接",
+          "pt": "Um estúdio vazio, bem recebido",
+          "pt-pt": "Um estúdio vazio, bem recebido",
+          "pl": "Puste studio, ciepło witane"
         },
         "body": {
-          "en": "When your inventory is empty, you now get a clean product preview and a clearer message: scan and manage your spools and 3D printers right from your phone.",
-          "fr": "Quand votre inventaire est vide, vous voyez désormais un bel aperçu du produit et un message plus clair : scannez et gérez vos bobines et imprimantes 3D directement depuis votre téléphone.",
-          "de": "Wenn Ihr Inventar leer ist, sehen Sie jetzt eine schöne Produktvorschau und eine klarere Botschaft: Scannen und verwalten Sie Ihre Spulen und 3D-Drucker direkt vom Handy.",
-          "es": "Cuando tu inventario está vacío, ahora ves una bonita vista del producto y un mensaje más claro: escanea y gestiona tus bobinas e impresoras 3D desde tu teléfono.",
-          "it": "Quando il tuo inventario è vuoto, ora vedi una bella anteprima del prodotto e un messaggio più chiaro: scansiona e gestisci le bobine e le stampanti 3D dal telefono.",
-          "zh": "当库存为空时，现在会显示精美的产品预览和更清晰的提示：用手机扫描并管理您的线材和 3D 打印机。",
-          "pt": "Quando o inventário está vazio, agora você vê uma bela prévia do produto e uma mensagem mais clara: digitalize e gerencie seus filamentos e impressoras 3D pelo telefone.",
-          "pt-pt": "Quando o inventário está vazio, vê agora uma bela pré-visualização do produto e uma mensagem mais clara: digitalize e faça a gestão dos seus filamentos e impressoras 3D a partir do telemóvel.",
-          "pl": "Gdy Twój asortyment jest pusty, zobaczysz teraz ładny podgląd produktu i jaśniejszy komunikat: skanuj i zarządzaj szpulami oraz drukarkami 3D z telefonu."
+          "en": "When there's nothing to show yet, a friendly welcome points you the easy way in: scan and manage your spools and printers straight from your phone.",
+          "fr": "Quand il n'y a encore rien à montrer, un accueil chaleureux vous met sur la bonne voie : scannez et gérez vos bobines et imprimantes directement depuis votre téléphone.",
+          "de": "Wenn es noch nichts zu zeigen gibt, weist dir ein freundlicher Empfang den einfachen Weg: scanne und verwalte deine Spulen und Drucker direkt vom Handy.",
+          "es": "Cuando aún no hay nada que enseñar, una bienvenida amable te marca el camino fácil: escanea y gestiona tus bobinas e impresoras directamente desde el móvil.",
+          "it": "Quando non c'è ancora nulla da mostrare, un benvenuto amichevole ti indica la via facile: scansiona e gestisci bobine e stampanti direttamente dal telefono.",
+          "zh": "当还没什么可展示时，一句友好的欢迎语给你指条明路：用手机直接扫描并管理你的线材和打印机。",
+          "pt": "Quando ainda não há o que mostrar, uma boas-vindas simpática aponta o caminho fácil: escaneie e gerencie suas bobinas e impressoras direto do celular.",
+          "pt-pt": "Quando ainda não há o que mostrar, umas boas-vindas simpáticas apontam o caminho fácil: digitalize e faça a gestão das suas bobinas e impressoras diretamente do telemóvel.",
+          "pl": "Gdy nie ma jeszcze nic do pokazania, przyjazne powitanie wskazuje łatwą drogę: skanuj i zarządzaj szpulami oraz drukarkami prosto z telefonu."
         }
       },
       {
         "icon": "bolt",
         "title": {
-          "en": "Join the beta in one scan",
-          "fr": "Rejoignez la beta en un scan",
-          "de": "Mit einem Scan zur Beta",
-          "es": "Únete a la beta con un escaneo",
-          "it": "Entra nella beta con una scansione",
-          "zh": "扫一扫即可加入测试版",
-          "pt": "Entre na beta com um único scan",
-          "pt-pt": "Entre na beta com uma única leitura",
-          "pl": "Dołącz do bety jednym skanem"
+          "en": "Beta, in a single scan",
+          "fr": "La beta, en un seul scan",
+          "de": "Beta, mit einem Scan",
+          "es": "La beta, en un solo escaneo",
+          "it": "La beta, in una sola scansione",
+          "zh": "一扫即入测试版",
+          "pt": "Beta, num único scan",
+          "pt-pt": "Beta, numa única leitura",
+          "pl": "Beta jednym skanem"
         },
         "body": {
-          "en": "The beta card now has a single universal QR. Scan it with any phone — iPhones go to TestFlight, Android phones to the Android beta, automatically.",
-          "fr": "La carte beta a désormais un seul QR universel. Scannez-le avec n'importe quel téléphone — les iPhone vont sur TestFlight, les Android sur la beta Android, automatiquement.",
-          "de": "Die Beta-Karte hat jetzt einen einzigen universellen QR-Code. Scannen Sie ihn mit jedem Handy — iPhones landen bei TestFlight, Android-Geräte bei der Android-Beta, automatisch.",
-          "es": "La tarjeta beta ahora tiene un único QR universal. Escanéalo con cualquier teléfono: los iPhone van a TestFlight y los Android a la beta de Android, automáticamente.",
-          "it": "La scheda beta ora ha un unico QR universale. Scansionalo con qualsiasi telefono: gli iPhone vanno su TestFlight, gli Android sulla beta Android, automaticamente.",
-          "zh": "测试版卡片现在只有一个通用二维码。用任意手机扫描——iPhone 会进入 TestFlight，安卓手机会进入安卓测试版，全自动。",
-          "pt": "O cartão beta agora tem um único QR universal. Digitalize-o com qualquer telefone: iPhones vão para o TestFlight e Android para a beta Android, automaticamente.",
-          "pt-pt": "O cartão beta tem agora um único QR universal. Digitalize-o com qualquer telemóvel: os iPhone vão para o TestFlight e os Android para a beta Android, automaticamente.",
-          "pl": "Karta bety ma teraz jeden uniwersalny kod QR. Zeskanuj go dowolnym telefonem — iPhone'y trafią do TestFlight, a Androidy do bety Android, automatycznie."
+          "en": "One QR for everyone now: scan it with any phone and it whisks you to the right beta — iPhone or Android, no thinking required.",
+          "fr": "Un seul QR pour tout le monde : scannez-le avec n'importe quel téléphone et il vous emmène vers la bonne beta — iPhone ou Android, sans vous prendre la tête.",
+          "de": "Jetzt ein QR für alle: scanne ihn mit irgendeinem Handy und er bringt dich zur richtigen Beta — iPhone oder Android, ganz ohne Nachdenken.",
+          "es": "Ahora un solo QR para todos: escanéalo con cualquier móvil y te lleva a la beta correcta — iPhone o Android, sin pensar.",
+          "it": "Ora un QR per tutti: scansionalo con qualsiasi telefono e ti porta alla beta giusta — iPhone o Android, senza pensarci.",
+          "zh": "现在一个二维码通吃：用任何手机一扫，它就把你带到对的测试版——iPhone 还是安卓，都不用动脑。",
+          "pt": "Agora um QR para todos: escaneie com qualquer celular e ele te leva à beta certa — iPhone ou Android, sem pensar.",
+          "pt-pt": "Agora um QR para todos: digitalize com qualquer telemóvel e leva-o à beta certa — iPhone ou Android, sem pensar.",
+          "pl": "Teraz jeden QR dla wszystkich: zeskanuj dowolnym telefonem, a przeniesie Cię do właściwej bety — iPhone czy Android, bez główkowania."
         }
       },
       {
         "icon": "edit",
         "title": {
-          "en": "Set your avatar from the header",
-          "fr": "Changez votre avatar depuis l'en-tête",
-          "de": "Avatar direkt im Kopfbereich ändern",
-          "es": "Cambia tu avatar desde la cabecera",
-          "it": "Cambia l'avatar dall'intestazione",
-          "zh": "在顶部直接设置头像",
-          "pt": "Defina seu avatar pelo cabeçalho",
-          "pt-pt": "Defina o seu avatar a partir do cabeçalho",
-          "pl": "Ustaw awatar z nagłówka"
+          "en": "Swap your avatar on the spot",
+          "fr": "Changez d'avatar sur place",
+          "de": "Avatar im Handumdrehen tauschen",
+          "es": "Cambia tu avatar al momento",
+          "it": "Cambia avatar al volo",
+          "zh": "就地换头像",
+          "pt": "Troque o avatar na hora",
+          "pt-pt": "Troque o avatar na hora",
+          "pl": "Zmień awatar od ręki"
         },
         "body": {
-          "en": "Hover your avatar at the top-left and click the little edit badge to pick, crop and upload a photo — no need to dig into the menus.",
-          "fr": "Survolez votre avatar en haut à gauche et cliquez sur le petit badge d'édition pour choisir, recadrer et envoyer une photo — sans fouiller dans les menus.",
-          "de": "Fahren Sie oben links über Ihren Avatar und klicken Sie auf das kleine Bearbeiten-Symbol, um ein Foto auszuwählen, zuzuschneiden und hochzuladen — ganz ohne Menüs.",
-          "es": "Pasa el ratón sobre tu avatar (arriba a la izquierda) y haz clic en el pequeño botón de edición para elegir, recortar y subir una foto, sin buscar en los menús.",
-          "it": "Passa il mouse sull'avatar in alto a sinistra e clicca il piccolo badge di modifica per scegliere, ritagliare e caricare una foto, senza cercare nei menu.",
-          "zh": "将鼠标悬停在左上角的头像上，点击小编辑按钮即可选择、裁剪并上传照片，无需进入菜单。",
-          "pt": "Passe o mouse sobre seu avatar no canto superior esquerdo e clique no pequeno selo de edição para escolher, recortar e enviar uma foto, sem vasculhar menus.",
-          "pt-pt": "Passe o rato sobre o seu avatar no canto superior esquerdo e clique no pequeno selo de edição para escolher, recortar e enviar uma foto, sem andar pelos menus.",
-          "pl": "Najedź na awatar w lewym górnym rogu i kliknij małą plakietkę edycji, aby wybrać, przyciąć i przesłać zdjęcie — bez szukania w menu."
+          "en": "Hover the avatar by your name and tap the little pencil to pick, crop and pop in a photo — no menu-digging required.",
+          "fr": "Survolez l'avatar à côté de votre nom et touchez le petit crayon pour choisir, recadrer et poser une photo — sans fouiller dans les menus.",
+          "de": "Fahr über den Avatar neben deinem Namen und tipp auf den kleinen Stift, um ein Foto auszuwählen, zuzuschneiden und reinzusetzen — ohne Menüwühlen.",
+          "es": "Pasa el cursor por el avatar junto a tu nombre y toca el lapicito para elegir, recortar y colocar una foto — sin rebuscar en los menús.",
+          "it": "Passa sull'avatar accanto al nome e tocca la matitina per scegliere, ritagliare e mettere una foto — senza frugare nei menu.",
+          "zh": "把鼠标移到名字旁的头像上，点那支小铅笔就能选图、裁剪、放上照片——不用翻菜单。",
+          "pt": "Passe o mouse no avatar ao lado do nome e toque no lapizinho para escolher, recortar e colocar uma foto — sem garimpar menus.",
+          "pt-pt": "Passe o rato no avatar ao lado do nome e toque no lapizinho para escolher, recortar e colocar uma foto — sem garimpar menus.",
+          "pl": "Najedź na awatar obok imienia i kliknij ołóweczek, by wybrać, przyciąć i wstawić zdjęcie — bez grzebania w menu."
         }
       },
       {
         "icon": "nfc",
         "title": {
-          "en": "QR codes are now scan-only",
-          "fr": "Les QR codes sont faits pour être scannés",
-          "de": "QR-Codes nur noch zum Scannen",
-          "es": "Los códigos QR ahora solo se escanean",
-          "it": "I codici QR ora sono solo da scansionare",
-          "zh": "二维码现在仅供扫描",
-          "pt": "Os QR codes agora são só para digitalizar",
-          "pt-pt": "Os códigos QR agora são só para digitalizar",
-          "pl": "Kody QR są teraz tylko do skanowania"
+          "en": "QR codes are for scanning",
+          "fr": "Les QR codes, c'est fait pour scanner",
+          "de": "QR-Codes sind zum Scannen da",
+          "es": "Los QR son para escanear",
+          "it": "I QR sono fatti per scansionare",
+          "zh": "二维码是用来扫的",
+          "pt": "QR codes são para escanear",
+          "pt-pt": "Os QR são para digitalizar",
+          "pl": "Kody QR są do skanowania"
         },
         "body": {
-          "en": "QR codes no longer react to clicks — they're meant to be scanned with your phone's camera. Plus, the camera \"Detach\" button is hidden when you're viewing a friend.",
-          "fr": "Les QR codes ne réagissent plus au clic — ils sont faits pour être scannés avec l'appareil photo. De plus, le bouton « Détacher » de la caméra est masqué quand vous consultez un ami.",
-          "de": "QR-Codes reagieren nicht mehr auf Klicks — sie sind zum Scannen mit der Handykamera gedacht. Außerdem ist die Kamera-Schaltfläche „Ablösen“ ausgeblendet, wenn Sie einen Freund ansehen.",
-          "es": "Los códigos QR ya no responden a los clics: están pensados para escanearse con la cámara del teléfono. Además, el botón «Separar» de la cámara se oculta cuando ves a un amigo.",
-          "it": "I codici QR non rispondono più ai clic: vanno scansionati con la fotocamera del telefono. Inoltre, il pulsante «Stacca» della fotocamera è nascosto quando guardi un amico.",
-          "zh": "二维码不再响应点击——它们用于通过手机摄像头扫描。此外，查看好友时会隐藏摄像头的“分离”按钮。",
-          "pt": "Os QR codes não respondem mais a cliques — eles devem ser digitalizados com a câmera do telefone. Além disso, o botão \"Destacar\" da câmera fica oculto ao ver um amigo.",
-          "pt-pt": "Os códigos QR já não respondem a cliques — devem ser lidos com a câmara do telemóvel. Além disso, o botão \"Destacar\" da câmara fica oculto quando vê um amigo.",
-          "pl": "Kody QR nie reagują już na kliknięcia — służą do skanowania aparatem telefonu. Dodatkowo przycisk „Odłącz” kamery jest ukryty podczas przeglądania profilu znajomego."
+          "en": "QR codes no longer mind your clicks — point your phone's camera at them instead. That's the whole trick.",
+          "fr": "Les QR codes ne réagissent plus aux clics — visez-les avec l'appareil photo de votre téléphone, c'est tout l'intérêt.",
+          "de": "QR-Codes kümmern sich nicht mehr um Klicks — halt einfach die Handykamera drauf. Das ist der ganze Trick.",
+          "es": "Los QR ya no hacen caso a los clics — apúntales con la cámara del móvil. Ese es todo el truco.",
+          "it": "I QR non badano più ai clic — puntaci la fotocamera del telefono. Tutto qui.",
+          "zh": "二维码现在不理会点击了——用手机摄像头对准它就行。诀窍就这么简单。",
+          "pt": "Os QR codes não ligam mais para cliques — aponte a câmera do celular para eles. É só esse o truque.",
+          "pt-pt": "Os QR já não ligam a cliques — aponte-lhes a câmara do telemóvel. É só esse o truque.",
+          "pl": "Kody QR nie reagują już na kliknięcia — wyceluj w nie aparatem telefonu. I to cały trik."
         }
       }
     ]
@@ -3549,26 +3549,26 @@
       {
         "icon": "package",
         "title": {
-          "en": "Your racks survive account switches",
-          "fr": "Vos racks survivent au changement de compte",
-          "de": "Ihre Regale überstehen den Kontowechsel",
-          "es": "Tus estantes sobreviven al cambio de cuenta",
-          "it": "I tuoi scaffali sopravvivono al cambio account",
-          "zh": "切换账户后货架不再丢失",
-          "pt": "Suas estantes sobrevivem à troca de conta",
-          "pt-pt": "As suas prateleiras sobrevivem à troca de conta",
-          "pl": "Twoje regały przetrwają zmianę konta"
+          "en": "Your racks stay put",
+          "fr": "Vos racks restent en place",
+          "de": "Deine Regale bleiben, wo sie sind",
+          "es": "Tus estantes se quedan quietos",
+          "it": "I tuoi scaffali restano fermi",
+          "zh": "你的货架稳如泰山",
+          "pt": "Suas estantes ficam no lugar",
+          "pt-pt": "As suas estantes ficam no lugar",
+          "pl": "Twoje regały zostają na miejscu"
         },
         "body": {
-          "en": "Fixed a bug where switching between two signed-in accounts could pull your spools out of their racks. Your storage layout now stays exactly where you put it.",
-          "fr": "Correction d'un bug où passer d'un compte à l'autre pouvait sortir vos bobines de leurs racks. Votre rangement reste désormais exactement où vous l'avez placé.",
-          "de": "Ein Fehler wurde behoben, bei dem der Wechsel zwischen zwei angemeldeten Konten Ihre Spulen aus den Regalen entfernen konnte. Ihre Anordnung bleibt jetzt genau dort, wo Sie sie abgelegt haben.",
-          "es": "Se corrigió un error por el que cambiar entre dos cuentas conectadas podía sacar tus bobinas de sus estantes. Tu organización ahora permanece justo donde la dejaste.",
-          "it": "Corretto un bug per cui passare tra due account connessi poteva togliere le bobine dai loro scaffali. La tua disposizione ora resta esattamente dove l'hai messa.",
-          "zh": "修复了在两个已登录账户之间切换时可能导致线材脱离货架的问题。您的收纳布局现在会保持原样。",
-          "pt": "Corrigido um bug em que alternar entre duas contas conectadas podia tirar seus filamentos das estantes. Sua organização agora permanece exatamente onde você a deixou.",
-          "pt-pt": "Corrigido um erro em que alternar entre duas contas com sessão iniciada podia retirar os seus filamentos das prateleiras. A sua organização permanece agora exatamente onde a deixou.",
-          "pl": "Naprawiono błąd, przez który przełączanie między dwoma zalogowanymi kontami mogło wyrzucać szpule z regałów. Twój układ pozostaje teraz dokładnie tam, gdzie go umieściłeś."
+          "en": "Switching between two accounts could yank your spools out of their racks. Squashed — your layout stays exactly where you parked it.",
+          "fr": "Passer entre deux comptes pouvait arracher vos bobines de leurs racks. Réglé — votre rangement reste exactement où vous l'avez garé.",
+          "de": "Der Wechsel zwischen zwei Konten konnte deine Spulen aus den Regalen reißen. Erledigt — deine Anordnung bleibt genau dort, wo du sie geparkt hast.",
+          "es": "Cambiar entre dos cuentas podía arrancar tus bobinas de sus estantes. Solucionado — tu orden se queda justo donde lo aparcaste.",
+          "it": "Passare tra due account poteva strappare le bobine dai loro scaffali. Sistemato — la tua disposizione resta esattamente dove l'hai parcheggiata.",
+          "zh": "在两个账户之间切换，可能会把线材从货架上扯下来。已搞定——你的布局原封不动。",
+          "pt": "Trocar entre duas contas podia arrancar suas bobinas das estantes. Resolvido — seu layout fica exatamente onde você estacionou.",
+          "pt-pt": "Trocar entre duas contas podia arrancar as suas bobinas das estantes. Resolvido — o seu layout fica exatamente onde o estacionou.",
+          "pl": "Przełączanie między dwoma kontami mogło wyrwać szpule z regałów. Załatwione — twój układ zostaje dokładnie tam, gdzie go zaparkowałeś."
         }
       }
     ]
@@ -3579,126 +3579,231 @@
       {
         "icon": "user",
         "title": {
-          "en": "A slicker account menu",
-          "fr": "Un menu de compte plus fluide",
-          "de": "Ein schlankeres Kontomenü",
-          "es": "Un menú de cuenta más ágil",
-          "it": "Un menu account più scattante",
-          "zh": "更顺手的账户菜单",
-          "pt": "Um menu de conta mais ágil",
-          "pt-pt": "Um menu de conta mais ágil",
-          "pl": "Sprawniejsze menu konta"
+          "en": "Hop between your accounts",
+          "fr": "Sautez d'un compte à l'autre",
+          "de": "Spring zwischen deinen Konten",
+          "es": "Salta entre tus cuentas",
+          "it": "Salta da un account all'altro",
+          "zh": "在账户之间轻松切换",
+          "pt": "Pule entre suas contas",
+          "pt-pt": "Salte entre as suas contas",
+          "pl": "Przeskakuj między kontami"
         },
         "body": {
-          "en": "The account menu got a Discord-style makeover: you at the top, a hover 'Switch account' fly-out, and a redesigned dark 'Manage accounts' modal where each account has a Switch button and a disconnect option.",
-          "fr": "Le menu de compte s'offre un relooking façon Discord : vous en haut, un sous-menu 'Changer de compte' au survol, et une modale 'Gérer les comptes' redesignée en sombre avec un bouton Changer et une déconnexion par compte.",
-          "de": "Das Kontomenü im Discord-Stil: du oben, ein 'Konto wechseln'-Flyout beim Hover und ein neu gestaltetes dunkles 'Konten verwalten'-Fenster mit Wechseln-Button und Abmelden je Konto.",
-          "es": "El menú de cuenta estilo Discord: tú arriba, un desplegable 'Cambiar de cuenta' al pasar el cursor y un modal oscuro 'Gestionar cuentas' rediseñado con botón Cambiar y desconexión por cuenta.",
-          "it": "Il menu account in stile Discord: tu in alto, un fly-out 'Cambia account' al passaggio del mouse e una finestra scura 'Gestisci account' ridisegnata con pulsante Cambia e disconnessione per account.",
-          "zh": "账户菜单焕然一新（Discord 风格）：你在顶部，悬停弹出切换账户菜单，以及重新设计的深色管理账户窗口，每个账户都有切换按钮和退出选项。",
-          "pt": "O menu de conta ganhou um visual estilo Discord: você no topo, um menu 'Trocar de conta' ao passar o mouse e um modal escuro 'Gerenciar contas' redesenhado com botão Trocar e desconectar por conta.",
-          "pt-pt": "O menu de conta com visual estilo Discord: você no topo, um menu 'Mudar de conta' ao passar o rato e um modal escuro 'Gerir contas' redesenhado com botão Mudar e terminar sessão por conta.",
-          "pl": "Menu konta w stylu Discorda: Ty na górze, rozwijane 'Przełącz konto' po najechaniu i przeprojektowane ciemne okno 'Zarządzaj kontami' z przyciskiem Przełącz i wylogowaniem dla każdego konta."
+          "en": "Juggling a few accounts? You're front and centre at the top, and hopping between them is now child's play. Time for a clear-out? Switch or sign one out in a couple of clicks.",
+          "fr": "Plusieurs comptes à gérer ? Vous trônez tout en haut, et passer de l'un à l'autre devient un jeu d'enfant. Envie de faire le ménage ? On change ou on déconnecte un compte en deux clics.",
+          "de": "Mehrere Konten? Du thronst ganz oben, und der Wechsel ist jetzt ein Kinderspiel. Aufräumen gefällig? Konto wechseln oder abmelden mit zwei Klicks.",
+          "es": "¿Varias cuentas? Tú mandas arriba del todo, y cambiar entre ellas es pan comido. ¿Toca limpieza? Cambia o cierra sesión en un par de clics.",
+          "it": "Più account da gestire? Tu sei in cima, e passare dall'uno all'altro è un gioco da ragazzi. Voglia di fare ordine? Cambia o disconnetti un account in due clic.",
+          "zh": "有好几个账户？你稳坐顶部，切换起来轻而易举。想清理一下？两下点击就能切换或退出某个账户。",
+          "pt": "Várias contas? Você fica no topo, e pular entre elas virou brincadeira. Hora de uma faxina? Troque ou saia de uma conta em dois cliques.",
+          "pt-pt": "Várias contas? Você fica no topo, e saltar entre elas é uma brincadeira. Hora de arrumar? Mude ou termine sessão numa conta em dois cliques.",
+          "pl": "Kilka kont? Ty na samej górze, a przeskakiwanie między nimi to teraz bułka z masłem. Czas na porządki? Przełącz lub wyloguj konto dwoma kliknięciami."
         }
       },
       {
         "icon": "link",
         "title": {
-          "en": "Share yourself with a QR",
-          "fr": "Partagez-vous avec un QR",
-          "de": "Teile dich per QR",
-          "es": "Compártete con un QR",
-          "it": "Condividiti con un QR",
-          "zh": "用二维码分享你自己",
-          "pt": "Compartilhe-se com um QR",
-          "pt-pt": "Partilhe-se com um QR",
-          "pl": "Udostępnij się kodem QR"
+          "en": "Flash your QR, gain a friend",
+          "fr": "Un QR, un ami de plus",
+          "de": "QR zeigen, Freund gewinnen",
+          "es": "Enseña tu QR, gana un amigo",
+          "it": "Mostra il QR, un amico in più",
+          "zh": "亮出二维码，多个好友",
+          "pt": "Mostre seu QR, ganhe um amigo",
+          "pt-pt": "Mostre o seu QR, ganhe um amigo",
+          "pl": "Pokaż QR, zyskaj znajomego"
         },
         "body": {
-          "en": "Your invite card now shows a QR code of your shareable link — a friend just scans it to add you. Removing a friend now asks for confirmation, and the friends list opens in its own card.",
-          "fr": "Votre carte d'invitation affiche désormais un QR de votre lien partageable — un ami le scanne pour vous ajouter. Retirer un ami demande maintenant confirmation, et la liste d'amis s'ouvre dans sa propre carte.",
-          "de": "Deine Einladungskarte zeigt jetzt einen QR-Code deines Links — ein Freund scannt ihn einfach, um dich hinzuzufügen. Freunde entfernen fragt nun nach Bestätigung, und die Freundesliste öffnet sich in einer eigenen Karte.",
-          "es": "Tu tarjeta de invitación ahora muestra un QR de tu enlace — un amigo lo escanea para añadirte. Quitar un amigo ahora pide confirmación, y la lista de amigos se abre en su propia tarjeta.",
-          "it": "La tua scheda d'invito ora mostra un QR del tuo link — un amico lo scansiona per aggiungerti. Rimuovere un amico ora chiede conferma e la lista amici si apre in una scheda dedicata.",
-          "zh": "你的邀请卡现在显示可分享链接的二维码——朋友扫一扫就能加你。移除好友现在需要确认，好友列表会在独立卡片中打开。",
-          "pt": "Seu cartão de convite agora mostra um QR do seu link — um amigo só escaneia para te adicionar. Remover um amigo agora pede confirmação, e a lista de amigos abre no próprio cartão.",
-          "pt-pt": "O seu cartão de convite mostra agora um QR do seu link — um amigo digitaliza-o para o adicionar. Remover um amigo pede agora confirmação, e a lista de amigos abre no próprio cartão.",
-          "pl": "Twoja karta zaproszenia pokazuje teraz kod QR Twojego linku — znajomy skanuje go, by Cię dodać. Usunięcie znajomego wymaga teraz potwierdzenia, a lista znajomych otwiera się we własnej karcie."
+          "en": "Your invite card now carries a QR. A friend scans it, and just like that, you're connected. Changed your mind about someone? We'll check with you before showing them the door.",
+          "fr": "Votre carte d'invitation arbore désormais un QR. Un ami le scanne, et le tour est joué, vous voilà connectés. Vous changez d'avis sur quelqu'un ? On vous demande confirmation avant de lui dire au revoir.",
+          "de": "Deine Einladungskarte trägt jetzt einen QR. Ein Freund scannt ihn, und schon seid ihr verbunden. Meinung über jemanden geändert? Wir fragen nach, bevor wir Tschüss sagen.",
+          "es": "Tu tarjeta de invitación ahora lleva un QR. Un amigo lo escanea y, así de fácil, estáis conectados. ¿Cambiaste de idea con alguien? Te preguntamos antes de despedirle.",
+          "it": "La tua scheda d'invito ora sfoggia un QR. Un amico lo scansiona e, in un attimo, siete connessi. Hai cambiato idea su qualcuno? Ti chiediamo conferma prima dei saluti.",
+          "zh": "你的邀请卡现在带了个二维码。朋友扫一下，你们立刻成为好友。对某人改主意了？在送他出门前我们会先问你一声。",
+          "pt": "Seu cartão de convite agora exibe um QR. Um amigo escaneia e, pronto, vocês estão conectados. Mudou de ideia sobre alguém? A gente confirma antes de dar tchau.",
+          "pt-pt": "O seu cartão de convite exibe agora um QR. Um amigo digitaliza-o e, num instante, ficam ligados. Mudou de ideias sobre alguém? Pedimos confirmação antes da despedida.",
+          "pl": "Twoja karta zaproszenia ma teraz kod QR. Znajomy go skanuje i już jesteście połączeni. Zmieniłeś zdanie o kimś? Zapytamy, zanim się pożegnamy."
         }
       },
       {
         "icon": "edit",
         "title": {
-          "en": "Make your avatar yours",
-          "fr": "Un avatar à votre image",
-          "de": "Mach deinen Avatar zu deinem",
-          "es": "Un avatar a tu imagen",
-          "it": "Un avatar tutto tuo",
-          "zh": "打造专属头像",
-          "pt": "Um avatar com a sua cara",
-          "pt-pt": "Um avatar com a sua cara",
-          "pl": "Awatar na Twoją miarę"
+          "en": "Give yourself a face",
+          "fr": "Offrez-vous une bouille",
+          "de": "Gib dir ein Gesicht",
+          "es": "Ponte cara",
+          "it": "Datti una faccia",
+          "zh": "给自己一张脸",
+          "pt": "Dê uma cara a você",
+          "pt-pt": "Dê uma cara a si",
+          "pl": "Daj sobie twarz"
         },
         "body": {
-          "en": "No avatar yet? A friendly (emoji-free) prompt and a notification gently nudge you to add one. You can also change it straight from the header — just hover your avatar next to your name.",
-          "fr": "Pas encore d'avatar ? Une invite sympa (sans emoji) et une notification vous encouragent gentiment à en mettre un. Vous pouvez aussi le changer depuis l'en-tête — survolez votre avatar à côté de votre nom.",
-          "de": "Noch kein Avatar? Ein freundlicher (emoji-freier) Hinweis und eine Benachrichtigung erinnern dich sanft daran. Ändern kannst du ihn auch direkt im Kopfbereich — fahre über deinen Avatar neben deinem Namen.",
-          "es": "¿Sin avatar? Un aviso simpático (sin emojis) y una notificación te animan a añadir uno. También puedes cambiarlo desde la cabecera: pasa el cursor sobre tu avatar junto a tu nombre.",
-          "it": "Ancora senza avatar? Un invito simpatico (senza emoji) e una notifica ti spingono gentilmente ad aggiungerne uno. Puoi cambiarlo anche dall'intestazione: passa sul tuo avatar accanto al nome.",
-          "zh": "还没有头像？一个友好（无表情符号）的提示和通知会温和地提醒你添加。你也可以直接在顶部更改——把鼠标移到名字旁边的头像上。",
-          "pt": "Sem avatar ainda? Um aviso simpático (sem emojis) e uma notificação te incentivam a adicionar um. Você também pode trocá-lo pelo cabeçalho — passe o mouse no avatar ao lado do seu nome.",
-          "pt-pt": "Ainda sem avatar? Um aviso simpático (sem emojis) e uma notificação incentivam-no a adicionar um. Também pode trocá-lo no cabeçalho — passe o rato no avatar ao lado do seu nome.",
-          "pl": "Brak awatara? Przyjazny (bez emoji) komunikat i powiadomienie delikatnie zachęcają, by go dodać. Możesz go też zmienić z nagłówka — najedź na awatar obok swojego imienia."
+          "en": "Still a blank circle? We'll give you a gentle poke to pick an avatar — friends spot you in a heartbeat with a face on it. Fancy a change? Hover your photo next to your name and you're set.",
+          "fr": "Encore un rond tout vide ? On vous fait un petit coup de coude pour choisir un avatar — avec une bouille, vos amis vous repèrent au quart de tour. Envie d'en changer ? Survolez votre photo à côté de votre nom, et voilà.",
+          "de": "Noch ein leerer Kreis? Wir stupsen dich sanft, dir einen Avatar zu schnappen — mit Gesicht erkennen dich Freunde im Nu. Lust auf Wechsel? Fahr über dein Foto neben deinem Namen, fertig.",
+          "es": "¿Sigues siendo un círculo vacío? Te damos un toquecito para que elijas un avatar — con cara, tus amigos te encuentran al instante. ¿Quieres cambiarlo? Pasa el cursor por tu foto junto a tu nombre y listo.",
+          "it": "Ancora un cerchio vuoto? Ti diamo una gomitata gentile per scegliere un avatar — con una faccia gli amici ti trovano in un lampo. Voglia di cambiare? Passa sulla tua foto accanto al nome ed è fatta.",
+          "zh": "还是个空圆圈？我们会轻轻提醒你挑个头像——有了脸，朋友一眼就能找到你。想换？把鼠标移到名字旁的照片上就行。",
+          "pt": "Ainda um círculo vazio? A gente dá um empurrãozinho pra você escolher um avatar — com uma cara, os amigos te acham num instante. Quer trocar? Passe o mouse na sua foto ao lado do nome e pronto.",
+          "pt-pt": "Ainda um círculo vazio? Damos-lhe um empurrãozinho para escolher um avatar — com uma cara, os amigos encontram-no num instante. Quer trocar? Passe o rato na sua foto ao lado do nome e está feito.",
+          "pl": "Wciąż pusty krążek? Delikatnie Cię szturchniemy, byś wybrał awatar — z twarzą znajomi znajdą Cię w mig. Chcesz zmienić? Najedź na zdjęcie obok imienia i gotowe."
         }
       },
       {
         "icon": "broom",
         "title": {
-          "en": "A cleaner, calmer interface",
-          "fr": "Une interface plus nette",
-          "de": "Eine aufgeräumtere Oberfläche",
-          "es": "Una interfaz más limpia",
-          "it": "Un'interfaccia più pulita",
-          "zh": "更简洁清爽的界面",
-          "pt": "Uma interface mais limpa",
-          "pt-pt": "Uma interface mais limpa",
-          "pl": "Czystszy, spokojniejszy interfejs"
+          "en": "A spring clean",
+          "fr": "Grand ménage de printemps",
+          "de": "Frühjahrsputz",
+          "es": "Limpieza general",
+          "it": "Bella ripulita",
+          "zh": "来场大扫除",
+          "pt": "Uma faxina caprichada",
+          "pt-pt": "Uma limpeza a sério",
+          "pl": "Wiosenne porządki"
         },
         "body": {
-          "en": "Scrollbars are hidden across grids and tables, stray separator lines are gone, your avatar no longer resizes when the sidebar collapses, and the community buttons are simply GitHub / 3D Files / Discord.",
-          "fr": "Les barres de défilement sont masquées dans les grilles et tables, les traits de séparation parasites ont disparu, votre avatar ne change plus de taille quand la barre latérale se replie, et les boutons communauté deviennent simplement GitHub / 3D Files / Discord.",
-          "de": "Scrollbalken in Rastern und Tabellen sind ausgeblendet, störende Trennlinien sind weg, dein Avatar ändert seine Größe beim Einklappen der Seitenleiste nicht mehr, und die Community-Buttons heißen einfach GitHub / 3D Files / Discord.",
-          "es": "Las barras de desplazamiento se ocultan en cuadrículas y tablas, las líneas separadoras sobrantes desaparecen, tu avatar ya no cambia de tamaño al plegar la barra lateral y los botones de comunidad son simplemente GitHub / 3D Files / Discord.",
-          "it": "Le barre di scorrimento sono nascoste in griglie e tabelle, le linee separatrici di troppo sono sparite, il tuo avatar non si ridimensiona più quando la barra laterale si chiude, e i pulsanti community sono solo GitHub / 3D Files / Discord.",
-          "zh": "网格和表格中的滚动条已隐藏，多余的分隔线消失了，折叠侧边栏时头像不再改变大小，社区按钮简化为 GitHub / 3D Files / Discord。",
-          "pt": "As barras de rolagem ficam ocultas em grades e tabelas, as linhas separadoras a mais sumiram, seu avatar não muda mais de tamanho ao recolher a barra lateral, e os botões da comunidade são apenas GitHub / 3D Files / Discord.",
-          "pt-pt": "As barras de deslocação ficam ocultas em grelhas e tabelas, as linhas separadoras a mais desapareceram, o seu avatar já não muda de tamanho ao recolher a barra lateral, e os botões da comunidade são apenas GitHub / 3D Files / Discord.",
-          "pl": "Paski przewijania są ukryte w siatkach i tabelach, zbędne linie oddzielające zniknęły, awatar nie zmienia już rozmiaru przy zwijaniu panelu bocznego, a przyciski społeczności to po prostu GitHub / 3D Files / Discord."
+          "en": "We grabbed the broom: scrollbars slip out of sight, stray little lines are gone, and your avatar stops bouncing around when you fold the side menu. Same studio, less clutter.",
+          "fr": "On a sorti le balai : les barres de défilement s'éclipsent, les petits traits en trop ont disparu, et votre avatar arrête de faire le yoyo quand vous repliez le menu de gauche. Même studio, en plus net.",
+          "de": "Wir haben den Besen geschwungen: Scrollbalken verschwinden, störende Linien sind weg, und dein Avatar hört auf zu hüpfen, wenn du das Seitenmenü einklappst. Gleiches Studio, weniger Krempel.",
+          "es": "Sacamos la escoba: las barras de desplazamiento desaparecen, las líneas de más se esfuman y tu avatar deja de dar botes al plegar el menú lateral. El mismo estudio, con menos lío.",
+          "it": "Abbiamo preso la scopa: le barre di scorrimento spariscono, le righine di troppo sono volate via e il tuo avatar smette di rimbalzare quando chiudi il menu laterale. Stesso studio, meno caos.",
+          "zh": "我们抄起了扫把：滚动条悄悄隐身，多余的小线条不见了，折叠侧边菜单时头像也不再蹦来蹦去。还是那个工作室，但更清爽。",
+          "pt": "Pegamos a vassoura: as barras de rolagem somem, as linhas a mais evaporaram, e seu avatar para de pular quando você fecha o menu lateral. Mesmo estúdio, menos bagunça.",
+          "pt-pt": "Pegámos na vassoura: as barras de deslocação desaparecem, as linhas a mais evaporaram, e o seu avatar deixa de saltitar quando fecha o menu lateral. Mesmo estúdio, menos confusão.",
+          "pl": "Chwyciliśmy za miotłę: paski przewijania znikają, zbędne kreski przepadły, a awatar przestaje skakać, gdy zwijasz boczne menu. To samo studio, mniej bałaganu."
         }
       },
       {
         "icon": "bolt",
         "title": {
-          "en": "Smoother and safer",
-          "fr": "Plus fluide et plus sûr",
-          "de": "Flüssiger und sicherer",
-          "es": "Más fluido y seguro",
-          "it": "Più fluido e sicuro",
-          "zh": "更顺畅、更稳妥",
-          "pt": "Mais fluido e seguro",
-          "pt-pt": "Mais fluido e seguro",
-          "pl": "Płynniej i bezpieczniej"
+          "en": "Smoother, and no spills",
+          "fr": "Plus fluide, et zéro casse",
+          "de": "Geschmeidiger, ohne Scherben",
+          "es": "Más fluido y sin sustos",
+          "it": "Più fluido e niente disastri",
+          "zh": "更顺，还不翻车",
+          "pt": "Mais fluido e sem perrengue",
+          "pt-pt": "Mais fluido e sem sustos",
+          "pl": "Płynniej i bez wpadek"
         },
         "body": {
-          "en": "Scanning a spool while viewing a friend now brings you home and opens the spool. Coloured buttons no longer go white-on-white on hover. And switching between accounts can no longer knock your spools out of their racks.",
-          "fr": "Scanner une bobine en consultant un ami vous ramène chez vous et ouvre la bobine. Les boutons colorés ne deviennent plus blanc-sur-blanc au survol. Et changer de compte ne peut plus faire sortir vos bobines de leurs racks.",
-          "de": "Beim Scannen einer Spule in der Freundesansicht landest du wieder bei dir und die Spule öffnet sich. Farbige Buttons werden beim Hover nicht mehr weiß-auf-weiß. Und der Kontowechsel kann deine Spulen nicht mehr aus den Regalen werfen.",
-          "es": "Escanear una bobina mientras ves a un amigo te devuelve a tu cuenta y abre la bobina. Los botones de color ya no se vuelven blanco sobre blanco al pasar el cursor. Y cambiar de cuenta ya no saca tus bobinas de sus estantes.",
-          "it": "Scansionare una bobina mentre guardi un amico ti riporta a casa e apre la bobina. I pulsanti colorati non diventano più bianco su bianco al passaggio del mouse. E cambiare account non può più far uscire le bobine dai loro scaffali.",
-          "zh": "在查看好友时扫描线材会把你带回自己的账户并打开该线材。彩色按钮悬停时不再白底白字。切换账户也不会再把线材从货架上弄掉。",
-          "pt": "Escanear um filamento enquanto vê um amigo te traz de volta e abre o filamento. Botões coloridos não ficam mais brancos no branco ao passar o mouse. E trocar de conta não tira mais seus filamentos das estantes.",
-          "pt-pt": "Digitalizar um filamento enquanto vê um amigo traz-no de volta e abre o filamento. Os botões coloridos já não ficam brancos no branco ao passar o rato. E mudar de conta já não tira os seus filamentos das prateleiras.",
-          "pl": "Zeskanowanie szpuli podczas przeglądania profilu znajomego przenosi Cię z powrotem i otwiera szpulę. Kolorowe przyciski nie znikają już (biały na białym) po najechaniu. A przełączanie kont nie wyrzuca już szpul z regałów."
+          "en": "Scan a spool while poking around a friend's stash and we whisk you straight home, spool open. Buttons stop vanishing when you hover. And switching accounts no longer tips your spools out of their racks.",
+          "fr": "Scannez une bobine en fouinant chez un ami et on vous ramène aussitôt chez vous, bobine ouverte. Les boutons arrêtent de disparaître au survol. Et changer de compte ne renverse plus vos bobines hors de leurs racks.",
+          "de": "Scanne eine Spule, während du im Vorrat eines Freundes stöberst, und wir holen dich sofort nach Hause, Spule offen. Buttons verschwinden beim Hover nicht mehr. Und der Kontowechsel kippt deine Spulen nicht mehr aus den Regalen.",
+          "es": "Escanea una bobina mientras fisgoneas en el alijo de un amigo y te llevamos derechito a casa, con la bobina abierta. Los botones dejan de desaparecer al pasar el cursor. Y cambiar de cuenta ya no vuelca tus bobinas de los estantes.",
+          "it": "Scansiona una bobina mentre curiosi nella scorta di un amico e ti riportiamo subito a casa, bobina aperta. I pulsanti non spariscono più al passaggio del mouse. E cambiare account non rovescia più le bobine dagli scaffali.",
+          "zh": "在朋友的库存里翻翻时扫了一卷线材？我们立刻把你带回家，并打开那一卷。按钮悬停时不再消失。切换账户也不会再把线材从货架上掀下来。",
+          "pt": "Escaneou um filamento bisbilhotando o estoque de um amigo? A gente te leva direto pra casa, com o filamento aberto. Os botões param de sumir ao passar o mouse. E trocar de conta não derruba mais seus filamentos das estantes.",
+          "pt-pt": "Digitalizou um filamento a coscuvilhar o stock de um amigo? Levamo-lo logo para casa, com o filamento aberto. Os botões deixam de desaparecer ao passar o rato. E mudar de conta já não despeja os seus filamentos das prateleiras.",
+          "pl": "Zeskanujesz szpulę, gdy myszkujesz w zapasach znajomego, a my od razu przenosimy Cię do domu, z otwartą szpulą. Przyciski przestają znikać po najechaniu. A przełączanie kont nie zrzuca już szpul z regałów."
+        }
+      }
+    ]
+  },
+  "1.10.25": {
+    "date": "2026-06-26",
+    "items": [
+      {
+        "icon": "swap",
+        "title": {
+          "en": "Always know whose stash you're in",
+          "fr": "Toujours savoir chez qui tu es",
+          "de": "Immer wissen, wessen Vorrat du gerade siehst",
+          "es": "Sé siempre de quién es el inventario que ves",
+          "it": "Sai sempre di chi è lo stock che guardi",
+          "zh": "随时知道你在看谁的库存",
+          "pt": "Saiba sempre de quem é o estoque que você vê",
+          "pt-pt": "Saber sempre de quem é o stock que estás a ver",
+          "pl": "Zawsze wiedz, czyj zapas oglądasz"
+        },
+        "body": {
+          "en": "A little bar slides down the left edge and parks on the view you're looking at — yours or a friend's. No more wondering whose spools these are.",
+          "fr": "Une petite barre glisse le long du bord gauche et vient se poser sur la vue affichée — la tienne ou celle d'un ami. Fini le « attends, c'est à qui ces bobines ? ».",
+          "de": "Ein kleiner Balken gleitet am linken Rand entlang und parkt bei der Ansicht, die du gerade siehst — deine oder die eines Freundes. Kein Rätselraten mehr, wessen Spulen das sind.",
+          "es": "Una barrita se desliza por el borde izquierdo y se posa en la vista que estás mirando — la tuya o la de un amigo. Se acabó el preguntarse de quién son estas bobinas.",
+          "it": "Una barretta scorre lungo il bordo sinistro e si posa sulla vista che stai guardando — la tua o quella di un amico. Basta chiedersi di chi sono queste bobine.",
+          "zh": "一根小竖条沿着左边缘滑动，停在你正在看的视图上——你自己的或好友的。再也不用纠结这些线材是谁的了。",
+          "pt": "Uma barrinha desliza pela borda esquerda e para na vista que você está vendo — a sua ou a de um amigo. Acabou aquela dúvida de quem são esses filamentos.",
+          "pt-pt": "Uma barrinha desliza pela margem esquerda e fica na vista que estás a ver — a tua ou a de um amigo. Adeus à dúvida de quem são estes filamentos.",
+          "pl": "Mały pasek przesuwa się przy lewej krawędzi i zatrzymuje na widoku, który oglądasz — twoim lub znajomego. Koniec z zgadywaniem, czyje to szpule."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Now with sound effects",
+          "fr": "Maintenant avec du son",
+          "de": "Jetzt mit Soundeffekten",
+          "es": "Ahora con efectos de sonido",
+          "it": "Ora con effetti sonori",
+          "zh": "现在有音效了",
+          "pt": "Agora com efeitos sonoros",
+          "pt-pt": "Agora com efeitos sonoros",
+          "pl": "Teraz z efektami dźwiękowymi"
+        },
+        "body": {
+          "en": "A quick blip when you hop between your own accounts, and a softer, different one when you sneak into a friend's stash. Small, but satisfying.",
+          "fr": "Un petit bip quand tu sautes entre tes comptes, et un autre, plus doux, quand tu vas fouiner chez un ami. Discret, mais satisfaisant.",
+          "de": "Ein kurzer Blip, wenn du zwischen deinen Konten wechselst, und ein leiserer, anderer, wenn du bei einem Freund stöberst. Klein, aber fein.",
+          "es": "Un bip rápido al saltar entre tus cuentas, y otro más suave al colarte en el inventario de un amigo. Pequeño, pero satisfactorio.",
+          "it": "Un bip veloce quando salti tra i tuoi account, e uno più morbido quando sbirci tra le bobine di un amico. Piccolo, ma soddisfacente.",
+          "zh": "在自己的账号之间切换时来一声轻响，溜进好友的库存时则是另一种更柔和的声音。小小的，却很带感。",
+          "pt": "Um blip rápido ao pular entre suas contas, e outro mais suave ao espiar o estoque de um amigo. Pequeno, mas satisfatório.",
+          "pt-pt": "Um blip rápido ao saltar entre as tuas contas, e outro mais suave ao espreitar o stock de um amigo. Pequeno, mas satisfatório.",
+          "pl": "Krótki sygnał, gdy przeskakujesz między swoimi kontami, i inny, łagodniejszy, gdy zaglądasz do zapasu znajomego. Drobiazg, a cieszy."
+        }
+      },
+      {
+        "icon": "list",
+        "title": {
+          "en": "The table got a glow-up",
+          "fr": "Le tableau s'est refait une beauté",
+          "de": "Die Tabelle hat ein Makeover bekommen",
+          "es": "La tabla se dio un retoque",
+          "it": "La tabella si è rifatta il look",
+          "zh": "表格焕然一新",
+          "pt": "A tabela deu uma repaginada",
+          "pt-pt": "A tabela deu um ar novo",
+          "pl": "Tabela przeszła metamorfozę"
+        },
+        "body": {
+          "en": "The remaining-weight bar finally has room to stretch, grouped rows light up on hover again, and the sort arrow is a clean little chevron now.",
+          "fr": "La barre de poids restant a enfin la place de respirer, les lignes groupées se réveillent au survol, et la flèche de tri est devenue un joli petit chevron.",
+          "de": "Der Restgewicht-Balken hat endlich Platz, gruppierte Zeilen leuchten beim Überfahren wieder auf, und der Sortierpfeil ist jetzt ein sauberes kleines Chevron.",
+          "es": "La barra de peso restante por fin tiene espacio, las filas agrupadas se iluminan al pasar el ratón y la flecha de orden ahora es un chevron limpio.",
+          "it": "La barra del peso rimanente ha finalmente spazio, le righe raggruppate si illuminano al passaggio del mouse e la freccia di ordinamento ora è un bel chevron.",
+          "zh": "剩余重量条终于有了伸展空间，分组行在悬停时会重新亮起，排序箭头也变成了干净的小尖角。",
+          "pt": "A barra de peso restante finalmente tem espaço, as linhas agrupadas voltam a acender ao passar o mouse e a seta de ordenação agora é um chevron limpinho.",
+          "pt-pt": "A barra de peso restante tem finalmente espaço, as linhas agrupadas voltam a acender ao passar o rato e a seta de ordenação é agora um chevron limpinho.",
+          "pl": "Pasek pozostałej wagi ma wreszcie miejsce, zgrupowane wiersze znów podświetlają się po najechaniu, a strzałka sortowania to teraz schludny daszek."
+        }
+      },
+      {
+        "icon": "broom",
+        "title": {
+          "en": "Fewer little gremlins",
+          "fr": "Moins de petits bugs",
+          "de": "Weniger kleine Gremlins",
+          "es": "Menos gremlins",
+          "it": "Meno piccoli gremlin",
+          "zh": "小毛病更少了",
+          "pt": "Menos gremlins",
+          "pt-pt": "Menos gremlins",
+          "pl": "Mniej małych chochlików"
+        },
+        "body": {
+          "en": "Clicking the friend you're already viewing does nothing now (as it should), two-chip spools stop opening their card twice, and grouped rows sort by their real totals.",
+          "fr": "Cliquer sur l'ami que tu regardes déjà ne fait plus rien (logique), les bobines à deux puces n'ouvrent plus leur fiche deux fois, et les lignes groupées se trient sur leurs vrais totaux.",
+          "de": "Ein Klick auf den Freund, den du schon ansiehst, macht jetzt nichts mehr (so soll es sein), Spulen mit zwei Chips öffnen ihre Karte nicht mehr doppelt, und gruppierte Zeilen sortieren nach ihren echten Summen.",
+          "es": "Hacer clic en el amigo que ya estás viendo ya no hace nada (como debe ser), las bobinas de dos chips dejan de abrir su ficha dos veces y las filas agrupadas se ordenan por sus totales reales.",
+          "it": "Cliccare sull'amico che stai già guardando ora non fa nulla (come dev'essere), le bobine a due chip non aprono più la scheda due volte e le righe raggruppate si ordinano sui totali reali.",
+          "zh": "点击你正在查看的好友现在不再有任何反应（本该如此），双芯片线材不再重复打开卡片，分组行也会按真实的合计来排序。",
+          "pt": "Clicar no amigo que você já está vendo agora não faz nada (como deve ser), bobinas de dois chips param de abrir o cartão duas vezes e as linhas agrupadas ordenam pelos totais reais.",
+          "pt-pt": "Clicar no amigo que já estás a ver agora não faz nada (como deve ser), as bobinas de dois chips deixam de abrir o cartão duas vezes e as linhas agrupadas ordenam pelos totais reais.",
+          "pl": "Kliknięcie znajomego, którego już oglądasz, nic teraz nie robi (tak ma być), szpule z dwoma chipami nie otwierają karty dwa razy, a zgrupowane wiersze sortują się według prawdziwych sum."
         }
       }
     ]

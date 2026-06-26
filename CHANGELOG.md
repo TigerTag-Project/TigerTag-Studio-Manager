@@ -5,6 +5,26 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.10.25 — 2026-06-26
+
+### Added
+
+- **See whose inventory you're viewing at a glance.** A bright bar on the left edge slides to the avatar of the view you're currently in — your own, or a friend's — so you always know where you are.
+- **Little sounds when you switch.** A quick blip when you hop between your own accounts, and a softer, distinct one when you peek into a friend's inventory.
+
+### Changed
+
+- **Friendlier wording** across a few empty states and confirmations.
+- **Clearer inventory table.** The remaining-weight bar now sits under the value with room to breathe, grouped rows highlight properly on hover again, and the sort arrow is a cleaner chevron.
+
+### Fixed
+
+- **Clicking the friend you're already viewing now does nothing** — it used to bounce you back to your own inventory.
+- **Scanning a two-chip (twin) spool no longer opens its card twice.**
+- **Grouped rows now sort by their combined weight and capacity**, so the order matches what you see.
+
+---
+
 ## v1.10.24 — 2026-06-26
 
 ### Added
