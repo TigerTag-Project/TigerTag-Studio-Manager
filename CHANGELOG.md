@@ -5,6 +5,33 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.10.24 — 2026-06-26
+
+### Added
+
+- **Invite QR code.** The Friends panel's "My code" card now shows a QR of your shareable invite link — a friend can scan it to add you.
+- **A friendly nudge to add an avatar.** If you haven't set a profile avatar, a playful prompt (plus a notification) invites you to add one; both disappear the moment you do.
+- **Update download progress.** The auto-update toast now shows a filling progress bar (with a rough time-left estimate) while a new version downloads.
+
+### Changed
+
+- **Account menu reimagined (Discord-style).** It now shows you at the top, with a hover **Switch account** fly-out listing your connected accounts, plus Edit profile, Friends and Settings. **Manage accounts** opens a redesigned dark modal where each account has a Switch button and a "…" menu to disconnect.
+- **Friends panel refresh.** The friends list moved to its own companion card that opens beside the Friends panel, each friend row has a clear chevron to view their inventory, and removing a friend now asks for confirmation (showing their avatar).
+- **Cleaner sidebar.** The avatar and friend chips stay the same size whether the sidebar is collapsed or expanded (no more vertical jump), stray separator lines are gone, and the community buttons are simplified to **GitHub / 3D Files / Discord**.
+- **Tidier views.** Scrollbars are hidden across the Materials and Printers grids/tables, the "My printers" header is gone, and the empty-printers screen now invites you to add your first printer.
+- **Live "ready to scan" indicator.** A small pulsing green dot shows when a TigerPod reader or a TigerScale is connected — the old "+ Auto Scan" button is gone (scanning is automatic).
+- **Edit your avatar from the header** — hover your avatar next to your name to change it.
+- Toolbar "+" button labels shortened to **Material / Device**.
+
+### Fixed
+
+- **Scanning a spool while viewing a friend** now returns you to your own inventory and opens the scanned spool's card.
+- **Buttons no longer turn invisible (white-on-white) on hover** — fixed at the root, so every coloured button stays readable.
+- **Cross-account rack safety.** Auto-organize now waits for your racks to load and never rewrites a spool whose rack is still loading — no more spools "leaving" their slots when bouncing between accounts.
+- The blocked-users list now refreshes when you open the Friends panel.
+
+---
+
 ## v1.10.23 — 2026-06-25
 
 ### Fixed

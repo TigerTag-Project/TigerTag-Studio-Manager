@@ -470,6 +470,64 @@
   #whatsNewOverlay, #colorEditModalOverlay, #td1sConnectModalOverlay {
     background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none;
   }
+  /* Manage profiles + edit profile: keep the dim, drop the background blur. */
+  #profilesModalOverlay,
+  #editAccountModalOverlay { backdrop-filter: none; -webkit-backdrop-filter: none; }
+
+  /* ── "Add an avatar" fun nudge ───────────────────────────────────────── */
+  .avp-card {
+    width: min(380px, 92vw); text-align: center;
+    padding: 28px 26px 24px; overflow: hidden; position: relative;
+  }
+  .avp-burst {
+    position: relative; height: 96px; margin: 4px 0 18px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .avp-avatar-ph {
+    width: 84px; height: 84px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, var(--primary), #ffb056);
+    box-shadow: 0 8px 24px rgba(255,122,24,.35);
+    animation: avp-pop .5s cubic-bezier(.34,1.56,.64,1) both;
+  }
+  .avp-avatar-ph .icon { background: #fff; }
+  /* Concentric pulsing rings — a clean "spotlight on you" beat, no emoji. */
+  .avp-ring {
+    position: absolute; top: 50%; left: 50%;
+    width: 84px; height: 84px; border-radius: 50%;
+    border: 2px solid var(--primary);
+    transform: translate(-50%, -50%); opacity: 0;
+    animation: avp-ring 2.2s ease-out infinite;
+  }
+  .avp-ring--2 { animation-delay: 1.1s; }
+  @keyframes avp-pop { from { transform: scale(.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  @keyframes avp-ring {
+    0%   { opacity: .45; transform: translate(-50%, -50%) scale(1); }
+    100% { opacity: 0;   transform: translate(-50%, -50%) scale(2); }
+  }
+  .avp-title { margin: 0 0 8px; font-size: 19px; font-weight: 800; color: var(--text); letter-spacing: -.02em; }
+  .avp-body  { margin: 0 0 20px; font-size: 13px; line-height: 1.5; color: var(--muted); }
+  .avp-actions { display: flex; gap: 10px; }
+  .avp-skip {
+    flex: 0 0 auto; padding: 0 16px; height: 42px; border-radius: 11px;
+    background: var(--surface-2); border: 1px solid var(--border);
+    color: var(--muted); font-size: 13px; font-weight: 600; cursor: pointer;
+    font-family: inherit; transition: background .15s, color .15s;
+  }
+  .avp-skip:hover { background: var(--surface); color: var(--text); }
+  .avp-cta {
+    flex: 1; height: 42px; border-radius: 11px; border: none;
+    background: linear-gradient(135deg, var(--primary), #ff9036);
+    color: #fff; font-size: 14px; font-weight: 700; cursor: pointer;
+    font-family: inherit; box-shadow: 0 4px 16px rgba(255,122,24,.4);
+    transition: filter .15s, transform .1s;
+  }
+  .avp-cta:hover { filter: brightness(1.07); }
+  .avp-cta:active { transform: translateY(1px); }
+  @media (prefers-reduced-motion: reduce) {
+    .avp-avatar-ph { animation: none; }
+    .avp-ring { display: none; }
+  }
   .modal-overlay.open { opacity: 1; pointer-events: auto; }
   .modal-card {
     background: var(--surface); border-radius: 18px;
@@ -757,13 +815,44 @@
   .acct-drop-check { margin-left: auto; color: var(--primary); font-size: 13px; flex-shrink: 0; }
   .acct-drop-sep { height: 1px; background: rgba(255,255,255,.07); margin: 5px 4px; }
   .acct-drop-action {
-    display: flex; align-items: center; gap: 9px; width: 100%;
+    display: flex; align-items: center; justify-content: flex-start; text-align: left;
+    gap: 9px; width: 100%;
     padding: 8px 10px; border-radius: 9px; border: none; background: transparent;
     color: rgba(255,255,255,.55); font-size: 12px; font-weight: 500;
     cursor: pointer; font-family: inherit;
     transition: background .13s, color .13s;
   }
   .acct-drop-action:hover { background: rgba(255,255,255,.07); color: rgba(255,255,255,.9); }
+  .acct-drop-badge {
+    margin-left: auto; min-width: 18px; height: 18px; padding: 0 5px;
+    display: inline-flex; align-items: center; justify-content: center;
+    border-radius: 9px; background: var(--primary); color: #fff;
+    font-size: 10px; font-weight: 700; line-height: 1;
+  }
+  /* Logged-in account header at the top of the menu (display only). */
+  .acct-drop-current {
+    display: flex; align-items: center; gap: 9px; width: 100%;
+    padding: 8px 10px; border-radius: 9px; color: #fff;
+  }
+  .acct-drop-current .acct-drop-name { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; }
+  .acct-drop-current .acct-drop-check { margin-left: auto; color: var(--primary); font-size: 13px; flex-shrink: 0; }
+
+  /* "Switch account ›" — chevron at the right; the account list opens as a hover
+     fly-out to the RIGHT (it does NOT replace the main menu). */
+  .acct-drop-chevron { margin-left: auto; display: inline-flex; align-items: center; }
+  .acct-drop-chevron .icon { background: rgba(255,255,255,.4); }
+  .acct-drop-haschild:hover .acct-drop-chevron .icon { background: rgba(255,255,255,.75); }
+  .acct-drop-haschild { position: relative; }
+  .acct-drop-submenu {
+    position: absolute; left: 100%; top: -6px;
+    min-width: 200px; padding: 6px;
+    background: rgba(16,18,26,.98); border: 1px solid rgba(255,255,255,.08);
+    border-radius: 14px; box-shadow: 0 12px 40px rgba(0,0,0,.55);
+    backdrop-filter: blur(16px);
+    opacity: 0; pointer-events: none; transform: translateX(-4px);
+    transition: opacity .14s, transform .14s; z-index: 2;
+  }
+  .acct-drop-haschild:hover .acct-drop-submenu { opacity: 1; pointer-events: auto; transform: translateX(0); }
   .acct-drop-section-label {
     font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .07em;
     color: rgba(255,255,255,.3); padding: 4px 10px 2px;
@@ -779,75 +868,114 @@
   .acct-drop-item:hover .acct-drop-eye { opacity: .85; }
 
   /* ── profiles modal ── */
-  .prf-card { width: 380px; padding: 0; overflow: hidden; }
+  /* ── Manage-accounts modal — DARK, matching the account dropdown ── */
+  .prf-card {
+    width: min(420px, 92vw); padding: 0; overflow: visible;
+    background: rgba(16,18,26,.98); border: 1px solid rgba(255,255,255,.08);
+    color: #fff;
+  }
   .prf-header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 20px 22px 16px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+    padding: 22px 22px 12px;
   }
-  .prf-title { font-size: 15px; font-weight: 700; letter-spacing: -.015em; }
-  .prf-body {
-    padding: 14px 14px 14px;
-    display: flex; flex-direction: column; gap: 0;
-    max-height: 72vh; overflow-y: auto;
+  .prf-head-text { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+  .prf-title { font-size: 19px; font-weight: 800; letter-spacing: -.02em; color: #fff; }
+  .prf-sub { font-size: 12.5px; color: rgba(255,255,255,.5); line-height: 1.35; }
+  .prf-card .modal-close {
+    flex-shrink: 0; color: rgba(255,255,255,.45); background: rgba(255,255,255,.06);
+    border: none; width: 30px; height: 30px; border-radius: 8px; cursor: pointer; font-size: 15px;
   }
-  .prf-body::-webkit-scrollbar { width: 3px; }
-  .prf-body::-webkit-scrollbar-track { background: transparent; }
-  .prf-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .prf-card .modal-close:hover { color: #fff; background: rgba(255,255,255,.12); }
+  .prf-body { padding: 6px 16px 18px; display: flex; flex-direction: column; gap: 14px; }
 
-  /* vertical card list */
-  .prf-list { display: flex; flex-direction: column; gap: 7px; margin-bottom: 10px; }
-  .prf-account-card {
-    display: flex; align-items: center; gap: 14px; padding: 12px 14px;
-    border-radius: 13px; background: var(--surface-2); border: 1.5px solid var(--border);
-    cursor: pointer; font-family: inherit; text-align: left; width: 100%;
-    transition: background .15s, border-color .18s, transform .12s cubic-bezier(.34,1.3,.64,1), box-shadow .18s;
+  .prf-acct-list {
+    display: flex; flex-direction: column; gap: 2px;
+    background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.06);
+    border-radius: 14px; padding: 6px;
   }
-  .prf-account-card:hover {
-    background: var(--surface); border-color: var(--primary);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 20px rgba(0,0,0,.07), 0 0 0 3px var(--primary-soft);
+  .prf-acct {
+    position: relative; display: flex; align-items: center; gap: 11px;
+    padding: 9px 10px; border-radius: 10px;
   }
-  .prf-account-avatar {
-    position: relative;       /* anchor for the .sb-avatar-photo overlay */
-    width: 46px; height: 46px; border-radius: 50%; flex-shrink: 0;
+  .prf-acct:hover { background: rgba(255,255,255,.05); }
+  .prf-acct-avatar {
+    position: relative; width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
     display: flex; align-items: center; justify-content: center;
-    font-size: 17px; font-weight: 700; color: #fff; letter-spacing: -0.5px;
-    box-shadow: 0 3px 12px rgba(0,0,0,.14);
-    overflow: hidden;
+    font-size: 15px; font-weight: 700; color: #fff; letter-spacing: -.5px; overflow: hidden;
   }
-  .prf-account-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-  .prf-account-name {
-    font-size: 14px; font-weight: 600; color: var(--text);
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  .prf-acct-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+  .prf-acct-name { font-size: 14px; font-weight: 600; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .prf-acct-email { font-size: 12px; color: rgba(255,255,255,.42); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .prf-acct-active { font-size: 12px; font-weight: 600; color: var(--success); }
+  .prf-acct-switch {
+    flex-shrink: 0; height: 32px; padding: 0 15px; border-radius: 8px; border: none;
+    background: rgba(255,255,255,.1); color: #fff; font-size: 13px; font-weight: 600;
+    cursor: pointer; font-family: inherit;
   }
-  .prf-account-email {
-    font-size: 11px; color: var(--muted);
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  .prf-acct-switch:hover { background: rgba(255,255,255,.18); }
+  .prf-acct-menu-btn {
+    flex-shrink: 0; width: 30px; height: 30px; border-radius: 8px; border: none;
+    background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center;
   }
-  .prf-account-chevron {
-    flex-shrink: 0; color: var(--border);
-    transition: color .15s, transform .15s;
+  .prf-acct-menu-btn .icon { background: rgba(255,255,255,.5); }
+  .prf-acct-menu-btn:hover { background: rgba(255,255,255,.08); }
+  .prf-acct-menu-btn:hover .icon { background: #fff; }
+  .prf-acct-menu {
+    position: absolute; right: 8px; top: calc(100% - 4px); z-index: 3;
+    min-width: 160px; padding: 5px;
+    background: rgba(28,30,40,.99); border: 1px solid rgba(255,255,255,.1);
+    border-radius: 11px; box-shadow: 0 12px 34px rgba(0,0,0,.55);
   }
-  .prf-account-card:hover .prf-account-chevron {
-    color: var(--primary); transform: translateX(2px);
+  .prf-acct-menu[hidden] { display: none; }
+  .prf-acct-menu-item {
+    display: flex; align-items: center; gap: 9px; width: 100%;
+    padding: 8px 10px; border-radius: 7px; border: none; background: transparent;
+    color: rgba(255,255,255,.8); font-size: 13px; font-weight: 500; cursor: pointer; font-family: inherit;
   }
+  .prf-acct-menu-item:hover { background: rgba(255,255,255,.08); color: #fff; }
+  .prf-acct-menu-item .icon { background: currentColor; }
+  .prf-acct-menu-item--danger { color: #ff6b6b; }
+  .prf-acct-menu-item--danger:hover { background: rgba(255,107,107,.14); color: #ff8585; }
 
-  /* ── friends section in profiles modal ── */
-  .prf-section-sep { height: 1px; background: var(--border); margin: 10px 0 14px; }
-  .prf-section-label {
-    font-size: 11px; font-weight: 600; text-transform: uppercase;
-    letter-spacing: .06em; color: var(--muted); margin-bottom: 8px;
+  .prf-add-btn {
+    width: 100%; height: 44px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1);
+    color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit;
   }
-  .prf-friend-card .prf-account-chevron { color: var(--muted); }
-  .prf-friend-card:hover .prf-account-chevron { color: var(--primary); transform: none; }
-  .prf-friend-sub { color: var(--muted); font-style: italic; }
-  .prf-friend-active { border-color: var(--primary) !important; background: var(--primary-soft) !important; }
-  .prf-friends-empty {
-    text-align: center; padding: 12px;
-    font-size: 12px; color: var(--muted);
-    background: var(--surface-2); border: 1px dashed var(--border);
-    border-radius: 10px; margin-bottom: 8px;
+  .prf-add-btn:hover { background: rgba(255,255,255,.1); }
+  .prf-add-btn .icon { background: #fff; }
+  .prf-empty-msg { padding: 18px; text-align: center; color: rgba(255,255,255,.45); font-size: 13px; }
+
+  /* ── Dark confirmation modal (remove friend) — Discord-style + avatar ── */
+  .confirm-card {
+    width: min(380px, 92vw); padding: 26px 24px 22px; position: relative; text-align: center;
+    background: rgba(16,18,26,.98); border: 1px solid rgba(255,255,255,.08); color: #fff;
   }
+  .confirm-card .modal-close {
+    position: absolute; top: 14px; right: 14px;
+    width: 30px; height: 30px; border-radius: 8px; border: none;
+    background: rgba(255,255,255,.06); color: rgba(255,255,255,.45); cursor: pointer; font-size: 15px;
+  }
+  .confirm-card .modal-close:hover { color: #fff; background: rgba(255,255,255,.12); }
+  .confirm-avatar { display: flex; justify-content: center; margin: 2px 0 14px; }
+  .confirm-avatar-img {
+    position: relative; width: 64px; height: 64px; border-radius: 50%; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px; font-weight: 700; color: #fff; letter-spacing: -.5px;
+    box-shadow: 0 6px 20px rgba(0,0,0,.4);
+  }
+  .confirm-title { margin: 0 0 8px; font-size: 18px; font-weight: 800; color: #fff; letter-spacing: -.02em; }
+  .confirm-body  { margin: 0 0 20px; font-size: 13.5px; line-height: 1.5; color: rgba(255,255,255,.6); }
+  .confirm-actions { display: flex; gap: 10px; }
+  .confirm-cancel, .confirm-danger {
+    flex: 1; height: 42px; border-radius: 11px; border: none;
+    font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit;
+  }
+  .confirm-cancel { background: rgba(255,255,255,.08); color: #fff; }
+  .confirm-cancel:hover { background: rgba(255,255,255,.14); }
+  .confirm-danger { background: #d83a3a; color: #fff; }
+  .confirm-danger:hover { background: #c42f2f; }
 
   /* ── friend view banner ── */
   /* User chip in the top header row — to the LEFT of the KPI stats.
@@ -884,6 +1012,22 @@
     letter-spacing: -.7px;
     overflow: hidden;
   }
+  /* Own-view header avatar is editable — wrapper button (no clipping) holds the
+     avatar + a hover overlay; the avatar inside keeps its own overflow:hidden. */
+  .fvb-avatar-edit {
+    position: relative; width: 50px; height: 50px; flex-shrink: 0;
+    padding: 0; border: 0; background: transparent; cursor: pointer;
+    border-radius: 50%;
+  }
+  .fvb-avatar-edit .fvb-avatar { width: 100%; height: 100%; }
+  .fvb-avatar-ovl {
+    position: absolute; inset: 0; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,.5); opacity: 0; transition: opacity .15s;
+    pointer-events: none;
+  }
+  .fvb-avatar-edit:hover .fvb-avatar-ovl { opacity: 1; }
+  .fvb-avatar-ovl .icon { background: #fff; }
   .fvb-name {
     font-size: 13px; font-weight: 600; color: var(--text);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -1469,6 +1613,31 @@
   .rfid-pod.connected    .rfid-pod-icon { background-color: var(--success); filter: drop-shadow(0 0 4px rgba(26,175,108,.45)); }
   .rfid-pod.card-present .rfid-pod-icon { filter: drop-shadow(0 0 7px var(--success)); }
   .rfid-pod.disconnected .rfid-pod-icon { background-color: #ef4444; }
+  /* Live "ready to scan" indicator — a small green dot with an expanding ping
+     ring, shown only while a reader is connected (real-time / active). The pod
+     icon itself stays static; a tag present makes the ping pulse faster. */
+  .rfid-pod-live {
+    position: absolute; top: 1px; right: -1px;
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--success); display: none; pointer-events: none;
+    box-shadow: 0 0 0 2px var(--surface);
+  }
+  .rfid-pod.connected .rfid-pod-live,
+  .rfid-pod.card-present .rfid-pod-live { display: block; }
+  .rfid-pod-live::before {
+    content: ""; position: absolute; inset: 0; border-radius: 50%;
+    background: var(--success); opacity: 0;
+  }
+  .rfid-pod.connected .rfid-pod-live::before,
+  .rfid-pod.card-present .rfid-pod-live::before { animation: rfid-live-ping 1.4s ease-out infinite; }
+  .rfid-pod.card-present .rfid-pod-live::before { animation-duration: .8s; }
+  @keyframes rfid-live-ping {
+    0%   { transform: scale(1);   opacity: .55; }
+    100% { transform: scale(2.6); opacity: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .rfid-pod-live::before { animation: none; }
+  }
 
   /* hover popover */
   .rfid-pod-pop {

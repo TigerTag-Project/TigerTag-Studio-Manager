@@ -59,21 +59,21 @@ L3128-3180   App lifecycle (whenReady, window-all-closed, activate)
 |---|---|---|
 | 755-996 | Serial-port watcher, TD/color line parse, state replayed to renderer on reload; IPC `td1s:need` / `td1s:release` | `initTD1S` |
 
-## Auto-updater + migration gate (L997-1158)
+## Auto-updater + migration gate (L997-1166)
 
 | L | What | Anchors / IPC |
 |---|---|---|
 | 997-1053 | Auto-update on/off preference (on disk) + updater event wiring | `readAutoUpdatePref`, `writeAutoUpdatePref`, `wireUpdaterEvents`, `initUpdater` |
 | 1070-1158 | IPC: `migration:set-in-flight`, `install-update`, `update:set-auto` | — |
 
-## Google auth loopback, shell, detached cam window (L1159-1354)
+## Google auth loopback, shell, detached cam window (L1167-1362)
 
 | L | What | IPC |
 |---|---|---|
 | 1159-1311 | Google OAuth loopback sign-in (`auth:google-loopback`); `shell:open-external` | — |
 | 1312-1354 | Detached camera-wall `BrowserWindow` (`cam:open-detached`); `update:check-now` | — |
 
-## Printer discovery probes (L1355-1861)
+## Printer discovery probes (L1363-1869)
 
 | L | What | Anchors / IPC |
 |---|---|---|
@@ -83,14 +83,14 @@ L3128-3180   App lifecycle (whenReady, window-all-closed, activate)
 | 1696-1813 | Elegoo — UDP discovery/probe (`elegoo:udp-discover` / `elegoo:udp-probe`) | `_parseElegooReply` |
 | 1814-1861 | Snapmaker — HTTP GET bridge (`snap:http-get`) | — |
 
-## Infra IPC — image cache, subnets, mDNS, app info, DB (L1862-2017)
+## Infra IPC — image cache, subnets, mDNS, app info, DB (L1870-2025)
 
 | L | What | IPC |
 |---|---|---|
 | 1862-1987 | Image disk cache (`img:get`), LAN /24 subnet list (`net:get-local-subnets`), mDNS Snapmaker browse (`mdns:browse-snapmaker`) | — |
 | 1988-2017 | App/platform info for diagnostics (`app:info`, `app:renderer-path`); TigerTag DB lookups (`db:*`) | — |
 
-## Elegoo MQTT bridge + timelapse + ffmpeg (L2018-2154)
+## Elegoo MQTT bridge + timelapse + ffmpeg (L2026-2162)
 
 | L | What | IPC |
 |---|---|---|
@@ -98,7 +98,7 @@ L3128-3180   App lifecycle (whenReady, window-all-closed, activate)
 | 2050-2122 | Elegoo MQTT 1883 bridge (`elegoo:connect` / `disconnect` / `publish`) | — |
 | 2123-2154 | Shared `ffmpeg` binary detection (Bambu RTSP + Anycubic FLV cameras) | — |
 
-## Bambu Lab — MQTT + JPEG-TCP/RTSP cameras (L2155-2408)
+## Bambu Lab — MQTT + JPEG-TCP/RTSP cameras (L2163-2416)
 
 | L | What | Anchors / IPC |
 |---|---|---|
@@ -106,7 +106,7 @@ L3128-3180   App lifecycle (whenReady, window-all-closed, activate)
 | 2215-2299 | JPEG-TCP camera, port 6000 (`bambulab:cam-start` / `cam-stop`) — 80-byte auth packet, retry/timeout | `_bambuCamAuthPacket` |
 | 2300-2408 | RTSP camera via ffmpeg, port 322 (`bambulab:cam-start-rtsp` / `cam-stop-rtsp`) — 30 fps + low-latency flags | — |
 
-## Anycubic LAN — MQTT, provisioning, FLV camera (L2409-2723)
+## Anycubic LAN — MQTT, provisioning, FLV camera (L2417-2731)
 
 | L | What | Anchors / IPC |
 |---|---|---|
@@ -115,7 +115,7 @@ L3128-3180   App lifecycle (whenReady, window-all-closed, activate)
 | 2589-2655 | Slicer on-disk credential reader (`anycubic:read-slicer-config`) — keyless deobfuscation | `_acuDeobfuscate`, `_acuConfCandidates` |
 | 2656-2723 | LAN scan: TCP probe (`anycubic:tcp-probe`), FLV liveness (`anycubic:flv-probe`, accepts 200/206), `/info` (`anycubic:http-info`) | — |
 
-## Anycubic cloud — REST + cloud MQTT (L2724-3127)
+## Anycubic cloud — REST + cloud MQTT (L2732-3135)
 
 | L | What | Anchors / IPC |
 |---|---|---|
@@ -125,7 +125,7 @@ L3128-3180   App lifecycle (whenReady, window-all-closed, activate)
 | 3098-3125 | Cloud-uploaded files (§9c): `cloud-files-list` (POST `/work/index/files`), `cloud-file-delete` (POST `/work/index/delFiles`); print reuses `cloud-send-order` order 1 | — |
 | 3126-3239 | Shared cloud-MQTT client (one per user): `cloud-connect` / `subscribe` / `publish` / `unsubscribe`; RSA-encrypted token login | `_buildCloudLogin`, `_routeCloudMessage`, `_ensureCloudClient` |
 
-## App lifecycle (L3240-3292)
+## App lifecycle (L3248-3300)
 
 | L | What |
 |---|---|

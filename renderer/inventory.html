@@ -53,11 +53,6 @@
             <span class="sb-avatar-swap" aria-hidden="true">
               <span class="icon icon-swap icon-13"></span>
             </span>
-            <!-- Edit badge — shown on hover in your OWN view; click = change photo
-                 (the rest of the avatar still opens the account menu). -->
-            <button class="sb-avatar-edit" id="sbAvatarEdit" type="button" aria-label="Change photo" data-i18n-title="changeAvatar" title="Change photo">
-              <span class="icon icon-edit icon-11" aria-hidden="true"></span>
-            </button>
           </div>
           <div class="acct-dropdown" id="acctDropdown">
             <div id="acctDropdownList"></div>
@@ -78,7 +73,6 @@
         </button>
       </div>
       <div class="sb-actions">
-        <button id="btnOpenFriends" class="ghost sb-friends-btn"><span class="icon icon-user icon-13"></span><span class="label" data-i18n="friendsTitle">Friends</span><span id="friendsBadge" class="friends-badge hidden"></span></button>
         <button id="btnOpenNotifs" class="ghost sb-notifs-btn"><span class="icon icon-bell icon-13"></span><span class="label" data-i18n="notifsTitle">Notifications</span><span id="notifBadge" class="friends-badge hidden"></span></button>
         <!-- Quick-access friends list (rendered by JS into this container).
              Each chip switches the inventory view to that friend on click.
@@ -131,7 +125,7 @@
       <div class="top-status-icons">
         <div id="rfidReadersBar" class="rfid-readers-bar"></div>
         <div class="health td1s-health" id="td1sHealth" data-tooltip="TD1S: not detected"><span class="td1s-health-icon"></span></div>
-        <div class="health scale-health" id="scaleHealth" data-tooltip="No scale connected"><span class="scale-health-icon"></span></div>
+        <div class="health scale-health" id="scaleHealth" data-tooltip="No scale connected"><span class="scale-health-icon"></span><span class="scale-live" aria-hidden="true"></span></div>
         <div class="health" id="health" data-tooltip="Backend: idle"><span class="icon icon-cloud-3d icon-20"></span></div>
         <div class="health update-health hidden" id="updateStatusIcon" data-tooltip=""><span class="update-health-icon"></span></div>
       </div>
@@ -187,13 +181,9 @@
           </div>
         </div>
         <div class="inv-actions-group">
-          <button id="btnAddScan" class="inv-scan-btn" type="button">
-            <span class="inv-scan-dot"></span>
-            <span data-i18n="btnAddScan">+ Scan</span>
-          </button>
           <button id="btnAddProduct" class="inv-add-btn" type="button">
             <span class="icon icon-plus icon-13"></span>
-            <span data-i18n="addProductBtn">Add product</span>
+            <span data-i18n="addProductBtn">Material</span>
           </button>
           <!-- Cam view only: detach the camera wall into its own window. Same
                orange style as Add Device; shown via #card-inv.is-cam-view. -->
@@ -268,7 +258,11 @@
 <!-- update banner -->
 <div id="updateBanner" class="update-banner hidden">
   <span class="ub-icon">⬆</span>
-  <span class="ub-text" id="updateMsg"><strong>Update available</strong> — downloading…</span>
+  <div class="ub-body">
+    <span class="ub-text" id="updateMsg"><strong>Update available</strong></span>
+    <span class="ub-sub hidden" id="updateSub">downloading…</span>
+    <div class="ub-progress hidden" id="updateProgress"><span class="ub-progress-fill" id="updateProgressFill"></span></div>
+  </div>
   <button id="btnInstallUpdate" class="primary sm hidden">Restart &amp; update</button>
 </div>
 
@@ -1026,6 +1020,8 @@
     <div class="fp-hero">
       <div class="fp-hero-label" data-i18n="friendsMyCode">My code</div>
       <div class="fp-hero-code" id="stgPublicKey">—</div>
+      <!-- QR of the shareable invite link (cdn.tigertag.io/friend/<code>) — src set in renderFriendsSection -->
+      <div class="fp-hero-qr"><img id="fpHeroQr" alt="QR" /></div>
       <div class="fp-hero-actions">
         <button class="fp-hero-btn" id="btnShareFriendLink" title="Share invite link">
           <span class="icon icon-link icon-14"></span>
@@ -1060,18 +1056,8 @@
       <div id="fpReqsList" class="fp-list"></div>
     </div>
 
-    <!-- Friends list -->
-    <div class="fp-list-block">
-      <div class="fp-list-head">
-        <span class="fp-list-title" data-i18n="friendsList">My friends</span>
-        <span class="fp-list-count" id="stgFriendsCount">0</span>
-      </div>
-      <div class="fp-search">
-        <input type="text" id="fpSearch" data-i18n-placeholder="friendsSearch" placeholder="Search friend…" />
-        <span class="icon icon-search icon-13"></span>
-      </div>
-      <div id="stgFriendsList" class="fp-list"></div>
-    </div>
+    <!-- The friends LIST lives in a companion side-card (#friendsListPanel),
+         opened to the LEFT of this panel when there is at least one friend. -->
 
     <!-- Blacklist (hidden when empty) -->
     <div class="fp-list-block fp-blacklist-block hidden" id="fpBlacklistBlock">
@@ -1090,6 +1076,23 @@
       </button>
     </div>
 
+  </div>
+</div>
+
+<!-- Companion friends-list side-card — opens to the LEFT of #friendsPanel when
+     the user has at least one friend (positioned by JS). -->
+<button class="pp-close-tab" id="friendsListCloseTab" title="Close" aria-label="Close" hidden>»</button>
+<div class="detail-panel friends-panel friends-list-panel" id="friendsListPanel">
+  <div class="panel-header">
+    <span class="panel-title" data-i18n="friendsList">My friends</span>
+    <span class="fp-list-count" id="stgFriendsCount">0</span>
+  </div>
+  <div class="panel-body friends-body">
+    <div class="fp-search">
+      <input type="text" id="fpSearch" data-i18n-placeholder="friendsSearch" placeholder="Search friend…" />
+      <span class="icon icon-search icon-13"></span>
+    </div>
+    <div id="stgFriendsList" class="fp-list"></div>
   </div>
 </div>
 
@@ -1490,10 +1493,30 @@
 <div class="modal-overlay" id="profilesModalOverlay">
   <div class="modal-card prf-card">
     <div class="prf-header">
-      <span class="prf-title" data-i18n="btnManageProfiles">Manage profiles</span>
+      <div class="prf-head-text">
+        <span class="prf-title" data-i18n="btnManageAccounts">Manage accounts</span>
+        <span class="prf-sub" data-i18n="manageAccountsSub">Switch, sign in, sign out, have a blast.</span>
+      </div>
       <button class="modal-close" id="profilesModalClose">✕</button>
     </div>
     <div class="prf-body" id="profilesList"></div>
+  </div>
+</div>
+
+<!-- ── "add an avatar" fun nudge (shown once per session when the user has no photo) ── -->
+<div class="modal-overlay avp-overlay" id="avatarPromptOverlay">
+  <div class="modal-card avp-card">
+    <div class="avp-burst" aria-hidden="true">
+      <span class="avp-ring avp-ring--1"></span>
+      <span class="avp-ring avp-ring--2"></span>
+      <span class="avp-avatar-ph"><span class="icon icon-user icon-32"></span></span>
+    </div>
+    <h2 class="avp-title" data-i18n="avatarPromptTitle">Put a face to your studio!</h2>
+    <p class="avp-body" data-i18n="avatarPromptBody">Add a profile photo so friends spot you instantly.</p>
+    <div class="avp-actions">
+      <button class="avp-skip" id="avatarPromptSkip" type="button" data-i18n="avatarPromptLater">Maybe later</button>
+      <button class="avp-cta" id="avatarPromptCta" type="button" data-i18n="avatarPromptCta">Pick my photo</button>
+    </div>
   </div>
 </div>
 
@@ -1791,6 +1814,20 @@
 </div>
 
 <!-- Friend request incoming modal -->
+<!-- Remove-friend confirmation (dark, Discord-style + friend avatar) -->
+<div class="modal-overlay" id="removeFriendModalOverlay">
+  <div class="modal-card confirm-card">
+    <button class="modal-close" id="rmFriendClose" title="Close" aria-label="Close">✕</button>
+    <div class="confirm-avatar" id="rmFriendAvatar"></div>
+    <h2 class="confirm-title" id="rmFriendTitle"></h2>
+    <p class="confirm-body" id="rmFriendBody"></p>
+    <div class="confirm-actions">
+      <button class="confirm-cancel" id="rmFriendCancel" data-i18n="cancelLabel">Cancel</button>
+      <button class="confirm-danger" id="rmFriendConfirm"></button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="friendRequestOverlay">
   <div class="modal-card frq-card">
     <button class="modal-close frq-close" id="frqClose" title="Close" aria-label="Close">✕</button>

@@ -8,19 +8,10 @@
     flex: 1; min-height: 0;
     overflow-y: auto;
     overflow-x: hidden;
+    scrollbar-width: none;                 /* Firefox — hide the vertical scrollbar */
   }
+  .inv-printer-view::-webkit-scrollbar { width: 0; height: 0; }   /* Chromium */
   .inv-printer-view.hidden { display: none; }
-
-  .printers-header {
-    display: flex; align-items: flex-end; justify-content: space-between;
-    padding: 4px 2px 0;
-  }
-  .printers-h3 {
-    margin: 0 0 4px; font-size: 18px; font-weight: 600; color: var(--text);
-  }
-  .printers-sub {
-    margin: 0; font-size: 13px; color: var(--muted);
-  }
 
   .printers-section {
     display: flex; flex-direction: column; gap: 10px;
@@ -2197,7 +2188,9 @@ details[open] .pba-step-chev { transform: rotate(90deg); }
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   margin-top: 12px;   /* match the inventory `.table-wrap` gap below the search bar */
+  scrollbar-width: none;   /* hide the scrollbar (still scrolls) */
 }
+.pt-wrap::-webkit-scrollbar { width: 0; height: 0; }
 .pt-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13.5px; }
 .pt-head { position: sticky; top: 0; background: var(--surface-2); z-index: 1; }
 .pt-th { padding: 9px 12px; text-align: left; font-size: 12px; font-weight: 600;

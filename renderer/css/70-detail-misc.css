@@ -82,7 +82,18 @@
     transition: background .15s, border-color .15s, transform .05s;
     display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-family: inherit;
   }
-  button:hover { background: var(--surface-2); }
+  /* Hover feedback via a slight DARKEN (filter), NOT a background swap. A global
+     `background: var(--surface-2)` here used to clobber the fill of EVERY
+     custom-coloured button (orange CTAs, etc.) on hover — their white text then
+     sat on a light background = invisible, so each one had to redeclare its
+     :hover background or it broke. brightness(.95) darkens whatever the button's
+     OWN background is (white surface, transparent, or a solid accent) without
+     ever overriding it: visible on light AND dark AND coloured buttons, and
+     coloured buttons stay readable for free — no per-button :hover needed.
+     `.ghost` / `.primary` opt out because they define their own :hover below. */
+  button:hover { filter: brightness(.95); }
+  button.ghost:hover,
+  button.primary:hover { filter: none; }
   /* Press feedback via brightness, NOT transform: a global `translateY(1px)`
      used to OVERRIDE the centering transform of positioned buttons (password
      eye toggles, etc.) and make them jump down on click. brightness never
@@ -121,7 +132,8 @@
   .stat .value { font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; margin-top: 2px; }
 
   /* ── table ── */
-  .table-wrap { overflow: auto; border: 1px solid var(--border); border-radius: var(--radius-sm); margin-top: 12px; }
+  .table-wrap { overflow: auto; border: 1px solid var(--border); border-radius: var(--radius-sm); margin-top: 12px; scrollbar-width: none; }
+  .table-wrap::-webkit-scrollbar { width: 0; height: 0; }
   /* ── sign-in placeholder ── */
   .signin-placeholder {
     flex: 1; display: flex; flex-direction: column;
@@ -261,7 +273,8 @@
     text-align: center; line-height: 1.4;
   }
   #invTableWrap { flex: 1; min-height: 0; }
-  #invGrid { flex: 1; min-height: 0; overflow-y: auto; margin-top: 12px; }
+  #invGrid { flex: 1; min-height: 0; overflow-y: auto; margin-top: 12px; scrollbar-width: none; }
+  #invGrid::-webkit-scrollbar { width: 0; height: 0; }   /* hide the scrollbar (still scrolls) */
   table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13.5px; }
   th, td { padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
   /* z-index must sit ABOVE the absolutely-positioned thumbnail badges
@@ -423,7 +436,6 @@
   /* Cam view: the search bar + "Scan"/"Add device" buttons don't apply to the
      camera wall — hide them; the "Detach" button takes the actions slot. */
   #card-inv.is-cam-view .inv-search-row,
-  #card-inv.is-cam-view #btnAddScan,
   #card-inv.is-cam-view #btnAddProduct { display: none; }
   .inv-actions-group {
     display: flex;
@@ -462,52 +474,6 @@
   }
   .inv-add-btn:active { transform: translateY(1px); }
   .inv-add-btn .icon  { background: #fff; }
-
-  /* ── "+ Scan" button — same look as inv-add-btn, always visible.
-        .has-reader is added when ≥1 NFC reader is connected.
-        Without a reader the button is dimmed to signal unavailability. ── */
-  .inv-scan-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    height: 36px;
-    padding: 0 14px;
-    border: none;
-    border-radius: 10px;
-    background: var(--primary);
-    color: #fff;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: filter .15s, transform .1s;
-    flex-shrink: 0;
-  }
-  .inv-scan-btn:hover {
-    background: var(--primary);
-    filter: brightness(1.07);
-  }
-  .inv-scan-btn:active { transform: translateY(1px); }
-
-  /* Active (scanning) state — slightly dimmed + pulsing dot */
-  .inv-scan-btn.scanning {
-    filter: brightness(0.85);
-  }
-  .inv-scan-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.55);
-    flex-shrink: 0;
-    transition: background .15s;
-  }
-  .inv-scan-btn.scanning .inv-scan-dot {
-    background: #fff;
-    animation: scan-pulse 1.2s ease-in-out infinite;
-  }
-  @keyframes scan-pulse {
-    0%, 100% { opacity: 1;   transform: scale(1); }
-    50%       { opacity: .5; transform: scale(1.4); }
-  }
 
   /* ── RFID scan notification — fixed card bottom-right ── */
   .rfid-scan-notif {
@@ -1448,9 +1414,30 @@
     font-size: 13px; white-space: nowrap;
     animation: slideUp .25s cubic-bezier(.4,0,.2,1);
   }
-  .update-banner .ub-icon { font-size: 18px; }
-  .update-banner .ub-text { color: rgba(255,255,255,.75); }
+  .update-banner .ub-icon { font-size: 18px; align-self: flex-start; margin-top: 1px; }
+  .update-banner .ub-body { display: flex; flex-direction: column; gap: 6px; min-width: 220px; }
+  .update-banner .ub-text { color: rgba(255,255,255,.75); line-height: 1.25; }
   .update-banner .ub-text strong { color: #fff; }
+  .update-banner .ub-sub { color: rgba(255,255,255,.6); font-size: 12px; }
+  .update-banner .ub-sub.hidden,
+  .update-banner .ub-progress.hidden { display: none; }
+  .update-banner .ub-progress {
+    height: 5px; border-radius: 3px; overflow: hidden;
+    background: rgba(255,255,255,.14);
+  }
+  .update-banner .ub-progress-fill {
+    display: block; height: 100%; width: 0%; border-radius: 3px;
+    background: var(--primary); transition: width .3s ease;
+  }
+  /* Pre-progress phase (status 'available', no percent yet): looping sweep. */
+  .update-banner .ub-progress--indeterminate .ub-progress-fill {
+    width: 35%; transition: none;
+    animation: ubIndeterminate 1.1s ease-in-out infinite;
+  }
+  @keyframes ubIndeterminate {
+    0%   { margin-left: -35%; }
+    100% { margin-left: 100%; }
+  }
   @keyframes slideUp { from { opacity:0; transform: translateX(-50%) translateY(12px); } to { opacity:1; transform: translateX(-50%) translateY(0); } }
 
   #debugPanel .panel-body { overflow: hidden; }

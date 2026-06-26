@@ -1082,6 +1082,15 @@ function wireUpdaterEvents() {
   autoUpdater.on('update-not-available', () => {
     mainWindow?.webContents.send('update-status', { status: 'up-to-date' });
   });
+  autoUpdater.on('download-progress', (p) => {
+    mainWindow?.webContents.send('update-status', {
+      status: 'downloading',
+      percent: p?.percent,
+      bytesPerSecond: p?.bytesPerSecond,
+      transferred: p?.transferred,
+      total: p?.total,
+    });
+  });
   autoUpdater.on('update-downloaded', (info) => {
     mainWindow?.webContents.send('update-status', { status: 'ready', version: info?.version });
   });

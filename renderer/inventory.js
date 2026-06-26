@@ -135,6 +135,27 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   };
   let _unsubInventory  = null; // active Firestore onSnapshot unsubscribe handle
   let _sliderDebounce  = null; // pending auto-save timer for weight slider
+  // A scanned spool to auto-open in the detail card as soon as it appears in the
+  // OWN inventory — survives the async friend→own view switch a scan triggers.
+  let _scanOpenUid     = null;
+  // Open the pending scanned spool in the detail card once it's in our own
+  // inventory. Called from the scan handlers AND from the inventory snapshot, so
+  // it reliably fires after the async friend→own view switch / Firestore write.
+  // No-op while previewing a friend or with the Encode modal open.
+  function _consumeScanOpen() {
+    if (!_scanOpenUid || state.friendView || _encodeModalOpen()) return;
+    const row = state.rows.find(r => r.uid === _scanOpenUid || r.spoolId === _scanOpenUid);
+    if (!row) return;
+    _scanOpenUid = null;
+    openDetail(row.spoolId, { animateSwap: true });
+  }
+  // Readiness barrier for destructive automation. Holds the uid whose racks
+  // have actually been delivered by subscribeRacks. Auto-organize (auto-store /
+  // auto-unstore) must NOT run until this equals the active account — otherwise
+  // it would act on a stale/empty rack set (e.g. the new account's first cached
+  // inventory snapshot fires before its racks load) and could rewrite or wrongly
+  // free placements. Reset on every account teardown, set on the racks snapshot.
+  let _racksLoadedFor  = null;
   const _friendProfileUnsubs = new Map(); // friendUid -> userProfiles onSnapshot unsubscribe
 
   const ACCOUNT_COLORS = {
@@ -1496,56 +1517,52 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const activeId = state.activeAccountId;
     const list = $("acctDropdownList");
 
-    // ── Connected accounts ──
-    let html = accounts.map(acc => `
-      <button class="acct-drop-item${acc.id===activeId?' active':''}" data-drop-id="${esc(acc.id)}">
-        ${avatarMarkup(acc, "acct-drop-avatar")}
-        <span class="acct-drop-name">${esc(_shortName(acc.displayName, acc.email))}</span>
-        ${acc.id===activeId ? '<span class="acct-drop-check">✓</span>' : ''}
-      </button>`).join("");
+    const acc = activeAccount();
+    const _friendCount = (state.friends || []).length;
+    // The connected accounts live in a hover fly-out to the RIGHT of "Switch
+    // account" (Discord-style) — they don't replace the main menu.
+    const accountsHtml = accounts.map(a => `
+        <button class="acct-drop-item${a.id===activeId?' active':''}" data-drop-id="${esc(a.id)}">
+          ${avatarMarkup(a, "acct-drop-avatar")}
+          <span class="acct-drop-name">${esc(_shortName(a.displayName, a.email))}</span>
+          ${a.id===activeId ? '<span class="acct-drop-check">✓</span>' : ''}
+        </button>`).join("");
 
-    // ── Add / change avatar — first action, so a user without a photo is
-    //    nudged to add one straight from the top-left. ──
-    const _hasPhoto = !!activeAccount()?.photoURL;
-    html += `<div class="acct-drop-sep"></div>
-      <button class="acct-drop-action" data-drop-action="change-avatar">
-        <span class="icon ${_hasPhoto ? "icon-edit" : "icon-plus"} icon-13"></span>
-        <span>${t(_hasPhoto ? "changeAvatar" : "addAvatar")}</span>
+    list.innerHTML = `
+      <div class="acct-drop-current">
+        ${avatarMarkup(acc, "acct-drop-avatar")}
+        <span class="acct-drop-name">${esc(_shortName(acc?.displayName, acc?.email))}</span>
+        <span class="acct-drop-check">✓</span>
+      </div>
+      <div class="acct-drop-sep"></div>
+      <div class="acct-drop-haschild">
+        <button class="acct-drop-action acct-drop-action--nav" type="button">
+          <span class="icon icon-user icon-13"></span>
+          <span>${t("btnSwitchAccount")}</span>
+          <span class="acct-drop-chevron"><span class="icon icon-chevron-r icon-12"></span></span>
+        </button>
+        <div class="acct-drop-submenu">
+          ${accountsHtml}
+          <div class="acct-drop-sep"></div>
+          <button class="acct-drop-action" data-drop-action="manage-profiles">
+            <span class="icon icon-settings icon-13"></span>
+            <span>${t("btnManageAccounts")}</span>
+          </button>
+        </div>
+      </div>
+      <button class="acct-drop-action" data-drop-action="edit-profile">
+        <span class="icon icon-edit icon-13"></span>
+        <span>${t("btnEditProfile")}</span>
       </button>
-      <button class="acct-drop-action" data-drop-action="manage-profiles">
+      <button class="acct-drop-action" data-drop-action="open-friends">
         <span class="icon icon-user icon-13"></span>
-        <span>${t("btnManageProfiles")}</span>
+        <span>${t("friendsTitle")}</span>
+        <span id="acctDropFriendsBadge" class="acct-drop-badge">${_friendCount > 0 ? _friendCount : "+"}</span>
       </button>
       <button class="acct-drop-action" data-drop-action="open-settings">
         <span class="icon icon-settings icon-13"></span>
         <span>${t("settingsOpenBtn")}</span>
       </button>`;
-
-    // ── Friends section ──
-    if (state.friends && state.friends.length) {
-      html += `<div class="acct-drop-sep"></div>
-        <div class="acct-drop-section-label">${t("friendsList")}</div>`;
-      html += state.friends.map(f => {
-        const initials = (f.displayName || "?").split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
-        const color = friendColor(f);
-        const fg = readableTextOn(color);
-        const isActive = state.friendView?.uid === f.uid;
-        return `<button class="acct-drop-item${isActive ? ' acct-drop-friend-active' : ''}" data-drop-friend-uid="${esc(f.uid)}" data-drop-friend-name="${esc(_shortName(f.displayName, f.uid))}" data-drop-friend-color="${esc(color)}">
-          ${avatarMarkup(f, "acct-drop-avatar")}
-          <span class="acct-drop-name">${esc(_shortName(f.displayName, f.uid))}</span>
-          ${isActive ? '<span class="acct-drop-check">✓</span>' : '<span class="acct-drop-eye"><span class="icon icon-eye-on icon-11"></span></span>'}
-        </button>`;
-      }).join("");
-    }
-
-    // ── Add friend action — always visible at the bottom ──
-    html += `<div class="acct-drop-sep"></div>
-      <button class="acct-drop-action" data-drop-action="add-friend">
-        <span class="icon icon-plus icon-13"></span>
-        <span>${t("friendsAdd")}</span>
-      </button>`;
-
-    list.innerHTML = html;
 
     list.querySelectorAll("[data-drop-id]").forEach(btn => {
       btn.addEventListener("click", () => {
@@ -1560,20 +1577,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         }
       });
     });
-    list.querySelectorAll("[data-drop-friend-uid]").forEach(btn => {
-      btn.addEventListener("click", () => {
-        closeAccountDropdown();
-        switchToFriendView(btn.dataset.dropFriendUid, btn.dataset.dropFriendName, btn.dataset.dropFriendColor);
-      });
-    });
     list.querySelectorAll("[data-drop-action]").forEach(btn => {
       btn.addEventListener("click", () => {
         const action = btn.dataset.dropAction;
         closeAccountDropdown();
-        if (action === "change-avatar") _changeMyAvatar();
+        if (action === "edit-profile") { const a = activeAccount(); if (a) openEditAccountModal(a); }
+        else if (action === "open-friends") openFriends();
         else if (action === "manage-profiles") openProfilesModal();
         else if (action === "open-settings") openSettings();
-        else if (action === "add-friend") openAddFriendModal();
       });
     });
   }
@@ -1583,8 +1594,6 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     closeAccountDropdown();
     renderAccountList();
     $("profilesModalOverlay").classList.add("open");
-    // Refresh friends list so the friends section stays up-to-date
-    loadFriendsList().then(() => renderAccountList());
   }
   function closeProfilesModal() {
     $("profilesModalOverlay").classList.remove("open");
@@ -3382,14 +3391,38 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     loadFriendsList();
     renderFriendsSection();
     renderFriendRequestsList();
+    loadBlacklist();   // refresh + render the "Blocked users" section on every open
     $("friendsPanel").classList.add("open"); $("friendsOverlay").classList.add("open");
+    _syncFriendsListPanel();
   }
   function closeFriends() {
     $("friendsPanel").classList.remove("open"); $("friendsOverlay").classList.remove("open");
+    _syncFriendsListPanel();   // main no longer open → closes the list card + its » tab
   }
-  $("btnOpenFriends").addEventListener("click", openFriends);
+  // Open the companion friends-LIST card to the LEFT of the Friends panel, but
+  // only while the Friends panel is open AND the user has ≥1 friend (otherwise
+  // just the Friends panel shows). Pins its `right` to the Friends panel width
+  // so the two cards sit side-by-side. Called on open and on every list re-render
+  // (so it also pops in once friends finish loading).
+  function _syncFriendsListPanel() {
+    const list = $("friendsListPanel"), main = $("friendsPanel");
+    if (!list || !main) return;
+    const show = main.classList.contains("open") && (state.friends || []).length >= 1;
+    if (show) {
+      list.style.right = `${main.offsetWidth}px`;
+      list.classList.add("open");
+      // » close tab pinned to the list card's LEFT edge (like every other side-card).
+      _setTab($("friendsListCloseTab"), true, main.offsetWidth + list.offsetWidth);
+    } else {
+      list.classList.remove("open");
+      list.style.right = "";
+      _setTab($("friendsListCloseTab"), false, 0);
+    }
+  }
+  // Friends is opened from the account dropdown (data-drop-action="open-friends").
   $("friendsPanelClose").addEventListener("click", closeFriends);
   $("friendsOverlay").addEventListener("click", closeFriends);
+  $("friendsListCloseTab")?.addEventListener("click", closeFriends);
   $("btnOpenNotifs")?.addEventListener("click", openNotifs);
   $("notifPanelClose")?.addEventListener("click", closeNotifs);
   $("notifOverlay")?.addEventListener("click", closeNotifs);
@@ -3608,14 +3641,48 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     try {
       await uploadCroppedAvatar(cropped.blob, cropped.contentType);
       paintAvatar($("sbAvatar"), activeAccount());   // immediate header refresh
+      // Photo set → retire the nudge (notification + modal) immediately.
+      _clearLocalNotif("avatar");
+      _closeAvatarPrompt();
     } catch (e) { console.warn("[avatar.upload]", e); }
   }
-  // Hover edit badge on the header avatar → change photo directly (stopPropagation
-  // so it doesn't also open the account menu the avatar itself triggers).
-  $("sbAvatarEdit")?.addEventListener("click", e => {
-    e.stopPropagation();
+
+  /* ── "Add an avatar" fun nudge ──────────────────────────────────────────
+     Encourage (not force) the user to set a profile photo. Shows a playful
+     modal once per account per app session AND keeps a persistent
+     notification while no avatar is set. Both clear the moment a photo is
+     uploaded. Called from syncUserDoc once the authoritative photoURL is in. */
+  const _avatarPromptShownFor = new Set();
+  function _showAvatarPrompt()  { $("avatarPromptOverlay")?.classList.add("open"); }
+  function _closeAvatarPrompt() { $("avatarPromptOverlay")?.classList.remove("open"); }
+  function _maybePromptAvatar() {
     if (state.friendView) return;
-    _changeMyAvatar();
+    const uid = state.activeAccountId;
+    if (!uid) return;
+    const hasPhoto = !!(state.photoURL || activeAccount()?.photoURL);
+    if (hasPhoto) { _clearLocalNotif("avatar"); _closeAvatarPrompt(); return; }
+    // Let the display-name setup take priority — never stack two prompts.
+    if (!state.displayName) return;
+    // Persistent nudge in the notification center (stays until a photo is set).
+    _setLocalNotif({ id: "avatar", icon: "user", text: t("notifAvatarText"), action: "avatar" });
+    // Fun modal — once per account per session (so it greets on each launch/login
+    // but never spams on background syncUserDoc re-runs).
+    if (!_avatarPromptShownFor.has(uid)) {
+      _avatarPromptShownFor.add(uid);
+      _showAvatarPrompt();
+    }
+  }
+  $("avatarPromptCta")?.addEventListener("click", () => { _closeAvatarPrompt(); _changeMyAvatar(); });
+  $("avatarPromptSkip")?.addEventListener("click", _closeAvatarPrompt);
+  $("avatarPromptOverlay")?.addEventListener("click", e => { if (e.target === $("avatarPromptOverlay")) _closeAvatarPrompt(); });
+
+  // The header chip (own view) renders an editable avatar too — clicking it
+  // (hover shows a pencil overlay) changes the photo. Delegated on the static
+  // banner so it survives renderFriendBanner's innerHTML rebuilds. Never fires
+  // in friend view: that chip shows the friend's avatar and has no edit button.
+  $("friendViewBanner")?.addEventListener("click", e => {
+    if (state.friendView) return;
+    if (e.target.closest(".fvb-avatar-edit")) _changeMyAvatar();
   });
   $("btnAddFirstAccount").addEventListener("click", openAddAccountModal);
   // btnManageProfiles is now rendered dynamically in renderAccountDropdown — listener attached there
@@ -4727,6 +4794,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           // inventory + a pending-write echo), collapse them to one paint.
           scheduleRender("inventory", () => {
             sortStateRows(); renderStats(); renderInventory();
+            // A just-scanned spool waiting to open? It's now in our own rows.
+            _consumeScanOpen();
             // Refresh open detail panel — short-circuits when the displayed
             // spool hasn't actually changed (no flash on unrelated edits).
             refreshOpenDetail();
@@ -4768,6 +4837,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // Clearing here makes Auto-organize a no-op (`!state.racks.length`) until the
     // new account's racks load. Printers/scales are cleared on their own resubscribe.
     state.racks = [];
+    _racksLoadedFor = null;   // arm the readiness barrier until subscribeRacks delivers
     // Always reset friend-view mode on account change — the new account's own inventory is what we want to show.
     // We also clear the inventory/rows so the previous (friend) data isn't briefly shown as if it belonged to the new account.
     if (state.friendView) {
@@ -4928,72 +4998,60 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const el = $("profilesList"); if (!el) return;
     const accounts = getAccounts();
     const activeId = state.activeAccountId;
-    const sorted = [...accounts].sort((a, b) => (b.id === activeId ? 1 : 0) - (a.id === activeId ? 1 : 0));
-    const SVG_PLUS = `<span class="icon icon-plus icon-11"></span>`;
-    const SVG_CHEVRON = `<span class="icon icon-chevron-r icon-14"></span>`;
 
-    let html = "";
-    if (!sorted.length) {
-      html = `<div style="font-size:12px;color:var(--muted);padding:12px 0;text-align:center">${t("noAccounts")}</div>`;
-    } else {
-      html = `<div class="prf-list">${sorted.map(acc => {
-        const name = esc(acc.displayName || acc.email.split("@")[0]);
-        return `
-        <button class="prf-account-card" data-prf-id="${esc(acc.id)}">
-          ${avatarMarkup(acc, "prf-account-avatar")}
-          <span class="prf-account-info">
-            <span class="prf-account-name">${name}</span>
-            <span class="prf-account-email">${esc(acc.email)}</span>
-          </span>
-          <span class="prf-account-chevron">${SVG_CHEVRON}</span>
-        </button>`;
-      }).join("")}</div>`;
-    }
-    html += `<button class="stg-add-btn" id="btnShowAddAccount">${SVG_PLUS} ${t("addAccountLabel")}</button>`;
+    const rows = accounts.map(acc => {
+      const name = esc(acc.displayName || acc.email.split("@")[0]);
+      const isActive = acc.id === activeId;
+      return `
+      <div class="prf-acct${isActive ? " prf-acct--active" : ""}">
+        ${avatarMarkup(acc, "prf-acct-avatar")}
+        <div class="prf-acct-info">
+          <span class="prf-acct-name">${name}</span>
+          ${isActive
+            ? `<span class="prf-acct-active">${esc(t("accountActiveLabel"))}</span>`
+            : `<span class="prf-acct-email">${esc(acc.email)}</span>`}
+        </div>
+        ${isActive ? "" : `<button class="prf-acct-switch" data-acct-switch="${esc(acc.id)}">${esc(t("btnSwitchHere"))}</button>`}
+        <button class="prf-acct-menu-btn" data-acct-menu="${esc(acc.id)}" aria-label="${esc(t("btnDisconnect"))}"><span class="icon icon-kebab icon-16"></span></button>
+        <div class="prf-acct-menu" id="prfMenu-${esc(acc.id)}" hidden>
+          <button class="prf-acct-menu-item prf-acct-menu-item--danger" data-acct-disconnect="${esc(acc.id)}">
+            <span class="icon icon-signout icon-13"></span>
+            <span>${esc(t("btnDisconnect"))}</span>
+          </button>
+        </div>
+      </div>`;
+    }).join("");
 
-    // ── Friends section ───────────────────────────────────────────────────────
-    const SVG_EYE = `<span class="icon icon-eye-on icon-13"></span>`;
-    html += `<div class="prf-section-sep"></div>
-      <div class="prf-section-label">${t("friendsList")}</div>`;
-    if (state.friends && state.friends.length) {
-      html += `<div class="prf-list">${state.friends.map(f => {
-          const name = esc(_shortName(f.displayName, f.uid));
-          const color = friendColor(f);
-          const fg = readableTextOn(color);
-          const initials = (f.displayName || "?").split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
-          const isActive = state.friendView?.uid === f.uid;
-          return `
-          <button class="prf-account-card prf-friend-card${isActive ? " prf-friend-active" : ""}"
-                  data-fv-uid="${esc(f.uid)}" data-fv-name="${esc(_shortName(f.displayName, f.uid))}" data-fv-color="${esc(color)}">
-            ${avatarMarkup(f, "prf-account-avatar")}
-            <span class="prf-account-info">
-              <span class="prf-account-name">${name}</span>
-              <span class="prf-account-email prf-friend-sub">${t("friendViewInv")}</span>
-            </span>
-            <span class="prf-account-chevron">${SVG_EYE}</span>
-          </button>`;
-        }).join("")}</div>`;
-    } else {
-      html += `<div class="prf-friends-empty">${t("friendsEmpty")}</div>`;
-    }
-    // Always show the "Add a friend" button under the friends list
-    html += `<button class="stg-add-btn" id="btnPrfAddFriend">${SVG_PLUS} ${t("friendsAdd")}</button>`;
+    el.innerHTML = `
+      <div class="prf-acct-list">${rows || `<div class="prf-empty-msg">${esc(t("noAccounts"))}</div>`}</div>
+      <button class="prf-add-btn" id="btnShowAddAccount">
+        <span class="icon icon-plus icon-13"></span>
+        <span>${esc(t("addAccountLabel"))}</span>
+      </button>`;
 
-    el.innerHTML = html;
-
-    el.querySelectorAll("[data-prf-id]").forEach(card => {
-      card.addEventListener("click", () => {
-        const acc = getAccounts().find(a => a.id === card.dataset.prfId);
-        if (acc) { closeProfilesModal(); openEditAccountModal(acc); }
-      });
-    });
-    el.querySelectorAll("[data-fv-uid]").forEach(card => {
-      card.addEventListener("click", () => {
-        switchToFriendView(card.dataset.fvUid, card.dataset.fvName, card.dataset.fvColor);
-      });
-    });
+    const _closeMenus = (except) => el.querySelectorAll(".prf-acct-menu").forEach(m => { if (m !== except) m.hidden = true; });
+    el.querySelectorAll("[data-acct-switch]").forEach(b => b.addEventListener("click", (e) => {
+      e.stopPropagation();
+      closeProfilesModal();
+      switchAccountUI(b.dataset.acctSwitch);
+    }));
+    el.querySelectorAll("[data-acct-menu]").forEach(b => b.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const menu = $(`prfMenu-${b.dataset.acctMenu}`);
+      const willShow = menu && menu.hidden;
+      _closeMenus(menu);
+      if (menu) menu.hidden = !willShow;
+    }));
+    el.querySelectorAll("[data-acct-disconnect]").forEach(b => b.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const id = b.dataset.acctDisconnect;
+      if (id === state.activeAccountId) closeProfilesModal();  // active → switch/login handles UI
+      deleteAccountUI(id);  // non-active → re-renders the list in place
+    }));
+    // Any click elsewhere inside the modal closes an open "…" menu (bound once —
+    // kebab/switch/disconnect stopPropagation so they don't trip this).
+    if (!el._menuCloserBound) { el.addEventListener("click", () => _closeMenus(null)); el._menuCloserBound = true; }
     $("btnShowAddAccount").addEventListener("click", () => { closeProfilesModal(); openAddAccountModal(); });
-    $("btnPrfAddFriend")?.addEventListener("click", () => { closeProfilesModal(); openAddFriendModal(); });
   }
 
   async function switchAccountUI(id) {
@@ -9920,6 +9978,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const count = $("stgFriendsCount");
     if (!list) return;
     if (count) count.textContent = state.friends.length;
+    // Keep the companion list card in sync (opens once friends load, closes at 0).
+    _syncFriendsListPanel();
 
     if (!state.friends.length) {
       list.innerHTML = `
@@ -9953,13 +10013,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           <div class="fp-friend-date">${date ? t("friendAddedOn", { date }) : ""}</div>
         </div>
         <div class="fp-friend-actions">
-          <button class="fp-friend-btn fp-friend-view" data-action="view" title="${t('friendViewInv')}">
-            <span class="icon icon-eye-on icon-13"></span>
-          </button>
           <button class="fp-friend-btn fp-friend-remove" data-action="remove" title="${t('friendRemove')}">
             <span class="icon icon-trash icon-13"></span>
           </button>
         </div>
+        <span class="fp-friend-chevron" title="${t('friendViewInv')}" aria-hidden="true">
+          <span class="icon icon-chevron-r icon-14"></span>
+        </span>
       </div>`;
     }).join("");
 
@@ -9971,18 +10031,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       });
     });
     list.querySelectorAll(".fp-friend-remove").forEach(btn => {
-      btn.addEventListener("click", async (e) => {
-        e.stopPropagation();
-        const row = btn.closest(".fp-friend");
-        await removeFriend(row.dataset.uid);
-        renderFriendsList();
-      });
-    });
-    list.querySelectorAll(".fp-friend-view").forEach(btn => {
       btn.addEventListener("click", (e) => {
         e.stopPropagation();
         const row = btn.closest(".fp-friend");
-        switchToFriendView(row.dataset.uid, row.dataset.name, row.dataset.color);
+        const friend = (state.friends || []).find(f => f.uid === row.dataset.uid)
+                    || { uid: row.dataset.uid, displayName: row.dataset.name, color: row.dataset.color };
+        openRemoveFriendModal(friend);
       });
     });
   }
@@ -10247,13 +10301,21 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           return ta - tb;
         });
         state.racks = racks;
+        // Racks for the active account are now loaded — lift the readiness
+        // barrier and run a pass: any spool scanned before the racks arrived
+        // (auto-store skipped while the barrier was up) gets placed now, and
+        // depleted spools in unlocked slots get freed (locks are now known).
+        _racksLoadedFor = uid;
         console.log(`[racks] snapshot: ${racks.length} rack(s)`, racks.map(r => r.name));
         renderRacksList();
+        maybeAutoUnstoreDepletedSpools();
+        maybeAutoStoreUnrankedSpools();
         scheduleStudioStateRecord();  // re-arm deferred telemetry (rack counts changed)
       }, err => console.warn("[racks]", err.code, err.message));
   }
   function unsubscribeRacks() {
     if (state.unsubRacks) { state.unsubRacks(); state.unsubRacks = null; }
+    _racksLoadedFor = null;   // racks no longer loaded → re-arm the automation barrier
   }
 
   /* ── Scales — subscribeScales / unsubscribeScales / renderScalesPanel /
@@ -10705,7 +10767,6 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         <div class="printers-empty-card">
           <span class="icon icon-printer icon-32"></span>
           <div class="printers-empty-title">${esc(t("printersEmptyTitle"))}</div>
-          <div class="printers-empty-sub">${esc(t("printersEmptySub"))}</div>
           <ul class="printers-empty-bullets">
             <li>${esc(t("printersEmptyBullet1"))}</li>
             <li>${esc(t("printersEmptyBullet2"))}</li>
@@ -10821,12 +10882,6 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       </button>`;
 
     host.innerHTML = `
-      <div class="printers-header">
-        <div class="printers-header-text">
-          <h3 class="printers-h3">${esc(t("printersTitle"))}</h3>
-          <p class="printers-sub">${esc(t("printersSub", { n: state.printers.length }))}</p>
-        </div>
-      </div>
       <div class="printers-grid printers-grid--flex">${cards}${addCard}</div>`;
 
     wirePrinterDnd(host);
@@ -14816,10 +14871,18 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   async function autoFillEmptySlots(rackId) {
     const user = fbAuth().currentUser;
     if (!user) return 0;
-    // Exclude depleted spools from the pool — there's no point storing an
-    // empty roll, and it would loop with auto-unstorage if both are ON.
+    // The auto-fill pool is GENUINELY-unranked spools only (rackId == null).
+    // getUnrackedSpools() also surfaces "orphan" spools — those whose rackId
+    // points to a rack NOT in state.racks — so they still SHOW in the not-stored
+    // pile. But an orphan is ambiguous: usually it just means the rack snapshot
+    // hasn't loaded yet (e.g. mid account switch), occasionally a rack was
+    // deleted without its cascade. Either way we must NEVER auto-rewrite an
+    // orphan's location — doing so is exactly what corrupted placements when
+    // bouncing between accounts. Display it, never reassign it. We also drop
+    // depleted (0 g) rolls — pointless to store, and they'd loop with auto-unstore.
     const pool = getUnrackedSpools().filter(r =>
-      r.weightAvailable == null || Number(r.weightAvailable) > 0
+      r.rackId == null &&
+      (r.weightAvailable == null || Number(r.weightAvailable) > 0)
     );
     if (!pool.length || !state.racks.length) return 0;
     const targets = rackId
@@ -14891,6 +14954,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // Firebase user, and the data we're acting on all agree (prevents writes
     // derived from a stale snapshot landing on the wrong account).
     if (fbAuth().currentUser?.uid !== state.activeAccountId) return;
+    // Readiness barrier — never auto-place until THIS account's racks have
+    // actually been delivered (avoids acting on a stale/empty rack set during
+    // an account switch). subscribeRacks re-runs this pass once they land.
+    if (_racksLoadedFor !== state.activeAccountId) return;
     if (!_autoManageOn()) return;
     if (!state.racks.length) return;              // nothing to fill into
     _autoStoreInFlight = true;
@@ -14918,6 +14985,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (state.friendView) return;
     // Account-match guard (see maybeAutoStoreUnrankedSpools).
     if (fbAuth().currentUser?.uid !== state.activeAccountId) return;
+    // Readiness barrier — wait for this account's racks so slot-lock state is
+    // known before we free anything (a locked 0 g slot must keep its spool).
+    if (_racksLoadedFor !== state.activeAccountId) return;
     if (!_autoManageOn()) return;
     const targets = state.rows.filter(r =>
       !r.deleted &&
@@ -16546,9 +16616,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // click handler reads the same state to decide whether to act as a
     // dropdown trigger or as a one-click "return home" button.
     $("sbUser")?.classList.toggle("sb-user--viewing-friend", !!state.friendView);
-    // A friend's inventory is read-only — hide the write actions (+ Scan and
-    // Add product / Add device) since none of them can act on a friend's docs.
-    $("btnAddScan")?.classList.toggle("hidden", !!state.friendView);
+    // A friend's inventory is read-only — hide the write action (Add product /
+    // Add device) since it can't act on a friend's docs.
     $("btnAddProduct")?.classList.toggle("hidden", !!state.friendView);
     if (!banner) return;
     // ─── Friend view ───────────────────────────────────────────────
@@ -16589,7 +16658,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (sig !== _fvbSig) {
       _fvbSig = sig;
       banner.innerHTML = `
-        ${avatarMarkup(acc, "fvb-avatar")}
+        <button type="button" class="fvb-avatar-edit" id="fvbAvatarEdit" data-i18n-title="changeAvatar" title="${esc(t("changeAvatar"))}" aria-label="${esc(t("changeAvatar"))}">
+          ${avatarMarkup(acc, "fvb-avatar")}
+          <span class="fvb-avatar-ovl" aria-hidden="true"><span class="icon icon-edit icon-12"></span></span>
+        </button>
         <div class="fvb-inner">
           <span class="fvb-name">${esc(own)}</span>
         </div>`;
@@ -16746,6 +16818,16 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (keyEl) keyEl.textContent = state.publicKey || "—";
     const toggle = $("stgPublicToggle");
     if (toggle) toggle.checked = state.isPublic;
+    // QR of the shareable invite link (same URL as the "Share link" button).
+    const qr = $("fpHeroQr");
+    if (qr) {
+      if (state.publicKey) {
+        const link = encodeURIComponent(`https://cdn.tigertag.io/friend/${state.publicKey}`);
+        qr.src = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${link}&bgcolor=ffffff&color=1d1d1f&margin=0&qzone=1`;
+      } else {
+        qr.removeAttribute("src");
+      }
+    }
   }
 
   // Incoming friend request modal
@@ -17092,12 +17174,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // user has none yet (invites them to add one). Pending requests are NOT shown
   // here anymore — they live on the notification bell.
   function renderFriendsBadge() {
-    const badge = $("friendsBadge");
+    // The Friends entry now lives in the account dropdown; its count badge only
+    // exists in the DOM while the dropdown is open. Update it when present so a
+    // friend add/remove reflects live; otherwise the next dropdown open renders
+    // the current count from scratch.
+    const badge = $("acctDropFriendsBadge");
     if (!badge) return;
     const n = (state.friends || []).length;
     badge.textContent = n > 0 ? String(n) : "+";
-    badge.classList.add("friends-badge--count");
-    badge.classList.remove("hidden");   // always visible (count or "+")
   }
 
   // Shared actionable friend-request row (avatar + name + accept/decline/block),
@@ -17202,6 +17286,16 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     renderNotifBadge();
     renderNotifCenter();
   }
+  // Remove a local notification by id (e.g. the avatar nudge once a photo is set).
+  function _clearLocalNotif(id) {
+    const list = state.localNotifications;
+    if (!list) return;
+    const i = list.findIndex(n => n.id === id);
+    if (i < 0) return;
+    list.splice(i, 1);
+    renderNotifBadge();
+    renderNotifCenter();
+  }
   function renderNotifBadge() {
     const badge = $("notifBadge");
     if (!badge) return;
@@ -17224,11 +17318,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       `<div class="fp-req notif-req" data-uid="${esc(r.uid)}">${_reqRowInnerHtml(r)}</div>`).join("");
     const localHtml = locals.map(n => `
       <div class="notif-item notif-item--unread notif-item--local" data-local-id="${esc(n.id)}">
-        <span class="notif-ic"><span class="icon icon-${n.icon === "download" ? "download" : "refresh"} icon-14"></span></span>
+        <span class="notif-ic"><span class="icon icon-${esc(n.icon || "refresh")} icon-14"></span></span>
         <div class="fp-friend-main">
           <div class="notif-text">${esc(n.text)}${n.version ? ` (v${esc(n.version)})` : ""}</div>
         </div>
         ${n.action === "restart" ? `<button class="primary sm notif-restart">${esc(t("btnRestartUpdate"))}</button>` : ""}
+        ${n.action === "avatar" ? `<button class="primary sm notif-avatar-cta">${esc(t("avatarPromptCta"))}</button>` : ""}
       </div>`).join("");
     const notifHtml = notifs.map(n => {
       const subject = { displayName: n.fromName, photoURL: n.photoURL || null, color: n.color || null };
@@ -17249,6 +17344,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     });
     list.querySelectorAll(".notif-restart").forEach(btn =>
       btn.addEventListener("click", () => window.electronAPI?.installUpdate?.()));
+    list.querySelectorAll(".notif-avatar-cta").forEach(btn =>
+      btn.addEventListener("click", () => { closeNotifs(); _changeMyAvatar(); }));
     list.querySelectorAll(".notif-item:not(.notif-item--local)").forEach(row => {
       row.querySelector(".notif-dismiss")?.addEventListener("click", () => _dismissNotif(row.dataset.id));
     });
@@ -17366,6 +17463,32 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     state.friends = state.friends.filter(f => f.uid !== friendUid);
     renderFriendsList();
   }
+
+  // Remove-friend confirmation modal (dark, with the friend's avatar).
+  let _rmFriendUid = null;
+  function openRemoveFriendModal(friend) {
+    _rmFriendUid = friend.uid;
+    const name = _shortName(friend.displayName, friend.uid);
+    $("rmFriendAvatar").innerHTML = avatarMarkup(friend, "confirm-avatar-img");
+    $("rmFriendTitle").textContent   = t("friendRemoveTitle",   { name });
+    $("rmFriendBody").textContent    = t("friendRemoveConfirm",  { name });
+    $("rmFriendConfirm").textContent = t("friendRemoveBtn");
+    $("removeFriendModalOverlay").classList.add("open");
+  }
+  function closeRemoveFriendModal() {
+    $("removeFriendModalOverlay").classList.remove("open");
+    _rmFriendUid = null;
+  }
+  $("rmFriendClose")?.addEventListener("click", closeRemoveFriendModal);
+  $("rmFriendCancel")?.addEventListener("click", closeRemoveFriendModal);
+  $("removeFriendModalOverlay")?.addEventListener("click", e => {
+    if (e.target === $("removeFriendModalOverlay")) closeRemoveFriendModal();
+  });
+  $("rmFriendConfirm")?.addEventListener("click", async () => {
+    const uid = _rmFriendUid;
+    closeRemoveFriendModal();
+    if (uid) { try { await removeFriend(uid); } catch (e) { console.warn("[removeFriend]", e?.message); } }
+  });
 
   // Load blacklisted users from Firestore
   async function loadBlacklist() {
@@ -18233,6 +18356,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       // this userProfiles read completes — re-render it now so the
       // custom photo (if any) appears in the OM chip too.
       renderFriendBanner();
+      // Now that the authoritative photoURL is known, nudge the user to add a
+      // profile photo if they still don't have one (fun modal + notification).
+      _maybePromptAvatar();
 
       // Keep userProfiles in sync with latest public info.
       // profileName is never empty: fall back to Google first name then email
@@ -18410,6 +18536,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           }).join("");
       bar.innerHTML = `<div class="rfid-pod ${stateCls}">
         <span class="rfid-pod-icon"></span>
+        <span class="rfid-pod-live" aria-hidden="true"></span>
         <div class="rfid-pod-pop">${rows}</div>
       </div>`;
     }
@@ -18417,11 +18544,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // ── Legacy onReaderStatus — noop (rfid-reader-update covers it) ─────────
     window.electronAPI.onReaderStatus(() => {});
 
-    // ── "+ Auto-add" button ──────────────────────────────────────────────────
-    $("btnAddScan")?.addEventListener("click", () => {
-      if (state.nfcReaderCount === 0) { openTigerPodModal(); return; }
-    });
-    // Show disconnected badge immediately on load
+    // Show the TigerPod badge immediately on load (the old "+ Auto Scan" button
+    // was removed — discovery is reached by clicking the disconnected pod below,
+    // and scanning is automatic once a reader is connected).
     renderRfidReaderBadges();
 
     // Clicking the disconnected RFID pod opens TigerPOD discovery modal
@@ -18440,10 +18565,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         state.nfcCardPresent.delete(name);
       }
       state.nfcReaderCount = state.nfcReaders.size;
-      const hasReader = state.nfcReaderCount > 0;
-      const btn = $("btnAddScan");
-      btn?.classList.toggle("has-reader", hasReader);
-      btn?.classList.toggle("scanning",   hasReader);
+      // The pulsing/"beating" indicator now lives on the header TigerPod icon,
+      // driven by the .connected/.card-present classes set in renderRfidReaderBadges.
       renderRfidReaderBadges();
       _cemPresenceChanged();   // reader count changed → refresh encode modal if open
 
@@ -18466,8 +18589,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // Legacy uid event — open detail if already in inventory
     window.electronAPI.onRfid((uid) => {
       if (_encodeModalOpen()) return;   // don't pop a side-card over the encode modal
-      const row = state.rows.find(r => r.uid === uid || r.spoolId === uid);
-      if (row) openDetail(row.spoolId, { animateSwap: true });
+      // A scan always concerns YOUR inventory. Queue the spool to open, then either
+      // leave a friend's read-only view (the own snapshot opens it) or open now.
+      _scanOpenUid = uid;
+      if (state.friendView) switchBackToOwnView();
+      else _consumeScanOpen();
     });
 
     // ── Dual-scan buffer — collects up to 2 readers within 1.5 s ────────────
@@ -18485,6 +18611,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     }
 
     window.electronAPI.onRfidTagScanned((tagData) => {
+      // Scanning a spool always acts on the active account → leave any friend's
+      // read-only view right away so the user lands back on their own inventory
+      // (the write target was already the active account; this fixes the VIEW).
+      if (state.friendView) switchBackToOwnView();
       const readerName = tagData._readerName || 'reader';
       _rfidScanBuffer.set(readerName, tagData);
       clearTimeout(_rfidScanTimer);
@@ -18582,16 +18712,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         }
       }
 
-      // Open detail panel for the first chip (local cache fires fast) — but
-      // never while the Encode modal is open (would pop a side-card over it).
-      if (processedUids.length > 0 && !_encodeModalOpen()) {
-        const firstUid = processedUids[0];
-        const _tryOpen = () => {
-          const row = state.rows.find(r => r.uid === firstUid || r.spoolId === firstUid);
-          if (row) openDetail(row.spoolId, { animateSwap: true });
-        };
-        setTimeout(_tryOpen, 150);
-        setTimeout(_tryOpen, 600); // retry if snapshot was slow
+      // Queue the first chip to open in the detail card. _consumeScanOpen tries
+      // now (cache is fast) and is ALSO called from the inventory snapshot, so it
+      // reliably opens once the spool lands in the OWN inventory — even after the
+      // async friend→own view switch a scan triggers.
+      if (processedUids.length > 0) {
+        _scanOpenUid = processedUids[0];
+        _consumeScanOpen();
+        setTimeout(_consumeScanOpen, 600); // belt-and-braces if the snapshot lagged
       }
     }
 
@@ -18684,23 +18812,61 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       await docRef.set(doc, { merge: true });
     }
 
+    // Remaining-time estimate for the update download. Returns "~m:ss" (or
+    // "~Ns" under a minute), locale-agnostic so it needs no translation; null
+    // when not computable (unknown total or a stalled stream).
+    const _fmtUpdateEta = (bps, total, transferred) => {
+      const speed = Number(bps), tot = Number(total), done = Number(transferred) || 0;
+      if (!(speed > 0) || !(tot > 0) || done >= tot) return null;
+      let s = Math.ceil((tot - done) / speed);
+      if (s < 60) return "~" + s + "s";
+      const m = Math.floor(s / 60); s = s % 60;
+      return "~" + m + ":" + String(s).padStart(2, "0");
+    };
+
     // Auto-update notification (banner + header icon + notification center)
-    window.electronAPI.onUpdateStatus(({ status, version }) => {
+    window.electronAPI.onUpdateStatus(({ status, version, percent, bytesPerSecond, transferred, total }) => {
       const banner = $("updateBanner");
       const msg    = $("updateMsg");
+      const sub    = $("updateSub");
+      const prog   = $("updateProgress");
+      const fill   = $("updateProgressFill");
       const btn    = $("btnInstallUpdate");
       const icon   = $("updateStatusIcon");
-      if (status === 'available') {
+      if (status === 'available' || status === 'downloading') {
+        // Title line ("Update available") with "downloading…" on the line below
+        // (no dash), plus a progress bar that fills as the download advances.
         msg.innerHTML = t("updateDownloading");
+        sub?.classList.remove("hidden");
+        prog?.classList.remove("hidden");
         btn.classList.add("hidden");
         banner.classList.remove("hidden");
+        if (status === 'available') {
+          // No bytes yet → looping sweep, plain "downloading…".
+          prog?.classList.add("ub-progress--indeterminate");
+          if (fill) fill.style.width = "";
+          if (sub) sub.textContent = t("updateDownloadingSub");
+        } else {
+          // Real progress → fill the bar and append an ETA when computable.
+          prog?.classList.remove("ub-progress--indeterminate");
+          const pct = Math.max(0, Math.min(100, Number(percent) || 0));
+          if (fill) fill.style.width = pct.toFixed(1) + "%";
+          const eta = _fmtUpdateEta(bytesPerSecond, total, transferred);
+          if (sub) sub.textContent = t("updateDownloadingSub") + (eta ? " · " + eta : "");
+        }
         // header icon: orange spinner
         icon?.classList.remove("hidden", "ready");
         icon?.classList.add("downloading");
         icon?.setAttribute("data-tooltip", t("updateDownloading").replace(/<[^>]*>/g, ""));
         _setLocalNotif({ id: "update", icon: "refresh", text: t("notifUpdateAvailable"), version });
       } else if (status === 'ready') {
+        // Two-line layout like the downloading state: bold title + a sub line
+        // ("Restart to update."), bar gone, button reduced to "Restart".
         msg.innerHTML = t("updateReady");
+        if (sub) sub.textContent = t("updateReadySub");
+        sub?.classList.remove("hidden");
+        prog?.classList.add("hidden");
+        prog?.classList.remove("ub-progress--indeterminate");
         btn.textContent = t("btnRestartUpdate");
         btn.classList.remove("hidden");
         banner.classList.remove("hidden");

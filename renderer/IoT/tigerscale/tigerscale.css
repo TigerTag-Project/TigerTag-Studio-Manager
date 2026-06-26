@@ -29,6 +29,27 @@
 .scale-health.scale-none .scale-health-icon {
   background-color: #ef4444; opacity: 1;
 }
+/* Live "ready / active" indicator — a small green dot with an expanding ping
+   ring, shown only while a scale is online (mirrors the header TigerPod dot). */
+.scale-live {
+  position: absolute; top: 2px; right: 0;
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--success); display: none; pointer-events: none;
+  box-shadow: 0 0 0 2px var(--surface);
+}
+.scale-health.scale-connected .scale-live { display: block; }
+.scale-live::before {
+  content: ""; position: absolute; inset: 0; border-radius: 50%;
+  background: var(--success); opacity: 0;
+}
+.scale-health.scale-connected .scale-live::before { animation: scale-live-ping 1.4s ease-out infinite; }
+@keyframes scale-live-ping {
+  0%   { transform: scale(1);   opacity: .55; }
+  100% { transform: scale(2.6); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scale-live::before { animation: none; }
+}
 
 /* ── Scales panel (slide-in from right) ── */
 #scalesPanel { width: min(420px, 92vw); }

@@ -3,6 +3,23 @@
      Friends panel — full UI/UX redesign
      ═══════════════════════════════════════════════════════════════════ */
   .friends-panel { width: min(420px, 92vw); }
+  /* Companion friends-list card — tucks to the LEFT of the Friends panel (JS
+     pins its `right` to the Friends panel width), so it sits BEHIND it (z 100). */
+  #friendsListPanel { z-index: 100; width: min(360px, 88vw); }
+  #friendsListCloseTab { z-index: 100; }
+  #friendsListPanel .panel-header { gap: 8px; }
+  #friendsListPanel .fp-list-count {
+    margin-left: 0; font-size: 12px; font-weight: 700;
+    min-width: 22px; height: 20px; padding: 0 7px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--primary); color: #fff; border-radius: 10px;
+  }
+  #friendsListPanel .friends-body { padding: 14px 16px 16px; gap: 10px; }
+  #friendsListPanel .fp-list {
+    overflow-y: auto; display: flex; flex-direction: column; gap: 8px;
+    scrollbar-width: none;   /* hide the scrollbar (still scrolls) */
+  }
+  #friendsListPanel .fp-list::-webkit-scrollbar { width: 0; height: 0; }
   .friends-body {
     padding: 0;
     display: flex; flex-direction: column;
@@ -36,11 +53,20 @@
     font-family: var(--mono);
     font-size: 32px; font-weight: 800;
     letter-spacing: .12em;
-    margin: 6px 0 16px;
+    margin: 6px 0 14px;
     text-shadow: 0 2px 12px rgba(0,0,0,.18);
     position: relative;
     user-select: all;
   }
+  /* QR of the shareable invite link — white rounded tile centred in the card. */
+  .fp-hero-qr { display: flex; justify-content: center; margin: 0 0 16px; }
+  .fp-hero-qr img {
+    width: 116px; height: 116px; padding: 7px;
+    background: #fff; border-radius: 13px;
+    box-shadow: 0 6px 18px rgba(0,0,0,.18);
+    display: block;
+  }
+  .fp-hero-qr img:not([src]) { display: none; }
   .fp-hero-code.pkey-loading { color: rgba(255,255,255,.3); }
   .fp-hero-code.pkey-loading::after {
     content: "• • •";
@@ -186,10 +212,13 @@
     background: transparent; border: none; border-radius: 8px;
     cursor: pointer; transition: background .15s;
   }
-  .fp-friend-view:hover   { background: var(--primary-soft, rgba(249,115,22,.1)); }
-  .fp-friend-view .icon   { background: var(--primary); }
   .fp-friend-remove:hover { background: var(--danger-soft); }
   .fp-friend-remove .icon { background: var(--muted); }
+  /* Always-visible chevron — the "view this friend's inventory" affordance.
+     pointer-events:none so a click falls through to the row (which navigates). */
+  .fp-friend-chevron { display: flex; align-items: center; flex-shrink: 0; pointer-events: none; }
+  .fp-friend-chevron .icon { background: var(--muted); transition: background .15s, transform .15s; }
+  .fp-friend:hover .fp-friend-chevron .icon { background: var(--primary); transform: translateX(2px); }
   .fp-friend-remove:hover .icon { background: var(--danger); }
 
   /* ── Pending requests section ──────────────────────────────────────── */

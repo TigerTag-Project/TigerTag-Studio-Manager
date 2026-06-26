@@ -3572,5 +3572,135 @@
         }
       }
     ]
+  },
+  "1.10.24": {
+    "date": "2026-06-26",
+    "items": [
+      {
+        "icon": "user",
+        "title": {
+          "en": "A slicker account menu",
+          "fr": "Un menu de compte plus fluide",
+          "de": "Ein schlankeres Kontomenü",
+          "es": "Un menú de cuenta más ágil",
+          "it": "Un menu account più scattante",
+          "zh": "更顺手的账户菜单",
+          "pt": "Um menu de conta mais ágil",
+          "pt-pt": "Um menu de conta mais ágil",
+          "pl": "Sprawniejsze menu konta"
+        },
+        "body": {
+          "en": "The account menu got a Discord-style makeover: you at the top, a hover 'Switch account' fly-out, and a redesigned dark 'Manage accounts' modal where each account has a Switch button and a disconnect option.",
+          "fr": "Le menu de compte s'offre un relooking façon Discord : vous en haut, un sous-menu 'Changer de compte' au survol, et une modale 'Gérer les comptes' redesignée en sombre avec un bouton Changer et une déconnexion par compte.",
+          "de": "Das Kontomenü im Discord-Stil: du oben, ein 'Konto wechseln'-Flyout beim Hover und ein neu gestaltetes dunkles 'Konten verwalten'-Fenster mit Wechseln-Button und Abmelden je Konto.",
+          "es": "El menú de cuenta estilo Discord: tú arriba, un desplegable 'Cambiar de cuenta' al pasar el cursor y un modal oscuro 'Gestionar cuentas' rediseñado con botón Cambiar y desconexión por cuenta.",
+          "it": "Il menu account in stile Discord: tu in alto, un fly-out 'Cambia account' al passaggio del mouse e una finestra scura 'Gestisci account' ridisegnata con pulsante Cambia e disconnessione per account.",
+          "zh": "账户菜单焕然一新（Discord 风格）：你在顶部，悬停弹出切换账户菜单，以及重新设计的深色管理账户窗口，每个账户都有切换按钮和退出选项。",
+          "pt": "O menu de conta ganhou um visual estilo Discord: você no topo, um menu 'Trocar de conta' ao passar o mouse e um modal escuro 'Gerenciar contas' redesenhado com botão Trocar e desconectar por conta.",
+          "pt-pt": "O menu de conta com visual estilo Discord: você no topo, um menu 'Mudar de conta' ao passar o rato e um modal escuro 'Gerir contas' redesenhado com botão Mudar e terminar sessão por conta.",
+          "pl": "Menu konta w stylu Discorda: Ty na górze, rozwijane 'Przełącz konto' po najechaniu i przeprojektowane ciemne okno 'Zarządzaj kontami' z przyciskiem Przełącz i wylogowaniem dla każdego konta."
+        }
+      },
+      {
+        "icon": "link",
+        "title": {
+          "en": "Share yourself with a QR",
+          "fr": "Partagez-vous avec un QR",
+          "de": "Teile dich per QR",
+          "es": "Compártete con un QR",
+          "it": "Condividiti con un QR",
+          "zh": "用二维码分享你自己",
+          "pt": "Compartilhe-se com um QR",
+          "pt-pt": "Partilhe-se com um QR",
+          "pl": "Udostępnij się kodem QR"
+        },
+        "body": {
+          "en": "Your invite card now shows a QR code of your shareable link — a friend just scans it to add you. Removing a friend now asks for confirmation, and the friends list opens in its own card.",
+          "fr": "Votre carte d'invitation affiche désormais un QR de votre lien partageable — un ami le scanne pour vous ajouter. Retirer un ami demande maintenant confirmation, et la liste d'amis s'ouvre dans sa propre carte.",
+          "de": "Deine Einladungskarte zeigt jetzt einen QR-Code deines Links — ein Freund scannt ihn einfach, um dich hinzuzufügen. Freunde entfernen fragt nun nach Bestätigung, und die Freundesliste öffnet sich in einer eigenen Karte.",
+          "es": "Tu tarjeta de invitación ahora muestra un QR de tu enlace — un amigo lo escanea para añadirte. Quitar un amigo ahora pide confirmación, y la lista de amigos se abre en su propia tarjeta.",
+          "it": "La tua scheda d'invito ora mostra un QR del tuo link — un amico lo scansiona per aggiungerti. Rimuovere un amico ora chiede conferma e la lista amici si apre in una scheda dedicata.",
+          "zh": "你的邀请卡现在显示可分享链接的二维码——朋友扫一扫就能加你。移除好友现在需要确认，好友列表会在独立卡片中打开。",
+          "pt": "Seu cartão de convite agora mostra um QR do seu link — um amigo só escaneia para te adicionar. Remover um amigo agora pede confirmação, e a lista de amigos abre no próprio cartão.",
+          "pt-pt": "O seu cartão de convite mostra agora um QR do seu link — um amigo digitaliza-o para o adicionar. Remover um amigo pede agora confirmação, e a lista de amigos abre no próprio cartão.",
+          "pl": "Twoja karta zaproszenia pokazuje teraz kod QR Twojego linku — znajomy skanuje go, by Cię dodać. Usunięcie znajomego wymaga teraz potwierdzenia, a lista znajomych otwiera się we własnej karcie."
+        }
+      },
+      {
+        "icon": "edit",
+        "title": {
+          "en": "Make your avatar yours",
+          "fr": "Un avatar à votre image",
+          "de": "Mach deinen Avatar zu deinem",
+          "es": "Un avatar a tu imagen",
+          "it": "Un avatar tutto tuo",
+          "zh": "打造专属头像",
+          "pt": "Um avatar com a sua cara",
+          "pt-pt": "Um avatar com a sua cara",
+          "pl": "Awatar na Twoją miarę"
+        },
+        "body": {
+          "en": "No avatar yet? A friendly (emoji-free) prompt and a notification gently nudge you to add one. You can also change it straight from the header — just hover your avatar next to your name.",
+          "fr": "Pas encore d'avatar ? Une invite sympa (sans emoji) et une notification vous encouragent gentiment à en mettre un. Vous pouvez aussi le changer depuis l'en-tête — survolez votre avatar à côté de votre nom.",
+          "de": "Noch kein Avatar? Ein freundlicher (emoji-freier) Hinweis und eine Benachrichtigung erinnern dich sanft daran. Ändern kannst du ihn auch direkt im Kopfbereich — fahre über deinen Avatar neben deinem Namen.",
+          "es": "¿Sin avatar? Un aviso simpático (sin emojis) y una notificación te animan a añadir uno. También puedes cambiarlo desde la cabecera: pasa el cursor sobre tu avatar junto a tu nombre.",
+          "it": "Ancora senza avatar? Un invito simpatico (senza emoji) e una notifica ti spingono gentilmente ad aggiungerne uno. Puoi cambiarlo anche dall'intestazione: passa sul tuo avatar accanto al nome.",
+          "zh": "还没有头像？一个友好（无表情符号）的提示和通知会温和地提醒你添加。你也可以直接在顶部更改——把鼠标移到名字旁边的头像上。",
+          "pt": "Sem avatar ainda? Um aviso simpático (sem emojis) e uma notificação te incentivam a adicionar um. Você também pode trocá-lo pelo cabeçalho — passe o mouse no avatar ao lado do seu nome.",
+          "pt-pt": "Ainda sem avatar? Um aviso simpático (sem emojis) e uma notificação incentivam-no a adicionar um. Também pode trocá-lo no cabeçalho — passe o rato no avatar ao lado do seu nome.",
+          "pl": "Brak awatara? Przyjazny (bez emoji) komunikat i powiadomienie delikatnie zachęcają, by go dodać. Możesz go też zmienić z nagłówka — najedź na awatar obok swojego imienia."
+        }
+      },
+      {
+        "icon": "broom",
+        "title": {
+          "en": "A cleaner, calmer interface",
+          "fr": "Une interface plus nette",
+          "de": "Eine aufgeräumtere Oberfläche",
+          "es": "Una interfaz más limpia",
+          "it": "Un'interfaccia più pulita",
+          "zh": "更简洁清爽的界面",
+          "pt": "Uma interface mais limpa",
+          "pt-pt": "Uma interface mais limpa",
+          "pl": "Czystszy, spokojniejszy interfejs"
+        },
+        "body": {
+          "en": "Scrollbars are hidden across grids and tables, stray separator lines are gone, your avatar no longer resizes when the sidebar collapses, and the community buttons are simply GitHub / 3D Files / Discord.",
+          "fr": "Les barres de défilement sont masquées dans les grilles et tables, les traits de séparation parasites ont disparu, votre avatar ne change plus de taille quand la barre latérale se replie, et les boutons communauté deviennent simplement GitHub / 3D Files / Discord.",
+          "de": "Scrollbalken in Rastern und Tabellen sind ausgeblendet, störende Trennlinien sind weg, dein Avatar ändert seine Größe beim Einklappen der Seitenleiste nicht mehr, und die Community-Buttons heißen einfach GitHub / 3D Files / Discord.",
+          "es": "Las barras de desplazamiento se ocultan en cuadrículas y tablas, las líneas separadoras sobrantes desaparecen, tu avatar ya no cambia de tamaño al plegar la barra lateral y los botones de comunidad son simplemente GitHub / 3D Files / Discord.",
+          "it": "Le barre di scorrimento sono nascoste in griglie e tabelle, le linee separatrici di troppo sono sparite, il tuo avatar non si ridimensiona più quando la barra laterale si chiude, e i pulsanti community sono solo GitHub / 3D Files / Discord.",
+          "zh": "网格和表格中的滚动条已隐藏，多余的分隔线消失了，折叠侧边栏时头像不再改变大小，社区按钮简化为 GitHub / 3D Files / Discord。",
+          "pt": "As barras de rolagem ficam ocultas em grades e tabelas, as linhas separadoras a mais sumiram, seu avatar não muda mais de tamanho ao recolher a barra lateral, e os botões da comunidade são apenas GitHub / 3D Files / Discord.",
+          "pt-pt": "As barras de deslocação ficam ocultas em grelhas e tabelas, as linhas separadoras a mais desapareceram, o seu avatar já não muda de tamanho ao recolher a barra lateral, e os botões da comunidade são apenas GitHub / 3D Files / Discord.",
+          "pl": "Paski przewijania są ukryte w siatkach i tabelach, zbędne linie oddzielające zniknęły, awatar nie zmienia już rozmiaru przy zwijaniu panelu bocznego, a przyciski społeczności to po prostu GitHub / 3D Files / Discord."
+        }
+      },
+      {
+        "icon": "bolt",
+        "title": {
+          "en": "Smoother and safer",
+          "fr": "Plus fluide et plus sûr",
+          "de": "Flüssiger und sicherer",
+          "es": "Más fluido y seguro",
+          "it": "Più fluido e sicuro",
+          "zh": "更顺畅、更稳妥",
+          "pt": "Mais fluido e seguro",
+          "pt-pt": "Mais fluido e seguro",
+          "pl": "Płynniej i bezpieczniej"
+        },
+        "body": {
+          "en": "Scanning a spool while viewing a friend now brings you home and opens the spool. Coloured buttons no longer go white-on-white on hover. And switching between accounts can no longer knock your spools out of their racks.",
+          "fr": "Scanner une bobine en consultant un ami vous ramène chez vous et ouvre la bobine. Les boutons colorés ne deviennent plus blanc-sur-blanc au survol. Et changer de compte ne peut plus faire sortir vos bobines de leurs racks.",
+          "de": "Beim Scannen einer Spule in der Freundesansicht landest du wieder bei dir und die Spule öffnet sich. Farbige Buttons werden beim Hover nicht mehr weiß-auf-weiß. Und der Kontowechsel kann deine Spulen nicht mehr aus den Regalen werfen.",
+          "es": "Escanear una bobina mientras ves a un amigo te devuelve a tu cuenta y abre la bobina. Los botones de color ya no se vuelven blanco sobre blanco al pasar el cursor. Y cambiar de cuenta ya no saca tus bobinas de sus estantes.",
+          "it": "Scansionare una bobina mentre guardi un amico ti riporta a casa e apre la bobina. I pulsanti colorati non diventano più bianco su bianco al passaggio del mouse. E cambiare account non può più far uscire le bobine dai loro scaffali.",
+          "zh": "在查看好友时扫描线材会把你带回自己的账户并打开该线材。彩色按钮悬停时不再白底白字。切换账户也不会再把线材从货架上弄掉。",
+          "pt": "Escanear um filamento enquanto vê um amigo te traz de volta e abre o filamento. Botões coloridos não ficam mais brancos no branco ao passar o mouse. E trocar de conta não tira mais seus filamentos das estantes.",
+          "pt-pt": "Digitalizar um filamento enquanto vê um amigo traz-no de volta e abre o filamento. Os botões coloridos já não ficam brancos no branco ao passar o rato. E mudar de conta já não tira os seus filamentos das prateleiras.",
+          "pl": "Zeskanowanie szpuli podczas przeglądania profilu znajomego przenosi Cię z powrotem i otwiera szpulę. Kolorowe przyciski nie znikają już (biały na białym) po najechaniu. A przełączanie kont nie wyrzuca już szpul z regałów."
+        }
+      }
+    ]
   }
 }

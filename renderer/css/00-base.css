@@ -55,7 +55,7 @@
   /* header / brand */
   .sb-header {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 14px 12px 12px; border-bottom: 1px solid rgba(255,255,255,.06); flex-shrink: 0;
+    padding: 14px 12px 12px; flex-shrink: 0;
   }
   .sidebar.collapsed .sb-header { justify-content: center; }
   .sb-brand { display: flex; align-items: center; gap: 9px; overflow: hidden; min-width: 0; }
@@ -87,7 +87,7 @@
 
   /* user section */
   .sb-user {
-    padding: 20px 14px 16px; border-bottom: 1px solid rgba(255,255,255,.06);
+    padding: 20px 14px 16px;
     /* Was flex-shrink:0. Now allowed to shrink (grow 0 → no empty stretch
        when few friends) so the friend list inside can scroll when the
        sidebar runs out of vertical room — see .sb-friends-list. */
@@ -105,10 +105,13 @@
     gap: 2px;
   }
   .sb-avatar {
-    width: 54px; height: 54px; border-radius: 50%;
+    /* 40px in BOTH expanded and collapsed sidebar (collapsed is the reference,
+       and it matches the friend chips) so the avatar never changes size when the
+       sidebar is minimised/expanded. */
+    width: 40px; height: 40px; border-radius: 50%;
     background: linear-gradient(135deg, var(--primary), #ffb056);
     display: flex; align-items: center; justify-content: center;
-    font-size: 20px; font-weight: 700; color: #fff; letter-spacing: -1px;
+    font-size: 15px; font-weight: 700; color: #fff; letter-spacing: -1px;
     box-shadow: 0 0 0 3px rgba(255,122,24,.25), 0 4px 20px rgba(255,122,24,.2);
     transition: box-shadow .3s; flex-shrink: 0; cursor: pointer;
     position: relative;          /* anchor for the swap-back badge overlay */
@@ -193,30 +196,6 @@
   .sidebar.collapsed .sb-avatar-swap .icon {
     width: 11px; height: 11px;
   }
-  /* Edit badge — appears on hover in your OWN view; clickable (unlike the swap
-     badge) so you can change your photo straight from the header. */
-  .sb-avatar-edit {
-    position: absolute;
-    right: -3px; bottom: -3px;
-    width: 22px; height: 22px;
-    border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    background: var(--primary); border: none; padding: 0;
-    box-shadow: 0 0 0 2px var(--surface-1, #0e0e10), 0 2px 8px rgba(0,0,0,.4);
-    cursor: pointer;
-    opacity: 0; transform: scale(.6); pointer-events: none;
-    transition: transform .2s cubic-bezier(.34,1.56,.64,1), opacity .15s, filter .15s;
-    z-index: 4;
-  }
-  .sb-avatar-edit .icon { background: #fff; }
-  .sb-avatar-edit:hover { filter: brightness(1.08); }
-  .sb-user:not(.sb-user--viewing-friend) .sb-avatar:hover .sb-avatar-edit {
-    opacity: 1; transform: scale(1); pointer-events: auto;
-  }
-  .sb-avatar[data-av-mode="empty"] .sb-avatar-edit,
-  .sb-user--viewing-friend .sb-avatar-edit { display: none; }
-  .sidebar.collapsed .sb-avatar-edit { width: 18px; height: 18px; right: -2px; bottom: -2px; }
-  .sidebar.collapsed .sb-avatar-edit .icon { width: 10px; height: 10px; }
   .sb-name {
     font-size: 14px; font-weight: 600; color: #fff; text-align: left;
     margin-top: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -230,7 +209,7 @@
   /* Refresh / Friends buttons keep their height; only the friend list scrolls. */
   .sb-actions > button { flex-shrink: 0; }
   .sb-actions button {
-    height: 32px; font-size: 12px; width: 100%; justify-content: center; border-radius: 8px;
+    height: 36px; font-size: 12px; width: 100%; justify-content: center; border-radius: 8px;
   }
   .sb-actions .primary { background: var(--primary); border-color: var(--primary); box-shadow: 0 2px 10px rgba(255,122,24,.35); }
   .sb-actions .primary:hover { background: var(--primary-hover) !important; box-shadow: 0 3px 14px rgba(255,122,24,.45); }
@@ -276,13 +255,17 @@
   .sidebar.collapsed .sb-sub,
   .sidebar.collapsed .sb-user-info,
   .sidebar.collapsed .sb-sub-welcome { display: none; }
-  .sidebar.collapsed .sb-user { padding: 14px 8px; }
+  /* Keep the SAME vertical padding as expanded (only the horizontal shrinks) so
+     the user block height never changes between states — no vertical jump. */
+  .sidebar.collapsed .sb-user { padding: 20px 8px 16px; }
   .sidebar.collapsed .sb-user-row { justify-content: center; }
-  .sidebar.collapsed .sb-avatar { width: 40px; height: 40px; font-size: 15px; }
+  /* .sb-avatar is 40px in both states (set in the base rule) — no collapsed override needed. */
   .sidebar.collapsed .sb-actions {
-    align-items: center; margin-top: 10px;
+    align-items: center;   /* keep base margin-top (14px) so the block doesn't shift */
   }
-  .sidebar.collapsed .sb-actions button { width: 36px; height: 36px; padding: 0; }
+  /* width-only change in collapsed; height stays 36px (set in the base rule) so
+     the Notifications row never changes height between states. */
+  .sidebar.collapsed .sb-actions button { width: 36px; padding: 0; }
   .sidebar.collapsed .sb-actions .label { display: none; }
 
   /* config section */
@@ -460,7 +443,7 @@
     display: flex; flex-direction: column;
     gap: 3px;
     margin: 4px 0 6px;
-    padding: 0;
+    padding: 4px 0;          /* same in expanded + collapsed so chips don't shift */
     /* Scroll like Discord when the friend list outgrows the sidebar. The
        flex cascade (.sb-user → .sb-actions → here, all shrinkable with
        min-height:0) lets ONLY this list scroll — the avatar row, the
@@ -485,8 +468,11 @@
   button.sb-friend-chip {
     display: flex; align-items: center; gap: 10px;
     width: 100%;
-    height: auto;
-    padding: 4px 4px;
+    /* Height = avatar height (40px) in BOTH expanded and collapsed sidebar, with
+       no extra vertical padding, so toggling the sidebar width never moves the
+       chips vertically. The collapsed state (40px row) is the reference. */
+    height: 40px;
+    padding: 0 4px;
     border: 0;
     border-radius: 0;
     background: transparent;
@@ -604,7 +590,6 @@
   /* community footer */
   .sb-community {
     flex-shrink: 0; padding: 11px 13px 13px;
-    border-top: 1px solid rgba(255,255,255,.06);
     display: flex; flex-direction: column; gap: 7px;
   }
   .sidebar.collapsed .sb-community {
