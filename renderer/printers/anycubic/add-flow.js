@@ -183,6 +183,9 @@ function _closePanel(id) { document.getElementById(id)?.classList.remove('open')
 
 function _closeAll() {
   acuAbortScan();
+  _acuCloudStopPolling();
+  // Unload the embedded login page so it isn't running in the background.
+  try { document.getElementById('acuCloudWebview')?.setAttribute('src', 'about:blank'); } catch (_) {}
   _closePanel('acuChoiceOverlay');
   _closePanel('acuImportOverlay');
   _closePanel('acuScanOverlay');
@@ -215,11 +218,22 @@ function _ensureDOM() {
       <button class="modal-close" id="acuChoiceClose">✕</button>
     </div>
     <div class="pba-brands">
+      <button type="button" class="pba-brand" id="acuChoiceCloud">
+        <span class="pba-brand-dot" style="background:#7b61ff"></span>
+        <span class="pba-brand-text">
+          <span class="pba-brand-label">
+            <span data-i18n="acuCloudChoice">Add a cloud printer</span>
+            <span class="pba-brand-badge" data-i18n="recommendedBadge">Recommended</span>
+          </span>
+          <span class="pba-brand-conn"  data-i18n="acuCloudChoiceHint">For printers in cloud mode</span>
+        </span>
+        <span class="icon icon-chevron-r icon-13 pba-brand-chev"></span>
+      </button>
       <button type="button" class="pba-brand" id="acuChoiceImport">
         <span class="pba-brand-dot" style="background:#00a9e0"></span>
         <span class="pba-brand-text">
           <span class="pba-brand-label" data-i18n="acuImportChoice">Import from Anycubic Slicer</span>
-          <span class="pba-brand-conn"  data-i18n="acuImportChoiceHint">Reads paired printers + credentials (recommended)</span>
+          <span class="pba-brand-conn"  data-i18n="acuImportChoiceHint">Reads paired printers and credentials</span>
         </span>
         <span class="icon icon-chevron-r icon-13 pba-brand-chev"></span>
       </button>
@@ -239,19 +253,15 @@ function _ensureDOM() {
         </span>
         <span class="icon icon-chevron-r icon-13 pba-brand-chev"></span>
       </button>
-      <button type="button" class="pba-brand" id="acuChoiceCloud">
-        <span class="pba-brand-dot" style="background:#7b61ff"></span>
-        <span class="pba-brand-text">
-          <span class="pba-brand-label" data-i18n="acuCloudChoice">Add a cloud printer</span>
-          <span class="pba-brand-conn"  data-i18n="acuCloudChoiceHint">For printers in cloud mode (via the slicer)</span>
-        </span>
-        <span class="icon icon-chevron-r icon-13 pba-brand-chev"></span>
-      </button>
     </div>
     <div class="pba-footer">
       <button class="adf-btn adf-btn--secondary" id="acuChoiceBack">
         <span class="icon icon-chevron-l icon-13"></span>
         <span data-i18n="printerAddBack">Back</span>
+      </button>
+      <button type="button" class="pba-brand-tuto-link" disabled aria-disabled="true" data-i18n-title="tutoUnavailable">
+        <span class="icon icon-bulb icon-13"></span>
+        <span data-i18n="tutoOpenBtn">Connection tutorial</span>
       </button>
     </div>
   </div>
@@ -269,19 +279,18 @@ function _ensureDOM() {
       </div>
       <button class="modal-close" id="acuCloudClose">✕</button>
     </div>
-    <div class="snap-scan-body">
-      <div class="snap-scan-results" id="acuCloudResults"></div>
-      <div class="snap-scan-empty" id="acuCloudEmpty" hidden></div>
-      <!-- Instructional block shown when the bridge-mode slicer isn't reachable -->
-      <div class="acu-cloud-help" id="acuCloudHelp" hidden>
-        <p data-i18n="acuCloudHelpIntro">Cloud printers are added through AnycubicSlicerNext. Start it with remote debugging, signed in, and open the Workbench:</p>
-        <pre class="acu-cloud-help-cmd" id="acuCloudHelpCmd">$env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS="--remote-debugging-port=9222"
-&amp; "C:\Program Files\AnycubicSlicerNext\AnycubicSlicerNext.exe"</pre>
-        <button type="button" class="adf-btn adf-btn--secondary acu-cloud-help-copy" id="acuCloudHelpCopy">
-          <span class="icon icon-copy icon-13"></span>
-          <span data-i18n="copyLabel">Copy</span>
-        </button>
+    <div class="snap-scan-body acu-cloud-body">
+      <!-- Embedded Anycubic sign-in — the SAME official page the native window
+           used, now docked inside the side-card via a <webview>. We read the
+           workbench token (localStorage 'XX-Token') once the user signs in; we
+           never see the password. Persistent partition keeps the session so
+           repeat logins are one-click. -->
+      <div class="acu-cloud-webview-wrap" id="acuCloudWebviewWrap">
+        <webview class="acu-cloud-webview" id="acuCloudWebview"
+                 partition="persist:anycubic-cloud" src="about:blank"></webview>
       </div>
+      <div class="snap-scan-results" id="acuCloudResults" hidden></div>
+      <div class="snap-scan-empty" id="acuCloudEmpty" hidden></div>
     </div>
     <div class="pba-footer">
       <button class="adf-btn adf-btn--secondary" id="acuCloudBack">
@@ -290,7 +299,7 @@ function _ensureDOM() {
       </button>
       <button class="adf-btn adf-btn--primary" id="acuCloudRetry">
         <span class="icon icon-refresh icon-13"></span>
-        <span class="label" data-i18n="acuCloudConnect">Connect to slicer</span>
+        <span class="label" data-i18n="acuCloudReload">Reload</span>
         <span class="spinner"></span>
       </button>
     </div>
@@ -500,12 +509,12 @@ function _wireDOM() {
 
   $('acuCloudClose')?.addEventListener('click', _closeAll);
   $('acuCloudOverlay')?.addEventListener('click', e => { if (e.target.id === 'acuCloudOverlay') _closeAll(); });
-  $('acuCloudBack')?.addEventListener('click', () => { _closePanel('acuCloudOverlay'); _openPanel('acuChoiceOverlay'); });
-  $('acuCloudRetry')?.addEventListener('click', () => _runCloudProvision());
-  $('acuCloudHelpCopy')?.addEventListener('click', () => {
-    const cmd = $('acuCloudHelpCmd')?.textContent || '';
-    try { navigator.clipboard.writeText(cmd); } catch (_) {}
+  $('acuCloudBack')?.addEventListener('click', () => {
+    _acuCloudStopPolling();
+    try { $('acuCloudWebview')?.setAttribute('src', 'about:blank'); } catch (_) {}
+    _closePanel('acuCloudOverlay'); _openPanel('acuChoiceOverlay');
   });
+  $('acuCloudRetry')?.addEventListener('click', () => _acuCloudLogin());
 
   $('acuScanClose')?.addEventListener('click', _closeAll);
   $('acuScanOverlay')?.addEventListener('click', e => { if (e.target.id === 'acuScanOverlay') _closeAll(); });
@@ -623,10 +632,20 @@ function _openImportPanel() {
 }
 
 // ── Cloud provisioning panel ─────────────────────────────────────────────────
-// Attaches to a RUNNING bridge-mode slicer over CDP (port 9222) to read the
-// workbench token, lists the account's cloud printers, and writes a Firestore
-// cloud doc per pick. We never launch the slicer — if CDP isn't reachable we
-// show the one-time bridge-mode launch instructions.
+// Sign-in happens in an embedded <webview> docked in the side-card (the official
+// Anycubic cloud page). We poll its localStorage for the workbench token, verify
+// it (→ account email), then list the account's cloud printers and write a
+// Firestore cloud doc per pick. We never see the password; a persistent session
+// partition makes repeat logins one-click.
+
+const ACU_CLOUD_LOGIN_URL = 'https://cloud-universe.anycubic.com/file';
+let _acuCloudPollTimer = null;
+let _acuCloudToken = '';
+let _acuCloudEmail = '';
+
+function _acuCloudStopPolling() {
+  if (_acuCloudPollTimer) { clearInterval(_acuCloudPollTimer); _acuCloudPollTimer = null; }
+}
 
 function _acuCloudCardHtml(p) {
   const catalogId = acuCatalogIdFromModel(String(p.machineType), p.name);
@@ -651,48 +670,73 @@ function _acuCloudCardHtml(p) {
     </div>`;
 }
 
-async function _runCloudProvision() {
+// Show the embedded sign-in webview and poll it for a valid workbench token.
+// As soon as one appears + verifies, switch to the printer list.
+function _acuCloudLogin() {
+  const wrap    = document.getElementById('acuCloudWebviewWrap');
+  const wv       = document.getElementById('acuCloudWebview');
   const results = document.getElementById('acuCloudResults');
   const empty   = document.getElementById('acuCloudEmpty');
-  const help    = document.getElementById('acuCloudHelp');
   const btn     = document.getElementById('acuCloudRetry');
-  if (results) results.innerHTML = '';
+  if (results) { results.innerHTML = ''; results.hidden = true; }
   if (empty) { empty.hidden = true; empty.textContent = ''; }
-  if (help)  help.hidden = true;
+  if (wrap) wrap.hidden = false;              // show the login page
+  if (btn) { btn.disabled = false; btn.classList.remove('loading'); }
+  _acuCloudToken = ''; _acuCloudEmail = '';
+  if (!wv) return;
+
+  // (Re)load the sign-in page. If a persisted session is still valid the page
+  // lands logged-in and the token shows up on the first poll.
+  try { wv.src = ACU_CLOUD_LOGIN_URL; } catch (_) {}
+
+  _acuCloudStopPolling();
+  let checking = false;
+  _acuCloudPollTimer = setInterval(async () => {
+    if (checking) return;
+    checking = true;
+    try {
+      let tok = null;
+      try { tok = await wv.executeJavaScript("window.localStorage.getItem('XX-Token')", true); }
+      catch (_) { return; }                   // page not ready / navigating — try again next tick
+      if (!tok || String(tok).length < 20) return;
+      // Verify before trusting it — a persisted session can hold a STALE token
+      // (login form shown, old token lingering). Only a token userInfo accepts
+      // is good, and that call also gives us the account email.
+      const v = await window.anycubic?.cloud?.verify(String(tok));
+      if (!v?.ok) return;                      // stale/expired — keep waiting for a fresh login
+      _acuCloudStopPolling();
+      _acuCloudToken = String(tok);
+      _acuCloudEmail = String(v.email || '');
+      _acuCloudListPrinters();
+    } finally { checking = false; }
+  }, 1200);
+}
+
+// Token in hand — hide the webview, fetch + render the account's cloud printers.
+async function _acuCloudListPrinters() {
+  const wrap    = document.getElementById('acuCloudWebviewWrap');
+  const results = document.getElementById('acuCloudResults');
+  const empty   = document.getElementById('acuCloudEmpty');
+  const btn     = document.getElementById('acuCloudRetry');
+  if (wrap) wrap.hidden = true;               // swap login → list
+  if (results) { results.hidden = false; results.innerHTML = ''; }
+  if (empty) { empty.hidden = false; empty.textContent = ctx.t('acuCloudLoadingPrinters'); }
   if (btn) { btn.disabled = true; btn.classList.add('loading'); }
 
-  const fail = (key) => {
-    if (empty) { empty.textContent = ctx.t(key); empty.hidden = false; }
-    if (help) help.hidden = true;   // web-login replaces the old Windows bridge instructions
-  };
-
-  // 1. Sign in to the Anycubic cloud (cross-platform): open the official site
-  //    in a window, the user logs in, we read the workbench token. No CDP.
-  let tok;
-  try { tok = await window.anycubic?.cloud?.webLogin(); }
-  catch (e) { tok = { ok: false, error: e?.message || 'login' }; }
-  if (!tok?.ok) {
-    if (btn) { btn.disabled = false; btn.classList.remove('loading'); }
-    if (help) help.hidden = true;            // no Windows bridge instructions with web login
-    if (tok?.error === 'cancelled') { if (empty) empty.hidden = true; return; } // user closed the window — silent
-    if (empty) { empty.textContent = ctx.t('acuCloudErrRest'); empty.hidden = false; }
-    return;
-  }
-
-  // 2. List the account's cloud printers.
   let res;
-  try { res = await window.anycubic?.cloud?.getPrinters(tok.token); }
-  catch (e) { res = { ok: false, error: e?.message || 'rest' }; }
+  try { res = await window.anycubic?.cloud?.getPrinters(_acuCloudToken); }
+  catch (_) { res = { ok: false }; }
   if (btn) { btn.disabled = false; btn.classList.remove('loading'); }
-  if (!res?.ok) return fail('acuCloudErrRest');
+  if (!res?.ok) { if (empty) { empty.textContent = ctx.t('acuCloudErrRest'); empty.hidden = false; } return; }
 
   const printers = Array.isArray(res.printers) ? res.printers : [];
   if (!printers.length) { if (empty) { empty.textContent = ctx.t('acuCloudErrNoPrinters'); empty.hidden = false; } return; }
+  if (empty) { empty.hidden = true; empty.textContent = ''; }
 
   for (const p of printers) {
-    const wrap = document.createElement('div');
-    wrap.innerHTML = _acuCloudCardHtml(p);
-    const card = wrap.firstElementChild;
+    const wrap2 = document.createElement('div');
+    wrap2.innerHTML = _acuCloudCardHtml(p);
+    const card = wrap2.firstElementChild;
     if (!card) continue;
     if (p.online) {
       const add = async () => {
@@ -701,12 +745,12 @@ async function _runCloudProvision() {
           cloudPrinterId: p.id,
           machineType:    p.machineType,
           key:            p.key,
-          cloudToken:     tok.token,
-          cloudEmail:     tok.email,
+          cloudToken:     _acuCloudToken,
+          cloudEmail:     _acuCloudEmail,
           printerName:    p.name,
           printerModelId: acuCatalogIdFromModel(String(p.machineType), p.name),
         });
-        if (r?.ok) { _closeAll(); }
+        if (r?.ok) { _closeAll(); ctx.finishPrinterAdd?.('anycubic', r.id); }
         else { card.classList.remove('is-busy'); ctx.toast?.(ctx.t('acuCloudAddFailed'), 'error'); }
       };
       card.addEventListener('click', add);
@@ -719,7 +763,7 @@ async function _runCloudProvision() {
 function _openCloudPanel() {
   _ensureDOM();
   _openPanel('acuCloudOverlay');
-  _runCloudProvision();
+  _acuCloudLogin();
 }
 
 // ── Scan panel logic ─────────────────────────────────────────────────────────

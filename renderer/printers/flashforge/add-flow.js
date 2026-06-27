@@ -227,6 +227,10 @@ function _ensureDOM() {
         <span class="icon icon-chevron-l icon-13"></span>
         <span data-i18n="printerAddBack">Back</span>
       </button>
+      <button type="button" class="pba-brand-tuto-link" id="ffgChoiceTuto">
+        <span class="icon icon-bulb icon-13"></span>
+        <span data-i18n="tutoOpenBtn">Connection tutorial</span>
+      </button>
     </div>
   </div>
 </div>
@@ -424,6 +428,7 @@ function _wireDOM() {
     _closePanel("ffgChoiceOverlay");
     ctx.openBrandPicker();
   });
+  $("ffgChoiceTuto")?.addEventListener("click", () => ctx.openTutorial("flashforge"));
   $("ffgChoiceScan")?.addEventListener("click", () => {
     _closePanel("ffgChoiceOverlay");
     _openScanPanel();

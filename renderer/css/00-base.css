@@ -87,7 +87,7 @@
 
   /* user section */
   .sb-user {
-    padding: 20px 14px 16px;
+    padding: 20px 14px 6px;
     /* Was flex-shrink:0. Now allowed to shrink (grow 0 → no empty stretch
        when few friends) so the friend list inside can scroll when the
        sidebar runs out of vertical room — see .sb-friends-list. */
@@ -209,7 +209,8 @@
   /* Refresh / Friends buttons keep their height; only the friend list scrolls. */
   .sb-actions > button { flex-shrink: 0; }
   .sb-actions button {
-    height: 36px; font-size: 12px; width: 100%; justify-content: center; border-radius: 8px;
+    display: flex; align-items: center;   /* center the icon on BOTH axes (esp. the collapsed bell) */
+    height: 40px; font-size: 12px; width: 100%; justify-content: center; border-radius: 8px;   /* 40px = same height expanded & collapsed (matches the friend avatars) */
   }
   .sb-actions .primary { background: var(--primary); border-color: var(--primary); box-shadow: 0 2px 10px rgba(255,122,24,.35); }
   .sb-actions .primary:hover { background: var(--primary-hover) !important; box-shadow: 0 3px 14px rgba(255,122,24,.45); }
@@ -218,10 +219,25 @@
     color: rgba(255,255,255,.6);
   }
   .sb-actions button:not(.primary):hover { background: rgba(255,255,255,.12) !important; color: #fff !important; }
-  .sb-friends-btn, .sb-notifs-btn { position: relative; }
+  /* Action/community button labels (Notifications, GitHub, 3D Files, Discord):
+     animatable open/close so the sidebar collapse/expand glides instead of
+     popping. See the collapsed rules. */
+  .sb-actions .label,
+  .sb-community .label {
+    display: inline-block; white-space: nowrap; overflow: hidden;
+    max-width: 140px; min-width: 0; opacity: 1;   /* min-width:0 so max-width:0 actually collapses it as a flex item */
+    transition: max-width .25s cubic-bezier(.4,0,.2,1), opacity .18s ease;
+  }
+  /* Animate the button width too, so it shrinks in step with its label (the
+     label never spills past the narrowing button) — smooth collapse/expand. */
+  .sb-friends-btn, .sb-notifs-btn { position: relative; transition: width .25s cubic-bezier(.4,0,.2,1); }
+  /* Bell is the same 20px whether the sidebar is expanded or collapsed (overrides
+     the .icon-13 in the markup). */
+  .sb-notifs-btn .icon { width: 20px; height: 20px; }
   .sb-friends-btn .friends-badge,
   .sb-notifs-btn .friends-badge { position: absolute; top: -5px; right: -5px; margin: 0; }
-  .sb-sub-welcome { font-size: 11px; color: rgba(255,255,255,.38); text-align: left; margin-top: 0; }
+  .sb-sub-welcome { font-size: 11px; color: rgba(255,255,255,.38); text-align: left; margin-top: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 
   /* ── avatar : état vide (aucun compte) ──
      The avatar's own empty styling (gradient, "+" glyph, hover) now lives
@@ -257,16 +273,28 @@
   .sidebar.collapsed .sb-sub-welcome { display: none; }
   /* Keep the SAME vertical padding as expanded (only the horizontal shrinks) so
      the user block height never changes between states — no vertical jump. */
-  .sidebar.collapsed .sb-user { padding: 20px 8px 16px; }
-  .sidebar.collapsed .sb-user-row { justify-content: center; }
+  /* Horizontal padding = (65px rail − 40px avatar) / 2 = 12.5px, so the avatar
+     (and the 40px bell/chips below) sit centred via flex-start WITHOUT a
+     justify-content:center that would snap the avatar to the centre of the
+     still-wide sidebar at the start of the collapse (the "jump to the right").
+     Now the avatar stays put and the sidebar just shrinks around it. */
+  .sidebar.collapsed .sb-user { padding: 20px 12.5px 6px; }
   /* .sb-avatar is 40px in both states (set in the base rule) — no collapsed override needed. */
   .sidebar.collapsed .sb-actions {
     align-items: center;   /* keep base margin-top (14px) so the block doesn't shift */
   }
   /* width-only change in collapsed; height stays 36px (set in the base rule) so
      the Notifications row never changes height between states. */
-  .sidebar.collapsed .sb-actions button { width: 36px; padding: 0; }
-  .sidebar.collapsed .sb-actions .label { display: none; }
+  .sidebar.collapsed .sb-actions button { width: 40px; height: 40px; padding: 0; }   /* match the 40px friend avatars so the column lines up */
+  /* Bigger bell when collapsed: a 13px glyph looked lost (and thus "off-centre")
+     in the 40px chip; 18px gives it presence and reads as clearly centred. */
+  /* Center the collapsed bell ABSOLUTELY so neither the (0-width) label nor the
+     absolutely-positioned badge — children the community buttons don't have —
+     can ever shove it off-centre. Robust regardless of siblings/whitespace. */
+  .sidebar.collapsed .sb-notifs-btn .icon {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: 20px; height: 20px;
+  }
 
   /* config section */
   .sb-field-wrap { display: flex; flex-direction: column; gap: 4px; }
@@ -442,7 +470,8 @@
   .sb-friends-list {
     display: flex; flex-direction: column;
     gap: 3px;
-    margin: 4px 0 6px;
+    width: 100%;             /* fill .sb-actions so chips align by flex-start (no centring jump on collapse) */
+    margin: 4px 0 0;
     padding: 4px 0;          /* same in expanded + collapsed so chips don't shift */
     /* Scroll like Discord when the friend list outgrows the sidebar. The
        flex cascade (.sb-user → .sb-actions → here, all shrinkable with
@@ -555,7 +584,7 @@
   /* (Friend avatars are 40×40 in both expanded and collapsed mode now —
      no per-state override needed.) */
   .sidebar.collapsed .sb-friends-list {
-    align-items: center;
+    align-items: flex-start;   /* chips stay left (centred by the 12.5px rail padding) — no jump-to-centre on collapse, like the main avatar */
     padding: 4px 0;
   }
   /* Hover bubble for collapsed-sidebar friend chips. Appended to <body> by
@@ -596,43 +625,45 @@
   }
 
   /* mid flex wrapper (login + stats) */
-  .sb-mid { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+  .sb-mid { flex: 0 0 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
   .sidebar.collapsed .sb-mid { display: flex; }
 
-  /* community footer */
+  /* community footer — pinned to the bottom of the sidebar (the flexible space
+     sits ABOVE it, between the friends list and the footer). */
   .sb-community {
-    flex-shrink: 0; padding: 11px 13px 13px;
+    flex-shrink: 0; margin-top: auto; padding: 4px 13px 13px;
     display: flex; flex-direction: column; gap: 7px;
   }
   .sidebar.collapsed .sb-community {
-    padding: 8px 6px 12px; align-items: center;
+    padding: 4px 6px 12px; align-items: center;
   }
-  .sidebar.collapsed .sb-community-label { display: none; }
   .sidebar.collapsed .sb-github-btn,
   .sidebar.collapsed .sb-makerworld-btn,
   .sidebar.collapsed .sb-discord-btn {
-    width: 44px; height: 34px; padding: 0; border-radius: 10px;
+    width: 44px; padding: 0; border-radius: 10px;   /* height comes from the shared rule (34px) */
+    gap: 0;   /* drop the icon↔label gap so the icon stays centred when the label collapses */
   }
-  .sidebar.collapsed .sb-github-btn span:not(.icon),
-  .sidebar.collapsed .sb-makerworld-btn span:not(.icon),
-  .sidebar.collapsed .sb-discord-btn span:not(.icon) { display: none; }
-  .sidebar.collapsed .sb-qr-wrap { padding: 4px; width: 100%; }
+  /* Labels collapse the same animated way as the Notifications row (no display:none). */
+  .sidebar.collapsed .sb-actions .label,
+  .sidebar.collapsed .sb-community .label { max-width: 0; opacity: 0; margin-left: 0; }
+  .sidebar.collapsed .sb-qr-wrap { padding: 0; width: 100%; }
   .sidebar.collapsed .sb-qr-label,
   .sidebar.collapsed .sb-qr-hint { display: none; }
-  .sidebar.collapsed .sb-qr-img { width: 44px; height: 44px; }
+  .sidebar.collapsed .sb-qr-label-short { display: block; text-align: center; }
+  .sidebar.collapsed .sb-qr-img { width: 52px; height: 52px; }
 
   /* App version — discrete line at the very bottom of the sidebar */
   .sb-version {
     font-size: 10px; font-weight: 500;
     color: rgba(255,255,255,.35);
     text-align: center;
-    margin-top: 8px;
+    margin-top: 0;
     padding: 2px 4px;
     user-select: text;
     font-family: var(--mono);
     letter-spacing: .03em;
   }
-  .sidebar.collapsed .sb-version { font-size: 9px; }
+  /* Version text keeps the same size whether the sidebar is collapsed or not. */
 
 /* Image skeleton / shimmer removed — images now hydrate from the local
    disk cache and paint instantly, so the gliding "loading shine" was both

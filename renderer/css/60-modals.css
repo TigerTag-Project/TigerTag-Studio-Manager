@@ -3596,16 +3596,27 @@
   margin-left: auto;
   display: inline-flex; align-items: center; gap: 4px;
   padding: 5px 12px;
-  background: var(--primary-soft); color: var(--primary);
+  background: var(--primary); color: #fff;
   border: none; border-radius: 999px;
   font-size: 11px; font-weight: 700; line-height: 1;
   white-space: nowrap;
   cursor: pointer;
-  transition: background .15s, color .15s;
+  transition: filter .15s, background .15s, color .15s;
 }
 .pba-brand-tuto-link:hover,
 .pba-brand-tuto-link:focus-visible {
-  background: var(--primary); color: #fff; outline: none;
+  filter: brightness(1.08); outline: none;
+}
+/* Brands without a connection tutorial (Anycubic / Creality / Snapmaker) still
+   show the pill in the header bar, just greyed + non-clickable (a title tooltip
+   explains why). pointer-events stay on so the tooltip still appears on hover. */
+.pba-brand-tuto-link:disabled {
+  background: var(--border); color: var(--muted);
+  cursor: not-allowed; opacity: .55;
+}
+.pba-brand-tuto-link:disabled:hover,
+.pba-brand-tuto-link:disabled:focus-visible {
+  background: var(--border); color: var(--muted); filter: none;
 }
 
 /* ─── What's New — a floating, draggable, resizable "window" ─────────────── */

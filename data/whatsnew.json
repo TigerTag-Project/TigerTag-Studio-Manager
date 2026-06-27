@@ -3807,5 +3807,85 @@
         }
       }
     ]
+  },
+  "1.10.26": {
+    "date": "2026-06-27",
+    "items": [
+      {
+        "icon": "cloud",
+        "title": {
+          "en": "Anycubic cloud sign-in, in-app now",
+          "fr": "Connexion Anycubic Cloud, dans l’app",
+          "de": "Anycubic-Cloud-Login, jetzt in der App",
+          "es": "Inicio de sesión Anycubic Cloud, dentro de la app",
+          "it": "Accesso Anycubic Cloud, dentro l’app",
+          "zh": "Anycubic 云登录，就在应用内",
+          "pt": "Login Anycubic Cloud, dentro do app",
+          "pt-pt": "Início de sessão Anycubic Cloud, dentro da app",
+          "pl": "Logowanie Anycubic Cloud w aplikacji"
+        },
+        "body": {
+          "en": "No more separate window popping out — log in to your Anycubic account right inside the add-printer panel, and your cloud printers show up ready to add.",
+          "fr": "Fini la fenêtre qui sort de l’app : connecte-toi à ton compte Anycubic directement dans le panneau d’ajout, et tes imprimantes cloud apparaissent, prêtes à ajouter.",
+          "de": "Kein separates Fenster mehr — melde dich direkt im Drucker-hinzufügen-Bereich bei deinem Anycubic-Konto an, und deine Cloud-Drucker stehen bereit.",
+          "es": "Se acabó la ventana aparte: inicia sesión en tu cuenta Anycubic dentro del propio panel de añadir, y tus impresoras en la nube aparecen listas para añadir.",
+          "it": "Niente più finestra separata: accedi al tuo account Anycubic direttamente nel pannello di aggiunta, e le tue stampanti cloud sono lì, pronte da aggiungere.",
+          "zh": "不再弹出单独的窗口——直接在添加打印机面板里登录你的 Anycubic 账号，你的云打印机就会出现，随时可添加。",
+          "pt": "Acabou a janela separada: faça login na sua conta Anycubic dentro do painel de adicionar, e suas impressoras na nuvem aparecem prontas para adicionar.",
+          "pt-pt": "Acabou a janela à parte: inicia sessão na tua conta Anycubic dentro do painel de adicionar, e as tuas impressoras na nuvem aparecem prontas a adicionar.",
+          "pl": "Koniec z osobnym oknem — zaloguj się do konta Anycubic bezpośrednio w panelu dodawania, a Twoje drukarki w chmurze pojawią się gotowe do dodania."
+        }
+      },
+      {
+        "icon": "printer",
+        "title": {
+          "en": "Adding a printer feels smoother",
+          "fr": "Ajouter une imprimante, en plus fluide",
+          "de": "Drucker hinzufügen fühlt sich runder an",
+          "es": "Añadir una impresora va más suave",
+          "it": "Aggiungere una stampante è più fluido",
+          "zh": "添加打印机更顺手了",
+          "pt": "Adicionar uma impressora ficou mais suave",
+          "pt-pt": "Adicionar uma impressora ficou mais suave",
+          "pl": "Dodawanie drukarki jest płynniejsze"
+        },
+        "body": {
+          "en": "Pick a brand and its options slide in right next to the list instead of replacing it, every brand now looks and works the same, and the moment you add a printer you land straight on it.",
+          "fr": "Choisis une marque et ses options se glissent juste à côté de la liste au lieu de la remplacer, toutes les marques se ressemblent enfin, et dès que tu ajoutes une imprimante tu atterris directement dessus.",
+          "de": "Wähl eine Marke, und ihre Optionen schieben sich neben die Liste statt sie zu ersetzen, alle Marken sehen und funktionieren jetzt gleich, und sobald du einen Drucker hinzufügst, landest du direkt bei ihm.",
+          "es": "Elige una marca y sus opciones se deslizan justo al lado de la lista en vez de reemplazarla, todas las marcas se ven y funcionan igual ahora, y en cuanto añades una impresora aterrizas directo en ella.",
+          "it": "Scegli un marchio e le sue opzioni scivolano accanto alla lista invece di sostituirla, tutti i marchi ora si assomigliano, e appena aggiungi una stampante atterri dritto su di lei.",
+          "zh": "选一个品牌，它的选项会滑到列表旁边而不是盖住列表，现在所有品牌看起来和操作都一致，而且你一添加打印机就会直接打开它。",
+          "pt": "Escolha uma marca e suas opções deslizam ao lado da lista em vez de substituí-la, todas as marcas agora têm o mesmo visual e comportamento, e assim que você adiciona uma impressora cai direto nela.",
+          "pt-pt": "Escolhe uma marca e as opções deslizam ao lado da lista em vez de a substituir, todas as marcas têm agora o mesmo aspeto e comportamento, e assim que adicionas uma impressora vais parar diretamente a ela.",
+          "pl": "Wybierz markę, a jej opcje wsuwają się obok listy zamiast ją zasłaniać, wszystkie marki wyglądają i działają teraz tak samo, a gdy tylko dodasz drukarkę, lądujesz prosto na niej."
+        }
+      },
+      {
+        "icon": "broom",
+        "title": {
+          "en": "A tidier sidebar",
+          "fr": "Une barre latérale plus nette",
+          "de": "Eine aufgeräumtere Seitenleiste",
+          "es": "Una barra lateral más ordenada",
+          "it": "Una barra laterale più ordinata",
+          "zh": "更整洁的侧边栏",
+          "pt": "Uma barra lateral mais arrumada",
+          "pt-pt": "Uma barra lateral mais arrumada",
+          "pl": "Schludniejszy pasek boczny"
+        },
+        "body": {
+          "en": "The Mobile Apps QR code moved up top, the GitHub / 3D Files / Discord block stays put at the bottom, and nothing jumps around or resizes when you fold the sidebar in and out.",
+          "fr": "Le QR code des apps mobiles est remonté en haut, le bloc GitHub / Fichiers 3D / Discord reste bien en bas, et plus rien ne saute ni ne change de taille quand tu replies la barre.",
+          "de": "Der QR-Code für die Mobile-Apps ist nach oben gewandert, der GitHub-/3D-Dateien-/Discord-Block bleibt unten, und nichts springt oder ändert die Größe, wenn du die Seitenleiste ein- und ausklappst.",
+          "es": "El código QR de las apps móviles subió arriba, el bloque de GitHub / Archivos 3D / Discord se queda abajo, y ya nada salta ni cambia de tamaño al plegar y desplegar la barra.",
+          "it": "Il QR code delle app mobili è salito in alto, il blocco GitHub / File 3D / Discord resta giù, e niente salta o cambia dimensione quando apri e chiudi la barra.",
+          "zh": "手机应用的二维码移到了顶部，GitHub / 3D 文件 / Discord 这一块稳稳留在底部，折叠和展开侧边栏时再也不会乱跳或变大小。",
+          "pt": "O QR code dos apps móveis subiu para o topo, o bloco GitHub / Arquivos 3D / Discord fica firme embaixo, e nada mais pula ou muda de tamanho ao recolher e expandir a barra.",
+          "pt-pt": "O código QR das apps móveis subiu para o topo, o bloco GitHub / Ficheiros 3D / Discord fica firme em baixo, e já nada salta ou muda de tamanho quando recolhes e expandes a barra.",
+          "pl": "Kod QR aplikacji mobilnych powędrował na górę, blok GitHub / Pliki 3D / Discord trzyma się dołu, a nic już nie skacze ani nie zmienia rozmiaru, gdy zwijasz i rozwijasz pasek."
+        }
+      }
+    ]
   }
 }

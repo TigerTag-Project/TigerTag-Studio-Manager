@@ -1572,17 +1572,9 @@ export function renderAnycubicLiveInner(p) {
       <span class="icon icon-cloud icon-18"></span>
       <span>${ctx.esc(ctx.t("snapNoConnection"))}</span>
     </div>`;
-  // Head action row — Files browser (mirrors the Creality head button). Only
-  // when connected; the light/jog/fan controls live in the Control card.
-  const headHtml = conn.status === "connected" ? `
-    <div class="snap-head">
-      <button type="button" class="cre-action-btn cre-action-btn--files"
-              data-acu-open-files="1" title="${ctx.esc(ctx.t("acuFilesTitle") || "Files")}">
-        <span class="icon icon-folder icon-16"></span>
-      </button>
-    </div>` : "";
+  // Files browser now lives INSIDE the Control card (next to the light),
+  // mirroring Snapmaker — no separate floating head row.
   const blocks = `
-    ${headHtml}
     ${renderAcuJobCard(p, conn)}
     ${renderAcuControlCard(p, conn)}
     ${renderAcuTempCard(conn)}

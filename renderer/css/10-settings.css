@@ -248,41 +248,44 @@
       margin-top .25s cubic-bezier(.4, 0, .2, 1),
       opacity   .15s linear;
   }
-  .sb-community-label {
-    font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
-    color: rgba(255,255,255,.22); padding-bottom: 1px;
-  }
+  /* GitHub / 3D Files now match the Discord card: solid brand colour + a white
+     (mono) logo, instead of translucent tints. */
   .sb-github-btn {
     display: flex; align-items: center; justify-content: center; gap: 8px;
-    background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.13); border-radius: 8px;
-    padding: 7px 12px; color: rgba(255,255,255,.75); font-size: 12px; font-weight: 600;
-    cursor: pointer; transition: background .15s, border-color .15s, color .15s;
+    background: #2d333b; border: none; border-radius: 8px;
+    padding: 8px 12px; color: #fff; font-size: 12px; font-weight: 600;
+    cursor: pointer; transition: background .15s, box-shadow .2s, width .25s cubic-bezier(.4,0,.2,1);
     width: 100%; box-sizing: border-box;
   }
-  .sb-github-btn:hover { background: rgba(255,255,255,.14); border-color: rgba(255,255,255,.25); color: #fff; }
+  .sb-github-btn:hover { background: #3a414b; box-shadow: 0 3px 14px rgba(0,0,0,.4); }
   .sb-makerworld-btn {
     display: flex; align-items: center; justify-content: center; gap: 8px;
-    background: rgba(0,188,160,.15); border: 1px solid rgba(0,188,160,.35); border-radius: 8px;
-    padding: 7px 12px; color: #00BCA0; font-size: 12px; font-weight: 600;
-    cursor: pointer; transition: background .15s, border-color .15s, color .15s, box-shadow .2s;
+    background: #00BCA0; border: none; border-radius: 8px;
+    padding: 8px 12px; color: #fff; font-size: 12px; font-weight: 600;
+    cursor: pointer; transition: background .15s, box-shadow .2s, width .25s cubic-bezier(.4,0,.2,1);
     width: 100%; box-sizing: border-box;
   }
-  .sb-makerworld-btn:hover { background: rgba(0,188,160,.28); border-color: rgba(0,188,160,.6); color: #00d9b8; box-shadow: 0 3px 14px rgba(0,188,160,.25); }
+  .sb-makerworld-btn:hover { background: #00a890; box-shadow: 0 3px 14px rgba(0,188,160,.4); }
   .sb-discord-btn {
     display: flex; align-items: center; justify-content: center; gap: 8px;
     background: #5865F2; border: none; border-radius: 8px;
     padding: 8px 12px; color: #fff; font-size: 12px; font-weight: 600;
     cursor: pointer; text-decoration: none;
-    transition: background .15s, box-shadow .2s; width: 100%; box-sizing: border-box;
+    transition: background .15s, box-shadow .2s, width .25s cubic-bezier(.4,0,.2,1); width: 100%; box-sizing: border-box;
   }
   .sb-discord-btn:hover { background: #4752C4; box-shadow: 0 3px 14px rgba(88,101,242,.45); }
+  /* Shared fixed height so the three community buttons are identical whether the
+     sidebar is expanded or collapsed — collapsed then only changes their width. */
+  .sb-github-btn, .sb-makerworld-btn, .sb-discord-btn { height: 34px; flex-shrink: 0; }
   .sb-qr-wrap {
-    background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08);
-    border-radius: 10px; padding: 10px; display: flex; flex-direction: column;
+    background: transparent; border: 0; padding: 0;
+    display: flex; flex-direction: column;
     align-items: center; gap: 6px; cursor: default;
   }
   .sb-qr-img { width: 88px; height: 88px; border-radius: 6px; display: block; image-rendering: pixelated; }
   .sb-qr-label { font-size: 11px; font-weight: 600; color: rgba(255,255,255,.72); }
+  /* Short label shown only when the sidebar is collapsed (see collapsed rule). */
+  .sb-qr-label-short { display: none; font-size: 10px; font-weight: 700; color: rgba(255,255,255,.5); }
   .sb-qr-hint { font-size: 10px; color: rgba(255,255,255,.3); text-align: center; }
 
   /* ── Settings panel — `.stg-copy-btn` is still used by the raw-JSON copy

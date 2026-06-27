@@ -177,6 +177,10 @@ function _ensureDOM() {
         <span class="icon icon-chevron-l icon-13"></span>
         <span data-i18n="printerAddBack">Back</span>
       </button>
+      <button type="button" class="pba-brand-tuto-link" id="bblChoiceTuto">
+        <span class="icon icon-bulb icon-13"></span>
+        <span data-i18n="tutoOpenBtn">Connection tutorial</span>
+      </button>
     </div>
   </div>
 </div>
@@ -347,6 +351,7 @@ function _wireDOM() {
   $('bblChoiceClose')?.addEventListener('click', _closeAll);
   $('bblChoiceOverlay')?.addEventListener('click', e => { if (e.target.id === 'bblChoiceOverlay') _closeAll(); });
   $('bblChoiceBack')?.addEventListener('click', () => { _closePanel('bblChoiceOverlay'); ctx.openBrandPicker(); });
+  $('bblChoiceTuto')?.addEventListener('click', () => ctx.openTutorial('bambulab'));
   $('bblChoiceScan')?.addEventListener('click', () => { _closePanel('bblChoiceOverlay'); _openScanPanel(); });
   $('bblChoiceManual')?.addEventListener('click', () => { _closePanel('bblChoiceOverlay'); _openManualPanel(); });
 

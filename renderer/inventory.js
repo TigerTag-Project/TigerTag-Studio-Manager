@@ -5096,6 +5096,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function _soundAccountSwitch() { _playTones([{ f: 587.33, d: 0.10 }, { f: 880.00, t: 0.07, d: 0.16 }], { type: "triangle", gain: 0.06 }); }
   // Softer, lower two-note — distinct cue for peeking into a FRIEND's view.
   function _soundFriendView()   { _playTones([{ f: 493.88, d: 0.10 }, { f: 392.00, t: 0.09, d: 0.18 }], { type: "sine",     gain: 0.05 }); }
+  // Ascending two-note — the inverse of the friend cue: "coming back home" to your own view.
+  function _soundReturnHome()   { _playTones([{ f: 392.00, d: 0.10 }, { f: 587.33, t: 0.09, d: 0.18 }], { type: "sine",     gain: 0.05 }); }
 
   async function switchAccountUI(id) {
     if (id === state.activeAccountId) {
@@ -5108,6 +5110,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       state.friendView = null;
       renderFriendBanner();
     }
+    _closeAllSideCards();   // unified: never carry an open spool/group card across views
     _clearSearchFilters();
     // Check if the target account has an active named Firebase session
     let targetUser = null;
@@ -6390,6 +6393,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     _groupPanelKey = null;
     _groupPanelMembers = new Set();
     _syncPanels();
+  }
+  // Close every right-side "card" (spool detail + group/deck panel) in one shot.
+  // Called on EVERY view transition — account↔account, own→friend, friend→friend,
+  // friend→own — so the previous user's open spool never bleeds into the next view.
+  function _closeAllSideCards() {
+    closeDetail();        // also clears state.selected + any queued scan-open
+    _closeGroupPanel();
   }
   // Keep the open group panel in sync with live inventory changes (weight edits
   // from the detail card / scale, member add/remove). Called on every render.
@@ -7784,6 +7794,31 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (dbg) dbg.style.right = dbgRight ? `${dbgRight}px` : "";
     _setTab($("settingsCloseTab"), sOpen, sW);
     _setTab($("debugCloseTab"),    dOpen, dbgRight + (dbg ? dbg.offsetWidth : 0));
+  }
+  // Brand picker ("Réglages des imprimantes") + the per-brand choice card
+  // ("Ajouter une imprimante <Brand>": scan/IP, then scan-list/manual) shown
+  // SIDE BY SIDE — the choice card docks at the right edge, the picker is pushed
+  // to its LEFT, like group + material. Driven generically off the DOM so the 6
+  // brand add-flows don't each need wiring. Each card is a `.pba-card` inside an
+  // open `.modal-overlay` (made transparent + click-through in CSS).
+  function _openPbaCard() {
+    return document.querySelector(".modal-overlay.open > .modal-card.pba-card");
+  }
+  function _closeOpenPbaCard() {
+    document.querySelectorAll(".modal-overlay.open").forEach(o => {
+      if (o.querySelector(":scope > .modal-card.pba-card")) o.classList.remove("open");
+    });
+  }
+  function _syncPrinterAddPanels() {
+    const picker = $("printerBrandPickerPanel");
+    const pickerOpen = !!picker?.classList.contains("open");
+    const card = _openPbaCard();
+    const cardW = card ? card.offsetWidth : 0;
+    if (!card) document.querySelectorAll(".pba-brand--selected").forEach(b => b.classList.remove("pba-brand--selected"));
+    if (picker) picker.style.right = (pickerOpen && cardW) ? `${cardW}px` : "";
+    const pickerW = pickerOpen && picker ? picker.offsetWidth : 0;
+    _setTab($("pbaChoiceCloseTab"),          !!card,     cardW);
+    _setTab($("printerBrandPickerCloseTab"), pickerOpen, cardW + pickerW);
   }
   // Show/position/hide a card's close tab so it slides WITH the panel — its `right`
   // has the same .25s transition as the panel's slide and travels the same distance
@@ -9504,6 +9539,40 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   }
   window.addEventListener("resize", _syncPanels);
   window.addEventListener("resize", _layoutSettingsStack);
+  window.addEventListener("resize", _syncPrinterAddPanels);
+
+  // The brand picker + per-brand choice cards open/close from several places
+  // (here, and inside each brand's add-flow.js). Re-layout them generically on
+  // any class change (rAF-debounced) so the two stay docked side-by-side.
+  (function () {
+    let _papRaf = 0;
+    const _isPba = (el) => el?.matches?.(".modal-overlay") && el.querySelector(":scope > .modal-card.pba-card");
+    const obs = new MutationObserver((muts) => {
+      // Detect a card→card swap within one batch: one pba overlay lost `open`
+      // while another gained it. Pin the outgoing one in place (`.pba-keep`)
+      // until the incoming slide-in finishes, so nothing flashes behind.
+      let opened = false; const closed = [];
+      for (const m of muts) {
+        if (m.attributeName !== "class" || !_isPba(m.target)) continue;
+        const wasOpen = (m.oldValue || "").split(/\s+/).includes("open");
+        const isOpen  = m.target.classList.contains("open");
+        if (!wasOpen && isOpen) opened = true;
+        else if (wasOpen && !isOpen) closed.push(m.target);
+      }
+      if (opened) for (const el of closed) {
+        el.classList.add("pba-keep");
+        clearTimeout(el._keepT);
+        el._keepT = setTimeout(() => el.classList.remove("pba-keep"), 320);
+      }
+      if (_papRaf) return;
+      _papRaf = requestAnimationFrame(() => { _papRaf = 0; _syncPrinterAddPanels(); });
+    });
+    obs.observe(document.body, { subtree: true, attributes: true, attributeFilter: ["class"], attributeOldValue: true });
+    // Close tabs: the choice card's tab closes just the choice card; the picker's
+    // tab ends the whole flow (picker + any open choice card).
+    $("pbaChoiceCloseTab")?.addEventListener("click", () => { _closeOpenPbaCard(); _syncPrinterAddPanels(); });
+    $("printerBrandPickerCloseTab")?.addEventListener("click", () => { _closeOpenPbaCard(); closePrinterBrandPicker(); });
+  })();
 
   // Close every open side card (spool / group / printer / settings) in one go.
   function _closeAllSidePanels() {
@@ -12303,7 +12372,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     creCamStop:  ()  => stopCreCam(),
   });
   _printerCtx.openPrinterSettings = (brand, printer, prefill) => openPrinterAddForm(brand, printer, prefill);
+  _printerCtx.finishPrinterAdd    = (brand, id) => _finishPrinterAdd(brand, id);
   _printerCtx.openBrandPicker     = () => openPrinterBrandPicker();
+  _printerCtx.openTutorial        = (brand) => openPrinterTutorial(brand, "");
   _printerCtx.isDebugEnabled      = () => !!state.debugEnabled;
   _printerCtx.updatePrinterModel  = (printer, modelId) => persistPrinterModel(printer, modelId);
   _printerCtx.applyTranslations   = () => applyTranslations();
@@ -14032,20 +14103,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function openPrinterBrandPicker() {
     const list = $("printerBrandPickerList");
     if (!list) return;
-    // Brands with a connection tutorial bundled. Adding a brand here requires
-    // a renderer/printers/<brand>/tutorial.json file alongside its add-flow.js.
-    const _PT_HAS_TUTO = { bambulab: true, flashforge: true, elegoo: true };
-    // One card per brand — visual cue (color dot) + label + connection hint.
-    // For brands with a tutorial.json, an inline "Tutoriel de connexion"
-    // pill sits inside the card between the labels and the chevron. Rendered
-    // as a <span role="button"> (not a real <button>) because nesting buttons
-    // is invalid HTML; the click handler is attached directly with
-    // stopPropagation so it doesn't fall through to the brand-select action.
+    // One card per brand — brand logo + label + connection hint. The connection
+    // tutorial (for brands that have one) now lives in the per-brand choice card
+    // (2nd side-card), not here — keeps this picker light.
     list.innerHTML = PRINTER_BRANDS.map(brand => {
       const meta = PRINTER_BRAND_META[brand];
-      const tutoLink = _PT_HAS_TUTO[brand]
-        ? `<span class="pba-brand-tuto-link" data-printer-tuto="${esc(brand)}" role="button" tabindex="0">${t("tutoOpenBtn")}</span>`
-        : "";
       return `
         <button type="button" class="pba-brand" data-brand="${esc(brand)}">
           <span class="pba-brand-logo" data-brand="${esc(brand)}"></span>
@@ -14053,27 +14115,22 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
             <span class="pba-brand-label">${esc(meta.label)}</span>
             <span class="pba-brand-conn">${esc(meta.connection)}</span>
           </span>
-          ${tutoLink}
           <span class="icon icon-chevron-r icon-14 pba-brand-chev"></span>
         </button>`;
     }).join("");
-    // Direct listener on each tutorial pill — fires during bubble phase
-    // BEFORE the parent .pba-brand handler, so stopPropagation prevents the
-    // brand-select dispatch (Add Printer flow) from also firing.
-    list.querySelectorAll(".pba-brand-tuto-link").forEach(pill => {
-      const trigger = (e) => {
-        e.preventDefault(); e.stopPropagation();
-        openPrinterTutorial(pill.dataset.printerTuto, "");
-      };
-      pill.addEventListener("click", trigger);
-      pill.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") trigger(e);
-      });
-    });
     list.querySelectorAll(".pba-brand").forEach(btn => {
       btn.addEventListener("click", () => {
         const brand = btn.dataset.brand;
-        closePrinterBrandPicker();
+        // Highlight the picked brand in the picker (cleared by _syncPrinterAddPanels
+        // once no add-card is open).
+        list.querySelectorAll(".pba-brand--selected").forEach(b => b.classList.remove("pba-brand--selected"));
+        btn.classList.add("pba-brand--selected");
+        // Picking another brand while a choice card is already open closes the
+        // previous one first (the swap is smoothed by .pba-keep).
+        _closeOpenPbaCard();
+        // Keep the brand picker OPEN — the choice card docks to its right
+        // (side-by-side, like group + material). _syncPrinterAddPanels() lays
+        // them out; the picker's close tab ends the flow.
         // Every brand now has a dedicated LAN-discovery flow (scan + manual IP).
         if (brand === "snapmaker") {
           openSnapAddFlow();
@@ -14098,6 +14155,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function closePrinterBrandPicker() {
     $("printerBrandPickerOverlay")?.classList.remove("open");
     $("printerBrandPickerPanel")?.classList.remove("open");
+    const p = $("printerBrandPickerPanel"); if (p) p.style.right = "";
+    _syncPrinterAddPanels();
   }
   $("printerBrandPickerClose")?.addEventListener("click", closePrinterBrandPicker);
   $("printerBrandPickerOverlay")?.addEventListener("click", closePrinterBrandPicker);
@@ -14594,9 +14653,21 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       btn.classList.remove("loading");
       btn.disabled = false;
     }
-    // Freshly added printer → open its side-card once the Firestore listener
-    // has propagated it into state.printers (the doc isn't there synchronously).
-    if (addedId) _openPrinterWhenReady(brand, addedId);
+    // Freshly added printer → tear down the whole add-flow and land the user on
+    // the new printer's side-card once the Firestore listener has propagated it.
+    if (addedId) _finishPrinterAdd(brand, addedId);
+  }
+
+  // Add complete: close the entire add-flow (brand picker + any choice / scan /
+  // cloud / import card + the add form) and open the new printer's side-card.
+  // Shared by every add path — the form (scan / manual IP / import) and the
+  // Anycubic cloud flow (via ctx.finishPrinterAdd).
+  function _finishPrinterAdd(brand, id) {
+    try { _closeOpenPbaCard(); } catch {}
+    try { closePrinterBrandPicker(); } catch {}
+    try { closePrinterAddForm(); } catch {}
+    _syncPrinterAddPanels();
+    _openPrinterWhenReady(brand, id);
   }
 
   // Poll state.printers (up to 3 s) for a just-written printer, then open its
@@ -16813,6 +16884,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   async function switchToFriendView(friendUid, friendName, avatarColor) {
     // Already viewing this friend → no-op (don't re-subscribe or replay the sound).
     if (state.friendView?.uid === friendUid) { closeProfilesModal(); closeFriends(); return; }
+    _closeAllSideCards();   // unified: clear any open spool/group card (esp. friend→friend)
     _soundFriendView();
     closeProfilesModal(); closeFriends();
     _clearSearchFilters();
@@ -16893,6 +16965,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
 
   function switchBackToOwnView() {
     if (!state.friendView) return;
+    _soundReturnHome();     // "back home" cue, mirror of the friend-view sound
+    _closeAllSideCards();   // unified: clear the friend's open spool/group card
     _clearSearchFilters();
     state.friendView = null;
     state.inventory = null; state.rows = [];

@@ -5,6 +5,28 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.10.26 — 2026-06-27
+
+### Added
+
+- **Add Anycubic cloud printers without leaving the app.** Signing in to your Anycubic account now happens right inside the add-printer panel — no separate window pops up. Once you're in, your cloud printers show up ready to add.
+- **A little "welcome back" sound** when you return from a friend's inventory to your own — the upbeat counterpart to the sound you hear peeking into a friend's.
+
+### Changed
+
+- **The whole "Add a printer" flow is calmer and more consistent.** Pick a brand and its options dock neatly beside the list instead of replacing it; every brand now looks and behaves the same, with a tidy header carrying a Back button and a Connection tutorial. Adding a printer drops you straight onto it.
+- **Anycubic: "Add from Anycubic Cloud" is the recommended, top option** when you add an Anycubic printer.
+- **Sidebar footer tidy-up.** The Mobile Apps QR code sits above the GitHub / 3D Files / Discord buttons, the whole block stays pinned to the bottom, and everything keeps its size and place smoothly whether the sidebar is open or collapsed.
+
+### Fixed
+
+- **Anycubic's Files button is back where it belongs** — tucked next to the light in the controls, like the other printers, instead of floating off on its own.
+- **No more tiny size jumps in the sidebar** — the version number, the community buttons, and the notifications bell stay the same size whether the sidebar is open or collapsed, and the avatar no longer hops around when you toggle it.
+- **Buttons that are working show just a spinner now**, not a spinner next to a leftover icon.
+- **Opening a friend's inventory no longer leaves a previous spool or group card hanging around** from a different view.
+
+---
+
 ## v1.10.25 — 2026-06-26
 
 ### Added

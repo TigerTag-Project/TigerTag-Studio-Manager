@@ -350,12 +350,11 @@ function snapCandidateCardHtml(c) {
 }
 
 function openSnapmakerScan() {
-  // Side-panel pattern (matches scales / printer-detail / friends):
-  // two elements driven by `.open` — `#snapScanOverlay` (the dim
-  // backdrop) and `#snapScanPanel` (the slide-in card itself).
+  // Shared pba-card side-card pattern (like every other brand's scan): one
+  // `.modal-overlay#snapScanOverlay` whose `.pba-card` child slides in. The
+  // » close tab + side-by-side docking come for free from _syncPrinterAddPanels().
   const overlay = $("snapScanOverlay");
-  const panel   = $("snapScanPanel");
-  if (!overlay || !panel) return;
+  if (!overlay) return;
   const sub      = $("snapScanSub");
   const bar      = $("snapScanBar");
   const stats    = $("snapScanStats");
@@ -383,10 +382,9 @@ function openSnapmakerScan() {
   if (ipDetails) ipDetails.open = false;
   try { _snapAddIpAbort?.abort(); } catch {}
   _snapAddIpAbort = null;
-  // Slide the panel in + dim the backdrop. Both get `.open` so the
-  // CSS transitions on each fire in lockstep.
+  // Slide the card in (the overlay is transparent + click-through so the brand
+  // picker stays visible/usable to its left, like the other brands).
   overlay.classList.add("open");
-  panel.classList.add("open");
 
   // Cancel any previous scan, then start fresh.
   snapAbortScan();
@@ -501,7 +499,6 @@ function openSnapmakerScan() {
 function closeSnapmakerScan() {
   snapAbortScan();
   $("snapScanOverlay")?.classList.remove("open");
-  $("snapScanPanel")?.classList.remove("open");
 }
 
 // ── Inline "Add by IP" — live IPv4 validation + direct probe ─────────────────
@@ -595,16 +592,16 @@ function _ensureDOM() {
       <button class="modal-close" id="snapAddChoiceClose">✕</button>
     </div>
     <div class="pba-brands">
-      <button type="button" class="pba-brand" id="snapAddChoiceScanBtn">
-        <span class="icon icon-wifi icon-16" style="background:var(--primary);flex-shrink:0;"></span>
+      <button type="button" class="pba-brand" id="snapAddChoiceScan">
+        <span class="pba-brand-dot" style="background:var(--primary)"></span>
         <span class="pba-brand-text">
           <span class="pba-brand-label" data-i18n="snapAddChoiceScan">Scan network</span>
           <span class="pba-brand-conn" data-i18n="snapAddChoiceScanHint">Auto-discover printers on your LAN</span>
         </span>
         <span class="icon icon-chevron-r icon-13 pba-brand-chev"></span>
       </button>
-      <button type="button" class="pba-brand" id="snapAddChoiceManualBtn">
-        <span class="icon icon-edit icon-16" style="background:var(--muted);flex-shrink:0;"></span>
+      <button type="button" class="pba-brand" id="snapAddChoiceManual">
+        <span class="pba-brand-dot" style="background:var(--primary)"></span>
         <span class="pba-brand-text">
           <span class="pba-brand-label" data-i18n="snapAddChoiceManual">Enter IP address</span>
           <span class="pba-brand-conn" data-i18n="snapAddChoiceManualHint">Manually enter the printer's local IP</span>
@@ -617,25 +614,29 @@ function _ensureDOM() {
         <span class="icon icon-chevron-l icon-13"></span>
         <span data-i18n="printerAddBack">Back</span>
       </button>
+      <button type="button" class="pba-brand-tuto-link" disabled aria-disabled="true" data-i18n-title="tutoUnavailable">
+        <span class="icon icon-bulb icon-13"></span>
+        <span data-i18n="tutoOpenBtn">Connection tutorial</span>
+      </button>
     </div>
   </div>
 </div>
 
-<!-- Snapmaker LAN scanner — slide-in side panel (right). Probes
-     /printer/info on every reachable host in the local /24 subnets,
-     lists candidates as they're found, lets the user pick one to
-     pre-fill the standard add form. Side-panel layout (instead of a
-     centred modal) gives a lot more vertical room for the long scan
-     log + multiple candidate cards without scrolling. -->
-<div class="panel-overlay" id="snapScanOverlay"></div>
-<div class="detail-panel snap-scan-panel" id="snapScanPanel">
-  <div class="panel-header">
-    <div class="snap-scan-panel-titles">
-      <span class="panel-title" data-i18n="snapScanTitle">Scanning network…</span>
-      <span class="snap-scan-panel-sub" id="snapScanSub"></span>
+<!-- Snapmaker LAN scanner — same right side-card frame as the other brands
+     (.modal-overlay > .pba-card) so it docks beside the brand picker, matches
+     their width, and picks up the shared » close tab + side-by-side layout via
+     _syncPrinterAddPanels() (driven off the MutationObserver in inventory.js).
+     Probes /printer/info on every reachable host in the local /24 subnets and
+     lists candidates as they're found. -->
+<div class="modal-overlay" id="snapScanOverlay" role="dialog" aria-modal="true">
+  <div class="modal-card pba-card">
+    <div class="pba-header">
+      <div class="pba-header-text">
+        <div class="pba-title" data-i18n="snapScanTitle">Scanning network…</div>
+        <div class="pba-sub" id="snapScanSub"></div>
+      </div>
+      <button class="modal-close" id="snapScanClose">✕</button>
     </div>
-    <!-- Close button removed: panel closes on backdrop click + Escape key. -->
-  </div>
     <div class="snap-scan-body">
       <div class="snap-scan-progress">
         <div class="snap-scan-bar"><span id="snapScanBar"></span></div>
@@ -728,7 +729,7 @@ function _ensureDOM() {
         <div class="snap-scan-log-body" id="snapScanLogBody" hidden></div>
       </section>
     </div>
-    <div class="snap-scan-panel-footer">
+    <div class="pba-footer">
       <button class="adf-btn adf-btn--secondary" id="snapScanBack">
         <span class="icon icon-chevron-l icon-13"></span>
         <span data-i18n="printerAddBack">Back</span>
@@ -738,6 +739,7 @@ function _ensureDOM() {
         <span data-i18n="snapScanRestart">Restart scan</span>
       </button>
     </div>
+  </div>
 </div>
 
 <!-- Snapmaker manual IP entry — types an IP, hits /printer/info to pull
@@ -792,11 +794,11 @@ function _wireDOM() {
     closeSnapAddChoice();
     ctx.openBrandPicker();
   });
-  $("snapAddChoiceScanBtn")?.addEventListener("click", () => {
+  $("snapAddChoiceScan")?.addEventListener("click", () => {
     closeSnapAddChoice();
     openSnapmakerScan();
   });
-  $("snapAddChoiceManualBtn")?.addEventListener("click", () => {
+  $("snapAddChoiceManual")?.addEventListener("click", () => {
     closeSnapAddChoice();
     openSnapmakerManual();
   });
@@ -808,11 +810,14 @@ function _wireDOM() {
 
   // ── Scan panel ────────────────────────────────────────────────────────────
   $("snapScanClose")?.addEventListener("click", closeSnapmakerScan);
-  // Backdrop click closes the panel (same UX as scales / printer detail).
-  $("snapScanOverlay")?.addEventListener("click", closeSnapmakerScan);
-  // Escape key — replaces the visible ✕ button (now removed).
+  // Backdrop click closes — but only a click on the overlay itself, not one that
+  // bubbled up from inside the card (the card is now a child of the overlay).
+  $("snapScanOverlay")?.addEventListener("click", e => {
+    if (e.target.id === "snapScanOverlay") closeSnapmakerScan();
+  });
+  // Escape key closes the scan card.
   document.addEventListener("keydown", e => {
-    if (e.key === "Escape" && $("snapScanPanel")?.classList.contains("open")) {
+    if (e.key === "Escape" && $("snapScanOverlay")?.classList.contains("open")) {
       closeSnapmakerScan();
     }
   });

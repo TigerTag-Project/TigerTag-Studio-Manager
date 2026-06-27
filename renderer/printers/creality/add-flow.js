@@ -203,6 +203,10 @@ function _ensureDOM() {
         <span class="icon icon-chevron-l icon-13"></span>
         <span data-i18n="printerAddBack">Back</span>
       </button>
+      <button type="button" class="pba-brand-tuto-link" disabled aria-disabled="true" data-i18n-title="tutoUnavailable">
+        <span class="icon icon-bulb icon-13"></span>
+        <span data-i18n="tutoOpenBtn">Connection tutorial</span>
+      </button>
     </div>
   </div>
 </div>

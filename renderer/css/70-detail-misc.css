@@ -107,9 +107,11 @@
   button.sm { height: 32px; font-size: 12px; padding: 0 10px; }
   button .spinner { width: 14px; height: 14px; border-radius: 50%; border: 2px solid currentColor; border-top-color: transparent; animation: spin .8s linear infinite; display: none; }
   button.loading .spinner { display: inline-block; }
-  /* When loading, the label is hidden so the spinner sits alone centered.
-     The button keeps its width via min-width — no layout shift, no jitter. */
+  /* When loading, the label AND any leading icon are hidden so the spinner sits
+     alone centered — never an icon and a spinner at once. The button keeps its
+     width via min-width — no layout shift, no jitter. */
   button.loading .label { display: none; }
+  button.loading .icon  { display: none; }
   #btnSbReload.loading svg { animation: spin .8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -1431,7 +1433,7 @@
     font-size: 13px; white-space: nowrap;
     animation: slideUp .25s cubic-bezier(.4,0,.2,1);
   }
-  .update-banner .ub-icon { font-size: 18px; align-self: flex-start; margin-top: 1px; }
+  .update-banner .ub-icon { font-size: 22px; align-self: center; line-height: 1; }
   .update-banner .ub-body { display: flex; flex-direction: column; gap: 6px; min-width: 220px; }
   .update-banner .ub-text { color: rgba(255,255,255,.75); line-height: 1.25; }
   .update-banner .ub-text strong { color: #fff; }

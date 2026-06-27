@@ -288,12 +288,18 @@ export function renderAcuControlCard(_p, conn) {
           <button class="elg-jog-z-btn" data-acu-jog="z" data-acu-dir="-" title="Z−">Z↓</button>
         </div>
 
-        <!-- FAR RIGHT — light toggle (top) + jog step (below) -->
+        <!-- FAR RIGHT — files + light (top row) + jog step / speed (below) -->
         <div class="acu-jog-extra">
-          <button type="button" class="cre-action-btn cre-action-btn--led elg-ctrl-action${ledOn ? " cre-action-btn--led-on" : ""}"
-                  data-acu-light="1" data-acu-tip="${ledTip}">
-            <span class="icon icon-bulb icon-16" aria-hidden="true"></span>
-          </button>
+          <div class="elg-ctrl-actions">
+            <button type="button" class="cre-action-btn cre-action-btn--files elg-ctrl-action"
+                    data-acu-open-files="1" data-acu-tip="${ctx.esc(ctx.t("acuFilesTitle") || "Files")}">
+              <span class="icon icon-folder icon-16" aria-hidden="true"></span>
+            </button>
+            <button type="button" class="cre-action-btn cre-action-btn--led elg-ctrl-action${ledOn ? " cre-action-btn--led-on" : ""}"
+                    data-acu-light="1" data-acu-tip="${ledTip}">
+              <span class="icon icon-bulb icon-16" aria-hidden="true"></span>
+            </button>
+          </div>
           <div class="elg-ctrl-speed-row">
             <span class="elg-ctrl-speed-label">${ctx.esc(ctx.t("elgCtrlStep") || "Step")}</span>
             <select class="elg-ctrl-speed-select" id="acuCtrlStep">

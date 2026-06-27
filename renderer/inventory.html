@@ -90,23 +90,23 @@
 
     <!-- community footer (always visible) -->
     <div class="sb-community">
-      <div class="sb-community-label">Community</div>
+      <div class="sb-qr-wrap" id="sbQrWrap">
+        <div class="sb-qr-label" data-i18n="mobileApp">Mobile App</div>
+        <div class="sb-qr-label-short" data-i18n="mobileAppShort">Apps</div>
+        <img class="sb-qr-img" src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=https%3A%2F%2Ftaap.it%2FnX7QSrz&bgcolor=0f1117&color=ffffff&margin=8" alt="QR" />
+      </div>
       <button class="sb-github-btn" id="sbGithubBtn">
-        <span class="icon icon-github icon-14" style="width:15px;height:15px"></span>
-        <span data-i18n="githubBtn">View on GitHub</span>
+        <span class="icon icon-github icon-14" style="width:18px;height:18px"></span>
+        <span class="label" data-i18n="githubBtn">View on GitHub</span>
       </button>
       <button class="sb-makerworld-btn" id="sbMakerWorldBtn">
-        <span class="icon icon-package icon-14"></span>
-        <span data-i18n="makerWorldBtn">3D Files — MakerWorld</span>
+        <span class="icon icon-package icon-14" style="width:16px;height:16px"></span>
+        <span class="label" data-i18n="makerWorldBtn">3D Files — MakerWorld</span>
       </button>
       <button class="sb-discord-btn" id="sbDiscordBtn">
         <span class="icon icon-discord icon-14" style="width:16px;height:16px"></span>
-        <span data-i18n="discordBtn">Join us on Discord</span>
+        <span class="label" data-i18n="discordBtn">Join us on Discord</span>
       </button>
-      <div class="sb-qr-wrap" id="sbQrWrap">
-        <div class="sb-qr-label" data-i18n="mobileApp">Mobile App</div>
-        <img class="sb-qr-img" src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=https%3A%2F%2Ftaap.it%2FnX7QSrz&bgcolor=0f1117&color=ffffff&margin=8" alt="QR" />
-      </div>
       <!-- App version (always visible, discreet — populated at runtime from preload) -->
       <div class="sb-version" id="sbVersion">v—</div>
     </div>
@@ -958,11 +958,14 @@
 <!-- Add printer — step 1: brand picker -->
 <!-- Printer brand picker — side panel -->
 <div class="panel-overlay" id="printerBrandPickerOverlay"></div>
+<!-- Close tab for the brand picker; and a shared close tab for the per-brand
+     choice card (scan/IP) that docks to its right. -->
+<button class="pp-close-tab" id="printerBrandPickerCloseTab" title="Close" aria-label="Close" hidden>»</button>
+<button class="pp-close-tab" id="pbaChoiceCloseTab" title="Close" aria-label="Close" hidden>»</button>
 <div class="detail-panel pba-panel" id="printerBrandPickerPanel">
   <div class="pba-header">
     <div class="pba-header-text">
-      <div class="pba-title" data-i18n="printersSettingsTitle">Printers Settings</div>
-      <div class="pba-sub" data-i18n="printerAddPickSub">Choose the manufacturer of your 3D printer</div>
+      <div class="pba-title" data-i18n="printerAddPickTitle">Add a 3D printer</div>
     </div>
     <button class="panel-close" id="printerBrandPickerClose">✕</button>
   </div>
