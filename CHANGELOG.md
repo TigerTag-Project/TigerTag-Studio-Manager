@@ -5,6 +5,28 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.10.28 — 2026-06-29
+
+### Added
+
+- **Tags.** Label your spools with free-form tags. Add or remove them from a spool's detail panel (with autocomplete from tags you already use), filter the inventory with the new **All tags** dropdown, and find them from the search bar. A spool's tags stay in sync across both chips of a twin pair.
+- **Grid view sorting.** The grid now has its own sort menu (brand, material, name, type, weight, capacity, updated) with an ascending/descending toggle — previously only the table view could sort.
+- **Your chip history, kept safe.** The app now keeps a private list of every physical chip you've programmed — to count your unique chips — and backs up the repairable signature of each TigerTag+ the first time it's read.
+
+### Changed
+
+- **The notifications panel no longer blocks the rest of the app** — you can keep clicking around while it's open, it has a chevron to close it, and opening it tidies away any other open side panel.
+- **Cleaner grouped spools in the grid** — a group now looks like a normal card with its ×N count badge, without the stacked-paper effect.
+- **Clearer wording when pairing chips** — "Link a second RFID chip" instead of "Link to a twin spool", since you're linking two chips of one spool.
+- **New Firebase Explorer (admin).** For debug-enabled accounts, a dedicated dark tool to browse your own Firestore data — breadcrumb navigation, clickable drill-down, readable values and a raw-JSON view.
+
+### Fixed
+
+- **"Show in Storage" now just highlights the spool's slot** instead of filling the search bar; clicking anywhere clears the highlight.
+- **The chip list builds for everyone now**, including accounts whose inventory loads from cache (it previously skipped them).
+
+---
+
 ## v1.10.27 — 2026-06-28
 
 ### Added

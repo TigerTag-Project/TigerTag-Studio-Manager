@@ -223,6 +223,24 @@
           <select id="typeFilter" class="inv-brand-filter" data-i18n-title="filterAllVersions" title="All versions">
             <option value="" data-i18n="filterAllVersions">All versions</option>
           </select>
+          <!-- Tag filter — lists the tags that exist in the inventory. -->
+          <select id="tagFilter" class="inv-brand-filter" data-i18n-title="filterAllTags" title="All tags">
+            <option value="" data-i18n="filterAllTags">All tags</option>
+          </select>
+        </div>
+        <!-- Grid-only sort control, pushed to the far right (table view sorts
+             via its column headers). Separated from the filter cluster. -->
+        <div class="inv-grid-sort" id="gridSortWrap" hidden>
+          <select id="gridSort" class="inv-brand-filter" data-i18n-title="sortBy" title="Sort by">
+            <option value="brand"           data-i18n="thBrand">Brand</option>
+            <option value="material"        data-i18n="thMaterial">Material</option>
+            <option value="colorName"       data-i18n="thName">Name</option>
+            <option value="isPlus"          data-i18n="thType">Type</option>
+            <option value="weightAvailable" data-i18n="thWeight">Weight avail.</option>
+            <option value="capacity"        data-i18n="thCapacity">Capacity</option>
+            <option value="lastUpdate"      data-i18n="thUpdated">Updated</option>
+          </select>
+          <button id="gridSortDir" class="inv-sort-dir" type="button" data-i18n-title="sortDir" title="Sort direction">↑</button>
         </div>
       </div>
       <div id="mainResult"></div>
@@ -361,6 +379,7 @@
         <p class="stg-row-help" data-i18n="stgToolsHelp">Diagnostics and troubleshooting utilities.</p>
         <div class="stg-row-actions stg-row-actions--col">
           <button class="ghost sm" id="btnDebug"><span class="icon icon-search icon-13"></span><span data-i18n="debugOpenBtn">Open debug panel</span></button>
+          <button class="ghost sm" id="btnFsExplorer"><span class="icon icon-local-fire icon-13"></span><span data-i18n="fsExplorerOpenBtn">Open Firestore explorer</span></button>
           <button class="ghost sm" id="btnTD1S"><span class="td1s-dev-icon"></span><span>Open TD1S panel</span></button>
           <button class="ghost sm" id="btnRfidTest"><span class="icon icon-nfc icon-13"></span><span>Open RFID tester</span></button>
           <button class="ghost sm" id="btnReportProblem"><span class="icon icon-info icon-13"></span><span data-i18n="errReportBtn">Report a problem</span></button>
@@ -1108,6 +1127,7 @@
 
 <!-- Notifications panel (slide-in from right) -->
 <div class="panel-overlay" id="notifOverlay"></div>
+<button class="pp-close-tab" id="notifCloseTab" title="Close" aria-label="Close" hidden>»</button>
 <div class="detail-panel friends-panel notif-panel" id="notifPanel">
   <div class="panel-header">
     <span class="panel-title" data-i18n="notifsTitle">Notifications</span>
@@ -1211,39 +1231,65 @@
     <button class="panel-close" id="debugPanelClose">✕</button>
   </div>
   <div class="panel-body" style="padding:0;display:flex;flex-direction:column;overflow:hidden">
-
-    <!-- tab bar -->
-    <div class="dbg-tabs">
-      <button class="dbg-tab active" data-tab="api">API</button>
-      <button class="dbg-tab" data-tab="fs">Firestore</button>
-    </div>
-
-    <!-- API tab -->
+    <!-- API inspector (last cdn.tigertag.io request/response) -->
     <div class="dbg-pane" id="dbgPaneApi" style="display:flex;flex-direction:column;gap:10px;padding:16px;flex:1;overflow:auto">
       <div class="debug-meta" id="debugMeta" data-i18n="debugNoReqs">No requests yet.</div>
       <pre class="json" id="debugBody" style="flex:1;margin:0">{}</pre>
     </div>
+  </div>
+</div>
 
-    <!-- Firestore explorer tab -->
-    <div class="dbg-pane hidden" id="dbgPaneFs" style="display:flex;flex-direction:column;gap:8px;padding:12px 14px;flex:1;overflow:hidden">
+<!-- Firebase Explorer — dedicated side card, optimised for browsing Firestore -->
+<div class="panel-overlay" id="fseOverlay"></div>
+<button class="pp-close-tab" id="fseCloseTab" title="Close" aria-label="Close" hidden>»</button>
+<div class="detail-panel" id="fseExplorerPanel">
+  <div class="panel-resize" id="fseResize"></div>
+  <div class="panel-header">
+    <span class="panel-title"><span class="icon icon-local-fire icon-14 fse-title-icon"></span>Firebase Explorer</span>
+    <button class="panel-close" id="fseExplorerClose">✕</button>
+  </div>
+  <div class="panel-body fse-wrap">
+    <!-- quick-access chips (known paths + one per printer brand) -->
+    <div class="fse-chips" id="fseChips"></div>
 
-      <!-- quick-access chips -->
-      <div class="fse-chips" id="fseChips"></div>
-
-      <!-- path input + fetch -->
-      <div style="display:flex;gap:6px;flex-shrink:0">
-        <input id="fsePath" class="dbg-select" style="flex:1;font-family:var(--mono);font-size:11px" placeholder="users/{uid}/…" />
-        <button id="fseFetch" class="ghost sm">Fetch</button>
-        <button id="fseCopy" class="ghost sm"><span class="icon icon-copy icon-13"></span></button>
-      </div>
-
-      <!-- result label -->
-      <div id="fseLabel" style="font-size:11px;color:var(--muted);flex-shrink:0"></div>
-
-      <!-- result -->
-      <pre class="json" id="fsExplPre" style="flex:1;margin:0;overflow:auto">{}</pre>
+    <!-- breadcrumb of the current path + actions -->
+    <div class="fse-toolbar">
+      <nav class="fse-crumbs" id="fseCrumbs"></nav>
+      <button id="fseRefresh" class="fse-iconbtn" title="Refresh"><span class="icon icon-refresh icon-12"></span></button>
+      <button id="fseRawBtn" class="fse-iconbtn fse-iconbtn--text" title="Raw JSON">{ }</button>
+      <button id="fseCopy" class="fse-iconbtn" title="Copy JSON"><span class="icon icon-copy icon-12"></span></button>
     </div>
 
+    <!-- manual path input -->
+    <div class="fse-bar">
+      <span class="fse-bar-icon icon icon-search icon-12"></span>
+      <input id="fsePath" class="fse-input" placeholder="users/{uid}/…" spellcheck="false" autocomplete="off" />
+      <button id="fseFetch" class="ghost sm">Go</button>
+    </div>
+
+    <!-- result meta: type badge + count + (collection) filter / (doc) raw toggle -->
+    <div class="fse-meta" id="fseMeta"></div>
+
+    <!-- result: collection = expandable doc rows; doc = field table -->
+    <div class="fse-result" id="fseResult"></div>
+  </div>
+</div>
+
+<!-- Raw JSON — third side card, mirrors the Explorer's current result live -->
+<div class="panel-overlay" id="fseRawOverlay"></div>
+<button class="pp-close-tab" id="fseRawCloseTab" title="Close" aria-label="Close" hidden>»</button>
+<div class="detail-panel" id="fseRawPanel">
+  <div class="panel-resize" id="fseRawResize"></div>
+  <div class="panel-header">
+    <span class="panel-title"><span class="fse-title-braces">{ }</span>Raw JSON</span>
+    <div class="fse-head-actions">
+      <button class="panel-close" id="fseRawCopy" title="Copy JSON"><span class="icon icon-copy icon-13"></span></button>
+      <button class="panel-close" id="fseRawClose">✕</button>
+    </div>
+  </div>
+  <div class="panel-body fse-raw-wrap">
+    <div class="fse-raw-meta" id="fseRawMeta"></div>
+    <pre class="json fse-raw-pre" id="fseRawPre">{}</pre>
   </div>
 </div>
 

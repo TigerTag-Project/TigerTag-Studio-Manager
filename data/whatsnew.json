@@ -3967,5 +3967,110 @@
         }
       }
     ]
+  },
+  "1.10.28": {
+    "date": "2026-06-29",
+    "items": [
+      {
+        "icon": "list",
+        "title": {
+          "en": "Slap tags on your spools",
+          "fr": "Colle des balises sur tes bobines",
+          "de": "Pack Tags auf deine Spulen",
+          "es": "Ponles etiquetas a tus bobinas",
+          "it": "Appiccica tag alle tue bobine",
+          "zh": "给你的耗材贴上标签",
+          "pt": "Cola etiquetas nas tuas bobinas",
+          "pt-pt": "Cola etiquetas nas tuas bobinas",
+          "pl": "Przyklej tagi do swoich szpul"
+        },
+        "body": {
+          "en": "Label your spools however you like — Paid, OLD, whatever works. Find them in a click with the new filter, or just type a tag in the search. Got a two-chip spool? Its tags follow on both sides.",
+          "fr": "Étiquette tes bobines comme tu veux — Paid, OLD, tout ce qui t'arrange. Retrouve-les d'un clic avec le nouveau filtre, ou tape une balise dans la recherche. Une bobine à deux puces ? Ses balises suivent des deux côtés.",
+          "de": "Beschrifte deine Spulen, wie du willst — Paid, OLD, was auch immer. Finde sie mit einem Klick über den neuen Filter oder tippe einfach einen Tag in die Suche. Spule mit zwei Chips? Die Tags gelten für beide.",
+          "es": "Etiqueta tus bobinas como quieras — Paid, OLD, lo que sea. Encuéntralas de un clic con el nuevo filtro, o escribe una etiqueta en el buscador. ¿Bobina con dos chips? Sus etiquetas valen para ambos.",
+          "it": "Etichetta le tue bobine come vuoi — Paid, OLD, quello che ti pare. Ritrovale con un clic dal nuovo filtro, o scrivi un tag nella ricerca. Bobina con due chip? I tag valgono per entrambi.",
+          "zh": "随心给耗材贴标签——Paid、OLD，随你写。用新筛选器一键找到它们，或在搜索框里输入标签。双芯片耗材？两边的标签自动同步。",
+          "pt": "Etiqueta as tuas bobinas como quiseres — Paid, OLD, o que der jeito. Encontra-as num clique com o novo filtro, ou escreve uma etiqueta na pesquisa. Bobina com dois chips? As etiquetas valem para os dois.",
+          "pt-pt": "Etiqueta as tuas bobinas como quiseres — Paid, OLD, o que te der jeito. Encontra-as num clique com o novo filtro, ou escreve uma etiqueta na pesquisa. Bobina com dois chips? As etiquetas valem para ambos.",
+          "pl": "Oznaczaj szpule jak chcesz — Paid, OLD, cokolwiek. Znajdź je jednym kliknięciem nowym filtrem albo wpisz tag w wyszukiwarce. Szpula z dwoma chipami? Tagi działają po obu stronach."
+        }
+      },
+      {
+        "icon": "swap",
+        "title": {
+          "en": "Sort the grid your way",
+          "fr": "Trie la grille à ta sauce",
+          "de": "Sortier das Raster nach Lust und Laune",
+          "es": "Ordena la cuadrícula a tu manera",
+          "it": "Ordina la griglia a modo tuo",
+          "zh": "网格随你排序",
+          "pt": "Ordena a grelha à tua maneira",
+          "pt-pt": "Ordena a grelha à tua maneira",
+          "pl": "Sortuj siatkę po swojemu"
+        },
+        "body": {
+          "en": "The grid view finally has its own sort menu — by brand, material, name, weight and more, ascending or descending. No more hopping to the table just to reorder.",
+          "fr": "La vue grille a enfin son propre menu de tri — par marque, matière, nom, poids et plus, dans un sens ou dans l'autre. Fini l'aller-retour par le tableau juste pour réordonner.",
+          "de": "Die Rasteransicht hat endlich ihr eigenes Sortiermenü — nach Marke, Material, Name, Gewicht und mehr, auf- oder absteigend. Kein Umweg mehr über die Tabelle nur zum Umsortieren.",
+          "es": "La vista de cuadrícula por fin tiene su propio menú de orden — por marca, material, nombre, peso y más, ascendente o descendente. Se acabó pasar por la tabla solo para reordenar.",
+          "it": "La vista a griglia ha finalmente il suo menu di ordinamento — per marca, materiale, nome, peso e altro, crescente o decrescente. Basta passare dalla tabella solo per riordinare.",
+          "zh": "网格视图终于有了自己的排序菜单——按品牌、材料、名称、重量等，升序或降序。不用再切到表格才能重新排序了。",
+          "pt": "A vista em grelha finalmente tem o seu próprio menu de ordenação — por marca, material, nome, peso e mais, ascendente ou descendente. Acabou ter de ir à tabela só para reordenar.",
+          "pt-pt": "A vista em grelha finalmente tem o seu próprio menu de ordenação — por marca, material, nome, peso e mais, ascendente ou descendente. Acabou ter de ir à tabela só para reordenar.",
+          "pl": "Widok siatki ma wreszcie własne menu sortowania — po marce, materiale, nazwie, wadze i więcej, rosnąco lub malejąco. Koniec skakania do tabeli tylko po to, by zmienić kolejność."
+        }
+      },
+      {
+        "icon": "bell",
+        "title": {
+          "en": "Notifications stop hogging the screen",
+          "fr": "Les notifs te lâchent la grappe",
+          "de": "Benachrichtigungen blockieren nichts mehr",
+          "es": "Las notificaciones dejan de acaparar la pantalla",
+          "it": "Le notifiche smettono di monopolizzare lo schermo",
+          "zh": "通知不再霸占屏幕",
+          "pt": "As notificações deixam de monopolizar o ecrã",
+          "pt-pt": "As notificações deixam de monopolizar o ecrã",
+          "pl": "Powiadomienia przestają zasłaniać ekran"
+        },
+        "body": {
+          "en": "Open your notifications and keep using the app behind them — no more frozen screen. There's a chevron to tuck them away, and opening them clears any other open panel.",
+          "fr": "Ouvre tes notifications et continue à cliquer derrière — fini l'écran figé. Un chevron pour les ranger, et les ouvrir referme tout autre panneau ouvert.",
+          "de": "Öffne deine Benachrichtigungen und nutze die App dahinter weiter — kein eingefrorener Bildschirm mehr. Ein Pfeil zum Wegklappen, und beim Öffnen wird jedes andere offene Panel geschlossen.",
+          "es": "Abre tus notificaciones y sigue usando la app por detrás — se acabó la pantalla congelada. Hay un chevrón para guardarlas, y al abrirlas se cierra cualquier otro panel abierto.",
+          "it": "Apri le notifiche e continua a usare l'app dietro — niente più schermo bloccato. C'è una freccetta per richiuderle, e aprirle chiude ogni altro pannello aperto.",
+          "zh": "打开通知后，后面的界面照样能点——不再卡住整个屏幕。有个小箭头可以收起它们，打开时还会自动关掉其他面板。",
+          "pt": "Abre as tuas notificações e continua a usar a app por trás — acabou o ecrã congelado. Há um chevron para as arrumar, e abri-las fecha qualquer outro painel aberto.",
+          "pt-pt": "Abre as tuas notificações e continua a usar a app por trás — acabou o ecrã congelado. Há um chevron para as arrumar, e abri-las fecha qualquer outro painel aberto.",
+          "pl": "Otwórz powiadomienia i dalej klikaj w tle — koniec z zamrożonym ekranem. Jest strzałka, żeby je schować, a ich otwarcie zamyka każdy inny otwarty panel."
+        }
+      },
+      {
+        "icon": "nfc",
+        "title": {
+          "en": "Your TigerTag+ chips get a safety net",
+          "fr": "Tes puces TigerTag+ ont un filet de sécurité",
+          "de": "Deine TigerTag+-Chips bekommen ein Sicherheitsnetz",
+          "es": "Tus chips TigerTag+ tienen una red de seguridad",
+          "it": "I tuoi chip TigerTag+ hanno una rete di sicurezza",
+          "zh": "你的 TigerTag+ 芯片多了一道保险",
+          "pt": "Os teus chips TigerTag+ ganham uma rede de segurança",
+          "pt-pt": "Os teus chips TigerTag+ ganham uma rede de segurança",
+          "pl": "Twoje chipy TigerTag+ dostają zabezpieczenie"
+        },
+        "body": {
+          "en": "The app now keeps a private tally of every physical chip you've made, and quietly backs up each TigerTag+'s repairable signature the first time you scan it. Just in case.",
+          "fr": "L'app tient maintenant le compte de toutes tes puces physiques, et sauvegarde discrètement la signature réparable de chaque TigerTag+ dès le premier scan. Au cas où.",
+          "de": "Die App führt jetzt eine private Liste all deiner physischen Chips und sichert beim ersten Scan still und leise die reparierbare Signatur jedes TigerTag+. Nur für den Fall.",
+          "es": "La app ahora lleva la cuenta de todos tus chips físicos y guarda en silencio la firma reparable de cada TigerTag+ la primera vez que lo escaneas. Por si acaso.",
+          "it": "L'app ora tiene il conto di tutti i tuoi chip fisici e salva in silenzio la firma riparabile di ogni TigerTag+ al primo scan. Non si sa mai.",
+          "zh": "应用现在会私下统计你做过的每一枚实体芯片，并在你第一次扫描时悄悄备份每个 TigerTag+ 可修复的签名。以防万一。",
+          "pt": "A app passa a contar todos os teus chips físicos e guarda discretamente a assinatura reparável de cada TigerTag+ na primeira leitura. Só por precaução.",
+          "pt-pt": "A app passa a contar todos os teus chips físicos e guarda discretamente a assinatura reparável de cada TigerTag+ na primeira leitura. Só por precaução.",
+          "pl": "Aplikacja prowadzi teraz prywatny rejestr wszystkich twoich fizycznych chipów i po cichu tworzy kopię naprawialnego podpisu każdego TigerTag+ przy pierwszym skanie. Tak na wszelki wypadek."
+        }
+      }
+    ]
   }
 }

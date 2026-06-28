@@ -15,6 +15,10 @@ Sizes: **S** = a few hours · **M** = a day · **L** = several days · **XL** = 
 Grouped by domain. Versions in parentheses are the release that landed the feature; the changelog has the detail.
 
 ### Inventory & spools
+- 🚧 **Tags / Balises** (Shopify-style free-form labels per spool, `tags` string[] on the inventory doc; twin-mirrored; pure Studio metadata, no re-burn; searchable).
+  - ✅ **Phase 1** — editor in the detail panel (chips + autocomplete add), normalise/dedup/cap, search integration.
+  - 🔜 **Phase 2** — tag chips shown on grid/table cards + a multi-tag filter (AND/OR), bulk-tag a multi-selection.
+  - 🔜 **Phase 3** — **Smart groups** = named saved filters by condition (tags + brand/material/…), the "automated collection" payoff. Stored in `prefs`.
 - ✅ **Hard delete + anti-resurrection (cloudSync)** — spools deleted from Tiger Studio are hard-deleted from Firestore (no tombstone). Flutter's `cloudSync` flag prevents resurrection on reconnect. Legacy `deleted: true` tombstones auto-purged on first live snapshot. ISO with the printer pattern. (v1.7.4)
 - ✅ **`updatedAt` rename** — `last_update` → `updatedAt` (ISO with printer model). All writes use `FieldValue.serverTimestamp()`. Legacy docs handled via `normalizeRow` fallback. (v1.7.4)
 - ✅ **Container auto-assignment** — `resolveContainerForBrand` + `autoAssignMissingContainers`: every spool without a `container_id` gets one automatically on the next live snapshot, matched to its brand. (v1.7.4)

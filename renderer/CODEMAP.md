@@ -198,7 +198,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Inventory render (L5463-6796)
+## Inventory render (L5463-6974)
 
 | L | What | Anchors |
 |---|---|---|
@@ -210,7 +210,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## RFID encode / burn modal — cem (L6767-7129)
+## RFID encode / burn modal — cem (L6767-7348)
 
 | L | What | Anchors |
 |---|---|---|
@@ -220,7 +220,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## TigerTag+ catalogue (L7130-7479)
+## TigerTag+ catalogue (L7130-7650)
 
 | L | What | Anchors |
 |---|---|---|
@@ -230,7 +230,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Spool detail panel (L7480-9371)
+## Spool detail panel (L7480-9587)
 
 | L | What | Anchors |
 |---|---|---|
@@ -240,12 +240,13 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 | 7360-7371 | TigerPOD modal | `openTigerPodModal` |
 | 7372-7427 | **Container picker modal** (46 containers from `data/container_spool/spools_filament.json`) | `openContainerPicker`, `doContainerUpdate` |
 | 7428-7468 | Video URL parser (YouTube/Vimeo embeds) | `parseVideoUrl` |
-| 7469-8133 | **`buildPanelHTML(r)`** — header, colours, print settings, weight slider w/ debounce, storage row, links, container, toolbox, raw JSON | `buildPanelHTML` |
+| ~7672 | **Tags / Balises** — free-form per-spool labels (array on the inventory doc). Normalise + dedup + cap, twin-mirrored write, autocomplete suggestions. Editor lives in `buildPanelHTML`; wiring in `openDetail` | `_normalizeTag`, `_allTags`, `_writeSpoolTags`, `addSpoolTag`, `removeSpoolTag` |
+| 7469-8133 | **`buildPanelHTML(r)`** — header, colours, print settings, weight slider w/ debounce, storage row, tags, links, container, toolbox, raw JSON | `buildPanelHTML` |
 | 8134-8192 | **Weight update** (direct / raw-scale modes, twin propagation) | `doWeightUpdate` |
 
 ---
 
-## Panels / debug / auto-update (L9372-9962)
+## Panels / debug / auto-update (L9372-10365)
 
 | L | What | Anchors |
 |---|---|---|
@@ -253,12 +254,12 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 | 8267-8343 | Product ID help modal | |
 | 8344-8430 | Settings → About → auto-update toggle + "Check for updates now" | `readAutoUpdatePref`, `showUpdateStatus` |
 | 8431-8541 | **Hard delete** (`batch.delete` doc + twin), container auto-assign on snapshot, legacy tombstone purge | `markSpoolDeleted`, `resolveContainerForBrand`, `autoAssignMissingContainers`, `purgeLegacyTombstones` |
-| 8542-8622 | **Firestore explorer** (debug tab) — path fetch, JSON copy | `fseInit`, `fseFetch` |
+| 8542-8622 | **Firebase Explorer** — dedicated side card (`#fseExplorerPanel`, opened by `openFsExplorer`, mutually exclusive with the API-only debug panel). Breadcrumb nav + clickable doc-id drill-down + collection/doc render | `fseInit`, `fseFetch`, `fseNavigate`, `fseRenderCrumbs`, `openFsExplorer` |
 | 8623-8659 | Account language save + debug mode apply | `saveAccountLang`, `applyDebugMode` |
 
 ---
 
-## Friends rendering (L9905-10329)
+## Friends rendering (L10204-10884)
 
 | L | What | Anchors |
 |---|---|---|
@@ -268,7 +269,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Racks + printers subscriptions (L10330-10602)
+## Racks + printers subscriptions (L10594-11128)
 
 | L | What | Anchors |
 |---|---|---|
@@ -279,7 +280,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Printers views (L10573-11631)
+## Printers views (L10573-12167)
 
 | L | What | Anchors |
 |---|---|---|
@@ -291,7 +292,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Printer detail side panel (L11632-14024)
+## Printer detail side panel (L11632-14600)
 
 | L | What | Anchors |
 |---|---|---|
@@ -302,7 +303,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Add-printer flow (L13995-14582)
+## Add-printer flow (L14346-14933)
 
 Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.js` owns the shell.
 
@@ -315,7 +316,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Racks CRUD + slots (L14583-15514)
+## Racks CRUD + slots (L14934-16084)
 
 | L | What | Anchors |
 |---|---|---|
@@ -328,7 +329,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Storage view render + DnD (L15485-16602)
+## Storage view render + DnD (L15873-17120)
 
 | L | What | Anchors |
 |---|---|---|
@@ -339,7 +340,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Friend view (L16603-17148)
+## Friend view (L16951-17522)
 
 | L | What | Anchors |
 |---|---|---|
@@ -350,7 +351,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Display name + friend requests (L17149-17737)
+## Display name + friend requests (L17523-18183)
 
 | L | What | Anchors |
 |---|---|---|
@@ -360,7 +361,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Keys + profile sync (L17581-17808)
+## Keys + profile sync (L17995-18222)
 
 | L | What | Anchors |
 |---|---|---|
@@ -369,7 +370,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Custom avatar (L17809-18195)
+## Custom avatar (L18223-18752)
 
 | L | What | Anchors |
 |---|---|---|
@@ -378,17 +379,18 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## User doc sync + telemetry + bootstrap (L18196-18718)
+## User doc sync + telemetry + bootstrap (L18488-19485)
 
 | L | What | Anchors |
 |---|---|---|
 | 16253-16695 | **`syncUserDoc(uid)`** — displayName/roles/Debug/keys/isPublic + **client telemetry** (studio* fields + `telemetry/studio` aggregates, fire-and-forget) | `syncUserDoc`, `hydrateUserDocCache` |
+| ~18460-18540 | **RFID chip list + tag+ backup** — `users/{uid}/rfidList/{UID_HEX}` upsert (firstSeen once-stamped; tag+ signature backup write-once = TigerTag+ indicator). Dedup via inventory-doc `rfidListed`/`rfidBackup` booleans (no in-memory index). Census once per account on first inventory snapshot; backup on auto-scan | `censusRfidListFromInventory`, `recordRfidChipScan` |
 | 16696-16728 | Language sync from Firestore + `applyLang(lang)` | `syncLangFromFirestore`, `applyLang` |
 | 16729-16744 | **Init bootstrap** — loadLocales → applyTranslations → loadLookups → loadImgMap → runMigration → initAuth → signalFirstPaint | grep "loadLocales().then" |
 
 ---
 
-## Electron RFID integration (L18522-18857)
+## Electron RFID integration (L18522-19281)
 
 | L | What | Anchors |
 |---|---|---|

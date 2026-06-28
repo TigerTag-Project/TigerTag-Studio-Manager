@@ -596,6 +596,17 @@
     gap: 4px;
     flex-shrink: 0;
   }
+  /* Grid-only sort control: the column select (reuses .inv-brand-filter) + a
+     square asc/desc toggle, matching the filter pills. */
+  .inv-grid-sort { display: flex; gap: 4px; flex-shrink: 0; }
+  .inv-grid-sort[hidden] { display: none; }
+  .inv-sort-dir {
+    flex-shrink: 0; width: 40px; height: 40px; box-sizing: border-box;
+    background-color: var(--surface-2); border: 1px solid var(--border); border-radius: 10px;
+    color: var(--text); font-size: 16px; line-height: 1; cursor: pointer;
+    transition: border-color .15s, background-color .15s, color .15s;
+  }
+  .inv-sort-dir:hover { background-color: var(--surface); border-color: var(--primary); color: var(--primary); }
   /* Brand / material / type quick-filters — dropdowns right of the search bar.
      Same height + background + border as the stat tiles so the whole toolbar
      row reads as one cohesive set of pills. */
@@ -663,22 +674,11 @@
   .spool-card.selected { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
   .spool-card.deleted { opacity: .45; }
 
-  /* ── Grid group "deck" card (identical-spool group) ─────────────────────── */
-  /* Stacked-paper look via layered box-shadows (not clipped by overflow:hidden,
-     and they don't affect layout). + a ×N count badge in the corner. */
-  .spool-card.group-card {
-    position: relative;
-    box-shadow:
-      3px 3px 0 0 var(--surface), 3px 3px 0 1px var(--border),
-      6px 6px 0 0 var(--surface), 6px 6px 0 1px var(--border);
-  }
-  .spool-card.group-card:hover {
-    transform: translateY(-1px);
-    box-shadow:
-      3px 3px 0 0 var(--surface), 3px 3px 0 1px var(--border),
-      6px 6px 0 0 var(--surface), 6px 6px 0 1px var(--border),
-      0 8px 20px rgba(0,0,0,.12);
-  }
+  /* ── Grid group card (identical-spool group) ────────────────────────────── */
+  /* A group looks like a normal card; only the ×N count badge marks it (the
+     stacked-paper box-shadows were dropped to keep the grid clean). `position`
+     is kept so the absolute count badge anchors to the card. */
+  .spool-card.group-card { position: relative; }
   .group-card-count {
     position: absolute; top: 6px; right: 6px; z-index: 4;
     min-width: 20px; height: 20px; padding: 0 6px;
@@ -814,6 +814,11 @@
   /* Settings + Debug stack: Settings (anchor, right edge) paints above the Debug
      panel (101) tucked to its left, so the seam stays clean. */
   #settingsPanel { z-index: 103; }
+  /* Firebase Explorer stack (right → left = front → back): Settings (103) >
+     Explorer (102) > Raw (101). Each inner card tucks BEHIND the one to its
+     right so the seam + rounded left edge stay clean. */
+  #fseExplorerPanel { z-index: 102; }
+  #fseRawPanel      { z-index: 101; }
   /* Container picker: tucks to the LEFT of the spool detail (which keeps the
      right edge), so it sits BEHIND it (100, like the group panel). */
   #containerPanel { z-index: 100; width: 250px; }
@@ -843,6 +848,9 @@
      live resize we kill it so panels + tabs track the dragged edge instantly. */
   body.panel-resizing .detail-panel,
   body.panel-resizing .pp-close-tab { transition: none; }
+  /* While dragging a panel's width, the cursor often skims the close tab at the
+     panel's edge — disable its pointer so it can't hover-grow or be clicked. */
+  body.panel-resizing .pp-close-tab { pointer-events: none; }
   /* Hover: the tab stretches taller (with a slight overshoot) for clear feedback. */
   .pp-close-tab:hover { background: var(--primary-hover); width: 36px; height: 128px; }
   /* Tab z-index ladder — see the 3-layer note above. Each tab sits above the
@@ -855,6 +863,12 @@
      the Settings tab stays on top (104). */
   #debugCloseTab      { z-index: 102; }
   #settingsCloseTab   { z-index: 104; }
+  /* Firebase Explorer stack tabs: each sits just above the panel it overlaps
+     (the inner card to its left) and below the card to its right. Explorer tab
+     (102) over Raw panel (101) + behind Settings (103); Raw tab (101) is
+     backmost so it never floats over the Explorer/Settings cards. */
+  #fseCloseTab        { z-index: 102; }
+  #fseRawCloseTab     { z-index: 101; }
   /* resize handle — left edge of both panels */
   .panel-resize {
     position: absolute; top: 0; left: 0; bottom: 0; width: 6px;
@@ -1230,6 +1244,30 @@
   .temp-chip .tc-value { font-size: 15px; font-weight: 600; margin-top: 2px; }
   .aspect-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
   .aspect-chip { padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--surface-2); border: 1px solid var(--border); color: var(--text); }
+
+  /* ── Tags / Balises (detail panel) ── */
+  .panel-tags .tag-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .panel-tags .tag-chips:not(:empty) { margin-bottom: 8px; }
+  .tag-chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 10px; border-radius: 14px;
+    background: var(--surface-2); border: 1px solid var(--border);
+    font-size: 12px; color: var(--text); line-height: 1.5;
+  }
+  .tag-chip:has(.tag-chip-x) { padding-right: 5px; }
+  .tag-chip-x {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 16px; height: 16px; padding: 0; border: none; border-radius: 50%;
+    background: transparent; color: var(--muted); cursor: pointer; font-size: 10px; line-height: 1;
+    transition: background .12s, color .12s;
+  }
+  .tag-chip-x:hover { background: var(--danger, #ef4444); color: #fff; }
+  .tag-input {
+    width: 100%; box-sizing: border-box; padding: 7px 10px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    font-size: 13px; color: var(--text); outline: none;
+  }
+  .tag-input:focus { border-color: var(--primary); }
   /* color circle + aspect tags side-by-side */
   .color-aspect-row { display: flex; align-items: flex-start; gap: 12px; margin-top: 6px; }
   .color-circles-col { flex-shrink: 0; }
@@ -1496,6 +1534,151 @@
     transition: border-color .12s, color .12s;
   }
   .fse-chip:hover { border-color: var(--primary); color: var(--primary); }
+
+  /* ── Firebase Explorer — dedicated side card, optimised for browsing ── */
+  /* Dark dev-tool theme — force BOTH cards dark regardless of the app theme by
+     redefining the surface/text vars locally, so every child component (header,
+     chips, fields, inputs, close button…) inherits the dark palette for free. */
+  #fseExplorerPanel, #fseRawPanel {
+    --surface:   #12161d;
+    --surface-2: #1b212c;
+    --border:    rgba(255,255,255,.09);
+    --text:      #e7ebf3;
+    --muted:     #8b95a7;
+    color: var(--text);
+    box-shadow: -12px 0 44px rgba(0,0,0,.4);
+  }
+  #fseExplorerPanel .panel-header, #fseRawPanel .panel-header { background: #0e1219; }
+  #fseExplorerPanel .panel-close,  #fseRawPanel .panel-close  { color: var(--muted); }
+  #fseExplorerPanel .panel-close:hover, #fseRawPanel .panel-close:hover { color: var(--text); }
+  /* dark, slim scrollbars inside both cards */
+  #fseExplorerPanel ::-webkit-scrollbar, #fseRawPanel ::-webkit-scrollbar { width: 10px; height: 10px; }
+  #fseExplorerPanel ::-webkit-scrollbar-track, #fseRawPanel ::-webkit-scrollbar-track { background: transparent; }
+  #fseExplorerPanel ::-webkit-scrollbar-thumb, #fseRawPanel ::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,.13); border-radius: 6px; border: 2px solid transparent; background-clip: content-box;
+  }
+  #fseExplorerPanel ::-webkit-scrollbar-thumb:hover, #fseRawPanel ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255,255,255,.22); background-clip: content-box;
+  }
+  /* header action group (copy + close on the Raw card) */
+  .fse-head-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+  /* accent the card titles */
+  .fse-title-icon { background-color: var(--primary); }
+  .fse-title-braces { font-family: var(--mono); font-size: 13px; font-weight: 800; color: var(--primary); letter-spacing: -1px; }
+
+  #fseExplorerPanel { width: 400px; }  /* roomier default than the 300px base (still user-resizable) */
+  .fse-wrap { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; flex: 1; min-height: 0; overflow: hidden; }
+
+  /* toolbar: breadcrumb (scrolls) + icon actions */
+  .fse-toolbar { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+  .fse-iconbtn {
+    display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+    width: 26px; height: 26px; padding: 0; border-radius: 7px;
+    background: var(--surface-2); border: 1px solid var(--border); color: var(--muted); cursor: pointer;
+    transition: color .12s, border-color .12s;
+  }
+  .fse-iconbtn:hover { color: var(--primary); border-color: var(--primary); }
+  .fse-iconbtn.is-on { color: var(--primary); border-color: var(--primary); }
+  .fse-iconbtn--text { font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: -.5px; }
+  .fse-iconbtn.is-spinning .icon { animation: fse-spin .7s linear infinite; }
+
+  /* Raw JSON — third side card */
+  #fseRawPanel { width: 360px; }
+  .fse-raw-wrap { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; flex: 1; min-height: 0; overflow: hidden; }
+  .fse-raw-meta { flex-shrink: 0; font-family: var(--mono); font-size: 11px; color: var(--muted); word-break: break-all; }
+  .fse-raw-meta:empty { display: none; }
+  /* doubled selector (pre.json = 0,1,1) so `max-height:none` actually wins and
+     the pre fills the panel height instead of capping at the base 360px. */
+  pre.json.fse-raw-pre { flex: 1; min-height: 0; max-height: none; margin: 0; overflow: auto; }
+
+  /* manual path bar */
+  .fse-bar { display: flex; align-items: center; gap: 6px; flex-shrink: 0; position: relative; }
+  .fse-bar-icon { position: absolute; left: 9px; background-color: var(--muted); pointer-events: none; }
+  .fse-input {
+    flex: 1; padding: 6px 9px 6px 28px; background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 8px; font-family: var(--mono); font-size: 11.5px; color: var(--text); outline: none;
+  }
+  .fse-input:focus { border-color: var(--primary); }
+
+  /* breadcrumb — each segment navigates to its prefix path */
+  .fse-crumbs { flex: 1; min-width: 0; display: flex; flex-wrap: nowrap; align-items: center; gap: 1px; overflow-x: auto; scrollbar-width: none; font-family: var(--mono); font-size: 11px; }
+  .fse-crumbs::-webkit-scrollbar { display: none; }
+  .fse-crumb {
+    flex-shrink: 0; padding: 2px 6px; background: none; border: none; border-radius: 6px;
+    color: var(--muted); cursor: pointer; font-family: inherit; font-size: inherit; white-space: nowrap;
+    transition: background .12s, color .12s;
+  }
+  .fse-crumb:hover { background: var(--surface-2); color: var(--primary); }
+  .fse-crumb--last { color: var(--text); font-weight: 600; }
+  .fse-crumb-sep { flex-shrink: 0; color: var(--muted); opacity: .5; }
+
+  /* meta bar: type badge + count + filter / raw toggle */
+  .fse-meta { display: flex; align-items: center; gap: 8px; flex-shrink: 0; min-height: 22px; font-size: 11px; color: var(--muted); }
+  .fse-meta:empty { display: none; }
+  .fse-badge { padding: 2px 7px; border-radius: 5px; font-size: 9.5px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+  .fse-badge--doc { background: color-mix(in srgb, #7fb6ff 22%, transparent); color: #7fb6ff; }
+  .fse-badge--col { background: color-mix(in srgb, var(--primary) 22%, transparent); color: var(--primary); }
+  .fse-spacer { flex: 1; }
+  .fse-filter {
+    width: 120px; padding: 3px 8px; background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 6px; font-size: 11px; color: var(--text); outline: none;
+  }
+  .fse-filter:focus { border-color: var(--primary); }
+  .fse-rawtoggle {
+    padding: 3px 8px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--muted); font-family: var(--mono); font-size: 10.5px; cursor: pointer; transition: color .12s, border-color .12s;
+  }
+  .fse-rawtoggle:hover, .fse-rawtoggle.is-on { color: var(--primary); border-color: var(--primary); }
+
+  /* result area — fills the panel and scrolls */
+  .fse-result { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 5px; }
+  .fse-result pre.json { max-height: none; }
+
+  /* states */
+  .fse-empty { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; font-family: var(--mono); padding: 14px 4px; }
+  .fse-empty--error { color: #ff8aa3; }
+  .fse-spin { width: 13px; height: 13px; border: 2px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: fse-spin .7s linear infinite; flex-shrink: 0; }
+  @keyframes fse-spin { to { transform: rotate(360deg); } }
+
+  /* field table (document view) */
+  .fse-fields { display: flex; flex-direction: column; }
+  .fse-field { display: grid; grid-template-columns: minmax(84px, 36%) 1fr; gap: 12px; padding: 7px 6px; border-radius: 6px; border-bottom: 1px solid rgba(255,255,255,.05); transition: background .1s; }
+  .fse-field:last-child { border-bottom: none; }
+  .fse-field:hover { background: rgba(255,255,255,.03); }
+  .fse-field-k { font-family: var(--mono); font-size: 11px; color: var(--muted); word-break: break-word; }
+  .fse-field-v { font-size: 11.5px; color: var(--text); min-width: 0; word-break: break-word; }
+  .fse-v--null { color: var(--muted); font-style: italic; }
+  .fse-v--num { font-family: var(--mono); color: #7fb6ff; }
+  .fse-v--str { font-family: var(--mono); color: #b8e1a8; }
+  .fse-v--long { cursor: help; }
+  .fse-v--ts { display: inline-flex; align-items: center; gap: 4px; font-family: var(--mono); color: #ffb45b; }
+  .fse-v--bool { padding: 1px 7px; border-radius: 4px; font-family: var(--mono); font-size: 10.5px; font-weight: 700; }
+  .fse-v--true  { background: color-mix(in srgb, #b8e1a8 22%, transparent); color: #b8e1a8; }
+  .fse-v--false { background: color-mix(in srgb, #ff8aa3 18%, transparent); color: #ff8aa3; }
+  pre.json.fse-v--json { margin: 2px 0 0; padding: 8px; font-size: 11px; }
+
+  /* collection rows — collapsible, clickable doc id, live preview */
+  .fse-doc { border: 1px solid var(--border); border-radius: 9px; overflow: hidden; background: var(--surface); flex-shrink: 0; }
+  .fse-doc-head { display: flex; align-items: center; gap: 6px; padding: 5px 8px; }
+  .fse-doc-toggle {
+    display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+    width: 18px; height: 18px; padding: 0; background: none; border: none; color: var(--muted); cursor: pointer;
+  }
+  .fse-doc-toggle .icon { transition: transform .15s; }
+  .fse-doc.is-open .fse-doc-toggle .icon { transform: rotate(90deg); }
+  .fse-doc-toggle:hover { color: var(--primary); }
+  .fse-doc-id {
+    flex-shrink: 0; max-width: 55%; padding: 0; background: none; border: none;
+    color: var(--text); font-family: var(--mono); font-size: 11.5px; font-weight: 600; cursor: pointer;
+    text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: color .12s;
+  }
+  .fse-doc-id:hover { color: var(--primary); text-decoration: underline; }
+  .fse-doc-preview { flex: 1; min-width: 0; font-family: var(--mono); font-size: 10.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* virtual brand folders (printers view): folder icon instead of a chevron */
+  .fse-doc-folder { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; flex-shrink: 0; color: var(--primary); }
+  .fse-doc--empty { opacity: .45; }
+  .fse-doc--empty .fse-doc-folder { color: var(--muted); }
+  .fse-doc-body { padding: 2px 10px 8px; border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent); }
 
   .hidden { display: none !important; }
   .gap-1 { gap: 8px; }

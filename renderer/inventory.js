@@ -576,9 +576,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     keyValid: null,
     displayName: null,
     search: "",
+    locateUid: null,                  // transient "locate this spool" highlight in the rack view (no search text); cleared on the next outside click
     brandFilter: "",                  // exact brand name to keep, "" = all
     materialFilter: "",               // exact material name to keep, "" = all
     typeFilter: "",                   // exact product type to keep, "" = all
+    tagFilter: "",                    // exact tag to keep (spool must carry it), "" = all
 
     viewMode: localStorage.getItem("tigertag.view") || "table",
     // View-only grouping of identical spools (Table + Grid). Default ON. The
@@ -1291,6 +1293,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       materialData: mat,
       brand: brandName(data.id_brand),
       colorName: data.color_name || data.name || data.message || "-",
+      // User note (chip `message`). For TigerTag / TigerCloud it also feeds
+      // colorName above, but for TigerTag+ colorName comes from the API, so the
+      // note is only exposed here — kept as its own field so search reaches it
+      // for every type.
+      note: data.message && data.message !== "--" ? data.message : null,
+      // User-defined free-form labels (Shopify-style). Purely Studio metadata —
+      // never written to the physical chip, so editing them needs no re-burn.
+      tags: Array.isArray(data.tags) ? data.tags.filter(x => typeof x === "string") : [],
       colorHex: hex,
       colorHex2: hex2,
       colorHex3: hex3,
@@ -3434,6 +3444,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   $("friendsListCloseTab")?.addEventListener("click", closeFriends);
   $("btnOpenNotifs")?.addEventListener("click", openNotifs);
   $("notifPanelClose")?.addEventListener("click", closeNotifs);
+  $("notifCloseTab")?.addEventListener("click", closeNotifs);
   $("notifOverlay")?.addEventListener("click", closeNotifs);
 
   // ── TigerScale module init ─────────────────────────────────────────────
@@ -4832,7 +4843,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         _firstSnapDone = true;
         state.invLoading = false;
         if (isFirstSnap) ColdStart.mark("firestore-first-snapshot");
-        if (!isFirstSnap && snapshot.docChanges().length === 0 && !snapshot.metadata.hasPendingWrites) return;
+        // Let the first SERVER snapshot through even when it carries no doc
+        // changes (a cached user's cache→server flip is metadata-only), so the
+        // one-shot rfidList census below can run on authoritative server data.
+        const censusPending = !snapshot.metadata.fromCache && _rfidCensusDoneFor !== uid;
+        if (!isFirstSnap && snapshot.docChanges().length === 0 && !snapshot.metadata.hasPendingWrites && !censusPending) return;
         const raw = {};
         snapshot.forEach(doc => { raw[doc.id] = doc.data(); });
         state.inventory = raw;
@@ -4845,6 +4860,15 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           state.rows
             .filter(r => r.isPlus && !r.isCloud && !raw[r.spoolId]?.url_img)
             .forEach(r => _refreshApiData(r, { silent: true }));
+        }
+
+        // Census every physical chip already in this inventory into rfidList —
+        // runs on the first SERVER snapshot (not just the first snapshot, which
+        // for a cached user is fromCache and lacks authoritative data). The
+        // internal `_rfidCensusDoneFor` guard makes it once-per-account. The
+        // tag+ backup is filled later by the scan path when each chip is read.
+        if (!snapshot.metadata.fromCache) {
+          censusRfidListFromInventory(uid);
         }
 
         // One-time migration: remove any legacy soft-delete tombstones
@@ -5466,17 +5490,21 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     });
   }
 
+  // Single source of truth for "does this spool match the search box" — used by
+  // EVERY search path (inventory filter, keystroke filter, storage-view unranked
+  // list AND placed-puck dim) so the searched fields never drift apart. Covers
+  // uid / material / brand / colour name / user note / series / sku / barcode.
+  function _rowMatchesSearch(r, q) {
+    return [r.uid, r.material, r.brand, r.colorName, r.note, r.series, r.sku, r.barcode, ...(r.tags || [])]
+      .some(v => String(v || "").toLowerCase().includes(q));
+  }
+
   function filteredRows() {
     let rows = state.rows.slice();
     rows = rows.filter(r => !r.deleted); // hard-deleted docs never appear in state.rows
     if (state.search) {
       const q = state.search.toLowerCase();
-      rows = rows.filter(r =>
-        r.uid.toLowerCase().includes(q) ||
-        String(r.material).toLowerCase().includes(q) ||
-        String(r.brand).toLowerCase().includes(q) ||
-        String(r.colorName).toLowerCase().includes(q)
-      );
+      rows = rows.filter(r => _rowMatchesSearch(r, q));
     }
     if (state.brandFilter) {
       rows = rows.filter(r => String(r.brand) === state.brandFilter);
@@ -5486,6 +5514,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     }
     if (state.typeFilter) {
       rows = rows.filter(r => String(r.protocol) === state.typeFilter);
+    }
+    if (state.tagFilter) {
+      const tf = state.tagFilter.toLowerCase();
+      rows = rows.filter(r => (r.tags || []).some(t => String(t).toLowerCase() === tf));
     }
     return sortRows(deduplicateTwins(rows));
   }
@@ -5514,6 +5546,21 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       defaultLabel: "All versions",
       pickValue: r => r.protocol,
     });
+    populateTagFilter();
+  }
+  // Tags are an array per spool, so the generic single-value populate doesn't
+  // fit — build the option list from the union of all tags (_allTags).
+  function populateTagFilter() {
+    const sel = $("tagFilter");
+    if (!sel) return;
+    const values = _allTags();   // sorted, case-insensitive-deduped union
+    const allLabel = t("filterAllTags") || "All tags";
+    sel.innerHTML = `<option value="" data-i18n="filterAllTags">${esc(allLabel)}</option>`
+      + values.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join("");
+    const match = values.find(v => v.toLowerCase() === String(state.tagFilter || "").toLowerCase());
+    if (match) { sel.value = match; state.tagFilter = match; }
+    else { sel.value = ""; state.tagFilter = ""; }
+    sel.classList.toggle("is-active", !!state.tagFilter);
   }
   function populateOneQuickFilter({ sel, currentKey, labelKey, defaultLabel, pickValue }) {
     if (!sel) return;
@@ -5776,15 +5823,16 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const brand = state.brandFilter || "";
     const material = state.materialFilter || "";
     const type = state.typeFilter || "";
-    const noFilter = !q && !brand && !material && !type;
+    const tag = (state.tagFilter || "").toLowerCase();
+    const noFilter = !q && !brand && !material && !type && !tag;
     const rowsById = new Map(state.rows.map(r => [r.spoolId, r]));
     const rowMatches = r => {
-      const matchSearch = !q || [r.uid, r.material, r.brand, r.colorName]
-        .some(v => String(v || "").toLowerCase().includes(q));
+      const matchSearch = !q || _rowMatchesSearch(r, q);
       const matchBrand = !brand || String(r.brand) === brand;
       const matchMaterial = !material || String(r.material) === material;
       const matchType = !type || String(r.protocol) === type;
-      return matchSearch && matchBrand && matchMaterial && matchType;
+      const matchTag = !tag || (r.tags || []).some(t => String(t).toLowerCase() === tag);
+      return matchSearch && matchBrand && matchMaterial && matchType && matchTag;
     };
     let visible = 0;
 
@@ -6115,8 +6163,17 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         if (m.weightAvailable != null) totalAvail += Number(m.weightAvailable) || 0;
         if (m.capacity != null)        totalCap   += Number(m.capacity) || 0;
       });
+      // Representative = first member, but borrow the FIRST available illustration
+      // from ANY member (a group's members share material/brand/colour, so any
+      // member's image fits the whole group — don't go imageless just because
+      // members[0] happens to have none). Grid card, table header and the row
+      // signature all read rep.imgUrl, so this one tweak covers them all.
+      const imgMember = members.find(m => m.imgUrl);
+      const rep = (imgMember && imgMember !== members[0])
+        ? { ...members[0], imgUrl: imgMember.imgUrl, userImg: imgMember.userImg }
+        : members[0];
       items.push({
-        type: "group", key: o.groupKey, members, rep: members[0],
+        type: "group", key: o.groupKey, members, rep,
         count: members.length, totalAvail, totalCap,
       });
     });
@@ -6720,6 +6777,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (opts.persist !== false) localStorage.setItem("tigertag.view", mode);
     $("btnViewTable")?.classList.toggle("active", mode === "table");
     $("btnViewGrid")?.classList.toggle("active",  mode === "grid");
+    // Grid-only sort control (table sorts via its headers). Sync it to the
+    // current sort whenever it becomes visible.
+    if ($("gridSortWrap")) $("gridSortWrap").hidden = (mode !== "grid");
+    if (mode === "grid") _syncGridSort();
     $("btnViewRack")?.classList.toggle("active",  mode === "rack");
     $("btnViewPrinter")?.classList.toggle("active",      mode === "printer");
     $("btnViewPrinterTable")?.classList.toggle("active", mode === "printer-table");
@@ -6828,6 +6889,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     $("card-inv")?.classList.add("is-cam-view");   // hide search + add buttons, show Detach
     const _dt = $("camWallDetachTop"); if (_dt) _dt.hidden = !(window.electronAPI?.openCamWindow && !state.friendView);
   }
+  // Grid-only sort control — reveal it on boot if we start straight in grid view
+  // (setViewMode, which normally toggles it, isn't called on the initial render).
+  if ($("gridSortWrap")) $("gridSortWrap").hidden = (state.viewMode !== "grid");
+  if (state.viewMode === "grid") _syncGridSort();
 
   // Toggle the clear-button visibility in lock-step with the input
   // value — only shown when there's something to clear. The same pass
@@ -6845,9 +6910,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     state.brandFilter    = "";
     state.materialFilter = "";
     state.typeFilter     = "";
+    state.tagFilter      = "";
     const si = $("searchInv");
     if (si) { si.value = ""; _refreshSearchClearVisibility(""); }
-    ["brandFilter", "materialFilter", "typeFilter"].forEach(id => {
+    ["brandFilter", "materialFilter", "typeFilter", "tagFilter"].forEach(id => {
       const sel = $(id);
       if (sel) { sel.value = ""; sel.classList.remove("is-active"); }
     });
@@ -6870,6 +6936,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   $("searchInv").addEventListener("input", e => {
     const v = e.target.value;
     state.search = v.trim();
+    state.locateUid = null;   // typing a real search supersedes a transient locate highlight
     _refreshSearchClearVisibility(v);
     _onFilterChange();
   });
@@ -6902,6 +6969,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   $("typeFilter")?.addEventListener("change", e => {
     state.typeFilter = e.target.value;
     e.target.classList.toggle("is-active", !!state.typeFilter);
+    _onFilterChange();
+  });
+  $("tagFilter")?.addEventListener("change", e => {
+    state.tagFilter = e.target.value;
+    e.target.classList.toggle("is-active", !!state.tagFilter);
     _onFilterChange();
   });
 
@@ -6942,8 +7014,32 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       }
       _saveSort("tigertag.sort.inv", state.sortCol, state.sortDir);
       updateSortIndicators();
+      _syncGridSort();
       renderInventory();
     });
+  });
+
+  // Grid-view sort control (the grid has no column headers). Mirrors the same
+  // state.sortCol / sortDir as the table headers — one source of truth.
+  function _syncGridSort() {
+    const sel = $("gridSort"), dir = $("gridSortDir");
+    if (sel && [...sel.options].some(o => o.value === state.sortCol)) sel.value = state.sortCol;
+    if (dir) dir.textContent = state.sortDir === "desc" ? "↓" : "↑";
+  }
+  $("gridSort")?.addEventListener("change", e => {
+    state.sortCol = e.target.value;
+    state.sortDir = "asc";
+    _saveSort("tigertag.sort.inv", state.sortCol, state.sortDir);
+    updateSortIndicators();
+    _syncGridSort();
+    renderInventory();
+  });
+  $("gridSortDir")?.addEventListener("click", () => {
+    state.sortDir = state.sortDir === "asc" ? "desc" : "asc";
+    _saveSort("tigertag.sort.inv", state.sortCol, state.sortDir);
+    updateSortIndicators();
+    _syncGridSort();
+    renderInventory();
   });
 
   /* ── Burn RFID — write current doc to all readers that have a card present ──
@@ -7640,6 +7736,64 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     input.addEventListener("blur", () => commit());
   }
 
+  /* ── Tags / Balises — free-form per-spool labels (Shopify-style) ──────────── */
+  const TAG_MAX_LEN = 32, TAG_MAX_COUNT = 20;
+  // Trim + collapse inner whitespace + cap length. Returns "" if nothing usable.
+  function _normalizeTag(s) {
+    return String(s || "").replace(/\s+/g, " ").trim().slice(0, TAG_MAX_LEN);
+  }
+  // Union of every tag in the inventory (for the add-input autocomplete),
+  // optionally excluding the ones already on row `r`.
+  function _allTags(exclude) {
+    const skip = new Set((exclude || []).map(t => t.toLowerCase()));
+    const seen = new Map(); // lowercase → display form (first seen wins)
+    state.rows.forEach(r => (r.tags || []).forEach(tag => {
+      const k = tag.toLowerCase();
+      if (!skip.has(k) && !seen.has(k)) seen.set(k, tag);
+    }));
+    return [...seen.values()].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+  }
+  // Find the paired twin row (same physical spool, second chip), if any.
+  function _twinRowOf(r) {
+    if (!r.twinUid) return null;
+    return state.rows.find(x => x.spoolId !== r.spoolId &&
+      (String(x.uid) === String(r.twinUid) || String(x.spoolId) === String(r.twinUid))) || null;
+  }
+  // Persist a spool's tag list to Firestore, mirroring onto its twin so both
+  // chips of one physical spool always share the same tags. Patches in-memory
+  // rows so the immediate UI is correct before the snapshot echoes back. Tags
+  // are NOT chip data → no needUpdateAt / re-burn flag.
+  async function _writeSpoolTags(r, tags) {
+    const user = fbAuth().currentUser;
+    if (!user || state.friendView) return;
+    const invRef = fbDb(user.uid).collection("users").doc(user.uid).collection("inventory");
+    const batch  = fbDb(user.uid).batch();
+    const stamp  = firebase.firestore.FieldValue.serverTimestamp();
+    batch.update(invRef.doc(r.spoolId), { tags, updatedAt: stamp });
+    r.tags = tags; if (r.raw) r.raw.tags = tags;
+    const tr = _twinRowOf(r);
+    if (tr) {
+      batch.update(invRef.doc(tr.spoolId), { tags, updatedAt: stamp });
+      tr.tags = tags; if (tr.raw) tr.raw.tags = tags;
+    }
+    try { await batch.commit(); }
+    catch (e) { reportError("spool.tags", e); }
+  }
+  function addSpoolTag(r, raw) {
+    const tag = _normalizeTag(raw);
+    if (!tag) return false;
+    const current = r.tags || [];
+    if (current.some(x => x.toLowerCase() === tag.toLowerCase())) return false; // dedup (case-insensitive)
+    if (current.length >= TAG_MAX_COUNT) return false; // silent cap (rarely hit)
+    _writeSpoolTags(r, [...current, tag]);
+    return true;
+  }
+  function removeSpoolTag(r, tag) {
+    const next = (r.tags || []).filter(x => x.toLowerCase() !== String(tag).toLowerCase());
+    if (next.length === (r.tags || []).length) return;
+    _writeSpoolTags(r, next);
+  }
+
   /* ── detail panel ── */
   // Two-level signature for the spool currently displayed in the side panel:
   //   - _lastDetailSig: every visible field. Skipped entirely when identical
@@ -7702,6 +7856,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       r.diameter || "",
       r.tagType || "",
       r.productType || "",
+      (r.tags || []).join(","),
     ].join("|");
   }
 
@@ -7864,14 +8019,24 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // anchor at the right edge; the Debug panel tucks to its LEFT when both are
   // open — exactly like the printer config beside the printer panel.
   function _layoutSettingsStack() {
-    const sp = $("settingsPanel"), dbg = $("debugPanel");
-    const sOpen = !!sp?.classList.contains("open");
-    const dOpen = !!dbg?.classList.contains("open");
-    const sW = (sOpen && sp) ? sp.offsetWidth : 0;
-    const dbgRight = (dOpen && sOpen) ? sW : 0;
-    if (dbg) dbg.style.right = dbgRight ? `${dbgRight}px` : "";
-    _setTab($("settingsCloseTab"), sOpen, sW);
-    _setTab($("debugCloseTab"),    dOpen, dbgRight + (dbg ? dbg.offsetWidth : 0));
+    // Side cards dock at the right edge; each open one pushes the next further
+    // LEFT. Order = outermost (rightmost) → innermost (leftmost): Settings, then
+    // the secondary card (Debug XOR Firebase Explorer), then the Raw JSON card.
+    const order = [
+      ["settingsPanel",    "settingsCloseTab"],
+      ["debugPanel",       "debugCloseTab"],
+      ["fseExplorerPanel", "fseCloseTab"],
+      ["fseRawPanel",      "fseRawCloseTab"],
+    ];
+    let offset = 0; // total width of the cards already placed to the right
+    for (const [panelId, tabId] of order) {
+      const p = $(panelId);
+      const open = !!p?.classList.contains("open");
+      // Settings is the base (right:0 from CSS); the others dock at `offset`.
+      if (panelId !== "settingsPanel" && p) p.style.right = (open && offset) ? `${offset}px` : "";
+      _setTab($(tabId), open, offset + (open && p ? p.offsetWidth : 0));
+      if (open && p) offset += p.offsetWidth;
+    }
   }
   // Brand picker ("Réglages des imprimantes") + the per-brand choice card
   // ("Ajouter une imprimante <Brand>": scan/IP, then scan-list/manual) shown
@@ -8098,13 +8263,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // its rack at a glance.
     $("btnLocateSpool")?.addEventListener("click", () => {
       const uid = $("btnLocateSpool")?.dataset.spoolUid || "";
-      // Close the detail panel + reset selection so a re-click opens it
       closeDetail();
-      // Apply the search to the global state + UI
-      const searchInput = $("searchInv");
-      if (searchInput) searchInput.value = uid;
-      state.search = uid;
-      // Switch view (forces a fresh rack render that calls applyRackSearchDim)
+      // Transient highlight only — no text in the search bar. Switch to the rack
+      // view (renderRackView → applyRackSearchDim lights up just this slot).
+      _startLocateHighlight(uid);
       setViewMode("rack");
     });
     // Auto-assign: place the spool in the first available unlocked slot.
@@ -8516,6 +8678,34 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     $("cloudEncodeBanner")?.addEventListener("click", () => {
       if (state.nfcReaderCount > 0) openEncodeModal(r);
       else openTigerPodModal();
+    });
+    // Tags — add on Enter / comma, remove via the chip ✕. Each change writes to
+    // Firestore (twin-mirrored) and updates the chip list in place so the input
+    // keeps focus (the structural sig includes tags, so the snapshot echo is a
+    // no-op; an external change re-renders the panel).
+    const _tagInput = $("tagInput");
+    if (_tagInput) {
+      const _commitTag = () => {
+        const val = _tagInput.value;
+        _tagInput.value = "";
+        if (!val.trim()) return;
+        if (addSpoolTag(r, val)) {
+          const chips = $("tagChips");
+          if (chips) chips.insertAdjacentHTML("beforeend",
+            `<span class="tag-chip">${esc(_normalizeTag(val))}<button class="tag-chip-x" data-tag-remove="${esc(_normalizeTag(val))}" title="${esc(t("tagRemove"))}" aria-label="${esc(t("tagRemove"))}">✕</button></span>`);
+        }
+        _tagInput.focus();
+      };
+      _tagInput.addEventListener("keydown", e => {
+        if (e.key === "Enter" || e.key === ",") { e.preventDefault(); _commitTag(); }
+      });
+      _tagInput.addEventListener("blur", _commitTag);
+    }
+    $("tagChips")?.addEventListener("click", e => {
+      const x = e.target.closest("[data-tag-remove]");
+      if (!x) return;
+      removeSpoolTag(r, x.dataset.tagRemove);
+      x.closest(".tag-chip")?.remove();
     });
   }
   function closeDetail() {
@@ -9103,6 +9293,28 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         </div>`;
     }
 
+    // Tags / Balises — free-form labels. Editable (chips + add input with
+    // autocomplete) except in friend view / on tombstones, where it's read-only
+    // and hidden entirely when empty.
+    const tagsHtml = (() => {
+      const ro = state.friendView || r.deleted;
+      const tags = r.tags || [];
+      if (ro && !tags.length) return "";
+      const chips = tags.map(tag =>
+        `<span class="tag-chip">${esc(tag)}${ro ? "" : `<button class="tag-chip-x" data-tag-remove="${esc(tag)}" title="${esc(t("tagRemove"))}" aria-label="${esc(t("tagRemove"))}">✕</button>`}</span>`
+      ).join("");
+      const editor = ro ? "" : `
+        <input id="tagInput" class="tag-input" list="tagSuggestions" placeholder="${esc(t("tagAdd"))}"
+               spellcheck="false" autocomplete="off" maxlength="${TAG_MAX_LEN}" />
+        <datalist id="tagSuggestions">${_allTags(tags).map(tg => `<option value="${esc(tg)}"></option>`).join("")}</datalist>`;
+      return `
+        <div class="panel-section panel-tags">
+          <div class="panel-label">${esc(t("sectionTags"))}</div>
+          <div class="tag-chips" id="tagChips">${chips}</div>
+          ${editor}
+        </div>`;
+    })();
+
     // container card — flat layout (no border box)
     const container = r.containerId ? containerFind(r.containerId) : null;
     const containerHtml = container ? `
@@ -9244,6 +9456,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       </div>
       ${weightHtml}
       ${storageHtml}
+      ${tagsHtml}
       ${containerHtml}
       ${tempHtml}
       ${videoHtml}
@@ -9600,7 +9813,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
 
   makePanelResizable($("detailPanel"), $("detailResize"), "tigertag.panelWidth.detail", 350); // max width cap
   makePanelResizable($("debugPanel"),  $("debugResize"),  "tigertag.panelWidth.debug");
-  makePanelResizable($("groupPanel"),  $("groupResize"),  "tigertag.panelWidth.group");
+  makePanelResizable($("fseExplorerPanel"), $("fseResize"), "tigertag.panelWidth.fse");
+  makePanelResizable($("fseRawPanel"), $("fseRawResize"), "tigertag.panelWidth.fseRaw");
+  makePanelResizable($("groupPanel"),  $("groupResize"),  "tigertag.panelWidth.group", 440); // max width cap (like the spool/material card)
   // Keep the material card glued to the left edge of the printer panel if the
   // latter's width changes (e.g. window resize on a narrow viewport).
   if (window.ResizeObserver) {
@@ -9612,8 +9827,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // Settings + Debug stack: keep the Debug panel + close tabs glued when
     // either is resized (the Debug panel is user-resizable).
     const _stackRO = new ResizeObserver(_layoutSettingsStack);
-    if ($("settingsPanel")) _stackRO.observe($("settingsPanel"));
-    if ($("debugPanel"))    _stackRO.observe($("debugPanel"));
+    if ($("settingsPanel"))      _stackRO.observe($("settingsPanel"));
+    if ($("debugPanel"))         _stackRO.observe($("debugPanel"));
+    if ($("fseExplorerPanel"))   _stackRO.observe($("fseExplorerPanel"));
+    if ($("fseRawPanel"))        _stackRO.observe($("fseRawPanel"));
   }
   window.addEventListener("resize", _syncPanels);
   window.addEventListener("resize", _layoutSettingsStack);
@@ -9660,6 +9877,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if ($("printerPanel")?.classList.contains("open"))    closePrinterDetail();
     if ($("printerAddPanel")?.classList.contains("open")) closePrinterAddForm();
     if ($("debugPanel")?.classList.contains("open"))      closeDebug();
+    if ($("fseRawPanel")?.classList.contains("open"))      closeFsRaw();
+    if ($("fseExplorerPanel")?.classList.contains("open")) closeFsExplorer();
     if ($("settingsPanel")?.classList.contains("open"))   closeSettings();
   }
   // Each `»` close tab: a quick click closes its own panel (existing handlers);
@@ -9705,24 +9924,69 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   _setupCloseTabHold();
   // td1sPanel resize + panel open/close are handled by initTD1S (renderer/IoT/td1s/index.js)
 
-  /* ── debug panel ── */
+  /* ── debug panel (API inspector) ── */
   function openDebug() {
+    closeFsExplorer();   // the two secondary side cards are mutually exclusive
     $("debugPanel").classList.add("open");
     // No extra backdrop when opened from Settings — Settings' overlay already
     // dims the page and Debug just tucks to its left.
     if (!$("settingsPanel")?.classList.contains("open")) $("debugOverlay").classList.add("open");
     _layoutSettingsStack();
-    fsExplRefresh();
   }
   function closeDebug() {
     $("debugPanel").classList.remove("open");
     $("debugOverlay").classList.remove("open");
     _layoutSettingsStack();
   }
-  $("btnDebug").addEventListener("click", openDebug);
+  /* ── Firebase Explorer (dedicated Firestore browser) ── */
+  function openFsExplorer() {
+    closeDebug();        // the two secondary side cards are mutually exclusive
+    closeSettings();     // the Explorer takes over from Settings (it opened from there)
+    $("fseExplorerPanel").classList.add("open");
+    if (!$("settingsPanel")?.classList.contains("open")) $("fseOverlay").classList.add("open");
+    fseInit();           // kicks off the first fetch (async)
+    openFsRaw();          // always show the Raw card alongside the Explorer
+    _layoutSettingsStack();
+  }
+  function closeFsExplorer() {
+    closeFsRaw();        // the Raw card is meaningless without the Explorer
+    $("fseExplorerPanel").classList.remove("open");
+    $("fseOverlay").classList.remove("open");
+    _layoutSettingsStack();
+  }
+  /* ── Raw JSON (third side card, mirrors the Explorer's current result) ── */
+  function openFsRaw() {
+    // Opens even before the first fetch lands — fseRenderRaw shows "{}" and the
+    // fetch's finally repaints it. Backdrop is already provided by Settings or
+    // the Explorer card, so we never add our own.
+    fseRenderRaw();
+    $("fseRawPanel").classList.add("open");
+    $("fseRawBtn")?.classList.add("is-on");
+    _layoutSettingsStack();
+  }
+  function closeFsRaw() {
+    $("fseRawPanel").classList.remove("open");
+    $("fseRawOverlay").classList.remove("open");
+    $("fseRawBtn")?.classList.remove("is-on");
+    _layoutSettingsStack();
+  }
+  // Paint the raw card from the last fetched payload (called on open + on every
+  // fetch while the card stays open, so it tracks the Explorer live).
+  function fseRenderRaw() {
+    $("fseRawMeta").textContent = $("fsePath")?.value || "";
+    $("fseRawPre").innerHTML = _fseLastResult ? highlight(_fseLastResult) : "{}";
+  }
+  $("btnDebug").addEventListener("click", () => openDebug());
+  $("btnFsExplorer")?.addEventListener("click", () => openFsExplorer());
   $("debugPanelClose").addEventListener("click", closeDebug);
   $("debugCloseTab")?.addEventListener("click", closeDebug);
   $("debugOverlay").addEventListener("click", closeDebug);
+  $("fseExplorerClose")?.addEventListener("click", closeFsExplorer);
+  $("fseCloseTab")?.addEventListener("click", closeFsExplorer);
+  $("fseOverlay")?.addEventListener("click", closeFsExplorer);
+  $("fseRawClose")?.addEventListener("click", closeFsRaw);
+  $("fseRawCloseTab")?.addEventListener("click", closeFsRaw);
+  $("fseRawOverlay")?.addEventListener("click", closeFsRaw);
 
   /* ── RFID tester modal ── */
   initRfidTester();
@@ -9862,17 +10126,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   }
   document.addEventListener("keydown", e => { if (e.key === "Escape") closeDebug(); });
 
-  // debug tab switching
-  document.querySelectorAll(".dbg-tab").forEach(btn => {
-    btn.addEventListener("click", () => {
-      document.querySelectorAll(".dbg-tab").forEach(b => b.classList.remove("active"));
-      btn.classList.add("active");
-      const tab = btn.dataset.tab;
-      $("dbgPaneApi").classList.toggle("hidden", tab !== "api");
-      $("dbgPaneFs").classList.toggle("hidden",  tab !== "fs");
-      if (tab === "fs") fsExplRefresh();
-    });
-  });
+  // (The Firestore explorer moved out of the debug panel into its own dedicated
+  //  side card — see openFsExplorer below. The debug panel is now API-only.)
 
   /* ── Hard-delete a spool (and its twin) from Firestore ────────────────────
      ISO with the printer hard-delete pattern. No tombstone is written —
@@ -9982,87 +10237,246 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     console.log(`[purgeLegacyTombstones] hard-deleted ${toDelete.length} legacy tombstone(s)`);
   }
 
-  /* ── Firestore explorer ── */
-  let _fseLastResult = null;
+  /* ── Firebase Explorer (dedicated Firestore browser) ── */
+  let _fseLastResult = null;  // last fetched payload (doc fields, or {id:data} map)
+  let _fseLastDocs   = null;  // last collection's {id:data} for lazy row expansion
 
   // Known paths — {uid} replaced at runtime
   const FSE_QUICK = [
-    { label: "user doc",   path: "users/{uid}" },
-    { label: "prefs",      path: "users/{uid}/prefs/app" },
-    { label: "telemetry",  path: "users/{uid}/telemetry/studio" },
-    { label: "inventory",  path: "users/{uid}/inventory",  col: true },
-    { label: "printers",   path: "users/{uid}/printers",   col: true },
-    { label: "tags",       path: "users/{uid}/tags",       col: true },
+    { label: "Users",      path: "users/{uid}" },
+    { label: "Pref",       path: "users/{uid}/prefs/app" },
+    { label: "Telemetry",  path: "users/{uid}/telemetry/studio" },
+    { label: "Inventory",  path: "users/{uid}/inventory" },
+    { label: "UID List",   path: "users/{uid}/rfidList" },
+    { label: "Printers",   path: "users/{uid}/printers" },
   ];
 
+  // Build the quick-access chips, then auto-fetch the user doc so the panel
+  // opens on something rather than blank. Called on every open.
   function fseInit() {
     const uid = state.activeAccountId || "{uid}";
-    // build quick-access chips
+    // Quick-access chips for the known paths. The per-brand printer folders are
+    // reached by opening the `printers` chip (virtual brand-folder view), so no
+    // need to clutter the bar with one chip per brand.
     $("fseChips").innerHTML = FSE_QUICK.map(q => {
       const p = q.path.replace("{uid}", uid);
       return `<button class="fse-chip" data-path="${esc(p)}">${esc(q.label)}</button>`;
     }).join("");
-    // set default path to user doc
-    $("fsePath").value = `users/${uid}`;
+    fseNavigate(`users/${uid}`);
+  }
+
+  // ── Value formatting — turn raw Firestore values into readable HTML ──
+  function _fseIsTs(v) {
+    return v && typeof v === "object" &&
+      (typeof v.toDate === "function" || ("seconds" in v && "nanoseconds" in v));
+  }
+  function _fseTsDate(v) {
+    try { if (typeof v.toDate === "function") return v.toDate(); } catch (_) {}
+    return ("seconds" in v) ? new Date(v.seconds * 1000) : null;
+  }
+  function _fseFmtValue(v) {
+    if (v === null || v === undefined) return `<span class="fse-v fse-v--null">null</span>`;
+    if (_fseIsTs(v)) { const d = _fseTsDate(v); return `<span class="fse-v fse-v--ts">${d ? esc(d.toLocaleString()) : "—"}</span>`; }
+    const t = typeof v;
+    if (t === "boolean") return `<span class="fse-v fse-v--bool fse-v--${v}">${v}</span>`;
+    if (t === "number")  return `<span class="fse-v fse-v--num">${esc(v)}</span>`;
+    if (t === "string") {
+      if (v.length > 72) return `<span class="fse-v fse-v--str fse-v--long" title="${esc(v)}">${esc(v.slice(0, 72))}…</span>`;
+      return `<span class="fse-v fse-v--str">${esc(v)}</span>`;
+    }
+    return `<pre class="json fse-v--json">${highlight(v)}</pre>`; // object / array
+  }
+  // A document rendered as a clean key → value table (or raw JSON when toggled).
+  function _fseRenderFields(data) {
+    const keys = Object.keys(data).filter(k => k !== "_path").sort();
+    if (!keys.length) return `<div class="fse-empty">(no fields)</div>`;
+    return `<div class="fse-fields">` + keys.map(k =>
+      `<div class="fse-field"><div class="fse-field-k">${esc(k)}</div><div class="fse-field-v">${_fseFmtValue(data[k])}</div></div>`
+    ).join("") + `</div>`;
+  }
+  // One-line preview of a doc's scalar fields, for collapsed collection rows.
+  function _fsePreview(data) {
+    const parts = [];
+    for (const k of Object.keys(data)) {
+      if (parts.length >= 3) break;
+      const v = data[k];
+      if (v === null || v === undefined) continue;
+      let s;
+      if (_fseIsTs(v)) { const d = _fseTsDate(v); s = d ? d.toLocaleDateString() : "ts"; }
+      else if (typeof v === "object") continue;
+      else if (typeof v === "string") s = v.length > 18 ? v.slice(0, 18) + "…" : v;
+      else s = String(v);
+      parts.push(`${k}: ${s}`);
+    }
+    return parts.join("  ·  ");
+  }
+
+  // Breadcrumb of the current path — every segment navigates to its prefix
+  // (doc or collection). The long uid segment is shown as "uid".
+  function fseRenderCrumbs(path) {
+    const uid = state.activeAccountId;
+    const segs = path.split("/").filter(Boolean);
+    let acc = "";
+    $("fseCrumbs").innerHTML = segs.map((s, i) => {
+      acc += (i ? "/" : "") + s;
+      const last = i === segs.length - 1;
+      const label = (s === uid) ? "uid" : s;
+      return `<button class="fse-crumb${last ? " fse-crumb--last" : ""}" data-path="${esc(acc)}">${esc(label)}</button>`;
+    }).join(`<span class="fse-crumb-sep">/</span>`);
+  }
+
+  // Single navigation entry point (chips, breadcrumb, doc-id drill-down, Enter).
+  function fseNavigate(path) {
+    $("fsePath").value = path;
+    fseFetch();
+  }
+
+  // Virtual folder view for users/{uid}/printers. The brand docs (bambulab,…)
+  // are fieldless parents — they only hold a `devices` subcollection — so a
+  // normal collection query returns nothing AND the client SDK can't list
+  // subcollections. We instead show the KNOWN brands and probe each brand's
+  // `devices` for its count: brands with printers stand out, empty ones dim.
+  async function fsePrinterFolders(basePath) {
+    fseSetStatus("Probing brands…", "loading");
+    $("fseRefresh")?.classList.add("is-spinning");
+    try {
+      const counts = await Promise.all(PRINTER_BRANDS.map(async b => {
+        try { return (await fbDb().collection(`${basePath}/${b}/devices`).get()).size; }
+        catch { return 0; }
+      }));
+      const summary = {};
+      const rows = PRINTER_BRANDS.map((b, i) => {
+        const n = counts[i]; summary[b] = n;
+        return `<div class="fse-doc${n ? "" : " fse-doc--empty"}">
+          <div class="fse-doc-head">
+            <span class="fse-doc-folder"><span class="icon icon-folder icon-12"></span></span>
+            <button class="fse-doc-id" data-path="${esc(`${basePath}/${b}/devices`)}" title="Open devices">${esc(b)}</button>
+            <span class="fse-doc-preview">${n} device${n === 1 ? "" : "s"}</span>
+          </div>
+        </div>`;
+      }).join("");
+      const total = counts.reduce((a, n) => a + (n ? 1 : 0), 0);
+      _fseLastResult = summary; _fseLastDocs = null;
+      $("fseMeta").innerHTML =
+        `<span class="fse-badge fse-badge--col">folders</span>` +
+        `<span>${total}/${PRINTER_BRANDS.length} brands in use</span>`;
+      $("fseResult").innerHTML = rows;
+    } catch (e) {
+      _fseLastResult = null; fseSetStatus(`Error: ${e.message}`, "error");
+    } finally {
+      $("fseRefresh")?.classList.remove("is-spinning");
+      if ($("fseRawPanel")?.classList.contains("open")) fseRenderRaw();
+    }
   }
 
   async function fseFetch() {
     const uid = state.activeAccountId;
-    if (!uid) { fseSetResult(null, "Not signed in"); return; }
-    const raw = $("fsePath").value.trim().replace("{uid}", uid);
+    if (!uid) { fseSetStatus("Not signed in", "error"); return; }
+    const raw = $("fsePath").value.trim().replace(/\{uid\}/g, uid).replace(/^\/+|\/+$/g, "");
     if (!raw) return;
+    $("fsePath").value = raw;
+    fseRenderCrumbs(raw);
     const parts = raw.split("/").filter(Boolean);
-    fseSetResult(null, "Fetching…");
+    // Special case: the printers collection holds only fieldless brand parents.
+    if (parts.length === 3 && parts[0] === "users" && parts[2] === "printers") { fsePrinterFolders(raw); return; }
+    fseSetStatus("Fetching…", "loading");
+    $("fseRefresh")?.classList.add("is-spinning");
     try {
-      let ref;
       if (parts.length % 2 === 0) {
-        // even segments → document
-        ref = fbDb().doc(raw);
-        const snap = await ref.get();
-        if (!snap.exists) { fseSetResult(null, `Document not found: ${raw}`); return; }
-        _fseLastResult = { _path: raw, ...snap.data() };
-        fseSetResult(_fseLastResult, `doc · ${raw}`);
+        // even segments → document → field table
+        const snap = await fbDb().doc(raw).get();
+        if (!snap.exists) { _fseLastResult = null; _fseLastDocs = null; fseSetStatus(`Document not found: ${raw}`, "error"); return; }
+        const data = snap.data();
+        _fseLastResult = { _path: raw, ...data };
+        _fseLastDocs = null;
+        $("fseMeta").innerHTML = `<span class="fse-badge fse-badge--doc">doc</span>`;
+        $("fseResult").innerHTML = _fseRenderFields(data);
       } else {
-        // odd segments → collection
-        ref = fbDb().collection(raw);
-        const snap = await ref.limit(20).get();
-        if (snap.empty) { fseSetResult(null, `Collection empty or not found: ${raw}`); return; }
-        const result = {};
-        snap.forEach(doc => { result[doc.id] = doc.data(); });
-        _fseLastResult = result;
-        fseSetResult(result, `collection · ${raw} (${snap.size} docs${snap.size === 20 ? ", limited to 20" : ""})`);
+        // odd segments → collection → collapsible rows (no fetch limit)
+        const snap = await fbDb().collection(raw).get();
+        if (snap.empty) { _fseLastResult = null; _fseLastDocs = null; fseSetStatus(`Collection empty or not found: ${raw}`, "info"); return; }
+        const docs = {};
+        const rows = snap.docs.map(d => {
+          docs[d.id] = d.data();
+          return `<div class="fse-doc" data-id="${esc(d.id)}">
+            <div class="fse-doc-head">
+              <button class="fse-doc-toggle" title="Expand"><span class="icon icon-chevron-r icon-12"></span></button>
+              <button class="fse-doc-id" data-path="${esc(raw + "/" + d.id)}" title="Open document">${esc(d.id)}</button>
+              <span class="fse-doc-preview">${esc(_fsePreview(d.data()))}</span>
+            </div>
+            <div class="fse-doc-body hidden"></div>
+          </div>`;
+        }).join("");
+        _fseLastDocs = docs;
+        _fseLastResult = docs;
+        $("fseMeta").innerHTML =
+          `<span class="fse-badge fse-badge--col">collection</span>` +
+          `<span>${snap.size} doc${snap.size > 1 ? "s" : ""}</span>` +
+          `<span class="fse-spacer"></span>` +
+          `<input id="fseFilter" class="fse-filter" placeholder="filter ids…" spellcheck="false" autocomplete="off" />`;
+        $("fseResult").innerHTML = rows;
       }
     } catch (e) {
-      fseSetResult(null, `Error: ${e.message}`);
+      _fseLastResult = null; _fseLastDocs = null;
+      fseSetStatus(`Error: ${e.message}`, "error");
+    } finally {
+      $("fseRefresh")?.classList.remove("is-spinning");
+      // Keep the Raw JSON card in sync if it's open (live mirror).
+      if ($("fseRawPanel")?.classList.contains("open")) fseRenderRaw();
     }
   }
 
-  function fseSetResult(data, label) {
-    $("fseLabel").textContent = label || "";
-    $("fsExplPre").innerHTML = data != null
-      ? highlight(data)
-      : `<span style="color:var(--muted)">${esc(label || "—")}</span>`;
+  function fseSetStatus(msg, kind) {
+    $("fseMeta").innerHTML = "";
+    const spinner = kind === "loading" ? `<span class="fse-spin"></span>` : "";
+    $("fseResult").innerHTML = `<div class="fse-empty${kind === "error" ? " fse-empty--error" : ""}">${spinner}${esc(msg)}</div>`;
   }
 
-  function fsExplRefresh() { fseInit(); }
-
+  // Chips + breadcrumb navigate; collection rows drill in (id) or expand (toggle).
   $("fseChips").addEventListener("click", e => {
-    const chip = e.target.closest(".fse-chip[data-path]");
-    if (!chip) return;
-    $("fsePath").value = chip.dataset.path;
-    fseFetch();
+    const el = e.target.closest("[data-path]"); if (el) fseNavigate(el.dataset.path);
   });
+  $("fseCrumbs").addEventListener("click", e => {
+    const el = e.target.closest(".fse-crumb[data-path]"); if (el) fseNavigate(el.dataset.path);
+  });
+  $("fseResult").addEventListener("click", e => {
+    const idBtn = e.target.closest(".fse-doc-id[data-path]");
+    if (idBtn) { fseNavigate(idBtn.dataset.path); return; }
+    const tog = e.target.closest(".fse-doc-toggle");
+    if (tog) {
+      const row  = tog.closest(".fse-doc");
+      const body = row.querySelector(".fse-doc-body");
+      const open = row.classList.toggle("is-open");
+      if (open && !body.dataset.filled) {
+        body.innerHTML = _fseRenderFields(_fseLastDocs?.[row.dataset.id] || {});
+        body.dataset.filled = "1";
+      }
+      body.classList.toggle("hidden", !open);
+    }
+  });
+  // Meta bar: live id filter (collections only).
+  $("fseMeta").addEventListener("input", e => {
+    if (e.target.id !== "fseFilter") return;
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll("#fseResult .fse-doc").forEach(row =>
+      row.classList.toggle("hidden", q && !(row.dataset.id || "").toLowerCase().includes(q)));
+  });
+  $("fseRawBtn")?.addEventListener("click", () =>
+    $("fseRawPanel")?.classList.contains("open") ? closeFsRaw() : openFsRaw());
+  $("fseRefresh")?.addEventListener("click", fseFetch);
   $("fseFetch").addEventListener("click", fseFetch);
   $("fsePath").addEventListener("keydown", e => { if (e.key === "Enter") fseFetch(); });
-  $("fseCopy").addEventListener("click", () => {
-    if (!_fseLastResult) return;
+  // Copy the last fetched payload as pretty JSON, with a ✓ flash on the button.
+  function _fseCopyJson(btn) {
+    if (!_fseLastResult || !btn) return;
     navigator.clipboard.writeText(JSON.stringify(_fseLastResult, null, 2)).then(() => {
-      const btn = $("fseCopy");
-      const orig = btn.textContent;
+      const orig = btn.innerHTML;
       btn.textContent = "✓";
-      setTimeout(() => btn.textContent = orig, 1800);
+      setTimeout(() => { btn.innerHTML = orig; }, 1500);
     });
-  });
+  }
+  $("fseCopy").addEventListener("click", () => _fseCopyJson($("fseCopy")));
+  $("fseRawCopy")?.addEventListener("click", () => _fseCopyJson($("fseRawCopy")));
 
   /* ── community buttons ── */
   $("sbGithubBtn").addEventListener("click", () => _clickCommunityBtn("github"));
@@ -15320,7 +15734,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const q = (state.search || "").trim().toLowerCase();
     const brand = state.brandFilter || "";
     const material = state.materialFilter || "";
-    const noFilter = !q && !brand && !material;
+    // Transient "locate this spool" highlight (from the detail panel) — lights
+    // up one spool's slot WITHOUT writing anything in the search bar.
+    const locate = state.locateUid ? String(state.locateUid).toLowerCase() : "";
+    const tag = (state.tagFilter || "").toLowerCase();
+    const noFilter = !q && !brand && !material && !tag && !locate;
     document.querySelectorAll("#invRackView .rp-slot--filled").forEach(el => {
       if (noFilter) {
         el.classList.remove("rp-dim");
@@ -15330,19 +15748,40 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       const sid = el.dataset.spoolId;
       const r = state.rows.find(x => x.spoolId === sid);
       if (!r) { el.classList.add("rp-dim"); el.classList.remove("rp-slot--match"); return; }
-      const matchSearch = !q || [r.uid, r.colorName, r.material, r.brand, r.series, r.sku, r.barcode]
-        .filter(Boolean).some(v => String(v).toLowerCase().includes(q));
+      const matchSearch = !q || _rowMatchesSearch(r, q);
       const matchBrand = !brand || String(r.brand) === brand;
       const matchMaterial = !material || String(r.material) === material;
       const type = state.typeFilter || "";
       const matchType = !type || String(r.protocol) === type;
-      const matches = matchSearch && matchBrand && matchMaterial && matchType;
+      const matchTag = !tag || (r.tags || []).some(t => String(t).toLowerCase() === tag);
+      const matchLocate = !locate
+        || String(r.uid).toLowerCase() === locate || String(r.spoolId).toLowerCase() === locate;
+      const matches = matchSearch && matchBrand && matchMaterial && matchType && matchTag && matchLocate;
       el.classList.toggle("rp-dim", !matches);
       // Positive match indicator on the slot CONTAINER (border + glow) —
       // makes depleted spools (whose .rp-fill is invisible at 0%) still
       // clearly findable when the user is searching.
       el.classList.toggle("rp-slot--match", matches);
     });
+  }
+
+  // Light up one spool's slot in the rack view (no search text). The first click
+  // ANYWHERE afterwards clears the highlight and restores the unfiltered view —
+  // clicking the lit slot still opens its detail (its own handler runs), clicking
+  // anywhere else just clears. Deferred one tick so the click that triggered the
+  // locate (on the detail-panel row) doesn't immediately clear it.
+  function _startLocateHighlight(uid) {
+    state.locateUid = uid || null;
+    if (!state.locateUid) return;
+    setTimeout(() => {
+      const onDocClick = () => {
+        document.removeEventListener("click", onDocClick, true);
+        if (!state.locateUid) return;
+        state.locateUid = null;
+        if (state.viewMode === "rack") applyRackSearchDim();
+      };
+      document.addEventListener("click", onDocClick, true);
+    }, 0);
   }
 
   // True when a spool has been used up (weight_available ≤ 0). Used
@@ -15370,12 +15809,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       // Already placed in a rack that still exists → not unranked.
       if (r.rackId && liveRackIds.has(r.rackId)) return false;
       if (!search) return true;
-      return (
-        (r.uid || "").toLowerCase().includes(search) ||
-        String(r.material || "").toLowerCase().includes(search) ||
-        String(r.brand || "").toLowerCase().includes(search) ||
-        String(r.colorName || "").toLowerCase().includes(search)
-      );
+      return _rowMatchesSearch(r, search);
     });
     // Collapse twin pairs (one physical spool, two linked tags) so it shows
     // and counts once — not twice — in the unranked list, its count, and the
@@ -17654,15 +18088,24 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   }
 
   function openNotifs() {
+    // Notifications takes over — close every other side card first (detail /
+    // group / printer / settings / debug / explorer / container + the Friends
+    // slide-in, which isn't part of _closeAllSidePanels).
+    _closeAllSidePanels();
+    closeFriends();
     renderNotifCenter();
     $("notifPanel").classList.add("open");
-    $("notifOverlay").classList.add("open");
+    // No backdrop — keep the rest of the UI clickable while the panel is open,
+    // exactly like the spool-detail / printer side cards (they never open their
+    // overlay either). Closes via the ✕ / its » close tab.
+    _setTab($("notifCloseTab"), true, $("notifPanel").offsetWidth);
     _markNotifsRead();
     renderNotifBadge();
   }
   function closeNotifs() {
     $("notifPanel").classList.remove("open");
     $("notifOverlay").classList.remove("open");
+    _setTab($("notifCloseTab"), false, 0);
   }
 
   // Accept a friend request → bidirectional add (rules verify only friendship presence,
@@ -18457,6 +18900,140 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       .catch(e => console.warn("[telemetry] counter bump failed:", e.code || e.message));
   }
 
+  // ── RFID physical-chip list + TigerTag+ backup (users/{uid}/rfidList) ──
+  // One doc per PHYSICAL chip the user has used, keyed by its hex UID (auto-dedup
+  // on re-use). Lets us count unique chips and back up the repairable tag+
+  // signature. Cloud-only entries (CLOUD_… ids) are NOT chips and are skipped.
+  //   firstSeenAt : serverTimestamp   — stamped once, on first sighting
+  //   lastSeenAt  : serverTimestamp   — last write to the entry (creation/backup)
+  //   seenCount   : number            — physical-scan counter (census seeds 1)
+  //   backup      : "<hex pages 4-27>"— TAG+ ONLY, full payload incl. signature,
+  //                                     captured the first time the chip is
+  //                                     physically read (census has no raw pages).
+  //                                     Its mere PRESENCE means the chip is a
+  //                                     TigerTag+ — no separate type field needed.
+  // The signature is over UID + product id: a clone is possible but won't
+  // validate (it is detectable), so storing the backup opens no new risk.
+  //
+  // Dedup signals live ON the inventory doc — NOT in an in-memory index — as two
+  // plain booleans, read straight from the already-loaded `state.inventory` so a
+  // synced chip costs zero rfidList reads:
+  //   rfidListed : true once the UID has an entry in rfidList (census or scan)
+  //   rfidBackup : true once a tag+ signature backup has been stored (scan only;
+  //                stays false for makers and for not-yet-read tag+)
+  // Both are lost only when the inventory doc itself is deleted; a delete-then-
+  // rescan re-enters unmarked, and the scan path then verifies the rfidList entry
+  // doesn't already exist before (re)creating it, so an existing entry's
+  // firstSeenAt / backup is never clobbered.
+  let _rfidCensusDoneFor = null;
+
+  function _rfidListCol(uid) {
+    return fbDb(uid).collection("users").doc(uid).collection("rfidList");
+  }
+  function _invCol(uid) {
+    return fbDb(uid).collection("users").doc(uid).collection("inventory");
+  }
+
+  // Census every physical chip already in the inventory. Runs once per account
+  // session (first live snapshot). Reads NOTHING from rfidList — it relies on the
+  // per-doc `rfidListed` marker (already in `state.inventory`) to know which UIDs
+  // still need recording, and sets the markers as it creates each entry so later
+  // sessions skip them with zero ops. On the first-ever run rfidList is empty so
+  // the merge-create can't clobber anything; the only un-marked-yet-existing case
+  // (delete+rescan) is handled later by the scan path, which runs after the
+  // census once-guard is set, so the census never races it.
+  async function censusRfidListFromInventory(uid) {
+    if (!uid || state.friendView) return;
+    if (_rfidCensusDoneFor === uid) return;
+    _rfidCensusDoneFor = uid;
+    try {
+      const fresh = state.rows.filter(r =>
+        !r.isCloud && r.spoolId && !state.inventory?.[r.spoolId]?.rfidListed);
+      if (!fresh.length) return;
+      const FV = firebase.firestore.FieldValue;
+      const col = _rfidListCol(uid), inv = _invCol(uid);
+      // ≤200 chips/batch → ≤400 writes (rfidList entry + inventory markers),
+      // under the 500 hard cap.
+      for (let i = 0; i < fresh.length; i += 200) {
+        const batch = fbDb(uid).batch();
+        for (const r of fresh.slice(i, i + 200)) {
+          batch.set(col.doc(r.spoolId), {
+            firstSeenAt: FV.serverTimestamp(),
+            lastSeenAt:  FV.serverTimestamp(),
+            seenCount:   1,
+          }, { merge: true });
+          // Listed now; backup can only be captured later on a physical read.
+          batch.set(inv.doc(r.spoolId), { rfidListed: true, rfidBackup: false }, { merge: true });
+        }
+        await batch.commit();
+      }
+      bumpStudioCounters({ rfidChipsTotal: fresh.length });
+    } catch (e) {
+      console.warn("[rfidList] census failed:", e.code || e.message);
+      _rfidCensusDoneFor = null; // allow a retry on a later snapshot
+    }
+  }
+
+  // Record one physical scan of a chip. tagData = parsed SDK payload (needs
+  // `uid`, `id_tigertag`, and `_rawPagesHex` for the tag+ backup). `listed` /
+  // `backedUp` = the chip's `rfidListed` / `rfidBackup` markers as known from
+  // the inventory doc the scan handler just processed (both false when the doc
+  // is brand-new or was deleted + recreated). The two markers gate the work so
+  // a fully-synced chip is a pure no-op:
+  //   • listed + (backedUp OR maker)  → nothing left → no Firestore op
+  //   • listed + tag+ + !backedUp     → write the (missing) backup once, then
+  //                                      flip rfidBackup
+  //   • unlisted                      → new OR delete+rescan: one get() to avoid
+  //                                      clobbering an existing entry, then
+  //                                      create / fill backup, and set markers
+  async function recordRfidChipScan(tagData, listed, backedUp) {
+    const uid = state.activeAccountId;
+    if (!uid || state.friendView || !tagData) return;
+    const chipUid = tagData.uid ? String(tagData.uid) : null;
+    if (!chipUid) return;
+    const isPlus = versionName(tagData.id_tigertag) === "TigerTag+";
+    const rawHex = typeof tagData._rawPagesHex === "string" ? tagData._rawPagesHex : null;
+
+    // Fully synced (backed-up tag+, or any listed maker) → skip Firestore.
+    if (listed && (backedUp || !isPlus)) return;
+
+    try {
+      const ref = _rfidListCol(uid).doc(chipUid);
+      const FV  = firebase.firestore.FieldValue;
+
+      // Listed tag+ still missing its backup — write it once when raw is in hand.
+      if (listed) {
+        if (isPlus && rawHex) {
+          await ref.set({ backup: rawHex, lastSeenAt: FV.serverTimestamp() }, { merge: true });
+          await _invCol(uid).doc(chipUid).set({ rfidBackup: true }, { merge: true });
+        }
+        return;
+      }
+
+      // Not in the list → new OR delete+rescan. Verify the entry doesn't already
+      // exist so we never overwrite an existing firstSeenAt / backup.
+      const snap = await ref.get();
+      const isNew = !snap.exists;
+      const hadBackup = !!snap.data()?.backup;
+      const update = {};
+      if (isNew) {
+        update.firstSeenAt = FV.serverTimestamp();
+        update.seenCount   = 1;
+      }
+      if (isPlus && rawHex && !hadBackup) update.backup = rawHex;
+      if (Object.keys(update).length) {
+        update.lastSeenAt = FV.serverTimestamp();
+        await ref.set(update, { merge: true });
+      }
+      // Mark the inventory doc so the next scan of this chip skips Firestore.
+      const nowBacked = isPlus && (hadBackup || !!rawHex);
+      await _invCol(uid).doc(chipUid).set({ rfidListed: true, rfidBackup: nowBacked }, { merge: true });
+      if (isNew) bumpStudioCounters({ rfidChipsTotal: 1 });
+    } catch (e) {
+      console.warn("[rfidList] scan record failed:", e.code || e.message);
+    }
+  }
+
   async function syncUserDoc(uid) {
     // Always use the named Firestore instance for this specific uid,
     // never fbDb() without parameter — that depends on state.activeAccountId
@@ -18993,6 +19570,15 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           }
           await _writeChipDoc(docRef, tagData, twinUid, { preserveDbWeight });
           processedUids.push(uid);
+          // Census + tag+ signature backup for this physical chip. Each UID is
+          // its own chip — twins are two distinct physical chips, recorded (and
+          // backed up) separately. The `rfidListed`/`rfidBackup` markers survive
+          // a same-ts update (merge) but are wiped by the delete on a chip-
+          // rewrite, so a rewritten chip re-enters unlisted and the entry-
+          // existence check inside protects it. Fire-and-forget; never blocks.
+          const invDoc = (existing.exists && existing.data().timestamp === tagData.timestamp)
+            ? existing.data() : null;
+          recordRfidChipScan(tagData, !!invDoc?.rfidListed, !!invDoc?.rfidBackup);
           // Lifetime "added" counter — a brand-new physical spool entered the
           // inventory by scan (i.e. it arrived already-written: factory/mobile;
           // chips born from a local burn already exist via _cemMigrate, so they

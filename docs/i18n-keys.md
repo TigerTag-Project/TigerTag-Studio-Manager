@@ -38,6 +38,14 @@
 | `settingsExport` | Download JSON button |
 | `settingsCopied` | Copy confirmation |
 | `debugOpenBtn` | Open debug panel button |
+| `fsExplorerOpenBtn` | Open Firestore explorer button (opens debug panel on the Firestore tab) |
+| `sectionTags` | Detail-panel Tags/Balises section label |
+| `tagAdd` | Tag input placeholder ("Add a tag…") |
+| `tagRemove` | Remove-tag button tooltip |
+| `tagMax` | Max-tags-per-spool notice (reserved; `{{n}}` count) |
+| `sortBy` | Grid-view sort dropdown title |
+| `sortDir` | Grid-view sort direction toggle title |
+| `filterAllTags` | Tag filter dropdown — "All tags" default |
 
 ### Account management
 | Key | Purpose |

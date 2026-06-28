@@ -435,7 +435,11 @@ async function _onNfcMessage(msg) {
           const uidBuf   = Buffer.from(uid, 'hex'); // 7 bytes — provided natively by the reader
           const tag      = TigerTag.fromPages(uidBuf, rawBytes);
           console.log(`[NFC] Card present on ${msg.readerName} — uid: ${tag.uidHex}`);
-          mainWindow?.webContents.send('rfid-tag-scanned', await _sdkPayload(tag, msg.readerName));
+          const payload = await _sdkPayload(tag, msg.readerName);
+          // Attach the raw user pages (0x04-0x27) so the renderer's chip census
+          // can back up a TigerTag+ signature on auto-read, without a 2nd scan.
+          payload._rawPagesHex = msg.rawPagesHex;
+          mainWindow?.webContents.send('rfid-tag-scanned', payload);
         } catch (e) {
           console.warn('[NFC] SDK parse failed:', e.message);
         }
