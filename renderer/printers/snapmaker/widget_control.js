@@ -174,14 +174,14 @@ export function renderSnapControlCard(p, conn) {
             <span>Z:<b>${ctx.esc(fmtPos(d.posZ))}</b></span>
           </div>
           <div class="elg-ctrl-speed-row">
-            <span class="elg-ctrl-speed-label">${ctx.esc(ctx.t('elgCtrlStep') || 'Step')}</span>
+            <span class="elg-ctrl-speed-label" title="${ctx.esc(ctx.t('elgCtrlStep') || 'Step')}"><span class="icon icon-step icon-14"></span></span>
             <select class="elg-ctrl-speed-select" data-snap-ctrl-step="1">
               ${[0.1, 1, 10, 30].map(s => `
                 <option value="${s}"${s === step ? ' selected' : ''}>${s} mm</option>`).join('')}
             </select>
           </div>
           <div class="elg-ctrl-speed-row">
-            <span class="elg-ctrl-speed-label">${ctx.esc(ctx.t('snapCtrlSpeed') || 'Speed')}</span>
+            <span class="elg-ctrl-speed-label" title="${ctx.esc(ctx.t('snapCtrlSpeed') || 'Speed')}"><span class="icon icon-speed icon-14"></span></span>
             <select class="elg-ctrl-speed-select" data-snap-ctrl-speed="1">
               ${[25, 50, 75, 100, 125, 150, 200].map(s => `
                 <option value="${s}"${s === spd ? ' selected' : ''}>${s}%</option>`).join('')}

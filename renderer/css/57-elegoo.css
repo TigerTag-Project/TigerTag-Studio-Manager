@@ -406,7 +406,7 @@
   border-radius: 50%;
   border: none;
   background: transparent;
-  color: var(--text);
+  color: var(--muted);   /* home icon matches the other control icons (muted); white on hover */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -539,9 +539,13 @@
   white-space: nowrap;
   flex-shrink: 0;
 }
+/* The Step / Speed labels are now icons — make them bigger than the default
+   14px so they read clearly next to the dropdown. */
+.elg-ctrl-speed-label .icon { width: 20px; height: 20px; }
 .elg-ctrl-speed-select {
-  flex: 1;
-  min-width: 0;
+  flex: none;
+  width: 110px;   /* fixed width so a native <select> stays snug (flex:1 + max-width
+                     doesn't reliably cap a native select) — matches the Bambu Lab card */
   padding: 4px 6px;
   border-radius: 6px;
   border: 1px solid var(--border);

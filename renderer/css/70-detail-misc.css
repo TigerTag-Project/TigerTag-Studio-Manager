@@ -71,6 +71,13 @@
   .icon-bolt      { -webkit-mask-image: url('../../assets/svg/icons/icon_bolt.svg');         mask-image: url('../../assets/svg/icons/icon_bolt.svg'); }
   .icon-bulb      { -webkit-mask-image: url('../../assets/svg/icons/icon_bulb.svg');         mask-image: url('../../assets/svg/icons/icon_bulb.svg'); }
   .icon-home      { -webkit-mask-image: url('../../assets/svg/icons/icon_home.svg');         mask-image: url('../../assets/svg/icons/icon_home.svg'); aspect-ratio: 1/1; }
+  .icon-humidity  { -webkit-mask-image: url('../../assets/svg/icons/icon_humidity.svg');     mask-image: url('../../assets/svg/icons/icon_humidity.svg'); aspect-ratio: 1/1; }
+  .icon-step      { -webkit-mask-image: url('../../assets/svg/icons/icon_step.svg');         mask-image: url('../../assets/svg/icons/icon_step.svg');  aspect-ratio: 1/1; }
+  .icon-speed     { -webkit-mask-image: url('../../assets/svg/icons/icon_speed.svg');        mask-image: url('../../assets/svg/icons/icon_speed.svg'); aspect-ratio: 1/1; }
+  .icon-nozzle    { -webkit-mask-image: url('../../assets/svg/icons/icon_nozzle.svg');       mask-image: url('../../assets/svg/icons/icon_nozzle.svg'); aspect-ratio: 1/1; }
+  .icon-chamber   { -webkit-mask-image: url('../../assets/svg/icons/icon_chamber.svg');      mask-image: url('../../assets/svg/icons/icon_chamber.svg'); aspect-ratio: 1/1; }
+  .icon-bed       { -webkit-mask-image: url('../../assets/svg/icons/icon_bed.svg');          mask-image: url('../../assets/svg/icons/icon_bed.svg'); aspect-ratio: 1/1; }
+  .icon-disable-motor { -webkit-mask-image: url('../../assets/svg/icons/icon_disable_motor.svg'); mask-image: url('../../assets/svg/icons/icon_disable_motor.svg'); aspect-ratio: 1/1; }
   .icon-stop      { -webkit-mask-image: url('../../assets/svg/icons/icon_stop.svg');         mask-image: url('../../assets/svg/icons/icon_stop.svg'); }
   .icon-folder    { -webkit-mask-image: url('../../assets/svg/icons/icon_folder.svg');       mask-image: url('../../assets/svg/icons/icon_folder.svg'); }
   .icon-clock     { -webkit-mask-image: url('../../assets/svg/icons/icon_clock.svg');        mask-image: url('../../assets/svg/icons/icon_clock.svg'); }

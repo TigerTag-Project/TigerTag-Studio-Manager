@@ -249,10 +249,18 @@
     background: var(--surface-2); border: 1px solid var(--border);
   }
   .notif-item--unread { border-color: var(--primary); background: var(--primary-soft, rgba(249,115,22,.08)); }
+  /* All notifications wrap their text instead of truncating with an ellipsis. */
   .notif-text {
     font-size: 13px; color: var(--text);
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    line-height: 1.35; overflow-wrap: anywhere;
   }
+  /* Local (app) notifications read as a title + muted baseline; the whole row is
+     the call-to-action (no separate CTA button). */
+  .notif-title { font-size: 13px; font-weight: 700; color: var(--text); line-height: 1.25; }
+  .notif-title + .notif-text { font-size: 12px; color: var(--muted); line-height: 1.35; }
+  .notif-item--clickable { cursor: pointer; transition: background .12s, border-color .12s; }
+  .notif-item--clickable:hover { border-color: var(--primary); background: var(--primary-soft, rgba(249,115,22,.16)); }
+  .notif-item--clickable:active { transform: scale(.99); }
   .notif-dismiss { flex-shrink: 0; }
   .notif-dismiss:hover { background: var(--border); }
   .notif-dismiss .icon { background: var(--muted); }
@@ -264,6 +272,15 @@
     background: var(--surface); border: 1px solid var(--border);
   }
   .notif-ic .icon { background: var(--primary); }
+  /* Community nudges — the real app-icon look: brand-coloured rounded square,
+     white logo filling the box (Discord purple, GitHub slate, MakerWorld teal). */
+  .notif-ic--discord    { background: #5865F2; border-color: #5865F2; }
+  .notif-ic--github     { background: #2d333b; border-color: #2d333b; }
+  .notif-ic--makerworld { background: #00BCA0; border-color: #00BCA0; }
+  .notif-ic--discord, .notif-ic--github, .notif-ic--makerworld { border-radius: 10px; }
+  .notif-ic--discord .icon, .notif-ic--github .icon, .notif-ic--makerworld .icon {
+    background: #fff; width: 24px; height: 24px;
+  }
   .notif-item--local .notif-restart { flex-shrink: 0; }
 
   /* ── Blacklist section ─────────────────────────────────────────────── */

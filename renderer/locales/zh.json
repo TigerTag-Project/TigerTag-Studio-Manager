@@ -1084,5 +1084,13 @@
   "btnSwitchHere": "切换",
   "friendRemoveTitle": "移除 '{{name}}'",
   "friendRemoveConfirm": "确定要将 {{name}} 从好友中移除吗？",
-  "friendRemoveBtn": "移除好友"
+  "friendRemoveBtn": "移除好友",
+  "notifDiscordText": "来我们的 Discord 打个招呼吧——社区就在那儿等你。",
+  "discordJoinCta": "加入",
+  "notifDiscordTitle": "加入我们的 Discord",
+  "notifAvatarTitle": "添加头像",
+  "notifGithubTitle": "给我们的 GitHub 点个星",
+  "notifGithubText": "给仓库点个星——这真的能给我们力量。",
+  "notifMakerworldTitle": "免费 3D 文件",
+  "notifMakerworldText": "在 MakerWorld 发现我们免费的可打印模型。"
 }

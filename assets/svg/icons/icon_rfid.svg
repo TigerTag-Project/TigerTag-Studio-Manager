@@ -1,13 +1,31 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 32" fill="none">
-  <!-- Card body -->
-  <rect x="1" y="6" width="20" height="20" rx="2" stroke="currentColor" stroke-width="2" fill="none"/>
-  <!-- Card chip -->
-  <rect x="5" y="11" width="7" height="10" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
-  <!-- RFID arcs -->
-  <path d="M27 16 A5 5 0 0 1 32 11" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
-  <path d="M27 16 A5 5 0 0 0 32 21" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
-  <path d="M27 16 A11 11 0 0 1 38 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
-  <path d="M27 16 A11 11 0 0 0 38 27" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
-  <path d="M27 16 A17 17 0 0 1 44 -1" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
-  <path d="M27 16 A17 17 0 0 0 44 33" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 20010904//EN"
+ "http://www.w3.org/TR/2001/REC-SVG-20010904/DTD/svg10.dtd">
+<svg version="1.0" xmlns="http://www.w3.org/2000/svg"
+ width="1600.000000pt" height="1600.000000pt" viewBox="0 0 1600.000000 1600.000000"
+ preserveAspectRatio="xMidYMid meet">
+<metadata>
+Created by potrace 1.15, written by Peter Selinger 2001-2017
+</metadata>
+<g transform="translate(0.000000,1600.000000) scale(0.100000,-0.100000)"
+fill="#000000" stroke="none">
+<path d="M2697 15989 c-565 -50 -1108 -264 -1567 -619 -114 -88 -391 -362
+-484 -480 -164 -206 -340 -509 -434 -745 -84 -211 -143 -430 -184 -680 l-23
+-140 -3 -5105 c-2 -3709 0 -5145 8 -5250 70 -905 549 -1724 1304 -2229 357
+-239 778 -402 1203 -466 209 -32 404 -36 1438 -33 l1030 3 -50 29 c-473 272
+-900 980 -1135 1880 -136 521 -200 952 -262 1766 -9 116 -13 1563 -15 5719
+l-3 5564 59 -54 c33 -30 1450 -1433 3150 -3119 l3091 -3065 0 -960 0 -960
+-167 166 c-276 272 -3662 3637 -4288 4261 l-580 578 -3 -3028 c-3 -3056 0
+-3387 34 -3957 76 -1289 257 -2251 558 -2968 58 -138 195 -404 271 -527 156
+-251 434 -560 648 -719 357 -266 779 -449 1320 -571 l177 -41 2633 4 c2894 3
+2667 -2 2983 62 961 194 1787 893 2148 1816 86 221 140 430 183 709 16 108 18
+413 21 5185 2 3454 0 5117 -8 5217 -19 278 -61 490 -144 743 -374 1126 -1377
+1914 -2561 2015 -72 6 -555 10 -1200 10 l-1080 0 58 -33 c100 -56 179 -119
+297 -237 465 -463 808 -1273 979 -2310 54 -329 89 -654 123 -1145 8 -125 12
+-1627 15 -5704 l4 -5533 -39 33 c-22 19 -1074 1060 -2338 2314 -1264 1254
+-2665 2642 -3111 3085 l-813 805 0 964 0 963 1853 -1843 c1018 -1014 2152
+-2143 2520 -2508 l667 -665 0 3025 c0 1749 -4 3153 -10 3329 -57 1794 -274
+2992 -695 3838 -153 308 -311 536 -525 756 -221 227 -441 386 -735 531 -266
+131 -536 223 -883 301 l-154 34 -2596 -1 c-1429 -1 -2636 -5 -2685 -10z"/>
+</g>
 </svg>

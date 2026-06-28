@@ -212,14 +212,14 @@ export function renderElegooControlCard(p, conn) {
             <span>Z:<b>${ctx.esc(fmtPos(d.posZ))}</b></span>
           </div>
           <div class="elg-ctrl-speed-row">
-            <span class="elg-ctrl-speed-label">${ctx.esc(ctx.t('elgCtrlStep'))}</span>
+            <span class="elg-ctrl-speed-label" title="${ctx.esc(ctx.t('elgCtrlStep'))}"><span class="icon icon-step icon-14"></span></span>
             <select class="elg-ctrl-speed-select" data-elg-ctrl-step="1">
               ${[0.1, 1, 10, 30].map(s => `
                 <option value="${s}"${s === step ? ' selected' : ''}>${s} mm</option>`).join('')}
             </select>
           </div>
           <div class="elg-ctrl-speed-row">
-            <span class="elg-ctrl-speed-label">${ctx.esc(ctx.t('elgCtrlSpeed'))}</span>
+            <span class="elg-ctrl-speed-label" title="${ctx.esc(ctx.t('elgCtrlSpeed'))}"><span class="icon icon-speed icon-14"></span></span>
             <select class="elg-ctrl-speed-select" data-elg-ctrl-speed="1">
               ${SPEED_MODES.map(m => `
                 <option value="${m.value}"${m.value === mode ? ' selected' : ''}>${ctx.esc(speedLabel(m.value))}</option>`).join('')}

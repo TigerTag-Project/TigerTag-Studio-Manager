@@ -1052,6 +1052,7 @@ function renderCreControlCard(p, conn) {
   if (isPrinting) return "";
 
   const step    = conn._ctrlStep ?? 10;
+  const spd      = Math.round(Number(d.curFeedratePct)) || 100;   // feedrate % (M220)
   const pos      = creParsePos(d.curPosition);
   // Fans present on this model — open-frame printers expose only the part fan
   // (see CRE_MULTI_FAN_MODEL_IDS). Labelled per key so order stays part/case/side.
@@ -1134,10 +1135,16 @@ function renderCreControlCard(p, conn) {
             <span>Z:<b>${ctx.esc(creFmtPos(pos?.z))}</b></span>
           </div>
           <div class="elg-ctrl-speed-row">
-            <span class="elg-ctrl-speed-label">${ctx.esc(ctx.t("elgCtrlStep") || "Step")}</span>
+            <span class="elg-ctrl-speed-label" title="${ctx.esc(ctx.t("elgCtrlStep") || "Step")}"><span class="icon icon-step icon-14"></span></span>
             <select class="elg-ctrl-speed-select" data-cre-ctrl-step="1">
               ${[0.1, 1, 10, 30].map(s => `
                 <option value="${s}"${s === step ? " selected" : ""}>${s} mm</option>`).join("")}
+            </select>
+          </div>
+          <div class="elg-ctrl-speed-row">
+            <span class="elg-ctrl-speed-label" title="${ctx.esc(ctx.t("snapCtrlSpeed") || "Speed")}"><span class="icon icon-speed icon-14"></span></span>
+            <select class="elg-ctrl-speed-select" data-cre-ctrl-speed="1">
+              ${[25, 50, 75, 100, 125, 150, 200].map(s => `<option value="${s}"${s === spd ? " selected" : ""}>${s}%</option>`).join("")}
             </select>
           </div>
           <button type="button" class="cre-ctrl-disable" data-cre-ctrl-disable title="M84">${ctx.esc(ctx.t("creDisableMotors"))}</button>

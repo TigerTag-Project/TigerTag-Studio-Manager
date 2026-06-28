@@ -1084,5 +1084,13 @@
   "btnSwitchHere": "Switch",
   "friendRemoveTitle": "Remove '{{name}}'",
   "friendRemoveConfirm": "Do you really want to remove {{name}} from your friends?",
-  "friendRemoveBtn": "Remove friend"
+  "friendRemoveBtn": "Remove friend",
+  "notifDiscordText": "Come say hi on our Discord — the community's right there.",
+  "discordJoinCta": "Join",
+  "notifDiscordTitle": "Join our Discord",
+  "notifAvatarTitle": "Add a profile photo",
+  "notifGithubTitle": "Star our GitHub",
+  "notifGithubText": "Drop a star on the repo — it genuinely gives us strength.",
+  "notifMakerworldTitle": "Free 3D files",
+  "notifMakerworldText": "Discover our free printable models on MakerWorld."
 }

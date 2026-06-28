@@ -156,7 +156,7 @@ export function renderElegooTempCard(conn) {
   if (typeof d.chamberTemp === 'number') {
     pills.push(`
       <div class="snap-temp snap-temp--chamber">
-        ${ctx.SNAP_ICON_BED}
+        ${ctx.SNAP_ICON_CHAMBER}
         <span class="snap-temp-val">${ctx.esc(elgFmtTemp(d.chamberTemp))}</span>
       </div>`);
   }

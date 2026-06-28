@@ -198,7 +198,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Inventory render (L5463-6766)
+## Inventory render (L5463-6796)
 
 | L | What | Anchors |
 |---|---|---|
@@ -245,7 +245,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Panels / debug / auto-update (L9372-9904)
+## Panels / debug / auto-update (L9372-9962)
 
 | L | What | Anchors |
 |---|---|---|
@@ -268,7 +268,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Racks + printers subscriptions (L10330-10572)
+## Racks + printers subscriptions (L10330-10602)
 
 | L | What | Anchors |
 |---|---|---|
@@ -291,7 +291,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Printer detail side panel (L11632-13994)
+## Printer detail side panel (L11632-14024)
 
 | L | What | Anchors |
 |---|---|---|
@@ -315,7 +315,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Racks CRUD + slots (L14583-15484)
+## Racks CRUD + slots (L14583-15514)
 
 | L | What | Anchors |
 |---|---|---|
@@ -350,7 +350,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Display name + friend requests (L17149-17580)
+## Display name + friend requests (L17149-17737)
 
 | L | What | Anchors |
 |---|---|---|
@@ -378,7 +378,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## User doc sync + telemetry + bootstrap (L18196-18524)
+## User doc sync + telemetry + bootstrap (L18196-18718)
 
 | L | What | Anchors |
 |---|---|---|

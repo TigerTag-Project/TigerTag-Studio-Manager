@@ -640,7 +640,7 @@
   .sidebar.collapsed .sb-github-btn,
   .sidebar.collapsed .sb-makerworld-btn,
   .sidebar.collapsed .sb-discord-btn {
-    width: 44px; padding: 0; border-radius: 10px;   /* height comes from the shared rule (34px) */
+    width: 40px; padding: 0; border-radius: 10px;   /* 40×40 square (height from the shared 40px rule) */
     gap: 0;   /* drop the icon↔label gap so the icon stays centred when the label collapses */
   }
   /* Labels collapse the same animated way as the Notifications row (no display:none). */

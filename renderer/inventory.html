@@ -70,7 +70,7 @@
 
       <!-- état : aucun compte -->
       <div class="sb-noacct" id="sbNoacct">
-        <div class="sb-noacct-label" data-i18n="noAccounts">No account</div>
+        <div class="sb-noacct-label" data-i18n="noAccounts">No account yet. Shall we?</div>
         <button class="sb-noacct-btn" id="btnAddFirstAccount">
           <span class="icon icon-plus icon-11"></span>
           <span data-i18n="addAccountLabel">Add account</span>
@@ -91,21 +91,24 @@
     <!-- community footer (always visible) -->
     <div class="sb-community">
       <div class="sb-qr-wrap" id="sbQrWrap">
-        <div class="sb-qr-label" data-i18n="mobileApp">Mobile App</div>
+        <div class="sb-qr-label" data-i18n="mobileApp">TigerTag Mobile Apps</div>
         <div class="sb-qr-label-short" data-i18n="mobileAppShort">Apps</div>
         <img class="sb-qr-img" src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=https%3A%2F%2Ftaap.it%2FnX7QSrz&bgcolor=0f1117&color=ffffff&margin=8" alt="QR" />
       </div>
       <button class="sb-github-btn" id="sbGithubBtn">
-        <span class="icon icon-github icon-14" style="width:18px;height:18px"></span>
-        <span class="label" data-i18n="githubBtn">View on GitHub</span>
+        <span class="icon icon-github icon-14"></span>
+        <span class="label" data-i18n="githubBtn">GitHub</span>
+        <span class="sb-community-badge" aria-hidden="true">1</span>
       </button>
       <button class="sb-makerworld-btn" id="sbMakerWorldBtn">
-        <span class="icon icon-package icon-14" style="width:16px;height:16px"></span>
-        <span class="label" data-i18n="makerWorldBtn">3D Files — MakerWorld</span>
+        <span class="icon icon-package icon-14"></span>
+        <span class="label" data-i18n="makerWorldBtn">3D Files</span>
+        <span class="sb-community-badge" aria-hidden="true">1</span>
       </button>
       <button class="sb-discord-btn" id="sbDiscordBtn">
-        <span class="icon icon-discord icon-14" style="width:16px;height:16px"></span>
-        <span class="label" data-i18n="discordBtn">Join us on Discord</span>
+        <span class="icon icon-discord icon-14"></span>
+        <span class="label" data-i18n="discordBtn">Discord</span>
+        <span class="sb-community-badge" aria-hidden="true">1</span>
       </button>
       <!-- App version (always visible, discreet — populated at runtime from preload) -->
       <div class="sb-version" id="sbVersion">v—</div>
@@ -146,11 +149,11 @@
       <div class="signin-ph-links">
         <button class="signin-ph-link" id="btnSignInPlaceholderGh">
           <span class="icon icon-github icon-14"></span>
-          <span data-i18n="githubBtn">View on GitHub</span>
+          <span data-i18n="githubBtn">GitHub</span>
         </button>
         <button class="signin-ph-link" id="btnSignInPlaceholderDiscord">
           <span class="icon icon-discord icon-14"></span>
-          <span data-i18n="discordBtn">Join us on Discord</span>
+          <span data-i18n="discordBtn">Discord</span>
         </button>
       </div>
     </div>
@@ -328,7 +331,7 @@
             <span class="eac-toggle-track"><span class="eac-toggle-thumb"></span></span>
           </span>
         </label>
-        <p class="stg-row-help" data-i18n="stgDataHelp">Export your inventory locally as JSON, or copy the public API URL.</p>
+        <p class="stg-row-help" data-i18n="stgDataHelp">Export your inventory locally as JSON, or copy the public API URL (with your access key embedded) so a script or another machine can fetch it remotely.</p>
         <div class="stg-row-actions stg-row-actions--col">
           <button class="ghost sm" id="btnSbReload" title="Resync inventory from the cloud">
             <span class="icon icon-refresh icon-13"></span>
@@ -336,7 +339,7 @@
           </button>
           <button class="ghost sm" id="btnStgExport">
             <span class="icon icon-download icon-13"></span>
-            <span data-i18n="settingsExport">Download JSON</span>
+            <span data-i18n="settingsExport">↓ Download JSON</span>
           </button>
           <button class="ghost sm" id="btnCopyApiUrl" title="Copy export URL">
             <span class="icon icon-link icon-13"></span>
@@ -409,7 +412,7 @@
 <div class="panel-overlay" id="scalesOverlay"></div>
 <div class="detail-panel scales-panel" id="scalesPanel">
   <div class="panel-header">
-    <span class="panel-title" data-i18n="scalesPanelTitle">Scales</span>
+    <span class="panel-title" data-i18n="scalesPanelTitle">Tiger Scales</span>
     <button class="panel-close" id="scalesPanelClose">✕</button>
   </div>
   <div class="panel-body" id="scalesPanelBody"></div>
@@ -484,7 +487,7 @@
     <div class="sfe-body">
       <!-- Line 1: Filaments — current "Brand Type SubType", chevron right -->
       <button type="button" class="sfe-line" id="sfeOpenFilament">
-        <span class="sfe-line-lbl" data-i18n="snapFilEditPickFilament">Filaments</span>
+        <span class="sfe-line-lbl" data-i18n="snapFilEditPickFilament">Filament</span>
         <span class="sfe-line-val" id="sfeFilSummaryVal">—</span>
         <span class="sfe-line-chev icon icon-chevron-r icon-13"></span>
       </button>
@@ -586,7 +589,7 @@
 
     <div class="sfe-body">
       <button type="button" class="sfe-line" id="ffgOpenFilament">
-        <span class="sfe-line-lbl" data-i18n="snapFilEditPickFilament">Filaments</span>
+        <span class="sfe-line-lbl" data-i18n="snapFilEditPickFilament">Filament</span>
         <span class="sfe-line-val" id="ffgFilSummaryVal">—</span>
         <span class="sfe-line-chev icon icon-chevron-r icon-13"></span>
       </button>
@@ -724,7 +727,7 @@
     </header>
     <div class="sfe-body">
       <button type="button" class="sfe-line" id="creOpenFilament">
-        <span class="sfe-line-lbl" data-i18n="snapFilEditPickFilament">Filaments</span>
+        <span class="sfe-line-lbl" data-i18n="snapFilEditPickFilament">Filament</span>
         <span class="sfe-line-val" id="creFilSummaryVal">—</span>
         <span class="sfe-line-chev icon icon-chevron-r icon-13"></span>
       </button>
@@ -817,7 +820,7 @@
     </header>
     <div class="sfe-body">
       <button type="button" class="sfe-line" id="elgOpenFilament">
-        <span class="sfe-line-lbl" data-i18n="snapFilEditPickFilament">Filaments</span>
+        <span class="sfe-line-lbl" data-i18n="snapFilEditPickFilament">Filament</span>
         <span class="sfe-line-val" id="elgFilSummaryVal">—</span>
         <span class="sfe-line-chev icon icon-chevron-r icon-13"></span>
       </button>
@@ -1046,7 +1049,7 @@
       <span class="fp-toggle-icon"><span class="icon icon-eye-on icon-14"></span></span>
       <span class="fp-toggle-text">
         <span class="fp-toggle-title" data-i18n="friendsPublicLabel">Public inventory</span>
-        <span class="fp-toggle-sub" data-i18n="friendsPublicSub">Anyone can view without approval</span>
+        <span class="fp-toggle-sub" data-i18n="friendsPublicSub">Visible to everyone</span>
       </span>
       <span class="eac-toggle">
         <input type="checkbox" id="stgPublicToggle" />
@@ -1126,7 +1129,7 @@
     <div class="rec-header">
       <div class="rec-header-text">
         <div class="rec-title" id="recTitle" data-i18n="rackNew">New rack</div>
-        <div class="rec-sub" data-i18n="rackEditSub">Pick a preset or create a custom layout</div>
+        <div class="rec-sub" data-i18n="rackEditSub">Pick a preset or create a custom layout.</div>
       </div>
       <button class="modal-close" id="rackEditClose">✕</button>
     </div>
@@ -1183,7 +1186,7 @@
 <div class="panel-overlay" id="friendInvOverlay"></div>
 <div class="detail-panel" id="friendInvPanel">
   <div class="dp-header">
-    <button class="ghost sm dp-back" id="friendInvBack">← <span data-i18n="btnSwitchAccount"></span></button>
+    <button class="ghost sm dp-back" id="friendInvBack">← <span data-i18n="btnSwitchAccount">Switch account</span></button>
     <div class="dp-header-identity">
       <div class="fi-avatar" id="friendInvAvatar"></div>
       <div>
@@ -1193,7 +1196,7 @@
     </div>
   </div>
   <div class="dp-body fi-body" id="friendInvBody">
-    <div class="fi-loading" id="friendInvLoading" data-i18n="invLoading">Loading…</div>
+    <div class="fi-loading" id="friendInvLoading" data-i18n="invLoading">Unpacking your spools…</div>
     <div id="friendInvGrid" class="inv-grid hidden"></div>
   </div>
 </div>
@@ -1403,7 +1406,7 @@
       <div class="td-edit-save-row">
         <button class="btn ghost td-edit-save-half" id="colorEditManualBtnTdOnly">TD<br>Only</button>
         <button class="btn ghost td-edit-save-half" id="colorEditManualBtnColorOnly">Color<br>Only</button>
-        <button class="btn primary td-edit-save-half" id="colorEditManualSaveBtn" data-i18n="btnSaveAll">Save All</button>
+        <button class="btn primary td-edit-save-half" id="colorEditManualSaveBtn" data-i18n="btnSaveAll">All</button>
       </div>
     </div>
 
@@ -1518,11 +1521,11 @@
       <span class="avp-ring avp-ring--2"></span>
       <span class="avp-avatar-ph"><span class="icon icon-user icon-32"></span></span>
     </div>
-    <h2 class="avp-title" data-i18n="avatarPromptTitle">Put a face to your studio!</h2>
-    <p class="avp-body" data-i18n="avatarPromptBody">Add a profile photo so friends spot you instantly.</p>
+    <h2 class="avp-title" data-i18n="avatarPromptTitle">You're unique. Look like it.</h2>
+    <p class="avp-body" data-i18n="avatarPromptBody">Right now you're just a letter in a circle — thrilling, we know. Pick an avatar that's unmistakably you, so friends spot you at a glance and your shared inventory finally has some character. It takes ten seconds.</p>
     <div class="avp-actions">
-      <button class="avp-skip" id="avatarPromptSkip" type="button" data-i18n="avatarPromptLater">Maybe later</button>
-      <button class="avp-cta" id="avatarPromptCta" type="button" data-i18n="avatarPromptCta">Pick my photo</button>
+      <button class="avp-skip" id="avatarPromptSkip" type="button" data-i18n="avatarPromptLater">Later</button>
+      <button class="avp-cta" id="avatarPromptCta" type="button" data-i18n="avatarPromptCta">Choose my avatar</button>
     </div>
   </div>
 </div>
@@ -1764,10 +1767,10 @@
     <h2 class="pid-help-title" data-i18n="upgradeToPlusHelpTip">How to find the product ID</h2>
     <img src="../assets/img/helper/helper_found_product_id.png"
          class="pid-help-img" alt="Product ID helper" />
-    <p class="pid-help-body" data-i18n="upgradeToPlusHelpBody"></p>
+    <p class="pid-help-body" data-i18n="upgradeToPlusHelpBody">The product ID is the number shown in the URL of a TigerTag product page. Browse the material list, open any product, and copy the number at the end of the URL.</p>
     <button class="pid-help-list-btn" id="productIdHelpListBtn">
       <span class="icon icon-link icon-13"></span>
-      <span data-i18n="upgradeToPlusListTip">Browse the TigerTag material list</span>
+      <span data-i18n="upgradeToPlusListTip">Explore the TigerTag+ material list</span>
     </button>
   </div>
 </div>
@@ -1795,11 +1798,11 @@
 <div class="modal-overlay" id="twinLinkPickerOverlay">
   <div class="modal-card cp-card">
     <div class="cp-header">
-      <span class="cp-title" data-i18n="twinLinkPickerTitle">Link a twin spool</span>
+      <span class="cp-title" data-i18n="twinLinkPickerTitle">Pick the matching tag</span>
       <button class="modal-close cp-close" id="twinLinkPickerClose">✕</button>
     </div>
     <div class="twin-link-picker-sub" id="twinLinkPickerSub"
-         data-i18n="twinLinkPickerSub">Pick the matching half of this spool.</div>
+         data-i18n="twinLinkPickerSub">Same brand, material, type and colour as this spool.</div>
     <div id="twinLinkPickerList" class="twin-link-picker-list"></div>
     <div id="twinLinkPickerEmpty" class="twin-link-picker-empty" hidden
          data-i18n="twinLinkEmpty">No compatible spool to link.</div>
@@ -1840,10 +1843,10 @@
     <button class="modal-close frq-close" id="frqClose" title="Close" aria-label="Close">✕</button>
     <div class="frq-avatar" id="frqAvatar"></div>
     <div class="frq-name" id="frqName">—</div>
-    <div class="frq-sub" data-i18n="friendReqSub">wants to see your inventory</div>
+    <div class="frq-sub" data-i18n="friendReqSub">wants to view your inventory</div>
     <div class="frq-actions">
       <button class="ghost sm frq-btn-block" id="frqBlock" data-i18n="friendReqBlock">Block</button>
-      <button class="ghost sm frq-btn-refuse" id="frqRefuse" data-i18n="friendReqRefuse">Refuse</button>
+      <button class="ghost sm frq-btn-refuse" id="frqRefuse" data-i18n="friendReqRefuse">Decline</button>
       <button class="primary sm frq-btn-accept" id="frqAccept" data-i18n="friendReqAccept">Accept</button>
     </div>
   </div>
@@ -2078,7 +2081,7 @@
            anything that's not a digit AND clamps to `max` live. -->
       <div class="adp-grid-2">
         <label class="adp-row">
-          <span class="adp-label" data-i18n="addProductWeightLbl">Weight</span>
+          <span class="adp-label" data-i18n="addProductWeightLbl">Weight (g)</span>
           <input id="adpWeight" type="number" class="adp-input adp-int-only"
                  value="1000" min="1" max="16777215" step="1"
                  inputmode="numeric" required />
@@ -2320,7 +2323,7 @@
              data-i18n-placeholder="setupNamePlaceholder" placeholder="Your display name" />
       <div id="dnsResult" class="dns-result"></div>
       <div class="dns-actions">
-        <button class="primary dns-btn-save" id="dnsSave" data-i18n="setupNameSave">Save</button>
+        <button class="primary dns-btn-save" id="dnsSave" data-i18n="setupNameSave">Let's go!</button>
       </div>
     </div>
   </div>
@@ -2360,18 +2363,14 @@
   <div class="modal-card uid-migr-card" role="alertdialog" aria-live="polite" aria-busy="true">
     <div class="uid-migr-icon"><span class="icon icon-refresh icon-22"></span></div>
     <h2 class="uid-migr-title" id="uidMigrationTitle" data-i18n="uidMigrProgressTitle">Inventory format upgrade in progress</h2>
-    <p class="uid-migr-msg" id="uidMigrationMsg" data-i18n="uidMigrProgressMsg">
-      Your inventory is being upgraded to a new, more efficient storage format. Please do not close the app until this finishes. Each spool only takes a fraction of a second.
-    </p>
+    <p class="uid-migr-msg" id="uidMigrationMsg" data-i18n="uidMigrProgressMsg">Your inventory is being upgraded to a new, more efficient storage format. Please do not close the app until this finishes. Each spool only takes a fraction of a second.</p>
     <div class="uid-migr-progress">
       <div class="uid-migr-progress-track">
         <div class="uid-migr-progress-fill" id="uidMigrationBar"></div>
       </div>
       <div class="uid-migr-count" id="uidMigrationCount">0 / 0</div>
     </div>
-    <div class="uid-migr-warn" id="uidMigrationWarn" data-i18n="uidMigrProgressWarn">
-      ⚠ Closing the app now would just resume on next launch — but for the cleanest experience, let it finish.
-    </div>
+    <div class="uid-migr-warn" id="uidMigrationWarn" data-i18n="uidMigrProgressWarn">⚠ Closing the app now would just resume on next launch — but for the cleanest experience, let it finish.</div>
   </div>
 </div>
 
@@ -2425,8 +2424,8 @@
 
     <!-- Body -->
     <div class="tigerpod-body">
-      <h2 class="tigerpod-title" data-i18n="tigerPodModalTitle">Build your TigerPOD</h2>
-      <p class="tigerpod-desc" data-i18n="tigerPodModalDesc">A 3D-printable stand to program TigerTag RFID chips directly on your filament spools.</p>
+      <h2 class="tigerpod-title" data-i18n="tigerPodModalTitle">Print your TigerPOD Now !</h2>
+      <p class="tigerpod-desc" data-i18n="tigerPodModalDesc">A 3D-printable stand to Burn TigerTag RFID chips directly on your filament spools.</p>
 
       <!-- Key features 2×2 grid -->
       <div class="tigerpod-features">
@@ -2463,7 +2462,7 @@
       <!-- CTA -->
       <a class="btn primary tigerpod-print-btn" id="tigerPodMakerWorldBtn">
         <span class="tigerpod-btn-icon"></span>
-        <span data-i18n="tigerPodPrintBtn">Print on MakerWorld</span>
+        <span data-i18n="tigerPodPrintBtn">Download &amp; Print STL Free</span>
       </a>
     </div>
   </div>
@@ -2493,7 +2492,7 @@
       <div class="printer-tuto-body" id="printerTutoBody"></div>
     </div>
     <!-- Empty / fallback when no tutorial for the brand -->
-    <div class="printer-tuto-empty hidden" id="printerTutoEmpty" data-i18n="tutoNone"></div>
+    <div class="printer-tuto-empty hidden" id="printerTutoEmpty" data-i18n="tutoNone">No connection tutorial is available for this printer yet.</div>
     <div class="printer-tuto-foot" id="printerTutoFoot">
       <button class="adf-btn adf-btn--secondary" id="printerTutoPrev">
         <span class="icon icon-chevron-l icon-13"></span>

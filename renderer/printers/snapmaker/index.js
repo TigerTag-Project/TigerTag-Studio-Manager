@@ -570,9 +570,12 @@ export function snapTextColor(hex) {
 
 // Inline SVGs for the small temp icons — kept as renderer constants so
 // they pick up `currentColor` from the parent without extra CSS wiring.
-export const SNAP_ICON_NOZZLE  = `<svg class="snap-temp-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6v6l-3 4-3-4z"/><path d="M9 17q1 2 0 4"/><path d="M12 17q1 2 0 4"/><path d="M15 17q1 2 0 4"/></svg>`;
-export const SNAP_ICON_BED     = `<svg class="snap-temp-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="16" x2="21" y2="16"/><path d="M7 12q1-3 0-5"/><path d="M12 12q1-3 0-5"/><path d="M17 12q1-3 0-5"/></svg>`;
-export const SNAP_ICON_CHAMBER = `<svg class="snap-temp-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="1.5"/><path d="M9 13q1-2 0-4"/><path d="M15 13q1-2 0-4"/></svg>`;
+// Nozzle uses the dedicated icon_nozzle.svg (masked); bed/chamber stay inline.
+export const SNAP_ICON_NOZZLE  = `<span class="icon icon-nozzle snap-temp-icon" aria-hidden="true"></span>`;
+// Bed uses the dedicated icon_bed.svg (a true vector — masks cleanly).
+export const SNAP_ICON_BED     = `<span class="icon icon-bed snap-temp-icon" aria-hidden="true"></span>`;
+// Chamber/case uses the dedicated icon_chamber.svg (a true vector — masks cleanly).
+export const SNAP_ICON_CHAMBER = `<span class="icon icon-chamber snap-temp-icon" aria-hidden="true"></span>`;
 export const SNAP_ICON_CLOCK   = `<svg class="snap-job-time-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg>`;
 
 // ── Filament edit — bottom sheet ──────────────────────────────────────────

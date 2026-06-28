@@ -3673,7 +3673,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // Let the display-name setup take priority — never stack two prompts.
     if (!state.displayName) return;
     // Persistent nudge in the notification center (stays until a photo is set).
-    _setLocalNotif({ id: "avatar", icon: "user", text: t("notifAvatarText"), action: "avatar" });
+    _setLocalNotif({ id: "avatar", icon: "user", title: t("notifAvatarTitle"), text: t("notifAvatarText"), action: "avatar" });
     // Fun modal — once per account per session (so it greets on each launch/login
     // but never spams on background syncUserDoc re-runs).
     if (!_avatarPromptShownFor.has(uid)) {
@@ -3684,6 +3684,84 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   $("avatarPromptCta")?.addEventListener("click", () => { _closeAvatarPrompt(); _changeMyAvatar(); });
   $("avatarPromptSkip")?.addEventListener("click", _closeAvatarPrompt);
   $("avatarPromptOverlay")?.addEventListener("click", e => { if (e.target === $("avatarPromptOverlay")) _closeAvatarPrompt(); });
+
+  /* ── Community-link nudges (Discord / GitHub / 3D Files) ──────────────────
+     Each sidebar community button carries a message-style "1" badge + a
+     notification inviting the user (join Discord / star the repo / discover the
+     free 3D files), until they act on it once. Per account, Firestore-synced via
+     users/{uid}.{key}Seen, so the nudge never returns on any device.
+     Click routing:
+       - button click while the nudge is PENDING → open the notification center
+         (so they read the invite); it does NOT open the link or mark it done;
+       - button click once the nudge is DONE → open the destination link directly;
+       - clicking the notification itself → open the link AND mark it done. */
+  const COMMUNITY = {
+    discord: {
+      url: "https://discord.gg/3Qv5TSqnJH",
+      btnId: "sbDiscordBtn", seen: "discordSeen", clickedAt: "discordClickedAt",
+      icon: "discord", titleKey: "notifDiscordTitle", textKey: "notifDiscordText",
+    },
+    github: {
+      url: "https://github.com/TigerTag-Project/TigerTag-Studio-Manager/",
+      btnId: "sbGithubBtn", seen: "githubSeen", clickedAt: "githubClickedAt",
+      icon: "github", titleKey: "notifGithubTitle", textKey: "notifGithubText",
+    },
+    makerworld: {
+      url: "https://makerworld.com/fr/@TigerTag/upload",
+      btnId: "sbMakerWorldBtn", seen: "makerworldSeen", clickedAt: "makerworldClickedAt",
+      icon: "package", titleKey: "notifMakerworldTitle", textKey: "notifMakerworldText",
+    },
+  };
+
+  // Toggle each button's "1" badge based on whether its nudge is still pending.
+  function renderCommunityBadges() {
+    for (const k in COMMUNITY) {
+      document.getElementById(COMMUNITY[k].btnId)?.classList.toggle("sb-nudge", !state[COMMUNITY[k].seen]);
+    }
+  }
+  // Per account: show the invite notification for each still-pending link, clear
+  // the ones already done.
+  function _maybeNudgeCommunity() {
+    if (!state.activeAccountId) return;
+    renderCommunityBadges();
+    for (const k in COMMUNITY) {
+      const c = COMMUNITY[k];
+      if (state[c.seen]) _clearLocalNotif(k);
+      else _setLocalNotif({ id: k, icon: c.icon, title: t(c.titleKey), text: t(c.textKey), action: k });
+    }
+  }
+  // Mark a nudge done forever (per account, Firestore-synced) + stamp the click
+  // in telemetry; clear its badge + notification.
+  function _markCommunitySeen(k) {
+    const c = COMMUNITY[k];
+    if (!c || state[c.seen]) return;
+    state[c.seen] = true;
+    renderCommunityBadges();
+    _clearLocalNotif(k);
+    const uid = state.activeAccountId;
+    if (!uid) return;
+    fbDb(uid).collection("users").doc(uid).set({ [c.seen]: true }, { merge: true }).catch(() => {});
+    const cached = Cache.read("userdoc", uid);
+    if (cached) Cache.write("userdoc", uid, { ...cached, [c.seen]: true });
+    fbDb(uid).collection("users").doc(uid).collection("telemetry").doc("studio")
+      .set({ [c.clickedAt]: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true })
+      .catch(() => {});
+  }
+  // Clicking the notification → open the link AND mark it done.
+  function _openCommunityLink(k) {
+    const c = COMMUNITY[k];
+    if (!c) return;
+    _markCommunitySeen(k);
+    window.open(c.url);
+  }
+  // Clicking the sidebar button → open the notification center while the nudge is
+  // pending, otherwise jump straight to the link.
+  function _clickCommunityBtn(k) {
+    const c = COMMUNITY[k];
+    if (!c) return;
+    if (state[c.seen]) window.open(c.url);
+    else openNotifs();
+  }
 
   // The header chip (own view) renders an editable avatar too — clicking it
   // (hover shows a pencil overlay) changes the photo. Delegated on the static
@@ -9987,9 +10065,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   });
 
   /* ── community buttons ── */
-  $("sbGithubBtn").addEventListener("click", () => window.open("https://github.com/TigerTag-Project/TigerTag-Studio-Manager/"));
-  $("sbMakerWorldBtn").addEventListener("click", () => window.open("https://makerworld.com/fr/@TigerTag/upload"));
-  $("sbDiscordBtn").addEventListener("click", () => window.open("https://discord.gg/3Qv5TSqnJH"));
+  $("sbGithubBtn").addEventListener("click", () => _clickCommunityBtn("github"));
+  $("sbMakerWorldBtn").addEventListener("click", () => _clickCommunityBtn("makerworld"));
+  $("sbDiscordBtn").addEventListener("click", () => _clickCommunityBtn("discord"));
 
   // Sign-in placeholder buttons
   $("btnSignInPlaceholder").addEventListener("click", openAddAccountModal);
@@ -12019,6 +12097,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           conn._ctrlStep = s;
           creRefreshLive(_activePrinter);
         }
+        return;
+      }
+      const speedSel = e.target.closest("[data-cre-ctrl-speed]");
+      if (speedSel) {
+        const pct = parseInt(speedSel.value, 10);
+        if (!isNaN(pct)) creGcode(_activePrinter, `M220 S${pct}`, "set speed");
         return;
       }
     }
@@ -15296,7 +15380,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // Collapse twin pairs (one physical spool, two linked tags) so it shows
     // and counts once — not twice — in the unranked list, its count, and the
     // auto-fill pool.
-    return deduplicateTwins(rows);
+    // Empty (0 g) spools sink to the bottom: the rolls with filament left are
+    // the ones the user actually needs to rack, so surface those first. The
+    // sort is STABLE, so each group keeps its existing order — and the auto-fill
+    // pool is unaffected (it drops empties and the non-empty order is preserved).
+    return deduplicateTwins(rows)
+      .sort((a, b) => (isEmptyRow(a) ? 1 : 0) - (isEmptyRow(b) ? 1 : 0));
   }
 
   // Backwards-compat alias — older code paths called renderRacksList()
@@ -17497,15 +17586,21 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // dismissible general notifications.
     const reqHtml = reqs.map(r =>
       `<div class="fp-req notif-req" data-uid="${esc(r.uid)}">${_reqRowInnerHtml(r)}</div>`).join("");
-    const localHtml = locals.map(n => `
-      <div class="notif-item notif-item--unread notif-item--local" data-local-id="${esc(n.id)}">
-        <span class="notif-ic"><span class="icon icon-${esc(n.icon || "refresh")} icon-14"></span></span>
+    const localHtml = locals.map(n => {
+      // Community nudges + avatar: the whole row IS the call-to-action (no button).
+      const isCommunity = n.action === "discord" || n.action === "github" || n.action === "makerworld";
+      const clickable = isCommunity || n.action === "avatar";
+      const brandIc = isCommunity ? ` notif-ic--${n.action}` : "";   // branded square icon
+      return `
+      <div class="notif-item notif-item--unread notif-item--local${clickable ? " notif-item--clickable" : ""}" data-local-id="${esc(n.id)}"${clickable ? ` data-local-action="${esc(n.action)}"` : ""}>
+        <span class="notif-ic${brandIc}"><span class="icon icon-${esc(n.icon || "refresh")} icon-14"></span></span>
         <div class="fp-friend-main">
+          ${n.title ? `<div class="notif-title">${esc(n.title)}</div>` : ""}
           <div class="notif-text">${esc(n.text)}${n.version ? ` (v${esc(n.version)})` : ""}</div>
         </div>
         ${n.action === "restart" ? `<button class="primary sm notif-restart">${esc(t("btnRestartUpdate"))}</button>` : ""}
-        ${n.action === "avatar" ? `<button class="primary sm notif-avatar-cta">${esc(t("avatarPromptCta"))}</button>` : ""}
-      </div>`).join("");
+      </div>`;
+    }).join("");
     const notifHtml = notifs.map(n => {
       const subject = { displayName: n.fromName, photoURL: n.photoURL || null, color: n.color || null };
       const when = n.createdAt ? timeAgo(n.createdAt.seconds ? n.createdAt.seconds * 1000 : n.createdAt) : "";
@@ -17525,8 +17620,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     });
     list.querySelectorAll(".notif-restart").forEach(btn =>
       btn.addEventListener("click", () => window.electronAPI?.installUpdate?.()));
-    list.querySelectorAll(".notif-avatar-cta").forEach(btn =>
-      btn.addEventListener("click", () => { closeNotifs(); _changeMyAvatar(); }));
+    list.querySelectorAll(".notif-item--clickable").forEach(row =>
+      row.addEventListener("click", () => {
+        closeNotifs();
+        const a = row.dataset.localAction;
+        if (a === "avatar") _changeMyAvatar();
+        else if (COMMUNITY[a]) _openCommunityLink(a);
+      }));
     list.querySelectorAll(".notif-item:not(.notif-item--local)").forEach(row => {
       row.querySelector(".notif-dismiss")?.addEventListener("click", () => _dismissNotif(row.dataset.id));
     });
@@ -18233,8 +18333,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     state.debugEnabled = state.isAdmin && !!c.Debug;
     if (c.publicKey)  state.publicKey  = c.publicKey;
     if (c.privateKey) state.privateKey = c.privateKey;
-    state.isPublic     = !!c.isPublic;
+    state.isPublic       = !!c.isPublic;
+    state.discordSeen    = !!c.discordSeen;     // avoids a badge flash before syncUserDoc resolves
+    state.githubSeen     = !!c.githubSeen;
+    state.makerworldSeen = !!c.makerworldSeen;
     try { applyDebugMode(); } catch {}
+    try { renderCommunityBadges(); } catch {}
   }
 
   // ── Country / timezone derivation (offline, no IP geolocation) ──────────
@@ -18314,6 +18418,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (payload.racksCount   > 0 && !existing.firstRackAt)    payload.firstRackAt    = FV.serverTimestamp();
       if (payload.printerCount > 0 && !existing.firstPrinterAt) payload.firstPrinterAt = FV.serverTimestamp();
       if (payload.friendsCount > 0 && !existing.firstFriendAt)  payload.firstFriendAt  = FV.serverTimestamp();
+      // First-ever hardware connects (lifetime presence, distinct from the
+      // current-state scalesCount / per-session rfidReadersMax). `_telRfidMax`
+      // catches readers that connected then unplugged before this snapshot.
+      if (payload.scalesCount  > 0 && !existing.firstScaleAt)   payload.firstScaleAt = FV.serverTimestamp();
+      if ((state.nfcReaderCount > 0 || _telRfidMax > 0) && !existing.firstRfidReaderAt) payload.firstRfidReaderAt = FV.serverTimestamp();
 
       await ref.set(payload, { merge: true });
     } catch (e) {
@@ -18388,6 +18497,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       state.publicKey  = data.publicKey;
       state.privateKey = data.privateKey;
       state.isPublic   = data.isPublic || false;
+      state.discordSeen    = !!data.discordSeen;     // "nudge done" flags (per account, synced)
+      state.githubSeen     = !!data.githubSeen;
+      state.makerworldSeen = !!data.makerworldSeen;
 
       // Mirror the minimal user-doc shape to the local-first cache so the
       // NEXT cold start can hydrate roles / debug / keys / isPublic before
@@ -18398,6 +18510,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         publicKey:  data.publicKey || null,
         privateKey: data.privateKey || null,
         isPublic:   !!data.isPublic,
+        discordSeen: !!data.discordSeen, githubSeen: !!data.githubSeen, makerworldSeen: !!data.makerworldSeen,
         displayName: data.displayName || null,
       });
 
@@ -18540,6 +18653,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       // Now that the authoritative photoURL is known, nudge the user to add a
       // profile photo if they still don't have one (fun modal + notification).
       _maybePromptAvatar();
+      _maybeNudgeCommunity();
 
       // Keep userProfiles in sync with latest public info.
       // profileName is never empty: fall back to Google first name then email

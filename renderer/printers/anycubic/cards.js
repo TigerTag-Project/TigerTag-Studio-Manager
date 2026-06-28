@@ -260,7 +260,7 @@ export function renderAcuControlCard(_p, conn) {
           </button>
           <button type="button" class="cre-action-btn elg-ctrl-action"
                   data-acu-motors-off="1" data-acu-tip="${offTip}">
-            <span class="icon icon-bolt icon-16" aria-hidden="true"></span>
+            <span class="icon icon-disable-motor icon-16" aria-hidden="true"></span>
           </button>
         </div>
 
@@ -301,13 +301,13 @@ export function renderAcuControlCard(_p, conn) {
             </button>
           </div>
           <div class="elg-ctrl-speed-row">
-            <span class="elg-ctrl-speed-label">${ctx.esc(ctx.t("elgCtrlStep") || "Step")}</span>
+            <span class="elg-ctrl-speed-label" title="${ctx.esc(ctx.t("elgCtrlStep") || "Step")}"><span class="icon icon-step icon-14"></span></span>
             <select class="elg-ctrl-speed-select" id="acuCtrlStep">
               ${[1, 10, 50].map(s => `<option value="${s}"${s === 10 ? " selected" : ""}>${s} mm</option>`).join("")}
             </select>
           </div>
           <div class="elg-ctrl-speed-row">
-            <span class="elg-ctrl-speed-label">${ctx.esc(ctx.t("acuSpeedMode") || "Speed")}</span>
+            <span class="elg-ctrl-speed-label" title="${ctx.esc(ctx.t("acuSpeedMode") || "Speed")}"><span class="icon icon-speed icon-14"></span></span>
             <select class="elg-ctrl-speed-select" data-acu-speed="1">
               ${speedOpts.map(([v, lbl]) => `<option value="${v}"${v === speedMode ? " selected" : ""}>${ctx.esc(lbl)}</option>`).join("")}
             </select>

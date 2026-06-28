@@ -275,8 +275,28 @@
   }
   .sb-discord-btn:hover { background: #4752C4; box-shadow: 0 3px 14px rgba(88,101,242,.45); }
   /* Shared fixed height so the three community buttons are identical whether the
-     sidebar is expanded or collapsed — collapsed then only changes their width. */
-  .sb-github-btn, .sb-makerworld-btn, .sb-discord-btn { height: 34px; flex-shrink: 0; }
+     sidebar is expanded or collapsed (40px — matches the Notifications button +
+     friend avatars; collapsed they become a 40×40 square, only the width changes). */
+  .sb-github-btn, .sb-makerworld-btn, .sb-discord-btn { height: 40px; flex-shrink: 0; }
+  /* Brand logos fill more of the button (app-icon presence), uniform across the
+     three. Shared rule replaces the old per-button inline sizes. */
+  .sb-community button > .icon { width: 24px; height: 24px; }
+  /* Community nudge — a message-style red "1" badge on a community button until
+     its nudge is done (per account, synced via users/{uid}.{key}Seen). Hidden by
+     default; shown only while the button carries `.sb-nudge`. */
+  .sb-github-btn, .sb-makerworld-btn, .sb-discord-btn { position: relative; }
+  .sb-community-badge {
+    position: absolute; top: -6px; right: -6px;
+    display: none;
+    min-width: 16px; height: 16px; padding: 0 4px;
+    align-items: center; justify-content: center;
+    background: #ed4245; color: #fff;          /* plain red bubble, like a phone app badge */
+    font-size: 10px; font-weight: 700; line-height: 1;
+    border-radius: 8px;
+  }
+  .sb-nudge .sb-community-badge { display: inline-flex; }
+  /* Collapsed rail: the button shrinks to ~44px, keep the badge tight to the corner. */
+  .sidebar.collapsed .sb-community-badge { top: -5px; right: -5px; }
   .sb-qr-wrap {
     background: transparent; border: 0; padding: 0;
     display: flex; flex-direction: column;
