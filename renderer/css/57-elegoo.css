@@ -531,6 +531,7 @@
 .elg-ctrl-speed-row {
   display: flex;
   align-items: center;
+  justify-content: flex-end;   /* icon + dropdown align to the right of the info column */
   gap: 6px;
 }
 .elg-ctrl-speed-label {

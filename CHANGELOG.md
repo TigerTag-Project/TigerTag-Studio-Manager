@@ -5,6 +5,28 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.10.27 — 2026-06-28
+
+### Added
+
+- **A nudge to join the community.** A little badge and a friendly notification invite you to join our Discord, drop a star on the project's GitHub, and discover our free 3D files on MakerWorld — each shows once, and clicking through is enough (it never nags again).
+
+### Changed
+
+- **The printer control panel got a visual refresh.** Cleaner, dedicated icons for the nozzle / bed / chamber temperatures, fan, homing and disable-motors, plus the Step and Speed selectors (now compact icons instead of text). All the control icons share one consistent colour.
+- **Creality printers can set their print speed** from the control panel now, like the other brands.
+- **Notifications are easier to read.** Each one shows an icon, a title and a one-line message, and the whole notification is clickable — no more cramped, cut-off text next to a tiny button.
+- **Tidier sidebar community buttons** (GitHub / 3D Files / Discord) — same size, square when the sidebar is collapsed, with bigger logos.
+- **"Spools not stored" lists empty spools last**, so the rolls you still need to rack stay at the top.
+
+### Fixed
+
+- **No more flash of placeholder text** in the sidebar as the app loads — labels show their final wording on the very first frame.
+- **Notifications no longer cut off** — friend-request and app notifications wrap to show the full text.
+- **Elegoo:** the chamber temperature no longer shows the bed icon.
+
+---
+
 ## v1.10.26 — 2026-06-27
 
 ### Added

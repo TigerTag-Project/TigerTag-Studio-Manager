@@ -3887,5 +3887,85 @@
         }
       }
     ]
+  },
+  "1.10.27": {
+    "date": "2026-06-28",
+    "items": [
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "Come hang out with us",
+          "fr": "Viens traîner avec nous",
+          "de": "Komm vorbei und sag Hallo",
+          "es": "Pásate a saludar",
+          "it": "Fai un salto da noi",
+          "zh": "来和我们一起玩",
+          "pt": "Aparece para dizer oi",
+          "pt-pt": "Aparece para dizer olá",
+          "pl": "Wpadnij do nas"
+        },
+        "body": {
+          "en": "A little nudge invites you to join our Discord, drop a star on GitHub, and grab our free 3D files on MakerWorld. One tap and it's gone for good — no nagging, promise.",
+          "fr": "Un petit clin d'œil t'invite à rejoindre notre Discord, nous filer une étoile sur GitHub et choper nos fichiers 3D gratuits sur MakerWorld. Un clic et c'est réglé — promis, on n'insiste pas.",
+          "de": "Ein kleiner Hinweis lädt dich ein, unserem Discord beizutreten, uns auf GitHub einen Stern zu geben und unsere kostenlosen 3D-Dateien auf MakerWorld zu holen. Einmal tippen und weg — versprochen, kein Nerven.",
+          "es": "Un pequeño aviso te invita a unirte a nuestro Discord, darnos una estrella en GitHub y coger nuestros archivos 3D gratis en MakerWorld. Un toque y desaparece — sin insistir, prometido.",
+          "it": "Un piccolo invito ti propone di entrare nel nostro Discord, lasciarci una stella su GitHub e prendere i nostri file 3D gratuiti su MakerWorld. Un tocco e sparisce — niente insistenze, promesso.",
+          "zh": "一个小提示邀请你加入我们的 Discord、在 GitHub 给我们点星，以及在 MakerWorld 获取免费 3D 文件。点一下就永远消失——绝不啰嗦。",
+          "pt": "Um pequeno aviso convida você a entrar no nosso Discord, dar uma estrela no GitHub e pegar nossos arquivos 3D grátis no MakerWorld. Um toque e some de vez — sem insistência, prometido.",
+          "pt-pt": "Um pequeno aviso convida-te a entrar no nosso Discord, dar-nos uma estrela no GitHub e apanhar os nossos ficheiros 3D grátis no MakerWorld. Um toque e desaparece — sem insistências, prometido.",
+          "pl": "Małe przypomnienie zaprasza Cię na nasz Discord, do zostawienia gwiazdki na GitHubie i pobrania darmowych plików 3D na MakerWorld. Jedno kliknięcie i znika na zawsze — bez marudzenia, obiecujemy."
+        }
+      },
+      {
+        "icon": "printer",
+        "title": {
+          "en": "A sharper control panel",
+          "fr": "Un panneau de contrôle plus net",
+          "de": "Ein klareres Bedienfeld",
+          "es": "Un panel de control más nítido",
+          "it": "Un pannello di controllo più nitido",
+          "zh": "更清晰的控制面板",
+          "pt": "Um painel de controle mais nítido",
+          "pt-pt": "Um painel de controlo mais nítido",
+          "pl": "Wyraźniejszy panel sterowania"
+        },
+        "body": {
+          "en": "Crisp new icons for temperatures, fan, homing, step and speed across all your printers — and Creality printers can now set their print speed, like the rest.",
+          "fr": "De nouvelles icônes nettes pour les températures, le ventilo, le homing, le pas et la vitesse sur toutes tes imprimantes — et les Creality peuvent enfin régler leur vitesse d'impression comme les autres.",
+          "de": "Knackige neue Icons für Temperaturen, Lüfter, Homing, Schrittweite und Geschwindigkeit bei all deinen Druckern — und Creality-Drucker können jetzt ihre Druckgeschwindigkeit einstellen, wie die anderen.",
+          "es": "Iconos nuevos y nítidos para temperaturas, ventilador, homing, paso y velocidad en todas tus impresoras — y las Creality ya pueden ajustar su velocidad de impresión, como las demás.",
+          "it": "Nuove icone nitide per temperature, ventola, homing, passo e velocità su tutte le tue stampanti — e le Creality ora possono impostare la velocità di stampa, come le altre.",
+          "zh": "所有打印机的温度、风扇、回零、步距和速度都用上了清爽的新图标——Creality 打印机现在也能像其他品牌一样设置打印速度了。",
+          "pt": "Ícones novos e nítidos para temperaturas, ventoinha, homing, passo e velocidade em todas as suas impressoras — e as Creality agora podem ajustar a velocidade de impressão, como as outras.",
+          "pt-pt": "Ícones novos e nítidos para temperaturas, ventoinha, homing, passo e velocidade em todas as tuas impressoras — e as Creality já podem ajustar a velocidade de impressão, como as outras.",
+          "pl": "Wyraziste nowe ikony temperatur, wentylatora, bazowania, kroku i prędkości we wszystkich drukarkach — a drukarki Creality mogą teraz ustawić prędkość druku, jak inne."
+        }
+      },
+      {
+        "icon": "bell",
+        "title": {
+          "en": "Notifications you can actually read",
+          "fr": "Des notifications enfin lisibles",
+          "de": "Benachrichtigungen, die man lesen kann",
+          "es": "Notificaciones que se leen de verdad",
+          "it": "Notifiche finalmente leggibili",
+          "zh": "终于看得清的通知",
+          "pt": "Notificações que dá para ler",
+          "pt-pt": "Notificações que dá mesmo para ler",
+          "pl": "Powiadomienia, które da się przeczytać"
+        },
+        "body": {
+          "en": "Each notification now has an icon, a title and a clear line of text — and the whole card is tappable. No more squished, half-cut messages.",
+          "fr": "Chaque notification a maintenant une icône, un titre et une ligne claire — et toute la carte est cliquable. Fini les messages écrasés et coupés en deux.",
+          "de": "Jede Benachrichtigung hat jetzt ein Icon, einen Titel und eine klare Textzeile — und die ganze Karte ist anklickbar. Schluss mit gequetschten, halb abgeschnittenen Texten.",
+          "es": "Cada notificación tiene ahora un icono, un título y una línea de texto clara — y toda la tarjeta es pulsable. Se acabaron los mensajes apretujados y cortados a la mitad.",
+          "it": "Ogni notifica ora ha un’icona, un titolo e una riga di testo chiara — e tutta la card è cliccabile. Basta messaggi schiacciati e tagliati a metà.",
+          "zh": "现在每条通知都有图标、标题和一行清晰的文字——整张卡片都能点。再也不会挤成一团、被切一半了。",
+          "pt": "Cada notificação agora tem um ícone, um título e uma linha de texto clara — e o cartão inteiro é clicável. Acabaram as mensagens espremidas e cortadas pela metade.",
+          "pt-pt": "Cada notificação tem agora um ícone, um título e uma linha de texto clara — e o cartão inteiro é clicável. Acabaram as mensagens espremidas e cortadas a meio.",
+          "pl": "Każde powiadomienie ma teraz ikonę, tytuł i czytelną linijkę tekstu — a cała karta jest klikalna. Koniec ze ściśniętymi, uciętymi w połowie wiadomościami."
+        }
+      }
+    ]
   }
 }
