@@ -65,11 +65,38 @@ jobs:
             ].join('\n');
 
             const issue = { owner: context.repo.owner, repo: context.repo.repo, title, body };
+            let created;
             try {
-              await github.rest.issues.create({ ...issue, labels: ['firmware-watch'] });
+              ({ data: created } = await github.rest.issues.create({ ...issue, labels: ['firmware-watch'] }));
             } catch (e) {
               // Label problems must not swallow the notification — retry bare.
               core.warning(`Labelled create failed (${e.message}) — retrying without label`);
-              await github.rest.issues.create(issue);
+              ({ data: created } = await github.rest.issues.create(issue));
             }
             core.notice(`Opened issue: ${title}`);
+
+            // Auto-close superseded release issues so the open one always means
+            // "latest available". Matched by title prefix (not label) so issues
+            // created through the no-label fallback are swept too.
+            const { data: open } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100,
+            });
+            for (const old of open) {
+              if (old.number === created.number) continue;
+              if (old.pull_request) continue;
+              if (!old.title.startsWith('Paxx firmware ')) continue;
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: old.number,
+                body: `Superseded by #${created.number} (${tag}).`,
+              });
+              await github.rest.issues.update({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: old.number,
+                state: 'closed', state_reason: 'completed',
+              });
+              core.info(`Closed superseded issue #${old.number} (${old.title})`);
+            }
