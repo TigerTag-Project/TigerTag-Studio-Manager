@@ -1,0 +1,75 @@
+name: Paxx firmware watch
+
+# Watches the Paxx U1 Extended Firmware repo and opens an issue in THIS repo
+# whenever a new release is published, so the team is notified without
+# monitoring anything manually.
+#
+# The app itself does NOT depend on this workflow — the Snapmaker add/edit
+# form resolves the latest release client-side (renderer/printers/snapmaker/
+# paxx.js). This issue is the human-notification channel, and a reminder to
+# occasionally bump the build-time fallback in paxx.js.
+#
+# Stateless + idempotent: instead of committing a state file, it checks
+# whether an issue titled after the release tag already exists (open OR
+# closed). If yes, it does nothing.
+
+on:
+  schedule:
+    - cron: '17 6 * * *'   # daily at 06:17 UTC (off the :00 rush)
+  workflow_dispatch: {}     # manual run button for testing
+
+permissions:
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check latest paxx release and open an issue if new
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const WATCHED = { owner: 'paxx12-snapmaker-u1', repo: 'SnapmakerU1-Extended-Firmware' };
+
+            const { data: rel } = await github.rest.repos.getLatestRelease(WATCHED);
+            const tag = rel.tag_name;
+            const bin = (rel.assets || []).find(a => /_upgrade\.bin$/i.test(a.name || ''));
+            core.info(`Latest paxx release: ${tag}`);
+
+            // Already reported? Search issues (any state) titled with this tag.
+            const title = `Paxx firmware ${tag} released`;
+            const { data: found } = await github.rest.search.issuesAndPullRequests({
+              q: `repo:${context.repo.owner}/${context.repo.repo} is:issue in:title "${title}"`,
+            });
+            if (found.items.some(i => i.title === title)) {
+              core.info('Issue already exists — nothing to do.');
+              return;
+            }
+
+            const body = [
+              `A new **Paxx U1 Extended Firmware** release is out: [\`${tag}\`](${rel.html_url})`,
+              ``,
+              `| | |`,
+              `|---|---|`,
+              `| **Published** | ${rel.published_at} |`,
+              `| **Upgrade image** | ${bin ? `[${bin.name}](${bin.browser_download_url}) (${Math.round(bin.size / 1e6)} MB)` : '_no *_upgrade.bin asset found_'} |`,
+              ``,
+              `The in-app download button updates itself within 24 h (client-side resolver in \`renderer/printers/snapmaker/paxx.js\`).`,
+              `**Optional maintenance:** bump the \`PAXX_FALLBACK\` constant in that file at the next convenient release.`,
+              ``,
+              `<details><summary>Release notes</summary>`,
+              ``,
+              rel.body || '_none_',
+              ``,
+              `</details>`,
+            ].join('\n');
+
+            const issue = { owner: context.repo.owner, repo: context.repo.repo, title, body };
+            try {
+              await github.rest.issues.create({ ...issue, labels: ['firmware-watch'] });
+            } catch (e) {
+              // Label problems must not swallow the notification — retry bare.
+              core.warning(`Labelled create failed (${e.message}) — retrying without label`);
+              await github.rest.issues.create(issue);
+            }
+            core.notice(`Opened issue: ${title}`);
