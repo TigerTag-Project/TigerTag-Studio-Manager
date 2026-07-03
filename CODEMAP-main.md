@@ -22,7 +22,7 @@ section's function anchors fall inside its declared range.
 
 ```
 L1-344       App bootstrap — logging, single-instance, static HTTP server, splash, main window
-L345-754     NFC / RFID — reader lifecycle, chip read/write/burn, cloud-encode
+L345-924     NFC / RFID — reader lifecycle, chip read/write/burn, cloud-encode
 L755-996     TD1S color sensor — serial watcher, parse, IPC replay
 L997-1158    Auto-updater + migration gate
 L1159-1354   Google-auth loopback, shell open, detached camera-wall window
@@ -46,12 +46,12 @@ L3128-3180   App lifecycle (whenReady, window-all-closed, activate)
 | 252-277 | UID hex→decimal + TigerTag SDK payload builder | `normalizeUid`, `_sdkPayload` |
 | 278-344 | `BrowserWindow` creation, preload wiring, CSP, devtools | `createWindow` |
 
-## NFC / RFID reader + chip write (L345-754)
+## NFC / RFID reader + chip write (L345-924)
 
 | L | What | Anchors / IPC |
 |---|---|---|
 | 345-512 | Reader connect/disconnect lifecycle, card-present events, auto-read | `initNFC`, `_onNfcMessage` |
-| 458-754 | IPC: `rfid:read-now` / `rfid:write-now` / `rfid:encode-cloud` / `rfid:burn-one` / `rfid:refresh-api` / `rfid:lookup-product`; surgical page diff before write | `_pagesToWrite` |
+| 458-924 | IPC: `rfid:read-now` / `rfid:write-now` / `rfid:repair` (restore from backup) / `rfid:format` (reinitialize via `TigerTag.asInit`) / `rfid:encode-cloud` / `rfid:burn-one` / `rfid:refresh-api` / `rfid:lookup-product`; surgical page diff before write | `_pagesToWrite`, `_pagesFromBytes` |
 
 ## TD1S color sensor (L755-996)
 
@@ -106,7 +106,7 @@ L3128-3180   App lifecycle (whenReady, window-all-closed, activate)
 | 2215-2299 | JPEG-TCP camera, port 6000 (`bambulab:cam-start` / `cam-stop`) — 80-byte auth packet, retry/timeout | `_bambuCamAuthPacket` |
 | 2300-2408 | RTSP camera via ffmpeg, port 322 (`bambulab:cam-start-rtsp` / `cam-stop-rtsp`) — 30 fps + low-latency flags | — |
 
-## Anycubic LAN — MQTT, provisioning, FLV camera (L2417-2731)
+## Anycubic LAN — MQTT, provisioning, FLV camera (L2417-2930)
 
 | L | What | Anchors / IPC |
 |---|---|---|
@@ -115,7 +115,7 @@ L3128-3180   App lifecycle (whenReady, window-all-closed, activate)
 | 2589-2655 | Slicer on-disk credential reader (`anycubic:read-slicer-config`) — keyless deobfuscation | `_acuDeobfuscate`, `_acuConfCandidates` |
 | 2656-2723 | LAN scan: TCP probe (`anycubic:tcp-probe`), FLV liveness (`anycubic:flv-probe`, accepts 200/206), `/info` (`anycubic:http-info`) | — |
 
-## Anycubic cloud — REST + cloud MQTT (L2732-3135)
+## Anycubic cloud — REST + cloud MQTT (L2732-3350)
 
 | L | What | Anchors / IPC |
 |---|---|---|

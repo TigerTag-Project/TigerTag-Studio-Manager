@@ -4072,5 +4072,135 @@
         }
       }
     ]
+  },
+  "1.10.29": {
+    "date": "2026-07-03",
+    "items": [
+      {
+        "icon": "recycle",
+        "title": {
+          "en": "Give your chips a second life",
+          "fr": "Offre une seconde vie à tes puces",
+          "de": "Gib deinen Chips ein zweites Leben",
+          "es": "Dales una segunda vida a tus chips",
+          "it": "Dai una seconda vita ai tuoi chip",
+          "zh": "让你的芯片焕发第二春",
+          "pt": "Dá uma segunda vida aos teus chips",
+          "pt-pt": "Dá uma segunda vida aos teus chips",
+          "pl": "Daj swoim chipom drugie życie"
+        },
+        "body": {
+          "en": "Wipe a chip back to a fresh TigerTag, turn it into a plain NFC tag, or restore a TigerTag+ just as it was. Your tags, reusable.",
+          "fr": "Remets une puce à neuf en TigerTag, transforme-la en tag NFC tout simple, ou restaure un TigerTag+ comme au premier jour. Tes puces, réutilisables.",
+          "de": "Setz einen Chip auf ein frisches TigerTag zurück, mach ein simples NFC-Tag draus oder stell ein TigerTag+ wie neu wieder her. Deine Chips, wiederverwendbar.",
+          "es": "Deja un chip como un TigerTag nuevo, conviértelo en una etiqueta NFC normal o restaura un TigerTag+ tal cual estaba. Tus chips, reutilizables.",
+          "it": "Riporta un chip a un TigerTag nuovo, trasformalo in un semplice tag NFC o ripristina un TigerTag+ com'era. I tuoi chip, riutilizzabili.",
+          "zh": "把芯片重置成全新的 TigerTag，变成普通 NFC 标签，或把 TigerTag+ 原样恢复。你的芯片，可以重复使用。",
+          "pt": "Deixa um chip como um TigerTag novo, transforma-o num tag NFC simples ou restaura um TigerTag+ tal como estava. Os teus chips, reutilizáveis.",
+          "pt-pt": "Deixa um chip como um TigerTag novo, transforma-o num tag NFC simples ou restaura um TigerTag+ tal como estava. Os teus chips, reutilizáveis.",
+          "pl": "Zresetuj chip do świeżego TigerTag, zmień go w zwykły tag NFC albo przywróć TigerTag+ jak nowy. Twoje chipy, wielokrotnego użytku."
+        }
+      },
+      {
+        "icon": "printer",
+        "title": {
+          "en": "Keep your Snapmaker fresh",
+          "fr": "Garde ta Snapmaker à jour",
+          "de": "Halt deinen Snapmaker aktuell",
+          "es": "Mantén tu Snapmaker al día",
+          "it": "Tieni la tua Snapmaker aggiornata",
+          "zh": "让你的 Snapmaker 保持最新",
+          "pt": "Mantém a tua Snapmaker em dia",
+          "pt-pt": "Mantém a tua Snapmaker em dia",
+          "pl": "Trzymaj swojego Snapmakera w formie"
+        },
+        "body": {
+          "en": "We'll tell you when newer firmware is out for your Snapmaker U1, hand you the right download, and show whether it's already up to date.",
+          "fr": "On te prévient quand un nouveau firmware sort pour ta Snapmaker U1, on te donne le bon téléchargement, et on te dit si elle est déjà à jour.",
+          "de": "Wir sagen dir Bescheid, wenn's neue Firmware für deinen Snapmaker U1 gibt, geben dir den richtigen Download und zeigen, ob er schon aktuell ist.",
+          "es": "Te avisamos cuando sale un firmware nuevo para tu Snapmaker U1, te damos la descarga correcta y te decimos si ya está al día.",
+          "it": "Ti avvisiamo quando esce un firmware nuovo per la tua Snapmaker U1, ti diamo il download giusto e ti diciamo se è già aggiornata.",
+          "zh": "你的 Snapmaker U1 有新固件时我们会通知你，给你正确的下载链接，并告诉你是否已是最新。",
+          "pt": "Avisamos-te quando sai firmware novo para a tua Snapmaker U1, damos-te o download certo e dizemos se já está em dia.",
+          "pt-pt": "Avisamos-te quando sai firmware novo para a tua Snapmaker U1, damos-te o download certo e dizemos se já está em dia.",
+          "pl": "Damy znać, gdy pojawi się nowy firmware do twojego Snapmakera U1, podamy właściwy plik i pokażemy, czy jest już aktualny."
+        }
+      },
+      {
+        "icon": "bell",
+        "title": {
+          "en": "Now you'll hear it",
+          "fr": "Maintenant, tu l'entends",
+          "de": "Jetzt hörst du's",
+          "es": "Ahora lo oirás",
+          "it": "Ora lo senti",
+          "zh": "现在你能听到了",
+          "pt": "Agora vais ouvir",
+          "pt-pt": "Agora vais ouvir",
+          "pl": "Teraz to usłyszysz"
+        },
+        "body": {
+          "en": "A little chime when something actually lands — a friend request, someone accepting yours, a firmware update. Silence for the boring startup stuff.",
+          "fr": "Un petit son quand il se passe vraiment quelque chose — une demande d'ami, quelqu'un qui accepte la tienne, une mise à jour firmware. Silence pour le blabla du démarrage.",
+          "de": "Ein kleiner Ton, wenn wirklich was reinkommt — eine Freundschaftsanfrage, jemand nimmt deine an, ein Firmware-Update. Ruhe beim langweiligen Startkram.",
+          "es": "Un tintineo cuando de verdad llega algo — una solicitud de amistad, alguien que acepta la tuya, una actualización de firmware. Silencio para el rollo del arranque.",
+          "it": "Un piccolo suono quando arriva davvero qualcosa — una richiesta di amicizia, qualcuno che accetta la tua, un aggiornamento firmware. Silenzio per le noie dell'avvio.",
+          "zh": "真正有事发生时来一声轻响——好友请求、有人接受了你的请求、固件更新。启动时那些无聊的事就安静着。",
+          "pt": "Um tilintar quando algo chega mesmo — um pedido de amizade, alguém a aceitar o teu, uma atualização de firmware. Silêncio para as chatices do arranque.",
+          "pt-pt": "Um tilintar quando algo chega mesmo — um pedido de amizade, alguém a aceitar o teu, uma atualização de firmware. Silêncio para as chatices do arranque.",
+          "pl": "Delikatny dźwięk, gdy naprawdę coś przychodzi — zaproszenie do znajomych, ktoś akceptuje twoje, aktualizacja firmware. Cisza dla nudnych rzeczy przy starcie."
+        }
+      },
+      {
+        "icon": "info",
+        "title": {
+          "en": "Tools that explain themselves",
+          "fr": "Des outils qui s'expliquent",
+          "de": "Werkzeuge, die sich selbst erklären",
+          "es": "Herramientas que se explican solas",
+          "it": "Strumenti che si spiegano da soli",
+          "zh": "会自我说明的工具",
+          "pt": "Ferramentas que se explicam",
+          "pt-pt": "Ferramentas que se explicam",
+          "pl": "Narzędzia, które tłumaczą się same"
+        },
+        "body": {
+          "en": "Every action in a spool's toolbox now has a little ⓘ — hover it and it tells you, in plain words, what it does.",
+          "fr": "Chaque action de la boîte à outils d'une bobine a maintenant un petit ⓘ — survole-le et il te dit, en clair, ce qu'il fait.",
+          "de": "Jede Aktion in der Werkzeugkiste einer Spule hat jetzt ein kleines ⓘ — fahr drüber und es sagt dir in Klartext, was es macht.",
+          "es": "Cada acción en la caja de herramientas de una bobina tiene ahora una pequeña ⓘ — pasa el ratón y te dice, en claro, qué hace.",
+          "it": "Ogni azione nella cassetta degli attrezzi di una bobina ha ora una piccola ⓘ — passaci sopra e ti dice, in parole semplici, cosa fa.",
+          "zh": "耗材工具箱里的每个操作现在都有一个小小的 ⓘ——把鼠标移上去，它就用大白话告诉你它是干嘛的。",
+          "pt": "Cada ação na caixa de ferramentas de uma bobina tem agora um pequeno ⓘ — passa o rato e ele diz-te, sem rodeios, o que faz.",
+          "pt-pt": "Cada ação na caixa de ferramentas de uma bobina tem agora um pequeno ⓘ — passa o rato e ele diz-te, sem rodeios, o que faz.",
+          "pl": "Każda akcja w przyborniku szpuli ma teraz małe ⓘ — najedź na nie, a powie ci wprost, co robi."
+        }
+      },
+      {
+        "icon": "backup",
+        "title": {
+          "en": "Spot your backed-up spools",
+          "fr": "Repère tes bobines sauvegardées",
+          "de": "Erkenn deine gesicherten Spulen",
+          "es": "Localiza tus bobinas con copia",
+          "it": "Individua le bobine col backup",
+          "zh": "一眼认出已备份的耗材",
+          "pt": "Vê logo as tuas bobinas com cópia",
+          "pt-pt": "Vê logo as tuas bobinas com cópia",
+          "pl": "Rozpoznaj szpule z kopią"
+        },
+        "body": {
+          "en": "A green shield marks every TigerTag+ whose signature is safely backed up, so you can see at a glance which ones you can always restore.",
+          "fr": "Un bouclier vert marque chaque TigerTag+ dont la signature est bien sauvegardée, pour voir d'un coup d'œil lesquels tu peux toujours restaurer.",
+          "de": "Ein grüner Schild markiert jedes TigerTag+, dessen Signatur sicher gesichert ist — so siehst du auf einen Blick, welche du immer wiederherstellen kannst.",
+          "es": "Un escudo verde marca cada TigerTag+ cuya firma está bien guardada, para ver de un vistazo cuáles puedes restaurar siempre.",
+          "it": "Uno scudo verde segna ogni TigerTag+ con la firma al sicuro, così vedi al volo quali puoi sempre ripristinare.",
+          "zh": "绿色盾牌标出每个签名已安全备份的 TigerTag+，一眼就知道哪些随时能恢复。",
+          "pt": "Um escudo verde marca cada TigerTag+ com a assinatura bem guardada, para veres num relance quais podes sempre restaurar.",
+          "pt-pt": "Um escudo verde marca cada TigerTag+ com a assinatura bem guardada, para veres num relance quais podes sempre restaurar.",
+          "pl": "Zielona tarcza oznacza każdy TigerTag+, którego podpis jest bezpiecznie zapisany — od razu widzisz, które zawsze przywrócisz."
+        }
+      }
+    ]
   }
 }

@@ -626,6 +626,142 @@ ipcMain.handle('rfid:write-now', async (_evt, opts) => {
   return result;
 });
 
+// Build the page-write list from RAW bytes (pages start at `startPage`, 4 bytes
+// each). Surgical: skip pages whose 4 bytes already match the chip's content.
+function _pagesFromBytes(newBytes, oldBytes, startPage) {
+  const pages = [];
+  const n = Math.floor(newBytes.length / 4);
+  for (let i = 0; i < n; i++) {
+    const off = i * 4;
+    const np = newBytes.slice(off, off + 4);
+    if (oldBytes && off + 4 <= oldBytes.length && np.equals(oldBytes.slice(off, off + 4))) continue;
+    pages.push({ index: startPage + i, hexData: np.toString('hex') });
+  }
+  return pages;
+}
+
+// Repair / restore a chip from its rfidList backup — write the raw payload
+// (pages 0x04-0x27) straight back. NO TigerTag SDK: we already hold the exact
+// original bytes, so nothing is rebuilt from the cloud doc. Hard-guarded to
+// only ever write onto the chip whose UID matches the backup (never clone one
+// chip's signed payload onto another). Surgical: only pages that differ from the
+// chip's current content are rewritten (locked-but-matching identity/signature
+// pages are skipped). The write path reads back + reports `verified`.
+//   opts = { readerName, uid, hex }   // uid = the backup's own chip UID
+//   → { ok, pagesWritten, verified, mismatchPages } | { ok:false, error }
+ipcMain.handle('rfid:repair', async (_evt, opts) => {
+  const { readerName, uid, hex } = opts || {};
+  if (!_nfcChild)                   return { ok: false, error: 'NFC process not running' };
+  if (!_nfcReaders.has(readerName)) return { ok: false, error: 'Reader not connected' };
+  const card = _nfcCardPresent.get(readerName);
+  if (!card)                        return { ok: false, error: 'No card present' };
+  // UID guard — the chip on THIS reader must be the backup's own chip.
+  if (!uid || normalizeUid(card.uid) !== normalizeUid(uid))
+    return { ok: false, error: 'uid-mismatch' };
+  if (typeof hex !== 'string' || !/^[0-9a-fA-F]+$/.test(hex) || hex.length % 8 !== 0)
+    return { ok: false, error: 'invalid-backup' };
+  const newBytes = Buffer.from(hex, 'hex'); // pages 0x04.., 4 bytes/page
+
+  // Surgical diff — read current chip pages 0x04-0x27, skip matching pages.
+  let oldBytes = null;
+  const rReq = Date.now() + Math.random();
+  const rRes = await new Promise((resolve) => {
+    const to = setTimeout(() => { _nfcReadResolvers.delete(rReq); resolve({ ok: false }); }, 5000);
+    _nfcReadResolvers.set(rReq, { resolve, timeout: to });
+    _nfcChild.postMessage({ type: 'read-now', readerName, reqId: rReq });
+  });
+  if (rRes.ok) oldBytes = Buffer.from(rRes.rawPagesHex, 'hex');
+
+  const pages = _pagesFromBytes(newBytes, oldBytes, 0x04);
+  if (pages.length === 0) return { ok: true, pagesWritten: 0, verified: true };
+
+  const wReq = Date.now() + Math.random();
+  const result = await new Promise((resolve) => {
+    const to = setTimeout(() => { _nfcWriteResolvers.delete(wReq); resolve({ ok: false, error: 'Write timed out' }); }, 15000);
+    _nfcWriteResolvers.set(wReq, { resolve, timeout: to });
+    _nfcChild.postMessage({ type: 'write-now', readerName, reqId: wReq, pages });
+  });
+  console.log(`[NFC] repair ${uid}: ${result.ok ? result.pagesWritten + ' page(s), verified=' + result.verified : 'FAILED ' + result.error}`);
+  return result;
+});
+
+// Write a fixed 144-byte user-memory image onto one or more chips. Shared by the
+// two chip-reset actions below — the only thing that differs is the image:
+//   • rfid:format → TigerTag Init payload (SDK `TigerTag.asInit`)
+//   • rfid:erase  → blank NDEF          (SDK `TigerTag.erase`)
+// `buildImage(uidBuf)` returns the 144-byte target for a given chip UID. Each
+// target is UID-guarded (the chip on the reader must match the UID the renderer
+// expects, so with two readers/two chips present we never touch the wrong one),
+// surgical (skips pages already matching) + read-back verify.
+//   → { ok, results: [{ readerName, uid, ok, pagesWritten?, verified?, error? }] }
+async function _writeChipImage(targets, buildImage, logLabel) {
+  const results = [];
+  for (const { readerName, uid } of (Array.isArray(targets) ? targets : [])) {
+    const fail = (error) => results.push({ readerName, uid, ok: false, error });
+    if (!_nfcReaders.has(readerName)) { fail('Reader not connected'); continue; }
+    const card = _nfcCardPresent.get(readerName);
+    if (!card) { fail('No card present'); continue; }
+    if (uid && normalizeUid(card.uid) !== normalizeUid(uid)) { fail('uid-mismatch'); continue; }
+
+    const newBytes = buildImage(Buffer.from(normalizeUid(card.uid), 'hex')); // 144 bytes
+
+    // Surgical diff — read current user pages, skip the ones already matching.
+    let oldBytes = null;
+    const rReq = Date.now() + Math.random();
+    const rRes = await new Promise((resolve) => {
+      const to = setTimeout(() => { _nfcReadResolvers.delete(rReq); resolve({ ok: false }); }, 5000);
+      _nfcReadResolvers.set(rReq, { resolve, timeout: to });
+      _nfcChild.postMessage({ type: 'read-now', readerName, reqId: rReq });
+    });
+    if (rRes.ok) oldBytes = Buffer.from(rRes.rawPagesHex, 'hex');
+
+    const pages = _pagesFromBytes(newBytes, oldBytes, 0x04);
+    if (pages.length === 0) {
+      results.push({ readerName, uid: normalizeUid(card.uid), ok: true, pagesWritten: 0, verified: true });
+      continue;
+    }
+    const wReq = Date.now() + Math.random();
+    const wRes = await new Promise((resolve) => {
+      const to = setTimeout(() => { _nfcWriteResolvers.delete(wReq); resolve({ ok: false, error: 'Write timed out' }); }, 15000);
+      _nfcWriteResolvers.set(wReq, { resolve, timeout: to });
+      _nfcChild.postMessage({ type: 'write-now', readerName, reqId: wReq, pages, verify: true });
+    });
+    console.log(`[NFC] ${logLabel} ${normalizeUid(card.uid)}: ${wRes.ok ? wRes.pagesWritten + ' page(s), verified=' + wRes.verified : 'FAILED ' + wRes.error}`);
+    results.push({ readerName, uid: normalizeUid(card.uid), ...wRes });
+  }
+  return { ok: results.some(r => r.ok), results };
+}
+
+// Reset one or more chips to the official TigerTag Init state (SDK
+// `TigerTag.asInit()`, id_tigertag = TIGER_TAG_INIT, id_product = 0, fresh
+// timestamp) so the chip is reserved-for-TigerTag and ready to receive new data.
+// An Init chip carries no material/brand, so it does NOT parse as a spool —
+// re-reading it never resurrects the previous one. The 80-byte Init payload goes
+// over pages 0x04-0x17; the rest of the user region (0x18-0x27, any residual
+// TigerTag+ signature) is zeroed → a clean 144-byte Init image.
+//   opts = { targets: [{ readerName, uid }] }
+ipcMain.handle('rfid:format', async (_evt, { targets } = {}) => {
+  if (!_nfcChild) return { ok: false, error: 'NFC process not running' };
+  return _writeChipImage(targets, (uidBuf) => {
+    const initBytes = TigerTag.asInit(uidBuf).toBytes(false); // 80 bytes
+    return Buffer.concat([initBytes, Buffer.alloc(144 - initBytes.length)]);
+  }, 'init');
+});
+
+// Erase one or more chips back to blank NDEF (SDK `TigerTag.erase()` — a zeroed
+// 80-byte user-data payload). This drops the chip out of the TigerTag format
+// entirely (id_tigertag = 0 = uninitialized), turning it back into a plain blank
+// NFC tag. The whole 144-byte user region is zeroed (Init's 80 bytes + signature
+// region) so nothing of the old spool remains.
+//   opts = { targets: [{ readerName, uid }] }
+ipcMain.handle('rfid:erase', async (_evt, { targets } = {}) => {
+  if (!_nfcChild) return { ok: false, error: 'NFC process not running' };
+  return _writeChipImage(targets, () => {
+    const eraseBytes = TigerTag.erase(); // 80 zero bytes — blank NDEF
+    return Buffer.concat([eraseBytes, Buffer.alloc(144 - eraseBytes.length)]);
+  }, 'erase');
+});
+
 // Cloud → chip encoding — called when the user wants to program a Cloud spool onto
 // one or two physical RFID chips.
 //
@@ -1946,10 +2082,12 @@ ipcMain.handle('snap:http-get', async (_evt, url, timeoutMs) => {
   if (!/^https?:$/.test(parsed.protocol)) {
     return { ok: false, status: 0, error: 'url scheme not allowed' };
   }
-  // Tight allowlist — only the three Moonraker probe paths used by
-  // snapProbeIp(). Prevents this IPC from becoming a generic HTTP proxy
-  // if the renderer is ever compromised.
-  const ALLOWED = ['/printer/info', '/server/info', '/machine/system_info'];
+  // Tight allowlist — the three Moonraker probe paths used by snapProbeIp()
+  // plus the paxx extended-firmware status API (installed-version probe).
+  // Prevents this IPC from becoming a generic HTTP proxy if the renderer
+  // is ever compromised.
+  const ALLOWED = ['/printer/info', '/server/info', '/machine/system_info',
+                   '/firmware-config/api/status'];
   if (!ALLOWED.includes(parsed.pathname)) {
     return { ok: false, status: 0, error: 'path not allowed' };
   }

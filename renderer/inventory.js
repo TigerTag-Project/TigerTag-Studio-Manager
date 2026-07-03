@@ -54,6 +54,7 @@ import { renderFfgCamBanner, renderFfgCamWallBanner, ffgRefreshCamBanner, ffgCam
 import { ffgMuxStart, ffgMuxStop, ffgMuxStopAll, ffgMuxRestart, ffgMuxRegister, ffgMuxUnregister } from './printers/flashforge/cam_mux.js';
 import { renderSnapCamBanner } from './printers/snapmaker/widget_camera.js';
 import { openSnapAddFlow } from './printers/snapmaker/add-flow.js';
+import { paxxEnsureLatest, paxxProbeInstalled, paxxUpdateAvailable } from './printers/snapmaker/paxx.js';
 import { snapFanPct, snapFanStep, renderSnapControlCard } from './printers/snapmaker/widget_control.js';
 import { openFfgAddFlow }  from './printers/flashforge/add-flow.js';
 import { openCreAddFlow }  from './printers/creality/add-flow.js';
@@ -1301,6 +1302,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       // User-defined free-form labels (Shopify-style). Purely Studio metadata —
       // never written to the physical chip, so editing them needs no re-burn.
       tags: Array.isArray(data.tags) ? data.tags.filter(x => typeof x === "string") : [],
+      // TigerTag+ signature backup stored in rfidList/{UID}.backup (mirror flag
+      // on the inventory doc) — drives the "backed up" badge + Repair action.
+      rfidBackup: !!data.rfidBackup,
       colorHex: hex,
       colorHex2: hex2,
       colorHex3: hex3,
@@ -4852,6 +4856,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         snapshot.forEach(doc => { raw[doc.id] = doc.data(); });
         state.inventory = raw;
         state.rows = snapshot.docs.map(doc => normalizeRow(doc.id, doc.data()));
+        _markTwinPairs(state.rows); // symmetric hasTwinPair so the link badge shows on either half
+
 
         // On first live snapshot: silently refresh API data for every TigerTag+
         // spool that has no product image yet. Fire-and-forget — each write
@@ -5029,6 +5035,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (raw && typeof raw === "object" && Object.keys(raw).length > 0) {
         state.inventory = raw;
         state.rows = Object.entries(raw).map(([k,vv]) => normalizeRow(k, vv || {}));
+        _markTwinPairs(state.rows); // symmetric hasTwinPair so the link badge shows on either half
         // CRITICAL: leave the loading state — otherwise renderInventory()
         // short-circuits to the spinner and the cache is never painted
         // until the first Firestore snapshot (this was THE thing making
@@ -5310,6 +5317,28 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       return `<div class="sb-stat${s.cloud ? " sb-stat--cloud" : ""}${isActive ? " is-active" : ""}" data-filter="${s.filter}" data-mini="${s.mini}" data-mini-val="${s.miniVal}"><div class="value">${s.value}</div><div class="label">${s.label}</div></div>`;
     }).join("");
     el.classList.remove("hidden");
+  }
+
+  // Mark BOTH halves of every twin pair present in `rows` with hasTwinPair, so
+  // the "linked" badge shows on whichever half is displayed or opened — not only
+  // on the half that survives dedup. deduplicateTwins sets it too, but only on
+  // the kept half; the scanned/opened spool is ~50% of the time the other one.
+  // Row objects are rebuilt fresh on every snapshot, so no reset is needed.
+  // Pairing rule kept iso with deduplicateTwins (match twinUid by uid or spoolId).
+  function _markTwinPairs(rows) {
+    const byUid = new Map(), bySpool = new Map();
+    for (const r of rows) {
+      if (r.uid != null) byUid.set(String(r.uid), r);
+      bySpool.set(String(r.spoolId), r);
+    }
+    for (const r of rows) {
+      if (!r.twinUid) continue;
+      const partner = byUid.get(String(r.twinUid)) || bySpool.get(String(r.twinUid));
+      if (partner && partner.spoolId !== r.spoolId) {
+        r.hasTwinPair = true;
+        partner.hasTwinPair = true;
+      }
+    }
   }
 
   /* ── filter ── */
@@ -6037,9 +6066,16 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     return state.imgCache.has(url) ? state.imgCache.get(url) : url;
   }
 
-  const SVG_TWIN_SMALL = `<span class="icon icon-link icon-9"></span>`;
-  function twinOverlayBadge(r) {
-    return r.hasTwinPair ? `<span class="thumb-twin-badge" title="${t('twinBadge')} — ${t('twinTitle')}">${SVG_TWIN_SMALL}</span>` : "";
+  // Twin + backup as round badges stacked top-left of a thumbnail/illustration
+  // (same style/order as the detail panel — link on top, shield below). Shared
+  // by the grid cards and the table thumbnails (compact variant).
+  function _cardTlBadges(r, { compact = false, backup: withBackup = true } = {}) {
+    const iconSize = compact ? "icon-9" : "icon-11";
+    const twin = r.hasTwinPair
+      ? `<span class="card-tl-badge card-tl-badge--twin" title="${t('twinBadge')} — ${t('twinTitle')}"><span class="icon icon-link ${iconSize}"></span></span>` : "";
+    const backup = (withBackup && r.isPlus && r.rfidBackup)
+      ? `<span class="card-tl-badge card-tl-badge--backup" title="${esc(t('backupBadge'))}"><span class="icon icon-backup ${iconSize}"></span></span>` : "";
+    return (twin || backup) ? `<div class="card-badges-tl${compact ? " card-badges-tl--sm" : ""}">${twin}${backup}</div>` : "";
   }
 
   // Tier badge shown next to a row everywhere we display its origin:
@@ -6049,17 +6085,27 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // Cloud takes precedence over Plus because a CLOUD_ doc cannot also be a
   // chip-on-shelf — the prefix flips to a real hex UID the moment a chip
   // is programmed.
-  function tierBadgeHTML(r, extraClass = "") {
+  function tierBadgeHTML(r, extraClass = "", { backup = true } = {}) {
     if (r.isCloud) return `<span class="tag-cloud${extraClass ? " " + extraClass : ""}">TigerCloud</span>`;
-    if (r.isPlus)  return `<span class="tag-plus${extraClass ? " " + extraClass : ""}">TigerTag+</span>`;
+    if (r.isPlus) {
+      // Green round badge (white shield) right after the TigerTag+ badge when
+      // this plus is backed up — same style as the detail-panel badge.
+      const shield = (backup && r.rfidBackup)
+        ? `<span class="tag-backup" title="${esc(t("backupBadge"))}" aria-label="${esc(t("backupBadge"))}"><span class="icon icon-backup icon-10"></span></span>`
+        : "";
+      return `<span class="tag-plus${extraClass ? " " + extraClass : ""}">TigerTag+</span>${shield}`;
+    }
     return `<span class="tag-diy${extraClass ? " " + extraClass : ""}">TigerTag</span>`;
   }
-  function thumbHTML(row, size = 28, { badges = true } = {}) {
+  function thumbHTML(row, size = 28, { badges = true, backup = false } = {}) {
     const src = row.imgUrl ? resolvedImg(row.imgUrl) : null;
     // Group header thumbs pass badges:false — a group line represents many
     // spools, so per-spool overlays (twin "linked", TD, pending-chip) are
     // meaningless there.
-    const overlay = badges ? twinOverlayBadge(row) : "";
+    // Table thumb: twin only (round, top-right — like the sidecard). The backup
+    // shield is shown inline next to "TigerTag+" instead, so it's off by default;
+    // callers that want it stacked under the twin badge pass backup:true.
+    const overlay = badges ? _cardTlBadges(row, { compact: true, backup }) : "";
     const tdBadge = badges && row.td != null ? `<span class="thumb-td-badge">TD ${row.td}</span>` : "";
     const chipBadge = badges && row.needUpdateAt ? `<span class="chip-badge thumb-chip-badge" title="${t("chipPendingHint")}"><span class="icon icon-refresh icon-9"></span></span>` : "";
     // If `src` is a local /img-cache file that 404s (cache purged since the
@@ -6237,6 +6283,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       r.hasTwinPair ? 1 : 0,
       r.isPlus ? 1 : 0,
       r.isCloud ? 1 : 0,
+      r.rfidBackup ? 1 : 0,
       r.colorHex || "",
       r.colorHex2 || "",
       r.colorHex3 || "",
@@ -6257,11 +6304,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     }</div>`;
     const pct = (r.weightAvailable != null && r.capacity) ? Math.max(0,Math.min(100,Math.round(r.weightAvailable/r.capacity*100))) : null;
     const swatch = colorCircleHTML(r);
-    const badge = tierBadgeHTML(r);
+    const badge = tierBadgeHTML(r, "", { backup: false }); // shield lives in the top-right cluster here
     const tdBadge = r.td != null ? `<span class="card-td-badge">TD ${r.td}</span>` : "";
     const chipDot = r.needUpdateAt ? `<span class="chip-badge card-chip-badge" title="${t("chipPendingHint")}"><span class="icon icon-refresh icon-11"></span></span>` : "";
     return `
-      <div class="card-img-wrap">${imgHtml}${twinOverlayBadge(r)}${tdBadge}${chipDot}</div>
+      <div class="card-img-wrap">${imgHtml}${_cardTlBadges(r)}${tdBadge}${chipDot}</div>
       <div class="card-body">
         <div class="card-name">${swatch}${esc(v(r.colorName) !== "-" ? r.colorName : [r.aspect1, r.aspect2].filter(a => a && a !== "-" && a !== "None").join(" ") || r.material)}</div>
         <div class="card-sub">${esc(v(r.material))} · ${esc(v(r.brand))}</div>
@@ -6321,8 +6368,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // .card-img-wrap badges (twin / td / chip)
     const wrap = card.querySelector(".card-img-wrap");
     if (wrap) {
-      wrap.querySelectorAll(".thumb-twin-badge, .card-td-badge, .card-chip-badge").forEach(el => el.remove());
-      const badges = twinOverlayBadge(r)
+      wrap.querySelectorAll(".card-badges-tl, .card-td-badge, .card-chip-badge").forEach(el => el.remove());
+      const badges = _cardTlBadges(r)
         + (r.td != null ? `<span class="card-td-badge">TD ${r.td}</span>` : "")
         + (r.needUpdateAt ? `<span class="chip-badge card-chip-badge" title="${t("chipPendingHint")}"><span class="icon icon-refresh icon-11"></span></span>` : "");
       if (badges) wrap.insertAdjacentHTML("beforeend", badges);
@@ -6333,7 +6380,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (body) {
       const swatch = colorCircleHTML(r);
       const pct = (r.weightAvailable != null && r.capacity) ? Math.max(0,Math.min(100,Math.round(r.weightAvailable/r.capacity*100))) : null;
-      const badge = tierBadgeHTML(r);
+      const badge = tierBadgeHTML(r, "", { backup: false }); // shield lives in the top-right cluster here
       const nameText = v(r.colorName) !== "-" ? r.colorName : [r.aspect1, r.aspect2].filter(a => a && a !== "-" && a !== "None").join(" ") || r.material;
       body.innerHTML = `
         <div class="card-name">${swatch}${esc(nameText)}</div>
@@ -6419,7 +6466,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // ── Group panel (lists the member spools as horizontal list-cards) ─────────
   // Image on the left, everything else (name, material·brand, weight) on the
   // right — a wider, list-style card rather than the square grid card.
-  function _groupMemberCardInnerHTML(r, thumbSize = 65) {
+  function _groupMemberCardInnerHTML(r, thumbSize = 65, { stackBackup = false } = {}) {
     const name = v(r.colorName) !== "-"
       ? r.colorName
       : [r.aspect1, r.aspect2].filter(a => a && a !== "-" && a !== "None").join(" ") || r.material;
@@ -6428,10 +6475,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const wTxt = r.weightAvailable != null ? r.weightAvailable + " g" : "-";
     const bar = pct !== null
       ? `<span class="bar"><span style="width:${pct}%;background:${fillBarColor(pct)}"></span></span>` : "";
+    // stackBackup (unranked sidebar): show the backup shield stacked UNDER the
+    // twin "linked" badge in the thumbnail cluster, and drop it from the tier
+    // badge below so it isn't shown twice.
     return `
       <div class="gp-member-left">
-        <div class="gp-member-thumb">${thumbHTML(r, thumbSize)}</div>
-        ${tierBadgeHTML(r)}
+        <div class="gp-member-thumb">${thumbHTML(r, thumbSize, { backup: stackBackup })}</div>
+        ${tierBadgeHTML(r, "", { backup: !stackBackup })}
       </div>
       <div class="gp-member-info">
         <div class="gp-member-name">${colorCircleHTML(r, 13)}${esc(name)}</div>
@@ -6683,7 +6733,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       g.rep.colorHex || "", g.rep.colorHex2 || "", g.rep.colorHex3 || "",
       (g.rep.colorList || []).join(","), g.rep.colorType || "",
       g.rep.material || "", g.rep.brand || "", g.rep.colorName || "",
-      g.rep.imgUrl || "", g.rep.isPlus ? 1 : 0, g.rep.isCloud ? 1 : 0,
+      g.rep.imgUrl || "", g.rep.isPlus ? 1 : 0, g.rep.isCloud ? 1 : 0, g.rep.rfidBackup ? 1 : 0,
     ].join("|");
   }
 
@@ -7831,6 +7881,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       r.needUpdateAt ? 1 : 0,
       r.hasTwinPair ? 1 : 0,
       r.twinUid || "",
+      r.rfidBackup ? 1 : 0,
       r.isPlus ? 1 : 0,
       r.isCloud ? 1 : 0,
       r.isRefill ? 1 : 0,
@@ -8147,8 +8198,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (!r) return;
     _lastDetailSig = _rowSignature(r);
     _lastDetailStructuralSig = _detailStructuralSig(r);
+    _lastPanelCardSig = _panelCardSig(r);
+    const _prevScroll = opts.preserveScroll ? ($("panelBody").scrollTop || 0) : 0;
+    _hideToolInfoTip();                 // drop any open ⓘ bubble before the rebuild
     $("panelBody").innerHTML = buildPanelHTML(r);
-    $("panelBody").scrollTop = 0;   // always show a newly-opened card from the top
+    _wireToolInfoTips();                // delegated ⓘ handlers (once, on #panelBody)
+    // A fresh open starts at the top; a card-presence refresh (chip placed/removed
+    // while the panel is already open) keeps the user where they were.
+    $("panelBody").scrollTop = opts.preserveScroll ? _prevScroll : 0;
     // Hold-to-confirm "Delete spool" — 1.5s hold, irreversible hard delete.
     // Removes the Firestore doc (+ twin) permanently — ISO with printer deletion.
     // Flutter's cloudSync guard prevents resurrection on the phone.
@@ -8257,6 +8314,70 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         closeDetail();
       } catch (e) { reportError("spool.removeFromRack", e); }
     });
+    // Repair TigerTag+ — restore the chip from its rfidList backup. Writes raw
+    // bytes (no SDK) and, with two readers / two chips present, routes to the
+    // reader that actually holds THIS spool's chip (uid match, double-checked in
+    // the main process). Feedback shown inline in the tool's label.
+    setupHoldToConfirm($("btnRepairPlus"), 1500, async () => {
+      const btn = $("btnRepairPlus");
+      const labelEl = btn?.querySelector(".toolbox-row-label");
+      const setLbl = (txt) => { if (labelEl) labelEl.textContent = txt; };
+      const uid = btn?.dataset.spoolUid || r.uid;
+      try {
+        // Find the reader currently holding THIS chip (not just any reader).
+        const reader = [...state.nfcCardPresent.entries()]
+          .find(([, c]) => String(c?.uid).toUpperCase() === String(uid).toUpperCase())?.[0];
+        if (!reader) { setLbl(t("toolRepairNoChip")); return; }
+        const snap = await _rfidListCol(state.activeAccountId).doc(r.spoolId).get();
+        const hex = snap.exists ? snap.data()?.backup : null;
+        if (!hex) { setLbl(t("toolRepairNoBackup")); return; }
+        setLbl(t("toolRepairWriting"));
+        const res = await window.electronAPI.repairRfidTag({ readerName: reader, uid, hex });
+        if (res?.ok && res.verified !== false) {
+          setLbl(res.pagesWritten === 0 ? t("toolRepairAlready") : t("toolRepairDone"));
+        } else {
+          setLbl(t("toolRepairFailed"));
+          console.warn("[repair] failed:", res);
+        }
+      } catch (e) {
+        setLbl(t("toolRepairFailed"));
+        reportError("spool.repairPlus", e);
+      }
+    });
+    // Format RFID — wipe this spool's present chip(s) to blank, then remove the
+    // spool from the inventory. The rfidList backup is intentionally kept (a
+    // Restore stays possible); only the physical chip + inventory doc are cleared.
+    // Reset (asInit) and Erase (blank NDEF) share the exact same flow — target
+    // this spool's present chip(s), write the chosen image, then drop the spool
+    // (+ twin) from the inventory (rfidList backup kept, so a Restore stays
+    // possible). Only the IPC call + status labels differ. setupHoldToConfirm
+    // no-ops when the button isn't in the DOM (tool not shown), so both wire
+    // safely regardless of which are rendered.
+    const _wireChipReset = (btnId, apiCall, keyWriting, keyDone, keyFailed, errTag) => {
+      setupHoldToConfirm($(btnId), 1500, async () => {
+        const labelEl = $(btnId)?.querySelector(".toolbox-row-label");
+        const setLbl = (txt) => { if (labelEl) labelEl.textContent = txt; };
+        try {
+          // Recompute targets at click time (chips may have moved since render).
+          const targets = [...state.nfcCardPresent.entries()]
+            .filter(([, c]) => c && [r.uid, r.twinUid].filter(Boolean)
+              .some(u => String(u).toUpperCase() === String(c.uid).toUpperCase()))
+            .map(([readerName, c]) => ({ readerName, uid: c.uid }));
+          if (!targets.length) { setLbl(t("toolRepairNoChip")); return; }
+          setLbl(t(keyWriting));
+          const res = await apiCall({ targets });
+          const done = (res?.results || []).filter(x => x.ok && x.verified !== false).length;
+          if (!res?.ok || done === 0) { setLbl(t(keyFailed)); console.warn(`[${errTag}] failed:`, res); return; }
+          setLbl(t(keyDone));
+          await markSpoolDeleted(r.spoolId);
+          closeDetail();
+        } catch (e) { setLbl(t(keyFailed)); reportError(`spool.${errTag}`, e); }
+      });
+    };
+    _wireChipReset("btnFormatRfid", (o) => window.electronAPI.formatRfidTag(o),
+      "toolFormatWriting", "toolFormatDone", "toolFormatFailed", "formatRfid");
+    _wireChipReset("btnEraseRfid", (o) => window.electronAPI.eraseRfidTag(o),
+      "toolEraseWriting", "toolEraseDone", "toolEraseFailed", "eraseRfid");
     // Locate-in-storage: clicking the placed-state storage-loc row jumps
     // to the Storage view with the search prefilled to the spool's RFID
     // UID, so all other slots are dimmed and the user sees this one in
@@ -8768,6 +8889,31 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     openDetail(state.selected);
   }
 
+  // Card-presence signature for the open panel: which chip-dependent toolbox
+  // actions should be visible for spool `r` given what's currently on the
+  // readers. "anyCard" drives the cloud "Graver RFID" action; "uidMatch" drives
+  // "Restore TigerTag+" (that exact chip must be on a reader).
+  let _lastPanelCardSig = "";
+  function _panelCardSig(r) {
+    if (!r) return "";
+    const anyCard  = state.nfcCardPresent.size > 0;
+    const uidMatch = [...state.nfcCardPresent.values()]
+      .some(c => String(c?.uid).toUpperCase() === String(r.uid).toUpperCase());
+    return (anyCard ? "1" : "0") + (uidMatch ? "1" : "0");
+  }
+  // Rebuild the open panel when the chips on the readers change in a way that
+  // affects its toolbox — so "Restore TigerTag+" / cloud "Graver RFID" appear
+  // and disappear live, not only when the panel was first opened. Guarded by a
+  // signature so unrelated card events (other spools) don't rebuild and cancel
+  // an in-progress hold-to-confirm. Scroll position is preserved.
+  function _maybeRefreshPanelForCard() {
+    if (!state.selected || !$("detailPanel")?.classList.contains("open")) return;
+    const r = state.rows.find(x => x.spoolId === state.selected);
+    if (!r) return;
+    if (_panelCardSig(r) === _lastPanelCardSig) return;
+    openDetail(state.selected, { preserveScroll: true });
+  }
+
   /* ── TD1S module init ────────────────────────────────────────────────────
      initEditModals must be called first so the sensor engine hooks are ready.
      openTd1sConnectModal / openTd1sTesterModal / openTdEditModal /
@@ -9012,7 +9158,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const mat = r.materialData;
 
     // image + badge overlay
-    const badgeLeft = tierBadgeHTML(r, "panel-img-badge panel-img-badge--tl");
+    const badgeLeft = tierBadgeHTML(r, "panel-img-badge panel-img-badge--tl", { backup: false });
     const badgeTwin = r.hasTwinPair
       ? `<span class="tag-twin panel-img-badge-tr-item panel-img-icon-badge" title="${t("twinBadge")} — ${t("twinTitle")}"><span class="icon icon-link icon-11"></span></span>`
       : "";
@@ -9022,8 +9168,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const badgeTd = r.td != null
       ? `<span class="panel-img-badge panel-img-badge--bl panel-td-badge">TD ${r.td}</span>`
       : "";
-    const badgeTrGroup = (badgeTwin || badgeChip)
-      ? `<div class="panel-img-badge panel-img-badge--tr panel-img-badge-tr-group">${badgeTwin}${badgeChip}</div>`
+    // "Backed up" badge — to the LEFT of the twin badge in the top-right group.
+    const badgeBackup = (r.isPlus && r.rfidBackup)
+      ? `<span class="panel-img-badge-tr-item panel-img-icon-badge panel-img-backup-badge" title="${esc(t("backupBadge"))}"><span class="icon icon-backup icon-11"></span></span>`
+      : "";
+    const badgeTrGroup = (badgeBackup || badgeTwin || badgeChip)
+      ? `<div class="panel-img-badge panel-img-badge--tr panel-img-badge-tr-group">${badgeTwin}${badgeBackup}${badgeChip}</div>`
       : "";
     const overlays = badgeLeft + badgeTrGroup + badgeTd;
     // The edit bar lives inside panel-img-wrap at the bottom.
@@ -9212,8 +9362,15 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
 
     // info rows — optional 3rd tuple element is an id placed on the .pv span,
     // so _patchDetailWeight can refresh that cell without a full rebuild.
+    // TigerTag+ carries a product id (id_product) that ties the chip to its
+    // catalog entry — shown right under the UID. Unset (0 / 0xFFFFFFFF) → hidden.
+    const _productId = (() => {
+      const pid = Number(r.raw?.id_product);
+      return (r.isPlus && pid && pid !== 4294967295) ? String(pid) : null;
+    })();
     const infoRows = [
       [t("detUid"),           r.uid],
+      [t("detProductId"),     _productId, null, _productId ? `https://tigertag.io/pages/product-infos/${_productId}` : null],
       [t("detType"),          r.productType],
       [t("thName"),           r.colorName !== "-" ? r.colorName : null],
       [t("detSeries"),        r.series],
@@ -9239,7 +9396,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           <span class="panel-details-chevron">›</span>
         </button>
         <div class="panel-details-body">
-          ${infoRows.map(([k,val,pvId]) => `<div class="panel-row"><span class="pk">${k}</span><span class="pv"${pvId ? ` id="${pvId}"` : ""}>${esc(String(val))}</span></div>`).join("")}
+          ${infoRows.map(([k,val,pvId,href]) => {
+            const cell = href
+              ? `<a class="pv pv-link" href="${esc(href)}" target="_blank" rel="noopener"${pvId ? ` id="${pvId}"` : ""}>${esc(String(val))}</a>`
+              : `<span class="pv"${pvId ? ` id="${pvId}"` : ""}>${esc(String(val))}</span>`;
+            return `<div class="panel-row"><span class="pk">${k}</span>${cell}</div>`;
+          }).join("")}
           <div style="margin-top:8px;display:flex;gap:6px">
             ${tierBadgeHTML(r)}
             ${r.deleted ? `<span class="badge bad" style="font-size:11px">${t("badgeDeleted")}</span>` : ""}
@@ -9483,7 +9645,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
             variant: "default",
             type: "split",
             holdConfirm: true,
-            title: t("toolDuplicateTip"),
+            info: t("toolDuplicateTip"),
             // Quantity stepper — pick how many copies to mint in one shot.
             // The main button label tracks the count ("Duplicate ×N").
             trailing: `
@@ -9503,6 +9665,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           icon: "icon-palette",
           label: t("toolMeasureColor"),
           variant: "default",
+          info: t("toolMeasureColorTip"),
         });
 
         // 2. TD1S — measure TD (transparency). Same pattern.
@@ -9514,6 +9677,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           label: t("toolMeasureTd"),
           variant: "default",
           type: "split",
+          info: t("toolMeasureTdTip"),
           trailing: r.td != null ? `
             <button type="button" class="toolbox-row-trailing toolbox-row--hold toolbox-row--danger-soft" id="btnToolClearTd" title="${esc(t("toolClearTd"))}">
               <span class="hold-progress"></span>
@@ -9530,6 +9694,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
             icon: "icon-edit",
             label: t("customImgUrl"),
             variant: "default",
+            info: t("toolEditImgTip"),
           });
         }
 
@@ -9550,7 +9715,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
               label: t("twinLinkUnlink"),
               variant: "danger-soft",
               holdConfirm: true,
-              title: t("twinLinkUnlinkHint"),
+              info: t("twinLinkUnlinkHint"),
               dataAttrs: `data-spool-id="${esc(r.spoolId)}"`,
             });
           }
@@ -9561,6 +9726,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
             icon: "icon-link",
             label: t("twinLinkAction"),
             variant: "default",
+            info: t("twinLinkActionTip"),
             dataAttrs: `data-spool-id="${esc(r.spoolId)}"`,
           });
         }
@@ -9575,6 +9741,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
             label: t("toolRemoveFromRack"),
             variant: "danger-soft",
             holdConfirm: true,
+            info: t("toolRemoveFromRackTip"),
             dataAttrs: `data-spool-id="${esc(r.spoolId)}"`,
           });
         }
@@ -9587,6 +9754,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
             icon: "icon-nfc",
             label: t("encodeCloudBtn"),
             variant: "primary",
+            info: t("encodeCloudTip"),
           });
         }
 
@@ -9598,6 +9766,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
             icon: "icon-nfc",
             label: t("burnRfidBtn"),
             variant: "default",
+            info: t("burnRfidTip"),
           });
         }
 
@@ -9608,6 +9777,64 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
             icon: "icon-refresh",
             label: t("toolRefreshApi"),
             variant: "default",
+            info: t("toolRefreshApiTip"),
+          });
+        }
+
+        // 5d. Repair TigerTag+ — restore the chip from its stored backup. Keyed
+        //     to the chip's UID: shown whenever a backup EXISTS for this UID
+        //     (even if the spool was rewritten as a plain TigerTag since) AND
+        //     that exact chip is on a reader (routed to it on click). NOT gated
+        //     on the current spool being a TigerTag+.
+        if (!r.isCloud && window.electronAPI?.repairRfidTag
+            && state.inventory?.[r.spoolId]?.rfidBackup === true
+            && [...state.nfcCardPresent.values()].some(c => String(c?.uid).toUpperCase() === String(r.uid).toUpperCase())) {
+          tools.push({
+            id: "btnRepairPlus",
+            icon: "icon-nfc",
+            label: t("toolRepairPlus"),
+            variant: "primary",
+            holdConfirm: true,
+            info: t("toolRepairPlusTip"),
+            dataAttrs: `data-spool-id="${esc(r.spoolId)}" data-spool-uid="${esc(r.uid)}"`,
+          });
+        }
+
+        // 5e. Format RFID — wipe this spool's present chip(s) back to blank so
+        //     they are ready for new data, then remove the spool from the
+        //     inventory (its rfidList backup is kept, so a Restore stays
+        //     possible). Only this spool's own chips (uid + twin) are targeted,
+        //     so a chip on the other reader is never wiped by mistake. Shown
+        //     only when at least one of those chips is on a reader.
+        const _fmtTargets = [...state.nfcCardPresent.entries()]
+          .filter(([, c]) => c && [r.uid, r.twinUid].filter(Boolean)
+            .some(u => String(u).toUpperCase() === String(c.uid).toUpperCase()))
+          .map(([readerName, c]) => ({ readerName, uid: c.uid }));
+        if (!r.isCloud && window.electronAPI?.formatRfidTag && _fmtTargets.length > 0) {
+          tools.push({
+            id: "btnFormatRfid",
+            icon: "icon-broom",
+            label: t(_fmtTargets.length === 2 ? "toolFormatRfid2" : "toolFormatRfid",
+              { tier: r.isPlus ? "TigerTag+" : "TigerTag" }),
+            variant: "danger",
+            holdConfirm: true,
+            info: t("toolFormatRfidTip"),
+            dataAttrs: `data-spool-id="${esc(r.spoolId)}"`,
+          });
+        }
+
+        // 5f. Erase to blank NDEF — same present-chip targeting as Reset, but
+        //     writes the SDK's blank-NDEF payload so the chip leaves the TigerTag
+        //     format entirely (plain NFC tag). Also removes the spool afterwards.
+        if (!r.isCloud && window.electronAPI?.eraseRfidTag && _fmtTargets.length > 0) {
+          tools.push({
+            id: "btnEraseRfid",
+            icon: "icon-recycle",
+            label: t(_fmtTargets.length === 2 ? "toolEraseRfid2" : "toolEraseRfid"),
+            variant: "danger",
+            holdConfirm: true,
+            info: t("toolEraseRfidTip"),
+            dataAttrs: `data-spool-id="${esc(r.spoolId)}"`,
           });
         }
 
@@ -9618,7 +9845,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           label: t("spoolMarkDeleted"),
           variant: "danger",
           holdConfirm: true,
-          title: t("spoolMarkDeletedTip"),
+          info: t("spoolMarkDeletedTip"),
           dataAttrs: `data-spool-id="${esc(r.spoolId)}"`,
         });
 
@@ -9629,6 +9856,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           const cls = `toolbox-row toolbox-row--${tool.variant}${tool.holdConfirm ? " toolbox-row--hold" : ""}${tool.inert ? " toolbox-row--inert" : ""}`;
           const titleAttr = tool.title ? ` title="${esc(tool.title)}"` : "";
           const dataAttrs = tool.dataAttrs || "";
+          // Trailing affordance on the right of a row: an ⓘ that opens an info
+          // bubble on hover (body-appended in JS, so it escapes the row's
+          // overflow:hidden and works on every row type), else the decorative
+          // chevron. Pressing the ⓘ never triggers the row (a delegated handler
+          // stops the event) — see _wireToolInfoTips.
+          const rightHtml = tool.info
+            ? `<span class="tool-info" data-tip="${esc(tool.info)}" aria-label="${esc(tool.info)}"><span class="icon icon-info icon-13"></span></span>`
+            : `<span class="icon icon-chevron-r icon-13 toolbox-row-chev"></span>`;
           // Split rows: main clickable button on the left + trailing
           // secondary button (e.g. trash) on the right, both inside a
           // flex wrapper. Needed when two independent actions share a row.
@@ -9642,7 +9877,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
                   ${tool.holdConfirm ? '<span class="hold-progress"></span>' : ""}
                   <span class="icon ${esc(tool.icon)} icon-14 toolbox-row-icon"></span>
                   <span class="toolbox-row-label">${esc(tool.label)}</span>
-                  <span class="icon icon-chevron-r icon-13 toolbox-row-chev"></span>
+                  ${rightHtml}
                 </button>
                 ${tool.trailing || ""}
               </div>`;
@@ -9654,6 +9889,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
               <div class="${cls}" id="${esc(tool.id)}"${titleAttr} ${dataAttrs}>
                 <span class="icon ${esc(tool.icon)} icon-14 toolbox-row-icon"></span>
                 <span class="toolbox-row-label">${esc(tool.label)}</span>
+                ${tool.info ? rightHtml : ""}
                 ${tool.trailing || ""}
               </div>`;
           }
@@ -9662,7 +9898,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
               ${tool.holdConfirm ? '<span class="hold-progress"></span>' : ""}
               <span class="icon ${esc(tool.icon)} icon-14 toolbox-row-icon"></span>
               <span class="toolbox-row-label">${esc(tool.label)}</span>
-              <span class="icon icon-chevron-r icon-13 toolbox-row-chev"></span>
+              ${rightHtml}
             </button>`;
         }).join("");
 
@@ -10619,6 +10855,55 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     document.body.appendChild(tip);
     return tip;
   }
+
+  // ── Toolbox info bubbles (ⓘ) ────────────────────────────────────────────
+  // A body-appended tooltip driven by hovering any `.tool-info` ⓘ. Appended to
+  // <body> (not inside the row) so it escapes the toolbox rows' overflow:hidden
+  // and works on every row type. Delegated once on #panelBody; the same handler
+  // also swallows pointer/click on the ⓘ so pressing it never fires the row.
+  let _toolInfoTipsWired = false;
+  function _ensureToolInfoPop() {
+    let tip = document.getElementById("toolInfoPop");
+    if (tip) return tip;
+    tip = document.createElement("div");
+    tip.id = "toolInfoPop";
+    tip.setAttribute("role", "tooltip");
+    document.body.appendChild(tip);
+    return tip;
+  }
+  function _showToolInfoTip(el) {
+    const text = el.getAttribute("data-tip");
+    if (!text) return;
+    const tip = _ensureToolInfoPop();
+    tip.textContent = text;
+    tip.classList.add("is-measuring");   // lay out at final width to measure
+    const r  = el.getBoundingClientRect();
+    const tr = tip.getBoundingClientRect();
+    let left = r.left + r.width / 2 - tr.width / 2;
+    left = Math.max(8, Math.min(left, window.innerWidth - tr.width - 8));
+    let top = r.top - tr.height - 8;          // above the ⓘ …
+    if (top < 8) top = r.bottom + 8;          // … or below if there's no room
+    tip.style.left = Math.round(left) + "px";
+    tip.style.top  = Math.round(top) + "px";
+    tip.classList.remove("is-measuring");
+    tip.classList.add("is-open");
+  }
+  function _hideToolInfoTip() {
+    document.getElementById("toolInfoPop")?.classList.remove("is-open");
+  }
+  function _wireToolInfoTips() {
+    if (_toolInfoTipsWired) return;
+    const body = $("panelBody");
+    if (!body) return;
+    _toolInfoTipsWired = true;
+    body.addEventListener("mouseover", e => { const el = e.target.closest?.(".tool-info"); if (el) _showToolInfoTip(el); });
+    body.addEventListener("mouseout",  e => { const el = e.target.closest?.(".tool-info"); if (el && !el.contains(e.relatedTarget)) _hideToolInfoTip(); });
+    // Pressing the ⓘ must never trigger the row's action (capture phase, before
+    // the row's own pointerdown / hold-to-confirm handler runs).
+    const swallow = e => { if (e.target.closest?.(".tool-info")) { e.stopPropagation(); e.preventDefault(); } };
+    body.addEventListener("pointerdown", swallow, true);
+    body.addEventListener("click", swallow, true);
+  }
   function showSbFriendTip(chip) {
     if (!document.querySelector(".sidebar.collapsed")) return;
     const text = chip.dataset.tooltip || chip.dataset.friendName || "";
@@ -11069,6 +11354,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           });
           state.printers = all;
           scheduleStudioStateRecord();  // re-arm deferred telemetry (printer count changed)
+          // Snapmaker: resolve the latest paxx firmware release (throttled to
+          // one API call per 24 h inside paxx.js — repeated snapshots are a
+          // no-op) and raise a local notification when a NEW one appeared.
+          // Also keeps the edit form's download CTA fresh.
+          if (all.some(p => p.brand === 'snapmaker')) _maybeNotifyPaxxRelease();
           // Elegoo: maintain persistent MQTT connections in the background so
           // the card status badge is always live, even without opening the sidecard.
           // Only connect when no connection exists yet, or when the IP changed.
@@ -15841,7 +16131,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // Same visual as the group panel's member list-cards (image left, tier badge
     // under it, name / material·brand / weight + bar right). Keeps `.rp-side-row`
     // + data-spool-id so the existing drag-to-rack wiring is untouched.
-    return `<div class="rp-side-row gp-member${locked ? " rp-side-row--locked" : ""}" draggable="${(readOnly || locked) ? "false" : "true"}" data-spool-id="${esc(row.spoolId)}" title="${tip}">${_groupMemberCardInnerHTML(row, 72)}${locked ? `<span class="icon icon-lock icon-12 rp-side-row-lock" aria-hidden="true"></span>` : ""}</div>`;
+    return `<div class="rp-side-row gp-member${locked ? " rp-side-row--locked" : ""}" draggable="${(readOnly || locked) ? "false" : "true"}" data-spool-id="${esc(row.spoolId)}" title="${tip}">${_groupMemberCardInnerHTML(row, 72, { stackBackup: true })}${locked ? `<span class="icon icon-lock icon-12 rp-side-row-lock" aria-hidden="true"></span>` : ""}</div>`;
   }
 
   // Set by a side-row dragend, used to defer renderRackView so the panel
@@ -16044,7 +16334,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
               <span class="rht-weight-cur">${cur}</span><span class="rht-weight-sep">/</span><span class="rht-weight-cap">${cap} g</span>
               <span class="rht-weight-pct">${pct}%</span>
             </div>
-            <div class="rht-weight-bar"><div class="rht-weight-bar-fill" style="width:${pct}%"></div></div>
+            <div class="rht-weight-bar"><div class="rht-weight-bar-fill" style="width:${pct}%;background:${fillBarColor(pct)}"></div></div>
           </div>
           ${locked ? `<div class="rht-locked"><span class="icon icon-lock icon-13"></span>${esc(t("rackPinnedTip"))}</div>` : ""}
         </div>
@@ -17447,6 +17737,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       snap.forEach(doc => { raw[doc.id] = doc.data(); });
       state.inventory = raw;
       state.rows = snap.docs.map(doc => normalizeRow(doc.id, doc.data()));
+      _markTwinPairs(state.rows); // symmetric hasTwinPair so the link badge shows on either half
       await preCacheImages(state.rows);
       // Guard: user might have switched away during the await
       if (state.friendView?.uid !== friendUid) return;
@@ -17841,10 +18132,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
 
   function subscribeFriendRequests(uid) {
     unsubscribeFriendRequests();
+    _notifFirstSnap.friendReq = true;   // next snapshot is the login history — silent
     state.unsubFriendRequests = fbDb()
       .collection("users").doc(uid)
       .collection("friendRequests")
       .onSnapshot(async snap => {
+        _chimeOnFirestoreArrival("friendReq", snap);   // ring on a real incoming request
         state.friendRequests = snap.docs.map(d => ({ uid: d.id, ...d.data() }));
         renderNotifBadge();
         renderFriendRequestsList();
@@ -17955,10 +18248,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function subscribeNotifications(uid) {
     unsubscribeNotifications();
     if (!uid) return;
+    _notifFirstSnap.notifs = true;   // next snapshot is the login history — silent
     state.unsubNotifs = fbDb(uid)
       .collection("users").doc(uid).collection("notifications")
       .onSnapshot(snap => {
         if (uid !== state.activeAccountId) return;
+        _chimeOnFirestoreArrival("notifs", snap);   // ring on a real new notification
         state.notifications = snap.docs.map(d => ({ id: d.id, ...d.data() }))
           .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
         renderNotifBadge();
@@ -17986,10 +18281,96 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function _setLocalNotif(notif) {
     const list = state.localNotifications || (state.localNotifications = []);
     const i = list.findIndex(n => n.id === notif.id);
+    const isNew = i < 0;   // upsert: a genuinely new notice (not a live update)
     if (i >= 0) list[i] = notif; else list.push(notif);
     renderNotifBadge();
     renderNotifCenter();
+    // Ring for a freshly-arrived local notice (paxx firmware, app update), but
+    // not for passive startup nudges (avatar / community links).
+    if (isNew && !_PASSIVE_NOTIF_IDS.has(notif.id)) _notifChime();
   }
+  // ── Paxx firmware release notification ────────────────────────────────────
+  // Raises a clickable local notification when at least one Snapmaker in the
+  // device list RUNS a paxx build older than the latest release. The installed
+  // build is read from the machine itself (paxxProbeInstalled — the endpoint
+  // only exists on paxx firmware, so stock machines are never nagged).
+  // Two suppression levels:
+  //   • "Remind me later" / card click → hide for THIS session only. The flag
+  //     is in-memory, so the notice reappears on the next app start (as long as
+  //     the machine is still out of date). Tag-scoped, so a brand-new release
+  //     breaks through immediately.
+  //   • ✕ close → permanent, persisted per release (never notifies again for
+  //     that exact version; a newer release still does).
+  const PAXX_DISMISSED_LS_KEY = "tigertag.paxx.dismissedTag";
+  let _paxxSessionSnoozeTag = null;   // in-memory: cleared on every app start
+  let _paxxNotifCheckedAt = 0;
+  async function _maybeNotifyPaxxRelease() {
+    // Machine probes are cheap but not free — re-check at most once per hour
+    // per session (subscribePrinters calls this on every Firestore snapshot).
+    if (Date.now() - _paxxNotifCheckedAt < 3600e3) return;
+    _paxxNotifCheckedAt = Date.now();
+    const snapPrinters = (state.printers || []).filter(p => p.brand === "snapmaker" && p.ip);
+    if (!snapPrinters.length) return;
+    const rec = await paxxEnsureLatest();
+    if (!rec?.tag) return;
+    // Probe each machine; keep the FIRST one that is actually out of date so the
+    // notice can jump straight to it.
+    const probes = await Promise.all(snapPrinters.map(async p => ({ p, build: await paxxProbeInstalled(p.ip) })));
+    const outdated = probes.find(x => x.build && paxxUpdateAvailable(x.build, rec.tag))?.p;
+    if (!outdated) return;
+    // Suppressed for THIS release: permanently (✕ close) or for this session
+    // only (card click / "Remind me later" → back on next app start).
+    if (localStorage.getItem(PAXX_DISMISSED_LS_KEY) === rec.tag) return;
+    if (_paxxSessionSnoozeTag === rec.tag) return;
+    // Name the concerned machine by its configured name so the notice points at
+    // the right printer; fall back to the brand label if it's unnamed.
+    const pName = (outdated.printerName || "").trim()
+      || PRINTER_BRAND_META.snapmaker?.label || "Snapmaker";
+    _setLocalNotif({
+      id: "paxx", icon: "download", action: "paxx", brand: "snapmaker",
+      title: t("notifPaxxTitle", { name: pName }),
+      text: t("notifPaxxText", { version: rec.tag }),
+      url: rec.binUrl, tag: rec.tag,
+      printerId: outdated.id, printerName: pName,
+    });
+  }
+  // Hide the notice for THIS session only — it reappears on the next app start
+  // (the flag is in-memory), and a brand-new release breaks through immediately
+  // (tag-scoped). Shared by the card click and the "Remind me later" button.
+  function _paxxSnooze(n) {
+    if (n?.tag) _paxxSessionSnoozeTag = n.tag;
+  }
+  // Clicking the CARD jumps to the machine that triggered it (its detail +
+  // Printer Settings side-cards, where the download CTA + status line live) AND
+  // snoozes the notice — same "comes back later" behaviour as "Remind me later".
+  // Only the ✕ close button suppresses this release permanently.
+  function _openPaxxPrinter() {
+    const n = (state.localNotifications || []).find(x => x.id === "paxx");
+    _paxxSnooze(n);
+    const pid = n?.printerId;
+    const brand = n?.brand || "snapmaker";
+    _clearLocalNotif("paxx");
+    if (!pid) return;
+    const printer = (state.printers || []).find(p => p.id === pid && p.brand === brand);
+    if (!printer) return;
+    openPrinterDetail(brand, pid);          // printer detail side-card
+    openPrinterAddForm(brand, printer);     // "Réglages des imprimantes" settings card
+  }
+  // "Remind me later" — snooze only (no jump). The center stays open so the
+  // user sees it slide away.
+  function _snoozePaxxNotif() {
+    const n = (state.localNotifications || []).find(x => x.id === "paxx");
+    _paxxSnooze(n);
+    _clearLocalNotif("paxx");
+  }
+  // ✕ close — the ONLY permanent block: this exact release never notifies again
+  // (a newer release still will, since the dismissal is tag-scoped).
+  function _dismissPaxxNotif() {
+    const n = (state.localNotifications || []).find(x => x.id === "paxx");
+    if (n?.tag) localStorage.setItem(PAXX_DISMISSED_LS_KEY, n.tag);
+    _clearLocalNotif("paxx");
+  }
+
   // Remove a local notification by id (e.g. the avatar nudge once a photo is set).
   function _clearLocalNotif(id) {
     const list = state.localNotifications;
@@ -18000,6 +18381,44 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     renderNotifBadge();
     renderNotifCenter();
   }
+  // ── New-notification chime ────────────────────────────────────────────────
+  // A soft two-note rising chime when a notification ARRIVES: an incoming friend
+  // request, a friend accepting yours (general notif), or a local notice (paxx
+  // firmware, app update). It rings on the real arrival event — Firestore
+  // `docChanges()` of type "added" AFTER the first snapshot (so the history that
+  // loads on login stays silent), and a freshly-pushed local notice — never on a
+  // plain re-render or a removal. `_notifFirstSnap` tracks the per-source initial
+  // load; the passive set are startup nudges that shouldn't ring every launch.
+  const _notifFirstSnap = { friendReq: true, notifs: true };
+  const _PASSIVE_NOTIF_IDS = new Set(["avatar", "discord", "github", "makerworld"]);
+  function _notifChime() {
+    try {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      const ac = new Ctx();
+      ac.resume?.();   // a fresh context can start suspended until a gesture
+      // Two short sine notes, C6 → E6, gentle attack/decay.
+      [[1046.5, 0], [1318.5, 0.11]].forEach(([freq, at]) => {
+        const o = ac.createOscillator(), g = ac.createGain();
+        o.connect(g); g.connect(ac.destination);
+        o.type = "sine";
+        o.frequency.value = freq;
+        const t0 = ac.currentTime + at;
+        g.gain.setValueAtTime(0.0001, t0);
+        g.gain.exponentialRampToValueAtTime(0.12, t0 + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.18);
+        o.start(t0); o.stop(t0 + 0.2);
+      });
+      setTimeout(() => { try { ac.close(); } catch (_) {} }, 500);
+    } catch (_) {}
+  }
+  // Ring for a Firestore snapshot that carries a genuinely new doc ("added"),
+  // but stay silent on the FIRST snapshot of each source (the login history).
+  function _chimeOnFirestoreArrival(source, snap) {
+    if (_notifFirstSnap[source]) { _notifFirstSnap[source] = false; return; }
+    if (snap.docChanges().some(c => c.type === "added")) _notifChime();
+  }
+
   function renderNotifBadge() {
     const badge = $("notifBadge");
     if (!badge) return;
@@ -18023,16 +18442,24 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const localHtml = locals.map(n => {
       // Community nudges + avatar: the whole row IS the call-to-action (no button).
       const isCommunity = n.action === "discord" || n.action === "github" || n.action === "makerworld";
-      const clickable = isCommunity || n.action === "avatar";
+      const clickable = isCommunity || n.action === "avatar" || n.action === "paxx";
       const brandIc = isCommunity ? ` notif-ic--${n.action}` : "";   // branded square icon
+      // A notice originating from a printer speaks WITH its brand logo (the
+      // machine "talking"), the same way a friend notice shows the friend's
+      // avatar. Any local notif carrying `brand` gets the masked brand logo.
+      const iconHtml = (n.brand && _BRAND_HAS_LOGO.has(n.brand))
+        ? `<span class="notif-ic notif-ic--brandlogo"><span class="pt-thumb-logo" data-brand="${esc(n.brand)}"></span></span>`
+        : `<span class="notif-ic${brandIc}"><span class="icon icon-${esc(n.icon || "refresh")} icon-14"></span></span>`;
       return `
       <div class="notif-item notif-item--unread notif-item--local${clickable ? " notif-item--clickable" : ""}" data-local-id="${esc(n.id)}"${clickable ? ` data-local-action="${esc(n.action)}"` : ""}>
-        <span class="notif-ic${brandIc}"><span class="icon icon-${esc(n.icon || "refresh")} icon-14"></span></span>
+        ${iconHtml}
         <div class="fp-friend-main">
           ${n.title ? `<div class="notif-title">${esc(n.title)}</div>` : ""}
           <div class="notif-text">${esc(n.text)}${n.version ? ` (v${esc(n.version)})` : ""}</div>
+          ${n.action === "paxx" ? `<button type="button" class="primary sm notif-later" title="${esc(t("notifRemindLater"))}"><span class="icon icon-bell icon-12"></span>${esc(t("notifRemindLater"))}</button>` : ""}
         </div>
         ${n.action === "restart" ? `<button class="primary sm notif-restart">${esc(t("btnRestartUpdate"))}</button>` : ""}
+        ${n.action === "paxx" ? `<button type="button" class="fp-friend-btn notif-dismiss notif-dismiss-paxx" title="${esc(t("cancelLabel"))}"><span class="icon icon-close icon-13"></span></button>` : ""}
       </div>`;
     }).join("");
     const notifHtml = notifs.map(n => {
@@ -18054,11 +18481,20 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     });
     list.querySelectorAll(".notif-restart").forEach(btn =>
       btn.addEventListener("click", () => window.electronAPI?.installUpdate?.()));
+    // "Remind me later" on the paxx notice — snooze without permanently
+    // dismissing. stopPropagation so it doesn't also trigger the row's open.
+    list.querySelectorAll(".notif-later").forEach(btn =>
+      btn.addEventListener("click", e => { e.stopPropagation(); _snoozePaxxNotif(); }));
+    // ✕ close on the paxx notice — the ONLY permanent block (this release never
+    // notifies again). stopPropagation so it doesn't also trigger the row's open.
+    list.querySelectorAll(".notif-dismiss-paxx").forEach(btn =>
+      btn.addEventListener("click", e => { e.stopPropagation(); _dismissPaxxNotif(); }));
     list.querySelectorAll(".notif-item--clickable").forEach(row =>
       row.addEventListener("click", () => {
         closeNotifs();
         const a = row.dataset.localAction;
         if (a === "avatar") _changeMyAvatar();
+        else if (a === "paxx") _openPaxxPrinter();
         else if (COMMUNITY[a]) _openCommunityLink(a);
       }));
     list.querySelectorAll(".notif-item:not(.notif-item--local)").forEach(row => {
@@ -19025,8 +19461,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         update.lastSeenAt = FV.serverTimestamp();
         await ref.set(update, { merge: true });
       }
-      // Mark the inventory doc so the next scan of this chip skips Firestore.
-      const nowBacked = isPlus && (hadBackup || !!rawHex);
+      // Mark the inventory doc. rfidBackup means "a backup EXISTS in rfidList
+      // for this UID" — true if the chip already had one (even if the current
+      // spool was rewritten as a plain TigerTag) or a tag+ backup was just
+      // captured. This lets the Repair action reappear on the same UID.
+      const nowBacked = hadBackup || (isPlus && !!rawHex);
       await _invCol(uid).doc(chipUid).set({ rfidListed: true, rfidBackup: nowBacked }, { merge: true });
       if (isNew) bumpStudioCounters({ rfidChipsTotal: 1 });
     } catch (e) {
@@ -19455,7 +19894,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (uid) state.nfcCardPresent.set(readerName, { uid });
       else     state.nfcCardPresent.delete(readerName);
       renderRfidReaderBadges();
-      _cemPresenceChanged();   // live slot status + mid-burn presence watch
+      _cemPresenceChanged();       // live slot status + mid-burn presence watch
+      _maybeRefreshPanelForCard(); // reveal/hide chip-dependent toolbox actions live
     });
 
     // Legacy uid event — open detail if already in inventory

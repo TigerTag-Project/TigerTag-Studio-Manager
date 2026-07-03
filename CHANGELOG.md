@@ -5,6 +5,29 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.10.29 — 2026-07-03
+
+### Added
+
+- **Reuse your RFID chips.** Three new toolbox actions for a spool's physical chip: **Erase** reinitialises it to a fresh blank TigerTag (a TigerTag+ becomes a plain reusable TigerTag), **Recycle to NFC** wipes it back to a generic NFC tag, and **Restore TigerTag+** rewrites a backed-up TigerTag+ exactly as it was. Each is guarded to the exact chip on the reader, verifies what it wrote, and needs a press-and-hold to confirm.
+- **Snapmaker firmware helper.** For the community Paxx firmware on the Snapmaker U1: the download button always points at the latest release, the printer's settings show whether it's up to date, and you get a notification — named after your printer — when a newer firmware is out. One click jumps straight to that printer.
+- **Notification sounds.** A soft chime plays when something actually arrives — a friend request, a friend accepting yours, or a firmware update — never for the history that loads when you open the app. Notifications coming from a printer now show that brand's logo, the way a friend's notice shows their avatar.
+- **Every tool explains itself.** Each action in a spool's toolbox now has a small ⓘ that, on hover, tells you in plain words what it does — no more guessing.
+- **"Backed up" badge.** A green shield marks each TigerTag+ whose signature is safely backed up, on grid cards, thumbnails and the storage view.
+- **Product ID.** A TigerTag+ detail panel now shows its on-chip product ID, as a link to the product page.
+
+### Changed
+
+- **Clearer rack tooltips.** Hovering a spool in a rack shows its remaining-filament bar in the usual red / orange / green, matching the rest of the app.
+
+### Fixed
+
+- **Twin and backup icons appear instantly** on a freshly-scanned TigerTag+, without having to close and reopen the card.
+- **Chip actions update live** — toolbox actions that need a chip on the reader now appear and disappear as you place or remove the chip, while the panel stays open.
+- **Honest wording** on "Remove from inventory": it's a permanent delete, and your physical chip keeps its data (erase or recycle it to reuse).
+
+---
+
 ## v1.10.28 — 2026-06-29
 
 ### Added

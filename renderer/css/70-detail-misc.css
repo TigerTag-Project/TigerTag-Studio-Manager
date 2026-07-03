@@ -25,6 +25,7 @@
   .icon-search    { -webkit-mask-image: url('../../assets/svg/icons/icon_search.svg');       mask-image: url('../../assets/svg/icons/icon_search.svg'); }
   .icon-trash     { -webkit-mask-image: url('../../assets/svg/icons/icon_trash.svg');        mask-image: url('../../assets/svg/icons/icon_trash.svg'); }
   .icon-broom     { -webkit-mask-image: url('../../assets/svg/icons/icon_broom.svg');        mask-image: url('../../assets/svg/icons/icon_broom.svg'); }
+  .icon-recycle   { -webkit-mask-image: url('../../assets/svg/icons/icon_recycle.svg');      mask-image: url('../../assets/svg/icons/icon_recycle.svg'); }
   .icon-lock      { -webkit-mask-image: url('../../assets/svg/icons/icon_lock.svg');         mask-image: url('../../assets/svg/icons/icon_lock.svg'); }
   .icon-sparkle   { -webkit-mask-image: url('../../assets/svg/icons/icon_sparkle.svg');      mask-image: url('../../assets/svg/icons/icon_sparkle.svg'); }
   .icon-kebab     { -webkit-mask-image: url('../../assets/svg/icons/icon_kebab.svg');        mask-image: url('../../assets/svg/icons/icon_kebab.svg'); }
@@ -54,6 +55,7 @@
   .icon-swap      { -webkit-mask-image: url('../../assets/svg/icons/icon_swap.svg');         mask-image: url('../../assets/svg/icons/icon_swap.svg'); }
   .icon-wrench    { -webkit-mask-image: url('../../assets/svg/icons/icon_wrench.svg');       mask-image: url('../../assets/svg/icons/icon_wrench.svg'); }
   .icon-cloud     { -webkit-mask-image: url('../../assets/svg/icons/icon_cloud.svg');        mask-image: url('../../assets/svg/icons/icon_cloud.svg'); }
+  .icon-backup    { -webkit-mask-image: url('../../assets/svg/icons/icon_backup.svg');       mask-image: url('../../assets/svg/icons/icon_backup.svg'); }
   .icon-cloud-3d  { -webkit-mask-image: url('../../assets/svg/icons/icon_cloud_3d.svg');     mask-image: url('../../assets/svg/icons/icon_cloud_3d.svg'); }
   .icon-signout   { -webkit-mask-image: url('../../assets/svg/icons/icon_signout.svg');      mask-image: url('../../assets/svg/icons/icon_signout.svg'); }
   .icon-info      { -webkit-mask-image: url('../../assets/svg/icons/icon_info.svg');         mask-image: url('../../assets/svg/icons/icon_info.svg'); }
@@ -325,13 +327,24 @@
   .thumb-wrap { position: relative; display: inline-flex; border-radius: 8px; overflow: hidden; flex-shrink: 0; }
   .thumb-color { display: inline-flex; align-items: flex-start; justify-content: flex-end; }
   .thumb-color img { width: 42%; margin: 8%; }
-  .thumb-twin-badge {
-    position: absolute; top: 3px; left: 3px; z-index: 2;
-    width: 16px; height: 16px; border-radius: 4px;
-    background: linear-gradient(135deg,#3d8ef0,#7ab4ff);
-    color: #fff; display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 1px 4px rgba(0,0,0,.35); pointer-events: none;
+  /* Twin + backup as round badges stacked top-left of a thumbnail/illustration
+     (grid cards and the table thumbnails via the --sm variant). */
+  .card-badges-tl {
+    position: absolute; top: 6px; left: 6px; z-index: 2;
+    display: flex; flex-direction: column; align-items: flex-start; gap: 5px; pointer-events: none;
   }
+  .card-tl-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; border-radius: 50%; color: #fff;
+    border: 1.5px solid rgba(255,255,255,.85); box-shadow: 0 1px 4px rgba(0,0,0,.25);
+  }
+  .card-tl-badge .icon { background-color: #fff; }
+  .card-tl-badge--twin   { background: linear-gradient(135deg,#3d8ef0,#7ab4ff); }
+  .card-tl-badge--backup { background: linear-gradient(135deg,#16a34a,#22c55e); }
+  /* Compact variant for the tiny table thumbnails. */
+  .card-badges-tl--sm { top: 3px; left: 3px; gap: 3px; }
+  .card-badges-tl--sm .card-tl-badge { width: 15px; height: 15px; border-width: 1px; }
+
   td.thumb-cell { padding: 4px 6px; width: 58px; }
   td.color-cell { width: 36px; text-align: center; padding-right: 4px; }
 
@@ -377,6 +390,17 @@
 
   /* ── tag type badges ── */
   .tag-plus { background: linear-gradient(90deg,#ff7a18,#ffb056); color:#fff; font-size:10px; padding:2px 7px; border-radius:999px; font-weight:700; letter-spacing:.03em; }
+  /* Green round badge (white shield) after the TigerTag+ badge — same look as
+     the detail-panel .panel-img-backup-badge, sized down for the row. */
+  .tag-backup {
+    display: inline-flex; align-items: center; justify-content: center; vertical-align: middle;
+    width: 18px; height: 18px; margin-left: 4px; border-radius: 50%;
+    background: linear-gradient(135deg,#16a34a,#22c55e);
+    border: 1.5px solid rgba(255,255,255,.85);
+    box-shadow: 0 1px 3px rgba(0,0,0,.25);
+    color: #fff;
+  }
+  .tag-backup .icon { background-color: #fff; }
   .tag-diy { background: var(--surface-2); color: var(--muted); font-size:10px; padding:2px 7px; border-radius:999px; font-weight:600; letter-spacing:.03em; }
   /* Cloud-only entry — purple gradient distinct from .tag-plus (orange,
      real chip + online catalog) and .tag-twin (sky-blue, twin pairing).
@@ -1236,6 +1260,10 @@
   .panel-row .pv { font-weight: 500; text-align: right; max-width: 60%; }
   .panel-row .pv a { color: var(--primary); text-decoration: none; }
   .panel-row .pv a:hover { text-decoration: underline; }
+  /* Value cell that is itself a link (e.g. Product ID → tigertag.io). */
+  .panel-row a.pv-link { color: var(--primary); text-decoration: none; cursor: pointer;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .panel-row a.pv-link:hover { text-decoration: underline; }
   .color-dots { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
   .color-dot { width: 24px; height: 24px; border-radius: 6px; border: 1px solid rgba(0,0,0,.1); }
   .temp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 4px; }
@@ -1773,6 +1801,7 @@
     padding: 0; margin: 0; font-size: 0; letter-spacing: 0;
   }
   .panel-img-icon-badge .icon { color: #fff; }
+  .panel-img-backup-badge { background: linear-gradient(135deg,#16a34a,#22c55e); }
   .panel-td-badge {
     background: rgba(0,0,0,.5); color: rgba(255,255,255,.9);
     font-size: 11px; font-weight: 700; padding: 3px 9px;
@@ -2004,6 +2033,30 @@
   }
   .toolbox-row:hover .toolbox-row-icon { background: var(--text); }
   .toolbox-row:hover .toolbox-row-chev { background: var(--muted); }
+
+  /* Toolbox info ⓘ — sits where the chevron would, on every row type. It reveals
+     a body-appended bubble (#toolInfoPop, positioned in JS) on hover, so the
+     bubble escapes the row's overflow:hidden. Pressing it never fires the row
+     (a delegated capture handler swallows the event) — see _wireToolInfoTips. */
+  .tool-info {
+    display: inline-flex; align-items: center; flex-shrink: 0;
+    cursor: help; position: relative; z-index: 1; /* above the hold-progress fill */
+  }
+  .tool-info .icon { background: var(--muted); opacity: .6; transition: opacity .12s, background .12s; }
+  .toolbox-row:hover .tool-info .icon,
+  .toolbox-row-main:hover .tool-info .icon { opacity: .8; }
+  .tool-info:hover .icon { opacity: 1 !important; background: var(--text); }
+  #toolInfoPop {
+    position: fixed; z-index: 9999; left: 0; top: 0;
+    width: max-content; max-width: 260px; white-space: normal; text-align: left;
+    background: #1c2030; color: #fff; border: 1px solid rgba(255,255,255,.14);
+    padding: 8px 11px; border-radius: 8px;
+    font-size: 11px; font-weight: 400; line-height: 1.45; letter-spacing: 0;
+    box-shadow: 0 8px 22px rgba(0,0,0,.4);
+    opacity: 0; pointer-events: none; transition: opacity .12s;
+  }
+  #toolInfoPop.is-measuring { opacity: 0; }        /* laid out for measuring, still hidden */
+  #toolInfoPop.is-open { opacity: 1; }
 
   /* Variant: info — used for the "linked to its twin" inert row. */
   .toolbox-row--info {

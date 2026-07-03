@@ -1849,6 +1849,17 @@
 }
 .snap-wizard-btn--next:not(:disabled):hover { opacity: .85; }
 
+/* ── Step 1 installed-version status line (paxx machines) ────────────────── */
+.snap-paxx-status {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.snap-paxx-status--upd {
+  color: var(--accent, #3b82f6);
+  font-weight: 600;
+}
+
 /* ── Step 3 cfg status ───────────────────────────────────────────────────── */
 .snap-cfg-status {
   display: flex;

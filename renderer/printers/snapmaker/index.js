@@ -18,6 +18,7 @@ import {
   wirePasswordEyes,
   prefillFields,
 } from '../modal-helpers.js';
+import { paxxLatest, paxxEnsureLatest, paxxProbeInstalled, paxxUpdateAvailable, paxxCleanVersion } from './paxx.js';
 
 const $ = id => document.getElementById(id);
 
@@ -1332,7 +1333,6 @@ export function renderSnapmakerLogInner(p) {
 // Custom renderer: form fields (no section headers) + two expandable setup steps.
 
 const PAXX_FIRMWARE_URL  = 'https://github.com/paxx12-snapmaker-u1/SnapmakerU1-Extended-Firmware/releases/latest';
-const PAXX_FIRMWARE_BIN  = 'https://github.com/paxx12-snapmaker-u1/SnapmakerU1-Extended-Firmware/releases/download/v1.4.1-paxx12-19/U1_extended_1.4.1-paxx12-19_upgrade.bin';
 const PAXX_EXPLAINER_URL = 'https://www.youtube.com/watch?v=-JMjEUDZJzQ';
 const PAXX_COFFEE_URL    = 'https://buymeacoffee.com/paxx12';
 
@@ -1358,6 +1358,10 @@ function _snapRenderSettingsWidget(printer, bodyEl, ctx) {
     </section>`;
 
   const PAXX_RFID_DOCS_URL = 'https://snapmakeru1-extended-firmware.pages.dev/rfid_support#alternative-detection-systems';
+
+  // Latest paxx firmware release — best known record right now (cache or
+  // fallback); refreshed asynchronously below once the API answers.
+  const paxx = paxxLatest();
 
   // ── Wizard carousel (3 steps) ─────────────────────────────────────────────
   const wizardHtml = `
@@ -1393,9 +1397,9 @@ function _snapRenderSettingsWidget(printer, bodyEl, ctx) {
             print‑control features not available in the stock firmware.
           </p>
           <div class="pba-step-ctas">
-            <a class="pba-step-cta" data-open-external="${esc(PAXX_FIRMWARE_BIN)}">
+            <a class="pba-step-cta" data-paxx-bin data-open-external="${esc(paxx.binUrl)}">
               <span class="pba-step-cta-icon pba-step-cta-icon--download"></span>
-              Download v1.4.1-paxx12-19.bin
+              <span data-paxx-bin-label>Download ${esc(paxx.tag)}.bin</span>
             </a>
             <a class="pba-step-cta pba-step-cta--secondary" data-open-external="${esc(PAXX_FIRMWARE_URL)}">
               <span class="pba-step-cta-icon pba-step-cta-icon--github"></span>
@@ -1476,6 +1480,39 @@ function _snapRenderSettingsWidget(printer, bodyEl, ctx) {
       window.electronAPI?.openExternal(el.dataset.openExternal);
     });
   });
+
+  // ── Refresh the firmware download CTA against the latest GitHub release ──
+  // The click handler reads data-open-external at click time, so patching the
+  // dataset is enough — no re-wiring needed.
+  paxxEnsureLatest().then(rec => {
+    const btn = bodyEl.querySelector('[data-paxx-bin]');
+    if (!btn || !rec?.binUrl) return;
+    btn.dataset.openExternal = rec.binUrl;
+    const lbl = btn.querySelector('[data-paxx-bin-label]');
+    if (lbl) lbl.textContent = `Download ${rec.tag}.bin`;
+  });
+
+  // ── Installed-version status line (paxx machines only) ───────────────────
+  // When the machine's IP is known (edit mode or scan/manual prefill), read
+  // the paxx build it actually runs and show it under the download CTAs:
+  // "update available" (accent) or "up to date" (muted). Stock machines and
+  // unreachable IPs stay silent — the wizard already covers the pitch.
+  {
+    const ipForProbe = (prefill?.ip || printer?.ip || '').trim();
+    if (ipForProbe) {
+      Promise.all([paxxProbeInstalled(ipForProbe), paxxEnsureLatest()]).then(([installed, rec]) => {
+        if (!installed || !bodyEl.isConnected) return;
+        const upd  = paxxUpdateAvailable(installed, rec?.tag);
+        const line = document.createElement('div');
+        line.className = 'snap-paxx-status' + (upd ? ' snap-paxx-status--upd' : '');
+        // Keep the raw build out of the copy — it's jargon. State the action
+        // plainly (the .bin download CTA sits right above this line).
+        line.textContent = upd ? ctx.t('snapPaxxUpdate') : ctx.t('snapPaxxUpToDate');
+        line.title = paxxCleanVersion(installed); // clean build on hover (no commit hash)
+        bodyEl.querySelector('.snap-wizard-slide[data-slide="0"] .pba-step-ctas')?.after(line);
+      });
+    }
+  }
 
   // ── Wire Step 2 firmware-config CTA — reads IP from the form at click time ─
   bodyEl.querySelector('[data-firmware-config-cta]')?.addEventListener('click', e => {

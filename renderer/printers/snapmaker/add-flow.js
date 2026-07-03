@@ -28,6 +28,7 @@ import {
   snapBuildDiscoveryRecord,
   getLastScanEnv,
 } from './probe.js';
+import { paxxEnsureLatest } from './paxx.js';
 
 const $ = id => document.getElementById(id);
 
@@ -1059,5 +1060,9 @@ function _wireDOM() {
  */
 export function openSnapAddFlow() {
   _ensureDOM();
+  // Picking Snapmaker in the brand picker is one of the two triggers that
+  // warm the paxx firmware-release cache (throttled to 24 h in paxx.js) so
+  // the add form's download CTA points at the latest release.
+  paxxEnsureLatest();
   openSnapAddChoice();
 }

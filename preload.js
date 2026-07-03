@@ -145,6 +145,27 @@ contextBridge.exposeInMainWorld('electronAPI', {
   writeRfidTag: (opts) =>
     ipcRenderer.invoke('rfid:write-now', opts),
 
+  // Repair a TigerTag+ from its rfidList backup — writes the raw payload
+  // (pages 0x04-0x27) straight back, guarded to the chip whose UID matches.
+  //   opts = { readerName, uid, hex }
+  // Returns { ok, pagesWritten, verified, mismatchPages } | { ok:false, error }
+  repairRfidTag: (opts) =>
+    ipcRenderer.invoke('rfid:repair', opts),
+
+  // Format / erase chips: wipe the user memory (pages 0x04-0x27) back to blank so
+  // they are ready for new data. Each target is UID-guarded.
+  //   opts = { targets: [{ readerName, uid }] }
+  // Returns { ok, results: [{ readerName, uid, ok, pagesWritten?, verified?, error? }] }
+  formatRfidTag: (opts) =>
+    ipcRenderer.invoke('rfid:format', opts),
+
+  // Erase chips back to blank NDEF (SDK TigerTag.erase()) — drops them out of the
+  // TigerTag format into a plain blank NFC tag. Each target is UID-guarded.
+  //   opts = { targets: [{ readerName, uid }] }
+  // Returns { ok, results: [{ readerName, uid, ok, pagesWritten?, verified?, error? }] }
+  eraseRfidTag: (opts) =>
+    ipcRenderer.invoke('rfid:erase', opts),
+
   // Cloud → chip encoding: program one or two blank RFID chips from a Cloud spool.
   // Same payload (same timestamp) is written to every target reader.
   // opts = { cloudDoc, targets: [{ readerName, uid }] }

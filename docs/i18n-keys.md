@@ -46,6 +46,15 @@
 | `sortBy` | Grid-view sort dropdown title |
 | `sortDir` | Grid-view sort direction toggle title |
 | `filterAllTags` | Tag filter dropdown — "All tags" default |
+| `toolRepairPlus` / `toolRepairPlusTip` | Toolbox "Restore TigerTag+" action + tooltip (keys kept as `Repair*`; label reads "Restore") |
+| `toolRepairNoChip` / `toolRepairNoBackup` | Restore guard messages (chip not on reader / no backup) |
+| `toolRepairWriting` / `toolRepairDone` / `toolRepairAlready` / `toolRepairFailed` | Restore progress/result states |
+| `toolFormatRfid` / `toolFormatRfid2` / `toolFormatRfidTip` | Toolbox "Erase the {{tier}}" action — 1 chip / 2 chips label (`{{tier}}` = TigerTag / TigerTag+) + ⓘ info bubble (writes the official TigerTag Init payload → reusable TigerTag) |
+| `toolFormatWriting` / `toolFormatDone` / `toolFormatFailed` | Reset progress/result states (no-chip reuses `toolRepairNoChip`) |
+| `toolEraseRfid` / `toolEraseRfid2` / `toolEraseRfidTip` | Toolbox "Recycle to NFC" action — 1 chip / 2 chips label + ⓘ info bubble (writes the SDK blank-NDEF payload → generic NFC tag) |
+| `toolEraseWriting` / `toolEraseDone` / `toolEraseFailed` | Erase progress/result states (no-chip reuses `toolRepairNoChip`) |
+| `toolMeasureColorTip` / `toolMeasureTdTip` / `toolEditImgTip` / `twinLinkActionTip` / `toolRemoveFromRackTip` / `encodeCloudTip` / `burnRfidTip` / `toolRefreshApiTip` / `toolDuplicateTip` / `twinLinkUnlinkHint` | ⓘ info-bubble text for the remaining toolbox actions (one per button) |
+| `backupBadge` | "Signature backed up" tooltip on the shield-check badge |
 
 ### Account management
 | Key | Purpose |
@@ -184,7 +193,7 @@
 `linkYt` `linkFood`
 
 ### Detail rows
-`detUid` `detSeries` `detBrand` `detMaterial` `detDiameter` `detTagType` `detSku` `detBarcode` `detContainer` `detTwin` `detUpdated` `detManufactured`
+`detUid` `detProductId` (TigerTag+ `id_product`, shown under UID) `detSeries` `detBrand` `detMaterial` `detDiameter` `detTagType` `detSku` `detBarcode` `detContainer` `detTwin` `detUpdated` `detManufactured`
 
 ### Badges
 `badgeRefill` `badgeRecycled` `badgeFilled` `badgeDeleted`
@@ -221,5 +230,11 @@
 | `friendSelf` | Preview state: own code entered |
 | `friendRequestSent` | Success message after sending |
 | `friendRegenConfirm` | (kept in locales, no longer used in UI — reserved) |
+
+### Notification center (local notices)
+| Key | Purpose |
+|-----|---------|
+| `notifPaxxTitle` | Paxx firmware release notice title (Snapmaker owners) |
+| `notifPaxxText {{version}}` | Paxx release notice body — click opens the .bin download |
 
 > ⚠️ This table is a snapshot and can drift as keys are added. The authoritative key set is the locale files themselves; `npm run i18n:check` is the source of truth for "do all 9 locales agree". When you add keys via `npm run i18n:add`, append them to the relevant section here too.

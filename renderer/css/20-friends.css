@@ -281,7 +281,23 @@
   .notif-ic--discord .icon, .notif-ic--github .icon, .notif-ic--makerworld .icon {
     background: #fff; width: 24px; height: 24px;
   }
+  /* Printer-brand notice — the machine "speaking": white chip + tinted brand
+     logo, matching the printer list's brand badge. The logo's colour + mask
+     come from .pt-thumb-logo[data-brand] (40-printers.css). */
+  .notif-ic--brandlogo { background: var(--surface, #fff); }
+  .notif-ic--brandlogo .pt-thumb-logo { width: 22px; height: 20px; }
   .notif-item--local .notif-restart { flex-shrink: 0; }
+  /* "Remind me later" — the app's standard primary button (orange, white text
+     via .primary .sm). Layout only here: sits BELOW the title + text (inside
+     .fp-friend-main), left-aligned, so it never squeezes the copy into a narrow
+     column; the bell icon aligns via inline-flex + gap. */
+  .notif-later {
+    align-self: flex-start; margin-top: 8px;
+    display: inline-flex; align-items: center; gap: 6px;
+    white-space: nowrap;
+  }
+  /* ✕ close on the paxx notice — pinned top-right of the (tall) card. */
+  .notif-dismiss-paxx { align-self: flex-start; }
 
   /* ── Blacklist section ─────────────────────────────────────────────── */
   .fp-blacklist-block { margin-top: 10px; flex: 0 0 auto; }

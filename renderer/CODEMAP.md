@@ -62,6 +62,7 @@ L17540-17873   Electron RFID integration (readers, dual-scan, NFC processor, chi
 | `printers/<brand>/widget_camera.js` | Per-brand camera banner (one per brand) — `inventory.js` only dispatches via `renderCamBanner(p)` | `renderSnapCamBanner`, `renderCreCamBanner`, `renderFfgCamBanner`, `renderBambuCamBanner`, `renderElegooCamBanner`, `renderAcuCamBanner` |
 | `printers/<brand>/add-flow.js` | Per-brand Add-printer scan/manual flow (Scan choice modal, slide-in panel, manual IP probe) | `openSnapAddFlow`, `openFfgAddFlow`, `openCreAddFlow`, `openBblAddFlow`, `openElgAddFlow` |
 | `printers/<brand>/probe.js` | Pure network/data discovery layer (no DOM) | per-brand probes |
+| `printers/snapmaker/paxx.js` | Paxx U1 extended-firmware resolver — latest release (GitHub API, 24 h cache + ETag, fallback) + installed-version probe (`GET /firmware-config/api/status`, paxx-only) + build compare. Feeds the add/edit download CTA, the side-card status line, and the update notification | `paxxLatest`, `paxxEnsureLatest`, `paxxProbeInstalled`, `paxxBuildOf`, `paxxUpdateAvailable`, `paxxCleanVersion` |
 | `printers/snapmaker/widget_control.js`, `elegoo/widget_control.js` | Control cards (fan, etc.) | `renderSnapControlCard`, `elgFanStep` |
 | `printers/cam_manager.js`, `modal-helpers.js`, `extra-subnets.js` | Shared cam lifecycle, modal helpers, user-declared subnets widget | |
 | `IoT/tigerscale/index.js` | TigerScale — Firestore subscription, panel render, health tick | `initTigerScale`, `subscribeScales`, `renderScalesPanel`, `renderScaleHealth` |
@@ -230,7 +231,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Spool detail panel (L7480-9587)
+## Spool detail panel (L7480-9804)
 
 | L | What | Anchors |
 |---|---|---|
@@ -246,7 +247,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Panels / debug / auto-update (L9372-10365)
+## Panels / debug / auto-update (L9372-10601)
 
 | L | What | Anchors |
 |---|---|---|
@@ -259,7 +260,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Friends rendering (L10204-10884)
+## Friends rendering (L10204-11080)
 
 | L | What | Anchors |
 |---|---|---|
@@ -269,7 +270,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Racks + printers subscriptions (L10594-11128)
+## Racks + printers subscriptions (L10594-11360)
 
 | L | What | Anchors |
 |---|---|---|
@@ -280,7 +281,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Printers views (L10573-12167)
+## Printers views (L10573-12380)
 
 | L | What | Anchors |
 |---|---|---|
@@ -292,7 +293,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Printer detail side panel (L11632-14600)
+## Printer detail side panel (L11632-14800)
 
 | L | What | Anchors |
 |---|---|---|
@@ -303,7 +304,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Add-printer flow (L14346-14933)
+## Add-printer flow (L14346-15200)
 
 Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.js` owns the shell.
 
@@ -316,7 +317,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Racks CRUD + slots (L14934-16084)
+## Racks CRUD + slots (L14934-16320)
 
 | L | What | Anchors |
 |---|---|---|
@@ -329,7 +330,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Storage view render + DnD (L15873-17120)
+## Storage view render + DnD (L15873-17340)
 
 | L | What | Anchors |
 |---|---|---|
@@ -340,7 +341,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Friend view (L16951-17522)
+## Friend view (L16951-17844)
 
 | L | What | Anchors |
 |---|---|---|
@@ -351,7 +352,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Display name + friend requests (L17523-18183)
+## Display name + friend requests (L17523-18560)
 
 | L | What | Anchors |
 |---|---|---|
@@ -361,7 +362,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Keys + profile sync (L17995-18222)
+## Keys + profile sync (L17995-18740)
 
 | L | What | Anchors |
 |---|---|---|
@@ -370,7 +371,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Custom avatar (L18223-18752)
+## Custom avatar (L18223-19164)
 
 | L | What | Anchors |
 |---|---|---|
@@ -379,7 +380,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## User doc sync + telemetry + bootstrap (L18488-19485)
+## User doc sync + telemetry + bootstrap (L18488-19900)
 
 | L | What | Anchors |
 |---|---|---|
