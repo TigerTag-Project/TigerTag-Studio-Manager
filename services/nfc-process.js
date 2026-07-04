@@ -7,6 +7,16 @@
 //   → receive from main : process.parentPort 'message' event  (e.data = payload)
 //   → send to main      : process.parentPort.postMessage(payload)
 //
+// ── Windows hot-plug recovery ──────────────────────────────────────────────
+// On Windows the Smart Card service (SCardSvr) is *trigger-started*: it runs
+// only while a reader is present and stops a few seconds after the LAST reader
+// is unplugged. When it stops, pcsclite's reader-monitor gets a service error
+// and STOPS — it never re-arms — so a reader plugged in AFTER that is never
+// detected until the whole app is restarted. We work around it by re-creating
+// the NFC context whenever the monitor errors, retrying on a timer until a
+// reader appears (which itself restarts SCardSvr). Guarded to win32 so the
+// working macOS/Linux path (pcscd is a persistent daemon) is untouched.
+//
 // NTAG page layout reminder:
 //   - Each NTAG page = 4 bytes.
 //   - User memory starts at page 4 (byte offset 0 of the payload).
@@ -30,55 +40,86 @@ const READ_BLOCK_SIZE = 4;     // NTAG page size in bytes — drives correct pag
 // ── Reader registry ───────────────────────────────────────────────────────────
 const readers = new Map();     // readerName → reader instance
 
-// ── NFC init ─────────────────────────────────────────────────────────────────
-let nfc;
-try {
-  nfc = new NFC();
-} catch (err) {
-  process.parentPort.postMessage({ type: 'init-error', message: err.message });
-  process.exit(0);
+// ── NFC context + Windows watchdog ─────────────────────────────────────────────
+let nfc = null;
+let _restartTimer  = null;
+let _downReported  = false;    // so we log the context-down once, not every retry
+const _autoRecover = process.platform === 'win32';
+const _RESTART_MS  = 3000;
+
+function _scheduleRestart() {
+  if (!_autoRecover || _restartTimer) return;   // one pending restart at a time
+  _restartTimer = setTimeout(() => { _restartTimer = null; startNFC(); }, _RESTART_MS);
 }
 
-// ── Reader lifecycle ──────────────────────────────────────────────────────────
-nfc.on('reader', (reader) => {
-  const name = reader.name;
-  readers.set(name, reader);
-  process.parentPort.postMessage({ type: 'reader-connected', name });
+function _teardownNFC() {
+  if (!nfc) return;
+  try { nfc.removeAllListeners(); } catch (_) {}
+  try { nfc.close(); } catch (_) {}   // may throw on an already-dead context — ignore
+  nfc = null;
+}
 
-  // Card placed on reader
-  reader.on('card', async (card) => {
-    const uid = card.uid;
-    let rawPagesHex = null;
-    try {
-      const data = await reader.read(READ_START_PAGE, READ_LENGTH, READ_BLOCK_SIZE);
-      rawPagesHex = data.toString('hex');
-    } catch (_) {
-      // Read failed — emit uid only; main process handles graceful fallback
-    }
-    process.parentPort.postMessage({ type: 'card', readerName: name, uid, rawPagesHex });
+function startNFC() {
+  _teardownNFC();
+  try {
+    nfc = new NFC();
+  } catch (err) {
+    if (!_downReported) { _downReported = true; process.parentPort.postMessage({ type: 'init-error', message: err.message }); }
+    _scheduleRestart();
+    return;
+  }
+
+  // ── Reader lifecycle ──────────────────────────────────────────────────────
+  nfc.on('reader', (reader) => {
+    // A reader appeared → the context is healthy again; cancel any pending
+    // recovery and re-arm error reporting.
+    if (_restartTimer) { clearTimeout(_restartTimer); _restartTimer = null; }
+    _downReported = false;
+
+    const name = reader.name;
+    readers.set(name, reader);
+    process.parentPort.postMessage({ type: 'reader-connected', name });
+
+    // Card placed on reader
+    reader.on('card', async (card) => {
+      const uid = card.uid;
+      let rawPagesHex = null;
+      try {
+        const data = await reader.read(READ_START_PAGE, READ_LENGTH, READ_BLOCK_SIZE);
+        rawPagesHex = data.toString('hex');
+      } catch (_) {
+        // Read failed — emit uid only; main process handles graceful fallback
+      }
+      process.parentPort.postMessage({ type: 'card', readerName: name, uid, rawPagesHex });
+    });
+
+    // Card removed
+    reader.on('card.off', () => {
+      process.parentPort.postMessage({ type: 'card-removed', readerName: name });
+    });
+
+    // Reader-level error (e.g. card removed mid-read)
+    reader.on('error', (err) => {
+      process.parentPort.postMessage({ type: 'reader-error', readerName: name, message: err.message });
+    });
+
+    // Reader disconnected
+    reader.on('end', () => {
+      readers.delete(name);
+      process.parentPort.postMessage({ type: 'reader-disconnected', name });
+    });
   });
 
-  // Card removed
-  reader.on('card.off', () => {
-    process.parentPort.postMessage({ type: 'card-removed', readerName: name });
+  // Global NFC error (driver / pcsclite context level). On Windows this is where
+  // "SCardSvr stopped because no reader is present" surfaces — the monitor is
+  // now dead, so re-establish the context and keep retrying until a reader shows.
+  nfc.on('error', (err) => {
+    if (!_downReported) { _downReported = true; process.parentPort.postMessage({ type: 'nfc-error', message: err.message }); }
+    _scheduleRestart();
   });
+}
 
-  // Reader-level error (e.g. card removed mid-read)
-  reader.on('error', (err) => {
-    process.parentPort.postMessage({ type: 'reader-error', readerName: name, message: err.message });
-  });
-
-  // Reader disconnected
-  reader.on('end', () => {
-    readers.delete(name);
-    process.parentPort.postMessage({ type: 'reader-disconnected', name });
-  });
-});
-
-// Global NFC error (driver / pcsclite level)
-nfc.on('error', (err) => {
-  process.parentPort.postMessage({ type: 'nfc-error', message: err.message });
-});
+startNFC();
 
 // ── On-demand messages from main process ─────────────────────────────────────
 process.parentPort.on('message', async (e) => {

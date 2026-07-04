@@ -231,7 +231,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Spool detail panel (L7480-9804)
+## Spool detail panel (L7480-9990)
 
 | L | What | Anchors |
 |---|---|---|
@@ -247,7 +247,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Panels / debug / auto-update (L9372-10601)
+## Panels / debug / auto-update (L9372-10800)
 
 | L | What | Anchors |
 |---|---|---|
@@ -341,7 +341,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Friend view (L16951-17844)
+## Friend view (L16951-18030)
 
 | L | What | Anchors |
 |---|---|---|
@@ -352,7 +352,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Display name + friend requests (L17523-18560)
+## Display name + friend requests (L17523-18760)
 
 | L | What | Anchors |
 |---|---|---|

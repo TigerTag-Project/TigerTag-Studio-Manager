@@ -1,0 +1,50 @@
+name: Test build (Windows)
+
+# On-demand Windows build for sharing a test .exe with a tester (e.g. the NFC
+# hot-plug fix), WITHOUT cutting a release. The installer is uploaded as a
+# workflow artifact — no git tag, no GitHub Release, no auto-update. The .exe is
+# UNSIGNED (Windows SmartScreen will warn → "More info" → "Run anyway").
+#
+# Two ways to run it:
+#   • push any branch named  test/**  (this file must be on that branch)
+#   • Actions tab → "Test build (Windows)" → Run workflow (once it's on main)
+#
+# Native module note: nfc-pcsc is a C++ addon, so the build MUST run on a real
+# Windows runner — it cannot be cross-compiled from macOS.
+
+on:
+  push:
+    branches:
+      - 'test/**'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  build-win:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      - run: npm ci
+
+      - name: Build Windows installer (unsigned, no publish)
+        run: npm run build:win:nopublish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Baked in so Google sign-in works in the test build.
+          TIGERTAG_GOOGLE_DESKTOP_CLIENT_ID: ${{ secrets.TIGERTAG_GOOGLE_DESKTOP_CLIENT_ID }}
+          TIGERTAG_GOOGLE_DESKTOP_CLIENT_SECRET: ${{ secrets.TIGERTAG_GOOGLE_DESKTOP_CLIENT_SECRET }}
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TigerStudio-Windows-test
+          path: dist/*.exe
+          if-no-files-found: error
+          retention-days: 14

@@ -1258,6 +1258,9 @@
   .panel-row { display: flex; justify-content: space-between; align-items: center; font-size: 13px; margin-bottom: 5px; }
   .panel-row .pk { color: var(--muted); }
   .panel-row .pv { font-weight: 500; text-align: right; max-width: 60%; }
+  /* Badge-valued row (e.g. "Type de tag" → tier badge + backup shield) — align
+     the pill to the right, vertically centred with the key. */
+  .panel-row .pv-badge { display: inline-flex; align-items: center; gap: 4px; }
   .panel-row .pv a { color: var(--primary); text-decoration: none; }
   .panel-row .pv a:hover { text-decoration: underline; }
   /* Value cell that is itself a link (e.g. Product ID → tigertag.io). */
@@ -2086,6 +2089,18 @@
     cursor: default;
   }
   .toolbox-row--inert:active { transform: none; }
+
+  /* Greyed-out look for a device-gated tool that isn't usable yet — desaturated
+     + dimmed so it reads as unavailable, but STILL clickable. The click either
+     opens the TigerPOD promo (reader-gated chip tools, +.toolbox-row--pod-lock)
+     or the device's own connect modal (TD1S measure tools — unchanged). The
+     grayscale neutralises the row's variant colour (danger red / primary orange
+     → grey). Also used on the main button of a split row. */
+  .toolbox-row--greyed {
+    filter: grayscale(1);
+    opacity: .5;
+  }
+  .toolbox-row--greyed:hover { opacity: .7; }
 
   /* Split rows: a flex wrapper containing a main <button> + a trailing
      <button>. The wrapper itself is not interactive — each child handles

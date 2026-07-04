@@ -145,18 +145,26 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // No-op while previewing a friend or with the Encode modal open.
   function _consumeScanOpen() {
     if (!_scanOpenUid || state.friendView || _encodeModalOpen()) return;
+    const scanned = String(_scanOpenUid).toUpperCase();
+    // A twin spool carries TWO RFID chips, so the pod reports two scans for the
+    // same physical spool. If the detail card is ALREADY open on a spool that
+    // owns this scanned UID — as its own chip, its twin, or its doc id — do
+    // nothing: rescanning it (e.g. after moving it) must never pop a second card
+    // on top. We test the OPEN spool's fields (reliably populated, it's on
+    // screen) against the scanned UID directly, rather than a freshly-looked-up
+    // row whose twin link may be momentarily stale right after a rescan write.
+    if (state.selected && $("detailPanel")?.classList.contains("open")) {
+      const open = state.rows.find(r => r.spoolId === state.selected);
+      if (open && (String(open.uid).toUpperCase()     === scanned
+                || String(open.twinUid).toUpperCase() === scanned
+                || String(open.spoolId).toUpperCase() === scanned)) {
+        _scanOpenUid = null;
+        return;
+      }
+    }
     const row = state.rows.find(r => r.uid === _scanOpenUid || r.spoolId === _scanOpenUid);
     if (!row) return;
     _scanOpenUid = null;
-    // A twin spool carries TWO RFID chips, so the pod reports two scans for the
-    // same physical spool. If the detail card already shows this spool OR its
-    // twin, don't pop it a second time.
-    if (state.selected) {
-      const open = state.rows.find(r => r.spoolId === state.selected);
-      if (open && (open.spoolId === row.spoolId
-                   || String(open.uid)     === String(row.twinUid)
-                   || String(open.twinUid) === String(row.uid))) return;
-    }
     openDetail(row.spoolId, { animateSwap: true });
   }
   // Readiness barrier for destructive automation. Holds the uid whose racks
@@ -3409,6 +3417,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   });
 
   async function openFriends() {
+    closeNotifs();   // opening a side card takes over the right — dismiss notifs
     // Auto-generate public key on first open if missing
     if (!state.publicKey) await regeneratePublicKey();
     loadFriendsList();
@@ -6563,6 +6572,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function _openGroupPanel(key) {
     const g = groupRows(allDisplayRows()).find(it => it.type === "group" && it.key === key);
     if (!g) return;
+    closeNotifs();   // opening a side card takes over the right — dismiss notifs
     _groupPanelKey = key;
     _renderGroupPanelContents(g);   // sets _groupPanelMembers
     // If a detail card is open for a spool that doesn't belong to this group,
@@ -8174,7 +8184,128 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     setTimeout(() => ghost.remove(), 400);
   }
 
+  // All toolbox button wiring, extracted so a card-presence change can re-wire
+  // JUST the toolbox after swapping its DOM (see _maybeRefreshPanelForCard),
+  // instead of rebuilding the entire detail card (which would reload images and
+  // restart the material video). Called from openDetail on the initial render
+  // and again on a surgical toolbox swap. Every handler references module-level
+  // helpers + the passed `r`, so it is safe to run standalone.
+  function _wireToolbox(r) {
+    // Delete spool — 1.5s hold, irreversible hard delete (+ twin).
+    setupHoldToConfirm($("btnSpoolDelete"), 1500, async () => {
+      try { await markSpoolDeleted(r.spoolId); closeDetail(); }
+      catch (e) { reportError("spool.delete", e); }
+    });
+    // Duplicate — hold 1s; ± stepper picks N copies.
+    let _dupCount = 1;
+    const _dupSyncUI = () => {
+      const valEl = $("dupCount");
+      if (valEl) valEl.textContent = String(_dupCount);
+      const lblEl = $("btnToolDuplicate")?.querySelector(".toolbox-row-label");
+      if (lblEl) lblEl.textContent = _dupCount > 1 ? `${t("toolDuplicate")} ×${_dupCount}` : t("toolDuplicate");
+    };
+    $("btnDupDec")?.addEventListener("click", e => { e.stopPropagation(); _dupCount = Math.max(1, _dupCount - 1); _dupSyncUI(); });
+    $("btnDupInc")?.addEventListener("click", e => { e.stopPropagation(); _dupCount = Math.min(50, _dupCount + 1); _dupSyncUI(); });
+    setupHoldToConfirm($("btnToolDuplicate"), 1000, async () => {
+      try {
+        const made = await duplicateSpoolAsCloud(r, _dupCount);
+        if (made) {
+          const lblEl = $("btnToolDuplicate")?.querySelector(".toolbox-row-label");
+          if (lblEl) { lblEl.textContent = t("toolDuplicateOk", { n: made }); setTimeout(() => { _dupSyncUI(); }, 1600); }
+        }
+      } catch (e) { reportError("spool.duplicate", e); }
+    });
+    // Twin link / debug-only unlink.
+    $("btnTwinLink")?.addEventListener("click", () => openTwinLinkPicker(r));
+    setupHoldToConfirm($("btnTwinUnlink"), 1500, async () => {
+      try { await unlinkTwinPair(r); } catch (e) { reportError("spool.twinUnlink", e); }
+    });
+    // TD1S measure colour / TD (open the connect modal first when absent).
+    $("btnToolMeasureColor")?.addEventListener("click", () => {
+      if (!state.td1sConnected) { openTd1sConnectModal(); return; }
+      openColorEditModal(r);
+    });
+    $("btnToolMeasureTd")?.addEventListener("click", () => {
+      if (!state.td1sConnected) { openTd1sConnectModal(); return; }
+      openTdEditModal(r);
+    });
+    // Clear TD value — hold-to-confirm trash.
+    setupHoldToConfirm($("btnToolClearTd"), 1200, async () => {
+      try {
+        const user = fbAuth().currentUser;
+        if (!user) return;
+        await fbDb(user.uid).collection("users").doc(user.uid).collection("inventory").doc(r.spoolId)
+          .update({ TD: firebase.firestore.FieldValue.delete(), updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+      } catch (e) { reportError("spool.clearTd", e); }
+    });
+    // Remove from rack — hold-to-confirm + eject animation.
+    setupHoldToConfirm($("btnToolRemoveFromRack"), 1500, async () => {
+      try {
+        const snapshot = { ...r };
+        playUnrankAnimation(snapshot).catch(() => {});
+        await unassignSpool(r.spoolId);
+        closeDetail();
+      } catch (e) { reportError("spool.removeFromRack", e); }
+    });
+    // Restore TigerTag+ from its rfidList backup (routes to the reader holding THIS chip).
+    setupHoldToConfirm($("btnRepairPlus"), 1500, async () => {
+      const btn = $("btnRepairPlus");
+      const labelEl = btn?.querySelector(".toolbox-row-label");
+      const setLbl = (txt) => { if (labelEl) labelEl.textContent = txt; };
+      const uid = btn?.dataset.spoolUid || r.uid;
+      try {
+        const reader = [...state.nfcCardPresent.entries()]
+          .find(([, c]) => String(c?.uid).toUpperCase() === String(uid).toUpperCase())?.[0];
+        if (!reader) { setLbl(t("toolRepairNoChip")); return; }
+        const snap = await _rfidListCol(state.activeAccountId).doc(r.spoolId).get();
+        const hex = snap.exists ? snap.data()?.backup : null;
+        if (!hex) { setLbl(t("toolRepairNoBackup")); return; }
+        setLbl(t("toolRepairWriting"));
+        const res = await window.electronAPI.repairRfidTag({ readerName: reader, uid, hex });
+        if (res?.ok && res.verified !== false) setLbl(res.pagesWritten === 0 ? t("toolRepairAlready") : t("toolRepairDone"));
+        else { setLbl(t("toolRepairFailed")); console.warn("[repair] failed:", res); }
+      } catch (e) { setLbl(t("toolRepairFailed")); reportError("spool.repairPlus", e); }
+    });
+    // Erase (Format) / Recycle — target this spool's present chip(s), then drop it.
+    const _wireChipReset = (btnId, apiCall, keyWriting, keyDone, keyFailed, errTag) => {
+      setupHoldToConfirm($(btnId), 1500, async () => {
+        const labelEl = $(btnId)?.querySelector(".toolbox-row-label");
+        const setLbl = (txt) => { if (labelEl) labelEl.textContent = txt; };
+        try {
+          const targets = [...state.nfcCardPresent.entries()]
+            .filter(([, c]) => c && [r.uid, r.twinUid].filter(Boolean)
+              .some(u => String(u).toUpperCase() === String(c.uid).toUpperCase()))
+            .map(([readerName, c]) => ({ readerName, uid: c.uid }));
+          if (!targets.length) { setLbl(t("toolRepairNoChip")); return; }
+          setLbl(t(keyWriting));
+          const res = await apiCall({ targets });
+          const done = (res?.results || []).filter(x => x.ok && x.verified !== false).length;
+          if (!res?.ok || done === 0) { setLbl(t(keyFailed)); console.warn(`[${errTag}] failed:`, res); return; }
+          setLbl(t(keyDone));
+          await markSpoolDeleted(r.spoolId);
+          closeDetail();
+        } catch (e) { setLbl(t(keyFailed)); reportError(`spool.${errTag}`, e); }
+      });
+    };
+    _wireChipReset("btnFormatRfid", (o) => window.electronAPI.formatRfidTag(o), "toolFormatWriting", "toolFormatDone", "toolFormatFailed", "formatRfid");
+    _wireChipReset("btnEraseRfid", (o) => window.electronAPI.eraseRfidTag(o), "toolEraseWriting", "toolEraseDone", "toolEraseFailed", "eraseRfid");
+    // Greyed "locked" rows → open the TigerPOD (Free STL) promo.
+    document.querySelectorAll(".panel-section--toolbox .toolbox-row--pod-lock")
+      .forEach(el => el.addEventListener("click", () => openTigerPodModal()));
+    // Encode Cloud / Burn RFID / Refresh API.
+    $("btnEncodeCloud")?.addEventListener("click", () => openEncodeModal(r));
+    $("btnBurnRfid")?.addEventListener("click", () => _burnRfid(r));
+    $("btnRefreshApi")?.addEventListener("click", () => _refreshApiData(r));
+    // Edit custom image URL — opens the form in the image section (persists across
+    // a toolbox-only swap, so a self-contained handler is enough).
+    $("btnToolEditImg")?.addEventListener("click", () => {
+      const form = $("customImgForm");
+      if (form) { form.classList.add("open"); $("customImgInput")?.focus(); }
+    });
+  }
+
   function openDetail(spoolId, opts = {}) {
+    closeNotifs();   // opening a spool takes over the right side — dismiss notifs
     // Switching to a different spool → close the container picker (it was anchored
     // to the previous spool). Same-spool refreshes (snapshots) leave it open.
     if (state.selected && state.selected !== spoolId
@@ -8206,178 +8337,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // A fresh open starts at the top; a card-presence refresh (chip placed/removed
     // while the panel is already open) keeps the user where they were.
     $("panelBody").scrollTop = opts.preserveScroll ? _prevScroll : 0;
-    // Hold-to-confirm "Delete spool" — 1.5s hold, irreversible hard delete.
-    // Removes the Firestore doc (+ twin) permanently — ISO with printer deletion.
-    // Flutter's cloudSync guard prevents resurrection on the phone.
-    setupHoldToConfirm($("btnSpoolDelete"), 1500, async () => {
-      try {
-        await markSpoolDeleted(r.spoolId);
-        closeDetail();
-      } catch (e) { reportError("spool.delete", e); }
-    });
+    // All toolbox button wiring (Delete / Duplicate / Twin / Measure / chip
+    // actions / etc.) — shared with the surgical toolbox refresh.
+    _wireToolbox(r);
 
     // Inline message edit — click the identity name to rename the spool
     // (writes the `message` chip field). Gated to editable (non-Plus /
     // Cloud) spools by the render.
     $("piNameEdit")?.addEventListener("click", () => startMessageInlineEdit(r));
-
-    // Duplicate — hold 1s. Clones the spool into N new TigerCloud entries
-    // (fresh Cloud UID each, no twin link, no rack placement, staggered
-    // timestamps). The ± stepper picks N; the main label tracks it
-    // ("Duplicate ×N"). A basic TigerTag becomes Cloud since a digital
-    // clone carries no physical chip.
-    let _dupCount = 1;
-    const _dupSyncUI = () => {
-      const valEl = $("dupCount");
-      if (valEl) valEl.textContent = String(_dupCount);
-      const lblEl = $("btnToolDuplicate")?.querySelector(".toolbox-row-label");
-      if (lblEl) lblEl.textContent = _dupCount > 1 ? `${t("toolDuplicate")} ×${_dupCount}` : t("toolDuplicate");
-    };
-    $("btnDupDec")?.addEventListener("click", e => {
-      e.stopPropagation();
-      _dupCount = Math.max(1, _dupCount - 1);
-      _dupSyncUI();
-    });
-    $("btnDupInc")?.addEventListener("click", e => {
-      e.stopPropagation();
-      _dupCount = Math.min(50, _dupCount + 1);
-      _dupSyncUI();
-    });
-    setupHoldToConfirm($("btnToolDuplicate"), 1000, async () => {
-      try {
-        const made = await duplicateSpoolAsCloud(r, _dupCount);
-        if (made) {
-          // In-place confirmation: flash the result in the button label
-          // (the global toast() needs a container element — there's none
-          // in the detail panel — so we surface feedback right here). The
-          // new copies appear in the inventory list via the live snapshot.
-          const lblEl = $("btnToolDuplicate")?.querySelector(".toolbox-row-label");
-          if (lblEl) {
-            lblEl.textContent = t("toolDuplicateOk", { n: made });
-            setTimeout(() => { _dupSyncUI(); }, 1600);
-          }
-        }
-      } catch (e) { reportError("spool.duplicate", e); }
-    });
-
-    // Manual twin-pair repair button — opens the picker pre-filtered to
-    // candidates compatible with this spool. Only present when the spool
-    // is not already part of a twin pair (the panel render gates this).
-    $("btnTwinLink")?.addEventListener("click", () => openTwinLinkPicker(r));
-
-    // Debug-only "Unlink" — undoes a twin pairing. Same 1.5s hold-to-
-    // confirm pattern used elsewhere for non-trivial actions.
-    setupHoldToConfirm($("btnTwinUnlink"), 1500, async () => {
-      try {
-        await unlinkTwinPair(r);
-      } catch (e) { reportError("spool.twinUnlink", e); }
-    });
-
-    // ── Toolbox actions ─────────────────────────────────────────────
-    // TD1S — measure colour. If the device isn't connected we open
-    // the connect modal first; once it's connected the colour-edit
-    // modal is the natural next step.
-    $("btnToolMeasureColor")?.addEventListener("click", () => {
-      if (!state.td1sConnected) { openTd1sConnectModal(); return; }
-      openColorEditModal(r);
-    });
-    // TD1S — measure TD. Same pattern as the colour tool.
-    $("btnToolMeasureTd")?.addEventListener("click", () => {
-      if (!state.td1sConnected) { openTd1sConnectModal(); return; }
-      openTdEditModal(r);
-    });
-    // Clear TD value — hold-to-confirm trash button on the Scan TD row.
-    // Deletes the `TD` field from Firestore and lets the snapshot listener
-    // re-render the panel (the badge + tc-value row update automatically).
-    setupHoldToConfirm($("btnToolClearTd"), 1200, async () => {
-      try {
-        const user = fbAuth().currentUser;
-        if (!user) return;
-        await fbDb(user.uid)
-          .collection("users").doc(user.uid)
-          .collection("inventory").doc(r.spoolId)
-          .update({ TD: firebase.firestore.FieldValue.delete(), updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
-      } catch (e) { reportError("spool.clearTd", e); }
-    });
-    // Remove from rack — hold-to-confirm so an accidental tap doesn't
-    // unrank a placed spool. Reuses the eject animation that void-drop
-    // fires so the visual language stays consistent.
-    setupHoldToConfirm($("btnToolRemoveFromRack"), 1500, async () => {
-      try {
-        // Snapshot the row before async — state.rows might rebuild
-        // between the await and the animation trigger.
-        const snapshot = { ...r };
-        // Fire the eject animation FIRST (covers the gap until the
-        // Firestore listener rebuilds the rack view), then unassign.
-        playUnrankAnimation(snapshot).catch(() => {});
-        await unassignSpool(r.spoolId);
-        closeDetail();
-      } catch (e) { reportError("spool.removeFromRack", e); }
-    });
-    // Repair TigerTag+ — restore the chip from its rfidList backup. Writes raw
-    // bytes (no SDK) and, with two readers / two chips present, routes to the
-    // reader that actually holds THIS spool's chip (uid match, double-checked in
-    // the main process). Feedback shown inline in the tool's label.
-    setupHoldToConfirm($("btnRepairPlus"), 1500, async () => {
-      const btn = $("btnRepairPlus");
-      const labelEl = btn?.querySelector(".toolbox-row-label");
-      const setLbl = (txt) => { if (labelEl) labelEl.textContent = txt; };
-      const uid = btn?.dataset.spoolUid || r.uid;
-      try {
-        // Find the reader currently holding THIS chip (not just any reader).
-        const reader = [...state.nfcCardPresent.entries()]
-          .find(([, c]) => String(c?.uid).toUpperCase() === String(uid).toUpperCase())?.[0];
-        if (!reader) { setLbl(t("toolRepairNoChip")); return; }
-        const snap = await _rfidListCol(state.activeAccountId).doc(r.spoolId).get();
-        const hex = snap.exists ? snap.data()?.backup : null;
-        if (!hex) { setLbl(t("toolRepairNoBackup")); return; }
-        setLbl(t("toolRepairWriting"));
-        const res = await window.electronAPI.repairRfidTag({ readerName: reader, uid, hex });
-        if (res?.ok && res.verified !== false) {
-          setLbl(res.pagesWritten === 0 ? t("toolRepairAlready") : t("toolRepairDone"));
-        } else {
-          setLbl(t("toolRepairFailed"));
-          console.warn("[repair] failed:", res);
-        }
-      } catch (e) {
-        setLbl(t("toolRepairFailed"));
-        reportError("spool.repairPlus", e);
-      }
-    });
-    // Format RFID — wipe this spool's present chip(s) to blank, then remove the
-    // spool from the inventory. The rfidList backup is intentionally kept (a
-    // Restore stays possible); only the physical chip + inventory doc are cleared.
-    // Reset (asInit) and Erase (blank NDEF) share the exact same flow — target
-    // this spool's present chip(s), write the chosen image, then drop the spool
-    // (+ twin) from the inventory (rfidList backup kept, so a Restore stays
-    // possible). Only the IPC call + status labels differ. setupHoldToConfirm
-    // no-ops when the button isn't in the DOM (tool not shown), so both wire
-    // safely regardless of which are rendered.
-    const _wireChipReset = (btnId, apiCall, keyWriting, keyDone, keyFailed, errTag) => {
-      setupHoldToConfirm($(btnId), 1500, async () => {
-        const labelEl = $(btnId)?.querySelector(".toolbox-row-label");
-        const setLbl = (txt) => { if (labelEl) labelEl.textContent = txt; };
-        try {
-          // Recompute targets at click time (chips may have moved since render).
-          const targets = [...state.nfcCardPresent.entries()]
-            .filter(([, c]) => c && [r.uid, r.twinUid].filter(Boolean)
-              .some(u => String(u).toUpperCase() === String(c.uid).toUpperCase()))
-            .map(([readerName, c]) => ({ readerName, uid: c.uid }));
-          if (!targets.length) { setLbl(t("toolRepairNoChip")); return; }
-          setLbl(t(keyWriting));
-          const res = await apiCall({ targets });
-          const done = (res?.results || []).filter(x => x.ok && x.verified !== false).length;
-          if (!res?.ok || done === 0) { setLbl(t(keyFailed)); console.warn(`[${errTag}] failed:`, res); return; }
-          setLbl(t(keyDone));
-          await markSpoolDeleted(r.spoolId);
-          closeDetail();
-        } catch (e) { setLbl(t(keyFailed)); reportError(`spool.${errTag}`, e); }
-      });
-    };
-    _wireChipReset("btnFormatRfid", (o) => window.electronAPI.formatRfidTag(o),
-      "toolFormatWriting", "toolFormatDone", "toolFormatFailed", "formatRfid");
-    _wireChipReset("btnEraseRfid", (o) => window.electronAPI.eraseRfidTag(o),
-      "toolEraseWriting", "toolEraseDone", "toolEraseFailed", "eraseRfid");
     // Locate-in-storage: clicking the placed-state storage-loc row jumps
     // to the Storage view with the search prefilled to the spool's RFID
     // UID, so all other slots are dimmed and the user sees this one in
@@ -8421,15 +8388,6 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         setTimeout(() => { if (btn) btn.disabled = false; }, 800);
       }
     });
-    // Encode Cloud → chip: migrate Cloud doc to physical chip(s)
-    $("btnEncodeCloud")?.addEventListener("click", () => openEncodeModal(r));
-
-    // Burn RFID — write cloud doc to all connected readers, one by one
-    $("btnBurnRfid")?.addEventListener("click", () => _burnRfid(r));
-
-    // Refresh API — fetch fresh catalogue data for TigerTag+ spools
-    $("btnRefreshApi")?.addEventListener("click", () => _refreshApiData(r));
-
     // Upgrade to TigerTag+ — banner opens inline form
     $("upgradePlusBanner")?.addEventListener("click", () => {
       const form = $("upgradePlusForm");
@@ -8468,7 +8426,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (form?.classList.contains("open")) { closeCustomImgForm(); e.stopPropagation(); }
       else openCustomImgForm();
     });
-    $("btnToolEditImg")?.addEventListener("click", openCustomImgForm);
+    // (btnToolEditImg is wired in _wireToolbox — it opens this same #customImgForm.)
     $("customImgInput")?.addEventListener("keydown", e => {
       if (e.key === "Enter") $("btnCustomImgSave")?.click();
       if (e.key === "Escape") closeCustomImgForm();
@@ -8885,8 +8843,30 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       _lastDetailSig = newSig;
       return;
     }
-    // path 3: structural change → full rebuild
-    openDetail(state.selected);
+    // path 3: structural change → full rebuild (keep the video playing)
+    _rebuildDetailKeepVideo();
+  }
+
+  // Rebuild the open detail panel while PRESERVING the material <video>'s
+  // playback. A plain openDetail recreates the <video>, which restarts / reloads
+  // the clip — jarring when the rebuild was only to flip toolbox buttons or apply
+  // a structural diff (e.g. re-presenting a chip). A detached media element keeps
+  // its currentTime + buffer, so we reuse the exact same node instead of the
+  // freshly-built one. Used by the refresh paths only (the first open has no
+  // prior video to keep).
+  function _rebuildDetailKeepVideo(opts) {
+    const keepV = $("detailPanel")?.querySelector(".panel-video-player video") || null;
+    const vState = keepV ? { node: keepV, time: keepV.currentTime, paused: keepV.paused } : null;
+    openDetail(state.selected, opts);
+    if (!vState) return;
+    const newV = $("detailPanel")?.querySelector(".panel-video-player video");
+    if (newV && newV.getAttribute("src") === vState.node.getAttribute("src")) {
+      newV.replaceWith(vState.node);
+      try {
+        vState.node.currentTime = vState.time;
+        if (!vState.paused) vState.node.play().catch(() => {});
+      } catch {}
+    }
   }
 
   // Card-presence signature for the open panel: which chip-dependent toolbox
@@ -8896,10 +8876,15 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   let _lastPanelCardSig = "";
   function _panelCardSig(r) {
     if (!r) return "";
+    const anyReader = state.nfcReaderCount > 0;   // flips Burn / locked promo
     const anyCard  = state.nfcCardPresent.size > 0;
-    const uidMatch = [...state.nfcCardPresent.values()]
-      .some(c => String(c?.uid).toUpperCase() === String(r.uid).toUpperCase());
-    return (anyCard ? "1" : "0") + (uidMatch ? "1" : "0");
+    // How many of THIS spool's chips (uid + twin) are on readers — 0/1/2. The
+    // count (not a boolean) so placing the SECOND chip of a twin pair changes the
+    // signature and flips the twin-gated tools functional.
+    const spoolUids = [r.uid, r.twinUid].filter(Boolean).map(u => String(u).toUpperCase());
+    const present   = new Set([...state.nfcCardPresent.values()].map(c => String(c?.uid || "").toUpperCase()));
+    const ownCount  = spoolUids.filter(u => present.has(u)).length;
+    return (anyReader ? "1" : "0") + (anyCard ? "1" : "0") + ownCount;
   }
   // Rebuild the open panel when the chips on the readers change in a way that
   // affects its toolbox — so "Restore TigerTag+" / cloud "Graver RFID" appear
@@ -8911,7 +8896,22 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const r = state.rows.find(x => x.spoolId === state.selected);
     if (!r) return;
     if (_panelCardSig(r) === _lastPanelCardSig) return;
-    openDetail(state.selected, { preserveScroll: true });
+    _lastPanelCardSig = _panelCardSig(r);
+    // A card-presence change only flips the toolbox buttons, so update JUST the
+    // toolbox in place — never rebuild the whole card (which would reload images
+    // and restart the material video). Regenerate the panel HTML (cheap, string
+    // only), lift out its fresh toolbox section, swap it into the live DOM, and
+    // re-wire only the toolbox. The ⓘ tips are delegated on #panelBody, so they
+    // keep working without re-wiring.
+    const cur = $("panelBody")?.querySelector(".panel-section--toolbox");
+    if (!cur) return;                              // no toolbox here (friend view / deleted)
+    const tmp = document.createElement("div");
+    tmp.innerHTML = buildPanelHTML(r);
+    const next = tmp.querySelector(".panel-section--toolbox");
+    if (!next) { cur.remove(); return; }           // toolbox no longer applies
+    cur.replaceWith(next);
+    _hideToolInfoTip();                            // drop any ⓘ bubble from the old rows
+    _wireToolbox(r);
   }
 
   /* ── TD1S module init ────────────────────────────────────────────────────
@@ -9369,15 +9369,18 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       return (r.isPlus && pid && pid !== 4294967295) ? String(pid) : null;
     })();
     const infoRows = [
+      // Tier first — the badge (+ backup shield) reuses the existing graphic and
+      // replaces the standalone badge that used to sit below (no dup). 5th tuple
+      // element = raw HTML cell.
+      [t("detTagType"),       tierBadgeHTML(r), null, null, true],
       [t("detUid"),           r.uid],
       [t("detProductId"),     _productId, null, _productId ? `https://tigertag.io/pages/product-infos/${_productId}` : null],
       [t("detType"),          r.productType],
-      [t("thName"),           r.colorName !== "-" ? r.colorName : null],
-      [t("detSeries"),        r.series],
       [t("detBrand"),         r.brand],
+      [t("detSeries"),        r.series],
+      [t("thName"),           r.colorName !== "-" ? r.colorName : null],
       [t("detMaterial"),      r.material],
       [t("detDiameter"),      r.diameter],
-      [t("detTagType"),       r.tagType],
       [t("detSku"),           r.sku],
       [t("detBarcode"),       r.barcode],
       [t("detContainer"),     r.containerId],
@@ -9396,16 +9399,15 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           <span class="panel-details-chevron">›</span>
         </button>
         <div class="panel-details-body">
-          ${infoRows.map(([k,val,pvId,href]) => {
-            const cell = href
-              ? `<a class="pv pv-link" href="${esc(href)}" target="_blank" rel="noopener"${pvId ? ` id="${pvId}"` : ""}>${esc(String(val))}</a>`
-              : `<span class="pv"${pvId ? ` id="${pvId}"` : ""}>${esc(String(val))}</span>`;
+          ${infoRows.map(([k,val,pvId,href,isHtml]) => {
+            const cell = isHtml
+              ? `<span class="pv pv-badge"${pvId ? ` id="${pvId}"` : ""}>${val}</span>`
+              : href
+                ? `<a class="pv pv-link" href="${esc(href)}" target="_blank" rel="noopener"${pvId ? ` id="${pvId}"` : ""}>${esc(String(val))}</a>`
+                : `<span class="pv"${pvId ? ` id="${pvId}"` : ""}>${esc(String(val))}</span>`;
             return `<div class="panel-row"><span class="pk">${k}</span>${cell}</div>`;
           }).join("")}
-          <div style="margin-top:8px;display:flex;gap:6px">
-            ${tierBadgeHTML(r)}
-            ${r.deleted ? `<span class="badge bad" style="font-size:11px">${t("badgeDeleted")}</span>` : ""}
-          </div>
+          ${r.deleted ? `<div style="margin-top:8px"><span class="badge bad" style="font-size:11px">${t("badgeDeleted")}</span></div>` : ""}
         </div>
       </div>`;
 
@@ -9666,6 +9668,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           label: t("toolMeasureColor"),
           variant: "default",
           info: t("toolMeasureColorTip"),
+          // Greyed when the TD1S sensor isn't connected — the click already
+          // opens the "Capteur TD1S" connect modal, so behaviour is unchanged;
+          // this just signals the feature needs the sensor.
+          greyed: !state.td1sConnected,
         });
 
         // 2. TD1S — measure TD (transparency). Same pattern.
@@ -9678,6 +9684,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           variant: "default",
           type: "split",
           info: t("toolMeasureTdTip"),
+          // Greyed when the TD1S sensor isn't connected (main button only, so the
+          // trailing "clear TD" trash stays usable). Behaviour unchanged — the
+          // click already opens the "Capteur TD1S" connect modal.
+          greyed: !state.td1sConnected,
           trailing: r.td != null ? `
             <button type="button" class="toolbox-row-trailing toolbox-row--hold toolbox-row--danger-soft" id="btnToolClearTd" title="${esc(t("toolClearTd"))}">
               <span class="hold-progress"></span>
@@ -9746,96 +9756,83 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           });
         }
 
-        // 5a. Encode Cloud → chip: shown only for Cloud spools when at least one
-        //     reader has a card present. Migrates the Cloud doc to a real RFID doc.
-        if (r.isCloud && window.electronAPI && state.nfcCardPresent.size > 0) {
-          tools.push({
-            id: "btnEncodeCloud",
-            icon: "icon-nfc",
-            label: t("encodeCloudBtn"),
-            variant: "primary",
-            info: t("encodeCloudTip"),
-          });
-        }
+        // 5. Chip tools (need a TigerTag Player + the right chip). Each applicable
+        //    tool is ALWAYS shown so the toolbox is stable whether a reader is
+        //    plugged in or not. Three states:
+        //      • FUNCTIONAL — can run right now (reader + the right chip present).
+        //      • LOCKED      — NO reader at all → greyed, click opens the TigerPOD
+        //                      (Free STL) promo (marked by .toolbox-row--pod-lock).
+        //      • GREYED      — a reader IS connected but this tool's chip/card
+        //                      isn't there yet → greyed + inert (no POD ad — they
+        //                      already have the hardware; placing the chip flips it
+        //                      to functional live).
+        //    The `*Locked` id variants carry no real wiring, so the functional
+        //    handlers (wired by id) never fire on a greyed row. Skipped in friend view.
+        if (window.electronAPI && !state.friendView) {
+          // This spool's own chip(s) (uid + twin) currently on a reader.
+          const _fmtTargets = [...state.nfcCardPresent.entries()]
+            .filter(([, c]) => c && [r.uid, r.twinUid].filter(Boolean)
+              .some(u => String(u).toUpperCase() === String(c.uid).toUpperCase()))
+            .map(([readerName, c]) => ({ readerName, uid: c.uid }));
+          const _cardPresent    = state.nfcCardPresent.size > 0;
+          const _hasBackup      = state.inventory?.[r.spoolId]?.rfidBackup === true;
+          const _noReader       = state.nfcReaderCount === 0;
+          // ALL of this spool's chips present on readers. For a twin-tagged spool
+          // that means BOTH the UID and the twin UID must be on a reader — so the
+          // erase / recycle / restore / burn actions (which act on the whole pair)
+          // only light up when both chips are physically there, never on just one.
+          const _spoolUids = [r.uid, r.twinUid].filter(Boolean).map(u => String(u).toUpperCase());
+          const _presentUids = new Set([...state.nfcCardPresent.values()]
+            .map(c => String(c?.uid || "").toUpperCase()));
+          const _allChipsPresent = _spoolUids.length > 0 && _spoolUids.every(u => _presentUids.has(u));
+          // Decorate a locked-variant tool: POD promo when no reader, else inert.
+          const _unusable = (base) => _noReader ? { ...base, locked: true } : { ...base, greyed: true };
 
-        // 5b. Burn RFID — write cloud doc to all connected readers sequentially.
-        //    Only shown for non-Cloud spools when at least one reader is connected.
-        if (!r.isCloud && window.electronAPI && state.nfcReaderCount > 0) {
-          tools.push({
-            id: "btnBurnRfid",
-            icon: "icon-nfc",
-            label: t("burnRfidBtn"),
-            variant: "default",
-            info: t("burnRfidTip"),
-          });
-        }
+          if (r.isCloud) {
+            // 5a. Encode Cloud → chip. Functional when any card is present.
+            tools.push(_cardPresent
+              ? { id: "btnEncodeCloud", icon: "icon-nfc", label: t("encodeCloudBtn"), variant: "primary", info: t("encodeCloudTip") }
+              : _unusable({ id: "btnEncodeCloudLocked", icon: "icon-nfc", label: t("encodeCloudBtn"), variant: "primary", info: t("encodeCloudTip") }));
+          } else {
+            // 5b. Burn RFID — writes this spool's doc onto the chip(s) present on
+            //     the reader(s), so it needs a card present (`_burnRfid` bails on an
+            //     empty reader). A twin-tagged spool needs BOTH its chips present;
+            //     a single spool just needs any card. Locked (POD) when no reader
+            //     at all; greyed-inert with a reader but the chip(s) missing.
+            tools.push((r.hasTwinPair ? _allChipsPresent : _cardPresent)
+              ? { id: "btnBurnRfid", icon: "icon-nfc", label: t("burnRfidBtn"), variant: "default", info: t("burnRfidTip") }
+              : _unusable({ id: "btnBurnRfidLocked", icon: "icon-nfc", label: t("burnRfidBtn"), variant: "default", info: t("burnRfidTip") }));
 
-        // 5c. Refresh from API — TigerTag+ only (has id_product + apiUrl).
-        if (r.isPlus && !r.isCloud && window.electronAPI?.refreshApiData) {
-          tools.push({
-            id: "btnRefreshApi",
-            icon: "icon-refresh",
-            label: t("toolRefreshApi"),
-            variant: "default",
-            info: t("toolRefreshApiTip"),
-          });
-        }
+            // 5c. Refresh from API — TigerTag+ only, needs no reader (unchanged).
+            if (r.isPlus && window.electronAPI.refreshApiData) {
+              tools.push({ id: "btnRefreshApi", icon: "icon-refresh", label: t("toolRefreshApi"), variant: "default", info: t("toolRefreshApiTip") });
+            }
 
-        // 5d. Repair TigerTag+ — restore the chip from its stored backup. Keyed
-        //     to the chip's UID: shown whenever a backup EXISTS for this UID
-        //     (even if the spool was rewritten as a plain TigerTag since) AND
-        //     that exact chip is on a reader (routed to it on click). NOT gated
-        //     on the current spool being a TigerTag+.
-        if (!r.isCloud && window.electronAPI?.repairRfidTag
-            && state.inventory?.[r.spoolId]?.rfidBackup === true
-            && [...state.nfcCardPresent.values()].some(c => String(c?.uid).toUpperCase() === String(r.uid).toUpperCase())) {
-          tools.push({
-            id: "btnRepairPlus",
-            icon: "icon-nfc",
-            label: t("toolRepairPlus"),
-            variant: "primary",
-            holdConfirm: true,
-            info: t("toolRepairPlusTip"),
-            dataAttrs: `data-spool-id="${esc(r.spoolId)}" data-spool-uid="${esc(r.uid)}"`,
-          });
-        }
+            // 5d. Restore TigerTag+ — only when a backup EXISTS for this UID.
+            //     Functional when this spool's chip(s) are on a reader (both, for
+            //     a twin pair).
+            if (_hasBackup && window.electronAPI.repairRfidTag) {
+              tools.push(_allChipsPresent
+                ? { id: "btnRepairPlus", icon: "icon-nfc", label: t("toolRepairPlus"), variant: "primary", holdConfirm: true, info: t("toolRepairPlusTip"), dataAttrs: `data-spool-id="${esc(r.spoolId)}" data-spool-uid="${esc(r.uid)}"` }
+                : _unusable({ id: "btnRepairPlusLocked", icon: "icon-nfc", label: t("toolRepairPlus"), variant: "primary", info: t("toolRepairPlusTip") }));
+            }
 
-        // 5e. Format RFID — wipe this spool's present chip(s) back to blank so
-        //     they are ready for new data, then remove the spool from the
-        //     inventory (its rfidList backup is kept, so a Restore stays
-        //     possible). Only this spool's own chips (uid + twin) are targeted,
-        //     so a chip on the other reader is never wiped by mistake. Shown
-        //     only when at least one of those chips is on a reader.
-        const _fmtTargets = [...state.nfcCardPresent.entries()]
-          .filter(([, c]) => c && [r.uid, r.twinUid].filter(Boolean)
-            .some(u => String(u).toUpperCase() === String(c.uid).toUpperCase()))
-          .map(([readerName, c]) => ({ readerName, uid: c.uid }));
-        if (!r.isCloud && window.electronAPI?.formatRfidTag && _fmtTargets.length > 0) {
-          tools.push({
-            id: "btnFormatRfid",
-            icon: "icon-broom",
-            label: t(_fmtTargets.length === 2 ? "toolFormatRfid2" : "toolFormatRfid",
-              { tier: r.isPlus ? "TigerTag+" : "TigerTag" }),
-            variant: "danger",
-            holdConfirm: true,
-            info: t("toolFormatRfidTip"),
-            dataAttrs: `data-spool-id="${esc(r.spoolId)}"`,
-          });
-        }
+            // 5e. Erase the TigerTag / TigerTag+ (reinit). Functional when this
+            //     spool's own chip(s) are on a reader (both, for a twin pair).
+            if (window.electronAPI.formatRfidTag) {
+              tools.push(_allChipsPresent
+                ? { id: "btnFormatRfid", icon: "icon-broom", label: t(_fmtTargets.length === 2 ? "toolFormatRfid2" : "toolFormatRfid", { tier: r.isPlus ? "TigerTag+" : "TigerTag" }), variant: "danger", holdConfirm: true, info: t("toolFormatRfidTip"), dataAttrs: `data-spool-id="${esc(r.spoolId)}"` }
+                : _unusable({ id: "btnFormatRfidLocked", icon: "icon-broom", label: t("toolFormatRfid", { tier: r.isPlus ? "TigerTag+" : "TigerTag" }), variant: "danger", info: t("toolFormatRfidTip") }));
+            }
 
-        // 5f. Erase to blank NDEF — same present-chip targeting as Reset, but
-        //     writes the SDK's blank-NDEF payload so the chip leaves the TigerTag
-        //     format entirely (plain NFC tag). Also removes the spool afterwards.
-        if (!r.isCloud && window.electronAPI?.eraseRfidTag && _fmtTargets.length > 0) {
-          tools.push({
-            id: "btnEraseRfid",
-            icon: "icon-recycle",
-            label: t(_fmtTargets.length === 2 ? "toolEraseRfid2" : "toolEraseRfid"),
-            variant: "danger",
-            holdConfirm: true,
-            info: t("toolEraseRfidTip"),
-            dataAttrs: `data-spool-id="${esc(r.spoolId)}"`,
-          });
+            // 5f. Recycle to NFC. Same present-chip gating as Erase (both chips
+            //     for a twin pair).
+            if (window.electronAPI.eraseRfidTag) {
+              tools.push(_allChipsPresent
+                ? { id: "btnEraseRfid", icon: "icon-recycle", label: t(_fmtTargets.length === 2 ? "toolEraseRfid2" : "toolEraseRfid"), variant: "danger", holdConfirm: true, info: t("toolEraseRfidTip"), dataAttrs: `data-spool-id="${esc(r.spoolId)}"` }
+                : _unusable({ id: "btnEraseRfidLocked", icon: "icon-recycle", label: t("toolEraseRfid"), variant: "danger", info: t("toolEraseRfidTip") }));
+            }
+          }
         }
 
         // 6. Delete — moved out of its own section into the toolbox.
@@ -9853,7 +9850,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         // button). Hold-confirm rows include the .hold-progress fill
         // span that setupHoldToConfirm targets for the animation.
         const rowsHtml = tools.map(tool => {
-          const cls = `toolbox-row toolbox-row--${tool.variant}${tool.holdConfirm ? " toolbox-row--hold" : ""}${tool.inert ? " toolbox-row--inert" : ""}`;
+          const cls = `toolbox-row toolbox-row--${tool.variant}${tool.holdConfirm ? " toolbox-row--hold" : ""}${tool.inert ? " toolbox-row--inert" : ""}${(tool.locked || tool.greyed) ? " toolbox-row--greyed" : ""}${tool.locked ? " toolbox-row--pod-lock" : ""}`;
           const titleAttr = tool.title ? ` title="${esc(tool.title)}"` : "";
           const dataAttrs = tool.dataAttrs || "";
           // Trailing affordance on the right of a row: an ⓘ that opens an info
@@ -9873,7 +9870,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
             // toolbox-row--hold for the fill animation).
             return `
               <div class="toolbox-row toolbox-row--split toolbox-row--${tool.variant}${tool.holdConfirm ? " toolbox-row--hold" : ""}">
-                <button type="button" class="toolbox-row-main${tool.holdConfirm ? " toolbox-row-main--hold" : ""}" id="${esc(tool.id)}"${titleAttr}>
+                <button type="button" class="toolbox-row-main${tool.holdConfirm ? " toolbox-row-main--hold" : ""}${tool.greyed ? " toolbox-row--greyed" : ""}" id="${esc(tool.id)}"${titleAttr}>
                   ${tool.holdConfirm ? '<span class="hold-progress"></span>' : ""}
                   <span class="icon ${esc(tool.icon)} icon-14 toolbox-row-icon"></span>
                   <span class="toolbox-row-label">${esc(tool.label)}</span>
@@ -10107,6 +10104,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
 
   // Close every open side card (spool / group / printer / settings) in one go.
   function _closeAllSidePanels() {
+    if ($("notifPanel")?.classList.contains("open"))      closeNotifs();
     if ($("containerPanel")?.classList.contains("open"))  closeContainerPicker();
     if ($("detailPanel")?.classList.contains("open"))     closeDetail();
     if ($("groupPanel")?.classList.contains("open"))      _closeGroupPanel();
@@ -10162,6 +10160,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
 
   /* ── debug panel (API inspector) ── */
   function openDebug() {
+    closeNotifs();       // opening a side card takes over the right — dismiss notifs
     closeFsExplorer();   // the two secondary side cards are mutually exclusive
     $("debugPanel").classList.add("open");
     // No extra backdrop when opened from Settings — Settings' overlay already
@@ -10176,6 +10175,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   }
   /* ── Firebase Explorer (dedicated Firestore browser) ── */
   function openFsExplorer() {
+    closeNotifs();       // opening a side card takes over the right — dismiss notifs
     closeDebug();        // the two secondary side cards are mutually exclusive
     closeSettings();     // the Explorer takes over from Settings (it opened from there)
     $("fseExplorerPanel").classList.add("open");
@@ -12518,6 +12518,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function openPrinterDetail(brand, id) {
     const printer = state.printers.find(p => p.brand === brand && p.id === id);
     if (!printer) return;
+    closeNotifs();   // opening a printer takes over the right side — dismiss notifs
     // Switching from one open printer card to another → slide-swap (ghost of the
     // outgoing card, new one slides in on top). Same transition as the spool
     // detail panel. Must run before _activePrinter / renderPrinterDetail change.
@@ -14970,6 +14971,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function openPrinterAddForm(brand, editPrinter = null, prefill = null) {
     const brandEntry = brands.get(brand);
     if (!brand || !brandEntry?.renderSettingsWidget) return;
+    closeNotifs();   // opening a side card takes over the right — dismiss notifs
     _printerAddBrand    = brand;
     _printerEditContext = editPrinter ? { brand, deviceId: editPrinter.id } : null;
     _printerAddDiscovery = (!editPrinter && prefill?.discovery) ? prefill.discovery : null;
@@ -19880,6 +19882,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       // driven by the .connected/.card-present classes set in renderRfidReaderBadges.
       renderRfidReaderBadges();
       _cemPresenceChanged();   // reader count changed → refresh encode modal if open
+      _maybeRefreshPanelForCard(); // reader plug/unplug flips greyed↔functional toolbox tools
 
       // Track max simultaneous RFID readers (TigerPOD usage telemetry)
       const n = state.nfcReaders.size;
@@ -20081,11 +20084,19 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         measure_gr:       tagData.measure_gr   ?? 0,
         td_raw:           tagData.td_raw       ?? 0,
         timestamp:        tagData.timestamp    ?? 0,
-        // twin_tag_uid is a Studio relationship, not a chip field — preserve as-is
-        twin_tag_uid:     twinUid || null,
         last_update:      Date.now(),
         updatedAt:        firebase.firestore.FieldValue.serverTimestamp(),
       };
+
+      // twin_tag_uid is a Studio relationship, not a chip field. Only WRITE it
+      // when THIS scan actually detected a twin partner. On a single-chip scan
+      // (twinUid null) we must NOT include it — with `{ merge: true }`, writing
+      // null would silently ERASE an existing pairing (e.g. presenting just one
+      // chip of a twin pair), which then makes the app treat the two chips as
+      // unrelated. Un-linking is an explicit action (unlinkTwinPair), never a
+      // side effect of a partial scan. The "chip rewritten" branch above already
+      // delete()s the doc first, so a genuinely fresh chip has no stale link.
+      if (twinUid) doc.twin_tag_uid = twinUid;
 
       // Weight — the chip's `measure_available_gr` is NEVER written back when
       // the user adjusts the slider, so on a regular rescan the chip value is

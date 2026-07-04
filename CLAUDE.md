@@ -320,6 +320,19 @@ Lazy ping: on `mouseenter`, fires one `fetch` to `/healthz/` and updates the too
 ### Weight slider auto-save
 The weight slider in the detail panel debounces writes to Firestore: after **500 ms of inactivity** the value is committed automatically. The fill bar pulses (`.wb-saving` class) during the debounce window. Clicking "Update" cancels the pending debounce and saves immediately. Closing the panel cancels any pending save.
 
+### Surgical DOM updates — patch the smallest unit, never rebuild the world
+**Default reflex when something changes: re-render only the sub-element that actually changed, not the whole panel / modal / view.** Blowing away a container's `innerHTML` to reflect a small change is the recurring bug source here — it **reloads `<img>`/`<video>` (media flashes / restarts), drops scroll + focus + text selection, cancels an in-progress hold-to-confirm or inline edit, and re-runs every wiring**. If only the toolbox buttons flip, only the toolbox should update.
+
+**Decision procedure (cheapest first):**
+1. **Guard with a signature** — compute a small string/tuple of *what the render depends on*; bail early when it's unchanged so nothing re-renders on a no-op event. (`_rowSignature`, `_detailStructuralSig`, `_panelCardSig`.)
+2. **Patch in place** when a scalar/class changed — set `textContent`/`style`/`classList` on the exact node, no HTML rebuild. (`_patchDetailWeight`, `_patchCamWall`.)
+3. **Swap one section** when a whole sub-block changed — regenerate the panel HTML *off-DOM* (`const tmp = document.createElement('div'); tmp.innerHTML = buildPanelHTML(r)`), lift out just that section (`tmp.querySelector('.panel-section--toolbox')`), `replaceWith` it into the live DOM, then re-wire **only** that section.
+4. **Full rebuild** (`innerHTML = buildX()`) is the LAST resort — only when the structural signature genuinely changed; even then preserve live media (`_rebuildDetailKeepVideo`).
+
+**To make a section independently swappable, split its render from its wiring** into paired functions and call the wirer from both the initial render and the surgical refresh (canonical example: `buildPanelHTML` renders the `.panel-section--toolbox`, `_wireToolbox(r)` wires it; `openDetail` calls both, `_maybeRefreshPanelForCard` swaps just the toolbox node + calls `_wireToolbox`). Keep delegated handlers on the stable parent (`#panelBody`) so children swapped underneath keep working without re-wiring (the ⓘ tips via `_wireToolInfoTips`).
+
+**Smell test before a rebuild:** does this change touch media, scroll, focus, an in-progress gesture, or 90% unchanged markup? If yes, find the smallest node that changed and patch/swap that instead.
+
 ### State
 ```js
 state = {
