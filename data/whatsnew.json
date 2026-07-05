@@ -4202,5 +4202,110 @@
         }
       }
     ]
+  },
+  "1.10.30": {
+    "date": "2026-07-04",
+    "items": [
+      {
+        "icon": "plug",
+        "title": {
+          "en": "Plug in, it's there (Windows)",
+          "fr": "Tu branches, c'est détecté (Windows)",
+          "de": "Einstecken, schon da (Windows)",
+          "es": "Lo enchufas y aparece (Windows)",
+          "it": "Lo colleghi ed è lì (Windows)",
+          "zh": "一插就识别（Windows）",
+          "pt": "Ligas e aparece (Windows)",
+          "pt-pt": "Ligas e aparece (Windows)",
+          "pl": "Podłączasz i jest (Windows)"
+        },
+        "body": {
+          "en": "On Windows, plug in your reader or TigerPOD any time — it shows up on its own within a few seconds.",
+          "fr": "Sur Windows, branche ton lecteur ou ton TigerPOD quand tu veux — il apparaît tout seul en quelques secondes.",
+          "de": "Unter Windows steckst du deinen Reader oder TigerPOD jederzeit ein — er taucht von allein in ein paar Sekunden auf.",
+          "es": "En Windows, enchufa tu lector o TigerPOD cuando quieras — aparece solo en unos segundos.",
+          "it": "Su Windows, collega il lettore o il TigerPOD quando vuoi — compare da solo in pochi secondi.",
+          "zh": "在 Windows 上，随时插上读卡器或 TigerPOD——几秒钟就自己出现。",
+          "pt": "No Windows, liga o teu leitor ou TigerPOD quando quiseres — aparece sozinho em poucos segundos.",
+          "pt-pt": "No Windows, liga o teu leitor ou TigerPOD quando quiseres — aparece sozinho em poucos segundos.",
+          "pl": "Na Windowsie podłącz czytnik lub TigerPOD kiedy chcesz — pojawia się sam w kilka sekund."
+        }
+      },
+      {
+        "icon": "nfc",
+        "title": {
+          "en": "Your chip toolbox, always in view",
+          "fr": "Ta boîte à outils puce, toujours visible",
+          "de": "Deine Chip-Werkzeuge, immer sichtbar",
+          "es": "Tu caja de herramientas de chip, siempre a la vista",
+          "it": "I tuoi strumenti chip, sempre in vista",
+          "zh": "芯片工具箱，始终可见",
+          "pt": "As tuas ferramentas de chip, sempre à vista",
+          "pt-pt": "As tuas ferramentas de chip, sempre à vista",
+          "pl": "Twój przybornik do chipów, zawsze widoczny"
+        },
+        "body": {
+          "en": "Write, restore, erase and recycle always sit in a spool's toolbox — lit up when the right chip is on your reader, dimmed when it isn't. Curious what a TigerTag Player unlocks? Tap a dimmed one.",
+          "fr": "Graver, restaurer, effacer, recycler sont toujours dans la boîte à outils d'une bobine — allumés quand la bonne puce est sur ton lecteur, grisés sinon. Envie de voir ce qu'un TigerTag Player débloque ? Clique un bouton grisé.",
+          "de": "Schreiben, Wiederherstellen, Löschen und Recyceln sind immer in der Werkzeugkiste einer Spule — hell, wenn der richtige Chip auf dem Reader liegt, sonst gedimmt. Neugierig, was ein TigerTag Player freischaltet? Tipp auf einen gedimmten.",
+          "es": "Escribir, restaurar, borrar y reciclar están siempre en la caja de herramientas de una bobina — encendidos cuando el chip correcto está en el lector, apagados si no. ¿Curiosidad por lo que desbloquea un TigerTag Player? Toca uno apagado.",
+          "it": "Scrivere, ripristinare, cancellare e riciclare stanno sempre nella cassetta degli attrezzi di una bobina — accesi quando il chip giusto è sul lettore, spenti altrimenti. Curioso di cosa sblocca un TigerTag Player? Tocca uno spento.",
+          "zh": "写入、恢复、擦除、回收现在始终在耗材工具箱里——正确的芯片在读卡器上时点亮，否则变灰。想知道 TigerTag Player 能解锁什么？点一下灰色的按钮。",
+          "pt": "Gravar, restaurar, apagar e reciclar estão sempre na caixa de ferramentas de uma bobina — acesos quando o chip certo está no leitor, apagados quando não. Curioso com o que um TigerTag Player desbloqueia? Toca num apagado.",
+          "pt-pt": "Gravar, restaurar, apagar e reciclar estão sempre na caixa de ferramentas de uma bobina — acesos quando o chip certo está no leitor, apagados quando não. Curioso com o que um TigerTag Player desbloqueia? Toca num apagado.",
+          "pl": "Zapis, przywracanie, kasowanie i recykling są zawsze w przyborniku szpuli — podświetlone, gdy właściwy chip jest na czytniku, wyszarzone, gdy nie. Ciekawi cię, co odblokowuje TigerTag Player? Kliknij wyszarzony."
+        }
+      },
+      {
+        "icon": "check",
+        "title": {
+          "en": "Cleaner spool details",
+          "fr": "Détails de bobine plus nets",
+          "de": "Übersichtlichere Spulen-Details",
+          "es": "Detalles de bobina más limpios",
+          "it": "Dettagli bobina più puliti",
+          "zh": "更清爽的耗材详情",
+          "pt": "Detalhes da bobina mais limpos",
+          "pt-pt": "Detalhes da bobina mais limpos",
+          "pl": "Czytelniejsze szczegóły szpuli"
+        },
+        "body": {
+          "en": "The tag type now sits as a neat badge right at the top of a spool's details.",
+          "fr": "Le type de tag est maintenant un joli badge, tout en haut des détails d'une bobine.",
+          "de": "Der Tag-Typ sitzt jetzt als schickes Badge ganz oben in den Details einer Spule.",
+          "es": "El tipo de tag ahora es una insignia limpia, justo arriba de los detalles de una bobina.",
+          "it": "Il tipo di tag ora è un badge pulito, proprio in cima ai dettagli di una bobina.",
+          "zh": "标签类型现在是详情顶部一个清爽的徽章。",
+          "pt": "O tipo de tag agora é um crachá bem posto, no topo dos detalhes de uma bobina.",
+          "pt-pt": "O tipo de tag agora é um crachá bem posto, no topo dos detalhes de uma bobina.",
+          "pl": "Typ tagu jest teraz zgrabną plakietką na samej górze szczegółów szpuli."
+        }
+      },
+      {
+        "icon": "bell",
+        "title": {
+          "en": "Notifications know when to step aside",
+          "fr": "Les notifs savent s'effacer",
+          "de": "Benachrichtigungen wissen, wann sie Platz machen",
+          "es": "Las notificaciones saben apartarse",
+          "it": "Le notifiche sanno farsi da parte",
+          "zh": "通知懂得让位",
+          "pt": "As notificações sabem sair da frente",
+          "pt-pt": "As notificações sabem sair da frente",
+          "pl": "Powiadomienia wiedzą, kiedy zejść z drogi"
+        },
+        "body": {
+          "en": "Open a spool, a printer or any side panel and the notifications politely tuck themselves away.",
+          "fr": "Ouvre une bobine, une imprimante ou n'importe quel panneau et les notifs se rangent poliment.",
+          "de": "Öffne eine Spule, einen Drucker oder ein beliebiges Seitenpanel — die Benachrichtigungen machen höflich Platz.",
+          "es": "Abre una bobina, una impresora o cualquier panel lateral y las notificaciones se apartan con educación.",
+          "it": "Apri una bobina, una stampante o un pannello laterale e le notifiche si tolgono di mezzo con garbo.",
+          "zh": "打开耗材、打印机或任何侧边面板，通知就会礼貌地收起来。",
+          "pt": "Abre uma bobina, uma impressora ou qualquer painel lateral e as notificações recolhem-se com educação.",
+          "pt-pt": "Abre uma bobina, uma impressora ou qualquer painel lateral e as notificações recolhem-se com educação.",
+          "pl": "Otwórz szpulę, drukarkę albo dowolny panel boczny, a powiadomienia grzecznie się chowają."
+        }
+      }
+    ]
   }
 }

@@ -5,6 +5,26 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.10.30 — 2026-07-04
+
+### Added
+
+- **See what a TigerTag Player unlocks.** A spool's chip actions (write, restore, erase, recycle) now always appear in its toolbox — active when the right chip is on your reader, greyed out otherwise. With no reader plugged in, clicking a greyed action shows you what a TigerTag Player would let you do. For a twin-tagged spool (two chips), those actions only light up when both chips are on readers, since they act on the pair.
+
+### Changed
+
+- **Tidier spool details.** The tag type (TigerTag+, TigerTag, TigerCloud) now shows as its badge at the top of the Details, instead of being repeated as plain text lower down.
+
+### Fixed
+
+- **Windows: readers are detected the moment you plug them in.** ACR122U / TigerPOD readers connected while the app is already open are now picked up automatically within a few seconds — no more restarting Tiger Studio to make them appear.
+- **The notifications panel steps aside** when you open a spool, a printer, Friends, Settings, or any other side panel, so they never overlap.
+- **Twin chips stay linked** even when you scan just one of the pair — a single-chip scan no longer breaks the pairing.
+- **The material video keeps playing** when you place or lift a chip while a spool is open — the card no longer flashes or restarts the clip.
+- **Scanning a spool that's already open** no longer pops a second card on top.
+
+---
+
 ## v1.10.29 — 2026-07-03
 
 ### Added
