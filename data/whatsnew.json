@@ -4307,5 +4307,135 @@
         }
       }
     ]
+  },
+  "1.10.31": {
+    "date": "2026-07-06",
+    "items": [
+      {
+        "icon": "🛍️",
+        "title": {
+          "en": "Grab some goodies",
+          "fr": "Choper des goodies",
+          "de": "Schnapp dir Goodies",
+          "es": "Pilla unos goodies",
+          "it": "Prendi dei goodies",
+          "zh": "来点周边",
+          "pt": "Garante uns goodies",
+          "pt-pt": "Apanha uns goodies",
+          "pl": "Zgarnij gadżety"
+        },
+        "body": {
+          "en": "A new Shop button lands in your sidebar (and at the bottom of Friends). RFID makers, merch and more — treat yourself and keep TigerTag rolling.",
+          "fr": "Un bouton Boutique débarque dans la barre latérale (et en bas des Amis). Puces RFID, merch et plus — fais-toi plaisir et fais tourner TigerTag.",
+          "de": "Ein neuer Shop-Button in der Seitenleiste (und unten bei Freunde). RFID-Maker, Merch und mehr — gönn dir was und halt TigerTag am Laufen.",
+          "es": "Un botón Tienda aparece en la barra lateral (y al final de Amigos). Chips RFID, merch y más — date un capricho y ayuda a TigerTag.",
+          "it": "Un nuovo pulsante Negozio nella barra laterale (e in fondo agli Amici). Chip RFID, merch e altro — coccolati e tieni vivo TigerTag.",
+          "zh": "侧边栏（和好友底部）新增了商店按钮。RFID 装置、周边等你来 —— 犒赏自己，也支持 TigerTag。",
+          "pt": "Um novo botão Loja na barra lateral (e no fim dos Amigos). Chips RFID, merch e mais — dá-te um miminho e ajuda o TigerTag.",
+          "pt-pt": "Um novo botão Loja na barra lateral (e no fundo dos Amigos). Chips RFID, merch e mais — dá-te um miminho e ajuda o TigerTag.",
+          "pl": "Nowy przycisk Sklep w panelu bocznym (i na dole Znajomych). Chipy RFID, gadżety i więcej — rozpieść się i wspieraj TigerTag."
+        }
+      },
+      {
+        "icon": "🏷️",
+        "title": {
+          "en": "Tags, done right",
+          "fr": "Les balises, comme il faut",
+          "de": "Tags, richtig gemacht",
+          "es": "Etiquetas, como Dios manda",
+          "it": "Etichette, fatte bene",
+          "zh": "标签，终于顺手了",
+          "pt": "Tags, do jeito certo",
+          "pt-pt": "Etiquetas, como deve ser",
+          "pl": "Tagi zrobione jak trzeba"
+        },
+        "body": {
+          "en": "Type to find your tags or make one on the fly, tick what you want, and watch the chips line up neatly. A pencil opens the full editor when you're feeling organised.",
+          "fr": "Tape pour retrouver tes balises ou en créer une à la volée, coche celles que tu veux, et regarde les puces s'aligner. Un crayon ouvre l'éditeur complet quand tu veux tout ranger.",
+          "de": "Tippen, um Tags zu finden oder neue anzulegen, ankreuzen was du willst — die Chips reihen sich sauber auf. Ein Stift öffnet den vollen Editor, wenn du aufräumen willst.",
+          "es": "Escribe para encontrar tus etiquetas o crear una al vuelo, marca las que quieras y mira cómo se alinean. Un lápiz abre el editor completo cuando te pones ordenado.",
+          "it": "Scrivi per trovare le tue etichette o crearne una al volo, spunta quelle che vuoi e guardale allinearsi. Una matita apre l'editor completo quando vuoi fare ordine.",
+          "zh": "输入即可找到已有标签或随手新建，勾选想要的，标签就整齐排好。想统一整理？点铅笔打开完整编辑器。",
+          "pt": "Digite para achar suas tags ou criar uma na hora, marque as que quiser e veja tudo se alinhar. Um lápis abre o editor completo quando bater a vontade de organizar.",
+          "pt-pt": "Escreve para encontrar as tuas etiquetas ou criar uma na hora, marca as que quiseres e vê-as alinhar. Um lápis abre o editor completo quando quiseres arrumar tudo.",
+          "pl": "Wpisz, by znaleźć swoje tagi lub stworzyć nowy w locie, zaznacz te, które chcesz — chipy ładnie się ustawią. Ołówek otwiera pełny edytor, gdy masz ochotę na porządki."
+        }
+      },
+      {
+        "icon": "🖼️",
+        "title": {
+          "en": "Your racks, as a gallery",
+          "fr": "Tes racks, version galerie",
+          "de": "Deine Regale als Galerie",
+          "es": "Tus estanterías, en modo galería",
+          "it": "I tuoi scaffali, in galleria",
+          "zh": "你的料架，变成画廊",
+          "pt": "Suas prateleiras, em galeria",
+          "pt-pt": "As tuas prateleiras, em galeria",
+          "pl": "Twoje regały jak galeria"
+        },
+        "body": {
+          "en": "Flip your storage between the usual colour bars and a new picture view — big square tiles of each material's illustration. Purely for the eyes.",
+          "fr": "Bascule ton rangement entre les barres de couleur habituelles et une nouvelle vue photo — de grandes tuiles carrées avec l'illustration de chaque matériau. Juste pour le plaisir des yeux.",
+          "de": "Wechsle dein Lager zwischen den gewohnten Farbbalken und einer neuen Bildansicht — große quadratische Kacheln mit der Illustration jedes Materials. Reine Augenweide.",
+          "es": "Cambia tu almacenamiento entre las barras de color de siempre y una nueva vista de imagen — grandes baldosas cuadradas con la ilustración de cada material. Puro placer visual.",
+          "it": "Alterna il tuo storage tra le solite barre colore e una nuova vista foto — grandi piastrelle quadrate con l'illustrazione di ogni materiale. Solo per gli occhi.",
+          "zh": "在熟悉的颜色条和全新图片视图之间切换 —— 每种材料都是大大的方形图块。纯粹赏心悦目。",
+          "pt": "Alterne seu armazenamento entre as barras de cor de sempre e uma nova visão em imagem — grandes blocos quadrados com a ilustração de cada material. Só para os olhos.",
+          "pt-pt": "Alterna o teu armazenamento entre as barras de cor de sempre e uma nova vista em imagem — grandes mosaicos quadrados com a ilustração de cada material. Só para os olhos.",
+          "pl": "Przełączaj magazyn między zwykłymi paskami koloru a nowym widokiem zdjęć — duże kwadratowe kafelki z ilustracją każdego materiału. Czysta przyjemność dla oka."
+        }
+      },
+      {
+        "icon": "👀",
+        "title": {
+          "en": "Peek at public stashes",
+          "fr": "Un œil sur les stocks publics",
+          "de": "Ein Blick in öffentliche Lager",
+          "es": "Ojea los inventarios públicos",
+          "it": "Sbircia gli inventari pubblici",
+          "zh": "偷看公开的库存",
+          "pt": "Espia os inventários públicos",
+          "pt-pt": "Espreita os inventários públicos",
+          "pl": "Zerknij na publiczne kolekcje"
+        },
+        "body": {
+          "en": "When a friend makes their inventory public, opening them drops you straight into a clean picture-mode gallery of their racks.",
+          "fr": "Quand un ami rend son inventaire public, l'ouvrir t'amène direct sur une jolie galerie photo de ses racks.",
+          "de": "Macht ein Freund sein Inventar öffentlich, landest du beim Öffnen direkt in einer schicken Bildergalerie seiner Regale.",
+          "es": "Cuando un amigo hace público su inventario, al abrirlo aterrizas directo en una bonita galería de imágenes de sus estanterías.",
+          "it": "Quando un amico rende pubblico il suo inventario, aprendolo atterri dritto in una bella galleria fotografica dei suoi scaffali.",
+          "zh": "当好友公开了自己的库存，打开就直接进入一屏漂亮的料架图片画廊。",
+          "pt": "Quando um amigo torna o inventário público, ao abri-lo você cai direto numa bela galeria de imagens das prateleiras dele.",
+          "pt-pt": "Quando um amigo torna o inventário público, ao abri-lo aterras logo numa bela galeria de imagens das prateleiras dele.",
+          "pl": "Gdy znajomy udostępni swój magazyn publicznie, po otwarciu trafiasz prosto do ładnej galerii zdjęć jego regałów."
+        }
+      },
+      {
+        "icon": "🎨",
+        "title": {
+          "en": "Colours, round and proper",
+          "fr": "Les couleurs, bien rondes",
+          "de": "Farben, schön rund",
+          "es": "Colores, redonditos",
+          "it": "Colori, belli tondi",
+          "zh": "颜色，终于是圆的了",
+          "pt": "Cores, redondinhas",
+          "pt-pt": "Cores, redondinhas",
+          "pl": "Kolory, ładnie okrągłe"
+        },
+        "body": {
+          "en": "Bicolour, tricolour and rainbow spools finally show a clean round pie instead of a weird square. Small thing, big relief.",
+          "fr": "Les bobines bi, tri et rainbow affichent enfin un joli camembert rond au lieu d'un carré bizarre. Petit détail, grand soulagement.",
+          "de": "Bi-, Tri- und Rainbow-Spulen zeigen endlich ein sauberes rundes Tortenstück statt eines schrägen Quadrats. Kleinigkeit, große Erleichterung.",
+          "es": "Las bobinas bicolor, tricolor y rainbow por fin muestran un círculo limpio en lugar de un cuadrado raro. Detalle pequeño, gran alivio.",
+          "it": "Le bobine bicolore, tricolore e rainbow mostrano finalmente un bel cerchio pulito invece di uno strano quadrato. Piccolezza, grande sollievo.",
+          "zh": "双色、三色和彩虹料卷终于显示成干净的圆形拼盘，而不是奇怪的方块。小改动，大舒心。",
+          "pt": "As bobinas bicolor, tricolor e rainbow finalmente mostram um círculo limpo em vez de um quadrado esquisito. Detalhe pequeno, grande alívio.",
+          "pt-pt": "As bobinas bicolor, tricolor e rainbow finalmente mostram um círculo limpo em vez de um quadrado estranho. Pormenor pequeno, grande alívio.",
+          "pl": "Szpule dwu-, trój- i tęczowe wreszcie pokazują czyste kółko zamiast dziwnego kwadratu. Drobiazg, a jaka ulga."
+        }
+      }
+    ]
   }
 }

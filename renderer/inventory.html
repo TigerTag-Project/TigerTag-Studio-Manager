@@ -95,6 +95,12 @@
         <div class="sb-qr-label-short" data-i18n="mobileAppShort">Apps</div>
         <img class="sb-qr-img" src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=https%3A%2F%2Ftaap.it%2FnX7QSrz&bgcolor=0f1117&color=ffffff&margin=8" alt="QR" />
       </div>
+      <!-- Official goodies shop → support the project (opens in the browser) -->
+      <button class="sb-shop-btn" id="sbShopBtn">
+        <span class="icon icon-shopify icon-14"></span>
+        <span class="label" data-i18n="shopBtn">Shop</span>
+        <span class="sb-community-badge" aria-hidden="true">1</span>
+      </button>
       <button class="sb-github-btn" id="sbGithubBtn">
         <span class="icon icon-github icon-14"></span>
         <span class="label" data-i18n="githubBtn">GitHub</span>
@@ -177,8 +183,8 @@
               <button id="btnViewRack"><span class="icon icon-package icon-13"></span><span data-i18n="btnViewRack">Storage</span></button>
             </div>
           </div>
-          <span class="vtg-sep" aria-hidden="true"></span>
-          <div class="vtg-group">
+          <span class="vtg-sep" id="vtgSep" aria-hidden="true"></span>
+          <div class="vtg-group" id="vtgPrinters">
             <span class="vtg-label"><span data-i18n="viewGroupPrinters">Printers</span></span>
             <div class="view-toggle vtg-printers">
               <button id="btnViewPrinter" data-i18n="btnViewGrid">⊞ Grid</button>
@@ -1102,6 +1108,15 @@
       <button class="fp-cta" id="btnAddFriend">
         <span class="icon icon-plus icon-14"></span>
         <span data-i18n="friendsAdd">Add a friend</span>
+      </button>
+      <!-- Support the project → official goodies shop (opens in the browser) -->
+      <button class="fp-shop" id="btnGoodiesShop">
+        <span class="icon icon-shopify icon-18"></span>
+        <span class="fp-shop-text">
+          <span class="fp-shop-title" data-i18n="friendsShopTitle">Grab some goodies</span>
+          <span class="fp-shop-sub" data-i18n="friendsShopSub">Support the project</span>
+        </span>
+        <span class="icon icon-chevron-r icon-14 fp-shop-arrow"></span>
       </button>
     </div>
 

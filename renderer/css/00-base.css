@@ -557,20 +557,12 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .sb-friend-active-dot {
-    flex-shrink: 0;
-    width: 6px; height: 6px;
-    border-radius: 50%;
-    background: var(--primary);
-    box-shadow: 0 0 6px var(--primary);
-  }
-  /* Hide chip names + dot when sidebar is collapsed (avatars only).
+  /* Hide chip names when sidebar is collapsed (avatars only).
      The `.sb-actions button { width: 36px; height: 36px; padding: 0 }`
      rule above hits any <button> inside .sb-actions — including our
      friend chips. Override with higher specificity so the chips stay
      properly sized as round avatar pills. */
-  .sidebar.collapsed .sb-friend-name,
-  .sidebar.collapsed .sb-friend-active-dot { display: none; }
+  .sidebar.collapsed .sb-friend-name { display: none; }
   .sidebar.collapsed .sb-actions button.sb-friend-chip {
     width: 40px;
     height: 40px;
@@ -639,7 +631,8 @@
   }
   .sidebar.collapsed .sb-github-btn,
   .sidebar.collapsed .sb-makerworld-btn,
-  .sidebar.collapsed .sb-discord-btn {
+  .sidebar.collapsed .sb-discord-btn,
+  .sidebar.collapsed .sb-shop-btn {
     width: 40px; padding: 0; border-radius: 10px;   /* 40×40 square (height from the shared 40px rule) */
     gap: 0;   /* drop the icon↔label gap so the icon stays centred when the label collapses */
   }

@@ -274,17 +274,26 @@
     transition: background .15s, box-shadow .2s, width .25s cubic-bezier(.4,0,.2,1); width: 100%; box-sizing: border-box;
   }
   .sb-discord-btn:hover { background: #4752C4; box-shadow: 0 3px 14px rgba(88,101,242,.45); }
-  /* Shared fixed height so the three community buttons are identical whether the
+  .sb-shop-btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    background: #5e8e3e; border: none; border-radius: 8px;   /* Shopify green */
+    padding: 8px 12px; color: #fff; font-size: 12px; font-weight: 600;
+    cursor: pointer;
+    transition: background .15s, box-shadow .2s, width .25s cubic-bezier(.4,0,.2,1);
+    width: 100%; box-sizing: border-box;
+  }
+  .sb-shop-btn:hover { background: #4c7532; box-shadow: 0 3px 14px rgba(94,142,62,.45); }
+  /* Shared fixed height so the community buttons are identical whether the
      sidebar is expanded or collapsed (40px — matches the Notifications button +
      friend avatars; collapsed they become a 40×40 square, only the width changes). */
-  .sb-github-btn, .sb-makerworld-btn, .sb-discord-btn { height: 40px; flex-shrink: 0; }
+  .sb-github-btn, .sb-makerworld-btn, .sb-discord-btn, .sb-shop-btn { height: 40px; flex-shrink: 0; }
   /* Brand logos fill more of the button (app-icon presence), uniform across the
-     three. Shared rule replaces the old per-button inline sizes. */
+     buttons. Shared rule replaces the old per-button inline sizes. */
   .sb-community button > .icon { width: 24px; height: 24px; }
   /* Community nudge — a message-style red "1" badge on a community button until
      its nudge is done (per account, synced via users/{uid}.{key}Seen). Hidden by
      default; shown only while the button carries `.sb-nudge`. */
-  .sb-github-btn, .sb-makerworld-btn, .sb-discord-btn { position: relative; }
+  .sb-github-btn, .sb-makerworld-btn, .sb-discord-btn, .sb-shop-btn { position: relative; }
   .sb-community-badge {
     position: absolute; top: -6px; right: -6px;
     display: none;

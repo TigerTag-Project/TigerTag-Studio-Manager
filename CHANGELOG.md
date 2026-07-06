@@ -5,6 +5,36 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v1.10.31 — 2026-07-06
+
+### Added
+
+- **Grab some goodies.** A new Shop button — in the sidebar and at the bottom of Friends — opens the official TigerTag store in your browser: RFID makers, merch and more, to support the project. Like the GitHub / 3D Files / Discord buttons, it gives you a little heads-up once until you've had a look.
+- **Tags, reworked.** Adding tags to a spool now works the way you'd expect: start typing to filter your existing tags (tick the ones you want) or create a new one on the fly, with the chips sitting neatly below. A pencil opens a full editor when you'd rather manage them all in one place.
+- **Two ways to see your racks.** A new switch in Storage flips each slot between the usual colour fill (with the remaining-weight bar) and a clean **picture** view — big square tiles showing each material's illustration, or its colour, for a gallery-like overview that's easy on the eyes.
+- **Little sounds when you organise.** Dropping a spool into a rack gives a crisp "snap into place"; pulling one back out to "not stored" gives a gentle downward cue.
+- **Public inventories look their best.** Open a friend who's made their inventory public and you land straight on a clean picture-mode gallery of their racks.
+
+### Changed
+
+- **Friend view is tidier.** Viewing a friend no longer shows the Printers view switch — their printers aren't shared. It's back on your own inventory.
+- **Rack swaps read better.** Drag a spool onto an occupied slot and the ⇄ swap arrow now shows on both spools that will trade places, not just the one underneath.
+- **Cleaner notifications.** Printer notices (like the Snapmaker firmware alert) now show the brand's logo on its own, without the white circle around it.
+
+### Fixed
+
+- **Multi-colour swatches are round again.** Bicolour, tricolour and rainbow filaments were showing a broken square poking out of their colour dot — the pie / rainbow now renders as a clean circle everywhere: table, details, grid cards, groups.
+- **Grouping is smarter.** Identical spools still group together, but a white, a red and a rainbow spool of the same brand and material no longer get lumped into one group.
+- **The Storage view no longer flickers.** Moving spools around, adding a tag, or any background change no longer rebuilds the whole rack view or jumps it back to the top.
+- **The table matches the grid.** A grouped set of spools shows as a single line in the table, just as it shows as a single card in the grid.
+- **The notifications tab stays put.** Its close handle no longer briefly floats over a panel you open right after.
+
+### Removed
+
+- The little orange dot next to the friend you're viewing — the accent bar already shows it, and the dot sometimes got stuck on the wrong friend.
+
+---
+
 ## v1.10.30 — 2026-07-04
 
 ### Added

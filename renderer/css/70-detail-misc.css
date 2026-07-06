@@ -40,6 +40,7 @@
   .icon-chevron-r { -webkit-mask-image: url('../../assets/svg/icons/icon_chevron_right.svg'); mask-image: url('../../assets/svg/icons/icon_chevron_right.svg'); }
   .icon-chevrons-r { -webkit-mask-image: url('../../assets/svg/icons/icon_chevrons_right.svg'); mask-image: url('../../assets/svg/icons/icon_chevrons_right.svg'); }
   .icon-plus      { -webkit-mask-image: url('../../assets/svg/icons/icon_plus.svg');         mask-image: url('../../assets/svg/icons/icon_plus.svg'); }
+  .icon-plus-circle { -webkit-mask-image: url('../../assets/svg/icons/icon_plus_circle.svg'); mask-image: url('../../assets/svg/icons/icon_plus_circle.svg'); }
   .icon-star      { -webkit-mask-image: url('../../assets/svg/icons/icon_star.svg');         mask-image: url('../../assets/svg/icons/icon_star.svg'); }
   .icon-star-fill { -webkit-mask-image: url('../../assets/svg/icons/icon_star_filled.svg');  mask-image: url('../../assets/svg/icons/icon_star_filled.svg'); }
   .icon-flame     { -webkit-mask-image: url('../../assets/svg/icons/icon_flame.svg');        mask-image: url('../../assets/svg/icons/icon_flame.svg'); }
@@ -64,6 +65,8 @@
   .icon-apple     { -webkit-mask-image: url('../../assets/svg/icons/icon_apple.svg');        mask-image: url('../../assets/svg/icons/icon_apple.svg'); }
   .icon-android   { -webkit-mask-image: url('../../assets/svg/icons/icon_android.svg');      mask-image: url('../../assets/svg/icons/icon_android.svg'); }
   .icon-package   { -webkit-mask-image: url('../../assets/svg/icons/icon_package.svg');      mask-image: url('../../assets/svg/icons/icon_package.svg'); }
+  .icon-shopify   { -webkit-mask-image: url('../../assets/svg/icons/icon_shopify.svg');      mask-image: url('../../assets/svg/icons/icon_shopify.svg'); }
+  .icon-image     { -webkit-mask-image: url('../../assets/svg/icons/icon_image.svg');        mask-image: url('../../assets/svg/icons/icon_image.svg'); }
   .icon-printer   { -webkit-mask-image: url('../../assets/svg/icons/icon_printer.svg');      mask-image: url('../../assets/svg/icons/icon_printer.svg'); }
   .icon-github    { -webkit-mask-image: url('../../assets/svg/icons/icon_github.svg');       mask-image: url('../../assets/svg/icons/icon_github.svg'); }
   .icon-discord   { -webkit-mask-image: url('../../assets/svg/icons/icon_discord.svg');      mask-image: url('../../assets/svg/icons/icon_discord.svg'); }
@@ -315,7 +318,12 @@
   tbody tr.deleted { opacity: .45; }
   tbody tr:last-child td { border-bottom: none; }
   td.id-cell { font-family: var(--mono); font-size: 11px; color: var(--muted); max-width: 120px; overflow: hidden; text-overflow: ellipsis; }
-  .color-circle { display: inline-block; border-radius: 50%; flex-shrink: 0; vertical-align: middle; margin-right: 5px; border: 1.5px solid; }
+  /* Round colour swatch. The colour/gradient sits on an absolute child clipped
+     by this round parent (overflow:hidden) — reliably clips a conic-gradient to
+     the circle (a gradient set directly on the element bleeds to its square box
+     on Chromium, which broke bicolor/tricolor swatches). */
+  .color-circle { position: relative; display: inline-block; overflow: hidden; border-radius: 50%; flex-shrink: 0; vertical-align: middle; margin-right: 5px; border: 1.5px solid; }
+  .color-circle-fill { position: absolute; inset: 0; }
   .bar { width: 64px; height: 5px; background: var(--surface-2); border-radius: 3px; overflow: hidden; display: inline-block; vertical-align: middle; margin-left: 6px; }
   .bar > span { display: block; height: 100%; background: var(--primary); border-radius: 3px; }
   /* In the inventory table, the fill bar drops UNDER the weight value so it can
@@ -893,6 +901,11 @@
      backmost so it never floats over the Explorer/Settings cards. */
   #fseCloseTab        { z-index: 102; }
   #fseRawCloseTab     { z-index: 101; }
+  /* Notifications open ALONE (openNotifs closes every other side card first), so
+     its tab never overlaps another card — keep it BELOW them all (< group's 100)
+     so that while it slides out (280ms), a side card opening in its place covers
+     it instead of the tab floating on top. */
+  #notifCloseTab      { z-index: 99; }
   /* resize handle — left edge of both panels */
   .panel-resize {
     position: absolute; top: 0; left: 0; bottom: 0; width: 6px;
@@ -1278,7 +1291,94 @@
 
   /* ── Tags / Balises (detail panel) ── */
   .panel-tags .tag-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-  .panel-tags .tag-chips:not(:empty) { margin-bottom: 8px; }
+  /* Chips now sit BELOW the input (Shopify-style) → space above, not below. */
+  .panel-tags .tag-chips:not(:empty) { margin-top: 8px; }
+  /* Section header: label + edit pencil */
+  .panel-tags .tags-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .panel-tags .tags-head .panel-label { margin: 0; }
+  .tags-edit-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 26px; height: 26px; padding: 0; border: none; border-radius: 7px;
+    background: transparent; color: var(--muted); cursor: pointer;
+    transition: background .12s, color .12s;
+  }
+  .tags-edit-btn:hover { background: var(--surface-2); color: var(--text); }
+  .tags-edit-btn .icon { background: currentColor; }
+  /* Input + custom autocomplete dropdown */
+  .tags-input-wrap { position: relative; }
+  .tags-dd {
+    position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 30;
+    max-height: 260px; overflow-y: auto; padding: 4px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    box-shadow: 0 8px 28px rgba(0,0,0,.18);
+  }
+  .tags-dd-create, .tags-dd-opt {
+    display: flex; align-items: center; justify-content: flex-start; gap: 8px; width: 100%; height: auto;
+    padding: 7px 8px; border: none; border-radius: 7px;
+    background: transparent; color: var(--text); font-size: 13px; font-weight: 500; text-align: left; cursor: pointer;
+  }
+  .tags-dd-create:hover, .tags-dd-opt:hover { background: var(--surface-2); }
+  .tags-dd-create { color: var(--primary); font-weight: 600; }
+  .tags-dd-create .icon { background: var(--primary); }
+  .tags-dd-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tags-dd-check {
+    flex-shrink: 0; width: 16px; height: 16px; border-radius: 4px; position: relative;
+    border: 1.5px solid var(--border); background: var(--surface);
+  }
+  .tags-dd-opt.is-checked .tags-dd-check { background: var(--primary); border-color: var(--primary); }
+  .tags-dd-opt.is-checked .tags-dd-check::after {
+    content: ""; position: absolute; left: 4px; top: 1px; width: 4px; height: 8px;
+    border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg);
+  }
+
+  /* ── "Add tags" modal (Shopify-style) ── */
+  .tags-modal { width: min(460px, 92vw); max-height: 82vh; display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+  /* Grey header bar (clipped to the card's rounded top corners via overflow:hidden). */
+  .tags-modal-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; background: var(--surface-2); border-bottom: 1px solid var(--border); }
+  .tags-modal-title { font-size: 15px; font-weight: 700; color: var(--text); }
+  .tags-modal-close { display: inline-flex; width: 28px; height: 28px; align-items: center; justify-content: center; border: none; background: transparent; border-radius: 7px; cursor: pointer; color: var(--muted); }
+  .tags-modal-close:hover { background: var(--surface-2); color: var(--text); }
+  .tags-modal-close .icon { background: currentColor; }
+  /* Compact search field (fixed height, white, single offset focus ring). */
+  .tags-modal-search {
+    display: flex; align-items: center; gap: 8px; margin: 12px 18px 6px;
+    height: 38px; padding: 0 12px; box-sizing: border-box;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  }
+  /* ONE clean focus indicator: an outline offset 2px outside, like Shopify —
+     not a border-colour change + a native ring. */
+  .tags-modal-search:focus-within { border-color: var(--primary); outline: 2px solid var(--primary); outline-offset: 2px; }
+  .tags-modal-search .icon { background: var(--muted); flex-shrink: 0; }
+  .tags-modal-search input { flex: 1; min-width: 0; height: 100%; border: none; background: transparent; outline: none; box-shadow: none; font-size: 14px; color: var(--text); }
+  /* Clear-search button — a ✕ in a round grey chip, like Shopify. */
+  .tags-modal-clear {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 20px; height: 20px; padding: 0; flex-shrink: 0; border: none; border-radius: 50%;
+    background: var(--muted); cursor: pointer; transition: background .12s;
+  }
+  .tags-modal-clear:hover { background: var(--text); }
+  .tags-modal-clear .icon { background: #fff; }
+  .tags-modal-body { flex: 1; overflow-y: auto; padding: 0 12px 8px; }
+  .tags-modal-sec { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding: 10px 6px 4px; }
+  .tags-modal-create, .tags-modal-opt {
+    display: flex; align-items: center; justify-content: flex-start; gap: 10px; width: 100%; height: auto;
+    padding: 9px 8px; border: none; border-radius: 8px; background: transparent;
+    color: var(--text); font-size: 14px; font-weight: 500; text-align: left; cursor: pointer;
+  }
+  .tags-modal-create:hover, .tags-modal-opt:hover { background: var(--surface-2); }
+  .tags-modal-create { color: var(--primary); font-weight: 600; }
+  .tags-modal-create .icon { background: var(--primary); }
+  .tags-modal-check {
+    flex-shrink: 0; width: 18px; height: 18px; border-radius: 4px; position: relative;
+    border: 1.5px solid var(--border); background: var(--surface);
+  }
+  .tags-modal-check.is-checked { background: var(--primary); border-color: var(--primary); }
+  .tags-modal-check.is-checked::after {
+    content: ""; position: absolute; left: 5px; top: 2px; width: 4px; height: 9px;
+    border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg);
+  }
+  .tags-modal-optlabel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tags-modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 18px; border-top: 1px solid var(--border); }
   .tag-chip {
     display: inline-flex; align-items: center; gap: 4px;
     padding: 3px 10px; border-radius: 14px;

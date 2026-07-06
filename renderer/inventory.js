@@ -3735,6 +3735,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       btnId: "sbMakerWorldBtn", seen: "makerworldSeen", clickedAt: "makerworldClickedAt",
       icon: "package", titleKey: "notifMakerworldTitle", textKey: "notifMakerworldText",
     },
+    shop: {
+      url: "https://tigertag.io/collections/tigertag-rfid-maker",
+      btnId: "sbShopBtn", seen: "shopSeen", clickedAt: "shopClickedAt",
+      icon: "shopify", titleKey: "notifShopTitle", textKey: "notifShopText",
+    },
   };
 
   // Toggle each button's "1" badge based on whether its nudge is still pending.
@@ -5216,6 +5221,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function _soundFriendView()   { _playTones([{ f: 493.88, d: 0.10 }, { f: 392.00, t: 0.09, d: 0.18 }], { type: "sine",     gain: 0.05 }); }
   // Ascending two-note — the inverse of the friend cue: "coming back home" to your own view.
   function _soundReturnHome()   { _playTones([{ f: 392.00, d: 0.10 }, { f: 587.33, t: 0.09, d: 0.18 }], { type: "sine",     gain: 0.05 }); }
+  // Crisp short "snap into place" — a spool dropped into a rack slot (moved/placed).
+  function _soundRackMove()     { _playTones([{ f: 523.25, d: 0.06 }, { f: 698.46, t: 0.045, d: 0.10 }], { type: "triangle", gain: 0.05 }); }
+  // Gentle descending "un-dock" — a spool pulled OUT of a rack back to "not stored".
+  function _soundRackRemove()   { _playTones([{ f: 587.33, d: 0.07 }, { f: 392.00, t: 0.06,  d: 0.13 }], { type: "sine",     gain: 0.05 }); }
 
   async function switchAccountUI(id) {
     if (id === state.activeAccountId) {
@@ -5875,10 +5884,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     let visible = 0;
 
     // ── Table rows are group-aware ──────────────────────────────────────────
-    // Member rows carry data-group; group headers carry data-groupKey. Without
-    // a filter, collapsed groups keep their members hidden (folder metaphor).
-    // With a filter, groups auto-expand: matching members show, the header
-    // stays only if ≥1 member matches.
+    // Member rows carry data-group; group headers carry data-groupKey. Members
+    // follow the group's MANUAL expand state (folder metaphor) — a filter/search
+    // never reveals them inline. Revealing a member would show the group's total
+    // row AND a member row at once, out of step with the grid (which only ever
+    // shows the single group deck card). A filter still surfaces the group via
+    // its header (below, when ≥1 member matches); the user expands it to see the
+    // matching member.
     const groupMatchCount = new Map();   // groupKey → number of matching members
     const headerRows = [];
     document.querySelectorAll("#invBody tr").forEach(el => {
@@ -5888,9 +5900,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (!r) { el.classList.add("hidden"); return; }
       const matches = noFilter || rowMatches(r);
       if (gk) {
-        // Member of a group.
-        const collapsed = !_expandedGroups.has(gk);
-        const show = noFilter ? !collapsed : matches;
+        // Member of a group — visible only when the group is manually expanded
+        // (a collapsed group never reveals a member inline just because it
+        // matches, which would show the group total AND a member row, out of
+        // step with the grid). An expanded group still filters its members.
+        const show = _expandedGroups.has(gk) && matches;
         el.classList.toggle("hidden", !show);
         if (matches) groupMatchCount.set(gk, (groupMatchCount.get(gk) || 0) + 1);
         if (show) visible++;
@@ -6007,7 +6021,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function colorCircleHTML(row, size = 15) {
     const bg = colorBg(row);
     const borderColor = isColorDark(bg) ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.2)';
-    return `<span class="color-circle" style="width:${size}px;height:${size}px;background:${bg};border-color:${borderColor}"></span>`;
+    // The colour/gradient lives on an ABSOLUTE child, clipped by the round parent
+    // via overflow:hidden. Doing it this way (rather than a background on the
+    // round element itself) is the only reliable way to clip a conic-gradient to
+    // a circle — a gradient set directly on the element bleeds into its square
+    // box on Chromium, which made bicolor/tricolor swatches look broken.
+    return `<span class="color-circle" style="width:${size}px;height:${size}px;border-color:${borderColor}"><span class="color-circle-fill" style="background:${bg}"></span></span>`;
   }
 
   // Returns true if the first color found in a CSS background string is dark.
@@ -6181,10 +6200,17 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const pid = r.raw ? Number(r.raw.id_product) : NaN;
     if (r.isPlus && Number.isFinite(pid) && pid !== 0 && pid !== ID_UNSET)
       return "tt:" + pid;
-    // Maker + Cloud (and any other non-plus): same brand + material + exact hex
-    // + aspect/finish. A matte and a glossy spool of the same colour are NOT
-    // identical, so aspect1 is part of the key.
-    return "diy:" + r.brand + "|" + r.material + "|" + r.colorHex + "|" + (r.aspect1 || "");
+    // Maker + Cloud (and any other non-plus): same brand + material + FULL colour
+    // signature + both aspects/finishes. The primary RGB alone is not enough:
+    // many DIY chips keep the default red in color_r/g/b while the real colour is
+    // set via online_color_list (e.g. a "white" spool) or the 2nd/3rd colour
+    // (rainbow) — so a white, a red and a rainbow spool would otherwise collapse
+    // into one group. Include colorHex2/3 + the online colour list + aspect2 so
+    // only genuinely identical-looking spools group.
+    return "diy:" + r.brand + "|" + r.material
+      + "|" + r.colorHex + "|" + (r.colorHex2 || "") + "|" + (r.colorHex3 || "")
+      + "|" + (r.colorList || []).join(",")
+      + "|" + (r.aspect1 || "") + "|" + (r.aspect2 || "");
   }
 
   // In-memory set of expanded group keys (collapsed by default, not persisted).
@@ -7854,6 +7880,196 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     _writeSpoolTags(r, next);
   }
 
+  // ── Shopify-style tag editor (inline dropdown + "Add tags" modal) ───────────
+  // Chip HTML for one tag (with ✕ unless read-only).
+  function _tagChipHtml(tag, ro) {
+    return `<span class="tag-chip">${esc(tag)}${ro ? "" : `<button class="tag-chip-x" data-tag-remove="${esc(tag)}" title="${esc(t("tagRemove"))}" aria-label="${esc(t("tagRemove"))}">✕</button>`}</span>`;
+  }
+  // Re-render the chip list in place from r.tags (keeps input focus / no rebuild).
+  function _renderTagChips(r) {
+    const el = $("tagChips");
+    if (!el) return;
+    const ro = state.friendView || r.deleted;
+    el.innerHTML = (r.tags || []).map(tag => _tagChipHtml(tag, ro)).join("");
+    // Tags live in the detail structural signature, so a tag write would make the
+    // Firestore echo rebuild the whole card (flicker + scroll-to-top + closes the
+    // dropdown). We render chips in place here, so re-sync the stored signature →
+    // the echo takes the lightweight patch path instead of a full rebuild.
+    if (state.selected === r.spoolId) _lastDetailStructuralSig = _detailStructuralSig(r);
+  }
+  // Render the inline autocomplete dropdown: a "create" row for a new tag +
+  // every existing tag (toggles on/off this spool). Hidden when it would be empty.
+  function _renderTagDropdown(r, query) {
+    const dd = $("tagDropdown");
+    if (!dd) return;
+    const norm = _normalizeTag(query);
+    const q = norm.toLowerCase();
+    const onSpool = new Set((r.tags || []).map(x => x.toLowerCase()));
+    const all = _allTags();                       // every tag in the inventory
+    const exact = all.some(tg => tg.toLowerCase() === q) || onSpool.has(q);
+    const matches = all.filter(tg => !q || tg.toLowerCase().includes(q));
+    let rows = "";
+    if (norm && !exact) {
+      rows += `<button type="button" class="tags-dd-create" data-tag-create="${esc(norm)}"><span class="icon icon-plus-circle icon-14"></span>${esc(t("tagsCreate", { tag: norm }))}</button>`;
+    }
+    rows += matches.map(tg =>
+      `<button type="button" class="tags-dd-opt${onSpool.has(tg.toLowerCase()) ? " is-checked" : ""}" data-tag-toggle="${esc(tg)}"><span class="tags-dd-check"></span><span class="tags-dd-label">${esc(tg)}</span></button>`
+    ).join("");
+    if (!rows) { dd.hidden = true; dd.innerHTML = ""; return; }
+    dd.innerHTML = rows;
+    dd.hidden = false;
+  }
+  // Wire the inline tag editor for the open spool (input + dropdown + chips + pencil).
+  function _wireTagEditor(r) {
+    $("tagsEditBtn")?.addEventListener("click", () => openTagsModal(r));
+    const input = $("tagInput");
+    const dd = $("tagDropdown");
+    if (input && dd) {
+      const refresh = () => _renderTagDropdown(r, input.value);
+      input.addEventListener("focus", refresh);
+      input.addEventListener("input", refresh);
+      // mousedown-preventDefault keeps the input focused when clicking the
+      // dropdown, so `blur` only fires on a genuine outside click → hide.
+      input.addEventListener("blur", () => { dd.hidden = true; });
+      input.addEventListener("keydown", e => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          const val = input.value.trim();
+          if (val) { addSpoolTag(r, val); input.value = ""; _renderTagChips(r); refresh(); }
+        } else if (e.key === "Escape") { dd.hidden = true; }
+      });
+      dd.addEventListener("mousedown", e => e.preventDefault());
+      dd.addEventListener("click", e => {
+        const create = e.target.closest("[data-tag-create]");
+        const toggle = e.target.closest("[data-tag-toggle]");
+        if (create) { addSpoolTag(r, create.dataset.tagCreate); input.value = ""; }
+        else if (toggle) {
+          const tg = toggle.dataset.tagToggle;
+          if ((r.tags || []).some(x => x.toLowerCase() === tg.toLowerCase())) removeSpoolTag(r, tg);
+          else addSpoolTag(r, tg);
+        } else return;
+        _renderTagChips(r);
+        _renderTagDropdown(r, input.value);
+        input.focus();
+      });
+    }
+    $("tagChips")?.addEventListener("click", e => {
+      const x = e.target.closest("[data-tag-remove]");
+      if (!x) return;
+      removeSpoolTag(r, x.dataset.tagRemove);
+      _renderTagChips(r);
+    });
+  }
+
+  // ── "Add tags" modal (staged editor — Cancel discards, Save applies) ────────
+  let _tagsModalRow = null;
+  let _tagsModalStaged = new Map(); // lowercase → display form (working set)
+  function _ensureTagsModal() {
+    if ($("tagsModalOverlay")) return;
+    const ov = document.createElement("div");
+    ov.className = "modal-overlay";
+    ov.id = "tagsModalOverlay";
+    ov.innerHTML = `
+      <div class="modal-card tags-modal">
+        <div class="tags-modal-head">
+          <span class="tags-modal-title">${esc(t("tagsModalTitle"))}</span>
+          <button type="button" class="tags-modal-close" id="tagsModalClose" aria-label="${esc(t("cancelLabel"))}"><span class="icon icon-close icon-14"></span></button>
+        </div>
+        <div class="tags-modal-search">
+          <span class="icon icon-search icon-14"></span>
+          <input type="text" id="tagsModalSearch" placeholder="${esc(t("tagsSearchCreate"))}" spellcheck="false" autocomplete="off" maxlength="${TAG_MAX_LEN}" />
+          <button type="button" class="tags-modal-clear" id="tagsModalClear" hidden aria-label="${esc(t("cancelLabel"))}"><span class="icon icon-close icon-11"></span></button>
+        </div>
+        <div class="tags-modal-body" id="tagsModalBody"></div>
+        <div class="tags-modal-foot">
+          <button type="button" class="ghost" id="tagsModalCancel">${esc(t("cancelLabel"))}</button>
+          <button type="button" class="primary" id="tagsModalSave">${esc(t("tagsSave"))}</button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+    ov.addEventListener("click", e => { if (e.target === ov) closeTagsModal(); });
+    $("tagsModalClose").addEventListener("click", closeTagsModal);
+    $("tagsModalCancel").addEventListener("click", closeTagsModal);
+    $("tagsModalSave").addEventListener("click", () => {
+      if (_tagsModalRow) {
+        _writeSpoolTags(_tagsModalRow, [..._tagsModalStaged.values()].slice(0, TAG_MAX_COUNT));
+        _renderTagChips(_tagsModalRow);
+        _renderTagDropdown(_tagsModalRow, "");
+      }
+      closeTagsModal();
+    });
+    const _syncClearBtn = () => { const c = $("tagsModalClear"); if (c) c.hidden = !$("tagsModalSearch").value; };
+    $("tagsModalSearch").addEventListener("input", () => { _syncClearBtn(); _renderTagsModalBody(); });
+    $("tagsModalClear").addEventListener("click", () => {
+      $("tagsModalSearch").value = "";
+      _syncClearBtn();
+      _renderTagsModalBody();
+      $("tagsModalSearch").focus();
+    });
+    $("tagsModalSearch").addEventListener("keydown", e => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const val = _normalizeTag($("tagsModalSearch").value);
+        if (val && !_tagsModalStaged.has(val.toLowerCase())) _tagsModalStaged.set(val.toLowerCase(), val);
+        $("tagsModalSearch").value = "";
+        _syncClearBtn();
+        _renderTagsModalBody();
+      }
+    });
+    $("tagsModalBody").addEventListener("click", e => {
+      const create = e.target.closest("[data-tag-create]");
+      const opt = e.target.closest("[data-tag-opt]");
+      if (create) {
+        const tg = create.dataset.tagCreate;
+        _tagsModalStaged.set(tg.toLowerCase(), tg);
+        $("tagsModalSearch").value = "";
+      } else if (opt) {
+        const tg = opt.dataset.tagOpt;
+        if (_tagsModalStaged.has(tg.toLowerCase())) _tagsModalStaged.delete(tg.toLowerCase());
+        else _tagsModalStaged.set(tg.toLowerCase(), tg);
+      } else return;
+      _renderTagsModalBody();
+    });
+  }
+  function _renderTagsModalBody() {
+    const body = $("tagsModalBody");
+    if (!body || !_tagsModalRow) return;
+    const q = _normalizeTag($("tagsModalSearch")?.value || "").toLowerCase();
+    const allMap = new Map(_allTags().map(tg => [tg.toLowerCase(), tg]));
+    _tagsModalStaged.forEach((disp, lc) => { if (!allMap.has(lc)) allMap.set(lc, disp); });
+    const exact = allMap.has(q);
+    const byName = (a, b) => a.localeCompare(b, undefined, { sensitivity: "base" });
+    const match = tg => !q || tg.toLowerCase().includes(q);
+    const toAdd     = [..._tagsModalStaged.values()].filter(match).sort(byName);
+    const available = [...allMap.values()].filter(tg => !_tagsModalStaged.has(tg.toLowerCase()) && match(tg)).sort(byName);
+    const optRow = (tg, checked) =>
+      `<button type="button" class="tags-modal-opt" data-tag-opt="${esc(tg)}"><span class="tags-modal-check${checked ? " is-checked" : ""}"></span><span class="tags-modal-optlabel">${esc(tg)}</span></button>`;
+    let html = "";
+    if (q && !exact) {
+      const norm = _normalizeTag($("tagsModalSearch").value);
+      html += `<button type="button" class="tags-modal-create" data-tag-create="${esc(norm)}"><span class="icon icon-plus-circle icon-16"></span>${esc(t("tagsCreate", { tag: norm }))}</button>`;
+    }
+    if (toAdd.length)     html += `<div class="tags-modal-sec">${esc(t("tagsToAdd"))}</div>` + toAdd.map(tg => optRow(tg, true)).join("");
+    if (available.length) html += `<div class="tags-modal-sec">${esc(t("tagsAvailable"))}</div>` + available.map(tg => optRow(tg, false)).join("");
+    body.innerHTML = html;
+  }
+  function openTagsModal(r) {
+    if (state.friendView || r.deleted) return;
+    _ensureTagsModal();
+    _tagsModalRow = r;
+    _tagsModalStaged = new Map((r.tags || []).map(tg => [tg.toLowerCase(), tg]));
+    const search = $("tagsModalSearch");
+    if (search) search.value = "";
+    const clear = $("tagsModalClear"); if (clear) clear.hidden = true;
+    _renderTagsModalBody();
+    $("tagsModalOverlay").classList.add("open");
+    setTimeout(() => search?.focus(), 50);
+  }
+  function closeTagsModal() {
+    $("tagsModalOverlay")?.classList.remove("open");
+    _tagsModalRow = null;
+  }
+
   /* ── detail panel ── */
   // Two-level signature for the spool currently displayed in the side panel:
   //   - _lastDetailSig: every visible field. Skipped entirely when identical
@@ -8758,34 +8974,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (state.nfcReaderCount > 0) openEncodeModal(r);
       else openTigerPodModal();
     });
-    // Tags — add on Enter / comma, remove via the chip ✕. Each change writes to
-    // Firestore (twin-mirrored) and updates the chip list in place so the input
-    // keeps focus (the structural sig includes tags, so the snapshot echo is a
-    // no-op; an external change re-renders the panel).
-    const _tagInput = $("tagInput");
-    if (_tagInput) {
-      const _commitTag = () => {
-        const val = _tagInput.value;
-        _tagInput.value = "";
-        if (!val.trim()) return;
-        if (addSpoolTag(r, val)) {
-          const chips = $("tagChips");
-          if (chips) chips.insertAdjacentHTML("beforeend",
-            `<span class="tag-chip">${esc(_normalizeTag(val))}<button class="tag-chip-x" data-tag-remove="${esc(_normalizeTag(val))}" title="${esc(t("tagRemove"))}" aria-label="${esc(t("tagRemove"))}">✕</button></span>`);
-        }
-        _tagInput.focus();
-      };
-      _tagInput.addEventListener("keydown", e => {
-        if (e.key === "Enter" || e.key === ",") { e.preventDefault(); _commitTag(); }
-      });
-      _tagInput.addEventListener("blur", _commitTag);
-    }
-    $("tagChips")?.addEventListener("click", e => {
-      const x = e.target.closest("[data-tag-remove]");
-      if (!x) return;
-      removeSpoolTag(r, x.dataset.tagRemove);
-      x.closest(".tag-chip")?.remove();
-    });
+    // Tags — Shopify-style inline editor (input + custom autocomplete dropdown
+    // with create + toggles, chips below, pencil → "Add tags" modal). Firestore
+    // writes are twin-mirrored; chips update in place. See _wireTagEditor.
+    _wireTagEditor(r);
   }
   function closeDetail() {
     // Cancel any pending scan-open: a twin spool's second chip can leave a queued
@@ -9467,15 +9659,23 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       const chips = tags.map(tag =>
         `<span class="tag-chip">${esc(tag)}${ro ? "" : `<button class="tag-chip-x" data-tag-remove="${esc(tag)}" title="${esc(t("tagRemove"))}" aria-label="${esc(t("tagRemove"))}">✕</button>`}</span>`
       ).join("");
+      // Shopify-style editor: an input with a custom autocomplete dropdown
+      // (existing tags as toggles + "Add «query»" to create), and the chips
+      // rendered BELOW it. A pencil opens the full "Add tags" modal.
       const editor = ro ? "" : `
-        <input id="tagInput" class="tag-input" list="tagSuggestions" placeholder="${esc(t("tagAdd"))}"
-               spellcheck="false" autocomplete="off" maxlength="${TAG_MAX_LEN}" />
-        <datalist id="tagSuggestions">${_allTags(tags).map(tg => `<option value="${esc(tg)}"></option>`).join("")}</datalist>`;
+        <div class="tags-input-wrap">
+          <input id="tagInput" class="tag-input" placeholder="${esc(t("tagAdd"))}"
+                 spellcheck="false" autocomplete="off" maxlength="${TAG_MAX_LEN}" />
+          <div class="tags-dd" id="tagDropdown" hidden></div>
+        </div>`;
       return `
         <div class="panel-section panel-tags">
-          <div class="panel-label">${esc(t("sectionTags"))}</div>
-          <div class="tag-chips" id="tagChips">${chips}</div>
+          <div class="tags-head">
+            <span class="panel-label">${esc(t("sectionTags"))}</span>
+            ${ro ? "" : `<button type="button" class="tags-edit-btn" id="tagsEditBtn" title="${esc(t("tagsEdit"))}" aria-label="${esc(t("tagsEdit"))}"><span class="icon icon-edit icon-13"></span></button>`}
+          </div>
           ${editor}
+          <div class="tag-chips" id="tagChips">${chips}</div>
         </div>`;
     })();
 
@@ -10718,6 +10918,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   $("sbGithubBtn").addEventListener("click", () => _clickCommunityBtn("github"));
   $("sbMakerWorldBtn").addEventListener("click", () => _clickCommunityBtn("makerworld"));
   $("sbDiscordBtn").addEventListener("click", () => _clickCommunityBtn("discord"));
+  $("sbShopBtn").addEventListener("click", () => _clickCommunityBtn("shop"));
 
   // Sign-in placeholder buttons
   $("btnSignInPlaceholder").addEventListener("click", openAddAccountModal);
@@ -10822,7 +11023,6 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
                       title="${esc(_shortName(f.displayName, f.uid))}">
         ${avatarMarkup(f, "sb-friend-avatar")}
         <span class="sb-friend-name">${esc(_shortName(f.displayName, f.uid))}</span>
-        ${isActive ? '<span class="sb-friend-active-dot" aria-hidden="true"></span>' : ""}
       </button>`;
     }).join("");
     el.querySelectorAll(".sb-friend-chip").forEach(btn => {
@@ -11079,6 +11279,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         if (livePhoto !== (f.photoURL || null)) {
           f.photoURL = livePhoto;
         }
+        // Whether this friend's inventory is public — drives the picture-mode
+        // "showcase" when we view them (see switchToFriendView). In-memory only.
+        f.isPublic = !!pd.isPublic;
 
         if (Object.keys(updates).length) {
           batch.update(
@@ -11211,6 +11414,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         if (dn && dn !== fr.displayName) { fr.displayName = dn; changed = true; }
         if (col && col !== fr.color)     { fr.color = col;       changed = true; }
         if (photo !== (fr.photoURL || null)) { fr.photoURL = photo; changed = true; }
+        if (!!pd.isPublic !== !!fr.isPublic) { fr.isPublic = !!pd.isPublic; changed = true; }
         if (!changed) return;
         _cacheFriends(uid, state.friends);
         _renderFriendsEverywhere();
@@ -15738,6 +15942,31 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     }
     return `<div class="rp-fill" style="height:${pct}%;background:${bg}"></div>`;
   }
+  // Slot content in "photo" view — a purely aesthetic tile: a FULL solid square
+  // in the filament colour (no weight bar → no at-a-glance usage info), with the
+  // material illustration layered on top when there is one. Same treatment for
+  // spools with or without an image.
+  function slotPhotoInnerHTML(row) {
+    const base = `<div class="rp-fill rp-fill--full" style="background:${colorBg(row)}"></div>`;
+    const src = row.imgUrl ? resolvedImg(row.imgUrl) : null;
+    if (!src) return base;
+    const fb = (row.imgUrl && src !== row.imgUrl)
+      ? ` data-remote="${esc(row.imgUrl)}" onerror="if(this.dataset.remote){this.src=this.dataset.remote;this.removeAttribute('data-remote')}"`
+      : "";
+    return `${base}<img class="rp-photo" src="${esc(src)}" loading="lazy" alt=""${fb} />`;
+  }
+  // Which slot-content view is active: "fill" (colour bar, default) | "photo".
+  // A PUBLIC friend's inventory is always shown as the picture-mode showcase
+  // (forced, not switchable) — never touches the owner's own saved preference.
+  function _rackSlotView() {
+    if (state.friendView?.isPublic) return "photo";
+    return localStorage.getItem("tigertag.rackSlotView") === "photo" ? "photo" : "fill";
+  }
+  // Dispatch a slot's inner HTML by the active view. Used by BOTH renderRackView
+  // and _computeRackSnapshot so surgical diffs stay coherent with what's drawn.
+  function _slotInnerHTML(row) {
+    return _rackSlotView() === "photo" ? slotPhotoInnerHTML(row) : slotFillInnerHTML(row);
+  }
 
   // Cache: which spool is currently in (rackId, level, position)?
   function findSpoolInSlot(rackId, level, position) {
@@ -16437,6 +16666,145 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     });
   })();
 
+  // Signature of everything the rack view actually RENDERS. Deliberately excludes
+  // churny non-display fields (lastUpdate, tags, note, sku…) so a Firestore echo
+  // that changes only those — e.g. adding a tag from the detail panel — does NOT
+  // rebuild the whole storage view (which would flicker + reset scroll to top).
+  // A real change (moving/removing a spool, editing a rack) DOES alter a field
+  // below → the signature differs → we rebuild (with scroll preserved).
+  let _lastRackViewSig = "";
+  function _rackViewSig() {
+    const racks = state.racks.map(r =>
+      `${r.id}:${r.name || ""}:${r.level || 0}x${r.position || 0}:${(r.lockedSlots || []).join(",")}`
+    ).join("|");
+    const spools = state.rows
+      .filter(r => !r.deleted)
+      .map(r => [
+        r.spoolId, r.rackId || "", r.rackLevel ?? "", r.rackPos ?? "",
+        r.weightAvailable ?? "", r.capacity ?? "",
+        r.colorHex || "", r.colorHex2 || "", r.colorHex3 || "",
+        (r.colorList || []).join(","), r.colorType || "",
+        r.imgUrl || "", r.isPlus ? 1 : 0, r.rfidBackup ? 1 : 0,
+        r.hasTwinPair ? 1 : 0, r.twinUid || "",
+        r.material || "", r.brand || "", r.colorName || "", r.uid || "",
+      ].join(","))
+      .join(";");
+    return [
+      state.lang, state.friendView ? 1 : 0, _autoManageOn() ? 1 : 0,
+      state.invLoading ? 1 : 0, state.racks.length, _rackSlotView(), racks, spools,
+    ].join("§");
+  }
+
+  // ── Surgical slot patching ──────────────────────────────────────────────
+  // Moving a spool between slots changes NO rack dimension, so the masonry
+  // layout is identical — rebuilding the whole view via innerHTML (image reload
+  // + re-layout) is pure flicker. When only slot occupancy/fills change (rack
+  // structure AND the set of stored/unstored spools unchanged → all counts stay
+  // constant), we relocate just the affected pucks in place instead.
+  let _lastRackSnapshot = null;
+  function _rackStructureSig() {
+    return state.racks.map(r =>
+      `${r.id}:${r.level || 0}x${r.position || 0}:${(r.lockedSlots || []).join(",")}`
+    ).join("|");
+  }
+  // Map "rackId|level|pos" → { sid, fill } for every occupied slot, plus the
+  // stored / unstored spoolId sets. Computed the SAME way renderRackView draws
+  // (findSpoolInSlot handles twin dedup + slot validity) so a diff is exact.
+  function _computeRackSnapshot() {
+    const slotByKey = new Map();
+    const storedSet = new Set();
+    state.racks.forEach(rk => {
+      const lv = rk.level || 0, ps = rk.position || 0;
+      for (let l = 0; l < lv; l++) {
+        for (let p = 0; p < ps; p++) {
+          const occ = findSpoolInSlot(rk.id, l, p);
+          if (occ) {
+            slotByKey.set(`${rk.id}|${l}|${p}`, { sid: occ.spoolId, fill: _slotInnerHTML(occ) });
+            storedSet.add(occ.spoolId);
+          }
+        }
+      }
+    });
+    const unrankedSet = new Set(getUnrackedSpools().map(r => r.spoolId));
+    return { racksSig: _rackStructureSig(), slotByKey, storedSet, unrankedSet };
+  }
+  const _setsEqual = (a, b) => a.size === b.size && [...a].every(x => b.has(x));
+  // Returns true if it fully handled the change in place (caller then skips the
+  // innerHTML rebuild). Returns false → fall back to a full rebuild.
+  function _tryPatchRackSlots(list, readOnly, next) {
+    const prev = _lastRackSnapshot;
+    if (!prev) return false;
+    // Eligible only when structure + membership are unchanged (counts constant).
+    if (next.racksSig !== prev.racksSig) return false;
+    if (!_setsEqual(next.storedSet, prev.storedSet)) return false;
+    if (!_setsEqual(next.unrankedSet, prev.unrankedSet)) return false;
+
+    const keys = new Set([...prev.slotByKey.keys(), ...next.slotByKey.keys()]);
+    const bounced = [];
+    for (const key of keys) {
+      const p = prev.slotByKey.get(key);
+      const n = next.slotByKey.get(key);
+      if (p && n && p.sid === n.sid && p.fill === n.fill) continue; // unchanged
+      const [rid, lv, pos] = key.split("|");
+      const cell = list.querySelector(
+        `.rp-slot[data-rack="${CSS.escape(rid)}"][data-level="${lv}"][data-pos="${pos}"]`
+      );
+      if (!cell) return false; // DOM out of sync → safer to full-rebuild
+      const locked = cell.classList.contains("rp-slot--locked");
+      if (n) {
+        cell.classList.add("rp-slot--filled");
+        cell.classList.toggle("rp-slot--pinned", locked);
+        cell.classList.remove("rp-slot--unusable");
+        cell.dataset.spoolId = n.sid;
+        cell.draggable = !(readOnly || locked);
+        cell.removeAttribute("title");
+        cell.innerHTML = n.fill;
+        if (_justPlacedSpools.has(n.sid)) { cell.classList.add("rp-slot--just-placed"); bounced.push(cell); }
+      } else {
+        cell.classList.remove("rp-slot--filled", "rp-slot--just-placed", "rp-slot--pinned");
+        cell.classList.toggle("rp-slot--unusable", locked);
+        delete cell.dataset.spoolId;
+        cell.draggable = false;
+        cell.innerHTML = "";
+        const coord = cell.dataset.coord || "";
+        cell.title = locked ? `[${coord}] ${t("rackUnusableTip")}` : `[${coord}]`;
+      }
+    }
+    // Per-rack "filled/usable" header count changes on a cross-rack move (the
+    // GLOBAL stats bar stays constant — membership is unchanged, which is why we
+    // took this path). Patch each rack's number in place. Occupancy comes from
+    // the snapshot (findSpoolInSlot already deduped twins + filtered valid slots).
+    const filledByRack = new Map();
+    for (const key of next.slotByKey.keys()) {
+      const rid = key.slice(0, key.indexOf("|"));
+      filledByRack.set(rid, (filledByRack.get(rid) || 0) + 1);
+    }
+    state.racks.forEach(rk => {
+      const el = list.querySelector(`.rp-rack[data-rack-id="${CSS.escape(rk.id)}"] .rp-rack-count-num`);
+      if (!el) return;
+      const lv = rk.level || 0, ps = rk.position || 0;
+      let lockedEmpty = 0;
+      (Array.isArray(rk.lockedSlots) ? rk.lockedSlots : []).forEach(k => {
+        const [kl, kp] = k.split(":").map(Number);
+        if (kl >= 0 && kl < lv && kp >= 0 && kp < ps && !next.slotByKey.has(`${rk.id}|${kl}|${kp}`)) lockedEmpty++;
+      });
+      const txt = `${filledByRack.get(rk.id) || 0}/${Math.max(0, lv * ps - lockedEmpty)}`;
+      if (el.textContent !== txt) el.textContent = txt;
+    });
+    // Bounce-in the just-placed pucks, then strip the class (mirrors the full path).
+    bounced.forEach((el, i) => {
+      const delay = Math.min(i * 30, 1200);
+      el.style.animationDelay = delay + "ms";
+      setTimeout(() => { el.classList.remove("rp-slot--just-placed"); el.style.animationDelay = ""; }, delay + 400);
+    });
+    _justPlacedSpools.clear();
+    _justFilledSlots.clear();
+    wireRackSlotOpen();                      // wire click-to-open on new filled cells
+    if (!readOnly) wireDragSources();        // wire drag on cells that became filled
+    if (state.search) applyRackSearchDim();  // keep search dimming coherent
+    return true;
+  }
+
   function renderRackView() {
     const list = $("invRackView");
     if (!list) return;
@@ -16458,6 +16826,24 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       setTimeout(() => { _rackRenderDeferred = false; renderRackView(); }, remaining);
       return;
     }
+    // Bail out when nothing the view renders has changed (see _rackViewSig): the
+    // whole storage view is rebuilt via innerHTML below, so skipping a no-op echo
+    // avoids the flicker + scroll-to-top. Search dimming stays surgical elsewhere.
+    const _sig = _rackViewSig();
+    const _built = !!list.querySelector(".rp-racks-col");
+    if (_sig === _lastRackViewSig && _built) return;
+    // When only slot occupancy/fills changed (a spool move / weight change), patch
+    // the affected pucks in place — no innerHTML rebuild, no masonry reflow, no
+    // image reload → zero flicker. Falls back to a full rebuild for anything else
+    // (rack added/resized/locked, spool added/removed/deleted, unranked changes).
+    const _snapshot = _computeRackSnapshot();
+    if (_built && _tryPatchRackSlots(list, readOnly, _snapshot)) {
+      _lastRackViewSig = _sig;
+      _lastRackSnapshot = _snapshot;
+      return;
+    }
+    _lastRackViewSig = _sig;
+    _lastRackSnapshot = _snapshot;
 
     // ── Stats bar — global overview at the top of Storage. Shows: rack count,
     // filled-vs-total slots (with mini progress bar), empty count, locked count,
@@ -16542,6 +16928,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // "+ Add Rack" button (same one that becomes "Add Product" / "Add
     // Device" in other views) now owns that action. The empty-state CTA
     // (`btnNewRackEmpty`) is still rendered when the user has zero racks.
+    const slotView = _rackSlotView();
+    // Showcase = viewing a PUBLIC friend's inventory: forced picture mode, no
+    // "not stored" panel, no view-mode toggle (can't switch to colour).
+    const showcase = !!state.friendView?.isPublic;
+    list.classList.toggle("rp-slotview-photo", slotView === "photo");
+    list.classList.toggle("rp-showcase", showcase);
     let html = `
       <div class="rv-header">
         <div class="rv-stats" role="group" aria-label="Storage overview">
@@ -16569,13 +16961,22 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
             <div class="rv-stat-num">${depletedSpoolsCount}</div>
             <div class="rv-stat-lbl">${esc(t("rackStatsDepleted"))}</div>
           </div>` : ``}
+          ${showcase ? "" : `
           <div id="btnToggleUnranked" class="rv-stat${unrankedCount > 0 ? " rv-stat--orange" : ""}" data-stat="unranked" title="${esc(t("rackUnrackedTitle"))}">
             <div class="rv-stat-body">
               <div class="rv-stat-num">${unrankedCount}</div>
               <div class="rv-stat-lbl">${esc(t("rackStatsUnranked"))}</div>
             </div>
-          </div>
+          </div>`}
         </div>
+        ${racksCount && !showcase ? `
+        <!-- Slot-content view switch: colour fill (default) vs the material's
+             illustration image (like the unranked side rows). Hidden in the
+             public-friend showcase, which is locked to picture mode. -->
+        <div class="view-toggle rv-slotview-toggle" role="group" aria-label="${esc(t("rackViewMode"))}">
+          <button type="button" id="rpSlotViewFill" class="${slotView === "fill" ? "active" : ""}" title="${esc(t("rackViewColor"))}" aria-label="${esc(t("rackViewColor"))}"><span class="icon icon-palette icon-14"></span></button>
+          <button type="button" id="rpSlotViewPhoto" class="${slotView === "photo" ? "active" : ""}" title="${esc(t("rackViewPhoto"))}" aria-label="${esc(t("rackViewPhoto"))}"><span class="icon icon-image icon-14"></span></button>
+        </div>` : ""}
       </div>`;
 
     // ── Two-column layout: left = racks (or empty-state when none),
@@ -16639,7 +17040,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
             cells.push(`<div class="rp-slot rp-slot--filled${lockCls}${bounceCls}" draggable="${(readOnly || locked) ? "false" : "true"}"
                               data-rack="${esc(r.id)}" data-level="${lv}" data-pos="${pos}"
                               data-spool-id="${esc(occ.spoolId)}"
-                              data-coord="${coord}">${slotFillInnerHTML(occ)}</div>`);
+                              data-coord="${coord}">${_slotInnerHTML(occ)}</div>`);
           } else {
             const tip = locked ? `[${coord}] ${t("rackUnusableTip")}` : `[${coord}]`;
             cells.push(`<div class="rp-slot${lockCls}" data-rack="${esc(r.id)}" data-level="${lv}" data-pos="${pos}" title="${tip}" data-coord="${coord}"></div>`);
@@ -16707,6 +17108,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     html += `
       <div class="rp-board">
       <div class="rp-racks-scroll"><div class="rp-racks-col">${racksHTML || emptyHTML}</div></div>
+      ${showcase ? "" : `
       <aside class="rp-side" id="rpUnranked">
         <div class="rp-side-head">
           <span class="rp-side-count">${_activeUnrankedCount}</span>
@@ -16740,10 +17142,20 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           <span class="icon icon-search icon-13"></span>
         </div>
         <div class="rp-side-list${unranked.length ? " has-rows" : ""}" id="rpUnrackedStrip">${sideRows}${dropZone}</div>
-      </aside>
+      </aside>`}
       </div>`;
 
+    // Preserve scroll across the rebuild — both scroll containers (the racks
+    // column and the "not stored" side list) are recreated by innerHTML and
+    // would otherwise snap back to the top on every spool move / removal.
+    const _prevRacksScroll = list.querySelector(".rp-racks-scroll")?.scrollTop || 0;
+    const _prevSideScroll  = list.querySelector(".rp-side-list")?.scrollTop || 0;
+
     list.innerHTML = html;
+
+    // Side list has its natural height immediately; restore it now.
+    const _sideEl = list.querySelector(".rp-side-list");
+    if (_sideEl && _prevSideScroll) _sideEl.scrollTop = _prevSideScroll;
 
     // ── Run the masonry packing AFTER the DOM is in place. requestAnimationFrame
     // gives the browser a frame to compute natural dimensions, then we measure
@@ -16751,6 +17163,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // Also (re)wire a ResizeObserver so panel toggles / viewport tweaks reflow.
     requestAnimationFrame(() => {
       layoutRacksMasonry();
+      // The racks column only gets its scrollable height after masonry sets the
+      // absolute layout, so restore its scroll here (not right after innerHTML).
+      if (_prevRacksScroll) {
+        const _racksEl = list.querySelector(".rp-racks-scroll");
+        if (_racksEl) _racksEl.scrollTop = _prevRacksScroll;
+      }
       const target = document.querySelector("#invRackView .rp-racks-col");
       if (target && typeof ResizeObserver !== "undefined") {
         if (_masonryRO) _masonryRO.disconnect();
@@ -16941,16 +17359,24 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // Apply dim from the main search bar at every rack-view render
     applyRackSearchDim();
 
+    // ── Slot-content view switch: colour fill ↔ material illustration image.
+    const _setSlotView = (mode) => {
+      if (_rackSlotView() === mode) return;
+      localStorage.setItem("tigertag.rackSlotView", mode);
+      // Reflect the active button now — the re-render below swaps slot contents
+      // via the surgical patch, which doesn't rebuild this header.
+      $("rpSlotViewFill")?.classList.toggle("active", mode === "fill");
+      $("rpSlotViewPhoto")?.classList.toggle("active", mode === "photo");
+      // Force a full rebuild (not a surgical patch) so the masonry re-lays out
+      // for the new slot shape — square tiles in photo view vs 3:5 in colour view.
+      _lastRackSnapshot = null;
+      renderRackView();
+    };
+    $("rpSlotViewFill")?.addEventListener("click", () => _setSlotView("fill"));
+    $("rpSlotViewPhoto")?.addEventListener("click", () => _setSlotView("photo"));
+
     // ── Click on a filled slot or unranked row → open the spool detail panel
-    list.querySelectorAll(".rp-slot--filled, .rp-side-row").forEach(el => {
-      el.addEventListener("click", e => {
-        // Avoid firing if it was a drag (drag fires its own events)
-        if (el._wasDragged) { el._wasDragged = false; return; }
-        const sid = el.dataset.spoolId;
-        if (!sid) return;
-        openDetail(sid, { animateSwap: true });
-      });
-    });
+    wireRackSlotOpen();
 
     // Empty-state CTA when the user has zero racks. The in-stats "+ New Rack"
     // tile is gone — the header "+ Add Rack" button is the primary entry point now.
@@ -17050,8 +17476,29 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     }
   }
 
+  // Click on a filled slot / unranked row → open the spool detail panel.
+  // Idempotent (like wireDragSources) so a surgical slot patch can wire cells
+  // that just became filled without double-binding. The handler reads
+  // data-spool-id live, so a cell that merely changed occupant needs no re-wire.
+  function wireRackSlotOpen() {
+    document.querySelectorAll("#invRackView .rp-slot--filled, #invRackView .rp-side-row").forEach(el => {
+      if (el._openWired) return;
+      el._openWired = true;
+      el.addEventListener("click", () => {
+        if (el._wasDragged) { el._wasDragged = false; return; }
+        const sid = el.dataset.spoolId;
+        if (!sid) return;
+        openDetail(sid, { animateSwap: true });
+      });
+    });
+  }
+
   function wireDragSources() {
     document.querySelectorAll("#invRackView .rp-side-row, #invRackView .rp-chip, #invRackView .rp-slot--filled").forEach(el => {
+      // Idempotent: a surgical slot patch re-calls this to wire cells that just
+      // became filled, without double-binding cells that were already wired.
+      if (el._dragWired) return;
+      el._dragWired = true;
       el.addEventListener("dragstart", e => {
         const sid = el.dataset.spoolId;
         if (!sid) { e.preventDefault(); return; }
@@ -17100,6 +17547,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         el.classList.remove("rp-dragging");
         document.body.classList.remove("is-dragging-spool");
         document.body.classList.remove("is-dragging-racked");
+        document.body.classList.remove("is-swap-hover");
         // Wipe any leftover drop-target highlight (e.g. user released outside
         // a slot, or dragleave didn't fire for some reason).
         document.querySelectorAll("#invRackView .rp-slot--drop, #invRackView .rp-slot--drop-deny").forEach(s => {
@@ -17139,13 +17587,23 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         const lv  = parseInt(slot.dataset.level, 10);
         const pos = parseInt(slot.dataset.pos, 10);
         clearOtherDropHighlights(slot);
-        if (isSlotLocked(rackId, lv, pos)) {
+        const locked = isSlotLocked(rackId, lv, pos);
+        if (locked) {
           slot.classList.remove("rp-slot--drop");
           slot.classList.add("rp-slot--drop-deny");
         } else {
           slot.classList.remove("rp-slot--drop-deny");
           slot.classList.add("rp-slot--drop");
         }
+        // Swap indicator placement: when the hovered target already holds a spool,
+        // the native drag ghost sits over it and hides the target's own ⇄. Flag a
+        // body state so the arrow shows on the SOURCE slot the user is dragging
+        // instead (see .rp-dragging rule in 30-racks.css). False for empty/locked
+        // targets and when hovering the source's own origin slot.
+        const isSwap = !locked
+          && slot.classList.contains("rp-slot--filled")
+          && !slot.classList.contains("rp-dragging");
+        document.body.classList.toggle("is-swap-hover", isSwap);
       });
       slot.addEventListener("dragover", e => {
         const rackId = slot.dataset.rack;
@@ -17182,12 +17640,16 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         e.stopPropagation();
         slot.classList.remove("rp-slot--drop");
         slot.classList.remove("rp-slot--drop-deny");
+        document.body.classList.remove("is-swap-hover");
         const sid = e.dataTransfer.getData("text/plain");
         if (!sid) return;
         const rackId = slot.dataset.rack;
         const level  = parseInt(slot.dataset.level, 10);
         const pos    = parseInt(slot.dataset.pos, 10);
         if (isSlotLocked(rackId, level, pos)) return;   // locked target rejects
+        // "Snap into place" cue — skip when dropped back onto its own slot (no move).
+        const _mv = state.rows.find(r => r.spoolId === sid);
+        if (!_mv || _mv.rackId !== rackId || _mv.rackLevel !== level || _mv.rackPos !== pos) _soundRackMove();
         try { await assignSpoolToSlot(sid, rackId, level, pos); }
         catch (err) { console.warn("[assignSpoolToSlot]", err.message); }
       });
@@ -17210,6 +17672,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         strip.classList.remove("rp-unranked-strip--drop");
         const sid = e.dataTransfer.getData("text/plain");
         if (!sid) return;
+        // "Un-dock" cue — only when the spool actually leaves a rack (not when an
+        // already-unranked row is dropped back onto the strip).
+        if (state.rows.find(r => r.spoolId === sid)?.rackId) _soundRackRemove();
         // Dropping into the bin while Auto-organize is ON is an explicit "I want
         // this OUT" — turn it off (otherwise it'd bounce straight back), update
         // the toggle + persist, then un-rack.
@@ -17270,6 +17735,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         if (!sid) return;
         const row = state.rows.find(r => r.spoolId === sid);
         if (!row || !row.rackId) return; // already unranked → no-op
+        _soundRackRemove();  // "un-dock" cue — this is always a real un-rack here
         // Visual confirmation BEFORE the Firestore round-trip — so the
         // user sees their action register instantly even on slow links.
         // The animation is a ghost copy of the source slot that flies
@@ -17609,6 +18075,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // A friend's inventory is read-only — hide the write action (Add product /
     // Add device) since it can't act on a friend's docs.
     $("btnAddProduct")?.classList.toggle("hidden", !!state.friendView);
+    // A friend's printers aren't shared, so the Printers view switch is
+    // meaningless here — hide the whole group + its separator in friend view.
+    $("vtgPrinters")?.classList.toggle("hidden", !!state.friendView);
+    $("vtgSep")?.classList.toggle("hidden", !!state.friendView);
     if (!banner) return;
     // ─── Friend view ───────────────────────────────────────────────
     if (state.friendView) {
@@ -17703,11 +18173,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     _soundFriendView();
     closeProfilesModal(); closeFriends();
     _clearSearchFilters();
-    // Always land on the Materials grid when entering/switching a friend view —
-    // their racks/printers aren't the point, and a stale Storage/printer view
-    // from a previous friend would be confusing. Transient (persist:false) so it
-    // doesn't overwrite the owner's own saved view preference.
-    setViewMode("grid", { persist: false });
+    // A PUBLIC inventory is a curated picture-mode showcase → land straight on
+    // the Storage (rack) view. Otherwise land on the Materials grid — a regular
+    // friend's racks aren't the point, and a stale view would be confusing.
+    // Transient (persist:false) so it never overwrites the owner's saved pref.
+    const _friendIsPublic = !!state.friends?.find(f => f.uid === friendUid)?.isPublic;
+    setViewMode(_friendIsPublic ? "rack" : "grid", { persist: false });
     const ownerUid = state.activeAccountId;  // capture so async errors land on the right account
     // ── Tear down ALL live subscriptions on the OWNER's data BEFORE mutating
     // state. If we don't, a buffered onSnapshot can fire mid-switch and write
@@ -17721,7 +18192,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // by loadFriendsList from userProfiles). Falls through to null →
     // friend banner renders the colour-circle + initials fallback.
     const friendPhoto = state.friends?.find(f => f.uid === friendUid)?.photoURL || null;
-    state.friendView = { uid: friendUid, displayName: friendName, avatarColor, photoURL: friendPhoto, error: null };
+    state.friendView = { uid: friendUid, displayName: friendName, avatarColor, photoURL: friendPhoto, isPublic: _friendIsPublic, error: null };
     state.inventory = null; state.rows = [];
     state.racks = [];
     state.invLoading = true;
@@ -18058,6 +18529,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
 
   // Settings panel — friends section wiring
   $("btnAddFriend").addEventListener("click", openAddFriendModal);
+  // Support the project → open the official goodies shop in the browser
+  // (mirrors the sidebar Shop button).
+  $("btnGoodiesShop")?.addEventListener("click", () =>
+    window.electronAPI?.openExternal("https://tigertag.io/collections/tigertag-rfid-maker"));
 
   // Live search filter
   $("fpSearch")?.addEventListener("input", () => renderFriendsList());
@@ -18443,14 +18918,15 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       `<div class="fp-req notif-req" data-uid="${esc(r.uid)}">${_reqRowInnerHtml(r)}</div>`).join("");
     const localHtml = locals.map(n => {
       // Community nudges + avatar: the whole row IS the call-to-action (no button).
-      const isCommunity = n.action === "discord" || n.action === "github" || n.action === "makerworld";
+      const isCommunity = n.action === "discord" || n.action === "github" || n.action === "makerworld" || n.action === "shop";
       const clickable = isCommunity || n.action === "avatar" || n.action === "paxx";
       const brandIc = isCommunity ? ` notif-ic--${n.action}` : "";   // branded square icon
       // A notice originating from a printer speaks WITH its brand logo (the
-      // machine "talking"), the same way a friend notice shows the friend's
-      // avatar. Any local notif carrying `brand` gets the masked brand logo.
+      // machine "talking") — those render as the RAW brand SVG, no chip. The
+      // community nudges keep their branded square chip (white logo on the brand
+      // colour), so the Shopify notif matches the sidebar Shop button.
       const iconHtml = (n.brand && _BRAND_HAS_LOGO.has(n.brand))
-        ? `<span class="notif-ic notif-ic--brandlogo"><span class="pt-thumb-logo" data-brand="${esc(n.brand)}"></span></span>`
+        ? `<span class="notif-ic notif-ic--bare"><span class="pt-thumb-logo" data-brand="${esc(n.brand)}"></span></span>`
         : `<span class="notif-ic${brandIc}"><span class="icon icon-${esc(n.icon || "refresh")} icon-14"></span></span>`;
       return `
       <div class="notif-item notif-item--unread notif-item--local${clickable ? " notif-item--clickable" : ""}" data-local-id="${esc(n.id)}"${clickable ? ` data-local-action="${esc(n.action)}"` : ""}>
@@ -19218,6 +19694,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     state.discordSeen    = !!c.discordSeen;     // avoids a badge flash before syncUserDoc resolves
     state.githubSeen     = !!c.githubSeen;
     state.makerworldSeen = !!c.makerworldSeen;
+    state.shopSeen       = !!c.shopSeen;
     try { applyDebugMode(); } catch {}
     try { renderCommunityBadges(); } catch {}
   }
@@ -19518,6 +19995,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       state.discordSeen    = !!data.discordSeen;     // "nudge done" flags (per account, synced)
       state.githubSeen     = !!data.githubSeen;
       state.makerworldSeen = !!data.makerworldSeen;
+      state.shopSeen       = !!data.shopSeen;
 
       // Mirror the minimal user-doc shape to the local-first cache so the
       // NEXT cold start can hydrate roles / debug / keys / isPublic before
@@ -19529,6 +20007,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         privateKey: data.privateKey || null,
         isPublic:   !!data.isPublic,
         discordSeen: !!data.discordSeen, githubSeen: !!data.githubSeen, makerworldSeen: !!data.makerworldSeen,
+        shopSeen: !!data.shopSeen,
         displayName: data.displayName || null,
       });
 

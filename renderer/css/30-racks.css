@@ -13,6 +13,12 @@
   }
   .inv-rack-view.hidden { display: none; }
   .rv-header { display: flex; gap: 8px; }
+  /* Slot-content view switch (colour fill ↔ material photo) — segmented control
+     reusing .view-toggle, kept compact + vertically centred beside the stats. */
+  .rv-slotview-toggle { flex-shrink: 0; align-self: center; }
+  .rv-slotview-toggle button { display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+  .rv-slotview-toggle .icon { background: var(--muted); }
+  .rv-slotview-toggle button.active .icon { background: var(--text); }
   .rp-actions { display: flex; gap: 8px; flex-shrink: 0; }
   .rp-cta {
     display: inline-flex; align-items: center; justify-content: center; gap: 8px;
@@ -640,6 +646,30 @@
     background-position: center;
     transition: height .35s cubic-bezier(.4,0,.2,1);
   }
+  /* Photo view — a full solid colour tile (no weight bar) with the material
+     illustration layered on top when present. */
+  .rp-fill--full { top: 0; height: 100%; }
+  .rp-slot .rp-photo {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover; display: block;
+  }
+  /* Picture view: filled tiles get a solid frame + slight elevation so even a
+     WHITE material reads as an occupied tile — empty slots keep their flat dashed
+     outline (same "filled vs empty" affordance as the colour view). Purely
+     aesthetic → no hover reaction (keep the resting frame, no lift). */
+  .rp-slotview-photo .rp-slot--filled,
+  .rp-slotview-photo .rp-slot--filled:hover {
+    border-color: var(--border);
+    background: var(--surface);
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,.10), 0 1px 3px rgba(0,0,0,.16);
+    transform: none;
+  }
+  /* Square tiles in picture view — the illustrations are square, so a 1:1 slot
+     shows them uncropped (vs the 3:5 "spool box" of the colour view). Bigger
+     tracks too (like the unranked side cards) for a roomy, gallery-like grid. */
+  .rp-slotview-photo .rp-slot { aspect-ratio: 1 / 1; }
+  .rp-slotview-photo .rp-row-slots { grid-template-columns: repeat(var(--slots, 8), 64px); gap: 6px; }
   /* Depleted-spool visual cue: a thin colored strip at the bottom (so the
      spool's color is still hinted at) + a faded "0g" tag centered on the
      slot. Without this, a 0g spool's .rp-fill has height:0 → looks
@@ -709,9 +739,16 @@
   .rp-slot--filled.rp-slot--drop {
     background: rgba(150,150,150,.12) !important;   /* preserve original empty bg */
   }
-  /* Add a "swap" arrow indicator on filled drop targets so the user knows it
-     swaps rather than overwrites. */
-  .rp-slot--filled.rp-slot--drop::before {
+  /* Swap arrow — shown on BOTH slots that will trade places: the landing target
+     AND the source slot the user is dragging, so the swap reads clearly from
+     either end. On the target alone the native drag ghost sits under the cursor
+     and can hide it, hence also showing it on the source. The source is normally
+     dimmed to .35 mid-drag — lift it back up so its arrow isn't faint. Toggled by
+     the `is-swap-hover` body state (JS: dragenter over an occupied, unlocked,
+     non-source slot). */
+  body.is-swap-hover .rp-slot--filled.rp-dragging { opacity: .92; }
+  .rp-slot--filled.rp-slot--drop::before,
+  body.is-swap-hover .rp-slot--filled.rp-dragging::before {
     content: "⇄";
     position: absolute;
     inset: 0;

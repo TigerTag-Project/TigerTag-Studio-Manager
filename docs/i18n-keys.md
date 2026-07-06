@@ -21,6 +21,7 @@
 |-----|---------|
 | `githubBtn` | GitHub button |
 | `discordBtn` | Discord button |
+| `shopBtn` | Sidebar goodies-shop button label |
 | `mobileApp` | QR label |
 | `mobileScan` | QR sub-label |
 
@@ -217,6 +218,8 @@
 | `friendsList` | "My friends" section heading |
 | `friendsEmpty` | Empty state when no friends |
 | `friendsAdd` | Add friend button |
+| `friendsShopTitle` | Goodies shop button title (Friends panel bottom) |
+| `friendsShopSub` | Goodies shop button subtitle (Support the project) |
 | `friendRemove` | Remove friend button on each row |
 | `friendReqSub` | Subtitle on incoming request modal ("wants to view your inventory") |
 | `friendReqBlock` | Block button on request modal |
