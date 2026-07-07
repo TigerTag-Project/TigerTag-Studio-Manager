@@ -590,6 +590,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     materialFilter: "",               // exact material name to keep, "" = all
     typeFilter: "",                   // exact product type to keep, "" = all
     tagFilter: "",                    // exact tag to keep (spool must carry it), "" = all
+    printerBrandFilter: "",           // printer view: exact brand key to keep, "" = all
+    printerStatusFilter: "",          // printer view: "online" | "offline" | "" = all
+    printerTagFilter: "",             // printer view: exact tag the printer must carry, "" = all
 
     viewMode: localStorage.getItem("tigertag.view") || "table",
     // View-only grouping of identical spools (Table + Grid). Default ON. The
@@ -634,6 +637,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     unsubPrinters: [],       // array of Firestore unsubscribe handles (one per brand subcollection)
     unsubFriendRequests: null,
     friendView: null,        // { uid, displayName, avatarColor } — set when viewing a friend's inventory
+    bulkSelect: false,       // true = multi-select mode active (checkboxes, no detail on click)
+    selectedSpools: new Set(), // spoolIds selected for bulk actions (materials views)
+    selectedPrinters: new Set(), // "brand:id" keys selected for bulk actions (printer views) — separate from materials
     td1sConnected: false,
     scanMode: false,        // true = "+ Scan" active, auto-add on unknown chip
     nfcReaderCount: 0,      // number of connected NFC readers
@@ -683,6 +689,17 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if ($("langSelect")) $("langSelect").value = state.lang;
     // Refresh dynamic tooltips
     $("td1sHealth")?.setAttribute("data-tooltip", t(state.td1sConnected ? "td1sDetected" : "td1sNotDetected"));
+    _syncSearchPlaceholder(); // the loop above reset #searchInv to the materials text
+    // The printer filter options (State labels, brand names) aren't data-i18n,
+    // so re-localise them here on a language switch while the printer view is up.
+    if (_isPrinterMode(state.viewMode) && state.viewMode !== "printer-cam") populatePrinterFilters();
+  }
+  // The search box serves several views — point its placeholder at what the
+  // current view actually searches (printers vs materials).
+  function _syncSearchPlaceholder() {
+    const el = $("searchInv");
+    if (!el) return;
+    el.placeholder = t(_isPrinterMode(state.viewMode) ? "searchPlaceholderPrinter" : "searchPlaceholder");
   }
 
   /* ── helpers ── */
@@ -2983,6 +3000,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     _adpPickMaterial(id);
     closeAdpMaterialSheet();
   });
+
+  // ── Multi-select / bulk-delete wiring ──────────────────────────────────
+  $("btnSelectMode")?.addEventListener("click", _toggleSelectMode);
+  $("bulkSelectAll")?.addEventListener("click", _selectAllVisible);
+  $("bulkClear")?.addEventListener("click", _exitSelectMode);   // clearing empties → leave select mode
+  $("bulkExit")?.addEventListener("click", _exitSelectMode);
+  setupHoldToConfirm($("bulkDelete"), 1500, () => { _bulkCtx().del().catch(e => reportError("bulk.delete", e)); });
 
   $("btnAddProduct")?.addEventListener("click", () => {
     // The header Add button is multi-purpose, dispatching by current view:
@@ -5608,6 +5632,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (match) { sel.value = match; state.tagFilter = match; }
     else { sel.value = ""; state.tagFilter = ""; }
     sel.classList.toggle("is-active", !!state.tagFilter);
+    sel.classList.remove("hidden"); // may have been hidden by the printer view
   }
   function populateOneQuickFilter({ sel, currentKey, labelKey, defaultLabel, pickValue }) {
     if (!sel) return;
@@ -6223,8 +6248,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // (the first member in the already-sorted input). Singletons (null key or a
   // bucket of 1) pass through untouched. When grouping is off, every row is a
   // single — callers stay on the exact legacy path.
-  function groupRows(rows) {
-    if (!state.groupInv) return rows.map(row => ({ type: "single", row }));
+  function groupRows(rows, opts = {}) {
+    // Multi-select shows every spool individually — no group decks/headers — so
+    // you can tick or range-select the exact copies (e.g. undo an over-duplication).
+    // Uses state.bulkSelect directly so the user's saved grouping pref is untouched.
+    // `opts.force` groups anyway — used to resolve a clicked spool's group so the
+    // group side-card can follow the selection even while the list is ungrouped.
+    if (!opts.force && (!state.groupInv || state.bulkSelect)) return rows.map(row => ({ type: "single", row }));
     const buckets = new Map();   // key → members[]   (insertion order = sorted order)
     const order = [];            // render order: group keys + singleton sentinels
     rows.forEach(row => {
@@ -6343,7 +6373,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const tdBadge = r.td != null ? `<span class="card-td-badge">TD ${r.td}</span>` : "";
     const chipDot = r.needUpdateAt ? `<span class="chip-badge card-chip-badge" title="${t("chipPendingHint")}"><span class="icon icon-refresh icon-11"></span></span>` : "";
     return `
-      <div class="card-img-wrap">${imgHtml}${_cardTlBadges(r)}${tdBadge}${chipDot}</div>
+      <div class="card-img-wrap"><span class="sel-check" aria-hidden="true"></span>${imgHtml}${_cardTlBadges(r)}${tdBadge}${chipDot}</div>
       <div class="card-body">
         <div class="card-name">${swatch}${esc(v(r.colorName) !== "-" ? r.colorName : [r.aspect1, r.aspect2].filter(a => a && a !== "-" && a !== "None").join(" ") || r.material)}</div>
         <div class="card-sub">${esc(v(r.material))} · ${esc(v(r.brand))}</div>
@@ -6357,10 +6387,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
 
   function _createGridCard(r) {
     const card = document.createElement("div");
-    card.className = "spool-card" + (state.selected===r.spoolId?" selected":"") + (r.deleted?" deleted":"");
+    card.className = "spool-card" + (state.selected===r.spoolId?" selected":"") + (r.deleted?" deleted":"") + (state.selectedSpools.has(r.spoolId)?" row-selected":"");
     card.dataset.id = r.spoolId;
     card.innerHTML = _gridCardInnerHTML(r);
-    card.addEventListener("click", () => openDetail(r.spoolId, { animateSwap: true }));
+    card.addEventListener("click", (e) => {
+      if (state.bulkSelect) { _bulkClickSpool(r.spoolId, e.shiftKey); return; }
+      openDetail(r.spoolId, { animateSwap: true });
+    });
     card._sig = _rowSignature(r);
     return card;
   }
@@ -6448,8 +6481,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const card = document.createElement("div");
     card.className = "spool-card group-card";
     card.dataset.groupKey = g.key;
+    if (state.selectedSpools.size && g.members.every(m => state.selectedSpools.has(m.spoolId))) card.classList.add("group-all-selected");
     card.innerHTML = _groupGridCardInnerHTML(g);
-    card.addEventListener("click", () => _openGroupPanel(g.key));
+    card.addEventListener("click", () => {
+      if (state.bulkSelect) { _toggleGroupSelected(g.key); return; }
+      _openGroupPanel(g.key);
+    });
     card._sig = _groupGridSig(g);
     return card;
   }
@@ -6515,6 +6552,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // badge below so it isn't shown twice.
     return `
       <div class="gp-member-left">
+        <span class="sel-check" aria-hidden="true"></span>
         <div class="gp-member-thumb">${thumbHTML(r, thumbSize, { backup: stackBackup })}</div>
         ${tierBadgeHTML(r, "", { backup: !stackBackup })}
       </div>
@@ -6530,8 +6568,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     card.className = "spool-card gp-member";
     card.dataset.id = r.spoolId;
     if (state.selected === r.spoolId) card.classList.add("selected");
+    if (state.selectedSpools.has(r.spoolId)) card.classList.add("row-selected");
     card.innerHTML = _groupMemberCardInnerHTML(r);
-    card.addEventListener("click", () => openDetail(r.spoolId, { animateSwap: true }));
+    card.addEventListener("click", (e) => {
+      if (state.bulkSelect) { _toggleRowSelected(r.spoolId, e.shiftKey); return; }
+      openDetail(r.spoolId, { animateSwap: true });
+    });
     return card;
   }
   let _groupPanelKey = null;   // key of the group currently shown in the panel
@@ -6589,14 +6631,15 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     _groupPanelMembers = new Set(g.members.map(m => m.spoolId));
     const body = document.getElementById("groupPanelBody");
     if (body) {
-      body.innerHTML = _groupDashHTML(g);   // micro-dashboard first
-      // Horizontal list-cards; each click → openDetail(m.spoolId). The group
-      // panel STAYS open — the detail card pushes it left (see _syncPanels).
+      body.innerHTML = _groupDashHTML(g);
+      // Horizontal list-cards; each click → openDetail (or toggle in select mode).
+      // The group panel STAYS open — the detail card pushes it left (_syncPanels).
       g.members.forEach(m => body.appendChild(_createGroupMemberCard(m)));
     }
   }
+
   function _openGroupPanel(key) {
-    const g = groupRows(allDisplayRows()).find(it => it.type === "group" && it.key === key);
+    const g = groupRows(allDisplayRows(), { force: state.bulkSelect }).find(it => it.type === "group" && it.key === key);
     if (!g) return;
     closeNotifs();   // opening a side card takes over the right — dismiss notifs
     _groupPanelKey = key;
@@ -6626,7 +6669,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // from the detail card / scale, member add/remove). Called on every render.
   function _refreshGroupPanelIfOpen() {
     if (!document.getElementById("groupPanel")?.classList.contains("open") || !_groupPanelKey) return;
-    const g = groupRows(allDisplayRows()).find(it => it.type === "group" && it.key === _groupPanelKey);
+    // Force grouping in select mode so the open panel resolves even though the
+    // main list is ungrouped (it acts as the "group context" that follows clicks).
+    const g = groupRows(allDisplayRows(), { force: state.bulkSelect }).find(it => it.type === "group" && it.key === _groupPanelKey);
     if (!g) { _closeGroupPanel(); return; }   // group dissolved (e.g. all members deleted)
     _renderGroupPanelContents(g);
   }
@@ -6697,6 +6742,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (r.capacity) { const p = Math.max(0,Math.min(100,Math.round(r.weightAvailable/r.capacity*100))); wCell += `<span class="bar" title="${p}%"><span style="width:${p}%;background:${fillBarColor(p)}"></span></span>`; }
     }
     return `
+      <td class="sel-cell"><span class="sel-check" aria-hidden="true"></span></td>
       <td class="thumb-cell">${thumbHTML(r, 50)}</td>
       <td>${tierBadgeHTML(r)}</td>
       <td>${esc(materialWithAspect(r))}</td>
@@ -6713,8 +6759,15 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     tr.dataset.id = r.spoolId;
     if (state.selected === r.spoolId) tr.classList.add("selected");
     if (r.deleted) tr.classList.add("deleted");
+    if (state.selectedSpools.has(r.spoolId)) tr.classList.add("row-selected");
     tr.innerHTML = _tableRowInnerHTML(r);
-    tr.addEventListener("click", () => openDetail(r.spoolId, { animateSwap: true }));
+    tr.addEventListener("click", (e) => {
+      // The always-visible checkbox column selects (and enters select mode); the
+      // rest of the row opens detail — unless already in select mode (then toggle).
+      if (e.target.closest(".sel-cell")) { e.stopPropagation(); _selCellClickSpool(r.spoolId, e.shiftKey, tr.getBoundingClientRect().top); return; }
+      if (state.bulkSelect) { _bulkClickSpool(r.spoolId, e.shiftKey); return; }
+      openDetail(r.spoolId, { animateSwap: true });
+    });
     tr._sig = _rowSignature(r);
     return tr;
   }
@@ -6744,6 +6797,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       : [rep.aspect1, rep.aspect2].filter(a => a && a !== "-" && a !== "None").join(" ") || rep.material;
     const countTitle = esc(t("invGroupCount", { n: g.count }));
     return `
+      <td class="sel-cell"><span class="sel-check" aria-hidden="true"></span></td>
       <td class="thumb-cell">
         <span class="group-thumb-badge">
           ${thumbHTML(rep, 50, { badges: false })}
@@ -6780,9 +6834,16 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const collapsed = !_expandedGroups.has(g.key);
     tr.classList.toggle("group-collapsed", collapsed);
     tr.innerHTML = _groupHeaderInnerHTML(g);
-    // Click a group row → open the group side panel (same as the grid deck card),
-    // rather than expanding members inline.
-    tr.addEventListener("click", () => _openGroupPanel(g.key));
+    if (state.selectedSpools.size && g.members.every(m => state.selectedSpools.has(m.spoolId))) {
+      tr.classList.add("group-all-selected");
+    }
+    // Group row: the checkbox selects ALL its members (and enters select mode);
+    // elsewhere toggles the whole group in select mode, or opens its side panel.
+    tr.addEventListener("click", (e) => {
+      if (e.target.closest(".sel-cell")) { e.stopPropagation(); _selCellClickGroup(g.key, tr.getBoundingClientRect().top); return; }
+      if (state.bulkSelect) { _toggleGroupSelected(g.key); return; }
+      _openGroupPanel(g.key);
+    });
     tr._sig = _groupHeaderSig(g, collapsed);
     return tr;
   }
@@ -6854,10 +6915,324 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     existing.forEach((el, k) => { if (!seen.has(k)) el.remove(); });
   }
 
+  // ── Multi-select / bulk delete ──────────────────────────────────────────
+  // A lightweight selection layer over the table + grid. `.row-selected` on each
+  // row/card is the visual source of truth, mirrored by state.selectedSpools.
+  let _lastSelectedId = null;   // anchor for shift-click range selection
+
+  // Nearest scrollable ancestor of an element (for scroll-anchoring).
+  function _scrollParentOf(el) {
+    let n = el?.parentElement;
+    while (n) {
+      const s = getComputedStyle(n);
+      if (/(auto|scroll)/.test(s.overflowY) && n.scrollHeight > n.clientHeight) return n;
+      n = n.parentElement;
+    }
+    return document.scrollingElement || document.documentElement;
+  }
+  // focusId/anchorTop: keep the clicked spool visually PUT across the ungroup
+  // re-render (entering select mode expands group members, which would otherwise
+  // push the clicked row down out of view).
+  function _enterSelectMode(focusId, anchorTop) {
+    if (state.friendView) return;   // read-only — nothing to delete
+    state.bulkSelect = true;
+    document.body.classList.add("bulk-select-mode");
+    document.querySelectorAll(".js-select-toggle").forEach(b => b.classList.add("active"));
+    // Printers have no grouping — just reveal the (CSS-gated) checkboxes, no
+    // re-render (which would rebuild live camera thumbnails). Materials ungroup.
+    if (_isPrinterMode(state.viewMode)) { _updateBulkBar(); return; }
+    renderInventory();              // rebuild ungrouped so every spool is selectable
+    _repaintSelection();            // diffed rows were kept — paint any pre-selected ones
+    _updateBulkBar();
+    if (focusId != null && anchorTop != null) {
+      const row = document.querySelector(`#invBody tr[data-id="${CSS.escape(focusId)}"], #invGrid .spool-card[data-id="${CSS.escape(focusId)}"]`);
+      if (row) {
+        const scroller = _scrollParentOf(row);
+        scroller.scrollTop += row.getBoundingClientRect().top - anchorTop;
+      }
+    }
+  }
+  function _exitSelectMode() {
+    state.bulkSelect = false;
+    document.body.classList.remove("bulk-select-mode");
+    document.querySelectorAll(".js-select-toggle").forEach(b => b.classList.remove("active"));
+    _clearSelection();
+    // Materials regroup on exit; printers have no grouping (skip the re-render so
+    // live camera thumbnails aren't rebuilt).
+    if (!_isPrinterMode(state.viewMode)) renderInventory();
+  }
+  function _toggleSelectMode() { state.bulkSelect ? _exitSelectMode() : _enterSelectMode(); }
+
+  // Paint one spool's selected state on the live DOM (table row + grid card),
+  // no re-render.
+  function _paintSpoolSelected(spoolId, on) {
+    const e = CSS.escape(spoolId);
+    document.querySelectorAll(`#invBody tr[data-id="${e}"], #invGrid .spool-card[data-id="${e}"], #groupPanelBody .gp-member[data-id="${e}"]`)
+      .forEach(el => el.classList.toggle("row-selected", on));
+  }
+  function _setSpoolSelected(spoolId, on) {
+    if (on) state.selectedSpools.add(spoolId); else state.selectedSpools.delete(spoolId);
+    _paintSpoolSelected(spoolId, on);
+  }
+  // Re-apply .row-selected to every row/card after a DIFFED re-render — kept rows
+  // (unchanged signature) aren't recreated, so a freshly-selected spool's row
+  // would otherwise stay unpainted even though it's in the set.
+  function _repaintSelection() {
+    document.querySelectorAll("#invBody tr[data-id], #invGrid .spool-card[data-id], #groupPanelBody .gp-member[data-id]")
+      .forEach(el => el.classList.toggle("row-selected", state.selectedSpools.has(el.dataset.id)));
+  }
+
+  // Ordered list of currently-visible selectable spoolIds (respects search /
+  // filters / group collapse) — drives "select all" + shift-range.
+  function _visibleSpoolIds() {
+    // When the group panel is open, selection is scoped to its members (that's
+    // where the user is picking). Otherwise it's the visible table / grid rows.
+    if (document.getElementById("groupPanel")?.classList.contains("open")) {
+      return Array.from(document.querySelectorAll("#groupPanelBody .gp-member[data-id]")).map(el => el.dataset.id);
+    }
+    const sel = state.viewMode === "table"
+      ? "#invBody tr[data-id]:not(.hidden)"
+      : "#invGrid .spool-card[data-id]:not(.hidden)";
+    return Array.from(document.querySelectorAll(sel)).map(el => el.dataset.id);
+  }
+
+  function _toggleRowSelected(spoolId, shift) {
+    if (shift && _lastSelectedId && _lastSelectedId !== spoolId) {
+      const ids = _visibleSpoolIds();
+      const a = ids.indexOf(_lastSelectedId), b = ids.indexOf(spoolId);
+      if (a !== -1 && b !== -1) {
+        const [lo, hi] = a < b ? [a, b] : [b, a];
+        const on = !state.selectedSpools.has(spoolId);
+        for (let i = lo; i <= hi; i++) _setSpoolSelected(ids[i], on);
+      }
+    } else {
+      _setSpoolSelected(spoolId, !state.selectedSpools.has(spoolId));
+    }
+    _lastSelectedId = spoolId;
+    _refreshGroupHeaderChecks();
+    _afterSelectionChange();
+  }
+
+  // Make the group side-card follow the clicked spool: if that spool would be
+  // grouped (identical siblings exist), open/refresh its group panel so you can
+  // pick among the copies; if it's a singleton, close the panel. Click after
+  // click, the panel shows exactly the context of what you just touched.
+  function _syncGroupPanelToSpool(spoolId) {
+    const r = state.rows.find(x => x.spoolId === spoolId);
+    if (!r) return;
+    const key = _spoolGroupKey(r);
+    const g = groupRows(allDisplayRows(), { force: true }).find(it => it.type === "group" && it.key === key);
+    if (g && g.members.length >= 2) {
+      if (_groupPanelKey !== key || !document.getElementById("groupPanel")?.classList.contains("open")) _openGroupPanel(key);
+    } else {
+      _closeGroupPanel();
+    }
+  }
+  // Main-list bulk click: toggle the spool + sync the group side-card to it.
+  // Only sync while STILL in select mode — toggling off the last one auto-exits,
+  // and we must not then pop a side-card open (it was just a deselect click).
+  function _bulkClickSpool(spoolId, shift) {
+    _toggleRowSelected(spoolId, shift);
+    if (state.bulkSelect) _syncGroupPanelToSpool(spoolId);
+  }
+
+  // Checkbox-column click on a single row. The first tick enters select mode
+  // (which ungroups + shows the bulk bar); unticking the last one leaves it.
+  function _selCellClickSpool(spoolId, shift, anchorTop) {
+    if (!state.bulkSelect) {
+      state.selectedSpools.add(spoolId);   // seed BEFORE entering so the re-render paints it
+      _lastSelectedId = spoolId;
+      _enterSelectMode(spoolId, anchorTop); // re-renders ungrouped, keeps this row put
+      _updateBulkBar();
+      _syncGroupPanelToSpool(spoolId);
+      return;
+    }
+    _toggleRowSelected(spoolId, shift);          // auto-exits if it emptied the set
+    if (state.bulkSelect) _syncGroupPanelToSpool(spoolId);
+  }
+  // Checkbox-column click on a collapsed group header → select every member of
+  // the group + enter select mode (only happens in grouped view).
+  function _selCellClickGroup(groupKey, anchorTop) {
+    const g = groupRows(allDisplayRows(), { force: true }).find(it => it.type === "group" && it.key === groupKey);
+    if (!g) return;
+    g.members.forEach(m => state.selectedSpools.add(m.spoolId));
+    _lastSelectedId = g.members[g.members.length - 1]?.spoolId || _lastSelectedId;
+    // Anchor on the FIRST member (it lands roughly where the group header was).
+    if (!state.bulkSelect) _enterSelectMode(g.members[0]?.spoolId, anchorTop); else _updateBulkBar();
+    _updateBulkBar();
+  }
+
+  // Group deck/header click in select mode: select all members if any is
+  // unselected, else clear them all (the natural "select this group" gesture —
+  // exactly what an accidental over-duplication needs, since clones group up).
+  function _toggleGroupSelected(groupKey) {
+    const g = groupRows(allDisplayRows()).find(it => it.type === "group" && it.key === groupKey);
+    if (!g) return;
+    const allOn = g.members.every(m => state.selectedSpools.has(m.spoolId));
+    g.members.forEach(m => _setSpoolSelected(m.spoolId, !allOn));
+    _lastSelectedId = g.members[g.members.length - 1]?.spoolId || _lastSelectedId;
+    _refreshGroupHeaderChecks();
+    _updateBulkBar();
+  }
+
+  // A group header/deck reads as checked only when ALL its members are selected.
+  function _refreshGroupHeaderChecks() {
+    const groups = groupRows(allDisplayRows()).filter(it => it.type === "group");
+    const byKey = new Map(groups.map(g => [g.key, g]));
+    document.querySelectorAll("#invBody tr.group-header, #invGrid .spool-card[data-group-key]").forEach(el => {
+      const g = byKey.get(el.dataset.groupKey);
+      const all = !!g && g.members.length > 0 && g.members.every(m => state.selectedSpools.has(m.spoolId));
+      el.classList.toggle("group-all-selected", all);
+    });
+  }
+
+  // ── Selection CONTEXT — materials vs printers keep separate sets + delete, so
+  // the shared bulk bar acts on whichever list you're looking at (never linked).
+  function _bulkCtx() {
+    if (_isPrinterMode(state.viewMode)) return {
+      printers: true, set: state.selectedPrinters, del: _bulkDeletePrinters,
+      visibleKeys: () => Array.from(document.querySelectorAll("#invPrinterView [data-printer-key]")).map(el => el.dataset.printerKey),
+      paint: (key, on) => document.querySelectorAll(`#invPrinterView [data-printer-key="${CSS.escape(key)}"]`).forEach(el => el.classList.toggle("row-selected", on)),
+    };
+    return {
+      printers: false, set: state.selectedSpools, del: _bulkDeleteSelected,
+      visibleKeys: _visibleSpoolIds,
+      paint: (id, on) => _paintSpoolSelected(id, on),
+    };
+  }
+
+  function _selectAllVisible() {
+    const c = _bulkCtx();
+    c.visibleKeys().forEach(k => { c.set.add(k); c.paint(k, true); });
+    if (!c.printers) _refreshGroupHeaderChecks();
+    _updateBulkBar();
+  }
+  function _clearSelection() {
+    state.selectedSpools.forEach(id => _paintSpoolSelected(id, false));
+    state.selectedSpools.clear();
+    state.selectedPrinters.forEach(k =>
+      document.querySelectorAll(`#invPrinterView [data-printer-key="${CSS.escape(k)}"]`).forEach(el => el.classList.remove("row-selected")));
+    state.selectedPrinters.clear();
+    _lastSelectedId = null; _lastSelectedPrinter = null;
+    document.querySelectorAll(".group-all-selected").forEach(el => el.classList.remove("group-all-selected"));
+    _updateBulkBar();
+  }
+
+  function _updateBulkBar() {
+    const bar = $("bulkBar");
+    if (!bar) return;
+    const n = _bulkCtx().set.size;
+    const dc = $("bulkDeleteCount"); if (dc) dc.textContent = n ? ` (${n})` : "";
+    bar.classList.toggle("hidden", !(state.bulkSelect && n > 0));
+  }
+  // Called after any selection toggle: refresh the bar and, if the current
+  // context's set is now empty, leave select mode entirely (no lingering mode).
+  function _afterSelectionChange() {
+    _updateBulkBar();
+    if (state.bulkSelect && _bulkCtx().set.size === 0) _exitSelectMode();
+  }
+
+  // Printer selection (button-triggered checkboxes in printer grid + table).
+  let _lastSelectedPrinter = null;
+  function _togglePrinterSelected(key, shift) {
+    const c = _bulkCtx();
+    if (shift && _lastSelectedPrinter && _lastSelectedPrinter !== key) {
+      const keys = c.visibleKeys();
+      const a = keys.indexOf(_lastSelectedPrinter), b = keys.indexOf(key);
+      if (a !== -1 && b !== -1) {
+        const [lo, hi] = a < b ? [a, b] : [b, a];
+        const on = !c.set.has(key);
+        for (let i = lo; i <= hi; i++) { if (on) c.set.add(keys[i]); else c.set.delete(keys[i]); c.paint(keys[i], on); }
+      }
+    } else {
+      const on = !c.set.has(key);
+      if (on) c.set.add(key); else c.set.delete(key);
+      c.paint(key, on);
+    }
+    _lastSelectedPrinter = key;
+    _afterSelectionChange();
+  }
+  // Always-visible checkbox column click in the printer TABLE: the first tick
+  // enters select mode; unticking the last one leaves it.
+  function _selCellClickPrinter(key) {
+    if (!state.bulkSelect) {
+      state.selectedPrinters.add(key);
+      _lastSelectedPrinter = key;
+      _enterSelectMode();              // printers: just reveals checkboxes, no re-render
+      _bulkCtx().paint(key, true);
+      _updateBulkBar();
+      return;
+    }
+    _togglePrinterSelected(key, false);          // auto-exits if it emptied the set
+  }
+  // Hard-delete selected printers (separate from materials), grouped by brand.
+  async function _bulkDeletePrinters() {
+    const uid = state.activeAccountId;
+    if (!uid || !state.selectedPrinters.size) return;
+    const db = fbDb(uid);
+    const byBrand = new Map();
+    state.selectedPrinters.forEach(key => {
+      const i = key.indexOf(":");
+      const brand = key.slice(0, i), id = key.slice(i + 1);
+      if (!byBrand.has(brand)) byBrand.set(brand, []);
+      byBrand.get(brand).push(id);
+    });
+    for (const [brand, ids] of byBrand) {
+      for (let i = 0; i < ids.length; i += 450) {
+        const batch = db.batch();
+        ids.slice(i, i + 450).forEach(id => batch.delete(
+          db.collection("users").doc(uid).collection("printers").doc(brand).collection("devices").doc(id)));
+        await batch.commit();
+      }
+    }
+    console.log(`[bulkDelete] ${state.selectedPrinters.size} printer(s)`);
+    _exitSelectMode();
+  }
+
+  // Hard-delete a set of spoolIds (+ their twin halves), chunked to Firestore's
+  // 500-op batch limit. Mirrors markSpoolDeleted. Shared by bulk-select and the
+  // group "reduce copies" action. Returns the number of docs deleted.
+  async function _hardDeleteSpoolIds(seed) {
+    const user = fbAuth().currentUser;
+    if (!user) return 0;
+    const ids = new Set(seed);
+    if (!ids.size) return 0;
+    const invRef = fbDb(user.uid).collection("users").doc(user.uid).collection("inventory");
+    [...ids].forEach(id => {
+      const r = state.rows.find(x => x.spoolId === id);
+      if (r?.twinUid) {
+        const twin = state.rows.find(x => x.spoolId !== id &&
+          (String(x.uid) === String(r.twinUid) || String(x.spoolId) === String(r.twinUid)));
+        if (twin) ids.add(twin.spoolId);
+      }
+    });
+    const list = [...ids];
+    for (let i = 0; i < list.length; i += 450) {
+      const batch = fbDb(user.uid).batch();
+      list.slice(i, i + 450).forEach(id => batch.delete(invRef.doc(id)));
+      await batch.commit();
+    }
+    console.log(`[hardDelete] ${list.length} spool(s)`);
+    return list.length;
+  }
+  async function _bulkDeleteSelected() {
+    if (!state.selectedSpools.size) return;
+    await _hardDeleteSpoolIds(state.selectedSpools);
+    _exitSelectMode();
+  }
+
   /* ── view toggle ── */
   function setViewMode(mode, opts = {}) {
     const prevMode = state.viewMode;
     state.viewMode = mode;
+    // Selection is per-context (materials vs printers) — crossing contexts clears
+    // it (never linked). Switching within a context (table↔grid) keeps it.
+    const _ctxOf = m => (m === "table" || m === "grid") ? "mat" : _isPrinterMode(m) ? "prn" : "other";
+    if (state.bulkSelect && _ctxOf(prevMode) !== _ctxOf(mode)) _exitSelectMode();
+    // The header "Select" toggle shows where selection is button-triggered: the
+    // GRID views (materials + printers). Both TABLES have an always-on checkbox
+    // column (so the button is redundant there); rack / cam have no list.
+    document.body.classList.toggle("sel-btn-view", mode === "grid" || mode === "printer");
     // Friend view forces "grid" transiently — `persist:false` keeps the owner's
     // saved preference (restored on switching back to their own account).
     if (opts.persist !== false) localStorage.setItem("tigertag.view", mode);
@@ -6906,6 +7281,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       _addLbl.dataset.i18n = _key;
       _addLbl.textContent  = t(_key);
     }
+    _syncSearchPlaceholder(); // materials ↔ printer search hint
+    // Right-of-search selectors: in the printer grid/table swap them to printer
+    // brand + tag (materials-only Material / Version selects hidden via the body
+    // class); materials views restore the full set on their next render.
+    const _printerFilters = _isPrinterMode(mode) && mode !== "printer-cam";
+    document.body.classList.toggle("printer-filters", _printerFilters);
+    if (_printerFilters) populatePrinterFilters();
     // Cam view: the search bar + Scan/Add buttons are useless there, so hide
     // them (via #card-inv.is-cam-view) and surface the cam-wall "Detach" button
     // in the actions slot instead.
@@ -6997,6 +7379,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     state.materialFilter = "";
     state.typeFilter     = "";
     state.tagFilter      = "";
+    state.printerBrandFilter  = "";
+    state.printerStatusFilter = "";
+    state.printerTagFilter    = "";
     const si = $("searchInv");
     if (si) { si.value = ""; _refreshSearchClearVisibility(""); }
     ["brandFilter", "materialFilter", "typeFilter", "tagFilter"].forEach(id => {
@@ -7015,6 +7400,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (state.viewMode === "rack") { applyRackSearchDim(); return; }
     if (state.viewMode === "grid" || state.viewMode === "table") {
       applyInventoryFilter();
+      return;
+    }
+    // Printer grid/table: filter cards/rows in place (cam keeps its live wall).
+    if (_isPrinterMode(state.viewMode)) {
+      if (state.viewMode !== "printer-cam") applyPrinterFilter();
       return;
     }
     renderInventory();
@@ -7043,14 +7433,18 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // by a previous render or autofill (rare but possible).
   _refreshSearchClearVisibility($("searchInv")?.value);
   $("brandFilter")?.addEventListener("change", e => {
-    state.brandFilter = e.target.value;
-    e.target.classList.toggle("is-active", !!state.brandFilter);
-    _onFilterChange();
+    const v = e.target.value;
+    e.target.classList.toggle("is-active", !!v);
+    // Same select, two contexts: printer brands in the printer view, else materials.
+    if (_isPrinterMode(state.viewMode)) { state.printerBrandFilter = v; applyPrinterFilter(); }
+    else { state.brandFilter = v; _onFilterChange(); }
   });
   $("materialFilter")?.addEventListener("change", e => {
-    state.materialFilter = e.target.value;
-    e.target.classList.toggle("is-active", !!state.materialFilter);
-    _onFilterChange();
+    const v = e.target.value;
+    e.target.classList.toggle("is-active", !!v);
+    // Printer view repurposes this select as the State (online/offline) filter.
+    if (_isPrinterMode(state.viewMode)) { state.printerStatusFilter = v; applyPrinterFilter(); }
+    else { state.materialFilter = v; _onFilterChange(); }
   });
   $("typeFilter")?.addEventListener("change", e => {
     state.typeFilter = e.target.value;
@@ -7058,9 +7452,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     _onFilterChange();
   });
   $("tagFilter")?.addEventListener("change", e => {
-    state.tagFilter = e.target.value;
-    e.target.classList.toggle("is-active", !!state.tagFilter);
-    _onFilterChange();
+    const v = e.target.value;
+    e.target.classList.toggle("is-active", !!v);
+    if (_isPrinterMode(state.viewMode)) { state.printerTagFilter = v; applyPrinterFilter(); }
+    else { state.tagFilter = v; _onFilterChange(); }
   });
 
   // ── Stat tile click → quick type filter ────────────────────────────────────
@@ -7137,10 +7532,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const cloudDoc = state.inventory[r.spoolId];
     if (!cloudDoc) return;
 
-    // Only target readers that actually have a card
+    // Only target readers holding one of THIS spool's own chips (uid / twin) —
+    // never write this spool's doc onto a chip that belongs to another spool.
+    const spoolUids = [r.uid, r.twinUid].filter(Boolean).map(u => String(u).toUpperCase());
     const targets = [...state.nfcCardPresent.entries()]
-      .map(([readerName, { uid }]) => ({ readerName, uid }));
-    if (targets.length === 0) return;
+      .map(([readerName, c]) => ({ readerName, uid: c?.uid || null }))
+      .filter(t => t.uid && spoolUids.includes(String(t.uid).toUpperCase()));
+    if (targets.length === 0) return;   // no matching chip on the POD → nothing to update
 
     // Both buttons that can trigger this action — disable all during write
     const allBtns = [$("btnBurnRfid"), $("btnChipDone")].filter(Boolean);
@@ -7159,7 +7557,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       return;
     }
 
-    const okCount = (result.results || []).filter(x => x.ok).length;
+    // Success requires read-back VERIFICATION — a plain write-ok is not enough
+    // to promise the chip actually holds the new bytes.
+    const okCount = (result.results || []).filter(x => x.ok && x.verified === true).length;
     const total   = targets.length;
 
     allBtns.forEach(b => { b.disabled = false; });
@@ -7170,24 +7570,27 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       setTimeout(() => { if (labelEl) labelEl.textContent = t("burnRfidBtn"); }, 3000);
     }
 
-    // Chip is now up to date — clear needUpdateAt on this spool + twin
-    if (okCount > 0 && r.needUpdateAt) {
-      const ownerUid = state.activeAccountId; if (!ownerUid) return;
-      const db     = fbDb(ownerUid); // named instance — stable after async IPC call
-      const invRef = db.collection("users").doc(ownerUid).collection("inventory");
-      try {
-        const batch = db.batch();
-        batch.update(invRef.doc(r.spoolId), { needUpdateAt: null });
-        if (r.twinUid) {
-          const tr = state.rows.find(x =>
-            x.spoolId !== r.spoolId &&
-            (String(x.uid) === String(r.twinUid) || String(x.spoolId) === String(r.twinUid))
-          );
-          if (tr) batch.update(invRef.doc(tr.spoolId), { needUpdateAt: null });
-        }
-        await batch.commit();
-      } catch (e) { console.error("[burnRfid] needUpdateAt clear failed:", e); }
-    }
+    // Chip is now up to date (verified) — clear needUpdateAt on this spool + twin
+    if (okCount > 0) await _clearNeedUpdate(r);
+  }
+  // Clear the "needs update" flag on a spool (and its twin) after a verified write.
+  async function _clearNeedUpdate(r) {
+    if (!r?.needUpdateAt) return;
+    const ownerUid = state.activeAccountId; if (!ownerUid) return;
+    const db     = fbDb(ownerUid); // named instance — stable after async IPC call
+    const invRef = db.collection("users").doc(ownerUid).collection("inventory");
+    try {
+      const batch = db.batch();
+      batch.update(invRef.doc(r.spoolId), { needUpdateAt: null });
+      if (r.twinUid) {
+        const tr = state.rows.find(x =>
+          x.spoolId !== r.spoolId &&
+          (String(x.uid) === String(r.twinUid) || String(x.spoolId) === String(r.twinUid))
+        );
+        if (tr) batch.update(invRef.doc(tr.spoolId), { needUpdateAt: null });
+      }
+      await batch.commit();
+    } catch (e) { console.error("[needUpdate] clear failed:", e); }
   }
 
   /* ── Cloud → chip encode — guided dual-chip burn modal ───────────────────────
@@ -7198,6 +7601,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
      explicit abort. See ROADMAP "Cloud → chip encode" for the full spec.   */
   const _CEM_EPOCH_MS = Date.UTC(2000, 0, 1);
   let _cemRow      = null;                 // spool row being encoded
+  let _cemMode     = "encode";             // "encode" (Cloud→chip) | "update" (re-write existing chip)
   let _cemState    = "confirm";            // confirm | burning | failed
   let _cemChip     = new Map();            // readerName → "waiting"|"ready"|"writing"|"ok"|"fail"
   let _cemBlank    = new Map();            // readerName → true(blank)|false(non-blank)|undefined(unknown)
@@ -7224,12 +7628,24 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
 
   function openEncodeModal(r) {
     if (!window.electronAPI || !r?.isCloud) return;
-    _cemRow = r; _cemState = "confirm"; _cemAborted = false;
+    _cemRow = r; _cemMode = "encode"; _cemState = "confirm"; _cemAborted = false;
     _cemChip = new Map(); _cemBlank = new Map(); _cemTargets = [];
     const ow = $("cemOwToggle"); if (ow) ow.checked = false;
     $("cloudEncodeOverlay")?.classList.add("open");
     _cemRender();
     _cemBlankCheck();   // read present chips to detect non-blank → overwrite warning
+  }
+  // Same guided modal, but for RE-WRITING an existing TigerTag / TigerTag+ chip
+  // (the "Please update RFID" flow). Shows the readers waiting for THIS spool's
+  // chip(s), verifies the presented UID(s) match, and warns on a mismatch — never
+  // a Cloud migration, just a verified surgical re-write + clearing needUpdateAt.
+  function openUpdateModal(r) {
+    if (!window.electronAPI || !r || r.isCloud) return;
+    if (state.nfcReaders.size === 0) { openTigerPodModal(); return; }
+    _cemRow = r; _cemMode = "update"; _cemState = "confirm"; _cemAborted = false;
+    _cemChip = new Map(); _cemBlank = new Map(); _cemTargets = [];
+    $("cloudEncodeOverlay")?.classList.add("open");
+    _cemRender();
   }
   function closeEncodeModal() {
     // Closing = user abort. A write already in flight finishes but no migration runs.
@@ -7273,6 +7689,21 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const readers = [...state.nfcReaders];
     const present = _cemPresentTargets();
     const burning = _cemState === "burning";
+    const isUpdate = _cemMode === "update";
+    // Update mode: the chips that MUST be presented are this spool's own (uid + twin).
+    const spoolUids = isUpdate
+      ? [_cemRow?.uid, _cemRow?.twinUid].filter(Boolean).map(u => String(u).toUpperCase())
+      : [];
+    const _ownsUid = uid => spoolUids.includes(String(uid || "").toUpperCase());
+
+    // Title: "TigerCloud → TigerTag" for encode; "TigerTag(+) ⟳ update" for update.
+    const titleEl = overlay.querySelector(".cem-title-migrate");
+    if (titleEl) {
+      const tier = _cemRow?.isPlus ? "TigerTag+" : "TigerTag";
+      titleEl.innerHTML = isUpdate
+        ? `<span class="cem-tag cem-tag--phys">${esc(tier)}</span><span class="cem-arrow icon icon-refresh icon-13"></span><span class="cem-tag cem-tag--phys">${esc(t("encUpdateTag"))}</span>`
+        : `<span class="cem-tag cem-tag--cloud">TigerCloud</span><span class="cem-arrow icon icon-chevron-r icon-13"></span><span class="cem-tag cem-tag--phys">TigerTag</span>`;
+    }
 
     // Chip cards — one per connected reader. State is conveyed entirely by
     // COLOUR (grey=waiting · blue=ready/writing · green=done · red=failed):
@@ -7282,7 +7713,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       const hasReader = name !== "__none__";
       const card  = hasReader && state.nfcCardPresent.get(name);
       let st = _cemChip.get(name);
-      if (!burning) st = hasReader ? (card ? "ready" : "waiting") : "none";
+      if (!burning) {
+        // Update mode: a present chip is "ready" only if its UID is this spool's;
+        // a foreign chip is a "mismatch" (red) so the user knows to swap it.
+        if (!hasReader) st = "none";
+        else if (!card) st = "waiting";
+        else st = (isUpdate && !_ownsUid(card.uid)) ? "mismatch" : "ready";
+      }
       st = st || "waiting";
       const numBadge = (hasReader && showNums) ? `<span class="cem-chip-num">${i + 1}</span>` : "";
       const dbgUid = (state.debugEnabled && card?.uid) ? `<div class="cem-chip-uid">${esc(card.uid)}</div>` : "";
@@ -7297,8 +7734,15 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // Gate.
     const nonBlank = present.some(p => _cemBlank.get(p.readerName) === true);
     const sameUid  = present.length === 2 && present[0].uid && present[0].uid === present[1].uid;
-    const gateReady = !burning && readers.length >= 1 && present.length === readers.length && !sameUid
-      && (!nonBlank || $("cemOwToggle")?.checked);
+    // Update mode: enable only when ALL of this spool's chips are present AND no
+    // foreign (mismatch) chip is on any reader.
+    const anyMismatch   = isUpdate && present.some(p => !_ownsUid(p.uid));
+    const allOwnPresent = isUpdate && spoolUids.length > 0
+      && spoolUids.every(u => present.some(p => String(p.uid || "").toUpperCase() === u));
+    const gateReady = isUpdate
+      ? (!burning && allOwnPresent && !anyMismatch)
+      : (!burning && readers.length >= 1 && present.length === readers.length && !sameUid
+         && (!nonBlank || $("cemOwToggle")?.checked));
 
     // Global progress bar — sequence-wide (NOT per chip). Shown while burning
     // or after a failure; hidden in confirm/ready (chip colour conveys state).
@@ -7319,16 +7763,18 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // The top hint ("Hold the RFID tags in front of the readers") is a fixed
     // instruction set once from i18n — never toggled here.
 
-    // Overwrite section
+    // Overwrite section — encode-only (in update mode the chip is meant to be
+    // rewritten in place, no "erase warning").
     const owEl = $("cemOverwrite");
-    if (owEl) owEl.classList.toggle("hidden", burning || !nonBlank);
+    if (owEl) owEl.classList.toggle("hidden", isUpdate || burning || !nonBlank);
     // Status line — only for exceptional states (failure / same chip twice /
-    // no reader). Red for the error cases.
+    // no reader / wrong chip). Red for the error cases.
     const stEl = $("cemStatus");
     if (stEl) {
-      const isErr = _cemState === "failed" || sameUid;
+      const isErr = _cemState === "failed" || sameUid || anyMismatch;
       stEl.textContent =
         _cemState === "failed" ? t("encFailed")
+        : anyMismatch          ? t("encMismatch")
         : sameUid              ? t("encSameUid")
         : readers.length === 0 ? t("encNoReader")
         :                        "";
@@ -7339,7 +7785,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const burnBtn = $("cemBurn");
     if (burnBtn) {
       burnBtn.disabled = !gateReady;
-      burnBtn.textContent = _cemState === "failed" ? t("encRetry") : t("encBurn");
+      burnBtn.textContent = _cemState === "failed" ? t("encRetry") : (isUpdate ? t("encUpdate") : t("encBurn"));
       burnBtn.closest(".cem-actions")?.classList.toggle("hidden", burning);
     }
   }
@@ -7363,12 +7809,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     for (const name of [..._cemBlank.keys()]) {
       if (!state.nfcCardPresent.has(name)) _cemBlank.delete(name);
     }
-    _cemBlankCheck();
+    if (_cemMode !== "update") _cemBlankCheck();   // blank-check is an encode-only concern
     _cemRender();
   }
 
   async function _cemStartBurn() {
     if (_cemState === "burning" || !_cemRow) return;
+    if (_cemMode === "update") return _cemStartUpdate();
     const r = _cemRow;
     const cloudDoc = state.inventory[r.spoolId];
     if (!cloudDoc) return;
@@ -7424,6 +7871,47 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       closeDetail();
     } catch (e) {
       console.error("[encodeModal] migration failed:", e);
+      _cemState = "failed"; _cemRender(); _cemBeep(false);
+    }
+  }
+
+  // Update mode — re-write THIS spool's existing chip(s) in place. Only the
+  // spool's own present chips are targeted (UID-guarded); the write is surgical +
+  // read-back verified (rfid:encode-cloud). No Cloud migration — the doc already
+  // exists — just clear needUpdateAt when every targeted chip verifies.
+  async function _cemStartUpdate() {
+    if (_cemState === "burning" || !_cemRow) return;
+    const r = _cemRow;
+    const cloudDoc = state.inventory[r.spoolId];
+    if (!cloudDoc) return;
+    const spoolUids = [r.uid, r.twinUid].filter(Boolean).map(u => String(u).toUpperCase());
+    _cemTargets = _cemPresentTargets().filter(t => t.uid && spoolUids.includes(String(t.uid).toUpperCase()));
+    if (_cemTargets.length === 0) return;
+
+    _cemState = "burning"; _cemAborted = false;
+    _cemTargets.forEach(t => _cemChip.set(t.readerName, "writing"));
+    _cemRender();
+
+    let res;
+    try { res = await window.electronAPI.encodeCloudSpool({ cloudDoc, targets: _cemTargets }); }
+    catch (e) { res = { ok: false, results: [] }; }
+
+    const byReader = new Map((res?.results || []).map(x => [x.readerName, x]));
+    let allOk = _cemTargets.length > 0;
+    _cemTargets.forEach(t => {
+      const x = byReader.get(t.readerName);
+      const ok = !!(x && x.ok && x.verified);
+      _cemChip.set(t.readerName, ok ? "ok" : "fail");
+      if (!ok) allOk = false;
+    });
+    _cemRender();
+
+    if (allOk) {
+      await _clearNeedUpdate(r);
+      _cemBeep(true);
+      closeEncodeModal();
+      // Keep the side card open — the Firestore echo drops the "update" banner.
+    } else {
       _cemState = "failed"; _cemRender(); _cemBeep(false);
     }
   }
@@ -7865,19 +8353,76 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     try { await batch.commit(); }
     catch (e) { reportError("spool.tags", e); }
   }
-  function addSpoolTag(r, raw) {
+  // ── Generic tag editor context ──────────────────────────────────────────────
+  // The Shopify-style editor (chips + inline dropdown + "Add tags" modal) is
+  // entity-agnostic: it drives any object that exposes a small context. Both
+  // spools (materials panel) and printers (printer side card) provide one.
+  //   ctx = {
+  //     getTags(): string[]                 current tags
+  //     writeTags(tags): void               persist (+ optimistic in-memory patch)
+  //     allTags(exclude): string[]          union for autocomplete
+  //     readOnly: boolean
+  //     ids: { input, dropdown, chips, editBtn }   DOM ids of this instance
+  //     afterLocalRender?(): void           optional (e.g. signature resync)
+  //   }
+  const TAG_IDS_SPOOL   = { input: "tagInput",   dropdown: "tagDropdown",   chips: "tagChips",   editBtn: "tagsEditBtn" };
+  const TAG_IDS_PRINTER = { input: "ppTagInput", dropdown: "ppTagDropdown", chips: "ppTagChips", editBtn: "ppTagsEditBtn" };
+  function _ctxAddTag(ctx, raw) {
     const tag = _normalizeTag(raw);
     if (!tag) return false;
-    const current = r.tags || [];
+    const current = ctx.getTags();
     if (current.some(x => x.toLowerCase() === tag.toLowerCase())) return false; // dedup (case-insensitive)
     if (current.length >= TAG_MAX_COUNT) return false; // silent cap (rarely hit)
-    _writeSpoolTags(r, [...current, tag]);
+    ctx.writeTags([...current, tag]);
     return true;
   }
-  function removeSpoolTag(r, tag) {
-    const next = (r.tags || []).filter(x => x.toLowerCase() !== String(tag).toLowerCase());
-    if (next.length === (r.tags || []).length) return;
-    _writeSpoolTags(r, next);
+  function _ctxRemoveTag(ctx, tag) {
+    const cur  = ctx.getTags();
+    const next = cur.filter(x => x.toLowerCase() !== String(tag).toLowerCase());
+    if (next.length === cur.length) return;
+    ctx.writeTags(next);
+  }
+  function _spoolTagCtx(r) {
+    return {
+      getTags:   () => r.tags || [],
+      writeTags: (tags) => _writeSpoolTags(r, tags),
+      allTags:   (exclude) => _allTags(exclude),
+      readOnly:  state.friendView || r.deleted,
+      ids: TAG_IDS_SPOOL,
+      afterLocalRender: () => { if (state.selected === r.spoolId) _lastDetailStructuralSig = _detailStructuralSig(r); },
+    };
+  }
+  // Union of every tag across all printers (for the printer editor autocomplete).
+  // A separate namespace from spool tags — a printer's "PLA-only" tag has nothing
+  // to do with a spool's.
+  function _allPrinterTags(exclude) {
+    const skip = new Set((exclude || []).map(t => t.toLowerCase()));
+    const seen = new Map(); // lowercase → display form (first seen wins)
+    (state.printers || []).forEach(p => (p.tags || []).forEach(tag => {
+      const k = tag.toLowerCase();
+      if (!skip.has(k) && !seen.has(k)) seen.set(k, tag);
+    }));
+    return [...seen.values()].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+  }
+  // Persist a printer's tag list (users/{uid}/printers/{brand}/devices/{id}.tags).
+  // Patches the in-memory copy first so the chips are correct before the snapshot
+  // echoes back (see the tags-only fast path in refreshOpenPrinterDetail).
+  async function _writePrinterTags(p, tags) {
+    if (!p || state.friendView) return;
+    p.tags = tags;
+    const inState = (state.printers || []).find(x => x.brand === p.brand && x.id === p.id);
+    if (inState && inState !== p) inState.tags = tags;
+    try { await savePrinterField(p.brand, p.id, "tags", tags); }
+    catch (e) { reportError("printer.tags", e); }
+  }
+  function _printerTagCtx(p) {
+    return {
+      getTags:   () => p.tags || [],
+      writeTags: (tags) => _writePrinterTags(p, tags),
+      allTags:   (exclude) => _allPrinterTags(exclude),
+      readOnly:  state.friendView,
+      ids: TAG_IDS_PRINTER,
+    };
   }
 
   // ── Shopify-style tag editor (inline dropdown + "Add tags" modal) ───────────
@@ -7885,47 +8430,44 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function _tagChipHtml(tag, ro) {
     return `<span class="tag-chip">${esc(tag)}${ro ? "" : `<button class="tag-chip-x" data-tag-remove="${esc(tag)}" title="${esc(t("tagRemove"))}" aria-label="${esc(t("tagRemove"))}">✕</button>`}</span>`;
   }
-  // Re-render the chip list in place from r.tags (keeps input focus / no rebuild).
-  function _renderTagChips(r) {
-    const el = $("tagChips");
+  // Re-render the chip list in place from ctx (keeps input focus / no rebuild).
+  function _renderTagChips(ctx) {
+    const el = $(ctx.ids.chips);
     if (!el) return;
-    const ro = state.friendView || r.deleted;
-    el.innerHTML = (r.tags || []).map(tag => _tagChipHtml(tag, ro)).join("");
-    // Tags live in the detail structural signature, so a tag write would make the
-    // Firestore echo rebuild the whole card (flicker + scroll-to-top + closes the
-    // dropdown). We render chips in place here, so re-sync the stored signature →
-    // the echo takes the lightweight patch path instead of a full rebuild.
-    if (state.selected === r.spoolId) _lastDetailStructuralSig = _detailStructuralSig(r);
+    el.innerHTML = ctx.getTags().map(tag => _tagChipHtml(tag, ctx.readOnly)).join("");
+    // e.g. spools re-sync the detail structural signature here so the Firestore
+    // echo takes the lightweight patch path instead of a full card rebuild.
+    ctx.afterLocalRender?.();
   }
   // Render the inline autocomplete dropdown: a "create" row for a new tag +
-  // every existing tag (toggles on/off this spool). Hidden when it would be empty.
-  function _renderTagDropdown(r, query) {
-    const dd = $("tagDropdown");
+  // every existing tag (toggles on/off this entity). Hidden when it would be empty.
+  function _renderTagDropdown(ctx, query) {
+    const dd = $(ctx.ids.dropdown);
     if (!dd) return;
     const norm = _normalizeTag(query);
     const q = norm.toLowerCase();
-    const onSpool = new Set((r.tags || []).map(x => x.toLowerCase()));
-    const all = _allTags();                       // every tag in the inventory
-    const exact = all.some(tg => tg.toLowerCase() === q) || onSpool.has(q);
+    const onEntity = new Set(ctx.getTags().map(x => x.toLowerCase()));
+    const all = ctx.allTags();                    // every tag across the same kind
+    const exact = all.some(tg => tg.toLowerCase() === q) || onEntity.has(q);
     const matches = all.filter(tg => !q || tg.toLowerCase().includes(q));
     let rows = "";
     if (norm && !exact) {
       rows += `<button type="button" class="tags-dd-create" data-tag-create="${esc(norm)}"><span class="icon icon-plus-circle icon-14"></span>${esc(t("tagsCreate", { tag: norm }))}</button>`;
     }
     rows += matches.map(tg =>
-      `<button type="button" class="tags-dd-opt${onSpool.has(tg.toLowerCase()) ? " is-checked" : ""}" data-tag-toggle="${esc(tg)}"><span class="tags-dd-check"></span><span class="tags-dd-label">${esc(tg)}</span></button>`
+      `<button type="button" class="tags-dd-opt${onEntity.has(tg.toLowerCase()) ? " is-checked" : ""}" data-tag-toggle="${esc(tg)}"><span class="tags-dd-check"></span><span class="tags-dd-label">${esc(tg)}</span></button>`
     ).join("");
     if (!rows) { dd.hidden = true; dd.innerHTML = ""; return; }
     dd.innerHTML = rows;
     dd.hidden = false;
   }
-  // Wire the inline tag editor for the open spool (input + dropdown + chips + pencil).
-  function _wireTagEditor(r) {
-    $("tagsEditBtn")?.addEventListener("click", () => openTagsModal(r));
-    const input = $("tagInput");
-    const dd = $("tagDropdown");
+  // Wire the inline tag editor for a context (input + dropdown + chips + pencil).
+  function _wireTagEditor(ctx) {
+    $(ctx.ids.editBtn)?.addEventListener("click", () => openTagsModal(ctx));
+    const input = $(ctx.ids.input);
+    const dd = $(ctx.ids.dropdown);
     if (input && dd) {
-      const refresh = () => _renderTagDropdown(r, input.value);
+      const refresh = () => _renderTagDropdown(ctx, input.value);
       input.addEventListener("focus", refresh);
       input.addEventListener("input", refresh);
       // mousedown-preventDefault keeps the input focused when clicking the
@@ -7935,34 +8477,34 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         if (e.key === "Enter") {
           e.preventDefault();
           const val = input.value.trim();
-          if (val) { addSpoolTag(r, val); input.value = ""; _renderTagChips(r); refresh(); }
+          if (val) { _ctxAddTag(ctx, val); input.value = ""; _renderTagChips(ctx); refresh(); }
         } else if (e.key === "Escape") { dd.hidden = true; }
       });
       dd.addEventListener("mousedown", e => e.preventDefault());
       dd.addEventListener("click", e => {
         const create = e.target.closest("[data-tag-create]");
         const toggle = e.target.closest("[data-tag-toggle]");
-        if (create) { addSpoolTag(r, create.dataset.tagCreate); input.value = ""; }
+        if (create) { _ctxAddTag(ctx, create.dataset.tagCreate); input.value = ""; }
         else if (toggle) {
           const tg = toggle.dataset.tagToggle;
-          if ((r.tags || []).some(x => x.toLowerCase() === tg.toLowerCase())) removeSpoolTag(r, tg);
-          else addSpoolTag(r, tg);
+          if (ctx.getTags().some(x => x.toLowerCase() === tg.toLowerCase())) _ctxRemoveTag(ctx, tg);
+          else _ctxAddTag(ctx, tg);
         } else return;
-        _renderTagChips(r);
-        _renderTagDropdown(r, input.value);
+        _renderTagChips(ctx);
+        _renderTagDropdown(ctx, input.value);
         input.focus();
       });
     }
-    $("tagChips")?.addEventListener("click", e => {
+    $(ctx.ids.chips)?.addEventListener("click", e => {
       const x = e.target.closest("[data-tag-remove]");
       if (!x) return;
-      removeSpoolTag(r, x.dataset.tagRemove);
-      _renderTagChips(r);
+      _ctxRemoveTag(ctx, x.dataset.tagRemove);
+      _renderTagChips(ctx);
     });
   }
 
   // ── "Add tags" modal (staged editor — Cancel discards, Save applies) ────────
-  let _tagsModalRow = null;
+  let _tagsModalCtx = null;
   let _tagsModalStaged = new Map(); // lowercase → display form (working set)
   function _ensureTagsModal() {
     if ($("tagsModalOverlay")) return;
@@ -7991,10 +8533,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     $("tagsModalClose").addEventListener("click", closeTagsModal);
     $("tagsModalCancel").addEventListener("click", closeTagsModal);
     $("tagsModalSave").addEventListener("click", () => {
-      if (_tagsModalRow) {
-        _writeSpoolTags(_tagsModalRow, [..._tagsModalStaged.values()].slice(0, TAG_MAX_COUNT));
-        _renderTagChips(_tagsModalRow);
-        _renderTagDropdown(_tagsModalRow, "");
+      if (_tagsModalCtx) {
+        _tagsModalCtx.writeTags([..._tagsModalStaged.values()].slice(0, TAG_MAX_COUNT));
+        _renderTagChips(_tagsModalCtx);
+        _renderTagDropdown(_tagsModalCtx, "");
       }
       closeTagsModal();
     });
@@ -8033,9 +8575,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   }
   function _renderTagsModalBody() {
     const body = $("tagsModalBody");
-    if (!body || !_tagsModalRow) return;
+    if (!body || !_tagsModalCtx) return;
     const q = _normalizeTag($("tagsModalSearch")?.value || "").toLowerCase();
-    const allMap = new Map(_allTags().map(tg => [tg.toLowerCase(), tg]));
+    const allMap = new Map(_tagsModalCtx.allTags().map(tg => [tg.toLowerCase(), tg]));
     _tagsModalStaged.forEach((disp, lc) => { if (!allMap.has(lc)) allMap.set(lc, disp); });
     const exact = allMap.has(q);
     const byName = (a, b) => a.localeCompare(b, undefined, { sensitivity: "base" });
@@ -8053,11 +8595,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (available.length) html += `<div class="tags-modal-sec">${esc(t("tagsAvailable"))}</div>` + available.map(tg => optRow(tg, false)).join("");
     body.innerHTML = html;
   }
-  function openTagsModal(r) {
-    if (state.friendView || r.deleted) return;
+  function openTagsModal(ctx) {
+    if (ctx.readOnly) return;
     _ensureTagsModal();
-    _tagsModalRow = r;
-    _tagsModalStaged = new Map((r.tags || []).map(tg => [tg.toLowerCase(), tg]));
+    _tagsModalCtx = ctx;
+    _tagsModalStaged = new Map(ctx.getTags().map(tg => [tg.toLowerCase(), tg]));
     const search = $("tagsModalSearch");
     if (search) search.value = "";
     const clear = $("tagsModalClear"); if (clear) clear.hidden = true;
@@ -8067,7 +8609,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   }
   function closeTagsModal() {
     $("tagsModalOverlay")?.classList.remove("open");
-    _tagsModalRow = null;
+    _tagsModalCtx = null;
   }
 
   /* ── detail panel ── */
@@ -8959,15 +9501,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if ($("btnEditColor")) {
       $("btnEditColor").addEventListener("click", () => openColorEditModal(r));
     }
-    // Chip update banner — whole banner is clickable
-    // If no reader is connected, redirect to TigerPOD discovery instead of trying to burn
-    $("chipUpdateBanner")?.addEventListener("click", () => {
-      if (state.nfcReaders.size === 0) {
-        openTigerPodModal();
-      } else {
-        _burnRfid(r);
-      }
-    });
+    // Chip update banner — no reader connected → the "how to build a TigerPOD"
+    // modal; otherwise the guided update modal that shows the readers waiting for
+    // THIS spool's chip(s), verifies the presented UID(s) match, warns on a
+    // mismatch, and does the verified surgical re-write. (openUpdateModal falls
+    // back to the POD modal itself when no reader is present.)
+    $("chipUpdateBanner")?.addEventListener("click", () => openUpdateModal(r));
     // Cloud encode banner — open the guided encode modal when a reader is
     // connected (it handles the presence gate itself); otherwise guide to POD.
     $("cloudEncodeBanner")?.addEventListener("click", () => {
@@ -8977,7 +9516,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // Tags — Shopify-style inline editor (input + custom autocomplete dropdown
     // with create + toggles, chips below, pencil → "Add tags" modal). Firestore
     // writes are twin-mirrored; chips update in place. See _wireTagEditor.
-    _wireTagEditor(r);
+    _wireTagEditor(_spoolTagCtx(r));
   }
   function closeDetail() {
     // Cancel any pending scan-open: a twin spool's second chip can leave a queued
@@ -9994,12 +10533,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
               ? { id: "btnEncodeCloud", icon: "icon-nfc", label: t("encodeCloudBtn"), variant: "primary", info: t("encodeCloudTip") }
               : _unusable({ id: "btnEncodeCloudLocked", icon: "icon-nfc", label: t("encodeCloudBtn"), variant: "primary", info: t("encodeCloudTip") }));
           } else {
-            // 5b. Burn RFID — writes this spool's doc onto the chip(s) present on
-            //     the reader(s), so it needs a card present (`_burnRfid` bails on an
-            //     empty reader). A twin-tagged spool needs BOTH its chips present;
-            //     a single spool just needs any card. Locked (POD) when no reader
-            //     at all; greyed-inert with a reader but the chip(s) missing.
-            tools.push((r.hasTwinPair ? _allChipsPresent : _cardPresent)
+            // 5b. Burn RFID — writes this spool's doc onto ITS OWN chip(s). Only
+            //     functional when this spool's chip(s) are actually on a reader
+            //     (both, for a twin pair) — same UID gate as erase/recycle/restore,
+            //     so we never write this doc onto a chip that isn't the spool's.
+            //     Locked (POD promo) when no reader at all; greyed-inert with a
+            //     reader present but the spool's own chip(s) missing.
+            tools.push(_allChipsPresent
               ? { id: "btnBurnRfid", icon: "icon-nfc", label: t("burnRfidBtn"), variant: "default", info: t("burnRfidTip") }
               : _unusable({ id: "btnBurnRfidLocked", icon: "icon-nfc", label: t("burnRfidBtn"), variant: "default", info: t("burnRfidTip") }));
 
@@ -11716,11 +12256,52 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     else if (p.brand === "elegoo"   && d.printRemainingMs > 0) remainSec = Math.round(d.printRemainingMs / 1000);
     else if (p.brand === "creality" && d.printLeftTime > 0)    remainSec = d.printLeftTime;
 
-    return { state, pct, isActive, filename, remainSec };
+    // Current-print thumbnail (brand-specific field on the live conn data).
+    // Only resolved for an active job — a preview of "what's on the bed now".
+    // Bambu exposes no readily-fetchable gcode thumbnail → none.
+    let thumbUrl = null;
+    if (isActive) {
+      if (p.brand === "snapmaker" || p.brand === "flashforge") thumbUrl = d.printPreviewUrl || null;
+      else if (p.brand === "anycubic") thumbUrl = d.printThumb || null;
+      else if (p.brand === "elegoo")   thumbUrl = d.thumbnail || null;
+      else if (p.brand === "creality") {
+        const c = creGetConn(creKey(p));
+        if (c?.ip) thumbUrl = `http://${c.ip}/downloads/original/current_print_image.png`;
+      }
+    }
+
+    return { state, pct, isActive, filename, remainSec, thumbUrl };
+  }
+  // Table thumbnail cell HTML — the print preview, or empty when idle/unavailable.
+  function _jobThumbHtml(job) {
+    const url = job?.isActive ? job.thumbUrl : null;
+    return url ? `<div class="pt-jobthumb" style="background-image:url('${esc(url)}')"></div>` : "";
+  }
+  // Separate signature so the thumbnail only reloads when its URL changes — never
+  // on a progress tick (a bg-image reload on every % would flicker the preview).
+  function _jobThumbSig(job) {
+    return (job?.isActive && job.thumbUrl) ? job.thumbUrl : "";
   }
 
   function _fmtRemain(sec) {
     return snapFmtDuration(sec);
+  }
+  // Wall-clock time the current job finishes (now + remaining) → "21:23", so you
+  // know when the printer is free. "+Nd" suffix when it spills past today.
+  // Only shown for an actually-running job — some firmwares (Bambu) keep a stale
+  // remaining time while idle, which must not surface as a bogus finish time.
+  function _fmtEndClock(job) {
+    const remainSec = job?.remainSec;
+    if (!job?.isActive || !remainSec || remainSec <= 0) return "—";
+    const end = new Date(Date.now() + remainSec * 1000);
+    const hhmm = end.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const days = Math.floor((end.setHours(0, 0, 0, 0) - new Date().setHours(0, 0, 0, 0)) / 86400000);
+    return days > 0 ? `${hhmm} +${days}d` : hhmm;
+  }
+  // Sort key for the "Ends at" column: running jobs order by remaining time
+  // (soonest finish first ascending); idle / no-ETA printers sink to the bottom.
+  function _etaSortVal(job) {
+    return (job?.isActive && job.remainSec > 0) ? job.remainSec : Infinity;
   }
 
   // Surgical patch: update only the .printer-card-job block inside each grid
@@ -11785,10 +12366,20 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (!row) return;
       const job = _getPrinterJob(p);
       const sig = _jobSignature(job);
-      if (row._lastJobSig === sig) return; // no real change, skip the rewrite
-      row._lastJobSig = sig;
-      const td = row.querySelector(".pt-td--job");
-      if (td) td.innerHTML = _jobCellHtml(job);
+      if (row._lastJobSig !== sig) {
+        row._lastJobSig = sig;
+        const td = row.querySelector(".pt-td--job");
+        if (td) td.innerHTML = _jobCellHtml(job);
+        const eta = row.querySelector(".pt-td--eta");
+        if (eta) eta.textContent = _fmtEndClock(job);
+      }
+      // Thumbnail: its own signature so a progress tick never reloads the image.
+      const thumbSig = _jobThumbSig(job);
+      if (row._lastThumbSig !== thumbSig) {
+        row._lastThumbSig = thumbSig;
+        const tt = row.querySelector(".pt-td--jobthumb");
+        if (tt) tt.innerHTML = _jobThumbHtml(job);
+      }
     });
   }
 
@@ -11943,6 +12534,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const _printerSub = state.viewMode === "printer-table" ? "table"
                       : state.viewMode === "printer-cam"   ? "cam"
                       : "grid";
+    // Keep the brand / tag selectors in sync with the current printer set
+    // (new brand or tag → fresh option) — grid + table only, cam hides them.
+    if (_printerSub !== "cam") populatePrinterFilters();
     if (_printerSub === "table") { _renderPrinterTable(host); return; }
     if (_printerSub === "cam")   { _renderPrinterCam(host);   return; }
 
@@ -11996,10 +12590,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       const _ls         = _printerLastSeen.get(`${p.brand}:${p.id}`);
       const lastSeen    = online ? t("agoNow") : (_ls ? timeAgo(_ls) : "—");
       return `
-        <div class="printer-card${p.isActive ? " printer-card--active" : ""}"
+        <div class="printer-card${p.isActive ? " printer-card--active" : ""}${state.selectedPrinters.has(`${p.brand}:${p.id}`) ? " row-selected" : ""}"
              data-brand="${esc(p.brand)}" data-id="${esc(p.id)}"
              data-printer-key="${esc(`${p.brand}:${p.id}`)}"
              draggable="true">
+          <span class="sel-check" aria-hidden="true"></span>
           <div class="printer-card-drag" title="${esc(t("printerDragHint"))}" aria-hidden="true">
             <span class="printer-card-drag-dots"></span>
           </div>
@@ -12052,6 +12647,95 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       const card = host.querySelector(`[data-printer-key="${esc(p.brand + ":" + p.id)}"]`);
       if (card) card._lastJobSig = _jobSignature(_getPrinterJob(p));
     });
+    applyPrinterFilter(); // honour an active search on rebuild
+  }
+
+  // Does a printer match the current search query? Matches on name, brand label,
+  // model, IP / broker / "cloud", and its tags. Empty query matches everything.
+  function _printerMatchesSearch(p, q) {
+    if (!q) return true;
+    const meta  = PRINTER_BRAND_META[p.brand] || { label: p.brand };
+    const model = printerModelName(p.brand, p.printerModelId);
+    const hay = [
+      p.printerName, meta.label, p.brand, model,
+      p.ip, p.broker, (p.mode === "cloud" ? "cloud" : ""),
+      ...(p.tags || []),
+    ].filter(Boolean).join(" ").toLowerCase();
+    return hay.includes(q);
+  }
+  // Filter the printer view by the search box + the brand / tag selectors WITHOUT
+  // rebuilding it — a rebuild would re-fire every brand connect/ping on each
+  // keystroke and reload logos. Toggles `.hidden` on each card/row and collapses
+  // now-empty grid sections.
+  function applyPrinterFilter() {
+    const host = $("invPrinterView");
+    if (!host) return;
+    const q      = (state.search || "").trim().toLowerCase();
+    const brand  = state.printerBrandFilter || "";
+    const status = state.printerStatusFilter || "";
+    const tag    = (state.printerTagFilter || "").toLowerCase();
+    const shown = p =>
+      _printerMatchesSearch(p, q)
+      && (!brand  || p.brand === brand)
+      && (!status || (status === "online") === _isPrinterOnline(p))
+      && (!tag    || (p.tags || []).some(x => x.toLowerCase() === tag));
+    host.querySelectorAll("[data-printer-key]").forEach(el => {
+      const p = state.printers.find(x => `${x.brand}:${x.id}` === el.dataset.printerKey);
+      el.classList.toggle("hidden", !!p && !shown(p));
+    });
+    // Grid: hide a section header once all of its cards are filtered out.
+    host.querySelectorAll(".printers-section-hdr").forEach(hdr => {
+      let allHidden = true, any = false;
+      for (let n = hdr.nextElementSibling; n && !n.classList.contains("printers-section-hdr"); n = n.nextElementSibling) {
+        if (!n.hasAttribute("data-printer-key")) continue; // skip the trailing add-card
+        any = true;
+        if (!n.classList.contains("hidden")) { allHidden = false; break; }
+      }
+      hdr.classList.toggle("hidden", any && allHidden);
+    });
+  }
+  // Repopulate the right-of-search selectors for the printer view: reuse the
+  // Brand select (printer brands present) + the Tag select (printer tags union),
+  // and hide the materials-only Material / Version selects (via body class in
+  // setViewMode). Preserves the current selection when it still exists; the Tag
+  // select hides itself when no printer carries a tag yet.
+  function populatePrinterFilters() {
+    const bsel = $("brandFilter");
+    if (bsel) {
+      const brands = Array.from(new Set((state.printers || []).map(p => p.brand))).filter(Boolean)
+        .sort((a, b) => (PRINTER_BRAND_META[a]?.label || a).localeCompare(PRINTER_BRAND_META[b]?.label || b, undefined, { sensitivity: "base" }));
+      const allLabel = t("filterAllBrands") || "All brands";
+      bsel.innerHTML = `<option value="" data-i18n="filterAllBrands">${esc(allLabel)}</option>`
+        + brands.map(b => `<option value="${esc(b)}">${esc(PRINTER_BRAND_META[b]?.label || b)}</option>`).join("");
+      if (state.printerBrandFilter && brands.includes(state.printerBrandFilter)) bsel.value = state.printerBrandFilter;
+      else { bsel.value = ""; state.printerBrandFilter = ""; }
+      bsel.classList.toggle("is-active", !!state.printerBrandFilter);
+    }
+    // Repurpose the Material select as a State (online / offline) filter — the
+    // Version select stays hidden (both are materials-only concepts).
+    const ssel = $("materialFilter");
+    if (ssel) {
+      const opts = [
+        ["",        t("filterAllStates")   || "All states"],
+        ["online",  t("snapStatusOnline")  || "Online"],
+        ["offline", t("snapStatusOffline") || "Offline"],
+      ];
+      ssel.innerHTML = opts.map(([v, lbl]) => `<option value="${esc(v)}">${esc(lbl)}</option>`).join("");
+      ssel.value = state.printerStatusFilter || "";
+      ssel.classList.toggle("is-active", !!state.printerStatusFilter);
+    }
+    const tsel = $("tagFilter");
+    if (tsel) {
+      const values = _allPrinterTags();
+      const allLabel = t("filterAllTags") || "All tags";
+      tsel.innerHTML = `<option value="" data-i18n="filterAllTags">${esc(allLabel)}</option>`
+        + values.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join("");
+      const match = values.find(v => v.toLowerCase() === String(state.printerTagFilter || "").toLowerCase());
+      if (match) { tsel.value = match; state.printerTagFilter = match; }
+      else { tsel.value = ""; state.printerTagFilter = ""; }
+      tsel.classList.toggle("is-active", !!state.printerTagFilter);
+      tsel.classList.toggle("hidden", values.length === 0); // no printer tags → hide the select
+    }
   }
 
   // ── Printer table sub-view ───────────────────────────────────────────────
@@ -12139,16 +12823,17 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (col === "ip")      { va = a.mode === "cloud" ? "Cloud" : (a.ip || a.broker || ""); vb = b.mode === "cloud" ? "Cloud" : (b.ip || b.broker || ""); }
       if (col === "status")  { va = _isOnline(a) ? 1 : 0;               vb = _isOnline(b) ? 1 : 0; }
       if (col === "job")     { va = (_getPrinterJob(a)?.pct ?? -1);      vb = (_getPrinterJob(b)?.pct ?? -1); }
+      if (col === "eta")     { va = _etaSortVal(_getPrinterJob(a));       vb = _etaSortVal(_getPrinterJob(b)); }
       if (col === "lastseen") { va = _printerLastSeen.get(`${a.brand}:${a.id}`) || 0; vb = _printerLastSeen.get(`${b.brand}:${b.id}`) || 0; }
       if (va === undefined)  return 0;
       return va < vb ? -dir : va > vb ? dir : 0;
     });
 
     // ── Helper: header cell with sort arrow ──────────────────────────────
-    const th = (label, key) => {
+    const th = (label, key, extra = "") => {
       const active = col === key;
       const arrow  = active ? (state.printerSortDir === "asc" ? "sort-asc" : "sort-desc") : "";
-      return `<th class="pt-th pt-th--sort${arrow ? ` ${arrow}` : ""}" data-pt-sort="${key}">${label}</th>`;
+      return `<th class="pt-th pt-th--sort${extra ? ` ${extra}` : ""}${arrow ? ` ${arrow}` : ""}" data-pt-sort="${key}">${label}</th>`;
     };
 
     // ── Rows ─────────────────────────────────────────────────────────────
@@ -12171,8 +12856,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       const job     = _getPrinterJob(p);
       const jobCell = _jobCellHtml(job);
       return `
-        <tr class="pt-row${online ? " pt-row--online" : ""}"
-            data-brand="${esc(p.brand)}" data-id="${esc(p.id)}">
+        <tr class="pt-row${online ? " pt-row--online" : ""}${state.selectedPrinters.has(`${p.brand}:${p.id}`) ? " row-selected" : ""}"
+            data-brand="${esc(p.brand)}" data-id="${esc(p.id)}"
+            data-printer-key="${esc(`${p.brand}:${p.id}`)}">
+          <td class="pt-td sel-cell"><span class="sel-check" aria-hidden="true"></span></td>
           <td class="pt-td pt-td--brandlogo">${brandLogoCell}</td>
           <td class="pt-td pt-td--thumb">
             ${imgSrc ? `<img class="pt-thumb" src="${esc(imgSrc)}" onerror="this.style.opacity='.12'" />` : ""}
@@ -12180,12 +12867,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           <td class="pt-td pt-td--brand">${brandCell}</td>
           <td class="pt-td pt-td--name">${esc(p.printerName || "(unnamed)")}</td>
           <td class="pt-td pt-td--model">${esc(model)}</td>
-          <td class="pt-td pt-td--ip"><code>${p.mode === "cloud" ? "Cloud" : esc(p.ip || p.broker || "—")}</code></td>
           <td class="pt-td pt-td--status">
             <span class="pt-dot${online ? " pt-dot--on" : ""}"></span>
             ${esc(online ? t("snapStatusOnline") : t("snapStatusOffline"))}
           </td>
+          <td class="pt-td pt-td--jobthumb">${_jobThumbHtml(job)}</td>
           <td class="pt-td pt-td--job">${jobCell}</td>
+          <td class="pt-td pt-td--eta">${_fmtEndClock(job)}</td>
+          <td class="pt-td pt-td--ip"><code>${p.mode === "cloud" ? "Cloud" : esc(p.ip || p.broker || "—")}</code></td>
           <td class="pt-td pt-td--updated">${esc(lastSeen)}</td>
         </tr>`;
     }).join("");
@@ -12195,20 +12884,34 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         <table class="pt-table">
           <thead class="pt-head">
             <tr>
+              <th class="pt-th sel-th"></th>
               <th class="pt-th pt-th--brandlogo"></th>
               <th class="pt-th pt-th--thumb"></th>
               ${th("Brand",   "brand")}
               ${th("Name",    "name")}
               ${th("Model",   "model")}
-              ${th("IP",      "ip")}
               ${th("Status",  "status")}
+              <th class="pt-th pt-th--jobthumb">${esc(t("printerPreview"))}</th>
               ${th("Job",     "job")}
+              ${th(esc(t("printerEndsAt")), "eta", "pt-th--eta")}
+              ${th("IP",      "ip")}
               ${th("Last seen", "lastseen")}
             </tr>
           </thead>
           <tbody>${rows}</tbody>
         </table>
       </div>`;
+
+    // Seed each row's job + thumbnail signature so the first _patchTableJobs tick
+    // after this rebuild short-circuits (the cells already hold the right HTML) —
+    // otherwise it would needlessly re-set them once, reloading the thumbnail.
+    state.printers.forEach(p => {
+      const row = host.querySelector(`.pt-row[data-brand="${esc(p.brand)}"][data-id="${esc(p.id)}"]`);
+      if (!row) return;
+      const job = _getPrinterJob(p);
+      row._lastJobSig   = _jobSignature(job);
+      row._lastThumbSig = _jobThumbSig(job);
+    });
 
     // ── Wire sort clicks ──────────────────────────────────────────────────
     host.querySelectorAll("[data-pt-sort]").forEach(thEl => {
@@ -12225,6 +12928,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       });
     });
 
+    applyPrinterFilter(); // honour an active search on rebuild
   }
 
   // ── Serialize online cameras for the detached cam window ────────────────
@@ -12713,6 +13417,18 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
      owner — the masking is purely a shoulder-surfing / screen-share
      defense, NOT a security boundary (Firestore rules are).               */
   let _activePrinter    = null; // currently-open printer { brand, id, ...data }
+  // Signatures captured at each full renderPrinterDetail() so a tags-only
+  // Firestore echo (round-trip of our own tag write) can patch the chips in
+  // place instead of rebuilding the whole panel (which would drop focus / close
+  // the tag dropdown mid-edit). structSig excludes tags + updatedAt.
+  let _lastPrinterStructSig = "";
+  let _lastPrinterTagsSig   = "";
+  function _printerStructSig(p) {
+    if (!p) return "";
+    const o = {};
+    Object.keys(p).sort().forEach(k => { if (k !== "tags" && k !== "updatedAt") o[k] = p[k]; });
+    try { return JSON.stringify(o); } catch { return ""; }
+  }
   let _camStatusDebounce = null; // debounce handle for cam-wall refresh on status change
   // Tracks printers the user explicitly disconnected via the ⏻ button.
   // isOnline() functions check this to return false instead of null when
@@ -12720,6 +13436,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   const _ppForcedOfflineKeys = new Set();
 
   function openPrinterDetail(brand, id) {
+    if (state.bulkSelect && _isPrinterMode(state.viewMode)) return;   // select mode: clicks pick, not open
     const printer = state.printers.find(p => p.brand === brand && p.id === id);
     if (!printer) return;
     closeNotifs();   // opening a printer takes over the right side — dismiss notifs
@@ -12909,6 +13626,22 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     }, 0);
   });
   $("invPrinterView")?.addEventListener("click", e => {
+    // Printer TABLE has an always-visible checkbox column — a click on it selects
+    // (entering select mode on the first tick), whatever the current mode.
+    const selCell = e.target.closest(".pt-row .sel-cell");
+    if (selCell) {
+      _pendingPrinterOpen = null;   // this is a select click — cancel the mouseup open-detail fallback
+      const row = selCell.closest("[data-printer-key]");
+      if (row) { e.stopPropagation(); _selCellClickPrinter(row.dataset.printerKey); }
+      return;
+    }
+    // Already in select mode: any printer click toggles it (grid card / row body).
+    if (state.bulkSelect && _isPrinterMode(state.viewMode)) {
+      _pendingPrinterOpen = null;   // select click — cancel the mouseup open-detail fallback
+      const el = e.target.closest("[data-printer-key]");
+      if (el) { e.stopPropagation(); _togglePrinterSelected(el.dataset.printerKey, e.shiftKey); }
+      return;
+    }
     const card = e.target.closest(".printer-card:not(.printer-card--add)");
     if (card) {
       _pendingPrinterOpen = null;
@@ -13295,6 +14028,16 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const fresh = state.printers.find(p => p.brand === _activePrinter.brand && p.id === _activePrinter.id);
     if (!fresh) { closePrinterDetail(); return; } // doc was deleted
     _activePrinter = fresh;
+    // Fast path: only the tags changed (our own write echoing back). Patch the
+    // chip list in place — a full rebuild would kill focus / close the dropdown.
+    const structSig = _printerStructSig(fresh);
+    const tagsSig   = JSON.stringify(fresh.tags || []);
+    if (structSig === _lastPrinterStructSig && tagsSig !== _lastPrinterTagsSig && $("ppTagChips")) {
+      _lastPrinterTagsSig = tagsSig;
+      _renderTagChips(_printerTagCtx(fresh));
+      _updatePrinterConnBtn();
+      return;
+    }
     renderPrinterDetail();
     // renderPrinterDetail already calls _updatePrinterConnBtn at its end.
     // The extra call here covers surgical updates that skip renderPrinterDetail.
@@ -13448,6 +14191,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function renderPrinterDetail() {
     const p = _activePrinter;
     if (!p) return;
+    // Snapshot the signatures this full render reflects, so the next Firestore
+    // echo can tell a tags-only change apart and patch chips in place.
+    _lastPrinterStructSig = _printerStructSig(p);
+    _lastPrinterTagsSig   = JSON.stringify(p.tags || []);
     const meta = PRINTER_BRAND_META[p.brand] || { label: p.brand, accent: "#888", connection: "" };
 
     // Title shown in the panel header. Brand + model pills are injected
@@ -13791,6 +14538,34 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       const oldImg = document.getElementById("ffgCamSideImg");
       if (oldImg) try { ffgMuxUnregister(ffgKey(p), oldImg); } catch {}
     }
+
+    // Tags / Balises — free-form printer labels, same Shopify-style editor as the
+    // materials panel. Sits under the filament card, before the Raw data section.
+    // Read-only (chips, no editor) in friend view, and hidden when empty there.
+    const ppTagsHtml = (() => {
+      const ro = state.friendView;
+      const tags = p.tags || [];
+      if (ro && !tags.length) return "";
+      const chips = tags.map(tag => _tagChipHtml(tag, ro)).join("");
+      const editor = ro ? "" : `
+        <div class="tags-input-wrap">
+          <input id="ppTagInput" class="tag-input" placeholder="${esc(t("tagAdd"))}"
+                 spellcheck="false" autocomplete="off" maxlength="${TAG_MAX_LEN}" />
+          <div class="tags-dd" id="ppTagDropdown" hidden></div>
+        </div>`;
+      return `
+        <section class="pp-section pp-tags-section">
+          <div class="panel-tags">
+            <div class="tags-head">
+              <span class="pp-section-head" style="padding:0;">${esc(t("sectionTags"))}</span>
+              ${ro ? "" : `<button type="button" class="tags-edit-btn" id="ppTagsEditBtn" title="${esc(t("tagsEdit"))}" aria-label="${esc(t("tagsEdit"))}"><span class="icon icon-edit icon-13"></span></button>`}
+            </div>
+            ${editor}
+            <div class="tag-chips" id="ppTagChips">${chips}</div>
+          </div>
+        </section>`;
+    })();
+
     $("printerPanelBody").innerHTML = `
       ${camBannerHtml}
       <div class="pp-hero">
@@ -13804,6 +14579,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       ${elgLiveHtml}
       ${bblLiveHtml}
       ${acuLiveHtml}
+
+      ${ppTagsHtml}
 
       ${elgLogHtml}
 
@@ -13842,6 +14619,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
 
     // Wire interactions
     const body = $("printerPanelBody");
+    // Tags editor (shared Shopify-style ctx — chips + inline dropdown + modal).
+    try { _wireTagEditor(_printerTagCtx(p)); } catch (_) {}
     body.querySelectorAll(".pp-eye").forEach(btn => {
       btn.addEventListener("click", e => {
         e.stopPropagation();
@@ -16725,8 +17504,21 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         }
       }
     });
-    const unrankedSet = new Set(getUnrackedSpools().map(r => r.spoolId));
-    return { racksSig: _rackStructureSig(), slotByKey, storedSet, unrankedSet };
+    // Unranked ("not stored") spools: capture both the membership set AND each
+    // one's rendered inner HTML, so the surgical patch can refresh a not-stored
+    // spool's illustration in place when only its rendering changed (e.g. a
+    // colour edit) — membership stays constant so the slot patch alone would
+    // otherwise leave the side panel stale.
+    const unrankedSet  = new Set();
+    const unrankedFill = new Map();
+    const _ro = !!state.friendView;
+    getUnrackedSpools().forEach(r => {
+      unrankedSet.add(r.spoolId);
+      const locked = !_ro && _autoManageOn() && isEmptyRow(r);
+      unrankedFill.set(r.spoolId, _groupMemberCardInnerHTML(r, 72, { stackBackup: true })
+        + (locked ? `<span class="icon icon-lock icon-12 rp-side-row-lock" aria-hidden="true"></span>` : ""));
+    });
+    return { racksSig: _rackStructureSig(), slotByKey, storedSet, unrankedSet, unrankedFill };
   }
   const _setsEqual = (a, b) => a.size === b.size && [...a].every(x => b.has(x));
   // Returns true if it fully handled the change in place (caller then skips the
@@ -16799,9 +17591,26 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     });
     _justPlacedSpools.clear();
     _justFilledSlots.clear();
+    // Refresh not-stored side-rows whose rendering changed (e.g. a colour edit on
+    // a not-stored spool) — membership is unchanged (checked above), so only the
+    // inner illustration can differ. Patch the row's inner HTML in place; the
+    // drag/click listeners live on the .rp-side-row element itself, so keeping the
+    // element preserves them.
+    if (next.unrankedFill && prev.unrankedFill) {
+      next.unrankedFill.forEach((fill, sid) => {
+        if (prev.unrankedFill.get(sid) === fill) return;
+        const rowEl = document.querySelector(`.rp-side-row[data-spool-id="${CSS.escape(sid)}"]`);
+        if (rowEl) rowEl.innerHTML = fill;
+      });
+    }
     wireRackSlotOpen();                      // wire click-to-open on new filled cells
     if (!readOnly) wireDragSources();        // wire drag on cells that became filled
-    if (state.search) applyRackSearchDim();  // keep search dimming coherent
+    // Re-apply dimming / highlight after a rebuild whenever ANY filter OR the
+    // transient "locate this spool" highlight is active — not just search text.
+    // (The Storage-location row sets state.locateUid with no search text, so the
+    // old `state.search`-only guard meant clicking it no longer lit the slot.)
+    if (state.search || state.locateUid || state.brandFilter || state.materialFilter
+        || state.typeFilter || state.tagFilter) applyRackSearchDim();
     return true;
   }
 
@@ -16831,7 +17640,15 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // avoids the flicker + scroll-to-top. Search dimming stays surgical elsewhere.
     const _sig = _rackViewSig();
     const _built = !!list.querySelector(".rp-racks-col");
-    if (_sig === _lastRackViewSig && _built) return;
+    if (_sig === _lastRackViewSig && _built) {
+      // Structure unchanged → no rebuild. But the search / quick-filters / the
+      // transient "locate this spool" highlight may have changed, and those are
+      // applied by dimming existing slots (not by rebuilding). Re-apply them here
+      // so e.g. clicking a material's "Storage location" lights up its slot even
+      // when the rack view is already on screen (was: early-return skipped it).
+      applyRackSearchDim();
+      return;
+    }
     // When only slot occupancy/fills changed (a spool move / weight change), patch
     // the affected pucks in place — no innerHTML rebuild, no masonry reflow, no
     // image reload → zero flicker. Falls back to a full rebuild for anything else
@@ -18075,6 +18892,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // A friend's inventory is read-only — hide the write action (Add product /
     // Add device) since it can't act on a friend's docs.
     $("btnAddProduct")?.classList.toggle("hidden", !!state.friendView);
+    // Multi-select/bulk-delete is owner-only (can't write to a friend's docs).
+    $("btnSelectMode")?.classList.toggle("hidden", !!state.friendView);
+    if (state.friendView && state.bulkSelect) _exitSelectMode();
     // A friend's printers aren't shared, so the Printers view switch is
     // meaningless here — hide the whole group + its separator in friend view.
     $("vtgPrinters")?.classList.toggle("hidden", !!state.friendView);
@@ -20426,9 +21246,24 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       const user = fbAuth().currentUser;
       if (!user) return;
 
-      // Drop Init chips (blank, no material/brand)
-      const validScans = [...scans.values()].filter(td => td.id_material || td.id_brand);
-      if (validScans.length === 0) return;
+      // Init chips carry no material/brand yet. If a blank TigerTag Init chip is
+      // on the reader (formatted to TigerTag Init: id_tigertag 0x6C41A2E1,
+      // id_product 0), jump straight to "+ Material" so the user can assign a
+      // material to it — instead of silently ignoring the scan.
+      const allScans   = [...scans.values()];
+      const validScans = allScans.filter(td => td.id_material || td.id_brand);
+      if (validScans.length === 0) {
+        const TIGERTAG_INIT_ID = 0x6C41A2E1; // ID_TIGERTAG_INIT (SDK)
+        const isInit = td => Number(td.id_product) === 0 && Number(td.id_tigertag) === TIGERTAG_INIT_ID;
+        // Skip the auto-open while the guided Cloud→chip encode modal is up: there
+        // the user is deliberately presenting a blank Init chip to encode it, so
+        // popping "+ Material" over the modal would fight that flow.
+        if (allScans.some(isInit) && !state.friendView && !_encodeModalOpen()
+            && !$("addProductPanel")?.classList.contains("open")) {
+          try { openAddProductPanel(); } catch (_) {}
+        }
+        return;
+      }
 
       // Twin detection
       let twinMap = null;

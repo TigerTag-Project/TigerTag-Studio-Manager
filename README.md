@@ -9,15 +9,15 @@ Manage your spool inventory, connect your 3D printers, and keep everything in sy
 
 <br>
 
-<a href="https://github.com/TigerTag-Project/TigerTag-Studio-Manager/releases/latest">
+<a href="https://github.com/TigerTag-Project/TigerTag-Studio-Manager/releases">
   <img src="assets/svg/download_macos.svg" width="420" height="68" alt="Download for macOS">
 </a>
 <br>
-<a href="https://github.com/TigerTag-Project/TigerTag-Studio-Manager/releases/latest">
+<a href="https://github.com/TigerTag-Project/TigerTag-Studio-Manager/releases">
   <img src="assets/svg/download_windows.svg" width="420" height="68" alt="Download for Windows">
 </a>
 <br>
-<a href="https://github.com/TigerTag-Project/TigerTag-Studio-Manager/releases/latest">
+<a href="https://github.com/TigerTag-Project/TigerTag-Studio-Manager/releases">
   <img src="assets/svg/download_linux.svg" width="420" height="68" alt="Download for Linux">
 </a>
 
@@ -81,6 +81,8 @@ The **TigerTag SDK** is the low-level library that handles all NFC chip operatio
 - Custom product image for DIY & Cloud spools
 - Manufacturing date, twin-tag detection and manual repair
 - Spool toolbox — scan color (TD1S), scan TD, link twin, remove from rack, delete
+- **Multi-select** — tick several spools (or printers) and delete them together, with a hold-to-confirm
+- **Guided chip update** — a step-by-step panel to re-write an existing chip: place it on the reader, UID-match check, verified write
 
 ### 🖨 3D Printer integration
 Live integrations for 6 brands — real-time temperatures, filament per slot, active print job, camera:
@@ -95,6 +97,8 @@ Live integrations for 6 brands — real-time temperatures, filament per slot, ac
 | **Snapmaker** | Moonraker WebSocket 7125 | ✅ Live |
 
 Each brand supports: filament edit per slot, printer discovery (mDNS + port-scan + Add by IP), camera widget.
+
+The **printers table** shows, per printer: a live **print preview** (the model on the bed), the current job, and an **"Ends at"** column with the wall-clock finish time — plus per-printer **tags** and a search bar with **Brand / State / Tags** filters to manage a whole fleet.
 
 Some brands also expose a **live control panel** (Snapmaker, Elegoo, Anycubic): home / jog the axes, set nozzle & bed targets, toggle the light, control the part-cooling fan, pick the print-speed mode, and load / unload filament per slot.
 

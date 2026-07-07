@@ -47,6 +47,7 @@
 | `sortBy` | Grid-view sort dropdown title |
 | `sortDir` | Grid-view sort direction toggle title |
 | `filterAllTags` | Tag filter dropdown — "All tags" default |
+| `filterAllStates` | Printer State filter dropdown — "All states" default (online/offline) |
 | `toolRepairPlus` / `toolRepairPlusTip` | Toolbox "Restore TigerTag+" action + tooltip (keys kept as `Repair*`; label reads "Restore") |
 | `toolRepairNoChip` / `toolRepairNoBackup` | Restore guard messages (chip not on reader / no backup) |
 | `toolRepairWriting` / `toolRepairDone` / `toolRepairAlready` / `toolRepairFailed` | Restore progress/result states |
@@ -131,6 +132,9 @@
 | `btnHideDeleted` | Hide deleted toggle |
 | `btnExport` | Export JSON button |
 | `searchPlaceholder` | Search input placeholder |
+| `searchPlaceholderPrinter` | Search input placeholder in the printer view |
+| `printerEndsAt` | Printer table column — wall-clock finish time of the current job |
+| `printerPreview` | Printer table column — print-preview thumbnail header |
 | `noInventory` | Empty state: no inventory |
 | `noMatch` | Empty state: no match |
 | `invLoading` | Loading spinner label |

@@ -4437,5 +4437,135 @@
         }
       }
     ]
+  },
+  "2.0.0": {
+    "date": "2026-07-07",
+    "items": [
+      {
+        "icon": "🖼️",
+        "title": {
+          "en": "See what's on the bed",
+          "fr": "Vois ce qui s'imprime",
+          "de": "Sieh, was gerade druckt",
+          "es": "Mira qué se está imprimiendo",
+          "it": "Guarda cosa sta stampando",
+          "zh": "一眼看清在打什么",
+          "pt": "Veja o que está imprimindo",
+          "pt-pt": "Vê o que está a imprimir",
+          "pl": "Zobacz, co się drukuje"
+        },
+        "body": {
+          "en": "The Printers table now shows a mini preview of whatever's printing right now — one glance and you know what each machine is up to.",
+          "fr": "Le tableau des imprimantes affiche maintenant un mini aperçu de ce qui s'imprime — un coup d'œil et tu sais ce que fait chaque machine.",
+          "de": "Die Druckertabelle zeigt jetzt eine Mini-Vorschau von dem, was gerade druckt — ein Blick und du weißt, was jede Maschine treibt.",
+          "es": "La tabla de impresoras ahora muestra una miniatura de lo que se está imprimiendo — un vistazo y sabes qué hace cada máquina.",
+          "it": "La tabella delle stampanti mostra ora una mini anteprima di ciò che sta stampando — un'occhiata e sai cosa combina ogni macchina.",
+          "zh": "打印机列表现在会显示当前正在打印内容的小预览——瞄一眼就知道每台机器在忙什么。",
+          "pt": "A tabela de impressoras agora mostra uma miniatura do que está sendo impresso — uma olhada e você sabe o que cada máquina está fazendo.",
+          "pt-pt": "A tabela de impressoras mostra agora uma miniatura do que está a imprimir — um relance e sabes o que cada máquina anda a fazer.",
+          "pl": "Tabela drukarek pokazuje teraz miniaturę tego, co się właśnie drukuje — jedno spojrzenie i wiesz, co robi każda maszyna."
+        }
+      },
+      {
+        "icon": "⏰",
+        "title": {
+          "en": "When will it be free?",
+          "fr": "Libre à quelle heure ?",
+          "de": "Wann ist er frei?",
+          "es": "¿A qué hora se libera?",
+          "it": "Quando si libera?",
+          "zh": "什么时候能空出来？",
+          "pt": "A que horas fica livre?",
+          "pt-pt": "A que horas fica livre?",
+          "pl": "Kiedy będzie wolna?"
+        },
+        "body": {
+          "en": "A new column tells you the exact time each print wraps up — so you know when to swing by. Sort by it to see what finishes first.",
+          "fr": "Une nouvelle colonne t'indique l'heure exacte de fin de chaque impression — pile pour savoir quand revenir. Trie dessus pour voir ce qui finit en premier.",
+          "de": "Eine neue Spalte zeigt dir die genaue Uhrzeit, zu der jeder Druck fertig ist — so weißt du, wann du vorbeischauen kannst. Sortiere danach, um zu sehen, was zuerst fertig wird.",
+          "es": "Una nueva columna te dice la hora exacta en que termina cada impresión — así sabes cuándo pasarte. Ordena por ella para ver qué acaba antes.",
+          "it": "Una nuova colonna ti dice l'ora esatta in cui finisce ogni stampa — così sai quando tornare. Ordina per vedere cosa finisce prima.",
+          "zh": "新增一列显示每个打印任务的确切完成时间——你就知道该几点回来。按它排序还能看到谁先完工。",
+          "pt": "Uma nova coluna mostra a hora exata em que cada impressão termina — assim você sabe quando voltar. Ordene por ela para ver o que acaba primeiro.",
+          "pt-pt": "Uma nova coluna mostra a hora exata a que cada impressão termina — assim sabes quando voltar. Ordena por ela para veres o que acaba primeiro.",
+          "pl": "Nowa kolumna pokazuje dokładną godzinę zakończenia każdego wydruku — wiesz, kiedy wpaść. Posortuj według niej, by zobaczyć, co skończy się pierwsze."
+        }
+      },
+      {
+        "icon": "🏷️",
+        "title": {
+          "en": "Get your printers in order",
+          "fr": "Range tes imprimantes",
+          "de": "Bring Ordnung in deine Drucker",
+          "es": "Ordena tus impresoras",
+          "it": "Metti in ordine le stampanti",
+          "zh": "把打印机理清楚",
+          "pt": "Organize suas impressoras",
+          "pt-pt": "Organiza as tuas impressoras",
+          "pl": "Ogarnij swoje drukarki"
+        },
+        "body": {
+          "en": "Tag your printers, then search and filter them by name, brand, state (online/offline) or tag — handy once you've got a whole fleet.",
+          "fr": "Ajoute des balises à tes imprimantes, puis cherche et filtre par nom, marque, état (en ligne/hors ligne) ou balise — pratique quand tu en as toute une flotte.",
+          "de": "Vergib Tags an deine Drucker und such/filter dann nach Name, Marke, Status (online/offline) oder Tag — praktisch, wenn du eine ganze Flotte hast.",
+          "es": "Etiqueta tus impresoras y luego búscalas y fíltralas por nombre, marca, estado (online/offline) o etiqueta — útil cuando tienes toda una flota.",
+          "it": "Assegna tag alle stampanti, poi cercale e filtrale per nome, marca, stato (online/offline) o tag — comodo quando ne hai una flotta.",
+          "zh": "给打印机打标签，然后按名称、品牌、状态（在线/离线）或标签搜索和筛选——机器一多就很好用。",
+          "pt": "Marque suas impressoras com tags e depois busque e filtre por nome, marca, estado (online/offline) ou tag — útil quando você tem uma frota inteira.",
+          "pt-pt": "Marca as tuas impressoras com tags e depois procura e filtra por nome, marca, estado (online/offline) ou tag — prático quando tens uma frota inteira.",
+          "pl": "Oznacz drukarki tagami, a potem szukaj i filtruj je po nazwie, marce, stanie (online/offline) lub tagu — przydatne, gdy masz całą flotę."
+        }
+      },
+      {
+        "icon": "🗑️",
+        "title": {
+          "en": "Clear out in bulk",
+          "fr": "Fais le ménage en masse",
+          "de": "Räum in einem Rutsch auf",
+          "es": "Limpia en lote",
+          "it": "Fai pulizia in blocco",
+          "zh": "批量清理",
+          "pt": "Limpe em lote",
+          "pt-pt": "Limpa em lote",
+          "pl": "Sprzątaj hurtowo"
+        },
+        "body": {
+          "en": "Duplicated a spool a few too many times? Tick several at once — spools or printers — and remove them together in one go.",
+          "fr": "Une bobine dupliquée un peu trop de fois ? Coche-en plusieurs d'un coup — bobines ou imprimantes — et supprime-les ensemble.",
+          "de": "Eine Spule ein paar Mal zu oft dupliziert? Hak mehrere auf einmal ab — Spulen oder Drucker — und lösch sie zusammen.",
+          "es": "¿Duplicaste una bobina unas cuantas veces de más? Marca varias a la vez — bobinas o impresoras — y elimínalas juntas.",
+          "it": "Duplicata una bobina qualche volta di troppo? Spunta più elementi insieme — bobine o stampanti — e rimuovili in un colpo solo.",
+          "zh": "线材不小心复制多了？一次勾选多个——线材或打印机——一并删除。",
+          "pt": "Duplicou uma bobina vezes demais? Marque várias de uma vez — bobinas ou impressoras — e remova todas juntas.",
+          "pt-pt": "Duplicaste uma bobina vezes a mais? Marca várias de uma vez — bobinas ou impressoras — e remove-as todas juntas.",
+          "pl": "Zdublowałeś szpulę kilka razy za dużo? Zaznacz kilka naraz — szpule lub drukarki — i usuń je jednym ruchem."
+        }
+      },
+      {
+        "icon": "nfc",
+        "title": {
+          "en": "Updating a chip, made obvious",
+          "fr": "Mettre à jour une puce, en clair",
+          "de": "Chip aktualisieren, endlich klar",
+          "es": "Actualizar un chip, sin líos",
+          "it": "Aggiornare un chip, senza dubbi",
+          "zh": "更新芯片，一目了然",
+          "pt": "Atualizar um chip, sem mistério",
+          "pt-pt": "Atualizar um chip, sem mistério",
+          "pl": "Aktualizacja chipa bez tajemnic"
+        },
+        "body": {
+          "en": "Changed a spool's details? Hitting update now walks you through it — place the chip on the reader, it turns green when it's the right one, and your edits (colour included) actually land on the tag.",
+          "fr": "Tu as modifié les infos d'une bobine ? « Mettre à jour » te guide maintenant : pose la puce sur le lecteur, elle passe au vert quand c'est la bonne, et tes modifs (couleur comprise) arrivent vraiment sur la puce.",
+          "de": "Details einer Spule geändert? „Aktualisieren“ führt dich jetzt durch — leg den Chip auf den Leser, er wird grün, wenn's der richtige ist, und deine Änderungen (Farbe inklusive) landen wirklich auf dem Tag.",
+          "es": "¿Cambiaste los datos de una bobina? Ahora «Actualizar» te guía: pon el chip en el lector, se pone verde cuando es el correcto, y tus cambios (color incluido) llegan de verdad al tag.",
+          "it": "Hai cambiato i dati di una bobina? Ora «Aggiorna» ti guida: appoggia il chip sul lettore, diventa verde quando è quello giusto e le tue modifiche (colore incluso) finiscono davvero sul tag.",
+          "zh": "改了线材的信息？现在点“更新”会一步步带着你——把芯片放到读卡器上，是对的那颗就变绿，你的改动（包括颜色）会真正写进标签。",
+          "pt": "Mudou os dados de uma bobina? Agora o «Atualizar» te guia: coloque o chip no leitor, ele fica verde quando é o certo, e suas edições (cor incluída) chegam de verdade à tag.",
+          "pt-pt": "Mudaste os dados de uma bobina? Agora o «Atualizar» guia-te: põe o chip no leitor, fica verde quando é o certo, e as tuas edições (cor incluída) chegam mesmo à tag.",
+          "pl": "Zmieniłeś dane szpuli? „Aktualizuj” teraz prowadzi cię krok po kroku — połóż chip na czytniku, zrobi się zielony, gdy to właściwy, a twoje zmiany (w tym kolor) naprawdę trafią na tag."
+        }
+      }
+    ]
   }
 }

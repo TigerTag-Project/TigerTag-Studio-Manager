@@ -5,6 +5,37 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v2.0.0 — 2026-07-07
+
+Tiger Studio Manager turns **2.0** — a big round of printer-table upgrades, a proper guided flow for updating a chip, and a pile of fixes.
+
+### Added
+
+- **See what's printing, right in the table.** The Printers table now has a **Preview** column showing the model on the bed for whatever's currently printing — pulled live from each printer.
+- **Know when the printer's free.** A new **"Ends at"** column shows the wall-clock time the current job finishes (e.g. `21:23`), so you know exactly when to come back. Click the header to sort by soonest finish.
+- **Tags for your printers.** Give your printers labels the same way you tag spools — chips, autocomplete, the works — right in each printer's side card.
+- **Search & filter your printers.** The search bar now works in the Printers view (name, brand, model, IP…), and the filters next to it become **Brand · State (online/offline) · Tags** so you can zero in fast.
+- **Delete several at once.** A new multi-select mode lets you tick a bunch of spools — or printers — and remove them together, with a press-and-hold confirm. In the table, the tick column is always there (Shopify-style); click, shift-click a range, or Select all.
+
+### Changed
+
+- **Updating a chip is now guided.** Tapping "Please update RFID" opens a clear panel that shows your reader(s) waiting for the chip: place the right one and it lights up green, a wrong chip lights up red with a heads-up, and the update only runs once everything matches — no more guessing, and never a write to the wrong chip.
+- **Fresh chip, straight to work.** Scan a blank TigerTag chip and the "+ Material" panel opens right away so you can set it up on the spot.
+
+### Fixed
+
+- **Editing a filament's colour now actually reaches the chip.** Changing a colour and hitting Update used to leave the chip on its old colour (a rescan proved it) — the new colour is now written for real, and reads back correctly.
+- **Elegoo progress behaves.** The print percentage no longer jumps around between wild values mid-print — it climbs smoothly like it should.
+- **"Storage location" lights up again.** Clicking a spool's storage location jumps to Storage and highlights its slot, with everything else dimmed — as it used to.
+- **The "not stored" panel keeps up.** Recolour a spool that isn't in a rack and its picture refreshes immediately.
+- **Snapmaker firmware guide, in your language.** The recommended-firmware setup steps for the Snapmaker U1 are now translated across all 9 languages.
+
+### Removed
+
+- The redundant "N selected" label in the multi-select bar — the Delete (N) button already shows the count.
+
+---
+
 ## v1.10.31 — 2026-07-06
 
 ### Added

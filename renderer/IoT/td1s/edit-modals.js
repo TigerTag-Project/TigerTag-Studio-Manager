@@ -276,6 +276,26 @@ async function _saveTdHex(row, update, lockBtns, unlockBtns, closeFn, tag) {
   }
   const uid = state.activeAccountId; if (!uid) return;
   lockBtns.forEach(b => { if (b) b.disabled = true; });
+  // A colour edit is stored as `online_color_list` (hex, used for display), but
+  // the physical chip colour lives in the RGB fields color_r/g/b (+ 2/3), which
+  // is what SDK `fromCloudDoc().toBytes()` writes back onto the chip. Mirror the
+  // edited hex list into those RGB fields so an "update RFID" actually re-writes
+  // the new colour — otherwise the chip keeps its old (baked) colour.
+  if (Array.isArray(update.online_color_list)) {
+    const toRgb = (h) => {
+      const s = String(h || "").replace(/^#/, "");
+      if (!/^[0-9a-fA-F]{6}$/.test(s)) return null;
+      const n = parseInt(s, 16);
+      return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+    };
+    const list = update.online_color_list;
+    const c1 = toRgb(list[0]);
+    if (c1) { update.color_r = c1.r; update.color_g = c1.g; update.color_b = c1.b; }
+    const c2 = toRgb(list[1]);
+    update.color_r2 = c2 ? c2.r : 0; update.color_g2 = c2 ? c2.g : 0; update.color_b2 = c2 ? c2.b : 0;
+    const c3 = toRgb(list[2]);
+    update.color_r3 = c3 ? c3.r : 0; update.color_g3 = c3 ? c3.g : 0; update.color_b3 = c3 ? c3.b : 0;
+  }
   if (CHIP_FIELDS.some(f => f in update)) update.needUpdateAt = Date.now();
   const invRef = fbDb().collection("users").doc(uid).collection("inventory");
   try {

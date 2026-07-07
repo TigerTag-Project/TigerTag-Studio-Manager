@@ -781,44 +781,103 @@ ipcMain.handle('rfid:encode-cloud', async (_evt, { cloudDoc, targets }) => {
     return { ok: false, error: 'No target readers provided' };
 
   // ── Build payload ONCE — same bytes → same timestamp for all chips ──────────
-  let pages;
+  // Twins must share identical bytes to pair, so the timestamp is stamped once
+  // here (not per chip). Used both as the write source and the diff reference.
+  let newBytes;
   try {
-    const tag      = TigerTag.fromCloudDoc(cloudDoc).patch({ timestamp: _nowChipTs() });
-    const newBytes = tag.toBytes(false); // 80 bytes, pages 0x04-0x17
-    pages = _pagesToWrite(newBytes, null); // full write — new blank chips
+    let tag = TigerTag.fromCloudDoc(cloudDoc).patch({ timestamp: _nowChipTs() });
+    // The displayed colour lives in `online_color_list` (hex) and is what the
+    // user edits — the doc's baked color_r/g/b can lag behind it. So when a
+    // colour list is present, it is the source of truth: patch the chip colour
+    // bytes from it. Otherwise fromCloudDoc's color_r/g/b are used as-is.
+    const _list = Array.isArray(cloudDoc.online_color_list) ? cloudDoc.online_color_list : [];
+    const _rgb = (h) => {
+      const s = String(h || '').replace(/^#/, '');
+      if (!/^[0-9a-fA-F]{6}$/.test(s)) return null;
+      const n = parseInt(s, 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+    };
+    if (_list.length && _rgb(_list[0])) {
+      const c1 = _rgb(_list[0]), c2 = _rgb(_list[1]), c3 = _rgb(_list[2]);
+      tag = tag.patch({
+        color1R: c1[0], color1G: c1[1], color1B: c1[2],
+        color2R: c2 ? c2[0] : 0, color2G: c2 ? c2[1] : 0, color2B: c2 ? c2[2] : 0,
+        color3R: c3 ? c3[0] : 0, color3G: c3 ? c3[1] : 0, color3B: c3 ? c3[2] : 0,
+      });
+    }
+    newBytes = tag.toBytes(false); // 80 bytes, pages 0x04-0x17
   } catch (e) {
     return { ok: false, error: `SDK build failed: ${e.message}` };
   }
 
-  // ── Write same pages to every target reader ──────────────────────────────────
+  // Surgical read of the current chip (pages 0x04-…) so we only rewrite the
+  // pages that actually changed — never touch locked identity/signature pages
+  // that already match (they'd fail the write and are unchanged anyway).
+  const _readChip = (readerName) => new Promise((resolve) => {
+    const reqId = Date.now() + Math.random();
+    const timeout = setTimeout(() => { _nfcReadResolvers.delete(reqId); resolve({ ok: false, error: 'Read timed out' }); }, 5000);
+    _nfcReadResolvers.set(reqId, { resolve, timeout });
+    _nfcChild.postMessage({ type: 'read-now', readerName, reqId });
+  });
+  // Write with read-back verification so we only report success (and let the
+  // renderer clear the "needs update" flag) once the chip really holds the bytes.
+  const _writeChip = (readerName, pages) => new Promise((resolve) => {
+    const reqId = `encode-${Date.now()}-${Math.random()}`;
+    const timeout = setTimeout(() => { _nfcWriteResolvers.delete(reqId); resolve({ ok: false, error: 'Write timed out' }); }, 10000);
+    _nfcWriteResolvers.set(reqId, { resolve, timeout });
+    _nfcChild.postMessage({ type: 'write-now', readerName, reqId, pages, verify: true });
+  });
+
   const results = [];
   for (const { readerName, uid } of targets) {
     if (!_nfcReaders.has(readerName)) {
       results.push({ readerName, uid, ok: false, error: 'Reader not connected' });
       continue;
     }
-    if (!_nfcCardPresent.has(readerName)) {
+    const card = _nfcCardPresent.get(readerName);
+    if (!card) {
       results.push({ readerName, uid, ok: false, error: 'No card present' });
       continue;
     }
-    const reqId = `encode-${Date.now()}-${Math.random()}`;
-    const result = await new Promise((resolve) => {
-      const timeout = setTimeout(() => {
-        _nfcWriteResolvers.delete(reqId);
-        resolve({ ok: false, error: 'Write timed out' });
-      }, 10000);
-      _nfcWriteResolvers.set(reqId, { resolve, timeout });
-      _nfcChild.postMessage({ type: 'write-now', readerName, reqId, pages });
-    });
-    results.push({ readerName, uid, ok: result.ok, pagesWritten: result.pagesWritten, error: result.error });
-    if (result.ok) {
-      console.log(`[NFC] encode-cloud: ${readerName} (${uid}) — ${result.pagesWritten} pages written`);
+    // ── UID guard ──────────────────────────────────────────────────────────
+    // NEVER write this spool's doc onto a chip that isn't the requested one.
+    // The renderer only sends targets that belong to the open spool; this is
+    // the last-line check against a chip swap between the click and the write.
+    if (uid && card.uid && normalizeUid(String(card.uid)) !== normalizeUid(String(uid))) {
+      results.push({ readerName, uid, ok: false, error: 'UID mismatch — chip on reader is not the target' });
+      console.warn(`[NFC] encode-cloud: ${readerName} UID mismatch (present ${card.uid} ≠ target ${uid}) — skipped`);
+      continue;
+    }
+
+    // ── Surgical diff — read current chip, write only changed pages ──────────
+    let pages;
+    const rd = await _readChip(readerName);
+    if (rd.ok && rd.rawPagesHex) {
+      const oldUserBytes = Buffer.from(rd.rawPagesHex, 'hex').slice(0, 80);
+      pages = _pagesToWrite(newBytes, oldUserBytes);
     } else {
-      console.error(`[NFC] encode-cloud: ${readerName} failed:`, result.error);
+      console.warn(`[NFC] encode-cloud: ${readerName} surgical read failed, full write:`, rd.error);
+      pages = _pagesToWrite(newBytes, null);
+    }
+
+    if (pages.length === 0) {
+      // Chip already carries the new bytes — nothing to write, already in sync.
+      results.push({ readerName, uid, ok: true, verified: true, pagesWritten: 0 });
+      console.log(`[NFC] encode-cloud: ${readerName} (${uid}) — already up-to-date`);
+      continue;
+    }
+
+    const result = await _writeChip(readerName, pages);
+    const verified = result.ok === true && result.verified === true;
+    results.push({ readerName, uid, ok: result.ok === true, verified, pagesWritten: result.pagesWritten, mismatchPages: result.mismatchPages || [], error: result.error || null });
+    if (verified) {
+      console.log(`[NFC] encode-cloud: ${readerName} (${uid}) — ${result.pagesWritten} pages written + verified`);
+    } else {
+      console.error(`[NFC] encode-cloud: ${readerName} failed/unverified:`, result.error || `mismatch ${JSON.stringify(result.mismatchPages || [])}`);
     }
   }
 
-  return { ok: results.some(r => r.ok), results };
+  // Overall success = at least one chip written AND verified (or already in sync).
+  return { ok: results.some(r => r.ok && r.verified === true), results };
 });
 
 // ── Burn ONE chip with read-back verification ─────────────────────────────────

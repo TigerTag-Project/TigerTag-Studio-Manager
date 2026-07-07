@@ -476,13 +476,18 @@ function _mergeStatus(conn, data) {
       let pct = Number(ps.progress);
       if (pct > 1.0001) pct /= 100;
       d.printProgress = Math.max(0, Math.min(1, pct));
-    } else if (ps.print_duration !== undefined) {
-      // 1005 responses omit progress — compute from elapsed / (elapsed + remaining)
-      const elapsed   = Number(ps.print_duration)     || 0;
-      const remaining = Number(ps.remaining_time_sec)  || 0;
-      d.printProgress = (elapsed + remaining) > 0
-        ? Math.max(0, Math.min(1, elapsed / (elapsed + remaining)))
-        : 0;
+    } else if (!d._progFromMachine &&
+               ps.print_duration !== undefined &&
+               Number(ps.remaining_time_sec) > 0) {
+      // Time-based estimate — LAST resort, only when the firmware sends no real
+      // machine_status.progress (see below) AND a genuine countdown is present.
+      // remaining_time_sec MUST be present and > 0: many api_status (6000) pushes
+      // carry print_status with print_duration but NO remaining key, and the old
+      // `remaining || 0` read that as elapsed/(elapsed+0) = 100% — the source of
+      // the % flapping to 100. A stale idle status (remaining:0) is excluded too.
+      const elapsed   = Number(ps.print_duration)    || 0;
+      const remaining = Number(ps.remaining_time_sec) || 0;
+      d.printProgress = Math.max(0, Math.min(1, elapsed / (elapsed + remaining)));
     }
     // Store bed-mesh flag; force progress=0 while leveling (no actual printing yet)
     if (ps.bed_mesh_detect !== undefined) d.bedMeshDetect = !!ps.bed_mesh_detect;
@@ -504,6 +509,7 @@ function _mergeStatus(conn, data) {
         d.printLayerCur    = 0;
         d.printLayerTotal  = null;
         d.printRemainingMs = null;
+        d._progFromMachine = false;   // new job → re-evaluate the progress source
       }
       d.printUuid = newUuid;
     }
@@ -514,10 +520,15 @@ function _mergeStatus(conn, data) {
   const ms = r?.machine_status;
   if (ms) {
     // progress fallback
-    if (ms.progress !== undefined && !ps?.progress) {
-      let pct = Number(ms.progress);
-      if (pct > 1.0001) pct /= 100;
-      d.printProgress = Math.max(0, Math.min(1, pct));
+    // Firmware's own progress (what the printer's screen shows) — authoritative.
+    // Once seen for a job we lock onto it (_progFromMachine) so the noisy
+    // time-estimate above never fights it mid-print (was: 100% ↔ real% jumps).
+    if (ms.progress !== undefined && ps?.progress === undefined) {
+      // machine_status.progress is a 0-100 integer (firmware scale) — always /100.
+      // The generic ">1 → /100" heuristic misread progress==1 as 100% and then
+      // locked onto it, freezing the bar at 100% for the whole heat-up phase.
+      d.printProgress = Math.max(0, Math.min(1, Number(ms.progress) / 100));
+      d._progFromMachine = true;
     }
     // machine status code → printState fallback (live-observed, PROTOCOL.md §6.1)
     // Only apply when print_status gave no usable state
@@ -845,6 +856,7 @@ export function elegooConnect(printer) {
     data: {
       nozzleTemp: null, nozzleTarget: null, bedTemp: null, bedTarget: null, chamberTemp: null,
       printState: null, printProgress: 0, bedMeshDetect: false,
+      _progFromMachine: false,   // true once firmware machine_status.progress seen (this job)
       printLayerCur: 0, printLayerTotal: null,
       printFilename: null, printUuid: null, printRemainingMs: null,
       printDuration: null, lastException: [],

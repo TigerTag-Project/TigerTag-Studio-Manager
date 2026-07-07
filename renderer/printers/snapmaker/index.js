@@ -1386,31 +1386,23 @@ function _snapRenderSettingsWidget(printer, bodyEl, ctx) {
           <div class="snap-wizard-slide-head">
             <span class="pba-step-num">1</span>
             <div class="pba-step-titles">
-              <span class="pba-step-title">Recommended firmware</span>
+              <span class="pba-step-title">${esc(t("snapPaxxStep1Title"))}</span>
               <span class="pba-step-sub">Paxx U1 Extended Firmware</span>
             </div>
           </div>
-          <p class="pba-step-desc">
-            For the best experience with Tiger Studio on the Snapmaker U1, install the
-            community‑maintained <strong>Paxx U1 Extended Firmware</strong>. It unlocks
-            native filament RFID chip reading, extended AMS slot support, and additional
-            print‑control features not available in the stock firmware.
-          </p>
+          <p class="pba-step-desc">${t("snapPaxxStep1Desc")}</p>
           <div class="pba-step-ctas">
             <a class="pba-step-cta" data-paxx-bin data-open-external="${esc(paxx.binUrl)}">
               <span class="pba-step-cta-icon pba-step-cta-icon--download"></span>
-              <span data-paxx-bin-label>Download ${esc(paxx.tag)}.bin</span>
+              <span data-paxx-bin-label>${esc(t("snapPaxxDownload", { tag: paxx.tag }))}</span>
             </a>
             <a class="pba-step-cta pba-step-cta--secondary" data-open-external="${esc(PAXX_FIRMWARE_URL)}">
               <span class="pba-step-cta-icon pba-step-cta-icon--github"></span>
-              View latest release ↗
+              ${esc(t("snapPaxxViewRelease"))} ↗
             </a>
             <a class="pba-step-cta pba-step-cta--secondary" data-open-external="${esc(PAXX_EXPLAINER_URL)}">
               <span class="pba-step-cta-icon pba-step-cta-icon--youtube"></span>
-              Watch explainer v1.3.0
-            </a>
-            <a class="pba-bmc-link" data-open-external="${esc(PAXX_COFFEE_URL)}" title="Support Paxx on Buy Me a Coffee">
-              <img src="../../../assets/svg/logos/logo_buymeacoffee.png" alt="Buy Me a Coffee" />
+              ${esc(t("snapPaxxWatchExplainer"))} v1.3.0
             </a>
           </div>
         </div>
@@ -1420,14 +1412,14 @@ function _snapRenderSettingsWidget(printer, bodyEl, ctx) {
           <div class="snap-wizard-slide-head">
             <span class="pba-step-num">2</span>
             <div class="pba-step-titles">
-              <span class="pba-step-title">Install the firmware</span>
-              <span class="pba-step-sub">USB local update</span>
+              <span class="pba-step-title">${esc(t("snapPaxxStep2Title"))}</span>
+              <span class="pba-step-sub">${esc(t("snapPaxxStep2Sub"))}</span>
             </div>
           </div>
           <ol class="pba-step-list">
-            <li>Put the <strong>.bin</strong> file on a <strong>FAT32</strong> formatted USB drive.</li>
-            <li>On the printer: <strong>Settings → About → Firmware Version → Local Update</strong></li>
-            <li>Select the <strong>.bin</strong> and confirm.</li>
+            <li>${t("snapPaxxStep2Li1")}</li>
+            <li>${t("snapPaxxStep2Li2")}</li>
+            <li>${t("snapPaxxStep2Li3")}</li>
           </ol>
         </div>
 
@@ -1436,28 +1428,25 @@ function _snapRenderSettingsWidget(printer, bodyEl, ctx) {
           <div class="snap-wizard-slide-head">
             <span class="pba-step-num">3</span>
             <div class="pba-step-titles">
-              <span class="pba-step-title">Enable TigerTag reading</span>
-              <span class="pba-step-sub">Select OpenRFID in Filament Detection</span>
+              <span class="pba-step-title">${esc(t("snapPaxxStep3Title"))}</span>
+              <span class="pba-step-sub">${esc(t("snapPaxxStep3Sub"))}</span>
             </div>
           </div>
-          <p class="pba-step-desc">
-            In the firmware config page, open <strong>Filament Detection ↗</strong>
-            and select <strong>OpenRFID</strong>.
-          </p>
+          <p class="pba-step-desc">${t("snapPaxxStep3Desc")}</p>
           <div class="pba-step-ctas">
             <button class="pba-step-cta pba-step-cta--secondary pba-tuto-trigger"
                     data-tuto-src="../assets/img/tuto/snapmaker/Sanp_Tuto_OpenRFID.png"
-                    data-tuto-title="Filament Detection → OpenRFID">
+                    data-tuto-title="${esc(t("snapPaxxTutoTitle"))}">
               <span class="pba-step-cta-icon pba-step-cta-icon--img"></span>
-              Show screenshot ↗
+              ${esc(t("snapPaxxShowScreenshot"))} ↗
             </button>
             <a class="pba-step-cta" data-firmware-config-cta>
               <span class="pba-step-cta-icon pba-step-cta-icon--link"></span>
-              Open firmware config ↗
+              ${esc(t("snapPaxxOpenConfig"))} ↗
             </a>
             <a class="pba-step-cta pba-step-cta--secondary" data-open-external="${esc(PAXX_RFID_DOCS_URL)}">
               <span class="pba-step-cta-icon pba-step-cta-icon--link"></span>
-              Documentation ↗
+              ${esc(t("snapPaxxDocs"))} ↗
             </a>
           </div>
         </div>
@@ -1489,7 +1478,7 @@ function _snapRenderSettingsWidget(printer, bodyEl, ctx) {
     if (!btn || !rec?.binUrl) return;
     btn.dataset.openExternal = rec.binUrl;
     const lbl = btn.querySelector('[data-paxx-bin-label]');
-    if (lbl) lbl.textContent = `Download ${rec.tag}.bin`;
+    if (lbl) lbl.textContent = t("snapPaxxDownload", { tag: rec.tag });
   });
 
   // ── Installed-version status line (paxx machines only) ───────────────────

@@ -9,7 +9,32 @@ permissions:
   contents: write
 
 jobs:
+  # ─────────────────────────────────────────────────────────────────
+  # Runs FIRST — creates the draft release for this tag and fills its
+  # body with the CHANGELOG.md section, BEFORE any platform build runs.
+  # The three build jobs then just attach their assets to this already-
+  # described draft, so none of them races to write (or accidentally
+  # blank) the release body.
+  # ─────────────────────────────────────────────────────────────────
+  prepare-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Build release notes from CHANGELOG.md
+        run: node scripts/extract-changelog.mjs "${{ github.ref_name }}" > release-notes.md
+
+      - name: Create draft release with description
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ github.ref_name }}
+          draft: true
+          body_path: release-notes.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   build:
+    needs: prepare-release
     strategy:
       fail-fast: false
       matrix:

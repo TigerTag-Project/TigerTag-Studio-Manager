@@ -90,6 +90,14 @@ Push broadcast → `elegoo/{sn}/api_status` (method 6000 continu)
 | `"cancelled"` `"canceled"` | Annulé |
 | `""` ← chaîne vide | standby / veille |
 
+### Progression (%) — ⚠️ voir §21.1
+```
+Source de vérité = machine_status.progress  (échelle 0-100 → ÷100, "1" = 1 %)
+NE PAS faire elapsed/(elapsed+remaining) si remaining_time_sec absent ou 0  → sinon 100 % fantôme
+Estimation temps = fallback seulement (remaining présent ET > 0), verrouillée dès qu'on a machine_status.progress
+total_duration = écoulé horloge (PAS la durée totale) · current_layer souvent bloqué à 0
+```
+
 ### Séquences critiques (compact)
 
 ```
@@ -583,11 +591,11 @@ Le push 6000 n'envoie que les champs dont la valeur vient de changer. Les champs
 | `result.extruder.temperature` | `nozzleTemp` | À chaque changement °C |
 | `result.heater_bed.temperature` | `bedTemp` | À chaque changement °C (absent quand stable) |
 | `result.ztemperature_sensor.temperature` | `chamberTemp` | À chaque changement °C |
-| `result.machine_status.progress` | `printProgress` (÷100) | **Quand le % change** — toutes les ~15–17 s en pratique |
+| `result.machine_status.progress` | `printProgress` (0-100 → **÷100**) | **~2 s** en cours d'impression. ⚠️ **Source autoritaire du % — voir §21.1** |
 | `result.print_status.current_layer` | `printLayerCur` | **Quand la couche change** uniquement |
 | `result.print_status.remaining_time_sec` | `printRemainingMs` (×1000) | La plupart des pushes (absent si inchangé) |
 | `result.print_status.total_duration` | `printDuration` | La plupart des pushes |
-| `result.print_status.print_duration` | *(non stocké)* | Durée écoulée (s) |
+| `result.print_status.print_duration` | *(fallback estimation, voir §21.1)* | Durée d'impression (s). ⚠️ souvent poussé **sans** `remaining_time_sec` → ne pas en dériver 100 % |
 | `result.gcode_move.x/y/z` | *(non stocké)* | Position tête mm (présent quand change) |
 | `result.gcode_move.speed` | *(non stocké)* | Vitesse mm/min (présent quand change) |
 | `result.gcode_move.extruder` | *(non stocké)* | Position extrudeur mm |
@@ -610,7 +618,7 @@ Le push 6000 n'envoie que les champs dont la valeur vient de changer. Les champs
 | `result.print_status.uuid` | `printUuid` |
 | `result.machine_status.status` | *(derive printState — voir §7.2)* |
 | `result.machine_status.sub_status` | *(derive printState — voir §7.2)* |
-| `result.machine_status.progress` | `printProgress` (0–1) |
+| `result.machine_status.progress` | `printProgress` (**0-100 → ÷100**, voir §21.1) |
 | `result.machine_status.exception_status` | `lastException` (tableau int) |
 | `result.external_device.camera` | *(non stocké)* | `true` si caméra connectée |
 | `result.extruder.filament_detected` | *(non stocké)* | `1` = filament présent |
@@ -1831,6 +1839,46 @@ Chauffe le nozzle (si nécessaire), puis recule l'extrudeur pour décharger le f
 **Usage recommandé** : poll 1005 toutes les **10 s** pendant une impression pour mettre à jour `current_layer` et `remaining_time_sec` — ces champs ne sont pas toujours présents dans le flux 6000.
 
 > `total_layers` n'est pas dans cette réponse — le récupérer depuis `method 1044` ou `method 1046` (champ `layer`).
+
+---
+
+## 21.1 Progression (%) — source de vérité + pièges (⚠️ CRITIQUE)
+
+> **Vérifié live** (capture MQTT complète d'une impression Centauri Carbon 2, juillet 2026). Le firmware émet **trois signaux de progression contradictoires** — les mélanger fait sauter le % en boucle (100 % ↔ 10 % ↔ 31 %). C'est le bug historique de la barre de progression Elegoo.
+
+### Les 3 sources et leur fiabilité
+
+| Source | Champ | Fiabilité | Piège |
+|---|---|---|---|
+| **Firmware (écran)** | `machine_status.progress` | ✅ **AUTORITAIRE** | Échelle **0-100 entière** (`1` = 1 %, PAS 100 %). Toujours `÷100`. Une heuristique « si >1 alors ÷100 » lit `1` comme 100 %. |
+| Estimation temps | `print_duration / (print_duration + remaining_time_sec)` | ⚠️ bruité | `remaining_time_sec` **gonfle** en cours d'impression → surestime, non monotone |
+| Push partiel 6000 | `print_status.print_duration` **sans** `remaining_time_sec` | ❌ **PIÈGE 100 %** | Beaucoup de pushes 6000 n'ont QUE `print_duration` → `elapsed/(elapsed+0)` = **100 %** |
+
+### Règle d'implémentation
+
+1. **`machine_status.progress` est LA référence** — c'est le % que l'écran de l'imprimante affiche. Échelle **0-100** → `printProgress = progress / 100` (jamais l'heuristique « >1 »). Envoyé toutes les **~2 s** en cours d'impression (pas ~15 s).
+2. **Ne JAMAIS calculer `elapsed/(elapsed+remaining)` quand `remaining_time_sec` est absent OU = 0.** Sinon les pushes 6000 `print_status:{print_duration:N, total_duration:M}` (sans clé `remaining`) donnent 100 %.
+3. L'estimation temps n'est qu'un **fallback** (firmwares sans `machine_status.progress`), utilisable seulement si `remaining_time_sec` est **présent ET > 0**. Dès qu'on a vu `machine_status.progress` pour un job, **se verrouiller dessus** et ignorer l'estimation (elles se contredisent et font vibrer le %).
+4. Réinitialiser le verrou au changement d'`uuid` (nouveau job).
+
+### Pièges de champs (⚠️ noms trompeurs)
+
+- **`total_duration` n'est PAS la durée totale de l'impression** — c'est l'écoulé horloge depuis le début (+1 à chaque seconde). Ne jamais l'utiliser comme dénominateur de progression.
+- **`print_duration`** = temps d'impression effectif (reste à `0` pendant la chauffe, démarre à l'extrusion).
+- **`remaining_time_sec`** peut **augmenter** en cours de route (le firmware réestime) → l'estimation temps n'est pas monotone.
+- **`current_layer` peut rester à `0`** tout le long dans le flux 1005 (observé) → non fiable pour la progression ; `total_layer` absent (le récupérer via 1044 / 1046).
+- **Données périmées à l'arrêt** : quand `state === ""` (veille), `print_status` **conserve les valeurs du dernier job** (`current_layer`, `print_duration`, `total_duration`) avec `remaining_time_sec: 0`. Ne jamais en dériver de progression (→ 100 % fantôme au repos). Le reset au changement d'`uuid` couvre le nouveau job.
+
+### Exemple — push 6000 « piège » (print_duration sans remaining)
+```json
+{ "id": 1087, "method": 6000, "result": { "print_status": { "print_duration": 123, "total_duration": 123 } } }
+```
+→ `remaining_time_sec` **absent** → `123/(123+0)` = 100 % ❌. À ignorer (aucune vraie progression dans ce push).
+
+### Séquence de progression réelle (rejeu de la capture, après fix)
+```
+0 %  (idle)  →  1 %  (chauffe, machine_status.progress=1)  →  2 % … 86 %  (climb monotone via machine_status.progress)  →  reset au job suivant
+```
 
 ---
 

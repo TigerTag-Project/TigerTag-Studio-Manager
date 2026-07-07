@@ -13,6 +13,12 @@
   .inv-printer-view::-webkit-scrollbar { width: 0; height: 0; }   /* Chromium */
   .inv-printer-view.hidden { display: none; }
 
+  /* Printer view repurposes the right-of-search selectors: Brand (printer
+     brands), the Material select becomes a State (online/offline) filter, Tags
+     (printer tags). Only the materials-only Version select is hidden. Toggled by
+     the `printer-filters` body class in setViewMode. */
+  body.printer-filters #typeFilter { display: none; }
+
   .printers-section {
     display: flex; flex-direction: column; gap: 10px;
   }
@@ -2335,8 +2341,28 @@ details[open] .pba-step-chev { transform: rotate(90deg); }
 .pt-td--thumb { width: 56px; padding: 6px 8px 6px 12px; }
 .pt-thumb { display: block; width: 44px; height: 44px; object-fit: contain;
             border-radius: 4px; mix-blend-mode: multiply; }
+/* Print-preview thumbnail column — the current job's model preview, so you can
+   see what's on the bed at a glance. Empty (no box) when idle / unavailable. */
+.pt-th--jobthumb, .pt-td--jobthumb { width: 64px; white-space: nowrap; }
+/* Tight padding on BOTH the header and the cell so the column collapses to the
+   preview width — the header's default 12px side padding was what kept the
+   column wide and left dead space around the thumbnail. */
+.pt-th--jobthumb { padding: 9px 12px; }   /* left-aligned like the other headers */
+/* Minimal vertical padding so the preview grows to (nearly) the full row height
+   set by the Job cell — the thumbnail sits close to the row's top/bottom edges. */
+.pt-td--jobthumb { padding: 1px 12px; }
+.pt-jobthumb {
+  width: 60px; height: 60px; border-radius: 9px;
+  background-color: var(--surface-2);
+  /* Match the side card: contain shows the whole model, never cropped/truncated
+     (a zoom > 100% cut off tall models like the bowls). */
+  background-size: contain; background-position: center; background-repeat: no-repeat;
+  border: 1px solid var(--border);
+}
 /* Job column */
 .pt-td--job { min-width: 140px; }
+.pt-td--eta, .pt-th--eta { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.pt-td--eta { font-weight: 600; }
 .pt-job-bar { height: 4px; background: var(--border); border-radius: 2px;
               overflow: hidden; margin-bottom: 4px; }
 .pt-job-bar span { display: block; height: 100%; background: var(--primary);

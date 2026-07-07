@@ -37,7 +37,7 @@ L3128-3180   App lifecycle (whenReady, window-all-closed, activate)
 
 ---
 
-## App bootstrap, static server, splash & main window (L1-344)
+## App bootstrap, static server, splash & main window (L135-327)
 
 | L | What | Anchors |
 |---|---|---|
@@ -46,20 +46,20 @@ L3128-3180   App lifecycle (whenReady, window-all-closed, activate)
 | 252-277 | UID hex→decimal + TigerTag SDK payload builder | `normalizeUid`, `_sdkPayload` |
 | 278-344 | `BrowserWindow` creation, preload wiring, CSP, devtools | `createWindow` |
 
-## NFC / RFID reader + chip write (L345-924)
+## NFC / RFID reader + chip write (L409-988)
 
 | L | What | Anchors / IPC |
 |---|---|---|
 | 345-512 | Reader connect/disconnect lifecycle, card-present events, auto-read | `initNFC`, `_onNfcMessage` |
 | 458-924 | IPC: `rfid:read-now` / `rfid:write-now` / `rfid:repair` (restore from backup) / `rfid:format` (reinitialize via `TigerTag.asInit`) / `rfid:encode-cloud` / `rfid:burn-one` / `rfid:refresh-api` / `rfid:lookup-product`; surgical page diff before write | `_pagesToWrite`, `_pagesFromBytes` |
 
-## TD1S color sensor (L755-996)
+## TD1S color sensor (L1004-1004)
 
 | L | What | Anchors / IPC |
 |---|---|---|
 | 755-996 | Serial-port watcher, TD/color line parse, state replayed to renderer on reload; IPC `td1s:need` / `td1s:release` | `initTD1S` |
 
-## Auto-updater + migration gate (L997-1166)
+## Auto-updater + migration gate (L1250-1301)
 
 | L | What | Anchors / IPC |
 |---|---|---|
@@ -73,7 +73,7 @@ L3128-3180   App lifecycle (whenReady, window-all-closed, activate)
 | 1159-1311 | Google OAuth loopback sign-in (`auth:google-loopback`); `shell:open-external` | — |
 | 1312-1354 | Detached camera-wall `BrowserWindow` (`cam:open-detached`); `update:check-now` | — |
 
-## Printer discovery probes (L1363-1869)
+## Printer discovery probes (L1741-2015)
 
 | L | What | Anchors / IPC |
 |---|---|---|
@@ -98,7 +98,7 @@ L3128-3180   App lifecycle (whenReady, window-all-closed, activate)
 | 2050-2122 | Elegoo MQTT 1883 bridge (`elegoo:connect` / `disconnect` / `publish`) | — |
 | 2123-2154 | Shared `ffmpeg` binary detection (Bambu RTSP + Anycubic FLV cameras) | — |
 
-## Bambu Lab — MQTT + JPEG-TCP/RTSP cameras (L2163-2416)
+## Bambu Lab — MQTT + JPEG-TCP/RTSP cameras (L2579-2579)
 
 | L | What | Anchors / IPC |
 |---|---|---|
@@ -106,7 +106,7 @@ L3128-3180   App lifecycle (whenReady, window-all-closed, activate)
 | 2215-2299 | JPEG-TCP camera, port 6000 (`bambulab:cam-start` / `cam-stop`) — 80-byte auth packet, retry/timeout | `_bambuCamAuthPacket` |
 | 2300-2408 | RTSP camera via ffmpeg, port 322 (`bambulab:cam-start-rtsp` / `cam-stop-rtsp`) — 30 fps + low-latency flags | — |
 
-## Anycubic LAN — MQTT, provisioning, FLV camera (L2417-2930)
+## Anycubic LAN — MQTT, provisioning, FLV camera (L2965-2973)
 
 | L | What | Anchors / IPC |
 |---|---|---|
@@ -115,7 +115,7 @@ L3128-3180   App lifecycle (whenReady, window-all-closed, activate)
 | 2589-2655 | Slicer on-disk credential reader (`anycubic:read-slicer-config`) — keyless deobfuscation | `_acuDeobfuscate`, `_acuConfCandidates` |
 | 2656-2723 | LAN scan: TCP probe (`anycubic:tcp-probe`), FLV liveness (`anycubic:flv-probe`, accepts 200/206), `/info` (`anycubic:http-info`) | — |
 
-## Anycubic cloud — REST + cloud MQTT (L2732-3350)
+## Anycubic cloud — REST + cloud MQTT (L3118-3479)
 
 | L | What | Anchors / IPC |
 |---|---|---|

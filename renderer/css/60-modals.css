@@ -1821,7 +1821,9 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
+    scrollbar-width: none;           /* Firefox — hide the scrollbar (still scrolls) */
   }
+  .adp-panel .panel-body.adp-body::-webkit-scrollbar { width: 0; height: 0; }   /* Chromium */
   .adp-panel .panel-header {
     padding: 14px var(--adp-side-padding);
   }
@@ -2491,7 +2493,9 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
+    scrollbar-width: none;           /* Firefox — hide the scrollbar (still scrolls) */
   }
+  .adp-brand-list::-webkit-scrollbar { width: 0; height: 0; }   /* Chromium */
   .adp-brand-row {
     display: flex;
     align-items: center;
@@ -3407,6 +3411,17 @@
 
 .cem-chip--fail { box-shadow: 0 5px 18px rgba(216,59,59,.36); animation: cemShake .4s ease; }
 .cem-chip--fail .cem-chip-num {
+  background: var(--danger);
+  box-shadow: 0 0 0 2px rgba(255,255,255,.22), 0 0 8px rgba(216,59,59,.7);
+}
+
+/* Update flow: a present chip whose UID isn't this spool's — clearly wrong. */
+.cem-chip--mismatch {
+  border-color: rgba(216,59,59,.55);
+  box-shadow: 0 5px 18px rgba(216,59,59,.30);
+}
+.cem-chip--mismatch .cem-chip-logo { background-color: rgba(255,150,150,.9); }
+.cem-chip--mismatch .cem-chip-num {
   background: var(--danger);
   box-shadow: 0 0 0 2px rgba(255,255,255,.22), 0 0 8px rgba(216,59,59,.7);
 }

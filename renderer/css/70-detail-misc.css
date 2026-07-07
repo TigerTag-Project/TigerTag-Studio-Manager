@@ -324,6 +324,89 @@
      on Chromium, which broke bicolor/tricolor swatches). */
   .color-circle { position: relative; display: inline-block; overflow: hidden; border-radius: 50%; flex-shrink: 0; vertical-align: middle; margin-right: 5px; border: 1.5px solid; }
   .color-circle-fill { position: absolute; inset: 0; }
+
+  /* ── Multi-select / bulk delete ──────────────────────────────────────── */
+  .inv-select-btn {
+    display: none; align-items: center; gap: 6px;   /* shown only on button-select views (see body.sel-btn-view) */
+    height: 36px; padding: 0 12px; flex-shrink: 0;   /* iso with .inv-add-btn (overrides the global button 40px) */
+    border-radius: 10px;
+    background: var(--surface-2); border: 1px solid var(--border);
+    color: var(--text); font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
+    transition: background .15s, border-color .15s, color .15s;
+  }
+  body.sel-btn-view .inv-select-btn { display: inline-flex; }   /* materials grid + printer grid/table */
+  .inv-select-btn:hover  { border-color: var(--primary); }
+  .inv-select-btn.active { background: var(--primary-soft); border-color: var(--primary); color: var(--primary); }
+  .inv-select-btn .icon  { background: currentColor; }
+  .inv-select-btn.hidden { display: none !important; }   /* friend view */
+
+  /* Checkbox affordance — hidden until select mode; the checked look is driven
+     by .row-selected / .group-all-selected on the row / card. */
+  .sel-check {
+    display: none;
+    position: absolute; top: 6px; left: 6px; z-index: 4;
+    width: 18px; height: 18px; border-radius: 5px;
+    background: var(--surface); border: 1.5px solid var(--border);
+    box-shadow: 0 1px 3px rgba(0,0,0,.2);
+  }
+  body.bulk-select-mode .thumb-cell,
+  body.bulk-select-mode .card-img-wrap,
+  body.bulk-select-mode .printer-card,
+  body.bulk-select-mode .gp-member-left { position: relative; }
+  body.bulk-select-mode .sel-check { display: block; }
+  .row-selected .sel-check, .group-all-selected .sel-check {
+    background: var(--primary); border-color: var(--primary);
+  }
+  .row-selected .sel-check::after, .group-all-selected .sel-check::after {
+    content: ""; position: absolute; left: 5px; top: 1px;
+    width: 4px; height: 9px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg);
+  }
+  body.bulk-select-mode #invBody tr, body.bulk-select-mode .spool-card { cursor: pointer; }
+  #invBody tr.row-selected, #invBody tr.group-all-selected { background: var(--primary-soft); }
+  .spool-card.row-selected, .spool-card.group-all-selected { outline: 2px solid var(--primary); outline-offset: -2px; }
+  #groupPanelBody .gp-member.row-selected { background: var(--primary-soft); }
+
+  /* Printer selection (button-triggered, printer grid + table). */
+  body.bulk-select-mode .printer-card, body.bulk-select-mode .pt-row { cursor: pointer; }
+  .printer-card.row-selected { outline: 2px solid var(--primary); outline-offset: -2px; }
+  .pt-row.row-selected { background: var(--primary-soft); }
+  /* Printer TABLE: the checkbox column is ALWAYS visible (like the materials
+     table) — it reuses the shared `.sel-cell` / `.sel-check` rules. */
+
+  /* Always-visible checkbox column in the TABLE (Shopify-style, left of the
+     thumbnail). Grid / group-panel checkboxes stay overlay + bulk-gated. */
+  .sel-th, .sel-cell { width: 40px; padding-left: 14px !important; padding-right: 0 !important; box-sizing: border-box; }
+  .sel-cell { vertical-align: middle; cursor: pointer; }
+  .sel-cell .sel-check {
+    display: inline-block; position: relative; top: auto; left: auto;
+    vertical-align: middle; box-shadow: none;
+  }
+  .sel-cell:hover .sel-check { border-color: var(--primary); }
+
+  .bulk-bar {
+    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 200;
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 10px 8px 16px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; box-shadow: 0 12px 32px rgba(0,0,0,.28);
+  }
+  .bulk-bar.hidden { display: none; }
+  .bulk-btn {
+    position: relative; overflow: hidden;
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 12px; border-radius: 10px;
+    background: var(--surface-2); border: 1px solid var(--border);
+    color: var(--text); font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
+    transition: border-color .15s, background .15s;
+  }
+  .bulk-btn:hover { border-color: var(--primary); }
+  .bulk-btn .icon { background: currentColor; }
+  .bulk-btn > *:not(.hold-progress) { position: relative; z-index: 1; }
+  .bulk-btn--danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+  .bulk-btn--danger:hover { filter: brightness(1.06); border-color: var(--danger); }
+  .bulk-btn--danger .icon { background: #fff; }
+  .bulk-btn--icon { padding: 8px; }
+
   .bar { width: 64px; height: 5px; background: var(--surface-2); border-radius: 3px; overflow: hidden; display: inline-block; vertical-align: middle; margin-left: 6px; }
   .bar > span { display: block; height: 100%; background: var(--primary); border-radius: 3px; }
   /* In the inventory table, the fill bar drops UNDER the weight value so it can

@@ -194,6 +194,11 @@
           </div>
         </div>
         <div class="inv-actions-group">
+          <!-- Multi-select toggle → checkboxes + bulk-delete bar (own inventory only). -->
+          <button id="btnSelectMode" class="inv-select-btn js-select-toggle" type="button" title="Select multiple">
+            <span class="icon icon-check icon-13"></span>
+            <span data-i18n="bulkSelectMode">Select</span>
+          </button>
           <button id="btnAddProduct" class="inv-add-btn" type="button">
             <span class="icon icon-plus icon-13"></span>
             <span data-i18n="addProductBtn">Material</span>
@@ -257,6 +262,7 @@
         <table>
           <thead>
             <tr>
+              <th class="sel-th"></th>
               <th></th>
               <th class="sortable" data-sort="isPlus" data-i18n="thType">Type</th>
               <th class="sortable" data-sort="material" data-i18n="thMaterial">Material</th>
@@ -277,6 +283,21 @@
 
       <!-- rack view (storage) -->
       <div id="invRackView" class="inv-rack-view hidden"></div>
+
+      <!-- Floating bulk-action bar — appears in multi-select mode once ≥1 spool
+           is selected. Delete is a press-and-hold (hard delete, irreversible). -->
+      <div id="bulkBar" class="bulk-bar hidden">
+        <button id="bulkSelectAll" class="bulk-btn" type="button" data-i18n="bulkSelectAll">Select all</button>
+        <button id="bulkClear" class="bulk-btn" type="button" data-i18n="bulkClear">Clear</button>
+        <button id="bulkDelete" class="bulk-btn bulk-btn--danger" type="button">
+          <span class="hold-progress"></span>
+          <span class="icon icon-trash icon-13"></span>
+          <span><span data-i18n="bulkDelete">Delete</span><span id="bulkDeleteCount"></span></span>
+        </button>
+        <button id="bulkExit" class="bulk-btn bulk-btn--icon" type="button" aria-label="Exit selection" title="Exit selection">
+          <span class="icon icon-close icon-13"></span>
+        </button>
+      </div>
 
       <!-- printer view (3D printers from users/{uid}/printers/{brand}/devices) -->
       <div id="invPrinterView" class="inv-printer-view hidden"></div>
