@@ -90,13 +90,27 @@ Before writing the `CHANGELOG.md` entry, do one final editorial pass on WORKLOG:
    - One logical change per bullet; name the subsystem / brand / view; internal identifiers are allowed here (this is the one register where they belong).
 4. **Verify i18n delta.** Run `npm run i18n:check` — confirm key count matches WORKLOG before writing the CHANGELOG line.
 
+### Choosing the version number (SemVer — decide it yourself)
+
+Pick the release version **automatically from what `WORKLOG.md` contains** — don't ask, except for MAJOR. `MAJOR.MINOR.PATCH`:
+
+- **PATCH → `X.Y.(Z+1)`** — the default. The cycle is only **Fixed** / **Removed** / small **Changed** tweaks / i18n / internal work — **no new user-facing capability**. (e.g. `2.0.0 → 2.0.1`)
+- **MINOR → `X.(Y+1).0`** (resets patch to 0) — **Added** holds a genuine new feature / capability, or a **Changed** entry introduces a notable new behaviour the user can act on. (e.g. `2.0.3 → 2.1.0`)
+- **MAJOR → `(X+1).0.0`** — a deliberate milestone or a breaking change (data-model / storage-format / dropped support). **Never auto-pick — always confirm with the human.** (e.g. `1.10.32 → 2.0.0`)
+
+Rule of thumb: *would a user notice a new thing they can now do?* → **MINOR**. *Only "it works right/better now"?* → **PATCH**. When Added has one real feature among fixes, that still makes it a **MINOR**.
+
+**The placeholder bump from step 5 is a PATCH guess.** At release time, re-evaluate against the real WORKLOG and, if it disagrees, **correct the version everywhere before committing**: `package.json`, the `CHANGELOG.md` heading, the `data/release-notes/vX.Y.Z.md` filename, the `whatsnew` key, and the tag. Example: pre-bumped to `2.0.1` but the cycle shipped real features → the release is `2.1.0`; fix all of the above to `2.1.0`.
+
 ### At commit time (in order)
+
+0. **Decide the version** (policy above) and set `package.json` to it — correcting the placeholder if the WORKLOG warrants a MINOR/MAJOR (confirm MAJOR with the human first).
 
 1. **Synthesize `WORKLOG.md`** (Rule 3 above) → write the new `CHANGELOG.md` entry (register 1 — technical).
 2. **Write the release note** (register 2 — BambuLab style) → `data/release-notes/vX.Y.Z.md`. Rewrite the changelog into factual, jargon-free bullets (`Fixed an issue where …`, no internal code names); end with the standard footer (copy it from the previous version's file). This file becomes the **GitHub Release page body** verbatim via `scripts/extract-changelog.mjs`. Skipping it means the release page falls back to the raw changelog — avoid that.
 3. **Write the "What's New" entry** (register 3 — Discord/app voice) for the version → `data/whatsnew.json`. Run `npm run whatsnew:add -- <x.y.z> [--items N] [--date YYYY-MM-DD]` to scaffold an empty **9-locale** block, then fill each item's `icon` (emoji) + vulgarised `title`/`body` for **all 9 locales** (history is kept — never delete old versions). Verify with `npm run whatsnew:check` (must pass — no empty locale). This drives the in-app "What's New" modal shown once per version (and re-openable from Settings → About).
 4. **Include `WORKLOG.md` in the commit** — it is part of the repo history (future sessions can read it via `git show`)
-5. **Reset `WORKLOG.md` AND bump `package.json` to the NEXT version** immediately after committing — both left **uncommitted** (they ship with the next release). Bumping `package.json` here (not only at release time) means the **dev build shows the in-progress version number** (`#sbVersion`) instead of the previous release's — so while working on vN+1 the app reads `vN+1`, not `vN`. Consequence: at the next release `package.json` is **already** at the release version, so the release ritual doesn't re-bump it — it's committed as-is with the `vX.Y.Z —` commit. Replace `WORKLOG.md` with the blank template for the next version (bump the header too):
+5. **Reset `WORKLOG.md` AND bump `package.json` to the NEXT PATCH** immediately after committing — both left **uncommitted** (they ship with the next release). This next-patch number is a **placeholder** (we don't yet know what the next cycle will contain); it's corrected to a MINOR/MAJOR at the next release if the WORKLOG warrants it (step 0 above). Bumping `package.json` here (not only at release time) means the **dev build shows an in-progress version number** (`#sbVersion`) instead of the previous release's — so while working on the next version the app reads it, not the shipped one. Replace `WORKLOG.md` with the blank template for the next version (bump the header too):
 
 ```markdown
 # Worklog — vX.Y.Z (in progress)

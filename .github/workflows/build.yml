@@ -24,10 +24,17 @@ jobs:
       - name: Build release notes from CHANGELOG.md
         run: node scripts/extract-changelog.mjs "${{ github.ref_name }}" > release-notes.md
 
+      # Release NAME is the version without the leading "v" (e.g. tag v2.0.0 → "2.0.0"),
+      # matching the historical naming. softprops defaults the name to the tag otherwise.
+      - name: Release version (strip leading v)
+        id: ver
+        run: echo "num=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
       - name: Create draft release with description
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.ref_name }}
+          name: ${{ steps.ver.outputs.num }}
           draft: true
           body_path: release-notes.md
         env:
@@ -172,6 +179,12 @@ jobs:
         if: matrix.os == 'windows-latest' && steps.check_signing.outputs.ready == 'true'
         run: node scripts/regen-latest-yml.mjs
 
+      - name: Release version (strip leading v)
+        if: matrix.os == 'windows-latest'
+        id: verwin
+        shell: bash   # windows runner defaults to PowerShell; force bash for ${VAR#v}
+        run: echo "num=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
       - name: Publish Windows artifacts to GitHub Release
         if: matrix.os == 'windows-latest'
         # v3.0.0 (2026-04-12) moved the action runtime from Node 20 to
@@ -189,6 +202,7 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.ref_name }}
+          name: ${{ steps.verwin.outputs.num }}
           draft: true
           files: |
             dist/*.exe

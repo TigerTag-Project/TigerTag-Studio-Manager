@@ -1,6 +1,6 @@
 <div align="center">
 
-# Tiger Studio Manager
+# Tiger Studio Manager 2
 
 <img src="assets/svg/logos/logo_tigertag_contouring.svg" width="140" alt="TigerTag logo" />
 
@@ -47,7 +47,7 @@ Tiger Studio Manager is an Electron desktop app that bridges your physical filam
 It works standalone (no reader needed), but unlocks its full potential with:
 - an **ACR122U NFC reader** for automatic spool identification, chip encoding and Cloud-to-chip promotion
 - a **TigerScale** ESP32 scale for live weight tracking
-- one or more **3D printers** from the 5 supported brands
+- one or more **3D printers** from the 6 supported brands
 
 <img src="assets/img/screenshots/screenshot_setup_tiger_project.png" width="100%" alt="TigerTag ecosystem setup — Tiger Studio Manager, TigerScale, TD1S, ACR122U and TigerPOD" />
 
@@ -304,33 +304,48 @@ The [OpenRFID](https://github.com/suchmememanyskill/OpenRFID) project is vendore
 
 ```
 TigerTag-Studio-Manager/
-├── main.js                  # Electron main process
+├── main.js                  # Electron main process (IPC, printer transports, NFC, cameras) — see CODEMAP-main.md
 ├── preload.js               # contextBridge IPC
+├── CODEMAP-main.md          # Line-range index for main.js
+├── ROADMAP.md               # Done / next / backlog by domain
 ├── services/
-│   └── tigertagDbService.js # Reference data layer (API → GitHub mirror → userData → assets)
+│   ├── nfc-process.js       # NFC utilityProcess — nfc-pcsc read/write, isolated from the main process
+│   ├── tigertagDbService.js # Reference data layer (API → GitHub mirror → userData → assets)
+│   └── anycubicCloudCerts.js
 ├── renderer/
 │   ├── inventory.html       # Single-page UI markup
-│   ├── inventory.js         # All application logic (IIFE — see CODEMAP.md)
-│   ├── CODEMAP.md           # Line-range index for inventory.js
-│   ├── css/                 # Styles split into 8 themed files (00-base → 70-detail-misc)
-│   ├── locales/             # i18n JSON — en fr de es it pl pt pt-pt zh
+│   ├── inventory.js         # Core renderer logic (~21k-line ES module — see CODEMAP.md)
+│   ├── CODEMAP.md           # Line-range index for inventory.js (read first, grep last)
+│   ├── firebase.js          # Firebase init (public config)
+│   ├── css/                 # 10 themed files, loaded in order (00-base → 10-settings → … → 70-detail-misc)
+│   ├── locales/             # i18n JSON — en fr de es it zh pt pt-pt pl (9 locales, edit via npm run i18n:add)
+│   ├── IoT/                 # Extracted device modules (own CSS inside each)
+│   │   ├── tigerscale/      # TigerScale — Firestore subscription, panel, health tick
+│   │   └── td1s/            # TD1S color/TD sensor engine + TD/Color edit modals
+│   ├── rfid_protocol/
+│   │   └── tigertag/        # RFID TigerTag tester modal + chip parser
+│   ├── cam/                 # Detached camera-wall window
 │   └── printers/            # Per-brand live integrations + PROTOCOL.md agent skills
-│       ├── bambulab/
-│       ├── creality/
-│       ├── elegoo/
-│       ├── flashforge/
-│       └── snapmaker/
+│       ├── anycubic/  bambulab/  creality/  elegoo/  flashforge/  snapmaker/
+│       └── registry.js  context.js  cam_manager.js  modal-helpers.js  extra-subnets.js   # shared
 ├── assets/
 │   ├── db/tigertag/         # Bundled reference JSONs (id_brand, id_material, …)
 │   ├── img/                 # App icons + printer photos
 │   └── svg/                 # UI icons + TigerTag logos
 ├── data/
-│   └── container_spool/     # Spool container catalog
+│   ├── container_spool/     # Spool container catalog
+│   ├── printers/            # Per-brand printer model catalogs
+│   ├── rack-presets.json    # Built-in rack templates
+│   ├── whatsnew.json        # "What's New" modal content (9 locales, full history)
+│   └── release-notes/       # Per-version GitHub Release body (BambuLab-style)
+├── scripts/                 # i18n add/check, whatsnew add/check, codemap check, changelog extract, …
 ├── docs/
+│   ├── firestore-schema.md  # Full Firestore collection/field map
+│   ├── i18n-keys.md         # i18n key reference
 │   └── rfid-vendors/        # Per-vendor RFID spec sheets
 ├── OpenRFID/                # Git submodule — upstream multi-vendor parsers (read-only)
 └── .github/workflows/
-    └── build.yml            # CI: parallel build + publish on tag push
+    └── build.yml            # CI: prepare-release (draft + notes) → parallel build → attach assets, on tag push
 ```
 
 ---

@@ -130,6 +130,7 @@ users/
             isActive         boolean
             sortIndex, camSortIndex  number — user ordering (grid + cam wall)
             camSize          string?   — "1x" | "2x" cam-wall tile size
+            tags             string[]? — user-defined free-form labels (Shopify-style), same editor as spool tags but a separate namespace (printer tags never mix with spool tags). Studio metadata only. Owner-write, no rule change needed (printers subtree has no field whitelist). Cross-app field — mobile ignores it until it implements printer tags
             updatedAt        timestamp
             discovery        map?       — last mDNS/HTTP discovery snapshot (raw + derived)
             …                           — other per-brand fields (deviceId, model topic id, etc.)
