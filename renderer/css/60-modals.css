@@ -696,6 +696,20 @@
     font-size: 10px; font-weight: 700; color: var(--muted);
     text-transform: uppercase; letter-spacing: .07em; margin-bottom: 7px;
   }
+  .eac-field-hint {
+    font-size: 11px; color: var(--muted); margin-top: 6px; line-height: 1.4;
+  }
+  /* HT / TTC segmented control (price-entry mode). */
+  .eac-seg {
+    display: inline-flex; padding: 3px; gap: 2px;
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px;
+  }
+  .eac-seg-btn {
+    border: none; background: transparent; cursor: pointer;
+    padding: 6px 16px; border-radius: 7px; font-size: 12px; font-weight: 700;
+    color: var(--muted); transition: background .15s, color .15s;
+  }
+  .eac-seg-btn.active { background: var(--primary); color: #fff; }
   .eac-input { background: var(--surface-2) !important; border-color: var(--border) !important; color: var(--text) !important; }
   .eac-input:focus { border-color: var(--primary) !important; background: var(--primary-soft) !important; }
   .eac-eye { background: var(--surface-2) !important; border-color: var(--border) !important; color: var(--muted) !important; }

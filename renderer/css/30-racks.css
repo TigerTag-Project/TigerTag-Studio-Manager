@@ -981,20 +981,13 @@
   .rp-side-add-rack-btn .icon  { background: #fff; }
   /* Info bubble — small ⓘ that reveals an explanation on hover/focus (replaces
      the inline help text). Styled bubble, NOT a native title. */
-  .rp-info { position: relative; display: inline-flex; align-items: center; cursor: help; flex-shrink: 0; }
+  /* The bubble itself is rendered via the shared #toolInfoPop (body-appended,
+     position:fixed) — same as the toolbox ⓘ tips — so it escapes the panel's
+     overflow/stacking instead of being clipped inside the card. Wired in JS
+     (_wireRackInfoTips → _showToolInfoTip). Here we only style the icon. */
+  .rp-info { display: inline-flex; align-items: center; cursor: help; flex-shrink: 0; }
   .rp-info .icon { background: var(--muted); transition: background .15s; }
   .rp-info:hover .icon, .rp-info:focus-visible .icon { background: var(--primary); }
-  .rp-info::after {
-    content: attr(data-tip);
-    position: absolute; top: calc(100% + 8px); right: 0; left: auto;
-    width: max-content; max-width: 190px; white-space: normal; text-align: left;
-    background: #1c2030; color: #fff; border: 1px solid rgba(255,255,255,.12);
-    padding: 7px 10px; border-radius: 8px;
-    font-size: 11px; font-weight: 400; line-height: 1.4; text-transform: none; letter-spacing: 0;
-    opacity: 0; pointer-events: none; transition: opacity .15s;
-    box-shadow: 0 6px 18px rgba(0,0,0,.35); z-index: 60;
-  }
-  .rp-info:hover::after, .rp-info:focus-visible::after { opacity: 1; }
 
   /* Auto storage / Auto unstorage toggles inside the "Spools not stored"
      panel. The two opposing policies live together in a single bordered

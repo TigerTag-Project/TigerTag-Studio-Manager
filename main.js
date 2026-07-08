@@ -2002,6 +2002,116 @@ ipcMain.handle('bambu:tls-probe', async (_evt, ip) => {
   });
 });
 
+// ── Bambu Lab print thumbnail (FTPS) — see bambulab/PROTOCOL.md §11 ───────────
+// Fetch the current print's model preview: FTPS (implicit :990, user bblp, pass =
+// Access Code, self-signed cert ignored) → find the current .3mf (the actively-
+// printing slice lives in /model, older jobs in /cache, manual uploads at root) →
+// extract Metadata/plate_N.png (a .3mf is a ZIP). Bambu answers PASV with host
+// 0.0.0.0, which basic-ftp rejects — rewrite it to the control host (printer IP).
+const _bblBasename  = (p) => String(p || '').split(/[\\/]/).pop() || '';
+const _bblBaseNoExt = (p) => _bblBasename(p).replace(/\.[^.]+$/, '');
+
+// Directories a print's .3mf can live in, most-likely-first for a job seen live:
+// /model holds the actively-printing slice, /cache older jobs, / manual/slicer
+// uploads (A1/P1), /data + /data/Metadata on some firmware/models. (bambuddy #972)
+const _BBL_3MF_DIRS = ['/model', '/cache', '', '/data', '/data/Metadata'];
+
+// Build the plausible on-printer filenames for the current print from its
+// gcode_file/subtask hint. Firmware reports it inconsistently — bare stem, .3mf,
+// or .gcode.3mf — and Bambu Studio normalizes spaces to underscores. Mirror
+// bambuddy's variant set so the exact-name lookup hits before any fuzzy scan.
+function _bblCandidateNames(fileHint) {
+  const base = _bblBasename(fileHint);
+  const stem = base.replace(/\.gcode\.3mf$/i, '').replace(/\.gcode$/i, '').replace(/\.3mf$/i, '');
+  const names = [];
+  if (/\.3mf$/i.test(base)) names.push(base);        // already a .3mf name — trust it first
+  if (stem) { names.push(`${stem}.gcode.3mf`); names.push(`${stem}.3mf`); }
+  for (const n of names.slice()) if (n.includes(' ')) names.push(n.replace(/ /g, '_'));
+  return [...new Set(names)];                          // dedup, order-preserving
+}
+
+function _bblExtractPlatePng(zipBuf, plateIdx) {
+  return new Promise((resolve) => {
+    let yauzl; try { yauzl = require('yauzl'); } catch { return resolve(null); }
+    yauzl.fromBuffer(zipBuf, { lazyEntries: true }, (err, zip) => {
+      if (err || !zip) return resolve(null);
+      const want = Number(plateIdx) || 1;
+      const plateNum = (name) => { const m = name.match(/plate_(\d+)\.png$/i); return m ? Number(m[1]) : null; };
+      let best = null, bestRank = 1e9, done = false;
+      const finish = (buf) => { if (done) return; done = true; try { zip.close(); } catch {} resolve(buf); };
+      const readEntryToBuf = (entry, cb) => zip.openReadStream(entry, (e, rs) => {
+        if (e || !rs) return cb(null);
+        const c = []; rs.on('data', d => c.push(d)); rs.on('end', () => cb(Buffer.concat(c))); rs.on('error', () => cb(null));
+      });
+      zip.on('entry', (entry) => {
+        const num = /^metadata\/plate_\d+\.png$/i.test(entry.fileName) ? plateNum(entry.fileName) : null;
+        if (num === want) return readEntryToBuf(entry, (b) => b ? finish(b) : zip.readEntry()); // exact plate → take it now
+        if (num != null) { const rank = num === 1 ? 0 : num; if (rank < bestRank) { bestRank = rank; best = entry; } }
+        zip.readEntry();
+      });
+      zip.on('end', () => best ? readEntryToBuf(best, finish) : finish(null));
+      zip.readEntry();
+    });
+  });
+}
+
+ipcMain.handle('bambulab:fetch-thumbnail', async (_evt, { ip, accessCode, fileHint, plateIdx } = {}) => {
+  if (!ip || !accessCode) return { ok: false, error: 'missing ip/accessCode' };
+  let FTP; try { FTP = require('basic-ftp'); } catch { return { ok: false, error: 'basic-ftp not installed' }; }
+  const { Writable } = require('stream');
+  const client = new FTP.Client(15000);
+  const dl = async (path) => {
+    const chunks = [];
+    await client.downloadTo(new Writable({ write(c, _e, cb) { chunks.push(c); cb(); } }), path);
+    return Buffer.concat(chunks);
+  };
+  try {
+    await client.access({ host: ip, port: 990, user: 'bblp', password: accessCode, secure: 'implicit', secureOptions: { rejectUnauthorized: false } });
+    // PASV 0.0.0.0 → control host rewrite (Bambu quirk).
+    const ctrl = String(client.ftp.socket?.remoteAddress || ip).replace(/^::ffff:/i, '').split('.');
+    const origRequest = client.ftp.request.bind(client.ftp);
+    client.ftp.request = async (cmd) => {
+      const res = await origRequest(cmd);
+      if (typeof cmd === 'string' && cmd.toUpperCase() === 'PASV' && /\(0,0,0,0,/.test(res.message)) {
+        res.message = res.message.replace('(0,0,0,0,', `(${ctrl.join(',')},`);
+      }
+      return res;
+    };
+    // 1) Direct hit by exact name. Try every plausible filename variant against
+    //    every candidate dir (/model first — that's the actively-printing slice).
+    let zipBuf = null;
+    for (const name of _bblCandidateNames(fileHint)) {
+      for (const dir of _BBL_3MF_DIRS) {
+        try { zipBuf = await dl(`${dir}/${name}`); } catch { zipBuf = null; }
+        if (zipBuf && zipBuf.length) break;
+      }
+      if (zipBuf && zipBuf.length) break;
+    }
+    // 2) Fuzzy fallback: list the candidate dirs and match a .3mf by basename,
+    //    normalizing spaces↔underscores (Bambu Studio does). Never pick an
+    //    arbitrary file — a wrong-model thumbnail is worse than none.
+    if (!zipBuf || !zipBuf.length) {
+      const norm = (s) => _bblBaseNoExt(s).toLowerCase().replace(/ /g, '_');
+      const target = norm(fileHint);
+      const paths = [];
+      for (const dir of _BBL_3MF_DIRS) {
+        const d = dir || '/';
+        try { (await client.list(d)).forEach(f => { if (/\.3mf$/i.test(f.name)) paths.push(dir + '/' + f.name); }); } catch {}
+      }
+      const pick = target ? paths.find(p => { const f = norm(p); return f === target || f.includes(target) || target.includes(f); }) : null;
+      if (pick) { try { zipBuf = await dl(pick); } catch { zipBuf = null; } }
+    }
+    if (!zipBuf || !zipBuf.length) return { ok: false, error: 'no .3mf found on printer' };
+    const png = await _bblExtractPlatePng(zipBuf, plateIdx);
+    if (!png) return { ok: false, error: 'no plate thumbnail in .3mf' };
+    return { ok: true, dataUri: `data:image/png;base64,${png.toString('base64')}` };
+  } catch (e) {
+    return { ok: false, error: e?.message || String(e) };
+  } finally {
+    try { client.close(); } catch {}
+  }
+});
+
 // ── Elegoo UDP discovery — unicast spray on :52700 ───────────────────────────
 // Elegoo printers (Centauri/SDCP family) answer the discovery JSON-RPC
 // `{"id":0,"method":7000}` over UDP. The Flutter scanner sends one datagram

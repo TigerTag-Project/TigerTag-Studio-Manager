@@ -176,6 +176,7 @@ export function bambuConnect(printer, { skipCam = false } = {}) {
       externalTray:  null,
       lastCamUrl:    null,
       lastCamBuf:    null,
+      printPreviewUrl: null,   // current print's model preview (data-URI), fetched via FTPS
     },
   };
   _bambuConns.set(key, conn);
@@ -505,6 +506,34 @@ function _bblParseModules(conn, msg) {
   if (changed) _bblNotify(conn); // humidity/temp visibility may have changed
 }
 
+// Bambu print states that count as "an active job" (mirror of inventory.js
+// _ACTIVE_STATES for the values _normState can emit).
+const _BBL_ACTIVE = new Set(["printing", "preparing", "busy", "paused"]);
+
+// Fetch the current print's model preview via FTPS (main process, PROTOCOL.md §11).
+// Throttled: at most one fetch per (file, plate) key, retried every ~10 s until it
+// lands. Cloud-mode printers (no LAN ip/password) are skipped. On success the
+// data-URI is stored on conn.data.printPreviewUrl and the UI is re-rendered.
+function _bblFetchThumbnail(conn, rawFile, plateIdx) {
+  if (!window.bambulab?.fetchThumbnail || !conn?.ip || !conn?.password || !rawFile) return;
+  const key = `${rawFile}|${plateIdx ?? ""}`;
+  if (conn._thumbKey === key && conn.data.printPreviewUrl) return; // already have it
+  if (conn._thumbInFlight) return;
+  const now = Date.now();
+  if (conn._thumbTryKey === key && now - (conn._thumbTryAt || 0) < 10000) return; // retry throttle
+  conn._thumbTryKey = key; conn._thumbTryAt = now; conn._thumbInFlight = true;
+  window.bambulab.fetchThumbnail({ ip: conn.ip, accessCode: conn.password, fileHint: rawFile, plateIdx })
+    .then((res) => {
+      conn._thumbInFlight = false;
+      if (res?.ok && res.dataUri) {
+        conn._thumbKey = key;
+        conn.data.printPreviewUrl = res.dataUri;
+        _bblNotify(conn);
+      }
+    })
+    .catch(() => { conn._thumbInFlight = false; });
+}
+
 function _bblMerge(conn, msg) {
   const p = msg?.print;
   if (!p || typeof p !== "object") return;
@@ -525,12 +554,27 @@ function _bblMerge(conn, msg) {
   if (typeof p.layer_num      === "number") d.layerNum      = p.layer_num;
   if (typeof p.total_layer_num === "number") d.totalLayerNum = p.total_layer_num;
 
-  // Filename (first non-empty field wins)
+  // Filename (first non-empty field wins). Keep the RAW path too — it's the FTPS
+  // hint for the thumbnail fetch (exact name looked up in /model, then /cache, /).
   const fn = p.gcode_file || p.subtask_name || p.project_file
            || p.project_name || p.filename || p.task_name || p.ipcam?.file_name;
   if (fn) {
     try { d.printFilename = decodeURIComponent(String(fn).split("/").pop()); }
     catch { d.printFilename = String(fn).split("/").pop(); }
+  }
+  // Plate index (which plate_N.png to pull from the .3mf).
+  const plate = p.plate_idx ?? p.plate_index ?? p.cur_plate;
+  if (plate != null && Number.isFinite(+plate)) d.plateIdx = +plate;
+
+  // Model preview (FTPS → .3mf): fetch once per file while a job is active OR
+  // finished — the finished plate keeps showing "what just printed" (the .3mf
+  // stays in /model until the next job). Only drop it once the printer goes back
+  // to idle (plate cleared) or the job failed/errored. The table + side card
+  // read conn.data.printPreviewUrl.
+  if (fn && (_BBL_ACTIVE.has(d.printState) || d.printState === "finished")) {
+    _bblFetchThumbnail(conn, fn, d.plateIdx);
+  } else if (d.printState === "idle" || d.printState === "failed" || d.printState === "error") {
+    if (d.printPreviewUrl) { d.printPreviewUrl = null; conn._thumbKey = null; }
   }
 
   // Camera disable flag (PROTOCOL.md §10): when the user turns the LAN camera

@@ -516,3 +516,7 @@ When a global rule (e.g. `input[type="text"]` — specificity 0,1,1) overrides a
 
 ### Hold-to-confirm buttons
 Use `setupHoldToConfirm(el, durationMs, callback)`. The element must contain a `<span class="hold-progress"></span>` child. Duration guideline: 1200 ms for reversible actions, 1500 ms for hard-destructive (delete/unlink).
+
+**The fill animation is mandatory and must be VISIBLE — never ship a hold button whose progress you can't see.** A hold-to-confirm button with no visible fill reads as "broken" (the user clicks, nothing appears to happen, they give up before the hold completes). So on every hold button, verify BOTH:
+1. The `<span class="hold-progress"></span>` child is present (without it `setupHoldToConfirm`'s `fill` is `null` → the action still fires after the hold but with zero visual feedback).
+2. The fill **contrasts with the button's own background**. The base `.hold-progress` is `var(--danger)` (red) at `opacity:.35` — on an already-red/danger button that's red-on-red = invisible. In that case override it with a contrasting sweep, e.g. `.my-danger-btn .hold-progress { background: rgba(0,0,0,.34); opacity: 1; }` (dark sweep) or a `--primary` variant. Same reflex for any coloured button: pick a fill that visibly stands out against that specific background.

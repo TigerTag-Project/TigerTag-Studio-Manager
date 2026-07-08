@@ -483,6 +483,19 @@ function _creThumbUrl(conn, f) {
   return base ? `http://${conn.ip}/downloads/humbnail/${encodeURIComponent(base)}` : "";
 }
 
+// Current print's file-specific thumbnail (from the loaded file list), or null.
+// Valid both while printing and once finished — unlike the live camera snapshot,
+// which goes stale after a print ends. Needs the file list to be loaded; returns
+// null otherwise (caller falls back to the camera while active).
+export function creCurrentThumbUrl(conn) {
+  const d = conn?.data;
+  if (!d || !Array.isArray(d.fileList)) return null;
+  const name = String(d.printFileName || "").split("/").pop();
+  if (!name) return null;
+  const match = d.fileList.find(f => f.name === name);
+  return match ? (_creThumbUrl(conn, match) || null) : null;
+}
+
 function _creColorSwatches(colors) {
   if (!colors) return "";
   return colors.split(";").filter(Boolean).map(c =>

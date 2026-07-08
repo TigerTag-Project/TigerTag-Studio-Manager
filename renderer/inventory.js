@@ -91,7 +91,7 @@ import {
   creConnect, creDisconnect,
   renderCrealityLiveInner, renderCreLogInner,
   creRefreshOnlineUI, renderCreOnlineBadge,
-  creGetConn,
+  creGetConn, creCurrentThumbUrl,
   openCreFilamentEdit, closeCreFilamentEdit,
   openCreFileSheet, closeCreFileSheet,
   creActionLed, creActionPause, creActionStop, creActionFeed, creActionFan,
@@ -635,6 +635,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     unsubScales: null,       // Firestore unsubscribe handle for scales
     printers: [],            // [{ id, brand, printerName, printerModelId, isActive, updatedAt, sortIndex, ... }]
     unsubPrinters: [],       // array of Firestore unsubscribe handles (one per brand subcollection)
+    products: {},       // keyHash → { key, label, buyUrl, buyPriceHt, minStockSpools, note, tags, favorite, updatedAt } — per-product-identity record (buy link, reorder, wishlist, notes/tags, stock valuation). Price stored tax-free (HT).
+    unsubProducts: null,// Firestore unsubscribe handle for products
+    vatCountry: null,        // users/{uid}.vatCountry — ISO country code driving VAT rate + currency for HT/TTC price display
+    priceInputMode: "TTC",   // users/{uid}.priceInputMode "HT"|"TTC" — how the user TYPES filament prices (stored value is always HT)
     unsubFriendRequests: null,
     friendView: null,        // { uid, displayName, avatarColor } — set when viewing a friend's inventory
     bulkSelect: false,       // true = multi-select mode active (checkboxes, no detail on click)
@@ -1213,6 +1217,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     try {
       const r = await fetch('../data/rack-presets.json');
       if (r.ok) state.rackPresets = await r.json();
+    } catch {}
+    // Per-country VAT rates + currency — drives HT⇄TTC price conversion and
+    // the currency symbol in the filament buy-link / reorder feature. Editable
+    // JSON so rates can be corrected without a code change.
+    try {
+      const r = await fetch('../data/vat-rates.json');
+      if (r.ok) state.db.vatRates = await r.json();
     } catch {}
     // Printer model catalogs — one per brand, keyed by the same brand id
     // we use in Firestore (`bambulab`, `creality`, `elegoo`, `flashforge`,
@@ -3003,9 +3014,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
 
   // ── Multi-select / bulk-delete wiring ──────────────────────────────────
   $("btnSelectMode")?.addEventListener("click", _toggleSelectMode);
-  $("bulkSelectAll")?.addEventListener("click", _selectAllVisible);
-  $("bulkClear")?.addEventListener("click", _exitSelectMode);   // clearing empties → leave select mode
   $("bulkExit")?.addEventListener("click", _exitSelectMode);
+  $("bulkTags")?.addEventListener("click", _openBulkTags);
   setupHoldToConfirm($("bulkDelete"), 1500, () => { _bulkCtx().del().catch(e => reportError("bulk.delete", e)); });
 
   $("btnAddProduct")?.addEventListener("click", () => {
@@ -3659,7 +3669,29 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       sw.classList.toggle("active", !isCustom && sw.dataset.color === (_editingAccount?.color || "orange"))
     );
     $("eacSwatchCustom").classList.toggle("active", isCustom);
+    _populateVatCountrySelect();
+    _syncPriceModeSeg();
     $("editAccountModalOverlay").classList.add("open");
+  }
+
+  // Reflect the saved price-entry mode (HT/TTC) on the account segmented control.
+  function _syncPriceModeSeg() {
+    const mode = state.priceInputMode === "HT" ? "HT" : "TTC";
+    document.querySelectorAll("#eacPriceMode .eac-seg-btn").forEach(b =>
+      b.classList.toggle("active", b.dataset.mode === mode));
+  }
+
+  // Fill the account modal's country dropdown from data/vat-rates.json and
+  // preselect the user's saved country (or the JSON default). Each option
+  // shows the country + its VAT rate so the effect on prices is obvious.
+  function _populateVatCountrySelect() {
+    const sel = $("vatCountrySelect");
+    if (!sel) return;
+    const list = _vatCountries();
+    sel.innerHTML = list.map(c =>
+      `<option value="${c.code}">${c.label} · ${c.rate}% · ${c.symbol}</option>`
+    ).join("");
+    sel.value = _vatCountryCode();
   }
   function closeEditAccountModal() {
     $("editAccountModalOverlay").classList.remove("open");
@@ -4981,7 +5013,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // Common handler called when a named-instance user session becomes active.
   // uid must equal user.uid and be the current active account.
   async function handleSignedIn(user, uid) {
-    unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeFriends(); unsubscribeNotifications(); unsubscribeRacks(); unsubscribeScales(); unsubscribePrinters();
+    unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeFriends(); unsubscribeNotifications(); unsubscribeRacks(); unsubscribeScales(); unsubscribePrinters(); unsubscribeProducts();
     // CRITICAL — drop the previous account's racks immediately. `state.racks`
     // is derived per-account state that (unlike the inventory/racks SNAPSHOTS,
     // which are account-guarded) leaks across an account switch: it keeps the
@@ -5100,6 +5132,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     subscribeRacks(uid);// live-sync the user's storage racks
     subscribeScales(uid);// live-sync the user's TigerScale heartbeats
     subscribePrinters(uid);// live-sync the user's 3D printers across all 5 brand subcollections
+    subscribeProducts(uid);// live-sync per-product buy links + reorder thresholds
   }
 
   // Track which account ids already have an onAuthStateChanged listener set up.
@@ -5116,7 +5149,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         if (uid === getActiveId()) await handleSignedIn(user, uid);
       } else if (uid === getActiveId()) {
         // Active account's session expired → show login
-        unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeFriends(); unsubscribeNotifications(); unsubscribeRacks(); unsubscribeScales(); unsubscribePrinters();
+        unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeFriends(); unsubscribeNotifications(); unsubscribeRacks(); unsubscribeScales(); unsubscribePrinters(); unsubscribeProducts();
         state.inventory = null; state.rows = [];
         state.isAdmin = false; state.debugEnabled = false;
         state.publicKey = null; state.privateKey = null;
@@ -5291,7 +5324,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // Sign out the named instance so its IndexedDB session is cleared
     try { firebase.app(id).auth().signOut(); } catch (_) {}
     if (wasActive) {
-      unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeFriends(); unsubscribeNotifications(); unsubscribeRacks(); unsubscribeScales(); unsubscribePrinters();
+      unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeFriends(); unsubscribeNotifications(); unsubscribeRacks(); unsubscribeScales(); unsubscribePrinters(); unsubscribeProducts();
       state.inventory = null; state.rows = [];
       state.isAdmin = false; state.debugEnabled = false;
       state.publicKey = null; state.privateKey = null;
@@ -5673,6 +5706,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const rows = allDisplayRows();
     renderFriendBanner();
     _refreshGroupPanelIfOpen(); // keep an open group panel's weights live
+    _checkLowStockNotifs();     // raise / clear below-min-stock alerts
 
     // ── Loading or truly empty → dedicated welcome card ──────────────────────
     // In friendView, keep card-inv visible so the banner stays; show spinner there
@@ -5993,6 +6027,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         $("invGrid").classList.add("hidden");
       }
     }
+    _syncSelAllHeader();   // header master checkbox reflects the filtered-visible selection
   }
 
   function colorBg(row) {
@@ -6171,7 +6206,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const inner = src
       ? `<img class="thumb" src="${esc(src)}" width="${size}" height="${size}" loading="lazy"${fb} />`
       : `<span class="thumb-color" style="width:${size}px;height:${size}px;background:${colorBg(row)}"><img src="${logoSrc(colorBg(row))}" /></span>`;
-    return `<span class="thumb-wrap">${inner}${overlay}${tdBadge}${chipBadge}</span>`;
+    const shopBadge = badges ? _buyLinkBadgeHTML(row, { compact: true }) : "";
+    return `<span class="thumb-wrap">${inner}${overlay}${tdBadge}${chipBadge}${shopBadge}</span>`;
   }
 
   // Fill-bar colour by remaining-filament percentage — kept iso with the
@@ -6232,10 +6268,201 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // (rainbow) — so a white, a red and a rainbow spool would otherwise collapse
     // into one group. Include colorHex2/3 + the online colour list + aspect2 so
     // only genuinely identical-looking spools group.
+    // Include the product TYPE (id_type: Filament vs Resin) so a filament and a
+    // resin that happen to match on brand/material/colour/aspect never share an
+    // identity — used both for visual grouping and for the filament buy-link /
+    // reorder table (products).
     return "diy:" + r.brand + "|" + r.material
+      + "|" + (r.raw ? r.raw.id_type : "")
       + "|" + r.colorHex + "|" + (r.colorHex2 || "") + "|" + (r.colorHex3 || "")
       + "|" + (r.colorList || []).join(",")
       + "|" + (r.aspect1 || "") + "|" + (r.aspect2 || "");
+  }
+
+  /* ── Filament buy-links / reorder ──────────────────────────────────────
+     A per-product buy link + purchase price + minimum stock, stored NOT on
+     the spool but in a dedicated per-user table (users/{uid}/products)
+     so the info auto-applies to every identical spool and survives a spool
+     being deleted and re-added. The row is keyed by the product IDENTITY —
+     the SAME `_spoolGroupKey(r)` used for visual grouping — so a link set on
+     one spool is shared by all its identical copies.
+
+     The Firestore doc id is a short deterministic hash of that identity key
+     (the raw key can be long / carry characters awkward for a doc id); the
+     raw `key` is stored inside the doc so it stays self-describing, alongside
+     a `label` snapshot (brand / material / colour) so the "À racheter" list
+     can render an entry even when no spool currently carries it. */
+
+  // cyrb53 — fast, well-distributed non-crypto 53-bit hash → base36 string.
+  // Collision odds across a user's few-hundred filaments are negligible.
+  function _flHash(str) {
+    let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+    for (let i = 0; i < str.length; i++) {
+      const ch = str.charCodeAt(i);
+      h1 = Math.imul(h1 ^ ch, 2654435761);
+      h2 = Math.imul(h2 ^ ch, 1597334677);
+    }
+    h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+    h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+    const val = 4294967296 * (2097151 & h2) + (h1 >>> 0);
+    return val.toString(36);
+  }
+
+  // Doc id for a spool's filament-link row (hash of its product identity key).
+  function _productKeyHash(r) { return _flHash(_spoolGroupKey(r)); }
+
+  /* ── VAT / currency helpers (shared by the account country picker + the
+     reorder price field) ────────────────────────────────────────────────
+     Rates + currency come from the editable data/vat-rates.json. The user's
+     chosen country (users/{uid}.vatCountry) selects the rate; price is stored
+     as the user typed it (HT or TTC), the other side is derived on the fly. */
+  function _vatCountries() {
+    const v = state.db.vatRates;
+    return (v && Array.isArray(v.countries)) ? v.countries : [];
+  }
+  // Active country code: the user's saved choice, else the JSON default, else FR.
+  function _vatCountryCode() {
+    return state.vatCountry || (state.db.vatRates && state.db.vatRates.default) || "FR";
+  }
+  function _vatEntryFor(code) {
+    const list = _vatCountries();
+    return list.find(c => c.code === code) || list.find(c => c.code === "FR") || null;
+  }
+  // { rate, currency, symbol } for the active (or given) country, with sane
+  // fallbacks so callers never have to null-check.
+  function _vatInfo(code) {
+    const e = _vatEntryFor(code || _vatCountryCode());
+    return e ? { rate: Number(e.rate) || 0, currency: e.currency || "EUR", symbol: e.symbol || "€" }
+             : { rate: 0, currency: "EUR", symbol: "€" };
+  }
+  // Given a price typed in `mode` ("HT"|"TTC"), return both sides for the
+  // active country's VAT rate. Null price → null both sides.
+  function _vatPrices(price, mode, code) {
+    const p = (price === "" || price == null) ? null : Number(price);
+    if (p == null || !Number.isFinite(p)) return { ht: null, ttc: null };
+    const { rate } = _vatInfo(code);
+    const factor = 1 + rate / 100;
+    return mode === "HT"
+      ? { ht: p, ttc: factor ? p * factor : p }
+      : { ht: factor ? p / factor : p, ttc: p };
+  }
+
+  // Display snapshot stored with the link so the reorder / "to buy" list can
+  // render the product WITHOUT a live spool (the whole point: the info survives
+  // running out of that filament). Kept small + refreshed on every write.
+  // `imgUrl` is the product illustration (canonical remote URL, not the local
+  // cache path) so the shopping list shows the real spool photo.
+  function _productLabel(r) {
+    return {
+      brand:     r.brand || "",
+      material:  materialWithAspect(r) || r.material || "",
+      colorName: r.colorName && r.colorName !== "-" ? r.colorName : "",
+      colorHex:  r.colorHex || "",
+      aspect:    r.aspect1 || "",
+      imgUrl:    r.imgUrl || "",
+    };
+  }
+
+  // Resolve a spool's saved filament link (or null). Reads the in-memory
+  // cache populated by subscribeProducts — no Firestore round-trip.
+  function _getProduct(r) {
+    if (!r) return null;
+    return state.products[_productKeyHash(r)] || null;
+  }
+
+  // True when this product has a saved buy link — drives the Shopify badge on
+  // the material illustration (grid card + table thumbnail). Never in a friend's
+  // inventory: products is the signed-in user's, not the friend's.
+  function _hasBuyLink(r) { return !state.friendView && !!_getProduct(r)?.buyUrl; }
+
+  // Small round Shopify badge overlaid on a spool illustration to signal a buy
+  // link exists. `compact` = the smaller table-thumbnail variant.
+  function _buyLinkBadgeHTML(r, { compact = false } = {}) {
+    if (!_hasBuyLink(r)) return "";
+    const cls = compact ? "thumb-shop-badge" : "card-shop-badge";
+    return `<span class="${cls}" title="${esc(t("reorderHasLink"))}"><span class="icon icon-shopify ${compact ? "icon-9" : "icon-11"}"></span></span>`;
+  }
+
+  // How many non-deleted spools the user currently owns that share this
+  // product identity — i.e. the "current stock" the min-stock target is
+  // compared against. Counts rows, not weight.
+  function _filamentStockCount(r) {
+    if (!r) return 0;
+    const key = _spoolGroupKey(r);
+    return (state.rows || []).filter(row => !row.deleted && _spoolGroupKey(row) === key).length;
+  }
+
+  // Create / update / clear a spool's filament link. `patch` holds the
+  // user-editable fields (buyUrl / buyPriceHt / minStockSpools); pass null to
+  // delete the row. The price is stored ALWAYS tax-free (HT) — a product's
+  // pre-tax price is country-independent, so the TTC figure is derived at
+  // DISPLAY time from the account's country VAT rate. Changing country then
+  // only re-renders prices; it never has to rewrite the database.
+  // onSnapshot propagates the change back into state.products so every
+  // identical spool sees it.
+  // `patch` is PARTIAL — only the keys present are written (merge), so the
+  // reorder card (buyUrl/price/minStock/note), the tag editor (tags) and a
+  // future favourite toggle can each update their slice WITHOUT clobbering the
+  // others. `key`/`label`/`updatedAt` are always refreshed. patch === null
+  // deletes the whole product record.
+  async function _writeProduct(r, patch) {
+    const uid = getActiveId();
+    if (!uid || !r) return;
+    const ref = fbDb(uid).collection("users").doc(uid)
+      .collection("products").doc(_productKeyHash(r));
+    if (patch === null) { try { await ref.delete(); } catch (e) { console.warn("[products] delete failed:", e); } return; }
+    const doc = {
+      key:   _spoolGroupKey(r),
+      label: _productLabel(r),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    };
+    if ("buyUrl" in patch) doc.buyUrl = patch.buyUrl || "";
+    if ("buyPriceHt" in patch) {
+      doc.buyPriceHt = (patch.buyPriceHt === "" || patch.buyPriceHt == null || !Number.isFinite(+patch.buyPriceHt))
+        ? null : Math.round(+patch.buyPriceHt * 10000) / 10000;  // 4-dp to kill float noise
+      // Legacy fields from the earlier mode-dependent model — clear on any price write.
+      doc.buyPrice  = firebase.firestore.FieldValue.delete();
+      doc.priceMode = firebase.firestore.FieldValue.delete();
+    }
+    if ("minStockSpools" in patch)
+      doc.minStockSpools = Number.isFinite(+patch.minStockSpools) ? Math.max(0, Math.round(+patch.minStockSpools)) : 0;
+    if ("note" in patch)     doc.note = (patch.note || "").trim();
+    if ("tags" in patch)     doc.tags = Array.isArray(patch.tags) ? patch.tags : [];
+    if ("favorite" in patch) doc.favorite = !!patch.favorite;
+    if ("sku" in patch)      doc.sku = (patch.sku || "").trim();
+    if ("ean" in patch)      doc.ean = (patch.ean || "").trim();
+    try { await ref.set(doc, { merge: true }); }
+    catch (e) { console.warn("[products] write failed:", e); }
+  }
+
+  // Live-sync the user's products table into state.products
+  // (keyed by doc id = identity-key hash). Owner-only collection.
+  function subscribeProducts(uid) {
+    unsubscribeProducts();
+    state.unsubProducts = fbDb(uid)
+      .collection("users").doc(uid)
+      .collection("products")
+      .onSnapshot(snap => {
+        if (uid !== state.activeAccountId) return;
+        const map = {};
+        snap.docs.forEach(d => { map[d.id] = { id: d.id, ...d.data() }; });
+        state.products = map;
+        // A link change can flip the Shopify badge on visible spools + the
+        // "Reorder" toolbox row of the open detail — repaint cheaply.
+        if (!_isPrinterMode(state.viewMode)) scheduleRender("inventory", renderInventory);
+        if (typeof refreshOpenDetailReorder === "function") refreshOpenDetailReorder();
+        _maybeRefreshPanelForCard();  // flips the detail's "Reorder" toolbox row live
+        _refreshGroupPanelIfOpen();   // flips the deck's "Reorder" button live
+        _checkLowStockNotifs();       // min changed → raise / clear low-stock alerts
+      }, err => console.warn("[products]", err.code, err.message));
+  }
+
+  function unsubscribeProducts() {
+    if (typeof state.unsubProducts === "function") {
+      try { state.unsubProducts(); } catch (_) {}
+    }
+    state.unsubProducts = null;
+    state.products = {};
   }
 
   // In-memory set of expanded group keys (collapsed by default, not persisted).
@@ -6355,6 +6582,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       (r.colorList || []).join(","),
       r.colorType || "",
       r.lastUpdate ?? "",
+      _hasBuyLink(r) ? 1 : 0,
     ].join("|");
   }
 
@@ -6373,7 +6601,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const tdBadge = r.td != null ? `<span class="card-td-badge">TD ${r.td}</span>` : "";
     const chipDot = r.needUpdateAt ? `<span class="chip-badge card-chip-badge" title="${t("chipPendingHint")}"><span class="icon icon-refresh icon-11"></span></span>` : "";
     return `
-      <div class="card-img-wrap"><span class="sel-check" aria-hidden="true"></span>${imgHtml}${_cardTlBadges(r)}${tdBadge}${chipDot}</div>
+      <div class="card-img-wrap"><span class="sel-check" aria-hidden="true"></span>${imgHtml}${_cardTlBadges(r)}${tdBadge}${chipDot}${_buyLinkBadgeHTML(r)}</div>
       <div class="card-body">
         <div class="card-name">${swatch}${esc(v(r.colorName) !== "-" ? r.colorName : [r.aspect1, r.aspect2].filter(a => a && a !== "-" && a !== "None").join(" ") || r.material)}</div>
         <div class="card-sub">${esc(v(r.material))} · ${esc(v(r.brand))}</div>
@@ -6436,10 +6664,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // .card-img-wrap badges (twin / td / chip)
     const wrap = card.querySelector(".card-img-wrap");
     if (wrap) {
-      wrap.querySelectorAll(".card-badges-tl, .card-td-badge, .card-chip-badge").forEach(el => el.remove());
+      wrap.querySelectorAll(".card-badges-tl, .card-td-badge, .card-chip-badge, .card-shop-badge").forEach(el => el.remove());
       const badges = _cardTlBadges(r)
         + (r.td != null ? `<span class="card-td-badge">TD ${r.td}</span>` : "")
-        + (r.needUpdateAt ? `<span class="chip-badge card-chip-badge" title="${t("chipPendingHint")}"><span class="icon icon-refresh icon-11"></span></span>` : "");
+        + (r.needUpdateAt ? `<span class="chip-badge card-chip-badge" title="${t("chipPendingHint")}"><span class="icon icon-refresh icon-11"></span></span>` : "")
+        + _buyLinkBadgeHTML(r);
       if (badges) wrap.insertAdjacentHTML("beforeend", badges);
     }
 
@@ -6467,7 +6696,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function _groupGridSig(g) {
     // Reuse the table header signature + count; collapsed-state is irrelevant
     // for the grid card (it opens a panel rather than expanding in place).
-    return "G|" + _groupHeaderSig(g, false);
+    // The deck shows a full card (badges on) → fold in the buy-link presence so
+    // the Shopify badge appears/disappears when the product's link changes.
+    return "G|" + _groupHeaderSig(g, false) + "|" + (_hasBuyLink(g.rep) ? 1 : 0);
   }
   function _groupGridCardInnerHTML(g) {
     const countTitle = esc(t("invGroupCount", { n: g.count }));
@@ -6632,6 +6863,41 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const body = document.getElementById("groupPanelBody");
     if (body) {
       body.innerHTML = _groupDashHTML(g);
+      // The whole deck shares one product identity → action buttons above the
+      // list: "Product info" (opens the product card), and — when a buy link is
+      // set — "Reorder" (opens the shop directly).
+      if (!state.friendView) {
+        // Below-min-stock alert: the current-stock pill (amber), shown ABOVE the
+        // action buttons only when the deck's stock has dropped below its target.
+        const prod = _getProduct(g.rep);
+        const min = prod && Number.isFinite(+prod.minStockSpools) ? +prod.minStockSpools : 0;
+        const stock = _filamentStockCount(g.rep);
+        if (min > 0 && stock < min) {
+          const alert = document.createElement("div");
+          alert.className = "ro-stock ro-stock--low gp-stock-alert";
+          alert.innerHTML = `<span class="icon icon-package icon-14"></span><span>${esc(t("reorderInStock", { n: stock }))} / ${min}</span>`;
+          body.appendChild(alert);
+        }
+        const row = document.createElement("div");
+        row.className = "gp-actions";
+        const infoBtn = document.createElement("button");
+        infoBtn.type = "button";
+        infoBtn.className = "gp-reorder-btn";
+        infoBtn.innerHTML = `<span class="icon icon-info icon-14"></span><span>${esc(t("toolReorder"))}</span>`;
+        infoBtn.addEventListener("click", () => openReorderPanel(g.rep));
+        row.appendChild(infoBtn);
+        const buyBtn = document.createElement("button");
+        buyBtn.type = "button";
+        buyBtn.className = "gp-reorder-btn gp-reorder-btn--buy" + (_hasBuyLink(g.rep) ? "" : " gp-reorder-btn--disabled");
+        buyBtn.innerHTML = `<span class="icon icon-shopify icon-14"></span><span>${esc(t("toolReorderBuy"))}</span>`;
+        buyBtn.addEventListener("click", () => {
+          const url = _getProduct(g.rep)?.buyUrl;
+          if (url) window.electronAPI?.openExternal(_normalizeBuyUrl(url));
+          else openReorderPanel(g.rep);  // no link → open the product card to add one
+        });
+        row.appendChild(buyBtn);
+        body.appendChild(row);
+      }
       // Horizontal list-cards; each click → openDetail (or toggle in select mode).
       // The group panel STAYS open — the detail card pushes it left (_syncPanels).
       g.members.forEach(m => body.appendChild(_createGroupMemberCard(m)));
@@ -6648,6 +6914,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // it's now unrelated → close it (a member's card may stay and be pushed).
     if ($("detailPanel")?.classList.contains("open") && state.selected && !_groupPanelMembers.has(state.selected)) {
       closeDetail();
+    }
+    // Product-info card is per PRODUCT identity: when it's open and we switch to
+    // a DIFFERENT product's deck, swap its content to follow the new deck (never
+    // leave it showing the previous product).
+    if ($("reorderPanel")?.classList.contains("open") && (!_reorderRow || _spoolGroupKey(_reorderRow) !== g.key)) {
+      _reorderRow = g.rep;
+      _renderReorderPanel(g.rep);
     }
     document.getElementById("groupPanel")?.classList.add("open");
     _syncPanels();
@@ -7091,7 +7364,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function _bulkCtx() {
     if (_isPrinterMode(state.viewMode)) return {
       printers: true, set: state.selectedPrinters, del: _bulkDeletePrinters,
-      visibleKeys: () => Array.from(document.querySelectorAll("#invPrinterView [data-printer-key]")).map(el => el.dataset.printerKey),
+      visibleKeys: () => Array.from(document.querySelectorAll("#invPrinterView [data-printer-key]:not(.hidden)")).map(el => el.dataset.printerKey),
       paint: (key, on) => document.querySelectorAll(`#invPrinterView [data-printer-key="${CSS.escape(key)}"]`).forEach(el => el.classList.toggle("row-selected", on)),
     };
     return {
@@ -7101,12 +7374,6 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     };
   }
 
-  function _selectAllVisible() {
-    const c = _bulkCtx();
-    c.visibleKeys().forEach(k => { c.set.add(k); c.paint(k, true); });
-    if (!c.printers) _refreshGroupHeaderChecks();
-    _updateBulkBar();
-  }
   function _clearSelection() {
     state.selectedSpools.forEach(id => _paintSpoolSelected(id, false));
     state.selectedSpools.clear();
@@ -7124,12 +7391,48 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const n = _bulkCtx().set.size;
     const dc = $("bulkDeleteCount"); if (dc) dc.textContent = n ? ` (${n})` : "";
     bar.classList.toggle("hidden", !(state.bulkSelect && n > 0));
+    _syncSelAllHeader();
   }
   // Called after any selection toggle: refresh the bar and, if the current
   // context's set is now empty, leave select mode entirely (no lingering mode).
   function _afterSelectionChange() {
     _updateBulkBar();
     if (state.bulkSelect && _bulkCtx().set.size === 0) _exitSelectMode();
+  }
+
+  // Header master checkbox: select ALL currently-visible (filtered) rows, or
+  // deselect them if they're all already selected. Entering select mode for
+  // materials rebuilds ungrouped, so re-fetch the context afterwards.
+  function _toggleSelectAllVisible() {
+    if (state.friendView) return;                    // read-only
+    const c0 = _bulkCtx();
+    const keys0 = c0.visibleKeys();
+    if (!keys0.length) return;
+    const allSelected = keys0.every(k => c0.set.has(k));
+    if (allSelected) {                               // → deselect all visible (may exit mode)
+      keys0.forEach(k => { c0.set.delete(k); c0.paint(k, false); });
+      document.querySelectorAll(".group-all-selected").forEach(el => el.classList.remove("group-all-selected"));
+      _afterSelectionChange();
+      return;
+    }
+    if (!state.bulkSelect) _enterSelectMode();       // reveal checkboxes (materials: ungroups)
+    const c = _bulkCtx();                             // rows may have been rebuilt
+    c.visibleKeys().forEach(k => { c.set.add(k); c.paint(k, true); });
+    _afterSelectionChange();
+  }
+  // Reflect the visible-selection ratio on the header master checkbox(es):
+  // full check when all visible are selected, a dash when only some are.
+  function _syncSelAllHeader() {
+    const c = _bulkCtx();
+    const keys = c.visibleKeys();
+    const sel = keys.reduce((n, k) => n + (c.set.has(k) ? 1 : 0), 0);
+    const all  = keys.length > 0 && sel === keys.length;
+    const some = sel > 0 && !all;
+    document.querySelectorAll(".sel-check--all").forEach(el => {
+      el.classList.toggle("is-all", all);
+      el.classList.toggle("is-some", some);
+      el.setAttribute("aria-checked", all ? "true" : some ? "mixed" : "false");
+    });
   }
 
   // Printer selection (button-triggered checkboxes in printer grid + table).
@@ -7357,6 +7660,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     $("card-inv")?.classList.add("is-cam-view");   // hide search + add buttons, show Detach
     const _dt = $("camWallDetachTop"); if (_dt) _dt.hidden = !(window.electronAPI?.openCamWindow && !state.friendView);
   }
+  // Right-of-search selectors + search placeholder must match the restored view
+  // on boot too — setViewMode (which normally does this) isn't called on the
+  // initial render, so launching straight into a printer view would otherwise
+  // show the materials filters (Material / Version) instead of the printer ones.
+  const _bootPrinterFilters = _isPrinterMode(state.viewMode) && state.viewMode !== "printer-cam";
+  document.body.classList.toggle("printer-filters", _bootPrinterFilters);
+  if (_bootPrinterFilters) populatePrinterFilters();
+  _syncSearchPlaceholder();
   // Grid-only sort control — reveal it on boot if we start straight in grid view
   // (setViewMode, which normally toggles it, isn't called on the initial render).
   if ($("gridSortWrap")) $("gridSortWrap").hidden = (state.viewMode !== "grid");
@@ -7499,6 +7810,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       renderInventory();
     });
   });
+  // Materials table header master checkbox — select / deselect all visible rows.
+  $("invTableWrap")?.querySelector(".sel-th")?.addEventListener("click", () => _toggleSelectAllVisible());
 
   // Grid-view sort control (the grid has no column headers). Mirrors the same
   // state.sortCol / sortDir as the table headers — one source of truth.
@@ -8367,6 +8680,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   //   }
   const TAG_IDS_SPOOL   = { input: "tagInput",   dropdown: "tagDropdown",   chips: "tagChips",   editBtn: "tagsEditBtn" };
   const TAG_IDS_PRINTER = { input: "ppTagInput", dropdown: "ppTagDropdown", chips: "ppTagChips", editBtn: "ppTagsEditBtn" };
+  const TAG_IDS_PRODUCT = { input: "roTagInput", dropdown: "roTagDropdown", chips: "roTagChips", editBtn: "roTagsEditBtn" };
   function _ctxAddTag(ctx, raw) {
     const tag = _normalizeTag(raw);
     if (!tag) return false;
@@ -8422,6 +8736,35 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       allTags:   (exclude) => _allPrinterTags(exclude),
       readOnly:  state.friendView,
       ids: TAG_IDS_PRINTER,
+    };
+  }
+  // Union of every tag across all product records (autocomplete for the product
+  // tag editor). Its own namespace — a product's "wishlist" tag is unrelated to
+  // a spool's or a printer's.
+  function _allProductTags(exclude) {
+    const skip = new Set((exclude || []).map(t => t.toLowerCase()));
+    const seen = new Map();
+    Object.values(state.products || {}).forEach(p => (p.tags || []).forEach(tag => {
+      const k = tag.toLowerCase();
+      if (!skip.has(k) && !seen.has(k)) seen.set(k, tag);
+    }));
+    return [...seen.values()].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+  }
+  // Persist a product's tag list (users/{uid}/products/{keyHash}.tags). Optimistic
+  // in-memory patch so the chips render before the snapshot echoes back.
+  async function _writeProductTags(r, tags) {
+    if (!r || state.friendView) return;
+    const hash = _productKeyHash(r);
+    if (state.products[hash]) state.products[hash].tags = tags;
+    await _writeProduct(r, { tags });
+  }
+  function _productTagCtx(r) {
+    return {
+      getTags:   () => _getProduct(r)?.tags || [],
+      writeTags: (tags) => _writeProductTags(r, tags),
+      allTags:   (exclude) => _allProductTags(exclude),
+      readOnly:  state.friendView,
+      ids: TAG_IDS_PRODUCT,
     };
   }
 
@@ -8600,6 +8943,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     _ensureTagsModal();
     _tagsModalCtx = ctx;
     _tagsModalStaged = new Map(ctx.getTags().map(tg => [tg.toLowerCase(), tg]));
+    // Bulk mode passes a custom title (e.g. "Add tags to 3 spools"); per-item
+    // editing falls back to the default modal title.
+    const titleEl = $("tagsModalOverlay")?.querySelector(".tags-modal-title");
+    if (titleEl) titleEl.textContent = ctx.title || t("tagsModalTitle");
     const search = $("tagsModalSearch");
     if (search) search.value = "";
     const clear = $("tagsModalClear"); if (clear) clear.hidden = true;
@@ -8610,6 +8957,57 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function closeTagsModal() {
     $("tagsModalOverlay")?.classList.remove("open");
     _tagsModalCtx = null;
+  }
+
+  // Bulk tag editor — reuses the per-item tags modal for the current selection
+  // (spools or printers). getTags() = the tags common to ALL selected items
+  // (intersection); on save, the diff vs that intersection is applied to every
+  // selected item: tags newly checked are ADDED to all, common tags unchecked
+  // are REMOVED from all, and tags on only some items are left untouched.
+  function _openBulkTags() {
+    if (state.friendView) return;
+    const isPrinter = _isPrinterMode(state.viewMode);
+    const set = _bulkCtx().set;
+    if (!set.size) return;
+    const items = isPrinter
+      ? [...set].map(k => (state.printers || []).find(p => `${p.brand}:${p.id}` === k)).filter(Boolean)
+      : [...set].map(id => state.rows.find(r => r.spoolId === id)).filter(Boolean);
+    if (!items.length) return;
+    const lc = (t) => String(t).toLowerCase();
+    // Intersection (present on every item) + a display form per common tag.
+    let inter = null;
+    const interDisp = new Map();
+    items.forEach(it => {
+      const tags = it.tags || [];
+      const s = new Set(tags.map(lc));
+      inter = inter === null ? s : new Set([...inter].filter(x => s.has(x)));
+      tags.forEach(tg => { if (!interDisp.has(lc(tg))) interDisp.set(lc(tg), tg); });
+    });
+    inter = inter || new Set();
+    const writeOne = isPrinter ? _writePrinterTags : _writeSpoolTags;
+    const ctx = {
+      readOnly: state.friendView,
+      title: t("bulkTagsTitle", { n: items.length }),
+      ids: { chips: "", input: "", dropdown: "", editBtn: "" },   // no inline editor in bulk
+      getTags: () => [...inter].map(x => interDisp.get(x)).filter(Boolean),
+      allTags: (exclude) => (isPrinter ? _allPrinterTags(exclude) : _allTags(exclude)),
+      writeTags: (finalTags) => {
+        const finalLc = new Set(finalTags.map(lc));
+        const added     = finalTags.filter(tg => !inter.has(lc(tg)));      // add to all
+        const removedLc = [...inter].filter(x => !finalLc.has(x));          // remove from all
+        if (!added.length && !removedLc.length) return;
+        items.forEach(it => {
+          const cur = it.tags || [];
+          let next = cur.slice();
+          added.forEach(tg => { if (!next.some(x => lc(x) === lc(tg))) next.push(tg); });
+          if (removedLc.length) next = next.filter(x => !removedLc.includes(lc(x)));
+          next = next.slice(0, TAG_MAX_COUNT);
+          const changed = next.length !== cur.length || next.some((x, i) => x !== cur[i]);
+          if (changed) writeOne(it, next);
+        });
+      },
+    };
+    openTagsModal(ctx);
   }
 
   /* ── detail panel ── */
@@ -8820,18 +9218,26 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const cppW = (cppOpen && cpp) ? cpp.offsetWidth : 0;
     const cppRight = cppOpen ? (matRight + detailW) : 0;
     if (cpp) cpp.style.right = cppRight ? `${cppRight}px` : "";
+    // Group deck sits LEFT of the detail (+ container). Computed BEFORE the
+    // reorder card so that card can dock to the LEFT of the group when it's open.
+    const gp = $("groupPanel");
+    const gOpen = !!gp?.classList.contains("open");
+    const gpW = (gOpen && gp) ? gp.offsetWidth : 0;
+    const groupRight = gOpen ? (matRight + detailW + cppW) : 0;
+    if (gp) gp.style.right = groupRight ? `${groupRight}px` : "";
+    // Reorder card — a 3rd, independent card: it opens to the LEFT of material,
+    // or to the LEFT of the group deck when that's open (never ON TOP of it).
+    const rop = $("reorderPanel");
+    const roOpen = !!rop?.classList.contains("open");
+    const roW = (roOpen && rop) ? rop.offsetWidth : 0;
+    const roRight = roOpen ? (matRight + detailW + cppW + gpW) : 0;
+    if (rop) rop.style.right = roRight ? `${roRight}px` : "";
+    _setTab($("reorderCloseTab"), roOpen, roRight + roW);
     _setTab($("detailCloseTab"),     dOpen, matRight + detailW);
     _setTab($("printerCloseTab"),    pOpen, printerW);
     _setTab($("printerAddCloseTab"), cOpen, configRight + configW);
     _setTab($("containerCloseTab"),  cppOpen, cppRight + cppW);
-    // Group panel is the back-most card: it sits LEFT of everything else that's
-    // open on the right (container, detail, printer config, printer panel), so
-    // it's never hidden behind them.
-    const gp = $("groupPanel");
-    const gOpen = !!gp?.classList.contains("open");
-    const groupRight = gOpen ? (printerW + configW + cppW + detailW) : 0;
-    if (gp) gp.style.right = groupRight ? `${groupRight}px` : "";
-    _setTab($("groupCloseTab"), gOpen, groupRight + (gp ? gp.offsetWidth : 0));
+    _setTab($("groupCloseTab"), gOpen, groupRight + gpW);
   }
   // Settings + Debug form their own right-side stack, independent of the
   // inventory panels above (Settings always closes those first). Settings is the
@@ -8973,6 +9379,15 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         }
       } catch (e) { reportError("spool.duplicate", e); }
     });
+    // Product info — opens the side card to the LEFT of the detail card.
+    $("btnToolReorder")?.addEventListener("click", () => openReorderPanel(r));
+    // Reorder — opens the product's buy link (shop) when set; otherwise opens
+    // the product card so the user can add a link.
+    $("btnToolReorderBuy")?.addEventListener("click", () => {
+      const url = _getProduct(r)?.buyUrl;
+      if (url) window.electronAPI?.openExternal(_normalizeBuyUrl(url));
+      else openReorderPanel(r);
+    });
     // Twin link / debug-only unlink.
     $("btnTwinLink")?.addEventListener("click", () => openTwinLinkPicker(r));
     setupHoldToConfirm($("btnTwinUnlink"), 1500, async () => {
@@ -8988,14 +9403,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       openTdEditModal(r);
     });
     // Clear TD value — hold-to-confirm trash.
-    setupHoldToConfirm($("btnToolClearTd"), 1200, async () => {
-      try {
-        const user = fbAuth().currentUser;
-        if (!user) return;
-        await fbDb(user.uid).collection("users").doc(user.uid).collection("inventory").doc(r.spoolId)
-          .update({ TD: firebase.firestore.FieldValue.delete(), updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
-      } catch (e) { reportError("spool.clearTd", e); }
-    });
+    setupHoldToConfirm($("btnToolClearTd"), 1200, () => _clearSpoolTd(r));
     // Remove from rack — hold-to-confirm + eject animation.
     setupHoldToConfirm($("btnToolRemoveFromRack"), 1500, async () => {
       try {
@@ -9064,11 +9472,19 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
 
   function openDetail(spoolId, opts = {}) {
     closeNotifs();   // opening a spool takes over the right side — dismiss notifs
-    // Switching to a different spool → close the container picker (it was anchored
-    // to the previous spool). Same-spool refreshes (snapshots) leave it open.
-    if (state.selected && state.selected !== spoolId
-        && $("containerPanel")?.classList.contains("open")) {
-      closeContainerPicker();
+    // Switching to a different spool → close the container picker (it was
+    // anchored to the previous spool). The Product-info card FOLLOWS the material:
+    // keep it open and re-target it to the new spool's product (never close it on
+    // a material change) — a no-op when it's already the same product.
+    if (state.selected && state.selected !== spoolId) {
+      if ($("containerPanel")?.classList.contains("open")) closeContainerPicker();
+      if ($("reorderPanel")?.classList.contains("open")) {
+        const newRow = state.rows.find(x => x.spoolId === spoolId);
+        if (newRow && (!_reorderRow || _spoolGroupKey(newRow) !== _spoolGroupKey(_reorderRow))) {
+          _reorderRow = newRow;
+          _renderReorderPanel(newRow);
+        }
+      }
     }
     // Switching between two different open cards → animate the swap (test: table).
     if (opts.animateSwap && $("detailPanel")?.classList.contains("open")
@@ -9497,10 +9913,6 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if ($("btnEditTd")) {
       $("btnEditTd").addEventListener("click", () => openTdEditModal(r));
     }
-    // Color circle → open color edit modal
-    if ($("btnEditColor")) {
-      $("btnEditColor").addEventListener("click", () => openColorEditModal(r));
-    }
     // Chip update banner — no reader connected → the "how to build a TigerPOD"
     // modal; otherwise the guided update modal that shows the readers waiting for
     // THIS spool's chip(s), verifies the presented UID(s) match, warns on a
@@ -9525,6 +9937,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     _scanOpenUid = null;
     // The container picker is anchored to this spool card — close it too.
     if ($("containerPanel")?.classList.contains("open")) closeContainerPicker();
+    // The Product-info card is per PRODUCT, not this specific detail: keep it open
+    // when a group deck is still up (switching decks re-targets it) — only close
+    // it when the detail closes with no deck behind it.
+    if ($("reorderPanel")?.classList.contains("open") && !document.getElementById("groupPanel")?.classList.contains("open"))
+      closeReorderPanel();
     // Cancel any pending auto-save (don't fire on close)
     clearTimeout(_sliderDebounce); _sliderDebounce = null;
     // Stop any playing video
@@ -9615,7 +10032,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const spoolUids = [r.uid, r.twinUid].filter(Boolean).map(u => String(u).toUpperCase());
     const present   = new Set([...state.nfcCardPresent.values()].map(c => String(c?.uid || "").toUpperCase()));
     const ownCount  = spoolUids.filter(u => present.has(u)).length;
-    return (anyReader ? "1" : "0") + (anyCard ? "1" : "0") + ownCount;
+    // Buy-link presence flips the "Reorder" toolbox row → include it so setting /
+    // clearing a link updates the toolbox live (not only on the next open).
+    return (anyReader ? "1" : "0") + (anyCard ? "1" : "0") + ownCount + (_hasBuyLink(r) ? "L" : "");
   }
   // Rebuild the open panel when the chips on the readers change in a way that
   // affects its toolbox — so "Restore TigerTag+" / cloud "Graver RFID" appear
@@ -9650,7 +10069,17 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
      openTd1sConnectModal / openTd1sTesterModal / openTdEditModal /
      openColorEditModal are all imported from their respective modules and
      called from the toolbox + ADP header button below.                    */
-  initEditModals({ state, t, $, fbDb });
+  // Remove a spool's TD value entirely (used by the toolbox trash + the
+  // "Clear TD value" footer inside the Update TD modal — passed in via ctx).
+  async function _clearSpoolTd(r) {
+    try {
+      const user = fbAuth().currentUser;
+      if (!user || !r?.spoolId) return;
+      await fbDb(user.uid).collection("users").doc(user.uid).collection("inventory").doc(r.spoolId)
+        .update({ TD: firebase.firestore.FieldValue.delete(), updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+    } catch (e) { reportError("spool.clearTd", e); }
+  }
+  initEditModals({ state, t, $, fbDb, setupHoldToConfirm, clearTd: _clearSpoolTd });
 
   // ── Usage telemetry — fire-and-forget, one write per session per milestone ──
   let _telTd1s    = false;  // have we already recorded TD1s usage this session?
@@ -9839,6 +10268,379 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     }
   }
 
+  /* ── Reorder / buy-link side card ──────────────────────────────────────
+     Opens FROM the spool detail toolbox and tucks to the LEFT of it. Edits the
+     per-product products row (buy link + price HT/TTC + min stock), so the
+     info is shared by every identical spool. The read-only bits (current stock,
+     currency, derived price) refresh live; the input values are only re-seeded
+     on open (never clobbered mid-edit). */
+  let _reorderRow = null;
+
+  function openReorderPanel(r) {
+    if (!r) return;
+    // Reorder + container picker share the same left slot → mutually exclusive.
+    if ($("containerPanel")?.classList.contains("open")) closeContainerPicker();
+    _reorderRow = r;
+    _renderReorderPanel(r);
+    $("reorderPanel").classList.add("open");
+    _syncPanels();
+    setTimeout(() => $("roBuyUrl")?.focus(), 120);
+  }
+  function closeReorderPanel() {
+    $("reorderPanel")?.classList.remove("open");
+    _syncPanels();
+    _reorderRow = null;
+  }
+
+  // How the user types prices — a per-account preference (not per-link), so we
+  // never have to ask in the reorder card. The stored value is always HT.
+  function _reorderMode() { return state.priceInputMode === "HT" ? "HT" : "TTC"; }
+
+  // Recompute + paint the "≈ X.XX <cur> <other-mode> · VAT n%" helper line from
+  // the current price input + account mode + active country's rate (shows the
+  // OTHER side of what the user is typing).
+  function _reorderUpdateDerived() {
+    const priceEl = $("roPrice"), derEl = $("roDerived");
+    if (!priceEl || !derEl) return;
+    const mode = _reorderMode();
+    const info = _vatInfo();
+    const { ht, ttc } = _vatPrices(priceEl.value, mode, _vatCountryCode());
+    if (ht == null) { derEl.textContent = ""; return; }
+    const other = mode === "HT" ? ttc : ht;
+    const otherLabel = mode === "HT" ? t("reorderTTC") : t("reorderHT");
+    derEl.textContent = `≈ ${other.toFixed(2)} ${info.symbol} ${otherLabel} · ${t("reorderVat", { rate: info.rate })}`;
+  }
+
+  // Paint "In stock: N / min" + the amber below-target state, reading the min
+  // from the LIVE input so the two linked figures update as the user types.
+  function _reorderUpdateStock() {
+    if (!_reorderRow) return;
+    const stock = _filamentStockCount(_reorderRow);
+    const raw = $("roMinStock")?.value;
+    const min = (raw !== "" && raw != null && Number.isFinite(+raw)) ? Math.max(0, Math.round(+raw)) : 0;
+    const txt = $("roStockTxt");
+    // Show the target next to the count when a minimum is set → "In stock: 3 / 5".
+    if (txt) txt.textContent = t("reorderInStock", { n: stock }) + (min > 0 ? ` / ${min}` : "");
+    $("roStock")?.classList.toggle("ro-stock--low", min > 0 && stock < min);
+  }
+  // Paint the read-only min-stock value ("5", or a muted "—" when unset) from the
+  // input — shown when its inline editor is collapsed.
+  function _reorderUpdateMinDisplay() {
+    const el = $("roMinVal"); if (!el) return;
+    const raw = $("roMinStock")?.value;
+    const min = (raw !== "" && raw != null && Number.isFinite(+raw)) ? Math.max(0, Math.round(+raw)) : 0;
+    if (min > 0) { el.textContent = String(min); el.classList.remove("ro-price-shown--empty"); }
+    else { el.textContent = t("reorderAddMin"); el.classList.add("ro-price-shown--empty"); }
+  }
+
+  // Locale-formatted money (2 decimals, e.g. "16,20" in fr / "16.20" in en).
+  function _fmtMoney(n) {
+    try { return Number(n).toLocaleString(state.lang || "en", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+    catch { return Number(n).toFixed(2); }
+  }
+  // Paint the read-only price display ("16,20 €", or a muted "Add a price") from
+  // the price input's current value — shown when the inline editor is collapsed.
+  function _reorderUpdatePriceDisplay() {
+    const el = $("roPriceVal"); if (!el) return;
+    const raw = $("roPrice")?.value;
+    if (raw === "" || raw == null || !Number.isFinite(+raw)) {
+      el.textContent = t("reorderAddPrice");
+      el.classList.add("ro-price-shown--empty");
+    } else {
+      el.textContent = `${_fmtMoney(+raw)} ${_vatInfo().symbol}`;
+      el.classList.remove("ro-price-shown--empty");
+    }
+  }
+
+  function _renderReorderPanel(r) {
+    const body = $("reorderPanelBody"); if (!body) return;
+    const link = _getProduct(r) || {};
+    const stock = _filamentStockCount(r);
+    const info  = _vatInfo();
+    const min   = Number.isFinite(+link.minStockSpools) ? +link.minStockSpools : "";
+    const below = min !== "" && +min > 0 && stock < +min;
+    // Stored price is ALWAYS HT → convert to the account's entry mode for display.
+    const mode  = _reorderMode();
+    const htStored = (link.buyPriceHt == null || !Number.isFinite(+link.buyPriceHt)) ? null : +link.buyPriceHt;
+    const price = htStored == null ? ""
+      : (mode === "HT" ? htStored : Math.round(_vatPrices(htStored, "HT", _vatCountryCode()).ttc * 100) / 100);
+    const colourName = (r.colorName && r.colorName !== "-") ? r.colorName : "";
+    const swatch = r.colorHex ? esc(r.colorHex) : "var(--surface-2)";
+    const tags = Array.isArray(link.tags) ? link.tags : [];
+    // SKU / EAN: auto-recovered from the tag for TigerTag+ (read-only there —
+    // the tag is authoritative), manually entered otherwise. `link.sku`/`link.ean`
+    // hold a user-saved value; the tag value wins for TigerTag+.
+    const skuAuto = (r.isPlus && r.sku) ? String(r.sku) : "";
+    const eanAuto = (r.isPlus && r.barcode) ? String(r.barcode) : "";
+    // Editable (non-plus) fields pre-fill from the saved product value, else the
+    // spool's own sku/barcode if it carries one — still editable.
+    const skuVal  = skuAuto || link.sku || (r.sku || "");
+    const eanVal  = eanAuto || link.ean || (r.barcode || "");
+    // Prefer the real product photo (falls back to the flat colour swatch). On a
+    // load error the <img> collapses to a coloured box (no src + swatch bg).
+    const img = resolvedImg(r.imgUrl || link.label?.imgUrl);
+    const headVisual = img
+      ? `<img class="ro-thumb" src="${esc(img)}" alt="" onerror="this.removeAttribute('src');this.classList.add('ro-thumb--broken');this.style.background='${swatch}'" />`
+      : `<span class="ro-swatch" style="background:${swatch}"></span>`;
+    body.innerHTML = `
+      <div class="ro-head">
+        ${headVisual}
+        <div class="ro-head-txt">
+          <div class="ro-head-brand">${esc(r.brand || "—")}</div>
+          <div class="ro-head-mat">${esc(materialWithAspect(r))}${colourName ? " · " + esc(colourName) : ""}</div>
+        </div>
+      </div>
+
+      <div class="ro-field">
+        <div class="ro-label">${esc(t("reorderStockSection"))}</div>
+        <div class="ro-stock${below ? " ro-stock--low" : ""}" id="roStock">
+          <span class="icon icon-package icon-14"></span>
+          <span id="roStockTxt"></span>
+        </div>
+        <div class="ro-label ro-sublabel">${esc(t("reorderMinStock"))}</div>
+        <div class="ro-shop" id="roMinDisplay">
+          <div class="ro-price-shown" id="roMinVal"></div>
+          <button type="button" class="ro-shop-edit" id="roMinEdit" title="${esc(t("reorderEditMin"))}">
+            <span class="icon icon-edit icon-13"></span>
+          </button>
+        </div>
+        <div class="ro-shop-editor" id="roMinEditor" hidden>
+          <input type="number" id="roMinStock" class="ro-input" min="0" step="1" placeholder="0" value="${min}" />
+          <button type="button" class="ro-shop-ok" id="roMinOk" title="${esc(t("btnSave"))}">
+            <span class="icon icon-check icon-14"></span>
+          </button>
+        </div>
+        <div class="ro-hint">${esc(t("reorderMinStockHint"))}</div>
+      </div>
+
+      <div class="ro-field">
+        <div class="ro-label">${esc(t("reorderBuyLink"))}</div>
+        <!-- The URL is never shown as text (no interest): just a Shopify button —
+             grey when empty (click to add), green when set (click to open the
+             shop). The pencil reveals the input to change it, then hides again. -->
+        <input type="hidden" id="roBuyUrl" value="${esc(link.buyUrl || "")}" />
+        <div class="ro-shop" id="roShopDisplay">
+          <button type="button" class="ro-shop-btn${link.buyUrl ? " ro-shop-btn--active" : ""}" id="roShopBtn">
+            <span class="icon icon-shopify icon-14"></span>
+            <span>${esc(link.buyUrl ? t("toolReorderBuy") : t("reorderAddLink"))}</span>
+          </button>
+          <button type="button" class="ro-shop-edit" id="roShopEdit" title="${esc(t("reorderEditLink"))}"${link.buyUrl ? "" : " hidden"}>
+            <span class="icon icon-edit icon-13"></span>
+          </button>
+        </div>
+        <div class="ro-shop-editor" id="roShopEditor" hidden>
+          <input type="url" id="roBuyUrlInput" class="ro-input" inputmode="url"
+                 placeholder="${esc(t("reorderBuyLinkPlaceholder"))}" />
+          <button type="button" class="ro-shop-ok" id="roBuyUrlOk" title="${esc(t("btnSave"))}">
+            <span class="icon icon-check icon-14"></span>
+          </button>
+        </div>
+      </div>
+
+      <div class="ro-field">
+        <div class="ro-label">${esc(t("reorderPrice"))}
+          <span class="ro-cur" id="roCur">${esc(info.currency)}</span>
+          <span class="ro-cur ro-cur--mode" id="roMode">${esc(mode === "HT" ? t("reorderHT") : t("reorderTTC"))}</span>
+        </div>
+        <!-- Value shown as text (e.g. "16,20 €") + a pencil; the number input is
+             hidden until you edit, then a ✓ saves and hides it again. -->
+        <div class="ro-shop" id="roPriceDisplay">
+          <div class="ro-price-shown" id="roPriceVal"></div>
+          <button type="button" class="ro-shop-edit" id="roPriceEdit" title="${esc(t("reorderEditPrice"))}">
+            <span class="icon icon-edit icon-13"></span>
+          </button>
+        </div>
+        <div class="ro-shop-editor" id="roPriceEditor" hidden>
+          <input type="number" id="roPrice" class="ro-input" min="0" step="0.01" placeholder="0.00" value="${price}" />
+          <button type="button" class="ro-shop-ok" id="roPriceOk" title="${esc(t("btnSave"))}">
+            <span class="icon icon-check icon-14"></span>
+          </button>
+        </div>
+        <div class="ro-derived" id="roDerived"></div>
+      </div>
+
+      <div class="ro-field">
+        <div class="tags-head">
+          <span class="ro-label">${esc(t("sectionTags"))}</span>
+          <button type="button" class="tags-edit-btn" id="roTagsEditBtn" title="${esc(t("tagsEdit"))}" aria-label="${esc(t("tagsEdit"))}"><span class="icon icon-edit icon-13"></span></button>
+        </div>
+        <div class="tags-input-wrap">
+          <input id="roTagInput" class="tag-input" placeholder="${esc(t("tagAdd"))}" spellcheck="false" autocomplete="off" maxlength="${TAG_MAX_LEN}" />
+          <div class="tags-dd" id="roTagDropdown" hidden></div>
+        </div>
+        <div class="tag-chips" id="roTagChips">${tags.map(tag => _tagChipHtml(tag, false)).join("")}</div>
+      </div>
+
+      <div class="ro-field">
+        <div class="ro-label">${esc(t("reorderNote"))}</div>
+        <textarea id="roNote" class="ro-input ro-note" rows="2" maxlength="500"
+                  placeholder="${esc(t("reorderNotePlaceholder"))}">${esc(link.note || "")}</textarea>
+      </div>
+
+      <div class="ro-field">
+        <div class="ro-label">${esc(t("reorderRefs"))}</div>
+        <div class="ro-ref-row">
+          <span class="ro-ref-label">SKU</span>
+          ${skuAuto
+            ? `<span class="ro-ref-val">${esc(skuAuto)}</span><input type="hidden" id="roSku" value="${esc(skuAuto)}" />`
+            : `<input type="text" id="roSku" class="ro-ref-input" placeholder="—" value="${esc(skuVal)}" />`}
+        </div>
+        <div class="ro-ref-row">
+          <span class="ro-ref-label">EAN</span>
+          ${eanAuto
+            ? `<span class="ro-ref-val">${esc(eanAuto)}</span><input type="hidden" id="roEan" value="${esc(eanAuto)}" />`
+            : `<input type="text" id="roEan" class="ro-ref-input" inputmode="numeric" placeholder="—" value="${esc(eanVal)}" />`}
+        </div>
+      </div>
+
+      <div id="roSaveResult" class="ro-save-result"></div>`;
+    _wireReorderPanel(r);
+    _reorderUpdateDerived();
+    _reorderUpdateStock();
+    _reorderUpdatePriceDisplay();
+    _reorderUpdateMinDisplay();
+  }
+
+  function _wireReorderPanel(r) {
+    $("roPrice")?.addEventListener("input", _reorderUpdateDerived);
+    $("roMinStock")?.addEventListener("input", _reorderUpdateStock);
+    // Price — value shown as text + pencil; the number input is hidden until edit,
+    // then a ✓ saves + collapses (mirrors the buy-link pattern).
+    const priceEnterEdit = () => {
+      $("roPriceDisplay").hidden = true;
+      $("roPriceEditor").hidden  = false;
+      const inp = $("roPrice"); inp?.focus(); inp?.select?.();
+    };
+    const priceExitEdit = () => {
+      $("roPriceEditor").hidden  = true;
+      $("roPriceDisplay").hidden = false;
+      _reorderUpdatePriceDisplay();
+    };
+    const priceCommit = () => { priceExitEdit(); _saveReorder(r); };
+    $("roPriceEdit")?.addEventListener("click", priceEnterEdit);
+    $("roPriceOk")?.addEventListener("click", priceCommit);
+    $("roPrice")?.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); priceCommit(); } });
+    // Minimum stock — same value+pencil / input+✓ toggle as the price.
+    const minEnterEdit = () => {
+      $("roMinDisplay").hidden = true;
+      $("roMinEditor").hidden  = false;
+      const inp = $("roMinStock"); inp?.focus(); inp?.select?.();
+    };
+    const minExitEdit = () => {
+      $("roMinEditor").hidden  = true;
+      $("roMinDisplay").hidden = false;
+      _reorderUpdateMinDisplay();
+    };
+    const minCommit = () => { minExitEdit(); _saveReorder(r); };
+    $("roMinEdit")?.addEventListener("click", minEnterEdit);
+    $("roMinOk")?.addEventListener("click", minCommit);
+    $("roMinStock")?.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); minCommit(); } });
+    // Buy link — hidden canonical value + a Shopify button + an inline editor.
+    const hiddenUrl = $("roBuyUrl");
+    const shopEnterEdit = () => {
+      $("roShopDisplay").hidden = true;
+      $("roShopEditor").hidden  = false;
+      const inp = $("roBuyUrlInput");
+      inp.value = hiddenUrl.value || "";
+      inp.focus(); inp.select?.();
+    };
+    const shopExitEdit = () => {
+      const url = hiddenUrl.value.trim();
+      $("roShopEditor").hidden  = true;
+      $("roShopDisplay").hidden = false;
+      const btn = $("roShopBtn");
+      btn.classList.toggle("ro-shop-btn--active", !!url);
+      const lbl = btn.querySelector("span:last-child");
+      if (lbl) lbl.textContent = url ? t("toolReorderBuy") : t("reorderAddLink");
+      $("roShopEdit").hidden = !url;
+    };
+    const shopCommit = () => {
+      hiddenUrl.value = _normalizeBuyUrl($("roBuyUrlInput")?.value);
+      shopExitEdit();
+      _saveReorder(r);   // "validate" = save; the URL stays hidden afterwards
+    };
+    $("roShopBtn")?.addEventListener("click", () => {
+      const url = hiddenUrl.value.trim();
+      if (url) window.electronAPI?.openExternal(_normalizeBuyUrl(url));
+      else shopEnterEdit();                    // empty → let the user add one
+    });
+    $("roShopEdit")?.addEventListener("click", shopEnterEdit);
+    $("roBuyUrlInput")?.addEventListener("input", () => { hiddenUrl.value = $("roBuyUrlInput").value; });
+    $("roBuyUrlInput")?.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); shopCommit(); } });
+    $("roBuyUrlOk")?.addEventListener("click", shopCommit);
+    // Auto-save (no Save button): the note + SKU/EAN persist on blur; the price /
+    // min / link commit on their ✓; tags persist on each add/remove. `_saveReorder`
+    // writes the whole current form, so any one of these persists everything.
+    $("roNote")?.addEventListener("change", () => _saveReorder(r));
+    $("roSku")?.addEventListener("change", () => _saveReorder(r));
+    $("roEan")?.addEventListener("change", () => _saveReorder(r));
+    _wireTagEditor(_productTagCtx(r));
+  }
+
+  // Accept a bare "shop.com/x" and turn it into a real URL for openExternal.
+  function _normalizeBuyUrl(v) {
+    const s = (v || "").trim();
+    if (!s) return "";
+    return /^https?:\/\//i.test(s) ? s : "https://" + s;
+  }
+
+  async function _saveReorder(r) {
+    const buyUrl = _normalizeBuyUrl($("roBuyUrl")?.value);
+    const minRaw = $("roMinStock")?.value;
+    const note   = $("roNote")?.value || "";
+    const sku    = $("roSku")?.value || "";
+    const ean    = $("roEan")?.value || "";
+    // The field holds the price in the account's entry mode → convert to HT for
+    // storage (country-independent). Empty stays null.
+    const { ht } = _vatPrices($("roPrice")?.value, _reorderMode(), _vatCountryCode());
+    try {
+      await _writeProduct(r, { buyUrl, buyPriceHt: ht, minStockSpools: minRaw, note, sku, ean });
+      // Reflect the normalized URL back into the hidden canonical field (the
+      // snapshot re-render then paints the Shopify button in its saved state).
+      if ($("roBuyUrl")) $("roBuyUrl").value = buyUrl;
+      toast($("roSaveResult"), "ok", t("reorderSaved"));
+    } catch (e) {
+      toast($("roSaveResult"), "bad", e.message || t("networkError"));
+    }
+  }
+
+  // Refresh the OPEN reorder card.
+  //   • `reseed` (country / price-mode change) → full re-render so the price
+  //     field re-seeds in the new rate/mode. Skipped while the user is mid-edit
+  //     in the card so their typing isn't clobbered.
+  //   • default (a products snapshot — e.g. our own tag/price save, or another
+  //     device) → PATCH ONLY: update the read-only bits + tag chips + shop
+  //     button, and NEVER touch the editable inputs (price / min-stock / note /
+  //     tag input), so unsaved edits in those survive an independent tag save.
+  function refreshOpenDetailReorder(reseed = false) {
+    if (!$("reorderPanel")?.classList.contains("open") || !_reorderRow) return;
+    const r = _reorderRow;
+    const active = document.activeElement;
+    const editing = active && $("reorderPanelBody")?.contains(active);
+    if (reseed && !editing) { _renderReorderPanel(r); return; }
+    const link = _getProduct(r) || {};
+    _reorderUpdateStock();  // "In stock: N / min" + amber (reads the live min input)
+    const cur = $("roCur"); if (cur) cur.textContent = _vatInfo().currency;
+    const modeEl = $("roMode"); if (modeEl) modeEl.textContent = _reorderMode() === "HT" ? t("reorderHT") : t("reorderTTC");
+    _reorderUpdateDerived();
+    if ($("roPriceEditor")?.hidden) _reorderUpdatePriceDisplay();  // refresh price text (unless mid-edit)
+    if ($("roMinEditor")?.hidden) _reorderUpdateMinDisplay();      // refresh min text (unless mid-edit)
+    // Tag chips from saved state (unless the tag input is focused mid-type).
+    if ($("roTagChips") && document.activeElement !== $("roTagInput")) _renderTagChips(_productTagCtx(r));
+    // Shop button from saved URL, unless its inline editor is open.
+    if ($("roShopEditor")?.hidden) {
+      const url = (link.buyUrl || "").trim();
+      if ($("roBuyUrl")) $("roBuyUrl").value = link.buyUrl || "";
+      const btn = $("roShopBtn");
+      if (btn) {
+        btn.classList.toggle("ro-shop-btn--active", !!url);
+        const lbl = btn.querySelector("span:last-child");
+        if (lbl) lbl.textContent = url ? t("toolReorderBuy") : t("reorderAddLink");
+      }
+      const ed = $("roShopEdit"); if (ed) ed.hidden = !url;
+    }
+  }
+
   function parseVideoUrl(url) {
     if (!url) return null;
     const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&?/]+)/);
@@ -9850,8 +10652,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   $("detailCloseTab")?.addEventListener("click", closeDetail); // » close tab (non-modal card)
   document.addEventListener("keydown", e => {
     if (e.key !== "Escape") return;
-    // Close the top-most card first: container picker (front) before the spool card.
+    // Close the top-most card first: container picker / reorder (front) before the spool card.
     if ($("containerPanel")?.classList.contains("open")) { closeContainerPicker(); return; }
+    if ($("reorderPanel")?.classList.contains("open"))   { closeReorderPanel(); return; }
     closeDetail();
   });
 
@@ -9884,6 +10687,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const btn = e.target.closest(".cp-item[data-cid]");
     if (btn && _cpRow) doContainerUpdate(_cpRow, btn.dataset.cid);
   });
+
+  // reorder side card — closed via the chevron tab or the ✕ in its header
+  $("reorderCloseTab")?.addEventListener("click", closeReorderPanel);
+  $("reorderPanelClose")?.addEventListener("click", closeReorderPanel);
 
   function buildPanelHTML(r) {
     const mat = r.materialData;
@@ -10349,7 +11156,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         <div class="panel-label">${t("sectionColors", {n: r.colorList.length})} &amp; Aspect</div>
         <div class="color-aspect-row">
           <div class="color-circles-col">
-            <button class="color-edit-trigger" id="btnEditColor" title="${t("colorEditTitle")}">${colorsHtml || '<span style="color:var(--muted);font-size:13px">—</span>'}<span class="color-edit-plus">+</span></button>
+            <div class="color-circles-display">${colorsHtml || '<span style="color:var(--muted);font-size:13px">—</span>'}</div>
           </div>
           <div class="aspect-col">
             ${aspectHtml}
@@ -10397,6 +11204,27 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
               </div>`,
           });
         }
+
+        // 0b. Reorder / buy-link — opens the reorder side card (buy link +
+        //     price + min-stock, stored per product identity so it applies to
+        //     every identical spool). Below-min-stock badge/alert is Phase 2.
+        tools.push({
+          id: "btnToolReorder",
+          icon: "icon-info",
+          label: t("toolReorder"),
+          variant: "default",
+          info: t("toolReorderTip"),
+        });
+        // Reorder — always shown; opens the buy link (shop) when set, else greyed
+        // and opens the product card so the user can add a link.
+        tools.push({
+          id: "btnToolReorderBuy",
+          icon: "icon-shopify",
+          label: t("toolReorderBuy"),
+          variant: "default",
+          greyed: !_hasBuyLink(r),
+          info: t("toolReorderBuyTip"),
+        });
 
         // 1. TD1S — measure colour. Always shown; if the device isn't
         //    connected the click opens the connect modal first so the
@@ -10846,6 +11674,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function _closeAllSidePanels() {
     if ($("notifPanel")?.classList.contains("open"))      closeNotifs();
     if ($("containerPanel")?.classList.contains("open"))  closeContainerPicker();
+    if ($("reorderPanel")?.classList.contains("open"))    closeReorderPanel();
     if ($("detailPanel")?.classList.contains("open"))     closeDetail();
     if ($("groupPanel")?.classList.contains("open"))      _closeGroupPanel();
     if ($("printerPanel")?.classList.contains("open"))    closePrinterDetail();
@@ -11225,6 +12054,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     { label: "Inventory",  path: "users/{uid}/inventory" },
     { label: "UID List",   path: "users/{uid}/rfidList" },
     { label: "Printers",   path: "users/{uid}/printers" },
+    { label: "Products",   path: "users/{uid}/products" },
   ];
 
   // Build the quick-access chips, then auto-fetch the user doc so the panel
@@ -11482,6 +12312,36 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     }
   }
 
+  // Persist the user's country choice — drives the VAT rate + currency used
+  // for filament reorder prices. Stored on users/{uid}.vatCountry (a user-doc
+  // field, alongside publicKey/isPublic — not a spool field).
+  function saveAccountVatCountry(code) {
+    state.vatCountry = code || null;
+    const user = fbAuth().currentUser;
+    if (user && code) {
+      fbDb().collection("users").doc(user.uid)
+        .set({ vatCountry: code }, { merge: true })
+        .catch(err => console.warn("[Firestore] saveAccountVatCountry:", err.message));
+    }
+    // A country change moves every HT⇄TTC figure — re-seed the open reorder
+    // card's price field (reseed=true).
+    if (typeof refreshOpenDetailReorder === "function") refreshOpenDetailReorder(true);
+  }
+
+  // Persist how the user TYPES filament prices (HT vs TTC). The stored price is
+  // always HT — this only controls what the reorder card's price field expects.
+  function saveAccountPriceMode(mode) {
+    state.priceInputMode = mode === "HT" ? "HT" : "TTC";
+    _syncPriceModeSeg();
+    const user = fbAuth().currentUser;
+    if (user) {
+      fbDb().collection("users").doc(user.uid)
+        .set({ priceInputMode: state.priceInputMode }, { merge: true })
+        .catch(err => console.warn("[Firestore] saveAccountPriceMode:", err.message));
+    }
+    if (typeof refreshOpenDetailReorder === "function") refreshOpenDetailReorder(true);
+  }
+
   // Read language preference from Firestore and apply if different from local
   function applyDebugMode() {
     // Debug panel is now visible to all users (was admin-only gated by
@@ -11643,6 +12503,19 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const swallow = e => { if (e.target.closest?.(".tool-info")) { e.stopPropagation(); e.preventDefault(); } };
     body.addEventListener("pointerdown", swallow, true);
     body.addEventListener("click", swallow, true);
+  }
+  // Rack-view ⓘ tips (.rp-info — auto-organize, "no space" hint, …) reuse the
+  // same body-appended #toolInfoPop as the toolbox so the bubble escapes the
+  // panel's overflow/stacking instead of being clipped inside the card. The
+  // rack view lives outside #panelBody, so delegate on the document.
+  let _rackInfoTipsWired = false;
+  function _wireRackInfoTips() {
+    if (_rackInfoTipsWired) return;
+    _rackInfoTipsWired = true;
+    document.body.addEventListener("mouseover", e => { const el = e.target.closest?.(".rp-info"); if (el) _showToolInfoTip(el); });
+    document.body.addEventListener("mouseout",  e => { const el = e.target.closest?.(".rp-info"); if (el && !el.contains(e.relatedTarget)) _hideToolInfoTip(); });
+    document.body.addEventListener("focusin",   e => { const el = e.target.closest?.(".rp-info"); if (el) _showToolInfoTip(el); });
+    document.body.addEventListener("focusout",  e => { const el = e.target.closest?.(".rp-info"); if (el) _hideToolInfoTip(); });
   }
   function showSbFriendTip(chip) {
     if (!document.querySelector(".sidebar.collapsed")) return;
@@ -12219,6 +13092,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
    */
   // States where a progress bar is meaningful (printer actively running a job).
   const _ACTIVE_STATES = new Set(["printing", "running", "paused", "heating", "preparing", "prepare", "leveling", "checking", "busy"]);
+  // Just-finished states — the plate is done but still on the bed, so we keep
+  // showing "what just printed". Covers every brand's word for it (Bambu
+  // "finished", Snapmaker/Creality "complete", FlashForge "completed").
+  // Deliberately excludes idle/standby/cancelled/failed — those show no preview.
+  const _DONE_STATES = new Set(["finished", "complete", "completed"]);
 
   function _getPrinterJob(p) {
     let d = null;
@@ -12255,32 +13133,50 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     else if (p.brand === "anycubic" && d.remainTime > 0)       remainSec = d.remainTime * 60;
     else if (p.brand === "elegoo"   && d.printRemainingMs > 0) remainSec = Math.round(d.printRemainingMs / 1000);
     else if (p.brand === "creality" && d.printLeftTime > 0)    remainSec = d.printLeftTime;
-
-    // Current-print thumbnail (brand-specific field on the live conn data).
-    // Only resolved for an active job — a preview of "what's on the bed now".
-    // Bambu exposes no readily-fetchable gcode thumbnail → none.
-    let thumbUrl = null;
-    if (isActive) {
-      if (p.brand === "snapmaker" || p.brand === "flashforge") thumbUrl = d.printPreviewUrl || null;
-      else if (p.brand === "anycubic") thumbUrl = d.printThumb || null;
-      else if (p.brand === "elegoo")   thumbUrl = d.thumbnail || null;
-      else if (p.brand === "creality") {
-        const c = creGetConn(creKey(p));
-        if (c?.ip) thumbUrl = `http://${c.ip}/downloads/original/current_print_image.png`;
+    else if (p.brand === "flashforge" && d.printEstimated > 0) remainSec = d.printEstimated; // already remaining seconds
+    else if (p.brand === "snapmaker") {
+      // Snapmaker/Moonraker gives no direct "remaining" — derive it from the
+      // slicer's estimated_time minus elapsed print_duration, falling back to a
+      // progress-based extrapolation when the metadata estimate isn't available.
+      if (d.printEstimated > 0 && d.printDuration >= 0 && d.printEstimated > d.printDuration) {
+        remainSec = Math.round(d.printEstimated - d.printDuration);
+      } else if (d.printDuration > 0 && d.progress > 0 && d.progress < 1) {
+        remainSec = Math.round(d.printDuration * (1 - d.progress) / d.progress);
       }
     }
 
-    return { state, pct, isActive, filename, remainSec, thumbUrl };
+    // Current-print thumbnail (brand-specific field on the live conn data).
+    // Resolved while a job is active AND once it's finished — a finished plate
+    // keeps showing "what just printed" until the printer goes idle. (Creality
+    // is a live snapshot endpoint, so it stays active-only.)
+    const isDone = _DONE_STATES.has(state);
+    let thumbUrl = null;
+    if (isActive || isDone) {
+      if (p.brand === "snapmaker" || p.brand === "flashforge" || p.brand === "bambulab") thumbUrl = d.printPreviewUrl || null;
+      else if (p.brand === "anycubic") thumbUrl = d.printThumb || null;
+      else if (p.brand === "elegoo")   thumbUrl = d.thumbnail || null;
+      else if (p.brand === "creality") {
+        // Prefer the file's own pre-sliced thumbnail (valid active AND finished).
+        // The live camera snapshot goes stale after a print ends (may show a
+        // different job), so use it only as an active-job fallback.
+        const c = creGetConn(creKey(p));
+        thumbUrl = creCurrentThumbUrl(c);
+        if (!thumbUrl && isActive && c?.ip) thumbUrl = `http://${c.ip}/downloads/original/current_print_image.png`;
+      }
+    }
+
+    return { state, pct, isActive, isDone, filename, remainSec, thumbUrl };
   }
-  // Table thumbnail cell HTML — the print preview, or empty when idle/unavailable.
+  // Table thumbnail cell HTML — the print preview (active or just-finished), or
+  // empty when idle/unavailable. thumbUrl is already gated in _getPrinterJob.
   function _jobThumbHtml(job) {
-    const url = job?.isActive ? job.thumbUrl : null;
+    const url = job?.thumbUrl || null;
     return url ? `<div class="pt-jobthumb" style="background-image:url('${esc(url)}')"></div>` : "";
   }
   // Separate signature so the thumbnail only reloads when its URL changes — never
   // on a progress tick (a bg-image reload on every % would flicker the preview).
   function _jobThumbSig(job) {
-    return (job?.isActive && job.thumbUrl) ? job.thumbUrl : "";
+    return job?.thumbUrl || "";
   }
 
   function _fmtRemain(sec) {
@@ -12648,6 +13544,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (card) card._lastJobSig = _jobSignature(_getPrinterJob(p));
     });
     applyPrinterFilter(); // honour an active search on rebuild
+    _syncSelAllHeader();  // reflect selection on the header master checkbox
   }
 
   // Does a printer match the current search query? Matches on name, brand label,
@@ -12884,7 +13781,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         <table class="pt-table">
           <thead class="pt-head">
             <tr>
-              <th class="pt-th sel-th"></th>
+              <th class="pt-th sel-th"><span class="sel-check sel-check--all" role="checkbox" tabindex="0" aria-label="Select all"></span></th>
               <th class="pt-th pt-th--brandlogo"></th>
               <th class="pt-th pt-th--thumb"></th>
               ${th("Brand",   "brand")}
@@ -13626,6 +14523,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     }, 0);
   });
   $("invPrinterView")?.addEventListener("click", e => {
+    // Header master checkbox — select / deselect all visible (filtered) printers.
+    if (e.target.closest(".sel-th")) { e.stopPropagation(); _toggleSelectAllVisible(); return; }
     // Printer TABLE has an always-visible checkbox column — a click on it selects
     // (entering select mode on the first tick), whatever the current mode.
     const selCell = e.target.closest(".pt-row .sel-cell");
@@ -17617,6 +18516,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function renderRackView() {
     const list = $("invRackView");
     if (!list) return;
+    _wireRackInfoTips();   // idempotent — ensures .rp-info ⓘ tips use #toolInfoPop
     // ── Read-only flag — true when viewing a friend's storage. Disables
     // create / edit / delete / drag / drop / lock-toggle. Kept as one variable
     // (vs scattering checks) so future call sites stay consistent.
@@ -17945,7 +18845,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         <div class="rp-side-auto-card">
           <div class="rp-side-toggle">
             <span class="rp-side-toggle-label">
-              <span data-i18n="autoOrganizeTitle">Auto-organize</span>
+              <span data-i18n="autoOrganizeTitle">${esc(t("autoOrganizeTitle"))}</span>
               <span class="rp-info" tabindex="0" data-tip="${esc(t("autoOrganizeSub"))}" aria-label="${esc(t("autoOrganizeSub"))}"><span class="icon icon-info icon-12"></span></span>
             </span>
             <label class="eac-toggle">
@@ -19678,6 +20578,45 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     renderNotifBadge();
     renderNotifCenter();
   }
+
+  // ── Low-stock (reorder) alerts ────────────────────────────────────────────
+  // One local notification per product whose current stock has dropped below its
+  // minimum. Re-evaluated on every inventory / products change; each alert
+  // auto-clears when the product is restocked above its target (or the min is
+  // removed). Clicking it opens that product's card so the user can reorder.
+  function _checkLowStockNotifs() {
+    if (state.friendView) return;   // `products` is the owner's, not a friend's
+    const seen = new Set();
+    Object.values(state.products || {}).forEach(p => {
+      const min = +p.minStockSpools || 0;
+      if (min <= 0 || !p.key) return;
+      const stock = (state.rows || []).filter(row => !row.deleted && _spoolGroupKey(row) === p.key).length;
+      if (stock >= min) return;     // above target → no alert
+      const id = "lowstock:" + p.id;
+      seen.add(id);
+      const label = p.label || {};
+      const name = ([label.brand, label.material].filter(Boolean).join(" ")
+        + (label.colorName ? " · " + label.colorName : "")).trim();
+      const text = t("notifLowStockText", { n: stock, min });
+      const img = resolvedImg(label.imgUrl) || "";   // product illustration
+      const cur = (state.localNotifications || []).find(n => n.id === id);
+      if (cur && cur.text === text && cur.title === (name || t("notifLowStockTitle")) && cur.img === img) return; // unchanged → skip re-render
+      _setLocalNotif({ id, icon: "package", action: "lowstock", key: p.key, img,
+        title: name || t("notifLowStockTitle"), text });
+    });
+    // Clear alerts that no longer apply (restocked / min removed / product gone).
+    (state.localNotifications || [])
+      .filter(n => n.id && n.id.startsWith("lowstock:") && !seen.has(n.id))
+      .map(n => n.id)
+      .forEach(id => _clearLocalNotif(id));
+  }
+  // Open the product card behind a low-stock alert (find any live spool of it).
+  function _openLowStockProduct(localId) {
+    const n = (state.localNotifications || []).find(x => x.id === localId);
+    if (!n?.key) return;
+    const row = (state.rows || []).find(r => !r.deleted && _spoolGroupKey(r) === n.key);
+    if (row) openReorderPanel(row);
+  }
   // ── New-notification chime ────────────────────────────────────────────────
   // A soft two-note rising chime when a notification ARRIVES: an incoming friend
   // request, a friend accepting yours (general notif), or a local notice (paxx
@@ -19739,13 +20678,16 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const localHtml = locals.map(n => {
       // Community nudges + avatar: the whole row IS the call-to-action (no button).
       const isCommunity = n.action === "discord" || n.action === "github" || n.action === "makerworld" || n.action === "shop";
-      const clickable = isCommunity || n.action === "avatar" || n.action === "paxx";
-      const brandIc = isCommunity ? ` notif-ic--${n.action}` : "";   // branded square icon
+      const clickable = isCommunity || n.action === "avatar" || n.action === "paxx" || n.action === "lowstock";
+      const brandIc = isCommunity ? ` notif-ic--${n.action}`         // branded square icon
+        : (n.action === "lowstock" ? " notif-ic--lowstock" : "");    // amber alert icon
       // A notice originating from a printer speaks WITH its brand logo (the
       // machine "talking") — those render as the RAW brand SVG, no chip. The
       // community nudges keep their branded square chip (white logo on the brand
       // colour), so the Shopify notif matches the sidebar Shop button.
-      const iconHtml = (n.brand && _BRAND_HAS_LOGO.has(n.brand))
+      const iconHtml = n.img
+        ? `<span class="notif-ic notif-ic--img"><img src="${esc(n.img)}" alt="" onerror="this.style.display='none'" /></span>`
+        : (n.brand && _BRAND_HAS_LOGO.has(n.brand))
         ? `<span class="notif-ic notif-ic--bare"><span class="pt-thumb-logo" data-brand="${esc(n.brand)}"></span></span>`
         : `<span class="notif-ic${brandIc}"><span class="icon icon-${esc(n.icon || "refresh")} icon-14"></span></span>`;
       return `
@@ -19793,6 +20735,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         const a = row.dataset.localAction;
         if (a === "avatar") _changeMyAvatar();
         else if (a === "paxx") _openPaxxPrinter();
+        else if (a === "lowstock") _openLowStockProduct(row.dataset.localId);
         else if (COMMUNITY[a]) _openCommunityLink(a);
       }));
     list.querySelectorAll(".notif-item:not(.notif-item--local)").forEach(row => {
@@ -20511,6 +21454,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (c.publicKey)  state.publicKey  = c.publicKey;
     if (c.privateKey) state.privateKey = c.privateKey;
     state.isPublic       = !!c.isPublic;
+    state.vatCountry     = c.vatCountry || null;
+    state.priceInputMode = c.priceInputMode === "HT" ? "HT" : "TTC";
     state.discordSeen    = !!c.discordSeen;     // avoids a badge flash before syncUserDoc resolves
     state.githubSeen     = !!c.githubSeen;
     state.makerworldSeen = !!c.makerworldSeen;
@@ -20812,6 +21757,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       state.publicKey  = data.publicKey;
       state.privateKey = data.privateKey;
       state.isPublic   = data.isPublic || false;
+      state.vatCountry = data.vatCountry || null;    // ISO country code for VAT rate + currency (filament reorder)
+      state.priceInputMode = data.priceInputMode === "HT" ? "HT" : "TTC"; // how the user types prices (stored value stays HT)
       state.discordSeen    = !!data.discordSeen;     // "nudge done" flags (per account, synced)
       state.githubSeen     = !!data.githubSeen;
       state.makerworldSeen = !!data.makerworldSeen;
@@ -20826,6 +21773,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         publicKey:  data.publicKey || null,
         privateKey: data.privateKey || null,
         isPublic:   !!data.isPublic,
+        vatCountry: data.vatCountry || null,
+        priceInputMode: data.priceInputMode === "HT" ? "HT" : "TTC",
         discordSeen: !!data.discordSeen, githubSeen: !!data.githubSeen, makerworldSeen: !!data.makerworldSeen,
         shopSeen: !!data.shopSeen,
         displayName: data.displayName || null,
@@ -21099,6 +22048,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const lang = $("langSelect").value;
     saveAccountLang(lang);
     applyLang(lang);
+  });
+
+  $("vatCountrySelect")?.addEventListener("change", () => {
+    saveAccountVatCountry($("vatCountrySelect").value);
+  });
+  $("eacPriceMode")?.addEventListener("click", e => {
+    const btn = e.target.closest(".eac-seg-btn[data-mode]");
+    if (btn) saveAccountPriceMode(btn.dataset.mode);
   });
 
   /* ── init ── */

@@ -283,6 +283,30 @@
   color: #fff !important;
 }
 
+/* Footer "Clear TD value" — subtle destructive action, hold-to-confirm.
+   Inset from the card edges (it lives OUTSIDE the padded .td-edit-state, so
+   without side margins it would span flush to the modal edges like a bar). */
+#tdEditModalOverlay .td-edit-clear {
+  position: relative; overflow: hidden;
+  margin: 6px 20px 0; height: 38px;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  border-radius: 9px !important;
+  background: rgba(255,255,255,.04) !important;
+  border: 1px solid rgba(255,255,255,.1) !important;
+  color: rgba(255,255,255,.48) !important;
+  font-size: 12.5px; font-weight: 600; letter-spacing: .2px;
+  transition: color .15s, background .15s, border-color .15s;
+}
+#tdEditModalOverlay .td-edit-clear:hover {
+  color: #fff !important;
+  background: rgba(239,68,68,.14) !important;
+  border-color: rgba(239,68,68,.4) !important;
+}
+#tdEditModalOverlay .td-edit-clear .icon { background: currentColor; width: 13px; height: 13px; }
+#tdEditModalOverlay .td-edit-clear > *:not(.hold-progress) { position: relative; z-index: 1; }
+/* Contrasting red sweep for the hold-to-confirm progress (visible on dark). */
+#tdEditModalOverlay .td-edit-clear .hold-progress { background: var(--danger); opacity: .55; }
+
 /* Color slot rows (Color modal state 1 — dynamic, one row per active color) */
 #ceManualSlots { display: flex; flex-direction: column; gap: 8px; width: 100%; }
 .ce-slot-row { display: flex; align-items: center; gap: 10px; width: 100%; }
@@ -327,26 +351,11 @@
   border: 1.5px solid rgba(255,255,255,.25);
 }
 
-/* Clickable color circle in detail panel (trigger to open Color Edit modal) */
-.color-edit-trigger {
-  position: relative; background: transparent !important;
-  border: none; outline: none; padding: 0; margin: 0;
-  cursor: pointer; border-radius: 50%;
+/* Color circle in the detail panel — display only (no longer editable). */
+.color-circles-display {
   display: flex; align-items: center; justify-content: center;
-  -webkit-appearance: none; transform: none !important;
 }
-.color-edit-trigger .color-circle { margin-right: 0; }
-.color-edit-trigger:hover  { background: transparent !important; }
-.color-edit-trigger:active { background: transparent !important; transform: none !important; }
-.color-edit-plus {
-  position: absolute; top: 50%; left: 50%;
-  transform: translate(-50%, -50%);
-  color: #fff; font-size: 22px; font-weight: 300; line-height: 1;
-  text-shadow: 0 1px 5px rgba(0,0,0,.8);
-  opacity: 0; transition: opacity .15s;
-  pointer-events: none; user-select: none;
-}
-.color-edit-trigger:hover .color-edit-plus { opacity: 1; }
+.color-circles-display .color-circle { margin-right: 0; }
 
 /* OR divider — lives inside .td-edit-state */
 .td-edit-or { display: flex; align-items: center; gap: 10px; width: 100%; }

@@ -14,12 +14,15 @@ export function renderBambuJobCard(p, conn) {
   const d = conn.data;
   const state    = d.printState || "idle";
   const isActive = ["printing", "preparing", "busy", "paused"].includes(state);
+  const isDone   = state === "finished";
   const pct      = isActive ? Math.round(+(d.progress || 0)) : 0;
   const leafName = isActive && d.printFilename ? d.printFilename : "";
 
   const fallbackImg = ctx.printerImageUrlFor(p.brand, p.printerModelId)
                    || ctx.printerImageUrl(ctx.findPrinterModel(p.brand, "0"));
-  const thumbUrl = fallbackImg || "";
+  // Prefer the current print's model preview (fetched via FTPS) while a job is
+  // active or just finished; otherwise fall back to the printer photo.
+  const thumbUrl = ((isActive || isDone) && d.printPreviewUrl) ? d.printPreviewUrl : (fallbackImg || "");
 
   const layerText = isActive && (d.layerNum || d.totalLayerNum)
     ? `${d.layerNum || 0}/${d.totalLayerNum || 0}` : "";

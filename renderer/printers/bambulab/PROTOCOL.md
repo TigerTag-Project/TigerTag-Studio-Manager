@@ -866,12 +866,12 @@ La miniature de l'impression en cours est extraite via **FTPS implicite** depuis
 ← 200 OK
 → PASV
 ← 227 Entering Passive Mode (h1,h2,h3,h4,p1,p2)
-→ NLST /cache         (ou NLST /)
+→ NLST /model        (print en cours ; sinon /cache puis /)
 ← 150 Opening transfer
 ← [liste des fichiers]
 ← 226 Transfer complete
 → PASV
-→ RETR /cache/{filename}.3mf
+→ RETR /model/{filename}.3mf
 ← 150 Opening transfer
 ← [données binaires .3mf]
 ← 226 Transfer complete
@@ -895,27 +895,42 @@ metadata/plate_N.png   (plateau N)
 2. Tenter `metadata/plate_{plateIndex}.png` puis `metadata/plate_{plateIndex+1}.png`
 3. Si pas trouvé, prendre le premier fichier `metadata/plate_*.png` disponible
 
-**Correspondance fichier .3mf** :
-- Lister `/cache` et `/` via NLST
-- Comparer le basename (sans extension) du champ `gcode_file`/`subtask_name`/`project_file` avec les fichiers `.3mf` disponibles
-- Prendre le fichier `/cache/*.3mf` en priorité si plusieurs correspondent
+**Correspondance fichier .3mf** (approche validée par [bambuddy](https://github.com/maziggy/bambuddy), impl. multi-modèles éprouvée) :
+- ⚠️ **Le `.3mf` du print EN COURS vit dans `/model/`** (le slice envoyé à l'impression y est copié). `/cache/` contient les jobs plus anciens, la racine `/` les uploads slicer (A1/P1), `/data` + `/data/Metadata` selon le firmware/modèle. Tenter d'abord un **hit direct par nom exact**, chaque variante de nom × chaque dossier (`/model` en premier).
+- **Variantes de nom** : le firmware rapporte `gcode_file`/`subtask_name` de façon incohérente (stem nu, `.3mf`, ou `.gcode.3mf`) et Bambu Studio remplace les espaces par des underscores. Générer donc `{stem}.gcode.3mf`, `{stem}.3mf` **+ leurs variantes espaces→`_`** avant tout scan.
+- **Fallback fuzzy** seulement si le hit direct échoue : lister les dossiers candidats, comparer le basename sans extension **en normalisant espaces↔underscores**.
+- **Ne JAMAIS prendre un `.3mf` au hasard** si rien ne correspond — une mauvaise miniature (autre modèle) est pire que pas de miniature. Retourner « introuvable ».
+- **Edge-case multi-plateaux (bambuddy #1204)** : sur des plateaux consécutifs d'un même modèle, `subtask_name` peut traîner et pointer vers le `.3mf` du plateau précédent encore résident. Pour être infaillible, vérifier après download que le plateau embarqué (`slice_info` dans le `.3mf`) == `plate_idx` parsé du `gcode_file`, et re-télécharger avec le suffixe de plateau corrigé sinon. *(Non implémenté ici : on se contente d'extraire `plate_{plate_idx}.png` du `.3mf` trouvé — suffisant pour une miniature ; à ajouter si un cas réel de mauvais plateau apparaît.)*
 
 ```js
-function pickCurrent3mfPath(allPaths, fileHint) {
-  const files = allPaths.filter(p => p.toLowerCase().endsWith('.3mf'));
-  if (!files.length) return null;
+const DIRS = ['/model', '/cache', '', '/data', '/data/Metadata'];
 
-  const hintNoExt = basenameNoExt(fileHint).toLowerCase();
-  if (hintNoExt) {
-    const match = files.find(p => {
-      const f = basenameNoExt(p).toLowerCase();
-      return f === hintNoExt || f.includes(hintNoExt) || hintNoExt.includes(f);
-    });
-    if (match) return match;
-  }
+function candidateNames(fileHint) {          // ex. "Bag Clip by squinn.gcode.3mf"
+  const base = basename(fileHint);
+  const stem = base.replace(/\.gcode\.3mf$/i, '').replace(/\.gcode$/i, '').replace(/\.3mf$/i, '');
+  const n = [];
+  if (/\.3mf$/i.test(base)) n.push(base);
+  if (stem) { n.push(`${stem}.gcode.3mf`); n.push(`${stem}.3mf`); }
+  for (const x of n.slice()) if (x.includes(' ')) n.push(x.replace(/ /g, '_'));
+  return [...new Set(n)];
+}
 
-  const cacheFile = files.find(p => p.startsWith('/cache/'));
-  return cacheFile ?? files[0];
+async function fetchCurrent3mf(dl, list, fileHint) {
+  // 1) Hit direct : chaque variante de nom × chaque dossier (/model d'abord).
+  for (const name of candidateNames(fileHint))
+    for (const dir of DIRS) {
+      const buf = await dl(`${dir}/${name}`).catch(() => null);
+      if (buf?.length) return buf;
+    }
+  // 2) Fallback fuzzy — normalise espaces↔underscores, jamais de fichier arbitraire.
+  const norm = s => basenameNoExt(s).toLowerCase().replace(/ /g, '_');
+  const target = norm(fileHint);
+  const paths = [];
+  for (const dir of DIRS)
+    for (const f of await list(dir || '/').catch(() => []))
+      if (/\.3mf$/i.test(f.name)) paths.push(dir + '/' + f.name);
+  const pick = target && paths.find(p => { const f = norm(p); return f === target || f.includes(target) || target.includes(f); });
+  return pick ? dl(pick).catch(() => null) : null; // null = introuvable, pas de fallback aveugle
 }
 ```
 
@@ -1152,7 +1167,7 @@ Règle de résolution de conflit : **le plus récent (`updatedAt`) gagne**.
 
 ### Miniature
 - [ ] FTPS implicite port 990, TLS, `bblp` / Access Code
-- [ ] Séquence : `TYPE I` → `PBSZ 0` → `PROT P` → `PASV` → `NLST /cache` → `NLST /` → `RETR`
+- [ ] Séquence : `TYPE I` → `PBSZ 0` → `PROT P` → `PASV` → `RETR /model/{gcode_file}` (print actif ; fallback `/cache`, `/`)
 - [ ] Unzip `.3mf` → extraire `metadata/plate_{N}.png`
 - [ ] Ne pas re-fetcher si même fichier dans les 30 dernières secondes
 

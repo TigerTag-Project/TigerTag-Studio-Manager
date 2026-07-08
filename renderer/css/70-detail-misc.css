@@ -383,6 +383,27 @@
   }
   .sel-cell:hover .sel-check { border-color: var(--primary); }
 
+  /* Header master checkbox — select/deselect all visible (filtered) rows.
+     Always shown in the header cell (like the always-on row checkboxes), with a
+     checkmark when all are selected and a dash when only some are. */
+  .sel-th { cursor: pointer; }
+  .sel-th .sel-check--all {
+    display: inline-block; position: relative; top: auto; left: auto;
+    vertical-align: middle; box-shadow: none; cursor: pointer;
+  }
+  .sel-th:hover .sel-check--all { border-color: var(--primary); }
+  .sel-check--all.is-all, .sel-check--all.is-some {
+    background: var(--primary); border-color: var(--primary);
+  }
+  .sel-check--all.is-all::after {
+    content: ""; position: absolute; left: 5px; top: 1px;
+    width: 4px; height: 9px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg);
+  }
+  .sel-check--all.is-some::after {
+    content: ""; position: absolute; left: 3px; top: 7px;
+    width: 10px; height: 2px; background: #fff; border-radius: 1px;
+  }
+
   .bulk-bar {
     position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 200;
     display: flex; align-items: center; gap: 8px;
@@ -405,7 +426,13 @@
   .bulk-btn--danger { background: var(--danger); border-color: var(--danger); color: #fff; }
   .bulk-btn--danger:hover { filter: brightness(1.06); border-color: var(--danger); }
   .bulk-btn--danger .icon { background: #fff; }
-  .bulk-btn--icon { padding: 8px; }
+  /* The button is already red, so the default red `.hold-progress` fill would be
+     invisible (red-on-red). Use an opaque dark sweep so the hold-to-confirm
+     progress is clearly visible as the user holds. */
+  .bulk-btn--danger .hold-progress { background: rgba(0,0,0,.34); opacity: 1; }
+  /* Square icon button — stretch to the Delete button's height, then aspect-ratio
+     forces equal width so it's a perfect square (not a short rectangle). */
+  .bulk-btn--icon { padding: 0; align-self: stretch; aspect-ratio: 1; justify-content: center; }
 
   .bar { width: 64px; height: 5px; background: var(--surface-2); border-radius: 3px; overflow: hidden; display: inline-block; vertical-align: middle; margin-left: 6px; }
   .bar > span { display: block; height: 100%; background: var(--primary); border-radius: 3px; }
@@ -840,6 +867,37 @@
   .gp-dash-weight strong { font-size: 21px; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
   .gp-dash-total { color: var(--muted); font-size: 12px; }
   .gp-dash-count { color: var(--muted); font-size: 11.5px; font-weight: 600; text-align: center; margin-top: -16px; }
+
+  /* Reorder button at the top of the deck (above the first member). */
+  .gp-reorder-btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    width: 100%; height: 38px; flex-shrink: 0;
+    border-radius: 10px; cursor: pointer;
+    background: var(--surface-2); border: 1px solid var(--border);
+    color: var(--text); font-size: 13px; font-weight: 600;
+    transition: background .15s, border-color .15s;
+  }
+  .gp-reorder-btn:hover { background: var(--border); }
+  .gp-reorder-btn .icon { background-color: var(--muted); }
+  /* Below-min-stock alert pill above the deck's action buttons. */
+  .gp-stock-alert { flex-shrink: 0; font-size: 14px; }
+  .gp-stock-alert span:last-child { font-weight: 700; }
+  /* Two action buttons side by side (Product info + Reorder) above the deck. */
+  .gp-actions { display: flex; gap: 8px; flex-shrink: 0; }
+  .gp-actions .gp-reorder-btn { flex: 1; width: auto; }
+  /* Reorder (buy-link) variant — Shopify green. */
+  .gp-reorder-btn--buy { background: #5e8e3e; border-color: #5e8e3e; color: #fff; }
+  .gp-reorder-btn--buy:hover { background: #5e8e3e; filter: brightness(1.06); }
+  .gp-reorder-btn--buy .icon { background-color: #fff; }
+  /* No buy link → greyed (still clickable → opens the product card to add one). */
+  .gp-reorder-btn--buy.gp-reorder-btn--disabled {
+    background: var(--surface-2); border-color: var(--border); color: var(--muted);
+  }
+  .gp-reorder-btn--buy.gp-reorder-btn--disabled:hover { background: var(--border); filter: none; }
+  .gp-reorder-btn--buy.gp-reorder-btn--disabled .icon { background-color: var(--muted); }
+  /* Toolbox "Reorder" row — Shopify-green glyph only when a link is set (a
+     greyed row keeps the default muted icon). */
+  #btnToolReorderBuy:not(.toolbox-row--greyed) .toolbox-row-icon { background-color: #5e8e3e; }
 
   .spool-card.gp-member {
     display: flex; align-items: center; gap: 12px;
@@ -2008,6 +2066,22 @@
     border-radius: 99px; letter-spacing: .02em; pointer-events: none;
     line-height: 1.4;
   }
+  /* Shopify "buy link available" badge — bottom-right of a spool illustration
+     (the free corner: twin/backup top-left, chip top-right, TD bottom-left). */
+  .card-shop-badge, .thumb-shop-badge {
+    position: absolute; z-index: 2; margin: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: #5e8e3e; border-radius: 50%; pointer-events: none; /* Shopify green */
+  }
+  .card-shop-badge {
+    bottom: 6px; right: 6px; width: 20px; height: 20px;
+    border: 1.5px solid rgba(255,255,255,.85); box-shadow: 0 1px 4px rgba(0,0,0,.25);
+  }
+  .thumb-shop-badge {
+    bottom: 2px; right: 2px; width: 14px; height: 14px;
+    border: 1.5px solid rgba(255,255,255,.8); box-shadow: 0 1px 3px rgba(0,0,0,.2);
+  }
+  .card-shop-badge .icon, .thumb-shop-badge .icon { background-color: #fff; }
 
   /* ── inline video player ── */
   .panel-video-section { border-bottom: 1px solid var(--border); }
@@ -2437,6 +2511,169 @@
   .cp-item-cw { display: block; margin-top: 3px; font-size: 12px; font-weight: 700; color: var(--text); }
   .cp-check { color: var(--primary); font-size: 14px; flex-shrink: 0; }
   .cp-empty { padding: 24px; text-align: center; font-size: 13px; color: var(--muted); }
+
+  /* ── Reorder / buy-link side card ─────────────────────────────────────────
+     Tucks to the LEFT of the spool detail (shares the container picker's slot),
+     so it sits BEHIND it (z 100). */
+  /* z 99 = one slot BEHIND the group deck (z 100): the reorder card docks to the
+     LEFT of the group when both are open, so it tucks behind it at the seam. */
+  #reorderPanel { z-index: 99; width: 300px; }
+  #reorderCloseTab { z-index: 99; }
+  .ro-panel .panel-body {
+    display: flex; flex-direction: column; gap: 14px;
+    padding: 16px; overflow-y: auto;
+    scrollbar-width: none;
+  }
+  .ro-panel .panel-body::-webkit-scrollbar { width: 0; height: 0; display: none; }
+  /* Product identity header (swatch + brand/material·colour). */
+  .ro-head { display: flex; align-items: center; gap: 11px; }
+  .ro-swatch {
+    width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0;
+    border: 1px solid var(--border); box-shadow: inset 0 0 0 1px rgba(255,255,255,.06);
+  }
+  .ro-thumb {
+    width: 40px; height: 40px; border-radius: 9px; flex-shrink: 0;
+    object-fit: cover; background: var(--surface-2);
+    border: 1px solid var(--border);
+  }
+  .ro-thumb--broken { object-fit: initial; }
+  .ro-head-txt { min-width: 0; }
+  .ro-head-brand {
+    font-size: 15px; font-weight: 700; color: var(--text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .ro-head-mat {
+    font-size: 12px; color: var(--muted); margin-top: 1px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  /* Current-stock pill; turns amber when below the min-stock target. */
+  .ro-stock {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 11px; border-radius: 10px;
+    background: var(--surface-2); color: var(--text);
+    font-size: 13px; font-weight: 600;
+  }
+  .ro-stock { font-size: 14px; }
+  .ro-stock #roStockTxt { font-weight: 700; }
+  .ro-stock .icon { background-color: var(--muted); }
+  .ro-stock--low {
+    background: color-mix(in srgb, #f59e0b 16%, transparent);
+    color: color-mix(in srgb, #f59e0b 80%, var(--text));
+  }
+  .ro-stock--low .icon { background-color: currentColor; }
+  /* Stock section: the current-stock pill sits full width; the min-stock target
+     is its own row below (label left, compact number right) — stacked, not
+     cramped side by side. The pill turns amber when stock drops below the min. */
+  /* Secondary label ("Minimum stock") under the current-stock pill, above its
+     card+edit row (which reuses the price's .ro-shop / .ro-price-shown styles). */
+  .ro-sublabel { margin-top: 4px; }
+  /* Field group. */
+  .ro-field { display: flex; flex-direction: column; gap: 6px; }
+  .ro-label {
+    font-size: 10px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .07em;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .ro-cur {
+    font-size: 10px; font-weight: 700; letter-spacing: .04em;
+    color: var(--text); background: var(--surface-2);
+    padding: 1px 6px; border-radius: 20px; text-transform: none;
+  }
+  /* The HT/TTC chip — signals which mode the field expects (set in the account). */
+  .ro-cur--mode { color: #fff; background: var(--primary); }
+  .ro-input {
+    width: 100%; height: 38px; padding: 0 11px;
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 10px; color: var(--text); font-size: 13px;
+    transition: border-color .15s, background .15s;
+  }
+  .ro-input:focus { outline: none; border-color: var(--primary); background: var(--primary-soft); }
+  /* Note / comment textarea. */
+  .ro-note {
+    height: auto; min-height: 54px; padding: 9px 11px; resize: vertical;
+    line-height: 1.4; font-family: inherit;
+  }
+  /* SKU / EAN rows — label + value (read-only, auto for TigerTag+) or input. */
+  .ro-ref-row { display: flex; align-items: center; gap: 10px; min-height: 34px; }
+  .ro-ref-label { font-size: 11px; font-weight: 700; letter-spacing: .04em; color: var(--muted); width: 40px; flex-shrink: 0; }
+  .ro-ref-val { font-size: 13px; color: var(--text); font-variant-numeric: tabular-nums; word-break: break-all; }
+  .ro-ref-input {
+    flex: 1; min-width: 0; height: 34px; padding: 0 10px;
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 9px;
+    color: var(--text); font-size: 13px;
+  }
+  .ro-ref-input:focus { outline: none; border-color: var(--primary); background: var(--primary-soft); }
+  .ro-derived { font-size: 12px; color: var(--muted); min-height: 15px; font-variant-numeric: tabular-nums; }
+  /* Price shown as read-only text (grows) beside its edit pencil, until edited. */
+  .ro-price-shown {
+    flex: 1; min-width: 0; display: flex; align-items: center;
+    height: 38px; padding: 0 11px; border-radius: 10px;
+    background: var(--surface-2); border: 1px solid var(--border);
+    font-size: 15px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums;
+  }
+  .ro-price-shown--empty { font-size: 13px; font-weight: 600; color: var(--muted); }
+  .ro-hint { font-size: 11px; color: var(--muted); line-height: 1.4; }
+  /* Tags header — title left, edit-tags pencil pushed to the RIGHT (same as the
+     materials side card's `.panel-tags .tags-head`, which is scoped away here). */
+  .ro-panel .tags-head { display: flex; align-items: center; justify-content: space-between; }
+  .ro-panel .tags-head .ro-label { margin: 0; }
+  /* Buy link — the URL itself is never shown. A Shopify button (grey = no link,
+     green = link set → opens the shop) + a pencil that reveals an inline editor. */
+  .ro-shop { display: flex; gap: 8px; align-items: stretch; }
+  /* Without this, `display:flex` beats the UA `[hidden]{display:none}`, so the
+     display row stays visible and the editor opens BELOW it → the layout jumps.
+     With it, the editor swaps in exactly where the button/price was (same size). */
+  .ro-shop[hidden] { display: none; }
+  .ro-shop-btn {
+    flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    height: 38px; border-radius: 10px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--surface-2);
+    color: var(--muted); font-size: 13px; font-weight: 600;
+    transition: background .15s, color .15s, border-color .15s, filter .15s;
+  }
+  .ro-shop-btn .icon { background-color: currentColor; }
+  .ro-shop-btn--active { background: #5e8e3e; border-color: #5e8e3e; color: #fff; } /* Shopify green */
+  .ro-shop-btn--active .icon { background-color: #fff; }
+  .ro-shop-btn--active:hover { filter: brightness(1.06); }
+  .ro-shop-edit {
+    flex-shrink: 0; width: 38px; height: 38px; border-radius: 10px; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border); background: var(--surface-2); color: var(--muted);
+    transition: color .15s, background .15s;
+  }
+  .ro-shop-edit:hover { color: var(--text); background: var(--border); }
+  .ro-shop-edit .icon { background-color: currentColor; }
+  .ro-shop-edit[hidden] { display: none; }
+  .ro-shop-editor { display: flex; gap: 8px; align-items: stretch; }
+  .ro-shop-editor[hidden] { display: none; }
+  .ro-shop-editor .ro-input { flex: 1; min-width: 0; }
+  .ro-shop-ok {
+    flex-shrink: 0; width: 38px; height: 38px; border-radius: 10px; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: none; background: var(--primary); color: #fff;
+  }
+  .ro-shop-ok .icon { background-color: #fff; }
+  .ro-shop-ok:hover { filter: brightness(1.05); }
+  /* Primary save. */
+  .ro-save {
+    width: 100%; height: 40px; border-radius: 10px; margin-top: 2px;
+    background: var(--primary); color: #fff; border: none; cursor: pointer;
+    font-size: 14px; font-weight: 600;
+  }
+  .ro-save:hover { filter: brightness(1.05); }
+  .ro-save-result { min-height: 16px; }
+  .ro-save-result .alert { font-size: 12px; }
+  /* Hold-to-confirm remove (dark sweep so the fill contrasts the light button). */
+  .ro-remove {
+    position: relative; overflow: hidden;
+    display: flex; align-items: center; justify-content: center; gap: 7px;
+    width: 100%; height: 36px; border-radius: 10px; cursor: pointer;
+    background: var(--surface-2); border: 1px solid var(--border);
+    color: var(--danger); font-size: 12.5px; font-weight: 600;
+  }
+  .ro-remove .icon { background-color: var(--danger); }
+  .ro-remove .hold-progress { background: color-mix(in srgb, var(--danger) 26%, transparent); opacity: 1; }
+  .ro-remove[hidden] { display: none; } /* beats .ro-remove{display:flex} */
 
   /* ── Editable TD chip (detail panel print section) ── */
   .temp-chip--editable {

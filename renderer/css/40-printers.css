@@ -2348,9 +2348,11 @@ details[open] .pba-step-chev { transform: rotate(90deg); }
    preview width — the header's default 12px side padding was what kept the
    column wide and left dead space around the thumbnail. */
 .pt-th--jobthumb { padding: 9px 12px; }   /* left-aligned like the other headers */
-/* Minimal vertical padding so the preview grows to (nearly) the full row height
-   set by the Job cell — the thumbnail sits close to the row's top/bottom edges. */
-.pt-td--jobthumb { padding: 1px 12px; }
+/* Breathing room around the preview so it never touches the row's top/bottom
+   edges. A finished job (no progress bar / % / filename) makes a shorter row, so
+   without this the fixed 60px thumbnail nearly fills the short row while it sits
+   comfortably inset on taller "printing" rows — this keeps the margin consistent. */
+.pt-td--jobthumb { padding: 8px 12px; }
 .pt-jobthumb {
   width: 60px; height: 60px; border-radius: 9px;
   background-color: var(--surface-2);

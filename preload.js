@@ -22,6 +22,9 @@ contextBridge.exposeInMainWorld('bambulab', {
   camStartRtsp: (opts) => ipcRenderer.send('bambulab:cam-start-rtsp', opts),
   camStopRtsp:  (key)  => ipcRenderer.send('bambulab:cam-stop-rtsp',  key),
   onCamFrame:   (cb)   => ipcRenderer.on('bambulab:cam-frame', (_, key, buf) => cb(key, buf)),
+  // Fetch the current print's model preview via FTPS + .3mf (PROTOCOL.md §11).
+  // opts = { ip, accessCode, fileHint, plateIdx } → { ok, dataUri } | { ok:false, error }
+  fetchThumbnail: (opts) => ipcRenderer.invoke('bambulab:fetch-thumbnail', opts),
 });
 
 contextBridge.exposeInMainWorld('elegoo', {

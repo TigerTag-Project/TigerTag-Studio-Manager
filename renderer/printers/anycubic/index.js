@@ -406,8 +406,14 @@ async function _acuCloudGetInfo(conn) {
       // The signature changes on every poll even for the same image, so only
       // swap the URL when the underlying object path changes. Otherwise the
       // rendered background-image would reload (visible flicker) each report.
+      // Keep the last preview while the job is still "finished" (show "what just
+      // printed"); only actually drop it once the printer is back to idle/failed.
       const newThumb = info.jobThumb || null;
-      if (_acuThumbPath(newThumb) !== _acuThumbPath(d.printThumb)) d.printThumb = newThumb;
+      if (newThumb) {
+        if (_acuThumbPath(newThumb) !== _acuThumbPath(d.printThumb)) d.printThumb = newThumb;
+      } else if (d.printState === "idle" || d.printState === "failed") {
+        d.printThumb = null;
+      }
       _acuNotify(conn);
     } else if (info && info.authError) {
       _acuCloudRecover(conn);

@@ -262,7 +262,7 @@
         <table>
           <thead>
             <tr>
-              <th class="sel-th"></th>
+              <th class="sel-th"><span class="sel-check sel-check--all" role="checkbox" tabindex="0" aria-label="Select all"></span></th>
               <th></th>
               <th class="sortable" data-sort="isPlus" data-i18n="thType">Type</th>
               <th class="sortable" data-sort="material" data-i18n="thMaterial">Material</th>
@@ -287,8 +287,10 @@
       <!-- Floating bulk-action bar — appears in multi-select mode once ≥1 spool
            is selected. Delete is a press-and-hold (hard delete, irreversible). -->
       <div id="bulkBar" class="bulk-bar hidden">
-        <button id="bulkSelectAll" class="bulk-btn" type="button" data-i18n="bulkSelectAll">Select all</button>
-        <button id="bulkClear" class="bulk-btn" type="button" data-i18n="bulkClear">Clear</button>
+        <button id="bulkTags" class="bulk-btn" type="button">
+          <span class="icon icon-edit icon-13"></span>
+          <span data-i18n="bulkTags">Tags</span>
+        </button>
         <button id="bulkDelete" class="bulk-btn bulk-btn--danger" type="button">
           <span class="hold-progress"></span>
           <span class="icon icon-trash icon-13"></span>
@@ -1445,7 +1447,7 @@
       <div class="td-edit-result-vals">
         <div class="td-edit-result-row">
           <span class="td-edit-result-lbl">HEX Code</span>
-          <input type="text" id="tdEditHexInput" class="td-edit-val-input" placeholder="—" maxlength="7" spellcheck="false">
+          <input type="text" id="tdEditHexInput" class="td-edit-val-input" placeholder="—" maxlength="7" spellcheck="false" readonly>
         </div>
         <div class="td-edit-result-row">
           <span class="td-edit-result-lbl">TD Value</span>
@@ -1453,10 +1455,17 @@
         </div>
       </div>
       <div class="td-edit-save-row">
-        <button class="btn ghost td-edit-save-half" id="tdEditBtnTdOnly" data-i18n="btnTdOnly">TD Only</button>
-        <button class="btn primary td-edit-save-half" id="tdEditBtnAll" data-i18n="btnSaveAll">All</button>
+        <button class="btn primary td-edit-save-half" id="tdEditBtnTdOnly" data-i18n="btnUpdate">Update</button>
       </div>
     </div>
+
+    <!-- Shared footer (both states): remove the TD value entirely. Hold to
+         confirm; only shown when the spool currently has a TD to clear. -->
+    <button class="btn ghost td-edit-clear td-edit-hidden" id="tdEditClearBtn" type="button">
+      <span class="hold-progress"></span>
+      <span class="icon icon-trash icon-13"></span>
+      <span data-i18n="toolClearTd">Clear TD value</span>
+    </button>
 
   </div>
 </div>
@@ -1698,6 +1707,17 @@
         <option value="pt-pt">Português (PT)</option>
         <option value="zh">中文</option>
       </select>
+      <!-- country (drives VAT rate + currency for filament reorder prices) — auto-saves -->
+      <div class="eac-field-label" data-i18n="vatCountryLabel" style="margin-top:12px">Country</div>
+      <select class="lang-select" id="vatCountrySelect"></select>
+      <div class="eac-field-hint" data-i18n="vatCountryHint">Sets your VAT rate and currency for filament prices.</div>
+      <!-- price entry mode (HT vs TTC) — how the user types prices; stored value is always HT -->
+      <div class="eac-field-label" data-i18n="priceInputLabel" style="margin-top:12px">Price entry</div>
+      <div class="eac-seg" id="eacPriceMode" role="tablist">
+        <button type="button" class="eac-seg-btn" data-mode="HT" data-i18n="reorderHT">excl. tax</button>
+        <button type="button" class="eac-seg-btn" data-mode="TTC" data-i18n="reorderTTC">incl. tax</button>
+      </div>
+      <div class="eac-field-hint" data-i18n="priceInputHint">Type prices this way — we always store them tax-free and add tax for your country.</div>
       <!-- debug toggle (admin only) -->
       <div class="eac-debug-row hidden" id="eacDebugRow">
         <span class="eac-debug-label">
@@ -1903,6 +1923,18 @@
     <input id="containerPickerSearch" class="cp-search" type="search" data-i18n-placeholder="searchPlaceholder" placeholder="Search…" />
   </div>
   <div id="containerPickerList" class="cp-list"></div>
+</div>
+
+<!-- Reorder / buy-link side card — tucks to the LEFT of the spool detail card.
+     Its content (buy link + price HT/TTC + min-stock) is rendered by JS from the
+     per-product-identity `products` table, so it applies to every identical spool. -->
+<button class="pp-close-tab" id="reorderCloseTab" title="Close" aria-label="Close" hidden>»</button>
+<div class="detail-panel ro-panel" id="reorderPanel">
+  <div class="panel-header">
+    <span class="panel-title" data-i18n="reorderPanelTitle">Product info</span>
+    <button class="panel-close" id="reorderPanelClose" aria-label="Close">✕</button>
+  </div>
+  <div class="panel-body" id="reorderPanelBody"></div>
 </div>
 
 <!-- Friend request incoming modal -->

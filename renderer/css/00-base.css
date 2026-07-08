@@ -29,6 +29,15 @@
     color: var(--text);
     -webkit-font-smoothing: antialiased;
     line-height: 1.45;
+    /* Native-app feel: the UI is clickable but not text/element-selectable, so
+       clicking or dragging never leaves a blue selection highlight. Content the
+       user genuinely reads/copies stays selectable via the exceptions below
+       (form fields, code/JSON blocks, and anything opted in with `.selectable`). */
+    -webkit-user-select: none; user-select: none;
+  }
+  input, textarea, select, [contenteditable], [contenteditable] *,
+  pre, code, .selectable, .selectable * {
+    -webkit-user-select: text; user-select: text;
   }
 
   /* ── layout ── */

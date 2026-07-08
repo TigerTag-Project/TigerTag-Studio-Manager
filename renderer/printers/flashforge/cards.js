@@ -78,13 +78,15 @@ export function renderFfgJobCard(p, conn) {
   if (conn.status !== "connected") return "";
   const jobState  = d.printState || "idle";
   const isActive  = ffgIsActiveState(jobState);
+  // Just-finished: keep showing the print's thumbnail until it goes back to idle.
+  const isDone    = ["complete", "completed"].includes(jobState);
   const pct       = isActive ? Math.round((d.progress || 0) * 100) : 0;
   const leafName  = isActive && d.printFilename
                   ? String(d.printFilename).split("/").pop()
                   : "";
   const fallbackImg = ctx.printerImageUrlFor(p.brand, p.printerModelId)
                    || ctx.printerImageUrl(ctx.findPrinterModel(p.brand, "0"));
-  const thumbUrl  = (isActive && d.printPreviewUrl) ? d.printPreviewUrl : (fallbackImg || "");
+  const thumbUrl  = ((isActive || isDone) && d.printPreviewUrl) ? d.printPreviewUrl : (fallbackImg || "");
   const layerText = isActive && (d.currentLayer || d.totalLayer)
                   ? `${d.currentLayer || 0}/${d.totalLayer || 0}` : "";
   const timeText = isActive
@@ -234,8 +236,14 @@ export function renderFfgStatusCard(conn) {
   if (typeof fans.cooling === "number") fanCols.push(fanCol("ffgFanCooling", "Fan", fans.cooling));
   if (typeof fans.chamber === "number") fanCols.push(fanCol("ffgFanChamber", "Chamber", fans.chamber));
 
+  // Door chip only for enclosed models — open-frame printers (e.g. AD5X) have no
+  // door yet the firmware still reports `doorStatus: "close"` permanently, which
+  // would otherwise show a bogus "Door closed" badge. Gate on the catalog's
+  // "Enclosed" feature (see data/printers/ffg_printer_models.json).
+  const _model = conn.printer ? ctx.findPrinterModel("flashforge", conn.printer.printerModelId) : null;
+  const _enclosed = Array.isArray(_model?.features) && _model.features.includes("Enclosed");
   let doorChip = "";
-  if (d.doorStatus === "open" || d.doorStatus === "close") {
+  if (_enclosed && (d.doorStatus === "open" || d.doorStatus === "close")) {
     const open = d.doorStatus === "open";
     const lbl = open ? (ctx.t("ffgDoorOpen") || "Door open") : (ctx.t("ffgDoorClosed") || "Door closed");
     doorChip = `

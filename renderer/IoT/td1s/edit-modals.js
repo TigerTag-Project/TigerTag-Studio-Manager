@@ -77,14 +77,38 @@ export function initEditModals(ctx) {
 // ── Public openers ────────────────────────────────────────────────────────
 
 export function openTdEditModal(r) {
-  // The color modal handles both color and TD — redirect there.
-  openColorEditModal(r);
+  // TD-only editor — writes the TD value, never the colour (the colour+TD modal
+  // is openColorEditModal, used for filament creation / colour scanning). The
+  // HEX shown here is display-only, echoing what the sensor reads.
+  const { $, state } = _ctx;
+  _tdEditRow = r; _tdEditWaiting = false; _tdEditData = null;
+
+  // Prefill: manual TD (State 1) + State 2 circle/hex/TD from current spool values
+  // (a TD1S scan overrides State 2 when it fires).
+  const firstHex = (r.colorList && r.colorList[0]) || r.colorHex || "";
+  const hex6 = String(firstHex).replace(/^#/, "").slice(0, 6).toUpperCase();
+  const okHex = /^[0-9A-F]{6}$/.test(hex6);
+  const mi = $("tdEditManualInput"); if (mi) mi.value = r.td != null ? r.td : "";
+  const ci = $("tdEditCircle");   if (ci) ci.style.background = okHex ? `#${hex6}` : "#2a2a2a";
+  const hi = $("tdEditHexInput"); if (hi) hi.value = okHex ? `#${hex6}` : "";
+  const ti = $("tdEditTdInput");  if (ti) ti.value = r.td != null ? r.td : "";
+
+  // "Clear TD value" footer — only when there's actually a TD to remove.
+  const clr = $("tdEditClearBtn");
+  if (clr) { clr.classList.toggle("td-edit-hidden", r.td == null); clr.classList.remove("is-holding", "is-confirming"); }
+
+  $("tdEditModalOverlay").classList.add("open");
+  window.td1s?.need();
+  _setEditState(_tdIds, state.td1sConnected ? "waiting" : "disconnected");
+  if (state.td1sConnected) _tdEditWaiting = true;
 }
 
 export function closeTdEditModal() {
   const { $, t } = _ctx;
   _tdEditRow = _tdEditData = null; _tdEditWaiting = false;
-  [$("tdEditBtnTdOnly"), $("tdEditBtnAll"), $("tdEditManualSaveBtn")].forEach(b => { if (b) b.disabled = false; });
+  [$("tdEditBtnTdOnly"), $("tdEditManualSaveBtn")].forEach(b => { if (b) b.disabled = false; });
+  const clr = $("tdEditClearBtn");
+  if (clr) { clr.classList.remove("is-holding", "is-confirming"); const f = clr.querySelector(".hold-progress"); if (f) { f.style.transition = "width 0s"; f.style.width = "0%"; } }
   $("tdEditModalOverlay").classList.remove("open");
   ["tdEditManualInput", "tdEditHexInput", "tdEditTdInput"].forEach(id => { const el = $(id); if (el) el.value = ""; });
   const c = $("tdEditCircle"); if (c) c.style.background = "#2a2a2a";
@@ -335,19 +359,7 @@ function _tdEditSaveTdOnly() {
   const tdVal = _tdValClamp($("tdEditTdInput")?.value);
   if (tdVal === null) { $("tdEditTdInput")?.focus(); return; }
   _saveTdHex(_tdEditRow, { TD: tdVal, last_update: Date.now() },
-    [$("tdEditBtnTdOnly"), $("tdEditBtnAll")], [$("tdEditBtnTdOnly"), $("tdEditBtnAll")],
-    closeTdEditModal, "TD edit");
-}
-
-function _tdEditSaveAll() {
-  const { $ } = _ctx;
-  const tdVal = _tdValClamp($("tdEditTdInput")?.value);
-  if (tdVal === null) { $("tdEditTdInput")?.focus(); return; }
-  const hexVal = _readHex("tdEditHexInput");
-  const update = { TD: tdVal, last_update: Date.now() };
-  if (hexVal) update.online_color_list = [hexVal];
-  _saveTdHex(_tdEditRow, update,
-    [$("tdEditBtnTdOnly"), $("tdEditBtnAll")], [$("tdEditBtnTdOnly"), $("tdEditBtnAll")],
+    [$("tdEditBtnTdOnly")], [$("tdEditBtnTdOnly")],
     closeTdEditModal, "TD edit");
 }
 
@@ -578,8 +590,15 @@ function _wireListeners() {
   // ── TD Edit modal ──────────────────────────────────────────────────────
   $("tdEditClose").addEventListener("click", closeTdEditModal);
   $("tdEditBtnTdOnly").addEventListener("click", _tdEditSaveTdOnly);
-  $("tdEditBtnAll").addEventListener("click", _tdEditSaveAll);
   $("tdEditManualSaveBtn").addEventListener("click", _tdEditSaveManual);
+  // "Clear TD value" footer — hold-to-confirm (helper + clear callback come from
+  // inventory.js via ctx). Removes the TD entirely, then closes the modal.
+  if ($("tdEditClearBtn") && _ctx.setupHoldToConfirm) {
+    _ctx.setupHoldToConfirm($("tdEditClearBtn"), 1200, () => {
+      const row = _tdEditRow;
+      Promise.resolve(_ctx.clearTd?.(row)).finally(() => closeTdEditModal());
+    });
+  }
   $("tdEditManualInput").addEventListener("keydown", e => _blockBadKeys(e, _tdEditSaveManual));
   $("tdEditManualInput").addEventListener("blur",  () => _tdClampInput($("tdEditManualInput")));
   $("tdEditManualInput").addEventListener("input", () => _tdClampLive($("tdEditManualInput")));

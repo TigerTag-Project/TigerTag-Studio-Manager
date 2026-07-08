@@ -62,6 +62,8 @@ export function renderElegooJobCard(p, conn) {
   if (conn.status !== 'connected') return '';
   const jobState = d.printState || 'standby';
   const isActive = elgIsActiveState(jobState) || elgIsPaused(jobState);
+  // Just-finished: keep showing the print's thumbnail until it goes to standby.
+  const isDone   = ['complete', 'completed'].includes(jobState);
   // Force 0 % during prep/heating or bed leveling — printProgress can still hold stale data.
   const pct = (jobState === 'heating' || jobState === 'preparing' || (d.bedMeshDetect && !(d.printLayerCur > 0)))
     ? 0
@@ -71,7 +73,7 @@ export function renderElegooJobCard(p, conn) {
     : '';
   const fallbackImg = ctx.printerImageUrlFor(p.brand, p.printerModelId)
                    || ctx.printerImageUrl(ctx.findPrinterModel(p.brand, '0'));
-  const thumbUrl = (isActive && d.thumbnail) ? d.thumbnail : (fallbackImg || '');
+  const thumbUrl = ((isActive || isDone) && d.thumbnail) ? d.thumbnail : (fallbackImg || '');
   const layerText = isActive && (d.printLayerCur || d.printLayerTotal)
     ? `${d.printLayerCur || 0}/${d.printLayerTotal || '?'}`
     : '';

@@ -11,13 +11,15 @@ export function renderSnapJobCard(p, conn) {
   if (conn.status !== "connected") return "";
   const jobState  = d.printState || "standby";
   const isActive  = !["standby", "complete", "cancelled"].includes(jobState);
+  // Just-finished: keep showing the print's thumbnail until it goes to standby.
+  const isDone    = jobState === "complete";
   const pct       = isActive ? Math.round(((d.progress || 0) * 100)) : 0;
   const leafName  = isActive && d.printFilename
                   ? ctx.snapFilenameRel(d.printFilename).split("/").pop()
                   : "";
   const fallbackImg = ctx.printerImageUrlFor(p.brand, p.printerModelId)
                    || ctx.printerImageUrl(ctx.findPrinterModel(p.brand, "0"));
-  const thumbUrl  = (isActive && d.printPreviewUrl) ? d.printPreviewUrl : (fallbackImg || "");
+  const thumbUrl  = ((isActive || isDone) && d.printPreviewUrl) ? d.printPreviewUrl : (fallbackImg || "");
   const layerText = isActive && (d.currentLayer || d.totalLayer)
                   ? `${d.currentLayer || 0}/${d.totalLayer || 0}` : "";
   const durationText = isActive ? ctx.snapFmtDuration(d.printDuration) : "0m";
