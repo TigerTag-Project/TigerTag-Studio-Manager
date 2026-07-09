@@ -178,6 +178,7 @@
           <div class="vtg-group">
             <span class="vtg-label"><span data-i18n="viewGroupInventory">Inventory</span></span>
             <div class="view-toggle">
+              <span class="view-toggle-ind" aria-hidden="true"></span>
               <button id="btnViewGrid" data-i18n="btnViewGrid">⊞ Grid</button>
               <button id="btnViewTable" class="active"><span class="icon icon-list icon-13"></span><span data-i18n="btnViewTable">Table</span></button>
               <button id="btnViewRack"><span class="icon icon-package icon-13"></span><span data-i18n="btnViewRack">Storage</span></button>
@@ -187,15 +188,17 @@
           <div class="vtg-group" id="vtgProducts">
             <span class="vtg-label"><span data-i18n="viewGroupFavorites">Favorites</span></span>
             <div class="view-toggle">
+              <span class="view-toggle-ind" aria-hidden="true"></span>
               <button id="btnViewFavesGrid" data-i18n="btnViewGrid">⊞ Grid</button>
               <button id="btnViewFavesTable"><span class="icon icon-list icon-13"></span><span data-i18n="btnViewTable">Table</span></button>
-              <button id="btnViewOrder"><span class="icon icon-shopify icon-13"></span><span data-i18n="btnViewOrder">To order</span></button>
+              <button id="btnViewOrder"><span class="icon icon-cart icon-13"></span><span data-i18n="btnViewOrder">To order</span></button>
             </div>
           </div>
           <span class="vtg-sep" id="vtgSep" aria-hidden="true"></span>
           <div class="vtg-group" id="vtgPrinters">
             <span class="vtg-label"><span data-i18n="viewGroupPrinters">Printers</span></span>
             <div class="view-toggle vtg-printers">
+              <span class="view-toggle-ind" aria-hidden="true"></span>
               <button id="btnViewPrinter" data-i18n="btnViewGrid">⊞ Grid</button>
               <button id="btnViewPrinterTable"><span class="icon icon-list icon-13"></span><span data-i18n="btnViewTable">Table</span></button>
               <button id="btnViewCam"><span class="icon icon-eye-on icon-13"></span><span data-i18n="btnViewCam">Cam</span></button>
@@ -306,6 +309,17 @@
       <!-- Floating bulk-action bar — appears in multi-select mode once ≥1 spool
            is selected. Delete is a press-and-hold (hard delete, irreversible). -->
       <div id="bulkBar" class="bulk-bar hidden">
+        <!-- ★ Favorite / ❤ Love (materials selection): icon-only toggles styled
+             like the .flag-toggle in the Materials side card — filled when the
+             whole selection already carries the flag, outline otherwise; a click
+             adds OR removes it on every selected spool's product. In a friend view
+             these are the ONLY actions (they import into your own products). -->
+        <button id="bulkLike" class="bulk-flag flag-toggle flag-toggle--wish" type="button" data-i18n-title="bulkLike" title="Love" aria-label="Love" aria-pressed="false">
+          <span class="icon icon-heart icon-16"></span>
+        </button>
+        <button id="bulkFavorite" class="bulk-flag flag-toggle flag-toggle--like" type="button" data-i18n-title="bulkFavorite" title="Favorite" aria-label="Favorite" aria-pressed="false">
+          <span class="icon icon-star icon-16"></span>
+        </button>
         <button id="bulkTags" class="bulk-btn" type="button">
           <span class="icon icon-edit icon-13"></span>
           <span data-i18n="bulkTags">Tags</span>

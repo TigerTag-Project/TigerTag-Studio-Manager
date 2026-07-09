@@ -702,6 +702,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // The printer filter options (State labels, brand names) aren't data-i18n,
     // so re-localise them here on a language switch while the printer view is up.
     if (_isPrinterMode(state.viewMode) && state.viewMode !== "printer-cam") populatePrinterFilters();
+    // Button labels just changed width → re-fit the view-selector bubble (instant).
+    _positionViewIndicators?.(true);
   }
   // The search box serves several views — point its placeholder at what the
   // current view actually searches (printers vs materials).
@@ -3022,6 +3024,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   $("bulkExit")?.addEventListener("click", _exitSelectMode);
   $("bulkTags")?.addEventListener("click", _openBulkTags);
   setupHoldToConfirm($("bulkDelete"), 1500, () => { _bulkCtx().del().catch(e => reportError("bulk.delete", e)); });
+  // Bulk ★ Favorite / ❤ Love (materials selection; also the only bulk actions in a friend view).
+  $("bulkFavorite")?.addEventListener("click", () => _bulkApplyFlag("favorite").catch(e => reportError("bulk.favorite", e)));
+  $("bulkLike")?.addEventListener("click", () => _bulkApplyFlag("liked").catch(e => reportError("bulk.like", e)));
   // Bulk price (Products context only): one price applied to every selected product.
   $("bulkPrice")?.addEventListener("click", _bulkEnterPriceMode);
   $("bulkPriceCancel")?.addEventListener("click", _bulkExitPriceMode);
@@ -3710,24 +3715,21 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     $("editAccountModalOverlay").classList.remove("open");
   }
   // avatar dropdown
-  $("sbAvatar").addEventListener("click", e => {
-    e.stopPropagation();
-    if ($("sbUser").classList.contains("sb-user--empty")) {
-      openAddAccountModal();
-      return;
-    }
-    // When the user is currently viewing a friend's inventory, the avatar
-    // acts as a one-click "return to my own inventory" shortcut. The swap
-    // badge overlay (.sb-avatar-swap) is the visual hint — the whole tile
-    // is clickable and toggles back to ownership in a single tap.
+  // Clicking my identity in the sidebar (avatar OR pseudo — the whole "display"):
+  //  • no account yet → add-account modal
+  //  • viewing a friend → one-click return to my own inventory
+  //  • otherwise → toggle my account dropdown (switch account / profile / logout)
+  function _onSidebarIdentityClick() {
+    if ($("sbUser").classList.contains("sb-user--empty")) { openAddAccountModal(); return; }
     if (state.friendView) {
-      // Make sure no dropdown is left half-open after the swap.
       if ($("acctDropdown").classList.contains("open")) closeAccountDropdown();
       switchBackToOwnView();
       return;
     }
     $("acctDropdown").classList.contains("open") ? closeAccountDropdown() : openAccountDropdown();
-  });
+  }
+  $("sbAvatar").addEventListener("click", e => { e.stopPropagation(); _onSidebarIdentityClick(); });
+  $("sbName")?.addEventListener("click", e => { e.stopPropagation(); _onSidebarIdentityClick(); });
   // Pick → crop → upload the active account's avatar, then refresh the header.
   // Reached from the account menu's "Add/Change photo" item — lets users set an
   // avatar straight from the top-left without opening the edit-account modal.
@@ -5066,7 +5068,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // Common handler called when a named-instance user session becomes active.
   // uid must equal user.uid and be the current active account.
   async function handleSignedIn(user, uid) {
-    unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeFriends(); unsubscribeNotifications(); unsubscribeRacks(); unsubscribeScales(); unsubscribePrinters(); unsubscribeProducts();
+    unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeFriends(); unsubscribeNotifications(); unsubscribeRacks(); unsubscribeScales(); unsubscribePrinters(); unsubscribeProducts(); unsubscribeFriendShares();
     // CRITICAL — drop the previous account's racks immediately. `state.racks`
     // is derived per-account state that (unlike the inventory/racks SNAPSHOTS,
     // which are account-guarded) leaks across an account switch: it keeps the
@@ -5202,7 +5204,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         if (uid === getActiveId()) await handleSignedIn(user, uid);
       } else if (uid === getActiveId()) {
         // Active account's session expired → show login
-        unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeFriends(); unsubscribeNotifications(); unsubscribeRacks(); unsubscribeScales(); unsubscribePrinters(); unsubscribeProducts();
+        unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeFriends(); unsubscribeNotifications(); unsubscribeRacks(); unsubscribeScales(); unsubscribePrinters(); unsubscribeProducts(); unsubscribeFriendShares();
         state.inventory = null; state.rows = [];
         state.isAdmin = false; state.debugEnabled = false;
         state.publicKey = null; state.privateKey = null;
@@ -5377,7 +5379,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // Sign out the named instance so its IndexedDB session is cleared
     try { firebase.app(id).auth().signOut(); } catch (_) {}
     if (wasActive) {
-      unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeFriends(); unsubscribeNotifications(); unsubscribeRacks(); unsubscribeScales(); unsubscribePrinters(); unsubscribeProducts();
+      unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeFriends(); unsubscribeNotifications(); unsubscribeRacks(); unsubscribeScales(); unsubscribePrinters(); unsubscribeProducts(); unsubscribeFriendShares();
       state.inventory = null; state.rows = [];
       state.isAdmin = false; state.debugEnabled = false;
       state.publicKey = null; state.privateKey = null;
@@ -6484,17 +6486,38 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const items = [];
     if (p.liked)    items.push(`<span class="prod-badge prod-badge--wish" title="${esc(t("productLike"))}"><span class="icon icon-heart-fill ${sz}"></span></span>`);
     if (p.favorite) items.push(`<span class="prod-badge prod-badge--like" title="${esc(t("productFavorite"))}"><span class="icon icon-star-fill ${sz}"></span></span>`);
-    if (p.buyUrl)   items.push(`<span class="prod-badge prod-badge--shop" title="${esc(t("reorderHasLink"))}"><span class="icon icon-shopify ${sz}"></span></span>`);
+    if (p.buyUrl)   items.push(`<span class="prod-badge prod-badge--shop" title="${esc(t("reorderHasLink"))}"><span class="icon icon-cart ${sz}"></span></span>`);
     return items.length ? `<div class="prod-badges${compact ? " prod-badges--sm" : ""}">${items.join("")}</div>` : "";
   }
 
   // How many non-deleted spools the user currently owns that share this
   // product identity — i.e. the "current stock" the min-stock target is
   // compared against. Counts rows, not weight.
+  // Count PHYSICAL spools among `rows`: a twin pair (two RFID chips for ONE
+  // physical spool) must count ONCE, not twice. Mirrors deduplicateTwins' pairing
+  // (match twinUid against a partner's uid/spoolId) without mutating the rows.
+  // `rows` should already be filtered to a single product + non-deleted.
+  function _countPhysicalSpools(rows) {
+    const skip = new Set();
+    let n = 0;
+    for (const row of rows) {
+      if (skip.has(row.spoolId)) continue;
+      n++;
+      if (row.twinUid) {
+        const tw = String(row.twinUid);
+        const partner = rows.find(r => !skip.has(r.spoolId) && r.spoolId !== row.spoolId
+          && (String(r.uid) === tw || String(r.spoolId) === tw));
+        if (partner) skip.add(partner.spoolId);
+      }
+      skip.add(row.spoolId);
+    }
+    return n;
+  }
   function _filamentStockCount(r) {
     if (!r) return 0;
     const key = _spoolGroupKey(r);
-    return (state.rows || []).filter(row => !row.deleted && _spoolGroupKey(row) === key).length;
+    const rows = (state.rows || []).filter(row => !row.deleted && _spoolGroupKey(row) === key);
+    return _countPhysicalSpools(rows);
   }
 
   // Create / update / clear a spool's filament link. `patch` holds the
@@ -6529,9 +6552,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   async function _writeProduct(r, patch) {
     const uid = getActiveId();
     if (!uid || !r) return;
+    const hash = _productKeyHash(r);
     const ref = fbDb(uid).collection("users").doc(uid)
-      .collection("products").doc(_productKeyHash(r));
-    if (patch === null) { try { await ref.delete(); } catch (e) { console.warn("[products] delete failed:", e); } return; }
+      .collection("products").doc(hash);
+    if (patch === null) {
+      try { await ref.delete(); } catch (e) { console.warn("[products] delete failed:", e); }
+      _syncProductShare(hash, { sku: "", ean: "", buyUrl: "", buyPriceHt: null, favorite: false, liked: false });   // drop the shared slice too
+      return;
+    }
     patch = _coupleFlags(patch);
     // Optimistic local patch for the coupled fields so ❤/★ + min reflect instantly.
     const _rec = state.products[_productKeyHash(r)];
@@ -6573,6 +6601,62 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if ("importedFrom" in patch && patch.importedFrom) doc.importedFrom = patch.importedFrom;
     try { await ref.set(doc, { merge: true }); }
     catch (e) { console.warn("[products] write failed:", e); }
+    // Mirror favorites + price/link/SKU-EAN to the friend-readable slice. Pass the
+    // row's key+label so a brand-new favorite (no local record yet) still shares them.
+    _syncProductShare(hash, patch, { key: _spoolGroupKey(r), label: _productLabel(r) });
+  }
+
+  // The slice of a product that is shared with friends (NEVER the note or the
+  // favorite/love flags). Kept in a separate `productShares/{keyHash}` collection
+  // because a Firestore read is all-or-nothing per doc — the private /products doc
+  // stays owner-only, this projection is friend/public-readable (see backend rules).
+  // A share doc is (re)written whenever any of these change; it is REMOVED when
+  // the product is neither a favorite/love NOR carries a price / link / manual code.
+  const PRODUCT_SHARE_KEYS = ["sku", "ean", "buyUrl", "buyPriceHt", "favorite", "liked"];
+  // Mirror the shareable slice to `productShares/{hash}`, merging `patch` over the
+  // current product. Carries the public FAVORITE state (favorite/liked) + the label
+  // needed to render it, plus the shared price / buy link / manual SKU-EAN. Pass
+  // patch null to re-derive fully (backfill). `extra` supplies {key,label} for a
+  // brand-new product whose local record isn't populated yet. No-op while viewing a
+  // friend — we only ever write our OWN account.
+  async function _syncProductShare(hash, patch, extra) {
+    const uid = getActiveId();
+    if (!uid || !hash || state.friendView) return;
+    if (patch && !PRODUCT_SHARE_KEYS.some(k => k in patch)) return;   // nothing shareable changed
+    const cur = state.products[hash] || {};
+    const pick = k => (patch && k in patch) ? patch[k] : cur[k];
+    const favorite = !!pick("favorite");
+    const liked    = !!pick("liked");
+    const sku    = (pick("sku") || "").toString().trim();
+    const ean    = (pick("ean") || "").toString().trim();
+    const buyUrl = (pick("buyUrl") || "").toString().trim();
+    const rawP   = pick("buyPriceHt");
+    const price  = (rawP == null || rawP === "" || !Number.isFinite(+rawP)) ? null : Math.round(+rawP * 10000) / 10000;
+    const key    = (extra && extra.key)   || cur.key   || null;
+    const label  = (extra && extra.label) || cur.label || null;
+    const share  = fbDb(uid).collection("users").doc(uid).collection("productShares").doc(hash);
+    try {
+      if (!(favorite || liked || sku || ean || buyUrl || price != null)) { await share.delete(); return; }
+      const doc = { favorite, liked, sku, ean, buyUrl, buyPriceHt: price, updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
+      if (key)   doc.key = key;
+      if (label) doc.label = label;
+      await share.set(doc);
+    } catch (e) { console.warn("[productShares] sync failed:", e); }
+  }
+  // One-time (per session) backfill: products created before productShares existed
+  // have no share doc, so friends couldn't see their favorites / price / link.
+  // Upsert a share for every own product that is a favorite/love or carries a
+  // shareable field.
+  let _sharesBackfilled = false;
+  function _backfillProductShares() {
+    if (_sharesBackfilled || state.friendView) return;
+    _sharesBackfilled = true;
+    Object.keys(state.products || {}).forEach(hash => {
+      const p = state.products[hash]; if (!p) return;
+      const has = p.favorite || p.liked || (p.sku || "").trim() || (p.ean || "").trim()
+        || (p.buyUrl || "").trim() || (p.buyPriceHt != null && Number.isFinite(+p.buyPriceHt));
+      if (has) _syncProductShare(hash, null);
+    });
   }
 
   // Strip spool-instance fields from a chip's raw data, keeping only what's needed
@@ -6601,6 +6685,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         const map = {};
         snap.docs.forEach(d => { map[d.id] = { id: d.id, ...d.data() }; });
         state.products = map;
+        _backfillProductShares();   // one-time: expose existing prices/links to friends
         // A link change can flip the Shopify badge on visible spools + the
         // "Reorder" toolbox row of the open detail — repaint cheaply.
         if (!_isPrinterMode(state.viewMode)) scheduleRender("inventory", renderInventory);
@@ -6618,6 +6703,47 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     }
     state.unsubProducts = null;
     state.products = {};
+  }
+
+  // Live-read a friend's SHARED product slices (price / buy link / manual SKU-EAN)
+  // while viewing their inventory, keyed by product keyHash. Only the friend-readable
+  // `productShares` collection is touched — their private /products stays invisible.
+  function subscribeFriendShares(uid) {
+    unsubscribeFriendShares();
+    if (!uid) return;
+    state.unsubFriendShares = fbDb(uid)
+      .collection("users").doc(uid)
+      .collection("productShares")
+      .onSnapshot(snap => {
+        if (state.friendView?.uid !== uid) return;
+        const m = {};
+        snap.docs.forEach(d => { m[d.id] = { id: d.id, ...d.data() }; });
+        state.friendShares = m;
+        _maybeRefreshPanelForCard?.();   // fill price / link into the open friend material card
+        if (_isProductsMode(state.viewMode)) renderProductsView();   // live-refresh the friend's favorites view
+      }, err => console.warn("[friendShares]", err?.code, err?.message));
+  }
+  function unsubscribeFriendShares() {
+    if (typeof state.unsubFriendShares === "function") { try { state.unsubFriendShares(); } catch (_) {} }
+    state.unsubFriendShares = null;
+    state.friendShares = {};
+  }
+  // The current friend's shared slice for a row (null outside friend view).
+  function _friendShareFor(r) {
+    if (!state.friendView || !r) return null;
+    return (state.friendShares || {})[_productKeyHash(r)] || null;
+  }
+  // When importing a friend's material (favoriting it), carry over their shared
+  // price / buy link / manual SKU-EAN into the write patch — but only fields I
+  // don't already have (never clobber my own edits), and only SKU/EAN the chip
+  // doesn't already provide.
+  function _carryFriendShare(r, patch, cur) {
+    const s = _friendShareFor(r);
+    if (!s) return;
+    if (s.buyUrl && !(cur.buyUrl || "").trim()) patch.buyUrl = String(s.buyUrl);
+    if (s.buyPriceHt != null && Number.isFinite(+s.buyPriceHt) && cur.buyPriceHt == null) patch.buyPriceHt = +s.buyPriceHt;
+    if (s.sku && !(cur.sku || "").trim() && !r.sku)     patch.sku = String(s.sku);
+    if (s.ean && !(cur.ean || "").trim() && !r.barcode) patch.ean = String(s.ean);
   }
 
   // In-memory set of expanded group keys (collapsed by default, not persisted).
@@ -7061,12 +7187,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         infoBtn.type = "button";
         infoBtn.className = "gp-reorder-btn";
         infoBtn.innerHTML = `<span class="icon icon-info icon-14"></span><span>${esc(t("toolReorder"))}</span>`;
-        infoBtn.addEventListener("click", () => openReorderPanel(g.rep));
+        infoBtn.addEventListener("click", () => _toggleReorderPanel(g.rep));
         row.appendChild(infoBtn);
         const buyBtn = document.createElement("button");
         buyBtn.type = "button";
         buyBtn.className = "gp-reorder-btn gp-reorder-btn--buy" + (_hasBuyLink(g.rep) ? "" : " gp-reorder-btn--disabled");
-        buyBtn.innerHTML = `<span class="icon icon-shopify icon-14"></span><span>${esc(t("toolReorderBuy"))}</span>`;
+        buyBtn.innerHTML = `<span class="icon icon-cart icon-14"></span><span>${esc(t("toolReorderBuy"))}</span>`;
         buyBtn.addEventListener("click", () => {
           const url = _getProduct(g.rep)?.buyUrl;
           if (url) window.electronAPI?.openExternal(_normalizeBuyUrl(url));
@@ -7391,7 +7517,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // re-render (entering select mode expands group members, which would otherwise
   // push the clicked row down out of view).
   function _enterSelectMode(focusId, anchorTop) {
-    if (state.friendView) return;   // read-only — nothing to delete
+    // Allowed in a friend view too — there the only bulk actions are ★/❤ (which
+    // import into MY own products); delete/tags/price are hidden (see _updateBulkBar).
     state.bulkSelect = true;
     document.body.classList.add("bulk-select-mode");
     document.querySelectorAll(".js-select-toggle").forEach(b => b.classList.add("active"));
@@ -7592,8 +7719,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // have no price.
     bar.classList.toggle("is-products", !!ctx.products);
     bar.classList.toggle("is-materials", !ctx.products && !ctx.printers);
+    // Friend view: only ★/❤ (import) actions on the FRIEND's materials — tags /
+    // price / delete hidden. Doesn't apply to the viewer's OWN favorites table
+    // (products context), which stays fully editable even while in a friend view.
+    bar.classList.toggle("is-friendview", !!state.friendView && !ctx.products);
     if (!show || ctx.printers) bar.classList.remove("is-pricing");   // never leave the price editor stranded
     _syncSelAllHeader();
+    _syncBulkFlagButtons();   // reflect the selection's aggregate ★/❤ state on the toggles
   }
   // Called after any selection toggle: refresh the bar and, if the current
   // context's set is now empty, leave select mode entirely (no lingering mode).
@@ -7606,7 +7738,6 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // deselect them if they're all already selected. Entering select mode for
   // materials rebuilds ungrouped, so re-fetch the context afterwards.
   function _toggleSelectAllVisible() {
-    if (state.friendView) return;                    // read-only
     const c0 = _bulkCtx();
     const keys0 = c0.visibleKeys();
     if (!keys0.length) return;
@@ -7770,6 +7901,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     return list.length;
   }
   async function _bulkDeleteSelected() {
+    if (state.friendView) return;                    // never delete a friend's spools
     if (!state.selectedSpools.size) return;
     await _hardDeleteSpoolIds(state.selectedSpools);
     _exitSelectMode();
@@ -7855,7 +7987,36 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     $("card-inv")?.classList.toggle("is-cam-view", _camView);
     const _detachTop = $("camWallDetachTop");
     if (_detachTop) _detachTop.hidden = !(_camView && window.electronAPI?.openCamWindow && !state.friendView);
+    // Slide the selection bubble to the newly-active button (instant on the very
+    // first call so it doesn't animate in from the left on load).
+    const _firstFit = !_vtiReady;
+    _positionViewIndicators(_firstFit);
+    _vtiReady = true;
+    if (_firstFit) requestAnimationFrame(() => _positionViewIndicators(true));  // re-fit once layout settles
   }
+  // Sliding selection bubble in the main view selector. For each segment, size +
+  // move its `.view-toggle-ind` onto the active button; hide it in the inactive
+  // segments (only one segment holds the current view). Measured from live layout
+  // so it copes with variable button widths + i18n label changes.
+  let _vtiReady = false;
+  function _positionViewIndicators(instant) {
+    document.querySelectorAll(".view-toggle-groups .view-toggle").forEach(tg => {
+      const ind = tg.querySelector(".view-toggle-ind");
+      if (!ind) return;
+      const active = tg.querySelector("button.active");
+      if (instant) ind.classList.add("vti-instant");
+      if (active && active.offsetWidth) {
+        ind.style.width = active.offsetWidth + "px";
+        ind.style.transform = "translateX(" + active.offsetLeft + "px)";
+        ind.style.opacity = "1";
+      } else {
+        ind.style.opacity = "0";   // segment has no active view → bubble hidden
+      }
+      if (instant) { void ind.offsetWidth; ind.classList.remove("vti-instant"); }  // reflow, re-enable transition
+    });
+  }
+  // Reposition (instant) when button widths change: language switch + window resize.
+  window.addEventListener("resize", () => _positionViewIndicators(true));
   // Detach (top, cam view) → pop the camera wall into its own window.
   $("camWallDetachTop")?.addEventListener("click", () => {
     try { window.electronAPI?.openCamWindow(_serializeCamerasForDetach()); } catch (_) {}
@@ -7883,7 +8044,19 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const line = e.target.closest(".pv-item[data-hash]");
     if (!line) return;
     const hash = line.dataset.hash, key = line.dataset.key;
-    const p = state.products[hash];
+    const p = state.friendView ? (state.friendShares || {})[hash] : state.products[hash];
+    // Friend view = READ-ONLY: a buy button opens the friend's shop link; any other
+    // click opens the friend's material (grouped deck) when they have it in stock.
+    // No selection / edit / remove.
+    if (state.friendView) {
+      if (e.target.closest(".pv-buy")) {
+        if (p?.buyUrl) window.electronAPI?.openExternal(_normalizeBuyUrl(p.buyUrl));
+        return;
+      }
+      const liveRows = (state.rows || []).filter(x => !x.deleted && _spoolGroupKey(x) === key);
+      if (liveRows.length >= 1) _openGroupPanel(key, { keepSingletons: true });
+      return;
+    }
     // Selection checkbox column → toggle this product (first tick enters select mode).
     if (e.target.closest(".sel-cell")) { _selCellClickProduct(hash, e.shiftKey); return; }
     // Min-qty pencil (Products table) → inline edit of `minStockSpools`.
@@ -8966,6 +9139,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (rec) Object.keys(local).forEach(k => { if (local[k] === undefined) delete rec[k]; else rec[k] = local[k]; });
     try { await fbDb(uid).collection("users").doc(uid).collection("products").doc(hash).set(doc, { merge: true }); }
     catch (e) { console.warn("[products] field write failed:", e); }
+    _syncProductShare(hash, patch);   // buyPriceHt lives in the shared slice
   }
   async function _deleteProductByHash(hash) {
     const uid = getActiveId();
@@ -8973,16 +9147,23 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (state.products[hash]) delete state.products[hash];
     try { await fbDb(uid).collection("users").doc(uid).collection("products").doc(hash).delete(); }
     catch (e) { console.warn("[products] delete failed:", e); }
+    _syncProductShare(hash, { sku: "", ean: "", buyUrl: "", buyPriceHt: null, favorite: false, liked: false });   // drop the shared slice
   }
 
   // Current stock (non-deleted spool count) per product identity key.
   function _stockCountByKey() {
-    const m = new Map();
+    // Group by product identity, then count PHYSICAL spools per group (twin pairs
+    // count once — see _countPhysicalSpools) so favorites / order stock matches
+    // the deck's spool count.
+    const groups = new Map();
     (state.rows || []).forEach(r => {
       if (r.deleted) return;
       const k = _spoolGroupKey(r);
-      m.set(k, (m.get(k) || 0) + 1);
+      if (!groups.has(k)) groups.set(k, []);
+      groups.get(k).push(r);
     });
+    const m = new Map();
+    groups.forEach((rows, k) => m.set(k, _countPhysicalSpools(rows)));
     return m;
   }
   // Order math for a product record: required (min) / inStock / onOrder / toOrder,
@@ -9041,9 +9222,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function renderProductsView() {
     const host = $("invProductsView");
     if (!host) return;
-    const stockMap = _stockCountByKey();
+    const stockMap = _stockCountByKey();   // in friend view state.rows = friend's → friend's stock
     const info = _vatInfo();
-    const products = _filteredProducts(Object.values(state.products || {}));
+    // In a friend view the Favorites show the FRIEND's public favorites (from their
+    // `productShares`), read-only. Otherwise our own products.
+    const ro = !!state.friendView;
+    const source = ro ? Object.values(state.friendShares || {}) : Object.values(state.products || {});
+    const products = _filteredProducts(source);
 
     if (state.viewMode === "order") {
       // Products with a min set, needing reorder first.
@@ -9061,13 +9246,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const faves = products.filter(p => p.liked || p.favorite)
       .sort((a, b) => _productName(a).localeCompare(_productName(b)));
     host.innerHTML = state.viewMode === "favesTable"
-      ? _renderFavesTable(faves, stockMap, info)
-      : _renderFavesGrid(faves);
+      ? _renderFavesTable(faves, stockMap, info, ro)
+      : _renderFavesGrid(faves, ro);
   }
 
   function _renderOrderTab(cartRows, info) {
     if (!cartRows.length) {
-      return `<div class="pv-empty"><span class="icon icon-shopify icon-24"></span><div>${esc(t("pvOrderEmpty"))}</div></div>`;
+      return `<div class="pv-empty"><span class="icon icon-cart icon-24"></span><div>${esc(t("pvOrderEmpty"))}</div></div>`;
     }
     const sym = info.symbol, rate = info.rate;
     // Prices are stored HT; show them in the account's entry mode (HT or TTC).
@@ -9100,7 +9285,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           <div class="pv-total-col">${lineTotal == null ? "—" : `${_fmtMoney(lineTotal)} ${sym}`}</div>
           <div class="pv-line-actions">
             <button class="pv-info" data-info title="${esc(t("toolReorder"))}"><span class="icon icon-info icon-14"></span></button>
-            <button class="pv-buy${p.buyUrl ? "" : " pv-buy--off"}" data-buy title="${esc(t("toolReorderBuy"))}"><span class="icon icon-shopify icon-14"></span></button>
+            <button class="pv-buy${p.buyUrl ? "" : " pv-buy--off"}" data-buy title="${esc(t("toolReorderBuy"))}"><span class="icon icon-cart icon-14"></span></button>
             <button class="pv-remove" data-remove title="${esc(t("reorderRemove"))}"><span class="icon icon-close icon-13"></span></button>
           </div>
         </div>`;
@@ -9160,17 +9345,18 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     return { title, sub, extra };
   }
 
-  function _renderFavesGrid(faves) {
+  function _renderFavesGrid(faves, ro) {
     if (!faves.length) {
-      return `<div class="pv-empty"><span class="icon icon-star icon-24"></span><div>${esc(t("pvFavesEmpty"))}</div></div>`;
+      return `<div class="pv-empty"><span class="icon icon-star icon-24"></span><div>${esc(ro ? t("pvFriendFavesEmpty") : t("pvFavesEmpty"))}</div></div>`;
     }
     const sym = _vatInfo().symbol;
     const cards = faves.map(p => {
       const r = _productAsRow(p);
       const { title, sub, extra } = _productGridLabel(r);
       const unit = (p.buyPriceHt == null) ? null : +p.buyPriceHt;   // stored HT
+      // Read-only (friend) cards show no "Add a price" prompt — just nothing.
       const footerHTML = unit == null
-        ? `<span class="card-price card-price--none">${esc(t("reorderAddPrice"))}</span>`
+        ? (ro ? "" : `<span class="card-price card-price--none">${esc(t("reorderAddPrice"))}</span>`)
         : `<span class="card-price">${_fmtMoney(unit)} ${sym} <span class="pv-sum-tag">${esc(t("reorderHT"))}</span></span>`;
       return `<div class="spool-card pv-item" data-hash="${esc(p.id)}" data-key="${esc(p.key)}">${_gridCardInnerHTML(r, { product: true, footerHTML, nameText: title, subText: sub, subExtraText: extra })}</div>`;
     }).join("");
@@ -9220,9 +9406,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // table. The Min. qty pencil opens an inline editor (`minStockSpools`); To order
   // is a read-only recommendation derived from it. The selection column + header
   // master checkbox drive bulk edit (delete, tags).
-  function _renderFavesTable(faves, stockMap, info) {
+  function _renderFavesTable(faves, stockMap, info, ro) {
     if (!faves.length) {
-      return `<div class="pv-empty"><span class="icon icon-star icon-24"></span><div>${esc(t("pvFavesEmpty"))}</div></div>`;
+      return `<div class="pv-empty"><span class="icon icon-star icon-24"></span><div>${esc(ro ? t("pvFriendFavesEmpty") : t("pvFavesEmpty"))}</div></div>`;
     }
     const sym = info.symbol;
     const sel = state.selectedProducts;
@@ -9264,32 +9450,38 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       const low      = min != null && inStock < min;
       const unit     = (p.buyPriceHt == null) ? null : +p.buyPriceHt;
       const toOrder  = Math.max(0, (min || 0) - inStock);   // fixed = Min qty − Stock
+      // Friend view = read-only: drop the selection checkbox, the editable min-qty
+      // and the "To order" columns (those are the viewer's own reorder concepts);
+      // the price is display-only (no "Add a price" button).
+      const priceCell = unit == null
+        ? (ro ? "—" : `<button class="pv-addprice" data-addprice>${esc(t("reorderAddPrice"))}</button>`)
+        : `${_fmtMoney(unit)} ${sym} <span class="pv-sum-tag">${esc(t("reorderHT"))}</span>`;
       return `
-        <tr class="pv-item pv-trow${sel.has(p.id) ? " row-selected" : ""}" data-hash="${esc(p.id)}" data-key="${esc(p.key)}">
-          <td class="sel-cell"><span class="sel-check" aria-hidden="true"></span></td>
+        <tr class="pv-item pv-trow${!ro && sel.has(p.id) ? " row-selected" : ""}" data-hash="${esc(p.id)}" data-key="${esc(p.key)}">
+          ${ro ? "" : `<td class="sel-cell"><span class="sel-check" aria-hidden="true"></span></td>`}
           <td class="thumb-cell">${thumbHTML(r, 50, { badges: false })}</td>
           <td class="pv-td-brand">${esc(brand)}</td>
           <td class="pv-td-name">${esc(mat)}</td>
           <td class="color-cell">${colorCircleHTML(r, 28)}</td>
           <td class="pv-td-colorname">${esc(color)}</td>
           <td class="pv-td-stock${low ? " pv-td-stock--low" : ""}">${inStock}</td>
-          <td class="pv-td-min"><span class="pv-min-view"><span class="pv-min-edit icon icon-edit icon-12" data-min-edit role="button" tabindex="0" title="${esc(t("reorderEditMin"))}"></span><span class="pv-min-val">${min == null ? "—" : min}</span></span></td>
-          <td class="pv-td-toorder${toOrder > 0 ? " pv-td-toorder--need" : ""}">${toOrder > 0 ? toOrder : "—"}</td>
-          <td class="pv-td-price">${unit == null ? `<button class="pv-addprice" data-addprice>${esc(t("reorderAddPrice"))}</button>` : `${_fmtMoney(unit)} ${sym} <span class="pv-sum-tag">${esc(t("reorderHT"))}</span>`}</td>
-          <td class="pv-td-act"><button class="pv-buy${p.buyUrl ? "" : " pv-buy--off"}" data-buy title="${esc(t("toolReorderBuy"))}"><span class="icon icon-shopify icon-14"></span></button></td>
+          ${ro ? "" : `<td class="pv-td-min"><span class="pv-min-view"><span class="pv-min-edit icon icon-edit icon-12" data-min-edit role="button" tabindex="0" title="${esc(t("reorderEditMin"))}"></span><span class="pv-min-val">${min == null ? "—" : min}</span></span></td>`}
+          ${ro ? "" : `<td class="pv-td-toorder${toOrder > 0 ? " pv-td-toorder--need" : ""}">${toOrder > 0 ? toOrder : "—"}</td>`}
+          <td class="pv-td-price">${priceCell}</td>
+          <td class="pv-td-act"><button class="pv-buy${p.buyUrl ? "" : " pv-buy--off"}" data-buy title="${esc(t("toolReorderBuy"))}"><span class="icon icon-cart icon-14"></span></button></td>
         </tr>`;
     }).join("");
     return `<div class="pv-table-wrap"><table class="pv-table">
       <thead><tr>
-        <th class="sel-th"><span class="sel-check sel-check--all${allSel ? " is-all" : someSel ? " is-some" : ""}" role="checkbox" tabindex="0" aria-label="${esc(t("bulkSelectMode"))}" aria-checked="${allSel ? "true" : someSel ? "mixed" : "false"}"></span></th>
+        ${ro ? "" : `<th class="sel-th"><span class="sel-check sel-check--all${allSel ? " is-all" : someSel ? " is-some" : ""}" role="checkbox" tabindex="0" aria-label="${esc(t("bulkSelectMode"))}" aria-checked="${allSel ? "true" : someSel ? "mixed" : "false"}"></span></th>`}
         <th></th>
         <th class="${_sortCls("brand")}" data-fsort="brand">${esc(t("thBrand"))}</th>
         <th class="${_sortCls("material")}" data-fsort="material">${esc(t("thMaterial"))}</th>
         <th>${esc(t("thColor"))}</th>
         <th class="${_sortCls("color")}" data-fsort="color">${esc(t("thName"))}</th>
         <th class="${_sortCls("stock")}" data-fsort="stock">${esc(t("reorderStockSection"))}</th>
-        <th class="pv-th-min ${_sortCls("min")}" data-fsort="min">${esc(t("thMinQty"))}</th>
-        <th class="${_sortCls("toorder")}" data-fsort="toorder">${esc(t("btnViewOrder"))}</th>
+        ${ro ? "" : `<th class="pv-th-min ${_sortCls("min")}" data-fsort="min">${esc(t("thMinQty"))}</th>`}
+        ${ro ? "" : `<th class="${_sortCls("toorder")}" data-fsort="toorder">${esc(t("btnViewOrder"))}</th>`}
         <th class="${_sortCls("price")}" data-fsort="price">${esc(t("thPrice"))}</th>
         <th></th>
       </tr></thead>
@@ -9832,6 +10024,68 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     renderInventory();
   }
 
+  // Selected spools deduped to one representative row per product identity.
+  function _selectedProductRows() {
+    const seen = new Set(), out = [];
+    for (const id of state.selectedSpools) {
+      const row = (state.rows || []).find(x => x.spoolId === id);
+      if (!row) continue;
+      const key = _spoolGroupKey(row);
+      if (key == null || seen.has(key)) continue;
+      seen.add(key);
+      out.push(row);
+    }
+    return out;
+  }
+  // Bulk ★ Favorite / ❤ Love on a materials selection — a TOGGLE, like the
+  // single flag button: if EVERY selected product already carries the flag it's
+  // removed from all, otherwise it's added to all. Writes to each product identity
+  // via `_writeProduct`; in a FRIEND view adding imports the friend's material
+  // into MY products (stamping provenance). Selection is kept so the button state
+  // flips in place and can be toggled again.
+  async function _bulkApplyFlag(field) {   // field: "favorite" | "liked"
+    const ctx = _bulkCtx();
+    if (ctx.printers || ctx.products) return;   // materials only
+    const targets = _selectedProductRows();
+    if (!targets.length) return;
+    const allOn = targets.every(row => !!(_getProduct(row) || {})[field]);
+    const next = !allOn;
+    for (const row of targets) {
+      const patch = { [field]: next };
+      const cur = _getProduct(row) || {};
+      if (next && state.friendView?.uid && !cur.importedFrom) {
+        patch.importedFrom = { uid: state.friendView.uid, name: state.friendView.displayName || "" };
+      }
+      if (next && state.friendView?.uid) _carryFriendShare(row, patch, cur);   // import price / link / SKU-EAN
+      await _writeProduct(row, patch);
+    }
+    renderInventory();       // refresh the ❤/★ badges (selection is re-applied from state)
+    _updateBulkBar();        // re-sync the toggle buttons' on/off state
+  }
+  // Paint the bulk ★/❤ toggles from the aggregate state of the current selection:
+  // filled+active only when EVERY selected product already carries that flag.
+  function _syncBulkFlagButtons() {
+    const favBtn = $("bulkFavorite"), likeBtn = $("bulkLike");
+    if (!favBtn && !likeBtn) return;
+    const ctx = _bulkCtx();
+    const materials = !ctx.products && !ctx.printers;
+    let favAll = false, likeAll = false;
+    if (materials && ctx.set.size) {
+      const products = _selectedProductRows().map(row => _getProduct(row) || {});
+      favAll  = products.length > 0 && products.every(p => !!p.favorite);
+      likeAll = products.length > 0 && products.every(p => !!p.liked);
+    }
+    _setBulkFlagBtn(favBtn, "icon-star", favAll);
+    _setBulkFlagBtn(likeBtn, "icon-heart", likeAll);
+  }
+  function _setBulkFlagBtn(btn, base, on) {
+    if (!btn) return;
+    btn.classList.toggle("active", on);
+    btn.setAttribute("aria-pressed", String(on));
+    const ic = btn.querySelector(".icon");
+    if (ic) { ic.classList.remove(base, base + "-fill"); ic.classList.add(on ? base + "-fill" : base); }
+  }
+
   /* ── detail panel ── */
   // Two-level signature for the spool currently displayed in the side panel:
   //   - _lastDetailSig: every visible field. Skipped entirely when identical
@@ -10206,8 +10460,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         }
       } catch (e) { reportError("spool.duplicate", e); }
     });
-    // Product info — opens the side card to the LEFT of the detail card.
-    $("btnToolReorder")?.addEventListener("click", () => openReorderPanel(r));
+    // Product info — toggles the side card to the LEFT of the detail card.
+    $("btnToolReorder")?.addEventListener("click", () => _toggleReorderPanel(r));
     // Reorder — opens the product's buy link (shop) when set; otherwise opens
     // the product card so the user can add a link.
     $("btnToolReorderBuy")?.addEventListener("click", () => {
@@ -11150,6 +11404,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     _reorderRow = null;
     _subscribeImportedProfile(null);   // drop the provenance profile listener
   }
+  // "Product info" button behaviour: open the card, or CLOSE it if it's already
+  // showing this same product (same group identity) → the button toggles it.
+  function _toggleReorderPanel(r, opts = {}) {
+    if (!r) return;
+    const open = $("reorderPanel")?.classList.contains("open");
+    if (open && _reorderRow && _spoolGroupKey(_reorderRow) === _spoolGroupKey(r)) { closeReorderPanel(); return; }
+    openReorderPanel(r, opts);
+  }
 
   // How the user types prices — a per-account preference (not per-link), so we
   // never have to ask in the reorder card. The stored value is always HT.
@@ -11324,7 +11586,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         <input type="hidden" id="roBuyUrl" value="${esc(link.buyUrl || "")}" />
         <div class="ro-shop" id="roShopDisplay">
           <button type="button" class="ro-shop-btn${link.buyUrl ? " ro-shop-btn--active" : ""}" id="roShopBtn">
-            <span class="icon icon-shopify icon-14"></span>
+            <span class="icon icon-cart icon-14"></span>
             <span>${esc(link.buyUrl ? t("toolReorderBuy") : t("reorderAddLink"))}</span>
           </button>
           <button type="button" class="ro-shop-edit" id="roShopEdit" title="${esc(t("reorderEditLink"))}"${link.buyUrl ? "" : " hidden"}>
@@ -11397,13 +11659,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       </div>
 
       ${state.friendView ? "" : `
-      <div class="ro-cloud-row">
-        <button type="button" class="ro-cloud-btn" id="roCreateCloud">
-          <span class="icon icon-plus icon-14"></span>
-          <span>${esc(t("productCreateCloud"))}</span>
-        </button>
+      <button type="button" class="toolbox-row ro-cloud-row" id="roCreateCloud">
+        <span class="icon icon-plus icon-14 toolbox-row-icon"></span>
+        <span class="toolbox-row-label">${esc(t("productCreateCloud"))}</span>
         <span class="tool-info" data-tip="${esc(t("productCreateCloudTip"))}" aria-label="${esc(t("productCreateCloudTip"))}"><span class="icon icon-info icon-13"></span></span>
-      </div>`}
+      </button>`}
       <div id="roSaveResult" class="ro-save-result"></div>`;
     // ❤/★ toggles live in the panel HEADER (left of the ✕), not the body head.
     const hf = $("roHeaderFlags"); if (hf) hf.innerHTML = _flagTogglesHTML(r);
@@ -11462,6 +11722,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     _reorderInfoTipsWired = true;
     body.addEventListener("mouseover", e => { const el = e.target.closest?.(".tool-info"); if (el) _showToolInfoTip(el); });
     body.addEventListener("mouseout",  e => { const el = e.target.closest?.(".tool-info"); if (el && !el.contains(e.relatedTarget)) _hideToolInfoTip(); });
+    // The ⓘ now lives INSIDE the "+ Material" button — swallow its pointer/click
+    // in the capture phase so pressing it never fires the button (mirrors _wireToolInfoTips).
+    const swallow = e => { if (e.target.closest?.(".tool-info")) { e.stopPropagation(); e.preventDefault(); } };
+    body.addEventListener("pointerdown", swallow, true);
+    body.addEventListener("click", swallow, true);
   }
 
   function _wireReorderPanel(r) {
@@ -11613,6 +11878,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       patch.importedFrom = { uid: state.friendView.uid, name: state.friendView.displayName || "" };
       cur.importedFrom = patch.importedFrom;
     }
+    if (next && state.friendView?.uid) _carryFriendShare(r, patch, cur);   // import price / link / SKU-EAN
     await _writeProduct(r, patch);
   }
   // Repaint the ❤/★/🛍 badge cluster on the OPEN spool detail illustration (the
@@ -11972,6 +12238,23 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       const pid = Number(r.raw?.id_product);
       return (r.isPlus && pid && pid !== 4294967295) ? String(pid) : null;
     })();
+    // Friend-shared product slice (price / buy link / manually-typed SKU-EAN),
+    // read live from the friend's `productShares`. Only present in friend view.
+    // SKU/EAN already come from the chip (r.sku/r.barcode) for tagged materials;
+    // the share only fills them when the chip carries none.
+    const _fShare = _friendShareFor(r);
+    const _fShareSku = _fShare && _fShare.sku ? String(_fShare.sku) : "";
+    const _fShareEan = _fShare && _fShare.ean ? String(_fShare.ean) : "";
+    const _fShareUrl = _fShare && _fShare.buyUrl ? String(_fShare.buyUrl) : "";
+    const _fSharePrice = (_fShare && _fShare.buyPriceHt != null && Number.isFinite(+_fShare.buyPriceHt)) ? +_fShare.buyPriceHt : null;
+    const _fSharePriceTxt = _fSharePrice == null ? null : (() => {
+      const mode = _reorderMode();   // show in the viewer's own HT/TTC preference
+      const v = mode === "HT" ? _fSharePrice : Math.round(_vatPrices(_fSharePrice, "HT", _vatCountryCode()).ttc * 100) / 100;
+      return `${_fmtMoney(v)} ${_vatInfo().symbol} ${mode}`;
+    })();
+    const _fShareHost = _fShareUrl ? (() => {
+      try { return new URL(_normalizeBuyUrl(_fShareUrl)).hostname.replace(/^www\./, ""); } catch { return _fShareUrl; }
+    })() : "";
     const infoRows = [
       // Tier first — the badge (+ backup shield) reuses the existing graphic and
       // replaces the standalone badge that used to sit below (no dup). 5th tuple
@@ -11985,8 +12268,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       [t("thName"),           r.colorName !== "-" ? r.colorName : null],
       [t("detMaterial"),      r.material],
       [t("detDiameter"),      r.diameter],
-      [t("detSku"),           r.sku],
-      [t("detBarcode"),       r.barcode],
+      [t("detSku"),           r.sku || _fShareSku || null],
+      [t("detBarcode"),       r.barcode || _fShareEan || null],
+      // Friend's price + clickable buy link (from their shared product slice).
+      ...(_fSharePriceTxt ? [[t("thPrice"), _fSharePriceTxt]] : []),
+      ...(_fShareUrl ? [[t("reorderBuyLink"), _fShareHost, null, _normalizeBuyUrl(_fShareUrl)]] : []),
       [t("detContainer"),     r.containerId],
       [t("detTwin"),          r.twinUid],
       [t("detUpdated"),       fmtTs(r.lastUpdate), "detUpdatedVal"],
@@ -12292,7 +12578,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         // and opens the product card so the user can add a link.
         tools.push({
           id: "btnToolReorderBuy",
-          icon: "icon-shopify",
+          icon: "icon-cart",
           label: t("toolReorderBuy"),
           variant: "default",
           greyed: !_hasBuyLink(r),
@@ -20884,17 +21170,26 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // A friend's inventory is read-only — hide the write action (Add product /
     // Add device) since it can't act on a friend's docs.
     $("btnAddProduct")?.classList.toggle("hidden", !!state.friendView);
-    // Multi-select/bulk-delete is owner-only (can't write to a friend's docs).
-    $("btnSelectMode")?.classList.toggle("hidden", !!state.friendView);
-    if (state.friendView && state.bulkSelect) _exitSelectMode();
+    // The cam-wall "Detach" button is meaningless in a friend view (no cameras) —
+    // force-hide it here so it can never linger from a prior cam session.
+    if (state.friendView) { const _d = $("camWallDetachTop"); if (_d) _d.hidden = true; }
+    // Multi-select IS available in a friend view — but only for ★/❤ bulk actions
+    // (they import into MY products); write-to-friend actions are hidden by
+    // _updateBulkBar's `is-friendview` class. So the Select button stays visible.
     // A friend's printers aren't shared, so the Printers view switch is
     // meaningless here — hide the whole group + its separator in friend view.
     $("vtgPrinters")?.classList.toggle("hidden", !!state.friendView);
     $("vtgSep")?.classList.toggle("hidden", !!state.friendView);
-    // Products (favorites / order) are the viewer's own records, not the
-    // friend's — hide that group + its separator in friend view too.
-    $("vtgProducts")?.classList.toggle("hidden", !!state.friendView);
-    $("vtgSepProducts")?.classList.toggle("hidden", !!state.friendView);
+    // Favorites (the viewer's OWN records) stay available in a friend view — you
+    // can flip to your favorites grid/table while browsing a friend's shelf. But
+    // "To order" is a reorder action on YOUR owned stock, meaningless here → hide
+    // just that button in friend view (the group + its separator stay visible).
+    $("vtgProducts")?.classList.remove("hidden");
+    $("vtgSepProducts")?.classList.remove("hidden");
+    $("btnViewOrder")?.classList.toggle("hidden", !!state.friendView);
+    // If we somehow land in the hidden "To order" view when entering a friend,
+    // fall back to the favorites grid.
+    if (state.friendView && state.viewMode === "order") setViewMode("favesGrid", { persist: false });
     if (!banner) return;
     // ─── Friend view ───────────────────────────────────────────────
     if (state.friendView) {
@@ -21009,6 +21304,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // friend banner renders the colour-circle + initials fallback.
     const friendPhoto = state.friends?.find(f => f.uid === friendUid)?.photoURL || null;
     state.friendView = { uid: friendUid, displayName: friendName, avatarColor, photoURL: friendPhoto, isPublic: _friendIsPublic, error: null };
+    subscribeFriendShares(friendUid);   // live price / buy link / manual SKU-EAN of the friend's products
     state.inventory = null; state.rows = [];
     state.racks = [];
     state.invLoading = true;
@@ -21071,6 +21367,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     _soundReturnHome();     // "back home" cue, mirror of the friend-view sound
     _closeAllSideCards();   // unified: clear the friend's open spool/group card
     _clearSearchFilters();
+    unsubscribeFriendShares();   // stop reading the friend's shared price/link
     state.friendView = null;
     state.inventory = null; state.rows = [];
     state.racks = [];                                   // wipe the friend's racks
@@ -21686,7 +21983,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     Object.values(state.products || {}).forEach(p => {
       const min = +p.minStockSpools || 0;
       if (min <= 0 || !p.key) return;
-      const stock = (state.rows || []).filter(row => !row.deleted && _spoolGroupKey(row) === p.key).length;
+      const stock = _countPhysicalSpools((state.rows || []).filter(row => !row.deleted && _spoolGroupKey(row) === p.key));
       if (stock >= min) return;     // above target → no alert
       const id = "lowstock:" + p.id;
       seen.add(id);

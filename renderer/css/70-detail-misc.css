@@ -455,11 +455,36 @@
   .bulk-bar.is-products #bulkPrice,
   .bulk-bar.is-materials #bulkPrice { display: inline-flex; }
   .bulk-price-entry { display: none; align-items: center; gap: 8px; }
+  .bulk-bar.is-pricing #bulkFavorite,
+  .bulk-bar.is-pricing #bulkLike,
   .bulk-bar.is-pricing #bulkTags,
   .bulk-bar.is-pricing #bulkPrice,
   .bulk-bar.is-pricing #bulkDelete,
   .bulk-bar.is-pricing #bulkExit { display: none; }
   .bulk-bar.is-pricing .bulk-price-entry { display: inline-flex; }
+  /* Bulk ★ Favorite / ❤ Love: materials selection only (own inventory + friend view). */
+  /* Icon-only ★/❤ toggles — inherit the .flag-toggle look (square, gold/red
+     background tint when the whole selection carries the flag). The icons keep
+     their brand colour in BOTH states (gold star / red heart) — outline when off,
+     filled when on — so the final colour is always legible. */
+  #bulkFavorite, #bulkLike { display: none; }
+  .bulk-bar.is-materials #bulkFavorite,
+  .bulk-bar.is-materials #bulkLike { display: inline-flex; }
+  #bulkFavorite .icon { background-color: #f5a623; }   /* ★ gold, on & off */
+  #bulkLike .icon     { background-color: #e0245e; }   /* ❤ red,  on & off */
+  /* Match the exact height of the other bulk buttons: drop the flag-toggle's
+     fixed 34px, stretch to the bar's row height, and keep a perfect square (like
+     .bulk-btn--icon). Higher specificity than .flag-toggle so it wins regardless
+     of source order. */
+  .bulk-bar .bulk-flag {
+    width: auto; height: auto;
+    align-self: stretch; aspect-ratio: 1;
+    border-radius: 10px;
+  }
+  /* Friend view: keep ONLY the ★/❤ import actions — no write-to-friend actions. */
+  .bulk-bar.is-friendview #bulkTags,
+  .bulk-bar.is-friendview #bulkPrice,
+  .bulk-bar.is-friendview #bulkDelete { display: none; }
   .bulk-price-input {
     width: 92px; height: 34px; padding: 0 10px; border-radius: 10px; text-align: right;
     background: var(--surface-2); border: 1px solid var(--border); box-shadow: inset 0 1px 2px rgba(0,0,0,.04);
@@ -664,6 +689,10 @@
     transition: filter .15s, transform .1s;
     flex-shrink: 0;
   }
+  /* `.inv-add-btn`'s explicit `display` overrides the UA `[hidden]{display:none}`
+     (author beats UA), so the `hidden` attribute alone wouldn't hide the button
+     (e.g. the cam-wall "Detach" button in a friend view). Re-assert it here. */
+  .inv-add-btn[hidden] { display: none; }
   /* Explicitly re-assert the primary background on :hover — without
      this the global `button:hover { background: var(--surface-2) }`
      rule (specificity 0,1,1) wins for the `background` property
@@ -975,8 +1004,27 @@
   body.bulk-select-mode .pv-trow { cursor: pointer; }
 
   .view-toggle { display: flex; gap: 2px; background: var(--surface-2); padding: 3px; border-radius: var(--radius-sm); }
-  .view-toggle button { height: 30px; padding: 0 10px; font-size: 13px; border: none; background: transparent; color: var(--muted); border-radius: 8px; }
+  .view-toggle button { height: 30px; padding: 0 10px; font-size: 13px; border: none; background: transparent; color: var(--muted); border-radius: 8px; transition: color .18s ease; }
   .view-toggle button.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+
+  /* Sliding selection bubble — only in the main view selector (Inventory /
+     Favorites / Printers). One `.view-toggle-ind` per segment, positioned by JS
+     (_positionViewIndicators) to the active button's offset/width; the button's
+     own solid background is dropped so the bubble is the single moving highlight. */
+  .view-toggle-groups .view-toggle { position: relative; }
+  .view-toggle-groups .view-toggle button { position: relative; z-index: 1; }
+  .view-toggle-groups .view-toggle button.active { background: transparent; box-shadow: none; }
+  .view-toggle-ind {
+    position: absolute; top: 3px; bottom: 3px; left: 0; width: 0;
+    background: var(--surface); border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.08);
+    transform: translateX(0); opacity: 0;
+    pointer-events: none; z-index: 0;
+    transition: transform .28s cubic-bezier(.4,0,.2,1),
+                width     .28s cubic-bezier(.4,0,.2,1),
+                opacity   .18s ease;
+  }
+  .view-toggle-ind.vti-instant { transition: none; }
 
   /* Two-group view-toggle layout — each group is labelled by what it manages
      (Materials vs Printers) so the otherwise-identical Grid/Table toggles read
@@ -2749,24 +2797,9 @@
   .panel-identity { display: flex; align-items: flex-start; gap: 10px; }
   .pi-ident-text { flex: 1; min-width: 0; }
   .pi-flags { display: flex; gap: 5px; flex-shrink: 0; }
-  /* "Create a TigerTag Cloud" button. */
-  /* "+ Material" button + its ⓘ info affordance on one row. */
-  .ro-cloud-row { display: flex; align-items: center; gap: 8px; }
-  .ro-cloud-btn {
-    display: flex; align-items: center; justify-content: center; gap: 8px;
-    flex: 1; min-width: 0; height: 40px; border-radius: 10px; cursor: pointer;
-    background: var(--surface-2); border: 1px solid var(--border);
-    color: var(--text); font-size: 13px; font-weight: 600; transition: background .15s;
-  }
-  .ro-cloud-btn:hover { background: var(--border); }
-  .ro-cloud-btn .icon { background-color: var(--primary); }
-  .ro-cloud-row .tool-info {
-    flex-shrink: 0; display: flex; align-items: center; justify-content: center;
-    width: 28px; height: 28px; border-radius: 8px; cursor: help;
-    color: var(--muted); transition: background .15s, color .15s;
-  }
-  .ro-cloud-row .tool-info:hover { background: var(--surface-2); color: var(--text); }
-  .ro-cloud-row .tool-info .icon { background-color: currentColor; }
+  /* "+ Material" — styled as a toolbox row (see .toolbox-row); a small top margin
+     separates it from the References block above. */
+  .ro-cloud-row { margin-top: 4px; }
   .ro-swatch {
     width: 64px; height: 64px; border-radius: 13px; flex-shrink: 0;
     border: 1px solid var(--border); box-shadow: inset 0 0 0 1px rgba(255,255,255,.06);

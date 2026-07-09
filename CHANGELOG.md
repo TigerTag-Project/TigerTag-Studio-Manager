@@ -5,6 +5,33 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v2.3.0 — 2026-07-09
+
+Friends can now see each other's favorites (with price + buy link), bulk-favorite spools, and manage favorites while browsing a friend — plus a sliding view-selector, a cart icon for reorder actions, and fixes.
+
+### Added
+
+- **Public favorites shared between friends (`productShares`).** Favoriting a product now publishes a friend-readable slice to a new `users/{uid}/productShares/{keyHash}` collection (`favorite, liked, key, label, sku, ean, buyUrl, buyPriceHt`). In a friend's view the **Favorites grid & table** show that friend's ★/❤ materials read-only (their stock via `_stockCountByKey`, price in the viewer's tax mode, clickable buy link), each material's details show the friend's price + buy link + manual SKU/EAN, and importing (favoriting) a friend's material carries those over. Because a Firestore read is all-or-nothing per doc, `/products` stays owner-only (the **note is never exposed**). Mirrored on every product write (`_syncProductShare` from `_writeProduct`/`_writeProductField`/delete; removed when no longer a favorite nor carrying price/link/code) + a one-time backfill (`_backfillProductShares`); read live via `subscribeFriendShares` → `state.friendShares`; imported via `_carryFriendShare`. **Backend:** new `productShares` rule (read owner/public/friend, write owner + field-whitelist) deployed.
+- **Bulk ★ Favorite / ❤ Love.** With spools multi-selected (grid or table), two icon-only `.flag-toggle`-style buttons add or remove the flag across the whole selection at once — a real toggle keyed on the selection's aggregate state (`_bulkApplyFlag`/`_syncBulkFlagButtons`), deduped by group key. In a friend view, adding imports with provenance.
+- **Multi-select in a friend's inventory.** Checkboxes + the Select button are enabled in a friend view for bulk ★/❤ only (Tags/Price/Delete hidden via `is-friendview`; `_bulkDeleteSelected` hard-guards a friend's spools). Removed the friend-view early-returns in `_enterSelectMode`/`_toggleSelectAllVisible`.
+- **New masterspool:** PrintoMax 3D — Grey (195 g) in the container picker.
+
+### Changed
+
+- **Favorites views available inside a friend's view.** The Favorites group (Grid + Table) stays visible while browsing a friend; only "To order" is hidden there.
+- **Sliding selection bubble in the view selector.** Within a segment (Inventory / Favorites / Printers) the active highlight slides between buttons (`_positionViewIndicators`, one absolutely-positioned `.view-toggle-ind` per segment, re-fit on first paint / language switch / resize).
+- **Reorder actions use the cart icon.** Buy-link buttons (Product-info card, deck header, favorites grid/table, buy-link badge, toolbox reorder-buy, "To order" empty state) and the "To order" view-selector entry switch `icon-shopify` → `icon-cart`; the goodies-shop buttons keep the Shopify icon.
+- **"Product info" button toggles the card** (`_toggleReorderPanel`, compared by `_spoolGroupKey`).
+- **Product-info "+ Material" button** rendered as a real `.toolbox-row` (icon + label + trailing ⓘ), matching the toolbox; `_wireReorderInfoTips` swallows the ⓘ press.
+- **Clicking your name in the sidebar** now runs the same identity action as the avatar (`_onSidebarIdentityClick`).
+
+### Fixed
+
+- **In-stock count double-counted twin pairs** — a twin pair (two chips, one physical spool) counted as 2. `_countPhysicalSpools` now collapses twins for the stock badge (`_filamentStockCount`), favorites/"To order" (`_stockCountByKey`) and the low-stock notification.
+- **"Detach" button leaked into non-cam views** (incl. friend view) — `.inv-add-btn { display:inline-flex }` overrode the UA `[hidden]`; added `.inv-add-btn[hidden] { display:none }` so the attribute hides it again.
+
+---
+
 ## v2.2.0 — 2026-07-09
 
 Follow-up to the Products/Favorites release: friend-import provenance (with live profile resolution that survives un-friending), a reworked Product-info card, and cross-view bulk price editing.

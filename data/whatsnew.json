@@ -4877,5 +4877,110 @@
         }
       }
     ]
+  },
+  "2.3.0": {
+    "date": "2026-07-09",
+    "items": [
+      {
+        "icon": "star-fill",
+        "title": {
+          "en": "Peek at your friends' favorites",
+          "fr": "Zieute les favoris de tes amis",
+          "de": "Schau dir die Favoriten deiner Freunde an",
+          "es": "Fisgonea los favoritos de tus amigos",
+          "it": "Sbircia i preferiti dei tuoi amici",
+          "zh": "看看好友的收藏",
+          "pt": "Espreita os favoritos dos teus amigos",
+          "pt-pt": "Espreita os favoritos dos teus amigos",
+          "pl": "Podejrzyj ulubione znajomych"
+        },
+        "body": {
+          "en": "Visit a friend and their starred filaments show up — with the stock they've got, the price they paid and a link to buy the same. Grab one and its price + link land in your own favorites. Your private note stays yours.",
+          "fr": "Va voir un ami et ses filaments favoris s'affichent — avec son stock, son prix et un lien pour acheter le même. Récupères-en un et son prix + lien atterrissent dans tes favoris. Ta note perso reste perso.",
+          "de": "Besuch einen Freund und seine markierten Filamente erscheinen — mit seinem Bestand, seinem Preis und einem Link zum Nachkaufen. Schnapp dir eins und Preis + Link landen in deinen Favoriten. Deine private Notiz bleibt privat.",
+          "es": "Visita a un amigo y aparecen sus filamentos favoritos — con su stock, su precio y un enlace para comprar el mismo. Coge uno y su precio + enlace caen en tus favoritos. Tu nota privada sigue siendo tuya.",
+          "it": "Visita un amico e compaiono i suoi filamenti preferiti — con la sua scorta, il suo prezzo e un link per comprare lo stesso. Prendine uno e prezzo + link finiscono nei tuoi preferiti. La tua nota privata resta tua.",
+          "zh": "进到好友页面，就能看到他收藏的耗材——包括库存、买入价，还有同款的购买链接。收藏一卷，价格和链接就进入你的收藏。你的私人备注仍然只属于你。",
+          "pt": "Visita um amigo e os filamentos favoritos dele aparecem — com o stock, o preço e um link para comprar o mesmo. Guarda um e o preço + link caem nos teus favoritos. A tua nota privada continua tua.",
+          "pt-pt": "Visita um amigo e os filamentos favoritos dele aparecem — com o stock, o preço e um link para comprar o mesmo. Guarda um e o preço + link caem nos teus favoritos. A tua nota privada continua tua.",
+          "pl": "Wejdź do znajomego, a pokażą się jego ulubione filamenty — z jego stanem, ceną i linkiem do kupienia tego samego. Weź jeden, a cena i link trafią do twoich ulubionych. Twoja prywatna notatka zostaje twoja."
+        }
+      },
+      {
+        "icon": "heart-fill",
+        "title": {
+          "en": "Star a whole batch in one tap",
+          "fr": "Une étoile sur tout un lot d'un coup",
+          "de": "Einen ganzen Schwung mit einem Tipp markieren",
+          "es": "Marca un lote entero de un toque",
+          "it": "Una stella su un intero lotto in un tocco",
+          "zh": "一键收藏一整批",
+          "pt": "Marca um lote inteiro num toque",
+          "pt-pt": "Marca um lote inteiro num toque",
+          "pl": "Oznacz całą partię jednym stuknięciem"
+        },
+        "body": {
+          "en": "Select a bunch of spools and add — or remove — the heart or star on all of them at once. No more one-by-one.",
+          "fr": "Sélectionne un paquet de bobines et ajoute — ou retire — le cœur ou l'étoile sur toutes d'un coup. Fini l'une après l'autre.",
+          "de": "Wähl einen Haufen Spulen und setz — oder entfern — Herz oder Stern bei allen auf einmal. Kein Einzeln mehr.",
+          "es": "Selecciona un puñado de bobinas y añade — o quita — el corazón o la estrella en todas a la vez. Se acabó una por una.",
+          "it": "Seleziona un mucchio di bobine e aggiungi — o togli — cuore o stella su tutte in una volta. Basta una alla volta.",
+          "zh": "选一批耗材，一次性给它们全部加上（或去掉）爱心或星标。不用再一个一个来。",
+          "pt": "Seleciona um monte de bobines e adiciona — ou remove — o coração ou a estrela em todas de uma vez. Acabou o uma a uma.",
+          "pt-pt": "Seleciona um monte de bobines e adiciona — ou remove — o coração ou a estrela em todas de uma vez. Acabou o uma a uma.",
+          "pl": "Zaznacz garść szpul i dodaj — lub usuń — serce albo gwiazdkę na wszystkich naraz. Koniec z pojedynczo."
+        }
+      },
+      {
+        "icon": "eye-on",
+        "title": {
+          "en": "A smoother view switcher",
+          "fr": "Un sélecteur de vue plus fluide",
+          "de": "Ein geschmeidigerer Ansichtswechsler",
+          "es": "Un selector de vista más fluido",
+          "it": "Un selettore di vista più fluido",
+          "zh": "更顺滑的视图切换",
+          "pt": "Um seletor de vista mais fluido",
+          "pt-pt": "Um seletor de vista mais fluido",
+          "pl": "Płynniejszy przełącznik widoku"
+        },
+        "body": {
+          "en": "The little highlight now glides between Grid, Table and Storage instead of blinking from one to the next. Small thing, feels nice.",
+          "fr": "Le petit surlignage glisse maintenant entre Grille, Tableau et Rangement au lieu de sauter de l'un à l'autre. Un détail, mais c'est agréable.",
+          "de": "Die kleine Hervorhebung gleitet jetzt zwischen Raster, Tabelle und Lager, statt hin und her zu springen. Kleinigkeit, fühlt sich gut an.",
+          "es": "El pequeño resaltado ahora se desliza entre Cuadrícula, Tabla y Almacenamiento en vez de saltar. Un detalle, pero sienta bien.",
+          "it": "Il piccolo evidenziatore ora scivola tra Griglia, Tabella e Stoccaggio invece di saltare. Un dettaglio, ma è piacevole.",
+          "zh": "那个小高亮现在会在网格、表格和收纳之间滑动，而不是一下跳过去。小细节，但很舒服。",
+          "pt": "O pequeno destaque agora desliza entre Grelha, Tabela e Arrumação em vez de saltar. Um detalhe, mas sabe bem.",
+          "pt-pt": "O pequeno destaque agora desliza entre Grelha, Tabela e Arrumação em vez de saltar. Um detalhe, mas sabe bem.",
+          "pl": "Małe podświetlenie teraz przesuwa się między Siatką, Tabelą i Magazynem, zamiast przeskakiwać. Drobiazg, a miło."
+        }
+      },
+      {
+        "icon": "bug",
+        "title": {
+          "en": "Counting straightened out",
+          "fr": "Le comptage remis d'aplomb",
+          "de": "Zählung geradegerückt",
+          "es": "Recuento enderezado",
+          "it": "Conteggio rimesso a posto",
+          "zh": "数量算清楚了",
+          "pt": "Contagem endireitada",
+          "pt-pt": "Contagem endireitada",
+          "pl": "Liczenie wyprostowane"
+        },
+        "body": {
+          "en": "A spool with two chips (a twin pair) was counted twice, so your stock could read one too many. Now it counts real spools. Also swatted a stray 'Detach' button that showed up where it shouldn't.",
+          "fr": "Une bobine à deux puces (une paire jumelle) était comptée deux fois, ton stock pouvait donc afficher une de trop. Maintenant on compte les vraies bobines. On a aussi chassé un bouton 'Détacher' qui apparaissait là où il ne fallait pas.",
+          "de": "Eine Spule mit zwei Chips (ein Zwillingspaar) wurde doppelt gezählt, dein Bestand konnte also einen zu viel anzeigen. Jetzt zählen echte Spulen. Außerdem einen streunenden 'Abkoppeln'-Button verscheucht, der auftauchte, wo er nicht sollte.",
+          "es": "Una bobina con dos chips (un par gemelo) se contaba dos veces, así que tu stock podía marcar uno de más. Ahora cuenta bobinas reales. También espantamos un botón 'Separar' que aparecía donde no debía.",
+          "it": "Una bobina con due chip (una coppia gemella) veniva contata due volte, quindi la scorta poteva segnare uno in più. Ora conta le bobine vere. Scacciato anche un pulsante 'Stacca' che spuntava dove non doveva.",
+          "zh": "一卷带两颗芯片的耗材（孪生对）被数了两次，所以库存可能多出一个。现在按真实卷数来算。还赶走了一个不该出现的'分离'按钮。",
+          "pt": "Uma bobine com dois chips (um par gémeo) era contada duas vezes, por isso o teu stock podia marcar um a mais. Agora conta bobines reais. Também enxotámos um botão 'Separar' que aparecia onde não devia.",
+          "pt-pt": "Uma bobine com dois chips (um par gémeo) era contada duas vezes, por isso o teu stock podia marcar um a mais. Agora conta bobines reais. Também enxotámos um botão 'Separar' que aparecia onde não devia.",
+          "pl": "Szpula z dwoma chipami (para bliźniacza) była liczona dwa razy, więc stan mógł pokazywać o jeden za dużo. Teraz liczymy prawdziwe szpule. Przegoniliśmy też błąkający się przycisk 'Odłącz', który pojawiał się tam, gdzie nie powinien."
+        }
+      }
+    ]
   }
 }

@@ -106,6 +106,40 @@ users/
                                 UID + product id, so a clone is detectable
                                 (invalid signature) — the backup opens no new risk
 
+    products/
+      {keyHash}/             — one doc per PRODUCT IDENTITY (keyHash = hash of the
+                              product signature, NOT a spoolId), so the info applies
+                              to every identical spool and survives a spool's deletion.
+                              Owner-only (private). Fields: key, label{brand,material,
+                              colorName,colorHex,aspect,imgUrl}, buyUrl, buyPriceHt
+                              (PRE-TAX; TTC derived at display from users/{uid}.vatCountry),
+                              minStockSpools, onOrder/orderQty, note, tags[], liked,
+                              favorite, importedFrom{uid,name}, cloudSeed, updatedAt.
+
+    productShares/
+      {keyHash}/             — PUBLIC (to friends) projection of a product (same
+                              keyHash as products/). Exists because a Firestore read
+                              is all-or-nothing per doc: /products stays strictly
+                              private (the note is never copied here), this doc
+                              exposes ONLY what the user shares. READ: owner / public
+                              / friend (same as inventory & racks). WRITE: owner,
+                              fields whitelisted. Written by the app as a mirror
+                              whenever a shared field changes (+ a one-time backfill).
+                              The doc is REMOVED when the product is neither a
+                              favorite/love nor carries a price/link/manual code.
+                              Consumed to show a friend's FAVORITES (grid/table in
+                              their view), their material's price + clickable buy
+                              link + SKU/EAN, and to carry those over on import.
+        favorite    boolean   — ★ favorite (public favorite state)
+        liked       boolean   — ❤ love (implies favorite)
+        key         string?   — product signature (same as products/.key)
+        label       map?      — {brand,series,material,colorName,colorHex,aspect,imgUrl} for display
+        sku         string?   — manually-typed SKU (chip SKU comes from inventory)
+        ean         string?   — manually-typed EAN/barcode
+        buyUrl      string?   — shopping link
+        buyPriceHt  number?   — pre-tax unit price (TTC derived at display)
+        updatedAt   timestamp
+
     apiKeys/
       {docId}/               — public-API access keys (owner-only)
         keyId       string    — 6-char public key (mirrored to users/{uid}.apiKey6)

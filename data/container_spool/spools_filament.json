@@ -351,6 +351,15 @@
     "img": "../assets/img/spool_filament/oem_cardboard.png"
   },
   {
+    "id": "printomax3d_masterspool_grey",
+    "brandId": 18629,
+    "brand": "PrintoMax 3D",
+    "label": "Grey",
+    "type": "Masterspool",
+    "container_weight": 230,
+    "img": "../assets/img/spool_filament/printomax3d_masterspool_grey.png"
+  },
+  {
     "id": "sovb3d_red",
     "brandId": 8675,
     "brand": "SOVB 3D",

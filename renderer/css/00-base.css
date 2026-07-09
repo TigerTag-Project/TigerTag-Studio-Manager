@@ -209,7 +209,9 @@
     font-size: 14px; font-weight: 600; color: #fff; text-align: left;
     margin-top: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     max-width: 100%;
+    cursor: pointer; transition: opacity .15s;   /* click → open my user (profile) view */
   }
+  .sb-name:hover { opacity: .75; }
   .sb-sub {
     font-size: 10px; color: rgba(255,255,255,.32); text-align: left;
     font-family: var(--mono); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
