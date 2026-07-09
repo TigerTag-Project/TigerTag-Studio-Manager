@@ -4567,5 +4567,185 @@
         }
       }
     ]
+  },
+  "2.1.0": {
+    "date": "2026-07-09",
+    "items": [
+      {
+        "icon": "⭐",
+        "title": {
+          "en": "Filaments you never forget",
+          "fr": "Des filaments qu'on n'oublie plus",
+          "de": "Filamente, die du nie vergisst",
+          "es": "Filamentos que no se te olvidan",
+          "it": "Filamenti che non dimentichi più",
+          "zh": "永远记住的耗材",
+          "pt": "Filamentos que não esqueces",
+          "pt-pt": "Filamentos que não esqueces",
+          "pl": "Filamenty, których nie zapomnisz"
+        },
+        "body": {
+          "en": "Star a filament and it sticks around — even after the last gram. Keep a stock target, a buy link and a price on every one you love.",
+          "fr": "Mets une étoile sur un filament et il reste — même après le dernier gramme. Garde un stock mini, un lien d'achat et un prix sur chacun.",
+          "de": "Markiere ein Filament mit einem Stern und es bleibt — auch nach dem letzten Gramm. Mit Mindestbestand, Kauflink und Preis für jedes.",
+          "es": "Marca un filamento con una estrella y se queda — incluso tras el último gramo. Con stock mínimo, enlace de compra y precio en cada uno.",
+          "it": "Metti una stella su un filamento e resta — anche dopo l'ultimo grammo. Con scorta minima, link d'acquisto e prezzo per ognuno.",
+          "zh": "给耗材加颗星，它就会一直留着——哪怕最后一克用完。可为每卷保存最低库存、购买链接和价格。",
+          "pt": "Põe uma estrela num filamento e ele fica — mesmo depois do último grama. Com stock mínimo, link de compra e preço em cada um.",
+          "pt-pt": "Põe uma estrela num filamento e ele fica — mesmo depois do último grama. Com stock mínimo, link de compra e preço em cada um.",
+          "pl": "Oznacz filament gwiazdką, a zostanie — nawet po ostatnim gramie. Z minimalnym stanem, linkiem do zakupu i ceną dla każdego."
+        }
+      },
+      {
+        "icon": "🛒",
+        "title": {
+          "en": "A shopping list that does the maths",
+          "fr": "Une liste de courses qui compte pour toi",
+          "de": "Eine Einkaufsliste, die rechnet",
+          "es": "Una lista de la compra que hace las cuentas",
+          "it": "Una lista della spesa che fa i conti",
+          "zh": "会自动算账的购物清单",
+          "pt": "Uma lista de compras que faz as contas",
+          "pt-pt": "Uma lista de compras que faz as contas",
+          "pl": "Lista zakupów, która liczy za ciebie"
+        },
+        "body": {
+          "en": "See exactly what you're running low on, how many to order and what it'll cost — subtotal, tax and total, all worked out for you.",
+          "fr": "Vois ce qui te manque, combien commander et le prix — sous-total, taxe et total, calculés tout seuls.",
+          "de": "Sieh genau, was knapp wird, wie viel du bestellen musst und was es kostet — Zwischensumme, Steuer und Gesamt, alles ausgerechnet.",
+          "es": "Mira qué te falta, cuánto pedir y lo que costará — subtotal, impuestos y total, todo calculado.",
+          "it": "Vedi cosa sta finendo, quanto ordinare e quanto costa — subtotale, tasse e totale, già calcolati.",
+          "zh": "一眼看清哪些快用完、要订多少、花多少钱——小计、税和总计都替你算好。",
+          "pt": "Vê o que está a acabar, quanto encomendar e o custo — subtotal, imposto e total, tudo calculado.",
+          "pt-pt": "Vê o que está a acabar, quanto encomendar e o custo — subtotal, imposto e total, tudo calculado.",
+          "pl": "Zobacz, czego brakuje, ile zamówić i ile to kosztuje — suma częściowa, podatek i total, wszystko policzone."
+        }
+      },
+      {
+        "icon": "🔔",
+        "title": {
+          "en": "Never run out mid-print",
+          "fr": "Plus jamais à sec en plein print",
+          "de": "Nie mehr mitten im Druck leer",
+          "es": "Nunca te quedes a cero a mitad de impresión",
+          "it": "Mai più a secco a metà stampa",
+          "zh": "打印打到一半再也不会断料",
+          "pt": "Nunca ficas sem material a meio de uma impressão",
+          "pt-pt": "Nunca ficas sem material a meio de uma impressão",
+          "pl": "Nigdy nie skończy się w połowie wydruku"
+        },
+        "body": {
+          "en": "Set a minimum for a filament and we'll ping you the moment your stock dips below it. No more 'oh no, out of black' surprises.",
+          "fr": "Fixe un mini pour un filament et on te prévient dès que le stock passe en dessous. Fini le 'zut, plus de noir'.",
+          "de": "Leg ein Minimum für ein Filament fest und wir melden uns, sobald der Bestand darunter fällt. Kein 'oje, kein Schwarz mehr' mehr.",
+          "es": "Fija un mínimo para un filamento y te avisamos en cuanto el stock baje de ahí. Se acabó el 'vaya, sin negro'.",
+          "it": "Imposta un minimo per un filamento e ti avvisiamo appena la scorta scende sotto. Basta sorprese 'oh no, finito il nero'.",
+          "zh": "给耗材设个最低库存，一旦低于它我们就提醒你。再也不会'糟了，黑色没了'。",
+          "pt": "Define um mínimo para um filamento e avisamos-te assim que o stock desce abaixo dele. Adeus 'bolas, acabou o preto'.",
+          "pt-pt": "Define um mínimo para um filamento e avisamos-te assim que o stock desce abaixo dele. Adeus 'bolas, acabou o preto'.",
+          "pl": "Ustaw minimum dla filamentu, a damy znać, gdy zapas spadnie poniżej. Koniec z 'o nie, czarny się skończył'."
+        }
+      },
+      {
+        "icon": "💶",
+        "title": {
+          "en": "Prices with or without tax — your call",
+          "fr": "Les prix HT ou TTC, comme tu veux",
+          "de": "Preise mit oder ohne Steuer — deine Wahl",
+          "es": "Precios con o sin impuestos — tú decides",
+          "it": "Prezzi con o senza IVA — decidi tu",
+          "zh": "含税还是不含税，你说了算",
+          "pt": "Preços com ou sem imposto — tu decides",
+          "pt-pt": "Preços com ou sem imposto — tu decides",
+          "pl": "Ceny z podatkiem lub bez — jak wolisz"
+        },
+        "body": {
+          "en": "Pick your country once and tell us if you type prices with or without tax. We show the right numbers everywhere, no mental gymnastics.",
+          "fr": "Choisis ton pays une fois et dis-nous si tu saisis en HT ou en TTC. On affiche les bons montants partout, sans calcul mental.",
+          "de": "Wähl einmal dein Land und sag uns, ob du Preise mit oder ohne Steuer eingibst. Wir zeigen überall die richtigen Zahlen.",
+          "es": "Elige tu país una vez y dinos si escribes precios con o sin impuestos. Mostramos las cifras correctas en todas partes.",
+          "it": "Scegli il tuo Paese una volta e dicci se scrivi i prezzi con o senza IVA. Mostriamo i numeri giusti ovunque.",
+          "zh": "选一次你的国家，告诉我们你输入的是含税还是不含税价，我们在各处都显示正确金额。",
+          "pt": "Escolhe o teu país uma vez e diz-nos se escreves preços com ou sem imposto. Mostramos os valores certos em todo o lado.",
+          "pt-pt": "Escolhe o teu país uma vez e diz-nos se escreves preços com ou sem imposto. Mostramos os valores certos em todo o lado.",
+          "pl": "Wybierz raz swój kraj i powiedz, czy wpisujesz ceny z podatkiem czy bez. Wszędzie pokażemy właściwe kwoty."
+        }
+      },
+      {
+        "icon": "✅",
+        "title": {
+          "en": "Fix a whole bunch at once",
+          "fr": "Modifie tout un lot d'un coup",
+          "de": "Gleich einen ganzen Schwung erledigen",
+          "es": "Arregla un montón de golpe",
+          "it": "Sistema un bel gruppo in una volta",
+          "zh": "一次搞定一大批",
+          "pt": "Trata de um monte de uma vez",
+          "pt-pt": "Trata de um monte de uma vez",
+          "pl": "Ogarnij całą paczkę naraz"
+        },
+        "body": {
+          "en": "Tick several products and set a price, add tags, or clear them out — all in one move instead of one by one.",
+          "fr": "Coche plusieurs produits et mets un prix, ajoute des tags ou supprime-les — d'un seul geste au lieu d'un par un.",
+          "de": "Mehrere Produkte anhaken und einen Preis setzen, Tags hinzufügen oder löschen — alles auf einmal statt einzeln.",
+          "es": "Marca varios productos y ponles precio, añade etiquetas o elimínalos — de una vez en lugar de uno a uno.",
+          "it": "Seleziona più prodotti e imposta un prezzo, aggiungi tag o eliminali — in un colpo solo invece che uno a uno.",
+          "zh": "勾选多个产品，一次性设置价格、加标签或删除，不用一个一个来。",
+          "pt": "Marca vários produtos e define um preço, adiciona etiquetas ou apaga-os — tudo de uma vez em vez de um a um.",
+          "pt-pt": "Marca vários produtos e define um preço, adiciona etiquetas ou apaga-os — tudo de uma vez em vez de um a um.",
+          "pl": "Zaznacz kilka produktów i ustaw cenę, dodaj tagi albo je usuń — za jednym razem, a nie po kolei."
+        }
+      },
+      {
+        "icon": "🖼️",
+        "title": {
+          "en": "See what your Bambu's printing",
+          "fr": "Vois ce que ton Bambu imprime",
+          "de": "Sieh, was dein Bambu druckt",
+          "es": "Mira qué imprime tu Bambu",
+          "it": "Guarda cosa stampa il tuo Bambu",
+          "zh": "看看你的 Bambu 在打什么",
+          "pt": "Vê o que a tua Bambu está a imprimir",
+          "pt-pt": "Vê o que a tua Bambu está a imprimir",
+          "pl": "Zobacz, co drukuje twoje Bambu"
+        },
+        "body": {
+          "en": "The model on the bed now shows up in the Printers table and the side card for Bambu too — just like the other brands.",
+          "fr": "L'aperçu du modèle sur le plateau s'affiche maintenant aussi pour Bambu, dans le tableau et la fiche — comme les autres marques.",
+          "de": "Die Modellvorschau vom Druckbett erscheint jetzt auch für Bambu — in der Drucker-Tabelle und der Seitenkarte, wie bei den anderen Marken.",
+          "es": "La vista previa del modelo en la cama ahora aparece también para Bambu — en la tabla de impresoras y la ficha, como las demás marcas.",
+          "it": "L'anteprima del modello sul piatto ora appare anche per Bambu — nella tabella stampanti e nella scheda, come le altre marche.",
+          "zh": "热床上的模型预览现在也会出现在打印机列表和侧卡里——Bambu 也一样了。",
+          "pt": "A pré-visualização do modelo na base agora aparece também para a Bambu — na tabela de impressoras e no cartão lateral, como as outras marcas.",
+          "pt-pt": "A pré-visualização do modelo na base agora aparece também para a Bambu — na tabela de impressoras e no cartão lateral, como as outras marcas.",
+          "pl": "Podgląd modelu na stole pojawia się teraz także dla Bambu — w tabeli drukarek i na karcie, jak u innych marek."
+        }
+      },
+      {
+        "icon": "✉️",
+        "title": {
+          "en": "A quick check at sign-up",
+          "fr": "Une petite vérif à l'inscription",
+          "de": "Kurzer Check bei der Anmeldung",
+          "es": "Una comprobación rápida al registrarte",
+          "it": "Un controllo veloce all'iscrizione",
+          "zh": "注册时的快速验证",
+          "pt": "Uma verificação rápida no registo",
+          "pt-pt": "Uma verificação rápida no registo",
+          "pl": "Szybka weryfikacja przy rejestracji"
+        },
+        "body": {
+          "en": "Create an account with email + password and we'll send a confirmation link first — one tap and you're verified.",
+          "fr": "Crée un compte avec e-mail + mot de passe et on t'envoie d'abord un lien de confirmation — un clic et c'est vérifié.",
+          "de": "Erstell ein Konto mit E-Mail + Passwort und wir schicken zuerst einen Bestätigungslink — ein Tipp und du bist verifiziert.",
+          "es": "Crea una cuenta con correo + contraseña y te enviamos primero un enlace de confirmación — un toque y verificado.",
+          "it": "Crea un account con email + password e ti mandiamo prima un link di conferma — un tocco ed è verificato.",
+          "zh": "用邮箱+密码注册时，我们会先发一封确认邮件——点一下就验证好了。",
+          "pt": "Cria uma conta com email + palavra-passe e enviamos primeiro um link de confirmação — um toque e estás verificado.",
+          "pt-pt": "Cria uma conta com email + palavra-passe e enviamos primeiro um link de confirmação — um toque e estás verificado.",
+          "pl": "Załóż konto z e-mailem i hasłem, a najpierw wyślemy link potwierdzający — jedno kliknięcie i po weryfikacji."
+        }
+      }
+    ]
   }
 }

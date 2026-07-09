@@ -19,6 +19,7 @@
   .icon-18 { width: 18px; height: 18px; }
   .icon-32 { width: 32px; height: 32px; }
   .icon-20 { width: 20px; height: 20px; }
+  .icon-24 { width: 24px; height: 24px; }
   .icon-22 { width: 22px; height: 22px; }
   .icon-edit      { -webkit-mask-image: url('../../assets/svg/icons/icon_edit.svg');         mask-image: url('../../assets/svg/icons/icon_edit.svg'); }
   .icon-check     { -webkit-mask-image: url('../../assets/svg/icons/icon_check.svg');        mask-image: url('../../assets/svg/icons/icon_check.svg'); }
@@ -43,6 +44,8 @@
   .icon-plus-circle { -webkit-mask-image: url('../../assets/svg/icons/icon_plus_circle.svg'); mask-image: url('../../assets/svg/icons/icon_plus_circle.svg'); }
   .icon-star      { -webkit-mask-image: url('../../assets/svg/icons/icon_star.svg');         mask-image: url('../../assets/svg/icons/icon_star.svg'); }
   .icon-star-fill { -webkit-mask-image: url('../../assets/svg/icons/icon_star_filled.svg');  mask-image: url('../../assets/svg/icons/icon_star_filled.svg'); }
+  .icon-heart      { -webkit-mask-image: url('../../assets/svg/icons/icon_heart.svg');        mask-image: url('../../assets/svg/icons/icon_heart.svg'); }
+  .icon-heart-fill { -webkit-mask-image: url('../../assets/svg/icons/icon_heart_filled.svg'); mask-image: url('../../assets/svg/icons/icon_heart_filled.svg'); }
   .icon-flame     { -webkit-mask-image: url('../../assets/svg/icons/icon_flame.svg');        mask-image: url('../../assets/svg/icons/icon_flame.svg'); }
   .icon-local-fire{ -webkit-mask-image: url('../../assets/svg/icons/icon_local_fire.svg');   mask-image: url('../../assets/svg/icons/icon_local_fire.svg'); }
   .icon-droplets  { -webkit-mask-image: url('../../assets/svg/icons/icon_droplets.svg');     mask-image: url('../../assets/svg/icons/icon_droplets.svg'); }
@@ -433,6 +436,26 @@
   /* Square icon button — stretch to the Delete button's height, then aspect-ratio
      forces equal width so it's a perfect square (not a short rectangle). */
   .bulk-btn--icon { padding: 0; align-self: stretch; aspect-ratio: 1; justify-content: center; }
+  .bulk-btn--primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .bulk-btn--primary:hover { filter: brightness(1.06); border-color: var(--primary); }
+  .bulk-btn--primary .icon { background: #fff; }
+  /* Bulk "Price": shown only in the Products context; while entering a price the
+     normal buttons hide and the inline editor takes over the bar. */
+  #bulkPrice { display: none; }
+  .bulk-bar.is-products #bulkPrice { display: inline-flex; }
+  .bulk-price-entry { display: none; align-items: center; gap: 8px; }
+  .bulk-bar.is-pricing #bulkTags,
+  .bulk-bar.is-pricing #bulkPrice,
+  .bulk-bar.is-pricing #bulkDelete,
+  .bulk-bar.is-pricing #bulkExit { display: none; }
+  .bulk-bar.is-pricing .bulk-price-entry { display: inline-flex; }
+  .bulk-price-input {
+    width: 92px; height: 34px; padding: 0 10px; border-radius: 10px; text-align: right;
+    background: var(--surface-2); border: 1px solid var(--border); box-shadow: inset 0 1px 2px rgba(0,0,0,.04);
+    font-size: 14px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; font-family: inherit;
+  }
+  .bulk-price-input:focus { outline: none; border-color: var(--primary); background: var(--primary-soft); }
+  .bulk-price-mode { font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: .03em; min-width: 44px; }
 
   .bar { width: 64px; height: 5px; background: var(--surface-2); border-radius: 3px; overflow: hidden; display: inline-block; vertical-align: middle; margin-left: 6px; }
   .bar > span { display: block; height: 100%; background: var(--primary); border-radius: 3px; }
@@ -787,6 +810,158 @@
     color: var(--primary);
     font-weight: 600;
   }
+  /* ❤ / ★ product-flag toggle filters — square icon buttons matching the selects. */
+  .inv-flag-filter {
+    flex-shrink: 0; width: 40px; height: 40px; box-sizing: border-box;
+    display: inline-flex; align-items: center; justify-content: center;
+    background-color: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 10px; cursor: pointer; transition: background-color .15s, border-color .15s;
+  }
+  .inv-flag-filter .icon { background-color: var(--muted); }
+  .inv-flag-filter:hover { background-color: var(--surface); border-color: var(--primary); }
+  .inv-flag-filter--wish.is-active { border-color: #e0245e; background-color: color-mix(in srgb, #e0245e 14%, transparent); }
+  .inv-flag-filter--wish.is-active .icon { background-color: #e0245e; -webkit-mask-image: url('../../assets/svg/icons/icon_heart_filled.svg'); mask-image: url('../../assets/svg/icons/icon_heart_filled.svg'); }
+  .inv-flag-filter--like.is-active { border-color: #f5a623; background-color: color-mix(in srgb, #f5a623 16%, transparent); }
+  .inv-flag-filter--like.is-active .icon { background-color: #f5a623; -webkit-mask-image: url('../../assets/svg/icons/icon_star_filled.svg'); mask-image: url('../../assets/svg/icons/icon_star_filled.svg'); }
+
+  /* ── Products view (order recommendation + liked/favorite) ── */
+  .inv-products-view { display: flex; flex-direction: column; gap: 12px; flex: 1; min-height: 0; overflow-y: auto; margin-top: 12px; scrollbar-width: none; }
+  .inv-products-view::-webkit-scrollbar { width: 0; height: 0; }
+  /* Keep children at their natural height so tall content overflows (and the
+     view scrolls) instead of being squeezed to fit — a flex column shrinks its
+     items by default, which silently clipped the "To order" list. */
+  .inv-products-view > * { flex-shrink: 0; }
+  /* Lines (order tab) */
+  .pv-line {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 12px; border-radius: 12px;
+    background: var(--surface); border: 1px solid var(--border); cursor: pointer;
+    transition: border-color .15s, background .15s;
+  }
+  .pv-line:hover { border-color: var(--primary); }
+  /* Order tab = one card with divider rows (Shopify draft-order look). */
+  /* Order list on the left, Payment card on the right (sticky, follows scroll). */
+  .pv-order-layout { display: flex; align-items: flex-start; gap: 12px; }
+  .pv-order-layout .pv-order-list { flex: 1; min-width: 0; }
+  .pv-order-side { flex-shrink: 0; width: 300px; position: sticky; top: 0; }
+  @media (max-width: 900px) { .pv-order-layout { flex-direction: column; } .pv-order-side { width: 100%; position: static; } }
+  .pv-order-list { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--surface); }
+  .pv-order-line {
+    border: none; border-bottom: 1px solid var(--border); border-radius: 0;
+    background: transparent; padding: 14px 16px;
+  }
+  .pv-order-line:last-child { border-bottom: none; }
+  .pv-order-line:hover { border-color: transparent; background: var(--surface-2); }
+  .pv-order-line:last-child:hover { border-bottom-color: transparent; }
+  .pv-thumb { width: 48px; height: 48px; border-radius: 9px; flex-shrink: 0; object-fit: cover; border: 1px solid var(--border); }
+  .pv-thumb--swatch { display: block; }
+  .pv-line-main { flex: 1; min-width: 0; }
+  /* Whole identity on one line (Brand · Series · Colour name). */
+  .pv-line-title { font-size: 14px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pv-qty { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 4px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .pv-qty-sep { opacity: .5; }
+  .pv-qty-req { font-weight: 600; color: var(--text); }
+  /* SKU in its own column (right of the identity, before the price columns). */
+  .pv-sku-col { flex-shrink: 0; width: 130px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* Shopify-style order columns: unit price · qty · line total. */
+  .pv-unit-col { flex-shrink: 0; width: 90px; text-align: right; font-size: 13px; color: var(--primary); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .pv-qty-col { flex-shrink: 0; width: 72px; display: flex; justify-content: center; }
+  .pv-qty-input {
+    width: 64px; height: 34px; padding: 0 8px; border-radius: 8px; text-align: center;
+    background: var(--surface); border: 1px solid var(--border); box-shadow: inset 0 1px 2px rgba(0,0,0,.04);
+    font-size: 14px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums;
+  }
+  .pv-qty-input:focus { outline: none; border-color: var(--primary); background: var(--primary-soft); }
+  .pv-total-col { flex-shrink: 0; width: 90px; text-align: right; font-size: 14px; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }
+  /* Payment summary (Subtotal / Tax / Total), like a Shopify order footer. */
+  .pv-summary {
+    margin-top: 4px; padding: 14px 16px; border-radius: 12px;
+    background: var(--surface-2); border: 1px solid var(--border);
+  }
+  .pv-sum-title { font-size: 14px; font-weight: 800; color: var(--text); margin-bottom: 10px; }
+  .pv-sum-row {
+    display: grid; grid-template-columns: auto 1fr auto; align-items: baseline; gap: 10px;
+    font-size: 13px; color: var(--text); padding: 5px 0;
+  }
+  .pv-sum-sub { color: var(--muted); font-size: 12px; }
+  .pv-sum-val { text-align: right; font-variant-numeric: tabular-nums; }
+  .pv-sum-tag { font-size: 10px; font-weight: 700; color: var(--muted); letter-spacing: .03em; }
+  .pv-sum-total { margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--border); font-weight: 800; font-size: 16px; }
+  .pv-line-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .pv-buy, .pv-remove {
+    width: 34px; height: 34px; border-radius: 9px; cursor: pointer; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border);
+  }
+  .pv-buy { background: #5e8e3e; border-color: #5e8e3e; }
+  .pv-buy .icon { background-color: #fff; }
+  .pv-buy--off { background: var(--surface-2); border-color: var(--border); }
+  .pv-buy--off .icon { background-color: var(--muted); }
+  .pv-remove { background: var(--surface-2); }
+  .pv-remove .icon { background-color: var(--danger); }
+  .pv-remove:hover { background: color-mix(in srgb, var(--danger) 12%, transparent); }
+  /* Order line: minimal muted × (like Shopify), reddening on hover. */
+  .pv-order-line .pv-remove { background: transparent; border: none; width: 28px; height: 28px; }
+  .pv-order-line .pv-remove .icon { background-color: var(--muted); }
+  .pv-order-line .pv-remove:hover { background: transparent; }
+  .pv-order-line .pv-remove:hover .icon { background-color: var(--danger); }
+  .pv-flag { vertical-align: middle; }
+  .pv-flag--liked { background-color: #e0245e; }
+  .pv-flag--fav { background-color: #f5a623; }
+  .pv-empty { padding: 48px 20px; text-align: center; color: var(--muted); font-size: 14px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .pv-empty .icon { background-color: var(--border); }
+
+  /* ── Favorites grid — reuses the inventory .spool-card (weight bar forced
+       to 100 %); only kills the extra top margin inside the scroll host. ── */
+  .pv-fav-grid { margin-top: 0; }
+
+  /* ── Favorites table ── */
+  .pv-table-wrap { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--surface); }
+  .pv-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .pv-table thead th { text-align: left; padding: 10px 12px; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); background: var(--surface-2); white-space: nowrap; }
+  .pv-trow { cursor: pointer; border-bottom: 1px solid var(--border); transition: background .12s; }
+  .pv-trow:last-child { border-bottom: none; }
+  .pv-trow:hover { background: var(--surface-2); }
+  .pv-table td { padding: 10px 12px; vertical-align: middle; }
+  /* Illustration + colour swatch match the inventory table exactly (thumb 50px in
+     a tight cell, 28px swatch centred in its own column, colour name to its right). */
+  .pv-table td.thumb-cell { padding: 4px 6px; width: 58px; }
+  .pv-table td.color-cell { padding: 4px; width: 36px; text-align: center; }
+  .pv-td-brand { font-weight: 700; color: var(--text); white-space: nowrap; }
+  .pv-td-name { color: var(--muted); white-space: nowrap; }
+  .pv-td-colorname { color: var(--text); white-space: nowrap; }
+  .pv-td-stock { color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .pv-td-stock--low { color: #d98324; font-weight: 700; }   /* below the minimum */
+  /* Fixed width so the column never shifts between the value and the inline
+     editor (both fit within it). */
+  .pv-th-min, .pv-td-min { width: 96px; }
+  .pv-td-min { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  /* Min. qty: a bare pencil SVG (no button box) in FRONT of the value; clicking it
+     swaps the cell for a compact inline input + ✓. */
+  .pv-min-view { display: inline-flex; align-items: center; gap: 6px; }
+  .pv-min-edit { background-color: var(--muted); cursor: pointer; opacity: .65; flex-shrink: 0; transition: opacity .12s, background-color .12s; }
+  .pv-min-view:hover .pv-min-edit, .pv-min-edit:hover { background-color: var(--primary); opacity: 1; }
+  .pv-min-editwrap { display: inline-flex; align-items: center; gap: 4px; }
+  .pv-min-input { width: 42px; height: 28px; padding: 0 4px; border-radius: 6px; text-align: center;
+    background: var(--surface); border: 1px solid var(--primary); box-shadow: inset 0 1px 2px rgba(0,0,0,.04);
+    font-size: 13px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums;
+    -moz-appearance: textfield; }
+  .pv-min-input::-webkit-outer-spin-button, .pv-min-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .pv-min-input:focus { outline: none; background: var(--primary-soft); }
+  .pv-min-ok { width: 26px; height: 28px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center;
+    background: var(--primary); border: 1px solid var(--primary); cursor: pointer; flex-shrink: 0; }
+  .pv-min-ok .icon { background-color: #fff; }
+  /* To order: read-only recommendation = max(0, Min qty − Stock). */
+  .pv-td-toorder { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .pv-td-toorder--need { color: var(--primary); font-weight: 800; }
+  .pv-td-price { color: var(--primary); font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  /* "Add a price" link (empty price) → opens the card straight into price edit. */
+  .pv-addprice { background: none; border: none; padding: 0; cursor: pointer; font-family: inherit;
+    font-size: 12px; font-weight: 600; color: var(--muted); text-decoration: underline; text-underline-offset: 2px; text-decoration-style: dotted; }
+  .pv-addprice:hover { color: var(--primary); text-decoration-style: solid; }
+  .pv-td-act { width: 52px; text-align: right; }
+  .pv-trow.row-selected { background: var(--primary-soft); }
+  body.bulk-select-mode .pv-trow { cursor: pointer; }
 
   .view-toggle { display: flex; gap: 2px; background: var(--surface-2); padding: 3px; border-radius: var(--radius-sm); }
   .view-toggle button { height: 30px; padding: 0 10px; font-size: 13px; border: none; background: transparent; color: var(--muted); border-radius: 8px; }
@@ -943,8 +1118,13 @@
   .spool-card .card-body { padding: 10px 10px 8px; }
   .spool-card .card-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .spool-card .card-sub { font-size: 11px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* Products grid 2nd sub-line (Series / Aspect) — slightly stronger than the brand·material line. */
+  .spool-card .card-sub--extra { margin-top: 1px; color: var(--text); font-weight: 600; }
   .spool-card .card-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
   .spool-card .card-weight { font-size: 12px; font-variant-numeric: tabular-nums; }
+  /* Products grid: price replaces the weight slot (no weight notion for a product). */
+  .spool-card .card-price { font-size: 12px; font-weight: 700; color: var(--primary); font-variant-numeric: tabular-nums; }
+  .spool-card .card-price--none { font-weight: 500; color: var(--muted); }
   .spool-card .card-bar { height: 3px; background: var(--surface-2); border-radius: 2px; overflow: hidden; margin-top: 6px; }
   .spool-card .card-bar > span { display: block; height: 100%; background: var(--primary); border-radius: 2px; }
 
@@ -1818,8 +1998,11 @@
     --text:      #e7ebf3;
     --muted:     #8b95a7;
     color: var(--text);
-    box-shadow: -12px 0 44px rgba(0,0,0,.4);
   }
+  /* Gate the shadow on `.open` (like every other side panel). These two panels
+     are always in the DOM and sit off-screen right (translateX(100%)) when closed;
+     an unconditional shadow leaked a dark band onto the window's right edge. */
+  #fseExplorerPanel.open, #fseRawPanel.open { box-shadow: -12px 0 44px rgba(0,0,0,.4); }
   #fseExplorerPanel .panel-header, #fseRawPanel .panel-header { background: #0e1219; }
   #fseExplorerPanel .panel-close,  #fseRawPanel .panel-close  { color: var(--muted); }
   #fseExplorerPanel .panel-close:hover, #fseRawPanel .panel-close:hover { color: var(--text); }
@@ -2066,22 +2249,30 @@
     border-radius: 99px; letter-spacing: .02em; pointer-events: none;
     line-height: 1.4;
   }
-  /* Shopify "buy link available" badge — bottom-right of a spool illustration
-     (the free corner: twin/backup top-left, chip top-right, TD bottom-left). */
-  .card-shop-badge, .thumb-shop-badge {
-    position: absolute; z-index: 2; margin: 0;
-    display: inline-flex; align-items: center; justify-content: center;
-    background: #5e8e3e; border-radius: 50%; pointer-events: none; /* Shopify green */
+  /* Product-status badges — bottom-right cluster on a spool illustration: ❤
+     wishlist (red), ★ like (gold), 🛍 buy-link (Shopify green). The other corners:
+     twin/backup top-left, chip top-right, TD bottom-left. */
+  .prod-badges {
+    position: absolute; bottom: 6px; right: 6px; z-index: 2;
+    display: flex; gap: 3px; pointer-events: none;
   }
-  .card-shop-badge {
-    bottom: 6px; right: 6px; width: 20px; height: 20px;
+  .prod-badges--sm { bottom: 2px; right: 2px; gap: 2px; }
+  .prod-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 20px; height: 20px; border-radius: 50%;
     border: 1.5px solid rgba(255,255,255,.85); box-shadow: 0 1px 4px rgba(0,0,0,.25);
   }
-  .thumb-shop-badge {
-    bottom: 2px; right: 2px; width: 14px; height: 14px;
-    border: 1.5px solid rgba(255,255,255,.8); box-shadow: 0 1px 3px rgba(0,0,0,.2);
+  .prod-badges--sm .prod-badge { width: 14px; height: 14px; border-width: 1.5px; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
+  .prod-badge .icon { background-color: #fff; }
+  .prod-badge--wish { background: #e0245e; } /* wishlist red */
+  .prod-badge--like { background: #f5a623; } /* like gold */
+  .prod-badge--shop { background: #5e8e3e; } /* Shopify green */
+  /* On the (large) spool-detail illustration, the badges show 2× bigger. */
+  .panel-img-wrap .prod-badges { bottom: 10px; right: 10px; gap: 6px; }
+  .panel-img-wrap .prod-badge {
+    width: 40px; height: 40px; border-width: 2px; box-shadow: 0 2px 7px rgba(0,0,0,.3);
   }
-  .card-shop-badge .icon, .thumb-shop-badge .icon { background-color: #fff; }
+  .panel-img-wrap .prod-badge .icon { width: 22px; height: 22px; }
 
   /* ── inline video player ── */
   .panel-video-section { border-bottom: 1px solid var(--border); }
@@ -2527,6 +2718,34 @@
   .ro-panel .panel-body::-webkit-scrollbar { width: 0; height: 0; display: none; }
   /* Product identity header (swatch + brand/material·colour). */
   .ro-head { display: flex; align-items: center; gap: 11px; }
+  /* ❤ Liked / ★ Favorite toggles — shared by the product card header (.ro-flags)
+     and the spool detail identity block (.pi-flags). */
+  .ro-flags { margin-left: auto; display: flex; gap: 5px; flex-shrink: 0; }
+  .flag-toggle {
+    width: 34px; height: 34px; border-radius: 9px; cursor: pointer; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--surface-2); border: 1px solid var(--border);
+    transition: background .15s, border-color .15s;
+  }
+  .flag-toggle .icon { background-color: var(--muted); }
+  .flag-toggle:hover { background: var(--border); }
+  .flag-toggle--wish.active { background: color-mix(in srgb, #e0245e 15%, transparent); border-color: #e0245e; }
+  .flag-toggle--wish.active .icon { background-color: #e0245e; }
+  .flag-toggle--like.active { background: color-mix(in srgb, #f5a623 18%, transparent); border-color: #f5a623; }
+  .flag-toggle--like.active .icon { background-color: #f5a623; }
+  /* Detail-panel identity block: text left, flag toggles top-right. */
+  .panel-identity { display: flex; align-items: flex-start; gap: 10px; }
+  .pi-ident-text { flex: 1; min-width: 0; }
+  .pi-flags { display: flex; gap: 5px; flex-shrink: 0; }
+  /* "Create a TigerTag Cloud" button. */
+  .ro-cloud-btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    width: 100%; height: 40px; border-radius: 10px; cursor: pointer;
+    background: var(--surface-2); border: 1px solid var(--border);
+    color: var(--text); font-size: 13px; font-weight: 600; transition: background .15s;
+  }
+  .ro-cloud-btn:hover { background: var(--border); }
+  .ro-cloud-btn .icon { background-color: var(--primary); }
   .ro-swatch {
     width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0;
     border: 1px solid var(--border); box-shadow: inset 0 0 0 1px rgba(255,255,255,.06);

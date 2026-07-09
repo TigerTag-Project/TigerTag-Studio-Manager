@@ -590,6 +590,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     materialFilter: "",               // exact material name to keep, "" = all
     typeFilter: "",                   // exact product type to keep, "" = all
     tagFilter: "",                    // exact tag to keep (spool must carry it), "" = all
+    flagFilter: "",                   // product flag to keep: "liked" (❤) | "favorite" (★) | "" = all
     printerBrandFilter: "",           // printer view: exact brand key to keep, "" = all
     printerStatusFilter: "",          // printer view: "online" | "offline" | "" = all
     printerTagFilter: "",             // printer view: exact tag the printer must carry, "" = all
@@ -635,7 +636,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     unsubScales: null,       // Firestore unsubscribe handle for scales
     printers: [],            // [{ id, brand, printerName, printerModelId, isActive, updatedAt, sortIndex, ... }]
     unsubPrinters: [],       // array of Firestore unsubscribe handles (one per brand subcollection)
-    products: {},       // keyHash → { key, label, buyUrl, buyPriceHt, minStockSpools, note, tags, favorite, updatedAt } — per-product-identity record (buy link, reorder, wishlist, notes/tags, stock valuation). Price stored tax-free (HT).
+    products: {},       // keyHash → { key, label, buyUrl, buyPriceHt, minStockSpools, note, tags, liked(❤), favorite(★), sku, ean, cloudSeed, updatedAt } — per-product-identity record. Price stored tax-free (HT).
     unsubProducts: null,// Firestore unsubscribe handle for products
     vatCountry: null,        // users/{uid}.vatCountry — ISO country code driving VAT rate + currency for HT/TTC price display
     priceInputMode: "TTC",   // users/{uid}.priceInputMode "HT"|"TTC" — how the user TYPES filament prices (stored value is always HT)
@@ -644,6 +645,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     bulkSelect: false,       // true = multi-select mode active (checkboxes, no detail on click)
     selectedSpools: new Set(), // spoolIds selected for bulk actions (materials views)
     selectedPrinters: new Set(), // "brand:id" keys selected for bulk actions (printer views) — separate from materials
+    selectedProducts: new Set(), // product keyHashes selected for bulk actions (Products table view) — separate again
     td1sConnected: false,
     scanMode: false,        // true = "+ Scan" active, auto-add on unknown chip
     nfcReaderCount: 0,      // number of connected NFC readers
@@ -3017,6 +3019,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   $("bulkExit")?.addEventListener("click", _exitSelectMode);
   $("bulkTags")?.addEventListener("click", _openBulkTags);
   setupHoldToConfirm($("bulkDelete"), 1500, () => { _bulkCtx().del().catch(e => reportError("bulk.delete", e)); });
+  // Bulk price (Products context only): one price applied to every selected product.
+  $("bulkPrice")?.addEventListener("click", _bulkEnterPriceMode);
+  $("bulkPriceCancel")?.addEventListener("click", _bulkExitPriceMode);
+  $("bulkPriceApply")?.addEventListener("click", () => _bulkApplyPrice().catch(e => reportError("bulk.price", e)));
+  $("bulkPriceInput")?.addEventListener("keydown", e => {
+    if (e.key === "Enter") { e.preventDefault(); _bulkApplyPrice().catch(err => reportError("bulk.price", err)); }
+    else if (e.key === "Escape") { e.preventDefault(); _bulkExitPriceMode(); }
+  });
 
   $("btnAddProduct")?.addEventListener("click", () => {
     // The header Add button is multi-purpose, dispatching by current view:
@@ -4211,6 +4221,37 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     } finally { setLoading($("btnGoogleSignIn"), false); }
   });
 
+  // Shown when a verified-email account tries to sign in but hasn't clicked the
+  // link yet. Renders the blocking message + an inline "resend" action that
+  // re-authenticates (using the just-typed credentials) only long enough to
+  // fire a fresh verification email, then signs back out.
+  function showVerifyBlocked(email, password) {
+    const el = $("addModalResult");
+    el.innerHTML = "";
+    const div = document.createElement("div");
+    div.className = "alert bad";
+    div.textContent = t("loginEmailNotVerified");
+    const sep = document.createElement("span");
+    sep.textContent = " — "; sep.style.opacity = ".7";
+    const link = document.createElement("button");
+    link.type = "button"; link.className = "alert-link";
+    link.textContent = t("loginResendVerif");
+    link.addEventListener("click", async () => {
+      link.disabled = true;
+      try {
+        const r = await firebase.auth().signInWithEmailAndPassword(email, password);
+        await r.user.sendEmailVerification();
+        await firebase.auth().signOut();
+        toast(el, "ok", t("loginVerifyEmailSent", { email }));
+      } catch (err) {
+        reportError("auth.resendVerif", err);
+        toast(el, "bad", err.message || t("networkError"), { err, context: "auth.resendVerif" });
+      }
+    });
+    div.appendChild(sep); div.appendChild(link);
+    el.appendChild(div);
+  }
+
   // Email/password sign-in or create account
   $("btnStgSave").addEventListener("click", async () => {
     const email    = $("stgEmail").value.trim();
@@ -4235,23 +4276,32 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           setLoading($("btnStgSave"), false);
           return;
         }
-        // Create on DEFAULT, transfer to named instance, register listener,
-        // then call handleSignedIn EXPLICITLY for guaranteed UI refresh.
+        // Create the auth user, send the verification email, then sign back out.
+        // STRICT: no session is established until the user clicks the emailed
+        // link — so a mistyped / non-existent address can never enter the app.
+        // (Google sign-in is exempt: those addresses are already verified.)
         const result = await firebase.auth().createUserWithEmailAndPassword(email, password);
-        const uid = result.user.uid;
-        ensureFirebaseApp(uid);
-        await firebase.app(uid).auth().setPersistence(persistence);
-        await firebase.app(uid).auth().updateCurrentUser(result.user);
-        setActiveId(uid);
-        setupNamedAuth(uid);
+        await result.user.sendEmailVerification();
         await firebase.auth().signOut();
-        toast($("addModalResult"), "ok", t("loginAccountCreated"));
-        setTimeout(closeAddAccountModal, 1400);
-        await handleSignedIn(result.user, uid);
+        // Drop back to the sign-in form, pre-fill the email, and tell them to
+        // check their inbox before logging in.
+        lmSetMode("signin");
+        $("stgEmail").value = email;
+        $("stgPassword").value = "";
+        $("stgConfirmPassword").value = "";
+        toast($("addModalResult"), "ok", t("loginVerifyEmailSent", { email }));
       } else {
         // Sign in on DEFAULT, transfer to named instance, register listener,
         // then call handleSignedIn EXPLICITLY for guaranteed UI refresh.
         const result = await firebase.auth().signInWithEmailAndPassword(email, password);
+        // STRICT: block email/password accounts whose address isn't verified yet.
+        // (emailVerified is always true for Google sign-in, so it never lands here.)
+        if (!result.user.emailVerified) {
+          await firebase.auth().signOut();
+          showVerifyBlocked(email, password);
+          setLoading($("btnStgSave"), false);
+          return;
+        }
         const uid = result.user.uid;
         ensureFirebaseApp(uid);
         await firebase.app(uid).auth().setPersistence(persistence);
@@ -5623,6 +5673,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       const tf = state.tagFilter.toLowerCase();
       rows = rows.filter(r => (r.tags || []).some(t => String(t).toLowerCase() === tf));
     }
+    if (state.flagFilter && !state.friendView) {
+      rows = rows.filter(r => !!_getProduct(r)?.[state.flagFilter]);
+    }
     return sortRows(deduplicateTwins(rows));
   }
 
@@ -5689,6 +5742,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
 
   /* ── render ── */
   const _isPrinterMode = m => m === "printer" || m === "printer-table" || m === "printer-cam";
+  // Products group: liked/favorite as grid or table, plus the "To order" cart.
+  const _isProductsMode = m => m === "favesGrid" || m === "favesTable" || m === "order";
 
   // All rows that should ever be present in the grid / table DOM — i.e.
   // everything EXCEPT hard-deleted docs and the secondary tag of a twin pair.
@@ -5741,6 +5796,20 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         $("mainResult").innerHTML = "";
         $("invPrinterView").classList.remove("hidden");
         renderPrintersView();
+        return;
+      }
+      // Products view — independent from the inventory rows too.
+      if (_isProductsMode(state.viewMode)) {
+        $("card-welcome").classList.add("hidden");
+        $("card-inv").classList.remove("hidden");
+        $("invTableWrap").classList.add("hidden");
+        $("invGrid").classList.add("hidden");
+        $("invRackView")?.classList.add("hidden");
+        $("invPrinterView")?.classList.add("hidden");
+        $("invEmpty").classList.add("hidden");
+        $("mainResult").innerHTML = "";
+        $("invProductsView").classList.remove("hidden");
+        renderProductsView();
         return;
       }
       if (state.friendView) {
@@ -5882,6 +5951,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       $("invEmpty").classList.add("hidden");
       $("invRackView").classList.remove("hidden");
       $("invPrinterView")?.classList.add("hidden");
+      $("invProductsView")?.classList.add("hidden");
       renderRackView();
       return;
     }
@@ -5893,10 +5963,23 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       $("invGrid").classList.add("hidden");
       $("invEmpty").classList.add("hidden");
       $("invPrinterView").classList.remove("hidden");
+      $("invProductsView")?.classList.add("hidden");
       renderPrintersView();
       return;
     }
     $("invPrinterView")?.classList.add("hidden");
+
+    // Products view — cart recommendation + liked/favorite, decoupled from spool
+    // rows (reads the products records, so it renders even with 0 spools).
+    if (_isProductsMode(state.viewMode)) {
+      $("invTableWrap").classList.add("hidden");
+      $("invGrid").classList.add("hidden");
+      $("invEmpty").classList.add("hidden");
+      $("invProductsView").classList.remove("hidden");
+      renderProductsView();
+      return;
+    }
+    $("invProductsView")?.classList.add("hidden");
 
     // Inventory really empty (no spools at all — `allDisplayRows` already
     // strips deleted/twin secondaries). `applyInventoryFilter()` handles the
@@ -5930,7 +6013,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const material = state.materialFilter || "";
     const type = state.typeFilter || "";
     const tag = (state.tagFilter || "").toLowerCase();
-    const noFilter = !q && !brand && !material && !type && !tag;
+    const flag = (!state.friendView && state.flagFilter) ? state.flagFilter : "";
+    const noFilter = !q && !brand && !material && !type && !tag && !flag;
     const rowsById = new Map(state.rows.map(r => [r.spoolId, r]));
     const rowMatches = r => {
       const matchSearch = !q || _rowMatchesSearch(r, q);
@@ -5938,7 +6022,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       const matchMaterial = !material || String(r.material) === material;
       const matchType = !type || String(r.protocol) === type;
       const matchTag = !tag || (r.tags || []).some(t => String(t).toLowerCase() === tag);
-      return matchSearch && matchBrand && matchMaterial && matchType && matchTag;
+      const matchFlag = !flag || !!_getProduct(r)?.[flag];
+      return matchSearch && matchBrand && matchMaterial && matchType && matchTag && matchFlag;
     };
     let visible = 0;
 
@@ -6206,7 +6291,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const inner = src
       ? `<img class="thumb" src="${esc(src)}" width="${size}" height="${size}" loading="lazy"${fb} />`
       : `<span class="thumb-color" style="width:${size}px;height:${size}px;background:${colorBg(row)}"><img src="${logoSrc(colorBg(row))}" /></span>`;
-    const shopBadge = badges ? _buyLinkBadgeHTML(row, { compact: true }) : "";
+    const shopBadge = badges ? _productBadgesHTML(row, { compact: true }) : "";
     return `<span class="thumb-wrap">${inner}${overlay}${tdBadge}${chipBadge}${shopBadge}</span>`;
   }
 
@@ -6355,6 +6440,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function _productLabel(r) {
     return {
       brand:     r.brand || "",
+      series:    r.series || "",
       material:  materialWithAspect(r) || r.material || "",
       colorName: r.colorName && r.colorName !== "-" ? r.colorName : "",
       colorHex:  r.colorHex || "",
@@ -6375,12 +6461,28 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // inventory: products is the signed-in user's, not the friend's.
   function _hasBuyLink(r) { return !state.friendView && !!_getProduct(r)?.buyUrl; }
 
-  // Small round Shopify badge overlaid on a spool illustration to signal a buy
-  // link exists. `compact` = the smaller table-thumbnail variant.
-  function _buyLinkBadgeHTML(r, { compact = false } = {}) {
-    if (!_hasBuyLink(r)) return "";
-    const cls = compact ? "thumb-shop-badge" : "card-shop-badge";
-    return `<span class="${cls}" title="${esc(t("reorderHasLink"))}"><span class="icon icon-shopify ${compact ? "icon-9" : "icon-11"}"></span></span>`;
+  // Small product-status signature — liked / favorite / buy-link presence — used
+  // to fold into the row/group signatures so the badges repaint on a change.
+  function _productBadgeSig(r) {
+    if (state.friendView) return "";
+    const p = _getProduct(r);
+    if (!p) return "";
+    return (p.liked ? "h" : "") + (p.favorite ? "f" : "") + (p.buyUrl ? "s" : "");
+  }
+  // Round status badges overlaid bottom-right of a spool illustration: ❤ Liked
+  // (heart), ★ Favorite (star), and the Shopify buy-link. `compact` = table-thumb.
+  // NB: the class suffixes `--wish`/`--like` are legacy internal names — `--wish`
+  // styles the ❤ Liked badge, `--like` the ★ Favorite badge.
+  function _productBadgesHTML(r, { compact = false } = {}) {
+    if (state.friendView) return "";
+    const p = _getProduct(r);
+    if (!p) return "";
+    const sz = compact ? "icon-9" : "icon-11";
+    const items = [];
+    if (p.liked)    items.push(`<span class="prod-badge prod-badge--wish" title="${esc(t("productLike"))}"><span class="icon icon-heart-fill ${sz}"></span></span>`);
+    if (p.favorite) items.push(`<span class="prod-badge prod-badge--like" title="${esc(t("productFavorite"))}"><span class="icon icon-star-fill ${sz}"></span></span>`);
+    if (p.buyUrl)   items.push(`<span class="prod-badge prod-badge--shop" title="${esc(t("reorderHasLink"))}"><span class="icon icon-shopify ${sz}"></span></span>`);
+    return items.length ? `<div class="prod-badges${compact ? " prod-badges--sm" : ""}">${items.join("")}</div>` : "";
   }
 
   // How many non-deleted spools the user currently owns that share this
@@ -6405,17 +6507,46 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // future favourite toggle can each update their slice WITHOUT clobbering the
   // others. `key`/`label`/`updatedAt` are always refreshed. patch === null
   // deletes the whole product record.
+  // Interest hierarchy: ★ Favorite = level 1 (a product whose stock you watch — it
+  // may or may not have a min target); ❤ Love = level 2 and IMPLIES Favorite.
+  //   • setting a min target auto-favorites the product,
+  //   • loving (❤) auto-favorites it,
+  //   • un-favoriting (★ off) drops the Love (keeps ❤ ⊆ ★) but PRESERVES the min —
+  //     a mis-click on ★ must never wipe the stock threshold you typed (an
+  //     un-favorited product with a min is surfaced by the recovery view).
+  // Applied on every product write so all entry points obey it.
+  function _coupleFlags(patch) {
+    const p = { ...patch };
+    if (p.liked === true && !("favorite" in p)) p.favorite = true;                     // ❤ ⇒ ★
+    if (!("favorite" in p) && Number.isFinite(+p.minStockSpools) && +p.minStockSpools > 0) p.favorite = true;  // min ⇒ ★
+    if (p.favorite === false && !("liked" in p)) p.liked = false;                       // ★ off ⇒ drop Love (min kept)
+    return p;
+  }
+
   async function _writeProduct(r, patch) {
     const uid = getActiveId();
     if (!uid || !r) return;
     const ref = fbDb(uid).collection("users").doc(uid)
       .collection("products").doc(_productKeyHash(r));
     if (patch === null) { try { await ref.delete(); } catch (e) { console.warn("[products] delete failed:", e); } return; }
+    patch = _coupleFlags(patch);
+    // Optimistic local patch for the coupled fields so ❤/★ + min reflect instantly.
+    const _rec = state.products[_productKeyHash(r)];
+    if (_rec) {
+      if ("liked" in patch)    _rec.liked = !!patch.liked;
+      if ("favorite" in patch) _rec.favorite = !!patch.favorite;
+      if ("minStockSpools" in patch) _rec.minStockSpools = (Number.isFinite(+patch.minStockSpools) && +patch.minStockSpools > 0) ? Math.round(+patch.minStockSpools) : 0;
+    }
     const doc = {
       key:   _spoolGroupKey(r),
       label: _productLabel(r),
       updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
     };
+    // Snapshot the material data needed to mint a TigerTag Cloud from this product
+    // even when no source spool remains (see `_createCloudFromProduct`). Refreshed
+    // from the current spool on every write. Skipped if the row carries no raw.
+    const seed = _sanitizeCloudSeed(r.raw);
+    if (seed) doc.cloudSeed = seed;
     if ("buyUrl" in patch) doc.buyUrl = patch.buyUrl || "";
     if ("buyPriceHt" in patch) {
       doc.buyPriceHt = (patch.buyPriceHt === "" || patch.buyPriceHt == null || !Number.isFinite(+patch.buyPriceHt))
@@ -6426,13 +6557,31 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     }
     if ("minStockSpools" in patch)
       doc.minStockSpools = Number.isFinite(+patch.minStockSpools) ? Math.max(0, Math.round(+patch.minStockSpools)) : 0;
+    if ("onOrder" in patch)
+      doc.onOrder = Number.isFinite(+patch.onOrder) ? Math.max(0, Math.round(+patch.onOrder)) : 0;
     if ("note" in patch)     doc.note = (patch.note || "").trim();
     if ("tags" in patch)     doc.tags = Array.isArray(patch.tags) ? patch.tags : [];
-    if ("favorite" in patch) doc.favorite = !!patch.favorite;
+    if ("liked" in patch)    doc.liked = !!patch.liked;        // ❤ heart = Liked
+    if ("favorite" in patch) doc.favorite = !!patch.favorite;  // ★ star = Favorite
+    doc.wishlist = firebase.firestore.FieldValue.delete();     // legacy field (renamed) — clean up
     if ("sku" in patch)      doc.sku = (patch.sku || "").trim();
     if ("ean" in patch)      doc.ean = (patch.ean || "").trim();
     try { await ref.set(doc, { merge: true }); }
     catch (e) { console.warn("[products] write failed:", e); }
+  }
+
+  // Strip spool-instance fields from a chip's raw data, keeping only what's needed
+  // to mint a fresh TigerTag Cloud of the same product (material identity, colour,
+  // type, diameter, product id, image, sku/ean…). Instance-specific bits (uid,
+  // weight, rack placement, timestamps, twin link, deletion) are dropped — the
+  // Cloud creator assigns a new id + timestamp.
+  function _sanitizeCloudSeed(raw) {
+    if (!raw || typeof raw !== "object") return null;
+    const seed = { ...raw };
+    ["uid", "twin_tag_uid", "rack", "rack_id", "level", "position",
+     "weight_available", "weight", "timestamp", "updatedAt", "needUpdateAt",
+     "deleted", "deleted_at", "container_id", "container_weight"].forEach(k => delete seed[k]);
+    return seed;
   }
 
   // Live-sync the user's products table into state.products
@@ -6452,6 +6601,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         if (!_isPrinterMode(state.viewMode)) scheduleRender("inventory", renderInventory);
         if (typeof refreshOpenDetailReorder === "function") refreshOpenDetailReorder();
         _maybeRefreshPanelForCard();  // flips the detail's "Reorder" toolbox row live
+        _refreshDetailImgBadges();    // ❤/★/🛍 badges on the detail illustration
         _refreshGroupPanelIfOpen();   // flips the deck's "Reorder" button live
         _checkLowStockNotifs();       // min changed → raise / clear low-stock alerts
       }, err => console.warn("[products]", err.code, err.message));
@@ -6495,7 +6645,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     order.forEach(o => {
       if (o.single) { items.push({ type: "single", row: o.single }); return; }
       const members = buckets.get(o.groupKey);
-      if (members.length === 1) { items.push({ type: "single", row: members[0] }); return; }
+      // A lone spool normally renders as a single card/row. `keepSingletons` keeps
+      // it as a 1-member group instead — used only to resolve the group side-card
+      // for a product with a single spool (Products view), never for list render.
+      if (members.length === 1 && !opts.keepSingletons) { items.push({ type: "single", row: members[0] }); return; }
       let totalAvail = 0, totalCap = 0;
       members.forEach(m => {
         if (m.weightAvailable != null) totalAvail += Number(m.weightAvailable) || 0;
@@ -6582,31 +6735,47 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       (r.colorList || []).join(","),
       r.colorType || "",
       r.lastUpdate ?? "",
-      _hasBuyLink(r) ? 1 : 0,
+      _productBadgeSig(r),
     ].join("|");
   }
 
   // Build the inner HTML of a grid card from a row. Reused by create and
   // update paths so the markup stays single-source.
-  function _gridCardInnerHTML(r) {
+  // opts for the Products grid: `product` = strip every chip/spool-only marker
+  // (tier shield, TD chip, pending-chip dot, top-left badges — a product identity
+  // is NOT an RFID chip) and drop the weight bar; `footerHTML` replaces the weight
+  // slot (used to show the product price instead of a gram count).
+  function _gridCardInnerHTML(r, opts = {}) {
     const _resolvedCard = r.imgUrl ? resolvedImg(r.imgUrl) : null;
     // Colour-square base layer (logo watermark included), product image stacked
     // on top so a broken/slow image gracefully falls back to the colour square.
     const imgHtml = `<div class="card-img-color-placeholder" style="background:${colorBg(r)}"><img src="${logoSrc(colorBg(r))}" />${
       _resolvedCard ? `<img class="card-img--overlay" src="${esc(_resolvedCard)}" loading="lazy" onerror="this.style.display='none'" />` : ''
     }</div>`;
-    const pct = (r.weightAvailable != null && r.capacity) ? Math.max(0,Math.min(100,Math.round(r.weightAvailable/r.capacity*100))) : null;
+    const pct = opts.product ? null
+      : (r.weightAvailable != null && r.capacity) ? Math.max(0,Math.min(100,Math.round(r.weightAvailable/r.capacity*100))) : null;
     const swatch = colorCircleHTML(r);
-    const badge = tierBadgeHTML(r, "", { backup: false }); // shield lives in the top-right cluster here
-    const tdBadge = r.td != null ? `<span class="card-td-badge">TD ${r.td}</span>` : "";
-    const chipDot = r.needUpdateAt ? `<span class="chip-badge card-chip-badge" title="${t("chipPendingHint")}"><span class="icon icon-refresh icon-11"></span></span>` : "";
+    const badge   = opts.product ? "" : tierBadgeHTML(r, "", { backup: false }); // shield lives in the top-right cluster here
+    const tdBadge = (!opts.product && r.td != null) ? `<span class="card-td-badge">TD ${r.td}</span>` : "";
+    const chipDot = (!opts.product && r.needUpdateAt) ? `<span class="chip-badge card-chip-badge" title="${t("chipPendingHint")}"><span class="icon icon-refresh icon-11"></span></span>` : "";
+    const tlBadges = opts.product ? "" : _cardTlBadges(r);
+    const footer  = opts.footerHTML != null ? opts.footerHTML
+      : `<span class="card-weight">${r.weightAvailable!=null ? r.weightAvailable+" g" : "-"}</span>`;
+    // Name (title) + sub-identity line — overridable so the Products grid can show
+    // a type-aware label (Brand · Series · Material) regardless of chip type.
+    const nameText = opts.nameText != null ? opts.nameText
+      : (v(r.colorName) !== "-" ? r.colorName : [r.aspect1, r.aspect2].filter(a => a && a !== "-" && a !== "None").join(" ") || r.material);
+    const subText  = opts.subText != null ? opts.subText : `${v(r.material)} · ${v(r.brand)}`;
+    // Optional second sub-line (Products grid: Series for TigerTag+, else Aspect).
+    const subExtra = opts.subExtraText ? `<div class="card-sub card-sub--extra">${esc(opts.subExtraText)}</div>` : "";
     return `
-      <div class="card-img-wrap"><span class="sel-check" aria-hidden="true"></span>${imgHtml}${_cardTlBadges(r)}${tdBadge}${chipDot}${_buyLinkBadgeHTML(r)}</div>
+      <div class="card-img-wrap"><span class="sel-check" aria-hidden="true"></span>${imgHtml}${tlBadges}${tdBadge}${chipDot}${_productBadgesHTML(r)}</div>
       <div class="card-body">
-        <div class="card-name">${swatch}${esc(v(r.colorName) !== "-" ? r.colorName : [r.aspect1, r.aspect2].filter(a => a && a !== "-" && a !== "None").join(" ") || r.material)}</div>
-        <div class="card-sub">${esc(v(r.material))} · ${esc(v(r.brand))}</div>
+        <div class="card-name">${swatch}${esc(nameText)}</div>
+        <div class="card-sub">${esc(subText)}</div>
+        ${subExtra}
         <div class="card-footer">
-          <span class="card-weight">${r.weightAvailable!=null ? r.weightAvailable+" g" : "-"}</span>
+          ${footer}
           <span style="display:flex;gap:3px;align-items:center">${badge}</span>
         </div>
         ${pct!==null ? `<div class="card-bar"><span style="width:${pct}%;background:${fillBarColor(pct)}"></span></div>` : ""}
@@ -6620,7 +6789,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     card.innerHTML = _gridCardInnerHTML(r);
     card.addEventListener("click", (e) => {
       if (state.bulkSelect) { _bulkClickSpool(r.spoolId, e.shiftKey); return; }
-      openDetail(r.spoolId, { animateSwap: true });
+      // Open the grouped deck FIRST — even for a lone spool (keepSingletons) — so a
+      // click always lands on the product deck; picking a member opens its detail.
+      _openGroupPanel(_spoolGroupKey(r), { keepSingletons: true });
     });
     card._sig = _rowSignature(r);
     return card;
@@ -6664,11 +6835,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // .card-img-wrap badges (twin / td / chip)
     const wrap = card.querySelector(".card-img-wrap");
     if (wrap) {
-      wrap.querySelectorAll(".card-badges-tl, .card-td-badge, .card-chip-badge, .card-shop-badge").forEach(el => el.remove());
+      wrap.querySelectorAll(".card-badges-tl, .card-td-badge, .card-chip-badge, .prod-badges").forEach(el => el.remove());
       const badges = _cardTlBadges(r)
         + (r.td != null ? `<span class="card-td-badge">TD ${r.td}</span>` : "")
         + (r.needUpdateAt ? `<span class="chip-badge card-chip-badge" title="${t("chipPendingHint")}"><span class="icon icon-refresh icon-11"></span></span>` : "")
-        + _buyLinkBadgeHTML(r);
+        + _productBadgesHTML(r);
       if (badges) wrap.insertAdjacentHTML("beforeend", badges);
     }
 
@@ -6698,7 +6869,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // for the grid card (it opens a panel rather than expanding in place).
     // The deck shows a full card (badges on) → fold in the buy-link presence so
     // the Shopify badge appears/disappears when the product's link changes.
-    return "G|" + _groupHeaderSig(g, false) + "|" + (_hasBuyLink(g.rep) ? 1 : 0);
+    return "G|" + _groupHeaderSig(g, false) + "|" + _productBadgeSig(g.rep);
   }
   function _groupGridCardInnerHTML(g) {
     const countTitle = esc(t("invGroupCount", { n: g.count }));
@@ -6808,6 +6979,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     return card;
   }
   let _groupPanelKey = null;   // key of the group currently shown in the panel
+  let _groupPanelKeepSingletons = false;   // panel opened from Products view → resolve even a 1-spool identity
   // ── Speedometer gauge geometry (3/5 arc, gap at the bottom) ────────────────
   // Angles: 0°=top, 90°=right, 180°=bottom, 270°=left (clockwise). The 216° arc
   // runs from the lower-LEFT (0%) over the top to the lower-RIGHT (100%).
@@ -6904,9 +7076,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     }
   }
 
-  function _openGroupPanel(key) {
-    const g = groupRows(allDisplayRows(), { force: state.bulkSelect }).find(it => it.type === "group" && it.key === key);
-    if (!g) return;
+  function _openGroupPanel(key, opts = {}) {
+    // Products view opens the deck even for a single spool (keepSingletons).
+    _groupPanelKeepSingletons = !!opts.keepSingletons;
+    const g = groupRows(allDisplayRows(), { force: opts.keepSingletons || state.bulkSelect, keepSingletons: opts.keepSingletons })
+      .find(it => it.type === "group" && it.key === key);
+    if (!g) { _groupPanelKeepSingletons = false; return; }
     closeNotifs();   // opening a side card takes over the right — dismiss notifs
     _groupPanelKey = key;
     _renderGroupPanelContents(g);   // sets _groupPanelMembers
@@ -6928,6 +7103,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function _closeGroupPanel() {
     document.getElementById("groupPanel")?.classList.remove("open");
     _groupPanelKey = null;
+    _groupPanelKeepSingletons = false;
     _groupPanelMembers = new Set();
     _syncPanels();
   }
@@ -6944,7 +7120,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (!document.getElementById("groupPanel")?.classList.contains("open") || !_groupPanelKey) return;
     // Force grouping in select mode so the open panel resolves even though the
     // main list is ungrouped (it acts as the "group context" that follows clicks).
-    const g = groupRows(allDisplayRows(), { force: state.bulkSelect }).find(it => it.type === "group" && it.key === _groupPanelKey);
+    const g = groupRows(allDisplayRows(), { force: _groupPanelKeepSingletons || state.bulkSelect, keepSingletons: _groupPanelKeepSingletons })
+      .find(it => it.type === "group" && it.key === _groupPanelKey);
     if (!g) { _closeGroupPanel(); return; }   // group dissolved (e.g. all members deleted)
     _renderGroupPanelContents(g);
   }
@@ -7039,7 +7216,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       // rest of the row opens detail — unless already in select mode (then toggle).
       if (e.target.closest(".sel-cell")) { e.stopPropagation(); _selCellClickSpool(r.spoolId, e.shiftKey, tr.getBoundingClientRect().top); return; }
       if (state.bulkSelect) { _bulkClickSpool(r.spoolId, e.shiftKey); return; }
-      openDetail(r.spoolId, { animateSwap: true });
+      // Open the grouped deck FIRST — even for a lone spool (keepSingletons); a
+      // click on a member inside the deck then opens its detail.
+      _openGroupPanel(_spoolGroupKey(r), { keepSingletons: true });
     });
     tr._sig = _rowSignature(r);
     return tr;
@@ -7211,9 +7390,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     state.bulkSelect = true;
     document.body.classList.add("bulk-select-mode");
     document.querySelectorAll(".js-select-toggle").forEach(b => b.classList.add("active"));
-    // Printers have no grouping — just reveal the (CSS-gated) checkboxes, no
-    // re-render (which would rebuild live camera thumbnails). Materials ungroup.
-    if (_isPrinterMode(state.viewMode)) { _updateBulkBar(); return; }
+    // Printers / products have no grouping — just reveal the bar, no re-render
+    // (printers' live camera thumbnails; products' always-on table checkboxes).
+    // Materials ungroup.
+    if (_isPrinterMode(state.viewMode) || _isProductsMode(state.viewMode)) { _updateBulkBar(); return; }
     renderInventory();              // rebuild ungrouped so every spool is selectable
     _repaintSelection();            // diffed rows were kept — paint any pre-selected ones
     _updateBulkBar();
@@ -7230,9 +7410,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     document.body.classList.remove("bulk-select-mode");
     document.querySelectorAll(".js-select-toggle").forEach(b => b.classList.remove("active"));
     _clearSelection();
-    // Materials regroup on exit; printers have no grouping (skip the re-render so
-    // live camera thumbnails aren't rebuilt).
-    if (!_isPrinterMode(state.viewMode)) renderInventory();
+    // Materials regroup on exit; printers / products have no grouping (skip the
+    // re-render so live camera thumbnails / freshly-typed rows aren't rebuilt).
+    if (!_isPrinterMode(state.viewMode) && !_isProductsMode(state.viewMode)) renderInventory();
   }
   function _toggleSelectMode() { state.bulkSelect ? _exitSelectMode() : _enterSelectMode(); }
 
@@ -7367,6 +7547,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       visibleKeys: () => Array.from(document.querySelectorAll("#invPrinterView [data-printer-key]:not(.hidden)")).map(el => el.dataset.printerKey),
       paint: (key, on) => document.querySelectorAll(`#invPrinterView [data-printer-key="${CSS.escape(key)}"]`).forEach(el => el.classList.toggle("row-selected", on)),
     };
+    // Products TABLE view: selection keyed by product keyHash (own set + delete).
+    if (state.viewMode === "favesTable") return {
+      printers: false, products: true, set: state.selectedProducts, del: _bulkDeleteProducts,
+      visibleKeys: () => Array.from(document.querySelectorAll("#invProductsView .pv-trow[data-hash]:not(.hidden)")).map(el => el.dataset.hash),
+      paint: (hash, on) => document.querySelectorAll(`#invProductsView .pv-trow[data-hash="${CSS.escape(hash)}"]`).forEach(el => el.classList.toggle("row-selected", on)),
+    };
     return {
       printers: false, set: state.selectedSpools, del: _bulkDeleteSelected,
       visibleKeys: _visibleSpoolIds,
@@ -7380,7 +7566,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     state.selectedPrinters.forEach(k =>
       document.querySelectorAll(`#invPrinterView [data-printer-key="${CSS.escape(k)}"]`).forEach(el => el.classList.remove("row-selected")));
     state.selectedPrinters.clear();
-    _lastSelectedId = null; _lastSelectedPrinter = null;
+    state.selectedProducts.forEach(h =>
+      document.querySelectorAll(`#invProductsView .pv-trow[data-hash="${CSS.escape(h)}"]`).forEach(el => el.classList.remove("row-selected")));
+    state.selectedProducts.clear();
+    _lastSelectedId = null; _lastSelectedPrinter = null; _lastSelectedProduct = null;
     document.querySelectorAll(".group-all-selected").forEach(el => el.classList.remove("group-all-selected"));
     _updateBulkBar();
   }
@@ -7388,9 +7577,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function _updateBulkBar() {
     const bar = $("bulkBar");
     if (!bar) return;
-    const n = _bulkCtx().set.size;
+    const ctx = _bulkCtx();
+    const n = ctx.set.size;
     const dc = $("bulkDeleteCount"); if (dc) dc.textContent = n ? ` (${n})` : "";
-    bar.classList.toggle("hidden", !(state.bulkSelect && n > 0));
+    const show = state.bulkSelect && n > 0;
+    bar.classList.toggle("hidden", !show);
+    bar.classList.toggle("is-products", !!ctx.products);   // reveals the "Price" bulk action
+    if (!show || !ctx.products) bar.classList.remove("is-pricing");   // never leave the price editor stranded
     _syncSelAllHeader();
   }
   // Called after any selection toggle: refresh the bar and, if the current
@@ -7492,6 +7685,55 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     _exitSelectMode();
   }
 
+  // Product selection (always-on checkbox column in the Products TABLE view).
+  let _lastSelectedProduct = null;
+  function _toggleProductSelected(hash, shift) {
+    const c = _bulkCtx();
+    if (shift && _lastSelectedProduct && _lastSelectedProduct !== hash) {
+      const keys = c.visibleKeys();
+      const a = keys.indexOf(_lastSelectedProduct), b = keys.indexOf(hash);
+      if (a !== -1 && b !== -1) {
+        const [lo, hi] = a < b ? [a, b] : [b, a];
+        const on = !c.set.has(hash);
+        for (let i = lo; i <= hi; i++) { if (on) c.set.add(keys[i]); else c.set.delete(keys[i]); c.paint(keys[i], on); }
+      }
+    } else {
+      const on = !c.set.has(hash);
+      if (on) c.set.add(hash); else c.set.delete(hash);
+      c.paint(hash, on);
+    }
+    _lastSelectedProduct = hash;
+    _afterSelectionChange();
+  }
+  // Checkbox-column click on a product row: first tick enters select mode
+  // (reveals the bulk bar); unticking the last one leaves it.
+  function _selCellClickProduct(hash, shift) {
+    if (!state.bulkSelect) {
+      state.selectedProducts.add(hash);
+      _lastSelectedProduct = hash;
+      _enterSelectMode();               // products: just reveals the bar, no re-render
+      _bulkCtx().paint(hash, true);
+      _updateBulkBar();
+      return;
+    }
+    _toggleProductSelected(hash, shift);          // auto-exits if it emptied the set
+  }
+  // Hard-delete the selected product records (by keyHash). Products are decoupled
+  // from spools, so this only removes the product-info records, never a spool.
+  async function _bulkDeleteProducts() {
+    const uid = state.activeAccountId;
+    if (!uid || !state.selectedProducts.size) return;
+    const hashes = [...state.selectedProducts];
+    for (let i = 0; i < hashes.length; i += 450) {
+      const batch = fbDb(uid).batch();
+      hashes.slice(i, i + 450).forEach(h =>
+        batch.delete(fbDb(uid).collection("users").doc(uid).collection("products").doc(h)));
+      await batch.commit();
+    }
+    console.log(`[bulkDelete] ${hashes.length} product(s)`);
+    _exitSelectMode();
+  }
+
   // Hard-delete a set of spoolIds (+ their twin halves), chunked to Firestore's
   // 500-op batch limit. Mirrors markSpoolDeleted. Shared by bulk-select and the
   // group "reduce copies" action. Returns the number of docs deleted.
@@ -7530,7 +7772,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     state.viewMode = mode;
     // Selection is per-context (materials vs printers) — crossing contexts clears
     // it (never linked). Switching within a context (table↔grid) keeps it.
-    const _ctxOf = m => (m === "table" || m === "grid") ? "mat" : _isPrinterMode(m) ? "prn" : "other";
+    const _ctxOf = m => (m === "table" || m === "grid") ? "mat" : _isPrinterMode(m) ? "prn" : m === "favesTable" ? "prod" : "other";
     if (state.bulkSelect && _ctxOf(prevMode) !== _ctxOf(mode)) _exitSelectMode();
     // The header "Select" toggle shows where selection is button-triggered: the
     // GRID views (materials + printers). Both TABLES have an always-on checkbox
@@ -7546,6 +7788,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if ($("gridSortWrap")) $("gridSortWrap").hidden = (mode !== "grid");
     if (mode === "grid") _syncGridSort();
     $("btnViewRack")?.classList.toggle("active",  mode === "rack");
+    $("btnViewFavesGrid")?.classList.toggle("active",  mode === "favesGrid");
+    $("btnViewFavesTable")?.classList.toggle("active", mode === "favesTable");
+    $("btnViewOrder")?.classList.toggle("active",      mode === "order");
     $("btnViewPrinter")?.classList.toggle("active",      mode === "printer");
     $("btnViewPrinterTable")?.classList.toggle("active", mode === "printer-table");
     $("btnViewCam")?.classList.toggle("active",          mode === "printer-cam");
@@ -7591,6 +7836,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const _printerFilters = _isPrinterMode(mode) && mode !== "printer-cam";
     document.body.classList.toggle("printer-filters", _printerFilters);
     if (_printerFilters) populatePrinterFilters();
+    // Products views reuse the search + Brand / Material / Tag / ❤ / ★ selectors,
+    // but hide the Version filter (no per-version notion for a product identity).
+    document.body.classList.toggle("products-filters", _isProductsMode(mode));
     // Cam view: the search bar + Scan/Add buttons are useless there, so hide
     // them (via #card-inv.is-cam-view) and surface the cam-wall "Detach" button
     // in the actions slot instead.
@@ -7606,6 +7854,80 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   $("btnViewTable").addEventListener("click", () => setViewMode("table"));
   $("btnViewGrid").addEventListener("click",  () => setViewMode("grid"));
   $("btnViewRack")?.addEventListener("click", () => setViewMode("rack"));
+  $("btnViewFavesGrid")?.addEventListener("click",  () => setViewMode("favesGrid"));
+  $("btnViewFavesTable")?.addEventListener("click", () => setViewMode("favesTable"));
+  $("btnViewOrder")?.addEventListener("click",      () => setViewMode("order"));
+  // Products view — delegated actions (select, on-order stepper, buy, remove, open).
+  $("invProductsView")?.addEventListener("click", e => {
+    // Header master checkbox (Products table) → select/deselect all visible.
+    if (e.target.closest(".sel-th, .sel-check--all")) { _toggleSelectAllVisible(); return; }
+    const line = e.target.closest(".pv-item[data-hash]");
+    if (!line) return;
+    const hash = line.dataset.hash, key = line.dataset.key;
+    const p = state.products[hash];
+    // Selection checkbox column → toggle this product (first tick enters select mode).
+    if (e.target.closest(".sel-cell")) { _selCellClickProduct(hash, e.shiftKey); return; }
+    // Min-qty pencil (Products table) → inline edit of `minStockSpools`.
+    if (e.target.closest("[data-min-edit]")) {
+      const td = line.querySelector(".pv-td-min");
+      const cur = (Number.isFinite(+p?.minStockSpools) && +p.minStockSpools > 0) ? +p.minStockSpools : null;
+      if (td) _startTableMinEdit(td, hash, cur);
+      return;
+    }
+    // While selecting, a row-body click toggles the row too (Shopify-style) —
+    // except a click inside the inline min-qty editor, which must stay usable.
+    if (state.bulkSelect && line.classList.contains("pv-trow") && !e.target.closest(".pv-min-editwrap")) { _toggleProductSelected(hash, e.shiftKey); return; }
+    // "Add a price" (Products table, empty price) → open the Product-info card
+    // straight into the price editor, input focused, ready to type.
+    if (e.target.closest("[data-addprice]")) {
+      const liveRows = (state.rows || []).filter(x => !x.deleted && _spoolGroupKey(x) === key);
+      let row = liveRows[0] || null;
+      if (!row && p?.cloudSeed) { try { row = normalizeRow("PRODUCT_" + hash, p.cloudSeed); } catch (_) {} }
+      if (row) openReorderPanel(row, { editPrice: true });
+      return;
+    }
+    if (e.target.closest(".pv-buy")) {
+      if (p?.buyUrl) { window.electronAPI?.openExternal(_normalizeBuyUrl(p.buyUrl)); return; }
+      // No link (greyed Shopify button) → open the card straight into the buy-link
+      // editor, ready to paste. Synthesise the row from cloudSeed if no live spool.
+      const liveRows = (state.rows || []).filter(x => !x.deleted && _spoolGroupKey(x) === key);
+      let row = liveRows[0] || null;
+      if (!row && p?.cloudSeed) { try { row = normalizeRow("PRODUCT_" + hash, p.cloudSeed); } catch (_) {} }
+      if (row) openReorderPanel(row, { editBuyLink: true });
+      return;
+    }
+    if (e.target.closest(".pv-remove")) { _deleteProductByHash(hash); renderProductsView(); return; }
+    // Open the product card — explicit info button (order tab) or line click (faves).
+    // Prefer a live spool; else synthesise a row from the stored cloudSeed so the
+    // card opens even for a product with no spool left.
+    const isOrderInfo = !!e.target.closest(".pv-info");
+    if (isOrderInfo || !line.classList.contains("pv-order-line")) {
+      if (e.target.closest(".pv-qty-input, .pv-min-editwrap")) return;   // editing a field — never opens
+      const liveRows = (state.rows || []).filter(x => !x.deleted && _spoolGroupKey(x) === key);
+      let row = liveRows[0] || null;
+      if (!row && p?.cloudSeed) { try { row = normalizeRow("PRODUCT_" + hash, p.cloudSeed); } catch (_) {} }
+      if (row) openReorderPanel(row);
+      // From the favorites grid/table, also open the grouped deck whenever the
+      // product still has at least one real spool in stock (even a single one) —
+      // so you can jump straight to its actual spool(s). Order-tab ⓘ stays lean.
+      if (!isOrderInfo) {
+        if (liveRows.length >= 1) _openGroupPanel(key, { keepSingletons: true });
+        else _closeGroupPanel();
+      }
+    }
+    // Order-tab line clicks otherwise do nothing (so the qty stays editable).
+  });
+  // Editable order quantity — persist the override on change (blur / Enter).
+  $("invProductsView")?.addEventListener("change", e => {
+    const inp = e.target.closest(".pv-qty-input");
+    if (!inp) return;
+    const line = inp.closest(".pv-item[data-hash]");
+    if (!line) return;
+    const raw = inp.value.trim();
+    // Empty → clear the override (qty falls back to the recommendation).
+    _writeProductField(line.dataset.hash, { orderQty: raw === "" ? null : Math.max(0, Math.round(+raw) || 0) });
+    renderProductsView();
+  });
   $("btnViewPrinter")?.addEventListener("click",      () => setViewMode("printer"));
   $("btnViewPrinterTable")?.addEventListener("click", () => setViewMode("printer-table"));
   $("btnViewCam")?.addEventListener("click",          () => setViewMode("printer-cam"));
@@ -7659,6 +7981,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (_al) { _al.dataset.i18n = "addDeviceBtn"; _al.textContent = t("addDeviceBtn"); }
     $("card-inv")?.classList.add("is-cam-view");   // hide search + add buttons, show Detach
     const _dt = $("camWallDetachTop"); if (_dt) _dt.hidden = !(window.electronAPI?.openCamWindow && !state.friendView);
+  } else if (_isProductsMode(state.viewMode)) {
+    $("btnViewTable").classList.remove("active");
+    const _btn = state.viewMode === "favesGrid" ? "btnViewFavesGrid"
+               : state.viewMode === "favesTable" ? "btnViewFavesTable"
+               : "btnViewOrder";
+    $(_btn)?.classList.add("active");
   }
   // Right-of-search selectors + search placeholder must match the restored view
   // on boot too — setViewMode (which normally does this) isn't called on the
@@ -7667,6 +7995,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   const _bootPrinterFilters = _isPrinterMode(state.viewMode) && state.viewMode !== "printer-cam";
   document.body.classList.toggle("printer-filters", _bootPrinterFilters);
   if (_bootPrinterFilters) populatePrinterFilters();
+  document.body.classList.toggle("products-filters", _isProductsMode(state.viewMode));
   _syncSearchPlaceholder();
   // Grid-only sort control — reveal it on boot if we start straight in grid view
   // (setViewMode, which normally toggles it, isn't called on the initial render).
@@ -7690,6 +8019,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     state.materialFilter = "";
     state.typeFilter     = "";
     state.tagFilter      = "";
+    state.flagFilter     = "";
     state.printerBrandFilter  = "";
     state.printerStatusFilter = "";
     state.printerTagFilter    = "";
@@ -7699,6 +8029,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       const sel = $(id);
       if (sel) { sel.value = ""; sel.classList.remove("is-active"); }
     });
+    $("wishFilter")?.classList.remove("is-active");
+    $("likeFilter")?.classList.remove("is-active");
   }
 
   // Skip the full DOM rebuild on filter changes and just toggle `.hidden`
@@ -7768,6 +8100,19 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (_isPrinterMode(state.viewMode)) { state.printerTagFilter = v; applyPrinterFilter(); }
     else { state.tagFilter = v; _onFilterChange(); }
   });
+  // ❤ Liked / ★ Favorite quick filters — toggle on/off, mutually exclusive.
+  // The value doubles as the product field key (`_getProduct(r)?.[flagFilter]`).
+  function _toggleFlagFilter(flag) {
+    state.flagFilter = (state.flagFilter === flag) ? "" : flag;
+    _syncFlagFilterUI();
+    _onFilterChange();
+  }
+  function _syncFlagFilterUI() {
+    $("wishFilter")?.classList.toggle("is-active", state.flagFilter === "liked");
+    $("likeFilter")?.classList.toggle("is-active", state.flagFilter === "favorite");
+  }
+  $("wishFilter")?.addEventListener("click", () => _toggleFlagFilter("liked"));
+  $("likeFilter")?.addEventListener("click", () => _toggleFlagFilter("favorite"));
 
   // ── Stat tile click → quick type filter ────────────────────────────────────
   // Clicking a version tile (TigerTag / TigerTag+ / TigerCloud) sets the
@@ -8528,6 +8873,389 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     return n;
   }
 
+  // Mint TigerTag Cloud spools from a raw seed object (no source spool). Used to
+  // create a Cloud straight from a product record (its stored `cloudSeed`).
+  async function _mintCloudsFromRaw(rawObj, count = 1) {
+    if (state.friendView) return 0;
+    const user = fbAuth().currentUser;
+    if (!user || !rawObj) return 0;
+    const n = Math.max(1, Math.min(50, parseInt(count, 10) || 1));
+    const invRef = fbDb(user.uid).collection("users").doc(user.uid).collection("inventory");
+    const batch  = fbDb(user.uid).batch();
+    const baseTs = nowChipTs();
+    const usedIds = new Set();
+    for (let i = 0; i < n; i++) {
+      let newId = _adpCloudId();
+      while (usedIds.has(newId)) newId = _adpCloudId();
+      usedIds.add(newId);
+      const data = _sanitizeCloudSeed(rawObj) || {};
+      data.uid = newId;
+      data.timestamp = baseTs + i * 3;   // +3s per copy → outside the 2s twin window
+      data.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+      data.deleted = null; data.deleted_at = null;
+      batch.set(invRef.doc(newId), data);
+    }
+    await batch.commit();
+    bumpStudioCounters({ cloudAddedTotal: n });
+    return n;
+  }
+
+  // Create ONE TigerTag Cloud of this product: from the live spool's raw when the
+  // card was opened on a real spool (twin-safe path), else from the stored seed.
+  async function _createCloudFromProduct(r) {
+    if (r?.raw) return duplicateSpoolAsCloud(r, 1);
+    const seed = _getProduct(r)?.cloudSeed;
+    return seed ? _mintCloudsFromRaw(seed, 1) : 0;
+  }
+
+  /* ── Products view (order recommendation + liked/favorite) ──────────────
+     A dedicated inventory view listing the per-product records (users/{uid}/
+     products). Two tabs: "order" (a shopping-cart recommendation of what to
+     re-buy) and "faves" (the ❤ Liked / ★ Favorite products). Everything here
+     works off the product RECORD (by doc-id hash), so it renders products that
+     have no live spool left. */
+
+  // Write a field straight onto a product doc by its id-hash (no source row) —
+  // used by the Products view (a product may have zero spools). Optimistic patch
+  // into state.products so the view updates before the snapshot echoes back.
+  async function _writeProductField(hash, patch) {
+    const uid = getActiveId();
+    if (!uid || !hash) return;
+    patch = _coupleFlags(patch);   // ❤/★/min interest-hierarchy coupling (see _writeProduct)
+    const FV = firebase.firestore.FieldValue;
+    const doc = { updatedAt: FV.serverTimestamp() };
+    const local = {};   // coerced values to apply optimistically (undefined = delete key)
+    if ("onOrder" in patch)  { const v = Math.max(0, Math.round(+patch.onOrder) || 0); doc.onOrder = v; local.onOrder = v; }
+    if ("orderQty" in patch) {
+      // null clears the override → qty falls back to the recommendation.
+      if (patch.orderQty == null) { doc.orderQty = FV.delete(); local.orderQty = undefined; }
+      else { const v = Math.max(0, Math.round(+patch.orderQty) || 0); doc.orderQty = v; local.orderQty = v; }
+    }
+    if ("minStockSpools" in patch) {
+      // null / 0 clears the minimum (no reorder target).
+      if (patch.minStockSpools == null) { doc.minStockSpools = FV.delete(); local.minStockSpools = undefined; }
+      else { const v = Math.max(0, Math.round(+patch.minStockSpools) || 0); doc.minStockSpools = v; local.minStockSpools = v; }
+    }
+    if ("buyPriceHt" in patch) {
+      // Price stored tax-free; null / empty clears it. 4-dp to kill float noise.
+      if (patch.buyPriceHt == null || patch.buyPriceHt === "" || !Number.isFinite(+patch.buyPriceHt)) { doc.buyPriceHt = FV.delete(); local.buyPriceHt = undefined; }
+      else { const v = Math.round(+patch.buyPriceHt * 10000) / 10000; doc.buyPriceHt = v; local.buyPriceHt = v; }
+    }
+    if ("liked" in patch)    { doc.liked = !!patch.liked; local.liked = doc.liked; }
+    if ("favorite" in patch) { doc.favorite = !!patch.favorite; local.favorite = doc.favorite; }
+    const rec = state.products[hash];
+    if (rec) Object.keys(local).forEach(k => { if (local[k] === undefined) delete rec[k]; else rec[k] = local[k]; });
+    try { await fbDb(uid).collection("users").doc(uid).collection("products").doc(hash).set(doc, { merge: true }); }
+    catch (e) { console.warn("[products] field write failed:", e); }
+  }
+  async function _deleteProductByHash(hash) {
+    const uid = getActiveId();
+    if (!uid || !hash) return;
+    if (state.products[hash]) delete state.products[hash];
+    try { await fbDb(uid).collection("users").doc(uid).collection("products").doc(hash).delete(); }
+    catch (e) { console.warn("[products] delete failed:", e); }
+  }
+
+  // Current stock (non-deleted spool count) per product identity key.
+  function _stockCountByKey() {
+    const m = new Map();
+    (state.rows || []).forEach(r => {
+      if (r.deleted) return;
+      const k = _spoolGroupKey(r);
+      m.set(k, (m.get(k) || 0) + 1);
+    });
+    return m;
+  }
+  // Order math for a product record: required (min) / inStock / onOrder / toOrder,
+  // plus `qty` = the editable order quantity — the user's explicit `orderQty`
+  // override when set, otherwise the recommendation (toOrder).
+  function _productOrderInfo(p, stockMap) {
+    const required = +p.minStockSpools || 0;
+    const inStock  = stockMap.get(p.key) || 0;
+    const onOrder  = +p.onOrder || 0;
+    const toOrder  = Math.max(0, required - inStock - onOrder);
+    const qty = (p.orderQty != null && Number.isFinite(+p.orderQty)) ? Math.max(0, Math.round(+p.orderQty)) : toOrder;
+    return { required, inStock, onOrder, toOrder, qty };
+  }
+  // Product display name from its stored label.
+  function _productName(p) {
+    const l = p.label || {};
+    return ([l.brand, l.material].filter(Boolean).join(" ") + (l.colorName ? " · " + l.colorName : "")).trim() || l.brand || "—";
+  }
+  // A small illustration (product photo, else colour swatch) for a product record.
+  function _productThumbHTML(p) {
+    const l = p.label || {};
+    const img = resolvedImg(l.imgUrl);
+    return img
+      ? `<img class="pv-thumb" src="${esc(img)}" alt="" onerror="this.removeAttribute('src');this.style.background='${esc(l.colorHex || "var(--surface-2)")}'" />`
+      : `<span class="pv-thumb pv-thumb--swatch" style="background:${esc(l.colorHex || "var(--surface-2)")}"></span>`;
+  }
+
+  // Apply the shared search bar + right-side selectors (Brand / Material / Tag /
+  // ❤ Liked / ★ Favorite) to the product list, so the Products views react to the
+  // same controls as the inventory. `label.material` may carry the aspect
+  // ("PLA Basic") while the filter holds the raw material ("PLA") — match either.
+  function _filteredProducts(list) {
+    const q        = (state.search || "").trim().toLowerCase();
+    const brand    = state.brandFilter || "";
+    const material = state.materialFilter || "";
+    const tag      = (state.tagFilter || "").toLowerCase();
+    const flag     = state.flagFilter || "";        // "liked" | "favorite" | ""
+    return list.filter(p => {
+      const l = p.label || {};
+      if (flag && !p[flag]) return false;
+      if (brand && String(l.brand || "") !== brand) return false;
+      if (material) {
+        const m = String(l.material || "");
+        if (m !== material && !m.startsWith(material + " ")) return false;
+      }
+      if (tag && !(p.tags || []).some(tg => String(tg).toLowerCase() === tag)) return false;
+      if (q) {
+        const hay = [l.brand, l.material, l.series, l.colorName, p.note, p.sku, p.ean, ...(p.tags || [])]
+          .filter(Boolean).join(" ").toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }
+
+  function renderProductsView() {
+    const host = $("invProductsView");
+    if (!host) return;
+    const stockMap = _stockCountByKey();
+    const info = _vatInfo();
+    const products = _filteredProducts(Object.values(state.products || {}));
+
+    if (state.viewMode === "order") {
+      // Products with a min set, needing reorder first.
+      const orderRows = products
+        .map(p => ({ p, ...(_productOrderInfo(p, stockMap)) }))
+        .filter(x => x.required > 0)
+        .sort((a, b) => b.toOrder - a.toOrder || _productName(a.p).localeCompare(_productName(b.p)));
+      // Keep lines with a quantity to order OR already (partly) on order, so the
+      // user can still adjust them after a product is covered.
+      const cartRows = orderRows.filter(x => x.qty > 0 || x.onOrder > 0);
+      host.innerHTML = _renderOrderTab(cartRows, info);
+      return;
+    }
+    // Favorites (liked ❤ / favorite ★) — grid or table.
+    const faves = products.filter(p => p.liked || p.favorite)
+      .sort((a, b) => _productName(a).localeCompare(_productName(b)));
+    host.innerHTML = state.viewMode === "favesTable"
+      ? _renderFavesTable(faves, stockMap, info)
+      : _renderFavesGrid(faves);
+  }
+
+  function _renderOrderTab(cartRows, info) {
+    if (!cartRows.length) {
+      return `<div class="pv-empty"><span class="icon icon-shopify icon-24"></span><div>${esc(t("pvOrderEmpty"))}</div></div>`;
+    }
+    const sym = info.symbol, rate = info.rate;
+    // Prices are stored HT; show them in the account's entry mode (HT or TTC).
+    const mode = _reorderMode(), factor = 1 + rate / 100;
+    let subtotalHT = 0, items = 0;
+    // A Shopify-style order line: thumbnail + name/variant/SKU, then aligned
+    // columns — unit price · quantity to order · line total (both in account mode).
+    const lines = cartRows.map(x => {
+      const p = x.p, hash = p.id;
+      const l = p.label || {};
+      // Whole identity on one line: Brand · Series (or Material) · Colour name.
+      const name1 = [l.brand, l.series || l.material, l.colorName].filter(v => v && v !== "-").join(" · ") || l.brand || "—";
+      const unitHt = (p.buyPriceHt == null) ? null : +p.buyPriceHt;   // stored HT
+      const unit = unitHt == null ? null : (mode === "TTC" ? unitHt * factor : unitHt);   // shown in account mode
+      const lineTotal = unit == null ? null : unit * x.qty;
+      if (unitHt != null) { subtotalHT += unitHt * x.qty; items += x.qty; }   // tax math stays HT
+      return `
+        <div class="pv-item pv-line pv-order-line" data-hash="${esc(hash)}" data-key="${esc(p.key)}">
+          ${_productThumbHTML(p)}
+          <div class="pv-line-main">
+            <div class="pv-line-title">${esc(name1)}</div>
+            <div class="pv-qty">
+              <span class="pv-qty-req">${esc(t("pvRequired", { n: x.required }))}</span>
+              <span class="pv-qty-sep">·</span><span>${esc(t("pvInStock", { n: x.inStock }))}</span>
+            </div>
+          </div>
+          <div class="pv-sku-col">${p.sku ? esc(p.sku) : ""}</div>
+          <div class="pv-unit-col">${unit == null ? `<button class="pv-addprice" data-addprice>${esc(t("reorderAddPrice"))}</button>` : `${_fmtMoney(unit)} ${sym}`}</div>
+          <div class="pv-qty-col"><input type="number" class="pv-qty-input" min="0" step="1" value="${x.qty}" aria-label="${esc(t("pvToOrder", { n: x.qty }))}" /></div>
+          <div class="pv-total-col">${lineTotal == null ? "—" : `${_fmtMoney(lineTotal)} ${sym}`}</div>
+          <div class="pv-line-actions">
+            <button class="pv-info" data-info title="${esc(t("toolReorder"))}"><span class="icon icon-info icon-14"></span></button>
+            <button class="pv-buy${p.buyUrl ? "" : " pv-buy--off"}" data-buy title="${esc(t("toolReorderBuy"))}"><span class="icon icon-shopify icon-14"></span></button>
+            <button class="pv-remove" data-remove title="${esc(t("reorderRemove"))}"><span class="icon icon-close icon-13"></span></button>
+          </div>
+        </div>`;
+    }).join("");
+    const tax = subtotalHT * rate / 100;
+    const totalTTC = subtotalHT + tax;                              // what you pay
+    // Subtotal shown in the account mode: HT → the tax-free base; TTC → the
+    // tax-inclusive amount (which then equals the Total). Tax is the VAT either way.
+    const subtotalShown = mode === "TTC" ? totalTTC : subtotalHT;
+    const summary = `
+      <div class="pv-summary">
+        <div class="pv-sum-title">${esc(t("pvPayment"))}</div>
+        <div class="pv-sum-row"><span>${esc(t("pvSubtotal"))}</span><span class="pv-sum-sub">${esc(t("pvItems", { n: items }))}</span><span class="pv-sum-val">${_fmtMoney(subtotalShown)} ${sym}</span></div>
+        <div class="pv-sum-row"><span>${esc(t("pvTax"))}</span><span class="pv-sum-sub">${esc(t("reorderVat", { rate }))}</span><span class="pv-sum-val">${_fmtMoney(tax)} ${sym}</span></div>
+        <div class="pv-sum-row pv-sum-total"><span>${esc(t("pvOrderTotal"))}</span><span></span><span class="pv-sum-val">${_fmtMoney(totalTTC)} ${sym}</span></div>
+      </div>`;
+    // Order list on the left, Payment card on the right (sticky — follows scroll).
+    return `<div class="pv-order-layout"><div class="pv-order-list">${lines}</div><div class="pv-order-side">${summary}</div></div>`;
+  }
+
+  // Normalise a product record back into a row so the Products grid can reuse
+  // the exact inventory spool-card. Products store a sanitized spool snapshot
+  // (`cloudSeed`); fall back to a minimal row from the display `label` for any
+  // legacy record saved before cloudSeed existed.
+  function _productAsRow(p) {
+    if (p?.cloudSeed) { try { return normalizeRow("PRODUCT_" + p.id, p.cloudSeed); } catch (_) {} }
+    const l = p?.label || {};
+    return {
+      spoolId: "PRODUCT_" + (p?.id || ""), key: p?.key,
+      brand: l.brand, material: l.material, colorName: l.colorName,
+      colorHex: l.colorHex, imgUrl: l.imgUrl, aspect1: l.aspect1, aspect2: l.aspect2,
+      weightAvailable: null, capacity: null, td: null,
+    };
+  }
+
+  // Favorites as the SAME card as the inventory grid — with the fill bar forced
+  // to 100 % (a product identity has no per-spool weight). Clicking opens the
+  // product card (delegated `.pv-item` handler).
+  // Type-aware product label for the grid card: title = the readable colour name
+  // (TigerTag+ `color_name`/`name`, else the Cloud/basic message/note, else aspect),
+  // sub = Brand · Series · Material (TigerTag+) or Brand · Material · Aspect (no
+  // series). Reads the synthesised row `r` (from cloudSeed) so it works per type.
+  function _productGridLabel(r) {
+    const brand    = (r.brand    && r.brand    !== "-") ? r.brand    : "";
+    const series   = (r.series   && r.series   !== "-") ? r.series   : "";
+    const material = (r.material && r.material !== "-") ? r.material : "";
+    const aspect   = [r.aspect1, r.aspect2].filter(a => a && a !== "-" && a !== "None" && String(a).trim() !== "").join(" ");
+    const cn = r.raw?.color_name, nm = r.raw?.name;
+    const catName = (cn && cn !== "--" && cn !== "") ? String(cn)
+                  : (nm && nm !== "--" && nm !== "") ? String(nm) : "";
+    const msg = (r.raw && r.raw.message != null) ? String(r.raw.message).trim() : "";
+    const title = catName || msg || (r.colorName && r.colorName !== "-" ? r.colorName : "") || aspect || material || brand || "—";
+    // Sub identity on two lines: Brand · Material, then (Series for TigerTag+,
+    // else Aspect) on its own line below.
+    const sub   = [brand, material].filter(Boolean).join(" · ");
+    const extra = series || aspect || "";   // TigerTag+ → series ; Cloud/basic → aspect
+    return { title, sub, extra };
+  }
+
+  function _renderFavesGrid(faves) {
+    if (!faves.length) {
+      return `<div class="pv-empty"><span class="icon icon-star icon-24"></span><div>${esc(t("pvFavesEmpty"))}</div></div>`;
+    }
+    const sym = _vatInfo().symbol;
+    const cards = faves.map(p => {
+      const r = _productAsRow(p);
+      const { title, sub, extra } = _productGridLabel(r);
+      const unit = (p.buyPriceHt == null) ? null : +p.buyPriceHt;   // stored HT
+      const footerHTML = unit == null
+        ? `<span class="card-price card-price--none">${esc(t("reorderAddPrice"))}</span>`
+        : `<span class="card-price">${_fmtMoney(unit)} ${sym} <span class="pv-sum-tag">${esc(t("reorderHT"))}</span></span>`;
+      return `<div class="spool-card pv-item" data-hash="${esc(p.id)}" data-key="${esc(p.key)}">${_gridCardInnerHTML(r, { product: true, footerHTML, nameText: title, subText: sub, subExtraText: extra })}</div>`;
+    }).join("");
+    return `<div class="inv-grid pv-fav-grid">${cards}</div>`;
+  }
+
+  // Inline edit of a product's minimum stock straight from the Products table:
+  // the pencil swaps the cell for a number input + ✓; commit writes minStockSpools
+  // (empty clears it), Escape cancels. Re-renders so the "To order" column updates.
+  function _startTableMinEdit(td, hash, current) {
+    if (state.friendView || td.querySelector(".pv-min-editwrap")) return;
+    const wrap = document.createElement("span");
+    wrap.className = "pv-min-editwrap";
+    const input = document.createElement("input");
+    input.type = "number"; input.min = "0"; input.step = "1";
+    input.className = "pv-min-input";
+    input.value = current == null ? "" : String(current);
+    input.setAttribute("aria-label", t("reorderMinStock"));
+    const ok = document.createElement("button");
+    ok.type = "button"; ok.className = "pv-min-ok";
+    ok.innerHTML = `<span class="icon icon-check icon-12"></span>`;
+    wrap.appendChild(input); wrap.appendChild(ok);
+    td.innerHTML = ""; td.appendChild(wrap);
+    input.focus(); input.select();
+    let done = false;
+    const commit = () => {
+      if (done) return; done = true;
+      const raw = input.value.trim();
+      const val = raw === "" ? null : Math.max(0, Math.round(+raw) || 0);
+      _writeProductField(hash, { minStockSpools: (val === 0 ? null : val) });
+      renderProductsView();
+    };
+    const cancel = () => { if (done) return; done = true; renderProductsView(); };
+    ok.addEventListener("click", commit);
+    input.addEventListener("keydown", e => {
+      if (e.key === "Enter") { e.preventDefault(); commit(); }
+      else if (e.key === "Escape") { e.preventDefault(); cancel(); }
+    });
+    // Blur commits, but let a click on ✓ land first (it also commits — idempotent).
+    input.addEventListener("blur", () => setTimeout(commit, 120));
+  }
+
+  // Favorites as a clean spreadsheet-style table that mirrors the inventory table:
+  // ☑ · illustration(50px) · Brand · Material · Color(28px swatch) · Name(colour
+  // name) · Stock · Min. qty(pencil-editable) · To order(fixed = Min−Stock) · Price
+  // · Shop. Same thumbnail/swatch sizes and the swatch→name layout as the inventory
+  // table. The Min. qty pencil opens an inline editor (`minStockSpools`); To order
+  // is a read-only recommendation derived from it. The selection column + header
+  // master checkbox drive bulk edit (delete, tags).
+  function _renderFavesTable(faves, stockMap, info) {
+    if (!faves.length) {
+      return `<div class="pv-empty"><span class="icon icon-star icon-24"></span><div>${esc(t("pvFavesEmpty"))}</div></div>`;
+    }
+    const sym = info.symbol;
+    const sel = state.selectedProducts;
+    const selCount = faves.reduce((n, p) => n + (sel.has(p.id) ? 1 : 0), 0);
+    const allSel = faves.length > 0 && selCount === faves.length;
+    const someSel = selCount > 0 && !allSel;
+    const rows = faves.map(p => {
+      const r = _productAsRow(p);
+      const { title: color } = _productGridLabel(r);   // type-aware colour name
+      const brand    = (r.brand && r.brand !== "-") ? r.brand : "—";
+      const material = (r.material && r.material !== "-") ? r.material : "";
+      const series   = (r.series && r.series !== "-") ? r.series : "";
+      const aspect   = [r.aspect1, r.aspect2].filter(a => a && a !== "-" && a !== "None" && String(a).trim() !== "").join(" ");
+      const mat      = [material, series || aspect].filter(Boolean).join(" · ") || "—";
+      const inStock  = stockMap.get(p.key) || 0;
+      const min      = (Number.isFinite(+p.minStockSpools) && +p.minStockSpools > 0) ? +p.minStockSpools : null;
+      const low      = min != null && inStock < min;
+      const unit     = (p.buyPriceHt == null) ? null : +p.buyPriceHt;
+      const toOrder  = Math.max(0, (min || 0) - inStock);   // fixed = Min qty − Stock
+      return `
+        <tr class="pv-item pv-trow${sel.has(p.id) ? " row-selected" : ""}" data-hash="${esc(p.id)}" data-key="${esc(p.key)}">
+          <td class="sel-cell"><span class="sel-check" aria-hidden="true"></span></td>
+          <td class="thumb-cell">${thumbHTML(r, 50, { badges: false })}</td>
+          <td class="pv-td-brand">${esc(brand)}</td>
+          <td class="pv-td-name">${esc(mat)}</td>
+          <td class="color-cell">${colorCircleHTML(r, 28)}</td>
+          <td class="pv-td-colorname">${esc(color)}</td>
+          <td class="pv-td-stock${low ? " pv-td-stock--low" : ""}">${inStock}</td>
+          <td class="pv-td-min"><span class="pv-min-view"><span class="pv-min-edit icon icon-edit icon-12" data-min-edit role="button" tabindex="0" title="${esc(t("reorderEditMin"))}"></span><span class="pv-min-val">${min == null ? "—" : min}</span></span></td>
+          <td class="pv-td-toorder${toOrder > 0 ? " pv-td-toorder--need" : ""}">${toOrder > 0 ? toOrder : "—"}</td>
+          <td class="pv-td-price">${unit == null ? `<button class="pv-addprice" data-addprice>${esc(t("reorderAddPrice"))}</button>` : `${_fmtMoney(unit)} ${sym} <span class="pv-sum-tag">${esc(t("reorderHT"))}</span>`}</td>
+          <td class="pv-td-act"><button class="pv-buy${p.buyUrl ? "" : " pv-buy--off"}" data-buy title="${esc(t("toolReorderBuy"))}"><span class="icon icon-shopify icon-14"></span></button></td>
+        </tr>`;
+    }).join("");
+    return `<div class="pv-table-wrap"><table class="pv-table">
+      <thead><tr>
+        <th class="sel-th"><span class="sel-check sel-check--all${allSel ? " is-all" : someSel ? " is-some" : ""}" role="checkbox" tabindex="0" aria-label="${esc(t("bulkSelectMode"))}" aria-checked="${allSel ? "true" : someSel ? "mixed" : "false"}"></span></th>
+        <th></th>
+        <th>${esc(t("thBrand"))}</th>
+        <th>${esc(t("thMaterial"))}</th>
+        <th>${esc(t("thColor"))}</th>
+        <th>${esc(t("thName"))}</th>
+        <th>${esc(t("reorderStockSection"))}</th>
+        <th class="pv-th-min">${esc(t("thMinQty"))}</th>
+        <th>${esc(t("btnViewOrder"))}</th>
+        <th>${esc(t("thPrice"))}</th>
+        <th></th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+  }
+
   /* ── Inline edit of the spool message (= editable name) ─────────────
      Swaps the identity-block name button for a text input. Saves the
      `message` field to Firestore on Enter / blur, cancels on Escape.
@@ -8967,10 +9695,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function _openBulkTags() {
     if (state.friendView) return;
     const isPrinter = _isPrinterMode(state.viewMode);
+    const isProduct = state.viewMode === "favesTable";
     const set = _bulkCtx().set;
     if (!set.size) return;
     const items = isPrinter
       ? [...set].map(k => (state.printers || []).find(p => `${p.brand}:${p.id}` === k)).filter(Boolean)
+      : isProduct
+      ? [...set].map(h => state.products[h]).filter(Boolean)
       : [...set].map(id => state.rows.find(r => r.spoolId === id)).filter(Boolean);
     if (!items.length) return;
     const lc = (t) => String(t).toLowerCase();
@@ -8984,13 +9715,23 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       tags.forEach(tg => { if (!interDisp.has(lc(tg))) interDisp.set(lc(tg), tg); });
     });
     inter = inter || new Set();
-    const writeOne = isPrinter ? _writePrinterTags : _writeSpoolTags;
+    // Products: write tags straight to products/{keyHash} (merge) — no identity
+    // recompute, so it's correct even for legacy records without a cloudSeed.
+    const writeProductTagsByHash = (p, tags) => {
+      const uid = state.activeAccountId;
+      if (!uid) return;
+      if (state.products[p.id]) state.products[p.id].tags = tags;   // optimistic
+      return fbDb(uid).collection("users").doc(uid).collection("products").doc(p.id).set({ tags }, { merge: true });
+    };
+    const writeOne = isPrinter ? _writePrinterTags
+                   : isProduct ? writeProductTagsByHash
+                   : _writeSpoolTags;
     const ctx = {
       readOnly: state.friendView,
       title: t("bulkTagsTitle", { n: items.length }),
       ids: { chips: "", input: "", dropdown: "", editBtn: "" },   // no inline editor in bulk
       getTags: () => [...inter].map(x => interDisp.get(x)).filter(Boolean),
-      allTags: (exclude) => (isPrinter ? _allPrinterTags(exclude) : _allTags(exclude)),
+      allTags: (exclude) => (isPrinter ? _allPrinterTags(exclude) : isProduct ? _allProductTags(exclude) : _allTags(exclude)),
       writeTags: (finalTags) => {
         const finalLc = new Set(finalTags.map(lc));
         const added     = finalTags.filter(tg => !inter.has(lc(tg)));      // add to all
@@ -9008,6 +9749,30 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       },
     };
     openTagsModal(ctx);
+  }
+
+  // Bulk price (Products table): reveal an inline price field in the bulk bar,
+  // typed in the account's HT/TTC mode; Apply converts to HT and writes it to
+  // every selected product. Reuses the shared VAT helpers.
+  function _bulkEnterPriceMode() {
+    if (state.friendView || !state.selectedProducts.size) return;
+    const bar = $("bulkBar"); if (!bar) return;
+    bar.classList.add("is-pricing");
+    const modeEl = $("bulkPriceMode");
+    if (modeEl) modeEl.textContent = `${_vatInfo().symbol} ${_reorderMode()}`;
+    const inp = $("bulkPriceInput");
+    if (inp) { inp.value = ""; inp.focus(); }
+  }
+  function _bulkExitPriceMode() { $("bulkBar")?.classList.remove("is-pricing"); }
+  async function _bulkApplyPrice() {
+    const hashes = [...state.selectedProducts];
+    if (!hashes.length) { _bulkExitPriceMode(); return; }
+    const raw = ($("bulkPriceInput")?.value || "").trim();
+    // Empty clears the price; else convert the typed HT/TTC value to stored HT.
+    const ht = raw === "" ? null : _vatPrices(raw, _reorderMode(), _vatCountryCode()).ht;
+    for (const h of hashes) await _writeProductField(h, { buyPriceHt: ht });
+    _bulkExitPriceMode();
+    renderProductsView();
   }
 
   /* ── detail panel ── */
@@ -10276,7 +11041,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
      on open (never clobbered mid-edit). */
   let _reorderRow = null;
 
-  function openReorderPanel(r) {
+  function openReorderPanel(r, opts = {}) {
     if (!r) return;
     // Reorder + container picker share the same left slot → mutually exclusive.
     if ($("containerPanel")?.classList.contains("open")) closeContainerPicker();
@@ -10284,7 +11049,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     _renderReorderPanel(r);
     $("reorderPanel").classList.add("open");
     _syncPanels();
-    setTimeout(() => $("roBuyUrl")?.focus(), 120);
+    // opts.editPrice / editBuyLink → jump straight into that editor with the input
+    // focused (used by the "Add a price" and empty-Shopify-button shortcuts).
+    if (opts.editPrice) setTimeout(() => $("roPriceEdit")?.click(), 130);
+    else if (opts.editBuyLink) setTimeout(() => $("roShopEdit")?.click(), 130);
+    else setTimeout(() => $("roBuyUrl")?.focus(), 120);
   }
   function closeReorderPanel() {
     $("reorderPanel")?.classList.remove("open");
@@ -10389,6 +11158,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           <div class="ro-head-brand">${esc(r.brand || "—")}</div>
           <div class="ro-head-mat">${esc(materialWithAspect(r))}${colourName ? " · " + esc(colourName) : ""}</div>
         </div>
+        <div class="ro-flags">${_flagTogglesHTML(r)}</div>
       </div>
 
       <div class="ro-field">
@@ -10493,12 +11263,18 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         </div>
       </div>
 
+      ${state.friendView ? "" : `
+      <button type="button" class="ro-cloud-btn" id="roCreateCloud">
+        <span class="icon icon-cloud icon-14"></span>
+        <span>${esc(t("productCreateCloud"))}</span>
+      </button>`}
       <div id="roSaveResult" class="ro-save-result"></div>`;
     _wireReorderPanel(r);
     _reorderUpdateDerived();
     _reorderUpdateStock();
     _reorderUpdatePriceDisplay();
     _reorderUpdateMinDisplay();
+    _reorderUpdateFlags();
   }
 
   function _wireReorderPanel(r) {
@@ -10575,6 +11351,85 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     $("roSku")?.addEventListener("change", () => _saveReorder(r));
     $("roEan")?.addEventListener("change", () => _saveReorder(r));
     _wireTagEditor(_productTagCtx(r));
+    // ❤ Liked / ★ Favorite toggles are handled by the delegated `.flag-toggle`
+    // click listener (wired once), so no per-render wiring here.
+    // Create a TigerTag Cloud of this product (from the live spool, else the seed).
+    $("roCreateCloud")?.addEventListener("click", async () => {
+      const btn = $("roCreateCloud");
+      try {
+        setLoading(btn, true);
+        const made = await _createCloudFromProduct(r);
+        toast($("roSaveResult"), made ? "ok" : "bad", made ? t("productCloudCreated") : t("networkError"));
+      } catch (e) { toast($("roSaveResult"), "bad", e.message || t("networkError")); }
+      finally { setLoading(btn, false); }
+    });
+  }
+
+  // The two Liked ❤ / Favorite ★ toggle buttons — reused by the product card AND
+  // the spool detail (materials) side card. Each carries `data-flag` + `.flag-toggle`
+  // so a single delegated handler + one setter drive every instance. `field`
+  // "liked" → ❤ heart; "favorite" → ★ star.
+  // Shown in a FRIEND's view too: liking/favoriting there writes to MY own
+  // `products` (getActiveId stays mine, `state.products` isn't re-subscribed),
+  // effectively IMPORTING the friend's product into my collection with the flag.
+  function _flagTogglesHTML(r) {
+    const p = _getProduct(r) || {};
+    const liked = !!p.liked, fav = !!p.favorite;
+    return `
+      <button type="button" class="flag-toggle flag-toggle--wish${liked ? " active" : ""}" data-flag="liked" data-tip="${esc(t("productLikeTip"))}" aria-label="${esc(t("productLike"))}" aria-pressed="${liked}">
+        <span class="icon icon-heart${liked ? "-fill" : ""} icon-16"></span>
+      </button>
+      <button type="button" class="flag-toggle flag-toggle--like${fav ? " active" : ""}" data-flag="favorite" data-tip="${esc(t("productFavoriteTip"))}" aria-label="${esc(t("productFavorite"))}" aria-pressed="${fav}">
+        <span class="icon icon-star${fav ? "-fill" : ""} icon-16"></span>
+      </button>`;
+  }
+  // Paint EVERY on-screen toggle for a field (product card + detail panel) from
+  // an on/off state (outline ⇄ filled).
+  function _setProductFlagBtn(field, on) {
+    const base = field === "liked" ? "icon-heart" : "icon-star";
+    document.querySelectorAll(`.flag-toggle[data-flag="${field}"]`).forEach(btn => {
+      btn.classList.toggle("active", on);
+      btn.setAttribute("aria-pressed", String(on));
+      const ic = btn.querySelector(".icon");
+      if (ic) { ic.classList.remove(base, base + "-fill"); ic.classList.add(on ? base + "-fill" : base); }
+    });
+  }
+  // Refresh both flag buttons from the saved product record (product card).
+  function _reorderUpdateFlags() {
+    if (!_reorderRow) return;
+    const link = _getProduct(_reorderRow) || {};
+    _setProductFlagBtn("liked", !!link.liked);
+    _setProductFlagBtn("favorite", !!link.favorite);
+  }
+  async function _toggleProductFlag(r, field) {
+    const hash = _productKeyHash(r);
+    const next = !_getProduct(r)?.[field];
+    // Optimistic local patch so the toggle buttons AND the illustration badges
+    // (grid/table/deck/detail) flip instantly; the write's snapshot reconciles.
+    const cur = state.products[hash] || (state.products[hash] = { key: _spoolGroupKey(r) });
+    // Apply the flag + its interest-hierarchy coupling (❤⇒★, ★off⇒drop ❤+min)
+    // to the local record and repaint BOTH toggles so the link shows instantly.
+    const coupled = _coupleFlags({ [field]: next });
+    if ("liked" in coupled)          cur.liked = !!coupled.liked;
+    if ("favorite" in coupled)       cur.favorite = !!coupled.favorite;
+    if ("minStockSpools" in coupled) cur.minStockSpools = (Number.isFinite(+coupled.minStockSpools) && +coupled.minStockSpools > 0) ? Math.round(+coupled.minStockSpools) : 0;
+    _setProductFlagBtn("liked", !!cur.liked);
+    _setProductFlagBtn("favorite", !!cur.favorite);
+    _refreshDetailImgBadges();
+    if (!_isPrinterMode(state.viewMode)) scheduleRender("inventory", renderInventory);
+    await _writeProduct(r, { [field]: next });
+  }
+  // Repaint the ❤/★/🛍 badge cluster on the OPEN spool detail illustration (the
+  // toggle buttons update optimistically; the image badges follow on the write's
+  // snapshot, reading the freshly-saved product state).
+  function _refreshDetailImgBadges() {
+    if (!state.selected || !$("detailPanel")?.classList.contains("open")) return;
+    const r = (state.rows || []).find(x => x.spoolId === state.selected);
+    const wrap = $("panelBody")?.querySelector(".panel-img-wrap");
+    if (!r || !wrap) return;
+    wrap.querySelector(".prod-badges")?.remove();
+    const html = _productBadgesHTML(r);
+    if (html) wrap.insertAdjacentHTML("beforeend", html);
   }
 
   // Accept a bare "shop.com/x" and turn it into a real URL for openExternal.
@@ -10625,6 +11480,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     _reorderUpdateDerived();
     if ($("roPriceEditor")?.hidden) _reorderUpdatePriceDisplay();  // refresh price text (unless mid-edit)
     if ($("roMinEditor")?.hidden) _reorderUpdateMinDisplay();      // refresh min text (unless mid-edit)
+    _reorderUpdateFlags();                                         // wishlist/like buttons
     // Tag chips from saved state (unless the tag input is focused mid-type).
     if ($("roTagChips") && document.activeElement !== $("roTagInput")) _renderTagChips(_productTagCtx(r));
     // Shop button from saved URL, unless its inline editor is open.
@@ -10692,6 +11548,19 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   $("reorderCloseTab")?.addEventListener("click", closeReorderPanel);
   $("reorderPanelClose")?.addEventListener("click", closeReorderPanel);
 
+  // ❤ Liked / ★ Favorite toggles — one delegated handler for EVERY instance
+  // (product card + spool detail side card). The row is resolved from the panel
+  // the button lives in: the reorder card acts on `_reorderRow`, the detail
+  // panel on the currently-selected spool.
+  document.addEventListener("click", e => {
+    const btn = e.target.closest(".flag-toggle[data-flag]");
+    if (!btn) return;
+    const r = btn.closest("#reorderPanelBody")
+      ? _reorderRow
+      : (state.rows || []).find(x => x.spoolId === state.selected);
+    if (r) _toggleProductFlag(r, btn.dataset.flag);
+  });
+
   function buildPanelHTML(r) {
     const mat = r.materialData;
 
@@ -10713,7 +11582,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const badgeTrGroup = (badgeBackup || badgeTwin || badgeChip)
       ? `<div class="panel-img-badge panel-img-badge--tr panel-img-badge-tr-group">${badgeTwin}${badgeBackup}${badgeChip}</div>`
       : "";
-    const overlays = badgeLeft + badgeTrGroup + badgeTd;
+    // Bottom-right ❤/★/🛍 status cluster, same as the grid/table illustrations.
+    const overlays = badgeLeft + badgeTrGroup + badgeTd + _productBadgesHTML(r);
     // The edit bar lives inside panel-img-wrap at the bottom.
     // The trigger (Edit icon) IS the left anchor of the bar — clicking it
     // expands the bar rightward to reveal the input + confirm button.
@@ -11092,10 +11962,17 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       const ro = catName || (rawMsg.trim() ? rawMsg : null) || aspectFallback || null;
       if (ro) nameLinesHtml += `<div class="pi-row2 pi-row2--name">${esc(ro)}</div>`;
     }
+    // ❤ Liked / ★ Favorite toggles, top-right of the identity block. Shown in a
+    // friend's view too — flagging there imports the product into MY `products`.
+    const identFlags = !r.deleted
+      ? `<div class="pi-flags">${_flagTogglesHTML(r)}</div>` : "";
     const identityHtml = `
       <div class="panel-section panel-identity">
-        ${row1Parts.length ? `<div class="pi-row1">${row1Parts.join(" ")}</div>` : ""}
-        ${nameLinesHtml}
+        <div class="pi-ident-text">
+          ${row1Parts.length ? `<div class="pi-row1">${row1Parts.join(" ")}</div>` : ""}
+          ${nameLinesHtml}
+        </div>
+        ${identFlags}
       </div>`;
 
     let chipBannerHtml = "";
@@ -12504,6 +13381,18 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     body.addEventListener("pointerdown", swallow, true);
     body.addEventListener("click", swallow, true);
   }
+  // Hover bubble on the ❤ Liked / ★ Favorite toggles (explains each) — reuses the
+  // shared #toolInfoPop via `data-tip`. Delegated once on <document> so it covers
+  // every instance: the materials detail side card AND the product-info card.
+  // Clicking still toggles the flag (no swallow — unlike the ⓘ).
+  let _flagTipsWired = false;
+  function _wireFlagTips() {
+    if (_flagTipsWired) return;
+    _flagTipsWired = true;
+    document.addEventListener("mouseover", e => { const el = e.target.closest?.(".flag-toggle[data-tip]"); if (el) _showToolInfoTip(el); });
+    document.addEventListener("mouseout",  e => { const el = e.target.closest?.(".flag-toggle[data-tip]"); if (el && !el.contains(e.relatedTarget)) _hideToolInfoTip(); });
+  }
+  _wireFlagTips();
   // Rack-view ⓘ tips (.rp-info — auto-organize, "no space" hint, …) reuse the
   // same body-appended #toolInfoPop as the toolbox so the bubble escapes the
   // panel's overflow/stacking instead of being clipped inside the card. The
@@ -17659,6 +18548,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
      Stored as an array of "<level>:<position>" strings on the rack doc. */
   function slotLockKey(level, position) { return `${level}:${position}`; }
   function isSlotLocked(rackId, level, position) {
+    // Slot locks are a personal rack-management aid — irrelevant to a friend just
+    // browsing someone else's Storage, so hide the padlock entirely in friend view.
+    if (state.friendView) return false;
     const r = state.racks.find(x => x.id === rackId);
     if (!r) return false;
     return Array.isArray(r.lockedSlots)
@@ -19799,6 +20691,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // meaningless here — hide the whole group + its separator in friend view.
     $("vtgPrinters")?.classList.toggle("hidden", !!state.friendView);
     $("vtgSep")?.classList.toggle("hidden", !!state.friendView);
+    // Products (favorites / order) are the viewer's own records, not the
+    // friend's — hide that group + its separator in friend view too.
+    $("vtgProducts")?.classList.toggle("hidden", !!state.friendView);
+    $("vtgSepProducts")?.classList.toggle("hidden", !!state.friendView);
     if (!banner) return;
     // ─── Friend view ───────────────────────────────────────────────
     if (state.friendView) {

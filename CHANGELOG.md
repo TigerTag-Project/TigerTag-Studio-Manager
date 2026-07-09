@@ -5,6 +5,55 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v2.1.0 — 2026-07-09
+
+A big release built around a new **Products / Favorites / Reorder** system: turn a filament into a long-lived product you track (min stock, buy link, price) independently of whether a physical spool is currently in your inventory. Plus bulk editing, Bambu print thumbnails, email verification at sign-up, and a stack of fixes.
+
+### Added
+
+- **Per-product records (`products` collection).** A new per-user `users/{uid}/products/{keyHash}` table stores, once per **product identity** (keyed by a cyrb53 hash of `_spoolGroupKey` — TigerTag+ `tt:<id>`, else `diy:brand|material|id_type|colourSig|aspects`, now including the Type so filament and resin never collide) and shared by every identical spool (surviving spool deletion): a buy link, a purchase price (**always stored tax-free**, `buyPriceHt`), a minimum stock (in spools), a free note, tags, SKU + EAN, `liked`/`favorite` flags, a display snapshot (`label` incl. product image) and a sanitized `cloudSeed` (so a TigerTag Cloud can be minted with no source spool). Owner-only Firestore rule; `_writeProduct` does a partial merge so each slice updates independently. Live-synced into `state.products` via `subscribeProducts`.
+- **"Product info" side card** — per-product management (buy link, price, stock/min, note, tags, SKU/EAN, ❤/★, "Create a TigerTag Cloud"). Opens from a toolbox row in the spool detail and from a button atop the group deck; docks as a distinct 3rd card. Everything auto-saves (no Save button). The buy link is edited via a Shopify button that never shows the URL as text; the price shows in the account's HT/TTC mode and is edited inline.
+- **VAT country + HT/TTC price mode** in the account modal — a country picker (`users/{uid}.vatCountry`, drives rate + currency from `data/vat-rates.json`, 30 entries) and a HT/TTC price-entry preference (`users/{uid}.priceInputMode`). Prices are stored HT; the TTC figure is derived at display time (`_vatPrices`), so changing country never rewrites the DB.
+- **Favorites view** — a dedicated header group (renamed from "Products") next to Inventory, with **Grid**, **Table** and **To order** buttons (view modes `favesGrid`/`favesTable`/`order`). Favorites Grid reuses the inventory spool-card (stripped of chip-only markers, price in the footer); the Table is a spreadsheet-style view (illustration · Brand · Material · Color swatch · Name · Stock · Min. qty · To order · Price · Shop) with an always-on selection column. **To order** is a Shopify draft-order-style cart (identity on one line, editable order qty, unit/line total, a sticky Payment card on the right with Subtotal / Estimated tax / Total that follow the HT/TTC mode).
+- **Bulk product editing** — the products table's selection column feeds the shared bulk bar with **Delete** (removes product records only, decoupled from spools), **Tags** (writes `products/{keyHash}.tags`) and **Price** (one HT/TTC value applied to every selected product, converted to HT). Min. qty is pencil-editable inline; "Add a price" / the greyed Shopify button open the card straight into the matching editor with the input focused.
+- **Low-stock alerts** — a product whose live spool count drops below its minimum shows an amber pill on its group deck and raises a local notification (product illustration, "X/min left", chimes once, clears on restock, clickable to open the product card).
+- **Bulk tag editing** from the multi-select bar (spools + printers) — a **Tags** button opens the tags modal for the whole selection; save applies the diff (added-to-all / removed-from-all, per-item extras untouched).
+- **Header master checkbox** in both tables (materials + printers) — selects/deselects all currently-visible (filtered) rows, with checkmark / dash states.
+- **Bambu Lab print thumbnails** — the current (or just-finished) print's plate preview now shows in the printer table and Bambu side card, fetched over FTPS + `.3mf` (ZIP) extraction (`basic-ftp` + `yauzl`), with the PASV `0.0.0.0` rewrite and a fuzzy filename match. Validated against a real A1.
+- **Email verification for email/password sign-up (strict)** — sign-up now sends a verification email and does not open a session; sign-in is gated on `emailVerified` with an inline "resend" action. Google sign-in is exempt. Closes the long-standing gap where no verification email was ever sent.
+
+### Changed
+
+- **Inventory grid/table click opens the grouped deck first — even for a lone spool** (`_openGroupPanel(..., { keepSingletons: true })`); picking a member inside the deck opens its detail. Bulk-select clicks are unaffected.
+- **Interest hierarchy ❤ Love ⊆ ★ Favorite ⊆ tracked** (`_coupleFlags`, applied in both product write paths): setting a min auto-favorites; loving auto-favorites; un-favoriting drops the Love but **preserves the min** (a mis-click must never wipe a typed threshold).
+- **Products views are driven by the shared search bar + selectors** (Brand / Material / Tag / ❤); the materials-only Version filter and the redundant ★ filter are hidden there.
+- **To-order prices follow the account HT/TTC mode**; the Payment card subtotal shows HT or TTC accordingly (tax math always on the HT base). The Payment card moved to the right of the list and is sticky.
+- **Editing a spool's TD** now opens a dedicated "Update TD" modal that changes only the TD (never the colour), with a hold-to-confirm "Clear TD value".
+- **Print preview persists when a job is finished** (not just active) across every brand.
+- **Native-app feel** — the UI is no longer text-selectable (except form fields / code blocks / opted-in `.selectable`), so clicking never leaves a blue highlight.
+- README refreshed to the v2 title + structure; a SemVer bump policy was documented in `CLAUDE.md`.
+- The ❤/★ toggles now explain themselves on hover.
+
+### Fixed
+
+- A faint **dark shadow leaked onto the window's right edge** at all times — the always-in-DOM Firebase-explorer panels applied their `box-shadow` unconditionally while parked off-screen right; gated on `.open`.
+- **Slot-lock padlocks no longer show when browsing a friend's Storage** (`isSlotLocked` returns false in friend view).
+- Storage view's **"Auto-organize"** label now localises correctly.
+- The rack view's ⓘ info tips no longer get clipped (reuse the body-appended `#toolInfoPop`).
+- FlashForge open-frame printers no longer show a bogus "Door closed" badge (gated on the model's `Enclosed` feature).
+- Printer table **"Ends at"** is no longer blank for Snapmaker / FlashForge (derived from the slicer estimate / firmware remaining time).
+- Printer table Preview column keeps consistent padding on finished vs printing rows.
+- The multi-select **Delete** button now shows a visible hold-to-confirm sweep (was red-on-red).
+- Launching straight into a printer view now shows the printer filters, not the materials ones.
+- GitHub Release name drops the leading `v` (`2.1.0`, not `v2.1.0`).
+
+### Removed
+
+- Multi-select bar slimmed to **Delete + ×** (dropped the "Clear" and "Select all" buttons; their i18n keys removed).
+- The detail panel's colour circle is no longer an edit trigger (colour editing stays via TD edit / TD1S / cloud encode).
+
+---
+
 ## v2.0.0 — 2026-07-07
 
 Tiger Studio Manager turns **2.0** — a big round of printer-table upgrades, a proper guided flow for updating a chip, and a pile of fixes.

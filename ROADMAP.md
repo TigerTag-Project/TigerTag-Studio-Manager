@@ -1077,6 +1077,9 @@ Decision pending — recommended path:
 ---
 
 ### ⭐ Favorites — long-term product memory (TigerTag+ only)
+
+> **TODO — Products recovery view** (flagged 2026-07-09, partially shipped in the Favorites/Products views). Un-favoriting a product no longer resets its min-stock (mis-click safety), so a product can end up **not favorite, with a min, and no live spool → invisible everywhere** (not in Favorites, and in "To order" only while stock < min). Need a **recovery view** that lists ALL product records — including these orphans — so the user can re-favorite / re-activate them (you can't re-reach a product you no longer physically own otherwise). Simplest shape: a "Show all products" toggle (or a 3rd Products tab) that drops the `liked || favorite` filter.
+
 Today a spool's metadata disappears the moment the user consumes the last gram and deletes the doc. The user can't remember "I loved that Polymaker PolyTerra Charcoal — what was the typical price? What temp tower result did I get?". Favourites turn a TigerTag+ **product** (not a physical spool) into a long-lived entity with user-defined metadata that survives every restock cycle.
 
 #### Why TigerTag+ only — and what to do about non-Plus

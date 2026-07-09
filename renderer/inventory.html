@@ -176,11 +176,20 @@
       <div class="inv-view-row">
         <div class="view-toggle-groups">
           <div class="vtg-group">
-            <span class="vtg-label"><span data-i18n="viewGroupMaterials">Materials</span></span>
+            <span class="vtg-label"><span data-i18n="viewGroupInventory">Inventory</span></span>
             <div class="view-toggle">
               <button id="btnViewGrid" data-i18n="btnViewGrid">⊞ Grid</button>
               <button id="btnViewTable" class="active"><span class="icon icon-list icon-13"></span><span data-i18n="btnViewTable">Table</span></button>
               <button id="btnViewRack"><span class="icon icon-package icon-13"></span><span data-i18n="btnViewRack">Storage</span></button>
+            </div>
+          </div>
+          <span class="vtg-sep" id="vtgSepProducts" aria-hidden="true"></span>
+          <div class="vtg-group" id="vtgProducts">
+            <span class="vtg-label"><span data-i18n="viewGroupFavorites">Favorites</span></span>
+            <div class="view-toggle">
+              <button id="btnViewFavesGrid" data-i18n="btnViewGrid">⊞ Grid</button>
+              <button id="btnViewFavesTable"><span class="icon icon-list icon-13"></span><span data-i18n="btnViewTable">Table</span></button>
+              <button id="btnViewOrder"><span class="icon icon-shopify icon-13"></span><span data-i18n="btnViewOrder">To order</span></button>
             </div>
           </div>
           <span class="vtg-sep" id="vtgSep" aria-hidden="true"></span>
@@ -238,6 +247,13 @@
           <select id="tagFilter" class="inv-brand-filter" data-i18n-title="filterAllTags" title="All tags">
             <option value="" data-i18n="filterAllTags">All tags</option>
           </select>
+          <!-- Product-flag quick filters: ❤ wishlist / ★ liked (mutually exclusive). -->
+          <button type="button" id="wishFilter" class="inv-flag-filter inv-flag-filter--wish" data-i18n-title="productLike" title="Liked">
+            <span class="icon icon-heart icon-14"></span>
+          </button>
+          <button type="button" id="likeFilter" class="inv-flag-filter inv-flag-filter--like" data-i18n-title="productFavorite" title="Favorite">
+            <span class="icon icon-star icon-14"></span>
+          </button>
         </div>
         <!-- Grid-only sort control, pushed to the far right (table view sorts
              via its column headers). Separated from the filter cluster. -->
@@ -284,6 +300,9 @@
       <!-- rack view (storage) -->
       <div id="invRackView" class="inv-rack-view hidden"></div>
 
+      <!-- products view (order recommendation + liked/favorite) -->
+      <div id="invProductsView" class="inv-products-view hidden"></div>
+
       <!-- Floating bulk-action bar — appears in multi-select mode once ≥1 spool
            is selected. Delete is a press-and-hold (hard delete, irreversible). -->
       <div id="bulkBar" class="bulk-bar hidden">
@@ -291,6 +310,22 @@
           <span class="icon icon-edit icon-13"></span>
           <span data-i18n="bulkTags">Tags</span>
         </button>
+        <!-- Products context only (shown via #bulkBar.is-products): set one price
+             on every selected product. Toggles the inline price editor below. -->
+        <button id="bulkPrice" class="bulk-btn" type="button">
+          <span class="icon icon-shopify icon-13"></span>
+          <span data-i18n="thPrice">Price</span>
+        </button>
+        <div id="bulkPriceEntry" class="bulk-price-entry">
+          <input type="number" id="bulkPriceInput" class="bulk-price-input" min="0" step="0.01" placeholder="0.00" />
+          <span id="bulkPriceMode" class="bulk-price-mode"></span>
+          <button id="bulkPriceApply" class="bulk-btn bulk-btn--primary bulk-btn--icon" type="button" data-i18n-title="btnSave" title="Save" aria-label="Save">
+            <span class="icon icon-check icon-13"></span>
+          </button>
+          <button id="bulkPriceCancel" class="bulk-btn bulk-btn--icon" type="button" aria-label="Cancel">
+            <span class="icon icon-close icon-13"></span>
+          </button>
+        </div>
         <button id="bulkDelete" class="bulk-btn bulk-btn--danger" type="button">
           <span class="hold-progress"></span>
           <span class="icon icon-trash icon-13"></span>
