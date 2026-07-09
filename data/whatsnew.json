@@ -4312,7 +4312,7 @@
     "date": "2026-07-06",
     "items": [
       {
-        "icon": "🛍️",
+        "icon": "shopify",
         "title": {
           "en": "Grab some goodies",
           "fr": "Choper des goodies",
@@ -4337,7 +4337,7 @@
         }
       },
       {
-        "icon": "🏷️",
+        "icon": "tag",
         "title": {
           "en": "Tags, done right",
           "fr": "Les balises, comme il faut",
@@ -4362,7 +4362,7 @@
         }
       },
       {
-        "icon": "🖼️",
+        "icon": "image",
         "title": {
           "en": "Your racks, as a gallery",
           "fr": "Tes racks, version galerie",
@@ -4387,7 +4387,7 @@
         }
       },
       {
-        "icon": "👀",
+        "icon": "eye-on",
         "title": {
           "en": "Peek at public stashes",
           "fr": "Un œil sur les stocks publics",
@@ -4412,7 +4412,7 @@
         }
       },
       {
-        "icon": "🎨",
+        "icon": "palette",
         "title": {
           "en": "Colours, round and proper",
           "fr": "Les couleurs, bien rondes",
@@ -4442,7 +4442,7 @@
     "date": "2026-07-07",
     "items": [
       {
-        "icon": "🖼️",
+        "icon": "image",
         "title": {
           "en": "See what's on the bed",
           "fr": "Vois ce qui s'imprime",
@@ -4467,7 +4467,7 @@
         }
       },
       {
-        "icon": "⏰",
+        "icon": "clock",
         "title": {
           "en": "When will it be free?",
           "fr": "Libre à quelle heure ?",
@@ -4492,7 +4492,7 @@
         }
       },
       {
-        "icon": "🏷️",
+        "icon": "tag",
         "title": {
           "en": "Get your printers in order",
           "fr": "Range tes imprimantes",
@@ -4517,7 +4517,7 @@
         }
       },
       {
-        "icon": "🗑️",
+        "icon": "trash",
         "title": {
           "en": "Clear out in bulk",
           "fr": "Fais le ménage en masse",
@@ -4572,7 +4572,7 @@
     "date": "2026-07-09",
     "items": [
       {
-        "icon": "⭐",
+        "icon": "star-fill",
         "title": {
           "en": "Filaments you never forget",
           "fr": "Des filaments qu'on n'oublie plus",
@@ -4597,7 +4597,7 @@
         }
       },
       {
-        "icon": "🛒",
+        "icon": "cart",
         "title": {
           "en": "A shopping list that does the maths",
           "fr": "Une liste de courses qui compte pour toi",
@@ -4622,7 +4622,7 @@
         }
       },
       {
-        "icon": "🔔",
+        "icon": "bell",
         "title": {
           "en": "Never run out mid-print",
           "fr": "Plus jamais à sec en plein print",
@@ -4647,7 +4647,7 @@
         }
       },
       {
-        "icon": "💶",
+        "icon": "coins",
         "title": {
           "en": "Prices with or without tax — your call",
           "fr": "Les prix HT ou TTC, comme tu veux",
@@ -4672,7 +4672,7 @@
         }
       },
       {
-        "icon": "✅",
+        "icon": "list-check",
         "title": {
           "en": "Fix a whole bunch at once",
           "fr": "Modifie tout un lot d'un coup",
@@ -4697,7 +4697,7 @@
         }
       },
       {
-        "icon": "🖼️",
+        "icon": "image",
         "title": {
           "en": "See what your Bambu's printing",
           "fr": "Vois ce que ton Bambu imprime",
@@ -4722,7 +4722,7 @@
         }
       },
       {
-        "icon": "✉️",
+        "icon": "mail",
         "title": {
           "en": "A quick check at sign-up",
           "fr": "Une petite vérif à l'inscription",
@@ -4744,6 +4744,136 @@
           "pt": "Cria uma conta com email + palavra-passe e enviamos primeiro um link de confirmação — um toque e estás verificado.",
           "pt-pt": "Cria uma conta com email + palavra-passe e enviamos primeiro um link de confirmação — um toque e estás verificado.",
           "pl": "Załóż konto z e-mailem i hasłem, a najpierw wyślemy link potwierdzający — jedno kliknięcie i po weryfikacji."
+        }
+      }
+    ]
+  },
+  "2.2.0": {
+    "date": "2026-07-09",
+    "items": [
+      {
+        "icon": "user",
+        "title": {
+          "en": "Know where your favorites came from",
+          "fr": "Sache d'où viennent tes favoris",
+          "de": "Wisse, woher deine Favoriten kommen",
+          "es": "Sabe de dónde vienen tus favoritos",
+          "it": "Scopri da dove arrivano i tuoi preferiti",
+          "zh": "知道你的收藏从哪来",
+          "pt": "Sabe de onde vêm os teus favoritos",
+          "pt-pt": "Sabe de onde vêm os teus favoritos",
+          "pl": "Wiedz, skąd pochodzą Twoje ulubione"
+        },
+        "body": {
+          "en": "Star a friend's filament and it lands in your favorites with their name and photo — kept fresh on its own, and still there even if you drift apart. Tap to hop over to their shelf.",
+          "fr": "Mets une étoile sur le filament d'un ami et il arrive dans tes favoris avec son nom et sa photo — mis à jour tout seul, et toujours là même si vous ne suivez plus. Clique pour filer voir son étagère.",
+          "de": "Markiere das Filament eines Freundes und es landet mit Name und Foto in deinen Favoriten — bleibt von selbst aktuell und bleibt da, auch wenn ihr euch aus den Augen verliert. Tipp drauf, um zu seinem Regal zu springen.",
+          "es": "Marca el filamento de un amigo y aparece en tus favoritos con su nombre y foto — se actualiza solo y sigue ahí aunque dejéis de seguiros. Toca para saltar a su estantería.",
+          "it": "Metti una stella sul filamento di un amico e finisce nei tuoi preferiti con nome e foto — si aggiorna da solo e resta lì anche se vi perdete di vista. Tocca per saltare al suo scaffale.",
+          "zh": "给好友的耗材加颗星，它就带着对方的名字和头像进入你的收藏——自动保持最新，就算你们不再是好友也还在。点一下就能跳到他的货架。",
+          "pt": "Põe uma estrela no filamento de um amigo e ele entra nos teus favoritos com o nome e a foto — atualiza-se sozinho e continua lá mesmo que deixem de se seguir. Toca para saltar para a prateleira dele.",
+          "pt-pt": "Põe uma estrela no filamento de um amigo e ele entra nos teus favoritos com o nome e a foto — atualiza-se sozinho e continua lá mesmo que deixem de se seguir. Toca para saltar para a prateleira dele.",
+          "pl": "Oznacz filament znajomego gwiazdką, a trafi do ulubionych z jego imieniem i zdjęciem — sam się odświeża i zostaje, nawet gdy przestaniecie być znajomymi. Stuknij, by skoczyć na jego półkę."
+        }
+      },
+      {
+        "icon": "coins",
+        "title": {
+          "en": "Price a whole pile at once",
+          "fr": "Un prix pour toute une pile d'un coup",
+          "de": "Gleich einen ganzen Stapel bepreisen",
+          "es": "Ponle precio a un montón de golpe",
+          "it": "Prezza un mucchio in una volta",
+          "zh": "一次给一大堆定价",
+          "pt": "Preço para um monte de uma vez",
+          "pt-pt": "Preço para um monte de uma vez",
+          "pl": "Wyceń całą stertę naraz"
+        },
+        "body": {
+          "en": "Tick a few spools right from your Inventory and set the same price on all of them — no detour through the Products table needed.",
+          "fr": "Coche quelques bobines directement depuis ton inventaire et mets-leur le même prix d'un coup — plus besoin de passer par le tableau des produits.",
+          "de": "Hak ein paar Spulen direkt im Bestand an und gib ihnen allen denselben Preis — kein Umweg über die Produkttabelle nötig.",
+          "es": "Marca unas bobinas desde tu inventario y ponles el mismo precio a todas — sin pasar por la tabla de productos.",
+          "it": "Seleziona qualche bobina direttamente dall'inventario e dai a tutte lo stesso prezzo — senza passare dalla tabella prodotti.",
+          "zh": "直接在库存里勾选几卷，一次给它们设同一个价格——不用再绕去产品表。",
+          "pt": "Marca algumas bobines direto do teu inventário e dá o mesmo preço a todas — sem desvio pela tabela de produtos.",
+          "pt-pt": "Marca algumas bobines direto do teu inventário e dá o mesmo preço a todas — sem desvio pela tabela de produtos.",
+          "pl": "Zaznacz kilka szpul prosto z magazynu i ustaw im wszystkim tę samą cenę — bez wycieczki do tabeli produktów."
+        }
+      },
+      {
+        "icon": "list-check",
+        "title": {
+          "en": "Sort your favorites your way",
+          "fr": "Trie tes favoris comme tu veux",
+          "de": "Sortier deine Favoriten wie du willst",
+          "es": "Ordena tus favoritos a tu gusto",
+          "it": "Ordina i preferiti come vuoi",
+          "zh": "按你喜欢的方式排列收藏",
+          "pt": "Ordena os favoritos à tua maneira",
+          "pt-pt": "Ordena os favoritos à tua maneira",
+          "pl": "Sortuj ulubione po swojemu"
+        },
+        "body": {
+          "en": "Click any column in the Favorites table — brand, material, stock, price, whatever — to sort it up or down.",
+          "fr": "Clique sur n'importe quelle colonne du tableau des favoris — marque, matière, stock, prix… — pour trier dans un sens ou dans l'autre.",
+          "de": "Klick auf eine beliebige Spalte in der Favoriten-Tabelle — Marke, Material, Bestand, Preis — zum Auf- oder Absteigend-Sortieren.",
+          "es": "Haz clic en cualquier columna de la tabla de favoritos — marca, material, stock, precio — para ordenarla hacia arriba o abajo.",
+          "it": "Clicca una colonna qualsiasi della tabella preferiti — marca, materiale, scorta, prezzo — per ordinarla in su o in giù.",
+          "zh": "点收藏表里任意一列——品牌、材料、库存、价格——就能升序或降序排列。",
+          "pt": "Clica em qualquer coluna da tabela de favoritos — marca, material, stock, preço — para ordenar para cima ou para baixo.",
+          "pt-pt": "Clica em qualquer coluna da tabela de favoritos — marca, material, stock, preço — para ordenar para cima ou para baixo.",
+          "pl": "Kliknij dowolną kolumnę w tabeli ulubionych — markę, materiał, stan, cenę — by posortować rosnąco lub malejąco."
+        }
+      },
+      {
+        "icon": "image",
+        "title": {
+          "en": "A comfier product card",
+          "fr": "Une fiche produit plus agréable",
+          "de": "Eine angenehmere Produktkarte",
+          "es": "Una ficha de producto más cómoda",
+          "it": "Una scheda prodotto più comoda",
+          "zh": "更舒服的产品卡片",
+          "pt": "Um cartão de produto mais confortável",
+          "pt-pt": "Um cartão de produto mais confortável",
+          "pl": "Wygodniejsza karta produktu"
+        },
+        "body": {
+          "en": "Bigger filament photo, the colour name on its own line so it never gets cut off, and the heart/star tucked neatly up top.",
+          "fr": "Photo du filament plus grande, le nom de couleur sur sa propre ligne pour ne jamais être coupé, et le cœur/étoile bien rangés en haut.",
+          "de": "Größeres Filament-Foto, der Farbname in eigener Zeile, damit er nie abgeschnitten wird, und Herz/Stern ordentlich oben.",
+          "es": "Foto del filamento más grande, el nombre del color en su propia línea para que no se corte, y el corazón/estrella arriba y ordenados.",
+          "it": "Foto del filamento più grande, il nome del colore su una riga tutta sua così non viene tagliato, e cuore/stella ordinati in alto.",
+          "zh": "耗材照片更大，颜色名称独占一行不再被截断,爱心/星星整齐地收到顶部。",
+          "pt": "Foto do filamento maior, o nome da cor na sua própria linha para nunca ser cortado, e o coração/estrela bem arrumados no topo.",
+          "pt-pt": "Foto do filamento maior, o nome da cor na sua própria linha para nunca ser cortado, e o coração/estrela bem arrumados no topo.",
+          "pl": "Większe zdjęcie filamentu, nazwa koloru w osobnym wierszu, by nigdy nie została ucięta, a serce/gwiazdka zgrabnie na górze."
+        }
+      },
+      {
+        "icon": "cart",
+        "title": {
+          "en": "Low? Straight to your shopping list",
+          "fr": "Bientôt à sec ? Direct sur ta liste de courses",
+          "de": "Knapp? Direkt zur Einkaufsliste",
+          "es": "¿Poco? Directo a tu lista de la compra",
+          "it": "A corto? Dritto alla lista della spesa",
+          "zh": "快用完？直达购物清单",
+          "pt": "A acabar? Direto à lista de compras",
+          "pt-pt": "A acabar? Direto à lista de compras",
+          "pl": "Mało? Prosto do listy zakupów"
+        },
+        "body": {
+          "en": "Tap a 'running low' nudge and you land right on the 'To order' list — no more digging through a single filament's card.",
+          "fr": "Tape sur une alerte 'bientôt à sec' et tu arrives direct sur la liste 'À commander' — fini de fouiller dans la fiche d'un seul filament.",
+          "de": "Tipp auf einen 'wird knapp'-Hinweis und du landest direkt auf der 'Zu bestellen'-Liste — kein Wühlen mehr in der Karte eines einzelnen Filaments.",
+          "es": "Toca un aviso de 'queda poco' y aterrizas justo en la lista 'Para pedir' — se acabó rebuscar en la ficha de un solo filamento.",
+          "it": "Tocca un avviso 'sta finendo' e atterri dritto sulla lista 'Da ordinare' — basta frugare nella scheda di un singolo filamento.",
+          "zh": "点一下'快用完'的提醒，就直接到达'待订购'清单——不用再翻单个耗材的卡片。",
+          "pt": "Toca num aviso de 'a acabar' e cais logo na lista 'A encomendar' — acabou o vasculhar no cartão de um só filamento.",
+          "pt-pt": "Toca num aviso de 'a acabar' e cais logo na lista 'A encomendar' — acabou o vasculhar no cartão de um só filamento.",
+          "pl": "Stuknij powiadomienie 'kończy się' i lądujesz prosto na liście 'Do zamówienia' — koniec z grzebaniem w karcie pojedynczego filamentu."
         }
       }
     ]

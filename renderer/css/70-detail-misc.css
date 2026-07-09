@@ -71,6 +71,16 @@
   .icon-shopify   { -webkit-mask-image: url('../../assets/svg/icons/icon_shopify.svg');      mask-image: url('../../assets/svg/icons/icon_shopify.svg'); }
   .icon-image     { -webkit-mask-image: url('../../assets/svg/icons/icon_image.svg');        mask-image: url('../../assets/svg/icons/icon_image.svg'); }
   .icon-printer   { -webkit-mask-image: url('../../assets/svg/icons/icon_printer.svg');      mask-image: url('../../assets/svg/icons/icon_printer.svg'); }
+  /* Extra illustration icons (What's New + general use). */
+  .icon-mail      { -webkit-mask-image: url('../../assets/svg/icons/icon_mail.svg');         mask-image: url('../../assets/svg/icons/icon_mail.svg'); }
+  .icon-tag       { -webkit-mask-image: url('../../assets/svg/icons/icon_tag.svg');          mask-image: url('../../assets/svg/icons/icon_tag.svg'); }
+  .icon-list-check { -webkit-mask-image: url('../../assets/svg/icons/icon_list_check.svg');  mask-image: url('../../assets/svg/icons/icon_list_check.svg'); }
+  .icon-cart      { -webkit-mask-image: url('../../assets/svg/icons/icon_cart.svg');         mask-image: url('../../assets/svg/icons/icon_cart.svg'); }
+  .icon-coins     { -webkit-mask-image: url('../../assets/svg/icons/icon_coins.svg');        mask-image: url('../../assets/svg/icons/icon_coins.svg'); }
+  .icon-bug       { -webkit-mask-image: url('../../assets/svg/icons/icon_bug.svg');          mask-image: url('../../assets/svg/icons/icon_bug.svg'); }
+  .icon-filter    { -webkit-mask-image: url('../../assets/svg/icons/icon_filter.svg');       mask-image: url('../../assets/svg/icons/icon_filter.svg'); }
+  .icon-gift      { -webkit-mask-image: url('../../assets/svg/icons/icon_gift.svg');         mask-image: url('../../assets/svg/icons/icon_gift.svg'); }
+  .icon-shield-check { -webkit-mask-image: url('../../assets/svg/icons/icon_shield_check.svg'); mask-image: url('../../assets/svg/icons/icon_shield_check.svg'); }
   .icon-github    { -webkit-mask-image: url('../../assets/svg/icons/icon_github.svg');       mask-image: url('../../assets/svg/icons/icon_github.svg'); }
   .icon-discord   { -webkit-mask-image: url('../../assets/svg/icons/icon_discord.svg');      mask-image: url('../../assets/svg/icons/icon_discord.svg'); }
   .icon-plug      { -webkit-mask-image: url('../../assets/svg/icons/icon_plug.svg');         mask-image: url('../../assets/svg/icons/icon_plug.svg'); }
@@ -442,7 +452,8 @@
   /* Bulk "Price": shown only in the Products context; while entering a price the
      normal buttons hide and the inline editor takes over the bar. */
   #bulkPrice { display: none; }
-  .bulk-bar.is-products #bulkPrice { display: inline-flex; }
+  .bulk-bar.is-products #bulkPrice,
+  .bulk-bar.is-materials #bulkPrice { display: inline-flex; }
   .bulk-price-entry { display: none; align-items: center; gap: 8px; }
   .bulk-bar.is-pricing #bulkTags,
   .bulk-bar.is-pricing #bulkPrice,
@@ -2717,10 +2728,11 @@
   }
   .ro-panel .panel-body::-webkit-scrollbar { width: 0; height: 0; display: none; }
   /* Product identity header (swatch + brand/material·colour). */
-  .ro-head { display: flex; align-items: center; gap: 11px; }
-  /* ❤ Liked / ★ Favorite toggles — shared by the product card header (.ro-flags)
-     and the spool detail identity block (.pi-flags). */
-  .ro-flags { margin-left: auto; display: flex; gap: 5px; flex-shrink: 0; }
+  .ro-head { display: flex; align-items: center; gap: 13px; }
+  /* ❤ Liked / ★ Favorite toggles. In the Product-info card they sit in the panel
+     HEADER (left of the ✕); the spool detail identity block uses .pi-flags. */
+  .ro-header-flags { display: flex; gap: 6px; flex-shrink: 0; margin-right: 6px; }
+  .ro-header-flags .flag-toggle { width: 30px; height: 30px; border-radius: 8px; }
   .flag-toggle {
     width: 34px; height: 34px; border-radius: 9px; cursor: pointer; flex-shrink: 0;
     display: inline-flex; align-items: center; justify-content: center;
@@ -2738,20 +2750,29 @@
   .pi-ident-text { flex: 1; min-width: 0; }
   .pi-flags { display: flex; gap: 5px; flex-shrink: 0; }
   /* "Create a TigerTag Cloud" button. */
+  /* "+ Material" button + its ⓘ info affordance on one row. */
+  .ro-cloud-row { display: flex; align-items: center; gap: 8px; }
   .ro-cloud-btn {
     display: flex; align-items: center; justify-content: center; gap: 8px;
-    width: 100%; height: 40px; border-radius: 10px; cursor: pointer;
+    flex: 1; min-width: 0; height: 40px; border-radius: 10px; cursor: pointer;
     background: var(--surface-2); border: 1px solid var(--border);
     color: var(--text); font-size: 13px; font-weight: 600; transition: background .15s;
   }
   .ro-cloud-btn:hover { background: var(--border); }
   .ro-cloud-btn .icon { background-color: var(--primary); }
+  .ro-cloud-row .tool-info {
+    flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: 8px; cursor: help;
+    color: var(--muted); transition: background .15s, color .15s;
+  }
+  .ro-cloud-row .tool-info:hover { background: var(--surface-2); color: var(--text); }
+  .ro-cloud-row .tool-info .icon { background-color: currentColor; }
   .ro-swatch {
-    width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0;
+    width: 64px; height: 64px; border-radius: 13px; flex-shrink: 0;
     border: 1px solid var(--border); box-shadow: inset 0 0 0 1px rgba(255,255,255,.06);
   }
   .ro-thumb {
-    width: 40px; height: 40px; border-radius: 9px; flex-shrink: 0;
+    width: 64px; height: 64px; border-radius: 13px; flex-shrink: 0;
     object-fit: cover; background: var(--surface-2);
     border: 1px solid var(--border);
   }
@@ -2765,6 +2786,50 @@
     font-size: 12px; color: var(--muted); margin-top: 1px;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
+  /* Colour name on its own line below the material (no longer truncated inline). */
+  .ro-head-color {
+    font-size: 12px; font-weight: 600; color: var(--text); margin-top: 2px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  /* Provenance block — shown when a favorite was imported from a friend's
+     inventory. Prominent identity card (avatar + label + pseudo), styled like
+     the sidebar account row. */
+  .ro-from {
+    display: flex; align-items: center; gap: 11px;
+    margin: 2px 0 4px; padding: 9px 11px;
+    border-radius: 12px;
+    background: var(--surface-2); border: 1px solid var(--border);
+  }
+  .ro-from-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+  .ro-from-label {
+    font-size: 10px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+    color: var(--muted);
+  }
+  .ro-from-name {
+    font-size: 14px; font-weight: 700; color: var(--text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+  }
+  .ro-from-av {
+    position: relative; flex-shrink: 0;
+    width: 38px; height: 38px; border-radius: 50%; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 700; color: #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,.12);
+  }
+  .ro-from-go {
+    flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    opacity: .5; transition: opacity .15s, transform .15s;
+  }
+  .ro-from-go .icon { background: var(--muted); }
+  .ro-from--link { cursor: pointer; transition: background .15s, border-color .15s, box-shadow .15s; }
+  .ro-from--link:hover {
+    background: var(--surface); border-color: var(--primary);
+    box-shadow: 0 4px 16px rgba(0,0,0,.1);
+  }
+  .ro-from--link:hover .ro-from-go { opacity: 1; transform: translateX(2px); }
+  .ro-from--link:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+  .ro-from--gone { opacity: .75; }
+  .ro-from-av--gone { background: var(--muted); }
   /* Current-stock pill; turns amber when below the min-stock target. */
   .ro-stock {
     display: flex; align-items: center; gap: 8px;

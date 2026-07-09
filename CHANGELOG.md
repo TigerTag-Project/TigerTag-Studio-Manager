@@ -5,6 +5,30 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v2.2.0 — 2026-07-09
+
+Follow-up to the Products/Favorites release: friend-import provenance (with live profile resolution that survives un-friending), a reworked Product-info card, and cross-view bulk price editing.
+
+### Added
+
+- **Favorite provenance.** Favoriting a friend's material (from a friend view) now stamps `importedFrom {uid,name}` on the product once at import time (never overwritten) via `_toggleProductFlag`, persisted by `_writeProduct`. The Product-info card renders an "Added from" identity block: the friend's avatar + pseudo are resolved LIVE — `state.friends` first (carries the inventory key), else a direct `userProfiles/{uid}` subscription (`_subscribeImportedProfile`, world-readable to any signed-in user) so name/photo stay current **even after the friendship ends**; the stored `name` is only a last-resort frozen fallback. The block is clickable → `switchToFriendView` when still a friend or the inventory is public, otherwise inert; it greys only when even the profile is unreadable (deleted account). `_refreshReorderProvenance` swaps just the block on any friends/profile change (no panel rebuild).
+- **Bulk price from the Inventory view.** The bulk bar's Price action now shows for a materials (spool) selection, not just the Products table; applying writes the price to each selected spool's product identity (deduped by `_spoolGroupKey`, created through `_writeProduct`). `_bulkEnterPriceMode`/`_bulkApplyPrice` are context-aware (`is-materials` vs `is-products`; printers excluded).
+- **Sortable Favorites table.** Clicking a header (Brand · Material · Name · Stock · Min. qty · To order · Price) sorts asc/desc with the shared chevron indicator; persisted via `state.favesSortCol`/`favesSortDir` (`tigertag.sort.faves`), wired through a delegated `th[data-fsort]` handler on `#invProductsView`.
+- **9 new illustration SVG icons** (`mail`, `tag`, `list-check`, `cart`, `coins`, `bug`, `filter`, `gift`, `shield-check`) with `.icon-<name>` mask classes (24×24), for wider What's New / general use.
+
+### Changed
+
+- **Product-info card reworked.** The material illustration is larger (64 px); the colour name moved to its own line below the material (no longer truncated inline); the ❤ Liked / ★ Favorite toggles moved into the panel header, left of the ✕ (the delegated flag handler now resolves the reorder row from the whole `#reorderPanel`). The "Create a TigerTag Cloud" button is relabelled **"+ Material"** with an ⓘ info affordance whose hover tooltip (`_wireReorderInfoTips`, delegated on `#reorderPanelBody`, reusing the toolbox tooltip) explains it adds a spool of the exact filament without an RFID chip.
+- **Low-stock reorder notification** now opens the "To order" list (`setViewMode("order")`) instead of the single product's card.
+- **What's New illustrations use real icon names.** The modal renders `it.icon` as a masked `.icon-<name>` and strips non-class tokens, so the emoji icons used previously silently fell back to `sparkle`; the v2.1.0 entries and every older emoji entry (🏷️🖼️🛍️👀🎨⏰🗑️ → `tag`/`image`/`shopify`/`eye-on`/`palette`/`clock`/`trash`) were remapped so each item shows its own illustration.
+
+### Fixed
+
+- **Renaming a rack updates the Storage view immediately.** `_rackStructureSig` didn't include the rack name, so a name-only change let the no-op slot patch skip the header rebuild while advancing the render signature; the name is now part of the signature.
+- **The grouped deck no longer hides behind the printer side card.** `_syncPanels` positioned the group/container/reorder cards off the spool-detail width only; with a printer panel open but no spool detail they opened at `right:0`, behind the printer panel. They now cascade off the printer stack width (`printerW + configW`).
+
+---
+
 ## v2.1.0 — 2026-07-09
 
 A big release built around a new **Products / Favorites / Reorder** system: turn a filament into a long-lived product you track (min stock, buy link, price) independently of whether a physical spool is currently in your inventory. Plus bulk editing, Bambu print thumbnails, email verification at sign-up, and a stack of fixes.

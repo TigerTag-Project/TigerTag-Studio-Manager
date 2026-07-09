@@ -577,6 +577,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   };
   const _invSort     = _loadSort("tigertag.sort.inv", "brand", "asc");
   const _printerSort = _loadSort("tigertag.sort.printer", "status", "desc");
+  const _favesSort   = _loadSort("tigertag.sort.faves", "brand", "asc");
 
   const state = {
     inventory: null,
@@ -602,6 +603,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     lang: localStorage.getItem("tigertag.lang") || "en",
     sortCol: _invSort.col,       // persisted; default "brand"
     sortDir: _invSort.dir,       // persisted; default "asc"
+    favesSortCol: _favesSort.col,       // Favorites table sort — persisted, own column set
+    favesSortDir: _favesSort.dir,
     printerSortCol: _printerSort.col,   // persisted; default "status" (online at top)
     printerSortDir: _printerSort.dir,   // persisted; default "desc" (status=1 above status=0)
     activeAccountId: null,
@@ -6566,6 +6569,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     doc.wishlist = firebase.firestore.FieldValue.delete();     // legacy field (renamed) — clean up
     if ("sku" in patch)      doc.sku = (patch.sku || "").trim();
     if ("ean" in patch)      doc.ean = (patch.ean || "").trim();
+    // Provenance stamp (set once at friend-import; see _toggleProductFlag).
+    if ("importedFrom" in patch && patch.importedFrom) doc.importedFrom = patch.importedFrom;
     try { await ref.set(doc, { merge: true }); }
     catch (e) { console.warn("[products] write failed:", e); }
   }
@@ -7582,8 +7587,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const dc = $("bulkDeleteCount"); if (dc) dc.textContent = n ? ` (${n})` : "";
     const show = state.bulkSelect && n > 0;
     bar.classList.toggle("hidden", !show);
-    bar.classList.toggle("is-products", !!ctx.products);   // reveals the "Price" bulk action
-    if (!show || !ctx.products) bar.classList.remove("is-pricing");   // never leave the price editor stranded
+    // "Price" bulk action shows for products AND inventory materials (a price is a
+    // product-level field; for spools it writes to their product identity). Printers
+    // have no price.
+    bar.classList.toggle("is-products", !!ctx.products);
+    bar.classList.toggle("is-materials", !ctx.products && !ctx.printers);
+    if (!show || ctx.printers) bar.classList.remove("is-pricing");   // never leave the price editor stranded
     _syncSelAllHeader();
   }
   // Called after any selection toggle: refresh the bar and, if the current
@@ -7859,6 +7868,16 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   $("btnViewOrder")?.addEventListener("click",      () => setViewMode("order"));
   // Products view — delegated actions (select, on-order stepper, buy, remove, open).
   $("invProductsView")?.addEventListener("click", e => {
+    // Sortable column header (Favorites table) → toggle asc/desc, like the other tables.
+    const sortTh = e.target.closest("th[data-fsort]");
+    if (sortTh) {
+      const col = sortTh.dataset.fsort;
+      if (state.favesSortCol === col) state.favesSortDir = state.favesSortDir === "asc" ? "desc" : "asc";
+      else { state.favesSortCol = col; state.favesSortDir = "asc"; }
+      _saveSort("tigertag.sort.faves", state.favesSortCol, state.favesSortDir);
+      renderProductsView();
+      return;
+    }
     // Header master checkbox (Products table) → select/deselect all visible.
     if (e.target.closest(".sel-th, .sel-check--all")) { _toggleSelectAllVisible(); return; }
     const line = e.target.closest(".pv-item[data-hash]");
@@ -9207,6 +9226,28 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     }
     const sym = info.symbol;
     const sel = state.selectedProducts;
+    // Sortable columns (own persisted sort, `data-fsort`) — like the inventory table.
+    const sortCol = state.favesSortCol, sdir = state.favesSortDir === "desc" ? -1 : 1;
+    const _fval = (p) => {
+      const l = p.label || {};
+      const inStock = stockMap.get(p.key) || 0;
+      const min = (Number.isFinite(+p.minStockSpools) && +p.minStockSpools > 0) ? +p.minStockSpools : 0;
+      switch (sortCol) {
+        case "material": return (l.material || "").toLowerCase();
+        case "color":    return (l.colorName || "").toLowerCase();
+        case "stock":    return inStock;
+        case "min":      return min;
+        case "toorder":  return Math.max(0, min - inStock);
+        case "price":    return (p.buyPriceHt == null) ? -Infinity : +p.buyPriceHt;
+        default:         return (l.brand || "").toLowerCase();   // "brand"
+      }
+    };
+    faves = [...faves].sort((a, b) => {
+      const va = _fval(a), vb = _fval(b);
+      const c = (typeof va === "number" && typeof vb === "number") ? (va - vb) : String(va).localeCompare(String(vb));
+      return c * sdir;
+    });
+    const _sortCls = (col) => "sortable" + (sortCol === col ? (state.favesSortDir === "desc" ? " sort-desc" : " sort-asc") : "");
     const selCount = faves.reduce((n, p) => n + (sel.has(p.id) ? 1 : 0), 0);
     const allSel = faves.length > 0 && selCount === faves.length;
     const someSel = selCount > 0 && !allSel;
@@ -9242,14 +9283,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       <thead><tr>
         <th class="sel-th"><span class="sel-check sel-check--all${allSel ? " is-all" : someSel ? " is-some" : ""}" role="checkbox" tabindex="0" aria-label="${esc(t("bulkSelectMode"))}" aria-checked="${allSel ? "true" : someSel ? "mixed" : "false"}"></span></th>
         <th></th>
-        <th>${esc(t("thBrand"))}</th>
-        <th>${esc(t("thMaterial"))}</th>
+        <th class="${_sortCls("brand")}" data-fsort="brand">${esc(t("thBrand"))}</th>
+        <th class="${_sortCls("material")}" data-fsort="material">${esc(t("thMaterial"))}</th>
         <th>${esc(t("thColor"))}</th>
-        <th>${esc(t("thName"))}</th>
-        <th>${esc(t("reorderStockSection"))}</th>
-        <th class="pv-th-min">${esc(t("thMinQty"))}</th>
-        <th>${esc(t("btnViewOrder"))}</th>
-        <th>${esc(t("thPrice"))}</th>
+        <th class="${_sortCls("color")}" data-fsort="color">${esc(t("thName"))}</th>
+        <th class="${_sortCls("stock")}" data-fsort="stock">${esc(t("reorderStockSection"))}</th>
+        <th class="pv-th-min ${_sortCls("min")}" data-fsort="min">${esc(t("thMinQty"))}</th>
+        <th class="${_sortCls("toorder")}" data-fsort="toorder">${esc(t("btnViewOrder"))}</th>
+        <th class="${_sortCls("price")}" data-fsort="price">${esc(t("thPrice"))}</th>
         <th></th>
       </tr></thead>
       <tbody>${rows}</tbody>
@@ -9755,7 +9796,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // typed in the account's HT/TTC mode; Apply converts to HT and writes it to
   // every selected product. Reuses the shared VAT helpers.
   function _bulkEnterPriceMode() {
-    if (state.friendView || !state.selectedProducts.size) return;
+    const ctx = _bulkCtx();
+    if (state.friendView || ctx.printers || !ctx.set.size) return;   // price = products only
     const bar = $("bulkBar"); if (!bar) return;
     bar.classList.add("is-pricing");
     const modeEl = $("bulkPriceMode");
@@ -9765,14 +9807,29 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   }
   function _bulkExitPriceMode() { $("bulkBar")?.classList.remove("is-pricing"); }
   async function _bulkApplyPrice() {
-    const hashes = [...state.selectedProducts];
-    if (!hashes.length) { _bulkExitPriceMode(); return; }
+    const ctx = _bulkCtx();
+    if (ctx.printers) { _bulkExitPriceMode(); return; }
     const raw = ($("bulkPriceInput")?.value || "").trim();
     // Empty clears the price; else convert the typed HT/TTC value to stored HT.
     const ht = raw === "" ? null : _vatPrices(raw, _reorderMode(), _vatCountryCode()).ht;
-    for (const h of hashes) await _writeProductField(h, { buyPriceHt: ht });
+    if (ctx.products) {
+      // Products table: the selection IS product keyHashes.
+      for (const h of [...state.selectedProducts]) await _writeProductField(h, { buyPriceHt: ht });
+    } else {
+      // Inventory (materials): the selection is SPOOLS → write to each one's product
+      // identity (deduped), via `_writeProduct` so the record + label are created.
+      const seen = new Set();
+      for (const id of state.selectedSpools) {
+        const row = (state.rows || []).find(x => x.spoolId === id);
+        if (!row) continue;
+        const key = _spoolGroupKey(row);
+        if (key == null || seen.has(key)) continue;
+        seen.add(key);
+        await _writeProduct(row, { buyPriceHt: ht });
+      }
+    }
     _bulkExitPriceMode();
-    renderProductsView();
+    renderInventory();
   }
 
   /* ── detail panel ── */
@@ -9973,29 +10030,34 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // the right edge (offset 0).
     const configRight = (cOpen && pOpen) ? printerW : 0;
     if (cp) cp.style.right = configRight ? `${configRight}px` : "";
+    // The printer stack (panel + config form) owns the right edge; every inventory
+    // side card (spool detail, container, GROUP deck, reorder) cascades to its LEFT
+    // so none is ever hidden behind the printer panel — even when the spool detail
+    // itself is closed (its width used to be the only thing offsetting the deck).
+    const baseRight = printerW + configW;
     // Spool card keeps its place on the right (left of printer/config if those open).
-    const matRight = dOpen ? (printerW + configW) : 0;
+    const matRight = dOpen ? baseRight : 0;
     if (dp) dp.style.right = matRight ? `${matRight}px` : "";
     const detailW = dOpen && dp ? dp.offsetWidth : 0;
     // Container picker is opened FROM the spool card and tucks to its LEFT.
     const cpp = $("containerPanel");
     const cppOpen = !!cpp?.classList.contains("open");
     const cppW = (cppOpen && cpp) ? cpp.offsetWidth : 0;
-    const cppRight = cppOpen ? (matRight + detailW) : 0;
+    const cppRight = cppOpen ? (baseRight + detailW) : 0;
     if (cpp) cpp.style.right = cppRight ? `${cppRight}px` : "";
-    // Group deck sits LEFT of the detail (+ container). Computed BEFORE the
-    // reorder card so that card can dock to the LEFT of the group when it's open.
+    // Group deck sits LEFT of the printer stack + detail (+ container). Computed
+    // BEFORE the reorder card so that card can dock to the LEFT of the group.
     const gp = $("groupPanel");
     const gOpen = !!gp?.classList.contains("open");
     const gpW = (gOpen && gp) ? gp.offsetWidth : 0;
-    const groupRight = gOpen ? (matRight + detailW + cppW) : 0;
+    const groupRight = gOpen ? (baseRight + detailW + cppW) : 0;
     if (gp) gp.style.right = groupRight ? `${groupRight}px` : "";
     // Reorder card — a 3rd, independent card: it opens to the LEFT of material,
     // or to the LEFT of the group deck when that's open (never ON TOP of it).
     const rop = $("reorderPanel");
     const roOpen = !!rop?.classList.contains("open");
     const roW = (roOpen && rop) ? rop.offsetWidth : 0;
-    const roRight = roOpen ? (matRight + detailW + cppW + gpW) : 0;
+    const roRight = roOpen ? (baseRight + detailW + cppW + gpW) : 0;
     if (rop) rop.style.right = roRight ? `${roRight}px` : "";
     _setTab($("reorderCloseTab"), roOpen, roRight + roW);
     _setTab($("detailCloseTab"),     dOpen, matRight + detailW);
@@ -11041,6 +11103,33 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
      on open (never clobbered mid-edit). */
   let _reorderRow = null;
 
+  // Live userProfiles/{uid} subscription for the open card's provenance friend.
+  // userProfiles is world-readable to any signed-in user, so this keeps the
+  // "Added from …" pseudo + avatar current EVEN AFTER the friendship ends.
+  const _importedProfileCache = new Map();   // uid → { displayName, photoURL, color, isPublic }
+  let _importedProfileUnsub = null;
+  let _importedProfileUid   = null;
+  function _subscribeImportedProfile(uid) {
+    if (uid === _importedProfileUid) return;   // already tracking this friend
+    if (_importedProfileUnsub) { try { _importedProfileUnsub(); } catch (_) {} _importedProfileUnsub = null; }
+    _importedProfileUid = uid || null;
+    if (!uid) return;
+    try {
+      _importedProfileUnsub = fbDb().collection("userProfiles").doc(uid).onSnapshot(ps => {
+        if (_importedProfileUid !== uid) return;   // card moved on — ignore late snapshot
+        if (!ps.exists) { _importedProfileCache.delete(uid); _refreshReorderProvenance(); return; }
+        const pd = ps.data();
+        _importedProfileCache.set(uid, {
+          displayName: pd.displayName || "",
+          photoURL:    pd.photoURL || null,
+          color:       profileColor(pd),
+          isPublic:    !!pd.isPublic,
+        });
+        _refreshReorderProvenance();
+      }, () => {});
+    } catch (_) {}
+  }
+
   function openReorderPanel(r, opts = {}) {
     if (!r) return;
     // Reorder + container picker share the same left slot → mutually exclusive.
@@ -11059,6 +11148,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     $("reorderPanel")?.classList.remove("open");
     _syncPanels();
     _reorderRow = null;
+    _subscribeImportedProfile(null);   // drop the provenance profile listener
   }
 
   // How the user types prices — a per-account preference (not per-link), so we
@@ -11121,6 +11211,46 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     }
   }
 
+  // Provenance chip for a favorite imported from a friend's inventory.
+  // We only persist the friend's `uid` (+ a frozen `name` as last-resort
+  // fallback). The pseudo + avatar are ALWAYS resolved LIVE, in priority order:
+  //   1. state.friends — current friend (has the inventory key → clickable)
+  //   2. _importedProfileCache — a direct userProfiles/{uid} subscription that
+  //      works EVEN WHEN NO LONGER A FRIEND (userProfiles is world-readable to
+  //      any signed-in user), so the name/photo stay up to date regardless.
+  //   3. the frozen `name` — only if the profile can't be read (deleted account).
+  // Clickable when we can actually open their inventory: still a friend, or a
+  // public showcase. Otherwise the live data still shows, just inert.
+  function _importedFromHTML(link) {
+    const imp = link?.importedFrom;
+    if (!imp?.uid) return "";
+    const friend  = state.friends?.find(f => f.uid === imp.uid) || null;
+    const profile = _importedProfileCache.get(imp.uid) || null;
+    const src     = friend || profile;                       // { displayName, photoURL, color }
+    const name    = _shortName((src?.displayName) || imp.name || "", imp.uid);
+    if (!name) return "";
+    const av = src
+      ? avatarMarkup({ displayName: src.displayName || imp.name, photoURL: src.photoURL || null,
+                       color: src.color || friendColorFallback(imp.uid) }, "ro-from-av")
+      : `<span class="ro-from-av ro-from-av--gone" data-av-mode="init"><span class="av-initials">`
+        + `${esc(((name[0]) || "?").toUpperCase())}</span></span>`;
+    // Prominent identity block, mirroring the sidebar account: avatar + a small
+    // muted label over the friend's pseudo in bold.
+    const txt = `<div class="ro-from-txt">`
+      + `<div class="ro-from-label">${esc(t("productFromLabel"))}</div>`
+      + `<div class="ro-from-name">${esc(name)}</div></div>`;
+    const clickable = !!friend || !!(profile && profile.isPublic);
+    if (clickable) {
+      return `<div class="ro-from ro-from--link" role="button" tabindex="0" `
+        + `data-ro-friend="${esc(imp.uid)}" title="${esc(t("friendViewInv"))}">`
+        + `${av}${txt}<span class="ro-from-go"><span class="icon icon-chevron-r icon-14"></span></span></div>`;
+    }
+    // Not openable (private inventory / no longer a friend) — data still live if
+    // we have the profile; greyed only when even the profile is unavailable.
+    return `<div class="ro-from${src ? "" : " ro-from--gone"}" title="${esc(t("productFromUnlinked"))}">`
+      + `${av}${txt}</div>`;
+  }
+
   function _renderReorderPanel(r) {
     const body = $("reorderPanelBody"); if (!body) return;
     const link = _getProduct(r) || {};
@@ -11151,15 +11281,18 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const headVisual = img
       ? `<img class="ro-thumb" src="${esc(img)}" alt="" onerror="this.removeAttribute('src');this.classList.add('ro-thumb--broken');this.style.background='${swatch}'" />`
       : `<span class="ro-swatch" style="background:${swatch}"></span>`;
+    _subscribeImportedProfile(link.importedFrom?.uid || null);   // live pseudo/avatar, friend or not
+    const fromHTML = _importedFromHTML(link);
     body.innerHTML = `
       <div class="ro-head">
         ${headVisual}
         <div class="ro-head-txt">
           <div class="ro-head-brand">${esc(r.brand || "—")}</div>
-          <div class="ro-head-mat">${esc(materialWithAspect(r))}${colourName ? " · " + esc(colourName) : ""}</div>
+          <div class="ro-head-mat">${esc(materialWithAspect(r))}</div>
+          ${colourName ? `<div class="ro-head-color">${esc(colourName)}</div>` : ""}
         </div>
-        <div class="ro-flags">${_flagTogglesHTML(r)}</div>
       </div>
+      ${fromHTML}
 
       <div class="ro-field">
         <div class="ro-label">${esc(t("reorderStockSection"))}</div>
@@ -11264,11 +11397,16 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       </div>
 
       ${state.friendView ? "" : `
-      <button type="button" class="ro-cloud-btn" id="roCreateCloud">
-        <span class="icon icon-cloud icon-14"></span>
-        <span>${esc(t("productCreateCloud"))}</span>
-      </button>`}
+      <div class="ro-cloud-row">
+        <button type="button" class="ro-cloud-btn" id="roCreateCloud">
+          <span class="icon icon-plus icon-14"></span>
+          <span>${esc(t("productCreateCloud"))}</span>
+        </button>
+        <span class="tool-info" data-tip="${esc(t("productCreateCloudTip"))}" aria-label="${esc(t("productCreateCloudTip"))}"><span class="icon icon-info icon-13"></span></span>
+      </div>`}
       <div id="roSaveResult" class="ro-save-result"></div>`;
+    // ❤/★ toggles live in the panel HEADER (left of the ✕), not the body head.
+    const hf = $("roHeaderFlags"); if (hf) hf.innerHTML = _flagTogglesHTML(r);
     _wireReorderPanel(r);
     _reorderUpdateDerived();
     _reorderUpdateStock();
@@ -11277,7 +11415,58 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     _reorderUpdateFlags();
   }
 
+  // Wire the provenance chip → jump to that friend's inventory (live friends only).
+  // Split out so the surgical live-refresh (_refreshReorderProvenance) can re-wire
+  // just the swapped chip without touching the rest of the panel.
+  function _wireReorderProvenance() {
+    const fromChip = $("reorderPanelBody")?.querySelector(".ro-from--link[data-ro-friend]");
+    if (!fromChip) return;
+    const goFriend = () => {
+      const uid = fromChip.getAttribute("data-ro-friend");
+      const f = state.friends?.find(x => x.uid === uid);
+      if (f) { switchToFriendView(f.uid, _shortName(f.displayName, f.uid), friendColor(f)); return; }
+      // Not a friend but chip is clickable → a public showcase; open it from the
+      // live profile (displayName/color kept fresh by _subscribeImportedProfile).
+      const p = _importedProfileCache.get(uid);
+      if (p) switchToFriendView(uid, _shortName(p.displayName, uid), p.color || friendColorFallback(uid));
+    };
+    fromChip.addEventListener("click", goFriend);
+    fromChip.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); goFriend(); } });
+  }
+
+  // Keep the open reorder card's provenance chip in sync with LIVE friend data
+  // (pseudo, avatar, membership). Called from _renderFriendsEverywhere so a
+  // friend renaming themselves — or removing us — reflects instantly without a
+  // full panel rebuild (which would flash the product image / drop editors).
+  function _refreshReorderProvenance() {
+    if (!$("reorderPanel")?.classList.contains("open") || !_reorderRow) return;
+    const body = $("reorderPanelBody"); if (!body) return;
+    const html = _importedFromHTML(_getProduct(_reorderRow) || {});
+    const existing = body.querySelector(".ro-from");
+    if (!html) { existing?.remove(); return; }
+    const tmp = document.createElement("div"); tmp.innerHTML = html;
+    const fresh = tmp.firstElementChild;
+    if (existing) existing.replaceWith(fresh);
+    else { const head = body.querySelector(".ro-head"); head ? head.after(fresh) : body.prepend(fresh); }
+    _wireReorderProvenance();
+  }
+
+  // ⓘ hover tips inside the reorder card — same body-appended tooltip as the
+  // toolbox, but delegated on #reorderPanelBody (the toolbox handler only covers
+  // #panelBody). Wired once; reuses _showToolInfoTip / _hideToolInfoTip.
+  let _reorderInfoTipsWired = false;
+  function _wireReorderInfoTips() {
+    if (_reorderInfoTipsWired) return;
+    const body = $("reorderPanelBody");
+    if (!body) return;
+    _reorderInfoTipsWired = true;
+    body.addEventListener("mouseover", e => { const el = e.target.closest?.(".tool-info"); if (el) _showToolInfoTip(el); });
+    body.addEventListener("mouseout",  e => { const el = e.target.closest?.(".tool-info"); if (el && !el.contains(e.relatedTarget)) _hideToolInfoTip(); });
+  }
+
   function _wireReorderPanel(r) {
+    _wireReorderProvenance();
+    _wireReorderInfoTips();
     $("roPrice")?.addEventListener("input", _reorderUpdateDerived);
     $("roMinStock")?.addEventListener("input", _reorderUpdateStock);
     // Price — value shown as text + pencil; the number input is hidden until edit,
@@ -11417,7 +11606,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     _setProductFlagBtn("favorite", !!cur.favorite);
     _refreshDetailImgBadges();
     if (!_isPrinterMode(state.viewMode)) scheduleRender("inventory", renderInventory);
-    await _writeProduct(r, { [field]: next });
+    // Provenance: flagging a friend's material imports it — stamp WHO it came from
+    // (once; own-account edits never overwrite it) so the card can show "Added from …".
+    const patch = { [field]: next };
+    if (state.friendView?.uid && !cur.importedFrom) {
+      patch.importedFrom = { uid: state.friendView.uid, name: state.friendView.displayName || "" };
+      cur.importedFrom = patch.importedFrom;
+    }
+    await _writeProduct(r, patch);
   }
   // Repaint the ❤/★/🛍 badge cluster on the OPEN spool detail illustration (the
   // toggle buttons update optimistically; the image badges follow on the write's
@@ -11555,7 +11751,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   document.addEventListener("click", e => {
     const btn = e.target.closest(".flag-toggle[data-flag]");
     if (!btn) return;
-    const r = btn.closest("#reorderPanelBody")
+    const r = btn.closest("#reorderPanel")   // whole panel — header flags included
       ? _reorderRow
       : (state.rows || []).find(x => x.spoolId === state.selected);
     if (r) _toggleProductFlag(r, btn.dataset.flag);
@@ -13650,6 +13846,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     renderFriendsBadge();
     renderAccountDropdown();
     if ($("profilesModalOverlay")?.classList.contains("open")) renderAccountList();
+    _refreshReorderProvenance();   // keep an open favorite's "Added from …" chip live
   }
 
   // Live friends list. Replaces the one-shot loadFriendsList() get on the main
@@ -19273,8 +19470,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // constant), we relocate just the affected pucks in place instead.
   let _lastRackSnapshot = null;
   function _rackStructureSig() {
+    // Includes the name: a rename doesn't touch any slot, so the in-place slot
+    // patch would otherwise succeed as a no-op and skip the header rebuild — the
+    // new name only appeared after leaving + re-entering the view.
     return state.racks.map(r =>
-      `${r.id}:${r.level || 0}x${r.position || 0}:${(r.lockedSlots || []).join(",")}`
+      `${r.id}:${r.name || ""}:${r.level || 0}x${r.position || 0}:${(r.lockedSlots || []).join(",")}`
     ).join("|");
   }
   // Map "rackId|level|pos" → { sid, fill } for every occupied slot, plus the
@@ -21508,10 +21708,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   }
   // Open the product card behind a low-stock alert (find any live spool of it).
   function _openLowStockProduct(localId) {
-    const n = (state.localNotifications || []).find(x => x.id === localId);
-    if (!n?.key) return;
-    const row = (state.rows || []).find(r => !r.deleted && _spoolGroupKey(r) === n.key);
-    if (row) openReorderPanel(row);
+    // A low-stock alert is about "what to reorder" → jump to the To-order list,
+    // not the single product's card. (The `key` is kept for future scroll-to.)
+    closeNotifs();
+    setViewMode("order");
   }
   // ── New-notification chime ────────────────────────────────────────────────
   // A soft two-note rising chime when a notification ARRIVES: an incoming friend
