@@ -243,6 +243,10 @@
           <select id="materialFilter" class="inv-brand-filter" title="Filter by material">
             <option value="" data-i18n="filterAllMaterials">All materials</option>
           </select>
+          <!-- Aspect filter — matches Aspect 1 OR Aspect 2 (finish + colour arrangement). -->
+          <select id="aspectFilter" class="inv-brand-filter" data-i18n-title="filterAllAspects" title="All aspects">
+            <option value="" data-i18n="filterAllAspects">All aspects</option>
+          </select>
           <select id="typeFilter" class="inv-brand-filter" data-i18n-title="filterAllVersions" title="All versions">
             <option value="" data-i18n="filterAllVersions">All versions</option>
           </select>
@@ -309,16 +313,18 @@
       <!-- Floating bulk-action bar — appears in multi-select mode once ≥1 spool
            is selected. Delete is a press-and-hold (hard delete, irreversible). -->
       <div id="bulkBar" class="bulk-bar hidden">
-        <!-- ★ Favorite / ❤ Love (materials selection): icon-only toggles styled
-             like the .flag-toggle in the Materials side card — filled when the
-             whole selection already carries the flag, outline otherwise; a click
-             adds OR removes it on every selected spool's product. In a friend view
-             these are the ONLY actions (they import into your own products). -->
-        <button id="bulkLike" class="bulk-flag flag-toggle flag-toggle--wish" type="button" data-i18n-title="bulkLike" title="Love" aria-label="Love" aria-pressed="false">
-          <span class="icon icon-heart icon-16"></span>
+        <!-- ★ Favorite / ❤ Love (materials selection): same icon+text buttons as the
+             others, but TOGGLES — filled icon + tinted when the whole selection
+             already carries the flag, outline otherwise; a click adds OR removes it
+             on every selected spool's product. In a friend view these are the ONLY
+             actions (they import into your own products). -->
+        <button id="bulkLike" class="bulk-btn bulk-flag bulk-flag--wish" type="button" aria-pressed="false">
+          <span class="icon icon-heart icon-13"></span>
+          <span data-i18n="bulkLike">Love</span>
         </button>
-        <button id="bulkFavorite" class="bulk-flag flag-toggle flag-toggle--like" type="button" data-i18n-title="bulkFavorite" title="Favorite" aria-label="Favorite" aria-pressed="false">
-          <span class="icon icon-star icon-16"></span>
+        <button id="bulkFavorite" class="bulk-btn bulk-flag bulk-flag--like" type="button" aria-pressed="false">
+          <span class="icon icon-star icon-13"></span>
+          <span data-i18n="bulkFavorite">Favorite</span>
         </button>
         <button id="bulkTags" class="bulk-btn" type="button">
           <span class="icon icon-edit icon-13"></span>
@@ -1985,6 +1991,16 @@
     <button class="panel-close" id="reorderPanelClose" aria-label="Close">✕</button>
   </div>
   <div class="panel-body" id="reorderPanelBody"></div>
+</div>
+
+<!-- Product "business card" — a LIGHT, read-only version of the Materials side
+     card, shown for a product with no live spool (e.g. a friend's favorite they
+     don't have in stock). No location / RFID / weight edit / chip functions;
+     the filament illustration is always shown full (100%). Rendered by JS. -->
+<button class="pp-close-tab" id="productCardCloseTab" title="Close" aria-label="Close" hidden>»</button>
+<div class="detail-panel pc-panel" id="productCardPanel">
+  <!-- No title bar / ✕ — like the Materials side card; closed via the » tab. -->
+  <div class="panel-body" id="productCardBody"></div>
 </div>
 
 <!-- Friend request incoming modal -->

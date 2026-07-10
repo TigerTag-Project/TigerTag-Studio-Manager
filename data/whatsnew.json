@@ -4982,5 +4982,110 @@
         }
       }
     ]
+  },
+  "2.4.0": {
+    "date": "2026-07-10",
+    "items": [
+      {
+        "icon": "package",
+        "title": {
+          "en": "A card for filaments you're out of",
+          "fr": "Une fiche pour les bobines épuisées",
+          "de": "Eine Karte für leere Spulen",
+          "es": "Una ficha para filamentos agotados",
+          "it": "Una scheda per i filamenti esauriti",
+          "zh": "断货也有专属卡片",
+          "pt": "Uma ficha para filamentos esgotados",
+          "pt-pt": "Uma ficha para filamentos esgotados",
+          "pl": "Karta dla filamentów, których nie masz"
+        },
+        "body": {
+          "en": "Click a favorite you don't stock — even a friend's — and its full card opens: colours, print settings, price, docs. Heart it to add it to your list.",
+          "fr": "Clique sur un favori que t'as plus — même celui d'un pote — et sa fiche complète s'ouvre : couleurs, réglages, prix, docs. Un cœur et c'est dans ta liste.",
+          "de": "Klick auf einen Favoriten, den du nicht hast — auch den eines Freundes — und die volle Karte öffnet sich: Farben, Einstellungen, Preis, Dokumente. Liken und ab auf deine Liste.",
+          "es": "Haz clic en un favorito que no tienes — hasta el de un amigo — y se abre su ficha: colores, ajustes, precio, documentos. Un corazón y a tu lista.",
+          "it": "Clicca un preferito che non hai — anche di un amico — e si apre la scheda: colori, impostazioni, prezzo, documenti. Un cuore ed è nella tua lista.",
+          "zh": "点一个你没库存的收藏（朋友的也行），完整卡片就打开：颜色、参数、价格、文档。点个爱心就进你的清单。",
+          "pt": "Clica num favorito que não tens — até o de um amigo — e abre a ficha: cores, definições, preço, documentos. Um coração e vai para a tua lista.",
+          "pt-pt": "Clica num favorito que não tens — até o de um amigo — e abre a ficha: cores, definições, preço, documentos. Um coração e vai para a tua lista.",
+          "pl": "Kliknij ulubiony, którego nie masz — nawet znajomego — i otworzy się pełna karta: kolory, ustawienia, cena, dokumenty. Serduszko i ląduje na twojej liście."
+        }
+      },
+      {
+        "icon": "palette",
+        "title": {
+          "en": "Filter by finish",
+          "fr": "Filtre par aspect",
+          "de": "Nach Optik filtern",
+          "es": "Filtra por acabado",
+          "it": "Filtra per aspetto",
+          "zh": "按外观筛选",
+          "pt": "Filtra por acabamento",
+          "pt-pt": "Filtra por acabamento",
+          "pl": "Filtruj po wykończeniu"
+        },
+        "body": {
+          "en": "New 'aspect' filter: narrow down to Matte, Silk, Carbon… or Bicolor, Rainbow… It only lists the finishes you actually own.",
+          "fr": "Nouveau filtre « aspect » : affine par Mat, Silk, Carbone… ou Bicolore, Rainbow… Il ne liste que les aspects que t'as vraiment.",
+          "de": "Neuer Aspekt-Filter: eingrenzen auf Matt, Silk, Carbon… oder Zweifarbig, Rainbow… Zeigt nur die Optiken, die du wirklich hast.",
+          "es": "Nuevo filtro «aspecto»: acota a Mate, Silk, Carbono… o Bicolor, Rainbow… Solo lista los acabados que tienes.",
+          "it": "Nuovo filtro «aspetto»: restringi a Opaco, Silk, Carbonio… o Bicolore, Rainbow… Elenca solo gli aspetti che hai davvero.",
+          "zh": "新增「外观」筛选：按哑光、丝绸、碳纤…或双色、彩虹…筛选。只列出你真正拥有的外观。",
+          "pt": "Novo filtro «aspeto»: afina por Mate, Silk, Carbono… ou Bicolor, Rainbow… Só lista os acabamentos que tens.",
+          "pt-pt": "Novo filtro «aspeto»: afina por Mate, Silk, Carbono… ou Bicolor, Rainbow… Só lista os acabamentos que tens.",
+          "pl": "Nowy filtr aspekt: zawęź do Mat, Silk, Carbon… albo Dwukolor, Rainbow… Pokazuje tylko wykończenia, które faktycznie masz."
+        }
+      },
+      {
+        "icon": "copy",
+        "title": {
+          "en": "Copy a code in one tap",
+          "fr": "Copie un code d'un clic",
+          "de": "Code mit einem Tipp kopieren",
+          "es": "Copia un código con un toque",
+          "it": "Copia un codice con un tocco",
+          "zh": "一键复制编号",
+          "pt": "Copia um código com um toque",
+          "pt-pt": "Copia um código com um toque",
+          "pl": "Skopiuj kod jednym kliknięciem"
+        },
+        "body": {
+          "en": "Click any SKU or EAN — in the 'To order' list or the product card — and it's copied. A little 'Copied!' pops up. No extra buttons cluttering the place.",
+          "fr": "Clique sur un SKU ou un EAN — dans la liste « À commander » ou la fiche produit — et c'est copié. Un petit « Copié ! » apparaît. Zéro bouton qui traîne.",
+          "de": "Klick auf eine SKU oder EAN — in der Zu-bestellen-Liste oder der Produktkarte — und es ist kopiert. Ein kleines Kopiert! erscheint. Keine störenden Extra-Buttons.",
+          "es": "Haz clic en cualquier SKU o EAN — en la lista «Para pedir» o la ficha — y se copia. Aparece un «¡Copiado!». Sin botones de más.",
+          "it": "Clicca uno SKU o un EAN — nella lista «Da ordinare» o nella scheda — ed è copiato. Compare un «Copiato!». Niente pulsanti di troppo.",
+          "zh": "在「待订购」列表或产品卡里，点一下 SKU 或 EAN 就复制好了，还会冒出「已复制！」。不用多余按钮。",
+          "pt": "Clica em qualquer SKU ou EAN — na lista «Para encomendar» ou na ficha — e fica copiado. Aparece um «Copiado!». Sem botões a mais.",
+          "pt-pt": "Clica em qualquer SKU ou EAN — na lista «Para encomendar» ou na ficha — e fica copiado. Aparece um «Copiado!». Sem botões a mais.",
+          "pl": "Kliknij dowolny SKU albo EAN — na liście Do zamówienia lub w karcie produktu — i już skopiowane. Wyskakuje Skopiowano! Bez zbędnych przycisków."
+        }
+      },
+      {
+        "icon": "heart-fill",
+        "title": {
+          "en": "Friends' favorites, always fresh",
+          "fr": "Les favoris des potes, toujours à jour",
+          "de": "Favoriten von Freunden, immer aktuell",
+          "es": "Los favoritos de tus amigos, siempre al día",
+          "it": "I preferiti degli amici, sempre aggiornati",
+          "zh": "朋友的收藏，实时同步",
+          "pt": "Os favoritos dos amigos, sempre atualizados",
+          "pt-pt": "Os favoritos dos amigos, sempre atualizados",
+          "pl": "Ulubione znajomych, zawsze świeże"
+        },
+        "body": {
+          "en": "When you browse a friend, their favorites — with price and buy link — are read live from their list, so what you see is always up to date.",
+          "fr": "Quand tu visites un pote, ses favoris — avec prix et lien d'achat — sont lus en direct depuis sa liste : ce que tu vois est toujours à jour.",
+          "de": "Wenn du bei einem Freund stöberst, werden seine Favoriten — mit Preis und Kauflink — live aus seiner Liste gelesen: Was du siehst, ist immer aktuell.",
+          "es": "Cuando visitas a un amigo, sus favoritos — con precio y enlace de compra — se leen en directo de su lista, así lo que ves siempre está al día.",
+          "it": "Quando sfogli un amico, i suoi preferiti — con prezzo e link d'acquisto — si leggono in diretta dalla sua lista: quello che vedi è sempre aggiornato.",
+          "zh": "逛朋友的库存时，他的收藏（含价格和购买链接）直接从他的清单实时读取，你看到的永远是最新的。",
+          "pt": "Quando espreitas um amigo, os favoritos dele — com preço e link de compra — são lidos ao vivo da lista dele, por isso o que vês está sempre atualizado.",
+          "pt-pt": "Quando espreitas um amigo, os favoritos dele — com preço e link de compra — são lidos ao vivo da lista dele, por isso o que vês está sempre atualizado.",
+          "pl": "Gdy przeglądasz znajomego, jego ulubione — z ceną i linkiem do kupna — są czytane na żywo z jego listy, więc widzisz zawsze aktualne dane."
+        }
+      }
+    ]
   }
 }

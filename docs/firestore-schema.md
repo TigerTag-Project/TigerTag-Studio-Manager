@@ -110,35 +110,26 @@ users/
       {keyHash}/             — one doc per PRODUCT IDENTITY (keyHash = hash of the
                               product signature, NOT a spoolId), so the info applies
                               to every identical spool and survives a spool's deletion.
-                              Owner-only (private). Fields: key, label{brand,material,
-                              colorName,colorHex,aspect,imgUrl}, buyUrl, buyPriceHt
-                              (PRE-TAX; TTC derived at display from users/{uid}.vatCountry),
-                              minStockSpools, onOrder/orderQty, note, tags[], liked,
-                              favorite, importedFrom{uid,name}, cloudSeed, updatedAt.
+                              READ: owner / public inventory / accepted friend (SAME
+                              policy as inventory & racks) — a friend reads this
+                              directly (no duplicated collection), always ISO with
+                              the owner. WRITE: owner. NOTE: the `note` field is
+                              included here and is therefore technically readable by a
+                              friend (assumed product choice to avoid duplication; the
+                              app never surfaces it on a friend's side). Fields: key,
+                              label{brand,series,material,colorName,colorHex,aspect,imgUrl},
+                              cloudSeed, buyUrl, buyPriceHt (PRE-TAX; TTC derived at
+                              display), minStockSpools, onOrder/orderQty, note, tags[],
+                              liked, favorite, sku, ean, importedFrom{uid,name}, updatedAt.
+                              (`cloudSeed` = sanitised material data — colours, temps,
+                              id_material, diameter, sku/ean, product id — lets a
+                              friend's read-only product card render full material info
+                              without a live spool.)
 
-    productShares/
-      {keyHash}/             — PUBLIC (to friends) projection of a product (same
-                              keyHash as products/). Exists because a Firestore read
-                              is all-or-nothing per doc: /products stays strictly
-                              private (the note is never copied here), this doc
-                              exposes ONLY what the user shares. READ: owner / public
-                              / friend (same as inventory & racks). WRITE: owner,
-                              fields whitelisted. Written by the app as a mirror
-                              whenever a shared field changes (+ a one-time backfill).
-                              The doc is REMOVED when the product is neither a
-                              favorite/love nor carries a price/link/manual code.
-                              Consumed to show a friend's FAVORITES (grid/table in
-                              their view), their material's price + clickable buy
-                              link + SKU/EAN, and to carry those over on import.
-        favorite    boolean   — ★ favorite (public favorite state)
-        liked       boolean   — ❤ love (implies favorite)
-        key         string?   — product signature (same as products/.key)
-        label       map?      — {brand,series,material,colorName,colorHex,aspect,imgUrl} for display
-        sku         string?   — manually-typed SKU (chip SKU comes from inventory)
-        ean         string?   — manually-typed EAN/barcode
-        buyUrl      string?   — shopping link
-        buyPriceHt  number?   — pre-tax unit price (TTC derived at display)
-        updatedAt   timestamp
+    productShares/            — DEPRECATED (superseded by the direct friend read of
+      {keyHash}/               products/ above). No longer written by the app; legacy
+                              docs may linger until a cleanup. Was a friend-readable
+                              projection of the shareable slice.
 
     apiKeys/
       {docId}/               — public-API access keys (owner-only)

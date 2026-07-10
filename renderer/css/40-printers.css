@@ -17,13 +17,16 @@
      brands), the Material select becomes a State (online/offline) filter, Tags
      (printer tags). Only the materials-only Version select is hidden. Toggled by
      the `printer-filters` body class in setViewMode. */
-  body.printer-filters #typeFilter,
+  /* #typeFilter is now wrapped in a custom-select (.csel) — hide the whole wrap.
+     #aspectFilter is materials-only too (a printer has no finish), so hide it. */
+  body.printer-filters .csel:has(> #typeFilter),
+  body.printer-filters .csel:has(> #aspectFilter),
   body.printer-filters #wishFilter,
   body.printer-filters #likeFilter { display: none; }
   /* Products views hide the Version filter (no per-version notion for a product)
      AND the ★ Favorite quick-filter — everything listed here is already a
      Favorite, so filtering by it is a no-op; only the ❤ Love filter is useful. */
-  body.products-filters #typeFilter,
+  body.products-filters .csel:has(> #typeFilter),
   body.products-filters #likeFilter { display: none; }
 
   .printers-section {

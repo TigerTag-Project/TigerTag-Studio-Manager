@@ -467,20 +467,16 @@
      background tint when the whole selection carries the flag). The icons keep
      their brand colour in BOTH states (gold star / red heart) — outline when off,
      filled when on — so the final colour is always legible. */
+  /* ★/❤ = normal .bulk-btn (icon + text, same height as the others). Icon keeps
+     its brand colour in both states; active (whole selection flagged) tints the
+     button so you can tell it's "on". */
   #bulkFavorite, #bulkLike { display: none; }
   .bulk-bar.is-materials #bulkFavorite,
   .bulk-bar.is-materials #bulkLike { display: inline-flex; }
   #bulkFavorite .icon { background-color: #f5a623; }   /* ★ gold, on & off */
   #bulkLike .icon     { background-color: #e0245e; }   /* ❤ red,  on & off */
-  /* Match the exact height of the other bulk buttons: drop the flag-toggle's
-     fixed 34px, stretch to the bar's row height, and keep a perfect square (like
-     .bulk-btn--icon). Higher specificity than .flag-toggle so it wins regardless
-     of source order. */
-  .bulk-bar .bulk-flag {
-    width: auto; height: auto;
-    align-self: stretch; aspect-ratio: 1;
-    border-radius: 10px;
-  }
+  #bulkFavorite.active { background: color-mix(in srgb, #f5a623 16%, transparent); border-color: #f5a623; }
+  #bulkLike.active     { background: color-mix(in srgb, #e0245e 14%, transparent); border-color: #e0245e; }
   /* Friend view: keep ONLY the ★/❤ import actions — no write-to-friend actions. */
   .bulk-bar.is-friendview #bulkTags,
   .bulk-bar.is-friendview #bulkPrice,
@@ -850,6 +846,34 @@
     color: var(--primary);
     font-weight: 600;
   }
+  /* ── Custom select dropdown (replaces the OS-native one) — see _enhanceSelect.
+     The <select> is kept (value/state) but visually hidden; a .csel-btn mirrors it
+     and .csel-pop is an app-styled option list. */
+  .csel { position: relative; display: inline-flex; }
+  .csel > select {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: 0;
+    opacity: 0; pointer-events: none; clip: rect(0 0 0 0);
+  }
+  .csel-btn { text-align: left; }
+  .csel-btn .csel-label { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .csel-pop {
+    position: absolute; top: calc(100% + 6px); left: 0; min-width: 100%; max-width: 260px;
+    z-index: 600; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; box-shadow: 0 14px 36px rgba(0,0,0,.22);
+    padding: 5px; max-height: 340px; overflow-y: auto; overscroll-behavior: contain;
+    animation: cselPop .12s ease;
+  }
+  @keyframes cselPop { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+  .csel-opt {
+    display: block; width: 100%; text-align: left; white-space: nowrap;
+    padding: 8px 12px; border: none; background: none; border-radius: 8px;
+    cursor: pointer; font-family: inherit; font-size: 13px; color: var(--text);
+    transition: background .1s;
+  }
+  .csel-opt:hover { background: var(--surface-2); }
+  .csel-opt.is-sel { color: var(--primary); font-weight: 600; }
+  /* Mirror the select's own `.hidden` onto the whole custom control. */
+  .csel:has(> select.hidden) { display: none; }
   /* ❤ / ★ product-flag toggle filters — square icon buttons matching the selects. */
   .inv-flag-filter {
     flex-shrink: 0; width: 40px; height: 40px; box-sizing: border-box;
@@ -899,10 +923,37 @@
   /* Whole identity on one line (Brand · Series · Colour name). */
   .pv-line-title { font-size: 14px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .pv-qty { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 4px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
-  .pv-qty-sep { opacity: .5; }
-  .pv-qty-req { font-weight: 600; color: var(--text); }
   /* SKU in its own column (right of the identity, before the price columns). */
-  .pv-sku-col { flex-shrink: 0; width: 130px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pv-sku-col { flex-shrink: 0; width: 190px; display: flex; align-items: center; }
+  /* Click-to-copy SKU — no permanent button chrome: the value itself is the
+     click target. A faint copy glyph only fades in on hover (discoverable, but
+     weightless), and a "Copied!" pill floats up on click. */
+  .pv-sku {
+    position: relative; max-width: 100%; height: auto; display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 6px; margin: -3px -6px; border: none; background: none; border-radius: 7px;
+    cursor: pointer; color: var(--muted); font-size: 12px; font-weight: 400; font-variant-numeric: tabular-nums;
+    transition: color .15s, background .15s;
+  }
+  .pv-sku-txt { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pv-sku-hint { flex-shrink: 0; opacity: 0; background-color: currentColor; transition: opacity .15s; }
+  .pv-sku:hover { color: var(--text); background: var(--surface-2); }
+  .pv-sku:hover .pv-sku-hint { opacity: .65; }
+  .pv-sku.is-copied { color: var(--success); }
+  .pv-sku.is-copied .pv-sku-hint { opacity: 0; }
+  /* Floating "Copied!" pill — rises and fades once over the SKU. */
+  .copy-flash {
+    position: absolute; left: 0; bottom: calc(100% + 2px); pointer-events: none;
+    padding: 2px 7px; border-radius: 7px; white-space: nowrap;
+    font-size: 11px; font-weight: 700; color: #fff; background: var(--success);
+    box-shadow: 0 4px 12px rgba(0,0,0,.18); opacity: 0;
+  }
+  .copy-flash.run { animation: copyFlash 1s cubic-bezier(.4,0,.2,1) forwards; }
+  @keyframes copyFlash {
+    0%   { opacity: 0; transform: translateY(4px) scale(.92); }
+    18%  { opacity: 1; transform: translateY(0) scale(1); }
+    72%  { opacity: 1; transform: translateY(-2px); }
+    100% { opacity: 0; transform: translateY(-9px); }
+  }
   /* Shopify-style order columns: unit price · qty · line total. */
   .pv-unit-col { flex-shrink: 0; width: 90px; text-align: right; font-size: 13px; color: var(--primary); font-weight: 600; font-variant-numeric: tabular-nums; }
   .pv-qty-col { flex-shrink: 0; width: 72px; display: flex; justify-content: center; }
@@ -928,11 +979,17 @@
   .pv-sum-tag { font-size: 10px; font-weight: 700; color: var(--muted); letter-spacing: .03em; }
   .pv-sum-total { margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--border); font-weight: 800; font-size: 16px; }
   .pv-line-actions { display: flex; gap: 6px; flex-shrink: 0; }
-  .pv-buy, .pv-remove {
-    width: 34px; height: 34px; border-radius: 9px; cursor: pointer; flex-shrink: 0;
+  .pv-info, .pv-buy, .pv-remove {
+    width: 34px; height: 34px; padding: 0; border-radius: 9px; cursor: pointer; flex-shrink: 0;
     display: inline-flex; align-items: center; justify-content: center;
     border: 1px solid var(--border);
   }
+  /* Info (ⓘ) — light action button, same box as the cart so the row lines up
+     (without this it fell back to the global 40px-tall <button> default). */
+  .pv-info { background: var(--surface-2); }
+  .pv-info .icon { background-color: var(--muted); }
+  .pv-info:hover { background: var(--border); }
+  .pv-info:hover .icon { background-color: var(--text); }
   .pv-buy { background: #5e8e3e; border-color: #5e8e3e; }
   .pv-buy .icon { background-color: #fff; }
   .pv-buy--off { background: var(--surface-2); border-color: var(--border); }
@@ -2769,14 +2826,65 @@
      LEFT of the group when both are open, so it tucks behind it at the seam. */
   #reorderPanel { z-index: 99; width: 300px; }
   #reorderCloseTab { z-index: 99; }
+
+  /* ── Product "business card" (light, read-only) — see openProductCard.
+     Reuses .panel-img-wrap / .panel-identity / .pi-* from the materials card. */
+  /* Above the reorder ("Infos produit") card so, sitting to its right, the Product
+     card reads as the FRONT one (its shadow overlaps the reorder card at the seam). */
+  #productCardPanel { z-index: 100; width: 300px; }
+  #productCardCloseTab { z-index: 100; }
+  .pc-panel .panel-body { padding: 0 0 16px; overflow-y: auto; scrollbar-width: none; }
+  .pc-panel .panel-body::-webkit-scrollbar { width: 0; height: 0; display: none; }
+  /* Reuses the materials-card sections (illustration, identity, colours & aspect,
+     weight). Only the product-specific extras below get their own styles. */
+  .pc-flags { display: flex; gap: 6px; flex-shrink: 0; }   /* ★/❤ toggle MY favorite/love */
+  .pc-rows { padding: 4px 16px; display: flex; flex-direction: column; gap: 9px; }
+  .pc-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .pc-k { color: var(--muted); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+  .pc-v { color: var(--text); font-size: 13px; font-weight: 600; text-align: right; }
+  .pc-buy {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    margin: 6px 16px 0; height: 40px; border-radius: 10px; text-decoration: none;
+    background: var(--surface-2); border: 1px solid var(--border);
+    color: var(--text); font-size: 13px; font-weight: 600; transition: border-color .15s;
+  }
+  .pc-buy:hover { border-color: var(--primary); }
+  .pc-buy .icon { background-color: #5e8e3e; }
+  /* Provenance block — reuses the reorder card's .ro-from (avatar + label + name);
+     the wrap just gives it the section's horizontal padding. */
+  .pc-from-wrap { padding: 4px 16px 0; }
+  .pc-note { margin: 12px 16px 0; padding: 8px 12px; border-radius: 10px; background: var(--surface-2); color: var(--muted); font-size: 12px; text-align: center; }
+  /* No separator line under the "Product info" title — the identity header below
+     already frames the content. */
+  .ro-panel .panel-header { border-bottom: none; }
   .ro-panel .panel-body {
     display: flex; flex-direction: column; gap: 14px;
     padding: 16px; overflow-y: auto;
     scrollbar-width: none;
   }
   .ro-panel .panel-body::-webkit-scrollbar { width: 0; height: 0; display: none; }
-  /* Product identity header (swatch + brand/material·colour). */
-  .ro-head { display: flex; align-items: center; gap: 13px; }
+  /* Product identity header (thumb + brand/material/colour + open-card chevron). */
+  .ro-head { display: flex; align-items: center; gap: 12px; }
+  /* Clickable identity header → opens the read-only Product card. Full-bleed hover
+     (negative margins cancel the panel-body's 16px padding; the padding re-insets
+     the content so it stays aligned with the sections below — no overflow). */
+  .ro-head--clickable {
+    box-sizing: border-box; text-align: left; border: none; background: none;
+    padding: 10px 16px; margin: -8px -16px 2px; cursor: pointer;
+    font: inherit; color: inherit; transition: background .15s;
+  }
+  /* No full-zone grey on hover — the round chevron is the only affordance. */
+  .ro-head--clickable:hover .ro-head-go { opacity: 1; background: var(--border); transform: translateX(1px); }
+  /* Open-card affordance — a subtle round button, vertically centred, that never
+     crowds the text (the text column owns all remaining width and truncates). */
+  .ro-head-go {
+    margin-left: auto; flex-shrink: 0;
+    width: 26px; height: 26px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--surface-2); opacity: .75;
+    transition: opacity .15s, transform .15s, background .15s;
+  }
+  .ro-head-go .icon { background: var(--muted); }
   /* ❤ Liked / ★ Favorite toggles. In the Product-info card they sit in the panel
      HEADER (left of the ✕); the spool detail identity block uses .pi-flags. */
   .ro-header-flags { display: flex; gap: 6px; flex-shrink: 0; margin-right: 6px; }
@@ -2801,28 +2909,32 @@
      separates it from the References block above. */
   .ro-cloud-row { margin-top: 4px; }
   .ro-swatch {
-    width: 64px; height: 64px; border-radius: 13px; flex-shrink: 0;
+    width: 58px; height: 58px; border-radius: 13px; flex-shrink: 0;
     border: 1px solid var(--border); box-shadow: inset 0 0 0 1px rgba(255,255,255,.06);
   }
   .ro-thumb {
-    width: 64px; height: 64px; border-radius: 13px; flex-shrink: 0;
+    width: 58px; height: 58px; border-radius: 13px; flex-shrink: 0;
     object-fit: cover; background: var(--surface-2);
     border: 1px solid var(--border);
   }
   .ro-thumb--broken { object-fit: initial; }
-  .ro-head-txt { min-width: 0; }
+  /* Text column owns all width left of the chevron, so every line truncates
+     cleanly instead of colliding with the open-card affordance. */
+  .ro-head-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
   .ro-head-brand {
-    font-size: 15px; font-weight: 700; color: var(--text);
+    font-size: 15px; font-weight: 700; color: var(--text); line-height: 1.2;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .ro-head-mat {
-    font-size: 12px; color: var(--muted); margin-top: 1px;
+    font-size: 12px; color: var(--muted); line-height: 1.2;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  /* Colour name on its own line below the material (no longer truncated inline). */
-  .ro-head-color {
-    font-size: 12px; font-weight: 600; color: var(--text); margin-top: 2px;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  /* Colour line: swatch dot (handles bi/tricolor/rainbow) + name, truncating. */
+  .ro-head-color { display: flex; align-items: center; gap: 6px; min-width: 0; margin-top: 1px; }
+  .ro-head-color .color-circle { flex-shrink: 0; margin-right: 0; }
+  .ro-head-color-txt {
+    font-size: 12px; font-weight: 600; color: var(--text); line-height: 1.2;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
   }
   /* Provenance block — shown when a favorite was imported from a friend's
      inventory. Prominent identity card (avatar + label + pseudo), styled like
@@ -2920,6 +3032,40 @@
     color: var(--text); font-size: 13px;
   }
   .ro-ref-input:focus { outline: none; border-color: var(--primary); background: var(--primary-soft); }
+  /* Click-to-copy ref value (auto TigerTag+ AND editable display): the value IS the
+     target, a faint copy glyph fades in on hover, "Copied!" floats up on click. */
+  .ro-ref-copyval {
+    position: relative; height: auto; margin-left: -6px; padding: 3px 6px; border: none; background: none;
+    border-radius: 7px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+    max-width: 100%; min-width: 0; color: var(--text); font: inherit; transition: background .15s, color .15s;
+  }
+  .ro-ref-copyval:hover { background: var(--surface-2); }
+  .ro-ref-copyval.is-copied { color: var(--success); }
+  .ro-ref-copyval .ro-ref-val { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; word-break: normal; }
+  .ro-ref-val--empty { color: var(--muted); }
+  .ro-ref-hint { flex-shrink: 0; opacity: 0; background-color: var(--muted); transition: opacity .15s; }
+  .ro-ref-copyval:hover .ro-ref-hint { opacity: .6; }
+  .ro-ref-copyval.is-copied .ro-ref-hint { opacity: 0; }
+  .ro-ref-copyval .icon { background-color: currentColor; }
+  /* Editable ref → the value display (click-to-copy) XOR the input, plus ONE toggle
+     button that flips pencil ⇄ green ✓ (no separate validate). */
+  .ro-ref-editwrap { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; }
+  .ro-ref-display { flex: 1; min-width: 0; }
+  .ro-ref-display[hidden] { display: none; }   /* beat the flex/default so `hidden` works */
+  .ro-ref-editor { flex: 1; min-width: 0; }
+  .ro-ref-editor[hidden] { display: none; }
+  .ro-ref-editor .ro-ref-input { width: 100%; }
+  /* Toggle: grey pencil in display mode, green ✓ while editing (icon swapped in JS). */
+  .ro-ref-toggle {
+    flex-shrink: 0; width: 30px; height: 30px; padding: 0; border-radius: 8px; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border); background: var(--surface-2); color: var(--muted);
+    transition: color .15s, background .15s, border-color .15s;
+  }
+  .ro-ref-toggle:hover { color: var(--text); background: var(--border); }
+  .ro-ref-toggle--save { color: #fff; background: var(--success); border-color: var(--success); }
+  .ro-ref-toggle--save:hover { color: #fff; background: var(--success); filter: brightness(1.06); }
+  .ro-ref-toggle .icon { background-color: currentColor; }
   .ro-derived { font-size: 12px; color: var(--muted); min-height: 15px; font-variant-numeric: tabular-nums; }
   /* Price shown as read-only text (grows) beside its edit pencil, until edited. */
   .ro-price-shown {

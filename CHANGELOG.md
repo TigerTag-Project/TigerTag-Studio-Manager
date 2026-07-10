@@ -5,6 +5,48 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v2.4.0 — 2026-07-10
+
+A read-only Product "business card" for out-of-stock favorites, an Aspect filter, épuré click-to-copy for SKU/EAN, app-styled dropdowns, and a data-model refactor: friends' favorites are now read straight from their `products` (the `productShares` projection is gone). Plus a batch of Product-info card refinements.
+
+### Added
+
+- **Product "business card" side card (`#productCardPanel`).** Clicking a favorite that has **no live spool** (e.g. a friend's favorite they don't stock) opens a read-only card mirroring the **Materials** side card: illustration, identity, **★/❤**, **Colours & Aspect** (56 px circle + aspect chips), a full **Weight** bar (1 kg / 100 %), **Print parameters** (nozzle / bed / drying / TD / density) and **Details** (Product ID, Type, Brand, Series, Name, Material, Diameter, SKU, Barcode) — omitting spool-only fields and all RFID/weight-edit actions. It also surfaces the material **video** + **document links** (MSDS / TDS / RoHS / REACH / food) from the seed's `LinkXXX`. Rendered from the product's **`cloudSeed`** via `normalizeRow` (`openProductCard`/`_renderProductCard`). The **★/❤ are tied to MY account** (`_toggleProductCardFlag` → `_toggleProductFlag`): they reflect/import whether *I* favorited it. Docked in `_syncPanels` to the RIGHT of the reorder card (which tucks left) and layered above it; no title bar (closed via the `»` tab). New i18n `pcNoStock`.
+- **Aspect filter in the search toolbar.** A new "All aspects" selector (between Material and Version) filters by finish/aspect, matching **either Aspect 1** (Matte, Silk, Carbon…) **or Aspect 2** (Bicolor, Tricolor, Rainbow…). The list is the union of both aspect columns present (empty `-`/`None` dropped); works in grid/table/rack and the Favorites views (scoped to favorites via `label.aspect` + new `label.aspect2`), hidden in printer views. New i18n `filterAllAspects`.
+- **Click-to-copy SKU & EAN in the Product-info card (no button chrome).** The read-only auto TigerTag+ ref is itself the click target (faint copy glyph on hover + floating "Copied!"); an editable ref shows a click-to-copy value plus a **single toggle button** flipping a grey edit pencil ⇄ a green ✓ (no separate input, no separate validate) — commit with Enter or the ✓, click an empty value to jump into edit. Shared `_wireRef` + `_reorderUpdateRefDisplay` + `_flashCopied`. New i18n `reorderEditRef`.
+- **Click-to-copy SKU in the "To order" list.** The SKU value is the click target (hover glyph + "Copied!" flash), no persistent per-line button (`[data-copysku]` → `_flashCopied`). New i18n `copiedFlash`.
+- **The "To order" ⓘ button toggles the Product-info card** (reclick on the same product closes it) and is sized 34×34 to match the cart/× actions.
+
+### Changed
+
+- **Friends' favorites are read DIRECTLY from their `products`.** `products` is now friend-readable (owner/public/friend, same policy as inventory & racks), so browsing a friend subscribes to their real product docs (`subscribeFriendProducts` → `state.friendProducts`) and everything — the favorites grid/table, price/buy link, the Product card, and import — reads their live doc, always in sync. Removed the entire `productShares` projection and its mirroring (`_syncProductShare`, `_backfillProductShares`, `subscribeFriendShares`). **Tradeoff (user-chosen):** the product `note` now lives in a friend-readable doc (never displayed). **Backend:** `products` read opened to owner/public/friend (deployed); `productShares` rule deprecated. Mirror docs updated (`docs/firestore-schema.md`, backend README, public integration repo).
+- **Toolbar filter dropdowns + grid Sort are app-styled** (custom, not the OS-native menu). Brand / Material / Aspect / Version / Tag and the grid **Sort** (`#gridSort`) keep their `<select>` (value + populate/change logic) but are driven by a styled button + popup (`_enhanceSelect`); the label resyncs on programmatic sort (`_syncGridSort`) and language switch (`applyTranslations` refreshes every `.csel`).
+- **Favorites-view filters list only what's in the favorites.** In the Products views the Brand / Material / Aspect / Tag selectors are populated from the favorites (own or the friend's, liked/favorite only) via `_favesForFilters`, not the whole inventory.
+- **A friend's favorite opens the Product card first** (whether or not in stock), and the Product-info identity header **toggles** that Product card for the same product (`_openProductCardFromRow` keyed on `_productCardData.id`).
+- **Cleaner Product-info (reorder) card header** — text column truncates each line cleanly, colour name gets a real swatch (`colorCircleHTML`, handles bi/tri/rainbow), the open-card chevron became a round button, 58 px thumbnail, and the separator line under the title was dropped.
+- **Simpler stock line in "To order"** — "5 required · 2 in stock" → compact "Stock: 2 / 5" (new i18n `pvStockRatio`).
+- **Bulk ★/❤ buttons** match the other bulk buttons (icon + label, same height).
+- **Product card provenance** uses the prominent "Added from …" block (avatar + name, clickable) and shows the product's own `importedFrom` (who its owner grabbed it from), not the friend currently viewed.
+
+### Fixed
+
+- **Importing a friend's favorite no longer duplicates / loses provenance** — the Product card's ★/❤ stored the product WITHOUT its `cloudSeed`, so a later write from your own favorites re-derived a different keyHash (from the lossy label) and created a second, provenance-less product. It now delegates to the shared `_toggleProductFlag` (full row from `cloudSeed` → matching keyHash, cloudSeed stored, provenance stamped, price/link/SKU-EAN carried).
+- **Own favorite with no spool now opens the editable Product-info card** — synthesises the row from `cloudSeed` (else label) via `_productAsRow` so price / min / note / link / tags stay editable even with no live spool.
+- **Favorites Material filter lists plain materials** (not "PLA Basic") — populated from the raw material (`_faveMaterialRaw`: new `label.materialRaw`, else `cloudSeed.id_material`, else label) instead of the aspect-suffixed `label.material`.
+- **Favorites grid & table show prices in the user's tax mode** — `_favePriceHTML` derives the TTC figure from the country VAT when TTC is selected (was always the stored HT).
+- **Switching favorite closes a stale Product card** — `openReorderPanel` closes the Product card when it's open for a different product identity.
+- **Editable SKU/EAN input no longer stays always-visible** — `[hidden]` guards on the display/editor (a `display:flex` rule had been overriding the `hidden` attribute).
+- **Product-info header hover glitch** — clean full-bleed hover (`box-sizing:border-box`, margins = the body padding) instead of overflowing negative margins.
+
+### Removed
+
+- **`productShares` projection** and its client mirroring (superseded by direct friend-readable `products`).
+- i18n keys `pvRequired`, `pvInStock` (folded into `pvStockRatio`).
+
+### Docs
+
+- **`docs/sidecard-zindex.md`** — reference for every right-side panel's z-index, close-tab z-index, width and docking order, the interleaved panel/tab ladder, the three stacks, the `_syncPanels` math, and a checklist for adding a new card.
+
 ## v2.3.0 — 2026-07-09
 
 Friends can now see each other's favorites (with price + buy link), bulk-favorite spools, and manage favorites while browsing a friend — plus a sliding view-selector, a cart icon for reorder actions, and fixes.
