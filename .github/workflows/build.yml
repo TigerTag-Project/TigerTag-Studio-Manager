@@ -160,8 +160,8 @@ jobs:
           azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
           azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
-          endpoint: https://weu.codesigning.azure.net/
-          trusted-signing-account-name: TigerTagSigning
+          endpoint: https://neu.codesigning.azure.net/
+          trusted-signing-account-name: TigerTagStudioSigning
           certificate-profile-name: ${{ vars.TRUSTED_SIGNING_CERT_PROFILE }}
           files-folder: dist
           files-folder-filter: exe

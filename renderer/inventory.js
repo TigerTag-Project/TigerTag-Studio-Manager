@@ -2120,7 +2120,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const host = $("adpMaterialList");
     if (!host) return;
     const q = String(filter || "").trim().toLowerCase();
-    const all = (state.db.material || []).slice();
+    // Hide the "None" sentinel material (id 65535) — a real product always has a material.
+    const all = (state.db.material || []).filter(m => String(m.label || "").trim().toLowerCase() !== "none");
     const favs = new Set(_adpLoadFavMaterials());
     const activeId = parseInt($("adpMaterial")?.value, 10);
 
@@ -2194,6 +2195,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // policy.
     sel.dispatchEvent(new Event("change", { bubbles: true }));
   }
+
+  // Add-product panel's plain <select>s that get the app-styled dropdown (Brand /
+  // Material use their own bottom-sheets, so they're excluded). `_adpRefreshCsels`
+  // resyncs each custom button's label after the panel programmatically sets values.
+  const _ADP_CSEL_IDS = ["adpType", "adpDiameter", "adpAspect1", "adpAspect1Adv", "adpAspect2", "adpUnit"];
+  function _adpRefreshCsels() { _ADP_CSEL_IDS.forEach(id => $(id)?._cselRefresh?.()); }
 
   function _adpCcCurrentHex() {
     // The picker is fully driven by `_adpCcState` (HSV) — the hex
@@ -2284,11 +2291,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     $("adpColorCountRow")?.querySelectorAll(".adp-color-count-btn").forEach(btn => {
       btn.classList.toggle("is-active", btn.dataset.mode === mode);
     });
-    // Sync aspect2 dropdown
+    // Sync aspect2 dropdown — set the hidden <select> AND refresh its app-styled
+    // dropdown button so the visible label follows in real time (not just the
+    // NFC-data preview).
     if (!skipAspect2) {
       const asp2Id = _ADP_MODE_TO_ASPECT2[mode];
       const sel    = $("adpAspect2");
-      if (sel && asp2Id != null) sel.value = String(asp2Id);
+      if (sel && asp2Id != null) { sel.value = String(asp2Id); sel._cselRefresh?.(); }
     }
     _adpRenderSlotRow();
     _adpRenderColorPresets(_adpColorSlots[_adpActiveSlot]);
@@ -2409,18 +2418,15 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       delete el.dataset.userEdited;
     }
     // Type also resets from the material's product_type_id (142 =
-    // Filament, 173 = Resin). Both basic and advanced mirrors flip.
+    // Filament, 173 = Resin). Single Type select now (no advanced mirror).
     const typeSel = $("adpType");
-    const typeAdv = $("adpTypeAdv");
     if (mat?.product_type_id != null) {
       const tv = String(mat.product_type_id);
-      if (typeSel) typeSel.value = tv;
-      if (typeAdv) typeAdv.value = tv;
-      if (typeSel) delete typeSel.dataset.userEdited;
-      if (typeAdv) delete typeAdv.dataset.userEdited;
+      if (typeSel) { typeSel.value = tv; delete typeSel.dataset.userEdited; }
     }
     _adpUpdateBasicReadouts();
     _adpRefreshRfidPreview();
+    _adpRefreshCsels();   // material change reset Type → resync the custom dropdowns
   }
 
   // Build the read-only RFID Data block. Renders a structured JSON
@@ -2561,8 +2567,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
 
     const brandSel    = $("adpBrand");
     const matSel      = $("adpMaterial");
-    const typeSel     = $("adpType");        // basic view (cog row)
-    const typeAdv     = $("adpTypeAdv");     // advanced mirror
+    const typeSel     = $("adpType");        // single Type select (always visible)
     const aspect1Sel  = $("adpAspect1");     // basic view (color row)
     const aspect1Adv  = $("adpAspect1Adv");  // advanced mirror
     const aspect2Sel  = $("adpAspect2");
@@ -2570,7 +2575,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const unitSel     = $("adpUnit");
 
     const brandList    = optList(state.db.brand    || [], "id", "name");
-    const matList      = optList(state.db.material || [], "id", "label");
+    const matList      = optList((state.db.material || []).filter(m => String(m.label || "").trim().toLowerCase() !== "none"), "id", "label");
     const typeList     = optList(state.db.type     || [], "id", "label");
     // Aspect 1 = surface finish only (Basic, Mat, Clear, etc.).
     // Filter: keep only `color_count === 1` — drops both the "-"
@@ -2594,7 +2599,6 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (brandSel)    brandSel.innerHTML    = brandList;
     if (matSel)      matSel.innerHTML      = matList;
     if (typeSel)     typeSel.innerHTML     = typeList;
-    if (typeAdv)     typeAdv.innerHTML     = typeList;
     // Aspect 1 uses the filtered pool (mono / "-" only); Aspect 2
     // gets the full list (incl. bicolor / tricolor / rainbow).
     if (aspect1Sel)  aspect1Sel.innerHTML  = aspect1List;
@@ -2618,17 +2622,20 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       const name = (state.db.brand || []).find(b => b.id === id)?.name || "—";
       brandLbl.textContent = name;
     }
+    // PLA material as the default canvas
+    const plaId = findId("material", m =>
+      String(m.label || "").trim().toUpperCase() === "PLA"
+    );
+    if (plaId != null && matSel) matSel.value = String(plaId);
+    // Sync the Material trigger label AFTER the default value is set —
+    // reading it before would echo the <select>'s first option (e.g.
+    // ABS, alphabetically) while the value is already PLA.
     const matLbl = $("adpMaterialLabel");
     if (matLbl && matSel) {
       const id = parseInt(matSel.value, 10);
       const name = (state.db.material || []).find(m => m.id === id)?.label || "—";
       matLbl.textContent = name;
     }
-    // PLA material as the default canvas
-    const plaId = findId("material", m =>
-      String(m.label || "").trim().toUpperCase() === "PLA"
-    );
-    if (plaId != null && matSel) matSel.value = String(plaId);
     // 1.75 diameter
     const d175 = findId("diameter", d => String(d.label || "").startsWith("1.75"));
     if (d175 != null && diamSel) diamSel.value = String(d175);
@@ -2652,7 +2659,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     $("adpMessage")   && ($("adpMessage").value   = "");
     _adpRefreshColorNameCounter();
     // Reset user-edited flags so material defaults seed the temps.
-    ["adpType", "adpTypeAdv", "adpAspect1Adv", "adpTd",
+    ["adpType", "adpAspect1Adv", "adpTd",
      "adpNozzleMin", "adpNozzleMax", "adpBedMin", "adpBedMax",
      "adpDryTemp", "adpDryTime"].forEach(id => {
       const el = $(id);
@@ -2665,6 +2672,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     _adpActiveSlot  = 0;
     _adpSyncColor("#FF5722");
     if (matSel) _adpApplyMaterialDefaults(parseInt(matSel.value, 10));
+    _adpRefreshCsels();   // sync every custom dropdown's button label to its value
     _adpToggleClearVisibility($("adpColorName")?.value);
 
     // Advanced toggle — off by default (matches the mobile basic view).
@@ -3283,29 +3291,16 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     }
   });
 
-  // Type basic ↔ advanced sync — the basic Type select sits in the
-  // cog row, the advanced one is part of the full Advanced form.
-  // Both write to each other so the value is always consistent.
-  $("adpType")?.addEventListener("change", e => {
-    const adv = $("adpTypeAdv");
-    if (adv) adv.value = e.target.value;
-    _adpRefreshRfidPreview();
-  });
-  $("adpTypeAdv")?.addEventListener("change", e => {
-    const sel = $("adpType");
-    if (sel) sel.value = e.target.value;
-    e.target.dataset.userEdited = "1";
-    _adpRefreshRfidPreview();
-  });
-  // Same for Aspect 1.
+  // Aspect 1 basic (colour row) ↔ advanced mirror sync. Each side also refreshes
+  // the OTHER's app-styled dropdown label (a programmatic .value set doesn't).
   $("adpAspect1")?.addEventListener("change", e => {
     const adv = $("adpAspect1Adv");
-    if (adv) adv.value = e.target.value;
+    if (adv) { adv.value = e.target.value; adv._cselRefresh?.(); }
     _adpRefreshRfidPreview();
   });
   $("adpAspect1Adv")?.addEventListener("change", e => {
     const sel = $("adpAspect1");
-    if (sel) sel.value = e.target.value;
+    if (sel) { sel.value = e.target.value; sel._cselRefresh?.(); }
     e.target.dataset.userEdited = "1";
     _adpRefreshRfidPreview();
   });
@@ -3473,7 +3468,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   });
 
   async function openFriends() {
-    closeNotifs();   // opening a side card takes over the right — dismiss notifs
+    // Friends takes over the right edge — close every other side card first
+    // (spool detail / group deck / product / printer / settings / notifs),
+    // otherwise they stay stacked underneath the slide-in panel.
+    _closeAllSidePanels();
     // Auto-generate public key on first open if missing
     if (!state.publicKey) await regeneratePublicKey();
     loadFriendsList();
@@ -3790,7 +3788,29 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
        - button click while the nudge is PENDING → open the notification center
          (so they read the invite); it does NOT open the link or mark it done;
        - button click once the nudge is DONE → open the destination link directly;
-       - clicking the notification itself → open the link AND mark it done. */
+       - clicking the notification itself → open the link AND mark it done.
+     The `coffee` entry additionally gates its badge/notification behind
+     `delayDays` (see _communityDelayElapsed). */
+  const COFFEE_URL = "https://buymeacoffee.com/benoitl";
+  // First launch timestamp (per install), stamped once — drives the delayed
+  // "buy me a coffee" nudge so it only appears after a few days of real use.
+  function _firstUseTs() {
+    let v = parseInt(localStorage.getItem("tigertag.firstUse") || "0", 10);
+    if (!Number.isFinite(v) || v <= 0) {
+      v = Date.now();
+      try { localStorage.setItem("tigertag.firstUse", String(v)); } catch (_) {}
+    }
+    return v;
+  }
+  function _communityDelayElapsed(days) {
+    if (!days) return true;
+    return (Date.now() - _firstUseTs()) >= days * 86400000;
+  }
+  // A community nudge is "pending" (badge lit + notification shown) when it's
+  // not yet done AND its optional day-delay has elapsed.
+  function _communityPending(c) {
+    return !state[c.seen] && _communityDelayElapsed(c.delayDays);
+  }
   const COMMUNITY = {
     discord: {
       url: "https://discord.gg/3Qv5TSqnJH",
@@ -3812,12 +3832,22 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       btnId: "sbShopBtn", seen: "shopSeen", clickedAt: "shopClickedAt",
       icon: "shopify", titleKey: "notifShopTitle", textKey: "notifShopText",
     },
+    // "Buy me a coffee" support nudge — unlike the others it only surfaces its
+    // notification + sidebar badge after the user has been around for a few
+    // days (delayDays): asking a warm, engaged user converts far better than
+    // begging on day one. The sidebar button itself is always live.
+    coffee: {
+      url: COFFEE_URL,
+      btnId: "sbCoffeeBtn", seen: "coffeeSeen", clickedAt: "coffeeClickedAt",
+      icon: "coffee", titleKey: "notifCoffeeTitle", textKey: "notifCoffeeText",
+      delayDays: 3,
+    },
   };
 
   // Toggle each button's "1" badge based on whether its nudge is still pending.
   function renderCommunityBadges() {
     for (const k in COMMUNITY) {
-      document.getElementById(COMMUNITY[k].btnId)?.classList.toggle("sb-nudge", !state[COMMUNITY[k].seen]);
+      document.getElementById(COMMUNITY[k].btnId)?.classList.toggle("sb-nudge", _communityPending(COMMUNITY[k]));
     }
   }
   // Per account: show the invite notification for each still-pending link, clear
@@ -3827,8 +3857,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     renderCommunityBadges();
     for (const k in COMMUNITY) {
       const c = COMMUNITY[k];
-      if (state[c.seen]) _clearLocalNotif(k);
-      else _setLocalNotif({ id: k, icon: c.icon, title: t(c.titleKey), text: t(c.textKey), action: k });
+      if (_communityPending(c)) _setLocalNotif({ id: k, icon: c.icon, title: t(c.titleKey), text: t(c.textKey), action: k });
+      else _clearLocalNotif(k);
     }
   }
   // Mark a nudge done forever (per account, Firestore-synced) + stamp the click
@@ -3862,6 +3892,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (!c) return;
     if (state[c.seen]) window.open(c.url);
     else openNotifs();
+  }
+  // "Buy me a coffee" — every entry point (sidebar / About / What's New) opens
+  // the page directly and marks the nudge done, so we never pester someone who
+  // already visited it.
+  function _openCoffee() {
+    _markCommunitySeen("coffee");
+    window.electronAPI?.openExternal(COFFEE_URL);
   }
 
   // The header chip (own view) renders an editable avatar too — clicking it
@@ -5436,10 +5473,24 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (!all.length) { el.classList.add("hidden"); return; }
     const kgFull = `${Math.round(totalW / 1000)} kg`;
     const kgMini = kgFull;
+    // Stock value — each spool worth its product's price (buyPriceHt), prorated by
+    // the remaining weight fraction. Shown in the account's currency + HT/TTC mode.
+    const vat = _vatInfo();
+    let valueHt = 0;
+    for (const r of active) {
+      const price = +(_getProduct(r)?.buyPriceHt);
+      if (!Number.isFinite(price)) continue;
+      const cap = +r.capacity, w = +r.weightAvailable;
+      const frac = (cap > 0 && Number.isFinite(w)) ? Math.max(0, Math.min(1, w / cap)) : 1;
+      valueHt += price * frac;
+    }
+    const valueShown = _reorderMode() === "TTC" ? valueHt * (1 + (vat.rate || 0) / 100) : valueHt;
+    const valueFull = `${_fmtMoney(valueShown)} ${vat.symbol}`;
     const tf = state.typeFilter;
     el.innerHTML = [
       { label: t("statActive"), mini: t("statActiveMini"), value: active.length, miniVal: active.length, filter: "reset" },
       { label: t("statTotal"),  mini: t("statTotalMini"),  value: kgFull,         miniVal: kgMini,        filter: "reset" },
+      { label: t("statValue"),  mini: t("statValueMini"),  value: valueFull,      miniVal: valueFull,     filter: "reset" },
       { label: '<span class="tag-diy">TigerTag</span>',          mini: t("statDiyMini"),   value: diy,          miniVal: diy,          filter: "TigerTag" },
       { label: '<span class="tag-plus">TigerTag+</span>',        mini: t("statPlusMini"),  value: plus.length,  miniVal: plus.length,  filter: "TigerTag+" },
       { label: '<span class="tag-cloud">TigerCloud</span>',  mini: t("statCloudMini"), value: cloud.length, miniVal: cloud.length, filter: "TigerCloud", cloud: true },
@@ -5640,7 +5691,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (!state.sortCol) return rows;
     const dir = state.sortDir === "asc" ? 1 : -1;
     return rows.slice().sort((a, b) => {
-      let va = a[state.sortCol], vb = b[state.sortCol];
+      let va, vb;
+      if (state.sortCol === "price") {   // price lives on the product, not the row
+        va = +(_getProduct(a)?.buyPriceHt); va = Number.isFinite(va) ? va : null;
+        vb = +(_getProduct(b)?.buyPriceHt); vb = Number.isFinite(vb) ? vb : null;
+      } else { va = a[state.sortCol]; vb = b[state.sortCol]; }
       if (va == null && vb == null) return 0;
       if (va == null) return dir;
       if (vb == null) return -dir;
@@ -6652,11 +6707,18 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   //     a mis-click on ★ must never wipe the stock threshold you typed (an
   //     un-favorited product with a min is surfaced by the recovery view).
   // Applied on every product write so all entry points obey it.
-  function _coupleFlags(patch) {
+  function _coupleFlags(patch, curMin = 0) {
     const p = { ...patch };
     if (p.liked === true && !("favorite" in p)) p.favorite = true;                     // ❤ ⇒ ★
     if (!("favorite" in p) && Number.isFinite(+p.minStockSpools) && +p.minStockSpools > 0) p.favorite = true;  // min ⇒ ★
     if (p.favorite === false && !("liked" in p)) p.liked = false;                       // ★ off ⇒ drop Love (min kept)
+    // ❤ ⇒ keep at least one: loving forces a min stock of ≥1 so the product is
+    // tracked for reorder (and lands in the cart once out of stock). Never lowers
+    // an existing higher min (uses the patch's min if given, else the current one).
+    if (p.liked === true) {
+      const target = ("minStockSpools" in p) ? (+p.minStockSpools || 0) : (+curMin || 0);
+      if (!(target >= 1)) p.minStockSpools = 1;
+    }
     return p;
   }
 
@@ -6670,7 +6732,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       try { await ref.delete(); } catch (e) { console.warn("[products] delete failed:", e); }
       return;
     }
-    patch = _coupleFlags(patch);
+    patch = _coupleFlags(patch, +(state.products[hash]?.minStockSpools) || 0);
     // Optimistic local patch for the coupled fields so ❤/★ + min reflect instantly.
     const _rec = state.products[_productKeyHash(r)];
     if (_rec) {
@@ -6868,6 +6930,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (!col) return items;
     const dir = state.sortDir === "asc" ? 1 : -1;
     const valOf = (it) => {
+      const rep = it.type === "group" ? it.rep : it.row;
+      if (col === "price") { const p = +(_getProduct(rep)?.buyPriceHt); return Number.isFinite(p) ? p : null; }
       if (it.type === "group") {
         if (col === "weightAvailable") return it.totalAvail;
         if (col === "capacity")        return it.totalCap;
@@ -6904,6 +6968,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       r.imgUrl || "",
       r.weightAvailable ?? "",
       r.capacity ?? "",
+      _getProduct(r)?.buyPriceHt ?? "",   // price column
+      state.priceInputMode || "",         // HT/TTC display mode
       r.colorName || "",
       r.material || "",
       r.brand || "",
@@ -7370,6 +7436,15 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   document.getElementById("groupPanelClose")?.addEventListener("click", _closeGroupPanel);
   document.getElementById("groupCloseTab")?.addEventListener("click", _closeGroupPanel);
 
+  // Unit price cell for the inventory table — the row's product price (buyPriceHt),
+  // shown in the account's currency + HT/TTC mode. "-" when no price is set.
+  function _priceCell(r) {
+    const priceHt = _getProduct(r)?.buyPriceHt;
+    if (priceHt == null || !Number.isFinite(+priceHt)) return "-";
+    const vat = _vatInfo();
+    const shown = _reorderMode() === "TTC" ? +priceHt * (1 + (vat.rate || 0) / 100) : +priceHt;
+    return `${_fmtMoney(shown)} ${vat.symbol}`;
+  }
   // Build the inner HTML of a table row from a row. Single-source for create + update.
   function _tableRowInnerHTML(r) {
     const swatch = colorCircleHTML(r, 28);
@@ -7388,6 +7463,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       <td>${esc(v(r.colorName) !== "-" ? r.colorName : [r.aspect1, r.aspect2].filter(a => a && a !== "-" && a !== "None").join(" ") || r.colorName)}</td>
       <td style="font-variant-numeric:tabular-nums">${wCell}</td>
       <td style="font-variant-numeric:tabular-nums">${v(r.capacity)}${r.capacity!=null?" g":""}</td>
+      <td style="font-variant-numeric:tabular-nums">${_priceCell(r)}</td>
       <td title="${esc(fmtTs(r.lastUpdate))}">${esc(timeAgo(r.lastUpdate))}</td>`;
   }
 
@@ -7450,6 +7526,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       <td><span class="group-name">${esc(name)}</span></td>
       <td style="font-variant-numeric:tabular-nums">${_groupWeightCell(g)}</td>
       <td style="font-variant-numeric:tabular-nums">${g.totalCap ? g.totalCap + " g" : "-"}</td>
+      <td style="font-variant-numeric:tabular-nums">${_priceCell(rep)}</td>
       <td></td>`;
   }
 
@@ -7458,6 +7535,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function _groupHeaderSig(g, collapsed) {
     return [
       g.key, g.count, g.totalAvail, g.totalCap,
+      _getProduct(g.rep)?.buyPriceHt ?? "", state.priceInputMode || "",   // price column
       collapsed ? 1 : 0,
       g.rep.colorHex || "", g.rep.colorHex2 || "", g.rep.colorHex3 || "",
       (g.rep.colorList || []).join(","), g.rep.colorType || "",
@@ -8083,6 +8161,64 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   $("btnViewFavesGrid")?.addEventListener("click",  () => setViewMode("favesGrid"));
   $("btnViewFavesTable")?.addEventListener("click", () => setViewMode("favesTable"));
   $("btnViewOrder")?.addEventListener("click",      () => setViewMode("order"));
+  // Reorder drag-and-drop — delegated on the persistent products host. Only the
+  // grip starts a drag; drop reorders within a zone or moves across zones.
+  const _pvHost = $("invProductsView");
+  if (_pvHost) {
+    _pvHost.addEventListener("dragstart", e => {
+      const line = e.target.closest(".pv-order-line[data-hash]");
+      if (!line || state.friendView) return;
+      // Grab anywhere on the line (grip, thumbnail, name…) EXCEPT the interactive
+      // controls, so the qty field / buy / info / move-link keep working.
+      if (e.target.closest("input, button, a, .pv-sku, .pv-move-link, .pv-addprice")) { e.preventDefault(); return; }
+      _orderDragHash = line.dataset.hash;
+      try { e.dataTransfer.setData("text/plain", _orderDragHash); e.dataTransfer.effectAllowed = "move"; } catch (_) {}
+      try { e.dataTransfer.setDragImage(line, 24, 24); } catch (_) {}
+      line.classList.add("pv-order-line--dragging");
+      document.body.classList.add("is-dragging-order");
+    });
+    _pvHost.addEventListener("dragover", e => {
+      if (!_orderDragHash) return;
+      const zoneWrap = e.target.closest(".pv-cart, .pv-saved");
+      if (!zoneWrap) return;
+      e.preventDefault();
+      try { e.dataTransfer.dropEffect = "move"; } catch (_) {}
+      _clearOrderDropCues();
+      const line = e.target.closest(".pv-order-line[data-hash]");
+      if (line && line.dataset.hash !== _orderDragHash) {
+        const r = line.getBoundingClientRect();
+        line.classList.add((e.clientY - r.top) < r.height / 2 ? "pv-drop-before" : "pv-drop-after");
+      } else if (!line) {
+        (zoneWrap.querySelector(".pv-order-list") || zoneWrap).classList.add("pv-zone-drop");
+      }
+    });
+    _pvHost.addEventListener("drop", e => {
+      if (!_orderDragHash) return;
+      const zoneWrap = e.target.closest(".pv-cart, .pv-saved");
+      if (!zoneWrap) return;
+      e.preventDefault();
+      const intoSaved = zoneWrap.classList.contains("pv-saved");
+      const line = e.target.closest(".pv-order-line[data-hash]");
+      let targetHash = null, before = false;
+      if (line && line.dataset.hash !== _orderDragHash) {
+        const r = line.getBoundingClientRect();
+        before = (e.clientY - r.top) < r.height / 2;
+        targetHash = line.dataset.hash;
+      }
+      const drag = _orderDragHash;
+      _orderDragHash = null;
+      _clearOrderDropCues();
+      document.body.classList.remove("is-dragging-order");
+      _applyOrderDrop(drag, targetHash, before, intoSaved);
+    });
+    _pvHost.addEventListener("dragend", () => {
+      _orderDragHash = null;
+      _clearOrderDropCues();
+      document.body.classList.remove("is-dragging-order");
+      _pvHost.querySelectorAll(".pv-order-line--dragging").forEach(el => el.classList.remove("pv-order-line--dragging"));
+    });
+  }
+
   // Products view — delegated actions (select, on-order stepper, buy, remove, open).
   $("invProductsView")?.addEventListener("click", e => {
     // Sortable column header (Favorites table) → toggle asc/desc, like the other tables.
@@ -8149,7 +8285,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (row) openReorderPanel(row, { editBuyLink: true });
       return;
     }
-    if (e.target.closest(".pv-remove")) { _deleteProductByHash(hash); renderProductsView(); return; }
+    // Set aside for later / bring back to the cart — NEVER deletes the product
+    // doc, so favorite ★/❤, buy link, price, SKU/EAN, min-stock all survive.
+    // Friend view is read-only (the move buttons aren't rendered there anyway).
+    if (e.target.closest("[data-later]"))  { if (!state.friendView) { _writeProductField(hash, { savedForLater: true  }); renderProductsView(); } return; }
+    if (e.target.closest("[data-tocart]")) { if (!state.friendView) { _writeProductField(hash, { savedForLater: false }); renderProductsView(); } return; }
     // Open the product card — explicit info button (order tab) or line click (faves).
     // Prefer a live spool; else synthesise a row from the stored cloudSeed so the
     // card opens even for a product with no spool left.
@@ -8362,6 +8502,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   });
   // Replace the native OS dropdowns of the toolbar filters with app-styled popups.
   ["brandFilter", "materialFilter", "aspectFilter", "typeFilter", "tagFilter", "gridSort"].forEach(id => _enhanceSelect($(id)));
+  // Same treatment for the Add-product panel's identity selects (Brand/Material
+  // use their own bottom-sheets; these are the plain <select>s). The button
+  // mirrors the .adp-select look; only the OS option list is replaced.
+  _ADP_CSEL_IDS.forEach(id => _enhanceSelect($(id)));
   // ❤ Liked / ★ Favorite quick filters — toggle on/off, mutually exclusive.
   // The value doubles as the product field key (`_getProduct(r)?.[flagFilter]`).
   function _toggleFlagFilter(flag) {
@@ -9183,7 +9327,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   async function _writeProductField(hash, patch) {
     const uid = getActiveId();
     if (!uid || !hash) return;
-    patch = _coupleFlags(patch);   // ❤/★/min interest-hierarchy coupling (see _writeProduct)
+    patch = _coupleFlags(patch, +(state.products[hash]?.minStockSpools) || 0);   // ❤/★/min coupling (see _writeProduct)
     const FV = firebase.firestore.FieldValue;
     const doc = { updatedAt: FV.serverTimestamp() };
     const local = {};   // coerced values to apply optimistically (undefined = delete key)
@@ -9205,17 +9349,17 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     }
     if ("liked" in patch)    { doc.liked = !!patch.liked; local.liked = doc.liked; }
     if ("favorite" in patch) { doc.favorite = !!patch.favorite; local.favorite = doc.favorite; }
+    // "Saved for later" — the reorder cart's set-aside zone. Private to /products
+    // (never mirrored to productShares), so it's a plain owner field, no rule change.
+    // Deleted when false so docs stay clean.
+    if ("savedForLater" in patch) {
+      if (patch.savedForLater) { doc.savedForLater = true; local.savedForLater = true; }
+      else { doc.savedForLater = FV.delete(); local.savedForLater = undefined; }
+    }
     const rec = state.products[hash];
     if (rec) Object.keys(local).forEach(k => { if (local[k] === undefined) delete rec[k]; else rec[k] = local[k]; });
     try { await fbDb(uid).collection("users").doc(uid).collection("products").doc(hash).set(doc, { merge: true }); }
     catch (e) { console.warn("[products] field write failed:", e); }
-  }
-  async function _deleteProductByHash(hash) {
-    const uid = getActiveId();
-    if (!uid || !hash) return;
-    if (state.products[hash]) delete state.products[hash];
-    try { await fbDb(uid).collection("users").doc(uid).collection("products").doc(hash).delete(); }
-    catch (e) { console.warn("[products] delete failed:", e); }
   }
 
   // Current stock (non-deleted spool count) per product identity key.
@@ -9302,15 +9446,20 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const products = _filteredProducts(source);
 
     if (state.viewMode === "order") {
-      // Products with a min set, needing reorder first.
-      const orderRows = products
-        .map(p => ({ p, ...(_productOrderInfo(p, stockMap)) }))
-        .filter(x => x.required > 0)
-        .sort((a, b) => b.toOrder - a.toOrder || _productName(a.p).localeCompare(_productName(b.p)));
-      // Keep lines with a quantity to order OR already (partly) on order, so the
-      // user can still adjust them after a product is covered.
-      const cartRows = orderRows.filter(x => x.qty > 0 || x.onOrder > 0);
-      host.innerHTML = _renderOrderTab(cartRows, info);
+      const withInfo = products.map(p => ({ p, ...(_productOrderInfo(p, stockMap)) }));
+      // User's drag-set custom order comes first (sortRank); items never dragged
+      // fall back to the computed order (stock urgency / name).
+      const _rank = x => Number.isFinite(+x.p.sortRank) ? +x.p.sortRank : Infinity;
+      // Active cart: a min set + still short (or partly on order), and NOT set aside.
+      const cartRows = withInfo
+        .filter(x => x.required > 0 && (x.qty > 0 || x.onOrder > 0) && !x.p.savedForLater)
+        .sort((a, b) => _rank(a) - _rank(b) || b.toOrder - a.toOrder || _productName(a.p).localeCompare(_productName(b.p)));
+      // Saved for later: whatever the user set aside — shown regardless of stock,
+      // so it's a durable "buy later" shelf (Amazon-cart style).
+      const savedRows = withInfo
+        .filter(x => x.p.savedForLater)
+        .sort((a, b) => _rank(a) - _rank(b) || _productName(a.p).localeCompare(_productName(b.p)));
+      host.innerHTML = _renderOrderTab(cartRows, savedRows, info, ro);
       return;
     }
     // Favorites (liked ❤ / favorite ★) — grid or table.
@@ -9321,59 +9470,142 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       : _renderFavesGrid(faves, ro);
   }
 
-  function _renderOrderTab(cartRows, info) {
-    if (!cartRows.length) {
-      return `<div class="pv-empty"><span class="icon icon-cart icon-24"></span><div>${esc(t("pvOrderEmpty"))}</div></div>`;
-    }
+  // One reorder line — shared by the active cart and the "saved for later" shelf.
+  // `saved` swaps the trailing action: a cart line gets a "set aside" (clock)
+  // button, a saved line gets a "move back to cart" button. `ro` (friend view)
+  // hides both move actions. Neither ever deletes the product doc.
+  function _orderLineHTML(x, ctx, saved, ro) {
+    const p = x.p, hash = p.id, l = p.label || {};
+    const name1 = [l.brand, l.series || l.material, l.colorName].filter(v => v && v !== "-").join(" · ") || l.brand || "—";
+    const unitHt = (p.buyPriceHt == null) ? null : +p.buyPriceHt;   // stored HT
+    const unit = unitHt == null ? null : (ctx.mode === "TTC" ? unitHt * ctx.factor : unitHt);
+    const lineTotal = unit == null ? null : unit * x.qty;
+    // Amazon-style TEXT action under the item (clear wording beats an ambiguous
+    // icon next to the green buy-cart): "Save for later" in the cart, "Move to
+    // cart" on the shelf. Same data-attrs → same handler. Hidden in friend view.
+    const moveLink = ro ? "" : (saved
+      ? `<button class="pv-move-link pv-move-link--cart" data-tocart>${esc(t("reorderMoveToCart"))}</button>`
+      : `<button class="pv-move-link" data-later>${esc(t("reorderSaveLater"))}</button>`);
+    // Drag handle — reorder lines + drag a line across to the other zone. Only
+    // the grip starts a drag (keeps the qty input / buttons fully usable). Hidden
+    // in friend view.
+    const grip = ro ? "" : `<span class="pv-grip" aria-hidden="true"><span class="icon icon-grip icon-16"></span></span>`;
+    return `
+      <div class="pv-item pv-line pv-order-line"${ro ? "" : ` draggable="true"`} data-hash="${esc(hash)}" data-key="${esc(p.key)}">
+        ${grip}
+        ${_productThumbHTML(p)}
+        <div class="pv-line-main">
+          <div class="pv-line-title">${esc(name1)}</div>
+          ${p.sku ? `<div class="pv-line-sku"><button type="button" class="pv-sku" data-copysku="${esc(p.sku)}" aria-label="${esc(t("copyLabel"))}"><span class="pv-sku-txt">${esc(p.sku)}</span><span class="icon icon-copy icon-12 pv-sku-hint"></span></button></div>` : ""}
+          <div class="pv-qty">
+            <span>${esc(t("pvStockRatio", { have: x.inStock, need: x.required }))}</span>
+            ${moveLink ? `<span class="pv-qty-dot">·</span>${moveLink}` : ""}
+          </div>
+        </div>
+        <div class="pv-unit-col">${unit == null ? `<button class="pv-addprice" data-addprice>${esc(t("reorderAddPrice"))}</button>` : `${_fmtMoney(unit)} ${ctx.sym}`}</div>
+        <div class="pv-qty-col"><input type="number" class="pv-qty-input" min="0" step="1" value="${x.qty}" aria-label="${esc(t("pvToOrder", { n: x.qty }))}" /></div>
+        <div class="pv-total-col">${lineTotal == null ? "—" : `${_fmtMoney(lineTotal)} ${ctx.sym}`}</div>
+        <div class="pv-line-actions">
+          <button class="pv-info" data-info aria-label="${esc(t("toolReorder"))}"><span class="icon icon-info icon-14"></span></button>
+          <button class="pv-buy${p.buyUrl ? "" : " pv-buy--off"}" data-buy aria-label="${esc(t("toolReorderBuy"))}"><span class="icon icon-cart icon-14"></span></button>
+        </div>
+      </div>`;
+  }
+
+  // Reorder view = an Amazon-style cart with two zones: the active cart (needs
+  // ordering) and a "saved for later" shelf (set aside via the clock button).
+  // The old destructive ✕ is gone — set-aside just flips `savedForLater`.
+  function _renderOrderTab(cartRows, savedRows, info, ro) {
     const sym = info.symbol, rate = info.rate;
     // Prices are stored HT; show them in the account's entry mode (HT or TTC).
     const mode = _reorderMode(), factor = 1 + rate / 100;
+    const ctx = { sym, mode, factor };
+    if (!cartRows.length && !savedRows.length) {
+      return `<div class="pv-empty"><span class="icon icon-cart icon-24"></span><div>${esc(t("pvOrderEmpty"))}</div></div>`;
+    }
+    // ── Active cart (drives the payment totals) ────────────────────
     let subtotalHT = 0, items = 0;
-    // A Shopify-style order line: thumbnail + name/variant/SKU, then aligned
-    // columns — unit price · quantity to order · line total (both in account mode).
-    const lines = cartRows.map(x => {
-      const p = x.p, hash = p.id;
-      const l = p.label || {};
-      // Whole identity on one line: Brand · Series (or Material) · Colour name.
-      const name1 = [l.brand, l.series || l.material, l.colorName].filter(v => v && v !== "-").join(" · ") || l.brand || "—";
-      const unitHt = (p.buyPriceHt == null) ? null : +p.buyPriceHt;   // stored HT
-      const unit = unitHt == null ? null : (mode === "TTC" ? unitHt * factor : unitHt);   // shown in account mode
-      const lineTotal = unit == null ? null : unit * x.qty;
+    const cartLines = cartRows.map(x => {
+      const unitHt = x.p.buyPriceHt == null ? null : +x.p.buyPriceHt;
       if (unitHt != null) { subtotalHT += unitHt * x.qty; items += x.qty; }   // tax math stays HT
-      return `
-        <div class="pv-item pv-line pv-order-line" data-hash="${esc(hash)}" data-key="${esc(p.key)}">
-          ${_productThumbHTML(p)}
-          <div class="pv-line-main">
-            <div class="pv-line-title">${esc(name1)}</div>
-            <div class="pv-qty">
-              <span>${esc(t("pvStockRatio", { have: x.inStock, need: x.required }))}</span>
-            </div>
-          </div>
-          <div class="pv-sku-col">${p.sku ? `<button type="button" class="pv-sku" data-copysku="${esc(p.sku)}" title="${esc(t("copyLabel"))}" aria-label="${esc(t("copyLabel"))}"><span class="pv-sku-txt">${esc(p.sku)}</span><span class="icon icon-copy icon-12 pv-sku-hint"></span></button>` : ""}</div>
-          <div class="pv-unit-col">${unit == null ? `<button class="pv-addprice" data-addprice>${esc(t("reorderAddPrice"))}</button>` : `${_fmtMoney(unit)} ${sym}`}</div>
-          <div class="pv-qty-col"><input type="number" class="pv-qty-input" min="0" step="1" value="${x.qty}" aria-label="${esc(t("pvToOrder", { n: x.qty }))}" /></div>
-          <div class="pv-total-col">${lineTotal == null ? "—" : `${_fmtMoney(lineTotal)} ${sym}`}</div>
-          <div class="pv-line-actions">
-            <button class="pv-info" data-info title="${esc(t("toolReorder"))}"><span class="icon icon-info icon-14"></span></button>
-            <button class="pv-buy${p.buyUrl ? "" : " pv-buy--off"}" data-buy title="${esc(t("toolReorderBuy"))}"><span class="icon icon-cart icon-14"></span></button>
-            <button class="pv-remove" data-remove title="${esc(t("reorderRemove"))}"><span class="icon icon-close icon-13"></span></button>
-          </div>
-        </div>`;
+      return _orderLineHTML(x, ctx, false, ro);
     }).join("");
+    // Both zones ALWAYS render (even empty) so each is a valid drag-drop target —
+    // the `data-zone` list is where lines are dropped; an empty zone shows a hint.
+    const cartInner = cartRows.length
+      ? `<div class="pv-order-list" data-zone="cart">${cartLines}</div>`
+      : `<div class="pv-order-list pv-order-list--empty" data-zone="cart"><div class="pv-empty pv-empty--inline"><span class="icon icon-cart icon-24"></span><div>${esc(t("pvOrderEmpty"))}</div></div></div>`;
+    const cartBlock = `
+      <div class="pv-cart">
+        <div class="pv-section-title">${esc(t("pvCartTitle"))}${cartRows.length ? `<span class="pv-section-count">${cartRows.length}</span>` : ""}</div>
+        ${cartInner}
+      </div>`;
+    // ── Saved for later (durable shelf — no totals) ────────────────
+    const savedInner = savedRows.length
+      ? `<div class="pv-order-list" data-zone="saved">${savedRows.map(x => _orderLineHTML(x, ctx, true, ro)).join("")}</div>`
+      : `<div class="pv-order-list pv-order-list--empty" data-zone="saved"><div class="pv-empty pv-empty--inline"><span class="icon icon-clock icon-24"></span><div>${esc(t("pvSavedEmpty"))}</div></div></div>`;
+    const savedBlock = `
+      <div class="pv-saved">
+        <div class="pv-section-title">${esc(t("pvSavedTitle"))}${savedRows.length ? `<span class="pv-section-count">${savedRows.length}</span>` : ""}</div>
+        ${savedInner}
+      </div>`;
+    // ── Payment card (active cart only, sticky on the right) ───────
     const tax = subtotalHT * rate / 100;
     const totalTTC = subtotalHT + tax;                              // what you pay
-    // Subtotal shown in the account mode: HT → the tax-free base; TTC → the
-    // tax-inclusive amount (which then equals the Total). Tax is the VAT either way.
+    // Subtotal shown in the account mode: HT → tax-free base; TTC → tax-inclusive.
     const subtotalShown = mode === "TTC" ? totalTTC : subtotalHT;
-    const summary = `
-      <div class="pv-summary">
-        <div class="pv-sum-title">${esc(t("pvPayment"))}</div>
-        <div class="pv-sum-row"><span>${esc(t("pvSubtotal"))}</span><span class="pv-sum-sub">${esc(t("pvItems", { n: items }))}</span><span class="pv-sum-val">${_fmtMoney(subtotalShown)} ${sym}</span></div>
-        <div class="pv-sum-row"><span>${esc(t("pvTax"))}</span><span class="pv-sum-sub">${esc(t("reorderVat", { rate }))}</span><span class="pv-sum-val">${_fmtMoney(tax)} ${sym}</span></div>
-        <div class="pv-sum-row pv-sum-total"><span>${esc(t("pvOrderTotal"))}</span><span></span><span class="pv-sum-val">${_fmtMoney(totalTTC)} ${sym}</span></div>
-      </div>`;
-    // Order list on the left, Payment card on the right (sticky — follows scroll).
-    return `<div class="pv-order-layout"><div class="pv-order-list">${lines}</div><div class="pv-order-side">${summary}</div></div>`;
+    const summary = cartRows.length ? `
+      <div class="pv-order-side">
+        <div class="pv-summary">
+          <div class="pv-sum-title">${esc(t("pvPayment"))}</div>
+          <div class="pv-sum-row"><span>${esc(t("pvSubtotal"))}</span><span class="pv-sum-sub">${esc(t("pvItems", { n: items }))}</span><span class="pv-sum-val">${_fmtMoney(subtotalShown)} ${sym}</span></div>
+          <div class="pv-sum-row"><span>${esc(t("pvTax"))}</span><span class="pv-sum-sub">${esc(t("reorderVat", { rate }))}</span><span class="pv-sum-val">${_fmtMoney(tax)} ${sym}</span></div>
+          <div class="pv-sum-row pv-sum-total"><span>${esc(t("pvOrderTotal"))}</span><span></span><span class="pv-sum-val">${_fmtMoney(totalTTC)} ${sym}</span></div>
+        </div>
+      </div>` : "";
+    return `<div class="pv-order-layout"><div class="pv-order-main">${cartBlock}${savedBlock}</div>${summary}</div>`;
+  }
+
+  // ── Reorder drag-and-drop — reorder lines + drag a line across the two zones ──
+  // Native HTML5 DnD, same shape as the printer-grid reorder. Persists a per-
+  // product `sortRank` (private to /products, no rule change) and flips
+  // `savedForLater` on a cross-zone drop. Event wiring lives with the products
+  // click delegation (search `_orderDragHash`).
+  let _orderDragHash = null;
+  function _zoneHashesFromDom(saved) {
+    const list = document.querySelector(`#invProductsView .pv-order-list[data-zone="${saved ? "saved" : "cart"}"]`);
+    return list ? [...list.querySelectorAll(".pv-order-line[data-hash]")].map(el => el.dataset.hash) : [];
+  }
+  function _clearOrderDropCues() {
+    document.querySelectorAll(".pv-drop-before, .pv-drop-after, .pv-zone-drop")
+      .forEach(el => el.classList.remove("pv-drop-before", "pv-drop-after", "pv-zone-drop"));
+  }
+  // Batch-persist the target zone's new order (+ the moved item's zone flag). One
+  // op per doc so a doc is never written twice in the same batch.
+  async function _persistOrder(movedHash, intoSaved, zoneHashes) {
+    const uid = getActiveId(); if (!uid) return;
+    const FV = firebase.firestore.FieldValue;
+    const col = fbDb(uid).collection("users").doc(uid).collection("products");
+    const batch = fbDb(uid).batch();
+    zoneHashes.forEach((h, i) => {
+      const data = { sortRank: i, updatedAt: FV.serverTimestamp() };
+      if (h === movedHash) data.savedForLater = intoSaved ? true : FV.delete();
+      batch.set(col.doc(h), data, { merge: true });
+    });
+    try { await batch.commit(); } catch (e) { console.warn("[order] reorder persist failed:", e); }
+  }
+  function _applyOrderDrop(dragHash, targetHash, before, intoSaved) {
+    if (state.friendView) return;
+    const rec = state.products[dragHash]; if (!rec) return;
+    const zone = _zoneHashesFromDom(intoSaved).filter(h => h !== dragHash);
+    let idx = targetHash ? zone.indexOf(targetHash) : -1;
+    if (idx < 0) idx = zone.length; else if (!before) idx += 1;
+    zone.splice(idx, 0, dragHash);
+    // Optimistic — flip the zone + renumber, re-render before Firestore echoes back.
+    if (intoSaved) rec.savedForLater = true; else delete rec.savedForLater;
+    zone.forEach((h, i) => { if (state.products[h]) state.products[h].sortRank = i; });
+    renderProductsView();
+    _persistOrder(dragHash, intoSaved, zone);
   }
 
   // Normalise a product record back into a row so the Products grid can reuse
@@ -12235,7 +12467,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const cur = state.products[hash] || (state.products[hash] = { key: _spoolGroupKey(r) });
     // Apply the flag + its interest-hierarchy coupling (❤⇒★, ★off⇒drop ❤+min)
     // to the local record and repaint BOTH toggles so the link shows instantly.
-    const coupled = _coupleFlags({ [field]: next });
+    const coupled = _coupleFlags({ [field]: next }, +(cur.minStockSpools) || 0);
     if ("liked" in coupled)          cur.liked = !!coupled.liked;
     if ("favorite" in coupled)       cur.favorite = !!coupled.favorite;
     if ("minStockSpools" in coupled) cur.minStockSpools = (Number.isFinite(+coupled.minStockSpools) && +coupled.minStockSpools > 0) ? Math.round(+coupled.minStockSpools) : 0;
@@ -12246,6 +12478,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // Provenance: flagging a friend's material imports it — stamp WHO it came from
     // (once; own-account edits never overwrite it) so the card can show "Added from …".
     const patch = { [field]: next };
+    // Carry the coupling's forced min into the persisted patch — the optimistic
+    // mutation above already set it locally, so _writeProduct would otherwise see
+    // "already ≥1" and never save it (lost on the next snapshot).
+    if ("minStockSpools" in coupled) patch.minStockSpools = coupled.minStockSpools;
     if (state.friendView?.uid && !cur.importedFrom) {
       patch.importedFrom = { uid: state.friendView.uid, name: state.friendView.displayName || "" };
       cur.importedFrom = patch.importedFrom;
@@ -13422,6 +13658,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function _closeAllSidePanels() {
     if ($("notifPanel")?.classList.contains("open"))      closeNotifs();
     if ($("containerPanel")?.classList.contains("open"))  closeContainerPicker();
+    if ($("productCardPanel")?.classList.contains("open")) closeProductCard();
     if ($("reorderPanel")?.classList.contains("open"))    closeReorderPanel();
     if ($("detailPanel")?.classList.contains("open"))     closeDetail();
     if ($("groupPanel")?.classList.contains("open"))      _closeGroupPanel();
@@ -14037,6 +14274,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   $("sbMakerWorldBtn").addEventListener("click", () => _clickCommunityBtn("makerworld"));
   $("sbDiscordBtn").addEventListener("click", () => _clickCommunityBtn("discord"));
   $("sbShopBtn").addEventListener("click", () => _clickCommunityBtn("shop"));
+  $("sbCoffeeBtn")?.addEventListener("click", _openCoffee);
+  $("btnSupportAbout")?.addEventListener("click", _openCoffee);
+  $("whatsNewCoffee")?.addEventListener("click", _openCoffee);
 
   // Sign-in placeholder buttons
   $("btnSignInPlaceholder").addEventListener("click", openAddAccountModal);
@@ -23244,6 +23484,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     state.githubSeen     = !!c.githubSeen;
     state.makerworldSeen = !!c.makerworldSeen;
     state.shopSeen       = !!c.shopSeen;
+    state.coffeeSeen     = !!c.coffeeSeen;
     try { applyDebugMode(); } catch {}
     try { renderCommunityBadges(); } catch {}
   }
@@ -23547,6 +23788,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       state.githubSeen     = !!data.githubSeen;
       state.makerworldSeen = !!data.makerworldSeen;
       state.shopSeen       = !!data.shopSeen;
+      state.coffeeSeen     = !!data.coffeeSeen;
 
       // Mirror the minimal user-doc shape to the local-first cache so the
       // NEXT cold start can hydrate roles / debug / keys / isPublic before
@@ -23560,7 +23802,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         vatCountry: data.vatCountry || null,
         priceInputMode: data.priceInputMode === "HT" ? "HT" : "TTC",
         discordSeen: !!data.discordSeen, githubSeen: !!data.githubSeen, makerworldSeen: !!data.makerworldSeen,
-        shopSeen: !!data.shopSeen,
+        shopSeen: !!data.shopSeen, coffeeSeen: !!data.coffeeSeen,
         displayName: data.displayName || null,
       });
 
@@ -23884,7 +24126,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
             const uid  = card?.uid ? `<span class="rfid-pod-uid">${esc(card.uid)}</span>` : "";
             return `<div class="rfid-pod-row${card ? " card-present" : ""}">
               <span class="rrd-dot"></span>
-              <span class="rrd-name">RFID #${idx + 1}</span>${uid}
+              <span class="rrd-name">NFC #${idx + 1}</span>${uid}
             </div>`;
           }).join("");
       bar.innerHTML = `<div class="rfid-pod ${stateCls}">

@@ -5,6 +5,40 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v2.5.0 — 2026-07-11
+
+The reorder list becomes a proper shopping cart (active cart + a "saved for later" shelf, drag-and-drop), filament pricing surfaces across the app (a **Stock Value** stat and a **sortable Price** column), the Add-product panel is reorganised with app-styled dropdowns, every user-facing **"RFID" becomes "NFC"**, and **"Buy me a coffee"** support lands. Plus a batch of fixes.
+
+### Added
+
+- **Reorder "To order" view is now a two-zone cart.** An **active cart** (products below their min-stock) plus a **"saved for later" shelf**. A non-destructive `savedForLater` flag moves a line between zones — either via a text action ("Buy later" / "Add to cart", no ambiguous icon beside the buy-cart) or by **drag-and-drop**: a grip handle reorders within a zone or drags a line across to the other, persisting a per-product `sortRank` (native HTML5 DnD). Both zones stay droppable even when empty; the payment total counts the active cart only.
+- **"Stock Value" header stat card** (after "Stock" kg) — the total worth of the current stock in the account's currency: each spool valued at its product's `buyPriceHt`, prorated by remaining-weight fraction, shown in the account's HT/TTC mode.
+- **Sortable "Price" column in the inventory Table view** (after Capacity), showing each spool's product price in the account's currency + HT/TTC mode ("-" when unpriced); sortable asc/desc (`sortRows` + `_sortGroupedItems` read the price off the product) with a matching "Price" option in the grid sort select.
+- **"Buy me a coffee" support** at four entry points (sidebar button, Settings → About, What's New footer, and a delayed nudge after 3 days of use), using the official Buy Me a Coffee brand assets and the existing community-nudge system (per-account, Firestore-synced).
+
+### Changed
+
+- **Loving a product (❤) forces a minimum stock of ≥1** so it's automatically tracked for reorder and lands in the cart once out of stock. Coupled in `_coupleFlags`; never lowers an existing higher min, and the forced min is carried into the persisted patch so it survives the Firestore echo.
+- **Add-product panel reorganised:** Type, Diameter, Weight and Unit are now always visible (below the Nozzle/Drying cards) instead of buried in Advanced; the duplicate advanced Type select was removed (single canonical `adpType`). The plain identity dropdowns (Type, Aspect 1/2, Diameter, Unit) now use the app-styled popup (`_enhanceSelect`) instead of the native OS menu; the "None" material and the TigerTag banner were dropped.
+- **Terminology: every user-facing "RFID" is now "NFC"** (the tech is NFC/NTAG) across all 9 locales + the hardcoded UI labels; internal identifiers (i18n keys, IPC channels, Firestore fields, icons, comments) are untouched, and the `OpenRFID` firmware name is preserved verbatim.
+- **Header device indicators rebranded + unified:** the NFC-reader pod hover reads **"TigerPOD not connected"**, the scale **"TigerScale not connected"**; the four header status hovers now share one bubble style with a state-coloured dot + full text.
+- Windows code-signing CI now targets the rebuilt Azure Trusted Signing account (`TigerTagStudioSigning`, North Europe endpoint); signing stays a no-op until `TRUSTED_SIGNING_CERT_PROFILE` is set (pending Microsoft identity validation of 3D FRANCE).
+- The "created" toast now says **TigerCloud** (matching the stats badge).
+
+### Fixed
+
+- Add-product: picking a bicolor/tricolor/rainbow colour mode now updates the visible **Aspect 2** dropdown in real time (the app-styled dropdown's button label wasn't refreshed after a programmatic value set; same fix for the Aspect 1 mirror).
+- Add-product: the Material selector now shows **PLA** (the real default) on open instead of a stale **ABS**.
+- Reorder: removing a line no longer **deletes the whole product doc** (favorite, buy link, price, SKU/EAN, min-stock) — it moves to "saved for later" instead. The destructive delete path is gone.
+- macOS: closing the window with the red button now hides it (Firebase session, inventory and cameras kept alive); a Dock-click brings it straight back instead of leaving an invisible window.
+- Opening the Friends panel now closes every other side card instead of stacking them underneath.
+
+### Removed
+
+- The TD1S status icon from the header — TigerPod and TigerScale now sit side by side (TD1S stays reachable via its panel button).
+- The "RFID" banner image at the top of the Add-product side card.
+- The destructive `_deleteProductByHash()` product-delete path from the reorder view.
+
 ## v2.4.0 — 2026-07-10
 
 A read-only Product "business card" for out-of-stock favorites, an Aspect filter, épuré click-to-copy for SKU/EAN, app-styled dropdowns, and a data-model refactor: friends' favorites are now read straight from their `products` (the `productShares` projection is gone). Plus a batch of Product-info card refinements.

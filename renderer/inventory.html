@@ -116,6 +116,14 @@
         <span class="label" data-i18n="discordBtn">Discord</span>
         <span class="sb-community-badge" aria-hidden="true">1</span>
       </button>
+      <!-- Buy me a coffee → support the project (opens in the browser). Official
+           brand button image; the badge only lights up after a few days of use
+           (see _maybeNudgeCommunity). Collapsed rail shows the cup glyph only. -->
+      <button class="sb-coffee-btn" id="sbCoffeeBtn" aria-label="Buy me a coffee">
+        <img class="sb-coffee-cup" src="../assets/svg/logos/logo_buy_me_coffee.svg" alt="" aria-hidden="true" />
+        <span class="label" data-i18n="coffeeBtn">Buy me a coffee</span>
+        <span class="sb-community-badge" aria-hidden="true">1</span>
+      </button>
       <!-- App version (always visible, discreet — populated at runtime from preload) -->
       <div class="sb-version" id="sbVersion">v—</div>
     </div>
@@ -137,8 +145,7 @@
       <div class="sb-stats-wrap top-stats hidden" id="sbStats"></div>
       <div class="top-status-icons">
         <div id="rfidReadersBar" class="rfid-readers-bar"></div>
-        <div class="health td1s-health" id="td1sHealth" data-tooltip="TD1S: not detected"><span class="td1s-health-icon"></span></div>
-        <div class="health scale-health" id="scaleHealth" data-tooltip="No scale connected"><span class="scale-health-icon"></span><span class="scale-live" aria-hidden="true"></span></div>
+        <div class="health scale-health" id="scaleHealth" data-tooltip="TigerScale not connected"><span class="scale-health-icon"></span><span class="scale-live" aria-hidden="true"></span></div>
         <div class="health" id="health" data-tooltip="Backend: idle"><span class="icon icon-cloud-3d icon-20"></span></div>
         <div class="health update-health hidden" id="updateStatusIcon" data-tooltip=""><span class="update-health-icon"></span></div>
       </div>
@@ -272,6 +279,7 @@
             <option value="isPlus"          data-i18n="thType">Type</option>
             <option value="weightAvailable" data-i18n="thWeight">Weight avail.</option>
             <option value="capacity"        data-i18n="thCapacity">Capacity</option>
+            <option value="price"           data-i18n="thPrice">Price</option>
             <option value="lastUpdate"      data-i18n="thUpdated">Updated</option>
           </select>
           <button id="gridSortDir" class="inv-sort-dir" type="button" data-i18n-title="sortDir" title="Sort direction">↑</button>
@@ -294,6 +302,7 @@
               <th class="sortable" data-sort="colorName" data-i18n="thName">Name</th>
               <th class="sortable" data-sort="weightAvailable" data-i18n="thWeight">Weight avail.</th>
               <th class="sortable" data-sort="capacity" data-i18n="thCapacity">Capacity</th>
+              <th class="sortable" data-sort="price" data-i18n="thPrice">Price</th>
               <th class="sortable" data-sort="lastUpdate" data-i18n="thUpdated">Updated</th>
             </tr>
           </thead>
@@ -465,7 +474,7 @@
           <button class="ghost sm" id="btnDebug"><span class="icon icon-search icon-13"></span><span data-i18n="debugOpenBtn">Open debug panel</span></button>
           <button class="ghost sm" id="btnFsExplorer"><span class="icon icon-local-fire icon-13"></span><span data-i18n="fsExplorerOpenBtn">Open Firestore explorer</span></button>
           <button class="ghost sm" id="btnTD1S"><span class="td1s-dev-icon"></span><span>Open TD1S panel</span></button>
-          <button class="ghost sm" id="btnRfidTest"><span class="icon icon-nfc icon-13"></span><span>Open RFID tester</span></button>
+          <button class="ghost sm" id="btnRfidTest"><span class="icon icon-nfc icon-13"></span><span>Open NFC tester</span></button>
           <button class="ghost sm" id="btnReportProblem"><span class="icon icon-info icon-13"></span><span data-i18n="errReportBtn">Report a problem</span></button>
         </div>
       </div>
@@ -494,6 +503,9 @@
             <span class="icon icon-github icon-13"></span>
             <span>GitHub</span>
           </a>
+          <button class="bmc-btn bmc-btn--sm" id="btnSupportAbout" aria-label="Buy me a coffee">
+            <img src="../assets/svg/logos/logo_buymeacoffee.png" alt="Buy me a coffee" />
+          </button>
         </div>
       </div>
     </section>
@@ -764,6 +776,12 @@
     </header>
     <div class="whatsnew-body" id="whatsNewBody"></div>
     <footer class="whatsnew-actions">
+      <div class="whatsnew-coffee-wrap">
+        <span class="whatsnew-coffee-cap" data-i18n="whatsNewCoffee">Enjoying it?</span>
+        <button class="bmc-btn bmc-btn--sm" id="whatsNewCoffee" aria-label="Buy me a coffee">
+          <img src="../assets/svg/logos/logo_buymeacoffee.png" alt="Buy me a coffee" />
+        </button>
+      </div>
       <button class="whatsnew-btn" id="whatsNewLater" data-i18n="whatsNewLater">Later</button>
       <button class="whatsnew-btn whatsnew-btn--primary" id="whatsNewGotIt" data-i18n="whatsNewGotIt">Got it</button>
     </footer>
@@ -1414,7 +1432,7 @@
 <div class="modal-overlay" id="rfidTestOverlay">
   <div class="modal-card rfid-test-card">
     <div class="modal-header">
-      <span class="modal-title">RFID Tag Tester</span>
+      <span class="modal-title">NFC Tag Tester</span>
       <button class="panel-close" id="rfidTestClose">✕</button>
     </div>
     <!-- One column per reader — populated dynamically by JS -->
@@ -1452,7 +1470,7 @@
       <button class="panel-close cem-close" id="cemClose">✕</button>
     </div>
     <div class="cem-body">
-      <div class="cem-hint" id="cemSub" data-i18n="encPlaceChips">Hold the RFID tags in front of the readers</div>
+      <div class="cem-hint" id="cemSub" data-i18n="encPlaceChips">Hold the NFC tags in front of the readers</div>
       <div class="cem-chips" id="cemChips"></div>
       <div class="cem-progress" id="cemProgress"><span class="cem-progress-fill"></span></div>
       <div class="cem-overwrite hidden" id="cemOverwrite">
@@ -2098,14 +2116,6 @@
 
   <div class="panel-body adp-body">
 
-    <!-- TigerTag RFID banner — same image asset as the mobile
-         "Create TigerTag" screen (`TigerTag_Banner.png`). Centred at
-         the top of the body so the visual anchor is iso between the
-         desktop side card and the mobile creator page. -->
-    <div class="adp-banner">
-      <img src="../assets/img/TigerTag_Banner.png" alt="TigerTag" class="adp-banner-logo" />
-    </div>
-
     <!-- Top row — Select Color circle on the LEFT (with label above
          and Dual Link toggle below) + identity stack (Brand / Material
          / Aspect 1) on the RIGHT. 1:1 with the mobile creator screen. -->
@@ -2115,7 +2125,7 @@
           <span class="adp-label adp-label--centered" data-i18n="addProductSelectColor">Select Color</span>
           <button id="adpColorSquare" class="adp-color-circle" type="button" title=""></button>
           <div class="adp-dual-link">
-            <span class="adp-label" data-i18n="addProductDualLink">Dual Link</span>
+            <span class="adp-label" data-i18n="addProductDualLink">Dual NFC</span>
             <button id="adpDualLinkToggle" type="button"
                     class="adp-toggle" role="switch" aria-checked="false" data-on="false">
               <span class="adp-toggle-knob"></span>
@@ -2213,10 +2223,37 @@
       </div>
     </section>
 
-    <!-- Type dropdown (left) + Settings cog & Advanced toggle (right).
-         Cog flips an inner toggle to expose the advanced fields below. -->
+    <!-- Everyday fields, ALWAYS visible (moved out of Advanced so Type is
+         never shown twice): Type + Diameter, then Weight + Unit. -->
+    <section class="adp-section">
+      <div class="adp-grid-2">
+        <label class="adp-row">
+          <span class="adp-label" data-i18n="addProductTypeLbl">Type</span>
+          <select id="adpType" class="adp-select"></select>
+        </label>
+        <label class="adp-row">
+          <span class="adp-label" data-i18n="addProductDiameterLbl">Diameter (mm)</span>
+          <select id="adpDiameter" class="adp-select"></select>
+        </label>
+      </div>
+      <div class="adp-grid-2">
+        <label class="adp-row">
+          <span class="adp-label" data-i18n="addProductWeightLbl">Weight (g)</span>
+          <input id="adpWeight" type="number" class="adp-input adp-int-only"
+                 value="1000" min="1" max="16777215" step="1"
+                 inputmode="numeric" required />
+        </label>
+        <label class="adp-row">
+          <span class="adp-label" data-i18n="addProductUnitLbl">Unit</span>
+          <select id="adpUnit" class="adp-select"></select>
+        </label>
+      </div>
+    </section>
+
+    <!-- Advanced toggle — the cog reveals the deeper fields (Aspect 2,
+         temps, TD, RFID preview) below. -->
     <section class="adp-section adp-type-row">
-      <select id="adpType" class="adp-select adp-select--type"></select>
+      <span class="adp-advanced-lbl" data-i18n="addProductAdvancedLbl">Advanced settings</span>
       <div class="adp-type-aside">
         <span class="icon icon-settings icon-16 adp-type-cog"></span>
         <button id="adpAdvancedToggle" type="button"
@@ -2231,18 +2268,6 @@
          RFID Data JSON preview block. -->
     <section class="adp-advanced-body" id="adpAdvancedBody" hidden>
 
-      <!-- Type + Diameter -->
-      <div class="adp-grid-2">
-        <label class="adp-row">
-          <span class="adp-label" data-i18n="addProductTypeLbl">Type</span>
-          <select id="adpTypeAdv" class="adp-select"></select>
-        </label>
-        <label class="adp-row">
-          <span class="adp-label" data-i18n="addProductDiameterLbl">Diameter (mm)</span>
-          <select id="adpDiameter" class="adp-select"></select>
-        </label>
-      </div>
-
       <!-- Aspect 1 + Aspect 2 -->
       <div class="adp-grid-2">
         <label class="adp-row">
@@ -2252,23 +2277,6 @@
         <label class="adp-row">
           <span class="adp-label" data-i18n="addProductAspect2Lbl">Aspect 2</span>
           <select id="adpAspect2" class="adp-select"></select>
-        </label>
-      </div>
-
-      <!-- Weight (integer-only, required, max = 2^24-1 = 16,777,215
-           grams since the chip stores it in 3 bytes big-endian) +
-           Unit. No decimals, no commas, no negative — JS strips
-           anything that's not a digit AND clamps to `max` live. -->
-      <div class="adp-grid-2">
-        <label class="adp-row">
-          <span class="adp-label" data-i18n="addProductWeightLbl">Weight (g)</span>
-          <input id="adpWeight" type="number" class="adp-input adp-int-only"
-                 value="1000" min="1" max="16777215" step="1"
-                 inputmode="numeric" required />
-        </label>
-        <label class="adp-row">
-          <span class="adp-label" data-i18n="addProductUnitLbl">Unit</span>
-          <select id="adpUnit" class="adp-select"></select>
         </label>
       </div>
 
@@ -2346,7 +2354,7 @@
     <div class="panel-section adp-rfid-section" id="adpRfidSection" hidden>
       <details class="debug adp-rfid-details" id="adpRfidDetails">
         <summary>
-          <strong data-i18n="addProductRfidDataLbl">RFID Data</strong>
+          <strong data-i18n="addProductRfidDataLbl">NFC Data</strong>
         </summary>
         <!-- No `max-height` cap — when the user expands the <details>
              we show the full JSON inline. The Add Product panel's
@@ -2605,14 +2613,14 @@
     <!-- Body -->
     <div class="tigerpod-body">
       <h2 class="tigerpod-title" data-i18n="tigerPodModalTitle">Print your TigerPOD Now !</h2>
-      <p class="tigerpod-desc" data-i18n="tigerPodModalDesc">A 3D-printable stand to Burn TigerTag RFID chips directly on your filament spools.</p>
+      <p class="tigerpod-desc" data-i18n="tigerPodModalDesc">A 3D-printable stand to Burn TigerTag NFC chips directly on your filament spools.</p>
 
       <!-- Key features 2×2 grid -->
       <div class="tigerpod-features">
         <div class="tigerpod-feat">
           <span class="tigerpod-feat-num">1</span>
           <div class="tigerpod-feat-text">
-            <strong data-i18n="tigerPodFeat1Title">Dual RFID Reader</strong>
+            <strong data-i18n="tigerPodFeat1Title">Dual NFC Reader</strong>
             <span data-i18n="tigerPodFeat1Desc">1 or 2 Reader ACR122U</span>
           </div>
         </div>

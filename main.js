@@ -223,6 +223,16 @@ let splashWindow = null; // lightweight launch splash, closed once renderer is r
 let _mainRevealed = false; // guard so revealMainWindow() runs exactly once
 let _camWindow = null; // detached camera wall window (optional)
 
+// macOS: the red-button close should HIDE the main window (keeping the app +
+// its whole renderer state — Firebase session, inventory, cameras — alive),
+// not destroy it. `activate` (dock-click) then re-shows it instantly, with no
+// reload and no re-login. `_isQuitting` distinguishes a genuine quit (Cmd+Q,
+// updater, app.quit) — where the window must actually close — from a window
+// close. Set true on `before-quit`; the migration guard resets it if it
+// blocks that quit (see its handler below).
+let _isQuitting = false;
+app.on('before-quit', () => { _isQuitting = true; });
+
 // ── Splash gate ────────────────────────────────────────────────────────────
 // Discord-style launch: a tiny frameless splash shows INSTANTLY (it's a
 // self-contained data: URL, no server / Firebase needed), while the hidden
@@ -325,6 +335,11 @@ async function _sdkPayload(tag, readerName = null) {
 
 // ── Create main window
 function createWindow() {
+  // Reset the reveal latch so a window recreated from `activate` (macOS
+  // dock-click after the red-button close destroyed the previous one)
+  // runs its own splash→reveal cycle. Without this the new window stays
+  // hidden forever — `revealMainWindow` short-circuits on the stale flag.
+  _mainRevealed = false;
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 820,
@@ -344,6 +359,19 @@ function createWindow() {
       webviewTag: true,    // required for <webview> Creality camera (cross-origin JS injection)
     },
   });
+
+  // macOS: red-button close hides the window instead of destroying it, so the
+  // renderer (auth session, inventory, live cameras) survives and a dock-click
+  // brings it straight back. A real quit (Cmd+Q / updater) sets `_isQuitting`
+  // and is let through. Other platforms keep the default close→quit behaviour.
+  if (process.platform === 'darwin') {
+    mainWindow.on('close', (e) => {
+      if (!_isQuitting) {
+        e.preventDefault();
+        mainWindow.hide();
+      }
+    });
+  }
 
   // Primary reveal signal — renderer posts this after hydrating from cache.
   ipcMain.once('studio:ready', revealMainWindow);
@@ -1332,8 +1360,11 @@ const { dialog } = require('electron');
 let _quitConfirmedDuringMigration = false;
 app.on('before-quit', (event) => {
   if (!_migrationInFlight || _quitConfirmedDuringMigration) return;
-  // Block this quit attempt and ask the user to confirm
+  // Block this quit attempt and ask the user to confirm. Clear the quit
+  // latch set by the top-level before-quit handler so a later red-button
+  // close still hides (rather than destroys) the window if the user waits.
   event.preventDefault();
+  _isQuitting = false;
   if (mainWindow) mainWindow.show();
   const choice = dialog.showMessageBoxSync(mainWindow, {
     type:    'warning',
@@ -3715,7 +3746,15 @@ app.whenReady().then(async () => {
   });
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    // Dock-click / re-activation: the window is normally just hidden (macOS
+    // close-to-hide above), so re-show it with its state intact. Only rebuild
+    // if it was genuinely destroyed (e.g. a non-darwin edge case).
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.show();
+      mainWindow.focus();
+    } else if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow();
+    }
   });
 });
 

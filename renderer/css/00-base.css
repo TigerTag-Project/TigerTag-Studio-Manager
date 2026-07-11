@@ -643,7 +643,8 @@
   .sidebar.collapsed .sb-github-btn,
   .sidebar.collapsed .sb-makerworld-btn,
   .sidebar.collapsed .sb-discord-btn,
-  .sidebar.collapsed .sb-shop-btn {
+  .sidebar.collapsed .sb-shop-btn,
+  .sidebar.collapsed .sb-coffee-btn {
     width: 40px; padding: 0; border-radius: 10px;   /* 40×40 square (height from the shared 40px rule) */
     gap: 0;   /* drop the icon↔label gap so the icon stays centred when the label collapses */
   }

@@ -1654,30 +1654,45 @@
   }
 
   /* hover popover */
+  /* Same chrome/position as the .health tooltip above (right-anchored, 7px
+     radius, 11px text) so the four header hovers read as one family — this pod
+     one just carries one row per reader (dot + full name + UID). */
   .rfid-pod-pop {
-    position: absolute; top: calc(100% + 7px); left: 50%;
-    transform: translateX(-50%) translateY(-4px);
-    background: #1c2030; border: 1px solid rgba(255,255,255,.1); border-radius: 9px;
-    padding: 7px 9px; min-width: 116px; display: flex; flex-direction: column; gap: 5px;
+    position: absolute; top: calc(100% + 7px); right: 0; left: auto;
+    transform: translateY(-4px);
+    background: #1c2030; border: 1px solid rgba(255,255,255,.1); border-radius: 7px;
+    padding: 5px 10px; display: flex; flex-direction: column; gap: 5px;
     opacity: 0; pointer-events: none; transition: opacity .15s, transform .15s;
-    box-shadow: 0 6px 18px rgba(0,0,0,.35); z-index: 60;
+    box-shadow: 0 4px 12px rgba(0,0,0,.3); z-index: 60;
   }
-  .rfid-pod:hover .rfid-pod-pop { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .rfid-pod:hover .rfid-pod-pop { opacity: 1; transform: translateY(0); }
   .rfid-pod-row { display: flex; align-items: center; gap: 7px; white-space: nowrap; font-size: 11px; font-weight: 600; color: #fff; }
   .rfid-pod-row .rrd-dot {
     width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
-    background: var(--success); box-shadow: 0 0 5px var(--success);
+    background: var(--success);
   }
-  .rfid-pod-row.card-present .rrd-dot { background: #fff; box-shadow: 0 0 6px rgba(255,255,255,.6); }
-  .rfid-pod.disconnected .rfid-pod-row .rrd-dot { background: #ef4444; box-shadow: none; }
-  .rfid-pod-row .rrd-name { max-width: 110px; overflow: hidden; text-overflow: ellipsis; }
+  .rfid-pod-row.card-present .rrd-dot { background: #fff; }
+  .rfid-pod.disconnected .rfid-pod-row .rrd-dot { background: #ef4444; }
+  .rfid-pod-row .rrd-name { overflow: hidden; text-overflow: ellipsis; }   /* full text — no fixed max-width */
   .rfid-pod-uid { margin-left: auto; padding-left: 10px; font-family: ui-monospace, monospace; font-size: 10px; color: var(--success); letter-spacing: .03em; }
 
+  /* Unified header status tooltip — a state-coloured dot + the full text, same
+     chrome/position/font as the TigerPod popup below. `--tip-dot` is set per
+     device state (green connected · red disconnected · muted idle). */
+  .health { --tip-dot: var(--muted); }
+  .td1s-health.td1s-connected,
+  .scale-health.scale-connected,
+  #health.ok { --tip-dot: var(--success); }
+  .td1s-health:not(.td1s-connected),
+  .scale-health:not(.scale-connected),
+  #health.bad { --tip-dot: #ef4444; }
   .health::after {
     content: attr(data-tooltip);
     position: absolute; top: calc(100% + 7px); right: 0;
-    background: #1c2030; color: #fff; border: 1px solid rgba(255,255,255,.1);
-    padding: 5px 10px; border-radius: 7px; font-size: 11px; white-space: nowrap;
+    padding: 5px 10px 5px 21px;   /* left room for the dot */
+    background: radial-gradient(circle at 11px 50%, var(--tip-dot) 0 3px, transparent 3px) no-repeat, #1c2030;
+    color: #fff; border: 1px solid rgba(255,255,255,.1);
+    border-radius: 7px; font-size: 11px; font-weight: 600; white-space: nowrap;
     opacity: 0; pointer-events: none; transition: opacity .15s;
     box-shadow: 0 4px 12px rgba(0,0,0,.3); z-index: 50;
   }
@@ -1845,24 +1860,6 @@
     padding: 12px var(--adp-side-padding) 18px;
   }
 
-  /* TigerTag RFID banner — same PNG asset as the Flutter creator
-     screen (`TigerTag_Banner.png`). The image already has its own
-     colour palette + subtitle baked in, so no filter / pill needed.
-     Zero padding/margin so the logo hugs the panel edges and the
-     header divider directly. */
-  .adp-banner {
-    display: flex;
-    justify-content: center;
-    margin: 0;
-    padding: 0;
-  }
-  .adp-banner-logo {
-    width: 100%;
-    max-width: 260px;
-    height: auto;
-    display: block;
-    margin: 0;
-  }
 
   /* Color row — mobile layout: circle + 2 stacks. The colour column
      adds a "Select Color" label above and a Dual Link toggle below. */
@@ -1991,6 +1988,50 @@
     background: var(--adp-surface);
     color: var(--adp-text);
   }
+
+  /* ── App-styled dropdown (.csel via _enhanceSelect) inside the panel ────────
+     The plain <select>s (Type / Aspect / Diameter / Unit) swap their unstylable
+     OS option list for a dark, on-theme popup. The .csel button is restyled to
+     the EXACT .adp-select field look, so the panel chrome is unchanged — only
+     the open menu is now app-styled (and consistent with the toolbar filters). */
+  .adp-panel .csel { display: block; width: 100%; }
+  /* Type row keeps its content-width sizing next to the cog / advanced toggle. */
+  .adp-type-row .csel { flex: 0 0 auto; width: auto; min-width: 130px; max-width: 60%; }
+  .adp-panel .csel-btn {
+    width: 100%; height: 36px; max-width: none; box-sizing: border-box;
+    display: flex; align-items: center; justify-content: flex-start; text-align: left;
+    padding: 0 28px 0 10px;
+    border: 1.5px solid #fff; border-radius: 10px;
+    background-color: var(--adp-surface); color: var(--adp-text);
+    font-size: 13px; font-family: inherit; cursor: pointer;   /* weight inherits the panel's 700, like the Brand/Material triggers */
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 5'><path d='M0 0l4 5 4-5z' fill='rgba(255,255,255,0.6)'/></svg>");
+    background-position: right 12px center; background-size: 8px 5px; background-repeat: no-repeat;
+    transition: border-color .12s, box-shadow .12s, background-color .12s;
+  }
+  /* Label fills the button and stays left-aligned, exactly like .adp-trigger-label
+     on Brand / Material — same 13px, same normal weight, same ellipsis. */
+  .adp-panel .csel-label { flex: 1; min-width: 0; text-align: left; font-size: 13px; color: var(--adp-text); }
+  .adp-panel .csel-btn:hover,
+  .adp-panel .csel--open .csel-btn { background-color: var(--adp-surface-2); }
+  .adp-panel .csel--open .csel-btn { box-shadow: 0 0 0 3px rgba(255,255,255,.12); }
+  /* Neutralise the filter's orange "is-active" look — a panel field always holds
+     a value, it is not a filter. */
+  .adp-panel .csel-btn.is-active {
+    color: var(--adp-text); background-color: var(--adp-surface);
+    border-color: #fff;   /* keep the panel's bold weight — don't reset it here */
+  }
+  .adp-panel .csel-btn.is-active:hover,
+  .adp-panel .csel--open .csel-btn.is-active { background-color: var(--adp-surface-2); }
+  .adp-panel .csel-pop {
+    max-width: none; background: var(--adp-surface);
+    border: 1.5px solid rgba(255,255,255,.85); border-radius: 10px;
+    box-shadow: 0 16px 40px rgba(0,0,0,.45);
+  }
+  .adp-panel .csel-opt { color: var(--adp-text); font-size: 13px; font-weight: 400; }
+  .adp-panel .csel-opt:hover { background: var(--adp-surface-2); }
+  /* Selected option: highlighted by the background only — NO bold, so it stays
+     iso with every other panel field. */
+  .adp-panel .csel-opt.is-sel { color: #fff; font-weight: 400; background: rgba(255,255,255,.10); }
 
   /* Top row — round swatch on left, identity stack on right.
      `align-items: stretch` so the stack fills the row's vertical
@@ -3090,6 +3131,8 @@
     justify-content: space-between;
     gap: 10px;
   }
+  /* Label of the Advanced-toggle row (left), cog + switch sit on the right. */
+  .adp-advanced-lbl { font-size: 13px; color: var(--adp-text); }
   /* Type select — same chrome as Brand / Material / Aspect 1 (1.5 px
      white border, anthracite fill, custom triangle caret). Width
      adapts to its content with a sensible min so the label
@@ -3731,3 +3774,9 @@
   background: var(--primary, #f97316); color: #fff; border-color: var(--primary, #f97316);
 }
 .whatsnew-btn--primary:hover { filter: brightness(1.05); }
+/* Support block in the What's New footer — a short caption + the official
+   "Buy me a coffee" button (.bmc-btn), pushed to the left (margin-right:auto)
+   so the Later / Got it actions stay on the right. */
+.whatsnew-coffee-wrap { margin-right: auto; display: inline-flex; align-items: center; gap: 9px; }
+.whatsnew-coffee-cap { font-size: 12.5px; font-weight: 600; color: var(--text-dim, #8b93a7); }
+@media (max-width: 440px) { .whatsnew-coffee-cap { display: none; } }

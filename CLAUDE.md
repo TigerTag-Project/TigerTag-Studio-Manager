@@ -1,5 +1,17 @@
 # Tiger Studio Manager — Claude reference
 
+## ⏳ ACTIVE TASK — CHECK AT THE START OF EVERY SESSION (until done)
+
+**Windows code-signing via Azure Trusted Signing is mid-setup and waiting on Microsoft's identity-validation review.** Identity validation for **3D FRANCE** was submitted **2026-07-10** (status was *"En cours"*, ID `372c3c1f-778e-4430-81d0-4ab233d90664`). Microsoft reviews it in 1–7 business days — so it may go through on any day. **Do not let this slip.**
+
+**Every session, before other work, check whether it has been approved:**
+1. Search the connected **Gmail** for a recent mail from `azure-noreply@microsoft.com` about artifact-signing / identity-validation **status** (look for Approved/Completed vs Failed for 3D FRANCE). This is the cheapest check and needs no portal login.
+2. **If APPROVED →** resume and finish the integration — full step list + all IDs/values are in memory **`project-azure-trusted-signing`**: create the Public **certificate profile** → have the user assign the **"Artifact Signing Certificate Profile Signer"** role to the CI service principal (`AZURE_CLIENT_ID`) → set the GitHub repo **variable `TRUSTED_SIGNING_CERT_PROFILE`** → update `.github/workflows/build.yml` (account name `TigerTagSigning`→`TigerTagStudioSigning`, endpoint `weu`→`neu`) → run a test build to confirm a **signed `.exe`**.
+3. **If still pending →** tell the user we're still waiting; nothing else to do on it.
+4. **If FAILED →** read the reason, fix, resubmit (note: the holding *STARGATE GROUP* is intentionally NOT used — too young, <3 years; see the memory).
+
+**Delete this whole section once signed `.exe` builds are confirmed working.**
+
 ## ⚡ Token efficiency — read this first
 
 Every file read and grep costs tokens. Follow these rules on every task to keep context lean:
@@ -27,10 +39,14 @@ Every file read and grep costs tokens. Follow these rules on every task to keep 
 
 > Warn the user when context is getting large (> ~60 k tokens used) so they can start a new session before quality degrades.
 
-**Model fit — signal proactively, don't wait to be asked:**
-- **Simple task** (CSS tweak, i18n key, value change, short question) → suggest switching to **claude-haiku** or **claude-sonnet** to save tokens. Phrasing: *"This is a simple task — you can run it on Sonnet/Haiku to save tokens."*
-- **Complex task** (multi-file refactor, new system, multi-layer debugging, architecture) → if reasoning feels shallow or you keep making mistakes, ask to switch to **claude-opus**. Phrasing: *"This task is complex — switching to Opus will give a better result."*
-- Do not wait for the user to notice a problem: signal the mismatch as soon as it is obvious.
+**Model fit — delegate cheap work yourself, don't ask the user to switch models:**
+
+The main loop stays on Opus. To save tokens on light work, **spawn a sub-agent on a cheaper model** — the sub-agent does its greps/reads in its OWN context and only its short summary returns to the main context (where the real cost is). Two project agents exist for this (`.claude/agents/`):
+
+- **Locating code** (« where is the function that… », sweeping `inventory.js`/`main.js`, finding a CSS rule or i18n key) → `Agent(subagent_type: "codemap-explorer")` — runs on **Haiku**. Do this by default instead of grepping the big files yourself.
+- **One self-contained low-risk edit** (CSS tweak, i18n key add/change, value change, copy tweak, a small fix in a known place) → `Agent(subagent_type: "simple-task")` — runs on **Sonnet**. The prompt MUST be self-sufficient (exact file, exact change, expected result): the sub-agent sees nothing of the conversation. Include the relevant CLAUDE.md rule if it matters (i18n batch, brand voice, CSS section).
+
+When NOT to delegate: a true one-liner where writing the self-contained prompt costs more than just doing it; and multi-file refactors / new subsystems / multi-layer debugging / architecture — those stay on the main Opus loop (delegating them loses the reasoning quality). If the main-loop reasoning itself feels shallow on a complex task, tell the user Opus is the right call. Signal a mismatch as soon as it's obvious — don't wait to be asked.
 
 ---
 

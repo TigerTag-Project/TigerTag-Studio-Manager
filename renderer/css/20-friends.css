@@ -278,16 +278,19 @@
   .notif-ic--github     { background: #2d333b; border-color: #2d333b; }
   .notif-ic--makerworld { background: #00BCA0; border-color: #00BCA0; }
   .notif-ic--shop       { background: #5e8e3e; border-color: #5e8e3e; } /* Shopify green */
+  .notif-ic--coffee     { background: #FFDD00; border-color: #FFDD00; } /* Buy Me a Coffee yellow */
   /* Low-stock alert — amber circle, white box icon. */
   .notif-ic--lowstock { background: #f59e0b; border-color: #f59e0b; }
   .notif-ic--lowstock .icon { background: #fff; }
   /* Product illustration in a notification (fills the circular chip). */
   .notif-ic--img { padding: 0; overflow: hidden; background: var(--surface-2); }
   .notif-ic--img img { width: 100%; height: 100%; object-fit: cover; display: block; }
-  .notif-ic--discord, .notif-ic--github, .notif-ic--makerworld, .notif-ic--shop { border-radius: 10px; }
+  .notif-ic--discord, .notif-ic--github, .notif-ic--makerworld, .notif-ic--shop, .notif-ic--coffee { border-radius: 10px; }
   .notif-ic--discord .icon, .notif-ic--github .icon, .notif-ic--makerworld .icon, .notif-ic--shop .icon {
     background: #fff; width: 24px; height: 24px;
   }
+  /* Coffee cup is dark (not white) so it reads on the yellow square. */
+  .notif-ic--coffee .icon { background: #12100e; width: 24px; height: 24px; }
   /* Printer-brand notice — the machine "speaking": white chip + tinted brand
      logo, matching the printer list's brand badge. The logo's colour + mask
      come from .pt-thumb-logo[data-brand] (40-printers.css). */

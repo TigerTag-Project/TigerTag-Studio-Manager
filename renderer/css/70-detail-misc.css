@@ -80,6 +80,15 @@
   .icon-bug       { -webkit-mask-image: url('../../assets/svg/icons/icon_bug.svg');          mask-image: url('../../assets/svg/icons/icon_bug.svg'); }
   .icon-filter    { -webkit-mask-image: url('../../assets/svg/icons/icon_filter.svg');       mask-image: url('../../assets/svg/icons/icon_filter.svg'); }
   .icon-gift      { -webkit-mask-image: url('../../assets/svg/icons/icon_gift.svg');         mask-image: url('../../assets/svg/icons/icon_gift.svg'); }
+  .icon-coffee    { -webkit-mask-image: url('../../assets/svg/icons/icon_coffee.svg');       mask-image: url('../../assets/svg/icons/icon_coffee.svg'); }
+  .icon-grip      { -webkit-mask-image: url('../../assets/svg/icons/icon_grip.svg');         mask-image: url('../../assets/svg/icons/icon_grip.svg'); }
+  /* Official "Buy me a coffee" brand button — wraps the untouched PNG wordmark
+     (assets/svg/logos/logo_buymeacoffee.png). Shared by the What's New footer
+     and Settings → About. Never recolour or stretch the image. */
+  .bmc-btn { display: inline-flex; align-items: center; background: none; border: none; padding: 0; cursor: pointer; transition: transform .12s, filter .12s; }
+  .bmc-btn:hover { transform: translateY(-1px); filter: brightness(1.03); }
+  .bmc-btn img { display: block; height: 38px; width: auto; border-radius: 9px; }
+  .bmc-btn--sm img { height: 30px; }
   .icon-shield-check { -webkit-mask-image: url('../../assets/svg/icons/icon_shield_check.svg'); mask-image: url('../../assets/svg/icons/icon_shield_check.svg'); }
   .icon-github    { -webkit-mask-image: url('../../assets/svg/icons/icon_github.svg');       mask-image: url('../../assets/svg/icons/icon_github.svg'); }
   .icon-discord   { -webkit-mask-image: url('../../assets/svg/icons/icon_discord.svg');      mask-image: url('../../assets/svg/icons/icon_discord.svg'); }
@@ -862,7 +871,9 @@
     border-radius: 12px; box-shadow: 0 14px 36px rgba(0,0,0,.22);
     padding: 5px; max-height: 340px; overflow-y: auto; overscroll-behavior: contain;
     animation: cselPop .12s ease;
+    scrollbar-width: none;   /* Firefox — hide the scrollbar, keep the scroll */
   }
+  .csel-pop::-webkit-scrollbar { width: 0; height: 0; }   /* Chromium/WebKit */
   @keyframes cselPop { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
   .csel-opt {
     display: block; width: 100%; text-align: left; white-space: nowrap;
@@ -912,8 +923,14 @@
   .pv-order-list { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--surface); }
   .pv-order-line {
     border: none; border-bottom: 1px solid var(--border); border-radius: 0;
-    background: transparent; padding: 14px 16px;
+    background: transparent; padding: 8px 16px; align-items: center;
   }
+  /* Compact the order rows: smaller thumb + tight sub-line rhythm so a line with
+     a SKU under the title doesn't leave dead space below the text. */
+  .pv-order-line .pv-thumb { width: 42px; height: 42px; }
+  .pv-order-line .pv-line-title { line-height: 1.25; }
+  .pv-order-line .pv-line-sku { margin-top: 1px; }
+  .pv-order-line .pv-qty { margin-top: 2px; }
   .pv-order-line:last-child { border-bottom: none; }
   .pv-order-line:hover { border-color: transparent; background: var(--surface-2); }
   .pv-order-line:last-child:hover { border-bottom-color: transparent; }
@@ -922,15 +939,16 @@
   .pv-line-main { flex: 1; min-width: 0; }
   /* Whole identity on one line (Brand · Series · Colour name). */
   .pv-line-title { font-size: 14px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* SKU on its own line directly under the title (click-to-copy). */
+  .pv-line-sku { margin-top: 2px; display: flex; }
   .pv-qty { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 4px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
-  /* SKU in its own column (right of the identity, before the price columns). */
-  .pv-sku-col { flex-shrink: 0; width: 190px; display: flex; align-items: center; }
   /* Click-to-copy SKU — no permanent button chrome: the value itself is the
-     click target. A faint copy glyph only fades in on hover (discoverable, but
-     weightless), and a "Copied!" pill floats up on click. */
+     click target. Now sits inline under the name (on the stock sub-line), so it
+     no longer steals a fixed 190px column from the identity on narrow windows.
+     A faint copy glyph fades in on hover; a "Copied!" pill floats up on click. */
   .pv-sku {
-    position: relative; max-width: 100%; height: auto; display: inline-flex; align-items: center; gap: 5px;
-    padding: 3px 6px; margin: -3px -6px; border: none; background: none; border-radius: 7px;
+    position: relative; max-width: 220px; height: auto; display: inline-flex; align-items: center; gap: 5px;
+    padding: 1px 5px; margin: 0; border: none; background: none; border-radius: 7px;
     cursor: pointer; color: var(--muted); font-size: 12px; font-weight: 400; font-variant-numeric: tabular-nums;
     transition: color .15s, background .15s;
   }
@@ -979,7 +997,7 @@
   .pv-sum-tag { font-size: 10px; font-weight: 700; color: var(--muted); letter-spacing: .03em; }
   .pv-sum-total { margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--border); font-weight: 800; font-size: 16px; }
   .pv-line-actions { display: flex; gap: 6px; flex-shrink: 0; }
-  .pv-info, .pv-buy, .pv-remove {
+  .pv-info, .pv-buy {
     width: 34px; height: 34px; padding: 0; border-radius: 9px; cursor: pointer; flex-shrink: 0;
     display: inline-flex; align-items: center; justify-content: center;
     border: 1px solid var(--border);
@@ -994,19 +1012,65 @@
   .pv-buy .icon { background-color: #fff; }
   .pv-buy--off { background: var(--surface-2); border-color: var(--border); }
   .pv-buy--off .icon { background-color: var(--muted); }
-  .pv-remove { background: var(--surface-2); }
-  .pv-remove .icon { background-color: var(--danger); }
-  .pv-remove:hover { background: color-mix(in srgb, var(--danger) 12%, transparent); }
-  /* Order line: minimal muted × (like Shopify), reddening on hover. */
-  .pv-order-line .pv-remove { background: transparent; border: none; width: 28px; height: 28px; }
-  .pv-order-line .pv-remove .icon { background-color: var(--muted); }
-  .pv-order-line .pv-remove:hover { background: transparent; }
-  .pv-order-line .pv-remove:hover .icon { background-color: var(--danger); }
   .pv-flag { vertical-align: middle; }
   .pv-flag--liked { background-color: #e0245e; }
   .pv-flag--fav { background-color: #f5a623; }
   .pv-empty { padding: 48px 20px; text-align: center; color: var(--muted); font-size: 14px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
   .pv-empty .icon { background-color: var(--border); }
+  .pv-empty--inline { padding: 28px 20px; border: 1px dashed var(--border); border-radius: 12px; }
+
+  /* Reorder cart split in two zones: active cart + "saved for later" shelf. */
+  .pv-order-main { flex: 1; min-width: 0; }
+  .pv-order-main > * + * { margin-top: 22px; }
+  .pv-section-title {
+    display: flex; align-items: center; gap: 8px; margin: 0 2px 8px;
+    font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+    color: var(--muted);
+  }
+  .pv-section-count {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
+    background: var(--surface-2); color: var(--text); font-size: 11px; font-weight: 700;
+    letter-spacing: 0;
+  }
+  .pv-saved .pv-order-list { opacity: .82; }   /* the shelf reads a touch dimmer */
+  /* Amazon-style text actions under the item (non-destructive): "Save for later"
+     in the cart, "Move to cart" on the shelf. A tiny dot separates them from the
+     stock ratio. No icon — the wording is the clarity. */
+  .pv-qty-dot { color: var(--border); }
+  .pv-move-link {
+    background: none; border: none; padding: 0; cursor: pointer;
+    font-size: 12px; font-weight: 600; color: var(--muted);
+    transition: color .12s;
+  }
+  .pv-move-link:hover { color: var(--text); text-decoration: underline; }
+  /* "Move to cart" is the primary action on the shelf → accent-coloured. */
+  .pv-move-link--cart { color: var(--primary, #f97316); }
+  .pv-move-link--cart:hover { color: var(--primary, #f97316); filter: brightness(1.1); }
+
+  /* ── Reorder drag-and-drop ──────────────────────────────────────────────── */
+  /* Grip handle: fades in on row hover, grabs to drag. Only it starts a drag, so
+     the qty input / buttons stay fully usable. */
+  .pv-grip {
+    flex-shrink: 0; width: 22px; align-self: stretch; margin-left: -4px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: grab; opacity: 0; transition: opacity .12s;
+  }
+  .pv-order-line:hover .pv-grip { opacity: .45; }
+  .pv-grip:hover { opacity: 1; }
+  .pv-grip:active { cursor: grabbing; }
+  .pv-grip .icon { background-color: var(--muted); }
+  .pv-order-line--dragging { opacity: .35; }
+  /* Drop cues: an accent line between rows (drop before / after), or a dashed
+     ring on the zone when dropping into empty space. */
+  .pv-order-line.pv-drop-before { box-shadow: inset 0 3px 0 var(--primary, #f97316); }
+  .pv-order-line.pv-drop-after  { box-shadow: inset 0 -3px 0 var(--primary, #f97316); }
+  .pv-order-list.pv-zone-drop,
+  .pv-cart.pv-zone-drop, .pv-saved.pv-zone-drop {
+    outline: 2px dashed var(--primary, #f97316); outline-offset: 2px; border-radius: 12px;
+  }
+  .pv-order-list--empty { min-height: 88px; }
+  body.is-dragging-order { cursor: grabbing; }
 
   /* ── Favorites grid — reuses the inventory .spool-card (weight bar forced
        to 100 %); only kills the extra top margin inside the scroll host. ── */
