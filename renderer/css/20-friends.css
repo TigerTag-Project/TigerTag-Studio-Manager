@@ -243,6 +243,15 @@
   /* Breathing room: the list is the panel's only block, so it carries the
      padding itself (the Friends panel's children each have their own margins). */
   .notif-list { gap: 8px; padding: 16px; }
+  /* "Mark all read" — subtle accent link in the panel header (before the ✕). */
+  .notif-markall {
+    margin-left: auto; margin-right: 8px;
+    background: none; border: none; padding: 4px 8px; border-radius: 7px; cursor: pointer;
+    font-family: inherit; font-size: 12px; font-weight: 600; color: var(--primary);
+    transition: background .12s;
+  }
+  .notif-markall:hover { background: var(--surface-2); }
+  .notif-markall.hidden { display: none; }
   .notif-item {
     display: flex; align-items: center; gap: 11px;
     padding: 10px 12px; border-radius: 12px;
@@ -289,8 +298,8 @@
   .notif-ic--discord .icon, .notif-ic--github .icon, .notif-ic--makerworld .icon, .notif-ic--shop .icon {
     background: #fff; width: 24px; height: 24px;
   }
-  /* Coffee cup is dark (not white) so it reads on the yellow square. */
-  .notif-ic--coffee .icon { background: #12100e; width: 24px; height: 24px; }
+  /* Official Buy Me a Coffee cup (our own SVG) on the yellow square. */
+  .notif-ic--coffee .notif-coffee-img { width: 26px; height: 26px; display: block; }
   /* Printer-brand notice — the machine "speaking": white chip + tinted brand
      logo, matching the printer list's brand badge. The logo's colour + mask
      come from .pt-thumb-logo[data-brand] (40-printers.css). */

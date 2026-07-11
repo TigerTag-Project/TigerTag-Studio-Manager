@@ -5,6 +5,27 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v2.6.0 — 2026-07-11
+
+Notifications become a persistent, social-style feed (starting with low-stock alerts synced across devices), the inventory table gains an inline "Add price", and the "To order" button gets a live cart badge.
+
+### Added
+
+- **"Add price" in the inventory Table view.** The Price column now shows an inline **Add price** action for filaments with no price (single rows *and* group headers) that opens the product price editor straight into the input; read-only in a friend view.
+- **Live cart badge on the "To order" view button** — a red bubble with the number of products currently in the active cart (below min-stock, not set aside), updated on inventory / product / order-view changes (hidden at 0, "99+" past 99).
+
+### Changed
+
+- **Notification centre → persistent, social-style feed (phase 1).** **Low-stock alerts are now Firestore events** (`users/{uid}/notifications`, type `low_stock`) instead of ephemeral local notices: they **persist, sync across devices, carry a time-ago, and stay in history**. One event per genuine dip below min — a per-account `localStorage` active-set re-arms on restock and prevents re-firing while still below (or on app restart). The feed is **capped at 40** (newest first), notifications are **no longer deletable**, event rows are clickable to their action, and a **"Mark all read"** button + open-marks-all-read drop the unread badge to 0 (badge = pending friend requests + unread Firestore; local device notices — community / paxx / app-update — show but don't inflate it). New `_pushNotif` helper; backend `firestore.rules` gains an owner-`create` branch for `["low_stock","community","announcement"]` (deployed). Community/announcement sources land in a later phase.
+
+### Fixed
+
+- The "Buy me a coffee" notification now uses the official cup SVG and is a proper community nudge — `"coffee"` was missing from the community set, so the entry had no yellow chip and **wasn't clickable** (couldn't open the support page). Now branded + clickable like Discord/Shop.
+
+### Removed
+
+- Dead `assets/svg/icons/icon_coffee.svg` (feather cup) + its `.icon-coffee` CSS — the coffee cup everywhere now uses the official brand SVG.
+
 ## v2.5.0 — 2026-07-11
 
 The reorder list becomes a proper shopping cart (active cart + a "saved for later" shelf, drag-and-drop), filament pricing surfaces across the app (a **Stock Value** stat and a **sortable Price** column), the Add-product panel is reorganised with app-styled dropdowns, every user-facing **"RFID" becomes "NFC"**, and **"Buy me a coffee"** support lands. Plus a batch of fixes.

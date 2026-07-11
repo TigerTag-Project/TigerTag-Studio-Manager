@@ -198,7 +198,7 @@
               <span class="view-toggle-ind" aria-hidden="true"></span>
               <button id="btnViewFavesGrid" data-i18n="btnViewGrid">⊞ Grid</button>
               <button id="btnViewFavesTable"><span class="icon icon-list icon-13"></span><span data-i18n="btnViewTable">Table</span></button>
-              <button id="btnViewOrder"><span class="icon icon-cart icon-13"></span><span data-i18n="btnViewOrder">To order</span></button>
+              <button id="btnViewOrder"><span class="icon icon-cart icon-13"></span><span data-i18n="btnViewOrder">To order</span><span class="view-order-badge" id="viewOrderBadge" hidden>0</span></button>
             </div>
           </div>
           <span class="vtg-sep" id="vtgSep" aria-hidden="true"></span>
@@ -1242,6 +1242,7 @@
 <div class="detail-panel friends-panel notif-panel" id="notifPanel">
   <div class="panel-header">
     <span class="panel-title" data-i18n="notifsTitle">Notifications</span>
+    <button class="notif-markall hidden" id="notifMarkAll" data-i18n="notifMarkAllRead">Mark all read</button>
     <button class="panel-close" id="notifPanelClose">✕</button>
   </div>
   <div class="panel-body friends-body">

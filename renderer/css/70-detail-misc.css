@@ -80,7 +80,6 @@
   .icon-bug       { -webkit-mask-image: url('../../assets/svg/icons/icon_bug.svg');          mask-image: url('../../assets/svg/icons/icon_bug.svg'); }
   .icon-filter    { -webkit-mask-image: url('../../assets/svg/icons/icon_filter.svg');       mask-image: url('../../assets/svg/icons/icon_filter.svg'); }
   .icon-gift      { -webkit-mask-image: url('../../assets/svg/icons/icon_gift.svg');         mask-image: url('../../assets/svg/icons/icon_gift.svg'); }
-  .icon-coffee    { -webkit-mask-image: url('../../assets/svg/icons/icon_coffee.svg');       mask-image: url('../../assets/svg/icons/icon_coffee.svg'); }
   .icon-grip      { -webkit-mask-image: url('../../assets/svg/icons/icon_grip.svg');         mask-image: url('../../assets/svg/icons/icon_grip.svg'); }
   /* Official "Buy me a coffee" brand button — wraps the untouched PNG wordmark
      (assets/svg/logos/logo_buymeacoffee.png). Shared by the What's New footer
@@ -1120,6 +1119,20 @@
   .pv-addprice { background: none; border: none; padding: 0; cursor: pointer; font-family: inherit;
     font-size: 12px; font-weight: 600; color: var(--muted); text-decoration: underline; text-underline-offset: 2px; text-decoration-style: dotted; }
   .pv-addprice:hover { color: var(--primary); text-decoration-style: solid; }
+  /* "Add price" in the inventory Table Price column — same subtle look as the reorder one. */
+  .tbl-addprice { background: none; border: none; padding: 0; cursor: pointer; font-family: inherit;
+    font-size: 12px; font-weight: 600; color: var(--muted); text-decoration: underline; text-underline-offset: 2px; text-decoration-style: dotted; }
+  .tbl-addprice:hover { color: var(--primary); text-decoration-style: solid; }
+  /* Cart count badge on the "To order" view button — red bubble, top-right. */
+  #btnViewOrder { position: relative; overflow: visible; }
+  .view-order-badge {
+    position: absolute; top: -6px; right: -6px; box-sizing: border-box;
+    min-width: 16px; height: 16px; padding: 0 4px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: #ed4245; color: #fff; font-size: 10px; font-weight: 700; line-height: 1;
+    border-radius: 8px; pointer-events: none;
+  }
+  .view-order-badge[hidden] { display: none; }
   .pv-td-act { width: 52px; text-align: right; }
   .pv-trow.row-selected { background: var(--primary-soft); }
   body.bulk-select-mode .pv-trow { cursor: pointer; }

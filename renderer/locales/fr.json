@@ -401,6 +401,7 @@
   "friendsList": "Mes amis",
   "friendReqsTitle": "Demandes en attente",
   "notifsTitle": "Notifications",
+  "notifMarkAllRead": "Tout marquer comme lu",
   "notifsEmptyTitle": "Aucune notification",
   "notifsEmptySub": "Les demandes d'amis et mises à jour apparaissent ici",
   "notifAcceptedFriend": "{{name}} a accepté ta demande d'ami",

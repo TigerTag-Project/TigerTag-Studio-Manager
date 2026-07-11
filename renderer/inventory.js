@@ -3511,6 +3511,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   $("friendsListCloseTab")?.addEventListener("click", closeFriends);
   $("btnOpenNotifs")?.addEventListener("click", openNotifs);
   $("notifPanelClose")?.addEventListener("click", closeNotifs);
+  $("notifMarkAll")?.addEventListener("click", _markNotifsRead);
   $("notifCloseTab")?.addEventListener("click", closeNotifs);
   $("notifOverlay")?.addEventListener("click", closeNotifs);
 
@@ -5499,6 +5500,28 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       return `<div class="sb-stat${s.cloud ? " sb-stat--cloud" : ""}${isActive ? " is-active" : ""}" data-filter="${s.filter}" data-mini="${s.mini}" data-mini-val="${s.miniVal}"><div class="value">${s.value}</div><div class="label">${s.label}</div></div>`;
     }).join("");
     el.classList.remove("hidden");
+    _updateCartBadge();
+  }
+
+  // Number of products currently in the active reorder cart (below min-stock,
+  // not set aside). Drives the red badge on the "To order" view button.
+  function _cartCount() {
+    if (state.friendView) return 0;
+    const stockMap = _stockCountByKey();
+    let n = 0;
+    Object.values(state.products || {}).forEach(p => {
+      if (p.savedForLater) return;
+      const info = _productOrderInfo(p, stockMap);
+      if (info.required > 0 && (info.qty > 0 || info.onOrder > 0)) n++;
+    });
+    return n;
+  }
+  function _updateCartBadge() {
+    const el = $("viewOrderBadge");
+    if (!el) return;
+    const n = _cartCount();
+    el.textContent = n > 99 ? "99+" : String(n);
+    el.hidden = n === 0;
   }
 
   // Mark BOTH halves of every twin pair present in `rows` with hasTwinPair, so
@@ -6801,6 +6824,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         const map = {};
         snap.docs.forEach(d => { map[d.id] = { id: d.id, ...d.data() }; });
         state.products = map;
+        _updateCartBadge();   // min-stock / saved-for-later change → refresh the cart badge
         // A link change can flip the Shopify badge on visible spools + the
         // "Reorder" toolbox row of the open detail — repaint cheaply.
         if (!_isPrinterMode(state.viewMode)) scheduleRender("inventory", renderInventory);
@@ -7440,7 +7464,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // shown in the account's currency + HT/TTC mode. "-" when no price is set.
   function _priceCell(r) {
     const priceHt = _getProduct(r)?.buyPriceHt;
-    if (priceHt == null || !Number.isFinite(+priceHt)) return "-";
+    if (priceHt == null || !Number.isFinite(+priceHt)) {
+      // No price yet → an "Add price" action (opens the product price editor).
+      // Read-only in a friend view.
+      return state.friendView ? "-" : `<button type="button" class="tbl-addprice" data-addprice>${esc(t("reorderAddPrice"))}</button>`;
+    }
     const vat = _vatInfo();
     const shown = _reorderMode() === "TTC" ? +priceHt * (1 + (vat.rate || 0) / 100) : +priceHt;
     return `${_fmtMoney(shown)} ${vat.symbol}`;
@@ -7475,6 +7503,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (state.selectedSpools.has(r.spoolId)) tr.classList.add("row-selected");
     tr.innerHTML = _tableRowInnerHTML(r);
     tr.addEventListener("click", (e) => {
+      // "Add price" in the Price column → open the product price editor directly.
+      if (e.target.closest("[data-addprice]")) { e.stopPropagation(); openReorderPanel(r, { editPrice: true }); return; }
       // The always-visible checkbox column selects (and enters select mode); the
       // rest of the row opens detail — unless already in select mode (then toggle).
       if (e.target.closest(".sel-cell")) { e.stopPropagation(); _selCellClickSpool(r.spoolId, e.shiftKey, tr.getBoundingClientRect().top); return; }
@@ -7557,6 +7587,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // Group row: the checkbox selects ALL its members (and enters select mode);
     // elsewhere toggles the whole group in select mode, or opens its side panel.
     tr.addEventListener("click", (e) => {
+      if (e.target.closest("[data-addprice]")) { e.stopPropagation(); const rep = g.rep || g.members?.[0]; if (rep) openReorderPanel(rep, { editPrice: true }); return; }
       if (e.target.closest(".sel-cell")) { e.stopPropagation(); _selCellClickGroup(g.key, tr.getBoundingClientRect().top); return; }
       if (state.bulkSelect) { _toggleGroupSelected(g.key); return; }
       _openGroupPanel(g.key);
@@ -9436,6 +9467,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function renderProductsView() {
     const host = $("invProductsView");
     if (!host) return;
+    _updateCartBadge();   // cart composition may have changed (move/qty) — keep the badge live
     populateQuickFilters();   // keep Brand / Material / Tag filters scoped to the favorites
     const stockMap = _stockCountByKey();   // in friend view state.rows = friend's → friend's stock
     const info = _vatInfo();
@@ -22472,6 +22504,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     _notifFirstSnap.notifs = true;   // next snapshot is the login history — silent
     state.unsubNotifs = fbDb(uid)
       .collection("users").doc(uid).collection("notifications")
+      .orderBy("createdAt", "desc").limit(40)   // social-style feed: newest 40, older hidden
       .onSnapshot(snap => {
         if (uid !== state.activeAccountId) return;
         _chimeOnFirestoreArrival("notifs", snap);   // ring on a real new notification
@@ -22490,10 +22523,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     return n.text || "";
   }
 
-  // Unread = pending friend requests + local notifications + Firestore notifs not yet read.
+  // Unread = pending friend requests (actionable) + Firestore notifs not yet read.
+  // Social-style: opening the center marks the Firestore feed read → the badge
+  // drops to (just) any pending friend requests. Local device notices
+  // (community / paxx / app-update) show in the list but don't inflate the badge
+  // (they have their own header/sidebar indicators and would otherwise re-badge
+  // every session).
   function _notifUnreadCount() {
     return (state.friendRequests || []).length
-         + (state.localNotifications || []).length
          + (state.notifications || []).filter(n => !n.read).length;
   }
 
@@ -22608,31 +22645,52 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // minimum. Re-evaluated on every inventory / products change; each alert
   // auto-clears when the product is restocked above its target (or the min is
   // removed). Clicking it opens that product's card so the user can reorder.
+  // ── Persistent notification feed (Firestore, cross-device) ─────────────────
+  // Create an owner-authored notification event. Auto-id → each call is a new,
+  // permanent entry in the social-style feed (never edited/deleted). The
+  // Firestore rule whitelists these fields for isOwner() creates.
+  function _pushNotif({ type, title, text, icon, action, data }) {
+    const uid = state.activeAccountId;
+    if (!uid) return;
+    const doc = { type, createdAt: firebase.firestore.FieldValue.serverTimestamp(), read: false };
+    if (title != null)  doc.title  = String(title);
+    if (text  != null)  doc.text   = String(text);
+    if (icon)           doc.icon   = String(icon);
+    if (action)         doc.action = String(action);
+    if (data && typeof data === "object") doc.data = data;
+    fbDb(uid).collection("users").doc(uid).collection("notifications").add(doc)
+      .catch(e => console.warn("[notif] push failed:", e?.message));
+  }
+  // Products currently in an ACTIVE low-stock alert (already notified this dip).
+  // Persisted per account in localStorage so we don't re-notify while still
+  // below min NOR on app restart — only a genuine NEW dip (after restock) fires.
+  function _lowStockActive() {
+    try { return new Set(JSON.parse(localStorage.getItem("tigertag.lowStockActive." + state.activeAccountId) || "[]")); }
+    catch (_) { return new Set(); }
+  }
+  function _saveLowStockActive(set) {
+    try { localStorage.setItem("tigertag.lowStockActive." + state.activeAccountId, JSON.stringify([...set])); } catch (_) {}
+  }
   function _checkLowStockNotifs() {
-    if (state.friendView) return;   // `products` is the owner's, not a friend's
-    const seen = new Set();
+    if (state.friendView || !state.activeAccountId) return;   // `products` is the owner's
+    const active = _lowStockActive();
+    let changed = false;
     Object.values(state.products || {}).forEach(p => {
       const min = +p.minStockSpools || 0;
-      if (min <= 0 || !p.key) return;
-      const stock = _countPhysicalSpools((state.rows || []).filter(row => !row.deleted && _spoolGroupKey(row) === p.key));
-      if (stock >= min) return;     // above target → no alert
-      const id = "lowstock:" + p.id;
-      seen.add(id);
+      const belowMin = min > 0 && p.key &&
+        _countPhysicalSpools((state.rows || []).filter(row => !row.deleted && _spoolGroupKey(row) === p.key)) < min;
+      if (!belowMin) { if (active.delete(p.id)) changed = true; return; }   // above min → re-arm for next dip
+      if (active.has(p.id)) return;                                          // already notified this dip
+      active.add(p.id); changed = true;
       const label = p.label || {};
       const name = ([label.brand, label.material].filter(Boolean).join(" ")
         + (label.colorName ? " · " + label.colorName : "")).trim();
-      const text = t("notifLowStockText", { n: stock, min });
-      const img = resolvedImg(label.imgUrl) || "";   // product illustration
-      const cur = (state.localNotifications || []).find(n => n.id === id);
-      if (cur && cur.text === text && cur.title === (name || t("notifLowStockTitle")) && cur.img === img) return; // unchanged → skip re-render
-      _setLocalNotif({ id, icon: "package", action: "lowstock", key: p.key, img,
-        title: name || t("notifLowStockTitle"), text });
+      const stock = _countPhysicalSpools((state.rows || []).filter(row => !row.deleted && _spoolGroupKey(row) === p.key));
+      _pushNotif({ type: "low_stock", icon: "package", action: "lowstock",
+        title: name || t("notifLowStockTitle"), text: t("notifLowStockText", { n: stock, min }),
+        data: { key: p.key, img: resolvedImg(label.imgUrl) || "" } });
     });
-    // Clear alerts that no longer apply (restocked / min removed / product gone).
-    (state.localNotifications || [])
-      .filter(n => n.id && n.id.startsWith("lowstock:") && !seen.has(n.id))
-      .map(n => n.id)
-      .forEach(id => _clearLocalNotif(id));
+    if (changed) _saveLowStockActive(active);
   }
   // Open the product card behind a low-stock alert (find any live spool of it).
   function _openLowStockProduct(localId) {
@@ -22695,13 +22753,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const locals = state.localNotifications || [];
     const notifs = state.notifications  || [];
     if (empty) empty.classList.toggle("hidden", !!(reqs.length || locals.length || notifs.length));
+    $("notifMarkAll")?.classList.toggle("hidden", !notifs.some(n => !n.read));   // "Mark all read" only when there ARE unread
     // Order: actionable friend requests, then local (app-update) notices, then
     // dismissible general notifications.
     const reqHtml = reqs.map(r =>
       `<div class="fp-req notif-req" data-uid="${esc(r.uid)}">${_reqRowInnerHtml(r)}</div>`).join("");
     const localHtml = locals.map(n => {
       // Community nudges + avatar: the whole row IS the call-to-action (no button).
-      const isCommunity = n.action === "discord" || n.action === "github" || n.action === "makerworld" || n.action === "shop";
+      const isCommunity = n.action === "discord" || n.action === "github" || n.action === "makerworld" || n.action === "shop" || n.action === "coffee";
       const clickable = isCommunity || n.action === "avatar" || n.action === "paxx" || n.action === "lowstock";
       const brandIc = isCommunity ? ` notif-ic--${n.action}`         // branded square icon
         : (n.action === "lowstock" ? " notif-ic--lowstock" : "");    // amber alert icon
@@ -22713,6 +22772,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         ? `<span class="notif-ic notif-ic--img"><img src="${esc(n.img)}" alt="" onerror="this.style.display='none'" /></span>`
         : (n.brand && _BRAND_HAS_LOGO.has(n.brand))
         ? `<span class="notif-ic notif-ic--bare"><span class="pt-thumb-logo" data-brand="${esc(n.brand)}"></span></span>`
+        : n.action === "coffee"
+        ? `<span class="notif-ic notif-ic--coffee"><img class="notif-coffee-img" src="../assets/svg/logos/logo_buy_me_coffee.svg" alt="" /></span>`
         : `<span class="notif-ic${brandIc}"><span class="icon icon-${esc(n.icon || "refresh")} icon-14"></span></span>`;
       return `
       <div class="notif-item notif-item--unread notif-item--local${clickable ? " notif-item--clickable" : ""}" data-local-id="${esc(n.id)}"${clickable ? ` data-local-action="${esc(n.action)}"` : ""}>
@@ -22727,15 +22788,36 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       </div>`;
     }).join("");
     const notifHtml = notifs.map(n => {
-      const subject = { displayName: n.fromName, photoURL: n.photoURL || null, color: n.color || null };
       const when = n.createdAt ? timeAgo(n.createdAt.seconds ? n.createdAt.seconds * 1000 : n.createdAt) : "";
-      return `<div class="notif-item${n.read ? "" : " notif-item--unread"}" data-id="${esc(n.id)}">
-        ${avatarMarkup(subject, "fp-friend-avatar")}
+      const unread = n.read ? "" : " notif-item--unread";
+      // Cross-user "friend accepted" → avatar + derived sentence.
+      if (n.type === "friend_accepted") {
+        const subject = { displayName: n.fromName, photoURL: n.photoURL || null, color: n.color || null };
+        return `<div class="notif-item${unread}" data-id="${esc(n.id)}">
+          ${avatarMarkup(subject, "fp-friend-avatar")}
+          <div class="fp-friend-main">
+            <div class="notif-text">${esc(_notifText(n))}</div>
+            <div class="fp-friend-date">${esc(when)}</div>
+          </div>
+        </div>`;
+      }
+      // Owner-authored event (low_stock / community / announcement): icon chip +
+      // title + text + time, clickable to its action. NO delete (social-style feed).
+      const action = n.action || "", img = n.data?.img;
+      const brandIc = COMMUNITY[action] ? ` notif-ic--${action}` : (action === "lowstock" ? " notif-ic--lowstock" : "");
+      const iconHtml = img
+        ? `<span class="notif-ic notif-ic--img"><img src="${esc(img)}" alt="" onerror="this.style.display='none'" /></span>`
+        : action === "coffee"
+        ? `<span class="notif-ic notif-ic--coffee"><img class="notif-coffee-img" src="../assets/svg/logos/logo_buy_me_coffee.svg" alt="" /></span>`
+        : `<span class="notif-ic${brandIc}"><span class="icon icon-${esc(n.icon || "bell")} icon-14"></span></span>`;
+      const clickable = !!action;
+      return `<div class="notif-item${unread}${clickable ? " notif-item--clickable" : ""}" data-id="${esc(n.id)}"${clickable ? ` data-notif-action="${esc(action)}" data-notif-key="${esc(n.data?.key || "")}"` : ""}>
+        ${iconHtml}
         <div class="fp-friend-main">
-          <div class="notif-text">${esc(_notifText(n))}</div>
+          ${n.title ? `<div class="notif-title">${esc(n.title)}</div>` : ""}
+          <div class="notif-text">${esc(n.text || "")}</div>
           <div class="fp-friend-date">${esc(when)}</div>
         </div>
-        <button class="fp-friend-btn notif-dismiss" title="${esc(t('cancelLabel'))}"><span class="icon icon-close icon-13"></span></button>
       </div>`;
     }).join("");
     list.innerHTML = reqHtml + localHtml + notifHtml;
@@ -22762,9 +22844,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         else if (a === "lowstock") _openLowStockProduct(row.dataset.localId);
         else if (COMMUNITY[a]) _openCommunityLink(a);
       }));
-    list.querySelectorAll(".notif-item:not(.notif-item--local)").forEach(row => {
-      row.querySelector(".notif-dismiss")?.addEventListener("click", () => _dismissNotif(row.dataset.id));
-    });
+    // Owner-event notifs (low_stock / community …) → route their action on click.
+    list.querySelectorAll("[data-notif-action]").forEach(row =>
+      row.addEventListener("click", () => {
+        closeNotifs();
+        const a = row.dataset.notifAction;
+        if (a === "lowstock") _openLowStockProduct(row.dataset.notifKey);
+        else if (COMMUNITY[a]) _openCommunityLink(a);
+      }));
   }
 
   function _dismissNotif(id) {
@@ -22782,6 +22869,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const uid = state.activeAccountId;
     const unread = (state.notifications || []).filter(n => !n.read);
     if (!uid || !unread.length) return;
+    unread.forEach(n => { n.read = true; });   // optimistic → badge + highlight drop instantly
+    renderNotifBadge();
+    renderNotifCenter();
     const db = fbDb(uid);
     const batch = db.batch();
     unread.forEach(n => batch.update(db.collection("users").doc(uid).collection("notifications").doc(n.id), { read: true }));

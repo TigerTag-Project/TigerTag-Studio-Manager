@@ -401,6 +401,7 @@
   "friendsList": "Mis amigos",
   "friendReqsTitle": "Solicitudes pendientes",
   "notifsTitle": "Notificaciones",
+  "notifMarkAllRead": "Marcar todo como leído",
   "notifsEmptyTitle": "Sin notificaciones",
   "notifsEmptySub": "Las solicitudes de amistad y novedades aparecen aquí",
   "notifAcceptedFriend": "{{name}} aceptó tu solicitud de amistad",

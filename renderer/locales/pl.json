@@ -400,6 +400,7 @@
   "friendsList": "Moi znajomi",
   "friendReqsTitle": "Oczekujące zaproszenia",
   "notifsTitle": "Powiadomienia",
+  "notifMarkAllRead": "Oznacz wszystko jako przeczytane",
   "notifsEmptyTitle": "Brak powiadomień",
   "notifsEmptySub": "Zaproszenia do znajomych i aktualizacje pojawią się tutaj",
   "notifAcceptedFriend": "{{name}} przyjął(-ęła) Twoje zaproszenie",

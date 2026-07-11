@@ -199,7 +199,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Inventory render (L5871-8400)
+## Inventory render (L5871-8600)
 
 | L | What | Anchors |
 |---|---|---|
@@ -211,7 +211,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## RFID encode / burn modal — cem (L8450-8841)
+## RFID encode / burn modal — cem (L8640-9040)
 
 | L | What | Anchors |
 |---|---|---|

@@ -401,6 +401,7 @@
   "friendsList": "My friends",
   "friendReqsTitle": "Pending requests",
   "notifsTitle": "Notifications",
+  "notifMarkAllRead": "Mark all read",
   "notifsEmptyTitle": "No notifications",
   "notifsEmptySub": "Friend requests and updates show up here",
   "notifAcceptedFriend": "{{name}} accepted your friend request",

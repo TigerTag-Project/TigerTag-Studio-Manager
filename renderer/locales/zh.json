@@ -401,6 +401,7 @@
   "friendsList": "我的好友",
   "friendReqsTitle": "待处理请求",
   "notifsTitle": "通知",
+  "notifMarkAllRead": "全部标为已读",
   "notifsEmptyTitle": "暂无通知",
   "notifsEmptySub": "好友请求和更新会显示在这里",
   "notifAcceptedFriend": "{{name}} 接受了你的好友请求",
