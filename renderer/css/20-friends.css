@@ -292,7 +292,9 @@
   .notif-ic--lowstock { background: #f59e0b; border-color: #f59e0b; }
   .notif-ic--lowstock .icon { background: #fff; }
   /* Product illustration in a notification (fills the circular chip). */
-  .notif-ic--img { padding: 0; overflow: hidden; background: var(--surface-2); }
+  /* Material/product illustration → rounded SQUARE (like the cart's .pv-thumb),
+     not the circular chip the other notif icons use. */
+  .notif-ic--img { padding: 0; overflow: hidden; background: var(--surface-2); border-radius: 9px; }
   .notif-ic--img img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .notif-ic--discord, .notif-ic--github, .notif-ic--makerworld, .notif-ic--shop, .notif-ic--coffee { border-radius: 10px; }
   .notif-ic--discord .icon, .notif-ic--github .icon, .notif-ic--makerworld .icon, .notif-ic--shop .icon {

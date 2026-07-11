@@ -5087,5 +5087,85 @@
         }
       }
     ]
+  },
+  "2.6.0": {
+    "date": "2026-07-11",
+    "items": [
+      {
+        "icon": "bell",
+        "title": {
+          "en": "Your notifications finally stay put",
+          "fr": "Tes notifs restent enfin en place",
+          "de": "Deine Benachrichtigungen bleiben jetzt da",
+          "es": "Tus avisos por fin se quedan",
+          "it": "Le tue notifiche restano finalmente lì",
+          "zh": "通知终于不再溜走",
+          "pt": "Suas notificações finalmente ficam",
+          "pt-pt": "As tuas notificações finalmente ficam",
+          "pl": "Twoje powiadomienia wreszcie zostają"
+        },
+        "body": {
+          "en": "Low-stock alerts now live in a proper feed — synced across your devices, stamped with when they happened, and kept in history. Open it and everything's marked read. Done.",
+          "fr": "Les alertes de stock bas vivent enfin dans un vrai fil — synchronisé sur tes appareils, horodaté, et gardé dans l'historique. Tu l'ouvres, tout est lu. Voilà.",
+          "de": "Warnungen bei niedrigem Bestand landen jetzt in einem echten Feed — geräteübergreifend synchron, mit Zeitstempel, in der Historie. Aufmachen, alles gelesen. Fertig.",
+          "es": "Los avisos de stock bajo ya viven en un feed de verdad — sincronizado entre tus dispositivos, con hora y guardado en el historial. Lo abres, todo leído. Listo.",
+          "it": "Gli avvisi di scorte basse ora vivono in un vero feed — sincronizzato tra i dispositivi, con orario e tenuto nello storico. Lo apri, tutto letto. Fatto.",
+          "zh": "库存不足的提醒现在有了真正的消息流——多设备同步、带时间戳、留在历史里。打开一看，全部已读。搞定。",
+          "pt": "Os alertas de estoque baixo agora vivem num feed de verdade — sincronizado nos seus aparelhos, com a hora e guardado no histórico. Abriu, tudo lido. Pronto.",
+          "pt-pt": "Os alertas de stock baixo vivem agora num feed a sério — sincronizado nos teus dispositivos, com a hora e guardado no histórico. Abres e está tudo lido. Feito.",
+          "pl": "Alerty o niskim stanie mają wreszcie prawdziwy feed — zsynchronizowany między urządzeniami, ze znacznikiem czasu i zapisany w historii. Otwierasz, wszystko przeczytane. Gotowe."
+        }
+      },
+      {
+        "icon": "coins",
+        "title": {
+          "en": "Put a price on it, right there",
+          "fr": "Mets un prix, direct dans le tableau",
+          "de": "Preis dran, direkt in der Tabelle",
+          "es": "Ponle precio, ahí mismo",
+          "it": "Metti un prezzo, lì e subito",
+          "zh": "直接在表格里标个价",
+          "pt": "Coloca um preço, ali mesmo",
+          "pt-pt": "Põe um preço, ali mesmo",
+          "pl": "Dodaj cenę od razu w tabeli"
+        },
+        "body": {
+          "en": "Spotted a filament with no price in the table view? There's now an \"Add price\" link right in the Price column — click, type, done.",
+          "fr": "Une bobine sans prix dans la vue tableau ? Un lien « Ajouter un prix » t'attend dans la colonne Prix — clic, tu tapes, c'est réglé.",
+          "de": "Ein Filament ohne Preis in der Tabelle? In der Preisspalte gibt's jetzt „Preis hinzufügen“ — klicken, tippen, fertig.",
+          "es": "¿Un filamento sin precio en la tabla? Ahora hay un enlace «Añadir precio» en la columna Precio — clic, escribes, listo.",
+          "it": "Un filamento senza prezzo nella tabella? Ora c'è «Aggiungi prezzo» nella colonna Prezzo — clic, digiti, fatto.",
+          "zh": "表格里有卷线没标价？价格那一列现在有「添加价格」——点一下，输入，搞定。",
+          "pt": "Um filamento sem preço na tabela? Agora tem um link «Adicionar preço» na coluna Preço — clica, digita, pronto.",
+          "pt-pt": "Um filamento sem preço na tabela? Agora há um link «Adicionar preço» na coluna Preço — clicas, escreves, feito.",
+          "pl": "Filament bez ceny w tabeli? W kolumnie Cena jest teraz „Dodaj cenę“ — klik, wpisujesz, gotowe."
+        }
+      },
+      {
+        "icon": "cart",
+        "title": {
+          "en": "Your cart, counted",
+          "fr": "Ton panier, compté",
+          "de": "Dein Warenkorb, gezählt",
+          "es": "Tu cesta, contada",
+          "it": "Il tuo carrello, contato",
+          "zh": "购物车，一目了然",
+          "pt": "Seu carrinho, contado",
+          "pt-pt": "O teu carrinho, contado",
+          "pl": "Twój koszyk, policzony"
+        },
+        "body": {
+          "en": "The \"To order\" button now wears a little red badge with how many filaments are waiting in your cart. No more guessing.",
+          "fr": "Le bouton « À commander » porte maintenant une petite pastille rouge avec le nombre de bobines qui t'attendent dans le panier. Fini de deviner.",
+          "de": "Der „Zu bestellen“-Button trägt jetzt ein kleines rotes Abzeichen mit der Anzahl der Filamente in deinem Warenkorb. Kein Raten mehr.",
+          "es": "El botón «Por pedir» ahora lleva una chapita roja con cuántos filamentos te esperan en la cesta. Se acabó adivinar.",
+          "it": "Il pulsante «Da ordinare» ora ha un pallino rosso con quanti filamenti ti aspettano nel carrello. Basta indovinare.",
+          "zh": "「待订购」按钮现在带了个小红点，显示购物车里有多少卷线在等你。不用再猜了。",
+          "pt": "O botão «A pedir» agora tem uma bolinha vermelha com quantos filamentos estão esperando no carrinho. Chega de adivinhar.",
+          "pt-pt": "O botão «A encomendar» agora tem um pontinho vermelho com quantos filamentos estão à espera no carrinho. Adeus adivinhações.",
+          "pl": "Przycisk „Do zamówienia“ ma teraz małą czerwoną plakietkę z liczbą filamentów czekających w koszyku. Koniec zgadywania."
+        }
+      }
+    ]
   }
 }

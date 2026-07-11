@@ -11740,6 +11740,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
 
   function openReorderPanel(r, opts = {}) {
     if (!r) return;
+    if ($("notifPanel")?.classList.contains("open")) closeNotifs();   // notif centre takes over the right — dismiss it
     // Reorder + container picker share the same left slot → mutually exclusive.
     if ($("containerPanel")?.classList.contains("open")) closeContainerPicker();
     // Switching to a different product: a Product "business card" left open for the
@@ -11778,6 +11779,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
      filament illustration is always full (100%). */
   function openProductCard(p) {
     if (!p) return;
+    if ($("notifPanel")?.classList.contains("open")) closeNotifs();   // notif centre takes over the right — dismiss it
     _productCardData = p;
     _renderProductCard(p);
     $("productCardPanel").classList.add("open");

@@ -17,10 +17,12 @@ Notifications become a persistent, social-style feed (starting with low-stock al
 ### Changed
 
 - **Notification centre → persistent, social-style feed (phase 1).** **Low-stock alerts are now Firestore events** (`users/{uid}/notifications`, type `low_stock`) instead of ephemeral local notices: they **persist, sync across devices, carry a time-ago, and stay in history**. One event per genuine dip below min — a per-account `localStorage` active-set re-arms on restock and prevents re-firing while still below (or on app restart). The feed is **capped at 40** (newest first), notifications are **no longer deletable**, event rows are clickable to their action, and a **"Mark all read"** button + open-marks-all-read drop the unread badge to 0 (badge = pending friend requests + unread Firestore; local device notices — community / paxx / app-update — show but don't inflate it). New `_pushNotif` helper; backend `firestore.rules` gains an owner-`create` branch for `["low_stock","community","announcement"]` (deployed). Community/announcement sources land in a later phase.
+- Notification centre: material/product illustrations now render as a **rounded square** (matching the cart thumbnails) instead of a circular chip.
 
 ### Fixed
 
 - The "Buy me a coffee" notification now uses the official cup SVG and is a proper community nudge — `"coffee"` was missing from the community set, so the entry had no yellow chip and **wasn't clickable** (couldn't open the support page). Now branded + clickable like Discord/Shop.
+- Opening the Product-info card (or reorder card) while the notification centre was open no longer leaves the panel on top hiding the card — the notif centre is dismissed first, like the other right-side cards.
 
 ### Removed
 
