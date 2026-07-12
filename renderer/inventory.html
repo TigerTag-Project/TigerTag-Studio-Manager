@@ -206,7 +206,7 @@
             <span class="vtg-label"><span data-i18n="viewGroupLists">Lists</span></span>
             <div class="view-toggle">
               <span class="view-toggle-ind" aria-hidden="true"></span>
-              <button id="btnViewLists" data-i18n-aria="viewGroupLists"><span class="icon icon-list-check icon-13"></span></button>
+              <button id="btnViewLists" data-i18n-aria="viewGroupLists"><span class="icon icon-list-check icon-13"></span><span class="view-order-badge view-lists-badge" id="viewListsBadge" hidden>0</span></button>
             </div>
           </div>
           <span class="vtg-sep" id="vtgSep" aria-hidden="true"></span>
@@ -1779,6 +1779,10 @@
       </div>
       <div id="eacNameResult" style="min-height:16px;font-size:11px;margin-top:4px"></div>
 
+      <!-- social links (auto-save; icon inferred from the URL host) -->
+      <div class="eac-field-label" data-i18n="editSocialsLabel" style="margin-top:12px">Social links</div>
+      <div id="eacSocials" class="eac-socials"></div>
+
       <!-- language (auto-saves) -->
       <div class="eac-field-label" data-i18n="settingsLang" style="margin-top:12px">Language</div>
       <select class="lang-select" id="langSelect">
@@ -2088,6 +2092,7 @@
         <div class="adf-preview-avatar" id="adfPreviewAvatar"></div>
         <div class="adf-preview-info">
           <div class="adf-preview-name" id="adfPreviewName"></div>
+          <div class="adf-preview-count" id="adfPreviewCount" hidden></div>
           <div class="adf-preview-status" data-i18n="addFriendFound">Found</div>
         </div>
         <div class="adf-preview-check">

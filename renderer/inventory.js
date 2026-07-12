@@ -3699,7 +3699,57 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     $("eacSwatchCustom").classList.toggle("active", isCustom);
     _populateVatCountrySelect();
     _syncPriceModeSeg();
+    _wireSocialsEditor();
+    _renderSocialsEditor();
     $("editAccountModalOverlay").classList.add("open");
+  }
+  // ── Social-links editor (in the edit-account modal) ───────────────────────
+  let _socialsSaveT = null;
+  function _renderSocialsEditor() {
+    const box = $("eacSocials"); if (!box) return;
+    const rowHTML = (url) => {
+      const m = url ? _socialMeta(url) : null;
+      return `<div class="eac-social-row">
+        <span class="eac-social-ic"><span class="icon icon-${m ? m.icon : "link"} icon-13"></span></span>
+        <input class="eac-social-input" type="url" value="${esc(url)}" placeholder="${esc(t("editSocialsPlaceholder"))}" autocomplete="off" spellcheck="false">
+        <button type="button" class="eac-social-del" aria-label="✕"${url ? "" : " hidden"}><span class="icon icon-close icon-12"></span></button>
+      </div>`;
+    };
+    box.innerHTML = (state.socials || []).map(rowHTML).join("") + rowHTML("");   // trailing empty add-row
+  }
+  async function _saveSocials() {
+    const uid = state.activeAccountId; if (!uid || state.friendView) return;
+    const prev = (state.socials || []).join("\n");
+    const cleaned = _cleanSocials([...document.querySelectorAll("#eacSocials .eac-social-input")].map(i => i.value));
+    state.socials = cleaned;
+    renderFriendBanner();   // reflect on my own banner immediately
+    try {
+      const db = fbDb(uid);
+      db.collection("users").doc(uid).set({ socials: cleaned }, { merge: true }).catch(() => {});
+      syncUserProfile(uid, { socials: cleaned });   // public mirror (friends / web read this)
+    } catch (_) {}
+    // Re-render only once focus has fully left the editor, so tabbing between
+    // rows isn't interrupted.
+    const box = $("eacSocials");
+    if (cleaned.join("\n") !== prev && box && !box.contains(document.activeElement)) _renderSocialsEditor();
+  }
+  function _wireSocialsEditor() {
+    const box = $("eacSocials"); if (!box || box.dataset.wired) return;
+    box.dataset.wired = "1";
+    box.addEventListener("input", e => {
+      const inp = e.target.closest(".eac-social-input"); if (!inp) return;
+      const row = inp.closest(".eac-social-row"), val = inp.value.trim();
+      const icEl = row.querySelector(".eac-social-ic .icon");
+      if (icEl) icEl.className = `icon icon-${val ? (_socialMeta(val)?.icon || "link") : "link"} icon-13`;
+      const del = row.querySelector(".eac-social-del"); if (del) del.hidden = !val;
+    });
+    box.addEventListener("focusout", () => { clearTimeout(_socialsSaveT); _socialsSaveT = setTimeout(_saveSocials, 150); });
+    box.addEventListener("click", e => {
+      if (!e.target.closest(".eac-social-del")) return;
+      const inp = e.target.closest(".eac-social-row")?.querySelector(".eac-social-input");
+      if (inp) inp.value = "";
+      _saveSocials();
+    });
   }
 
   // Reflect the saved price-entry mode (HT/TTC) on the account segmented control.
@@ -5579,6 +5629,15 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     el.textContent = n > 99 ? "99+" : String(n);
     el.hidden = n === 0;
   }
+  // Count pill on the "Lists" view button — number of wishlists in the current
+  // context (your own, or the friend's shared lists in friend-view).
+  function _updateListsBadge() {
+    const el = $("viewListsBadge");
+    if (!el) return;
+    const n = _listsArray().length;
+    el.textContent = n > 99 ? "99+" : String(n);
+    el.hidden = n === 0;
+  }
 
   // Mark BOTH halves of every twin pair present in `rows` with hasTwinPair, so
   // the "linked" badge shows on whichever half is displayed or opened — not only
@@ -7038,6 +7097,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         // "friends" — otherwise a friend's `where("visibility","!=","private")`
         // read (see subscribeFriendLists) would skip them. One-time write each.
         if (!state.friendView) Object.values(map).forEach(l => { if (!l.visibility) _listWrite(l.id, { visibility: "friends" }); });
+        _updateListsBadge();         // wishlist count on the Lists view button
         _syncAllPublicSnapshots();   // keep public snapshots in sync with list edits
         if (state.selectedListId && !map[state.selectedListId]) state.selectedListId = null;
         // Don't rebuild the view while the user is naming a list — it would wipe
@@ -7068,6 +7128,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         const m = {};
         snap.docs.forEach(d => { m[d.id] = { id: d.id, ...d.data() }; });
         state.friendLists = m;
+        _updateListsBadge();   // count reflects the friend's shared lists in friend-view
         if (state.selectedListId && !m[state.selectedListId]) state.selectedListId = null;
         if (_isListsMode(state.viewMode)) renderListsView();
       }, err => console.warn("[friendLists]", err?.code, err?.message));
@@ -7131,6 +7192,49 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       email:    `mailto:?subject=${x}&body=${x}%0A%0A${u}`,
     })[net] || null;
   }
+  // Social-profile links (userProfiles.socials = ordered list of URLs). The icon
+  // is inferred from the URL host — flexible, no fixed platform enum. Any host we
+  // don't recognise falls back to a globe (generic website).
+  const _SOCIAL_MAP = [
+    [/(^|\.)(x\.com|twitter\.com)$/,        "x",         "#111111"],
+    [/(^|\.)instagram\.com$/,               "instagram", "#e1306c"],
+    [/(^|\.)(youtube\.com|youtu\.be)$/,     "youtube",   "#ff0000"],
+    [/(^|\.)tiktok\.com$/,                  "tiktok",    "#111111"],
+    [/(^|\.)facebook\.com$/,                "facebook",  "#1877f2"],
+    [/(^|\.)(linkedin\.com|lnkd\.in)$/,     "linkedin",  "#0a66c2"],
+    [/(^|\.)twitch\.tv$/,                   "twitch",    "#9146ff"],
+    [/(^|\.)discord\.(gg|com)$/,            "discord",   "#5865f2"],
+    [/(^|\.)github\.com$/,                  "github",    "#111111"],
+    [/(^|\.)(wa\.me|whatsapp\.com)$/,       "whatsapp",  "#25d366"],
+  ];
+  function _socialMeta(url) {
+    let host = "";
+    try { host = new URL(_normalizeBuyUrl(url)).hostname.replace(/^www\./i, "").toLowerCase(); } catch { return null; }
+    if (!host) return null;
+    for (const [re, icon, color] of _SOCIAL_MAP) if (re.test(host)) return { icon, color, host };
+    return { icon: "globe", color: "#5b6b8c", host };   // any other site → globe
+  }
+  // Clean list of social URLs (https-normalised, deduped, capped).
+  function _cleanSocials(list) {
+    const seen = new Set(), out = [];
+    for (const raw of (Array.isArray(list) ? list : [])) {
+      const u = _normalizeBuyUrl(String(raw || "").trim());
+      if (!u || !_socialMeta(u)) continue;
+      const k = u.toLowerCase();
+      if (seen.has(k)) continue;
+      seen.add(k); out.push(u);
+      if (out.length >= 8) break;
+    }
+    return out;
+  }
+  // Row of brand-coloured social icons (used on the account + friend banners).
+  function _socialsRowHTML(socials) {
+    const items = (Array.isArray(socials) ? socials : []).map(u => {
+      const m = _socialMeta(u); if (!m) return "";
+      return `<a class="fvb-social" href="${esc(_normalizeBuyUrl(u))}" target="_blank" rel="noopener noreferrer" style="--sc:${m.color}" aria-label="${esc(m.host)}"><span class="icon icon-${m.icon} icon-13"></span></a>`;
+    }).filter(Boolean).join("");
+    return items ? `<div class="fvb-socials">${items}</div>` : "";
+  }
   function _genListToken() {
     // Compact, unguessable, URL-safe id: 64 random bits encoded base36 (0-9a-z)
     // → a fixed 13 chars (vs 32 hex). 2^64 space — far beyond brute-forcing a
@@ -7178,6 +7282,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         if (list.emoji)    snap.emoji    = list.emoji;
         if (list.occasion) snap.occasion = list.occasion;
         if (list.message)  snap.message  = list.message;
+        if ((state.socials || []).length) snap.ownerSocials = state.socials;   // owner's social links
         const sig = JSON.stringify(snap);
         if (_publicSnapSig[token] === sig) continue;   // unchanged → skip the write
         _publicSnapSig[token] = sig;
@@ -15578,7 +15683,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   }
   async function _applyFriendReorder(dragUid, targetUid, before) {
     const uid = state.activeAccountId;
-    if (!uid || state.friendView || !dragUid || dragUid === targetUid) return;
+    // NB: allowed even in friend-view — reordering YOUR friends writes to YOUR
+    // own account (`state.activeAccountId`), not the friend you're viewing.
+    if (!uid || !dragUid || dragUid === targetUid) return;
     const arr = [...(state.friends || [])];
     const from = arr.findIndex(f => f.uid === dragUid);
     if (from < 0) return;
@@ -15627,7 +15734,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     };
     list.addEventListener("dragstart", e => {
       const row = rowOf(e.target);
-      if (!row || state.friendView) return;
+      if (!row) return;   // your own friends list — reorderable even in friend-view
       if (e.target.closest("button")) { e.preventDefault(); return; }
       const rows = [...list.querySelectorAll(".fp-friend[data-uid]")];
       const fromIndex = rows.indexOf(row);
@@ -15695,7 +15802,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     };
     el.addEventListener("dragstart", e => {
       const chip = chipOf(e.target);
-      if (!chip || state.friendView) return;
+      if (!chip) return;   // your own friends list — reorderable even in friend-view
       const chips = [...el.querySelectorAll(".sb-friend-chip[data-friend-uid]")];
       const fromIndex = chips.indexOf(chip);
       if (fromIndex < 0) return;
@@ -16003,7 +16110,19 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         _cacheFriends(uid, state.friends);
         _renderFriendsEverywhere();
         _reconcileFriendProfileSubs(uid);
+        _syncFriendsCountToProfile(uid);   // publish the count so others can see it
       }, err => console.warn("[friends:sub]", err?.message));
+  }
+  // Publish my friends count to my public userProfiles doc so a visitor can see
+  // "X friends" on my profile. Friendship is bidirectional, so this count == the
+  // number of people who have me as a friend. Only written when it changes.
+  let _friendsCountWritten = -1;
+  function _syncFriendsCountToProfile(uid) {
+    if (!uid || state.friendView) return;
+    const n = (state.friends || []).length;
+    if (n === _friendsCountWritten) return;
+    _friendsCountWritten = n;
+    fbDb(uid).collection("userProfiles").doc(uid).set({ friendsCount: n }, { merge: true }).catch(() => {});
   }
 
   function unsubscribeFriends() {
@@ -23033,22 +23152,40 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (!banner) return;
     // ─── Friend view ───────────────────────────────────────────────
     if (state.friendView) {
-      const { displayName, avatarColor, photoURL, error } = state.friendView;
+      const { displayName, avatarColor, photoURL, error, isPublic, publicKey, friendsCount, socials } = state.friendView;
       // Build a synthetic source so avatarMarkup can pull gradient
       // from the friend's avatarColor (a single hex, not an RGB
       // triplet like an account uses).
       const friendSource = { displayName, photoURL, color: avatarColor };
       const p = _buildAvatarParts(friendSource);
-      const sig = `friend|${displayName || ""}|${p.mode}|${p.photoURL || ""}|${p.initials}|${p.bg}|${error || ""}|${state.lang}`;
+      const sig = `friend|${displayName || ""}|${p.mode}|${p.photoURL || ""}|${p.initials}|${p.bg}|${error || ""}|${isPublic ? 1 : 0}|${publicKey || ""}|${friendsCount ?? ""}|${(socials || []).join(",")}|${state.lang}`;
       if (sig !== _fvbSig) {
         _fvbSig = sig;
+        // ONE relationship badge next to the name — "Public" (green) if the
+        // inventory is public, else "Friend". A clickable "Share" badge (copies
+        // this person's invite link) sits on the line below, public accounts only.
+        const relBadge = error
+          ? `<span class="fvb-badge fvb-badge--error" title="${esc(error)}">⚠ ${t("friendInvErrorBadge")}</span>`
+          : isPublic
+            ? `<span class="fvb-badge fvb-badge--public"><span class="icon icon-eye-on icon-12"></span>${t("friendViewPublic")}</span>`
+            : `<span class="fvb-badge fvb-badge--friend"><span class="icon icon-user icon-11"></span>${t("friendViewFriend")}</span>`;
+        const shareBtn = (!error && isPublic && publicKey)
+          ? `<button type="button" class="fvb-badge fvb-badge--share" data-friend-invite="${esc(publicKey)}"><span class="icon icon-link icon-11"></span><span class="fvb-share-txt">${t("friendShareInvite")}</span></button>`
+          : "";
+        // "X friends" — how many people have this person as a friend (bidirectional,
+        // so == their own friends count), read from their public userProfiles.
+        const countText = (!error && typeof friendsCount === "number")
+          ? `<span class="fvb-count"><span class="icon icon-user icon-11"></span>${esc(t(isPublic ? "followerCount" : "friendCount", { n: friendsCount }))}</span>`
+          : "";
+        // Line 2 badges: relationship (Public / Friend) on the LEFT, the "Share"
+        // badge on the RIGHT — side by side. "X friends" count sits by the name.
+        const line2 = relBadge + shareBtn;
         banner.innerHTML = `
           ${avatarMarkup(friendSource, "fvb-avatar")}
           <div class="fvb-inner">
-            <span class="fvb-name">${esc(displayName || "—")}</span>
-            ${error
-              ? `<span class="fvb-badge fvb-badge--error" title="${esc(error)}">⚠ ${t("friendInvErrorBadge")}</span>`
-              : `<span class="fvb-badge">${t("friendViewReadOnly")}</span>`}
+            <div class="fvb-name-row"><span class="fvb-name">${esc(displayName || "—")}</span>${countText}</div>
+            ${line2 ? `<div class="fvb-badges">${line2}</div>` : ""}
+            ${_socialsRowHTML(socials)}
           </div>`;
       }
       banner.classList.remove("fvb--own");
@@ -23065,16 +23202,31 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // email — see getInitials.)
     const own = _shortName(state.displayName || acc.displayName, acc.email);
     const p = _buildAvatarParts(acc);
-    const sig = `own|${own}|${p.mode}|${p.photoURL || ""}|${p.initials}|${p.bg}`;
+    const isPub = !!state.isPublic, myKey = state.publicKey, myCount = (state.friends || []).length;
+    const sig = `own|${own}|${p.mode}|${p.photoURL || ""}|${p.initials}|${p.bg}|${isPub ? 1 : 0}|${myKey || ""}|${myCount}|${(state.socials || []).join(",")}|${state.lang}`;
     if (sig !== _fvbSig) {
       _fvbSig = sig;
+      // Same badges as a friend banner, for MY account: Public / Private (so I see
+      // my own status) + a "Share" badge that copies MY invite link. Count reads
+      // "followers" when public, "friends" when not.
+      const relBadge = isPub
+        ? `<span class="fvb-badge fvb-badge--public"><span class="icon icon-eye-on icon-12"></span>${t("friendViewPublic")}</span>`
+        : `<span class="fvb-badge fvb-badge--private"><span class="icon icon-lock icon-11"></span>${t("visPrivateShort")}</span>`;
+      const shareBtn = myKey
+        ? `<button type="button" class="fvb-badge fvb-badge--share" data-friend-invite="${esc(myKey)}"><span class="icon icon-link icon-11"></span><span class="fvb-share-txt">${t("friendShareInvite")}</span></button>`
+        : "";
+      const countText = myCount > 0
+        ? `<span class="fvb-count"><span class="icon icon-user icon-11"></span>${esc(t(isPub ? "followerCount" : "friendCount", { n: myCount }))}</span>`
+        : "";
       banner.innerHTML = `
         <button type="button" class="fvb-avatar-edit" id="fvbAvatarEdit" data-i18n-title="changeAvatar" title="${esc(t("changeAvatar"))}" aria-label="${esc(t("changeAvatar"))}">
           ${avatarMarkup(acc, "fvb-avatar")}
           <span class="fvb-avatar-ovl" aria-hidden="true"><span class="icon icon-edit icon-12"></span></span>
         </button>
         <div class="fvb-inner">
-          <span class="fvb-name">${esc(own)}</span>
+          <div class="fvb-name-row"><span class="fvb-name">${esc(own)}</span>${countText}</div>
+          <div class="fvb-badges">${relBadge}${shareBtn}</div>
+          ${_socialsRowHTML(state.socials)}
         </div>`;
     }
     banner.classList.remove("fvb--error");
@@ -23142,8 +23294,37 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // Look up the friend's photoURL from state.friends (already populated
     // by loadFriendsList from userProfiles). Falls through to null →
     // friend banner renders the colour-circle + initials fallback.
-    const friendPhoto = state.friends?.find(f => f.uid === friendUid)?.photoURL || null;
-    state.friendView = { uid: friendUid, displayName: friendName, avatarColor, photoURL: friendPhoto, isPublic: _friendIsPublic, error: null };
+    const _friendRec = state.friends?.find(f => f.uid === friendUid);
+    const friendPhoto = _friendRec?.photoURL || null;
+    state.friendView = { uid: friendUid, displayName: friendName, avatarColor, photoURL: friendPhoto, isPublic: _friendIsPublic, publicKey: _friendRec?.publicKey || null, friendsCount: null, error: null };
+    // Read the friend's public profile for the invite code (share link) + their
+    // friends count ("X friends" in the banner). userProfiles is auth-readable.
+    fbDb().collection("userProfiles").doc(friendUid).get()
+      .then(s => {
+        if (state.friendView?.uid !== friendUid || !s.exists) return;
+        const d = s.data();
+        if (d.publicKey) state.friendView.publicKey = d.publicKey;
+        if (typeof d.friendsCount === "number") state.friendView.friendsCount = d.friendsCount;
+        state.friendView.socials = _cleanSocials(d.socials);
+        // AUTHORITATIVE public/friend state. The initial guess above comes from
+        // state.friends[].isPublic, which is populated asynchronously at startup —
+        // on a cold-start quick-click it's still empty, so the banner would wrongly
+        // read "Friend" and never self-correct (only a manual back-and-forth
+        // re-ran this with a populated list). userProfiles is the source of truth,
+        // so reconcile here: fix the banner, heal the cached friend record (so the
+        // next click is instant), and — only while still loading, to avoid yanking
+        // the view from under the user — correct the landing mode (public = curated
+        // rack showcase, friend = materials grid).
+        const nowPublic = !!d.isPublic;
+        if (nowPublic !== !!state.friendView.isPublic) {
+          state.friendView.isPublic = nowPublic;
+          const fr = state.friends?.find(f => f.uid === friendUid);
+          if (fr) fr.isPublic = nowPublic;
+          if (state.invLoading) setViewMode(nowPublic ? "rack" : "grid", { persist: false });
+        }
+        renderFriendBanner();
+      })
+      .catch(() => {});
     subscribeFriendProducts(friendUid);   // live price / buy link / manual SKU-EAN of the friend's products
     subscribeFriendLists(friendUid);      // live-read the friend's lists (read-only)
     state.inventory = null; state.rows = [];
@@ -23420,6 +23601,15 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           av.appendChild(img);
         }
         $("adfPreviewName").textContent = p.displayName || val;
+        // Social proof — the person's friend count (bidirectional, so how many
+        // people already have them as a friend), read from their public profile.
+        const cntEl = $("adfPreviewCount");
+        if (cntEl) {
+          if (typeof p.friendsCount === "number" && p.friendsCount > 0) {
+            cntEl.innerHTML = `<span class="icon icon-user icon-11"></span>${esc(t(p.isPublic ? "followerCount" : "friendCount", { n: p.friendsCount }))}`;
+            cntEl.hidden = false;
+          } else { cntEl.hidden = true; cntEl.textContent = ""; }
+        }
         $("adfPreview").classList.remove("hidden");
         $("adfResult").textContent = "";
         $("adfResult").className = "adf-result";
@@ -23504,6 +23694,21 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     });
   });
 
+  // Friend-view banner "Share" button — copies the VISITED friend's invite link
+  // (their publicKey) so you can pass a public person on to your other friends.
+  $("friendViewBanner")?.addEventListener("click", e => {
+    const b = e.target.closest("[data-friend-invite]");
+    if (!b) return;
+    const link = `https://cdn.tigertag.io/friend/${b.dataset.friendInvite}`;
+    navigator.clipboard.writeText(link).then(() => {
+      b.classList.add("fvb-share--copied");
+      const txt = b.querySelector(".fvb-share-txt");
+      const prev = txt ? txt.textContent : "";
+      if (txt) txt.textContent = t("listShareCopied");
+      setTimeout(() => { b.classList.remove("fvb-share--copied"); if (txt) txt.textContent = prev; }, 1500);
+    });
+  });
+
   $("btnRegenPublicKey").addEventListener("click", async () => {
     await regeneratePublicKey();
   });
@@ -23515,6 +23720,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (!user) return;
     await fbDb().collection("users").doc(user.uid).set({ isPublic }, { merge: true });
     await syncUserProfile(user.uid, { isPublic });
+    // Flipping public: publish the current friend/follower count NOW (force a
+    // write even if unchanged) so the "X followers" badge is populated the first
+    // time. Repaint my banner (public badge + amis→abonnés label).
+    _friendsCountWritten = -1;
+    _syncFriendsCountToProfile(user.uid);
+    renderFriendBanner();
   });
 
   /* ── Display-name setup modal ─────────────────────────────────────────── */
@@ -25123,6 +25334,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       state.publicKey  = data.publicKey;
       state.privateKey = data.privateKey;
       state.isPublic   = data.isPublic || false;
+      state.socials    = _cleanSocials(data.socials);   // social-profile links (mirrored to userProfiles)
       state.vatCountry = data.vatCountry || null;    // ISO country code for VAT rate + currency (filament reorder)
       state.priceInputMode = data.priceInputMode === "HT" ? "HT" : "TTC"; // how the user types prices (stored value stays HT)
       state.discordSeen    = !!data.discordSeen;     // "nudge done" flags (per account, synced)

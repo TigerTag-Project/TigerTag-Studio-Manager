@@ -428,7 +428,17 @@
   "friendSelf": "这是你自己的码。",
   "friendRequestSent": "请求已发送！",
   "friendRegenConfirm": "重新生成私钥？当前好友保留访问权限，旧链接将被撤销。",
-  "friendViewReadOnly": "只读",
+  "friendViewFriend": "好友",
+  "friendCount": {
+    "one": "{{n}} 位好友",
+    "other": "{{n}} 位好友"
+  },
+  "followerCount": {
+    "one": "{{n}} 位关注者",
+    "other": "{{n}} 位关注者"
+  },
+  "friendViewPublic": "公开",
+  "friendShareInvite": "分享",
   "friendViewBack": "我的库存",
   "copyLabel": "复制",
   "copiedFlash": "已复制！",
@@ -1310,5 +1320,7 @@
   "listSidebarTitle": "你的清单",
   "listLayoutRows": "列表",
   "sectionBuy": "价格与购买",
-  "statValueTip": "剩余耗材的价值：价格 ×（剩余重量 ÷ 容量）。用过一部分的卷线比整卷价值低。"
+  "statValueTip": "剩余耗材的价值：价格 ×（剩余重量 ÷ 容量）。用过一部分的卷线比整卷价值低。",
+  "editSocialsLabel": "社交链接",
+  "editSocialsPlaceholder": "粘贴主页链接…"
 }

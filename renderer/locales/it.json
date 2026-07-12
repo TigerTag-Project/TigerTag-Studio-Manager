@@ -428,7 +428,17 @@
   "friendSelf": "Questo è il tuo codice.",
   "friendRequestSent": "Richiesta inviata!",
   "friendRegenConfirm": "Rigenerare la chiave privata? Gli amici attuali mantengono l'accesso. I vecchi link vengono revocati.",
-  "friendViewReadOnly": "Solo lettura",
+  "friendViewFriend": "Amico",
+  "friendCount": {
+    "one": "{{n}} amico",
+    "other": "{{n}} amici"
+  },
+  "followerCount": {
+    "one": "{{n}} follower",
+    "other": "{{n}} follower"
+  },
+  "friendViewPublic": "Pubblica",
+  "friendShareInvite": "Condividi",
   "friendViewBack": "Il mio inventario",
   "copyLabel": "Copia",
   "copiedFlash": "Copiato!",
@@ -1310,5 +1320,7 @@
   "listSidebarTitle": "Le tue liste",
   "listLayoutRows": "Elenco",
   "sectionBuy": "Prezzo e acquisto",
-  "statValueTip": "Valore del filamento rimanente: prezzo × (peso residuo ÷ capacità). Una bobina iniziata vale meno di una piena."
+  "statValueTip": "Valore del filamento rimanente: prezzo × (peso residuo ÷ capacità). Una bobina iniziata vale meno di una piena.",
+  "editSocialsLabel": "Link social",
+  "editSocialsPlaceholder": "Incolla un link al profilo…"
 }

@@ -428,7 +428,17 @@
   "friendSelf": "That's your own code.",
   "friendRequestSent": "Request sent!",
   "friendRegenConfirm": "Regenerate private key? Current friends keep their access. Old links are revoked.",
-  "friendViewReadOnly": "Read-only",
+  "friendViewFriend": "Friend",
+  "friendCount": {
+    "one": "{{n}} friend",
+    "other": "{{n}} friends"
+  },
+  "followerCount": {
+    "one": "{{n}} follower",
+    "other": "{{n}} followers"
+  },
+  "friendViewPublic": "Public",
+  "friendShareInvite": "Share",
   "friendViewBack": "My inventory",
   "copyLabel": "Copy",
   "copiedFlash": "Copied!",
@@ -1310,5 +1320,7 @@
   "listSidebarTitle": "Your lists",
   "listLayoutRows": "List",
   "sectionBuy": "Price & buy",
-  "statValueTip": "Value of the remaining filament: price × (weight left ÷ capacity). A partly-used spool is worth less than a full one."
+  "statValueTip": "Value of the remaining filament: price × (weight left ÷ capacity). A partly-used spool is worth less than a full one.",
+  "editSocialsLabel": "Social links",
+  "editSocialsPlaceholder": "Paste a profile link…"
 }

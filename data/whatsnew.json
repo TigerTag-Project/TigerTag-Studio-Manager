@@ -5409,26 +5409,156 @@
       {
         "icon": "list-check",
         "title": {
-          "en": "Your friends' lists show up now",
+          "en": "Your friends' lists finally show up",
           "fr": "Les listes de tes amis s'affichent enfin",
-          "de": "Die Listen deiner Freunde erscheinen jetzt",
-          "es": "Las listas de tus amigos ya aparecen",
-          "it": "Le liste dei tuoi amici ora si vedono",
-          "zh": "好友的清单现在能看到了",
+          "de": "Die Listen deiner Freunde erscheinen endlich",
+          "es": "Las listas de tus amigos por fin aparecen",
+          "it": "Le liste dei tuoi amici finalmente si vedono",
+          "zh": "好友的清单终于能看到了",
           "pt": "As listas dos teus amigos já aparecem",
           "pt-pt": "As listas dos teus amigos já aparecem",
-          "pl": "Listy znajomych już się pokazują"
+          "pl": "Listy znajomych wreszcie się pokazują"
         },
         "body": {
-          "en": "Fixed a hiccup where a friend's shared lists wouldn't load. Pop into a friend's profile and their lists are right there — plus buy buttons now read the shop's clean name (bye, 'eu.store.bambulab.com').",
-          "fr": "On a réglé un pépin où les listes partagées d'un ami ne chargeaient pas. Va sur le profil d'un ami, ses listes sont là — et les boutons d'achat affichent le nom propre de la boutique (adieu 'eu.store.bambulab.com').",
-          "de": "Ein Fehler, bei dem geteilte Listen eines Freundes nicht luden, ist behoben. Öffne ein Freundesprofil und die Listen sind da — und Kauf-Buttons zeigen jetzt den sauberen Shop-Namen (tschüss 'eu.store.bambulab.com').",
-          "es": "Arreglado un fallo por el que las listas compartidas de un amigo no cargaban. Entra en el perfil de un amigo y ahí están sus listas — y los botones de compra muestran el nombre limpio de la tienda (adiós 'eu.store.bambulab.com').",
-          "it": "Risolto un intoppo per cui le liste condivise di un amico non si caricavano. Apri il profilo di un amico e le liste ci sono — e i pulsanti d'acquisto mostrano il nome pulito del negozio (ciao 'eu.store.bambulab.com').",
-          "zh": "修复了好友共享清单加载不出来的小问题。进入好友主页就能看到他们的清单——购买按钮也显示简洁的商店名了（再见 'eu.store.bambulab.com'）。",
-          "pt": "Corrigimos uma falha em que as listas partilhadas de um amigo não carregavam. Abre o perfil de um amigo e as listas estão lá — e os botões de compra mostram o nome limpo da loja (adeus 'eu.store.bambulab.com').",
-          "pt-pt": "Corrigimos uma falha em que as listas partilhadas de um amigo não carregavam. Abre o perfil de um amigo e as listas estão lá — e os botões de compra mostram o nome limpo da loja (adeus 'eu.store.bambulab.com').",
-          "pl": "Naprawiliśmy usterkę, przez którą udostępnione listy znajomego się nie ładowały. Wejdź na profil znajomego, a listy tam są — a przyciski zakupu pokazują czystą nazwę sklepu (żegnaj 'eu.store.bambulab.com')."
+          "en": "Fixed a hiccup where a friend's shared lists wouldn't load. Pop into a friend's profile and their lists are right there.",
+          "fr": "On a réglé un pépin où les listes partagées d'un ami ne chargeaient pas. Va sur le profil d'un ami, ses listes sont là.",
+          "de": "Ein Fehler, bei dem geteilte Listen eines Freundes nicht luden, ist behoben. Öffne ein Freundesprofil und die Listen sind da.",
+          "es": "Arreglado un fallo por el que las listas compartidas de un amigo no cargaban. Entra en el perfil de un amigo y ahí están sus listas.",
+          "it": "Risolto un intoppo per cui le liste condivise di un amico non si caricavano. Apri il profilo di un amico e le liste ci sono.",
+          "zh": "修复了好友共享清单加载不出来的小问题。进入好友主页就能看到他们的清单。",
+          "pt": "Corrigimos uma falha em que as listas partilhadas de um amigo não carregavam. Abre o perfil de um amigo e as listas estão lá.",
+          "pt-pt": "Corrigimos uma falha em que as listas partilhadas de um amigo não carregavam. Abre o perfil de um amigo e as listas estão lá.",
+          "pl": "Naprawiliśmy usterkę, przez którą udostępnione listy znajomego się nie ładowały. Wejdź na profil znajomego, a listy tam są."
+        }
+      },
+      {
+        "icon": "cart",
+        "title": {
+          "en": "Buy buttons that don't overflow",
+          "fr": "Des boutons d'achat qui ne débordent plus",
+          "de": "Kauf-Buttons, die nicht überlaufen",
+          "es": "Botones de compra que no se desbordan",
+          "it": "Pulsanti d'acquisto che non sbordano",
+          "zh": "购买按钮不再溢出",
+          "pt": "Botões de compra que já não transbordam",
+          "pt-pt": "Botões de compra que já não transbordam",
+          "pl": "Przyciski zakupu, które się nie rozjeżdżają"
+        },
+        "body": {
+          "en": "The shop name on buy buttons now shows cleanly, without spilling over — short and easy to read, everywhere.",
+          "fr": "Le nom de la boutique sur les boutons d'achat s'affiche proprement, sans déborder — court et lisible, partout dans l'appli.",
+          "de": "Der Shop-Name auf Kauf-Buttons wird jetzt sauber angezeigt, ohne überzulaufen — kurz und gut lesbar, überall.",
+          "es": "El nombre de la tienda en los botones de compra se muestra limpio, sin desbordarse — corto y legible, en toda la app.",
+          "it": "Il nome del negozio sui pulsanti d'acquisto ora si vede pulito, senza sbordare — corto e leggibile, ovunque.",
+          "zh": "购买按钮上的商店名现在显示得干净整洁，不会溢出——简短好读，处处如此。",
+          "pt": "O nome da loja nos botões de compra aparece limpo, sem transbordar — curto e legível, em toda a app.",
+          "pt-pt": "O nome da loja nos botões de compra aparece limpo, sem transbordar — curto e legível, em toda a app.",
+          "pl": "Nazwa sklepu na przyciskach zakupu wyświetla się teraz schludnie, bez rozlewania — krótko i czytelnie, wszędzie."
+        }
+      }
+    ]
+  },
+  "2.8.0": {
+    "date": "2026-07-12",
+    "items": [
+      {
+        "icon": "link",
+        "title": {
+          "en": "Show off your socials",
+          "fr": "Affiche tes réseaux",
+          "de": "Zeig deine Socials",
+          "es": "Luce tus redes",
+          "it": "Mostra i tuoi social",
+          "zh": "秀出你的社交主页",
+          "pt": "Mostra as tuas redes",
+          "pt-pt": "Mostra as tuas redes",
+          "pl": "Pochwal się social mediami"
+        },
+        "body": {
+          "en": "Drop your Instagram, YouTube, or wherever you hang out right on your profile — and peek at your friends' links too.",
+          "fr": "Ajoute ton Instagram, ta chaîne YouTube ou ton coin préféré direct sur ton profil — et va jeter un œil aux liens de tes amis.",
+          "de": "Pack dein Instagram, YouTube oder wo du sonst rumhängst direkt auf dein Profil — und wirf auch einen Blick auf die Links deiner Freunde.",
+          "es": "Pon tu Instagram, YouTube o donde te muevas justo en tu perfil — y échale un ojo a los enlaces de tus amigos.",
+          "it": "Metti Instagram, YouTube o dove bazzichi di solito dritto sul profilo — e sbircia anche i link dei tuoi amici.",
+          "zh": "把你的 Instagram、YouTube 或常混的地方直接放到主页上——顺便也能看看好友的链接。",
+          "pt": "Mete o teu Instagram, YouTube ou onde andas mesmo no teu perfil — e espreita também os links dos teus amigos.",
+          "pt-pt": "Mete o teu Instagram, YouTube ou onde andas mesmo no teu perfil — e espreita também os links dos teus amigos.",
+          "pl": "Wrzuć swój Instagram, YouTube czy gdziekolwiek bywasz prosto na profil — i podejrzyj też linki znajomych."
+        }
+      },
+      {
+        "icon": "user",
+        "title": {
+          "en": "Count your crowd",
+          "fr": "Compte ta bande",
+          "de": "Zähl deine Leute",
+          "es": "Cuenta a tu gente",
+          "it": "Conta la tua gente",
+          "zh": "看看你的人气",
+          "pt": "Conta a tua malta",
+          "pt-pt": "Conta a tua malta",
+          "pl": "Policz swoją ekipę"
+        },
+        "body": {
+          "en": "Public profiles now show how many people follow them — handy social proof before you follow along. Your own shelf shows your count too.",
+          "fr": "Les profils publics affichent maintenant leur nombre d'abonnés — une petite preuve sociale avant de suivre. Et ton propre compte affiche le tien aussi.",
+          "de": "Öffentliche Profile zeigen jetzt, wie viele Follower sie haben — praktischer Social Proof, bevor du folgst. Dein eigenes Regal zeigt deine Zahl ebenfalls.",
+          "es": "Los perfiles públicos ahora muestran cuánta gente los sigue — una prueba social útil antes de seguir. Tu propia cuenta también muestra la tuya.",
+          "it": "I profili pubblici ora mostrano quante persone li seguono — una comoda riprova sociale prima di seguirli. Anche il tuo profilo mostra il tuo numero.",
+          "zh": "公开主页现在会显示有多少人关注——关注前的实用参考。你自己的主页也会显示你的人数。",
+          "pt": "Os perfis públicos agora mostram quantas pessoas os seguem — uma prova social útil antes de seguires. A tua conta também mostra o teu número.",
+          "pt-pt": "Os perfis públicos agora mostram quantas pessoas os seguem — uma prova social útil antes de seguires. A tua conta também mostra o teu número.",
+          "pl": "Publiczne profile pokazują teraz, ile osób je obserwuje — przydatny dowód społeczny, zanim zaczniesz śledzić. Twój profil też pokazuje twój wynik."
+        }
+      },
+      {
+        "icon": "user",
+        "title": {
+          "en": "Reorder your friends from anywhere",
+          "fr": "Réorganise tes amis de partout",
+          "de": "Freunde von überall neu anordnen",
+          "es": "Reordena tus amigos desde cualquier sitio",
+          "it": "Riordina gli amici da ovunque",
+          "zh": "随时随地重排好友",
+          "pt": "Reorganiza os amigos a partir de qualquer lado",
+          "pt-pt": "Reorganiza os amigos a partir de qualquer lado",
+          "pl": "Porządkuj znajomych z każdego miejsca"
+        },
+        "body": {
+          "en": "You can now drag your friends into the order you like even while you're browsing a friend's stuff — no need to leave their profile first.",
+          "fr": "Tu peux maintenant glisser tes amis dans l'ordre qui te plaît même pendant que tu regardes le profil d'un ami — plus besoin d'en sortir d'abord.",
+          "de": "Du kannst deine Freunde jetzt in die gewünschte Reihenfolge ziehen, sogar während du bei einem Freund stöberst — kein vorheriges Verlassen nötig.",
+          "es": "Ahora puedes arrastrar tus amigos al orden que quieras incluso mientras miras el perfil de un amigo — sin salir primero.",
+          "it": "Ora puoi trascinare gli amici nell'ordine che preferisci anche mentre sei nel profilo di un amico — senza doverne uscire prima.",
+          "zh": "现在即使正在浏览好友的内容，也能把好友拖成你喜欢的顺序——不用先退出他的主页。",
+          "pt": "Agora podes arrastar os amigos para a ordem que quiseres mesmo enquanto vês o perfil de um amigo — sem sair primeiro.",
+          "pt-pt": "Agora podes arrastar os amigos para a ordem que quiseres mesmo enquanto vês o perfil de um amigo — sem sair primeiro.",
+          "pl": "Teraz możesz przeciągać znajomych w wybraną kolejność nawet podczas przeglądania profilu znajomego — bez wychodzenia z niego."
+        }
+      },
+      {
+        "icon": "list-check",
+        "title": {
+          "en": "Your lists, at a glance",
+          "fr": "Tes listes, en un coup d'œil",
+          "de": "Deine Listen auf einen Blick",
+          "es": "Tus listas de un vistazo",
+          "it": "Le tue liste a colpo d'occhio",
+          "zh": "一眼看清你的清单",
+          "pt": "As tuas listas num relance",
+          "pt-pt": "As tuas listas num relance",
+          "pl": "Twoje listy w mgnieniu oka"
+        },
+        "body": {
+          "en": "The Lists button now wears a little badge showing how many you've got — no need to open it to remember.",
+          "fr": "Le bouton Listes porte maintenant un petit badge qui montre combien tu en as — plus besoin de l'ouvrir pour t'en souvenir.",
+          "de": "Der Listen-Button trägt jetzt ein kleines Abzeichen, das zeigt, wie viele du hast — kein Öffnen nötig, um dich zu erinnern.",
+          "es": "El botón de Listas ahora lleva una pequeña insignia que muestra cuántas tienes — sin abrirlo para acordarte.",
+          "it": "Il pulsante Liste ora ha un piccolo badge che mostra quante ne hai — senza aprirlo per ricordartelo.",
+          "zh": "「清单」按钮现在带了个小角标，显示你有多少个清单——不用打开也知道。",
+          "pt": "O botão de Listas agora tem um pequeno selo a mostrar quantas tens — sem precisar de abrir para lembrar.",
+          "pt-pt": "O botão de Listas agora tem um pequeno selo a mostrar quantas tens — sem precisar de abrir para lembrar.",
+          "pl": "Przycisk List ma teraz małą plakietkę pokazującą, ile ich masz — nie musisz go otwierać, żeby pamiętać."
         }
       }
     ]

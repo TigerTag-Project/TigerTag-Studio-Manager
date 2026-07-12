@@ -355,7 +355,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Display name + friend requests (L23455-24270)
+## Display name + friend requests (L23455-24475)
 
 | L | What | Anchors |
 |---|---|---|
@@ -365,7 +365,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Keys + profile sync (L24271-24444)
+## Keys + profile sync (L24476-24567)
 
 | L | What | Anchors |
 |---|---|---|
@@ -374,7 +374,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Custom avatar (L24445-24772)
+## Custom avatar (L24568-24964)
 
 | L | What | Anchors |
 |---|---|---|
@@ -383,7 +383,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## User doc sync + telemetry + bootstrap (L24773-25420)
+## User doc sync + telemetry + bootstrap (L24965-25638)
 
 | L | What | Anchors |
 |---|---|---|
@@ -394,7 +394,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Electron RFID integration (L25421-25860)
+## Electron RFID integration (L25639-26050)
 
 | L | What | Anchors |
 |---|---|---|

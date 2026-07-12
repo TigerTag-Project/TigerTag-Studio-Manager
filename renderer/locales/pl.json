@@ -427,7 +427,17 @@
   "friendSelf": "To jest Twój kod",
   "friendRequestSent": "Prośba wysłana",
   "friendRegenConfirm": "Wygenerować nowy klucz?",
-  "friendViewReadOnly": "Tylko do odczytu",
+  "friendViewFriend": "Znajomy",
+  "friendCount": {
+    "one": "{{n}} znajomy",
+    "other": "{{n}} znajomych"
+  },
+  "followerCount": {
+    "one": "{{n}} obserwujący",
+    "other": "{{n}} obserwujących"
+  },
+  "friendViewPublic": "Publiczny",
+  "friendShareInvite": "Udostępnij",
   "friendViewBack": "Mój inwentarz",
   "copyLabel": "Kopiuj",
   "copiedFlash": "Skopiowano!",
@@ -1309,5 +1319,7 @@
   "listSidebarTitle": "Twoje listy",
   "listLayoutRows": "Lista",
   "sectionBuy": "Cena i zakup",
-  "statValueTip": "Wartość pozostałego filamentu: cena × (pozostała masa ÷ pojemność). Napoczęta szpula jest warta mniej niż pełna."
+  "statValueTip": "Wartość pozostałego filamentu: cena × (pozostała masa ÷ pojemność). Napoczęta szpula jest warta mniej niż pełna.",
+  "editSocialsLabel": "Media społecznościowe",
+  "editSocialsPlaceholder": "Wklej link do profilu…"
 }

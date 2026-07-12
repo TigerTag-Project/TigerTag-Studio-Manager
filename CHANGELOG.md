@@ -5,6 +5,27 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v2.8.0 — 2026-07-12
+
+### Added
+
+- **Social-profile links on the account.** The edit-account panel gains a social-links editor (paste any profile URL, add/remove rows, auto-saved). Links are stored as an ordered `socials` array on the private `users/{uid}` doc and mirrored to the public `userProfiles/{uid}.socials` (both owner-write, no rules change). The brand icon is inferred from the URL host (X, Instagram, YouTube, TikTok, Facebook, LinkedIn, Twitch, Discord, GitHub, WhatsApp; globe fallback) — no fixed platform enum. A row of brand-coloured icon links renders on your own banner and a visited friend's banner, and the owner's links ride along in the public wishlist snapshot (`publicLists/{token}.ownerSocials`). New brand SVGs + `.icon-*` classes; `_socialMeta` / `_cleanSocials` / `_socialsRowHTML` helpers + `_renderSocialsEditor` / `_saveSocials` / `_wireSocialsEditor`. New `editSocialsLabel` / `editSocialsPlaceholder` i18n.
+- **Friend / follower count on profiles (social proof).** Each account publishes its accepted-friends count to `userProfiles/{uid}.friendsCount`. Friendship is bidirectional, so this equals the number of people who have the account as a friend. A visited friend's banner and the add-friend preview show it; for a public account it reads "followers" (`followerCount`), otherwise "friends" (`friendCount`). Written by the owner's client when the friends list changes, and recounted + written server-side by the `autoAcceptFriendRequestForPublic` Cloud Function for public accounts (offline owner) — `_syncFriendsCountToProfile`.
+- **Own account banner shows Public / Private + Share + count.** Your own header now carries the same relationship badges as a friend banner — a green **Public** or a **Private** pill so you see your own status — plus a **Share** badge that copies your invite link, and your own follower/friend count.
+- **Friend-view relationship badge + shareable public link.** A visited friend's banner shows one pill next to the name: green **Public** if their inventory is public, else **Friend**. For public accounts a **Share** badge copies that person's invite link (`cdn.tigertag.io/friend/<code>`) to pass on. The visited friend's `publicKey` is read from `userProfiles` on entering the view. New `friendViewPublic` / `friendViewFriend` / `friendShareInvite` i18n; removed the unused `friendViewReadOnly` key.
+- **Wishlist count pill on the "Lists" view button** — a small brand-orange badge shows how many lists you have (the friend's shared-list count in friend-view), live-updated from the lists subscription (mirrors the "To order" cart badge) — `_updateListsBadge`.
+
+### Changed
+
+- Split the v2.7.1 "What's New" entry into two topic-scoped items (friends' lists showing / buy-button label) — `data/whatsnew.json`.
+- Re-synced `renderer/CODEMAP.md` section line ranges after the social-links additions shifted `inventory.js`.
+
+### Fixed
+
+- **A public friend showed as "Friend" on a cold-start quick-click.** `switchToFriendView` seeded `isPublic` from `state.friends[].isPublic` (populated asynchronously at startup, still empty on a fast click), and the follow-up `userProfiles` read updated `publicKey` / `friendsCount` / `socials` but not `isPublic`, so the banner stayed "Friend" until a manual back-and-forth. The `userProfiles` read now reconciles `isPublic` authoritatively: fixes the banner, heals the cached friend record (next click is instant), and corrects the landing view mode while still loading.
+- **Public accounts' follower count was never updated (offline owner).** The count was only published by the owner's client on a friends-list change, but a public account is auto-friended server-side while offline, so its `userProfiles.friendsCount` stayed stale. The `autoAcceptFriendRequestForPublic` Cloud Function now recounts both sides (via a `count()` aggregation) and writes `friendsCount` after every auto-accept; Studio also force-publishes the count when the account is flipped to public.
+- **Couldn't reorder friends while viewing a friend.** A too-broad `state.friendView` guard blocked the friends drag-reorder (sidebar chips + Friends panel) in friend-view. Reordering your own friends writes to your own account, so it's now allowed there; the cart / printers / racks reorder stays blocked (friend's read-only data).
+
 ## v2.7.1 — 2026-07-12
 
 ### Changed

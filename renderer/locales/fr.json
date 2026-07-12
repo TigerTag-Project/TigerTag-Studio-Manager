@@ -428,7 +428,17 @@
   "friendSelf": "C'est ton propre code.",
   "friendRequestSent": "Demande envoyée !",
   "friendRegenConfirm": "Régénérer la clé privée ? Les amis actuels gardent leur accès. Les anciens liens sont révoqués.",
-  "friendViewReadOnly": "Lecture seule",
+  "friendViewFriend": "Ami",
+  "friendCount": {
+    "one": "{{n}} ami",
+    "other": "{{n}} amis"
+  },
+  "followerCount": {
+    "one": "{{n}} abonné",
+    "other": "{{n}} abonnés"
+  },
+  "friendViewPublic": "Publique",
+  "friendShareInvite": "Partager",
   "friendViewBack": "Mon inventaire",
   "copyLabel": "Copier",
   "copiedFlash": "Copié !",
@@ -1310,5 +1320,7 @@
   "listSidebarTitle": "Vos listes",
   "listLayoutRows": "Lignes",
   "sectionBuy": "Prix & achat",
-  "statValueTip": "Valeur du filament restant : prix × (poids restant ÷ capacité). Une bobine entamée vaut moins qu'une pleine."
+  "statValueTip": "Valeur du filament restant : prix × (poids restant ÷ capacité). Une bobine entamée vaut moins qu'une pleine.",
+  "editSocialsLabel": "Réseaux sociaux",
+  "editSocialsPlaceholder": "Colle un lien de profil…"
 }

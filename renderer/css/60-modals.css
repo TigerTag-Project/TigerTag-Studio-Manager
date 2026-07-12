@@ -401,6 +401,11 @@
   .adf-preview-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
   .adf-preview-name { font-size: 14px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .adf-preview-status { font-size: 11px; color: var(--success, #1aaf6c); font-weight: 600; }
+  /* Social proof — the person's friend count, shown while adding them. */
+  .adf-preview-count { display: inline-flex; align-items: center; gap: 4px; align-self: flex-start;
+    font-size: 11px; font-weight: 600; color: var(--muted); }
+  .adf-preview-count[hidden] { display: none; }
+  .adf-preview-count .icon { background-color: var(--muted); }
   .adf-preview-check {
     width: 22px; height: 22px; flex-shrink: 0;
     display: flex; align-items: center; justify-content: center;
@@ -754,6 +759,28 @@
     transition: border-color .15s;
   }
   .eac-name-input:focus { border-color: var(--primary); }
+  /* Social-links editor rows (icon inferred from the URL host). */
+  .eac-socials { display: flex; flex-direction: column; gap: 6px; }
+  .eac-social-row { display: flex; align-items: center; gap: 8px; }
+  .eac-social-ic { flex-shrink: 0; width: 26px; height: 26px; border-radius: 7px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--surface-2); border: 1px solid var(--border); }
+  .eac-social-ic .icon { background-color: var(--muted); }
+  .eac-social-input {
+    flex: 1; min-width: 0; padding: 6px 10px; font-size: 12.5px;
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); outline: none; transition: border-color .15s;
+  }
+  .eac-social-input:focus { border-color: var(--primary); }
+  .eac-social-del {
+    width: 28px; height: 28px; flex-shrink: 0; padding: 0; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: transparent; border: 1px solid var(--border); border-radius: 7px;
+    transition: border-color .12s, background-color .12s;
+  }
+  .eac-social-del[hidden] { display: none; }
+  .eac-social-del:hover { border-color: var(--danger); }
+  .eac-social-del .icon { background-color: var(--muted); }
   .eac-name-save {
     width: 32px; height: 32px; flex-shrink: 0; padding: 0;
     display: flex; align-items: center; justify-content: center;
@@ -1048,13 +1075,35 @@
     max-width: 160px;
     line-height: 1.2;
   }
+  /* Clean pill "tags" — same family as the TigerTag+ / TigerCloud stat tags. */
+  /* Line 1: name + "Public" badge · Line 2: "Read-only" + "Share" badges. */
+  .fvb-name-row { display: flex; align-items: center; gap: 6px; min-width: 0; }
+  .fvb-badges { display: flex; align-items: center; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
   .fvb-badge {
-    font-size: 9px; font-weight: 700; text-transform: uppercase;
-    letter-spacing: .06em; color: var(--muted);
-    background: var(--border); border-radius: 3px; padding: 1px 5px;
-    flex-shrink: 0;
-    line-height: 1.4;
+    box-sizing: border-box; display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;
+    height: 20px; padding: 0 8px; border-radius: 999px;
+    font-size: 10px; font-weight: 700; letter-spacing: .03em; line-height: 1; font-family: inherit;
+    color: var(--muted); background: var(--surface-2); border: 1px solid var(--border);
   }
+  .fvb-badge .icon { background-color: currentColor; }
+  /* Public → green gradient pill (white). Transparent border keeps the same box height. */
+  .fvb-badge--public { color: #fff; border-color: transparent; background: linear-gradient(90deg, #22a06b, #35c489); }
+  .fvb-badge--public .icon { background-color: #fff; }
+  /* "Partager" → blue "link" gradient pill, clickable (copies the invite link) — same slim box. */
+  .fvb-badge--share { cursor: pointer; color: #fff; border-color: transparent;
+    background: linear-gradient(90deg, #2f74d0, #5b9be8); transition: filter .12s; }
+  .fvb-badge--share .icon { background-color: #fff; }
+  .fvb-badge--share:hover { filter: brightness(1.06); }
+  .fvb-badge--share.fvb-share--copied { background: linear-gradient(90deg, #22a06b, #35c489); }
+  /* "X friends" — plain muted count (not a pill). */
+  .fvb-count { display: inline-flex; align-items: center; gap: 3px;
+    font-size: 10px; font-weight: 600; color: var(--muted); }
+  .fvb-count .icon { background-color: var(--muted); }
+  /* Social-profile links — a row of brand-coloured icons. */
+  .fvb-socials { display: flex; align-items: center; gap: 9px; margin-top: 6px; flex-wrap: wrap; }
+  .fvb-social { display: inline-flex; align-items: center; justify-content: center; }
+  .fvb-social .icon { width: 15px; height: 15px; background-color: var(--sc, var(--muted)); transition: transform .12s, opacity .12s; opacity: .9; }
+  .fvb-social:hover .icon { transform: scale(1.15); opacity: 1; }
 
   /* read-only weight bar (no slider) */
   .wb-track--ro { pointer-events: none; }

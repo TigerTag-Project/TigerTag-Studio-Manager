@@ -1121,6 +1121,9 @@
   .tbl-addprice:hover { color: var(--primary); text-decoration-style: solid; }
   /* Cart count badge on the "To order" view button — red bubble, top-right. */
   #btnViewOrder { position: relative; overflow: visible; }
+  #btnViewLists { position: relative; overflow: visible; }
+  /* Lists count pill — same shape as the cart badge, brand-orange (not alert-red). */
+  .view-lists-badge { background: var(--primary); }
   .view-order-badge {
     position: absolute; top: -6px; right: -6px; box-sizing: border-box;
     min-width: 16px; height: 16px; padding: 0 4px;
@@ -3377,6 +3380,13 @@
   .icon-x        { -webkit-mask-image: url('../../assets/svg/logos/logo_x.svg');        mask-image: url('../../assets/svg/logos/logo_x.svg'); }
   .icon-linkedin { -webkit-mask-image: url('../../assets/svg/logos/logo_linkedin.svg'); mask-image: url('../../assets/svg/logos/logo_linkedin.svg'); }
   .icon-whatsapp { -webkit-mask-image: url('../../assets/svg/logos/logo_whatsapp.svg'); mask-image: url('../../assets/svg/logos/logo_whatsapp.svg'); }
+  .icon-instagram { -webkit-mask-image: url('../../assets/svg/logos/logo_instagram.svg'); mask-image: url('../../assets/svg/logos/logo_instagram.svg'); }
+  .icon-youtube  { -webkit-mask-image: url('../../assets/svg/logos/logo_youtube.svg');  mask-image: url('../../assets/svg/logos/logo_youtube.svg'); }
+  .icon-tiktok   { -webkit-mask-image: url('../../assets/svg/logos/logo_tiktok.svg');   mask-image: url('../../assets/svg/logos/logo_tiktok.svg'); }
+  .icon-github   { -webkit-mask-image: url('../../assets/svg/logos/logo_github.svg');   mask-image: url('../../assets/svg/logos/logo_github.svg'); }
+  .icon-discord  { -webkit-mask-image: url('../../assets/svg/logos/logo_discord.svg');  mask-image: url('../../assets/svg/logos/logo_discord.svg'); }
+  .icon-twitch   { -webkit-mask-image: url('../../assets/svg/logos/logo_twitch.svg');   mask-image: url('../../assets/svg/logos/logo_twitch.svg'); }
+  .icon-globe    { -webkit-mask-image: url('../../assets/svg/logos/logo_globe.svg');    mask-image: url('../../assets/svg/logos/logo_globe.svg'); }
   .lv-social-row { display: flex; gap: 8px; justify-content: center; }
   .lv-social { display: inline-flex; align-items: center; justify-content: center;
     width: 34px; height: 34px; border-radius: 50%; border: none; cursor: pointer;

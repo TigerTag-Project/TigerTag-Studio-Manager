@@ -428,7 +428,17 @@
   "friendSelf": "Das ist dein eigener Code.",
   "friendRequestSent": "Anfrage gesendet!",
   "friendRegenConfirm": "Privaten Schlüssel neu generieren? Aktuelle Freunde behalten ihren Zugang. Alte Links werden widerrufen.",
-  "friendViewReadOnly": "Nur-Lesen",
+  "friendViewFriend": "Freund",
+  "friendCount": {
+    "one": "{{n}} Freund",
+    "other": "{{n}} Freunde"
+  },
+  "followerCount": {
+    "one": "{{n}} Abonnent",
+    "other": "{{n}} Abonnenten"
+  },
+  "friendViewPublic": "Öffentlich",
+  "friendShareInvite": "Teilen",
   "friendViewBack": "Mein Inventar",
   "copyLabel": "Kopieren",
   "copiedFlash": "Kopiert!",
@@ -1310,5 +1320,7 @@
   "listSidebarTitle": "Deine Listen",
   "listLayoutRows": "Liste",
   "sectionBuy": "Preis & Kauf",
-  "statValueTip": "Wert des verbleibenden Filaments: Preis × (Restgewicht ÷ Kapazität). Eine angebrochene Spule ist weniger wert als eine volle."
+  "statValueTip": "Wert des verbleibenden Filaments: Preis × (Restgewicht ÷ Kapazität). Eine angebrochene Spule ist weniger wert als eine volle.",
+  "editSocialsLabel": "Soziale Links",
+  "editSocialsPlaceholder": "Profil-Link einfügen…"
 }
