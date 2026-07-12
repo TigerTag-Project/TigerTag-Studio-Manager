@@ -5402,5 +5402,35 @@
         }
       }
     ]
+  },
+  "2.7.1": {
+    "date": "2026-07-12",
+    "items": [
+      {
+        "icon": "list-check",
+        "title": {
+          "en": "Your friends' lists show up now",
+          "fr": "Les listes de tes amis s'affichent enfin",
+          "de": "Die Listen deiner Freunde erscheinen jetzt",
+          "es": "Las listas de tus amigos ya aparecen",
+          "it": "Le liste dei tuoi amici ora si vedono",
+          "zh": "好友的清单现在能看到了",
+          "pt": "As listas dos teus amigos já aparecem",
+          "pt-pt": "As listas dos teus amigos já aparecem",
+          "pl": "Listy znajomych już się pokazują"
+        },
+        "body": {
+          "en": "Fixed a hiccup where a friend's shared lists wouldn't load. Pop into a friend's profile and their lists are right there — plus buy buttons now read the shop's clean name (bye, 'eu.store.bambulab.com').",
+          "fr": "On a réglé un pépin où les listes partagées d'un ami ne chargeaient pas. Va sur le profil d'un ami, ses listes sont là — et les boutons d'achat affichent le nom propre de la boutique (adieu 'eu.store.bambulab.com').",
+          "de": "Ein Fehler, bei dem geteilte Listen eines Freundes nicht luden, ist behoben. Öffne ein Freundesprofil und die Listen sind da — und Kauf-Buttons zeigen jetzt den sauberen Shop-Namen (tschüss 'eu.store.bambulab.com').",
+          "es": "Arreglado un fallo por el que las listas compartidas de un amigo no cargaban. Entra en el perfil de un amigo y ahí están sus listas — y los botones de compra muestran el nombre limpio de la tienda (adiós 'eu.store.bambulab.com').",
+          "it": "Risolto un intoppo per cui le liste condivise di un amico non si caricavano. Apri il profilo di un amico e le liste ci sono — e i pulsanti d'acquisto mostrano il nome pulito del negozio (ciao 'eu.store.bambulab.com').",
+          "zh": "修复了好友共享清单加载不出来的小问题。进入好友主页就能看到他们的清单——购买按钮也显示简洁的商店名了（再见 'eu.store.bambulab.com'）。",
+          "pt": "Corrigimos uma falha em que as listas partilhadas de um amigo não carregavam. Abre o perfil de um amigo e as listas estão lá — e os botões de compra mostram o nome limpo da loja (adeus 'eu.store.bambulab.com').",
+          "pt-pt": "Corrigimos uma falha em que as listas partilhadas de um amigo não carregavam. Abre o perfil de um amigo e as listas estão lá — e os botões de compra mostram o nome limpo da loja (adeus 'eu.store.bambulab.com').",
+          "pl": "Naprawiliśmy usterkę, przez którą udostępnione listy znajomego się nie ładowały. Wejdź na profil znajomego, a listy tam są — a przyciski zakupu pokazują czystą nazwę sklepu (żegnaj 'eu.store.bambulab.com')."
+        }
+      }
+    ]
   }
 }

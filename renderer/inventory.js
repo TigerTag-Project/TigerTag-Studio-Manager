@@ -7034,6 +7034,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         const map = {};
         snap.docs.forEach(d => { map[d.id] = { id: d.id, ...d.data() }; });
         state.lists = map;
+        // Backfill: legacy lists created before the visibility field default to
+        // "friends" — otherwise a friend's `where("visibility","!=","private")`
+        // read (see subscribeFriendLists) would skip them. One-time write each.
+        if (!state.friendView) Object.values(map).forEach(l => { if (!l.visibility) _listWrite(l.id, { visibility: "friends" }); });
         _syncAllPublicSnapshots();   // keep public snapshots in sync with list edits
         if (state.selectedListId && !map[state.selectedListId]) state.selectedListId = null;
         // Don't rebuild the view while the user is naming a list — it would wipe
@@ -7052,7 +7056,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function subscribeFriendLists(uid) {
     unsubscribeFriendLists();
     if (!uid) return;
+    // A friend can only read the owner's NON-private lists — an unconstrained
+    // collection query would be rejected by the rules (it could return a private
+    // list), so filter to `visibility != "private"` to match what the rule allows.
+    // (Note: this excludes legacy lists with no `visibility` field; the owner's
+    // subscribeLists backfills those to "friends".)
     state.unsubFriendLists = fbDb(uid).collection("users").doc(uid).collection("lists")
+      .where("visibility", "!=", "private")
       .onSnapshot(snap => {
         if (state.friendView?.uid !== uid) return;
         const m = {};
@@ -10145,8 +10155,24 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   }
   // Buy-button label = the shop's host (e.g. "amazon.fr", "atome3d.com") rather
   // than a generic "Buy", so a wishlist reads like a shopping list of shops.
+  // Collapse a hostname to its registrable domain (eTLD+1): drop every subdomain
+  // so "eu.store.bambulab.com" → "bambulab.com", "www.amazon.fr" → "amazon.fr".
+  // Keeps 3 labels for known two-level public suffixes ("example.co.uk").
+  const _TWO_LEVEL_TLD = new Set([
+    "co.uk","org.uk","gov.uk","ac.uk","me.uk","ltd.uk","plc.uk",
+    "com.au","net.au","org.au","com.br","com.mx","com.ar","com.tr","com.cn",
+    "com.sg","com.hk","com.tw","com.pl","com.ua","com.co","com.pe","com.ph",
+    "com.my","com.vn","com.eg","com.sa","com.pt","com.es","co.jp","co.kr",
+    "co.nz","co.za","co.in","co.il","co.id","co.th","or.jp","ne.jp",
+  ]);
+  function _registrableDomain(host) {
+    const parts = String(host || "").split(".").filter(Boolean);
+    if (parts.length <= 2) return parts.join(".");
+    const last2 = parts.slice(-2).join(".");
+    return _TWO_LEVEL_TLD.has(last2) ? parts.slice(-3).join(".") : last2;
+  }
   function _buyHost(url) {
-    try { return new URL(_normalizeBuyUrl(url)).hostname.replace(/^www\./i, ""); }
+    try { return _registrableDomain(new URL(_normalizeBuyUrl(url)).hostname); }
     catch { return t("listBuy"); }
   }
   // remove (✕) overlay. Used when the Lists view is in "grid" mode.

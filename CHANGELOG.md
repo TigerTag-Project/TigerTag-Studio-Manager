@@ -5,6 +5,16 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v2.7.1 — 2026-07-12
+
+### Changed
+
+- **Buy-button host label collapses subdomains to the registrable domain** — "eu.store.bambulab.com" → "bambulab.com", "www.amazon.fr" → "amazon.fr" — so long shop hostnames stay short (keeps three labels for known two-level suffixes like `.co.uk`). New `_registrableDomain` helper used by `_buyHost`.
+
+### Fixed
+
+- **A friend's shared lists didn't show in friend-view.** `subscribeFriendLists` ran an unconstrained `collection("lists")` query, which the security rules reject for a non-owner (it could return a `private` list), so the whole query failed and no lists appeared. It now queries `where("visibility", "!=", "private")` to match what the rule allows; the owner's `subscribeLists` backfills legacy lists missing the `visibility` field to `"friends"` so they're included. No rules change.
+
 ## v2.7.0 — 2026-07-12
 
 ### Added
