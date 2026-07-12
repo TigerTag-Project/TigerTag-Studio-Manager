@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell, session, nativeTheme, utilityProcess } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, session, nativeTheme, utilityProcess, Menu } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const fs   = require('fs');
@@ -372,6 +372,27 @@ function createWindow() {
       }
     });
   }
+
+  // Right-click context menu — native Cut/Copy/Paste/Select-all on any editable
+  // field (text/number/url inputs, textareas, contenteditable), plus Copy on any
+  // selected text. Uses `role`s so labels are OS-native + localised and behaviour
+  // is built-in. `editFlags` disable actions that don't apply (e.g. Paste with an
+  // empty clipboard, Cut with no selection).
+  mainWindow.webContents.on('context-menu', (_e, params) => {
+    const ef = params.editFlags || {};
+    const hasSel = !!(params.selectionText && params.selectionText.trim());
+    const tpl = [];
+    if (params.isEditable) {
+      tpl.push({ role: 'cut', enabled: !!ef.canCut });
+      tpl.push({ role: 'copy', enabled: !!ef.canCopy });
+      tpl.push({ role: 'paste', enabled: !!ef.canPaste });
+      tpl.push({ type: 'separator' });
+      tpl.push({ role: 'selectAll', enabled: ef.canSelectAll !== false });
+    } else if (hasSel) {
+      tpl.push({ role: 'copy', enabled: !!ef.canCopy });
+    }
+    if (tpl.length) Menu.buildFromTemplate(tpl).popup({ window: mainWindow });
+  });
 
   // Primary reveal signal — renderer posts this after hydrating from cache.
   ipcMain.once('studio:ready', revealMainWindow);

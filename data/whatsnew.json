@@ -5167,5 +5167,240 @@
         }
       }
     ]
+  },
+  "2.5.0": {
+    "date": "2026-07-11",
+    "items": [
+      {
+        "icon": "cart",
+        "title": {
+          "en": "Your reorder list is now a real cart",
+          "fr": "Ta liste de réappro est un vrai panier",
+          "de": "Deine Nachbestellliste ist jetzt ein echter Warenkorb",
+          "es": "Tu lista de recompra ahora es un carrito de verdad",
+          "it": "La tua lista di riordino ora è un vero carrello",
+          "zh": "你的补货清单现在是个真购物车了",
+          "pt": "Sua lista de recompra agora é um carrinho de verdade",
+          "pt-pt": "A tua lista de reposição é agora um carrinho a sério",
+          "pl": "Twoja lista zakupów to teraz prawdziwy koszyk"
+        },
+        "body": {
+          "en": "An active cart for what's running low, plus a \"saved for later\" shelf. Drag spools between the two, order them how you like — and nothing gets deleted by accident anymore.",
+          "fr": "Un panier actif pour ce qui manque, et une étagère « pour plus tard ». Glisse les bobines de l'une à l'autre, réordonne à ta guise — et plus rien ne se supprime par accident.",
+          "de": "Ein aktiver Warenkorb für alles, was zur Neige geht, plus ein „Später“-Regal. Zieh Spulen zwischen beiden hin und her, ordne sie wie du willst — und nichts wird mehr aus Versehen gelöscht.",
+          "es": "Un carrito activo para lo que se está acabando y un estante \"para más tarde\". Arrastra bobinas entre ambos, ordénalas a tu gusto — y ya nada se borra por accidente.",
+          "it": "Un carrello attivo per ciò che sta finendo e uno scaffale \"per dopo\". Trascina le bobine tra i due, ordinale come vuoi — e niente si cancella più per sbaglio.",
+          "zh": "一个放快用完的活跃购物车，外加一个「稍后再买」的架子。卷线在两边随便拖、随意排序——再也不会手滑删掉了。",
+          "pt": "Um carrinho ativo para o que está acabando e uma prateleira \"para depois\". Arraste bobinas entre os dois, ordene como quiser — e nada mais some por acidente.",
+          "pt-pt": "Um carrinho ativo para o que está a acabar e uma prateleira \"para depois\". Arrasta bobinas entre os dois, ordena-as como quiseres — e nada é apagado por acidente.",
+          "pl": "Aktywny koszyk na to, czego brakuje, plus półka „na później”. Przeciągaj szpule między nimi, układaj po swojemu — i nic już nie zniknie przez przypadek."
+        }
+      },
+      {
+        "icon": "coins",
+        "title": {
+          "en": "See what your filament stash is worth",
+          "fr": "Vois combien vaut ton stock de filaments",
+          "de": "Sieh, was dein Filament-Vorrat wert ist",
+          "es": "Descubre cuánto vale tu reserva de filamento",
+          "it": "Scopri quanto vale la tua scorta di filamenti",
+          "zh": "看看你的耗材库存值多少钱",
+          "pt": "Veja quanto vale seu estoque de filamentos",
+          "pt-pt": "Vê quanto vale o teu stock de filamentos",
+          "pl": "Zobacz, ile wart jest twój zapas filamentu"
+        },
+        "body": {
+          "en": "A new \"Stock Value\" stat totals up your whole stash, and the inventory table gains a Price column you can sort by. Fancy.",
+          "fr": "Une nouvelle stat « Valeur du stock » additionne tout, et le tableau d'inventaire gagne une colonne Prix triable. Classe.",
+          "de": "Eine neue Statistik „Bestandswert“ rechnet alles zusammen, und die Bestandstabelle bekommt eine sortierbare Preisspalte. Schick.",
+          "es": "Una nueva estadística \"Valor del stock\" lo suma todo, y la tabla de inventario estrena una columna Precio que puedes ordenar. Elegante.",
+          "it": "Una nuova statistica \"Valore scorte\" somma tutto, e la tabella dell'inventario guadagna una colonna Prezzo ordinabile. Chic.",
+          "zh": "新增「库存价值」统计帮你把全部身家加起来，库存表格也多了一列可排序的价格。有派头。",
+          "pt": "Uma nova estatística \"Valor do estoque\" soma tudo, e a tabela de inventário ganha uma coluna Preço que dá para ordenar. Chique.",
+          "pt-pt": "Uma nova estatística \"Valor do stock\" soma tudo, e a tabela de inventário ganha uma coluna Preço ordenável. Chique.",
+          "pl": "Nowa statystyka „Wartość zapasu” sumuje wszystko, a tabela inwentarza zyskuje sortowalną kolumnę Cena. Z klasą."
+        }
+      },
+      {
+        "icon": "package",
+        "title": {
+          "en": "Love a filament, never run dry",
+          "fr": "Aime un filament, ne tombe jamais à sec",
+          "de": "Lieb ein Filament, geh nie leer aus",
+          "es": "Marca un filamento con amor y no te quedes sin él",
+          "it": "Ama un filamento, non restare mai a secco",
+          "zh": "给线材点个爱心，永远不断货",
+          "pt": "Ame um filamento e nunca fique sem",
+          "pt-pt": "Adora um filamento e nunca ficas sem",
+          "pl": "Pokochaj filament i nigdy nie zostań na zero"
+        },
+        "body": {
+          "en": "Hit the ❤ on a filament and it quietly keeps a minimum on hand — so it pops into your cart the moment you run out.",
+          "fr": "Mets un ❤ sur un filament et il garde discrètement un minimum sous le coude — hop, il file dans ton panier dès que tu es à court.",
+          "de": "Gib einem Filament ein ❤ und es hält im Stillen einen Mindestbestand — so landet es sofort im Warenkorb, wenn's leer wird.",
+          "es": "Dale un ❤ a un filamento y guardará un mínimo sin decir nada — así aparece en tu carrito en cuanto se acaba.",
+          "it": "Metti un ❤ a un filamento e terrà una scorta minima senza dire niente — così finisce nel carrello appena finisce.",
+          "zh": "给线材点个 ❤，它就会悄悄留个最低库存——一用完就自动跳进购物车。",
+          "pt": "Dê um ❤ a um filamento e ele guarda um mínimo em silêncio — assim ele cai no carrinho assim que acabar.",
+          "pt-pt": "Dá um ❤ a um filamento e ele guarda um mínimo em silêncio — vai parar ao carrinho assim que acabares.",
+          "pl": "Daj filamentowi ❤, a on po cichu pilnuje minimalnego stanu — wskoczy do koszyka, gdy tylko się skończy."
+        }
+      },
+      {
+        "icon": "heart-fill",
+        "title": {
+          "en": "Buy the maker a coffee ☕",
+          "fr": "Offre un café au créateur ☕",
+          "de": "Spendier dem Macher einen Kaffee ☕",
+          "es": "Invita a un café al creador ☕",
+          "it": "Offri un caffè al creatore ☕",
+          "zh": "请作者喝杯咖啡 ☕",
+          "pt": "Pague um café para o criador ☕",
+          "pt-pt": "Oferece um café ao criador ☕",
+          "pl": "Postaw twórcy kawę ☕"
+        },
+        "body": {
+          "en": "TigerTag Studio is a labour of love. If it saves your day, there's now a little \"Buy me a coffee\" button — no pressure, all gratitude.",
+          "fr": "TigerTag Studio est fait avec le cœur. S'il te sauve la mise, il y a maintenant un petit bouton « Offre-moi un café » — sans pression, avec plein de merci.",
+          "de": "TigerTag Studio ist eine Herzensangelegenheit. Wenn's dir den Tag rettet, gibt's jetzt einen kleinen „Kauf mir einen Kaffee“-Button — kein Druck, nur Dankbarkeit.",
+          "es": "TigerTag Studio está hecho con cariño. Si te salva el día, ahora hay un botoncito de \"Invítame a un café\" — sin presión, solo gratitud.",
+          "it": "TigerTag Studio è fatto col cuore. Se ti salva la giornata, ora c'è un pulsantino \"Offrimi un caffè\" — nessuna pressione, solo gratitudine.",
+          "zh": "TigerTag Studio 是用爱做的。要是它帮你救了场，现在有个小小的「请我喝咖啡」按钮——不强求，只有感激。",
+          "pt": "O TigerTag Studio é feito com carinho. Se ele salva seu dia, agora tem um botãozinho \"Me pague um café\" — sem pressão, só gratidão.",
+          "pt-pt": "O TigerTag Studio é feito com carinho. Se te salva o dia, há agora um botãozinho \"Paga-me um café\" — sem pressão, só gratidão.",
+          "pl": "TigerTag Studio powstaje z miłości. Jeśli ratuje ci dzień, jest teraz mały przycisk „Postaw mi kawę” — bez presji, z wdzięcznością."
+        }
+      }
+    ]
+  },
+  "2.7.0": {
+    "date": "2026-07-12",
+    "items": [
+      {
+        "icon": "list-check",
+        "title": {
+          "en": "Your filament wishlists are here",
+          "fr": "Tes wishlists de filament débarquent",
+          "de": "Deine Filament-Wunschlisten sind da",
+          "es": "Tus listas de deseos de filamento ya están",
+          "it": "Le tue wishlist di filamento sono qui",
+          "zh": "你的耗材心愿单来了",
+          "pt": "As tuas wishlists de filamento chegaram",
+          "pt-pt": "As tuas wishlists de filamento chegaram",
+          "pl": "Twoje listy życzeń filamentów są już tu"
+        },
+        "body": {
+          "en": "Build lists for a birthday, a restock or 'someday'. Drop filaments in, add prices and buy links, and browse them as rows or a grid.",
+          "fr": "Fais des listes pour un anniv, un réappro ou 'un jour peut-être'. Ajoute des filaments, des prix, des liens, et vois-les en liste ou en grille.",
+          "de": "Leg Listen an — für Geburtstage, Nachschub oder 'irgendwann'. Filamente rein, Preise und Kauflinks dazu, als Liste oder Raster durchblättern.",
+          "es": "Crea listas para un cumple, una reposición o 'algún día'. Añade filamentos, precios y enlaces, y míralas en filas o en cuadrícula.",
+          "it": "Crea liste per un compleanno, un rifornimento o 'prima o poi'. Aggiungi filamenti, prezzi e link, e sfogliale a righe o a griglia.",
+          "zh": "为生日、补货或'总有一天'建立清单。加入耗材、价格和购买链接，用列表或网格浏览。",
+          "pt": "Cria listas para um aniversário, uma reposição ou 'um dia'. Adiciona filamentos, preços e links, e vê-as em lista ou grelha.",
+          "pt-pt": "Cria listas para um aniversário, uma reposição ou 'um dia'. Adiciona filamentos, preços e links, e vê-as em lista ou grelha.",
+          "pl": "Twórz listy na urodziny, uzupełnienie zapasów albo 'kiedyś'. Dodawaj filamenty, ceny i linki, przeglądaj jako listę lub siatkę."
+        }
+      },
+      {
+        "icon": "link",
+        "title": {
+          "en": "Share a list with, well, anyone",
+          "fr": "Partage une liste avec… qui tu veux",
+          "de": "Teile eine Liste mit… jedem",
+          "es": "Comparte una lista con… quien quieras",
+          "it": "Condividi una lista con… chiunque",
+          "zh": "把清单分享给…任何人",
+          "pt": "Partilha uma lista com… quem quiseres",
+          "pt-pt": "Partilha uma lista com… quem quiseres",
+          "pl": "Udostępnij listę… komukolwiek"
+        },
+        "body": {
+          "en": "Keep it private, share it with friends who see it live, or make it public — that one gets its own web page with a QR code and share buttons. No account needed to look.",
+          "fr": "Garde-la pour toi, partage-la avec tes amis (en direct), ou rends-la publique — elle a alors sa page web avec QR code et boutons de partage. Aucun compte pour la voir.",
+          "de": "Behalt sie privat, teil sie mit Freunden (live), oder mach sie öffentlich — die bekommt eine eigene Webseite mit QR-Code und Teilen-Buttons. Zum Ansehen kein Konto nötig.",
+          "es": "Mantenla privada, compártela con amigos (en directo) o hazla pública — esa tiene su propia página web con código QR y botones para compartir. Sin cuenta para verla.",
+          "it": "Tienila privata, condividila con gli amici (in diretta) o rendila pubblica — quella ha la sua pagina web con QR code e pulsanti di condivisione. Nessun account per guardarla.",
+          "zh": "保持私密、分享给好友（实时可见），或设为公开——公开的清单会有自己的网页，带二维码和分享按钮。查看无需账号。",
+          "pt": "Mantém-na privada, partilha-a com amigos (ao vivo) ou torna-a pública — essa ganha a sua página web com QR code e botões de partilha. Sem conta para ver.",
+          "pt-pt": "Mantém-na privada, partilha-a com amigos (ao vivo) ou torna-a pública — essa ganha a sua página web com QR code e botões de partilha. Sem conta para ver.",
+          "pl": "Zostaw prywatną, udostępnij znajomym (na żywo) albo ustaw jako publiczną — ta dostaje własną stronę z kodem QR i przyciskami udostępniania. Podgląd bez konta."
+        }
+      },
+      {
+        "icon": "user",
+        "title": {
+          "en": "Public? Friends add themselves",
+          "fr": "Public ? Les amis s'ajoutent tout seuls",
+          "de": "Öffentlich? Freunde fügen sich selbst hinzu",
+          "es": "¿Público? Los amigos se añaden solos",
+          "it": "Pubblico? Gli amici si aggiungono da soli",
+          "zh": "公开？好友自己就加上了",
+          "pt": "Público? Os amigos adicionam-se sozinhos",
+          "pt-pt": "Público? Os amigos adicionam-se sozinhos",
+          "pl": "Publiczny? Znajomi dodają się sami"
+        },
+        "body": {
+          "en": "Set your profile to public and friend requests get accepted on the spot — no need to be around. You just get a heads-up about who joined.",
+          "fr": "Mets ton profil en public et les demandes d'amis sont acceptées direct — même absent. Tu reçois juste un petit mot pour savoir qui a débarqué.",
+          "de": "Stell dein Profil auf öffentlich und Freundschaftsanfragen werden sofort angenommen — auch wenn du nicht da bist. Du bekommst nur eine Info, wer dazugekommen ist.",
+          "es": "Pon tu perfil en público y las solicitudes de amistad se aceptan al instante — sin que estés. Solo recibes un aviso de quién se ha unido.",
+          "it": "Metti il profilo su pubblico e le richieste di amicizia vengono accettate all'istante — anche se non ci sei. Ricevi solo un avviso su chi si è aggiunto.",
+          "zh": "把资料设为公开，好友请求会被立即接受——你不在也行。你只会收到谁加入的提醒。",
+          "pt": "Põe o teu perfil público e os pedidos de amizade são aceites na hora — mesmo sem estares. Só recebes um aviso de quem entrou.",
+          "pt-pt": "Põe o teu perfil público e os pedidos de amizade são aceites na hora — mesmo sem estares. Só recebes um aviso de quem entrou.",
+          "pl": "Ustaw profil na publiczny, a zaproszenia do znajomych są akceptowane od razu — nawet gdy cię nie ma. Dostajesz tylko info, kto dołączył."
+        }
+      },
+      {
+        "icon": "swap",
+        "title": {
+          "en": "Reordering that actually feels good",
+          "fr": "Réorganiser, mais en fluide",
+          "de": "Neu anordnen, das sich gut anfühlt",
+          "es": "Reordenar que da gusto",
+          "it": "Riordinare che è un piacere",
+          "zh": "重新排序，终于顺手了",
+          "pt": "Reorganizar que sabe bem",
+          "pt-pt": "Reorganizar que sabe bem",
+          "pl": "Porządkowanie, które wreszcie cieszy"
+        },
+        "body": {
+          "en": "Drag a filament, a friend, a printer, a camera or a rack, and the others glide aside to make room. Your camera streams keep playing while you shuffle.",
+          "fr": "Attrape un filament, un ami, une imprimante, une caméra ou un rack, et les autres s'écartent en douceur pour libérer la place. Tes flux caméra continuent pendant que tu ranges.",
+          "de": "Zieh ein Filament, einen Freund, einen Drucker, eine Kamera oder ein Regal — die anderen gleiten zur Seite und machen Platz. Deine Kamerastreams laufen weiter.",
+          "es": "Arrastra un filamento, un amigo, una impresora, una cámara o una estantería, y los demás se apartan para hacer sitio. Tus cámaras siguen en directo mientras ordenas.",
+          "it": "Trascina un filamento, un amico, una stampante, una camera o uno scaffale, e gli altri scivolano di lato per far spazio. Le camere restano in diretta mentre sistemi.",
+          "zh": "拖动耗材、好友、打印机、摄像头或货架，其它项会自动让位。整理时摄像头画面照常播放。",
+          "pt": "Arrasta um filamento, um amigo, uma impressora, uma câmara ou uma prateleira, e os outros afastam-se para abrir espaço. As câmaras continuam ao vivo enquanto arrumas.",
+          "pt-pt": "Arrasta um filamento, um amigo, uma impressora, uma câmara ou uma prateleira, e os outros afastam-se para abrir espaço. As câmaras continuam ao vivo enquanto arrumas.",
+          "pl": "Przeciągnij filament, znajomego, drukarkę, kamerę albo regał, a reszta usuwa się, robiąc miejsce. Podglądy kamer grają dalej podczas przestawiania."
+        }
+      },
+      {
+        "icon": "cart",
+        "title": {
+          "en": "See where you're clicking",
+          "fr": "Tu vois où tu cliques",
+          "de": "Sieh, wohin du klickst",
+          "es": "Ves adónde haces clic",
+          "it": "Vedi dove clicchi",
+          "zh": "点之前就知道去哪",
+          "pt": "Vês para onde clicas",
+          "pt-pt": "Vês para onde clicas",
+          "pl": "Widzisz, gdzie klikasz"
+        },
+        "body": {
+          "en": "Buy buttons now show the actual shop — 'amazon.fr', 'atome3d.com' — instead of a mystery 'Buy'. Know before you go.",
+          "fr": "Les boutons d'achat affichent la vraie boutique — 'amazon.fr', 'atome3d.com' — au lieu d'un 'Acheter' mystère. Tu sais avant d'y aller.",
+          "de": "Kauf-Buttons zeigen jetzt den echten Shop — 'amazon.fr', 'atome3d.com' — statt eines mysteriösen 'Kaufen'. Wissen, bevor du klickst.",
+          "es": "Los botones de compra ahora muestran la tienda real — 'amazon.fr', 'atome3d.com' — en vez de un 'Comprar' misterioso. Sabes antes de ir.",
+          "it": "I pulsanti d'acquisto ora mostrano il negozio vero — 'amazon.fr', 'atome3d.com' — invece di un misterioso 'Compra'. Sai prima di andare.",
+          "zh": "购买按钮现在显示真实商店——'amazon.fr'、'atome3d.com'——而不是神秘的'购买'。心里有数再点。",
+          "pt": "Os botões de compra mostram agora a loja real — 'amazon.fr', 'atome3d.com' — em vez de um 'Comprar' misterioso. Sabes antes de ir.",
+          "pt-pt": "Os botões de compra mostram agora a loja real — 'amazon.fr', 'atome3d.com' — em vez de um 'Comprar' misterioso. Sabes antes de ir.",
+          "pl": "Przyciski zakupu pokazują teraz prawdziwy sklep — 'amazon.fr', 'atome3d.com' — zamiast tajemniczego 'Kup'. Wiesz, zanim klikniesz."
+        }
+      }
+    ]
   }
 }

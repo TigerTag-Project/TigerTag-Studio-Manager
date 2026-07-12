@@ -5,6 +5,46 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v2.7.0 — 2026-07-12
+
+### Added
+
+- **Lists — shareable wishlists.** A new **Lists** view (segment in the view selector): create several named lists, each with an optional **occasion**, a free-text **message to viewers** (≤500 chars), and a **privacy** level. A list stores product identities (`users/{uid}/lists/{listId}`, `itemKeys` → product `keyHash`), so buy links / prices / images come from `products` for free and a list can hold a filament you don't own. Amazon-style layout: a left sidebar of lists (name + count + visibility icon) and a main column of items with a per-view **rows / grid** toggle (persisted in `tigertag.listLayout`). Add filaments to a list from the **Material card**, **Product card** and the **grouped (deck) card** via a shared "Add to a list" popup (`_openAddToListMenu`). Friends see your lists **live** in friend-view (read-only). New `subscribeLists` / `subscribeFriendLists` + CRUD (`_createList` / `_renameList` / `_deleteList` / `_addToList` / `_removeFromList`), `renderListsView`. Backend: `users/{uid}/lists/{listId}` rules block (owner / public / friend read, owner write + `hasOnly` whitelist).
+- **List privacy (`visibility`): private / friends / public.** Per-list dropdown in the Manage-list panel, stored as `visibility` on the list. Backend read rule respects it: `private` = owner only, `public` = any signed-in user (+ world via the public snapshot below), `friends`/absent = friends + `isPublic` profiles. A colour-coded status badge (🔒 / 👤 / 👁) shows next to the list title and on each sidebar list; clicking it opens the edit modal.
+- **Public wishlist web link (Phase 2 write side).** Setting a list to *Public* mirrors it into a world-readable top-level `publicLists/{token}` snapshot (denormalised, display-only, **no personal note**), so a visitor with **no account** can open it on the web. The token is minted + stored on the list (`publicToken`); the snapshot is kept in sync from the lists **and** products `onSnapshot` (signature-cached — only writes on real change) and deleted when the list leaves Public. The Lists view shows a right-rail **share card**: QR + "Copy link" (no raw URL) + **social share buttons** (Facebook / X / LinkedIn / WhatsApp / Email) that open each network's share intent (or a pre-filled `mailto:`). Base URL is the config const `LIST_PUBLIC_BASE = "https://tigersystem.io"` → links are `https://tigersystem.io/wishlist/<token>`; tokens are 13-char base36. Backend: world-readable `publicLists/{token}` rule (owner-only writes via `ownerUid == auth.uid` + `hasOnly`, existing-owner check on update) + `publicToken` added to the lists whitelist.
+- **Public account auto-accepts friends.** A Firestore-trigger Cloud Function (`autoAcceptFriendRequestForPublic`, backend repo) accepts incoming friend requests to a public account **instantly, server-side** (owner offline OK): writes both `friends/{…}` entries, deletes the request, and notifies both sides (`friend_accepted` to the requester, `friend_added` to the owner). Studio suppresses the accept/refuse modal on a public account and renders the new `friend_added` notification.
+- **Reorder friends by drag & drop.** The Friends panel rows and the sidebar friend chips are draggable; the order persists as `sortRank` on each `users/{uid}/friends/{fid}` doc and applies everywhere (panel + sidebar kept in sync, cached with the friends list).
+- **"Make room" drag animation everywhere.** A shared `_wireMakeRoomDnd(host, opts)` helper: the dragged item is lifted (OS drag image follows) and the others slide (2D `translate`) to open the drop gap. Used by the wishlist items (rows + grid), the reorder cart (two zones — source closes, target opens), the **printers grid**, the **camera wall** (CSS-`order` only — live WebRTC/iframe streams keep running), the **racks** (drag from the head grip via a `handleSel` option; spools stay draggable for storage), and the friends lists. Items are ordered by on-screen position each drag, so it handles wrapping grids and CSS-`order` layouts alike.
+- **Right-click context menu** on any editable field (native Cut / Copy / Paste / Select-all, plus Copy on a selection) — `main.js` (`webContents 'context-menu'`).
+- **Account stock summary stored server-side.** `recordStudioState` writes the aggregate stock (`valueHt`, `weightG`, `currency`, `spools`) to a `stock` object on the shared root `users/{uid}` doc (for TigerSystem / TigerHub roll-up) as well as `telemetry/studio` (3 new whitelisted fields: `stockValueHt`, `stockWeightG`, `stockCurrency`).
+
+### Changed
+
+- **Buy buttons show the shop's host** (cart icon + e.g. "amazon.fr", "atome3d.com") instead of a generic "Buy", so the destination is visible before clicking. Applied across the wishlist (rows + grid), the Product card, the grouped deck buy button and the Reorder card's shop button (shared `_buyHost()`, hostname minus `www.`).
+- **Header stats count-animate** (ticker/odometer roll): on app open they roll up from zero, and later changes tween from the previous value with a brief green (up) / red (down) tint. Respects `prefers-reduced-motion`. The **Stock** weight now shows 2 decimals (locale-aware).
+- **Material & Product cards** now put **📋 add-to-list / ❤ like / ★ favorite** in a single right-aligned inline row between the illustration and the name (list button first; above the "Burn/Update NFC" banner on the material card).
+- **Material (spool) card** shows the **price + buy link** both as a prominent "Price & buy" block and as Details rows — from the owner's product record or a friend's shared slice.
+- **View selector** buttons are **icon-only** (text dropped; a custom hover bubble names each view after a 1 s dwell via a new `data-i18n-aria` attribute); each group's label sits **above** its toggle.
+- **Filter dropdowns** show the **short field name** ("Brand", "Material", "Aspect", "Protocol", "Tag", printer "State") when nothing is selected, and a bare **"All" / "Toutes" / "Tous"** reset row (via `data-csel-short` in `_enhanceSelect`).
+- **App-update notification is now a cloud event** (`type: "announcement"`, doc id `update-<version>`): it persists, syncs across devices, sits in the feed, opens What's New, and gets a **Restart** button only on the device where the update is downloaded.
+- **Removing a wishlist item is hold-to-confirm** (row trash + grid ✕, 1200 ms) so a misclick can't silently drop a product. **Delete-list** is a compact hold-to-confirm trash icon in the modal footer.
+- Detail row label `detTwin` renamed "Twin tag" → **"Dual NFC"** to match the `addProductDualLink` button (9 locales).
+
+### Fixed
+
+- **Friend drag order was lost when opening the Friends panel** — `loadFriendsList` rebuilt `state.friends` in Firestore doc-id order, wiping `sortRank`. It now sorts by `sortRank`, and the localStorage cache carries + re-sorts it (no pre-snapshot flash).
+- **Lists view didn't hide when switching to Printers/Rack** — the printer & rack branches of both render dispatchers hid the Products view but not the newer Lists view.
+- **Side-card z-index** — the Product card painted in front of the group deck (both `z 100`). Re-numbered the cascade to match `_syncPanels` order: detail (101) > container/group (100) > Product (99) > reorder (98).
+- **"To order" reorder state got stuck** — un-favoriting kept the min-stock (item stuck in the cart), and a sticky `savedForLater`/`orderQty` kept a re-favorited item out of the cart. Un-favoriting (★ off) now stops reorder tracking; clearing the min (→0) clears the reorder-only fields. `_healProductReorderState` self-heals already-affected accounts on the first products snapshot.
+- Changing a material's **image** now also updates its **Favorites grid/table illustration** + product card (syncs `label.imgUrl` + `cloudSeed` on the product doc).
+- The header **"Stock value"** stat updates live on a price change and on the **HT↔TTC** switch; added an ⓘ bubble explaining the weight-prorated value.
+- Editing a filament's **price or buy link** refreshes the open **material card live** (surgical swap of the "Price & buy" block + Details rows, media preserved).
+- Long-pressing the Friends panel's `»` close tab now closes it (the hold action didn't include the Friends slide-in).
+
+### Removed
+
+- Ephemeral local app-update notice (superseded by the cloud notification).
+
 ## v2.6.0 — 2026-07-11
 
 Notifications become a persistent, social-style feed (starting with low-stock alerts synced across devices), the inventory table gains an inline "Add price", and the "To order" button gets a live cart badge.

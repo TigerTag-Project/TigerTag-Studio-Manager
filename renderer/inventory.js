@@ -642,6 +642,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     unsubPrinters: [],       // array of Firestore unsubscribe handles (one per brand subcollection)
     products: {},       // keyHash → { key, label, buyUrl, buyPriceHt, minStockSpools, note, tags, liked(❤), favorite(★), sku, ean, cloudSeed, updatedAt } — per-product-identity record. Price stored tax-free (HT).
     unsubProducts: null,// Firestore unsubscribe handle for products
+    lists: {},          // listId → { name, emoji, occasion, itemKeys[], createdAt, updatedAt, sortRank } — Amazon-style shopping/wish lists; items reference product identities (keyHash)
+    unsubLists: null,   // Firestore unsubscribe handle for lists
+    friendLists: {},    // friend view: the friend's lists, read directly + read-only (same as friendProducts)
+    unsubFriendLists: null,
+    selectedListId: null, // listId currently shown in the Lists view
     vatCountry: null,        // users/{uid}.vatCountry — ISO country code driving VAT rate + currency for HT/TTC price display
     priceInputMode: "TTC",   // users/{uid}.priceInputMode "HT"|"TTC" — how the user TYPES filament prices (stored value is always HT)
     unsubFriendRequests: null,
@@ -695,6 +700,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       // localised name too (the static aria-label in the markup is
       // English-only, this keeps it in sync with the user's language).
       el.setAttribute("aria-label", v);
+    });
+    // data-i18n-aria — localised aria-label ONLY (no visible tooltip), for
+    // icon-only buttons where a hover title would be noise (e.g. the view selector).
+    document.querySelectorAll("[data-i18n-aria]").forEach(el => {
+      el.setAttribute("aria-label", t(el.dataset.i18nAria));
     });
     if ($("langSelect")) $("langSelect").value = state.lang;
     // Refresh dynamic tooltips
@@ -5107,7 +5117,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // Common handler called when a named-instance user session becomes active.
   // uid must equal user.uid and be the current active account.
   async function handleSignedIn(user, uid) {
-    unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeFriends(); unsubscribeNotifications(); unsubscribeRacks(); unsubscribeScales(); unsubscribePrinters(); unsubscribeProducts(); unsubscribeFriendProducts();
+    unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeFriends(); unsubscribeNotifications(); unsubscribeRacks(); unsubscribeScales(); unsubscribePrinters(); unsubscribeProducts(); unsubscribeFriendProducts(); unsubscribeLists(); unsubscribeFriendLists();
     // CRITICAL — drop the previous account's racks immediately. `state.racks`
     // is derived per-account state that (unlike the inventory/racks SNAPSHOTS,
     // which are account-guarded) leaks across an account switch: it keeps the
@@ -5227,6 +5237,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     subscribeScales(uid);// live-sync the user's TigerScale heartbeats
     subscribePrinters(uid);// live-sync the user's 3D printers across all 5 brand subcollections
     subscribeProducts(uid);// live-sync per-product buy links + reorder thresholds
+    subscribeLists(uid);   // live-sync the user's shopping/wish lists
   }
 
   // Track which account ids already have an onAuthStateChanged listener set up.
@@ -5243,7 +5254,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         if (uid === getActiveId()) await handleSignedIn(user, uid);
       } else if (uid === getActiveId()) {
         // Active account's session expired → show login
-        unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeFriends(); unsubscribeNotifications(); unsubscribeRacks(); unsubscribeScales(); unsubscribePrinters(); unsubscribeProducts(); unsubscribeFriendProducts();
+        unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeFriends(); unsubscribeNotifications(); unsubscribeRacks(); unsubscribeScales(); unsubscribePrinters(); unsubscribeProducts(); unsubscribeFriendProducts(); unsubscribeLists(); unsubscribeFriendLists();
         state.inventory = null; state.rows = [];
         state.isAdmin = false; state.debugEnabled = false;
         state.publicKey = null; state.privateKey = null;
@@ -5418,7 +5429,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // Sign out the named instance so its IndexedDB session is cleared
     try { firebase.app(id).auth().signOut(); } catch (_) {}
     if (wasActive) {
-      unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeFriends(); unsubscribeNotifications(); unsubscribeRacks(); unsubscribeScales(); unsubscribePrinters(); unsubscribeProducts(); unsubscribeFriendProducts();
+      unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeFriends(); unsubscribeNotifications(); unsubscribeRacks(); unsubscribeScales(); unsubscribePrinters(); unsubscribeProducts(); unsubscribeFriendProducts(); unsubscribeLists(); unsubscribeFriendLists();
       state.inventory = null; state.rows = [];
       state.isAdmin = false; state.debugEnabled = false;
       state.publicKey = null; state.privateKey = null;
@@ -5464,6 +5475,33 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   }
 
   /* ── stats ── */
+  // Ticker-style count animation for the header stats: tween the displayed number
+  // from its previous value to the new one (odometer feel), with a brief green/red
+  // tint for up/down. Respects prefers-reduced-motion.
+  const _statNums = {};      // key → last-rendered numeric value
+  const _statTweens = {};    // key → active requestAnimationFrame id
+  const _reduceMotion = () => !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  function _tweenStat(key, elem, from, to, fmt, dur = 1200) {
+    if (_statTweens[key]) cancelAnimationFrame(_statTweens[key]);
+    elem.textContent = fmt(from);   // show the start value immediately (no flash of the final one)
+    elem.classList.remove("stat-up", "stat-down");
+    void elem.offsetWidth;                              // restart the colour transition
+    elem.classList.add(to > from ? "stat-up" : "stat-down");
+    const ease = t => 1 - Math.pow(1 - t, 3);          // easeOutCubic
+    let start = null;
+    const step = now => {
+      if (start == null) start = now;
+      const t = Math.min(1, (now - start) / dur);
+      elem.textContent = fmt(from + (to - from) * ease(t));
+      if (t < 1) { _statTweens[key] = requestAnimationFrame(step); }
+      else {
+        _statTweens[key] = null;
+        elem.textContent = fmt(to);
+        setTimeout(() => elem.classList.remove("stat-up", "stat-down"), 350);
+      }
+    };
+    _statTweens[key] = requestAnimationFrame(step);
+  }
   function renderStats() {
     const all = deduplicateTwins(state.rows.slice()); const active = all.filter(r => !r.deleted);
     const plus  = active.filter(r => r.isPlus);
@@ -5472,8 +5510,6 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const totalW = active.reduce((s, r) => s + (Number(r.weightAvailable)||0), 0);
     const el = $("sbStats");
     if (!all.length) { el.classList.add("hidden"); return; }
-    const kgFull = `${Math.round(totalW / 1000)} kg`;
-    const kgMini = kgFull;
     // Stock value — each spool worth its product's price (buyPriceHt), prorated by
     // the remaining weight fraction. Shown in the account's currency + HT/TTC mode.
     const vat = _vatInfo();
@@ -5486,20 +5522,40 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       valueHt += price * frac;
     }
     const valueShown = _reorderMode() === "TTC" ? valueHt * (1 + (vat.rate || 0) / 100) : valueHt;
-    const valueFull = `${_fmtMoney(valueShown)} ${vat.symbol}`;
+    // Per-stat formatters — used both to render and to tween the count animation.
+    const intFmt = n => String(Math.max(0, Math.round(n)));
+    const kgFmt  = n => `${n.toLocaleString(state.lang || "en", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg`;
+    const valFmt = n => `${_fmtMoney(n)} ${vat.symbol}`;
     const tf = state.typeFilter;
-    el.innerHTML = [
-      { label: t("statActive"), mini: t("statActiveMini"), value: active.length, miniVal: active.length, filter: "reset" },
-      { label: t("statTotal"),  mini: t("statTotalMini"),  value: kgFull,         miniVal: kgMini,        filter: "reset" },
-      { label: t("statValue"),  mini: t("statValueMini"),  value: valueFull,      miniVal: valueFull,     filter: "reset" },
-      { label: '<span class="tag-diy">TigerTag</span>',          mini: t("statDiyMini"),   value: diy,          miniVal: diy,          filter: "TigerTag" },
-      { label: '<span class="tag-plus">TigerTag+</span>',        mini: t("statPlusMini"),  value: plus.length,  miniVal: plus.length,  filter: "TigerTag+" },
-      { label: '<span class="tag-cloud">TigerCloud</span>',  mini: t("statCloudMini"), value: cloud.length, miniVal: cloud.length, filter: "TigerCloud", cloud: true },
-    ].map(s => {
+    const cards = [
+      { key: "active", label: t("statActive"), mini: t("statActiveMini"), num: active.length,  fmt: intFmt, filter: "reset" },
+      { key: "kg",     label: t("statTotal"),  mini: t("statTotalMini"),  num: totalW / 1000,  fmt: kgFmt,  filter: "reset" },
+      { key: "value",  label: t("statValue"),  mini: t("statValueMini"),  num: valueShown,     fmt: valFmt, filter: "reset", info: t("statValueTip") },
+      { key: "diy",    label: '<span class="tag-diy">TigerTag</span>',          mini: t("statDiyMini"),   num: diy,          fmt: intFmt, filter: "TigerTag" },
+      { key: "plus",   label: '<span class="tag-plus">TigerTag+</span>',        mini: t("statPlusMini"),  num: plus.length,  fmt: intFmt, filter: "TigerTag+" },
+      { key: "cloud",  label: '<span class="tag-cloud">TigerCloud</span>',  mini: t("statCloudMini"), num: cloud.length, fmt: intFmt, filter: "TigerCloud", cloud: true },
+    ];
+    el.innerHTML = cards.map(s => {
       const isActive = s.filter !== "reset" && tf === s.filter;
-      return `<div class="sb-stat${s.cloud ? " sb-stat--cloud" : ""}${isActive ? " is-active" : ""}" data-filter="${s.filter}" data-mini="${s.mini}" data-mini-val="${s.miniVal}"><div class="value">${s.value}</div><div class="label">${s.label}</div></div>`;
+      const infoIco = s.info ? `<span class="sb-stat-info tool-info" data-tip="${esc(s.info)}" aria-label="${esc(s.info)}"><span class="icon icon-info icon-12"></span></span>` : "";
+      const shown = s.fmt(s.num);
+      return `<div class="sb-stat${s.cloud ? " sb-stat--cloud" : ""}${isActive ? " is-active" : ""}" data-filter="${s.filter}" data-stat-key="${s.key}" data-mini="${s.mini}" data-mini-val="${esc(shown)}"><div class="value">${shown}</div><div class="label">${s.label}${infoIco}</div></div>`;
     }).join("");
     el.classList.remove("hidden");
+    // Ticker animation: tween each CHANGED value from its previous number to the
+    // new one (skips the first render — there's no "from" yet — and reduced motion).
+    const animate = !_reduceMotion();
+    cards.forEach(s => {
+      const prev = _statNums[s.key];
+      _statNums[s.key] = s.num;
+      // First render of the session (prev == null) rolls up FROM ZERO — fun to
+      // watch the stock + value climb on app open. Later changes tween from the
+      // previous value.
+      const from = (prev == null) ? 0 : prev;
+      if (!animate || Math.abs(from - s.num) < 1e-9) return;
+      const valEl = el.querySelector(`.sb-stat[data-stat-key="${s.key}"] .value`);
+      if (valEl) _tweenStat(s.key, valEl, from, s.num, s.fmt);
+    });
     _updateCartBadge();
   }
 
@@ -5797,6 +5853,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       currentKey: "brandFilter",
       labelKey: "filterAllBrands",
       defaultLabel: "All brands",
+      shortKey: "filterShortBrand",
       pickValue: r => r.brand,
       rawValues: faves ? faves.map(p => p.label?.brand) : undefined,
     });
@@ -5805,6 +5862,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       currentKey: "materialFilter",
       labelKey: "filterAllMaterials",
       defaultLabel: "All materials",
+      shortKey: "filterShortMaterial",
       pickValue: r => r.material,
       rawValues: faves ? faves.map(_faveMaterialRaw) : undefined,
     });
@@ -5813,6 +5871,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       currentKey: "typeFilter",
       labelKey: "filterAllVersions",
       defaultLabel: "All versions",
+      shortKey: "filterShortProtocol",
       pickValue: r => r.protocol,
     });
     populateAspectFilter(faves);
@@ -5841,6 +5900,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     else { sel.value = ""; state.aspectFilter = ""; }
     sel.classList.toggle("is-active", !!state.aspectFilter);
     sel.classList.remove("hidden");
+    sel.dataset.cselShort = "filterShortAspect";
     sel._cselRefresh?.();
   }
   // Tags are an array per spool/product, so the generic single-value populate
@@ -5865,10 +5925,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     else { sel.value = ""; state.tagFilter = ""; }
     sel.classList.toggle("is-active", !!state.tagFilter);
     sel.classList.remove("hidden"); // may have been hidden by the printer view
+    sel.dataset.cselShort = "filterShortTag";
     sel._cselRefresh?.();   // sync the custom dropdown's button label
   }
-  function populateOneQuickFilter({ sel, currentKey, labelKey, defaultLabel, pickValue, rawValues }) {
+  function populateOneQuickFilter({ sel, currentKey, labelKey, defaultLabel, pickValue, rawValues, shortKey }) {
     if (!sel) return;
+    sel.dataset.cselShort = shortKey || "";
     // `rawValues` (Products views) overrides the default inventory source.
     const raw = rawValues != null ? rawValues : state.rows.filter(r => !r.deleted).map(pickValue);
     const values = Array.from(new Set(
@@ -5903,7 +5965,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     wrap.append(btn, pop);
     const refresh = () => {
       const o = sel.options[sel.selectedIndex];
-      btn.querySelector(".csel-label").textContent = o ? o.text : "";
+      // When nothing is selected, a filter can show a SHORT field name ("Brand")
+      // instead of its verbose "all" option ("All brands") — set via data-csel-short
+      // (an i18n key). The open list still shows the full "All brands" row.
+      const short = sel.dataset.cselShort;
+      btn.querySelector(".csel-label").textContent = (!sel.value && short) ? t(short) : (o ? o.text : "");
       btn.classList.toggle("is-active", !!sel.value);
       if (sel.title) btn.title = sel.title;
     };
@@ -5934,6 +6000,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   const _isPrinterMode = m => m === "printer" || m === "printer-table" || m === "printer-cam";
   // Products group: liked/favorite as grid or table, plus the "To order" cart.
   const _isProductsMode = m => m === "favesGrid" || m === "favesTable" || m === "order";
+  const _isListsMode = m => m === "lists";
 
   // All rows that should ever be present in the grid / table DOM — i.e.
   // everything EXCEPT hard-deleted docs and the secondary tag of a twin pair.
@@ -5970,6 +6037,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         $("mainResult").innerHTML = "";
         $("invRackView").classList.remove("hidden");
         $("invPrinterView")?.classList.add("hidden");
+        $("invProductsView")?.classList.add("hidden");
+        $("invListsView")?.classList.add("hidden");
         renderRackView();
         return;
       }
@@ -5984,11 +6053,29 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         $("invRackView")?.classList.add("hidden");
         $("invEmpty").classList.add("hidden");
         $("mainResult").innerHTML = "";
+        $("invProductsView")?.classList.add("hidden");
+        $("invListsView")?.classList.add("hidden");
         $("invPrinterView").classList.remove("hidden");
         renderPrintersView();
         return;
       }
       // Products view — independent from the inventory rows too.
+      // Lists view — reads state.lists + products, decoupled from spool rows.
+      if (_isListsMode(state.viewMode)) {
+        $("card-welcome").classList.add("hidden");
+        $("card-inv").classList.remove("hidden");
+        $("invTableWrap").classList.add("hidden");
+        $("invGrid").classList.add("hidden");
+        $("invRackView")?.classList.add("hidden");
+        $("invPrinterView")?.classList.add("hidden");
+        $("invProductsView")?.classList.add("hidden");
+        $("invEmpty").classList.add("hidden");
+        $("mainResult").innerHTML = "";
+        $("invListsView").classList.remove("hidden");
+        renderListsView();
+        return;
+      }
+      $("invListsView")?.classList.add("hidden");
       if (_isProductsMode(state.viewMode)) {
         $("card-welcome").classList.add("hidden");
         $("card-inv").classList.remove("hidden");
@@ -6142,6 +6229,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       $("invRackView").classList.remove("hidden");
       $("invPrinterView")?.classList.add("hidden");
       $("invProductsView")?.classList.add("hidden");
+      $("invListsView")?.classList.add("hidden");
       renderRackView();
       return;
     }
@@ -6154,10 +6242,23 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       $("invEmpty").classList.add("hidden");
       $("invPrinterView").classList.remove("hidden");
       $("invProductsView")?.classList.add("hidden");
+      $("invListsView")?.classList.add("hidden");
       renderPrintersView();
       return;
     }
     $("invPrinterView")?.classList.add("hidden");
+
+    // Lists view — decoupled from spool rows (reads state.lists + products).
+    if (_isListsMode(state.viewMode)) {
+      $("invTableWrap").classList.add("hidden");
+      $("invGrid").classList.add("hidden");
+      $("invEmpty").classList.add("hidden");
+      $("invProductsView")?.classList.add("hidden");
+      $("invListsView").classList.remove("hidden");
+      renderListsView();
+      return;
+    }
+    $("invListsView")?.classList.add("hidden");
 
     // Products view — cart recommendation + liked/favorite, decoupled from spool
     // rows (reads the products records, so it renders even with 0 spools).
@@ -6734,7 +6835,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const p = { ...patch };
     if (p.liked === true && !("favorite" in p)) p.favorite = true;                     // ❤ ⇒ ★
     if (!("favorite" in p) && Number.isFinite(+p.minStockSpools) && +p.minStockSpools > 0) p.favorite = true;  // min ⇒ ★
-    if (p.favorite === false && !("liked" in p)) p.liked = false;                       // ★ off ⇒ drop Love (min kept)
+    if (p.favorite === false) {                                                          // ★ off ⇒ stop caring:
+      if (!("liked" in p)) p.liked = false;                                              //   drop Love
+      if (!("minStockSpools" in p)) p.minStockSpools = 0;                                 //   and stop reorder tracking (keeps the "min>0 ⇒ ★" invariant, so it leaves "To order")
+    }
     // ❤ ⇒ keep at least one: loving forces a min stock of ≥1 so the product is
     // tracked for reorder (and lands in the cart once out of stock). Never lowers
     // an existing higher min (uses the patch's min if given, else the current one).
@@ -6781,8 +6885,15 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       doc.buyPrice  = firebase.firestore.FieldValue.delete();
       doc.priceMode = firebase.firestore.FieldValue.delete();
     }
-    if ("minStockSpools" in patch)
-      doc.minStockSpools = Number.isFinite(+patch.minStockSpools) ? Math.max(0, Math.round(+patch.minStockSpools)) : 0;
+    if ("minStockSpools" in patch) {
+      const mv = Number.isFinite(+patch.minStockSpools) ? Math.max(0, Math.round(+patch.minStockSpools)) : 0;
+      doc.minStockSpools = mv;
+      if (mv <= 0) {   // no reorder target → drop the sticky reorder state so it comes back fresh if re-added
+        doc.savedForLater = firebase.firestore.FieldValue.delete();
+        doc.orderQty      = firebase.firestore.FieldValue.delete();
+        if (_rec) { delete _rec.savedForLater; delete _rec.orderQty; }
+      }
+    }
     if ("onOrder" in patch)
       doc.onOrder = Number.isFinite(+patch.onOrder) ? Math.max(0, Math.round(+patch.onOrder)) : 0;
     if ("note" in patch)     doc.note = (patch.note || "").trim();
@@ -6814,6 +6925,42 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
 
   // Live-sync the user's products table into state.products
   // (keyed by doc id = identity-key hash). Owner-only collection.
+  // One-time self-heal for docs corrupted by the old reorder-state bug (before the
+  // fix in _coupleFlags / _writeProduct*). Runs once per account on the first
+  // products snapshot. Two safe, non-destructive repairs:
+  //   • min ≤ 0 but savedForLater/orderQty still set  → clear those dangling
+  //     reorder-only fields (they'd otherwise keep the product out of the cart
+  //     forever, even after re-adding a min).
+  //   • min > 0 but favorite ≠ true (orphan)          → restore favorite=true so
+  //     the "min>0 ⇒ favorite" invariant holds again (keeps the reorder target).
+  const _reorderHealed = new Set();
+  function _healProductReorderState(uid) {
+    if (!uid || _reorderHealed.has(uid)) return;
+    _reorderHealed.add(uid);
+    const FV = firebase.firestore.FieldValue;
+    const col = fbDb(uid).collection("users").doc(uid).collection("products");
+    let batch = null, n = 0;
+    for (const [hash, p] of Object.entries(state.products || {})) {
+      const min = +p.minStockSpools || 0;
+      const patch = {};
+      if (min <= 0) {
+        if (p.savedForLater !== undefined) patch.savedForLater = FV.delete();
+        if (p.orderQty !== undefined)      patch.orderQty = FV.delete();
+      } else if (p.favorite !== true) {
+        patch.favorite = true;
+      }
+      if (!Object.keys(patch).length) continue;
+      patch.updatedAt = FV.serverTimestamp();
+      if (!batch) batch = fbDb(uid).batch();
+      batch.set(col.doc(hash), patch, { merge: true });
+      if ("savedForLater" in patch) delete state.products[hash].savedForLater;   // optimistic
+      if ("orderQty" in patch)      delete state.products[hash].orderQty;
+      if (patch.favorite === true)  state.products[hash].favorite = true;
+      if (++n % 400 === 0) { batch.commit().catch(() => {}); batch = null; }      // Firestore 500-write cap
+    }
+    if (batch) batch.commit().catch(e => console.warn("[heal reorder]", e?.message));
+    if (n) console.info(`[heal] repaired reorder state on ${n} product(s)`);
+  }
   function subscribeProducts(uid) {
     unsubscribeProducts();
     state.unsubProducts = fbDb(uid)
@@ -6824,7 +6971,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         const map = {};
         snap.docs.forEach(d => { map[d.id] = { id: d.id, ...d.data() }; });
         state.products = map;
+        _healProductReorderState(uid);   // one-time repair of docs corrupted by the old reorder bug
+        _syncAllPublicSnapshots();       // price / image / link edits refresh public list snapshots
         _updateCartBadge();   // min-stock / saved-for-later change → refresh the cart badge
+        renderStats();        // a price change moves the "Stock value" stat → recompute it live
         // A link change can flip the Shopify badge on visible spools + the
         // "Reorder" toolbox row of the open detail — repaint cheaply.
         if (!_isPrinterMode(state.viewMode)) scheduleRender("inventory", renderInventory);
@@ -6869,6 +7019,234 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     state.unsubFriendProducts = null;
     state.friendProducts = {};
   }
+
+  // ── Lists (Amazon-style shareable wishlists) ──────────────────────────────
+  // A list = a curated set of PRODUCT identities (keyHash), stored at
+  // users/{uid}/lists/{listId}. Items reference products (not spools), so buy
+  // links / prices / images come for free and a wishlist can hold a filament the
+  // user doesn't own. Same friend/public read policy as `products` (backend rules).
+  // Owner writes only; every helper below is a no-op in friend view.
+  function subscribeLists(uid) {
+    unsubscribeLists();
+    state.unsubLists = fbDb(uid).collection("users").doc(uid).collection("lists")
+      .onSnapshot(snap => {
+        if (uid !== state.activeAccountId) return;
+        const map = {};
+        snap.docs.forEach(d => { map[d.id] = { id: d.id, ...d.data() }; });
+        state.lists = map;
+        _syncAllPublicSnapshots();   // keep public snapshots in sync with list edits
+        if (state.selectedListId && !map[state.selectedListId]) state.selectedListId = null;
+        // Don't rebuild the view while the user is naming a list — it would wipe
+        // the rename input mid-type. The commit re-renders afterwards.
+        if (_isListsMode(state.viewMode) && !_listRenamePending) renderListsView();
+        _refreshAddToListMenu();   // keep an open "Add to a list" popup in sync
+      }, err => console.warn("[lists]", err?.code, err?.message));
+  }
+  function unsubscribeLists() {
+    if (typeof state.unsubLists === "function") { try { state.unsubLists(); } catch (_) {} }
+    state.unsubLists = null;
+    state.lists = {};
+  }
+  // Live-read a friend's OWN lists directly while viewing their profile (mirror of
+  // subscribeFriendProducts) — read-only.
+  function subscribeFriendLists(uid) {
+    unsubscribeFriendLists();
+    if (!uid) return;
+    state.unsubFriendLists = fbDb(uid).collection("users").doc(uid).collection("lists")
+      .onSnapshot(snap => {
+        if (state.friendView?.uid !== uid) return;
+        const m = {};
+        snap.docs.forEach(d => { m[d.id] = { id: d.id, ...d.data() }; });
+        state.friendLists = m;
+        if (state.selectedListId && !m[state.selectedListId]) state.selectedListId = null;
+        if (_isListsMode(state.viewMode)) renderListsView();
+      }, err => console.warn("[friendLists]", err?.code, err?.message));
+  }
+  function unsubscribeFriendLists() {
+    if (typeof state.unsubFriendLists === "function") { try { state.unsubFriendLists(); } catch (_) {} }
+    state.unsubFriendLists = null;
+    state.friendLists = {};
+  }
+  // Active source (owner's own lists, or the friend's when viewing their profile).
+  function _listsSource()    { return state.friendView ? (state.friendLists || {}) : (state.lists || {}); }
+  function _listProductsSrc() { return state.friendView ? (state.friendProducts || {}) : (state.products || {}); }
+  function _listsArray() {
+    return Object.values(_listsSource()).sort((a, b) =>
+      (a.sortRank ?? 1e9) - (b.sortRank ?? 1e9)
+      || ((a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0))
+      || String(a.name || "").localeCompare(String(b.name || "")));
+  }
+  function _getList(id) { return _listsSource()[id] || null; }
+  // The list currently shown in the Lists view (falls back to the first list).
+  function _selectedList() {
+    const arr = _listsArray();
+    if (!arr.length) return null;
+    let l = state.selectedListId ? _getList(state.selectedListId) : null;
+    if (!l) { l = arr[0]; state.selectedListId = l.id; }
+    return l;
+  }
+  // Resolve a list's itemKeys → live product records (skips items whose product
+  // doc no longer exists).
+  function _listItems(list) {
+    if (!list) return [];
+    const src = _listProductsSrc();
+    return (list.itemKeys || []).map(h => src[h]).filter(Boolean);
+  }
+  // Visibility → { key, icon, label } for the status badge shown in the Lists view.
+  function _listVisMeta(vis) {
+    const v = (vis === "private" || vis === "public") ? vis : "friends";
+    return ({
+      private: { icon: "icon-lock",   label: t("visPrivateShort") },
+      friends: { icon: "icon-user",   label: t("visFriends") },
+      public:  { icon: "icon-eye-on", label: t("visPublic") },
+    })[v];
+  }
+  // ── Public list snapshots (Phase 2) ───────────────────────────────────────
+  // A list set to "public" is mirrored into a WORLD-READABLE top-level doc
+  // `publicLists/{token}` so a visitor with NO account can open it on the web
+  // (TigerHub / Vercel). The snapshot is DENORMALISED and carries only safe
+  // display fields — never the personal `note`. Base URL is a config constant
+  // (adjust to the final TigerHub Vercel domain).
+  const LIST_PUBLIC_BASE = "https://tigersystem.io";   // TigerHub public web (Vercel) — /list/<token>
+  const _publicSnapSig = {};   // token → last-written content signature (skip redundant writes)
+  function _publicListUrl(token) { return `${LIST_PUBLIC_BASE}/wishlist/${token}`; }
+  // Social-network share intent URL for a public list link (opened in the browser).
+  function _socialShareUrl(net, url, text) {
+    const u = encodeURIComponent(url || ""), x = encodeURIComponent(text || "");
+    return ({
+      facebook: `https://www.facebook.com/sharer/sharer.php?u=${u}`,
+      x:        `https://twitter.com/intent/tweet?url=${u}&text=${x}`,
+      linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${u}`,
+      whatsapp: `https://wa.me/?text=${x}%20${u}`,
+      email:    `mailto:?subject=${x}&body=${x}%0A%0A${u}`,
+    })[net] || null;
+  }
+  function _genListToken() {
+    // Compact, unguessable, URL-safe id: 64 random bits encoded base36 (0-9a-z)
+    // → a fixed 13 chars (vs 32 hex). 2^64 space — far beyond brute-forcing a
+    // world-read endpoint for low-sensitivity wishlist data. Bump the byte count
+    // for more entropy / a longer token.
+    const bytes = crypto.getRandomValues(new Uint8Array(8));
+    let n = 0n;
+    for (const b of bytes) n = (n << 8n) | BigInt(b);
+    return n.toString(36).padStart(13, "0");
+  }
+  function _publicSnapItem(p) {
+    const l = p.label || {};
+    return {
+      keyHash: p.id,
+      brand: l.brand || "", material: l.material || "",
+      colorName: l.colorName || "", colorHex: l.colorHex || "",
+      imgUrl: l.imgUrl || "",
+      priceHt: Number.isFinite(+p.buyPriceHt) ? +p.buyPriceHt : null,
+      buyUrl: p.buyUrl || "",
+    };
+  }
+  // Reconcile every public list's snapshot with the live data. Driven by the
+  // lists AND products onSnapshot handlers (so item/price/link edits propagate)
+  // — the signature cache makes it idempotent, so it only writes on real change.
+  async function _syncAllPublicSnapshots() {
+    const uid = state.activeAccountId;
+    if (!uid || state.friendView) return;
+    const FV = firebase.firestore.FieldValue;
+    const col = fbDb(uid).collection("publicLists");
+    for (const list of Object.values(state.lists || {})) {
+      const isPublic = list.visibility === "public";
+      const token = list.publicToken;
+      if (isPublic && !token) {
+        // Mint a token + store it on the list; the snapshot write happens on the
+        // next onSnapshot pass once the token is present.
+        _listWrite(list.id, { publicToken: _genListToken() });
+        continue;
+      }
+      if (isPublic) {
+        const items = (list.itemKeys || []).map(h => (state.products || {})[h]).filter(Boolean).map(_publicSnapItem);
+        const snap = {
+          ownerUid: uid, ownerName: state.displayName || "", ownerCode: state.publicKey || "",
+          listId: list.id, name: list.name || "", items,
+        };
+        if (list.emoji)    snap.emoji    = list.emoji;
+        if (list.occasion) snap.occasion = list.occasion;
+        if (list.message)  snap.message  = list.message;
+        const sig = JSON.stringify(snap);
+        if (_publicSnapSig[token] === sig) continue;   // unchanged → skip the write
+        _publicSnapSig[token] = sig;
+        try { await col.doc(token).set({ ...snap, updatedAt: FV.serverTimestamp() }); }
+        catch (e) { console.warn("[publicList] write failed:", e?.message); }
+      } else if (token) {
+        // Left public → tear the snapshot down + clear the token.
+        delete _publicSnapSig[token];
+        try { await col.doc(token).delete(); } catch (_) {}
+        _listWrite(list.id, { publicToken: FV.delete() });
+      }
+    }
+  }
+  async function _createList(name, opts = {}) {
+    const uid = state.activeAccountId;
+    if (!uid || state.friendView) return null;
+    const doc = {
+      name: (name || t("listUntitled")).trim().slice(0, 80) || t("listUntitled"),
+      itemKeys: [],
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      sortRank: Object.keys(state.lists || {}).length,
+    };
+    if (opts.occasion) doc.occasion = String(opts.occasion).slice(0, 60);
+    if (opts.message)  doc.message  = String(opts.message).slice(0, 500);
+    if (opts.emoji)    doc.emoji    = String(opts.emoji).slice(0, 8);
+    doc.visibility = ["private", "friends", "public"].includes(opts.visibility) ? opts.visibility : "friends";
+    try {
+      const ref = await fbDb(uid).collection("users").doc(uid).collection("lists").add(doc);
+      state.selectedListId = ref.id;
+      return ref.id;
+    } catch (e) { console.warn("[lists] create failed:", e?.message); return null; }
+  }
+  async function _listWrite(id, patch) {
+    const uid = state.activeAccountId;
+    if (!uid || state.friendView || !id) return;
+    try {
+      await fbDb(uid).collection("users").doc(uid).collection("lists").doc(id)
+        .set({ ...patch, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+    } catch (e) { console.warn("[lists] write failed:", e?.message); }
+  }
+  const _renameList     = (id, name) => _listWrite(id, { name: (name || "").trim().slice(0, 80) || t("listUntitled") });
+  const _setListOccasion = (id, occ) => _listWrite(id, { occasion: String(occ || "").slice(0, 60) });
+  async function _deleteList(id) {
+    const uid = state.activeAccountId;
+    if (!uid || state.friendView || !id) return;
+    try { await fbDb(uid).collection("users").doc(uid).collection("lists").doc(id).delete(); } catch (_) {}
+    if (state.selectedListId === id) state.selectedListId = null;
+  }
+  // Ensure the product identity exists (snapshot from a live spool row), then add
+  // its keyHash to the list. `row` is a spool row (Material card) or null when the
+  // product already exists (Product card passes its own keyHash).
+  async function _addToList(listId, keyHash, row) {
+    const uid = state.activeAccountId;
+    if (!uid || state.friendView || !listId || !keyHash) return;
+    if (row && row.raw) { try { await _writeProduct(row, {}); } catch (_) {} }
+    try {
+      await fbDb(uid).collection("users").doc(uid).collection("lists").doc(listId).update({
+        itemKeys: firebase.firestore.FieldValue.arrayUnion(keyHash),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+    } catch (e) { console.warn("[lists] add failed:", e?.message); }
+  }
+  async function _removeFromList(listId, keyHash) {
+    const uid = state.activeAccountId;
+    if (!uid || state.friendView || !listId || !keyHash) return;
+    try {
+      await fbDb(uid).collection("users").doc(uid).collection("lists").doc(listId).update({
+        itemKeys: firebase.firestore.FieldValue.arrayRemove(keyHash),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+    } catch (e) { console.warn("[lists] remove failed:", e?.message); }
+  }
+  // True if a keyHash is already in a given list (drives the ✓ state in the menu).
+  function _listHas(listId, keyHash) {
+    const l = _getList(listId);
+    return !!(l && (l.itemKeys || []).includes(keyHash));
+  }
+
   // The current friend's product record for a row (null outside friend view).
   function _friendProductFor(r) {
     if (!state.friendView || !r) return null;
@@ -7337,7 +7715,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         const buyBtn = document.createElement("button");
         buyBtn.type = "button";
         buyBtn.className = "gp-reorder-btn gp-reorder-btn--buy" + (_hasBuyLink(g.rep) ? "" : " gp-reorder-btn--disabled");
-        buyBtn.innerHTML = `<span class="icon icon-cart icon-14"></span><span>${esc(t("toolReorderBuy"))}</span>`;
+        buyBtn.innerHTML = `<span class="icon icon-cart icon-14"></span><span>${esc(_hasBuyLink(g.rep) ? _buyHost(_getProduct(g.rep)?.buyUrl) : t("toolReorderBuy"))}</span>`;
         buyBtn.addEventListener("click", () => {
           const url = _getProduct(g.rep)?.buyUrl;
           if (url) window.electronAPI?.openExternal(_normalizeBuyUrl(url));
@@ -7345,6 +7723,29 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         });
         row.appendChild(buyBtn);
         body.appendChild(row);
+        // "Add to a list" — on its OWN row BELOW Product-info / Reorder. Same
+        // delegated `.js-add-to-list` handler as the Material / Product cards.
+        const listRow = document.createElement("div");
+        listRow.className = "gp-actions gp-actions--list";
+        const listBtn = document.createElement("button");
+        listBtn.type = "button";
+        listBtn.className = "gp-reorder-btn js-add-to-list";
+        listBtn.dataset.atlHash = _productKeyHash(g.rep);
+        listBtn.dataset.atlSpool = g.rep.spoolId;
+        listBtn.innerHTML = `<span class="icon icon-list-check icon-14"></span><span>${esc(t("listAddTo"))}</span>`;
+        listRow.appendChild(listBtn);
+        body.appendChild(listRow);
+        // Read-only note — a quick glance at the product's note without opening the
+        // "Product info" card. Owner only: a friend's note must never be surfaced
+        // (see the products note-privacy caveat). Not editable here by design.
+        const noteTxt = (prod?.note || "").trim();
+        if (noteTxt) {
+          const noteEl = document.createElement("div");
+          noteEl.className = "gp-note";
+          noteEl.innerHTML = `<div class="gp-note-label">${esc(t("reorderNote"))}</div><div class="gp-note-txt"></div>`;
+          noteEl.querySelector(".gp-note-txt").textContent = noteTxt;   // textContent — no HTML injection
+          body.appendChild(noteEl);
+        }
       }
       // Horizontal list-cards; each click → openDetail (or toggle in select mode).
       // The group panel STAYS open — the detail card pushes it left (_syncPanels).
@@ -8097,6 +8498,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     $("btnViewFavesGrid")?.classList.toggle("active",  mode === "favesGrid");
     $("btnViewFavesTable")?.classList.toggle("active", mode === "favesTable");
     $("btnViewOrder")?.classList.toggle("active",      mode === "order");
+    $("btnViewLists")?.classList.toggle("active",      mode === "lists");
     $("btnViewPrinter")?.classList.toggle("active",      mode === "printer");
     $("btnViewPrinterTable")?.classList.toggle("active", mode === "printer-table");
     $("btnViewCam")?.classList.toggle("active",          mode === "printer-cam");
@@ -8144,7 +8546,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (_printerFilters) populatePrinterFilters();
     // Products views reuse the search + Brand / Material / Tag / ❤ / ★ selectors,
     // but hide the Version filter (no per-version notion for a product identity).
-    document.body.classList.toggle("products-filters", _isProductsMode(mode));
+    document.body.classList.toggle("products-filters", _isProductsMode(mode) || _isListsMode(mode));
+    document.body.classList.toggle("lists-view", _isListsMode(mode));
     // Cam view: the search bar + Scan/Add buttons are useless there, so hide
     // them (via #card-inv.is-cam-view) and surface the cam-wall "Detach" button
     // in the actions slot instead.
@@ -8192,62 +8595,281 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   $("btnViewFavesGrid")?.addEventListener("click",  () => setViewMode("favesGrid"));
   $("btnViewFavesTable")?.addEventListener("click", () => setViewMode("favesTable"));
   $("btnViewOrder")?.addEventListener("click",      () => setViewMode("order"));
+  $("btnViewLists")?.addEventListener("click",      () => setViewMode("lists"));
+  // Lists view — delegated interactions (picker, new, rename, delete, remove, open card).
+  $("invListsView")?.addEventListener("click", e => {
+    const pick = e.target.closest("[data-listpick]");
+    if (pick) { state.selectedListId = pick.dataset.listpick; _listRenamePending = null; renderListsView(); return; }
+    const lay = e.target.closest("[data-listlayout]");
+    if (lay) { localStorage.setItem("tigertag.listLayout", lay.dataset.listlayout); renderListsView(); return; }
+    if (e.target.closest("[data-listnew]")) {
+      if (!state.friendView) openCreateListModal();
+      return;
+    }
+    const buy = e.target.closest("[data-listbuy]");
+    if (buy) { e.stopPropagation(); const p = _listProductsSrc()[buy.dataset.listbuy]; if (p?.buyUrl) window.electronAPI?.openExternal?.(_normalizeBuyUrl(p.buyUrl)); return; }
+    const ap = e.target.closest("[data-listaddprice]");
+    if (ap) { e.stopPropagation(); if (!state.friendView) { const p = _listProductsSrc()[ap.dataset.listaddprice]; if (p) openReorderPanel(_listRowFor(p), { editPrice: true }); } return; }
+    const al = e.target.closest("[data-listaddlink]");
+    if (al) { e.stopPropagation(); if (!state.friendView) { const p = _listProductsSrc()[al.dataset.listaddlink]; if (p) openReorderPanel(_listRowFor(p), { editBuyLink: true }); } return; }
+    // Removing an item is hold-to-confirm (wired per-button via setupHoldToConfirm
+    // in renderListsView) — swallow the plain click so a misclick can't drop it,
+    // and so it doesn't fall through to opening the product card.
+    if (e.target.closest("[data-listremove]")) { e.stopPropagation(); return; }
+    const share = e.target.closest("[data-listshare]");
+    if (share) {
+      e.stopPropagation();
+      navigator.clipboard.writeText(share.dataset.listshare).then(() => {
+        share.classList.add("is-copied");
+        const lbl = share.querySelector(".lv-copy-lbl"); if (!lbl) return;
+        const orig = lbl.textContent;
+        lbl.textContent = t("listShareCopied");
+        setTimeout(() => { share.classList.remove("is-copied"); lbl.textContent = orig; }, 1500);
+      });
+      return;
+    }
+    const net = e.target.closest("[data-share-net]");
+    if (net) {
+      e.stopPropagation();
+      const row = net.closest("[data-share-url]");
+      const shareUrl = _socialShareUrl(net.dataset.shareNet, row?.dataset.shareUrl, row?.dataset.shareText);
+      if (shareUrl) window.electronAPI?.openExternal?.(shareUrl);
+      return;
+    }
+    if (e.target.closest("[data-listedit]")) { const cur = _selectedList(); if (cur) openCreateListModal(cur.id); return; }
+    const row = e.target.closest(".lv-row[data-hash]");
+    if (row) { const p = _listProductsSrc()[row.dataset.hash]; if (p) openProductCard(p); return; }
+  });
+  // "Add to a list" buttons on the Material / Product / reorder cards → open the popup.
+  document.addEventListener("click", e => {
+    const b = e.target.closest(".js-add-to-list");
+    if (!b) return;
+    e.preventDefault(); e.stopPropagation();
+    _openAddToListMenu(b, b.dataset.atlHash, _atlRowForButton(b));
+  });
+  // ── List modal — create (name + occasion) OR manage/edit an existing list ──
+  let _listModalEditId = null;   // null = create; else the listId being edited
+  function openCreateListModal(editId) {
+    if (state.friendView) return;
+    _atlPendingAdd = null;   // the "Add to a list" popup flow sets this AFTER opening
+    const editing = editId ? _getList(editId) : null;
+    _listModalEditId = editing ? editId : null;
+    if ($("clmName"))     $("clmName").value     = editing ? (editing.name || "") : "";
+    if ($("clmOccasion")) $("clmOccasion").value = editing ? (editing.occasion || "") : "";
+    if ($("clmMessage"))  $("clmMessage").value  = editing ? (editing.message || "") : "";
+    if ($("clmVisibility")) { $("clmVisibility").value = (editing && editing.visibility) || "friends"; $("clmVisibility")._cselRefresh?.(); }
+    // Title + primary-button label + delete-button visibility swap by mode.
+    const titleEl = document.querySelector("#createListOverlay .clm-title");
+    if (titleEl) titleEl.textContent = t(editing ? "listModalEditTitle" : "listModalTitle");
+    if ($("clmCreate")) {
+      $("clmCreate").textContent = t(editing ? "listModalSave" : "listModalCreate");
+      $("clmCreate").disabled = editing ? false : true;   // edit already has a valid name
+    }
+    if ($("clmDelete")) $("clmDelete").hidden = !editing;
+    $("createListOverlay")?.classList.add("open");
+    setTimeout(() => $("clmName")?.focus(), 60);
+  }
+  function closeCreateListModal() { $("createListOverlay")?.classList.remove("open"); _atlPendingAdd = null; _listModalEditId = null; }
+  async function _submitCreateList() {
+    if (state.friendView) return;
+    const name = ($("clmName")?.value || "").trim();
+    if (!name) { $("clmName")?.focus(); return; }
+    const occasion = ($("clmOccasion")?.value || "").trim();
+    const message = ($("clmMessage")?.value || "").trim();
+    const visibility = $("clmVisibility")?.value || "friends";
+    const editId = _listModalEditId;
+    if (editId) {   // EDIT — update name + occasion + message + privacy in place
+      closeCreateListModal();
+      await _listWrite(editId, { name: name.slice(0, 80), occasion: occasion.slice(0, 60), message: message.slice(0, 500), visibility });
+      if (_isListsMode(state.viewMode)) renderListsView();
+      return;
+    }
+    // CREATE — plus the pending "Add to a list" item, if any.
+    const pending = _atlPendingAdd; _atlPendingAdd = null;
+    const id = await _createList(name, { occasion, visibility, message });
+    closeCreateListModal();
+    if (id) {
+      if (pending) await _addToList(id, pending.keyHash, pending.row);
+      state.selectedListId = id; _listRenamePending = null;
+      if (_isListsMode(state.viewMode)) renderListsView();
+    }
+  }
+  $("clmClose")?.addEventListener("click", closeCreateListModal);
+  $("clmCancel")?.addEventListener("click", closeCreateListModal);
+  $("createListOverlay")?.addEventListener("click", e => { if (e.target.id === "createListOverlay") closeCreateListModal(); });
+  $("clmCreate")?.addEventListener("click", _submitCreateList);
+  $("clmName")?.addEventListener("input", () => { if ($("clmCreate") && !_listModalEditId) $("clmCreate").disabled = !($("clmName").value || "").trim(); });
+  $("clmName")?.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); _submitCreateList(); } });
+  $("clmOccasion")?.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); _submitCreateList(); } });
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && $("createListOverlay")?.classList.contains("open")) closeCreateListModal(); });
+  // Delete (hold-to-confirm, per the destructive-action norm) — edit mode only.
+  if ($("clmDelete")) setupHoldToConfirm($("clmDelete"), 1500, () => {
+    const id = _listModalEditId;
+    closeCreateListModal();
+    if (id) { _deleteList(id); if (_isListsMode(state.viewMode)) renderListsView(); }
+  });
   // Reorder drag-and-drop — delegated on the persistent products host. Only the
   // grip starts a drag; drop reorders within a zone or moves across zones.
+  // Reorder cart — drag-to-reorder with the same live "make room" animation as the
+  // friends lists, extended to TWO zones (active cart + saved-for-later): the source
+  // zone slides to close the dragged item's slot and the target zone slides to open a
+  // gap where it'll drop (dropping in the other zone flips savedForLater).
   const _pvHost = $("invProductsView");
   if (_pvHost) {
+    let drag = null;   // { hash, zones, srcZoneKey, fromIndex, targetZoneKey, k }
+    const captureZones = () => [..._pvHost.querySelectorAll(".pv-order-list[data-zone]")].map(zEl => {
+      const lines = [...zEl.querySelectorAll(".pv-order-line[data-hash]")];
+      const rects = lines.map(l => l.getBoundingClientRect());
+      const stride = lines.length > 1 ? (rects[1].top - rects[0].top) : (rects[0]?.height || 44);
+      const top0 = lines.length ? rects[0].top : zEl.getBoundingClientRect().top;
+      return { zone: zEl.dataset.zone, lines, stride, top0 };
+    });
+    const applyGap = () => {
+      const { zones, srcZoneKey, fromIndex, targetZoneKey, k } = drag;
+      zones.forEach(Z => Z.lines.forEach((line, i) => {
+        let ty = 0;
+        if (Z.zone === srcZoneKey && Z.zone === targetZoneKey) {       // same-zone reorder
+          if (i !== fromIndex) { const j = i < fromIndex ? i : i - 1; const tgt = j >= k ? j + 1 : j; ty = (tgt - i) * Z.stride; }
+        } else if (Z.zone === srcZoneKey) {                            // dragged leaving this zone
+          ty = i > fromIndex ? -Z.stride : 0;
+        } else if (Z.zone === targetZoneKey) {                         // open the gap here
+          ty = i >= k ? Z.stride : 0;
+        }
+        line.style.transform = `translateY(${ty}px)`;
+      }));
+    };
+    const clear = () => {
+      if (drag) drag.zones.forEach(Z => Z.lines.forEach(l => { l.style.transition = ""; l.style.transform = ""; l.classList.remove("pv-order-line--dragging"); }));
+      _pvHost.classList.remove("pv-reordering");
+      document.body.classList.remove("is-dragging-order");
+      drag = null;
+    };
     _pvHost.addEventListener("dragstart", e => {
       const line = e.target.closest(".pv-order-line[data-hash]");
       if (!line || state.friendView) return;
-      // Grab anywhere on the line (grip, thumbnail, name…) EXCEPT the interactive
-      // controls, so the qty field / buy / info / move-link keep working.
+      // Grab anywhere on the line EXCEPT the interactive controls (qty / buy / info / move-link).
       if (e.target.closest("input, button, a, .pv-sku, .pv-move-link, .pv-addprice")) { e.preventDefault(); return; }
-      _orderDragHash = line.dataset.hash;
-      try { e.dataTransfer.setData("text/plain", _orderDragHash); e.dataTransfer.effectAllowed = "move"; } catch (_) {}
-      try { e.dataTransfer.setDragImage(line, 24, 24); } catch (_) {}
-      line.classList.add("pv-order-line--dragging");
+      const zones = captureZones();
+      const src = zones.find(Z => Z.lines.includes(line));
+      if (!src) return;
+      const fromIndex = src.lines.indexOf(line);
+      drag = { hash: line.dataset.hash, zones, srcZoneKey: src.zone, fromIndex, targetZoneKey: src.zone, k: fromIndex };
+      try { e.dataTransfer.setData("text/plain", drag.hash); e.dataTransfer.effectAllowed = "move"; } catch (_) {}
+      try { e.dataTransfer.setDragImage(line, 24, 24); } catch (_) {}   // capture BEFORE hiding
+      _pvHost.classList.add("pv-reordering");
       document.body.classList.add("is-dragging-order");
+      requestAnimationFrame(() => {
+        if (!drag) return;
+        line.classList.add("pv-order-line--dragging");
+        zones.forEach(Z => Z.lines.forEach(l => { if (l !== line) l.style.transition = "transform .22s cubic-bezier(.22,.61,.36,1)"; }));
+      });
     });
     _pvHost.addEventListener("dragover", e => {
-      if (!_orderDragHash) return;
+      if (!drag) return;
       const zoneWrap = e.target.closest(".pv-cart, .pv-saved");
       if (!zoneWrap) return;
       e.preventDefault();
       try { e.dataTransfer.dropEffect = "move"; } catch (_) {}
-      _clearOrderDropCues();
-      const line = e.target.closest(".pv-order-line[data-hash]");
-      if (line && line.dataset.hash !== _orderDragHash) {
-        const r = line.getBoundingClientRect();
-        line.classList.add((e.clientY - r.top) < r.height / 2 ? "pv-drop-before" : "pv-drop-after");
-      } else if (!line) {
-        (zoneWrap.querySelector(".pv-order-list") || zoneWrap).classList.add("pv-zone-drop");
-      }
+      const zoneKey = zoneWrap.classList.contains("pv-saved") ? "saved" : "cart";
+      const Z = drag.zones.find(z => z.zone === zoneKey);
+      if (!Z) return;
+      const restLen = Z.lines.length - (zoneKey === drag.srcZoneKey ? 1 : 0);
+      const k = Math.max(0, Math.min(restLen, Math.round((e.clientY - Z.top0) / (Z.stride || 1))));
+      if (zoneKey !== drag.targetZoneKey || k !== drag.k) { drag.targetZoneKey = zoneKey; drag.k = k; applyGap(); }
     });
     _pvHost.addEventListener("drop", e => {
-      if (!_orderDragHash) return;
+      if (!drag) return;
       const zoneWrap = e.target.closest(".pv-cart, .pv-saved");
-      if (!zoneWrap) return;
+      if (!zoneWrap) { clear(); return; }
       e.preventDefault();
       const intoSaved = zoneWrap.classList.contains("pv-saved");
-      const line = e.target.closest(".pv-order-line[data-hash]");
-      let targetHash = null, before = false;
-      if (line && line.dataset.hash !== _orderDragHash) {
-        const r = line.getBoundingClientRect();
-        before = (e.clientY - r.top) < r.height / 2;
-        targetHash = line.dataset.hash;
-      }
-      const drag = _orderDragHash;
-      _orderDragHash = null;
-      _clearOrderDropCues();
-      document.body.classList.remove("is-dragging-order");
-      _applyOrderDrop(drag, targetHash, before, intoSaved);
+      const zoneKey = intoSaved ? "saved" : "cart";
+      const Z = drag.zones.find(z => z.zone === zoneKey);
+      const rest = Z ? Z.lines.map(l => l.dataset.hash).filter(h => h !== drag.hash) : [];
+      const k = zoneKey === drag.targetZoneKey ? drag.k : 0;
+      const targetHash = k < rest.length ? rest[k] : null;
+      const dragHash = drag.hash;
+      clear();
+      _applyOrderDrop(dragHash, targetHash, true, intoSaved);
     });
-    _pvHost.addEventListener("dragend", () => {
-      _orderDragHash = null;
-      _clearOrderDropCues();
+    _pvHost.addEventListener("dragend", clear);
+  }
+  // Lists view — drag-and-drop reorder of the selected list's items (rows or grid
+  // cards). Grab anywhere on the item except its interactive controls.
+  // Wishlist items — drag-to-reorder with the "make room" animation, generalised to
+  // 2D so it works in BOTH the row list AND the wrapping grid: each item slides by
+  // the (dx,dy) between its own slot and the slot it takes once the gap opens.
+  const _lvHost = $("invListsView");
+  if (_lvHost) {
+    let drag = null;   // { hash, items, rects, fromIndex, isGrid, k }
+    const itemsIn = () => [..._lvHost.querySelectorAll(".lv-row[data-hash], .lv-card[data-hash]")];
+    // Insertion index = nearest item + before/after (X for grid, Y for rows).
+    const computeK = (px, py) => {
+      const { rects, fromIndex, isGrid } = drag;
+      let best = -1, bestD = Infinity;
+      rects.forEach((r, i) => {
+        if (i === fromIndex) return;
+        const dx = px - (r.left + r.width / 2), dy = py - (r.top + r.height / 2);
+        const d = dx * dx + dy * dy;
+        if (d < bestD) { bestD = d; best = i; }
+      });
+      if (best < 0) return 0;
+      const r = rects[best];
+      const after = isGrid ? (px > r.left + r.width / 2) : (py > r.top + r.height / 2);
+      const bj = best < fromIndex ? best : best - 1;
+      return bj + (after ? 1 : 0);
+    };
+    const applyGap = () => {
+      const { items, rects, fromIndex, k } = drag;
+      items.forEach((el, i) => {
+        if (i === fromIndex) { el.style.transform = "translate(0px,0px)"; return; }
+        const j = i < fromIndex ? i : i - 1;
+        const tgt = j >= k ? j + 1 : j;
+        el.style.transform = `translate(${rects[tgt].left - rects[i].left}px, ${rects[tgt].top - rects[i].top}px)`;
+      });
+    };
+    const clear = () => {
+      if (drag) drag.items.forEach(el => { el.style.transition = ""; el.style.transform = ""; el.classList.remove("lv-item--dragging"); });
+      _lvHost.classList.remove("lv-reordering");
       document.body.classList.remove("is-dragging-order");
-      _pvHost.querySelectorAll(".pv-order-line--dragging").forEach(el => el.classList.remove("pv-order-line--dragging"));
+      drag = null;
+    };
+    _lvHost.addEventListener("dragstart", e => {
+      const it = e.target.closest(".lv-row[data-hash], .lv-card[data-hash]");
+      if (!it || state.friendView) return;
+      if (e.target.closest("input, button, a")) { e.preventDefault(); return; }
+      const items = itemsIn();
+      const fromIndex = items.indexOf(it);
+      if (fromIndex < 0) return;
+      drag = { hash: it.dataset.hash, items, rects: items.map(el => el.getBoundingClientRect()), fromIndex, isGrid: it.classList.contains("lv-card"), k: fromIndex };
+      try { e.dataTransfer.setData("text/plain", drag.hash); e.dataTransfer.effectAllowed = "move"; } catch (_) {}
+      try { e.dataTransfer.setDragImage(it, 24, 24); } catch (_) {}
+      _lvHost.classList.add("lv-reordering");
+      document.body.classList.add("is-dragging-order");
+      requestAnimationFrame(() => {
+        if (!drag) return;
+        it.classList.add("lv-item--dragging");
+        items.forEach(el => { if (el !== it) el.style.transition = "transform .2s cubic-bezier(.22,.61,.36,1)"; });
+      });
     });
+    _lvHost.addEventListener("dragover", e => {
+      if (!drag || !e.target.closest(".lv-main")) return;
+      e.preventDefault();
+      try { e.dataTransfer.dropEffect = "move"; } catch (_) {}
+      const k = computeK(e.clientX, e.clientY);
+      if (k !== drag.k) { drag.k = k; applyGap(); }
+    });
+    _lvHost.addEventListener("drop", e => {
+      if (!drag) return;
+      if (!e.target.closest(".lv-main")) { clear(); return; }
+      e.preventDefault();
+      const rest = drag.items.filter((_, i) => i !== drag.fromIndex).map(el => el.dataset.hash);
+      const targetHash = drag.k < rest.length ? rest[drag.k] : null;
+      const dragHash = drag.hash;
+      clear();
+      _applyListReorder(dragHash, targetHash, true);
+    });
+    _lvHost.addEventListener("dragend", clear);
   }
 
   // Products view — delegated actions (select, on-order stepper, buy, remove, open).
@@ -8532,7 +9154,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     else { state.tagFilter = v; _onFilterChange(); }
   });
   // Replace the native OS dropdowns of the toolbar filters with app-styled popups.
-  ["brandFilter", "materialFilter", "aspectFilter", "typeFilter", "tagFilter", "gridSort"].forEach(id => _enhanceSelect($(id)));
+  ["brandFilter", "materialFilter", "aspectFilter", "typeFilter", "tagFilter", "gridSort", "clmVisibility"].forEach(id => _enhanceSelect($(id)));
   // Same treatment for the Add-product panel's identity selects (Brand/Material
   // use their own bottom-sheets; these are the plain <select>s). The button
   // mirrors the .adp-select look; only the OS option list is replaced.
@@ -8555,7 +9177,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // Clicking a version tile (TigerTag / TigerTag+ / TigerCloud) sets the
   // typeFilter and highlights the tile. Clicking it again, or clicking a
   // "reset" tile (SPOOLS / STOCK), clears the filter back to "All versions".
+  // The ⓘ info bubble on the "Stock value" stat (reuses the toolbox tooltip pop).
+  $("sbStats")?.addEventListener("mouseover", e => { const el = e.target.closest?.(".tool-info"); if (el) _showToolInfoTip(el); });
+  $("sbStats")?.addEventListener("mouseout",  e => { const el = e.target.closest?.(".tool-info"); if (el && !el.contains(e.relatedTarget)) _hideToolInfoTip(); });
   $("sbStats")?.addEventListener("click", e => {
+    if (e.target.closest(".tool-info")) return;   // pressing the ⓘ must not trigger the stat filter
     const tile = e.target.closest(".sb-stat[data-filter]");
     if (!tile) return;
     const f = tile.dataset.filter;
@@ -9369,9 +9995,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       else { const v = Math.max(0, Math.round(+patch.orderQty) || 0); doc.orderQty = v; local.orderQty = v; }
     }
     if ("minStockSpools" in patch) {
-      // null / 0 clears the minimum (no reorder target).
-      if (patch.minStockSpools == null) { doc.minStockSpools = FV.delete(); local.minStockSpools = undefined; }
-      else { const v = Math.max(0, Math.round(+patch.minStockSpools) || 0); doc.minStockSpools = v; local.minStockSpools = v; }
+      // null / 0 clears the minimum (no reorder target) AND the reorder-only state
+      // (savedForLater / orderQty) — otherwise a sticky flag keeps the product out
+      // of the cart forever, even after re-adding it.
+      if (patch.minStockSpools == null || +patch.minStockSpools <= 0) {
+        doc.minStockSpools = FV.delete(); local.minStockSpools = undefined;
+        doc.savedForLater  = FV.delete(); local.savedForLater = undefined;
+        doc.orderQty       = FV.delete(); local.orderQty = undefined;
+      } else { const v = Math.max(0, Math.round(+patch.minStockSpools) || 0); doc.minStockSpools = v; local.minStockSpools = v; }
     }
     if ("buyPriceHt" in patch) {
       // Price stored tax-free; null / empty clears it. 4-dp to kill float noise.
@@ -9502,6 +10133,270 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       : _renderFavesGrid(faves, ro);
   }
 
+  // ── Lists view ────────────────────────────────────────────────────────────
+  let _listRenamePending = null;   // listId being renamed → title renders as an input (survives snapshot re-renders)
+  // One item CARD (grid layout) — reuses the favorites grid card + a hover
+  // A spool row for a list product — a live spool of the same identity if one
+  // exists, else synthesised from the product — used to open the reorder panel
+  // straight into the price / buy-link editor.
+  function _listRowFor(p) {
+    if (!p) return null;
+    return (state.rows || []).find(x => !x.deleted && _spoolGroupKey(x) === p.key) || _productAsRow(p);
+  }
+  // Buy-button label = the shop's host (e.g. "amazon.fr", "atome3d.com") rather
+  // than a generic "Buy", so a wishlist reads like a shopping list of shops.
+  function _buyHost(url) {
+    try { return new URL(_normalizeBuyUrl(url)).hostname.replace(/^www\./i, ""); }
+    catch { return t("listBuy"); }
+  }
+  // remove (✕) overlay. Used when the Lists view is in "grid" mode.
+  function _listCardHTML(p, ro, sym) {
+    const r = _productAsRow(p);
+    const { title, sub, extra } = _productGridLabel(r);
+    const priceHTML = _favePriceHTML(p.buyPriceHt, sym);
+    const footerHTML = priceHTML != null
+      ? `<span class="card-price">${priceHTML}</span>`
+      : (ro ? "" : `<button type="button" class="card-price card-price--none" data-listaddprice="${esc(p.id)}">${esc(t("reorderAddPrice"))}</button>`);
+    const removeBtn = ro ? "" : `<button type="button" class="lv-remove" data-listremove="${esc(p.id)}" aria-label="${esc(t("listRemoveItem"))}"><span class="hold-progress"></span><span class="icon icon-close icon-12"></span></button>`;
+    // Buy / Add-a-link button — same shopping affordance as the row layout, as a
+    // full-width bar at the bottom of the card.
+    const linkBtn = p.buyUrl
+      ? `<button type="button" class="lv-buy lv-card-buy" data-listbuy="${esc(p.id)}"><span class="icon icon-cart icon-13"></span>${esc(_buyHost(p.buyUrl))}</button>`
+      : (ro ? "" : `<button type="button" class="lv-addlink lv-card-buy" data-listaddlink="${esc(p.id)}"><span class="icon icon-cart icon-13"></span>${esc(t("reorderAddLink"))}</button>`);
+    const buyBar = linkBtn ? `<div class="lv-card-buybar">${linkBtn}</div>` : "";
+    return `<div class="spool-card pv-item lv-card" data-hash="${esc(p.id)}" data-key="${esc(p.key)}"${ro ? "" : ' draggable="true"'}>${removeBtn}${_gridCardInnerHTML(r, { product: true, footerHTML, nameText: title, subText: sub, subExtraText: extra })}${buyBar}</div>`;
+  }
+  // One item ROW (Amazon-style list layout): thumbnail · title/colour/price ·
+  // per-item actions (buy link + remove). The whole row (minus the buttons)
+  // opens the product card.
+  function _listRowHTML(p, ro, sym) {
+    const l = p.label || {};
+    const title = [l.brand, l.material].filter(v => v && v !== "-").join(" ") || l.brand || "—";
+    const priceHTML = _favePriceHTML(p.buyPriceHt, sym);
+    // Price: the value, or an "Add price" affordance (owner only).
+    const priceBlock = priceHTML
+      ? `<div class="lv-row-price">${priceHTML}</div>`
+      : (ro ? "" : `<button type="button" class="lv-addprice" data-listaddprice="${esc(p.id)}">${esc(t("reorderAddPrice"))}</button>`);
+    // Link: "Buy" (opens the shop) when a link is set, else an "Add a link" button.
+    const linkBtn = p.buyUrl
+      ? `<button type="button" class="lv-buy" data-listbuy="${esc(p.id)}"><span class="icon icon-cart icon-13"></span>${esc(_buyHost(p.buyUrl))}</button>`
+      : (ro ? "" : `<button type="button" class="lv-addlink" data-listaddlink="${esc(p.id)}"><span class="icon icon-cart icon-13"></span>${esc(t("reorderAddLink"))}</button>`);
+    const rm = ro ? "" : `<button type="button" class="lv-row-remove" data-listremove="${esc(p.id)}" aria-label="${esc(t("listRemoveItem"))}"><span class="hold-progress"></span><span class="icon icon-trash icon-13"></span></button>`;
+    const grip = ro ? "" : `<span class="lv-grip" aria-hidden="true"><span class="icon icon-grip icon-16"></span></span>`;
+    return `
+      <div class="lv-row" data-hash="${esc(p.id)}" data-key="${esc(p.key)}"${ro ? "" : ' draggable="true"'}>
+        ${grip}
+        <div class="lv-row-thumb">${_productThumbHTML(p)}</div>
+        <div class="lv-row-body">
+          <div class="lv-row-title">${esc(title)}</div>
+          ${l.colorName ? `<div class="lv-row-meta">${esc(l.colorName)}</div>` : ""}
+          ${priceBlock}
+          <div class="lv-row-actions">${linkBtn}${rm}</div>
+        </div>
+      </div>`;
+  }
+  function renderListsView() {
+    const host = $("invListsView");
+    if (!host) return;
+    populateQuickFilters();   // reuse the search / Brand / Material filters over list items
+    const ro = !!state.friendView;
+    const lists = _listsArray();
+    if (!lists.length) {
+      host.innerHTML = ro
+        ? `<div class="pv-empty"><span class="icon icon-list icon-24"></span><div>${esc(t("listFriendEmpty", { name: state.friendView?.displayName || "" }))}</div></div>`
+        : `<div class="lv-first"><span class="icon icon-list icon-24"></span><div class="lv-first-txt">${esc(t("listNoneTitle"))}</div><div class="lv-first-sub">${esc(t("listNoneSub"))}</div><button type="button" class="primary lv-new-btn" data-listnew>${esc(t("listModalTitle"))}</button></div>`;
+      return;
+    }
+    const cur = _selectedList();
+    const sym = _vatInfo().symbol;
+    const items = _filteredProducts(_listItems(cur));
+    // Per-view layout choice — rows (Amazon-style) or grid (cards). Persisted.
+    const layout = localStorage.getItem("tigertag.listLayout") === "grid" ? "grid" : "list";
+    const layoutToggle = `<div class="lv-layout">
+      <button type="button" class="lv-layout-btn${layout === "list" ? " is-active" : ""}" data-listlayout="list" aria-label="${esc(t("listLayoutRows"))}"><span class="icon icon-list icon-13"></span></button>
+      <button type="button" class="lv-layout-btn${layout === "grid" ? " is-active" : ""}" data-listlayout="grid" aria-label="${esc(t("btnViewGrid"))}"><span class="vt-glyph">⊞</span></button>
+    </div>`;
+    // Left sidebar — the user's lists (name + item count), selected highlighted,
+    // + a "Create a list" entry (owner only). Amazon-style two-column layout.
+    const sideItems = lists.map(l =>
+      `<button type="button" class="lv-side-item${l.id === cur.id ? " is-active" : ""}" data-listpick="${esc(l.id)}">
+         <span class="lv-side-name">${l.emoji ? esc(l.emoji) + " " : ""}${esc(l.name || t("listUntitled"))}</span>
+         <span class="lv-side-vis" aria-label="${esc(_listVisMeta(l.visibility).label)}"><span class="icon ${_listVisMeta(l.visibility).icon} icon-12"></span></span>
+         <span class="lv-side-n">${(l.itemKeys || []).length}</span>
+       </button>`).join("");
+    const sideNew = ro ? "" : `<button type="button" class="lv-side-new" data-listnew><span class="icon icon-plus icon-13"></span>${esc(t("listModalTitle"))}</button>`;
+    // Single header action — "Manage list" opens the edit modal (rename +
+    // occasion + delete-hold), Amazon-style. No inline delete-confirm here.
+    const actions = ro ? "" :
+      `<button type="button" class="lv-act" data-listedit aria-label="${esc(t("listModalEditTitle"))}"><span class="icon icon-edit icon-14"></span></button>`;
+    // Title renders as an INPUT while renaming — render-driven so a Firestore
+    // snapshot re-render (e.g. right after creating the list) can't wipe it out.
+    const renaming = !ro && _listRenamePending === cur.id;
+    const titleHTML = renaming
+      ? `<input type="text" id="lvTitleInput" class="lv-title-input" maxlength="80" value="${esc(cur.name || "")}">`
+      : `${cur.emoji ? esc(cur.emoji) + " " : ""}${esc(cur.name || t("listUntitled"))}<span class="lv-count">${(cur.itemKeys || []).length}</span>`;
+    const rowsHTML = items.length
+      ? (layout === "grid"
+          ? `<div class="inv-grid pv-fav-grid lv-grid">${items.map(p => _listCardHTML(p, ro, sym)).join("")}</div>`
+          : items.map(p => _listRowHTML(p, ro, sym)).join(""))
+      : `<div class="pv-empty"><span class="icon icon-list icon-24"></span><div>${esc(ro ? t("listEmptyFriend") : t("listEmpty"))}</div></div>`;
+    // Public share card — owner only, when the list is public and its snapshot
+    // token is minted. A right-rail card with the QR + a "Copy link" button (no raw
+    // URL shown), mirroring the friends invite card. Link opens on TigerHub, no account.
+    let publicCardHTML = "";
+    if (!ro && cur.visibility === "public" && cur.publicToken) {
+      const pubUrl = _publicListUrl(cur.publicToken);
+      const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(pubUrl)}&bgcolor=ffffff&color=1d1d1f&margin=0&qzone=1`;
+      const shareText = t("listShareText", { name: cur.name || t("listUntitled") });
+      publicCardHTML = `
+        <aside class="lv-public-card">
+          <div class="lv-public-title"><span class="icon icon-eye-on icon-13"></span>${esc(t("listSharePublicTitle"))}</div>
+          <img class="lv-public-qr" src="${esc(qrSrc)}" alt="">
+          <button type="button" class="lv-public-copy" data-listshare="${esc(pubUrl)}"><span class="icon icon-link icon-13"></span><span class="lv-copy-lbl">${esc(t("listShareCopy"))}</span></button>
+          <div class="lv-social-row" data-share-url="${esc(pubUrl)}" data-share-text="${esc(shareText)}">
+            <button type="button" class="lv-social lv-social--fb" data-share-net="facebook" aria-label="Facebook"><span class="icon icon-facebook"></span></button>
+            <button type="button" class="lv-social lv-social--x"  data-share-net="x" aria-label="X"><span class="icon icon-x"></span></button>
+            <button type="button" class="lv-social lv-social--li" data-share-net="linkedin" aria-label="LinkedIn"><span class="icon icon-linkedin"></span></button>
+            <button type="button" class="lv-social lv-social--wa" data-share-net="whatsapp" aria-label="WhatsApp"><span class="icon icon-whatsapp"></span></button>
+            <button type="button" class="lv-social lv-social--mail" data-share-net="email" aria-label="Email"><span class="icon icon-mail"></span></button>
+          </div>
+          <div class="lv-public-hint">${esc(t("listSharePublicHint"))}</div>
+        </aside>`;
+    }
+    host.innerHTML = `
+      <div class="lv-amz">
+        <aside class="lv-side">
+          <div class="lv-side-head">${esc(t("listSidebarTitle"))}</div>
+          ${sideItems}
+          ${sideNew}
+        </aside>
+        <section class="lv-main">
+          <div class="lv-main-col">
+            <div class="lv-head">
+              <div class="lv-head-main">
+                <div class="lv-title-row"><div class="lv-actions">${actions}</div><div class="lv-title">${titleHTML}</div>${(() => { const vm = _listVisMeta(cur.visibility); const v = (cur.visibility === "private" || cur.visibility === "public") ? cur.visibility : "friends"; return `<span class="lv-vis lv-vis--${v}"${ro ? "" : ' data-listedit role="button" tabindex="0"'}><span class="icon ${vm.icon} icon-12"></span>${esc(vm.label)}</span>`; })()}</div>
+                ${!renaming && cur.occasion ? `<div class="lv-occasion">${esc(cur.occasion)}</div>` : ""}
+                ${!renaming && cur.message ? `<div class="lv-message">${esc(cur.message)}</div>` : ""}
+              </div>
+              <div class="lv-head-right">${layoutToggle}</div>
+            </div>
+            <div class="lv-rows">${rowsHTML}</div>
+          </div>
+          ${publicCardHTML}
+        </section>
+      </div>`;
+    // Removing an item from a list is hold-to-confirm (a misclick would silently
+    // drop the product) — wire each remove button after every render. Reversible
+    // action → 1200 ms.
+    if (!ro) host.querySelectorAll("[data-listremove]").forEach(btn =>
+      setupHoldToConfirm(btn, 1200, () => {
+        if (state.friendView) return;
+        const sel = _selectedList();
+        if (sel) _removeFromList(sel.id, btn.dataset.listremove);
+      }));
+    // Focus + wire the rename input once it's in the DOM (only when it isn't
+    // already focused, so repeated snapshot re-renders don't steal the caret).
+    if (renaming) {
+      const inp = document.getElementById("lvTitleInput");
+      if (inp && document.activeElement !== inp) {
+        inp.focus(); inp.select();
+        inp.addEventListener("keydown", e => {
+          if (e.key === "Enter")  { e.preventDefault(); _commitListRename(cur.id, inp.value); }
+          else if (e.key === "Escape") { e.preventDefault(); _listRenamePending = null; renderListsView(); }
+        });
+        inp.addEventListener("blur", () => setTimeout(() => { if (_listRenamePending === cur.id) _commitListRename(cur.id, inp.value); }, 120));
+      }
+    }
+  }
+  function _commitListRename(id, val) {
+    _listRenamePending = null;
+    const v = (val || "").trim();
+    if (v && v !== _getList(id)?.name) _renameList(id, v);
+    renderListsView();
+  }
+
+  // ── "Add to a list" popup — shared by the Material card, Product card and the
+  // reorder card. Anchored to the triggering button; ✓ marks lists that already
+  // hold the item; re-renders live when the lists snapshot changes.
+  let _atlPop = null, _atlState = null;
+  // When the create-list modal is opened FROM the "Add to a list" popup, remember
+  // the item to add to the freshly-created list.
+  let _atlPendingAdd = null;
+  function _renderAddToListMenu() {
+    if (!_atlPop || !_atlState) return;
+    const { keyHash } = _atlState;
+    const rows = _listsArray().map(l => {
+      const inIt = (l.itemKeys || []).includes(keyHash);
+      const n = (l.itemKeys || []).length;
+      return `<button type="button" class="atl-row${inIt ? " is-in" : ""}" data-atl="${esc(l.id)}">
+        <span class="atl-check">${inIt ? `<span class="icon icon-check icon-13"></span>` : ""}</span>
+        <span class="atl-name">${l.emoji ? esc(l.emoji) + " " : ""}${esc(l.name || t("listUntitled"))}</span>
+        <span class="atl-n">${n}</span></button>`;
+    }).join("");
+    _atlPop.innerHTML = `
+      <div class="atl-head">${esc(t("listAddTo"))}</div>
+      ${rows ? `<div class="atl-rows">${rows}</div>` : ""}
+      <button type="button" class="atl-new" data-atlnew><span class="icon icon-plus icon-13"></span>${esc(t("listCreate"))}</button>`;
+  }
+  function _refreshAddToListMenu() { if (_atlPop) _renderAddToListMenu(); }
+  function _positionAtlPop() {
+    if (!_atlPop || !_atlState?.anchorEl) return;
+    const r = _atlState.anchorEl.getBoundingClientRect();
+    const w = _atlPop.offsetWidth || 240, h = _atlPop.offsetHeight || 200;
+    const left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8));
+    let top = r.bottom + 6;
+    if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 6);
+    _atlPop.style.left = left + "px";
+    _atlPop.style.top = top + "px";
+  }
+  function _atlOutside(e) { if (_atlPop && !_atlPop.contains(e.target) && !(_atlState?.anchorEl && _atlState.anchorEl.contains(e.target))) _closeAddToListMenu(); }
+  function _atlEsc(e) { if (e.key === "Escape") _closeAddToListMenu(); }
+  function _closeAddToListMenu() {
+    if (_atlPop) { try { _atlPop.remove(); } catch (_) {} }
+    _atlPop = null; _atlState = null;
+    document.removeEventListener("click", _atlOutside, true);
+    document.removeEventListener("keydown", _atlEsc, true);
+    window.removeEventListener("resize", _positionAtlPop);
+  }
+  function _openAddToListMenu(anchorEl, keyHash, row) {
+    if (state.friendView || !keyHash || !anchorEl) return;
+    _closeAddToListMenu();
+    _atlState = { keyHash, row: row || null, anchorEl };
+    const pop = document.createElement("div");
+    pop.className = "atl-pop";
+    pop.addEventListener("click", async e => {
+      const pick = e.target.closest("[data-atl]");
+      if (pick) {
+        const id = pick.dataset.atl, kh = _atlState.keyHash, src = _atlState.row;
+        if (_listHas(id, kh)) await _removeFromList(id, kh);
+        else await _addToList(id, kh, src);
+        return;   // subscribeLists → _refreshAddToListMenu repaints the ✓
+      }
+      if (e.target.closest("[data-atlnew]")) {
+        // Open the create-list modal; the new list gets THIS item once created.
+        const kh = _atlState.keyHash, row = _atlState.row;
+        _closeAddToListMenu();
+        openCreateListModal();
+        _atlPendingAdd = { keyHash: kh, row };   // set AFTER open (which resets it)
+      }
+    });
+    document.body.appendChild(pop);
+    _atlPop = pop;
+    _renderAddToListMenu();
+    _positionAtlPop();
+    setTimeout(() => document.addEventListener("click", _atlOutside, true), 0);
+    document.addEventListener("keydown", _atlEsc, true);
+    window.addEventListener("resize", _positionAtlPop);
+  }
+  // The spool row backing an "Add to a list" button (for ensure-product), when the
+  // button carries a spoolId (Material / reorder cards); null for the Product card
+  // (its product already exists).
+  function _atlRowForButton(b) {
+    const sid = b.dataset.atlSpool;
+    if (!sid) return null;
+    return (state.rows || []).find(r => String(r.spoolId) === String(sid)) || null;
+  }
+
   // One reorder line — shared by the active cart and the "saved for later" shelf.
   // `saved` swaps the trailing action: a cart line gets a "set aside" (clock)
   // button, a saved line gets a "move back to cart" button. `ro` (friend view)
@@ -9598,19 +10493,31 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     return `<div class="pv-order-layout"><div class="pv-order-main">${cartBlock}${savedBlock}</div>${summary}</div>`;
   }
 
-  // ── Reorder drag-and-drop — reorder lines + drag a line across the two zones ──
-  // Native HTML5 DnD, same shape as the printer-grid reorder. Persists a per-
-  // product `sortRank` (private to /products, no rule change) and flips
-  // `savedForLater` on a cross-zone drop. Event wiring lives with the products
-  // click delegation (search `_orderDragHash`).
-  let _orderDragHash = null;
+  // Reorder cart persists a per-product `sortRank` (private to /products, no rule
+  // change) and flips `savedForLater` on a cross-zone drop. Drag wiring (make-room
+  // animation) is above with `_pvHost`.
+  // ── Lists view — drag-and-drop reorder of a list's items ──────────────────
+  // The list's `itemKeys` array IS the display order, so a reorder just moves the
+  // dragged hash next to the drop target and persists the new array. Drag wiring
+  // (2D make-room animation) is above with `_lvHost`.
+  function _applyListReorder(dragHash, targetHash, before) {
+    const cur = _selectedList();
+    if (!cur || state.friendView || !dragHash) return;
+    const keys = [...(cur.itemKeys || [])];
+    const from = keys.indexOf(dragHash);
+    if (from < 0) return;
+    keys.splice(from, 1);
+    let to = targetHash ? keys.indexOf(targetHash) : keys.length;
+    if (to < 0) to = keys.length;
+    if (targetHash && !before) to += 1;
+    keys.splice(to, 0, dragHash);
+    if (state.lists?.[cur.id]) state.lists[cur.id].itemKeys = keys;   // optimistic — snapshot confirms
+    renderListsView();
+    _listWrite(cur.id, { itemKeys: keys });
+  }
   function _zoneHashesFromDom(saved) {
     const list = document.querySelector(`#invProductsView .pv-order-list[data-zone="${saved ? "saved" : "cart"}"]`);
     return list ? [...list.querySelectorAll(".pv-order-line[data-hash]")].map(el => el.dataset.hash) : [];
-  }
-  function _clearOrderDropCues() {
-    document.querySelectorAll(".pv-drop-before, .pv-drop-after, .pv-zone-drop")
-      .forEach(el => el.classList.remove("pv-drop-before", "pv-drop-after", "pv-zone-drop"));
   }
   // Batch-persist the target zone's new order (+ the moved item's zone flag). One
   // op per doc so a doc is never written twice in the same batch.
@@ -11054,7 +11961,20 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           .collection("users").doc(user.uid)
           .collection("inventory").doc(r.spoolId)
           .update(update);
-        // onSnapshot re-renders the panel automatically
+        // onSnapshot re-renders the panel automatically.
+        // If this material is also a PRODUCT (favorite / reorder), keep its
+        // snapshot image in sync — the Favorites grid/table read `label.imgUrl`
+        // and the product card reads `cloudSeed`, neither of which follows the
+        // live spool. Without this, the picture updates on the material card but
+        // stays stale in the Favorites illustration.
+        const _hash = _productKeyHash(r);
+        if (state.products[_hash]) {
+          const pUpdate = { "label.imgUrl": val || "", updatedAt: ts };
+          if (val) { pUpdate["cloudSeed.url_img"] = val; pUpdate["cloudSeed.url_img_user"] = true; }
+          else     { pUpdate["cloudSeed.url_img"] = del; pUpdate["cloudSeed.url_img_user"] = del; }
+          fbDb(user.uid).collection("users").doc(user.uid).collection("products").doc(_hash)
+            .update(pUpdate).catch(e => console.warn("[products] image sync failed:", e?.message));
+        }
       } catch (e) { reportError("spool.customImgUrl", e); }
     });
     // copy raw JSON button
@@ -11467,9 +12387,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const spoolUids = [r.uid, r.twinUid].filter(Boolean).map(u => String(u).toUpperCase());
     const present   = new Set([...state.nfcCardPresent.values()].map(c => String(c?.uid || "").toUpperCase()));
     const ownCount  = spoolUids.filter(u => present.has(u)).length;
-    // Buy-link presence flips the "Reorder" toolbox row → include it so setting /
-    // clearing a link updates the toolbox live (not only on the next open).
-    return (anyReader ? "1" : "0") + (anyCard ? "1" : "0") + ownCount + (_hasBuyLink(r) ? "L" : "");
+    // Buy-link presence flips the "Reorder" toolbox row; the PRICE + full buy URL
+    // drive the "Price & buy" block and the Details rows → include them so editing
+    // the price/link updates the open card live (not only on the next open).
+    const prod = state.friendView ? _friendProductFor(r) : _getProduct(r);
+    return (anyReader ? "1" : "0") + (anyCard ? "1" : "0") + ownCount + (_hasBuyLink(r) ? "L" : "")
+      + "|" + (prod?.buyPriceHt ?? "") + "|" + (prod?.buyUrl || "");
   }
   // Rebuild the open panel when the chips on the readers change in a way that
   // affects its toolbox — so "Restore TigerTag+" / cloud "Graver RFID" appear
@@ -11482,21 +12405,34 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (!r) return;
     if (_panelCardSig(r) === _lastPanelCardSig) return;
     _lastPanelCardSig = _panelCardSig(r);
-    // A card-presence change only flips the toolbox buttons, so update JUST the
-    // toolbox in place — never rebuild the whole card (which would reload images
-    // and restart the material video). Regenerate the panel HTML (cheap, string
-    // only), lift out its fresh toolbox section, swap it into the live DOM, and
-    // re-wire only the toolbox. The ⓘ tips are delegated on #panelBody, so they
-    // keep working without re-wiring.
-    const cur = $("panelBody")?.querySelector(".panel-section--toolbox");
-    if (!cur) return;                              // no toolbox here (friend view / deleted)
+    // A product change (chip presence, price, buy link) can affect three parts of
+    // the open card: the toolbox buttons, the "Price & buy" block, and the Details
+    // rows. Surgically swap JUST those — never a full rebuild (which would reload
+    // the image and restart the material video). Regenerate the panel HTML once
+    // (string only) and lift the fresh sections out of it.
+    const body = $("panelBody");
+    if (!body) return;
     const tmp = document.createElement("div");
     tmp.innerHTML = buildPanelHTML(r);
-    const next = tmp.querySelector(".panel-section--toolbox");
-    if (!next) { cur.remove(); return; }           // toolbox no longer applies
-    cur.replaceWith(next);
-    _hideToolInfoTip();                            // drop any ⓘ bubble from the old rows
-    _wireToolbox(r);
+    // Toolbox (owner only) — swap + re-wire. ⓘ tips are delegated on #panelBody.
+    const curTb = body.querySelector(".panel-section--toolbox");
+    const nextTb = tmp.querySelector(".panel-section--toolbox");
+    if (curTb && nextTb) { curTb.replaceWith(nextTb); _hideToolInfoTip(); _wireToolbox(r); }
+    else if (curTb && !nextTb) curTb.remove();
+    // "Price & buy" block — a plain price + link (no JS wiring) → swap / add / remove.
+    const curBuy = body.querySelector(".det-buy");
+    const nextBuy = tmp.querySelector(".det-buy");
+    if (curBuy && nextBuy) curBuy.replaceWith(nextBuy);
+    else if (curBuy && !nextBuy) curBuy.remove();
+    else if (!curBuy && nextBuy) {
+      const details = body.querySelector(".panel-details");
+      if (details) details.before(nextBuy); else body.appendChild(nextBuy);
+    }
+    // Details rows (Price / Buy link / …) — replace the body content only; the
+    // collapsible toggle head keeps its own click listener (it's outside the body).
+    const curDet = body.querySelector(".panel-details .panel-details-body");
+    const nextDet = tmp.querySelector(".panel-details .panel-details-body");
+    if (curDet && nextDet) curDet.innerHTML = nextDet.innerHTML;
   }
 
   /* ── TD1S module init ────────────────────────────────────────────────────
@@ -11839,7 +12775,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // share's price/link/SKU-EAN. Same .flag-toggle look as the materials card.
     const mine  = state.products[p.id] || {};
     const liked = !!mine.liked, fav = !!mine.favorite;
-    const flagsHTML = `
+    const flagsHTML = `${state.friendView ? "" : `<button type="button" class="flag-toggle flag-toggle--list js-add-to-list" data-atl-hash="${esc(p.id)}" title="${esc(t("listAddTo"))}" aria-label="${esc(t("listAddTo"))}"><span class="icon icon-list-check icon-16"></span></button>`}
       <button type="button" class="flag-toggle flag-toggle--wish${liked ? " active" : ""}" data-pc-flag="liked" aria-pressed="${liked}" title="${esc(t("productLike"))}"><span class="icon icon-heart${liked ? "-fill" : ""} icon-16"></span></button>
       <button type="button" class="flag-toggle flag-toggle--like${fav ? " active" : ""}" data-pc-flag="favorite" aria-pressed="${fav}" title="${esc(t("productFavorite"))}"><span class="icon icon-star${fav ? "-fill" : ""} icon-16"></span></button>`;
     // COULEURS & ASPECT — identical markup to buildPanelHTML.
@@ -11958,12 +12894,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const fromHTML = _importedFromHTML(p);
     body.innerHTML = `
       ${imgSection}
+      <div class="panel-section pi-flags-row"><div class="pi-flags pc-flags">${flagsHTML}</div></div>
       <div class="panel-section panel-identity">
         <div class="pi-ident-text">
           ${row1Parts.length ? `<div class="pi-row1">${row1Parts.join(" · ")}</div>` : ""}
           ${name2 ? `<div class="pi-row2 pi-row2--name">${esc(name2)}</div>` : ""}
         </div>
-        <div class="pi-flags pc-flags">${flagsHTML}</div>
       </div>
       <div class="panel-section">
         <div class="panel-label">${esc(t("sectionColors", { n: r.colorList.length }))} &amp; Aspect</div>
@@ -11977,7 +12913,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       ${videoHtml}
       ${linksHtml}
       ${priceHTML ? `<div class="panel-section pc-rows"><div class="pc-row"><span class="pc-k">${esc(t("thPrice"))}</span><span class="pc-v">${priceHTML}</span></div></div>` : ""}
-      ${buyUrl ? `<a class="pc-buy" href="${esc(_normalizeBuyUrl(buyUrl))}" target="_blank" rel="noopener"><span class="icon icon-cart icon-14"></span><span>${esc(t("reorderBuyLink"))}</span></a>` : ""}
+      ${buyUrl ? `<a class="pc-buy" href="${esc(_normalizeBuyUrl(buyUrl))}" target="_blank" rel="noopener"><span class="icon icon-cart icon-14"></span><span>${esc(_buyHost(buyUrl))}</span></a>` : ""}
       ${detailsHtml}
       ${fromHTML ? `<div class="pc-from-wrap">${fromHTML}</div>` : ""}
       <div class="pc-note">${esc(t("pcNoStock"))}</div>`;
@@ -12207,7 +13143,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         <div class="ro-shop" id="roShopDisplay">
           <button type="button" class="ro-shop-btn${link.buyUrl ? " ro-shop-btn--active" : ""}" id="roShopBtn">
             <span class="icon icon-cart icon-14"></span>
-            <span>${esc(link.buyUrl ? t("toolReorderBuy") : t("reorderAddLink"))}</span>
+            <span>${esc(link.buyUrl ? _buyHost(link.buyUrl) : t("reorderAddLink"))}</span>
           </button>
           <button type="button" class="ro-shop-edit" id="roShopEdit" title="${esc(t("reorderEditLink"))}"${link.buyUrl ? "" : " hidden"}>
             <span class="icon icon-edit icon-13"></span>
@@ -12415,7 +13351,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       const btn = $("roShopBtn");
       btn.classList.toggle("ro-shop-btn--active", !!url);
       const lbl = btn.querySelector("span:last-child");
-      if (lbl) lbl.textContent = url ? t("toolReorderBuy") : t("reorderAddLink");
+      if (lbl) lbl.textContent = url ? _buyHost(url) : t("reorderAddLink");
       $("roShopEdit").hidden = !url;
     };
     const shopCommit = () => {
@@ -12467,7 +13403,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function _flagTogglesHTML(r) {
     const p = _getProduct(r) || {};
     const liked = !!p.liked, fav = !!p.favorite;
-    return `
+    // Third action next to ❤/★ — "Add to a list" (owner only; opens the list
+    // popup via the shared .js-add-to-list handler).
+    const listBtn = state.friendView ? "" : `
+      <button type="button" class="flag-toggle flag-toggle--list js-add-to-list" data-atl-hash="${esc(_productKeyHash(r))}" data-atl-spool="${esc(r.spoolId)}" data-tip="${esc(t("listAddTo"))}" aria-label="${esc(t("listAddTo"))}">
+        <span class="icon icon-list-check icon-16"></span>
+      </button>`;
+    return `${listBtn}
       <button type="button" class="flag-toggle flag-toggle--wish${liked ? " active" : ""}" data-flag="liked" data-tip="${esc(t("productLikeTip"))}" aria-label="${esc(t("productLike"))}" aria-pressed="${liked}">
         <span class="icon icon-heart${liked ? "-fill" : ""} icon-16"></span>
       </button>
@@ -12597,7 +13539,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (btn) {
         btn.classList.toggle("ro-shop-btn--active", !!url);
         const lbl = btn.querySelector("span:last-child");
-        if (lbl) lbl.textContent = url ? t("toolReorderBuy") : t("reorderAddLink");
+        if (lbl) lbl.textContent = url ? _buyHost(url) : t("reorderAddLink");
       }
       const ed = $("roShopEdit"); if (ed) ed.hidden = !url;
     }
@@ -12904,8 +13846,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const _fShare = _friendProductFor(r);
     const _fShareSku = _fShare && _fShare.sku ? String(_fShare.sku) : "";
     const _fShareEan = _fShare && _fShare.ean ? String(_fShare.ean) : "";
-    const _fShareUrl = _fShare && _fShare.buyUrl ? String(_fShare.buyUrl) : "";
-    const _fSharePrice = (_fShare && _fShare.buyPriceHt != null && Number.isFinite(+_fShare.buyPriceHt)) ? +_fShare.buyPriceHt : null;
+    // Price + buy link: the friend's shared slice in friend view, otherwise the
+    // owner's OWN product record — so your own material card shows them in the
+    // Details section too, exactly like a friend's card does.
+    const _detProd = state.friendView ? _fShare : _getProduct(r);
+    const _fShareUrl = _detProd && _detProd.buyUrl ? String(_detProd.buyUrl) : "";
+    const _fSharePrice = (_detProd && _detProd.buyPriceHt != null && Number.isFinite(+_detProd.buyPriceHt)) ? +_detProd.buyPriceHt : null;
     const _fSharePriceTxt = _fSharePrice == null ? null : (() => {
       const mode = _reorderMode();   // show in the viewer's own HT/TTC preference
       const v = mode === "HT" ? _fSharePrice : Math.round(_vatPrices(_fSharePrice, "HT", _vatCountryCode()).ttc * 100) / 100;
@@ -12959,6 +13905,19 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           ${r.deleted ? `<div style="margin-top:8px"><span class="badge bad" style="font-size:11px">${t("badgeDeleted")}</span></div>` : ""}
         </div>
       </div>`;
+
+    // Prominent price + buy-link block — the owner's own product (or a friend's
+    // shared slice in friend view). Shown ABOVE the collapsible Details so the
+    // buy link is one click away. The same price + link ALSO stay as rows inside
+    // Details (kept in sync — the user wanted both).
+    const buySection = (_fSharePriceTxt || _fShareUrl) ? `
+      <div class="panel-section det-buy">
+        <div class="panel-label">${t("sectionBuy")}</div>
+        <div class="det-buy-body">
+          ${_fSharePriceTxt ? `<div class="det-buy-price">${esc(_fSharePriceTxt)}</div>` : ""}
+          ${_fShareUrl ? `<a class="det-buy-link" href="${esc(_normalizeBuyUrl(_fShareUrl))}" target="_blank" rel="noopener"><span class="icon icon-cart icon-14"></span><span>${esc(_fShareHost || t("reorderBuyLink"))}</span></a>` : ""}
+        </div>
+      </div>` : "";
 
     // ── Storage location row (rack name + coordinate, or auto-assign button)
     // Shown for any active spool. Two states:
@@ -13103,17 +14062,17 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       const ro = catName || (rawMsg.trim() ? rawMsg : null) || aspectFallback || null;
       if (ro) nameLinesHtml += `<div class="pi-row2 pi-row2--name">${esc(ro)}</div>`;
     }
-    // ❤ Liked / ★ Favorite toggles, top-right of the identity block. Shown in a
-    // friend's view too — flagging there imports the product into MY `products`.
-    const identFlags = !r.deleted
-      ? `<div class="pi-flags">${_flagTogglesHTML(r)}</div>` : "";
+    // ❤ Liked / ★ Favorite / add-to-list — their OWN inline row BETWEEN the
+    // illustration and the name (simpler than tucking them beside the name).
+    // Shown in a friend's view too (flagging there imports into MY `products`).
+    const flagsRow = !r.deleted
+      ? `<div class="panel-section pi-flags-row"><div class="pi-flags">${_flagTogglesHTML(r)}</div></div>` : "";
     const identityHtml = `
       <div class="panel-section panel-identity">
         <div class="pi-ident-text">
           ${row1Parts.length ? `<div class="pi-row1">${row1Parts.join(" ")}</div>` : ""}
           ${nameLinesHtml}
         </div>
-        ${identFlags}
       </div>`;
 
     let chipBannerHtml = "";
@@ -13168,6 +14127,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
 
     return `
       ${imgSection}
+      ${flagsRow}
       ${chipBannerHtml}
       ${identityHtml}
       <div class="panel-section">
@@ -13189,6 +14149,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       ${tempHtml}
       ${videoHtml}
       ${linksHtml}
+      ${buySection}
       ${infoHtml}
       ${(() => {
         // ── Toolbox — bundles every action available on this spool.
@@ -13421,6 +14382,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           }
         }
 
+        // ("Add to a list" now lives in the ❤/★ flags row above the name.)
+
         // 6. Delete — moved out of its own section into the toolbox.
         tools.push({
           id: "btnSpoolDelete",
@@ -13436,7 +14399,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         // button). Hold-confirm rows include the .hold-progress fill
         // span that setupHoldToConfirm targets for the animation.
         const rowsHtml = tools.map(tool => {
-          const cls = `toolbox-row toolbox-row--${tool.variant}${tool.holdConfirm ? " toolbox-row--hold" : ""}${tool.inert ? " toolbox-row--inert" : ""}${(tool.locked || tool.greyed) ? " toolbox-row--greyed" : ""}${tool.locked ? " toolbox-row--pod-lock" : ""}`;
+          const cls = `toolbox-row toolbox-row--${tool.variant}${tool.holdConfirm ? " toolbox-row--hold" : ""}${tool.inert ? " toolbox-row--inert" : ""}${(tool.locked || tool.greyed) ? " toolbox-row--greyed" : ""}${tool.locked ? " toolbox-row--pod-lock" : ""}${tool.extraClass ? " " + tool.extraClass : ""}`;
           const titleAttr = tool.title ? ` title="${esc(tool.title)}"` : "";
           const dataAttrs = tool.dataAttrs || "";
           // Trailing affordance on the right of a row: an ⓘ that opens an info
@@ -13730,6 +14693,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           timer = null; fired = true;
           tab.classList.remove("is-holding");
           _closeAllSidePanels();
+          closeFriends();   // the Friends slide-in isn't part of _closeAllSidePanels — close it too (hold = close everything)
           setTimeout(() => { fill.style.transition = "height 0s"; fill.style.height = "0%"; }, 200);
         }, CLOSE_TAB_HOLD_MS);
       });
@@ -14355,6 +15319,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function saveAccountPriceMode(mode) {
     state.priceInputMode = mode === "HT" ? "HT" : "TTC";
     _syncPriceModeSeg();
+    // Switching HT↔TTC changes every displayed price → repaint them live: the
+    // "Stock value" stat, the inventory Price column / product cards, and the
+    // open material card's "Price & buy" block + Details rows.
+    renderStats();
+    if (!_isPrinterMode(state.viewMode)) renderInventory();
+    _lastPanelCardSig = "";              // the mode isn't in the card signature → force a refresh
+    _maybeRefreshPanelForCard();
     const user = fbAuth().currentUser;
     if (user) {
       fbDb().collection("users").doc(user.uid)
@@ -14414,6 +15385,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function renderSidebarFriends() {
     const el = $("sbFriendsList");
     if (!el) return;
+    _wireSbFriendDnd(el);
     if (!state.friends || !state.friends.length) {
       if (_sbFriendsSig !== "empty") { el.classList.add("hidden"); el.innerHTML = ""; _sbFriendsSig = "empty"; }
       return;
@@ -14438,6 +15410,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       // the inline name span is then hidden. Native `title=` is also kept
       // as a fallback for accessibility / when the chip is keyboard-focused.
       return `<button class="sb-friend-chip${isActive ? " is-active" : ""}"
+                      draggable="true"
                       data-friend-uid="${esc(f.uid)}"
                       data-friend-name="${esc(_shortName(f.displayName, f.uid))}"
                       data-friend-color="${esc(color)}"
@@ -14568,10 +15541,182 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (tip) tip.classList.remove("is-open");
   }
 
+  // Friends ordering — a user-defined `sortRank` on each friend doc (drag-to-
+  // reorder in the Friends panel). Unranked friends fall back to add order.
+  const _friendSortKey = f => Number.isFinite(+f.sortRank) ? +f.sortRank : Infinity;
+  function _sortFriends(arr) {
+    return arr.sort((a, b) =>
+      (_friendSortKey(a) - _friendSortKey(b))
+      || ((a.addedAt?.seconds || 0) - (b.addedAt?.seconds || 0))
+      || String(a.uid).localeCompare(String(b.uid)));
+  }
+  async function _applyFriendReorder(dragUid, targetUid, before) {
+    const uid = state.activeAccountId;
+    if (!uid || state.friendView || !dragUid || dragUid === targetUid) return;
+    const arr = [...(state.friends || [])];
+    const from = arr.findIndex(f => f.uid === dragUid);
+    if (from < 0) return;
+    const [moved] = arr.splice(from, 1);
+    let to = targetUid ? arr.findIndex(f => f.uid === targetUid) : arr.length;
+    if (to < 0) to = arr.length;
+    if (targetUid && !before) to += 1;
+    arr.splice(to, 0, moved);
+    arr.forEach((f, i) => { f.sortRank = i; });   // optimistic — snapshot echo confirms
+    state.friends = arr;
+    _cacheFriends(uid, arr);
+    _renderFriendsEverywhere();
+    try {
+      const db = fbDb(uid);
+      const batch = db.batch();
+      arr.forEach((f, i) => batch.set(
+        db.collection("users").doc(uid).collection("friends").doc(f.uid), { sortRank: i }, { merge: true }));
+      await batch.commit();
+    } catch (e) { console.warn("[friends] reorder persist failed:", e?.message); }
+  }
+  // Wire drag-to-reorder once on the persistent Friends-panel list container
+  // (delegated, so it survives every renderFriendsList() rebuild).
+  // Friends-panel rows — drag-to-reorder with the same live "make room" animation
+  // as the sidebar chips: the dragged row is lifted (OS drag image follows) and the
+  // others slide (translateY) to open the drop gap. Works with a search filter
+  // active (operates on the currently-rendered rows, maps the drop to a uid).
+  function _wireFriendDnd(list) {
+    if (!list || list.dataset.dndWired) return;
+    list.dataset.dndWired = "1";
+    let drag = null;   // { uid, rows, fromIndex, stride, base, k }
+    const rowOf = el => el.closest(".fp-friend[data-uid]");
+    const applyGap = () => {
+      const { rows, fromIndex, stride, k } = drag;
+      rows.forEach((c, i) => {
+        if (i === fromIndex) { c.style.transform = "translateY(0px)"; return; }
+        const j = i < fromIndex ? i : i - 1;
+        const target = j >= k ? j + 1 : j;
+        c.style.transform = `translateY(${(target - i) * stride}px)`;   // explicit (beats :hover transform)
+      });
+    };
+    const clear = () => {
+      if (drag) drag.rows.forEach(c => { c.style.transition = ""; c.style.transform = ""; c.classList.remove("fp-friend--dragging"); });
+      list.classList.remove("fp-reordering");
+      document.body.classList.remove("is-dragging-order");
+      drag = null;
+    };
+    list.addEventListener("dragstart", e => {
+      const row = rowOf(e.target);
+      if (!row || state.friendView) return;
+      if (e.target.closest("button")) { e.preventDefault(); return; }
+      const rows = [...list.querySelectorAll(".fp-friend[data-uid]")];
+      const fromIndex = rows.indexOf(row);
+      if (fromIndex < 0) return;
+      const listTop = list.getBoundingClientRect().top;
+      const r0 = rows[0].getBoundingClientRect();
+      const stride = rows.length > 1 ? (rows[1].getBoundingClientRect().top - r0.top) : r0.height;
+      const base = r0.top - listTop + list.scrollTop;
+      drag = { uid: row.dataset.uid, rows, fromIndex, stride, base, k: fromIndex };
+      try { e.dataTransfer.setData("text/plain", drag.uid); e.dataTransfer.effectAllowed = "move"; } catch (_) {}
+      try { e.dataTransfer.setDragImage(row, 24, 24); } catch (_) {}   // capture BEFORE hiding
+      list.classList.add("fp-reordering");
+      document.body.classList.add("is-dragging-order");
+      requestAnimationFrame(() => {
+        if (!drag) return;
+        row.classList.add("fp-friend--dragging");
+        rows.forEach(c => { if (c !== row) c.style.transition = "transform .22s cubic-bezier(.22,.61,.36,1)"; });
+      });
+    });
+    list.addEventListener("dragover", e => {
+      if (!drag) return;
+      e.preventDefault();
+      try { e.dataTransfer.dropEffect = "move"; } catch (_) {}
+      const y = e.clientY - list.getBoundingClientRect().top + list.scrollTop - drag.base;
+      const k = Math.max(0, Math.min(drag.rows.length - 1, Math.round(y / drag.stride)));
+      if (k !== drag.k) { drag.k = k; applyGap(); }
+    });
+    list.addEventListener("drop", e => {
+      if (!drag) return;
+      e.preventDefault();
+      const dragUid = drag.uid, k = drag.k;
+      const rest = drag.rows.filter((_, i) => i !== drag.fromIndex).map(r => r.dataset.uid);
+      const targetUid = k < rest.length ? rest[k] : null;
+      clear();
+      _applyFriendReorder(dragUid, targetUid, true);
+    });
+    list.addEventListener("dragend", clear);
+  }
+  // Same drag-to-reorder on the sidebar friend chips (vertical list). Shares
+  // `_applyFriendReorder` with the Friends-panel wiring (each has its own local drag state).
+  // Sidebar friend chips — drag-to-reorder with a live "make room" animation:
+  // the dragged chip is lifted (hidden, the OS drag image follows the cursor) and
+  // the other chips slide up/down (translateY) to open the gap where it'll drop.
+  function _wireSbFriendDnd(el) {
+    if (!el || el.dataset.dndWired) return;
+    el.dataset.dndWired = "1";
+    let drag = null;   // { uid, chips, fromIndex, stride, base, k }
+    const chipOf = t => t.closest(".sb-friend-chip[data-friend-uid]");
+    // Slide every chip to the layout that shows the dragged item removed + a gap
+    // opened at insertion index k (in the without-dragged list).
+    const applyGap = () => {
+      const { chips, fromIndex, stride, k } = drag;
+      chips.forEach((c, i) => {
+        if (i === fromIndex) { c.style.transform = ""; return; }
+        const j = i < fromIndex ? i : i - 1;         // this chip's index once dragged is gone
+        const target = j >= k ? j + 1 : j;           // + shift down by one below the gap
+        c.style.transform = target === i ? "" : `translateY(${(target - i) * stride}px)`;
+      });
+    };
+    const clear = () => {
+      if (drag) drag.chips.forEach(c => { c.style.transition = ""; c.style.transform = ""; c.classList.remove("sb-friend-chip--dragging"); });
+      el.classList.remove("sb-reordering");
+      document.body.classList.remove("is-dragging-order");
+      drag = null;
+    };
+    el.addEventListener("dragstart", e => {
+      const chip = chipOf(e.target);
+      if (!chip || state.friendView) return;
+      const chips = [...el.querySelectorAll(".sb-friend-chip[data-friend-uid]")];
+      const fromIndex = chips.indexOf(chip);
+      if (fromIndex < 0) return;
+      const listTop = el.getBoundingClientRect().top;
+      const r0 = chips[0].getBoundingClientRect();
+      const stride = chips.length > 1 ? (chips[1].getBoundingClientRect().top - r0.top) : r0.height;
+      const base = r0.top - listTop + el.scrollTop;   // first chip's top in content coords
+      drag = { uid: chip.dataset.friendUid, chips, fromIndex, stride, base, k: fromIndex };
+      try { e.dataTransfer.setData("text/plain", drag.uid); e.dataTransfer.effectAllowed = "move"; } catch (_) {}
+      try { e.dataTransfer.setDragImage(chip, 20, 20); } catch (_) {}   // capture BEFORE hiding
+      hideSbFriendTip();
+      document.body.classList.add("is-dragging-order");
+      // Defer the hide + enable transitions so the OS drag image is captured opaque.
+      // Transition is set INLINE (beats any sidebar-state CSS rule) so the other
+      // chips always slide progressively instead of snapping to the new gap.
+      requestAnimationFrame(() => {
+        if (!drag) return;
+        el.classList.add("sb-reordering");
+        chip.classList.add("sb-friend-chip--dragging");
+        chips.forEach(c => { if (c !== chip) c.style.transition = "transform .22s cubic-bezier(.22,.61,.36,1)"; });
+      });
+    });
+    el.addEventListener("dragover", e => {
+      if (!drag) return;
+      e.preventDefault();
+      try { e.dataTransfer.dropEffect = "move"; } catch (_) {}
+      const y = e.clientY - el.getBoundingClientRect().top + el.scrollTop - drag.base;
+      const k = Math.max(0, Math.min(drag.chips.length - 1, Math.round(y / drag.stride)));
+      if (k !== drag.k) { drag.k = k; applyGap(); }
+    });
+    el.addEventListener("drop", e => {
+      if (!drag) return;
+      e.preventDefault();
+      const dragUid = drag.uid, k = drag.k;
+      const rest = (state.friends || []).filter(f => f.uid !== dragUid);
+      const targetUid = k < rest.length ? rest[k].uid : null;   // insert before this friend (or append)
+      clear();
+      _applyFriendReorder(dragUid, targetUid, true);   // re-renders with the new order (no transforms)
+    });
+    el.addEventListener("dragend", clear);
+  }
+
   function renderFriendsList() {
     const list = $("stgFriendsList");
     const count = $("stgFriendsCount");
     if (!list) return;
+    _wireFriendDnd(list);
     if (count) count.textContent = state.friends.length;
     // Keep the companion list card in sync (opens once friends load, closes at 0).
     _syncFriendsListPanel();
@@ -14601,7 +15746,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       const color = friendColor(f);
       const fg = readableTextOn(color);
       const date = f.addedAt ? timeAgo(f.addedAt.seconds ? f.addedAt.seconds * 1000 : f.addedAt) : "";
-      return `<div class="fp-friend" data-uid="${esc(f.uid)}" data-name="${esc(_shortName(f.displayName, f.uid))}" data-color="${esc(color)}">
+      return `<div class="fp-friend" data-uid="${esc(f.uid)}" data-name="${esc(_shortName(f.displayName, f.uid))}" data-color="${esc(color)}" draggable="true">
+        <span class="fp-grip" aria-hidden="true"><span class="icon icon-grip icon-16"></span></span>
         ${avatarMarkup(f, "fp-friend-avatar")}
         <div class="fp-friend-main">
           <div class="fp-friend-name">${esc(_shortName(f.displayName, f.uid))}</div>
@@ -14744,7 +15890,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       // Guard: only update UI if this is still the active account
       if (uid !== state.activeAccountId) return;
 
-      state.friends = friends;
+      state.friends = _sortFriends(friends);   // honour the user's drag order (sortRank)
       // Cache the friends list (with each friend's denormalised
       // displayName, color, photoURL) to localStorage. On the next
       // app open, `_hydrateFriendsCache` restores state.friends
@@ -14755,6 +15901,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         const minimal = friends.map(f => ({
           uid: f.uid, displayName: f.displayName || "",
           color: f.color || null, photoURL: f.photoURL || null,
+          sortRank: f.sortRank,   // keep the drag order across restarts (pre-snapshot)
         }));
         Cache.write("friends", uid, minimal);
       } catch (_) { /* quota / privacy mode — silent */ }
@@ -14774,7 +15921,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function _hydrateFriendsCache(uid) {
     if (!uid) return;
     const cached = Cache.read("friends", uid);
-    if (Array.isArray(cached)) state.friends = cached;
+    if (Array.isArray(cached)) state.friends = _sortFriends(cached);   // keep the drag order
   }
 
   // Persist the friends list (denormalised displayName/color/photoURL) so the
@@ -14784,6 +15931,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       Cache.write("friends", uid, friends.map(f => ({
         uid: f.uid, displayName: f.displayName || "",
         color: f.color || null, photoURL: f.photoURL || null,
+        sortRank: f.sortRank,   // keep the drag order across restarts (pre-snapshot)
       })));
     } catch (_) { /* quota / privacy mode — silent */ }
   }
@@ -14825,8 +15973,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           }
           return f;
         });
-        state.friends = friends;
-        _cacheFriends(uid, friends);
+        state.friends = _sortFriends(friends);
+        _cacheFriends(uid, state.friends);
         _renderFriendsEverywhere();
         _reconcileFriendProfileSubs(uid);
       }, err => console.warn("[friends:sub]", err?.message));
@@ -15642,6 +16790,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (state.printerBrandFilter && brands.includes(state.printerBrandFilter)) bsel.value = state.printerBrandFilter;
       else { bsel.value = ""; state.printerBrandFilter = ""; }
       bsel.classList.toggle("is-active", !!state.printerBrandFilter);
+      bsel.dataset.cselShort = "filterShortBrand";
+      bsel._cselRefresh?.();
     }
     // Repurpose the Material select as a State (online / offline) filter — the
     // Version select stays hidden (both are materials-only concepts).
@@ -15655,6 +16805,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       ssel.innerHTML = opts.map(([v, lbl]) => `<option value="${esc(v)}">${esc(lbl)}</option>`).join("");
       ssel.value = state.printerStatusFilter || "";
       ssel.classList.toggle("is-active", !!state.printerStatusFilter);
+      ssel.dataset.cselShort = "filterShortState";
+      ssel._cselRefresh?.();
     }
     const tsel = $("tagFilter");
     if (tsel) {
@@ -15667,6 +16819,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       else { tsel.value = ""; state.printerTagFilter = ""; }
       tsel.classList.toggle("is-active", !!state.printerTagFilter);
       tsel.classList.toggle("hidden", values.length === 0); // no printer tags → hide the select
+      tsel.dataset.cselShort = "filterShortTag";
+      tsel._cselRefresh?.();
     }
   }
 
@@ -16077,7 +17231,6 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
      known from its `brand` property, which we set when ingesting the
      snapshot, so the path resolution is local.                            */
   let _printerJustDragged = false;
-  let _printerDragId = null; // composite "brand:id" of the card being dragged
 
   // Per-card size preferences for the cam wall: "1x" | "2x" | "fs".
   // Persisted in localStorage so the layout survives app restarts.
@@ -16139,52 +17292,110 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (p) { p.camSize = size; persistCamSize(p, size); }
   }
 
+  // Generic "make room" drag-to-reorder (delegated on `host`). Items slide by their
+  // (dx,dy) to open the drop gap; the dragged item is hidden (OS drag image follows).
+  // Works for wrapping grids AND vertical lists; items are ordered by their on-screen
+  // position each drag, so it also handles CSS-`order` layouts (cam wall) where the
+  // DOM order ≠ visual order and nodes must NOT move (live streams). opts:
+  //   itemSel, idOf(el), isGrid, exclude?, draggingClass, onReorder(dragId,targetId,before), onDragEnd?
+  function _wireMakeRoomDnd(host, opts) {
+    if (!host || host.dataset.mrWired) return;
+    host.dataset.mrWired = "1";
+    // handleSel: when set, a drag only starts from this handle (e.g. a grip) and the
+    // reordered item is the handle's closest `itemSel` — so other draggables inside
+    // an item (e.g. spools inside a rack) don't trigger a reorder.
+    const { itemSel, idOf, isGrid = true, exclude, handleSel, draggingClass, onReorder, onDragEnd } = opts;
+    let drag = null;
+    const snapshot = () => {
+      const w = [...host.querySelectorAll(itemSel)].map(el => ({ el, r: el.getBoundingClientRect() }));
+      w.sort((a, b) => (a.r.top - b.r.top) || (a.r.left - b.r.left));   // visual reading order
+      return { items: w.map(x => x.el), rects: w.map(x => x.r) };
+    };
+    const computeK = (px, py) => {
+      const { rects, fromIndex } = drag;
+      let best = -1, bestD = Infinity;
+      rects.forEach((r, i) => {
+        if (i === fromIndex) return;
+        const dx = px - (r.left + r.width / 2), dy = py - (r.top + r.height / 2);
+        const d = dx * dx + dy * dy;
+        if (d < bestD) { bestD = d; best = i; }
+      });
+      if (best < 0) return 0;
+      const r = rects[best];
+      const after = isGrid ? (px > r.left + r.width / 2) : (py > r.top + r.height / 2);
+      const bj = best < fromIndex ? best : best - 1;
+      return bj + (after ? 1 : 0);
+    };
+    const applyGap = () => {
+      const { items, rects, fromIndex, k } = drag;
+      items.forEach((el, i) => {
+        if (i === fromIndex) { el.style.transform = "translate(0px,0px)"; return; }
+        const j = i < fromIndex ? i : i - 1;
+        const tgt = j >= k ? j + 1 : j;
+        el.style.transform = `translate(${rects[tgt].left - rects[i].left}px, ${rects[tgt].top - rects[i].top}px)`;
+      });
+    };
+    const clear = () => {
+      if (drag) drag.items.forEach(el => { el.style.transition = ""; el.style.transform = ""; el.classList.remove(draggingClass); });
+      host.classList.remove("mr-reordering");
+      document.body.classList.remove("is-dragging-order");
+      drag = null;
+    };
+    host.addEventListener("dragstart", e => {
+      let it;
+      if (handleSel) {
+        const h = e.target.closest(handleSel);
+        if (!h) return;   // drag didn't start from the handle (e.g. a spool) → ignore
+        it = h.closest(itemSel);
+      } else {
+        it = e.target.closest(itemSel);
+      }
+      if (!it || state.friendView) return;
+      if (exclude && e.target.closest(exclude)) { e.preventDefault(); return; }
+      const { items, rects } = snapshot();
+      const fromIndex = items.indexOf(it);
+      if (fromIndex < 0) return;
+      drag = { id: idOf(it), items, rects, fromIndex, k: fromIndex };
+      try { e.dataTransfer.setData("text/plain", drag.id); e.dataTransfer.effectAllowed = "move"; } catch (_) {}
+      try { e.dataTransfer.setDragImage(it, 24, 24); } catch (_) {}
+      host.classList.add("mr-reordering");
+      document.body.classList.add("is-dragging-order");
+      requestAnimationFrame(() => {
+        if (!drag) return;
+        it.classList.add(draggingClass);
+        items.forEach(el => { if (el !== it) el.style.transition = "transform .2s cubic-bezier(.22,.61,.36,1)"; });
+      });
+    });
+    host.addEventListener("dragover", e => {
+      if (!drag) return;
+      e.preventDefault();
+      try { e.dataTransfer.dropEffect = "move"; } catch (_) {}
+      const k = computeK(e.clientX, e.clientY);
+      if (k !== drag.k) { drag.k = k; applyGap(); }
+    });
+    host.addEventListener("drop", e => {
+      if (!drag) return;
+      e.preventDefault();
+      const rest = drag.items.filter((_, i) => i !== drag.fromIndex).map(idOf);
+      let targetId, before;
+      if (drag.k < rest.length) { targetId = rest[drag.k]; before = true; }
+      else { targetId = rest[rest.length - 1]; before = false; }
+      const dragId = drag.id;
+      clear();
+      if (targetId && targetId !== dragId) onReorder(dragId, targetId, before);
+    });
+    host.addEventListener("dragend", () => { clear(); onDragEnd?.(); });
+  }
+
   function wirePrinterDnd(host) {
-    const cards = Array.from(host.querySelectorAll(".printer-card"));
-    cards.forEach(card => {
-      card.addEventListener("dragstart", e => {
-        _printerDragId = `${card.dataset.brand}:${card.dataset.id}`;
-        // dataTransfer is required on some browsers for the drag image to render.
-        try { e.dataTransfer.setData("text/plain", _printerDragId); } catch (_) {}
-        try { e.dataTransfer.effectAllowed = "move"; } catch (_) {}
-        card.classList.add("printer-card--dragging");
-      });
-      card.addEventListener("dragend", () => {
-        card.classList.remove("printer-card--dragging");
-        host.querySelectorAll(".printer-card--drop-before, .printer-card--drop-after")
-            .forEach(el => el.classList.remove("printer-card--drop-before", "printer-card--drop-after"));
-        _printerDragId = null;
-        // Suppress the click that fires right after a drop; reset on next tick
-        _printerJustDragged = true;
-        setTimeout(() => { _printerJustDragged = false; }, 50);
-      });
-      card.addEventListener("dragover", e => {
-        if (!_printerDragId) return;
-        const me = `${card.dataset.brand}:${card.dataset.id}`;
-        if (me === _printerDragId) return; // can't drop on self
-        e.preventDefault();
-        try { e.dataTransfer.dropEffect = "move"; } catch (_) {}
-        // Choose before/after based on cursor position relative to the card center.
-        const rect = card.getBoundingClientRect();
-        const isVertical = rect.height > rect.width;
-        const before = isVertical
-          ? (e.clientY < rect.top + rect.height / 2)
-          : (e.clientX < rect.left + rect.width / 2);
-        card.classList.toggle("printer-card--drop-before", before);
-        card.classList.toggle("printer-card--drop-after", !before);
-      });
-      card.addEventListener("dragleave", () => {
-        card.classList.remove("printer-card--drop-before", "printer-card--drop-after");
-      });
-      card.addEventListener("drop", e => {
-        if (!_printerDragId) return;
-        const me = `${card.dataset.brand}:${card.dataset.id}`;
-        if (me === _printerDragId) return;
-        e.preventDefault();
-        const before = card.classList.contains("printer-card--drop-before");
-        card.classList.remove("printer-card--drop-before", "printer-card--drop-after");
-        applyPrinterReorder(_printerDragId, me, before);
-      });
+    _wireMakeRoomDnd(host, {
+      itemSel: ".printer-card[data-id]",   // the trailing "+" add card has no data-id
+      idOf: el => `${el.dataset.brand}:${el.dataset.id}`,
+      isGrid: true,
+      draggingClass: "printer-card--dragging",
+      onReorder: (dragId, targetId, before) => applyPrinterReorder(dragId, targetId, before),
+      // Suppress the click that can fire right after a drop.
+      onDragEnd: () => { _printerJustDragged = true; setTimeout(() => { _printerJustDragged = false; }, 50); },
     });
   }
 
@@ -16282,43 +17493,15 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function wireCamWallDnd(host) {
     const grid = host.querySelector(".cam-wall");
     if (!grid) return;
-    let _camDragId = null;
-    Array.from(grid.querySelectorAll(".cam-wall-card")).forEach(card => {
-      card.addEventListener("dragstart", e => {
-        _camDragId = `${card.dataset.brand}:${card.dataset.id}`;
-        try { e.dataTransfer.setData("text/plain", _camDragId); } catch {}
-        try { e.dataTransfer.effectAllowed = "move"; } catch {}
-        card.classList.add("cam-wall-card--dragging");
-      });
-      card.addEventListener("dragend", () => {
-        card.classList.remove("cam-wall-card--dragging");
-        grid.querySelectorAll(".cam-wall-card--drop-before, .cam-wall-card--drop-after")
-            .forEach(el => el.classList.remove("cam-wall-card--drop-before", "cam-wall-card--drop-after"));
-        _camDragId = null;
-      });
-      card.addEventListener("dragover", e => {
-        if (!_camDragId) return;
-        const me = `${card.dataset.brand}:${card.dataset.id}`;
-        if (me === _camDragId) return;
-        e.preventDefault();
-        try { e.dataTransfer.dropEffect = "move"; } catch {}
-        const rect = card.getBoundingClientRect();
-        const before = e.clientX < rect.left + rect.width / 2;
-        card.classList.toggle("cam-wall-card--drop-before", before);
-        card.classList.toggle("cam-wall-card--drop-after", !before);
-      });
-      card.addEventListener("dragleave", () => {
-        card.classList.remove("cam-wall-card--drop-before", "cam-wall-card--drop-after");
-      });
-      card.addEventListener("drop", e => {
-        if (!_camDragId) return;
-        const me = `${card.dataset.brand}:${card.dataset.id}`;
-        if (me === _camDragId) return;
-        e.preventDefault();
-        const before = card.classList.contains("cam-wall-card--drop-before");
-        card.classList.remove("cam-wall-card--drop-before", "cam-wall-card--drop-after");
-        _applyCamWallReorder(grid, _camDragId, me, before);
-      });
+    // Same "make room" animation as the printer grid. `_applyCamWallReorder` shuffles
+    // CSS `order` only (never detaches nodes), so live WebRTC/iframe streams keep
+    // running while the cards slide.
+    _wireMakeRoomDnd(grid, {
+      itemSel: ".cam-wall-card",
+      idOf: el => `${el.dataset.brand}:${el.dataset.id}`,
+      isGrid: true,
+      draggingClass: "cam-wall-card--dragging",
+      onReorder: (dragId, targetId, before) => _applyCamWallReorder(grid, dragId, targetId, before),
     });
   }
 
@@ -20090,8 +21273,6 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // Set by setViewMode("rack") when force-opening the panel — triggers a
   // slide-in animation on the next render instead of appearing already open.
   let _unrackedAnimateOpen = false;
-  // Currently-dragged rack id for drag-and-drop reordering, or null.
-  let _draggingRackId = null;
 
   /* ── Skyline-packing masonry layout ────────────────────────────────────
      Places each .rp-racks-col child at the leftmost-lowest free position
@@ -20215,19 +21396,21 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     let targetIdx = list.findIndex(r => r.id === targetId);
     if (targetIdx === -1) return;
     list.splice(beforeTarget ? targetIdx : targetIdx + 1, 0, moved);
-    // Write new order indices in a single batch — only for racks whose index changed
-    const ref = fbDb().collection("users").doc(user.uid).collection("racks");
-    const batch = fbDb().batch();
-    const ts = firebase.firestore.FieldValue.serverTimestamp();
-    let writes = 0;
-    list.forEach((r, i) => {
-      if (r.order !== i) {
-        batch.update(ref.doc(r.id), { order: i, lastUpdate: ts });
-        writes++;
-      }
-    });
-    if (writes) await batch.commit();
-    console.log(`[reorderRacks] moved ${srcId} ${beforeTarget ? "before" : "after"} ${targetId} — wrote ${writes} order(s)`);
+    // Racks whose index changed (capture BEFORE mutating .order).
+    const changed = list.filter((r, i) => r.order !== i);
+    // Optimistic: apply the new order + re-render instantly (snapshot confirms).
+    list.forEach((r, i) => { r.order = i; });
+    state.racks = list;
+    renderRackView();
+    // Persist only the changed ones, in one batch.
+    if (changed.length) {
+      const ref = fbDb().collection("users").doc(user.uid).collection("racks");
+      const batch = fbDb().batch();
+      const ts = firebase.firestore.FieldValue.serverTimestamp();
+      changed.forEach(r => batch.update(ref.doc(r.id), { order: r.order, lastUpdate: ts }));
+      await batch.commit();
+    }
+    console.log(`[reorderRacks] moved ${srcId} ${beforeTarget ? "before" : "after"} ${targetId} — wrote ${changed.length} order(s)`);
   }
 
   /* ── Rich hover tooltip for filled rack slots ──────────────────────────
@@ -21145,50 +22328,16 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // are more unstored spools than free slots.
     $("rpSideAddRackBtn")?.addEventListener("click", () => openRackEditModal(null));
 
-    // ── Drag-and-drop to reorder racks (grip handle on the rack head)
-    list.querySelectorAll(".rp-rack-grip").forEach(grip => {
-      grip.addEventListener("dragstart", e => {
-        const rackId = grip.dataset.rackDragId;
-        if (!rackId) { e.preventDefault(); return; }
-        e.dataTransfer.setData("application/x-rack-id", rackId);
-        e.dataTransfer.effectAllowed = "move";
-        _draggingRackId = rackId;
-        grip.closest(".rp-rack")?.classList.add("rp-rack--dragging");
-      });
-      grip.addEventListener("dragend", () => {
-        grip.closest(".rp-rack")?.classList.remove("rp-rack--dragging");
-        _draggingRackId = null;
-        document.querySelectorAll(".rp-rack--drop-before, .rp-rack--drop-after").forEach(el => {
-          el.classList.remove("rp-rack--drop-before", "rp-rack--drop-after");
-        });
-      });
-    });
-    list.querySelectorAll(".rp-rack").forEach(card => {
-      card.addEventListener("dragover", e => {
-        if (!_draggingRackId) return;
-        if (_draggingRackId === card.dataset.rackId) return;
-        e.preventDefault();
-        e.dataTransfer.dropEffect = "move";
-        const rect = card.getBoundingClientRect();
-        const before = e.clientX < rect.left + rect.width / 2;
-        card.classList.toggle("rp-rack--drop-before", before);
-        card.classList.toggle("rp-rack--drop-after", !before);
-      });
-      card.addEventListener("dragleave", () => {
-        card.classList.remove("rp-rack--drop-before", "rp-rack--drop-after");
-      });
-      card.addEventListener("drop", async e => {
-        if (!_draggingRackId) return;
-        e.preventDefault();
-        const targetId = card.dataset.rackId;
-        const before = card.classList.contains("rp-rack--drop-before");
-        card.classList.remove("rp-rack--drop-before", "rp-rack--drop-after");
-        if (_draggingRackId === targetId) return;
-        const srcId = _draggingRackId;
-        _draggingRackId = null;
-        try { await reorderRacks(srcId, targetId, before); }
-        catch (err) { reportError("rack.reorder", err); }
-      });
+    // ── Drag-to-reorder racks — same "make room" animation as printers, but the
+    // drag only starts from the head grip (spools inside a rack stay draggable for
+    // storage). `handleSel` scopes the reorder to grip-drags.
+    _wireMakeRoomDnd(list, {
+      itemSel: ".rp-rack[data-rack-id]",
+      handleSel: ".rp-rack-grip",
+      idOf: el => el.dataset.rackId,
+      isGrid: true,
+      draggingClass: "rp-rack--dragging",
+      onReorder: (dragId, targetId, before) => reorderRacks(dragId, targetId, before).catch(err => reportError("rack.reorder", err)),
     });
 
     // Toggle unranked panel (slide in/out from the right, NO backdrop overlay).
@@ -21970,6 +23119,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const friendPhoto = state.friends?.find(f => f.uid === friendUid)?.photoURL || null;
     state.friendView = { uid: friendUid, displayName: friendName, avatarColor, photoURL: friendPhoto, isPublic: _friendIsPublic, error: null };
     subscribeFriendProducts(friendUid);   // live price / buy link / manual SKU-EAN of the friend's products
+    subscribeFriendLists(friendUid);      // live-read the friend's lists (read-only)
     state.inventory = null; state.rows = [];
     state.racks = [];
     state.invLoading = true;
@@ -22033,6 +23183,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     _closeAllSideCards();   // unified: clear the friend's open spool/group card
     _clearSearchFilters();
     unsubscribeFriendProducts();   // stop reading the friend's shared price/link
+    unsubscribeFriendLists();      // stop reading the friend's lists
     state.friendView = null;
     state.inventory = null; state.rows = [];
     state.racks = [];                                   // wipe the friend's racks
@@ -22396,10 +23547,15 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         state.friendRequests = snap.docs.map(d => ({ uid: d.id, ...d.data() }));
         renderNotifBadge();
         renderFriendRequestsList();
-        // Show modal for each new incoming request
-        snap.docChanges().forEach(change => {
-          if (change.type === "added") showFriendRequestModal(change.doc.id, change.doc.data());
-        });
+        // Show the accept/refuse modal for each new incoming request — EXCEPT on a
+        // public account, where a Cloud Function auto-accepts every request
+        // server-side (the request self-deletes within ~1-2s and a "friend_added"
+        // notification arrives instead), so an accept prompt would be stale.
+        if (!state.isPublic) {
+          snap.docChanges().forEach(change => {
+            if (change.type === "added") showFriendRequestModal(change.doc.id, change.doc.data());
+          });
+        }
         // Enrich each request with the requester's public avatar / colour so the
         // panel list shows their real photo (not just an initials circle).
         const db = fbDb(uid);
@@ -22522,6 +23678,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
 
   function _notifText(n) {
     if (n.type === "friend_accepted") return t("notifAcceptedFriend", { name: _shortName(n.fromName, n.fromUid) });
+    if (n.type === "friend_added")    return t("notifAddedFriend",    { name: _shortName(n.fromName, n.fromUid) });
     return n.text || "";
   }
 
@@ -22663,6 +23820,34 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     fbDb(uid).collection("users").doc(uid).collection("notifications").add(doc)
       .catch(e => console.warn("[notif] push failed:", e?.message));
   }
+  // The app version that is DOWNLOADED and ready to install on THIS device (set by
+  // the update-status listener). Used to layer a "Restart" button onto the cloud
+  // update notification — only the machine that has the update can restart itself.
+  let _updateReadyVersion = null;
+  // App update → a CLOUD notification (type "announcement") so it persists, syncs
+  // across devices and sits in the feed like the others (no longer an ephemeral
+  // local notice). Deduped by version via a deterministic doc id ("update-<ver>")
+  // and create-if-missing: fires ONCE per release, never re-created on restart nor
+  // duplicated by a second device (which finds the synced doc already there). The
+  // row's action opens "What's New"; the device-local Restart button is added at
+  // render time (see renderNotifCenter) keyed on _updateReadyVersion.
+  function _pushUpdateNotif(version) {
+    const uid = state.activeAccountId;
+    if (!uid || !version) return;
+    const id = "update-" + String(version).replace(/[^\w.-]/g, "");
+    const ref = fbDb(uid).collection("users").doc(uid).collection("notifications").doc(id);
+    ref.get().then(snap => {
+      if (snap.exists) return;
+      return ref.set({
+        type: "announcement", action: "whatsnew", icon: "refresh",
+        title: t("notifUpdateCloudTitle"),
+        text: t("notifUpdateCloudText", { version }),
+        data: { version: String(version) },
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        read: false,
+      });
+    }).catch(e => console.warn("[notif] update push failed:", e?.message));
+  }
   // Products currently in an ACTIVE low-stock alert (already notified this dip).
   // Persisted per account in localStorage so we don't re-notify while still
   // below min NOR on app restart — only a genuine NEW dip (after restock) fires.
@@ -22792,8 +23977,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const notifHtml = notifs.map(n => {
       const when = n.createdAt ? timeAgo(n.createdAt.seconds ? n.createdAt.seconds * 1000 : n.createdAt) : "";
       const unread = n.read ? "" : " notif-item--unread";
-      // Cross-user "friend accepted" → avatar + derived sentence.
-      if (n.type === "friend_accepted") {
+      // Cross-user "friend accepted" / "friend added" → avatar + derived sentence.
+      if (n.type === "friend_accepted" || n.type === "friend_added") {
         const subject = { displayName: n.fromName, photoURL: n.photoURL || null, color: n.color || null };
         return `<div class="notif-item${unread}" data-id="${esc(n.id)}">
           ${avatarMarkup(subject, "fp-friend-avatar")}
@@ -22813,13 +23998,18 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         ? `<span class="notif-ic notif-ic--coffee"><img class="notif-coffee-img" src="../assets/svg/logos/logo_buy_me_coffee.svg" alt="" /></span>`
         : `<span class="notif-ic${brandIc}"><span class="icon icon-${esc(n.icon || "bell")} icon-14"></span></span>`;
       const clickable = !!action;
-      return `<div class="notif-item${unread}${clickable ? " notif-item--clickable" : ""}" data-id="${esc(n.id)}"${clickable ? ` data-notif-action="${esc(action)}" data-notif-key="${esc(n.data?.key || "")}"` : ""}>
+      // App-update announcement whose version is downloaded & ready ON THIS device
+      // → add the Restart button (installs the update). Elsewhere the row just
+      // opens What's New.
+      const canRestart = action === "whatsnew" && _updateReadyVersion && n.data?.version === _updateReadyVersion;
+      return `<div class="notif-item${unread}${clickable ? " notif-item--clickable" : ""}" data-id="${esc(n.id)}"${clickable ? ` data-notif-action="${esc(action)}" data-notif-key="${esc(n.data?.key || "")}" data-notif-version="${esc(n.data?.version || "")}"` : ""}>
         ${iconHtml}
         <div class="fp-friend-main">
           ${n.title ? `<div class="notif-title">${esc(n.title)}</div>` : ""}
           <div class="notif-text">${esc(n.text || "")}</div>
           <div class="fp-friend-date">${esc(when)}</div>
         </div>
+        ${canRestart ? `<button class="primary sm notif-restart">${esc(t("btnRestartUpdate"))}</button>` : ""}
       </div>`;
     }).join("");
     list.innerHTML = reqHtml + localHtml + notifHtml;
@@ -22828,7 +24018,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (r) _wireReqRow(row, r);
     });
     list.querySelectorAll(".notif-restart").forEach(btn =>
-      btn.addEventListener("click", () => window.electronAPI?.installUpdate?.()));
+      btn.addEventListener("click", e => { e.stopPropagation(); window.electronAPI?.installUpdate?.(); }));
     // "Remind me later" on the paxx notice — snooze without permanently
     // dismissing. stopPropagation so it doesn't also trigger the row's open.
     list.querySelectorAll(".notif-later").forEach(btn =>
@@ -22852,6 +24042,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         closeNotifs();
         const a = row.dataset.notifAction;
         if (a === "lowstock") _openLowStockProduct(row.dataset.notifKey);
+        else if (a === "whatsnew") openWhatsNew(row.dataset.notifVersion || undefined, { manual: true });
         else if (COMMUNITY[a]) _openCommunityLink(a);
       }));
   }
@@ -23635,6 +24826,20 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       const rackSlots    = (state.racks || []).reduce(
         (sum, r) => sum + (r.level || 0) * (r.position || 0), 0);
 
+      // Aggregate stock stats — a server-side summary so the admin panel can
+      // total value/weight across accounts WITHOUT reading every spool. Value is
+      // stored tax-free (HT), currency-neutral base; weight in grams. (Same math
+      // as the "Stock value" header stat: price × remaining-weight fraction.)
+      let stockValueHt = 0, stockWeightG = 0;
+      for (const r of activeSpools) {
+        stockWeightG += Number(r.weightAvailable) || 0;
+        const price = +(_getProduct(r)?.buyPriceHt);
+        if (!Number.isFinite(price)) continue;
+        const cap = +r.capacity, w = +r.weightAvailable;
+        const frac = (cap > 0 && Number.isFinite(w)) ? Math.max(0, Math.min(1, w / cap)) : 1;
+        stockValueHt += price * frac;
+      }
+
       const payload = {
         lang:           state.lang || null,
         country:        deriveCountry(),
@@ -23646,6 +24851,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         rackSlotsTotal: rackSlots,
         scalesCount:    (state.scales    || []).length,
         printerCount:   (state.printers  || []).length,
+        stockValueHt:   Math.round(stockValueHt * 100) / 100,   // HT, account currency
+        stockWeightG:   Math.round(stockWeightG),
+        stockCurrency:  _vatInfo().currency || "EUR",
       };
 
       // Phase 2 — onboarding funnel: stamp each milestone once (the first
@@ -23665,6 +24873,21 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if ((state.nfcReaderCount > 0 || _telRfidMax > 0) && !existing.firstRfidReaderAt) payload.firstRfidReaderAt = FV.serverTimestamp();
 
       await ref.set(payload, { merge: true });
+
+      // Stock is a GENERAL account fact (the inventory is ecosystem-wide, not
+      // Studio-specific), so mirror the summary onto the shared root users/{uid}
+      // doc as a `stock` object — the entry TigerSystem / TigerHub read to roll up
+      // account value without touching Studio telemetry or every spool. (The copy
+      // in telemetry/studio above stays for Studio's own use.)
+      db.collection("users").doc(uid).set({
+        stock: {
+          valueHt:  payload.stockValueHt,
+          weightG:  payload.stockWeightG,
+          currency: payload.stockCurrency,
+          spools:   payload.spoolsCount,
+          at:       FV.serverTimestamp(),
+        },
+      }, { merge: true }).catch(() => {});
     } catch (e) {
       _studioStateRecordedUid = null;  // allow a retry on the next trigger
       console.warn("[telemetry] studio state write failed:", e.code || e.message);
@@ -24579,7 +25802,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         icon?.classList.remove("hidden", "ready");
         icon?.classList.add("downloading");
         icon?.setAttribute("data-tooltip", t("updateDownloading").replace(/<[^>]*>/g, ""));
-        _setLocalNotif({ id: "update", icon: "refresh", text: t("notifUpdateAvailable"), version });
+        _pushUpdateNotif(version);
       } else if (status === 'ready') {
         // Two-line layout like the downloading state: bold title + a sub line
         // ("Restart to update."), bar gone, button reduced to "Restart".
@@ -24595,7 +25818,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         icon?.classList.remove("hidden", "downloading");
         icon?.classList.add("ready");
         icon?.setAttribute("data-tooltip", t("updateReady").replace(/<[^>]*>/g, ""));
-        _setLocalNotif({ id: "update", icon: "download", text: t("notifUpdateReady"), version, action: "restart" });
+        _updateReadyVersion = version || _updateReadyVersion;
+        _pushUpdateNotif(version || _updateReadyVersion);
+        renderNotifCenter();   // this device has it → surface the Restart button on the cloud entry
       }
     });
     $("btnInstallUpdate").addEventListener("click", () => window.electronAPI.installUpdate());

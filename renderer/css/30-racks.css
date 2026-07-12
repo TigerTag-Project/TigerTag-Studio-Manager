@@ -82,22 +82,11 @@
   }
   .rp-rack-grip:hover { color: var(--primary); background: var(--primary-soft, rgba(249,115,22,.06)); }
   .rp-rack-grip:active { cursor: grabbing; }
-  /* Source rack visual feedback while dragging */
-  .rp-rack--dragging { opacity: .35; }
-  /* Drop indicators — vertical bar on the left/right edge of the target card */
   .rp-rack { position: relative; }
-  .rp-rack--drop-before::before,
-  .rp-rack--drop-after::after {
-    content: "";
-    position: absolute;
-    top: 4px; bottom: 4px;
-    width: 3px;
-    background: var(--primary);
-    border-radius: 2px;
-    box-shadow: 0 0 8px var(--primary);
-  }
-  .rp-rack--drop-before::before { left: -8px; }
-  .rp-rack--drop-after::after  { right: -8px; }
+  /* Drag-to-reorder ("make room") — dragged rack hidden, others slide (2D translate).
+     Slide transition set inline in JS. */
+  .rp-rack--dragging { opacity: 0; }
+  .mr-reordering .rp-rack { will-change: transform; }
 
   /* "+ Rack" tile shown after the existing rack cards. Sits in the same flex
      row, hugs its content width, dashed border to look like a placeholder. */

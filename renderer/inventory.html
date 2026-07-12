@@ -186,9 +186,9 @@
             <span class="vtg-label"><span data-i18n="viewGroupInventory">Inventory</span></span>
             <div class="view-toggle">
               <span class="view-toggle-ind" aria-hidden="true"></span>
-              <button id="btnViewGrid" data-i18n="btnViewGrid">⊞ Grid</button>
-              <button id="btnViewTable" class="active"><span class="icon icon-list icon-13"></span><span data-i18n="btnViewTable">Table</span></button>
-              <button id="btnViewRack"><span class="icon icon-package icon-13"></span><span data-i18n="btnViewRack">Storage</span></button>
+              <button id="btnViewGrid" data-i18n-aria="btnViewGrid"><span class="vt-glyph">⊞</span></button>
+              <button id="btnViewTable" class="active" data-i18n-aria="btnViewTable"><span class="icon icon-list icon-13"></span></button>
+              <button id="btnViewRack" data-i18n-aria="btnViewRack"><span class="icon icon-package icon-13"></span></button>
             </div>
           </div>
           <span class="vtg-sep" id="vtgSepProducts" aria-hidden="true"></span>
@@ -196,9 +196,17 @@
             <span class="vtg-label"><span data-i18n="viewGroupFavorites">Favorites</span></span>
             <div class="view-toggle">
               <span class="view-toggle-ind" aria-hidden="true"></span>
-              <button id="btnViewFavesGrid" data-i18n="btnViewGrid">⊞ Grid</button>
-              <button id="btnViewFavesTable"><span class="icon icon-list icon-13"></span><span data-i18n="btnViewTable">Table</span></button>
-              <button id="btnViewOrder"><span class="icon icon-cart icon-13"></span><span data-i18n="btnViewOrder">To order</span><span class="view-order-badge" id="viewOrderBadge" hidden>0</span></button>
+              <button id="btnViewFavesGrid" data-i18n-aria="btnViewGrid"><span class="vt-glyph">⊞</span></button>
+              <button id="btnViewFavesTable" data-i18n-aria="btnViewTable"><span class="icon icon-list icon-13"></span></button>
+              <button id="btnViewOrder" data-i18n-aria="btnViewOrder"><span class="icon icon-cart icon-13"></span><span class="view-order-badge" id="viewOrderBadge" hidden>0</span></button>
+            </div>
+          </div>
+          <span class="vtg-sep" id="vtgSepLists" aria-hidden="true"></span>
+          <div class="vtg-group" id="vtgLists">
+            <span class="vtg-label"><span data-i18n="viewGroupLists">Lists</span></span>
+            <div class="view-toggle">
+              <span class="view-toggle-ind" aria-hidden="true"></span>
+              <button id="btnViewLists" data-i18n-aria="viewGroupLists"><span class="icon icon-list-check icon-13"></span></button>
             </div>
           </div>
           <span class="vtg-sep" id="vtgSep" aria-hidden="true"></span>
@@ -206,9 +214,9 @@
             <span class="vtg-label"><span data-i18n="viewGroupPrinters">Printers</span></span>
             <div class="view-toggle vtg-printers">
               <span class="view-toggle-ind" aria-hidden="true"></span>
-              <button id="btnViewPrinter" data-i18n="btnViewGrid">⊞ Grid</button>
-              <button id="btnViewPrinterTable"><span class="icon icon-list icon-13"></span><span data-i18n="btnViewTable">Table</span></button>
-              <button id="btnViewCam"><span class="icon icon-eye-on icon-13"></span><span data-i18n="btnViewCam">Cam</span></button>
+              <button id="btnViewPrinter" data-i18n-aria="btnViewGrid"><span class="vt-glyph">⊞</span></button>
+              <button id="btnViewPrinterTable" data-i18n-aria="btnViewTable"><span class="icon icon-list icon-13"></span></button>
+              <button id="btnViewCam" data-i18n-aria="btnViewCam"><span class="icon icon-eye-on icon-13"></span></button>
             </div>
           </div>
         </div>
@@ -244,30 +252,31 @@
           <span class="icon icon-search icon-13"></span>
         </div>
         <div class="inv-filter-group">
-          <select id="brandFilter" class="inv-brand-filter" title="Filter by brand">
-            <option value="" data-i18n="filterAllBrands">All brands</option>
-          </select>
-          <select id="materialFilter" class="inv-brand-filter" title="Filter by material">
-            <option value="" data-i18n="filterAllMaterials">All materials</option>
-          </select>
-          <!-- Aspect filter — matches Aspect 1 OR Aspect 2 (finish + colour arrangement). -->
-          <select id="aspectFilter" class="inv-brand-filter" data-i18n-title="filterAllAspects" title="All aspects">
-            <option value="" data-i18n="filterAllAspects">All aspects</option>
-          </select>
-          <select id="typeFilter" class="inv-brand-filter" data-i18n-title="filterAllVersions" title="All versions">
-            <option value="" data-i18n="filterAllVersions">All versions</option>
-          </select>
-          <!-- Tag filter — lists the tags that exist in the inventory. -->
-          <select id="tagFilter" class="inv-brand-filter" data-i18n-title="filterAllTags" title="All tags">
-            <option value="" data-i18n="filterAllTags">All tags</option>
-          </select>
-          <!-- Product-flag quick filters: ❤ wishlist / ★ liked (mutually exclusive). -->
+          <!-- Product-flag quick filters: ❤ wishlist / ★ liked (mutually exclusive) —
+               placed right after the search bar, before the attribute filters. -->
           <button type="button" id="wishFilter" class="inv-flag-filter inv-flag-filter--wish" data-i18n-title="productLike" title="Liked">
             <span class="icon icon-heart icon-14"></span>
           </button>
           <button type="button" id="likeFilter" class="inv-flag-filter inv-flag-filter--like" data-i18n-title="productFavorite" title="Favorite">
             <span class="icon icon-star icon-14"></span>
           </button>
+          <select id="brandFilter" class="inv-brand-filter" title="Filter by brand">
+            <option value="" data-i18n="filterAllBrands">All</option>
+          </select>
+          <select id="materialFilter" class="inv-brand-filter" title="Filter by material">
+            <option value="" data-i18n="filterAllMaterials">All</option>
+          </select>
+          <!-- Aspect filter — matches Aspect 1 OR Aspect 2 (finish + colour arrangement). -->
+          <select id="aspectFilter" class="inv-brand-filter" data-i18n-title="filterShortAspect" title="Aspect">
+            <option value="" data-i18n="filterAllAspects">All</option>
+          </select>
+          <select id="typeFilter" class="inv-brand-filter" data-i18n-title="filterShortProtocol" title="Protocol">
+            <option value="" data-i18n="filterAllVersions">All</option>
+          </select>
+          <!-- Tag filter — lists the tags that exist in the inventory. -->
+          <select id="tagFilter" class="inv-brand-filter" data-i18n-title="filterShortTag" title="Tag">
+            <option value="" data-i18n="filterAllTags">All</option>
+          </select>
         </div>
         <!-- Grid-only sort control, pushed to the far right (table view sorts
              via its column headers). Separated from the filter cluster. -->
@@ -318,6 +327,8 @@
 
       <!-- products view (order recommendation + liked/favorite) -->
       <div id="invProductsView" class="inv-products-view hidden"></div>
+      <!-- Lists (Amazon-style wishlists) view — populated by renderListsView(). -->
+      <div id="invListsView" class="inv-lists-view hidden"></div>
 
       <!-- Floating bulk-action bar — appears in multi-select mode once ≥1 spool
            is selected. Delete is a press-and-hold (hard delete, irreversible). -->
@@ -2092,6 +2103,53 @@
     <div class="adf-footer">
       <button class="adf-btn adf-btn--ghost" id="adfCancel" data-i18n="cancelLabel">Cancel</button>
       <button class="adf-btn adf-btn--primary" id="adfSend" data-i18n="addFriendSend" disabled>Send request</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Create-list modal (Amazon-style: name + occasion) ── -->
+<div class="modal-overlay" id="createListOverlay">
+  <div class="modal-card clm-card">
+    <div class="clm-header">
+      <div class="clm-title" data-i18n="listModalTitle">Create a list</div>
+      <button class="modal-close" id="clmClose" aria-label="Close">✕</button>
+    </div>
+    <div class="clm-body">
+      <label class="clm-field">
+        <span class="clm-label" data-i18n="listModalNameLabel">List name</span>
+        <input class="clm-input" id="clmName" type="text" maxlength="80" autocomplete="off" spellcheck="false"
+               data-i18n-placeholder="listModalNamePh" placeholder="My list" />
+      </label>
+      <div class="clm-help" data-i18n="listModalHelp">Your lists stay private — share one with friends or a public link whenever you like.</div>
+      <label class="clm-field">
+        <span class="clm-label" data-i18n="listModalEventLabel">Celebrating an event?</span>
+        <input class="clm-input" id="clmOccasion" type="text" maxlength="60" autocomplete="off" spellcheck="false"
+               data-i18n-placeholder="listModalOccasionPh" placeholder="Birthday, Christmas, Father's Day…" />
+      </label>
+      <label class="clm-field">
+        <span class="clm-label" data-i18n="listModalMessageLabel">Message for your friends</span>
+        <textarea class="clm-input clm-textarea" id="clmMessage" maxlength="500" rows="3" spellcheck="true"
+               data-i18n-placeholder="listModalMessagePh" placeholder="A little note for whoever's shopping…"></textarea>
+      </label>
+      <label class="clm-field">
+        <span class="clm-label" data-i18n="listModalVisibility">Privacy</span>
+        <select class="clm-input" id="clmVisibility">
+          <option value="friends" data-i18n="visFriends">Friends</option>
+          <option value="private" data-i18n="visPrivate">Private (only me)</option>
+          <option value="public" data-i18n="visPublic">Public</option>
+        </select>
+      </label>
+    </div>
+    <div class="clm-footer">
+      <!-- Delete (edit mode only) — hold-to-confirm, per the project's destructive-action norm. -->
+      <button type="button" class="clm-delete-btn" id="clmDelete" data-i18n-aria="listDelete" aria-label="Delete list" hidden>
+        <span class="hold-progress"></span>
+        <span class="icon icon-trash icon-14"></span>
+      </button>
+      <div class="clm-footer-right">
+        <button class="clm-btn clm-btn--ghost" id="clmCancel" data-i18n="cancelLabel">Cancel</button>
+        <button class="clm-btn clm-btn--primary" id="clmCreate" data-i18n="listModalCreate" disabled>Create</button>
+      </div>
     </div>
   </div>
 </div>

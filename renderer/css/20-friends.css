@@ -184,6 +184,18 @@
     box-shadow: 0 4px 12px rgba(0,0,0,.05);
   }
   .fp-friend:active { transform: translateY(0); }
+  /* Drag-to-reorder — grip handle + drop cues. */
+  .fp-grip { flex: 0 0 auto; display: inline-flex; align-items: center; margin: 0 -5px 0 -3px;
+    cursor: grab; opacity: .3; transition: opacity .12s; }
+  .fp-friend:hover .fp-grip { opacity: .7; }
+  .fp-grip .icon { background-color: var(--muted); }
+  /* Drag-to-reorder — rows slide (translateY) to open the drop gap; the dragged
+     row is hidden (the OS drag image follows the cursor). Slide transition is set
+     inline in JS. */
+  .fp-friend--dragging { opacity: 0; }
+  .fp-reordering .fp-friend { will-change: transform; }
+  .fp-reordering .fp-friend:hover { transform: none; box-shadow: none; background: var(--surface-2); }
+  body.is-dragging-order .fp-friend { cursor: grabbing; }
   .fp-friend-avatar {
     position: relative;       /* anchor for the .sb-avatar-photo overlay */
     width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;

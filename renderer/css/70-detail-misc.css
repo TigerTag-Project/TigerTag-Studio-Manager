@@ -660,7 +660,7 @@
   .inv-view-row {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-end;   /* labels stack above the toggles → align the action buttons with the toggle row, not the label */
     margin: 0 0 10px;   /* sits above the search bar now → gap goes BELOW it */
     gap: 10px;
   }
@@ -1059,15 +1059,11 @@
   .pv-grip:hover { opacity: 1; }
   .pv-grip:active { cursor: grabbing; }
   .pv-grip .icon { background-color: var(--muted); }
-  .pv-order-line--dragging { opacity: .35; }
-  /* Drop cues: an accent line between rows (drop before / after), or a dashed
-     ring on the zone when dropping into empty space. */
-  .pv-order-line.pv-drop-before { box-shadow: inset 0 3px 0 var(--primary, #f97316); }
-  .pv-order-line.pv-drop-after  { box-shadow: inset 0 -3px 0 var(--primary, #f97316); }
-  .pv-order-list.pv-zone-drop,
-  .pv-cart.pv-zone-drop, .pv-saved.pv-zone-drop {
-    outline: 2px dashed var(--primary, #f97316); outline-offset: 2px; border-radius: 12px;
-  }
+  /* Drag-to-reorder — lines slide (translateY) to open the drop gap; the dragged
+     line is hidden (the OS drag image follows the cursor). Slide transition set
+     inline in JS. */
+  .pv-order-line--dragging { opacity: 0; }
+  .pv-reordering .pv-order-line { will-change: transform; }
   .pv-order-list--empty { min-height: 88px; }
   body.is-dragging-order { cursor: grabbing; }
 
@@ -1138,7 +1134,23 @@
   body.bulk-select-mode .pv-trow { cursor: pointer; }
 
   .view-toggle { display: flex; gap: 2px; background: var(--surface-2); padding: 3px; border-radius: var(--radius-sm); }
-  .view-toggle button { height: 30px; padding: 0 10px; font-size: 13px; border: none; background: transparent; color: var(--muted); border-radius: 8px; transition: color .18s ease; }
+  /* Icon-only buttons — center the picto and keep them compact/square-ish. */
+  .view-toggle button { height: 30px; min-width: 34px; padding: 0 9px; font-size: 13px; border: none; background: transparent; color: var(--muted); border-radius: 8px; transition: color .18s ease; display: inline-flex; align-items: center; justify-content: center; }
+  .view-toggle button .icon { background-color: currentColor; }   /* follow muted → active text colour */
+  .view-toggle .vt-glyph { font-size: 16px; line-height: 1; }     /* the ⊞ grid glyph (no dedicated icon) */
+  /* Since the buttons are icon-only, a custom bubble names the view on hover —
+     appears after a 1s dwell (delayed fade-IN), disappears instantly on leave.
+     Reads the already-localised aria-label; no native title tooltip. */
+  .view-toggle-groups .view-toggle button::after {
+    content: attr(aria-label);
+    position: absolute; top: calc(100% + 7px); left: 50%; transform: translateX(-50%);
+    padding: 5px 10px; background: #1c2030; color: #fff;
+    border: 1px solid rgba(255,255,255,.1); border-radius: 7px;
+    font-size: 11px; font-weight: 600; white-space: nowrap;
+    opacity: 0; pointer-events: none; z-index: 60;
+    box-shadow: 0 4px 12px rgba(0,0,0,.3); transition: opacity .12s;
+  }
+  .view-toggle-groups .view-toggle button:hover::after { opacity: 1; transition-delay: 1s; }
   .view-toggle button.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
 
   /* Sliding selection bubble — only in the main view selector (Inventory /
@@ -1163,15 +1175,18 @@
   /* Two-group view-toggle layout — each group is labelled by what it manages
      (Materials vs Printers) so the otherwise-identical Grid/Table toggles read
      as two distinct sections. */
-  .view-toggle-groups { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .vtg-group { display: inline-flex; align-items: center; gap: 8px; }
+  .view-toggle-groups { display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap; }
+  /* Label sits ABOVE its toggle, left-aligned — stacking is narrower than a
+     side-by-side label+toggle, which matters as the action row runs out of width. */
+  .vtg-group { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 4px; }
   .vtg-label {
     display: inline-flex; align-items: center; gap: 5px;
     font-size: 12px; font-weight: 600; color: var(--muted);
     white-space: nowrap; user-select: none;
+    padding-left: 2px;
   }
   .vtg-label .icon { background: var(--muted); }
-  .vtg-sep { width: 1px; height: 22px; background: var(--border); margin: 0 2px; flex-shrink: 0; }
+  .vtg-sep { width: 1px; align-self: stretch; background: var(--border); margin: 0 2px; flex-shrink: 0; }
   .vtg-printers .icon { vertical-align: middle; }
 
   /* ── grid view ── */
@@ -1253,6 +1268,13 @@
   /* Two action buttons side by side (Product info + Reorder) above the deck. */
   .gp-actions { display: flex; gap: 8px; flex-shrink: 0; }
   .gp-actions .gp-reorder-btn { flex: 1; width: auto; }
+  .gp-actions--list { margin-top: 8px; }   /* "Add to a list" sits on its own row below Info / Reorder */
+  /* Read-only note — quick glance, not editable (edit lives in the Product-info card). */
+  .gp-note { flex-shrink: 0; margin-top: 10px; padding: 10px 12px; border-radius: 10px;
+    background: var(--surface-2); border: 1px solid var(--border); }
+  .gp-note-label { font-size: 11px; font-weight: 700; letter-spacing: .02em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 3px; }
+  .gp-note-txt { font-size: 13px; line-height: 1.45; color: var(--text); white-space: pre-wrap; word-break: break-word; }
   /* Reorder (buy-link) variant — Shopify green. */
   .gp-reorder-btn--buy { background: #5e8e3e; border-color: #5e8e3e; color: #fff; }
   .gp-reorder-btn--buy:hover { background: #5e8e3e; filter: brightness(1.06); }
@@ -1574,6 +1596,18 @@
   .pi-name-bar.is-high .pi-name-bar-fill { background: #d97706; }
   .pi-name-bar.is-full .pi-name-bar-fill { background: #dc2626; }
   .panel-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 8px; font-weight: 600; }
+
+  /* Prominent price + buy-link block (above Details) */
+  .det-buy .det-buy-body { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .det-buy-price { font-size: 18px; font-weight: 800; color: var(--text); }
+  .det-buy-link {
+    display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 16px;
+    border-radius: 10px; border: 1px solid var(--primary); background: var(--primary); color: #fff;
+    font-size: 13px; font-weight: 700; text-decoration: none; cursor: pointer;
+    transition: filter .15s; margin-left: auto;
+  }
+  .det-buy-link:hover { filter: brightness(1.06); }
+  .det-buy-link .icon { background-color: #fff; }
 
   /* Collapsible "Details" section in the spool detail panel */
   .panel-details .panel-details-head {
@@ -2899,17 +2933,20 @@
   /* ── Reorder / buy-link side card ─────────────────────────────────────────
      Tucks to the LEFT of the spool detail (shares the container picker's slot),
      so it sits BEHIND it (z 100). */
-  /* z 99 = one slot BEHIND the group deck (z 100): the reorder card docks to the
-     LEFT of the group when both are open, so it tucks behind it at the seam. */
-  #reorderPanel { z-index: 99; width: 300px; }
-  #reorderCloseTab { z-index: 99; }
+  /* Cascade order (see _syncPanels — right/front → left/back): detail (101) >
+     container/group deck (100) > Product card (99) > reorder (98). Each card tucks
+     BEHIND the one to its right, so its z-index must be strictly lower. */
+  /* z 98 = behind the Product card (99), which is itself behind the group deck. */
+  #reorderPanel { z-index: 98; width: 300px; }
+  #reorderCloseTab { z-index: 98; }
 
   /* ── Product "business card" (light, read-only) — see openProductCard.
      Reuses .panel-img-wrap / .panel-identity / .pi-* from the materials card. */
-  /* Above the reorder ("Infos produit") card so, sitting to its right, the Product
-     card reads as the FRONT one (its shadow overlaps the reorder card at the seam). */
-  #productCardPanel { z-index: 100; width: 300px; }
-  #productCardCloseTab { z-index: 100; }
+  /* z 99 = BEHIND the group deck (100) — the Product card docks to the LEFT of the
+     group, so it must tuck behind it at the seam — but ABOVE the reorder card (98)
+     which docks further left still. */
+  #productCardPanel { z-index: 99; width: 300px; }
+  #productCardCloseTab { z-index: 99; }
   .pc-panel .panel-body { padding: 0 0 16px; overflow-y: auto; scrollbar-width: none; }
   .pc-panel .panel-body::-webkit-scrollbar { width: 0; height: 0; display: none; }
   /* Reuses the materials-card sections (illustration, identity, colours & aspect,
@@ -2978,10 +3015,15 @@
   .flag-toggle--wish.active .icon { background-color: #e0245e; }
   .flag-toggle--like.active { background: color-mix(in srgb, #f5a623 18%, transparent); border-color: #f5a623; }
   .flag-toggle--like.active .icon { background-color: #f5a623; }
-  /* Detail-panel identity block: text left, flag toggles top-right. */
+  /* Detail-panel identity block: identity text (flags moved to their own row). */
   .panel-identity { display: flex; align-items: flex-start; gap: 10px; }
   .pi-ident-text { flex: 1; min-width: 0; }
-  .pi-flags { display: flex; gap: 5px; flex-shrink: 0; }
+  .pi-flags { display: flex; gap: 6px; flex-shrink: 0; }
+  /* ❤/★/list actions on their own inline row between the illustration and name. */
+  .pi-flags-row { display: flex; justify-content: flex-end; padding-top: 12px; padding-bottom: 8px; border-top: none; }
+  .pi-flags-row + .panel-identity { border-top: none; padding-top: 0; }   /* group the actions row with the name */
+  .flag-toggle--list:hover { background: color-mix(in srgb, var(--primary) 14%, transparent); border-color: var(--primary); }
+  .flag-toggle--list:hover .icon { background-color: var(--primary); }
   /* "+ Material" — styled as a toolbox row (see .toolbox-row); a small top margin
      separates it from the References block above. */
   .ro-cloud-row { margin-top: 4px; }
@@ -3279,3 +3321,253 @@
   /* actions */
   .dns-actions { display: flex; }
   .dns-btn-save { width: 100%; height: 44px; font-size: 15px; border-radius: 10px; }
+
+  /* ── Lists view (Amazon-style wishlists) ── */
+  .inv-lists-view { margin-top: 12px; }
+  /* Amazon-style two columns: list sidebar (left) + selected list (right). */
+  .lv-amz { display: flex; gap: 20px; align-items: flex-start; }
+  .lv-side { flex: 0 0 220px; display: flex; flex-direction: column; gap: 2px; }
+  .lv-side-head { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); padding: 2px 10px 8px; }
+  .lv-side-item {
+    display: flex; align-items: center; gap: 8px; width: 100%;
+    padding: 9px 10px; border-radius: 9px; border: 1px solid transparent;
+    background: transparent; color: var(--text); font-size: 13.5px; text-align: left; cursor: pointer;
+    transition: background-color .12s, border-color .12s;
+  }
+  .lv-side-item:hover { background: var(--surface-2); }
+  .lv-side-item.is-active { background: color-mix(in srgb, var(--primary) 12%, transparent); border-color: color-mix(in srgb, var(--primary) 40%, transparent); font-weight: 600; }
+  .lv-side-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lv-side-vis { display: inline-flex; align-items: center; flex-shrink: 0; }
+  .lv-side-vis .icon { background-color: var(--muted); }
+  .lv-side-n { color: var(--muted); font-size: 11px; font-weight: 700; }
+  /* Visibility status badge — shown next to the list title (and each sidebar row),
+     so the private / friends / public state is visible without opening edit. Owner
+     can click it to jump into the edit modal. Colour-coded per state. */
+  .lv-vis { display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0;
+    padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 700;
+    letter-spacing: .01em; border: 1px solid transparent; }
+  .lv-vis[role="button"] { cursor: pointer; }
+  .lv-vis .icon { width: 12px; height: 12px; }
+  .lv-vis--private { color: var(--muted); background: var(--surface-2); border-color: var(--border); }
+  .lv-vis--private .icon { background-color: var(--muted); }
+  .lv-vis--friends { color: #2f74d0; background: color-mix(in srgb, #2f74d0 12%, transparent); }
+  .lv-vis--friends .icon { background-color: #2f74d0; }
+  .lv-vis--public { color: #2e9e6b; background: color-mix(in srgb, #2e9e6b 14%, transparent); }
+  .lv-vis--public .icon { background-color: #2e9e6b; }
+  /* Public share card — right rail (QR + "Copy link" button), shown when public. */
+  .lv-public-card { flex: 0 0 240px; align-self: flex-start; position: sticky; top: 4px;
+    display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center;
+    padding: 18px 16px; border-radius: 14px;
+    background: color-mix(in srgb, #2e9e6b 8%, var(--surface-2));
+    border: 1px solid color-mix(in srgb, #2e9e6b 28%, transparent); }
+  .lv-public-title { display: inline-flex; align-items: center; gap: 6px; font-size: 12px;
+    font-weight: 700; color: #2e9e6b; }
+  .lv-public-title .icon { background-color: #2e9e6b; }
+  .lv-public-qr { width: 160px; height: 160px; border-radius: 10px; background: #fff; padding: 6px; }
+  .lv-public-copy { display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+    width: 100%; height: 36px; border-radius: 10px; cursor: pointer; font-family: inherit;
+    font-size: 13px; font-weight: 700; color: #fff; background: #2e9e6b; border: 1px solid #2e9e6b;
+    transition: filter .12s; }
+  .lv-public-copy:hover { filter: brightness(1.06); }
+  .lv-public-copy .icon { background-color: #fff; }
+  .lv-public-copy.is-copied { background: #237a52; border-color: #237a52; }
+  .lv-public-hint { font-size: 11.5px; color: var(--muted); line-height: 1.45; }
+  /* Social share buttons — brand-coloured circles with a white glyph. */
+  .icon-facebook { -webkit-mask-image: url('../../assets/svg/logos/logo_facebook.svg'); mask-image: url('../../assets/svg/logos/logo_facebook.svg'); }
+  .icon-x        { -webkit-mask-image: url('../../assets/svg/logos/logo_x.svg');        mask-image: url('../../assets/svg/logos/logo_x.svg'); }
+  .icon-linkedin { -webkit-mask-image: url('../../assets/svg/logos/logo_linkedin.svg'); mask-image: url('../../assets/svg/logos/logo_linkedin.svg'); }
+  .icon-whatsapp { -webkit-mask-image: url('../../assets/svg/logos/logo_whatsapp.svg'); mask-image: url('../../assets/svg/logos/logo_whatsapp.svg'); }
+  .lv-social-row { display: flex; gap: 8px; justify-content: center; }
+  .lv-social { display: inline-flex; align-items: center; justify-content: center;
+    width: 34px; height: 34px; border-radius: 50%; border: none; cursor: pointer;
+    transition: filter .12s, transform .1s; }
+  .lv-social:hover { filter: brightness(1.08); transform: translateY(-1px); }
+  .lv-social:active { transform: translateY(0); }
+  .lv-social .icon { width: 15px; height: 15px; background-color: #fff; }
+  .lv-social--wa .icon { width: 17px; height: 17px; }
+  .lv-social--fb { background: #1877f2; }
+  .lv-social--x  { background: #000; }
+  .lv-social--li { background: #0a66c2; }
+  .lv-social--wa { background: #25d366; }
+  .lv-social--mail { background: #5b6470; }
+  .lv-social--mail .icon { width: 16px; height: 16px; }
+  .lv-side-new {
+    display: flex; align-items: center; gap: 8px; width: 100%; margin-top: 6px;
+    padding: 9px 10px; border-radius: 9px; border: 1px dashed var(--border);
+    background: transparent; color: var(--primary); font-size: 13px; font-weight: 600; cursor: pointer;
+    transition: background-color .12s, border-color .12s;
+  }
+  .lv-side-new:hover { background: color-mix(in srgb, var(--primary) 8%, transparent); border-color: color-mix(in srgb, var(--primary) 45%, transparent); }
+  .lv-side-new .icon { background-color: var(--primary); }
+  /* Main = items column (header + list, left) + the public share card (right rail,
+     when public). Row layout so the card rises to the header level. */
+  .lv-main { flex: 1; min-width: 0; display: flex; align-items: flex-start; gap: 28px; }
+  .lv-main-col { flex: 1; min-width: 0; }
+  .lv-rows { display: flex; flex-direction: column; margin-top: 4px; }
+  /* List header — title (+ count) + owner actions, with a divider below. */
+  .lv-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+  .lv-head-main { min-width: 0; }
+  .lv-title-row { display: flex; align-items: center; gap: 8px; }   /* edit button before the title */
+  .lv-head-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  /* Rows / grid layout toggle (segmented, like the main view selector). */
+  .lv-layout { display: inline-flex; gap: 2px; background: var(--surface-2); padding: 3px; border-radius: var(--radius-sm); }
+  .lv-layout-btn {
+    width: 30px; height: 28px; border-radius: 7px; border: none; background: transparent; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; color: var(--muted);
+    transition: background-color .15s, color .15s;
+  }
+  .lv-layout-btn .icon { background-color: currentColor; }
+  .lv-layout-btn .vt-glyph { font-size: 15px; line-height: 1; }
+  .lv-layout-btn.is-active { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  /* Grid mode — cards reuse .inv-grid / .spool-card, with a hover remove (✕). */
+  .lv-grid { margin-top: 12px; }
+  .lv-card { position: relative; display: flex; flex-direction: column; }
+  .lv-remove {
+    position: absolute; top: 6px; right: 6px; z-index: 3; overflow: hidden;
+    width: 22px; height: 22px; border-radius: 7px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: color-mix(in srgb, var(--surface) 88%, transparent);
+    border: 1px solid var(--border); cursor: pointer;
+    opacity: 0; transition: opacity .12s, border-color .15s, background-color .15s;
+  }
+  .lv-card:hover .lv-remove { opacity: 1; }
+  .lv-remove .icon { background-color: var(--muted); }
+  .lv-remove > :not(.hold-progress) { position: relative; z-index: 1; }
+  .lv-remove:hover { border-color: var(--danger); background: color-mix(in srgb, var(--danger) 14%, var(--surface)); }
+  .lv-remove:hover .icon { background-color: var(--danger); }
+  .lv-title { display: inline-flex; align-items: center; gap: 8px; font-size: 18px; font-weight: 700; color: var(--text); }
+  .lv-count {
+    min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--surface-2); border: 1px solid var(--border);
+    color: var(--muted); font-size: 12px; font-weight: 700;
+  }
+  .lv-title-input {
+    font-size: 18px; font-weight: 700; color: var(--text);
+    background: var(--surface); border: 1px solid var(--primary); border-radius: 8px;
+    padding: 2px 8px; min-width: 180px; outline: none;
+  }
+  .lv-occasion { margin-top: 3px; font-size: 12px; color: var(--muted); }
+  /* Owner's custom message to friends — a quoted callout under the list header. */
+  .lv-message { margin-top: 8px; padding: 8px 12px; max-width: 560px;
+    border-left: 3px solid var(--primary); border-radius: 0 8px 8px 0;
+    background: color-mix(in srgb, var(--primary) 7%, var(--surface-2));
+    font-size: 13px; line-height: 1.5; color: var(--text); white-space: pre-wrap; word-break: break-word; }
+  .lv-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+  .lv-act {
+    width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--surface-2); border: 1px solid var(--border); cursor: pointer;
+    transition: background-color .15s, border-color .15s;
+  }
+  .lv-act .icon { background-color: var(--muted); }
+  .lv-act:hover { border-color: var(--primary); }
+  .lv-act--danger:hover { border-color: var(--danger); }
+  .lv-act--danger:hover .icon { background-color: var(--danger); }
+  .lv-delq { font-size: 12px; color: var(--muted); align-self: center; }
+  /* Item ROWS — thumbnail · title/colour/price · buy + remove actions. */
+  .lv-row {
+    display: flex; gap: 14px; padding: 14px 4px; border-bottom: 1px solid var(--border);
+    cursor: pointer; transition: background-color .12s;
+  }
+  .lv-row:hover { background: color-mix(in srgb, var(--surface-2) 55%, transparent); }
+  /* Drag-to-reorder — grip handle (rows) + drop cues (rows & grid cards). */
+  .lv-grip { align-self: center; display: inline-flex; align-items: center; margin: 0 -4px 0 2px;
+    cursor: grab; opacity: .35; transition: opacity .12s; }
+  .lv-row:hover .lv-grip { opacity: .8; }
+  .lv-grip .icon { background-color: var(--muted); }
+  /* Drag-to-reorder — items slide (2D translate) to open the drop gap; the dragged
+     item is hidden (the OS drag image follows the cursor). Slide transition set
+     inline in JS so it works in the row list and the wrapping grid alike. */
+  .lv-item--dragging { opacity: 0; }
+  .lv-reordering .lv-row, .lv-reordering .lv-card { will-change: transform; }
+  body.is-dragging-order .lv-row, body.is-dragging-order .lv-card { cursor: grabbing; }
+  /* Buy / Add-a-link bar at the bottom of a grid card (full-width). */
+  .lv-card-buybar { padding: 0 10px 10px; margin-top: auto; }
+  .lv-card-buy { width: 100%; height: 30px; justify-content: center; padding: 0 10px; font-size: 12px; }
+  .lv-row-thumb { flex: 0 0 84px; }
+  .lv-row-thumb .pv-thumb { width: 84px; height: 84px; border-radius: 10px; object-fit: cover; display: block; }
+  .lv-row-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+  .lv-row-title { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.35; }
+  .lv-row-meta { font-size: 12px; color: var(--muted); }
+  .lv-row-price { font-size: 15px; font-weight: 700; color: var(--text); margin-top: 2px; }
+  .lv-row-actions { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+  /* Amazon-style yellow "Buy" pill (opens the product's buy link). */
+  .lv-buy {
+    display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 14px;
+    border-radius: 999px; border: 1px solid #f0b429;
+    background: linear-gradient(180deg, #ffd569, #ffc02e); color: #3a2c00;
+    font-size: 12.5px; font-weight: 700; cursor: pointer; transition: filter .12s;
+  }
+  .lv-buy:hover { filter: brightness(1.04); }
+  .lv-buy .icon { background-color: #3a2c00; }
+  /* "Add price" (text link) + "Add a link" (ghost pill) for items missing them. */
+  .lv-addprice {
+    align-self: flex-start; margin-top: 2px; padding: 2px 0;
+    background: none; border: none; cursor: pointer; font-family: inherit;
+    color: var(--primary); font-size: 13px; font-weight: 600;
+  }
+  .lv-addprice:hover { text-decoration: underline; }
+  .lv-addlink {
+    display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 14px;
+    border-radius: 999px; border: 1px solid var(--border); background: var(--surface-2);
+    color: var(--text); font-size: 12.5px; font-weight: 600; cursor: pointer; font-family: inherit;
+    transition: border-color .12s, background-color .12s;
+  }
+  .lv-addlink:hover { border-color: var(--primary); }
+  .lv-addlink .icon { background-color: var(--muted); }
+  .lv-row-remove {
+    position: relative; overflow: hidden;
+    width: 32px; height: 32px; border-radius: 999px; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--surface-2); border: 1px solid var(--border); cursor: pointer;
+    transition: border-color .12s, background-color .12s;
+  }
+  .lv-row-remove .icon { background-color: var(--muted); position: relative; z-index: 1; }
+  .lv-row-remove:hover { border-color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, var(--surface)); }
+  .lv-row-remove:hover .icon { background-color: var(--danger); }
+  /* First-run empty state (no lists yet). */
+  .lv-first { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 48px 16px; text-align: center; }
+  .lv-first .icon { background-color: var(--muted); }
+  .lv-first-txt { font-size: 15px; font-weight: 600; color: var(--text); }
+  .lv-first-sub { font-size: 13px; color: var(--muted); max-width: 340px; }
+  .lv-new-btn { margin-top: 8px; height: 38px; padding: 0 18px; border-radius: 10px; }
+  /* Product-card "Add to a list" button (secondary next to the buy button). */
+  .pc-addlist {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    width: 100%; height: 40px; margin-top: 8px; border-radius: 10px;
+    background: var(--surface-2); border: 1px solid var(--border);
+    color: var(--text); font-size: 13px; font-weight: 600; cursor: pointer;
+    transition: background-color .15s, border-color .15s;
+  }
+  .pc-addlist:hover { border-color: var(--primary); }
+  .pc-addlist .icon { background-color: var(--muted); }
+
+  /* ── "Add to a list" popup (anchored to a card button) ── */
+  .atl-pop {
+    position: fixed; z-index: 9000; min-width: 232px; max-width: 300px;
+    max-height: 60vh; overflow: auto; padding: 6px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    box-shadow: 0 12px 34px rgba(0,0,0,.28);
+  }
+  .atl-head { padding: 6px 8px 8px; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+  .atl-rows { display: flex; flex-direction: column; gap: 2px; }
+  .atl-row {
+    display: flex; align-items: center; gap: 8px; width: 100%;
+    padding: 8px 8px; border-radius: 8px; border: none; background: transparent;
+    color: var(--text); font-size: 13px; text-align: left; cursor: pointer;
+  }
+  .atl-row:hover { background: var(--surface-2); }
+  .atl-check { width: 16px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; }
+  .atl-check .icon { background-color: var(--primary); }
+  .atl-row.is-in { font-weight: 600; }
+  .atl-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .atl-n { color: var(--muted); font-size: 11px; font-weight: 700; }
+  .atl-empty { padding: 10px 8px; font-size: 12px; color: var(--muted); }
+  .atl-new {
+    display: flex; align-items: center; gap: 8px; width: 100%; margin-top: 4px;
+    padding: 9px 8px; border-radius: 8px; border: none; cursor: pointer;
+    background: transparent; color: var(--primary); font-size: 13px; font-weight: 600;
+  }
+  .atl-new:hover { background: color-mix(in srgb, var(--primary) 12%, transparent); }
+  .atl-new .icon { background-color: var(--primary); }

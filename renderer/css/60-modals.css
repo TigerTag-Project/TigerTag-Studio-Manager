@@ -3780,3 +3780,49 @@
 .whatsnew-coffee-wrap { margin-right: auto; display: inline-flex; align-items: center; gap: 9px; }
 .whatsnew-coffee-cap { font-size: 12.5px; font-weight: 600; color: var(--text-dim, #8b93a7); }
 @media (max-width: 440px) { .whatsnew-coffee-cap { display: none; } }
+
+/* ── Create-list modal (name required + optional occasion) ── */
+.clm-card { width: 380px; padding: 22px 22px 18px; }
+.clm-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+.clm-title { font-size: 17px; font-weight: 800; color: var(--text); letter-spacing: -.01em; }
+.clm-body { display: flex; flex-direction: column; gap: 14px; }
+.clm-field { display: flex; flex-direction: column; gap: 6px; }
+.clm-label { font-size: 12px; font-weight: 600; color: var(--muted); }
+.clm-input {
+  height: 40px; padding: 0 12px; border: 1px solid var(--border); border-radius: 10px;
+  background: var(--surface); color: var(--text); font-size: 14px; font-family: inherit; width: 100%;
+  transition: border-color .15s, box-shadow .15s;
+}
+.clm-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+.clm-textarea { height: auto; min-height: 74px; padding: 10px 12px; line-height: 1.45; resize: vertical; }
+.clm-help { font-size: 12px; line-height: 1.5; color: var(--muted); margin-top: -4px; }
+.clm-footer { display: flex; align-items: center; gap: 10px; margin-top: 20px; }
+/* Right-aligned action group; keeps Cancel/Save on the right even when the
+   left-edge Delete button is hidden (create mode). */
+.clm-footer-right { margin-left: auto; display: flex; gap: 10px; }
+/* Privacy dropdown (enhanced <select>) fills the field like the text inputs. */
+.clm-field .csel { width: 100%; }
+.clm-field .csel .csel-btn { width: 100%; height: 40px; justify-content: space-between; border-radius: 10px; }
+.clm-btn {
+  height: 40px; padding: 0 18px; border-radius: 10px; font-size: 13px; font-weight: 600;
+  cursor: pointer; font-family: inherit; border: 1px solid transparent;
+  transition: filter .15s, background .15s, color .15s;
+}
+.clm-btn--ghost { background: var(--surface-2); border-color: var(--border); color: var(--muted); }
+.clm-btn--ghost:hover { background: var(--surface); color: var(--text); }
+.clm-btn--primary { background: var(--primary); color: #fff; }
+.clm-btn--primary:hover { filter: brightness(1.07); }
+.clm-btn--primary:disabled { opacity: .5; cursor: not-allowed; filter: none; }
+/* Delete list — compact icon button, bottom-left of the footer. Hold-to-confirm
+   (edit mode only). Light bg so the red hold fill shows. */
+.clm-delete-btn {
+  position: relative; overflow: hidden; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 40px; height: 40px; border-radius: 10px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  cursor: pointer; font-family: inherit;
+  transition: border-color .15s, background .15s;
+}
+.clm-delete-btn[hidden] { display: none; }
+.clm-delete-btn:hover { border-color: var(--danger); }
+.clm-delete-btn .icon { background-color: var(--danger); position: relative; z-index: 1; }

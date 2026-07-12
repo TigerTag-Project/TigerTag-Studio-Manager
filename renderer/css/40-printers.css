@@ -158,25 +158,12 @@
       4px 0, 4px 5px, 4px 10px;
   }
 
-  /* ── Drag-and-drop visual states ──────────────────────────────────── */
-  .printer-card--dragging {
-    opacity: .35;
-    border-color: var(--primary);
-  }
-  /* Drop indicator — a vertical (or horizontal) blue bar on the side
-     where the dragged card will land. Drawn via box-shadow so we don't
-     need an extra DOM element and don't shift layout on hover. */
-  .printer-card--drop-before {
-    box-shadow: -3px 0 0 0 var(--primary);
-  }
-  .printer-card--drop-after {
-    box-shadow: 3px 0 0 0 var(--primary);
-  }
-  /* Mirror to top/bottom if the layout becomes single-column (mobile). */
-  @media (max-width: 480px) {
-    .printer-card--drop-before { box-shadow: 0 -3px 0 0 var(--primary); }
-    .printer-card--drop-after  { box-shadow: 0  3px 0 0 var(--primary); }
-  }
+  /* ── Drag-to-reorder ("make room") ────────────────────────────────────
+     Cards slide (2D translate) to open the drop gap; the dragged card is
+     hidden (the OS drag image follows the cursor). Slide transition is set
+     inline in JS. */
+  .printer-card--dragging { opacity: 0; }
+  .mr-reordering .printer-card, .mr-reordering .cam-wall-card { will-change: transform; }
   .printer-card:hover {
     border-color: var(--border-strong, #d0d4dc);
     box-shadow: 0 2px 6px rgba(0,0,0,.04);
@@ -2396,10 +2383,8 @@ details[open] .pba-step-chev { transform: rotate(90deg); }
                  cursor: grab; transition: border-color .15s;
                  grid-column: span 2; }
 .cam-wall-card:hover { border-color: var(--accent, #6366f1); }
-/* Drag-and-drop states */
-.cam-wall-card--dragging { opacity: .45; cursor: grabbing; }
-.cam-wall-card--drop-before { box-shadow: -3px 0 0 0 var(--accent, #6366f1); }
-.cam-wall-card--drop-after  { box-shadow:  3px 0 0 0 var(--accent, #6366f1); }
+/* Drag-to-reorder ("make room") — dragged card hidden, others slide (see printer grid). */
+.cam-wall-card--dragging { opacity: 0; }
 /* Prevent native image/video drag from intercepting card DnD */
 .cam-wall-card img,
 .cam-wall-card video { -webkit-user-drag: none; }

@@ -360,10 +360,18 @@
     letter-spacing: .06em;
   }
   .sb-stat .label::before { display: none; }
+  /* ⓘ info bubble on the "Stock value" stat */
+  .sb-stat-info { display: inline-flex; align-items: center; margin-left: 4px; vertical-align: -1px; cursor: help; }
+  .sb-stat-info .icon { background-color: rgba(255,255,255,.45); }
+  .sb-stat-info:hover .icon { background-color: rgba(255,255,255,.85); }
   .sb-stat .value {
     font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums;
     color: #fff; margin-top: 4px; letter-spacing: -.02em;
+    transition: color .3s ease;   /* tint back to white after the ticker animation */
   }
+  /* Ticker count animation — brief green (up) / red (down) tint while rolling. */
+  .sb-stat .value.stat-up   { color: #4ade80; }
+  .sb-stat .value.stat-down { color: #f87171; }
   .sidebar.collapsed .sb-stats-wrap {
     display: flex; padding: 8px 5px; gap: 4px; overflow-y: auto;
   }
@@ -568,6 +576,12 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
+  /* Drag-to-reorder — chips slide (translateY) to open the drop gap; the dragged
+     chip is hidden (the OS drag image follows the cursor instead). The slide
+     transition is applied inline in JS so no sidebar-state rule can override it. */
+  .sb-reordering .sb-friend-chip { will-change: transform; }
+  .sb-friend-chip--dragging { opacity: 0; }
+
   /* Hide chip names when sidebar is collapsed (avatars only).
      The `.sb-actions button { width: 36px; height: 36px; padding: 0 }`
      rule above hits any <button> inside .sb-actions — including our
