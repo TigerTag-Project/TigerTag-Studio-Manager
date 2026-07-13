@@ -3900,6 +3900,35 @@
 .clm-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
 .clm-textarea { height: auto; min-height: 74px; padding: 10px 12px; line-height: 1.45; resize: vertical; }
 .clm-help { font-size: 12px; line-height: 1.5; color: var(--muted); margin-top: -4px; }
+/* A field can be conditionally hidden (message field on a private list). Beats
+   the `.clm-field { display: flex }` rule without !important. */
+.clm-field[hidden] { display: none; }
+/* List-type segmented selector — 3 cards (Private / Friends / Public), replacing
+   the privacy dropdown. Icon + title + one-line description; active = primary. */
+.clm-vis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.clm-vis-opt {
+  /* height:auto/min-height:0 beat the global `button { height: 40px }` rule that
+     would otherwise squash this column card and overflow its content upward. */
+  height: auto; min-height: 0;
+  display: flex; flex-direction: column; align-items: center; gap: 5px; text-align: center;
+  padding: 12px 6px 11px; border-radius: 12px; border: 1.5px solid var(--border);
+  background: var(--surface-2); color: var(--text); cursor: pointer; font-family: inherit;
+  transition: border-color .12s, background-color .12s, transform .06s;
+}
+/* Per-type accent colour (matches the sidebar / Details badge): purple / blue / green. */
+.clm-vis-opt[data-vis="private"] { --vc: #8358d6; }
+.clm-vis-opt[data-vis="friends"] { --vc: #2f74d0; }
+.clm-vis-opt[data-vis="public"]  { --vc: #2e9e6b; }
+.clm-vis-opt:hover { border-color: color-mix(in srgb, var(--vc) 40%, var(--border)); }
+.clm-vis-opt:active { transform: scale(.98); }
+.clm-vis-ic { flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 50%; background: color-mix(in srgb, var(--vc) 10%, var(--surface)); }
+.clm-vis-ic .icon { background-color: var(--vc); }
+.clm-vis-t { font-size: 12.5px; font-weight: 700; }
+.clm-vis-d { font-size: 10px; color: var(--muted); line-height: 1.2; }
+.clm-vis-opt.is-active { border-color: var(--vc); background: color-mix(in srgb, var(--vc) 10%, transparent); }
+.clm-vis-opt.is-active .clm-vis-ic { background: color-mix(in srgb, var(--vc) 20%, transparent); }
+.clm-vis-opt.is-active .clm-vis-ic .icon { background-color: var(--vc); }
+.clm-vis-opt.is-active .clm-vis-t { color: var(--vc); }
 .clm-footer { display: flex; align-items: center; gap: 10px; margin-top: 20px; }
 /* Right-aligned action group; keeps Cancel/Save on the right even when the
    left-edge Delete button is hidden (create mode). */

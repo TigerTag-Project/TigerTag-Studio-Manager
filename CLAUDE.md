@@ -116,7 +116,7 @@ Pick the release version **automatically from what `WORKLOG.md` contains** — d
 
 Rule of thumb: *would a user notice a new thing they can now do?* → **MINOR**. *Only "it works right/better now"?* → **PATCH**. When Added has one real feature among fixes, that still makes it a **MINOR**.
 
-**The placeholder bump from step 5 is a PATCH guess.** At release time, re-evaluate against the real WORKLOG and, if it disagrees, **correct the version everywhere before committing**: `package.json`, the `CHANGELOG.md` heading, the `data/release-notes/vX.Y.Z.md` filename, the `whatsnew` key, and the tag. Example: pre-bumped to `2.0.1` but the cycle shipped real features → the release is `2.1.0`; fix all of the above to `2.1.0`.
+**The placeholder bump from step 6 is a PATCH guess.** At release time, re-evaluate against the real WORKLOG and, if it disagrees, **correct the version everywhere before committing**: `package.json`, the `CHANGELOG.md` heading, the `data/release-notes/vX.Y.Z.md` filename, the `whatsnew` key, the `FEATURES.md` version tags for this release (+ its "current as of" line), and the tag. Example: pre-bumped to `2.0.1` but the cycle shipped real features → the release is `2.1.0`; fix all of the above to `2.1.0`.
 
 ### At commit time (in order)
 
@@ -127,8 +127,10 @@ Rule of thumb: *would a user notice a new thing they can now do?* → **MINOR**.
 3. **Write the "What's New" entry** (register 3 — Discord/app voice) for the version → `data/whatsnew.json`. Run `npm run whatsnew:add -- <x.y.z> [--items N] [--date YYYY-MM-DD]` to scaffold an empty **9-locale** block, then fill each item's `icon` (an icon-name → `.icon-<name>` mask, e.g. `list-check`, `cart`, `user`, `link`, `swap`, `bell`; **not** a literal emoji) + vulgarised `title`/`body` for **all 9 locales** (history is kept — never delete old versions). Verify with `npm run whatsnew:check` (must pass — no empty locale). This drives the in-app "What's New" modal shown once per version (and re-openable from Settings → About).
    - **One item = ONE topic.** Never cram two distinct changes into a single entry — if a release ships two unrelated things (e.g. "friends' lists now show" AND "buy buttons no longer overflow"), that's **two items**, each with its own icon/title/body. A crammed two-subject item is confusing in the modal.
    - **Benefit-first, no confusing technical examples.** Say what it does FOR the user, not the mechanism; drop concrete tech examples (don't write `adieu 'eu.store.bambulab.com'` — say "the shop name shows cleanly, without overflowing"). Still playful/deadpan (register 3) in every locale.
-4. **Include `WORKLOG.md` in the commit** — it is part of the repo history (future sessions can read it via `git show`)
-5. **Reset `WORKLOG.md` AND bump `package.json` to the NEXT PATCH** immediately after committing — both left **uncommitted** (they ship with the next release). This next-patch number is a **placeholder** (we don't yet know what the next cycle will contain); it's corrected to a MINOR/MAJOR at the next release if the WORKLOG warrants it (step 0 above). Bumping `package.json` here (not only at release time) means the **dev build shows an in-progress version number** (`#sbVersion`) instead of the previous release's — so while working on the next version the app reads it, not the shipped one. Replace `WORKLOG.md` with the blank template for the next version (bump the header too):
+   - **Consumer-facing only — NEVER surface a non-public feature in the What's New.** Admin/dev/internal features (debug tools, telemetry plumbing, anything gated to admin/debug mode, internal refactors, dev-only utilities) are **excluded** from the What's New — and from the release note (register 2). They live in the `CHANGELOG.md` (register 1) only. Litmus test: *would a normal end-user notice or use it?* If no (it's for the maintainer, or hidden behind debug mode), omit it from registers 2 & 3. When a WORKLOG entry is flagged internal/admin-only, skip it at steps 2 and 3.
+4. **Update `FEATURES.md`** — the single consolidated feature catalogue (grouped by domain, one bullet per shipped feature, each tagged with the version it landed). For every genuinely NEW capability in this release (the `## Added` items, and any `## Changed` that introduces a new user-facing behaviour), add/adjust its bullet in the right domain and tag it `(vX.Y.Z)`; for an enhancement to an existing feature, append the version to that bullet (e.g. `(v2.7.0, per-item quantities v2.9.0)`). Pure fixes / internal changes do NOT get an entry (it's a *feature* catalogue, not a changelog). Keep the intro line's "current as of vX.Y.Z" accurate. This keeps the catalogue from re-rotting the way README/ROADMAP did. Source of truth = the `CHANGELOG.md` entry you just wrote.
+5. **Include `WORKLOG.md` in the commit** — it is part of the repo history (future sessions can read it via `git show`)
+6. **Reset `WORKLOG.md` AND bump `package.json` to the NEXT PATCH** immediately after committing — both left **uncommitted** (they ship with the next release). This next-patch number is a **placeholder** (we don't yet know what the next cycle will contain); it's corrected to a MINOR/MAJOR at the next release if the WORKLOG warrants it (step 0 above). Bumping `package.json` here (not only at release time) means the **dev build shows an in-progress version number** (`#sbVersion`) instead of the previous release's — so while working on the next version the app reads it, not the shipped one. Replace `WORKLOG.md` with the blank template for the next version (bump the header too):
 
 ```markdown
 # Worklog — vX.Y.Z (in progress)
@@ -149,6 +151,27 @@ Rule of thumb: *would a user notice a new thing they can now do?* → **MINOR**.
 - `CHANGELOG.md` — the synthesized release entry, human-readable
 
 The working file is wiped so it stays clean and unambiguous: whatever is in `WORKLOG.md` right now is *only* what has been done since the last commit, nothing older.
+
+### Token-efficient release — delegate the GENERATION to parallel sub-agents
+
+The release ceremony is token-heavy in **generation**, not in decisions. Sub-agents do that generation in **their own** context and return only a short confirmation, so the main Opus context stays lean — and they run **in parallel** (wall-clock win too). Apply this on any real release (skip it for a tiny patch where the setup costs more than it saves).
+
+**Keep on the main Opus loop** (cheap in tokens, high-stakes — do NOT delegate):
+- **Deciding the version** (SemVer judgment on the WORKLOG — step 0).
+- **The final consistency review** + running the validators (`npm run i18n:check`, `whatsnew:check`, `codemap:check`, `node --check`). These mechanically catch a drifting sub-agent (empty locale, bad range) — they are the safety net.
+- **Git / gh**: commit message, tag, push, publish-as-latest, build watch. ~0 tokens, high risk → keep here.
+
+**Delegate (the big generation), as a pipeline** — one dependency, then a fan-out:
+1. **First, sequentially: `CHANGELOG.md` entry (register 1)** — it is the SOURCE the others derive from, so it must exist before the fan-out. Do it on the main loop (you already hold the WORKLOG in context) OR one Sonnet agent; then read back only its text.
+2. **Then, in parallel** (each depends only on the changelog text, not on each other) — spawn on **Sonnet** (`simple-task` for a single file, `general-purpose` if it must read several):
+   - **Release note (register 2)** → `data/release-notes/vX.Y.Z.md` (BambuLab style; copy the footer from the previous version's file).
+   - **What's New (register 3), 9 locales** → `data/whatsnew.json` (BIGGEST saving — playful/deadpan, one topic per item, icons; **exclude non-public/admin features**). Scaffold with `npm run whatsnew:add` inside the agent.
+   - **`FEATURES.md`** → add the genuinely new capabilities, tag `(vX.Y.Z)`.
+   - **CODEMAP re-sync** (only if `inventory.js`/`main.js` moved a lot this cycle) → fix the drifted section ranges until `npm run codemap:check` passes.
+
+**Each sub-agent prompt MUST be self-sufficient** (they see nothing of the conversation): paste the relevant register's rules from *Three copy registers* + the exact `CHANGELOG.md` entry as the source + the release version + a one-line example of the target tone. Tier the model: generation on **Sonnet**, the version decision + final review on **Opus** (here).
+
+**Order of operations:** decide version (Opus) → write CHANGELOG (Opus/agent) → fan-out {note, whatsnew, FEATURES, codemap} on Sonnet in parallel → back on Opus: run ALL validators, one consistency read-through, then commit → tag → push → watch build → publish latest → reset WORKLOG + bump `package.json`.
 
 ### Before starting any task
 

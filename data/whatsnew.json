@@ -5872,5 +5872,160 @@
         }
       }
     ]
+  },
+  "2.10.0": {
+    "date": "2026-07-13",
+    "items": [
+      {
+        "icon": "swap",
+        "title": {
+          "en": "Shuffle your lists, wherever they belong",
+          "fr": "Rangez vos listes, où vous voulez",
+          "de": "Sortier deine Listen, wie du willst",
+          "es": "Ordena tus listas a tu gusto",
+          "it": "Riordina le liste come vuoi",
+          "zh": "随手整理你的清单",
+          "pt": "Organize suas listas do seu jeito",
+          "pt-pt": "Organiza as tuas listas à tua maneira",
+          "pl": "Poukładaj listy po swojemu"
+        },
+        "body": {
+          "en": "Drag your wishlists into any order you like. Drag one across to Private, Friends or Public and you decide who gets to see it.",
+          "fr": "Glissez vos listes dans l'ordre qui vous plaît. Faites-en glisser une vers Privée, Amis ou Publique et c'est vous qui choisissez qui la voit.",
+          "de": "Zieh deine Wunschlisten in die Reihenfolge, die dir passt. Schieb eine rüber zu Privat, Freunde oder Öffentlich — du entscheidest, wer sie sieht.",
+          "es": "Arrastra tus listas al orden que quieras. Lleva una a Privada, Amigos o Pública y tú decides quién la ve.",
+          "it": "Trascina le tue liste nell'ordine che preferisci. Spostane una su Privata, Amici o Pubblica e decidi tu chi la vede.",
+          "zh": "把心愿单拖成你喜欢的顺序。想换个人看？拖到「私密」「好友」或「公开」就行，谁能看你说了算。",
+          "pt": "Arraste suas listas para a ordem que quiser. Leve uma para Privada, Amigos ou Pública e você decide quem vê.",
+          "pt-pt": "Arrasta as tuas listas para a ordem que quiseres. Leva uma para Privada, Amigos ou Pública e decides tu quem a vê.",
+          "pl": "Przeciągnij listy w dowolnej kolejności. Przerzuć którąś do Prywatnej, Znajomych albo Publicznej i to Ty decydujesz, kto ją zobaczy."
+        }
+      },
+      {
+        "icon": "palette",
+        "title": {
+          "en": "Who sees what, at a glance",
+          "fr": "Qui voit quoi, d'un coup d'œil",
+          "de": "Wer was sieht, auf einen Blick",
+          "es": "Quién ve qué, de un vistazo",
+          "it": "Chi vede cosa, a colpo d'occhio",
+          "zh": "谁能看，一眼就懂",
+          "pt": "Quem vê o quê, num relance",
+          "pt-pt": "Quem vê o quê, num relance",
+          "pl": "Kto co widzi — od razu jasne"
+        },
+        "body": {
+          "en": "Each list now has its own colour and badge, so Private, Friends and Public are obvious without a second look.",
+          "fr": "Chaque liste a désormais sa couleur et son badge : Privée, Amis et Publique se reconnaissent sans y réfléchir.",
+          "de": "Jede Liste hat jetzt ihre eigene Farbe und ein Abzeichen — Privat, Freunde und Öffentlich erkennst du sofort.",
+          "es": "Ahora cada lista tiene su color y su distintivo, así Privada, Amigos y Pública se distinguen sin pensarlo.",
+          "it": "Ora ogni lista ha il suo colore e il suo distintivo, così Privata, Amici e Pubblica si riconoscono al volo.",
+          "zh": "现在每份清单都有专属颜色和标记，「私密」「好友」「公开」不用细看就分得清。",
+          "pt": "Agora cada lista tem sua própria cor e selo, então Privada, Amigos e Pública se distinguem sem esforço.",
+          "pt-pt": "Agora cada lista tem a sua cor e o seu selo, por isso Privada, Amigos e Pública distinguem-se num instante.",
+          "pl": "Każda lista ma teraz swój kolor i odznakę, więc Prywatną, Znajomych i Publiczną rozpoznasz bez zastanowienia."
+        }
+      },
+      {
+        "icon": "info",
+        "title": {
+          "en": "Your open list, tidied up",
+          "fr": "Votre liste ouverte, au propre",
+          "de": "Deine offene Liste, aufgeräumt",
+          "es": "Tu lista abierta, más ordenada",
+          "it": "La tua lista aperta, in ordine",
+          "zh": "打开清单，焕然一新",
+          "pt": "Sua lista aberta, mais arrumada",
+          "pt-pt": "A tua lista aberta, mais arrumada",
+          "pl": "Otwarta lista, uporządkowana"
+        },
+        "body": {
+          "en": "Open a list and everything's in its place: a neat Details card with the type, how many items, the occasion and your note, under a cleaner header.",
+          "fr": "Ouvrez une liste et tout est à sa place : une carte Détails soignée avec le type, le nombre d'articles, l'occasion et votre note, sous un en-tête plus net.",
+          "de": "Öffne eine Liste und alles hat seinen Platz: eine übersichtliche Detailkarte mit Typ, Anzahl der Einträge, Anlass und deiner Notiz — unter einem aufgeräumteren Kopf.",
+          "es": "Abre una lista y todo está en su sitio: una tarjeta de Detalles ordenada con el tipo, cuántos artículos, la ocasión y tu nota, bajo un encabezado más limpio.",
+          "it": "Apri una lista e tutto è al suo posto: una scheda Dettagli ordinata con il tipo, quanti articoli, l'occasione e la tua nota, sotto un'intestazione più pulita.",
+          "zh": "打开一份清单，一切井井有条：清爽的「详情」卡片列出类型、数量、场合和你的备注，标题栏也更简洁了。",
+          "pt": "Abra uma lista e está tudo no lugar: um cartão de Detalhes organizado com o tipo, quantos itens, a ocasião e sua nota, sob um cabeçalho mais limpo.",
+          "pt-pt": "Abre uma lista e está tudo no sítio: um cartão de Detalhes arrumado com o tipo, quantos itens, a ocasião e a tua nota, sob um cabeçalho mais limpo.",
+          "pl": "Otwórz listę, a wszystko jest na swoim miejscu: schludna karta Szczegółów z typem, liczbą pozycji, okazją i Twoją notatką, pod czytelniejszym nagłówkiem."
+        }
+      },
+      {
+        "icon": "cart",
+        "title": {
+          "en": "Straight to restocking",
+          "fr": "Direct au réappro",
+          "de": "Direkt zum Nachbestellen",
+          "es": "Directo a reponer",
+          "it": "Dritto al riordino",
+          "zh": "一键去补货",
+          "pt": "Direto para repor",
+          "pt-pt": "Direto para repor",
+          "pl": "Prosto do zamawiania"
+        },
+        "body": {
+          "en": "Tap the little info button on a spool to jump straight to its restock panel — price, where to buy it and the level it should never drop below.",
+          "fr": "Touchez le petit bouton info d'une bobine pour filer droit vers son panneau de réappro — prix, où l'acheter et le seuil sous lequel elle ne devrait jamais descendre.",
+          "de": "Tipp auf den kleinen Info-Knopf einer Rolle und du landest direkt bei ihren Nachbestell-Infos — Preis, wo du sie kaufst und der Stand, unter den sie nie fallen sollte.",
+          "es": "Toca el botoncito de info de una bobina para ir directo a su panel de reposición: precio, dónde comprarla y el nivel bajo el que nunca debería bajar.",
+          "it": "Tocca il pulsantino info di una bobina per andare dritto al suo pannello di riordino — prezzo, dove comprarla e il livello sotto cui non dovrebbe mai scendere.",
+          "zh": "点一下线材上的小信息按钮，直接跳到它的补货面板——价格、在哪买，还有绝不该低于的库存线。",
+          "pt": "Toque no botãozinho de info de um rolo para ir direto ao painel de reposição — preço, onde comprar e o nível abaixo do qual nunca deveria ficar.",
+          "pt-pt": "Toca no botãozinho de info de um rolo para ires direto ao painel de reposição — preço, onde o comprar e o nível abaixo do qual nunca deveria descer.",
+          "pl": "Dotknij małego przycisku info na szpuli, by od razu przejść do panelu zamawiania — cena, gdzie kupić i poziom, poniżej którego nie powinna spaść."
+        }
+      },
+      {
+        "icon": "package",
+        "title": {
+          "en": "Tap to see the whole thing",
+          "fr": "Touchez pour tout voir",
+          "de": "Antippen für alle Details",
+          "es": "Toca para verlo todo",
+          "it": "Tocca per vedere tutto",
+          "zh": "点一下看全貌",
+          "pt": "Toque para ver tudo",
+          "pt-pt": "Toca para veres tudo",
+          "pl": "Dotknij, by zobaczyć całość"
+        },
+        "body": {
+          "en": "In your 'To order' pile, tapping a filament now opens its full product card — everything about it, right there.",
+          "fr": "Dans votre liste « À commander », toucher un filament ouvre maintenant sa fiche produit complète — tout sur lui, tout de suite.",
+          "de": "In deinem „Zu bestellen\"-Stapel öffnet ein Tipp auf ein Filament jetzt seine komplette Produktkarte — alles dazu, sofort.",
+          "es": "En tu lista de 'Por pedir', tocar un filamento ahora abre su ficha de producto completa — todo sobre él, ahí mismo.",
+          "it": "Nella tua lista 'Da ordinare', toccare un filamento ora apre la sua scheda prodotto completa — tutto su di esso, subito.",
+          "zh": "在「待订购」里，点一下某卷耗材，现在会直接打开它的完整产品卡片——所有信息一目了然。",
+          "pt": "Na sua pilha de 'A encomendar', tocar num filamento agora abre o cartão de produto completo — tudo sobre ele, ali mesmo.",
+          "pt-pt": "Na tua lista de 'A encomendar', tocar num filamento agora abre a ficha de produto completa — tudo sobre ele, ali mesmo.",
+          "pl": "Na stosie „Do zamówienia\" dotknięcie filamentu otwiera teraz jego pełną kartę produktu — wszystko o nim, od razu."
+        }
+      },
+      {
+        "icon": "eye-on",
+        "title": {
+          "en": "Every Creality shows its own camera",
+          "fr": "Chaque Creality montre sa propre caméra",
+          "de": "Jede Creality zeigt ihre eigene Kamera",
+          "es": "Cada Creality muestra su propia cámara",
+          "it": "Ogni Creality mostra la sua telecamera",
+          "zh": "每台 Creality 都显示自己的画面",
+          "pt": "Cada Creality mostra a própria câmera",
+          "pt-pt": "Cada Creality mostra a sua própria câmara",
+          "pl": "Każda Creality pokazuje własną kamerę"
+        },
+        "body": {
+          "en": "Got a few Creality printers? Each one finally shows its own live view — no more everyone sharing the same feed.",
+          "fr": "Plusieurs imprimantes Creality ? Chacune affiche enfin sa propre vidéo en direct — fini le flux partagé par tout le monde.",
+          "de": "Mehrere Creality-Drucker? Jeder zeigt jetzt endlich sein eigenes Live-Bild — Schluss damit, dass alle denselben Stream teilen.",
+          "es": "¿Varias impresoras Creality? Cada una por fin muestra su propia vista en vivo — se acabó compartir la misma imagen.",
+          "it": "Più stampanti Creality? Ognuna finalmente mostra la sua diretta — basta con tutte che condividono lo stesso video.",
+          "zh": "有好几台 Creality？现在每台终于显示自己的实时画面了——不用再大家共用同一个视频了。",
+          "pt": "Tem várias impressoras Creality? Cada uma finalmente mostra sua própria transmissão ao vivo — chega de todas dividirem a mesma imagem.",
+          "pt-pt": "Tens várias impressoras Creality? Cada uma mostra finalmente a sua própria transmissão em direto — acabou o feed partilhado por todas.",
+          "pl": "Masz kilka drukarek Creality? Każda wreszcie pokazuje własny obraz na żywo — koniec z jednym wspólnym podglądem dla wszystkich."
+        }
+      }
+    ]
   }
 }

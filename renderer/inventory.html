@@ -2126,24 +2126,40 @@
         <input class="clm-input" id="clmName" type="text" maxlength="80" autocomplete="off" spellcheck="false"
                data-i18n-placeholder="listModalNamePh" placeholder="My list" />
       </label>
-      <div class="clm-help" data-i18n="listModalHelp">Your lists stay private — share one with friends or a public link whenever you like.</div>
+      <!-- List type first — it's the structuring choice (it also decides whether the
+           "message for friends" field below makes sense). Segmented 3-way selector. -->
+      <div class="clm-field">
+        <span class="clm-label" data-i18n="listModalTypeLabel">List type</span>
+        <div class="clm-vis" role="radiogroup" id="clmVisGroup">
+          <button type="button" class="clm-vis-opt" data-vis="private" role="radio" aria-checked="true">
+            <span class="clm-vis-ic"><span class="icon icon-eye-off icon-16"></span></span>
+            <span class="clm-vis-t" data-i18n="visPrivateShort">Private</span>
+            <span class="clm-vis-d" data-i18n="listTypePrivateDesc">Only you</span>
+          </button>
+          <button type="button" class="clm-vis-opt" data-vis="friends" role="radio" aria-checked="false">
+            <span class="clm-vis-ic"><span class="icon icon-user icon-16"></span></span>
+            <span class="clm-vis-t" data-i18n="visFriends">Friends</span>
+            <span class="clm-vis-d" data-i18n="listTypeFriendsDesc">Your friends</span>
+          </button>
+          <button type="button" class="clm-vis-opt" data-vis="public" role="radio" aria-checked="false">
+            <span class="clm-vis-ic"><span class="icon icon-globe icon-16"></span></span>
+            <span class="clm-vis-t" data-i18n="visPublic">Public</span>
+            <span class="clm-vis-d" data-i18n="listTypePublicDesc">Shareable link</span>
+          </button>
+        </div>
+        <input type="hidden" id="clmVisibility" value="private" />
+      </div>
       <label class="clm-field">
         <span class="clm-label" data-i18n="listModalEventLabel">Celebrating an event?</span>
         <input class="clm-input" id="clmOccasion" type="text" maxlength="60" autocomplete="off" spellcheck="false"
                data-i18n-placeholder="listModalOccasionPh" placeholder="Birthday, Christmas, Father's Day…" />
       </label>
-      <label class="clm-field">
-        <span class="clm-label" data-i18n="listModalMessageLabel">Message for your friends</span>
+      <!-- Always shown; label/placeholder adapt to the type — a message for friends
+           on a shared list, or a note to future-you on a private one. -->
+      <label class="clm-field" id="clmMessageField">
+        <span class="clm-label" id="clmMessageLabel" data-i18n="listModalMessageLabel">Message for your friends</span>
         <textarea class="clm-input clm-textarea" id="clmMessage" maxlength="500" rows="3" spellcheck="true"
                data-i18n-placeholder="listModalMessagePh" placeholder="A little note for whoever's shopping…"></textarea>
-      </label>
-      <label class="clm-field">
-        <span class="clm-label" data-i18n="listModalVisibility">Privacy</span>
-        <select class="clm-input" id="clmVisibility">
-          <option value="friends" data-i18n="visFriends">Friends</option>
-          <option value="private" data-i18n="visPrivate">Private (only me)</option>
-          <option value="public" data-i18n="visPublic">Public</option>
-        </select>
       </label>
     </div>
     <div class="clm-footer">

@@ -3046,6 +3046,10 @@
   .pi-flags-row + .panel-identity { border-top: none; padding-top: 0; }   /* group the actions row with the name */
   .flag-toggle--list:hover { background: color-mix(in srgb, var(--primary) 14%, transparent); border-color: var(--primary); }
   .flag-toggle--list:hover .icon { background-color: var(--primary); }
+  /* "Product info page" — a navigation action (opens the catalogue page), same
+     neutral→primary hover as the add-to-list button, not a toggle. */
+  .flag-toggle--info:hover { background: color-mix(in srgb, var(--primary) 14%, transparent); border-color: var(--primary); }
+  .flag-toggle--info:hover .icon { background-color: var(--primary); }
   /* "+ Material" — styled as a toolbox row (see .toolbox-row); a small top margin
      separates it from the References block above. */
   .ro-cloud-row { margin-top: 4px; }
@@ -3345,23 +3349,67 @@
   .dns-btn-save { width: 100%; height: 44px; font-size: 15px; border-radius: 10px; }
 
   /* ── Lists view (Amazon-style wishlists) ── */
-  .inv-lists-view { margin-top: 12px; }
+  /* Fill the remaining height inside #card-inv so each column can scroll on its own. */
+  .inv-lists-view { margin-top: 12px; flex: 1; min-height: 0; display: flex; flex-direction: column; }
   /* Amazon-style two columns: list sidebar (left) + selected list (right). */
-  .lv-amz { display: flex; gap: 20px; align-items: flex-start; }
-  .lv-side { flex: 0 0 220px; display: flex; flex-direction: column; gap: 2px; }
+  .lv-amz { display: flex; gap: 20px; align-items: stretch; flex: 1; min-height: 0; }
+  .lv-side { flex: 0 0 220px; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; min-height: 0; }
+  /* Scroll stays, scrollbars hidden (matches the products view's clean look). */
+  .lv-side, .lv-rows, .lv-rail { scrollbar-width: none; }
+  .lv-side::-webkit-scrollbar, .lv-rows::-webkit-scrollbar, .lv-rail::-webkit-scrollbar { width: 0; height: 0; }
   .lv-side-head { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); padding: 2px 10px 8px; }
+  /* List row — indented under its visibility group header so the nesting reads
+     (child sits right of the parent label); article count is a rounded pill, so it
+     never looks like the plain number a group header used to carry. */
   .lv-side-item {
-    display: flex; align-items: center; gap: 8px; width: 100%;
-    padding: 9px 10px; border-radius: 9px; border: 1px solid transparent;
+    display: flex; align-items: center; gap: 7px; width: 100%;
+    padding: 7px 9px; border-radius: 9px; border: 1px solid transparent;
     background: transparent; color: var(--text); font-size: 13.5px; text-align: left; cursor: pointer;
     transition: background-color .12s, border-color .12s;
   }
   .lv-side-item:hover { background: var(--surface-2); }
   .lv-side-item.is-active { background: color-mix(in srgb, var(--primary) 12%, transparent); border-color: color-mix(in srgb, var(--primary) 40%, transparent); font-weight: 600; }
+  /* Drag handle — the whole row is draggable, the grip is the affordance. */
+  .lv-side-grip { flex-shrink: 0; display: inline-flex; align-items: center; cursor: grab; opacity: .4; }
+  .lv-side-grip .icon { background-color: var(--muted); }
+  .lv-side-item:hover .lv-side-grip { opacity: .85; }
+  /* The grabbed row vanishes from its slot (only the cursor drag-image remains);
+     the make-room shift slides the following rows up over its now-hidden spot. */
+  .lv-side-item--dragging { opacity: 0; pointer-events: none; }
   .lv-side-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .lv-side-vis { display: inline-flex; align-items: center; flex-shrink: 0; }
-  .lv-side-vis .icon { background-color: var(--muted); }
-  .lv-side-n { color: var(--muted); font-size: 11px; font-weight: 700; }
+  .lv-side-n {
+    flex-shrink: 0; min-width: 20px; text-align: center;
+    padding: 1px 7px; border-radius: 999px; background: var(--surface-2);
+    color: var(--muted); font-size: 10.5px; font-weight: 700; line-height: 1.5;
+  }
+  .lv-side-item.is-active .lv-side-n { background: color-mix(in srgb, var(--primary) 22%, transparent); color: var(--primary); }
+  /* Visibility drop zone — holds a group's rows; always present (even empty) so a
+     list can be dragged into any type. Empty = a dashed "drop here" hint. */
+  .lv-side-zone { display: flex; flex-direction: column; gap: 2px; min-height: 6px; border-radius: 9px; transition: background-color .12s; }
+  .lv-side-empty {
+    padding: 8px 10px; margin: 1px 0; border: 1px dashed var(--border); border-radius: 8px;
+    font-size: 11px; color: var(--muted); text-align: center; opacity: .8;
+  }
+  /* While dragging, make every group visibly droppable. */
+  .lv-side-dragging .lv-side-zone { background: color-mix(in srgb, var(--primary) 5%, transparent); }
+  .lv-side-dragging .lv-side-empty { border-color: color-mix(in srgb, var(--primary) 45%, var(--border)); color: var(--primary); opacity: 1; }
+  /* Visibility group header (Private / Friends / Public) — a quiet section label,
+     NOT a row: no count, no hover, generous top spacing so it clearly separates
+     the buckets. The lists are bucketed by type, so rows drop their own glyph. */
+  /* Group header = a gradient pill badge (same family as the Details type badge /
+     .tag-plus / .tag-cloud), one colour per type, white icon + label. Left-aligned,
+     shrinks to content. */
+  .lv-side-group {
+    align-self: flex-start; display: inline-flex; align-items: center; gap: 4px;
+    margin: 14px 0 5px 10px; padding: 3px 9px; border-radius: 999px; color: #fff;
+    font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  }
+  .lv-side-group:first-of-type { margin-top: 2px; }
+  .lv-side-group .icon { background-color: #fff; flex-shrink: 0; }
+  .lv-side-group-lbl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lv-side-group--private { background: linear-gradient(90deg,#8358d6,#a888ea); }
+  .lv-side-group--friends { background: linear-gradient(90deg,#2f74d0,#5b9bef); }
+  .lv-side-group--public  { background: linear-gradient(90deg,#2e9e6b,#4fc98d); }
   /* Visibility status badge — shown next to the list title (and each sidebar row),
      so the private / friends / public state is visible without opening edit. Owner
      can click it to jump into the edit modal. Colour-coded per state. */
@@ -3370,26 +3418,67 @@
     letter-spacing: .01em; border: 1px solid transparent; }
   .lv-vis[role="button"] { cursor: pointer; }
   .lv-vis .icon { width: 12px; height: 12px; }
-  .lv-vis--private { color: var(--muted); background: var(--surface-2); border-color: var(--border); }
-  .lv-vis--private .icon { background-color: var(--muted); }
+  .lv-vis--private { color: #8358d6; background: color-mix(in srgb, #8358d6 12%, transparent); border-color: color-mix(in srgb, #8358d6 30%, transparent); }
+  .lv-vis--private .icon { background-color: #8358d6; }
   .lv-vis--friends { color: #2f74d0; background: color-mix(in srgb, #2f74d0 12%, transparent); }
   .lv-vis--friends .icon { background-color: #2f74d0; }
   .lv-vis--public { color: #2e9e6b; background: color-mix(in srgb, #2e9e6b 14%, transparent); }
   .lv-vis--public .icon { background-color: #2e9e6b; }
   /* Right rail — stacks the payment summary + the public share card. */
-  .lv-rail { flex: 0 0 300px; align-self: flex-start; position: sticky; top: 4px;
+  .lv-rail { flex: 0 0 300px; overflow-y: auto; min-height: 0;
     display: flex; flex-direction: column; gap: 16px; min-width: 0; }
   .lv-rail .lv-public-card { flex: initial; width: 100%; position: static; top: auto; }
   .lv-summary { margin-top: 0; }
+  /* Event + Message card (right rail, above Payment) — each with its own labelled
+     row + icon, so the occasion and the note to friends are clearly readable. */
+  .lv-info-card {
+    border: 1px solid var(--border); border-radius: 12px; background: var(--surface);
+    padding: 12px 14px; display: flex; flex-direction: column; gap: 12px;
+  }
+  /* A field = a small coloured accent icon prefixing the label, value on the line below.
+     No icon "boxes" (rounded squares read as heavy chrome here) — just the bare glyph. */
+  .lv-info-row, .lv-info-stat { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .lv-info-lbl { display: inline-flex; align-items: center; gap: 6px;
+    font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+  .lv-info-ic { flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; }
+  .lv-info-ic .icon { background-color: var(--muted); }
+  .lv-info-ic--event .icon  { background-color: #c98a1e; }
+  .lv-info-ic--msg .icon    { background-color: #2f74d0; }
+  .lv-info-ic--private .icon { background-color: #8358d6; }
+  .lv-info-ic--friends .icon { background-color: #2f74d0; }
+  .lv-info-ic--public .icon  { background-color: #2e9e6b; }
+  .lv-info-ic--count .icon   { background-color: var(--muted); }
+  .lv-info-val { font-size: 13.5px; font-weight: 600; color: var(--text); word-break: break-word; }
+  .lv-info-val--msg { font-weight: 500; line-height: 1.4; white-space: pre-wrap; }
+  /* Type shown as a gradient pill badge (same family as .tag-plus / .tag-cloud),
+     tinted per visibility, white icon + label. */
+  .lv-type-badge { display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 9px; border-radius: 999px; color: #fff;
+    font-size: 11px; font-weight: 700; letter-spacing: .03em; }
+  .lv-type-badge .icon { background-color: #fff; }
+  .lv-type-badge--private { background: linear-gradient(90deg,#8358d6,#a888ea); }
+  .lv-type-badge--friends { background: linear-gradient(90deg,#2f74d0,#5b9bef); }
+  .lv-type-badge--public  { background: linear-gradient(90deg,#2e9e6b,#4fc98d); }
+  /* Card header — "Details" label + the Manage/Edit action (moved out of the view header). */
+  .lv-info-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .lv-info-head-lbl { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  .lv-info-edit { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+    width: 30px; height: 30px; min-height: 0; padding: 0;
+    border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); cursor: pointer; }
+  .lv-info-edit .icon { background-color: var(--muted); }
+  .lv-info-edit:hover { border-color: var(--primary); }
+  .lv-info-edit:hover .icon { background-color: var(--primary); }
+  /* Type + item count as a compact two-up strip (short scalars, side by side). Each is
+     a single inline line — icon + value (no separate uppercase label above). */
+  .lv-info-stats { display: flex; gap: 10px; }
+  .lv-info-stat { flex: 1; }
+  .lv-info-stat--inline { flex-direction: row; align-items: center; gap: 7px; }
   /* Public share card — right rail (QR + "Copy link" button), shown when public. */
   .lv-public-card { flex: 0 0 240px; align-self: flex-start; position: sticky; top: 4px;
     display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center;
     padding: 18px 16px; border-radius: 14px;
     background: color-mix(in srgb, #2e9e6b 8%, var(--surface-2));
     border: 1px solid color-mix(in srgb, #2e9e6b 28%, transparent); }
-  .lv-public-title { display: inline-flex; align-items: center; gap: 6px; font-size: 12px;
-    font-weight: 700; color: #2e9e6b; }
-  .lv-public-title .icon { background-color: #2e9e6b; }
   .lv-qr-wrap { align-self: center; line-height: 0; }
   .lv-public-qr { width: 160px; height: 160px; border-radius: 10px; background: #fff; padding: 6px; }
   /* Actions row: "Copy link" (grows) + a square Download-QR button on its right. */
@@ -3454,7 +3543,7 @@
   .lv-social--mail { background: #5b6470; }
   .lv-social--mail .icon { width: 16px; height: 16px; }
   .lv-side-new {
-    display: flex; align-items: center; gap: 8px; width: 100%; margin-top: 6px;
+    display: flex; align-items: center; gap: 8px; width: 100%; margin: 2px 0 8px;
     padding: 9px 10px; border-radius: 9px; border: 1px dashed var(--border);
     background: transparent; color: var(--primary); font-size: 13px; font-weight: 600; cursor: pointer;
     transition: background-color .12s, border-color .12s;
@@ -3463,11 +3552,11 @@
   .lv-side-new .icon { background-color: var(--primary); }
   /* Main = items column (header + list, left) + the public share card (right rail,
      when public). Row layout so the card rises to the header level. */
-  .lv-main { flex: 1; min-width: 0; display: flex; align-items: flex-start; gap: 28px; }
-  .lv-main-col { flex: 1; min-width: 0; }
-  .lv-rows { display: flex; flex-direction: column; margin-top: 4px; }
+  .lv-main { flex: 1; min-width: 0; display: flex; align-items: stretch; gap: 28px; min-height: 0; }
+  .lv-main-col { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
+  .lv-rows { display: flex; flex-direction: column; margin-top: 4px; flex: 1; min-height: 0; overflow-y: auto; }
   /* List header — title (+ count) + owner actions, with a divider below. */
-  .lv-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+  .lv-head { flex-shrink: 0; display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
   .lv-head-main { min-width: 0; }
   .lv-title-row { display: flex; align-items: center; gap: 8px; }   /* edit button before the title */
   .lv-head-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
@@ -3498,38 +3587,15 @@
   .lv-remove:hover { border-color: var(--danger); background: color-mix(in srgb, var(--danger) 14%, var(--surface)); }
   .lv-remove:hover .icon { background-color: var(--danger); }
   .lv-title { display: inline-flex; align-items: center; gap: 8px; font-size: 18px; font-weight: 700; color: var(--text); }
-  .lv-count {
-    min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px;
-    display: inline-flex; align-items: center; justify-content: center;
-    background: var(--surface-2); border: 1px solid var(--border);
-    color: var(--muted); font-size: 12px; font-weight: 700;
-  }
   .lv-title-input {
     font-size: 18px; font-weight: 700; color: var(--text);
     background: var(--surface); border: 1px solid var(--primary); border-radius: 8px;
     padding: 2px 8px; min-width: 180px; outline: none;
   }
-  .lv-occasion { margin-top: 3px; font-size: 12px; color: var(--muted); }
-  /* Owner's custom message to friends — a quoted callout under the list header. */
-  .lv-message { margin-top: 8px; padding: 8px 12px; max-width: 560px;
-    border-left: 3px solid var(--primary); border-radius: 0 8px 8px 0;
-    background: color-mix(in srgb, var(--primary) 7%, var(--surface-2));
-    font-size: 13px; line-height: 1.5; color: var(--text); white-space: pre-wrap; word-break: break-word; }
-  .lv-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-  .lv-act {
-    width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0;
-    display: inline-flex; align-items: center; justify-content: center;
-    background: var(--surface-2); border: 1px solid var(--border); cursor: pointer;
-    transition: background-color .15s, border-color .15s;
-  }
-  .lv-act .icon { background-color: var(--muted); }
-  .lv-act:hover { border-color: var(--primary); }
-  .lv-act--danger:hover { border-color: var(--danger); }
-  .lv-act--danger:hover .icon { background-color: var(--danger); }
   .lv-delq { font-size: 12px; color: var(--muted); align-self: center; }
   /* Item ROWS — thumbnail · title/colour/price · buy + remove actions. */
   .lv-row {
-    display: flex; gap: 14px; padding: 14px 4px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 14px; padding: 14px 4px; border-bottom: 1px solid var(--border);
     cursor: pointer; transition: background-color .12s;
   }
   .lv-row:hover { background: color-mix(in srgb, var(--surface-2) 55%, transparent); }
@@ -3545,8 +3611,11 @@
   .lv-reordering .lv-row, .lv-reordering .lv-card { will-change: transform; }
   body.is-dragging-order .lv-row, body.is-dragging-order .lv-card { cursor: grabbing; }
   /* Buy / Add-a-link bar at the bottom of a grid card (full-width). */
-  .lv-card-buybar { padding: 0 10px 10px; margin-top: auto; display: flex; align-items: center; gap: 8px; }
-  .lv-card-buy { flex: 1; min-width: 0; height: 30px; justify-content: center; padding: 0 10px; font-size: 12px; }
+  /* Stacked: quantity on top (natural width), buy/add-link button on its own row
+     below at full width — the grid card is too narrow to fit both side by side. */
+  .lv-card-buybar { padding: 0 10px 10px; margin-top: auto; display: flex; flex-direction: column; align-items: stretch; gap: 7px; }
+  .lv-card-buybar > :first-child { align-self: flex-start; }
+  .lv-card-buy { flex: 0 0 auto; width: 100%; min-width: 0; height: 30px; justify-content: center; padding: 0 10px; font-size: 12px; }
   /* Amazon-style quantity selector — a dropdown button (1–9 + "10+") that swaps to a
      free-entry number input on "10+". Shared by the wishlist + the "To order" cart. */
   .qsel { position: relative; display: inline-flex; flex-shrink: 0; }
@@ -3589,7 +3658,7 @@
   .lv-row-title { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.35; }
   .lv-row-meta { font-size: 12px; color: var(--muted); }
   .lv-row-price { font-size: 15px; font-weight: 700; color: var(--text); margin-top: 2px; }
-  .lv-row-actions { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+  .lv-row-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; margin-left: auto; }
   /* Amazon-style yellow "Buy" pill (opens the product's buy link). */
   .lv-buy {
     display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 14px;
@@ -3614,6 +3683,40 @@
   }
   .lv-addlink:hover { border-color: var(--primary); }
   .lv-addlink .icon { background-color: var(--muted); }
+  /* Keep the cart icon fixed and ellipsize a long shop domain instead of letting it
+     spill out of the (full-width) card button. */
+  .lv-buy .icon, .lv-addlink .icon { flex-shrink: 0; }
+  .lv-buy-txt { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* Debug: ⌥-click "copy view ref" helper (admin debug mode only). */
+  #dbgRefHint {
+    position: fixed; right: 14px; bottom: 14px; z-index: 9999;
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 28px; padding: 0 11px; border-radius: 999px;
+    background: color-mix(in srgb, var(--primary) 14%, var(--surface));
+    border: 1px solid color-mix(in srgb, var(--primary) 45%, var(--border));
+    color: var(--text); font-size: 11px; font-weight: 600; cursor: pointer; opacity: .82;
+    font-family: inherit; transition: opacity .12s;
+  }
+  #dbgRefHint:hover { opacity: 1; }
+  #dbgRefHint .icon { background-color: var(--primary); }
+  /* the green "Copied!" flash (_flashCopied) pops up just above the pill — do NOT
+     clip it (no overflow:hidden), and lift its stacking so it clears the pill. */
+  #dbgRefHint .copy-flash { z-index: 1; }
+  /* Per-card debug copy button — injected into each side-card panel; shown only when
+     the panel is open. Copies THAT card's ref (a bottom-right pill would be covered). */
+  .dbg-card-btn {
+    position: absolute; bottom: 12px; left: 12px; z-index: 60;   /* bottom-LEFT — clear of the top-right ✕ AND the bottom-right general debug pill */
+    display: none; align-items: center; gap: 6px;
+    height: 26px; padding: 0 11px; border-radius: 999px;
+    background: var(--primary); border: 1px solid var(--primary);
+    color: #fff; font-size: 11px; font-weight: 700; font-family: inherit; letter-spacing: .01em;
+    box-shadow: 0 3px 12px rgba(0,0,0,.25);
+    cursor: pointer; opacity: .92; transition: opacity .12s, filter .12s;
+  }
+  .detail-panel.open > .dbg-card-btn { display: inline-flex; }
+  .dbg-card-btn:hover { opacity: 1; filter: brightness(1.06); }
+  .dbg-card-btn .icon { background-color: #fff; flex-shrink: 0; }
+  .dbg-card-lbl { white-space: nowrap; }
   .lv-row-remove {
     position: relative; overflow: hidden;
     width: 32px; height: 32px; border-radius: 999px; flex-shrink: 0;

@@ -70,5 +70,5 @@ export const ctx = {
   // Creality camera — wired by inventory.js to avoid circular imports between
   // creality/index.js and creality/widget_camera.js.
   creCamStart: _ip => {},
-  creCamStop:  ()  => {},
+  creCamStop:  _ip => {},
 };

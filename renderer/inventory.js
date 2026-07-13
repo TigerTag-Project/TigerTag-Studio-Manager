@@ -5177,13 +5177,24 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         // Fire-and-forget — the resulting Firestore writes will trigger a fresh
         // snapshot which will then see twin_tag_uid filled on both sides.
         autoLinkTwinsByTimestamp(state.rows);
+        // Self-heal duplicate slot assignments — evict any extra spool sharing an
+        // already-occupied slot. Runs on SETTLED server data only (no cache / no
+        // pending local writes) so it never fights an in-flight swap, and BEFORE
+        // auto-store so the freed spool can be re-filed into a real empty slot.
+        if (!snapshot.metadata.fromCache && !snapshot.metadata.hasPendingWrites) {
+          healDuplicateSlots(uid).catch(e => console.warn("[subscribeInventory] slot self-heal failed:", e));
+        }
         // Auto-unstorage runs FIRST so depleted spools leave their slot
         // before auto-storage tries to re-place anyone there. Otherwise we'd
         // create a loop: unstore → snapshot → auto-store re-places same 0g
         // spool. Both paths are fire-and-forget; their resulting writes
         // trigger a fresh snapshot that re-renders.
         maybeAutoUnstoreDepletedSpools();
-        maybeAutoStoreUnrankedSpools();
+        // GUARD: auto-STORE only on an authoritative SERVER snapshot — never on a
+        // cache/partial one, where a not-yet-loaded occupant looks absent and a
+        // spool gets placed onto an already-occupied slot (the very bug the
+        // self-heal above cleans up). Placement decisions need authoritative data.
+        if (!snapshot.metadata.fromCache) maybeAutoStoreUnrankedSpools();
         // Lazy migration of decimal-format spool ids → hex uppercase.
         // Picks up any decimal doc the mobile app may have just created
         // and migrates it in the background. Idempotent + safe vs
@@ -7228,9 +7239,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function _listVisMeta(vis) {
     const v = (vis === "private" || vis === "public") ? vis : "friends";
     return ({
-      private: { icon: "icon-lock",   label: t("visPrivateShort") },
-      friends: { icon: "icon-user",   label: t("visFriends") },
-      public:  { icon: "icon-eye-on", label: t("visPublic") },
+      private: { icon: "icon-eye-off", label: t("visPrivateShort") },
+      friends: { icon: "icon-user",    label: t("visFriends") },
+      public:  { icon: "icon-globe",   label: t("visPublic") },
     })[v];
   }
   // ── Public list snapshots (Phase 2) ───────────────────────────────────────
@@ -8943,7 +8954,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       return;
     }
     if (e.target.closest("[data-listedit]")) { const cur = _selectedList(); if (cur) openCreateListModal(cur.id); return; }
-    const row = e.target.closest(".lv-row[data-hash]");
+    const row = e.target.closest(".lv-row[data-hash], .lv-card[data-hash]");   // rows AND grid cards open the product side-card
     if (row) { const p = _listProductsSrc()[row.dataset.hash]; if (p) openProductCard(p); return; }
   });
   // ── Amazon-style quantity selector (.qsel) — dropdown 1–9 + "10+"; "10+" opens a
@@ -9030,6 +9041,27 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   });
   // ── List modal — create (name + occasion) OR manage/edit an existing list ──
   let _listModalEditId = null;   // null = create; else the listId being edited
+  // Segmented list-type selector — the hidden #clmVisibility holds the value; the
+  // three cards drive it. The message field stays for every type but reframes: a
+  // note "for your friends" on a shared list, or "to future you" on a private one.
+  function _clmSetVis(vis) {
+    const v = ["private", "friends", "public"].includes(vis) ? vis : "private";
+    const hid = $("clmVisibility"); if (hid) hid.value = v;
+    document.querySelectorAll("#clmVisGroup .clm-vis-opt").forEach(b => {
+      const on = b.dataset.vis === v;
+      b.classList.toggle("is-active", on);
+      b.setAttribute("aria-checked", on ? "true" : "false");
+    });
+    const priv = v === "private";
+    const lblKey = priv ? "listModalMessageLabelSelf" : "listModalMessageLabel";
+    const phKey  = priv ? "listModalMessageSelfPh"    : "listModalMessagePh";
+    const lbl = $("clmMessageLabel");
+    if (lbl) { lbl.textContent = t(lblKey); lbl.setAttribute("data-i18n", lblKey); }
+    const ta = $("clmMessage");
+    if (ta) { ta.setAttribute("placeholder", t(phKey)); ta.setAttribute("data-i18n-placeholder", phKey); }
+  }
+  document.querySelectorAll("#clmVisGroup .clm-vis-opt").forEach(b =>
+    b.addEventListener("click", () => _clmSetVis(b.dataset.vis)));
   function openCreateListModal(editId) {
     if (state.friendView) return;
     _atlPendingAdd = null;   // the "Add to a list" popup flow sets this AFTER opening
@@ -9038,7 +9070,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if ($("clmName"))     $("clmName").value     = editing ? (editing.name || "") : "";
     if ($("clmOccasion")) $("clmOccasion").value = editing ? (editing.occasion || "") : "";
     if ($("clmMessage"))  $("clmMessage").value  = editing ? (editing.message || "") : "";
-    if ($("clmVisibility")) { $("clmVisibility").value = (editing && editing.visibility) || "friends"; $("clmVisibility")._cselRefresh?.(); }
+    _clmSetVis((editing && editing.visibility) || "private");
     // Title + primary-button label + delete-button visibility swap by mode.
     const titleEl = document.querySelector("#createListOverlay .clm-title");
     if (titleEl) titleEl.textContent = t(editing ? "listModalEditTitle" : "listModalTitle");
@@ -9057,7 +9089,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (!name) { $("clmName")?.focus(); return; }
     const occasion = ($("clmOccasion")?.value || "").trim();
     const message = ($("clmMessage")?.value || "").trim();
-    const visibility = $("clmVisibility")?.value || "friends";
+    const visibility = $("clmVisibility")?.value || "private";
     const editId = _listModalEditId;
     if (editId) {   // EDIT — update name + occasion + message + privacy in place
       closeCreateListModal();
@@ -9089,6 +9121,120 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     closeCreateListModal();
     if (id) { _deleteList(id); if (_isListsMode(state.viewMode)) renderListsView(); }
   });
+  // ── Lists sidebar — drag-reorder lists + drop across visibility groups ──
+  // Mirrors the cart's two-zone DnD, extended to THREE zones (private/friends/
+  // public): reorder within a group, or drop into another group to change the
+  // list's `visibility` (the public snapshot is reconciled by the lists snapshot
+  // handler). Delegated on the stable #invListsView host (survives re-renders).
+  function _listZoneIdsFromDom(vis) {
+    const z = document.querySelector(`#invListsView .lv-side-zone[data-vis="${vis}"]`);
+    return z ? [...z.querySelectorAll(".lv-side-item[data-listid]")].map(el => el.dataset.listid) : [];
+  }
+  function _applyListDrop(dragId, targetVis, beforeId) {
+    if (state.friendView) return;
+    const rec = state.lists[dragId]; if (!rec) return;
+    const targetIds = _listZoneIdsFromDom(targetVis).filter(id => id !== dragId);
+    let idx = beforeId ? targetIds.indexOf(beforeId) : targetIds.length;
+    if (idx < 0) idx = targetIds.length;
+    targetIds.splice(idx, 0, dragId);
+    // Rebuild the global order across all three groups (target uses the new order).
+    const order = [];
+    ["private", "friends", "public"].forEach(v => {
+      const ids = v === targetVis ? targetIds : _listZoneIdsFromDom(v).filter(id => id !== dragId);
+      ids.forEach(id => order.push({ id, vis: v }));
+    });
+    // Optimistic — set visibility + sortRank, re-render before Firestore echoes back.
+    order.forEach((o, i) => { const l = state.lists[o.id]; if (l) { l.sortRank = i; l.visibility = o.vis; } });
+    renderListsView();
+    _persistListOrder(order, dragId, targetVis);
+  }
+  async function _persistListOrder(order, movedId, movedVis) {
+    const uid = state.activeAccountId; if (!uid) return;
+    const FV = firebase.firestore.FieldValue;
+    const col = fbDb(uid).collection("users").doc(uid).collection("lists");
+    const batch = fbDb(uid).batch();
+    order.forEach((o, i) => {
+      const data = { sortRank: i, updatedAt: FV.serverTimestamp() };
+      if (o.id === movedId) data.visibility = movedVis;   // the only list whose type changed
+      batch.set(col.doc(o.id), data, { merge: true });
+    });
+    try { await batch.commit(); } catch (e) { console.warn("[lists] reorder persist failed:", e?.message); }
+  }
+  const _lvSideHost = $("invListsView");
+  if (_lvSideHost) {
+    let drag = null;   // { id, zones, srcVis, fromIndex, targetVis, k }
+    const zonesOf = () => [..._lvSideHost.querySelectorAll(".lv-side-zone[data-vis]")].map(z => {
+      const items = [...z.querySelectorAll(".lv-side-item[data-listid]")];
+      const rects = items.map(el => el.getBoundingClientRect());
+      const stride = items.length > 1 ? (rects[1].top - rects[0].top) : (rects[0]?.height || 40);
+      const top0 = items.length ? rects[0].top : z.getBoundingClientRect().top;
+      return { vis: z.dataset.vis, items, stride, top0 };
+    });
+    const applyGap = () => {
+      const { zones, srcVis, fromIndex, targetVis, k } = drag;
+      zones.forEach(Z => Z.items.forEach((el, i) => {
+        let ty = 0;
+        if (Z.vis === srcVis && Z.vis === targetVis) {          // same-group reorder
+          if (i !== fromIndex) { const j = i < fromIndex ? i : i - 1; const tgt = j >= k ? j + 1 : j; ty = (tgt - i) * Z.stride; }
+        } else if (Z.vis === srcVis) {                          // dragged leaving this group
+          ty = i > fromIndex ? -Z.stride : 0;
+        } else if (Z.vis === targetVis) {                       // open a gap in the target group
+          ty = i >= k ? Z.stride : 0;
+        }
+        el.style.transform = `translateY(${ty}px)`;
+      }));
+    };
+    const clear = () => {
+      if (drag) drag.zones.forEach(Z => Z.items.forEach(el => { el.style.transition = ""; el.style.transform = ""; el.classList.remove("lv-side-item--dragging"); }));
+      _lvSideHost.classList.remove("lv-side-dragging");
+      drag = null;
+    };
+    _lvSideHost.addEventListener("dragstart", e => {
+      const item = e.target.closest(".lv-side-item[data-listid]");
+      if (!item || state.friendView) return;
+      const zones = zonesOf();
+      const src = zones.find(Z => Z.items.includes(item));
+      if (!src) return;
+      const fromIndex = src.items.indexOf(item);
+      drag = { id: item.dataset.listid, zones, srcVis: src.vis, fromIndex, targetVis: src.vis, k: fromIndex };
+      try { e.dataTransfer.setData("text/plain", drag.id); e.dataTransfer.effectAllowed = "move"; } catch (_) {}
+      try { e.dataTransfer.setDragImage(item, 20, 18); } catch (_) {}
+      _lvSideHost.classList.add("lv-side-dragging");
+      requestAnimationFrame(() => {
+        if (!drag) return;
+        item.classList.add("lv-side-item--dragging");
+        zones.forEach(Z => Z.items.forEach(el => { if (el !== item) el.style.transition = "transform .2s cubic-bezier(.22,.61,.36,1)"; }));
+      });
+    });
+    _lvSideHost.addEventListener("dragover", e => {
+      if (!drag) return;
+      const z = e.target.closest(".lv-side-zone[data-vis]");
+      if (!z) return;
+      e.preventDefault();
+      try { e.dataTransfer.dropEffect = "move"; } catch (_) {}
+      const vis = z.dataset.vis;
+      const Z = drag.zones.find(x => x.vis === vis);
+      if (!Z) return;
+      const restLen = Z.items.length - (vis === drag.srcVis ? 1 : 0);
+      const k = Math.max(0, Math.min(restLen, Math.round((e.clientY - Z.top0) / (Z.stride || 1))));
+      if (vis !== drag.targetVis || k !== drag.k) { drag.targetVis = vis; drag.k = k; applyGap(); }
+    });
+    _lvSideHost.addEventListener("drop", e => {
+      if (!drag) return;
+      const z = e.target.closest(".lv-side-zone[data-vis]");
+      if (!z) { clear(); return; }
+      e.preventDefault();
+      const vis = z.dataset.vis;
+      const Z = drag.zones.find(x => x.vis === vis);
+      const rest = Z ? Z.items.map(el => el.dataset.listid).filter(id => id !== drag.id) : [];
+      const k = vis === drag.targetVis ? drag.k : 0;
+      const beforeId = k < rest.length ? rest[k] : null;
+      const id = drag.id;
+      clear();
+      _applyListDrop(id, vis, beforeId);
+    });
+    _lvSideHost.addEventListener("dragend", clear);
+  }
   // Reorder drag-and-drop — delegated on the persistent products host. Only the
   // grip starts a drag; drop reorders within a zone or moves across zones.
   // Reorder cart — drag-to-reorder with the same live "make room" animation as the
@@ -9342,6 +9488,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // Friend view is read-only (the move buttons aren't rendered there anyway).
     if (e.target.closest("[data-later]"))  { if (!state.friendView) { _writeProductField(hash, { savedForLater: true  }); renderProductsView(); } return; }
     if (e.target.closest("[data-tocart]")) { if (!state.friendView) { _writeProductField(hash, { savedForLater: false }); renderProductsView(); } return; }
+    // "To order" line: a click on the material itself (thumbnail / name / row body)
+    // opens the product business card — same entry point as a wishlist row. The ⓘ
+    // (reorder side-card), the quantity selector and the drag grip keep their own
+    // behaviour; buy / add-price / copy-SKU / set-aside were already handled above.
+    if (line.classList.contains("pv-order-line") && !e.target.closest(".pv-info, .pv-qty-col, .pv-grip")) {
+      if (p) openProductCard(p);
+      return;
+    }
     // Open the product card — explicit info button (order tab) or line click (faves).
     // Prefer a live spool; else synthesise a row from the stored cloudSeed so the
     // card opens even for a product with no spool left.
@@ -9544,7 +9698,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     else { state.tagFilter = v; _onFilterChange(); }
   });
   // Replace the native OS dropdowns of the toolbar filters with app-styled popups.
-  ["brandFilter", "materialFilter", "aspectFilter", "typeFilter", "tagFilter", "gridSort", "clmVisibility"].forEach(id => _enhanceSelect($(id)));
+  ["brandFilter", "materialFilter", "aspectFilter", "typeFilter", "tagFilter", "gridSort"].forEach(id => _enhanceSelect($(id)));
   // Same treatment for the Add-product panel's identity selects (Brand/Material
   // use their own bottom-sheets; these are the plain <select>s). The button
   // mirrors the .adp-select look; only the OS option list is replaced.
@@ -10568,8 +10722,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // Buy / Add-a-link button — same shopping affordance as the row layout, as a
     // full-width bar at the bottom of the card.
     const linkBtn = p.buyUrl
-      ? `<button type="button" class="lv-buy lv-card-buy" data-listbuy="${esc(p.id)}"><span class="icon icon-cart icon-13"></span>${esc(_buyHost(p.buyUrl))}</button>`
-      : (ro ? "" : `<button type="button" class="lv-addlink lv-card-buy" data-listaddlink="${esc(p.id)}"><span class="icon icon-cart icon-13"></span>${esc(t("reorderAddLink"))}</button>`);
+      ? `<button type="button" class="lv-buy lv-card-buy" data-listbuy="${esc(p.id)}"><span class="icon icon-cart icon-13"></span><span class="lv-buy-txt">${esc(_buyHost(p.buyUrl))}</span></button>`
+      : (ro ? "" : `<button type="button" class="lv-addlink lv-card-buy" data-listaddlink="${esc(p.id)}"><span class="icon icon-cart icon-13"></span><span class="lv-buy-txt">${esc(t("reorderAddLink"))}</span></button>`);
     const buyBar = (qtyCtl || linkBtn) ? `<div class="lv-card-buybar">${qtyCtl}${linkBtn}</div>` : "";
     return `<div class="spool-card pv-item lv-card" data-hash="${esc(p.id)}" data-key="${esc(p.key)}"${ro ? "" : ' draggable="true"'}>${removeBtn}${_gridCardInnerHTML(r, { product: true, footerHTML, nameText: title, subText: sub, subExtraText: extra })}${buyBar}</div>`;
   }
@@ -10588,8 +10742,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       : (ro ? "" : `<button type="button" class="lv-addprice" data-listaddprice="${esc(p.id)}">${esc(t("reorderAddPrice"))}</button>`);
     // Link: "Buy" (opens the shop) when a link is set, else an "Add a link" button.
     const linkBtn = p.buyUrl
-      ? `<button type="button" class="lv-buy" data-listbuy="${esc(p.id)}"><span class="icon icon-cart icon-13"></span>${esc(_buyHost(p.buyUrl))}</button>`
-      : (ro ? "" : `<button type="button" class="lv-addlink" data-listaddlink="${esc(p.id)}"><span class="icon icon-cart icon-13"></span>${esc(t("reorderAddLink"))}</button>`);
+      ? `<button type="button" class="lv-buy" data-listbuy="${esc(p.id)}"><span class="icon icon-cart icon-13"></span><span class="lv-buy-txt">${esc(_buyHost(p.buyUrl))}</span></button>`
+      : (ro ? "" : `<button type="button" class="lv-addlink" data-listaddlink="${esc(p.id)}"><span class="icon icon-cart icon-13"></span><span class="lv-buy-txt">${esc(t("reorderAddLink"))}</span></button>`);
     const rm = ro ? "" : `<button type="button" class="lv-row-remove" data-listremove="${esc(p.id)}" aria-label="${esc(t("listRemoveItem"))}"><span class="hold-progress"></span><span class="icon icon-trash icon-13"></span></button>`;
     const grip = ro ? "" : `<span class="lv-grip" aria-hidden="true"><span class="icon icon-grip icon-16"></span></span>`;
     return `
@@ -10600,8 +10754,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           <div class="lv-row-title">${esc(title)}</div>
           ${l.colorName ? `<div class="lv-row-meta">${esc(l.colorName)}</div>` : ""}
           ${priceBlock}
-          <div class="lv-row-actions">${qtyCtl}${linkBtn}${rm}</div>
         </div>
+        <div class="lv-row-actions">${qtyCtl}${linkBtn}${rm}</div>
       </div>`;
   }
   function renderListsView() {
@@ -10627,23 +10781,36 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     </div>`;
     // Left sidebar — the user's lists (name + item count), selected highlighted,
     // + a "Create a list" entry (owner only). Amazon-style two-column layout.
-    const sideItems = lists.map(l =>
-      `<button type="button" class="lv-side-item${l.id === cur.id ? " is-active" : ""}" data-listpick="${esc(l.id)}">
+    // Grouped by visibility (Private → Friends → Public); the group header carries
+    // the type icon+label, so each item drops its own visibility glyph (no repeat).
+    const _sideItemBtn = l =>
+      `<button type="button" class="lv-side-item${l.id === cur.id ? " is-active" : ""}" data-listpick="${esc(l.id)}" data-listid="${esc(l.id)}"${ro ? "" : ' draggable="true"'}>
+         ${ro ? "" : `<span class="lv-side-grip" aria-hidden="true"><span class="icon icon-grip icon-13"></span></span>`}
          <span class="lv-side-name">${l.emoji ? esc(l.emoji) + " " : ""}${esc(l.name || t("listUntitled"))}</span>
-         <span class="lv-side-vis" aria-label="${esc(_listVisMeta(l.visibility).label)}"><span class="icon ${_listVisMeta(l.visibility).icon} icon-12"></span></span>
          <span class="lv-side-n">${(l.itemKeys || []).length}</span>
-       </button>`).join("");
+       </button>`;
+    const _sideByVis = { private: [], friends: [], public: [] };
+    lists.forEach(l => { const v = (l.visibility === "private" || l.visibility === "public") ? l.visibility : "friends"; _sideByVis[v].push(l); });
+    // Owner: render ALL three groups (each a drag-drop zone, so a list can be dragged
+    // between types); friend-view: only the non-empty groups, no drag.
+    const _visShown = ro ? ["private", "friends", "public"].filter(v => _sideByVis[v].length) : ["private", "friends", "public"];
+    const sideItems = _visShown.map(v => {
+      const vm = _listVisMeta(v);
+      const rows = _sideByVis[v].length
+        ? _sideByVis[v].map(_sideItemBtn).join("")
+        : (ro ? "" : `<div class="lv-side-empty">${esc(t("listTypeDropHint"))}</div>`);
+      return `<div class="lv-side-group lv-side-group--${v}"><span class="icon ${vm.icon} icon-11"></span><span class="lv-side-group-lbl">${esc(vm.label)}</span></div>`
+           + `<div class="lv-side-zone" data-vis="${v}">${rows}</div>`;
+    }).join("");
     const sideNew = ro ? "" : `<button type="button" class="lv-side-new" data-listnew><span class="icon icon-plus icon-13"></span>${esc(t("listModalTitle"))}</button>`;
-    // Single header action — "Manage list" opens the edit modal (rename +
-    // occasion + delete-hold), Amazon-style. No inline delete-confirm here.
-    const actions = ro ? "" :
-      `<button type="button" class="lv-act" data-listedit aria-label="${esc(t("listModalEditTitle"))}"><span class="icon icon-edit icon-14"></span></button>`;
     // Title renders as an INPUT while renaming — render-driven so a Firestore
     // snapshot re-render (e.g. right after creating the list) can't wipe it out.
+    // Type badge, item count and the Edit action now live in the details card
+    // (right rail), so the header stays down to the bare name.
     const renaming = !ro && _listRenamePending === cur.id;
     const titleHTML = renaming
       ? `<input type="text" id="lvTitleInput" class="lv-title-input" maxlength="80" value="${esc(cur.name || "")}">`
-      : `${cur.emoji ? esc(cur.emoji) + " " : ""}${esc(cur.name || t("listUntitled"))}<span class="lv-count">${(cur.itemKeys || []).length}</span>`;
+      : `${cur.emoji ? esc(cur.emoji) + " " : ""}${esc(cur.name || t("listUntitled"))}`;
     const rowsHTML = items.length
       ? (layout === "grid"
           ? `<div class="inv-grid pv-fav-grid lv-grid">${items.map(p => _listCardHTML(p, ro, sym, _listQtyOf(cur, p.id))).join("")}</div>`
@@ -10665,13 +10832,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       const shareText = t("listShareText", { name: cur.name || t("listUntitled") });
       publicCardHTML = `
         <aside class="lv-public-card">
-          <div class="lv-public-title"><span class="icon icon-eye-on icon-13"></span>${esc(t("listSharePublicTitle"))}</div>
-          <div class="lv-qr-wrap">
-            <img class="lv-public-qr" src="${esc(qrSrc)}" alt="">
-          </div>
           <div class="lv-public-actions">
             <button type="button" class="lv-public-copy" data-listshare="${esc(pubUrl)}"><span class="icon icon-link icon-13"></span><span class="lv-copy-lbl">${esc(t("listShareCopy"))}</span></button>
             <button type="button" class="lv-public-dl" data-qrdownload="${esc(qrDownloadSrc)}" data-qrname="${esc(qrName)}" aria-label="${esc(t("listShareDownloadQr"))}"><span class="icon icon-download icon-14"></span></button>
+          </div>
+          <div class="lv-qr-wrap">
+            <img class="lv-public-qr" src="${esc(qrSrc)}" alt="">
           </div>
           <div class="lv-social-row" data-share-url="${esc(pubUrl)}" data-share-text="${esc(shareText)}">
             <button type="button" class="lv-social lv-social--fb" data-share-net="facebook" aria-label="Facebook"><span class="icon icon-facebook"></span></button>
@@ -10710,26 +10876,43 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           <div class="pv-sum-row pv-sum-total"><span>${esc(t("pvOrderTotal"))}</span><span></span><span class="pv-sum-val">${_fmtMoney(_ttc)} ${sym}</span></div>
         </div>`;
     }
+    // "List details" right-rail card above Payment — consolidates the list's meta so
+    // the header stays clean: type (with the group colour) + item count as a compact
+    // two-up stat strip, then the event + message rows (each with its own label + icon,
+    // they used to render label-less under the title). The Edit button lives here too.
+    // Always shown for a selected list (type + count always exist); owner or friend view.
+    const _ivm = _listVisMeta(cur.visibility);
+    const _ivk = (cur.visibility === "private" || cur.visibility === "public") ? cur.visibility : "friends";
+    const _iCount = (cur.itemKeys || []).length;
+    const _iEdit = ro ? "" : `<button type="button" class="lv-info-edit" data-listedit aria-label="${esc(t("listModalEditTitle"))}"><span class="icon icon-edit icon-14"></span></button>`;
+    const infoCardHTML = `
+      <aside class="lv-info-card">
+        <div class="lv-info-head"><span class="lv-info-head-lbl">${esc(t("listDetailsTitle"))}</span>${_iEdit}</div>
+        <div class="lv-info-stats">
+          <div class="lv-info-stat lv-info-stat--inline"><span class="lv-type-badge lv-type-badge--${_ivk}"><span class="icon ${_ivm.icon} icon-11"></span>${esc(_ivm.label)}</span></div>
+          <div class="lv-info-stat lv-info-stat--inline"><span class="lv-info-ic lv-info-ic--count"><span class="icon icon-list icon-13"></span></span><span class="lv-info-val">${_iCount} ${esc(t("listItemsLabel"))}</span></div>
+        </div>
+        ${cur.occasion ? `<div class="lv-info-row"><div class="lv-info-lbl"><span class="lv-info-ic lv-info-ic--event"><span class="icon icon-gift icon-12"></span></span>${esc(t("listEventLabel"))}</div><div class="lv-info-val">${esc(cur.occasion)}</div></div>` : ""}
+        ${cur.message ? `<div class="lv-info-row"><div class="lv-info-lbl"><span class="lv-info-ic lv-info-ic--msg"><span class="icon icon-mail icon-12"></span></span>${esc(t("listMessageLabel"))}</div><div class="lv-info-val lv-info-val--msg">${esc(cur.message)}</div></div>` : ""}
+      </aside>`;
     host.innerHTML = `
       <div class="lv-amz">
         <aside class="lv-side">
           <div class="lv-side-head">${esc(t("listSidebarTitle"))}</div>
-          ${sideItems}
           ${sideNew}
+          ${sideItems}
         </aside>
         <section class="lv-main">
           <div class="lv-main-col">
             <div class="lv-head">
               <div class="lv-head-main">
-                <div class="lv-title-row"><div class="lv-actions">${actions}</div><div class="lv-title">${titleHTML}</div>${(() => { const vm = _listVisMeta(cur.visibility); const v = (cur.visibility === "private" || cur.visibility === "public") ? cur.visibility : "friends"; return `<span class="lv-vis lv-vis--${v}"${ro ? "" : ' data-listedit role="button" tabindex="0"'}><span class="icon ${vm.icon} icon-12"></span>${esc(vm.label)}</span>`; })()}</div>
-                ${!renaming && cur.occasion ? `<div class="lv-occasion">${esc(cur.occasion)}</div>` : ""}
-                ${!renaming && cur.message ? `<div class="lv-message">${esc(cur.message)}</div>` : ""}
+                <div class="lv-title-row"><div class="lv-title">${titleHTML}</div></div>
               </div>
               <div class="lv-head-right">${layoutToggle}</div>
             </div>
             <div class="lv-rows">${rowsHTML}</div>
           </div>
-          ${(summaryCardHTML || publicCardHTML) ? `<div class="lv-rail">${summaryCardHTML}${publicCardHTML}</div>` : ""}
+          ${(infoCardHTML || summaryCardHTML || publicCardHTML) ? `<div class="lv-rail">${infoCardHTML}${summaryCardHTML}${publicCardHTML}</div>` : ""}
         </section>
       </div>`;
     // Removing an item from a list is hold-to-confirm (a misclick would silently
@@ -13239,9 +13422,17 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // share's price/link/SKU-EAN. Same .flag-toggle look as the materials card.
     const mine  = state.products[p.id] || {};
     const liked = !!mine.liked, fav = !!mine.favorite;
+    // `productId` still drives the catalogue link row in the details below.
+    const _pcPid = Number(r.raw?.id_product);
+    const productId = (r.isPlus && _pcPid && _pcPid !== 4294967295) ? String(_pcPid) : "";
+    // Info button → opens the in-app reorder / To-order side-card for this product
+    // (owner only). Not the external catalogue (that stays as a link in the details).
+    const productInfoBtn = state.friendView ? ""
+      : `<button type="button" class="flag-toggle flag-toggle--info" data-pc-reorder data-tip="${esc(t("productInfoPage"))}" aria-label="${esc(t("productInfoPage"))}"><span class="icon icon-info icon-16"></span></button>`;
     const flagsHTML = `${state.friendView ? "" : `<button type="button" class="flag-toggle flag-toggle--list js-add-to-list" data-atl-hash="${esc(p.id)}" data-tip="${esc(t("listAddTo"))}" aria-label="${esc(t("listAddTo"))}"><span class="icon icon-list-check icon-16"></span></button>`}
       <button type="button" class="flag-toggle flag-toggle--wish${liked ? " active" : ""}" data-pc-flag="liked" aria-pressed="${liked}" data-tip="${esc(t("productLikeTip"))}" aria-label="${esc(t("productLike"))}"><span class="icon icon-cart icon-16"></span></button>
-      <button type="button" class="flag-toggle flag-toggle--like${fav ? " active" : ""}" data-pc-flag="favorite" aria-pressed="${fav}" data-tip="${esc(t("productFavoriteTip"))}" aria-label="${esc(t("productFavorite"))}"><span class="icon icon-star${fav ? "-fill" : ""} icon-16"></span></button>`;
+      <button type="button" class="flag-toggle flag-toggle--like${fav ? " active" : ""}" data-pc-flag="favorite" aria-pressed="${fav}" data-tip="${esc(t("productFavoriteTip"))}" aria-label="${esc(t("productFavorite"))}"><span class="icon icon-star${fav ? "-fill" : ""} icon-16"></span></button>
+      ${productInfoBtn}`;
     // COULEURS & ASPECT — identical markup to buildPanelHTML.
     const colorsHtml = colorCircleHTML(r, 56);
     const aspectChips = [r.aspect1, r.aspect2].filter(a => a && a !== "-" && a !== "None");
@@ -13330,8 +13521,6 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const ean = (r.barcode || p.ean || "").toString().trim();
     // DÉTAILS — the identity/catalogue rows we HAVE (no Tag type / UID / Updated /
     // Manufactured / location — those are spool-specific and absent here).
-    const _pid = Number(r.raw?.id_product);
-    const productId = (r.isPlus && _pid && _pid !== 4294967295) ? String(_pid) : "";
     const detailRows = [
       [t("detProductId"), productId, productId ? `https://tigertag.io/pages/product-infos/${productId}` : null],
       [t("detType"),      r.productType],
@@ -14069,6 +14258,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   $("productCardBody")?.addEventListener("click", e => {
     const flag = e.target.closest(".flag-toggle[data-pc-flag]");
     if (flag) { _toggleProductCardFlag(flag.dataset.pcFlag).catch(err => reportError("productCard.flag", err)); return; }
+    const info = e.target.closest(".flag-toggle[data-pc-reorder]");
+    if (info) { const p = _productCardData; if (p) { const row = _listRowFor(p); if (row) openReorderPanel(row); } return; }   // open reorder side-card ALONGSIDE the product card (don't close it)
     const yt = e.target.closest(".panel-yt-thumb[data-url]");
     if (yt) { window.electronAPI?.openExternal(yt.dataset.url); return; }
     // "Added from …" block → jump to that friend's inventory (when they're a friend).
@@ -15804,11 +15995,135 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   }
 
   // Read language preference from Firestore and apply if different from local
+  // ── Debug: precise view / side-card reference (admin debug mode) ───────────
+  // In debug mode, ⌥(Alt)-click any card/panel → copies a paste-ready descriptor
+  // (which view, which render function + DOM id + file, and the data ids in scope)
+  // so the exact surface can be pointed at without guessing. Admin-only tool, kept
+  // in English (these refs are copied straight into a chat with the maintainer).
+  const _DBG_SURFACES = {
+    detailPanel:      { name: "Spool detail panel",           fn: "openDetail → buildPanelHTML" },
+    productCardPanel: { name: "Product card side-card",        fn: "openProductCard → _renderProductCard" },
+    productCardBody:  { name: "Product card side-card (body)", fn: "openProductCard → _renderProductCard" },
+    reorderPanel:     { name: "Reorder / To-order side-card",  fn: "openReorderPanel" },
+    groupPanel:       { name: "Grouped spools side-card",      fn: "_openGroupPanel → _renderGroupPanelContents" },
+    printerPanel:     { name: "Printer side panel",           fn: "openPrinterPanel" },
+    settingsPanel:    { name: "Settings side-card",           fn: "openSettings" },
+    notifPanel:       { name: "Notifications side-card",      fn: "openNotifs → renderNotifCenter" },
+    friendsPanel:     { name: "Friends side-card",            fn: "openFriends → renderFriendsSection" },
+    debugPanel:       { name: "Firebase / Firestore explorer", fn: "openDebug" },
+    invListsView:     { name: "Lists view",                  fn: "renderListsView" },
+    invProductsView:  { name: "Favorites / To-order view",   fn: "renderProductsView / _renderOrderTab" },
+    mainResult:       { name: "Inventory view",              fn: "renderInventory" },
+    createListOverlay:{ name: "Create-list modal",           fn: "openCreateListModal" },
+    editAccountModalOverlay: { name: "Edit-account modal",   fn: "openEditAccountModal" },
+    tigerPodModalOverlay:    { name: "TigerPOD modal",       fn: "openTigerPodModal" },
+    whatsNewOverlay:  { name: "What's New modal",            fn: "openWhatsNew" },
+  };
+  function _dbgBuildRef(el) {
+    const near = (attr) => { let n = el; while (n && n !== document.body) { if (n.getAttribute && n.hasAttribute(attr)) return n.getAttribute(attr); n = n.parentElement; } return null; };
+    // Nearest known surface (walk up for a registry id).
+    let s = el, surf = null, surfId = null;
+    while (s && s !== document.body) { if (s.id) { surfId = surfId || s.id; if (_DBG_SURFACES[s.id]) { surf = { id: s.id, ..._DBG_SURFACES[s.id] }; break; } } s = s.parentElement; }
+    const clicked = (() => {
+      const tag = el.tagName ? el.tagName.toLowerCase() : "?";
+      const cls = (typeof el.className === "string" && el.className.trim()) ? "." + el.className.trim().split(/\s+/)[0] : "";
+      const da = el.attributes ? [...el.attributes].filter(a => a.name.startsWith("data-")).map(a => a.name).slice(0, 3).join(",") : "";
+      return `${tag}${cls}${da ? "[" + da + "]" : ""}`;
+    })();
+    const lines = [
+      "[TSM view ref]",
+      `app: v${_appInfo?.appVersion || "?"}`,
+      `view: ${state.viewMode}${state.friendView ? " (friend-view of " + (state.friendView.displayName || state.friendView.uid || "?") + ")" : ""}`,
+      surf ? `surface: ${surf.name}  ·  #${surf.id}  ·  ${surf.fn}  ·  renderer/inventory.js`
+           : `surface: (untagged)  ·  #${surfId || "?"}`,
+    ];
+    const d = [];
+    const hash = near("data-hash") || near("data-atl-hash");
+    const listid = near("data-listid") || near("data-listpick");
+    if (hash)   d.push(`productHash=${hash}`);
+    if (near("data-key")) d.push(`key=${near("data-key")}`);
+    if (listid) d.push(`listId=${listid}`);
+    if (state.selected)       d.push(`selectedSpool=${state.selected}`);
+    if (state.selectedListId) d.push(`selectedList=${state.selectedListId}`);
+    if (surf?.id === "productCardPanel" && _productCardData?.id) d.push(`productHash=${_productCardData.id}`);
+    if (surf?.id === "reorderPanel" && _reorderRow) d.push(`reorderRow=${_reorderRow.spoolId || _reorderRow.key || "?"}`);
+    if (d.length) lines.push(`data: ${d.join("   ")}`);
+    // Name EACH open side-card independently (several can be stacked at once) — one
+    // `openCard:` line per panel, even if the click landed elsewhere.
+    [...document.querySelectorAll(".detail-panel.open")].filter(el => el.id).forEach(op => {
+      const om = _DBG_SURFACES[op.id];
+      lines.push(`openCard: ${om ? om.name + "  ·  " : ""}#${op.id}${om ? "  ·  " + om.fn + "  ·  renderer/inventory.js" : ""}`);
+    });
+    lines.push(`clicked: ${clicked}`);
+    return lines.join("\n");
+  }
+  document.addEventListener("click", e => {
+    if (!state.debugEnabled || !e.altKey) return;
+    e.preventDefault(); e.stopPropagation();
+    const ref = _dbgBuildRef(e.target);
+    navigator.clipboard.writeText(ref).then(() => _flashCopied($("dbgRefHint")))
+      .catch(err => console.warn("[dbg] copy failed:", err));
+  }, true);   // capture — win before the app's own click handlers
+  // Per-card debug button — a small copy chip injected into each side-card panel
+  // (visible in debug mode) that copies THAT card's ref. The bottom-right pill gets
+  // covered by an open side-card, so each card also carries its own button.
+  const _DBG_PANEL_IDS = ["detailPanel", "productCardPanel", "reorderPanel", "groupPanel", "printerPanel", "settingsPanel", "notifPanel", "friendsPanel", "debugPanel"];
+  let _dbgPanelObs = null;
+  function _dbgEnsureCardBtns() {
+    const on = state.debugEnabled;
+    _DBG_PANEL_IDS.forEach(id => {
+      const panel = document.getElementById(id); if (!panel) return;
+      let btn = panel.querySelector(":scope > .dbg-card-btn");
+      if (on && !btn) {
+        const nm = (_DBG_SURFACES[id]?.name || id).replace(/\s*(side-?card|side panel|panel)$/i, "");   // short label; the copied ref keeps the full name
+        btn = document.createElement("button");
+        btn.type = "button"; btn.className = "dbg-card-btn"; btn.dataset.dbgPanel = id;
+        btn.setAttribute("aria-label", "Copy side-card ref");
+        // Show the side-card's NAME on the button so it's obvious what it identifies + copies.
+        btn.innerHTML = `<span class="icon icon-bug icon-11"></span><span class="dbg-card-lbl">${esc(nm)}</span>`;
+        panel.appendChild(btn);
+      } else if (!on && btn) { btn.remove(); }
+    });
+  }
+  function _dbgWatchPanels() {
+    if (!state.debugEnabled) { _dbgPanelObs?.disconnect(); _dbgPanelObs = null; _dbgEnsureCardBtns(); return; }
+    _dbgEnsureCardBtns();
+    if (_dbgPanelObs) return;
+    _dbgPanelObs = new MutationObserver(() => _dbgEnsureCardBtns());   // re-add if a panel re-renders its shell
+    _DBG_PANEL_IDS.forEach(id => { const p = document.getElementById(id); if (p) _dbgPanelObs.observe(p, { childList: true }); });
+  }
+  document.addEventListener("click", e => {
+    const btn = e.target.closest?.(".dbg-card-btn[data-dbg-panel]");
+    if (!btn) return;
+    e.preventDefault(); e.stopPropagation();
+    const panel = document.getElementById(btn.dataset.dbgPanel);
+    navigator.clipboard.writeText(_dbgBuildRef(panel || btn)).then(() => _flashCopied(btn))
+      .catch(err => console.warn("[dbg] copy failed:", err));
+  }, true);
+  function _dbgRefHintSync() {
+    let h = document.getElementById("dbgRefHint");
+    if (state.debugEnabled) {
+      if (!h) {
+        h = document.createElement("button");
+        h.id = "dbgRefHint"; h.type = "button";
+        h.innerHTML = `<span class="icon icon-bug icon-12"></span>⌥-click a card → copy ref`;
+        h.addEventListener("click", e => {
+          if (e.altKey) return;   // the global capture handler owns ⌥-click
+          const scope = document.querySelector(".detail-panel.open, .modal-overlay.open") || document.getElementById("invListsView") || document.body;
+          navigator.clipboard.writeText(_dbgBuildRef(scope)).then(() => _flashCopied($("dbgRefHint")));
+        });
+        document.body.appendChild(h);
+      }
+      h.hidden = false;
+    } else if (h) { h.hidden = true; }
+  }
   function applyDebugMode() {
     // Debug panel is now visible to all users (was admin-only gated by
     // state.debugEnabled). The panel exposes their OWN Firestore docs only,
     // limited by Security Rules — no escalation path.
     $("btnDebug").classList.remove("hidden");
+    _dbgRefHintSync();   // show/hide the ⌥-click "copy view ref" helper (pill)
+    _dbgWatchPanels();   // per-card copy button injected on each side-card
   }
 
   /* ── Friends UI ───────────────────────────────────────────────────────── */
@@ -17699,9 +18014,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // after navigating to table/grid" cases without reopening a peer connection.
     {
       const crePrinters = _onlinePrinters.filter(p => p.brand === "creality" && p.ip);
-      if (crePrinters.length) {
-        startCreCam(crePrinters[0].ip); // idempotent; re-attaches if already live
-      }
+      // One independent WebRTC session per printer (per IP) — different Crealities
+      // are different peers, so each card shows ITS OWN camera. Idempotent: a live
+      // session is reused + re-attached rather than reopened.
+      crePrinters.forEach(p => startCreCam(p.ip));
       reAttachCreCamConsumers();
     }
 
@@ -18602,7 +18918,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (_brKey) _ppForcedOfflineKeys.add(_brKey);
       if (p.brand === "snapmaker")  snapDisconnect(snapKey(p));
       if (p.brand === "flashforge") ffgDisconnect(ffgKey(p));
-      if (p.brand === "creality")   { creDisconnect(creKey(p)); stopCreCam(); }
+      if (p.brand === "creality")   { creDisconnect(creKey(p)); if (p.ip) stopCreCam(p.ip); }
       if (p.brand === "bambulab")   bambuDisconnect(bambuKey(p));
       if (p.brand === "elegoo")     elegooDisconnect(elegooKey(p));
       if (p.brand === "anycubic")   acuDisconnect(acuKey(p));
@@ -18710,7 +19026,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     },
     setupHoldToConfirm,
     creCamStart: ip => startCreCam(ip),
-    creCamStop:  ()  => stopCreCam(),
+    creCamStop:  ip => stopCreCam(ip),   // per-IP: stop ONLY this printer's session
   });
   _printerCtx.openPrinterSettings = (brand, printer, prefill) => openPrinterAddForm(brand, printer, prefill);
   _printerCtx.finishPrinterAdd    = (brand, id) => _finishPrinterAdd(brand, id);
@@ -18861,7 +19177,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // can coexist without duplicate-ID conflicts; the shared stream is distributed via
     // addCreCamConsumer() after the HTML is injected into the DOM.
     const camBannerHtml = (p.brand === "snapmaker") ? ""
-      : (p.brand === "creality") ? `<div id="creCamContainer" class="pp-cam-full${creConn?.status === "connected" ? "" : " cre-cam-hidden"}"><video class="cre-cam-video" data-cre-id="${esc(p.id)}" autoplay muted playsinline></video></div>`
+      : (p.brand === "creality") ? `<div id="creCamContainer" class="pp-cam-full${creConn?.status === "connected" ? "" : " cre-cam-hidden"}"><video class="cre-cam-video" data-cre-id="${esc(p.id)}"${creConn?.ip ? ` data-cre-ip="${esc(creConn.ip)}"` : ""} autoplay muted playsinline></video></div>`
       : renderCamBanner(p);
     const showCam = _snapCamVisible || (p.brand === "creality" ? creConn?.status === "connected" : camBannerHtml !== "");
 
@@ -21493,6 +21809,52 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (!placed) return 0;
     await batch.commit();
     return placed;
+  }
+
+  // ── Self-heal: one spool-unit per rack slot ───────────────────────────────
+  // A rack slot must hold at most ONE unit (a linked twin PAIR = one unit, it's the
+  // same physical spool with two tags). Duplicates slip in because slot-uniqueness
+  // is client-only (no Firestore constraint): a cross-device race or auto-store
+  // running against an incomplete snapshot can drop a second spool onto an
+  // occupied slot. This scans the authoritative server snapshot, and for any slot
+  // holding >1 unit evicts the extras to "not stored" (`rack: null`) so the user
+  // can re-file them (auto-store then places them in a genuinely-empty slot).
+  // Deterministic (keeps the smallest spoolId → every device evicts the SAME docs,
+  // so they can't fight) and idempotent (writes only when a real duplicate exists).
+  async function healDuplicateSlots(uid) {
+    if (!uid || state.friendView) return;
+    const bySlot = new Map();
+    for (const r of state.rows) {
+      if (r.deleted || !r.rackId || r.rackLevel == null || r.rackPos == null) continue;
+      const key = `${r.rackId}|${r.rackLevel}|${r.rackPos}`;
+      let arr = bySlot.get(key); if (!arr) bySlot.set(key, arr = []);
+      arr.push(r);
+    }
+    const evictIds = [];
+    for (const rows of bySlot.values()) {
+      if (rows.length < 2) continue;
+      // Collapse twin pairs into single units.
+      const seen = new Set(), units = [];
+      for (const r of rows) {
+        if (seen.has(r.spoolId)) continue;
+        const unit = [r]; seen.add(r.spoolId);
+        const twId = twinSpoolIdOf(r);
+        const twRow = twId && rows.find(x => x.spoolId === twId);
+        if (twRow && !seen.has(twRow.spoolId)) { unit.push(twRow); seen.add(twRow.spoolId); }
+        units.push(unit);
+      }
+      if (units.length < 2) continue;   // only a twin pair sharing the slot → legit
+      units.sort((a, b) => (a[0].spoolId < b[0].spoolId ? -1 : 1));
+      for (let i = 1; i < units.length; i++) for (const r of units[i]) evictIds.push(r.spoolId);
+    }
+    if (!evictIds.length) return;
+    console.warn(`[racks] self-heal: ${evictIds.length} spool(s) in already-occupied slots → unranked:`, evictIds);
+    try {
+      const col = fbDb(uid).collection("users").doc(uid).collection("inventory");
+      const batch = fbDb(uid).batch();
+      evictIds.forEach(id => batch.update(col.doc(id), { rack: null, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }));
+      await batch.commit();
+    } catch (e) { console.warn("[racks] self-heal failed:", e?.code || e?.message); }
   }
 
   // Persist an auto-policy pref to the account's Firestore prefs/app — per-account

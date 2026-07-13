@@ -734,9 +734,15 @@ function creNotifyChange(conn, statusChanged = false) {
           // Show/hide camera container without rebuilding it
           const camContainer = document.getElementById("creCamContainer");
           if (camContainer) camContainer.classList.toggle("cre-cam-hidden", conn.status !== "connected");
-          // Start/stop camera stream based on new status
+          // Stamp the <video>'s data-cre-ip so the per-IP stream can route to it —
+          // the panel is NOT rebuilt on reconnect, so a card opened while offline
+          // would otherwise never carry its IP and never receive the stream.
+          const camVid = camContainer?.querySelector(".cre-cam-video");
+          if (camVid && conn.ip) camVid.dataset.creIp = conn.ip;
+          // Start/stop THIS printer's camera stream based on new status (per-IP, so
+          // stopping one Creality never tears down the others' streams).
           if (conn.status === "connected" && conn.ip) ctx.creCamStart(conn.ip);
-          else ctx.creCamStop();
+          else { const _ip = conn.ip || camVid?.dataset.creIp; if (_ip) ctx.creCamStop(_ip); }
         }
       });
     }

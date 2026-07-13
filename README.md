@@ -73,6 +73,8 @@ The **TigerTag SDK** is the low-level library that handles all NFC chip operatio
 
 ## Features
 
+> The highlights below are a curated subset. See **[FEATURES.md](./FEATURES.md)** for the complete, always-current catalogue of every shipped feature — grouped by domain, with the version each one landed.
+
 ### 🗂 Inventory
 - Real-time Firestore sync — table view + grid view, column sort, full-text search
 - Detail side panel — color, print settings, weight slider with auto-save, container, raw JSON
@@ -366,6 +368,7 @@ Guidelines: keep the renderer vanilla (no React/Vue), add i18n strings with `npm
 
 ## Changelog · Roadmap
 
+- 📚 **[FEATURES.md](./FEATURES.md)** — complete catalogue of every shipped feature, grouped by domain (current as of the latest release)
 - 📋 **[CHANGELOG.md](./CHANGELOG.md)** — full version history
 - 🗺 **[ROADMAP.md](./ROADMAP.md)** — planned features, in-flight work, and backlog
 
