@@ -93,7 +93,7 @@
       <div class="sb-qr-wrap" id="sbQrWrap">
         <div class="sb-qr-label" data-i18n="mobileApp">TigerTag Mobile Apps</div>
         <div class="sb-qr-label-short" data-i18n="mobileAppShort">Apps</div>
-        <img class="sb-qr-img" src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=https%3A%2F%2Ftaap.it%2FnX7QSrz&bgcolor=0f1117&color=ffffff&margin=8" alt="QR" />
+        <img class="sb-qr-img" id="sbQrImg" alt="QR" />
       </div>
       <!-- Official goodies shop → support the project (opens in the browser) -->
       <button class="sb-shop-btn" id="sbShopBtn">
@@ -254,8 +254,8 @@
         <div class="inv-filter-group">
           <!-- Product-flag quick filters: ❤ wishlist / ★ liked (mutually exclusive) —
                placed right after the search bar, before the attribute filters. -->
-          <button type="button" id="wishFilter" class="inv-flag-filter inv-flag-filter--wish" data-i18n-title="productLike" title="Liked">
-            <span class="icon icon-heart icon-14"></span>
+          <button type="button" id="wishFilter" class="inv-flag-filter inv-flag-filter--wish" data-i18n-title="productLike" title="To order">
+            <span class="icon icon-cart icon-14"></span>
           </button>
           <button type="button" id="likeFilter" class="inv-flag-filter inv-flag-filter--like" data-i18n-title="productFavorite" title="Favorite">
             <span class="icon icon-star icon-14"></span>
@@ -339,8 +339,8 @@
              on every selected spool's product. In a friend view these are the ONLY
              actions (they import into your own products). -->
         <button id="bulkLike" class="bulk-btn bulk-flag bulk-flag--wish" type="button" aria-pressed="false">
-          <span class="icon icon-heart icon-13"></span>
-          <span data-i18n="bulkLike">Love</span>
+          <span class="icon icon-cart icon-13"></span>
+          <span data-i18n="bulkLike">To order</span>
         </button>
         <button id="bulkFavorite" class="bulk-btn bulk-flag bulk-flag--like" type="button" aria-pressed="false">
           <span class="icon icon-star icon-13"></span>
@@ -793,6 +793,7 @@
           <img src="../assets/svg/logos/logo_buymeacoffee.png" alt="Buy me a coffee" />
         </button>
       </div>
+      <div class="whatsnew-dots" id="whatsNewDots"><div class="wn-track" id="whatsNewTrack"></div></div>
       <button class="whatsnew-btn" id="whatsNewLater" data-i18n="whatsNewLater">Later</button>
       <button class="whatsnew-btn whatsnew-btn--primary" id="whatsNewGotIt" data-i18n="whatsNewGotIt">Got it</button>
     </footer>
@@ -1162,7 +1163,7 @@
     <div class="fp-hero">
       <div class="fp-hero-label" data-i18n="friendsMyCode">My code</div>
       <div class="fp-hero-code" id="stgPublicKey">—</div>
-      <!-- QR of the shareable invite link (cdn.tigertag.io/friend/<code>) — src set in renderFriendsSection -->
+      <!-- QR of the shareable invite link (tigersystem.io/friend/<code>) — src set in renderFriendsSection -->
       <div class="fp-hero-qr"><img id="fpHeroQr" alt="QR" /></div>
       <div class="fp-hero-actions">
         <button class="fp-hero-btn" id="btnShareFriendLink" title="Share invite link">
@@ -2635,6 +2636,7 @@
 <!-- Agora Web SDK — cloud-mode Anycubic camera (Agora/"shengwang" WebRTC).
      npm dep `agora-rtc-sdk-ng`, copied here from node_modules by postinstall (gitignored). -->
 <script src="lib/agora/AgoraRTC_N-production.js"></script>
+<script src="lib/qrcode/qrcode.js"></script>
 <script type="module" src="inventory.js"></script>
 
 <!-- Scan Panel — slides in when "+ Scan" is armed; shows waiting state then tag data + raw JSON -->
@@ -2716,6 +2718,17 @@
         <span class="tigerpod-btn-icon"></span>
         <span data-i18n="tigerPodPrintBtn">Download &amp; Print STL Free</span>
       </a>
+      <label class="fp-toggle-card tigerpod-own-card">
+        <span class="fp-toggle-icon"><span class="rfid-pod-icon"></span></span>
+        <span class="fp-toggle-text">
+          <span class="fp-toggle-title" data-i18n="tigerPodOwnLabel">I own a TigerPOD</span>
+          <span class="fp-toggle-sub" data-i18n="tigerPodOwnSub">We tick this for you on your first scan — or flip it yourself.</span>
+        </span>
+        <span class="eac-toggle">
+          <input type="checkbox" id="tigerPodOwnToggle" />
+          <span class="eac-toggle-track"><span class="eac-toggle-thumb"></span></span>
+        </span>
+      </label>
     </div>
   </div>
 </div>

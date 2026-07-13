@@ -1,6 +1,6 @@
 {
   "name": "tigertag-inventory",
-  "version": "2.8.0",
+  "version": "2.9.0",
   "description": "Tiger Studio Manager — desktop app",
   "main": "main.js",
   "engines": {
@@ -34,6 +34,7 @@
     "ffmpeg-static": "^5.2.0",
     "mqtt": "^5.15.1",
     "nfc-pcsc": "^0.8.1",
+    "qrcode-generator": "^2.0.4",
     "serialport": "^13.0.0",
     "tigertag": "^1.0.6",
     "yauzl": "^3.4.0"

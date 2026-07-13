@@ -482,9 +482,9 @@
   .bulk-bar.is-materials #bulkFavorite,
   .bulk-bar.is-materials #bulkLike { display: inline-flex; }
   #bulkFavorite .icon { background-color: #f5a623; }   /* ★ gold, on & off */
-  #bulkLike .icon     { background-color: #e0245e; }   /* ❤ red,  on & off */
+  #bulkLike .icon     { background-color: #5e8e3e; }   /* 🛒 cart green, on & off */
   #bulkFavorite.active { background: color-mix(in srgb, #f5a623 16%, transparent); border-color: #f5a623; }
-  #bulkLike.active     { background: color-mix(in srgb, #e0245e 14%, transparent); border-color: #e0245e; }
+  #bulkLike.active     { background: color-mix(in srgb, #5e8e3e 14%, transparent); border-color: #5e8e3e; }
   /* Friend view: keep ONLY the ★/❤ import actions — no write-to-friend actions. */
   .bulk-bar.is-friendview #bulkTags,
   .bulk-bar.is-friendview #bulkPrice,
@@ -893,8 +893,8 @@
   }
   .inv-flag-filter .icon { background-color: var(--muted); }
   .inv-flag-filter:hover { background-color: var(--surface); border-color: var(--primary); }
-  .inv-flag-filter--wish.is-active { border-color: #e0245e; background-color: color-mix(in srgb, #e0245e 14%, transparent); }
-  .inv-flag-filter--wish.is-active .icon { background-color: #e0245e; -webkit-mask-image: url('../../assets/svg/icons/icon_heart_filled.svg'); mask-image: url('../../assets/svg/icons/icon_heart_filled.svg'); }
+  .inv-flag-filter--wish.is-active { border-color: #5e8e3e; background-color: color-mix(in srgb, #5e8e3e 14%, transparent); }
+  .inv-flag-filter--wish.is-active .icon { background-color: #5e8e3e; -webkit-mask-image: url('../../assets/svg/icons/icon_cart.svg'); mask-image: url('../../assets/svg/icons/icon_cart.svg'); }
   .inv-flag-filter--like.is-active { border-color: #f5a623; background-color: color-mix(in srgb, #f5a623 16%, transparent); }
   .inv-flag-filter--like.is-active .icon { background-color: #f5a623; -webkit-mask-image: url('../../assets/svg/icons/icon_star_filled.svg'); mask-image: url('../../assets/svg/icons/icon_star_filled.svg'); }
 
@@ -926,7 +926,7 @@
   }
   /* Compact the order rows: smaller thumb + tight sub-line rhythm so a line with
      a SKU under the title doesn't leave dead space below the text. */
-  .pv-order-line .pv-thumb { width: 42px; height: 42px; }
+  .pv-order-line .pv-thumb { width: 64px; height: 64px; border-radius: 10px; }
   .pv-order-line .pv-line-title { line-height: 1.25; }
   .pv-order-line .pv-line-sku { margin-top: 1px; }
   .pv-order-line .pv-qty { margin-top: 2px; }
@@ -973,13 +973,7 @@
   }
   /* Shopify-style order columns: unit price · qty · line total. */
   .pv-unit-col { flex-shrink: 0; width: 90px; text-align: right; font-size: 13px; color: var(--primary); font-weight: 600; font-variant-numeric: tabular-nums; }
-  .pv-qty-col { flex-shrink: 0; width: 72px; display: flex; justify-content: center; }
-  .pv-qty-input {
-    width: 64px; height: 34px; padding: 0 8px; border-radius: 8px; text-align: center;
-    background: var(--surface); border: 1px solid var(--border); box-shadow: inset 0 1px 2px rgba(0,0,0,.04);
-    font-size: 14px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums;
-  }
-  .pv-qty-input:focus { outline: none; border-color: var(--primary); background: var(--primary-soft); }
+  .pv-qty-col { flex-shrink: 0; width: 92px; display: flex; justify-content: center; }
   .pv-total-col { flex-shrink: 0; width: 90px; text-align: right; font-size: 14px; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }
   /* Payment summary (Subtotal / Tax / Total), like a Shopify order footer. */
   .pv-summary {
@@ -998,7 +992,7 @@
   .pv-line-actions { display: flex; gap: 6px; flex-shrink: 0; }
   .pv-info, .pv-buy {
     width: 34px; height: 34px; padding: 0; border-radius: 9px; cursor: pointer; flex-shrink: 0;
-    display: inline-flex; align-items: center; justify-content: center;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
     border: 1px solid var(--border);
   }
   /* Info (ⓘ) — light action button, same box as the cart so the row lines up
@@ -1007,12 +1001,15 @@
   .pv-info .icon { background-color: var(--muted); }
   .pv-info:hover { background: var(--border); }
   .pv-info:hover .icon { background-color: var(--text); }
-  .pv-buy { background: #5e8e3e; border-color: #5e8e3e; }
+  /* Buy button — green icon-only square (the shop's domain lives in the group
+     header now), or a muted square when the product has no buy link (`--off`). */
+  .pv-buy { background: #5e8e3e; border-color: #5e8e3e; transition: filter .12s; }
+  .pv-buy:hover { filter: brightness(1.05); }
   .pv-buy .icon { background-color: #fff; }
   .pv-buy--off { background: var(--surface-2); border-color: var(--border); }
   .pv-buy--off .icon { background-color: var(--muted); }
   .pv-flag { vertical-align: middle; }
-  .pv-flag--liked { background-color: #e0245e; }
+  .pv-flag--liked { background-color: #5e8e3e; }
   .pv-flag--fav { background-color: #f5a623; }
   .pv-empty { padding: 48px 20px; text-align: center; color: var(--muted); font-size: 14px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
   .pv-empty .icon { background-color: var(--border); }
@@ -1031,6 +1028,20 @@
     min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
     background: var(--surface-2); color: var(--text); font-size: 11px; font-weight: 700;
     letter-spacing: 0;
+  }
+  /* Cart group header — one band per purchase source (buy-link host) inside the
+     active cart list. Sticky so the source stays visible while scrolling its items. */
+  .pv-cart-group {
+    position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: 7px;
+    padding: 7px 12px; background: var(--surface-2); border-bottom: 1px solid var(--border);
+    font-size: 11.5px; font-weight: 700; letter-spacing: .02em; color: var(--muted);
+  }
+  .pv-cart-group .icon { background-color: var(--muted); flex-shrink: 0; }
+  .pv-cart-group-lbl { color: var(--text); }
+  .pv-cart-group-n {
+    display: inline-flex; align-items: center; justify-content: center; min-width: 16px; height: 16px;
+    padding: 0 4px; border-radius: 8px; background: var(--surface); color: var(--muted);
+    font-size: 10.5px; font-weight: 700;
   }
   .pv-saved .pv-order-list { opacity: .82; }   /* the shelf reads a touch dimmer */
   /* Amazon-style text actions under the item (non-destructive): "Save for later"
@@ -2494,9 +2505,8 @@
   }
   .prod-badges--sm .prod-badge { width: 14px; height: 14px; border-width: 1.5px; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
   .prod-badge .icon { background-color: #fff; }
-  .prod-badge--wish { background: #e0245e; } /* wishlist red */
+  .prod-badge--wish { background: #5e8e3e; } /* cart green */
   .prod-badge--like { background: #f5a623; } /* like gold */
-  .prod-badge--shop { background: #5e8e3e; } /* Shopify green */
   /* On the (large) spool-detail illustration, the badges show 2× bigger. */
   .panel-img-wrap .prod-badges { bottom: 10px; right: 10px; gap: 6px; }
   .panel-img-wrap .prod-badge {
@@ -2727,17 +2737,26 @@
   .toolbox-row:hover .tool-info .icon,
   .toolbox-row-main:hover .tool-info .icon { opacity: .8; }
   .tool-info:hover .icon { opacity: 1 !important; background: var(--text); }
+  /* Comic-style speech bubble — a rounded bubble with a little tail pointing at the
+     hovered control (tail x is set in JS via --tail-x; flips up when placed below). */
   #toolInfoPop {
     position: fixed; z-index: 9999; left: 0; top: 0;
-    width: max-content; max-width: 260px; white-space: normal; text-align: left;
+    width: max-content; max-width: 260px; white-space: normal; text-align: center;
     background: #1c2030; color: #fff; border: 1px solid rgba(255,255,255,.14);
-    padding: 8px 11px; border-radius: 8px;
-    font-size: 11px; font-weight: 400; line-height: 1.45; letter-spacing: 0;
-    box-shadow: 0 8px 22px rgba(0,0,0,.4);
+    padding: 8px 12px; border-radius: 12px;
+    font-size: 11.5px; font-weight: 600; line-height: 1.4; letter-spacing: 0;
+    box-shadow: 0 10px 26px rgba(0,0,0,.42);
     opacity: 0; pointer-events: none; transition: opacity .12s;
   }
+  #toolInfoPop::after {
+    content: ""; position: absolute; left: var(--tail-x, 50%); transform: translateX(-50%);
+    border: 7px solid transparent; pointer-events: none;
+  }
+  #toolInfoPop:not(.pop-below)::after { top: 100%; margin-top: -1px; border-top-color: #1c2030; }
+  #toolInfoPop.pop-below::after     { bottom: 100%; margin-bottom: -1px; border-bottom-color: #1c2030; }
   #toolInfoPop.is-measuring { opacity: 0; }        /* laid out for measuring, still hidden */
-  #toolInfoPop.is-open { opacity: 1; }
+  #toolInfoPop.is-open { opacity: 1; animation: ttipPop .16s cubic-bezier(.34,1.45,.5,1); }
+  @keyframes ttipPop { from { transform: scale(.82); } to { transform: scale(1); } }
 
   /* Variant: info — used for the "linked to its twin" inert row. */
   .toolbox-row--info {
@@ -3014,8 +3033,8 @@
   }
   .flag-toggle .icon { background-color: var(--muted); }
   .flag-toggle:hover { background: var(--border); }
-  .flag-toggle--wish.active { background: color-mix(in srgb, #e0245e 15%, transparent); border-color: #e0245e; }
-  .flag-toggle--wish.active .icon { background-color: #e0245e; }
+  .flag-toggle--wish.active { background: color-mix(in srgb, #5e8e3e 15%, transparent); border-color: #5e8e3e; }
+  .flag-toggle--wish.active .icon { background-color: #5e8e3e; }
   .flag-toggle--like.active { background: color-mix(in srgb, #f5a623 18%, transparent); border-color: #f5a623; }
   .flag-toggle--like.active .icon { background-color: #f5a623; }
   /* Detail-panel identity block: identity text (flags moved to their own row). */
@@ -3357,6 +3376,11 @@
   .lv-vis--friends .icon { background-color: #2f74d0; }
   .lv-vis--public { color: #2e9e6b; background: color-mix(in srgb, #2e9e6b 14%, transparent); }
   .lv-vis--public .icon { background-color: #2e9e6b; }
+  /* Right rail — stacks the payment summary + the public share card. */
+  .lv-rail { flex: 0 0 300px; align-self: flex-start; position: sticky; top: 4px;
+    display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+  .lv-rail .lv-public-card { flex: initial; width: 100%; position: static; top: auto; }
+  .lv-summary { margin-top: 0; }
   /* Public share card — right rail (QR + "Copy link" button), shown when public. */
   .lv-public-card { flex: 0 0 240px; align-self: flex-start; position: sticky; top: 4px;
     display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center;
@@ -3366,15 +3390,43 @@
   .lv-public-title { display: inline-flex; align-items: center; gap: 6px; font-size: 12px;
     font-weight: 700; color: #2e9e6b; }
   .lv-public-title .icon { background-color: #2e9e6b; }
+  .lv-qr-wrap { align-self: center; line-height: 0; }
   .lv-public-qr { width: 160px; height: 160px; border-radius: 10px; background: #fff; padding: 6px; }
+  /* Actions row: "Copy link" (grows) + a square Download-QR button on its right. */
+  .lv-public-actions { display: flex; align-items: stretch; gap: 8px; width: 100%; }
   .lv-public-copy { display: inline-flex; align-items: center; justify-content: center; gap: 7px;
-    width: 100%; height: 36px; border-radius: 10px; cursor: pointer; font-family: inherit;
+    flex: 1 1 auto; min-width: 0; height: 36px; border-radius: 10px; cursor: pointer; font-family: inherit;
     font-size: 13px; font-weight: 700; color: #fff; background: #2e9e6b; border: 1px solid #2e9e6b;
     transition: filter .12s; }
   .lv-public-copy:hover { filter: brightness(1.06); }
   .lv-public-copy .icon { background-color: #fff; }
   .lv-public-copy.is-copied { background: #237a52; border-color: #237a52; }
+  .lv-public-dl { flex: 0 0 auto; width: 40px; height: 36px; display: inline-flex; align-items: center; justify-content: center;
+    padding: 0; cursor: pointer; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2);
+    color: var(--text-dim, #8b93a7); transition: background .12s, border-color .12s, color .12s; }
+  .lv-public-dl:hover { border-color: var(--primary); color: var(--primary); }
+  .lv-public-dl .icon { background-color: currentColor; }
+  .lv-public-dl.is-busy { opacity: .5; pointer-events: none; }
+  .lv-public-dl.is-done { background: #2e9e6b; border-color: #2e9e6b; color: #fff; }
   .lv-public-hint { font-size: 11.5px; color: var(--muted); line-height: 1.45; }
+  /* QR customisation — colour swatches + a logo toggle (owner only). */
+  .lv-qr-style { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .lv-qr-style-lbl { font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+  .lv-qr-swatches { display: inline-flex; align-items: center; gap: 7px; }
+  .lv-qr-sw { width: 18px; height: 18px; padding: 0; border-radius: 50%; cursor: pointer;
+    background: var(--sw); border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--border);
+    transition: transform .12s, box-shadow .12s; }
+  .lv-qr-sw:hover { transform: scale(1.12); }
+  .lv-qr-sw.is-sel { box-shadow: 0 0 0 2px var(--primary); }
+  .lv-qr-logo { width: 24px; height: 18px; padding: 0; display: inline-flex; align-items: center; justify-content: center;
+    border-radius: 6px; border: 1px solid var(--border); background: var(--surface-2); cursor: pointer;
+    transition: border-color .12s, background .12s; }
+  .lv-qr-logo:hover { border-color: var(--primary); }
+  .lv-qr-logo.is-on { background: var(--primary); border-color: var(--primary); }
+  .lv-qr-logo-mark { width: 16px; aspect-ratio: 1000 / 567; background-color: var(--muted);
+    -webkit-mask: url('../../assets/svg/logos/logo_tigertag_head.svg') center/contain no-repeat;
+            mask: url('../../assets/svg/logos/logo_tigertag_head.svg') center/contain no-repeat; }
+  .lv-qr-logo.is-on .lv-qr-logo-mark { background-color: #fff; }
   /* Social share buttons — brand-coloured circles with a white glyph. */
   .icon-facebook { -webkit-mask-image: url('../../assets/svg/logos/logo_facebook.svg'); mask-image: url('../../assets/svg/logos/logo_facebook.svg'); }
   .icon-x        { -webkit-mask-image: url('../../assets/svg/logos/logo_x.svg');        mask-image: url('../../assets/svg/logos/logo_x.svg'); }
@@ -3493,8 +3545,44 @@
   .lv-reordering .lv-row, .lv-reordering .lv-card { will-change: transform; }
   body.is-dragging-order .lv-row, body.is-dragging-order .lv-card { cursor: grabbing; }
   /* Buy / Add-a-link bar at the bottom of a grid card (full-width). */
-  .lv-card-buybar { padding: 0 10px 10px; margin-top: auto; }
-  .lv-card-buy { width: 100%; height: 30px; justify-content: center; padding: 0 10px; font-size: 12px; }
+  .lv-card-buybar { padding: 0 10px 10px; margin-top: auto; display: flex; align-items: center; gap: 8px; }
+  .lv-card-buy { flex: 1; min-width: 0; height: 30px; justify-content: center; padding: 0 10px; font-size: 12px; }
+  /* Amazon-style quantity selector — a dropdown button (1–9 + "10+") that swaps to a
+     free-entry number input on "10+". Shared by the wishlist + the "To order" cart. */
+  .qsel { position: relative; display: inline-flex; flex-shrink: 0; }
+  .qsel-btn { display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 8px 0 11px;
+    border: 1px solid var(--border); border-radius: 8px; background: var(--surface);
+    box-shadow: 0 1px 2px rgba(0,0,0,.06); cursor: pointer; color: var(--text);
+    font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums;
+    transition: border-color .12s, background .12s; }
+  .qsel-btn:hover { border-color: var(--muted); }
+  .qsel--open .qsel-btn { border-color: var(--primary); }
+  .qsel-val { min-width: 12px; text-align: center; }
+  .qsel-caret { width: 9px; aspect-ratio: 1; flex-shrink: 0; background-color: var(--muted);
+    -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'><path fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round' d='M2.5 4l2.5 2.5L7.5 4'/></svg>") center/contain no-repeat;
+            mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'><path fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round' d='M2.5 4l2.5 2.5L7.5 4'/></svg>") center/contain no-repeat; }
+  /* Body-appended (position:fixed, placed in JS) → overlays everything, never clips
+     inside a card or makes it grow. Shows all 10 rows at once (no scroll). */
+  #qselPop.qsel-pop { position: fixed; z-index: 9999; left: 0; top: 0; min-width: 60px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    box-shadow: 0 12px 30px rgba(0,0,0,.24); padding: 4px;
+    opacity: 0; pointer-events: none; transition: opacity .1s; }
+  #qselPop.qsel-pop.is-open { opacity: 1; pointer-events: auto; animation: cselPop .12s ease; }
+  .qsel-opt { display: block; width: 100%; height: auto; min-height: 0; text-align: left; padding: 5px 12px; border: 0;
+    background: none; border-radius: 5px; cursor: pointer; font-family: inherit; font-size: 13px;
+    line-height: 1.2; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; transition: background .1s; }
+  .qsel-opt:hover { background: var(--surface-2); }
+  .qsel-opt.is-sel { background: color-mix(in srgb, var(--primary) 12%, transparent); color: var(--primary); font-weight: 800; }
+  .qsel-opt--more { margin-top: 3px; border-top: 1px solid var(--border); border-radius: 0 0 5px 5px; }
+  /* Free-entry input — typed by hand, no up/down spinner arrows. Doubled selector
+     (0,2,0) so it outranks the global `input[type="text"]` rule (0,1,1) that would
+     otherwise stretch it full-width. */
+  .qsel-input.qsel-input { box-sizing: border-box; width: 56px; min-width: 0; height: 32px; margin: 0; padding: 0 8px;
+    text-align: center; -moz-appearance: textfield; appearance: textfield;
+    border: 1px solid var(--primary); border-radius: 8px; background: var(--surface); box-shadow: none; outline: none;
+    font-size: 13px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+  .qsel-input::-webkit-inner-spin-button, .qsel-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  .lv-qty-ro { font-size: 13px; font-weight: 700; color: var(--muted); }
   .lv-row-thumb { flex: 0 0 84px; }
   .lv-row-thumb .pv-thumb { width: 84px; height: 84px; border-radius: 10px; object-fit: cover; display: block; }
   .lv-row-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }

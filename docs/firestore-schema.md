@@ -49,7 +49,12 @@ users/
         versionsUsed   string[] — all app versions ever used (arrayUnion)
         platformsUsed  string[] — all platforms ever used (arrayUnion)
         td1sUsed       boolean  — true once a TD1s sensor was connected (rules: only `true` accepted)
-        rfidReadersMax number   — max simultaneous RFID readers ever seen (rules: 1 or 2)
+        hasPod         boolean  — TigerPOD ownership (Pod-owner census). Set true
+                                  either by the user ("I own a TigerPOD" toggle) OR
+                                  AUTO on the first successful RFID read. Not
+                                  derivable — a declaration can precede any scan.
+        rfidReadersMax number   — Pod reader count: max readers during a SUCCESSFUL
+                                  RFID read (rules: 1 or 2), kept at lifetime max.
         rfidChipsTotal number   — lifetime unique physical chips recorded (increment; see rfidList/ below)
         cloudAddedTotal, tagAddedTotal, plusAddedTotal,
         cloudToTagTotal, cloudToPlusTotal, tagToPlusTotal  number — spool-lifecycle counters (increment)

@@ -1090,11 +1090,10 @@
   .fvb-badge--public { color: #fff; border-color: transparent; background: linear-gradient(90deg, #22a06b, #35c489); }
   .fvb-badge--public .icon { background-color: #fff; }
   /* "Partager" → blue "link" gradient pill, clickable (copies the invite link) — same slim box. */
-  .fvb-badge--share { cursor: pointer; color: #fff; border-color: transparent;
+  .fvb-badge--share { position: relative; cursor: pointer; color: #fff; border-color: transparent;
     background: linear-gradient(90deg, #2f74d0, #5b9be8); transition: filter .12s; }
   .fvb-badge--share .icon { background-color: #fff; }
   .fvb-badge--share:hover { filter: brightness(1.06); }
-  .fvb-badge--share.fvb-share--copied { background: linear-gradient(90deg, #22a06b, #35c489); }
   /* "X friends" — plain muted count (not a pill). */
   .fvb-count { display: inline-flex; align-items: center; gap: 3px;
     font-size: 10px; font-weight: 600; color: var(--muted); }
@@ -3434,6 +3433,12 @@
   background: var(--primary-hover); border-color: var(--primary-hover);
   box-shadow: 0 3px 14px rgba(255,122,24,.45);
 }
+/* "I own a TigerPOD" ownership row — reuses .fp-toggle-card */
+.tigerpod-own-card { margin-top: 14px; }
+.tigerpod-own-card .fp-toggle-icon .rfid-pod-icon {
+  height: 16px; /* aspect-ratio 1/1 already on .rfid-pod-icon → width derives */
+  background-color: var(--primary);
+}
 .tigerpod-btn-icon {
   flex-shrink: 0; height: 16px; aspect-ratio: 1/1;
   background-color: #fff;
@@ -3777,6 +3782,22 @@
 }
 .whatsnew-version-select:hover { border-color: var(--primary); color: var(--text); }
 .whatsnew-version-select:focus { outline: none; border-color: var(--primary); }
+/* The version picker is upgraded to the app's custom dropdown (_enhanceSelect):
+   the native <select> is hidden, a .csel-btn mirrors it + an app-styled option
+   list opens. Keep the compact titlebar pill look; push it to the right. */
+.whatsnew-titlebar .csel { margin-left: auto; }
+.whatsnew-titlebar .csel-btn {
+  height: 28px; min-width: 0; padding: 0 24px 0 11px; border-radius: 999px;
+  background-color: var(--surface); color: var(--muted);
+  font-size: 11.5px; font-weight: 600; letter-spacing: .02em;
+  background-position: right 9px center; max-width: 230px;
+}
+.whatsnew-titlebar .csel-btn:hover,
+.whatsnew-titlebar .csel--open .csel-btn { border-color: var(--primary); color: var(--text); }
+.whatsnew-titlebar .csel-btn .csel-label { font-variant-numeric: tabular-nums; }
+/* Picker sits on the right of the titlebar; the window clips overflow, so open the
+   option list aligned to the right edge (extends left, stays inside the window). */
+.whatsnew-titlebar .csel-pop { left: auto; right: 0; }
 .whatsnew-close {
   width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
   border: none; background: transparent; color: var(--muted);
@@ -3829,6 +3850,40 @@
 .whatsnew-coffee-wrap { margin-right: auto; display: inline-flex; align-items: center; gap: 9px; }
 .whatsnew-coffee-cap { font-size: 12.5px; font-weight: 600; color: var(--text-dim, #8b93a7); }
 @media (max-width: 440px) { .whatsnew-coffee-cap { display: none; } }
+
+/* Version page-control — Apple-style dots (one per version, current filled), in the
+   footer gap left of Later / Got it. With many versions a centred window of dots is
+   shown; the outermost dots shrink (`.is-edge`) to hint there's more, exactly like iOS.
+   Jump anywhere via the title-bar picker. */
+/* Version page-control — a carousel: the active dot stays CENTRED in a fixed
+   viewport and the whole track slides under it (unlimited back-and-forth, the pill
+   never drifts to an edge). Viewport width = 7 slots × 20px; edges fade out.
+   Keep _WN_VIEW / _WN_SLOT in inventory.js in sync with these values. */
+.whatsnew-dots {
+  margin-right: auto; position: relative; overflow: hidden;
+  width: 140px; height: 30px; flex: 0 0 auto;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 20%, #000 80%, transparent);
+          mask-image: linear-gradient(90deg, transparent, #000 20%, #000 80%, transparent);
+}
+.wn-track {
+  position: absolute; top: 0; left: 0; height: 100%; display: flex; align-items: center;
+  transition: transform .34s cubic-bezier(.34,1.05,.5,1);
+}
+/* Fixed-width slot = big invisible hit target; the visible dot is a `::before`
+   circle (stays round). The slot width is constant so the active capsule growing
+   never shifts the track's centring. */
+.wn-dot {
+  flex: 0 0 20px; height: 30px; display: inline-flex; align-items: center; justify-content: center;
+  padding: 0; border: 0; background: transparent; cursor: pointer;
+}
+.wn-dot::before {
+  content: ""; display: block; width: 9px; height: 9px; border-radius: 999px;
+  background: var(--muted, #8b93a7); opacity: .35;
+  transition: width .3s cubic-bezier(.34,1.2,.5,1), opacity .22s, background-color .22s;
+}
+.wn-dot:hover:not(.is-active)::before { opacity: .6; }
+.wn-dot.is-active { cursor: default; }
+.wn-dot.is-active::before { width: 22px; opacity: 1; background-color: var(--primary); }
 
 /* ── Create-list modal (name required + optional occasion) ── */
 .clm-card { width: 380px; padding: 22px 22px 18px; }

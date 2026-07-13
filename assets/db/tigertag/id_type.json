@@ -1,1 +1,18 @@
-[{"id":142,"label":"Filament"},{"id":173,"label":"Resin"}]
+[
+  {
+    "id": 142,
+    "label": "Filament"
+  },
+  {
+    "id": 116,
+    "label": "Accessories"
+  },
+  {
+    "id": 41,
+    "label": "Spare Part"
+  },
+  {
+    "id": 173,
+    "label": "Resin"
+  }
+]

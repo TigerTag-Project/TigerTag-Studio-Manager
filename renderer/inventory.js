@@ -628,6 +628,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // URL rotates on every upload so we get cache-busting for free.
     photoURL: null,
     isPublic: false,
+    hasPod: false,           // owns a TigerPOD — declared OR auto-set on first successful RFID read
     friends: [],             // [{ uid, displayName, addedAt, key }]
     friendRequests: [],      // [{ uid, displayName, requestedAt }]
     notifications: [],       // [{ id, type, fromUid, fromName, createdAt, read }] — users/{uid}/notifications
@@ -642,7 +643,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     unsubPrinters: [],       // array of Firestore unsubscribe handles (one per brand subcollection)
     products: {},       // keyHash → { key, label, buyUrl, buyPriceHt, minStockSpools, note, tags, liked(❤), favorite(★), sku, ean, cloudSeed, updatedAt } — per-product-identity record. Price stored tax-free (HT).
     unsubProducts: null,// Firestore unsubscribe handle for products
-    lists: {},          // listId → { name, emoji, occasion, itemKeys[], createdAt, updatedAt, sortRank } — Amazon-style shopping/wish lists; items reference product identities (keyHash)
+    lists: {},          // listId → { name, emoji, occasion, itemKeys[], itemQty{keyHash:n}, createdAt, updatedAt, sortRank } — Amazon-style shopping/wish lists; items reference product identities (keyHash), itemQty holds per-item quantities (default 1)
     unsubLists: null,   // Firestore unsubscribe handle for lists
     friendLists: {},    // friend view: the friend's lists, read directly + read-only (same as friendProducts)
     unsubFriendLists: null,
@@ -1023,6 +1024,55 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       return `<option value="${esc(v)}">v${esc(v)}${esc(d)}</option>`;
     }).join("");
     if (selected && vers.includes(selected)) sel.value = selected;
+    sel._cselRefresh?.();   // update the custom dropdown's button label
+  }
+  // Prev/Next version stepper. The version list is newest-first, so "older" (◀)
+  // Apple-style page-control dots (chronological: oldest → newest). One dot per
+  // version, current one filled; with many versions a centred WINDOW of dots is
+  // rendered and the outermost dots shrink (`.is-edge`) to hint there's more — the
+  // iOS behaviour. Each dot jumps to its version; the title-bar picker jumps anywhere.
+  // Carousel page-control: the active dot stays CENTRED in the viewport and the
+  // whole track slides under it (unlimited back-and-forth, the pill never drifts to
+  // an edge). _WN_SLOT / _WN_VIEW must match .wn-dot flex-basis / .whatsnew-dots width.
+  const _WN_SLOT = 20, _WN_VIEW = 140;
+  function _wnRenderDots(rebuild) {
+    const host = document.getElementById("whatsNewDots");
+    const track = document.getElementById("whatsNewTrack");
+    if (!host || !track) return;
+    const asc = _wnVersionsDesc().slice().reverse();   // oldest → newest (left → right)
+    const n = asc.length;
+    const cur = document.getElementById("whatsNewVersionSelect")?.value;
+    const curIdx = Math.max(0, asc.indexOf(cur));
+    // Build the full track of dots once (or when the version set changes).
+    if (rebuild || track.dataset.n !== String(n)) {
+      track.dataset.n = String(n);
+      track.innerHTML = asc.map(v =>
+        `<button type="button" class="wn-dot" data-wn-dot="${esc(v)}" aria-label="v${esc(v)}"></button>`
+      ).join("");
+    }
+    const dots = track.children;
+    for (let i = 0; i < dots.length; i++) {
+      const active = i === curIdx;
+      dots[i].classList.toggle("is-active", active);
+      if (active) dots[i].setAttribute("aria-current", "true"); else dots[i].removeAttribute("aria-current");
+    }
+    // Slide the track so the active slot's centre sits at the viewport centre.
+    const x = Math.round(_WN_VIEW / 2 - (curIdx * _WN_SLOT + _WN_SLOT / 2));
+    if (rebuild) {                       // place without a slide on (re)open
+      track.style.transition = "none";
+      track.style.transform = `translateX(${x}px)`;
+      void track.offsetWidth;            // flush so the next change animates
+      track.style.transition = "";
+    } else {
+      track.style.transform = `translateX(${x}px)`;
+    }
+  }
+  function _wnGoTo(version) {
+    if (!version) return;
+    const sel = document.getElementById("whatsNewVersionSelect");
+    if (sel) sel.value = version;
+    _renderWhatsNew(version);   // browse history — doesn't change the "seen" version
+    _wnRenderDots();
   }
   function openWhatsNew(version, { manual = false } = {}) {
     _whatsNewSeenVersion = version;   // "Got it" acknowledges THIS (the running) version
@@ -1032,6 +1082,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const hasContent = _renderWhatsNew(display);
     if (!hasContent && !manual) return;   // auto-trigger with nothing to show → skip
     _populateWhatsNewSelect(display);
+    _wnRenderDots(true);   // centre the dot window on the opened version
     document.getElementById("whatsNewOverlay")?.classList.add("open");
     requestAnimationFrame(_placeWhatsNewWin);   // position the floating window
   }
@@ -1140,8 +1191,18 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   }
   _makeDraggableModal("colorEditModalOverlay", ".td-edit-card", ".modal-header");
 
+  // Sidebar "Mobile Apps" QR — generated locally (offline), fixed dark theme.
+  // Deferred so it runs AFTER the whole module has evaluated: `_makeQrDataUrl` reads
+  // module-level const/let (`_QR_STYLE_KEY`, `_qrLogoImg`) declared further down, which
+  // would be in the temporal dead zone if called during top-level init here.
+  queueMicrotask(() => { const _sbq = document.getElementById("sbQrImg"); if (_sbq) _sbq.src = _makeQrDataUrl("https://taap.it/nX7QSrz", { size: 110, margin: 2, fg: "#ffffff", bg: "#0f1117" }); });
+  _enhanceSelect(document.getElementById("whatsNewVersionSelect"));   // app-styled dropdown, like the app's other selects
   document.getElementById("whatsNewVersionSelect")?.addEventListener("change", (e) => {
-    _renderWhatsNew(e.target.value);   // browse history — doesn't change the "seen" version
+    _wnGoTo(e.target.value);   // browse history — doesn't change the "seen" version
+  });
+  document.getElementById("whatsNewDots")?.addEventListener("click", (e) => {
+    const d = e.target.closest("[data-wn-dot]");
+    if (d) _wnGoTo(d.dataset.wnDot);
   });
   document.getElementById("whatsNewGotIt")?.addEventListener("click", () => closeWhatsNew({ markSeen: true }));
   document.getElementById("whatsNewLater")?.addEventListener("click", () => closeWhatsNew({ markSeen: false }));
@@ -5279,6 +5340,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     subscribeInventory(uid);
     syncLangFromFirestore(uid);
     syncUserDoc(uid);
+    hydratePodSignal(uid);   // seed state.hasPod + lifetime rfidReadersMax from telemetry/studio
     subscribeFriendRequests(uid);
     subscribeFriends(uid);  // live-sync friends (add/remove on the fly, both sides) + per-friend avatar/name listeners
     subscribeNotifications(uid);  // live notification center (general notifs + unread badge)
@@ -6213,10 +6275,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         $("mainResult").innerHTML = `<div class="inv-loading"><div class="inv-loading-spin"></div><span>${t("invLoading")}</span></div>`;
       } else {
         // Connected + 0 spools → Apple-style welcome with 2 QR cards
-        const qrUniversal  = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https%3A%2F%2Ftaap.it%2FDF1Aqt&bgcolor=ffffff&color=1d1d1f&margin=16&qzone=1`;
+        const qrUniversal  = _makeQrDataUrl("https://taap.it/DF1Aqt", { size: 300, margin: 3, fg: "#1d1d1f", bg: "#ffffff", logo: false });
         // Universal beta link — routes to the iOS (TestFlight) or Android beta
         // automatically based on the scanning phone.
-        const qrBeta = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https%3A%2F%2Ftaap.it%2FnX7QSrz&bgcolor=ffffff&color=1d1d1f&margin=16&qzone=1`;
+        const qrBeta = _makeQrDataUrl("https://taap.it/nX7QSrz", { size: 300, margin: 3, fg: "#1d1d1f", bg: "#ffffff", logo: false });
         $("mainResult").innerHTML = `
           <div class="inv-welcome">
             <div class="inv-welcome-hero">
@@ -6833,9 +6895,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (!p) return "";
     const sz = compact ? "icon-9" : "icon-11";
     const items = [];
-    if (p.liked)    items.push(`<span class="prod-badge prod-badge--wish" title="${esc(t("productLike"))}"><span class="icon icon-heart-fill ${sz}"></span></span>`);
+    if (p.liked)    items.push(`<span class="prod-badge prod-badge--wish" title="${esc(t("productLike"))}"><span class="icon icon-cart ${sz}"></span></span>`);
     if (p.favorite) items.push(`<span class="prod-badge prod-badge--like" title="${esc(t("productFavorite"))}"><span class="icon icon-star-fill ${sz}"></span></span>`);
-    if (p.buyUrl)   items.push(`<span class="prod-badge prod-badge--shop" title="${esc(t("reorderHasLink"))}"><span class="icon icon-cart ${sz}"></span></span>`);
     return items.length ? `<div class="prod-badges${compact ? " prod-badges--sm" : ""}">${items.join("")}</div>` : "";
   }
 
@@ -7178,9 +7239,83 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // (TigerHub / Vercel). The snapshot is DENORMALISED and carries only safe
   // display fields — never the personal `note`. Base URL is a config constant
   // (adjust to the final TigerHub Vercel domain).
-  const LIST_PUBLIC_BASE = "https://tigersystem.io";   // TigerHub public web (Vercel) — /list/<token>
+  const PUBLIC_WEB_BASE = "https://tigersystem.io";   // TigerHub public web (Vercel) — /wishlist/<token>, /friend/<code>
   const _publicSnapSig = {};   // token → last-written content signature (skip redundant writes)
-  function _publicListUrl(token) { return `${LIST_PUBLIC_BASE}/wishlist/${token}`; }
+  function _publicListUrl(token) { return `${PUBLIC_WEB_BASE}/wishlist/${token}`; }
+  // Shareable friend-invite link (TigerHub landing page → app deep link).
+  function _friendShareUrl(code) { return `${PUBLIC_WEB_BASE}/friend/${code}`; }
+
+  // ── Local QR generation (offline — no external service) ────────────────────
+  // Renders the module matrix from the vendored qrcode-generator (window.qrcode)
+  // onto a canvas and returns a PNG data URL. Fully local: works with no network,
+  // no third-party dependency. User-customisable via `tigertag.qrStyle` in
+  // localStorage: { fg, bg, logo }. A centre logo bumps ECC to H so the code stays
+  // scannable despite the knockout.
+  const _QR_STYLE_KEY = "tigertag.qrStyle";
+  function _qrStyle() {
+    let s = {};
+    try { s = JSON.parse(localStorage.getItem(_QR_STYLE_KEY) || "{}") || {}; } catch (_) {}
+    // Centre logo disabled for now (toggle hidden) — re-enable by restoring `!!s.logo`
+    // + the logo toggle in the Public-link card. Colour customisation stays live.
+    return { fg: s.fg || "#1d1d1f", bg: s.bg || "#ffffff", logo: false };
+  }
+  function _setQrStyle(patch) {
+    const next = { ..._qrStyle(), ...patch };
+    try { localStorage.setItem(_QR_STYLE_KEY, JSON.stringify(next)); } catch (_) {}
+    return next;
+  }
+  // Preloaded TigerTag mark (inlined as a data URI so drawing it never taints the
+  // canvas → toDataURL keeps working). Loaded lazily on first logo render.
+  let _qrLogoImg = null, _qrLogoReady = false;
+  function _ensureQrLogo() {
+    if (_qrLogoImg) return;
+    _qrLogoImg = new Image();
+    _qrLogoImg.onload = () => {
+      _qrLogoReady = true;
+      // Re-render whichever surface shows a QR so a just-loaded logo appears.
+      try { if (_isListsMode(state.viewMode)) renderListsView(); } catch (_) {}
+      try { renderFriendsSection(); } catch (_) {}
+    };
+    // Tiger-head mark (no text). Inlined as a data URI so drawing it never taints
+    // the canvas (keeps canvas.toDataURL working for the download).
+    fetch("../assets/svg/logos/logo_tigertag_head.svg")
+      .then(r => r.ok ? r.text() : Promise.reject())
+      .then(svg => { _qrLogoImg.src = "data:image/svg+xml;utf8," + encodeURIComponent(svg); })
+      .catch(() => { _qrLogoReady = false; });
+  }
+  function _makeQrDataUrl(text, opts = {}) {
+    if (!window.qrcode || !text) return "";
+    _ensureQrLogo();   // kick off the logo load (used when the style enables it)
+    const st = _qrStyle();
+    const fg = opts.fg || st.fg, bg = opts.bg || st.bg;
+    const logo = (opts.logo == null) ? st.logo : !!opts.logo;
+    const size = opts.size || 240, margin = (opts.margin == null) ? 4 : opts.margin;
+    let qr;
+    try { qr = window.qrcode(0, logo ? "H" : "M"); qr.addData(String(text)); qr.make(); }
+    catch (_) { return ""; }
+    const n = qr.getModuleCount(), total = n + margin * 2;
+    const scale = Math.max(2, Math.floor(size / total)), px = total * scale;
+    const cv = document.createElement("canvas");
+    cv.width = px; cv.height = px;
+    const ctx = cv.getContext("2d");
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, px, px);
+    ctx.fillStyle = fg;
+    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++)
+      if (qr.isDark(r, c)) ctx.fillRect((c + margin) * scale, (r + margin) * scale, scale, scale);
+    if (logo && _qrLogoReady && _qrLogoImg) {
+      // Full tiger-head mark (transparent bg; black contour with white detail as
+      // transparent gaps; circuit traces intact left/right → wide ~1.76:1). Drawn on
+      // a bg (white) rounded backing so the gaps read white and it's isolated from
+      // the modules — same on any QR colour.
+      const ar = 1000 / 567;
+      const bw = Math.round(px * 0.32), bh = Math.round(bw / ar);
+      const ox = Math.round((px - bw) / 2), oy = Math.round((px - bh) / 2), pad = Math.max(3, Math.round(scale * 1.5));
+      const rr = (x, y, w, h, r) => { if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); ctx.fill(); } else ctx.fillRect(x, y, w, h); };
+      ctx.fillStyle = bg; rr(ox - pad, oy - pad, bw + pad * 2, bh + pad * 2, (bh + pad * 2) * 0.24);
+      try { ctx.drawImage(_qrLogoImg, ox, oy, bw, bh); } catch (_) {}
+    }
+    return cv.toDataURL("image/png");
+  }
   // Social-network share intent URL for a public list link (opened in the browser).
   function _socialShareUrl(net, url, text) {
     const u = encodeURIComponent(url || ""), x = encodeURIComponent(text || "");
@@ -7245,7 +7380,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     for (const b of bytes) n = (n << 8n) | BigInt(b);
     return n.toString(36).padStart(13, "0");
   }
-  function _publicSnapItem(p) {
+  function _publicSnapItem(p, qty) {
     const l = p.label || {};
     return {
       keyHash: p.id,
@@ -7254,6 +7389,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       imgUrl: l.imgUrl || "",
       priceHt: Number.isFinite(+p.buyPriceHt) ? +p.buyPriceHt : null,
       buyUrl: p.buyUrl || "",
+      qty: (Number.isFinite(+qty) && +qty >= 1) ? Math.round(+qty) : 1,
     };
   }
   // Reconcile every public list's snapshot with the live data. Driven by the
@@ -7274,7 +7410,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         continue;
       }
       if (isPublic) {
-        const items = (list.itemKeys || []).map(h => (state.products || {})[h]).filter(Boolean).map(_publicSnapItem);
+        const items = (list.itemKeys || []).map(h => {
+          const p = (state.products || {})[h];
+          return p ? _publicSnapItem(p, _listQtyOf(list, h)) : null;
+        }).filter(Boolean);
         const snap = {
           ownerUid: uid, ownerName: state.displayName || "", ownerCode: state.publicKey || "",
           listId: list.id, name: list.name || "", items,
@@ -7360,6 +7499,36 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function _listHas(listId, keyHash) {
     const l = _getList(listId);
     return !!(l && (l.itemKeys || []).includes(keyHash));
+  }
+  // Per-item quantity in a list (Amazon-cart style). Stored as `itemQty[keyHash]`;
+  // absent/invalid → 1. Owner-only write, deep-merged so other items are untouched.
+  function _listQtyOf(list, keyHash) {
+    const q = list && list.itemQty && list.itemQty[keyHash];
+    return (Number.isFinite(+q) && +q >= 1) ? Math.min(999, Math.round(+q)) : 1;
+  }
+  async function _setListItemQty(listId, keyHash, qty) {
+    const uid = state.activeAccountId;
+    if (!uid || state.friendView || !listId || !keyHash) return;
+    const q = Math.max(1, Math.min(999, Math.round(+qty) || 1));
+    const l = state.lists?.[listId];
+    if (l) l.itemQty = { ...(l.itemQty || {}), [keyHash]: q };   // optimistic
+    if (_isListsMode(state.viewMode)) renderListsView();
+    await _listWrite(listId, { itemQty: { [keyHash]: q } });
+  }
+  // Amazon-style quantity selector: a dropdown 1–9 + "10+"; picking "10+" swaps to a
+  // free-entry number input. Shared by the wishlist (kind "list" → itemQty) and the
+  // "To order" cart (kind "order" → orderQty). Read-only "× N" in friend view.
+  function _qtySelHTML(value, kind, hash, ro) {
+    if (ro) return value > 1 ? `<span class="lv-qty-ro">× ${value}</span>` : "";
+    return `<div class="qsel" data-qkind="${kind}" data-hash="${esc(hash)}"><button type="button" class="qsel-btn" data-qopen aria-label="${esc(t("pvQty"))}"><span class="qsel-val">${value}</span><span class="qsel-caret" aria-hidden="true"></span></button></div>`;
+  }
+  function _commitQty(kind, hash, n) {
+    if (state.friendView) return;
+    const floor = kind === "order" ? 0 : 1;
+    n = Math.round(+n); if (!Number.isFinite(n)) n = floor;
+    n = Math.max(floor, Math.min(9999, n));
+    if (kind === "list") { const cur = _selectedList(); if (cur) _setListItemQty(cur.id, hash, n); }
+    else { _writeProductField(hash, { orderQty: n }); renderProductsView(); }
   }
 
   // The current friend's product record for a row (null outside friend view).
@@ -8592,6 +8761,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function setViewMode(mode, opts = {}) {
     const prevMode = state.viewMode;
     state.viewMode = mode;
+    // Changing the top view SEGMENT (Inventory / Favorites / Lists / Printers) resets
+    // the active search + filters — they belong to the segment you were in. Switching
+    // WITHIN a segment (grid↔table↔cart, etc.) keeps them.
+    const _seg = m => _isPrinterMode(m) ? "prn" : _isProductsMode(m) ? "prod" : _isListsMode(m) ? "list" : "inv";
+    if (prevMode && _seg(prevMode) !== _seg(mode)) _clearSearchFilters();
     // Selection is per-context (materials vs printers) — crossing contexts clears
     // it (never linked). Switching within a context (table↔grid) keeps it.
     const _ctxOf = m => (m === "table" || m === "grid") ? "mat" : _isPrinterMode(m) ? "prn" : m === "favesTable" ? "prod" : "other";
@@ -8727,6 +8901,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (ap) { e.stopPropagation(); if (!state.friendView) { const p = _listProductsSrc()[ap.dataset.listaddprice]; if (p) openReorderPanel(_listRowFor(p), { editPrice: true }); } return; }
     const al = e.target.closest("[data-listaddlink]");
     if (al) { e.stopPropagation(); if (!state.friendView) { const p = _listProductsSrc()[al.dataset.listaddlink]; if (p) openReorderPanel(_listRowFor(p), { editBuyLink: true }); } return; }
+    // Quantity selector — handled by the shared `.qsel` document handler; just don't
+    // let it fall through to opening the product card (no stopPropagation, so the
+    // event still reaches the document-level qsel handler).
+    if (e.target.closest(".qsel")) return;
     // Removing an item is hold-to-confirm (wired per-button via setupHoldToConfirm
     // in renderListsView) — swallow the plain click so a misclick can't drop it,
     // and so it doesn't fall through to opening the product card.
@@ -8743,6 +8921,19 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       });
       return;
     }
+    const qrdl = e.target.closest("[data-qrdownload]");
+    if (qrdl) {
+      e.stopPropagation();
+      const url = qrdl.dataset.qrdownload, name = qrdl.dataset.qrname || "tigertag-qr.png";
+      qrdl.classList.add("is-busy");
+      Promise.resolve(window.electronAPI?.downloadImage?.(url, name))
+        .then(r => { qrdl.classList.toggle("is-done", !!r?.ok); })
+        .catch(() => {})
+        .finally(() => { qrdl.classList.remove("is-busy"); setTimeout(() => qrdl.classList.remove("is-done"), 1500); });
+      return;
+    }
+    const qrfg = e.target.closest("[data-qrfg]");
+    if (qrfg) { e.stopPropagation(); _setQrStyle({ fg: qrfg.dataset.qrfg }); renderListsView(); renderFriendsSection(); return; }
     const net = e.target.closest("[data-share-net]");
     if (net) {
       e.stopPropagation();
@@ -8755,6 +8946,81 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const row = e.target.closest(".lv-row[data-hash]");
     if (row) { const p = _listProductsSrc()[row.dataset.hash]; if (p) openProductCard(p); return; }
   });
+  // ── Amazon-style quantity selector (.qsel) — dropdown 1–9 + "10+"; "10+" opens a
+  // free-entry number input. Shared by the wishlist (kind "list") + "To order" cart
+  // (kind "order"). Document-level so the popup closes on any outside click.
+  const _qtyRerender = kind => { if (kind === "list") { if (_isListsMode(state.viewMode)) renderListsView(); } else renderProductsView(); };
+  // While a quantity dropdown is open OR its "10+" input is being edited, block card
+  // drag-reorder (a dragstart guard reads this) so editing never moves the card.
+  let _qselActive = false;
+  function _qselClose() {
+    _qselActive = false;
+    const pop = document.getElementById("qselPop");
+    if (!pop) return;
+    pop.classList.remove("is-open"); pop._qsel?.classList.remove("qsel--open"); pop._qsel = null;
+  }
+  function _qselOpen(qsel) {
+    _qselActive = true;
+    let pop = document.getElementById("qselPop");
+    if (!pop) { pop = document.createElement("div"); pop.id = "qselPop"; pop.className = "qsel-pop"; document.body.appendChild(pop); }
+    pop._qsel = qsel;
+    const val = +(qsel.querySelector(".qsel-val")?.textContent) || 0;
+    let html = "";
+    for (let n = 1; n <= 9; n++) html += `<button type="button" class="qsel-opt${n === val ? " is-sel" : ""}" data-qval="${n}">${n}</button>`;
+    html += `<button type="button" class="qsel-opt qsel-opt--more" data-qval="more">10+</button>`;
+    pop.innerHTML = html;
+    // Fixed, body-appended → overlays everything, never clips inside / grows the card.
+    const r = qsel.getBoundingClientRect(), pr = pop.getBoundingClientRect();
+    let top = r.bottom + 4;
+    if (top + pr.height > window.innerHeight - 8) top = Math.max(8, r.top - pr.height - 4);   // flip up if no room below
+    const left = Math.max(8, Math.min(r.left, window.innerWidth - pr.width - 8));
+    pop.style.left = Math.round(left) + "px"; pop.style.top = Math.round(top) + "px";
+    pop.style.minWidth = Math.round(r.width) + "px";
+    pop.classList.add("is-open"); qsel.classList.add("qsel--open");
+    pop.querySelector(".is-sel")?.scrollIntoView({ block: "nearest" });
+  }
+  document.addEventListener("click", e => {
+    const opener = e.target.closest?.("[data-qopen]");
+    const inPop  = e.target.closest?.("#qselPop");
+    if (!opener && !inPop) _qselClose();
+    if (opener) {
+      const q = opener.closest(".qsel");
+      if (q.classList.contains("qsel--open")) { _qselClose(); return; }
+      _qselClose(); _qselOpen(q);
+      return;
+    }
+    const opt = e.target.closest?.("#qselPop [data-qval]");
+    if (opt) {
+      const q = document.getElementById("qselPop")?._qsel; if (!q) return;
+      if (opt.dataset.qval === "more") {
+        const val = +(q.querySelector(".qsel-val")?.textContent) || 1;
+        _qselClose();
+        q.innerHTML = `<input type="text" class="qsel-input" inputmode="numeric" pattern="[0-9]*" value="${val}" aria-label="${esc(t("pvQty"))}" />`;
+        const inp = q.querySelector(".qsel-input"); inp.focus(); inp.select();   // pre-filled + all selected → type to replace
+        _qselActive = true;   // keep card drag blocked while typing a custom value
+      }
+      else { _commitQty(q.dataset.qkind, q.dataset.hash, +opt.dataset.qval); _qselClose(); }
+    }
+  });
+  window.addEventListener("scroll", _qselClose, true);   // fixed popup would detach on scroll
+  window.addEventListener("resize", _qselClose);
+  document.addEventListener("keydown", e => {
+    const inp = e.target.closest?.(".qsel-input"); if (!inp) return;
+    if (e.key === "Enter") { e.preventDefault(); inp.blur(); }
+    else if (e.key === "Escape") { inp.dataset.cancel = "1"; inp.blur(); }
+  });
+  document.addEventListener("blur", e => {
+    const inp = e.target.closest?.(".qsel-input"); if (!inp) return;
+    const q = inp.closest(".qsel"); if (!q) return;
+    // Commit on blur, but keep card-drag blocked until the NEXT pointer release — so the
+    // very click that dismisses the editor can't also start a drag (dragstart fires
+    // before pointerup, and is still guarded here). Re-enabled from the next click on.
+    window.addEventListener("pointerup", () => { _qselActive = false; }, { once: true, capture: true });
+    if (inp.dataset.cancel || String(inp.value).trim() === "") { _qtyRerender(q.dataset.qkind); return; }
+    _commitQty(q.dataset.qkind, q.dataset.hash, inp.value);
+  }, true);
+  // Block any card drag-reorder while a quantity dropdown/input is active.
+  document.addEventListener("dragstart", e => { if (_qselActive) { e.preventDefault(); e.stopPropagation(); } }, true);
   // "Add to a list" buttons on the Material / Product / reorder cards → open the popup.
   document.addEventListener("click", e => {
     const b = e.target.closest(".js-add-to-list");
@@ -8868,7 +9134,23 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       const src = zones.find(Z => Z.lines.includes(line));
       if (!src) return;
       const fromIndex = src.lines.indexOf(line);
-      drag = { hash: line.dataset.hash, zones, srcZoneKey: src.zone, fromIndex, targetZoneKey: src.zone, k: fromIndex };
+      // Constrain a cart drag to its OWN purchase-source group: find the contiguous
+      // line-index range [lo..hi] that shares the dragged item's buy host, so a drop
+      // can only reorder within that group (never across groups). Saved shelf = no
+      // grouping (one zone), so it stays unconstrained.
+      let groupLo = null, groupHi = null;
+      if (src.zone === "cart") {
+        const grpOf = h => { const u = state.products[h]?.buyUrl; return u ? _buyHost(u) : ""; };
+        const g = grpOf(line.dataset.hash);
+        groupLo = groupHi = fromIndex;
+        while (groupLo > 0 && grpOf(src.lines[groupLo - 1].dataset.hash) === g) groupLo--;
+        while (groupHi < src.lines.length - 1 && grpOf(src.lines[groupHi + 1].dataset.hash) === g) groupHi++;
+        if (groupHi > groupLo) {   // use the in-group line pitch for the gap animation (headers add height between groups)
+          const r0 = src.lines[groupLo].getBoundingClientRect(), r1 = src.lines[groupLo + 1].getBoundingClientRect();
+          src.stride = r1.top - r0.top;
+        }
+      }
+      drag = { hash: line.dataset.hash, zones, srcZoneKey: src.zone, fromIndex, targetZoneKey: src.zone, k: fromIndex, groupLo, groupHi };
       try { e.dataTransfer.setData("text/plain", drag.hash); e.dataTransfer.effectAllowed = "move"; } catch (_) {}
       try { e.dataTransfer.setDragImage(line, 24, 24); } catch (_) {}   // capture BEFORE hiding
       _pvHost.classList.add("pv-reordering");
@@ -8886,22 +9168,24 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       e.preventDefault();
       try { e.dataTransfer.dropEffect = "move"; } catch (_) {}
       const zoneKey = zoneWrap.classList.contains("pv-saved") ? "saved" : "cart";
+      if (zoneKey !== drag.srcZoneKey) return;   // no drag across zones / groups — same shelf only
       const Z = drag.zones.find(z => z.zone === zoneKey);
       if (!Z) return;
-      const restLen = Z.lines.length - (zoneKey === drag.srcZoneKey ? 1 : 0);
-      const k = Math.max(0, Math.min(restLen, Math.round((e.clientY - Z.top0) / (Z.stride || 1))));
-      if (zoneKey !== drag.targetZoneKey || k !== drag.k) { drag.targetZoneKey = zoneKey; drag.k = k; applyGap(); }
+      const restLen = Z.lines.length - 1;
+      let k = Math.max(0, Math.min(restLen, Math.round((e.clientY - Z.top0) / (Z.stride || 1))));
+      if (drag.groupLo != null) k = Math.max(drag.groupLo, Math.min(drag.groupHi, k));   // keep it inside its group
+      if (k !== drag.k) { drag.targetZoneKey = zoneKey; drag.k = k; applyGap(); }
     });
     _pvHost.addEventListener("drop", e => {
       if (!drag) return;
       const zoneWrap = e.target.closest(".pv-cart, .pv-saved");
-      if (!zoneWrap) { clear(); return; }
       e.preventDefault();
-      const intoSaved = zoneWrap.classList.contains("pv-saved");
-      const zoneKey = intoSaved ? "saved" : "cart";
+      const zoneKey = zoneWrap ? (zoneWrap.classList.contains("pv-saved") ? "saved" : "cart") : null;
+      if (!zoneWrap || zoneKey !== drag.srcZoneKey) { clear(); return; }   // only drop back into the same group / shelf
+      const intoSaved = zoneKey === "saved";
       const Z = drag.zones.find(z => z.zone === zoneKey);
       const rest = Z ? Z.lines.map(l => l.dataset.hash).filter(h => h !== drag.hash) : [];
-      const k = zoneKey === drag.targetZoneKey ? drag.k : 0;
+      const k = drag.k;
       const targetHash = k < rest.length ? rest[k] : null;
       const dragHash = drag.hash;
       clear();
@@ -9063,7 +9347,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // card opens even for a product with no spool left.
     const isOrderInfo = !!e.target.closest(".pv-info");
     if (isOrderInfo || !line.classList.contains("pv-order-line")) {
-      if (e.target.closest(".pv-qty-input, .pv-min-editwrap")) return;   // editing a field — never opens
+      if (e.target.closest(".pv-min-editwrap")) return;   // editing a field — never opens
       const liveRows = (state.rows || []).filter(x => !x.deleted && _spoolGroupKey(x) === key);
       let row = liveRows[0] || (p ? _productAsRow(p) : null);   // no live spool → synth from cloudSeed (else label)
       // Order-tab ⓘ toggles: reclicking the same product's info button closes the
@@ -9078,17 +9362,6 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       }
     }
     // Order-tab line clicks otherwise do nothing (so the qty stays editable).
-  });
-  // Editable order quantity — persist the override on change (blur / Enter).
-  $("invProductsView")?.addEventListener("change", e => {
-    const inp = e.target.closest(".pv-qty-input");
-    if (!inp) return;
-    const line = inp.closest(".pv-item[data-hash]");
-    if (!line) return;
-    const raw = inp.value.trim();
-    // Empty → clear the override (qty falls back to the recommendation).
-    _writeProductField(line.dataset.hash, { orderQty: raw === "" ? null : Math.max(0, Math.round(+raw) || 0) });
-    renderProductsView();
   });
   $("btnViewPrinter")?.addEventListener("click",      () => setViewMode("printer"));
   $("btnViewPrinterTable")?.addEventListener("click", () => setViewMode("printer-table"));
@@ -9190,7 +9463,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (si) { si.value = ""; _refreshSearchClearVisibility(""); }
     ["brandFilter", "materialFilter", "aspectFilter", "typeFilter", "tagFilter"].forEach(id => {
       const sel = $(id);
-      if (sel) { sel.value = ""; sel.classList.remove("is-active"); }
+      // Reset the native select AND its custom dropdown button (_enhanceSelect) —
+      // otherwise the styled `.csel-btn` keeps showing the old filter label.
+      if (sel) { sel.value = ""; sel.classList.remove("is-active"); sel._cselRefresh?.(); }
     });
     $("wishFilter")?.classList.remove("is-active");
     $("likeFilter")?.classList.remove("is-active");
@@ -10281,8 +10556,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     catch { return t("listBuy"); }
   }
   // remove (✕) overlay. Used when the Lists view is in "grid" mode.
-  function _listCardHTML(p, ro, sym) {
+  function _listCardHTML(p, ro, sym, qty = 1) {
     const r = _productAsRow(p);
+    const qtyCtl = _qtySelHTML(qty, "list", p.id, ro);
     const { title, sub, extra } = _productGridLabel(r);
     const priceHTML = _favePriceHTML(p.buyPriceHt, sym);
     const footerHTML = priceHTML != null
@@ -10294,15 +10570,17 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const linkBtn = p.buyUrl
       ? `<button type="button" class="lv-buy lv-card-buy" data-listbuy="${esc(p.id)}"><span class="icon icon-cart icon-13"></span>${esc(_buyHost(p.buyUrl))}</button>`
       : (ro ? "" : `<button type="button" class="lv-addlink lv-card-buy" data-listaddlink="${esc(p.id)}"><span class="icon icon-cart icon-13"></span>${esc(t("reorderAddLink"))}</button>`);
-    const buyBar = linkBtn ? `<div class="lv-card-buybar">${linkBtn}</div>` : "";
+    const buyBar = (qtyCtl || linkBtn) ? `<div class="lv-card-buybar">${qtyCtl}${linkBtn}</div>` : "";
     return `<div class="spool-card pv-item lv-card" data-hash="${esc(p.id)}" data-key="${esc(p.key)}"${ro ? "" : ' draggable="true"'}>${removeBtn}${_gridCardInnerHTML(r, { product: true, footerHTML, nameText: title, subText: sub, subExtraText: extra })}${buyBar}</div>`;
   }
   // One item ROW (Amazon-style list layout): thumbnail · title/colour/price ·
   // per-item actions (buy link + remove). The whole row (minus the buttons)
   // opens the product card.
-  function _listRowHTML(p, ro, sym) {
+  function _listRowHTML(p, ro, sym, qty = 1) {
     const l = p.label || {};
     const title = [l.brand, l.material].filter(v => v && v !== "-").join(" ") || l.brand || "—";
+    // Per-item quantity — Amazon-style dropdown selector (owner) / "× N" (friend).
+    const qtyCtl = _qtySelHTML(qty, "list", p.id, ro);
     const priceHTML = _favePriceHTML(p.buyPriceHt, sym);
     // Price: the value, or an "Add price" affordance (owner only).
     const priceBlock = priceHTML
@@ -10322,7 +10600,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           <div class="lv-row-title">${esc(title)}</div>
           ${l.colorName ? `<div class="lv-row-meta">${esc(l.colorName)}</div>` : ""}
           ${priceBlock}
-          <div class="lv-row-actions">${linkBtn}${rm}</div>
+          <div class="lv-row-actions">${qtyCtl}${linkBtn}${rm}</div>
         </div>
       </div>`;
   }
@@ -10368,22 +10646,33 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       : `${cur.emoji ? esc(cur.emoji) + " " : ""}${esc(cur.name || t("listUntitled"))}<span class="lv-count">${(cur.itemKeys || []).length}</span>`;
     const rowsHTML = items.length
       ? (layout === "grid"
-          ? `<div class="inv-grid pv-fav-grid lv-grid">${items.map(p => _listCardHTML(p, ro, sym)).join("")}</div>`
-          : items.map(p => _listRowHTML(p, ro, sym)).join(""))
+          ? `<div class="inv-grid pv-fav-grid lv-grid">${items.map(p => _listCardHTML(p, ro, sym, _listQtyOf(cur, p.id))).join("")}</div>`
+          : items.map(p => _listRowHTML(p, ro, sym, _listQtyOf(cur, p.id))).join(""))
       : `<div class="pv-empty"><span class="icon icon-list icon-24"></span><div>${esc(ro ? t("listEmptyFriend") : t("listEmpty"))}</div></div>`;
     // Public share card — owner only, when the list is public and its snapshot
     // token is minted. A right-rail card with the QR + a "Copy link" button (no raw
     // URL shown), mirroring the friends invite card. Link opens on TigerHub, no account.
     let publicCardHTML = "";
-    if (!ro && cur.visibility === "public" && cur.publicToken) {
+    // Shown for the owner AND when viewing a friend whose list is public — the public
+    // snapshot link is world-readable, so anyone can copy / download / share it.
+    if (cur.visibility === "public" && cur.publicToken) {
       const pubUrl = _publicListUrl(cur.publicToken);
-      const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(pubUrl)}&bgcolor=ffffff&color=1d1d1f&margin=0&qzone=1`;
+      // Local generation (offline) with the user's QR style. Small quiet zone on
+      // the card; higher-res + wider margin for the downloadable PNG.
+      const qrSrc = _makeQrDataUrl(pubUrl, { size: 240, margin: 2 });
+      const qrDownloadSrc = _makeQrDataUrl(pubUrl, { size: 640, margin: 4 });
+      const qrName = `tigertag-${(cur.name || "list").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40) || "list"}-qr.png`;
       const shareText = t("listShareText", { name: cur.name || t("listUntitled") });
       publicCardHTML = `
         <aside class="lv-public-card">
           <div class="lv-public-title"><span class="icon icon-eye-on icon-13"></span>${esc(t("listSharePublicTitle"))}</div>
-          <img class="lv-public-qr" src="${esc(qrSrc)}" alt="">
-          <button type="button" class="lv-public-copy" data-listshare="${esc(pubUrl)}"><span class="icon icon-link icon-13"></span><span class="lv-copy-lbl">${esc(t("listShareCopy"))}</span></button>
+          <div class="lv-qr-wrap">
+            <img class="lv-public-qr" src="${esc(qrSrc)}" alt="">
+          </div>
+          <div class="lv-public-actions">
+            <button type="button" class="lv-public-copy" data-listshare="${esc(pubUrl)}"><span class="icon icon-link icon-13"></span><span class="lv-copy-lbl">${esc(t("listShareCopy"))}</span></button>
+            <button type="button" class="lv-public-dl" data-qrdownload="${esc(qrDownloadSrc)}" data-qrname="${esc(qrName)}" aria-label="${esc(t("listShareDownloadQr"))}"><span class="icon icon-download icon-14"></span></button>
+          </div>
           <div class="lv-social-row" data-share-url="${esc(pubUrl)}" data-share-text="${esc(shareText)}">
             <button type="button" class="lv-social lv-social--fb" data-share-net="facebook" aria-label="Facebook"><span class="icon icon-facebook"></span></button>
             <button type="button" class="lv-social lv-social--x"  data-share-net="x" aria-label="X"><span class="icon icon-x"></span></button>
@@ -10391,8 +10680,35 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
             <button type="button" class="lv-social lv-social--wa" data-share-net="whatsapp" aria-label="WhatsApp"><span class="icon icon-whatsapp"></span></button>
             <button type="button" class="lv-social lv-social--mail" data-share-net="email" aria-label="Email"><span class="icon icon-mail"></span></button>
           </div>
+          ${ro ? "" : (() => {
+            const st = _qrStyle();
+            const sw = ["#1d1d1f", "#f97316", "#2f74d0", "#22a06b", "#7c5cff"].map(hex =>
+              `<button type="button" class="lv-qr-sw${st.fg.toLowerCase() === hex ? " is-sel" : ""}" data-qrfg="${hex}" style="--sw:${hex}" aria-label="${esc(hex)}"></button>`).join("");
+            return `<div class="lv-qr-style">
+              <span class="lv-qr-style-lbl">${esc(t("qrCustomizeLabel"))}</span>
+              <div class="lv-qr-swatches">${sw}</div>
+            </div>`;
+          })()}
           <div class="lv-public-hint">${esc(t("listSharePublicHint"))}</div>
         </aside>`;
+    }
+    // Payment summary (right rail) — the list's amount, same card as the "To order" view.
+    // A list item has no quantity → one unit each; total = Σ buyPriceHt over priced items.
+    const _lvAll = _listItems(cur);
+    let _lvSubHT = 0, _lvPriced = 0;
+    _lvAll.forEach(p => { const u = (p && p.buyPriceHt != null) ? +p.buyPriceHt : null; if (u != null && Number.isFinite(u)) { const _q = _listQtyOf(cur, p.id); _lvSubHT += u * _q; _lvPriced += _q; } });
+    let summaryCardHTML = "";
+    if (_lvPriced > 0) {
+      const _rate = _vatInfo().rate || 0, _mode = _reorderMode();
+      const _tax = _lvSubHT * _rate / 100, _ttc = _lvSubHT + _tax;
+      const _subShown = _mode === "TTC" ? _ttc : _lvSubHT;
+      summaryCardHTML = `
+        <div class="pv-summary lv-summary">
+          <div class="pv-sum-title">${esc(t("pvPayment"))}</div>
+          <div class="pv-sum-row"><span>${esc(t("pvSubtotal"))}</span><span class="pv-sum-sub">${esc(t("pvItems", { n: _lvPriced }))}</span><span class="pv-sum-val">${_fmtMoney(_subShown)} ${sym}</span></div>
+          <div class="pv-sum-row"><span>${esc(t("pvTax"))}</span><span class="pv-sum-sub">${esc(t("reorderVat", { rate: _rate }))}</span><span class="pv-sum-val">${_fmtMoney(_tax)} ${sym}</span></div>
+          <div class="pv-sum-row pv-sum-total"><span>${esc(t("pvOrderTotal"))}</span><span></span><span class="pv-sum-val">${_fmtMoney(_ttc)} ${sym}</span></div>
+        </div>`;
     }
     host.innerHTML = `
       <div class="lv-amz">
@@ -10413,7 +10729,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
             </div>
             <div class="lv-rows">${rowsHTML}</div>
           </div>
-          ${publicCardHTML}
+          ${(summaryCardHTML || publicCardHTML) ? `<div class="lv-rail">${summaryCardHTML}${publicCardHTML}</div>` : ""}
         </section>
       </div>`;
     // Removing an item from a list is hold-to-confirm (a misclick would silently
@@ -10548,6 +10864,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // the grip starts a drag (keeps the qty input / buttons fully usable). Hidden
     // in friend view.
     const grip = ro ? "" : `<span class="pv-grip" aria-hidden="true"><span class="icon icon-grip icon-16"></span></span>`;
+    // Quantity — the same Amazon-style dropdown selector as the wishlist.
+    const qtyStepper = _qtySelHTML(x.qty, "order", hash, ro);
     return `
       <div class="pv-item pv-line pv-order-line"${ro ? "" : ` draggable="true"`} data-hash="${esc(hash)}" data-key="${esc(p.key)}">
         ${grip}
@@ -10561,7 +10879,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           </div>
         </div>
         <div class="pv-unit-col">${unit == null ? `<button class="pv-addprice" data-addprice>${esc(t("reorderAddPrice"))}</button>` : `${_fmtMoney(unit)} ${ctx.sym}`}</div>
-        <div class="pv-qty-col"><input type="number" class="pv-qty-input" min="0" step="1" value="${x.qty}" aria-label="${esc(t("pvToOrder", { n: x.qty }))}" /></div>
+        <div class="pv-qty-col">${qtyStepper}</div>
         <div class="pv-total-col">${lineTotal == null ? "—" : `${_fmtMoney(lineTotal)} ${ctx.sym}`}</div>
         <div class="pv-line-actions">
           <button class="pv-info" data-info aria-label="${esc(t("toolReorder"))}"><span class="icon icon-info icon-14"></span></button>
@@ -10583,10 +10901,21 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     }
     // ── Active cart (drives the payment totals) ────────────────────
     let subtotalHT = 0, items = 0;
-    const cartLines = cartRows.map(x => {
-      const unitHt = x.p.buyPriceHt == null ? null : +x.p.buyPriceHt;
-      if (unitHt != null) { subtotalHT += unitHt * x.qty; items += x.qty; }   // tax math stays HT
-      return _orderLineHTML(x, ctx, false, ro);
+    // Group the active cart by purchase SOURCE (buy-link host); no-link items last.
+    // One drag zone (headers ignored by the reorder), but a drag is constrained to
+    // its own group's index range in the DnD wiring — no reordering across groups.
+    const _cartGroups = new Map();
+    cartRows.forEach(x => { const h = x.p.buyUrl ? _buyHost(x.p.buyUrl) : ""; if (!_cartGroups.has(h)) _cartGroups.set(h, []); _cartGroups.get(h).push(x); });
+    const _cartKeys = [...(_cartGroups.keys())].sort((a, b) => a === "" ? 1 : b === "" ? -1 : a.localeCompare(b));
+    const cartLines = _cartKeys.map(h => {
+      const rows = _cartGroups.get(h);
+      const lines = rows.map(x => {
+        const unitHt = x.p.buyPriceHt == null ? null : +x.p.buyPriceHt;
+        if (unitHt != null) { subtotalHT += unitHt * x.qty; items += x.qty; }   // tax math stays HT
+        return _orderLineHTML(x, ctx, false, ro);
+      }).join("");
+      const label = h || t("reorderNoLink");
+      return `<div class="pv-cart-group"><span class="icon ${h ? "icon-cart" : "icon-link"} icon-12"></span><span class="pv-cart-group-lbl">${esc(label)}</span><span class="pv-cart-group-n">${rows.length}</span></div>${lines}`;
     }).join("");
     // Both zones ALWAYS render (even empty) so each is a valid drag-drop target —
     // the `data-zone` list is where lines are dropped; an empty zone shows a hint.
@@ -11460,14 +11789,17 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       likeAll = products.length > 0 && products.every(p => !!p.liked);
     }
     _setBulkFlagBtn(favBtn, "icon-star", favAll);
-    _setBulkFlagBtn(likeBtn, "icon-heart", likeAll);
+    _setBulkFlagBtn(likeBtn, "icon-cart", likeAll);
   }
   function _setBulkFlagBtn(btn, base, on) {
     if (!btn) return;
+    // The cart glyph has no filled variant → keep the same icon on/off (the
+    // .active tint carries the on-state); the star still flips outline⇄filled.
+    const fill = base === "icon-cart" ? base : base + "-fill";
     btn.classList.toggle("active", on);
     btn.setAttribute("aria-pressed", String(on));
     const ic = btn.querySelector(".icon");
-    if (ic) { ic.classList.remove(base, base + "-fill"); ic.classList.add(on ? base + "-fill" : base); }
+    if (ic) { ic.classList.remove(base, base + "-fill"); ic.classList.add(on ? fill : base); }
   }
 
   /* ── detail panel ── */
@@ -12702,6 +13034,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
 
   function openTigerPodModal() {
     $("tigerPodModalOverlay").classList.add("open");
+    const own = $("tigerPodOwnToggle"); if (own) own.checked = !!state.hasPod;
     const v = $("tigerPodVideo"); if (v) { v.currentTime = 0; v.play().catch(() => {}); }
   }
   function closeTigerPodModal() {
@@ -12906,9 +13239,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // share's price/link/SKU-EAN. Same .flag-toggle look as the materials card.
     const mine  = state.products[p.id] || {};
     const liked = !!mine.liked, fav = !!mine.favorite;
-    const flagsHTML = `${state.friendView ? "" : `<button type="button" class="flag-toggle flag-toggle--list js-add-to-list" data-atl-hash="${esc(p.id)}" title="${esc(t("listAddTo"))}" aria-label="${esc(t("listAddTo"))}"><span class="icon icon-list-check icon-16"></span></button>`}
-      <button type="button" class="flag-toggle flag-toggle--wish${liked ? " active" : ""}" data-pc-flag="liked" aria-pressed="${liked}" title="${esc(t("productLike"))}"><span class="icon icon-heart${liked ? "-fill" : ""} icon-16"></span></button>
-      <button type="button" class="flag-toggle flag-toggle--like${fav ? " active" : ""}" data-pc-flag="favorite" aria-pressed="${fav}" title="${esc(t("productFavorite"))}"><span class="icon icon-star${fav ? "-fill" : ""} icon-16"></span></button>`;
+    const flagsHTML = `${state.friendView ? "" : `<button type="button" class="flag-toggle flag-toggle--list js-add-to-list" data-atl-hash="${esc(p.id)}" data-tip="${esc(t("listAddTo"))}" aria-label="${esc(t("listAddTo"))}"><span class="icon icon-list-check icon-16"></span></button>`}
+      <button type="button" class="flag-toggle flag-toggle--wish${liked ? " active" : ""}" data-pc-flag="liked" aria-pressed="${liked}" data-tip="${esc(t("productLikeTip"))}" aria-label="${esc(t("productLike"))}"><span class="icon icon-cart icon-16"></span></button>
+      <button type="button" class="flag-toggle flag-toggle--like${fav ? " active" : ""}" data-pc-flag="favorite" aria-pressed="${fav}" data-tip="${esc(t("productFavoriteTip"))}" aria-label="${esc(t("productFavorite"))}"><span class="icon icon-star${fav ? "-fill" : ""} icon-16"></span></button>`;
     // COULEURS & ASPECT — identical markup to buildPanelHTML.
     const colorsHtml = colorCircleHTML(r, 56);
     const aspectChips = [r.aspect1, r.aspect2].filter(a => a && a !== "-" && a !== "None");
@@ -13542,7 +13875,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       </button>`;
     return `${listBtn}
       <button type="button" class="flag-toggle flag-toggle--wish${liked ? " active" : ""}" data-flag="liked" data-tip="${esc(t("productLikeTip"))}" aria-label="${esc(t("productLike"))}" aria-pressed="${liked}">
-        <span class="icon icon-heart${liked ? "-fill" : ""} icon-16"></span>
+        <span class="icon icon-cart icon-16"></span>
       </button>
       <button type="button" class="flag-toggle flag-toggle--like${fav ? " active" : ""}" data-flag="favorite" data-tip="${esc(t("productFavoriteTip"))}" aria-label="${esc(t("productFavorite"))}" aria-pressed="${fav}">
         <span class="icon icon-star${fav ? "-fill" : ""} icon-16"></span>
@@ -13551,12 +13884,15 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // Paint EVERY on-screen toggle for a field (product card + detail panel) from
   // an on/off state (outline ⇄ filled).
   function _setProductFlagBtn(field, on) {
-    const base = field === "liked" ? "icon-heart" : "icon-star";
+    // "liked" now renders the cart glyph (no filled variant → the on-state is
+    // shown by the .active tint alone); "favorite" keeps its outline⇄filled star.
+    const base = field === "liked" ? "icon-cart" : "icon-star";
+    const fill = base === "icon-cart" ? base : base + "-fill";
     document.querySelectorAll(`.flag-toggle[data-flag="${field}"]`).forEach(btn => {
       btn.classList.toggle("active", on);
       btn.setAttribute("aria-pressed", String(on));
       const ic = btn.querySelector(".icon");
-      if (ic) { ic.classList.remove(base, base + "-fill"); ic.classList.add(on ? base + "-fill" : base); }
+      if (ic) { ic.classList.remove(base, base + "-fill"); ic.classList.add(on ? fill : base); }
     });
   }
   // Refresh both flag buttons from the saved product record (product card).
@@ -13701,6 +14037,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   });
 
   // TigerPOD modal events
+  $("tigerPodOwnToggle")?.addEventListener("change", e => saveHasPod(e.target.checked));
   $("tigerPodClose").addEventListener("click", closeTigerPodModal);
   $("tigerPodModalOverlay").addEventListener("click", e => { if (e.target === $("tigerPodModalOverlay")) closeTigerPodModal(); });
   $("tigerPodMakerWorldBtn").addEventListener("click", () => window.electronAPI?.openExternal(TIGERPOD_MAKERWORLD_URL));
@@ -15602,15 +15939,20 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (!text) return;
     const tip = _ensureToolInfoPop();
     tip.textContent = text;
+    tip.classList.remove("pop-below");
     tip.classList.add("is-measuring");   // lay out at final width to measure
     const r  = el.getBoundingClientRect();
     const tr = tip.getBoundingClientRect();
     let left = r.left + r.width / 2 - tr.width / 2;
     left = Math.max(8, Math.min(left, window.innerWidth - tr.width - 8));
-    let top = r.top - tr.height - 8;          // above the ⓘ …
-    if (top < 8) top = r.bottom + 8;          // … or below if there's no room
+    let top = r.top - tr.height - 10, below = false;   // above the control …
+    if (top < 8) { top = r.bottom + 10; below = true; } // … or below if there's no room
     tip.style.left = Math.round(left) + "px";
     tip.style.top  = Math.round(top) + "px";
+    // Tail points at the control's centre even when the bubble is clamped to the edge.
+    const tailX = Math.max(12, Math.min(tr.width - 12, r.left + r.width / 2 - left));
+    tip.style.setProperty("--tail-x", Math.round(tailX) + "px");
+    tip.classList.toggle("pop-below", below);
     tip.classList.remove("is-measuring");
     tip.classList.add("is-open");
   }
@@ -16074,6 +16416,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function _renderFriendsEverywhere() {
     renderFriendsList();
     renderFriendsBadge();
+    renderFriendBanner();   // repaint the header banner so its friend/follower count stays live
     renderAccountDropdown();
     if ($("profilesModalOverlay")?.classList.contains("open")) renderAccountList();
     _refreshReorderProvenance();   // keep an open favorite's "Added from …" chip live
@@ -23426,8 +23769,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const qr = $("fpHeroQr");
     if (qr) {
       if (state.publicKey) {
-        const link = encodeURIComponent(`https://cdn.tigertag.io/friend/${state.publicKey}`);
-        qr.src = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${link}&bgcolor=ffffff&color=1d1d1f&margin=0&qzone=1`;
+        qr.src = _makeQrDataUrl(_friendShareUrl(state.publicKey), { size: 240, margin: 2 });
       } else {
         qr.removeAttribute("src");
       }
@@ -23531,7 +23873,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function closeAddFriendModal() { $("addFriendOverlay").classList.remove("open"); }
 
   // ── Friend deep links (tigertag://friend/<code>) ───────────────────────
-  // A shared friend link (cdn.tigertag.io/friend/<code> → tigertag://friend/
+  // A shared friend link (tigersystem.io/friend/<code> → tigertag://friend/
   // <code>) opens the app here. We PRE-FILL the add-friend search with the
   // code and run the lookup — the user still presses "Send request", so a link
   // can never auto-add or auto-accept anyone.
@@ -23686,7 +24028,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // Studio Manager and pre-fills the add-friend search via the cdn landing page.
   $("btnShareFriendLink")?.addEventListener("click", () => {
     if (!state.publicKey) return;
-    const link = `https://cdn.tigertag.io/friend/${state.publicKey}`;
+    const link = _friendShareUrl(state.publicKey);
     navigator.clipboard.writeText(link).then(() => {
       const btn = $("btnShareFriendLink");
       btn.classList.add("fp-hero-btn--copied");
@@ -23699,14 +24041,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   $("friendViewBanner")?.addEventListener("click", e => {
     const b = e.target.closest("[data-friend-invite]");
     if (!b) return;
-    const link = `https://cdn.tigertag.io/friend/${b.dataset.friendInvite}`;
-    navigator.clipboard.writeText(link).then(() => {
-      b.classList.add("fvb-share--copied");
-      const txt = b.querySelector(".fvb-share-txt");
-      const prev = txt ? txt.textContent : "";
-      if (txt) txt.textContent = t("listShareCopied");
-      setTimeout(() => { b.classList.remove("fvb-share--copied"); if (txt) txt.textContent = prev; }, 1500);
-    });
+    const link = _friendShareUrl(b.dataset.friendInvite);
+    // Same "Copied!" flash pill as copying a SKU / EAN (rises + fades over the button).
+    navigator.clipboard.writeText(link).then(() => _flashCopied(b));
   });
 
   $("btnRegenPublicKey").addEventListener("click", async () => {
@@ -24097,6 +24434,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   }
   function _checkLowStockNotifs() {
     if (state.friendView || !state.activeAccountId) return;   // `products` is the owner's
+    // Don't evaluate stock before the inventory has actually loaded. renderInventory()
+    // calls this on every render, INCLUDING the initial loading pass where state.rows is
+    // still empty (snapshot not arrived) — which would count every product as 0 in stock
+    // and fire a false, PERSISTED "low stock 0/min" notification even though the spool
+    // exists. Wait for the first snapshot/hydration (invLoading cleared, inventory set).
+    if (state.invLoading || state.inventory === null) return;
     const active = _lowStockActive();
     let changed = false;
     Object.values(state.products || {}).forEach(p => {
@@ -25131,6 +25474,32 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     }
   }
 
+  // ── TigerPOD ownership signal (telemetry/studio) ────────────────────────
+  // hasPod (bool) : owns a Pod — set by the user toggle OR auto on first successful
+  // read. Not derivable (a declaration can precede any scan). rfidReadersMax (1|2):
+  // reader count on a successful read, kept at lifetime max. hydratePodSignal seeds
+  // both at login so the toggle reflects reality AND _telRfidMax starts at the
+  // PERSISTED max (else a fresh session could write a lower count over a stored 2).
+  async function hydratePodSignal(uid) {
+    try {
+      const cur = (await fbDb(uid).collection("users").doc(uid)
+        .collection("telemetry").doc("studio").get()).data() || {};
+      if (uid !== state.activeAccountId) return;
+      state.hasPod = !!cur.hasPod;
+      _telRfidMax  = Math.max(_telRfidMax, +cur.rfidReadersMax || 0);
+    } catch (_) {}
+  }
+
+  function saveHasPod(hasPod) {
+    state.hasPod = hasPod;
+    const uid = state.activeAccountId;
+    if (!uid) return;
+    fbDb(uid).collection("users").doc(uid)
+      .collection("telemetry").doc("studio")
+      .set({ hasPod }, { merge: true })
+      .catch(e => console.warn("[telemetry] hasPod write failed:", e.code || e.message));
+  }
+
   // ── Lifetime spool-lifecycle counters (telemetry/studio) ────────────────
   // Increment-only accumulators that trace a user's spool history over time,
   // each counting SPOOLS (a twin pair = 1, consistent with the deduped stat):
@@ -25699,7 +26068,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
 
     // Clicking the disconnected RFID pod opens TigerPOD discovery modal
     $("rfidReadersBar")?.addEventListener("click", e => {
-      if (e.target.closest(".rfid-pod.disconnected")) {
+      if (e.target.closest(".rfid-pod")) {
         openTigerPodModal();
       }
     });
@@ -25718,13 +26087,6 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       renderRfidReaderBadges();
       _cemPresenceChanged();   // reader count changed → refresh encode modal if open
       _maybeRefreshPanelForCard(); // reader plug/unplug flips greyed↔functional toolbox tools
-
-      // Track max simultaneous RFID readers (TigerPOD usage telemetry)
-      const n = state.nfcReaders.size;
-      if (n > _telRfidMax) {
-        _telRfidMax = n;
-        _recordUsage({ rfidReadersMax: n });
-      }
     });
 
     // ── Card present / removed — badge update ───────────────────────────────
@@ -25734,6 +26096,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       renderRfidReaderBadges();
       _cemPresenceChanged();       // live slot status + mid-burn presence watch
       _maybeRefreshPanelForCard(); // reveal/hide chip-dependent toolbox actions live
+      // TigerPOD signal — a SUCCESSFUL read with N readers proves ownership:
+      // auto-select hasPod on first read, then record reader count keeping the max
+      // (_telRfidMax was seeded from persisted value so we never write a lower count).
+      if (uid) {
+        if (!state.hasPod) saveHasPod(true);
+        const n = state.nfcReaders.size;
+        if (n > _telRfidMax) { _telRfidMax = n; _recordUsage({ rfidReadersMax: n }); }
+      }
     });
 
     // Legacy uid event — open detail if already in inventory

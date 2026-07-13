@@ -236,6 +236,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openCamWindow: (cameras) => ipcRenderer.invoke('cam:open-detached', cameras),
   // Show native Save dialog and stream a timelapse video from the printer to disk.
   downloadTimelapse: (url, filename) => ipcRenderer.invoke('timelapse:download', url, filename),
+  // Show native Save dialog and download an image (e.g. a QR code) to disk.
+  downloadImage: (url, filename) => ipcRenderer.invoke('image:download', url, filename),
 
   // Absolute path to renderer/ dir — used to build file:// preload paths
   // for <webview> elements (e.g. Creality camera preload script).

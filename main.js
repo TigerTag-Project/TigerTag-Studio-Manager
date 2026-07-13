@@ -69,7 +69,7 @@ app.on('second-instance', (_event, argv) => {
 });
 
 // ── Custom protocol — deep links (tigertag://friend/<code>) ─────────────────
-// Lets a shared friend link (the cdn.tigertag.io/friend/<code> landing page
+// Lets a shared friend link (the tigersystem.io/friend/<code> landing page
 // redirects to tigertag://friend/<code>) open the app and pre-fill the
 // add-friend flow. The renderer parses the URL and only PRE-FILLS the code —
 // the user still confirms, so a link can never auto-add or auto-accept anyone.
@@ -2542,6 +2542,42 @@ ipcMain.handle('db:downloadAndSaveLatestData', ()         => db.downloadAndSaveL
 
 // ── Timelapse download ───────────────────────────────────────────────────────
 // Shows a native Save dialog then streams the video from the printer over HTTP.
+// Save an image to disk via a native Save dialog. Accepts a `data:` URL (locally
+// generated QR — decoded + written directly) or a remote http(s) URL (streamed).
+ipcMain.handle('image:download', async (_evt, imageUrl, suggestedFilename) => {
+  const https = require('https');
+  const defaultName = suggestedFilename || 'qr-code.png';
+  const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+    title: 'Save QR code',
+    defaultPath: path.join(app.getPath('downloads'), defaultName),
+    filters: [{ name: 'PNG Image', extensions: ['png'] }],
+  });
+  if (canceled || !filePath) return { ok: false, reason: 'cancelled' };
+  // Locally-generated QR arrives as a base64 data URL → decode and write directly.
+  if (String(imageUrl).startsWith('data:')) {
+    try {
+      const b64 = String(imageUrl).split(',')[1] || '';
+      fs.writeFileSync(filePath, Buffer.from(b64, 'base64'));
+      return { ok: true, path: filePath };
+    } catch (e) { return { ok: false, reason: e?.message || 'error' }; }
+  }
+  const mod = String(imageUrl).startsWith('http:') ? http : https;
+  return new Promise((resolve) => {
+    const dest = fs.createWriteStream(filePath);
+    const cleanup = (err) => {
+      dest.destroy();
+      try { fs.unlinkSync(filePath); } catch (_) {}
+      resolve({ ok: false, reason: err?.message || 'error' });
+    };
+    mod.get(imageUrl, { timeout: 20000 }, (res) => {
+      if (res.statusCode !== 200) { res.resume(); return cleanup(new Error(`HTTP ${res.statusCode}`)); }
+      res.pipe(dest);
+      dest.on('finish', () => { dest.close(); resolve({ ok: true, path: filePath }); });
+      dest.on('error', cleanup);
+    }).on('error', cleanup).on('timeout', function () { this.destroy(); cleanup(new Error('timeout')); });
+  });
+});
+
 ipcMain.handle('timelapse:download', async (_evt, videoUrl, suggestedFilename) => {
   const defaultName = suggestedFilename || 'timelapse.mp4';
   const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
