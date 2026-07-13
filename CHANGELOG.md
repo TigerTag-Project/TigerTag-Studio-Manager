@@ -5,6 +5,18 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v2.9.1 — 2026-07-13
+
+### Fixed
+
+- **macOS: the "Restart" button after an update download hid the window instead of installing the update.** `autoUpdater.quitAndInstall()` (Squirrel.Mac) emits the `before-quit-for-update` app event, not the regular `before-quit`, so the `_isQuitting` latch stayed `false`; the macOS `close` handler (which hides the window rather than destroying it, to keep the auth/inventory/camera session alive on a red-button close) then called `mainWindow.hide()` instead of letting the window close — the app kept running in the dock and the downloaded update was never applied. `_isQuitting` is now latched on `before-quit-for-update` and set in the `install-update` IPC before `quitAndInstall()`, so the window actually closes and Squirrel installs the update — `main.js`. (The fix only takes effect from the *next* update: a client already on the broken 2.9.0 must quit/relaunch once for 2.9.1 to install.)
+
+### Changed
+
+- **The "What's New" entry for 2.9.1 resurfaces the 2.9.0 highlights** so users the broken macOS updater skipped straight past 2.9.0 still see the wishlist-quantities / per-list totals / cart-by-store / offline-QR / TigerPOD news — `data/whatsnew.json`.
+
+---
+
 ## v2.9.0 — 2026-07-13
 
 ### Added

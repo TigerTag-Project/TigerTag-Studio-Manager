@@ -5717,5 +5717,160 @@
         }
       }
     ]
+  },
+  "2.9.1": {
+    "date": "2026-07-13",
+    "items": [
+      {
+        "icon": "list-check",
+        "title": {
+          "en": "Want three? Say three.",
+          "fr": "Vous en voulez trois ? Dites trois.",
+          "de": "Du willst drei? Sag drei.",
+          "es": "¿Quieres tres? Di tres.",
+          "it": "Ne vuoi tre? Di' tre.",
+          "zh": "想要三个？那就写三个。",
+          "pt": "Quer três? Diga três.",
+          "pt-pt": "Queres três? Diz três.",
+          "pl": "Chcesz trzy? Powiedz trzy."
+        },
+        "body": {
+          "en": "Wishlist items can carry a quantity now — pick a number or type your own for the big orders. Your friends see it on your shared lists too.",
+          "fr": "Chaque article de vos listes a maintenant une quantité — choisissez un chiffre ou tapez le vôtre pour les grosses commandes. Vos amis la voient aussi sur vos listes partagées.",
+          "de": "Jeder Eintrag auf deinen Listen hat jetzt eine Menge — wähl eine Zahl oder tipp deine eigene für die großen Bestellungen. Deine Freunde sehen sie auf geteilten Listen auch.",
+          "es": "Cada artículo de tus listas ahora lleva cantidad — elige un número o escribe el tuyo para los pedidos grandes. Tus amigos también la ven en tus listas compartidas.",
+          "it": "Ogni articolo delle tue liste ora ha una quantità — scegli un numero o scrivi il tuo per gli ordini grossi. Anche i tuoi amici la vedono sulle liste condivise.",
+          "zh": "心愿单里的每件东西现在都能带个数量了——选一个数字，大批量时也能自己输入。朋友在你分享的清单里也看得到。",
+          "pt": "Cada item das suas listas agora tem quantidade — escolha um número ou digite o seu para os pedidos grandes. Seus amigos também veem nas listas compartilhadas.",
+          "pt-pt": "Cada item das tuas listas agora tem quantidade — escolhe um número ou escreve o teu para as encomendas grandes. Os teus amigos também a veem nas listas partilhadas.",
+          "pl": "Każda pozycja na listach ma teraz ilość — wybierz liczbę albo wpisz własną przy większych zamówieniach. Znajomi też ją widzą na udostępnionych listach."
+        }
+      },
+      {
+        "icon": "coins",
+        "title": {
+          "en": "Every list now does the math",
+          "fr": "Chaque liste fait les comptes",
+          "de": "Jede Liste rechnet jetzt selbst",
+          "es": "Cada lista ahora hace las cuentas",
+          "it": "Ogni lista ora fa i conti",
+          "zh": "每份清单现在都会自己算账",
+          "pt": "Cada lista agora faz as contas",
+          "pt-pt": "Cada lista agora faz as contas",
+          "pl": "Każda lista sama liczy"
+        },
+        "body": {
+          "en": "See each list's running total — subtotal, a tax estimate and the grand total — right beside it, in your currency. No calculator required.",
+          "fr": "Voyez le total de chaque liste — sous-total, estimation de taxe et total à payer — juste à côté, dans votre devise. Sans calculatrice.",
+          "de": "Sieh die Summe jeder Liste — Zwischensumme, geschätzte Steuer und Gesamtbetrag — direkt daneben, in deiner Währung. Ohne Taschenrechner.",
+          "es": "Mira el total de cada lista — subtotal, impuesto estimado y total — justo al lado, en tu moneda. Sin calculadora.",
+          "it": "Vedi il totale di ogni lista — subtotale, stima delle tasse e totale — proprio accanto, nella tua valuta. Senza calcolatrice.",
+          "zh": "每份清单的合计就在旁边——小计、预估税费和总价，用你的货币显示。不用掏计算器。",
+          "pt": "Veja o total de cada lista — subtotal, estimativa de imposto e total — bem ao lado, na sua moeda. Sem calculadora.",
+          "pt-pt": "Vê o total de cada lista — subtotal, estimativa de imposto e total — mesmo ao lado, na tua moeda. Sem calculadora.",
+          "pl": "Zobacz sumę każdej listy — kwotę, szacowany podatek i całość — tuż obok, w twojej walucie. Bez kalkulatora."
+        }
+      },
+      {
+        "icon": "cart",
+        "title": {
+          "en": "Your cart, sorted by shop",
+          "fr": "Votre panier, rangé par boutique",
+          "de": "Dein Warenkorb, nach Shop sortiert",
+          "es": "Tu carrito, ordenado por tienda",
+          "it": "Il tuo carrello, ordinato per negozio",
+          "zh": "你的购物车，按商店分好组",
+          "pt": "Seu carrinho, organizado por loja",
+          "pt-pt": "O teu carrinho, organizado por loja",
+          "pl": "Twój koszyk, poukładany według sklepu"
+        },
+        "body": {
+          "en": "Everything in 'To order' now clusters by where you'll buy it, with the link-less stuff tucked at the end — so you can knock out one store at a time.",
+          "fr": "Tout dans « À commander » se regroupe désormais par endroit où vous achetez, et ce qui n'a pas de lien se range à la fin — pour tout commander boutique par boutique.",
+          "de": "Alles unter « Zu bestellen » gruppiert sich jetzt nach Einkaufsort, das Link-lose landet am Ende — so hakst du einen Shop nach dem anderen ab.",
+          "es": "Todo lo de «Para pedir» ahora se agrupa según dónde lo comprarás, y lo que no tiene enlace queda al final — para ir tienda por tienda.",
+          "it": "Tutto in «Da ordinare» ora si raggruppa in base a dove lo comprerai, e quello senza link finisce in fondo — così spunti un negozio alla volta.",
+          "zh": "「待订购」里的东西现在按购买地点分组，没有链接的都放到最后——一家店一家店地搞定。",
+          "pt": "Tudo em «Para pedir» agora se agrupa por onde você vai comprar, e o que não tem link fica no fim — para resolver loja por loja.",
+          "pt-pt": "Tudo em «Para encomendar» agora se agrupa por onde vais comprar, e o que não tem link fica no fim — para tratar loja a loja.",
+          "pl": "Wszystko w « Do zamówienia » grupuje się teraz według sklepu, a rzeczy bez linku lądują na końcu — załatwisz sklep po sklepie."
+        }
+      },
+      {
+        "icon": "download",
+        "title": {
+          "en": "QR codes, now fully off the grid",
+          "fr": "Les QR codes, désormais 100 % hors ligne",
+          "de": "QR-Codes, jetzt komplett offline",
+          "es": "Los códigos QR, ahora del todo sin conexión",
+          "it": "I codici QR, ora del tutto offline",
+          "zh": "二维码现在完全离线生成",
+          "pt": "Os QR codes, agora totalmente offline",
+          "pt-pt": "Os códigos QR, agora totalmente offline",
+          "pl": "Kody QR, teraz w pełni offline"
+        },
+        "body": {
+          "en": "Every QR in the app is made right on your machine — no internet, nothing sent out — and you can save your list's code to print or share.",
+          "fr": "Chaque QR de l'appli est fabriqué directement sur votre machine — sans internet, rien n'est envoyé ailleurs — et vous pouvez enregistrer celui de votre liste pour l'imprimer ou le partager.",
+          "de": "Jeder QR-Code in der App entsteht direkt auf deinem Gerät — kein Internet, nichts geht raus — und den deiner Liste kannst du zum Drucken oder Teilen speichern.",
+          "es": "Cada QR de la app se crea en tu propio equipo — sin internet, nada sale de ahí — y puedes guardar el de tu lista para imprimirlo o compartirlo.",
+          "it": "Ogni QR dell'app nasce direttamente sul tuo dispositivo — niente internet, niente esce — e quello della tua lista puoi salvarlo per stamparlo o condividerlo.",
+          "zh": "应用里每个二维码都在你自己的设备上生成——不用联网，什么都不外传——清单的二维码还能存下来打印或分享。",
+          "pt": "Cada QR do app é feito no seu próprio computador — sem internet, nada sai daí — e o da sua lista dá para salvar e imprimir ou compartilhar.",
+          "pt-pt": "Cada QR da app é feito no teu próprio dispositivo — sem internet, nada sai dali — e o da tua lista podes guardar para imprimir ou partilhar.",
+          "pl": "Każdy kod QR w aplikacji powstaje na twoim urządzeniu — bez internetu, nic nie wychodzi na zewnątrz — a ten z twojej listy zapiszesz do druku lub udostępnienia."
+        }
+      },
+      {
+        "icon": "palette",
+        "title": {
+          "en": "Give your QR a paint job",
+          "fr": "Repeignez vos QR codes",
+          "de": "Gib deinem QR einen Anstrich",
+          "es": "Dale color a tus QR",
+          "it": "Dai una pennellata ai tuoi QR",
+          "zh": "给你的二维码换个配色",
+          "pt": "Dê uma cor aos seus QR",
+          "pt-pt": "Dá uma cor aos teus QR",
+          "pl": "Pomaluj swój kod QR"
+        },
+        "body": {
+          "en": "Pick a colour for the QR codes you share, and the app remembers your taste on this device.",
+          "fr": "Choisissez une couleur pour les QR que vous partagez, l'appli retient votre goût sur cet appareil.",
+          "de": "Wähl eine Farbe für die QR-Codes, die du teilst — die App merkt sich deinen Geschmack auf diesem Gerät.",
+          "es": "Elige un color para los QR que compartes y la app recuerda tu gusto en este dispositivo.",
+          "it": "Scegli un colore per i QR che condividi e l'app ricorda i tuoi gusti su questo dispositivo.",
+          "zh": "给你分享的二维码挑个颜色，应用会在这台设备上记住你的口味。",
+          "pt": "Escolha uma cor para os QR que você compartilha e o app lembra do seu gosto neste dispositivo.",
+          "pt-pt": "Escolhe uma cor para os QR que partilhas e a app lembra-se do teu gosto neste dispositivo.",
+          "pl": "Wybierz kolor dla udostępnianych kodów QR — aplikacja zapamięta twój gust na tym urządzeniu."
+        }
+      },
+      {
+        "icon": "nfc",
+        "title": {
+          "en": "Got a TigerPOD? Let it be known",
+          "fr": "Vous avez un TigerPOD ? Faites-le savoir",
+          "de": "Du hast einen TigerPOD? Sag's ruhig",
+          "es": "¿Tienes un TigerPOD? Que se sepa",
+          "it": "Hai un TigerPOD? Fallo sapere",
+          "zh": "有 TigerPOD？大方说出来",
+          "pt": "Tem um TigerPOD? Conte pra gente",
+          "pt-pt": "Tens um TigerPOD? Diz lá",
+          "pl": "Masz TigerPOD? Pochwal się"
+        },
+        "body": {
+          "en": "A quick switch lets you say you own a TigerPOD — and we'll flip it on for you the first time you scan a tag anyway.",
+          "fr": "Un petit interrupteur pour dire que vous avez un TigerPOD — et de toute façon on l'active pour vous dès votre premier scan.",
+          "de": "Ein kleiner Schalter, um zu sagen, dass du einen TigerPOD hast — und beim ersten Scan legen wir ihn sowieso für dich um.",
+          "es": "Un pequeño interruptor para decir que tienes un TigerPOD — y de todos modos lo activamos por ti en tu primer escaneo.",
+          "it": "Un piccolo interruttore per dire che hai un TigerPOD — e comunque lo attiviamo noi al tuo primo scan.",
+          "zh": "一个小开关，用来说明你有 TigerPOD——反正第一次扫描时我们也会帮你打开。",
+          "pt": "Um interruptorzinho para dizer que você tem um TigerPOD — e a gente ativa por você já no primeiro scan de qualquer jeito.",
+          "pt-pt": "Um pequeno interruptor para dizeres que tens um TigerPOD — e ativamo-lo por ti logo no primeiro scan, de qualquer forma.",
+          "pl": "Mały przełącznik, żeby powiedzieć, że masz TigerPOD — i tak włączymy go za ciebie przy pierwszym skanie."
+        }
+      }
+    ]
   }
 }

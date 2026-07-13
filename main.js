@@ -232,6 +232,11 @@ let _camWindow = null; // detached camera wall window (optional)
 // blocks that quit (see its handler below).
 let _isQuitting = false;
 app.on('before-quit', () => { _isQuitting = true; });
+// autoUpdater.quitAndInstall() (Squirrel) emits `before-quit-for-update`, NOT the
+// regular `before-quit`. Without latching here, the macOS `close` handler below
+// sees `_isQuitting === false`, hides the window instead of closing it, the app
+// never actually quits, and the downloaded update is never installed.
+app.on('before-quit-for-update', () => { _isQuitting = true; });
 
 // ── Splash gate ────────────────────────────────────────────────────────────
 // Discord-style launch: a tiny frameless splash shows INSTANTLY (it's a
@@ -1403,6 +1408,7 @@ app.on('before-quit', (event) => {
 });
 
 ipcMain.on('install-update', () => {
+  _isQuitting = true;   // let the macOS close handler actually close the window (not hide it)
   autoUpdater.quitAndInstall();
 });
 
