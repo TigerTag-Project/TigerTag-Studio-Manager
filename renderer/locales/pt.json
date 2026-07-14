@@ -342,6 +342,11 @@
   "loginResendVerif": "Reenviar o email",
   "loginEmailInUse": "Este e-mail já está registrado.",
   "invLoading": "Desempacotando suas bobinas…",
+  "loadingGeneric": "Só um segundo…",
+  "loadingFun1": "Acordando as bobines…",
+  "loadingFun2": "Aquecendo a mesa…",
+  "loadingFun3": "Tempo para um café?",
+  "loadingFun4": "Quase lá, prometo…",
   "containerPickerTitle": "Escolher um recipiente",
   "btnChangeContainer": "Alterar",
   "cwEditWeight": "Editar peso do recipiente",
@@ -1238,6 +1243,7 @@
   "reorderPrice": "Preço por bobina",
   "reorderAddPrice": "Adicionar um preço",
   "reorderSaveLater": "Comprar depois",
+  "reorderStopTracking": "Parar de acompanhar",
   "reorderMoveToCart": "Adicionar ao carrinho",
   "reorderDragHint": "Arraste para reordenar ou mover",
   "reorderEditPrice": "Alterar o preço",
@@ -1339,5 +1345,11 @@
   "editSocialsPlaceholder": "Cola um link de perfil…",
   "pvQty": "Quantidade",
   "reorderNoLink": "Sem link",
-  "listModalMessageSelfPh": "Preferências, um lembrete, por que você quer…"
+  "listModalMessageSelfPh": "Preferências, um lembrete, por que você quer…",
+  "ctxCut": "Cortar",
+  "ctxCopy": "Copiar",
+  "ctxPaste": "Colar",
+  "ctxSelectAll": "Selecionar tudo",
+  "cartAddNote": "Adicionar uma nota",
+  "cartNotePh": "ex. leve também 3 bicos + limpador de mesa"
 }

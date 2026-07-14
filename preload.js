@@ -108,6 +108,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // True when running inside Electron
   isElectron: true,
 
+  // Push the app-language labels for the native right-click menu (Cut/Copy/Paste/
+  // Select All) so it matches the in-app language, not the OS locale. Called on
+  // startup and on every language change.
+  setContextMenuLabels: (labels) => ipcRenderer.send('app:ctx-menu-labels', labels),
+
   // ── Deep links (tigertag://friend/<code>) ──────────────────────────────
   // Main forwards a clicked deep link here. The renderer also calls
   // deepLinkReady() once its handler is wired so main can flush a link that

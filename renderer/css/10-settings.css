@@ -329,6 +329,11 @@
     align-items: center; gap: 6px; cursor: default;
   }
   .sb-qr-img { width: 88px; height: 88px; border-radius: 6px; display: block; image-rendering: pixelated; }
+  /* The QR data-URL is generated locally and set on the img after the module
+     loads (see _makeQrDataUrl for #sbQrImg). Until then the img has no src, so
+     hide it — otherwise the browser's broken-image icon + "QR" alt text flash for
+     a beat on cold start. The fixed box above keeps the layout from shifting. */
+  .sb-qr-img:not([src]) { visibility: hidden; }
   .sb-qr-label { font-size: 11px; font-weight: 600; color: rgba(255,255,255,.72); }
   /* Short label shown only when the sidebar is collapsed (see collapsed rule). */
   .sb-qr-label-short { display: none; font-size: 10px; font-weight: 700; color: rgba(255,255,255,.5); }

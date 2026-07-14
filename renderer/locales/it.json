@@ -342,6 +342,11 @@
   "loginResendVerif": "Invia di nuovo l'email",
   "loginEmailInUse": "Questa email è già registrata.",
   "invLoading": "Stiamo spacchettando le tue bobine…",
+  "loadingGeneric": "Un attimo…",
+  "loadingFun1": "Sveglio le bobine…",
+  "loadingFun2": "Scaldo il piatto…",
+  "loadingFun3": "Il tempo di un caffè?",
+  "loadingFun4": "Quasi pronto, promesso…",
   "containerPickerTitle": "Scegli un contenitore",
   "btnChangeContainer": "Cambia",
   "cwEditWeight": "Modifica peso contenitore",
@@ -1238,6 +1243,7 @@
   "reorderPrice": "Prezzo per bobina",
   "reorderAddPrice": "Aggiungi un prezzo",
   "reorderSaveLater": "Compra dopo",
+  "reorderStopTracking": "Non seguire più",
   "reorderMoveToCart": "Aggiungi al carrello",
   "reorderDragHint": "Trascina per riordinare o spostare",
   "reorderEditPrice": "Cambia il prezzo",
@@ -1339,5 +1345,11 @@
   "editSocialsPlaceholder": "Incolla un link al profilo…",
   "pvQty": "Quantità",
   "reorderNoLink": "Senza link",
-  "listModalMessageSelfPh": "Preferenze, un promemoria, perché lo vuoi…"
+  "listModalMessageSelfPh": "Preferenze, un promemoria, perché lo vuoi…",
+  "ctxCut": "Taglia",
+  "ctxCopy": "Copia",
+  "ctxPaste": "Incolla",
+  "ctxSelectAll": "Seleziona tutto",
+  "cartAddNote": "Aggiungi una nota",
+  "cartNotePh": "es. prendi anche 3 ugelli + un pulitore piano"
 }

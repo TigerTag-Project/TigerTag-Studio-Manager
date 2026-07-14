@@ -342,6 +342,11 @@
   "loginResendVerif": "Reenviar o email",
   "loginEmailInUse": "Este e-mail já está registado.",
   "invLoading": "A desembrulhar as tuas bobinas…",
+  "loadingGeneric": "Só um segundo…",
+  "loadingFun1": "A acordar as bobines…",
+  "loadingFun2": "A aquecer a mesa…",
+  "loadingFun3": "Tempo para um café?",
+  "loadingFun4": "Quase lá, prometo…",
   "containerPickerTitle": "Escolher um recipiente",
   "btnChangeContainer": "Alterar",
   "cwEditWeight": "Editar peso do recipiente",
@@ -1238,6 +1243,7 @@
   "reorderPrice": "Preço por bobina",
   "reorderAddPrice": "Adicionar um preço",
   "reorderSaveLater": "Comprar mais tarde",
+  "reorderStopTracking": "Deixar de seguir",
   "reorderMoveToCart": "Adicionar ao carrinho",
   "reorderDragHint": "Arrasta para reordenar ou mover",
   "reorderEditPrice": "Alterar o preço",
@@ -1339,5 +1345,11 @@
   "editSocialsPlaceholder": "Cola uma ligação de perfil…",
   "pvQty": "Quantidade",
   "reorderNoLink": "Sem link",
-  "listModalMessageSelfPh": "Preferências, um lembrete, porque o queres…"
+  "listModalMessageSelfPh": "Preferências, um lembrete, porque o queres…",
+  "ctxCut": "Cortar",
+  "ctxCopy": "Copiar",
+  "ctxPaste": "Colar",
+  "ctxSelectAll": "Selecionar tudo",
+  "cartAddNote": "Adicionar uma nota",
+  "cartNotePh": "ex. leva também 3 bicos + limpador de base"
 }

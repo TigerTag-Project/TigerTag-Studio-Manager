@@ -341,6 +341,11 @@
   "loginResendVerif": "Wyślij e-mail ponownie",
   "loginEmailInUse": "Ten email jest już używany",
   "invLoading": "Rozpakowujemy twoje szpule…",
+  "loadingGeneric": "Chwileczkę…",
+  "loadingFun1": "Budzimy szpule…",
+  "loadingFun2": "Nagrzewamy stół…",
+  "loadingFun3": "Czas na kawę?",
+  "loadingFun4": "Już prawie, obiecuję…",
   "containerPickerTitle": "Wybierz pojemnik",
   "btnChangeContainer": "Zmień",
   "cwEditWeight": "Edytuj wagę pojemnika",
@@ -1237,6 +1242,7 @@
   "reorderPrice": "Cena za szpulę",
   "reorderAddPrice": "Dodaj cenę",
   "reorderSaveLater": "Kup później",
+  "reorderStopTracking": "Przestań śledzić",
   "reorderMoveToCart": "Dodaj do koszyka",
   "reorderDragHint": "Przeciągnij, aby zmienić kolejność lub przenieść",
   "reorderEditPrice": "Zmień cenę",
@@ -1338,5 +1344,11 @@
   "editSocialsPlaceholder": "Wklej link do profilu…",
   "pvQty": "Ilość",
   "reorderNoLink": "Bez linku",
-  "listModalMessageSelfPh": "Preferencje, przypomnienie, dlaczego tego chcesz…"
+  "listModalMessageSelfPh": "Preferencje, przypomnienie, dlaczego tego chcesz…",
+  "ctxCut": "Wytnij",
+  "ctxCopy": "Kopiuj",
+  "ctxPaste": "Wklej",
+  "ctxSelectAll": "Zaznacz wszystko",
+  "cartAddNote": "Dodaj notatkę",
+  "cartNotePh": "np. dorzuć 3 dysze + środek do czyszczenia stołu"
 }

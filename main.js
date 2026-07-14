@@ -5,6 +5,14 @@ const fs   = require('fs');
 const http = require('http');
 const crypto = require('crypto');
 
+// Right-click context-menu labels, translated in the RENDERER (which owns the app
+// language) and pushed here via IPC so the native menu matches the in-app language
+// rather than the OS locale. Null until the first push → role defaults are used.
+let _ctxMenuLabels = null;
+ipcMain.on('app:ctx-menu-labels', (_e, labels) => {
+  if (labels && typeof labels === 'object') _ctxMenuLabels = labels;
+});
+
 // ── Persistent logging ─────────────────────────────────────────────────────
 // Writes to:
 //   Windows : %APPDATA%\Tiger Studio Manager\logs\main.log
@@ -380,21 +388,23 @@ function createWindow() {
 
   // Right-click context menu — native Cut/Copy/Paste/Select-all on any editable
   // field (text/number/url inputs, textareas, contenteditable), plus Copy on any
-  // selected text. Uses `role`s so labels are OS-native + localised and behaviour
-  // is built-in. `editFlags` disable actions that don't apply (e.g. Paste with an
-  // empty clipboard, Cut with no selection).
+  // selected text. Uses `role`s for built-in behaviour, but OVERRIDES each label
+  // with the app-language string pushed from the renderer (`_ctxMenuLabels`), so the
+  // menu matches the in-app language rather than the OS locale. `editFlags` disable
+  // actions that don't apply (e.g. Paste with an empty clipboard, Cut with no selection).
   mainWindow.webContents.on('context-menu', (_e, params) => {
     const ef = params.editFlags || {};
     const hasSel = !!(params.selectionText && params.selectionText.trim());
+    const L = _ctxMenuLabels || {};   // app-language labels; a falsy label → role default
     const tpl = [];
     if (params.isEditable) {
-      tpl.push({ role: 'cut', enabled: !!ef.canCut });
-      tpl.push({ role: 'copy', enabled: !!ef.canCopy });
-      tpl.push({ role: 'paste', enabled: !!ef.canPaste });
+      tpl.push({ role: 'cut',   label: L.cut,   enabled: !!ef.canCut });
+      tpl.push({ role: 'copy',  label: L.copy,  enabled: !!ef.canCopy });
+      tpl.push({ role: 'paste', label: L.paste, enabled: !!ef.canPaste });
       tpl.push({ type: 'separator' });
-      tpl.push({ role: 'selectAll', enabled: ef.canSelectAll !== false });
+      tpl.push({ role: 'selectAll', label: L.selectAll, enabled: ef.canSelectAll !== false });
     } else if (hasSel) {
-      tpl.push({ role: 'copy', enabled: !!ef.canCopy });
+      tpl.push({ role: 'copy', label: L.copy, enabled: !!ef.canCopy });
     }
     if (tpl.length) Menu.buildFromTemplate(tpl).popup({ window: mainWindow });
   });

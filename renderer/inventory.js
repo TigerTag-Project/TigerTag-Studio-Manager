@@ -617,6 +617,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // in the printers view so we don't flash the empty state while
     // Firestore is still on its way back.
     printersLoading: false,
+    // True between (re)subscribing to products / lists and the first snapshot —
+    // drives the "loading…" spinner in the Favorites/To-order and Lists views so we
+    // don't flash the empty state before the data (own or a friend's) arrives.
+    // Default TRUE so the FIRST render (which can happen before the subscription is
+    // even wired) already shows the spinner, not a split-second empty state.
+    productsLoading: true,
+    listsLoading: true,
+    racksLoading: true,   // Storage view: spinner until the first racks snapshot (own) / friend read lands
     isAdmin: false,
     debugEnabled: false,
     publicKey: null,
@@ -719,6 +727,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     document.querySelectorAll(".csel > select").forEach(s => s._cselRefresh?.());
     // Button labels just changed width → re-fit the view-selector bubble (instant).
     _positionViewIndicators?.(true);
+    // Native right-click menu (Cut/Copy/Paste/Select All) lives in the main process,
+    // which doesn't know the app language — push the translated labels so it matches.
+    window.electronAPI?.setContextMenuLabels?.({
+      cut: t("ctxCut"), copy: t("ctxCopy"), paste: t("ctxPaste"), selectAll: t("ctxSelectAll"),
+    });
   }
   // The search box serves several views — point its placeholder at what the
   // current view actually searches (printers vs materials).
@@ -6225,9 +6238,17 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         $("card-welcome").classList.add("hidden");
         $("card-inv").classList.remove("hidden");
         $("invTableWrap").classList.add("hidden"); $("invGrid").classList.add("hidden");
+        // Hide the other view containers too — otherwise switching from the rack
+        // view to table/grid on a friend with an EMPTY inventory left the decorative
+        // rack (+ its stats pill and unranked side-panel, all inside #invRackView)
+        // on screen behind the empty state. Mirrors the own-view empty branch below.
+        $("invRackView")?.classList.add("hidden");
+        $("invPrinterView")?.classList.add("hidden");
+        $("invProductsView")?.classList.add("hidden");
+        $("invListsView")?.classList.add("hidden");
         $("invEmpty").classList.add("hidden");
         if (state.invLoading) {
-          $("mainResult").innerHTML = `<div class="inv-loading"><div class="inv-loading-spin"></div><span>${t("invLoading")}</span></div>`;
+          _showLoading($("mainResult"));
         } else if (state.friendView.error) {
           $("mainResult").innerHTML = `
             <div class="friend-inv-error">
@@ -6283,7 +6304,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       $("invPrinterView")?.classList.add("hidden");
 
       if (state.invLoading) {
-        $("mainResult").innerHTML = `<div class="inv-loading"><div class="inv-loading-spin"></div><span>${t("invLoading")}</span></div>`;
+        _showLoading($("mainResult"));
       } else {
         // Connected + 0 spools → Apple-style welcome with 2 QR cards
         const qrUniversal  = _makeQrDataUrl("https://taap.it/DF1Aqt", { size: 300, margin: 3, fg: "#1d1d1f", bg: "#ffffff", logo: false });
@@ -7094,11 +7115,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   }
   function subscribeProducts(uid) {
     unsubscribeProducts();
+    state.productsLoading = true;
     state.unsubProducts = fbDb(uid)
       .collection("users").doc(uid)
       .collection("products")
       .onSnapshot(snap => {
         if (uid !== state.activeAccountId) return;
+        if (!state.friendView) state.productsLoading = false;   // our own sub stays live in friend view — don't clear the friend's loading flag
         const map = {};
         snap.docs.forEach(d => { map[d.id] = { id: d.id, ...d.data() }; });
         state.products = map;
@@ -7115,7 +7138,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         _refreshGroupPanelIfOpen();   // flips the deck's "Reorder" button live
         _checkLowStockNotifs();       // min changed → raise / clear low-stock alerts
         if ($("productCardPanel")?.classList.contains("open") && _productCardData) _renderProductCard(_productCardData);   // reflect my ★/❤ on the open product card
-      }, err => console.warn("[products]", err.code, err.message));
+      }, err => {
+        console.warn("[products]", err.code, err.message);
+        state.productsLoading = false;
+        if (_isProductsMode(state.viewMode)) renderProductsView();
+      });
   }
 
   function unsubscribeProducts() {
@@ -7133,17 +7160,23 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function subscribeFriendProducts(uid) {
     unsubscribeFriendProducts();
     if (!uid) return;
+    state.productsLoading = true;
     state.unsubFriendProducts = fbDb(uid)
       .collection("users").doc(uid)
       .collection("products")
       .onSnapshot(snap => {
         if (state.friendView?.uid !== uid) return;
+        state.productsLoading = false;
         const m = {};
         snap.docs.forEach(d => { m[d.id] = { id: d.id, ...d.data() }; });
         state.friendProducts = m;
         _maybeRefreshPanelForCard?.();   // fill price / link into the open friend material card
         if (_isProductsMode(state.viewMode)) renderProductsView();   // live-refresh the friend's favorites view
-      }, err => console.warn("[friendProducts]", err?.code, err?.message));
+      }, err => {
+        console.warn("[friendProducts]", err?.code, err?.message);
+        state.productsLoading = false;   // denied/error → drop the spinner, show the empty state
+        if (_isProductsMode(state.viewMode)) renderProductsView();
+      });
   }
   function unsubscribeFriendProducts() {
     if (typeof state.unsubFriendProducts === "function") { try { state.unsubFriendProducts(); } catch (_) {} }
@@ -7159,9 +7192,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // Owner writes only; every helper below is a no-op in friend view.
   function subscribeLists(uid) {
     unsubscribeLists();
+    state.listsLoading = true;
     state.unsubLists = fbDb(uid).collection("users").doc(uid).collection("lists")
       .onSnapshot(snap => {
         if (uid !== state.activeAccountId) return;
+        if (!state.friendView) state.listsLoading = false;   // our own sub stays live in friend view — don't clear the friend's loading flag
         const map = {};
         snap.docs.forEach(d => { map[d.id] = { id: d.id, ...d.data() }; });
         state.lists = map;
@@ -7176,7 +7211,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         // the rename input mid-type. The commit re-renders afterwards.
         if (_isListsMode(state.viewMode) && !_listRenamePending) renderListsView();
         _refreshAddToListMenu();   // keep an open "Add to a list" popup in sync
-      }, err => console.warn("[lists]", err?.code, err?.message));
+      }, err => {
+        console.warn("[lists]", err?.code, err?.message);
+        state.listsLoading = false;
+        if (_isListsMode(state.viewMode) && !_listRenamePending) renderListsView();
+      });
   }
   function unsubscribeLists() {
     if (typeof state.unsubLists === "function") { try { state.unsubLists(); } catch (_) {} }
@@ -7186,8 +7225,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // Live-read a friend's OWN lists directly while viewing their profile (mirror of
   // subscribeFriendProducts) — read-only.
   function subscribeFriendLists(uid) {
-    unsubscribeFriendLists();
+    unsubscribeFriendLists();   // resets state.friendLists = {}
     if (!uid) return;
+    // Recompute the badge NOW from the (empty) friend context, before the async
+    // snapshot — otherwise it lingers on the PREVIOUS count (our own, or a prior
+    // friend's) whenever the friend's lists read arrives late, empty, or DENIED
+    // (a non-shared friend account), since the snapshot is its only other refresh.
+    _updateListsBadge();
+    state.listsLoading = true;
     // A friend can only read the owner's NON-private lists — an unconstrained
     // collection query would be rejected by the rules (it could return a private
     // list), so filter to `visibility != "private"` to match what the rule allows.
@@ -7197,13 +7242,20 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       .where("visibility", "!=", "private")
       .onSnapshot(snap => {
         if (state.friendView?.uid !== uid) return;
+        state.listsLoading = false;
         const m = {};
         snap.docs.forEach(d => { m[d.id] = { id: d.id, ...d.data() }; });
         state.friendLists = m;
         _updateListsBadge();   // count reflects the friend's shared lists in friend-view
         if (state.selectedListId && !m[state.selectedListId]) state.selectedListId = null;
         if (_isListsMode(state.viewMode)) renderListsView();
-      }, err => console.warn("[friendLists]", err?.code, err?.message));
+      }, err => {
+        // Denied (non-shared friend) → the snapshot never fires, so drop the spinner
+        // here and show the empty state instead of spinning forever.
+        console.warn("[friendLists]", err?.code, err?.message);
+        state.listsLoading = false;
+        if (_isListsMode(state.viewMode)) renderListsView();
+      });
   }
   function unsubscribeFriendLists() {
     if (typeof state.unsubFriendLists === "function") { try { state.unsubFriendLists(); } catch (_) {} }
@@ -7220,6 +7272,19 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       || String(a.name || "").localeCompare(String(b.name || "")));
   }
   function _getList(id) { return _listsSource()[id] || null; }
+  // The "Add to a list" popup ALWAYS targets the signed-in user's OWN lists —
+  // even in friend-view, where picking a list imports the friend's product into
+  // your account and drops it into YOUR list (never the friend's). So these read
+  // state.lists directly, unlike _listsSource()/_listsArray() which flip to the
+  // friend's lists in friend-view (those drive the read-only Lists view).
+  function _ownLists() { return state.lists || {}; }
+  function _ownListsArray() {
+    return Object.values(_ownLists()).sort((a, b) =>
+      (a.sortRank ?? 1e9) - (b.sortRank ?? 1e9)
+      || ((a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0))
+      || String(a.name || "").localeCompare(String(b.name || "")));
+  }
+  function _ownListHas(id, kh) { const l = _ownLists()[id]; return !!(l && (l.itemKeys || []).includes(kh)); }
   // The list currently shown in the Lists view (falls back to the first list).
   function _selectedList() {
     const arr = _listsArray();
@@ -7447,8 +7512,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     }
   }
   async function _createList(name, opts = {}) {
+    // Always writes to the signed-in user's own account (getActiveId), so it is
+    // allowed in friend-view too — the "Add to a list → New list" flow can mint a
+    // list on the spot while browsing a friend and drop the imported item into it.
     const uid = state.activeAccountId;
-    if (!uid || state.friendView) return null;
+    if (!uid) return null;
     const doc = {
       name: (name || t("listUntitled")).trim().slice(0, 80) || t("listUntitled"),
       itemKeys: [],
@@ -7487,8 +7555,21 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // product already exists (Product card passes its own keyHash).
   async function _addToList(listId, keyHash, row) {
     const uid = state.activeAccountId;
-    if (!uid || state.friendView || !listId || !keyHash) return;
-    if (row && row.raw) { try { await _writeProduct(row, {}); } catch (_) {} }
+    if (!uid || !listId || !keyHash) return;
+    // Ensure the product identity exists in MY account so the list item resolves
+    // even without a spool. In friend-view this IMPORTS the friend's product:
+    // carry their shared price / buy link / SKU-EAN and stamp provenance (once),
+    // mirroring the ❤/★ toggle import path — so the item shows up with a picture,
+    // price and buy button once I'm back in my own view.
+    if (row && row.raw) {
+      const patch = {};
+      if (state.friendView?.uid) {
+        const cur = state.products[keyHash] || {};
+        _carryFriendProduct(row, patch, cur);
+        if (!cur.importedFrom) patch.importedFrom = { uid: state.friendView.uid, name: state.friendView.displayName || "" };
+      }
+      try { await _writeProduct(row, patch); } catch (_) {}
+    }
     try {
       await fbDb(uid).collection("users").doc(uid).collection("lists").doc(listId).update({
         itemKeys: firebase.firestore.FieldValue.arrayUnion(keyHash),
@@ -7497,8 +7578,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     } catch (e) { console.warn("[lists] add failed:", e?.message); }
   }
   async function _removeFromList(listId, keyHash) {
+    // Writes to my own lists collection → allowed in friend-view (the popup can
+    // untick a list I'd already added the friend's item to).
     const uid = state.activeAccountId;
-    if (!uid || state.friendView || !listId || !keyHash) return;
+    if (!uid || !listId || !keyHash) return;
     try {
       await fbDb(uid).collection("users").doc(uid).collection("lists").doc(listId).update({
         itemKeys: firebase.firestore.FieldValue.arrayRemove(keyHash),
@@ -7987,59 +8070,74 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       // The whole deck shares one product identity → action buttons above the
       // list: "Product info" (opens the product card), and — when a buy link is
       // set — "Reorder" (opens the shop directly).
-      if (!state.friendView) {
-        // Below-min-stock alert: the current-stock pill (amber), shown ABOVE the
-        // action buttons only when the deck's stock has dropped below its target.
-        const prod = _getProduct(g.rep);
-        const min = prod && Number.isFinite(+prod.minStockSpools) ? +prod.minStockSpools : 0;
-        const stock = _filamentStockCount(g.rep);
-        if (min > 0 && stock < min) {
-          const alert = document.createElement("div");
-          alert.className = "ro-stock ro-stock--low gp-stock-alert";
-          alert.innerHTML = `<span class="icon icon-package icon-14"></span><span>${esc(t("reorderInStock", { n: stock }))} / ${min}</span>`;
-          body.appendChild(alert);
+      {
+        // The three toggles read/write MY account's product state (never the
+        // friend's): in friend-view they IMPORT the friend's product into my
+        // account (provenance + price/link carried by _toggleProductFlag). So
+        // they render in BOTH views — only the owner-only extras differ.
+        const hash = _productKeyHash(g.rep);
+        const mine = state.products[hash] || {};
+        const liked = !!mine.liked, fav = !!mine.favorite;
+        const mkBtn = (cls, iconHTML, tip, label) => {
+          const b = document.createElement("button");
+          b.type = "button"; b.className = "flag-toggle " + cls;
+          b.setAttribute("data-tip", tip); b.setAttribute("aria-label", label);
+          b.innerHTML = iconHTML;
+          return b;
+        };
+        // Below-min-stock alert + the read-only note are OWNER-ONLY (both are about
+        // my reorder state / my private note — meaningless and off-limits in
+        // friend-view). The Product-info button is owner-only too (it opens the
+        // reorder / price editor). The three toggles show in both views.
+        if (!state.friendView) {
+          const min = Number.isFinite(+mine.minStockSpools) ? +mine.minStockSpools : 0;
+          const stock = _filamentStockCount(g.rep);
+          if (min > 0 && stock < min) {
+            const alert = document.createElement("div");
+            alert.className = "ro-stock ro-stock--low gp-stock-alert";
+            alert.innerHTML = `<span class="icon icon-package icon-14"></span><span>${esc(t("reorderInStock", { n: stock }))} / ${min}</span>`;
+            body.appendChild(alert);
+          }
         }
+        // One row of icon-only actions (same .flag-toggle look as the product card).
+        // Owner: Product-info on the LEFT, then the three toggles grouped on the right.
+        // Friend: no Product-info — just the three toggles (right-aligned).
         const row = document.createElement("div");
-        row.className = "gp-actions";
-        const infoBtn = document.createElement("button");
-        infoBtn.type = "button";
-        infoBtn.className = "gp-reorder-btn";
-        infoBtn.innerHTML = `<span class="icon icon-info icon-14"></span><span>${esc(t("toolReorder"))}</span>`;
-        infoBtn.addEventListener("click", () => _toggleReorderPanel(g.rep));
-        row.appendChild(infoBtn);
-        const buyBtn = document.createElement("button");
-        buyBtn.type = "button";
-        buyBtn.className = "gp-reorder-btn gp-reorder-btn--buy" + (_hasBuyLink(g.rep) ? "" : " gp-reorder-btn--disabled");
-        buyBtn.innerHTML = `<span class="icon icon-cart icon-14"></span><span>${esc(_hasBuyLink(g.rep) ? _buyHost(_getProduct(g.rep)?.buyUrl) : t("toolReorderBuy"))}</span>`;
-        buyBtn.addEventListener("click", () => {
-          const url = _getProduct(g.rep)?.buyUrl;
-          if (url) window.electronAPI?.openExternal(_normalizeBuyUrl(url));
-          else openReorderPanel(g.rep);  // no link → open the product card to add one
-        });
-        row.appendChild(buyBtn);
-        body.appendChild(row);
-        // "Add to a list" — on its OWN row BELOW Product-info / Reorder. Same
-        // delegated `.js-add-to-list` handler as the Material / Product cards.
-        const listRow = document.createElement("div");
-        listRow.className = "gp-actions gp-actions--list";
-        const listBtn = document.createElement("button");
-        listBtn.type = "button";
-        listBtn.className = "gp-reorder-btn js-add-to-list";
-        listBtn.dataset.atlHash = _productKeyHash(g.rep);
+        row.className = "gp-actions gp-actions--flags";
+        if (!state.friendView) {
+          // Product info (opens the reorder / To-order side-card) — pushed to the left.
+          const infoBtn = mkBtn("flag-toggle--info gp-flag-info", `<span class="icon icon-info icon-16"></span>`, t("productInfoPage"), t("productInfoPage"));
+          infoBtn.addEventListener("click", () => _toggleReorderPanel(g.rep));
+          row.appendChild(infoBtn);
+        }
+        // Add to cart / "To order" (❤ liked flag).
+        const cartBtn = mkBtn("flag-toggle--wish" + (liked ? " active" : ""), `<span class="icon icon-cart icon-16"></span>`, t("productLikeTip"), t("productLike"));
+        cartBtn.setAttribute("aria-pressed", liked);
+        cartBtn.addEventListener("click", async () => { await _toggleProductFlag(g.rep, "liked"); _renderGroupPanelContents(g); });
+        row.appendChild(cartBtn);
+        // Favourite (★).
+        const favBtn = mkBtn("flag-toggle--like" + (fav ? " active" : ""), `<span class="icon icon-star${fav ? "-fill" : ""} icon-16"></span>`, t("productFavoriteTip"), t("productFavorite"));
+        favBtn.setAttribute("aria-pressed", fav);
+        favBtn.addEventListener("click", async () => { await _toggleProductFlag(g.rep, "favorite"); _renderGroupPanelContents(g); });
+        row.appendChild(favBtn);
+        // Add to a list (delegated .js-add-to-list handler — same as the product card).
+        const listBtn = mkBtn("flag-toggle--list js-add-to-list", `<span class="icon icon-list-check icon-16"></span>`, t("listAddTo"), t("listAddTo"));
+        listBtn.dataset.atlHash = hash;
         listBtn.dataset.atlSpool = g.rep.spoolId;
-        listBtn.innerHTML = `<span class="icon icon-list-check icon-14"></span><span>${esc(t("listAddTo"))}</span>`;
-        listRow.appendChild(listBtn);
-        body.appendChild(listRow);
+        row.appendChild(listBtn);
+        body.appendChild(row);
         // Read-only note — a quick glance at the product's note without opening the
         // "Product info" card. Owner only: a friend's note must never be surfaced
         // (see the products note-privacy caveat). Not editable here by design.
-        const noteTxt = (prod?.note || "").trim();
-        if (noteTxt) {
-          const noteEl = document.createElement("div");
-          noteEl.className = "gp-note";
-          noteEl.innerHTML = `<div class="gp-note-label">${esc(t("reorderNote"))}</div><div class="gp-note-txt"></div>`;
-          noteEl.querySelector(".gp-note-txt").textContent = noteTxt;   // textContent — no HTML injection
-          body.appendChild(noteEl);
+        if (!state.friendView) {
+          const noteTxt = (mine.note || "").trim();
+          if (noteTxt) {
+            const noteEl = document.createElement("div");
+            noteEl.className = "gp-note";
+            noteEl.innerHTML = `<div class="gp-note-label">${esc(t("reorderNote"))}</div><div class="gp-note-txt"></div>`;
+            noteEl.querySelector(".gp-note-txt").textContent = noteTxt;   // textContent — no HTML injection
+            body.appendChild(noteEl);
+          }
         }
       }
       // Horizontal list-cards; each click → openDetail (or toggle in select mode).
@@ -9063,7 +9161,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   document.querySelectorAll("#clmVisGroup .clm-vis-opt").forEach(b =>
     b.addEventListener("click", () => _clmSetVis(b.dataset.vis)));
   function openCreateListModal(editId) {
-    if (state.friendView) return;
+    // Reachable in friend-view only via the "Add to a list → New list" popup (the
+    // Lists-view edit/new controls aren't rendered in friend-view). Creating a list
+    // writes to my own account, so it's allowed; the edit path never fires here in
+    // friend-view (no edit button rendered).
     _atlPendingAdd = null;   // the "Add to a list" popup flow sets this AFTER opening
     const editing = editId ? _getList(editId) : null;
     _listModalEditId = editing ? editId : null;
@@ -9084,7 +9185,6 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   }
   function closeCreateListModal() { $("createListOverlay")?.classList.remove("open"); _atlPendingAdd = null; _listModalEditId = null; }
   async function _submitCreateList() {
-    if (state.friendView) return;
     const name = ($("clmName")?.value || "").trim();
     if (!name) { $("clmName")?.focus(); return; }
     const occasion = ($("clmOccasion")?.value || "").trim();
@@ -9338,6 +9438,25 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       _applyOrderDrop(dragHash, targetHash, true, intoSaved);
     });
     _pvHost.addEventListener("dragend", clear);
+    // Card-level reorder: drag a purchase-source CARD (by the grip on its header) to
+    // change the order of the source groups. Uses the shared make-room helper, gated
+    // to the `.pv-cart-grip` handle so it never fires on a line drag (`.pv-grip`).
+    // The order is saved locally; the no-link card stays pinned last.
+    _wireMakeRoomDnd(_pvHost, {
+      itemSel: '.pv-cart-card[data-src]:not([data-src=""])',   // real sources only (no-link card stays last)
+      handleSel: ".pv-cart-grip",
+      idOf: el => el.dataset.src,
+      isGrid: false,
+      draggingClass: "pv-cart-card--dragging",
+      onReorder: (dragSrc, targetSrc, before) => {
+        const order = [..._pvHost.querySelectorAll(".pv-cart-card")].map(c => c.dataset.src).filter(Boolean);
+        const from = order.indexOf(dragSrc); if (from !== -1) order.splice(from, 1);
+        let ti = order.indexOf(targetSrc); if (ti === -1) ti = order.length;   // target is no-link / unknown → end
+        order.splice(before ? ti : ti + 1, 0, dragSrc);
+        _setCartSrcOrder(order);
+        renderProductsView();
+      },
+    });
   }
   // Lists view — drag-and-drop reorder of the selected list's items (rows or grid
   // cards). Grab anywhere on the item except its interactive controls.
@@ -9431,6 +9550,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     }
     // Header master checkbox (Products table) → select/deselect all visible.
     if (e.target.closest(".sel-th, .sel-check--all")) { _toggleSelectAllVisible(); return; }
+    // Per-source cart note → inline editor (owner only). Handled before line-open.
+    const noteBtn = e.target.closest("[data-cart-note]");
+    if (noteBtn) { if (!state.friendView) _startCartNoteEdit(noteBtn.dataset.cartNote); return; }
     // Copy SKU (To-order line) → clipboard, with a floating "Copied!" flash over
     // the SKU (no persistent button). Handled before the line-open logic.
     const copySku = e.target.closest("[data-copysku]");
@@ -9488,6 +9610,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // Friend view is read-only (the move buttons aren't rendered there anyway).
     if (e.target.closest("[data-later]"))  { if (!state.friendView) { _writeProductField(hash, { savedForLater: true  }); renderProductsView(); } return; }
     if (e.target.closest("[data-tocart]")) { if (!state.friendView) { _writeProductField(hash, { savedForLater: false }); renderProductsView(); } return; }
+    // Stop tracking is a HOLD button (wired via setupHoldToConfirm after render) —
+    // a plain click must not open the product card or run the action; just swallow it.
+    if (e.target.closest("[data-reorder-remove]")) { e.stopPropagation(); return; }
     // "To order" line: a click on the material itself (thumbnail / name / row body)
     // opens the product business card — same entry point as a wishlist row. The ⓘ
     // (reorder side-card), the quantity selector and the drag grip keep their own
@@ -10639,9 +10764,28 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     });
   }
 
+  // Shared loading block — the comet spinner + a carousel of playful phrases that
+  // slide in from the right and out to the left (edges fade via a gradient mask).
+  function _loadingHTML(extraCls) {
+    // Shuffle so the phrases (and which one shows first) vary each time the loader appears.
+    const order = [1, 2, 3, 4];
+    for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
+    const phrases = order.map(n => `<span>${esc(t("loadingFun" + n))}</span>`).join("");
+    return `<div class="inv-loading${extraCls ? " " + extraCls : ""}"><div class="inv-loading-spin"></div><div class="ld-phrases">${phrases}</div></div>`;
+  }
+  // Show the loader in `host` ONLY if it isn't already there — a re-render while still
+  // loading (cache→server snapshot, badge refresh…) must not rebuild the DOM, or the
+  // spinner + phrase carousel would restart from zero half a second in.
+  function _showLoading(host, extraCls) {
+    if (host && !host.querySelector(".inv-loading")) host.innerHTML = _loadingHTML(extraCls);
+  }
+
   function renderProductsView() {
     const host = $("invProductsView");
     if (!host) return;
+    // Waiting on the (own or friend's) products snapshot → spinner, so the Favorites /
+    // To-order views don't flash "nothing here" before the data arrives.
+    if (state.productsLoading) { _showLoading(host); return; }
     _updateCartBadge();   // cart composition may have changed (move/qty) — keep the badge live
     populateQuickFilters();   // keep Brand / Material / Tag filters scoped to the favorites
     const stockMap = _stockCountByKey();   // in friend view state.rows = friend's → friend's stock
@@ -10667,6 +10811,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         .filter(x => x.p.savedForLater)
         .sort((a, b) => _rank(a) - _rank(b) || _productName(a.p).localeCompare(_productName(b.p)));
       host.innerHTML = _renderOrderTab(cartRows, savedRows, info, ro);
+      // "Stop tracking" is press-and-hold (1 s) — reset min to 0 → drops the line.
+      if (!ro) host.querySelectorAll("[data-reorder-remove]").forEach(btn => {
+        const h = btn.closest(".pv-order-line")?.dataset.hash;
+        if (h) setupHoldToConfirm(btn, 1000, () => { _writeProductField(h, { minStockSpools: 0 }); renderProductsView(); });
+      });
       return;
     }
     // Favorites (liked ❤ / favorite ★) — grid or table.
@@ -10763,6 +10912,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (!host) return;
     populateQuickFilters();   // reuse the search / Brand / Material filters over list items
     const ro = !!state.friendView;
+    // Waiting on the (own or friend's) lists snapshot → show a spinner, not the empty
+    // state, so we don't flash "no lists yet" before the data lands.
+    if (state.listsLoading) { _showLoading(host); return; }
     const lists = _listsArray();
     if (!lists.length) {
       host.innerHTML = ro
@@ -10892,8 +11044,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           <div class="lv-info-stat lv-info-stat--inline"><span class="lv-type-badge lv-type-badge--${_ivk}"><span class="icon ${_ivm.icon} icon-11"></span>${esc(_ivm.label)}</span></div>
           <div class="lv-info-stat lv-info-stat--inline"><span class="lv-info-ic lv-info-ic--count"><span class="icon icon-list icon-13"></span></span><span class="lv-info-val">${_iCount} ${esc(t("listItemsLabel"))}</span></div>
         </div>
-        ${cur.occasion ? `<div class="lv-info-row"><div class="lv-info-lbl"><span class="lv-info-ic lv-info-ic--event"><span class="icon icon-gift icon-12"></span></span>${esc(t("listEventLabel"))}</div><div class="lv-info-val">${esc(cur.occasion)}</div></div>` : ""}
-        ${cur.message ? `<div class="lv-info-row"><div class="lv-info-lbl"><span class="lv-info-ic lv-info-ic--msg"><span class="icon icon-mail icon-12"></span></span>${esc(t("listMessageLabel"))}</div><div class="lv-info-val lv-info-val--msg">${esc(cur.message)}</div></div>` : ""}
+        ${cur.occasion ? `<div class="lv-info-row"><div class="lv-info-lbl"><span class="lv-info-ic lv-info-ic--event"><span class="icon icon-gift icon-16"></span></span>${esc(t("listEventLabel"))}</div><div class="lv-info-val">${esc(cur.occasion)}</div></div>` : ""}
+        ${cur.message ? `<div class="lv-info-row"><div class="lv-info-lbl"><span class="lv-info-ic lv-info-ic--msg"><span class="icon icon-mail icon-16"></span></span>${esc(t("listMessageLabel"))}</div><div class="lv-info-val lv-info-val--msg">${esc(cur.message)}</div></div>` : ""}
       </aside>`;
     host.innerHTML = `
       <div class="lv-amz">
@@ -10955,7 +11107,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function _renderAddToListMenu() {
     if (!_atlPop || !_atlState) return;
     const { keyHash } = _atlState;
-    const rows = _listsArray().map(l => {
+    const rows = _ownListsArray().map(l => {
       const inIt = (l.itemKeys || []).includes(keyHash);
       const n = (l.itemKeys || []).length;
       return `<button type="button" class="atl-row${inIt ? " is-in" : ""}" data-atl="${esc(l.id)}">
@@ -10989,7 +11141,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     window.removeEventListener("resize", _positionAtlPop);
   }
   function _openAddToListMenu(anchorEl, keyHash, row) {
-    if (state.friendView || !keyHash || !anchorEl) return;
+    // Works in friend-view too: the popup lists MY own lists (see _renderAddToListMenu),
+    // and picking one imports the friend's product into my account + adds it there.
+    if (!keyHash || !anchorEl) return;
     _closeAddToListMenu();
     _atlState = { keyHash, row: row || null, anchorEl };
     const pop = document.createElement("div");
@@ -10998,7 +11152,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       const pick = e.target.closest("[data-atl]");
       if (pick) {
         const id = pick.dataset.atl, kh = _atlState.keyHash, src = _atlState.row;
-        if (_listHas(id, kh)) await _removeFromList(id, kh);
+        if (_ownListHas(id, kh)) await _removeFromList(id, kh);
         else await _addToList(id, kh, src);
         return;   // subscribeLists → _refreshAddToListMenu repaints the ✓
       }
@@ -11043,6 +11197,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const moveLink = ro ? "" : (saved
       ? `<button class="pv-move-link pv-move-link--cart" data-tocart>${esc(t("reorderMoveToCart"))}</button>`
       : `<button class="pv-move-link" data-later>${esc(t("reorderSaveLater"))}</button>`);
+    // Stop tracking — resets the minimum stock to 0, which drops the product from
+    // reorder entirely (out of both the cart AND the saved shelf). The only way to
+    // remove a line once it's in the reorder list.
+    const stopLink = ro ? "" : `<button type="button" class="pv-move-link pv-move-link--stop" data-reorder-remove><span class="hold-progress"></span><span class="pv-stop-txt">${esc(t("reorderStopTracking"))}</span></button>`;
     // Drag handle — reorder lines + drag a line across to the other zone. Only
     // the grip starts a drag (keeps the qty input / buttons fully usable). Hidden
     // in friend view.
@@ -11059,6 +11217,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           <div class="pv-qty">
             <span>${esc(t("pvStockRatio", { have: x.inStock, need: x.required }))}</span>
             ${moveLink ? `<span class="pv-qty-dot">·</span>${moveLink}` : ""}
+            ${stopLink ? `<span class="pv-qty-dot">·</span>${stopLink}` : ""}
           </div>
         </div>
         <div class="pv-unit-col">${unit == null ? `<button class="pv-addprice" data-addprice>${esc(t("reorderAddPrice"))}</button>` : `${_fmtMoney(unit)} ${ctx.sym}`}</div>
@@ -11071,6 +11230,44 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       </div>`;
   }
 
+  // Saved order of the "To order" cart's purchase-source cards (array of hosts),
+  // persisted locally like the other view prefs. Drives the card sort + drag reorder.
+  function _getCartSrcOrder() {
+    try { const a = JSON.parse(localStorage.getItem("tigertag.cartSrcOrder") || "[]"); return Array.isArray(a) ? a : []; }
+    catch { return []; }
+  }
+  function _setCartSrcOrder(a) {
+    try { localStorage.setItem("tigertag.cartSrcOrder", JSON.stringify(a)); } catch (_) {}
+  }
+  // Free-text note per purchase source (host → text), e.g. "also grab 3 nozzles".
+  // Stored locally like the source order; keyed by host so it follows a reordered card.
+  function _getCartSrcNotes() {
+    try { const o = JSON.parse(localStorage.getItem("tigertag.cartSrcNotes") || "{}"); return (o && typeof o === "object") ? o : {}; }
+    catch { return {}; }
+  }
+  function _setCartSrcNote(host, text) {
+    const o = _getCartSrcNotes();
+    if (text && text.trim()) o[host] = text.trim(); else delete o[host];
+    try { localStorage.setItem("tigertag.cartSrcNotes", JSON.stringify(o)); } catch (_) {}
+  }
+  function _startCartNoteEdit(host) {
+    if (state.friendView || !host) return;
+    const card = [...document.querySelectorAll(".pv-cart-card")].find(c => c.dataset.src === host);
+    const holder = card?.querySelector(".pv-cart-note");
+    if (!holder || holder.querySelector("textarea")) return;
+    const cur = _getCartSrcNotes()[host] || "";
+    holder.classList.add("pv-cart-note--editing");
+    holder.innerHTML = `<textarea class="pv-cart-note-input" rows="2" placeholder="${esc(t("cartNotePh"))}"></textarea>`;
+    const ta = holder.querySelector("textarea");
+    ta.value = cur; ta.focus(); ta.setSelectionRange(cur.length, cur.length);
+    let done = false;
+    const save = () => { if (done) return; done = true; _setCartSrcNote(host, ta.value); renderProductsView(); };
+    ta.addEventListener("blur", save);
+    ta.addEventListener("keydown", ev => {
+      if (ev.key === "Enter" && !ev.shiftKey) { ev.preventDefault(); ta.blur(); }        // Enter saves, Shift+Enter = newline
+      else if (ev.key === "Escape") { done = true; renderProductsView(); }                // Escape cancels
+    });
+  }
   // Reorder view = an Amazon-style cart with two zones: the active cart (needs
   // ordering) and a "saved for later" shelf (set aside via the clock button).
   // The old destructive ✕ is gone — set-aside just flips `savedForLater`.
@@ -11089,21 +11286,63 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // its own group's index range in the DnD wiring — no reordering across groups.
     const _cartGroups = new Map();
     cartRows.forEach(x => { const h = x.p.buyUrl ? _buyHost(x.p.buyUrl) : ""; if (!_cartGroups.has(h)) _cartGroups.set(h, []); _cartGroups.get(h).push(x); });
-    const _cartKeys = [...(_cartGroups.keys())].sort((a, b) => a === "" ? 1 : b === "" ? -1 : a.localeCompare(b));
+    // Source-card order: the user's saved drag order first, unknown/new sources after
+    // (alphabetical), and the no-link ("") card always last.
+    const _srcOrder = _getCartSrcOrder();
+    const _srcNotes = _getCartSrcNotes();
+    const _cartKeys = [...(_cartGroups.keys())].sort((a, b) => {
+      if (a === "") return 1; if (b === "") return -1;
+      const ia = _srcOrder.indexOf(a), ib = _srcOrder.indexOf(b);
+      if (ia !== -1 && ib !== -1) return ia - ib;
+      if (ia !== -1) return -1;
+      if (ib !== -1) return 1;
+      return a.localeCompare(b);
+    });
+    // Each purchase SOURCE renders as its own card: header (source + count), its
+    // lines, then a subtotal FOOTER — so orders read as separate baskets, not one
+    // continuous table.
     const cartLines = _cartKeys.map(h => {
       const rows = _cartGroups.get(h);
+      let groupHt = 0, groupPriced = 0;   // per-source subtotal (only priced items count)
       const lines = rows.map(x => {
         const unitHt = x.p.buyPriceHt == null ? null : +x.p.buyPriceHt;
-        if (unitHt != null) { subtotalHT += unitHt * x.qty; items += x.qty; }   // tax math stays HT
+        if (unitHt != null) { subtotalHT += unitHt * x.qty; items += x.qty; groupHt += unitHt * x.qty; groupPriced += x.qty; }   // tax math stays HT
         return _orderLineHTML(x, ctx, false, ro);
       }).join("");
       const label = h || t("reorderNoLink");
-      return `<div class="pv-cart-group"><span class="icon ${h ? "icon-cart" : "icon-link"} icon-12"></span><span class="pv-cart-group-lbl">${esc(label)}</span><span class="pv-cart-group-n">${rows.length}</span></div>${lines}`;
+      // Subtotal for THIS source, in the account's HT/TTC mode. Footer shown only
+      // when the group has at least one priced item (else there's nothing to total).
+      const groupShown = mode === "TTC" ? groupHt * factor : groupHt;
+      // Tax mode tag (HT / TTC — localised, same wording as the per-line price tags),
+      // so the subtotal states whether it's tax-excl or tax-incl per the user's config.
+      const taxTag = t(mode === "TTC" ? "reorderTTC" : "reorderHT");
+      const foot = groupPriced > 0
+        ? `<div class="pv-cart-card-foot"><span class="pv-cart-foot-lbl">${esc(t("pvSubtotal"))}</span><span class="pv-cart-foot-val">${_fmtMoney(groupShown)} ${sym} <span class="pv-cart-foot-tag">${esc(taxTag)}</span></span></div>`
+        : "";
+      // Drag the source card to reorder it — the GRIP itself is the draggable handle
+      // (the make-room helper keys off `e.target.closest(handleSel)`, so a draggable
+      // header wouldn't match). Owner only; the no-link card is pinned last (no grip).
+      const canDragCard = !ro && !!h;
+      // Personal note for this source (e.g. "also grab 3 nozzles"). Editable on click
+      // (owner); a subtle "Add a note" prompt when empty. Read-only in friend-view.
+      const noteTxt = h ? (_srcNotes[h] || "") : "";
+      const noteHTML = !h ? ""
+        : noteTxt
+          ? `<div class="pv-cart-note"${ro ? "" : ` data-cart-note="${esc(h)}" role="button" tabindex="0"`}><span class="icon icon-edit icon-12"></span><span class="pv-cart-note-txt">${esc(noteTxt)}</span></div>`
+          : (ro ? "" : `<button type="button" class="pv-cart-note pv-cart-note--add" data-cart-note="${esc(h)}"><span class="icon icon-plus icon-12"></span>${esc(t("cartAddNote"))}</button>`);
+      return `<div class="pv-cart-card" data-src="${esc(h)}">`
+        + `<div class="pv-cart-group">`
+        + (canDragCard ? `<span class="pv-cart-grip" draggable="true" aria-hidden="true"><span class="icon icon-grip icon-13"></span></span>` : "")
+        + `<span class="icon ${h ? "icon-cart" : "icon-link"} icon-12"></span><span class="pv-cart-group-lbl">${esc(label)}</span><span class="pv-cart-group-n">${rows.length}</span>`
+        + `</div>`
+        + noteHTML
+        + lines + foot
+        + `</div>`;
     }).join("");
     // Both zones ALWAYS render (even empty) so each is a valid drag-drop target —
     // the `data-zone` list is where lines are dropped; an empty zone shows a hint.
     const cartInner = cartRows.length
-      ? `<div class="pv-order-list" data-zone="cart">${cartLines}</div>`
+      ? `<div class="pv-order-list pv-cart-cards" data-zone="cart">${cartLines}</div>`
       : `<div class="pv-order-list pv-order-list--empty" data-zone="cart"><div class="pv-empty pv-empty--inline"><span class="icon icon-cart icon-24"></span><div>${esc(t("pvOrderEmpty"))}</div></div></div>`;
     const cartBlock = `
       <div class="pv-cart">
@@ -13565,8 +13804,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       ${printHtml}
       ${videoHtml}
       ${linksHtml}
-      ${priceHTML ? `<div class="panel-section pc-rows"><div class="pc-row"><span class="pc-k">${esc(t("thPrice"))}</span><span class="pc-v">${priceHTML}</span></div></div>` : ""}
-      ${buyUrl ? `<a class="pc-buy" href="${esc(_normalizeBuyUrl(buyUrl))}" target="_blank" rel="noopener"><span class="icon icon-cart icon-14"></span><span>${esc(_buyHost(buyUrl))}</span></a>` : ""}
+      ${(priceHTML || buyUrl) ? `<div class="panel-section pc-rows">
+        ${priceHTML ? `<div class="pc-row"><span class="pc-k">${esc(t("thPrice"))}</span><span class="pc-v">${priceHTML}</span></div>` : ""}
+        ${buyUrl ? `<a class="pc-buy" href="${esc(_normalizeBuyUrl(buyUrl))}" target="_blank" rel="noopener"><span class="icon icon-cart icon-14"></span><span>${esc(_buyHost(buyUrl))}</span></a>` : ""}
+      </div>` : ""}
       ${detailsHtml}
       ${fromHTML ? `<div class="pc-from-wrap">${fromHTML}</div>` : ""}
       <div class="pc-note">${esc(t("pcNoStock"))}</div>`;
@@ -14056,9 +14297,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function _flagTogglesHTML(r) {
     const p = _getProduct(r) || {};
     const liked = !!p.liked, fav = !!p.favorite;
-    // Third action next to ❤/★ — "Add to a list" (owner only; opens the list
-    // popup via the shared .js-add-to-list handler).
-    const listBtn = state.friendView ? "" : `
+    // Third action next to ❤/★ — "Add to a list". Shown in friend-view too: like
+    // ❤/★ it imports the friend's product into MY account and drops it into one of
+    // MY lists (the popup targets my own lists — see _openAddToListMenu).
+    const listBtn = `
       <button type="button" class="flag-toggle flag-toggle--list js-add-to-list" data-atl-hash="${esc(_productKeyHash(r))}" data-atl-spool="${esc(r.spoolId)}" data-tip="${esc(t("listAddTo"))}" aria-label="${esc(t("listAddTo"))}">
         <span class="icon icon-list-check icon-16"></span>
       </button>`;
@@ -16832,6 +17074,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   /* ── Racks (storage shelves) ───────────────────────────────────────────── */
   function subscribeRacks(uid) {
     unsubscribeRacks();
+    state.racksLoading = true;   // spinner until the first snapshot lands (own view)
     // No orderBy — Firestore would silently filter out docs without the field.
     // We sort client-side instead by `order` (fallback createdAt) for stability.
     state.unsubRacks = fbDb(uid)
@@ -16843,6 +17086,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         // keeps the friend's (one-shot) racks visible without the owner's
         // racks bleeding back in.
         if (state.friendView) return;
+        state.racksLoading = false;   // first (or any) snapshot arrived → drop the spinner
         const racks = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         racks.sort((a, b) => {
           const oa = a.order ?? 999, ob = b.order ?? 999;
@@ -16862,7 +17106,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         maybeAutoUnstoreDepletedSpools();
         maybeAutoStoreUnrankedSpools();
         scheduleStudioStateRecord();  // re-arm deferred telemetry (rack counts changed)
-      }, err => console.warn("[racks]", err.code, err.message));
+      }, err => { state.racksLoading = false; console.warn("[racks]", err.code, err.message); renderRacksList(); });
   }
   function unsubscribeRacks() {
     if (state.unsubRacks) { state.unsubRacks(); state.unsubRacks = null; }
@@ -17380,11 +17624,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // is on its way (cached snapshot can land in 50-100ms but a fresh
     // network round-trip can take several hundred ms).
     if (state.printersLoading && !state.printers.length) {
-      host.innerHTML = `
-        <div class="inv-loading printers-loading">
-          <div class="inv-loading-spin"></div>
-          <span>${esc(t("printersLoading") || t("invLoading"))}</span>
-        </div>`;
+      _showLoading(host, "printers-loading");
       return;
     }
 
@@ -22592,6 +22832,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function renderRackView() {
     const list = $("invRackView");
     if (!list) return;
+    // Loading gate — while the racks are still syncing, show the shared spinner
+    // FIRST, then the racks (or the "no racks yet" illustration if there are none).
+    // Without this the empty state flashed for a beat before the racks popped in.
+    // Own view: the racks snapshot (state.racksLoading). Friend view: the racks are
+    // fetched as part of the one-shot friend read, gated by state.invLoading.
+    // _showLoading is idempotent, so re-renders while loading don't restart it.
+    if (state.friendView ? state.invLoading : state.racksLoading) { _showLoading(list); return; }
     _wireRackInfoTips();   // idempotent — ensures .rp-info ⓘ tips use #toolInfoPop
     // ── Read-only flag — true when viewing a friend's storage. Disables
     // create / edit / delete / drag / drop / lock-toggle. Kept as one variable
@@ -24095,8 +24342,18 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     _closeAllSideCards();   // unified: clear the friend's open spool/group card
     _clearSearchFilters();
     unsubscribeFriendProducts();   // stop reading the friend's shared price/link
-    unsubscribeFriendLists();      // stop reading the friend's lists
+    unsubscribeFriendLists();      // stop reading the friend's lists (clears friendLists)
     state.friendView = null;
+    // Our own products/lists stayed subscribed during the visit, so their data is
+    // ready — clear any loading flag left true by the friend subscriptions so we
+    // don't flash a spinner on our own Favorites/Lists views on the way back.
+    state.productsLoading = false;
+    state.listsLoading = false;
+    // Recompute the Lists badge NOW from our OWN lists — it's friend-aware, and its
+    // only other refresh points are the lists snapshots (which won't fire on return),
+    // so without this it would keep showing the friend's count (or stay hidden if the
+    // friend had none) on our own interface.
+    _updateListsBadge();
     state.inventory = null; state.rows = [];
     state.racks = [];                                   // wipe the friend's racks
     renderFriendBanner();

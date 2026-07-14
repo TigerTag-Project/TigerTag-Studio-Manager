@@ -342,6 +342,11 @@
   "loginResendVerif": "Resend the email",
   "loginEmailInUse": "This email is already registered.",
   "invLoading": "Unpacking your spools…",
+  "loadingGeneric": "One sec…",
+  "loadingFun1": "Waking up the spools…",
+  "loadingFun2": "Warming up the bed…",
+  "loadingFun3": "Time for a coffee?",
+  "loadingFun4": "Almost there, promise…",
   "containerPickerTitle": "Choose a container",
   "btnChangeContainer": "Change",
   "cwEditWeight": "Edit container weight",
@@ -1238,6 +1243,7 @@
   "reorderPrice": "Price per spool",
   "reorderAddPrice": "Add a price",
   "reorderSaveLater": "Buy later",
+  "reorderStopTracking": "Stop tracking",
   "reorderMoveToCart": "Add to cart",
   "reorderDragHint": "Drag to reorder or move",
   "reorderEditPrice": "Change the price",
@@ -1339,5 +1345,11 @@
   "editSocialsPlaceholder": "Paste a profile link…",
   "pvQty": "Quantity",
   "reorderNoLink": "No buy link",
-  "listModalMessageSelfPh": "Preferences, a reminder, why you want it…"
+  "listModalMessageSelfPh": "Preferences, a reminder, why you want it…",
+  "ctxCut": "Cut",
+  "ctxCopy": "Copy",
+  "ctxPaste": "Paste",
+  "ctxSelectAll": "Select All",
+  "cartAddNote": "Add a note",
+  "cartNotePh": "e.g. also grab 3 nozzles + a bed cleaner"
 }

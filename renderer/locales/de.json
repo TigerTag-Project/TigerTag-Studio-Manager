@@ -342,6 +342,11 @@
   "loginResendVerif": "E-Mail erneut senden",
   "loginEmailInUse": "Diese E-Mail-Adresse ist bereits registriert.",
   "invLoading": "Wir packen deine Spulen aus…",
+  "loadingGeneric": "Einen Moment…",
+  "loadingFun1": "Wir wecken die Spulen…",
+  "loadingFun2": "Das Bett wird warm…",
+  "loadingFun3": "Zeit für einen Kaffee?",
+  "loadingFun4": "Fast fertig, versprochen…",
   "containerPickerTitle": "Behälter auswählen",
   "btnChangeContainer": "Ändern",
   "cwEditWeight": "Behältergewicht bearbeiten",
@@ -1238,6 +1243,7 @@
   "reorderPrice": "Preis pro Spule",
   "reorderAddPrice": "Preis hinzufügen",
   "reorderSaveLater": "Später kaufen",
+  "reorderStopTracking": "Nicht mehr verfolgen",
   "reorderMoveToCart": "In den Warenkorb",
   "reorderDragHint": "Ziehen zum Umsortieren oder Verschieben",
   "reorderEditPrice": "Preis ändern",
@@ -1339,5 +1345,11 @@
   "editSocialsPlaceholder": "Profil-Link einfügen…",
   "pvQty": "Menge",
   "reorderNoLink": "Ohne Link",
-  "listModalMessageSelfPh": "Vorlieben, eine Erinnerung, warum du es willst…"
+  "listModalMessageSelfPh": "Vorlieben, eine Erinnerung, warum du es willst…",
+  "ctxCut": "Ausschneiden",
+  "ctxCopy": "Kopieren",
+  "ctxPaste": "Einfügen",
+  "ctxSelectAll": "Alles auswählen",
+  "cartAddNote": "Notiz hinzufügen",
+  "cartNotePh": "z. B. auch 3 Düsen + Bettreiniger"
 }

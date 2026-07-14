@@ -1,6 +1,6 @@
 # Tiger Studio Manager — Feature Catalogue
 
-Tiger Studio Manager is the Electron desktop companion to the TigerTag ecosystem: a filament-inventory manager built around RFID/NFC-tagged spools ("TigerTag" chips), a fully-digital "TigerCloud" tier, live 3D-printer integration across six brands, physical storage/rack management, a Firebase-backed social layer (friends, shareable wishlists, public profiles), and companion hardware (TD1S color sensor, TigerScale, TigerPOD dual-reader stand). This document catalogues every **shipped** feature, grouped by domain, current as of **v2.10.0**. Per-version release detail lives in `CHANGELOG.md`; forward-looking / in-progress work lives in `ROADMAP.md`.
+Tiger Studio Manager is the Electron desktop companion to the TigerTag ecosystem: a filament-inventory manager built around RFID/NFC-tagged spools ("TigerTag" chips), a fully-digital "TigerCloud" tier, live 3D-printer integration across six brands, physical storage/rack management, a Firebase-backed social layer (friends, shareable wishlists, public profiles), and companion hardware (TD1S color sensor, TigerScale, TigerPOD dual-reader stand). This document catalogues every **shipped** feature, grouped by domain, current as of **v2.11.0**. Per-version release detail lives in `CHANGELOG.md`; forward-looking / in-progress work lives in `ROADMAP.md`.
 
 ---
 
@@ -92,12 +92,14 @@ Tiger Studio Manager is the Electron desktop companion to the TigerTag ecosystem
 - Per-item quantities (Amazon-cart style) — dropdown 1–9 + "10+" free-entry, persisted per item, factored into totals and the public snapshot (v2.9.0).
 - Payment-summary card (subtotal, estimated VAT, total) in the Lists view (v2.9.0).
 - Downloadable high-res QR PNG for the public-list share card, saved via a native Save dialog (v2.9.0).
+- Add a friend's material to one of your own lists from friend-view — the "Add to a list" control (product card, grouped-spools side-card, spool detail panel) imports the friend's product into your account (picture, price, buy link, provenance) then adds it to your list (v2.11.0).
 
 ## Reorder & "To order" cart
 
 - Products/Favorites/Reorder system — per-product identity records independent of live spool stock (v2.1.0).
 - **"To order"** cart — Shopify draft-order-style layout with editable quantities and a sticky HT/TTC-aware Payment card (v2.1.0), evolved into a two-zone active-cart / "saved for later" shelf with drag-and-drop between zones (v2.5.0).
-- Auto-grouping of the active cart by purchase source (buy-link host), with sticky per-group headers and drag reorder constrained within a group (v2.9.0).
+- Auto-grouping of the active cart by purchase source (buy-link host), with sticky per-group headers and drag reorder constrained within a group (v2.9.0), reworked into one bordered card per source with its own HT/TTC subtotal footer, drag-reorderable source cards (persisted), and an editable personal note per source (v2.11.0).
+- "Stop tracking" press-and-hold action on any cart / saved-shelf line — resets the product's minimum stock to 0, clearing its whole reorder state and removing it from the "To order" view (v2.11.0).
 - Amazon-style quantity dropdown selector in the cart (replacing the plain number input) (v2.9.0).
 - Buy buttons show the destination shop's host name instead of a generic "Buy" (v2.7.0), with subdomains collapsed to the registrable domain (v2.7.1).
 - Live cart badge on the "To order" view button showing the current below-minimum item count (v2.6.0).
@@ -109,6 +111,7 @@ Tiger Studio Manager is the Electron desktop companion to the TigerTag ecosystem
 - Product-info side card — buy link, price, min stock, note, tags, SKU/EAN, ❤/★, and a "Create a TigerTag Cloud" action, fully auto-saving (v2.1.0).
   - Info (ⓘ) button on a product opens its reorder panel (price / buy-link / min-stock) alongside the product card (v2.10.0).
 - Favorites view — Grid, Table and "To order" modes, sortable table (v2.1.0; sortable v2.2.0).
+- Grouped-spools side-card exposes the product's flag toggles (add-to-cart ❤, favourite ★, add-to-a-list ＋) as one icon-only row, in own and friend-view (v2.11.0).
 - Interest hierarchy — ❤ Love ⊆ ★ Favorite ⊆ tracked-for-reorder, coupled automatically on write (v2.1.0).
 - ❤ flag rebranded from "Love" to an "Add to cart" action with a shopping-cart glyph, forcing a minimum stock ≥1 (v2.5.0 forced-min behaviour; icon/label rebrand v2.9.0).
 

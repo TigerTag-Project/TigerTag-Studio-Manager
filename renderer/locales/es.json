@@ -342,6 +342,11 @@
   "loginResendVerif": "Reenviar el correo",
   "loginEmailInUse": "Este correo ya está registrado.",
   "invLoading": "Desempaquetando tus bobinas…",
+  "loadingGeneric": "Un momento…",
+  "loadingFun1": "Despertando las bobinas…",
+  "loadingFun2": "Calentando la cama…",
+  "loadingFun3": "¿Tiempo para un café?",
+  "loadingFun4": "Casi listo, ¡lo prometo!",
   "containerPickerTitle": "Elegir un contenedor",
   "btnChangeContainer": "Cambiar",
   "cwEditWeight": "Editar peso del recipiente",
@@ -1238,6 +1243,7 @@
   "reorderPrice": "Precio por bobina",
   "reorderAddPrice": "Añadir un precio",
   "reorderSaveLater": "Comprar después",
+  "reorderStopTracking": "Dejar de seguir",
   "reorderMoveToCart": "Añadir al carrito",
   "reorderDragHint": "Arrastra para reordenar o mover",
   "reorderEditPrice": "Cambiar el precio",
@@ -1339,5 +1345,11 @@
   "editSocialsPlaceholder": "Pega un enlace de perfil…",
   "pvQty": "Cantidad",
   "reorderNoLink": "Sin enlace",
-  "listModalMessageSelfPh": "Preferencias, un recordatorio, por qué lo quieres…"
+  "listModalMessageSelfPh": "Preferencias, un recordatorio, por qué lo quieres…",
+  "ctxCut": "Cortar",
+  "ctxCopy": "Copiar",
+  "ctxPaste": "Pegar",
+  "ctxSelectAll": "Seleccionar todo",
+  "cartAddNote": "Añadir una nota",
+  "cartNotePh": "p. ej. pilla también 3 boquillas + limpiador de cama"
 }

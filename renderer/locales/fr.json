@@ -342,6 +342,11 @@
   "loginResendVerif": "Renvoyer l'e-mail",
   "loginEmailInUse": "Cette adresse e-mail est déjà enregistrée.",
   "invLoading": "On déballe tes bobines…",
+  "loadingGeneric": "Un instant…",
+  "loadingFun1": "On réveille les bobines…",
+  "loadingFun2": "On chauffe le plateau…",
+  "loadingFun3": "Le temps d'un café ?",
+  "loadingFun4": "Presque prêt, promis…",
   "containerPickerTitle": "Choisir un conteneur",
   "btnChangeContainer": "Changer",
   "cwEditWeight": "Modifier le poids du récipient",
@@ -1238,6 +1243,7 @@
   "reorderPrice": "Prix par bobine",
   "reorderAddPrice": "Ajouter un prix",
   "reorderSaveLater": "Acheter plus tard",
+  "reorderStopTracking": "Ne plus suivre",
   "reorderMoveToCart": "Ajouter au panier",
   "reorderDragHint": "Glisser pour réordonner ou déplacer",
   "reorderEditPrice": "Modifier le prix",
@@ -1339,5 +1345,11 @@
   "editSocialsPlaceholder": "Colle un lien de profil…",
   "pvQty": "Quantité",
   "reorderNoLink": "Sans lien",
-  "listModalMessageSelfPh": "Tes préférences, un rappel, pourquoi tu le veux…"
+  "listModalMessageSelfPh": "Tes préférences, un rappel, pourquoi tu le veux…",
+  "ctxCut": "Couper",
+  "ctxCopy": "Copier",
+  "ctxPaste": "Coller",
+  "ctxSelectAll": "Tout sélectionner",
+  "cartAddNote": "Ajouter une note",
+  "cartNotePh": "ex. penser aussi à 3 buses + un nettoyant plateau"
 }

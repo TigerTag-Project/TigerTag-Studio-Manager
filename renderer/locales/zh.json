@@ -342,6 +342,11 @@
   "loginResendVerif": "重新发送邮件",
   "loginEmailInUse": "该邮箱已被注册。",
   "invLoading": "正在拆箱你的线材……",
+  "loadingGeneric": "稍等…",
+  "loadingFun1": "叫醒线材中…",
+  "loadingFun2": "预热热床中…",
+  "loadingFun3": "喝杯咖啡吧？",
+  "loadingFun4": "马上就好，保证…",
   "containerPickerTitle": "选择容器",
   "btnChangeContainer": "更换",
   "cwEditWeight": "编辑容器重量",
@@ -1238,6 +1243,7 @@
   "reorderPrice": "每卷价格",
   "reorderAddPrice": "添加价格",
   "reorderSaveLater": "稍后购买",
+  "reorderStopTracking": "停止跟踪",
   "reorderMoveToCart": "加入购物车",
   "reorderDragHint": "拖动以重新排序或移动",
   "reorderEditPrice": "修改价格",
@@ -1339,5 +1345,11 @@
   "editSocialsPlaceholder": "粘贴主页链接…",
   "pvQty": "数量",
   "reorderNoLink": "无购买链接",
-  "listModalMessageSelfPh": "偏好、提醒、为什么想要它……"
+  "listModalMessageSelfPh": "偏好、提醒、为什么想要它……",
+  "ctxCut": "剪切",
+  "ctxCopy": "复制",
+  "ctxPaste": "粘贴",
+  "ctxSelectAll": "全选",
+  "cartAddNote": "添加备注",
+  "cartNotePh": "例如：再买 3 个喷嘴和一瓶平台清洁剂"
 }

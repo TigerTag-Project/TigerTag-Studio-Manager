@@ -152,26 +152,24 @@ Rule of thumb: *would a user notice a new thing they can now do?* → **MINOR**.
 
 The working file is wiped so it stays clean and unambiguous: whatever is in `WORKLOG.md` right now is *only* what has been done since the last commit, nothing older.
 
-### Token-efficient release — delegate the GENERATION to parallel sub-agents
+### Release generation — do it INLINE by default; if you must delegate, use ONE agent, never fan out
 
-The release ceremony is token-heavy in **generation**, not in decisions. Sub-agents do that generation in **their own** context and return only a short confirmation, so the main Opus context stays lean — and they run **in parallel** (wall-clock win too). Apply this on any real release (skip it for a tiny patch where the setup costs more than it saves).
+**Token AND wall-clock cost are a priority — without degrading quality.** A prior release fanned the generation out to **3 parallel Sonnet agents** and burned **~190k tokens / ~10 min** — 93 % of it in the agents. That recipe was wrong: parallel sub-agents optimise *main-context leanness* + wall-clock, but they **multiply the TOTAL bill** — each carries its own system prompt AND independently **re-reads the big files** (`data/whatsnew.json` alone is ~391 items × 9 locales; reading it dominated the cost). For a founder paying per token, that fan-out cost MORE, not less.
 
-**Keep on the main Opus loop** (cheap in tokens, high-stakes — do NOT delegate):
-- **Deciding the version** (SemVer judgment on the WORKLOG — step 0).
-- **The final consistency review** + running the validators (`npm run i18n:check`, `whatsnew:check`, `codemap:check`, `node --check`). These mechanically catch a drifting sub-agent (empty locale, bad range) — they are the safety net.
-- **Git / gh**: commit message, tag, push, publish-as-latest, build watch. ~0 tokens, high risk → keep here.
+**Default: generate everything INLINE on the main loop.** At release time you already hold the WORKLOG + the `CHANGELOG.md` entry in context, so writing the other registers here reads each file **once**, with **zero** agent overhead — the cheapest option in total tokens and the simplest. Do, in order:
+1. **`CHANGELOG.md` entry (register 1)** — the SOURCE the others derive from. Write it inline (you hold the WORKLOG).
+2. **Release note (register 2)** → `data/release-notes/vX.Y.Z.md` (BambuLab style; copy the footer from the previous version's file).
+3. **What's New (register 3), 9 locales** → `data/whatsnew.json` (`npm run whatsnew:add` to scaffold; playful/deadpan, one topic per item, icon-NAMES, **exclude non-public/admin features**).
+4. **`FEATURES.md`** → add the genuinely new capabilities, tag `(vX.Y.Z)`.
+5. **CODEMAP re-sync** only if `inventory.js`/`main.js` moved a lot → fix ranges until `npm run codemap:check` passes.
 
-**Delegate (the big generation), as a pipeline** — one dependency, then a fan-out:
-1. **First, sequentially: `CHANGELOG.md` entry (register 1)** — it is the SOURCE the others derive from, so it must exist before the fan-out. Do it on the main loop (you already hold the WORKLOG in context) OR one Sonnet agent; then read back only its text.
-2. **Then, in parallel** (each depends only on the changelog text, not on each other) — spawn on **Sonnet** (`simple-task` for a single file, `general-purpose` if it must read several):
-   - **Release note (register 2)** → `data/release-notes/vX.Y.Z.md` (BambuLab style; copy the footer from the previous version's file).
-   - **What's New (register 3), 9 locales** → `data/whatsnew.json` (BIGGEST saving — playful/deadpan, one topic per item, icons; **exclude non-public/admin features**). Scaffold with `npm run whatsnew:add` inside the agent.
-   - **`FEATURES.md`** → add the genuinely new capabilities, tag `(vX.Y.Z)`.
-   - **CODEMAP re-sync** (only if `inventory.js`/`main.js` moved a lot this cycle) → fix the drifted section ranges until `npm run codemap:check` passes.
+**Only if the main context is genuinely too large** to hold this generation: delegate the WHOLE block to **exactly ONE** `general-purpose` agent (Sonnet) that writes note + What's New + FEATURES in a single pass — it reads each big file once and carries one system prompt. **Never spawn a second release agent, never fan out.** The agent prompt must be self-sufficient: paste the *Three copy registers* rules + the exact `CHANGELOG.md` entry as the source + the version.
 
-**Each sub-agent prompt MUST be self-sufficient** (they see nothing of the conversation): paste the relevant register's rules from *Three copy registers* + the exact `CHANGELOG.md` entry as the source + the release version + a one-line example of the target tone. Tier the model: generation on **Sonnet**, the version decision + final review on **Opus** (here).
+**Always keep on the main loop (never delegate):** the version decision (SemVer), all validators (`npm run i18n:check`, `whatsnew:check`, `codemap:check`, `node --check`), the final consistency read-through, and all git/gh (commit, tag, push, publish-latest, build watch).
 
-**Order of operations:** decide version (Opus) → write CHANGELOG (Opus/agent) → fan-out {note, whatsnew, FEATURES, codemap} on Sonnet in parallel → back on Opus: run ALL validators, one consistency read-through, then commit → tag → push → watch build → publish latest → reset WORKLOG + bump `package.json`.
+**Order of operations:** decide version → write CHANGELOG → note + What's New + FEATURES + codemap (inline) → run ALL validators + one consistency read-through → commit → tag → push → watch build → publish latest → reset WORKLOG + bump `package.json`.
+
+**Separately, keep `data/whatsnew.json` from bloating** (it's re-read on every release): when its history grows large, propose archiving the oldest versions out of the loaded file so each release stops paying to read the full back-catalogue.
 
 ### Before starting any task
 

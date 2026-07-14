@@ -208,12 +208,56 @@
   #card-inv { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
   .inv-loading {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 14px; padding: 80px 0; color: var(--muted); font-size: 13px;
+    gap: 42px; padding: 90px 0; color: var(--muted); font-size: 14px; font-weight: 500;
   }
+  /* Comet-trail loader ("load6") — adapted from Luke Haas' css-loaders (MIT):
+     https://github.com/lukehaas/css-loaders. Five box-shadow dots form a fading tail
+     that orbits, from a single element (no markup change) so it drops into every
+     .inv-loading-spin slot; brand-orange (the original's white would be invisible on
+     our light background). The cam-wall keeps its own small border spinner. */
   .inv-loading-spin {
-    width: 38px; height: 38px; border-radius: 50%;
-    border: 3px solid var(--border); border-top-color: var(--primary);
-    animation: spin .7s linear infinite;
+    color: var(--primary);   /* the box-shadow dots inherit currentColor */
+    font-size: 52px; width: 1em; height: 1em;
+    border: none; border-radius: 50%; background: transparent;
+    -webkit-mask: none; mask: none;
+    text-indent: -9999em; overflow: hidden; position: relative;
+    transform: translateZ(0);
+    animation: load6 1.7s infinite ease, round 1.7s infinite ease;
+  }
+  /* Explicit 0%→100% rotate (NOT the `to`-only `spin`): the box-shadow tail forms
+     while the element actually orbits — the "wind up and sling" motion. */
+  @keyframes round { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  @keyframes load6 {
+    0%      { box-shadow: 0 -0.83em 0 -0.4em, 0 -0.83em 0 -0.42em, 0 -0.83em 0 -0.44em, 0 -0.83em 0 -0.46em, 0 -0.83em 0 -0.477em; }
+    5%, 95% { box-shadow: 0 -0.83em 0 -0.4em, 0 -0.83em 0 -0.42em, 0 -0.83em 0 -0.44em, 0 -0.83em 0 -0.46em, 0 -0.83em 0 -0.477em; }
+    10%, 59% { box-shadow: 0 -0.83em 0 -0.4em, -0.087em -0.825em 0 -0.42em, -0.173em -0.812em 0 -0.44em, -0.256em -0.789em 0 -0.46em, -0.297em -0.775em 0 -0.477em; }
+    20%     { box-shadow: 0 -0.83em 0 -0.4em, -0.338em -0.758em 0 -0.42em, -0.555em -0.617em 0 -0.44em, -0.671em -0.488em 0 -0.46em, -0.749em -0.34em 0 -0.477em; }
+    38%     { box-shadow: 0 -0.83em 0 -0.4em, -0.377em -0.74em 0 -0.42em, -0.645em -0.522em 0 -0.44em, -0.775em -0.297em 0 -0.46em, -0.82em -0.09em 0 -0.477em; }
+    100%    { box-shadow: 0 -0.83em 0 -0.4em, 0 -0.83em 0 -0.42em, 0 -0.83em 0 -0.44em, 0 -0.83em 0 -0.46em, 0 -0.83em 0 -0.477em; }
+  }
+  /* Playful phrase carousel under the loader: one line at a time slides in from the
+     right and out to the left; both edges fade through a gradient mask so each phrase
+     seems to emerge from / dissolve into the gradient. */
+  .ld-phrases {
+    position: relative; width: 280px; height: 1.5em; overflow: hidden;
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 20%, #000 80%, transparent 100%);
+            mask-image: linear-gradient(90deg, transparent 0, #000 20%, #000 80%, transparent 100%);
+  }
+  .ld-phrases span {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    white-space: nowrap; opacity: 0;
+    animation: ld-phrase 12s ease-in-out infinite;
+  }
+  .ld-phrases span:nth-child(1) { animation-delay: 0s; }
+  .ld-phrases span:nth-child(2) { animation-delay: 3s; }
+  .ld-phrases span:nth-child(3) { animation-delay: 6s; }
+  .ld-phrases span:nth-child(4) { animation-delay: 9s; }
+  @keyframes ld-phrase {
+    0%   { opacity: 0; transform: translateX(60px); }
+    7%   { opacity: 1; transform: translateX(0); }
+    22%  { opacity: 1; transform: translateX(0); }
+    29%  { opacity: 0; transform: translateX(-60px); }
+    100% { opacity: 0; transform: translateX(-60px); }
   }
   /* Printers-view variant — same spinner, but extra vertical breathing
      room so it sits visually centred in the printer-grid host (which
@@ -917,8 +961,10 @@
   /* Order list on the left, Payment card on the right (sticky, follows scroll). */
   .pv-order-layout { display: flex; align-items: flex-start; gap: 12px; }
   .pv-order-layout .pv-order-list { flex: 1; min-width: 0; }
-  .pv-order-side { flex-shrink: 0; width: 300px; position: sticky; top: 0; }
-  @media (max-width: 900px) { .pv-order-layout { flex-direction: column; } .pv-order-side { width: 100%; position: static; } }
+  /* Drop the Payment card down so its top lines up with the FIRST source card, not
+     with the "Panier" section title above it (title = 18px pill + 8px margin). */
+  .pv-order-side { flex-shrink: 0; width: 300px; position: sticky; top: 0; margin-top: 26px; }
+  @media (max-width: 900px) { .pv-order-layout { flex-direction: column; } .pv-order-side { width: 100%; position: static; margin-top: 0; } }
   .pv-order-list { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--surface); }
   .pv-order-line {
     border: none; border-bottom: 1px solid var(--border); border-radius: 0;
@@ -1031,13 +1077,56 @@
   }
   /* Cart group header — one band per purchase source (buy-link host) inside the
      active cart list. Sticky so the source stays visible while scrolling its items. */
+  /* Cart is a STACK of per-source cards (not one continuous list): the zone wrapper
+     goes transparent, each source is its own bordered card. */
+  .pv-cart-cards { border: none; border-radius: 0; overflow: visible; background: transparent;
+    display: flex; flex-direction: column; gap: 12px; }
+  /* No `overflow:hidden`: it makes the drag-image (grab preview) render with SQUARE
+     corners. Instead round the card border + clip the top/bottom inner sections, so
+     the card looks rounded normally AND the grabbed card keeps rounded corners. */
+  .pv-cart-card { border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+  .pv-cart-card > .pv-cart-group { border-top-left-radius: 12px; border-top-right-radius: 12px; }
+  .pv-cart-card > :last-child { border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; }
+  /* Keep a hovered line's bottom divider visible (the generic order-line hover turns
+     it transparent) — otherwise hovering the LAST line hides its separator from the
+     subtotal footer / card bottom. */
+  .pv-cart-card .pv-order-line:hover { border-bottom-color: var(--border); }
   .pv-cart-group {
-    position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: 7px;
+    display: flex; align-items: center; gap: 7px;
     padding: 7px 12px; background: var(--surface-2); border-bottom: 1px solid var(--border);
     font-size: 11.5px; font-weight: 700; letter-spacing: .02em; color: var(--muted);
   }
   .pv-cart-group .icon { background-color: var(--muted); flex-shrink: 0; }
   .pv-cart-group-lbl { color: var(--text); }
+  /* Subtotal footer for the source, at the BOTTOM of the card. */
+  .pv-cart-card-foot { display: flex; align-items: center; justify-content: flex-end; gap: 10px;
+    padding: 8px 12px; background: var(--surface-2); font-size: 12px; }
+  .pv-cart-foot-lbl { color: var(--muted); font-weight: 600; }
+  .pv-cart-foot-val { color: var(--text); font-weight: 700; }
+  .pv-cart-foot-tag { color: var(--muted); font-weight: 500; font-size: 10.5px; }
+  /* Grip to drag-reorder the whole source card (on the header). */
+  .pv-cart-grip { flex-shrink: 0; display: inline-flex; align-items: center; margin-left: -3px;
+    cursor: grab; opacity: .4; transition: opacity .12s; }
+  .pv-cart-card:hover .pv-cart-grip { opacity: .8; }
+  .pv-cart-grip:active { cursor: grabbing; }
+  .pv-cart-grip .icon { background-color: var(--muted); }
+  .pv-cart-card--dragging { opacity: 0; }
+  /* Personal per-source note (amber sticky-note strip under the header). */
+  .pv-cart-note { display: flex; align-items: flex-start; gap: 7px; width: 100%; text-align: left;
+    height: auto; min-height: 0; padding: 8px 12px; border: none; border-radius: 0; border-bottom: 1px solid var(--border);
+    background: color-mix(in srgb, #c98a1e 9%, var(--surface)); cursor: pointer; font-family: inherit;
+    font-size: 12.5px; line-height: 1.4; color: var(--text); }
+  .pv-cart-note .icon { background-color: #c98a1e; flex-shrink: 0; margin-top: 1px; }
+  .pv-cart-note-txt { white-space: pre-wrap; word-break: break-word; }
+  .pv-cart-note:hover { background: color-mix(in srgb, #c98a1e 14%, var(--surface)); }
+  .pv-cart-note--add { background: var(--surface-2); color: var(--muted); font-weight: 500; align-items: center; }
+  .pv-cart-note--add .icon { background-color: var(--muted); margin-top: 0; }
+  .pv-cart-note--add:hover { background: var(--surface-2); color: var(--primary); }
+  .pv-cart-note--add:hover .icon { background-color: var(--primary); }
+  .pv-cart-note--editing { display: block; padding: 8px 12px; background: var(--surface); cursor: default; }
+  .pv-cart-note-input { width: 100%; box-sizing: border-box; resize: vertical; min-height: 44px;
+    border: 1px solid var(--primary); border-radius: 6px; padding: 6px 8px;
+    font-family: inherit; font-size: 12.5px; line-height: 1.4; background: var(--surface); color: var(--text); outline: none; }
   .pv-cart-group-n {
     display: inline-flex; align-items: center; justify-content: center; min-width: 16px; height: 16px;
     padding: 0 4px; border-radius: 8px; background: var(--surface); color: var(--muted);
@@ -1057,6 +1146,12 @@
   /* "Move to cart" is the primary action on the shelf → accent-coloured. */
   .pv-move-link--cart { color: var(--primary, #f97316); }
   .pv-move-link--cart:hover { color: var(--primary, #f97316); filter: brightness(1.1); }
+  /* "Stop tracking" is a press-and-hold button (1 s): a red fill sweeps left→right
+     while held; the label sits above it. */
+  .pv-move-link--stop { position: relative; overflow: hidden; padding: 2px 7px; border-radius: 5px; }
+  .pv-move-link--stop > :not(.hold-progress) { position: relative; z-index: 1; }
+  .pv-move-link--stop .hold-progress { opacity: 1; background: color-mix(in srgb, var(--danger) 28%, transparent); }
+  .pv-move-link--stop:hover { color: var(--danger); }
 
   /* ── Reorder drag-and-drop ──────────────────────────────────────────────── */
   /* Grip handle: fades in on row hover, grabs to drag. Only it starts a drag, so
@@ -1283,6 +1378,12 @@
   .gp-actions { display: flex; gap: 8px; flex-shrink: 0; }
   .gp-actions .gp-reorder-btn { flex: 1; width: auto; }
   .gp-actions--list { margin-top: 8px; }   /* "Add to a list" sits on its own row below Info / Reorder */
+  /* Icon-only action row: the 3 toggles grouped on the right (justify-content).
+     When the owner-only Product-info button is present, its margin-right:auto
+     pushes it to the left and keeps the 3 toggles on the right; in friend-view
+     (no Product-info) the toggles simply stay right-aligned. */
+  .gp-actions--flags { align-items: center; justify-content: flex-end; }
+  .gp-actions--flags .gp-flag-info { margin-right: auto; }
   /* Read-only note — quick glance, not editable (edit lives in the Product-info card). */
   .gp-note { flex-shrink: 0; margin-top: 10px; padding: 10px 12px; border-radius: 10px;
     background: var(--surface-2); border: 1px solid var(--border); }
@@ -2978,14 +3079,17 @@
   .pc-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .pc-k { color: var(--muted); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
   .pc-v { color: var(--text); font-size: 13px; font-weight: 600; text-align: right; }
+  /* Buy link — sits directly under the price inside the same .pc-rows section
+     (flex column, gap handles the spacing). Styled like the reorder card's active
+     shop button: Shopify green, white cart + host text. */
   .pc-buy {
     display: flex; align-items: center; justify-content: center; gap: 8px;
-    margin: 6px 16px 0; height: 40px; border-radius: 10px; text-decoration: none;
-    background: var(--surface-2); border: 1px solid var(--border);
-    color: var(--text); font-size: 13px; font-weight: 600; transition: border-color .15s;
+    margin-top: 2px; height: 40px; border-radius: 10px; text-decoration: none;
+    background: #5e8e3e; border: 1px solid #5e8e3e;
+    color: #fff; font-size: 13px; font-weight: 600; transition: filter .15s;
   }
-  .pc-buy:hover { border-color: var(--primary); }
-  .pc-buy .icon { background-color: #5e8e3e; }
+  .pc-buy:hover { filter: brightness(1.06); }
+  .pc-buy .icon { background-color: #fff; }
   /* Provenance block — reuses the reorder card's .ro-from (avatar + label + name);
      the wrap just gives it the section's horizontal padding. */
   .pc-from-wrap { padding: 4px 16px 0; }

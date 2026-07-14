@@ -2464,6 +2464,7 @@ details[open] .pba-step-chev { transform: rotate(90deg); }
   border: 2px solid var(--border);
   border-top-color: var(--primary);
   border-radius: 50%;
+  background: none; -webkit-mask: none; mask: none;   /* keep the small border spinner (not the big gradient loader) */
   animation: spin .7s linear infinite;
 }
 
