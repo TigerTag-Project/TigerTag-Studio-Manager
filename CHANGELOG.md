@@ -5,6 +5,22 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v2.11.1 — 2026-07-15
+
+### Added
+
+- **Groundwork for an upcoming stats & history dashboard.** Studio now records anonymous, aggregated usage and stock data — **no personal information, no location** — so a future release can chart your inventory's evolution over time (value, spools, materials, tag types) and its breakdowns. No visible change in this version yet.
+- **New `cart-plus` icon** — a cart with a **＋**, drawn in the same style as the existing cart, used to mark the "add to your To-order list" action apart from the plain "buy at the shop" cart.
+
+### Changed
+
+- **The "add to To-order" action and the "buy at the shop" action no longer share the same cart glyph.** They were indistinguishable side by side (notably on the product card, where they sit inches apart). The add-to-list action (the ❤ "To order" toggles across the product card / spool detail panel / grouped-spools side-card, the bulk "To order" button, the state badge on the illustration, and the To-order quick filter) now uses the **cart-＋** glyph; every buy link and purchase-source header keeps the plain cart. The To-order view tab and empty-cart illustrations keep the plain cart too (they depict the cart itself, not the "add" action) — `renderer/inventory.js`, `renderer/inventory.html`, `renderer/css/70-detail-misc.css`, `assets/svg/icons/icon_cart_plus.svg`.
+
+### Fixed
+
+- **A twin-tag spool (two linked NFC chips) could open the wrong side-card, showing blank/reset details.** A twin spool is two independent inventory docs (one per chip); the per-spool custom data (custom image, container) was saved on only one, leaving the other "hollow", and a scan could open the card on the hollow chip — glaring on plain Tiger Tag (per-chip image/container), invisible on Tiger Tag+ (shared catalogue data). Three-part fix: custom image and container now **mirror onto the twin** at write time (via `_updateSpoolTwinned`), joining the weight / rack / tags that already did; the scan-open guard treats the second chip as the same spool when it shares the open card's product identity (`_spoolGroupKey`), gated to the ~1.6 s twin-arrival burst so a later scan of a different identical spool still opens its own card (no added delay, instant open preserved); and a one-shot repair (`reconcileTwinFields`, fill-gaps only — never overwrites a present value) fixes existing inconsistent twins once per account, re-runnable from an admin Debug button that reports the count. The repair is timestamp-neutral (writes neither the chip `timestamp` nor `updatedAt`) — `renderer/inventory.js`, `renderer/inventory.html`.
+- **A friend's "Stock value" was far too low.** `_getProduct(r)` resolves against your OWN product records, but in friend-view the rows are the friend's spools, so the value loop skipped every spool for which you had no priced product of your own — collapsing the total to the intersection of your two shelves (and the price column / price sort showed "-" for the friend's spools). Added `_displayProduct(r)` (the friend's products in friend-view, yours otherwise) and switched the six "displayed price" sites to it; the friend-products snapshot now also re-runs the stats + inventory render so a late arrival no longer leaves the value stuck. `_getProduct()` stays yours where it must (❤/★ toggles, min stock, tags…) — `renderer/inventory.js` (`_displayProduct`, `renderStats`, `subscribeFriendProducts`).
+
 ## v2.11.0 — 2026-07-14
 
 ### Added

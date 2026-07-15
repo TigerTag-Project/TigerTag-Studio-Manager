@@ -139,6 +139,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // A scanned spool to auto-open in the detail card as soon as it appears in the
   // OWN inventory — survives the async friend→own view switch a scan triggers.
   let _scanOpenUid     = null;
+  let _lastScanOpenAt  = 0;   // when a scan last OPENED a card — bounds the twin-burst window
   // Open the pending scanned spool in the detail card once it's in our own
   // inventory. Called from the scan handlers AND from the inventory snapshot, so
   // it reliably fires after the async friend→own view switch / Firestore write.
@@ -155,9 +156,28 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // row whose twin link may be momentarily stale right after a rescan write.
     if (state.selected && $("detailPanel")?.classList.contains("open")) {
       const open = state.rows.find(r => r.spoolId === state.selected);
+      // Same-spool test. The persisted twin link (open.twinUid) covers a re-scan
+      // of an already-linked pair, but a twin's link isn't resolved client-side
+      // until _processNfcScans' timestamp heuristic runs (~1.5 s after the pod's
+      // two readers each fire). In that window, the second chip's bare `rfid-uid`
+      // event would find its OWN (often not-yet-configured) doc and swap the card
+      // to it — the "card closes, another opens with reset data" bug on Tiger Tag
+      // twins. So ALSO treat it as the same spool when the scanned chip shares the
+      // open card's product identity (`_spoolGroupKey` — brand/material/full colour/
+      // aspects, or id_product for Tag+): two chips of one physical spool always do,
+      // and that key is available on both docs immediately, no twin link needed.
+      //   ⚠️ Gate the group-key test on RECENCY: a genuine twin's second chip lands
+      //   in the same pod burst (~ms), so only skip when the open card was just
+      //   scan-opened (< the twin-arrival window). Without this, scanning ANOTHER
+      //   physical spool of the same product later (identical group key, its own
+      //   1 or 2 chips) would be wrongly suppressed and never open its card.
+      const scannedRow = state.rows.find(r => String(r.uid).toUpperCase() === scanned);
+      const openKey = open ? _spoolGroupKey(open) : null;
+      const inTwinBurst = Date.now() - _lastScanOpenAt < 1600;
       if (open && (String(open.uid).toUpperCase()     === scanned
                 || String(open.twinUid).toUpperCase() === scanned
-                || String(open.spoolId).toUpperCase() === scanned)) {
+                || String(open.spoolId).toUpperCase() === scanned
+                || (inTwinBurst && scannedRow && openKey != null && _spoolGroupKey(scannedRow) === openKey))) {
         _scanOpenUid = null;
         return;
       }
@@ -165,6 +185,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const row = state.rows.find(r => r.uid === _scanOpenUid || r.spoolId === _scanOpenUid);
     if (!row) return;
     _scanOpenUid = null;
+    _lastScanOpenAt = Date.now();   // opens the twin-burst window for the guard above
     openDetail(row.spoolId, { animateSwap: true });
   }
   // Readiness barrier for destructive automation. Holds the uid whose racks
@@ -174,6 +195,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // inventory snapshot fires before its racks load) and could rewrite or wrongly
   // free placements. Reset on every account teardown, set on the racks snapshot.
   let _racksLoadedFor  = null;
+  let _twinFixCheckedFor = null;   // twin-repair: the localStorage check runs once per session, not per snapshot
   const _friendProfileUnsubs = new Map(); // friendUid -> userProfiles onSnapshot unsubscribe
 
   const ACCOUNT_COLORS = {
@@ -5173,6 +5195,24 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         // tag+ backup is filled later by the scan path when each chip is read.
         if (!snapshot.metadata.fromCache) {
           censusRfidListFromInventory(uid);
+          // Mirror each spool's product-identity hash + resolved protocol onto its
+          // doc, so the backend stats job can join spool → product (price) and
+          // split TigerTag / TigerTag+ / TigerCloud — neither is derivable server-
+          // side without the reference DB. Self-healing: new spools, identity edits
+          // and the one-off backfill all flow through here. Fire-and-forget.
+          syncSpoolMirrors(uid, raw).catch(e =>
+            console.warn("[subscribeInventory] spool mirrors sync failed:", e)
+          );
+          // One-shot twin-field repair (fill hollow twins). NOT real-time: the
+          // localStorage-gated check runs only on the FIRST server snapshot of the
+          // session; the actual reconciliation runs once EVER per account. A debug
+          // button can re-arm it. Never re-runs on later snapshots.
+          if (_twinFixCheckedFor !== uid) {
+            _twinFixCheckedFor = uid;
+            reconcileTwinFields(uid, raw).catch(e =>
+              console.warn("[subscribeInventory] twin reconcile failed:", e)
+            );
+          }
         }
 
         // One-time migration: remove any legacy soft-delete tombstones
@@ -5651,7 +5691,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const vat = _vatInfo();
     let valueHt = 0;
     for (const r of active) {
-      const price = +(_getProduct(r)?.buyPriceHt);
+      const price = +(_displayProduct(r)?.buyPriceHt);   // friend-view → the FRIEND's price
       if (!Number.isFinite(price)) continue;
       const cap = +r.capacity, w = +r.weightAvailable;
       const frac = (cap > 0 && Number.isFinite(w)) ? Math.max(0, Math.min(1, w / cap)) : 1;
@@ -5917,8 +5957,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     return rows.slice().sort((a, b) => {
       let va, vb;
       if (state.sortCol === "price") {   // price lives on the product, not the row
-        va = +(_getProduct(a)?.buyPriceHt); va = Number.isFinite(va) ? va : null;
-        vb = +(_getProduct(b)?.buyPriceHt); vb = Number.isFinite(vb) ? vb : null;
+        va = +(_displayProduct(a)?.buyPriceHt); va = Number.isFinite(va) ? va : null;
+        vb = +(_displayProduct(b)?.buyPriceHt); vb = Number.isFinite(vb) ? vb : null;
       } else { va = a[state.sortCol]; vb = b[state.sortCol]; }
       if (va == null && vb == null) return 0;
       if (va == null) return dir;
@@ -6899,9 +6939,21 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
 
   // Resolve a spool's saved filament link (or null). Reads the in-memory
   // cache populated by subscribeProducts — no Firestore round-trip.
+  // MY product record for a row — my ❤/★ flags, my min stock, my note, my price.
+  // Stays MINE even in friend-view: the toggles/reorder write to my own account.
   function _getProduct(r) {
     if (!r) return null;
     return state.products[_productKeyHash(r)] || null;
+  }
+  // The product record DESCRIBING the spool on screen. In friend-view the rows are
+  // the FRIEND's, so their price / buy link must come from THEIR products — not
+  // mine. Using _getProduct() here was the "friend's stock value is far too low"
+  // bug: a friend's spool only counted when *I* happened to own the same product
+  // WITH a price set, so the total collapsed to the intersection of our shelves.
+  function _displayProduct(r) {
+    if (!r) return null;
+    const src = state.friendView ? (state.friendProducts || {}) : (state.products || {});
+    return src[_productKeyHash(r)] || null;
   }
 
   // True when this product has a saved buy link — drives the Shopify badge on
@@ -6927,7 +6979,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (!p) return "";
     const sz = compact ? "icon-9" : "icon-11";
     const items = [];
-    if (p.liked)    items.push(`<span class="prod-badge prod-badge--wish" title="${esc(t("productLike"))}"><span class="icon icon-cart ${sz}"></span></span>`);
+    if (p.liked)    items.push(`<span class="prod-badge prod-badge--wish" title="${esc(t("productLike"))}"><span class="icon icon-cart-plus ${sz}"></span></span>`);
     if (p.favorite) items.push(`<span class="prod-badge prod-badge--like" title="${esc(t("productFavorite"))}"><span class="icon icon-star-fill ${sz}"></span></span>`);
     return items.length ? `<div class="prod-badges${compact ? " prod-badges--sm" : ""}">${items.join("")}</div>` : "";
   }
@@ -7171,7 +7223,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         snap.docs.forEach(d => { m[d.id] = { id: d.id, ...d.data() }; });
         state.friendProducts = m;
         _maybeRefreshPanelForCard?.();   // fill price / link into the open friend material card
+        // The friend's prices feed the "Stock value" stat and the price column
+        // (see _displayProduct). This snapshot can land AFTER the inventory render,
+        // so re-run both — otherwise the value stays stuck at whatever was computed
+        // before their products arrived.
+        renderStats();
         if (_isProductsMode(state.viewMode)) renderProductsView();   // live-refresh the friend's favorites view
+        else scheduleRender("inventory", renderInventory);           // price column follows the friend's prices
       }, err => {
         console.warn("[friendProducts]", err?.code, err?.message);
         state.productsLoading = false;   // denied/error → drop the spinner, show the empty state
@@ -7711,7 +7769,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const dir = state.sortDir === "asc" ? 1 : -1;
     const valOf = (it) => {
       const rep = it.type === "group" ? it.rep : it.row;
-      if (col === "price") { const p = +(_getProduct(rep)?.buyPriceHt); return Number.isFinite(p) ? p : null; }
+      if (col === "price") { const p = +(_displayProduct(rep)?.buyPriceHt); return Number.isFinite(p) ? p : null; }
       if (it.type === "group") {
         if (col === "weightAvailable") return it.totalAvail;
         if (col === "capacity")        return it.totalCap;
@@ -7748,7 +7806,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       r.imgUrl || "",
       r.weightAvailable ?? "",
       r.capacity ?? "",
-      _getProduct(r)?.buyPriceHt ?? "",   // price column
+      _displayProduct(r)?.buyPriceHt ?? "",   // price column (friend-view → friend's price)
       state.priceInputMode || "",         // HT/TTC display mode
       r.colorName || "",
       r.material || "",
@@ -8111,7 +8169,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           row.appendChild(infoBtn);
         }
         // Add to cart / "To order" (❤ liked flag).
-        const cartBtn = mkBtn("flag-toggle--wish" + (liked ? " active" : ""), `<span class="icon icon-cart icon-16"></span>`, t("productLikeTip"), t("productLike"));
+        const cartBtn = mkBtn("flag-toggle--wish" + (liked ? " active" : ""), `<span class="icon icon-cart-plus icon-16"></span>`, t("productLikeTip"), t("productLike"));
         cartBtn.setAttribute("aria-pressed", liked);
         cartBtn.addEventListener("click", async () => { await _toggleProductFlag(g.rep, "liked"); _renderGroupPanelContents(g); });
         row.appendChild(cartBtn);
@@ -8257,7 +8315,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // Unit price cell for the inventory table — the row's product price (buyPriceHt),
   // shown in the account's currency + HT/TTC mode. "-" when no price is set.
   function _priceCell(r) {
-    const priceHt = _getProduct(r)?.buyPriceHt;
+    const priceHt = _displayProduct(r)?.buyPriceHt;   // friend-view → the FRIEND's price
     if (priceHt == null || !Number.isFinite(+priceHt)) {
       // No price yet → an "Add price" action (opens the product price editor).
       // Read-only in a friend view.
@@ -8359,7 +8417,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function _groupHeaderSig(g, collapsed) {
     return [
       g.key, g.count, g.totalAvail, g.totalCap,
-      _getProduct(g.rep)?.buyPriceHt ?? "", state.priceInputMode || "",   // price column
+      _displayProduct(g.rep)?.buyPriceHt ?? "", state.priceInputMode || "",   // price column
       collapsed ? 1 : 0,
       g.rep.colorHex || "", g.rep.colorHex2 || "", g.rep.colorHex3 || "",
       (g.rep.colorList || []).join(","), g.rep.colorType || "",
@@ -10241,6 +10299,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       _cemChip.set(tgt.readerName, okv ? "ok" : "fail");
       _cemRender();
       if (!okv) { _cemAborted = true; break; }
+      // Xano: chip programmed → `write`. Fired per chip actually burned AND
+      // verified — so a failed or aborted burn reports nothing. (The mobile app
+      // fires once per batch instead, which under-reports multi-chip writes.)
+      // cloudDoc is the Firestore raw shape (data1…data7) — _xanoChipFields reads
+      // both shapes. Bed temps are part of the write payload, hence withBed.
+      _sendTagAnalytics("write", res.uid || tgt.uid,
+        _xanoChipFields(cloudDoc, { withBed: true }));
       burned.push({ readerName: tgt.readerName, uid: res.uid || tgt.uid });
       if (i < _cemTargets.length - 1) await _cemDelay(100);   // 100 ms inter-chip gap
     }
@@ -11746,6 +11811,24 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // chips of one physical spool always share the same tags. Patches in-memory
   // rows so the immediate UI is correct before the snapshot echoes back. Tags
   // are NOT chip data → no needUpdateAt / re-burn flag.
+  // Write a per-PHYSICAL-SPOOL field patch to a spool's inventory doc AND its twin
+  // (if any), so both chips of one physical spool stay consistent. Use for data
+  // that belongs to the SPOOL, not the chip — custom image, container… A twin's
+  // two docs are otherwise independent, so a field set on only one leaves the other
+  // "hollow" and the detail card looks reset when it opens on that chip. Weight,
+  // rack placement and tags already mirror at their own write sites; this covers
+  // the rest. NEVER route chip fields (uid, id_*, timestamp) through here.
+  async function _updateSpoolTwinned(r, patch) {
+    const uid = state.activeAccountId;
+    if (!uid || state.friendView || !r) return;
+    const inv = fbDb(uid).collection("users").doc(uid).collection("inventory");
+    const twinId = twinSpoolIdOf(r);
+    if (!twinId) { await inv.doc(r.spoolId).update(patch); return; }
+    const batch = fbDb(uid).batch();
+    batch.update(inv.doc(r.spoolId), patch);
+    batch.update(inv.doc(twinId), patch);
+    await batch.commit();
+  }
   async function _writeSpoolTags(r, tags) {
     const user = fbAuth().currentUser;
     if (!user || state.friendView) return;
@@ -12211,13 +12294,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       likeAll = products.length > 0 && products.every(p => !!p.liked);
     }
     _setBulkFlagBtn(favBtn, "icon-star", favAll);
-    _setBulkFlagBtn(likeBtn, "icon-cart", likeAll);
+    _setBulkFlagBtn(likeBtn, "icon-cart-plus", likeAll);
   }
   function _setBulkFlagBtn(btn, base, on) {
     if (!btn) return;
-    // The cart glyph has no filled variant → keep the same icon on/off (the
+    // The cart-plus glyph has no filled variant → keep the same icon on/off (the
     // .active tint carries the on-state); the star still flips outline⇄filled.
-    const fill = base === "icon-cart" ? base : base + "-fill";
+    const fill = base === "icon-cart-plus" ? base : base + "-fill";
     btn.classList.toggle("active", on);
     btn.setAttribute("aria-pressed", String(on));
     const ic = btn.querySelector(".icon");
@@ -12660,7 +12743,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       } catch (e) { setLbl(t("toolRepairFailed")); reportError("spool.repairPlus", e); }
     });
     // Erase (Format) / Recycle — target this spool's present chip(s), then drop it.
-    const _wireChipReset = (btnId, apiCall, keyWriting, keyDone, keyFailed, errTag) => {
+    const _wireChipReset = (btnId, apiCall, keyWriting, keyDone, keyFailed, errTag, xanoOp) => {
       setupHoldToConfirm($(btnId), 1500, async () => {
         const labelEl = $(btnId)?.querySelector(".toolbox-row-label");
         const setLbl = (txt) => { if (labelEl) labelEl.textContent = txt; };
@@ -12672,16 +12755,26 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           if (!targets.length) { setLbl(t("toolRepairNoChip")); return; }
           setLbl(t(keyWriting));
           const res = await apiCall({ targets });
-          const done = (res?.results || []).filter(x => x.ok && x.verified !== false).length;
-          if (!res?.ok || done === 0) { setLbl(t(keyFailed)); console.warn(`[${errTag}] failed:`, res); return; }
+          const written = (res?.results || []).filter(x => x.ok && x.verified !== false);
+          if (!res?.ok || !written.length) { setLbl(t(keyFailed)); console.warn(`[${errTag}] failed:`, res); return; }
+          // Xano: one event per chip actually written AND verified — a failed chip
+          // in a twin pair reports nothing. Envelope only (the chip no longer holds
+          // any material data to report), exactly like the mobile app's reset/init.
+          written.forEach(x => _sendTagAnalytics(xanoOp, x.uid));
           setLbl(t(keyDone));
           await markSpoolDeleted(r.spoolId);
           closeDetail();
         } catch (e) { setLbl(t(keyFailed)); reportError(`spool.${errTag}`, e); }
       });
     };
-    _wireChipReset("btnFormatRfid", (o) => window.electronAPI.formatRfidTag(o), "toolFormatWriting", "toolFormatDone", "toolFormatFailed", "formatRfid");
-    _wireChipReset("btnEraseRfid", (o) => window.electronAPI.eraseRfidTag(o), "toolEraseWriting", "toolEraseDone", "toolEraseFailed", "eraseRfid");
+    // Format = back to the TigerTag Init state. The chip WAS a TigerTag (this is a
+    // spool's own toolbox), so in the mobile vocabulary that is a `reset`, not an
+    // `init` (which means "a foreign chip BECAME a TigerTag" — a flow Studio has no
+    // equivalent of).
+    _wireChipReset("btnFormatRfid", (o) => window.electronAPI.formatRfidTag(o), "toolFormatWriting", "toolFormatDone", "toolFormatFailed", "formatRfid", "reset");
+    // Erase = blanked back to a plain NFC tag, out of the TigerTag format entirely
+    // → the mobile app calls that `nfc_init`.
+    _wireChipReset("btnEraseRfid", (o) => window.electronAPI.eraseRfidTag(o), "toolEraseWriting", "toolEraseDone", "toolEraseFailed", "eraseRfid", "nfc_init");
     // Greyed "locked" rows → open the TigerPOD (Free STL) promo.
     document.querySelectorAll(".panel-section--toolbox .toolbox-row--pod-lock")
       .forEach(el => el.addEventListener("click", () => openTigerPodModal()));
@@ -12842,10 +12935,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         const update = val
           ? { url_img: val, url_img_user: true, updatedAt: ts }
           : { url_img: del, url_img_user: del, updatedAt: ts };
-        await fbDb(user.uid)
-          .collection("users").doc(user.uid)
-          .collection("inventory").doc(r.spoolId)
-          .update(update);
+        // Mirror onto the twin so both chips of one physical spool show the same
+        // custom picture (was the most visible "reset data" on a twin's card).
+        await _updateSpoolTwinned(r, update);
         // onSnapshot re-renders the panel automatically.
         // If this material is also a PRODUCT (favorite / reorder), keep its
         // snapshot image in sync — the Favorites grid/table read `label.imgUrl`
@@ -13130,7 +13222,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         const uid = state.activeAccountId; if (!uid) return;
         const okBtn = $("ccCwOk"); if (okBtn) okBtn.disabled = true;
         try {
-          await fbDb().collection("users").doc(uid).collection("inventory").doc(r.spoolId).update({
+          await _updateSpoolTwinned(r, {
             container_weight: val,
             updatedAt:        firebase.firestore.FieldValue.serverTimestamp()
           });
@@ -13513,7 +13605,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const uid = state.activeAccountId; if (!uid) return;
     const c = containerFind(newContainerId); if (!c) return;
     try {
-      await fbDb().collection("users").doc(uid).collection("inventory").doc(r.spoolId).update({
+      await _updateSpoolTwinned(r, {
         container_id:     newContainerId,
         container_weight: c.container_weight,
         updatedAt:        firebase.firestore.FieldValue.serverTimestamp()
@@ -13669,7 +13761,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const productInfoBtn = state.friendView ? ""
       : `<button type="button" class="flag-toggle flag-toggle--info" data-pc-reorder data-tip="${esc(t("productInfoPage"))}" aria-label="${esc(t("productInfoPage"))}"><span class="icon icon-info icon-16"></span></button>`;
     const flagsHTML = `${state.friendView ? "" : `<button type="button" class="flag-toggle flag-toggle--list js-add-to-list" data-atl-hash="${esc(p.id)}" data-tip="${esc(t("listAddTo"))}" aria-label="${esc(t("listAddTo"))}"><span class="icon icon-list-check icon-16"></span></button>`}
-      <button type="button" class="flag-toggle flag-toggle--wish${liked ? " active" : ""}" data-pc-flag="liked" aria-pressed="${liked}" data-tip="${esc(t("productLikeTip"))}" aria-label="${esc(t("productLike"))}"><span class="icon icon-cart icon-16"></span></button>
+      <button type="button" class="flag-toggle flag-toggle--wish${liked ? " active" : ""}" data-pc-flag="liked" aria-pressed="${liked}" data-tip="${esc(t("productLikeTip"))}" aria-label="${esc(t("productLike"))}"><span class="icon icon-cart-plus icon-16"></span></button>
       <button type="button" class="flag-toggle flag-toggle--like${fav ? " active" : ""}" data-pc-flag="favorite" aria-pressed="${fav}" data-tip="${esc(t("productFavoriteTip"))}" aria-label="${esc(t("productFavorite"))}"><span class="icon icon-star${fav ? "-fill" : ""} icon-16"></span></button>
       ${productInfoBtn}`;
     // COULEURS & ASPECT — identical markup to buildPanelHTML.
@@ -14306,7 +14398,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       </button>`;
     return `${listBtn}
       <button type="button" class="flag-toggle flag-toggle--wish${liked ? " active" : ""}" data-flag="liked" data-tip="${esc(t("productLikeTip"))}" aria-label="${esc(t("productLike"))}" aria-pressed="${liked}">
-        <span class="icon icon-cart icon-16"></span>
+        <span class="icon icon-cart-plus icon-16"></span>
       </button>
       <button type="button" class="flag-toggle flag-toggle--like${fav ? " active" : ""}" data-flag="favorite" data-tip="${esc(t("productFavoriteTip"))}" aria-label="${esc(t("productFavorite"))}" aria-pressed="${fav}">
         <span class="icon icon-star${fav ? "-fill" : ""} icon-16"></span>
@@ -14315,10 +14407,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // Paint EVERY on-screen toggle for a field (product card + detail panel) from
   // an on/off state (outline ⇄ filled).
   function _setProductFlagBtn(field, on) {
-    // "liked" now renders the cart glyph (no filled variant → the on-state is
-    // shown by the .active tint alone); "favorite" keeps its outline⇄filled star.
-    const base = field === "liked" ? "icon-cart" : "icon-star";
-    const fill = base === "icon-cart" ? base : base + "-fill";
+    // "liked" renders the cart-PLUS glyph — the "add to my To-order list" action,
+    // deliberately distinct from the plain cart used by the BUY (shop link) buttons.
+    // It has no filled variant → the on-state is shown by the .active tint alone;
+    // "favorite" keeps its outline⇄filled star.
+    const base = field === "liked" ? "icon-cart-plus" : "icon-star";
+    const fill = base === "icon-cart-plus" ? base : base + "-fill";
     document.querySelectorAll(`.flag-toggle[data-flag="${field}"]`).forEach(btn => {
       btn.classList.toggle("active", on);
       btn.setAttribute("aria-pressed", String(on));
@@ -15619,6 +15713,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // No extra backdrop when opened from Settings — Settings' overlay already
     // dims the page and Debug just tucks to its left.
     if (!$("settingsPanel")?.classList.contains("open")) $("debugOverlay").classList.add("open");
+    _showTwinFixResult(state.activeAccountId);   // surface the last twin-repair count
     _layoutSettingsStack();
   }
   function closeDebug() {
@@ -15670,6 +15765,24 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   $("debugPanelClose").addEventListener("click", closeDebug);
   $("debugCloseTab")?.addEventListener("click", closeDebug);
   $("debugOverlay").addEventListener("click", closeDebug);
+  // Admin tool — re-run the one-shot twin-field repair on demand (force, ignoring
+  // the once-per-account localStorage flag). Reads the in-memory inventory, no
+  // extra Firestore read; writes only where a twin has a gap.
+  $("btnReconcileTwins")?.addEventListener("click", async () => {
+    const btn = $("btnReconcileTwins"), out = $("reconcileTwinsResult");
+    const uid = state.activeAccountId;
+    if (!uid || btn.disabled) return;
+    btn.disabled = true;
+    if (out) out.textContent = "Repairing…";
+    try {
+      const res = await reconcileTwinFields(uid, state.inventory, { force: true });
+      if (out) out.textContent = `Done — ${res.pairs} twin pair(s) checked, ${res.filled} doc(s) filled.`;
+    } catch (e) {
+      if (out) out.textContent = "Failed: " + (e?.message || String(e));
+    } finally {
+      btn.disabled = false;
+    }
+  });
   $("fseExplorerClose")?.addEventListener("click", closeFsExplorer);
   $("fseCloseTab")?.addEventListener("click", closeFsExplorer);
   $("fseOverlay")?.addEventListener("click", closeFsExplorer);
@@ -15939,6 +16052,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     { label: "UID List",   path: "users/{uid}/rfidList" },
     { label: "Printers",   path: "users/{uid}/printers" },
     { label: "Products",   path: "users/{uid}/products" },
+    // Server-written stats (read-only for the client — the Cloud Functions own them):
+    // the current rollup, and the time-series snapshots behind the evolution charts.
+    { label: "Stats",       path: "users/{uid}/stats/current" },
+    { label: "Data History", path: "users/{uid}/dataHistory" },
   ];
 
   // Build the quick-access chips, then auto-fetch the user doc so the panel
@@ -26179,6 +26296,256 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     return fbDb(uid).collection("users").doc(uid).collection("inventory");
   }
 
+  /* ── Xano chip-event analytics ─────────────────────────────────────────────
+     Reports physical-chip events to the TigerTag Xano analytics table, so Studio
+     lands in the SAME table, with the same shape, as the mobile app (Tiger RFID
+     Connect — `lib/services/analytics_service.dart`).
+
+     Operations Studio emits (mirroring the mobile vocabulary):
+       read      — a chip was scanned and decoded
+       write     — a chip was programmed (encode/burn)
+       reset     — a chip was reset to the TigerTag Init state (it WAS a TigerTag)
+       nfc_init  — a chip was blanked back to a plain NFC tag ("Recycle to NFC")
+     Studio never emits `init` (mobile's "an unknown chip became a TigerTag"):
+     it has no flow that converts a foreign chip — its format action only ever
+     acts on a spool that is already a TigerTag.
+
+     PRIVACY. `Location` is always "0.0,0.0" — Studio collects NO position. A
+     desktop doesn't move, so a precise coordinate would reveal the user's home
+     address while answering no question that `Country` (derived offline from the
+     timezone, no IP lookup, no permission prompt) doesn't already answer. We send
+     `Country` instead, and Xano can resolve the request IP on its side if it
+     wants coarse geography. `Emoji` is deprecated and always sent empty.
+
+     The HTTP itself happens in the MAIN process (CORS — see main.js). */
+  const XANO_DEDUP_MS = 60_000;
+  const _xanoLastSent = new Map();   // "operation:uid" → last send (ms)
+
+  // Xano keys chips on the DECIMAL uid; Studio holds hex everywhere.
+  function _xanoUidDecimal(uidHex) {
+    try { return BigInt("0x" + String(uidHex)).toString(); }
+    catch { return String(uidHex ?? ""); }
+  }
+
+  // Locale in the MOBILE's format ("fr_FR" — language_REGION, underscore), so both
+  // apps write the same shape into the one Xano column. `navigator.language` alone
+  // is the app's UI language and often carries no region ("fr"), which would lose
+  // the region AND leave the column mixing "fr" with mobile's "fr_FR". The region
+  // comes from deriveCountry(), which reads it from the locale when present and
+  // otherwise from the IANA timezone — offline, no IP lookup (same source already
+  // used for `Country` and for the Firestore telemetry).
+  function _xanoLocale() {
+    const lang = (navigator.language || "").split("-")[0];
+    const region = deriveCountry();
+    if (lang && region) return `${lang}_${region}`;
+    return (navigator.language || "").replace("-", "_");
+  }
+
+  // Chip fields for `read` / `write`. Accepts BOTH shapes: the SDK's tagData
+  // (id_diameter, nozzle_min…) coming off a scan, and the Firestore raw doc
+  // (data1…data7) used by the burn path — hence each `??` pair.
+  function _xanoChipFields(td, { withBed = false } = {}) {
+    const n = v => (Number.isFinite(+v) ? +v : 0);
+    const f = {
+      IdTigerTag: n(td.id_tigertag), IdProduct: n(td.id_product),
+      IdMaterial: n(td.id_material), IdBrand: n(td.id_brand),
+      IdAspect1: n(td.id_aspect1), IdAspect2: n(td.id_aspect2),
+      IdType: n(td.id_type), IdDiameter: n(td.id_diameter ?? td.data1),
+      Alpha: n(td.color_a ?? 255),
+      Color:  `${n(td.color_r)},${n(td.color_g)},${n(td.color_b)}`,
+      Color2: `${n(td.color_r2)},${n(td.color_g2)},${n(td.color_b2)}`,
+      Color3: `${n(td.color_r3)},${n(td.color_g3)},${n(td.color_b3)}`,
+      Weight: n(td.measure_gr ?? td.measure), IdUnit: n(td.id_unit),
+      TempMin: n(td.nozzle_min ?? td.data2), TempMax: n(td.nozzle_max ?? td.data3),
+      DryTemp: n(td.dry_temp ?? td.data4),   DryTime: n(td.dry_time ?? td.data5),
+      Emoji: "",                       // deprecated field — never populated
+      Message: td.message || "",
+    };
+    if (withBed) {
+      f.BedTempMin = n(td.bed_min ?? td.data6);
+      f.BedTempMax = n(td.bed_max ?? td.data7);
+    }
+    return f;
+  }
+
+  // Fire one event. Deduped per (operation, uid) over a 60 s window: the TigerPOD
+  // is a resting reader that can re-read the same chip over and over, which would
+  // flood the table. (The mobile app needs no such guard — there every scan is a
+  // deliberate tap.) A DIFFERENT operation on the same chip is never suppressed.
+  function _sendTagAnalytics(operation, uidHex, extra) {
+    if (!operation || !uidHex) return;
+    const key = operation + ":" + String(uidHex).toUpperCase();
+    const now = Date.now();
+    if (now - (_xanoLastSent.get(key) || 0) < XANO_DEDUP_MS) return;
+    _xanoLastSent.set(key, now);
+    try {
+      window.electronAPI?.sendTagAnalytics?.({
+        Operation: operation,
+        Locale:   _xanoLocale(),
+        Timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "",
+        Location: "0.0,0.0",                 // no position collected — see above
+        Country:  deriveCountry() || "",
+        Uid:      _xanoUidDecimal(uidHex),
+        Timestamp: Math.floor(now / 1000),   // Unix epoch seconds
+        ...(extra || {}),
+      });
+    } catch (e) {
+      console.warn("[analytics] send failed:", e?.message);   // never blocks the chip action
+    }
+  }
+
+  // ── Spool mirrors for the server-side stats (productKey + protocol) ──────
+  // Both of these are DERIVED from the TigerTag reference DB, which the backend
+  // does not have — so it cannot recompute either from the raw Firestore fields.
+  // We denormalise them onto the inventory doc (same pattern as the `rfidBackup`
+  // mirror flag) and the backend just reads them. No reference DB server-side, no
+  // second copy of this logic, and therefore no drift when the catalogue changes.
+  //
+  //  • `productKey` — the product-identity hash (`_productKeyHash`), built from
+  //    RESOLVED names (brand / material / aspect). It's the join key to
+  //    `products/{keyHash}` (price, ❤/★). Without it the server-side stock value
+  //    comes out as 0.
+  //  • `protocol` — "TigerTag" / "TigerTag+" / "TigerCloud", resolved via
+  //    `versionName(id_tigertag)`. The raw `id_tigertag` is NOT a usable
+  //    substitute: only a couple of values map to a known version, the rest are a
+  //    long tail of unrecognised ids, so counting raw ids server-side yields noise
+  //    and no TigerTag-vs-TigerTag+ split at all.
+  //
+  // Driven from the inventory snapshot rather than from each of the ~10 spool
+  // write sites: one self-healing path that covers a new spool, an identity edit
+  // (colour/brand change → new hash) AND the one-time backfill of pre-existing
+  // spools. It only writes when a stored value actually DIFFERS, so the write it
+  // triggers settles on the next snapshot instead of looping.
+  async function syncSpoolMirrors(uid, raw) {
+    if (!uid || state.friendView) return;
+    // Both mirrors depend on the reference DB (brand/material/aspect/version).
+    // If it hasn't loaded yet, every row would resolve from fallback labels and
+    // we'd persist WRONG values. Bail — a later snapshot does it once loaded.
+    const db = state.db || {};
+    if (!db.brand || !db.material || !db.aspect || !db.version) return;
+    const want = r => ({ productKey: _productKeyHash(r), protocol: r.protocol || "unknown" });
+    const stale = (state.rows || []).filter(r => {
+      if (r.deleted || !_productKeyHash(r)) return false;
+      const cur = raw[r.spoolId] || {}, w = want(r);
+      return cur.productKey !== w.productKey || cur.protocol !== w.protocol;
+    });
+    if (!stale.length) return;
+    try {
+      const fdb = fbDb(uid);
+      const col = fdb.collection("users").doc(uid).collection("inventory");
+      for (let i = 0; i < stale.length; i += 400) {       // Firestore batch cap is 500
+        const batch = fdb.batch();
+        stale.slice(i, i + 400).forEach(r => batch.set(col.doc(r.spoolId), want(r), { merge: true }));
+        await batch.commit();
+      }
+      console.log(`[spoolMirrors] productKey + protocol mirrored on ${stale.length} spool(s)`);
+    } catch (e) {
+      console.warn("[spoolMirrors] sync failed:", e?.code, e?.message);
+    }
+  }
+
+  // ── Twin-field repair (ONE-SHOT) ─────────────────────────────────────────
+  // A twin spool = two independent inventory docs (one per chip UID). Per-spool
+  // custom data (image, container, rack, tags, note) was historically saved on
+  // only ONE of them, leaving the other "hollow" — so opening the card on that
+  // chip looked reset. Going forward every write mirrors to the twin; this repairs
+  // the EXISTING inconsistencies once.
+  //
+  // Rule = FILL GAPS ONLY: copy each field from whichever twin HAS it to the one
+  // that doesn't. Never overwrite a present value (no data loss, no "which is
+  // right?" guess). After reconciliation the two docs are identical, so the card
+  // shows the good info whichever chip the UI happens to pick — same result the
+  // interface already shows. A genuine both-present conflict (near-impossible for
+  // one physical spool) is logged, never touched.
+  //
+  // For each field: `has(rawDoc)` = is it set, `copy(rawDoc)` = the patch to fill
+  // the empty twin, `eq` = are two present values equal (else it's a conflict).
+  const _TWIN_FIELDS = [
+    { name: "image",
+      has:  d => d.url_img_user === true && !!d.url_img,
+      copy: d => ({ url_img: d.url_img, url_img_user: true }),
+      eq:   (x, y) => x.url_img === y.url_img },
+    { name: "container",
+      has:  d => !!d.container_id,
+      copy: d => ({ container_id: d.container_id, container_weight: d.container_weight ?? 0 }),
+      eq:   (x, y) => x.container_id === y.container_id },
+    { name: "rack",
+      has:  d => !!(d.rack && d.rack.id) || d.rack_id != null,
+      copy: d => ({ rack: (d.rack && d.rack.id) ? d.rack : { id: d.rack_id, level: d.level, position: d.position } }),
+      eq:   (x, y) => JSON.stringify(x.rack || null) === JSON.stringify(y.rack || null)
+                   && x.rack_id === y.rack_id },
+    { name: "tags",
+      has:  d => Array.isArray(d.tags) && d.tags.length > 0,
+      copy: d => ({ tags: d.tags }),
+      eq:   (x, y) => JSON.stringify(x.tags || []) === JSON.stringify(y.tags || []) },
+    { name: "note",
+      has:  d => typeof d.message === "string" && d.message.trim() !== "" && d.message !== "--",
+      copy: d => ({ message: d.message }),
+      eq:   (x, y) => x.message === y.message },
+  ];
+
+  // uid → already reconciled once (persisted). Cleared by the debug re-run button.
+  const _twinFixKey = uid => `tigertag.twinFix.${uid}`;
+
+  // Show the last twin-repair outcome in the Debug panel (persisted so the
+  // automatic first-launch pass — which runs before the panel is opened — is
+  // still visible afterwards).
+  function _showTwinFixResult(uid) {
+    const out = $("reconcileTwinsResult");
+    if (!out || !uid) return;
+    let r = null;
+    try { r = JSON.parse(localStorage.getItem(_twinFixKey(uid) + ".result") || "null"); } catch (_) {}
+    if (r) {
+      const when = r.at ? new Date(r.at).toLocaleString() : "";
+      out.textContent = `Last repair: ${r.pairs} twin pair(s) checked, ${r.filled} doc(s) filled${when ? " — " + when : ""}.`;
+    }
+  }
+
+  async function reconcileTwinFields(uid, raw, { force = false } = {}) {
+    if (!uid || state.friendView || !raw) return { pairs: 0, filled: 0, skipped: true };
+    if (!force && localStorage.getItem(_twinFixKey(uid)) === "1") return { pairs: 0, filled: 0, skipped: true };
+    const rows = (state.rows || []).filter(r => !r.deleted);
+    const seen = new Set();
+    const inv = fbDb(uid).collection("users").doc(uid).collection("inventory");
+    let batch = fbDb(uid).batch(), pending = 0, pairs = 0, filled = 0;
+    try {
+      for (const r of rows) {
+        const twinId = twinSpoolIdOf(r);
+        if (!twinId || seen.has(r.spoolId) || seen.has(twinId)) continue;
+        seen.add(r.spoolId); seen.add(twinId);
+        const a = raw[r.spoolId], b = raw[twinId];
+        if (!a || !b) continue;
+        pairs++;
+        const patchA = {}, patchB = {};
+        for (const f of _TWIN_FIELDS) {
+          const ha = f.has(a), hb = f.has(b);
+          if (ha && !hb)      Object.assign(patchB, f.copy(a));
+          else if (hb && !ha) Object.assign(patchA, f.copy(b));
+          else if (ha && hb && !f.eq(a, b))
+            console.warn(`[twinFix] conflict on ${f.name} — ${r.spoolId} ↔ ${twinId} (left untouched)`);
+        }
+        // Timestamp-neutral repair: write ONLY the copied per-spool fields — never
+        // the chip `timestamp` (source of truth for erase-and-rewrite detection),
+        // and not even `updatedAt`, so a silent backfill doesn't make repaired
+        // spools read "updated just now" or jump in date-sorted views.
+        if (Object.keys(patchA).length) { batch.update(inv.doc(r.spoolId), patchA); pending++; filled++; }
+        if (Object.keys(patchB).length) { batch.update(inv.doc(twinId),    patchB); pending++; filled++; }
+        if (pending >= 400) { await batch.commit(); batch = fbDb(uid).batch(); pending = 0; }
+      }
+      if (pending) await batch.commit();
+      localStorage.setItem(_twinFixKey(uid), "1");
+      // Persist the outcome so the Debug panel can show it later — the automatic
+      // first-launch pass runs before the panel is ever opened, so without this
+      // the count would only exist in the DevTools console.
+      try { localStorage.setItem(_twinFixKey(uid) + ".result", JSON.stringify({ pairs, filled, at: Date.now() })); } catch (_) {}
+      _showTwinFixResult(uid);
+      console.log(`[twinFix] ${pairs} twin pair(s) checked, ${filled} doc(s) filled`);
+    } catch (e) {
+      console.warn("[twinFix] failed:", e?.code, e?.message);
+    }
+    return { pairs, filled };
+  }
+
   // Census every physical chip already in the inventory. Runs once per account
   // session (first live snapshot). Reads NOTHING from rfidList — it relies on the
   // per-doc `rfidListed` marker (already in `state.inventory`) to know which UIDs
@@ -26804,6 +27171,20 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       for (const tagData of validScans) {
         const uid = tagData.uid;
         if (!uid) continue;
+        // Xano: chip decoded. Which OPERATION depends on the chip, mirroring the
+        // mobile app — and it matters, because only one of the two routes can
+        // record WHICH catalogue product was scanned:
+        //   • TigerTag+ carrying a real catalogue product → `online` (goes to
+        //     product/get, which takes product_id and stores it)
+        //   • anything else (maker chip, no product) → `read` (analytics/tag has
+        //     no product_id field at all)
+        // Deduped per (operation, UID) over 60 s — the POD is a resting reader that
+        // re-reads the same chip on a loop.
+        const _pid = Number(tagData.id_product);
+        const _hasCatalogueProduct = Number.isFinite(_pid) && _pid !== 0 && _pid !== 0xFFFFFFFF;
+        const _isPlusChip = versionName(tagData.id_tigertag) === "TigerTag+";
+        _sendTagAnalytics(_isPlusChip && _hasCatalogueProduct ? "online" : "read",
+          uid, _xanoChipFields(tagData));
         const twinUid = twinMap ? (twinMap[uid] ?? null) : null;
         const docRef  = fbDb().collection('users').doc(user.uid)
           .collection('inventory').doc(uid);

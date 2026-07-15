@@ -75,7 +75,11 @@
   .icon-mail      { -webkit-mask-image: url('../../assets/svg/icons/icon_mail.svg');         mask-image: url('../../assets/svg/icons/icon_mail.svg'); }
   .icon-tag       { -webkit-mask-image: url('../../assets/svg/icons/icon_tag.svg');          mask-image: url('../../assets/svg/icons/icon_tag.svg'); }
   .icon-list-check { -webkit-mask-image: url('../../assets/svg/icons/icon_list_check.svg');  mask-image: url('../../assets/svg/icons/icon_list_check.svg'); }
+  /* Two carts, two very different actions — never mix them up:
+     .icon-cart      → BUY: opens the shop's web link (external purchase).
+     .icon-cart-plus → ADD: puts the product in YOUR "To order" list (the `liked` flag). */
   .icon-cart      { -webkit-mask-image: url('../../assets/svg/icons/icon_cart.svg');         mask-image: url('../../assets/svg/icons/icon_cart.svg'); }
+  .icon-cart-plus { -webkit-mask-image: url('../../assets/svg/icons/icon_cart_plus.svg');    mask-image: url('../../assets/svg/icons/icon_cart_plus.svg'); }
   .icon-coins     { -webkit-mask-image: url('../../assets/svg/icons/icon_coins.svg');        mask-image: url('../../assets/svg/icons/icon_coins.svg'); }
   .icon-bug       { -webkit-mask-image: url('../../assets/svg/icons/icon_bug.svg');          mask-image: url('../../assets/svg/icons/icon_bug.svg'); }
   .icon-filter    { -webkit-mask-image: url('../../assets/svg/icons/icon_filter.svg');       mask-image: url('../../assets/svg/icons/icon_filter.svg'); }

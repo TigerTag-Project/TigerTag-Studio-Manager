@@ -255,7 +255,7 @@
           <!-- Product-flag quick filters: ❤ wishlist / ★ liked (mutually exclusive) —
                placed right after the search bar, before the attribute filters. -->
           <button type="button" id="wishFilter" class="inv-flag-filter inv-flag-filter--wish" data-i18n-title="productLike" title="To order">
-            <span class="icon icon-cart icon-14"></span>
+            <span class="icon icon-cart-plus icon-14"></span>
           </button>
           <button type="button" id="likeFilter" class="inv-flag-filter inv-flag-filter--like" data-i18n-title="productFavorite" title="Favorite">
             <span class="icon icon-star icon-14"></span>
@@ -339,7 +339,7 @@
              on every selected spool's product. In a friend view these are the ONLY
              actions (they import into your own products). -->
         <button id="bulkLike" class="bulk-btn bulk-flag bulk-flag--wish" type="button" aria-pressed="false">
-          <span class="icon icon-cart icon-13"></span>
+          <span class="icon icon-cart-plus icon-13"></span>
           <span data-i18n="bulkLike">To order</span>
         </button>
         <button id="bulkFavorite" class="bulk-btn bulk-flag bulk-flag--like" type="button" aria-pressed="false">
@@ -1355,6 +1355,11 @@
     <button class="panel-close" id="debugPanelClose">✕</button>
   </div>
   <div class="panel-body" style="padding:0;display:flex;flex-direction:column;overflow:hidden">
+    <!-- Admin tools (one-shot maintenance) -->
+    <div class="dbg-tools" style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:6px">
+      <button id="btnReconcileTwins" class="dbg-tool-btn" type="button" style="align-self:flex-start;padding:7px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface-2);color:var(--text);font-size:12px;font-weight:600;cursor:pointer">Repair twin spools</button>
+      <div class="dbg-tool-result" id="reconcileTwinsResult" style="font-size:11px;color:var(--muted)">Fills a twin's hollow chip from its configured half (image / container / rack / tags / note). Runs once per account automatically; use this to force it again.</div>
+    </div>
     <!-- API inspector (last cdn.tigertag.io request/response) -->
     <div class="dbg-pane" id="dbgPaneApi" style="display:flex;flex-direction:column;gap:10px;padding:16px;flex:1;overflow:auto">
       <div class="debug-meta" id="debugMeta" data-i18n="debugNoReqs">No requests yet.</div>

@@ -223,7 +223,69 @@ users/
         autoManage    boolean — Storage "Auto-organize" toggle (drives both auto-place + auto-free; per-account, synced across devices; localStorage `tigertag.autoManage.enabled` is the fast read cache). Migrated from the legacy split fields below (unified = either-was-on).
         autoStorage   boolean — LEGACY (pre-merge) "Auto storage" toggle — read only for one-time migration into `autoManage`
         autoUnstorage boolean — LEGACY (pre-merge) "Auto unstorage" toggle — read only for one-time migration into `autoManage`
+
+    stats/
+      current/              — SERVER-WRITTEN rollup (client: read-only). Current state, recomputed by the reconciler.
+        <all dataHistory fields below, minus `at`/`trigger`>
+        dirty         boolean   — set by the Firestore triggers, consumed by the 15-min reconciler
+        dirtyAt       timestamp
+        dirtyTrigger  string
+        lastHistoryId string    — anchor of the 15-min history window (see below)
+        lastHistoryAt timestamp
+        lastPrunedAt  timestamp — lazy per-account downsampling, at most weekly
+        updatedAt     timestamp
+
+    dataHistory/
+      {autoId}/             — SERVER-WRITTEN time-series point (client: read-only). Full snapshot, throttled to ≤1 point / 15 min.
+        at              timestamp
+        trigger         string   — spool_add | spool_remove | weight | price | printer | list
+        valueHt         number   — stock value, ALWAYS tax-free (Σ price × remaining-weight fraction)
+        currency        string   — resolved from vatCountry
+        vatCountry      string   — raw ISO code (ground truth; currency is re-derivable from it)
+        country         string   — REAL country, derived from locale/timezone (studioCountry) — distinct from vatCountry (the TAX selection)
+        lang            string   — the app language the user picked (studioLang)
+        taxMode         string   — "HT" | "TTC" — how the user displays prices (default TTC)
+        scales          number   — TigerScale devices owned
+        hasPod          boolean  — owns a TigerPOD (explicit declaration)
+        podReaders      number   — Pod reader count at best reading: 0 (never measured) | 1 | 2
+        materialsPriced  number  — materials that HAVE a price → covered by valueHt
+        materialsUnpriced number — materials with NO price → the gap in valueHt (never let the value lie)
+        chips           number   — active NFC chips (a twin pair = 2 chips)
+        materials       number   — physical material items, twins merged ("spools/bobines" today; resin/accessories/… later)
+        materialsSingleChip number — materials carrying 1 chip
+        materialsTwinChip  number  — materials carrying 2 linked chips (chips = single + 2×twin)
+        productsDistinct number  — distinct product identities among those materials
+        weightG         number   — remaining filament, grams
+        byBrandId       map      — { "<id_brand>": count } — RAW ids, names resolved by the dashboards
+        byMaterialId    map      — { "<id_material>": count } — RAW ids, names resolved by the dashboards
+        byTypeId        map      — { "<id_type>": count } — Filament / Resin / … (RAW ids)
+        byProtocol      map      — { TigerTag: n, "TigerTag+": n, TigerCloud: n, unknown: n } — from the mirrored `protocol`
+        cloudCount      number   — TigerCloud spools (CLOUD_ prefix — they carry a random id_tigertag)
+        printers        number
+        printersByBrand map      — { bambulab: n, creality: n, … }
+        favorites       number   — ★ products
+        cartItems       number   — ❤ products in the active cart (savedForLater excluded)
+        cartUnits       number   — Σ orderQty
+        lists           number   — wishlists
 ```
+
+## Stats & history — how the numbers are produced
+
+**Server-side only.** A business figure (stock value, admin totals) can't be written by the client: it may be offline for weeks (gaps in the curve), run an old build, or simply lie — the backend is publicly connectable. So `stats/` and `dataHistory/` are **read-only for the client** (`allow write: if false`); Cloud Functions write them via the Admin SDK, which bypasses rules.
+
+**Flag + reconciler — no account scanning.** Writes to `inventory` / `products` / `printers` / `lists` fire a trigger that only sets `stats/current.dirty = true` (one write, zero reads — so a print job pushing a spool's weight down costs almost nothing). A scheduled function then queries `collectionGroup("stats").where("dirty","==",true)` every 15 min: it reads **only the accounts that moved**. Dormant accounts are never read or billed. It clears the flag *before* recomputing, so a write landing mid-recompute re-marks the account and is picked up next cycle — at worst one extra recompute, never a lost update.
+
+**Full recompute, not increments.** An incremental counter that misses a delta drifts *permanently and silently*. Recomputing the whole snapshot is self-healing, and only runs for active accounts, at most once per 15 min.
+
+**Two mirrored fields make the server-side stats possible** (`syncSpoolMirrors` in the Studio client). Both are DERIVED from the TigerTag reference DB, which the backend does not have, so it cannot recompute either from the raw fields:
+- **`productKey`** — the product identity hash, built from RESOLVED names (brand / material / aspect). It is the join key to `products/{keyHash}`; without it the backend could never find a spool's price and the stock value would come out as 0.
+- **`protocol`** — `TigerTag` / `TigerTag+` / `TigerCloud`, resolved via `versionName(id_tigertag)`. The raw `id_tigertag` is NOT a usable substitute: only a couple of values map to a known version and the rest are a long tail of unrecognised ids, so counting raw ids server-side yields noise and no TigerTag-vs-TigerTag+ split at all.
+
+The backend then does plain lookups: no reference DB server-side, no duplicated logic, no drift when the catalogue changes.
+
+**Retention.** Raw points older than 90 days are downsampled to one point per day (the day's last), pruned lazily per account (at most weekly, only for accounts that are actually writing) — never a global sweep.
+
+**`adminStats/{YYYY-MM-DD}`** (top-level, admin-read-only) — the daily global rollup, summed from the per-account `stats/current` docs (one small doc per account; spools are never re-read). Monetary totals live in `valueHtByCurrency` — different currencies are **never** summed together, that would make the global figure meaningless.
 
 ## RFID chip census + TigerTag+ backup — sync contract
 

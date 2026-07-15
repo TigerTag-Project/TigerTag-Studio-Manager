@@ -6182,5 +6182,85 @@
     }
    }
   ]
+ },
+ "2.11.1": {
+  "date": "2026-07-15",
+  "items": [
+   {
+    "icon": "cart",
+    "title": {
+     "en": "Two carts, no more mix-ups",
+     "fr": "Deux paniers, fini les confusions",
+     "de": "Zwei Warenkörbe, kein Vertun mehr",
+     "es": "Dos carritos, sin confusiones",
+     "it": "Due carrelli, niente più equivoci",
+     "zh": "两个购物车，不再搞混",
+     "pt": "Dois carrinhos, sem confusão",
+     "pt-pt": "Dois carrinhos, sem confusões",
+     "pl": "Dwa koszyki, koniec pomyłek"
+    },
+    "body": {
+     "en": "Adding a filament to your \"To order\" list and buying it at the shop used to wear the same little cart. The add-to-list one now has its own ＋ — no more tapping the wrong button.",
+     "fr": "Mettre un filament dans ta liste « À commander » et l'acheter en boutique, c'était le même petit panier. Celui qui ajoute à ta liste a désormais son ＋ — tu ne te tromperas plus de bouton.",
+     "de": "Ein Filament auf die „Zu bestellen“-Liste setzen und es im Shop kaufen trugen denselben kleinen Warenkorb. Der zum Hinzufügen hat jetzt sein ＋ — kein Griff mehr zum falschen Button.",
+     "es": "Añadir un filamento a tu lista «Para pedir» y comprarlo en la tienda llevaban el mismo carrito. El de añadir ahora tiene su ＋ — se acabó pulsar el botón equivocado.",
+     "it": "Aggiungere un filamento alla lista «Da ordinare» e comprarlo nel negozio avevano lo stesso carrello. Quello per aggiungere ora ha il suo ＋ — basta premere il pulsante sbagliato.",
+     "zh": "把耗材加进「待下单」清单和去店里购买，以前都是同一个小购物车。现在「加入清单」那个带了个 ＋——不会再按错按钮了。",
+     "pt": "Adicionar um filamento à lista «Para pedir» e comprá-lo na loja usavam o mesmo carrinho. O de adicionar agora tem o seu ＋ — chega de clicar no botão errado.",
+     "pt-pt": "Adicionar um filamento à lista «Para encomendar» e comprá-lo na loja usavam o mesmo carrinho. O de adicionar tem agora o seu ＋ — acabou o carregar no botão errado.",
+     "pl": "Dodanie filamentu do listy „Do zamówienia” i kupno w sklepie miały ten sam koszyk. Ten do dodawania ma teraz swój ＋ — koniec z myleniem przycisków."
+    }
+   },
+   {
+    "icon": "nfc",
+    "title": {
+     "en": "Twin-tag spools stop swapping cards on you",
+     "fr": "Les bobines à deux puces arrêtent de te changer la carte",
+     "de": "Zwei-Chip-Spulen wechseln dir nicht mehr die Karte",
+     "es": "Las bobinas de dos chips dejan de cambiarte la tarjeta",
+     "it": "Le bobine a due chip smettono di cambiarti la scheda",
+     "zh": "双芯片线盘不再乱换卡片",
+     "pt": "As bobinas de dois chips param de trocar o cartão",
+     "pt-pt": "As bobinas de dois chips param de te trocar o cartão",
+     "pl": "Szpule z dwoma tagami przestają podmieniać kartę"
+    },
+    "body": {
+     "en": "Scanning a spool with two linked tags no longer flickers open a second, blank-looking card — you get your spool, with your picture and its shelf, first time. Spools already affected repair themselves.",
+     "fr": "Scanner une bobine à deux puces liées n'ouvre plus par erreur une seconde carte toute vide : tu vois ta bobine, avec ta photo et son rangement, du premier coup. Les bobines déjà concernées se réparent toutes seules.",
+     "de": "Eine Spule mit zwei verknüpften Tags zu scannen öffnet nicht mehr kurz eine zweite, leer wirkende Karte — du siehst deine Spule mit deinem Bild und ihrem Platz, gleich beim ersten Mal. Betroffene Spulen reparieren sich selbst.",
+     "es": "Escanear una bobina con dos chips enlazados ya no abre por error una segunda tarjeta en blanco: ves tu bobina, con tu foto y su hueco, a la primera. Las bobinas afectadas se reparan solas.",
+     "it": "Scansionare una bobina con due chip collegati non apre più per sbaglio una seconda scheda vuota: vedi la tua bobina, con la tua foto e il suo posto, al primo colpo. Le bobine già coinvolte si riparano da sole.",
+     "zh": "扫描带两枚关联标签的线盘，不会再闪出第二张空白卡片——一次就显示你的线盘，连同你的图片和收纳位。已受影响的线盘会自动修复。",
+     "pt": "Escanear uma bobina com dois chips ligados não abre mais por engano um segundo cartão em branco: você vê sua bobina, com sua foto e seu lugar, de primeira. As bobinas já afetadas se reparam sozinhas.",
+     "pt-pt": "Ler uma bobina com dois chips ligados já não abre por engano um segundo cartão em branco: vês a tua bobina, com a tua foto e o seu lugar, à primeira. As bobinas já afetadas reparam-se sozinhas.",
+     "pl": "Zeskanowanie szpuli z dwoma powiązanymi tagami nie otwiera już przez pomyłkę drugiej, pustej karty — od razu widzisz swoją szpulę, ze swoim zdjęciem i miejscem na półce. Szpule, których to dotyczyło, naprawiają się same."
+    }
+   },
+   {
+    "icon": "coins",
+    "title": {
+     "en": "A friend's stock value adds up properly",
+     "fr": "La valeur du stock d'un ami s'additionne enfin",
+     "de": "Der Lagerwert eines Freundes stimmt jetzt",
+     "es": "El valor del stock de un amigo cuadra bien",
+     "it": "Il valore del magazzino di un amico torna giusto",
+     "zh": "好友的库存价值终于算对了",
+     "pt": "O valor do estoque de um amigo fecha certo",
+     "pt-pt": "O valor do stock de um amigo fecha certo",
+     "pl": "Wartość magazynu znajomego wreszcie się zgadza"
+    },
+    "body": {
+     "en": "Peeking at a friend's shelves now shows the real total value of their stock — not just the bits you happen to own too.",
+     "fr": "Quand tu regardes l'étagère d'un ami, la valeur totale de son stock est enfin juste — plus seulement les bobines que tu possèdes aussi de ton côté.",
+     "de": "Ein Blick auf die Regale eines Freundes zeigt jetzt den echten Gesamtwert seines Lagers — nicht nur die Teile, die du zufällig auch hast.",
+     "es": "Al mirar las estanterías de un amigo ahora ves el valor total real de su stock — no solo lo que tú también tienes.",
+     "it": "Sbirciando gli scaffali di un amico ora vedi il valore totale reale del suo magazzino — non solo i pezzi che possiedi anche tu.",
+     "zh": "查看好友的货架时，现在显示的是他库存的真实总价值——而不只是你也恰好拥有的那部分。",
+     "pt": "Ao espiar as prateleiras de um amigo, agora você vê o valor total real do estoque dele — e não só o que você também tem.",
+     "pt-pt": "Ao espreitar as prateleiras de um amigo, vês agora o valor total real do stock dele — e não só o que também tens.",
+     "pl": "Podglądając półki znajomego, widzisz teraz prawdziwą łączną wartość jego zapasów — a nie tylko to, co sam też masz."
+    }
+   }
+  ]
  }
 }

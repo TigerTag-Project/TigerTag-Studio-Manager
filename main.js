@@ -1022,6 +1022,99 @@ ipcMain.handle('rfid:refresh-api', async (_evt, rawDoc) => {
   }
 });
 
+// ── Xano chip-event analytics ─────────────────────────────────────────────────
+// Reports physical-chip events (read / write / reset / recycle) to the TigerTag
+// Xano analytics table, mirroring what the mobile app (Tiger RFID Connect,
+// lib/services/analytics_service.dart) already sends — so both apps land in the
+// same table with the same shape.
+//
+// TRANSPORT — deliberately odd, and NOT ours to change: it is a **GET** whose
+// payload is the JSON, base64-encoded, carried in the `X-TigerTag-Analytics`
+// header. Xano decodes that header. (Not a POST body.) Endpoint is
+// unauthenticated.
+//
+// WHY FROM THE MAIN PROCESS. The renderer is a browser context: a cross-origin
+// GET carrying a custom header would trigger a CORS preflight, which this
+// endpoint does not answer. Node has no CORS — so the renderer hands us the
+// payload over IPC and we do the request. (Same reason `rfid:refresh-api` and
+// `rfid:lookup-product` live here.)
+//
+// Fire-and-forget by construction (`ipcMain.on`, not `handle`): a failed or
+// offline event is dropped, never retried, and can never block or slow a chip
+// action. Server-side counts are therefore a lower bound — same contract as the
+// mobile app.
+//
+// The renderer builds the domain payload (operation, chip fields, UID in DECIMAL
+// — Xano keys on decimal — plus Country / Locale / Timezone). We add only what
+// the main process knows: the platform, the app version, and `App`, which tags
+// the row as coming from Studio rather than mobile.
+//
+// NOTE ON `Location`: the renderer always sends "0.0,0.0". Studio does NOT
+// collect a position. A desktop machine doesn't move, so a precise coordinate
+// would reveal the user's home address and answer no analytical question that
+// `Country` (derived offline from the timezone, no IP lookup) doesn't already
+// answer. Xano can still resolve the request IP on its side if it needs coarse
+// geography.
+const XANO_ANALYTICS_URL = 'https://api.tigertag.io/api:tigertag/analytics/tag';
+const XANO_PRODUCT_URL   = 'https://api.tigertag.io/api:tigertag/product/get';
+
+// Node's platform names are kernel names, not product names: "darwin" is macOS and
+// "win32" is ALL Windows (64-bit included — it's a legacy name, not a bitness). Next
+// to the mobile app's plain "ios" / "android" in the same Xano column, they'd read
+// like noise and "win32" would be actively misleading. Send the product name.
+const XANO_PLATFORM = { darwin: 'macos', win32: 'windows', linux: 'linux' };
+
+// TWO endpoints, ONE header — the Operation decides which, because only one of them
+// can record the catalogue product id:
+//
+//  • `online` (a TigerTag+ whose chip carries a catalogue product) → product/get.
+//    That endpoint takes `product_id` as a QUERY input and forwards it to the same
+//    `Analytics Header Data to DB` function, so the row lands WITH the product. It
+//    also returns the product payload, which we ignore (Studio fetches that on its
+//    own path) — here we only want the analytics side-effect, and Xano records it
+//    in a Post-Process block, i.e. AFTER responding, so it costs the user nothing.
+//    Xano only records it when `product_id > 500`: ids below that are the reserved
+//    range for internal/demo chips, deliberately kept out of the analytics.
+//
+//  • everything else (`read` on a maker chip, `write`, `reset`, `nfc_init`) →
+//    analytics/tag, which has no product_id input at all.
+//
+// BOTH read the SAME base64 `X-Tigertag-Analytics` header: it is literally how
+// product/get detects an app call, and the function aborts on its `DATA != null`
+// precondition without it. (The mobile has a second, header-per-field variant for
+// `online` that sends no such header — so that path writes nothing. Worth fixing
+// on the mobile side.)
+ipcMain.on('analytics:tag', (_evt, payload) => {
+  if (!payload || typeof payload !== 'object' || !payload.Operation) return;
+  const body = {
+    ...payload,
+    Platform: XANO_PLATFORM[process.platform] || process.platform,
+    AppVersion: app.getVersion(),
+    App: 'studio',                     // tells Studio rows apart from mobile ones
+  };
+  const url = body.Operation === 'online'
+    ? `${XANO_PRODUCT_URL}?uid=${encodeURIComponent(body.Uid)}&product_id=${encodeURIComponent(body.IdProduct)}`
+    : XANO_ANALYTICS_URL;
+  const json = JSON.stringify(body);
+  const encoded = Buffer.from(json, 'utf8').toString('base64');
+
+  // Log BOTH forms: the readable payload (what Xano will see once it decodes the
+  // header) and the exact base64 that goes on the wire — so a wrong field can be
+  // spotted without decoding anything by hand.
+  log.info(`[analytics] → ${json}`);
+  log.info(`[analytics] X-TigerTag-Analytics: ${encoded}`);
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 5000);
+  fetch(url, {
+    headers: { 'Content-Type': 'application/json', 'X-TigerTag-Analytics': encoded },
+    signal: controller.signal,
+  })
+    .then((resp) => log.info(`[analytics] ${body.Operation} ${body.Uid} → HTTP ${resp.status}`))
+    .catch((e) => log.warn(`[analytics] ${body.Operation} dropped: ${e.message}`))
+    .finally(() => clearTimeout(timer));
+});
+
 // ── Lookup a product by id_product — validate it exists in the TigerTag catalogue ──
 // Uses a fake UID (same pattern as the SDK playground) since no chip is present.
 // Returns { ok: true, api } | { ok: false, error }

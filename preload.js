@@ -199,6 +199,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   lookupProduct: (productId) =>
     ipcRenderer.invoke('rfid:lookup-product', productId),
 
+  // Report a physical-chip event (read / write / reset / recycle) to the TigerTag
+  // Xano analytics table — same table and shape as the mobile app. `send`, not
+  // `invoke`: fire-and-forget by construction, so it can never block or slow a
+  // chip action, and a dropped event is simply lost (see main.js for why the
+  // request is made from the main process rather than the renderer).
+  sendTagAnalytics: (payload) =>
+    ipcRenderer.send('analytics:tag', payload),
+
   // Called when an app update is available or ready to install
   onUpdateStatus: (callback) =>
     ipcRenderer.on('update-status', (_, info) => callback(info)),
