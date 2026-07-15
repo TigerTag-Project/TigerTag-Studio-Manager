@@ -6262,5 +6262,35 @@
     }
    }
   ]
+ },
+ "2.11.2": {
+  "date": "2026-07-15",
+  "items": [
+   {
+    "icon": "nfc",
+    "title": {
+     "en": "Twin-tag spools, fully tidied",
+     "fr": "Bobines à deux puces, au propre pour de bon",
+     "de": "Zwei-Chip-Spulen, endgültig aufgeräumt",
+     "es": "Bobinas de dos chips, del todo ordenadas",
+     "it": "Bobine a due chip, finalmente in ordine",
+     "zh": "双芯片线盘，彻底理顺",
+     "pt": "Bobinas de dois chips, arrumadas de vez",
+     "pt-pt": "Bobinas de dois chips, arrumadas de vez",
+     "pl": "Szpule z dwoma tagami, w pełni uporządkowane"
+    },
+    "body": {
+     "en": "If a spool's two tags had drifted apart — a different box or picture on each — they now agree on whatever the inventory shows you, box weight included, so the remaining weight reads the same either way.",
+     "fr": "Si les deux puces d'une bobine avaient divergé — un contenant ou une photo différents sur chacune — elles s'accordent désormais sur ce que ton inventaire affiche, poids du contenant compris, pour que le poids restant soit le même des deux côtés.",
+     "de": "Wenn die zwei Chips einer Spule auseinandergelaufen waren — je eine andere Box oder ein anderes Bild — stimmen sie jetzt mit dem überein, was dein Bestand zeigt, Boxgewicht inklusive, damit das Restgewicht beidseitig gleich ist.",
+     "es": "Si los dos chips de una bobina se habían separado — una caja o foto distinta en cada uno — ahora coinciden con lo que muestra tu inventario, peso de la caja incluido, para que el peso restante sea el mismo por ambos lados.",
+     "it": "Se i due chip di una bobina erano andati alla deriva — una scatola o una foto diversa su ciascuno — ora concordano con ciò che mostra il tuo inventario, peso della scatola compreso, così il peso rimanente è uguale da entrambi i lati.",
+     "zh": "如果一个线盘的两枚标签各自跑偏了——一枚一个盒子或图片——现在它们会统一成你库存里显示的那个，连盒子重量也一致，剩余重量两边一样。",
+     "pt": "Se os dois chips de uma bobina tinham divergido — uma caixa ou foto diferente em cada — agora concordam com o que seu inventário mostra, peso da caixa incluído, para que o peso restante seja o mesmo dos dois lados.",
+     "pt-pt": "Se os dois chips de uma bobina tinham divergido — uma caixa ou foto diferente em cada — passam a concordar com o que o teu inventário mostra, peso da caixa incluído, para que o peso restante seja o mesmo dos dois lados.",
+     "pl": "Jeśli dwa tagi szpuli się rozjechały — inne pudełko lub zdjęcie na każdym — teraz zgadzają się z tym, co pokazuje magazyn, łącznie z wagą pudełka, więc pozostała waga jest taka sama z obu stron."
+    }
+   }
+  ]
  }
 }

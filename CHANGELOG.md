@@ -5,6 +5,12 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v2.11.2 — 2026-07-15
+
+### Changed
+
+- **The twin-spool repair now also resolves conflicts, not just fills gaps.** v2.11.1's one-shot repair copied a spool's custom data (image, container, rack, tags, note) onto its twin's *hollow* chip, but left genuine conflicts — the two chips carrying a *different* container or image, each set before the mirror existed — untouched. Some of those differed in container **weight**, so the displayed net weight depended on which chip the inventory happened to show. The repair now treats the twin the inventory actually **displays** (the one `deduplicateTwins` keeps — chosen before the sort, so independent of the user's sort column) as the source of truth: its fields overwrite the other chip's, resolving conflicts to exactly what the user sees (a hollow displayed chip is still filled from its twin). Re-armed for accounts that already ran the earlier pass (`tigertag.twinFix.v2.*`); still timestamp-neutral (never writes the chip `timestamp` or `updatedAt`) — `renderer/inventory.js` (`reconcileTwinFields`).
+
 ## v2.11.1 — 2026-07-15
 
 ### Added

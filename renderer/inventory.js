@@ -26451,12 +26451,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // chip looked reset. Going forward every write mirrors to the twin; this repairs
   // the EXISTING inconsistencies once.
   //
-  // Rule = FILL GAPS ONLY: copy each field from whichever twin HAS it to the one
-  // that doesn't. Never overwrite a present value (no data loss, no "which is
-  // right?" guess). After reconciliation the two docs are identical, so the card
-  // shows the good info whichever chip the UI happens to pick — same result the
-  // interface already shows. A genuine both-present conflict (near-impossible for
-  // one physical spool) is logged, never touched.
+  // Rule = THE DISPLAYED SPOOL WINS. For each pair, the twin the inventory actually
+  // shows (the one deduplicateTwins keeps) is the source of truth: its per-spool
+  // fields overwrite the other chip's, so a real conflict (two different containers
+  // / images set on the two chips before mirroring existed) resolves to what the
+  // user sees — not a guess. If the displayed one is the hollow chip, it's filled
+  // from its twin instead, so the shown card gains the data. After the pass both
+  // docs are identical.
   //
   // For each field: `has(rawDoc)` = is it set, `copy(rawDoc)` = the patch to fill
   // the empty twin, `eq` = are two present values equal (else it's a conflict).
@@ -26485,7 +26486,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   ];
 
   // uid → already reconciled once (persisted). Cleared by the debug re-run button.
-  const _twinFixKey = uid => `tigertag.twinFix.${uid}`;
+  // Versioned: v2 = "displayed spool wins" (resolves conflicts), so accounts that
+  // already ran the earlier fill-gaps-only pass get one more pass to settle them.
+  const _twinFixKey = uid => `tigertag.twinFix.v2.${uid}`;
 
   // Show the last twin-repair outcome in the Debug panel (persisted so the
   // automatic first-launch pass — which runs before the panel is opened — is
@@ -26505,6 +26508,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (!uid || state.friendView || !raw) return { pairs: 0, filled: 0, skipped: true };
     if (!force && localStorage.getItem(_twinFixKey(uid)) === "1") return { pairs: 0, filled: 0, skipped: true };
     const rows = (state.rows || []).filter(r => !r.deleted);
+    // The DISPLAYED spool is the source of truth. deduplicateTwins keeps exactly the
+    // row the inventory shows for each pair (first in the current order), so its
+    // value WINS on a conflict — and if it happens to be the hollow one, we fill it
+    // from its twin so the displayed spool shows the data. This matches the founder's
+    // rule ("whatever the inventory shows is correct") and resolves conflicts, not
+    // just gaps.
+    const keptIds = new Set(deduplicateTwins(rows).map(x => x.spoolId));
     const seen = new Set();
     const inv = fbDb(uid).collection("users").doc(uid).collection("inventory");
     let batch = fbDb(uid).batch(), pending = 0, pairs = 0, filled = 0;
@@ -26513,23 +26523,26 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         const twinId = twinSpoolIdOf(r);
         if (!twinId || seen.has(r.spoolId) || seen.has(twinId)) continue;
         seen.add(r.spoolId); seen.add(twinId);
-        const a = raw[r.spoolId], b = raw[twinId];
-        if (!a || !b) continue;
+        const masterId = keptIds.has(r.spoolId) ? r.spoolId : twinId;   // the displayed one
+        const otherId  = masterId === r.spoolId ? twinId : r.spoolId;
+        const m = raw[masterId], o = raw[otherId];
+        if (!m || !o) continue;
         pairs++;
-        const patchA = {}, patchB = {};
+        const patchMaster = {}, patchOther = {};
         for (const f of _TWIN_FIELDS) {
-          const ha = f.has(a), hb = f.has(b);
-          if (ha && !hb)      Object.assign(patchB, f.copy(a));
-          else if (hb && !ha) Object.assign(patchA, f.copy(b));
-          else if (ha && hb && !f.eq(a, b))
-            console.warn(`[twinFix] conflict on ${f.name} — ${r.spoolId} ↔ ${twinId} (left untouched)`);
+          const hm = f.has(m), ho = f.has(o);
+          if (hm) {                                   // master has it → authoritative
+            if (!ho || !f.eq(m, o)) Object.assign(patchOther, f.copy(m));   // align the other
+          } else if (ho) {                            // master hollow → fill it from the twin
+            Object.assign(patchMaster, f.copy(o));
+          }
         }
-        // Timestamp-neutral repair: write ONLY the copied per-spool fields — never
-        // the chip `timestamp` (source of truth for erase-and-rewrite detection),
-        // and not even `updatedAt`, so a silent backfill doesn't make repaired
-        // spools read "updated just now" or jump in date-sorted views.
-        if (Object.keys(patchA).length) { batch.update(inv.doc(r.spoolId), patchA); pending++; filled++; }
-        if (Object.keys(patchB).length) { batch.update(inv.doc(twinId),    patchB); pending++; filled++; }
+        // Timestamp-neutral repair: write ONLY the per-spool fields — never the chip
+        // `timestamp` (source of truth for erase-and-rewrite detection), and not even
+        // `updatedAt`, so a silent backfill doesn't make repaired spools read
+        // "updated just now" or jump in date-sorted views.
+        if (Object.keys(patchMaster).length) { batch.update(inv.doc(masterId), patchMaster); pending++; filled++; }
+        if (Object.keys(patchOther).length)  { batch.update(inv.doc(otherId),  patchOther);  pending++; filled++; }
         if (pending >= 400) { await batch.commit(); batch = fbDb(uid).batch(); pending = 0; }
       }
       if (pending) await batch.commit();
