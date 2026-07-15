@@ -738,7 +738,7 @@
   "rackStatsLocked": "已锁定",
   "rackStatsDepleted": "空了",
   "sectionStorageLoc": "存储位置",
-  "storageNotPlaced": "未放置在货架中",
+  "storageNotPlaced": "未归位",
   "storageAutoAssign": "自动分配",
   "storageAutoAssignTip": "放入第一个可用插槽",
   "storageAutoAssignFull": "所有货架都已满。",

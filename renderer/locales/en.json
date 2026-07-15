@@ -738,7 +738,7 @@
   "rackStatsLocked": "locked",
   "rackStatsDepleted": "empty",
   "sectionStorageLoc": "Storage location",
-  "storageNotPlaced": "Not placed in a rack",
+  "storageNotPlaced": "Unracked",
   "storageAutoAssign": "Auto-assign",
   "storageAutoAssignTip": "Place in the first available slot",
   "storageAutoAssignFull": "All racks are full.",

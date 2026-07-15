@@ -738,7 +738,7 @@
   "rackStatsLocked": "bloqueados",
   "rackStatsDepleted": "vazias",
   "sectionStorageLoc": "Localização",
-  "storageNotPlaced": "Não colocada numa estante",
+  "storageNotPlaced": "Não arrumada",
   "storageAutoAssign": "Atribuição automática",
   "storageAutoAssignTip": "Colocar no primeiro espaço disponível",
   "storageAutoAssignFull": "Todas as estantes estão cheias.",

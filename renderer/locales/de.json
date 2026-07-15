@@ -738,7 +738,7 @@
   "rackStatsLocked": "gesperrt",
   "rackStatsDepleted": "leer",
   "sectionStorageLoc": "Lagerort",
-  "storageNotPlaced": "Nicht in einem Regal",
+  "storageNotPlaced": "Nicht abgelegt",
   "storageAutoAssign": "Auto-zuweisen",
   "storageAutoAssignTip": "In den ersten freien Slot legen",
   "storageAutoAssignFull": "Alle Regale sind voll.",

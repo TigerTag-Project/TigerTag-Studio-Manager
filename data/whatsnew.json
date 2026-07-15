@@ -6292,5 +6292,60 @@
     }
    }
   ]
+ },
+ "2.11.3": {
+  "date": "2026-07-15",
+  "items": [
+   {
+    "icon": "link",
+    "title": {
+     "en": "Your twin spools stopped arguing",
+     "fr": "Tes bobines jumelles se sont réconciliées",
+     "de": "Deine Zwillingsspulen sind sich endlich einig",
+     "es": "Tus bobinas gemelas dejaron de discutir",
+     "it": "Le tue bobine gemelle hanno smesso di litigare",
+     "zh": "你的双标签线盘终于一致了",
+     "pt": "As tuas bobinas gêmeas pararam de discutir",
+     "pt-pt": "As tuas bobinas gémeas pararam de discutir",
+     "pl": "Twoje bliźniacze szpule przestały się kłócić"
+    },
+    "body": {
+     "en": "The two NFC tags on one spool now agree on how much filament is left, so your stock value reads the same everywhere — and matches what your friends see. Bonus: two different spools mixed up as one are back to being two.",
+     "fr": "Les deux puces NFC d’une même bobine sont enfin d’accord sur le poids restant : ta valeur de stock est la même partout — et colle à ce que voient tes amis. En bonus, deux bobines différentes collées par erreur redeviennent deux.",
+     "de": "Die zwei NFC-Tags einer Spule sind sich jetzt einig, wie viel Filament übrig ist — dein Lagerwert stimmt überall und passt zu dem, was deine Freunde sehen. Bonus: zwei versehentlich verschmolzene Spulen sind wieder zwei.",
+     "es": "Las dos etiquetas NFC de una bobina ya coinciden en cuánto filamento queda, así que el valor de tu stock es el mismo en todas partes — y cuadra con lo que ven tus amigos. Extra: dos bobinas distintas fundidas en una vuelven a ser dos.",
+     "it": "I due tag NFC di una bobina ora concordano su quanto filamento resta, così il valore del tuo stock è uguale ovunque — e combacia con ciò che vedono i tuoi amici. Bonus: due bobine diverse unite per sbaglio tornano a essere due.",
+     "zh": "同一线盘的两个 NFC 标签现在对剩余用量达成一致，你的库存价值在哪儿看都一样——也和好友看到的对得上。附赠：被误当成一卷的两卷不同线盘又变回两卷。",
+     "pt": "As duas tags NFC de uma bobina agora concordam sobre quanto filamento resta, então o valor do teu stock é o mesmo em todo o lado — e bate com o que os teus amigos veem. Bônus: duas bobinas diferentes coladas por engano voltaram a ser duas.",
+     "pt-pt": "As duas tags NFC de uma bobina agora concordam sobre quanto filamento resta, por isso o valor do teu stock é o mesmo em todo o lado — e coincide com o que os teus amigos veem. Bónus: duas bobinas diferentes coladas por engano voltaram a ser duas.",
+     "pl": "Dwa tagi NFC jednej szpuli zgadzają się teraz co do pozostałego filamentu, więc wartość magazynu jest wszędzie taka sama — i zgadza się z tym, co widzą znajomi. Bonus: dwie różne szpule sklejone przez pomyłkę znów są dwiema."
+    }
+   },
+   {
+    "icon": "sparkle",
+    "title": {
+     "en": "Auto-store, now with sparkle",
+     "fr": "Le rangement auto, version paillettes",
+     "de": "Auto-Einlagern, jetzt mit Glitzer",
+     "es": "Guardado automático, ahora con brillo",
+     "it": "Sistemazione automatica, ora con scintillio",
+     "zh": "自动归位，闪亮登场",
+     "pt": "Arrumação automática, agora com brilho",
+     "pt-pt": "Arrumação automática, agora com brilho",
+     "pl": "Auto-odkładanie, teraz z błyskiem"
+    },
+    "body": {
+     "en": "The auto-store button is a bright sparkle that lights up the whole slot card when you hover — so you see exactly where your spool will land. Click it and the spot updates on the spot, no more jumping back to the top.",
+     "fr": "Le bouton de rangement auto est une étincelle qui illumine toute la carte au survol — tu vois pile où la bobine va atterrir. Un clic et l’emplacement se met à jour sur place, fini le saut vers le haut.",
+     "de": "Der Auto-Einlagern-Knopf ist ein helles Funkeln, das beim Überfahren die ganze Platz-Karte aufleuchten lässt — du siehst genau, wo deine Spule landet. Ein Klick und der Platz aktualisiert sich direkt, kein Sprung mehr nach oben.",
+     "es": "El botón de guardado automático es un destello que ilumina toda la tarjeta al pasar el ratón — ves justo dónde caerá tu bobina. Un clic y el sitio se actualiza al momento, sin saltar arriba del todo.",
+     "it": "Il pulsante di sistemazione automatica è uno scintillio che illumina tutta la scheda al passaggio del mouse — vedi esattamente dove finirà la bobina. Un clic e il posto si aggiorna sul posto, niente più salto in cima.",
+     "zh": "自动归位按钮是个闪亮的星光，悬停时整张位置卡都会点亮——你能看清线盘会落在哪里。一点就地更新，不再蹦回顶部。",
+     "pt": "O botão de arrumação automática é um brilho que ilumina o cartão inteiro ao passar o rato — vês exatamente onde a bobina vai parar. Um clique e o lugar atualiza-se ali mesmo, sem saltar para o topo.",
+     "pt-pt": "O botão de arrumação automática é um brilho que ilumina o cartão inteiro ao passar o rato — vês exatamente onde a bobina vai parar. Um clique e o lugar atualiza-se ali mesmo, sem saltar para o topo.",
+     "pl": "Przycisk auto-odkładania to jasny błysk, który po najechaniu podświetla całą kartę miejsca — widzisz dokładnie, gdzie wyląduje szpula. Klik i miejsce aktualizuje się od razu, bez skakania na górę."
+    }
+   }
+  ]
  }
 }

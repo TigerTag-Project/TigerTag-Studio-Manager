@@ -738,7 +738,7 @@
   "rackStatsLocked": "bloccati",
   "rackStatsDepleted": "vuote",
   "sectionStorageLoc": "Posizione",
-  "storageNotPlaced": "Non posizionata in uno scaffale",
+  "storageNotPlaced": "Non riposta",
   "storageAutoAssign": "Assegna auto",
   "storageAutoAssignTip": "Inserisci nel primo slot disponibile",
   "storageAutoAssignFull": "Tutti gli scaffali sono pieni.",

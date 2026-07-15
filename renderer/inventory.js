@@ -5853,6 +5853,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         if (usedSpoolIds.has(a.spoolId) || usedSpoolIds.has(b.spoolId)) continue;
         const dt = Math.abs(b.chipTimestamp - a.chipTimestamp);
         if (dt > 2) continue;
+        // Same-product guard: two chips programmed within 2s but carrying DIFFERENT
+        // products are NOT one physical spool — never pair them (this is the factory
+        // mis-link the reconciler otherwise has to keep undoing). Same id_tigertag +
+        // close timestamps is not enough; the product identity must match too.
+        if (_spoolGroupKey(a) !== _spoolGroupKey(b)) continue;
         // Memoization key — sorted UID pair, never re-attempt this session
         const memoKey = [a.uid, b.uid].sort().join("|");
         if (_twinAutoLinkAttempted.has(memoKey)) continue;
@@ -11882,7 +11887,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       allTags:   (exclude) => _allTags(exclude),
       readOnly:  state.friendView || r.deleted,
       ids: TAG_IDS_SPOOL,
-      afterLocalRender: () => { if (state.selected === r.spoolId) _lastDetailStructuralSig = _detailStructuralSig(r); },
+      afterLocalRender: () => { if (state.selected === r.spoolId) _snapDetailSigs(r); },
     };
   }
   // Union of every tag across all printers (for the printer editor autocomplete).
@@ -12320,6 +12325,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   //     card no longer flashes the panel.
   let _lastDetailSig = "";
   let _lastDetailStructuralSig = "";
+  let _lastDetailStructCore = "";
+  let _lastDetailLocSig = "";
   // _patchDetailWeight uses `slider.matches(":active")` to detect whether the
   // user is mid-drag (instead of a manual flag). Reason: pointerup does NOT
   // fire reliably on `<input type="range">` on Chromium/Electron — clicking
@@ -12330,7 +12337,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // Fields that, when changed, require a full panel rebuild. Weight, lastUpdate
   // and similar high-frequency fields are deliberately excluded so a Firestore
   // weight edit takes the surgical patch path.
-  function _detailStructuralSig(r) {
+  function _detailStructuralSigCore(r) {
     return [
       r.spoolId,
       r.deleted ? 1 : 0,
@@ -12359,9 +12366,6 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       (r.colorList || []).join(","),
       r.colorType || "",
       r.colorName || "",
-      r.rackId || "",
-      r.rackLevel ?? "",
-      r.rackPos ?? "",
       r.message || "",
       r.sku || "",
       r.barcode || "",
@@ -12372,6 +12376,25 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       r.productType || "",
       (r.tags || []).join(","),
     ].join("|");
+  }
+  // Storage-slot signature (rack id / level / position), split out from the core so
+  // an auto-store or rack move can be patched SURGICALLY (swap just the location
+  // section) instead of forcing a full panel rebuild — the rebuild reset the scroll
+  // (the "jump to top") and reloaded the image/video.
+  function _detailLocationSig(r) {
+    return [r.rackId || "", r.rackLevel ?? "", r.rackPos ?? ""].join("|");
+  }
+  function _detailStructuralSig(r) {
+    return _detailStructuralSigCore(r) + "|#loc#|" + _detailLocationSig(r);
+  }
+  // Snap all detail signatures to the current row (after a full open, a surgical
+  // patch, or a local in-panel edit) so the next snapshot echo is a no-op unless the
+  // data genuinely moved again.
+  function _snapDetailSigs(r) {
+    _lastDetailSig = _rowSignature(r);
+    _lastDetailStructuralSig = _detailStructuralSig(r);
+    _lastDetailStructCore = _detailStructuralSigCore(r);
+    _lastDetailLocSig = _detailLocationSig(r);
   }
 
   // Surgical patch of the weight UI in the open panel. Touches only:
@@ -12821,8 +12844,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     document.querySelectorAll("[data-id]").forEach(el => el.classList.toggle("selected", el.dataset.id === spoolId));
     const r = state.rows.find(x => x.spoolId === spoolId);
     if (!r) return;
-    _lastDetailSig = _rowSignature(r);
-    _lastDetailStructuralSig = _detailStructuralSig(r);
+    _snapDetailSigs(r);
     _lastPanelCardSig = _panelCardSig(r);
     const _prevScroll = opts.preserveScroll ? ($("panelBody").scrollTop || 0) : 0;
     _hideToolInfoTip();                 // drop any open ⓘ bubble before the rebuild
@@ -12839,49 +12861,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // (writes the `message` chip field). Gated to editable (non-Plus /
     // Cloud) spools by the render.
     $("piNameEdit")?.addEventListener("click", () => startMessageInlineEdit(r));
-    // Locate-in-storage: clicking the placed-state storage-loc row jumps
-    // to the Storage view with the search prefilled to the spool's RFID
-    // UID, so all other slots are dimmed and the user sees this one in
-    // its rack at a glance.
-    $("btnLocateSpool")?.addEventListener("click", () => {
-      const uid = $("btnLocateSpool")?.dataset.spoolUid || "";
-      closeDetail();
-      // Transient highlight only — no text in the search bar. Switch to the rack
-      // view (renderRackView → applyRackSearchDim lights up just this slot).
-      _startLocateHighlight(uid);
-      setViewMode("rack");
-    });
-    // Auto-assign: place the spool in the first available unlocked slot.
-    // Triggered from the storage-loc empty-state row when no rack assignment.
-    $("btnStorageAutoAssign")?.addEventListener("click", async () => {
-      const btn = $("btnStorageAutoAssign");
-      if (!btn || btn.disabled) return;
-      btn.disabled = true;
-      try {
-        const result = await autoAssignSingleSpool(r.spoolId);
-        if (!result) {
-          // Out of slots — surface a small inline error in the row
-          const row = btn.closest(".storage-loc-row");
-          if (row) {
-            const lbl = row.querySelector(".storage-loc-rack");
-            if (lbl) {
-              const orig = lbl.textContent;
-              lbl.textContent = t("storageAutoAssignFull") || "All racks are full.";
-              lbl.classList.add("storage-loc-rack--err");
-              setTimeout(() => {
-                lbl.textContent = orig;
-                lbl.classList.remove("storage-loc-rack--err");
-              }, 2500);
-            }
-          }
-        }
-        // Snapshot listener will re-render the panel with the new location.
-      } catch (e) {
-        reportError("spool.autoAssign", e);
-      } finally {
-        setTimeout(() => { if (btn) btn.disabled = false; }, 800);
-      }
-    });
+    // Storage-location buttons (locate + auto-store) — wired via the shared helper so
+    // the surgical location patch can re-wire the swapped section identically.
+    _wireStorageLoc(r);
     // Upgrade to TigerTag+ — banner opens inline form
     $("upgradePlusBanner")?.addEventListener("click", () => {
       const form = $("upgradePlusForm");
@@ -13282,6 +13264,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     _syncPanels(); // reset offset + hide the spool card's close tab
     _lastDetailSig = "";
     _lastDetailStructuralSig = "";
+    _lastDetailStructCore = "";
+    _lastDetailLocSig = "";
     // Deselect the associated row/card so its orange highlight clears when the
     // side card closes (mirrors the selection set in openDetail).
     state.selected = null;
@@ -13304,6 +13288,58 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   //      `openDetail` rebuild — rare.
   // Replaces the unconditional `openDetail(state.selected)` that fired on
   // every snapshot and rebuilt the whole panel.
+  // Wire the storage-location section buttons (locate + auto-store). Split out of
+  // openDetail so the surgical location patch can re-wire after swapping just that
+  // section — same pattern as _wireToolbox.
+  function _wireStorageLoc(r) {
+    $("btnLocateSpool")?.addEventListener("click", () => {
+      const uid = $("btnLocateSpool")?.dataset.spoolUid || "";
+      closeDetail();
+      _startLocateHighlight(uid);
+      setViewMode("rack");
+    });
+    $("btnStorageAutoAssign")?.addEventListener("click", async () => {
+      const btn = $("btnStorageAutoAssign");
+      if (!btn || btn.disabled) return;
+      btn.disabled = true;
+      try {
+        const result = await autoAssignSingleSpool(r.spoolId);
+        if (!result) {
+          // Out of slots — surface a small inline error in the row.
+          const lbl = btn.closest(".storage-loc-row")?.querySelector(".storage-loc-rack");
+          if (lbl) {
+            const orig = lbl.textContent;
+            lbl.textContent = t("storageAutoAssignFull") || "All racks are full.";
+            lbl.classList.add("storage-loc-rack--err");
+            setTimeout(() => { lbl.textContent = orig; lbl.classList.remove("storage-loc-rack--err"); }, 2500);
+          }
+        }
+        // The snapshot echo re-renders JUST this section (refreshOpenDetail path 2).
+      } catch (e) {
+        reportError("spool.autoAssign", e);
+      } finally {
+        setTimeout(() => { if (btn) btn.disabled = false; }, 800);
+      }
+    });
+  }
+
+  // Surgical swap of ONLY the storage-location section after an auto-store / rack
+  // move. Mirrors _maybeRefreshPanelForCard: build the panel HTML once (string), lift
+  // out the fresh .panel-storage-loc, replace the live node, re-wire. Keeps the panel
+  // scroll + media intact (no "jump to top"). Falls back to a rebuild if the section
+  // appears/disappears (rare — e.g. the first rack gets created).
+  function _patchDetailLocation(r) {
+    const body = $("panelBody");
+    if (!body) return;
+    const tmp = document.createElement("div");
+    tmp.innerHTML = buildPanelHTML(r);
+    const cur = body.querySelector(".panel-storage-loc");
+    const next = tmp.querySelector(".panel-storage-loc");
+    if (cur && next) { cur.replaceWith(next); _wireStorageLoc(r); }
+    else if (cur && !next) cur.remove();
+    else if (!cur && next) _rebuildDetailKeepVideo();
+  }
+
   function refreshOpenDetail() {
     if (!state.selected) return;
     if (!$("detailPanel")?.classList.contains("open")) return;
@@ -13314,16 +13350,23 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       return;
     }
     const newSig = _rowSignature(r);
-    if (newSig === _lastDetailSig) return; // path 1: visible content unchanged
-
     const newStructSig = _detailStructuralSig(r);
-    if (newStructSig === _lastDetailStructuralSig) {
-      // path 2: weight-only diff → patch in place, no flash
-      _patchDetailWeight(r);
-      _lastDetailSig = newSig;
+    // path 1: nothing the panel shows changed. _rowSignature covers the row-visible
+    // content but NOT panel-only fields (the rack slot, note, sku…), so we gate on
+    // BOTH signatures — otherwise an auto-store, which writes only `rack` and no
+    // timestamp, would slip through and the "Emplacement" section never repaints.
+    if (newSig === _lastDetailSig && newStructSig === _lastDetailStructuralSig) return;
+
+    // path 2: the CORE structure (everything except the rack slot) is unchanged →
+    // only the location and/or the weight moved. Patch those in place — never rebuild,
+    // so the panel keeps its scroll position (no "jump to top") and its media.
+    if (_detailStructuralSigCore(r) === _lastDetailStructCore) {
+      if (_detailLocationSig(r) !== _lastDetailLocSig) _patchDetailLocation(r);
+      if (newSig !== _lastDetailSig) _patchDetailWeight(r);
+      _snapDetailSigs(r);
       return;
     }
-    // path 3: structural change → full rebuild (keep the video playing)
+    // path 3: deeper structural change (container, image, identity…) → full rebuild
     _rebuildDetailKeepVideo();
   }
 
@@ -14951,10 +14994,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           <div class="panel-label">${t("sectionStorageLoc") || "Storage location"}</div>
           <div class="storage-loc-row storage-loc-row--empty">
             <span class="icon icon-package icon-14"></span>
-            <span class="storage-loc-rack storage-loc-rack--empty">${esc(t("storageNotPlaced") || "Not placed in a rack")}</span>
-            <button class="ghost sm storage-loc-autobtn" id="btnStorageAutoAssign" data-spool-id="${esc(r.spoolId)}" title="${esc(t("storageAutoAssignTip") || "Place in the first available slot")}">
-              <span class="icon icon-sparkle icon-13"></span>
-              <span data-i18n="storageAutoAssign">${esc(t("storageAutoAssign") || "Auto-assign")}</span>
+            <span class="storage-loc-rack storage-loc-rack--empty">${esc(t("storageNotPlaced") || "Unracked")}</span>
+            <button class="ghost sm storage-loc-autobtn" id="btnStorageAutoAssign" data-spool-id="${esc(r.spoolId)}" aria-label="${esc(t("storageAutoAssign") || "Auto-assign")}">
+              <span class="icon icon-sparkle icon-16"></span>
             </button>
           </div>
         </div>`;
@@ -15776,7 +15818,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (out) out.textContent = "Repairing…";
     try {
       const res = await reconcileTwinFields(uid, state.inventory, { force: true });
-      if (out) out.textContent = `Done — ${res.pairs} twin pair(s) checked, ${res.filled} doc(s) filled.`;
+      if (out) out.textContent = `Done — ${res.pairs} twin pair(s) checked, ${res.filled} doc(s) filled`
+        + (res.unlinked ? `, ${res.unlinked} mis-linked pair(s) unlinked` : "") + ".";
     } catch (e) {
       if (out) out.textContent = "Failed: " + (e?.message || String(e));
     } finally {
@@ -26452,15 +26495,24 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // the EXISTING inconsistencies once.
   //
   // Rule = THE DISPLAYED SPOOL WINS. For each pair, the twin the inventory actually
-  // shows (the one deduplicateTwins keeps) is the source of truth: its per-spool
-  // fields overwrite the other chip's, so a real conflict (two different containers
-  // / images set on the two chips before mirroring existed) resolves to what the
-  // user sees — not a guess. If the displayed one is the hollow chip, it's filled
-  // from its twin instead, so the shown card gains the data. After the pass both
-  // docs are identical.
+  // the MOST-RECENTLY-UPDATED chip (max updatedAt) is the source of truth: its
+  // per-spool fields overwrite the other chip's, so a real conflict (two different
+  // containers / images / weights set on the two chips) resolves to the freshest
+  // write — the user's latest intent. Where the master is hollow, the field is
+  // filled from its twin instead, so no data is dropped. After the pass both docs
+  // are identical.
   //
   // For each field: `has(rawDoc)` = is it set, `copy(rawDoc)` = the patch to fill
   // the empty twin, `eq` = are two present values equal (else it's a conflict).
+  // Canonical rack-slot key for a raw doc, tolerant of both storage shapes (the
+  // modern `rack` object and the legacy flat rack_id/level/position). Prefers the
+  // object so a doc that has both reads consistently. "" = not stored.
+  function _twinRackSlot(d) {
+    if (d && d.rack && d.rack.id != null) return `${d.rack.id}|${d.rack.level}|${d.rack.position}`;
+    if (d && d.rack_id != null) return `${d.rack_id}|${d.level}|${d.position}`;
+    return "";
+  }
+
   const _TWIN_FIELDS = [
     { name: "image",
       has:  d => d.url_img_user === true && !!d.url_img,
@@ -26469,12 +26521,29 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     { name: "container",
       has:  d => !!d.container_id,
       copy: d => ({ container_id: d.container_id, container_weight: d.container_weight ?? 0 }),
-      eq:   (x, y) => x.container_id === y.container_id },
+      eq:   (x, y) => x.container_id === y.container_id
+                   && (+x.container_weight || 0) === (+y.container_weight || 0) },
+    { name: "weight",
+      // Remaining net weight belongs to the physical SPOOL, not the chip: both
+      // twins must read the same grams (else the stock value swings depending on
+      // which chip the card shows). Always "present" (a number, possibly 0), so
+      // the master (displayed spool) wins on a mismatch — consistent with the rest
+      // of this pass. weight_available is a plain field; the chip `timestamp`
+      // (erase-detection source of truth) is never touched.
+      has:  d => Number.isFinite(+d.weight_available),
+      copy: d => ({ weight_available: +d.weight_available || 0 }),
+      eq:   (x, y) => (+x.weight_available || 0) === (+y.weight_available || 0) },
     { name: "rack",
-      has:  d => !!(d.rack && d.rack.id) || d.rack_id != null,
-      copy: d => ({ rack: (d.rack && d.rack.id) ? d.rack : { id: d.rack_id, level: d.level, position: d.position } }),
-      eq:   (x, y) => JSON.stringify(x.rack || null) === JSON.stringify(y.rack || null)
-                   && x.rack_id === y.rack_id },
+      // Compare/copy the EFFECTIVE slot, not the raw shape. A doc may carry the slot
+      // as a `rack` object OR as legacy flat rack_id/level/position; copy always
+      // writes the object form, so eq must read the object first (else it compares a
+      // just-written object against a stale flat rack_id that copy never clears and
+      // NEVER converges — the ping-pong that made the repair re-write every pass).
+      has:  d => !!_twinRackSlot(d),
+      copy: d => ({ rack: (d.rack && d.rack.id != null)
+                      ? d.rack
+                      : { id: d.rack_id, level: d.level, position: d.position } }),
+      eq:   (x, y) => _twinRackSlot(x) === _twinRackSlot(y) },
     { name: "tags",
       has:  d => Array.isArray(d.tags) && d.tags.length > 0,
       copy: d => ({ tags: d.tags }),
@@ -26486,9 +26555,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   ];
 
   // uid → already reconciled once (persisted). Cleared by the debug re-run button.
-  // Versioned: v2 = "displayed spool wins" (resolves conflicts), so accounts that
-  // already ran the earlier fill-gaps-only pass get one more pass to settle them.
-  const _twinFixKey = uid => `tigertag.twinFix.v2.${uid}`;
+  // Versioned so a logic change forces one more pass on accounts that already ran:
+  //   v2 = "displayed spool wins" (resolves conflicts, not just gaps)
+  //   v3 = master = most-recently-updated chip (evolutive); also mirrors remaining
+  //        weight + container weight between twins
+  //   v4 = mis-linked pairs (different product identity) are now UNLINKED, not skipped
+  //   v5 = idempotent rack compare (canonical slot) + auto-linker no longer re-links
+  //        different products, so the unlink sticks instead of ping-ponging
+  const _twinFixKey = uid => `tigertag.twinFix.v5.${uid}`;
 
   // Show the last twin-repair outcome in the Debug panel (persisted so the
   // automatic first-launch pass — which runs before the panel is opened — is
@@ -26500,33 +26574,77 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     try { r = JSON.parse(localStorage.getItem(_twinFixKey(uid) + ".result") || "null"); } catch (_) {}
     if (r) {
       const when = r.at ? new Date(r.at).toLocaleString() : "";
-      out.textContent = `Last repair: ${r.pairs} twin pair(s) checked, ${r.filled} doc(s) filled${when ? " — " + when : ""}.`;
+      out.textContent = `Last repair: ${r.pairs} twin pair(s) checked, ${r.filled} doc(s) filled`
+        + (r.unlinked ? `, ${r.unlinked} mis-linked pair(s) unlinked` : "")
+        + `${when ? " — " + when : ""}.`;
     }
+  }
+
+  // updatedAt → epoch ms. Handles every shape it can arrive in: a live Firestore
+  // Timestamp (has .toMillis()), a serialized Timestamp ({seconds,nanoseconds} or
+  // its private {_seconds,_nanoseconds} form from a JSON export), or a raw number.
+  // Drives the reconciliation master: the freshest chip of a twin pair wins.
+  function _twinUpdatedMs(d) {
+    const u = d && d.updatedAt;
+    if (u == null) return 0;
+    if (typeof u === "number") return u;
+    if (typeof u.toMillis === "function") return u.toMillis();
+    const s = (typeof u.seconds === "number") ? u.seconds
+            : (typeof u._seconds === "number") ? u._seconds : null;
+    if (s != null) {
+      const ns = (typeof u.nanoseconds === "number") ? u.nanoseconds
+               : (typeof u._nanoseconds === "number") ? u._nanoseconds : 0;
+      return s * 1000 + ns / 1e6;
+    }
+    return 0;
   }
 
   async function reconcileTwinFields(uid, raw, { force = false } = {}) {
     if (!uid || state.friendView || !raw) return { pairs: 0, filled: 0, skipped: true };
     if (!force && localStorage.getItem(_twinFixKey(uid)) === "1") return { pairs: 0, filled: 0, skipped: true };
     const rows = (state.rows || []).filter(r => !r.deleted);
-    // The DISPLAYED spool is the source of truth. deduplicateTwins keeps exactly the
-    // row the inventory shows for each pair (first in the current order), so its
-    // value WINS on a conflict — and if it happens to be the hollow one, we fill it
-    // from its twin so the displayed spool shows the data. This matches the founder's
-    // rule ("whatever the inventory shows is correct") and resolves conflicts, not
-    // just gaps.
+    // Source of truth = the MOST-RECENTLY-UPDATED chip (max updatedAt). The two docs
+    // of a twin are independent; whichever was written last holds the user's latest
+    // intent (fresh weight after a weigh-in, a just-set container…), so its fields win
+    // on a conflict — and where the master is hollow, the field is filled from its
+    // twin instead (gaps are never dropped). The master is therefore EVOLUTIVE: it
+    // moves to whichever chip you touched last. On a tie (equal updatedAt — the usual
+    // case once a write has mirrored to both) the values already match, so we fall
+    // back to the displayed spool (deduplicateTwins-kept) purely for determinism.
     const keptIds = new Set(deduplicateTwins(rows).map(x => x.spoolId));
     const seen = new Set();
     const inv = fbDb(uid).collection("users").doc(uid).collection("inventory");
-    let batch = fbDb(uid).batch(), pending = 0, pairs = 0, filled = 0;
+    const rowById = new Map(rows.map(x => [x.spoolId, x]));
+    const FVdel = firebase.firestore.FieldValue.delete();
+    let batch = fbDb(uid).batch(), pending = 0, pairs = 0, filled = 0, unlinked = 0;
     try {
       for (const r of rows) {
         const twinId = twinSpoolIdOf(r);
         if (!twinId || seen.has(r.spoolId) || seen.has(twinId)) continue;
         seen.add(r.spoolId); seen.add(twinId);
-        const masterId = keptIds.has(r.spoolId) ? r.spoolId : twinId;   // the displayed one
+        const da = raw[r.spoolId], db = raw[twinId];
+        if (!da || !db) continue;
+        // Same-product guard: two chips are only true twins when they share the SAME
+        // product identity (same _spoolGroupKey — id_product for Tag+, brand/material/
+        // colour/aspect for maker). A twin link across two DIFFERENT products is bad
+        // data: rather than sync (which would overwrite one spool's fields with an
+        // unrelated one's), BREAK the link on both docs so they become independent
+        // spools again. Timestamp-neutral, like the rest of this pass.
+        const twinRow = rowById.get(twinId);
+        if (!twinRow || _spoolGroupKey(r) !== _spoolGroupKey(twinRow)) {
+          batch.update(inv.doc(r.spoolId), { twin_tag_uid: FVdel });
+          batch.update(inv.doc(twinId),    { twin_tag_uid: FVdel });
+          pending += 2; unlinked++;
+          if (pending >= 400) { await batch.commit(); batch = fbDb(uid).batch(); pending = 0; }
+          continue;
+        }
+        const ua = _twinUpdatedMs(da), ub = _twinUpdatedMs(db);
+        // Freshest chip wins; tie → the displayed spool (deterministic).
+        const masterId = (ua !== ub)
+          ? (ua > ub ? r.spoolId : twinId)
+          : (keptIds.has(r.spoolId) ? r.spoolId : twinId);
         const otherId  = masterId === r.spoolId ? twinId : r.spoolId;
         const m = raw[masterId], o = raw[otherId];
-        if (!m || !o) continue;
         pairs++;
         const patchMaster = {}, patchOther = {};
         for (const f of _TWIN_FIELDS) {
@@ -26550,13 +26668,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       // Persist the outcome so the Debug panel can show it later — the automatic
       // first-launch pass runs before the panel is ever opened, so without this
       // the count would only exist in the DevTools console.
-      try { localStorage.setItem(_twinFixKey(uid) + ".result", JSON.stringify({ pairs, filled, at: Date.now() })); } catch (_) {}
+      try { localStorage.setItem(_twinFixKey(uid) + ".result", JSON.stringify({ pairs, filled, unlinked, at: Date.now() })); } catch (_) {}
       _showTwinFixResult(uid);
-      console.log(`[twinFix] ${pairs} twin pair(s) checked, ${filled} doc(s) filled`);
+      console.log(`[twinFix] ${pairs} twin pair(s) checked, ${filled} doc(s) filled, ${unlinked} mis-linked pair(s) unlinked`);
     } catch (e) {
       console.warn("[twinFix] failed:", e?.code, e?.message);
     }
-    return { pairs, filled };
+    return { pairs, filled, unlinked };
   }
 
   // Census every physical chip already in the inventory. Runs once per account

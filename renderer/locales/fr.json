@@ -738,7 +738,7 @@
   "rackStatsLocked": "verrouillés",
   "rackStatsDepleted": "vides",
   "sectionStorageLoc": "Emplacement",
-  "storageNotPlaced": "Pas rangée dans un rack",
+  "storageNotPlaced": "Non rangée",
   "storageAutoAssign": "Ranger auto",
   "storageAutoAssignTip": "Place dans le premier slot disponible",
   "storageAutoAssignFull": "Tous les racks sont pleins.",

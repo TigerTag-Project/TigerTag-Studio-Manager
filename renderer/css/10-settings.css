@@ -188,6 +188,44 @@
     background: var(--primary);
     transform: translateX(2px);
   }
+  /* Auto-store button reduced to its icon only — square, centred hit area,
+     with a clear hover state so it's obvious the cursor is on it. */
+  .panel-storage-loc .storage-loc-autobtn {
+    flex-shrink: 0;
+    padding: 7px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 0;
+    border-radius: 8px;
+    transition: background .15s, border-color .15s;
+  }
+  .panel-storage-loc .storage-loc-autobtn .icon {
+    transition: background .15s, transform .15s;
+  }
+  .panel-storage-loc .storage-loc-autobtn:hover {
+    background: var(--primary-soft, rgba(249,115,22,.12));
+    border-color: var(--primary);
+  }
+  .panel-storage-loc .storage-loc-autobtn:hover .icon {
+    background: var(--primary);
+    transform: scale(1.12);
+  }
+  /* Hovering the auto-store button lights up the WHOLE location card, so the
+     user sees exactly what the action will fill. */
+  .panel-storage-loc .storage-loc-row--empty {
+    transition: background .15s, border-color .15s;
+  }
+  .panel-storage-loc .storage-loc-row--empty:has(.storage-loc-autobtn:hover) {
+    border-color: var(--primary);
+    background: var(--primary-soft, rgba(249,115,22,.10));
+  }
+  .panel-storage-loc .storage-loc-row--empty:has(.storage-loc-autobtn:hover) .storage-loc-rack--empty {
+    color: var(--primary);
+  }
+  .panel-storage-loc .storage-loc-row--empty:has(.storage-loc-autobtn:hover) .icon-package {
+    background: var(--primary);
+  }
 
   /* ── Collapsible section (Data / Tools) ──────────────────────
      Header is a real <button> for accessibility, no chrome around it.
