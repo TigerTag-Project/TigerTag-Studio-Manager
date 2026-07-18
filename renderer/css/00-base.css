@@ -354,7 +354,8 @@
     transition: background .15s, border-color .15s; cursor: default;
     text-align: center; display: flex; flex-direction: column; align-items: center; gap: 2px;
   }
-  .sb-stat:hover { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.11); }
+  /* No :hover feedback — the stat cards are informational, not clickable
+     (filtering lives in the controls next to the search field). */
   .sb-stat .label {
     font-size: 10px; color: rgba(255,255,255,.38); text-transform: uppercase;
     letter-spacing: .06em;
@@ -416,10 +417,7 @@
     text-align: left;
     gap: 1px;
   }
-  .top-stats .sb-stat:hover {
-    background: var(--surface);
-    border-color: var(--primary);
-  }
+  /* No :hover — header stat cards are informational, not clickable. */
   .top-stats .sb-stat .value {
     font-size: 18px;
     font-weight: 700;
@@ -450,10 +448,6 @@
     border-color: rgba(124,77,255,.35) !important;
     background: linear-gradient(135deg, rgba(124,77,255,.12), rgba(163,123,255,.07)) !important;
   }
-  .sb-stat--cloud:hover {
-    border-color: rgba(124,77,255,.55) !important;
-    background: linear-gradient(135deg, rgba(124,77,255,.18), rgba(163,123,255,.12)) !important;
-  }
   .sb-stat--cloud .value { color: #a37bff; }
   .sb-stat--cloud .label { color: rgba(163,123,255,.7); }
   /* collapsed sidebar: keep the purple tint on the mini tile */
@@ -461,19 +455,17 @@
   .sidebar.collapsed .sb-stat--cloud::after  { color: rgba(163,123,255,.6); }
   /* top-stats (header) cloud variant — identical to other chips; badge handles the colour */
   .top-stats .sb-stat--cloud          { background: var(--surface-2) !important; border-color: var(--border) !important; }
-  .top-stats .sb-stat--cloud:hover    { background: var(--surface)   !important; border-color: var(--primary) !important; }
   .top-stats .sb-stat--cloud .value   { color: var(--text); }
   .top-stats .sb-stat--cloud .label   { color: var(--muted); }
-  /* Stat tile active state — filter is currently applied */
-  .top-stats .sb-stat[data-filter]:not([data-filter="reset"]) { cursor: pointer; }
-  .top-stats .sb-stat[data-filter="reset"] { cursor: default; }
+  /* Informational only — no pointer cursor on any stat card (filtering lives in
+     the controls next to the search field). */
+  .top-stats .sb-stat { cursor: default; }
   .top-stats .sb-stat.is-active {
     background: rgba(255,122,24,.12) !important;
     border-color: var(--primary) !important;
   }
   .top-stats .sb-stat.is-active .value { color: var(--primary); }
   .top-stats .sb-stat.is-active .label { color: var(--primary); opacity: .75; }
-  .top-stats .sb-stat.is-active:hover  { background: rgba(255,122,24,.18) !important; }
   /* Cloud active state overrides */
   .top-stats .sb-stat--cloud.is-active {
     background: linear-gradient(135deg, rgba(124,77,255,.22), rgba(163,123,255,.14)) !important;
@@ -687,3 +679,16 @@
 /* Image skeleton / shimmer removed — images now hydrate from the local
    disk cache and paint instantly, so the gliding "loading shine" was both
    unnecessary and visually noisy. Images just appear, like everywhere else. */
+
+/* Global floating snackbar (brief messages, e.g. "already in your cart"). */
+.global-flash {
+  position: fixed; left: 50%; bottom: 28px;
+  transform: translateX(-50%) translateY(8px);
+  background: var(--text); color: var(--bg);
+  padding: 10px 16px; border-radius: 10px;
+  font-size: 13px; font-weight: 600; white-space: nowrap;
+  z-index: 9999; opacity: 0; pointer-events: none;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .25);
+  transition: opacity .2s ease, transform .2s ease;
+}
+.global-flash.show { opacity: 1; transform: translateX(-50%) translateY(0); }

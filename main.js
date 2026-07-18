@@ -259,7 +259,7 @@ app.on('before-quit-for-update', () => { _isQuitting = true; });
 // fall back to a lettermark if the file can't be read.
 let _splashLogo = '';
 try {
-  _splashLogo = fs.readFileSync(path.join(__dirname, 'assets', 'svg', 'logos', 'logo_tigertag.svg'), 'utf8')
+  _splashLogo = fs.readFileSync(path.join(__dirname, 'assets', 'svg', 'logos', 'logo_tigertag_head.svg'), 'utf8')
     .replace(/<\?xml[^>]*\?>/i, '')
     .trim();
 } catch (_) { _splashLogo = ''; }
@@ -276,9 +276,26 @@ function splashDataURL() {
   .mark{width:120px;height:120px;border-radius:28px;background:linear-gradient(135deg,#ff7a18,#ffb056);
     display:flex;align-items:center;justify-content:center;font-weight:800;font-size:56px;color:#0e0e10;letter-spacing:-1px;
     box-shadow:0 8px 28px rgba(255,122,24,.35)}
-  .logo{display:flex;align-items:center;justify-content:center}
+  /* The ANIMATED node is the plain wrapper (own GPU layer via will-change +
+     translate3d) while the drop-shadow filter stays STATIC on the svg in its own
+     layer — animating a filtered element re-rasterises the filter every frame on
+     the CPU, which stuttered exactly when startup pegs the processor. This way the
+     bounce is pure compositor work and stays smooth under load. */
+  .logo{display:flex;align-items:center;justify-content:center;
+    transform-origin:50% 100%;will-change:transform,opacity;
+    animation:drop .9s cubic-bezier(.3,.7,.4,1) both, bob 2.4s ease-in-out 1.15s infinite}
   .logo svg{height:180px;width:auto;display:block;filter:drop-shadow(0 10px 30px rgba(255,122,24,.30))}
-  .name{color:#fff;font-size:16px;font-weight:600;letter-spacing:.2px}
+  /* Drop-in bounce: falls from above, squashes on impact, two decaying rebounds… */
+  @keyframes drop{
+    0%{transform:translate3d(0,-150px,0);opacity:0}
+    40%{transform:translate3d(0,0,0) scale(1.07,.93);opacity:1}
+    60%{transform:translate3d(0,-24px,0)}
+    78%{transform:translate3d(0,0,0) scale(1.035,.965)}
+    89%{transform:translate3d(0,-8px,0)}
+    100%{transform:translate3d(0,0,0)}}
+  /* …then a gentle idle float while the app loads. */
+  @keyframes bob{0%,100%{transform:translate3d(0,0,0)}50%{transform:translate3d(0,-7px,0)}}
+  .name{color:#fff;font-size:22px;font-weight:700;letter-spacing:.3px}
   .ver{color:rgba(255,255,255,.45);font-size:11px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;margin-top:-10px}
   .sub{color:rgba(255,255,255,.38);font-size:11px}
   .bar{width:140px;height:3px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden;margin-top:2px}
@@ -300,7 +317,10 @@ function createSplash() {
     frame: false, transparent: true, resizable: false, movable: true,
     center: true, show: true, hasShadow: false, alwaysOnTop: true,
     skipTaskbar: true, focusable: false,
-    webPreferences: { contextIsolation: true, nodeIntegration: false },
+    // backgroundThrottling:false — the splash is non-focusable, and Chromium's
+    // throttling heuristics can clamp an unfocused window's animations to a low
+    // frame rate exactly while startup loads the CPU. Keep it at full rate.
+    webPreferences: { contextIsolation: true, nodeIntegration: false, backgroundThrottling: false },
   });
   splashWindow.loadURL(splashDataURL());
   splashWindow.on('closed', () => { splashWindow = null; });

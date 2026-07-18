@@ -153,12 +153,17 @@
 
     <!-- sign-in placeholder (visible when no account is active) -->
     <div id="signInPlaceholder" class="signin-placeholder">
-      <div class="signin-ph-icon">T</div>
+      <img class="signin-ph-hero" src="../assets/img/Hero-TigerSystem-ecosystem.png" alt="" aria-hidden="true" />
       <div class="signin-ph-title">Tiger Studio Manager</div>
-      <div class="signin-ph-sub" data-i18n="loginSignInSubtitle">Manage your filament inventory</div>
+      <div class="signin-ph-sub" data-i18n="signinTagline">Every spool you own, weighed, sorted and impossible to lose.</div>
       <button class="primary signin-ph-btn" id="btnSignInPlaceholder">
         <span data-i18n="btnSignIn">Sign in</span>
       </button>
+      <ul class="signin-ph-feats">
+        <li><span class="icon icon-nfc icon-16" aria-hidden="true"></span><span data-i18n="signinFeatScan">Tap a tag, the spool files itself</span></li>
+        <li><span class="icon icon-printer icon-16" aria-hidden="true"></span><span data-i18n="signinFeatPrinters">Your printers report in, live</span></li>
+        <li><span class="icon icon-gift icon-16" aria-hidden="true"></span><span data-i18n="signinFeatShare">Share your stock and wishlists with friends</span></li>
+      </ul>
       <div class="signin-ph-links">
         <button class="signin-ph-link" id="btnSignInPlaceholderGh">
           <span class="icon icon-github icon-14"></span>
@@ -169,6 +174,7 @@
           <span data-i18n="discordBtn">Discord</span>
         </button>
       </div>
+      <img class="signin-ph-lineup" src="../assets/img/hero-TigerPOD-Banner-Lineup-Rainbow-9.png" alt="" aria-hidden="true" />
     </div>
 
     <!-- empty / loading state — shown instead of the inventory card -->
@@ -243,10 +249,10 @@
       <div class="row between inv-search-row" style="gap:10px">
         <div class="inv-search">
           <input id="searchInv" type="text" placeholder="Search material, brand, color, UID…" data-i18n-placeholder="searchPlaceholder" />
-          <!-- Clear button — sits to the LEFT of the magnifier so the loupe
-               stays in its established position when the X appears/hides. -->
+          <!-- Clear button — takes the magnifier's place while the field has
+               text (the loupe is hidden in CSS), so only one glyph is ever shown. -->
           <button type="button" id="searchInvClear" class="inv-search-clear" hidden
-                  aria-label="Clear search" title="Clear search">
+                  aria-label="Clear search" data-i18n-aria="clearSearch">
             <span class="icon icon-close icon-13" aria-hidden="true"></span>
           </button>
           <span class="icon icon-search icon-13"></span>
@@ -1268,40 +1274,76 @@
 </div>
 
 <!-- new/edit rack modal -->
-<div class="modal-overlay" id="rackEditOverlay">
-  <div class="modal-card rec-card">
-    <div class="rec-header">
+<!-- ── Rack create / edit — RIGHT SIDE-CARD (same pattern as the material
+     detail, printer and Add-product panels: overlay + » close tab + aside) ── -->
+<div class="panel-overlay" id="rackEditOverlay"></div>
+<button class="pp-close-tab" id="rackEditCloseTab" aria-label="Close" hidden>»</button>
+<aside class="detail-panel rec-panel" id="rackEditPanel">
+    <div class="panel-header rec-header">
       <div class="rec-header-text">
-        <div class="rec-title" id="recTitle" data-i18n="rackNew">New rack</div>
-        <div class="rec-sub" data-i18n="rackEditSub">Pick a preset or create a custom layout.</div>
+        <div class="panel-title rec-title" id="recTitle" data-i18n="rackNew">New rack</div>
       </div>
-      <button class="modal-close" id="rackEditClose">✕</button>
+      <button class="modal-close" id="rackEditClose" type="button" aria-label="Close">✕</button>
     </div>
 
-    <div class="rec-body">
-      <label class="rec-field">
-        <span class="rec-field-label" data-i18n="rackName">Name</span>
-        <input type="text" id="rackNameInput" maxlength="60" placeholder="Atelier" />
-      </label>
-
-      <div class="rec-field">
-        <span class="rec-field-label" data-i18n="rackPreset">Preset</span>
-        <div class="rec-presets" id="recPresets"></div>
-      </div>
-
-      <div class="rec-dim-row">
-        <label class="rec-field rec-field--dim">
-          <span class="rec-field-label" data-i18n="rackLevels">Number of levels</span>
-          <input type="number" id="rackLevelInput" min="1" max="15" value="5" />
+    <div class="panel-body rec-body">
+      <!-- 1 — Identity -->
+      <div class="rec-sec">
+        <div class="rec-sec-head"><span class="rec-sec-num">1</span><span class="rec-sec-title" data-i18n="rackSecIdentity">Identity</span></div>
+        <label class="rec-field">
+          <span class="rec-field-label" data-i18n="rackName">Name</span>
+          <span class="rec-input-wrap">
+            <span class="icon icon-rack-grid icon-16 rec-input-icon" aria-hidden="true"></span>
+            <input type="text" id="rackNameInput" maxlength="20" placeholder="Atelier" />
+          </span>
         </label>
-        <label class="rec-field rec-field--dim">
-          <span class="rec-field-label" data-i18n="rackPositions">Slots per level</span>
-          <input type="number" id="rackPositionInput" min="1" max="20" value="8" />
+        <label class="rec-field">
+          <span class="rec-field-label" data-i18n="rackSubtitleOpt">Subtitle (optional)</span>
+          <span class="rec-input-wrap">
+            <span class="icon icon-pin icon-16 rec-input-icon" aria-hidden="true"></span>
+            <input type="text" id="rackSubtitleInput" maxlength="30" data-i18n-placeholder="rackSubtitlePlaceholder" placeholder="Details, location, contents…" />
+          </span>
         </label>
       </div>
-      <div class="rec-dim-total" id="recTotalLabel">
-        <span class="rec-dim-total-num" id="recTotalNum">—</span>
-        <span class="rec-dim-total-label" id="recTotalLbl">slots</span>
+
+      <!-- 2 — Layout: the two dimensions side by side -->
+      <div class="rec-sec">
+        <div class="rec-sec-head"><span class="rec-sec-num">2</span><span class="rec-sec-title" data-i18n="rackSecLayout">Layout</span></div>
+        <div class="rec-dims">
+          <div class="rec-field">
+            <span class="rec-field-label" data-i18n="rackLevelsShort">Levels</span>
+            <div class="rec-stepper">
+              <button type="button" class="rec-step" data-step="rackLevelInput" data-delta="-1" aria-label="−">−</button>
+              <input type="number" id="rackLevelInput" min="1" max="15" value="5" />
+              <button type="button" class="rec-step" data-step="rackLevelInput" data-delta="1" aria-label="+">+</button>
+            </div>
+          </div>
+          <div class="rec-field">
+            <span class="rec-field-label" data-i18n="rackPositions">Slots per level</span>
+            <div class="rec-stepper">
+              <button type="button" class="rec-step" data-step="rackPositionInput" data-delta="-1" aria-label="−">−</button>
+              <input type="number" id="rackPositionInput" min="1" max="20" value="8" />
+              <button type="button" class="rec-step" data-step="rackPositionInput" data-delta="1" aria-label="+">+</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3 — Preview: live grid of the rack about to be created -->
+      <div class="rec-sec">
+        <div class="rec-sec-head"><span class="rec-sec-num">3</span><span class="rec-sec-title" data-i18n="rackSecPreview">Preview</span></div>
+        <div class="rec-preview">
+          <div class="rec-dim-total" id="recTotalLabel">
+            <span class="rec-dim-total-num" id="recTotalNum">—</span>
+            <span class="rec-dim-total-label" id="recTotalLbl">slots</span>
+          </div>
+          <div class="rec-preview-head">
+            <div class="rec-preview-name" id="recPreviewName"></div>
+            <div class="rec-preview-sub" id="recPreviewSub"></div>
+          </div>
+          <div class="rec-preview-caption" id="recPreviewCaption"></div>
+          <div class="rec-preview-grid" id="recPreviewGrid"></div>
+        </div>
       </div>
 
       <div id="rackEditResult" class="rec-result"></div>
@@ -1322,6 +1364,33 @@
         <span class="spinner"></span>
         <span class="label" data-i18n="rackSave">Save</span>
       </button>
+    </div>
+</aside>
+
+<!-- Add a custom product link -->
+<div class="modal-overlay" id="attachModalOverlay">
+  <div class="modal-card attach-modal-card">
+    <div class="attach-modal-head">
+      <div class="attach-modal-title" id="attachModalTitleEl" data-i18n="attachModalTitle">Add a link</div>
+      <button class="modal-close" id="attachModalClose">✕</button>
+    </div>
+    <div class="attach-modal-body">
+      <label class="attach-modal-field">
+        <span class="attach-modal-label" data-i18n="attachModalUrl">Link</span>
+        <input type="url" id="attachModalUrl" inputmode="url" spellcheck="false" placeholder="https://…" />
+      </label>
+      <label class="attach-modal-field">
+        <span class="attach-modal-label" data-i18n="attachLabelPh">Name (optional)</span>
+        <input type="text" id="attachModalName" maxlength="60" />
+      </label>
+      <div class="attach-modal-hint" data-i18n="attachEmpty"></div>
+      <div class="attach-modal-err" id="attachModalErr" hidden></div>
+    </div>
+    <div class="attach-modal-foot">
+      <button class="adf-btn adf-btn--danger" id="attachModalDelete" data-i18n="attachRemove" hidden>Remove</button>
+      <span style="flex:1"></span>
+      <button class="adf-btn adf-btn--secondary" id="attachModalCancel" data-i18n="btnCancel">Cancel</button>
+      <button class="adf-btn adf-btn--primary" id="attachModalSave" data-i18n="attachModalTitle">Add a link</button>
     </div>
   </div>
 </div>
@@ -1778,7 +1847,7 @@
       <!-- display name -->
       <div class="eac-field-label" data-i18n="displayNameLabel">Display name</div>
       <div class="eac-name-row">
-        <input class="eac-name-input" id="eacDisplayNameInput" type="text" maxlength="40" placeholder="—" autocomplete="off" />
+        <input class="eac-name-input" id="eacDisplayNameInput" type="text" maxlength="20" placeholder="—" autocomplete="off" />
         <button class="ghost sm eac-name-save" id="btnSaveDisplayName">
           <span class="icon icon-check icon-13"></span>
         </button>
@@ -1850,15 +1919,12 @@
         <div class="avatar-crop-circle" aria-hidden="true"></div>
       </div>
       <div class="avatar-crop-controls">
-        <span class="avatar-crop-zoom-icon avatar-crop-zoom-icon--small">
-          <span class="icon icon-edit icon-13"></span>
-        </span>
-        <input id="avatarCropZoom" class="avatar-crop-zoom" type="range" min="1" max="3" step="0.01" value="1" />
-        <span class="avatar-crop-zoom-icon avatar-crop-zoom-icon--large">
-          <span class="icon icon-edit icon-13"></span>
-        </span>
-        <button class="avatar-crop-rotate" id="btnAvatarCropRotate" type="button" title="Rotate 90°" data-i18n-title="avatarCropRotate">
-          <span class="icon icon-refresh icon-13"></span>
+        <input id="avatarCropZoom" class="avatar-crop-zoom" type="range" min="1" max="3" step="0.01" value="1" aria-label="Zoom" />
+      </div>
+      <div class="avatar-crop-controls avatar-crop-rot-row">
+        <input id="avatarCropRotate" class="avatar-crop-zoom avatar-crop-rot" type="range" min="-180" max="180" step="1" value="0" aria-label="Rotation" />
+        <button class="avatar-crop-rotate crop-tip" id="btnAvatarCropRotate" type="button" data-i18n-tip="avatarCropRotate" aria-label="Rotate 90°" data-tip="Rotate 90°">
+          <span class="icon icon-refresh icon-13" aria-hidden="true"></span>
         </button>
       </div>
     </div>
@@ -1877,27 +1943,7 @@
   <div class="modal-card lm-card">
     <button class="modal-close lm-close" id="addModalClose">✕</button>
 
-    <!-- branded hero -->
-    <div class="lm-hero">
-      <div class="lm-hero-icon">T</div>
-      <div>
-        <div class="lm-title" id="lmTitle" data-i18n="loginSignInTitle">Sign in to TigerTag</div>
-        <div class="lm-subtitle" id="lmSubtitle" data-i18n="loginSignInSubtitle">Manage your filament inventory</div>
-      </div>
-    </div>
-
-    <!-- language switcher -->
-    <select class="lm-lang-select" id="lmLangSelect">
-      <option value="en">English</option>
-      <option value="fr">Français</option>
-      <option value="de">Deutsch</option>
-      <option value="es">Español</option>
-      <option value="it">Italiano</option>
-      <option value="pl">Polski</option>
-      <option value="pt">Português (BR)</option>
-      <option value="pt-pt">Português (PT)</option>
-      <option value="zh">中文</option>
-    </select>
+    <img class="lm-hero-art" src="../assets/img/Hero-TigerSystem-ecosystem.png" alt="" aria-hidden="true" />
 
     <!-- Google sign-in -->
     <button class="lm-google-btn" id="btnGoogleSignIn">
@@ -2191,6 +2237,7 @@
      RFID UID. Auto-prefills nozzle/bed/dry temps from
      id_material.recommended.* when Material changes. -->
 <div class="panel-overlay" id="addProductOverlay"></div>
+<button class="pp-close-tab" id="addProductCloseTab" title="Close" aria-label="Close" hidden>»</button>
 <aside class="detail-panel adp-panel" id="addProductPanel">
   <div class="panel-header adp-head">
     <div class="adp-head-text">
@@ -2585,19 +2632,54 @@
 </aside>
 
 <!-- display name setup — shown after first login when no pseudo is set -->
+<!-- First-connection onboarding — two steps sliding horizontally inside a
+     fixed-size card: (1) language, (2) display name + avatar. Deliberately
+     non-dismissible (no close X, backdrop/Escape don't close): the profile
+     is required before entering the app. -->
 <div class="modal-overlay" id="displayNameSetupOverlay">
-  <div class="modal-card dns-card">
-    <div class="dns-hero">
-      <div class="dns-emoji-wrap"><span class="icon icon-user icon-32"></span></div>
-      <div class="dns-title" data-i18n="setupNameTitle">Choose your display name</div>
+  <div class="modal-card dns-card" role="dialog" aria-label="Tiger Studio Manager">
+    <div class="dns-hero-step">
+      <div class="dns-eyebrow" id="dnsStepLabel" data-i18n="setupStep1">Step 1 of 2</div>
+      <div class="dns-mini-prog" aria-hidden="true"><span class="dns-dot active"></span><span class="dns-mini-line"></span><span class="dns-dot"></span></div>
     </div>
-    <div class="dns-body">
-      <div class="dns-sub" data-i18n="setupNameSub">Your display name is visible in the app and to your friends!</div>
-      <input class="dns-input" id="dnsInput" type="text" maxlength="40" autocomplete="off"
-             data-i18n-placeholder="setupNamePlaceholder" placeholder="Your display name" />
-      <div id="dnsResult" class="dns-result"></div>
-      <div class="dns-actions">
-        <button class="primary dns-btn-save" id="dnsSave" data-i18n="setupNameSave">Let's go!</button>
+    <div class="dns-steps">
+      <div class="dns-track" id="dnsTrack">
+        <section class="dns-step" id="dnsStep1">
+          <h2 class="dns-step-title" data-i18n="setupWelcomeTitle">Welcome to your workshop</h2>
+          <p class="dns-step-sub" data-i18n="setupLangSub">In under 20 seconds, your workshop is ready.</p>
+          <img class="dns-step-art" src="../assets/img/Hero-TigerSystem-ecosystem.png" alt="" aria-hidden="true" />
+          <label class="dns-label" for="dnsLangSelect" data-i18n="setupLangLabel">Your language</label>
+          <select id="dnsLangSelect" class="dns-lang-select" aria-describedby="dnsLangHelper"></select>
+          <p class="dns-helper" id="dnsLangHelper" data-i18n="setupLangHelper">You can change this later.</p>
+          <div class="dns-actions">
+            <button class="primary dns-btn-save" id="dnsNext" data-i18n="setupContinue">Continue</button>
+          </div>
+        </section>
+        <section class="dns-step" id="dnsStep2" inert>
+          <h2 class="dns-step-title" data-i18n="setupNickSub">What should we call you?</h2>
+          <div class="dns-avatar-row">
+            <span class="dns-avatar" aria-hidden="true">
+              <span class="dns-avatar-paint" id="dnsAvatarPaint"><span class="icon icon-user icon-32 dns-avatar-ph"></span></span>
+            </span>
+            <div class="dns-avatar-acts">
+              <button type="button" class="dns-av-act" id="dnsAvatarShuffle"><span class="icon icon-sparkle icon-14"></span><span data-i18n="setupAvatarShuffle">Generate another</span></button>
+              <button type="button" class="dns-av-act" id="dnsAvatarImport"><span class="icon icon-image icon-14"></span><span data-i18n="setupAvatarImport">Import a photo</span></button>
+            </div>
+          </div>
+          <label class="dns-label dns-label-row" for="dnsInput"><span data-i18n="setupNickLabel">Your display name</span> <span class="dns-label-min" data-i18n="setupNameLen">3–20 characters</span></label>
+          <div class="dns-input-wrap">
+            <input class="dns-input" id="dnsInput" type="text" maxlength="20" autocomplete="off"
+                   aria-describedby="dnsNameHelper"
+                   data-i18n-placeholder="setupNamePlaceholder" placeholder="Your display name" />
+            <span class="dns-input-ok icon icon-check icon-14" aria-hidden="true"></span>
+          </div>
+          <p class="dns-helper" id="dnsNameHelper" data-i18n="setupNameSub">Your display name is visible in the app and to your friends!</p>
+          <div id="dnsResult" class="dns-result" role="alert" aria-live="polite"></div>
+          <div class="dns-actions dns-actions--split">
+            <button class="ghost dns-btn-back" id="dnsBack"><span class="dns-back-arrow" aria-hidden="true">←</span><span data-i18n="setupBack">Back</span></button>
+            <button class="primary dns-btn-save" id="dnsSave" data-i18n="setupNameSave">Enter my workshop</button>
+          </div>
+        </section>
       </div>
     </div>
   </div>
@@ -2700,6 +2782,10 @@
     <!-- Body -->
     <div class="tigerpod-body">
       <h2 class="tigerpod-title" data-i18n="tigerPodModalTitle">Print your TigerPOD Now !</h2>
+      <!-- Colour-variants banner: it's a free STL, so showing it printed in nine
+           filament colours sells the "print it in YOUR colour" idea. Cut-out
+           artwork with alpha, so it blends on any surface (no white box). -->
+      <img class="tigerpod-shot" src="../assets/img/hero-TigerPOD-Banner-Lineup-Rainbow-9.png" alt="" aria-hidden="true" />
       <p class="tigerpod-desc" data-i18n="tigerPodModalDesc">A 3D-printable stand to Burn TigerTag NFC chips directly on your filament spools.</p>
 
       <!-- Key features 2×2 grid -->

@@ -1,6 +1,6 @@
 # Tiger Studio Manager — Feature Catalogue
 
-Tiger Studio Manager is the Electron desktop companion to the TigerTag ecosystem: a filament-inventory manager built around RFID/NFC-tagged spools ("TigerTag" chips), a fully-digital "TigerCloud" tier, live 3D-printer integration across six brands, physical storage/rack management, a Firebase-backed social layer (friends, shareable wishlists, public profiles), and companion hardware (TD1S color sensor, TigerScale, TigerPOD dual-reader stand). This document catalogues every **shipped** feature, grouped by domain, current as of **v2.11.3**. Per-version release detail lives in `CHANGELOG.md`; forward-looking / in-progress work lives in `ROADMAP.md`.
+Tiger Studio Manager is the Electron desktop companion to the TigerTag ecosystem: a filament-inventory manager built around RFID/NFC-tagged spools ("TigerTag" chips), a fully-digital "TigerCloud" tier, live 3D-printer integration across six brands, physical storage/rack management, a Firebase-backed social layer (friends, shareable wishlists, public profiles), and companion hardware (TD1S color sensor, TigerScale, TigerPOD dual-reader stand). This document catalogues every **shipped** feature, grouped by domain, current as of **v2.12.0**. Per-version release detail lives in `CHANGELOG.md`; forward-looking / in-progress work lives in `ROADMAP.md`.
 
 ---
 
@@ -57,7 +57,10 @@ Tiger Studio Manager is the Electron desktop companion to the TigerTag ecosystem
 - Email verification required for email/password sign-up, with an inline resend action (Google sign-in exempt) (v2.1.0).
 - Profiles modal — manage multiple connected accounts, switch, disconnect (v1.4+; Discord-style account menu with hover switcher redesign v1.10.24).
 - Color avatars (13 presets + custom hex) and pseudo (`displayName`) setup flow, with a first-launch prompt when missing.
-- Custom profile-picture upload — crop modal with zoom/rotate/pan, auto JPEG/PNG format selection preserving transparency (v1.8.22).
+- Two-step first-connection onboarding — language, then display name + avatar (generated colour or imported photo). Version-gated on `users/{uid}/apps/studio.onboardingVersion`, so every account runs it once and a bumped constant re-runs everyone (v2.12.0).
+- Per-application state doc `users/{uid}/apps/{appId}` — owner-only, for state read per-user by a single ecosystem app (v2.12.0).
+- Random HSL avatar colour generated once per new account, with auto-contrasted initials text, and a shared initials contract mirrored in the mobile app and Tiger Hub (v2.12.0).
+- Custom profile-picture upload — crop modal with zoom/rotate/pan, auto JPEG/PNG format selection preserving transparency (v1.8.22; wheel/pinch zoom, free rotation, keyboard shortcuts v2.12.0).
 - Migration from legacy API-key accounts to Firebase (auto-wipe on first launch).
 - Debug mode toggle (admin-only, `users/{uid}.roles == "admin"`) exposing a Firestore explorer + API inspector panel.
 - VAT country picker + HT/TTC price-display preference, driving currency/tax-rate display without rewriting stored prices (v2.1.0).
@@ -109,7 +112,8 @@ Tiger Studio Manager is the Electron desktop companion to the TigerTag ecosystem
 
 - Per-user `products` collection — one record per product identity (buy link, tax-free price, minimum stock, note, tags, SKU/EAN, ❤/★ flags, display snapshot, sanitised `cloudSeed`) shared by every matching spool and surviving spool deletion (v2.1.0).
 - Product-info side card — buy link, price, min stock, note, tags, SKU/EAN, ❤/★, and a "Create a TigerTag Cloud" action, fully auto-saving (v2.1.0).
-  - Info (ⓘ) button on a product opens its reorder panel (price / buy-link / min-stock) alongside the product card (v2.10.0).
+  - Info (ⓘ) button on a product opens its reorder panel (price / buy-link / min-stock) alongside the product card (v2.10.0; present and left-aligned on all three product side-cards, and toggling, v2.12.0).
+- Product web-link attachments — datasheets, tutorials or videos attached to a product identity and shared by every spool of it, tier-capped free 1 / plus 2 / premium 5 and enforced server-side (v2.12.0).
 - Favorites view — Grid, Table and "To order" modes, sortable table (v2.1.0; sortable v2.2.0).
 - Grouped-spools side-card exposes the product's flag toggles (add-to-cart ❤, favourite ★, add-to-a-list ＋) as one icon-only row, in own and friend-view (v2.11.0).
 - Interest hierarchy — ❤ Love ⊆ ★ Favorite ⊆ tracked-for-reorder, coupled automatically on write (v2.1.0).
@@ -134,7 +138,9 @@ Tiger Studio Manager is the Electron desktop companion to the TigerTag ecosystem
 
 ## Storage / Racks
 
-- Rack create/edit modal with built-in presets, name, grid and total-slots label (v1.4+).
+- Rack create/edit as a right side-card in three numbered steps — identity, layout (− / + steppers), and a live preview grid that shows an existing rack's real contents (v1.4+ as a modal with presets; side-card + presets removed + preview v2.12.0).
+- Optional rack subtitle — a second descriptive line under the rack name (v2.12.0).
+- Rack grid reads top-down: A1 is the top-left slot and new levels append at the bottom (v2.12.0).
 - Drag-and-drop between slots, slots ↔ unranked panel, rack-head reordering (v1.4+; "make room" slide animation everywhere v2.7.0).
 - Skyline-packing masonry layout, responsive to window resize (v1.4.3).
 - Slot locking (right-click) with distinct empty-slot vs filled-slot states, and Auto-fill / Auto-store / Auto-unstorage automation (merged into one "Auto-organize" toggle, per-account and cross-device, v1.10.21).

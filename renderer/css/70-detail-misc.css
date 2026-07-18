@@ -68,6 +68,8 @@
   .icon-apple     { -webkit-mask-image: url('../../assets/svg/icons/icon_apple.svg');        mask-image: url('../../assets/svg/icons/icon_apple.svg'); }
   .icon-android   { -webkit-mask-image: url('../../assets/svg/icons/icon_android.svg');      mask-image: url('../../assets/svg/icons/icon_android.svg'); }
   .icon-package   { -webkit-mask-image: url('../../assets/svg/icons/icon_package.svg');      mask-image: url('../../assets/svg/icons/icon_package.svg'); }
+  .icon-rack-grid { -webkit-mask-image: url('../../assets/svg/icons/icon_rack_grid.svg');    mask-image: url('../../assets/svg/icons/icon_rack_grid.svg'); }
+  .icon-pin       { -webkit-mask-image: url('../../assets/svg/icons/icon_pin.svg');          mask-image: url('../../assets/svg/icons/icon_pin.svg'); }
   .icon-shopify   { -webkit-mask-image: url('../../assets/svg/icons/icon_shopify.svg');      mask-image: url('../../assets/svg/icons/icon_shopify.svg'); }
   .icon-image     { -webkit-mask-image: url('../../assets/svg/icons/icon_image.svg');        mask-image: url('../../assets/svg/icons/icon_image.svg'); }
   .icon-printer   { -webkit-mask-image: url('../../assets/svg/icons/icon_printer.svg');      mask-image: url('../../assets/svg/icons/icon_printer.svg'); }
@@ -179,26 +181,67 @@
     align-items: center; justify-content: center;
     gap: 12px; text-align: center; padding: 40px;
   }
-  .signin-ph-icon {
-    width: 72px; height: 72px; border-radius: 22px;
-    background: linear-gradient(135deg, #ff7a18 0%, #ffb056 100%);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 36px; font-weight: 800; color: #fff; letter-spacing: -2px;
-    box-shadow: 0 8px 32px rgba(255,122,24,.32);
-    margin-bottom: 6px;
+  /* Ecosystem hero — the emotional anchor of the signed-out screen. Capped by
+     BOTH width and viewport height so it never pushes the sign-in button off a
+     short window (the button is the whole point of this view). */
+  .signin-ph-hero {
+    width: min(440px, 62vw);
+    max-height: 38vh;
+    height: auto;
+    object-fit: contain;
+    margin-bottom: 2px;
+    user-select: none; -webkit-user-drag: none;
   }
   .signin-ph-title {
-    font-size: 22px; font-weight: 700; color: var(--text); letter-spacing: -.02em;
+    font-size: 26px; font-weight: 700; color: var(--text); letter-spacing: -.02em;
   }
   .signin-ph-sub {
-    font-size: 14px; color: var(--muted); max-width: 260px; line-height: 1.55; margin-bottom: 6px;
+    font-size: 15px; color: var(--muted); max-width: 360px; line-height: 1.55; margin-bottom: 8px;
   }
   .signin-ph-btn {
     height: 46px; padding: 0 36px; border-radius: 12px;
     font-size: 15px; font-weight: 600;
+    box-shadow: 0 6px 20px rgba(249,115,22,.28);
+    transition: transform .12s, box-shadow .12s;
   }
+  .signin-ph-btn:hover  { transform: translateY(-1px); box-shadow: 0 9px 26px rgba(249,115,22,.34); }
+  .signin-ph-btn:active { transform: translateY(0); box-shadow: 0 4px 14px rgba(249,115,22,.28); }
+
+  /* What you actually get — three plain claims, each with a real icon. Placed
+     UNDER the call to action so the button stays the first thing reachable. */
+  .signin-ph-feats {
+    list-style: none; margin: 14px 0 0; padding: 0;
+    display: flex; flex-direction: column; gap: 9px;
+    text-align: left;
+  }
+  .signin-ph-feats li {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 13.5px; color: var(--muted);
+  }
+  .signin-ph-feats .icon { background-color: var(--primary); flex: none; }
+
+  /* Community links are secondary — set apart and visually quiet so they never
+     compete with Sign in. (No `margin-top:auto` here: an auto margin outranks the
+     container's `justify-content:center` and would break the centred composition.) */
   .signin-ph-links {
-    display: flex; gap: 8px; margin-top: 10px;
+    display: flex; gap: 8px;
+    margin-top: 26px; opacity: .75;
+    transition: opacity .15s;
+  }
+  .signin-ph-links:hover { opacity: 1; }
+  /* TigerPOD line-up closing the screen — decorative, so it is the first thing to
+     give way: it shrinks with the viewport and disappears entirely on a short
+     window rather than pushing the Sign-in button out of reach. */
+  .signin-ph-lineup {
+    width: min(620px, 78%);
+    max-height: 16vh;
+    height: auto;
+    object-fit: contain;
+    margin-top: 30px;
+    user-select: none; -webkit-user-drag: none;
+  }
+  @media (max-height: 760px) {
+    .signin-ph-lineup { display: none; }
   }
   .signin-ph-link {
     display: flex; align-items: center; gap: 6px;
@@ -295,6 +338,9 @@
   }
   .inv-welcome-logo--mockup img {
     width: min(460px, 72vw); height: auto;
+    /* Same reason as .dns-step-art: the taller ecosystem artwork would push the
+       QR cards down on short windows — cap it and let `contain` letterbox. */
+    max-height: 300px;
     object-fit: contain;
   }
 
@@ -671,12 +717,14 @@
     background: var(--muted);
     pointer-events: none;
   }
-  /* Clear button — sits LEFT of the magnifier, only revealed when the
-     input has a value (renderer toggles `hidden` attr). Kept compact so
-     the input cursor stays comfortably away from both icons. */
+  /* Clear button — REPLACES the magnifier while the input has a value (the
+     renderer toggles the `hidden` attr): one glyph, always in the same spot, so
+     nothing shifts as you type and the field keeps a single padding. */
+  .inv-search:has(.inv-search-clear:not([hidden])) .icon-search { display: none; }
   .inv-search-clear {
     position: absolute;
-    right: 36px;
+    /* Centred where the magnifier sat, so the swap reads as one glyph changing */
+    right: 8px;
     top: 50%;
     transform: translateY(-50%);
     width: 22px;
@@ -1058,6 +1106,18 @@
   .pv-buy .icon { background-color: #fff; }
   .pv-buy--off { background: var(--surface-2); border-color: var(--border); }
   .pv-buy--off .icon { background-color: var(--muted); }
+  /* Trailing ✕ (hold-to-remove from the To-order list) — same 34px box as ⓘ/buy. */
+  .pv-line-act {
+    position: relative; overflow: hidden;
+    width: 34px; height: 34px; padding: 0; border-radius: 9px; cursor: pointer; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border); background: var(--surface-2);
+    transition: background .12s, border-color .12s;
+  }
+  .pv-line-act .icon { background-color: var(--muted); position: relative; z-index: 1; }
+  .pv-line-act--del:hover { border-color: var(--danger, #ff5c5c); }
+  .pv-line-act--del:hover .icon { background-color: var(--danger, #ff5c5c); }
+  .pv-line-act--del .hold-progress { background: var(--danger, #ff5c5c); opacity: .3; }
   .pv-flag { vertical-align: middle; }
   .pv-flag--liked { background-color: #5e8e3e; }
   .pv-flag--fav { background-color: #f5a623; }
@@ -1136,7 +1196,7 @@
     padding: 0 4px; border-radius: 8px; background: var(--surface); color: var(--muted);
     font-size: 10.5px; font-weight: 700;
   }
-  .pv-saved .pv-order-list { opacity: .82; }   /* the shelf reads a touch dimmer */
+  /* The "saved for later" shelf is shown at full opacity (no dimming/haze). */
   /* Amazon-style text actions under the item (non-destructive): "Save for later"
      in the cart, "Move to cart" on the shelf. A tiny dot separates them from the
      stock ratio. No icon — the wording is the clarity. */
@@ -1223,8 +1283,8 @@
   .pv-td-price { color: var(--primary); font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
   /* "Add a price" link (empty price) → opens the card straight into price edit. */
   .pv-addprice { background: none; border: none; padding: 0; cursor: pointer; font-family: inherit;
-    font-size: 12px; font-weight: 600; color: var(--muted); text-decoration: underline; text-underline-offset: 2px; text-decoration-style: dotted; }
-  .pv-addprice:hover { color: var(--primary); text-decoration-style: solid; }
+    font-size: 12px; font-weight: 600; color: var(--muted); transition: color .12s; }
+  .pv-addprice:hover { color: var(--primary); }
   /* "Add price" in the inventory Table Price column — same subtle look as the reorder one. */
   .tbl-addprice { background: none; border: none; padding: 0; cursor: pointer; font-family: inherit;
     font-size: 12px; font-weight: 600; color: var(--muted); text-decoration: underline; text-underline-offset: 2px; text-decoration-style: dotted; }
@@ -1459,6 +1519,9 @@
   /* Products grid: price replaces the weight slot (no weight notion for a product). */
   .spool-card .card-price { font-size: 12px; font-weight: 700; color: var(--primary); font-variant-numeric: tabular-nums; }
   .spool-card .card-price--none { font-weight: 500; color: var(--muted); }
+  /* clickable plain-text "Add price" (no button chrome) — hint via cursor + hover */
+  .spool-card .card-price--none[data-addprice] { cursor: pointer; transition: color .12s; }
+  .spool-card .card-price--none[data-addprice]:hover { color: var(--primary); }
   .spool-card .card-bar { height: 3px; background: var(--surface-2); border-radius: 2px; overflow: hidden; margin-top: 6px; }
   .spool-card .card-bar > span { display: block; height: 100%; background: var(--primary); border-radius: 2px; }
 
@@ -2069,6 +2132,29 @@
   /* color circle + aspect tags side-by-side */
   .color-aspect-row { display: flex; align-items: flex-start; gap: 12px; margin-top: 6px; }
   .color-circles-col { flex-shrink: 0; }
+  /* Colour-edit trigger — the colour circle itself becomes a button (TigerCloud
+     spools only: they're 100 % digital, so the colour lives in Firestore and can
+     be re-edited freely; a burned TigerTag/TigerTag+ chip must not be changed
+     casually). A "+" fades in on hover; no button chrome at all. */
+  .color-edit-trigger {
+    position: relative; background: transparent !important;
+    border: none; outline: none; padding: 0; margin: 0;
+    cursor: pointer; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    -webkit-appearance: none; transform: none !important;
+  }
+  .color-edit-trigger .color-circle { margin-right: 0; }
+  .color-edit-trigger:hover  { background: transparent !important; }
+  .color-edit-trigger:active { background: transparent !important; transform: none !important; }
+  .color-edit-plus {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    color: #fff; font-size: 22px; font-weight: 300; line-height: 1;
+    text-shadow: 0 1px 5px rgba(0,0,0,.8);
+    opacity: 0; transition: opacity .15s;
+    pointer-events: none; user-select: none;
+  }
+  .color-edit-trigger:hover .color-edit-plus { opacity: 1; }
   .aspect-col { flex: 1; }
   .aspect-col .aspect-chips { margin-top: 0; }
   .links-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
@@ -3078,7 +3164,10 @@
   .pc-panel .panel-body::-webkit-scrollbar { width: 0; height: 0; display: none; }
   /* Reuses the materials-card sections (illustration, identity, colours & aspect,
      weight). Only the product-specific extras below get their own styles. */
-  .pc-flags { display: flex; gap: 6px; flex-shrink: 0; }   /* ★/❤ toggle MY favorite/love */
+  /* ★/❤ toggle MY favorite/love. Matches .pi-flags (declared later in this file, so
+     its flex:1 would lose to a flex-shrink:0 here) — the row must be able to span the
+     full width for the left-aligned Product-info button to separate from the group. */
+  .pc-flags { display: flex; gap: 6px; flex: 1; justify-content: flex-end; }
   .pc-rows { padding: 4px 16px; display: flex; flex-direction: column; gap: 9px; }
   .pc-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .pc-k { color: var(--muted); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
@@ -3148,7 +3237,11 @@
   /* Detail-panel identity block: identity text (flags moved to their own row). */
   .panel-identity { display: flex; align-items: flex-start; gap: 10px; }
   .pi-ident-text { flex: 1; min-width: 0; }
-  .pi-flags { display: flex; gap: 6px; flex-shrink: 0; }
+  .pi-flags { display: flex; gap: 6px; flex: 1; justify-content: flex-end; }
+  /* Product info pushed to the left edge, the three toggles stay grouped right —
+     same split as the grouped-spools card's .gp-flag-info. With no info button
+     (friend view) the row is unchanged: everything still sits right. */
+  .pi-flags .pi-flag-info { margin-right: auto; }
   /* ❤/★/list actions on their own inline row between the illustration and name. */
   .pi-flags-row { display: flex; justify-content: flex-end; padding-top: 12px; padding-bottom: 8px; border-top: none; }
   .pi-flags-row + .panel-identity { border-top: none; padding-top: 0; }   /* group the actions row with the name */
@@ -3363,6 +3456,21 @@
   .ro-shop-editor { display: flex; gap: 8px; align-items: stretch; }
   .ro-shop-editor[hidden] { display: none; }
   .ro-shop-editor .ro-input { flex: 1; min-width: 0; }
+
+  /* ── Product attachments — "Documents & links" (tier-capped) ── */
+  .ro-attach-count { font-size: 11px; color: var(--muted); font-weight: 600; margin-left: 4px; }
+  .ro-attach-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+  .ro-attach-list:empty { margin: 0; }
+  /* Each link reuses the buy-link button + edit-pencil layout (.ro-shop /
+     .ro-shop-btn / .ro-shop-edit) for identical style + size. */
+  .ro-attach-open { min-width: 0; }
+  .ro-attach-open span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ro-attach-locked {
+    display: flex; align-items: center; justify-content: center; gap: 7px;
+    min-height: 38px; padding: 0 12px; border: 1px dashed var(--border); border-radius: 10px;
+    color: var(--muted); font-size: 12px;
+  }
+  .ro-attach-locked .icon { background: var(--muted); flex-shrink: 0; }
   .ro-shop-ok {
     flex-shrink: 0; width: 38px; height: 38px; border-radius: 10px; cursor: pointer;
     display: inline-flex; align-items: center; justify-content: center;
@@ -3409,52 +3517,186 @@
   /* ── TD Edit + Color Edit styles moved to renderer/IoT/td1s/td1s.css ── */
   /* ── TD1S styles moved to renderer/IoT/td1s/td1s.css ── */
 
-  /* ── Display-name setup modal ───────────────────────────────────────────── */
+  /* ── First-connection onboarding modal — 2 steps ─────────────────────────
+     Fixed-size card; the .dns-track slides horizontally between the language
+     step and the profile step (no modal resize, no fade). */
   #displayNameSetupOverlay .dns-card {
-    width: min(380px, calc(100vw - 32px));
+    width: min(520px, calc(100vw - 32px));
+    max-height: min(780px, calc(100vh - 40px));
+    border-radius: 22px;
     padding: 0; overflow: hidden;
     display: flex; flex-direction: column;
   }
-  /* hero */
-  .dns-hero {
-    background: linear-gradient(160deg, var(--primary) 0%, #ff8c00 100%);
-    padding: 32px 28px 28px; text-align: center;
-    display: flex; flex-direction: column; align-items: center; gap: 14px;
+  /* step counter + mini progress indicator — floats in the card's top-right
+     corner (no header bar: the white speaks for itself) */
+  #displayNameSetupOverlay .dns-card { position: relative; }
+  .dns-hero-step {
+    position: absolute; top: 20px; right: 26px; z-index: 2;
+    display: flex; flex-direction: column; align-items: flex-end; gap: 6px;
   }
-  .dns-emoji-wrap {
-    width: 62px; height: 62px; border-radius: 50%;
-    background: rgba(255,255,255,.18); backdrop-filter: blur(4px);
+  .dns-mini-prog { display: flex; align-items: center; gap: 5px; }
+  .dns-mini-line { width: 22px; height: 2px; border-radius: 1px; background: var(--border); }
+  .dns-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border); transition: background .2s; }
+  .dns-dot.active { background: var(--primary); }
+  /* steps viewport + sliding track */
+  .dns-steps { overflow: hidden; }
+  .dns-track { display: flex; transition: transform .25s cubic-bezier(.3, .7, .4, 1); }
+  .dns-step {
+    flex: 0 0 100%; min-width: 0; box-sizing: border-box;
+    padding: 58px 30px 20px;   /* top clears the floating step indicator */
+    display: flex; flex-direction: column; gap: 7px; text-align: left;
+  }
+  /* step 2 only — wide side gutters so the avatar/buttons/field/CTA breathe
+     well away from the card edges */
+  #dnsStep2 { padding-left: 68px; padding-right: 68px; }
+  .dns-eyebrow    { font-size: 10.5px; font-weight: 800; color: var(--primary); text-transform: uppercase; letter-spacing: .09em; }
+  .dns-step-title { font-size: 26px; font-weight: 800; color: var(--text); letter-spacing: -.02em; line-height: 1.2; margin: 0 auto; max-width: 380px; text-align: center; }
+  .dns-step-sub   { font-size: 13.5px; color: var(--muted); line-height: 1.5; margin: 2px auto 4px; max-width: 340px; text-align: center; }
+  /* step-1 hero — the product mockup (MacBook + TigerTag phone), full width */
+  /* Hero illustration. The ecosystem artwork is taller (ratio ~1.41) than the
+     old mockup (~1.82), so cap the height and `contain` it — the card keeps its
+     size instead of growing ~70 px and risking an overflow on short screens. */
+  .dns-step-art {
+    width: 100%; height: auto; max-height: 270px; object-fit: contain;
+    display: block; margin: 4px 0 6px; pointer-events: none;
+  }
+  .dns-label {
+    font-size: 10.5px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .07em;
+    margin: 6px 0 1px;
+  }
+  /* label row: field name on the left, the requirement note on the right */
+  .dns-label-row { display: flex; justify-content: space-between; align-items: baseline; }
+  .dns-label-min { text-transform: none; letter-spacing: normal; font-weight: 600; opacity: .75; }
+  /* question-form label ("What should we call you?") — a shouty uppercase
+     question reads wrong, render it as a normal sentence */
+  .dns-label--q { text-transform: none; letter-spacing: normal; font-size: 12.5px; }
+  .dns-helper { font-size: 11.5px; color: var(--muted); line-height: 1.5; margin: 2px 0 0; }
+  /* language dropdown — the app's csel enhancer as a real form field. The whole
+     language block (label + select + helper) is a centred 60%-wide column. */
+  #dnsStep1 .dns-label, #dnsStep1 .dns-helper { width: 60%; margin-left: auto; margin-right: auto; }
+  .dns-step .csel { display: block; width: 60%; margin: 0 auto; }
+  .dns-step .csel-btn {
+    width: 100%; max-width: none; height: 46px; box-sizing: border-box;
+    justify-content: space-between; padding: 0 36px 0 16px;   /* right room for the chevron */
+    font-size: 14.5px; font-weight: 600;
+    border: 1.5px solid var(--border); border-radius: 11px;
+    /* background-COLOR only — the `background` shorthand would wipe the
+       base .inv-brand-filter chevron (a background-image) */
+    background-color: var(--surface-2);
+    background-position: right 14px center;
+    transition: border-color .12s, background-color .12s;
+  }
+  .dns-step .csel-btn:hover, .dns-step .csel--open .csel-btn { border-color: var(--primary); background-color: var(--surface); }
+  .dns-step .csel-btn.is-active { color: var(--text); }   /* form field, not a filter — no "active" orange */
+  /* the sliding viewport clips overflow below — open the option list UPWARD
+     (plenty of room over the illustration) so it never hits the card bottom */
+  .dns-step .csel-pop { width: 100%; max-width: none; max-height: 260px; top: auto; bottom: calc(100% + 6px); }
+  /* avatar preview + actions (step 2) — the preview is NEVER an empty ring:
+     gradient + live initials, a user-icon placeholder, or the photo. The whole
+     group is centred and takes the spare height (step 1's art sets the card
+     height), so the avatar is the visual star of the step. */
+  /* avatar left, action buttons stretch to the right edge — so this row spans
+     the SAME width as the name field below (consistent left/right margins) */
+  .dns-avatar-row { display: flex; align-items: center; gap: 24px; margin: auto 0; padding: 10px 0; }
+  /* thick white ring + soft drop shadow (mockup look) — the coloured/photo fill
+     is the .dns-avatar-paint inside */
+  .dns-avatar {
+    position: relative; width: 118px; height: 118px; border-radius: 50%; flex: 0 0 118px;
+    background: #fff;
+    box-shadow: 0 0 0 4px #fff, 0 14px 30px rgba(0, 0, 0, .20);
+  }
+  /* neutralise the subtle coloured ring paintAvatar sets inline on the paint el
+     — here the white ring above is the only ring we want */
+  #dnsAvatarPaint { box-shadow: none !important; }
+  /* gradient depth: a glossy top-left highlight + a bottom shade over the flat
+     inline gradient (skipped in photo mode so it never veils the picture) */
+  .dns-avatar-paint:not([data-av-mode="photo"])::before {
+    content: ""; position: absolute; inset: 0; border-radius: 50%; z-index: 1;
+    background:
+      radial-gradient(90% 80% at 30% 22%, rgba(255, 255, 255, .42), rgba(255, 255, 255, 0) 55%),
+      radial-gradient(100% 90% at 75% 115%, rgba(0, 0, 0, .22), rgba(0, 0, 0, 0) 60%);
+    pointer-events: none;
+  }
+  .dns-avatar-paint .av-initials { position: relative; z-index: 2; }
+  .dns-av-in { animation: dnsAvIn .18s ease-out; }
+  @keyframes dnsAvIn { from { transform: scale(.85); opacity: .4; } to { transform: scale(1); opacity: 1; } }
+  .dns-avatar-paint {
+    position: absolute; inset: 0; border-radius: 50%; overflow: hidden;
     display: flex; align-items: center; justify-content: center;
-    font-size: 34px; line-height: 1;
-    box-shadow: 0 2px 12px rgba(0,0,0,.15);
+    font-weight: 800; font-size: 46px;
   }
-  .dns-emoji-wrap .icon { background-color: #fff; }
-  .dns-title {
-    font-size: 18px; font-weight: 700;
-    color: #fff; letter-spacing: -.01em; line-height: 1.2;
+  .dns-avatar-ph { display: none; background-color: rgba(255, 255, 255, .95); }
+  .dns-avatar--empty .dns-avatar-ph { display: block; }
+  .dns-avatar--empty .av-initials { display: none; }
+  .dns-avatar-acts { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: stretch; gap: 10px; }
+  /* real buttons, not floating text — bordered pills with a clear hover */
+  /* grey fill (like the language field) + a clearly-contrasted border so the
+     buttons read on the white card — a white fill + hairline border vanished */
+  .dns-av-act {
+    display: inline-flex; align-items: center; gap: 10px;
+    height: 44px; padding: 0 18px; width: 100%; box-sizing: border-box;
+    font-size: 13.5px; font-weight: 600; color: var(--text);
+    border: 1.5px solid rgba(0, 0, 0, .14); border-radius: 12px; background: var(--surface-2);
+    cursor: pointer;
+    transition: background .12s, border-color .12s, transform .12s, box-shadow .12s;
   }
-  /* body */
-  .dns-body {
-    padding: 24px 24px 22px;
-    display: flex; flex-direction: column; gap: 14px;
-  }
-  .dns-sub {
-    font-size: 13px; color: var(--muted); line-height: 1.55;
-    text-align: center; margin: -4px 0 2px;
-  }
-  /* input field */
+  .dns-av-act:hover { border-color: var(--primary); background: var(--surface); box-shadow: 0 3px 8px rgba(0, 0, 0, .08); }
+  .dns-av-act .icon { background: var(--muted); transition: background .12s; }
+  .dns-av-act:hover .icon { background: var(--primary); }
+  .dns-av-act:active { transform: scale(.97); }
+  /* input field — deliberate, quiet focus ring (no loud halo) */
   .dns-input {
     width: 100%; box-sizing: border-box;
     padding: 11px 14px; font-size: 15px; font-weight: 700;
     background: var(--surface-2); border: 1.5px solid var(--border);
-    border-radius: var(--radius-sm); color: var(--text); outline: none;
-    text-align: center; letter-spacing: -.01em;
+    border-radius: 11px; color: var(--text); outline: none;
+    letter-spacing: -.01em;
+    transition: border-color .12s, background .12s, box-shadow .12s;
+    box-shadow: none;
   }
-  .dns-input:focus { border-color: var(--primary); background: var(--surface); }
-  .dns-result { min-height: 14px; font-size: 11px; color: var(--muted); margin-top: -6px; }
-  /* actions */
-  .dns-actions { display: flex; }
-  .dns-btn-save { width: 100%; height: 44px; font-size: 15px; border-radius: 10px; }
+  .dns-input:focus { border-color: var(--primary); background: var(--surface); box-shadow: 0 0 0 3px rgba(249, 115, 22, .14); }
+  /* green check inside the field once the name is valid */
+  .dns-input-wrap { position: relative; }
+  .dns-input-wrap .dns-input { padding-right: 40px; }
+  .dns-input-ok {
+    position: absolute; right: 14px; top: 50%;
+    background-color: var(--success);
+    transform: translateY(-50%) scale(.6); opacity: 0;
+    transition: opacity .15s, transform .15s;
+  }
+  .dns-input-wrap.ok .dns-input-ok { opacity: 1; transform: translateY(-50%) scale(1); }
+  .dns-result { min-height: 14px; font-size: 11px; color: var(--danger); margin-top: -4px; }
+  /* actions — pinned to the bottom so both steps share the same height */
+  .dns-actions { display: flex; gap: 10px; margin-top: auto; padding-top: 12px; }
+  /* step 1: a single centred CTA at ~60% width (matches the language field) */
+  #dnsStep1 .dns-actions { justify-content: center; }
+  #dnsStep1 .dns-btn-save { flex: 0 0 60%; }
+  .dns-btn-save {
+    flex: 1; height: 46px; font-size: 15px; font-weight: 700; border-radius: 12px;
+    background-image: linear-gradient(180deg, #ff8a3d, #f2690d);
+    box-shadow: 0 6px 18px rgba(249, 115, 22, .3);
+    transition: transform .14s ease, box-shadow .14s ease, filter .14s ease;
+  }
+  .dns-btn-save:hover { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(249, 115, 22, .38); filter: brightness(1.03); }
+  .dns-btn-save:active { transform: translateY(0) scale(.985); box-shadow: 0 3px 10px rgba(249, 115, 22, .28); }
+  .dns-btn-back {
+    display: inline-flex; align-items: center; gap: 8px;
+    height: 46px; padding: 0 20px; border-radius: 12px;
+    font-size: 14px; font-weight: 600;
+    border: none; background: transparent; color: var(--text);
+    cursor: pointer;
+    transition: background .12s, color .12s;
+  }
+  .dns-btn-back:hover { background: var(--surface-2); }
+  .dns-btn-back:hover .dns-back-arrow { transform: translateX(-2px); }
+  .dns-back-arrow { font-weight: 700; transition: transform .14s ease; }
+  @media (prefers-reduced-motion: reduce) {
+    .dns-track { transition: none; }
+    .dns-av-in { animation: none; }
+    .dns-btn-save:hover, .dns-btn-save:active, .dns-av-act:active { transform: none; }
+    .dns-btn-back:hover .dns-back-arrow { transform: none; }
+  }
 
   /* ── Lists view (Amazon-style wishlists) ── */
   /* Fill the remaining height inside #card-inv so each column can scroll on its own. */
@@ -3621,8 +3863,8 @@
   .lv-qr-logo:hover { border-color: var(--primary); }
   .lv-qr-logo.is-on { background: var(--primary); border-color: var(--primary); }
   .lv-qr-logo-mark { width: 16px; aspect-ratio: 1000 / 567; background-color: var(--muted);
-    -webkit-mask: url('../../assets/svg/logos/logo_tigertag_head.svg') center/contain no-repeat;
-            mask: url('../../assets/svg/logos/logo_tigertag_head.svg') center/contain no-repeat; }
+    -webkit-mask: url('../../assets/svg/logos/logo_tigertag_contouring_head.svg') center/contain no-repeat;
+            mask: url('../../assets/svg/logos/logo_tigertag_contouring_head.svg') center/contain no-repeat; }
   .lv-qr-logo.is-on .lv-qr-logo-mark { background-color: #fff; }
   /* Social share buttons — brand-coloured circles with a white glyph. */
   .icon-facebook { -webkit-mask-image: url('../../assets/svg/logos/logo_facebook.svg'); mask-image: url('../../assets/svg/logos/logo_facebook.svg'); }
@@ -3806,6 +4048,10 @@
     font-family: inherit; transition: opacity .12s;
   }
   #dbgRefHint:hover { opacity: 1; }
+  /* the id-level `display:inline-flex` above overrides the UA `[hidden]` rule,
+     so `h.hidden = true` didn't hide the pill until a reload — this makes the
+     hidden attribute win, so toggling Debug off removes it instantly. */
+  #dbgRefHint[hidden] { display: none; }
   #dbgRefHint .icon { background-color: var(--primary); }
   /* the green "Copied!" flash (_flashCopied) pops up just above the pill — do NOT
      clip it (no overflow:hidden), and lift its stacking so it clears the pill. */

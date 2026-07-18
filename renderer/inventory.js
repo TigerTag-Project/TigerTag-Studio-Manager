@@ -220,6 +220,26 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const h = n => n.toString(16).padStart(2,"0");
     return [hex, `#${h(mix(r))}${h(mix(g))}${h(mix(b))}`];
   }
+  // HSL → #rrggbb (h 0–360, s/l 0–100).
+  function hslToHex(h, s, l) {
+    s /= 100; l /= 100;
+    const k = n => (n + h / 30) % 12;
+    const a = s * Math.min(l, 1 - l);
+    const f = n => {
+      const c = l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1));
+      return Math.round(255 * c).toString(16).padStart(2, "0");
+    };
+    return `#${f(0)}${f(8)}${f(4)}`;
+  }
+  // One random avatar background colour, HSL-constrained to a vivid-but-legible
+  // range (S 65–85 %, L 42–58 %) then returned as HEX. Generated ONCE at
+  // onboarding init and on each "new colour" tap — never on typing/re-render.
+  function generateRandomAvatarColor() {
+    const hue = Math.floor(Math.random() * 360);
+    const saturation = 65 + Math.floor(Math.random() * 21); // 65–85 %
+    const lightness = 42 + Math.floor(Math.random() * 17);  // 42–58 %
+    return hslToHex(hue, saturation, lightness);
+  }
   function getAccGradient(acc) {
     if (acc?.color === "custom" && acc.customColor) {
       const [c1,c2] = hexToGradientPair(acc.customColor);
@@ -665,7 +685,6 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     localNotifications: [],  // [{ id, icon, text, version?, action? }] — per-install, transient (e.g. app update), NOT in Firestore
     blacklist: [],           // [{ uid, displayName, blockedAt }]
     racks: [],               // [{ id, name, level, position, order, createdAt, lastUpdate }]
-    rackPresets: [],         // loaded from data/rack-presets.json
     unsubRacks: null,        // Firestore unsubscribe handle for racks
     scales: [],              // [{ mac, name, last_seen, last_spool, fw_version, ... }]
     unsubScales: null,       // Firestore unsubscribe handle for scales
@@ -736,6 +755,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // icon-only buttons where a hover title would be noise (e.g. the view selector).
     document.querySelectorAll("[data-i18n-aria]").forEach(el => {
       el.setAttribute("aria-label", t(el.dataset.i18nAria));
+    });
+    // data-i18n-tip — localised CUSTOM tooltip (via CSS `content: attr(data-tip)`
+    // on `.crop-tip`, instant on hover — no native `title` delay) + aria-label.
+    document.querySelectorAll("[data-i18n-tip]").forEach(el => {
+      const v = t(el.dataset.i18nTip);
+      el.setAttribute("data-tip", v);
+      el.setAttribute("aria-label", v);
     });
     if ($("langSelect")) $("langSelect").value = state.lang;
     // Refresh dynamic tooltips
@@ -1330,10 +1356,6 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     try {
       const r = await fetch('../data/container_spool/spools_filament.json');
       if (r.ok) state.db.containers = await r.json();
-    } catch {}
-    try {
-      const r = await fetch('../data/rack-presets.json');
-      if (r.ok) state.rackPresets = await r.json();
     } catch {}
     // Per-country VAT rates + currency — drives HT⇄TTC price conversion and
     // the currency symbol in the filament buy-link / reorder feature. Editable
@@ -2660,6 +2682,15 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       return;
     }
 
+    // "Add product" takes over the right side — close every other side card first
+    // (spool detail, grouped-spools card, product card, reorder, pickers, notifs).
+    try { closeDetail(); } catch (_) {}
+    try { _closeGroupPanel(); } catch (_) {}
+    try { closeProductCard(); } catch (_) {}
+    try { closeReorderPanel(); } catch (_) {}
+    try { closeContainerPicker(); } catch (_) {}
+    try { closeNotifs(); } catch (_) {}
+
     _pendingCloudId = _adpCloudId();
 
     // Populate dropdowns. Brand by name asc, material by label asc;
@@ -2833,13 +2864,45 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     $("adpTd1sBtn")?.classList.toggle("td1s-connected", !!state.td1sConnected);
     $("addProductPanel")?.classList.add("open");
     $("addProductOverlay")?.classList.add("open");
+    // » close tab at the panel's left edge, like every other side card.
+    _setTab($("addProductCloseTab"), true, $("addProductPanel")?.offsetWidth || 0, $("addProductPanel"));
     setTimeout(() => $("adpBrand")?.focus(), 80);
   }
 
   function closeAddProductPanel() {
     $("addProductPanel")?.classList.remove("open");
     $("addProductOverlay")?.classList.remove("open");
+    _setTab($("addProductCloseTab"), false, 0, $("addProductPanel"));
     _pendingCloudId = null;
+  }
+  // Same teardown as the ✕ and the click-outside: the colour / brand / material
+  // sheets sit ON TOP of this panel, so closing it alone would leave them floating
+  // over nothing. (_adpCloseAllSheetsAndPanel is a hoisted declaration below.)
+  //
+  // Closes on RELEASE, whatever the press lasted — no hold timer. A timer fired
+  // mid-press, so a long press could tear the panel down while it was still animating
+  // into place. Pointer capture keeps the gesture bound to the tab: it re-pins itself
+  // to the panel's live edge every frame, so a press that drifts a couple of pixels
+  // would otherwise lose its `click` and the button would feel dead. The `click`
+  // listener stays for keyboard activation (Enter on the focused tab), guarded so a
+  // pointer gesture doesn't run the teardown twice.
+  const _adpTab = $("addProductCloseTab");
+  if (_adpTab) {
+    let _adpClosedByPointer = false;
+    _adpTab.addEventListener("pointerdown", e => {
+      if (e.button !== 0) return;
+      _adpClosedByPointer = false;
+      try { _adpTab.setPointerCapture(e.pointerId); } catch (_) {}
+    });
+    _adpTab.addEventListener("pointerup", e => {
+      if (e.button !== 0) return;
+      _adpClosedByPointer = true;
+      _adpCloseAllSheetsAndPanel();
+    });
+    _adpTab.addEventListener("click", () => {
+      if (!_adpClosedByPointer) _adpCloseAllSheetsAndPanel();
+      _adpClosedByPointer = false;
+    });
   }
 
   async function saveAddProduct() {
@@ -3604,11 +3667,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       list.style.right = `${main.offsetWidth}px`;
       list.classList.add("open");
       // » close tab pinned to the list card's LEFT edge (like every other side-card).
-      _setTab($("friendsListCloseTab"), true, main.offsetWidth + list.offsetWidth);
+      _setTab($("friendsListCloseTab"), true, main.offsetWidth + list.offsetWidth, list);
     } else {
       list.classList.remove("open");
       list.style.right = "";
-      _setTab($("friendsListCloseTab"), false, 0);
+      _setTab($("friendsListCloseTab"), false, 0, list);
     }
   }
   // Friends is opened from the account dropdown (data-drop-action="open-friends").
@@ -3764,6 +3827,16 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     badge.classList.remove("run"); void badge.offsetWidth; badge.classList.add("run");   // restart the animation
     clearTimeout(el._copyFlashT);
     el._copyFlashT = setTimeout(() => { el.classList.remove("is-copied"); }, 1000);
+  }
+  // Minimal floating snackbar for a brief global message (bottom-centre, auto-fade).
+  let _flashMsgT = null;
+  function _flashMessage(msg) {
+    let el = $("globalFlash");
+    if (!el) { el = document.createElement("div"); el.id = "globalFlash"; el.className = "global-flash"; document.body.appendChild(el); }
+    el.textContent = msg;
+    el.classList.remove("show"); void el.offsetWidth; el.classList.add("show");
+    clearTimeout(_flashMsgT);
+    _flashMsgT = setTimeout(() => el.classList.remove("show"), 1800);
   }
   /* ── modal: disconnect account ── */
   /* ── modal: edit account ── */
@@ -4215,7 +4288,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (!_editingAccount) return;
     const newName = $("eacDisplayNameInput").value.trim();
     const res = $("eacNameResult");
-    if (!newName) { res.style.color = "var(--danger)"; res.textContent = "—"; return; }
+    if (newName.length < DNS_NAME_MIN || newName.length > DNS_NAME_MAX) { res.style.color = "var(--danger)"; res.textContent = t("setupNameLen"); return; }
     if (newName === (_editingAccount.displayName || "")) {
       res.style.color = "var(--muted)"; res.textContent = "✓";
       setTimeout(() => { res.textContent = ""; }, 1200); return;
@@ -4290,8 +4363,6 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     $("stgPassword").setAttribute("autocomplete", create ? "new-password" : "current-password");
     // Update dynamic labels (data-i18n + textContent)
     const set = (id, key) => { $(id).dataset.i18n = key; $(id).textContent = t(key); };
-    set("lmTitle",          create ? "loginCreateTitle"    : "loginSignInTitle");
-    set("lmSubtitle",       create ? "loginCreateSubtitle" : "loginSignInSubtitle");
     set("lmSubmitLabel",    create ? "loginCreateAccount"  : "btnSignIn");
     set("lmToggleText",     create ? "loginHaveAccount"    : "loginNoAccount");
     set("btnToggleAuthMode",create ? "btnSignIn"           : "loginCreateAccount");
@@ -4309,8 +4380,6 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     $("addModalResult").innerHTML = "";
     $("stgRememberMe").checked = true;
     lmSetMode("signin");
-    // Sync language select to current app language
-    $("lmLangSelect").value = state.lang;
     $("addAccountModalOverlay").classList.add("open");
     setTimeout(() => $("stgEmail").focus(), 180);
   }
@@ -4326,13 +4395,6 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // Eye toggles for both password fields
   makeEyeToggle("btnToggleStgPassword", "stgPassword");
   makeEyeToggle("btnToggleConfirmPassword", "stgConfirmPassword");
-
-  // Language switcher inside the login modal
-  $("lmLangSelect").addEventListener("change", () => {
-    const lang = $("lmLangSelect").value;
-    saveAccountLang(lang);
-    applyLang(lang);
-  });
 
   // Mode toggle: sign-in ↔ create account
   $("btnToggleAuthMode").addEventListener("click", () => {
@@ -5268,6 +5330,18 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
             // Refresh open detail panel — short-circuits when the displayed
             // spool hasn't actually changed (no flash on unrelated edits).
             refreshOpenDetail();
+            // The reorder ("Infos produit") card only auto-refreshes on PRODUCT
+            // snapshots, but its header shows the spool's image (r.imgUrl) — a custom
+            // image is a SPOOL field. Re-point _reorderRow to the fresh row and
+            // re-render when the header image actually changed (guarded so weight
+            // ticks don't churn the panel).
+            if ($("reorderPanel")?.classList.contains("open") && _reorderRow) {
+              const fresh = state.rows.find(x => x.spoolId === _reorderRow.spoolId);
+              if (fresh && (fresh.imgUrl !== _reorderRow.imgUrl || fresh.userImg !== _reorderRow.userImg)) {
+                _reorderRow = fresh;
+                refreshOpenDetailReorder(true);   // reseed → header re-renders (skips if mid-edit)
+              }
+            }
             // Refresh racks panel if open (positions/fills may have changed)
             if ($("racksPanel")?.classList.contains("open")) renderRacksList();
             if (!ColdStart._secondPaintDone) { ColdStart._secondPaintDone = true; ColdStart.mark("second-paint"); }
@@ -5438,7 +5512,6 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         applyDebugMode(); renderStats(); renderInventory();
         renderAccountDropdown();
         setDisconnected();
-        setTimeout(() => openAddAccountModal(), 300);
       }
     });
   }
@@ -5448,8 +5521,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const accounts = getAccounts();
     for (const acc of accounts) setupNamedAuth(acc.id);
 
-    // If no saved accounts, show login immediately
-    if (!accounts.length) setTimeout(() => openAddAccountModal(), 300);
+    // With no saved account the welcome screen is what the user lands on — it
+    // carries the Sign-in button. The login modal is never opened on its own.
   }
 
 
@@ -5462,9 +5535,23 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // empty-string return lets every consumer render an avatar with
     // just the colour gradient (and photo, if any) until the real
     // name arrives — invisible to the user, no jarring letter swap.
-    const src = (a.displayName || "").trim();
-    if (!src) return "";
-    return src.split(/\s+/).filter(Boolean).map(w => w[0]).join("").toUpperCase().slice(0, 2);
+    //
+    // Shared "Avatar Initials" contract (Studio + mobile + Tiger Hub):
+    //  1. trim, collapse repeated spaces, ignore punctuation (keep letters/digits)
+    //  2/3. ≥2 words → first letter of the first two words (e.g. "Benoît Michaut" → BM)
+    //  4/5. 1 word → its first two characters, or the only one (e.g. "Benoît" → BE, "B" → B)
+    //  6. accents are kept (e.g. "Éric Martin" → ÉM, "Łukasz" → ŁU)
+    // The background colour is derived independently (from acc.color), never the
+    // name, so typing never shuffles the gradient.
+    const raw = (a.displayName || "").trim();
+    if (!raw) return "";
+    const clean = raw.replace(/[^\p{L}\p{N}\s]/gu, "").replace(/\s+/g, " ").trim();
+    if (!clean) return "";
+    const words = clean.split(" ");
+    if (words.length >= 2) {
+      return ([...words[0]][0] + [...words[1]][0]).toUpperCase();
+    }
+    return [...words[0]].slice(0, 2).join("").toUpperCase();
   }
 
   function renderAccountList() {
@@ -5619,10 +5706,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         setupNamedAuth(remaining[0].id);
         const u = firebase.app(remaining[0].id).auth().currentUser;
         if (u) handleSignedIn(u, remaining[0].id);
-        else setTimeout(() => openAddAccountModal(), 300);
       } else {
         state.activeAccountId = null;
-        setTimeout(() => openAddAccountModal(), 300);
       }
     } else {
       renderAccountList();
@@ -6361,7 +6446,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
             <div class="inv-welcome-hero">
               <h1 class="inv-welcome-h1">${t("invWelcomeTitle")}</h1>
               <div class="inv-welcome-logo inv-welcome-logo--mockup">
-                <img src="../assets/img/tiger_studio_and_tiger_rfid_connect_mockup.png" alt="Tiger Studio + TigerTag RFID" />
+                <img src="../assets/img/Hero-TigerSystem-ecosystem.png" alt="Tiger Studio + TigerTag RFID" />
               </div>
               <p class="inv-welcome-p">${t("invWelcomeSub")}</p>
             </div>
@@ -6961,6 +7046,40 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     return src[_productKeyHash(r)] || null;
   }
 
+  // Product web-link attachments a plan allows. MIRROR of the Firestore rule
+  // (users/{uid}/products write cap) — the rule is the real, un-bypassable gate;
+  // this only drives the UI (how many slots, the "unlock more" locked state).
+  // Future tiers/gamification just set users/{uid}.tier — no code change here.
+  const LINK_LIMITS = { free: 1, plus: 2, premium: 5 };
+  function _linkLimit() { return LINK_LIMITS[state.tier] || LINK_LIMITS.free; }
+  // Normalise a spool/product's attachments to a clean array of {url,label,kind}.
+  function _attachmentsOf(prod) {
+    const a = prod && prod.attachments;
+    return Array.isArray(a) ? a.filter(x => x && typeof x.url === "string" && x.url) : [];
+  }
+  // Classify a URL for its display icon: pdf / video / image / link.
+  function _attachKind(url) {
+    const u = String(url || "").toLowerCase();
+    if (/\.pdf($|[?#])/.test(u)) return "pdf";
+    if (/youtube\.com|youtu\.be|vimeo\.com|\.mp4($|[?#])|\.webm($|[?#])/.test(u)) return "video";
+    if (/\.(png|jpe?g|gif|webp|svg)($|[?#])/.test(u)) return "image";
+    return "link";
+  }
+  // Clean + cap an attachments array for a Firestore write: keep {url,label,kind},
+  // derive kind, trim, drop empties, clamp to the plan limit. The rule enforces the
+  // cap server-side too — this keeps the client honest so the write isn't rejected.
+  function _sanitizeAttachments(arr) {
+    if (!Array.isArray(arr)) return [];
+    const out = [];
+    for (const a of arr) {
+      const url = (a && typeof a.url === "string") ? a.url.trim() : "";
+      if (!url) continue;
+      out.push({ url, label: (a.label || "").trim(), kind: a.kind || _attachKind(url) });
+      if (out.length >= _linkLimit()) break;
+    }
+    return out;
+  }
+
   // True when this product has a saved buy link — drives the Shopify badge on
   // the material illustration (grid card + table thumbnail). Never in a friend's
   // inventory: products is the signed-in user's, not the friend's.
@@ -7069,12 +7188,16 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       return;
     }
     patch = _coupleFlags(patch, +(state.products[hash]?.minStockSpools) || 0);
-    // Optimistic local patch for the coupled fields so ❤/★ + min reflect instantly.
-    const _rec = state.products[_productKeyHash(r)];
+    // Optimistic local patch so ❤/★ + min + links reflect instantly. Seed the record
+    // when the product has no doc yet: attaching a link is the one entry point that
+    // can fire on a never-favorited, never-priced product, and without the record the
+    // caller's immediate re-render would read back nothing and look like a failed save.
+    const _rec = state.products[hash] || (state.products[hash] = { key: _spoolGroupKey(r), label: _productLabel(r) });
     if (_rec) {
       if ("liked" in patch)    _rec.liked = !!patch.liked;
       if ("favorite" in patch) _rec.favorite = !!patch.favorite;
       if ("minStockSpools" in patch) _rec.minStockSpools = (Number.isFinite(+patch.minStockSpools) && +patch.minStockSpools > 0) ? Math.round(+patch.minStockSpools) : 0;
+      if ("attachments" in patch) _rec.attachments = _sanitizeAttachments(patch.attachments);
     }
     const doc = {
       key:   _spoolGroupKey(r),
@@ -7087,6 +7210,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const seed = _sanitizeCloudSeed(r.raw);
     if (seed) doc.cloudSeed = seed;
     if ("buyUrl" in patch) doc.buyUrl = patch.buyUrl || "";
+    if ("attachments" in patch) doc.attachments = _sanitizeAttachments(patch.attachments);
     if ("buyPriceHt" in patch) {
       doc.buyPriceHt = (patch.buyPriceHt === "" || patch.buyPriceHt == null || !Number.isFinite(+patch.buyPriceHt))
         ? null : Math.round(+patch.buyPriceHt * 10000) / 10000;  // 4-dp to kill float noise
@@ -7417,7 +7541,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     };
     // Tiger-head mark (no text). Inlined as a data URI so drawing it never taints
     // the canvas (keeps canvas.toDataURL working for the download).
-    fetch("../assets/svg/logos/logo_tigertag_head.svg")
+    fetch("../assets/svg/logos/logo_tigertag_contouring_head.svg")
       .then(r => r.ok ? r.text() : Promise.reject())
       .then(svg => { _qrLogoImg.src = "data:image/svg+xml;utf8," + encodeURIComponent(svg); })
       .catch(() => { _qrLogoReady = false; });
@@ -9681,7 +9805,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // (reorder side-card), the quantity selector and the drag grip keep their own
     // behaviour; buy / add-price / copy-SKU / set-aside were already handled above.
     if (line.classList.contains("pv-order-line") && !e.target.closest(".pv-info, .pv-qty-col, .pv-grip")) {
-      if (p) openProductCard(p);
+      if (p) {
+        // TOGGLE: reclicking the same line closes its open product card (same
+        // pattern as the ⓘ reorder toggle and _openProductCardFromRow). `id` is
+        // stamped on open so the next click can recognise "same product".
+        if ($("productCardPanel")?.classList.contains("open") && _productCardData?.id === hash) closeProductCard();
+        else openProductCard({ ...p, id: hash });
+      }
       return;
     }
     // Open the product card — explicit info button (order tab) or line click (faves).
@@ -9852,6 +9982,54 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     _onFilterChange();
     inp.focus();
   });
+  // Does the current search leave nothing on screen? Read from the SAME signal each
+  // view already computes rather than re-deriving the predicate, so this can never
+  // drift from what the user is actually looking at.
+  function _mainSearchHasNoResults() {
+    if (state.viewMode === "grid" || state.viewMode === "table") {
+      // applyInventoryFilter() only reveals #invEmpty when there IS inventory and
+      // the filter matched none of it — exactly the case we want.
+      return !!$("invEmpty") && !$("invEmpty").classList.contains("hidden");
+    }
+    if (_isPrinterMode(state.viewMode)) {
+      const nodes = [...($("invPrinterView")?.querySelectorAll("[data-printer-key]") || [])];
+      return nodes.length > 0 && nodes.every(n => n.classList.contains("hidden"));
+    }
+    if (_isProductsMode(state.viewMode)) {
+      // Favorites (grid + table) and To-order all replace the WHOLE view with a
+      // single `.pv-empty` block when the filtered list comes back empty. Match only
+      // that top-level block: To-order also renders a `.pv-empty--inline` hint inside
+      // each drop zone, so one empty zone next to a filled one must not count.
+      return !!$("invProductsView")?.querySelector(":scope > .pv-empty");
+    }
+    if (_isListsMode(state.viewMode)) {
+      // Only the ITEM list reacts to the search — match its empty block inside
+      // `.lv-rows`. The view's top-level empty states (`.lv-first`, `.pv-empty`)
+      // mean "no lists at all", which the search has nothing to do with.
+      return !!$("invListsView")?.querySelector(".lv-rows > .pv-empty");
+    }
+    if (state.viewMode === "rack") {
+      // Nothing is ever emptied here — the view dims non-matches instead — so the
+      // "no result" signal is the absence of any positive match marker that
+      // applyRackSearchDim() would have set.
+      const filled = document.querySelectorAll("#invRackView .rp-slot--filled");
+      return filled.length > 0 && !document.querySelector("#invRackView .rp-slot--match");
+    }
+    // Remaining modes have no unambiguous empty signal — leave those alone.
+    return false;
+  }
+  // Leaving the field on a term that matches nothing resets it: once the caret is
+  // gone, a dead search is just an unexplained empty view. Same rule as the
+  // "not stored" filter in the rack view.
+  $("searchInv").addEventListener("blur", () => {
+    if (!state.search || !_mainSearchHasNoResults()) return;
+    const inp = $("searchInv");
+    if (!inp) return;
+    inp.value = "";
+    state.search = "";
+    _refreshSearchClearVisibility("");
+    _onFilterChange();
+  });
   // Initial sync — covers the case where the input was pre-populated
   // by a previous render or autofill (rare but possible).
   _refreshSearchClearVisibility($("searchInv")?.value);
@@ -9912,23 +10090,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // The ⓘ info bubble on the "Stock value" stat (reuses the toolbox tooltip pop).
   $("sbStats")?.addEventListener("mouseover", e => { const el = e.target.closest?.(".tool-info"); if (el) _showToolInfoTip(el); });
   $("sbStats")?.addEventListener("mouseout",  e => { const el = e.target.closest?.(".tool-info"); if (el && !el.contains(e.relatedTarget)) _hideToolInfoTip(); });
-  $("sbStats")?.addEventListener("click", e => {
-    if (e.target.closest(".tool-info")) return;   // pressing the ⓘ must not trigger the stat filter
-    const tile = e.target.closest(".sb-stat[data-filter]");
-    if (!tile) return;
-    const f = tile.dataset.filter;
-    if (f === "reset" || state.typeFilter === f) {
-      state.typeFilter = "";
-    } else {
-      state.typeFilter = f;
-    }
-    const sel = $("typeFilter");
-    if (sel) {
-      sel.value = state.typeFilter;
-      sel.classList.toggle("is-active", !!state.typeFilter);
-    }
-    _onFilterChange();
-  });
+  // The header mini-dashboard is INFORMATIONAL only — clicking a stat card no
+  // longer filters the inventory. It used to set state.typeFilter and poke
+  // `#typeFilter.value` directly, which left the custom `_enhanceSelect` dropdown
+  // showing a stale label (the visible button mirrors the <select> and only
+  // refreshes on a real change event). Protocol filtering stays where it belongs:
+  // the filter controls next to the search field.
 
   function updateSortIndicators() {
     document.querySelectorAll("th.sortable").forEach(th => {
@@ -10750,6 +10917,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     }
     if ("liked" in patch)    { doc.liked = !!patch.liked; local.liked = doc.liked; }
     if ("favorite" in patch) { doc.favorite = !!patch.favorite; local.favorite = doc.favorite; }
+    if ("attachments" in patch) { const v = _sanitizeAttachments(patch.attachments); doc.attachments = v; local.attachments = v; }
     // "Saved for later" — the reorder cart's set-aside zone. Private to /products
     // (never mirrored to productShares), so it's a plain owner field, no rule change.
     // Deleted when false so docs stay clean.
@@ -10884,7 +11052,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       // "Stop tracking" is press-and-hold (1 s) — reset min to 0 → drops the line.
       if (!ro) host.querySelectorAll("[data-reorder-remove]").forEach(btn => {
         const h = btn.closest(".pv-order-line")?.dataset.hash;
-        if (h) setupHoldToConfirm(btn, 1000, () => { _writeProductField(h, { minStockSpools: 0 }); renderProductsView(); });
+        if (h) setupHoldToConfirm(btn, 1000, () => { _writeProductField(h, { minStockSpools: 0, liked: false }); renderProductsView(); });
       });
       return;
     }
@@ -11264,13 +11432,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // Amazon-style TEXT action under the item (clear wording beats an ambiguous
     // icon next to the green buy-cart): "Save for later" in the cart, "Move to
     // cart" on the shelf. Same data-attrs → same handler. Hidden in friend view.
+    // Text action under the item (the MOVE between zones): "Save for later" in the
+    // cart, "Move to cart" on the shelf. Same data-attrs → same handler.
     const moveLink = ro ? "" : (saved
       ? `<button class="pv-move-link pv-move-link--cart" data-tocart>${esc(t("reorderMoveToCart"))}</button>`
       : `<button class="pv-move-link" data-later>${esc(t("reorderSaveLater"))}</button>`);
-    // Stop tracking — resets the minimum stock to 0, which drops the product from
-    // reorder entirely (out of both the cart AND the saved shelf). The only way to
-    // remove a line once it's in the reorder list.
-    const stopLink = ro ? "" : `<button type="button" class="pv-move-link pv-move-link--stop" data-reorder-remove><span class="hold-progress"></span><span class="pv-stop-txt">${esc(t("reorderStopTracking"))}</span></button>`;
+    // Trailing action icon (next to the buy button), SAME in both zones: a ✕ with a
+    // 1 s HOLD = stop tracking (removes the line from the To-order list entirely).
+    const trailAction = ro ? "" : `<button class="pv-line-act pv-line-act--del" data-reorder-remove aria-label="${esc(t("reorderStopTracking"))}"><span class="hold-progress"></span><span class="icon icon-close icon-13"></span></button>`;
     // Drag handle — reorder lines + drag a line across to the other zone. Only
     // the grip starts a drag (keeps the qty input / buttons fully usable). Hidden
     // in friend view.
@@ -11287,7 +11456,6 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           <div class="pv-qty">
             <span>${esc(t("pvStockRatio", { have: x.inStock, need: x.required }))}</span>
             ${moveLink ? `<span class="pv-qty-dot">·</span>${moveLink}` : ""}
-            ${stopLink ? `<span class="pv-qty-dot">·</span>${stopLink}` : ""}
           </div>
         </div>
         <div class="pv-unit-col">${unit == null ? `<button class="pv-addprice" data-addprice>${esc(t("reorderAddPrice"))}</button>` : `${_fmtMoney(unit)} ${ctx.sym}`}</div>
@@ -11296,6 +11464,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         <div class="pv-line-actions">
           <button class="pv-info" data-info aria-label="${esc(t("toolReorder"))}"><span class="icon icon-info icon-14"></span></button>
           <button class="pv-buy${p.buyUrl ? "" : " pv-buy--off"}" data-buy aria-label="${esc(t("toolReorderBuy"))}"><span class="icon icon-cart icon-14"></span></button>
+          ${trailAction}
         </div>
       </div>`;
   }
@@ -11419,14 +11588,27 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         <div class="pv-section-title">${esc(t("pvCartTitle"))}${cartRows.length ? `<span class="pv-section-count">${cartRows.length}</span>` : ""}</div>
         ${cartInner}
       </div>`;
-    // ── Saved for later (durable shelf — no totals) ────────────────
+    // ── Saved for later (durable shelf) — with its own informational subtotal
+    // (like the per-source carts). It is NOT added to the payment total below;
+    // saved items are for later, not part of what you pay now.
+    let savedHt = 0, savedPriced = 0;
+    const savedLines = savedRows.map(x => {
+      const uh = x.p.buyPriceHt == null ? null : +x.p.buyPriceHt;
+      if (uh != null) { savedHt += uh * x.qty; savedPriced += x.qty; }
+      return _orderLineHTML(x, ctx, true, ro);
+    }).join("");
+    const savedShown = mode === "TTC" ? savedHt * factor : savedHt;
+    const savedFoot = savedPriced > 0
+      ? `<div class="pv-cart-card-foot"><span class="pv-cart-foot-lbl">${esc(t("pvSubtotal"))}</span><span class="pv-cart-foot-val">${_fmtMoney(savedShown)} ${sym} <span class="pv-cart-foot-tag">${esc(t(mode === "TTC" ? "reorderTTC" : "reorderHT"))}</span></span></div>`
+      : "";
     const savedInner = savedRows.length
-      ? `<div class="pv-order-list" data-zone="saved">${savedRows.map(x => _orderLineHTML(x, ctx, true, ro)).join("")}</div>`
+      ? `<div class="pv-order-list" data-zone="saved">${savedLines}</div>`
       : `<div class="pv-order-list pv-order-list--empty" data-zone="saved"><div class="pv-empty pv-empty--inline"><span class="icon icon-clock icon-24"></span><div>${esc(t("pvSavedEmpty"))}</div></div></div>`;
     const savedBlock = `
       <div class="pv-saved">
         <div class="pv-section-title">${esc(t("pvSavedTitle"))}${savedRows.length ? `<span class="pv-section-count">${savedRows.length}</span>` : ""}</div>
         ${savedInner}
+        ${savedFoot}
       </div>`;
     // ── Payment card (active cart only, sticky on the right) ───────
     const tax = subtotalHT * rate / 100;
@@ -11560,8 +11742,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       const { title, sub, extra } = _productGridLabel(r);
       const priceHTML = _favePriceHTML(p.buyPriceHt, sym);   // in the user's HT/TTC mode
       // Read-only (friend) cards show no "Add a price" prompt — just nothing.
+      // Owner: keep the clean plain-TEXT look (no button chrome) but make it
+      // clickable via data-addprice — the invProductsView handler matches it with
+      // closest("[data-addprice]") and opens the focused price editor.
       const footerHTML = priceHTML == null
-        ? (ro ? "" : `<span class="card-price card-price--none">${esc(t("reorderAddPrice"))}</span>`)
+        ? (ro ? "" : `<span class="card-price card-price--none" data-addprice role="button" tabindex="0">${esc(t("reorderAddPrice"))}</span>`)
         : `<span class="card-price">${priceHTML}</span>`;
       return `<div class="spool-card pv-item" data-hash="${esc(p.id)}" data-key="${esc(p.key)}">${_gridCardInnerHTML(r, { product: true, footerHTML, nameText: title, subText: sub, subExtraText: extra })}</div>`;
     }).join("");
@@ -12564,13 +12749,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const roW = (roOpen && rop) ? rop.offsetWidth : 0;
     const roRight = roOpen ? (baseRight + detailW + cppW + gpW + pcW) : 0;
     if (rop) rop.style.right = roRight ? `${roRight}px` : "";
-    _setTab($("productCardCloseTab"), pcOpen, pcRight + pcW);
-    _setTab($("reorderCloseTab"), roOpen, roRight + roW);
-    _setTab($("detailCloseTab"),     dOpen, matRight + detailW);
-    _setTab($("printerCloseTab"),    pOpen, printerW);
-    _setTab($("printerAddCloseTab"), cOpen, configRight + configW);
-    _setTab($("containerCloseTab"),  cppOpen, cppRight + cppW);
-    _setTab($("groupCloseTab"), gOpen, groupRight + gpW);
+    _setTab($("productCardCloseTab"), pcOpen, pcRight + pcW, pcp);
+    _setTab($("reorderCloseTab"), roOpen, roRight + roW, rop);
+    _setTab($("detailCloseTab"),     dOpen, matRight + detailW, dp);
+    _setTab($("printerCloseTab"),    pOpen, printerW, pp);
+    _setTab($("printerAddCloseTab"), cOpen, configRight + configW, cp);
+    _setTab($("containerCloseTab"),  cppOpen, cppRight + cppW, cpp);
+    _setTab($("groupCloseTab"), gOpen, groupRight + gpW, gp);
   }
   // Settings + Debug form their own right-side stack, independent of the
   // inventory panels above (Settings always closes those first). Settings is the
@@ -12592,7 +12777,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       const open = !!p?.classList.contains("open");
       // Settings is the base (right:0 from CSS); the others dock at `offset`.
       if (panelId !== "settingsPanel" && p) p.style.right = (open && offset) ? `${offset}px` : "";
-      _setTab($(tabId), open, offset + (open && p ? p.offsetWidth : 0));
+      _setTab($(tabId), open, offset + (open && p ? p.offsetWidth : 0), p);
       if (open && p) offset += p.offsetWidth;
     }
   }
@@ -12618,23 +12803,53 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (!card) document.querySelectorAll(".pba-brand--selected").forEach(b => b.classList.remove("pba-brand--selected"));
     if (picker) picker.style.right = (pickerOpen && cardW) ? `${cardW}px` : "";
     const pickerW = pickerOpen && picker ? picker.offsetWidth : 0;
-    _setTab($("pbaChoiceCloseTab"),          !!card,     cardW);
-    _setTab($("printerBrandPickerCloseTab"), pickerOpen, cardW + pickerW);
+    _setTab($("pbaChoiceCloseTab"),          !!card,     cardW, card);
+    _setTab($("printerBrandPickerCloseTab"), pickerOpen, cardW + pickerW, picker);
   }
   // Show/position/hide a card's close tab so it slides WITH the panel — its `right`
   // has the same .25s transition as the panel's slide and travels the same distance
   // (the panel's width), so the two stay glued instead of the tab popping at its
   // final spot. Opening: start at the panel's closed left edge (right:0), reflow,
   // then slide to target. Closing: slide back to the edge, then hide once gone.
-  function _setTab(tab, open, target) {
+  function _setTab(tab, open, target, panel) {
     if (!tab) return;
+    clearTimeout(tab._hideT);
+    cancelAnimationFrame(tab._glueRaf);
+    // GLUED mode (panel element provided): pin the tab to the panel's LIVE left
+    // edge every frame (rAF + getBoundingClientRect) while the card slides. The
+    // two move at the same speed BY CONSTRUCTION — with the legacy animated
+    // `right`, a stacked card's tab travelled offset+width while the card slid
+    // only its own width in the same .25s, so the tab visibly outran its card.
+    // The tracker stops once the edge has been stable for a few frames (or 700 ms).
+    if (panel) {
+      tab.style.transition = "none";       // JS drives the motion; CSS would lag it
+      if (open && tab.hidden) tab.hidden = false;
+      let last = null, stable = 0;
+      const t0 = performance.now();
+      const step = (now) => {
+        const r = panel.getBoundingClientRect();
+        if (!r.width) {                    // panel not rendered — snap and settle
+          if (open) tab.style.right = `${Math.round(target)}px`; else tab.hidden = true;
+          tab.style.transition = "";
+          return;
+        }
+        const edge = Math.round(window.innerWidth - r.left);
+        tab.style.right = `${edge}px`;
+        if (last !== null && Math.abs(edge - last) < 1) stable++; else stable = 0;
+        last = edge;
+        if (stable < 4 && now - t0 < 700) { tab._glueRaf = requestAnimationFrame(step); return; }
+        tab.style.transition = "";         // restore (hover grow effect)
+        if (!open) tab.hidden = true;      // followed its card off-screen → hide
+      };
+      tab._glueRaf = requestAnimationFrame(step);
+      return;
+    }
+    // Legacy animated fallback (no panel element provided).
     if (open) {
-      clearTimeout(tab._hideT);
       if (tab.hidden) { tab.style.right = "0px"; tab.hidden = false; void tab.offsetWidth; }
       tab.style.right = `${Math.round(target)}px`;
     } else if (!tab.hidden) {
       tab.style.right = "0px";
-      clearTimeout(tab._hideT);
       tab._hideT = setTimeout(() => { tab.hidden = true; }, 280);
     }
   }
@@ -12864,6 +13079,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // Storage-location buttons (locate + auto-store) — wired via the shared helper so
     // the surgical location patch can re-wire the swapped section identically.
     _wireStorageLoc(r);
+    // Colour edit — TigerCloud spools ONLY (the render gates the button): they are
+    // 100 % digital, so the colour lives in Firestore (online_color_list +
+    // color_r/g/b) and can be re-edited freely. A burned TigerTag/TigerTag+ chip
+    // keeps its colour read-only here.
+    $("btnEditColor")?.addEventListener("click", () => openColorEditModal(r));
     // Upgrade to TigerTag+ — banner opens inline form
     $("upgradePlusBanner")?.addEventListener("click", () => {
       const form = $("upgradePlusForm");
@@ -13740,6 +13960,16 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     _productCardData = p;
     _renderProductCard(p);
     $("productCardPanel").classList.add("open");
+    // An open "Product info" card must FOLLOW the product being shown, not keep
+    // describing the previous one. Re-seeded in place (row + re-render) rather than
+    // through openReorderPanel(), which would re-run the open animation and steal
+    // focus into the buy-link field. `_productCardData` is already the new product
+    // above, so the reverse guard in openReorderPanel() can't close this card.
+    if ($("reorderPanel")?.classList.contains("open")
+        && _reorderRow && _productKeyHash(_reorderRow) !== p.id) {
+      const row = _listRowFor(p);
+      if (row) { _reorderRow = row; _renderReorderPanel(row); }
+    }
     _syncPanels();
   }
   function closeProductCard() {
@@ -13802,11 +14032,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // Info button → opens the in-app reorder / To-order side-card for this product
     // (owner only). Not the external catalogue (that stays as a link in the details).
     const productInfoBtn = state.friendView ? ""
-      : `<button type="button" class="flag-toggle flag-toggle--info" data-pc-reorder data-tip="${esc(t("productInfoPage"))}" aria-label="${esc(t("productInfoPage"))}"><span class="icon icon-info icon-16"></span></button>`;
-    const flagsHTML = `${state.friendView ? "" : `<button type="button" class="flag-toggle flag-toggle--list js-add-to-list" data-atl-hash="${esc(p.id)}" data-tip="${esc(t("listAddTo"))}" aria-label="${esc(t("listAddTo"))}"><span class="icon icon-list-check icon-16"></span></button>`}
+      : `<button type="button" class="flag-toggle flag-toggle--info pi-flag-info" data-pc-reorder data-tip="${esc(t("productInfoPage"))}" aria-label="${esc(t("productInfoPage"))}"><span class="icon icon-info icon-16"></span></button>`;
+    // Product info FIRST — left-aligned via .pi-flag-info, the three toggles grouped
+    // right, same split as the spool detail and grouped-spools cards.
+    const flagsHTML = `${productInfoBtn}
+      ${state.friendView ? "" : `<button type="button" class="flag-toggle flag-toggle--list js-add-to-list" data-atl-hash="${esc(p.id)}" data-tip="${esc(t("listAddTo"))}" aria-label="${esc(t("listAddTo"))}"><span class="icon icon-list-check icon-16"></span></button>`}
       <button type="button" class="flag-toggle flag-toggle--wish${liked ? " active" : ""}" data-pc-flag="liked" aria-pressed="${liked}" data-tip="${esc(t("productLikeTip"))}" aria-label="${esc(t("productLike"))}"><span class="icon icon-cart-plus icon-16"></span></button>
-      <button type="button" class="flag-toggle flag-toggle--like${fav ? " active" : ""}" data-pc-flag="favorite" aria-pressed="${fav}" data-tip="${esc(t("productFavoriteTip"))}" aria-label="${esc(t("productFavorite"))}"><span class="icon icon-star${fav ? "-fill" : ""} icon-16"></span></button>
-      ${productInfoBtn}`;
+      <button type="button" class="flag-toggle flag-toggle--like${fav ? " active" : ""}" data-pc-flag="favorite" aria-pressed="${fav}" data-tip="${esc(t("productFavoriteTip"))}" aria-label="${esc(t("productFavorite"))}"><span class="icon icon-star${fav ? "-fill" : ""} icon-16"></span></button>`;
     // COULEURS & ASPECT — identical markup to buildPanelHTML.
     const colorsHtml = colorCircleHTML(r, 56);
     const aspectChips = [r.aspect1, r.aspect2].filter(a => a && a !== "-" && a !== "None");
@@ -13939,6 +14171,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       ${printHtml}
       ${videoHtml}
       ${linksHtml}
+      ${_attachReadOnlyHTML(p)}
       ${(priceHTML || buyUrl) ? `<div class="panel-section pc-rows">
         ${priceHTML ? `<div class="pc-row"><span class="pc-k">${esc(t("thPrice"))}</span><span class="pc-v">${priceHTML}</span></div>` : ""}
         ${buyUrl ? `<a class="pc-buy" href="${esc(_normalizeBuyUrl(buyUrl))}" target="_blank" rel="noopener"><span class="icon icon-cart icon-14"></span><span>${esc(_buyHost(buyUrl))}</span></a>` : ""}
@@ -14097,6 +14330,113 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       + `${av}${txt}</div>`;
   }
 
+  // Icon name for an attachment kind (all masks exist in the icon set).
+  const _ATTACH_ICON = { pdf: "pdf", video: "play", image: "image", link: "link" };
+  // Read-only "Documents & links" block for a product record (spool detail panel +
+  // product card). Empty string when the product has no attachments. Opens external
+  // via the same target=_blank path as the chip's built-in links.
+  function _attachReadOnlyHTML(prod) {
+    const atts = _attachmentsOf(prod);
+    if (!atts.length) return "";
+    const rows = atts.map(a =>
+      `<a class="link-btn" href="${esc(a.url)}" target="_blank" rel="noopener"><span class="icon icon-${_ATTACH_ICON[a.kind] || "link"} icon-13"></span>${esc(a.label || _buyHost(a.url))}</a>`
+    ).join("");
+    return `<div class="panel-section">
+      <div class="panel-label">${esc(t("attachTitle"))}</div>
+      <div class="links-row">${rows}</div>
+    </div>`;
+  }
+  // Inner HTML of the reorder panel's "Documents & links" field: the current list
+  // (each = type icon + label/host + remove), then either the add row (paste URL +
+  // optional label) or, at the plan limit, a locked "unlock more" teaser.
+  function _attachFieldHTML(r) {
+    const ro = !!state.friendView;   // friend-view = read-only (no add / no remove)
+    const atts = _attachmentsOf(_getProduct(r));
+    const limit = _linkLimit();
+    const list = atts.map((a, i) => `
+      <div class="ro-shop ro-attach-row">
+        <button type="button" class="ro-shop-btn ro-shop-btn--active ro-attach-open" data-url="${esc(a.url)}">
+          <span class="icon icon-${_ATTACH_ICON[a.kind] || "link"} icon-14"></span>
+          <span>${esc(a.label || _buyHost(a.url))}</span>
+        </button>
+        ${ro ? "" : `<button type="button" class="ro-shop-edit ro-attach-edit" data-idx="${i}" aria-label="${esc(t("attachModalEditTitle"))}"><span class="icon icon-edit icon-13"></span></button>`}
+      </div>`).join("");
+    const control = ro ? "" : atts.length < limit
+      ? `<div class="ro-shop"><button type="button" class="ro-shop-btn" id="roAttachAddBtn"><span class="icon icon-link icon-14"></span><span>${esc(t("attachAdd"))}</span></button></div>`
+      : `<div class="ro-attach-locked"><span class="icon icon-lock icon-13"></span><span>${esc(t("attachLocked"))}</span></div>`;
+    return `<div class="ro-label">${esc(t("attachTitle"))}${ro ? "" : ` <span class="ro-attach-count">${atts.length}/${limit}</span>`}</div>
+      <div class="ro-attach-list">${list}</div>${control}
+      ${(ro || atts.length) ? "" : `<div class="ro-hint">${esc(t("attachEmpty"))}</div>`}`;
+  }
+  // Wire the attachments field: delegated open/remove + add, with a surgical
+  // re-render of just this field (no panel rebuild). Handlers live on the stable
+  // #roAttachField so they survive the innerHTML swap.
+  function _wireReorderAttach(r) {
+    const field = $("roAttachField");
+    if (!field || state.friendView) return;
+    field.onclick = (e) => {
+      const open = e.target.closest(".ro-attach-open");
+      if (open) { if (open.dataset.url) window.electronAPI?.openExternal(_normalizeBuyUrl(open.dataset.url)); return; }
+      const edit = e.target.closest(".ro-attach-edit");
+      if (edit) { openAttachModal(r, +edit.dataset.idx); return; }
+      if (e.target.closest("#roAttachAddBtn")) openAttachModal(r);
+    };
+  }
+
+  // ── Add / edit a custom link (modal) — a roomier form than the side-card, and
+  // where a link is edited or deleted. `idx` null = add, else edit that entry.
+  let _attachModalRow = null;
+  let _attachModalIdx = null;
+  function openAttachModal(r, idx = null) {
+    _attachModalRow = r;
+    _attachModalIdx = (idx != null && idx >= 0) ? idx : null;
+    const editing = _attachModalIdx != null;
+    const cur = editing ? _attachmentsOf(_getProduct(r))[_attachModalIdx] : null;
+    if ($("attachModalUrl"))  $("attachModalUrl").value  = cur ? cur.url : "";
+    if ($("attachModalName")) $("attachModalName").value = cur ? (cur.label || "") : "";
+    const err = $("attachModalErr"); if (err) err.hidden = true;
+    const titleEl = $("attachModalTitleEl"); if (titleEl) titleEl.textContent = t(editing ? "attachModalEditTitle" : "attachModalTitle");
+    const saveBtn = $("attachModalSave");    if (saveBtn) saveBtn.textContent  = t(editing ? "attachModalSave" : "attachModalTitle");
+    const delBtn  = $("attachModalDelete");  if (delBtn)  delBtn.hidden = !editing;
+    $("attachModalOverlay")?.classList.add("open");
+    setTimeout(() => $("attachModalUrl")?.focus(), 60);
+  }
+  function closeAttachModal() { $("attachModalOverlay")?.classList.remove("open"); _attachModalRow = null; _attachModalIdx = null; }
+  function _refreshAttachField(r) { const field = $("roAttachField"); if (field) field.innerHTML = _attachFieldHTML(r); }
+  function _saveAttachModal() {
+    const r = _attachModalRow; if (!r) return;
+    const url = _normalizeBuyUrl(($("attachModalUrl")?.value || "").trim());
+    if (!url || !_looksLikeUrl(url)) { const err = $("attachModalErr"); if (err) { err.textContent = t("attachModalErr"); err.hidden = false; } return; }
+    const atts = _attachmentsOf(_getProduct(r)).slice();
+    const entry = { url, label: ($("attachModalName")?.value || "").trim(), kind: _attachKind(url) };
+    if (_attachModalIdx != null && _attachModalIdx < atts.length) atts[_attachModalIdx] = entry;   // edit in place
+    else if (atts.length < _linkLimit()) atts.push(entry);
+    else { closeAttachModal(); return; }
+    // _writeProduct (not _writeProductField): a link can be attached to a product that
+    // has no doc yet, and only this path seeds the identity fields (key/label/cloudSeed)
+    // — a field-only write would create a doc carrying just {updatedAt, attachments}.
+    _writeProduct(r, { attachments: atts });
+    _refreshAttachField(r);
+    closeAttachModal();
+  }
+  function _deleteAttachModal() {
+    const r = _attachModalRow; if (!r || _attachModalIdx == null) return;
+    const atts = _attachmentsOf(_getProduct(r)).slice();
+    atts.splice(_attachModalIdx, 1);
+    _writeProduct(r, { attachments: atts });
+    _refreshAttachField(r);
+    closeAttachModal();
+  }
+  function _wireAttachModal() {
+    $("attachModalClose")?.addEventListener("click", closeAttachModal);
+    $("attachModalCancel")?.addEventListener("click", closeAttachModal);
+    $("attachModalSave")?.addEventListener("click", _saveAttachModal);
+    $("attachModalDelete")?.addEventListener("click", _deleteAttachModal);
+    $("attachModalOverlay")?.addEventListener("click", e => { if (e.target === $("attachModalOverlay")) closeAttachModal(); });
+    ["attachModalUrl", "attachModalName"].forEach(id =>
+      $(id)?.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); _saveAttachModal(); } }));
+  }
+
   function _renderReorderPanel(r) {
     const body = $("reorderPanelBody"); if (!body) return;
     const link = _getProduct(r) || {};
@@ -14186,6 +14526,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           </button>
         </div>
       </div>
+
+      <div class="ro-field" id="roAttachField">${_attachFieldHTML(r)}</div>
 
       <div class="ro-field">
         <div class="ro-label">${esc(t("reorderPrice"))}
@@ -14397,6 +14739,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     $("roBuyUrlInput")?.addEventListener("input", () => { hiddenUrl.value = $("roBuyUrlInput").value; });
     $("roBuyUrlInput")?.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); shopCommit(); } });
     $("roBuyUrlOk")?.addEventListener("click", shopCommit);
+    // Documents & links (per-product attachments, tier-capped)
+    _wireReorderAttach(r);
     // Auto-save: the note persists on blur; price / min / link / SKU / EAN commit on
     // their ✓ (or Enter). `_saveReorder` writes the whole current form.
     $("roNote")?.addEventListener("change", () => _saveReorder(r));
@@ -14471,6 +14815,15 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     _setProductFlagBtn("favorite", !!link.favorite);
   }
   async function _toggleProductFlag(r, field) {
+    // Cart-＋ (liked = "To order") is ADD-ONLY: it never un-lists. Clicking it while
+    // the product is already in the To-order list takes the user to that view (and
+    // says so) instead of removing it — removal happens from the To-order view.
+    // The star (favorite) keeps its normal on/off toggle.
+    if (field === "liked" && _getProduct(r)?.liked) {
+      _flashMessage(t("productAlreadyInCart"));
+      if (!state.friendView) setViewMode("order");
+      return;
+    }
     const hash = _productKeyHash(r);
     const next = !_getProduct(r)?.[field];
     // Optimistic local patch so the toggle buttons AND the illustration badges
@@ -14518,6 +14871,18 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const s = (v || "").trim();
     if (!s) return "";
     return /^https?:\/\//i.test(s) ? s : "https://" + s;
+  }
+  // True when `url` (already normalised) parses as an http(s) address with a
+  // plausible host: a real domain (name.tld), localhost, or an IPv4 — so garbage
+  // like "Abc" (→ https://abc, no dot) is rejected.
+  function _looksLikeUrl(url) {
+    let u;
+    try { u = new URL(url); } catch { return false; }
+    if (u.protocol !== "http:" && u.protocol !== "https:") return false;
+    const host = u.hostname;
+    if (host === "localhost") return true;
+    if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) return true;      // IPv4
+    return /^([a-z0-9-]+\.)+[a-z]{2,}$/i.test(host);            // domain.tld
   }
 
   async function _saveReorder(r) {
@@ -14638,7 +15003,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const flag = e.target.closest(".flag-toggle[data-pc-flag]");
     if (flag) { _toggleProductCardFlag(flag.dataset.pcFlag).catch(err => reportError("productCard.flag", err)); return; }
     const info = e.target.closest(".flag-toggle[data-pc-reorder]");
-    if (info) { const p = _productCardData; if (p) { const row = _listRowFor(p); if (row) openReorderPanel(row); } return; }   // open reorder side-card ALONGSIDE the product card (don't close it)
+    // Toggles the reorder side-card ALONGSIDE the product card (never closes this one):
+    // a second press on the button that opened it closes it again, same as the ⓘ on the
+    // spool detail and grouped-spools cards.
+    if (info) { const p = _productCardData; if (p) { const row = _listRowFor(p); if (row) _toggleReorderPanel(row); } return; }
     const yt = e.target.closest(".panel-yt-thumb[data-url]");
     if (yt) { window.electronAPI?.openExternal(yt.dataset.url); return; }
     // "Added from …" block → jump to that friend's inventory (when they're a friend).
@@ -14660,6 +15028,15 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       ? _reorderRow
       : (state.rows || []).find(x => x.spoolId === state.selected);
     if (r) _toggleProductFlag(r, btn.dataset.flag);
+  });
+
+  // Product info (ⓘ) in the spool detail panel — toggles the reorder / "Product info"
+  // side-card next to it. Delegated for the same reason as the flags above: the panel
+  // rebuilds its sections surgically, so per-render wiring would be lost.
+  document.addEventListener("click", e => {
+    if (!e.target.closest(".flag-toggle[data-dp-reorder]")) return;
+    const r = (state.rows || []).find(x => x.spoolId === state.selected);
+    if (r) _toggleReorderPanel(r);
   });
 
   function buildPanelHTML(r) {
@@ -14804,6 +15181,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         <div class="panel-label">${t("sectionLinks")}</div>
         <div class="links-row">${activeLinks.map(l => `<a class="link-btn" href="${esc(r.links[l.key])}" target="_blank" rel="noopener">${SVG_PDF}${l.label}</a>`).join("")}</div>
       </div>` : "";
+    // Product web-link attachments (read-only here; resolved via _displayProduct so a
+    // friend's inventory shows them too). Rendered right after the chip's own links.
+    const attachHtml = _attachReadOnlyHTML(_displayProduct(r));
 
     // weight
     const cap = r.capacity || 1000;
@@ -15102,8 +15482,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // ❤ Liked / ★ Favorite / add-to-list — their OWN inline row BETWEEN the
     // illustration and the name (simpler than tucking them beside the name).
     // Shown in a friend's view too (flagging there imports into MY `products`).
+    // Product info (ⓘ) sits on the LEFT of the same row, mirroring the grouped-spools
+    // side-card. Added HERE rather than inside _flagTogglesHTML() because that helper
+    // is shared with the reorder card's own header, where the button would be circular.
+    // Owner-only: a friend's product info card isn't reachable from their inventory.
+    const infoBtn = state.friendView ? "" :
+      `<button type="button" class="flag-toggle flag-toggle--info pi-flag-info" data-dp-reorder data-tip="${esc(t("productInfoPage"))}" aria-label="${esc(t("productInfoPage"))}"><span class="icon icon-info icon-16"></span></button>`;
     const flagsRow = !r.deleted
-      ? `<div class="panel-section pi-flags-row"><div class="pi-flags">${_flagTogglesHTML(r)}</div></div>` : "";
+      ? `<div class="panel-section pi-flags-row"><div class="pi-flags">${infoBtn}${_flagTogglesHTML(r)}</div></div>` : "";
     const identityHtml = `
       <div class="panel-section panel-identity">
         <div class="pi-ident-text">
@@ -15171,7 +15557,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         <div class="panel-label">${t("sectionColors", {n: r.colorList.length})} &amp; Aspect</div>
         <div class="color-aspect-row">
           <div class="color-circles-col">
-            <div class="color-circles-display">${colorsHtml || '<span style="color:var(--muted);font-size:13px">—</span>'}</div>
+            ${(r.isCloud && !state.friendView)
+              ? `<button class="color-edit-trigger" id="btnEditColor" aria-label="${esc(t("colorEditTitle"))}">${colorsHtml || '<span style="color:var(--muted);font-size:13px">—</span>'}<span class="color-edit-plus" aria-hidden="true">+</span></button>`
+              : `<div class="color-circles-display">${colorsHtml || '<span style="color:var(--muted);font-size:13px">—</span>'}</div>`}
           </div>
           <div class="aspect-col">
             ${aspectHtml}
@@ -15186,6 +15574,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       ${tempHtml}
       ${videoHtml}
       ${linksHtml}
+      ${attachHtml}
       ${buySection}
       ${infoHtml}
       ${(() => {
@@ -17011,7 +17400,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       // (#ff7a18, lum ≈ 0.42) on white initials, and #ffb056 (lum ≈ 0.74)
       // and pure white on dark initials — the cutoff most users expect.
       const lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-      result = lum > 0.6 ? "#1a1a1a" : "#fff";
+      result = lum > 0.58 ? "#111111" : "#FFFFFF";
     } catch { /* fall back to white */ }
     _readableCache.set(bg, result);
     return result;
@@ -21599,6 +21988,32 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     }
   });
 
+  // Deep-clean an arbitrary JS value for a Firestore write. The scan's `discovery`
+  // bundle stores RAW third-party responses (mDNS TXT, Moonraker /printer/info,
+  // /machine/system_info…) + derived fields computed in JS — Firestore rejects the
+  // WHOLE write (`invalid-argument`) if any nested value is `undefined`, a non-finite
+  // number, or an array directly inside an array. This bit the Snapmaker U1 in LAN
+  // mode: its probe answers differ from cloud mode and poisoned the payload, so the
+  // add failed with "save failed" even though nothing tests the printer itself.
+  function _fireSafe(v) {
+    if (v === undefined || typeof v === "function" || typeof v === "symbol") return null;
+    if (v === null || typeof v === "string" || typeof v === "boolean") return v;
+    if (typeof v === "number") return Number.isFinite(v) ? v : null;
+    if (Array.isArray(v)) return v.map(x => {
+      const s = _fireSafe(x);
+      return Array.isArray(s) ? JSON.stringify(s) : s;   // no array-in-array → stringify the inner one
+    });
+    if (typeof v === "object") {
+      const o = {};
+      for (const [k, val] of Object.entries(v)) {
+        if (val === undefined) continue;                  // drop undefined keys entirely
+        o[k] = _fireSafe(val);
+      }
+      return o;
+    }
+    return null;
+  }
+
   async function submitPrinterAdd() {
     const brand = _printerAddBrand;
     if (!brand) return;
@@ -21733,7 +22148,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         // re-parse without a re-scan and support tickets get a complete
         // snapshot of what the printer reported.
         if (_printerAddDiscovery) {
-          docPayload.discovery = _printerAddDiscovery;
+          docPayload.discovery = _fireSafe(_printerAddDiscovery);
         }
         await ref.set(docPayload);
         addedId = ref.id;
@@ -21741,7 +22156,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       closePrinterAddForm();
     } catch (e) {
       console.warn(`[printers] ${isEdit ? "update" : "create"} failed:`, e?.code, e?.message);
-      err.textContent = t("printerAddErrSave");
+      // Surface the technical code — "save failed" alone made a payload rejection
+      // (invalid-argument) look like a network problem and cost a support round-trip.
+      err.textContent = t("printerAddErrSave") + (e?.code ? ` (${e.code})` : "");
       err.hidden = false;
     } finally {
       btn.classList.remove("loading");
@@ -21782,13 +22199,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // renderScalesPanel / renderScaleHealth are imported at the top of this  
   // file and initTigerScale(ctx) is called during DOM setup.               
 
-  async function createRack({ name, level, position }) {
+  async function createRack({ name, subtitle, level, position }) {
     const user = fbAuth().currentUser;
     if (!user) { console.warn("[createRack] no user"); return null; }
     const ts = firebase.firestore.FieldValue.serverTimestamp();
     const order = state.racks.length;
     const payload = {
       name: name.trim() || "Rack",
+      subtitle: (subtitle || "").trim(),
       level: Math.max(1, Math.min(15, parseInt(level, 10) || 1)),
       position: Math.max(1, Math.min(20, parseInt(position, 10) || 1)),
       order,
@@ -22188,7 +22606,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     let placed = 0;
     outer:
     for (const r of targets) {
-      for (let lv = r.level - 1; lv >= 0; lv--) {
+      // Same order the grid renders in: top shelf (level 0 / "A") first, then down.
+      for (let lv = 0; lv < r.level; lv++) {
         for (let pos = 0; pos < r.position; pos++) {
           if (!pool.length) break outer;
           if (isSlotLocked(r.id, lv, pos)) continue;
@@ -22473,8 +22892,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // Spools whose rackId points to a rack that no longer exists are surfaced
   // here too — they're effectively unstored, even if their `rackId` still
   // has a stale value (the background cleanup will null it shortly).
+  // The "not stored" filter text, mirrored OUT of the DOM: the rack view rebuilds
+  // itself with innerHTML on every inventory snapshot, which destroys the input —
+  // so moving one spool used to wipe what the user had typed.
+  let _unrackedSearch = "";
   function getUnrackedSpools() {
-    const search = ($("rpUnrackedSearch")?.value || "").trim().toLowerCase();
+    const search = _unrackedSearch.trim().toLowerCase();
     const liveRackIds = new Set(state.racks.map(rk => rk.id));
     const rows = state.rows.filter(r => {
       if (r.deleted) return false;
@@ -22826,7 +23249,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   let _lastRackViewSig = "";
   function _rackViewSig() {
     const racks = state.racks.map(r =>
-      `${r.id}:${r.name || ""}:${r.level || 0}x${r.position || 0}:${(r.lockedSlots || []).join(",")}`
+      `${r.id}:${r.name || ""}:${r.subtitle || ""}:${r.level || 0}x${r.position || 0}:${(r.lockedSlots || []).join(",")}`
     ).join("|");
     const spools = state.rows
       .filter(r => !r.deleted)
@@ -22854,11 +23277,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // constant), we relocate just the affected pucks in place instead.
   let _lastRackSnapshot = null;
   function _rackStructureSig() {
-    // Includes the name: a rename doesn't touch any slot, so the in-place slot
-    // patch would otherwise succeed as a no-op and skip the header rebuild — the
-    // new name only appeared after leaving + re-entering the view.
+    // Includes the name AND subtitle: neither touches any slot, so the in-place
+    // slot patch would otherwise succeed as a no-op and skip the header rebuild —
+    // the new value only appeared after leaving + re-entering the view.
     return state.racks.map(r =>
-      `${r.id}:${r.name || ""}:${r.level || 0}x${r.position || 0}:${(r.lockedSlots || []).join(",")}`
+      `${r.id}:${r.name || ""}:${r.subtitle || ""}:${r.level || 0}x${r.position || 0}:${(r.lockedSlots || []).join(",")}`
     ).join("|");
   }
   // Map "rackId|level|pos" → { sid, fill } for every occupied slot, plus the
@@ -23182,7 +23605,15 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // ── Two-column layout: left = racks (or empty-state when none),
     //    right = unranked sidebar (always shown so the user can see/manage
     //    their filaments even before creating a first rack).
-    const unranked = getUnrackedSpools();
+    let unranked = getUnrackedSpools();
+    // Racking the LAST match of the active filter would leave the user staring at an
+    // empty list with a term that no longer selects anything — drop the filter then,
+    // and only then. (Typing a term with no match goes through the input handler,
+    // not this rebuild, so a typo is never erased mid-keystroke.)
+    if (_unrackedSearch && !unranked.length) {
+      _unrackedSearch = "";
+      unranked = getUnrackedSpools();
+    }
     const sideRows = unranked.map(unrackedRowHTML).join("");
     // The drop-zone block is ALWAYS rendered. When the list has rows it's hidden,
     // but it reappears (and the rows vanish) while a spool is being dragged — so
@@ -23219,8 +23650,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         colHeaderCells.push(`<span class="rp-col-label">${pos + 1}</span>`);
       }
       rows.push(`<div class="rp-row rp-row--header"><span class="rp-row-label"></span><div class="rp-row-slots" style="--slots:${r.position}">${colHeaderCells.join("")}</div></div>`);
-      // Render top shelf first (level r.level-1 at top, level 0 at bottom — physical layout)
-      for (let lv = r.level - 1; lv >= 0; lv--) {
+      // Level 0 ("A") is the TOP shelf and A1 the top-left slot, so the grid reads like
+      // text; growing the rack appends the new levels at the bottom.
+      for (let lv = 0; lv < r.level; lv++) {
         const cells = [];
         for (let pos = 0; pos < r.position; pos++) {
           const occ    = findSpoolInSlot(r.id, lv, pos);
@@ -23275,6 +23707,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
               <span class="rp-rack-count">·</span>
               <span class="rp-rack-count-num">${filled}/${usableSlots}</span>
             </div>
+            ${r.subtitle ? `<div class="rp-rack-subtitle">${esc(r.subtitle)}</div>` : ""}
           </div>
           ${readOnly ? "" : `<div class="rp-rack-actions">
             <button class="rp-rack-btn rp-rack-kebab" data-action="kebab" title="${esc(t("rackActionMore"))}" aria-label="${esc(t("rackActionMore"))}" aria-haspopup="menu" aria-expanded="false"><span class="icon icon-kebab icon-18"></span></button>
@@ -23338,7 +23771,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           </div>
         </div>`}
         <div class="rp-side-search">
-          <input id="rpUnrackedSearch" type="text" placeholder="${t("searchShort")}" />
+          <input id="rpUnrackedSearch" type="text" placeholder="${t("searchShort")}" value="${esc(_unrackedSearch)}" />
+          <button type="button" id="rpUnrackedSearchClear" class="inv-search-clear"${_unrackedSearch ? "" : " hidden"} aria-label="${esc(t("clearSearch"))}">
+            <span class="icon icon-close icon-13" aria-hidden="true"></span>
+          </button>
           <span class="icon icon-search icon-13"></span>
         </div>
         <div class="rp-side-list${unranked.length ? " has-rows" : ""}" id="rpUnrackedStrip">${sideRows}${dropZone}</div>
@@ -23350,8 +23786,20 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // would otherwise snap back to the top on every spool move / removal.
     const _prevRacksScroll = list.querySelector(".rp-racks-scroll")?.scrollTop || 0;
     const _prevSideScroll  = list.querySelector(".rp-side-list")?.scrollTop || 0;
+    // Keep the caret in the filter field if the user was typing when the snapshot landed.
+    const _searchWasFocused = document.activeElement?.id === "rpUnrackedSearch";
+    const _searchCaret = _searchWasFocused ? document.activeElement.selectionStart : null;
 
     list.innerHTML = html;
+
+    if (_searchWasFocused) {
+      const _s = list.querySelector("#rpUnrackedSearch");
+      if (_s) {
+        _s.focus();
+        const at = Math.min(_searchCaret ?? _s.value.length, _s.value.length);
+        try { _s.setSelectionRange(at, at); } catch (_) {}
+      }
+    }
 
     // Side list has its natural height immediately; restore it now.
     const _sideEl = list.querySelector(".rp-side-list");
@@ -23533,6 +23981,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const search = $("rpUnrackedSearch");
     if (search) {
       search.addEventListener("input", () => {
+        // Mirror into state first — getUnrackedSpools() now reads from there, and it
+        // is what survives the next innerHTML rebuild.
+        _unrackedSearch = search.value;
+        const clearBtn = $("rpUnrackedSearchClear");
+        if (clearBtn) clearBtn.hidden = !search.value;
         const strip = $("rpUnrackedStrip");
         const cnt   = $("rpUnranked")?.querySelector(".rp-side-count");
         if (!strip) return;
@@ -23554,6 +24007,22 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
             const sid = el.dataset.spoolId; if (sid) openDetail(sid, { animateSwap: true });
           });
         });
+      });
+      // Leaving the field on a term that matches nothing resets it — a dead filter
+      // is just an empty list with no explanation once the caret is gone. Reuses the
+      // input handler (via a synthetic event) so the strip, count and tile all refresh.
+      search.addEventListener("blur", () => {
+        if (!_unrackedSearch || getUnrackedSpools().length) return;
+        search.value = "";
+        search.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+      // Clear button — same affordance as the main search bar. Uses mousedown so it
+      // fires BEFORE the input's blur handler could wipe the field from under it.
+      $("rpUnrackedSearchClear")?.addEventListener("mousedown", e => {
+        e.preventDefault();          // keep focus in the field for further typing
+        search.value = "";
+        search.dispatchEvent(new Event("input", { bubbles: true }));
+        search.focus();
       });
     }
     // Apply dim from the main search bar at every rack-view render
@@ -23944,16 +24413,26 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   /* ── Rack create/edit modal ── */
   let _editingRackId = null;
   function openRackEditModal(rack) {
+    // Takes over the right side — close every other side card first so they
+    // never overlap (same reflex as the Add-product panel).
+    try { closeDetail(); } catch (_) {}
+    try { _closeGroupPanel(); } catch (_) {}
+    try { closeProductCard(); } catch (_) {}
+    try { closeReorderPanel(); } catch (_) {}
+    try { closeContainerPicker(); } catch (_) {}
+    try { closeNotifs(); } catch (_) {}
+    try { closeAddProductPanel(); } catch (_) {}
     _editingRackId = rack?.id || null;
     $("recTitle").textContent = rack ? t("rackEdit") : t("rackNew");
     // Default name for a new rack — "Rack N" where N = next index in the list
     const defaultName = `Rack ${(state.racks?.length || 0) + 1}`;
     $("rackNameInput").value = rack?.name ?? defaultName;
+    $("rackSubtitleInput").value = rack?.subtitle || "";
     $("rackLevelInput").value = rack?.level || 5;
     $("rackPositionInput").value = rack?.position || 8;
     $("rackEditResult").textContent = "";
     // Reset any leftover field-level error bubbles from a previous open
-    document.querySelectorAll("#rackEditOverlay .rec-field.is-invalid").forEach(f => {
+    document.querySelectorAll("#rackEditPanel .rec-field.is-invalid").forEach(f => {
       f.classList.remove("is-invalid");
       f.querySelector(".rec-field-err")?.remove();
     });
@@ -23969,73 +24448,38 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (delBtn) delBtn.classList.toggle("hidden", !rack);
     const emptyBtn = $("rackEditEmpty");
     if (emptyBtn) emptyBtn.classList.toggle("hidden", !rack);
-    renderRackPresets();
     updateRackTotalLabel();
-    $("rackEditOverlay").classList.add("open");
+    // Opens as a RIGHT SIDE-CARD (not a centred modal): panel + dimming overlay
+    // + the » close tab glued to the panel's left edge, like every other side card.
+    $("rackEditPanel")?.classList.add("open");
+    $("rackEditOverlay")?.classList.add("open");
+    _setTab($("rackEditCloseTab"), true, $("rackEditPanel")?.offsetWidth || 0, $("rackEditPanel"));
     setTimeout(() => $("rackNameInput").focus(), 80);
   }
   function closeRackEditModal() {
-    $("rackEditOverlay").classList.remove("open");
+    $("rackEditPanel")?.classList.remove("open");
+    $("rackEditOverlay")?.classList.remove("open");
+    _setTab($("rackEditCloseTab"), false, 0, $("rackEditPanel"));
     _editingRackId = null;
   }
+  $("rackEditCloseTab")?.addEventListener("click", closeRackEditModal);
 
-  function renderRackPresets() {
-    const el = $("recPresets");
+  // Dimension steppers (− value +). Presets were removed — the user picks the two
+  // numbers directly. Clamped to each input's own min/max, and we fire `input` so
+  // the total-slots label refreshes through its existing listener.
+  function _rackStep(inputId, delta) {
+    const el = $(inputId);
     if (!el) return;
-    const currentLevel = parseInt($("rackLevelInput").value, 10);
-    const currentPos   = parseInt($("rackPositionInput").value, 10);
-    const presets = state.rackPresets || [];
-    const presetMatches = presets.find(p => p.level === currentLevel && p.position === currentPos);
-    const isCustom = !presetMatches;
-    const IMG = "../assets/img/Panda_Feed_Rack.png";
-
-    // Two-column layout: a single big Panda image on the left,
-    // the 4 preset buttons stacked vertically on the right.
-    const slotsLabel = t("rackSlots") || "slots";
-    const imgFor = p => `../assets/img/${p?.image || "Panda_Feed_Rack.png"}`;
-    // The big image on the left reflects the currently active preset.
-    // Custom (no match) → generic Panda_Feed_Rack.png
-    const activeImg = presetMatches ? imgFor(presetMatches) : IMG;
-
-    let rows = presets.map(p => {
-      const matches = p === presetMatches;
-      const total = p.level * p.position;
-      return `<button class="rec-preset${matches ? " rec-preset--active" : ""}" data-preset-id="${esc(p.id)}">
-        <span class="rec-preset-name">${esc(p.name)}</span>
-        <span class="rec-preset-dim">${p.level} × ${p.position} · <strong>${total}</strong> ${esc(slotsLabel)}</span>
-      </button>`;
-    }).join("");
-    const customTotal = (Number.isFinite(currentLevel) && Number.isFinite(currentPos))
-      ? currentLevel * currentPos : 0;
-    rows += `<button class="rec-preset rec-preset--custom${isCustom ? " rec-preset--active" : ""}" data-preset-id="__custom__">
-      <span class="rec-preset-name">${esc(t("rackPresetCustom"))}</span>
-      <span class="rec-preset-dim">${isCustom ? `${currentLevel} × ${currentPos} · <strong>${customTotal}</strong> ${esc(slotsLabel)}` : "—"}</span>
-    </button>`;
-
-    el.innerHTML = `
-      <div class="rec-presets-grid">
-        <img class="rec-presets-img" id="recPresetsImg" src="${activeImg}" alt="" />
-        <div class="rec-presets-list">${rows}</div>
-      </div>`;
-    el.querySelectorAll("[data-preset-id]").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const id = btn.dataset.presetId;
-        // Custom is non-mutating — just mark it active visually; the user
-        // adjusts the level / position inputs manually below.
-        if (id === "__custom__") {
-          $("rackLevelInput").focus();
-          return;
-        }
-        const p = presets.find(x => x.id === id);
-        if (!p) return;
-        // Only update dimensions — never overwrite the name (per user spec)
-        $("rackLevelInput").value = p.level;
-        $("rackPositionInput").value = p.position;
-        renderRackPresets();
-        updateRackTotalLabel();   // setting .value programmatically doesn't fire 'input' — refresh manually
-      });
-    });
+    const min = parseInt(el.min, 10), max = parseInt(el.max, 10);
+    const cur = parseInt(el.value, 10);
+    const next = Math.max(min, Math.min(max, (Number.isFinite(cur) ? cur : min) + delta));
+    if (next === cur) return;
+    el.value = String(next);
+    el.dispatchEvent(new Event("input", { bubbles: true }));
   }
+  document.querySelectorAll("#rackEditPanel .rec-step").forEach(btn => {
+    btn.addEventListener("click", () => _rackStep(btn.dataset.step, parseInt(btn.dataset.delta, 10) || 0));
+  });
 
   function confirmDeleteRack(rack) {
     const msg = t("rackDeleteConfirm", { name: rack.name });
@@ -24070,6 +24514,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   $("rackEditOverlay")?.addEventListener("click", e => {
     if (e.target === $("rackEditOverlay")) closeRackEditModal();
   });
+  _wireAttachModal();   // add-a-custom-link modal (product attachments)
   function updateRackTotalLabel() {
     const lv = parseInt($("rackLevelInput")?.value, 10);
     const ps = parseInt($("rackPositionInput")?.value, 10);
@@ -24079,9 +24524,66 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const total = (Number.isFinite(lv) && Number.isFinite(ps) && lv > 0 && ps > 0) ? lv * ps : null;
     num.textContent = total != null ? String(total) : "—";
     lbl.textContent = t("rackSlots") || "slots";
+    renderRackPreview(lv, ps);
   }
-  $("rackLevelInput")?.addEventListener("input", () => { renderRackPresets(); updateRackTotalLabel(); });
-  $("rackPositionInput")?.addEventListener("input", () => { renderRackPresets(); updateRackTotalLabel(); });
+
+  // Live preview of the rack about to be created: one dashed box per slot, so the
+  // shape of the rack is visible before it exists. Rebuilt only when the dimensions
+  // actually change (the grid is cheap, but the guard keeps typing jank-free).
+  let _recPrevSig = "";
+  function renderRackPreview(lv, ps) {
+    const grid = $("recPreviewGrid");
+    const cap = $("recPreviewCaption");
+    if (!grid) return;
+    const ok = Number.isFinite(lv) && Number.isFinite(ps) && lv > 0 && ps > 0;
+    if (cap) cap.textContent = ok ? t("rackPreviewDims", { l: lv, p: ps }) : "";
+    _recSyncPreviewText();
+    // When editing an existing rack, show what is actually stored in it — the same
+    // slot artwork the Storage view draws, so the preview is the rack, not a blank plan.
+    const occupancy = ok && _editingRackId
+      ? Array.from({ length: lv }, (_, l) =>
+          Array.from({ length: ps }, (_, p) => findSpoolInSlot(_editingRackId, l, p) || null))
+      : null;
+    // Occupancy is part of the signature — otherwise resizing a rack whose contents
+    // changed underneath would keep painting the stale grid.
+    const occSig = occupancy
+      ? occupancy.map(row => row.map(o => o ? o.spoolId : "").join(",")).join("|")
+      : "";
+    const sig = ok ? `${lv}x${ps}|${_editingRackId || ""}|${occSig}` : "";
+    if (sig === _recPrevSig) return;
+    _recPrevSig = sig;
+    if (!ok) { grid.innerHTML = ""; return; }
+    grid.innerHTML = Array.from({ length: lv }, (_, l) => {
+      const cells = Array.from({ length: ps }, (_, p) => {
+        const occ = occupancy?.[l]?.[p];
+        // `rp-slot` is borrowed for the inner fill/photo styling only — the preview's
+        // own square shape is re-asserted in 60-modals.css.
+        return occ
+          ? `<div class="rec-prev-slot rp-slot rec-prev-slot--filled">${_slotInnerHTML(occ)}</div>`
+          : `<div class="rec-prev-slot"></div>`;
+      }).join("");
+      return `<div class="rec-prev-level">${cells}</div>`;
+    }).join("");
+  }
+  // Name / subtitle echoed in the preview so the rack header is visible before saving.
+  // Text-only patch — it must NOT go through the grid rebuild (typing a name would
+  // otherwise redraw every slot on each keystroke).
+  function _recSyncPreviewText() {
+    const nameEl = $("recPreviewName");
+    const subEl = $("recPreviewSub");
+    if (!nameEl || !subEl) return;
+    const nameIn = $("rackNameInput");
+    const name = (nameIn?.value || "").trim();
+    nameEl.textContent = name || nameIn?.placeholder || "";
+    nameEl.classList.toggle("is-placeholder", !name);
+    const sub = ($("rackSubtitleInput")?.value || "").trim();
+    subEl.textContent = sub;
+    subEl.hidden = !sub;
+  }
+  $("rackNameInput")?.addEventListener("input", _recSyncPreviewText);
+  $("rackSubtitleInput")?.addEventListener("input", _recSyncPreviewText);
+  $("rackLevelInput")?.addEventListener("input", updateRackTotalLabel);
+  $("rackPositionInput")?.addEventListener("input", updateRackTotalLabel);
 
   // Field-level validation helpers — red border + tooltip bubble next to the field
   function setFieldError(input, msg) {
@@ -24111,6 +24613,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
 
   $("rackEditSave")?.addEventListener("click", async () => {
     const name     = $("rackNameInput").value.trim();
+    const subtitle = $("rackSubtitleInput").value.trim();
     const level    = parseInt($("rackLevelInput").value, 10);
     const position = parseInt($("rackPositionInput").value, 10);
     // Clear any previous errors before re-validating
@@ -24133,9 +24636,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     setLoading($("rackEditSave"), true);   // spinner + disabled until Firestore confirms
     try {
       if (_editingRackId) {
-        await updateRack(_editingRackId, { name, level, position });
+        await updateRack(_editingRackId, { name, subtitle, level, position });
       } else {
-        await createRack({ name, level, position });
+        await createRack({ name, subtitle, level, position });
       }
       closeRackEditModal();
     } catch (e) {
@@ -24844,31 +25347,184 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     renderFriendBanner();
   });
 
-  /* ── Display-name setup modal ─────────────────────────────────────────── */
-  function openDisplayNameSetup() {
-    $("dnsInput").value = "";
-    $("dnsResult").textContent = "";
-    $("displayNameSetupOverlay").classList.add("open");
-    setTimeout(() => $("dnsInput").focus(), 80);
+  /* ── First-connection onboarding — 2 steps (language → profile) ────────── */
+  // Step 1: a compact dropdown of the 9 supported locales (flag + NATIVE name —
+  // a native speaker always finds their own); picking one applies the language
+  // IMMEDIATELY (the modal re-translates live) and persists it like the Settings
+  // selector (saveAccountLang). Step 2: display name + avatar. The avatar is
+  // NEVER empty: it previews the generated gradient + live initials as the user
+  // types; "Generate another" shuffles the palette (persisted on save),
+  // "Import a photo" runs the standard pick→crop→upload flow, and shuffling
+  // after an import switches the preview back to generated (the uploaded photo
+  // is removed on save only if the user finishes with a generated look).
+  // No flags here on purpose: a flag is a COUNTRY, not a language (🇬🇧 for
+  // English or 🇧🇷 vs 🇵🇹 for Portuguese reads wrong for half the speakers).
+  const _DNS_LANGS = [
+    ["en", "English"], ["fr", "Français"], ["de", "Deutsch"],
+    ["es", "Español"], ["it", "Italiano"], ["zh", "中文"],
+    ["pt", "Português (Brasil)"], ["pt-pt", "Português (Portugal)"], ["pl", "Polski"],
+  ];
+  // An imported photo ALWAYS wins as the avatar; the generated colour is only
+  // the fallback shown when there is no photo. So shuffling a colour never hides
+  // or deletes an imported photo — the two are independent.
+  let _dnsColor      = null;          // random HEX avatar colour (custom), generated ONCE at
+                                      // onboarding init + on each "new colour" tap; saved on finish
+  // Onboarding gate: EVERY account runs the current onboarding once, even
+  // existing named ones. The flag lives in the Studio app-state doc
+  // `users/{uid}/apps/studio.onboardingVersion` (segmented per app, NOT on the
+  // shared root doc); onboarding triggers whenever it's below this constant —
+  // bump the number to re-run everyone on a future onboarding revamp.
+  const ONBOARDING_VERSION = 1;
+  const DNS_NAME_MIN = 3;             // display-name length bounds (shown next to the label,
+  const DNS_NAME_MAX = 20;            // and enforced by the inputs' maxlength too)
+
+  function _dnsFillLangSelect() {
+    const sel = $("dnsLangSelect");
+    if (!sel) return;
+    if (!sel.options.length) {
+      sel.innerHTML = _DNS_LANGS.map(([code, name]) =>
+        `<option value="${code}">${esc(name)}</option>`).join("");
+      _enhanceSelect(sel);   // app-styled dropdown, like the app's other selects
+    }
+    sel.value = state.lang;
+    sel.dispatchEvent(new Event("change", { bubbles: false })); // refresh the csel label
   }
+  $("dnsLangSelect")?.addEventListener("change", () => {
+    const code = $("dnsLangSelect").value;
+    if (!code || code === state.lang) return;  // label-refresh dispatch → no-op
+    applyLang(code);          // live UI switch (this modal re-translates instantly)
+    saveAccountLang(code);    // persist: local account + Firestore prefs (synced to mobile)
+  });
+
+  // Slide the 2-step track; the card keeps the same size, only the content moves.
+  // The hidden step is `inert` so keyboard/screen-reader focus can't reach it.
+  function _dnsGoto(n) {
+    $("dnsTrack").style.transform = n === 2 ? "translateX(-100%)" : "";
+    $("dnsStep1").toggleAttribute("inert", n === 2);
+    $("dnsStep2").toggleAttribute("inert", n !== 2);
+    // Header step counter — swap the i18n KEY too so a live language change
+    // keeps re-translating the right step (applyTranslations reads data-i18n).
+    const lbl = $("dnsStepLabel");
+    if (lbl) { lbl.dataset.i18n = n === 2 ? "setupStep2" : "setupStep1"; lbl.textContent = t(lbl.dataset.i18n); }
+    document.querySelectorAll("#displayNameSetupOverlay .dns-dot")
+      .forEach((d, i) => d.classList.toggle("active", i === n - 1));
+    if (n === 2) {
+      _dnsAvatarPop();
+      setTimeout(() => $("dnsInput").focus(), 260);
+    } else {
+      setTimeout(() => $("dnsNext").focus(), 260);
+    }
+  }
+  // Re-triggerable scale-in pop on the avatar preview (step entry + each shuffle).
+  function _dnsAvatarPop() {
+    const av = document.querySelector("#displayNameSetupOverlay .dns-avatar");
+    if (av) { av.classList.remove("dns-av-in"); void av.offsetWidth; av.classList.add("dns-av-in"); }
+  }
+  $("dnsNext")?.addEventListener("click", () => _dnsGoto(2));
+  $("dnsBack")?.addEventListener("click", () => _dnsGoto(1));
+
+  function openDisplayNameSetup() {
+    // Pre-fill the existing display name (existing accounts re-run onboarding too;
+    // they shouldn't have to retype). New accounts start empty.
+    const preName = (state.displayName || activeAccount()?.displayName || "").trim();
+    $("dnsInput").value = preName;
+    $("dnsInput").closest(".dns-input-wrap")
+      ?.classList.toggle("ok", preName.length >= DNS_NAME_MIN && preName.length <= DNS_NAME_MAX);
+    $("dnsResult").textContent = "";
+    // Generate the random avatar colour ONCE, here at init — but PRESERVE the
+    // account's existing colour (custom hex or a palette colour's hex) so an
+    // existing user re-running onboarding keeps their look. Only a brand-new
+    // account with no colour gets a fresh random one.
+    const acc0 = activeAccount();
+    _dnsColor = (acc0?.color === "custom" && acc0.customColor) ? acc0.customColor
+              : (acc0?.color ? accPrimaryHex(acc0) : generateRandomAvatarColor());
+    _dnsFillLangSelect();
+    _paintDnsAvatar();
+    // This onboarding already OFFERS the avatar — suppress the separate "add an
+    // avatar" fun modal for this session so the user isn't prompted twice in a row
+    // (the gentle notification-centre nudge stays).
+    const uid = getActiveId();
+    if (uid) _avatarPromptShownFor.add(uid);
+    _dnsGoto(1);
+    $("displayNameSetupOverlay").classList.add("open");
+  }
+  // Avatar preview — gradient + LIVE initials from the typed name (or the
+  // account's photo). When there's neither a photo nor initials yet, a clear
+  // user-icon placeholder shows instead of an empty gradient ring.
+  function _paintDnsAvatar() {
+    const paintEl = $("dnsAvatarPaint");
+    if (!paintEl) return;
+    const acc = activeAccount() || {};
+    // Drop `id` on purpose: _avatarSubject() treats a source whose id matches the
+    // active account as "the live user" and resolves the name as
+    // `state.displayName || source.displayName` — so the SAVED pseudo would always
+    // win over the one being typed here (the preview stayed stuck on the old name).
+    // Without the id we keep control: the typed name drives the initials, and we
+    // pass the photo explicitly so an imported photo still shows over the colour.
+    const { id: _ignoredId, ...accRest } = acc;
+    const src = {
+      ...accRest,
+      displayName: ($("dnsInput")?.value || "").trim() || acc.displayName || "",
+      photoURL: state.photoURL || acc.photoURL || null,
+    };
+    if (_dnsColor) { src.color = "custom"; src.customColor = _dnsColor; }
+    paintAvatar(paintEl, src);
+    const hasPhoto    = !!paintEl.querySelector("img");
+    const hasInitials = !!(paintEl.querySelector(".av-initials")?.textContent || "").trim();
+    paintEl.parentElement?.classList.toggle("dns-avatar--empty", !hasPhoto && !hasInitials);
+  }
+  $("dnsInput")?.addEventListener("input", () => {
+    _paintDnsAvatar();   // initials follow the typing (no-op visually when a photo is shown)
+    // green check inside the field once the name reaches the minimum length
+    $("dnsInput").closest(".dns-input-wrap")?.classList.toggle("ok", $("dnsInput").value.trim().length >= DNS_NAME_MIN);
+  });
+  $("dnsAvatarShuffle")?.addEventListener("click", () => {
+    // New random colour on every tap (only the colour changes — name/initials stay).
+    let pick;
+    do { pick = generateRandomAvatarColor(); } while (pick === _dnsColor);
+    _dnsColor = pick;
+    _paintDnsAvatar();   // updates the fallback colour (stays behind any imported photo)
+    _dnsAvatarPop();     // playful pop on every shuffle
+  });
+  $("dnsAvatarImport")?.addEventListener("click", async () => {
+    await _changeMyAvatar();   // pick → crop → upload (no-op if the user cancels)
+    _paintDnsAvatar();         // the uploaded photo now shows (it wins over the colour)
+  });
   function closeDisplayNameSetup() {
     $("displayNameSetupOverlay").classList.remove("open");
   }
 
   $("dnsSave").addEventListener("click", async () => {
     const name = $("dnsInput").value.trim();
-    if (name.length < 1) { $("dnsResult").textContent = "⚠ " + t("setupNamePlaceholder"); return; }
+    if (name.length < DNS_NAME_MIN || name.length > DNS_NAME_MAX) { $("dnsResult").textContent = "⚠ " + t("setupNameLen"); return; }
     $("dnsSave").disabled = true;
     $("dnsResult").textContent = "";
     try {
       const user = fbAuth().currentUser;
       if (!user) throw new Error("not signed in");
-      await fbDb(user.uid).collection("users").doc(user.uid).set({ displayName: name }, { merge: true });
+      await fbDb(user.uid).collection("users").doc(user.uid)
+        .set({ displayName: name }, { merge: true });
+      // Mark the current onboarding done in the Studio APP-STATE doc
+      // (users/{uid}/apps/studio — segmented per app), NOT the shared root doc.
+      fbDb(user.uid).collection("users").doc(user.uid)
+        .collection("apps").doc("studio")
+        .set({ onboardingVersion: ONBOARDING_VERSION }, { merge: true })
+        .catch(e => console.warn("[onboarding] flag write failed:", e.code));
       syncUserProfile(user.uid, { displayName: name }); // make visible to friends immediately
-      // Update local state
+      // Update local state (+ persist the generated avatar colour as a HEX
+      // custom colour — kept even if a photo is used, as the fallback for when
+      // the photo is later removed).
       const accounts = getAccounts();
       const acc = accounts.find(a => a.id === user.uid);
-      if (acc) { acc.displayName = name; saveAccounts(accounts); }
+      if (acc) {
+        acc.displayName = name;
+        if (_dnsColor) { acc.color = "custom"; acc.customColor = _dnsColor; }
+        saveAccounts(accounts);
+        if (_dnsColor) { applyAvatarStyle(acc); saveColorToFirestore(acc); }
+      }
+      // An imported photo is NEVER removed here — it wins as the avatar and the
+      // colour is only its fallback (removing it deleted a just-uploaded photo
+      // when the user shuffled a colour after importing).
       state.displayName       = name;
       $("sbName").textContent = name;
       // Centralised pipeline — gradient + initials + photo all atomic.
@@ -25441,14 +26097,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // No backdrop — keep the rest of the UI clickable while the panel is open,
     // exactly like the spool-detail / printer side cards (they never open their
     // overlay either). Closes via the ✕ / its » close tab.
-    _setTab($("notifCloseTab"), true, $("notifPanel").offsetWidth);
+    _setTab($("notifCloseTab"), true, $("notifPanel").offsetWidth, $("notifPanel"));
     _markNotifsRead();
     renderNotifBadge();
   }
   function closeNotifs() {
     $("notifPanel").classList.remove("open");
     $("notifOverlay").classList.remove("open");
-    _setTab($("notifCloseTab"), false, 0);
+    _setTab($("notifCloseTab"), false, 0, $("notifPanel"));
   }
 
   // Accept a friend request → bidirectional add (rules verify only friendship presence,
@@ -25941,21 +26597,31 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       const minDim   = Math.min(bitmap.width, bitmap.height);
       const baseScale = devSize / minDim;  // zoom 1 = cover-fit
 
-      // Pan constraint: when the rotated+scaled image is laid down centred
-      // at (devSize/2 + pan), make sure no edge of the image enters the
-      // circle of radius devSize/2. With 90° rotations, w/h swap.
+      // Pan constraint for ANY rotation angle: the crop circle (radius
+      // R = devSize/2, centred at origin) must stay fully inside the rotated
+      // image rectangle. Work in the image's own (rotated) frame — the circle's
+      // centre offset there is `local = R(-θ)·(-pan)`, and the circle fits iff
+      // |local.x| + R ≤ halfW and |local.y| + R ≤ halfH. Clamp local, then map
+      // back to screen-space pan. Reduces exactly to the old w/h-swap at 0/90/
+      // 180/270°, but also holds at 45° (no empty corner sneaks into the circle).
       function clampPan() {
-        const rot = ((rotation % 360) + 360) % 360;
-        const isSide = (rot === 90 || rot === 270);
-        const imgW = (isSide ? bitmap.height : bitmap.width) * baseScale * zoom;
-        const imgH = (isSide ? bitmap.width  : bitmap.height) * baseScale * zoom;
-        const maxX = Math.max(0, (imgW - devSize) / 2);
-        const maxY = Math.max(0, (imgH - devSize) / 2);
-        if (panX >  maxX) panX =  maxX;
-        if (panX < -maxX) panX = -maxX;
-        if (panY >  maxY) panY =  maxY;
-        if (panY < -maxY) panY = -maxY;
+        const rad = rotation * Math.PI / 180;
+        const cos = Math.cos(rad), sin = Math.sin(rad);
+        const R = devSize / 2;
+        const halfW = bitmap.width  * baseScale * zoom / 2;
+        const halfH = bitmap.height * baseScale * zoom / 2;
+        // circle centre in the image's rotated frame
+        let lx = -(panX * cos + panY * sin);
+        let ly =  (panX * sin - panY * cos);
+        const maxLx = Math.max(0, halfW - R);
+        const maxLy = Math.max(0, halfH - R);
+        lx = Math.min(maxLx, Math.max(-maxLx, lx));
+        ly = Math.min(maxLy, Math.max(-maxLy, ly));
+        // back to screen-space pan:  pan = -R(θ)·local
+        panX = -(lx * cos - ly * sin);
+        panY = -(lx * sin + ly * cos);
       }
+      const normDeg = d => ((d % 360) + 540) % 360 - 180;  // → [-180, 180)
 
       function render() {
         ctx.fillStyle = "#1a1a1a";  // backdrop visible only at zoom < 1
@@ -25974,12 +26640,24 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       const onZoom = () => { zoom = parseFloat(zoomEl.value); clampPan(); render(); };
       zoomEl.addEventListener("input", onZoom);
 
-      const onRotate = () => { rotation = (rotation + 90) % 360; clampPan(); render(); };
+      // Free rotation via a −180…180° slider (detent at 0), plus the button as
+      // a quick +90° step. Both feed the same `rotation` the render already uses.
+      const rotEl = $("avatarCropRotate");
+      rotEl.value = "0";
+      const syncRot = () => { rotEl.value = String(Math.round(rotation)); };
+      const onRotSlider = () => {
+        rotation = parseFloat(rotEl.value);
+        if (Math.abs(rotation) <= 2) rotation = 0;   // gentle snap to level
+        clampPan(); render();
+      };
+      rotEl.addEventListener("input", onRotSlider);
+
+      const onRotate = () => { rotation = normDeg(rotation + 90); syncRot(); clampPan(); render(); };
       $("btnAvatarCropRotate").addEventListener("click", onRotate);
 
       const onReset = () => {
         zoom = 1; rotation = 0; panX = 0; panY = 0;
-        zoomEl.value = "1"; render();
+        zoomEl.value = "1"; rotEl.value = "0"; render();
       };
       $("btnAvatarCropReset").addEventListener("click", onReset);
 
@@ -26003,30 +26681,55 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       canvas.addEventListener("pointerup",   onPointerUp);
       canvas.addEventListener("pointercancel", onPointerUp);
 
+      // Mouse-wheel + trackpad-pinch zoom, centred (matches the slider). On
+      // macOS a trackpad pinch arrives as a wheel event with ctrlKey — a finer
+      // step there keeps it from jumping. The image is the primary control now;
+      // the slider is the secondary mirror.
+      const onWheel = e => {
+        e.preventDefault();
+        const step = e.ctrlKey ? 0.02 : 0.0016;
+        zoom = Math.min(3, Math.max(1, zoom * (1 - e.deltaY * step)));
+        zoomEl.value = String(zoom);
+        clampPan(); render();
+      };
+      canvas.addEventListener("wheel", onWheel, { passive: false });
+
+      // Double-click the image → reset (zoom / rotation / pan), like the button.
+      const onDblClick = () => onReset();
+      canvas.addEventListener("dblclick", onDblClick);
+
       function cleanup() {
         overlay.classList.remove("open");
+        document.removeEventListener("keydown", keyHandler);
         zoomEl.removeEventListener("input", onZoom);
+        rotEl.removeEventListener("input", onRotSlider);
         $("btnAvatarCropRotate").removeEventListener("click", onRotate);
         $("btnAvatarCropReset").removeEventListener("click", onReset);
         canvas.removeEventListener("pointerdown", onPointerDown);
         canvas.removeEventListener("pointermove", onPointerMove);
         canvas.removeEventListener("pointerup",   onPointerUp);
         canvas.removeEventListener("pointercancel", onPointerUp);
+        canvas.removeEventListener("wheel", onWheel);
+        canvas.removeEventListener("dblclick", onDblClick);
       }
 
       const onCancel = () => { cleanup(); resolve(null); };
       const onClose  = () => onCancel();
       $("btnAvatarCropCancel").onclick = onCancel;
       $("avatarCropClose").onclick     = onClose;
-      const escHandler = e => {
-        if (e.key === "Escape" && overlay.classList.contains("open")) {
-          document.removeEventListener("keydown", escHandler);
-          onCancel();
-        }
+      // Desktop keyboard: Enter → Apply, Escape → Cancel, Delete/Backspace →
+      // Reset. There are no text inputs in this modal, so Backspace is safe.
+      const keyHandler = e => {
+        if (!overlay.classList.contains("open")) return;
+        if (e.key === "Escape") { e.preventDefault(); onCancel(); }
+        else if (e.key === "Enter") { e.preventDefault(); doApply(); }
+        else if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); onReset(); }
       };
-      document.addEventListener("keydown", escHandler);
+      document.addEventListener("keydown", keyHandler);
 
-      $("btnAvatarCropApply").onclick = () => {
+      let applied = false;
+      const doApply = () => {
+        if (applied) return; applied = true;
         // Auto-detect alpha in the SOURCE bitmap so we pick the right
         // encoder per case (Slack / WeChat / Discord all do equivalent
         // probing — saves ~6× on photos while preserving memoji
@@ -26078,14 +26781,17 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         const contentType = sourceHasAlpha ? "image/png" : "image/jpeg";
         const quality = sourceHasAlpha ? undefined : 0.85;
         exp.toBlob(blob => {
-          document.removeEventListener("keydown", escHandler);
           cleanup();
           resolve({ blob, contentType });
         }, contentType, quality);
       };
+      $("btnAvatarCropApply").onclick = doApply;
 
       overlay.classList.add("open");
       render();
+      // Default focus: Apply is the default action (Enter). Dragging + wheel
+      // zoom work regardless of focus (listeners live on the canvas).
+      $("btnAvatarCropApply").focus({ preventScroll: true });
     });
   }
 
@@ -26120,6 +26826,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (c.publicKey)  state.publicKey  = c.publicKey;
     if (c.privateKey) state.privateKey = c.privateKey;
     state.isPublic       = !!c.isPublic;
+    state.tier           = c.tier || "free";
     state.vatCountry     = c.vatCountry || null;
     state.priceInputMode = c.priceInputMode === "HT" ? "HT" : "TTC";
     state.discordSeen    = !!c.discordSeen;     // avoids a badge flash before syncUserDoc resolves
@@ -26820,6 +27527,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       state.publicKey  = data.publicKey;
       state.privateKey = data.privateKey;
       state.isPublic   = data.isPublic || false;
+      state.tier       = data.tier || "free";   // plan (server-set); gates product web-link attachment count
       state.socials    = _cleanSocials(data.socials);   // social-profile links (mirrored to userProfiles)
       state.vatCountry = data.vatCountry || null;    // ISO country code for VAT rate + currency (filament reorder)
       state.priceInputMode = data.priceInputMode === "HT" ? "HT" : "TTC"; // how the user types prices (stored value stays HT)
@@ -26838,6 +27546,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         publicKey:  data.publicKey || null,
         privateKey: data.privateKey || null,
         isPublic:   !!data.isPublic,
+        tier:       data.tier || "free",
         vatCountry: data.vatCountry || null,
         priceInputMode: data.priceInputMode === "HT" ? "HT" : "TTC",
         discordSeen: !!data.discordSeen, githubSeen: !!data.githubSeen, makerworldSeen: !!data.makerworldSeen,
@@ -26888,6 +27597,21 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         // If Firestore was missing the name but localStorage had it, write it back
         if (!firestoreName && localName) {
           db.collection("users").doc(uid).set({ displayName: localName }, { merge: true }).catch(() => {});
+        }
+        // Even a NAMED account must run the current onboarding once. The flag
+        // lives in the Studio app-state doc users/{uid}/apps/studio (segmented
+        // per app), so read it before deciding. Bump ONBOARDING_VERSION to
+        // re-run everyone. The modal pre-fills the existing name/colour/photo.
+        if (uid === state.activeAccountId && !$("displayNameSetupOverlay").classList.contains("open")) {
+          let onbV = 0;
+          try {
+            const s = await db.collection("users").doc(uid).collection("apps").doc("studio").get();
+            onbV = Number(s.data()?.onboardingVersion) || 0;
+          } catch (_) {}
+          if (onbV < ONBOARDING_VERSION && uid === state.activeAccountId
+              && !$("displayNameSetupOverlay").classList.contains("open")) {
+            openDisplayNameSetup();
+          }
         }
       } else {
         // Defensive double-check before prompting: re-read from server one
@@ -26969,6 +27693,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           // existing render points (applyAvatarStyle below + the
           // renderFriendBanner / renderAccountDropdown calls right
           // after this block).
+          // The onboarding opens EARLIER in this same function, before this
+          // read resolves — so on an account with no cached avatar its preview
+          // was painted with initials and never revisited. Repaint it here so an
+          // existing photo shows, exactly like the pre-filled pseudo.
+          if ($("displayNameSetupOverlay")?.classList.contains("open")) _paintDnsAvatar();
         }
       } catch (_) {
         // Keep the cached avatar — don't punish the user for a

@@ -63,6 +63,12 @@
   .rp-rack-name-text { flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   .rp-rack-count { color: var(--muted); font-weight: 400; flex-shrink: 0; }
   .rp-rack-count-num { color: var(--muted); font-weight: 600; font-family: var(--mono); font-size: 12.5px; flex-shrink: 0; }
+  /* Optional subtitle line under the rack name — a single line isn't enough to
+     say everything; muted, ellipsised so it never breaks the header height. */
+  .rp-rack-subtitle {
+    font-size: 11.5px; font-weight: 500; color: var(--muted);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+  }
   /* Legacy meta line — kept for any other callers, but rack head no longer uses it */
   .rp-rack-meta { font-size: 11px; color: var(--muted); }
   .rp-rack-actions { display: flex; gap: 4px; flex-shrink: 0; position: relative; }
@@ -1017,6 +1023,12 @@
     transition: border-color .15s;
   }
   .rp-side-search input:focus { border-color: var(--primary); }
+  /* Clear button — reuses `.inv-search-clear` from the main search bar, retuned for
+     this smaller field. It REPLACES the magnifier rather than sitting next to it:
+     one glyph, always in the same spot, so nothing shifts and the input keeps its
+     original padding. The magnifier stands down as soon as there is text. */
+  .rp-side-search .inv-search-clear { right: 8px; width: 18px; height: 18px; }
+  .rp-side-search:has(.inv-search-clear:not([hidden])) .icon-search { display: none; }
   .rp-side-list {
     flex: 1; min-height: 0;
     overflow-y: auto;
