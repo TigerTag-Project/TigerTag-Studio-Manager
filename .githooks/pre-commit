@@ -59,6 +59,17 @@ if git diff --cached --name-only | grep -qE '^(renderer/(inventory\.js|CODEMAP\.
   node scripts/check-codemap.mjs
 fi
 
+# ── Documentation drift ───────────────────────────────────────────────
+# Some docs restate numbers that live in the code (version, renderer line
+# count, printer-brand count, i18n key count) and quietly rot — llms.txt,
+# which agents read first, once claimed v1.8.2 / 12k lines / 5 brands while
+# the app was at v2.12.0 / 28.5k / 6. Also flags doc references to paths
+# that no longer exist. Only derivable facts are checked, never prose.
+# Runs whenever a doc or one of the files it describes is staged.
+if git diff --cached --name-only | grep -qE '^(llms\.txt|README\.md|FEATURES\.md|CLAUDE\.md|AGENT\.md|package\.json|renderer/(inventory\.js|locales/en\.json)|renderer/(css|printers)/)'; then
+  node scripts/check-docs-drift.mjs
+fi
+
 # Add more checks here. Examples:
 #   • lint
 #   • formatter

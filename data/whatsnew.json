@@ -992,7 +992,7 @@
           "en": "Internal:"
         },
         "body": {
-          "en": "anonymous usage statistics now track spool-lifecycle counts over time (how many TigerCloud / TigerTag / TigerTag+ spools are created, and conversions between them). No personal data, no IP geolocation — same privacy-preserving, aggregate…"
+          "en": "anonymous usage statistics now track spool-lifecycle counts over time (how many TigerData / TigerTag / TigerTag+ spools are created, and conversions between them). No personal data, no IP geolocation — same privacy-preserving, aggregate…"
         }
       }
     ]
@@ -1602,7 +1602,7 @@
       {
         "icon": "wrench",
         "title": {
-          "en": "Encode modal (TigerCloud TigerTag) — cleaner and safer"
+          "en": "Encode modal (TigerData TigerTag) — cleaner and safer"
         },
         "body": {
           "en": "Centred title; the redundant Cancel button is gone (close via the or a backdrop click — allowed any time, including mid-burn to abort); a permanent instruction sits above the readers. Each reader is now drawn as a TigerTag \"reader plate\"…"
@@ -1634,10 +1634,10 @@
       {
         "icon": "sparkle",
         "title": {
-          "en": "Encoding a TigerCloud spool to a physical chip now opens a g"
+          "en": "Encoding a TigerData spool to a physical chip now opens a g"
         },
         "body": {
-          "en": "Encoding a TigerCloud spool to a physical chip now opens a guided modal (titled by the migration itself, *TigerCloud TigerTag*) instead of a one-shot click."
+          "en": "Encoding a TigerData spool to a physical chip now opens a guided modal (titled by the migration itself, *TigerData TigerTag*) instead of a one-shot click."
         }
       },
       {
@@ -1693,7 +1693,7 @@
       {
         "icon": "check",
         "title": {
-          "en": "TigerCloud \"Manufactured\" date wrong (~2056)"
+          "en": "TigerData \"Manufactured\" date wrong (~2056)"
         },
         "body": {
           "en": "— Cloud spools stored their creation time as a Unix timestamp instead of the TigerTag chip epoch (seconds since 2000), so the decoded manufacturing date overshot by ~30 years. Fixed at creation (Add Product, Duplicate); the display also…"
@@ -1743,10 +1743,10 @@
       {
         "icon": "sparkle",
         "title": {
-          "en": "Available for TigerCloud and basic TigerTag spools; TigerTag"
+          "en": "Available for TigerData and basic TigerTag spools; TigerTag"
         },
         "body": {
-          "en": "Available for TigerCloud and basic TigerTag spools; TigerTag+ can't be duplicated. A basic TigerTag necessarily becomes TigerCloud (a digital clone has no physical chip), so each copy gets a fresh Cloud UID."
+          "en": "Available for TigerData and basic TigerTag spools; TigerTag+ can't be duplicated. A basic TigerTag necessarily becomes TigerData (a digital clone has no physical chip), so each copy gets a fresh Cloud UID."
         }
       },
       {
@@ -1770,10 +1770,10 @@
       {
         "icon": "sparkle",
         "title": {
-          "en": "Available on every spool type (TigerCloud, basic, TigerTag+)"
+          "en": "Available on every spool type (TigerData, basic, TigerTag+)"
         },
         "body": {
-          "en": "Available on every spool type (TigerCloud, basic, TigerTag+) — on TigerTag+ the catalogue name (e.g. \"Artic Teal\") stays read-only with the editable note below it; on TigerCloud/basic the note is the spool's name."
+          "en": "Available on every spool type (TigerData, basic, TigerTag+) — on TigerTag+ the catalogue name (e.g. \"Artic Teal\") stays read-only with the editable note below it; on TigerData/basic the note is the spool's name."
         }
       },
       {
@@ -2477,7 +2477,7 @@
           "en": "The Type quick-filter in the inventory toolbar now filters b"
         },
         "body": {
-          "en": "The Type quick-filter in the inventory toolbar now filters by protocol version (TigerTag / TigerTag+ / TigerCloud / TigerTag Init / …) instead of filament product type."
+          "en": "The Type quick-filter in the inventory toolbar now filters by protocol version (TigerTag / TigerTag+ / TigerData / TigerTag Init / …) instead of filament product type."
         }
       },
       {
@@ -2574,7 +2574,7 @@
       {
         "icon": "sparkle",
         "title": {
-          "en": "New tier label \"TigerCloud\""
+          "en": "New tier label \"TigerData\""
         },
         "body": {
           "en": "— sits alongside TigerTag+ (orange) and TigerTag (grey). Cloud takes precedence when both signals would apply. Shown across table row, grid card, panel image overlay, and panel details footer."
@@ -6454,26 +6454,26 @@
       {
         "icon": "palette",
         "title": {
-          "en": "Recolour your TigerCloud spools",
-          "fr": "Recolorie tes bobines TigerCloud",
-          "de": "TigerCloud-Spulen neu einfärben",
-          "es": "Recolorea tus bobinas TigerCloud",
-          "it": "Ricolora le tue bobine TigerCloud",
-          "zh": "给 TigerCloud 线卷重新上色",
-          "pt": "Recolora seus rolos TigerCloud",
-          "pt-pt": "Recolore os teus rolos TigerCloud",
-          "pl": "Przemaluj swoje szpule TigerCloud"
+          "en": "Recolour your TigerData spools",
+          "fr": "Recolorie tes bobines TigerData",
+          "de": "TigerData-Spulen neu einfärben",
+          "es": "Recolorea tus bobinas TigerData",
+          "it": "Ricolora le tue bobine TigerData",
+          "zh": "给 TigerData 线卷重新上色",
+          "pt": "Recolora seus rolos TigerData",
+          "pt-pt": "Recolore os teus rolos TigerData",
+          "pl": "Przemaluj swoje szpule TigerData"
         },
         "body": {
-          "en": "A TigerCloud spool is pure data, so its colour is never set in stone — tap the circle and change it. No sensor needed.",
-          "fr": "Une bobine TigerCloud n'est que de la donnée, sa couleur n'est donc jamais gravée — clique sur le cercle et change-la. Aucun capteur requis.",
-          "de": "Eine TigerCloud-Spule ist reine Daten, ihre Farbe also nie in Stein gemeißelt — tippe auf den Kreis und ändere sie. Ganz ohne Sensor.",
-          "es": "Una bobina TigerCloud es solo datos, así que su color nunca está grabado: toca el círculo y cámbialo. Sin sensor.",
-          "it": "Una bobina TigerCloud è solo dati, quindi il suo colore non è mai scolpito — tocca il cerchio e cambialo. Nessun sensore richiesto.",
-          "zh": "TigerCloud 线卷本质上就是数据，颜色从来不是刻死的——点一下色圈就能改。不需要任何传感器。",
-          "pt": "Um rolo TigerCloud é só dado, então sua cor nunca está gravada — toque no círculo e mude. Sem sensor nenhum.",
-          "pt-pt": "Um rolo TigerCloud é só dados, por isso a cor nunca está gravada — toca no círculo e muda-a. Sem sensor nenhum.",
-          "pl": "Szpula TigerCloud to czyste dane, więc jej kolor nigdy nie jest wykuty w kamieniu — kliknij kółko i zmień. Bez żadnego czujnika."
+          "en": "A TigerData spool is pure data, so its colour is never set in stone — tap the circle and change it. No sensor needed.",
+          "fr": "Une bobine TigerData n'est que de la donnée, sa couleur n'est donc jamais gravée — clique sur le cercle et change-la. Aucun capteur requis.",
+          "de": "Eine TigerData-Spule ist reine Daten, ihre Farbe also nie in Stein gemeißelt — tippe auf den Kreis und ändere sie. Ganz ohne Sensor.",
+          "es": "Una bobina TigerData es solo datos, así que su color nunca está grabado: toca el círculo y cámbialo. Sin sensor.",
+          "it": "Una bobina TigerData è solo dati, quindi il suo colore non è mai scolpito — tocca il cerchio e cambialo. Nessun sensore richiesto.",
+          "zh": "TigerData 线卷本质上就是数据，颜色从来不是刻死的——点一下色圈就能改。不需要任何传感器。",
+          "pt": "Um rolo TigerData é só dado, então sua cor nunca está gravada — toque no círculo e mude. Sem sensor nenhum.",
+          "pt-pt": "Um rolo TigerData é só dados, por isso a cor nunca está gravada — toca no círculo e muda-a. Sem sensor nenhum.",
+          "pl": "Szpula TigerData to czyste dane, więc jej kolor nigdy nie jest wykuty w kamieniu — kliknij kółko i zmień. Bez żadnego czujnika."
         }
       },
       {
@@ -6524,6 +6524,136 @@
           "pt": "O botão do carrinho só adiciona agora — aperte nele em algo que já está na lista e ele só te leva até lá. Para tirar uma linha, segure o ✕ dela.",
           "pt-pt": "O botão do carrinho só adiciona agora — carrega nele num artigo já listado e ele apenas te leva lá. Para tirar uma linha, mantém o ✕ premido.",
           "pl": "Przycisk koszyka teraz tylko dodaje — naciśnij go na czymś, co już jest na liście, a po prostu cię tam przeniesie. Aby usunąć pozycję, przytrzymaj ✕ przy niej."
+        }
+      }
+    ]
+  },
+  "2.13.0": {
+    "date": "2026-07-19",
+    "items": [
+      {
+        "icon": "scale",
+        "title": {
+          "en": "Your spool, your scale, your number",
+          "fr": "Ta bobine, ta balance, ton chiffre",
+          "de": "Deine Spule, deine Waage, deine Zahl",
+          "es": "Tu bobina, tu báscula, tu número",
+          "it": "La tua bobina, la tua bilancia, il tuo numero",
+          "zh": "你的线轴，你的秤，你的数字",
+          "pt": "Seu rolo, sua balança, seu número",
+          "pt-pt": "O teu rolo, a tua balança, o teu número",
+          "pl": "Twoja szpula, twoja waga, twoja liczba"
+        },
+        "body": {
+          "en": "Container weights come from the manufacturer, and manufacturers round. Weigh your empty spool once, punch the real number in, and every spool in that container finally tells the truth about what's left.",
+          "fr": "Les poids de conteneur viennent du fabricant, et les fabricants arrondissent. Pèse ta bobine vide une fois, saisis le vrai chiffre, et toutes les bobines de ce conteneur disent enfin la vérité sur ce qu'il te reste.",
+          "de": "Behältergewichte kommen vom Hersteller, und Hersteller runden. Wiege deine leere Spule einmal, trag den echten Wert ein — und jede Spule in diesem Behälter sagt endlich die Wahrheit über den Rest.",
+          "es": "Los pesos de contenedor vienen del fabricante, y los fabricantes redondean. Pesa tu bobina vacía una vez, pon el número real y todas las bobinas de ese contenedor por fin dicen la verdad sobre lo que queda.",
+          "it": "I pesi dei contenitori vengono dal produttore, e i produttori arrotondano. Pesa la tua bobina vuota una volta, inserisci il numero vero, e tutte le bobine di quel contenitore dicono finalmente la verità su quanto resta.",
+          "zh": "容器重量来自厂家，而厂家爱取整。把空线轴称一次，填上真实数字，这个容器里的每一卷才会老实交代还剩多少。",
+          "pt": "Os pesos de recipiente vêm do fabricante, e fabricante arredonda. Pese seu rolo vazio uma vez, coloque o número real, e todos os rolos daquele recipiente finalmente dizem a verdade sobre o que sobrou.",
+          "pt-pt": "Os pesos de recipiente vêm do fabricante, e o fabricante arredonda. Pesa o teu rolo vazio uma vez, mete o número real, e todos os rolos desse recipiente dizem finalmente a verdade sobre o que resta.",
+          "pl": "Wagi pojemników pochodzą od producenta, a producenci zaokrąglają. Zważ pustą szpulę raz, wpisz prawdziwą liczbę — i każda szpula w tym pojemniku wreszcie mówi prawdę o tym, ile zostało."
+        }
+      },
+      {
+        "icon": "swap",
+        "title": {
+          "en": "You decide who follows",
+          "fr": "C'est toi qui décides qui suit",
+          "de": "Du entscheidest, wer mitzieht",
+          "es": "Tú decides quién se apunta",
+          "it": "Decidi tu chi si adegua",
+          "zh": "谁跟着改，你说了算",
+          "pt": "Você decide quem acompanha",
+          "pt-pt": "És tu que decides quem acompanha",
+          "pl": "To ty decydujesz, kto się dostosuje"
+        },
+        "body": {
+          "en": "Corrected a weight and already own fifteen spools in that container? Update them all in one go, or leave them exactly as they are. Your call, before anything is written.",
+          "fr": "Tu corriges un poids et tu as déjà quinze bobines dans ce conteneur ? Mets-les toutes à jour d'un coup, ou laisse-les telles quelles. À toi de voir, avant que quoi que ce soit ne soit écrit.",
+          "de": "Gewicht korrigiert und schon fünfzehn Spulen in diesem Behälter? Aktualisiere alle auf einmal oder lass sie genau so. Deine Entscheidung, bevor irgendetwas geschrieben wird.",
+          "es": "¿Corriges un peso y ya tienes quince bobinas en ese contenedor? Actualízalas todas de golpe, o déjalas tal cual. Tú decides, antes de que se escriba nada.",
+          "it": "Hai corretto un peso e hai già quindici bobine in quel contenitore? Aggiornale tutte in un colpo, o lasciale come sono. Decidi tu, prima che venga scritto qualcosa.",
+          "zh": "改了重量，而这个容器里已经有十五卷？要么一次全部更新，要么原样不动。写入之前，你说了算。",
+          "pt": "Corrigiu um peso e já tem quinze rolos naquele recipiente? Atualize todos de uma vez, ou deixe como estão. Você decide, antes de qualquer coisa ser gravada.",
+          "pt-pt": "Corrigiste um peso e já tens quinze rolos nesse recipiente? Atualiza todos de uma vez, ou deixa-os como estão. Tu decides, antes de algo ser escrito.",
+          "pl": "Poprawiłeś wagę, a masz już piętnaście szpul w tym pojemniku? Zaktualizuj wszystkie naraz albo zostaw jak są. Twój wybór, zanim cokolwiek zostanie zapisane."
+        }
+      },
+      {
+        "icon": "tag",
+        "title": {
+          "en": "TigerCloud is now TigerData",
+          "fr": "TigerCloud devient TigerData",
+          "de": "Aus TigerCloud wird TigerData",
+          "es": "TigerCloud ahora es TigerData",
+          "it": "TigerCloud diventa TigerData",
+          "zh": "TigerCloud 现在叫 TigerData",
+          "pt": "TigerCloud agora é TigerData",
+          "pt-pt": "TigerCloud passa a TigerData",
+          "pl": "TigerCloud to teraz TigerData"
+        },
+        "body": {
+          "en": "Same tier, clearer name: a spool tracked with no chip at all. Nothing to do on your side — your spools are untouched, only the label changed.",
+          "fr": "Même palier, nom plus clair : une bobine suivie sans aucune puce. Rien à faire de ton côté — tes bobines n'ont pas bougé, seul le libellé change.",
+          "de": "Gleiche Stufe, klarerer Name: eine Spule ohne jeden Chip. Für dich ändert sich nichts — deine Spulen bleiben, nur das Etikett wechselt.",
+          "es": "El mismo nivel con un nombre más claro: una bobina seguida sin ningún chip. No tienes que hacer nada: tus bobinas siguen igual, solo cambia la etiqueta.",
+          "it": "Stesso livello, nome più chiaro: una bobina seguita senza alcun chip. Non devi fare nulla — le tue bobine restano invariate, cambia solo l'etichetta.",
+          "zh": "同一个层级，换个更清楚的名字：完全没有芯片、纯靠记录的线卷。你什么都不用做，线卷原封不动，只是叫法变了。",
+          "pt": "O mesmo nível, com nome mais claro: um rolo acompanhado sem chip nenhum. Nada a fazer do seu lado — seus rolos continuam iguais, só mudou o rótulo.",
+          "pt-pt": "O mesmo nível, com um nome mais claro: um rolo acompanhado sem chip nenhum. Nada a fazer do teu lado — os teus rolos ficam iguais, só mudou o rótulo.",
+          "pl": "Ten sam poziom, jaśniejsza nazwa: szpula śledzona zupełnie bez chipa. Nic nie musisz robić — twoje szpule zostają, zmienia się tylko etykieta."
+        }
+      },
+      {
+        "icon": "palette",
+        "title": {
+          "en": "Badges you can actually see",
+          "fr": "Des badges qu'on voit enfin",
+          "de": "Endlich sichtbare Abzeichen",
+          "es": "Distintivos que por fin se ven",
+          "it": "Badge finalmente visibili",
+          "zh": "终于看得清的标签",
+          "pt": "Selos que dá para ver",
+          "pt-pt": "Selos que se veem mesmo",
+          "pl": "Plakietki, które wreszcie widać"
+        },
+        "body": {
+          "en": "TigerData, TigerTag and TigerTag+ now read as one ladder — white, silver, gold. The TigerTag badge used to be a grey pill on a grey card, which is a fancy way of saying invisible.",
+          "fr": "TigerData, TigerTag et TigerTag+ se lisent maintenant comme une échelle — blanc, argent, or. Le badge TigerTag était une pastille grise sur une carte grise, autrement dit invisible.",
+          "de": "TigerData, TigerTag und TigerTag+ lesen sich jetzt als Leiter — Weiß, Silber, Gold. Das TigerTag-Abzeichen war eine graue Pille auf grauer Karte, also: unsichtbar.",
+          "es": "TigerData, TigerTag y TigerTag+ se leen ahora como una escalera: blanco, plata, oro. El distintivo TigerTag era una pastilla gris sobre una tarjeta gris, o sea, invisible.",
+          "it": "TigerData, TigerTag e TigerTag+ si leggono ora come una scala — bianco, argento, oro. Il badge TigerTag era una pillola grigia su una scheda grigia, cioè invisibile.",
+          "zh": "TigerData、TigerTag 和 TigerTag+ 现在像一级级台阶：白、银、金。以前的 TigerTag 标签是灰卡片上的灰色药丸，说白了就是看不见。",
+          "pt": "TigerData, TigerTag e TigerTag+ agora se leem como uma escada — branco, prata, ouro. O selo TigerTag era uma pílula cinza num cartão cinza, ou seja, invisível.",
+          "pt-pt": "TigerData, TigerTag e TigerTag+ leem-se agora como uma escada — branco, prata, ouro. O selo TigerTag era uma pastilha cinzenta num cartão cinzento, ou seja, invisível.",
+          "pl": "TigerData, TigerTag i TigerTag+ czyta się teraz jak drabinę — biel, srebro, złoto. Plakietka TigerTag była szarą pigułką na szarej karcie, czyli po prostu niewidoczna."
+        }
+      },
+      {
+        "icon": "coins",
+        "title": {
+          "en": "Your stock value, taxes included or not",
+          "fr": "Ta valeur de stock, TTC ou pas",
+          "de": "Dein Lagerwert, mit oder ohne Steuer",
+          "es": "El valor de tu stock, con o sin impuestos",
+          "it": "Il valore del tuo stock, tasse incluse o no",
+          "zh": "库存金额，含税还是不含税",
+          "pt": "O valor do seu estoque, com ou sem imposto",
+          "pt-pt": "O valor do teu stock, com ou sem imposto",
+          "pl": "Wartość zapasów, z podatkiem lub bez"
+        },
+        "body": {
+          "en": "The counter at the top always followed your tax preference, it just never said which one. Now it does — because the difference is roughly one VAT rate wide.",
+          "fr": "Le compteur en haut suivait déjà ta préférence de taxe, il ne le disait simplement jamais. C'est corrigé — parce que l'écart, c'est grosso modo un taux de TVA.",
+          "de": "Der Zähler oben folgte schon immer deiner Steuereinstellung, sagte nur nie welcher. Jetzt schon — der Unterschied ist immerhin ungefähr ein Mehrwertsteuersatz.",
+          "es": "El contador de arriba ya seguía tu preferencia de impuestos, simplemente nunca decía cuál. Ahora sí — porque la diferencia es más o menos un tipo de IVA.",
+          "it": "Il contatore in alto seguiva già la tua preferenza fiscale, solo non diceva quale. Ora lo dice — perché la differenza è più o meno un'aliquota IVA.",
+          "zh": "顶部那个金额一直按你的税务设置来算，只是从不说明是哪一种。现在会说了——毕竟差的差不多就是一个增值税率。",
+          "pt": "O contador lá em cima já seguia sua preferência de imposto, só nunca dizia qual. Agora diz — porque a diferença é mais ou menos uma alíquota de IVA.",
+          "pt-pt": "O contador lá em cima já seguia a tua preferência de imposto, só nunca dizia qual. Agora diz — porque a diferença é mais ou menos uma taxa de IVA.",
+          "pl": "Licznik na górze zawsze uwzględniał twoje ustawienie podatku, tylko nigdy nie mówił które. Teraz mówi — bo różnica to mniej więcej jedna stawka VAT."
         }
       }
     ]

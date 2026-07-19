@@ -276,7 +276,7 @@
           <select id="aspectFilter" class="inv-brand-filter" data-i18n-title="filterShortAspect" title="Aspect">
             <option value="" data-i18n="filterAllAspects">All</option>
           </select>
-          <select id="typeFilter" class="inv-brand-filter" data-i18n-title="filterShortProtocol" title="Protocol">
+          <select id="typeFilter" class="inv-brand-filter" data-i18n-title="filterShortProtocol" title="Type">
             <option value="" data-i18n="filterAllVersions">All</option>
           </select>
           <!-- Tag filter — lists the tags that exist in the inventory. -->
@@ -1289,7 +1289,7 @@
     <div class="panel-body rec-body">
       <!-- 1 — Identity -->
       <div class="rec-sec">
-        <div class="rec-sec-head"><span class="rec-sec-num">1</span><span class="rec-sec-title" data-i18n="rackSecIdentity">Identity</span></div>
+        <div class="rec-sec-head"><span class="rec-sec-num circle-center">1</span><span class="rec-sec-title" data-i18n="rackSecIdentity">Identity</span></div>
         <label class="rec-field">
           <span class="rec-field-label" data-i18n="rackName">Name</span>
           <span class="rec-input-wrap">
@@ -1308,7 +1308,7 @@
 
       <!-- 2 — Layout: the two dimensions side by side -->
       <div class="rec-sec">
-        <div class="rec-sec-head"><span class="rec-sec-num">2</span><span class="rec-sec-title" data-i18n="rackSecLayout">Layout</span></div>
+        <div class="rec-sec-head"><span class="rec-sec-num circle-center">2</span><span class="rec-sec-title" data-i18n="rackSecLayout">Layout</span></div>
         <div class="rec-dims">
           <div class="rec-field">
             <span class="rec-field-label" data-i18n="rackLevelsShort">Levels</span>
@@ -1331,7 +1331,7 @@
 
       <!-- 3 — Preview: live grid of the rack about to be created -->
       <div class="rec-sec">
-        <div class="rec-sec-head"><span class="rec-sec-num">3</span><span class="rec-sec-title" data-i18n="rackSecPreview">Preview</span></div>
+        <div class="rec-sec-head"><span class="rec-sec-num circle-center">3</span><span class="rec-sec-title" data-i18n="rackSecPreview">Preview</span></div>
         <div class="rec-preview">
           <div class="rec-dim-total" id="recTotalLabel">
             <span class="rec-dim-total-num" id="recTotalNum">—</span>
@@ -1550,7 +1550,7 @@
   <div class="modal-card cem-card">
     <div class="modal-header cem-header">
       <span class="modal-title cem-title-migrate">
-        <span class="cem-tag cem-tag--cloud">TigerCloud</span>
+        <span class="cem-tag cem-tag--cloud">TigerData</span>
         <span class="cem-arrow icon icon-chevron-r icon-13"></span>
         <span class="cem-tag cem-tag--phys">TigerTag</span>
       </span>
@@ -2165,6 +2165,150 @@
 </div>
 
 <!-- ── Create-list modal (Amazon-style: name + occasion) ── -->
+<!-- ── container weight editor ──
+     Correct a container's empty weight for THIS account. Shows the container it
+     applies to (photo + name) so the edit is anchored to a real object, not a
+     number in a list. After saving it can switch to the "apply to the spools that
+     already use it?" step rather than sending the user back to the picker. -->
+<!-- ── container weight calibration ──
+     Correct a container's empty weight for THIS account. Framed as a calibration:
+     the container is shown large (photo + identity), the value is a stepper, and a
+     catalogue-vs-yours comparison makes the delta explicit before saving. After
+     saving it can switch to the "apply to the spools that already use it?" step. -->
+<!-- ── container weight calibration ──
+     Correct a container's empty weight for THIS account. Framed as a calibration:
+     the container is shown large (photo + identity), the value is a stepper, and a
+     catalogue-vs-yours comparison makes the delta explicit. The "when saving"
+     choice sits LAST, after the delta, so the decision is made informed. -->
+<div class="modal-overlay" id="cwModalOverlay">
+  <div class="modal-card cw-card">
+    <div class="cw-header">
+      <div class="cw-head-text">
+        <div class="cw-title" data-i18n="cwModalTitle">Calibrate the container weight</div>
+        <div class="cw-sub" data-i18n="cwModalSub">So we can work out how much filament is really left.</div>
+      </div>
+      <button class="modal-close" id="cwClose" aria-label="Close">✕</button>
+    </div>
+
+    <div class="cw-body" id="cwEditStep">
+      <div class="cw-main">
+        <img class="cw-shot" id="cwImg" alt="" onerror="this.style.visibility='hidden'" />
+        <div class="cw-side">
+          <div class="cw-name" id="cwName"></div>
+          <div class="cw-meta" id="cwMeta"></div>
+
+          <div class="cw-weight-label" data-i18n="cwWeightLabel">Empty container weight</div>
+          <div class="cw-stepper">
+            <button type="button" class="cw-step" id="cwMinus" aria-label="−">−</button>
+            <div class="cw-dial">
+              <input class="cw-input" id="cwInput" type="number" min="0" max="5000" step="1" inputmode="numeric" />
+              <span class="cw-unit">g</span>
+            </div>
+            <button type="button" class="cw-step" id="cwPlus" aria-label="+">+</button>
+          </div>
+          <div class="cw-scale-hint" data-i18n="cwScaleHint">A precise scale gives the best result</div>
+        </div>
+      </div>
+
+      <!-- Visual recipe. The middle step (the cardboard core) only exists for a
+           Masterspool — every other type is just the empty spool on the scale. -->
+      <div class="cw-how">
+        <div class="cw-how-title" data-i18n="cwHowTitle">How to measure</div>
+        <div class="cw-how-steps">
+          <div class="cw-how-step">
+            <div class="cw-how-head">
+              <span class="cw-how-num circle-center">1</span>
+              <span class="cw-how-cap" data-i18n="cwStepSpool">Empty spool</span>
+            </div>
+            <img class="cw-how-img cw-how-img--spool" id="cwHowSpool" alt="" aria-hidden="true" onerror="this.style.visibility='hidden'" />
+          </div>
+          <!-- Joints are flex items BETWEEN two cards, so they are centred by
+               construction — no offset to keep in sync with the gap. -->
+          <span class="cw-how-op" id="cwHowPlus" aria-hidden="true">+</span>
+          <div class="cw-how-step" id="cwHowCoreStep">
+            <div class="cw-how-head">
+              <span class="cw-how-num circle-center">2</span>
+              <span class="cw-how-cap" data-i18n="cwStepCore">Keep the cardboard core</span>
+            </div>
+            <img class="cw-how-img cw-how-img--core" src="../assets/img/spool_filament/oem_carton_core.png" alt="" aria-hidden="true" onerror="this.style.visibility='hidden'" />
+          </div>
+          <span class="cw-how-op" id="cwHowEquals" aria-hidden="true">=</span>
+          <div class="cw-how-step">
+            <div class="cw-how-head">
+              <span class="cw-how-num circle-center" id="cwHowLastNum">3</span>
+              <span class="cw-how-cap" id="cwHowScaleCap"></span>
+            </div>
+            <img class="cw-how-img cw-how-img--scale" src="../assets/img/spool_filament/oem_kitchen_scale.png" alt="" aria-hidden="true"
+                 onerror="this.hidden=true;this.nextElementSibling.hidden=false" />
+            <span class="cw-how-fallback icon icon-scale" aria-hidden="true" hidden></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- How much stock rides on this number. Informational and always shown when
+           the container is in use — distinct from the "when saving" choice below,
+           which only appears when a value would actually change something. -->
+
+      <!-- Catalogue vs yours — the delta is the whole point of calibrating. -->
+      <div class="cw-compare">
+        <div class="cw-cmp">
+          <div class="cw-cmp-label" data-i18n="cwCatalogueLabel">Catalogue value</div>
+          <div class="cw-cmp-sub" data-i18n="cwCatalogueSub">Shipped with the app</div>
+          <div class="cw-cmp-val" id="cwCmpCat">—</div>
+        </div>
+        <span class="cw-cmp-arrow" aria-hidden="true"><span class="icon icon-arrow-r icon-14"></span></span>
+        <div class="cw-cmp">
+          <div class="cw-cmp-label" data-i18n="cwYoursLabel">Your calibration</div>
+          <div class="cw-cmp-sub" data-i18n="cwYoursSub">Used for every spool in this container</div>
+          <div class="cw-cmp-val cw-cmp-val--mine">
+            <span id="cwCmpMine">—</span>
+            <span class="cw-badge" id="cwBadge" hidden data-i18n="cpWeightEdited">yours</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="cw-linked" id="cwLinked" hidden>
+        <span class="icon icon-alert icon-14" aria-hidden="true"></span>
+        <span id="cwLinkedTxt"></span>
+      </div>
+
+      <!-- Spools already using this container hold their own snapshot of the weight.
+           Asked LAST, once the delta above has been seen. -->
+      <div class="cw-mode" id="cwMode" hidden>
+        <div class="cw-mode-text">
+          <div class="cw-mode-title" data-i18n="cwWhenSaving">When saving</div>
+          <div class="cw-mode-sub" id="cwModeSub"></div>
+        </div>
+        <div class="cw-mode-opts" role="radiogroup">
+          <label class="cw-mode-opt">
+            <input type="radio" name="cwApplyMode" value="all" checked />
+            <span class="cw-radio" aria-hidden="true"></span>
+            <span id="cwModeAllTxt"></span>
+          </label>
+          <label class="cw-mode-opt">
+            <input type="radio" name="cwApplyMode" value="keep" />
+            <span class="cw-radio" aria-hidden="true"></span>
+            <span data-i18n="cwKeepCurrent">Keep current spool values</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cancel sits far left (leaving), Save far right (committing); the rare
+         "reset to catalogue" tucks in beside Cancel, both being ways to not keep
+         the typed value. -->
+    <div class="cw-footer" id="cwEditFooter">
+      <button class="adf-btn adf-btn--secondary" id="cwCancel" data-i18n="btnCancel">Cancel</button>
+      <button class="adf-btn adf-btn--secondary cw-reset" id="cwReset" hidden>
+        <span class="icon icon-refresh icon-13"></span>
+        <span data-i18n="cwResetBtn">Reset to catalogue</span>
+      </button>
+      <span style="flex:1"></span>
+      <button class="adf-btn adf-btn--primary" id="cwSave" data-i18n="cwSaveBtn">Save calibration</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="createListOverlay">
   <div class="modal-card clm-card">
     <div class="clm-header">

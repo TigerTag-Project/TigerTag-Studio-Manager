@@ -260,6 +260,7 @@ users/
         byMaterialId    map      — { "<id_material>": count } — RAW ids, names resolved by the dashboards
         byTypeId        map      — { "<id_type>": count } — Filament / Resin / … (RAW ids)
         byProtocol      map      — { TigerTag: n, "TigerTag+": n, TigerCloud: n, unknown: n } — from the mirrored `protocol`
+                                   (TigerCloud is the stored key; the UI shows this tier as "TigerData")
         cloudCount      number   — TigerCloud spools (CLOUD_ prefix — they carry a random id_tigertag)
         printers        number
         printersByBrand map      — { bambulab: n, creality: n, … }
@@ -280,6 +281,7 @@ users/
 **Two mirrored fields make the server-side stats possible** (`syncSpoolMirrors` in the Studio client). Both are DERIVED from the TigerTag reference DB, which the backend does not have, so it cannot recompute either from the raw fields:
 - **`productKey`** — the product identity hash, built from RESOLVED names (brand / material / aspect). It is the join key to `products/{keyHash}`; without it the backend could never find a spool's price and the stock value would come out as 0.
 - **`protocol`** — `TigerTag` / `TigerTag+` / `TigerCloud`, resolved via `versionName(id_tigertag)`. The raw `id_tigertag` is NOT a usable substitute: only a couple of values map to a known version and the rest are a long tail of unrecognised ids, so counting raw ids server-side yields noise and no TigerTag-vs-TigerTag+ split at all.
+  > ⚠️ `TigerCloud` is the **stored value and must never be renamed** — every existing document, the `byProtocol` map and the backend aggregation key off this exact string. Since v2.12.1 the UI displays this tier as **"TigerData"**; that rebrand is display-only and stops at the presentation layer.
 
 The backend then does plain lookups: no reference DB server-side, no duplicated logic, no drift when the catalogue changes.
 

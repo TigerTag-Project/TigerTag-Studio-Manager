@@ -690,6 +690,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     unsubScales: null,       // Firestore unsubscribe handle for scales
     printers: [],            // [{ id, brand, printerName, printerModelId, isActive, updatedAt, sortIndex, ... }]
     unsubPrinters: [],       // array of Firestore unsubscribe handles (one per brand subcollection)
+    containerOverrides: {},  // catalogue container id → { containerWeight } — the account's own
+                             // correction of a container's empty weight (users/{uid}/containerOverrides).
+                             // Applied over the bundled catalogue by containerFind(); the JSON is untouched.
     products: {},       // keyHash → { key, label, buyUrl, buyPriceHt, minStockSpools, note, tags, liked(❤), favorite(★), sku, ean, cloudSeed, updatedAt } — per-product-identity record. Price stored tax-free (HT).
     unsubProducts: null,// Firestore unsubscribe handle for products
     lists: {},          // listId → { name, emoji, occasion, itemKeys[], itemQty{keyHash:n}, createdAt, updatedAt, sortRank } — Amazon-style shopping/wish lists; items reference product identities (keyHash), itemQty holds per-item quantities (default 1)
@@ -1429,7 +1432,23 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     return Array.isArray(m?.features) ? m.features.filter(f => f && f !== "No") : [];
   }
   function dbFind(key, id) { return state.db[key].find(x => x.id === id) || null; }
-  function containerFind(id) { return (state.db.containers || []).find(c => c.id === id) || null; }
+  // A container's empty weight, with the account's own correction applied when it has
+  // one. The bundled catalogue (data/container_spool/spools_filament.json) carries
+  // manufacturer values; a user who weighs theirs can store a correction in
+  // users/{uid}/containerOverrides/{id}. The JSON is never modified.
+  function containerWeightOf(c) {
+    const ov = state.containerOverrides?.[c?.id];
+    const w = +ov?.containerWeight;
+    return Number.isFinite(w) ? w : +c?.container_weight;
+  }
+  function containerIsEdited(c) { return Number.isFinite(+state.containerOverrides?.[c?.id]?.containerWeight); }
+  // Catalogue entry with the correction folded in. Everything downstream reads
+  // `container_weight`, so resolving it HERE fixes every consumer at once.
+  function containerResolve(c) {
+    if (!c) return null;
+    return containerIsEdited(c) ? { ...c, container_weight: containerWeightOf(c) } : c;
+  }
+  function containerFind(id) { return containerResolve((state.db.containers || []).find(c => c.id === id)) || null; }
   function brandName(id) { const b = dbFind("brand", id); return b ? b.name : "-"; }
   function materialLabel(id) { const m = dbFind("material", id); return m ? m.label : "-"; }
   function aspectLabel(id) { const a = dbFind("aspect", id); return a ? a.label : null; }
@@ -1888,17 +1907,18 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
                        style="background:${c}"
                        title="${c}"></button>`;
     });
-    // Custom slot — last cell of the grid. Paints its background with
-    // the currently-selected hex so the user sees which colour the
-    // picker will reopen on; the edit pencil sits on top to advertise
-    // "click here to tweak" (cf. .sfe-sheet--color.adp-color-sheet
-    // .sfe-color-cell--custom .icon for the legibility halo).
+    // Custom slot — last cell of the grid. Paints its background with the
+    // currently-selected hex so the user sees which colour the picker will reopen
+    // on; the edit pencil sits on top to advertise "click here to tweak". The
+    // pencil flips black/white against that background via readableTextOn() — the
+    // same relative-luminance helper the avatars use — because a hardcoded white
+    // icon disappeared on a white or pale swatch.
     cells.push(`<button type="button"
                          class="sfe-color-cell sfe-color-cell--custom"
                          data-color-custom="1"
                          style="background:${customBg}"
                          title="${esc(t("addProductColorCustom"))}">
-                  <span class="icon icon-edit icon-13"></span>
+                  <span class="icon icon-edit icon-13" style="background:${readableTextOn(customBg)}"></span>
                 </button>`);
     host.innerHTML = cells.join("");
   }
@@ -5366,7 +5386,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // Common handler called when a named-instance user session becomes active.
   // uid must equal user.uid and be the current active account.
   async function handleSignedIn(user, uid) {
-    unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeFriends(); unsubscribeNotifications(); unsubscribeRacks(); unsubscribeScales(); unsubscribePrinters(); unsubscribeProducts(); unsubscribeFriendProducts(); unsubscribeLists(); unsubscribeFriendLists();
+    unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeFriends(); unsubscribeNotifications(); unsubscribeRacks(); unsubscribeScales(); unsubscribePrinters(); unsubscribeProducts(); unsubscribeFriendProducts(); unsubscribeLists(); unsubscribeFriendLists(); unsubscribeContainerOverrides();
     // CRITICAL — drop the previous account's racks immediately. `state.racks`
     // is derived per-account state that (unlike the inventory/racks SNAPSHOTS,
     // which are account-guarded) leaks across an account switch: it keeps the
@@ -5487,6 +5507,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     subscribeScales(uid);// live-sync the user's TigerScale heartbeats
     subscribePrinters(uid);// live-sync the user's 3D printers across all 5 brand subcollections
     subscribeProducts(uid);// live-sync per-product buy links + reorder thresholds
+    subscribeContainerOverrides(uid);  // the account's own container-weight corrections
     subscribeLists(uid);   // live-sync the user's shopping/wish lists
   }
 
@@ -5504,7 +5525,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         if (uid === getActiveId()) await handleSignedIn(user, uid);
       } else if (uid === getActiveId()) {
         // Active account's session expired → show login
-        unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeFriends(); unsubscribeNotifications(); unsubscribeRacks(); unsubscribeScales(); unsubscribePrinters(); unsubscribeProducts(); unsubscribeFriendProducts(); unsubscribeLists(); unsubscribeFriendLists();
+        unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeFriends(); unsubscribeNotifications(); unsubscribeRacks(); unsubscribeScales(); unsubscribePrinters(); unsubscribeProducts(); unsubscribeFriendProducts(); unsubscribeLists(); unsubscribeFriendLists(); unsubscribeContainerOverrides();
         state.inventory = null; state.rows = [];
         state.isAdmin = false; state.debugEnabled = false;
         state.publicKey = null; state.privateKey = null;
@@ -5692,7 +5713,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // Sign out the named instance so its IndexedDB session is cleared
     try { firebase.app(id).auth().signOut(); } catch (_) {}
     if (wasActive) {
-      unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeFriends(); unsubscribeNotifications(); unsubscribeRacks(); unsubscribeScales(); unsubscribePrinters(); unsubscribeProducts(); unsubscribeFriendProducts(); unsubscribeLists(); unsubscribeFriendLists();
+      unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeFriends(); unsubscribeNotifications(); unsubscribeRacks(); unsubscribeScales(); unsubscribePrinters(); unsubscribeProducts(); unsubscribeFriendProducts(); unsubscribeLists(); unsubscribeFriendLists(); unsubscribeContainerOverrides();
       state.inventory = null; state.rows = [];
       state.isAdmin = false; state.debugEnabled = false;
       state.publicKey = null; state.privateKey = null;
@@ -5791,16 +5812,25 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const cards = [
       { key: "active", label: t("statActive"), mini: t("statActiveMini"), num: active.length,  fmt: intFmt, filter: "reset" },
       { key: "kg",     label: t("statTotal"),  mini: t("statTotalMini"),  num: totalW / 1000,  fmt: kgFmt,  filter: "reset" },
-      { key: "value",  label: t("statValue"),  mini: t("statValueMini"),  num: valueShown,     fmt: valFmt, filter: "reset", info: t("statValueTip") },
-      { key: "diy",    label: '<span class="tag-diy">TigerTag</span>',          mini: t("statDiyMini"),   num: diy,          fmt: intFmt, filter: "TigerTag" },
-      { key: "plus",   label: '<span class="tag-plus">TigerTag+</span>',        mini: t("statPlusMini"),  num: plus.length,  fmt: intFmt, filter: "TigerTag+" },
-      { key: "cloud",  label: '<span class="tag-cloud">TigerCloud</span>',  mini: t("statCloudMini"), num: cloud.length, fmt: intFmt, filter: "TigerCloud", cloud: true },
+      // The figure follows the account's HT/TTC preference, so it says which one —
+      // 236.60 € means nothing without it. Same wording as every other price in the
+      // app (`reorderHT` / `reorderTTC`). It goes on `label` (rendered as HTML in
+      // the tile) and NOT on `mini`, which is piped into a data-attribute for the
+      // collapsed sidebar — markup there would break the attribute.
+      { key: "value",  label: `${t("statValue")} <span class="sb-stat-tax">${esc(t(_reorderMode() === "TTC" ? "reorderTTC" : "reorderHT"))}</span>`,
+        mini: t("statValueMini"),
+        num: valueShown, fmt: valFmt, filter: "reset", info: t("statValueTip") },
+      // Tier tiles read as the capability ladder, cheapest first: no chip →
+      // chip → chip + online layer.
+      { key: "cloud",  label: '<span class="tag-cloud">TigerData</span>', mini: t("statCloudMini"), num: cloud.length, fmt: intFmt, filter: "TigerCloud", cloud: true },
+      { key: "diy",    label: '<span class="tag-diy">TigerTag</span>',        mini: t("statDiyMini"),   num: diy,          fmt: intFmt, filter: "TigerTag" },
+      { key: "plus",   label: '<span class="tag-plus">TigerTag+</span>',      mini: t("statPlusMini"),  num: plus.length,  fmt: intFmt, filter: "TigerTag+" },
     ];
     el.innerHTML = cards.map(s => {
       const isActive = s.filter !== "reset" && tf === s.filter;
       const infoIco = s.info ? `<span class="sb-stat-info tool-info" data-tip="${esc(s.info)}" aria-label="${esc(s.info)}"><span class="icon icon-info icon-12"></span></span>` : "";
       const shown = s.fmt(s.num);
-      return `<div class="sb-stat${s.cloud ? " sb-stat--cloud" : ""}${isActive ? " is-active" : ""}" data-filter="${s.filter}" data-stat-key="${s.key}" data-mini="${s.mini}" data-mini-val="${esc(shown)}"><div class="value">${shown}</div><div class="label">${s.label}${infoIco}</div></div>`;
+      return `<div class="sb-stat${s.cloud ? " sb-stat--cloud" : ""}${isActive ? " is-active" : ""}" data-filter="${s.filter}" data-stat-key="${s.key}" data-mini="${esc(s.mini)}" data-mini-val="${esc(shown)}"><div class="value">${shown}</div><div class="label">${s.label}${infoIco}</div></div>`;
     }).join("");
     el.classList.remove("hidden");
     // Ticker animation: tween each CHANGED value from its previous number to the
@@ -6148,6 +6178,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       defaultLabel: "All versions",
       shortKey: "filterShortProtocol",
       pickValue: r => r.protocol,
+      // "TigerCloud" is the stored protocol value; the tier reads "TigerData".
+      labelOf: v => (v === "TigerCloud" ? "TigerData" : v),
     });
     populateAspectFilter(faves);
     populateTagFilter(faves);
@@ -6203,7 +6235,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     sel.dataset.cselShort = "filterShortTag";
     sel._cselRefresh?.();   // sync the custom dropdown's button label
   }
-  function populateOneQuickFilter({ sel, currentKey, labelKey, defaultLabel, pickValue, rawValues, shortKey }) {
+  // `labelOf` projects a stored value to what the user reads. The option's VALUE
+  // stays the stored string — it is what the filter compares against — so a tier
+  // can be renamed in the UI without orphaning the filter.
+  function populateOneQuickFilter({ sel, currentKey, labelKey, defaultLabel, pickValue, rawValues, shortKey, labelOf }) {
     if (!sel) return;
     sel.dataset.cselShort = shortKey || "";
     // `rawValues` (Products views) overrides the default inventory source.
@@ -6214,7 +6249,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const current = state[currentKey];
     const allLabel = t(labelKey) || defaultLabel;
     sel.innerHTML = `<option value="" data-i18n="${labelKey}">${esc(allLabel)}</option>`
-      + values.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join("");
+      + values.map(v => `<option value="${esc(v)}">${esc(labelOf ? labelOf(v) : v)}</option>`).join("");
     if (current && values.includes(current)) sel.value = current;
     else { sel.value = ""; state[currentKey] = ""; }
     sel.classList.toggle("is-active", !!state[currentKey]);
@@ -6835,7 +6870,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // chip-on-shelf — the prefix flips to a real hex UID the moment a chip
   // is programmed.
   function tierBadgeHTML(r, extraClass = "", { backup = true } = {}) {
-    if (r.isCloud) return `<span class="tag-cloud${extraClass ? " " + extraClass : ""}">TigerCloud</span>`;
+    if (r.isCloud) return `<span class="tag-cloud${extraClass ? " " + extraClass : ""}">TigerData</span>`;
     if (r.isPlus) {
       // Green round badge (white shield) right after the TigerTag+ badge when
       // this plus is backed up — same style as the detail-panel badge.
@@ -7204,7 +7239,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       label: _productLabel(r),
       updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
     };
-    // Snapshot the material data needed to mint a TigerTag Cloud from this product
+    // Snapshot the material data needed to mint a TigerData spool from this product
     // even when no source spool remains (see `_createCloudFromProduct`). Refreshed
     // from the current spool on every write. Skipped if the row carries no raw.
     const seed = _sanitizeCloudSeed(r.raw);
@@ -7243,7 +7278,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   }
 
   // Strip spool-instance fields from a chip's raw data, keeping only what's needed
-  // to mint a fresh TigerTag Cloud of the same product (material identity, colour,
+  // to mint a fresh TigerData spool of the same product (material identity, colour,
   // type, diameter, product id, image, sku/ean…). Instance-specific bits (uid,
   // weight, rack placement, timestamps, twin link, deletion) are dropped — the
   // Cloud creator assigns a new id + timestamp.
@@ -7324,6 +7359,30 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         state.productsLoading = false;
         if (_isProductsMode(state.viewMode)) renderProductsView();
       });
+  }
+
+  // Per-account container weight corrections, keyed by catalogue container id.
+  function subscribeContainerOverrides(uid) {
+    unsubscribeContainerOverrides();
+    state.unsubContainerOverrides = fbDb(uid)
+      .collection("users").doc(uid)
+      .collection("containerOverrides")
+      .onSnapshot(snap => {
+        if (uid !== state.activeAccountId) return;
+        const map = {};
+        snap.docs.forEach(d => { map[d.id] = d.data() || {}; });
+        state.containerOverrides = map;
+        // A corrected weight changes every net weight derived from it.
+        if ($("containerPanel")?.classList.contains("open")) _renderCpList($("containerPickerSearch")?.value || "");
+        if (!_isPrinterMode(state.viewMode)) scheduleRender("inventory", renderInventory);
+      }, e => console.warn("[containerOverrides] subscribe failed:", e.code));
+  }
+  function unsubscribeContainerOverrides() {
+    if (typeof state.unsubContainerOverrides === "function") {
+      try { state.unsubContainerOverrides(); } catch (_) {}
+    }
+    state.unsubContainerOverrides = null;
+    state.containerOverrides = {};
   }
 
   function unsubscribeProducts() {
@@ -10322,7 +10381,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       const tier = _cemRow?.isPlus ? "TigerTag+" : "TigerTag";
       titleEl.innerHTML = isUpdate
         ? `<span class="cem-tag cem-tag--phys">${esc(tier)}</span><span class="cem-arrow icon icon-refresh icon-13"></span><span class="cem-tag cem-tag--phys">${esc(t("encUpdateTag"))}</span>`
-        : `<span class="cem-tag cem-tag--cloud">TigerCloud</span><span class="cem-arrow icon icon-chevron-r icon-13"></span><span class="cem-tag cem-tag--phys">TigerTag</span>`;
+        : `<span class="cem-tag cem-tag--cloud">TigerData</span><span class="cem-arrow icon icon-chevron-r icon-13"></span><span class="cem-tag cem-tag--phys">TigerTag</span>`;
     }
 
     // Chip cards — one per connected reader. State is conveyed entirely by
@@ -10842,7 +10901,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     return n;
   }
 
-  // Mint TigerTag Cloud spools from a raw seed object (no source spool). Used to
+  // Mint TigerData spools from a raw seed object (no source spool). Used to
   // create a Cloud straight from a product record (its stored `cloudSeed`).
   async function _mintCloudsFromRaw(rawObj, count = 1) {
     if (state.friendView) return 0;
@@ -10869,7 +10928,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     return n;
   }
 
-  // Create ONE TigerTag Cloud of this product: from the live spool's raw when the
+  // Create ONE TigerData spool of this product: from the live spool's raw when the
   // card was opened on a real spool (twin-safe path), else from the stored seed.
   async function _createCloudFromProduct(r) {
     if (r?.raw) return duplicateSpoolAsCloud(r, 1);
@@ -13837,7 +13896,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   }
   function _renderCpList(query) {
     const q = query.trim().toLowerCase();
-    const containers = (state.db.containers || []).filter(c =>
+    const containers = (state.db.containers || []).map(containerResolve).filter(c =>
       !q ||
       c.brand.toLowerCase().includes(q) ||
       c.label.toLowerCase().includes(q) ||
@@ -13851,18 +13910,194 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const html = Object.entries(byBrand).map(([brand, items]) => `
       <div class="cp-group-label">${esc(brand)}</div>
       ${items.map(c => `
-        <button class="cp-item${c.id === currentId ? " active" : ""}" data-cid="${esc(c.id)}">
+        <div class="cp-item${c.id === currentId ? " active" : ""}" data-cid="${esc(c.id)}" role="button" tabindex="0">
           <img src="${esc(c.img)}" alt="${esc(c.label)}" onerror="this.style.display='none'" />
           <div class="cp-item-info">
             <div class="cp-item-name">${esc(c.label)}</div>
             <div class="cp-item-meta">${esc(c.type)}</div>
-            <span class="cp-item-cw">${c.container_weight} g</span>
+            ${_cpWeightRowHTML(c)}
           </div>
           ${c.id === currentId ? '<span class="cp-check">✓</span>' : ""}
-        </button>
+        </div>
       `).join("")}
     `).join("");
     $("containerPickerList").innerHTML = html || `<div class="cp-empty">—</div>`;
+  }
+
+  function _cpWeightRowHTML(c) {
+    return `
+      <div class="cp-cw-row">
+        <button type="button" class="cp-cw-btn cp-cw-pencil" data-cw-edit="${esc(c.id)}" aria-label="${esc(t("cpEditWeight"))}"><span class="icon icon-edit icon-12"></span></button>
+        <span class="cp-item-cw">${c.container_weight} g</span>
+        ${containerIsEdited(c) ? `<span class="cp-cw-badge">${esc(t("cpWeightEdited"))}</span>` : ""}
+      </div>`;
+  }
+
+  function _cpRepaint() { _renderCpList($("containerPickerSearch")?.value || ""); }
+
+  /* ── Container-weight editor (modal) ──────────────────────────────────
+     Editing happens against the container itself — photo, name and origin shown —
+     so the number has an object attached to it. Two steps: edit, then (only when
+     spools already carry a different snapshot) offer to align them. */
+  let _cwContainer = null;   // the RAW catalogue entry (never the resolved one)
+  function openContainerWeightModal(id) {
+    const raw = (state.db.containers || []).find(c => c.id === id);
+    if (!raw) return;
+    _cwContainer = raw;
+    const resolved = containerResolve(raw);
+    const edited = containerIsEdited(raw);
+    $("cwImg").src = raw.img || "";
+    $("cwImg").style.visibility = "";
+    $("cwName").textContent = raw.label || "";
+    $("cwMeta").textContent = [raw.brand, raw.type].filter(Boolean).join(" · ");
+    $("cwBadge").hidden = !edited;
+    $("cwInput").value = String(resolved.container_weight ?? "");
+    $("cwCmpCat").textContent = `${raw.container_weight} g`;
+    _cwSyncCompare();
+    // A Masterspool is a reusable shell: what stays behind is the spool AND the
+    // cardboard core the filament was wound on, so both go on the scale. Every
+    // other type (plastic / cardboard / customizable) is just the empty spool.
+    // A Masterspool is a reusable shell: what stays behind is the spool AND the
+    // cardboard core the filament was wound on, so both go on the scale. Every
+    // other type (plastic / cardboard / customizable) is just the empty spool —
+    // the core step drops out and the scale becomes step 2.
+    const isMasterspool = String(raw.type || "").toLowerCase() === "masterspool";
+    $("cwHowSpool").src = raw.img || "";
+    $("cwHowSpool").style.visibility = "";
+    // Drop the core card AND its trailing joint together — two operators between
+    // two cards would be nonsense. The remaining joint then reads "=" instead of
+    // "+", so the equation stays true with the middle term removed.
+    $("cwHowCoreStep").hidden = !isMasterspool;
+    $("cwHowEquals").hidden   = !isMasterspool;
+    $("cwHowPlus").textContent = isMasterspool ? "+" : "=";
+    $("cwHowLastNum").textContent = isMasterspool ? "3" : "2";
+    $("cwHowScaleCap").textContent = t(isMasterspool ? "cwStepScale" : "cwStepScaleSolo");
+    // How many spools inherit this weight. Decided ONCE here, on usage — not on the
+    // typed value: a live gate made the card appear and disappear mid-typing, which
+    // resized the modal. A choice that is occasionally a no-op costs less than a
+    // dialog that jumps under the cursor.
+    const using = (state.rows || []).filter(r => !r.deleted && r.containerId === raw.id).length;
+    $("cwLinked").hidden = !using;
+    if (using) $("cwLinkedTxt").textContent = t("cwLinkedSpools", { n: using });
+    $("cwMode").hidden = !using;
+    if (using) {
+      $("cwModeSub").textContent    = t("cwUsedBy");
+      $("cwModeAllTxt").textContent = t("cwApplyAll", { n: using });
+    }
+    const first = document.querySelector('input[name="cwApplyMode"][value="all"]');
+    if (first) first.checked = true;   // default: the correction actually takes effect
+    $("cwReset").hidden = !edited;
+    $("cwModalOverlay").classList.add("open");
+    // Focus without selecting: the current value is the reference you are about to
+    // adjust, not something to overwrite — a pre-selection makes the first keypress
+    // wipe it. The caret lands at the end so typing appends and ⌫ trims.
+    setTimeout(() => {
+      const el = $("cwInput");
+      if (!el) return;
+      el.focus();
+      const end = el.value.length;
+      try { el.setSelectionRange(end, end); } catch (_) {}   // number inputs can refuse it
+    }, 80);
+  }
+  // Right-hand side of the comparison follows the field as it is typed, so the
+  // delta against the catalogue is visible BEFORE saving.
+  function _cwSyncCompare() {
+    const raw = _cwContainer; if (!raw) return;
+    const v = Math.round(+$("cwInput").value);
+    const ok = Number.isFinite(v) && v >= 0;
+    $("cwCmpMine").textContent = ok ? `${v} g` : "—";
+    // "Yours" only once it actually departs from the catalogue value.
+    $("cwBadge").hidden = !(ok && v !== +raw.container_weight);
+  }
+  function _cwStep(delta) {
+    const el = $("cwInput"); if (!el) return;
+    const cur = Math.round(+el.value);
+    const next = Math.min(5000, Math.max(0, (Number.isFinite(cur) ? cur : 0) + delta));
+    el.value = String(next);
+    _cwSyncCompare();
+  }
+  function closeContainerWeightModal() {
+    $("cwModalOverlay")?.classList.remove("open");
+    _cwContainer = null;
+  }
+  async function _cwSave() {
+    if (!_cwContainer) return;
+    const grams = Math.round(+$("cwInput").value);
+    if (!Number.isFinite(grams) || grams < 0 || grams > 5000) { $("cwInput")?.focus(); return; }
+    const id = _cwContainer.id;
+    const applyToSpools =
+      !$("cwMode").hidden &&
+      document.querySelector('input[name="cwApplyMode"]:checked')?.value === "all";
+    const ok = await _cpSaveWeight(id, grams);
+    if (!ok) return;
+    closeContainerWeightModal();
+    // Fired after closing: aligning a large collection is a background job, the
+    // dialog has no reason to sit there while it runs.
+    if (applyToSpools) _cpApplyToSpools(id, grams);
+  }
+  function _wireContainerWeightModal() {
+    $("cwClose")?.addEventListener("click", closeContainerWeightModal);
+    $("cwCancel")?.addEventListener("click", closeContainerWeightModal);
+    $("cwSave")?.addEventListener("click", _cwSave);
+    $("cwReset")?.addEventListener("click", async () => {
+      if (!_cwContainer) return;
+      await _cpResetWeight(_cwContainer.id);
+      closeContainerWeightModal();
+    });
+    $("cwModalOverlay")?.addEventListener("click", e => { if (e.target === $("cwModalOverlay")) closeContainerWeightModal(); });
+    $("cwMinus")?.addEventListener("click", () => _cwStep(-1));
+    $("cwPlus")?.addEventListener("click", () => _cwStep(1));
+    $("cwInput")?.addEventListener("input", _cwSyncCompare);
+    $("cwInput")?.addEventListener("keydown", e => {
+      if (e.key === "Enter")  { e.preventDefault(); _cwSave(); }
+      if (e.key === "Escape") { e.preventDefault(); closeContainerWeightModal(); }
+    });
+  }
+  _wireContainerWeightModal();
+
+  // Spools of THIS account still carrying a different weight for that container.
+  // Each spool stores a snapshot of the weight at the time it was chosen, so a
+  // corrected reference does not reach them on its own.
+  function _cpSpoolsUsing(containerId, grams) {
+    return (state.rows || []).filter(r =>
+      !r.deleted && r.containerId === containerId && (+r.containerWeight || 0) !== grams);
+  }
+
+  async function _cpSaveWeight(id, grams) {
+    const uid = state.activeAccountId; if (!uid) return;
+    if (!Number.isFinite(grams) || grams < 0 || grams > 5000) return;
+    try {
+      await fbDb(uid).collection("users").doc(uid)
+        .collection("containerOverrides").doc(id)
+        .set({ containerWeight: grams, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+      // Optimistic — the snapshot repaints too, but this keeps the list instant.
+      state.containerOverrides[id] = { containerWeight: grams };
+    } catch (e) { console.warn("[containerOverrides] save failed:", e.code); return false; }
+    _cpRepaint();
+    return true;
+  }
+
+  async function _cpResetWeight(id) {
+    const uid = state.activeAccountId; if (!uid) return;
+    try {
+      await fbDb(uid).collection("users").doc(uid).collection("containerOverrides").doc(id).delete();
+      delete state.containerOverrides[id];
+    } catch (e) { console.warn("[containerOverrides] reset failed:", e.code); return; }
+    _cpRepaint();
+  }
+
+  // Push the corrected weight onto the spools that already use this container.
+  // Twin-mirrored, so both chips of one physical spool stay in agreement.
+  async function _cpApplyToSpools(id, grams) {
+    const rows = _cpSpoolsUsing(id, grams);
+    for (const r of rows) {
+      try {
+        await _updateSpoolTwinned(r, {
+          container_weight: grams,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        });
+      } catch (e) { console.warn("[containerOverrides] spool update failed:", e?.code); }
+    }
   }
   async function doContainerUpdate(r, newContainerId) {
     const uid = state.activeAccountId; if (!uid) return;
@@ -14754,7 +14989,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     _wireTagEditor(_productTagCtx(r));
     // ❤ Liked / ★ Favorite toggles are handled by the delegated `.flag-toggle`
     // click listener (wired once), so no per-render wiring here.
-    // Create a TigerTag Cloud of this product (from the live spool, else the seed).
+    // Create a TigerData spool of this product (from the live spool, else the seed).
     $("roCreateCloud")?.addEventListener("click", async () => {
       const btn = $("roCreateCloud");
       try {
@@ -14989,8 +15224,21 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   $("containerCloseTab")?.addEventListener("click", closeContainerPicker);
   $("containerPickerSearch").addEventListener("input", e => _renderCpList(e.target.value));
   $("containerPickerList").addEventListener("click", e => {
+    // Weight-editing controls live inside the row — handle them first, and never
+    // let the click fall through to "pick this container".
+    const edit = e.target.closest("[data-cw-edit]");
+    if (edit) { openContainerWeightModal(edit.dataset.cwEdit); return; }
     const btn = e.target.closest(".cp-item[data-cid]");
     if (btn && _cpRow) doContainerUpdate(_cpRow, btn.dataset.cid);
+  });
+  // Enter saves / Escape cancels while editing a weight; the rows are divs now
+  // (role="button"), so keyboard selection needs restoring too.
+  $("containerPickerList").addEventListener("keydown", e => {
+    const row = e.target.closest?.(".cp-item[data-cid]");
+    if (row && (e.key === "Enter" || e.key === " ")) {
+      e.preventDefault();
+      if (_cpRow) doContainerUpdate(_cpRow, row.dataset.cid);
+    }
   });
 
   // reorder side card — closed via the chevron tab or the ✕ in its header

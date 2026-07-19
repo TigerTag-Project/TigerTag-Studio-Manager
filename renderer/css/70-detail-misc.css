@@ -101,6 +101,9 @@
   .icon-nfc       { -webkit-mask-image: url('../../assets/svg/icons/icon_rfid.svg');         mask-image: url('../../assets/svg/icons/icon_rfid.svg');  aspect-ratio: 48 / 32; }
   .icon-battery   { -webkit-mask-image: url('../../assets/svg/icons/icon_battery.svg');      mask-image: url('../../assets/svg/icons/icon_battery.svg'); }
   .icon-bolt      { -webkit-mask-image: url('../../assets/svg/icons/icon_bolt.svg');         mask-image: url('../../assets/svg/icons/icon_bolt.svg'); }
+  .icon-alert     { -webkit-mask-image: url('../../assets/svg/icons/icon_alert.svg');       mask-image: url('../../assets/svg/icons/icon_alert.svg'); }
+  .icon-arrow-r   { -webkit-mask-image: url('../../assets/svg/icons/icon_arrow_right.svg');  mask-image: url('../../assets/svg/icons/icon_arrow_right.svg'); }
+  .icon-scale     { -webkit-mask-image: url('../../assets/svg/icons/icon_scale.svg');        mask-image: url('../../assets/svg/icons/icon_scale.svg'); }
   .icon-bulb      { -webkit-mask-image: url('../../assets/svg/icons/icon_bulb.svg');         mask-image: url('../../assets/svg/icons/icon_bulb.svg'); }
   .icon-home      { -webkit-mask-image: url('../../assets/svg/icons/icon_home.svg');         mask-image: url('../../assets/svg/icons/icon_home.svg'); aspect-ratio: 1/1; }
   .icon-humidity  { -webkit-mask-image: url('../../assets/svg/icons/icon_humidity.svg');     mask-image: url('../../assets/svg/icons/icon_humidity.svg'); aspect-ratio: 1/1; }
@@ -664,7 +667,24 @@
   tbody tr.group-child.selected:hover { background: var(--primary-soft); }
 
   /* ── tag type badges ── */
-  .tag-plus { background: linear-gradient(90deg,#ff7a18,#ffb056); color:#fff; font-size:10px; padding:2px 7px; border-radius:999px; font-weight:700; letter-spacing:.03em; }
+  /* The two chip tiers read as a ladder: TigerTag steel, TigerTag+ gold. Kept in
+     the house recipe — a two-stop 90deg gradient with white text, exactly like
+     .tag-twin — rather than a faux-metal gradient: the rest of the UI is flat, so
+     a simulated material was the one thing on screen pretending to be an object.
+     TigerTag+ moved OFF orange on purpose: orange is the app's ACTION colour
+     (buttons, accents), so a tier badge wearing it competed with every call to
+     action. Gold says "premium tier" without borrowing the action signal. */
+  /* Premium tier — the exact colours of the wishlist buy button (.lv-buy): the
+     same amber border, the same top-lit vertical gradient and the same dark
+     brown type. One golden-yellow across the app for "this is the good one".
+     The two lower tiers stay on the flat .lv-vis tint recipe. */
+  .tag-plus {
+    background: linear-gradient(180deg, #ffd569, #ffc02e);
+    border-color: #f0b429;
+    color: #3a2c00;
+    transition: filter .12s;
+  }
+  .tag-plus:hover { filter: brightness(1.04); }
   /* Green round badge (white shield) after the TigerTag+ badge — same look as
      the detail-panel .panel-img-backup-badge, sized down for the row. */
   .tag-backup {
@@ -676,12 +696,48 @@
     color: #fff;
   }
   .tag-backup .icon { background-color: #fff; }
-  .tag-diy { background: var(--surface-2); color: var(--muted); font-size:10px; padding:2px 7px; border-radius:999px; font-weight:600; letter-spacing:.03em; }
-  /* Cloud-only entry — purple gradient distinct from .tag-plus (orange,
-     real chip + online catalog) and .tag-twin (sky-blue, twin pairing).
-     Tag is awarded to docs whose id starts with `CLOUD_`, i.e. created
-     via the Add Product flow but not yet programmed onto a physical chip. */
-  .tag-cloud { background: linear-gradient(90deg,#7c4dff,#a37bff); color:#fff; font-size:10px; padding:2px 7px; border-radius:999px; font-weight:700; letter-spacing:.03em; }
+  /* Same construction as TigerTag+ (and the wishlist buy button it borrows from):
+     amber becomes silver, so the two real chips read as one pair — a gold rung and
+     a silver rung, both with the top-lit sheen. TigerData stays flat on purpose:
+     it is not a chip, so it gets no relief. */
+  .tag-diy {
+    background: linear-gradient(180deg, #eef2f7, #d5dce6);
+    border-color: #b9c2ce;
+    color: #333b47;
+    transition: filter .12s;
+  }
+  .tag-diy:hover { filter: brightness(1.03); }
+  /* Chipless entry. The two chip tiers are FILLED metals because they are objects
+     you can hold; this one has no object at all, so it is drawn as an OUTLINE —
+     absence of material, which no hue could say on its own. It also stops the tier
+     from competing for a colour slot: in this app orange means action, green
+     success, red danger and sky-blue twin-pairing, so a saturated hue here (it was
+     purple, picked only to "differ from orange") carried no meaning. Same logic as
+     Tiger Hub, whose tier ladder draws this rung as a dashed card. */
+  /* White metal — the same top-lit construction as the gold and silver rungs, one
+     step lighter. The three now form a continuous ladder (white → silver → gold).
+     Its border is a touch stronger than the other two: on a white card the capsule
+     would otherwise have no edge to sit on. */
+  .tag-cloud {
+    background: linear-gradient(180deg, #ffffff, #eceff4);
+    border-color: #cbd3dd;
+    color: #4a5462;
+    transition: filter .12s;
+  }
+  .tag-cloud:hover { filter: brightness(.985); }
+
+  /* One shared capsule for the three tiers — identical geometry, only the fill and
+     the hairline border change, so they read as one family. A real 1px border is
+     safe here: `box-sizing: border-box` is global (00-base.css) and the height is
+     fixed, so the border costs no outer size. */
+  .tag-cloud, .tag-diy, .tag-plus {
+    display: inline-flex; align-items: center; justify-content: center;
+    height: 18px; padding: 0 8px;
+    border-radius: 999px; border: 1px solid transparent;
+    font-size: 10px; font-weight: 650; line-height: 1;
+    letter-spacing: .01em; white-space: nowrap;
+    vertical-align: middle; user-select: none;
+  }
   .tag-twin { background: linear-gradient(90deg,#3d8ef0,#7ab4ff); color:#fff; font-size:10px; padding:2px 7px; border-radius:999px; font-weight:700; letter-spacing:.03em; display:inline-flex; align-items:center; gap:3px; margin-left:4px; }
 
   /* ── view toggle ── */
@@ -3139,7 +3195,32 @@
   .cp-item-info { flex: 1; min-width: 0; }
   .cp-item-name { font-size: 13px; font-weight: 600; color: var(--text); }
   .cp-item-meta { font-size: 11px; color: var(--muted); margin-top: 1px; }
-  .cp-item-cw { display: block; margin-top: 3px; font-size: 12px; font-weight: 700; color: var(--text); }
+  .cp-item-cw { font-size: 12px; font-weight: 700; color: var(--text); }
+
+  /* ── Container weight correction ────────────────────────────────────────
+     The catalogue weight is a manufacturer value; a user who weighs their own
+     container can override it (users/{uid}/containerOverrides). The pencil sits
+     to the LEFT of the value, and the whole row swaps for an inline editor. */
+  .cp-cw-row { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
+  .cp-cw-btn {
+    flex: none; width: 20px; height: 20px; padding: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: none; border: none; border-radius: 6px;
+    color: var(--muted); cursor: pointer;
+    transition: background .12s, color .12s, opacity .12s;
+  }
+  .cp-cw-btn .icon { background-color: currentColor; }
+  .cp-cw-btn:hover { background: var(--border); color: var(--primary); }
+  /* The pencil stays discreet until the row is hovered — it must not compete
+     with the weight it edits. Kept visible while its own row is being edited. */
+  .cp-cw-pencil { opacity: 0; }
+  .cp-item:hover .cp-cw-pencil,
+  .cp-cw-pencil:focus-visible { opacity: 1; }
+  .cp-cw-badge {
+    font-size: 9.5px; font-weight: 700; letter-spacing: .04em;
+    color: var(--primary); background: var(--primary-soft, rgba(249,115,22,.12));
+    padding: 1px 6px; border-radius: 999px;
+  }
   .cp-check { color: var(--primary); font-size: 14px; flex-shrink: 0; }
   .cp-empty { padding: 24px; text-align: center; font-size: 13px; color: var(--muted); }
 

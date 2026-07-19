@@ -31,10 +31,10 @@ Grouped by domain. Versions in parentheses are the release that landed the featu
 - ✅ **Spool toolbox** in detail panel — Scan colour / Scan TD / Twin link / Remove from rack / Delete (v1.4.8)
 - ✅ **Image cache** for spool photos — local persistence, color-fallback if remote dies
 - ✅ **Add Product side panel** — full TigerTag creator iso to the mobile app: Brand / Material picker bottom-sheets with favourites pinned and persisted, mobile-style HSV colour picker (preset grid + custom 2D SV rectangle + rainbow hue slider), advanced mode revealing Type / Diameter / Aspect 1+2 / temps / TD / weight unit, live RFID Data preview (debug only), 28-byte UTF-8 cap on the colour-name field, integer-only fields with live clamp (v1.4.11 + v1.4.12)
-- ✅ **TigerCloud — 100 % digital filaments** — Add Product writes a doc with id `CLOUD_<10-digit>` and the new "TigerCloud" tier badge (purple) when there's no physical chip yet. Promoted in place to a real 7-byte hex UID via the existing `uidMigrationMap` rename pipeline the moment the user programs a chip — every field, twin pointer, rack assignment and friend ACL follows the doc through the rename. Atomic, idempotent. Mobile companion ships the same label in the inventory bottom-sheet header AND the search index (v1.4.12)
-- ✅ **Custom product image** (`url_img` + `url_img_user: true`) — DIY and TigerCloud spools can carry a product image from any external URL. Edit trigger in the colour square (or toolbox when an image is already set); also available in the Add Product advanced section. Broken URLs fall back to the colour placeholder; `isPlus` stays false so the spool keeps its DIY/Cloud identity. TigerTag+ images (from catalogue) are read-only. (v1.4.13)
+- ✅ **TigerData — 100 % digital filaments** — Add Product writes a doc with id `CLOUD_<10-digit>` and the new "TigerData" tier badge (purple) when there's no physical chip yet. Promoted in place to a real 7-byte hex UID via the existing `uidMigrationMap` rename pipeline the moment the user programs a chip — every field, twin pointer, rack assignment and friend ACL follows the doc through the rename. Atomic, idempotent. Mobile companion ships the same label in the inventory bottom-sheet header AND the search index (v1.4.12)
+- ✅ **Custom product image** (`url_img` + `url_img_user: true`) — DIY and TigerData spools can carry a product image from any external URL. Edit trigger in the colour square (or toolbox when an image is already set); also available in the Add Product advanced section. Broken URLs fall back to the colour placeholder; `isPlus` stays false so the spool keeps its DIY/Cloud identity. TigerTag+ images (from catalogue) are read-only. (v1.4.13)
 - ✅ **Toolbox — Clear TD split-button** — hold-to-confirm trash button (1 200 ms) on the "Scan TD" toolbox row, visible only when `r.td != null`. Deletes the `TD` field via `FieldValue.delete()`. Row hidden entirely when no TD is set. (v1.4.13)
-- ✅ **TigerCloud stat tile** — purple tile in the inventory header always showing the count of `CLOUD_` spools; DIY count now correctly excludes Cloud entries. (v1.4.13)
+- ✅ **TigerData stat tile** — purple tile in the inventory header always showing the count of `CLOUD_` spools; DIY count now correctly excludes Cloud entries. (v1.4.13)
 
 ### Multi-account & auth
 - ✅ Firebase auth with **per-account `firebase.app(uid)` instances** (independent sessions) (v1.4+)
@@ -869,7 +869,7 @@ separate, optional track.
 
 **Shipped**: the guarded modal flow below is implemented — modal (`#cloudEncodeOverlay`) + `openEncodeModal`/`_cemStartBurn`/`_cemMigrate` in `inventory.js`, the new `rfid:burn-one` IPC (`main.js`) with read-back verification in `services/nfc-process.js`, and the chip-epoch timestamp fix. The old one-shot `_encodeCloud` was removed.
 
-Previously `_encodeCloud(r)` + the `rfid:encode-cloud` IPC promoted a TigerCloud spool in a single click: same payload to every reader with a card, then migrate Firestore **if ≥1 chip succeeded** — too loose for an irreversible operation. Replaced with a **guarded, modal-driven flow** — confirm → presence-gate → sequential burn with per-chip read-back verification → **all-or-nothing** migration.
+Previously `_encodeCloud(r)` + the `rfid:encode-cloud` IPC promoted a TigerData spool in a single click: same payload to every reader with a card, then migrate Firestore **if ≥1 chip succeeded** — too loose for an irreversible operation. Replaced with a **guarded, modal-driven flow** — confirm → presence-gate → sequential burn with per-chip read-back verification → **all-or-nothing** migration.
 
 #### Requirements (decided)
 1. **Confirmation modal before any write.** Triggering "Encode" opens a modal first — it never burns immediately. Lets the user position the spool so the chip(s) sit on the reader(s).
@@ -1085,7 +1085,7 @@ Today a spool's metadata disappears the moment the user consumes the last gram a
 #### Why TigerTag+ only — and what to do about non-Plus
 **TigerTag+** spools carry a stable `id_product` (32-bit integer, registered in the central API via `lookupProduct(productId)`). Two physical Polymaker PLA Black 1 kg spools share the same `id_product` — perfect primary key for "this product".
 
-**TigerTag (DIY) / TigerCloud** carry user-encoded data with no stable product identity. A user who hand-writes "Polymaker PLA Black" on one chip and "Polymaker · PLA · Black" on another would create two distinct "products" that should logically be one — and we can't auto-merge without parsing brand + material + colour heuristics that will be wrong half the time.
+**TigerTag (DIY) / TigerData** carry user-encoded data with no stable product identity. A user who hand-writes "Polymaker PLA Black" on one chip and "Polymaker · PLA · Black" on another would create two distinct "products" that should logically be one — and we can't auto-merge without parsing brand + material + colour heuristics that will be wrong half the time.
 
 **Decision**: V1 only supports TigerTag+ favourites. The "♥ Favorite" button is hidden on DIY/Cloud spools, with a tooltip *"Favourites need a registered product ID — available on TigerTag+ chips"*. A V2 could add a free-form "wishlist" for DIY (just notes, no auto-link), but it's a different feature — track separately.
 

@@ -8,10 +8,11 @@
      purpose: the global `.panel-body { padding: 0 0 24px }` in 70-detail-misc.css
      loads AFTER this file, so a plain `.rec-body` loses the cascade race and the
      content ends up glued to the panel edges. Same trick the Add-product panel uses. */
-  /* No scrim behind the rack side-card — the panel is an editor, not a blocking
-     dialog, and the Storage grid it edits should stay readable underneath. The
-     overlay stays in the DOM (and keeps pointer-events) so click-outside still closes. */
-  #rackEditOverlay { background: transparent; }
+  /* No scrim behind these side-cards — they are editors, not blocking dialogs, and
+     the inventory they act on should stay readable underneath. Both overlays stay
+     in the DOM (and keep pointer-events) so click-outside still closes. */
+  #rackEditOverlay,
+  #addProductOverlay { background: transparent; }
 
   .rec-panel { --rec-side-padding: 20px; }
   .rec-panel.detail-panel {
@@ -100,6 +101,10 @@
   .rec-stepper:focus-within { border-color: var(--primary); background: var(--surface); }
   .rec-step {
     flex: 0 0 44px;
+    /* Same reason as the calibration stepper: the global `button { height: 40px }`
+       would fix these at 40px instead of following the wrapper's height, so the
+       hover fill would stop short of the top and bottom edges. */
+    height: auto; align-self: stretch;
     display: flex; align-items: center; justify-content: center;
     background: transparent; border: 0;
     /* Square the button off: the wrapper's own radius + overflow:hidden already
@@ -169,12 +174,11 @@
      (identity → layout → preview) instead of one flat list of fields. */
   .rec-sec { display: flex; flex-direction: column; gap: 12px; }
   .rec-sec-head { display: flex; align-items: center; gap: 9px; }
+  /* Geometry + skin only — centring comes from .circle-center (00-base.css). */
   .rec-sec-num {
-    flex: 0 0 22px; height: 22px;
-    display: flex; align-items: center; justify-content: center;
-    border-radius: 50%;
+    flex: 0 0 22px;
     background: var(--primary); color: #fff;
-    font-size: 11px; font-weight: 800; font-family: var(--mono);
+    font-size: 11.5px; font-weight: 800;
   }
   .rec-sec-title {
     font-size: 14px; font-weight: 700; letter-spacing: 0;
@@ -2548,13 +2552,15 @@
   }
   /* Custom slot — last cell of the grid. JS paints its background to
      the currently-selected hex so the user can see at a glance which
-     colour the picker will open on. The edit pencil sits on top with
-     a drop-shadow halo so it stays legible on any colour. */
+     colour the picker will open on. The edit pencil sits on top. Its
+     colour is set inline from readableTextOn(swatch) in _adpRenderColorPresets, so
+     it flips to black on a pale swatch — the `background` here is only the fallback
+     for a swatch we could not read. The drop-shadow halo that used to force a white
+     pencil to stay visible is gone: it was compensating for the missing flip, and
+     on a light colour it read as a smudge. */
   .sfe-sheet--color.adp-color-sheet .sfe-color-cell--custom .icon {
     background: #fff;
     width: 18px; height: 18px;
-    filter: drop-shadow(0 1px 2px rgba(0,0,0,.55))
-            drop-shadow(0 0 1px rgba(0,0,0,.6));
   }
 
   /* ── Mono / Dual / Tri colour-count selector ────────────────────── */
@@ -4152,3 +4158,292 @@
 .attach-modal-err { font-size: 12.5px; color: var(--danger, #ff5c5c); font-weight: 600; }
 .attach-modal-err[hidden] { display: none; }
 .attach-modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 18px 16px; }
+
+  /* ── Container weight calibration ───────────────────────────────────────
+     Framed as a calibration, not a form: the container is shown large, the value
+     is a stepper, and a catalogue-vs-yours comparison makes the delta explicit
+     before saving. Two footers swap in place so the card never resizes mid-flow. */
+  #cwModalOverlay .cw-card {
+    width: 560px; max-width: 92vw; padding: 0;
+    border-radius: 22px; overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  #cwModalOverlay .cw-header {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 22px 24px 0;
+  }
+  #cwModalOverlay .cw-head-text { flex: 1; min-width: 0; }
+  #cwModalOverlay .cw-title { font-size: 17px; font-weight: 700; color: var(--text); letter-spacing: -.015em; }
+  #cwModalOverlay .cw-sub { margin-top: 3px; font-size: 12.5px; line-height: 1.45; color: var(--muted); }
+  #cwModalOverlay .cw-close { position: static; flex: none; }
+
+  #cwModalOverlay .cw-body { padding: 20px 24px 0; }
+  #cwModalOverlay .cw-body[hidden] { display: none; }
+
+  /* Photo left, identity + value right. */
+  #cwModalOverlay .cw-main { display: flex; gap: 20px; align-items: flex-start; }
+  #cwModalOverlay .cw-shot {
+    flex: none; width: 190px; aspect-ratio: 1; object-fit: contain;
+    background: var(--surface-2); border-radius: 16px; padding: 12px;
+  }
+  #cwModalOverlay .cw-side { flex: 1; min-width: 0; }
+  #cwModalOverlay .cw-name {
+    font-size: 18px; font-weight: 700; color: var(--text); letter-spacing: -.02em;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  #cwModalOverlay .cw-meta {
+    font-size: 12.5px; color: var(--muted); margin-top: 2px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  #cwModalOverlay .cw-weight-label {
+    margin-top: 20px; margin-bottom: 8px;
+    font-size: 12px; font-weight: 600; color: var(--muted);
+  }
+
+  /* Grouped [− value +] control — the value carries the frame, the buttons ride
+     inside it (same construction as the rack side-card's steppers). */
+  #cwModalOverlay .cw-stepper {
+    display: flex; align-items: stretch;
+    background: var(--surface-2);
+    border: 1.5px solid var(--border); border-radius: 14px;
+    overflow: hidden;
+    transition: border-color .18s, box-shadow .18s, background .18s;
+  }
+  /* Focus shows on the FRAME only — border + ring. The wrapper keeps its grey:
+     the − / + buttons are transparent, so turning it white flattened them into
+     the white value well and the control lost its three-part reading. */
+  #cwModalOverlay .cw-stepper:focus-within {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 4px var(--primary-soft, rgba(249,115,22,.16));
+  }
+  /* height:auto + align-self:stretch are REQUIRED: the global `button` rule sets a
+     fixed 40px height, which left these sitting top-aligned in a 66px stepper with
+     a hover fill that only covered part of it. */
+  #cwModalOverlay .cw-step {
+    flex: none; width: 52px; padding: 0;
+    height: auto; align-self: stretch;
+    display: flex; align-items: center; justify-content: center;
+    background: transparent; border: none; border-radius: 0;
+    color: var(--muted); font-size: 22px; font-weight: 500; font-family: inherit;
+    line-height: 1; cursor: pointer; user-select: none;
+    transition: background .12s, color .12s;
+  }
+  #cwModalOverlay .cw-step:hover  { background: var(--border); color: var(--primary); }
+  #cwModalOverlay .cw-step:active { background: var(--primary-soft, rgba(249,115,22,.16)); }
+  /* White value well between the two buttons — the wrapper keeps the outer frame,
+     side rules separate the number from − / + without giving it its own box. */
+  #cwModalOverlay .cw-dial {
+    position: relative; flex: 1; min-width: 0;
+    display: flex; align-items: center;
+    background: var(--surface);
+    border-left: 1.5px solid var(--border);
+    border-right: 1.5px solid var(--border);
+  }
+  /* Doubled class to outrank the global `input[type="number"]` rule. */
+  #cwModalOverlay .cw-input.cw-input {
+    width: 100%; height: 66px; padding: 0 34px 0 12px;
+    font-size: 34px; font-weight: 800; font-family: var(--mono);
+    text-align: center; letter-spacing: -.03em;
+    color: var(--text);
+    background: transparent !important; border: none !important; border-radius: 0 !important;
+    outline: none; box-shadow: none !important;
+    -moz-appearance: textfield;
+  }
+  #cwModalOverlay .cw-input::-webkit-outer-spin-button,
+  #cwModalOverlay .cw-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  #cwModalOverlay .cw-unit {
+    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+    font-size: 15px; font-weight: 700; color: var(--muted); pointer-events: none;
+  }
+  #cwModalOverlay .cw-scale-hint {
+    margin-top: 9px; font-size: 11.5px; color: var(--muted);
+  }
+
+  /* Visual recipe: what goes on the scale. Reads left to right as an equation,
+     the middle term dropping out for containers that have no cardboard core. */
+  /* No card around it: boxing the steps put a frame inside a framed dialog. The
+     three step tiles carry the surface instead. */
+  #cwModalOverlay .cw-how { margin-top: 18px; }
+  #cwModalOverlay .cw-how-title {
+    font-size: 12.5px; font-weight: 700; color: var(--text); margin-bottom: 12px;
+  }
+  #cwModalOverlay .cw-how-steps {
+    --how-gap: 26px;      /* visual gap left between two cards */
+    --op-size: 44px;      /* diameter of the + / = discs */
+    display: flex; align-items: stretch; gap: var(--how-gap);
+  }
+  #cwModalOverlay .cw-how-step {
+    flex: 1 1 0; min-width: 0;
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    padding: 10px 10px 12px;
+    background: var(--surface-2); border-radius: 14px;
+  }
+  #cwModalOverlay .cw-how-step[hidden] { display: none; }
+  /* Number and label share the top line — the caption names the step where the
+     eye already is, instead of hanging under the picture. */
+  #cwModalOverlay .cw-how-head {
+    display: flex; align-items: center; gap: 7px;
+    align-self: stretch; min-width: 0;
+  }
+  #cwModalOverlay .cw-how-num {
+    flex: none; width: 18px;
+    background: var(--primary); color: #fff;
+    font-size: 10.5px; font-weight: 800;
+  }
+  #cwModalOverlay .cw-how-cap {
+    flex: 1; min-width: 0;
+    font-size: 11px; line-height: 1.3; color: var(--text); font-weight: 600;
+  }
+  /* One uniform height, width follows the aspect — no `aspect-ratio: 1`.
+     A square box was reserving vertical space no subject used: the scale is
+     landscape, so a 112px box held a 65px subject and left 47px of dead air under
+     it. The two assets we control are now exported CROPPED to their subject (no
+     square padding), so their box hugs them exactly. The spool comes from the
+     catalogue on a square canvas with its own margin — its subject renders a little
+     smaller, which is inherent to the source and not worth distorting. */
+  #cwModalOverlay .cw-how-img {
+    height: var(--img-h, 72px); width: auto; max-width: 100%;
+    object-fit: contain;
+  }
+  /* Per-image heights so the three SUBJECTS render at the same ~67px, which is
+     what the eye compares. The boxes differ because the sources fill their frame
+     differently: our two assets are cropped to their subject (91-95 %), while the
+     spool is a catalogue photo on a square canvas with its own margin (77 %) —
+     it needs a taller box to reach the same visible size, and we do not re-crop
+     catalogue art that is shared with every other view. */
+  #cwModalOverlay .cw-how-img--spool { --img-h: 87px; }
+  #cwModalOverlay .cw-how-img--core  { --img-h: 70px; }
+  #cwModalOverlay .cw-how-img--scale { --img-h: 74px; }
+  #cwModalOverlay .cw-how-fallback {
+    width: 42px; height: 42px; margin: 12px 0 4px;
+    background-color: var(--muted);
+  }
+  #cwModalOverlay .cw-how-fallback[hidden] { display: none; }
+
+  /* The + / = joints. They are FLEX ITEMS BETWEEN two cards, not elements
+     positioned against one of them — so they are centred in the gap by
+     construction, with no offset to keep in sync.
+       margin = -(diameter + gap) / 2
+     makes the disc's net flow width exactly -gap, so the two cards keep their
+     intended visual gap while the disc's centre lands on that gap's midpoint
+     (verified: 0.0000px offset). Everything about the shape is stated here —
+     no shared utility, no inherited sizing, no border, no shadow. */
+  #cwModalOverlay .cw-how-op {
+    flex: none; align-self: center; z-index: 2;
+    box-sizing: border-box;
+    width: var(--op-size); height: var(--op-size);
+    margin: 0 calc(-1 * (var(--op-size) + var(--how-gap)) / 2);
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: #fff;
+    display: grid; place-items: center;
+    line-height: 1;
+    font-size: 20px; font-weight: 700; font-family: inherit;
+    color: var(--muted);
+    user-select: none;
+  }
+  #cwModalOverlay .cw-how-op[hidden] { display: none; }
+
+  /* How much stock rides on this number — amber, because getting it wrong is
+     silently wrong: every spool in this container inherits the value. */
+  #cwModalOverlay .cw-linked {
+    display: flex; align-items: center; gap: 9px;
+    margin-top: 12px; padding: 11px 14px;
+    background: #fdf1e3;
+    border-radius: 12px;
+    font-size: 12px; line-height: 1.4; color: #6b4a1e;
+  }
+  #cwModalOverlay .cw-linked[hidden] { display: none; }
+  #cwModalOverlay .cw-linked .icon { flex: none; background-color: #e08c1a; }
+
+  /* Save mode — what happens to the spools already using this container. Sits last,
+     right above the footer: one decision, taken after the delta is visible. */
+  #cwModalOverlay .cw-mode {
+    display: flex; align-items: center; gap: 18px;
+    margin-top: 12px; padding: 13px 16px;
+    background: var(--surface-2); border-radius: 14px;
+  }
+  #cwModalOverlay .cw-mode[hidden] { display: none; }
+  #cwModalOverlay .cw-mode-text { flex: 1; min-width: 0; }
+  #cwModalOverlay .cw-mode-title { font-size: 12.5px; font-weight: 700; color: var(--text); }
+  #cwModalOverlay .cw-mode-sub { margin-top: 2px; font-size: 11px; line-height: 1.4; color: var(--muted); }
+  #cwModalOverlay .cw-mode-opts { flex: none; display: flex; flex-direction: column; gap: 7px; }
+  #cwModalOverlay .cw-mode-opt {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; color: var(--text); cursor: pointer;
+  }
+  /* Native input hidden but kept focusable — the visible dot is .cw-radio. */
+  #cwModalOverlay .cw-mode-opt input {
+    position: absolute; opacity: 0; width: 0; height: 0; margin: 0;
+  }
+  #cwModalOverlay .cw-radio {
+    flex: none; width: 15px; height: 15px;
+    border: 1.5px solid var(--border); border-radius: 50%;
+    background: var(--surface);
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: border-color .15s;
+  }
+  #cwModalOverlay .cw-radio::after {
+    content: ""; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--primary);
+    transform: scale(0); transition: transform .15s;
+  }
+  #cwModalOverlay .cw-mode-opt input:checked + .cw-radio { border-color: var(--primary); }
+  #cwModalOverlay .cw-mode-opt input:checked + .cw-radio::after { transform: scale(1); }
+  #cwModalOverlay .cw-mode-opt input:focus-visible + .cw-radio {
+    box-shadow: 0 0 0 3px var(--primary-soft, rgba(249,115,22,.20));
+  }
+  #cwModalOverlay .cw-mode-opt:hover .cw-radio { border-color: var(--primary); }
+
+  /* Catalogue vs yours — the delta is the whole point of calibrating. */
+  #cwModalOverlay .cw-compare {
+    /* stretch, not center: the two columns must be the same height so their values
+       sit on one line even when one subtitle wraps and the other doesn't. */
+    display: flex; align-items: stretch; gap: 14px;
+    margin-top: 16px; padding: 16px 20px;
+    background: var(--surface-2); border-radius: 16px;
+  }
+  #cwModalOverlay .cw-cmp {
+    flex: 1; min-width: 0;
+    display: flex; flex-direction: column;
+  }
+  #cwModalOverlay .cw-cmp-label { font-size: 13px; font-weight: 700; color: var(--text); }
+  #cwModalOverlay .cw-cmp-sub { margin-top: 2px; font-size: 11px; line-height: 1.4; color: var(--muted); }
+  #cwModalOverlay .cw-cmp-val {
+    /* Pushed to the bottom of its column — that is what keeps the two figures
+       aligned regardless of how many lines the subtitle above them takes. */
+    margin-top: auto; padding-top: 14px;
+    display: flex; align-items: baseline; justify-content: center; gap: 9px;
+    font-size: 26px; font-weight: 800; font-family: var(--mono);
+    letter-spacing: -.02em; color: var(--muted);
+  }
+  #cwModalOverlay .cw-cmp-val--mine { color: var(--primary); }
+  /* The arrow rides in a white disc, centred between the two columns. */
+  #cwModalOverlay .cw-cmp-arrow {
+    flex: none; align-self: center;
+    width: 32px; height: 32px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--surface); border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, .10);
+  }
+  #cwModalOverlay .cw-cmp-arrow .icon { background-color: var(--text); }
+  #cwModalOverlay .cw-badge {
+    align-self: center;
+    font-size: 9.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+    font-family: inherit;
+    color: var(--primary); background: var(--surface);
+    border: 1px solid var(--primary);
+    padding: 3px 8px; border-radius: 999px;
+  }
+  #cwModalOverlay .cw-badge[hidden] { display: none; }
+
+  #cwModalOverlay .cw-footer {
+    display: flex; align-items: center; gap: 8px;
+    padding: 20px 24px 22px;
+  }
+  #cwModalOverlay .cw-footer[hidden] { display: none; }
+  #cwModalOverlay .cw-reset[hidden] { display: none; }
+  /* Reset is a quiet escape hatch — never competing with Save. */
+  #cwModalOverlay .cw-reset { font-size: 12px; color: var(--muted); }
+  #cwModalOverlay .cw-reset .icon { background-color: currentColor; }

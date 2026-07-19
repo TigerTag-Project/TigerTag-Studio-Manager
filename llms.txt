@@ -2,19 +2,19 @@
 
 > Desktop companion for the TigerTag RFID filament-tracking ecosystem. Electron app — Vanilla JS + Firebase + NFC.
 
-Tiger Studio Manager is an Electron (v41) desktop application for managing 3D-printing filament spools tagged with TigerTag RFID chips. It provides real-time Firestore inventory sync, live 3D printer integration for 5 brands, NFC chip read/write, hardware sensors (color sensor, scale), rack storage management, and a friends system — all in a single window without a build step (no bundler).
+Tiger Studio Manager is an Electron desktop application for managing 3D-printing filament spools tagged with TigerTag RFID chips. It provides real-time Firestore inventory sync, live 3D printer integration for 6 brands, NFC chip read/write, hardware sensors (color sensor, scale), rack storage management, shareable wishlists and a friends system — all in a single window without a build step (no bundler).
 
-Current version: **1.8.2** — macOS (Intel + Apple Silicon, signed & notarized), Windows, Linux.
+Current version: **2.13.0** — macOS (Intel + Apple Silicon, signed & notarized), Windows, Linux.
 
 ## Architecture
 
 - **Entry point**: `main.js` (Electron main process)
-- **Renderer**: `renderer/inventory.html` + `renderer/inventory.js` (single IIFE, ~12 000 lines) + modular CSS in `renderer/css/`
+- **Renderer**: `renderer/inventory.html` + `renderer/inventory.js` (single IIFE, ~28 500 lines) + modular CSS in `renderer/css/`
 - **Preload bridge**: `preload.js` — exposes IPC handlers to renderer via `window.electronAPI`
 - **NFC**: `services/nfc-process.js` runs as a `utilityProcess` (not a Worker Thread) to avoid SIGABRT on macOS; communicates via IPC
 - **Printer integrations**: `renderer/printers/<brand>/index.js` — one file per brand, loaded dynamically
 - **IoT sensors**: `renderer/IoT/td1s/` (TD1S color sensor), `renderer/IoT/tigerscale/` (TigerScale ESP32)
-- **CSS**: `renderer/css/00-base.css` → `70-detail-misc.css` (8 files, loaded in numeric order via `<link>` tags)
+- **CSS**: `renderer/css/00-base.css` → `70-detail-misc.css` (10 files, loaded in numeric order via `<link>` tags)
 - **i18n**: `renderer/locales/` — 9 JSON files (en/fr/de/es/it/zh/pt/pt-pt/pl), managed via `npm run i18n:add`
 - **TigerTag SDK**: `@tigertag/sdk` npm package — parse, verify, encode TigerTag NTAG chips (pages 4–39, 144 bytes, blockSize=4)
 
@@ -78,7 +78,7 @@ Cloud spools have `spoolId` starting with `CLOUD_`. `normalizeRow()` sets `r.isC
 - **NTAG read**: `reader.read(4, 144, 4)` — start page 4, 144 bytes (36 pages), blockSize=4 (critical: prevents sliding-window overlap)
 - **Chip encode**: `TigerTag.fromCloudDoc(doc).patch({ timestamp }).toBytes(false)` → 80 bytes → write pages 4–0x17
 - **Multi-reader**: up to 2 simultaneous readers; `state.nfcCardPresent` Map tracks which reader has a card
-- **TigerPOD**: free 3D-printable stand (MakerWorld #1289152) with 2 reader slots for dual encoding
+- **TigerPOD**: open-source dual reader/writer stand — 3D-printable shell + two USB readers (repo https://github.com/TigerTag-Project/TigerPOD, free STL MakerWorld #1289152)
 
 RFID badge in header: always visible. Disconnected = filled red gradient pill, clicking opens TigerPOD modal. Connected = green tint. Card-present = filled green gradient.
 
@@ -95,6 +95,7 @@ Each brand has `renderer/printers/<brand>/PROTOCOL.md` (self-contained spec) and
 | Elegoo | MQTT | 1883 |
 | FlashForge | HTTP poll + TCP M-codes | 8898 / 8899 |
 | Snapmaker | Moonraker WebSocket | 7125 |
+| Anycubic | MQTTS TLS 1.2 (LAN) + signed REST / cloud MQTT | 9883 |
 
 All brands: printer discovery (mDNS + port scan + manual IP), filament edit per slot, camera widget.
 
@@ -112,7 +113,7 @@ All brands: printer discovery (mDNS + port scan + manual IP), filament edit per 
 npm run i18n:add -- myKey --after existingKey en="..." fr="..." de="..." es="..." it="..." zh="..." pt="..." pt-pt="..." pl="..."
 npm run i18n:check   # validates consistency (also runs as pre-commit hook)
 ```
-791 keys × 9 locales as of v1.8.2.
+1347 keys × 9 locales as of v2.13.0.
 
 ## CSS conventions
 
@@ -145,10 +146,21 @@ npm run i18n:check   # validates consistency (also runs as pre-commit hook)
 ```bash
 npm start                          # dev (no bundler)
 npm run i18n:check                 # validate all 9 locales
-git tag v1.8.2 && git push --tags  # triggers CI: parallel build macOS/Windows/Linux → GitHub Release
+git tag v2.13.0 && git push --tags  # triggers CI: parallel build macOS/Windows/Linux → GitHub Release
 ```
 
 CI: `.github/workflows/build.yml` — Apple Developer ID signing + notarytool on macOS, electron-builder on all platforms, publishes to GitHub Releases.
+
+## Ecosystem repositories
+
+Tiger Studio Manager is the desktop app of a wider open hardware + software ecosystem.
+
+| Project | What it is | Repository |
+|---|---|---|
+| TigerTag SDK for JavaScript | Parse, verify and encode TigerTag NFC chips — used internally by this app | https://github.com/TigerTag-Project/TigerTag-SDK-JS |
+| TigerTag SDK for Python | Same operations in Python, for scripts and automation | https://github.com/TigerTag-Project/TigerTag-SDK-Python |
+| TigerScale | ESP32 firmware + hardware for the open-source filament scale | https://github.com/TigerTag-Project/Tiger-Scale |
+| TigerPOD | Open-source dual NFC reader/writer stand for spools — 3D-printable shell + two USB readers | https://github.com/TigerTag-Project/TigerPOD |
 
 ## Optional docs
 
@@ -157,3 +169,5 @@ CI: `.github/workflows/build.yml` — Apple Developer ID signing + notarytool on
 - `DEVLOG.md` — per-session engineering journal
 - `renderer/printers/<brand>/PROTOCOL.md` — self-contained agent skill per printer brand
 - `TIGERTAG_FIREBASE_INTEGRATION.md` — third-party Firebase integration guide
+- `FEATURES.md` — consolidated catalogue of every shipped feature, tagged by version
+- `CODEMAP-main.md` — line ranges for every section of `main.js`

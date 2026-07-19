@@ -1,6 +1,6 @@
 # Tiger Studio Manager — Feature Catalogue
 
-Tiger Studio Manager is the Electron desktop companion to the TigerTag ecosystem: a filament-inventory manager built around RFID/NFC-tagged spools ("TigerTag" chips), a fully-digital "TigerCloud" tier, live 3D-printer integration across six brands, physical storage/rack management, a Firebase-backed social layer (friends, shareable wishlists, public profiles), and companion hardware (TD1S color sensor, TigerScale, TigerPOD dual-reader stand). This document catalogues every **shipped** feature, grouped by domain, current as of **v2.12.0**. Per-version release detail lives in `CHANGELOG.md`; forward-looking / in-progress work lives in `ROADMAP.md`.
+Tiger Studio Manager is the Electron desktop companion to the TigerTag ecosystem: a filament-inventory manager built around RFID/NFC-tagged spools ("TigerTag" chips), a fully-digital "TigerData" tier, live 3D-printer integration across six brands, physical storage/rack management, a Firebase-backed social layer (friends, shareable wishlists, public profiles), and companion hardware (TD1S color sensor, TigerScale, TigerPOD dual-reader stand). This document catalogues every **shipped** feature, grouped by domain, current as of **v2.13.0**. Per-version release detail lives in `CHANGELOG.md`; forward-looking / in-progress work lives in `ROADMAP.md`.
 
 ---
 
@@ -15,16 +15,17 @@ Tiger Studio Manager is the Electron desktop companion to the TigerTag ecosystem
 - TD1S color/TD sensor integration in the detail panel — scan color and TD separately or together (v1.3+; unified color+TD modal v1.8.0).
 - Spool toolbox (detail panel) — scan color, scan TD (with a hold-to-confirm "Clear TD" split button, v1.4.13), link/unlink twin, remove from rack, delete (v1.4.8).
   - Every toolbox action gained an ⓘ hover explainer (v1.10.29).
-  - **Duplicate ×N** — mint 1–50 copies of a TigerCloud/TigerTag spool in one write, hold-to-confirm (v1.8.3).
+  - **Duplicate ×N** — mint 1–50 copies of a TigerData/TigerTag spool in one write, hold-to-confirm (v1.8.3).
   - **Erase / Recycle to NFC / Restore TigerTag+** — reinitialise, wipe, or restore a physical chip's backed-up signature (v1.10.29).
   - **Guided chip update** — step-by-step panel with per-reader UID-match check before the write proceeds (v2.0.0).
 - Add Product side panel — Brand/Material picker bottom-sheets, mobile-style HSV color picker (preset grid + custom SV rectangle + hue slider), advanced Type/Diameter/Aspect/temps/TD/unit fields, integer clamping, live RFID-data debug preview (v1.4.11 → v1.4.12; reorganised with always-visible core fields + app-styled dropdowns v2.5.0).
   - Multi-colour picker — Mono / Dual / Tri / Rainbow selector with a live-updating color circle (v1.4.14).
-  - Custom product image via external URL for DIY & TigerCloud spools (TigerTag+ stays catalogue-locked) (v1.4.13).
+  - Custom product image via external URL for DIY & TigerData spools (TigerTag+ stays catalogue-locked) (v1.4.13).
   - TD1S button in the header auto-fills color + TD on scan (v1.4.13).
-- **TigerCloud** — fully-digital spools with no physical chip (`CLOUD_<id>`), atomically promoted to a real hex UID (with all fields, twin pointers, rack assignment and friend ACLs carried over) the moment a chip is programmed; dedicated purple tier badge and stat tile (v1.4.12; stat tile v1.4.13).
+- Per-account **container-weight calibration** — correct a container's empty weight against your own scale, with a guided "how to measure" step (a Masterspool keeps its cardboard core, other types do not), a catalogue-vs-yours comparison, and a choice of whether the spools already using that container adopt the new value. Stored in `users/{uid}/containerOverrides/{containerId}` and applied over the bundled catalogue at read time — the shipped JSON is never modified (v2.13.0).
+- **TigerData** — fully-digital spools with no physical chip (`CLOUD_<id>`), atomically promoted to a real hex UID (with all fields, twin pointers, rack assignment and friend ACLs carried over) the moment a chip is programmed; dedicated purple tier badge and stat tile (v1.4.12; stat tile v1.4.13).
 - **Chip history & backup** — private list of every physical chip ever programmed, with the repairable TigerTag+ signature backed up on first read; a green "Backed up" shield badge marks protected spools (v1.10.28, badge v1.10.29). Product ID shown as a clickable catalogue link (v1.10.29).
-- Grouping of identical spools — table view first (v1.10.15), then grid view + a dedicated group side panel with a live speedometer gauge of combined remaining weight (v1.10.18); grouping includes TigerCloud spools (v1.10.16) and distinguishes different colours/aspects within the same brand+material (v1.10.31).
+- Grouping of identical spools — table view first (v1.10.15), then grid view + a dedicated group side panel with a live speedometer gauge of combined remaining weight (v1.10.18); grouping includes TigerData spools (v1.10.16) and distinguishes different colours/aspects within the same brand+material (v1.10.31).
 - Multi-select mode (grid + table) — tick spools or printers and delete together with a hold-to-confirm, header master checkbox to select all visible (v2.0.0; header checkbox v2.1.0).
   - Bulk **Tags** editing across a selection (v2.1.0), bulk **Price** editing (v2.2.0, spools v2.2.0 too), bulk ★ Favorite / ❤ Love toggles (v2.3.0), multi-select inside a friend's inventory scoped to ★/❤ only (v2.3.0).
 - **Tags** — free-form spool labels with autocomplete, an "All tags" filter, and search-bar integration; twin-mirrored (v1.10.28; type-to-filter/create-on-the-fly rework v1.10.31).
@@ -111,7 +112,7 @@ Tiger Studio Manager is the Electron desktop companion to the TigerTag ecosystem
 ## Favorites & product identities
 
 - Per-user `products` collection — one record per product identity (buy link, tax-free price, minimum stock, note, tags, SKU/EAN, ❤/★ flags, display snapshot, sanitised `cloudSeed`) shared by every matching spool and surviving spool deletion (v2.1.0).
-- Product-info side card — buy link, price, min stock, note, tags, SKU/EAN, ❤/★, and a "Create a TigerTag Cloud" action, fully auto-saving (v2.1.0).
+- Product-info side card — buy link, price, min stock, note, tags, SKU/EAN, ❤/★, and a "+ Material" action minting a chipless TigerData spool of this exact filament, fully auto-saving (v2.1.0; action renamed v2.2.0).
   - Info (ⓘ) button on a product opens its reorder panel (price / buy-link / min-stock) alongside the product card (v2.10.0; present and left-aligned on all three product side-cards, and toggling, v2.12.0).
 - Product web-link attachments — datasheets, tutorials or videos attached to a product identity and shared by every spool of it, tier-capped free 1 / plus 2 / premium 5 and enforced server-side (v2.12.0).
 - Favorites view — Grid, Table and "To order" modes, sortable table (v2.1.0; sortable v2.2.0).

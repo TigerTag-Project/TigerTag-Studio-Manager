@@ -40,6 +40,35 @@
     -webkit-user-select: text; user-select: text;
   }
 
+  /* ── .circle-center — content optically centred inside a round badge ──────
+     Reach for this on ANY circle holding a character, a number or a glyph
+     (step badges, counters, avatar initials, icon discs).
+
+     Why the usual `flex + align-items:center` drifts:
+       • it centres the LINE BOX, whose height includes the font's ascender and
+         descender — a digit has no descender, so the glyph lands slightly high;
+       • an inherited line-height (1.4, 1.5…) makes that box taller still;
+       • monospace faces are the worst offenders, their vertical metrics are
+         built for column alignment, not for optical centring.
+
+     So: `place-items:center` centres the item box itself, `line-height:1` strips
+     the leading so the box hugs the glyph, and `tabular-nums` keeps 1 and 11 the
+     same width — a counter never has to grow. Set width (or font-size) and a
+     background where you use it; `aspect-ratio` keeps it perfectly round. */
+  .circle-center {
+    display: inline-grid;
+    place-items: center;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    line-height: 1;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    box-sizing: border-box;
+    /* Nudges the glyph down by the half-descender the box reserves but digits
+       never use. Sub-pixel, invisible on letters, decisive on numerals. */
+    padding-top: .06em;
+  }
+
   /* ── layout ── */
   .app-layout {
     height: 100%; display: flex; flex-direction: row; overflow: hidden;
@@ -433,14 +462,24 @@
     line-height: 1.2;
     margin-top: 2px;
   }
-  /* Badge spans inside stat labels: reset inherited text-transform + sizing */
+  /* HT / TTC qualifier on the stock-value tile. Deliberately quieter than the
+     label it follows — it qualifies the figure, it does not name the tile. */
+  .top-stats .sb-stat .label .sb-stat-tax {
+    text-transform: none;
+    letter-spacing: .01em;
+    font-weight: 600;
+    opacity: .7;
+  }
+  .top-stats .sb-stat .label .sb-stat-tax::before { content: "· "; }
+
+  /* Badge spans inside stat labels only need the inherited text-transform reset:
+     the badges carry their own capsule geometry (70-detail-misc.css) and must
+     stay identical here and on the spool cards. This block used to shrink them
+     (9px / 1px 6px), which now fights the fixed-height capsule. */
   .top-stats .sb-stat .label .tag-plus,
   .top-stats .sb-stat .label .tag-diy,
   .top-stats .sb-stat .label .tag-cloud {
     text-transform: none;
-    letter-spacing: .03em;
-    font-size: 9px;
-    padding: 1px 6px;
     vertical-align: middle;
   }
   /* TigerCloud stat — purple gradient accent */
@@ -448,11 +487,11 @@
     border-color: rgba(124,77,255,.35) !important;
     background: linear-gradient(135deg, rgba(124,77,255,.12), rgba(163,123,255,.07)) !important;
   }
-  .sb-stat--cloud .value { color: #a37bff; }
-  .sb-stat--cloud .label { color: rgba(163,123,255,.7); }
+  .sb-stat--cloud .value { color: #7b879b; }
+  .sb-stat--cloud .label { color: rgba(123,135,155,.75); }
   /* collapsed sidebar: keep the purple tint on the mini tile */
-  .sidebar.collapsed .sb-stat--cloud::before { color: #a37bff; }
-  .sidebar.collapsed .sb-stat--cloud::after  { color: rgba(163,123,255,.6); }
+  .sidebar.collapsed .sb-stat--cloud::before { color: #7b879b; }
+  .sidebar.collapsed .sb-stat--cloud::after  { color: rgba(123,135,155,.65); }
   /* top-stats (header) cloud variant — identical to other chips; badge handles the colour */
   .top-stats .sb-stat--cloud          { background: var(--surface-2) !important; border-color: var(--border) !important; }
   .top-stats .sb-stat--cloud .value   { color: var(--text); }
@@ -468,11 +507,11 @@
   .top-stats .sb-stat.is-active .label { color: var(--primary); opacity: .75; }
   /* Cloud active state overrides */
   .top-stats .sb-stat--cloud.is-active {
-    background: linear-gradient(135deg, rgba(124,77,255,.22), rgba(163,123,255,.14)) !important;
-    border-color: rgba(124,77,255,.75) !important;
+    background: linear-gradient(135deg, rgba(100,116,139,.20), rgba(148,163,184,.12)) !important;
+    border-color: rgba(100,116,139,.70) !important;
   }
-  .top-stats .sb-stat--cloud.is-active .value { color: #7c4dff; }
-  .top-stats .sb-stat--cloud.is-active .label { color: rgba(124,77,255,.9); opacity: 1; }
+  .top-stats .sb-stat--cloud.is-active .value { color: #55637a; }
+  .top-stats .sb-stat--cloud.is-active .label { color: rgba(85,99,122,.9); opacity: 1; }
 
 
   /* Sidebar friends quick-access list — plain menu items, no card.

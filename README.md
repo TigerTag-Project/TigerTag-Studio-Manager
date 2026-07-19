@@ -65,7 +65,7 @@ Everything around TigerTag is open — the hardware, the firmware, the SDK, and 
 | **[TigerTag SDK for JavaScript](https://github.com/TigerTag-Project/TigerTag-SDK-JS)** | Parse, verify, and encode TigerTag NFC chips — used internally by this app | MIT |
 | **[TigerTag SDK for Python](https://github.com/TigerTag-Project/TigerTag-SDK-Python)** | Parse, verify, and encode TigerTag NFC chips in Python — for scripts, tools, and automation | MIT |
 | **[TigerScale](https://github.com/TigerTag-Project/Tiger-Scale)** | ESP32 firmware + hardware for the open-source filament scale | MIT |
-| **[TigerPOD](https://makerworld.com/en/models/1289152)** | Free 3D-printable dual ACR122U reader stand — print it, no purchase needed | Free STL |
+| **[TigerPOD](https://github.com/TigerTag-Project/TigerPOD)** | Open-source dual NFC reader/writer stand for spools — 3D-printable shell + two USB readers ([free STL on MakerWorld](https://makerworld.com/en/models/1289152)) | CC BY 4.0 |
 
 The **TigerTag SDK** is the low-level library that handles all NFC chip operations — reading the 144-byte NTAG payload, verifying the TigerTag format, and encoding new chip data. It is published as an npm package (`tigertag`) and can be used independently to build custom TigerTag-compatible tools.
 
@@ -79,7 +79,7 @@ The **TigerTag SDK** is the low-level library that handles all NFC chip operatio
 - Real-time Firestore sync — table view + grid view, column sort, full-text search
 - Detail side panel — color, print settings, weight slider with auto-save, container, raw JSON
 - Weight tracking — slider or manual entry; instant cloud sync after update
-- **TigerCloud** — create fully-digital spools with no chip; promote to a real chip later, atomically
+- **TigerData** — create fully-digital spools with no chip; promote to a real chip later, atomically
 - Custom product image for DIY & Cloud spools
 - Manufacturing date, twin-tag detection and manual repair
 - Spool toolbox — scan color (TD1S), scan TD, link twin, remove from rack, delete
@@ -131,7 +131,7 @@ Plug in a USB ACR122U reader and the app automatically opens the matching spool'
   <img src="assets/img/screenshots/screenshot_tigerpod.png" width="100%" alt="Download TigerPOD free STL on MakerWorld" />
 </a>
 
-The **TigerPOD** is a free 3D-printable stand designed to hold up to **two ACR122U readers** side by side. Place one or two TigerTag chips on it and encode both in a single click directly from Tiger Studio Manager — no manual positioning, no juggling readers.
+The **TigerPOD** ([repository](https://github.com/TigerTag-Project/TigerPOD)) is a free 3D-printable stand designed to hold up to **two ACR122U readers** side by side. Place one or two TigerTag chips on it and encode both in a single click directly from Tiger Studio Manager — no manual positioning, no juggling readers.
 
 | | |
 |---|---|

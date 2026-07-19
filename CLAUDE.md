@@ -488,6 +488,33 @@ Behaviour:
 - Re-parses every file after write — aborts the entire run if any output isn't valid JSON.
 - Source: `scripts/i18n-add.mjs`.
 
+### Docs that restate the code — kept honest by `npm run docs:check`
+
+Several docs repeat numbers that actually live in the code: the version, the
+renderer's line count, how many printer brands ship, how many i18n keys exist,
+paths to folders. Nothing breaks when they drift, so nobody notices — `llms.txt`
+(the file an AI agent reads FIRST to understand this repo) once claimed **v1.8.2 /
+~12 000 lines / 5 brands** while the app was at **v2.12.0 / 28 500 lines / 6
+brands**, with Anycubic missing from its protocol table entirely.
+
+`scripts/check-docs-drift.mjs` compares each stated fact against its source of
+truth and fails the commit on a mismatch. The **pre-commit hook runs it** whenever
+a doc — or a file it describes — is staged. Run it by hand with `npm run docs:check`.
+
+| Checked | Source of truth | Tolerance |
+|---|---|---|
+| `llms.txt` "Current version" | `package.json` | current, or the patch it was bumped from |
+| `llms.txt` "~N lines" | `renderer/inventory.js` | 15 % |
+| `llms.txt` CSS file count | `renderer/css/*.css` | exact |
+| `llms.txt` brand count **+ protocol table rows** | `renderer/printers/*/index.js` | exact |
+| `llms.txt` "N keys × 9 locales" | `renderer/locales/en.json` | 2 % |
+| `FEATURES.md` "current as of vX.Y.Z" | `package.json` | current, or previous patch |
+| Paths in README / llms.txt / CLAUDE.md / AGENT.md | the filesystem | must exist (templates + globs skipped) |
+
+It only checks facts it can derive — it never reviews prose. When a check fires,
+fix the doc rather than bypassing: the numbers are read by humans **and** agents.
+Add a new check here whenever a doc starts restating something the code owns.
+
 ### Consistency check (auto-run on every commit)
 A pre-commit hook runs `npm run i18n:check` automatically — the commit is blocked if the 9 locale files drift apart. Activated by the `prepare` npm script which sets `core.hooksPath=.githooks/`. To run manually:
 
