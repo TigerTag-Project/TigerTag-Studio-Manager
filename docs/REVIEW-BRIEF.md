@@ -78,8 +78,8 @@ In the Studio repo, read **before** grepping anything large:
 - `CLAUDE.md` — the project's working conventions (they are extensive; judge them, see axis 5).
 - `FEATURES.md`, `ROADMAP.md`, `CHANGELOG.md`.
 
-Stack: Electron, **no bundler**, vanilla JS. `renderer/inventory.js` is ~28 500 lines in a single
-IIFE; `main.js` ~3 000. CSS is split `renderer/css/00-base.css` → `70-detail-misc.css`. i18n is 9
+Stack: Electron, **no bundler**, vanilla JS. `renderer/inventory.js` is ~28 500 lines in a single ES
+module (already importing ~29 sub-modules); `main.js` ~3 000. CSS is split `renderer/css/00-base.css` → `70-detail-misc.css`. i18n is 9
 locales × ~1350 keys. **There is no test suite.** Six printer brands are integrated over their
 native protocols (`renderer/printers/<brand>/`).
 

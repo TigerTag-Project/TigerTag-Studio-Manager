@@ -15,7 +15,7 @@ Current version: **2.13.0** — macOS (Intel + Apple Silicon, signed & notarized
 ## Architecture
 
 - **Entry point**: `main.js` (Electron main process)
-- **Renderer**: `renderer/inventory.html` + `renderer/inventory.js` (single IIFE, ~28 500 lines) + modular CSS in `renderer/css/`
+- **Renderer**: `renderer/inventory.html` + `renderer/inventory.js` (a single ES module, ~28 500 lines, already importing ~29 sub-modules) + modular CSS in `renderer/css/`
 - **Preload bridge**: `preload.js` — exposes IPC handlers to renderer via `window.electronAPI`
 - **NFC**: `services/nfc-process.js` runs as a `utilityProcess` (not a Worker Thread) to avoid SIGABRT on macOS; communicates via IPC
 - **Printer integrations**: `renderer/printers/<brand>/index.js` — one file per brand, loaded dynamically
