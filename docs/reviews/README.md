@@ -30,4 +30,4 @@ wrong. An unannotated report reads to the next reviewer as if nothing was ever d
 
 | Date | Scope | Headline |
 |---|---|---|
-| [2026-07-19](2026-07-19-full-project.md) | Full project — code, process, brand/IP | Healthy and unusually mature for a solo project. Two stored-XSS holes reachable from a friend's data are the one urgent fix; no CSP; `shell.openExternal` unrestricted. Business/IP foundations already further along than expected. **XSS + shell escapes fixed same day (`909ffc0`); CSP deferred pending a camera pass.** |
+| [2026-07-19](2026-07-19-full-project.md) | Full project — code, process, brand/IP | Healthy and unusually mature for a solo project. Two stored-XSS holes reachable from a friend's data are the one urgent fix; no CSP; `shell.openExternal` unrestricted. Business/IP foundations already further along than expected. **Six of nine quick wins fixed same day (`909ffc0`, `ab9922b`); CSP deferred pending a camera pass; two need the founder.** |
