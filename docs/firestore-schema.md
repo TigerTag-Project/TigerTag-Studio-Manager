@@ -309,6 +309,37 @@ The markers live on the inventory doc, so they vanish if that doc is deleted; a 
 
 `firstSeenAt` and `backup` are **write-once**. The lifetime unique-chip counter `telemetry/studio.rfidChipsTotal` is incremented by the number of newly-created entries.
 
+## URL fields are attacker-controlled — validate the scheme in every client
+
+Any URL a user stores in their own document is data an **attacker chose**, and several of those
+documents are readable by other people. The fields, and who can read them:
+
+| Field | Lives on | Readable by |
+|---|---|---|
+| `buyUrl` | `users/{uid}/products/{keyHash}` | owner, accepted friends, anyone if `isPublic` |
+| `attachments[].url` | `users/{uid}/products/{keyHash}` | same |
+| `LinkMSDS`, `LinkYoutube`, `LinkTuto`, … | `users/{uid}/inventory/{spoolId}` | same |
+| `url_img` / custom product image | `users/{uid}/inventory/{spoolId}`, `products` | same |
+| `items[].buyUrl` | `publicLists/{token}` | **the entire internet** |
+
+**Rules are not the control here.** A field whitelist decides *which* fields may be written, never
+what a string contains — the owner writes these values into their own document with a legitimate
+credential, so nothing server-side rejects `javascript:alert(1)`. A client-side sanitiser is not the
+control either: it can be bypassed by writing to Firestore directly.
+
+**So every client that renders one of these must validate the scheme itself, at render time.**
+Requiring a provable `http(s)` URL and refusing everything else is the whole fix — fail closed, so a
+scheme nobody anticipated is refused rather than needing to be listed. Escaping is not enough:
+HTML-escaping stops tag injection and leaves `javascript:` in an `href` completely intact.
+
+This bit Tiger Studio in v2.13.1 — two stored-XSS holes reachable from a friend's product links and
+attachments (see `docs/reviews/2026-07-19-full-project.md`). Current state per client: Studio uses
+`safeHref()` in the renderer and `isSafeExternalUrl()` in the main process; Tiger Hub uses `cleanUrl()`
+in `lib/data/*.ts`; the mobile app checks before `launchUrl`. **A new client starts with none of this**
+— which is why it is written down here rather than left in three codebases.
+
+---
+
 ## Connecting from a third-party app
 
 ```js
