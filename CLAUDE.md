@@ -1,14 +1,30 @@
 # Tiger Studio Manager — Claude reference
 
-## ⏳ ACTIVE TASK — CHECK AT THE START OF EVERY SESSION (until done)
+## ⏳ ACTIVE TASK — BLOCKED ON US, NOT ON MICROSOFT (check at the start of every session)
 
-**Windows code-signing via Azure Trusted Signing is mid-setup and waiting on Microsoft's identity-validation review.** Identity validation for **3D FRANCE** was submitted **2026-07-10** (status was *"En cours"*, ID `372c3c1f-778e-4430-81d0-4ab233d90664`). Microsoft reviews it in 1–7 business days — so it may go through on any day. **Do not let this slip.**
+**Windows code-signing via Azure Trusted Signing is stalled waiting for a document *we* have not
+uploaded.** On **2026-07-10** Microsoft replied to the 3D FRANCE identity validation (subscription
+`6e0a91fa-4886-433c-9b75-820bf0cd617d`) asking for **additional documents** — it is not "under
+review". Nothing moves until they are supplied. Verified in Gmail on 2026-07-19: two mails from
+`azure-noreply@microsoft.com`, *"Action requise : finaliser la validation de votre identité"* and
+*"requête de documents supplémentaires"*. **Nine days were lost to reading this as a pending review.**
 
-**Every session, before other work, check whether it has been approved:**
-1. Search the connected **Gmail** for a recent mail from `azure-noreply@microsoft.com` about artifact-signing / identity-validation **status** (look for Approved/Completed vs Failed for 3D FRANCE). This is the cheapest check and needs no portal login.
-2. **If APPROVED →** resume and finish the integration — full step list + all IDs/values are in memory **`project-azure-trusted-signing`**: create the Public **certificate profile** → have the user assign the **"Artifact Signing Certificate Profile Signer"** role to the CI service principal (`AZURE_CLIENT_ID`) → set the GitHub repo **variable `TRUSTED_SIGNING_CERT_PROFILE`** → update `.github/workflows/build.yml` (account name `TigerTagSigning`→`TigerTagStudioSigning`, endpoint `weu`→`neu`) → run a test build to confirm a **signed `.exe`**.
-3. **If still pending →** tell the user we're still waiting; nothing else to do on it.
-4. **If FAILED →** read the reason, fix, resubmit (note: the holding *STARGATE GROUP* is intentionally NOT used — too young, <3 years; see the memory).
+**What Microsoft asks for — ONE of these four**, uploaded in the Azure Portal (`.pdf`/`.docx`, <5 MB):
+1. Assignment letter from an authorized representative of the organization
+2. Domain ownership records (Whois)
+3. **Domain purchase invoices or registry confirmation records** ← easiest: the OVH invoice for
+   `tigertag.io` / `tigersystem.io` is already a PDF
+4. A website showing the organization's name, address, contact information and domain
+
+**This is a founder action** — it needs the document and a portal login. Remind him; do not let it
+sit again.
+
+**Once the identity is validated**, resume the integration; the full step list and every ID is in
+memory **`project-azure-trusted-signing`**: create the Public certificate profile → assign the
+"Artifact Signing Certificate Profile Signer" role to the CI service principal (`AZURE_CLIENT_ID`) →
+set the GitHub repo variable `TRUSTED_SIGNING_CERT_PROFILE` → update `.github/workflows/build.yml`
+(account `TigerTagSigning`→`TigerTagStudioSigning`, endpoint `weu`→`neu`) → test build for a signed
+`.exe`. The holding *STARGATE GROUP* is deliberately NOT used (too young, <3 years).
 
 **Delete this whole section once signed `.exe` builds are confirmed working.**
 
