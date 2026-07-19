@@ -2,6 +2,10 @@
 
 ## Added
 
+## Added
+
+- **Partner packaging assets** — `assets-src/img/partners/`, the retail boxes from eSun, SUNLU and ROSA3D whose spools carry the TIGER TAG RFID badge, in two variants each (a 1024 cut-out with transparent background for compositing, a 2000 studio shot for standalone use). These are the only assets in the project that prove *adoption* rather than describing the product. Masters only — no shipped copy under `assets/` yet, since the use is not decided. The folder README flags the point that matters before any of them is published: they show other companies' trademarks, so factual use ("filament makers shipping TigerTag") is normally fine while implying partnership is not, and written permission is worth having on file — `assets-src/img/partners/`
+
 ## Changed
 
 - **README brought back in line with the app, and given the new artwork.** It was advertising **rack presets**, removed in v2.12.0, and showing `Panda_Feed_Rack_Standard.png`, deleted with them — a dead image on the GitHub page. The presets bullet now describes the actual rack builder, and the image points at the artwork that still exists. The new ecosystem render opens the intro *above* the founder's real-bench photo, which stays: the render shows what the software is, the photo proves someone actually uses it. The TigerPOD line-up banner illustrates its section — nine printed colours say "free STL, print it your colour" better than the sentence under it.
