@@ -1024,6 +1024,20 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
   }
 
+  // Escape a URL for an href="", but only once it is proven to be an http(s)
+  // address. esc() stops HTML injection; it does NOT validate the scheme, so
+  // `javascript:` and `file://` pass through it untouched. That matters here
+  // because these hrefs render values another user controls — a friend's
+  // product links and attachments are read from their own Firestore doc, which
+  // they can write directly, bypassing any client-side sanitiser. Anything that
+  // is not a plausible http(s) URL collapses to "#", so a hostile value renders
+  // as an inert link instead of executing when clicked.
+  // ALWAYS use this for href — never bare esc(). See docs/reviews/.
+  function safeHref(u) {
+    const s = String(u ?? "").trim();
+    return _looksLikeUrl(s) ? esc(s) : "#";
+  }
+
   // ── What's New (per-version changelog explainer) ───────────────────────────
   // Content lives in data/whatsnew.json (keyed by version, 9 locales inline,
   // full history kept). Shown once after an update: when the running version
@@ -7688,7 +7702,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function _socialsRowHTML(socials) {
     const items = (Array.isArray(socials) ? socials : []).map(u => {
       const m = _socialMeta(u); if (!m) return "";
-      return `<a class="fvb-social" href="${esc(_normalizeBuyUrl(u))}" target="_blank" rel="noopener noreferrer" style="--sc:${m.color}" aria-label="${esc(m.host)}"><span class="icon icon-${m.icon} icon-13"></span></a>`;
+      return `<a class="fvb-social" href="${safeHref(_normalizeBuyUrl(u))}" target="_blank" rel="noopener noreferrer" style="--sc:${m.color}" aria-label="${esc(m.host)}"><span class="icon icon-${m.icon} icon-13"></span></a>`;
     }).filter(Boolean).join("");
     return items ? `<div class="fvb-socials">${items}</div>` : "";
   }
@@ -14352,7 +14366,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const linksHtml = activeLinks.length ? `
       <div class="panel-section">
         <div class="panel-label">${esc(t("sectionLinks"))}</div>
-        <div class="links-row">${activeLinks.map(dl => `<a class="link-btn" href="${esc(links[dl.key])}" target="_blank" rel="noopener">${_SVG_PDF}${esc(dl.label)}</a>`).join("")}</div>
+        <div class="links-row">${activeLinks.map(dl => `<a class="link-btn" href="${safeHref(links[dl.key])}" target="_blank" rel="noopener">${_SVG_PDF}${esc(dl.label)}</a>`).join("")}</div>
       </div>` : "";
     // Product-specific extras: price + clickable buy link.
     const sym = _vatInfo().symbol;
@@ -14374,7 +14388,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       [t("detBarcode"),   ean],
     ].filter(([, v]) => v && v !== "-")
      .map(([k, v, href]) => `<div class="panel-row"><span class="pk">${esc(k)}</span>${href
-        ? `<a class="pv" href="${esc(href)}" target="_blank" rel="noopener">${esc(String(v))}</a>`
+        ? `<a class="pv" href="${safeHref(href)}" target="_blank" rel="noopener">${esc(String(v))}</a>`
         : `<span class="pv">${esc(String(v))}</span>`}</div>`).join("");
     const detailsHtml = detailRows ? `
       <div class="panel-section">
@@ -14409,7 +14423,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       ${_attachReadOnlyHTML(p)}
       ${(priceHTML || buyUrl) ? `<div class="panel-section pc-rows">
         ${priceHTML ? `<div class="pc-row"><span class="pc-k">${esc(t("thPrice"))}</span><span class="pc-v">${priceHTML}</span></div>` : ""}
-        ${buyUrl ? `<a class="pc-buy" href="${esc(_normalizeBuyUrl(buyUrl))}" target="_blank" rel="noopener"><span class="icon icon-cart icon-14"></span><span>${esc(_buyHost(buyUrl))}</span></a>` : ""}
+        ${buyUrl ? `<a class="pc-buy" href="${safeHref(_normalizeBuyUrl(buyUrl))}" target="_blank" rel="noopener"><span class="icon icon-cart icon-14"></span><span>${esc(_buyHost(buyUrl))}</span></a>` : ""}
       </div>` : ""}
       ${detailsHtml}
       ${fromHTML ? `<div class="pc-from-wrap">${fromHTML}</div>` : ""}
@@ -14574,7 +14588,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const atts = _attachmentsOf(prod);
     if (!atts.length) return "";
     const rows = atts.map(a =>
-      `<a class="link-btn" href="${esc(a.url)}" target="_blank" rel="noopener"><span class="icon icon-${_ATTACH_ICON[a.kind] || "link"} icon-13"></span>${esc(a.label || _buyHost(a.url))}</a>`
+      `<a class="link-btn" href="${safeHref(a.url)}" target="_blank" rel="noopener"><span class="icon icon-${_ATTACH_ICON[a.kind] || "link"} icon-13"></span>${esc(a.label || _buyHost(a.url))}</a>`
     ).join("");
     return `<div class="panel-section">
       <div class="panel-label">${esc(t("attachTitle"))}</div>
@@ -15427,7 +15441,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const linksHtml = activeLinks.length ? `
       <div class="panel-section">
         <div class="panel-label">${t("sectionLinks")}</div>
-        <div class="links-row">${activeLinks.map(l => `<a class="link-btn" href="${esc(r.links[l.key])}" target="_blank" rel="noopener">${SVG_PDF}${l.label}</a>`).join("")}</div>
+        <div class="links-row">${activeLinks.map(l => `<a class="link-btn" href="${safeHref(r.links[l.key])}" target="_blank" rel="noopener">${SVG_PDF}${l.label}</a>`).join("")}</div>
       </div>` : "";
     // Product web-link attachments (read-only here; resolved via _displayProduct so a
     // friend's inventory shows them too). Rendered right after the chip's own links.
@@ -15564,7 +15578,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
             const cell = isHtml
               ? `<span class="pv pv-badge"${pvId ? ` id="${pvId}"` : ""}>${val}</span>`
               : href
-                ? `<a class="pv pv-link" href="${esc(href)}" target="_blank" rel="noopener"${pvId ? ` id="${pvId}"` : ""}>${esc(String(val))}</a>`
+                ? `<a class="pv pv-link" href="${safeHref(href)}" target="_blank" rel="noopener"${pvId ? ` id="${pvId}"` : ""}>${esc(String(val))}</a>`
                 : `<span class="pv"${pvId ? ` id="${pvId}"` : ""}>${esc(String(val))}</span>`;
             return `<div class="panel-row"><span class="pk">${k}</span>${cell}</div>`;
           }).join("")}
@@ -15581,7 +15595,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         <div class="panel-label">${t("sectionBuy")}</div>
         <div class="det-buy-body">
           ${_fSharePriceTxt ? `<div class="det-buy-price">${esc(_fSharePriceTxt)}</div>` : ""}
-          ${_fShareUrl ? `<a class="det-buy-link" href="${esc(_normalizeBuyUrl(_fShareUrl))}" target="_blank" rel="noopener"><span class="icon icon-cart icon-14"></span><span>${esc(_fShareHost || t("reorderBuyLink"))}</span></a>` : ""}
+          ${_fShareUrl ? `<a class="det-buy-link" href="${safeHref(_normalizeBuyUrl(_fShareUrl))}" target="_blank" rel="noopener"><span class="icon icon-cart icon-14"></span><span>${esc(_fShareHost || t("reorderBuyLink"))}</span></a>` : ""}
         </div>
       </div>` : "";
 

@@ -365,6 +365,17 @@ async function _sdkPayload(tag, readerName = null) {
   }
   return raw;
 }
+// True only for an http(s) URL. Every path that hands a URL to the OS shell or
+// to a new window goes through this; a scheme that is not provably http(s) is
+// refused rather than blocked by name, so a scheme nobody thought of still fails
+// closed.
+function isSafeExternalUrl(u) {
+  try {
+    const p = new URL(String(u)).protocol;
+    return p === 'http:' || p === 'https:';
+  } catch { return false; }
+}
+
 
 // ── Create main window
 function createWindow() {
@@ -442,6 +453,28 @@ function createWindow() {
     mainWindow.loadURL(`http://localhost:${port}/renderer/inventory.html`);
   });
 
+  // Only http(s) may ever be handed to the OS shell. `javascript:`, `file://`,
+  // `smb://` and OS app-schemes are rejected: a renderer foothold — see the
+  // stored-XSS class in docs/reviews/ — would otherwise reach the shell through
+  // this channel and run something local. Paired with safeHref() in the
+  // renderer, which blocks the same schemes at render time; this is the second
+  // chokepoint, so a value that slips past the first one still cannot execute.
+  // Deliberately not a blocklist: anything not provably http(s) is refused.
+
+  // Navigation lock. The renderer never navigates itself (no location writes,
+  // no reloads), so any attempt to leave the app's own origin is either an
+  // injected link or a redirect — and the destination would inherit the preload
+  // bridge. Same-origin navigation stays allowed; an external http(s) target is
+  // handed to the browser instead; anything else is dropped.
+  mainWindow.webContents.on('will-navigate', (evt, url) => {
+    const here = mainWindow.webContents.getURL();
+    let sameOrigin = false;
+    try { sameOrigin = new URL(url).origin === new URL(here).origin; } catch { sameOrigin = false; }
+    if (sameOrigin) return;
+    evt.preventDefault();
+    if (isSafeExternalUrl(url)) shell.openExternal(url);
+  });
+
   // Firebase auth popup → ouvrir en interne (postMessage doit fonctionner)
   // Tous les autres liens → navigateur système
   const CHROME_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
@@ -462,7 +495,7 @@ function createWindow() {
         },
       };
     }
-    shell.openExternal(url);
+    if (isSafeExternalUrl(url)) shell.openExternal(url);
     return { action: 'deny' };
   });
 
@@ -1744,7 +1777,7 @@ ipcMain.handle('auth:google-loopback', async () => {
 // auto-update preference — explicit user action). Resolves with the
 // outcome so the UI can show "Checking…" / "Up to date" / etc.
 ipcMain.on('shell:open-external', (_evt, url) => {
-  if (url && typeof url === 'string') shell.openExternal(url);
+  if (isSafeExternalUrl(url)) shell.openExternal(url);
 });
 
 // ── Detached camera wall window ──────────────────────────────────────────────
