@@ -2,8 +2,6 @@
 
 ## Added
 
-## Added
-
 - **Partner packaging assets** — `assets-src/img/partners/`, the retail boxes from eSun, SUNLU and ROSA3D whose spools carry the TIGER TAG RFID badge, in two variants each (a 1024 cut-out with transparent background for compositing, a 2000 studio shot for standalone use). These are the only assets in the project that prove *adoption* rather than describing the product. Masters only — no shipped copy under `assets/` yet, since the use is not decided. The folder README flags the point that matters before any of them is published: they show other companies' trademarks, so factual use ("filament makers shipping TigerTag") is normally fine while implying partnership is not, and written permission is worth having on file — `assets-src/img/partners/`
 
 ## Changed
