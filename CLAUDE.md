@@ -180,6 +180,28 @@ The working file is wiped so it stays clean and unambiguous: whatever is in `WOR
 
 ---
 
+## 🔍 Code reviews — run them regularly, keep every one
+
+Full project reviews live in **`docs/reviews/`**, one file per review, kept permanently
+(`YYYY-MM-DD-<scope>.md`; see that folder's `README.md` for the convention and the history table).
+
+**Run one at least every few releases**, and always before a release that changes the data model,
+the security rules, or anything a third party integrates against. A targeted review — one axis, one
+subsystem — is cheaper and worth running more often than a full pass.
+
+To run one, point the reviewer at **`docs/REVIEW-BRIEF.md`**: it carries the standing scope (the
+repos, the six axes — security, bugs, performance, first-try UI, velocity/token cost, brand &
+certification), the read-only constraint, and the output format. It is a standing brief, not a
+one-off prompt — keep it current when the ecosystem or the priorities change.
+
+**Why they are kept, not just read once.** A review is only worth the hour it costs if the next one
+can see what the last one found. After working a report, annotate it: mark each finding **fixed**,
+**deferred** (with the reason), or **rejected** (wrong call). An unannotated report reads to the next
+reviewer as though nothing was ever done about it, and the same findings get re-litigated from
+scratch. The *Quick wins* table is ranked and scoped to about an hour per item — start there.
+
+---
+
 ## ✍️ Three copy registers — Changelog ≠ Release note ≠ What's New
 
 Every release ships the **same changes described three times**, at three altitudes, for three audiences. Each has its own file and its own voice. **Writing one in another's voice is a bug** — don't blur them, and don't auto-copy one into another verbatim.

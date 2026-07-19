@@ -8,12 +8,26 @@
 You are performing a complete review of the TigerTag ecosystem: its code, its process, and its
 business/IP foundations. This is a **review only**.
 
-## HARD CONSTRAINT — change nothing
+## HARD CONSTRAINT — change nothing except your own report
 
-**Do not modify, create, rename or delete any file. No edits, no commits, no pushes, no deploys,
-no `npm install`, no `firebase deploy`.** Read files, grep, and run read-only commands (`git log`,
-`ls`, `gh repo view`, …). Your entire output is a written report. If you think something must be
-changed, describe it in the report — do not do it.
+**Do not modify, rename or delete any existing file. No edits to code, config, docs or rules; no
+commits, no pushes, no deploys, no `npm install`, no `firebase deploy`.** Read files, grep, and run
+read-only commands (`git log`, `ls`, `gh repo view`, …). If you think something must be changed,
+describe it in the report — do not do it.
+
+**The one file you must write is the report itself.** Create it at:
+
+```
+docs/reviews/YYYY-MM-DD-<scope>.md
+```
+
+using today's date and a scope slug (`full-project` for the whole brief, or the area reviewed —
+`security`, `printers`, `firestore-rules`). Then add a row to the History table in
+`docs/reviews/README.md` with the date, the scope, and a one-or-two-sentence headline. Do not commit
+either file — leave them in the working tree and say so at the end.
+
+Write the report to that file **as you go**, not only at the end: a review that runs long and gets
+interrupted should still leave everything it found on disk.
 
 ## STEP 0 — ask for every access you need, up front, in one go
 
@@ -206,7 +220,8 @@ specialist is required, and never present a conclusion as legal advice.**
 
 # Output format
 
-A single Markdown report, in **English**, structured exactly as follows:
+A single Markdown report, in **English**, written to `docs/reviews/YYYY-MM-DD-<scope>.md` (see the
+hard-constraint section above), structured exactly as follows:
 
 1. **Verdict** — 10 lines max. Overall health of the project, and the single most important thing
    to fix in each of: code, process, business foundations.
