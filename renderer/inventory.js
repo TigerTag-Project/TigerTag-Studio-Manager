@@ -18110,6 +18110,20 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     (state.printers || []).filter(p => p.brand === 'anycubic').forEach(p => {
       try { acuDisconnect(acuKey(p)); } catch (_) {}
     });
+    // Snapmaker / FlashForge / Creality were torn down only by the manual
+    // connect button, so an account switch left them running against the
+    // PREVIOUS account's printer: the FlashForge 2 s poll loop and the
+    // Snapmaker/Creality sockets kept going, and another set was added on the
+    // next switch. Anything auto-connected from the Printers view leaked.
+    (state.printers || []).filter(p => p.brand === 'snapmaker').forEach(p => {
+      try { snapDisconnect(snapKey(p)); } catch (_) {}
+    });
+    (state.printers || []).filter(p => p.brand === 'flashforge').forEach(p => {
+      try { ffgDisconnect(ffgKey(p)); } catch (_) {}
+    });
+    (state.printers || []).filter(p => p.brand === 'creality').forEach(p => {
+      try { creDisconnect(creKey(p)); if (p.ip) stopCreCam(p.ip); } catch (_) {}
+    });
     // Close any open printer detail panel — its data belonged to the
     // outgoing account/session.
     if ($("printerPanel")?.classList.contains("open")) {
@@ -26139,17 +26153,22 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (state.invLoading || state.inventory === null) return;
     const active = _lowStockActive();
     let changed = false;
+    // One pass over the inventory for ALL products, instead of re-filtering
+    // state.rows once per product — and a second time for each product below
+    // its minimum. This runs on every render, so the old shape cost
+    // products x rows every time; _stockCountByKey() already computes exactly
+    // this map in a single pass and is what the rest of the order math uses.
+    const stockMap = _stockCountByKey();
     Object.values(state.products || {}).forEach(p => {
       const min = +p.minStockSpools || 0;
-      const belowMin = min > 0 && p.key &&
-        _countPhysicalSpools((state.rows || []).filter(row => !row.deleted && _spoolGroupKey(row) === p.key)) < min;
+      const stock = (p.key && stockMap.get(p.key)) || 0;
+      const belowMin = min > 0 && p.key && stock < min;
       if (!belowMin) { if (active.delete(p.id)) changed = true; return; }   // above min → re-arm for next dip
       if (active.has(p.id)) return;                                          // already notified this dip
       active.add(p.id); changed = true;
       const label = p.label || {};
       const name = ([label.brand, label.material].filter(Boolean).join(" ")
         + (label.colorName ? " · " + label.colorName : "")).trim();
-      const stock = _countPhysicalSpools((state.rows || []).filter(row => !row.deleted && _spoolGroupKey(row) === p.key));
       _pushNotif({ type: "low_stock", icon: "package", action: "lowstock",
         title: name || t("notifLowStockTitle"), text: t("notifLowStockText", { n: stock, min }),
         data: { key: p.key, img: resolvedImg(label.imgUrl) || "" } });

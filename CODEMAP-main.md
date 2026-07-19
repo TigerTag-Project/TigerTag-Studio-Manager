@@ -118,7 +118,7 @@ L3724-3784   App lifecycle (whenReady, window-all-closed, activate)
 | 3127-3149 | Slicer on-disk credential reader (`anycubic:read-slicer-config`) — keyless deobfuscation | `_acuDeobfuscate`, `_acuConfCandidates` |
 | 3150-3257 | LAN scan: TCP probe (`anycubic:tcp-probe`), FLV liveness (`anycubic:flv-probe`, accepts 200/206), `/info` (`anycubic:http-info`) | — |
 
-## Anycubic cloud — REST + cloud MQTT (L3258-3723)
+## Anycubic cloud — REST + cloud MQTT (L3258-3900)
 
 | L | What | Anchors / IPC |
 |---|---|---|

@@ -2553,6 +2553,32 @@ ipcMain.handle('cre:http', async (_evt, ip, method, path, query, timeoutMs) => {
 // and re-creating the `<img>` element no longer forces a re-decode, which
 // is what produced the visible flash on every full rebuild before.
 // Returns null when the source URL can't be fetched and isn't already cached.
+// Guard for `img:get`. The URLs it fetches are product-image fields read out of
+// Firestore — including a friend's custom image URL, which they control. Without
+// a check that is a server-side request forgery with readback: the main process
+// fetches whatever it is given and hands the body back to the renderer, so an
+// internal service answering on loopback becomes readable. Rejecting private,
+// loopback and link-local destinations is what actually closes that; the DNS
+// lookup matters because a hostname the attacker owns can resolve to 127.0.0.1,
+// which a check on the literal host string would miss.
+const _PRIVATE_IP = [
+  /^127\./, /^10\./, /^192\.168\./, /^169\.254\./,   // loopback, RFC1918, link-local
+  /^172\.(1[6-9]|2\d|3[01])\./,                       // 172.16–31
+  /^0\./, /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./,  // this-network, CGNAT
+];
+async function _imgUrlIsFetchable(url) {
+  if (!isSafeExternalUrl(url)) return false;
+  let host;
+  try { host = new URL(String(url)).hostname; } catch { return false; }
+  if (host === 'localhost' || host.endsWith('.localhost') || host === '::1') return false;
+  try {
+    const { address } = await require('dns').promises.lookup(host);
+    if (address === '::1' || /^f[cd]/i.test(address)) return false;         // IPv6 loopback / ULA
+    if (_PRIVATE_IP.some(re => re.test(address))) return false;
+  } catch { return false; }                                                 // unresolvable → refuse
+  return true;
+}
+
 ipcMain.handle('img:get', async (_, url) => {
   if (!url || url === '--') return null;
   const hash     = crypto.createHash('md5').update(url).digest('hex');
@@ -2560,9 +2586,26 @@ ipcMain.handle('img:get', async (_, url) => {
   const filename = `${hash}.${ext}`;
   const file     = path.join(imgCacheDir, filename);
   const httpUrl  = `/img-cache/${filename}`;
+  const ac       = new AbortController();
   try {
-    const resp = await fetch(url);
-    if (resp.ok) {
+    const ctl = setTimeout(() => ac.abort(), 8000);   // no timeout = a slow host pins this handler
+    // Follow redirects by hand so every hop is validated. Letting fetch follow
+    // them would re-open the hole from the other side: a public URL that 302s to
+    // http://127.0.0.1 passes the first check and lands internally anyway. Refusing
+    // redirects outright would be safe too, but silently breaks the CDNs and short
+    // links that real image URLs use — so re-check instead of refuse.
+    let resp = null, next = String(url);
+    for (let hop = 0; hop < 4; hop++) {
+      if (!(await _imgUrlIsFetchable(next))) { resp = null; break; }
+      resp = await fetch(next, { signal: ac.signal, redirect: 'manual' });
+      if (resp.status < 300 || resp.status > 399) break;
+      const loc = resp.headers.get('location');
+      if (!loc) break;
+      try { next = new URL(loc, next).toString(); } catch { resp = null; break; }
+      resp = null;                                    // not a final response — keep going
+    }
+    clearTimeout(ctl);
+    if (resp && resp.ok) {
       const buf = Buffer.from(await resp.arrayBuffer());
       fs.writeFileSync(file, buf);
       return httpUrl;
