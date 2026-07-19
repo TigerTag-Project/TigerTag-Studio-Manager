@@ -38,7 +38,18 @@ already far more built-out than the brief assumed — `CERTIFICATION.md` / `TRAD
 > verification pass on real hardware across the six printer brands — otherwise it breaks camera
 > streams silently, one brand at a time. Its urgency also dropped once #1 and #3 closed the
 > `javascript:` path at both the render and the open end; it is now defence in depth rather than the
-> amplifier this report describes. Everything else below is untouched and still open.
+> amplifier this report describes.
+>
+> **Second pass, same day (`ab9922b`): #4, #5 and #6 are FIXED** — the printer-connection leak (all
+> six brands now swept, the Creality camera stopped alongside its socket), the `_checkLowStockNotifs`
+> products x rows scan (now a single `_stockCountByKey()` pass), and the `img:get` SSRF (public
+> http(s) only, hostname resolved before the fetch so a domain the attacker owns cannot point at
+> loopback, redirects re-validated per hop rather than refused, 8 s deadline). **#7 and #9 need the
+> founder, not the code** (pulling the registry records; the legal-entity string). **#8 is still
+> open** (image-cache LRU + debounce).
+>
+> Six of the nine quick wins are done; the three that remain need a person, a printer, or both.
+> Everything outside section 2 is untouched and still open.
 
 ## 2. Quick wins (ranked — each under ~1 hour, real impact)
 
