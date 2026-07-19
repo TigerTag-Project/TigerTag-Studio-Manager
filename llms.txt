@@ -4,6 +4,12 @@
 
 Tiger Studio Manager is an Electron desktop application for managing 3D-printing filament spools tagged with TigerTag RFID chips. It provides real-time Firestore inventory sync, live 3D printer integration for 6 brands, NFC chip read/write, hardware sensors (color sensor, scale), rack storage management, shareable wishlists and a friends system — all in a single window without a build step (no bundler).
 
+**Positioning:** this app is one piece of the wider **TigerSystem** ecosystem, and deliberately a laboratory rather
+than the destination — a demonstration of what open, documented technology allows once a spool can identify itself.
+It is neutral and agnostic by design: TigerTag takes no side between filament brands, printer makers or
+distributors. The protocol is open and anyone can build a different ecosystem on it; nothing in this repo is a
+prerequisite for doing so.
+
 Current version: **2.13.0** — macOS (Intel + Apple Silicon, signed & notarized), Windows, Linux.
 
 ## Architecture
@@ -40,6 +46,9 @@ state = {
   privateKey,       // 40-char hex access token
   isPublic, isAdmin, debugEnabled,
   lang, i18n, viewMode, sortCol, sortDir,
+  products,         // { [keyHash]: product identity } — buy links, price, attachments, favourite
+  lists,            // { [listId]: user-made list of product identities }
+  containerOverrides, // { [containerId]: { containerWeight } } — per-account calibration
   activeAccountId, displayName, db
 }
 ```
@@ -49,7 +58,10 @@ state = {
 ```
 publicKeys/{key}           → { uid, claimedAt }
 userProfiles/{uid}         → { publicKey, displayName, isPublic, color_* }
-users/{uid}                → { displayName, email, publicKey, privateKey, isPublic, roles, Debug,
+publicLists/{token}        → world-readable snapshot of a list shared by web link (unguessable
+                             token); written by the owner when a list's visibility is "public"
+users/{uid}                → { displayName, email, publicKey, privateKey, isPublic,
+                               roles, tier, Debug,   ← roles + tier are SERVER-ONLY (rules reject client writes)
                                studioVersion, studioElectron, studioPlatform, studioArch,
                                studioOsRelease, studioOsVersion, studioLang, studioLocale,
                                studioLastSeen }
@@ -61,16 +73,42 @@ users/{uid}                → { displayName, email, publicKey, privateKey, isPu
   /friends/{friendUid}     → { displayName, addedAt, key }
   /friendRequests/{uid}    → { displayName, requestedAt, key }
   /blacklist/{uid}         → { displayName, blockedAt }
+  /products/{keyHash}      → product identity shared by every spool of it: label, custom image,
+                               buyUrl + price (HT/TTC), min stock, note, tags, favourite,
+                               attachments[] (web links, tier-capped 1/2/5)
+  /lists/{listId}          → user-made lists of product identities (itemKeys[]), shareable
   /racks/{rackId}          → rack layout docs
-  /printers/{brand}/...    → printer connection docs
+  /printers/{brand}/devices/{id}
+                           → one doc per known printer of that brand (connection + identity)
+  /printerSeen/{brand:id}  → { ts } last-seen stamp per printer, drives the online/offline column
   /prefs/app               → { lang }
   /scales/{mac}            → TigerScale heartbeat
   /apiKeys/{docId}         → API key docs
   /telemetry/{docId}       → aggregated usage metrics
   /uidMigrationMap/{id}    → decimal → hex UID migration
+  /containerOverrides/{id} → per-account container calibration { containerWeight } — overrides the
+                               bundled catalogue weight at resolution time, never mutates it
+  /rfidList/{chipUid}      → physical chips seen by this account (firstSeen; a `backup` hex dump
+                               means TigerTag+)
+  /notifications/{id}      → friend-to-friend notifications (field-whitelisted in the rules)
+  /apps/studio             → per-app state flags (e.g. the onboarding version already run)
 ```
 
 Cloud spools have `spoolId` starting with `CLOUD_`. `normalizeRow()` sets `r.isCloud = true` for these. On encoding, the Cloud doc is promoted: `spoolId` replaced by the chip UID, Cloud doc hard-deleted.
+
+## Spool tiers (user-facing vocabulary)
+
+Three tiers, visible as badges throughout the UI:
+
+| Tier | What it is | Data |
+|---|---|---|
+| **TigerData** | fully digital, no physical chip | `spoolId` = `CLOUD_<id>`; `r.isCloud === true` |
+| **TigerTag** | a written NFC chip | `spoolId` = chip UID |
+| **TigerTag+** | a certified chip with a signed factory dump | UID + a `backup` hex dump in `rfidList` |
+
+**TigerData was called "TigerCloud" until v2.13.0.** The rename is **display-only** — stored values (the
+`protocol` field, the `byProtocol` telemetry rollup, existing docs) still read `TigerCloud`, and no migration was
+run. Never rename the stored value for cosmetics; map it at render time.
 
 ## NFC / RFID system
 
@@ -134,8 +172,13 @@ npm run i18n:check   # validates consistency (also runs as pre-commit hook)
 
 - Firebase Auth (Google OAuth loopback PKCE + email/password)
 - `displayName` always from Firestore `users/{uid}.displayName` (pseudo), never from Firebase Auth `user.displayName` (Google real name)
-- `roles` and `Debug` fields writable only via Firebase Admin SDK / Cloud Function — never by client
-- Firestore Security Rules enforce owner-only access; friends granted inventory read via presence in `friends/` subcollection
+- `roles`, `tier` and `Debug` fields writable only via Firebase Admin SDK / Cloud Function — never by client
+  (`tier` gates the attachment cap: free 1 / plus 2 / premium 5, enforced server-side)
+- Firestore Security Rules enforce owner-only access; friends granted read on `inventory`, `racks`, `products` and
+  `lists` via presence in the owner's `friends/` subcollection. **The rules live in a separate repo**
+  (`TigerTag_Firebase_Backend/firestore.rules`), not here
+- Several collections are **field-whitelisted** (`hasOnly([...])`) — an unlisted field is rejected *silently* on the
+  client, so adding a field means updating the rules and redeploying
 
 ## LocalStorage keys
 

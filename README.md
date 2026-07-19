@@ -49,9 +49,36 @@ It works standalone (no reader needed), but unlocks its full potential with:
 - a **TigerScale** ESP32 scale for live weight tracking
 - one or more **3D printers** from the 6 supported brands
 
+<img src="assets/img/Hero-TigerSystem-ecosystem.png" width="100%" alt="The TigerTag system — Tiger Studio Manager on desktop, a TigerPOD reader with a tagged spool, and the mobile app" />
+
+<p align="center"><em>…and the same thing on a real bench:</em></p>
+
 <img src="assets/img/screenshots/screenshot_setup_tiger_project.png" width="100%" alt="TigerTag ecosystem setup — Tiger Studio Manager, TigerScale, TD1S, ACR122U and TigerPOD" />
 
 > 🌐 **[tigertag.io](https://tigertag.io)** — official website: buy TigerTag chips, browse the filament catalogue, manage your account.
+
+---
+
+## A sandbox, not the product
+
+Tiger Studio Manager is one piece of **TigerSystem**, the open ecosystem built around
+the TigerTag protocol — and it is deliberately **a laboratory, not the destination**.
+
+Everything you see here is a demonstration of what open, documented technology makes
+possible once a filament spool can identify itself: live printer telemetry across six
+brands, physical rack mapping, sensors, shared wishlists, chipless tracking. Some of it
+will mature, some of it exists to prove a point, and all of it is readable, forkable and
+free to copy.
+
+The approach is **neutral and agnostic by design**. TigerTag takes no side between
+filament brands, printer makers or distributors. It is not a walled garden with a
+partner list — it is a format anyone can read and write.
+
+> **Build your own.** TigerTag is an open protocol, not a platform you have to join.
+> Nothing here is a prerequisite: read the [chip format](https://github.com/TigerTag-Project/TigerTag-RFID-Guide),
+> pick up an [SDK](https://github.com/TigerTag-Project/TigerTag-SDK-JS), and build the
+> software, the ecosystem or the business you actually want. This app is what *we*
+> wanted — yours can be something else entirely, and it will still speak the same chips.
 
 ---
 
@@ -79,6 +106,7 @@ The **TigerTag SDK** is the low-level library that handles all NFC chip operatio
 - Real-time Firestore sync — table view + grid view, column sort, full-text search
 - Detail side panel — color, print settings, weight slider with auto-save, container, raw JSON
 - Weight tracking — slider or manual entry; instant cloud sync after update
+- **Container weight calibration** — correct a container's empty weight against your own scale, with a guided "how to measure" step; kept on your account and applied to every spool in that container (the bundled catalogue is never modified)
 - **TigerData** — create fully-digital spools with no chip; promote to a real chip later, atomically
 - Custom product image for DIY & Cloud spools
 - Manufacturing date, twin-tag detection and manual repair
@@ -106,11 +134,11 @@ Some brands also expose a **live control panel** (Snapmaker, Elegoo, Anycubic): 
 
 ### 📦 Storage / Racks
 
-<img src="assets/img/Panda_Feed_Rack_Standard.png" width="480" alt="Panda Feed Rack Standard" />
+<img src="assets/img/Panda_Feed_Rack.png" width="480" alt="A filament rack in Tiger Studio Manager" />
 
 Organize your filament collection into physical racks — drag spools onto slots, auto-fill from inventory, and always know where each spool sits:
 - **Drag-and-drop rack editor** — Skyline masonry layout, slot locking, auto-fill / auto-store
-- **Rack presets** — built-in templates for popular racks (Panda Feed Standard, Extended, Mini, Box 6, and more)
+- **Rack builder** — a three-step side card: name and subtitle, levels and slots per level with − / + steppers, and a live preview that shows an existing rack's real contents while you resize it
 - **Unranked panel** — spools not yet assigned to a rack, always visible at a glance
 - **Rich hover tooltip** on filled slots — color swatch, weight bar, brand, and coordinates
 
@@ -130,6 +158,8 @@ Plug in a USB ACR122U reader and the app automatically opens the matching spool'
 <a href="https://makerworld.com/en/models/1289152">
   <img src="assets/img/screenshots/screenshot_tigerpod.png" width="100%" alt="Download TigerPOD free STL on MakerWorld" />
 </a>
+
+<img src="assets/img/hero-TigerPOD-Banner-Lineup-Rainbow-9.png" width="100%" alt="TigerPOD printed in nine filament colours" />
 
 The **TigerPOD** ([repository](https://github.com/TigerTag-Project/TigerPOD)) is a free 3D-printable stand designed to hold up to **two ACR122U readers** side by side. Place one or two TigerTag chips on it and encode both in a single click directly from Tiger Studio Manager — no manual positioning, no juggling readers.
 

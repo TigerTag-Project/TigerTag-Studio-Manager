@@ -108,6 +108,23 @@ if (!mFeat) {
   }
 }
 
+// ── Images referenced by a doc must exist ───────────────────────────────
+// A broken <img src> renders as a dead icon on the GitHub page and nobody
+// notices from a terminal. Covers both HTML `src="..."` and markdown `![](...)`.
+for (const file of ["README.md", "FEATURES.md", "ROADMAP.md"]) {
+  if (!existsSync(join(root, file))) continue;
+  const body = read(file);
+  const srcs = [
+    ...[...body.matchAll(/src="((?:assets|data)\/[^"]+)"/g)].map(m => m[1]),
+    ...[...body.matchAll(/!\[[^\]]*\]\(((?:assets|data)\/[^)]+)\)/g)].map(m => m[1]),
+  ];
+  for (const p of new Set(srcs)) {
+    if (!existsSync(join(root, p))) {
+      fail(file, `shows image \`${p}\``, "file does not exist", "fix the path or restore the image");
+    }
+  }
+}
+
 // ── Docs must not point at paths that no longer exist ───────────────────
 // A renamed or deleted folder leaves dangling references behind (the `brand/`
 // removal is the live example). Only checks explicit repo-root paths.
@@ -122,6 +139,43 @@ for (const file of ["README.md", "llms.txt", "CLAUDE.md", "AGENT.md"]) {
     seen.add(p);
     if (!existsSync(join(root, p))) {
       fail(file, `references \`${p}\``, "path does not exist", "update or remove the reference");
+    }
+  }
+}
+
+// ── llms.txt Firestore map completeness ──────────────────────
+// llms.txt documents the `users/{uid}` subcollections an agent needs to reason
+// about the data model. Every collection the renderer actually writes must
+// appear there. This is the check that was missing when `products`, `lists`,
+// `containerOverrides`, `rfidList`, `notifications` and `apps` were added over
+// several releases without ever reaching the doc — the map said 15 while the
+// code wrote 21, so an agent reading llms.txt first would not have known the
+// product identity (buy links, prices, attachments) existed at all.
+//
+// Derived, not guessed: we read the literal `.collection("name")` calls out of
+// the renderer. Dynamic names can't be resolved statically and are skipped —
+// there are none today, and one appearing is worth a manual look anyway.
+{
+  const inv = read("renderer/inventory.js");
+  // Top-level collections addressed directly, not as a user subcollection.
+  const TOP_LEVEL = new Set(["users", "publicKeys", "userProfiles"]);
+  const written = new Set();
+  for (const m of inv.matchAll(/\.collection\(\s*"([A-Za-z][A-Za-z0-9_]*)"\s*\)/g)) {
+    if (!TOP_LEVEL.has(m[1])) written.add(m[1]);
+  }
+  // The Firestore block of llms.txt — everything between the heading and its fence.
+  const mapBlock = llms.match(/## Firestore data model\s*```([\s\S]*?)```/);
+  if (!mapBlock) {
+    fail("llms.txt", "has a '## Firestore data model' fenced block", "block not found",
+         "restore it — the subcollection completeness check depends on it");
+  } else {
+    const documented = mapBlock[1];
+    // Matches both a subcollection (`/products/`) and a top-level one (`publicLists/{token}`).
+    const absent = [...written].filter(c => !new RegExp(`(^|/)${c}\\b`, "m").test(documented)).sort();
+    if (absent.length) {
+      fail("llms.txt", `documents the Firestore model`,
+           `missing subcollection(s) the renderer writes: ${absent.join(", ")}`,
+           "add them to the '## Firestore data model' block with a one-line description of what each holds");
     }
   }
 }

@@ -129,8 +129,10 @@ Rule of thumb: *would a user notice a new thing they can now do?* → **MINOR**.
    - **Benefit-first, no confusing technical examples.** Say what it does FOR the user, not the mechanism; drop concrete tech examples (don't write `adieu 'eu.store.bambulab.com'` — say "the shop name shows cleanly, without overflowing"). Still playful/deadpan (register 3) in every locale.
    - **Consumer-facing only — NEVER surface a non-public feature in the What's New.** Admin/dev/internal features (debug tools, telemetry plumbing, anything gated to admin/debug mode, internal refactors, dev-only utilities) are **excluded** from the What's New — and from the release note (register 2). They live in the `CHANGELOG.md` (register 1) only. Litmus test: *would a normal end-user notice or use it?* If no (it's for the maintainer, or hidden behind debug mode), omit it from registers 2 & 3. When a WORKLOG entry is flagged internal/admin-only, skip it at steps 2 and 3.
 4. **Update `FEATURES.md`** — the single consolidated feature catalogue (grouped by domain, one bullet per shipped feature, each tagged with the version it landed). For every genuinely NEW capability in this release (the `## Added` items, and any `## Changed` that introduces a new user-facing behaviour), add/adjust its bullet in the right domain and tag it `(vX.Y.Z)`; for an enhancement to an existing feature, append the version to that bullet (e.g. `(v2.7.0, per-item quantities v2.9.0)`). Pure fixes / internal changes do NOT get an entry (it's a *feature* catalogue, not a changelog). Keep the intro line's "current as of vX.Y.Z" accurate. This keeps the catalogue from re-rotting the way README/ROADMAP did. Source of truth = the `CHANGELOG.md` entry you just wrote.
-5. **Include `WORKLOG.md` in the commit** — it is part of the repo history (future sessions can read it via `git show`)
-6. **Reset `WORKLOG.md` AND bump `package.json` to the NEXT PATCH** immediately after committing — both left **uncommitted** (they ship with the next release). This next-patch number is a **placeholder** (we don't yet know what the next cycle will contain); it's corrected to a MINOR/MAJOR at the next release if the WORKLOG warrants it (step 0 above). Bumping `package.json` here (not only at release time) means the **dev build shows an in-progress version number** (`#sbVersion`) instead of the previous release's — so while working on the next version the app reads it, not the shipped one. Replace `WORKLOG.md` with the blank template for the next version (bump the header too):
+5. **Update `llms.txt` if the release changed the data model, the architecture or the vocabulary.** It is the file an AI agent reads FIRST to understand this repo, so a stale one mis-teaches every future session. `docs:check` guards the derivable parts (version, line/brand/CSS/i18n counts, and — since v2.13.1 — that every Firestore collection the renderer writes is documented), but it cannot judge prose: a new subsystem, a renamed user-facing term, or a changed pattern is on you. Litmus test: *would an agent starting cold get this wrong by reading only llms.txt?*
+6. **Update `README.md` if the release adds a capability a visitor should see.** It is the shop window — the first thing a newcomer, a journalist or a partner reads — and it is the doc most easily forgotten, because nothing breaks when it lags. Only genuinely new user-facing capabilities go in (the `## Added` items), in the matching `### ` section of `## Features`; fixes and internal work do not. `npm run docs:check` cannot catch this — completeness of prose is not derivable — so it is on you. Litmus test: *would someone deciding whether to download the app want to know this exists?*
+7. **Include `WORKLOG.md` in the commit** — it is part of the repo history (future sessions can read it via `git show`)
+8. **Reset `WORKLOG.md` AND bump `package.json` to the NEXT PATCH** immediately after committing — both left **uncommitted** (they ship with the next release). This next-patch number is a **placeholder** (we don't yet know what the next cycle will contain); it's corrected to a MINOR/MAJOR at the next release if the WORKLOG warrants it (step 0 above). Bumping `package.json` here (not only at release time) means the **dev build shows an in-progress version number** (`#sbVersion`) instead of the previous release's — so while working on the next version the app reads it, not the shipped one. Replace `WORKLOG.md` with the blank template for the next version (bump the header too):
 
 ```markdown
 # Worklog — vX.Y.Z (in progress)
@@ -161,13 +163,14 @@ The working file is wiped so it stays clean and unambiguous: whatever is in `WOR
 2. **Release note (register 2)** → `data/release-notes/vX.Y.Z.md` (BambuLab style; copy the footer from the previous version's file).
 3. **What's New (register 3), 9 locales** → `data/whatsnew.json` (`npm run whatsnew:add` to scaffold; playful/deadpan, one topic per item, icon-NAMES, **exclude non-public/admin features**).
 4. **`FEATURES.md`** → add the genuinely new capabilities, tag `(vX.Y.Z)`.
-5. **CODEMAP re-sync** only if `inventory.js`/`main.js` moved a lot → fix ranges until `npm run codemap:check` passes.
+5. **`README.md`** → only if a visitor should see the new capability; it is the shop window and the doc most easily forgotten.
+6. **CODEMAP re-sync** only if `inventory.js`/`main.js` moved a lot → fix ranges until `npm run codemap:check` passes.
 
 **Only if the main context is genuinely too large** to hold this generation: delegate the WHOLE block to **exactly ONE** `general-purpose` agent (Sonnet) that writes note + What's New + FEATURES in a single pass — it reads each big file once and carries one system prompt. **Never spawn a second release agent, never fan out.** The agent prompt must be self-sufficient: paste the *Three copy registers* rules + the exact `CHANGELOG.md` entry as the source + the version.
 
 **Always keep on the main loop (never delegate):** the version decision (SemVer), all validators (`npm run i18n:check`, `whatsnew:check`, `codemap:check`, `node --check`), the final consistency read-through, and all git/gh (commit, tag, push, publish-latest, build watch).
 
-**Order of operations:** decide version → write CHANGELOG → note + What's New + FEATURES + codemap (inline) → run ALL validators + one consistency read-through → commit → tag → push → watch build → publish latest → reset WORKLOG + bump `package.json`.
+**Order of operations:** decide version → write CHANGELOG → note + What's New + FEATURES + README + codemap (inline) → run ALL validators + one consistency read-through → commit → tag → push → watch build → publish latest → reset WORKLOG + bump `package.json`.
 
 **Separately, keep `data/whatsnew.json` from bloating** (it's re-read on every release): when its history grows large, propose archiving the oldest versions out of the loaded file so each release stops paying to read the full back-catalogue.
 
@@ -510,6 +513,8 @@ a doc — or a file it describes — is staged. Run it by hand with `npm run doc
 | `llms.txt` "N keys × 9 locales" | `renderer/locales/en.json` | 2 % |
 | `FEATURES.md` "current as of vX.Y.Z" | `package.json` | current, or previous patch |
 | Paths in README / llms.txt / CLAUDE.md / AGENT.md | the filesystem | must exist (templates + globs skipped) |
+| `llms.txt` Firestore map | `.collection("…")` calls in `renderer/inventory.js` | every collection written must be documented |
+| Image paths in README / FEATURES / ROADMAP | the filesystem | must exist |
 
 It only checks facts it can derive — it never reviews prose. When a check fires,
 fix the doc rather than bypassing: the numbers are read by humans **and** agents.
