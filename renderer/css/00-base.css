@@ -731,3 +731,27 @@
   transition: opacity .2s ease, transform .2s ease;
 }
 .global-flash.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ── Length-limit feedback ─────────────────────────────────────────────
+   A quick horizontal shake on a field whose maxlength just rejected a
+   keystroke — the desktop equivalent of a phone's haptic "no". Applied
+   from JS (bumpField) to any [maxlength] input/textarea; the class is
+   removed on animationend so it can retrigger on the next rejected key. */
+@keyframes fieldBump {
+  0%, 100% { transform: translateX(0); }
+  20%      { transform: translateX(-5px); }
+  40%      { transform: translateX(4px); }
+  60%      { transform: translateX(-3px); }
+  80%      { transform: translateX(2px); }
+}
+.field-bump { animation: fieldBump 180ms ease; }
+
+/* Respect reduced-motion: no shake, a single danger-tinted border flash
+   instead — the rejection is still signalled, just not through movement. */
+@media (prefers-reduced-motion: reduce) {
+  @keyframes fieldBump {
+    0%, 100% { box-shadow: none; }
+    50%      { box-shadow: 0 0 0 3px var(--danger-soft); }
+  }
+  .field-bump { animation: fieldBump 240ms ease; }
+}

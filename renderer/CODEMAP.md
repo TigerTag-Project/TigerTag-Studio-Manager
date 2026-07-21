@@ -146,7 +146,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Settings / Friends / Account modals (L3542-4214)
+## Settings / Friends / Account modals (L3542-4388)
 
 | L | What | Anchors |
 |---|---|---|
@@ -179,7 +179,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Inventory subscription + auth + account list (L5129-5598)
+## Inventory subscription + auth + account list (L5129-5787)
 | L | What | Anchors |
 |---|---|---|
 | 4330-4438 | **Firestore inventory subscription** — `onSnapshot` with friend-view defense-in-depth | `subscribeInventory`, `unsubscribeInventory` |
@@ -188,7 +188,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Stats / twins / filters (L5646-6034)
+## Stats / twins / filters (L5646-6235)
 | L | What | Anchors |
 |---|---|---|
 | 4732-4777 | Key status, row sort, load action, **stats** | `renderStats`, `loadInventory` |
@@ -229,7 +229,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Spool detail panel (L11948-16064)
+## Spool detail panel (L11948-16236)
 | L | What | Anchors |
 |---|---|---|
 | 6499-6652 | Structural signature (patch vs rebuild), weight patch, saved check | `_detailStructuralSig`, `_patchDetailWeight` |
@@ -244,7 +244,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Panels / debug / auto-update (L15901-17068)
+## Panels / debug / auto-update (L15901-17240)
 | L | What | Anchors |
 |---|---|---|
 | 8193-8266 | Resizable panels (detail + debug) — drag handle, persisted width | `makePanelResizable`, `openDebug` |
@@ -256,7 +256,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Friends rendering (L16894-17659)
+## Friends rendering (L16894-17831)
 | L | What | Anchors |
 |---|---|---|
 | 8660-8744 | Sidebar friends quick-list + hover tooltip | `renderSidebarFriends`, `showSbFriendTip` |
@@ -265,7 +265,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Racks + printers subscriptions (L17559-17985)
+## Racks + printers subscriptions (L17559-18157)
 | L | What | Anchors |
 |---|---|---|
 | 8956-8998 | Racks subscription | `subscribeRacks`, `unsubscribeRacks` |
@@ -275,7 +275,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Printers views (L17815-19243)
+## Printers views (L17815-19265)
 | L | What | Anchors |
 |---|---|---|
 | 9163-9332 | **Job status helpers** + surgical grid patches (job card, online badge, grid signature) | `_getPrinterJob`, `_patchGridJobs`, `_jobCardHtml`, `_isPrinterOnline`, `_patchGridStatus` |
@@ -286,7 +286,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Printer detail side panel (L19081-21707)
+## Printer detail side panel (L19081-21730)
 | L | What | Anchors |
 |---|---|---|
 | 10087-10649 | Open/close lifecycle (connect/disconnect per brand), conn button, refresh | `openPrinterDetail`, `closePrinterDetail`, `refreshOpenPrinterDetail` |
@@ -296,7 +296,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Add-printer flow (L21520-22174)
+## Add-printer flow (L21520-22195)
 Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.js` owns the shell.
 
 | L | What | Anchors |
@@ -308,7 +308,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Racks CRUD + slots (L22137-23344)
+## Racks CRUD + slots (L22137-23365)
 | L | What | Anchors |
 |---|---|---|
 | 12392-12526 | Rack create / update / delete / empty + orphan ref cleanup | `createRack`, `updateRack`, `deleteRack`, `emptyRack` |
@@ -365,7 +365,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## User doc sync + telemetry + bootstrap (L26756-27990)
+## User doc sync + telemetry + bootstrap (L26756-28181)
 | L | What | Anchors |
 |---|---|---|
 | 16253-16695 | **`syncUserDoc(uid)`** — displayName/roles/Debug/keys/isPublic + **client telemetry** (studio* fields + `telemetry/studio` aggregates, fire-and-forget) | `syncUserDoc`, `hydrateUserDocCache` |

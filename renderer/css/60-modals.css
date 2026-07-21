@@ -4282,13 +4282,19 @@
   /* Number and label share the top line — the caption names the step where the
      eye already is, instead of hanging under the picture. */
   #cwModalOverlay .cw-how-head {
-    display: flex; align-items: center; gap: 7px;
+    display: flex; align-items: flex-start; gap: 7px;
     align-self: stretch; min-width: 0;
   }
   #cwModalOverlay .cw-how-num {
     flex: none; width: 18px;
     background: var(--primary); color: #fff;
     font-size: 10.5px; font-weight: 800;
+    /* The head is flex-start so the badge pins to the top line whether the
+       caption is one line or three (it used to centre on the whole block, so a
+       two-line caption dropped the badge to the middle). The 18px badge is
+       taller than the 14.3px caption line, so top-align leaves its centre ~2px
+       below the first line's optical centre — this nudge brings them level. */
+    margin-top: -2px;
   }
   #cwModalOverlay .cw-how-cap {
     flex: 1; min-width: 0;

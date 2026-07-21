@@ -1038,6 +1038,35 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     return _looksLikeUrl(s) ? esc(s) : "#";
   }
 
+  // Length-limit feedback. A `maxlength` field silently swallows the keystroke
+  // that would exceed it — on a phone that rejection is felt (a haptic tap); on
+  // desktop the equivalent is a quick horizontal shake, so the "no" is seen
+  // rather than absorbed into nothing. One delegated `beforeinput` listener
+  // covers every `[maxlength]` input and textarea in the app, present or added
+  // later, so nothing has to be wired per field. It fires only on a rejected
+  // insert: the keystroke or paste that would overflow (accounting for any
+  // selected text it would replace, which frees room and is not a rejection).
+  function bumpField(el) {
+    if (!el) return;
+    el.classList.remove("field-bump");
+    void el.offsetWidth;                 // reflow so the animation restarts if already playing
+    el.classList.add("field-bump");
+    el.addEventListener("animationend", () => el.classList.remove("field-bump"), { once: true });
+  }
+  document.addEventListener("beforeinput", e => {
+    const el = e.target;
+    if (!(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)) return;
+    if (!/^insert/.test(e.inputType || "")) return;           // ignore delete/format/history
+    const max = +el.getAttribute("maxlength");
+    if (!Number.isFinite(max) || max <= 0) return;
+    const replacing = (el.selectionEnd ?? 0) - (el.selectionStart ?? 0);
+    let added = e.data ? e.data.length : 0;
+    if (e.inputType === "insertFromPaste" && e.dataTransfer) {
+      added = (e.dataTransfer.getData("text") || "").length;
+    }
+    if ((el.value.length - replacing + added) > max) bumpField(el);
+  }, true);
+
   // ── What's New (per-version changelog explainer) ───────────────────────────
   // Content lives in data/whatsnew.json (keyed by version, 9 locales inline,
   // full history kept). Shown once after an update: when the running version
@@ -1489,11 +1518,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // a version whose name is "TigerTag+"). The old url_img heuristic was
     // unreliable — the chip type is the authoritative source.
     const isPlus = versionName(data.id_tigertag) === "TigerTag+";
-    // Cloud-only entry: doc id starts with `CLOUD_` (the prefix written by
-    // _adpCloudId() in the Add Product flow). When the user later programs
-    // a physical chip, the doc gets renamed to a real 7-byte hex UID and
-    // this flag flips to false automatically — no extra signal needed.
-    const isCloud = String(spoolId).startsWith("CLOUD_");
+    // Chipless entry: doc id carries a chipless prefix (the doc is in
+    // Firestore only, no physical chip yet). When the user later programs a
+    // physical chip, the doc gets renamed to a real 7-byte hex UID and this
+    // flag flips to false automatically. Two prefixes are recognised: the
+    // current `TigerData_` (minted by _adpCloudId) and the legacy `CLOUD_`
+    // still on every chipless doc created before the rename — see
+    // `_isChiplessId`. No migration: both are chipless forever.
+    const isCloud = _isChiplessId(spoolId);
     const mat = materialFull(data.id_material);
     return {
       spoolId: String(spoolId),
@@ -1856,14 +1888,28 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
      defaults without consulting a datasheet — mirrors what the mobile
      companion app does.                                                */
 
-  // Cloud-only doc id — `CLOUD_` prefix + 10 random decimal digits
-  // (per the canonical schema spec). The 10-digit nonce gives ~10^10
-  // unique ids per second of clock; combined with `CLOUD_` it's
-  // impossible to confuse with a real 7-byte hex RFID UID.
+  // A chipless doc id (no physical chip yet). Two prefixes count as chipless:
+  //   • `TigerData_` — minted for every NEW chipless entry (below). Named after
+  //     the tier the user sees, so an exported `.ttag` never shows a confusing
+  //     `CLOUD_` id.
+  //   • `CLOUD_` — legacy, still on every chipless doc created before the
+  //     rename. NOT migrated (renaming a Firestore doc id means delete+recreate
+  //     across every account, and the prefix is a discriminator read by the
+  //     mobile app, the Hub and a Cloud Function too) — so both are recognised,
+  //     forever. Either way the underscore makes it impossible to confuse with a
+  //     real 7-byte hex RFID UID, and programming a chip renames the doc to that
+  //     hex UID, flipping the entry to a real chip.
+  const CHIPLESS_PREFIX = "TigerData_";
+  function _isChiplessId(id) {
+    const s = String(id || "");
+    return s.startsWith(CHIPLESS_PREFIX) || s.startsWith("CLOUD_");
+  }
+  // Mint a chipless doc id — `TigerData_` + 10 random decimal digits. The
+  // 10-digit nonce gives ~10^10 unique ids per second of clock.
   function _adpCloudId() {
     let n = "";
     for (let i = 0; i < 10; i++) n += Math.floor(Math.random() * 10);
-    return "CLOUD_" + n;
+    return CHIPLESS_PREFIX + n;
   }
 
   // Weight unit conversion — always returns grams regardless of the
@@ -2892,6 +2938,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (state.debugEnabled) rfidSection.removeAttribute("hidden");
       else                    rfidSection.setAttribute("hidden", "");
     }
+    // Build the preview NOW, after the section is un-hidden. The refresh calls
+    // fired while the dropdowns populated all ran *before* this un-hide, so they
+    // hit the hidden-section early-return and did nothing — which left the field
+    // empty on first open, filling only on the first field change. This final
+    // pass renders the default product (Generic PLA Basic, 1000 g, …) up front.
+    _adpRefreshRfidPreview();
 
     // Sync TD1S button state at open time so the icon reflects the
     // current connection without waiting for the next onStatus event.

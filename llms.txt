@@ -94,7 +94,7 @@ users/{uid}                → { displayName, email, publicKey, privateKey, isPu
   /apps/studio             → per-app state flags (e.g. the onboarding version already run)
 ```
 
-Cloud spools have `spoolId` starting with `CLOUD_`. `normalizeRow()` sets `r.isCloud = true` for these. On encoding, the Cloud doc is promoted: `spoolId` replaced by the chip UID, Cloud doc hard-deleted.
+Chipless spools have `spoolId` starting with `TigerData_` (minted for new entries) or the legacy `CLOUD_` (older docs, not migrated — both recognised by `_isChiplessId`). `normalizeRow()` sets `r.isCloud = true` for either. On encoding, the Cloud doc is promoted: `spoolId` replaced by the chip UID, Cloud doc hard-deleted.
 
 ## Spool tiers (user-facing vocabulary)
 
@@ -102,7 +102,7 @@ Three tiers, visible as badges throughout the UI:
 
 | Tier | What it is | Data |
 |---|---|---|
-| **TigerData** | fully digital, no physical chip | `spoolId` = `CLOUD_<id>`; `r.isCloud === true` |
+| **TigerData** | fully digital, no physical chip | `spoolId` = `TigerData_<id>` (or legacy `CLOUD_<id>`); `r.isCloud === true` |
 | **TigerTag** | a written NFC chip | `spoolId` = chip UID |
 | **TigerTag+** | a certified chip with a signed factory dump | UID + a `backup` hex dump in `rfidList` |
 
