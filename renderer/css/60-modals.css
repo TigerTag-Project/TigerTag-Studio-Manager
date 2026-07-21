@@ -3615,12 +3615,25 @@
   background: var(--primary-hover); border-color: var(--primary-hover);
   box-shadow: 0 3px 14px rgba(255,122,24,.45);
 }
-/* "I own a TigerPOD" ownership row — reuses .fp-toggle-card */
-.tigerpod-own-card { margin-top: 14px; }
-.tigerpod-own-card .fp-toggle-icon .rfid-pod-icon {
-  height: 16px; /* aspect-ratio 1/1 already on .rfid-pod-icon → width derives */
-  background-color: var(--primary);
+/* Debug-only reader readout (replaces the removed ownership toggle). Only ever
+   visible in debug mode; mono, compact, unobtrusive — it's a diagnostic, not UI. */
+.tigerpod-debug {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--surface-2, #f4f5f7);
+  border: 1px solid var(--hairline, #e3e6ea);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--muted);
 }
+.tigerpod-debug .tpd-title { font-weight: 700; color: var(--text); margin-bottom: 4px; }
+.tigerpod-debug .tpd-row { display: flex; justify-content: space-between; gap: 10px; }
+.tigerpod-debug .tpd-name { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tigerpod-debug .tpd-chip { flex: none; }
+.tigerpod-debug .tpd-empty { opacity: .7; }
+.tigerpod-debug .tpd-meta { margin-top: 5px; padding-top: 5px; border-top: 1px solid var(--hairline, #e3e6ea); }
 .tigerpod-btn-icon {
   flex-shrink: 0; height: 16px; aspect-ratio: 1/1;
   background-color: #fff;

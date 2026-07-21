@@ -5,6 +5,37 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v2.13.1 — 2026-07-21
+
+### Added
+
+- **Length-limit feedback.** A `[maxlength]` field silently swallowed the over-the-limit keystroke; it now shakes (`fieldBump` keyframe) so the rejection is seen — the desktop analogue of a phone's haptic "no". One delegated `beforeinput` listener + `bumpField()` covers every `[maxlength]` input/textarea (present and future), firing only on a genuinely rejected insert (accounts for selected text a keystroke/paste would replace). Honours `prefers-reduced-motion` (a `--danger-soft` border flash instead of movement) — `renderer/inventory.js`, `renderer/css/00-base.css`.
+- **Debug-only reader readout** in the TigerPOD modal (admin/`state.debugEnabled` only), replacing the removed "I own a TigerPOD" toggle. Shows the readers the app currently treats as **active** (name + chip UID or "empty") and the account TigerPOD telemetry (`current` vs `max` reader count, `hasPod`). Reads live state and repaints on reader plug/unplug, card present/removed, and telemetry hydration (`hydratePodSignal`) — `renderer/inventory.js`.
+- **`docs/TTAG-EXPORT-BRIEF.md`, `docs/READER-SELECTION-BRIEF.md`, `docs/REVIEW-BRIEF.md`** — frozen implementation/audit briefs (`.ttag` inventory backup format; per-reader active/inactive selection panel; standing read-only review scope). `docs/reviews/` now keeps one permanent file per code review.
+- **`assets-src/img/partners/`** — retail-box photos from eSun, SUNLU and ROSA3D whose spools carry the TigerTag badge (masters only, not bundled).
+
+### Changed
+
+- **New chipless spools mint a `TigerData_` id prefix** (was `CLOUD_`). The prefix is a discriminator, not a display value: rather than migrate existing docs, `_isChiplessId` now accepts **both** prefixes forever. The same both-prefixes generalisation was applied across the ecosystem — mobile (`main_inventory.dart`), Hub (`lib/data/inventory.ts`), the stats Cloud Function (`functions/index.js`) — and documented (`llms.txt`, backend README). Studio has one discriminator point (`normalizeRow`) and one mint point (`_adpCloudId`).
+- **The stock-value tile shows its HT/TTC qualifier on the price line** (`236.60 € excl. tax`), not under the label. The figure is wrapped in `.sb-stat-num` so the count-up tween no longer wipes the suffix; the qualifier has its own colour so the up/down tint never tints it.
+- **The Add-Product "NFC Data" preview label is now "TigerData"**; the rack **"Subtitle" field is now "Description"** (both value-only, 9 locales). **List name/occasion capped at 40** characters (were 80/60).
+- **Documented that URL fields are attacker-controlled** (`buyUrl`, `attachments[].url`, inventory `Link*`, `publicLists` items) — the Firestore rules cannot filter string contents, so every client scheme-checks at render; written into `docs/firestore-schema.md`, the backend README and the third-party integration guide, and the mobile app + Hub `cleanUrl` were aligned. README gained a *"A sandbox, not the product"* section; `llms.txt` Firestore map completed (24 collections) and `docs:check` now validates it plus image paths.
+
+### Fixed
+
+- **Two stored-XSS holes reachable from another user's data** (2026-07-19 review). `esc()` escapes HTML but never validated the URL scheme, so `javascript:`/`file://`/`smb://` passed through friend-supplied product links and attachments untouched. New `safeHref()` (composes `_looksLikeUrl` + `esc`) collapses any non-http(s) value to `#`, applied at all 8 `href` sites. In the main process `isSafeExternalUrl()` gates every `shell.openExternal`, plus a `will-navigate` lock — a renderer foothold can no longer hand the OS a `file://` or leave the app origin.
+- **`img:get` SSRF with readback** — it fetched a Firestore-sourced image URL (incl. a friend's `photoURL`) with no validation/timeout and served the body back. Now refuses non-public destinations (resolves the hostname first; rejects loopback/RFC1918/link-local/CGNAT/IPv6-ULA), re-validates each redirect hop, 8 s deadline.
+- **A YubiKey (or other Yubico security key) is no longer treated as an RFID reader** — over USB it exposes a PC/SC CCID interface, so `nfc-pcsc` enumerated it like an ACR122U. The reader-registration gate skips names matching `yubico`/`yubikey` (kept narrow; the reader-selection panel is the general control).
+- **Printer connections no longer leak on account switch / sign-out** — `unsubscribePrinters` now sweeps Snapmaker, FlashForge and Creality (was Elegoo/Bambu/Anycubic only), stopping the Creality camera with its socket.
+- **`_checkLowStockNotifs` no longer re-scans the inventory per product** on every render (now one `_stockCountByKey()` pass).
+- **The Add-Product NFC Data preview is filled on open** (was empty until the first field change — the refresh ran before the section un-hid). **Calibration "How to measure" step badges sit at the top of every card** (`align-items: flex-start` + a 2px optical nudge) regardless of caption wrap.
+
+### Removed
+
+- **The "I own a TigerPOD" toggle** and its `tigerPodOwn*` i18n keys / `.tigerpod-own-card` CSS. `hasPod` is telemetry-only, auto-set on the first successful scan, so the manual toggle was redundant; the auto-set and the 1-or-2-reader write path are untouched.
+
+---
+
 ## v2.13.0 — 2026-07-19
 
 ### Added

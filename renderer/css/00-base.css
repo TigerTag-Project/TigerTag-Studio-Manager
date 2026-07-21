@@ -462,15 +462,19 @@
     line-height: 1.2;
     margin-top: 2px;
   }
-  /* HT / TTC qualifier on the stock-value tile. Deliberately quieter than the
-     label it follows — it qualifies the figure, it does not name the tile. */
-  .top-stats .sb-stat .label .sb-stat-tax {
-    text-transform: none;
-    letter-spacing: .01em;
+  /* HT / TTC qualifier, sitting to the RIGHT of the stock-value figure — a quiet
+     suffix on the price line, not on the label below. Smaller and muted so it
+     qualifies the number without competing with it; own colour so the up/down
+     tween tint on `.value` never turns it green/red. */
+  .top-stats .sb-stat .value .sb-stat-tax {
+    font-size: 10px;
     font-weight: 600;
-    opacity: .7;
+    letter-spacing: .01em;
+    text-transform: none;
+    color: var(--muted);
+    margin-left: 5px;
+    vertical-align: baseline;
   }
-  .top-stats .sb-stat .label .sb-stat-tax::before { content: "· "; }
 
   /* Badge spans inside stat labels only need the inherited text-transform reset:
      the badges carry their own capsule geometry (70-detail-misc.css) and must

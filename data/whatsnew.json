@@ -6657,5 +6657,85 @@
         }
       }
     ]
+  },
+  "2.13.1": {
+    "date": "2026-07-21",
+    "items": [
+      {
+        "icon": "bell",
+        "title": {
+          "en": "Fields that push back",
+          "fr": "Des champs qui répondent",
+          "de": "Felder, die zurückzucken",
+          "es": "Campos que responden",
+          "it": "Campi che rispondono",
+          "zh": "会回应的输入框",
+          "pt": "Campos que reagem",
+          "pt-pt": "Campos que reagem",
+          "pl": "Pola, które reagują"
+        },
+        "body": {
+          "en": "Type one character too many and the field gives a quick shake — no more wondering where that last keystroke went.",
+          "fr": "Tape un caractère de trop et le champ tremble un coup — fini de chercher où est passée ta dernière frappe.",
+          "de": "Ein Zeichen zu viel getippt, und das Feld zuckt kurz — kein Rätselraten mehr, wohin der letzte Tastendruck verschwunden ist.",
+          "es": "Escribe un carácter de más y el campo da un pequeño temblor — se acabó preguntarte adónde fue esa última tecla.",
+          "it": "Scrivi un carattere di troppo e il campo fa un piccolo scatto — basta chiedersi dove sia finita l'ultima battuta.",
+          "zh": "多打一个字符，输入框会轻轻抖一下——再也不用纳闷最后一下按键去哪了。",
+          "pt": "Digite um caractere a mais e o campo dá uma tremidinha — chega de imaginar para onde foi a última tecla.",
+          "pt-pt": "Escreve um caráter a mais e o campo dá um estremecimento — acabou o mistério de onde foi parar a última tecla.",
+          "pl": "Wpisz jeden znak za dużo, a pole drgnie — koniec zgadywania, gdzie zniknęło ostatnie naciśnięcie."
+        }
+      },
+      {
+        "icon": "shield",
+        "title": {
+          "en": "Your security key can relax",
+          "fr": "Ta clé de sécurité peut souffler",
+          "de": "Dein Sicherheitsschlüssel kann durchatmen",
+          "es": "Tu llave de seguridad puede relajarse",
+          "it": "La tua chiave di sicurezza può rilassarsi",
+          "zh": "你的安全密钥可以放松了",
+          "pt": "Sua chave de segurança pode relaxar",
+          "pt-pt": "A tua chave de segurança pode descansar",
+          "pl": "Twój klucz bezpieczeństwa może odetchnąć"
+        },
+        "body": {
+          "en": "Plug in a YubiKey and the app no longer mistakes it for a tag reader. It's a key, not a scanner — the app finally agrees.",
+          "fr": "Branche un YubiKey et l'app ne le prend plus pour un lecteur de puces. C'est une clé, pas un scanner — l'app est enfin d'accord.",
+          "de": "Steck einen YubiKey ein, und die App hält ihn nicht mehr für ein Lesegerät. Er ist ein Schlüssel, kein Scanner — jetzt sieht das die App auch so.",
+          "es": "Conecta un YubiKey y la app ya no lo confunde con un lector de chips. Es una llave, no un escáner — y por fin la app lo entiende.",
+          "it": "Collega una YubiKey e l'app non la scambia più per un lettore. È una chiave, non uno scanner — e finalmente l'app è d'accordo.",
+          "zh": "插入 YubiKey，应用不再把它当成读卡器。它是把钥匙，不是扫描仪——现在应用终于明白了。",
+          "pt": "Conecte um YubiKey e o app não o confunde mais com um leitor. É uma chave, não um scanner — e o app enfim concorda.",
+          "pt-pt": "Liga um YubiKey e a app já não o confunde com um leitor. É uma chave, não um scanner — e a app finalmente concorda.",
+          "pl": "Podłącz YubiKey, a aplikacja nie bierze go już za czytnik. To klucz, nie skaner — i aplikacja wreszcie to rozumie."
+        }
+      },
+      {
+        "icon": "cart",
+        "title": {
+          "en": "Tax, right where you're looking",
+          "fr": "La TVA, pile sous tes yeux",
+          "de": "Steuer, genau im Blick",
+          "es": "El impuesto, justo donde miras",
+          "it": "L'imposta, proprio sotto gli occhi",
+          "zh": "税额，就在你眼前",
+          "pt": "O imposto, bem à vista",
+          "pt-pt": "O imposto, mesmo à vista",
+          "pl": "Podatek, dokładnie tam, gdzie patrzysz"
+        },
+        "body": {
+          "en": "Your stock value now says 'excl. tax' or 'incl. tax' right next to the number — no more guessing which one you're reading.",
+          "fr": "La valeur de ton stock indique maintenant 'HT' ou 'TTC' juste à côté du chiffre — plus besoin de deviner lequel tu regardes.",
+          "de": "Dein Lagerwert zeigt jetzt 'exkl. Steuer' oder 'inkl. Steuer' direkt neben der Zahl — kein Raten mehr, was du gerade liest.",
+          "es": "El valor de tu stock ahora indica 'sin IVA' o 'con IVA' junto al número — se acabó adivinar cuál estás viendo.",
+          "it": "Il valore del tuo stock ora indica 'IVA escl.' o 'IVA incl.' accanto al numero — basta indovinare quale stai leggendo.",
+          "zh": "库存价值现在会在数字旁标明‘不含税’或‘含税’——再也不用猜你看的是哪个。",
+          "pt": "O valor do teu stock agora mostra 'sem imposto' ou 'com imposto' ao lado do número — chega de adivinhar qual estás a ver.",
+          "pt-pt": "O valor do teu stock agora mostra 'sem imposto' ou 'com imposto' ao lado do número — acabou o adivinhar qual estás a ler.",
+          "pl": "Wartość magazynu pokazuje teraz 'bez podatku' lub 'z podatkiem' tuż obok liczby — koniec zgadywania, co czytasz."
+        }
+      }
+    ]
   }
 }

@@ -2969,17 +2969,12 @@
         <span class="tigerpod-btn-icon"></span>
         <span data-i18n="tigerPodPrintBtn">Download &amp; Print STL Free</span>
       </a>
-      <label class="fp-toggle-card tigerpod-own-card">
-        <span class="fp-toggle-icon"><span class="rfid-pod-icon"></span></span>
-        <span class="fp-toggle-text">
-          <span class="fp-toggle-title" data-i18n="tigerPodOwnLabel">I own a TigerPOD</span>
-          <span class="fp-toggle-sub" data-i18n="tigerPodOwnSub">We tick this for you on your first scan — or flip it yourself.</span>
-        </span>
-        <span class="eac-toggle">
-          <input type="checkbox" id="tigerPodOwnToggle" />
-          <span class="eac-toggle-track"><span class="eac-toggle-thumb"></span></span>
-        </span>
-      </label>
+      <!-- Debug-only reader readout. Replaces the old "I own a TigerPOD" toggle,
+           which was redundant: `hasPod` is telemetry-only and auto-set on the
+           first successful scan, so a manual toggle changed nothing the next scan
+           wouldn't re-set. Populated + revealed by openTigerPodModal ONLY when
+           state.debugEnabled; stays hidden for everyone else. -->
+      <div class="tigerpod-debug" id="tigerPodDebug" hidden></div>
     </div>
   </div>
 </div>

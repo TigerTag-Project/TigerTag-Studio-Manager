@@ -77,6 +77,15 @@ function startNFC() {
     _downReported = false;
 
     const name = reader.name;
+    // Some USB devices present a PC/SC smart-card interface without being a
+    // filament NFC reader — a YubiKey is the common one: over USB it exposes a
+    // CCID interface, so nfc-pcsc enumerates it exactly like an ACR122U and the
+    // app would treat it as a reader (and attempt card reads on it). Skip known
+    // security keys by name so they never become a reader. Kept deliberately
+    // tight (Yubico only) to avoid excluding a real reader with an unusual name;
+    // the general, user-controlled override is the reader-management panel
+    // (see docs/READER-SELECTION-BRIEF.md).
+    if (/yubico|yubikey/i.test(name)) return;
     readers.set(name, reader);
     process.parentPort.postMessage({ type: 'reader-connected', name });
 

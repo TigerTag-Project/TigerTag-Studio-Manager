@@ -5880,10 +5880,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       { key: "kg",     label: t("statTotal"),  mini: t("statTotalMini"),  num: totalW / 1000,  fmt: kgFmt,  filter: "reset" },
       // The figure follows the account's HT/TTC preference, so it says which one —
       // 236.60 € means nothing without it. Same wording as every other price in the
-      // app (`reorderHT` / `reorderTTC`). It goes on `label` (rendered as HTML in
-      // the tile) and NOT on `mini`, which is piped into a data-attribute for the
-      // collapsed sidebar — markup there would break the attribute.
-      { key: "value",  label: `${t("statValue")} <span class="sb-stat-tax">${esc(t(_reorderMode() === "TTC" ? "reorderTTC" : "reorderHT"))}</span>`,
+      // app (`reorderHT` / `reorderTTC`). It rides on the VALUE line, right of the
+      // price (a quiet suffix), not in the label below — `tax` is appended to the
+      // `.value` beside the number. NOT on `mini`, which is piped into a
+      // data-attribute for the collapsed sidebar (markup would break the attribute).
+      { key: "value",  label: t("statValue"),
+        tax: esc(t(_reorderMode() === "TTC" ? "reorderTTC" : "reorderHT")),
         mini: t("statValueMini"),
         num: valueShown, fmt: valFmt, filter: "reset", info: t("statValueTip") },
       // Tier tiles read as the capability ladder, cheapest first: no chip →
@@ -5896,7 +5898,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       const isActive = s.filter !== "reset" && tf === s.filter;
       const infoIco = s.info ? `<span class="sb-stat-info tool-info" data-tip="${esc(s.info)}" aria-label="${esc(s.info)}"><span class="icon icon-info icon-12"></span></span>` : "";
       const shown = s.fmt(s.num);
-      return `<div class="sb-stat${s.cloud ? " sb-stat--cloud" : ""}${isActive ? " is-active" : ""}" data-filter="${s.filter}" data-stat-key="${s.key}" data-mini="${esc(s.mini)}" data-mini-val="${esc(shown)}"><div class="value">${shown}</div><div class="label">${s.label}${infoIco}</div></div>`;
+      const taxSuffix = s.tax ? ` <span class="sb-stat-tax">${s.tax}</span>` : "";
+      return `<div class="sb-stat${s.cloud ? " sb-stat--cloud" : ""}${isActive ? " is-active" : ""}" data-filter="${s.filter}" data-stat-key="${s.key}" data-mini="${esc(s.mini)}" data-mini-val="${esc(shown)}"><div class="value"><span class="sb-stat-num">${shown}</span>${taxSuffix}</div><div class="label">${s.label}${infoIco}</div></div>`;
     }).join("");
     el.classList.remove("hidden");
     // Ticker animation: tween each CHANGED value from its previous number to the
@@ -5910,7 +5913,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       // previous value.
       const from = (prev == null) ? 0 : prev;
       if (!animate || Math.abs(from - s.num) < 1e-9) return;
-      const valEl = el.querySelector(`.sb-stat[data-stat-key="${s.key}"] .value`);
+      // Tween the number span, not `.value` — the tax suffix sits in `.value`
+      // beside it and a `.value` textContent update would wipe it out.
+      const valEl = el.querySelector(`.sb-stat[data-stat-key="${s.key}"] .value .sb-stat-num`);
       if (valEl) _tweenStat(s.key, valEl, from, s.num, s.fmt);
     });
     _updateCartBadge();
@@ -13936,8 +13941,34 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
 
   function openTigerPodModal() {
     $("tigerPodModalOverlay").classList.add("open");
-    const own = $("tigerPodOwnToggle"); if (own) own.checked = !!state.hasPod;
+    _renderTigerPodDebug();
     const v = $("tigerPodVideo"); if (v) { v.currentTime = 0; v.play().catch(() => {}); }
+  }
+  // Debug-only readout in the TigerPOD modal: what the app currently treats as an
+  // active reader (name + whether a chip is on it), and the account's TigerPOD
+  // telemetry — the reader count that drives the ownership signal. Admin/debug
+  // only; hidden and emptied for everyone else. Replaces the removed ownership
+  // toggle (hasPod is telemetry-only, auto-set on the first successful scan).
+  function _renderTigerPodDebug() {
+    const box = $("tigerPodDebug");
+    if (!box) return;
+    // Called live from the reader plug/unplug + card handlers, so bail cheaply
+    // when the modal is closed — nothing to repaint then.
+    if (!$("tigerPodModalOverlay")?.classList.contains("open")) return;
+    if (!state.debugEnabled) { box.hidden = true; box.innerHTML = ""; return; }
+    const readers = [...state.nfcReaders];
+    const rows = readers.length
+      ? readers.map(name => {
+          const uid = state.nfcCardPresent.get(name)?.uid;
+          const chip = uid ? `chip ${esc(uid)}` : "empty";
+          return `<div class="tpd-row"><span class="tpd-name">${esc(name)}</span><span class="tpd-chip">${chip}</span></div>`;
+        }).join("")
+      : `<div class="tpd-row tpd-empty">no active reader</div>`;
+    box.innerHTML =
+      `<div class="tpd-title">⌥ Active readers</div>` +
+      rows +
+      `<div class="tpd-meta">current: <b>${readers.length}</b> · max: <b>${_telRfidMax}</b> · hasPod: <b>${state.hasPod ? "true" : "false"}</b></div>`;
+    box.hidden = false;
   }
   function closeTigerPodModal() {
     $("tigerPodModalOverlay").classList.remove("open");
@@ -15271,7 +15302,6 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   });
 
   // TigerPOD modal events
-  $("tigerPodOwnToggle")?.addEventListener("change", e => saveHasPod(e.target.checked));
   $("tigerPodClose").addEventListener("click", closeTigerPodModal);
   $("tigerPodModalOverlay").addEventListener("click", e => { if (e.target === $("tigerPodModalOverlay")) closeTigerPodModal(); });
   $("tigerPodMakerWorldBtn").addEventListener("click", () => window.electronAPI?.openExternal(TIGERPOD_MAKERWORLD_URL));
@@ -27306,6 +27336,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       if (uid !== state.activeAccountId) return;
       state.hasPod = !!cur.hasPod;
       _telRfidMax  = Math.max(_telRfidMax, +cur.rfidReadersMax || 0);
+      // Telemetry is a fire-and-forget read at connect. If the debug modal was
+      // opened before it landed, it showed the pre-hydration defaults (max 0,
+      // hasPod false) — repaint it now with the loaded values (no-op if closed).
+      _renderTigerPodDebug();
     } catch (_) {}
   }
 
@@ -28266,6 +28300,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       renderRfidReaderBadges();
       _cemPresenceChanged();   // reader count changed → refresh encode modal if open
       _maybeRefreshPanelForCard(); // reader plug/unplug flips greyed↔functional toolbox tools
+      _renderTigerPodDebug();  // live-refresh the debug readout if the modal is open
     });
 
     // ── Card present / removed — badge update ───────────────────────────────
@@ -28275,6 +28310,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       renderRfidReaderBadges();
       _cemPresenceChanged();       // live slot status + mid-burn presence watch
       _maybeRefreshPanelForCard(); // reveal/hide chip-dependent toolbox actions live
+      _renderTigerPodDebug();      // live-refresh the debug readout (chip present/removed)
       // TigerPOD signal — a SUCCESSFUL read with N readers proves ownership:
       // auto-select hasPod on first read, then record reader count keeping the max
       // (_telRfidMax was seeded from persisted value so we never write a lower count).

@@ -119,6 +119,32 @@ one file to produce. The prompt only appears for a genuine multi-material export
 (`brand-material-color.ttag`), falling back to the `uid` on collision. A grouped file is one chosen
 name (default `tigertag-inventory-<date>.ttag`).
 
+## The `CLOUD_` → `TigerData_` transition (two invariants — do not break)
+
+The chipless id prefix is moving from `CLOUD_` to `TigerData_`. Every reader accepts **both** already
+(Studio, mobile, Hub, stats Cloud Function). The transition to eventually retire `CLOUD_` rests on two
+invariants that `.ttag` must uphold:
+
+1. **Every creator mints `TigerData_`, never `CLOUD_` — present and future.** Today only Studio's
+   Add-Product flow creates chipless spools, and it mints `TigerData_`. This is a **durable rule, not
+   a point-in-time fact**: the day the mobile app (or any client) gains a manual-entry / Add-Product
+   flow, it must mint `TigerData_` from day one. A single client minting `CLOUD_` reopens the whole
+   transition silently.
+2. **Studio never exports a `CLOUD_` — in any mode.** The exporter refuses to write a `CLOUD_`-prefixed
+   record into a `.ttag`, whether the export is **individual** or **grouped/bulk**. So a `CLOUD_` can
+   never leave in a file, which is what lets the `CLOUD_` code branch eventually be dropped (a `.ttag`
+   can never re-introduce one). Recommended UX: if a `CLOUD_` is in the export scope, refuse the whole
+   export with a clear message ("reconnect to finish preparing these materials") rather than silently
+   dropping records — a silent skip lets a user export 50 and get 47 without noticing.
+
+**Why the refusal is almost never seen:** chipless docs are migrated `CLOUD_ → TigerData_` **silently
+on Studio login** — a per-user, progressive rename with no bulk operation. A chipless doc has no
+cross-references (no twin, no `rfidList` backup, nothing references it by id), so the migration is a
+per-doc **atomic batch**: create `TigerData_<suffix>` + delete `CLOUD_<suffix>` in one write (never
+leave a duplicate), idempotent (no `CLOUD_` docs → no-op, safe every login). It ships **only after**
+all readers are live accepting both prefixes (the deployment done alongside this work). By the time a
+migrated user reaches the export, they have zero `CLOUD_`; invariant #2 is the hard backstop.
+
 ## Import — two modes, preview then accept
 
 The importer **never auto-adds**. It validates, previews, and waits for an explicit accept.
