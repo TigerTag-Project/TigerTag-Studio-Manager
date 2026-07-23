@@ -6840,6 +6840,31 @@
           "pt-pt": "Toca numa pilha de bobinas para abrir, toca outra vez para fechar — e quando selecionas várias, é a caixa que escolhe enquanto um toque no cartão só espreita lá dentro.",
           "pl": "Dotknij stosu szpul, by go otworzyć, dotknij znów, by zamknąć — a gdy zaznaczasz kilka, to pole wyboru wybiera, a dotknięcie karty tylko zagląda do środka."
         }
+      },
+      {
+        "icon": "cart",
+        "title": {
+          "en": "Your order list, all the way down",
+          "fr": "Ta liste à commander, jusqu'en bas",
+          "de": "Deine Bestellliste, bis ganz nach unten",
+          "es": "Tu lista de pedidos, hasta el final",
+          "it": "La tua lista da ordinare, fino in fondo",
+          "zh": "你的待订清单，一滑到底",
+          "pt": "Sua lista de compras, até o fim",
+          "pt-pt": "A tua lista de encomendas, até ao fim",
+          "pl": "Twoja lista zamówień, aż do końca"
+        },
+        "body": {
+          "en": "The To order card scrolls properly now — reach the Add material button and every field below it, no more getting stuck halfway.",
+          "fr": "La carte À commander défile enfin comme il faut — tu atteins le bouton Ajouter un matériau et tous les champs du dessous, fini de rester coincé à mi-chemin.",
+          "de": "Die Bestellliste scrollt jetzt richtig — du erreichst den Knopf „Material hinzufügen“ und alle Felder darunter, kein Steckenbleiben auf halbem Weg mehr.",
+          "es": "La tarjeta Por pedir ahora se desplaza bien — llegas al botón Añadir material y a todos los campos de abajo, sin quedarte a medio camino.",
+          "it": "La scheda Da ordinare ora scorre come si deve — arrivi al pulsante Aggiungi materiale e a tutti i campi sotto, senza restare bloccato a metà.",
+          "zh": "「待订购」卡片现在能正常滚动了——够得着「添加材料」按钮和下面所有字段，不再卡在半路。",
+          "pt": "O cartão A pedir agora rola direito — você alcança o botão Adicionar material e todos os campos abaixo, sem travar no meio do caminho.",
+          "pt-pt": "O cartão A encomendar agora desliza como deve ser — chegas ao botão Adicionar material e a todos os campos abaixo, sem ficar preso a meio.",
+          "pl": "Karta Do zamówienia znów przewija się jak trzeba — dosięgniesz przycisku Dodaj materiał i wszystkich pól poniżej, koniec z utknięciem w połowie."
+        }
       }
     ]
   }
