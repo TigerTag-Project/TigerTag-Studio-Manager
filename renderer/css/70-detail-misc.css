@@ -861,6 +861,11 @@
   }
   .inv-add-btn:active { transform: translateY(1px); }
   .inv-add-btn .icon  { background: #fff; }
+  /* Disabled (only the .ttag Export uses it — inert until materials are
+     selected): greyed, no hover lift, not clickable. */
+  .inv-add-btn:disabled { opacity: .4; cursor: not-allowed; }
+  .inv-add-btn:disabled:hover { filter: none; }
+  .inv-add-btn:disabled:active { transform: none; }
 
   /* ── RFID scan notification — fixed card bottom-right ── */
   .rfid-scan-notif {
@@ -3272,10 +3277,20 @@
      already frames the content. */
   .ro-panel .panel-header { border-bottom: none; }
   .ro-panel .panel-body {
+    /* flex:1 + min-height:0 make the body fill the panel's flex column and
+       scroll (the base .panel-body sets flex:1; overriding display:flex here
+       dropped it, so the body was only as tall as its content — bottom
+       unreachable). The 24px bottom padding clears the absolute debug pill,
+       like the base rule. */
+    flex: 1; min-height: 0;
     display: flex; flex-direction: column; gap: 14px;
-    padding: 16px; overflow-y: auto;
+    padding: 16px 16px 24px; overflow-y: auto;
     scrollbar-width: none;
   }
+  /* Never compress the rows/fields when the panel is short — they keep their
+     height and the body scrolls (otherwise the "+ Add material" row and the
+     last fields squash to nothing). */
+  .ro-panel .panel-body > * { flex-shrink: 0; }
   .ro-panel .panel-body::-webkit-scrollbar { width: 0; height: 0; display: none; }
   /* Product identity header (thumb + brand/material/colour + open-card chevron). */
   .ro-head { display: flex; align-items: center; gap: 12px; }
@@ -3522,6 +3537,9 @@
     transition: background .15s, color .15s, border-color .15s, filter .15s;
   }
   .ro-shop-btn .icon { background-color: currentColor; }
+  /* The price button shows the ACCOUNT'S currency symbol (€/$/£/¥…) in place of
+     an icon — inherits the button's colour, like a masked icon would. */
+  .ro-price-cur { font-size: 14px; font-weight: 800; line-height: 1; color: currentColor; display: inline-flex; align-items: center; }
   .ro-shop-btn--active { background: #5e8e3e; border-color: #5e8e3e; color: #fff; } /* Shopify green */
   .ro-shop-btn--active .icon { background-color: #fff; }
   .ro-shop-btn--active:hover { filter: brightness(1.06); }

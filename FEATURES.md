@@ -1,6 +1,6 @@
 # Tiger Studio Manager — Feature Catalogue
 
-Tiger Studio Manager is the Electron desktop companion to the TigerTag ecosystem: a filament-inventory manager built around RFID/NFC-tagged spools ("TigerTag" chips), a fully-digital "TigerData" tier, live 3D-printer integration across six brands, physical storage/rack management, a Firebase-backed social layer (friends, shareable wishlists, public profiles), and companion hardware (TD1S color sensor, TigerScale, TigerPOD dual-reader stand). This document catalogues every **shipped** feature, grouped by domain, current as of **v2.13.1**. Per-version release detail lives in `CHANGELOG.md`; forward-looking / in-progress work lives in `ROADMAP.md`.
+Tiger Studio Manager is the Electron desktop companion to the TigerTag ecosystem: a filament-inventory manager built around RFID/NFC-tagged spools ("TigerTag" chips), a fully-digital "TigerData" tier, live 3D-printer integration across six brands, physical storage/rack management, a Firebase-backed social layer (friends, shareable wishlists, public profiles), and companion hardware (TD1S color sensor, TigerScale, TigerPOD dual-reader stand). This document catalogues every **shipped** feature, grouped by domain, current as of **v2.14.0**. Per-version release detail lives in `CHANGELOG.md`; forward-looking / in-progress work lives in `ROADMAP.md`.
 
 ---
 
@@ -36,6 +36,7 @@ Tiger Studio Manager is the Electron desktop companion to the TigerTag ecosystem
 - Inline **"Add price"** action in the inventory table for unpriced filaments (single rows and group headers) (v2.6.0).
 - Header KPI stats count-animate (odometer-style roll on open and on change) (v2.7.0).
 - Terminology: every user-facing "RFID" renamed to "NFC" across the UI and all 9 locales (internal identifiers untouched) (v2.5.0).
+- **`.ttag` inventory interchange** — export a spool, a selection, or a whole batch to a portable `.ttag` file (keep it, carry it on a USB stick, share it) and import it back anywhere. Works for TigerData, TigerTag and TigerTag+ alike, keeps twins atomic, and imports through a validate → preview table → accept flow with a per-material include picker. Two modes: **Restore** (verbatim, keeps ids/TigerTag+/backups) or **Import** (fresh chipless `TigerData_` spools you own, weight reset to full). Multi-file import via browse, paste-a-link, or drag-and-drop anywhere on the window (v2.14.0).
 
 ## Cloud & real-time sync / data layer
 
@@ -186,6 +187,7 @@ Live integrations across six brands, each with real-time temperatures, per-slot 
 - **TD1S** color/TD sensor — auto-detect on USB plug, live viewer, unified color+TD scanning modal with multi-slot (1–3 colour) support, edit-pencil swatch UI (v1.3+; unified modal v1.8.0).
 - **TigerScale** — WebSocket heartbeat presence (`users/{uid}/scales/{mac}`), live gradient card matching the mobile app: 56 px weight display, send-status badge (`idle → scanning → stable → send → success`), filament mini-panel pushed from firmware, twin-UID 2-reader grid, hold-to-confirm TARE (v1.5.0).
 - **TigerPOD** dual-reader stand — dedicated modal with product video/imagery, MakerWorld STL download, dual-chip simultaneous encode ("Dual Link"), auto-opens when a chip action needs a reader that isn't connected (v1.8.0; redesigns v1.8.2, v2.9.0 hero video); ownership + reader-count telemetry signal (`hasPod`, `rfidReadersMax`) (v2.9.0).
+- **USB scale (Dymo M-series)** live weighing — plug a Dymo USB HID scale and spool weights fill themselves in: a chip on the reader (POD mode) saves the weight silently, or an open spool card offers an inline confirm; live grams appear in the spool's weight panel with an "asleep — tap to wake" hint when the scale powers down (v2.14.0).
 
 ## RFID / NFC & tags
 

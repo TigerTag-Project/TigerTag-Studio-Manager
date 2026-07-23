@@ -13,6 +13,9 @@ import {
   renderScaleHealth,
 } from './IoT/tigerscale/index.js';
 
+// ── USB scale (Dymo M-series) module ──────────────────────────────────────
+import { initUsbScale, usbScaleRefreshDock } from './IoT/usbscale/index.js';
+
 // ── TD1S colour-sensor module ─────────────────────────────────────────────
 import {
   initTD1S,
@@ -1557,7 +1560,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       // Protocol / version shown in the filter bar and detail panel.
       // Cloud spools carry a random id_tigertag so we derive the label
       // from the spoolId prefix instead of the version table.
-      protocol: isCloud ? "TigerCloud" : (versionName(data.id_tigertag) || null),
+      protocol: isCloud ? "TigerData" : (versionName(data.id_tigertag) || null),
       weightAvailable: data.weight_available,
       containerWeight: data.container_weight,
       capacity: data.measure_gr || data.measure,
@@ -3787,12 +3790,41 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     tsToMs,
   });
 
+  // ── USB scale (Dymo) module init ───────────────────────────────────────
+  // One weight write per pose: POD mode applies silently (UID = certainty),
+  // side-card mode shows an inline confirm in the panel's WEIGHT section.
+  initUsbScale({
+    state,
+    t,
+    esc,
+    $,
+    doWeightUpdate,
+    openContainerPicker,
+    openDetail,
+  });
+
   $("btnStgExport").addEventListener("click", () => {
     if (!state.inventory) return;
     const blob = new Blob([JSON.stringify(state.inventory,null,2)], {type:"application/json"});
     const url = URL.createObjectURL(blob); const a = document.createElement("a");
     a.href = url; a.download = `tigertag-${Date.now()}.json`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
   });
+
+  // "Import a .ttag" — three entry points share one flow: the visible inventory
+  // toolbar button, Settings → Data, and drag-drop anywhere on the window.
+  const _onImportTtagClick = () => openTtagImportPicker();
+  $("btnStgImportTtag")?.addEventListener("click", _onImportTtagClick);
+  $("btnInvImportTtag")?.addEventListener("click", _onImportTtagClick);
+  $("ttagImportClose")?.addEventListener("click", closeTtagImport);
+  // Restore/Import option info bubbles — the ⓘ (.tool-info) shows the app's
+  // positioned tooltip on hover. Delegated once on the persistent body.
+  $("ttagImportBody")?.addEventListener("mouseover", e => { const el = e.target.closest?.(".tool-info"); if (el) _showToolInfoTip(el); });
+  $("ttagImportBody")?.addEventListener("mouseout",  e => { const el = e.target.closest?.(".tool-info"); if (el && !el.contains(e.relatedTarget)) _hideToolInfoTip(); });
+  // "Export" — whole-inventory .ttag, the toolbar counterpart to the per-spool
+  // export in the detail toolbox.
+  $("btnInvExportTtag")?.addEventListener("click", () => _exportSelectedTtag().catch(e => reportError("ttag.exportSel", e)));
+  _wireTtagDropZone();
+  _syncTtagBarButtons();
 
   // Settings → Data → "Copy API URL"
   // Builds and copies a self-contained URL that scripts (HA, cron, Spoolman
@@ -5203,6 +5235,50 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     }
   }
 
+  // ── Chipless id migration: CLOUD_ → TigerData_ (silent, client-side) ──────
+  // Done on the client (this version of Studio), not server-side: a server
+  // sweep would rename docs under clients that haven't updated to accept the
+  // TigerData_ prefix yet, which would read them as real chips. Client-side, the
+  // rename only happens on accounts whose Studio already accepts both prefixes,
+  // and spreads progressively as users sign in. A chipless doc is self-contained
+  // — no twin (it has no chip), no rfidList backup, nothing references it by id —
+  // so each migration is a plain atomic id-rename. Idempotent (re-reads first,
+  // no-op when there are none), safe vs a concurrent write to the same doc.
+  const _cloudMigrating = new Set();   // ids with a migration in flight — no double-fire
+  function maybeMigrateCloudToTigerData(ownerUid) {
+    for (const docId of Object.keys(state.inventory)) {
+      if (!docId.startsWith("CLOUD_")) continue;
+      if (_cloudMigrating.has(docId)) continue;
+      _cloudMigrating.add(docId);
+      migrateOneSpoolCloudToTigerData(ownerUid, docId)
+        .catch(e => console.warn("[cloudMigration] failed", docId, e.code || e.message))
+        .finally(() => _cloudMigrating.delete(docId));
+    }
+  }
+
+  async function migrateOneSpoolCloudToTigerData(ownerUid, cloudId) {
+    const newId  = "TigerData_" + cloudId.slice("CLOUD_".length);
+    const db     = fbDb(ownerUid);
+    const invRef = db.collection("users").doc(ownerUid).collection("inventory");
+    const oldRef = invRef.doc(cloudId);
+    const newRef = invRef.doc(newId);
+    // Re-read — another device (or a prior snapshot) may have migrated it since
+    // we saw it in the snapshot.
+    const snap = await oldRef.get();
+    if (!snap.exists) return;
+    // Full copy with the `uid` FIELD renamed too (it mirrors the doc id), and
+    // `protocol` set to "TigerData" so the migrated doc is immediately
+    // consistent (it's chipless by definition here; the mirror would set it
+    // anyway). Everything else — including updatedAt — is preserved as-is so the
+    // spool does not surface as "recently modified".
+    const newData = { ...snap.data(), uid: newId, protocol: "TigerData" };
+    const batch = db.batch();
+    batch.set(newRef, newData);   // the new doc lands...
+    batch.delete(oldRef);         // ...and the old is removed, atomically (or neither)
+    await batch.commit();
+    console.log(`[cloudMigration] ${cloudId} → ${newId}`);
+  }
+
   async function migrateOneSpoolDecimalToHex(ownerUid, decimalId) {
     const hexId = decimalSpoolIdToHex(decimalId);
     if (!hexId) {
@@ -5401,6 +5477,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         // and migrates it in the background. Idempotent + safe vs
         // concurrent mobile-app writes (see the function header).
         maybeMigrateDecimalSpoolIds(uid);
+        // Lazy, SILENT migration of chipless spool ids `CLOUD_` → `TigerData_`.
+        // Same streaming pattern, no consent modal (invisible id rename).
+        maybeMigrateCloudToTigerData(uid);
         // Lazy migration of flat `rack_id` / `level` / `position` →
         // grouped `rack: { id, level, position }` sub-object. Same
         // streaming pattern: idempotent, polite, twin-aware.
@@ -5890,7 +5969,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         num: valueShown, fmt: valFmt, filter: "reset", info: t("statValueTip") },
       // Tier tiles read as the capability ladder, cheapest first: no chip →
       // chip → chip + online layer.
-      { key: "cloud",  label: '<span class="tag-cloud">TigerData</span>', mini: t("statCloudMini"), num: cloud.length, fmt: intFmt, filter: "TigerCloud", cloud: true },
+      { key: "cloud",  label: '<span class="tag-cloud">TigerData</span>', mini: t("statCloudMini"), num: cloud.length, fmt: intFmt, filter: "TigerData", cloud: true },
       { key: "diy",    label: '<span class="tag-diy">TigerTag</span>',        mini: t("statDiyMini"),   num: diy,          fmt: intFmt, filter: "TigerTag" },
       { key: "plus",   label: '<span class="tag-plus">TigerTag+</span>',      mini: t("statPlusMini"),  num: plus.length,  fmt: intFmt, filter: "TigerTag+" },
     ];
@@ -6249,7 +6328,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       defaultLabel: "All versions",
       shortKey: "filterShortProtocol",
       pickValue: r => r.protocol,
-      // "TigerCloud" is the stored protocol value; the tier reads "TigerData".
+      // r.protocol is now "TigerData" for chipless (normalizeRow). This map is a
+      // safety net for any legacy "TigerCloud" value that might still surface.
       labelOf: v => (v === "TigerCloud" ? "TigerData" : v),
     });
     populateAspectFilter(faves);
@@ -8137,10 +8217,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     card.dataset.id = r.spoolId;
     card.innerHTML = _gridCardInnerHTML(r);
     card.addEventListener("click", (e) => {
-      if (state.bulkSelect) { _bulkClickSpool(r.spoolId, e.shiftKey); return; }
-      // Open the grouped deck FIRST — even for a lone spool (keepSingletons) — so a
-      // click always lands on the product deck; picking a member opens its detail.
-      _openGroupPanel(_spoolGroupKey(r), { keepSingletons: true });
+      // ISO with the table: the checkbox selects (and enters select mode);
+      // clicking the card TOGGLES the grouped deck — a second click on the same
+      // card closes it (deck even for a lone spool via keepSingletons).
+      if (e.target.closest(".sel-check")) { e.stopPropagation(); _selCellClickSpool(r.spoolId, e.shiftKey, card.getBoundingClientRect().top); return; }
+      _toggleGroupPanelForSpool(r);
     });
     card._sig = _rowSignature(r);
     return card;
@@ -8426,6 +8507,15 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           const infoBtn = mkBtn("flag-toggle--info gp-flag-info", `<span class="icon icon-info icon-16"></span>`, t("productInfoPage"), t("productInfoPage"));
           infoBtn.addEventListener("click", () => _toggleReorderPanel(g.rep));
           row.appendChild(infoBtn);
+          // "+ Material" — create a new (cloud) spool of this material, the same
+          // action as the reorder card's `roCreateCloud`. Owner-only.
+          const addBtn = mkBtn("flag-toggle--addmat gp-flag-addmat", `<span class="icon icon-plus icon-16"></span>`, t("productCreateCloudTip"), t("productCreateCloud"));
+          addBtn.addEventListener("click", async () => {
+            try { setLoading(addBtn, true); await _createCloudFromProduct(g.rep); }
+            catch (e) { reportError("gp.createCloud", e); }
+            finally { setLoading(addBtn, false); }
+          });
+          row.appendChild(addBtn);
         }
         // Add to cart / "To order" (❤ liked flag).
         const cartBtn = mkBtn("flag-toggle--wish" + (liked ? " active" : ""), `<span class="icon icon-cart-plus icon-16"></span>`, t("productLikeTip"), t("productLike"));
@@ -8493,6 +8583,15 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     _groupPanelKeepSingletons = false;
     _groupPanelMembers = new Set();
     _syncPanels();
+  }
+  // Toggle the grouped deck for a spool: open it (a deck even for a lone spool),
+  // or CLOSE it when the same spool's deck is already open — a second click on
+  // the row that opened it closes it.
+  function _toggleGroupPanelForSpool(r) {
+    const key = _spoolGroupKey(r);
+    const open = document.getElementById("groupPanel")?.classList.contains("open");
+    if (open && _groupPanelKey === key) { _closeGroupPanel(); return; }
+    _openGroupPanel(key, { keepSingletons: true });
   }
   // Close every right-side "card" (spool detail + group/deck panel) in one shot.
   // Called on EVERY view transition — account↔account, own→friend, friend→friend,
@@ -8619,10 +8718,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       // The always-visible checkbox column selects (and enters select mode); the
       // rest of the row opens detail — unless already in select mode (then toggle).
       if (e.target.closest(".sel-cell")) { e.stopPropagation(); _selCellClickSpool(r.spoolId, e.shiftKey, tr.getBoundingClientRect().top); return; }
-      if (state.bulkSelect) { _bulkClickSpool(r.spoolId, e.shiftKey); return; }
-      // Open the grouped deck FIRST — even for a lone spool (keepSingletons); a
-      // click on a member inside the deck then opens its detail.
-      _openGroupPanel(_spoolGroupKey(r), { keepSingletons: true });
+      // The checkbox column selects; clicking the ROW (in select mode or not)
+      // TOGGLES the grouped deck — a second click on the same row closes it.
+      _toggleGroupPanelForSpool(r);
     });
     tr._sig = _rowSignature(r);
     return tr;
@@ -8818,6 +8916,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     document.body.classList.remove("bulk-select-mode");
     document.querySelectorAll(".js-select-toggle").forEach(b => b.classList.remove("active"));
     _clearSelection();
+    _syncTtagExportBtn();   // selection cleared → Export disables
+
     // Materials regroup on exit; printers / products have no grouping (skip the
     // re-render so live camera thumbnails / freshly-typed rows aren't rebuilt).
     if (!_isPrinterMode(state.viewMode) && !_isProductsMode(state.viewMode)) renderInventory();
@@ -8894,7 +8994,6 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // and we must not then pop a side-card open (it was just a deselect click).
   function _bulkClickSpool(spoolId, shift) {
     _toggleRowSelected(spoolId, shift);
-    if (state.bulkSelect) _syncGroupPanelToSpool(spoolId);
   }
 
   // Checkbox-column click on a single row. The first tick enters select mode
@@ -8905,11 +9004,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       _lastSelectedId = spoolId;
       _enterSelectMode(spoolId, anchorTop); // re-renders ungrouped, keeps this row put
       _updateBulkBar();
-      _syncGroupPanelToSpool(spoolId);
       return;
     }
     _toggleRowSelected(spoolId, shift);          // auto-exits if it emptied the set
-    if (state.bulkSelect) _syncGroupPanelToSpool(spoolId);
   }
   // Checkbox-column click on a collapsed group header → select every member of
   // the group + enter select mode (only happens in grouped view).
@@ -8983,6 +9080,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   }
 
   function _updateBulkBar() {
+    _syncTtagExportBtn();   // Export follows the selection (disabled when empty)
     const bar = $("bulkBar");
     if (!bar) return;
     const ctx = _bulkCtx();
@@ -9252,6 +9350,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       _addLbl.dataset.i18n = _key;
       _addLbl.textContent  = t(_key);
     }
+    _syncTtagBarButtons();    // .ttag Export/Import: inventory (table/grid) only
     _syncSearchPlaceholder(); // materials ↔ printer search hint
     // Right-of-search selectors: in the printer grid/table swap them to printer
     // brand + tag (materials-only Material / Version selects hidden via the body
@@ -10033,6 +10132,10 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   document.body.classList.toggle("printer-filters", _bootPrinterFilters);
   if (_bootPrinterFilters) populatePrinterFilters();
   document.body.classList.toggle("products-filters", _isProductsMode(state.viewMode));
+  // The "Select" button shows only on button-select views (grid + printer) —
+  // apply it on boot too (setViewMode, which normally does, isn't called on the
+  // initial render), else it's missing at startup when launching into grid.
+  document.body.classList.toggle("sel-btn-view", state.viewMode === "grid" || state.viewMode === "printer");
   _syncSearchPlaceholder();
   // Grid-only sort control — reveal it on boot if we start straight in grid view
   // (setViewMode, which normally toggles it, isn't called on the initial render).
@@ -10937,7 +11040,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
      own timestamp so even an freshly-created source can't pair with the
      first clone. These aren't real programming times, but it's the only
      lever that keeps identical copies from being auto-twinned. */
-  async function duplicateSpoolAsCloud(r, count = 1) {
+  async function duplicateSpoolAsCloud(r, count = 1, opts = {}) {
     if (state.friendView) return 0;
     const user = fbAuth().currentUser;
     if (!user) return 0;
@@ -10965,6 +11068,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       data.updatedAt  = firebase.firestore.FieldValue.serverTimestamp();
       data.deleted    = null;
       data.deleted_at = null;
+      // "+ Material" mints a BRAND-NEW spool → start at 100% (full capacity),
+      // not the source's remaining weight. (Plain Duplicate keeps the weight.)
+      if (opts.full) {
+        const cap = Number(data.measure_gr) || Number(data.measure) || Number(data.capacity) || 0;
+        if (cap > 0) data.weight_available = cap;
+      }
       batch.set(invRef.doc(newId), data);
     }
     await batch.commit();
@@ -10974,7 +11083,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
 
   // Mint TigerData spools from a raw seed object (no source spool). Used to
   // create a Cloud straight from a product record (its stored `cloudSeed`).
-  async function _mintCloudsFromRaw(rawObj, count = 1) {
+  async function _mintCloudsFromRaw(rawObj, count = 1, opts = {}) {
     if (state.friendView) return 0;
     const user = fbAuth().currentUser;
     if (!user || !rawObj) return 0;
@@ -10992,6 +11101,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       data.timestamp = baseTs + i * 3;   // +3s per copy → outside the 2s twin window
       data.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
       data.deleted = null; data.deleted_at = null;
+      // "+ Material" mints a brand-new spool → start full (100% capacity).
+      if (opts.full) {
+        const cap = Number(data.measure_gr) || Number(data.measure) || Number(data.capacity) || 0;
+        if (cap > 0) data.weight_available = cap;
+      }
       batch.set(invRef.doc(newId), data);
     }
     await batch.commit();
@@ -11002,9 +11116,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // Create ONE TigerData spool of this product: from the live spool's raw when the
   // card was opened on a real spool (twin-safe path), else from the stored seed.
   async function _createCloudFromProduct(r) {
-    if (r?.raw) return duplicateSpoolAsCloud(r, 1);
+    // A "+ Material" is a NEW filament entered as new → full spool (100%), never
+    // the remaining weight of the source it copied its identity from.
+    if (r?.raw) return duplicateSpoolAsCloud(r, 1, { full: true });
     const seed = _getProduct(r)?.cloudSeed;
-    return seed ? _mintCloudsFromRaw(seed, 1) : 0;
+    return seed ? _mintCloudsFromRaw(seed, 1, { full: true }) : 0;
   }
 
   /* ── Products view (order recommendation + liked/favorite) ──────────────
@@ -13032,7 +13148,763 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // restart the material video). Called from openDetail on the initial render
   // and again on a surgical toolbox swap. Every handler references module-level
   // helpers + the passed `r`, so it is safe to run standalone.
+  /* ═══════════════════════════════════════════════════════════════════════
+     .ttag export — a faithful, offline backup of one or more inventory
+     materials (spec + rules: docs/TTAG-EXPORT-BRIEF.md). A .ttag carries the
+     inventory docs VERBATIM (`records`) plus each TigerTag+ chip's signed
+     rfidList backup (`rfidBackups`). Twins are atomic: exporting one side
+     always exports both. A legacy `CLOUD_` id is NEVER written into a file
+     (invariant #2) — only the current `TigerData_` chipless prefix may leave.
+     Phase 1: export only (import lands next). Blob download, no build needed.
+     ═══════════════════════════════════════════════════════════════════════ */
+  const TTAG_VERSION = 1;
+
+  // Raw inventory doc for a spoolId, verbatim from the in-memory cache.
+  function _ttagRawDoc(spoolId) {
+    return state.inventory ? state.inventory[spoolId] : null;
+  }
+
+  // The verbatim inventory docs that make up ONE material: the spool itself
+  // plus its twin partner when it carries a twin_tag_uid. A twin is atomic —
+  // one side is never exported alone (brief §Twins). Returns [{spoolId, doc}],
+  // deduped, order stable (self first, partner second).
+  function _ttagMaterialRecords(spoolId) {
+    const out = [];
+    const seen = new Set();
+    const push = (sid) => {
+      if (!sid || seen.has(sid)) return;
+      const doc = _ttagRawDoc(sid);
+      if (!doc) return;
+      seen.add(sid);
+      out.push({ spoolId: sid, doc });
+    };
+    push(spoolId);
+    const root = _ttagRawDoc(spoolId);
+    const twinUid = root && root.twin_tag_uid ? String(root.twin_tag_uid) : null;
+    if (twinUid && state.inventory) {
+      // Partner doc id === twinUid (hex chips) or its uid field === twinUid.
+      let partnerSid = state.inventory[twinUid] ? twinUid : null;
+      if (!partnerSid) {
+        for (const [sid, d] of Object.entries(state.inventory)) {
+          if (String(d && d.uid != null ? d.uid : sid) === twinUid) { partnerSid = sid; break; }
+        }
+      }
+      push(partnerSid);
+    }
+    return out;
+  }
+
+  // A Firestore Timestamp-like value → epoch ms, else undefined. Used as a
+  // JSON replacer so server-timestamp fields serialise to a clean number
+  // instead of an empty object (import stamps a fresh updatedAt regardless).
+  function _ttagTsToMs(v) {
+    if (v && typeof v === "object") {
+      if (typeof v.toMillis === "function") return v.toMillis();
+      if (typeof v.seconds === "number") return v.seconds * 1000 + Math.floor((v.nanoseconds || 0) / 1e6);
+      if (typeof v._seconds === "number") return v._seconds * 1000 + Math.floor((v._nanoseconds || 0) / 1e6);
+    }
+    return undefined;
+  }
+
+  function _ttagSerialize(obj) {
+    return JSON.stringify(obj, (_k, val) => {
+      const ms = _ttagTsToMs(val);
+      return ms !== undefined ? ms : val;
+    }, 2);
+  }
+
+  // rfidBackups map — for every record flagged rfidBackup, carry its signed
+  // rfidList/{chipUid} doc VERBATIM, keyed by chip uid. Best-effort per record:
+  // a read that fails just isn't carried (the flag says it should exist, but a
+  // partial export is better than a failed one). Chipless records never qualify.
+  async function _ttagCollectBackups(records, uid) {
+    const backups = {};
+    for (const { spoolId, doc } of records) {
+      if (!doc || doc.rfidBackup !== true) continue;
+      try {
+        const snap = await _rfidListCol(uid).doc(spoolId).get();
+        if (snap.exists) backups[String(doc.uid != null ? doc.uid : spoolId)] = snap.data();
+      } catch (e) { reportError("ttag.backup", e); }
+    }
+    return backups;
+  }
+
+  function _buildTtag(records, backups, ownerUid) {
+    const out = {
+      format: "tigertag",
+      kind: "ttag",
+      version: TTAG_VERSION,
+      exportedAt: new Date(Date.now()).toISOString(),
+      // The exporting account — lets import auto-pick its mode: same account
+      // → Restore (verbatim), any other → Import (fresh chipless copies). Not
+      // sensitive (it's the owner's own uid); absent files default to Import.
+      exportedBy: ownerUid || null,
+      records: records.map(x => x.doc),
+    };
+    if (backups && Object.keys(backups).length) out.rfidBackups = backups;
+    return out;
+  }
+
+  // A legacy CLOUD_ id must never leave in a file (invariant #2). Checks both
+  // the doc id and the uid field, so neither shape slips through.
+  function _ttagHasLegacyCloud(records) {
+    return records.some(x =>
+      String(x.spoolId).startsWith("CLOUD_") ||
+      String(x.doc && x.doc.uid != null ? x.doc.uid : "").startsWith("CLOUD_"));
+  }
+
+  function _ttagSlug(s) {
+    return String(s == null ? "" : s)
+      .normalize("NFKD").replace(/[̀-ͯ]/g, "")
+      .replace(/[^\w-]+/g, "-").replace(/^-+|-+$/g, "")
+      .slice(0, 60);
+  }
+
+  // Human file name for one material: brand-material-color.ttag, falling back
+  // to the uid on empty/placeholder parts.
+  function _ttagMaterialFilename(r) {
+    const parts = [r.brand, r.material, r.colorName]
+      .map(_ttagSlug).filter(p => p && p !== "-");
+    const base = parts.length ? parts.join("-") : (_ttagSlug(r.uid) || "material");
+    return `${base}.ttag`;
+  }
+
+  function _saveTtagFile(filename, jsonString) {
+    const blob = new Blob([jsonString], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  // Export ONE material (a spool + its twin partner) as a .ttag. Own inventory
+  // only. Gives inline feedback on the toolbox button (label swap), the same
+  // pattern the Duplicate action uses.
+  async function _exportMaterialTtag(r) {
+    const uid = state.activeAccountId;
+    const lbl = $("btnExportTtag")?.querySelector(".toolbox-row-label");
+    const flash = (key) => {
+      if (!lbl) return;
+      lbl.textContent = t(key);
+      setTimeout(() => { if (lbl) lbl.textContent = t("ttagExport"); }, 1800);
+    };
+    if (!uid) return;
+    const records = _ttagMaterialRecords(r.spoolId);
+    if (!records.length) return;
+    if (_ttagHasLegacyCloud(records)) { flash("ttagCloudBlocked"); return; }
+    const backups = await _ttagCollectBackups(records, uid);
+    _saveTtagFile(_ttagMaterialFilename(r), _ttagSerialize(_buildTtag(records, backups, uid)));
+    flash("ttagExportOk");
+  }
+
+  // Export the WHOLE (non-deleted) inventory as one grouped .ttag — every
+  // material, twins naturally included since all docs travel together. Own
+  // inventory only; refuses if any legacy CLOUD_ is still around (invariant #2).
+  // Export the SELECTED materials (multi-select) as one `.ttag`. The button is
+  // disabled when nothing is selected (see `_syncTtagExportBtn`), so this is a
+  // no-op guard for a stray call. Each selected spool contributes its own doc +
+  // its twin partner (atomic), deduped.
+  async function _exportSelectedTtag() {
+    const uid = state.activeAccountId;
+    if (!uid || !state.inventory) return;
+    const lbl = $("btnInvExportTtag")?.querySelector("[data-i18n]");
+    const flash = (key) => {
+      if (!lbl) return;
+      lbl.textContent = t(key);
+      setTimeout(() => { if (lbl) lbl.textContent = t("ttagExportShort"); }, 1800);
+    };
+    const seen = new Set();
+    const records = [];
+    for (const sid of state.selectedSpools) {
+      for (const rec of _ttagMaterialRecords(sid)) {
+        if (seen.has(rec.spoolId)) continue;
+        seen.add(rec.spoolId);
+        records.push(rec);
+      }
+    }
+    if (!records.length) return;   // nothing selected → the button is disabled anyway
+    if (_ttagHasLegacyCloud(records)) { flash("ttagCloudBlocked"); return; }
+    const backups = await _ttagCollectBackups(records, uid);
+    const stamp = new Date(Date.now()).toISOString().slice(0, 10);
+    _saveTtagFile(`tigertag-selection-${stamp}.ttag`, _ttagSerialize(_buildTtag(records, backups, uid)));
+    flash("ttagExportOk");
+  }
+
+  // Export acts on the current multi-selection → disable it when nothing is
+  // selected. Called on every selection change + when the bar (re)appears.
+  function _syncTtagExportBtn() {
+    const btn = $("btnInvExportTtag");
+    if (btn) btn.disabled = state.selectedSpools.size === 0;
+  }
+
+  // The .ttag Export/Import bar buttons make sense only in the material
+  // inventory (table/grid) and never on a read-only friend view.
+  function _syncTtagBarButtons() {
+    const show = (state.viewMode === "table" || state.viewMode === "grid") && !state.friendView;
+    $("btnInvExportTtag")?.classList.toggle("hidden", !show);
+    $("btnInvImportTtag")?.classList.toggle("hidden", !show);
+    _syncTtagExportBtn();
+  }
+
+  /* ── .ttag IMPORT ─────────────────────────────────────────────────────────
+     Read a .ttag, validate its marker, sanitise untrusted fields, preview, and
+     on accept write into the user's inventory. Two modes, auto-picked from the
+     file's `exportedBy`:
+       • Restore — the file was exported by THIS account (your own backup):
+         every record written back VERBATIM under its original id, and each
+         TigerTag+ backup restored to rfidList. An exact copy.
+       • Import — any other / unknown origin: each record becomes a FRESH
+         chipless material you own (new TigerData_ uid, fresh id_tigertag, no
+         chip claim, id_product unset), twin links remapped, backups dropped (a
+         signed factory dump is bound to a chip you don't hold). Additive —
+         never overwrites your existing docs.
+     ─────────────────────────────────────────────────────────────────────── */
+  const TTAG_ID_PRODUCT_UNSET = 4294967295; // 0xFFFFFFFF — mirrors saveAddProduct
+  const TTAG_URL_FIELDS = ["url_img", "LinkYoutube", "LinkMSDS", "LinkTDS", "LinkROHS", "LinkREACH", "LinkFOOD"];
+
+  // Validate the content marker. { ok } or { ok:false, error:<i18nKey> }.
+  function _ttagValidate(obj) {
+    if (!obj || typeof obj !== "object") return { ok: false, error: "ttagErrNotFile" };
+    if (obj.format !== "tigertag" || obj.kind !== "ttag") return { ok: false, error: "ttagErrNotFile" };
+    const v = Number(obj.version);
+    if (!isFinite(v) || v < 1) return { ok: false, error: "ttagErrNotFile" };
+    if (v > TTAG_VERSION) return { ok: false, error: "ttagErrNewer" };
+    if (!Array.isArray(obj.records) || !obj.records.length) return { ok: false, error: "ttagErrEmpty" };
+    return { ok: true };
+  }
+
+  // A stored URL that isn't real http(s) is dropped — untrusted input, same
+  // class as the stored-XSS hardening. Returns the trimmed url or null.
+  function _ttagCleanUrl(v) {
+    const s = String(v == null ? "" : v).trim();
+    return _looksLikeUrl(s) ? s : null;
+  }
+
+  const _ttagByte = n => Math.max(0, Math.min(255, Math.round(Number(n) || 0)));
+
+  // Defensive clean of one record (from an untrusted file): drop bad URL
+  // schemes, clamp colours to bytes, coerce weights/TD. Never throws; returns
+  // a shallow clone safe to write.
+  function _ttagSanitizeRecord(doc) {
+    const d = { ...doc };
+    for (const f of TTAG_URL_FIELDS) {
+      if (d[f] != null) { const u = _ttagCleanUrl(d[f]); if (u) d[f] = u; else delete d[f]; }
+    }
+    for (const c of ["color_r","color_g","color_b","color_a","color_r2","color_g2","color_b2","color_r3","color_g3","color_b3"]) {
+      if (d[c] != null) d[c] = _ttagByte(d[c]);
+    }
+    for (const w of ["measure","measure_gr","weight_available"]) {
+      if (d[w] != null) { const n = Number(d[w]); d[w] = isFinite(n) && n >= 0 ? n : 0; }
+    }
+    if (d.TD != null) { const n = Number(d.TD); d.TD = isFinite(n) && n > 0 ? Math.max(0.1, Math.min(100, n)) : null; }
+    return d;
+  }
+
+  // The doc id a record lives under = its uid field (chip hex or TigerData_).
+  function _ttagRecordId(doc) {
+    return String(doc && doc.uid != null ? doc.uid : "").trim();
+  }
+
+  function _ttagDetectMode(obj) {
+    const owner = obj && obj.exportedBy ? String(obj.exportedBy) : null;
+    return owner && owner === String(state.activeAccountId) ? "restore" : "import";
+  }
+
+  // Group records into MATERIALS (a twin pair = one material) for the preview
+  // count. Returns [{ records:[doc,…], isTwin }].
+  function _ttagGroupMaterials(records) {
+    const byUid = new Map();
+    records.forEach(d => byUid.set(_ttagRecordId(d), d));
+    const seen = new Set(), groups = [];
+    for (const d of records) {
+      const id = _ttagRecordId(d);
+      if (!id || seen.has(id)) continue;
+      const partnerUid = d.twin_tag_uid ? String(d.twin_tag_uid) : null;
+      const partner = partnerUid && byUid.has(partnerUid) ? byUid.get(partnerUid) : null;
+      seen.add(id);
+      if (partner) { seen.add(_ttagRecordId(partner)); groups.push({ records: [d, partner], isTwin: true }); }
+      else groups.push({ records: [d], isTwin: false });
+    }
+    return groups;
+  }
+
+  // Build the Firestore write plan for accept. { writes:[{id,data}], backups:[{id,data}] }.
+  function _ttagBuildWrites(obj, mode) {
+    const FV = firebase.firestore.FieldValue;
+    const records = obj.records.map(_ttagSanitizeRecord);
+    if (mode === "restore") {
+      const writes = records
+        .map(d => ({ id: _ttagRecordId(d), data: { ...d, updatedAt: FV.serverTimestamp(), deleted: null, deleted_at: null } }))
+        .filter(w => w.id);
+      const backups = [];
+      const bmap = obj.rfidBackups && typeof obj.rfidBackups === "object" ? obj.rfidBackups : {};
+      for (const [chipUid, bdoc] of Object.entries(bmap)) {
+        if (chipUid && bdoc && typeof bdoc === "object") backups.push({ id: String(chipUid), data: { ...bdoc } });
+      }
+      return { writes, backups };
+    }
+    // import — fresh chipless copies, twin remap, no backups.
+    const idMap = new Map();
+    for (const d of records) { const oid = _ttagRecordId(d); if (oid) idMap.set(oid, _adpCloudId()); }
+    const writes = records.map(d => {
+      const newId = idMap.get(_ttagRecordId(d)) || _adpCloudId();
+      const data = {
+        ...d,
+        uid: newId,
+        id_tigertag: Math.floor(Math.random() * TTAG_ID_PRODUCT_UNSET), // fresh nonce → not Plus
+        id_product: TTAG_ID_PRODUCT_UNSET,
+        rfidBackup: false,
+        updatedAt: FV.serverTimestamp(),
+        deleted: null, deleted_at: null,
+      };
+      delete data.rfidListed;
+      // A fresh TigerData copy is a BRAND-NEW spool → reset to 100% (full
+      // capacity), not the exported remaining weight.
+      const cap = Number(data.measure_gr) || Number(data.measure) || Number(data.capacity) || 0;
+      if (cap > 0) data.weight_available = cap;
+      if (d.twin_tag_uid) {
+        const mapped = idMap.get(String(d.twin_tag_uid));
+        if (mapped) data.twin_tag_uid = mapped; else delete data.twin_tag_uid;
+      }
+      return { id: newId, data };
+    });
+    return { writes, backups: [] };
+  }
+
+  // Apply a batch of validated files, EACH with its own mode (a Restore file
+  // and an Import file can be selected together). Builds every file's writes
+  // ONCE — import mode mints random ids, so a second build would differ — then
+  // commits them all, chunked under Firestore's 500-write cap.
+  async function _ttagApplyImportAll(files, excluded) {
+    const uid = state.activeAccountId;
+    if (!uid) return 0;
+    const skip = excluded || new Set();
+    const inv = _invCol(uid), rfid = _rfidListCol(uid);
+    const ops = []; let written = 0;
+    for (const { obj, mode } of files) {
+      // Drop the records (and their backups) the user unchecked in the preview.
+      const kept = obj.records.filter(d => !skip.has(_ttagRecordId(d)));
+      if (!kept.length) continue;
+      const filtered = { ...obj, records: kept };
+      if (obj.rfidBackups) filtered.rfidBackups = Object.fromEntries(
+        Object.entries(obj.rfidBackups).filter(([u]) => !skip.has(u)));
+      const { writes, backups } = _ttagBuildWrites(filtered, mode);
+      written += writes.length;
+      for (const w of writes) ops.push({ ref: inv.doc(w.id), data: w.data });
+      for (const b of backups) ops.push({ ref: rfid.doc(b.id), data: b.data });
+    }
+    for (let i = 0; i < ops.length; i += 450) {
+      const batch = fbDb(uid).batch();
+      for (const op of ops.slice(i, i + 450)) batch.set(op.ref, op.data);
+      await batch.commit();
+    }
+    return written;
+  }
+
+  /* ── .ttag import — file picker → validate → preview modal → accept ──────── */
+  let _ttagPending = null; // { files:[{obj,mode}], skipped } awaiting the accept
+
+  function _pickTtagFiles() {
+    return new Promise(resolve => {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = ".ttag,application/json";
+      input.multiple = true;   // several .ttag at once
+      input.style.display = "none";
+      document.body.appendChild(input);
+      let done = false;
+      const finish = (fs) => { if (done) return; done = true; input.remove(); resolve(fs); };
+      input.addEventListener("change", () => finish(input.files ? Array.from(input.files) : []));
+      input.addEventListener("cancel", () => finish([]));
+      input.click();
+    });
+  }
+
+  // Read + validate a set of files, then open ONE preview covering them all.
+  // Each file keeps its own mode (Restore/Import by its exportedBy); invalid
+  // files are skipped and counted, not fatal (unless every file is invalid).
+  // Shared by the file picker, the toolbar/Settings buttons and drag-drop.
+  async function _ttagOpenFromFiles(fileList) {
+    const files = Array.from(fileList || []);
+    if (!files.length) return;
+    const valid = [];
+    let skipped = 0, lastErr = null;
+    for (const f of files) {
+      let obj = null;
+      try { obj = JSON.parse(await f.text()); } catch { obj = null; }
+      const v = _ttagValidate(obj);
+      if (v.ok) valid.push({ obj, mode: _ttagDetectMode(obj) });
+      else { skipped++; lastErr = v.error; }
+    }
+    if (!valid.length) { openTtagImport(null, lastErr || "ttagErrNotFile"); return; }
+    openTtagImport({ files: valid, skipped }, null);
+  }
+
+  // The Import button opens a SOURCE screen first — a big drop zone with two
+  // buttons (add a file from disk · add a web link). Sources are STAGED (shown
+  // as removable chips); "Preview" then reads/validates them all and swaps to
+  // the preview screen. Shopify's CSV-import modal is the shape reference.
+  let _ttagStage = null; // { files: File[], url: string }
+
+  function openTtagImportPicker() {
+    _ttagPending = null;
+    _ttagStage = { files: [], url: "" };
+    _renderTtagPicker();
+    $("ttagImportOverlay")?.classList.add("open");
+  }
+
+  function _renderTtagPicker() {
+    const body = $("ttagImportBody"), footer = $("ttagImportFooter");
+    const st = _ttagStage;
+    const staged = st.files.length > 0 || !!st.url;
+    const chips = [
+      ...st.files.map((f, i) => `<div class="ttag-chip"><span class="icon icon-backup icon-13"></span><span class="ttag-chip-name">${esc(f.name)}</span><button type="button" class="ttag-chip-x" data-file="${i}" aria-label="✕">✕</button></div>`),
+      ...(st.url ? [`<div class="ttag-chip"><span class="icon icon-link icon-13"></span><span class="ttag-chip-name">${esc(st.url)}</span><button type="button" class="ttag-chip-x" data-url="1" aria-label="✕">✕</button></div>`] : []),
+    ].join("");
+    if (body) body.innerHTML =
+      `<div class="ttag-dropzone${staged ? " ttag-dropzone--staged" : ""}" id="ttagModalDrop">
+         <span class="ttag-dropzone-title">${esc(t("ttagDropzoneTitle"))}</span>
+         <div class="ttag-src-actions">
+           <button type="button" class="adf-btn adf-btn--ghost" id="ttagBrowse"><span class="icon icon-plus icon-13"></span>${esc(t("ttagBrowse"))}</button>
+           <button type="button" class="adf-btn adf-btn--ghost" id="ttagFromLink"><span class="icon icon-link icon-13"></span>${esc(t("ttagFromLink"))}</button>
+         </div>
+         <div class="ttag-url-row" id="ttagUrlRow">
+           <input type="url" id="ttagUrl" class="ttag-url-input" placeholder="${esc(t("ttagUrlPlaceholder"))}" autocomplete="off" spellcheck="false" />
+           <button type="button" class="adf-btn adf-btn--ghost" id="ttagUrlAdd">${esc(t("ttagAdd"))}</button>
+         </div>
+         ${staged ? `<div class="ttag-chips">${chips}</div>` : ""}
+         <div class="ttag-error" id="ttagSrcError" hidden></div>
+       </div>`;
+    if (footer) footer.innerHTML =
+      `<button class="adf-btn adf-btn--ghost" id="ttagCancel">${esc(t("cancelLabel"))}</button>
+       <button class="adf-btn adf-btn--primary" id="ttagUpload"${staged ? "" : " disabled"}>${esc(t("ttagUploadPreview"))}</button>`;
+    _wireTtagPicker();
+  }
+
+  function _wireTtagPicker() {
+    $("ttagCancel")?.addEventListener("click", closeTtagImport);
+    $("ttagUpload")?.addEventListener("click", () => {
+      if (!_ttagStage || (!_ttagStage.files.length && !_ttagStage.url)) return;
+      _ttagResolveAndPreview(_ttagStage.files, _ttagStage.url).catch(e => reportError("ttag.upload", e));
+    });
+    $("ttagBrowse")?.addEventListener("click", async () => {
+      const fs = await _pickTtagFiles();
+      if (fs.length) { _ttagStage.files.push(...fs); _renderTtagPicker(); }
+    });
+    // Toggle the web-link row (its space is reserved in CSS, so no layout shift).
+    $("ttagFromLink")?.addEventListener("click", () => {
+      const row = $("ttagUrlRow"), btn = $("ttagFromLink");
+      if (!row) return;
+      const shown = row.classList.toggle("is-shown");
+      btn?.classList.toggle("is-active", shown);
+      if (shown) $("ttagUrl")?.focus();
+      else { const i = $("ttagUrl"); if (i) i.value = ""; }
+    });
+    const addUrl = () => {
+      const u = String($("ttagUrl")?.value || "").trim();
+      const errEl = $("ttagSrcError");
+      if (!_looksLikeUrl(u)) { if (errEl) { errEl.textContent = t("ttagUrlInvalid"); errEl.hidden = false; } return; }
+      _ttagStage.url = u; _renderTtagPicker();
+    };
+    $("ttagUrlAdd")?.addEventListener("click", addUrl);
+    $("ttagUrl")?.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); addUrl(); } });
+    // Remove a staged chip.
+    $("ttagImportBody")?.querySelectorAll(".ttag-chip-x").forEach(b => b.addEventListener("click", () => {
+      if (b.dataset.url) _ttagStage.url = "";
+      else if (b.dataset.file != null) _ttagStage.files.splice(Number(b.dataset.file), 1);
+      _renderTtagPicker();
+    }));
+    // In-modal drop target stages files (window-level handler stands down while
+    // the modal is open, so no double-fire).
+    const dz = $("ttagModalDrop");
+    if (dz) {
+      dz.addEventListener("dragover", (e) => { e.preventDefault(); e.stopPropagation(); dz.classList.add("is-over"); });
+      dz.addEventListener("dragleave", (e) => { e.stopPropagation(); dz.classList.remove("is-over"); });
+      dz.addEventListener("drop", (e) => {
+        e.preventDefault(); e.stopPropagation(); dz.classList.remove("is-over");
+        const files = Array.from(e.dataTransfer && e.dataTransfer.files || []);
+        const ttags = files.filter(f => /\.ttag$/i.test(f.name));
+        const use = ttags.length ? ttags : files;
+        if (use.length) { _ttagStage.files.push(...use); _renderTtagPicker(); }
+      });
+    }
+  }
+
+  // Read + validate the staged files AND the web link (a deliberate user action,
+  // http(s)-only via _looksLikeUrl), then open the combined preview. Each source
+  // keeps its own Restore/Import mode; a bad source is skipped-and-counted.
+  async function _ttagResolveAndPreview(files, url) {
+    const upload = $("ttagUpload");
+    if (upload) { upload.disabled = true; upload.textContent = t("ttagWorking"); }
+    const valid = [];
+    let skipped = 0, lastErr = null;
+    const consider = (obj) => {
+      const v = _ttagValidate(obj);
+      if (v.ok) valid.push({ obj, mode: _ttagDetectMode(obj) });
+      else { skipped++; lastErr = v.error; }
+    };
+    for (const f of files) {
+      let obj = null;
+      try { obj = JSON.parse(await f.text()); } catch { obj = null; }
+      consider(obj);
+    }
+    if (url) {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("http " + res.status);
+        let obj = null;
+        try { obj = JSON.parse(await res.text()); } catch { obj = null; }
+        consider(obj);
+      } catch (e) { reportError("ttag.url", e); skipped++; lastErr = "ttagUrlFetchErr"; }
+    }
+    if (!valid.length) { openTtagImport(null, lastErr || "ttagErrNotFile"); return; }
+    openTtagImport({ files: valid, skipped }, null);
+  }
+
+  // Drop a .ttag anywhere on the window → the import preview. Only reacts to a
+  // FILE drag (internal rack/spool drag-drop carries custom types, not Files),
+  // so it never interferes with the storage view's own DnD.
+  function _wireTtagDropZone() {
+    let depth = 0;
+    // While the import modal is open its own dropzone handles the drop, so the
+    // window-level handler stands down (no full-window hint over the modal).
+    const modalOpen = () => $("ttagImportOverlay")?.classList.contains("open");
+    const hasFiles = (e) => !modalOpen() && Array.from(e.dataTransfer && e.dataTransfer.types || []).includes("Files");
+    const clear = () => { depth = 0; document.body.classList.remove("ttag-dragging"); };
+    window.addEventListener("dragenter", (e) => { if (!hasFiles(e)) return; depth++; document.body.classList.add("ttag-dragging"); });
+    window.addEventListener("dragover", (e) => { if (!hasFiles(e)) return; e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = "copy"; });
+    window.addEventListener("dragleave", (e) => { if (!hasFiles(e)) return; depth = Math.max(0, depth - 1); if (depth === 0) document.body.classList.remove("ttag-dragging"); });
+    window.addEventListener("drop", (e) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault(); clear();
+      const files = Array.from(e.dataTransfer && e.dataTransfer.files || []);
+      const ttags = files.filter(f => /\.ttag$/i.test(f.name));
+      const use = ttags.length ? ttags : files; // fall back to all; validate gates
+      if (use.length) _ttagOpenFromFiles(use).catch(err => reportError("ttag.drop", err));
+    });
+  }
+
+  // One colour swatch (or product image) for a preview row.
+  function _ttagPrevThumb(row) {
+    // Scheme-check the image URL even for the preview — the record is from an
+    // untrusted file, and a bad-scheme url_img must never reach an <img src>.
+    const img = resolvedImg(_ttagCleanUrl(row.imgUrl) || "");
+    if (img) return `<img class="ttag-prev-thumb" src="${esc(img)}" alt="" onerror="this.style.display='none'">`;
+    const cols = [row.colorHex, row.colorHex2, row.colorHex3].filter(Boolean);
+    const bg = cols.length > 1
+      ? `linear-gradient(135deg, ${cols.map((c, i) => `${esc(c)} ${Math.round(i / cols.length * 100)}%, ${esc(c)} ${Math.round((i + 1) / cols.length * 100)}%`).join(", ")})`
+      : (esc(cols[0] || "var(--surface-2)"));
+    return `<span class="ttag-prev-thumb ttag-prev-thumb--swatch" style="background:${bg}"></span>`;
+  }
+
+  // `full` → show the weight at capacity (100%), reflecting the Import mode which
+  // resets every spool to new. Restore keeps the file's actual weight. `gidx` is
+  // the group's index (for the include/exclude checkbox).
+  function _ttagPreviewRowHTML(group, full, gidx) {
+    const d = group.records[0];
+    const row = normalizeRow(_ttagRecordId(d) || "ttag", d);
+    // Import recreates every material as chipless TigerData → show the TigerData
+    // badge in that mode; Restore keeps each material's real tier.
+    const badge = full
+      ? `<span class="tag-cloud">TigerData</span>`
+      : tierBadgeHTML(row, "", { backup: false });
+    // Twin entry → the same "linked" illustration the card / list views show, in
+    // the thumbnail's TOP-LEFT corner (overlaid on the spool visual).
+    const twinBadge = group.isTwin
+      ? `<div class="card-badges-tl card-badges-tl--sm"><span class="card-tl-badge card-tl-badge--twin" title="${esc(t("twinBadge"))}" aria-label="${esc(t("twinBadge"))}"><span class="icon icon-link icon-9"></span></span></div>`
+      : "";
+    const title = esc([row.brand, row.material].filter(x => x && x !== "-").join(" · ") || (row.colorName && row.colorName !== "-" ? row.colorName : "—"));
+    const sub = esc(row.colorName && row.colorName !== "-" ? row.colorName : "");
+    // Weight — rendered like the inventory table (value + fill bar). Import shows
+    // it full (100%); Restore shows the file's remaining weight.
+    const cap = Number(row.capacity) || 0;
+    const w = full && cap > 0 ? cap : (row.weightAvailable != null ? Number(row.weightAvailable) : null);
+    let wCell = "";
+    if (w != null && Number.isFinite(w)) {
+      wCell = `<span class="ttag-prev-w-val">${Math.round(w)} g</span>`;
+      if (cap > 0) { const p = Math.max(0, Math.min(100, Math.round(w / cap * 100))); wCell += `<span class="bar" title="${p}%"><span style="width:${p}%;background:${fillBarColor(p)}"></span></span>`; }
+    }
+    // Include/exclude checkbox — checked unless this group's records are in the
+    // excluded set (so re-renders, e.g. on a mode switch, keep the selection).
+    const excluded = _ttagPending && _ttagPending.excluded;
+    const checked = !(excluded && group.records.some(x => excluded.has(_ttagRecordId(x))));
+    // Reuses the app's `.sel-check` checkbox — checked state is the `.row-selected`
+    // class, exactly like the inventory rows/cards.
+    return `<tr class="ttag-prev-row${checked ? " row-selected" : ""}" data-gidx="${gidx}">
+      <td class="sel-cell"><span class="sel-check" aria-hidden="true"></span></td>
+      <td class="ttag-td-thumb"><span class="ttag-prev-thumb-wrap">${thumbHTML(row, 40, { badges: false, backup: false })}${twinBadge}</span></td>
+      <td class="ttag-td-mat">
+        <span class="ttag-prev-name">${title}</span>
+        ${sub ? `<span class="ttag-prev-sub">${sub}</span>` : ""}
+      </td>
+      <td class="ttag-td-weight"><div class="ttag-prev-weight">${wCell}</div></td>
+      <td class="ttag-td-badge">${badge}</td>
+    </tr>`;
+  }
+
+  // Toggle the list's top/bottom scroll-fade from the current scroll position.
+  function _ttagUpdateFades() {
+    const wrap = $("ttagImportBody")?.querySelector(".ttag-list-wrap");
+    const list = wrap?.querySelector(".ttag-list");
+    if (!wrap || !list) return;
+    wrap.classList.toggle("can-up", list.scrollTop > 2);
+    wrap.classList.toggle("can-down", list.scrollTop + list.clientHeight < list.scrollHeight - 2);
+  }
+
+  // Open the import modal — either a preview (payload set) or an error (errKey).
+  // payload = { files:[{obj,mode}], skipped }. Records from every file merge
+  // into one preview; the batch mode is restore/import when uniform, else mixed.
+  function openTtagImport(payload, errKey) {
+    _ttagPending = errKey ? null : payload;
+    const card = $("ttagImportBody");
+    const footer = $("ttagImportFooter");
+    if (errKey) {
+      if (card) card.innerHTML = `<p class="ttag-error">${esc(t(errKey))}</p>`;
+      if (footer) footer.innerHTML = `<button class="adf-btn adf-btn--ghost" id="ttagCancel">${esc(t("ttagClose"))}</button>`;
+    } else {
+      const files = payload.files;
+      const allRecords = files.flatMap(f => f.obj.records);
+      const groups = _ttagGroupMaterials(allRecords);
+      payload.groups = groups;
+      payload.excluded = new Set();   // record uids the user unchecked
+      payload.mode = null;            // chosen add mode (null until a mode is picked)
+      let summary = t("ttagSummary", { n: groups.length });   // materials only — record count is noise
+      if (files.length > 1) summary += " · " + t("ttagFilesCount", { n: files.length });
+      const skipLine = payload.skipped > 0
+        ? `<div class="ttag-summary ttag-summary--warn">${esc(t("ttagSkipped", { n: payload.skipped }))}</div>` : "";
+      // Every material starts checked; unchecking one keeps it out of the import.
+      // The user CHOOSES the add mode too — nothing is decided by default.
+      if (card) card.innerHTML =
+        `<div class="ttag-summary" id="ttagSummaryLine">${esc(summary)}</div>
+         ${skipLine}
+         <div class="ttag-list-wrap"><div class="ttag-list"><table class="ttag-table">
+           <thead><tr>
+             <th class="sel-th"><span class="sel-check sel-check--all" id="ttagSelAll" role="checkbox" tabindex="0" aria-label="${esc(t("bulkSelectMode"))}"></span></th>
+             <th class="ttag-th-thumb"></th>
+             <th>${esc(t("thMaterial"))}</th>
+             <th class="ttag-th-weight">${esc(t("thWeight"))}</th>
+             <th class="ttag-th-badge">${esc(t("thType"))}</th>
+           </tr></thead>
+           <tbody id="ttagTbody">${groups.map((g, i) => _ttagPreviewRowHTML(g, false, i)).join("")}</tbody>
+         </table></div></div>
+         <div class="ttag-choose">${esc(t("ttagChooseMode"))}</div>
+         <div class="ttag-modes">
+           <button type="button" class="ttag-mode-opt" data-mode="restore">
+             <span class="ttag-mode-opt-title">${esc(t("ttagModeRestoreLabel"))}</span>
+             <span class="tool-info" data-tip="${esc(t("ttagModeRestoreHint"))}" aria-label="${esc(t("ttagModeRestoreHint"))}"><span class="icon icon-info icon-13"></span></span>
+           </button>
+           <button type="button" class="ttag-mode-opt" data-mode="import">
+             <span class="ttag-mode-opt-title">${esc(t("ttagModeImportLabel"))}</span>
+             <span class="tool-info" data-tip="${esc(t("ttagModeImportHint"))}" aria-label="${esc(t("ttagModeImportHint"))}"><span class="icon icon-info icon-13"></span></span>
+           </button>
+         </div>`;
+      if (footer) footer.innerHTML =
+        `<button class="adf-btn adf-btn--ghost" id="ttagCancel">${esc(t("cancelLabel"))}</button>
+         <button class="adf-btn adf-btn--primary" id="ttagAccept" disabled>${esc(t("ttagAcceptImport"))}</button>`;
+      // Scroll-fade hints — the top/bottom gradient shows only when the list
+      // overflows that way (the scrollbar is hidden in CSS).
+      card.querySelector(".ttag-list")?.addEventListener("scroll", _ttagUpdateFades);
+      // A group counts as selected unless ALL its records are excluded (a twin is
+      // one material). Refresh the summary + Accept state on every change.
+      const selCount = () => groups.filter(g => !g.records.every(x => payload.excluded.has(_ttagRecordId(x)))).length;
+      const refresh = () => {
+        const n = selCount();
+        const sl = $("ttagSummaryLine");
+        if (sl) sl.textContent = n < groups.length ? t("ttagSummarySel", { n, total: groups.length }) : summary;
+        const acc = $("ttagAccept");
+        if (acc) acc.disabled = !payload.mode || n === 0;
+        const all = $("ttagSelAll");   // header master checkbox: all / some / none
+        if (all) { all.classList.toggle("is-all", n === groups.length); all.classList.toggle("is-some", n > 0 && n < groups.length); }
+        _ttagUpdateFades();   // content height can change (e.g. mode re-render)
+      };
+      // Include/exclude a material — clicking the row toggles `.row-selected`
+      // (delegated; survives the mode re-render).
+      card?.querySelector(".ttag-list")?.addEventListener("click", (e) => {
+        if (e.target.closest?.(".sel-check--all")) return;   // header handled below
+        const rowEl = e.target.closest?.(".ttag-prev-row");
+        if (!rowEl) return;
+        const g = groups[Number(rowEl.dataset.gidx)];
+        if (!g) return;
+        const on = rowEl.classList.toggle("row-selected");
+        g.records.map(_ttagRecordId).forEach(u => { if (on) payload.excluded.delete(u); else payload.excluded.add(u); });
+        refresh();
+      });
+      // Header "select all" — checks/unchecks every material at once.
+      const setAll = (on) => {
+        payload.excluded.clear();
+        if (!on) groups.forEach(g => g.records.forEach(x => payload.excluded.add(_ttagRecordId(x))));
+        card.querySelectorAll(".ttag-prev-row").forEach(tr => tr.classList.toggle("row-selected", on));
+        refresh();
+      };
+      $("ttagSelAll")?.addEventListener("click", () => setAll(selCount() < groups.length));
+      // Picking a mode assigns it to every file, highlights it, re-renders weights
+      // (Import → full) preserving the checkboxes, and arms Accept. Pre-selected
+      // from `exportedBy` as a HINT (same account → Restore, else Import).
+      const selectMode = (mode) => {
+        payload.mode = mode;
+        card.querySelectorAll(".ttag-mode-opt").forEach(o => o.classList.toggle("is-selected", o.dataset.mode === mode));
+        payload.files.forEach(f => { f.mode = mode; });
+        const acc = $("ttagAccept");
+        if (acc) acc.textContent = t(mode === "restore" ? "ttagAcceptRestore" : "ttagAcceptImport");
+        const tb = card.querySelector("#ttagTbody");   // rows only — keep the header
+        if (tb) tb.innerHTML = groups.map((g, i) => _ttagPreviewRowHTML(g, mode === "import", i)).join("");
+        refresh();
+      };
+      card?.querySelectorAll(".ttag-mode-opt").forEach(opt =>
+        opt.addEventListener("click", () => selectMode(opt.dataset.mode === "restore" ? "restore" : "import")));
+      const hintModes = new Set(files.map(f => f.mode));   // auto-detected per file
+      if (hintModes.size === 1) selectMode([...hintModes][0]);   // uniform → pre-select
+      refresh();
+    }
+    // Wire the freshly-rendered footer buttons.
+    $("ttagCancel")?.addEventListener("click", closeTtagImport);
+    $("ttagAccept")?.addEventListener("click", _onTtagAccept);
+    $("ttagImportOverlay")?.classList.add("open");
+    requestAnimationFrame(_ttagUpdateFades);   // once the modal has laid out
+  }
+
+  function closeTtagImport() {
+    $("ttagImportOverlay")?.classList.remove("open");
+    _ttagPending = null;
+  }
+
+  async function _onTtagAccept(e) {
+    const btn = e.currentTarget;
+    const payload = _ttagPending;
+    if (!payload || !payload.files || !payload.files.length) return closeTtagImport();
+    const restoreOnly = payload.files.every(f => f.mode === "restore");
+    btn.disabled = true;
+    btn.textContent = t("ttagWorking");
+    try {
+      const n = await _ttagApplyImportAll(payload.files, payload.excluded);
+      _ttagPending = null;
+      // onSnapshot repaints the inventory underneath; show a success state
+      // in the modal, then auto-close (no global toast surface exists).
+      const body = $("ttagImportBody"), footer = $("ttagImportFooter");
+      if (body) body.innerHTML = `<p class="ttag-success">${esc(t("ttagImportOk", { n }))}</p>`;
+      if (footer) footer.innerHTML = `<button class="adf-btn adf-btn--primary" id="ttagDone">${esc(t("ttagDone"))}</button>`;
+      $("ttagDone")?.addEventListener("click", closeTtagImport);
+      setTimeout(closeTtagImport, 2400);
+    } catch (err) {
+      reportError("ttag.import", err);
+      btn.disabled = false;
+      btn.textContent = t(restoreOnly ? "ttagAcceptRestore" : "ttagAcceptImport");
+      const body = $("ttagImportBody");
+      if (body) {
+        const p = document.createElement("p");
+        p.className = "ttag-error";
+        p.textContent = t("ttagImportErr");
+        body.appendChild(p);
+      }
+    }
+  }
+
   function _wireToolbox(r) {
+    // Export this material as a .ttag (offline backup; + twin partner).
+    $("btnExportTtag")?.addEventListener("click", () => {
+      _exportMaterialTtag(r).catch(e => reportError("ttag.export", e));
+    });
     // Delete spool — 1.5s hold, irreversible hard delete (+ twin).
     setupHoldToConfirm($("btnSpoolDelete"), 1500, async () => {
       try { await markSpoolDeleted(r.spoolId); closeDetail(); }
@@ -13195,6 +14067,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     _hideToolInfoTip();                 // drop any open ⓘ bubble before the rebuild
     $("panelBody").innerHTML = buildPanelHTML(r);
     _wireToolInfoTips();                // delegated ⓘ handlers (once, on #panelBody)
+    usbScaleRefreshDock();              // instant scale readout in the WEIGHT section
     // A fresh open starts at the top; a card-presence refresh (chip placed/removed
     // while the panel is already open) keeps the user where they were.
     $("panelBody").scrollTop = opts.preserveScroll ? _prevScroll : 0;
@@ -14261,7 +15134,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     _syncPanels();
     // opts.editPrice / editBuyLink → jump straight into that editor with the input
     // focused (used by the "Add a price" and empty-Shopify-button shortcuts).
-    if (opts.editPrice) setTimeout(() => $("roPriceEdit")?.click(), 130);
+    if (opts.editPrice) setTimeout(() => $("roPriceBtn")?.click(), 130);
     else if (opts.editBuyLink) setTimeout(() => $("roShopEdit")?.click(), 130);
     else setTimeout(() => $("roBuyUrl")?.focus(), 120);
   }
@@ -14613,12 +15486,15 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   function _reorderUpdatePriceDisplay() {
     const el = $("roPriceVal"); if (!el) return;
     const raw = $("roPrice")?.value;
+    const btn = $("roPriceBtn"), edit = $("roPriceEdit");
     if (raw === "" || raw == null || !Number.isFinite(+raw)) {
       el.textContent = t("reorderAddPrice");
-      el.classList.add("ro-price-shown--empty");
+      btn?.classList.remove("ro-shop-btn--active");
+      if (edit) edit.hidden = true;
     } else {
       el.textContent = `${_fmtMoney(+raw)} ${_vatInfo().symbol}`;
-      el.classList.remove("ro-price-shown--empty");
+      btn?.classList.add("ro-shop-btn--active");
+      if (edit) edit.hidden = false;
     }
   }
 
@@ -14868,9 +15744,14 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         </div>
         <!-- Value shown as text (e.g. "16,20 €") + a pencil; the number input is
              hidden until you edit, then a ✓ saves and hides it again. -->
+        <!-- Big button like the buy-link: icon + "Add a price" when empty (click
+             to add), the value when set (click to edit); pencil shown once set. -->
         <div class="ro-shop" id="roPriceDisplay">
-          <div class="ro-price-shown" id="roPriceVal"></div>
-          <button type="button" class="ro-shop-edit" id="roPriceEdit" title="${esc(t("reorderEditPrice"))}">
+          <button type="button" class="ro-shop-btn${price !== "" ? " ro-shop-btn--active" : ""}" id="roPriceBtn">
+            <span class="ro-price-cur" id="roPriceSym">${esc(info.symbol)}</span>
+            <span id="roPriceVal"></span>
+          </button>
+          <button type="button" class="ro-shop-edit" id="roPriceEdit" title="${esc(t("reorderEditPrice"))}"${price !== "" ? "" : " hidden"}>
             <span class="icon icon-edit icon-13"></span>
           </button>
         </div>
@@ -14901,6 +15782,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
                   placeholder="${esc(t("reorderNotePlaceholder"))}">${esc(link.note || "")}</textarea>
       </div>
 
+      ${state.friendView ? "" : `
+      <button type="button" class="toolbox-row ro-cloud-row" id="roCreateCloud">
+        <span class="icon icon-plus icon-14 toolbox-row-icon"></span>
+        <span class="toolbox-row-label">${esc(t("productCreateCloud"))}</span>
+        <span class="tool-info" data-tip="${esc(t("productCreateCloudTip"))}" aria-label="${esc(t("productCreateCloudTip"))}"><span class="icon icon-info icon-13"></span></span>
+      </button>`}
+
       <div class="ro-field">
         <div class="ro-label">${esc(t("reorderRefs"))}</div>
         <div class="ro-ref-row">
@@ -14929,12 +15817,6 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         </div>
       </div>
 
-      ${state.friendView ? "" : `
-      <button type="button" class="toolbox-row ro-cloud-row" id="roCreateCloud">
-        <span class="icon icon-plus icon-14 toolbox-row-icon"></span>
-        <span class="toolbox-row-label">${esc(t("productCreateCloud"))}</span>
-        <span class="tool-info" data-tip="${esc(t("productCreateCloudTip"))}" aria-label="${esc(t("productCreateCloudTip"))}"><span class="icon icon-info icon-13"></span></span>
-      </button>`}
       <div id="roSaveResult" class="ro-save-result"></div>`;
     // ❤/★ toggles live in the panel HEADER (left of the ✕), not the body head.
     const hf = $("roHeaderFlags"); if (hf) hf.innerHTML = _flagTogglesHTML(r);
@@ -15021,6 +15903,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     };
     const priceCommit = () => { priceExitEdit(); _saveReorder(r); };
     $("roPriceEdit")?.addEventListener("click", priceEnterEdit);
+    $("roPriceBtn")?.addEventListener("click", priceEnterEdit);   // whole button opens the editor (empty or set)
     $("roPriceOk")?.addEventListener("click", priceCommit);
     $("roPrice")?.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); priceCommit(); } });
     // Minimum stock — same value+pencil / input+✓ toggle as the price.
@@ -15912,6 +16795,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         </div>
       </div>
       ${weightHtml}
+      ${state.friendView ? "" : '<div id="usbScaleDock" class="usbscale-dock"></div>'}
       ${storageHtml}
       ${tagsHtml}
       ${containerHtml}
@@ -16153,6 +17037,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         }
 
         // ("Add to a list" now lives in the ❤/★ flags row above the name.)
+
+        // 5g. Export as .ttag — a faithful offline backup of this material
+        //     (+ its twin partner). No reader needed, own inventory only, so
+        //     it lives outside the reader-gated chip-tools block above.
+        if (!state.friendView) {
+          tools.push({ id: "btnExportTtag", icon: "icon-download", label: t("ttagExport"), variant: "default", info: t("ttagExportTip") });
+        }
 
         // 6. Delete — moved out of its own section into the toolbox.
         tools.push({
@@ -24486,7 +25377,53 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     });
   }
 
+  // Auto-scroll the rack column while dragging near its top/bottom edge. macOS
+  // does this natively during an HTML5 drag; Windows/Chromium does NOT (and the
+  // wheel is blocked mid-drag), so a Windows user couldn't reach off-screen racks
+  // while holding a material. We drive it ourselves off the drag cursor's Y.
+  // Wired once (guarded) — active only while a spool drag is in progress.
+  let _rackAutoScrollWired = false;
+  function _wireRackAutoScroll() {
+    if (_rackAutoScrollWired) return;
+    _rackAutoScrollWired = true;
+    // macOS already auto-scrolls (and still allows the wheel) during an HTML5
+    // drag, so only Windows/Linux need this — skip it on Mac to avoid stacking
+    // on top of the native scroll (which would double the speed).
+    if (/Mac/i.test(navigator.platform || navigator.userAgent || "")) return;
+    const EDGE = 64, SPEED = 16;   // px from edge that triggers; px per frame
+    let dir = 0, raf = 0;
+    const scroller = () => document.querySelector("#invRackView .rp-racks-scroll");
+    const step = () => {
+      const el = scroller();
+      if (el && dir) el.scrollTop += dir * SPEED;
+      raf = dir ? requestAnimationFrame(step) : 0;
+    };
+    const stop = () => { dir = 0; if (raf) { cancelAnimationFrame(raf); raf = 0; } };
+    document.addEventListener("dragover", (e) => {
+      if (!document.body.classList.contains("is-dragging-spool")) { stop(); return; }
+      const el = scroller();
+      if (!el) { stop(); return; }
+      const r = el.getBoundingClientRect();
+      dir = e.clientY < r.top + EDGE ? -1 : e.clientY > r.bottom - EDGE ? 1 : 0;
+      if (dir && !raf) raf = requestAnimationFrame(step);
+      else if (!dir) stop();
+    });
+    // Best-effort mouse-wheel scroll DURING the drag. Windows/Chromium usually
+    // suppresses wheel events mid-native-drag (why the wheel felt dead), but on
+    // the configs where it DOES fire, this scrolls the rack column like on macOS.
+    document.addEventListener("wheel", (e) => {
+      if (!document.body.classList.contains("is-dragging-spool")) return;
+      const el = scroller();
+      if (!el) return;
+      el.scrollTop += e.deltaY;
+      e.preventDefault();
+    }, { passive: false });
+    document.addEventListener("dragend", stop);
+    document.addEventListener("drop", stop);
+  }
+
   function wireDragSources() {
+    _wireRackAutoScroll();   // one-time; harmless no-op after the first call
     document.querySelectorAll("#invRackView .rp-side-row, #invRackView .rp-chip, #invRackView .rp-slot--filled").forEach(el => {
       // Idempotent: a surgical slot patch re-calls this to wire cells that just
       // became filled, without double-binding cells that were already wired.
@@ -25102,6 +26039,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     // A friend's inventory is read-only — hide the write action (Add product /
     // Add device) since it can't act on a friend's docs.
     $("btnAddProduct")?.classList.toggle("hidden", !!state.friendView);
+    _syncTtagBarButtons();   // hide the .ttag Export/Import bar on a friend view
     // The cam-wall "Detach" button is meaningless in a friend view (no cameras) —
     // force-hide it here so it can never linger from a prior cam session.
     if (state.friendView) { const _d = $("camWallDetachTop"); if (_d) _d.hidden = true; }

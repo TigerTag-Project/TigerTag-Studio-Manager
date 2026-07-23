@@ -623,6 +623,92 @@ function initNFC() {
   });
 }
 
+// ── USB scale (Dymo M-series) ──────────────────────────────────────────────
+// Standard USB HID Scale (usage page 0x8D): 6-byte data reports at ~1 Hz —
+// [reportId, status, unit, signed exponent, weight LSB, weight MSB].
+// node-hid has no hot-plug events, so we poll the device list every 5 s while
+// disconnected and rely on the read-error callback to detect unplug.
+
+let _scaleDev       = null;
+let _scalePollTimer = null;
+let _scaleInfo      = null;   // { product } while connected
+
+const SCALE_VENDOR_DYMO = 0x0922;
+const SCALE_STATUS = { 1:'fault', 2:'zero', 3:'motion', 4:'stable', 5:'negative', 6:'over' };
+const SCALE_OZ_TO_G = 28.3495;
+
+function _scaleBroadcast(channel, payload) {
+  mainWindow?.webContents.send(channel, payload);
+}
+
+function _scaleDecode(buf) {
+  if (!buf || buf.length < 6) return null;
+  const status = SCALE_STATUS[buf[1]] || 'unknown';
+  const unit   = buf[2]; // 0x02 g, 0x0B oz, 0x0C lb (0x00 on the first frame after tare)
+  const exp    = buf[3] > 127 ? buf[3] - 256 : buf[3];
+  let   value  = (buf[4] | (buf[5] << 8)) * Math.pow(10, exp);
+  let grams;
+  if      (unit === 0x02) grams = value;
+  else if (unit === 0x0b) grams = value * SCALE_OZ_TO_G;
+  else if (unit === 0x0c) grams = value * SCALE_OZ_TO_G * 16;
+  else grams = 0; // unit 0x00 quirk right after tare — always a zero frame anyway
+  if (status === 'negative') grams = -grams;
+  return { status, grams: Math.round(grams) };
+}
+
+function _scaleDisconnected() {
+  try { _scaleDev?.close(); } catch (_) { /* already gone */ }
+  _scaleDev = null;
+  if (_scaleInfo) {
+    console.log('[Scale] Disconnected');
+    _scaleInfo = null;
+    _scaleBroadcast('usb-scale-update', { connected: false, product: null });
+  }
+  if (!_scalePollTimer) _scalePollTimer = setInterval(_tryOpenScale, 5000);
+}
+
+function _tryOpenScale() {
+  if (_scaleDev) return;
+  let HID;
+  try { HID = require('node-hid'); } catch (e) {
+    console.warn('[Scale] node-hid unavailable:', e.message);
+    clearInterval(_scalePollTimer); _scalePollTimer = null;
+    return;
+  }
+  let info;
+  try {
+    info = HID.devices().find(d =>
+      d.vendorId === SCALE_VENDOR_DYMO && (d.usagePage === undefined || d.usagePage === 0x8d));
+  } catch (_) { return; }
+  if (!info) return;
+  try {
+    _scaleDev = new HID.HID(info.path);
+  } catch (e) {
+    console.warn('[Scale] open failed:', e.message);
+    return;
+  }
+  clearInterval(_scalePollTimer); _scalePollTimer = null;
+  _scaleInfo = { product: info.product || 'USB scale' };
+  console.log(`[Scale] Connected: ${_scaleInfo.product}`);
+  _scaleBroadcast('usb-scale-update', { connected: true, product: _scaleInfo.product });
+  _scaleDev.on('data', (buf) => {
+    const frame = _scaleDecode(buf);
+    if (frame) _scaleBroadcast('usb-scale-data', frame);
+  });
+  _scaleDev.on('error', () => _scaleDisconnected()); // unplug or read failure
+}
+
+function initUsbScale() {
+  _tryOpenScale();
+  if (!_scaleDev && !_scalePollTimer) _scalePollTimer = setInterval(_tryOpenScale, 5000);
+}
+
+// Renderer seeds its state on startup (events may have fired before it loaded).
+ipcMain.handle('usb-scale:state', () => ({
+  connected: !!_scaleDev,
+  product: _scaleInfo?.product || null,
+}));
+
 // On-demand card read — called by renderer "Read" button in RFID tester.
 // Delegates to the NFC utility process and parses the result here in the main process.
 ipcMain.handle('rfid:read-now', async (_evt, readerName) => {
@@ -3990,6 +4076,7 @@ app.whenReady().then(async () => {
   createWindow();
   initNFC();   // spawns isolated utility process — never blocks the main V8 thread
   initTD1S();
+  initUsbScale();
 
   // Check for updates only after the renderer has fully painted its first frame,
   // then wait an additional 6 s so Firebase can connect and the inventory can

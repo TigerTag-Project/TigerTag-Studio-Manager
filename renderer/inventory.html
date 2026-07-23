@@ -18,6 +18,7 @@
 <link rel="stylesheet" href="rfid_protocol/tigertag/modal.css" />
 <link rel="stylesheet" href="css/70-detail-misc.css" />
 <link rel="stylesheet" href="IoT/tigerscale/tigerscale.css" />
+<link rel="stylesheet" href="IoT/usbscale/usbscale.css" />
 <link rel="stylesheet" href="IoT/td1s/td1s.css" />
 </head>
 <body>
@@ -231,6 +232,17 @@
           <button id="btnSelectMode" class="inv-select-btn js-select-toggle" type="button" title="Select multiple">
             <span class="icon icon-check icon-13"></span>
             <span data-i18n="bulkSelectMode">Select</span>
+          </button>
+          <!-- .ttag data actions — whole-inventory Export + Import, shown only in
+               the material inventory (table/grid), hidden in friend view. Import
+               also lives in Settings → Data and via drag-drop anywhere. -->
+          <button id="btnInvExportTtag" class="inv-add-btn inv-ttag-btn" type="button">
+            <span class="icon icon-download icon-13"></span>
+            <span data-i18n="ttagExportShort">Export</span>
+          </button>
+          <button id="btnInvImportTtag" class="inv-add-btn inv-ttag-btn" type="button">
+            <span class="icon icon-backup icon-13"></span>
+            <span data-i18n="ttagImportShort">Import</span>
           </button>
           <button id="btnAddProduct" class="inv-add-btn" type="button">
             <span class="icon icon-plus icon-13"></span>
@@ -468,6 +480,10 @@
           <button class="ghost sm" id="btnStgExport">
             <span class="icon icon-download icon-13"></span>
             <span data-i18n="settingsExport">↓ Download JSON</span>
+          </button>
+          <button class="ghost sm" id="btnStgImportTtag">
+            <span class="icon icon-backup icon-13"></span>
+            <span data-i18n="ttagImportBtn">Import a .ttag</span>
           </button>
           <button class="ghost sm" id="btnCopyApiUrl" title="Copy export URL">
             <span class="icon icon-link icon-13"></span>
@@ -2164,6 +2180,31 @@
   </div>
 </div>
 
+<!-- ── .ttag import — validate → preview → accept.
+     Body + footer are rendered by openTtagImport() (preview or error state);
+     accept writes into inventory (Restore = verbatim, Import = fresh chipless). -->
+<div class="modal-overlay" id="ttagImportOverlay">
+  <div class="modal-card adf-card ttag-card">
+    <div class="adf-header">
+      <div class="adf-header-text">
+        <div class="adf-title" data-i18n="ttagImportTitle">Import a .ttag</div>
+        <div class="adf-sub" data-i18n="ttagImportSub">Preview what's inside before it lands in your inventory</div>
+      </div>
+      <button class="modal-close" id="ttagImportClose">✕</button>
+    </div>
+    <div class="adf-body ttag-import-body" id="ttagImportBody"></div>
+    <div class="adf-footer" id="ttagImportFooter"></div>
+  </div>
+</div>
+
+<!-- Drop hint — appears while a file is dragged over the window (body.ttag-dragging). -->
+<div id="ttagDropHint" class="ttag-drop-hint" aria-hidden="true">
+  <div class="ttag-drop-hint-inner">
+    <span class="icon icon-backup"></span>
+    <span data-i18n="ttagDropHint">Drop your .ttag to import</span>
+  </div>
+</div>
+
 <!-- ── Create-list modal (Amazon-style: name + occasion) ── -->
 <!-- ── container weight editor ──
      Correct a container's empty weight for THIS account. Shows the container it
@@ -2238,7 +2279,7 @@
               <span class="cw-how-num circle-center" id="cwHowLastNum">3</span>
               <span class="cw-how-cap" id="cwHowScaleCap"></span>
             </div>
-            <img class="cw-how-img cw-how-img--scale" src="../assets/img/spool_filament/oem_kitchen_scale.png" alt="" aria-hidden="true"
+            <img class="cw-how-img cw-how-img--scale" src="../assets/img/spool_filament/dymo_usb_scale.png" alt="" aria-hidden="true"
                  onerror="this.hidden=true;this.nextElementSibling.hidden=false" />
             <span class="cw-how-fallback icon icon-scale" aria-hidden="true" hidden></span>
           </div>
@@ -3018,5 +3059,6 @@
     </div>
   </div>
 </div>
+
 </body>
 </html>

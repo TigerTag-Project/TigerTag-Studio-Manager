@@ -241,5 +241,47 @@ fields only, personal state stripped) — out of scope here, noted for later.
 
 ## Progress
 
-_Nothing implemented yet. Format fully specified and frozen (this file). The `CLOUD_ → TigerData_`
-prefix groundwork is done across all four codebases (see `WORKLOG.md`)._
+- **Phase 1 — export: DONE (single material).** `renderer/inventory.js` carries the builder
+  (`_ttagMaterialRecords` → verbatim doc + atomic twin partner; `_ttagCollectBackups` → verbatim
+  `rfidList/{chipUid}` for Plus chips, keyed by uid; `_buildTtag` stamps `exportedBy`; `_ttagSerialize`
+  normalises Firestore Timestamps → epoch-ms; `_ttagHasLegacyCloud` enforces invariant #2;
+  `_saveTtagFile` Blob download; `_ttagMaterialFilename` → `brand-material-color.ttag`). Entry point: an
+  "Export .ttag" button in the spool detail toolbox (`btnExportTtag`, own inventory only, no reader),
+  wired in `_wireToolbox`.
+- **Phase 1 — import: DONE.** `importTtagFromFile` (file picker) → `_ttagValidate` (marker + version)
+  → `_ttagSanitizeRecord` (drop bad-scheme URLs, clamp colours/weights/TD) → `openTtagImport` preview
+  modal (`#ttagImportOverlay`, mode banner + material count + per-material rows via `normalizeRow` +
+  `tierBadgeHTML`) → accept → `_ttagApplyImport`. **Mode auto-picked** by `_ttagDetectMode` from the
+  file's `exportedBy`: **Restore** (same account) rewrites verbatim under original ids + restores
+  `rfidList` backups; **Import** (other/unknown) mints fresh chipless copies (new `TigerData_` uid,
+  fresh `id_tigertag`, `id_product` unset, `rfidBackup:false`), remaps `twin_tag_uid` old→new, drops
+  backups. Both stamp fresh `updatedAt`, never write `deleted`; writes are batched (chunked <500).
+  `productKey`/`_productKeyHash` is **account-independent** (verified — identity-only hash), so no
+  recompute is needed in either mode. Entry points: an "Import" button in the inventory toolbar
+  (`btnInvImportTtag`) and Settings → Data (`btnStgImportTtag`), both opening a **source modal**
+  (`openTtagImportPicker`) with a drop zone, a **Browse files** multi-picker, and a **web link**
+  (`_ttagOpenFromUrl` — `fetch` a `.ttag` from a pasted http(s) URL, scheme-checked). Plus **multi-file**
+  import (many `.ttag` at once, each keeping its own Restore/Import mode; invalid files
+  skipped-and-counted) and **drag-and-drop anywhere** on the window (`_wireTtagDropZone`, suppressed
+  while the modal is open). Modal markup in `inventory.html`, CSS in `60-modals.css`.
+- Validators green (`i18n:check`, `node --check`, eslint 0 errors, `codemap:check` no drift).
+  **Not yet tested in the app** — needs an `npm start` round-trip: export a material → re-import into
+  the SAME account (Restore, verbatim, weight/container intact); export a twin → 2 records preview,
+  round-trips as a pair; export a Plus chip → `rfidBackups` present, Restore rewrites the backup;
+  import a file from a DIFFERENT account → fresh `TigerData_` chipless copies, twins re-paired, no
+  backup claimed; a corrupt/foreign JSON → clean rejection.
+- **Import-mode note (deliberate simplification of the brief's ambiguous "keep the hex" clause):** in
+  Import mode EVERY record lands chipless, including what was a real chip — you don't hold the physical
+  chip, so nothing is claimed; the chip re-materialises normally when the user later scans it. Revisit
+  only if a real cross-account chip-handover flow is wanted.
+- **Whole-inventory export: DONE (grouped).** An "Export" button in the inventory toolbar
+  (`btnInvExportTtag`, left of Import / "+ Material") writes every non-deleted material into one
+  `tigertag-inventory-<date>.ttag` via `_exportAllTtag`. Both toolbar buttons (`_syncTtagBarButtons`)
+  show only in the material inventory (table/grid), hidden on a friend view.
+- **Not built yet:** the **individual** (one-file-per-material) multi-export and its **grouped-vs-
+  individual chooser** (only single-material and grouped-whole-inventory exist so far), and the
+  **list/favourite** import destination (import always lands in inventory). Phase 2 (OS file
+  association) untouched.
+
+_Format fully specified and frozen above. The `CLOUD_ → TigerData_` prefix groundwork is done across
+all four codebases (see `WORKLOG.md`)._

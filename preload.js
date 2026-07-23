@@ -120,6 +120,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onDeepLink:    (cb) => ipcRenderer.on('deep-link', (_, url) => cb(url)),
   deepLinkReady: ()   => ipcRenderer.send('deep-link:ready'),
 
+  // ── USB scale (Dymo M-series) ──────────────────────────────────────────
+  // Connect/disconnect — callback({ connected, product })
+  onUsbScaleUpdate: (callback) =>
+    ipcRenderer.on('usb-scale-update', (_, data) => callback(data)),
+
+  // Decoded weight frame at ~1 Hz — callback({ status, grams })
+  // status: 'zero' | 'stable' | 'motion' | 'negative' | 'over' | 'fault'
+  onUsbScaleData: (callback) =>
+    ipcRenderer.on('usb-scale-data', (_, data) => callback(data)),
+
+  // Seed call — returns { connected, product } (events may predate the renderer)
+  getUsbScaleState: () =>
+    ipcRenderer.invoke('usb-scale:state'),
+
   // Called when a card is scanned — callback(uid) — uid is uppercase hex
   onRfid: (callback) =>
     ipcRenderer.on('rfid-uid', (_, uid) => callback(uid)),

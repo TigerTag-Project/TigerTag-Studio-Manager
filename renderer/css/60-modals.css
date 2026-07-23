@@ -4466,3 +4466,174 @@
   /* Reset is a quiet escape hatch — never competing with Save. */
   #cwModalOverlay .cw-reset { font-size: 12px; color: var(--muted); }
   #cwModalOverlay .cw-reset .icon { background-color: currentColor; }
+
+/* ═══ .ttag import modal ═══════════════════════════════════════════════════
+   Reuses the add-friend card chrome (.adf-*); body + footer are rendered by JS
+   (source picker → preview). Uses ONLY real design tokens (--surface,
+   --surface-2, --border, --text, --muted, --primary, --danger, --radius…). */
+
+/* Card + header/footer polish — scoped, so the shared .adf-* chrome is untouched. */
+#ttagImportOverlay .ttag-card { max-width: 560px; width: min(560px, 92vw); }
+/* No header/footer hairlines — a cleaner, more minimal card. */
+#ttagImportOverlay .adf-header { padding: 20px 22px 12px; border-bottom: 0; }
+#ttagImportOverlay .adf-title { font-size: 17px; font-weight: 700; }
+#ttagImportOverlay .adf-sub { font-size: 13px; color: var(--muted); margin-top: 3px; }
+#ttagImportOverlay .ttag-import-body { display: flex; flex-direction: column; gap: 16px; padding: 6px 22px 22px; }
+#ttagImportOverlay .adf-footer { padding: 6px 22px 20px; border-top: 0; display: flex; justify-content: flex-end; gap: 10px; }
+#ttagImportOverlay .adf-footer .adf-btn { padding: 9px 20px; }
+
+/* ── Source screen — big dashed drop zone, two source buttons, web link ────── */
+#ttagImportOverlay .ttag-dropzone {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 14px; min-height: 210px; padding: 32px 24px;
+  border: 2px dashed var(--border); border-radius: var(--radius);
+  background: var(--surface-2); text-align: center;
+  transition: border-color .15s ease, background .15s ease;
+}
+#ttagImportOverlay .ttag-dropzone.is-over {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 8%, var(--surface-2));
+}
+/* No shield icon. The "drop here" hint shows ONLY while a file hovers. */
+#ttagImportOverlay .ttag-dropzone-title { display: none; font-size: 14px; color: var(--muted); }
+#ttagImportOverlay .ttag-dropzone.is-over .ttag-dropzone-title { display: block; color: var(--primary); }
+/* During a hover-drag the zone reads purely as a drop target — the source
+   buttons, the web-link row and any staged chips step aside, leaving only the
+   centred hint (even in the staged, top-anchored layout). */
+#ttagImportOverlay .ttag-dropzone.is-over .ttag-src-actions,
+#ttagImportOverlay .ttag-dropzone.is-over .ttag-url-row,
+#ttagImportOverlay .ttag-dropzone.is-over .ttag-chips { display: none; }
+/* While dragging over the zone, children (incl. the hint text) can't be drag
+   targets — otherwise moving onto a child fires dragleave→dragover on the
+   parent and the highlight flickers. */
+#ttagImportOverlay .ttag-dropzone.is-over * { pointer-events: none; }
+#ttagImportOverlay .ttag-dropzone--staged.is-over { justify-content: center; }
+
+/* With files staged, the buttons stay put at the top and the chips grow
+   DOWNWARD below them (never pushing the buttons down). */
+#ttagImportOverlay .ttag-dropzone--staged { justify-content: flex-start; }
+
+#ttagImportOverlay .ttag-src-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+#ttagImportOverlay .ttag-src-actions .adf-btn { display: inline-flex; align-items: center; gap: 7px; padding: 9px 16px; }
+#ttagImportOverlay .ttag-src-actions .adf-btn.is-active { border-color: var(--primary); color: var(--primary); }
+#ttagImportOverlay .ttag-src-actions .icon { background-color: currentColor; }
+
+/* Web-link row — space RESERVED from the start (visibility, not display), so
+   revealing it on "Upload from URL" never shifts the buttons above it. */
+#ttagImportOverlay .ttag-url-row {
+  display: flex; gap: 8px; width: 100%; max-width: 360px; margin-top: 2px; visibility: hidden;
+}
+#ttagImportOverlay .ttag-url-row.is-shown { visibility: visible; }
+#ttagImportOverlay .ttag-url-input {
+  flex: 1 1 auto; min-width: 0; height: 40px; padding: 0 14px;
+  border-radius: var(--radius-sm); border: 1px solid var(--border);
+  background: var(--surface); color: var(--text); font: inherit; font-size: 13px;
+}
+#ttagImportOverlay .ttag-url-input::placeholder { color: var(--muted); }
+#ttagImportOverlay .ttag-url-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent); }
+#ttagImportOverlay .ttag-url-row .adf-btn { flex: 0 0 auto; padding: 9px 18px; }
+
+/* Staged sources — removable chips filling the zone. */
+#ttagImportOverlay .ttag-chips { display: flex; flex-direction: column; gap: 8px; width: 100%; max-height: 220px; overflow-y: auto; }
+#ttagImportOverlay .ttag-chip {
+  display: flex; align-items: center; gap: 10px; text-align: left;
+  padding: 10px 12px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: var(--surface);
+}
+#ttagImportOverlay .ttag-chip .icon { background-color: var(--success); flex: 0 0 auto; }
+#ttagImportOverlay .ttag-chip-name { flex: 1 1 auto; min-width: 0; font-size: 13px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#ttagImportOverlay .ttag-chip-x { flex: 0 0 auto; width: 24px; height: 24px; border: 0; border-radius: 7px; background: transparent; color: var(--muted); cursor: pointer; font-size: 14px; }
+#ttagImportOverlay .ttag-chip-x:hover { background: var(--surface-2); color: var(--text); }
+
+/* ── Preview screen — mode banner, count, per-material rows ────────────────── */
+#ttagImportOverlay .ttag-mode {
+  font-size: 12.5px; line-height: 1.4; padding: 9px 11px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: var(--surface-2); color: var(--muted);
+}
+#ttagImportOverlay .ttag-mode--restore { border-color: color-mix(in srgb, var(--primary) 40%, transparent); color: var(--text); }
+#ttagImportOverlay .ttag-mode--mixed { border-color: color-mix(in srgb, var(--primary) 30%, var(--border)); color: var(--text); }
+#ttagImportOverlay .ttag-summary { font-size: 12px; color: var(--muted); padding: 0 2px; }
+#ttagImportOverlay .ttag-summary--warn { color: var(--danger); }
+#ttagImportOverlay .ttag-list { max-height: 46vh; overflow-y: auto; scrollbar-width: none; }
+#ttagImportOverlay .ttag-list::-webkit-scrollbar { width: 0; height: 0; display: none; }
+/* Frame the whole table like the inventory data table (outer grey border +
+   rounded corners), with a bottom scroll-fade (the sticky header covers the top). */
+#ttagImportOverlay .ttag-list-wrap { position: relative; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+#ttagImportOverlay .ttag-list-wrap::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 30px; pointer-events: none;
+  opacity: 0; transition: opacity .15s ease; z-index: 2;
+  background: linear-gradient(to top, var(--surface), transparent);
+}
+#ttagImportOverlay .ttag-list-wrap.can-down::after { opacity: 1; }
+
+/* ── Preview table — column headers + sticky head + a "select all" checkbox ── */
+#ttagImportOverlay .ttag-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+/* Header band styled like the inventory table's thead: light-grey fill + grey
+   border, uppercase muted labels, sticky at the top of the scroll area. */
+#ttagImportOverlay .ttag-table thead th {
+  /* z-index must sit ABOVE the row checkboxes (`.sel-check` is z-index:4) so a
+     row scrolling under the sticky header hides behind it — matches the
+     inventory table's own thead z-index. */
+  position: sticky; top: 0; z-index: 20; background: var(--surface-2); vertical-align: middle;
+  text-align: left; font-size: 12px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase;
+  color: var(--muted); padding: 9px 8px; border-bottom: 1px solid var(--border); white-space: nowrap;
+}
+#ttagImportOverlay .ttag-th-thumb  { width: 52px; }
+#ttagImportOverlay .ttag-th-weight { width: 88px; }
+#ttagImportOverlay .ttag-th-badge  { width: 92px; text-align: right; }
+/* The check column reuses the inventory table's own `.sel-th` / `.sel-cell`
+   classes (see 70-detail-misc.css) — same 40px width, padding and always-on
+   `.sel-check` rendering, so the checkbox aligns exactly like the inventory
+   table and needs no bespoke CSS here. */
+
+/* Rows + cells. */
+#ttagImportOverlay .ttag-prev-row { cursor: pointer; }
+#ttagImportOverlay .ttag-prev-row:hover td { background: var(--surface-2); }
+#ttagImportOverlay .ttag-prev-row td { padding: 7px 8px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+#ttagImportOverlay .ttag-prev-row:last-child td { border-bottom: none; }
+#ttagImportOverlay .ttag-td-badge { text-align: right; }
+
+/* Cell content. */
+#ttagImportOverlay .ttag-prev-thumb-wrap { position: relative; display: inline-flex; }
+/* Uniform thumb: the global `.thumb` forces 50px on images, colour spools use 40 — pin both. */
+#ttagImportOverlay .ttag-prev-thumb-wrap .thumb,
+#ttagImportOverlay .ttag-prev-thumb-wrap .thumb-color { width: 40px; height: 40px; }
+#ttagImportOverlay .ttag-td-mat { overflow: hidden; }
+#ttagImportOverlay .ttag-prev-name { display: block; font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#ttagImportOverlay .ttag-prev-sub { display: block; font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#ttagImportOverlay .ttag-prev-weight { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+#ttagImportOverlay .ttag-prev-w-val { font-size: 12px; font-weight: 600; color: var(--text); white-space: nowrap; }
+#ttagImportOverlay .ttag-prev-weight .bar { width: 100%; margin-left: 0; margin-top: 0; }
+#ttagImportOverlay .ttag-error { font-size: 13px; color: var(--danger); line-height: 1.5; margin: 6px 2px; }
+#ttagImportOverlay .ttag-success { font-size: 13.5px; color: var(--text); line-height: 1.5; margin: 10px 2px; text-align: center; }
+
+/* ── Full-window drag-drop hint (drop anywhere while the modal is closed) ──── */
+.ttag-drop-hint {
+  position: fixed; inset: 0; z-index: 9999; display: none;
+  align-items: center; justify-content: center; pointer-events: none;
+  background: color-mix(in srgb, var(--bg) 68%, transparent);
+  backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+}
+body.ttag-dragging .ttag-drop-hint { display: flex; }
+.ttag-drop-hint-inner {
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+  padding: 30px 46px; border-radius: 18px;
+  border: 2px dashed var(--primary); background: var(--surface);
+  color: var(--text); font-size: 15px; font-weight: 600; box-shadow: var(--shadow);
+}
+.ttag-drop-hint-inner .icon { height: 40px; aspect-ratio: 1 / 1; background-color: var(--primary); }
+
+/* ── .ttag import: Restore/Import mode chooser (user decides, pre-hinted) ──── */
+#ttagImportOverlay .ttag-choose { font-size: 12.5px; font-weight: 600; color: var(--text); margin-top: 2px; }
+#ttagImportOverlay .ttag-modes { display: flex; flex-direction: row; gap: 8px; }
+#ttagImportOverlay .ttag-mode-opt {
+  flex: 1 1 0; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 6px; text-align: center;
+  padding: 13px 10px; border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border); background: var(--surface); cursor: pointer;
+  transition: border-color .12s ease, background .12s ease;
+}
+#ttagImportOverlay .ttag-mode-opt .tool-info { flex: 0 0 auto; display: inline-flex; }
+#ttagImportOverlay .ttag-mode-opt:hover { border-color: color-mix(in srgb, var(--primary) 45%, var(--border)); }
+#ttagImportOverlay .ttag-mode-opt.is-selected { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 8%, var(--surface)); }
+#ttagImportOverlay .ttag-mode-opt-title { font-size: 13px; font-weight: 700; color: var(--text); }
+#ttagImportOverlay .ttag-mode-opt-desc { font-size: 11.5px; color: var(--muted); line-height: 1.4; }

@@ -113,6 +113,7 @@ The **TigerTag SDK** is the low-level library that handles all NFC chip operatio
 - Spool toolbox — scan color (TD1S), scan TD, link twin, remove from rack, delete
 - **Multi-select** — tick several spools (or printers) and delete them together, with a hold-to-confirm
 - **Guided chip update** — a step-by-step panel to re-write an existing chip: place it on the reader, UID-match check, verified write
+- **Export / import `.ttag` files** — back up a spool or a whole selection to a portable file, keep it, carry it on a USB stick or share it, then import it back anywhere. Works for TigerData, TigerTag and TigerTag+ alike; import through a validate → preview → accept flow and choose **Restore** (put everything back exactly as it was) or **Import** (fresh spools you own). Pull in several files at once by browsing, pasting a link, or dragging them onto the window
 
 ### 🖨 3D Printer integration
 Live integrations for 6 brands — real-time temperatures, filament per slot, active print job, camera:
@@ -191,6 +192,10 @@ The [TigerScale](https://github.com/TigerTag-Project/Tiger-Scale) is an open-sou
 - **Filament mini-panel** — color dot, brand, and material pushed directly from the scale firmware
 - **Twin UID reader grid** — two NFC readers (left / right); the empty slot auto-fills with the Firestore-resolved twin tag in green
 - **TARE** — hold-to-confirm button (1 s) that POSTs `/api/tare` to the scale firmware
+
+#### USB scale (Dymo M-series)
+
+Plug in a **Dymo USB scale** and your spool weights fill themselves in — no typing. Set a spool on the scale and, with a chip on the reader, its weight is saved automatically (gross → net, twin synced); with a spool's card open, a quick confirm does it. The live reading appears right inside the spool's weight panel, and a dimmed "asleep — tap to wake" hint shows when the scale powers itself down.
 
 ### 📱 TigerTag RFID Connect — mobile app
 Tiger Studio Manager is the desktop companion to **TigerTag RFID Connect**, the iOS/Android mobile app. Both apps share the same Firebase backend (Firestore inventory, friends, racks) so changes made on one device appear immediately on the other.

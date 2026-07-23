@@ -6737,5 +6737,110 @@
         }
       }
     ]
+  },
+  "2.14.0": {
+    "date": "2026-07-23",
+    "items": [
+      {
+        "icon": "backup",
+        "title": {
+          "en": "Your filaments, packed to go",
+          "fr": "Tes filaments, prêts à voyager",
+          "de": "Deine Filamente, reisefertig",
+          "es": "Tus filamentos, listos para viajar",
+          "it": "I tuoi filamenti, pronti a viaggiare",
+          "zh": "你的耗材，打包就走",
+          "pt": "Seus filamentos, prontos pra viajar",
+          "pt-pt": "Os teus filamentos, prontos a viajar",
+          "pl": "Twoje filamenty, gotowe w drogę"
+        },
+        "body": {
+          "en": "Save a spool — or a whole batch — to a file you can keep, drop on a USB stick, or send to a friend, then load it back anywhere. Bring several in at once, pick exactly which ones, and see the whole thing before it lands.",
+          "fr": "Sauvegarde une bobine — ou tout un lot — dans un fichier que tu gardes, mets sur une clé USB ou envoies à un pote, puis réimporte-le n'importe où. Plusieurs d'un coup, tu choisis lesquels, et tu vois tout avant que ça atterrisse.",
+          "de": "Sichere eine Spule — oder gleich einen ganzen Schwung — in eine Datei, die du behältst, auf einen USB-Stick packst oder einem Freund schickst, und lade sie überall wieder rein. Mehrere auf einmal, du wählst welche, und siehst alles, bevor es landet.",
+          "es": "Guarda una bobina — o un lote entero — en un archivo que puedes conservar, meter en un USB o enviar a un amigo, y luego reimportarlo donde quieras. Varios a la vez, eliges cuáles, y lo ves todo antes de que aterrice.",
+          "it": "Salva una bobina — o un intero lotto — in un file da tenere, mettere su una chiavetta USB o mandare a un amico, poi reimportalo ovunque. Diversi in una volta, scegli quali, e vedi tutto prima che atterri.",
+          "zh": "把一卷——或一整批——存成一个文件，随手保留、拷进 U 盘或发给朋友，再随时随地导回来。一次带多个，想要哪些自己挑，落地之前先看个清楚。",
+          "pt": "Salve uma bobina — ou um lote inteiro — num arquivo que você guarda, joga num pen drive ou manda pra um amigo, e reimporte em qualquer lugar. Vários de uma vez, você escolhe quais, e vê tudo antes de cair.",
+          "pt-pt": "Guarda uma bobina — ou um lote inteiro — num ficheiro que guardas, metes numa pen USB ou envias a um amigo, e reimporta-o em qualquer lado. Vários de uma vez, escolhes quais, e vês tudo antes de aterrar.",
+          "pl": "Zapisz szpulę — albo całą partię — do pliku, który zachowasz, wrzucisz na pendrive lub wyślesz znajomemu, a potem wczytasz z powrotem gdziekolwiek. Kilka naraz, sam wybierasz które, i widzisz wszystko, zanim wyląduje."
+        }
+      },
+      {
+        "icon": "scale",
+        "title": {
+          "en": "Let the scale do the typing",
+          "fr": "Laisse la balance taper à ta place",
+          "de": "Lass die Waage tippen",
+          "es": "Que teclee la báscula",
+          "it": "Lascia scrivere alla bilancia",
+          "zh": "让秤替你打字",
+          "pt": "Deixe a balança digitar",
+          "pt-pt": "Deixa a balança escrever",
+          "pl": "Niech waga pisze za ciebie"
+        },
+        "body": {
+          "en": "Plug in a Dymo USB scale and your spool weights fill themselves in. Set a spool down and it's saved — no more squinting at grams and typing them by hand.",
+          "fr": "Branche une balance USB Dymo et le poids de tes bobines se remplit tout seul. Pose une bobine, c'est enregistré — fini de plisser les yeux sur les grammes et de les recopier à la main.",
+          "de": "Schließ eine Dymo-USB-Waage an und die Spulengewichte tragen sich von selbst ein. Spule drauflegen, schon gespeichert — kein Gramm-Ablesen und Abtippen mehr.",
+          "es": "Conecta una báscula USB Dymo y el peso de tus bobinas se rellena solo. Pon una bobina y queda guardado — se acabó entornar los ojos ante los gramos y copiarlos a mano.",
+          "it": "Collega una bilancia USB Dymo e il peso delle bobine si compila da solo. Appoggia una bobina ed è salvato — basta strizzare gli occhi sui grammi e ricopiarli a mano.",
+          "zh": "接上 Dymo USB 电子秤，耗材重量就自己填好了。把料放上去就存下来——再也不用盯着克数一个个手打。",
+          "pt": "Conecte uma balança USB Dymo e o peso das bobinas se preenche sozinho. Coloque uma bobina e está salvo — chega de apertar os olhos nos gramas e digitar na mão.",
+          "pt-pt": "Liga uma balança USB Dymo e o peso das bobinas preenche-se sozinho. Pousa uma bobina e fica guardado — acabou espremer os olhos nos gramas e copiá-los à mão.",
+          "pl": "Podłącz wagę USB Dymo, a masy szpul wpiszą się same. Postaw szpulę i już zapisane — koniec z mrużeniem oczu na gramy i przepisywaniem ich ręcznie."
+        }
+      },
+      {
+        "icon": "rack-grid",
+        "title": {
+          "en": "Reach the racks down below",
+          "fr": "Atteins les racks tout en bas",
+          "de": "Auch die Racks weiter unten erreichen",
+          "es": "Llega a los estantes de más abajo",
+          "it": "Raggiungi i rack più in basso",
+          "zh": "够得着下面的料架",
+          "pt": "Alcance as prateleiras lá de baixo",
+          "pt-pt": "Chega às prateleiras mais abaixo",
+          "pl": "Sięgnij po regały niżej"
+        },
+        "body": {
+          "en": "On Windows, dragging a spool no longer strands you at the top of your racks — the list scrolls along so you can drop it right where it belongs.",
+          "fr": "Sous Windows, glisser une bobine ne te bloque plus en haut de tes racks — la liste défile avec toi pour que tu la déposes pile au bon endroit.",
+          "de": "Unter Windows lässt dich das Ziehen einer Spule nicht mehr oben in den Racks festsitzen — die Liste scrollt mit, damit du sie genau dort ablegst, wo sie hingehört.",
+          "es": "En Windows, arrastrar una bobina ya no te deja atascado arriba en tus estantes — la lista se desplaza contigo para que la sueltes justo donde va.",
+          "it": "Su Windows, trascinare una bobina non ti lascia più bloccato in cima ai rack — la lista scorre con te così la posi esattamente dove va.",
+          "zh": "在 Windows 上，拖动料卷不再把你卡在料架顶部——列表会跟着滚动，让你把它放到该去的位置。",
+          "pt": "No Windows, arrastar uma bobina não te prende mais no topo das prateleiras — a lista rola junto pra você soltar bem no lugar certo.",
+          "pt-pt": "No Windows, arrastar uma bobina já não te prende no topo das prateleiras — a lista desliza contigo para a largares mesmo no sítio certo.",
+          "pl": "Na Windows przeciąganie szpuli nie zostawia cię już na górze regałów — lista przewija się razem z tobą, byś upuścił ją dokładnie tam, gdzie trzeba."
+        }
+      },
+      {
+        "icon": "list-check",
+        "title": {
+          "en": "Stacks that open and close on cue",
+          "fr": "Des piles qui s'ouvrent et se ferment au doigt",
+          "de": "Stapel, die auf Kommando auf- und zugehen",
+          "es": "Pilas que abren y cierran a la orden",
+          "it": "Pile che si aprono e chiudono a comando",
+          "zh": "料堆一点就开，再点就合",
+          "pt": "Pilhas que abrem e fecham na hora",
+          "pt-pt": "Pilhas que abrem e fecham à ordem",
+          "pl": "Stosy, które otwierają się i zamykają na zawołanie"
+        },
+        "body": {
+          "en": "Tap a stack of spools to open it, tap again to close — and when you're picking several, the checkbox does the choosing while a tap on the card just peeks inside.",
+          "fr": "Touche une pile de bobines pour l'ouvrir, retouche pour la fermer — et quand tu en sélectionnes plusieurs, c'est la case qui choisit, un clic sur la carte se contente d'y jeter un œil.",
+          "de": "Tipp auf einen Spulenstapel, um ihn zu öffnen, nochmal zum Schließen — und wenn du mehrere auswählst, wählt das Kästchen, während ein Tipp auf die Karte nur hineinschaut.",
+          "es": "Toca una pila de bobinas para abrirla, toca otra vez para cerrarla — y cuando eliges varias, la casilla es la que selecciona mientras un toque en la tarjeta solo echa un vistazo.",
+          "it": "Tocca una pila di bobine per aprirla, ritocca per chiuderla — e quando ne selezioni diverse, è la casella a scegliere mentre un tocco sulla scheda dà solo una sbirciata.",
+          "zh": "点一下料卷堆就展开，再点一下收起——多选的时候，勾选框负责挑选，点卡片只是瞄一眼里面。",
+          "pt": "Toque numa pilha de bobinas pra abrir, toque de novo pra fechar — e quando você seleciona várias, a caixinha faz a escolha enquanto um toque no cartão só dá uma espiada.",
+          "pt-pt": "Toca numa pilha de bobinas para abrir, toca outra vez para fechar — e quando selecionas várias, é a caixa que escolhe enquanto um toque no cartão só espreita lá dentro.",
+          "pl": "Dotknij stosu szpul, by go otworzyć, dotknij znów, by zamknąć — a gdy zaznaczasz kilka, to pole wyboru wybiera, a dotknięcie karty tylko zagląda do środka."
+        }
+      }
+    ]
   }
 }

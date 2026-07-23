@@ -10,7 +10,7 @@ It is neutral and agnostic by design: TigerTag takes no side between filament br
 distributors. The protocol is open and anyone can build a different ecosystem on it; nothing in this repo is a
 prerequisite for doing so.
 
-Current version: **2.13.1** — macOS (Intel + Apple Silicon, signed & notarized), Windows, Linux.
+Current version: **2.14.0** — macOS (Intel + Apple Silicon, signed & notarized), Windows, Linux.
 
 ## Architecture
 
@@ -106,9 +106,27 @@ Three tiers, visible as badges throughout the UI:
 | **TigerTag** | a written NFC chip | `spoolId` = chip UID |
 | **TigerTag+** | a certified chip with a signed factory dump | UID + a `backup` hex dump in `rfidList` |
 
-**TigerData was called "TigerCloud" until v2.13.0.** The rename is **display-only** — stored values (the
-`protocol` field, the `byProtocol` telemetry rollup, existing docs) still read `TigerCloud`, and no migration was
-run. Never rename the stored value for cosmetics; map it at render time.
+**TigerData was called "TigerCloud" until v2.13.0.** As of v2.14.0 the rename reaches stored values too:
+`normalizeRow` computes `protocol: "TigerData"` for chipless (so `syncSpoolMirrors` writes it to every doc), and
+chipless doc ids migrate `CLOUD_` → `TigerData_` silently on login (`maybeMigrateCloudToTigerData`; both prefixes
+still recognised forever by `_isChiplessId`, no server sweep). **One value stays `TigerCloud`: the `byProtocol`
+telemetry rollup key** (`functions/index.js` buckets chipless under `"TigerCloud"`, derived from the id prefix, not
+the field) — kept stable so historical analytics don't fragment. So: doc field + display + filter = `TigerData`;
+only the analytics bucket key is still `TigerCloud`.
+
+## Inventory interchange — `.ttag` files (v2.14.0)
+
+A `.ttag` file is a portable, offline snapshot of one or more inventory materials — the unit for backup, USB
+transport and sharing. Shape: `{ format:"tigertag", kind:"ttag", version:1, exportedAt, exportedBy, records:[…
+verbatim inventory docs …], rfidBackups? }`. Firestore Timestamps are normalised to epoch-ms; twins are atomic
+(one material → both twin records); a legacy `CLOUD_` id is refused on export (only `TigerData_` chipless may
+leave). `exportedBy` (owner uid) is a UX hint for import mode, never a security boundary. Import parses →
+validates the marker (`version ≤ 1`) → **sanitises** every record (untrusted input: non-http(s) URL fields dropped,
+colour/weight/TD clamped) → previews → writes in two modes: **Restore** (verbatim, keeps ids / TigerTag+ / the
+`rfidList` backup) or **Import** (fresh chipless `TigerData_` spools you own — new `id_tigertag` nonce,
+`id_product` unset, backups dropped, weight reset to capacity, `twin_tag_uid` remapped). Code:
+`_buildTtag` / `_exportMaterialTtag` (export), `openTtagImportPicker` / `_ttagValidate` / `_ttagSanitizeRecord` /
+`_ttagApplyImportAll` (import), all in `renderer/inventory.js`.
 
 ## NFC / RFID system
 
@@ -141,6 +159,7 @@ All brands: printer discovery (mDNS + port scan + manual IP), filament edit per 
 
 - **TD1S** (`renderer/IoT/td1s/`) — USB color + TD sensor. `window.td1s.onStatus(cb)` supports multiple listeners (IPC `on`, not `once`). Scan color (1–3 slots) and TD value independently or together.
 - **TigerScale** (`renderer/IoT/tigerscale/`) — ESP32 scale over WebSocket. Live weight, container/filament split, TARE (hold-to-confirm), twin UID grid.
+- **USB scale (Dymo M-series)** (`renderer/IoT/usbscale/`) — HID scale opened in the main process (`node-hid`, vid `0x0922`, usage page `0x8D`), streamed over IPC (`usb-scale-update` / `usb-scale-data`). One-write-per-pose state machine: POD mode saves silently when reader chip UIDs identify the spool; side-card mode offers an inline confirm. Live UI in the open spool's WEIGHT section (`#usbScaleDock`).
 
 ## i18n system
 
@@ -151,7 +170,7 @@ All brands: printer discovery (mDNS + port scan + manual IP), filament edit per 
 npm run i18n:add -- myKey --after existingKey en="..." fr="..." de="..." es="..." it="..." zh="..." pt="..." pt-pt="..." pl="..."
 npm run i18n:check   # validates consistency (also runs as pre-commit hook)
 ```
-1347 keys × 9 locales as of v2.13.0.
+1403 keys × 9 locales as of v2.14.0.
 
 ## CSS conventions
 

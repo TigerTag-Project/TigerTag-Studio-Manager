@@ -1,0 +1,66 @@
+/* USB HID scale (Dymo M-series) — live readout + inline confirm. Rendered as
+   its OWN standalone block below the WEIGHT card (#usbScaleDock placeholder in
+   buildPanelHTML; content built by IoT/usbscale/index.js). Collapses to nothing
+   when no scale is connected. */
+
+.usbscale-dock:not(:empty) { margin: 14px 0; }
+
+/* ── Live readout (no card / no border — sits flat in the panel) ── */
+.usbscale-live {
+  display: flex; align-items: center; gap: 12px;
+  padding: 2px 0 2px 10px; /* small left inset from the panel edge */
+}
+.usbscale-live.usbscale-asleep { opacity: .55; }
+.usbscale-ico {
+  height: 38px;
+  aspect-ratio: 640 / 312; /* real photo intrinsic ratio */
+  flex-shrink: 0;
+  background-image: url('../../../assets/img/spool_filament/dymo_usb_scale.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+.usbscale-readout { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.usbscale-grams {
+  font-family: var(--mono);
+  font-size: 22px; font-weight: 700; line-height: 1.1;
+  color: var(--text);
+}
+.usbscale-unit { font-size: 12px; font-weight: 500; color: var(--muted); margin-left: 3px; }
+.usbscale-state { font-size: 12px; color: var(--muted); min-width: 0; }
+.usbscale-ok .usbscale-state { color: var(--success); }
+
+/* ── Inline confirmation block ── */
+.usbscale-confirm {
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(255,255,255,.03);
+  border: 1px solid var(--border);
+  animation: usbscale-pop .24s cubic-bezier(.2,.9,.3,1.15);
+}
+@keyframes usbscale-pop {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+.usbscale-confirm-title { font-size: 12.5px; font-weight: 700; color: var(--text); }
+.usbscale-math { font-size: 12px; color: var(--muted); margin: 6px 0 10px; line-height: 1.4; }
+.usbscale-actions { display: flex; gap: 8px; }
+.usbscale-btn {
+  flex: 1;
+  padding: 7px 10px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  font-size: 12px; font-weight: 600;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+.usbscale-btn:hover { background: rgba(255,255,255,.06); }
+.usbscale-btn-primary {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+.usbscale-btn-primary:hover { background: var(--primary-hover); }

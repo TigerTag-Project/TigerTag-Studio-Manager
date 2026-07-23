@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>.ttag import modal — design sandbox</title>
+
+<!-- Real app stylesheets: tokens + modal chrome + icon masks. The sandbox
+     renders EXACTLY what the app renders — no invented variables. -->
+<link rel="stylesheet" href="../../renderer/css/00-base.css" />
+<link rel="stylesheet" href="../../renderer/css/60-modals.css?v=5" />
+<link rel="stylesheet" href="../../renderer/css/70-detail-misc.css" />
+
+<style>
+  /* Sandbox chrome only (not shipped) — centre the modal on a dimmed app-like bg. */
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center;
+         background: var(--bg); font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+  .sandbox-toolbar { position: fixed; top: 14px; left: 14px; display: flex; gap: 8px; z-index: 10; }
+  .sandbox-toolbar button {
+    font: inherit; font-size: 12px; padding: 6px 12px; border-radius: 8px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--surface); color: var(--text);
+  }
+  .sandbox-toolbar button.on { background: var(--primary); color: #fff; border-color: var(--primary); }
+  /* Force the overlay visible for the sandbox. */
+  #ttagImportOverlay { position: static; display: grid; place-items: center; background: transparent; }
+
+  /* Design now lives in renderer/css/60-modals.css — sandbox uses it directly. */
+</style>
+</head>
+<body>
+
+<div class="sandbox-toolbar">
+  <button id="stateEmpty" class="on">Empty</button>
+  <button id="stateStaged">Staged</button>
+  <button id="stateLink">Link open</button>
+  <button id="stateHover">Hover (drag)</button>
+</div>
+
+<div class="modal-overlay open" id="ttagImportOverlay">
+  <div class="modal-card adf-card ttag-card">
+    <div class="adf-header">
+      <div class="adf-header-text">
+        <div class="adf-title">Import TigerData</div>
+        <div class="adf-sub">Preview what's inside before it lands in your inventory</div>
+      </div>
+      <button class="modal-close" id="ttagImportClose">✕</button>
+    </div>
+    <div class="adf-body ttag-import-body" id="ttagImportBody"><!-- rendered by JS --></div>
+    <div class="adf-footer" id="ttagImportFooter"><!-- rendered by JS --></div>
+  </div>
+</div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const body = $("ttagImportBody"), footer = $("ttagImportFooter");
+
+  const zoneEmpty = `
+    <div class="ttag-dropzone" id="dz">
+      <span class="ttag-dropzone-title">Drag your .ttag files here</span>
+      <div class="ttag-src-actions">
+        <button type="button" class="adf-btn adf-btn--ghost"><span class="icon icon-plus icon-13"></span>Upload files</button>
+        <button type="button" class="adf-btn adf-btn--ghost" id="fromLink"><span class="icon icon-link icon-13"></span>Upload from URL</button>
+      </div>
+      <div class="ttag-url-row" id="urlRow" style="width:100%;max-width:360px;margin-top:4px">
+        <input type="url" class="ttag-url-input" placeholder="https://" />
+        <button type="button" class="adf-btn adf-btn--ghost">Add</button>
+      </div>
+    </div>`;
+
+  const zoneStaged = `
+    <div class="ttag-dropzone ttag-dropzone--staged" id="dz">
+      <span class="ttag-dropzone-title">Drag your .ttag files here</span>
+      <div class="ttag-src-actions">
+        <button type="button" class="adf-btn adf-btn--ghost"><span class="icon icon-plus icon-13"></span>Upload files</button>
+        <button type="button" class="adf-btn adf-btn--ghost">Upload from URL</button>
+      </div>
+      <div class="ttag-url-row" id="urlRow"><input type="url" class="ttag-url-input" placeholder="https://" /><button type="button" class="adf-btn adf-btn--ghost">Add</button></div>
+      <div class="ttag-chips">
+        <div class="ttag-chip"><span class="icon icon-backup icon-11"></span><span class="ttag-chip-name">rosa3d-pla-silk-red.ttag</span><button class="ttag-chip-x">✕</button></div>
+        <div class="ttag-chip"><span class="icon icon-backup icon-11"></span><span class="ttag-chip-name">esun-petg-black.ttag</span><button class="ttag-chip-x">✕</button></div>
+        <div class="ttag-chip"><span class="icon icon-link icon-11"></span><span class="ttag-chip-name">https://cdn.tigertag.io/backup/inventory-2026-07.ttag</span><button class="ttag-chip-x">✕</button></div>
+      </div>
+    </div>`;
+
+  const footEmpty = `
+    <button class="adf-btn adf-btn--ghost">Cancel</button>
+    <button class="adf-btn adf-btn--primary" disabled>Preview</button>`;
+  const footStaged = `
+    <button class="adf-btn adf-btn--ghost">Cancel</button>
+    <button class="adf-btn adf-btn--primary">Preview</button>`;
+
+  function render(state) {
+    body.innerHTML = state === "staged" ? zoneStaged : zoneEmpty;
+    footer.innerHTML = state === "staged" ? footStaged : footEmpty;
+    if (state === "link") { const r = $("urlRow"); if (r) r.classList.add("is-shown"); }
+    ["stateEmpty","stateStaged","stateLink"].forEach(id => $(id).classList.remove("on"));
+    $(state === "staged" ? "stateStaged" : state === "link" ? "stateLink" : "stateEmpty").classList.add("on");
+    const fl = $("fromLink"); if (fl) fl.onclick = () => {
+      const r = $("urlRow"); if (!r) return;
+      const shown = r.classList.toggle("is-shown");   // re-click closes it
+      fl.classList.toggle("adf-btn--active", shown);
+      if (shown) r.querySelector("input")?.focus();
+      else { const i = r.querySelector("input"); if (i) i.value = ""; }
+    };
+  }
+  $("stateEmpty").onclick = () => render("empty");
+  $("stateStaged").onclick = () => render("staged");
+  $("stateLink").onclick = () => render("link");
+  $("stateHover").onclick = () => { render("empty"); $("dz").classList.add("is-over"); ["stateEmpty","stateStaged","stateLink"].forEach(id => $(id).classList.remove("on")); $("stateHover").classList.add("on"); };
+  render("empty");
+</script>
+</body>
+</html>
