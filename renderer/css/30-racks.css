@@ -373,24 +373,13 @@
   .rv-stat--orange.rv-stat--active .rv-stat-lbl { color: #fff; }
 
   /* ── Drop-zone visibility while dragging a spool ──────────────────────── */
-  /* When body.is-dragging-spool is set, paint the rack to make targets clear:
-       - empty unlocked slots: pulse + colored dashed bg → "drop here"
-       - filled slots: stay normal (drop = swap is valid)
-       - locked slots: dim red so they read as forbidden */
-  body.is-dragging-spool .rp-slot:not(.rp-slot--filled):not(.rp-slot--locked) {
-    border-color: rgba(249,115,22,.55);
-    background: var(--primary-soft, rgba(249,115,22,.06));
-    animation: rp-slot-pulse 1.6s ease-in-out infinite;
-  }
-  /* Subtle pulse — kept low-contrast so the actively-hovered slot pops above */
-  @keyframes rp-slot-pulse {
-    0%, 100% { background: rgba(249,115,22,.04); }
-    50%      { background: rgba(249,115,22,.12); }
-  }
+  /* Keep the rack NEUTRAL during a drag: no ambient orange flood on every empty
+     slot — lighting up every empty slot at once made the whole card read as
+     "illuminated". Only the slot directly under the cursor (.rp-slot--drop)
+     highlights; locked slots just dim so they read as forbidden. */
   body.is-dragging-spool .rp-slot--locked {
     opacity: .35;
   }
-  body.is-dragging-spool .rp-rack { transition: box-shadow .15s; }
 
   /* ── Bounce-in for newly placed slots ─────────────────────────────────── */
   /* Triggered by .rp-slot--just-placed — scale 0.6 → 1.08 → 1.0 with a soft

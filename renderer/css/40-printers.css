@@ -310,15 +310,13 @@
     font-weight: 700;
   }
 
-  /* Visual cue when a dragged spool hovers an empty area of the rack
-     view — drop here to unassign / send to the unranked panel. Soft
-     amber glow so it reads as "drop = remove from rack" without
-     looking destructive (the actual delete uses a red trash button
-     elsewhere). */
-  #invRackView.rp-view--drop-void {
-    box-shadow: inset 0 0 0 2px rgba(234, 179, 8, .35);
-    transition: box-shadow .12s ease;
-  }
+  /* Void-drop (drag a spool onto empty rack-view space → un-rack it) is still
+     wired, but its whole-view amber glow was REMOVED by request: it fired on
+     every dragover of empty space — i.e. constantly while moving a spool from
+     one rack to another, passing over the gaps — so the entire card appeared to
+     "illuminate near the edge". The class is left inert (no visual); the drop
+     itself only fires on a deliberate release in empty space, never mid-move
+     (a normal rack-to-rack move ends on a slot, not the void). */
 
   /* (Custom eject-ghost / receiving-pulse animations removed — the
      void-drop now reuses the existing rp-slot-cascade-out keyframe

@@ -13663,15 +13663,25 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   }
 
   // Drop a .ttag anywhere on the window → the import preview. Only reacts to a
-  // FILE drag (internal rack/spool drag-drop carries custom types, not Files),
-  // so it never interferes with the storage view's own DnD.
+  // real FILE drag, never the storage view's own spool DnD.
   function _wireTtagDropZone() {
     let depth = 0;
+    // An OS file drag never fires a `dragstart` inside our document; every
+    // internal spool DnD (rack / grid / list) does. We can't rely on
+    // `dataTransfer.types` alone: on Windows/Chromium, dragging an element that
+    // contains an <img> (a spool thumbnail) leaks "Files" into the drag types,
+    // so the types check would pop the import overlay mid-drag (random, since it
+    // depends on whether that card's product image is loaded). This dragstart
+    // guard makes the distinction reliable across platforms.
+    let internalDrag = false;
+    const clear = () => { depth = 0; document.body.classList.remove("ttag-dragging"); };
     // While the import modal is open its own dropzone handles the drop, so the
     // window-level handler stands down (no full-window hint over the modal).
     const modalOpen = () => $("ttagImportOverlay")?.classList.contains("open");
-    const hasFiles = (e) => !modalOpen() && Array.from(e.dataTransfer && e.dataTransfer.types || []).includes("Files");
-    const clear = () => { depth = 0; document.body.classList.remove("ttag-dragging"); };
+    const hasFiles = (e) => !internalDrag && !modalOpen() && Array.from(e.dataTransfer && e.dataTransfer.types || []).includes("Files");
+    // Capture phase so we see the dragstart even if a source handler stops it.
+    window.addEventListener("dragstart", () => { internalDrag = true; clear(); }, true);
+    window.addEventListener("dragend", () => { internalDrag = false; clear(); }, true);
     window.addEventListener("dragenter", (e) => { if (!hasFiles(e)) return; depth++; document.body.classList.add("ttag-dragging"); });
     window.addEventListener("dragover", (e) => { if (!hasFiles(e)) return; e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = "copy"; });
     window.addEventListener("dragleave", (e) => { if (!hasFiles(e)) return; depth = Math.max(0, depth - 1); if (depth === 0) document.body.classList.remove("ttag-dragging"); });
@@ -15437,8 +15447,16 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const el = $("roMinVal"); if (!el) return;
     const raw = $("roMinStock")?.value;
     const min = (raw !== "" && raw != null && Number.isFinite(+raw)) ? Math.max(0, Math.round(+raw)) : 0;
-    if (min > 0) { el.textContent = String(min); el.classList.remove("ro-price-shown--empty"); }
-    else { el.textContent = t("reorderAddMin"); el.classList.add("ro-price-shown--empty"); }
+    const btn = $("roMinBtn"), edit = $("roMinEdit");
+    if (min > 0) {
+      el.textContent = String(min);
+      btn?.classList.add("ro-shop-btn--active");
+      if (edit) edit.hidden = false;
+    } else {
+      el.textContent = t("reorderAddMin");
+      btn?.classList.remove("ro-shop-btn--active");
+      if (edit) edit.hidden = true;
+    }
   }
   // Paint an editable SKU/EAN's read-only display from its input value (muted "—"
   // when empty). No-op for the auto TigerTag+ refs (they have no `ro<Kind>Val`).
@@ -15696,9 +15714,15 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           <span id="roStockTxt"></span>
         </div>
         <div class="ro-label ro-sublabel">${esc(t("reorderMinStock"))}</div>
+        <!-- Big button like the buy-link / price: icon + "Add a minimum" when
+             empty (click to add), the value when set (click to edit); the pencil
+             appears once a minimum is set. -->
         <div class="ro-shop" id="roMinDisplay">
-          <div class="ro-price-shown" id="roMinVal"></div>
-          <button type="button" class="ro-shop-edit" id="roMinEdit" title="${esc(t("reorderEditMin"))}">
+          <button type="button" class="ro-shop-btn${min ? " ro-shop-btn--active" : ""}" id="roMinBtn">
+            <span class="icon icon-bell icon-14"></span>
+            <span id="roMinVal"></span>
+          </button>
+          <button type="button" class="ro-shop-edit" id="roMinEdit" title="${esc(t("reorderEditMin"))}"${min ? "" : " hidden"}>
             <span class="icon icon-edit icon-13"></span>
           </button>
         </div>
@@ -15919,6 +15943,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     };
     const minCommit = () => { minExitEdit(); _saveReorder(r); };
     $("roMinEdit")?.addEventListener("click", minEnterEdit);
+    $("roMinBtn")?.addEventListener("click", minEnterEdit);   // whole button opens the editor (empty or set)
     $("roMinOk")?.addEventListener("click", minCommit);
     $("roMinStock")?.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); minCommit(); } });
     // Buy link — hidden canonical value + a Shopify button + an inline editor.

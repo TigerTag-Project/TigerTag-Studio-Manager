@@ -39,6 +39,12 @@
   pre, code, .selectable, .selectable * {
     -webkit-user-select: text; user-select: text;
   }
+  /* Images are never a native drag source. Otherwise a spool/product thumbnail
+     in the inventory grid/list or Favorites can be "picked up" and dragged as a
+     ghost image — there's no drop, so it just looks broken. Every INTENDED drag
+     (rack slots, list/cart reorder, friends) uses a draggable <div>/<span>
+     handle, never an <img>, so disabling image-drag here breaks nothing. */
+  img { -webkit-user-drag: none; user-drag: none; }
 
   /* ── .circle-center — content optically centred inside a round badge ──────
      Reach for this on ANY circle holding a character, a number or a glyph

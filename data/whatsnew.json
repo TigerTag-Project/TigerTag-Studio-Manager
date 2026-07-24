@@ -6867,5 +6867,85 @@
         }
       }
     ]
+  },
+  "2.14.1": {
+    "date": "2026-07-23",
+    "items": [
+      {
+        "icon": "rack-grid",
+        "title": {
+          "en": "Moving spools is calm now",
+          "fr": "Ranger tes bobines, en toute sérénité",
+          "de": "Spulen umräumen, ganz entspannt",
+          "es": "Mover bobinas, con toda la calma",
+          "it": "Spostare bobine, in tutta calma",
+          "zh": "挪动料卷，安安静静",
+          "pt": "Mexer nas bobinas, com calma",
+          "pt-pt": "Arrumar bobinas, com toda a calma",
+          "pl": "Przekładanie szpul, na spokojnie"
+        },
+        "body": {
+          "en": "Shuffling a spool from one rack to another no longer sets the whole board flashing — it stays calm, and only the exact slot you're aiming for lights up.",
+          "fr": "Déplacer une bobine d'un rack à l'autre ne fait plus clignoter tout le tableau — c'est calme, et seul le slot que tu vises s'allume.",
+          "de": "Eine Spule von einem Rack ins andere zu schieben lässt nicht mehr das ganze Board blinken — es bleibt ruhig, und nur das anvisierte Fach leuchtet auf.",
+          "es": "Pasar una bobina de un estante a otro ya no hace parpadear todo el tablero — se queda tranquilo, y solo se ilumina la casilla a la que apuntas.",
+          "it": "Spostare una bobina da un rack all'altro non fa più lampeggiare tutta la scacchiera — resta tranquilla, e si illumina solo lo slot che stai puntando.",
+          "zh": "把料卷从一个料架挪到另一个，不再让整块面板闪烁了——它保持安静，只有你瞄准的那个格子会亮起。",
+          "pt": "Passar uma bobina de uma prateleira para outra não faz mais o painel inteiro piscar — fica calmo, e só o slot que você mira acende.",
+          "pt-pt": "Passar uma bobina de uma prateleira para outra já não faz o painel inteiro piscar — fica calmo, e só o slot que apontas acende.",
+          "pl": "Przeniesienie szpuli z jednego regału na drugi nie rozmiga już całej planszy — jest spokojnie, a podświetla się tylko slot, w który celujesz."
+        }
+      },
+      {
+        "icon": "image",
+        "title": {
+          "en": "Thumbnails stay put",
+          "fr": "Les vignettes restent en place",
+          "de": "Vorschaubilder bleiben, wo sie sind",
+          "es": "Las miniaturas se quedan quietas",
+          "it": "Le miniature restano al loro posto",
+          "zh": "缩略图乖乖待着",
+          "pt": "As miniaturas ficam no lugar",
+          "pt-pt": "As miniaturas ficam no sítio",
+          "pl": "Miniatury zostają na miejscu"
+        },
+        "body": {
+          "en": "Spool pictures no longer come loose when you click them in your inventory or favorites — they stay where they belong instead of trailing after your cursor.",
+          "fr": "Les images de tes bobines ne se décollent plus quand tu cliques dessus dans l'inventaire ou les favoris — elles restent à leur place au lieu de suivre ton curseur.",
+          "de": "Spulenbilder lösen sich nicht mehr, wenn du im Bestand oder in den Favoriten draufklickst — sie bleiben an ihrem Platz, statt deinem Cursor hinterherzuziehen.",
+          "es": "Las imágenes de las bobinas ya no se despegan cuando haces clic en el inventario o en favoritos — se quedan en su sitio en vez de seguir a tu cursor.",
+          "it": "Le immagini delle bobine non si staccano più quando ci clicchi nell'inventario o nei preferiti — restano al loro posto invece di inseguire il cursore.",
+          "zh": "在库存或收藏里点料卷图片时，它们不再被拽出来了——安安分分待在原位，而不是跟着光标跑。",
+          "pt": "As imagens das bobinas não se soltam mais quando você clica no inventário ou nos favoritos — ficam no lugar em vez de seguir o cursor.",
+          "pt-pt": "As imagens das bobinas já não se soltam quando clicas no inventário ou nos favoritos — ficam no lugar em vez de seguir o cursor.",
+          "pl": "Zdjęcia szpul nie odrywają się już, gdy klikasz je w magazynie lub ulubionych — zostają na miejscu, zamiast wlec się za kursorem."
+        }
+      },
+      {
+        "icon": "backup",
+        "title": {
+          "en": "No surprise import window (Windows)",
+          "fr": "Plus de fenêtre d'import surprise (Windows)",
+          "de": "Kein überraschendes Import-Fenster (Windows)",
+          "es": "Sin ventana de importación sorpresa (Windows)",
+          "it": "Niente finestra di import a sorpresa (Windows)",
+          "zh": "不再蹦出导入窗口（Windows）",
+          "pt": "Sem janela de importação surpresa (Windows)",
+          "pt-pt": "Sem janela de importação surpresa (Windows)",
+          "pl": "Koniec z niespodziewanym oknem importu (Windows)"
+        },
+        "body": {
+          "en": "On Windows, dragging a spool around no longer makes the import window pop up out of nowhere — it only shows up when you actually bring a file in.",
+          "fr": "Sous Windows, déplacer une bobine ne fait plus surgir la fenêtre d'import de nulle part — elle n'apparaît que quand tu apportes vraiment un fichier.",
+          "de": "Unter Windows lässt das Verschieben einer Spule nicht mehr das Import-Fenster aus dem Nichts aufpoppen — es erscheint nur, wenn du wirklich eine Datei hereinziehst.",
+          "es": "En Windows, mover una bobina ya no hace aparecer la ventana de importación de la nada — solo sale cuando de verdad traes un archivo.",
+          "it": "Su Windows, spostare una bobina non fa più comparire dal nulla la finestra di importazione — appare solo quando porti davvero un file.",
+          "zh": "在 Windows 上，挪动料卷不会再无缘无故弹出导入窗口了——只有当你真的拖入文件时它才出现。",
+          "pt": "No Windows, arrastar uma bobina não faz mais a janela de importação aparecer do nada — ela só surge quando você realmente traz um arquivo.",
+          "pt-pt": "No Windows, arrastar uma bobina já não faz a janela de importação aparecer do nada — só surge quando trazes mesmo um ficheiro.",
+          "pl": "Na Windows przeciąganie szpuli nie wywołuje już znikąd okna importu — pojawia się tylko wtedy, gdy naprawdę wciągasz plik."
+        }
+      }
+    ]
   }
 }

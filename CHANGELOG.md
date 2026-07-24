@@ -5,6 +5,21 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v2.14.1 — 2026-07-23
+
+### Changed
+
+- **The reorder card's minimum-stock control now matches the buy-link / price buttons.** It was a read-only text field + an always-visible pencil; it is now the same full-width `.ro-shop-btn` (`#roMinBtn`) — a bell icon + "Add a minimum" when empty (click to add), the value when set, with the pencil (`#roMinEdit`) revealed only once a minimum is set and the button flipping to `.ro-shop-btn--active`. Clicking anywhere on the button opens the inline editor, like `#roPriceBtn`. Dropped the now-unused `.ro-price-shown` / `.ro-price-shown--empty` CSS — `renderer/inventory.js`, `renderer/css/70-detail-misc.css`.
+
+### Fixed
+
+- **Spool / product thumbnails can no longer be picked up and dragged as a ghost image** in the inventory grid/list or Favorites (no drag is intended there). `<img>` elements are native drag sources by default, so a thumbnail could be grabbed and dragged with no drop, looking broken. Disabled globally via `img { -webkit-user-drag: none }`; every intended drag (rack slots, list/cart reorder, friends) uses a draggable `<div>`/`<span>` handle, never an `<img>`, so nothing else is affected — `renderer/css/00-base.css`.
+- **Rack view: the whole panel no longer glows amber while dragging a spool between racks.** Hovering a dragged spool over any empty area of the rack view (gaps between racks, the zone edges) added `rp-view--drop-void` to `#invRackView`, whose `box-shadow: inset 0 0 0 2px rgba(234,179,8,.35)` lit up the entire panel — a "drop here to un-rack" cue that fired constantly during a normal rack-to-rack move. Removed the glow; the void-drop *function* (release on empty space → un-rack) is unchanged, and un-racking also stays available via the unranked side panel and the toolbox "remove from rack" button — `renderer/css/40-printers.css`.
+- **Rack view: dragging a spool no longer paints every empty slot orange.** The ambient "drop-zone" treatment gave each empty unlocked slot an orange dashed border + soft-orange fill + a `rp-slot-pulse` animation, so a card full of empty slots read as one big orange glow. Empty slots now stay neutral during a drag; only the slot directly under the cursor (`.rp-slot--drop`) highlights. Locked slots still dim. Also removed the dead `body.is-dragging-spool .rp-rack { transition: box-shadow }` — `renderer/css/30-racks.css`.
+- **The `.ttag` import overlay no longer pops up mid-drag when moving a spool in Grid/Rack view (Windows).** The full-window drop hint used `dataTransfer.types.includes("Files")` to tell a real file drag from the storage view's internal spool DnD, but on Windows/Chromium dragging an element containing an `<img>` (a spool thumbnail) leaks `"Files"` into the drag types, so an internal drag was mistaken for a dropped file (intermittent, image-load-dependent; never reproduced on macOS). Added a `dragstart`/`dragend` guard — an OS file drag never fires `dragstart` inside the document, so any active internal drag now suppresses the overlay reliably — `renderer/inventory.js` (`_wireTtagDropZone`).
+
+---
+
 ## v2.14.0 — 2026-07-23
 
 ### Added
