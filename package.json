@@ -1,7 +1,7 @@
 {
   "name": "tigertag-inventory",
   "version": "2.18.0",
-  "description": "Tiger Studio Manager — desktop app",
+  "description": "Tiger Studio Manager \u2014 desktop app",
   "main": "main.js",
   "engines": {
     "node": ">=24"
@@ -142,5 +142,8 @@
       "unpackDirName": "TigerStudioManager"
     }
   },
-  "license": "MIT"
+  "license": "MIT",
+  "overrides": {
+    "builder-util-runtime": "9.7.0"
+  }
 }
