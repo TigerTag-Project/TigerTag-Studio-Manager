@@ -97,7 +97,7 @@ Everything around TigerTag is open — the hardware, the firmware, the SDK, and 
 | **[TigerTag SDK for JavaScript](https://github.com/TigerTag-Project/TigerTag-SDK-JS)** | Parse, verify, and encode TigerTag NFC chips — used internally by this app | MIT |
 | **[TigerTag SDK for Python](https://github.com/TigerTag-Project/TigerTag-SDK-Python)** | Parse, verify, and encode TigerTag NFC chips in Python — for scripts, tools, and automation | MIT |
 | **[TigerScale V3](https://github.com/TigerTag-Project/Tiger-Scale-V3)** | ESP32-S3 firmware + hardware for the open-source filament scale — 3.5" touchscreen, dual NFC readers, battery | MIT |
-| **[TigerPOD](https://github.com/TigerTag-Project/TigerPOD)** | Open-source dual NFC reader/writer stand for spools — 3D-printable shell + two USB readers ([free STL on MakerWorld](https://makerworld.com/en/models/1289152)) | CC BY 4.0 |
+| **[TigerPOD](https://github.com/TigerTag-Project/TigerPOD)** | Open-source dual NFC reader/writer stand for spools — 3D-printable shell + two USB readers (free STL on MakerWorld: [Standard](https://makerworld.com/en/models/1289152-tigerpod-for-openspool-tigertag-rfid-filament#profileId-1318958) · [Mini](https://makerworld.com/en/models/3190348-tigerpod-mini-for-openspool-tigertag-rfid-filament#profileId-3609236)) | CC BY 4.0 |
 
 The **TigerTag SDK** is the low-level library that handles all NFC chip operations — reading the 144-byte NTAG payload, verifying the TigerTag format, and encoding new chip data. It is published as an npm package (`tigertag`) and can be used independently to build custom TigerTag-compatible tools.
 
@@ -146,7 +146,7 @@ Some brands also expose a **live control panel** (Snapmaker, Elegoo, Anycubic): 
 
 ### 📦 Storage / Racks
 
-<img src="assets/img/Panda_Feed_Rack.png" width="480" alt="A filament rack in Tiger Studio Manager" />
+<p align="center"><img src="assets/img/Panda_Feed_Rack.png" width="480" alt="A filament rack in Tiger Studio Manager" /></p>
 
 Organize your filament collection into physical racks — drag spools onto slots, auto-fill from inventory, and always know where each spool sits:
 - **Drag-and-drop rack editor** — Skyline masonry layout, slot locking, auto-fill / auto-store
@@ -167,9 +167,7 @@ Plug in a USB ACR122U reader and the app automatically opens the matching spool'
 
 #### 🐯 TigerPOD — free 3D-printable dual reader stand
 
-<a href="https://makerworld.com/en/models/1289152">
-  <img src="assets/img/screenshots/screenshot_tigerpod.png" width="100%" alt="Download TigerPOD free STL on MakerWorld" />
-</a>
+<img src="assets/img/screenshots/screenshot_tigerpod.png" width="100%" alt="TigerPOD Free STL — Standard and Mini" />
 
 <img src="assets/img/hero-TigerPOD-Banner-Lineup-Rainbow-9.png" width="100%" alt="TigerPOD printed in nine filament colours" />
 
@@ -181,11 +179,14 @@ The **TigerPOD** ([repository](https://github.com/TigerTag-Project/TigerPOD)) is
 | **Readers** | 1 or 2 × ACR122U — encode two chips simultaneously (Dual Link) |
 | **License** | Free — download, print, use |
 
-**[⬇ Download free STL on MakerWorld](https://makerworld.com/en/models/1289152)**
+<p align="center">
+  <a href="https://makerworld.com/en/models/1289152-tigerpod-for-openspool-tigertag-rfid-filament#profileId-1318958"><img src="https://img.shields.io/badge/TigerPod_Standard-Download%20free%20STL-FF6B00?style=for-the-badge" alt="Download TigerPod Standard" /></a>
+  <a href="https://makerworld.com/en/models/3190348-tigerpod-mini-for-openspool-tigertag-rfid-filament#profileId-3609236"><img src="https://img.shields.io/badge/TigerPod_Mini-Download%20free%20STL-FF6B00?style=for-the-badge" alt="Download TigerPod Mini" /></a>
+</p>
 
 #### TD1S color sensor
 
-<img src="assets/img/TD1S_Front.png" width="320" alt="TD1S USB filament color and TD sensor" />
+<p align="center"><img src="assets/img/TD1S_Front.png" width="320" alt="TD1S USB filament color and TD sensor" /></p>
 
 The [TD1S](https://tigertag.io/products/biqu-ajax-td1s-v1-0) is TigerTag's USB filament color and transmission density sensor. Place the filament in the sensor and it reads:
 - **Color** — precise HEX value written directly to the spool's `online_color_list`
@@ -195,7 +196,7 @@ The TD1S auto-opens a live viewer when plugged in. In the spool detail panel, sc
 
 #### TigerScale
 
-<img src="assets/img/TigerScale_Photo.png" width="480" alt="TigerScale ESP32 filament scale" />
+<p align="center"><img src="assets/img/TigerScale_Photo.png" width="480" alt="TigerScale ESP32 filament scale" /></p>
 
 The [TigerScale](https://github.com/TigerTag-Project/Tiger-Scale-V3) is an open-source ESP32 filament scale — now in its **V3** generation (ESP32-S3, 3.5" touchscreen, dual PN532 readers, battery). Tiger Studio Manager connects to it over WebSocket and shows a live card per scale:
 - **56 px live weight display** with container / filament split
