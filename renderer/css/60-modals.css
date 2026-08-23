@@ -2181,10 +2181,11 @@
   .rfid-pod { position: relative; display: inline-flex; align-items: center; }
   .rfid-pod.disconnected { cursor: pointer; }
   .rfid-pod-icon {
-    display: inline-block; height: 44px; aspect-ratio: 1 / 1; /* Icon_tigerpod_3d.svg viewBox 4267×4267 */
+    display: inline-block; height: 44px; aspect-ratio: 900.45 / 911.76; /* Icon_tigerpod_3d.svg viewBox cropped to its own bounding box */
     background-color: var(--neutral);
     -webkit-mask-image: url('../../assets/svg/icons/Icon_tigerpod_3d.svg');
-    -webkit-mask-size: contain; -webkit-mask-repeat: no-repeat; -webkit-mask-position: center;
+    /* 34px of ink — matches the TigerScale neighbour (see tigerscale.css .scale-health-icon) */
+    -webkit-mask-size: auto 34px; -webkit-mask-repeat: no-repeat; -webkit-mask-position: center;
     transition: background-color .3s, filter .3s;
   }
   .rfid-pod.connected    .rfid-pod-icon { background-color: var(--success); filter: drop-shadow(0 0 4px color-mix(in srgb, var(--success) 45%, transparent)); }
