@@ -381,7 +381,7 @@
     "id": "sunlu_midnight_blue_v1",
     "brandId": 51857,
     "brand": "Sunlu",
-    "label": "Midnight Blue V1",
+    "label": "Midnight Blue V2",
     "type": "Masterspool",
     "container_weight": 165,
     "img": "../assets/img/spool_filament/sunlu_midnight_blueV1.png"
@@ -390,7 +390,7 @@
     "id": "sunlu_midnight_blue_v2",
     "brandId": 51857,
     "brand": "Sunlu",
-    "label": "Midnight Blue V2",
+    "label": "Midnight Blue V3",
     "type": "Masterspool",
     "container_weight": 219,
     "img": "../assets/img/spool_filament/sunlu_midnight_blueV2.png"
