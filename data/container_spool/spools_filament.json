@@ -216,6 +216,15 @@
     "img": "../assets/img/spool_filament/elegoo_carton.png"
   },
   {
+    "id": "elegoo_masterspool_white",
+    "brandId": 57632,
+    "brand": "Elegoo",
+    "label": "White",
+    "type": "Masterspool",
+    "container_weight": 232,
+    "img": "../assets/img/spool_filament/elegoo_masterspool_white.png"
+  },
+  {
     "id": "eryone_black",
     "brandId": 28940,
     "brand": "Eryone",
