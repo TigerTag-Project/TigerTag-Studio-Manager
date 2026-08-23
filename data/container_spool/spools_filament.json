@@ -270,6 +270,15 @@
     "img": "../assets/img/spool_filament/oem_plastic.png"
   },
   {
+    "id": "esun_masterspool_2_0",
+    "brandId": 47930,
+    "brand": "eSun",
+    "label": "eSpool+ 2.0",
+    "type": "Masterspool",
+    "container_weight": 210,
+    "img": "../assets/img/spool_filament/esun_masterspool_2_0.png"
+  },
+  {
     "id": "extrudr_clear",
     "brandId": 7674,
     "brand": "Extrudr",
