@@ -527,6 +527,18 @@ function _buildScaleLocalBlockHtml(mac) {
   // section (r.rackId/rackLevel/rackPos, coord letter+number formatting),
   // for whichever spool is actually on the scale right now. Real Firestore
   // data, not firmware-pushed — the firmware only knows the raw UIDs. ──────
+  // Twin badge — mirrors the physical scale's own pairing indicator
+  // (TigerTagSplashESP32.ino ~13561-13585): hidden with no chip at all, BLUE
+  // when the spool is twinned (both antennas reading a pair, or a single chip
+  // whose partner is known from Firestore), GREY when it's a genuine single
+  // chip with no twin. Not a plain show/hide — a single chip still gets the
+  // badge, just muted.
+  const hasAnyChip = !!(uidLeft || uidRight);
+  const isTwinned  = !!(uidLeft && uidRight) || !!uidTwin;
+  const twinBadgeHtml = hasAnyChip
+    ? `<span class="mc-twin-badge card-tl-badge ${isTwinned ? "card-tl-badge--twin" : "card-tl-badge--single"}" title="${esc(t("twinBadge") || "Twin")}"><span class="icon icon-link icon-11"></span></span>`
+    : "";
+
   const scannedUid = uidLeft || uidRight || uidTwin;
   const scannedRow = scannedUid
     ? state.rows.find(x => String(x.uid) === String(scannedUid) || String(x.spoolId) === String(scannedUid))
@@ -545,6 +557,7 @@ function _buildScaleLocalBlockHtml(mac) {
     </div>
     <div class="main-card">
       <div class="mc-left">
+        ${twinBadgeHtml}
         <div class="weight-display">
           <span class="sc2-weight-num">${esc(String(weightVal))}</span><span class="weight-unit">g</span>
         </div>
@@ -689,6 +702,28 @@ export function connectScaleWs(mac, ip) {
     if (_scaleLocalState.get(mac)?.ws !== ws) return;
     try {
       const data = JSON.parse(e.data);
+      // The firmware's OWN on-device pairing badge never trusts the raw
+      // uid_left/uid_right/uid_twin fields it broadcasts over WS directly —
+      // it keeps a separate, debounced lastUID/lastUID2 pair internally and
+      // resets BOTH to empty once the platform is genuinely empty, only
+      // repopulating them from confirmed reads (TigerTagSplashESP32.ino
+      // §RFID ~line 15191-15329). Mirror that reset here: without it, a
+      // single-chip spool can inherit the previous weighing's uid_right and
+      // flash the wrong badge colour until the new cycle's own fields happen
+      // to overwrite it.
+      // NB: "done" ("remove spool" prompt) and "error" are NOT boundaries —
+      // the chip is still physically on the platform at that point. Resetting
+      // there made the badge vanish the instant "done" fired and only
+      // reappear a few seconds later on the next delta, well before the user
+      // had actually removed the spool. Only "idle"/"ready" mean an empty
+      // platform.
+      const prevStatus = st.scaleStatus;
+      const CYCLE_BOUNDARY = new Set(["idle", "ready"]);
+      const enteringNewScan = typeof data.scaleStatus === "string"
+        && data.scaleStatus.startsWith("scanning:")
+        && !(typeof prevStatus === "string" && prevStatus.startsWith("scanning:"));
+      const atCycleBoundary = typeof data.scaleStatus === "string" && CYCLE_BOUNDARY.has(data.scaleStatus);
+      if (enteringNewScan || atCycleBoundary) { st.uidLeft = null; st.uidRight = null; st.uidTwin = null; }
       // Firmware uses camelCase (not snake_case)
       if (typeof data.weight          === "number") st.weight          = data.weight;
       if (typeof data.netWeight       === "number") st.netWeight       = data.netWeight;
@@ -701,11 +736,25 @@ export function connectScaleWs(mac, ip) {
       if (typeof data.color    === "string") st.color    = data.color;
       // Spool retiré → effacer le panneau filament
       if (data.scaleStatus === "ready") { st.brand = ""; st.material = ""; st.color = ""; }
-      // NFC reader UIDs (prefer _left/_right, fallback to uid/uid2)
+      // NFC reader UIDs (prefer _left/_right, fallback to uid/uid2) — applied
+      // AFTER the cycle-boundary reset above so a same-message confirmed UID
+      // still lands correctly.
+      //
+      // The firmware broadcasts DELTAS: a field is only included in a message
+      // when it actually changed, so "uid_left absent from this message" means
+      // "unchanged" (still whatever it was), NOT "this firmware has no
+      // uid_left concept". The uid/uid2 fallback below exists for genuinely
+      // older single-reader firmware that never sends uid_left/uid_right at
+      // all — so it must only ever fire before we've seen either split field
+      // from THIS scale, never merely because one is missing from one
+      // message. Without st.usesSplitUids, a message carrying uid_right (a
+      // single chip, right reader) but omitting the unchanged uid_left wrongly
+      // copied uid into uid_left too, faking a twin pair (both sides equal).
+      if ("uid_left" in data || "uid_right" in data) st.usesSplitUids = true;
       if ("uid_left"  in data) st.uidLeft  = data.uid_left  || null;
       if ("uid_right" in data) st.uidRight = data.uid_right || null;
-      if ("uid"      in data && !("uid_left"  in data)) st.uidLeft  = data.uid      || null;
-      if ("uid2"     in data && !("uid_right" in data)) st.uidRight = data.uid2     || null;
+      if (!st.usesSplitUids && "uid"  in data) st.uidLeft  = data.uid  || null;
+      if (!st.usesSplitUids && "uid2" in data) st.uidRight = data.uid2 || null;
       if ("uid_twin" in data)                           st.uidTwin  = data.uid_twin || null;
       _scaleLogPush(st, mac, '←', e.data);
     } catch {
