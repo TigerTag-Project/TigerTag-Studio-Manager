@@ -33861,6 +33861,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     renderStats();
     renderInventory();
     if (state.selected && $("detailPanel").classList.contains("open")) openDetail(state.selected);
+    // The Scales panel's cards (status pill, Tare caption, tooltips, …) are
+    // built once by renderScalesPanel() and only patched surgically after —
+    // a language switch never touches them again on its own, so they'd stay
+    // stuck in whatever language was active when the panel was last (re)built.
+    if ($("scalesPanel")?.classList.contains("open")) renderScalesPanel();
   }
   $("langSelect").addEventListener("change", () => {
     const lang = $("langSelect").value;

@@ -231,173 +231,104 @@
   display: flex; flex-direction: column; gap: 10px;
 }
 
-/* ── Weight live card (gradient) ─────────────────────────────────────
-   Rebuilt by _buildScaleLocalBlockHtml on every WS frame.
-   Gradient matches the TigerScale mobile app. */
+/* ── Weight live card — TigerScale V3 firmware look ──────────────────────
+   Rebuilt by _buildScaleLocalBlockHtml on every WS frame. Palette + layout
+   copied from the firmware's lvglBuildMainScreen() (LVCOL_* constants):
+   weight + brand/material stacked left, container/filament/rack column
+   right, separated by a vertical divider — same grammar as the scale's own
+   screen. Colours are fixed (not app-theme vars) so this card always reads
+   like the physical device regardless of Studio's light/dark setting. */
 .sc2-live-card {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 20px;
+  --fw-card:   #141821;
+  --fw-border: #2E3646;
+  --fw-muted:  #8A93A6;
+  --fw-accent: #2F7FFF;
+  --fw-green:  #3BA55D;
+  --fw-red:    #E24B4A;
+  --fw-yellow: #F2B705;
+  --fw-orange: #E8821E;
+  /* Outer shell matches the .scale-card above it (var(--surface-2)) so the
+     two stack as one continuous panel; only the inner .main-card keeps the
+     firmware's own darker tone, like a screen nested inside the app card. */
+  background: var(--surface-2);
+  border-radius: 16px;
+  border: 1px solid var(--border);
   overflow: hidden;
   position: relative;
-  color: #ffffff;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-}
-
-/* ── Status badge — top-left absolute pill ── */
-.send-status {
-  position: absolute;
-  top: 12px; left: 14px;
-  font-size: 11px; font-weight: 700;
-  padding: 4px 12px;
-  border-radius: 999px;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  background: var(--ink-20);
   color: #fff;
-  letter-spacing: .03em;
-  white-space: nowrap;
-  z-index: 2;
+  padding: 12px;
 }
 
-/* ── Filament panel — overlay absolu coin supérieur droit ── */
-.filament-panel {
-  position: absolute;
-  right: 10px; top: 10px;
-  display: flex; flex-direction: column; align-items: center; gap: 6px;
-  background: rgba(0,0,0,0.42);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border-radius: 12px;
-  padding: 10px 11px;
-  min-width: 76px;
-  border: 1px solid var(--ink-12);
-  z-index: 2;
-  pointer-events: none;
+/* ── Top strip — status pill + scale name ── */
+.top-strip {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px;
 }
-.filament-color-dot {
-  width: 30px; height: 30px;
-  border-radius: 50%;
-  background: var(--neutral)888;
-  border: 2px solid var(--ink-30);
-  flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+.send-status {
+  font-size: 10px; font-weight: 700;
+  padding: 4px 10px; border-radius: 999px;
+  letter-spacing: .03em; white-space: nowrap; color: #fff;
 }
-.filament-panel-row {
-  display: flex; flex-direction: column; align-items: center;
-  gap: 1px; width: 100%;
-}
-.filament-panel-label {
-  font-size: 0.52em;
-  opacity: 0.6;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  line-height: 1.2;
-}
-.filament-panel-value {
-  font-size: 0.68em; font-weight: 700;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  max-width: 70px; text-align: center;
+.top-strip .user-name {
+  font-size: 13px; font-weight: 700; color: #fff; letter-spacing: .01em;
 }
 
-/* ── Inner content (rebuilt on every WS frame) ── */
-.sc2-inner {
-  display: flex; flex-direction: column; align-items: center;
-  gap: 14px;
-  padding: 44px 18px 18px; /* top clears the absolute badge */
-  text-align: center;
+/* ── Main card — weight+brand (left) | container/filament/rack (right) ── */
+.main-card {
+  background: var(--fw-card);
+  border: 1px solid var(--fw-border);
+  border-radius: 14px;
+  padding: 14px 12px;
+  display: flex; align-items: stretch;
 }
-
-/* Scale display name */
-.user-name {
-  font-size: 14px; font-weight: 600;
-  color: var(--ink-70);
-  letter-spacing: .01em;
+.mc-left {
+  flex: 0 0 46%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 4px 0;
 }
-
-/* ── Main weight display ── */
-.weight-display {
-  display: flex; align-items: baseline; gap: 5px;
-}
+.weight-display { display: flex; align-items: baseline; gap: 4px; }
 .sc2-weight-num {
-  font-size: 56px; font-weight: 800;
-  line-height: 1; letter-spacing: -.03em; color: var(--text);
+  font-size: 38px; font-weight: 800;
+  line-height: 1; letter-spacing: -.03em; color: #fff;
 }
 .weight-unit {
-  font-size: 22px; font-weight: 500;
-  color: var(--ink-60);
+  font-size: 16px; font-weight: 500;
+  color: var(--fw-muted);
 }
+/* Brand/material — stacked under the weight, like lvBrandCard in the firmware */
+.brand-block {
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  margin-top: 10px; min-height: 28px;
+}
+.brand-row { display: flex; align-items: center; gap: 5px; }
+.brand-dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
+.brand-name { font-size: 12px; font-weight: 600; color: #fff; }
+.material-name { font-size: 10px; color: var(--fw-muted); }
 
-/* ── Container | Filament split row ── */
-.weight-meta-row {
-  display: flex; align-items: stretch; width: 100%;
-  background: var(--ink-12);
-  border-radius: 12px; overflow: hidden;
-}
-.weight-meta-item {
-  flex: 1; display: flex; flex-direction: column; align-items: center;
-  gap: 4px; padding: 10px 8px;
-}
-.weight-meta-label {
-  font-size: 9px; font-weight: 700;
-  letter-spacing: .10em; text-transform: uppercase;
-  color: var(--ink-50);
-}
-.weight-meta-value {
-  font-size: 16px; font-weight: 700; color: var(--text);
-}
-.weight-meta-sep {
-  width: 1px; background: var(--ink-20); align-self: stretch;
-}
+.mc-vdiv { width: 1px; background: var(--fw-border); align-self: stretch; margin: 2px 12px; }
 
-/* ── UID reader rows — grille 2 colonnes ── */
-.uid-rows {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px 8px;
-  margin: 4px 0 6px;
+.mc-right {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column; justify-content: center; gap: 8px;
 }
-/* Chaque colonne = un lecteur physique : label chip en haut, valeur en bas */
-.uid-row {
-  display: flex; flex-direction: column; align-items: center;
-  gap: 3px;
+.mc-row { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; }
+.mc-label { font-size: 11px; color: var(--fw-muted); white-space: nowrap; }
+.mc-value { font-size: 12px; color: #fff; font-weight: 600; white-space: nowrap; }
+.mc-hdiv { height: 1px; background: var(--fw-border); margin: 2px 0; }
+.mc-loc-row { display: flex; align-items: center; gap: 6px; }
+.mc-loc-icon {
+  width: 12px; height: 12px; flex-shrink: 0;
+  background-color: var(--fw-muted);
+  -webkit-mask-size: contain; mask-size: contain;
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  -webkit-mask-position: center; mask-position: center;
 }
-.uid-chip-label {
-  background: var(--ink-20);
-  border-radius: 4px;
-  padding: 2px 7px;
-  font-size: 0.65em; font-weight: 700;
-  letter-spacing: .06em;
-  min-width: 34px; text-align: center;
-  opacity: 0.9;
-  position: relative; cursor: default;
-  white-space: nowrap;
+.mc-loc-icon--home { -webkit-mask-image: url('../../../assets/svg/icons/icon_home.svg'); mask-image: url('../../../assets/svg/icons/icon_home.svg'); aspect-ratio: 1/1; }
+.mc-loc-icon--pin  { -webkit-mask-image: url('../../../assets/svg/icons/icon_pin.svg');  mask-image: url('../../../assets/svg/icons/icon_pin.svg');  aspect-ratio: 1/1; }
+.mc-loc-value {
+  font-size: 11px; color: #fff;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-/* Tooltip — caché par défaut, visible au hover */
-.uid-chip-label[data-tooltip]::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  bottom: calc(100% + 6px); left: 50%;
-  transform: translateX(-50%);
-  background: rgba(0,0,0,0.82);
-  color: #fff;
-  padding: 3px 9px; border-radius: 5px;
-  font-size: 1.1em; font-weight: 500;
-  letter-spacing: .02em;
-  white-space: nowrap; pointer-events: none;
-  opacity: 0;
-  transition: opacity .15s ease;
-  z-index: 10;
-}
-.uid-chip-label[data-tooltip]:hover::after { opacity: 1; }
-.uid-value {
-  font-size: 0.78em;
-  font-family: monospace;
-  letter-spacing: .04em;
-  color: #ffffff;
-  font-weight: 500;
-}
-/* Twin — résolu depuis Firestore, s'affiche dans le slot vide en vert */
-.uid-value--twin { color: #4ade80; }
 
 /* Head — photo (left) + identity column (centre) + actions (right) */
 .scale-card-head {
@@ -523,18 +454,6 @@
 .scale-chip--bat-low      { color: var(--danger); }
 .scale-chip--bat-neutral  { color: var(--text); }
 
-/* Wi-Fi as reception-quality bars — colour inherited from the quality class. */
-.scale-wifi-bars { display: inline-flex; align-items: flex-end; gap: 1.5px; height: 11px; }
-.scale-wifi-bars i { width: 3px; border-radius: 1px; background: var(--border); }
-.scale-wifi-bars i:nth-child(1) { height: 4px; }
-.scale-wifi-bars i:nth-child(2) { height: 6px; }
-.scale-wifi-bars i:nth-child(3) { height: 8.5px; }
-.scale-wifi-bars i:nth-child(4) { height: 11px; }
-.scale-wifi-bars[data-bars="1"] i:nth-child(-n+1),
-.scale-wifi-bars[data-bars="2"] i:nth-child(-n+2),
-.scale-wifi-bars[data-bars="3"] i:nth-child(-n+3),
-.scale-wifi-bars[data-bars="4"] i:nth-child(-n+4) { background: currentColor; }
-
 /* Battery — iOS-style pill: coloured outline, proportional fill, value inside,
    plus a terminal nub. Colour follows the level class (or green while charging);
    the numeral stays var(--text) so it reads on the faint fill in either theme. */
@@ -563,47 +482,6 @@
 
 /* Last-seen chip — subtle muted, only shown when offline */
 .scale-chip--seen { color: var(--muted); }
-
-/* Last-spool block inside the scale card — Apple-flat, no inner
-   frame. The data sits directly on the card surface, separated
-   from the chips strip above only by a hairline. */
-.scale-last-spool {
-  display: flex; align-items: center; gap: 10px;
-  padding: 8px 0 0;
-  border-top: 1px solid var(--border);
-}
-.scale-last-puck {
-  width: 24px; height: 38px;
-  flex-shrink: 0;
-  border-radius: 4px;
-  border: 1px solid rgba(0,0,0,.12);
-  background: color-mix(in srgb, var(--neutral) 12%, transparent);
-  position: relative; overflow: hidden;
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,.18);
-}
-.scale-last-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.scale-last-name {
-  font-size: 12.5px; font-weight: 600; color: var(--text);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.scale-last-sub {
-  font-size: 10.5px; color: var(--muted); font-family: var(--mono);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.scale-last-w {
-  font-size: 11px; font-weight: 600; color: var(--text);
-  flex-shrink: 0; font-family: var(--mono);
-  text-align: right;
-}
-.scale-last-w-unit {
-  display: block; font-size: 9px; font-weight: 500;
-  color: var(--muted); margin-top: 1px;
-}
-.scale-last-empty {
-  font-size: 11.5px; color: var(--muted); font-style: italic;
-  padding: 8px 0 0;
-  border-top: 1px solid var(--border);
-}
 
 /* ── Scale card — Debug-only raw JSON viewer ──────────────────────
    Collapsed by default, click "Raw JSON (debug)" to expand. Shows
@@ -650,10 +528,11 @@
   position: relative; overflow: hidden;
   width: 100%;
   padding: 14px 20px;
-  border: none; border-radius: 10px;
-  background: #667eea;
+  border: 1px solid var(--border); border-radius: 14px;
+  background: var(--surface-2);
   color: #fff;
-  font-size: 0.95em; font-weight: 600;
+  font-size: 0.95em; font-weight: 700;
+  letter-spacing: .02em;
   cursor: pointer;
   transition: transform 0.2s, box-shadow 0.2s;
   margin-bottom: 12px;
@@ -662,7 +541,7 @@
   -webkit-touch-callout: none;
   display: flex; align-items: center; justify-content: center;
 }
-.tare-hold-btn:hover:not(:disabled) { background: #667eea; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4); }
+.tare-hold-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4); }
 .tare-hold-btn:active:not(:disabled) { transform: translateY(0); box-shadow: none; }
 .tare-hold-btn:disabled { opacity: .35; cursor: default; }
 
@@ -681,8 +560,8 @@
 .tare-hold-btn.holding .tare-progress {
   animation: fillProgress 1s linear forwards;
 }
-.tare-hold-btn.success { background: #48bb78 !important; }
-.tare-hold-btn.error   { background: #e04345 !important; }  /* tare failed (non-2xx / unreachable) */
+.tare-hold-btn.success { background: #3BA55D !important; border-color: #3BA55D !important; }
+.tare-hold-btn.error   { background: #E24B4A !important; border-color: #E24B4A !important; }  /* tare failed (non-2xx / unreachable) */
 
 @keyframes fillProgress {
   from { width: 0%; }
