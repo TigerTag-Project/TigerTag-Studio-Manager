@@ -1,5 +1,14 @@
 [
   {
+    "id": "custom_no_masterspool",
+    "brandId": 0,
+    "brand": "Generic",
+    "label": "No Masterspool",
+    "type": "Customizable",
+    "container_weight": 0,
+    "img": "../assets/img/spool_filament/oem_no_masterspool.png"
+  },
+  {
     "id": "custom_cardboard",
     "brandId": 0,
     "brand": "Generic",
