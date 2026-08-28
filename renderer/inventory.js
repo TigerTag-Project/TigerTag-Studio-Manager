@@ -21607,6 +21607,46 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
 
     return { state, pct, isActive, isDone, filename, remainSec, thumbUrl };
   }
+
+  // Which brands expose a pause/resume/stop API at all — Elegoo has none in
+  // this codebase, so its printers simply never show controls (same "nothing
+  // to offer" outcome as a brand with no camera in renderCamBanner).
+  const _CTRL_BRANDS = new Set(["bambulab", "snapmaker", "flashforge", "creality", "anycubic"]);
+  /**
+   * Pause/resume/stop info for the board's print-control widget.
+   * `_getPrinterJob`'s normalised `state` already reads "paused" correctly for
+   * every brand EXCEPT Creality, whose own state numbers (1=printing/2=complete)
+   * never encode it — Creality keeps pause as a separate `isPaused` flag beside
+   * the numeric state, exactly as `creActionPause` itself reads it, so that one
+   * brand is special-cased rather than trusting the normalised value.
+   */
+  function _printerCtrlInfo(p) {
+    if (!_CTRL_BRANDS.has(p.brand)) return null;
+    const job = _getPrinterJob(p);
+    if (!job || !job.isActive) return { isActive: false, isPaused: false };
+    let isPaused = job.state === "paused";
+    if (p.brand === "creality") isPaused = !!creGetConn(creKey(p))?.data?.isPaused;
+    return { isActive: true, isPaused };
+  }
+  // Dispatches to each brand's own control function — same ones the detail
+  // panel's job cards already call via their data-<brand>-print handlers, just
+  // reached directly here instead of through _activePrinter + a DOM lookup.
+  function _printerCtrlAction(p, action) {
+    if (p.brand === "bambulab") {
+      const conn = bambuGetConn(bambuKey(p));
+      if (conn) bambuPrintControl(conn, action);
+    } else if (p.brand === "snapmaker") {
+      const conn = snapGetConn(snapKey(p));
+      if (conn) snapPrintControl(conn, action === "stop" ? "cancel" : action);
+    } else if (p.brand === "flashforge") {
+      ffgJobControl(p, action === "resume" ? "continue" : action === "stop" ? "cancel" : action);
+    } else if (p.brand === "creality") {
+      if (action === "stop") creActionStop(p); else creActionPause(p);
+    } else if (p.brand === "anycubic") {
+      const conn = acuGetConn(acuKey(p));
+      if (conn) acuPrintControl(conn, action);
+    }
+  }
   // Table thumbnail cell HTML — the print preview (active or just-finished), or
   // empty when idle/unavailable. thumbUrl is already gated in _getPrinterJob.
   function _jobThumbHtml(job) {
@@ -21786,7 +21826,101 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     return _widgetFrame(p, w, live || _tempOfflineHtml(), !live);
   }
 
+  /* Same two pills the list view already shows in its "Impression"/"Fini à"
+     columns (_fmtRemain / _fmtEndClock, both defined above near _getPrinterJob)
+     — reused as-is rather than recomputed, so a widget and the list can never
+     drift on what "remaining" or "ends at" means for a given brand. */
+  function _jobWidgetBodyHtml(job) {
+    const remain = job?.isActive && job.remainSec != null ? _fmtRemain(job.remainSec) : "—";
+    const end    = job?.isActive ? _fmtEndClock(job) : "—";
+    const pill = (icon, val, label) => `<div class="snap-temp"><span class="snap-temp-label">${esc(label)}</span><span class="icon ${icon} snap-temp-icon" aria-hidden="true"></span><span class="snap-temp-val">${esc(val)}</span></div>`;
+    return `<section class="snap-block"><div class="snap-temps">${pill("icon-clock", remain, t("boardJobRemainLabel"))}${pill("icon-clock", end, t("printerEndsAt"))}</div></section>`;
+  }
+  function _makeJobWidget(p) {
+    const w = SIMPLE_WIDGETS.find(x => x.kind === "job");
+    if (!widgetOn(p, "job")) return "";
+    const job = _getPrinterJob(p);
+    const live = !!(job && job.isActive);
+    return _widgetFrame(p, w, _jobWidgetBodyHtml(job), !live);
+  }
 
+  /* ── Print-control widget ────────────────────────────────────────────────
+     Pause/Resume + Stop, mirroring the detail panel's own job-card buttons
+     (.cre-action-btn, shared across every brand's cards.js) so the board
+     offers no new control vocabulary — just the same one, reachable without
+     opening a printer.
+
+     Both buttons are plain clicks, deliberately NOT hold-to-confirm: a
+     multi-brand "callback rebuilds renderPrintersView() while a printer is
+     printing" trap already documented in this view (see the comment above
+     the delegated click handler, ~L24731) tears down and recreates board DOM
+     mid-gesture — a plain click survives that (same reflex as the pending-open
+     workaround right below that comment), a several-hundred-ms hold does not:
+     the fill resets when its element is replaced, which is exactly the
+     "sometimes it just doesn't fire" the first version of this widget showed
+     in real use. This body still needs `refresh` (not the default diff-and-
+     swap) purely so the buttons' click listeners survive an UNCHANGED tick —
+     see _wireCtrlCard's guard. */
+  // Idle placeholder — same nested surface-2 pill the temp/time widgets use
+  // for their own "—" (see _tempOfflineHtml / _jobWidgetBodyHtml), so all
+  // three widgets read the same shade of "nothing going on" side by side
+  // instead of this one showing a bare dash directly on the card background.
+  function _ctrlIdleHtml() {
+    return `<section class="snap-block"><div class="snap-temps"><div class="snap-temp"><span class="snap-temp-val">—</span></div></div></section>`;
+  }
+  function _ctrlCardBodyHtml(p, info) {
+    if (!info || !info.isActive) return _ctrlIdleHtml();
+    return `
+      <div class="cre-actions">
+        <button type="button" class="cre-action-btn cre-action-btn--pause"
+                data-ctrl-action="${info.isPaused ? "resume" : "pause"}"
+                title="${esc(t(info.isPaused ? "snapPrintResume" : "snapPrintPause"))}">
+          <span class="icon ${info.isPaused ? "icon-play" : "icon-pause"} icon-16"></span>
+        </button>
+        <button type="button" class="cre-action-btn cre-action-btn--stop"
+                data-ctrl-action="stop"
+                title="${esc(t("snapPrintCancel"))}">
+          <span class="icon icon-stop icon-14"></span>
+        </button>
+      </div>`;
+  }
+  // (Re-)binds both buttons' plain clicks on whatever currently sits inside
+  // `el` — guarded per-button so calling this again after an unrelated tick
+  // (buttons untouched) never double-wires.
+  function _wireCtrlCard(el, p) {
+    el.querySelectorAll("[data-ctrl-action]").forEach(btn => {
+      if (btn._ctrlWired) return;
+      btn._ctrlWired = true;
+      btn.addEventListener("click", () => _printerCtrlAction(p, btn.dataset.ctrlAction));
+    });
+  }
+  function _makeJobCtrlWidget(p) {
+    const w = SIMPLE_WIDGETS.find(x => x.kind === "ctrl");
+    if (!widgetOn(p, "ctrl")) return "";
+    const info = _printerCtrlInfo(p);
+    return _widgetFrame(p, w, _ctrlCardBodyHtml(p, info), !info?.isActive);
+  }
+  // Opts the widget out of the generic body-diff-and-swap patch (see comment
+  // above _ctrlCardBodyHtml) — called instead of it whenever this printer's
+  // card already exists on the board.
+  function _refreshJobCtrlWidget(el, p) {
+    const info = _printerCtrlInfo(p);
+    const html = _ctrlCardBodyHtml(p, info);
+    const body = el.querySelector(".ctrl-card-body");
+    if (body && body.innerHTML !== html) body.innerHTML = html;
+    el.classList.toggle("is-stale", !info?.isActive);
+    _wireCtrlCard(el, p);
+  }
+  // Wires every print-control widget currently on the board — called once
+  // after the full board render, and again (via the widget's `wire` hook)
+  // whenever a fresh instance is patched in.
+  function wirePrinterCtrlButtons(host) {
+    host.querySelectorAll(".ctrl-card[data-printer-key]").forEach(el => {
+      const key = el.dataset.printerKey;
+      const p = state.printers.find(v => `${v.brand}:${v.id}` === key);
+      if (p) _wireCtrlCard(el, p);
+    });
+  }
 
   function _makeUnitWidgets(p) {
     if (!widgetOn(p, "units")) return "";
@@ -22336,6 +22470,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     wirePrinterZoom(host);
     wirePrinterArrange(host);
     wirePrinterCardMenus(host);
+    wirePrinterCtrlButtons(host);
     wirePlanClusterMenu(host);
     wirePrinterMarquee(host);
     _syncPlanSelection();
@@ -23062,6 +23197,16 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       prefix: "temp:", unitTag: "#temp",
       planField: "tempPlan", clusterField: "tempPlanCluster",
       render: p => _makeTempWidget(p) },
+    { kind: "job", labelKey: "boardJobTitle", simple: true,
+      prefix: "job:", unitTag: "#job",
+      planField: "jobPlan", clusterField: "jobPlanCluster",
+      render: p => _makeJobWidget(p) },
+    { kind: "ctrl", labelKey: "boardJobCtrlTitle", simple: true,
+      prefix: "ctrl:", unitTag: "#ctrl",
+      planField: "ctrlPlan", clusterField: "ctrlPlanCluster",
+      render: p => _makeJobCtrlWidget(p),
+      refresh: (el, p) => _refreshJobCtrlWidget(el, p),
+      wire: container => wirePrinterCtrlButtons(container) },
   ];
   const SIMPLE_WIDGETS = BOARD_WIDGETS.filter(w => w.simple);
   const _widgetByTag = tag => SIMPLE_WIDGETS.find(w => w.unitTag === tag) || null;

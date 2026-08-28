@@ -251,6 +251,29 @@
   .temp-card .temp-card-body .snap-temp { cursor: default; }
   .temp-card .temp-card-body .snap-temp-row,
   .temp-card .temp-card-body .snap-temps { flex-wrap: wrap; gap: 6px; }
+
+  /* ── The print-time widget ────────────────────────────────────────────────
+     Same two-pill shape as the temperature widget, reusing its pills wholesale
+     (remaining time / ends-at, in that order) — but their captions are real
+     words ("Time remaining", "Ends at") rather than a temp pill's short tag
+     ("E1", "BED"), so the label needs room to wrap instead of the single line
+     the temp pills assume. */
+  .job-card .job-card-body .snap-block { margin: 0; padding: 0; border: 0; background: none; }
+  .job-card .job-card-body .snap-block-title { display: none; }
+  .job-card .job-card-body { pointer-events: none; }
+  .job-card .job-card-body .snap-temp { cursor: default; min-width: 84px; }
+  .job-card .job-card-body .snap-temp-label { white-space: normal; text-align: center; line-height: 1.2; }
+  .job-card .job-card-body .snap-temp-row,
+  .job-card .job-card-body .snap-temps { flex-wrap: wrap; gap: 6px; }
+
+  /* ── The print-control widget ─────────────────────────────────────────────
+     Pause/Resume + Stop, at rest when there's nothing to pause or stop — the
+     idle placeholder reuses the temp/time widgets' own surface-2 pill (see
+     _ctrlIdleHtml) so all three agree on what "nothing going on" looks like
+     side by side, rather than this one alone showing a bare dash. */
+  .ctrl-card .ctrl-card-body { display: flex; align-items: center; justify-content: center; min-height: 40px; }
+  .ctrl-card .cre-actions { gap: 10px; }
+  .ctrl-card .ctrl-card-body .snap-block { margin: 0; padding: 0; border: 0; background: none; }
   /* One block per unit — an AMS, a holder pair, the spool arm. They are separate
      objects on the bench, so they are separated here too rather than run into
      one long line. */
