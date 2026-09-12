@@ -65,6 +65,7 @@
   .icon-cloud-3d  { -webkit-mask-image: url('../../assets/svg/icons/icon_cloud_3d.svg');     mask-image: url('../../assets/svg/icons/icon_cloud_3d.svg'); }
   .icon-signout   { -webkit-mask-image: url('../../assets/svg/icons/icon_signout.svg');      mask-image: url('../../assets/svg/icons/icon_signout.svg'); }
   .icon-info      { -webkit-mask-image: url('../../assets/svg/icons/icon_info.svg');         mask-image: url('../../assets/svg/icons/icon_info.svg'); }
+  .icon-book      { -webkit-mask-image: url('../../assets/img/icon_book_white.png');         mask-image: url('../../assets/img/icon_book_white.png'); }
   .icon-list      { -webkit-mask-image: url('../../assets/svg/icons/icon_list.svg');         mask-image: url('../../assets/svg/icons/icon_list.svg'); }
   .icon-palette   { -webkit-mask-image: url('../../assets/svg/icons/icon_palette.svg');      mask-image: url('../../assets/svg/icons/icon_palette.svg'); }
   .icon-apple     { -webkit-mask-image: url('../../assets/svg/icons/icon_apple.svg');        mask-image: url('../../assets/svg/icons/icon_apple.svg'); }

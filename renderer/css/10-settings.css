@@ -286,6 +286,18 @@
       margin-top .25s cubic-bezier(.4, 0, .2, 1),
       opacity   .15s linear;
   }
+  /* Wiki — TigerTag brand orange (same #FF6B00 used elsewhere for TigerTag
+     badges), solid + white mono logo, same shape as the other community
+     buttons below. */
+  .sb-wiki-btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    background: #FF6B00; border: none; border-radius: 8px;
+    padding: 8px 12px; color: var(--on-accent); font-size: 12px; font-weight: 600;
+    cursor: pointer;
+    transition: background .15s, box-shadow .2s, width .25s cubic-bezier(.4,0,.2,1);
+    width: 100%; box-sizing: border-box;
+  }
+  .sb-wiki-btn:hover { background: #cc5600; box-shadow: 0 3px 14px rgba(255,107,0,.45); }
   /* GitHub / 3D Files now match the Discord card: solid brand colour + a white
      (mono) logo, instead of translucent tints. */
   .sb-github-btn {
@@ -341,14 +353,14 @@
   /* Shared fixed height so the community buttons are identical whether the
      sidebar is expanded or collapsed (40px — matches the Notifications button +
      friend avatars; collapsed they become a 40×40 square, only the width changes). */
-  .sb-github-btn, .sb-makerworld-btn, .sb-discord-btn, .sb-shop-btn, .sb-coffee-btn { height: 40px; flex-shrink: 0; }
+  .sb-wiki-btn, .sb-github-btn, .sb-makerworld-btn, .sb-discord-btn, .sb-shop-btn, .sb-coffee-btn { height: 40px; flex-shrink: 0; }
   /* Brand logos fill more of the button (app-icon presence), uniform across the
      buttons. Shared rule replaces the old per-button inline sizes. */
   .sb-community button > .icon { width: 24px; height: 24px; }
   /* Community nudge — a message-style red "1" badge on a community button until
      its nudge is done (per account, synced via users/{uid}.{key}Seen). Hidden by
      default; shown only while the button carries `.sb-nudge`. */
-  .sb-github-btn, .sb-makerworld-btn, .sb-discord-btn, .sb-shop-btn, .sb-coffee-btn { position: relative; }
+  .sb-wiki-btn, .sb-github-btn, .sb-makerworld-btn, .sb-discord-btn, .sb-shop-btn, .sb-coffee-btn { position: relative; }
   .sb-community-badge {
     position: absolute; top: -6px; right: -6px;
     display: none;

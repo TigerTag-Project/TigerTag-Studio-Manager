@@ -4483,6 +4483,11 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     return !state[c.seen] && _communityDelayElapsed(c.delayDays);
   }
   const COMMUNITY = {
+    wiki: {
+      url: "https://wiki.tigersystem.io/",
+      btnId: "sbWikiBtn", seen: "wikiSeen", clickedAt: "wikiClickedAt",
+      icon: "book", titleKey: "notifWikiTitle", textKey: "notifWikiText",
+    },
     discord: {
       url: "https://discord.gg/3Qv5TSqnJH",
       btnId: "sbDiscordBtn", seen: "discordSeen", clickedAt: "discordClickedAt",
@@ -20335,6 +20340,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   $("fseRawCopy")?.addEventListener("click", () => _fseCopyJson($("fseRawCopy")));
 
   /* ── community buttons ── */
+  $("sbWikiBtn").addEventListener("click", () => _clickCommunityBtn("wiki"));
   $("sbGithubBtn").addEventListener("click", () => _clickCommunityBtn("github"));
   $("sbMakerWorldBtn").addEventListener("click", () => _clickCommunityBtn("makerworld"));
   $("sbDiscordBtn").addEventListener("click", () => _clickCommunityBtn("discord"));
@@ -34172,7 +34178,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       `<div class="fp-req notif-req" data-uid="${esc(r.uid)}">${_reqRowInnerHtml(r)}</div>`).join("");
     const localHtml = locals.map(n => {
       // Community nudges + avatar: the whole row IS the call-to-action (no button).
-      const isCommunity = n.action === "discord" || n.action === "github" || n.action === "makerworld" || n.action === "shop" || n.action === "coffee";
+      const isCommunity = !!COMMUNITY[n.action];
       const clickable = isCommunity || n.action === "avatar" || n.action === "paxx" || n.action === "lowstock";
       const brandIc = isCommunity ? ` notif-ic--${n.action}`         // branded square icon
         : (n.action === "lowstock" ? " notif-ic--lowstock" : "");    // amber alert icon
@@ -35039,7 +35045,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     state.tier           = c.tier || "free";
     state.vatCountry     = c.vatCountry || null;
     state.priceInputMode = c.priceInputMode === "HT" ? "HT" : "TTC";
-    state.discordSeen    = !!c.discordSeen;     // avoids a badge flash before syncUserDoc resolves
+    state.wikiSeen       = !!c.wikiSeen;        // avoids a badge flash before syncUserDoc resolves
+    state.discordSeen    = !!c.discordSeen;
     state.githubSeen     = !!c.githubSeen;
     state.makerworldSeen = !!c.makerworldSeen;
     state.shopSeen       = !!c.shopSeen;
@@ -35793,7 +35800,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
           if (state.viewMode === "rack") scheduleMasonryRelayout();
         }
       }
-      state.discordSeen    = !!data.discordSeen;     // "nudge done" flags (per account, synced)
+      state.wikiSeen       = !!data.wikiSeen;         // "nudge done" flags (per account, synced)
+      state.discordSeen    = !!data.discordSeen;
       state.githubSeen     = !!data.githubSeen;
       state.makerworldSeen = !!data.makerworldSeen;
       state.shopSeen       = !!data.shopSeen;
@@ -35811,6 +35819,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         tier:       data.tier || "free",
         vatCountry: data.vatCountry || null,
         priceInputMode: data.priceInputMode === "HT" ? "HT" : "TTC",
+        wikiSeen: !!data.wikiSeen,
         discordSeen: !!data.discordSeen, githubSeen: !!data.githubSeen, makerworldSeen: !!data.makerworldSeen,
         shopSeen: !!data.shopSeen, coffeeSeen: !!data.coffeeSeen,
         displayName: data.displayName || null,

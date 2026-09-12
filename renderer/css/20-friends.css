@@ -295,6 +295,7 @@
   .notif-ic .icon { background: var(--primary); }
   /* Community nudges — the real app-icon look: brand-coloured rounded square,
      white logo filling the box (Discord purple, GitHub slate, MakerWorld teal). */
+  .notif-ic--wiki       { background: #FF6B00; border-color: #FF6B00; } /* TigerTag brand orange */
   .notif-ic--discord    { background: #5865F2; border-color: #5865F2; }
   .notif-ic--github     { background: #2d333b; border-color: #2d333b; }
   .notif-ic--makerworld { background: #00BCA0; border-color: #00BCA0; }
@@ -308,8 +309,8 @@
      not the circular chip the other notif icons use. */
   .notif-ic--img { padding: 0; overflow: hidden; background: var(--surface-2); border-radius: 9px; }
   .notif-ic--img img { width: 100%; height: 100%; object-fit: cover; display: block; }
-  .notif-ic--discord, .notif-ic--github, .notif-ic--makerworld, .notif-ic--shop, .notif-ic--coffee { border-radius: 10px; }
-  .notif-ic--discord .icon, .notif-ic--github .icon, .notif-ic--makerworld .icon, .notif-ic--shop .icon {
+  .notif-ic--wiki, .notif-ic--discord, .notif-ic--github, .notif-ic--makerworld, .notif-ic--shop, .notif-ic--coffee { border-radius: 10px; }
+  .notif-ic--wiki .icon, .notif-ic--discord .icon, .notif-ic--github .icon, .notif-ic--makerworld .icon, .notif-ic--shop .icon {
     background: var(--surface); width: 24px; height: 24px;
   }
   /* Official Buy Me a Coffee cup (our own SVG) on the yellow square. */

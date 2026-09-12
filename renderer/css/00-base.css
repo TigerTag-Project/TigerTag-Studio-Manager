@@ -928,6 +928,7 @@
   .sidebar.collapsed .sb-community {
     padding: 4px 6px 12px; align-items: center;
   }
+  .sidebar.collapsed .sb-wiki-btn,
   .sidebar.collapsed .sb-github-btn,
   .sidebar.collapsed .sb-makerworld-btn,
   .sidebar.collapsed .sb-discord-btn,
