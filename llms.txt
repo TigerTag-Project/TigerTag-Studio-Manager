@@ -21,7 +21,7 @@ Current version: **2.27.1** — macOS (Intel + Apple Silicon, signed & notarized
 - **Printer integrations**: `renderer/printers/<brand>/index.js` — one file per brand, loaded dynamically
 - **IoT sensors**: `renderer/IoT/td1s/` (TD1S color sensor), `renderer/IoT/tigerscale/` (TigerScale ESP32)
 - **CSS**: `renderer/css/00-base.css` → `70-detail-misc.css` (10 files, loaded in numeric order via `<link>` tags)
-- **i18n**: `renderer/locales/` — 9 JSON files (en/fr/de/es/it/zh/pt/pt-pt/pl), managed via `npm run i18n:add`
+- **i18n**: `renderer/locales/` — 10 JSON files (en/fr/de/es/it/zh/pt/pt-pt/pl/ru), managed via `npm run i18n:add`
 - **TigerTag SDK**: `@tigertag/sdk` npm package — parse, verify, encode TigerTag NTAG chips (pages 4–39, 144 bytes, blockSize=4)
 
 ## Key source files
@@ -248,10 +248,10 @@ All brands: printer discovery (mDNS + port scan + manual IP), filament edit per 
 
 **Never edit locale JSON files by hand.** Use:
 ```bash
-npm run i18n:add -- myKey --after existingKey en="..." fr="..." de="..." es="..." it="..." zh="..." pt="..." pt-pt="..." pl="..."
+npm run i18n:add -- myKey --after existingKey en="..." fr="..." de="..." es="..." it="..." zh="..." pt="..." pt-pt="..." pl="..." ru="..."
 npm run i18n:check   # validates consistency (also runs as pre-commit hook)
 ```
-1512 keys × 9 locales as of v2.25.0.
+1523 keys × 10 locales as of v2.27.2.
 
 ## CSS conventions
 
@@ -298,7 +298,7 @@ npm run i18n:check   # validates consistency (also runs as pre-commit hook)
 
 ```bash
 npm start                          # dev (no bundler)
-npm run i18n:check                 # validate all 9 locales
+npm run i18n:check                 # validate all 10 locales
 git tag v2.13.0 && git push --tags  # triggers CI: parallel build macOS/Windows/Linux → GitHub Release
 ```
 

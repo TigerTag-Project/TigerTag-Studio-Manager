@@ -1445,7 +1445,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
 
   /* ── lookups ── */
   async function loadLocales() {
-    await Promise.all(["en", "fr", "de", "es", "it", "zh", "pt", "pt-pt", "pl"].map(async lang => {
+    await Promise.all(["en", "fr", "de", "es", "it", "zh", "pt", "pt-pt", "pl", "ru"].map(async lang => {
       try {
         const r = await fetch(`locales/${lang}.json`);
         if (r.ok) state.i18n[lang] = await r.json();
@@ -33924,6 +33924,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     ["en", "English"], ["fr", "Français"], ["de", "Deutsch"],
     ["es", "Español"], ["it", "Italiano"], ["zh", "中文"],
     ["pt", "Português (Brasil)"], ["pt-pt", "Português (Portugal)"], ["pl", "Polski"],
+    ["ru", "Русский"],
   ];
   // An imported photo ALWAYS wins as the avatar; the generated colour is only
   // the fallback shown when there is no photo. So shuffling a colour never hides

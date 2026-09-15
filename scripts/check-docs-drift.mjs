@@ -35,6 +35,7 @@ const brands = readdirSync(join(root, "renderer/printers"), { withFileTypes: tru
   .filter(d => d.isDirectory() && existsSync(join(root, "renderer/printers", d.name, "index.js")))
   .map(d => d.name);
 const i18nKeys = Object.keys(JSON.parse(read("renderer/locales/en.json"))).length;
+const localeCount = readdirSync(join(root, "renderer/locales")).filter(f => f.endsWith(".json")).length;
 
 // ── llms.txt — the agent-facing summary, the most drift-prone file ──────
 const llms = read("llms.txt");
@@ -85,12 +86,16 @@ if (missing.length) {
        "add a row per brand under '## Printer integrations'");
 }
 
-// i18n key count. 2 % tolerance — keys move on nearly every commit.
-const mKeys = llms.match(/([\d\s ]+)\s*keys × 9 locales/);
+// i18n key count + locale count. 2 % tolerance on keys -- they move on nearly every commit.
+const mKeys = llms.match(/([\d\s ]+)\s*keys \u00d7 (\d+) locales/);
 if (mKeys) {
-  const claimed = Number(mKeys[1].replace(/[\s ]/g, ""));
-  if (Math.abs(claimed - i18nKeys) / i18nKeys > 0.02) {
-    fail("llms.txt", `${claimed} i18n keys`, `${i18nKeys}`, `set it to ${i18nKeys}`);
+  const claimedKeys = Number(mKeys[1].replace(/[\s ]/g, ""));
+  const claimedLocales = Number(mKeys[2]);
+  if (Math.abs(claimedKeys - i18nKeys) / i18nKeys > 0.02) {
+    fail("llms.txt", `${claimedKeys} i18n keys`, `${i18nKeys}`, `set it to ${i18nKeys}`);
+  }
+  if (claimedLocales !== localeCount) {
+    fail("llms.txt", `${claimedLocales} locales`, `${localeCount}`, `set it to ${localeCount}`);
   }
 }
 
