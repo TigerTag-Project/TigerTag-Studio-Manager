@@ -1,6 +1,6 @@
 # i18n keys — complete reference (TigerTag Studio)
 
-> Extracted from `CLAUDE.md` to keep the always-loaded instructions lean. **Read this on demand instead of re-reading the locale JSON files.** All **10 locales** (en/fr/de/es/it/zh/pt/pt-pt/pl/ru) have every key below. To add/change keys use `npm run i18n:add` (never hand-edit the locale files) — see CLAUDE.md → *i18n — workflow*.
+> Extracted from `CLAUDE.md` to keep the always-loaded instructions lean. **Read this on demand instead of re-reading the locale JSON files.** All **11 locales** (en/fr/de/es/it/zh/pt/pt-pt/pl/ru/nl) have every key below. To add/change keys use `npm run i18n:add` (never hand-edit the locale files) — see CLAUDE.md → *i18n — workflow*.
 
 ### App / status
 | Key | Purpose |
@@ -243,4 +243,4 @@
 | `notifPaxxTitle` | Paxx firmware release notice title (Snapmaker owners) |
 | `notifPaxxText {{version}}` | Paxx release notice body — click opens the .bin download |
 
-> ⚠️ This table is a snapshot and can drift as keys are added. The authoritative key set is the locale files themselves; `npm run i18n:check` is the source of truth for "do all 10 locales agree". When you add keys via `npm run i18n:add`, append them to the relevant section here too.
+> ⚠️ This table is a snapshot and can drift as keys are added. The authoritative key set is the locale files themselves; `npm run i18n:check` is the source of truth for "do all 11 locales agree". When you add keys via `npm run i18n:add`, append them to the relevant section here too.

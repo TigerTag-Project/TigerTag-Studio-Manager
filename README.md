@@ -234,7 +234,7 @@ A QR code to download the mobile app is always accessible in the sidebar.
 
 ### 🌍 Accounts & i18n
 - Multi-account — switch between multiple TigerTag accounts
-- **10 locales** — EN · FR · DE · ES · IT · PL · PT (Brasil) · PT (Portugal) · 中文 · RU
+- **11 locales** — EN · FR · DE · ES · IT · PL · PT (Brasil) · PT (Portugal) · 中文 · RU · NL
 - Per-account language preference synced with Firestore
 - Google sign-in via loopback OAuth (RFC 8252 + PKCE) — Touch ID / passkey native support
 
@@ -331,7 +331,7 @@ Built artifacts go to `dist/` (git-ignored).
 UI strings live in `renderer/locales/<lang>.json`. Never edit the 10 locale files by hand — use the helper instead:
 
 ```bash
-# Add a new key across all 10 locales
+# Add a new key across all 11 locales
 npm run i18n:add -- myKey en="Hello" fr="Bonjour" de="Hallo" \
   es="Hola" it="Ciao" zh="你好" pt="Olá" pt-pt="Olá" pl="Cześć" ru="Привет"
 
@@ -383,7 +383,7 @@ TigerTag-Studio-Manager/
 │   ├── CODEMAP.md           # Line-range index for inventory.js (read first, grep last)
 │   ├── firebase.js          # Firebase init (public config)
 │   ├── css/                 # 10 themed files, loaded in order (00-base → 10-settings → … → 70-detail-misc)
-│   ├── locales/             # i18n JSON — en fr de es it zh pt pt-pt pl ru (10 locales, edit via npm run i18n:add)
+│   ├── locales/             # i18n JSON — en fr de es it zh pt pt-pt pl ru nl (11 locales, edit via npm run i18n:add)
 │   ├── IoT/                 # Extracted device modules (own CSS inside each)
 │   │   ├── tigerscale/      # TigerScale — Firestore subscription, panel, health tick
 │   │   └── td1s/            # TD1S color/TD sensor engine + TD/Color edit modals
@@ -423,7 +423,7 @@ TigerTag-Studio-Manager/
 4. **Run**: `npm start` to test locally
 5. **Open a Pull Request**
 
-Guidelines: keep the renderer vanilla (no React/Vue), add i18n strings with `npm run i18n:add` (all 10 locales), don't commit `node_modules/` or `dist/`.
+Guidelines: keep the renderer vanilla (no React/Vue), add i18n strings with `npm run i18n:add` (all 11 locales), don't commit `node_modules/` or `dist/`.
 
 **Reporting issues** — use [GitHub Issues](https://github.com/TigerTag-Project/TigerTag-Studio-Manager/issues). Use **Settings → Debug → Report a problem** in the app to copy a self-contained diagnostic report (version, platform, last 50 errors) to paste into your issue.
 
