@@ -98,7 +98,7 @@ temporary mode unless a concrete need appears.
 
 The panel belongs where readers are already surfaced — the **TigerPOD / RFID modal** (`main.js` opens
 it; renderer `openTigerPodModal`). One row per reader: name + status pill (chip present / empty /
-security key) + the active/inactive toggle. i18n: new keys via `npm run i18n:add` (10 locales),
+security key) + the active/inactive toggle. i18n: new keys via `npm run i18n:add` (11 locales),
 register-3 playful voice — e.g. "This one's a security key, not a tag reader — off by default."
 
 ## Verification
@@ -113,7 +113,7 @@ Hardware-dependent → request a real-device test before proposing the commit:
 
 ## Conventions
 - Reader-list / filter logic that can move out of the utilityProcess stays testable; the enumeration
-  stays in `nfc-process.js`. Renderer logic in `inventory.js`; CSS in the matching section; 10-locale
+  stays in `nfc-process.js`. Renderer logic in `inventory.js`; CSS in the matching section; 11-locale
   i18n via `npm run i18n:add`. Update `WORKLOG.md`; run the validators; no commit without an order;
   request the real-device test above at commit time.
 

@@ -78,5 +78,5 @@ Fill the canonical chip schema (see `docs/TTAG-FIELDS.md`) from the product deta
 ## Conventions
 
 `CLAUDE.md` applies: all logic in `inventory.js`, CSS in the matching `renderer/css/` section,
-**10-locale i18n via `npm run i18n:add`**, brand voice (register 3) for every user-facing string,
+**11-locale i18n via `npm run i18n:add`**, brand voice (register 3) for every user-facing string,
 CODEMAP kept in sync, validators before proposing a commit.

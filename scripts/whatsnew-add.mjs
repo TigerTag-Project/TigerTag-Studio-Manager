@@ -2,7 +2,7 @@
 // whatsnew-add.mjs — scaffold a "What's New" entry for a release.
 //
 // Adds (or resets) a version block in data/whatsnew.json with N empty,
-// fully-localised item skeletons (all 10 locales present, empty strings) so the
+// fully-localised item skeletons (every locale present, empty strings) so the
 // release author only has to fill in the text. Existing versions are kept
 // untouched (history is preserved).
 //
@@ -19,7 +19,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const LOCALES = ["en", "fr", "de", "es", "it", "zh", "pt", "pt-pt", "pl", "ru"];
+const LOCALES = ["en", "fr", "de", "es", "it", "zh", "pt", "pt-pt", "pl", "ru", "nl"];
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const FILE = resolve(root, "data/whatsnew.json");
 

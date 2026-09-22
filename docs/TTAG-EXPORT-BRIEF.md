@@ -230,7 +230,7 @@ fields only, personal state stripped) — out of scope here, noted for later.
   The offline-ownership vision: a file the user holds that restores their entire inventory with no cloud.
 
 ## Conventions
-- All logic in `inventory.js`; CSS in the matching `renderer/css/*`; **10-locale** i18n via
+- All logic in `inventory.js`; CSS in the matching `renderer/css/*`; **11-locale** i18n via
   `npm run i18n:add`. Update `WORKLOG.md` as you go; run `i18n:check` / `node --check` /
   `codemap:check` before proposing a commit. No commit without an explicit order.
 - Phase 1 is behaviour-dependent → request a real `npm start` test (export a material, re-import it,

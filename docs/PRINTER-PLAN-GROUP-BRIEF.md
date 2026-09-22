@@ -80,6 +80,6 @@ security-rules block. Both need a rules change if (a) — see `CLAUDE.md` → *F
 ## Conventions
 
 `CLAUDE.md` applies: all logic in `inventory.js`, CSS in the matching `renderer/css/` file (plan and
-printer styles live in `40-printers.css`), **10-locale i18n via `npm run i18n:add`** for every new
+printer styles live in `40-printers.css`), **11-locale i18n via `npm run i18n:add`** for every new
 string, brand voice (register 3), CODEMAP kept in sync, validators green before proposing a commit,
 and **no commit without an explicit order**.

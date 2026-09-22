@@ -261,10 +261,10 @@ Live integrations across six brands, each with real-time temperatures, per-slot 
 
 ## Internationalization (i18n)
 
-- **10 locales** shipped and kept in lock-step: English, French, German, Spanish, Italian, Chinese, Portuguese (Brasil), Portuguese (Portugal), Polish, Russian (contributed, v2.27.4).
+- **11 locales** shipped and kept in lock-step: English, French, German, Spanish, Italian, Chinese, Portuguese (Brasil), Portuguese (Portugal), Polish, Russian and Dutch (both contributed, v2.27.4).
 - Plural inflection (`{one, other}`) applied consistently to every duration key (v1.4.9).
-- `npm run i18n:add` — single command that writes a new/updated key across all 10 locale files at once (v1.4.9).
-- `npm run i18n:check` + a pre-commit hook blocking any commit that lets the 10 locale files drift apart (v1.4.9).
+- `npm run i18n:add` — single command that writes a new/updated key across all 11 locale files at once (v1.4.9).
+- `npm run i18n:check` + a pre-commit hook blocking any commit that lets the 11 locale files drift apart (v1.4.9).
 
 ## Dev tooling
 

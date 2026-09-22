@@ -116,7 +116,7 @@ const semverDesc = (a, b) => {
 // / icon changes.
 const isLocalised = (entry) =>
   Array.isArray(entry?.items) && entry.items.some((it) =>
-    ["fr", "de", "es", "it", "zh", "pt", "pt-pt", "pl", "ru"].some(
+    ["fr", "de", "es", "it", "zh", "pt", "pt-pt", "pl", "ru", "nl"].some(
       (l) => (it.title && it.title[l]) || (it.body && it.body[l])));
 
 const merged = {};

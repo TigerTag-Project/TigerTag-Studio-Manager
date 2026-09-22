@@ -104,7 +104,7 @@ Grouped by domain. Versions in parentheses are the release that landed the featu
 - ✅ **TD1S button in Add Product panel** — icon in the ADP header: disconnected → opens connect modal; connected → glows green and auto-fills colour HEX + TD value fields on scan. State syncs on every `onStatus` event and `openAddProductPanel()` call. (v1.4.13)
 
 ### Distribution & i18n
-- ✅ **10 locales** — en · fr · de · es · it · zh · pt (Brasil) · pt-pt · pl · ru
+- ✅ **11 locales** — en · fr · de · es · it · zh · pt (Brasil) · pt-pt · pl · ru · nl
 - ✅ **Plural inflection** for all duration keys (`{one, other}` everywhere) (v1.4.9)
 - ✅ **Auto-updater** via GitHub Releases (electron-builder)
 - ✅ **macOS code signing + notarization** (App Store Connect API Key path)

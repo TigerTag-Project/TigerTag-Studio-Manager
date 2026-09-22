@@ -1,6 +1,9 @@
 # Worklog — v2.27.4 (in progress)
 
 ## Added
+- **Dutch, the 11th locale** — `nl.json`, 1523 keys, contributed by @Ptitlouis6012 in #32 and merged as theirs. Reviewed to the same bar as Russian before merging: key set identical to `en.json`, no empty value, every `{{param}}` preserved, the 19 plural objects and 6 arrays kept as such, and the tone held in the playful strings ("Zullen we," for "Let's go,"). The 92 strings identical to English are genuine cognates — Type, Model, Status, Details, Container, Diameter, Online — not untranslated leftovers. Verified by running the app in Dutch: the picker offers Nederlands, every view renders translated and nothing clips.
+  - Finished on top, the same three gaps the Russian PR left: the whatsnew scripts learn `nl` (and `LOCALE_SINCE` gains `nl: "2.27.4"`, so the 507 items written before it stay valid while everything from this release must carry it), and the locale counts move 10 → 11 wherever a living doc or comment states one — `scripts/whatsnew-{add,check,import-changelog}.mjs`, `CLAUDE.md`, `README.md`, `FEATURES.md`, `ROADMAP.md`, `renderer/CODEMAP.md`, the four `docs/*-BRIEF.md`
+
 - **Russian, the 10th locale** — `ru.json`, 1523 keys, contributed by @Ptitlouis6012 in #31 and merged as theirs. Wired into the language picker, the onboarding step, the locale loader and the three i18n scripts; the doc-drift checker now COUNTS the locale files instead of holding "9" as a constant, which is the part that keeps the next locale cheap. Reviewed before merging: key set identical to `en.json`, no empty value, every `{{param}}` preserved, the 19 plural objects and 6 arrays kept as such, and the tone held — the translation avoids ты/вы entirely through impersonal forms, which is the safe register in Russian.
 
 

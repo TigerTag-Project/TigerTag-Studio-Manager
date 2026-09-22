@@ -328,7 +328,7 @@ Built artifacts go to `dist/` (git-ignored).
 
 ## i18n tooling
 
-UI strings live in `renderer/locales/<lang>.json`. Never edit the 10 locale files by hand — use the helper instead:
+UI strings live in `renderer/locales/<lang>.json`. Never edit the 11 locale files by hand — use the helper instead:
 
 ```bash
 # Add a new key across all 11 locales
@@ -401,7 +401,7 @@ TigerTag-Studio-Manager/
 │   ├── container_spool/     # Spool container catalog
 │   ├── printers/            # Per-brand printer model catalogs
 │   ├── rack-presets.json    # Built-in rack templates
-│   ├── whatsnew.json        # "What's New" modal content (10 locales, full history)
+│   ├── whatsnew.json        # "What's New" modal content (11 locales, full history)
 │   └── release-notes/       # Per-version GitHub Release body (BambuLab-style)
 ├── scripts/                 # i18n add/check, whatsnew add/check, codemap check, changelog extract, …
 ├── docs/

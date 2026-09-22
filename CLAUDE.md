@@ -160,7 +160,7 @@ Rule of thumb: *would a user notice a new thing they can now do?* → **MINOR**.
 
 1. **Synthesize `WORKLOG.md`** (Rule 3 above) → write the new `CHANGELOG.md` entry (register 1 — technical).
 2. **Write the release note** (register 2 — BambuLab style) → `data/release-notes/vX.Y.Z.md`. Rewrite the changelog into factual, jargon-free bullets (`Fixed an issue where …`, no internal code names); end with the standard footer (copy it from the previous version's file). This file becomes the **GitHub Release page body** verbatim via `scripts/extract-changelog.mjs`. Skipping it means the release page falls back to the raw changelog — avoid that.
-3. **Write the "What's New" entry** (register 3 — Discord/app voice) for the version → `data/whatsnew.json`. Run `npm run whatsnew:add -- <x.y.z> [--items N] [--date YYYY-MM-DD]` to scaffold an empty **10-locale** block, then fill each item's `icon` (an icon-name → `.icon-<name>` mask, e.g. `list-check`, `cart`, `user`, `link`, `swap`, `bell`; **not** a literal emoji) + vulgarised `title`/`body` for **all 10 locales** (history is kept — never delete old versions). Verify with `npm run whatsnew:check` (must pass — no empty locale). This drives the in-app "What's New" modal shown once per version (and re-openable from Settings → About).
+3. **Write the "What's New" entry** (register 3 — Discord/app voice) for the version → `data/whatsnew.json`. Run `npm run whatsnew:add -- <x.y.z> [--items N] [--date YYYY-MM-DD]` to scaffold an empty **11-locale** block, then fill each item's `icon` (an icon-name → `.icon-<name>` mask, e.g. `list-check`, `cart`, `user`, `link`, `swap`, `bell`; **not** a literal emoji) + vulgarised `title`/`body` for **all 11 locales** (history is kept — never delete old versions). Verify with `npm run whatsnew:check` (must pass — no empty locale). This drives the in-app "What's New" modal shown once per version (and re-openable from Settings → About).
    - **One item = ONE topic.** Never cram two distinct changes into a single entry — if a release ships two unrelated things (e.g. "friends' lists now show" AND "buy buttons no longer overflow"), that's **two items**, each with its own icon/title/body. A crammed two-subject item is confusing in the modal.
    - **Benefit-first, no confusing technical examples.** Say what it does FOR the user, not the mechanism; drop concrete tech examples (don't write `adieu 'eu.store.bambulab.com'` — say "the shop name shows cleanly, without overflowing"). Still playful/deadpan (register 3) in every locale.
    - **Consumer-facing only — NEVER surface a non-public feature in the What's New.** Admin/dev/internal features (debug tools, telemetry plumbing, anything gated to admin/debug mode, internal refactors, dev-only utilities) are **excluded** from the What's New — and from the release note (register 2). They live in the `CHANGELOG.md` (register 1) only. Litmus test: *would a normal end-user notice or use it?* If no (it's for the maintainer, or hidden behind debug mode), omit it from registers 2 & 3. When a WORKLOG entry is flagged internal/admin-only, skip it at steps 2 and 3.
@@ -197,7 +197,7 @@ The working file is wiped so it stays clean and unambiguous: whatever is in `WOR
 **Default: generate everything INLINE on the main loop.** At release time you already hold the WORKLOG + the `CHANGELOG.md` entry in context, so writing the other registers here reads each file **once**, with **zero** agent overhead — the cheapest option in total tokens and the simplest. Do, in order:
 1. **`CHANGELOG.md` entry (register 1)** — the SOURCE the others derive from. Write it inline (you hold the WORKLOG).
 2. **Release note (register 2)** → `data/release-notes/vX.Y.Z.md` (BambuLab style; copy the footer from the previous version's file).
-3. **What's New (register 3), 10 locales** → `data/whatsnew.json` (`npm run whatsnew:add` to scaffold; playful/deadpan, one topic per item, icon-NAMES, **exclude non-public/admin features**).
+3. **What's New (register 3), 11 locales** → `data/whatsnew.json` (`npm run whatsnew:add` to scaffold; playful/deadpan, one topic per item, icon-NAMES, **exclude non-public/admin features**).
 4. **`FEATURES.md`** → add the genuinely new capabilities, tag `(vX.Y.Z)`.
 5. **`README.md`** → only if a visitor should see the new capability; it is the shop window and the doc most easily forgotten.
 6. **CODEMAP re-sync** only if `inventory.js`/`main.js` moved a lot → fix ranges until `npm run codemap:check` passes.
@@ -265,7 +265,7 @@ Every release ships the **same changes described three times**, at three altitud
 |---|----------|----------|----------|-------|
 | **1** | **Changelog** | `CHANGELOG.md` | You, experts, **AI / agents reading the repo** | **Exhaustive & technical — the source of record.** Precise about *behaviour AND mechanism*; may name subsystems, protocols, config keys, Firestore paths, magic values. Nothing is "too technical" here — this is the deepest of the three. English, one logical change per bullet. (Synthesized from `WORKLOG.md` at commit time.) |
 | **2** | **Release note** | `data/release-notes/vX.Y.Z.md` → **GitHub Release page** | Power users, integrators browsing releases | **BambuLab style** — factual & specific but **jargon-free**. Name the real feature / view / **printer brand**; `Fixed an issue where …` for fixes; one line per change; **NO internal code names** (no file / function / class / IPC names, no line numbers, no key counts). Higher-level and terser than the changelog. See [BambuLab releases](https://github.com/bambulab/BambuStudio/releases). |
-| **3** | **What's New + all in-app copy** | `data/whatsnew.json` **and every string in the app** (UI, buttons, empty states, errors, nudges) | Everyone, inside the app | **Playful, deadpan, Discord-style** — benefit-first, no jargon, never describes what doesn't exist. **10 locales.** (Full rule: memory `feedback-copy-tone` + the *Brand voice* rule below.) |
+| **3** | **What's New + all in-app copy** | `data/whatsnew.json` **and every string in the app** (UI, buttons, empty states, errors, nudges) | Everyone, inside the app | **Playful, deadpan, Discord-style** — benefit-first, no jargon, never describes what doesn't exist. **11 locales.** (Full rule: memory `feedback-copy-tone` + the *Brand voice* rule below.) |
 
 **The same fix, three ways** (Elegoo progress bug):
 - **Changelog (1):** *"Elegoo `_mergeStatus`: `machine_status.progress` (0-100, pushed ~2 s) is now the authoritative progress source and locks out the 1005 time-estimate; kills the 100 %↔10 % spikes from `api_status` pushes that carry `print_duration` but no `remaining_time_sec`."*
@@ -398,7 +398,7 @@ assets/db/tigertag/           — TigerTag reference data (unified in v1.7.0, se
 data/                           — non-migrated static assets (loaded via direct fetch in renderer)
   container_spool/spools_filament.json
   rack-presets.json
-  whatsnew.json                 — "What's New" modal content (register 3 — playful/Discord), keyed by version, 10 locales inline (full history, browsable via the in-modal version picker). `npm run whatsnew:import` seeds an EN baseline from CHANGELOG (register 1) — a **rough draft to rewrite into register 3**, never shipped verbatim; recent versions hand-localised. Scaffold `npm run whatsnew:add`, validate `npm run whatsnew:check` (EN mandatory; entries are EN-only or fully localised — a locale that shipped later, like `ru` from v2.27.4, is not required on older entries)
+  whatsnew.json                 — "What's New" modal content (register 3 — playful/Discord), keyed by version, 11 locales inline (full history, browsable via the in-modal version picker). `npm run whatsnew:import` seeds an EN baseline from CHANGELOG (register 1) — a **rough draft to rewrite into register 3**, never shipped verbatim; recent versions hand-localised. Scaffold `npm run whatsnew:add`, validate `npm run whatsnew:check` (EN mandatory; entries are EN-only or fully localised — a locale that shipped later, like `ru` and `nl` from v2.27.4, is not required on older entries)
   release-notes/                — one `vX.Y.Z.md` per version: the BambuLab-style **release note** (register 2), pushed verbatim to the GitHub Release page by `scripts/extract-changelog.mjs`. See *Three copy registers*.
   printers/                     — per-brand printer model catalogs (bbl/cre/eleg/ffg/snap)
 assets/svg/
@@ -653,7 +653,7 @@ Google real name (`user.displayName` from Firebase Auth) is saved to Firestore a
 All **11 locales** (en/fr/de/es/it/zh/pt/pt-pt/pl/ru/nl) share the same key set. **Don't re-read the locale JSON files** — the full key list is in `docs/i18n-keys.md` (pointer below). The workflow (add keys, consistency check) stays here.
 
 ### Adding new keys — use the helper script
-**Never edit the 10 locale files by hand.** Use `npm run i18n:add` instead — it writes every locale in one shot, validates JSON, and falls back to the EN value when a translation is missing.
+**Never edit the 11 locale files by hand.** Use `npm run i18n:add` instead — it writes every locale in one shot, validates JSON, and falls back to the EN value when a translation is missing.
 
 ```bash
 # Append at end of every locale file
@@ -702,7 +702,7 @@ fix the doc rather than bypassing: the numbers are read by humans **and** agents
 Add a new check here whenever a doc starts restating something the code owns.
 
 ### Consistency check (auto-run on every commit)
-A pre-commit hook runs `npm run i18n:check` automatically — the commit is blocked if the 10 locale files drift apart. Activated by the `prepare` npm script which sets `core.hooksPath=.githooks/`. To run manually:
+A pre-commit hook runs `npm run i18n:check` automatically — the commit is blocked if the 11 locale files drift apart. Activated by the `prepare` npm script which sets `core.hooksPath=.githooks/`. To run manually:
 
 ```bash
 npm run i18n:check
