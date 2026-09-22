@@ -4277,7 +4277,12 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     document.querySelectorAll("#eacThemeSeg .eac-seg-btn").forEach(b =>
       b.classList.toggle("active", b.dataset.themeChoice === (state.theme || "dark")));
     $("eacAdminBadge").classList.toggle("hidden", !state.isAdmin);
-    $("eacDebugRow").classList.toggle("hidden",   !state.isAdmin);
+    // The debug switch is offered to EVERY account, not just admins: the panel
+    // it opens reads the signed-in user's OWN documents, and Security Rules --
+    // not this checkbox -- are what stop it reaching anyone else's. Hiding it
+    // bought no safety and cost every non-admin the one tool that makes a bug
+    // report useful. `roles` still gates the Admin badge, and nothing else here.
+    $("eacDebugRow").classList.remove("hidden");
     $("eacDebugToggle").checked = state.debugEnabled;
     const isCustom = _editingAccount?.color === "custom";
     if (isCustom && _editingAccount.customColor) {
@@ -20384,25 +20389,77 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     { label: "UID List",   path: "users/{uid}/rfidList" },
     { label: "Printers",   path: "users/{uid}/printers" },
     { label: "Products",   path: "users/{uid}/products" },
+    // Devices and storage. A TigerScale's document is keyed by its MAC and holds
+    // what the firmware reports (presence, battery, firmware, last weight); the
+    // live command channel (TARE) is in the REALTIME database, not here, so it
+    // is not reachable from this explorer.
+    { label: "Scales",     path: "users/{uid}/scales" },
+    // A TigerSpool writes its own document here from firmware 1.65.0, keyed by
+    // its Wi-Fi MAC — the same identity/liveness/power fields a scale writes,
+    // plus `printers_active`, `printer_ids` and `last_used_at`. The collection
+    // is PLURAL: an account can own several boxes.
+    { label: "TigerSpools", path: "users/{uid}/tigerspools" },
+    { label: "Racks",      path: "users/{uid}/racks" },
+    { label: "Lists",      path: "users/{uid}/lists" },
     // Server-written stats (read-only for the client — the Cloud Functions own them):
     // the current rollup, and the time-series snapshots behind the evolution charts.
     { label: "Stats",       path: "users/{uid}/stats/current" },
     { label: "Data History", path: "users/{uid}/dataHistory" },
   ];
 
+  /* The Realtime database is a SECOND service, not a corner of Firestore: its
+     own host, its own rules, no documents and no collections — one JSON tree.
+     It is where a device and the app talk in real time (a TigerScale's command
+     channel and its live readings), so a scale that looks complete in Firestore
+     can still be misbehaving here. Browsed over REST with the signed-in user's
+     ID token; the SDK is not loaded for it. */
+  const RTDB_HOST = "https://tigertag-connect-default-rtdb.firebaseio.com";
+  /* The rules here are per-NODE, not per-tree: `/scales/{mac}/cmd` reads,
+     `/scales/{mac}` and `/scales` do not. So the chips are built from the
+     scales this account actually owns and point straight at the readable node
+     — offering the branch above would only ever produce a denial. */
+  const _fseQuickRt = () => {
+    const scales = (state.scales || []).filter(s => s?.mac);
+    return scales.length
+      ? scales.map(s => ({ label: `Scale ${String(s.mac).slice(-4)}`, path: `scales/${s.mac}/cmd` }))
+      : [{ label: "Scales", path: "scales" }];
+  };
+  let _fseSource = "fs";   // "fs" = Firestore · "rt" = Realtime database
+
   // Build the quick-access chips, then auto-fetch the user doc so the panel
   // opens on something rather than blank. Called on every open.
   function fseInit() {
+    _fseSource = "fs";
+    _fseSyncSource();
+  }
+
+  // Paint the chips and the placeholder for the CURRENT source, then land on
+  // that source's home path. One entry point for the initial open and for the
+  // Firestore/Realtime switch, so the two can never disagree.
+  function _fseSyncSource() {
     const uid = state.activeAccountId || "{uid}";
+    const rt  = _fseSource === "rt";
+    document.querySelectorAll("#fseSrc .fse-src-btn")
+      .forEach(b => b.classList.toggle("is-on", b.dataset.src === _fseSource));
     // Quick-access chips for the known paths. The per-brand printer folders are
     // reached by opening the `printers` chip (virtual brand-folder view), so no
     // need to clutter the bar with one chip per brand.
-    $("fseChips").innerHTML = FSE_QUICK.map(q => {
+    $("fseChips").innerHTML = (rt ? _fseQuickRt() : FSE_QUICK).map(q => {
       const p = q.path.replace("{uid}", uid);
       return `<button class="fse-chip" data-path="${esc(p)}">${esc(q.label)}</button>`;
     }).join("");
-    fseNavigate(`users/${uid}`);
+    const inp = $("fsePath");
+    if (inp) inp.placeholder = rt ? "scales/{mac}/cmd" : "users/{uid}/…";
+    const home = rt ? (_fseQuickRt()[0]?.path || "scales") : `users/${uid}`;
+    fseNavigate(home);
   }
+
+  $("fseSrc")?.addEventListener("click", e => {
+    const btn = e.target.closest(".fse-src-btn[data-src]");
+    if (!btn || btn.dataset.src === _fseSource) return;
+    _fseSource = btn.dataset.src;
+    _fseSyncSource();
+  });
 
   // ── Value formatting — turn raw Firestore values into readable HTML ──
   function _fseIsTs(v) {
@@ -20456,12 +20513,18 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const uid = state.activeAccountId;
     const segs = path.split("/").filter(Boolean);
     let acc = "";
-    $("fseCrumbs").innerHTML = segs.map((s, i) => {
+    const crumbs = segs.map((s, i) => {
       acc += (i ? "/" : "") + s;
       const last = i === segs.length - 1;
       const label = (s === uid) ? "uid" : s;
       return `<button class="fse-crumb${last ? " fse-crumb--last" : ""}" data-path="${esc(acc)}">${esc(label)}</button>`;
-    }).join(`<span class="fse-crumb-sep">/</span>`);
+    });
+    // The Realtime tree has a root worth standing on; Firestore's top level is
+    // a collection name, so it needs no such crumb.
+    if (_fseSource === "rt") {
+      crumbs.unshift(`<button class="fse-crumb${segs.length ? "" : " fse-crumb--last"}" data-path="">/</button>`);
+    }
+    $("fseCrumbs").innerHTML = crumbs.join(`<span class="fse-crumb-sep">/</span>`);
   }
 
   // Single navigation entry point (chips, breadcrumb, doc-id drill-down, Enter).
@@ -20511,6 +20574,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   async function fseFetch() {
     const uid = state.activeAccountId;
     if (!uid) { fseSetStatus("Not signed in", "error"); return; }
+    if (_fseSource === "rt") return fseFetchRt();
     const raw = $("fsePath").value.trim().replace(/\{uid\}/g, uid).replace(/^\/+|\/+$/g, "");
     if (!raw) return;
     $("fsePath").value = raw;
@@ -20561,6 +20625,87 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     } finally {
       $("fseRefresh")?.classList.remove("is-spinning");
       // Keep the Raw JSON card in sync if it's open (live mirror).
+      if ($("fseRawPanel")?.classList.contains("open")) fseRenderRaw();
+    }
+  }
+
+  /* Realtime database, over REST. Two requests by design: a `shallow=true`
+     probe first, which answers `{key: true, …}` for a branch and the value
+     itself for a leaf — so a node is never pulled blind, and the root of a tree
+     holding every device's channel cannot be downloaded by a stray click. A
+     branch of 25 children or fewer is then fetched in full, which is what makes
+     the view useful; anything larger stays a list of names to drill into. */
+  async function fseFetchRt() {
+    const path = $("fsePath").value.trim().replace(/^\/+|\/+$/g, "");
+    $("fsePath").value = path;
+    fseRenderCrumbs(path);
+    fseSetStatus("Fetching…", "loading");
+    $("fseRefresh")?.classList.add("is-spinning");
+    try {
+      const token = await firebase.app(state.activeAccountId).auth().currentUser?.getIdToken();
+      if (!token) { fseSetStatus("Not signed in", "error"); return; }
+      const url = (q) => `${RTDB_HOST}/${path}.json?auth=${encodeURIComponent(token)}${q}`;
+      const probe = await fetch(url("&shallow=true"));
+      if (!probe.ok) {
+        const why = probe.status === 401 || probe.status === 403
+          ? "Denied by the Realtime database rules — they grant a device's own node, not the tree above it"
+          : `HTTP ${probe.status}`;
+        _fseLastResult = null; _fseLastDocs = null;
+        fseSetStatus(`${why} — /${path}`, "error");
+        return;
+      }
+      const shallow = await probe.json();
+      const isBranch = shallow && typeof shallow === "object";
+      const keys = isBranch ? Object.keys(shallow) : [];
+      // Small enough to be worth reading whole — the common case here.
+      let value = shallow;
+      if (isBranch && keys.length <= 25) {
+        const full = await fetch(url(""));
+        if (full.ok) value = await full.json();
+      }
+      _fseLastResult = value; _fseLastDocs = null;
+      if (value === null) { fseSetStatus(`Nothing at /${path}`, "info"); return; }
+
+      if (!isBranch) {   // leaf — one value
+        $("fseMeta").innerHTML = `<span class="fse-badge fse-badge--doc">value</span>`;
+        $("fseResult").innerHTML = `<div class="fse-fields"><div class="fse-field">` +
+          `<div class="fse-field-k">${esc(path.split("/").pop() || "/")}</div>` +
+          `<div class="fse-field-v">${_fseFmtValue(value)}</div></div></div>`;
+        return;
+      }
+      // Branch — one row per child, expandable when the child is an object.
+      const loaded = value !== shallow;   // did the full read happen?
+      const docs = {};
+      const rows = keys.map(k => {
+        const child = loaded ? value[k] : null;
+        const isObj = child && typeof child === "object";
+        if (isObj) docs[k] = child;
+        const preview = !loaded ? ""
+          : isObj ? _fsePreview(child)
+          : String(child);
+        const childPath = path ? `${path}/${k}` : k;
+        return `<div class="fse-doc" data-id="${esc(k)}">
+          <div class="fse-doc-head">
+            ${isObj ? `<button class="fse-doc-toggle" title="Expand"><span class="icon icon-chevron-r icon-12"></span></button>`
+                    : `<span class="fse-doc-folder"><span class="icon icon-folder icon-12"></span></span>`}
+            <button class="fse-doc-id" data-path="${esc(childPath)}" title="Open">${esc(k)}</button>
+            <span class="fse-doc-preview">${esc(preview)}</span>
+          </div>
+          <div class="fse-doc-body hidden"></div>
+        </div>`;
+      }).join("");
+      _fseLastDocs = docs;
+      $("fseMeta").innerHTML =
+        `<span class="fse-badge fse-badge--col">node</span>` +
+        `<span>${keys.length} child${keys.length > 1 ? "ren" : ""}${loaded ? "" : " — too many to read whole, open one"}</span>` +
+        `<span class="fse-spacer"></span>` +
+        `<input id="fseFilter" class="fse-filter" placeholder="filter keys…" spellcheck="false" autocomplete="off" />`;
+      $("fseResult").innerHTML = rows;
+    } catch (e) {
+      _fseLastResult = null; _fseLastDocs = null;
+      fseSetStatus(`Error: ${e.message}`, "error");
+    } finally {
+      $("fseRefresh")?.classList.remove("is-spinning");
       if ($("fseRawPanel")?.classList.contains("open")) fseRenderRaw();
     }
   }
@@ -35394,7 +35539,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     const c = Cache.read("userdoc", uid);
     if (!c) return;
     state.isAdmin      = c.roles === "admin";
-    state.debugEnabled = state.isAdmin && !!c.Debug;
+    state.debugEnabled = !!c.Debug;   // every account's switch now, not just an admin's
     if (c.publicKey)  state.publicKey  = c.publicKey;
     if (c.privateKey) state.privateKey = c.privateKey;
     state.isPublic       = !!c.isPublic;
@@ -36113,7 +36258,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
 
       // Admin + debug
       state.isAdmin      = data.roles === "admin";
-      state.debugEnabled = state.isAdmin && !!data.Debug;
+      state.debugEnabled = !!data.Debug;
       applyDebugMode();
 
       // Generate publicKey + privateKey on first login if missing
@@ -36413,7 +36558,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       // Reflect in open edit-account modal if already open
       if ($("editAccountModalOverlay").classList.contains("open")) {
         $("eacAdminBadge").classList.toggle("hidden", !state.isAdmin);
-        $("eacDebugRow").classList.toggle("hidden",   !state.isAdmin);
+        $("eacDebugRow").classList.remove("hidden");
         $("eacDebugToggle").checked = state.debugEnabled;
         $("eacName").textContent = resolvedName;
         $("eacDisplayNameInput").value = resolvedName;

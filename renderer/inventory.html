@@ -1563,6 +1563,14 @@
     <button class="panel-close" id="fseExplorerClose">✕</button>
   </div>
   <div class="panel-body fse-wrap">
+    <!-- Which database is being browsed. Firestore holds the documents; the
+         Realtime database holds the devices' own channel (a scale's commands
+         and its live readings), which is a different service entirely. -->
+    <div class="fse-src" id="fseSrc">
+      <button type="button" class="fse-src-btn is-on" data-src="fs">Firestore</button>
+      <button type="button" class="fse-src-btn" data-src="rt">Realtime</button>
+    </div>
+
     <!-- quick-access chips (known paths + one per printer brand) -->
     <div class="fse-chips" id="fseChips"></div>
 

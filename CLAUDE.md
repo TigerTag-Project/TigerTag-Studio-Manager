@@ -528,14 +528,15 @@ The full collection/field map (publicKeys, userProfiles, users/{uid} + telemetry
 
 ## Debug mode
 
-Debug mode gives access to the **Debug panel** (Firestore explorer + API inspector). It is off by default and can only be activated by users with `roles: "admin"` in their Firestore user document.
+Debug mode gives access to the **Debug panel** (Firestore explorer + API inspector). It is off by default and **every account can turn it on** — it is a preference, not a privilege.
 
 ### Activating debug mode
-1. In the Firestore console, set `users/{uid}.roles = "admin"` for the target user
-2. The user opens their account modal (click avatar → edit)
-3. A **Debug mode** toggle appears — flip it ON
-4. The toggle writes `Debug: true` to `users/{uid}` in Firestore
-5. The `⌥ Open debug panel` button appears in the sidebar immediately
+1. The user opens their account modal (click avatar → edit)
+2. Flip the **Debug mode** toggle ON
+3. The toggle writes `Debug: true` to `users/{uid}` in Firestore
+4. The `⌥ Open debug panel` button appears in the sidebar immediately
+
+It used to be gated on `roles: "admin"`. That bought nothing: the panel reads the signed-in user's OWN documents, and it is the Security Rules — not a hidden checkbox — that keep it there. Gating it only meant the people reporting bugs could not produce the one thing that makes a report useful. `roles` still gates the **Admin** badge, and nothing else in this modal.
 
 ### Deactivating debug mode
 Same toggle → OFF, or set `users/{uid}.Debug = false` directly in Firestore.
@@ -545,7 +546,7 @@ Same toggle → OFF, or set `users/{uid}.Debug = false` directly in Firestore.
 - **Firestore tab** — path explorer: type any Firestore path, click Fetch, copy JSON result to clipboard. Quick-access chips for `user doc`, `prefs`, `inventory`, `printers`, `tags`
 
 ### Security note
-`roles` and `Debug` fields should only be writable via Firebase Admin SDK / Cloud Function — never by the client. Firestore Security Rules must prevent users from writing these fields themselves. *(Rules live in the backend repo — see [Firestore Security Rules](#firestore-security-rules--where--how-read-this-before-touching-rules) above.)*
+`roles` is a PRIVILEGE and must only ever be written via the Firebase Admin SDK / a Cloud Function — never by the client. `Debug` is a user PREFERENCE, written by the client on the user's own document like any other setting. The panel it opens reads nothing the account could not already read: every path goes through the same Security Rules as the rest of the app. *(Rules live in the backend repo — see [Firestore Security Rules](#firestore-security-rules--where--how-read-this-before-touching-rules) above.)*
 
 ---
 

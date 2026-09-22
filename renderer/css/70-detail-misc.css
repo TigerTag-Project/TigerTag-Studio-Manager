@@ -2696,6 +2696,17 @@
     border-radius: 8px; font-size: 12px; color: var(--text); outline: none; cursor: pointer;
   }
   .dbg-select:focus { border-color: var(--primary); }
+  /* Which database is being browsed — a segmented pair above the chips. Two
+     services, not two views of one, so the switch reads as a place you go. */
+  .fse-src { display: flex; gap: 2px; padding: 2px; border-radius: 9px; background: var(--surface-2); align-self: flex-start; flex-shrink: 0; }
+  .fse-src-btn {
+    border: 0; background: transparent; color: var(--muted);
+    font-size: 11px; font-weight: 600; padding: 4px 12px; border-radius: 7px; cursor: pointer;
+    transition: background .12s, color .12s;
+  }
+  .fse-src-btn:hover { color: var(--text); }
+  .fse-src-btn.is-on { background: var(--surface); color: var(--text); }
+
   .fse-chips { display: flex; flex-wrap: wrap; gap: 5px; flex-shrink: 0; }
   .fse-chip {
     padding: 3px 9px; font-size: 11px; font-weight: 600;
