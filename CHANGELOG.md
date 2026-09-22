@@ -5,6 +5,20 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v2.28.0 — 2026-09-23
+
+### Added
+
+- **Two new locales, contributed: Russian (#31) and Dutch (#32).** `ru.json` and `nl.json`, 1523 keys each, merged as their author's own work and wired into the language picker, the onboarding language step, the renderer's locale loader and the i18n scripts. Both were reviewed against `en.json` before merging — identical key set, no empty value, every `{{param}}` preserved, the 19 plural objects and 6 arrays kept as such — and both were run in the app before shipping. Two fixes came out of that: the Russian translation's counts use the impersonal form its author already used elsewhere (`Материалов: {{n}}`) because the app's engine has two plural forms where Russian has three, and the printer speed dropdown now sizes to its own widest option — a width tuned to the English "Standard" clipped `Сбалансированная`. `scripts/check-docs-drift.mjs` also stopped holding the locale count as a constant and COUNTS the files, which is what makes the next locale cheap — `renderer/locales/{ru,nl}.json`, `renderer/inventory.{html,js}`, `scripts/{i18n-add,check-i18n-consistency,check-docs-drift}.mjs`, `renderer/css/57-elegoo.css`, `renderer/printers/anycubic/anycubic.css`.
+
+### Changed
+
+- **Debug mode is every account's switch, not the admins'.** The toggle in the account modal was rendered only for `roles: "admin"`, and `state.debugEnabled` was itself `isAdmin && !!Debug`, so a normal user could never turn on the one view that makes a bug report useful — their own raw Firestore documents, the last call to the API, the per-card "copy ref" helper. The gate bought no safety: the panel reads the SIGNED-IN user's own documents and every path goes through the same Security Rules as the rest of the app; the checkbox was never what stood between a user and someone else's data. The row is always rendered now and `Debug` is read as the plain user preference it is. `roles` still gates the Admin badge, and nothing else — `renderer/inventory.js`, `CLAUDE.md`.
+- **The Firebase Explorer reaches the devices, and the Realtime database.** Quick chips added for `scales`, `racks`, `lists` and `tigerspools` — the last being where a TigerSpool writes itself from firmware 1.65.0, keyed by its Wi-Fi MAC (`printers_active`, `printer_ids`, `last_used_at` beside the scale's own identity/liveness fields). Reading it is how we found the deployed rules denied that path entirely; fixed in the backend repo (`tigerspools`, plural — the rule had been written singular and matched nothing) and deployed. A **Realtime** tab joins Firestore: two services, and only the first was reachable, so a scale's command channel could not be looked at from the app at all. It is read over REST with the signed-in user's ID token, each node probed with `shallow=true` first — a branch of 25 children or fewer is then read whole, anything larger stays a list of names to drill into, so no stray click pulls a tree. Measured against the live database: its rules are per-NODE (`scales/{mac}/cmd` reads, `scales/{mac}` and `scales` do not), so the chips are built from the account's own scales and point at the readable node — `renderer/inventory.{html,js}`, `renderer/css/70-detail-misc.css`.
+- **The "What's New" tooling knows about locales that arrived late.** Adding a locale to the three `whatsnew-*.mjs` scripts alone would fail the whole back-catalogue: the check demands that an item carrying ANY non-English locale carries them all, and the 507 items written before Russian and Dutch existed carry neither. A `LOCALE_SINCE` map (`{ ru: "2.28.0", nl: "2.28.0" }`) records which version a locale shipped in, and each version block is held to the locales that existed then — history stays valid, everything from this release must be complete in all 11. `whatsnew:add` scaffolds 11 locales and `whatsnew:import` recognises an entry in either new locale as hand-localised — `scripts/whatsnew-{add,check,import-changelog}.mjs`.
+
+---
+
 ## v2.27.3 — 2026-09-18
 
 ### Changed

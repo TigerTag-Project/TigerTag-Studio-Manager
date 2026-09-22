@@ -16,11 +16,11 @@ import { fileURLToPath } from "node:url";
 
 const LOCALES = ["en", "fr", "de", "es", "it", "zh", "pt", "pt-pt", "pl", "ru", "nl"];
 // A locale added later cannot be demanded of the entries written before it —
-// Russian and Dutch both ship in v2.27.4, and the 500-odd items already in the
+// Russian and Dutch both ship in v2.28.0, and the 500-odd items already in the
 // history would otherwise all read as half-translated. Every late locale
 // records the version it arrived in; everything from that version on must
 // carry it.
-const LOCALE_SINCE = { ru: "2.27.4", nl: "2.27.4" };
+const LOCALE_SINCE = { ru: "2.28.0", nl: "2.28.0" };
 const vnum = (v) => String(v).split(".").map(Number);
 const gte = (a, b) => {
   const [x, y, z] = vnum(a), [p, q, r] = vnum(b);

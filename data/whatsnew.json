@@ -9077,5 +9077,68 @@
         }
       }
     ]
+  },
+  "2.28.0": {
+    "date": "2026-09-23",
+    "items": [
+      {
+        "icon": "user",
+        "title": {
+          "en": "Now in Russian and Dutch",
+          "fr": "Maintenant en russe et en néerlandais",
+          "de": "Jetzt auf Russisch und Niederländisch",
+          "es": "Ahora en ruso y neerlandés",
+          "it": "Ora in russo e olandese",
+          "zh": "现在支持俄语和荷兰语",
+          "pt": "Agora em russo e holandês",
+          "pt-pt": "Agora em russo e neerlandês",
+          "pl": "Teraz po rosyjsku i niderlandzku",
+          "ru": "Теперь на русском и нидерландском",
+          "nl": "Nu ook in het Russisch en Nederlands"
+        },
+        "body": {
+          "en": "Eleven languages now. Two of them landed because someone in the community sat down and translated all 1523 lines — pick yours in your account settings.",
+          "fr": "Onze langues, désormais. Deux sont arrivées parce que quelqu'un de la communauté a traduit les 1523 lignes — choisis la tienne dans les réglages de ton compte.",
+          "de": "Elf Sprachen. Zwei davon, weil jemand aus der Community alle 1523 Zeilen übersetzt hat — wähl deine in den Kontoeinstellungen.",
+          "es": "Once idiomas. Dos llegaron porque alguien de la comunidad tradujo las 1523 líneas — elige el tuyo en los ajustes de tu cuenta.",
+          "it": "Undici lingue. Due sono arrivate perché qualcuno della community ha tradotto tutte e 1523 le righe — scegli la tua nelle impostazioni dell'account.",
+          "zh": "现在有十一种语言。其中两种是社区里有人把 1523 行全部译完才有的——在账户设置里选你的那一种。",
+          "pt": "Onze idiomas. Dois chegaram porque alguém da comunidade traduziu as 1523 linhas — escolha o seu nas configurações da conta.",
+          "pt-pt": "Onze idiomas. Dois chegaram porque alguém da comunidade traduziu as 1523 linhas — escolhe o teu nas definições da conta.",
+          "pl": "Jedenaście języków. Dwa pojawiły się, bo ktoś ze społeczności przetłumaczył wszystkie 1523 linijki — wybierz swój w ustawieniach konta.",
+          "ru": "Одиннадцать языков. Два появились потому, что кто-то из сообщества перевёл все 1523 строки — выберите свой в настройках аккаунта.",
+          "nl": "Elf talen inmiddels. Twee ervan omdat iemand uit de community alle 1523 regels vertaalde — kies de jouwe in je accountinstellingen."
+        }
+      },
+      {
+        "icon": "info",
+        "title": {
+          "en": "Show us what the app sees",
+          "fr": "Montre-nous ce que l'app voit",
+          "de": "Zeig uns, was die App sieht",
+          "es": "Enséñanos lo que ve la app",
+          "it": "Mostraci cosa vede l'app",
+          "zh": "把 App 看到的给我们看",
+          "pt": "Mostre o que o app está vendo",
+          "pt-pt": "Mostra-nos o que a app vê",
+          "pl": "Pokaż nam, co widzi aplikacja",
+          "ru": "Покажите нам, что видит приложение",
+          "nl": "Laat zien wat de app ziet"
+        },
+        "body": {
+          "en": "The debug switch in your account settings is open to everyone now. Flip it and you can copy exactly what the app holds about your own stuff — which turns a hunch into a bug report we can fix.",
+          "fr": "L'interrupteur debug dans les réglages de ton compte est ouvert à tout le monde. Active-le et tu peux copier ce que l'app sait de tes propres données — de quoi transformer une impression en rapport de bug exploitable.",
+          "de": "Der Debug-Schalter in den Kontoeinstellungen steht jetzt allen offen. Einschalten und du kannst kopieren, was die App über deine eigenen Daten weiß — aus einem Bauchgefühl wird ein Fehlerbericht, mit dem wir etwas anfangen können.",
+          "es": "El interruptor de depuración de los ajustes de tu cuenta está abierto a todo el mundo. Actívalo y podrás copiar lo que la app sabe de tus propios datos — así una corazonada se convierte en un informe de error que podemos arreglar.",
+          "it": "L'interruttore di debug nelle impostazioni dell'account è aperto a tutti. Attivalo e puoi copiare ciò che l'app sa dei tuoi dati — un sospetto diventa una segnalazione su cui possiamo lavorare.",
+          "zh": "账户设置里的调试开关现在对所有人开放。打开它，你就能把 App 手里关于你自己数据的内容复制下来——一个模糊的感觉就变成了我们能修的问题报告。",
+          "pt": "A chave de depuração nas configurações da conta agora é para todos. Ative e você copia o que o app sabe sobre os seus dados — um palpite vira um relato de bug que dá para corrigir.",
+          "pt-pt": "O interruptor de depuração nas definições da conta está agora aberto a todos. Ativa-o e podes copiar o que a app sabe sobre os teus dados — um palpite passa a ser um relatório de erro que dá para corrigir.",
+          "pl": "Przełącznik debugowania w ustawieniach konta jest teraz dla wszystkich. Włącz go i skopiujesz to, co aplikacja wie o twoich danych — przeczucie zamienia się w zgłoszenie, które da się naprawić.",
+          "ru": "Переключатель отладки в настройках аккаунта теперь доступен всем. Включите его — и сможете скопировать то, что приложение знает о ваших данных: догадка превращается в отчёт об ошибке, с которым можно работать.",
+          "nl": "De debug-schakelaar in je accountinstellingen staat nu voor iedereen open. Zet hem aan en je kunt kopiëren wat de app over jouw eigen spullen weet — zo wordt een onderbuikgevoel een bugmelding waar we iets mee kunnen."
+        }
+      }
+    ]
   }
 }

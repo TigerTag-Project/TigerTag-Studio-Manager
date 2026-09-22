@@ -1,6 +1,6 @@
 # Tiger Studio Manager — Feature Catalogue
 
-Tiger Studio Manager is the Electron desktop companion to the TigerTag ecosystem: a filament-inventory manager built around RFID/NFC-tagged spools ("TigerTag" chips), a fully-digital "TigerData" tier (and its catalogue-identified "TigerData+" rung), live 3D-printer integration across six brands, physical storage/rack management, a Firebase-backed social layer (friends, shareable wishlists, public profiles), and companion hardware (TD1S color sensor, TigerScale, TigerPOD dual-reader stand). This document catalogues every **shipped** feature, grouped by domain, current as of **v2.27.3**. Per-version release detail lives in `CHANGELOG.md`; forward-looking / in-progress work lives in `ROADMAP.md`.
+Tiger Studio Manager is the Electron desktop companion to the TigerTag ecosystem: a filament-inventory manager built around RFID/NFC-tagged spools ("TigerTag" chips), a fully-digital "TigerData" tier (and its catalogue-identified "TigerData+" rung), live 3D-printer integration across six brands, physical storage/rack management, a Firebase-backed social layer (friends, shareable wishlists, public profiles), and companion hardware (TD1S color sensor, TigerScale, TigerPOD dual-reader stand). This document catalogues every **shipped** feature, grouped by domain, current as of **v2.28.0**. Per-version release detail lives in `CHANGELOG.md`; forward-looking / in-progress work lives in `ROADMAP.md`.
 
 ---
 
@@ -261,7 +261,7 @@ Live integrations across six brands, each with real-time temperatures, per-slot 
 
 ## Internationalization (i18n)
 
-- **11 locales** shipped and kept in lock-step: English, French, German, Spanish, Italian, Chinese, Portuguese (Brasil), Portuguese (Portugal), Polish, Russian and Dutch (both contributed, v2.27.4).
+- **11 locales** shipped and kept in lock-step: English, French, German, Spanish, Italian, Chinese, Portuguese (Brasil), Portuguese (Portugal), Polish, Russian and Dutch (both contributed, v2.28.0).
 - Plural inflection (`{one, other}`) applied consistently to every duration key (v1.4.9).
 - `npm run i18n:add` — single command that writes a new/updated key across all 11 locale files at once (v1.4.9).
 - `npm run i18n:check` + a pre-commit hook blocking any commit that lets the 11 locale files drift apart (v1.4.9).

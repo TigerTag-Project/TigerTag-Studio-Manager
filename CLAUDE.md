@@ -398,7 +398,7 @@ assets/db/tigertag/           — TigerTag reference data (unified in v1.7.0, se
 data/                           — non-migrated static assets (loaded via direct fetch in renderer)
   container_spool/spools_filament.json
   rack-presets.json
-  whatsnew.json                 — "What's New" modal content (register 3 — playful/Discord), keyed by version, 11 locales inline (full history, browsable via the in-modal version picker). `npm run whatsnew:import` seeds an EN baseline from CHANGELOG (register 1) — a **rough draft to rewrite into register 3**, never shipped verbatim; recent versions hand-localised. Scaffold `npm run whatsnew:add`, validate `npm run whatsnew:check` (EN mandatory; entries are EN-only or fully localised — a locale that shipped later, like `ru` and `nl` from v2.27.4, is not required on older entries)
+  whatsnew.json                 — "What's New" modal content (register 3 — playful/Discord), keyed by version, 11 locales inline (full history, browsable via the in-modal version picker). `npm run whatsnew:import` seeds an EN baseline from CHANGELOG (register 1) — a **rough draft to rewrite into register 3**, never shipped verbatim; recent versions hand-localised. Scaffold `npm run whatsnew:add`, validate `npm run whatsnew:check` (EN mandatory; entries are EN-only or fully localised — a locale that shipped later, like `ru` and `nl` from v2.28.0, is not required on older entries)
   release-notes/                — one `vX.Y.Z.md` per version: the BambuLab-style **release note** (register 2), pushed verbatim to the GitHub Release page by `scripts/extract-changelog.mjs`. See *Three copy registers*.
   printers/                     — per-brand printer model catalogs (bbl/cre/eleg/ffg/snap)
 assets/svg/
