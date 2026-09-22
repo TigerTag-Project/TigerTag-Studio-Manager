@@ -112,8 +112,8 @@ Do not batch updates. The moment you finish editing a file, append the entry to 
 - What was deleted and why — `file.js`, `file.css`, i18n keys
 
 ## i18n
-- Added: `key1`, `key2` — 10 locales
-- Removed: `oldKey1`, `oldKey2` — 10 locales
+- Added: `key1`, `key2` — 11 locales
+- Removed: `oldKey1`, `oldKey2` — 11 locales
 ```
 
 Rules:
@@ -650,7 +650,7 @@ Google real name (`user.displayName` from Firebase Auth) is saved to Firestore a
 ---
 
 ## i18n — workflow & key reference
-All **10 locales** (en/fr/de/es/it/zh/pt/pt-pt/pl/ru) share the same key set. **Don't re-read the locale JSON files** — the full key list is in `docs/i18n-keys.md` (pointer below). The workflow (add keys, consistency check) stays here.
+All **11 locales** (en/fr/de/es/it/zh/pt/pt-pt/pl/ru/nl) share the same key set. **Don't re-read the locale JSON files** — the full key list is in `docs/i18n-keys.md` (pointer below). The workflow (add keys, consistency check) stays here.
 
 ### Adding new keys — use the helper script
 **Never edit the 10 locale files by hand.** Use `npm run i18n:add` instead — it writes every locale in one shot, validates JSON, and falls back to the EN value when a translation is missing.
@@ -691,7 +691,7 @@ a doc — or a file it describes — is staged. Run it by hand with `npm run doc
 | `llms.txt` "~N lines" | `renderer/inventory.js` | 15 % |
 | `llms.txt` CSS file count | `renderer/css/*.css` | exact |
 | `llms.txt` brand count **+ protocol table rows** | `renderer/printers/*/index.js` | exact |
-| `llms.txt` "N keys × 10 locales" | `renderer/locales/en.json` | 2 % |
+| `llms.txt` "N keys × 11 locales" | `renderer/locales/en.json` | 2 % |
 | `FEATURES.md` "current as of vX.Y.Z" | `package.json` | current, or previous patch |
 | Paths in README / llms.txt / CLAUDE.md / AGENT.md | the filesystem | must exist (templates + globs skipped) |
 | `llms.txt` Firestore map | `.collection("…")` calls in `renderer/inventory.js` | every collection written must be documented |
@@ -706,7 +706,7 @@ A pre-commit hook runs `npm run i18n:check` automatically — the commit is bloc
 
 ```bash
 npm run i18n:check
-# → "OK — 10 locales × N keys, all consistent." (exit 0)
+# → "OK — 11 locales × N keys, all consistent." (exit 0)
 # or a per-file list of missing/extra/empty/type-mismatch issues (exit 1)
 ```
 
@@ -728,7 +728,7 @@ The full per-category key list (App/status, Settings, Account, Login, Credential
 - **UI/UX — be autonomous, apply these by default (don't wait to be told each tweak):** (1) **Declutter** — cut redundant chrome (a `»` tab AND an ✕; titles repeating visible context; obvious subtitles). (2) **Context over labels** — if a state is already visible (selected item highlighted), don't repeat it. (3) **Consistency** — matching components look/size/behave identically (same size collapsed vs expanded; side-cards stack + get `»` tabs like group/material; collapse animation mirrors expand). (4) **Smooth motion, never jumpy** — elements stay put and the container resizes around them (no `justify-content:center` snap); slide don't pop; on a swap the incoming card covers before the outgoing closes; animate labels (max-width/opacity), not `display:none`. (5) **Real icons sized with presence** — masked SVGs over dots/glyphs, consistent sizes, centred on both axes (mind flex `min-width:auto` + top-heavy SVGs). (6) **Show the active/selected state.** (7) **Help/secondary actions in context + light.** (8) **Tighten space** — kill dead gaps, stacked paddings, useless separators. (9) Prefer **shared/generic** CSS-JS over per-file repetition. Propose refinements proactively with a one-line rationale. *(Full version: memory `feedback-ui-ux-autonomy`.)*
 - **Language**: Conversation with the user is in French. All project content — code comments, commit messages, documentation, instructions — must be written in English.
 - **Brand voice (all user-facing copy)**: every string a user reads — UI labels, buttons, empty states, prompts, nudges, error messages, modals, AND the "What's New" notes (`data/whatsnew.json`) — uses a **playful, deadpan, second-degree voice, Discord-style** (witty, self-aware, talks to you like a mate) — **NOT** Burger-King-style (no aggressive/provocative/troll edge). Lead with the **user benefit** in plain words; **no technical jargon** (avoid "modal", "toggle", "side panel", "header", class names, "TestFlight"…); **never describe what doesn't exist** or our process ("no emoji", "we removed X", "fixed bug Y"). Keep the tone natural in **every locale**. This playful voice is **register 3** — for **in-app copy + What's New (`data/whatsnew.json`) ONLY**. It is one of **three distinct copy registers** (see [*Three copy registers*](#️-three-copy-registers--changelog--release-note--whats-new)): the **release note** (`data/release-notes/`, register 2) is BambuLab-style factual, and the **`CHANGELOG.md`** (register 1) is exhaustive & technical. Same change, three voices — never blur them, and never ship the technical changelog wording where the playful or the Bambu one belongs. *(Same rule applies to the mobile app — see its CLAUDE.md.)*
-- **i18n**: always add all **10** translations (en/fr/de/es/it/zh/pt/pt-pt/pl/ru) in the same edit batch. **Use `npm run i18n:add` — do NOT hand-edit the locale JSON files.** See the *Adding new keys* section above for syntax.
+- **i18n**: always add all **11** translations (en/fr/de/es/it/zh/pt/pt-pt/pl/ru/nl) in the same edit batch. **Use `npm run i18n:add` — do NOT hand-edit the locale JSON files.** See the *Adding new keys* section above for syntax.
 - **Commits**: no `Co-Authored-By` line. **Never commit without explicit user instruction** — make the change, then stop and wait for the order to commit.
 - **Naming — clear human semantics first**: every name you introduce (Firestore collection/field, function, variable, CSS class, IPC channel, config key) must read plainly to a human and say what it *is*, so the meaning is obvious without chasing the code. Prefer a self-describing name over a clever/encoded one — e.g. a collection `rfidList` over `rfidChips`, a boolean `rfidListed`/`rfidBackup` over a multi-state `rfidChip: 1|2`. **Avoid encoding several states into one cryptic value** (magic numbers, packed flags): split into separate, well-named booleans/fields. **Don't store what you can derive** — drop redundant fields when an existing one already implies the answer (e.g. no `startState`/type field when the presence of a `backup` already means "TigerTag+"). When a name turns out unclear, rename it (and its doc/schema) rather than letting it stand. Clear semantics now prevent compounding complexity later.
 - **JS**: all logic lives in `inventory.js`. Do not inline JS in `inventory.html`.

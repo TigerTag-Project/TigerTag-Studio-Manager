@@ -24,7 +24,7 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const LOCALES_DIR = path.join(__dirname, "..", "renderer", "locales");
 const REFERENCE = "en";
-const LOCALES = ["en", "fr", "de", "es", "it", "zh", "pt", "pt-pt", "pl", "ru"];
+const LOCALES = ["en", "fr", "de", "es", "it", "zh", "pt", "pt-pt", "pl", "ru", "nl"];
 
 // ─────────────────────────────────────────────────────────────────────
 // helpers

@@ -51,7 +51,7 @@ const LOCALES_DIR = path.join(__dirname, "..", "renderer", "locales");
 
 // Hard-coded list — same set the renderer ships with. Adding a new
 // locale to the renderer = update this array and ship a new file.
-const LOCALES = ["en", "fr", "de", "es", "it", "zh", "pt", "pt-pt", "pl", "ru"];
+const LOCALES = ["en", "fr", "de", "es", "it", "zh", "pt", "pt-pt", "pl", "ru", "nl"];
 
 // ── CLI parsing ───────────────────────────────────────────────────────
 function parseArgs(argv) {
@@ -109,7 +109,7 @@ Examples:
   node scripts/i18n-add.mjs toolboxNew \\
     fr="Nouveau" en="New" de="Neu" \\
     es="Nuevo" it="Nuovo" zh="新建" \\
-    pt="Novo" pt-pt="Novo" pl="Nowy" ru="Новый"
+    pt="Novo" pt-pt="Novo" pl="Nowy" ru="Новый" nl="Nieuw"
 
   node scripts/i18n-add.mjs toolboxNew --after toolboxTitle \\
     --json '{"fr":"Nouveau","en":"New"}'
