@@ -5,6 +5,25 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v2.29.0 — 2026-09-23
+
+### Added
+
+- **LAN scan: tick one or several printers, every brand.** A scan result is no longer a link to the form: it is a checkbox (the chevron becomes the tick box the Bambu cloud picker already used), and an "Add this printer / Add these N printers" key appears in the card's footer. **One** ticked keeps the old path exactly — the prefilled settings form, where the name is reviewed and any code typed. **Several** are written in ONE Firestore batch (all or nothing) through the new `ctx.addScannedPrinters(brand, prefills)`, which builds the very doc the form's Save writes (every schema field + `printerName` + `printerModelId` + `_fireSafe(discovery)`, `isActive:false`, appended `sortIndex`), then `finishPrinterAdd` opens the last one. A REQUIRED schema field the scan could not supply (`ctx.printerRequiredFields(brand)`: Bambu `password` access code, Elegoo `mqttPassword`, FlashForge `password` check code and `serialNumber` for an unidentified machine, Anycubic `deviceId`/`username`/`password` without a slicer-config match) is asked for on each ticked card, only when more than one is ticked; an empty one is ringed red and nothing is written. Shared module `renderer/printers/scan-pick.js` (`createScanPicker` → `attach` / `reset`); each brand's prefill extracted into a `_prefillFor` builder, Anycubic's slicer-credential lookup into `_credsForCandidate`; a Snapmaker card that is ticked is not swapped for a richer re-probe of the same IP — `renderer/printers/{scan-pick.js,context.js,*/add-flow.js}`, `renderer/inventory.js`, `renderer/css/40-printers.css`.
+- **Bambu Lab cloud: China-mainland accounts (#33).** A separate Bambu platform — a Global token means nothing there — so the region is chosen at sign-in ("Account region": Global / China mainland) and carried by every later call. `main.js` builds the URL set per region (`_bblUrls(region)`: `api.bambulab.cn`, `bambulab.cn/api/sign-in/tfa`), every cloud IPC (`send-code`, `login`, `tfa`, `uid`, `bind`, `tasks`, `device-version`) takes `region`, and the broker is `cn.mqtt.bambulab.com` with no us/eu fallback. A phone number (digits only, `+86`/`0086` stripped) goes to `POST https://bambulab.cn/api/v1/user-service/user/sendsmscode` `{ phone, type: "codeLogin" }`, then `login` with it as `account`; typing one flips the switch to China. Hosts and payloads from the maintained Home Assistant integration (pybambu); not yet validated on a real China account. `PROTOCOL.md` §17.3b — `main.js`, `renderer/printers/bambulab/{add-flow.js,index.js,PROTOCOL.md}`, `renderer/css/40-printers.css`.
+- **Debug mode: the per-card view badge on the add-printer flow** — brand picker, add/edit form, and every per-brand card (`.modal-overlay > .modal-card.pba-card`, found generically and observed on `<body>` since each brand mounts its cards lazily). A per-brand card is named from its id (`bblCloudOverlay` → "Add printer — Bambu Lab · Cloud") and its copied ref points at its own `add-flow.js`; on a card with a footer the chip sits above "Back" — `renderer/inventory.js`, `renderer/css/70-detail-misc.css`.
+
+### Changed
+
+- **Bambu cloud sign-in** — the field is plain "Email" (or "Phone number or email" in China mode); an empty or malformed entry is refused with a message saying why and the field ringed red, where the key used to do nothing. The code step says "by text" when it went by SMS — `renderer/printers/bambulab/add-flow.js`.
+- **`users/{uid}/printers/bambulab/secrets/cloud_session`**: `email` renamed `account` (it can be a phone number now; the old field is deleted on the next sign-in), `region` is `"us"|"eu"|"cn"`. No other app reads this document — `renderer/inventory.js`, `docs/bambu_connect_cloud.md`.
+
+### Fixed
+
+- **Add-printer flow: switching cards slid the new one in BEHIND the old.** Every pba overlay shares `z-index: 9999`, so DOM order decided, and a card declared later in its brand's markup (Bambu's choice card, after the cloud card) stayed on top during the swap — then, released at the end of the 320 ms pin, slid out OVER the card that had covered it. The outgoing overlay now carries `.pba-behind` (`z-index: 9998`) through the pin AND its own slide-out (650 ms), dropped at once if it is reopened — `renderer/inventory.js`, `renderer/css/40-printers.css`.
+
+---
+
 ## v2.28.0 — 2026-09-23
 
 ### Added

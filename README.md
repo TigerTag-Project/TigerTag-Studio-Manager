@@ -128,7 +128,7 @@ The **TigerTag SDK** is the low-level library that handles all NFC chip operatio
 - **Find a colour by pointing at it** — a rainbow bar and a white-to-black bar with a window you drag along them; spools in range stay lit and the rest fade, so you see *where* that orange actually sits. Works in Inventory, Favorites, the Catalogue and Storage alike
 
 ### 🖨 3D Printer integration
-Live integrations for 6 brands — real-time temperatures, filament per slot, active print job, camera. **Bambu Lab printers can be added by signing in with your Bambu account**: your email, the code they send back, and every machine on the account is offered with its picture — reachable from anywhere, not only from your own network.
+Live integrations for 6 brands — real-time temperatures, filament per slot, active print job, camera. **Bambu Lab printers can be added by signing in with your Bambu account**: your email, the code they send back, and every machine on the account is offered with its picture — reachable from anywhere, not only from your own network. Accounts on Bambu's **China mainland** platform sign in with their phone number.
 
 Every brand at a glance:
 
@@ -141,7 +141,7 @@ Every brand at a glance:
 | **FlashForge** | HTTP polling 8898 + matlStation | ✅ Live |
 | **Snapmaker** | Moonraker WebSocket 7125 | ✅ Live |
 
-Each brand supports: filament edit per slot, printer discovery (mDNS + port-scan + Add by IP), camera widget.
+Each brand supports: filament edit per slot, printer discovery (mDNS + port-scan + Add by IP), camera widget. When a scan finds several machines, **tick the ones you want and add them all in one go**.
 
 The **printers table** shows, per printer: a live **print preview** (the model on the bed), the current job, and an **"Ends at"** column with the wall-clock finish time — plus per-printer **tags** and a search bar with **Brand / State / Tags** filters to manage a whole fleet.
 

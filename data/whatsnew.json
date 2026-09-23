@@ -9140,5 +9140,68 @@
         }
       }
     ]
+  },
+  "2.29.0": {
+    "date": "2026-09-23",
+    "items": [
+      {
+        "icon": "list-check",
+        "title": {
+          "en": "Found five printers? Add all five",
+          "fr": "Cinq imprimantes trouvées ? Ajoute les cinq",
+          "de": "Fünf Drucker gefunden? Alle fünf rein",
+          "es": "¿Cinco impresoras encontradas? Añade las cinco",
+          "it": "Trovate cinque stampanti? Aggiungile tutte",
+          "zh": "扫到五台打印机？一次全加上",
+          "pt": "Achou cinco impressoras? Adicione as cinco",
+          "pt-pt": "Encontraste cinco impressoras? Adiciona as cinco",
+          "pl": "Pięć drukarek w sieci? Dodaj wszystkie",
+          "ru": "Нашлось пять принтеров? Добавь все пять",
+          "nl": "Vijf printers gevonden? Voeg ze alle vijf toe"
+        },
+        "body": {
+          "en": "When the network scan finds your machines, tick the ones you want and add them in one go — any brand. If a printer needs its own code, you type it right on its card. Pick just one and it works like before.",
+          "fr": "Quand le scan du réseau trouve tes machines, coche celles que tu veux et ajoute-les d'un coup — toutes marques. Si une imprimante a besoin de son code, tu le tapes directement sur sa carte. N'en coche qu'une et tout se passe comme avant.",
+          "de": "Findet der Netzwerk-Scan deine Maschinen, hak die gewünschten an und füg sie in einem Rutsch hinzu — jede Marke. Braucht ein Drucker seinen eigenen Code, tippst du ihn direkt auf seiner Karte ein. Nur einen angehakt? Dann läuft alles wie gewohnt.",
+          "es": "Cuando el escaneo de red encuentra tus máquinas, marca las que quieras y añádelas de una vez — cualquier marca. Si una impresora necesita su código, lo escribes en su propia tarjeta. Marca solo una y todo va como siempre.",
+          "it": "Quando la scansione di rete trova le tue macchine, spunta quelle che vuoi e aggiungile in un colpo solo — qualsiasi marca. Se una stampante vuole il suo codice, lo scrivi direttamente sulla sua scheda. Spuntane una sola e funziona come prima.",
+          "zh": "网络扫描找到你的机器后，勾选想要的几台，一次性全部添加——任何品牌都行。某台打印机需要自己的代码？直接在它的卡片上填。只勾一台，就和以前一样。",
+          "pt": "Quando a busca na rede encontra suas máquinas, marque as que quiser e adicione tudo de uma vez — qualquer marca. Se uma impressora precisa do próprio código, você digita direto no cartão dela. Marque só uma e funciona como antes.",
+          "pt-pt": "Quando a pesquisa na rede encontra as tuas máquinas, marca as que queres e adiciona-as de uma vez — qualquer marca. Se uma impressora precisa do seu código, escreves diretamente no cartão dela. Marca só uma e tudo funciona como antes.",
+          "pl": "Gdy skanowanie sieci znajdzie twoje maszyny, zaznacz te, które chcesz, i dodaj wszystkie naraz — każdej marki. Jeśli drukarka potrzebuje własnego kodu, wpisujesz go od razu na jej karcie. Zaznacz tylko jedną, a wszystko działa jak dawniej.",
+          "ru": "Когда сканирование сети находит твои машины, отметь нужные и добавь их разом — любой марки. Если принтеру нужен свой код, вводишь его прямо на его карточке. Отметишь один — всё как раньше.",
+          "nl": "Vindt de netwerkscan je machines, vink dan de gewenste aan en voeg ze in één keer toe — elk merk. Heeft een printer zijn eigen code nodig, dan typ je die gewoon op zijn kaart. Vink er maar één aan en alles werkt zoals vroeger."
+        }
+      },
+      {
+        "icon": "user",
+        "title": {
+          "en": "Bambu Lab China accounts welcome",
+          "fr": "Les comptes Bambu Lab Chine sont les bienvenus",
+          "de": "Bambu-Lab-Konten aus China willkommen",
+          "es": "Bienvenidas las cuentas Bambu Lab de China",
+          "it": "Benvenuti gli account Bambu Lab Cina",
+          "zh": "拓竹中国账号，欢迎登录",
+          "pt": "Contas Bambu Lab China, bem-vindas",
+          "pt-pt": "Contas Bambu Lab China, bem-vindas",
+          "pl": "Konta Bambu Lab z Chin mile widziane",
+          "ru": "Аккаунты Bambu Lab Китай — добро пожаловать",
+          "nl": "Bambu Lab China-accounts welkom"
+        },
+        "body": {
+          "en": "Your Bambu Lab account lives on the China mainland platform? Pick \"China mainland\" and sign in with your phone number — the code arrives by text. Type a number and we switch for you anyway.",
+          "fr": "Ton compte Bambu Lab est sur la plateforme de Chine continentale ? Choisis « Chine continentale » et connecte-toi avec ton numéro de téléphone — le code arrive par SMS. Tape un numéro, on bascule tout seuls de toute façon.",
+          "de": "Dein Bambu-Lab-Konto liegt auf der Plattform für Festlandchina? Wähl „Festlandchina“ und melde dich mit deiner Telefonnummer an — der Code kommt per SMS. Tippst du eine Nummer ein, schalten wir sowieso von selbst um.",
+          "es": "¿Tu cuenta Bambu Lab está en la plataforma de China continental? Elige «China continental» y entra con tu número de teléfono: el código llega por SMS. Escribe un número y cambiamos solos igualmente.",
+          "it": "Il tuo account Bambu Lab sta sulla piattaforma della Cina continentale? Scegli «Cina continentale» e accedi con il numero di telefono: il codice arriva via SMS. Scrivi un numero e cambiamo da soli comunque.",
+          "zh": "你的拓竹账号在中国大陆平台？选择「中国大陆」，用手机号登录——验证码会通过短信发送。直接输入手机号的话，我们也会自动切换。",
+          "pt": "Sua conta Bambu Lab fica na plataforma da China continental? Escolha \"China continental\" e entre com seu número de telefone — o código chega por SMS. Digite um número e a gente troca sozinho de qualquer jeito.",
+          "pt-pt": "A tua conta Bambu Lab está na plataforma da China continental? Escolhe «China continental» e entra com o teu número de telemóvel — o código chega por SMS. Escreve um número e mudamos sozinhos de qualquer forma.",
+          "pl": "Twoje konto Bambu Lab jest na platformie Chin kontynentalnych? Wybierz „Chiny kontynentalne” i zaloguj się numerem telefonu — kod przyjdzie SMS-em. Wpisz numer, a i tak przełączymy się sami.",
+          "ru": "Твой аккаунт Bambu Lab на платформе материкового Китая? Выбери «Материковый Китай» и войди по номеру телефона — код придёт по SMS. Введёшь номер — мы и так переключимся сами.",
+          "nl": "Staat je Bambu Lab-account op het platform voor het Chinese vasteland? Kies \"Chinees vasteland\" en log in met je telefoonnummer — de code komt per sms. Typ je een nummer, dan schakelen we sowieso zelf over."
+        }
+      }
+    ]
   }
 }
