@@ -20,6 +20,7 @@
  */
 
 import { ctx } from '../context.js';
+import { createScanPicker } from '../scan-pick.js';
 import * as extraSubnets from '../extra-subnets.js';
 import {
   acuProbeIp,
@@ -84,10 +85,15 @@ function acuAbortScan() {
  * schemaWidget seeds the form fields directly.
  */
 function _continueWith({ creds = null, cand = null }) {
+  ctx.openPrinterSettings('anycubic', null, _prefillFrom({ creds, cand }));
+}
+
+/** The Printer Settings prefill for a credentials entry and/or a candidate. */
+function _prefillFrom({ creds = null, cand = null }) {
   const acuModelId = creds?.modelId || cand?.acuModelId || '';
   const name = creds?.name || cand?.deviceName || cand?.modelName
             || `Anycubic ${creds?.ip || cand?.ip || ''}`;
-  ctx.openPrinterSettings('anycubic', null, {
+  return {
     ip:          creds?.ip || cand?.ip || '',
     acuModelId:  String(acuModelId),
     deviceId:    creds?.deviceId || '',
@@ -96,7 +102,7 @@ function _continueWith({ creds = null, cand = null }) {
     printerName: name,
     modelId:     acuCatalogIdFromModel(acuModelId, cand?.modelName || creds?.name),
     discovery:   acuBuildDiscoveryRecord(cand || { ...creds, source: 'slicer' }),
-  });
+  };
 }
 
 /**
@@ -106,6 +112,11 @@ function _continueWith({ creds = null, cand = null }) {
  * run the import instead).
  */
 async function _continueWithCandidate(cand) {
+  _continueWith({ creds: await _credsForCandidate(cand), cand });
+}
+
+/* The candidate's credentials from the slicer config, when it knows them. */
+async function _credsForCandidate(cand) {
   let creds = null;
   try {
     const { printers } = await acuReadSlicerCreds({ logPush: acuScanLogPush });
@@ -121,8 +132,19 @@ async function _continueWithCandidate(cand) {
       creds = { ...creds, ip: cand.ip };
     }
   } catch (_) { /* no slicer config — open the form without creds */ }
-  _continueWith({ creds, cand });
+  return creds;
 }
+
+const _prefillFor = async (c) => _prefillFrom({ creds: await _credsForCandidate(c), cand: c });
+
+/* Scan results are tickable: one → the prefilled form, several → added in
+   one go (printers/scan-pick.js). */
+const _acuScanPick = createScanPicker({
+  ctx, brand: 'anycubic', resultsId: 'acuScanResults',
+  prefillFor: _prefillFor,
+  onSingle: c => { acuAbortScan(); _closePanel('acuScanOverlay'); _continueWithCandidate(c); },
+  beforeAdd: acuAbortScan,
+});
 
 // ── Candidate cards ──────────────────────────────────────────────────────────
 
@@ -777,6 +799,7 @@ function _openScanPanel() {
   const stats   = document.getElementById('acuScanStats');
   const sub     = document.getElementById('acuScanSub');
   if (results) results.innerHTML = '';
+  _acuScanPick.reset();
   if (empty)   empty.hidden = true;
   if (bar)     bar.style.width = '0%';
   if (stats)   stats.textContent = '0 / 100';
@@ -809,15 +832,7 @@ function _openScanPanel() {
       wrap.innerHTML = _acuCandidateCardHtml(c);
       const card = wrap.firstElementChild;
       if (!card) return;
-      const triggerAdd = () => {
-        acuAbortScan();
-        _closePanel('acuScanOverlay');
-        _continueWithCandidate(c);
-      };
-      card.addEventListener('click', triggerAdd);
-      card.addEventListener('keydown', e => {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); triggerAdd(); }
-      });
+      _acuScanPick.attach(card, c);
       document.getElementById('acuScanResults')?.appendChild(card);
     },
     onProgress({ done: d, total: t }) {

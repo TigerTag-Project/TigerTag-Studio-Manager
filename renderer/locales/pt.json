@@ -781,16 +781,25 @@
   "bblCloudChoiceHint": "Encontra todas as suas máquinas sozinho",
   "bblCloudTitle": "Entrar na Bambu Lab",
   "bblCloudSub": "Seu e-mail, um código, e suas máquinas aparecem.",
-  "bblCloudEmailPh": "voce@exemplo.com",
+  "bblCloudEmailPh": "E-mail",
+  "bblCloudRegionLabel": "Região da conta",
+  "bblCloudRegionGlobal": "Global",
+  "bblCloudRegionChina": "China continental",
+  "bblCloudAccountPhCn": "Número de telefone ou e-mail",
   "bblCloudSendCode": "Me envie um código",
   "bblCloudCodePh": "O código que chegou no e-mail",
+  "bblCloudCodePhSms": "O código do seu SMS",
   "bblCloudSignIn": "Entrar",
   "bblCloudChangeEmail": "Trocar",
   "bblCloudCodeSent": "Código enviado — vale por 10 minutos. Procure um e-mail da Bambu Lab.",
+  "bblCloudCodeSentSms": "Código enviado por SMS — vale por 10 minutos. Seu celular deve vibrar a qualquer momento.",
   "bblCloudErrCode": "Esse código não confere. Confira e tente de novo.",
   "bblCloudErrExpired": "Esse código expirou. Já enviamos um novinho.",
   "bblCloudErrBlocked": "A Bambu Lab está nos barrando agora. Espere um minuto.",
   "bblCloudErrGeneric": "O login não passou. Tente de novo.",
+  "bblCloudErrEmpty": "Coloque seu e-mail primeiro — é lá que o código chega.",
+  "bblCloudErrEmail": "Isso não parece um e-mail. Algo como voce@exemplo.com.",
+  "bblCloudErrAccountCn": "Digite o número de telefone (ou e-mail) da sua conta Bambu Lab China.",
   "bblCloudNoPrinters": "Ainda não há máquinas nesta conta.",
   "bblCloudPick": "Marque as que você quer",
   "bblCloudAddSelected": {
@@ -1602,5 +1611,11 @@
     "other": "{{n}} itens selecionados estão ocultos pelo filtro atual."
   },
   "printerCloudMode": "Acessível pela nuvem",
-  "holdToConfirmTip": "Segure {{s}} s para confirmar"
+  "holdToConfirmTip": "Segure {{s}} s para confirmar",
+  "printerScanAddSelected": {
+    "one": "Adicionar esta impressora",
+    "other": "Adicionar estas {{n}} impressoras"
+  },
+  "printerScanFillMissing": "Cada impressora marcada precisa do próprio código — preencha os campos em vermelho.",
+  "printerScanAddFailed": "Não deu para adicionar essas impressoras. Tente de novo."
 }

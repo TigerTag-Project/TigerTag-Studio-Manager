@@ -18,6 +18,7 @@
  */
 
 import { ctx } from '../context.js';
+import { createScanPicker } from '../scan-pick.js';
 import * as extraSubnets from '../extra-subnets.js';
 import {
   creProbeIp,
@@ -128,16 +129,30 @@ function _creCandidateCardHtml(c) {
     </div>`;
 }
 
-/** Open the Printer Settings add form prefilled from a candidate. */
-function _continueWith(c) {
+/** The Printer Settings prefill for a candidate. */
+function _prefillFor(c) {
   const modelId = c.modelId || creModelIdFromModel(c.model, c.hostName);
-  ctx.openPrinterSettings("creality", null, {
+  return {
     ip:          c.ip,
     printerName: c.hostName || c.model || `Creality ${c.ip}`,
     modelId,
     discovery:   creBuildDiscoveryRecord(c),
-  });
+  };
 }
+
+/** Open the Printer Settings add form prefilled from a candidate. */
+function _continueWith(c) {
+  ctx.openPrinterSettings("creality", null, _prefillFor(c));
+}
+
+/* Scan results are tickable: one → the prefilled form, several → added in
+   one go (printers/scan-pick.js). */
+const _creScanPick = createScanPicker({
+  ctx, brand: "creality", resultsId: "creScanResults",
+  prefillFor: _prefillFor,
+  onSingle: c => { creAbortScan(); _closePanel("creScanOverlay"); _continueWith(c); },
+  beforeAdd: creAbortScan,
+});
 
 // ── Generic panel helpers ─────────────────────────────────────────────────────
 
@@ -502,6 +517,7 @@ function _openScanPanel() {
   const stats   = document.getElementById("creScanStats");
   const sub     = document.getElementById("creScanSub");
   if (results) results.innerHTML = "";
+  _creScanPick.reset();
   if (empty)   empty.hidden = true;
   if (bar)     bar.style.width = "0%";
   if (stats)   stats.textContent = "0 / 0";
@@ -540,15 +556,7 @@ function _openScanPanel() {
       const card = wrap.firstElementChild;
       if (!card) return;
 
-      const triggerAdd = () => {
-        creAbortScan();
-        _closePanel("creScanOverlay");
-        _continueWith(c);
-      };
-      card.addEventListener("click", triggerAdd);
-      card.addEventListener("keydown", e => {
-        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); triggerAdd(); }
-      });
+      _creScanPick.attach(card, c);
 
       document.getElementById("creScanResults")?.appendChild(card);
     },

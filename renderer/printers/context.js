@@ -57,6 +57,8 @@ export const ctx = {
   // brand picker without creating circular imports.
   openPrinterSettings: (brand, printer, prefill) => {},
   openBrandPicker:     () => {},
+  printerRequiredFields: (_brand) => [],                        // scan-pick.js
+  addScannedPrinters:    async (_brand, _prefills) => ({ ok: false, error: "not-wired" }),
   isDebugEnabled:      () => false,
   // Persist an Anycubic cloud printer (provisioned via the slicer). Returns
   // { ok, id } | { ok:false, error }. Implemented in inventory.js.

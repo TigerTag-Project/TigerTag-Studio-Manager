@@ -781,16 +781,25 @@
   "bblCloudChoiceHint": "Trova tutte le tue macchine da sola",
   "bblCloudTitle": "Accedi a Bambu Lab",
   "bblCloudSub": "La tua email, un codice, e le tue macchine compaiono.",
-  "bblCloudEmailPh": "tu@esempio.com",
+  "bblCloudEmailPh": "Email",
+  "bblCloudRegionLabel": "Regione dell'account",
+  "bblCloudRegionGlobal": "Globale",
+  "bblCloudRegionChina": "Cina continentale",
+  "bblCloudAccountPhCn": "Numero di telefono o email",
   "bblCloudSendCode": "Mandami un codice",
   "bblCloudCodePh": "Il codice ricevuto per email",
+  "bblCloudCodePhSms": "Il codice arrivato via SMS",
   "bblCloudSignIn": "Accedi",
   "bblCloudChangeEmail": "Cambia",
   "bblCloudCodeSent": "Codice inviato — valido 10 minuti. Cerca una mail di Bambu Lab.",
+  "bblCloudCodeSentSms": "Codice inviato via SMS — vale 10 minuti. Il telefono dovrebbe vibrare a momenti.",
   "bblCloudErrCode": "Questo codice non va. Controllalo e riprova.",
   "bblCloudErrExpired": "Il codice è scaduto. Te ne abbiamo inviato uno nuovo.",
   "bblCloudErrBlocked": "Bambu Lab ci sta rifiutando l'accesso. Aspetta un minuto.",
   "bblCloudErrGeneric": "L'accesso non è andato. Riprova.",
+  "bblCloudErrEmpty": "Prima inserisci la tua email: il codice arriva lì.",
+  "bblCloudErrEmail": "Non sembra un indirizzo email. Qualcosa tipo tu@esempio.it.",
+  "bblCloudErrAccountCn": "Inserisci il numero di telefono (o l'email) del tuo account Bambu Lab Cina.",
   "bblCloudNoPrinters": "Ancora nessuna macchina su questo account.",
   "bblCloudPick": "Spunta quelle che vuoi",
   "bblCloudAddSelected": {
@@ -1602,5 +1611,11 @@
     "other": "{{n}} elementi selezionati sono nascosti dal filtro attuale."
   },
   "printerCloudMode": "Raggiunta tramite il cloud",
-  "holdToConfirmTip": "Tieni premuto {{s}} s per confermare"
+  "holdToConfirmTip": "Tieni premuto {{s}} s per confermare",
+  "printerScanAddSelected": {
+    "one": "Aggiungi questa stampante",
+    "other": "Aggiungi queste {{n}} stampanti"
+  },
+  "printerScanFillMissing": "Ogni stampante spuntata vuole il suo codice: compila i campi in rosso.",
+  "printerScanAddFailed": "Non sono riuscito ad aggiungere quelle stampanti. Riprova."
 }

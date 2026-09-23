@@ -781,16 +781,25 @@
   "bblCloudChoiceHint": "Найдёт все ваши принтеры автоматически",
   "bblCloudTitle": "Войти в Bambu Lab",
   "bblCloudSub": "Ваш email, код — и принтеры появятся сами.",
-  "bblCloudEmailPh": "you@example.com",
+  "bblCloudEmailPh": "Эл. почта",
+  "bblCloudRegionLabel": "Регион аккаунта",
+  "bblCloudRegionGlobal": "Глобальный",
+  "bblCloudRegionChina": "Материковый Китай",
+  "bblCloudAccountPhCn": "Номер телефона или e-mail",
   "bblCloudSendCode": "Отправить мне код",
   "bblCloudCodePh": "Код из вашей почты",
+  "bblCloudCodePhSms": "Код из SMS",
   "bblCloudSignIn": "Войти",
   "bblCloudChangeEmail": "Изменить",
   "bblCloudCodeSent": "Код отправлен — действителен 10 минут. Ищите письмо от Bambu Lab.",
+  "bblCloudCodeSentSms": "Код отправлен по SMS — действует 10 минут. Телефон вот-вот завибрирует.",
   "bblCloudErrCode": "Код неверен. Проверьте и попробуйте снова.",
   "bblCloudErrExpired": "Срок действия кода истёк. Мы отправили новый.",
   "bblCloudErrBlocked": "Bambu Lab сейчас отклоняет запрос. Подождите немного.",
   "bblCloudErrGeneric": "Вход не выполнен. Попробуйте снова.",
+  "bblCloudErrEmpty": "Сначала впиши e-mail — код придёт туда.",
+  "bblCloudErrEmail": "Это не похоже на e-mail. Что-то вроде you@example.com.",
+  "bblCloudErrAccountCn": "Введи номер телефона (или e-mail) своего аккаунта Bambu Lab Китай.",
   "bblCloudNoPrinters": "На этом аккаунте пока нет принтеров.",
   "bblCloudPick": "Отметьте нужные",
   "bblCloudAddSelected": {
@@ -1602,5 +1611,11 @@
     "other": "Скрыто текущим фильтром выбранных элементов: {{n}}."
   },
   "printerCloudMode": "Доступ через облако",
-  "holdToConfirmTip": "Удерживайте {{s}} с для подтверждения"
+  "holdToConfirmTip": "Удерживайте {{s}} с для подтверждения",
+  "printerScanAddSelected": {
+    "one": "Добавить этот принтер",
+    "other": "Добавить эти принтеры ({{n}})"
+  },
+  "printerScanFillMissing": "Каждому отмеченному принтеру нужен свой код — заполни красные поля.",
+  "printerScanAddFailed": "Не получилось добавить эти принтеры. Попробуй ещё раз."
 }

@@ -19963,13 +19963,22 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
         if (m.attributeName !== "class" || !_isPba(m.target)) continue;
         const wasOpen = (m.oldValue || "").split(/\s+/).includes("open");
         const isOpen  = m.target.classList.contains("open");
-        if (!wasOpen && isOpen) opened = true;
+        if (!wasOpen && isOpen) {
+          opened = true;
+          // Reopened before its exit finished: it is the front card again.
+          clearTimeout(m.target._behindT); m.target.classList.remove("pba-behind");
+        }
         else if (wasOpen && !isOpen) closed.push(m.target);
       }
+      /* The outgoing card also stays BEHIND (`.pba-behind`) past the pin — through
+         its own slide-out, which only starts once `.pba-keep` drops. Released at
+         the pin alone, it regained the shared z-index and slid out OVER the card
+         that had just covered it. 320 ms pin + 260 ms slide-out + margin. */
       if (opened) for (const el of closed) {
-        el.classList.add("pba-keep");
-        clearTimeout(el._keepT);
-        el._keepT = setTimeout(() => el.classList.remove("pba-keep"), 320);
+        el.classList.add("pba-keep", "pba-behind");
+        clearTimeout(el._keepT); clearTimeout(el._behindT);
+        el._keepT   = setTimeout(() => el.classList.remove("pba-keep"), 320);
+        el._behindT = setTimeout(() => el.classList.remove("pba-behind"), 650);
       }
       if (_papRaf) return;
       _papRaf = requestAnimationFrame(() => { _papRaf = 0; _syncPrinterAddPanels(); });
@@ -20940,12 +20949,31 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     editAccountModalOverlay: { name: "Edit-account modal",   fn: "openEditAccountModal" },
     tigerPodModalOverlay:    { name: "TigerPOD modal",       fn: "openTigerPodModal" },
     whatsNewOverlay:  { name: "What's New modal",            fn: "openWhatsNew" },
+    printerBrandPickerPanel: { name: "Add printer — brand picker side-card", fn: "openPrinterBrandPicker" },
+    printerAddPanel:  { name: "Add printer — form side-card", fn: "openPrinterAddForm" },
   };
+  /* The per-brand add-printer cards (choice / scan / manual / cloud …) are built
+     by each brand's own add-flow.js, lazily, and there are ~20 of them — so they
+     are named from their id instead of listed: `bblCloudOverlay` → "Bambu Lab ·
+     Cloud", pointing at renderer/printers/bambulab/add-flow.js. */
+  const _DBG_BRAND_PREFIX = {
+    acu: ["Anycubic", "anycubic"], bbl: ["Bambu Lab", "bambulab"], cre: ["Creality", "creality"],
+    elg: ["Elegoo", "elegoo"], ffg: ["FlashForge", "flashforge"], snap: ["Snapmaker", "snapmaker"],
+  };
+  function _dbgSurface(id) {
+    if (!id) return null;
+    if (_DBG_SURFACES[id]) return { id, file: "renderer/inventory.js", ..._DBG_SURFACES[id] };
+    const m = /^(acu|bbl|cre|elg|ffg|snap)(?:Add)?([A-Z]\w*?)Overlay$/.exec(id);
+    if (!m || !document.getElementById(id)?.querySelector(":scope > .modal-card.pba-card")) return null;
+    const [brand, folder] = _DBG_BRAND_PREFIX[m[1]];
+    return { id, name: `Add printer — ${brand} · ${m[2]} side-card`, fn: `#${id} markup + wiring`,
+             file: `renderer/printers/${folder}/add-flow.js` };
+  }
   function _dbgBuildRef(el) {
     const near = (attr) => { let n = el; while (n && n !== document.body) { if (n.getAttribute && n.hasAttribute(attr)) return n.getAttribute(attr); n = n.parentElement; } return null; };
     // Nearest known surface (walk up for a registry id).
     let s = el, surf = null, surfId = null;
-    while (s && s !== document.body) { if (s.id) { surfId = surfId || s.id; if (_DBG_SURFACES[s.id]) { surf = { id: s.id, ..._DBG_SURFACES[s.id] }; break; } } s = s.parentElement; }
+    while (s && s !== document.body) { if (s.id) { surfId = surfId || s.id; surf = _dbgSurface(s.id); if (surf) break; } s = s.parentElement; }
     const clicked = (() => {
       const tag = el.tagName ? el.tagName.toLowerCase() : "?";
       const cls = (typeof el.className === "string" && el.className.trim()) ? "." + el.className.trim().split(/\s+/)[0] : "";
@@ -20956,7 +20984,7 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
       "[TSM view ref]",
       `app: v${_appInfo?.appVersion || "?"}`,
       `view: ${state.viewMode}${state.friendView ? " (friend-view of " + (state.friendView.displayName || state.friendView.uid || "?") + ")" : ""}`,
-      surf ? `surface: ${surf.name}  ·  #${surf.id}  ·  ${surf.fn}  ·  renderer/inventory.js`
+      surf ? `surface: ${surf.name}  ·  #${surf.id}  ·  ${surf.fn}  ·  ${surf.file}`
            : `surface: (untagged)  ·  #${surfId || "?"}`,
     ];
     const d = [];
@@ -20972,9 +21000,9 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (d.length) lines.push(`data: ${d.join("   ")}`);
     // Name EACH open side-card independently (several can be stacked at once) — one
     // `openCard:` line per panel, even if the click landed elsewhere.
-    [...document.querySelectorAll(".detail-panel.open")].filter(el => el.id).forEach(op => {
-      const om = _DBG_SURFACES[op.id];
-      lines.push(`openCard: ${om ? om.name + "  ·  " : ""}#${op.id}${om ? "  ·  " + om.fn + "  ·  renderer/inventory.js" : ""}`);
+    [...document.querySelectorAll(".detail-panel.open, .modal-overlay.open:has(> .modal-card.pba-card)")].filter(el => el.id).forEach(op => {
+      const om = _dbgSurface(op.id);
+      lines.push(`openCard: ${om ? om.name + "  ·  " : ""}#${op.id}${om ? "  ·  " + om.fn + "  ·  " + om.file : ""}`);
     });
     lines.push(`clicked: ${clicked}`);
     return lines.join("\n");
@@ -20989,15 +21017,21 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   // Per-card debug button — a small copy chip injected into each side-card panel
   // (visible in debug mode) that copies THAT card's ref. The bottom-right pill gets
   // covered by an open side-card, so each card also carries its own button.
-  const _DBG_PANEL_IDS = ["detailPanel", "productCardPanel", "reorderPanel", "groupPanel", "printerPanel", "settingsPanel", "notifPanel", "friendsPanel", "debugPanel"];
+  const _DBG_PANEL_IDS = ["detailPanel", "productCardPanel", "reorderPanel", "groupPanel", "printerPanel", "settingsPanel", "notifPanel", "friendsPanel", "debugPanel", "printerBrandPickerPanel", "printerAddPanel"];
   let _dbgPanelObs = null;
   function _dbgEnsureCardBtns() {
     const on = state.debugEnabled;
-    _DBG_PANEL_IDS.forEach(id => {
-      const panel = document.getElementById(id); if (!panel) return;
+    /* Side-cards by id, plus every per-brand add-printer card: those are
+       `.modal-overlay > .modal-card.pba-card`, and the chip goes on the CARD
+       (the overlay is a full-screen click-through layer). */
+    const hosts = _DBG_PANEL_IDS.map(id => [id, document.getElementById(id)]);
+    document.querySelectorAll(".modal-overlay[id] > .modal-card.pba-card")
+      .forEach(card => hosts.push([card.parentElement.id, card]));
+    hosts.forEach(([id, panel]) => {
+      if (!panel) return;
       let btn = panel.querySelector(":scope > .dbg-card-btn");
       if (on && !btn) {
-        const nm = (_DBG_SURFACES[id]?.name || id).replace(/\s*(side-?card|side panel|panel)$/i, "");   // short label; the copied ref keeps the full name
+        const nm = (_dbgSurface(id)?.name || id).replace(/\s*(side-?card|side panel|panel)$/i, "");   // short label; the copied ref keeps the full name
         btn = document.createElement("button");
         btn.type = "button"; btn.className = "dbg-card-btn"; btn.dataset.dbgPanel = id;
         btn.setAttribute("aria-label", "Copy side-card ref");
@@ -21013,6 +21047,8 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (_dbgPanelObs) return;
     _dbgPanelObs = new MutationObserver(() => _dbgEnsureCardBtns());   // re-add if a panel re-renders its shell
     _DBG_PANEL_IDS.forEach(id => { const p = document.getElementById(id); if (p) _dbgPanelObs.observe(p, { childList: true }); });
+    // Each brand's add-flow mounts its cards on <body> the first time it opens.
+    _dbgPanelObs.observe(document.body, { childList: true });
   }
   document.addEventListener("click", e => {
     const btn = e.target.closest?.(".dbg-card-btn[data-dbg-panel]");
@@ -26541,6 +26577,47 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
   });
   _printerCtx.openPrinterSettings = (brand, printer, prefill) => openPrinterAddForm(brand, printer, prefill);
   _printerCtx.finishPrinterAdd    = (brand, id) => _finishPrinterAdd(brand, id);
+  /* Scan multi-select (printers/scan-pick.js). The required fields a scan result
+     may lack — an access code, a check code — so the picker can ask for them on
+     the card itself instead of routing every printer through the form. */
+  _printerCtx.printerRequiredFields = (brand) =>
+    (PRINTER_ADD_SCHEMA[brand]?.sections || []).flatMap(s => s.fields)
+      .filter(f => f.required)
+      .map(f => ({ key: f.key, label: f.labelText || t(f.labelKey), placeholder: f.placeholder || "",
+                   secret: !!f.secret, mono: !!f.mono }));
+  /* Several scanned printers in one go. Each entry is the very prefill the form
+     would have received, so the doc written is the one the form's Save writes
+     (schema fields + name + model + discovery) — one batch, all or nothing. */
+  _printerCtx.addScannedPrinters = async (brand, prefills) => {
+    const uid = state.activeAccountId;
+    const schema = PRINTER_ADD_SCHEMA[brand];
+    if (!uid || !schema || !prefills?.length) return { ok: false, error: "missing-params" };
+    const fields = schema.sections.flatMap(s => s.fields);
+    const devices = fbDb(uid).collection("users").doc(uid).collection("printers").doc(brand).collection("devices");
+    const batch = fbDb(uid).batch();
+    const ids = [];
+    for (const [i, pf] of prefills.entries()) {
+      const data = {
+        printerName:    String(pf.printerName || "").trim(),
+        printerModelId: String(pf.printerModelId || pf.modelId || "").trim(),
+      };
+      for (const f of fields) data[f.key] = String(pf[f.key] ?? "").trim();
+      if (!data.printerName || fields.some(f => f.required && !data[f.key])) {
+        return { ok: false, error: "missing-fields", index: i };
+      }
+      const ref = devices.doc();
+      const doc = { ...data, id: ref.id, isActive: false, sortIndex: state.printers.length + i,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
+      if (pf.discovery) doc.discovery = _fireSafe(pf.discovery);
+      batch.set(ref, doc);
+      ids.push(ref.id);
+    }
+    try { await batch.commit(); return { ok: true, ids }; }
+    catch (e) {
+      console.warn("[printers] multi-add failed:", e?.code, e?.message);
+      return { ok: false, error: e?.code || e?.message || "save-failed" };
+    }
+  };
   _printerCtx.openBrandPicker     = () => openPrinterBrandPicker();
   _printerCtx.openTutorial        = (brand) => openPrinterTutorial(brand, "");
   _printerCtx.isDebugEnabled      = () => !!state.debugEnabled;
@@ -26564,10 +26641,13 @@ import { elgFanStep } from './printers/elegoo/widget_control.js';
     if (!uid) return { ok: false, error: "no-account" };
     try {
       await _bblSecretsCol(uid).doc("cloud_session").set({
-        email:        String(session.email || ""),
+        // What the user signed in with: an email, or on the China platform
+        // (region "cn") usually a phone number — hence not called `email`.
+        account:      String(session.account || ""),
+        email:        firebase.firestore.FieldValue.delete(),   // its old name
         bambuUid:     String(session.uid || ""),
         mqttUsername: `u_${session.uid || ""}`,
-        region:       session.region === "eu" ? "eu" : "us",
+        region:       ["eu", "cn"].includes(session.region) ? session.region : "us",
         accessToken:  String(session.token || ""),
         // Bambu's tokens last about three months; the expiry is stored so the app
         // can warn before it lapses instead of failing silently one morning.

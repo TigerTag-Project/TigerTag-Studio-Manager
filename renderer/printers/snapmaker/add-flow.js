@@ -21,6 +21,7 @@
  */
 
 import { ctx } from '../context.js';
+import { createScanPicker } from '../scan-pick.js';
 import * as extraSubnets from '../extra-subnets.js';
 import {
   snapProbeIp,
@@ -362,6 +363,7 @@ function openSnapmakerScan() {
   const results  = $("snapScanResults");
   const empty    = $("snapScanEmpty");
   if (results) results.innerHTML = "";
+  _snapScanPick.reset();
   if (empty)   empty.hidden = false;
   if (bar)     bar.style.width = "0%";
   if (stats)   stats.textContent = "0 / 0";
@@ -407,31 +409,12 @@ function openSnapmakerScan() {
       wrap.innerHTML = snapCandidateCardHtml(c);
       const card = wrap.firstElementChild;
       if (!card) return;
-      // Click / Enter → close the scan panel and open the Printer
-      // Settings modal pre-filled from the probe data. Firestore write
-      // happens only when the user confirms in that form.
-      const triggerAdd = () => {
-        console.log("[snap-scan] triggerAdd fired for", c.ip);
-        // Close the scan panel and open the Printer Settings modal
-        // pre-filled with everything we discovered. The user confirms
-        // before anything is written to Firestore.
-        closeSnapmakerScan();
-        ctx.openPrinterSettings("snapmaker", null, {
-          ip:          c.ip,
-          printerName: c.deviceName || c.machineModel || c.hostName || `Snapmaker ${c.ip}`,
-          modelId:     snapModelIdFromMachineModel(c.machineModel || c.hostName),
-          discovery:   snapBuildDiscoveryRecord(c),
-        });
-      };
-      card.addEventListener("click", triggerAdd);
-      card.addEventListener("keydown", e => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          triggerAdd();
-        }
-      });
+      _snapScanPick.attach(card, c);
       const prev = rendered.get(c.ip);
       if (prev) {
+        // A ticked card stays as it is: swapping it for the richer probe
+        // would silently drop the user's pick.
+        if (prev.card.classList.contains("is-picked")) return;
         // Existing entry — replace it only if the new probe scored
         // higher (more identity fields filled in). Otherwise drop the
         // duplicate so the list stays stable.
@@ -497,6 +480,25 @@ function openSnapmakerScan() {
     }
   }).catch(() => {/* aborted or per-host failure already swallowed */});
 }
+/** The Printer Settings prefill for a scan candidate. */
+function _snapPrefillFor(c) {
+  return {
+    ip:          c.ip,
+    printerName: c.deviceName || c.machineModel || c.hostName || `Snapmaker ${c.ip}`,
+    modelId:     snapModelIdFromMachineModel(c.machineModel || c.hostName),
+    discovery:   snapBuildDiscoveryRecord(c),
+  };
+}
+
+/* Scan results are tickable: one → the prefilled form (the user confirms
+   before anything is written), several → added in one go (scan-pick.js). */
+const _snapScanPick = createScanPicker({
+  ctx, brand: "snapmaker", resultsId: "snapScanResults",
+  prefillFor: _snapPrefillFor,
+  onSingle: c => { closeSnapmakerScan(); ctx.openPrinterSettings("snapmaker", null, _snapPrefillFor(c)); },
+  beforeAdd: () => snapAbortScan(),
+});
+
 function closeSnapmakerScan() {
   snapAbortScan();
   $("snapScanOverlay")?.classList.remove("open");

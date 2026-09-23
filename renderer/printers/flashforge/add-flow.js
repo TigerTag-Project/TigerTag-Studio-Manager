@@ -36,6 +36,7 @@
  */
 
 import { ctx } from '../context.js';
+import { createScanPicker } from '../scan-pick.js';
 import * as extraSubnets from '../extra-subnets.js';
 import {
   ffgProbeIp,
@@ -157,6 +158,26 @@ function _ffgCandidateCardHtml(c) {
       <span class="icon icon-chevron-r icon-14 snap-scan-card-chev"></span>
     </div>`;
 }
+
+/** The Printer Settings prefill for a scan candidate. */
+function _prefillFor(c) {
+  return {
+    ip:           c.ip,
+    printerName:  c.hostName || c.machineName || c.machineModel || `FlashForge ${c.ip}`,
+    modelId:      c.modelId || ffgModelIdFromMachineModel(c.machineModel || ""),
+    serialNumber: c.serialNumber || "",
+    discovery:    ffgBuildDiscoveryRecord(c),
+  };
+}
+
+/* Scan results are tickable: one → the prefilled form, several → added in
+   one go (printers/scan-pick.js). */
+const _ffgScanPick = createScanPicker({
+  ctx, brand: "flashforge", resultsId: "ffgScanResults",
+  prefillFor: _prefillFor,
+  onSingle: c => { ffgAbortScan(); _closePanel("ffgScanOverlay"); ctx.openPrinterSettings("flashforge", null, _prefillFor(c)); },
+  beforeAdd: ffgAbortScan,
+});
 
 // ── Generic panel helpers ─────────────────────────────────────────────────────
 
@@ -550,6 +571,7 @@ function _openScanPanel() {
   const stats   = document.getElementById("ffgScanStats");
   const sub     = document.getElementById("ffgScanSub");
   if (results) results.innerHTML = "";
+  _ffgScanPick.reset();
   if (empty)   empty.hidden = true;
   if (bar)     bar.style.width = "0%";
   if (stats)   stats.textContent = "0 / 0";
@@ -594,22 +616,7 @@ function _openScanPanel() {
       const card = wrap.firstElementChild;
       if (!card) return;
 
-      const triggerAdd = () => {
-        ffgAbortScan();
-        _closePanel("ffgScanOverlay");
-        ctx.openPrinterSettings("flashforge", null, {
-          ip:           c.ip,
-          printerName:  c.hostName || c.machineName || c.machineModel || `FlashForge ${c.ip}`,
-          modelId:      c.modelId || ffgModelIdFromMachineModel(c.machineModel || ""),
-          serialNumber: c.serialNumber || "",
-          discovery:    ffgBuildDiscoveryRecord(c),
-        });
-      };
-
-      card.addEventListener("click", triggerAdd);
-      card.addEventListener("keydown", e => {
-        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); triggerAdd(); }
-      });
+      _ffgScanPick.attach(card, c);
 
       document.getElementById("ffgScanResults")?.appendChild(card);
     },

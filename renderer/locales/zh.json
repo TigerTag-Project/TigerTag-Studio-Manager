@@ -781,16 +781,25 @@
   "bblCloudChoiceHint": "自动找出你所有的机器",
   "bblCloudTitle": "登录拓竹账号",
   "bblCloudSub": "填邮箱,收验证码,机器自己就出来了。",
-  "bblCloudEmailPh": "you@example.com",
+  "bblCloudEmailPh": "邮箱",
+  "bblCloudRegionLabel": "账号区域",
+  "bblCloudRegionGlobal": "国际",
+  "bblCloudRegionChina": "中国大陆",
+  "bblCloudAccountPhCn": "手机号或邮箱",
   "bblCloudSendCode": "给我发验证码",
   "bblCloudCodePh": "邮箱里收到的验证码",
+  "bblCloudCodePhSms": "短信里的验证码",
   "bblCloudSignIn": "登录",
   "bblCloudChangeEmail": "更改",
   "bblCloudCodeSent": "验证码已发送,10 分钟内有效。留意拓竹发来的邮件。",
+  "bblCloudCodeSentSms": "验证码已通过短信发送，10 分钟内有效。手机马上就会响。",
   "bblCloudErrCode": "这个验证码不对,核对一下再试。",
   "bblCloudErrExpired": "验证码过期了,已经给你重发一个。",
   "bblCloudErrBlocked": "拓竹这会儿把我们挡在门外了,等一分钟再来。",
   "bblCloudErrGeneric": "登录没成功,再试一次。",
+  "bblCloudErrEmpty": "先填上邮箱，验证码会发到那里。",
+  "bblCloudErrEmail": "这看起来不像邮箱地址，应该类似 you@example.com。",
+  "bblCloudErrAccountCn": "请输入你的拓竹中国账号绑定的手机号（或邮箱）。",
   "bblCloudNoPrinters": "这个账号下还没有机器。",
   "bblCloudPick": "勾选你想要的",
   "bblCloudAddSelected": {
@@ -1602,5 +1611,11 @@
     "other": "有 {{n}} 个已选项被当前筛选隐藏。"
   },
   "printerCloudMode": "通过云端连接",
-  "holdToConfirmTip": "按住 {{s}} 秒确认"
+  "holdToConfirmTip": "按住 {{s}} 秒确认",
+  "printerScanAddSelected": {
+    "one": "添加这台打印机",
+    "other": "添加这 {{n}} 台打印机"
+  },
+  "printerScanFillMissing": "每台勾选的打印机都需要自己的代码，请填好红框。",
+  "printerScanAddFailed": "这些打印机没能添加成功，再试一次吧。"
 }

@@ -15,6 +15,7 @@
  */
 
 import { ctx } from '../context.js';
+import { createScanPicker } from '../scan-pick.js';
 import * as extraSubnets from '../extra-subnets.js';
 import {
   elegooProbeIp,
@@ -103,16 +104,30 @@ function _elgCandidateCardHtml(c) {
     </div>`;
 }
 
-function _continueWith(c) {
+/** The Printer Settings prefill for a candidate. */
+function _prefillFor(c) {
   const modelId = c.modelId || elegooModelIdFromMachineModel(c.machineModel);
-  ctx.openPrinterSettings('elegoo', null, {
+  return {
     ip:          c.ip || '',
     sn:          c.sn || '',
     printerName: c.hostName || c.machineModel || (c.ip ? `Elegoo ${c.ip}` : 'Elegoo'),
     modelId,
     discovery:   elegooBuildDiscoveryRecord(c),
-  });
+  };
 }
+
+function _continueWith(c) {
+  ctx.openPrinterSettings('elegoo', null, _prefillFor(c));
+}
+
+/* Scan results are tickable: one → the prefilled form, several → added in
+   one go (printers/scan-pick.js). */
+const _elgScanPick = createScanPicker({
+  ctx, brand: 'elegoo', resultsId: 'elgScanResults',
+  prefillFor: _prefillFor,
+  onSingle: c => { elgAbortScan(); _closePanel('elgScanOverlay'); _continueWith(c); },
+  beforeAdd: elgAbortScan,
+});
 
 // ── Generic panel helpers ────────────────────────────────────────────────────
 
@@ -409,6 +424,7 @@ function _openScanPanel() {
   const stats   = document.getElementById('elgScanStats');
   const sub     = document.getElementById('elgScanSub');
   if (results) results.innerHTML = '';
+  _elgScanPick.reset();
   if (empty)   empty.hidden = true;
   if (bar)     bar.style.width = '0%';
   if (stats)   stats.textContent = '0 / 100';
@@ -439,9 +455,7 @@ function _openScanPanel() {
       wrap.innerHTML = _elgCandidateCardHtml(c);
       const card = wrap.firstElementChild;
       if (!card) return;
-      const triggerAdd = () => { elgAbortScan(); _closePanel('elgScanOverlay'); _continueWith(c); };
-      card.addEventListener('click', triggerAdd);
-      card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); triggerAdd(); } });
+      _elgScanPick.attach(card, c);
       document.getElementById('elgScanResults')?.appendChild(card);
     },
     onProgress({ done: d, total: t }) {

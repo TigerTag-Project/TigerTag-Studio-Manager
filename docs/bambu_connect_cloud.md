@@ -327,7 +327,8 @@ users/{uid}/printers/bambulab/
 
   secrets/                      ← TOUS LES SECRETS, isolés (extensible : futurs secrets ici)
     cloud_session               ← doc : jeton COMPTE (account-level, partagé multi-device)
-      email, region: "us"|"eu", bambuUid, mqttUsername: "u_<uid>",
+      account,                  // email — or, region "cn", usually a phone number (was `email`)
+      region: "us"|"eu"|"cn", bambuUid, mqttUsername: "u_<uid>",
       accessToken, refreshToken, tokenExpiresAt, refreshInProgress?, updatedAt
     {dev_id}                    ← doc par machine : secrets LAN
       dev_access_code: "AAAAAAAA"   // caméra RTSPS / FTP / MQTT LAN

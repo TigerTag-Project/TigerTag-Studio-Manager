@@ -781,16 +781,25 @@
   "bblCloudChoiceHint": "Vindt al je printers vanzelf",
   "bblCloudTitle": "Inloggen bij Bambu Lab",
   "bblCloudSub": "Je e-mail, een code, en je printers verschijnen.",
-  "bblCloudEmailPh": "jij@voorbeeld.com",
+  "bblCloudEmailPh": "E-mail",
+  "bblCloudRegionLabel": "Accountregio",
+  "bblCloudRegionGlobal": "Globaal",
+  "bblCloudRegionChina": "Chinees vasteland",
+  "bblCloudAccountPhCn": "Telefoonnummer of e-mail",
   "bblCloudSendCode": "Stuur me een code",
   "bblCloudCodePh": "De code uit je inbox",
+  "bblCloudCodePhSms": "De code uit je sms",
   "bblCloudSignIn": "Inloggen",
   "bblCloudChangeEmail": "Wijzigen",
   "bblCloudCodeSent": "Code verzonden — 10 minuten geldig. Kijk uit naar een mail van Bambu Lab.",
+  "bblCloudCodeSentSms": "Code per sms verstuurd — 10 minuten geldig. Je telefoon zoemt zo.",
   "bblCloudErrCode": "Die code klopt niet. Controleer hem en probeer opnieuw.",
   "bblCloudErrExpired": "Die code is verlopen. We hebben een nieuwe gestuurd.",
   "bblCloudErrBlocked": "Bambu Lab weigert ons nu. Geef het een minuutje.",
   "bblCloudErrGeneric": "Inloggen is niet gelukt. Probeer opnieuw.",
+  "bblCloudErrEmpty": "Vul eerst je e-mail in — daar komt de code naartoe.",
+  "bblCloudErrEmail": "Dat lijkt niet op een e-mailadres. Iets als jij@voorbeeld.nl.",
+  "bblCloudErrAccountCn": "Vul het telefoonnummer (of e-mailadres) van je Bambu Lab China-account in.",
   "bblCloudNoPrinters": "Nog geen printers op dit account.",
   "bblCloudPick": "Vink aan wat je wilt",
   "bblCloudAddSelected": {
@@ -1602,5 +1611,11 @@
     "other": "{{n}} geselecteerde items zijn verborgen door het huidige filter."
   },
   "printerCloudMode": "Bereikt via de cloud",
-  "holdToConfirmTip": "Houd {{s}} s ingedrukt om te bevestigen"
+  "holdToConfirmTip": "Houd {{s}} s ingedrukt om te bevestigen",
+  "printerScanAddSelected": {
+    "one": "Deze printer toevoegen",
+    "other": "Deze {{n}} printers toevoegen"
+  },
+  "printerScanFillMissing": "Elke aangevinkte printer heeft zijn eigen code nodig — vul de rode velden in.",
+  "printerScanAddFailed": "Die printers konden niet worden toegevoegd. Probeer het nog eens."
 }

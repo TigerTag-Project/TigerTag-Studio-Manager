@@ -613,7 +613,7 @@ function _bblFetchCloudCover(conn) {
   (async () => {
     const sess = await ctx.getBambuCloudSession?.();
     if (!sess?.accessToken) return;
-    const res = await window.bambulab?.cloud?.tasks({ token: sess.accessToken });
+    const res = await window.bambulab?.cloud?.tasks({ token: sess.accessToken, region: sess.region });
     if (!res?.ok || !res.hits?.length) return;
 
     const mine = res.hits.filter(t => String(t?.deviceId || "") === String(conn.serial));

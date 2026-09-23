@@ -780,16 +780,25 @@
   "bblCloudChoiceHint": "Sam znajdzie wszystkie twoje maszyny",
   "bblCloudTitle": "Zaloguj się do Bambu Lab",
   "bblCloudSub": "Twój e-mail, kod — i maszyny same się pojawią.",
-  "bblCloudEmailPh": "ty@przyklad.com",
+  "bblCloudEmailPh": "E-mail",
+  "bblCloudRegionLabel": "Region konta",
+  "bblCloudRegionGlobal": "Globalny",
+  "bblCloudRegionChina": "Chiny kontynentalne",
+  "bblCloudAccountPhCn": "Numer telefonu lub e-mail",
   "bblCloudSendCode": "Wyślij mi kod",
   "bblCloudCodePh": "Kod z twojej skrzynki",
+  "bblCloudCodePhSms": "Kod z SMS-a",
   "bblCloudSignIn": "Zaloguj",
   "bblCloudChangeEmail": "Zmień",
   "bblCloudCodeSent": "Kod wysłany — ważny 10 minut. Wypatruj maila od Bambu Lab.",
+  "bblCloudCodeSentSms": "Kod wysłany SMS-em — ważny 10 minut. Telefon zaraz zawibruje.",
   "bblCloudErrCode": "Ten kod się nie zgadza. Sprawdź go i spróbuj ponownie.",
   "bblCloudErrExpired": "Kod wygasł. Wysłaliśmy ci nowy.",
   "bblCloudErrBlocked": "Bambu Lab właśnie nas nie wpuszcza. Daj tej sprawie minutę.",
   "bblCloudErrGeneric": "Logowanie nie przeszło. Spróbuj ponownie.",
+  "bblCloudErrEmpty": "Najpierw wpisz e-mail — tam przyjdzie kod.",
+  "bblCloudErrEmail": "To nie wygląda na adres e-mail. Coś w stylu ty@przyklad.pl.",
+  "bblCloudErrAccountCn": "Wpisz numer telefonu (lub e-mail) swojego konta Bambu Lab Chiny.",
   "bblCloudNoPrinters": "Na tym koncie nie ma jeszcze maszyn.",
   "bblCloudPick": "Zaznacz te, które chcesz",
   "bblCloudAddSelected": {
@@ -1601,5 +1610,11 @@
     "other": "Ukrytych przez bieżący filtr zaznaczonych elementów: {{n}}."
   },
   "printerCloudMode": "Osiągalna przez chmurę",
-  "holdToConfirmTip": "Przytrzymaj {{s}} s, aby potwierdzić"
+  "holdToConfirmTip": "Przytrzymaj {{s}} s, aby potwierdzić",
+  "printerScanAddSelected": {
+    "one": "Dodaj tę drukarkę",
+    "other": "Dodaj te drukarki ({{n}})"
+  },
+  "printerScanFillMissing": "Każda zaznaczona drukarka potrzebuje swojego kodu — uzupełnij czerwone pola.",
+  "printerScanAddFailed": "Nie udało się dodać tych drukarek. Spróbuj jeszcze raz."
 }

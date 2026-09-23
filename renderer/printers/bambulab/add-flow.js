@@ -19,6 +19,7 @@
  */
 
 import { ctx } from '../context.js';
+import { createScanPicker } from '../scan-pick.js';
 import * as extraSubnets from '../extra-subnets.js';
 import {
   bambuProbeIp,
@@ -104,19 +105,33 @@ function _bblCandidateCardHtml(c) {
     </div>`;
 }
 
-/** Open the Printer Settings add form prefilled from a candidate. */
-function _continueWith(c) {
+/** The Printer Settings prefill for a candidate. */
+function _prefillFor(c) {
   const modelId = c.modelId || bambuModelIdFromCode(c.model, c.serial);
   // Bambu form uses `broker` (not `ip`) as the IP field key. The generalised
   // schemaWidget prefill maps any schema field key from the prefill payload.
-  ctx.openPrinterSettings('bambulab', null, {
+  return {
     broker:       c.ip || '',
     serialNumber: c.serial || '',
     printerName:  c.name || (c.serial ? `Bambu ${c.serial}` : `Bambu ${c.ip || ''}`),
     modelId,
     discovery:    bambuBuildDiscoveryRecord(c),
-  });
+  };
 }
+
+/** Open the Printer Settings add form prefilled from a candidate. */
+function _continueWith(c) {
+  ctx.openPrinterSettings('bambulab', null, _prefillFor(c));
+}
+
+/* Scan results are tickable: one → the prefilled form, several → added in
+   one go (printers/scan-pick.js). */
+const _bblScanPick = createScanPicker({
+  ctx, brand: 'bambulab', resultsId: 'bblScanResults',
+  prefillFor: _prefillFor,
+  onSingle: c => { bblAbortScan(); _closePanel('bblScanOverlay'); _continueWith(c); },
+  beforeAdd: bblAbortScan,
+});
 
 // ── Generic panel helpers ────────────────────────────────────────────────────
 
@@ -159,8 +174,17 @@ function _ensureDOM() {
     </div>
     <div class="snap-scan-body bbl-cloud-body">
       <div class="bbl-cloud-form" id="bblCloudEmailRow">
-        <input type="email" class="snap-add-ip-input bbl-cloud-input" id="bblCloudEmail"
-               autocomplete="email" spellcheck="false" data-i18n-placeholder="bblCloudEmailPh">
+        <div class="bbl-cloud-region-row">
+          <span class="bbl-cloud-region-lbl" id="bblCloudRegionLbl" data-i18n="bblCloudRegionLabel">Account region</span>
+          <div class="bbl-cloud-region" id="bblCloudRegion" role="radiogroup" aria-labelledby="bblCloudRegionLbl">
+            <button type="button" class="bbl-cloud-region-opt is-active" data-region="us"
+                    role="radio" aria-checked="true" data-i18n="bblCloudRegionGlobal">Global</button>
+            <button type="button" class="bbl-cloud-region-opt" data-region="cn"
+                    role="radio" aria-checked="false" data-i18n="bblCloudRegionChina">China mainland</button>
+          </div>
+        </div>
+        <input type="text" class="snap-add-ip-input bbl-cloud-input" id="bblCloudEmail"
+               autocomplete="username" spellcheck="false" data-i18n-placeholder="bblCloudEmailPh">
         <button type="button" class="adf-btn adf-btn--primary" id="bblCloudSendCode"
                 data-i18n="bblCloudSendCode">Send me a code</button>
       </div>
@@ -428,6 +452,17 @@ function _wireDOM() {
   /* Enter carries on from whichever field the user is in — asking for a code,
      then signing in. Typing a code and pressing Enter is the whole gesture. */
   $('bblCloudEmail')?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); _bblCloudSendCode(); } });
+  $('bblCloudRegion')?.addEventListener('click', e => {
+    const opt = e.target.closest('[data-region]');
+    if (opt) { _bblCloudSetRegion(opt.dataset.region); $('bblCloudEmail')?.focus(); }
+  });
+  /* A phone number only signs in on the China platform, so typing one moves
+     the switch there by itself rather than letting the user hit a wall. */
+  $('bblCloudEmail')?.addEventListener('input', e => {
+    // Typing again is fixing it: drop the complaint.
+    if (e.target.classList.contains('is-invalid')) { e.target.classList.remove('is-invalid'); _bblCloudNote(null); }
+    if (_bblCloudPhone(e.target.value)) _bblCloudSetRegion('cn');
+  });
   $('bblCloudCode')?.addEventListener('keydown',  e => { if (e.key === 'Enter') { e.preventDefault(); _bblCloudSignIn();  } });
 
   $('bblScanClose')?.addEventListener('click', _closeAll);
@@ -504,7 +539,8 @@ function _wireDOM() {
 /* `$` in this file is a local of _wireDOM; these run at module level. */
 const _el = (id) => document.getElementById(id);
 
-let _bblCloudEmail = '';
+let _bblCloudEmail = '';        // what the user signs in with: an email, or (China) a phone
+let _bblCloudRegion = 'us';     // 'us' = the Global platform, 'cn' = the China-mainland one
 let _bblCloudDevices = [];
 const _bblCloudPicked = new Set();
 
@@ -532,17 +568,52 @@ function _bblCloudStep(n) {
   if (addr && n === 2) addr.textContent = _bblCloudEmail;
 }
 
+/* Mainland-China accounts live on a separate Bambu platform, and most of them
+   sign in with a phone number rather than an email (issue #33). Returns the
+   number as Bambu expects it — digits only, the +86 country code dropped — or
+   '' when the input is not a phone number at all. */
+function _bblCloudPhone(raw) {
+  const v = String(raw || '').trim();
+  if (!v || v.includes('@') || !/^\+?[\d\s\-().]{6,}$/.test(v)) return '';
+  const digits = v.replace(/\D/g, '');
+  return digits.replace(/^(0086|86)(?=1\d{10}$)/, '');
+}
+
+function _bblCloudSetRegion(region) {
+  _bblCloudRegion = region === 'cn' ? 'cn' : 'us';
+  for (const opt of document.querySelectorAll('#bblCloudRegion [data-region]')) {
+    const on = opt.dataset.region === _bblCloudRegion;
+    opt.classList.toggle('is-active', on);
+    opt.setAttribute('aria-checked', String(on));
+  }
+  const input = _el('bblCloudEmail');
+  if (input) input.placeholder = ctx.t(_bblCloudRegion === 'cn' ? 'bblCloudAccountPhCn' : 'bblCloudEmailPh');
+}
+
 function _bblCloudBusy(on) {
   _el('bblCloudSendCode')?.toggleAttribute('disabled', on);
   _el('bblCloudSignIn')?.toggleAttribute('disabled', on);
 }
 
 async function _bblCloudSendCode() {
-  const email = String(_el('bblCloudEmail')?.value || '').trim();
-  if (!email || !email.includes('@')) return;
-  _bblCloudEmail = email;
+  const raw   = String(_el('bblCloudEmail')?.value || '').trim();
+  const phone = _bblCloudPhone(raw);
+  /* A refusal has to SAY why — a key that does nothing reads as broken. The
+     hint depends on the region: only the China platform takes a phone number. */
+  if (!phone && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw)) {
+    const input = _el('bblCloudEmail');
+    input?.classList.add('is-invalid');
+    _bblCloudNote(!raw ? 'bblCloudErrEmpty'
+      : _bblCloudRegion === 'cn' ? 'bblCloudErrAccountCn' : 'bblCloudErrEmail', true);
+    input?.focus();
+    return;
+  }
+  if (phone) _bblCloudSetRegion('cn');
+  _bblCloudEmail = phone || raw;
   _bblCloudBusy(true);
-  const r = await window.bambulab?.cloud?.sendCode({ email });
+  const r = await window.bambulab?.cloud?.sendCode(phone
+    ? { phone }
+    : { email: raw, region: _bblCloudRegion });
   _bblCloudBusy(false);
   if (!r?.ok) {
     _bblCloudNote(r?.error === 'cloudflare' ? 'bblCloudErrBlocked' : 'bblCloudErrGeneric', true);
@@ -552,7 +623,9 @@ async function _bblCloudSendCode() {
      previous — so the field is revealed and focused straight away rather than
      left for the user to find. */
   _bblCloudStep(2);
-  _bblCloudNote('bblCloudCodeSent', false);
+  const code = _el('bblCloudCode');
+  if (code) code.placeholder = ctx.t(phone ? 'bblCloudCodePhSms' : 'bblCloudCodePh');
+  _bblCloudNote(phone ? 'bblCloudCodeSentSms' : 'bblCloudCodeSent', false);
   _el('bblCloudCode')?.focus();
 }
 
@@ -560,7 +633,8 @@ async function _bblCloudSignIn() {
   const code = String(_el('bblCloudCode')?.value || '').trim();
   if (!code || !_bblCloudEmail) return;
   _bblCloudBusy(true);
-  const r = await window.bambulab?.cloud?.login({ email: _bblCloudEmail, code });
+  const region = _bblCloudRegion;
+  const r = await window.bambulab?.cloud?.login({ account: _bblCloudEmail, code, region });
 
   if (!r?.ok) {
     _bblCloudBusy(false);
@@ -582,15 +656,15 @@ async function _bblCloudSignIn() {
   /* The MQTT username has to be asked for: the token is no longer a JWT, so
      there is nothing in it to read. Without the uid the broker refuses the
      connection without ever saying why. */
-  const who = await window.bambulab?.cloud?.uid({ token: r.token });
+  const who = await window.bambulab?.cloud?.uid({ token: r.token, region });
   if (!who?.ok) { _bblCloudBusy(false); _bblCloudNote('bblCloudErrGeneric', true); return; }
 
   await ctx.saveBambuCloudSession?.({
-    email: _bblCloudEmail, uid: who.uid, token: r.token,
-    expiresIn: r.expiresIn, region: 'us',
+    account: _bblCloudEmail, uid: who.uid, token: r.token,
+    expiresIn: r.expiresIn, region,
   });
 
-  const bind = await window.bambulab?.cloud?.bind({ token: r.token });
+  const bind = await window.bambulab?.cloud?.bind({ token: r.token, region });
   _bblCloudBusy(false);
   if (!bind?.ok) { _bblCloudNote('bblCloudErrGeneric', true); return; }
   _bblCloudNote(null);
@@ -744,6 +818,7 @@ function _openCloudPanel() {
   _ensureDOM();
   _bblCloudEmail = '';
   _bblCloudStep(1);
+  _bblCloudSetRegion(_bblCloudRegion);   // re-applies the placeholder a translation pass reset
   const pick = _el('bblCloudPick');    if (pick) pick.hidden = true;
   const raw  = _el('bblCloudRaw');     if (raw)  { raw.hidden = true; raw.innerHTML = ''; }
   _bblCloudDevices = []; _bblCloudPicked.clear(); _bblCloudSyncAddBtn();
@@ -765,6 +840,7 @@ function _openScanPanel() {
   const stats   = document.getElementById('bblScanStats');
   const sub     = document.getElementById('bblScanSub');
   if (results) results.innerHTML = '';
+  _bblScanPick.reset();
   if (empty)   empty.hidden = true;
   if (bar)     bar.style.width = '0%';
   if (stats)   stats.textContent = '0 / 100';
@@ -799,15 +875,7 @@ function _openScanPanel() {
       wrap.innerHTML = _bblCandidateCardHtml(c);
       const card = wrap.firstElementChild;
       if (!card) return;
-      const triggerAdd = () => {
-        bblAbortScan();
-        _closePanel('bblScanOverlay');
-        _continueWith(c);
-      };
-      card.addEventListener('click', triggerAdd);
-      card.addEventListener('keydown', e => {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); triggerAdd(); }
-      });
+      _bblScanPick.attach(card, c);
       document.getElementById('bblScanResults')?.appendChild(card);
     },
     onProgress({ done: d, total: t }) {

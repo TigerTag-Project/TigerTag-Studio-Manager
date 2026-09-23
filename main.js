@@ -3502,17 +3502,29 @@ let _ffmpegBin = null;
   const bblNet = require('electron').net;
   const mqtt   = require('mqtt');   // required per block, as the other brands do
 
-  const BBL_API = 'https://api.bambulab.com';
-  const BBL_URL = {
-    login:      `${BBL_API}/v1/user-service/user/login`,
-    emailCode:  `${BBL_API}/v1/user-service/user/sendemail/code`,
-    tfaLogin:   'https://bambulab.com/api/sign-in/tfa',
-    bind:       `${BBL_API}/v1/iot-service/api/user/bind`,
-    // NOT /v1/user-service/my/preference — that one 404s with a NON-JSON body.
-    preference: `${BBL_API}/v1/design-user-service/my/preference`,
-    version:    `${BBL_API}/v1/iot-service/api/user/device/version`,
-    // The account's print history; each entry carries the plate image URL.
-    tasks:      `${BBL_API}/v1/user-service/my/tasks`,
+  /* Two platforms, not one. A mainland-China account lives on a SEPARATE Bambu
+     platform — every host is the `.cn` twin of the `.com` one (api, TFA, MQTT),
+     and its accounts sign in with a PHONE NUMBER, the code arriving by SMS.
+     Nothing is shared between the two: a Global token means nothing on `.cn`.
+     So the region is chosen at sign-in and every later call carries it.
+     Hosts as in the maintained Home Assistant integration (pybambu). */
+  const _bblUrls = (region) => {
+    const tld = region === 'cn' ? 'cn' : 'com';
+    const api = `https://api.bambulab.${tld}`;
+    return {
+      login:      `${api}/v1/user-service/user/login`,
+      emailCode:  `${api}/v1/user-service/user/sendemail/code`,
+      // China only — the phone-number platform. Note the host: the web domain,
+      // under /api, not the api. subdomain.
+      smsCode:    'https://bambulab.cn/api/v1/user-service/user/sendsmscode',
+      tfaLogin:   `https://bambulab.${tld}/api/sign-in/tfa`,
+      bind:       `${api}/v1/iot-service/api/user/bind`,
+      // NOT /v1/user-service/my/preference — that one 404s with a NON-JSON body.
+      preference: `${api}/v1/design-user-service/my/preference`,
+      version:    `${api}/v1/iot-service/api/user/device/version`,
+      // The account's print history; each entry carries the plate image URL.
+      tasks:      `${api}/v1/user-service/my/tasks`,
+    };
   };
 
   /* The slicer's own network-agent headers: Bambu's edge treats a client that
@@ -3582,11 +3594,17 @@ let _ffmpegBin = null;
      linked to Google SSO — there is no password to offer. The code is single-use
      and short-lived, and each new request invalidates the previous one, so it is
      asked for once and used straight away. */
-  ipcMain.handle('bambulab:cloud-send-code', async (_evt, { email } = {}) => {
-    if (!email) return { ok: false, error: 'missing-email' };
-    const r = await _bblFetch(BBL_URL.emailCode, {
-      method: 'POST', body: { email, type: 'codeLogin' },
-    });
+  ipcMain.handle('bambulab:cloud-send-code', async (_evt, { email, phone, region } = {}) => {
+    if (!email && !phone) return { ok: false, error: 'missing-account' };
+    /* A phone number only exists on the China platform, so it always goes there,
+       whatever region the caller thought it was in. */
+    const r = phone
+      ? await _bblFetch(_bblUrls('cn').smsCode, {
+          method: 'POST', body: { phone, type: 'codeLogin' },
+        })
+      : await _bblFetch(_bblUrls(region).emailCode, {
+          method: 'POST', body: { email, type: 'codeLogin' },
+        });
     if (r.blocked) return { ok: false, error: 'cloudflare' };
     return r.ok ? { ok: true } : { ok: false, error: r.json?.message || `http-${r.status}` };
   });
@@ -3595,11 +3613,12 @@ let _ffmpegBin = null;
      only the first is a success: a token outright, or a demand for an emailed
      code, or a demand for a second factor (which is completed elsewhere, against
      a DIFFERENT host, and hands the token back in a COOKIE rather than a body). */
-  ipcMain.handle('bambulab:cloud-login', async (_evt, { email, code, password } = {}) => {
-    if (!email || (!code && !password)) return { ok: false, error: 'missing-credentials' };
-    const body = code ? { account: email, code }
-                      : { account: email, password, apiError: '' };
-    const r = await _bblFetch(BBL_URL.login, { method: 'POST', body });
+  ipcMain.handle('bambulab:cloud-login', async (_evt, { account, code, password, region } = {}) => {
+    // `account` is the email, or on the China platform the phone number.
+    if (!account || (!code && !password)) return { ok: false, error: 'missing-credentials' };
+    const body = code ? { account, code }
+                      : { account, password, apiError: '' };
+    const r = await _bblFetch(_bblUrls(region).login, { method: 'POST', body });
     if (r.blocked) return { ok: false, error: 'cloudflare' };
 
     /* A rejected CODE comes back as a 400 that distinguishes expired from wrong.
@@ -3624,9 +3643,9 @@ let _ffmpegBin = null;
 
   /* Second factor. Note the different host, and that the token arrives as a
      COOKIE — reading it from the body returns nothing at all. */
-  ipcMain.handle('bambulab:cloud-tfa', async (_evt, { tfaKey, code } = {}) => {
+  ipcMain.handle('bambulab:cloud-tfa', async (_evt, { tfaKey, code, region } = {}) => {
     if (!tfaKey || !code) return { ok: false, error: 'missing-credentials' };
-    const r = await _bblFetch(BBL_URL.tfaLogin, {
+    const r = await _bblFetch(_bblUrls(region).tfaLogin, {
       method: 'POST', body: { tfaKey, tfaCode: code },
     });
     if (r.blocked) return { ok: false, error: 'cloudflare' };
@@ -3638,7 +3657,7 @@ let _ffmpegBin = null;
   /* The MQTT username is `u_<uid>`, and the uid has to be ASKED FOR: the access
      token is no longer a JWT (it is an opaque `AQC…` string), so nothing can be
      read out of it. A JWT is still accepted, for the day Bambu changes back. */
-  ipcMain.handle('bambulab:cloud-uid', async (_evt, { token } = {}) => {
+  ipcMain.handle('bambulab:cloud-uid', async (_evt, { token, region } = {}) => {
     if (!token) return { ok: false, error: 'missing-token' };
     const parts = String(token).split('.');
     if (parts.length === 3) {
@@ -3647,7 +3666,7 @@ let _ffmpegBin = null;
         if (claims?.username) return { ok: true, mqttUsername: claims.username, uid: claims.username.replace(/^u_/, '') };
       } catch (_) { /* not a JWT after all — ask the API */ }
     }
-    const r = await _bblFetch(BBL_URL.preference, { token });
+    const r = await _bblFetch(_bblUrls(region).preference, { token });
     if (r.blocked) return { ok: false, error: 'cloudflare' };
     const uid = r.json?.uid;
     if (!uid) return { ok: false, error: r.ok ? 'uid-missing' : `http-${r.status}` };
@@ -3658,9 +3677,9 @@ let _ffmpegBin = null;
      cloud simply hands over. That is what makes the setup effortless: the camera
      and any local connection are derivable from the login, with nothing for the
      user to find on the machine's screen and type in. */
-  ipcMain.handle('bambulab:cloud-bind', async (_evt, { token } = {}) => {
+  ipcMain.handle('bambulab:cloud-bind', async (_evt, { token, region } = {}) => {
     if (!token) return { ok: false, error: 'missing-token' };
-    const r = await _bblFetch(BBL_URL.bind, { token });
+    const r = await _bblFetch(_bblUrls(region).bind, { token });
     if (r.blocked) return { ok: false, error: 'cloudflare' };
     if (!r.ok) return { ok: false, error: r.json?.message || `http-${r.status}` };
     const devices = (r.json?.devices || []).map(d => ({
@@ -3686,9 +3705,9 @@ let _ffmpegBin = null;
      (pybambu), not guessed: `hits[]`, each with `deviceId`, `title`, `cover` and
      `startTime`. The list is the ACCOUNT's, roughly 20 recent entries out of
      hundreds, so the caller must pick its own machine's current one. */
-  ipcMain.handle('bambulab:cloud-tasks', async (_evt, { token } = {}) => {
+  ipcMain.handle('bambulab:cloud-tasks', async (_evt, { token, region } = {}) => {
     if (!token) return { ok: false, error: 'missing-token' };
-    const r = await _bblFetch(BBL_URL.tasks, { token });
+    const r = await _bblFetch(_bblUrls(region).tasks, { token });
     if (r.blocked) return { ok: false, error: 'cloudflare' };
     if (!r.ok) return { ok: false, error: r.json?.message || `http-${r.status}` };
     return { ok: true, hits: Array.isArray(r.json?.hits) ? r.json.hits : [] };
@@ -3737,9 +3756,9 @@ let _ffmpegBin = null;
     });
   });
 
-  ipcMain.handle('bambulab:cloud-device-version', async (_evt, { token, devId } = {}) => {
+  ipcMain.handle('bambulab:cloud-device-version', async (_evt, { token, devId, region } = {}) => {
     if (!token || !devId) return { ok: false, error: 'missing-params' };
-    const r = await _bblFetch(`${BBL_URL.version}?dev_id=${encodeURIComponent(devId)}`, { token });
+    const r = await _bblFetch(`${_bblUrls(region).version}?dev_id=${encodeURIComponent(devId)}`, { token });
     if (!r.ok) return { ok: false, error: `http-${r.status}` };
     return { ok: true, devices: r.json?.devices || [] };
   });
@@ -3816,6 +3835,9 @@ let _ffmpegBin = null;
          signal to try the other side, once, and report which one worked so it
          can be remembered. */
       const notAuthorized = /not authorized|Connection refused/i.test(msg);
+      /* Not for China: `cn` is a separate platform with a single broker, so a
+         refusal there is a real one — the Global brokers would not know the
+         account either. */
       if (notAuthorized && region === 'us') {
         try { client.end(true); } catch (_) {}
         _bblCloudClient = null;
@@ -3842,7 +3864,7 @@ let _ffmpegBin = null;
        crash dialog in front of the user. A broker that will not open is a
        printer that stays offline — never a reason to take the app down. */
     try {
-      _bblCloudOpen(uid, token, region === 'eu' ? 'eu' : 'us', event);
+      _bblCloudOpen(uid, token, ['eu', 'cn'].includes(region) ? region : 'us', event);
     } catch (err) {
       console.error('[bambu-cloud] cannot open the cloud broker:', err?.message || err);
       _bblCloudClient = null;

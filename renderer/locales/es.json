@@ -781,16 +781,25 @@
   "bblCloudChoiceHint": "Encuentra todas tus máquinas sola",
   "bblCloudTitle": "Conéctate a Bambu Lab",
   "bblCloudSub": "Tu correo, un código, y tus máquinas aparecen.",
-  "bblCloudEmailPh": "tu@ejemplo.com",
+  "bblCloudEmailPh": "Correo electrónico",
+  "bblCloudRegionLabel": "Región de la cuenta",
+  "bblCloudRegionGlobal": "Global",
+  "bblCloudRegionChina": "China continental",
+  "bblCloudAccountPhCn": "Número de teléfono o email",
   "bblCloudSendCode": "Envíame un código",
   "bblCloudCodePh": "El código de tu correo",
+  "bblCloudCodePhSms": "El código de tu SMS",
   "bblCloudSignIn": "Conectarse",
   "bblCloudChangeEmail": "Cambiar",
   "bblCloudCodeSent": "Código enviado — válido 10 minutos. Busca un correo de Bambu Lab.",
+  "bblCloudCodeSentSms": "Código enviado por SMS — válido 10 minutos. Tu móvil debería vibrar en nada.",
   "bblCloudErrCode": "Ese código no cuadra. Revísalo e inténtalo otra vez.",
   "bblCloudErrExpired": "Ese código ha caducado. Te hemos enviado uno nuevo.",
   "bblCloudErrBlocked": "Bambu Lab nos cierra la puerta ahora mismo. Espera un minuto.",
   "bblCloudErrGeneric": "La conexión no pasó. Inténtalo otra vez.",
+  "bblCloudErrEmpty": "Primero pon tu email: ahí llega el código.",
+  "bblCloudErrEmail": "Eso no parece un email. Algo como tu@ejemplo.com.",
+  "bblCloudErrAccountCn": "Escribe el número de teléfono (o email) de tu cuenta Bambu Lab China.",
   "bblCloudNoPrinters": "Todavía no hay máquinas en esta cuenta.",
   "bblCloudPick": "Marca las que quieras",
   "bblCloudAddSelected": {
@@ -1602,5 +1611,11 @@
     "other": "{{n}} elementos seleccionados están ocultos por el filtro actual."
   },
   "printerCloudMode": "Accesible por la nube",
-  "holdToConfirmTip": "Mantén {{s}} s para confirmar"
+  "holdToConfirmTip": "Mantén {{s}} s para confirmar",
+  "printerScanAddSelected": {
+    "one": "Añadir esta impresora",
+    "other": "Añadir estas {{n}} impresoras"
+  },
+  "printerScanFillMissing": "Cada impresora marcada necesita su código: rellena los campos en rojo.",
+  "printerScanAddFailed": "No se pudieron añadir esas impresoras. Inténtalo otra vez."
 }

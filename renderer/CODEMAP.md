@@ -255,7 +255,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Panels / debug / auto-update (L19543-20902)
+## Panels / debug / auto-update (L19543-21077)
 | L | What | Anchors |
 |---|---|---|
 | 8198-8271 | Resizable panels (detail + debug) — drag handle, persisted width | `makePanelResizable`, `openDebug` |
@@ -267,7 +267,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Friends rendering (L20902-21510)
+## Friends rendering (L21078-21806)
 | L | What | Anchors |
 |---|---|---|
 | 8665-8749 | Sidebar friends quick-list + hover tooltip | `renderSidebarFriends`, `showSbFriendTip` |
@@ -276,7 +276,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Racks + printers subscriptions (L21510-21880)
+## Racks + printers subscriptions (L21807-22097)
 | L | What | Anchors |
 |---|---|---|
 | 8961-9003 | Racks subscription | `subscribeRacks`, `unsubscribeRacks` |
@@ -286,7 +286,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Printers views (L21720-25984)
+## Printers views (L22098-25984)
 | L | What | Anchors |
 |---|---|---|
 | 9168-9337 | **Job status helpers** + surgical grid patches (job card, online badge, grid signature) | `_getPrinterJob`, `_patchGridJobs`, `_jobCardHtml`, `_isPrinterOnline`, `_patchGridStatus` |
@@ -312,7 +312,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Add-printer flow (L26801-28811)
+## Add-printer flow (L26801-29150)
 Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.js` owns the shell.
 
 | L | What | Anchors |

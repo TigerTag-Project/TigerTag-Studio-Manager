@@ -781,16 +781,25 @@
   "bblCloudChoiceHint": "Findet alle deine Drucker von selbst",
   "bblCloudTitle": "Bei Bambu Lab anmelden",
   "bblCloudSub": "Deine E-Mail, ein Code, und deine Drucker erscheinen.",
-  "bblCloudEmailPh": "du@beispiel.de",
+  "bblCloudEmailPh": "E-Mail",
+  "bblCloudRegionLabel": "Konto-Region",
+  "bblCloudRegionGlobal": "Global",
+  "bblCloudRegionChina": "Festlandchina",
+  "bblCloudAccountPhCn": "Telefonnummer oder E-Mail",
   "bblCloudSendCode": "Code schicken",
   "bblCloudCodePh": "Der Code aus deinem Postfach",
+  "bblCloudCodePhSms": "Der Code aus deiner SMS",
   "bblCloudSignIn": "Anmelden",
   "bblCloudChangeEmail": "Ändern",
   "bblCloudCodeSent": "Code gesendet — 10 Minuten gültig. Halte Ausschau nach einer Mail von Bambu Lab.",
+  "bblCloudCodeSentSms": "Code per SMS verschickt — 10 Minuten gültig. Dein Handy sollte gleich brummen.",
   "bblCloudErrCode": "Dieser Code stimmt nicht. Prüfe ihn und versuche es erneut.",
   "bblCloudErrExpired": "Der Code ist abgelaufen. Wir haben dir einen neuen geschickt.",
   "bblCloudErrBlocked": "Bambu Lab lässt uns gerade nicht durch. Warte einen Moment.",
   "bblCloudErrGeneric": "Die Anmeldung hat nicht geklappt. Versuch es erneut.",
+  "bblCloudErrEmpty": "Erst deine E-Mail eintragen — dahin kommt der Code.",
+  "bblCloudErrEmail": "Das sieht nicht nach einer E-Mail-Adresse aus. So etwa: du@beispiel.de.",
+  "bblCloudErrAccountCn": "Gib die Telefonnummer (oder E-Mail) deines Bambu-Lab-China-Kontos ein.",
   "bblCloudNoPrinters": "Auf diesem Konto sind noch keine Drucker.",
   "bblCloudPick": "Hake die gewünschten ab",
   "bblCloudAddSelected": {
@@ -1602,5 +1611,11 @@
     "other": "{{n}} ausgewählte Elemente sind durch den aktuellen Filter ausgeblendet."
   },
   "printerCloudMode": "Über die Cloud erreichbar",
-  "holdToConfirmTip": "{{s}} s gedrückt halten zum Bestätigen"
+  "holdToConfirmTip": "{{s}} s gedrückt halten zum Bestätigen",
+  "printerScanAddSelected": {
+    "one": "Diesen Drucker hinzufügen",
+    "other": "Diese {{n}} Drucker hinzufügen"
+  },
+  "printerScanFillMissing": "Jeder angehakte Drucker braucht seinen Code — füll die roten Felder aus.",
+  "printerScanAddFailed": "Die Drucker ließen sich nicht hinzufügen. Versuch's nochmal."
 }

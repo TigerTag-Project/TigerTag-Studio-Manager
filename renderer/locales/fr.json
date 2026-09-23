@@ -781,16 +781,25 @@
   "bblCloudChoiceHint": "Retrouve toutes tes machines toute seule",
   "bblCloudTitle": "Connexion à Bambu Lab",
   "bblCloudSub": "Ton e-mail, un code, et tes machines apparaissent.",
-  "bblCloudEmailPh": "toi@exemple.com",
+  "bblCloudEmailPh": "E-mail",
+  "bblCloudRegionLabel": "Région du compte",
+  "bblCloudRegionGlobal": "International",
+  "bblCloudRegionChina": "Chine continentale",
+  "bblCloudAccountPhCn": "Numéro de téléphone ou e-mail",
   "bblCloudSendCode": "Envoie-moi un code",
   "bblCloudCodePh": "Le code reçu par e-mail",
+  "bblCloudCodePhSms": "Le code reçu par SMS",
   "bblCloudSignIn": "Se connecter",
   "bblCloudChangeEmail": "Changer",
   "bblCloudCodeSent": "Code envoyé — valable 10 minutes. Cherche un mail de Bambu Lab.",
+  "bblCloudCodeSentSms": "Code envoyé par SMS — valable 10 minutes. Ton téléphone devrait vibrer d'une seconde à l'autre.",
   "bblCloudErrCode": "Ce code ne passe pas. Vérifie-le et réessaie.",
   "bblCloudErrExpired": "Ce code a expiré. On t'en a renvoyé un tout neuf.",
   "bblCloudErrBlocked": "Bambu Lab nous refuse l'entrée pour le moment. Laisse passer une minute.",
   "bblCloudErrGeneric": "La connexion n'est pas passée. Réessaie.",
+  "bblCloudErrEmpty": "Mets d'abord ton e-mail — c'est là qu'arrive le code.",
+  "bblCloudErrEmail": "Ça ne ressemble pas à une adresse e-mail. Un truc du genre toi@exemple.com.",
+  "bblCloudErrAccountCn": "Entre le numéro de téléphone (ou l'e-mail) de ton compte Bambu Lab Chine.",
   "bblCloudNoPrinters": "Aucune machine sur ce compte pour l'instant.",
   "bblCloudPick": "Coche celles que tu veux",
   "bblCloudAddSelected": {
@@ -1602,5 +1611,11 @@
     "other": "{{n}} éléments sélectionnés sont masqués par le filtre actuel."
   },
   "printerCloudMode": "Joignable par le cloud",
-  "holdToConfirmTip": "Maintiens {{s}} s pour confirmer"
+  "holdToConfirmTip": "Maintiens {{s}} s pour confirmer",
+  "printerScanAddSelected": {
+    "one": "Ajouter cette imprimante",
+    "other": "Ajouter ces {{n}} imprimantes"
+  },
+  "printerScanFillMissing": "Chaque imprimante cochée a besoin de son code — complète les cases en rouge.",
+  "printerScanAddFailed": "Impossible d'ajouter ces imprimantes. Retente le coup."
 }

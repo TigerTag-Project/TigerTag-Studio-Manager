@@ -781,16 +781,25 @@
   "bblCloudChoiceHint": "Finds all your printers on their own",
   "bblCloudTitle": "Sign in to Bambu Lab",
   "bblCloudSub": "Your email, a code, and your printers show up.",
-  "bblCloudEmailPh": "you@example.com",
+  "bblCloudEmailPh": "Email",
+  "bblCloudRegionLabel": "Account region",
+  "bblCloudRegionGlobal": "Global",
+  "bblCloudRegionChina": "China mainland",
+  "bblCloudAccountPhCn": "Phone number or email",
   "bblCloudSendCode": "Send me a code",
   "bblCloudCodePh": "The code from your inbox",
+  "bblCloudCodePhSms": "The code from your text message",
   "bblCloudSignIn": "Sign in",
   "bblCloudChangeEmail": "Change",
   "bblCloudCodeSent": "Code sent — good for 10 minutes. Look for a mail from Bambu Lab.",
+  "bblCloudCodeSentSms": "Code sent by text — good for 10 minutes. Your phone should buzz any second.",
   "bblCloudErrCode": "That code isn't right. Check it and try again.",
   "bblCloudErrExpired": "That code has expired. We've sent a fresh one.",
   "bblCloudErrBlocked": "Bambu Lab is turning us away right now. Give it a minute.",
   "bblCloudErrGeneric": "Sign-in didn't go through. Try again.",
+  "bblCloudErrEmpty": "Pop your email in first — that's where the code goes.",
+  "bblCloudErrEmail": "That doesn't look like an email address. Something like you@example.com.",
+  "bblCloudErrAccountCn": "Enter the phone number (or email) of your Bambu Lab China account.",
   "bblCloudNoPrinters": "No printers on this account yet.",
   "bblCloudPick": "Tick the ones you want",
   "bblCloudAddSelected": {
@@ -1602,5 +1611,11 @@
     "other": "{{n}} selected items are hidden by the current filter."
   },
   "printerCloudMode": "Reached through the cloud",
-  "holdToConfirmTip": "Hold {{s}} s to confirm"
+  "holdToConfirmTip": "Hold {{s}} s to confirm",
+  "printerScanAddSelected": {
+    "one": "Add this printer",
+    "other": "Add these {{n}} printers"
+  },
+  "printerScanFillMissing": "Each ticked printer needs its code — fill in the red ones.",
+  "printerScanAddFailed": "Couldn't add those printers. Give it another go."
 }

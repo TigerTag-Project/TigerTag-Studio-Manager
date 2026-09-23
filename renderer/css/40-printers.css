@@ -803,7 +803,12 @@
      in place — visible and on-screen — until the incoming card has slid fully
      over it, so the picker never flashes through. JS adds `.pba-keep` to the
      closing overlay for the duration of the slide. */
+  /* …and pinned BEHIND the incoming one. Every overlay shares one z-index, so
+     otherwise DOM order decides — and a card declared later in its brand's
+     markup (e.g. Bambu's choice card, after the cloud card) stayed on top while
+     the new card slid in underneath it. */
   .modal-overlay.pba-keep { opacity: 1; }
+  .modal-overlay.pba-behind { z-index: 9998; }
   .modal-overlay.pba-keep > .modal-card.pba-card { transform: translateX(0); }
 
   /* Side-panel variant — replaces the modal-card for brand picker + add/edit form */
@@ -1397,6 +1402,35 @@
      to its natural height, it is the same field as everywhere else. */
   .bbl-cloud-form .bbl-cloud-input { flex: 0 0 auto; width: 100%; min-width: 0; }
   .bbl-cloud-form .adf-btn { width: 100%; justify-content: center; }
+  /* Which Bambu platform: Global or China mainland — two separate account
+     worlds, so it is asked before the account, under a heading of its own.
+     The chosen half is tinted in the accent and ringed in it: a grey tint was
+     lost against the dark card. The frame and the divider belong to the
+     CONTAINER, so the ring is drawn inside each half (inset shadow) and never
+     fights a neighbour's border for the shared edge. */
+  .bbl-cloud-region-row { display: flex; flex-direction: column; gap: 8px; }
+  .bbl-cloud-region-lbl { font-size: 13px; font-weight: 600; color: var(--text); }
+  .bbl-cloud-region {
+    display: flex; overflow: hidden;
+    border: 1px solid var(--border); border-radius: 8px;
+    background: var(--surface);
+  }
+  .bbl-cloud-region-opt {
+    flex: 1 1 0; min-width: 0; height: 32px; padding: 0 12px;
+    border: none; background: none; border-radius: 0;
+    color: var(--muted); font: inherit; font-size: 12px; cursor: pointer;
+    transition: background .15s, color .15s, box-shadow .15s;
+  }
+  .bbl-cloud-region-opt + .bbl-cloud-region-opt { box-shadow: inset 1px 0 0 var(--border); }
+  .bbl-cloud-region-opt:not(.is-active):hover { color: var(--text); background: var(--surface-2); }
+  .bbl-cloud-region-opt.is-active,
+  .bbl-cloud-region-opt + .bbl-cloud-region-opt.is-active {
+    background: color-mix(in srgb, var(--primary) 18%, var(--surface));
+    box-shadow: inset 0 0 0 1.5px var(--primary);
+    color: var(--text); font-weight: 600;
+  }
+  .bbl-cloud-region-opt.is-active:first-child { border-radius: 7px 0 0 7px; }
+  .bbl-cloud-region-opt.is-active:last-child  { border-radius: 0 7px 7px 0; }
   /* Step 2's reminder of the address the code went to, and the way back to
      step 1 — a typo in the email is the commonest reason a code never arrives. */
   .bbl-cloud-sent {
@@ -1419,6 +1453,7 @@
     background: var(--surface-2);
     border: 1px solid var(--border);
   }
+  .bbl-cloud-form .bbl-cloud-input.is-invalid { border-color: var(--danger); }
   .bbl-cloud-note.is-error { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, var(--border)); }
   .bbl-cloud-pick {
     font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
@@ -1428,26 +1463,45 @@
   /* `.adf-btn` is `display: inline-flex`, and a class outranks the `display:
      none` the browser gives [hidden] — so the key stayed on screen with nothing
      ticked. Third time this trap has been sprung in this panel. */
-  #bblCloudAddBtn[hidden] { display: none; }
+  #bblCloudAddBtn[hidden], .scan-pick-add[hidden] { display: none; }
 
   /* The tick box, where the scan card puts its chevron: a scan result takes you
      somewhere, this one is picked. Empty outline until chosen, then filled. */
-  .bbl-cloud-tick {
+  .bbl-cloud-tick, .scan-pick-tick {
     width: 20px; height: 20px; flex-shrink: 0;
     border: 1.5px solid var(--border); border-radius: 6px;
     display: flex; align-items: center; justify-content: center;
     color: transparent; background: transparent;
     transition: background .12s ease, border-color .12s ease, color .12s ease;
   }
-  .bbl-cloud-device.is-picked .bbl-cloud-tick {
+  .bbl-cloud-device.is-picked .bbl-cloud-tick,
+  .scan-pick-card.is-picked .scan-pick-tick {
     background: var(--primary); border-color: var(--primary); color: var(--on-accent);
   }
   /* Chosen cards are ringed in the accent, at the offset the storage and printer
      boards use — a selection has to look the same wherever it is made. */
-  .bbl-cloud-device.is-picked {
+  .bbl-cloud-device.is-picked,
+  .scan-pick-card.is-picked {
     outline: 2px solid var(--primary);
     outline-offset: -2px;
   }
+  /* A LAN scan result is tickable too (printers/scan-pick.js). When several are
+     ticked, a code the scan could not read is asked for on the card itself, on
+     its own line under the machine it belongs to. */
+  .scan-pick-card { flex-wrap: wrap; }
+  .scan-pick-card .scan-pick-tick { align-self: center; }
+  .scan-pick-fields {
+    flex: 1 0 100%;
+    display: flex; flex-direction: column; gap: 8px;
+    cursor: default;
+  }
+  .scan-pick-field { display: flex; flex-direction: column; gap: 4px; }
+  .scan-pick-field-lbl { font-size: 11px; color: var(--muted); }
+  .scan-pick-field .snap-add-ip-input { flex: 0 0 auto; width: 100%; min-width: 0; }
+  .scan-pick-field .snap-add-ip-input.is-mono { font-family: var(--mono, ui-monospace, monospace); }
+  .scan-pick-field .snap-add-ip-input.is-missing { border-color: var(--danger); }
+  .scan-pick-note { margin-top: 8px; }
+
   /* Online marker, inline with the name — a machine that is asleep can still be
      added, so this reports a state rather than gating the choice. */
   .bbl-cloud-dot {

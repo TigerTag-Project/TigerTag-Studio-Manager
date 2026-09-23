@@ -1378,6 +1378,28 @@ sendemail/code(email)  →  login(email, code)  →  accessToken
   code expired (Bambu has already sent a replacement), `code: 2` it was wrong.
   Do not flatten them — one needs a new code, the other needs a better one.
 
+### 17.3b China mainland — a separate platform
+
+Mainland-China accounts live on **their own Bambu platform**, not a region of
+the Global one: a Global token means nothing there and vice versa. Every host
+is the `.cn` twin of its `.com` counterpart (hosts as in the maintained Home
+Assistant integration, pybambu):
+
+| | Global | China mainland |
+|---|---|---|
+| REST | `api.bambulab.com` | `api.bambulab.cn` |
+| Second factor | `bambulab.com/api/sign-in/tfa` | `bambulab.cn/api/sign-in/tfa` |
+| MQTT | `us.` / `eu.mqtt.bambulab.com` | `cn.mqtt.bambulab.com` (single broker — no us/eu fallback) |
+
+- Accounts there usually sign in with a **phone number**. The code comes by SMS:
+  `POST https://bambulab.cn/api/v1/user-service/user/sendsmscode` —
+  `{ phone, type: "codeLogin" }`. Note the host: the web domain under `/api`,
+  not the `api.` subdomain. Then `login` takes the phone as `account`.
+- Send the number as digits, **without** the `+86` country code.
+- The region is chosen at sign-in and stored in `cloud_session.region` (`"cn"`);
+  every later call (uid, bind, tasks, version, broker) must use it.
+- Not yet validated on a real China account (issue #33).
+
 ### 17.4 uid — the MQTT username
 
 The MQTT username is `u_<uid>`, and the uid must be **asked for**: the access

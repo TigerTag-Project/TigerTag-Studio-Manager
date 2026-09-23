@@ -4399,7 +4399,14 @@
     box-shadow: 0 3px 12px rgba(0,0,0,.25);
     cursor: pointer; opacity: .92; transition: opacity .12s, filter .12s;
   }
-  .detail-panel.open > .dbg-card-btn { display: inline-flex; }
+  .detail-panel.open > .dbg-card-btn,
+  .modal-overlay.open > .modal-card.pba-card > .dbg-card-btn { display: inline-flex; }
+  /* Add-printer cards: the per-brand ones are modal cards, which need a
+     positioning context; and where a footer holds "Back" at bottom-left, the
+     chip sits just above it instead of on top of it. */
+  .modal-card.pba-card { position: relative; }
+  .pba-card:has(> .pba-footer) > .dbg-card-btn,
+  .pba-panel:has(> .pba-footer) > .dbg-card-btn { bottom: 80px; }
   .dbg-card-btn:hover { opacity: 1; filter: brightness(1.06); }
   .dbg-card-btn .icon { background-color: var(--on-accent); flex-shrink: 0; }
   .dbg-card-lbl { white-space: nowrap; }
