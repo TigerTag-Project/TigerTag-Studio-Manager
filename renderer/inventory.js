@@ -21649,6 +21649,8 @@ import { jobBar, jobBarFill } from './printers/job-bar.js';
   $("sbDiscordBtn").addEventListener("click", () => _clickCommunityBtn("discord"));
   $("sbShopBtn").addEventListener("click", () => _clickCommunityBtn("shop"));
   $("sbCoffeeBtn")?.addEventListener("click", _openCoffee);
+  $("sbIssueBtn")?.addEventListener("click", () =>
+    window.electronAPI?.openExternal("https://github.com/TigerTag-Project/TigerTag-Studio-Manager/issues/new"));
   $("btnSupportAbout")?.addEventListener("click", _openCoffee);
   $("whatsNewCoffee")?.addEventListener("click", _openCoffee);
 
