@@ -21,6 +21,7 @@
  */
 
 import { openAnnotator } from "./annotator.js";
+import { repliesSince, seenAll } from "./replies.js";
 
 const ENDPOINT = "https://us-central1-tigertag-connect.cloudfunctions.net/reportIssue";
 const MINE_ENDPOINT = "https://us-central1-tigertag-connect.cloudfunctions.net/myReports";
@@ -211,6 +212,43 @@ async function authedPost(url, body) {
   return j;
 }
 
+// ── Replies ──────────────────────────────────────────────────
+// The backend notifies a CHANGE OF STATUS only. A reply leaves the status alone
+// and just raises the request's reply count (`comments`), so the app watches that
+// count: when it is above the one remembered from the last time "My requests" was
+// open, a local notice says so. Per account, in localStorage; the remembered count
+// moves only when the user looks (or closes the request), so an unseen reply is
+// announced again at every start. It cannot tell who wrote the comment.
+const SEEN_KEY = uid => `tigertag.reportSeen.${uid}`;
+const _replyNotifId = id => `req-reply-${id}`;
+function _loadSeen(uid) {
+  try { return JSON.parse(localStorage.getItem(SEEN_KEY(uid)) || "{}") || {}; } catch (_) { return {}; }
+}
+function _saveSeen(uid, map) {
+  try { localStorage.setItem(SEEN_KEY(uid), JSON.stringify(map)); } catch (_) {}
+}
+/** The user is looking at "My requests": every reply is seen. */
+function _markMineSeen() {
+  const uid = _mine.uid, list = _mine.list;
+  if (!uid || !list) return;
+  _saveSeen(uid, { ..._loadSeen(uid), ...seenAll(list) });
+  list.forEach(r => ctx.clearNotif?.(_replyNotifId(r.id)));
+}
+/** After a sync: raise a notice for each request that got a reply. */
+function _checkReplies() {
+  const uid = _mine.uid, list = _mine.list;
+  if (!uid || !list) return;
+  if (isReportOpen() && _view === "mine") { _markMineSeen(); return; }   // looking at them now
+  const { fresh, next } = repliesSince(list, _loadSeen(uid));
+  _saveSeen(uid, next);
+  const freshIds = new Set(fresh.map(r => r.id));
+  list.forEach(r => { if (!freshIds.has(r.id)) ctx.clearNotif?.(_replyNotifId(r.id)); });
+  fresh.forEach(r => ctx.notifyReply?.({
+    id: _replyNotifId(r.id), icon: "suggestion", action: "report",
+    title: t("notifReqReply", { n: r.number }), text: r.title || "",
+  }));
+}
+
 /** Fetch "My requests" — the backend also syncs each with GitHub and raises a
  *  notification for any status change. Called at sign-in and when the tab opens. */
 export async function syncReports() {
@@ -220,7 +258,7 @@ export async function syncReports() {
   if (!uid || _mine.loading) return _mine.list;
   _mine.loading = true; _mine.error = false;
   if (isReportOpen() && _view === "mine") render();
-  try { _mine.list = (await authedPost(MINE_ENDPOINT, { action: "list" })).reports || []; }
+  try { _mine.list = (await authedPost(MINE_ENDPOINT, { action: "list" })).reports || []; _checkReplies(); }
   catch (_) { _mine.error = true; }
   _mine.loading = false;
   if (isReportOpen() && _view === "mine") render(); else if (isReportOpen()) render();
@@ -233,7 +271,13 @@ async function closeMine(id) {
   render();
   try {
     await authedPost(MINE_ENDPOINT, { action: "close", reportId: id });
-    if (r) { r.status = "cancelled"; r.closing = false; }
+    if (r) {
+      r.status = "cancelled"; r.closing = false;
+      // Closing posts a comment of its own — that one is not a reply to announce.
+      const uid = _mine.uid;
+      if (uid) { const m = _loadSeen(uid); m[id] = (Number(r.comments) || 0) + 1; _saveSeen(uid, m); }
+      r.comments = (Number(r.comments) || 0) + 1;
+    }
   } catch (_) { if (r) { r.closing = false; r.closeFailed = true; } }
   render();
 }
@@ -482,6 +526,7 @@ function applyFmt(kind, insert) {
 function render() {
   if (!_overlay) return;
   queueMicrotask(_syncTab);   // topic picked / sent / abandoned → the tab follows
+  if (_view === "mine" && _mine.list && isReportOpen()) _markMineSeen();   // looking at them → seen
 
   // 4 — Confirmation
   if (st.done) {

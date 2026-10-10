@@ -21746,6 +21746,10 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     // The sidebar button is lit while the card is open or a request is in
     // progress (same rule as the card's tab).
     onToggle: active => $("sbReportBtn")?.classList.toggle("is-on", !!active),
+    // A reply on one of my requests → a local notice in the notification centre
+    // (the server only notifies a change of status). Cleared once it is seen.
+    notifyReply: n => _setLocalNotif(n),
+    clearNotif: id => _clearLocalNotif(id),
     // What travels with the report — shown to the user before sending. Never
     // an id, a name, an address or a credential.
     getMeta: async () => {
@@ -35844,7 +35848,11 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   // every session).
   function _notifUnreadCount() {
     return (state.friendRequests || []).length
-         + (state.notifications || []).filter(n => !n.read).length;
+         + (state.notifications || []).filter(n => !n.read).length
+         // A reply on one of my requests is a local notice (the server only notifies
+         // a change of status): without this it chimed but left the bell unlit. The
+         // passive nudges (avatar, community links…) stay out of the count.
+         + (state.localNotifications || []).filter(n => String(n.id).startsWith("req-reply-")).length;
   }
 
   // Upsert a local (per-install, non-Firestore) notification keyed by id, and
@@ -36162,7 +36170,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       // Community nudges + avatar: the whole row IS the call-to-action (no button).
       const isCommunity = !!COMMUNITY[n.action];
       const isFw = n.action === "paxx" || n.action === "ffgfw";   // firmware notices: later + ✕
-      const clickable = isCommunity || n.action === "avatar" || isFw || n.action === "lowstock";
+      const clickable = isCommunity || n.action === "avatar" || isFw || n.action === "lowstock" || n.action === "report";
       const brandIc = isCommunity ? ` notif-ic--${n.action}`         // branded square icon
         : (n.action === "lowstock" ? " notif-ic--lowstock" : "");    // amber alert icon
       // A notice originating from a printer speaks WITH its brand logo (the
@@ -36263,6 +36271,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         else if (a === "paxx") _openPaxxPrinter();
         else if (a === "ffgfw") _openFfgFwPrinter();
         else if (a === "lowstock") _openLowStockProduct(row.dataset.localId);
+        else if (a === "report") openReport({ tab: "mine" });   // a reply on one of my requests
         else if (COMMUNITY[a]) _openCommunityLink(a);
       }));
     // Owner-event notifs (low_stock / community …) → route their action on click.
