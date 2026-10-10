@@ -4677,16 +4677,30 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     m.classList.add("is-closing"); bd?.classList.add("is-closing");
     setTimeout(() => { m.remove(); bd?.remove(); }, 120);
   }
+  // The account's SUPPORTER CODE (TS-XXXX-XXXX) — derived server-side from the
+  // uid, so it never changes (unlike the friend code); written in a payment
+  // message, it ties the payment to this account. Cached per account once known.
+  const _supporterCodeKey = () => `tigertag.supporterCode.${state.activeAccountId}`;
+  function _supporterCodeCached() { try { return localStorage.getItem(_supporterCodeKey()) || null; } catch { return null; } }
+  async function _supportPost(body) {
+    const token = await firebase.app(state.activeAccountId).auth().currentUser?.getIdToken();
+    const r = await fetch(CLAIM_SUPPORT_URL, { method: "POST", headers: { "Content-Type": "application/json", "X-Firebase-Id-Token": token || "" }, body: JSON.stringify(body) });
+    return r.ok ? r.json() : null;
+  }
+  async function _supporterCode() {
+    const cached = _supporterCodeCached(); if (cached) return cached;
+    try {
+      const j = await _supportPost({ action: "code" });
+      if (j?.code) { try { localStorage.setItem(_supporterCodeKey(), j.code); } catch {} return j.code; }
+    } catch (_) {}
+    return null;
+  }
   async function _claimSupport(m) {
     const input = m.querySelector(".support-claim-input"), btn = m.querySelector(".support-claim-go"), msg = m.querySelector(".support-claim-msg");
     const query = input.value.trim(); if (query.length < 4) return;
     btn.disabled = true; msg.className = "support-claim-msg"; msg.textContent = t("supportClaimBusy");
     let status = "error";
-    try {
-      const token = await firebase.app(state.activeAccountId).auth().currentUser?.getIdToken();
-      const r = await fetch(CLAIM_SUPPORT_URL, { method: "POST", headers: { "Content-Type": "application/json", "X-Firebase-Id-Token": token || "" }, body: JSON.stringify({ query }) });
-      if (r.ok) status = (await r.json()).status || "error";
-    } catch (_) {}
+    try { status = (await _supportPost({ query }))?.status || "error"; } catch (_) {}
     btn.disabled = false;
     msg.classList.add(status === "granted" ? "is-ok" : "is-ko");
     msg.textContent = t({ granted: "supportClaimOk", not_found: "supportClaimNotFound", taken: "supportClaimTaken" }[status] || "supportClaimError");
@@ -4712,10 +4726,10 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       ${opt("bmc", "logo_buy_me_coffee.svg", "Buy Me a Coffee", "supportBmcSub")}
       ${opt("kofi", "logo_kofi.svg", "Ko-fi", "supportKofiSub")}
       ${opt("paypal", "logo_paypal.svg", "PayPal", "supportPaypalSub")}
-      ${!state.supporter && state.publicKey ? `
+      ${!state.supporter && state.activeAccountId ? `
       <div class="support-menu-code">
         <span>${esc(t("supportCodeHint"))}</span>
-        <button type="button" class="support-code-chip" data-support-copy="${esc(state.publicKey)}"><span>${esc(state.publicKey)}</span><span class="icon icon-copy icon-12" aria-hidden="true"></span></button>
+        <button type="button" class="support-code-chip${_supporterCodeCached() ? "" : " is-loading"}" data-support-copy="${esc(_supporterCodeCached() || "")}"><span>${esc(_supporterCodeCached() || "TS-····-····")}</span><span class="icon icon-copy icon-12" aria-hidden="true"></span></button>
       </div>` : ""}
       ${!state.supporter && state.activeAccountId ? `
       <details class="support-claim">
@@ -4767,6 +4781,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     m.addEventListener("click", ev => {
       // Copy the friend code to paste in the payment message (ties it to this account).
       const cp = ev.target.closest("[data-support-copy]");
+      if (cp && !cp.dataset.supportCopy) return;   // code still loading
       if (cp) {
         navigator.clipboard?.writeText(cp.dataset.supportCopy).catch(() => {});
         cp.classList.add("is-copied");
@@ -4779,6 +4794,12 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       window.electronAPI?.openExternal({ paypal: PAYPAL_URL, kofi: KOFI_URL, star: GITHUB_REPO_URL }[b.dataset.support] || COFFEE_URL);
     });
     m.querySelector(".support-claim-form")?.addEventListener("submit", ev => { ev.preventDefault(); _claimSupport(m); });
+    // First time on this account: ask the server for the supporter code, then fill the chip.
+    const chip = m.querySelector(".support-code-chip.is-loading");
+    if (chip) _supporterCode().then(code => {
+      if (!code || !chip.isConnected) return;
+      chip.dataset.supportCopy = code; chip.firstElementChild.textContent = code; chip.classList.remove("is-loading");
+    });
     _supportMenu = m;
     _supportAnchor = anchor;
     anchor?.classList?.add("support-anchor-open");

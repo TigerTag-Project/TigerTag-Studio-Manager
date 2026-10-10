@@ -622,3 +622,4 @@
 .support-claim-msg:empty { display: none; }
 .support-claim-msg.is-ok { color: #20E39A; }
 .support-claim-msg.is-ko { color: #FF8A65; }
+.support-code-chip.is-loading { opacity: .55; cursor: progress; }
