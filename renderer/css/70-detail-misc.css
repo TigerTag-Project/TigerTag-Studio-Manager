@@ -108,16 +108,22 @@
   .icon-coins     { -webkit-mask-image: url('../../assets/svg/icons/icon_coins.svg');        mask-image: url('../../assets/svg/icons/icon_coins.svg'); }
   .icon-bug       { -webkit-mask-image: url('../../assets/svg/icons/icon_bug.svg');          mask-image: url('../../assets/svg/icons/icon_bug.svg'); }
   .icon-filter    { -webkit-mask-image: url('../../assets/svg/icons/icon_filter.svg');       mask-image: url('../../assets/svg/icons/icon_filter.svg'); }
+  .icon-json      { -webkit-mask-image: url('../../assets/svg/icons/icon_json.svg');         mask-image: url('../../assets/svg/icons/icon_json.svg'); }
+  .icon-package-download { -webkit-mask-image: url('../../assets/svg/icons/icon_package_download.svg'); mask-image: url('../../assets/svg/icons/icon_package_download.svg'); }
   .icon-gift      { -webkit-mask-image: url('../../assets/svg/icons/icon_gift.svg');         mask-image: url('../../assets/svg/icons/icon_gift.svg'); }
   .icon-grid      { -webkit-mask-image: url('../../assets/svg/icons/icon_grid.svg');         mask-image: url('../../assets/svg/icons/icon_grid.svg'); }
   .icon-grip      { -webkit-mask-image: url('../../assets/svg/icons/icon_grip.svg');         mask-image: url('../../assets/svg/icons/icon_grip.svg'); }
-  /* Official "Buy me a coffee" brand button — wraps the untouched PNG wordmark
-     (assets/svg/logos/logo_buymeacoffee.png). Shared by the What's New footer
-     and Settings → About. Never recolour or stretch the image. */
-  .bmc-btn { display: inline-flex; align-items: center; background: none; border: none; padding: 0; cursor: pointer; transition: transform .12s, filter .12s; }
-  .bmc-btn:hover { transform: translateY(-1px); filter: brightness(1.03); }
-  .bmc-btn img { display: block; height: 38px; width: auto; border-radius: 9px; }
-  .bmc-btn--sm img { height: 30px; }
+  /* "Support the project" button — opens the chooser (Buy Me a Coffee, Ko-fi or
+     PayPal, see _openCoffee), so it carries no single platform's wordmark: the
+     coffee cup + a localised label on the coffee-yellow pill. Shared by the
+     What's New footer and Settings → About. */
+  .support-btn {
+    display: inline-flex; align-items: center; gap: 7px; height: 30px; padding: 0 13px 0 9px;
+    border: none; border-radius: 9px; background: #FFDD00; color: #0d0c22;
+    font-family: inherit; font-size: 12.5px; font-weight: 700; line-height: 1; cursor: pointer; transition: transform .12s, filter .12s;
+  }
+  .support-btn:hover { transform: translateY(-1px); filter: brightness(1.04); }
+  .support-btn img { width: 18px; height: 18px; flex-shrink: 0; }
   .icon-shield-check { -webkit-mask-image: url('../../assets/svg/icons/icon_shield_check.svg'); mask-image: url('../../assets/svg/icons/icon_shield_check.svg'); }
   .icon-github    { -webkit-mask-image: url('../../assets/svg/icons/icon_github.svg');       mask-image: url('../../assets/svg/icons/icon_github.svg'); }
   .icon-discord   { -webkit-mask-image: url('../../assets/svg/icons/icon_discord.svg');      mask-image: url('../../assets/svg/icons/icon_discord.svg'); }

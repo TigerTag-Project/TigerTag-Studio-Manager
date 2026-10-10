@@ -105,7 +105,7 @@
       <!-- Downloads page on tigersystem.io (apps for every platform), in the
            user's language when the site has it. -->
       <button class="sb-download-btn" id="sbDownloadBtn">
-        <span class="icon icon-download icon-14"></span>
+        <span class="icon icon-package-download icon-14"></span>
         <span class="label" data-i18n="sbDownloadBtn">Downloads</span>
       </button>
       <!-- Documentation wiki (opens in the browser) -->
@@ -138,10 +138,10 @@
       </div>
       <div class="sb-group sb-group--support">
       <div class="sb-group-label" data-i18n="sbSupport">Support the project</div>
-      <!-- Buy me a coffee → support the project (opens in the browser). Official
-           brand button image; the badge only lights up after a few days of use
+      <!-- Buy me a coffee → the "Support the project" chooser (Buy Me a Coffee,
+           Ko-fi or PayPal, see _openCoffee); the badge only lights up after a few days of use
            (see _maybeNudgeCommunity). Collapsed rail shows the cup glyph only. -->
-      <button class="sb-coffee-btn" id="sbCoffeeBtn" aria-label="Buy me a coffee">
+      <button class="sb-coffee-btn" id="sbCoffeeBtn" data-i18n-aria="coffeeBtn">
         <img class="sb-coffee-cup" src="../assets/svg/logos/logo_buy_me_coffee.svg" alt="" aria-hidden="true" />
         <span class="label" data-i18n="coffeeBtn">Buy me a coffee</span>
         <span class="sb-community-badge" aria-hidden="true">1</span>
@@ -660,8 +660,9 @@
             <span class="icon icon-github icon-13"></span>
             <span>GitHub</span>
           </a>
-          <button class="bmc-btn bmc-btn--sm" id="btnSupportAbout" aria-label="Buy me a coffee">
-            <img src="../assets/svg/logos/logo_buymeacoffee.png" alt="Buy me a coffee" />
+          <button class="support-btn" id="btnSupportAbout" data-i18n-aria="sbSupport">
+            <img src="../assets/svg/logos/logo_buy_me_coffee.svg" alt="" aria-hidden="true" />
+            <span data-i18n="supportBtn">Support</span>
           </button>
         </div>
       </div>
@@ -956,8 +957,9 @@
     <footer class="whatsnew-actions">
       <div class="whatsnew-coffee-wrap">
         <span class="whatsnew-coffee-cap" data-i18n="whatsNewCoffee">Enjoying it?</span>
-        <button class="bmc-btn bmc-btn--sm" id="whatsNewCoffee" aria-label="Buy me a coffee">
-          <img src="../assets/svg/logos/logo_buymeacoffee.png" alt="Buy me a coffee" />
+        <button class="support-btn" id="whatsNewCoffee" data-i18n-aria="sbSupport">
+          <img src="../assets/svg/logos/logo_buy_me_coffee.svg" alt="" aria-hidden="true" />
+          <span data-i18n="supportBtn">Support</span>
         </button>
       </div>
       <div class="whatsnew-dots" id="whatsNewDots"><div class="wn-track" id="whatsNewTrack"></div></div>

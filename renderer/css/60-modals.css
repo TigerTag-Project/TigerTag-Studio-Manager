@@ -4562,8 +4562,8 @@
   background: var(--primary); color: var(--on-accent); border-color: var(--primary);
 }
 .whatsnew-btn--primary:hover { filter: brightness(1.05); }
-/* Support block in the What's New footer — a short caption + the official
-   "Buy me a coffee" button (.bmc-btn), pushed to the left (margin-right:auto)
+/* Support block in the What's New footer — a short caption + the
+   "Support the project" button (.support-btn), pushed to the left (margin-right:auto)
    so the Later / Got it actions stay on the right. */
 .whatsnew-coffee-wrap { margin-right: auto; display: inline-flex; align-items: center; gap: 9px; }
 .whatsnew-coffee-cap { font-size: 12.5px; font-weight: 600; color: var(--faint); }

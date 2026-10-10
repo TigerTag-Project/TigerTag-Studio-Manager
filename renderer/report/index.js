@@ -35,24 +35,27 @@ const STATUS = {
 const CLOSABLE = new Set(["open", "in_progress"]);
 // What the user is asking for — chosen FIRST, like Zonara's requests. Same ids
 // as the backend (`KINDS` in reportIssue.js), which maps each to a GitHub label.
+// c = the kind's accent elsewhere (form header, My requests); tile / ink = the
+// topic picker's muted icon tile and its icon colour.
 const KINDS = [
-  { id: "bug",      icon: "bug",         c: "#e5322d" },
-  { id: "idea",     icon: "bulb",        c: "#2f9e44" },
-  { id: "improve",  icon: "bars",        c: "#7c4dff" },
+  { id: "bug",      icon: "bug",         c: "#e5322d", tile: "#351D25", ink: "#FF4545" },
+  { id: "idea",     icon: "bulb",        c: "#2f9e44", tile: "#15382D", ink: "#20E39A" },
+  { id: "improve",  icon: "bars",        c: "#7c4dff", tile: "#2D204B", ink: "#A66BFF" },
   // About the CATALOGUE data, not the app: a wrong barcode, a missing value… —
   // tied to the product it concerns, picked with the catalogue search.
-  { id: "catalog",  icon: "tag",         c: "#f0a500" },
+  { id: "catalog",  icon: "tag",         c: "#f0a500", tile: "#3B3016", ink: "#FFC83D" },
   // A materials brand the catalogue does not have yet: its name + website (to verify it).
-  { id: "brand",    icon: "plus",        c: "#1971c2" },
-  { id: "question", icon: "question",    c: "#db2777" },
+  { id: "brand",    icon: "plus",        c: "#1971c2", tile: "#152F4D", ink: "#329BFF" },
+  { id: "question", icon: "question",    c: "#db2777", tile: "#3B1832", ink: "#FF4DB8" },
 ].map(k => {
   const K = k.id[0].toUpperCase() + k.id.slice(1);
   return { ...k, label: `reportKind${K}`, hint: `reportHint${K}`, lead: `reportLead_${k.id}`,
            titleLabel: `reportTitleLabel_${k.id}`, title: `reportTitlePh${K}`, body: `reportBodyPh${K}`, send: `reportSend_${k.id}` };
 });
 const kindOf = id => KINDS.find(k => k.id === id) || null;
-const MAX_IMAGES = 5;          // images + PDFs together
+const MAX_IMAGES = 5;          // images + PDFs + JSON files together
 const MAX_PDF_BYTES = 5 * 1024 * 1024;
+const MAX_JSON_BYTES = 2 * 1024 * 1024;
 const MAX_WIDTH = 1920;
 
 let ctx = null;
@@ -71,7 +74,7 @@ const t = (k, p) => ctx.t(k, p);
 const esc = s => ctx.esc(String(s == null ? "" : s));
 
 function freshState() {
-  return { kind: null, title: "", body: "", images: [], pdfs: [], consent: false, withErrors: false,
+  return { kind: null, title: "", body: "", images: [], pdfs: [], jsons: [], consent: false, withErrors: false,
            product: null, pq: "", brandName: "", brandSite: "",
            sending: false, phase: 0, error: "", done: null, meta: null, infoOpen: false };
 }
@@ -91,7 +94,8 @@ async function normalize(src) {
   g.drawImage(img, 0, 0, c.width, c.height);
   return c.toDataURL("image/jpeg", 0.85);
 }
-const _attachCount = () => st.images.length + st.pdfs.length;
+const _attachCount = () => st.images.length + st.pdfs.length + (st.jsons?.length || 0);
+const isJsonFile = f => f && (f.type === "application/json" || /\.json$/i.test(f.name || ""));
 async function addImage(src) {
   if (!st || _attachCount() >= MAX_IMAGES) { if (st) { st.error = t("reportMaxImages", { n: MAX_IMAGES }); render(); } return; }
   try { st.images.push(await normalize(src)); st.error = ""; } catch (_) { st.error = t("reportImageBad"); }
@@ -101,7 +105,20 @@ function addFiles(files) {
   [...(files || [])].forEach(f => {
     if (/^image\//.test(f.type)) { const r = new FileReader(); r.onload = () => addImage(r.result); r.readAsDataURL(f); }
     else if (f.type === "application/pdf") addPdf(f);
+    else if (isJsonFile(f)) addJson(f);
   });
+}
+// A JSON file (an export, a printer's status, a .ttag…) — checked to be real
+// JSON here, sent as text; the issue links it and shows a short one inline.
+function addJson(f) {
+  if (_attachCount() >= MAX_IMAGES) { st.error = t("reportMaxImages", { n: MAX_IMAGES }); render(); return; }
+  if (f.size > MAX_JSON_BYTES) { st.error = t("reportJsonTooBig", { n: 2 }); render(); return; }
+  const r = new FileReader();
+  r.onload = () => {
+    try { JSON.parse(r.result); } catch (_) { st.error = t("reportJsonBad", { name: f.name }); render(); return; }
+    (st.jsons ||= []).push({ name: f.name, size: f.size, text: r.result }); st.error = ""; render();
+  };
+  r.readAsText(f);
 }
 // A PDF (datasheet, invoice, label…) travels as is — no preview, a named chip.
 function addPdf(f) {
@@ -276,7 +293,7 @@ function closeReport() {
 
 function onPaste(e) {
   if (!_overlay?.classList.contains("open") || st?.done) return;
-  const files = [...(e.clipboardData?.items || [])].filter(i => i.kind === "file" && (/^image\//.test(i.type) || i.type === "application/pdf")).map(i => i.getAsFile());
+  const files = [...(e.clipboardData?.items || [])].filter(i => i.kind === "file" && (/^image\//.test(i.type) || i.type === "application/pdf" || i.type === "application/json")).map(i => i.getAsFile());
   if (!files.length) return;          // plain text → normal paste into the field
   e.preventDefault();
   addFiles(files);
@@ -346,6 +363,7 @@ function onClick(e) {
   else if (act === "file") _overlay.querySelector("#repFile")?.click();
   else if (act === "remove") { st.images.splice(Number(a.dataset.i), 1); render(); }
   else if (act === "removePdf") { st.pdfs.splice(Number(a.dataset.i), 1); render(); }
+  else if (act === "removeJson") { st.jsons.splice(Number(a.dataset.i), 1); render(); }
   else if (act === "pick") { const h = _overlay.querySelector("#repProdResults")?._hits?.[Number(a.dataset.i)]; if (h) { st.product = h; render(); setTimeout(() => _overlay.querySelector("#repTitle")?.focus(), 50); } }
   else if (act === "unpick") { st.product = null; render(); setTimeout(() => { _overlay.querySelector("#repProdQ")?.focus(); searchProducts(); }, 50); }
   else if (act === "annotate") annotate(Number(a.dataset.i));
@@ -393,7 +411,6 @@ function coffeeHTML() {
         <div class="rep-coffee-sub">${esc(t("reportCoffeeSub"))}</div>
         <button type="button" class="rep-coffee-cta" data-rep="coffee">${esc(t("reportCoffeeCta"))}<span class="icon icon-arrow-up-right icon-12"></span></button>
       </div>
-      <span class="icon icon-heart icon-20 rep-coffee-heart" aria-hidden="true"></span>
     </div>`;
 }
 
@@ -550,7 +567,7 @@ function render() {
         ${head}
         <div class="rep-kind-list">
           ${KINDS.map(k => `
-          <button type="button" class="rep-kind-card" style="--kc:${k.c}" data-rep="kind" data-kind="${k.id}">
+          <button type="button" class="rep-kind-card" style="--kc:${k.c};--kt:${k.tile};--ki:${k.ink}" data-rep="kind" data-kind="${k.id}">
             <span class="rep-kind-ico"><span class="icon icon-${k.icon} icon-20"></span></span>
             <span class="rep-kind-txt"><span class="rep-kind-name">${esc(t(k.label))}</span><span class="rep-kind-hint">${esc(t(k.hint))}</span></span>
             <span class="icon icon-chevron-r icon-12 rep-kind-chev"></span>
@@ -573,6 +590,10 @@ function render() {
       <div class="rep-shot rep-shot--pdf">
         <span class="rep-pdf"><span class="icon icon-pdf icon-16"></span><span class="rep-pdf-name">${esc(f.name)}</span></span>
         <button type="button" class="rep-shot-x" data-rep="removePdf" data-i="${i}" aria-label="${esc(t("reportRemoveImage"))}"><span class="icon icon-close icon-10"></span></button>
+      </div>`).join("") + (st.jsons || []).map((f, i) => `
+      <div class="rep-shot rep-shot--pdf rep-shot--json">
+        <span class="rep-pdf"><span class="icon icon-json icon-16"></span><span class="rep-pdf-name">${esc(f.name)}</span></span>
+        <button type="button" class="rep-shot-x" data-rep="removeJson" data-i="${i}" aria-label="${esc(t("reportRemoveImage"))}"><span class="icon icon-close icon-10"></span></button>
       </div>`).join("");
   paint("form", `
     <div class="rep-card" style="--kc:${kind.c}">
@@ -616,7 +637,7 @@ function render() {
             <button type="button" class="rep-dz-capture" data-rep="capture"><span class="icon icon-camera icon-14"></span>${esc(t("reportCaptureNow"))}</button>
           </div>
         </div>` : ""}
-        <input id="repFile" type="file" accept="image/*,application/pdf" multiple hidden>
+        <input id="repFile" type="file" accept="image/*,application/pdf,application/json,.json" multiple hidden>
       </div>
       <div class="rep-formats">${esc(t("reportFormats", { n: MAX_IMAGES }))}</div>
       ${infoHTML(st.meta || {})}
@@ -653,6 +674,7 @@ async function send() {
       kind: st.kind, publicConsent: true, title, body: st.body.trim(),
       images: st.images,
       pdfs: st.pdfs.map(f => ({ name: f.name, data: f.data })),
+      jsons: (st.jsons || []).map(f => ({ name: f.name, text: f.text })),
       product: st.kind === "catalog" && st.product ? st.product : undefined,
       brand: st.kind === "brand" ? { name: st.brandName.trim(), website: st.brandSite.trim() } : undefined,
       meta: { appVersion: m.appVersion, os: m.os, view: m.view, page: m.page, screen: m.screen, lang: m.lang, printers: m.printers,

@@ -4646,44 +4646,142 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   // Anchored to the button that opened it; closes on pick, outside click or Esc.
   const PAYPAL_URL = "https://paypal.me/tigersystemio";
   const KOFI_URL = "https://ko-fi.com/tigersystemio";
+  // Already gave and no badge (payment message without the code, another email)?
+  // The server finds the unmatched payment by email or transaction id.
+  const CLAIM_SUPPORT_URL = "https://us-central1-tigertag-connect.cloudfunctions.net/claimSupport";
+  // No budget is fine: a GitHub star is the free way to support it.
+  const GITHUB_REPO_URL = "https://github.com/TigerTag-Project/TigerTag-Studio-Manager";
   let _supportMenu = null;
-  function _closeSupportMenu() { _supportMenu?.remove(); _supportMenu = null; }
+  let _supportAnchor = null;
+  // Supporter badge on the sidebar avatar's corner — set by the server once a
+  // payment is tied to the account (functions/supportWebhooks.js).
+  function renderSupporterBadge() {
+    const host = document.querySelector("#sbUser .sb-avatar-wrap"); if (!host) return;
+    let b = host.querySelector(".sb-supporter-badge");
+    if (!state.supporter) { b?.remove(); return; }
+    if (b) return;
+    b = document.createElement("span");
+    b.className = "sb-supporter-badge";
+    b.setAttribute("role", "img");
+    b.setAttribute("aria-label", t("supporterBadge"));
+    b.innerHTML = `<span class="icon icon-heart-fill icon-10" aria-hidden="true"></span>`;
+    host.appendChild(b);
+  }
+  // Closes with a short fade (120 ms) — instant when the user asked for less motion.
+  function _closeSupportMenu() {
+    const m = _supportMenu; if (!m) return;
+    _supportMenu = null;
+    _supportAnchor?.classList.remove("support-anchor-open"); _supportAnchor = null;
+    const bd = m._backdrop;
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) { m.remove(); bd?.remove(); return; }
+    m.classList.add("is-closing"); bd?.classList.add("is-closing");
+    setTimeout(() => { m.remove(); bd?.remove(); }, 120);
+  }
+  async function _claimSupport(m) {
+    const input = m.querySelector(".support-claim-input"), btn = m.querySelector(".support-claim-go"), msg = m.querySelector(".support-claim-msg");
+    const query = input.value.trim(); if (query.length < 4) return;
+    btn.disabled = true; msg.className = "support-claim-msg"; msg.textContent = t("supportClaimBusy");
+    let status = "error";
+    try {
+      const token = await firebase.app(state.activeAccountId).auth().currentUser?.getIdToken();
+      const r = await fetch(CLAIM_SUPPORT_URL, { method: "POST", headers: { "Content-Type": "application/json", "X-Firebase-Id-Token": token || "" }, body: JSON.stringify({ query }) });
+      if (r.ok) status = (await r.json()).status || "error";
+    } catch (_) {}
+    btn.disabled = false;
+    msg.classList.add(status === "granted" ? "is-ok" : "is-ko");
+    msg.textContent = t({ granted: "supportClaimOk", not_found: "supportClaimNotFound", taken: "supportClaimTaken" }[status] || "supportClaimError");
+    // The badge itself arrives with the user doc (server-set); show it right away.
+    if (status === "granted") { state.supporter = true; renderSupporterBadge(); }
+  }
   function _openCoffee(e) {
     const anchor = e?.currentTarget || (e instanceof Element ? e : null);
     if (_supportMenu) { _closeSupportMenu(); return; }
     const m = document.createElement("div");
     m.className = "support-menu";
     m.setAttribute("role", "menu");
-    m.innerHTML = `
-      <div class="support-menu-title">${esc(t("sbSupport"))}</div>
-      <button type="button" class="support-opt" data-support="bmc" role="menuitem">
-        <img src="../assets/svg/logos/logo_buy_me_coffee.svg" alt="" aria-hidden="true">
-        <span><b>Buy Me a Coffee</b><small>${esc(t("supportBmcSub"))}</small></span>
-      </button>
-      <button type="button" class="support-opt" data-support="kofi" role="menuitem">
-        <img src="../assets/svg/logos/logo_kofi.svg" alt="" aria-hidden="true">
-        <span><b>Ko-fi</b><small>${esc(t("supportKofiSub"))}</small></span>
-      </button>
-      <button type="button" class="support-opt" data-support="paypal" role="menuitem">
-        <img src="../assets/svg/logos/logo_paypal.svg" alt="" aria-hidden="true">
-        <span><b>PayPal</b><small>${esc(t("supportPaypalSub"))}</small></span>
+    const opt = (id, logo, name, sub) => `
+      <button type="button" class="support-opt" data-support="${id}" role="menuitem">
+        <img src="../assets/svg/logos/${logo}" alt="" aria-hidden="true">
+        <span><b>${name}</b><small>${esc(t(sub))}</small></span>
+        <span class="icon icon-arrow-up-right icon-12 support-opt-go" aria-hidden="true"></span>
       </button>`;
+    m.innerHTML = `
+      <span class="support-menu-caret" aria-hidden="true"></span>
+      <div class="support-menu-title">${esc(t("sbSupport"))}<span class="icon icon-heart-fill icon-12 support-menu-heart" aria-hidden="true"></span></div>
+      <p class="support-menu-intro">${esc(t(state.supporter ? "supportThanks" : "supportIntro"))}</p>
+      ${opt("bmc", "logo_buy_me_coffee.svg", "Buy Me a Coffee", "supportBmcSub")}
+      ${opt("kofi", "logo_kofi.svg", "Ko-fi", "supportKofiSub")}
+      ${opt("paypal", "logo_paypal.svg", "PayPal", "supportPaypalSub")}
+      ${!state.supporter && state.publicKey ? `
+      <div class="support-menu-code">
+        <span>${esc(t("supportCodeHint"))}</span>
+        <button type="button" class="support-code-chip" data-support-copy="${esc(state.publicKey)}"><span>${esc(state.publicKey)}</span><span class="icon icon-copy icon-12" aria-hidden="true"></span></button>
+      </div>` : ""}
+      ${!state.supporter && state.activeAccountId ? `
+      <details class="support-claim">
+        <summary>${esc(t("supportClaimToggle"))}</summary>
+        <form class="support-claim-form">
+          <input type="text" class="support-claim-input" required minlength="4" maxlength="200" placeholder="${esc(t("supportClaimPh"))}" autocomplete="off">
+          <button type="submit" class="support-claim-go">${esc(t("supportClaimBtn"))}</button>
+        </form>
+        <div class="support-claim-msg" aria-live="polite"></div>
+      </details>` : ""}
+      <div class="support-menu-foot">
+        <button type="button" class="support-menu-star" data-support="star"><span class="icon icon-star icon-12" aria-hidden="true"></span>${esc(t("supportStar"))}</button>
+        <span class="support-menu-safe"><span class="icon icon-lock icon-12" aria-hidden="true"></span>${esc(t("supportSecure"))}</span>
+      </div>`;
     document.body.appendChild(m);
-    // Place it next to its button, kept inside the window.
+    // Smart placement: to the right of its button when there is room, otherwise
+    // above it (below as a last resort), always inside the window. The caret
+    // points back at the button.
     const r = anchor?.getBoundingClientRect?.();
-    const W = m.offsetWidth, H = m.offsetHeight;
-    let x = r ? r.right + 10 : (innerWidth - W) / 2, y = r ? r.top + r.height / 2 - H / 2 : (innerHeight - H) / 2;
-    if (x + W > innerWidth - 8) x = r ? r.left - W - 10 : innerWidth - W - 8;
-    if (x < 8) x = 8;
-    y = Math.max(8, Math.min(y, innerHeight - H - 8));
+    const W = m.offsetWidth, H = m.offsetHeight, GAP = 12, PAD = 8;
+    const clamp = (v, lo, hi) => Math.max(lo, Math.min(v, hi));
+    let x, y, place;
+    // Opened from the requests side card: sit to the RIGHT of the whole card so
+    // the topic list stays visible; no room there → a compact centred modal.
+    const side = anchor?.closest?.(".rep-panel")?.getBoundingClientRect();
+    if (side) {
+      if (side.right + GAP + W <= innerWidth - PAD) {
+        place = "right"; x = side.right + GAP; y = clamp(r.top + r.height / 2 - H / 2, PAD, innerHeight - H - PAD);
+      } else {
+        place = "none"; x = (innerWidth - W) / 2; y = (innerHeight - H) / 2;
+        const bd = document.createElement("div");
+        bd.className = "support-backdrop";
+        document.body.appendChild(bd);
+        m._backdrop = bd;
+      }
+    }
+    else if (!r) { x = (innerWidth - W) / 2; y = (innerHeight - H) / 2; place = "none"; }
+    else if (r.right + GAP + W <= innerWidth - PAD) { place = "right"; x = r.right + GAP; y = clamp(r.top + r.height / 2 - H / 2, PAD, innerHeight - H - PAD); }
+    else {
+      place = r.top - GAP - H >= PAD ? "top" : "bottom";
+      x = clamp(r.left + r.width / 2 - W / 2, PAD, innerWidth - W - PAD);
+      y = place === "top" ? r.top - GAP - H : Math.min(r.bottom + GAP, innerHeight - H - PAD);
+    }
+    m.dataset.place = place;
     m.style.left = `${Math.round(x)}px`; m.style.top = `${Math.round(y)}px`;
+    const caret = m.querySelector(".support-menu-caret");
+    if (place === "right") caret.style.top = `${Math.round(clamp(r.top + r.height / 2 - y, 18, H - 18))}px`;
+    else if (r) caret.style.left = `${Math.round(clamp(r.left + r.width / 2 - x, 18, W - 18))}px`;
     m.addEventListener("click", ev => {
+      // Copy the friend code to paste in the payment message (ties it to this account).
+      const cp = ev.target.closest("[data-support-copy]");
+      if (cp) {
+        navigator.clipboard?.writeText(cp.dataset.supportCopy).catch(() => {});
+        cp.classList.add("is-copied");
+        setTimeout(() => cp.classList.remove("is-copied"), 1200);
+        return;
+      }
       const b = ev.target.closest("[data-support]"); if (!b) return;
       _closeSupportMenu();
       _markCommunitySeen("coffee");
-      window.electronAPI?.openExternal({ paypal: PAYPAL_URL, kofi: KOFI_URL }[b.dataset.support] || COFFEE_URL);
+      window.electronAPI?.openExternal({ paypal: PAYPAL_URL, kofi: KOFI_URL, star: GITHUB_REPO_URL }[b.dataset.support] || COFFEE_URL);
     });
+    m.querySelector(".support-claim-form")?.addEventListener("submit", ev => { ev.preventDefault(); _claimSupport(m); });
     _supportMenu = m;
+    _supportAnchor = anchor;
+    anchor?.classList?.add("support-anchor-open");
     setTimeout(() => {
       const off = ev => { if (!_supportMenu || _supportMenu.contains(ev.target) || anchor?.contains?.(ev.target)) return; _closeSupportMenu(); document.removeEventListener("mousedown", off, true); };
       document.addEventListener("mousedown", off, true);
@@ -6201,7 +6299,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         // Active account's session expired → show login
         unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeFriends(); unsubscribeNotifications(); unsubscribeRacks(); unsubscribeScales(); unsubscribeTigerSpools(); unsubscribePrinters(); unsubscribeProducts(); unsubscribeFriendProducts(); unsubscribeLists(); unsubscribeFriendLists(); unsubscribeContainerOverrides();
         state.inventory = null; state.rows = [];
-        state.isAdmin = false; state.debugEnabled = false;
+        state.isAdmin = false; state.debugEnabled = false; state.supporter = false; renderSupporterBadge();
         state.publicKey = null; state.privateKey = null;
         state.friends = []; state.friendRequests = []; state.notifications = []; state.blacklist = []; state.racks = []; state.printers = [];
         applyDebugMode(); renderStats(); renderInventory();
@@ -6405,7 +6503,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     if (wasActive) {
       unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeFriends(); unsubscribeNotifications(); unsubscribeRacks(); unsubscribeScales(); unsubscribeTigerSpools(); unsubscribePrinters(); unsubscribeProducts(); unsubscribeFriendProducts(); unsubscribeLists(); unsubscribeFriendLists(); unsubscribeContainerOverrides();
       state.inventory = null; state.rows = [];
-      state.isAdmin = false; state.debugEnabled = false;
+      state.isAdmin = false; state.debugEnabled = false; state.supporter = false; renderSupporterBadge();
       state.publicKey = null; state.privateKey = null;
       state.friends = []; state.friendRequests = []; state.blacklist = []; state.racks = []; state.printers = [];
       applyDebugMode(); renderStats(); renderInventory();
@@ -36202,6 +36300,17 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
           </div>
         </div>`;
       }
+      // First payment tied to this account (server-written by the support webhooks).
+      if (n.type === "supporter_thanks") {
+        return `<div class="notif-item${unread}" data-id="${esc(n.id)}">
+          <span class="notif-ic notif-ic--supporter"><span class="icon icon-heart-fill icon-14"></span></span>
+          <div class="fp-friend-main">
+            <div class="notif-title">${esc(t("notifSupporterTitle"))}</div>
+            <div class="notif-text">${esc(t("notifSupporterText"))}</div>
+            <div class="fp-friend-date">${esc(when)}</div>
+          </div>
+        </div>`;
+      }
       // A request of mine changed status on GitHub (server-written by `myReports`).
       // Worded HERE, in the user's language — the server only says which status.
       if (n.type === "request_status") {
@@ -37042,6 +37151,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     if (c.privateKey) state.privateKey = c.privateKey;
     state.isPublic       = !!c.isPublic;
     state.tier           = c.tier || "free";
+    state.supporter      = !!c.supporter;
     state.vatCountry     = c.vatCountry || null;
     state.vatCustomRate     = (typeof c.vatCustomRate === "number") ? c.vatCustomRate : null;
     state.vatCustomCurrency = c.vatCustomCurrency || null;
@@ -37055,6 +37165,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     state.coffeeSeen     = !!c.coffeeSeen;
     try { applyDebugMode(); } catch {}
     try { renderCommunityBadges(); } catch {}
+    try { renderSupporterBadge(); } catch {}
   }
 
   // ── Country / timezone derivation (offline, no IP geolocation) ──────────
@@ -37785,6 +37896,9 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       state.privateKey = data.privateKey;
       state.isPublic   = data.isPublic || false;
       state.tier       = data.tier || "free";   // plan (server-set); gates product web-link attachment count
+      // Backed the project (server-set by the payment webhooks) — a thank-you badge, never a feature gate.
+      state.supporter  = !!data.supporter;
+      renderSupporterBadge();
       state.socials    = _cleanSocials(data.socials);   // social-profile links (mirrored to userProfiles)
       state.vatCountry = data.vatCountry || null;    // ISO country code for VAT rate + currency (filament reorder)
       // …or the sentinel "CUSTOM", in which case these three carry the rate.
@@ -37836,6 +37950,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         privateKey: data.privateKey || null,
         isPublic:   !!data.isPublic,
         tier:       data.tier || "free",
+        supporter:  !!data.supporter,
         vatCountry: data.vatCountry || null,
         vatCustomRate: (typeof data.vatCustomRate === "number") ? data.vatCustomRate : null,
         vatCustomCurrency: data.vatCustomCurrency || null,

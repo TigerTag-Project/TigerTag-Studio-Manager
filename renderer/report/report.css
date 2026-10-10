@@ -149,6 +149,7 @@
   border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2);
 }
 .rep-pdf .icon { background: var(--danger); }
+.rep-shot--json .rep-pdf .icon { background: #FFC83D; }
 .rep-pdf-name { font-size: 10.5px; color: var(--text); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ── Annotator (annotator.js) ── */
@@ -316,23 +317,32 @@
 .rep-view.is-on { background: #2563eb; color: #fff; box-shadow: 0 2px 10px rgba(37,99,235,.35); }
 .rep-view.is-on .rep-view-count { background: #fff; color: #2563eb; }
 
-/* Topic cards: coloured tile on the left, chevron on the right. Hover: icon
-   zooms (1.1), border takes the colour, chevron slides (150 ms). */
+/* Topic cards: a muted tile on the left (dark tint + bright icon, --kt / --ki
+   from KINDS), a 3 px accent stripe, chevron on the right. Hover (180 ms):
+   lighter ground, subtle border in the kind's colour, icon at 1.06. */
 .rep-kind-list { gap: 8px; margin-top: 2px; }
 .rep-kind-card.rep-kind-card {
   min-height: 64px; padding: 0 14px 0 0; gap: 14px; overflow: hidden; border-radius: 12px;
+  border-left: 3px solid var(--ki);
   background: color-mix(in srgb, var(--surface-2) 70%, transparent);
-  transition: border-color .15s, background .15s, transform .15s;
+  transition: border-color 180ms, background 180ms;
 }
 .rep-kind-card .rep-kind-ico {
   align-self: stretch; width: 64px; height: auto; border-radius: 0; flex-shrink: 0;
-  background: linear-gradient(135deg, var(--kc), color-mix(in srgb, var(--kc) 60%, #000));
+  background: var(--kt);
 }
-.rep-kind-card .rep-kind-ico .icon { background: #fff; transition: transform .15s; }
-.rep-kind-card:hover { border-color: var(--kc); background: color-mix(in srgb, var(--kc) 8%, var(--surface-2)); }
-.rep-kind-card:hover .rep-kind-ico .icon { transform: scale(1.1); }
-.rep-kind-chev { transition: transform .15s, background .15s; }
-.rep-kind-card:hover .rep-kind-chev { transform: translateX(3px); background: var(--kc); }
+.rep-kind-card .rep-kind-ico .icon { background: var(--ki); transition: transform 180ms; }
+.rep-kind-card:hover {
+  border-color: color-mix(in srgb, var(--ki) 45%, transparent); border-left-color: var(--ki);
+  background: color-mix(in srgb, #fff 5%, var(--surface-2));
+}
+.rep-kind-card:hover .rep-kind-ico .icon { transform: scale(1.06); }
+.rep-kind-chev { transition: transform 180ms, background 180ms; }
+.rep-kind-card:hover .rep-kind-chev { transform: translateX(3px); background: var(--ki); }
+@media (prefers-reduced-motion: reduce) {
+  .rep-kind-card.rep-kind-card, .rep-kind-card .rep-kind-ico .icon, .rep-kind-chev { transition: none; }
+  .rep-kind-card:hover .rep-kind-ico .icon, .rep-kind-card:hover .rep-kind-chev { transform: none; }
+}
 .rep-kind-name { font-size: 14.5px; }
 
 /* Coffee card */
@@ -350,7 +360,6 @@
 }
 .rep-coffee-cta .icon { background: #1a1a1a; }
 .rep-coffee-cta:hover { filter: brightness(1.05); }
-.rep-coffee-heart { background: #f5c400; flex-shrink: 0; align-self: flex-end; }
 
 /* My requests rows: tile in the kind colour */
 .rep-mine-row .rep-kind-ico { background: color-mix(in srgb, var(--kc) 16%, transparent); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }

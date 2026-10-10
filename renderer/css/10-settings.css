@@ -512,22 +512,113 @@
   /* "Support the project" chooser (Buy Me a Coffee / PayPal) — opened by every
      coffee button, anchored next to it (_openCoffee). */
   .support-menu {
-    position: fixed; z-index: 10060; width: 300px; padding: 10px; border-radius: 14px;
+    position: fixed; z-index: 10060; width: 320px; padding: 12px; border-radius: 14px;
     background: var(--surface); border: 1px solid var(--border); box-shadow: 0 14px 40px rgba(0,0,0,.35);
-    display: flex; flex-direction: column; gap: 6px; animation: support-pop .16s ease-out;
+    display: flex; flex-direction: column; gap: 6px; animation: support-pop .15s ease-out;
   }
+  .support-menu.is-closing { animation: support-out .12s ease-in forwards; pointer-events: none; }
+  /* Compact centred modal (opened from the requests side card with no room on its right). */
+  .support-backdrop { position: fixed; inset: 0; z-index: 10059; background: rgba(0,0,0,.45); animation: support-fade .15s ease-out; }
+  .support-backdrop.is-closing { animation: support-fade .12s ease-in reverse forwards; }
+  @keyframes support-fade { from { opacity: 0; } to { opacity: 1; } }
   @keyframes support-pop { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: none; } }
-  .support-menu-title { font-size: 12px; font-weight: 700; color: var(--muted); padding: 2px 4px 4px; }
+  @keyframes support-out { to { opacity: 0; transform: scale(.97); } }
+  @media (prefers-reduced-motion: reduce) { .support-menu, .support-menu.is-closing, .support-backdrop, .support-backdrop.is-closing { animation: none; } }
+  /* Caret pointing back at the button that opened the popover (placement in _openCoffee). */
+  .support-menu-caret {
+    position: absolute; width: 12px; height: 12px; background: var(--surface);
+    border: 1px solid var(--border); transform: rotate(45deg); pointer-events: none;
+  }
+  .support-menu[data-place="right"] .support-menu-caret { left: -7px; margin-top: -6px; border-top-color: transparent; border-right-color: transparent; }
+  .support-menu[data-place="top"] .support-menu-caret { bottom: -7px; margin-left: -6px; border-top-color: transparent; border-left-color: transparent; }
+  .support-menu[data-place="bottom"] .support-menu-caret { top: -7px; margin-left: -6px; border-bottom-color: transparent; border-right-color: transparent; }
+  .support-menu[data-place="none"] .support-menu-caret { display: none; }
+  .support-menu-title { display: flex; align-items: center; gap: 6px; font-size: 13.5px; font-weight: 700; color: var(--text); padding: 2px 4px 0; }
+  .support-menu .support-menu-heart { background-color: #F0475B; }
+  /* Reassure before asking: free for good, every bit counts. */
+  .support-menu-intro { margin: 0 4px 6px; font-size: 12px; line-height: 1.45; color: var(--muted); }
+  .support-menu-foot {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    margin-top: 2px; padding: 8px 4px 0; border-top: 1px solid var(--border);
+    font-size: 11px; color: var(--muted);
+  }
+  .support-menu-safe { display: inline-flex; align-items: center; gap: 5px; opacity: .8; }
+  .support-menu-star {
+    display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border: none; border-radius: 7px;
+    background: none; color: var(--muted); font: inherit; cursor: pointer; transition: color .15s, background .15s;
+  }
+  .support-menu-star:hover { color: #FFC83D; background: color-mix(in srgb, #FFC83D 12%, transparent); }
+  /* The button that opened the popover stays lit while it is open. */
+  .support-anchor-open { box-shadow: 0 0 0 2px #FFD600, 0 0 14px color-mix(in srgb, #FFD600 35%, transparent) !important; }
   .support-opt {
-    display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px; text-align: left;
+    display: flex; align-items: center; justify-content: flex-start; gap: 12px; width: 100%; padding: 10px; text-align: left;
     border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); color: var(--text);
     cursor: pointer; font-family: inherit; transition: border-color .15s, background .15s, transform .15s;
   }
   .support-opt img { width: 28px; height: 28px; flex-shrink: 0; }
-  .support-opt span { display: flex; flex-direction: column; gap: 2px; }
+  .support-opt span:not(.icon) { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .support-opt { position: relative; }
+  .support-opt .support-opt-go { position: absolute; top: 9px; right: 9px; background-color: var(--muted); opacity: 0; transform: translate(-3px, 3px); transition: opacity .15s, transform .15s; }
+  .support-opt:hover .support-opt-go { opacity: 1; transform: none; }
   .support-opt b { font-size: 13.5px; }
   .support-opt small { font-size: 11.5px; color: var(--muted); }
-  .support-opt:hover { transform: translateX(2px); }
+  .support-opt:hover { transform: translateY(-2px); }
+  @media (prefers-reduced-motion: reduce) { .support-opt:hover { transform: none; } }
   .support-opt[data-support="bmc"]:hover { border-color: #FFD600; background: color-mix(in srgb, #FFD600 10%, var(--surface-2)); }
   .support-opt[data-support="kofi"]:hover { border-color: #29ABE0; background: color-mix(in srgb, #29ABE0 12%, var(--surface-2)); }
   .support-opt[data-support="paypal"]:hover { border-color: #0070E0; background: color-mix(in srgb, #0070E0 12%, var(--surface-2)); }
+
+/* Buy Me a Coffee cup on a dark surface — the brand cup's outline is black, so
+   the dark theme swaps in the white-outline variant (the coffee stays #FFDD00).
+   The yellow .support-btn pill keeps the original: black reads on yellow. */
+:root[data-theme="dark"] .support-opt[data-support="bmc"] img,
+:root[data-theme="dark"] .rep-coffee-cup { content: url('../../assets/svg/logos/logo_buy_me_coffee_dark.svg'); }
+/* Sidebar entry: a solid coffee-yellow cup, like the other coloured resource icons. */
+:root[data-theme="dark"] .sb-coffee-cup { content: url('../../assets/svg/logos/logo_buy_me_coffee_yellow.svg'); }
+
+/* Supporter badge — a small golden heart on the sidebar avatar's corner, shown
+   once a payment is tied to the account (users/{uid}.supporter, server-set). */
+.sb-supporter-badge {
+  position: absolute; right: -3px; bottom: -3px; z-index: 2; width: 17px; height: 17px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center; pointer-events: none;
+  background: linear-gradient(135deg, #FFD600, #FF9F1C); box-shadow: 0 0 0 2px var(--sidebar-solid, #15111D);
+}
+.sb-supporter-badge .icon { background: #fff; }
+/* "Put your code in the message" — ties a Ko-fi payment to this account. */
+.support-menu-code {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 2px 0 0; padding: 8px 10px;
+  border: 1px dashed color-mix(in srgb, #FFD600 45%, var(--border)); border-radius: 10px;
+  font-size: 11.5px; line-height: 1.35; color: var(--muted);
+}
+.support-code-chip {
+  display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; padding: 4px 8px; border: none; border-radius: 7px;
+  background: color-mix(in srgb, #FFD600 16%, transparent); color: var(--text); cursor: pointer;
+  font: 700 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .5px; transition: background .15s;
+}
+.support-code-chip .icon { background: var(--muted); }
+.support-code-chip:hover { background: color-mix(in srgb, #FFD600 26%, transparent); }
+.support-code-chip.is-copied .icon { background: #20E39A; }
+.notif-ic--supporter { background: linear-gradient(135deg, #FFD600, #FF9F1C); }
+.notif-ic--supporter .icon { background: #fff; }
+/* "Already gave? Get your badge" — claim an unmatched payment by email / transaction id. */
+.support-claim { margin: 2px 4px 0; font-size: 11.5px; color: var(--muted); }
+.support-claim > summary { cursor: pointer; list-style: none; display: inline-flex; align-items: center; gap: 5px; padding: 2px 0; }
+.support-claim > summary::-webkit-details-marker { display: none; }
+.support-claim > summary::before { content: "›"; display: inline-block; transition: transform .15s; }
+.support-claim[open] > summary::before { transform: rotate(90deg); }
+.support-claim > summary:hover { color: var(--text); }
+.support-claim-form { display: flex; gap: 6px; margin-top: 6px; }
+.support-claim-form .support-claim-input {
+  flex: 1; min-width: 0; height: 30px; padding: 0 9px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--surface-2); color: var(--text); font: inherit; font-size: 12px;
+}
+.support-claim-form .support-claim-input:focus { outline: none; border-color: #FFD600; }
+.support-claim-go {
+  height: 30px; padding: 0 11px; border: none; border-radius: 8px; background: #FFDD00; color: #0d0c22;
+  font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer;
+}
+.support-claim-go:disabled { opacity: .6; cursor: default; }
+.support-claim-msg { margin-top: 5px; line-height: 1.35; }
+.support-claim-msg:empty { display: none; }
+.support-claim-msg.is-ok { color: #20E39A; }
+.support-claim-msg.is-ko { color: #FF8A65; }
