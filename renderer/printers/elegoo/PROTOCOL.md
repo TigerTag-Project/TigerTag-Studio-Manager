@@ -2066,8 +2066,23 @@ pushes on `sdcp/status/<id>` (~2 s), `sdcp/attributes/<id>`, `sdcp/error/…`, `
 **Commands used** — `0` status (also every 5 s), `1` attributes, `386`
 `{Enable:1}` camera → `VideoUrl` (MJPEG, **returned without a scheme**:
 `<ip>:3031/video`, seen live on a CC1 V1.4.49 with `Ack` 0 — the driver prepends
-`http://`), `129` pause, `131` resume, `130` stop. ⚠️ 129/130/131 are from the
-OpenCentauri API doc (firmware 1.1.x) and **not yet confirmed on 1.4.x**; 386 is.
+`http://`), `129` pause, `131` resume, `130` stop, `324` Canvas slots (below).
+⚠️ 129/130/131 are from the OpenCentauri API doc (firmware 1.1.x) and **not yet
+confirmed on 1.4.x**; 386 is. ⚠️ 324 comes from the Home Assistant integration
+(danielcherubini/elegoo-homeassistant) and is **not yet confirmed on a real CC1
+with a Canvas** (issue #98).
+
+**Canvas** — the status push carries `Status.AmsConnectStatus` (1 = a Canvas is
+plugged in). `Cmd 324` with `{}` answers, in `Data.Data`:
+`{ Ack: 0, active_canvas_id, active_tray_id, auto_refill, canvas_list: [{ canvas_id,
+connected, tray_list: [{ tray_id, brand, filament_type, filament_name, filament_code,
+filament_color, min_nozzle_temp, max_nozzle_temp, status }] }] }` — the same
+vocabulary as the CC2's `canvas_info` (§8). `connected: 0` = no hub; an empty tray
+has empty strings. The driver (`canvas.js`, pure functions, tested by
+`scripts/test-elegoo-canvas.mjs` on hand-written frames) asks once at connection,
+then every 30 s unless the status says there is no Canvas or the printer refuses
+the command (`Ack` ≠ 0, then it stops asking). Read-only: loading / unloading is not
+implemented over SDCP.
 
 **Status mapping** — `CurrentStatus` [0 idle, 1 printing, 2 file transfer,
 3 calibrating, 4 device test]; `PrintInfo.Status` 5/6 pausing/paused, 7 stopping,
@@ -2077,8 +2092,9 @@ OpenCentauri API doc (firmware 1.1.x) and **not yet confirmed on 1.4.x**; 386 is
 Temps `TempOfNozzle/Hotbed/Box` + `TempTarget…`; fans `CurrentFanSpeed.ModelFan/AuxiliaryFan/BoxFan`;
 speed `PrintSpeedPct` (V1.4.49) or `PrintSpeed`.
 
-**Not available over SDCP** — Canvas slot colours/materials (one unknown "Ext."
-slot is shown), temperature targets, jog/home, fan control, thumbnails.
+**Not available over SDCP** — Canvas load/unload and slot writes, temperature
+targets, jog/home, fan control, thumbnails. Without a Canvas (or until it answers)
+one unknown "Ext." slot is shown.
 
 **Stored on the printer doc** — `protocol: "sdcp"` (form variant `sdcpSchema`:
 IP only), `discovery.mainboardId` (re-probed if missing → `mainboardId`),

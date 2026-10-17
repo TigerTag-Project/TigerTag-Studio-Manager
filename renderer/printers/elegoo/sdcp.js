@@ -13,7 +13,9 @@
  *
  * Verified on CC1 firmware V1.4.49 (issue #41): discovery, connection, Cmd 0
  * (status) and Cmd 1 (attributes). NOT yet verified on that firmware: 129 pause,
- * 130 stop, 131 resume, 386 camera — taken from the OpenCentauri API doc.
+ * 130 stop, 131 resume — taken from the OpenCentauri API doc. 386 (camera) is
+ * confirmed since. 324 (Canvas slots, see canvas.js) comes from the Home Assistant
+ * integration and is NOT verified on a real CC1 with a Canvas.
  *
  * Same `conn.data` field names as the MQTT driver where they overlap
  * (printState, printProgress 0..1, printRemainingMs, printFilename,
@@ -24,10 +26,12 @@
 import { ctx } from '../context.js';
 import { betaBadgeHtml } from '../beta-badge.js';
 import { jobBar, jobBarFill } from '../job-bar.js';
+import { CMD_GET_CANVAS_STATUS, sdcpCanvasPresent, sdcpParseCanvas, sdcpCanvasSlots } from './canvas.js';
 
 const WS_PORT = 3030;
 const STATUS_EVERY_MS = 5000;     // the printer also pushes on its own (~2 s)
 const PING_EVERY_MS = 10000;
+const CANVAS_EVERY_MS = 30000;    // the Canvas changes when a spool does: no need to ask more often
 const MAX_FAILS_BEFORE_REFIND = 3;
 
 const _conns = new Map();          // `${brand}:${id}` → conn
@@ -87,6 +91,8 @@ export function sdcpConnect(printer) {
       nozzleTemp: null, nozzleTarget: null, bedTemp: null, bedTarget: null, chamberTemp: null, chamberTarget: null,
       fanModel: null, fanAux: null, fanBox: null, speedPct: null,
       thumbnail: null, filaments: [{}],
+      // Canvas hub (canvas.js): `canvasPresent` comes from the status push, `canvas` from command 324.
+      canvasPresent: null, canvas: null, canvasAskedAt: 0, canvasRefused: false,
       // MJPEG on :3031 — Cmd 386 returns the exact URL; this is its documented default.
       cameraUrl: printer.ip ? `http://${printer.ip}:3031/video` : null,
       attributes: null,
@@ -139,9 +145,11 @@ async function open(conn) {
     clearTimeout(openTimeout);
     if (conn.ws !== ws) return;
     conn.fails = 0;
+    conn.data.canvasAskedAt = 0; conn.data.canvasRefused = false;   // a new link starts over
     send(conn, 1);   // attributes
     send(conn, 0);   // status
     send(conn, 386, { Enable: 1 });   // camera on → VideoUrl
+    askCanvas(conn);                  // Canvas slots (a printer without one answers "not connected" or refuses)
     clearInterval(conn.statusTimer);
     conn.statusTimer = setInterval(() => send(conn, 0), STATUS_EVERY_MS);
     clearInterval(conn.pingTimer);
@@ -207,6 +215,10 @@ function onMessage(conn, raw) {
       const u = sdcpVideoUrl(d.Data.VideoUrl, conn.ip);
       if (u) conn.data.cameraUrl = u;   // else keep the default built from the address we reached it on
     }
+    if (d.Cmd === CMD_GET_CANVAS_STATUS) {
+      if (d.Data?.Ack === 0) { const c = sdcpParseCanvas(d.Data); if (c) conn.data.canvas = c; }
+      else conn.data.canvasRefused = true;   // this firmware does not know the command: stop asking
+    }
     if (d.Cmd !== 0) logPush(conn, '←', m, `Cmd ${d.Cmd} · Ack ${d.Data?.Ack ?? '?'}`);
     if ([129, 130, 131].includes(d.Cmd) && d.Data?.Ack !== 0) {
       try { ctx.toast(ctx.t('elgSdcpCmdRefused'), 'error'); } catch (_) {}
@@ -255,6 +267,16 @@ function mergeStatus(conn, st) {
   const f = st.CurrentFanSpeed || {};
   d.fanModel = num(f.ModelFan); d.fanAux = num(f.AuxiliaryFan); d.fanBox = num(f.BoxFan);
   d.speedPct = num(pi.PrintSpeedPct) ?? num(pi.PrintSpeed);
+  // The status push says whether a Canvas is plugged in (when it says). Unless it says "none"
+  // or the firmware refused the command, the slots are asked for again now and then.
+  const hub = sdcpCanvasPresent(st);
+  if (hub !== null) { d.canvasPresent = hub; if (!hub) d.canvas = null; }
+  if (d.canvasPresent !== false && !d.canvasRefused && Date.now() - d.canvasAskedAt >= CANVAS_EVERY_MS) askCanvas(conn);
+}
+
+function askCanvas(conn) {
+  conn.data.canvasAskedAt = Date.now();
+  send(conn, CMD_GET_CANVAS_STATUS);
 }
 
 // ── Job control (BETA — not yet confirmed on firmware 1.4.x) ──────────────
@@ -280,15 +302,22 @@ export function sdcpWireLive(root, printer) {
 }
 
 // ── Board helpers ────────────────────────────────────────────────────────
-// The Canvas (if any) does not expose its slots over SDCP: one unknown slot.
+// A Canvas (canvas.js) gives its trays; without one — or until it has answered —
+// the lone external arm is one unknown slot.
 export function sdcpGetSlots(printer) {
   const conn = _conns.get(sdcpKey(printer));
   if (!conn || conn.status !== 'connected') return [];
+  const trays = sdcpCanvasSlots(conn.data.canvas);
+  if (trays.length) return trays;
   return [{ key: 't0', label: 'Ext.', color: null, material: null, detail: null, vendor: null, empty: true }];
 }
 export function sdcpGetUnits(printer) {
   const slots = sdcpGetSlots(printer);
   if (!slots.length) return [];
+  const hub = sdcpCanvasSlots(_conns.get(sdcpKey(printer))?.data.canvas).length > 0;
+  /* Same two units as the CC2: the Canvas hub or the lone external arm, never both. */
+  if (hub) return [{ kind: 'holder', index: 0, label: '', hwId: null, rows: 1, cols: slots.length,
+    slots: slots.map((s, i) => ({ ...s, index: i, hw: { canvasId: 0, trayId: i } })) }];
   return [{ kind: 'ext', index: 0, label: '', hwId: null, rows: 1, cols: 1,
     slots: slots.map((s, i) => ({ ...s, index: i, hw: { external: true } })) }];
 }
