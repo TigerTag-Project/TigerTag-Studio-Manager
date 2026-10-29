@@ -146,6 +146,9 @@
 .lc-qbox .inv-search-clear { right: 10px; }
 .lc-qbox:has(.inv-search-clear:not([hidden])) > .icon-search { display: none; }
 .lc-filters .csel { flex: 0 0 auto; max-width: 45%; }
+/* The link grid's second row: brand, material and tag, three equal pills. */
+.lc-filters--selects .csel { flex: 1 1 0; max-width: none; min-width: 0; }
+.lc-filters--selects .csel-btn { width: 100%; }
 
 .lc-section { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
 .lc-section-h { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }

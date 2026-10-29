@@ -56,7 +56,7 @@ the chip is next resolved).
      spool when it is saved; no burn is offered then. Any other creation clears them
      (`clearPendingLink`).
    - **Link to my inventory** → a grid of the spools that have no linked chip yet
-     (twin pairs shown once, search on brand, material, colour), drawn as the
+     (twin pairs shown once, search on brand, material, colour and tags, plus a brand, a material and a tag filter — each lists what these spools carry, with its count; the tag filter is always there), drawn as the
      inventory grid's cards. A tap opens the material as in the inventory; its spool
      card then shows a held banner (1.5 s), "Link the proprietary third-party Tag" /
      "Link the N proprietary third-party Tags", which links every chip of the scan to it.

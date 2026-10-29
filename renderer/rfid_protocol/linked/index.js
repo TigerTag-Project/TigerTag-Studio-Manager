@@ -432,7 +432,11 @@ function openChipLink(chips, kind = "foreign") {
   const body = el.querySelector("#chipLinkBody");
   body.innerHTML = `<div class="lc-filters">
       <span class="lc-qbox"><input type="text" data-lc-q placeholder="${esc(t("linkedChipSearch"))}"><button type="button" class="inv-search-clear" data-lc-qclear hidden aria-label="${esc(t("clearSearch"))}"><span class="icon icon-close icon-13" aria-hidden="true"></span></button><span class="icon icon-search icon-13" aria-hidden="true"></span></span>
+    </div>
+    <div class="lc-filters lc-filters--selects">
       <select data-lc-brand data-csel-short="thBrand"></select>
+      <select data-lc-material data-csel-short="filterShortMaterial"></select>
+      <select data-lc-tag data-csel-short="filterShortTag"></select>
     </div>
     <div class="lc-grid" data-lc-list></div>`;
   // Read from the live inventory on every search: a tag (or anything else)
@@ -451,18 +455,38 @@ function openChipLink(chips, kind = "foreign") {
   // "customer" finds every spool carrying it).
   const text = r => [r.brand, r.material, r.colorName, ...(r.tags || [])].filter(s => s && s !== "-").join(" ").toLowerCase();
   const list = body.querySelector("[data-lc-list]");
-  // Brand filter: the brands of these materials, with their counts.
-  const brandSel = body.querySelector("[data-lc-brand]");
-  const counts = new Map();
-  for (const r of spools) if (r.brand && r.brand !== "-") counts.set(r.brand, (counts.get(r.brand) || 0) + 1);
-  brandSel.innerHTML = `<option value="">${esc(t("filterAllBrands"))}</option>` +
-    [...counts].sort((a, b) => a[0].localeCompare(b[0])).map(([b, n]) => `<option value="${esc(b)}">${esc(b)} (${n})</option>`).join("");
-  ctx.enhanceSelect?.(brandSel);
+  // Brand, material and tag filters: what these materials carry, each value with
+  // its count (a tag once per spool). Compared without case, as the inventory's
+  // own filters are. The tag filter is always there, even while no spool has a tag.
+  const norm = s => String(s ?? "").trim().toLowerCase();
+  const filterOf = (attr, allKey, valuesOf) => {
+    const sel = body.querySelector(`[data-${attr}]`);
+    const tally = new Map();   // lowercase → { label (first casing seen), n }
+    for (const r of spools) {
+      const seen = new Set();
+      for (const v of valuesOf(r)) {
+        const k = norm(v);
+        if (!k || k === "-" || seen.has(k)) continue;
+        seen.add(k);
+        const e = tally.get(k) || { label: String(v).trim(), n: 0 };
+        e.n++; tally.set(k, e);
+      }
+    }
+    sel.innerHTML = `<option value="">${esc(t(allKey))}</option>` +
+      [...tally.values()].sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }))
+        .map(e => `<option value="${esc(e.label)}">${esc(e.label)} (${e.n})</option>`).join("");
+    ctx.enhanceSelect?.(sel);
+    return sel;
+  };
+  const brandSel = filterOf("lc-brand", "filterAllBrands", r => [r.brand]);
+  const materialSel = filterOf("lc-material", "filterAllMaterials", r => [r.material]);
+  const tagSel = filterOf("lc-tag", "filterAllTags", r => r.tags || []);
   const qInput = body.querySelector("[data-lc-q]");
   const paint = () => {
     const words = qInput.value.toLowerCase().split(/\s+/).filter(Boolean);
-    const brand = brandSel.value;
-    const rows = eligible().filter(r => (!brand || r.brand === brand) && words.every(w => text(r).includes(w))).slice(0, 200);
+    const brand = norm(brandSel.value), material = norm(materialSel.value), tag = norm(tagSel.value);
+    const rows = eligible().filter(r => (!brand || norm(r.brand) === brand) && (!material || norm(r.material) === material)
+      && (!tag || (r.tags || []).some(x => norm(x) === tag)) && words.every(w => text(r).includes(w))).slice(0, 200);
     // The inventory grid's own cards (ctx.gridCard / ctx.groupCard), grouped the
     // same way: identical copies are ONE deck card, as in the inventory.
     const items = ctx.groupItems ? ctx.groupItems(rows) : rows.map(row => ({ type: "single", row }));
@@ -491,7 +515,7 @@ function openChipLink(chips, kind = "foreign") {
   paint();
   qInput.addEventListener("input", paint);
   wireSearchBox(body);
-  brandSel.addEventListener("change", paint);
+  [brandSel, materialSel, tagSel].forEach(sel => sel.addEventListener("change", paint));
   // A tap opens the material exactly as a tap in the inventory does (its spool
   // card, and its group deck when it has copies); the spool card then carries a
   // "Link the detected chips" banner (linkOfferHtml) — the link is made there,
