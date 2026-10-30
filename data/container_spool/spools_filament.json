@@ -493,5 +493,23 @@
     "type": "plastic",
     "container_weight": 127,
     "img": "../assets/img/spool_filament/jayo_plastic_black.png"
+  },
+  {
+    "id": "lotactree_masterspool_white",
+    "brandId": 38533,
+    "brand": "Lotactree",
+    "label": "White",
+    "type": "Masterspool",
+    "container_weight": 150,
+    "img": "../assets/img/spool_filament/lotactree_masterspool_white.png"
+  },
+  {
+    "id": "lotactree_masterspool_transparent",
+    "brandId": 38533,
+    "brand": "Lotactree",
+    "label": "Transparent",
+    "type": "Masterspool",
+    "container_weight": 194,
+    "img": "../assets/img/spool_filament/lotactree_masterspool_transparent.png"
   }
 ]
