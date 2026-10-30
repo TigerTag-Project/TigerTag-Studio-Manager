@@ -205,6 +205,9 @@ Spoolman sync `MMU_SPOOLMAN`.
 ### 7d. AFC — Armored Turtle (objects `AFC`, `AFC_stepper <lane>` / `AFC_lane <lane>`)
 
 - `AFC` → `lanes` (names), `units`, `current_lane`, `spoolman`.
+- A lane can be listed under both names (`AFC_stepper CANVAS_1` and
+  `AFC_lane CANVAS_1` — CANVAS on an OpenCentauri CC1, issue 167): one slot
+  per lane name, read from the `AFC_lane` object when it exists.
 - Each lane object → `map` (tool, e.g. `T0`), `load`, `prep`, `tool_loaded`,
   `material`, `color` (`#RRGGBB`), `multi_color_hexes`, `spool_id`, `weight`,
   `filament_name`, `extruder_temp`, `bed_temp`, `status`, `td1_td`.

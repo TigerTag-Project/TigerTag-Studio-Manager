@@ -24955,6 +24955,11 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     openSquad: () => { if (!document.querySelector(".squad-invite")) _openSquadInvite(); },
     timeAgo: ms => timeAgo(ms),
     getUid: () => state.activeAccountId || null,
+    // "Attach a printer's data": the account's printers, then one's report JSON.
+    listPrinters: () => (state.printers || []).map(p => ({
+      key: _printerKey(p), name: p.printerName || printerModelName(p.brand, p.printerModelId) || p.brand,
+      brand: p.brand, img: printerImageUrlFor(p.brand, p.printerModelId) || null, online: _isPrinterOnline(p) })),
+    printerReportData: key => { const p = (state.printers || []).find(x => _printerKey(x) === key); return p ? printerReportData(p) : null; },
     // Catalogue corrections name their product: the same index and the same
     // words as the Catalogue view (no colour-window or filter narrowing here),
     // an exact barcode / SKU / id first.
@@ -26404,6 +26409,78 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       if (j.isDone && _questJobActive.get(key)) questBump("print100");   // done ≠ cancelled (_DONE_STATES)
       _questJobActive.set(key, j.isActive);
     }
+  }
+  // A printer's live connection, whatever its brand (a plugin brings its own).
+  function _printerConn(p) {
+    const pl = printerPlugin(p);
+    if (pl) return pl.getConn?.(p) || null;
+    if (p.brand === "snapmaker")  return snapGetConn(snapKey(p));
+    if (p.brand === "flashforge") return ffgGetConn(ffgKey(p));
+    if (p.brand === "creality")   return creGetConn(creKey(p));
+    if (p.brand === "elegoo")     return elegooGetConn(elegooKey(p));
+    if (p.brand === "bambulab")   return bambuGetConn(bambuKey(p));
+    if (p.brand === "anycubic")   return acuGetConn(acuKey(p));
+    if (p.brand === "prusa")      return prusaGetConn(prusaKey(p));
+    return null;
+  }
+  // What a bug report attaches for a printer (report/index.js → "Attach a
+  // printer's data"): its model, what the connection holds (state, data,
+  // features) and its last exchanges with the printer — the same things the
+  // Raw data / Request log sections show. The issue is PUBLIC: addresses, serial
+  // numbers, access codes, keys and tokens are hidden — by key name, and every
+  // value of those keys is also blanked wherever it shows up in a text (a Bambu
+  // topic carries the serial, a camera URL the IP); IPs, MACs and e-mails too.
+  const _REPORT_SECRET_KEY = /^(ip|host|hostname|address|mac|mac_?address|sn|uid|email|key|lan_url|mainboard_?id|dev(ice)?_?id|cert(ificate)?|user(_?id|name)?|account(_?id)?)$|token|secret|passw|cookie|signature|authoriz|access_?code|api_?key|app_?id|private_?key|serial/i;
+  function printerReportData(p) {
+    const conn = _printerConn(p);
+    const secrets = new Set();
+    const collect = (o, depth = 0) => {
+      if (!o || typeof o !== "object" || depth > 4) return;
+      for (const [k, v] of Object.entries(o)) {
+        if (_REPORT_SECRET_KEY.test(k) && (typeof v === "string" || typeof v === "number") && String(v).length >= 4) secrets.add(String(v));
+        else if (v && typeof v === "object") collect(v, depth + 1);
+      }
+    };
+    collect(p);
+    if (conn) { collect({ key: conn.key, host: conn.host, ip: conn.ip }); collect(conn.data); }
+    for (const v of [...secrets]) { const h = v.replace(/:\d+$/, ""); if (h.length >= 4) secrets.add(h); }
+    const hide = str => {
+      let out = String(str);
+      for (const v of [...secrets].sort((a, b) => b.length - a.length)) out = out.split(v).join("[hidden]");
+      return out.replace(/\b(?:\d{1,3}\.){3}\d{1,3}\b/g, "[ip]")
+                .replace(/\b[0-9a-f]{2}(?::[0-9a-f]{2}){5}\b/gi, "[mac]")
+                .replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, "[email]");
+    };
+    const clean = (v, depth = 0) => {
+      if (v == null || typeof v === "boolean" || typeof v === "number") return v;
+      if (typeof v === "string") return v.startsWith("data:") ? "[image]" : hide(v.length > 4000 ? v.slice(0, 4000) + "…" : v);
+      if (typeof v === "function" || depth > 6) return undefined;
+      if (Array.isArray(v)) return v.slice(0, 200).map(x => clean(x, depth + 1));
+      if (typeof v === "object") {
+        if (typeof v.send === "function" || typeof v.on === "function" || v instanceof EventTarget) return undefined;   // sockets, clients
+        const o = {};
+        for (const [k, x] of Object.entries(v)) {
+          if (_REPORT_SECRET_KEY.test(k)) { if (x != null && x !== "") o[k] = "[hidden]"; continue; }
+          const c = clean(x, depth + 1);
+          if (c !== undefined) o[k] = c;
+        }
+        return o;
+      }
+      return undefined;
+    };
+    const log = (conn?.log || []).slice(-30).map(e => {
+      let raw = e.raw;
+      try { raw = typeof raw === "string" ? JSON.parse(raw) : raw; } catch (_) {}
+      return { dir: e.dir, ts: e.ts, summary: e.summary, raw: typeof raw === "string" ? raw.slice(0, 8000) : raw };
+    });
+    const model = findPrinterModel(p.brand, p.printerModelId);
+    return clean({
+      app: _appInfo?.appVersion || null, capturedAt: new Date().toISOString(),
+      brand: p.brand, model: model?.name || null, modelId: p.printerModelId ?? null, demo: p.demo === true || undefined,
+      record: p,
+      connection: conn ? { status: conn.status ?? (conn.ready ? "connected" : null), data: conn.data, features: conn.features, camera: conn.camera } : null,
+      log,
+    });
   }
   function _getPrinterJob(p) {
     const _pl = printerPlugin(p);

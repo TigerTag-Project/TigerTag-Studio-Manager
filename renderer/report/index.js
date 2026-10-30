@@ -15,7 +15,8 @@
  * is kept until it is sent.
  *
  * Public API (called by inventory.js):
- *   initReport(ctx)  — ctx = { t, esc, getIdToken, getMeta, openExternal, onToggle }
+ *   initReport(ctx)  — ctx = { t, esc, getIdToken, getMeta, openExternal, onToggle,
+ *                              listPrinters, printerReportData, … }
  *   toggleReport()   — open / close the side card (the draft survives)
  *   isReportOpen()   — is it open?
  */
@@ -140,6 +141,21 @@ function addJson(f) {
     (st.jsons ||= []).push({ name: f.name, size: f.size, text: r.result }); st.error = ""; render();
   };
   r.readAsText(f);
+}
+// A printer's data (model, connection, its last exchanges — inventory.js
+// printerReportData, addresses and codes hidden) attached as one JSON file,
+// picked from the account's printers: what a printer bug needs to be read.
+function addPrinterData(key) {
+  st.printerPick = false;
+  if (_attachCount() >= MAX_IMAGES) { st.error = t("reportMaxImages", { n: MAX_IMAGES }); render(); return; }
+  const p = (ctx.listPrinters?.() || []).find(x => x.key === key);
+  const data = p && ctx.printerReportData?.(key);
+  if (!data) { render(); return; }
+  const slug = String(p.name || p.brand).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "printer";
+  let text = JSON.stringify(data, null, 2);
+  if (text.length > MAX_JSON_BYTES) { data.log = data.log?.slice(-5); text = JSON.stringify(data, null, 2); }
+  (st.jsons ||= []).push({ name: `printer-${slug}.json`, size: text.length, text, printerKey: key });
+  st.error = ""; render();
 }
 // A PDF (datasheet, invoice, label…) travels as is — no preview, a named chip.
 function addPdf(f) {
@@ -551,6 +567,8 @@ function onClick(e) {
   else if (act === "ttshot") captureTouchScreen(a.dataset.mac);
   else if (act === "scaleshot") captureScaleScreen(a.dataset.mac);
   else if (act === "spoolshot") captureSpoolScreen(a.dataset.mac);
+  else if (act === "printerPick") { st.printerPick = !st.printerPick; render(); }
+  else if (act === "printerData") addPrinterData(a.dataset.key);
   else if (act === "file") _overlay.querySelector("#repFile")?.click();
   else if (act === "remove") { st.images.splice(Number(a.dataset.i), 1); render(); }
   else if (act === "removePdf") { st.pdfs.splice(Number(a.dataset.i), 1); render(); }
@@ -863,6 +881,8 @@ function render() {
   const kind = kindOf(st.kind);
   const errs = st.meta?.errors || [];
   const req = `<span class="rep-req">*</span>`;
+  // Printer data is for a Studio bug, improvement or question — not a catalogue fix or a brand.
+  const printersHere = st.target === "studio" && !["catalog", "brand"].includes(kind.id) ? (ctx.listPrinters?.() || []) : [];
   const shots = st.images.map((src, i) => `
       <div class="rep-shot">
         <button type="button" class="rep-shot-img" data-rep="annotate" data-i="${i}" aria-label="${esc(t("reportAnnotate"))}"><img src="${src}" alt=""><span class="rep-shot-pen"><span class="icon icon-edit icon-12"></span></span></button>
@@ -922,11 +942,26 @@ function render() {
             ${st.target === "tigerscale" ? scalesReady().map((x, _i, all) => `
             <button type="button" class="rep-dz-capture rep-dz-capture--ttc rep-dz-capture--scale" data-rep="scaleshot" data-mac="${esc(x.mac)}"${st.ttBusy ? " disabled" : ""}>
               <span class="rep-ttc-ico"></span>${esc(all.length > 1 ? t("reportCaptureTigerTouchNamed", { name: x.name }) : t("reportCaptureTigerScale"))}</button>`).join("") : ""}
+            ${printersHere.length ? `
+            <button type="button" class="rep-dz-capture rep-dz-capture--printer${st.printerPick ? " is-open" : ""}" data-rep="printerPick" aria-expanded="${st.printerPick ? "true" : "false"}">
+              <span class="icon icon-printer icon-14"></span>${esc(t("reportAttachPrinter"))}</button>` : ""}
             ${st.target === "tigerspool" ? spoolsReady().map((x, _i, all) => `
             <button type="button" class="rep-dz-capture rep-dz-capture--ttc rep-dz-capture--spool" data-rep="spoolshot" data-mac="${esc(x.mac)}"${st.ttBusy ? " disabled" : ""}>
               <span class="rep-ttc-ico"></span>${esc(all.length > 1 ? t("reportCaptureTigerTouchNamed", { name: x.name }) : t("reportCaptureTigerSpool"))}</button>`).join("") : ""}
           </div>
-        </div>` : ""}
+        </div>
+        ${st.printerPick && printersHere.length ? `
+        <div class="rep-printer-pick" role="list" aria-label="${esc(t("reportAttachPrinter"))}">
+          ${printersHere.map(x => {
+            const taken = (st.jsons || []).some(f => f.printerKey === x.key);
+            return `<button type="button" role="listitem" class="rep-printer-row" data-rep="printerData" data-key="${esc(x.key)}"${taken ? " disabled" : ""}>
+              <span class="rep-printer-img">${x.img ? `<img src="${esc(x.img)}" alt="">` : `<span class="icon icon-printer icon-16"></span>`}</span>
+              <span class="rep-printer-name">${esc(x.name)}</span>
+              <span class="rep-printer-dot${x.online ? " is-on" : ""}" aria-hidden="true"></span>
+              ${taken ? `<span class="icon icon-check icon-12"></span>` : ""}
+            </button>`; }).join("")}
+          <p class="rep-printer-note">${esc(t("reportAttachPrinterNote"))}</p>
+        </div>` : ""}` : ""}
         <input id="repFile" type="file" accept="image/*,application/pdf,application/json,.json" multiple hidden>
       </div>
       <div class="rep-formats">${esc(t("reportFormats", { n: MAX_IMAGES }))}</div>

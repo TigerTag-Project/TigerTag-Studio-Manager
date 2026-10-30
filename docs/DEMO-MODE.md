@@ -1,6 +1,6 @@
 # Demo mode — a printer simulator inside Tiger Studio
 
-**Status: steps 0–4 built (2026-10-15)** — the engine, the print library with its video pipeline, the debug-mode add flow and the Demo badge, and a face for every brand: Klipper, OctoPrint, FlashForge, Prusa, Creality, Snapmaker, Elegoo (CC2 and CC1), Bambu Lab and Anycubic (both LAN only). Step 5's tooling is built (filmed-loop import, still photos, booth events) and waits for the founder's footage; step 6 (tutorial) is still a plan. Per-brand contracts surveyed from the client code the same day.
+**Status: steps 0–4 built (2026-10-15)** — the engine, the print library with its video pipeline, the debug-mode add flow and the Demo badge, and a face for every brand: Klipper, OctoPrint, FlashForge, Prusa, Creality, Snapmaker, Elegoo (CC2 and CC1), Bambu Lab and Anycubic (both LAN only); the Klipper face also plays the Elegoo CC1 on OpenCentauri COSMOS with a CANVAS (Klipper model 166, lanes published as both `AFC_stepper` and `AFC_lane`, as reported in issue 167). Step 5's tooling is built (filmed-loop import, still photos, booth events) and waits for the founder's footage; step 6 (tutorial) is still a plan. Per-brand contracts surveyed from the client code the same day.
 
 Fake printers that look and behave like real ones — for trade-show booths, for
 screenshots, for testing the interface, and later for a first-run tutorial that

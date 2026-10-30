@@ -111,7 +111,7 @@ export function klipperConnect(printer) {
     status: "connecting",            // connecting | connected | offline | error
     lastError: null, retry: 0, retryTimer: null, intervalId: null,
     ready: false,                    // feature detection done
-    features: { extruders: ["extruder"], mmu: false, afcLanes: [], afcPrefix: null, chamber: null, sensors: [], lights: [], spoolman: false, fanMaxPower: 1 },
+    features: { extruders: ["extruder"], mmu: false, afcLanes: [], afcObjs: {}, chamber: null, sensors: [], lights: [], spoolman: false, fanMaxPower: 1 },
     camera: null,
     metaFor: null, thumbFor: null,
     log: [],
@@ -193,9 +193,16 @@ async function detect(conn) {
   f.extruders = names.filter(n => /^extruder\d*$/.test(n)).sort((a, b) => (Number(a.slice(8)) || 0) - (Number(b.slice(8)) || 0));
   if (!f.extruders.length) f.extruders = ["extruder"];
   f.mmu = names.includes("mmu");
-  const afc = names.filter(n => /^AFC_(stepper|lane) \S+$/.test(n));
-  f.afcLanes = afc.map(n => n.split(" ")[1]);
-  f.afcPrefix = afc[0]?.split(" ")[0] || null;
+  // One slot per AFC lane. A unit may publish the same lane twice — `AFC_stepper
+  // <lane>` and `AFC_lane <lane>` (a CANVAS on an OpenCentauri CC1 does, which
+  // drew every lane twice): the `AFC_lane` object wins, in the order first met.
+  f.afcLanes = []; f.afcObjs = {};
+  for (const n of names) {
+    const m = n.match(/^(AFC_stepper|AFC_lane) (\S+)$/);
+    if (!m) continue;
+    if (!(m[2] in f.afcObjs)) f.afcLanes.push(m[2]);
+    if (!(m[2] in f.afcObjs) || m[1] === "AFC_lane") f.afcObjs[m[2]] = n;
+  }
   f.chamber = ["heater_generic chamber", "temperature_sensor chamber"].find(n => names.includes(n))
            || names.find(n => /^(heater_generic|temperature_sensor) .*chamber/i.test(n)) || null;
   f.sensors = names.filter(n => /^filament_(switch|motion)_sensor /.test(n));
@@ -253,7 +260,7 @@ function queryObjects(conn) {
   if (f.mmu) o.mmu = ["num_gates", "gate", "tool", "gate_status", "gate_material", "gate_color", "gate_spool_id", "ttg_map"];
   if (f.afcLanes.length) {
     o.AFC = ["current_lane"];
-    for (const l of f.afcLanes) o[`${f.afcPrefix} ${l}`] = ["map", "material", "color", "spool_id", "weight", "load", "prep", "tool_loaded", "status", "filament_name"];
+    for (const l of f.afcLanes) o[f.afcObjs[l]] = ["map", "material", "color", "spool_id", "weight", "load", "prep", "tool_loaded", "status", "filament_name"];
   }
   return o;
 }
@@ -378,7 +385,7 @@ function buildSlots(conn, s) {
   if (f.afcLanes.length) {
     const cur = s.AFC?.current_lane || null;
     return f.afcLanes.map((lane, i) => {
-      const o = s[`${f.afcPrefix} ${lane}`] || {};
+      const o = s[f.afcObjs[lane]] || {};
       const empty = o.load === false && o.prep === false;
       return {
         key: `l${lane}`, lane, label: `${i + 1}`, tool: o.map || null,

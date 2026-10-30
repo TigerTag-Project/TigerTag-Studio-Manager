@@ -12,7 +12,8 @@
  *   chamber    `Enclosed` — for the catalogs that say it; the others keep the face's
  *
  * What the catalogs do not carry lives in OVERRIDES (dual-nozzle Bambu H2, the
- * Snapmaker U1's four heads, the Elegoo Canvas, the CC1's lack of one).
+ * Snapmaker U1's four heads, the Elegoo Canvas, the CC1's lack of one, the CC1
+ * on OpenCentauri COSMOS with its CANVAS).
  * A face may still refine the result with its own `shape(rec)`.
  */
 'use strict';
@@ -43,6 +44,7 @@ const OVERRIDES = {
   elegoo: { 1: { slotCount: 4 }, 3: { slotCount: 4 }, 4: { slotCount: 4 }, 5: { slotCount: 4 },   // Canvas
             2: { slotCount: 0, chamber: true } },                      // Centauri Carbon (CC1): no Canvas
   flashforge: { 1: { slotCount: 4 } },                                 // AD5X: IFS station
+  klipper: { 166: { slotCount: 4, chamber: true } },                    // CC1 on OpenCentauri COSMOS + CANVAS
 };
 
 const _catalogs = new Map();

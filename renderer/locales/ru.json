@@ -680,6 +680,8 @@
   "reportDropLine1": "Перетащи сюда изображение, PDF или JSON",
   "reportDropBrowse": "или выбрать файлы",
   "reportCaptureNow": "Снять текущее окно",
+  "reportAttachPrinter": "Приложить данные принтера",
+  "reportAttachPrinterNote": "Что Studio видит о нём и последние обмены данными — адрес, серийный номер и коды доступа скрыты.",
   "reportCaptureTigerTouch": "Снять экран Tiger Touch",
   "reportCaptureTigerScale": "Снять экран Tiger Scale",
   "reportCaptureTigerScaleFail": "Не удалось снять экран Tiger Scale. Он в той же Wi-Fi-сети и с включённым живым просмотром?",

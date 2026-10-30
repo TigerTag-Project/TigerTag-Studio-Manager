@@ -680,6 +680,8 @@
   "reportDropLine1": "Sleep hier een afbeelding, een PDF of een JSON",
   "reportDropBrowse": "of bestanden kiezen",
   "reportCaptureNow": "Huidig venster vastleggen",
+  "reportAttachPrinter": "Gegevens van een printer bijvoegen",
+  "reportAttachPrinterNote": "Wat Studio ervan ziet en de laatste uitwisselingen — adres, serienummer en toegangscodes verborgen.",
   "reportCaptureTigerTouch": "Tiger Touch-scherm vastleggen",
   "reportCaptureTigerScale": "Tiger Scale-scherm vastleggen",
   "reportCaptureTigerScaleFail": "Het Tiger Scale-scherm vastleggen lukte niet. Zit hij op dezelfde wifi, met live weergave aan?",

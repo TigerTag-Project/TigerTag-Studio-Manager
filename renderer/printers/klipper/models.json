@@ -294,6 +294,13 @@
     "features": []
   },
   {
+    "id": "166",
+    "name": "Elegoo Centauri Carbon (OpenCentauri COSMOS)",
+    "image": "img/elegoo-centauri-carbon-cosmos.png",
+    "tools": 1,
+    "features": []
+  },
+  {
     "id": "26",
     "name": "Elegoo Neptune 4",
     "image": "img/elegoo-neptune-4.png",

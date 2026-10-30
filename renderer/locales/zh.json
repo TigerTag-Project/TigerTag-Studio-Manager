@@ -680,6 +680,8 @@
   "reportDropLine1": "把图片、PDF 或 JSON 拖到这里",
   "reportDropBrowse": "或浏览文件",
   "reportCaptureNow": "截取当前窗口",
+  "reportAttachPrinter": "附上打印机数据",
+  "reportAttachPrinterNote": "Studio 看到的信息及最近的通信记录——地址、序列号和访问码已隐藏。",
   "reportCaptureTigerTouch": "截取 Tiger Touch 屏幕",
   "reportCaptureTigerScale": "截取 Tiger Scale 屏幕",
   "reportCaptureTigerScaleFail": "无法截取 Tiger Scale 屏幕。它在同一个 Wi-Fi 上并开启了实时画面吗？",

@@ -5,6 +5,12 @@
  * (renderer/printers/klipper/PROTOCOL.md), built from the engine's Machine on
  * every request. A machine with several slots shows them as an AFC unit
  * (Box Turtle lanes). Commands go back to the Machine.
+ *
+ * The model "Elegoo Centauri Carbon (OpenCentauri COSMOS)" (catalog id 166) plays
+ * that machine as reported in issue 167: a CANVAS whose four lanes `CANVAS_n` are
+ * published twice, as `AFC_stepper` AND `AFC_lane`; the chamber as a plain
+ * `temperature_sensor`; the sensors `mcu_toolhead`, `mcu_bed`, `Mcu_canvas`, the
+ * `mainboard` fan; the lights `led case` and `led hotend`.
  */
 'use strict';
 
@@ -16,10 +22,14 @@ const STATE = {   // engine phase → Moonraker print_stats.state
   paused: 'paused', complete: 'complete', cancelled: 'cancelled', error: 'error',
 };
 const FILE = id => `${id}.gcode`;
+const COSMOS_MODEL = '166';
+const isCosmos = rec => String(rec?.printerModelId ?? '') === COSMOS_MODEL;
+const laneNames = (m, cosmos) => m.slots.length > 1 ? m.slots.map((_, i) => cosmos ? `CANVAS_${i + 1}` : `lane${i + 1}`) : [];
+const wave = (base, busy, period) => +(base + busy + Math.sin(Date.now() / period)).toFixed(2);
 
-function objects(m) {
+function objects(m, cosmos = false) {
   const tools = m.nozzles();
-  const lanes = m.slots.length > 1 ? m.slots.map((_, i) => `lane${i + 1}`) : [];
+  const lanes = laneNames(m, cosmos);
   const o = {
     webhooks: { state: 'ready', state_message: 'Printer is ready' },
     print_stats: {
@@ -34,35 +44,56 @@ function objects(m) {
     toolhead: { extruder: m.activeTool ? `extruder${m.activeTool}` : 'extruder', homed_axes: [...m.homed].sort().join(''), position: [m.position.x, m.position.y, m.position.z, 0] },
     fan: { speed: m.fan / 100 },
     gcode_move: { speed_factor: m.speedPct / 100, extrude_factor: 1 },
-    'filament_switch_sensor runout': { filament_detected: true, enabled: true },
-    'output_pin caselight': { value: m.light ? 1 : 0 },
-    // The extra temperatures a real Klipper box reports (shown in the Sensors card).
-    'temperature_sensor mcu_temp': { temperature: +(38 + (m.isBusy ? 4 : 0) + Math.sin(Date.now() / 9000)).toFixed(1) },
-    'temperature_sensor raspberry_pi': { temperature: +(46 + (m.isBusy ? 3 : 0) + Math.sin(Date.now() / 7000)).toFixed(1) },
   };
+  const busy = m.isBusy ? 4 : 0;
+  if (cosmos) {
+    Object.assign(o, {
+      'temperature_sensor mcu_toolhead': { temperature: wave(29.8, busy, 9000) },
+      'temperature_sensor mcu_bed': { temperature: wave(36.6, busy, 8000) },
+      'temperature_fan mainboard': { temperature: wave(54.8, busy, 7000), target: 60 },
+      'temperature_sensor Mcu_canvas': { temperature: wave(25.7, 0, 11000) },
+      'led case': { color_data: [[m.light ? 1 : 0, m.light ? 1 : 0, m.light ? 1 : 0, 1]] },
+      'led hotend': { color_data: [[0, 0, 0, 0]] },
+    });
+  } else {
+    Object.assign(o, {
+      'filament_switch_sensor runout': { filament_detected: true, enabled: true },
+      'output_pin caselight': { value: m.light ? 1 : 0 },
+      // The extra temperatures a real Klipper box reports (shown in the Sensors card).
+      'temperature_sensor mcu_temp': { temperature: wave(38, busy, 9000) },
+      'temperature_sensor raspberry_pi': { temperature: wave(46, m.isBusy ? 3 : 0, 7000) },
+    });
+  }
   tools.forEach((h, i) => { o[i ? `extruder${i}` : 'extruder'] = { temperature: +h.cur.toFixed(2), target: h.target, power: h.target > 0 ? 0.6 : 0 }; });
-  if (m.heaters.chamber) o['heater_generic chamber'] = { temperature: +m.heaters.chamber.cur.toFixed(2), target: m.heaters.chamber.target, power: 0 };
+  if (m.heaters.chamber) {
+    if (cosmos) o['temperature_sensor chamber'] = { temperature: +m.heaters.chamber.cur.toFixed(2), target: null };
+    else o['heater_generic chamber'] = { temperature: +m.heaters.chamber.cur.toFixed(2), target: m.heaters.chamber.target, power: 0 };
+  }
   if (lanes.length) {
-    o.AFC = { lanes, units: ['Turtle_1'], current_lane: m.activeSlot >= 0 ? lanes[m.activeSlot] : null, spoolman: null };
+    const unit = cosmos ? 'CANVAS' : 'Turtle_1';
+    o.AFC = { lanes, units: [unit], current_lane: m.activeSlot >= 0 ? lanes[m.activeSlot] : null, spoolman: null };
     lanes.forEach((l, i) => {
       const s = m.slots[i];
-      o[`AFC_stepper ${l}`] = {
-        name: l, unit: 'Turtle_1', map: `T${i}`, load: !s.empty, prep: !s.empty, tool_loaded: i === m.activeSlot,
+      const lane = {
+        name: l, unit, map: `T${i}`, load: !s.empty, prep: !s.empty, tool_loaded: i === m.activeSlot,
         material: s.empty ? '' : s.material, color: s.empty ? '' : s.color, multi_color_hexes: null,
         spool_id: null, weight: s.empty ? 0 : 1000, filament_name: s.empty ? '' : `Demo ${s.material}`,
         extruder_temp: 210, bed_temp: 60, status: s.empty ? 'None' : (i === m.activeSlot ? 'Tooled' : 'Loaded'), td1_td: null,
       };
+      o[`AFC_stepper ${l}`] = lane;
+      if (cosmos) o[`AFC_lane ${l}`] = lane;   // the same lane under its second name
     });
   }
   return o;
 }
 
 /** Klipper's own commands on top of the shared G-code (lights, AFC lanes). */
-function gcode(m, script, mode) {
+function gcode(m, script, mode, cosmos = false) {
   runGcode(m, script, mode, (cmd, p) => {
     if (cmd === 'SET_PIN' && String(p.PIN) === 'caselight') { m.setLight(Number(p.VALUE) > 0); return true; }
+    if (cmd === 'SET_LED' && String(p.LED) === 'case') { m.setLight(['RED', 'GREEN', 'BLUE', 'WHITE'].some(k => Number(p[k]) > 0)); return true; }
     if (/^SET_(COLOR|MATERIAL)$/.test(cmd)) {
-      const i = Number(String(p.LANE || '').replace(/^lane/, '')) - 1;
+      const i = laneNames(m, cosmos).indexOf(String(p.LANE || ''));
       if (!m.setSlot(i, cmd === 'SET_COLOR' ? { color: `#${String(p.COLOR).replace(/^#/, '')}` } : { material: p.MATERIAL })) throw new Error(`Unknown lane ${p.LANE}`);
       return true;
     }
@@ -76,6 +107,7 @@ function gcode(m, script, mode) {
  */
 function start({ machine: m, address, library, record = {} }) {
   const apiKey = record.apiKey || '';
+  const cosmos = isCosmos(record);
   const [host, port] = address.split(':');
   const mode = { relative: false };
   const json = (res, code, body) => { res.writeHead(code, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(body)); };
@@ -97,11 +129,11 @@ function start({ machine: m, address, library, record = {} }) {
       });
       if (p === '/printer/info') return ok(res, { state: 'ready', state_message: 'Printer is ready', hostname: `demo-${m.id.slice(0, 6)}`, software_version: 'v0.12.0-demo' });
       if (p === '/machine/system_info') return ok(res, { system_info: { product_info: { machine_type: 'Demo printer', serial_number: `DEMO-${m.id}` } } });
-      if (p === '/printer/objects/list') return ok(res, { objects: Object.keys(objects(m)) });
+      if (p === '/printer/objects/list') return ok(res, { objects: Object.keys(objects(m, cosmos)) });
       if (p === '/printer/objects/query') {
         let want = body.objects;
         if (!want) { want = {}; for (const [k, v] of u.searchParams) want[k] = v ? v.split(',') : null; }
-        const all = objects(m), status = {};
+        const all = objects(m, cosmos), status = {};
         for (const [name, fields] of Object.entries(want)) {
           const o = all[name];
           if (!o) continue;
@@ -117,7 +149,7 @@ function start({ machine: m, address, library, record = {} }) {
         return ok(res, 'ok');
       }
       if (p === '/printer/gcode/script') {
-        try { gcode(m, u.searchParams.get('script') || body.script, mode); return ok(res, 'ok'); }
+        try { gcode(m, u.searchParams.get('script') || body.script, mode, cosmos); return ok(res, 'ok'); }
         catch (e) { return err(res, 400, e.message); }
       }
       if (p === '/printer/firmware_restart') return ok(res, 'ok');

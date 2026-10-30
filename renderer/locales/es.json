@@ -680,6 +680,8 @@
   "reportDropLine1": "Arrastra aquí una imagen, un PDF o un JSON",
   "reportDropBrowse": "o explorar archivos",
   "reportCaptureNow": "Capturar la ventana actual",
+  "reportAttachPrinter": "Adjuntar los datos de una impresora",
+  "reportAttachPrinterNote": "Lo que Studio ve de ella y sus últimos intercambios — dirección, número de serie y códigos de acceso ocultos.",
   "reportCaptureTigerTouch": "Capturar la pantalla de la Tiger Touch",
   "reportCaptureTigerScale": "Capturar la pantalla de la Tiger Scale",
   "reportCaptureTigerScaleFail": "No se pudo capturar la pantalla de la Tiger Scale. ¿Está en la misma Wi-Fi y con la vista en directo activada?",
