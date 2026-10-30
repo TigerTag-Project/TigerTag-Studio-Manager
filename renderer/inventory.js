@@ -6770,6 +6770,9 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     const enabled = $("eacDebugToggle").checked;
     state.debugEnabled = enabled;
     applyDebugMode();
+    // Tiger Quests (Explorer secret mission): counted the moment the switch goes
+    // on, not at the next launch's user-doc sync.
+    if (enabled) questGauge("debugMode", 1);
     // Re-render any open detail / side panel so the Raw + Log sections
     // appear / disappear immediately without forcing the user to close
     // and reopen them.
