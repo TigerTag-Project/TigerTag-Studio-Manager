@@ -72,6 +72,13 @@ Use these colours; a new colour is a desaturated or shadow variant of one of the
 - **Laptop**: light grey shell, dark screen.
 - **Coin**: gold disc, tiger face embossed in a darker gold, thick outline.
 - **Sparkles**: 4-point stars, gold with the dark outline, 1–3 around the object, never more.
+- **Streak freeze (ice cube)**: a chunky rounded ice cube in three-quarter view, flat ice blue
+  `#8fd3ff` (shadow `#5fb4ec`), white glints top-left, a tiger-paw IMPRINT melted into the front face
+  (a hollow pad and four toes in the darker ice blue, outlined, a glint on each rim — no orange in the ice).
+  States: full · empty slot (the same silhouette as a light-grey dashed outline `#8f97b3`, no fill —
+  readable on the navy UI) · gift (orange ribbon and bow) · melting (slumped corners, one drop; only
+  for a freeze to give about to expire, never for a reserve). `assets/img/quests/freeze/`, masters
+  and the generated sheet in `assets-src/img/quests/freeze/`.
 
 ### Composition and output
 - **Icons**: square 1:1, the object centred, about 8 % transparent margin, readable at 40 px

@@ -39,6 +39,7 @@ const RANK_IDS = { discovery: 1, explorer: 2 };
 
 import { sfx } from "./coin-sound.js";
 import { heroLayersHtml } from "./hero-layers.js";
+import { openFreezeWindow } from "./freeze-modal.js";
 
 // The Today banner scene (hero-layers.js): the tiger in the TigerTag cap dreaming,
 // one picture standing on the desk with its paw resting on it, its light-bulb thought, the
@@ -59,9 +60,9 @@ let _ctx = null;
 let _uid = null;
 let _unsubs = [];
 let _daily = null, _journey = null, _levels = null, _rewards = null;
-// streakFreeze status ({ tier, caps, price, balance, freezes, toGive, broken, friends }),
-// the give list open or not, an action in flight, the last refusal (an i18n key).
-let _freeze = null, _freezeSig = "", _giveOpen = false, _freezeBusy = false, _freezeErr = "";
+// streakFreeze status ({ tier, caps, price, balance, freezes, toGive, broken, friends }).
+let _freeze = null, _freezeSig = "";
+let _moreOpen = false;   // "Rules and stats" unfolded — kept across re-renders
 let _lastCheckIn = 0, _midnightTimer = null, _flushTimer = null;
 const _bumps = new Map(), _gauges = new Map(), _gaugeSent = new Map();
 
@@ -117,7 +118,7 @@ export function questsSignOut() {
   if (_uid) flush();
   _unsubs.forEach(u => { try { u(); } catch (_) {} });
   _unsubs = []; _uid = null; _daily = _journey = null;
-  _freeze = null; _freezeSig = ""; _giveOpen = false; _freezeErr = "";
+  _freeze = null; _freezeSig = "";
   _bumps.clear(); _gauges.clear(); _gaugeSent.clear();
   clearTimeout(_midnightTimer);
 }
@@ -152,13 +153,8 @@ function armMidnight() {
 }
 
 // ── Streak freezes ───────────────────────────────────────────────────────────
-// One call to streakFreeze; the answer is always the fresh status. A refusal
-// keeps the status and shows its reason (FREEZE_ERR) under the freeze card.
-const FREEZE_ERR = {
-  RESERVE_FULL: "questsFreezeErrFull", NOT_ENOUGH_COINS: "questsFreezeErrCoins", ALREADY_GIVEN: "questsFreezeErrGiven",
-  NOTHING_TO_GIVE: "questsFreezeErrNothing", NOT_FRIENDS: "questsFreezeErrFriends", REPAIR_LIMIT: "questsFreezeErrRepair",
-  NOTHING_TO_REPAIR: "questsFreezeErrRepair", NOT_IN_SQUAD: "questsFreezeErrSquad",
-};
+// One call to streakFreeze; the answer is always the fresh status. A refused
+// action throws its code — the window that asked says why (freeze-modal.js ERR).
 async function freezeCall(action, extra = {}) {
   const uid = _uid; if (!uid) return;
   try {
@@ -170,10 +166,12 @@ async function freezeCall(action, extra = {}) {
     });
     const j = await r.json().catch(() => ({}));
     if (uid !== _uid) return;
-    if (!r.ok) { _freezeErr = FREEZE_ERR[j.error] || "questsFreezeErrGeneric"; return; }
-    _freeze = j; _freezeErr = "";
+    // A refused action throws its code (the window shows why); a refused status is only logged.
+    if (!r.ok) { if (action !== "status") throw new Error(j.error || "ERROR"); return; }
+    _freeze = j;
+    return j;
   } catch (e) {
-    if (action !== "status") _freezeErr = "questsFreezeErrGeneric";
+    if (action !== "status") throw e;
     console.warn("[quests] streakFreeze", action, e.message);
   } finally { refresh(); }
 }
@@ -184,10 +182,16 @@ function syncFreezeStatus(d) {
   _freezeSig = sig;
   freezeCall("status");
 }
-async function freezeAction(action, extra) {
-  if (_freezeBusy) return;
-  _freezeBusy = true; refresh();
-  try { await freezeCall(action, extra); } finally { _freezeBusy = false; refresh(); }
+// Buy / give / repair: a window that shows the situation, then a held confirm
+// (freeze-modal.js). Opened with the latest status (read first if not there yet).
+async function openFreeze(mode) {
+  if (!_freeze) { try { await freezeCall("status"); } catch (_) {} }
+  if (!_freeze) return;
+  const friends = (_freeze.friends || []).map(f => ({ uid: f.uid, ...(_ctx.friend?.(f.uid) || {}) })).filter(f => f.name != null);
+  await openFreezeWindow({ t: _ctx.t, esc: _ctx.esc, lang: _ctx.lang?.() }, mode, {
+    status: _freeze, own: _daily?.freezes?.own, bonus: _daily?.freezes?.bonus, friends,
+    brokenStreak: _daily?.broken?.streak, send: (action, extra) => freezeCall(action, extra),
+  });
 }
 // Once per account and day: "your freeze saved your streak" / "streak broken".
 function announceFreeze(d) {
@@ -251,7 +255,8 @@ function celebrate(kind, { label = "", xp = 0 } = {}) {
   el.setAttribute("role", "status");
   el.innerHTML = `
     <span class="qst-cel-burst" aria-hidden="true">${"<i></i>".repeat(10)}</span>
-    ${xp ? `<span class="qst-cel-xp">+${xp} XP</span>` : `<span class="qst-cel-xp qst-cel-ic"><span class="icon icon-${kind === "broken" ? "flame" : "snow"} icon-24"></span></span>`}
+    ${xp ? `<span class="qst-cel-xp">+${xp} XP</span>` : kind === "freeze" ? `<span class="qst-cel-xp qst-cel-ic"><img src="../assets/img/quests/freeze/freeze.webp" alt="" width="34" height="34"></span>`
+      : `<span class="qst-cel-xp qst-cel-ic"><span class="icon icon-flame icon-24"></span></span>`}
     <span class="qst-cel-txt"><b>${esc(t(title))}</b>${label ? `<small>${esc(label)}</small>` : ""}</span>`;
   document.body.appendChild(el);
   const tones = kind === "mission"
@@ -349,6 +354,7 @@ export function renderQuestsView(host, tab = "today") {
   }
   if (!host.dataset.wired) {
     host.dataset.wired = "1";
+    host.addEventListener("toggle", e => { if (e.target.matches?.(".qd-more")) _moreOpen = e.target.open; }, true);
     host.addEventListener("keydown", e => {
       if ((e.key === "Enter" || e.key === " ") && e.target.closest?.(".qd-chest.is-earned")) { e.preventDefault(); replayJackpot(); }
     });
@@ -361,14 +367,7 @@ export function renderQuestsView(host, tab = "today") {
       if (e.target.closest(".qd-chest.is-earned")) { replayJackpot(); return; }
       // Streak freezes (freezeCardHtml).
       const fb = e.target.closest("[data-qf]");
-      if (fb && !fb.disabled) {
-        const a = fb.dataset.qf;
-        if (a === "giveOpen") { _giveOpen = !_giveOpen; _freezeErr = ""; refresh(); }
-        else if (a === "give") freezeAction("give", { to: fb.dataset.uid });
-        else if (a === "buy") freezeAction("buy");
-        else if (a === "buyFor") freezeAction("buy", { for: fb.dataset.uid });
-        else if (a === "repair") freezeAction("repair");
-      }
+      if (fb && !fb.disabled) openFreeze(fb.dataset.qf);   // "buy" | "give" | "repair"
     });
   }
   // Signature guard: every XP / Firestore / focus update re-renders the view;
@@ -499,13 +498,17 @@ function todayHtml() {
   _shownDay = _daily.day;
   const max = items.reduce((a, x) => a + x.xp, 0) + r.fullSet;
   const earned = items.reduce((a, x) => a + (x.done ? x.xp : 0), 0) + (p.complete ? r.fullSet : 0);
-  const rows = items.map(questRow).join("");
+  // What is left to do comes first; done quests follow, shorter (quests.css .qd-row.is-done).
+  const rows = [...items.filter(x => !x.done), ...items.filter(x => x.done)].map(questRow).join("");
   const streak = liveStreak(), every = r.streakEvery || 5;
   const lit = streak ? ((streak - 1) % every) + 1 : 0;
   const nextBonusDay = streak - (streak % every) + every;   // the next multiple of `every` after today
   // Combo: the paliers in a row (server-kept); the next palier pays the bonus × its own combo.
   const combo = streak ? Math.max(0, _daily.combo || 0) : 0;
   const nextBonusXp = r.streakBonus * Math.min(r.comboMax || 5, nextBonusDay / every);
+  // Days bridged by a freeze at today's check-in: shown under the pips (they add no
+  // pip — the pips count full days toward the next palier), calm and icy.
+  const frozen = streak && _daily.lastFreezeUsed?.day === _daily.day ? _daily.lastFreezeUsed : null;
   const chestState = p.complete ? "earned" : p.done === p.total - 1 ? "near" : "locked";
   const now = new Date(), midnight = new Date(now); midnight.setHours(24, 0, 0, 0);
   const dayPct = 100 - pct(midnight - now, 86400e3);   // the ring charges up to the next draw
@@ -546,6 +549,7 @@ function todayHtml() {
           <div><span class="qd-side-label">${esc(t("questsStreakTitle"))}</span><b class="qd-side-big">${esc(t("questsDays", { n: streak }))}${combo > 1 ? ` <span class="qd-combo qd-combo--${Math.min(combo, 5)}">${esc(t("questsComboBadge", { n: combo }))}</span>` : ""}</b>
             ${r.streakBonus ? `<small>${esc(t("questsStreakNext", { xp: nextBonusXp, day: nextBonusDay }))}</small>` : ""}</div>
           <span class="qd-pips" aria-hidden="true">${Array.from({ length: every }, (_, i) => `<i class="${i < lit ? "on" : ""}"></i>`).join("")}</span>
+          ${frozen ? `<p class="qd-frozen"><img src="../assets/img/quests/freeze/freeze.webp" alt="" aria-hidden="true">${esc(t(frozen.n > 1 ? "questsFrozenDays" : "questsFrozenDay", { n: frozen.n, combo: Math.max(1, combo) }))}</p>` : ""}
         </section>
         ${freezeCardHtml()}
         <section class="qd-card qd-next">
@@ -555,7 +559,9 @@ function todayHtml() {
             <circle class="qd-ring-fill" cx="22" cy="22" r="18" pathLength="100" stroke-dasharray="${dayPct} 100"/></svg>
           <small class="qd-reset">${esc(t("questsResetAt", { time: reset }))}</small>
         </section>
-        <section class="qd-card qd-rewards">
+        <details class="qd-card qd-more"${_moreOpen ? " open" : ""}>
+          <summary><span>${esc(t("questsRulesStats"))}</span><span class="icon icon-chevron-r icon-14" aria-hidden="true"></span></summary>
+        <section class="qd-rewards">
           <h3>${esc(t("questsRewardsTitle"))}</h3>
           <ul>
             <li><span class="qd-gem qd-gem--open" aria-hidden="true"></span><span>${esc(t("questsRewardOpen"))}</span><b>+${r.open} XP</b></li>
@@ -564,7 +570,7 @@ function todayHtml() {
             ${r.streakBonus ? `<li><span class="icon icon-flame icon-14" aria-hidden="true"></span><span>${esc(t("questsRewardStreak", { n: every }))}</span><b>+${r.streakBonus}–${r.streakBonus * (r.comboMax || 5)} XP</b></li>` : ""}
           </ul>
         </section>
-        <section class="qd-card qd-stats">
+        <section class="qd-stats">
           <h3>${esc(t("questsStatsTitle"))}</h3>
           <ul>
             ${stat("list-check", t("questsStatMissions"), _daily.missionsDone)}
@@ -574,18 +580,21 @@ function todayHtml() {
             ${stat("bars", t("questsStatXp"), `${(_daily.xp || 0).toLocaleString(_ctx.lang?.() || undefined)} XP`)}
           </ul>
         </section>
+        </details>
       </aside>
     </div>
   </div>`;
 }
-// The streak-freeze card: own and friends' slots (filled / empty, sized by the
-// tier), the freeze(s) to give with the days left, buy (members) and repair
-// (Gold / Platinum after a break); "Give" unfolds the friends with THEIR bonus
-// slots, so one sees who can still receive one.
+// Streak protection (docs/QUESTS.md §7): the own and friends' reserves as ice
+// cubes (filled / dashed, as many as the tier allows) with their counts, one line
+// on how it works; the freeze(s) to give with the days left (a melting cube on
+// the last day); a broken streak to bring back (Gold / Platinum); "Buy…" for
+// members. Every action opens its window (openFreeze) — nothing happens on a click.
 const FREE_CAPS = { own: 1, bonus: 1, give: 1, repairsPerMonth: 0 };
-function slotsHtml(filled, size, cls = "") {
-  return `<span class="qf-slots${cls}" aria-hidden="true">${Array.from({ length: size }, (_, i) =>
-    `<i class="${i < filled ? "on" : ""}"><span class="icon icon-snow icon-12"></span></i>`).join("")}</span>`;
+const ICE = name => `../assets/img/quests/freeze/${name}.webp`;
+function slotsHtml(filled, size) {
+  return `<span class="qf-slots" aria-hidden="true">${Array.from({ length: size }, (_, i) =>
+    `<img src="${ICE(i < filled ? "freeze" : "freeze-empty")}" alt="">`).join("")}</span>`;
 }
 function freezeCardHtml() {
   const { t, esc } = _ctx;
@@ -593,36 +602,21 @@ function freezeCardHtml() {
   const own = _daily?.freezes?.own ?? f?.freezes?.own ?? 0, bonus = _daily?.freezes?.bonus ?? f?.freezes?.bonus ?? 0;
   const gift = f?.toGive || null;
   const daysLeft = gift ? Math.max(1, Math.round((Date.parse(`${gift.until}T00:00:00`) - Date.now()) / 86400e3)) : 0;
-  const member = !!f?.tier, price = f?.price ?? 5, canBuy = member && own < caps.own && (f?.balance ?? 0) >= price;
   const broken = _daily?.broken && caps.repairsPerMonth ? _daily.broken : null;
-  const busy = _freezeBusy ? " disabled" : "";
-  const friendRows = _giveOpen && f ? (f.friends || []).map(x => {
-    const who = _ctx.friend?.(x.uid); if (!who) return "";
-    const full = x.bonus >= x.bonusMax, canGive = !!gift && !x.given && !full;
-    const canBuyFor = member && !full && (f.balance ?? 0) >= price;
-    return `<li class="qf-friend${full ? " is-full" : ""}">
-        ${who.avatar}<span class="qf-friend-name">${esc(who.name)}${full ? `<small>${esc(t("questsFreezeFull"))}</small>` : x.given ? `<small>${esc(t("questsFreezeGiven"))}</small>` : ""}</span>
-        ${slotsHtml(x.bonus, x.bonusMax, " qf-slots--sm")}
-        <span class="qf-friend-acts">
-          ${gift ? `<button type="button" class="qf-btn qf-btn--give" data-qf="give" data-uid="${esc(x.uid)}"${canGive ? busy : " disabled"} aria-label="${esc(t("questsFreezeGiveTo", { name: who.name }))}"><span class="icon icon-gift icon-12"></span></button>` : ""}
-          ${member ? `<button type="button" class="qf-btn" data-qf="buyFor" data-uid="${esc(x.uid)}"${canBuyFor ? busy : " disabled"} aria-label="${esc(t("questsFreezeBuyFor", { name: who.name, n: price }))}"><span class="icon icon-coins icon-12"></span>${price}</button>` : ""}
-        </span>
-      </li>`;
-  }).join("") : "";
+  const reserve = (label, n, size) => `<div class="qf-row"><span>${esc(label)}</span>${slotsHtml(n, size)}<b>${n}/${size}</b></div>`;
   return `
     <section class="qd-card qd-freeze">
-      <div class="qf-head"><span class="icon icon-snow icon-18" aria-hidden="true"></span><h3>${esc(t("questsFreezeTitle"))}</h3></div>
-      <div class="qf-row"><span>${esc(t("questsFreezeOwn"))}</span>${slotsHtml(own, caps.own)}</div>
-      <div class="qf-row"><span>${esc(t("questsFreezeBonus"))}</span>${slotsHtml(bonus, caps.bonus, " qf-slots--bonus")}</div>
+      <div class="qf-head"><img src="${ICE("freeze")}" alt="" aria-hidden="true"><h3>${esc(t("questsFreezeTitle"))}</h3></div>
+      ${reserve(t("questsFreezeOwn"), own, caps.own)}
+      ${reserve(t("questsFreezeBonus"), bonus, caps.bonus)}
       <p class="qf-hint">${esc(t("questsFreezeHint"))}</p>
-      ${broken ? `<button type="button" class="qf-action qf-action--repair" data-qf="repair"${busy}><span class="icon icon-flame icon-14"></span>${esc(t("questsFreezeRepair", { n: broken.streak }))}</button>` : ""}
-      <div class="qf-actions">
-        ${gift ? `<button type="button" class="qf-action${_giveOpen ? " is-open" : ""}" data-qf="giveOpen" aria-expanded="${_giveOpen}"><span class="icon icon-gift icon-14"></span>${esc(t("questsFreezeToGive", { n: gift.n, days: daysLeft }))}</button>`
-               : member ? `<button type="button" class="qf-action${_giveOpen ? " is-open" : ""}" data-qf="giveOpen" aria-expanded="${_giveOpen}"><span class="icon icon-community icon-14"></span>${esc(t("questsFreezeFriends"))}</button>` : ""}
-        ${member ? `<button type="button" class="qf-action" data-qf="buy"${canBuy ? busy : " disabled"}><span class="icon icon-coins icon-14"></span>${esc(t("questsFreezeBuy", { n: price }))}</button>` : ""}
-      </div>
-      ${_giveOpen ? `<ul class="qf-friends">${friendRows || `<li class="qf-empty">${esc(t("questsFreezeNoFriends"))}</li>`}</ul>` : ""}
-      ${_freezeErr ? `<p class="qf-err" role="alert">${esc(t(_freezeErr))}</p>` : ""}
+      ${broken ? `<div class="qf-strip qf-strip--repair"><span class="icon icon-flame icon-18" aria-hidden="true"></span>
+        <span>${esc(t("questsStreakBroken"))}<small>${esc(t("questsDays", { n: broken.streak }))}</small></span>
+        <button type="button" class="qf-action" data-qf="repair">${esc(t("questsFreezeRepairShort"))}</button></div>` : ""}
+      ${gift ? `<div class="qf-strip"><img src="${ICE(daysLeft <= 1 ? "freeze-melt" : "freeze-gift")}" alt="" aria-hidden="true">
+        <span>${esc(t("questsFreezeToGiveShort", { n: gift.n }))}<small>${esc(t("questsFreezeMelts", { n: daysLeft }))}</small></span>
+        <button type="button" class="qf-action qf-action--give" data-qf="give">${esc(t("questsFreezeGiveBtn"))}</button></div>` : ""}
+      ${f?.tier ? `<button type="button" class="qf-action qf-action--buy" data-qf="buy"><span class="icon icon-coins icon-14"></span>${esc(t("questsFreezeBuyBtn"))}</button>` : ""}
     </section>`;
 }
 function untilMidnight() {

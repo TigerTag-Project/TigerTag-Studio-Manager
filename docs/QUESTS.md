@@ -238,13 +238,19 @@ n }` (for "your freeze saved your streak"), `broken: { day, streak }`, `repairMo
 `freeMonth`, `palier` (what the last palier granted, so an admin day reset takes it back). The
 doc stays server-written (no rule change); a freeze bought logs `coinLog { kind: "freeze" }`.
 
-**Studio** (`renderer/quests/index.js`, `quests.css`): a "Combo ×n" badge next to the streak and
-the next palier's real bonus; a "Streak freezes" card — own and friends' slots (filled / empty,
-sized by the tier), the freezes to give with the days left, buy (members), "Bring back my n-day
-streak" (Gold / Platinum after a break), and the friends list with THEIR bonus slots, give and
-buy-for buttons, "Freezer full" / "Already gave one this round"; toasts once a day for "your
-freeze saved the day" and "streak broken", one for each palier ("Streak bonus!" + combo);
-the `freeze_gift` notification opens Tiger Quests.
+**Studio** (`renderer/quests/index.js`, `freeze-modal.js`, `quests.css`; reviewed with ChatGPT
+2026-10-31). The streak card: flames as pips (grey until the day is won), "Combo ×n", the next
+palier's real bonus, and "Yesterday protected · Combo ×n kept" with an ice cube when a freeze was
+used at today's check-in (a frozen day adds no flame). The "Streak freezes" card: own and friends'
+reserves as ice cubes (`assets/img/quests/freeze/`, filled / dashed, sized by the tier) with their
+counts, one line on how it works, a strip "n to give · melts in n d" (the melting cube on the last
+day) with "Give", a strip to bring back a broken streak (Gold / Platinum), "Buy a freeze…".
+Nothing happens on a click: Buy, Give and Repair open a window on the "Give an envelope" frame —
+the situation first (reserve before → after, price, balance before → after, the friend's bonus
+slots on every tile, full / already-given friends greyed with the reason), then a button held
+2 s; Give stays open while freezes are left. Done quests come after the ones left and are
+shorter; rewards and stats fold under "Rules and stats". The `freeze_gift` notification opens
+Tiger Quests.
 
 ### 7.6 Later
 
