@@ -291,8 +291,10 @@ body.progress-view #gridSortWrap { display: none; }
 .qd-pips { display: flex; gap: 4px; }
 .qd-pips { gap: 5px; }
 /* One flame per day toward the next palier: grey until the day is won, then lit. */
-.qd-pips i { width: 22px; height: 28px; background: #46536f;
-  -webkit-mask: url('../../assets/svg/icons/icon_flame.svg') center / contain no-repeat; mask: url('../../assets/svg/icons/icon_flame.svg') center / contain no-repeat; }
+/* The flame fills only the middle half of its 24-unit icon: the mask is drawn at twice the
+   pip's width and anchored at the bottom, so the flame itself takes the whole pip. */
+.qd-pips i { width: 20px; height: 32px; background: #46536f;
+  -webkit-mask: url('../../assets/svg/icons/icon_flame.svg') 50% 100% / 40px 40px no-repeat; mask: url('../../assets/svg/icons/icon_flame.svg') 50% 100% / 40px 40px no-repeat; }
 .qd-pips i.on { background: linear-gradient(180deg, #ffc061, var(--qw-tiger)); filter: drop-shadow(0 0 6px var(--qw-glow)); }
 .qd-streak .qd-side-big { font-size: 24px; color: var(--qw-tiger2); text-shadow: 0 0 12px rgba(255, 122, 26, .35); }
 .qd-next > .icon { background: var(--qw-ink); }
@@ -391,7 +393,8 @@ body.progress-view #gridSortWrap { display: none; }
 .qfm-card.is-given .qfm-art { animation: tc-give-fly .9s cubic-bezier(.5, 0, .7, .2) forwards; }
 @media (prefers-reduced-motion: reduce) { .qfm-card.is-given .qfm-art { animation: none; } }
 .qd-flame .icon, .qd-next > .icon { width: 28px; height: 28px; }
-.qd-flame .icon { width: 36px; height: 36px; }
+/* The same flame-fills-the-box framing as the pips (the icon's flame is half its width). */
+.qd-flame .icon { width: 34px; height: 52px; -webkit-mask-size: 68px 68px; mask-size: 68px 68px; -webkit-mask-position: 50% 100%; mask-position: 50% 100%; }
 .sqb-col-title { margin: 0; font-size: 15px; font-weight: 800; color: var(--tsq-text); }
 .sqb-col-title[hidden] { display: none; }
 

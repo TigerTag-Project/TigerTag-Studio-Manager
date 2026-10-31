@@ -504,7 +504,8 @@ function todayHtml() {
   const lit = streak ? ((streak - 1) % every) + 1 : 0;
   const nextBonusDay = streak - (streak % every) + every;   // the next multiple of `every` after today
   // Combo: the paliers in a row (server-kept); the next palier pays the bonus × its own combo.
-  const combo = streak ? Math.max(0, _daily.combo || 0) : 0;
+  // Shown from the first palier (×1); a doc written before the combo existed has none yet.
+  const combo = streak ? Math.max(0, _daily.combo ?? Math.min(r.comboMax || 5, Math.floor(streak / every))) : 0;
   const nextBonusXp = r.streakBonus * Math.min(r.comboMax || 5, nextBonusDay / every);
   // Days bridged by a freeze at today's check-in: shown under the pips (they add no
   // pip — the pips count full days toward the next palier), calm and icy.
@@ -546,7 +547,7 @@ function todayHtml() {
       <aside class="qd-side">
         <section class="qd-card qd-streak">
           <span class="qd-flame" aria-hidden="true"><span class="icon icon-flame icon-24"></span></span>
-          <div><span class="qd-side-label">${esc(t("questsStreakTitle"))}</span><b class="qd-side-big">${esc(t("questsDays", { n: streak }))}${combo > 1 ? ` <span class="qd-combo qd-combo--${Math.min(combo, 5)}">${esc(t("questsComboBadge", { n: combo }))}</span>` : ""}</b>
+          <div><span class="qd-side-label">${esc(t("questsStreakTitle"))}</span><b class="qd-side-big">${esc(t("questsDays", { n: streak }))}${combo >= 1 ? ` <span class="qd-combo qd-combo--${Math.min(combo, 5)}">${esc(t("questsComboBadge", { n: combo }))}</span>` : ""}</b>
             ${r.streakBonus ? `<small>${esc(t("questsStreakNext", { xp: nextBonusXp, day: nextBonusDay }))}</small>` : ""}</div>
           <span class="qd-pips" aria-hidden="true">${Array.from({ length: every }, (_, i) => `<i class="${i < lit ? "on" : ""}"></i>`).join("")}</span>
           ${frozen ? `<p class="qd-frozen"><img src="../assets/img/quests/freeze/freeze.webp" alt="" aria-hidden="true">${esc(t(frozen.n > 1 ? "questsFrozenDays" : "questsFrozenDay", { n: frozen.n, combo: Math.max(1, combo) }))}</p>` : ""}
