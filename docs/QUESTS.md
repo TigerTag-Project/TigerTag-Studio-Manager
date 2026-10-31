@@ -236,7 +236,9 @@ next one, once a month for Gold / Platinum; no streak bonus is paid back for a p
 `users/{uid}/quests/daily` gains `combo`, `freezes: { own, bonus }`, `toGive: { n, palier, until,
 sentTo[] }` (one per friend per palier), `frozenDays` (lifetime), `lastFreezeUsed: { day, streak,
 n }` (for "your freeze saved your streak"), `broken: { day, streak }`, `repairMonth`, `repairsUsed`,
-`freeMonth`, `palier` (what the last palier granted, so an admin day reset takes it back). The
+`freeMonth`, `palier` (what the last palier granted, so an admin day reset takes it back),
+`history: { "YYYY-MM-DD": "full" | "frozen" }` (last 14 days; the streak card draws the current
+Monday–Sunday week from it: a pill per day, lit, icy when frozen, grey when missed). The
 doc stays server-written (no rule change); a freeze bought logs `coinLog { kind: "freeze" }`.
 
 **Studio** (`renderer/quests/index.js`, `freeze-modal.js`, `quests.css`; reviewed with ChatGPT

@@ -420,6 +420,32 @@ function liveStreak() {
   const y = new Date(); y.setDate(y.getDate() - 1);
   return last === localDay() || last === localDayOf(y) ? _daily.streak || 0 : 0;
 }
+/* The current Monday–Sunday week, one pill per day: "full" (full set), "frozen"
+   (bridged by a freeze), "today" (still to play), "missed", or "future". From the
+   server's `history` (last 14 days); a doc written before it rebuilds the live
+   streak backwards from lastFullDay and the last freeze bridge. */
+function streakWeek() {
+  const hist = { ...(_daily?.history || {}) };
+  const streak = liveStreak();
+  if (!_daily?.history && streak) {
+    const frozen = new Set(), f = _daily.lastFreezeUsed;
+    if (f?.day) for (let k = 1; k <= f.n; k++) { const x = new Date(`${f.day}T12:00:00`); x.setDate(x.getDate() - k); frozen.add(localDayOf(x)); }
+    const x = new Date(`${_daily.lastFullDay}T12:00:00`);
+    for (let left = streak, guard = 0; left > 0 && guard < 30; guard++, x.setDate(x.getDate() - 1)) {
+      const k = localDayOf(x);
+      if (frozen.has(k)) hist[k] = "frozen"; else { hist[k] = "full"; left--; }
+    }
+  }
+  const now = new Date(), today = localDay(), monday = new Date(now);
+  monday.setHours(12, 0, 0, 0); monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+  const fmt = new Intl.DateTimeFormat(_ctx.lang?.() || undefined, { weekday: "narrow" });
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday); d.setDate(monday.getDate() + i);
+    const k = localDayOf(d);
+    const state = hist[k] || (k === today ? "today" : k > today ? "future" : "missed");
+    return { label: fmt.format(d), state, today: k === today };
+  });
+}
 function ago(ms) {
   if (!ms) return "";
   const m = Math.round((Date.now() - ms) / 60e3);
@@ -501,14 +527,12 @@ function todayHtml() {
   // What is left to do comes first; done quests follow, shorter (quests.css .qd-row.is-done).
   const rows = [...items.filter(x => !x.done), ...items.filter(x => x.done)].map(questRow).join("");
   const streak = liveStreak(), every = r.streakEvery || 5;
-  const lit = streak ? ((streak - 1) % every) + 1 : 0;
   const nextBonusDay = streak - (streak % every) + every;   // the next multiple of `every` after today
   // Combo: the paliers in a row (server-kept); the next palier pays the bonus × its own combo.
   // Shown from the first palier (×1); a doc written before the combo existed has none yet.
   const combo = streak ? Math.max(0, _daily.combo ?? Math.min(r.comboMax || 5, Math.floor(streak / every))) : 0;
   const nextBonusXp = r.streakBonus * Math.min(r.comboMax || 5, nextBonusDay / every);
-  // Days bridged by a freeze at today's check-in: shown under the pips (they add no
-  // pip — the pips count full days toward the next palier), calm and icy.
+  // Days bridged by a freeze at today's check-in: an icy pill in the week, and this line.
   const frozen = streak && _daily.lastFreezeUsed?.day === _daily.day ? _daily.lastFreezeUsed : null;
   const chestState = p.complete ? "earned" : p.done === p.total - 1 ? "near" : "locked";
   const now = new Date(), midnight = new Date(now); midnight.setHours(24, 0, 0, 0);
@@ -547,9 +571,10 @@ function todayHtml() {
       <aside class="qd-side">
         <section class="qd-card qd-streak">
           <span class="qd-flame" aria-hidden="true"><span class="icon icon-flame icon-24"></span></span>
-          <div><span class="qd-side-label">${esc(t("questsStreakTitle"))}</span><b class="qd-side-big">${esc(t("questsDays", { n: streak }))}${combo >= 1 ? ` <span class="qd-combo qd-combo--${Math.min(combo, 5)}">${esc(t("questsComboBadge", { n: combo }))}</span>` : ""}</b>
+          <div><span class="qd-side-label">${esc(t("questsStreakTitle"))}</span><b class="qd-side-big">${esc(t("questsDays", { n: streak }))}</b>
             ${r.streakBonus ? `<small>${esc(t("questsStreakNext", { xp: nextBonusXp, day: nextBonusDay }))}</small>` : ""}</div>
-          <span class="qd-pips" aria-hidden="true">${Array.from({ length: every }, (_, i) => `<i class="${i < lit ? "on" : ""}"></i>`).join("")}</span>
+          <span class="qd-week">${combo >= 1 ? `<span class="qd-combo qd-combo--${Math.min(combo, 5)}">${esc(t("questsComboBadge", { n: combo }))}</span>` : ""}
+          <span class="qd-pips" aria-hidden="true">${streakWeek().map(w => `<span class="qd-pip is-${w.state}${w.today ? " is-now" : ""}"><i></i><small>${esc(w.label)}</small></span>`).join("")}</span></span>
           ${frozen ? `<p class="qd-frozen"><img src="../assets/img/quests/freeze/freeze.webp" alt="" aria-hidden="true">${esc(t(frozen.n > 1 ? "questsFrozenDays" : "questsFrozenDay", { n: frozen.n, combo: Math.max(1, combo) }))}</p>` : ""}
         </section>
         ${freezeCardHtml()}

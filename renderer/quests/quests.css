@@ -290,12 +290,19 @@ body.progress-view #gridSortWrap { display: none; }
 .qd-flame .icon { background: var(--qw-tiger); filter: drop-shadow(0 0 8px var(--qw-glow)); }
 .qd-pips { display: flex; gap: 4px; }
 .qd-pips { gap: 5px; }
-/* One flame per day toward the next palier: grey until the day is won, then lit. */
-/* The flame fills only the middle half of its 24-unit icon: the mask is drawn at twice the
-   pip's width and anchored at the bottom, so the flame itself takes the whole pip. */
-.qd-pips i { width: 20px; height: 32px; background: #46536f;
-  -webkit-mask: url('../../assets/svg/icons/icon_flame.svg') 50% 100% / 40px 40px no-repeat; mask: url('../../assets/svg/icons/icon_flame.svg') 50% 100% / 40px 40px no-repeat; }
-.qd-pips i.on { background: linear-gradient(180deg, #ffc061, var(--qw-tiger)); filter: drop-shadow(0 0 6px var(--qw-glow)); }
+/* The combo badge sits above the week's pills. */
+.qd-week { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.qd-week .qd-combo { margin-left: 0; }
+/* The current week, Monday to Sunday: a pill per day, lit when the full set was
+   won, icy when a freeze bridged it, outlined for today, dim for the days to come. */
+.qd-pip { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.qd-pip i { width: 11px; height: 18px; border-radius: 6px 6px 4px 4px; background: #34405a; border: 1px solid #46536f; }
+.qd-pip small { font-size: 10px; line-height: 1; color: var(--qw-muted); text-transform: uppercase; }
+.qd-pip.is-full i { background: linear-gradient(180deg, #ffc061, var(--qw-tiger)); border-color: #ffb347; box-shadow: 0 0 10px var(--qw-glow); }
+.qd-pip.is-frozen i { background: linear-gradient(180deg, #e6f7ff, #6cc8f2); border-color: #a9e2ff; box-shadow: 0 0 10px rgba(108, 200, 242, .55); }
+.qd-pip.is-today i { background: transparent; border: 1px dashed #ffb347; }
+.qd-pip.is-future i { opacity: .45; }
+.qd-pip.is-now small { color: var(--qw-ink); font-weight: 800; }
 .qd-streak .qd-side-big { font-size: 24px; color: var(--qw-tiger2); text-shadow: 0 0 12px rgba(255, 122, 26, .35); }
 .qd-next > .icon { background: var(--qw-ink); }
 /* Next draw: a ring that charges up to midnight — the Tiger Touch ring (track
