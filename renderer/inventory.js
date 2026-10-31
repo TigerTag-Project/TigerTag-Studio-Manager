@@ -4369,6 +4369,11 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       if (state.viewMode === "questsToday" || state.viewMode === "questsJourney") renderInventory();
     },
     openView: tab => setViewMode(tab === "journey" ? "questsJourney" : "questsToday"),
+    // A friend for the streak-freeze list: their name and the friends bar's avatar.
+    friend: uid => {
+      const f = (state.friends || []).find(x => x.uid === uid);
+      return f ? { name: f.displayName || "", avatar: userAvatar(f, "fp-friend-avatar") } : null;
+    },
     // Loot ladder: every XP item (the server's ACH_XP, mirrored in XP_ACHIEVEMENTS)
     // + the TigerSquad, owned when the server's split gives it XP.
     loot: () => {
@@ -39952,6 +39957,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     if (n.type === "friend_added")    return t("notifAddedFriend",    { name: _shortName(n.fromName, n.fromUid) });
     if (n.type === "envelope_gift")   return t("notifEnvelopeGift",   { name: _shortName(n.fromName, n.fromUid) });
     if (n.type === "envelope_chip")   return t("notifEnvelopeChip",   { n: Number(n.data?.n) || 1 });
+    if (n.type === "freeze_gift")     return t("notifFreezeGift",     { name: _shortName(n.fromName, n.fromUid) });
     return n.text || "";
   }
 
@@ -40280,7 +40286,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   const _notifFilter = { tab: "all" };
   let _notifFresh = new Set();   // ids unread when the centre opened: their dot stays while it is open
   const NOTIF_ACCENT = { envelope: "#e5484d", xp: "#3ddc84", level: "#ffb21a", friend: "#3da4f0", heart: "#f472b6",
-    report: "#3da4f0", update: "#a78bfa", community: "#ff8a2e", system: "#8f97b3", stock: "#e5484d" };
+    report: "#3da4f0", update: "#a78bfa", community: "#ff8a2e", system: "#8f97b3", stock: "#e5484d", freeze: "#8fd3ff" };
   function _notifStockCollapsed() { try { return localStorage.getItem("tigertag.notifStockCollapsed") === "1"; } catch (_) { return false; } }
   function renderNotifCenter() {
     const list = $("notifList");
@@ -40341,6 +40347,11 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
           art: `<img src="../assets/img/tigercoins/envelope.webp" alt=""><span class="nc-art-av">${userAvatar(subject, "fp-friend-avatar")}</span>`,
           title: t("notifEnvelopeGift", { name: _shortName(n.fromName, n.fromUid) }), text: t("notifEnvelopeGiftText"),
           act: { id: "gift", arg: n.id, icon: "mail", label: t("envGiftTitle") } }) });
+      } else if (n.type === "freeze_gift") {
+        // A streak freeze from a friend (given, or bought for us) — functions/streakFreeze.js.
+        items.push({ kind: "squad", at, html: card({ ...base, kind: "squad", accent: NOTIF_ACCENT.freeze, art: userAvatar(subject, "sb-friend-avatar"),
+          title: _notifText(n), text: t("notifFreezeGiftText"),
+          act: { id: "quests", icon: "snow", label: t("questsFreezeTitle") } }) });
       } else if (n.type === "envelope_chip") {
         // TigerTag+ Certified chips counted today = surprise envelopes (supportWebhooks.js syncChip).
         items.push({ kind: "envelopes", at, html: card({ ...base, kind: "envelopes", accent: NOTIF_ACCENT.envelope, clickable: true,
@@ -40447,6 +40458,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         case "report": openReport({ tab: "mine" }); break;
         case "community": _openCommunityLink(arg); break;
         case "order": setViewMode("order"); break;
+        case "quests": setViewMode("questsToday"); break;
       }
     }));
     list.querySelectorAll(".nc-fold").forEach(b => b.addEventListener("click", e => {

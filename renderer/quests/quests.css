@@ -318,6 +318,55 @@ body.progress-view #gridSortWrap { display: none; }
   .qd-row.is-new .qd-check, .qd-row.is-new .qd-bar i, .qd-row.is-new .qd-xp { animation: none; }
   .qd-row, .qd-bar i { transition: none; }
 }
+/* Combo badge next to the streak (×2 … ×5, each a step warmer: orange → violet → gold). */
+.qd-combo { display: inline-block; margin-left: 6px; padding: 2px 8px; vertical-align: middle; border-radius: 999px;
+  font: 800 12px var(--qw-mono); letter-spacing: .02em; text-shadow: none; color: var(--qw-bg); background: var(--qw-tiger2); }
+.qd-combo--3 { background: #b98cff; }
+.qd-combo--4 { background: #8fd3ff; }
+.qd-combo--5 { background: var(--qw-legend); box-shadow: 0 0 12px rgba(255, 178, 26, .55); }
+/* Streak freezes: own and friends' slots, the freeze to give, buy / repair, the friends' slots. */
+.qd-freeze { display: flex; flex-direction: column; gap: 8px; --qf-ice: #8fd3ff; }
+.qf-head { display: flex; align-items: center; gap: 8px; }
+.qf-head .icon { background: var(--qf-ice); filter: drop-shadow(0 0 6px rgba(143, 211, 255, .5)); }
+.qf-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 13px; color: var(--qw-muted); }
+.qf-slots { display: inline-flex; gap: 5px; }
+.qf-slots i { width: 22px; height: 22px; display: grid; place-items: center; border-radius: 6px; border: 1px dashed #46536f; background: rgba(52, 64, 90, .35); }
+.qf-slots i .icon { background: #46536f; }
+.qf-slots i.on { border: 1px solid var(--qf-ice); background: rgba(143, 211, 255, .14); box-shadow: 0 0 10px rgba(143, 211, 255, .35); }
+.qf-slots i.on .icon { background: var(--qf-ice); }
+.qf-slots--bonus i.on { border-color: #b98cff; background: rgba(185, 140, 255, .14); box-shadow: 0 0 10px rgba(185, 140, 255, .35); }
+.qf-slots--bonus i.on .icon { background: #b98cff; }
+.qf-slots--sm i { width: 18px; height: 18px; border-radius: 5px; }
+.qf-hint { margin: 0; font-size: 12px; color: var(--qw-muted); }
+.qf-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.qf-action { display: inline-flex; align-items: center; gap: 6px; height: auto; min-height: 32px; padding: 6px 12px; border-radius: 8px;
+  border: 1px solid var(--qw-line); background: var(--qw-panel); color: var(--qw-ink); font: 600 12.5px inherit; cursor: pointer; }
+.qf-action .icon { background: var(--qf-ice); }
+.qf-action:hover:not(:disabled), .qf-action.is-open { border-color: var(--qf-ice); background: rgba(143, 211, 255, .1); }
+.qf-action:disabled { opacity: .45; cursor: default; }
+.qf-action--repair { justify-content: center; border-color: var(--qw-tiger); color: var(--qw-tiger2); }
+.qf-action--repair .icon { background: var(--qw-tiger); }
+.qf-friends { list-style: none; margin: 2px 0 0; padding: 8px 0 0; border-top: 1px solid var(--qw-line); display: flex; flex-direction: column; gap: 6px;
+  max-height: 280px; overflow-y: auto; animation: qf-in .18s ease-out both; }
+@keyframes qf-in { from { opacity: 0; transform: translateY(-4px); } }
+.qf-friend { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto auto; align-items: center; gap: 8px; }
+.qf-friend .fp-friend-avatar { width: 30px; height: 30px; font-size: 11px; }
+.qf-friend-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 600; color: var(--qw-ink); }
+.qf-friend-name small { display: block; font-size: 11px; font-weight: 500; color: var(--qw-muted); }
+.qf-friend.is-full .qf-friend-name, .qf-friend.is-full .fp-friend-avatar { opacity: .55; }
+.qf-friend-acts { display: inline-flex; gap: 4px; }
+.qf-btn { display: inline-flex; align-items: center; gap: 4px; height: 28px; min-width: 28px; padding: 0 8px; justify-content: center; border-radius: 7px;
+  border: 1px solid var(--qw-line); background: var(--qw-panel); color: var(--qw-ink); font: 700 11.5px var(--qw-mono); cursor: pointer; }
+.qf-btn .icon { background: var(--qf-ice); }
+.qf-btn--give .icon { background: var(--qw-ok); }
+.qf-btn:hover:not(:disabled) { border-color: var(--qf-ice); }
+.qf-btn:disabled { opacity: .35; cursor: default; }
+.qf-empty { font-size: 12px; color: var(--qw-muted); }
+.qf-err { margin: 0; font-size: 12px; color: #ff8a8a; }
+.qst-cel-xp.qst-cel-ic { background: none; -webkit-background-clip: border-box; background-clip: border-box; display: grid; place-items: center; }
+.qst-cel-ic .icon { background: #8fd3ff; }
+.qst-cel--broken .qst-cel-ic .icon { background: var(--qw-tiger, #ff7a1a); }
+@media (prefers-reduced-motion: reduce) { .qf-friends { animation: none; } }
 .qd-flame .icon, .qd-next > .icon { width: 28px; height: 28px; }
 .qd-flame .icon { width: 36px; height: 36px; }
 .sqb-col-title { margin: 0; font-size: 15px; font-weight: 800; color: var(--tsq-text); }

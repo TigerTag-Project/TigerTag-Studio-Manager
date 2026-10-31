@@ -14,7 +14,13 @@
  *
  *   initQuests({ t, esc, uid() → active uid | null, db(uid) → firestore,
  *                token() → Promise<ID token>, brandName(id), materialName(id),
- *                playTones(notes, opts), onChange(), openView(tab) })
+ *                playTones(notes, opts), onChange(), openView(tab),
+ *                friend(uid) → { name, avatar } | null })
+ *
+ * Streak combo and freezes (docs/QUESTS.md §7): the combo and the freezes used
+ * come in the daily doc; the reserves' sizes, the freezes to give and each
+ * friend's bonus slots come from the streakFreeze endpoint (status / give / buy /
+ * repair) — read again whenever the daily doc's freeze fields move.
  *   questsSignIn(uid) / questsSignOut()
  *   questBump(key, n = 1)   — a counter (FieldValue.increment)
  *   questGauge(key, value)  — a gauge (set when it changed)
@@ -22,6 +28,7 @@
  *   openQuests(tab) → ctx.openView(tab); renderQuestsView(host, tab)
  */
 const DAILY_QUEST_URL = "https://us-central1-tigertag-connect.cloudfunctions.net/dailyQuest";
+const STREAK_FREEZE_URL = "https://us-central1-tigertag-connect.cloudfunctions.net/streakFreeze";
 const FLUSH_MS = 1500;                 // bumps within this window land in one write
 const FOCUS_CHECKIN_MS = 10 * 60e3;    // a window focus re-checks in at most every 10 min
 const RANKS = 20;                      // ranks announced in the app; the server ships 1 and 2
@@ -52,6 +59,9 @@ let _ctx = null;
 let _uid = null;
 let _unsubs = [];
 let _daily = null, _journey = null, _levels = null, _rewards = null;
+// streakFreeze status ({ tier, caps, price, balance, freezes, toGive, broken, friends }),
+// the give list open or not, an action in flight, the last refusal (an i18n key).
+let _freeze = null, _freezeSig = "", _giveOpen = false, _freezeBusy = false, _freezeErr = "";
 let _lastCheckIn = 0, _midnightTimer = null, _flushTimer = null;
 const _bumps = new Map(), _gauges = new Map(), _gaugeSent = new Map();
 
@@ -107,6 +117,7 @@ export function questsSignOut() {
   if (_uid) flush();
   _unsubs.forEach(u => { try { u(); } catch (_) {} });
   _unsubs = []; _uid = null; _daily = _journey = null;
+  _freeze = null; _freezeSig = ""; _giveOpen = false; _freezeErr = "";
   _bumps.clear(); _gauges.clear(); _gaugeSent.clear();
   clearTimeout(_midnightTimer);
 }
@@ -140,6 +151,57 @@ function armMidnight() {
   _midnightTimer = setTimeout(checkIn, Math.min(next - now, 2 ** 31 - 1));
 }
 
+// ── Streak freezes ───────────────────────────────────────────────────────────
+// One call to streakFreeze; the answer is always the fresh status. A refusal
+// keeps the status and shows its reason (FREEZE_ERR) under the freeze card.
+const FREEZE_ERR = {
+  RESERVE_FULL: "questsFreezeErrFull", NOT_ENOUGH_COINS: "questsFreezeErrCoins", ALREADY_GIVEN: "questsFreezeErrGiven",
+  NOTHING_TO_GIVE: "questsFreezeErrNothing", NOT_FRIENDS: "questsFreezeErrFriends", REPAIR_LIMIT: "questsFreezeErrRepair",
+  NOTHING_TO_REPAIR: "questsFreezeErrRepair", NOT_IN_SQUAD: "questsFreezeErrSquad",
+};
+async function freezeCall(action, extra = {}) {
+  const uid = _uid; if (!uid) return;
+  try {
+    const token = await _ctx.token();
+    if (!token || uid !== _uid) return;
+    const r = await fetch(STREAK_FREEZE_URL, {
+      method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ action, ...extra }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (uid !== _uid) return;
+    if (!r.ok) { _freezeErr = FREEZE_ERR[j.error] || "questsFreezeErrGeneric"; return; }
+    _freeze = j; _freezeErr = "";
+  } catch (e) {
+    if (action !== "status") _freezeErr = "questsFreezeErrGeneric";
+    console.warn("[quests] streakFreeze", action, e.message);
+  } finally { refresh(); }
+}
+// The daily doc's freeze fields moved (a palier, a freeze used, a gift received…): read the status again.
+function syncFreezeStatus(d) {
+  const sig = JSON.stringify([d?.freezes, d?.toGive, d?.broken, d?.streak]);
+  if (sig === _freezeSig) return;
+  _freezeSig = sig;
+  freezeCall("status");
+}
+async function freezeAction(action, extra) {
+  if (_freezeBusy) return;
+  _freezeBusy = true; refresh();
+  try { await freezeCall(action, extra); } finally { _freezeBusy = false; refresh(); }
+}
+// Once per account and day: "your freeze saved your streak" / "streak broken".
+function announceFreeze(d) {
+  if (!d?.day || !_uid) return;
+  const key = `tigertag.freezeNotice.${_uid}`;
+  let seen = ""; try { seen = localStorage.getItem(key) || ""; } catch (_) {}
+  const used = d.lastFreezeUsed?.day === d.day, broken = d.broken?.day === d.day;
+  if ((!used && !broken) || seen === d.day) return;
+  try { localStorage.setItem(key, d.day); } catch (_) {}
+  const { t } = _ctx;
+  if (used) celebrate("freeze", { label: t("questsFreezeSavedText", { n: d.lastFreezeUsed.streak, days: d.lastFreezeUsed.n }) });
+  else celebrate("broken", { label: t("questsStreakBrokenText", { n: d.broken.streak }) });
+}
+
 // ── 3. Live state + celebrations ─────────────────────────────────────────────
 function onDaily(d) {
   const prev = _daily;
@@ -152,7 +214,14 @@ function onDaily(d) {
       if (d.done?.[k] && !prev.done?.[k]) celebrate("mission", { label: missionLabel(id), xp: _rewards?.daily?.mission ?? 5 });
     });
     if (d.bonusPaid && !prev.bonusPaid) celebrate("fullSet", { xp: _rewards?.daily?.fullSet ?? 20 });
+    // A palier: the streak bonus, × the combo.
+    if ((d.streakBonuses || 0) > (prev.streakBonuses || 0)) {
+      const combo = Math.max(1, d.combo || 1);
+      celebrate("combo", { label: combo > 1 ? _ctx.t("questsComboBadge", { n: combo }) : _ctx.t("questsStreakTitle"),
+        xp: (_rewards?.daily?.streakBonus ?? 100) * combo });
+    }
   }
+  if (d) { announceFreeze(d); syncFreezeStatus(d); }
   refresh();
 }
 function onJourney(j) {
@@ -175,14 +244,15 @@ function refresh() {
 const reducedMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 function celebrate(kind, { label = "", xp = 0 } = {}) {
   const { t, esc } = _ctx;
-  const title = kind === "mission" ? t("questsMissionDone") : kind === "fullSet" ? t("questsFullSetDone") : t("questsLevelDone");
+  const title = { mission: "questsMissionDone", fullSet: "questsFullSetDone", combo: "questsComboDone",
+    freeze: "questsFreezeSaved", broken: "questsStreakBroken" }[kind] || "questsLevelDone";
   const el = document.createElement("div");
   el.className = `qst-cel qst-cel--${kind}`;
   el.setAttribute("role", "status");
   el.innerHTML = `
     <span class="qst-cel-burst" aria-hidden="true">${"<i></i>".repeat(10)}</span>
-    <span class="qst-cel-xp">+${xp} XP</span>
-    <span class="qst-cel-txt"><b>${esc(title)}</b>${label ? `<small>${esc(label)}</small>` : ""}</span>`;
+    ${xp ? `<span class="qst-cel-xp">+${xp} XP</span>` : `<span class="qst-cel-xp qst-cel-ic"><span class="icon icon-${kind === "broken" ? "flame" : "snow"} icon-24"></span></span>`}
+    <span class="qst-cel-txt"><b>${esc(t(title))}</b>${label ? `<small>${esc(label)}</small>` : ""}</span>`;
   document.body.appendChild(el);
   const tones = kind === "mission"
     ? [{ f: 880, d: 0.10 }, { f: 1318.5, t: 0.08, d: 0.18 }]
@@ -289,6 +359,16 @@ export function renderQuestsView(host, tab = "today") {
       const arrow = e.target.closest("[data-chap]");
       if (arrow) { const tr = host.querySelector(".qm-chap-track"); tr?.scrollBy({ left: tr.clientWidth * .8 * Number(arrow.dataset.chap), behavior: reducedMotion() ? "auto" : "smooth" }); return; }
       if (e.target.closest(".qd-chest.is-earned")) { replayJackpot(); return; }
+      // Streak freezes (freezeCardHtml).
+      const fb = e.target.closest("[data-qf]");
+      if (fb && !fb.disabled) {
+        const a = fb.dataset.qf;
+        if (a === "giveOpen") { _giveOpen = !_giveOpen; _freezeErr = ""; refresh(); }
+        else if (a === "give") freezeAction("give", { to: fb.dataset.uid });
+        else if (a === "buy") freezeAction("buy");
+        else if (a === "buyFor") freezeAction("buy", { for: fb.dataset.uid });
+        else if (a === "repair") freezeAction("repair");
+      }
     });
   }
   // Signature guard: every XP / Firestore / focus update re-renders the view;
@@ -402,7 +482,7 @@ function todayHtml() {
   const { t, esc } = _ctx;
   const p = questDailyProgress();
   if (!p) return (_ctx.loadingHTML?.() || `<p class="qw-empty">${esc(t("questsLoading"))}</p>`);
-  const r = { open: 10, mission: 5, fullSet: 20, streakBonus: 0, streakEvery: 5, ...(_rewards?.daily || {}) };
+  const r = { open: 10, mission: 5, fullSet: 20, streakBonus: 0, streakEvery: 5, comboMax: 5, ...(_rewards?.daily || {}) };
   const items = [{ look: MISSION_LOOK.open, title: t("questsOpenApp"), desc: t("questDesc_open"), done: _daily.open, xp: r.open, at: _daily.openAt }]
     .concat((_daily.missions || []).map((id, k) => {
       const base = String(id).split(":")[0];
@@ -423,6 +503,9 @@ function todayHtml() {
   const streak = liveStreak(), every = r.streakEvery || 5;
   const lit = streak ? ((streak - 1) % every) + 1 : 0;
   const nextBonusDay = streak - (streak % every) + every;   // the next multiple of `every` after today
+  // Combo: the paliers in a row (server-kept); the next palier pays the bonus × its own combo.
+  const combo = streak ? Math.max(0, _daily.combo || 0) : 0;
+  const nextBonusXp = r.streakBonus * Math.min(r.comboMax || 5, nextBonusDay / every);
   const chestState = p.complete ? "earned" : p.done === p.total - 1 ? "near" : "locked";
   const now = new Date(), midnight = new Date(now); midnight.setHours(24, 0, 0, 0);
   const dayPct = 100 - pct(midnight - now, 86400e3);   // the ring charges up to the next draw
@@ -460,10 +543,11 @@ function todayHtml() {
       <aside class="qd-side">
         <section class="qd-card qd-streak">
           <span class="qd-flame" aria-hidden="true"><span class="icon icon-flame icon-24"></span></span>
-          <div><span class="qd-side-label">${esc(t("questsStreakTitle"))}</span><b class="qd-side-big">${esc(t("questsDays", { n: streak }))}</b>
-            ${r.streakBonus ? `<small>${esc(t("questsStreakNext", { xp: r.streakBonus, day: nextBonusDay }))}</small>` : ""}</div>
+          <div><span class="qd-side-label">${esc(t("questsStreakTitle"))}</span><b class="qd-side-big">${esc(t("questsDays", { n: streak }))}${combo > 1 ? ` <span class="qd-combo qd-combo--${Math.min(combo, 5)}">${esc(t("questsComboBadge", { n: combo }))}</span>` : ""}</b>
+            ${r.streakBonus ? `<small>${esc(t("questsStreakNext", { xp: nextBonusXp, day: nextBonusDay }))}</small>` : ""}</div>
           <span class="qd-pips" aria-hidden="true">${Array.from({ length: every }, (_, i) => `<i class="${i < lit ? "on" : ""}"></i>`).join("")}</span>
         </section>
+        ${freezeCardHtml()}
         <section class="qd-card qd-next">
           <span class="icon icon-clock icon-24" aria-hidden="true"></span>
           <div><span class="qd-side-label">${esc(t("questsNextIn"))}</span><b class="qd-side-big">${esc(untilMidnight())}</b></div>
@@ -477,7 +561,7 @@ function todayHtml() {
             <li><span class="qd-gem qd-gem--open" aria-hidden="true"></span><span>${esc(t("questsRewardOpen"))}</span><b>+${r.open} XP</b></li>
             <li><span class="qd-gem" aria-hidden="true"></span><span>${esc(t("questsRewardPer"))}</span><b>+${r.mission} XP</b></li>
             <li><span class="qd-gem qd-gem--gold" aria-hidden="true"></span><span>${esc(t("questsFullSet"))}</span><b>+${r.fullSet} XP</b></li>
-            ${r.streakBonus ? `<li><span class="icon icon-flame icon-14" aria-hidden="true"></span><span>${esc(t("questsRewardStreak", { n: every }))}</span><b>+${r.streakBonus} XP</b></li>` : ""}
+            ${r.streakBonus ? `<li><span class="icon icon-flame icon-14" aria-hidden="true"></span><span>${esc(t("questsRewardStreak", { n: every }))}</span><b>+${r.streakBonus}–${r.streakBonus * (r.comboMax || 5)} XP</b></li>` : ""}
           </ul>
         </section>
         <section class="qd-card qd-stats">
@@ -493,6 +577,53 @@ function todayHtml() {
       </aside>
     </div>
   </div>`;
+}
+// The streak-freeze card: own and friends' slots (filled / empty, sized by the
+// tier), the freeze(s) to give with the days left, buy (members) and repair
+// (Gold / Platinum after a break); "Give" unfolds the friends with THEIR bonus
+// slots, so one sees who can still receive one.
+const FREE_CAPS = { own: 1, bonus: 1, give: 1, repairsPerMonth: 0 };
+function slotsHtml(filled, size, cls = "") {
+  return `<span class="qf-slots${cls}" aria-hidden="true">${Array.from({ length: size }, (_, i) =>
+    `<i class="${i < filled ? "on" : ""}"><span class="icon icon-snow icon-12"></span></i>`).join("")}</span>`;
+}
+function freezeCardHtml() {
+  const { t, esc } = _ctx;
+  const f = _freeze, caps = f?.caps || FREE_CAPS;
+  const own = _daily?.freezes?.own ?? f?.freezes?.own ?? 0, bonus = _daily?.freezes?.bonus ?? f?.freezes?.bonus ?? 0;
+  const gift = f?.toGive || null;
+  const daysLeft = gift ? Math.max(1, Math.round((Date.parse(`${gift.until}T00:00:00`) - Date.now()) / 86400e3)) : 0;
+  const member = !!f?.tier, price = f?.price ?? 5, canBuy = member && own < caps.own && (f?.balance ?? 0) >= price;
+  const broken = _daily?.broken && caps.repairsPerMonth ? _daily.broken : null;
+  const busy = _freezeBusy ? " disabled" : "";
+  const friendRows = _giveOpen && f ? (f.friends || []).map(x => {
+    const who = _ctx.friend?.(x.uid); if (!who) return "";
+    const full = x.bonus >= x.bonusMax, canGive = !!gift && !x.given && !full;
+    const canBuyFor = member && !full && (f.balance ?? 0) >= price;
+    return `<li class="qf-friend${full ? " is-full" : ""}">
+        ${who.avatar}<span class="qf-friend-name">${esc(who.name)}${full ? `<small>${esc(t("questsFreezeFull"))}</small>` : x.given ? `<small>${esc(t("questsFreezeGiven"))}</small>` : ""}</span>
+        ${slotsHtml(x.bonus, x.bonusMax, " qf-slots--sm")}
+        <span class="qf-friend-acts">
+          ${gift ? `<button type="button" class="qf-btn qf-btn--give" data-qf="give" data-uid="${esc(x.uid)}"${canGive ? busy : " disabled"} aria-label="${esc(t("questsFreezeGiveTo", { name: who.name }))}"><span class="icon icon-gift icon-12"></span></button>` : ""}
+          ${member ? `<button type="button" class="qf-btn" data-qf="buyFor" data-uid="${esc(x.uid)}"${canBuyFor ? busy : " disabled"} aria-label="${esc(t("questsFreezeBuyFor", { name: who.name, n: price }))}"><span class="icon icon-coins icon-12"></span>${price}</button>` : ""}
+        </span>
+      </li>`;
+  }).join("") : "";
+  return `
+    <section class="qd-card qd-freeze">
+      <div class="qf-head"><span class="icon icon-snow icon-18" aria-hidden="true"></span><h3>${esc(t("questsFreezeTitle"))}</h3></div>
+      <div class="qf-row"><span>${esc(t("questsFreezeOwn"))}</span>${slotsHtml(own, caps.own)}</div>
+      <div class="qf-row"><span>${esc(t("questsFreezeBonus"))}</span>${slotsHtml(bonus, caps.bonus, " qf-slots--bonus")}</div>
+      <p class="qf-hint">${esc(t("questsFreezeHint"))}</p>
+      ${broken ? `<button type="button" class="qf-action qf-action--repair" data-qf="repair"${busy}><span class="icon icon-flame icon-14"></span>${esc(t("questsFreezeRepair", { n: broken.streak }))}</button>` : ""}
+      <div class="qf-actions">
+        ${gift ? `<button type="button" class="qf-action${_giveOpen ? " is-open" : ""}" data-qf="giveOpen" aria-expanded="${_giveOpen}"><span class="icon icon-gift icon-14"></span>${esc(t("questsFreezeToGive", { n: gift.n, days: daysLeft }))}</button>`
+               : member ? `<button type="button" class="qf-action${_giveOpen ? " is-open" : ""}" data-qf="giveOpen" aria-expanded="${_giveOpen}"><span class="icon icon-community icon-14"></span>${esc(t("questsFreezeFriends"))}</button>` : ""}
+        ${member ? `<button type="button" class="qf-action" data-qf="buy"${canBuy ? busy : " disabled"}><span class="icon icon-coins icon-14"></span>${esc(t("questsFreezeBuy", { n: price }))}</button>` : ""}
+      </div>
+      ${_giveOpen ? `<ul class="qf-friends">${friendRows || `<li class="qf-empty">${esc(t("questsFreezeNoFriends"))}</li>`}</ul>` : ""}
+      ${_freezeErr ? `<p class="qf-err" role="alert">${esc(t(_freezeErr))}</p>` : ""}
+    </section>`;
 }
 function untilMidnight() {
   const now = new Date(), next = new Date(now); next.setHours(24, 0, 0, 0);

@@ -36,7 +36,7 @@ real-hardware testing).
   `users/{uid}.tz`). The rollover is local midnight; an app left open checks in at the rollover, on
   window focus, and on launch.
 - Composition: **open the app 10** + **4 missions × 5** + **full-set bonus 20** = 50.
-- **Streak bonus +100 XP every 5 consecutive days with the full set** (5th, 10th, 15th… day of the same streak; a missed day restarts the count).
+- **Streak bonus +100 XP every 5 consecutive days with the full set** (5th, 10th, 15th… day of the same streak; a missed day restarts the count). Combo multiplier and streak freezes: §7 (designed, not built).
 - The server draws the 4 missions per user per day (deterministic: hash of uid + date), **no re-roll**,
   filtered by what the user owns and has not finished (no Tiger POD mission without a reader, no
   "join the squad" when already a member).
@@ -152,3 +152,104 @@ signature when rewritten: clear warning + hold-to-confirm; the XP it earned stay
 3. **Docs**: `docs/firestore-schema.md`, backend README, integration guide, TigerHub (§ firestore
    propagation rule).
 4. **Chip workshop** (after hardware test). Later: mobile app and Tiger Touch read the same quests.
+
+## 7. Streak combo and freezes — backend and Studio written 2026-10-31, backend not deployed
+
+Validated with the founder on 2026-10-31. Server-authoritative like the rest: every count, grant
+and use below is decided by the backend — `functions/quests.js` (`FREEZE`, `advanceDaily`, the pure
+freeze actions, unit-tested) and `functions/streakFreeze.js` (endpoint `streakFreeze`: `status`,
+`give`, `buy`, `repair`; contract in the backend README). The app only shows and asks.
+
+### 7.1 Combo
+
+A **palier** = the 5th, 10th, 15th… day of the same streak (the existing streak-bonus day).
+
+- The streak bonus is multiplied by the number of paliers in a row, **capped at ×5**:
+  `bonus = 100 × min(5, streak / 5)` → day 5 +100, day 10 +200 (Combo ×2), day 15 +300, day 20 +400,
+  day 25 and after +500 (Combo ×5).
+- A missed day without a freeze resets the streak **and** the combo (as today for the streak).
+- `daily.combo` (1–5) is stored for display. The streak card shows a "Combo ×n" badge next to the
+  five pips; the palier celebration says "Combo ×n!" instead of a plain +100.
+- Streaks already running count: a user on day 10 when it ships gets ×2 at day 10, ×3 at day 15…
+
+### 7.2 Freezes
+
+A **freeze** saves a day without the full set: the streak and the combo are kept, the day earns no
+XP. Used automatically at the next check-in, then announced: "Your freeze saved your 12-day streak 🧊".
+
+Two reserves:
+
+- **Own freezes** — earned at each palier, or bought.
+- **Bonus freezes** — only ever come **from friends** (a gift, or bought for you by a friend); never
+  bought for oneself, never earned alone.
+
+A missed day uses an **own** freeze first, then a **bonus** one. Several missed days in a row need
+one freeze each: when there are enough for all of them they are used, otherwise the streak breaks
+and **the freezes are kept** (they would not have saved it). Missed days are seen at the next
+check-in (`daily.broken` = { day, streak } then, mendable — §7.2 repair).
+
+**Reserve size and perks by TigerSquad tier** (`roles`/tier stays server-written):
+
+| | Free | Bronze | Silver | Gold | Platinum |
+|---|---|---|---|---|---|
+| Own freezes (max) | 1 | 2 | 3 | 3 | 3 |
+| Bonus freezes, from friends (max) | 1 | 2 | 2 | 3 | 3 |
+| Own freeze earned per palier | 1 | 1 | 1 | 1 | 1 |
+| Freezes to give per palier | 1 | 1 | 1 | 2 | 2 |
+| Buy freezes (5 TigerCoins each) | — | ✓ | ✓ | ✓ | ✓ |
+| Repair a broken streak (within 48 h) | — | — | — | 1 free / month | 1 free / month |
+| Free freeze each month | — | — | — | — | +1 |
+
+The server knows four tiers (bronze / silver / gold / platinum, the `publishSupporter` rule;
+"coffee" is only a badge picture in Studio). A palier freeze that would exceed the own reserve is
+lost; a freeze to a friend whose bonus reserve is full is refused (7.3). **Repair** = the broken
+streak comes back (plus today's full set if already done), on the day it was seen broken or the
+next one, once a month for Gold / Platinum; no streak bonus is paid back for a palier it crosses.
+
+### 7.3 Freezes to give
+
+- At each palier the user also gets **freezes to give** (1, or 2 from Gold): they do not count in
+  either reserve and can never be used by their owner.
+- Valid **until the next palier** (5 days); at the next palier an ungiven one melts and the new
+  one(s) replace it. The card says "Freeze to give · 3 days left". A broken streak does not cancel a
+  freeze to give: it stays valid until its 5 days are over.
+- **One per friend per palier.**
+- Sending: the friends list shows each friend's **bonus slots** — filled and empty, as many as
+  their tier allows (`streakFreeze` `status` → `friends[{ bonus, bonusMax, given }]`) — so the
+  sender sees who can still receive one; a full friend is greyed ("Reserve full"). Any other
+  friend receives it for sure, in a bonus slot.
+- It lands straight in the friend's bonus reserve, announced by a `freeze_gift` notification
+  with the sender's name and avatar (not an envelope: free accounts cannot open TigerCoins
+  envelopes, and a freeze has nothing to draw).
+
+### 7.4 Buying
+
+- **5 TigerCoins** per freeze, TigerSquad members (Coffee and up), for oneself (→ own reserve) or for
+  a friend (→ the friend's bonus reserve, same "Reserve full" check). No other limit than the
+  reserves.
+- Server-side purchase (the TigerCoins balance is server-only), one action in the TigerCoins
+  function family.
+
+### 7.5 Data (to settle when building)
+
+`users/{uid}/quests/daily` gains `combo`, `freezes: { own, bonus }`, `toGive: { n, palier, until,
+sentTo[] }` (one per friend per palier), `frozenDays` (lifetime), `lastFreezeUsed: { day, streak,
+n }` (for "your freeze saved your streak"), `broken: { day, streak }`, `repairMonth`, `repairsUsed`,
+`freeMonth`, `palier` (what the last palier granted, so an admin day reset takes it back). The
+doc stays server-written (no rule change); a freeze bought logs `coinLog { kind: "freeze" }`.
+
+**Studio** (`renderer/quests/index.js`, `quests.css`): a "Combo ×n" badge next to the streak and
+the next palier's real bonus; a "Streak freezes" card — own and friends' slots (filled / empty,
+sized by the tier), the freezes to give with the days left, buy (members), "Bring back my n-day
+streak" (Gold / Platinum after a break), and the friends list with THEIR bonus slots, give and
+buy-for buttons, "Freezer full" / "Already gave one this round"; toasts once a day for "your
+freeze saved the day" and "streak broken", one for each palier ("Streak bonus!" + combo);
+the `freeze_gift` notification opens Tiger Quests.
+
+### 7.6 Later
+
+- **Streak together** — two friends who both complete their full set the same day share a flame,
+  +20 XP each per shared day.
+- **Streak milestones on the profile** — 7, 30, 100, 365 days: the flame changes colour (orange,
+  violet, blue, gold) next to the avatar in the friends bar.
+- **Double-XP potion** — 24 h of doubled quest XP for TigerCoins.

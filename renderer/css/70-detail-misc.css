@@ -49,6 +49,7 @@
   .icon-heart      { -webkit-mask-image: url('../../assets/svg/icons/icon_heart.svg');        mask-image: url('../../assets/svg/icons/icon_heart.svg'); }
   .icon-heart-fill { -webkit-mask-image: url('../../assets/svg/icons/icon_heart_filled.svg'); mask-image: url('../../assets/svg/icons/icon_heart_filled.svg'); }
   .icon-flame     { -webkit-mask-image: url('../../assets/svg/icons/icon_flame.svg');        mask-image: url('../../assets/svg/icons/icon_flame.svg'); }
+  .icon-snow      { -webkit-mask-image: url('../../assets/svg/icons/icon_snow.svg');         mask-image: url('../../assets/svg/icons/icon_snow.svg'); }
   .icon-local-fire{ -webkit-mask-image: url('../../assets/svg/icons/icon_local_fire.svg');   mask-image: url('../../assets/svg/icons/icon_local_fire.svg'); }
   .icon-droplets  { -webkit-mask-image: url('../../assets/svg/icons/icon_droplets.svg');     mask-image: url('../../assets/svg/icons/icon_droplets.svg'); }
   .icon-water     { -webkit-mask-image: url('../../assets/svg/icons/icon_water.svg');        mask-image: url('../../assets/svg/icons/icon_water.svg'); }
