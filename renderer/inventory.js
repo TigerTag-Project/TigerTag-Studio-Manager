@@ -40331,7 +40331,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       items.push({ kind: "system", at: Date.now(), html: card({ kind: "system", accent, clickable,
         attrs: `data-local-id="${esc(n.id)}"${clickable && n.action !== "report" && !isCommunity ? ` data-local-action="${esc(n.action)}"` : ""}`,
         art, title: n.title, text: `${n.text || ""}${n.version ? ` (v${n.version})` : ""}`,
-        act: n.action === "report" ? { id: "report", icon: "chat", label: t("notifActDiscussion") } : isCommunity ? { id: "community", arg: n.action, icon: "arrow-up-right", label: t("notifActOpen") } : null,
+        act: n.action === "report" ? { id: "report", arg: String(n.id || "").replace(/^req-reply-/, ""), icon: "chat", label: t("notifActDiscussion") } : isCommunity ? { id: "community", arg: n.action, icon: "arrow-up-right", label: t("notifActOpen") } : null,
         extra: isFw ? `<button type="button" class="primary sm notif-later" title="${esc(t("notifRemindLater"))}"><span class="icon icon-bell icon-12"></span>${esc(t("notifRemindLater"))}</button>` : "",
         after: `${n.action === "restart" ? `<button class="primary sm notif-restart">${esc(t("btnRestartUpdate"))}</button>` : ""}${isFw ? `<button type="button" class="fp-friend-btn notif-dismiss notif-dismiss-paxx" title="${esc(t("cancelLabel"))}"><span class="icon icon-close icon-13"></span></button>` : ""}` }) });
     }
@@ -40374,7 +40374,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         const st = n.data?.status || "open";
         items.push({ kind: "system", at, html: card({ ...base, kind: "system", accent: NOTIF_ACCENT.report, art: icon("suggestion", ` notif-ic--req notif-ic--req-${esc(st)}`),
           title: t(`notifReq_${st}`, { n: n.data?.number || "" }), text: n.data?.title || "",
-          act: { id: "report", icon: "chat", label: t("notifActDiscussion") } }) });
+          act: { id: "report", arg: n.data?.reportId || "", icon: "chat", label: t("notifActDiscussion") } }) });
       } else if ((n.action || "") === "lowstock") {
         // Older low-stock notices stored the desktop's local /img-cache/ path — only that desktop can show it.
         const img = !HAS_NATIVE && String(n.data?.img || "").startsWith("/img-cache/") ? "" : n.data?.img;
@@ -40456,7 +40456,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         case "progress": if (_squadOnly()) _openSquadView("ach"); break;
         case "friend": { const f = (state.friends || []).find(x => x.uid === arg); switchToFriendView(arg, f?.displayName || "", f?.color || null); break; }
         case "whatsnew": openWhatsNew(arg || undefined, { manual: true }); break;
-        case "report": openReport({ tab: "mine" }); break;
+        case "report": openReport({ tab: "mine", thread: arg || null }); break;   // straight into that request's conversation
         case "community": _openCommunityLink(arg); break;
         case "order": setViewMode("order"); break;
         case "quests": setViewMode("questsToday"); break;

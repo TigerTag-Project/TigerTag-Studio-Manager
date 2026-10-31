@@ -19,10 +19,16 @@
  *                              listPrinters, printerReportData, … }
  *   toggleReport()   — open / close the side card (the draft survives)
  *   isReportOpen()   — is it open?
+ *
+ * "My requests" lists what the user sent; a row opens its CONVERSATION — the
+ * request and every comment on the GitHub issue (team replies on the left, the
+ * user's own on the right) — where the user answers, with pictures, without a
+ * GitHub account (backend `myReports` actions `thread` / `comment`). A team reply
+ * or a new status raises a notice and, once per change, an alert window.
  */
 
 import { openAnnotator } from "./annotator.js";
-import { repliesSince, seenAll } from "./replies.js";
+import { repliesSince, seenAll, unseenReplies, alertNews } from "./replies.js";
 import { tigerTouchScreensReady, captureTigerTouch } from "../IoT/tigertouch/panel.js";
 import { scalesReady } from "../IoT/tigerscale/index.js";
 import { spoolsReady, spoolReportDevices } from "../IoT/tigerspool/index.js";
@@ -89,8 +95,19 @@ let _view = "new";       // "new" (kind picker / form) | "mine" (my requests)
 let _mine = { list: null, loading: false, error: false };   // last "My requests" fetch
 let _closeAsk = null;    // report id whose close is awaiting confirmation
 let _lastScreen = null;  // last screen painted — a change slides the new one in
+// The conversation open in "My requests": { id, data, loading, error, text, images, sending, err }.
+let _thread = null;
+const REPLY_MAX_IMAGES = 3;   // backend REPLY_MAX_IMAGES
+const WATCH_MS = 30 * 60e3;   // re-check open requests for news while the app runs
 
-export function initReport(c) { ctx = c; }
+export function initReport(c) {
+  ctx = c;
+  // Team replies and status changes are read from GitHub on demand: at sign-in, when
+  // "My requests" opens, and every WATCH_MS while a request is still open.
+  setInterval(() => {
+    if (document.visibilityState === "visible" && (_mine.list || []).some(r => CLOSABLE.has(r.status))) syncReports().catch(() => {});
+  }, WATCH_MS);
+}
 
 const t = (k, p) => ctx.t(k, p);
 const esc = s => ctx.esc(String(s == null ? "" : s));
@@ -278,7 +295,7 @@ function _ensureCard() {
   _overlay.addEventListener("input", onInput);
   _overlay.addEventListener("change", onInput);
   _overlay.addEventListener("dragover", e => { e.preventDefault(); });
-  _overlay.addEventListener("drop", e => { e.preventDefault(); e.stopPropagation(); reportDragState(false); addFiles(e.dataTransfer?.files); });
+  _overlay.addEventListener("drop", e => { e.preventDefault(); e.stopPropagation(); reportDragState(false); reportDropFiles(e.dataTransfer?.files); });
   // The drop overlay (shown while files are dragged over the window).
   const drop = document.createElement("div");
   drop.className = "rep-drop";
@@ -330,18 +347,28 @@ function _loadSeen(uid) {
 function _saveSeen(uid, map) {
   try { localStorage.setItem(SEEN_KEY(uid), JSON.stringify(map)); } catch (_) {}
 }
-/** The user is looking at "My requests": every reply is seen. */
-function _markMineSeen() {
-  const uid = _mine.uid, list = _mine.list;
-  if (!uid || !list) return;
-  _saveSeen(uid, { ..._loadSeen(uid), ...seenAll(list) });
-  list.forEach(r => ctx.clearNotif?.(_replyNotifId(r.id)));
+// The status last seen per request, and what the alert window already announced
+// ({ [id]: "status:replies" }) — so each change is announced once.
+const _store = (key, uid) => ({
+  load() { try { return JSON.parse(localStorage.getItem(`${key}.${uid}`) || "{}") || {}; } catch (_) { return {}; } },
+  save(m) { try { localStorage.setItem(`${key}.${uid}`, JSON.stringify(m)); } catch (_) {} },
+});
+const _statusSeen = uid => _store("tigertag.reportStatusSeen", uid);
+const _alerted = uid => _store("tigertag.reportAlerted", uid);
+/** The user opened this request's conversation: its replies and status are seen. */
+function _markSeen(r) {
+  const uid = _mine.uid;
+  if (!uid || !r) return;
+  _saveSeen(uid, { ..._loadSeen(uid), ...seenAll([r]) });
+  const s = _statusSeen(uid); s.save({ ...s.load(), [r.id]: r.status });
+  ctx.clearNotif?.(_replyNotifId(r.id));
 }
-/** After a sync: raise a notice for each request that got a reply. */
+/** After a sync: raise a notice for each request that got a reply, and the alert
+ *  window for what changed since it was last announced. */
 function _checkReplies() {
   const uid = _mine.uid, list = _mine.list;
   if (!uid || !list) return;
-  if (isReportOpen() && _view === "mine") { _markMineSeen(); return; }   // looking at them now
+  if (_thread && isReportOpen() && _view === "mine") _markSeen(list.find(r => r.id === _thread.id));   // reading it now
   const { fresh, next } = repliesSince(list, _loadSeen(uid));
   _saveSeen(uid, next);
   const freshIds = new Set(fresh.map(r => r.id));
@@ -350,6 +377,155 @@ function _checkReplies() {
     id: _replyNotifId(r.id), icon: "suggestion", action: "report",
     title: t("notifReqReply", { n: r.number }), text: r.title || "",
   }));
+  const ss = _statusSeen(uid), al = _alerted(uid);
+  const { news, statusNext, alertedNext } = alertNews(list, _loadSeen(uid), ss.load(), al.load());
+  ss.save(statusNext); al.save(alertedNext);
+  const shown = news.filter(n => !(_thread?.id === n.r.id && isReportOpen()));
+  if (shown.length) _showAlert(shown);
+}
+
+// ── Alert window: "your request moved" ───────────────────────────────────────
+// A real modal (not just a notice): a team reply or a new status may need the
+// user's answer. One window lists every request that moved; it opens the
+// conversation directly when there is only one.
+function _showAlert(news) {
+  document.getElementById("repAlertOverlay")?.remove();
+  const ov = document.createElement("div");
+  ov.className = "modal-overlay rep-alert-overlay"; ov.id = "repAlertOverlay";
+  ov.innerHTML = `
+    <div class="modal-card rep-alert" role="alertdialog" aria-modal="true" aria-labelledby="repAlertTitle">
+      <span class="rep-alert-ico" aria-hidden="true"><span class="icon icon-chat icon-32"></span></span>
+      <h3 id="repAlertTitle">${esc(t("reportAlertTitle"))}</h3>
+      <p class="rep-alert-text">${esc(t("reportAlertText"))}</p>
+      <ul class="rep-alert-list">${news.map(({ r, reply, status }) => {
+        const sdef = STATUS[r.status] || STATUS.open, k = kindOf(r.kind) || KINDS[0];
+        return `<li style="--kc:${k.c}"><span class="rep-kind-ico"><span class="icon icon-${k.icon} icon-14"></span></span>
+          <div><b>${r.number ? `#${esc(r.number)} · ` : ""}${esc(r.title || r.brand?.name || "—")}</b>
+          <small>${[reply ? esc(t("reportAlertReply")) : "", status ? `<span class="rep-status" style="--sc:${sdef.c}">${esc(t(sdef.key))}</span>` : ""].filter(Boolean).join(" ")}</small></div></li>`;
+      }).join("")}</ul>
+      <div class="rep-alert-acts">
+        <button type="button" class="secondary" data-alert="later">${esc(t("reportAlertLater"))}</button>
+        <button type="button" class="primary" data-alert="open">${esc(t("reportAlertOpen"))}</button>
+      </div>
+    </div>`;
+  const close = () => { ov.classList.remove("open"); setTimeout(() => ov.remove(), 250); };
+  ov.addEventListener("click", e => {
+    const b = e.target.closest("[data-alert]");
+    if (e.target === ov || b?.dataset.alert === "later") close();
+    else if (b?.dataset.alert === "open") { close(); openReport({ tab: "mine", thread: news.length === 1 ? news[0].r.id : null }); }
+  });
+  document.body.appendChild(ov);
+  requestAnimationFrame(() => ov.classList.add("open"));
+  setTimeout(() => ov.querySelector('[data-alert="open"]')?.focus(), 50);
+}
+
+// ── Conversation ─────────────────────────────────────────────────────────────
+async function openThread(id) {
+  _thread = { id, data: null, loading: true, error: false, text: "", images: [], sending: false, err: "" };
+  _view = "mine"; _closeAsk = null;
+  _markSeen((_mine.list || []).find(r => r.id === id));
+  render();
+  try { const j = await authedPost(MINE_ENDPOINT, { action: "thread", reportId: id }); if (_thread?.id === id) _thread.data = j.thread; }
+  catch (_) { if (_thread?.id === id) _thread.error = true; }
+  if (_thread?.id !== id) return;
+  _thread.loading = false;
+  render(); _threadToEnd();
+}
+const _threadToEnd = () => requestAnimationFrame(() => { const b = _body(); if (b) b.scrollTop = b.scrollHeight; });
+const _threadActive = () => !!(_thread && isReportOpen() && _view === "mine" && _thread.data?.canReply);
+async function addReplyImage(src) {
+  if (!_thread) return;
+  if (_thread.images.length >= REPLY_MAX_IMAGES) { _thread.err = t("reportReplyMaxImages", { n: REPLY_MAX_IMAGES }); render(); return; }
+  try { _thread.images.push(await normalize(src)); _thread.err = ""; } catch (_) { _thread.err = t("reportImageBad"); }
+  render(); _overlay.querySelector("#repReply")?.focus();
+}
+function addReplyFiles(files) {
+  [...(files || [])].filter(f => /^image\//.test(f.type)).forEach(f => { const r = new FileReader(); r.onload = () => addReplyImage(r.result); r.readAsDataURL(f); });
+}
+async function sendReply() {
+  const th = _thread;
+  if (!th || th.sending || (!th.text.trim() && !th.images.length)) return;
+  th.sending = true; th.err = ""; render();
+  try {
+    const j = await authedPost(MINE_ENDPOINT, { action: "comment", reportId: th.id, text: th.text.trim(), images: th.images });
+    if (_thread === th) { th.data = j.thread; th.text = ""; th.images = []; }
+    const r = (_mine.list || []).find(x => x.id === th.id);
+    if (r) r.comments = (Number(r.comments) || 0) + 1;
+  } catch (e) {
+    th.err = t(e.code === "CLOSED" ? "reportReplyErrClosed" : e.code === "TOO_MANY" ? "reportReplyErrTooMany" : "reportErrSend");
+  }
+  th.sending = false;
+  if (_thread === th) { render(); _threadToEnd(); }
+}
+// Comment text: the little markdown people actually type (bold, code, links), escaped first.
+function richText(s) {
+  const link = (u, label) => `<a href="#" class="rep-msg-link" data-rep="link" data-url="${u}">${label}</a>`;
+  return esc(String(s || "").replace(/^#{1,6}\s*/gm, ""))
+    .replace(/\*\*([^*\n]+)\*\*/g, "<b>$1</b>")
+    .replace(/`([^`\n]+)`/g, "<code>$1</code>")
+    .replace(/\[([^\]\n]+)\]\((https?:\/\/[^)\s]+)\)/g, (_, l, u) => link(u, l))
+    .replace(/(^|[\s(])(https?:\/\/[^\s<)]+)/g, (_, p, u) => p + link(u, u))
+    .replace(/\n/g, "<br>");
+}
+function messageHTML(m) {
+  if (m.from === "app") return `<div class="rep-msg-note">${esc(t("reportThreadClosedByYou"))}${m.at ? ` · ${esc(ctx.timeAgo(m.at))}` : ""}</div>`;
+  const mine = m.from === "you";
+  const who = mine ? t("reportThreadYou") : m.from === "team" ? t("reportThreadTeam") : m.name;
+  const ava = mine ? "" : m.avatar ? `<img class="rep-msg-ava" src="${esc(m.avatar)}&s=64" alt="">`
+    : `<span class="rep-msg-ava rep-msg-ava--none"><span class="icon icon-user icon-14"></span></span>`;
+  return `
+    <div class="rep-msg rep-msg--${esc(m.from)}">
+      ${ava}
+      <div class="rep-msg-bubble">
+        <div class="rep-msg-head"><b>${esc(who)}</b>${m.at ? `<span>${esc(ctx.timeAgo(m.at))}</span>` : ""}</div>
+        ${m.text ? `<div class="rep-msg-text">${richText(m.text)}</div>` : ""}
+        ${(m.images || []).length ? `<div class="rep-msg-imgs">${m.images.map(u => `<button type="button" class="rep-msg-img" data-rep="link" data-url="${esc(u)}" aria-label="${esc(t("reportThreadImage"))}"><img src="${esc(u)}" alt="" loading="lazy"></button>`).join("")}</div>` : ""}
+      </div>
+    </div>`;
+}
+function threadHTML() {
+  const th = _thread, d = th.data;
+  const r = (_mine.list || []).find(x => x.id === th.id) || {};
+  const k = kindOf(d?.kind || r.kind) || KINDS[0];
+  const status = d?.status || r.status || "open", sdef = STATUS[status] || STATUS.open;
+  const url = d?.url || r.url;
+  const head = `
+    ${closeX()}
+    <button type="button" class="rep-back" data-rep="threadBack"><span class="icon icon-chevron-l icon-12"></span>${esc(t("reportTabMine"))}</button>
+    <div class="rep-thread-head" style="--kc:${k.c}">
+      <span class="rep-kind-ico"><span class="icon icon-${k.icon} icon-14"></span></span>
+      <div class="rep-mine-main"><div class="rep-thread-title" id="repHead">${esc(d?.title || r.title || r.brand?.name || "—")}</div>
+        <div class="rep-mine-sub">${esc([(d?.number || r.number) ? `#${d?.number || r.number}` : "", (d?.createdAt || r.createdAt) ? ctx.timeAgo(d?.createdAt || r.createdAt) : ""].filter(Boolean).join(" · "))}</div></div>
+      <span class="rep-status" style="--sc:${sdef.c}">${esc(t(sdef.key))}</span>
+      ${url ? `<button type="button" class="rep-mine-btn" data-rep="link" data-url="${esc(url)}" aria-label="${esc(t("reportOpenIssue"))}"><span class="icon icon-github icon-14"></span></button>` : ""}
+    </div>`;
+  if (th.loading && !d) return `<div class="rep-card rep-thread">${head}<div class="rep-mine-empty">${esc(t("reportThreadLoading"))}</div></div>`;
+  if (th.error && !d) return `<div class="rep-card rep-thread">${head}<div class="rep-mine-empty">${esc(t("reportThreadError"))}</div></div>`;
+  const msgs = [{ from: "you", text: d.body, images: d.images, at: d.createdAt }, ...d.comments];
+  const answered = d.comments.some(c => c.from === "team");
+  const composer = d.canReply ? `
+    <div class="rep-reply">
+      ${th.images.length ? `<div class="rep-reply-imgs">${th.images.map((src, i) => `<span class="rep-reply-img"><img src="${src}" alt=""><button type="button" data-rep="replyRemove" data-i="${i}" aria-label="${esc(t("reportRemoveImage"))}"><span class="icon icon-close icon-10"></span></button></span>`).join("")}</div>` : ""}
+      <textarea id="repReply" rows="3" maxlength="4000" placeholder="${esc(t("reportReplyPh"))}"${th.sending ? " disabled" : ""}>${esc(th.text)}</textarea>
+      <div class="rep-reply-bar">
+        <button type="button" class="rep-mine-btn" data-rep="replyFile" aria-label="${esc(t("reportReplyAttach"))}"${th.sending ? " disabled" : ""}><span class="icon icon-image icon-16"></span></button>
+        <input type="file" id="repReplyFile" accept="image/*" multiple hidden>
+        <span class="rep-reply-public">${esc(t("reportReplyPublic"))}</span>
+        <button type="button" class="rep-btn rep-btn--blue" data-rep="replySend"${th.sending || (!th.text.trim() && !th.images.length) ? " disabled" : ""}><span class="icon icon-send icon-14"></span>${esc(t(th.sending ? "reportReplySending" : "reportReplySend"))}</button>
+      </div>
+      ${th.err ? `<div class="rep-error">${esc(th.err)}</div>` : ""}
+    </div>
+    <div class="rep-thread-close">${r.closing ? `<span class="rep-mine-closing">…</span>`
+      : _closeAsk === th.id
+      ? `<button type="button" class="rep-mine-confirm" data-rep="mineCloseYes" data-id="${esc(th.id)}">${esc(t("reportMineCloseConfirm"))}</button>`
+      : `<button type="button" class="rep-back" data-rep="mineClose" data-id="${esc(th.id)}"><span class="icon icon-close icon-12"></span>${esc(t("reportMineClose"))}</button>`}</div>` : `<div class="rep-msg-note rep-msg-note--closed">${esc(t("reportReplyClosed"))}</div>`;
+  return `
+    <div class="rep-card rep-thread">
+      ${head}
+      <div class="rep-msgs">${msgs.map(messageHTML).join("")}
+        ${answered ? "" : `<div class="rep-msg-note">${esc(t("reportThreadEmpty"))}</div>`}</div>
+      ${composer}
+    </div>`;
 }
 
 /** Fetch "My requests" — the backend also syncs each with GitHub and raises a
@@ -360,11 +536,11 @@ export async function syncReports() {
   if (_mine.uid !== uid) _mine = { list: null, loading: false, error: false, uid };   // account switched
   if (!uid || _mine.loading) return _mine.list;
   _mine.loading = true; _mine.error = false;
-  if (isReportOpen() && _view === "mine") render();
+  if (isReportOpen() && _view === "mine" && !_thread) render();
   try { _mine.list = (await authedPost(MINE_ENDPOINT, { action: "list" })).reports || []; _checkReplies(); }
   catch (_) { _mine.error = true; }
   _mine.loading = false;
-  if (isReportOpen() && _view === "mine") render(); else if (isReportOpen()) render();
+  if (isReportOpen() && !_thread) render();
   return _mine.list;
 }
 async function closeMine(id) {
@@ -376,6 +552,9 @@ async function closeMine(id) {
     await authedPost(MINE_ENDPOINT, { action: "close", reportId: id });
     if (r) {
       r.status = "cancelled"; r.closing = false;
+      // Closed from its conversation: the thread follows (no more answers, the app's note).
+      if (_thread?.id === id && _thread.data) Object.assign(_thread.data, { status: "cancelled", canReply: false,
+        comments: [..._thread.data.comments, { id: "closed", from: "app", text: "", images: [], at: Date.now() }] });
       // Closing posts a comment from the app's account. The server's `replies`
       // never counts it; only the older `comments` fallback does — skip it there.
       r.comments = (Number(r.comments) || 0) + 1;
@@ -384,14 +563,15 @@ async function closeMine(id) {
         if (uid) { const m = _loadSeen(uid); m[id] = r.comments; _saveSeen(uid, m); }
       }
     }
-  } catch (_) { if (r) { r.closing = false; r.closeFailed = true; } }
+  } catch (_) { if (r) { r.closing = false; r.closeFailed = true; } if (_thread?.id === id) _thread.err = t("reportErrSend"); }
   render();
+  if (_thread?.id === id) _threadToEnd();
 }
 
 export function isReportOpen() { return !!_overlay?.classList.contains("open"); }
 // Files dropped anywhere in the window while the card is open land here — the
 // .ttag import stands down meanwhile (inventory.js).
-export function reportDropFiles(files) { reportDragState(false); if (isReportOpen() && st && !st.done) addFiles(files); }
+export function reportDropFiles(files) { reportDragState(false); if (_threadActive()) addReplyFiles(files); else if (isReportOpen() && st && !st.done) addFiles(files); }
 // Files are being dragged over the window: the card says "drop here" (a big
 // overlay on the card) — otherwise nothing hints that a drop would work.
 export function reportDragState(on) {
@@ -417,7 +597,7 @@ export function refreshSquadCard() {
 export async function openReport(opts = {}) {
   if (!ctx) return;
   if (_mine.uid !== (ctx.getUid?.() || null)) _mine = { list: null, loading: false, error: false, uid: ctx.getUid?.() || null };
-  if (opts.tab === "mine") { _view = "mine"; syncReports(); }
+  if (opts.tab === "mine") { _view = "mine"; if (!opts.thread) _thread = null; syncReports(); }
   _ensureCard();
   const dz = _overlay.querySelector(".rep-drop");
   dz.innerHTML = `<span class="icon icon-download icon-32"></span><span class="rep-drop-title">${esc(t("reportDropHere"))}</span><span class="rep-drop-sub">${esc(t("reportDropSub", { n: MAX_IMAGES }))}</span>`;
@@ -430,7 +610,7 @@ export async function openReport(opts = {}) {
   // Refreshed on every open: the view and the printers may have changed since.
   try { st.meta = await ctx.getMeta(); } catch (_) { st.meta = st.meta || {}; }
   _pinToSidebar();
-  render();
+  if (opts.thread) openThread(opts.thread); else render();
   // A card created just now has no computed "closed" position yet: read it
   // first, or the very first open would jump instead of sliding.
   void _overlay.getBoundingClientRect();
@@ -444,7 +624,12 @@ function closeReport() {
 }
 
 function onPaste(e) {
-  if (!_overlay?.classList.contains("open") || st?.done) return;
+  if (!_overlay?.classList.contains("open") || (st?.done && !_threadActive())) return;
+  if (_threadActive()) {
+    const imgs = [...(e.clipboardData?.items || [])].filter(i => i.kind === "file" && /^image\//.test(i.type)).map(i => i.getAsFile());
+    if (imgs.length) { e.preventDefault(); addReplyFiles(imgs); }
+    return;
+  }
   const files = [...(e.clipboardData?.items || [])].filter(i => i.kind === "file" && (/^image\//.test(i.type) || i.type === "application/pdf" || i.type === "application/json")).map(i => i.getAsFile());
   if (!files.length) return;          // plain text → normal paste into the field
   e.preventDefault();
@@ -453,6 +638,8 @@ function onPaste(e) {
 
 function onInput(e) {
   const el = e.target;
+  if (el.id === "repReply") { if (_thread) { _thread.text = el.value; const b = _overlay.querySelector('[data-rep="replySend"]'); if (b) b.disabled = _thread.sending || (!el.value.trim() && !_thread.images.length); } return; }
+  if (el.id === "repReplyFile") { addReplyFiles(el.files); el.value = ""; return; }
   if (el.id === "repTitle") st.title = el.value;
   else if (el.id === "repBody") st.body = el.value;
   else if (el.id === "repConsent") { st.consent = el.checked; syncSend(); if (el.checked) _overlay.querySelector(".rep-bubble")?.remove(); }
@@ -581,7 +768,13 @@ function onClick(e) {
   else if (act === "coffee") ctx.openCoffee?.(a);
   else if (act === "squad") ctx.openSquad?.();
   else if (act === "squadWall") (ctx.openSquadBoard ? ctx.openSquadBoard("countries") : ctx.openExternal(a.dataset.url));
-  else if (act === "view") { _view = a.dataset.view; _closeAsk = null; render(); if (_view === "mine") syncReports(); }
+  else if (act === "view") { _view = a.dataset.view; _closeAsk = null; _thread = null; render(); if (_view === "mine") syncReports(); }
+  else if (act === "mineThread") openThread(a.dataset.id);
+  else if (act === "threadBack") { _thread = null; render(); syncReports(); }
+  else if (act === "link") { e.preventDefault(); if (/^https:\/\//.test(a.dataset.url || "")) ctx.openExternal(a.dataset.url); }
+  else if (act === "replyFile") _overlay.querySelector("#repReplyFile")?.click();
+  else if (act === "replyRemove") { _thread?.images.splice(Number(a.dataset.i), 1); render(); }
+  else if (act === "replySend") sendReply();
   else if (act === "mineOpen") { const r = (_mine.list || []).find(x => x.id === a.dataset.id); if (r?.url) ctx.openExternal(r.url); }
   else if (act === "mineClose") { _closeAsk = a.dataset.id; render(); setTimeout(() => { if (_closeAsk === a.dataset.id) { _closeAsk = null; render(); } }, 4000); }
   else if (act === "mineCloseYes") closeMine(a.dataset.id);
@@ -687,20 +880,22 @@ function mineHTML() {
   if (_mine.error && !_mine.list) return `<div class="rep-mine-empty">${esc(t("reportMineError"))}</div>`;
   const list = _mine.list || [];
   if (!list.length) return `<div class="rep-mine-empty">${esc(t("reportMineEmpty"))}</div>`;
+  const seen = _mine.uid ? _loadSeen(_mine.uid) : {};
   return `<div class="rep-mine">${list.map(r => {
     const k = kindOf(r.kind) || KINDS[0];
     const sdef = STATUS[r.status] || STATUS.open;
     const sub = [r.number ? `#${r.number}` : null, r.createdAt ? ctx.timeAgo(r.createdAt) : null,
                  r.comments ? t("reportMineComments", { n: r.comments }) : null].filter(Boolean).join(" · ");
     const asking = _closeAsk === r.id;
+    const unseen = r.number ? unseenReplies(r, seen) : 0;
     return `
-      <div class="rep-mine-row${CLOSABLE.has(r.status) ? "" : " is-final"}" style="--kc:${k.c}">
+      <div class="rep-mine-row${CLOSABLE.has(r.status) ? "" : " is-final"}${unseen ? " has-news" : ""}" style="--kc:${k.c}">
         <span class="rep-kind-ico"><span class="icon icon-${k.icon} icon-14"></span></span>
-        <div class="rep-mine-main">
-          <div class="rep-mine-title">${esc(r.title || r.brand?.name || "—")}</div>
+        <button type="button" class="rep-mine-main" data-rep="mineThread" data-id="${esc(r.id)}"${r.number ? "" : " disabled"} aria-label="${esc(t("reportMineOpenThread"))}">
+          <div class="rep-mine-title">${unseen ? `<span class="rep-mine-new">${esc(t("reportMineNewReply"))}</span>` : ""}${esc(r.title || r.brand?.name || "—")}</div>
           <div class="rep-mine-sub">${esc(sub)}</div>
           ${r.closeFailed ? `<div class="rep-error">${esc(t("reportErrSend"))}</div>` : ""}
-        </div>
+        </button>
         <span class="rep-status" style="--sc:${sdef.c}">${esc(t(sdef.key))}</span>
         <div class="rep-mine-acts">
           ${r.url ? `<button type="button" class="rep-mine-btn" data-rep="mineOpen" data-id="${esc(r.id)}" aria-label="${esc(t("reportOpenIssue"))}"><span class="icon icon-github icon-14"></span></button>` : ""}
@@ -769,7 +964,6 @@ function applyFmt(kind, insert) {
 function render() {
   if (!_overlay) return;
   queueMicrotask(_syncTab);   // topic picked / sent / abandoned → the tab follows
-  if (_view === "mine" && _mine.list && isReportOpen()) _markMineSeen();   // looking at them → seen
 
   // 4 — Confirmation
   if (st.done) {
@@ -833,6 +1027,7 @@ function render() {
           <button type="button" class="rep-view${_view === "new" ? " is-on" : ""}" data-rep="view" data-view="new" role="tab" aria-selected="${_view === "new"}"><span class="icon icon-suggestion icon-14"></span>${esc(t("reportTabNew"))}</button>
           <button type="button" class="rep-view${_view === "mine" ? " is-on" : ""}" data-rep="view" data-view="mine" role="tab" aria-selected="${_view === "mine"}"><span class="icon icon-clock icon-14"></span>${esc(t("reportTabMine"))}${openN ? `<span class="rep-view-count">${openN}</span>` : ""}</button>
         </div>`;
+    if (_view === "mine" && _thread) { paint("form", threadHTML()); return; }
     if (_view === "mine") { paint("list", `<div class="rep-card">${head}${mineHTML()}</div>`); return; }
     // 1a — Which part of the ecosystem (each lands in its own GitHub repo).
     if (!st.targetPicked) {

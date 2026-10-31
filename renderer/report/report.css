@@ -649,3 +649,74 @@
 .rep-printer-dot { width: 8px; aspect-ratio: 1; border-radius: 50%; flex: none; background: var(--border); }
 .rep-printer-dot.is-on { background: var(--success); }
 .rep-printer-note { margin: 4px 0 0; font-size: 11.5px; color: var(--muted); }
+
+/* ── My requests: a row opens its conversation; unseen team replies flagged ── */
+.rep-mine-row .rep-mine-main { display: flex; flex-direction: column; align-items: stretch; border: 0; background: none; padding: 0; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.rep-mine-row .rep-mine-main:disabled { cursor: default; }
+.rep-mine-row:has(.rep-mine-main:not(:disabled)):hover { background: var(--surface-2); }
+.rep-mine-row.has-news { border-color: color-mix(in srgb, #2563eb 55%, var(--border)); }
+.rep-mine-new { display: inline-block; margin-right: 6px; padding: 1px 7px; border-radius: 9px; vertical-align: 1px;
+  font-size: 10.5px; font-weight: 800; color: #fff; background: #2563eb; }
+
+/* ── Conversation: the request + every comment, team left, the user right ── */
+.rep-thread-head { display: flex; align-items: center; gap: 10px; padding: 10px; border: 1px solid var(--border); border-radius: 12px; }
+.rep-thread-head .rep-kind-ico { width: 32px; height: 32px; border-radius: 9px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--kc) 16%, transparent); }
+.rep-thread-head .rep-kind-ico .icon { background: var(--kc); }
+.rep-thread-title { font-size: 14px; font-weight: 800; color: var(--text); line-height: 1.3; }
+.rep-msgs { display: flex; flex-direction: column; gap: 10px; }
+.rep-msg { display: flex; align-items: flex-end; gap: 8px; max-width: 92%; }
+.rep-msg--you { align-self: flex-end; flex-direction: row-reverse; }
+.rep-msg-ava { width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; object-fit: cover; }
+.rep-msg-ava--none { display: inline-flex; align-items: center; justify-content: center; background: var(--surface-2); }
+.rep-msg-ava--none .icon { background: var(--muted); }
+.rep-msg-bubble { min-width: 0; padding: 8px 11px; border-radius: 14px 14px 14px 4px; background: var(--surface-2); border: 1px solid var(--border); }
+.rep-msg--you .rep-msg-bubble { border-radius: 14px 14px 4px 14px; background: color-mix(in srgb, #2563eb 16%, var(--surface)); border-color: color-mix(in srgb, #2563eb 35%, var(--border)); }
+.rep-msg--team .rep-msg-bubble { border-color: color-mix(in srgb, var(--primary) 45%, var(--border)); }
+.rep-msg-head { display: flex; align-items: baseline; gap: 8px; font-size: 11.5px; color: var(--muted); margin-bottom: 3px; }
+.rep-msg-head b { color: var(--text); font-size: 12px; }
+.rep-msg--team .rep-msg-head b { color: var(--primary); }
+.rep-msg-text { font-size: 13px; line-height: 1.5; color: var(--text); overflow-wrap: anywhere; }
+.rep-msg-text code { font-size: 12px; padding: 0 4px; border-radius: 4px; background: var(--surface); }
+.rep-msg-link { color: #3b82f6; text-decoration: underline; }
+.rep-msg-imgs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.rep-msg-img { width: 84px; aspect-ratio: 4 / 3; padding: 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; cursor: zoom-in; background: var(--surface); }
+.rep-msg-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.rep-msg-note { align-self: center; font-size: 11.5px; color: var(--muted); text-align: center; padding: 2px 10px; }
+.rep-msg-note--closed { padding: 10px; border: 1px dashed var(--border); border-radius: 10px; }
+
+/* Answer box */
+.rep-reply { display: flex; flex-direction: column; gap: 8px; padding: 10px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+.rep-reply textarea { width: 100%; resize: vertical; min-height: 64px; border: 0; background: none; color: var(--text); font-family: inherit; font-size: 13px; line-height: 1.5; outline: none; }
+.rep-reply-bar { display: flex; align-items: center; gap: 8px; }
+.rep-reply-public { flex: 1; font-size: 11px; color: var(--muted); line-height: 1.3; }
+.rep-reply-bar .rep-btn:disabled { opacity: .5; cursor: default; filter: none; }
+.rep-reply-imgs { display: flex; gap: 6px; }
+.rep-reply-img { position: relative; width: 64px; aspect-ratio: 4 / 3; border-radius: 7px; overflow: hidden; border: 1px solid var(--border); }
+.rep-reply-img img { width: 100%; height: 100%; object-fit: cover; }
+.rep-reply-img button { position: absolute; top: 2px; right: 2px; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, .6); cursor: pointer; }
+.rep-reply-img button .icon { background: #fff; }
+
+/* ── Alert window: "your request moved" ── */
+.rep-alert-overlay { z-index: 3000; }
+.rep-alert { max-width: 420px; background: var(--surface); border: 1px solid var(--border); border-radius: 18px; box-shadow: 0 24px 60px rgba(0, 0, 0, .45); display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; padding: 26px 24px 20px; }
+.rep-alert-ico { width: 64px; height: 64px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, #2563eb 18%, transparent); animation: rep-alert-pop .5s cubic-bezier(.2, 1.4, .4, 1); }
+.rep-alert-ico .icon { background: #3b82f6; }
+.rep-alert h3 { margin: 0; font-size: 18px; color: var(--text); }
+.rep-alert-text { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.5; }
+.rep-alert-list { list-style: none; margin: 4px 0 0; padding: 0; width: 100%; display: flex; flex-direction: column; gap: 6px; text-align: left; max-height: 240px; overflow-y: auto; }
+.rep-alert-list li { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; }
+.rep-alert-list .rep-kind-ico { width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--kc) 16%, transparent); }
+.rep-alert-list .rep-kind-ico .icon { background: var(--kc); }
+.rep-alert-list div { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.rep-alert-list b { font-size: 13px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rep-alert-list small { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #3b82f6; font-weight: 700; }
+.rep-alert-acts { display: flex; gap: 8px; justify-content: flex-end; width: 100%; margin-top: 6px; }
+@keyframes rep-alert-pop { from { transform: scale(.4); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .rep-alert-ico { animation: none; } }
+/* The user closes their own request from its conversation too (asks once, like in the list). */
+.rep-thread-close { display: flex; justify-content: center; }
+.rep-thread-close .rep-back { color: var(--muted); }

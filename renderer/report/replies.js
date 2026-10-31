@@ -43,3 +43,29 @@ export function seenAll(list) {
   for (const r of list || []) if (r && r.id != null) m[r.id] = replyCount(r);
   return m;
 }
+
+/** Unseen team replies on one request (0 when never seen: first sightings are silent). */
+export function unseenReplies(r, seen) {
+  return r && seen && r.id in seen ? Math.max(0, replyCount(r) - seen[r.id]) : 0;
+}
+
+/**
+ * What the alert window announces after a sync: requests with an unseen team
+ * reply or a status the user has not seen yet, and not already announced in that
+ * same state (`alerted` = { [id]: "status:replies" } as last shown).
+ * @returns {{ news: Array<{r, reply: boolean, status: boolean}>, statusNext: Object, alertedNext: Object }}
+ *   statusNext — `statusSeen` plus a silent baseline for requests met for the first time.
+ */
+export function alertNews(list, seen, statusSeen, alerted, { skipStatus = ["cancelled"] } = {}) {
+  const statusNext = { ...(statusSeen || {}) }, alertedNext = { ...(alerted || {}) };
+  const news = [];
+  for (const r of list || []) {
+    if (!r || r.id == null) continue;
+    if (!(r.id in statusNext)) { statusNext[r.id] = r.status; continue; }
+    if (skipStatus.includes(r.status)) { statusNext[r.id] = r.status; continue; }
+    const reply = unseenReplies(r, seen) > 0, status = statusNext[r.id] !== r.status;
+    const key = `${r.status}:${replyCount(r)}`;
+    if ((reply || status) && alertedNext[r.id] !== key) { news.push({ r, reply, status }); alertedNext[r.id] = key; }
+  }
+  return { news, statusNext, alertedNext };
+}
