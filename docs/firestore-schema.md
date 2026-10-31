@@ -71,7 +71,7 @@ users/
     firstName     string   — first word of googleName
     lastName      string   — remainder of googleName
     email         string
-    roles         string   — "admin" | undefined
+    roles         string   — "admin" | "tigermaster" | undefined — SERVER-ONLY, granted by the owner from the TigerHub admin (Access); "tigermaster" = trusted TigerSquad helper who reads, answers and closes every in-app request
     Debug         boolean  — debug mode enabled
     xpPoints      number?  — SERVER-ONLY: XP from the account's chips (certified TigerTag+ 10, TigerTag+ 2, TigerTag 1, per chip, one account per chip) — certifyChip; refused from clients
     certifiedPlusCount number? — SERVER-ONLY: genuine TigerTag+ counted for the account (backups in rfidList verified with the TigerTag SDK by certifyChip; one account per chip); refused from clients

@@ -25,6 +25,11 @@
  * user's own on the right) — where the user answers, with pictures, without a
  * GitHub account (backend `myReports` actions `thread` / `comment`). A team reply
  * or a new status raises a notice and, once per change, an alert window.
+ *
+ * TigerMasters (trusted TigerSquad helpers, `roles: "tigermaster"`) and admins
+ * get a third tab, "All requests": every request, its conversation, an answer
+ * posted as the team, and "done" / "declined" to close it (backend `myReports`
+ * actions `all`, `thread`/`comment` with `as: "team"`, `resolve`).
  */
 
 import { openAnnotator } from "./annotator.js";
@@ -91,13 +96,14 @@ let st = null;           // draft — kept across close / reopen, reset only aft
 let _overlay = null;     // the side card (<aside>)
 let _tab = null;
 let _clip = null;        // window starting at the sidebar edge: the card slides out from "behind" it
-let _view = "new";       // "new" (kind picker / form) | "mine" (my requests)
+let _view = "new";       // "new" (kind picker / form) | "mine" (my requests) | "all" (TigerMasters: every request)
 let _mine = { list: null, loading: false, error: false };   // last "My requests" fetch
 let _closeAsk = null;    // report id whose close is awaiting confirmation
 let _lastScreen = null;  // last screen painted — a change slides the new one in
-// The conversation open in "My requests": { id, data, loading, error, text, images, sending, err }.
+// The conversation open in "My requests" / "All requests": { id, team, data, loading, error, text, images, sending, err }.
 let _thread = null;
-const REPLY_MAX_IMAGES = 3;   // backend REPLY_MAX_IMAGES
+let _all = { list: null, loading: false, error: false, open: true };   // "All requests" (TigerMasters)
+let _resolveAsk = null;  // "done" | "declined" awaiting its confirmation in the open conversation
 const WATCH_MS = 30 * 60e3;   // re-check open requests for news while the app runs
 
 export function initReport(c) {
@@ -133,11 +139,17 @@ async function normalize(src) {
   g.drawImage(img, 0, 0, c.width, c.height);
   return c.toDataURL("image/jpeg", 0.85);
 }
-const _attachCount = () => st.images.length + st.pdfs.length + (st.jsons?.length || 0);
+// The draft the attachment tools fill: the answer being written in an open
+// conversation, else the new request. Both carry images / pdfs / jsons.
+const D = () => (_threadActive() ? _thread : st);
+const _err = msg => { if (D() === _thread) _thread.err = msg; else if (st) st.error = msg; };
+const _attachCount = (d = D()) => d.images.length + d.pdfs.length + (d.jsons?.length || 0);
 const isJsonFile = f => f && (f.type === "application/json" || /\.json$/i.test(f.name || ""));
 async function addImage(src) {
-  if (!st || _attachCount() >= MAX_IMAGES) { if (st) { st.error = t("reportMaxImages", { n: MAX_IMAGES }); render(); } return; }
-  try { st.images.push(await normalize(src)); st.error = ""; } catch (_) { st.error = t("reportImageBad"); }
+  const d = D();
+  if (!d) return;
+  if (_attachCount(d) >= MAX_IMAGES) { _err(t("reportMaxImages", { n: MAX_IMAGES })); render(); return; }
+  try { d.images.push(await normalize(src)); _err(""); } catch (_) { _err(t("reportImageBad")); }
   render();
 }
 function addFiles(files) {
@@ -150,12 +162,13 @@ function addFiles(files) {
 // A JSON file (an export, a printer's status, a .ttag…) — checked to be real
 // JSON here, sent as text; the issue links it and shows a short one inline.
 function addJson(f) {
-  if (_attachCount() >= MAX_IMAGES) { st.error = t("reportMaxImages", { n: MAX_IMAGES }); render(); return; }
-  if (f.size > MAX_JSON_BYTES) { st.error = t("reportJsonTooBig", { n: 2 }); render(); return; }
+  const d = D();
+  if (_attachCount(d) >= MAX_IMAGES) { _err(t("reportMaxImages", { n: MAX_IMAGES })); render(); return; }
+  if (f.size > MAX_JSON_BYTES) { _err(t("reportJsonTooBig", { n: 2 })); render(); return; }
   const r = new FileReader();
   r.onload = () => {
-    try { JSON.parse(r.result); } catch (_) { st.error = t("reportJsonBad", { name: f.name }); render(); return; }
-    (st.jsons ||= []).push({ name: f.name, size: f.size, text: r.result }); st.error = ""; render();
+    try { JSON.parse(r.result); } catch (_) { _err(t("reportJsonBad", { name: f.name })); render(); return; }
+    (d.jsons ||= []).push({ name: f.name, size: f.size, text: r.result }); _err(""); render();
   };
   r.readAsText(f);
 }
@@ -163,23 +176,25 @@ function addJson(f) {
 // printerReportData, addresses and codes hidden) attached as one JSON file,
 // picked from the account's printers: what a printer bug needs to be read.
 function addPrinterData(key) {
-  st.printerPick = false;
-  if (_attachCount() >= MAX_IMAGES) { st.error = t("reportMaxImages", { n: MAX_IMAGES }); render(); return; }
+  const d = D();
+  d.printerPick = false;
+  if (_attachCount(d) >= MAX_IMAGES) { _err(t("reportMaxImages", { n: MAX_IMAGES })); render(); return; }
   const p = (ctx.listPrinters?.() || []).find(x => x.key === key);
   const data = p && ctx.printerReportData?.(key);
   if (!data) { render(); return; }
   const slug = String(p.name || p.brand).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "printer";
   let text = JSON.stringify(data, null, 2);
   if (text.length > MAX_JSON_BYTES) { data.log = data.log?.slice(-5); text = JSON.stringify(data, null, 2); }
-  (st.jsons ||= []).push({ name: `printer-${slug}.json`, size: text.length, text, printerKey: key });
-  st.error = ""; render();
+  (d.jsons ||= []).push({ name: `printer-${slug}.json`, size: text.length, text, printerKey: key });
+  _err(""); render();
 }
 // A PDF (datasheet, invoice, label…) travels as is — no preview, a named chip.
 function addPdf(f) {
-  if (_attachCount() >= MAX_IMAGES) { st.error = t("reportMaxImages", { n: MAX_IMAGES }); render(); return; }
-  if (f.size > MAX_PDF_BYTES) { st.error = t("reportPdfTooBig", { n: 5 }); render(); return; }
+  const d = D();
+  if (_attachCount(d) >= MAX_IMAGES) { _err(t("reportMaxImages", { n: MAX_IMAGES })); render(); return; }
+  if (f.size > MAX_PDF_BYTES) { _err(t("reportPdfTooBig", { n: 5 })); render(); return; }
   const r = new FileReader();
-  r.onload = () => { st.pdfs.push({ name: f.name, size: f.size, data: r.result }); st.error = ""; render(); };
+  r.onload = () => { d.pdfs.push({ name: f.name, size: f.size, data: r.result }); _err(""); render(); };
   r.readAsDataURL(f);
 }
 
@@ -191,12 +206,12 @@ async function captureWindow() {
   let shot = null;
   try { shot = await window.electronAPI.captureWindow(); } catch (_) {}
   _overlay.classList.remove("rep-hidden"); _tab.classList.remove("rep-hidden");
-  if (!shot) { st.error = t("reportCaptureFail"); render(); return; }
+  if (!shot) { _err(t("reportCaptureFail")); render(); return; }
   // Straight into the editor: a capture is almost always taken to point at
   // something on it.
-  const before = st.images.length;
+  const d = D(), before = d.images.length;
   await addImage(shot);
-  if (st.images.length > before) annotate(st.images.length - 1);
+  if (d.images.length > before) annotate(d.images.length - 1);
 }
 
 /* A Tiger Touch request: its screen, as it is right now, straight into the
@@ -420,35 +435,72 @@ function _showAlert(news) {
 }
 
 // ── Conversation ─────────────────────────────────────────────────────────────
-async function openThread(id) {
-  _thread = { id, data: null, loading: true, error: false, text: "", images: [], sending: false, err: "" };
-  _view = "mine"; _closeAsk = null;
-  _markSeen((_mine.list || []).find(r => r.id === id));
+async function openThread(id, { team = false } = {}) {
+  _thread = { id, team, data: null, loading: true, error: false, body: "", images: [], pdfs: [], jsons: [], printerPick: false, sending: false, err: "" };
+  _view = team ? "all" : "mine"; _closeAsk = null; _resolveAsk = null;
+  if (!team) _markSeen((_mine.list || []).find(r => r.id === id));
   render();
-  try { const j = await authedPost(MINE_ENDPOINT, { action: "thread", reportId: id }); if (_thread?.id === id) _thread.data = j.thread; }
+  try { const j = await authedPost(MINE_ENDPOINT, { action: "thread", reportId: id, ...(team ? { as: "team" } : {}) }); if (_thread?.id === id) _thread.data = j.thread; }
   catch (_) { if (_thread?.id === id) _thread.error = true; }
   if (_thread?.id !== id) return;
   _thread.loading = false;
   render(); _threadToEnd();
 }
 const _threadToEnd = () => requestAnimationFrame(() => { const b = _body(); if (b) b.scrollTop = b.scrollHeight; });
-const _threadActive = () => !!(_thread && isReportOpen() && _view === "mine" && _thread.data?.canReply);
-async function addReplyImage(src) {
-  if (!_thread) return;
-  if (_thread.images.length >= REPLY_MAX_IMAGES) { _thread.err = t("reportReplyMaxImages", { n: REPLY_MAX_IMAGES }); render(); return; }
-  try { _thread.images.push(await normalize(src)); _thread.err = ""; } catch (_) { _thread.err = t("reportImageBad"); }
-  render(); _overlay.querySelector("#repReply")?.focus();
+const _threadActive = () => !!(_thread && isReportOpen() && (_view === "mine" || _view === "all") && _thread.data?.canReply);
+// ── All requests (TigerMasters / admins) ─────────────────────────────────────
+async function syncAll() {
+  if (!ctx.isTeam?.() || _all.loading) return;
+  _all.loading = true; _all.error = false;
+  try { _all.list = (await authedPost(MINE_ENDPOINT, { action: "all" })).reports || []; } catch (_) { _all.error = true; }
+  _all.loading = false;
+  if (isReportOpen() && _view === "all" && !_thread) render();
 }
-function addReplyFiles(files) {
-  [...(files || [])].filter(f => /^image\//.test(f.type)).forEach(f => { const r = new FileReader(); r.onload = () => addReplyImage(r.result); r.readAsDataURL(f); });
+async function resolveThread(outcome) {
+  const th = _thread;
+  if (!th?.team) return;
+  _resolveAsk = null; th.sending = true; th.err = ""; render();
+  try {
+    await authedPost(MINE_ENDPOINT, { action: "resolve", reportId: th.id, outcome });
+    const j = await authedPost(MINE_ENDPOINT, { action: "thread", reportId: th.id, as: "team" });
+    if (_thread === th) th.data = j.thread;
+    const r = (_all.list || []).find(x => x.id === th.id); if (r) r.status = outcome;
+  } catch (e) { th.err = t(e.code === "CLOSED" ? "reportReplyErrClosed" : "reportErrSend"); }
+  th.sending = false;
+  if (_thread === th) { render(); _threadToEnd(); }
 }
+function allHTML() {
+  if (_all.loading && !_all.list) return `<div class="rep-mine-empty">${esc(t("reportMineLoading"))}</div>`;
+  if (_all.error && !_all.list) return `<div class="rep-mine-empty">${esc(t("reportMineError"))}</div>`;
+  const list = (_all.list || []).filter(r => !_all.open || CLOSABLE.has(r.status));
+  const chips = `<div class="rep-all-filter">
+    <button type="button" class="rep-chip${_all.open ? " is-on" : ""}" data-rep="allFilter" data-open="1">${esc(t("reportAllOpen"))}</button>
+    <button type="button" class="rep-chip${_all.open ? "" : " is-on"}" data-rep="allFilter" data-open="0">${esc(t("reportAllEverything"))}</button></div>`;
+  if (!list.length) return `${chips}<div class="rep-mine-empty">${esc(t("reportAllEmpty"))}</div>`;
+  return `${chips}<div class="rep-mine">${list.map(r => {
+    const k = kindOf(r.kind) || KINDS[0], sdef = STATUS[r.status] || STATUS.open;
+    const sub = [r.number ? `#${r.number}` : null, r.createdAt ? ctx.timeAgo(r.createdAt) : null,
+                 r.replies ? t("reportMineComments", { n: r.replies }) : null, r.mine ? t("reportAllYours") : null].filter(Boolean).join(" · ");
+    return `
+      <div class="rep-mine-row${CLOSABLE.has(r.status) ? "" : " is-final"}" style="--kc:${k.c}">
+        <span class="rep-kind-ico"><span class="icon icon-${k.icon} icon-14"></span></span>
+        <button type="button" class="rep-mine-main" data-rep="allThread" data-id="${esc(r.id)}"${r.number ? "" : " disabled"} aria-label="${esc(t("reportMineOpenThread"))}">
+          <div class="rep-mine-title">${esc(r.title || r.brand?.name || "—")}</div>
+          <div class="rep-mine-sub">${esc(sub)}</div>
+        </button>
+        <span class="rep-status" style="--sc:${sdef.c}">${esc(t(sdef.key))}</span>
+      </div>`;
+  }).join("")}</div>`;
+}
+const _replyReady = th => !!(th.body.trim() || _attachCount(th));
 async function sendReply() {
   const th = _thread;
-  if (!th || th.sending || (!th.text.trim() && !th.images.length)) return;
+  if (!th || th.sending || !_replyReady(th)) return;
   th.sending = true; th.err = ""; render();
   try {
-    const j = await authedPost(MINE_ENDPOINT, { action: "comment", reportId: th.id, text: th.text.trim(), images: th.images });
-    if (_thread === th) { th.data = j.thread; th.text = ""; th.images = []; }
+    const j = await authedPost(MINE_ENDPOINT, { action: "comment", reportId: th.id, text: th.body.trim(), images: th.images,
+      pdfs: th.pdfs.map(f => ({ name: f.name, data: f.data })), jsons: th.jsons.map(f => ({ name: f.name, text: f.text })), ...(th.team ? { as: "team" } : {}) });
+    if (_thread === th) Object.assign(th, { data: j.thread, body: "", images: [], pdfs: [], jsons: [], printerPick: false });
     const r = (_mine.list || []).find(x => x.id === th.id);
     if (r) r.comments = (Number(r.comments) || 0) + 1;
   } catch (e) {
@@ -470,7 +522,8 @@ function richText(s) {
 function messageHTML(m) {
   if (m.from === "app") return `<div class="rep-msg-note">${esc(t("reportThreadClosedByYou"))}${m.at ? ` · ${esc(ctx.timeAgo(m.at))}` : ""}</div>`;
   const mine = m.from === "you";
-  const who = mine ? t("reportThreadYou") : m.from === "team" ? t("reportThreadTeam") : m.name;
+  const who = mine ? t("reportThreadYou") : m.from === "reporter" ? t("reportThreadReporter")
+    : m.from === "team" ? (m.master ? t("reportThreadMaster", { name: m.name }) : t("reportThreadTeam")) : m.name;
   const ava = mine ? "" : m.avatar ? `<img class="rep-msg-ava" src="${esc(m.avatar)}&s=64" alt="">`
     : `<span class="rep-msg-ava rep-msg-ava--none"><span class="icon icon-user icon-14"></span></span>`;
   return `
@@ -479,19 +532,20 @@ function messageHTML(m) {
       <div class="rep-msg-bubble">
         <div class="rep-msg-head"><b>${esc(who)}</b>${m.at ? `<span>${esc(ctx.timeAgo(m.at))}</span>` : ""}</div>
         ${m.text ? `<div class="rep-msg-text">${richText(m.text)}</div>` : ""}
+        ${(m.files || []).length ? `<div class="rep-msg-files">${m.files.map(f => `<button type="button" class="rep-msg-file" data-rep="link" data-url="${esc(f.url)}"><span class="icon icon-${f.json ? "json" : "pdf"} icon-14"></span>${esc(f.name)}</button>`).join("")}</div>` : ""}
         ${(m.images || []).length ? `<div class="rep-msg-imgs">${m.images.map(u => `<button type="button" class="rep-msg-img" data-rep="link" data-url="${esc(u)}" aria-label="${esc(t("reportThreadImage"))}"><img src="${esc(u)}" alt="" loading="lazy"></button>`).join("")}</div>` : ""}
       </div>
     </div>`;
 }
 function threadHTML() {
   const th = _thread, d = th.data;
-  const r = (_mine.list || []).find(x => x.id === th.id) || {};
+  const r = (th.team ? _all.list : _mine.list || []).find?.(x => x.id === th.id) || {};
   const k = kindOf(d?.kind || r.kind) || KINDS[0];
   const status = d?.status || r.status || "open", sdef = STATUS[status] || STATUS.open;
   const url = d?.url || r.url;
   const head = `
     ${closeX()}
-    <button type="button" class="rep-back" data-rep="threadBack"><span class="icon icon-chevron-l icon-12"></span>${esc(t("reportTabMine"))}</button>
+    <button type="button" class="rep-back" data-rep="threadBack"><span class="icon icon-chevron-l icon-12"></span>${esc(t(th.team ? "reportTabAll" : "reportTabMine"))}</button>
     <div class="rep-thread-head" style="--kc:${k.c}">
       <span class="rep-kind-ico"><span class="icon icon-${k.icon} icon-14"></span></span>
       <div class="rep-mine-main"><div class="rep-thread-title" id="repHead">${esc(d?.title || r.title || r.brand?.name || "—")}</div>
@@ -501,24 +555,29 @@ function threadHTML() {
     </div>`;
   if (th.loading && !d) return `<div class="rep-card rep-thread">${head}<div class="rep-mine-empty">${esc(t("reportThreadLoading"))}</div></div>`;
   if (th.error && !d) return `<div class="rep-card rep-thread">${head}<div class="rep-mine-empty">${esc(t("reportThreadError"))}</div></div>`;
-  const msgs = [{ from: "you", text: d.body, images: d.images, at: d.createdAt }, ...d.comments];
+  const msgs = [{ from: th.team && !d.mine ? "reporter" : "you", text: d.body, images: d.images, at: d.createdAt }, ...d.comments];
   const answered = d.comments.some(c => c.from === "team");
   const composer = d.canReply ? `
     <div class="rep-reply">
-      ${th.images.length ? `<div class="rep-reply-imgs">${th.images.map((src, i) => `<span class="rep-reply-img"><img src="${src}" alt=""><button type="button" data-rep="replyRemove" data-i="${i}" aria-label="${esc(t("reportRemoveImage"))}"><span class="icon icon-close icon-10"></span></button></span>`).join("")}</div>` : ""}
-      <textarea id="repReply" rows="3" maxlength="4000" placeholder="${esc(t("reportReplyPh"))}"${th.sending ? " disabled" : ""}>${esc(th.text)}</textarea>
+      <div class="rep-editor">
+        ${toolbarHTML()}
+        <textarea id="repReply" class="rep-textarea" maxlength="4000" placeholder="${esc(t("reportReplyPh"))}"${th.sending ? " disabled" : ""}>${esc(th.body)}</textarea>
+      </div>
+      ${attachHTML(th, { printers: ctx.listPrinters?.() || [] })}
       <div class="rep-reply-bar">
-        <button type="button" class="rep-mine-btn" data-rep="replyFile" aria-label="${esc(t("reportReplyAttach"))}"${th.sending ? " disabled" : ""}><span class="icon icon-image icon-16"></span></button>
-        <input type="file" id="repReplyFile" accept="image/*" multiple hidden>
-        <span class="rep-reply-public">${esc(t("reportReplyPublic"))}</span>
-        <button type="button" class="rep-btn rep-btn--blue" data-rep="replySend"${th.sending || (!th.text.trim() && !th.images.length) ? " disabled" : ""}><span class="icon icon-send icon-14"></span>${esc(t(th.sending ? "reportReplySending" : "reportReplySend"))}</button>
+        <span class="rep-reply-public">${esc(t(th.team ? "reportTeamReplyPublic" : "reportReplyPublic"))}</span>
+        <button type="button" class="rep-btn rep-btn--blue" data-rep="replySend"${th.sending || !_replyReady(th) ? " disabled" : ""}><span class="icon icon-send icon-14"></span>${esc(t(th.sending ? "reportReplySending" : "reportReplySend"))}</button>
       </div>
       ${th.err ? `<div class="rep-error">${esc(th.err)}</div>` : ""}
     </div>
-    <div class="rep-thread-close">${r.closing ? `<span class="rep-mine-closing">…</span>`
+    ${th.team ? `<div class="rep-thread-close rep-team-acts">${_resolveAsk
+      ? `<button type="button" class="rep-mine-confirm" data-rep="resolveYes" data-outcome="${_resolveAsk}">${esc(t("reportTeamConfirm", { what: t(_resolveAsk === "done" ? "reportTeamDone" : "reportTeamDecline") }))}</button>`
+      : `<button type="button" class="rep-back rep-team-done" data-rep="resolve" data-outcome="done"${th.sending ? " disabled" : ""}><span class="icon icon-check icon-12"></span>${esc(t("reportTeamDone"))}</button>
+         <button type="button" class="rep-back" data-rep="resolve" data-outcome="declined"${th.sending ? " disabled" : ""}><span class="icon icon-close icon-12"></span>${esc(t("reportTeamDecline"))}</button>`}</div>`
+    : `<div class="rep-thread-close">${r.closing ? `<span class="rep-mine-closing">…</span>`
       : _closeAsk === th.id
       ? `<button type="button" class="rep-mine-confirm" data-rep="mineCloseYes" data-id="${esc(th.id)}">${esc(t("reportMineCloseConfirm"))}</button>`
-      : `<button type="button" class="rep-back" data-rep="mineClose" data-id="${esc(th.id)}"><span class="icon icon-close icon-12"></span>${esc(t("reportMineClose"))}</button>`}</div>` : `<div class="rep-msg-note rep-msg-note--closed">${esc(t("reportReplyClosed"))}</div>`;
+      : `<button type="button" class="rep-back" data-rep="mineClose" data-id="${esc(th.id)}"><span class="icon icon-close icon-12"></span>${esc(t("reportMineClose"))}</button>`}</div>`}` : `<div class="rep-msg-note rep-msg-note--closed">${esc(t("reportReplyClosed"))}</div>`;
   return `
     <div class="rep-card rep-thread">
       ${head}
@@ -571,12 +630,12 @@ async function closeMine(id) {
 export function isReportOpen() { return !!_overlay?.classList.contains("open"); }
 // Files dropped anywhere in the window while the card is open land here — the
 // .ttag import stands down meanwhile (inventory.js).
-export function reportDropFiles(files) { reportDragState(false); if (_threadActive()) addReplyFiles(files); else if (isReportOpen() && st && !st.done) addFiles(files); }
+export function reportDropFiles(files) { reportDragState(false); if (_threadActive() || (isReportOpen() && st && !st.done)) addFiles(files); }
 // Files are being dragged over the window: the card says "drop here" (a big
 // overlay on the card) — otherwise nothing hints that a drop would work.
 export function reportDragState(on) {
   if (!_overlay) return;
-  _overlay.classList.toggle("rep-dragging", !!on && !!st && !st.done && !!kindOf(st.kind));
+  _overlay.classList.toggle("rep-dragging", !!on && (_threadActive() || (!!st && !st.done && !!kindOf(st.kind))));
 }
 export function toggleReport() { isReportOpen() ? closeReport() : openReport(); }
 // The TigerSquad card follows the account live (joined ↔ left, level change):
@@ -625,11 +684,6 @@ function closeReport() {
 
 function onPaste(e) {
   if (!_overlay?.classList.contains("open") || (st?.done && !_threadActive())) return;
-  if (_threadActive()) {
-    const imgs = [...(e.clipboardData?.items || [])].filter(i => i.kind === "file" && /^image\//.test(i.type)).map(i => i.getAsFile());
-    if (imgs.length) { e.preventDefault(); addReplyFiles(imgs); }
-    return;
-  }
   const files = [...(e.clipboardData?.items || [])].filter(i => i.kind === "file" && (/^image\//.test(i.type) || i.type === "application/pdf" || i.type === "application/json")).map(i => i.getAsFile());
   if (!files.length) return;          // plain text → normal paste into the field
   e.preventDefault();
@@ -638,8 +692,8 @@ function onPaste(e) {
 
 function onInput(e) {
   const el = e.target;
-  if (el.id === "repReply") { if (_thread) { _thread.text = el.value; const b = _overlay.querySelector('[data-rep="replySend"]'); if (b) b.disabled = _thread.sending || (!el.value.trim() && !_thread.images.length); } return; }
-  if (el.id === "repReplyFile") { addReplyFiles(el.files); el.value = ""; return; }
+  if (el.id === "repReply") { if (_thread) { _thread.body = el.value; const b = _overlay.querySelector('[data-rep="replySend"]'); if (b) b.disabled = _thread.sending || !_replyReady(_thread); } return; }
+  if (el.id === "repFile" && _threadActive()) { addFiles(el.files); el.value = ""; return; }
   if (el.id === "repTitle") st.title = el.value;
   else if (el.id === "repBody") st.body = el.value;
   else if (el.id === "repConsent") { st.consent = el.checked; syncSend(); if (el.checked) _overlay.querySelector(".rep-bubble")?.remove(); }
@@ -754,12 +808,12 @@ function onClick(e) {
   else if (act === "ttshot") captureTouchScreen(a.dataset.mac);
   else if (act === "scaleshot") captureScaleScreen(a.dataset.mac);
   else if (act === "spoolshot") captureSpoolScreen(a.dataset.mac);
-  else if (act === "printerPick") { st.printerPick = !st.printerPick; render(); }
+  else if (act === "printerPick") { const d = D(); d.printerPick = !d.printerPick; render(); }
   else if (act === "printerData") addPrinterData(a.dataset.key);
   else if (act === "file") _overlay.querySelector("#repFile")?.click();
-  else if (act === "remove") { st.images.splice(Number(a.dataset.i), 1); render(); }
-  else if (act === "removePdf") { st.pdfs.splice(Number(a.dataset.i), 1); render(); }
-  else if (act === "removeJson") { st.jsons.splice(Number(a.dataset.i), 1); render(); }
+  else if (act === "remove") { D().images.splice(Number(a.dataset.i), 1); render(); }
+  else if (act === "removePdf") { D().pdfs.splice(Number(a.dataset.i), 1); render(); }
+  else if (act === "removeJson") { D().jsons.splice(Number(a.dataset.i), 1); render(); }
   else if (act === "pick") { const h = _overlay.querySelector("#repProdResults")?._hits?.[Number(a.dataset.i)]; if (h) { st.product = h; render(); setTimeout(() => _overlay.querySelector("#repTitle")?.focus(), 50); } }
   else if (act === "unpick") { st.product = null; render(); setTimeout(() => { _overlay.querySelector("#repProdQ")?.focus(); searchProducts(); }, 50); }
   else if (act === "annotate") annotate(Number(a.dataset.i));
@@ -768,12 +822,14 @@ function onClick(e) {
   else if (act === "coffee") ctx.openCoffee?.(a);
   else if (act === "squad") ctx.openSquad?.();
   else if (act === "squadWall") (ctx.openSquadBoard ? ctx.openSquadBoard("countries") : ctx.openExternal(a.dataset.url));
-  else if (act === "view") { _view = a.dataset.view; _closeAsk = null; _thread = null; render(); if (_view === "mine") syncReports(); }
+  else if (act === "view") { _view = a.dataset.view; _closeAsk = null; _thread = null; render(); if (_view === "mine") syncReports(); else if (_view === "all") syncAll(); }
   else if (act === "mineThread") openThread(a.dataset.id);
-  else if (act === "threadBack") { _thread = null; render(); syncReports(); }
+  else if (act === "allThread") openThread(a.dataset.id, { team: true });
+  else if (act === "allFilter") { _all.open = a.dataset.open === "1"; render(); }
+  else if (act === "resolve") { _resolveAsk = a.dataset.outcome; render(); setTimeout(() => { if (_resolveAsk === a.dataset.outcome) { _resolveAsk = null; render(); } }, 4000); }
+  else if (act === "resolveYes") resolveThread(a.dataset.outcome);
+  else if (act === "threadBack") { const team = _thread?.team; _thread = null; render(); team ? syncAll() : syncReports(); }
   else if (act === "link") { e.preventDefault(); if (/^https:\/\//.test(a.dataset.url || "")) ctx.openExternal(a.dataset.url); }
-  else if (act === "replyFile") _overlay.querySelector("#repReplyFile")?.click();
-  else if (act === "replyRemove") { _thread?.images.splice(Number(a.dataset.i), 1); render(); }
   else if (act === "replySend") sendReply();
   else if (act === "mineOpen") { const r = (_mine.list || []).find(x => x.id === a.dataset.id); if (r?.url) ctx.openExternal(r.url); }
   else if (act === "mineClose") { _closeAsk = a.dataset.id; render(); setTimeout(() => { if (_closeAsk === a.dataset.id) { _closeAsk = null; render(); } }, 4000); }
@@ -933,6 +989,69 @@ function infoHTML(m) {
 }
 
 const EMOJIS = ["🙂", "😅", "😍", "🤔", "😡", "🎉", "👍", "👎", "🐛", "💡", "🔥", "🙏"];
+// Pictures, PDFs and JSON files (a printer's data…) — the drop zone of the
+// new-request form and of an answer in a conversation. `d` = the draft;
+// `extra` = the form's device-capture buttons.
+function attachHTML(d, { printers = [], extra = "" } = {}) {
+  const shots = d.images.map((src, i) => `
+      <div class="rep-shot">
+        <button type="button" class="rep-shot-img" data-rep="annotate" data-i="${i}" aria-label="${esc(t("reportAnnotate"))}"><img src="${src}" alt=""><span class="rep-shot-pen"><span class="icon icon-edit icon-12"></span></span></button>
+        <button type="button" class="rep-shot-x" data-rep="remove" data-i="${i}" aria-label="${esc(t("reportRemoveImage"))}"><span class="icon icon-close icon-10"></span></button>
+      </div>`).join("") + d.pdfs.map((f, i) => `
+      <div class="rep-shot rep-shot--pdf">
+        <span class="rep-pdf"><span class="icon icon-pdf icon-16"></span><span class="rep-pdf-name">${esc(f.name)}</span></span>
+        <button type="button" class="rep-shot-x" data-rep="removePdf" data-i="${i}" aria-label="${esc(t("reportRemoveImage"))}"><span class="icon icon-close icon-10"></span></button>
+      </div>`).join("") + (d.jsons || []).map((f, i) => `
+      <div class="rep-shot rep-shot--pdf rep-shot--json">
+        <span class="rep-pdf"><span class="icon icon-json icon-16"></span><span class="rep-pdf-name">${esc(f.name)}</span></span>
+        <button type="button" class="rep-shot-x" data-rep="removeJson" data-i="${i}" aria-label="${esc(t("reportRemoveImage"))}"><span class="icon icon-close icon-10"></span></button>
+      </div>`).join("");
+  return `
+      <label class="rep-label">${esc(t("reportShotLabel"))} <span class="rep-attach-count">${_attachCount(d)}/${MAX_IMAGES}</span></label>
+      <div class="rep-dropzone">
+        ${shots ? `<div class="rep-shots">${shots}</div>` : ""}
+        ${_attachCount(d) < MAX_IMAGES ? `
+        <div class="rep-dz-row">
+          <span class="rep-dz-ico"><span class="icon icon-image icon-20"></span></span>
+          <div class="rep-dz-txt">
+            <div>${esc(t("reportDropLine1"))}</div>
+            <button type="button" class="rep-dz-browse" data-rep="file">${esc(t("reportDropBrowse"))}</button>
+            <button type="button" class="rep-dz-capture" data-rep="capture"><span class="icon icon-camera icon-14"></span>${esc(t("reportCaptureNow"))}</button>
+            ${extra}
+            ${printers.length ? `
+            <button type="button" class="rep-dz-capture rep-dz-capture--printer${d.printerPick ? " is-open" : ""}" data-rep="printerPick" aria-expanded="${d.printerPick ? "true" : "false"}">
+              <span class="icon icon-printer icon-14"></span>${esc(t("reportAttachPrinter"))}</button>` : ""}
+          </div>
+        </div>
+        ${d.printerPick && printers.length ? `
+        <div class="rep-printer-pick" role="list" aria-label="${esc(t("reportAttachPrinter"))}">
+          ${printers.map(x => {
+            const taken = (d.jsons || []).some(f => f.printerKey === x.key);
+            return `<button type="button" role="listitem" class="rep-printer-row" data-rep="printerData" data-key="${esc(x.key)}"${taken ? " disabled" : ""}>
+              <span class="rep-printer-img">${x.img ? `<img src="${esc(x.img)}" alt="">` : `<span class="icon icon-printer icon-16"></span>`}</span>
+              <span class="rep-printer-name">${esc(x.name)}</span>
+              <span class="rep-printer-dot${x.online ? " is-on" : ""}" aria-hidden="true"></span>
+              ${taken ? `<span class="icon icon-check icon-12"></span>` : ""}
+            </button>`; }).join("")}
+          <p class="rep-printer-note">${esc(t("reportAttachPrinterNote"))}</p>
+        </div>` : ""}` : ""}
+        <input id="repFile" type="file" accept="image/*,application/pdf,application/json,.json" multiple hidden>
+      </div>
+      <div class="rep-formats">${esc(t("reportFormats", { n: MAX_IMAGES }))}</div>`;
+}
+
+// The new-request form's device captures (a Tiger Touch / Scale / Spool screen).
+function deviceCapturesHTML() {
+  return `            ${st.target === "tigertouch" ? tigerTouchScreensReady().map((x, _i, all) => `
+            <button type="button" class="rep-dz-capture rep-dz-capture--ttc" data-rep="ttshot" data-mac="${esc(x.mac)}"${st.ttBusy ? " disabled" : ""}>
+              <span class="rep-ttc-ico"></span>${esc(all.length > 1 ? t("reportCaptureTigerTouchNamed", { name: x.name }) : t("reportCaptureTigerTouch"))}</button>`).join("") : ""}
+            ${st.target === "tigerscale" ? scalesReady().map((x, _i, all) => `
+            <button type="button" class="rep-dz-capture rep-dz-capture--ttc rep-dz-capture--scale" data-rep="scaleshot" data-mac="${esc(x.mac)}"${st.ttBusy ? " disabled" : ""}>
+              <span class="rep-ttc-ico"></span>${esc(all.length > 1 ? t("reportCaptureTigerTouchNamed", { name: x.name }) : t("reportCaptureTigerScale"))}</button>`).join("") : ""}
+            ${st.target === "tigerspool" ? spoolsReady().map((x, _i, all) => `
+            <button type="button" class="rep-dz-capture rep-dz-capture--ttc rep-dz-capture--spool" data-rep="spoolshot" data-mac="${esc(x.mac)}"${st.ttBusy ? " disabled" : ""}>
+              <span class="rep-ttc-ico"></span>${esc(all.length > 1 ? t("reportCaptureTigerTouchNamed", { name: x.name }) : t("reportCaptureTigerSpool"))}</button>`).join("") : ""}`;
+}
 function toolbarHTML() {
   return `
     <div class="rep-fmt" role="toolbar">
@@ -946,7 +1065,7 @@ function toolbarHTML() {
 }
 // Markdown, since the text lands in a GitHub issue: wrap the selection (or insert).
 function applyFmt(kind, insert) {
-  const ta = _overlay.querySelector("#repBody");
+  const ta = _overlay.querySelector(_threadActive() ? "#repReply" : "#repBody");
   if (!ta) return;
   const a = ta.selectionStart, b = ta.selectionEnd, sel = ta.value.slice(a, b);
   let out, caret;
@@ -958,7 +1077,8 @@ function applyFmt(kind, insert) {
   ta.setRangeText(out, a, b, "end");
   ta.setSelectionRange(caret, caret);
   ta.focus();
-  st.body = ta.value;
+  D().body = ta.value;
+  if (D() === _thread) { const b = _overlay.querySelector('[data-rep="replySend"]'); if (b) b.disabled = _thread.sending || !_replyReady(_thread); }
 }
 
 function render() {
@@ -1015,7 +1135,8 @@ function render() {
   }
 
   // 1 — Topic list / My requests
-  if (!kindOf(st.kind) || _view === "mine") {
+  if (_view === "all" && !ctx.isTeam?.()) _view = "new";   // the role was taken away
+  if (!kindOf(st.kind) || _view === "mine" || _view === "all") {
     const openN = (_mine.list || []).filter(r => CLOSABLE.has(r.status)).length;
     const head = `
         ${closeX()}
@@ -1026,8 +1147,10 @@ function render() {
         <div class="rep-views" role="tablist">
           <button type="button" class="rep-view${_view === "new" ? " is-on" : ""}" data-rep="view" data-view="new" role="tab" aria-selected="${_view === "new"}"><span class="icon icon-suggestion icon-14"></span>${esc(t("reportTabNew"))}</button>
           <button type="button" class="rep-view${_view === "mine" ? " is-on" : ""}" data-rep="view" data-view="mine" role="tab" aria-selected="${_view === "mine"}"><span class="icon icon-clock icon-14"></span>${esc(t("reportTabMine"))}${openN ? `<span class="rep-view-count">${openN}</span>` : ""}</button>
+          ${ctx.isTeam?.() ? `<button type="button" class="rep-view${_view === "all" ? " is-on" : ""}" data-rep="view" data-view="all" role="tab" aria-selected="${_view === "all"}"><span class="icon icon-shield-check icon-14"></span>${esc(t("reportTabAll"))}</button>` : ""}
         </div>`;
-    if (_view === "mine" && _thread) { paint("form", threadHTML()); return; }
+    if ((_view === "mine" || _view === "all") && _thread) { paint("form", threadHTML()); return; }
+    if (_view === "all") { paint("list", `<div class="rep-card">${head}${allHTML()}</div>`); return; }
     if (_view === "mine") { paint("list", `<div class="rep-card">${head}${mineHTML()}</div>`); return; }
     // 1a — Which part of the ecosystem (each lands in its own GitHub repo).
     if (!st.targetPicked) {
@@ -1078,19 +1201,6 @@ function render() {
   const req = `<span class="rep-req">*</span>`;
   // Printer data is for a Studio bug, improvement or question — not a catalogue fix or a brand.
   const printersHere = st.target === "studio" && !["catalog", "brand"].includes(kind.id) ? (ctx.listPrinters?.() || []) : [];
-  const shots = st.images.map((src, i) => `
-      <div class="rep-shot">
-        <button type="button" class="rep-shot-img" data-rep="annotate" data-i="${i}" aria-label="${esc(t("reportAnnotate"))}"><img src="${src}" alt=""><span class="rep-shot-pen"><span class="icon icon-edit icon-12"></span></span></button>
-        <button type="button" class="rep-shot-x" data-rep="remove" data-i="${i}" aria-label="${esc(t("reportRemoveImage"))}"><span class="icon icon-close icon-10"></span></button>
-      </div>`).join("") + st.pdfs.map((f, i) => `
-      <div class="rep-shot rep-shot--pdf">
-        <span class="rep-pdf"><span class="icon icon-pdf icon-16"></span><span class="rep-pdf-name">${esc(f.name)}</span></span>
-        <button type="button" class="rep-shot-x" data-rep="removePdf" data-i="${i}" aria-label="${esc(t("reportRemoveImage"))}"><span class="icon icon-close icon-10"></span></button>
-      </div>`).join("") + (st.jsons || []).map((f, i) => `
-      <div class="rep-shot rep-shot--pdf rep-shot--json">
-        <span class="rep-pdf"><span class="icon icon-json icon-16"></span><span class="rep-pdf-name">${esc(f.name)}</span></span>
-        <button type="button" class="rep-shot-x" data-rep="removeJson" data-i="${i}" aria-label="${esc(t("reportRemoveImage"))}"><span class="icon icon-close icon-10"></span></button>
-      </div>`).join("");
   paint("form", `
     <div class="rep-card" style="--kc:${kind.c}">
       <div class="rep-topbar">
@@ -1121,45 +1231,7 @@ function render() {
         ${toolbarHTML()}
         <textarea id="repBody" class="rep-textarea" maxlength="20000" placeholder="${esc(t(kind.body))}">${esc(st.body)}</textarea>
       </div>
-      <label class="rep-label">${esc(t("reportShotLabel"))} <span class="rep-attach-count">${_attachCount()}/${MAX_IMAGES}</span></label>
-      <div class="rep-dropzone">
-        ${shots ? `<div class="rep-shots">${shots}</div>` : ""}
-        ${_attachCount() < MAX_IMAGES ? `
-        <div class="rep-dz-row">
-          <span class="rep-dz-ico"><span class="icon icon-image icon-20"></span></span>
-          <div class="rep-dz-txt">
-            <div>${esc(t("reportDropLine1"))}</div>
-            <button type="button" class="rep-dz-browse" data-rep="file">${esc(t("reportDropBrowse"))}</button>
-            <button type="button" class="rep-dz-capture" data-rep="capture"><span class="icon icon-camera icon-14"></span>${esc(t("reportCaptureNow"))}</button>
-            ${st.target === "tigertouch" ? tigerTouchScreensReady().map((x, _i, all) => `
-            <button type="button" class="rep-dz-capture rep-dz-capture--ttc" data-rep="ttshot" data-mac="${esc(x.mac)}"${st.ttBusy ? " disabled" : ""}>
-              <span class="rep-ttc-ico"></span>${esc(all.length > 1 ? t("reportCaptureTigerTouchNamed", { name: x.name }) : t("reportCaptureTigerTouch"))}</button>`).join("") : ""}
-            ${st.target === "tigerscale" ? scalesReady().map((x, _i, all) => `
-            <button type="button" class="rep-dz-capture rep-dz-capture--ttc rep-dz-capture--scale" data-rep="scaleshot" data-mac="${esc(x.mac)}"${st.ttBusy ? " disabled" : ""}>
-              <span class="rep-ttc-ico"></span>${esc(all.length > 1 ? t("reportCaptureTigerTouchNamed", { name: x.name }) : t("reportCaptureTigerScale"))}</button>`).join("") : ""}
-            ${printersHere.length ? `
-            <button type="button" class="rep-dz-capture rep-dz-capture--printer${st.printerPick ? " is-open" : ""}" data-rep="printerPick" aria-expanded="${st.printerPick ? "true" : "false"}">
-              <span class="icon icon-printer icon-14"></span>${esc(t("reportAttachPrinter"))}</button>` : ""}
-            ${st.target === "tigerspool" ? spoolsReady().map((x, _i, all) => `
-            <button type="button" class="rep-dz-capture rep-dz-capture--ttc rep-dz-capture--spool" data-rep="spoolshot" data-mac="${esc(x.mac)}"${st.ttBusy ? " disabled" : ""}>
-              <span class="rep-ttc-ico"></span>${esc(all.length > 1 ? t("reportCaptureTigerTouchNamed", { name: x.name }) : t("reportCaptureTigerSpool"))}</button>`).join("") : ""}
-          </div>
-        </div>
-        ${st.printerPick && printersHere.length ? `
-        <div class="rep-printer-pick" role="list" aria-label="${esc(t("reportAttachPrinter"))}">
-          ${printersHere.map(x => {
-            const taken = (st.jsons || []).some(f => f.printerKey === x.key);
-            return `<button type="button" role="listitem" class="rep-printer-row" data-rep="printerData" data-key="${esc(x.key)}"${taken ? " disabled" : ""}>
-              <span class="rep-printer-img">${x.img ? `<img src="${esc(x.img)}" alt="">` : `<span class="icon icon-printer icon-16"></span>`}</span>
-              <span class="rep-printer-name">${esc(x.name)}</span>
-              <span class="rep-printer-dot${x.online ? " is-on" : ""}" aria-hidden="true"></span>
-              ${taken ? `<span class="icon icon-check icon-12"></span>` : ""}
-            </button>`; }).join("")}
-          <p class="rep-printer-note">${esc(t("reportAttachPrinterNote"))}</p>
-        </div>` : ""}` : ""}
-        <input id="repFile" type="file" accept="image/*,application/pdf,application/json,.json" multiple hidden>
-      </div>
-      <div class="rep-formats">${esc(t("reportFormats", { n: MAX_IMAGES }))}</div>
+      ${attachHTML(st, { printers: printersHere, extra: deviceCapturesHTML() })}
       ${infoHTML(st.meta || {})}
       ${errs.length ? `<label class="rep-check"><input type="checkbox" id="repErrors"${st.withErrors ? " checked" : ""}><span>${esc(t("reportAttachErrors", { n: errs.length }))}</span></label>` : ""}
       <label class="rep-check rep-check--public"><input type="checkbox" id="repConsent"${st.consent ? " checked" : ""}><span>${esc(t(TARGETS.find(x => x.id === st.target)?.private && targetable(st.kind) ? "reportPrivateConsent" : "reportPublicConsent"))}</span></label>
@@ -1219,6 +1291,7 @@ async function send() {
 // ── Annotator ─────────────────────────────────────────────────────────────────
 // The editor itself lives in annotator.js; the edited image replaces the shot.
 async function annotate(index) {
-  const out = await openAnnotator({ src: st.images[index], t, esc });
-  if (out && st) { st.images[index] = out; render(); }
+  const d = D();
+  const out = await openAnnotator({ src: d.images[index], t, esc });
+  if (out && d) { d.images[index] = out; render(); }
 }

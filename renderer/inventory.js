@@ -777,6 +777,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     listsLoading: true,
     racksLoading: true,   // Storage view: spinner until the first racks snapshot (own) / friend read lands
     isAdmin: false,
+    isTigerMaster: false,   // users/{uid}.roles === "tigermaster" (server-only, granted from the TigerHub admin)
     debugEnabled: false,
     publicKey: null,
     privateKey: null,
@@ -8204,7 +8205,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         // Active account's session expired → show login
         unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeFriends(); unsubscribeNotifications(); unsubscribeRacks(); unsubscribeScales(); unsubscribeTigerSpools(); unsubscribeTigerTouchs(); unsubscribePrinters(); unsubscribeProducts(); unsubscribeFriendProducts(); unsubscribeLists(); unsubscribeFriendLists(); unsubscribeContainerOverrides();
         state.inventory = null; state.rows = [];
-        state.isAdmin = false; state.debugEnabled = false; state.supporter = false; renderSupporterBadge();
+        state.isAdmin = false; state.isTigerMaster = false; state.debugEnabled = false; state.supporter = false; renderSupporterBadge();
         state.publicKey = null; state.privateKey = null;
         state.friends = []; state.friendRequests = []; state.notifications = []; state.blacklist = []; state.racks = []; state.printers = []; syncDemoPrinters([]);
         applyDebugMode(); renderStats(); renderInventory();
@@ -8495,7 +8496,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     if (wasActive) {
       unsubscribeInventory(); unsubscribeFriendRequests(); unsubscribeFriends(); unsubscribeNotifications(); unsubscribeRacks(); unsubscribeScales(); unsubscribeTigerSpools(); unsubscribeTigerTouchs(); unsubscribePrinters(); unsubscribeProducts(); unsubscribeFriendProducts(); unsubscribeLists(); unsubscribeFriendLists(); unsubscribeContainerOverrides();
       state.inventory = null; state.rows = [];
-      state.isAdmin = false; state.debugEnabled = false; state.supporter = false; renderSupporterBadge();
+      state.isAdmin = false; state.isTigerMaster = false; state.debugEnabled = false; state.supporter = false; renderSupporterBadge();
       state.publicKey = null; state.privateKey = null;
       state.friends = []; state.friendRequests = []; state.blacklist = []; state.racks = []; state.printers = []; syncDemoPrinters([]);
       applyDebugMode(); renderStats(); renderInventory();
@@ -24953,6 +24954,8 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     // About the SIGNED-IN account — shown even while browsing a friend's stock.
     canJoinSquad: () => !!state.activeAccountId && !state.supportPublicly,
     // Already in → the card shows the member's badge instead, with the squad's head count.
+    // TigerMasters and admins read every request and answer as the team (backend checks it).
+    isTeam: () => !!(state.isAdmin || state.isTigerMaster),
     squadMember: () => {
       const tier = state.activeAccountId ? _ownSquadTier() : null;
       return tier ? { tier, label: squadTierLabel(tier), src: SQUAD_ASSETS[tier], wall: `https://tigersystem.io/${state.lang || "en"}/tigersquad` } : null;
@@ -41518,6 +41521,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       return;
     }
     state.isAdmin      = c.roles === "admin";
+    state.isTigerMaster = c.roles === "tigermaster";   // trusted helper: every request, answered as the team
     state.debugEnabled = !!c.Debug;   // every account's switch now, not just an admin's
     if (c.publicKey)  state.publicKey  = c.publicKey;
     if (c.privateKey) state.privateKey = c.privateKey;
@@ -42290,6 +42294,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
 
       // Admin + debug
       state.isAdmin      = data.roles === "admin";
+      state.isTigerMaster = data.roles === "tigermaster";
       state.debugEnabled = !!data.Debug;
       applyDebugMode();
       // Tiger Quests (Explorer secret mission): debug mode turned on, ever.

@@ -720,3 +720,49 @@
 /* The user closes their own request from its conversation too (asks once, like in the list). */
 .rep-thread-close { display: flex; justify-content: center; }
 .rep-thread-close .rep-back { color: var(--muted); }
+
+/* ── Requests as pills, like the spool cards: the kind's illustration fills the
+   left edge, full height, its icon drawn large. ── */
+.rep-mine-row, .rep-alert-list li, .rep-thread-head { padding: 0 10px 0 0; gap: 12px; overflow: hidden; min-height: 58px; border-radius: 14px; }
+.rep-mine-row .rep-kind-ico, .rep-alert-list .rep-kind-ico, .rep-thread-head .rep-kind-ico {
+  width: 58px; height: auto; align-self: stretch; border-radius: 0; flex-shrink: 0;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--kc) 34%, var(--surface)), color-mix(in srgb, var(--kc) 14%, var(--surface)));
+  border-right: 1px solid color-mix(in srgb, var(--kc) 30%, var(--border)); }
+.rep-mine-row .rep-kind-ico .icon, .rep-alert-list .rep-kind-ico .icon, .rep-thread-head .rep-kind-ico .icon {
+  width: 28px; height: 28px; background: var(--kc); filter: drop-shadow(0 2px 6px color-mix(in srgb, var(--kc) 45%, transparent)); }
+.rep-mine-row .rep-mine-main, .rep-thread-head .rep-mine-main { padding: 9px 0; }
+.rep-alert-list li { padding-top: 0; padding-bottom: 0; }
+.rep-alert-list li > div { padding: 9px 0; }
+
+/* Coloured tiles carry a WHITE icon: the kind's colour fills the tile, the
+   artwork reads on top of it — topic cards, request pills and the product chip. */
+.rep-kind-card .rep-kind-ico { background: linear-gradient(135deg, var(--ki), color-mix(in srgb, var(--ki) 62%, #000)); }
+.rep-kind-card .rep-kind-ico .icon { background: #fff; }
+.rep-mine-row .rep-kind-ico, .rep-alert-list .rep-kind-ico, .rep-thread-head .rep-kind-ico {
+  background: linear-gradient(135deg, var(--kc), color-mix(in srgb, var(--kc) 62%, #000)); border-right: 0; }
+.rep-mine-row .rep-kind-ico .icon, .rep-alert-list .rep-kind-ico .icon, .rep-thread-head .rep-kind-ico .icon { background: #fff; filter: none; }
+.rep-picked .rep-target-ico.rep-target-ico { background-color: #fff; }
+.rep-kind-card:not(.rep-kind-card--product) .rep-kind-ico .icon { width: 26px; height: 26px; }
+
+/* Answer box = the request form's editor + drop zone. */
+.rep-reply .rep-editor { margin: 0; }
+.rep-reply .rep-textarea { min-height: 90px; }
+.rep-reply .rep-label { margin-top: 2px; }
+/* Documents in a message (PDF, a printer's JSON…). */
+.rep-msg-files { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.rep-msg-file { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 4px 9px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--surface); color: var(--text); font: inherit; font-size: 12px; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rep-msg-file .icon { background: var(--muted); flex-shrink: 0; }
+.rep-msg-file:hover { border-color: #3b82f6; }
+
+/* All requests (TigerMasters): open / everything filter, team actions. */
+.rep-all-filter { display: flex; gap: 6px; }
+.rep-all-filter .rep-chip { height: 28px; padding: 0 12px; border-radius: 14px; border: 1px solid var(--border); background: none; color: var(--muted);
+  font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.rep-all-filter .rep-chip.is-on { color: #fff; background: #2563eb; border-color: #2563eb; }
+.rep-team-acts { gap: 8px; }
+.rep-team-done.rep-team-done { color: #2f9e44; }
+/* The title and sub-line of a pill never shrink away (overflow: hidden makes their min-height 0). */
+.rep-mine-row .rep-mine-main > * { flex-shrink: 0; }
+/* Three tabs (TigerMasters): one line each. */
+.rep-views:has(.rep-view:nth-child(3)) .rep-view { white-space: nowrap; font-size: 12px; padding-inline: 8px; }
