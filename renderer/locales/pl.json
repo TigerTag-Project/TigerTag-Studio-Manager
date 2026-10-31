@@ -155,6 +155,7 @@
   "questsFreezeRepairShort": "Przywróć",
   "questsFreezeToGiveShort": "{{n}} do podarowania",
   "questsFreezeMelts": "Topnieje za {{n}} dni",
+  "questsFreezeNextGift": "Następna partia: {{n}} w dniu {{day}}",
   "questsFreezeGiveBtn": "Podaruj",
   "questsFreezeBuyBtn": "Kup freeze…",
   "questsFrozenDay": "Wczoraj chroniony · Kombo ×{{combo}} zachowane",

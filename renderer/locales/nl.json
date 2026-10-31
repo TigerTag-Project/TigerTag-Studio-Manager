@@ -155,6 +155,7 @@
   "questsFreezeRepairShort": "Terughalen",
   "questsFreezeToGiveShort": "{{n}} om te geven",
   "questsFreezeMelts": "Smelt over {{n}} d",
+  "questsFreezeNextGift": "Volgende lading: {{n}} op dag {{day}}",
   "questsFreezeGiveBtn": "Geven",
   "questsFreezeBuyBtn": "Freeze kopen…",
   "questsFrozenDay": "Gisteren beschermd · Combo ×{{combo}} behouden",

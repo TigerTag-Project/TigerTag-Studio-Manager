@@ -343,6 +343,8 @@ body.progress-view #gridSortWrap { display: none; }
   border: 1px solid rgba(143, 211, 255, .35); background: rgba(143, 211, 255, .07); font-size: 13px; font-weight: 700; color: var(--qw-ink); }
 .qf-strip img { width: 38px; aspect-ratio: 1; object-fit: contain; }
 .qf-strip small { display: block; font-size: 11.5px; font-weight: 500; color: var(--qw-muted); }
+.qf-strip--none { border-style: dashed; background: none; }
+.qf-strip--none img { opacity: .55; filter: grayscale(.6); }
 .qf-strip--repair { grid-template-columns: 22px minmax(0, 1fr) auto; border-color: rgba(255, 122, 26, .45); background: rgba(255, 122, 26, .08); }
 .qf-strip--repair > .icon { background: var(--qw-tiger); }
 .qf-action { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: auto; min-height: 32px; padding: 6px 12px; border-radius: 8px;

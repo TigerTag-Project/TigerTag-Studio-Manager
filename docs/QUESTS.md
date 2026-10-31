@@ -183,7 +183,8 @@ Two reserves:
 - **Bonus freezes** — only ever come **from friends** (a gift, or bought for you by a friend); never
   bought for oneself, never earned alone.
 
-A missed day uses an **own** freeze first, then a **bonus** one. Several missed days in a row need
+A missed day uses a friends' **bonus** freeze first — that frees a slot a friend can fill again —
+then an **own** one (founder's call, 2026-10-31). Several missed days in a row need
 one freeze each: when there are enough for all of them they are used, otherwise the streak breaks
 and **the freezes are kept** (they would not have saved it). Missed days are seen at the next
 check-in (`daily.broken` = { day, streak } then, mendable — §7.2 repair).

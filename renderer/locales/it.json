@@ -155,6 +155,7 @@
   "questsFreezeRepairShort": "Recuperala",
   "questsFreezeToGiveShort": "{{n}} da regalare",
   "questsFreezeMelts": "Si scioglie tra {{n}} g",
+  "questsFreezeNextGift": "Prossimo lotto: {{n}} al giorno {{day}}",
   "questsFreezeGiveBtn": "Regala",
   "questsFreezeBuyBtn": "Compra un gelo…",
   "questsFrozenDay": "Ieri protetto · Combo ×{{combo}} mantenuto",

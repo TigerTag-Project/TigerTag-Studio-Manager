@@ -155,6 +155,7 @@
   "questsFreezeRepairShort": "Zurückholen",
   "questsFreezeToGiveShort": "{{n}} zu verschenken",
   "questsFreezeMelts": "Schmilzt in {{n}} T",
+  "questsFreezeNextGift": "Nächste Ladung: {{n}} an Tag {{day}}",
   "questsFreezeGiveBtn": "Schenken",
   "questsFreezeBuyBtn": "Freeze kaufen…",
   "questsFrozenDay": "Gestern geschützt · Combo ×{{combo}} behalten",

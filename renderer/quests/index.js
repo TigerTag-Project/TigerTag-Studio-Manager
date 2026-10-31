@@ -604,6 +604,8 @@ function freezeCardHtml() {
   const gift = f?.toGive || null;
   const daysLeft = gift ? Math.max(1, Math.round((Date.parse(`${gift.until}T00:00:00`) - Date.now()) / 86400e3)) : 0;
   const broken = _daily?.broken && caps.repairsPerMonth ? _daily.broken : null;
+  const every = _rewards?.daily?.streakEvery || 5, streak = liveStreak();
+  const nextPalier = streak - (streak % every) + every;   // the day of the next palier (a multiple of `every`)
   const reserve = (label, n, size) => `<div class="qf-row"><span>${esc(label)}</span>${slotsHtml(n, size)}<b>${n}/${size}</b></div>`;
   return `
     <section class="qd-card qd-freeze">
@@ -616,7 +618,10 @@ function freezeCardHtml() {
         <button type="button" class="qf-action" data-qf="repair">${esc(t("questsFreezeRepairShort"))}</button></div>` : ""}
       ${gift ? `<div class="qf-strip"><img src="${ICE(daysLeft <= 1 ? "freeze-melt" : "freeze-gift")}" alt="" aria-hidden="true">
         <span>${esc(t("questsFreezeToGiveShort", { n: gift.n }))}<small>${esc(t("questsFreezeMelts", { n: daysLeft }))}</small></span>
-        <button type="button" class="qf-action qf-action--give" data-qf="give">${esc(t("questsFreezeGiveBtn"))}</button></div>` : ""}
+        <button type="button" class="qf-action qf-action--give" data-qf="give">${esc(t("questsFreezeGiveBtn"))}</button></div>`
+        // Nothing to give right now: say it, and when the next ones come (the tier's count, at the next palier).
+        : `<div class="qf-strip qf-strip--none"><img src="${ICE("freeze-gift")}" alt="" aria-hidden="true">
+        <span>${esc(t("questsFreezeToGiveShort", { n: 0 }))}<small>${esc(t("questsFreezeNextGift", { n: caps.give || 1, day: nextPalier }))}</small></span></div>`}
       ${f?.tier ? `<button type="button" class="qf-action qf-action--buy" data-qf="buy"><span class="icon icon-coins icon-14"></span>${esc(t("questsFreezeBuyBtn"))}</button>` : ""}
     </section>`;
 }

@@ -155,6 +155,7 @@
   "questsFreezeRepairShort": "Вернуть",
   "questsFreezeToGiveShort": "{{n}} для подарка",
   "questsFreezeMelts": "Растает через {{n}} дн.",
+  "questsFreezeNextGift": "Следующая партия: {{n}} на {{day}}-й день",
   "questsFreezeGiveBtn": "Подарить",
   "questsFreezeBuyBtn": "Купить заморозку…",
   "questsFrozenDay": "Вчера защищён · Комбо ×{{combo}} сохранено",

@@ -155,6 +155,7 @@
   "questsFreezeRepairShort": "找回",
   "questsFreezeToGiveShort": "可赠送 {{n}} 张",
   "questsFreezeMelts": "{{n}} 天后融化",
+  "questsFreezeNextGift": "下一批：第 {{day}} 天得 {{n}} 张",
   "questsFreezeGiveBtn": "赠送",
   "questsFreezeBuyBtn": "购买冻结卡…",
   "questsFrozenDay": "昨天已受保护 · 连击 ×{{combo}} 保留",

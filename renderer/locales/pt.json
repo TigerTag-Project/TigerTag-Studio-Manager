@@ -155,6 +155,7 @@
   "questsFreezeRepairShort": "Recuperar",
   "questsFreezeToGiveShort": "{{n}} para dar",
   "questsFreezeMelts": "Derrete em {{n}} d",
+  "questsFreezeNextGift": "Próximo lote: {{n}} no dia {{day}}",
   "questsFreezeGiveBtn": "Dar",
   "questsFreezeBuyBtn": "Comprar um gelo…",
   "questsFrozenDay": "Ontem protegido · Combo ×{{combo}} mantido",

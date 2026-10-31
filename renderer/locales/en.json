@@ -155,6 +155,7 @@
   "questsFreezeRepairShort": "Bring it back",
   "questsFreezeToGiveShort": "{{n}} to give",
   "questsFreezeMelts": "Melts in {{n}} d",
+  "questsFreezeNextGift": "Next batch: {{n}} on day {{day}}",
   "questsFreezeGiveBtn": "Give",
   "questsFreezeBuyBtn": "Buy a freeze…",
   "questsFrozenDay": "Yesterday protected · Combo ×{{combo}} kept",
