@@ -418,12 +418,15 @@ export async function openCoinsHistory(ctx) {
     : r.kind === "spend" ? t("coinLog_spend", { deal: ctx.dealTitle?.(r.dealId) || "—" })
     : r.kind === "envelopeGiven" ? t("coinLog_to", { name: ctx.friendName?.(r.to) || "—" })
     : r.kind === "envelopeReceived" ? t("coinLog_from", { name: ctx.friendName?.(r.from) || "—" })
+    : r.kind === "sent" ? t("coinLog_sent", { name: ctx.friendName?.(r.to) || "—" })
+    : r.kind === "freeze" ? t(r.to ? "coinLog_freezeFor" : "coinLog_freeze", { name: ctx.friendName?.(r.to) || "—" })
     : r.kind;
   const sub = r => [r.surprises ? t("coinLog_surprises", { n: r.surprises }) : "", r.chests ? t("coinLog_chests", { n: r.chests }) : "",
+    r.fee ? t("coinLog_fee", { n: n(r.fee) }) : "",
     new Date(r.at).toLocaleTimeString(lang, { hour: "2-digit", minute: "2-digit" })].filter(Boolean).join(" · ");
   const dayKey = ms => { const d = new Date(ms), now = new Date(); const d0 = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
     return ms >= d0 ? t("notifToday") : ms >= d0 - 864e5 ? t("notifYesterday") : d.toLocaleDateString(lang, { weekday: "long", day: "numeric", month: "long" }); };
-  const keep = { all: () => true, up: r => r.delta > 0, down: r => r.delta < 0, gift: r => r.kind === "envelopeGiven" || r.kind === "envelopeReceived" };
+  const keep = { all: () => true, up: r => r.delta > 0, down: r => r.delta < 0, gift: r => r.kind === "envelopeGiven" || r.kind === "envelopeReceived" || r.kind === "sent" };
   const paint = tab => {
     const log = el.querySelector(".tch-log");
     if (rows === null) { log.innerHTML = `<p class="tch-empty">${esc(t("squadDealsErr"))}</p>`; return; }
@@ -443,8 +446,9 @@ export async function openCoinsHistory(ctx) {
         : r.delta > 0 ? `<b class="tch-amt is-gold">+${n(r.delta)}${glyph}</b>` : r.delta < 0 ? `<b class="tch-amt is-down">−${n(-r.delta)}${glyph}</b>`
         : `<b class="tch-amt">—</b>`;
       const dir = env > 0 ? "in" : env < 0 || r.delta < 0 ? "out" : r.delta > 0 ? "coin" : "";
-      const who = env ? (env > 0 ? r.from : r.to) : null;
-      const lead = env ? `<span class="tch-dir" aria-hidden="true"><span class="icon icon-arrow-r icon-16"></span></span>${ctx.friendAvatar?.(who) || ""}` : "";
+      // Coins sent to a friend: spent (red −N) but with the friend beside it, like an envelope given.
+      const who = env ? (env > 0 ? r.from : r.to) : r.kind === "sent" ? r.to : null;
+      const lead = who ? `<span class="tch-dir" aria-hidden="true"><span class="icon icon-arrow-r icon-16"></span></span>${ctx.friendAvatar?.(who) || ""}` : "";
       return `${head}<div class="tch-row${dir ? ` tch-row--${dir}` : ""}"><img src="../assets/img/tigercoins/${ART[r.kind] || "coin"}.webp" alt="" aria-hidden="true">${lead}
         <span><b>${esc(label(r))}</b><small>${esc(sub(r))}</small></span>${amt}</div>`;
     }).join("");
@@ -460,6 +464,135 @@ export async function openCoinsHistory(ctx) {
 /** "You got an envelope!": a friend gave one (functions/tigerCoins.js
  *  giveEnvelope). Only says so — who, with their avatar — and closes: the
  *  envelope waits in the pile. Resolves "see" (go to the Deals) or "close". */
+/* Send TigerCoins of one's own balance to a friend, in an envelope (functions/
+   tigerCoins.js sendCoins). The envelope window's frame with the coin rising:
+   the friend (members only), the amount (quick picks, ± and typed), a message,
+   then the situation — my balance before → after, the postage fee, what the
+   friend gets, this week's allowance before → after — and a button held 2 s.
+   `send` = { balance, send: { max, left, feePct, feeMin, minFriendDays, tierLabel },
+   friends: [{ uid, name, avatar, member }], picked?, go(to, amount, message) → status }. */
+export function showSendCoins(ctx, send) {
+  const { t, esc, lang } = ctx;
+  const fmt = n => Number(n).toLocaleString(lang);
+  let picked = send.picked || null, amount = 0, message = "";
+  let balance = send.balance || 0, quota = { ...(send.send || {}) };
+  const fee = n => Math.min(n, Math.max(quota.feeMin || 0, Math.floor(n * (quota.feePct || 0) / 100)));
+  const el = document.createElement("div");
+  el.className = "tc-reveal tc-envm tcs";
+  el.innerHTML = `
+    <div class="tc-reveal-card tc-code-card tcx tcx--help tc-env-card tcs-card" role="dialog" aria-modal="true" aria-label="${esc(t("coinsSendTitle"))}">
+      <span class="tch-env-tilt"><img class="tch-env tc-env" src="../assets/img/tigercoins/envelope.webp" alt="" aria-hidden="true"></span>
+      <div class="tcx-main">
+        <div class="tcx-plaque"><h3>${esc(t("coinsSendTitle"))}</h3></div>
+        <div class="tcs-body"></div>
+        <p class="tc-code-err" role="alert" hidden></p>
+        <div class="tc-reveal-actions tcs-actions"></div>
+      </div>
+    </div>`;
+  document.body.appendChild(el);
+  requestAnimationFrame(() => el.classList.add("is-open"));
+  tilt(el, el.querySelector(".tch-env"), 18);
+  const body = el.querySelector(".tcs-body"), actions = el.querySelector(".tcs-actions"), err = el.querySelector(".tc-code-err");
+  const nameOf = uid => send.friends.find(f => f.uid === uid)?.name || "";
+  const maxNow = () => Math.max(0, Math.min(balance, quota.left || 0));
+  const row = (label, from, to) => `<div class="qfm-row"><span>${esc(label)}</span><b>${from}${to != null ? ` <span class="qfm-arrow" aria-hidden="true">→</span> ${to}` : ""}</b></div>`;
+  let resolveOut;
+  const finish = how => { el.classList.remove("is-open"); setTimeout(() => el.remove(), 200); resolveOut?.(how); };
+
+  // Only the amount part re-renders while typing (the input keeps its focus).
+  const recapHtml = () => {
+    const f = fee(amount), got = Math.max(0, amount - f);
+    return `${row(t("questsFreezeBalance"), fmt(balance), amount ? fmt(balance - amount) : null)}
+      ${row(t("coinsSendFee", { pct: quota.feePct || 0 }), fmt(f))}
+      ${picked ? row(t("coinsSendGets", { name: nameOf(picked) }), fmt(got)) : ""}
+      ${row(t("coinsSendWeek"), `${fmt(quota.left || 0)} / ${fmt(quota.max || 0)}`, amount ? fmt((quota.left || 0) - amount) : null)}`;
+  };
+  const why = () => !picked ? t("questsFreezePickFriend") : amount < 1 ? t("coinsSendPickAmount")
+    : amount > (quota.left || 0) ? t("coinsSendErrLimit") : amount > balance ? t("questsFreezeNeedCoins", { n: amount - balance }) : "";
+  const paintAmount = () => {
+    body.querySelector(".tcs-recap").innerHTML = recapHtml();
+    body.querySelector(".tcs-amount-input").value = amount || "";
+    body.querySelectorAll("[data-q]").forEach(b => b.setAttribute("aria-pressed", String(Number(b.dataset.q) === amount || (b.dataset.q === "max" && amount === maxNow() && amount > 0))));
+    const w = why(), go = actions.querySelector(".tcs-go");
+    actions.querySelector(".qfm-why").textContent = w;
+    go.disabled = !!w;
+    go.querySelector(".tcs-lbl").textContent = picked && amount ? t("coinsSendGo", { n: fmt(amount), name: nameOf(picked) }) : t("coinsSendTitle");
+  };
+  const render = () => {
+    err.hidden = true;
+    const members = send.friends.filter(f => f.member), others = send.friends.filter(f => !f.member);
+    const tile = f => `<button type="button" role="radio" aria-checked="${picked === f.uid}" class="tc-give-f" data-to="${esc(f.uid)}" data-name="${esc(f.name)}"${f.member ? "" : " disabled"}>
+        <span class="tc-give-av">${f.avatar}<span class="tc-give-check" aria-hidden="true"><span class="icon icon-check icon-11"></span></span></span>
+        <span class="tc-give-name">${esc(f.name)}</span>${f.member ? "" : `<small class="qfm-f-note">${esc(t("coinsSendNotMember"))}</small>`}</button>`;
+    body.innerHTML = `
+      <p class="tc-give-count">${esc(t("coinsSendQuota", { left: fmt(quota.left || 0), max: fmt(quota.max || 0), tier: quota.tierLabel || "" }))}</p>
+      ${send.friends.length > 8 ? `<label class="sqd-search tc-give-search"><span class="icon icon-search icon-13" aria-hidden="true"></span><input type="search" data-tcs-q placeholder="${esc(t("friendsSearch"))}" autocomplete="off"></label>` : ""}
+      ${send.friends.length ? `<div class="tc-give-list tcs-list" role="radiogroup" aria-label="${esc(t("envGivePick"))}">${[...members, ...others].map(tile).join("")}</div>`
+        : `<p class="tc-give-left">${esc(t("envGiveNoFriends"))}</p>`}
+      <div class="tcs-amount">
+        <div class="tcs-quick">${[10, 25, 50, 100].filter(q => q <= maxNow()).map(q => `<button type="button" class="tcs-q" data-q="${q}" aria-pressed="false">${fmt(q)}</button>`).join("")}
+          ${maxNow() ? `<button type="button" class="tcs-q" data-q="max" aria-pressed="false">${esc(t("coinsSendMax"))} · ${fmt(maxNow())}</button>` : ""}</div>
+        <label class="tcs-field"><img src="../assets/img/tigercoins/coin.webp" alt="" aria-hidden="true">
+          <input class="tcs-amount-input" type="number" inputmode="numeric" min="1" max="${maxNow()}" step="1" placeholder="0" aria-label="${esc(t("coinsSendAmount"))}"></label>
+      </div>
+      <input class="tcs-msg" type="text" maxlength="140" placeholder="${esc(t("coinsSendMessage"))}" value="${esc(message)}">
+      <div class="qfm-recap tcs-recap"></div>`;
+    actions.innerHTML = `
+      <p class="qfm-why"></p>
+      <button type="button" class="sqd-open tp-hold tp-ten sqd-wide tcs-go" disabled><span class="tp-fill" aria-hidden="true"></span><span class="tcs-lbl"></span></button>
+      <button type="button" class="tc-code-cancel" data-tcs="cancel">${esc(t("cancelLabel"))}</button>`;
+    holdToFire(actions.querySelector(".tcs-go"), 2000, confirm, t("pullHoldTen"));
+    paintAmount();
+  };
+  const confirm = async () => {
+    const go = actions.querySelector(".tcs-go"); if (why()) return;
+    go.disabled = true;
+    try {
+      const r = await send.go(picked, amount, message.trim());
+      const got = r?.sent?.received ?? amount;
+      body.innerHTML = `<p class="qfm-ok qfm-ok--big" role="status">${esc(t("coinsSendDone", { n: fmt(got), name: nameOf(picked) }))}</p>`;
+      actions.innerHTML = "";
+      el.querySelector(".tcs-card").classList.add("is-given");
+      setTimeout(() => finish("done"), 1700);
+    } catch (e) {
+      const code = e?.message;
+      err.textContent = t({ SEND_LIMIT: "coinsSendErrLimit", NOT_ENOUGH_COINS: "questsFreezeErrCoins", FRIENDS_TOO_RECENT: "coinsSendErrRecent",
+        FRIEND_NOT_IN_SQUAD: "coinsSendNotMember", NOT_FRIENDS: "questsFreezeErrFriends" }[code] || "squadDealsErr", { n: quota.minFriendDays ?? 7 });
+      err.hidden = false; go.disabled = false;
+    }
+  };
+  el.addEventListener("mousedown", e => { if (e.target === el) finish("back"); });
+  el.addEventListener("keydown", e => { if (e.key === "Escape") finish("back"); });
+  el.addEventListener("click", e => {
+    if (e.target.closest("[data-tcs=cancel]")) { finish("back"); return; }
+    const f = e.target.closest("[data-to]");
+    if (f && !f.disabled) {
+      picked = f.dataset.to;
+      body.querySelectorAll("[data-to]").forEach(b => b.setAttribute("aria-checked", String(b === f)));
+      paintAmount(); return;
+    }
+    const q = e.target.closest("[data-q]");
+    if (q) { amount = q.dataset.q === "max" ? maxNow() : Math.min(maxNow(), Number(q.dataset.q)); paintAmount(); }
+  });
+  el.addEventListener("input", e => {
+    if (e.target.matches(".tcs-amount-input")) {
+      const v = Math.floor(Number(e.target.value) || 0);
+      amount = Math.max(0, Math.min(maxNow(), v));
+      body.querySelector(".tcs-recap").innerHTML = recapHtml();
+      const w = why(), go = actions.querySelector(".tcs-go");
+      actions.querySelector(".qfm-why").textContent = w; go.disabled = !!w;
+      go.querySelector(".tcs-lbl").textContent = picked && amount ? t("coinsSendGo", { n: fmt(amount), name: nameOf(picked) }) : t("coinsSendTitle");
+      if (v !== amount && e.target.value !== "") e.target.value = amount || "";
+    } else if (e.target.matches(".tcs-msg")) message = e.target.value;
+    else if (e.target.matches("[data-tcs-q]")) {
+      const q = e.target.value.trim().toLowerCase();
+      body.querySelectorAll("[data-to]").forEach(b => { b.hidden = !!q && !b.dataset.name.toLowerCase().includes(q); });
+    }
+  });
+  render();
+  return new Promise(r => { resolveOut = r; });
+}
+
 export function showEnvelopeGift(ctx, { name, avatar }) {
   const { t, esc } = ctx;
   const el = document.createElement("div");

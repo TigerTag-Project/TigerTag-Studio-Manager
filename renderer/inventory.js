@@ -23,7 +23,7 @@ import { initTigerSpool, subscribeTigerSpools, unsubscribeTigerSpools, refreshTi
 import { initTigerTouch, subscribeTigerTouchs, unsubscribeTigerTouchs, refreshTigerTouchPanel, renderTigerTouchHealth, connState as touchConnState, openTigerTouch } from './IoT/tigertouch/index.js';
 import { initCamSnapshot } from './printers/cam-snapshot.js';
 import { pageHtml as xpPageHtml, chartTipHtml as xpChartTipHtml, leagueSeries as xpLeagueSeries } from './quests/xp-history.js';
-import { applyDealsFilter, dealsViewHtml, openChests, openCoinsCodeModal, openCoinsHistory, openEnvelopeHelp, showEnvelope, showEnvelopeGift, sortDeals, tapEgg, wireDeals } from './quests/squad-deals.js';
+import { applyDealsFilter, dealsViewHtml, openChests, openCoinsCodeModal, openCoinsHistory, openEnvelopeHelp, showEnvelope, showEnvelopeGift, showSendCoins, sortDeals, tapEgg, wireDeals } from './quests/squad-deals.js';
 import { closePullStages, openPullStage } from './quests/coin-pull.js';
 import { squadHeroHtml, squadItemsHeroHtml, squadRankingsHtml, pulseHtml as squadPulseHtml, toggleLeague, leagueRows, setLeagueRows, rankNo } from './quests/squad-rankings.js';
 import { initQuests, questsSignIn, questsSignOut, questBump, questGauge, questPillLabel, questDailyProgress, questCurrentLevel, openQuests, renderQuestsView, questLootHtml } from './quests/index.js';
@@ -5549,7 +5549,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     const uid = state.activeAccountId; if (uid) { _toDeals(); openCoinsCodeModal(_topCoinsCtx(uid)); }
   });
   // `gifts` = today's allowance of envelopes to give friends ({ left, max, tier }).
-  const _coinsOf = r => ({ balance: r.balance, earned: r.earned || 0, spent: r.spent || 0, unopened: r.unopened, envelopes: r.envelopes || [], chests: r.chests || [], gifts: r.gifts || null, eggs: r.eggs || [] });
+  const _coinsOf = r => ({ balance: r.balance, earned: r.earned || 0, spent: r.spent || 0, unopened: r.unopened, envelopes: r.envelopes || [], chests: r.chests || [], gifts: r.gifts || null, send: r.send || null, eggs: r.eggs || [] });
   // The ctx bits every opening needs: open a chest (its envelopes drawn server-side).
   const _coinsCtx = (uid, after) => ({ t, esc, lang: state.lang, toast: msg => _flashMessage(msg), hold: setupHoldToConfirm,
     // Easter eggs (.agents/rules/easter-eggs.md) — the give window hides one (envGive).
@@ -39514,6 +39514,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   // Support the project → open the official goodies shop in the browser
   // (mirrors the sidebar Shop button).
   $("btnGiveEnvelope")?.addEventListener("click", e => _giveEnvelopeTo(null, e.currentTarget));   // a gift envelope to a friend
+  $("btnSendCoins")?.addEventListener("click", e => _sendCoinsTo(null, e.currentTarget));         // my own TigerCoins to a friend
   $("btnGoodiesShop")?.addEventListener("click", () =>
     window.electronAPI?.openExternal("https://shop.tigersystem.io/collections/tigertag-rfid-maker"));
 
@@ -40530,6 +40531,23 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       friends: pool.map(f => ({ uid: f.uid, name: _shortName(f.displayName, f.uid), avatar: userAvatar(f, "sqb-avatar") })),
       send: async to => { const r = await _tigerCoins(uid, "giveEnvelope", { id: env.id, to }); _deals.coins = _coinsOf(r); _paintDealsBadge(_envCount(_deals.coins)); return r; },
     } });
+  }
+  // Send TigerCoins of my balance to a friend (functions/tigerCoins.js sendCoins):
+  // the send window with the week's allowance; only TigerSquad friends can receive.
+  async function _sendCoinsTo(friendUid = null, anchor = null) {
+    const uid = state.activeAccountId; if (!uid || !_squadOnly()) return;
+    const say = msg => { if (!anchor) { _flashMessage(msg); return; } _showErrorTip(anchor, msg); };
+    if (!(state.friends || []).length) { say(t("envGiveNoFriends")); return; }
+    let c;
+    try { c = _coinsOf(await _tigerCoins(uid, "status")); } catch (_) { _flashMessage(t("squadDealsErr")); return; }
+    _deals.coins = c;
+    if (!c.send?.max) { say(t("envGiveNoGift")); return; }
+    await showSendCoins(_coinsCtx(uid), {
+      balance: c.balance ?? 0, picked: friendUid,
+      send: { ...c.send, tierLabel: c.send.tier ? squadTierLabel(c.send.tier) : "" },
+      friends: (state.friends || []).map(f => ({ uid: f.uid, name: _shortName(f.displayName, f.uid), avatar: userAvatar(f, "sqb-avatar"), member: !!f.tigerSquad })),
+      go: async (to, amount, message) => { const r = await _tigerCoins(uid, "sendCoins", { to, amount, message }); _deals.coins = _coinsOf(r); _paintDealsBadge(_envCount(_deals.coins)); return r; },
+    });
   }
   // "Open my envelopes" from a notification: the Deals view and the opening
   // stage at once (the pile read first when the Deals have not loaded it yet).

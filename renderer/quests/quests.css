@@ -2231,3 +2231,25 @@ body.progress-view #gridSortWrap { display: none; }
 .tch-dir .icon { background: var(--tch-acc); }
 .tch-row--in .tch-dir .icon { transform: scaleX(-1); }   /* pointing into the envelope */
 .tch-empty { margin: 16px 0; text-align: center; color: #9aa3c2; }
+/* Send TigerCoins (squad-deals.js showSendCoins): the friends, the amount
+   (quick picks + a typed field with the coin), a message, the recap (shares
+   the freeze windows' .qfm-recap / .qfm-row / .qfm-why). */
+.tcs-body { display: flex; flex-direction: column; gap: 12px; width: 100%; }
+.tcs-list { height: 176px; }
+.tcs-amount { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.tcs-quick { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; }
+.tcs-q { height: 32px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--tsq-line); background: rgba(255, 255, 255, .04);
+  color: var(--tsq-text); font: 700 12.5px var(--qw-mono, monospace); cursor: pointer; }
+.tcs-q:hover { border-color: #ffcf3d; }
+.tcs-q[aria-pressed="true"] { border-color: #ffcf3d; background: rgba(255, 207, 61, .14); color: #ffd75e; }
+.tcs-field { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px; border-radius: 10px;
+  border: 1px solid var(--tsq-line); background: rgba(0, 0, 0, .25); }
+.tcs-field:focus-within { border-color: #ffcf3d; }
+.tcs-field img { width: 22px; aspect-ratio: 1; object-fit: contain; }
+.tcs-amount-input { width: 90px; border: 0; background: none; color: #ffd75e; font: 800 18px var(--qw-mono, monospace); outline: none; }
+.tcs-amount-input::-webkit-inner-spin-button { opacity: .4; }
+.tcs-msg { height: 38px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--tsq-line); background: rgba(0, 0, 0, .25);
+  color: var(--tsq-text); font: 500 13px inherit; outline: none; }
+.tcs-msg:focus { border-color: #ffcf3d; }
+.tcs-card.is-given .tc-env { animation: tc-give-fly .9s cubic-bezier(.5, 0, .7, .2) forwards; }
+@media (prefers-reduced-motion: reduce) { .tcs-card.is-given .tc-env { animation: none; } }
