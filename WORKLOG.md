@@ -1,4 +1,4 @@
-# Worklog — v2.48.1 (in progress)
+# Worklog — v2.49.0 (in progress)
 
 ## Added
 
@@ -556,6 +556,20 @@
 - Feedback card: requests drawn as pills like the spool cards — the kind's
   colour fills a full-height tile on the left with its icon large and white;
   topic tiles and the product chip use white icons too (`report.css`).
+
+- Trophy card and unlock window: the rarity · family chip sits above the
+  sticker, and the sticker is drawn bigger than its halo, spilling over it
+  (`renderer/quests/trophies.js` `openTrophyCard` / unlock, `trophies.css`).
+  In the card the sticker follows the pointer anywhere on the screen (the
+  envelope's `tilt`) with a gloss cut to its shape sliding across it, the art
+  behind the window swells slower and softer (`backfire` options `dur` /
+  `soft`, `.bk-fire--soft` in `quests.css`), the button reads just "Download"
+  (`trophyDownload`, 11 locales), and a trophy still to win no longer opens.
+  The detail card now sits in the envelopes' / TigerCoins history window frame
+  (`tc-reveal` + `tcx` card, the name on the title plaque, the golden button),
+  the sticker centred, with no halo behind it, and a plain "Download" button
+  with no icon (`.trp-sticker`; the old `.trp-card-ov` / `.trp-card` styles
+  removed).
 
 ## Fixed
 

@@ -2645,7 +2645,7 @@ body.progress-view #gridSortWrap { display: none; }
    copies of the moment's art swell and fade in staggered waves, under everything else in
    the overlay. --bottom rises from under the card, --center radiates from its middle. */
 .bk-fire { position: fixed; z-index: -1; width: 0; height: 0; pointer-events: none; }
-.bk-fire img { position: absolute; width: var(--bk-size, 520px); opacity: 0; mix-blend-mode: screen; animation: bk-swell 2.1s cubic-bezier(.2, .7, .3, 1) infinite; }
+.bk-fire img { position: absolute; width: var(--bk-size, 520px); opacity: 0; mix-blend-mode: screen; animation: bk-swell var(--bk-dur, 2.1s) cubic-bezier(.2, .7, .3, 1) infinite; }
 .bk-fire--bottom img { left: calc(var(--bk-size, 520px) / -2); bottom: 0; transform-origin: 50% 100%; }
 .bk-fire--center img { left: calc(var(--bk-size, 520px) / -2); top: calc(var(--bk-size, 520px) / -2); transform-origin: 50% 50%; }
 @keyframes bk-swell {
@@ -2658,6 +2658,14 @@ body.progress-view #gridSortWrap { display: none; }
   0% { opacity: 0; transform: scale(.4) rotate(-4deg); filter: blur(3px) saturate(1.3); }
   15% { opacity: .5; }
   100% { opacity: 0; transform: scale(1.8) rotate(4deg); filter: blur(22px) saturate(1.6); }
+}
+/* Soft: a slow breath rather than a burst — eased in and out, lighter, less blur. */
+.bk-fire--soft img { animation-timing-function: cubic-bezier(.45, 0, .55, 1); }
+.bk-fire--soft.bk-fire--center img { animation-name: bk-radiate-soft; }
+@keyframes bk-radiate-soft {
+  0% { opacity: 0; transform: scale(.55) rotate(-2deg); filter: blur(4px) saturate(1.2); }
+  30% { opacity: .32; }
+  100% { opacity: 0; transform: scale(1.55) rotate(2deg); filter: blur(16px) saturate(1.4); }
 }
 .qfm-rl-days { margin: 0; display: grid; justify-items: center; gap: 4px; text-align: center; }
 .qfm-rl-days b { font: 800 30px var(--qw-mono, monospace); color: #ffb03a; text-shadow: 0 0 16px rgba(255, 122, 26, .6); opacity: 0; transition: opacity .3s ease; }

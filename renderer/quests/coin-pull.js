@@ -96,15 +96,17 @@ export function celebrateEgg(ctx, from) {
 // overlay's own layer), until the overlay goes. `at`: "bottom" rises from under the
 // card (a flame), "center" radiates from its middle (a chest, a coin, an envelope).
 // Reduced motion: nothing.
-export function backfire(overlayEl, cardEl, src, { at = "center", size = 520, waves = 3 } = {}) {
+// `dur` = one wave's life in seconds; `soft` = a calmer, smoother swell (ease in-out, lighter).
+export function backfire(overlayEl, cardEl, src, { at = "center", size = 520, waves = 3, dur = 2.1, soft = false } = {}) {
   if (!overlayEl || !cardEl || !src || reduced()) return null;
   const r = cardEl.getBoundingClientRect(), fire = document.createElement("div");
-  fire.className = `bk-fire bk-fire--${at}`;
+  fire.className = `bk-fire bk-fire--${at}${soft ? " bk-fire--soft" : ""}`;
   fire.setAttribute("aria-hidden", "true");
   fire.style.left = `${r.left + r.width / 2}px`;
   fire.style.top = `${at === "bottom" ? r.bottom - r.height * .15 : r.top + r.height / 2}px`;
   fire.style.setProperty("--bk-size", `${size}px`);
-  fire.innerHTML = Array.from({ length: waves }, (_, i) => `<img src="${src}" alt="" style="animation-delay:${(i * 2.1 / waves).toFixed(2)}s">`).join("");
+  fire.style.setProperty("--bk-dur", `${dur}s`);
+  fire.innerHTML = Array.from({ length: waves }, (_, i) => `<img src="${src}" alt="" style="animation-delay:${(i * dur / waves).toFixed(2)}s">`).join("");
   overlayEl.insertBefore(fire, overlayEl.firstChild);
   return fire;
 }

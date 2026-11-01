@@ -204,6 +204,9 @@ Organize your filament collection into physical racks — drag spools onto slots
 - Deals: partner offers for squad members — get your code, use it, keep your history
 - TigerCoins and envelopes: each certified TigerTag+ chip hides an envelope; open them, win TigerCoins, trade them for deals, give envelopes to your friends
 - The Maker's Workshop: your loot and feats, from common to legendary
+- Trophies *(new in 2.49.0)*: a sticker album to fill — streaks, coins, chips, gear, brands, hidden ones and event trophies — each sticker downloadable
+- Invite a friend *(new in 2.49.0)*: share your link or QR code; once your friend confirms their e-mail, you both get 3 envelopes
+- Send TigerCoins *(new in 2.49.0)* to a squad friend, with a message that opens as a letter
 
 ### ⚖ Sensors & Devices
 
@@ -278,6 +281,7 @@ A QR code to download the mobile app is always accessible in the sidebar.
 
 - **Improvements & suggestions** *(new in 2.36.0)* — report a problem, suggest an idea, fix a catalogue product or suggest a missing brand without leaving the app (and without a GitHub account): annotate a screenshot of the window — arrows, steps, a blur for anything private — attach images or PDFs, and follow every request in *My requests*, with a notification when it moves
 - **Requests by product** *(new in 2.42.0)* — say what it's about (Tiger Studio, Tiger Touch, Tiger POD, Tiger Scale, Tiger Spool or the mobile app) and it is filed on that project; a Tiger Touch, Tiger Scale or Tiger Spool screen joins the report in one click, with the printers the device follows.
+- **Request conversations** *(new in 2.49.0)* — read the team's replies and answer from the app, browse everyone's requests and answer the community's questions
 
 ### 🤖 AI assistants
 - Ask **Claude, Cursor or VS Code** about your stock — "what PLA am I low on?", "what does my friend have in black PETG?"

@@ -106,22 +106,20 @@
 @keyframes trp-holo { to { --trp-a: 360deg; } }
 
 /* ── Detail card ── */
-.trp-card-ov, .trp-unlock { position: fixed; inset: 0; z-index: 9000; display: grid; place-items: center;
+.trp-unlock { position: fixed; inset: 0; z-index: 9000; display: grid; place-items: center;
   background: var(--scrim); backdrop-filter: blur(6px); opacity: 0; transition: opacity .2s; }
-.trp-card-ov.is-open, .trp-unlock.is-open { opacity: 1; }
-.trp-card, .trp-unlock-card { position: relative; width: min(360px, calc(100vw - 32px)); display: flex; flex-direction: column; align-items: center; gap: 6px;
+.trp-unlock.is-open { opacity: 1; }
+.trp-unlock-card { position: relative; width: min(360px, calc(100vw - 32px)); display: flex; flex-direction: column; align-items: center; gap: 6px;
   padding: 28px 24px 24px; border-radius: 20px; text-align: center; background: var(--surface);
   border: 1px solid color-mix(in srgb, var(--tc) 35%, transparent); box-shadow: 0 30px 80px rgba(0, 0, 0, .55);
   transform: translateY(10px) scale(.96); transition: transform .25s cubic-bezier(.2, .8, .2, 1.2); }
-.is-open > .trp-card, .is-open > .trp-unlock-card { transform: none; }
-.trp-card h3, .trp-unlock-card h3 { margin: 4px 0 0; font-size: 20px; }
-.trp-card p, .trp-unlock-card p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
-.trp-card .trp-card-meta { color: var(--text); font-size: 12px; }
+.is-open > .trp-unlock-card { transform: none; }
+.trp-unlock-card h3 { margin: 4px 0 0; font-size: 20px; }
+.trp-unlock-card p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
 .trp-card-art, .trp-unlock-art { display: grid; place-items: center; width: 150px; aspect-ratio: 1; margin-bottom: 6px; border-radius: 50%;
   background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--tc) 30%, transparent), transparent 70%); }
 .trp-card-art img, .trp-unlock-art img { width: 74%; height: auto; aspect-ratio: 1; object-fit: contain; transform: rotate(-5deg);
   filter: drop-shadow(3px 0 0 var(--sticker-edge)) drop-shadow(-3px 0 0 var(--sticker-edge)) drop-shadow(0 3px 0 var(--sticker-edge)) drop-shadow(0 -3px 0 var(--sticker-edge)) drop-shadow(0 8px 12px rgba(0, 0, 0, .5)); }
-.trp-card.is-locked .trp-card-art img { filter: brightness(0) opacity(.3); }
 .trp-card-tier { padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
   color: var(--tc); background: color-mix(in srgb, var(--tc) 14%, transparent); }
 
@@ -144,3 +142,37 @@
   .trp-unlock-rays, .trp-st.trp-t--event.is-got { animation: none; }
   .is-open .trp-unlock-art img { animation: none; }
 }
+/* The sticker is bigger than its halo and spills over it (the halo stays behind),
+   under the rarity · family chip. */
+.trp-card-art, .trp-unlock-art { margin: 18px 0 22px; }
+.trp-card-art img, .trp-unlock-art img { width: 136%; max-width: none; }
+/* The open sticker follows the pointer (coin-pull.js tilt: --rx / --ry, --gx / --gy)
+   and a gloss, cut to the sticker's own shape, slides across it. */
+.trp-sticker .trp-card-art { perspective: 700px; }
+.trp-sticker .trp-tilt { position: relative; display: block; width: 136%; aspect-ratio: 1; transform-style: preserve-3d;
+  transform: rotate(-5deg) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); transition: transform .35s cubic-bezier(.2, .8, .3, 1); }
+.trp-sticker .trp-tilt.is-tilted { transition-duration: .12s; }
+.trp-sticker .trp-card-art .trp-tilt img { width: 100%; transform: none; }
+.trp-gloss { position: absolute; inset: 0; pointer-events: none; mix-blend-mode: soft-light; opacity: .55; transition: opacity .3s;
+  background: radial-gradient(circle at var(--gx, 30%) var(--gy, 25%), rgba(255, 255, 255, .95), rgba(255, 255, 255, 0) 42%),
+    linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, .55) 48%, transparent 60%) 0 0 / 250% 100% no-repeat;
+  -webkit-mask: var(--art) center / contain no-repeat; mask: var(--art) center / contain no-repeat;
+  animation: trp-gloss-sweep 4.5s cubic-bezier(.45, 0, .55, 1) infinite; }
+.trp-tilt.is-tilted .trp-gloss { opacity: .9; }
+@keyframes trp-gloss-sweep { 0% { background-position: 0 0, 130% 0; } 60%, 100% { background-position: 0 0, -30% 0; } }
+@media (prefers-reduced-motion: reduce) { .trp-gloss { animation: none; } }
+/* A sticker still to win does not open. */
+.trp-st.is-locked { cursor: default; }
+.trp-st.is-locked:hover { transform: none; }
+/* The detail card sits in the envelopes' window frame (tcx card + plaque). */
+.trp-sticker .tcx-main { align-items: center; text-align: center; }
+.trp-sticker .trp-card-art { align-self: center; }
+.trp-sticker .trp-sticker-desc { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.trp-sticker .trp-card-meta { margin: 0; color: var(--text); font-size: 12px; }
+.trp-sticker .trp-card-art { flex: none; width: 170px; height: 170px; margin: 26px 0 30px; }
+.trp-sticker .trp-tilt { width: 150%; }
+/* Centred on the halo whatever its overflow. */
+.trp-sticker .trp-card-art { position: relative; }
+.trp-sticker .trp-tilt { position: absolute; left: 50%; top: 50%; translate: -50% -50%; }
+/* No halo behind the sticker in the card: the window's own art swells behind it. */
+.trp-sticker .trp-card-art { background: none; }

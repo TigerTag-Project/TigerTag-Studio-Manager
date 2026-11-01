@@ -1,4 +1,270 @@
 {
+  "2.49.0": {
+    "date": "2026-11-01",
+    "items": [
+      {
+        "icon": "trophy",
+        "title": {
+          "en": "Trophies. 116 of them. Good luck.",
+          "fr": "Des trophées. 116. Bon courage.",
+          "de": "Trophäen. 116 Stück. Viel Glück.",
+          "es": "Trofeos. 116. Suerte.",
+          "it": "Trofei. 116. In bocca al lupo.",
+          "zh": "奖杯，116 个，祝你好运",
+          "pt": "Troféus. 116. Boa sorte.",
+          "pt-pt": "Troféus. 116. Boa sorte.",
+          "pl": "Trofea. 116 sztuk. Powodzenia.",
+          "ru": "Трофеи. 116 штук. Удачи.",
+          "nl": "Trofeeën. 116 stuks. Succes."
+        },
+        "body": {
+          "en": "A sticker album in the Tiger Squad: streaks, coins, chips, printers, brands, secret ones you'll stumble on, event ones with a code. Each sticker you earn shows the date and how many tigers own it. Then you download it, obviously.",
+          "fr": "Un album de stickers dans la Tiger Squad : séries, TigerCoins, puces, imprimantes, marques, des secrets sur lesquels tu tomberas par hasard, et des trophées d’événement avec un code. Chaque sticker gagné affiche sa date et combien de tigres l’ont. Ensuite tu le télécharges, évidemment.",
+          "de": "Ein Stickeralbum im Tiger Squad: Serien, TigerCoins, Chips, Drucker, Marken, geheime, über die du zufällig stolperst, und Event-Trophäen mit Code. Jeder verdiente Sticker zeigt sein Datum und wie viele Tiger ihn haben. Dann lädst du ihn herunter, logisch.",
+          "es": "Un álbum de pegatinas en la Tiger Squad: rachas, TigerCoins, chips, impresoras, marcas, secretos con los que te toparás y trofeos de evento con código. Cada pegatina ganada muestra su fecha y cuántos tigres la tienen. Luego la descargas, obviamente.",
+          "it": "Un album di sticker nella Tiger Squad: serie, TigerCoins, chip, stampanti, marche, segreti in cui inciamperai e trofei evento con un codice. Ogni sticker vinto mostra la data e quante tigri ce l’hanno. Poi lo scarichi, ovviamente.",
+          "zh": "Tiger Squad 里多了一本贴纸册：连胜、TigerCoins、芯片、打印机、品牌，还有你会意外撞见的隐藏奖杯和凭代码领取的活动奖杯。每张赢到的贴纸都写着日期和拥有它的老虎比例。然后当然是下载下来。",
+          "pt": "Um álbum de figurinhas na Tiger Squad: sequências, TigerCoins, chips, impressoras, marcas, segredos que você vai encontrar sem querer e troféus de evento com código. Cada figurinha ganha mostra a data e quantos tigres a têm. Depois você baixa, claro.",
+          "pt-pt": "Uma caderneta de autocolantes na Tiger Squad: sequências, TigerCoins, chips, impressoras, marcas, segredos em que vais tropeçar e troféus de evento com código. Cada autocolante ganho mostra a data e quantos tigres o têm. Depois descarregas, claro.",
+          "pl": "Album naklejek w Tiger Squad: serie, TigerCoins, chipy, drukarki, marki, sekretne, na które wpadniesz przypadkiem, i trofea z wydarzeń z kodem. Każda zdobyta naklejka pokazuje datę i ile tygrysów ją ma. Potem ją pobierasz, oczywiście.",
+          "ru": "Альбом наклеек в Tiger Squad: серии, TigerCoins, чипы, принтеры, бренды, секретные, на которые вы наткнётесь случайно, и трофеи событий по коду. На каждой заработанной наклейке — дата и сколько тигров её имеют. А потом вы её скачиваете, конечно.",
+          "nl": "Een stickeralbum in de Tiger Squad: reeksen, TigerCoins, chips, printers, merken, geheime waar je per ongeluk op stuit en eventtrofeeën met een code. Elke verdiende sticker toont de datum en hoeveel tijgers hem hebben. Daarna download je hem, uiteraard."
+        }
+      },
+      {
+        "icon": "user",
+        "title": {
+          "en": "Bring a friend, get envelopes",
+          "fr": "Ramène un pote, gagne des enveloppes",
+          "de": "Bring einen Freund mit, kassiere Umschläge",
+          "es": "Trae a un amigo, gana sobres",
+          "it": "Porta un amico, prendi buste",
+          "zh": "拉个朋友，领红包",
+          "pt": "Traga um amigo, ganhe envelopes",
+          "pt-pt": "Traz um amigo, ganha envelopes",
+          "pl": "Przyprowadź kumpla, zgarnij koperty",
+          "ru": "Приведи друга — получи конверты",
+          "nl": "Neem een vriend mee, krijg enveloppen"
+        },
+        "body": {
+          "en": "The new Invite page has your link, a QR code and a button for every app your friends hang out on. They say you invited them, they confirm their e-mail, and you both get 3 envelopes. Friendship has never been this profitable.",
+          "fr": "La nouvelle page Inviter a ton lien, un QR code et un bouton pour chaque appli où traînent tes potes. Ils disent que c’est toi qui les as invités, ils confirment leur e-mail, et vous gagnez 3 enveloppes chacun. L’amitié n’a jamais été aussi rentable.",
+          "de": "Die neue Einladen-Seite hat deinen Link, einen QR-Code und einen Knopf für jede App, in der deine Freunde abhängen. Sie sagen, dass du sie eingeladen hast, bestätigen ihre E-Mail, und ihr bekommt beide 3 Umschläge. Freundschaft war noch nie so lukrativ.",
+          "es": "La nueva página Invitar tiene tu enlace, un código QR y un botón para cada app donde están tus amigos. Dicen que tú los invitaste, confirman su e-mail y os lleváis 3 sobres cada uno. La amistad nunca fue tan rentable.",
+          "it": "La nuova pagina Invita ha il tuo link, un QR code e un pulsante per ogni app dove bazzicano i tuoi amici. Dicono che li hai invitati tu, confermano l’e-mail e vi prendete 3 buste a testa. L’amicizia non è mai stata così redditizia.",
+          "zh": "全新的邀请页面有你的链接、二维码，以及朋友们常用的每个应用的分享按钮。他们说是你邀请的，确认邮箱后，你们各得 3 个红包。友谊从没这么划算过。",
+          "pt": "A nova página Convidar tem seu link, um QR code e um botão para cada app onde seus amigos ficam. Eles dizem que foi você quem convidou, confirmam o e-mail e cada um ganha 3 envelopes. Amizade nunca rendeu tanto.",
+          "pt-pt": "A nova página Convidar tem a tua ligação, um código QR e um botão para cada app onde os teus amigos andam. Dizem que foste tu que os convidaste, confirmam o e-mail e cada um ganha 3 envelopes. A amizade nunca rendeu tanto.",
+          "pl": "Nowa strona Zaproś ma twój link, kod QR i przycisk do każdej apki, w której siedzą twoi znajomi. Mówią, że to ty ich zaprosiłeś, potwierdzają e-mail i każde z was dostaje 3 koperty. Przyjaźń jeszcze nigdy tak się nie opłacała.",
+          "ru": "На новой странице «Пригласить» — ваша ссылка, QR-код и кнопка для каждого приложения, где сидят друзья. Они указывают, что пригласили их вы, подтверждают e-mail — и каждый получает 3 конверта. Дружба ещё никогда не была такой выгодной.",
+          "nl": "De nieuwe Uitnodigen-pagina heeft je link, een QR-code en een knop voor elke app waar je vrienden rondhangen. Ze zeggen dat jij ze uitnodigde, bevestigen hun e-mail, en jullie krijgen allebei 3 enveloppen. Vriendschap was nog nooit zo lucratief."
+        }
+      },
+      {
+        "icon": "coins",
+        "title": {
+          "en": "Send TigerCoins to your friends",
+          "fr": "Envoie des TigerCoins à tes potes",
+          "de": "Schick deinen Freunden TigerCoins",
+          "es": "Envía TigerCoins a tus amigos",
+          "it": "Manda TigerCoins ai tuoi amici",
+          "zh": "给朋友送 TigerCoins",
+          "pt": "Mande TigerCoins para os amigos",
+          "pt-pt": "Envia TigerCoins aos teus amigos",
+          "pl": "Wyślij znajomym TigerCoins",
+          "ru": "Отправляйте TigerCoins друзьям",
+          "nl": "Stuur je vrienden TigerCoins"
+        },
+        "body": {
+          "en": "Pick a friend from the squad, an amount, a few words, then hold the button. They get an envelope full of coins. Your TigerSquad level sets how generous you can be each week.",
+          "fr": "Choisis un pote de la squad, un montant, quelques mots, puis maintiens le bouton. Il reçoit une enveloppe pleine de pièces. Ton niveau TigerSquad fixe jusqu’où tu peux être généreux chaque semaine.",
+          "de": "Wähl einen Freund aus dem Squad, einen Betrag, ein paar Worte und halte den Knopf gedrückt. Er bekommt einen Umschlag voller Münzen. Dein TigerSquad-Level legt fest, wie großzügig du pro Woche sein darfst.",
+          "es": "Elige un amigo de la squad, una cantidad, unas palabras y mantén el botón. Recibe un sobre lleno de monedas. Tu nivel TigerSquad marca cuánto puedes regalar cada semana.",
+          "it": "Scegli un amico della squad, un importo, due parole, poi tieni premuto il pulsante. Riceve una busta piena di monete. Il tuo livello TigerSquad decide quanto puoi essere generoso ogni settimana.",
+          "zh": "从 Squad 里挑个朋友，选好金额，写几句话，然后按住按钮。对方会收到一个装满金币的红包。你的 TigerSquad 等级决定你每周能有多大方。",
+          "pt": "Escolha um amigo da squad, um valor, umas palavras e segure o botão. Ele recebe um envelope cheio de moedas. Seu nível TigerSquad define o quanto você pode ser generoso por semana.",
+          "pt-pt": "Escolhe um amigo da squad, um valor, umas palavras e mantém o botão premido. Ele recebe um envelope cheio de moedas. O teu nível TigerSquad define quão generoso podes ser por semana.",
+          "pl": "Wybierz kumpla ze squadu, kwotę, parę słów i przytrzymaj przycisk. Dostanie kopertę pełną monet. Twój poziom TigerSquad decyduje, jak hojny możesz być co tydzień.",
+          "ru": "Выберите друга из сквада, сумму, пару слов — и удерживайте кнопку. Он получит конверт, полный монет. Ваш уровень TigerSquad определяет, насколько щедрым можно быть за неделю.",
+          "nl": "Kies een vriend uit de squad, een bedrag, een paar woorden en houd de knop ingedrukt. Hij krijgt een envelop vol munten. Je TigerSquad-niveau bepaalt hoe vrijgevig je per week mag zijn."
+        }
+      },
+      {
+        "icon": "mail",
+        "title": {
+          "en": "You've got a letter",
+          "fr": "Tu as reçu une lettre",
+          "de": "Du hast Post",
+          "es": "Te ha llegado una carta",
+          "it": "Hai una lettera",
+          "zh": "你有一封信",
+          "pt": "Chegou uma carta para você",
+          "pt-pt": "Tens uma carta",
+          "pl": "Masz list",
+          "ru": "Вам письмо",
+          "nl": "Je hebt post"
+        },
+        "body": {
+          "en": "An envelope from a friend with a message now opens like a real letter: the seal cracks, the paper unrolls, their words appear. Hold Collect and watch the coins fly into your wallet. Slightly dramatic. Fully deserved.",
+          "fr": "Une enveloppe d’un pote avec un message s’ouvre maintenant comme une vraie lettre : le sceau craque, le papier se déroule, ses mots apparaissent. Maintiens Récupérer et regarde les pièces filer dans ta bourse. Un poil dramatique. Totalement mérité.",
+          "de": "Ein Umschlag von einem Freund mit Nachricht öffnet sich jetzt wie ein echter Brief: Das Siegel bricht, das Papier rollt sich auf, seine Worte erscheinen. Halte Einsammeln und sieh zu, wie die Münzen in deine Börse fliegen. Leicht dramatisch. Völlig verdient.",
+          "es": "Un sobre de un amigo con mensaje ahora se abre como una carta de verdad: el sello cruje, el papel se desenrolla, aparecen sus palabras. Mantén Recoger y mira volar las monedas a tu monedero. Un pelín dramático. Totalmente merecido.",
+          "it": "Una busta di un amico con un messaggio ora si apre come una vera lettera: il sigillo si spezza, la carta si srotola, compaiono le sue parole. Tieni premuto Raccogli e guarda le monete volare nel tuo borsellino. Un filo drammatico. Del tutto meritato.",
+          "zh": "朋友附言的红包现在会像真正的信一样打开：封蜡裂开，信纸展开，字迹浮现。按住「领取」，看着金币飞进你的钱包。有点戏剧化，但完全值得。",
+          "pt": "Um envelope de um amigo com mensagem agora abre como uma carta de verdade: o selo racha, o papel desenrola, as palavras aparecem. Segure Coletar e veja as moedas voarem para a sua carteira. Um pouco dramático. Totalmente merecido.",
+          "pt-pt": "Um envelope de um amigo com mensagem abre agora como uma carta a sério: o selo estala, o papel desenrola-se, as palavras aparecem. Mantém Recolher premido e vê as moedas voarem para a tua carteira. Um bocadinho dramático. Totalmente merecido.",
+          "pl": "Koperta od kumpla z wiadomością otwiera się teraz jak prawdziwy list: pieczęć pęka, papier się rozwija, pojawiają się jego słowa. Przytrzymaj Odbierz i patrz, jak monety lecą do portfela. Lekko dramatyczne. W pełni zasłużone.",
+          "ru": "Конверт от друга с сообщением теперь открывается как настоящее письмо: печать трескается, бумага разворачивается, проступают его слова. Удерживайте «Забрать» и смотрите, как монеты летят в кошелёк. Чуть драматично. Вполне заслуженно.",
+          "nl": "Een envelop van een vriend met een bericht opent nu als een echte brief: het zegel breekt, het papier rolt open, zijn woorden verschijnen. Houd Ophalen ingedrukt en kijk hoe de munten je portemonnee in vliegen. Een tikje dramatisch. Volkomen verdiend."
+        }
+      },
+      {
+        "icon": "chat",
+        "title": {
+          "en": "Your requests talk back now",
+          "fr": "Tes demandes te répondent",
+          "de": "Deine Anfragen antworten jetzt",
+          "es": "Tus solicitudes ahora contestan",
+          "it": "Le tue richieste ora rispondono",
+          "zh": "你的请求会回话了",
+          "pt": "Seus pedidos agora respondem",
+          "pt-pt": "Os teus pedidos agora respondem",
+          "pl": "Twoje zgłoszenia odpowiadają",
+          "ru": "Ваши запросы теперь отвечают",
+          "nl": "Je verzoeken praten nu terug"
+        },
+        "body": {
+          "en": "Open a request in My requests and the whole conversation is there. Reply right from the app with text, pictures or a printer's data. A new reply gets flagged, and a little window tells you when something moved.",
+          "fr": "Ouvre une demande dans Mes demandes et toute la conversation est là. Réponds direct depuis l’appli avec du texte, des images ou les données d’une imprimante. Une nouvelle réponse est signalée, et une petite fenêtre te prévient quand ça bouge.",
+          "de": "Öffne eine Anfrage unter Meine Anfragen und das ganze Gespräch ist da. Antworte direkt aus der App mit Text, Bildern oder den Daten eines Druckers. Neue Antworten werden markiert, und ein kleines Fenster sagt dir, wenn sich was tut.",
+          "es": "Abre una solicitud en Mis solicitudes y ahí está toda la conversación. Responde desde la app con texto, imágenes o los datos de una impresora. Las respuestas nuevas se marcan y una ventanita te avisa cuando algo se mueve.",
+          "it": "Apri una richiesta in Le mie richieste e c’è tutta la conversazione. Rispondi dall’app con testo, immagini o i dati di una stampante. Le nuove risposte vengono segnalate e una finestrella ti avvisa quando qualcosa si muove.",
+          "zh": "在「我的请求」里打开一个请求，整段对话都在那儿。直接在应用里回复文字、图片或打印机数据。有新回复会标出来，有进展时还会弹个小窗告诉你。",
+          "pt": "Abra um pedido em Meus pedidos e a conversa inteira está lá. Responda direto do app com texto, imagens ou os dados de uma impressora. Respostas novas ficam marcadas, e uma janelinha avisa quando algo andou.",
+          "pt-pt": "Abre um pedido em Os meus pedidos e a conversa toda está lá. Responde diretamente da app com texto, imagens ou os dados de uma impressora. As respostas novas ficam assinaladas, e uma janelinha avisa quando algo mexe.",
+          "pl": "Otwórz zgłoszenie w Moich zgłoszeniach, a cała rozmowa jest na miejscu. Odpowiadaj prosto z apki tekstem, zdjęciami albo danymi drukarki. Nowa odpowiedź jest oznaczona, a małe okienko daje znać, gdy coś się ruszy.",
+          "ru": "Откройте запрос в «Моих запросах» — вся переписка там. Отвечайте прямо из приложения текстом, картинками или данными принтера. Новые ответы отмечаются, а небольшое окно сообщит, когда что-то сдвинулось.",
+          "nl": "Open een verzoek in Mijn verzoeken en het hele gesprek staat er. Antwoord meteen vanuit de app met tekst, afbeeldingen of de gegevens van een printer. Nieuwe antwoorden worden gemarkeerd en een venstertje laat weten wanneer er iets beweegt."
+        }
+      },
+      {
+        "icon": "community",
+        "title": {
+          "en": "Answer the community's questions",
+          "fr": "Réponds aux questions de la commu",
+          "de": "Beantworte die Fragen der Community",
+          "es": "Responde a las preguntas de la comunidad",
+          "it": "Rispondi alle domande della community",
+          "zh": "回答社区的问题",
+          "pt": "Responda às perguntas da comunidade",
+          "pt-pt": "Responde às perguntas da comunidade",
+          "pl": "Odpowiadaj na pytania społeczności",
+          "ru": "Отвечайте на вопросы сообщества",
+          "nl": "Beantwoord de vragen van de community"
+        },
+        "body": {
+          "en": "All requests is open to everyone now. Browse what others asked, and if you know the answer to a question, go ahead and share it. Being the helpful one looks good on you.",
+          "fr": "Toutes les demandes est maintenant ouvert à tout le monde. Parcours ce que les autres ont demandé, et si tu connais la réponse à une question, partage-la. Être celui qui aide, ça te va bien.",
+          "de": "Alle Anfragen ist jetzt für alle offen. Stöbere in dem, was andere gefragt haben, und wenn du die Antwort auf eine Frage kennst, teil sie. Hilfsbereit steht dir gut.",
+          "es": "Todas las solicitudes ahora está abierto a todos. Mira lo que preguntan los demás y, si sabes la respuesta a una pregunta, compártela. Ser el que ayuda te queda bien.",
+          "it": "Tutte le richieste ora è aperto a tutti. Sfoglia cosa hanno chiesto gli altri e, se conosci la risposta a una domanda, condividila. Fare quello che aiuta ti dona.",
+          "zh": "「所有请求」现在对所有人开放。看看别人问了什么，知道答案就说出来。乐于助人的你，很帅。",
+          "pt": "Todos os pedidos agora está aberto a todos. Veja o que os outros perguntaram e, se souber a resposta de uma pergunta, compartilhe. Ser quem ajuda combina com você.",
+          "pt-pt": "Todos os pedidos está agora aberto a todos. Vê o que os outros perguntaram e, se souberes a resposta a uma pergunta, partilha-a. Ser quem ajuda fica-te bem.",
+          "pl": "Wszystkie zgłoszenia są teraz otwarte dla każdego. Zobacz, o co pytają inni, a jeśli znasz odpowiedź na pytanie, podziel się nią. Bycie pomocnym ci pasuje.",
+          "ru": "Раздел «Все запросы» теперь открыт для всех. Смотрите, о чём спрашивают другие, и если знаете ответ на вопрос — поделитесь. Помогать вам к лицу.",
+          "nl": "Alle verzoeken is nu voor iedereen open. Kijk wat anderen vroegen, en als je het antwoord op een vraag weet, deel het. Behulpzaam staat je goed."
+        }
+      },
+      {
+        "icon": "flame",
+        "title": {
+          "en": "Relight the flame",
+          "fr": "Rallume la flamme",
+          "de": "Entfache die Flamme neu",
+          "es": "Reaviva la llama",
+          "it": "Riaccendi la fiamma",
+          "zh": "重燃火焰",
+          "pt": "Reacenda a chama",
+          "pt-pt": "Reacende a chama",
+          "pl": "Rozpal płomień na nowo",
+          "ru": "Разожгите пламя снова",
+          "nl": "Steek de vlam weer aan"
+        },
+        "body": {
+          "en": "Missed a day and lost your streak? As a Gold or Platinum member, relight it today or tomorrow and it comes back in full. Embers, a crackling fire, the days ticking back one by one. Phoenix energy.",
+          "fr": "Un jour raté et ta série s’envole ? Membre Gold ou Platinum, rallume-la aujourd’hui ou demain et elle revient en entier. Des braises, un feu qui crépite, les jours qui reviennent un par un. Énergie phénix.",
+          "de": "Einen Tag verpasst und die Serie ist weg? Als Gold- oder Platin-Mitglied entfachst du sie heute oder morgen neu und sie kommt komplett zurück. Glut, ein knisterndes Feuer, die Tage zählen einzeln zurück. Phönix-Energie.",
+          "es": "¿Te saltaste un día y perdiste la racha? Como miembro Gold o Platinum, reavívala hoy o mañana y vuelve entera. Brasas, un fuego que crepita, los días volviendo uno a uno. Energía fénix.",
+          "it": "Saltato un giorno e persa la serie? Da membro Gold o Platinum, riaccendila oggi o domani e torna tutta intera. Braci, un fuoco che scoppietta, i giorni che tornano uno a uno. Energia da fenice.",
+          "zh": "漏了一天，连胜断了？Gold 或 Platinum 会员今天或明天重燃，就能整段找回。余烬、噼啪作响的炉火、天数一天天回来。浴火重生。",
+          "pt": "Perdeu um dia e a sequência? Como membro Gold ou Platinum, reacenda hoje ou amanhã e ela volta inteira. Brasas, fogo estalando, os dias voltando um a um. Energia de fênix.",
+          "pt-pt": "Falhaste um dia e perdeste a sequência? Como membro Gold ou Platinum, reacende-a hoje ou amanhã e ela volta inteira. Brasas, uma lareira a crepitar, os dias a voltar um a um. Energia de fénix.",
+          "pl": "Opuściłeś dzień i seria przepadła? Jako członek Gold lub Platinum rozpal ją dziś albo jutro, a wróci w całości. Żar, trzaskający ogień, dni wracające jeden po drugim. Energia feniksa.",
+          "ru": "Пропустили день и потеряли серию? Участник Gold или Platinum разжигает её сегодня или завтра — и она возвращается целиком. Угли, треск огня, дни возвращаются один за другим. Энергия феникса.",
+          "nl": "Een dag gemist en je reeks kwijt? Als Gold- of Platinum-lid steek je hem vandaag of morgen weer aan en hij komt volledig terug. Gloeiende kolen, een knetterend vuur, de dagen die één voor één terugtellen. Feniksenergie."
+        }
+      },
+      {
+        "icon": "gift",
+        "title": {
+          "en": "Chests that know how to make an entrance",
+          "fr": "Des coffres qui savent faire une entrée",
+          "de": "Truhen mit großem Auftritt",
+          "es": "Cofres que saben hacer una entrada",
+          "it": "Forzieri che sanno fare un’entrata",
+          "zh": "会登场的宝箱",
+          "pt": "Baús que sabem fazer uma entrada",
+          "pt-pt": "Baús que sabem fazer uma entrada",
+          "pl": "Skrzynie, które umieją wejść",
+          "ru": "Сундуки с эффектным выходом",
+          "nl": "Kisten die weten hoe je binnenkomt"
+        },
+        "body": {
+          "en": "Hold to open, feel it rattle, and the lid flies off in a shower of TigerCoins, with its own spooky treasure music. How many envelopes are inside stays a surprise. Each chest opened is also worth 200 XP.",
+          "fr": "Maintiens pour ouvrir, sens-le trembler, et le couvercle saute dans une pluie de TigerCoins, avec sa propre musique de trésor qui fait frissonner. Combien d’enveloppes il cache reste une surprise. Chaque coffre ouvert rapporte aussi 200 XP.",
+          "de": "Halten zum Öffnen, spür das Rütteln, und der Deckel fliegt in einem Regen aus TigerCoins weg, mit eigener schaurig-schöner Schatzmusik. Wie viele Umschläge drin sind, bleibt eine Überraschung. Jede geöffnete Truhe bringt außerdem 200 XP.",
+          "es": "Mantén para abrir, siente cómo tiembla y la tapa sale volando en una lluvia de TigerCoins, con su propia música de tesoro misteriosa. Cuántos sobres hay dentro sigue siendo sorpresa. Cada cofre abierto vale además 200 XP.",
+          "it": "Tieni premuto per aprire, sentilo tremare, e il coperchio vola via in una pioggia di TigerCoins, con la sua musica da tesoro misteriosa. Quante buste contiene resta una sorpresa. Ogni forziere aperto vale anche 200 XP.",
+          "zh": "按住开启，感受它的震动，箱盖在 TigerCoins 雨中飞起，还配上专属的神秘宝藏音乐。里面有几个红包，开了才知道。每开一个宝箱还能得 200 XP。",
+          "pt": "Segure para abrir, sinta ele tremer, e a tampa voa numa chuva de TigerCoins, com sua própria música de tesouro misteriosa. Quantos envelopes há dentro continua sendo surpresa. Cada baú aberto também vale 200 XP.",
+          "pt-pt": "Mantém premido para abrir, sente-o a tremer, e a tampa voa numa chuva de TigerCoins, com a sua própria música de tesouro misteriosa. Quantos envelopes tem lá dentro continua a ser surpresa. Cada baú aberto vale também 200 XP.",
+          "pl": "Przytrzymaj, by otworzyć, poczuj, jak się trzęsie, a wieko odlatuje w deszczu TigerCoins, z własną tajemniczą muzyką skarbu. Ile kopert jest w środku, pozostaje niespodzianką. Każda otwarta skrzynia to też 200 XP.",
+          "ru": "Удерживайте, чтобы открыть, почувствуйте дрожь — и крышка слетает под дождём TigerCoins, под собственную таинственную музыку сокровищ. Сколько внутри конвертов — сюрприз. Каждый открытый сундук приносит ещё и 200 XP.",
+          "nl": "Houd ingedrukt om te openen, voel hem rammelen, en het deksel vliegt eraf in een regen van TigerCoins, met eigen mysterieuze schatmuziek. Hoeveel enveloppen erin zitten blijft een verrassing. Elke geopende kist is ook 200 XP waard."
+        }
+      },
+      {
+        "icon": "lock",
+        "title": {
+          "en": "Your sign-in, in plain sight",
+          "fr": "Ta connexion, bien en vue",
+          "de": "Deine Anmeldung, gut sichtbar",
+          "es": "Tu inicio de sesión, a la vista",
+          "it": "Il tuo accesso, ben in vista",
+          "zh": "登录信息，一目了然",
+          "pt": "Seu login, à vista",
+          "pt-pt": "O teu início de sessão, à vista",
+          "pl": "Twoje logowanie, na widoku",
+          "ru": "Ваш вход — на виду",
+          "nl": "Je aanmelding, goed in zicht"
+        },
+        "body": {
+          "en": "My profile now shows your e-mail and how you sign in. Signed up with an e-mail and password? Change either one right there, no support ticket required.",
+          "fr": "Mon profil affiche maintenant ton e-mail et ta façon de te connecter. Inscrit avec un e-mail et un mot de passe ? Change l’un ou l’autre direct là, sans passer par le support.",
+          "de": "Mein Profil zeigt jetzt deine E-Mail und wie du dich anmeldest. Mit E-Mail und Passwort registriert? Ändere beides direkt dort, ganz ohne Support-Ticket.",
+          "es": "Mi perfil ahora muestra tu e-mail y cómo inicias sesión. ¿Te registraste con e-mail y contraseña? Cambia cualquiera de los dos ahí mismo, sin pasar por soporte.",
+          "it": "Il mio profilo ora mostra la tua e-mail e come accedi. Registrato con e-mail e password? Cambia l’una o l’altra lì stesso, senza ticket al supporto.",
+          "zh": "「我的资料」现在会显示你的邮箱和登录方式。用邮箱和密码注册的？直接在那里改邮箱或密码，不用找客服。",
+          "pt": "Meu perfil agora mostra seu e-mail e como você entra. Cadastrou com e-mail e senha? Troque qualquer um ali mesmo, sem chamado no suporte.",
+          "pt-pt": "O meu perfil mostra agora o teu e-mail e como inicias sessão. Registaste-te com e-mail e palavra-passe? Muda qualquer um ali mesmo, sem pedir ao suporte.",
+          "pl": "Mój profil pokazuje teraz twój e-mail i sposób logowania. Rejestracja przez e-mail i hasło? Zmień jedno albo drugie od razu tam, bez zgłoszenia do supportu.",
+          "ru": "«Мой профиль» теперь показывает ваш e-mail и способ входа. Зарегистрировались по e-mail и паролю? Меняйте любой из них прямо там, без обращения в поддержку.",
+          "nl": "Mijn profiel toont nu je e-mail en hoe je je aanmeldt. Aangemeld met e-mail en wachtwoord? Wijzig ze allebei meteen daar, zonder supportticket."
+        }
+      }
+    ]
+  },
   "2.48.0": {
     "date": "2026-10-30",
     "items": [

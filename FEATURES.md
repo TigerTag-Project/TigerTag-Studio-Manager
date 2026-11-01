@@ -1,6 +1,6 @@
 # Tiger Studio Manager — Feature Catalogue
 
-Tiger Studio Manager is the Electron desktop companion to the TigerTag ecosystem: a filament-inventory manager built around RFID/NFC-tagged spools ("TigerTag" chips), a fully-digital "TigerData" tier (and its catalogue-identified "TigerData+" rung), live 3D-printer integration across seven brands plus Klipper and OctoPrint, physical storage/rack management, a Firebase-backed social layer (friends, shareable wishlists, public profiles), and companion hardware (TD1S color sensor, TigerScale, TigerSpool printer reader, TigerPOD dual-reader stand). This document catalogues every **shipped** feature, grouped by domain, current as of **v2.48.0**. Per-version release detail lives in `CHANGELOG.md`; forward-looking / in-progress work lives in `ROADMAP.md`.
+Tiger Studio Manager is the Electron desktop companion to the TigerTag ecosystem: a filament-inventory manager built around RFID/NFC-tagged spools ("TigerTag" chips), a fully-digital "TigerData" tier (and its catalogue-identified "TigerData+" rung), live 3D-printer integration across seven brands plus Klipper and OctoPrint, physical storage/rack management, a Firebase-backed social layer (friends, shareable wishlists, public profiles), and companion hardware (TD1S color sensor, TigerScale, TigerSpool printer reader, TigerPOD dual-reader stand). This document catalogues every **shipped** feature, grouped by domain, current as of **v2.49.0**. Per-version release detail lives in `CHANGELOG.md`; forward-looking / in-progress work lives in `ROADMAP.md`.
 
 ---
 
@@ -93,6 +93,7 @@ Tiger Studio Manager is the Electron desktop companion to the TigerTag ecosystem
 - VAT country picker + HT/TTC price-display preference, driving currency/tax-rate display without rewriting stored prices (v2.1.0; **Canada with a per-province rate** — all 13 provinces and territories, combined GST/HST/PST/QST, `CA$` v2.27.0; **custom rate** — enter your own rate, ISO 4217 currency code and symbol for a country the list does not carry, a reduced rate or an exemption, v2.27.0).
 - **Welcome page** — "Tiger Studio Manager 2": language select, four benefits, an animated ecosystem scene (floating iMac / iPhone / Tiger Touch, TigerPOD ⇄ TigerScale ⇄ TigerSpool flip), printer brand logos lit in turn; the same scene in the sign-in dialog and the account setup; first launch in the system language when shipped (v2.48.0).
 - **Account emails from TigerSystem** — address check and password reset sent by the backend in the app's language (Firebase's mail as fallback), and a "Check your inbox" step after sign-up with resend / another address (v2.48.0).
+- **Sign-in card** in My profile — the account's e-mail and sign-in methods; e-mail + password accounts change their address (confirmed by link) or password after the current password (v2.49.0).
 - Social-profile links — paste any profile URL, auto-detected brand icon (X, Instagram, YouTube, TikTok, Facebook, LinkedIn, Twitch, Discord, GitHub, WhatsApp, or a globe fallback), shown on your own and a friend's banner (v2.8.0).
 
 ## Friends & social profiles
@@ -112,6 +113,8 @@ Tiger Studio Manager is the Electron desktop companion to the TigerTag ecosystem
 - Favorite provenance — "Added from …" identity block with a live-resolved friend avatar/name that survives un-friending (v2.2.0).
 - Friend-view relationship badges — green **Public** / **Friend** pill, **Share** badge, and live friend/follower counts, mirrored on your own banner (v2.8.0).
 - Public accounts auto-accept incoming friend requests server-side via a Cloud Function, even while the owner is offline (v2.7.0).
+- **Invite a friend** — an Invite view in the Tiger Squad group (friend link, share buttons, QR), also reached from the Friends panel, the sidebar and the account menu; a new account names who invited it within 7 days (onboarding or Invite view) and both get 3 gift envelopes once its e-mail is verified (`referrals/{inviteeUid}`) (v2.49.0).
+- Friends panel shows each friend's received streak-freeze slots; a free slot opens the freeze window on that friend; "Give freezes" (v2.49.0).
 
 ## Lists / Wishlists
 
@@ -298,6 +301,11 @@ Live integrations across seven brands, each with real-time temperatures, per-slo
 - **Maker's Workshop** — the Items view redrawn: illustrated loot (legendary relics, gear, chips) and feats rows, a banner with the four legendary devices lit once owned (v2.44.0).
 - **XP history scopes** — your curve, your country's league or the top leagues side by side (v2.44.0).
 - **TigerCoins in the top bar** — balance (history), envelopes waiting and the gift-code button always in sight for members, each opening its window over the Deals; the history shows envelopes received (green, +1) and given (red, −1) with the friend's avatar (v2.47.0).
+- **Trophies** — a sticker album in the Tiger Squad group: 116 trophies (action families, one per Workshop item, tier trophies, brand trophies per TigerTag+ Certified seller, hidden ones, event trophies by code), die-cut stickers with date and owner share, downloadable, an unlock celebration and a notification; catalogue in the backend `trophyRules.js` (v2.49.0).
+- **Send TigerCoins** to a TigerSquad friend — weekly allowance by level, required message, recap, held send; the friend gets an envelope of the coins (v2.49.0).
+- **Letters** — a friend's envelope with a message opens as a letter, and a held Collect flies the coins to the counter; the message can be reported (with block + remove) and the team resolves reports (v2.49.0).
+- **Chest opening stage** — held open, music, envelopes rising one by one; achievement "Chests opened" +200 XP per chest (v2.49.0).
+- **Relight the flame** — Gold / Platinum members bring back a broken streak in full within two days, once a month, with a ceremony; streak card with the current week as seven days and a "Daily set complete" window (v2.49.0).
 
 ## Feedback & requests
 
@@ -308,6 +316,8 @@ Live integrations across seven brands, each with real-time temperatures, per-slo
 - Reports carry the reporter's TigerSquad badge and XP, read server-side (v2.39.0).
 - **Requests by product** — pick Tiger Studio, Tiger Touch, Tiger POD, Tiger Scale, Tiger Spool or TigerTag RFID Connect first; filed on that project's repo; device screen capture in one click, and Tiger Touch / Tiger Spool requests list the printers the device follows (v2.42.0).
 - Requests are sent by TigerSquad members (free to join, checked server-side); Send points at what is missing; the screenshot editor opens as a window over the app (v2.42.0).
+- **Request conversations** — each request in My requests opens its GitHub thread; answer from the app (text, pictures, PDFs, JSON, a printer's data), close it, unseen replies flagged, an alert window when a request moves (snoozed by Later) (v2.49.0).
+- **All requests** — every member reads every request; questions take community answers; TigerMasters (`roles: "tigermaster"`, server-only) and admins answer as the team and mark done / decline (v2.49.0).
 
 ## "What's New" & release UX
 

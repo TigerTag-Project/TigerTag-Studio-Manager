@@ -10,7 +10,7 @@ It is neutral and agnostic by design: TigerTag takes no side between filament br
 distributors. The protocol is open and anyone can build a different ecosystem on it; nothing in this repo is a
 prerequisite for doing so.
 
-Current version: **2.48.0** — macOS (Intel + Apple Silicon, signed & notarized), Windows, Linux.
+Current version: **2.49.0** — macOS (Intel + Apple Silicon, signed & notarized), Windows, Linux.
 
 ## Architecture
 
@@ -88,6 +88,11 @@ squadDeals/{id}            → TigerSquad partner deals (Deals view), member rea
                              partnerUrl (public) + partnerClicks (server-counted); a deal may cost TigerCoins (costCoins)
 users/{uid}/envelopes|chests|coinLog|easterEggs → TigerCoins (server-only, tigerCoins function): gift envelopes, chests,
                              every coin movement, easter eggs found; the balance is users/{uid}.tigerCoins { earned, spent }
+users/{uid}/trophies/{id}  → trophies earned, kept for good (server-only, functions/trophies.js; catalogue
+                             functions/trophyRules.js); trophyStats/{id} { owners } + trophyEvents/{id} event cards,
+                             signed-in read — the Trophies album (renderer/quests/trophies.js, docs/TROPHIES.md)
+referrals/{inviteeUid}     → who invited whom { referrerUid, claimedAt, expiresAt, … }, server-written
+                             (functions/referrals.js) — the Invite view (renderer/quests/referrals.js, docs/REFERRALS.md)
 publicLists/{token}        → world-readable snapshot of a list shared by web link (unguessable
                              token); written by the owner when a list's visibility is "public"
 users/{uid}                → { displayName, email, publicKey, privateKey, isPublic,
@@ -306,7 +311,7 @@ All brands: printer discovery (mDNS + port scan + manual IP), camera widget; fil
 npm run i18n:add -- myKey --after existingKey en="..." fr="..." de="..." es="..." it="..." zh="..." pt="..." pt-pt="..." pl="..." ru="..." nl="..."
 npm run i18n:check   # validates consistency (also runs as pre-commit hook)
 ```
-2858 keys × 11 locales as of v2.48.1
+2912 keys × 11 locales as of v2.49.0
 
 ## CSS conventions
 

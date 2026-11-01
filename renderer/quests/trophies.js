@@ -17,7 +17,7 @@
  *   renderTrophiesView(host) · trophiesProgress() → { got, total } · trophyEarned(id)
  */
 import { sfx } from "./coin-sound.js";
-import { backfire } from "./coin-pull.js";
+import { backfire, tilt } from "./coin-pull.js";
 import { heroLayersHtml } from "./hero-layers.js";
 import { filterBarHtml, heroHtml, infoTipHtml, selectHtml } from "./ui-kit.js";
 
@@ -302,31 +302,37 @@ function applySearch(host) {
 // ── The detail card ──────────────────────────────────────────────
 function openTrophyCard(id) {
   const x = allTrophies().find(y => y.id === id);
-  if (!x) return;
+  // Only an earned sticker opens: one still to win stays a silhouette in the album.
+  const got = x && _earned.get(id);
+  if (!got) return;
   const { t, esc } = _ctx;
-  const got = _earned.get(id), secret = !got && x.hidden;
-  const p = got ? pct(id) : null;
+  const p = pct(id);
   // How it was earned, when the server said (a relit 23-day streak, the podium rank).
   const country = cc => { try { return new Intl.DisplayNames([_ctx.lang()], { type: "region" }).of(cc) || cc; } catch (_) { return cc; } };
-  const how = got?.ctx?.streak ? t("trophyCtxStreak", { n: got.ctx.streak }) : got?.ctx?.country ? t("trophyCtxCountry", { country: country(got.ctx.country) })
-    : got?.ctx?.rank ? t("trophyCtxRank", { n: got.ctx.rank }) : "";
+  const how = got.ctx?.streak ? t("trophyCtxStreak", { n: got.ctx.streak }) : got.ctx?.country ? t("trophyCtxCountry", { country: country(got.ctx.country) })
+    : got.ctx?.rank ? t("trophyCtxRank", { n: got.ctx.rank }) : "";
+  // The same window frame as the envelopes and the TigerCoins history (tc-reveal +
+  // tcx card, title plaque, golden button); the sticker follows the pointer like
+  // the envelope (tilt), a gloss cut to its own shape sliding across it.
   const el = document.createElement("div");
-  el.className = "trp-card-ov";
-  el.innerHTML = `<div class="trp-card trp-t--${x.tier}${got ? " is-got" : " is-locked"}" role="dialog" aria-modal="true" aria-label="${esc(secret ? t("trophyHidden") : nameOf(x))}">
-    <span class="trp-card-art">${secret ? `<span class="trp-st-q">?</span>` : `<img src="${esc(x.art)}" alt="" draggable="false">`}</span>
-    <span class="trp-card-tier">${esc(t(`trophyTier_${x.tier}`))} · ${esc(t(`trophyFamily_${x.family}`))}</span>
-    <h3>${esc(secret ? t("trophyHidden") : nameOf(x))}</h3>
-    <p>${esc(secret ? t("trophyHiddenHow") : descOf(x))}</p>
-    ${got ? `<p class="trp-card-meta">${esc(t("trophyEarnedOn", { date: fmtDate(got.at) }))}${how ? ` · ${esc(how)}` : ""}</p>` : ""}
-    ${p ? `<p class="trp-card-meta">${esc(t("trophyOwnedPct", { p }))}</p>` : ""}
-    ${got ? `<button type="button" class="trp-unlock-go" data-trp-save><span class="icon icon-download icon-14" aria-hidden="true"></span> ${esc(t("trophyDownload"))}</button>` : ""}
+  el.className = "tc-reveal tc-envm trp-cardm";
+  el.innerHTML = `<div class="tc-reveal-card tc-code-card tcx tcx--help tc-env-card trp-sticker trp-t--${x.tier}" role="dialog" aria-modal="true" aria-label="${esc(nameOf(x))}">
+    <div class="tcx-main">
+      <div class="tcx-plaque"><h3>${esc(nameOf(x))}</h3></div>
+      <span class="trp-card-tier">${esc(t(`trophyTier_${x.tier}`))} · ${esc(t(`trophyFamily_${x.family}`))}</span>
+      <span class="trp-card-art"><span class="trp-tilt"><img src="${esc(x.art)}" alt="" draggable="false"><span class="trp-gloss" style="--art:url('${esc(x.art)}')"></span></span></span>
+      <p class="trp-sticker-desc">${esc(descOf(x))}</p>
+      <p class="trp-card-meta">${esc(t("trophyEarnedOn", { date: fmtDate(got.at) }))}${how ? ` · ${esc(how)}` : ""}${p ? ` · ${esc(t("trophyOwnedPct", { p }))}` : ""}</p>
+      <div class="tc-reveal-actions"><button type="button" class="sqd-open sqd-wide qfm-go" data-trp-save><span class="qfm-go-txt"><span>${esc(t("trophyDownload"))}</span></span></button></div>
+    </div>
   </div>`;
   document.body.appendChild(el);
-  el.querySelector("[data-trp-save]")?.addEventListener("click", () => downloadSticker(x));
+  el.querySelector("[data-trp-save]").addEventListener("click", () => downloadSticker(x));
   requestAnimationFrame(() => el.classList.add("is-open"));
-  // An earned sticker opens as a moment: its art swells behind the window (no X: a click
+  // An earned sticker opens as a moment: its art swells behind the window (a click
   // outside or Escape closes it).
-  if (got) backfire(el, el.querySelector(".trp-card"), x.art, { at: "center", size: 520 });
+  backfire(el, el.querySelector(".trp-sticker"), x.art, { at: "center", size: 520, dur: 5, soft: true });
+  tilt(el, el.querySelector(".trp-tilt"), 18);   // the whole overlay: it follows the pointer outside the card too
   const close = () => { el.classList.remove("is-open"); document.removeEventListener("keydown", onKey, true); setTimeout(() => el.remove(), 200); };
   const onKey = e => { if (e.key === "Escape") { e.stopPropagation(); close(); } };
   document.addEventListener("keydown", onKey, true);
@@ -383,9 +389,9 @@ function overlay(x) {
   el.className = `trp-unlock trp-t--${x.tier}`;
   el.innerHTML = `<div class="trp-unlock-card" role="dialog" aria-modal="true" aria-label="${esc(nameOf(x))}">
     <span class="trp-unlock-rays" aria-hidden="true"></span>
-    <span class="trp-unlock-art"><img src="${esc(x.art)}" alt="" draggable="false"></span>
     <small>${esc(t("trophyUnlocked"))}</small>
     <span class="trp-card-tier">${esc(t(`trophyTier_${x.tier}`))} · ${esc(t(`trophyFamily_${x.family}`))}</span>
+    <span class="trp-unlock-art"><img src="${esc(x.art)}" alt="" draggable="false"></span>
     <h3>${esc(nameOf(x))}</h3>
     <p>${esc(descOf(x))}</p>
     <button type="button" class="trp-unlock-go">${esc(t("trophySeeAll"))}</button>
