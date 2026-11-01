@@ -96,6 +96,9 @@ users/
     squadCountry       string? — the TigerSquad flag the member picked (ISO 3166-1 alpha-2, client-written); published as userProfiles/{uid}.tigerSquad.country (else the detected country)
     xpCountVersion     number? — SERVER-ONLY: counting rules of the last full chip recount (2 = inventory spools count too); Studio asks claimSupport { action: "xp" } when it is behind
     supportPublicly boolean? — the user chose to join the TigerSquad (shown on the wall of fame); client-written
+    squadLockedUntil timestamp? — set to leave time + 30 days when the user leaves the TigerSquad: until then a
+                       member who rejoined gets no perk (no badge, +150 XP, TigerCoins actions, freezes, deals);
+                       SERVER-ONLY (publishSupporter writes it, squadLockSweep clears it), refused from clients
     supporter     map?     — SERVER-ONLY (payment webhooks, functions/supportWebhooks.js): { since, lastAt, sources: ["kofi"…], monthly, count } — set once a Ko-fi (…) payment is tied to the account; drives the Supporter badge, never a feature. Refused from any client like `roles` / `tier`
     publicKey     string   — discovery code XXX-XXX (also in publicKeys/{key})
     privateKey    string   — 40-char hex access token (used by Firestore rules)

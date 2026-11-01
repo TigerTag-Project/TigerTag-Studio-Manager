@@ -4300,7 +4300,8 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   // opening a view that is about membership.
   // Non-members get the invitation — except in a friend's view, where the
   // rankings show what the FRIEND sees (nothing there is about joining).
-  const _squadGate = open => () => { if (state.activeAccountId && !state.friendView && !state.supportPublicly) { _openSquadInvite(); return; } open(); };
+  // Back in the squad but still in the 30-day wait after leaving: the countdown instead.
+  const _squadGate = open => () => { if (state.activeAccountId && !state.friendView && !_squadActive()) { state.supportPublicly ? _openSquadLockInfo() : _openSquadInvite(); return; } open(); };
   $("vtgSquadChip")?.addEventListener("click", _squadGate(() => _openSquadView("countries")));
   $("vtgSquadItems")?.addEventListener("click", _squadGate(() => _openSquadView("ach")));
   // Trophies: every account (docs/TROPHIES.md), member or not — no squad gate.
@@ -5216,7 +5217,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     el.style.boxShadow = "";   // the ring replaces the account-colour glow
   }
   function _ownSquadTier() {
-    if (!state.supportPublicly) return null;
+    if (!_squadActive()) return null;   // no badge during the wait after leaving (the server publishes none)
     return SQUAD_TIERS.includes(state.squadTier) ? state.squadTier : (state.supporter ? "gold" : "bronze");
   }
   let _ownProfileUnsub = null, _ownProfileUid = null, _ownXpUnsub = null;
@@ -5496,21 +5497,107 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   // (left the squad, another account, the user doc landed): a non-member is moved
   // out of the squad views and any envelope stage closes.
   function _enforceSquadGate() {
-    if (state.friendView || state.supportPublicly) return;
+    if (state.friendView || _squadActive()) return;
     closePullStages();
     if (["squad", "squadItems", "xpHistory", "squadDeals"].includes(state.viewMode)) setViewMode("questsToday");
   }
-  // The squad-only actions (open, give an envelope) offer to join instead.
-  const _squadOnly = () => { if (state.supportPublicly) return true; _openSquadInvite(); return false; };
+  // The squad-only actions (open, give an envelope) offer to join instead — or,
+  // back in the squad within 30 days of leaving, say when the perks return.
+  const _squadOnly = () => { if (_squadActive()) return true; state.supportPublicly ? _openSquadLockInfo() : _openSquadInvite(); return false; };
+  // ── 30-day wait after leaving (backend functions/squadLock.js) ──
+  // Leaving writes the server-only users/{uid}.squadLockedUntil; until then a
+  // member who rejoined is in the squad but gets none of its perks.
+  const SQUAD_LOCK_DAYS = 30;
+  function _squadLockDays() {
+    const left = (state.squadLockedUntil || 0) - Date.now();
+    return left > 0 ? Math.ceil(left / 864e5) : 0;
+  }
+  function _squadActive() { return !!state.supportPublicly && !_squadLockDays(); }
+  // One small window in the squad invite's look (.squad-invite): `body` is its
+  // inner markup, `wire(card, close)` binds its buttons.
+  function _openSquadNotice(cls, labelId, body, wire) {
+    const opener = document.activeElement;
+    const bd = document.createElement("div");
+    bd.className = "support-backdrop";
+    const card = document.createElement("div");
+    card.className = `squad-invite squad-notice ${cls}`;
+    card.setAttribute("role", "dialog");
+    card.setAttribute("aria-modal", "true");
+    card.setAttribute("aria-labelledby", labelId);
+    card.innerHTML = `<button type="button" class="squad-invite-x" data-act="close" aria-label="${esc(t("squadLockOk"))}"><span class="icon icon-close icon-14"></span></button>
+      <div class="tsq-scroll">${body}</div>`;
+    const close = () => {
+      document.removeEventListener("keydown", onKey);
+      const done = () => { card.remove(); bd.remove(); try { opener?.focus?.(); } catch (_) {} };
+      if (matchMedia("(prefers-reduced-motion: reduce)").matches) { done(); return; }
+      card.classList.add("is-closing"); bd.classList.add("is-closing");
+      setTimeout(done, 160);
+    };
+    const onKey = e => { if (e.key === "Escape") close(); };
+    document.addEventListener("keydown", onKey);
+    bd.addEventListener("click", close);
+    card.querySelector('[data-act="close"]').addEventListener("click", close);
+    document.body.append(bd, card);
+    wire?.(card, close);
+    setTimeout(() => card.querySelector(".sqn-focus")?.focus(), 50);
+    return card;
+  }
+  // Leaving: what goes for 30 days, held to confirm.
+  function _openSquadLeaveWarning(input) {
+    const lost = [["coins", "coins"], ["freeze", "snow"], ["xp", "star-fill"], ["badge", "shield-check"], ["space", "trophy"]];
+    _openSquadNotice("squad-notice--leave", "sqnLeaveTitle", `
+        <span class="sqn-ico sqn-ico--leave"><span class="icon icon-lock"></span></span>
+        <h2 class="tsq-title" id="sqnLeaveTitle">${esc(t("squadLeaveTitle"))}</h2>
+        <p class="tsq-desc">${esc(t("squadLeaveDesc"))}</p>
+        <section class="sqn-lost">
+          <b class="sqn-lost-h">${esc(t("squadLeaveLostTitle"))}</b>
+          <ul>${lost.map(([k, ic]) => `<li><span class="sqn-lost-ic"><span class="icon icon-${ic} icon-14"></span></span><span><b>${esc(t("squadLost_" + k))}</b><small>${esc(t("squadLost_" + k + "Sub"))}</small></span></li>`).join("")}</ul>
+        </section>
+        <p class="sqn-keep"><span class="icon icon-check icon-12"></span>${esc(t("squadLeaveKeep"))}</p>
+        <button type="button" class="tsq-join sqn-stay sqn-focus" data-act="stay">${esc(t("squadLeaveStay"))}</button>
+        <button type="button" class="sqn-leave" data-act="leave"><span class="hold-progress" aria-hidden="true"></span><span class="sqn-leave-txt">${esc(t("squadLeaveHold"))}</span></button>`,
+    (card, close) => {
+      card.querySelector('[data-act="stay"]').addEventListener("click", close);
+      setupHoldToConfirm(card.querySelector('[data-act="leave"]'), 1500, () => {
+        close();
+        if (input) input.checked = false;
+        _setSupportPublicly(false, input);
+      });
+    });
+  }
+  // Back within the wait: how many days are left, and on which day the perks return.
+  function _openSquadLockInfo() {
+    const days = _squadLockDays(); if (!days) return;
+    if (document.querySelector(".squad-notice--lock")) return;
+    const date = new Intl.DateTimeFormat(state.lang || "en", { weekday: "long", day: "numeric", month: "long" }).format(state.squadLockedUntil);
+    const done = Math.min(SQUAD_LOCK_DAYS, Math.max(0, SQUAD_LOCK_DAYS - days));
+    _openSquadNotice("squad-notice--lock", "sqnLockTitle", `
+        <span class="sqn-ico sqn-ico--lock"><span class="icon icon-clock"></span></span>
+        <h2 class="tsq-title" id="sqnLockTitle">${esc(t("squadLockTitle", { n: days }))}</h2>
+        <p class="tsq-desc">${esc(t("squadLockDesc", { date }))}</p>
+        <div class="sqn-bar" role="progressbar" aria-valuemin="0" aria-valuemax="${SQUAD_LOCK_DAYS}" aria-valuenow="${done}" aria-label="${esc(t("squadLockProgress", { d: done }))}">
+          <span style="--p:${(done / SQUAD_LOCK_DAYS * 100).toFixed(1)}%"></span>
+        </div>
+        <small class="sqn-bar-label">${esc(t("squadLockProgress", { d: done }))}</small>
+        <button type="button" class="tsq-join sqn-focus" data-act="ok">${esc(t("squadLockOk"))}</button>`,
+    (card, close) => card.querySelector('[data-act="ok"]').addEventListener("click", close));
+  }
   function _setSupportPublicly(on, input) {
     const uid = state.activeAccountId; if (!uid) return;
     // Leaving the squad lifts any "Later": the invite comes back at the next start.
     if (!on) { try { localStorage.removeItem(_squadInviteKey(uid)); } catch {} }
+    // Leaving starts the wait at once (the server writes the real date a moment later).
+    if (!on && state.supportPublicly) state.squadLockedUntil = Math.max(state.squadLockedUntil || 0, Date.now() + SQUAD_LOCK_DAYS * 864e5);
     state.supportPublicly = on; renderSupporterBadge(); renderFriendBanner(); _enforceSquadGate();
     // Returned so a caller can wait for the real write (the invite's join button).
     return fbDb(uid).collection("users").doc(uid).set({ supportPublicly: on }, { merge: true })
       // The header's TigerCoins card follows: shown with the balance on joining, hidden on leaving.
-      .then(() => { if (on) _refreshTopCoins(uid); else _paintDealsBadge(0); return true; })
+      .then(() => {
+        if (on) _refreshTopCoins(uid); else _paintDealsBadge(0);
+        // Rejoined within the wait: say when the perks come back (after the invite's celebration).
+        if (on && _squadLockDays()) setTimeout(_openSquadLockInfo, document.querySelector(".squad-invite:not(.squad-notice)") ? 3600 : 0);
+        return true;
+      })
       .catch(() => { state.supportPublicly = !on; if (input) input.checked = !on; renderSupporterBadge(); renderFriendBanner(); return false; });
   }
   // ── TigerSquad invite — a one-card popup asking a signed-in user who is not
@@ -5649,7 +5736,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     // The header's envelope + gift (TigerSquad members): the same count, always in sight.
     const top = $("topCoins"), env = $("topCoinsEnv");
     if (!top || !env) return;
-    top.hidden = !state.supportPublicly;
+    top.hidden = !_squadActive();
     $("topCoinsEnvN").textContent = n > 99 ? "99+" : String(n);
     env.classList.toggle("is-empty", !n);
     env.setAttribute("aria-label", n ? `${t("coinsOpen")} — ${t("coinsPile", { n })}` : t("envHelpTitle"));
@@ -6949,7 +7036,11 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     }
   });
 
-  $("eacSquadToggle").addEventListener("change", e => _setSupportPublicly(e.target.checked, e.target));
+  // Switching it off asks first (_openSquadLeaveWarning): leaving costs 30 days of perks.
+  $("eacSquadToggle").addEventListener("change", e => {
+    if (!e.target.checked && state.supportPublicly) { e.target.checked = true; _openSquadLeaveWarning(e.target); return; }
+    _setSupportPublicly(e.target.checked, e.target);
+  });
   $("eacSquadCountry")?.addEventListener("change", e => _setSquadCountry(e.target.value));
   $("eacDebugToggle").addEventListener("change", async () => {
     const enabled = $("eacDebugToggle").checked;
@@ -41884,7 +41975,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     if (!c) {
       // No cache for this account (first time here): never keep the PREVIOUS
       // account's supporter badges on screen until syncUserDoc lands.
-      state.supporter = false; state.supportPublicly = false; state.squadTier = null; state.xpPoints = null; state.certifiedPlusCount = null;
+      state.supporter = false; state.supportPublicly = false; state.squadLockedUntil = 0; state.squadTier = null; state.xpPoints = null; state.certifiedPlusCount = null;
       try { renderSupporterBadge(); _enforceSquadGate(); } catch {}
       return;
     }
@@ -42687,6 +42778,8 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       // Chose to support the project publicly — TigerSquad if they gave, public supporter otherwise.
       const joined = data.supportPublicly === true && !state.supportPublicly;
       state.supportPublicly = data.supportPublicly === true;
+      // The 30-day wait after leaving (server-only, functions/squadLock.js); 0 = none.
+      state.squadLockedUntil = data.squadLockedUntil?.toMillis?.() || 0;
       // Just joined the TigerSquad: the header's TigerCoins card appears now.
       if (joined) _refreshTopCoins(uid);
       state.squadCountry = /^[A-Z]{2}$/.test(data.squadCountry || "") ? data.squadCountry : null;
