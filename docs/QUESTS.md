@@ -128,7 +128,7 @@ A perfect day is 50 XP, so devices are rescaled to stay "legendary". Values in `
 |---|---|
 | Common 5–10 | daily missions, simple discoveries, community links (5), each friend (10) |
 | Uncommon 20–50 | each printer (20), first rack, first list |
-| Rare 100–200 | TigerSquad membership 150 (was 50), RFID reader 100 (was 20; a Tiger POD validates it too), USB scale |
+| Rare 100–200 | TigerSquad membership 150 (was 50), RFID reader 100 (was 20; a Tiger POD validates it too), USB scale, each TigerCoins chest opened 200 |
 | Epic 300 | mobile app (was 100), TD1S (was 30) |
 | Legendary 800–1000 | Tiger POD 800 (was 50; two ACR122U readers), Tiger Spool 800 (was 75), Tiger Touch 800 (was 100), Tiger Scale 1000 (was 200) |
 

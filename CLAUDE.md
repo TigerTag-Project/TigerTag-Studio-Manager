@@ -172,6 +172,8 @@ ONE `ip` field, `host` or `host:port` (the form Studio and the Tiger Touch firmw
 | `tigertag.theme`, `tigertag.catalog` | theme and catalogue view preferences |
 | `tigertag.nfc.lastUrl` | last link written to a chip by the NFC tools, offered again |
 | `tigertag.nfc.contact` | the NFC tools' contact card as last typed `{name, phone, email, org, url}` |
+| `tigertag.coinlog.<id>` | the TigerCoins history last read for that account (100 newest rows), shown at once when the history opens, then refreshed |
+| `tigertag.header.<id>` | the header's last figures for that account `{stats: {key: number}, coins: {balance, n}}`, painted at launch before the data arrives, then updated where they differ |
 
 ## Account object shape
 ```js

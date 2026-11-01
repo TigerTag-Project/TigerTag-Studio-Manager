@@ -37,7 +37,7 @@ const RANKS = 20;                      // ranks announced in the app; the server
 const rankIcon = n => `<span class="qm-rank-ic" style="--ico:url('../../assets/svg/ranks/rank-${String(n).padStart(2, "0")}.svg')" aria-hidden="true"></span>`;
 const RANK_IDS = { discovery: 1, explorer: 2 };
 
-import { sfx } from "./coin-sound.js";
+import { ambientStop, fireStart, sfx } from "./coin-sound.js";
 import { heroLayersHtml } from "./hero-layers.js";
 import { openFreezeWindow } from "./freeze-modal.js";
 
@@ -184,14 +184,38 @@ function syncFreezeStatus(d) {
 }
 // Buy / give / repair: a window that shows the situation, then a held confirm
 // (freeze-modal.js). Opened with the latest status (read first if not there yet).
-async function openFreeze(mode) {
+async function openFreeze(mode, preselect = null, forFriend = false) {
   if (!_freeze) { try { await freezeCall("status"); } catch (_) {} }
   if (!_freeze) return;
   const friends = (_freeze.friends || []).map(f => ({ uid: f.uid, ...(_ctx.friend?.(f.uid) || {}) })).filter(f => f.name != null);
   await openFreezeWindow({ t: _ctx.t, esc: _ctx.esc, lang: _ctx.lang?.() }, mode, {
     status: _freeze, own: _daily?.freezes?.own, bonus: _daily?.freezes?.bonus, friends,
-    brokenStreak: _daily?.broken?.streak, send: (action, extra) => freezeCall(action, extra),
+    brokenStreak: _daily?.broken?.streak, preselect, forFriend, errorTip: _ctx.errorTip, send: (action, extra) => freezeCall(action, extra),
   });
+}
+
+/* The friends panel: each friend's bonus freeze slots ({ bonus, bonusMax,
+   given } from the streakFreeze status), whether I can send them one (a freeze
+   to give not yet given to them, or a purchase as a member), and the window
+   opened on that friend. */
+export async function questFreezeStatus() {
+  if (!_freeze) { try { await freezeCall("status"); } catch (_) {} }
+  return !!_freeze;
+}
+export function questFriendFreeze(uid) {
+  const f = (_freeze?.friends || []).find(x => x.uid === uid);
+  if (!f) return null;
+  const canGive = !!_freeze.toGive && !f.given;
+  return { bonus: f.bonus, bonusMax: f.bonusMax, canSend: f.bonus < f.bonusMax && (canGive || !!_freeze.tier) };
+}
+/** "Give freezes" (friends panel): a freeze to give if I have one, else buy one for a friend. */
+export async function openFreezeGift() {
+  await questFreezeStatus();
+  return openFreeze(_freeze?.toGive ? "give" : "buy", null, true);
+}
+export function openFreezeFor(uid) {
+  const f = (_freeze?.friends || []).find(x => x.uid === uid);
+  return openFreeze(_freeze?.toGive && f && !f.given ? "give" : "buy", uid);
 }
 // Once per account and day: "your freeze saved your streak" / "streak broken".
 function announceFreeze(d) {
@@ -355,6 +379,14 @@ export function renderQuestsView(host, tab = "today") {
   if (!host.dataset.wired) {
     host.dataset.wired = "1";
     host.addEventListener("toggle", e => { if (e.target.matches?.(".qd-more")) _moreOpen = e.target.open; }, true);
+    // The "Streak broken" strip: a fireplace crackles while the pointer is on it,
+    // and keeps going into the "Relight the flame" window if it is clicked.
+    host.addEventListener("pointerover", e => { if (e.target.closest?.(".qf-strip--repair")) fireStart(); });
+    host.addEventListener("pointerout", e => {
+      const strip = e.target.closest?.(".qf-strip--repair");
+      if (!strip || strip.contains(e.relatedTarget)) return;
+      setTimeout(() => { if (!document.querySelector(".qfm-card")) ambientStop(); }, 0);
+    });
     host.addEventListener("keydown", e => {
       if ((e.key === "Enter" || e.key === " ") && e.target.closest?.(".qd-chest.is-earned")) { e.preventDefault(); replayJackpot(); }
     });
@@ -422,18 +454,19 @@ function liveStreak() {
 }
 /* The current Monday–Sunday week, one pill per day: "full" (full set), "frozen"
    (bridged by a freeze), "today" (still to play), "missed", or "future". From the
-   server's `history` (last 14 days); a doc written before it rebuilds the live
-   streak backwards from lastFullDay and the last freeze bridge. */
+   server's `history` (last 14 days). The live streak is also walked backwards
+   from lastFullDay (and the last freeze bridge) to fill the days the history
+   lacks — a doc started before the history existed has it empty or partial. */
 function streakWeek() {
   const hist = { ...(_daily?.history || {}) };
   const streak = liveStreak();
-  if (!_daily?.history && streak) {
+  if (streak) {
     const frozen = new Set(), f = _daily.lastFreezeUsed;
     if (f?.day) for (let k = 1; k <= f.n; k++) { const x = new Date(`${f.day}T12:00:00`); x.setDate(x.getDate() - k); frozen.add(localDayOf(x)); }
     const x = new Date(`${_daily.lastFullDay}T12:00:00`);
     for (let left = streak, guard = 0; left > 0 && guard < 30; guard++, x.setDate(x.getDate() - 1)) {
       const k = localDayOf(x);
-      if (frozen.has(k)) hist[k] = "frozen"; else { hist[k] = "full"; left--; }
+      if (hist[k] === "frozen" || frozen.has(k)) hist[k] = "frozen"; else { hist[k] = "full"; left--; }
     }
   }
   const now = new Date(), today = localDay(), monday = new Date(now);
@@ -562,7 +595,7 @@ function todayHtml() {
               ${jackpot ? `<img class="qd-chest-img qd-chest-closed" src="../assets/img/quests/full-set-chest-closed-v2.webp" alt="">` : ""}
               ${p.complete ? "" : `<span class="qd-chest-lock" aria-hidden="true"><span class="icon icon-lock icon-10"></span></span>`}</span>
             <div class="qd-chest-txt"><span class="qd-chest-label">${esc(t("questsFullSet"))}</span><b class="qd-chest-xp" data-xp="${r.fullSet}">+${r.fullSet} XP</b>
-              <small>${esc(t(p.complete ? "questsChestEarned" : "questsChestLocked"))} · ${p.done}/${p.total}</small></div>
+              ${p.complete ? "" : `<small>${esc(t("questsChestLocked"))} · ${p.done}/${p.total}</small>`}</div>
             ${p.complete ? `<span class="qd-chest-check" aria-hidden="true"><span class="icon icon-check icon-20"></span></span>` : ""}
           </section>
         </div>
@@ -570,12 +603,13 @@ function todayHtml() {
       </div>
       <aside class="qd-side">
         <section class="qd-card qd-streak">
-          <span class="qd-flame" aria-hidden="true"><span class="icon icon-flame icon-24"></span></span>
+          <img class="qd-flame${streak > 0 ? "" : " is-out"}" src="../assets/img/quests/streak-flame${streak > 0 ? "" : "-small"}.webp" alt="" aria-hidden="true">
           <div><span class="qd-side-label">${esc(t("questsStreakTitle"))}</span><b class="qd-side-big">${esc(t("questsDays", { n: streak }))}</b>
             ${r.streakBonus ? `<small>${esc(t("questsStreakNext", { xp: nextBonusXp, day: nextBonusDay }))}</small>` : ""}</div>
           <span class="qd-week">${combo >= 1 ? `<span class="qd-combo qd-combo--${Math.min(combo, 5)}">${esc(t("questsComboBadge", { n: combo }))}</span>` : ""}
           <span class="qd-pips" aria-hidden="true">${streakWeek().map(w => `<span class="qd-pip is-${w.state}${w.today ? " is-now" : ""}"><i></i><small>${esc(w.label)}</small></span>`).join("")}</span></span>
           ${frozen ? `<p class="qd-frozen"><img src="../assets/img/quests/freeze/freeze.webp" alt="" aria-hidden="true">${esc(t(frozen.n > 1 ? "questsFrozenDays" : "questsFrozenDay", { n: frozen.n, combo: Math.max(1, combo) }))}</p>` : ""}
+          ${repairStripHtml()}
         </section>
         ${freezeCardHtml()}
         <section class="qd-card qd-next">
@@ -617,37 +651,97 @@ function todayHtml() {
 // the last day); a broken streak to bring back (Gold / Platinum); "Buy…" for
 // members. Every action opens its window (openFreeze) — nothing happens on a click.
 const FREE_CAPS = { own: 1, bonus: 1, give: 1, repairsPerMonth: 0 };
-const ICE = name => `../assets/img/quests/freeze/${name}.webp`;
-function slotsHtml(filled, size) {
-  return `<span class="qf-slots" aria-hidden="true">${Array.from({ length: size }, (_, i) =>
-    `<img src="${ICE(i < filled ? "freeze" : "freeze-empty")}" alt="">`).join("")}</span>`;
+// By TigerSquad badge: reserve (own · from friends) and freezes to give at each
+// palier — the backend's quests.js FREEZE.caps (own, bonus, give), mirrored for
+// the ⓘ rule: keep the two in step.
+const FREEZE_CAPS = [[null, 1, 1, 1], ["bronze", 2, 2, 1], ["silver", 3, 2, 1], ["gold", 3, 3, 2], ["platinum", 3, 3, 2]];
+const BADGE_ART = tier => `../assets/img/tigersquad/tigersquad-${tier}.webp`;
+/* The ⓘ of the freezes card: the rule, then a table — one row per TigerSquad
+   badge (its art), the counts drawn as ice cubes: own reserve, from friends,
+   to give at each palier. The member's own badge is highlighted. Shown on
+   hover and keyboard focus (CSS). */
+function freezeRuleHtml(tier) {
+  const { t, esc } = _ctx;
+  const cubes = (n, art) => `<span class="qfp-cubes">${Array.from({ length: n }, () => `<img src="${ICE(art)}" alt="">`).join("")}<b>${n}</b></span>`;
+  const rows = FREEZE_CAPS.map(([badge, own, bonus, give]) => `
+    <tr${(badge || null) === (tier || null) ? ` class="is-mine"` : ""}>
+      <th scope="row">${badge ? `<img class="qfp-badge" src="${BADGE_ART(badge)}" alt="">` : `<span class="qfp-badge qfp-badge--none"><span class="icon icon-user icon-12"></span></span>`}
+        <span>${esc(badge ? badge[0].toUpperCase() + badge.slice(1) : t("questsFreezeNoBadge"))}</span></th>
+      <td>${cubes(own, "freeze")}</td><td>${cubes(bonus, "freeze")}</td><td>${cubes(give, "freeze-gift")}</td>
+    </tr>`).join("");
+  return `
+    <span class="qfp" role="tooltip" id="qfRule">
+      <span class="qfp-rule">${esc(t("questsFreezeHint"))}</span>
+      <span class="qfp-cap">${esc(t("questsFreezeCapsTitle"))}</span>
+      <table class="qfp-table">
+        <thead><tr><th scope="col" rowspan="2">${esc(t("questsFreezeBadgeCol"))}</th><th scope="colgroup" colspan="2" class="qfp-group">${esc(t("questsFreezeSlotsCol"))}</th>
+            <th scope="col" rowspan="2">${esc(t("questsFreezeGiveCol"))}</th></tr>
+          <tr><th scope="col">${esc(t("questsFreezeEarnedCol"))}</th><th scope="col">${esc(t("questsFreezeReceivedCol"))}</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <span class="qfp-melt"><img src="${ICE("freeze-melt-4")}" alt="">${esc(t("questsFreezeMeltRule", { n: _rewards?.daily?.streakEvery || 5 }))}</span>
+    </span>`;
 }
+const ICE = name => `../assets/img/quests/freeze/${name}.webp`;
+/* A reserve's slots. `buyLabel` (own reserve, members): every empty slot is a
+   button that opens the buy window — fill it for 5 TigerCoins. */
+function slotsHtml(filled, size, buyLabel = "") {
+  const { esc } = _ctx;
+  return `<span class="qf-slots">${Array.from({ length: size }, (_, i) => i < filled
+    ? `<img src="${ICE("freeze")}" alt="" aria-hidden="true">`
+    : buyLabel ? `<button type="button" class="qf-slot-buy" data-qf="buy" aria-label="${esc(buyLabel)}"><img src="${ICE("freeze-empty")}" alt=""><span class="icon icon-plus icon-12" aria-hidden="true"></span></button>`
+    : `<img src="${ICE("freeze-empty")}" alt="" aria-hidden="true">`).join("")}</span>`;
+}
+// A broken streak a member can still relight: a strip at the foot of the streak card.
+function repairStripHtml() {
+  const { t, esc } = _ctx;
+  const caps = _freeze?.caps || FREE_CAPS;
+  const broken = _daily?.broken && caps.repairsPerMonth ? _daily.broken : null;
+  // The whole strip is the button, and it glows: it is the one chance to save the streak.
+  return broken ? `<button type="button" class="qf-strip qf-strip--repair" data-qf="repair"><img class="qf-repair-flame" src="../assets/img/quests/streak-flame.webp" alt="" aria-hidden="true">
+        <span>${esc(t("questsStreakBroken"))}<small>${esc(t("questsDays", { n: broken.streak }))}</small></span>
+        <span class="qf-action">${esc(t("questsFreezeRepairTitle"))}</span></button>` : "";
+}
+
 function freezeCardHtml() {
   const { t, esc } = _ctx;
   const f = _freeze, caps = f?.caps || FREE_CAPS;
   const own = _daily?.freezes?.own ?? f?.freezes?.own ?? 0, bonus = _daily?.freezes?.bonus ?? f?.freezes?.bonus ?? 0;
   const gift = f?.toGive || null;
   const daysLeft = gift ? Math.max(1, Math.round((Date.parse(`${gift.until}T00:00:00`) - Date.now()) / 86400e3)) : 0;
-  const broken = _daily?.broken && caps.repairsPerMonth ? _daily.broken : null;
   const every = _rewards?.daily?.streakEvery || 5, streak = liveStreak();
   const nextPalier = streak - (streak % every) + every;   // the day of the next palier (a multiple of `every`)
-  const reserve = (label, n, size) => `<div class="qf-row"><span>${esc(label)}</span>${slotsHtml(n, size)}<b>${n}/${size}</b></div>`;
+  // When the next batch to give arrives: on the day the next palier's full set is
+  // done. Today's set still open counts as the first of the sets left; the last
+  // day shows the hours and minutes left before midnight (that day's deadline).
+  const doneToday = _daily?.bonusPaid === true && _daily?.day === localDay();
+  const daysToBatch = Math.max(0, nextPalier - streak - (doneToday ? 0 : 1));
+  const deliveryText = () => {
+    if (daysToBatch >= 1) return t("questsFreezeDeliveryDays", { n: daysToBatch });
+    const end = new Date(); end.setHours(24, 0, 0, 0);
+    const mins = Math.max(0, Math.round((end - Date.now()) / 60e3));
+    return t("questsFreezeDeliveryHours", { h: Math.floor(mins / 60), m: String(mins % 60).padStart(2, "0") });
+  };
+  // Freezes to give: the cubes themselves, melting in place day after day until
+  // they are gone at the next palier — five drawn stages (freeze-melt-1 … 5,
+  // the ribbon always there), picked from how far the palier is (melt 0 → 1).
+  // None right now: the tier's empty slots and when the next ones come.
+  const melt = gift ? Math.min(1, Math.max(0, (every - daysLeft) / Math.max(1, every - 1))) : 0;
+  const giftCubes = gift
+    ? Array.from({ length: gift.n }, () => `<span class="qf-gift"><img src="${ICE(`freeze-melt-${1 + Math.round(melt * 4)}`)}" alt=""></span>`).join("")
+    : Array.from({ length: caps.give || 1 }, () => `<img src="${ICE("freeze-gift-empty")}" alt="">`).join("");
+  const giveStrip = `<div class="qf-strip qf-strip--give${gift ? "" : " qf-strip--none"}">
+        <span>${esc(t("questsFreezeGiveCol"))}<small>${esc(gift ? t("questsFreezeMelts", { n: daysLeft }) : deliveryText())}</small></span>
+        <span class="qf-gifts" aria-label="${esc(t("questsFreezeToGiveShort", { n: gift?.n || 0 }))}">${giftCubes}</span>
+        ${gift ? `<button type="button" class="qf-action qf-action--give" data-qf="give">${esc(t("questsFreezeGiveBtn"))}</button>` : ""}</div>`;
+  const reserve = (label, n, size, buyLabel) => `<div class="qf-row" aria-label="${esc(`${label} ${n}/${size}`)}"><span>${esc(label)}</span>${slotsHtml(n, size, buyLabel)}</div>`;
   return `
     <section class="qd-card qd-freeze">
-      <div class="qf-head"><img src="${ICE("freeze")}" alt="" aria-hidden="true"><h3>${esc(t("questsFreezeTitle"))}</h3></div>
-      ${reserve(t("questsFreezeOwn"), own, caps.own)}
+      <div class="qf-head"><img src="${ICE("freeze")}" alt="" aria-hidden="true"><h3>${esc(t("questsFreezeTitle"))}</h3>
+        <span class="tool-info qf-info" tabindex="0" aria-describedby="qfRule" aria-label="${esc(t("questsFreezeTitle"))}"><span class="icon icon-info icon-13"></span>${freezeRuleHtml(f?.tier)}</span></div>
+      ${reserve(t("questsFreezeOwn"), own, caps.own, f?.tier ? t("questsFreezeBuyBtn") : "")}
       ${reserve(t("questsFreezeBonus"), bonus, caps.bonus)}
-      <p class="qf-hint">${esc(t("questsFreezeHint"))}</p>
-      ${broken ? `<div class="qf-strip qf-strip--repair"><span class="icon icon-flame icon-18" aria-hidden="true"></span>
-        <span>${esc(t("questsStreakBroken"))}<small>${esc(t("questsDays", { n: broken.streak }))}</small></span>
-        <button type="button" class="qf-action" data-qf="repair">${esc(t("questsFreezeRepairShort"))}</button></div>` : ""}
-      ${gift ? `<div class="qf-strip"><img src="${ICE(daysLeft <= 1 ? "freeze-melt" : "freeze-gift")}" alt="" aria-hidden="true">
-        <span>${esc(t("questsFreezeToGiveShort", { n: gift.n }))}<small>${esc(t("questsFreezeMelts", { n: daysLeft }))}</small></span>
-        <button type="button" class="qf-action qf-action--give" data-qf="give">${esc(t("questsFreezeGiveBtn"))}</button></div>`
-        // Nothing to give right now: say it, and when the next ones come (the tier's count, at the next palier).
-        : `<div class="qf-strip qf-strip--none"><img src="${ICE("freeze-gift")}" alt="" aria-hidden="true">
-        <span>${esc(t("questsFreezeToGiveShort", { n: 0 }))}<small>${esc(t("questsFreezeNextGift", { n: caps.give || 1, day: nextPalier }))}</small></span></div>`}
-      ${f?.tier ? `<button type="button" class="qf-action qf-action--buy" data-qf="buy"><span class="icon icon-coins icon-14"></span>${esc(t("questsFreezeBuyBtn"))}</button>` : ""}
+      ${giveStrip}
     </section>`;
 }
 function untilMidnight() {
@@ -658,7 +752,8 @@ function untilMidnight() {
 
 // Loot: every XP item the account can own, by rarity — legendary on top
 // (Tiger devices). Owned items glow; the rest show what they are worth.
-// ctx.loot() → [{ id, label, hint, xp, per, n, got, art?, img?, icon?, rarity? }] from the host
+// ctx.loot() → [{ id, label, hint, xp, per, n, got, art?, img?, icon?, rarity?, eco? }] from the host
+// (`eco`: the device's ecosystem sheet, opened by a click on its tile)
 // (rarity forces the rung); `art` is an illustration path (from inventory.html);
 // `img` is a file of assets/svg/icons/ drawn as a mask — the url() sits in a CSS
 // variable, so it resolves from quests.css (renderer/quests/), hence ../../.
@@ -711,9 +806,10 @@ function ladderHtml(items, eyebrowKey, titleKey, countKey, groups) {
   const rar = x => `<span class="qw-rar">${esc(t(`questsRarity_${x.r}`))}</span>`;
   const status = x => x.got ? `<span class="icon icon-check icon-14" aria-hidden="true"></span>` : `<span class="icon icon-lock icon-12" aria-hidden="true"></span>`;
   // Loot: a showcase tile (legendary relics larger); Feats: one row per action,
-  // every column always present so the rows line up (an empty ×N cell included).
+  // every column always present so the rows line up (an empty ×N cell included);
+  // a repeatable action shows its count from ×0, so it reads as one before it is done.
   const tile = x => `
-    <article class="qw-tile qw-r--${x.r}${x.got ? " is-got" : ""}" data-r="${x.r}" aria-label="${esc(`${x.label} — ${x.hint || ""}`)}">
+    <article class="qw-tile qw-r--${x.r}${x.got ? " is-got" : ""}${x.eco ? " is-eco" : ""}" data-r="${x.r}" aria-label="${esc(`${x.label} — ${x.hint || ""}`)}"${x.eco ? ` data-eco-open="${x.eco}" role="button" tabindex="0"` : ""}>
       ${x.per && x.n ? `<span class="qw-n">×${x.n}</span>` : ""}
       <span class="qw-tile-art" aria-hidden="true">${art(x)}</span>
       <b class="qw-tile-name">${esc(x.label)}</b>
@@ -724,7 +820,7 @@ function ladderHtml(items, eyebrowKey, titleKey, countKey, groups) {
     <li class="qw-row qw-r--${x.r}${x.got ? " is-got" : ""}" data-r="${x.r}">
       <span class="qw-row-art" aria-hidden="true">${art(x)}</span>
       <span class="qw-row-txt"><b>${esc(x.label)}</b>${x.hint ? `<small>${esc(x.hint)}</small>` : ""}</span>
-      <span class="qw-cnt">${x.per && x.n ? `×${x.n}` : ""}</span>
+      <span class="qw-cnt">${x.per ? `×${x.n || 0}` : ""}</span>
       ${rar(x)}
       <span class="qw-pts">${esc(pts(x))}</span>
       <span class="qw-st">${status(x)}</span>

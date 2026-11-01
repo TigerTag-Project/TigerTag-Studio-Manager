@@ -25,6 +25,7 @@
   .icon-check     { -webkit-mask-image: url('../../assets/svg/icons/icon_check.svg');        mask-image: url('../../assets/svg/icons/icon_check.svg'); }
   .icon-search    { -webkit-mask-image: url('../../assets/svg/icons/icon_search.svg');       mask-image: url('../../assets/svg/icons/icon_search.svg'); }
   .icon-trash     { -webkit-mask-image: url('../../assets/svg/icons/icon_trash.svg');        mask-image: url('../../assets/svg/icons/icon_trash.svg'); }
+  .icon-flag      { -webkit-mask-image: url('../../assets/svg/icons/icon_flag.svg');         mask-image: url('../../assets/svg/icons/icon_flag.svg'); }
   .icon-broom     { -webkit-mask-image: url('../../assets/svg/icons/icon_broom.svg');        mask-image: url('../../assets/svg/icons/icon_broom.svg'); }
   .icon-recycle   { -webkit-mask-image: url('../../assets/svg/icons/icon_recycle.svg');      mask-image: url('../../assets/svg/icons/icon_recycle.svg'); }
   .icon-lock      { -webkit-mask-image: url('../../assets/svg/icons/icon_lock.svg');         mask-image: url('../../assets/svg/icons/icon_lock.svg'); }
@@ -1925,6 +1926,8 @@
     display: flex; align-items: center; gap: 12px;
     padding: 9px 11px; overflow: visible;
   }
+  /* Already linked to its own maker chips while others wait on the TigerPOD. */
+  .spool-card.gp-member--linked { opacity: .45; filter: grayscale(.6); }
   /* Left column: image + tier badge underneath it. Image ~30% larger (65px)
      than the default 50px thumb (the global `.thumb` rule forces 50 on the img,
      so override it here; the colour-square fallback gets 65 inline from size). */

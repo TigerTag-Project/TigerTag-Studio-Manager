@@ -19,7 +19,7 @@ export const XP_CATS = [
   { id: "social",  color: "#a855f7", icon: "community",  keys: ["friend", "social", "link", "publicProfile", "photo"] },
   { id: "gear",    color: "#22d3ee", icon: "plug",       keys: ["tigerTouch", "tigerSpool", "tigerScale", "tigerPod", "usbScale", "rfidReader", "td1s", "mobileApp"] },
   { id: "stock",   color: "#f472b6", icon: "package",    keys: ["chips", "printer", "firstRack", "firstList"] },
-  { id: "bonus",   color: "#3ddc84", icon: "gift",       keys: ["updates"] },
+  { id: "bonus",   color: "#3ddc84", icon: "gift",       keys: ["updates", "chest"] },
 ];
 const ADJUST = { id: "adjust", color: "#ef4444", icon: "undo" };
 const OTHER = { id: "bonus", color: "#3ddc84", icon: "gift" };

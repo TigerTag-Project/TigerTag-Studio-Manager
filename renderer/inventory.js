@@ -26,7 +26,7 @@ import { pageHtml as xpPageHtml, chartTipHtml as xpChartTipHtml, leagueSeries as
 import { applyDealsFilter, dealsViewHtml, openChests, openCoinsCodeModal, openCoinsHistory, openEnvelopeHelp, showEnvelope, showEnvelopeGift, showSendCoins, sortDeals, tapEgg, wireDeals } from './quests/squad-deals.js';
 import { closePullStages, openPullStage } from './quests/coin-pull.js';
 import { squadHeroHtml, squadItemsHeroHtml, squadRankingsHtml, pulseHtml as squadPulseHtml, toggleLeague, leagueRows, setLeagueRows, rankNo } from './quests/squad-rankings.js';
-import { initQuests, questsSignIn, questsSignOut, questBump, questGauge, questPillLabel, questDailyProgress, questCurrentLevel, openQuests, renderQuestsView, questLootHtml } from './quests/index.js';
+import { initQuests, questsSignIn, questsSignOut, questBump, questGauge, questPillLabel, questDailyProgress, questCurrentLevel, openQuests, renderQuestsView, questLootHtml, questFreezeStatus, questFriendFreeze, openFreezeFor, openFreezeGift } from './quests/index.js';
 
 // ── USB scale (Dymo M-series) module ──────────────────────────────────────
 import { initUsbScale, usbScaleRefreshDock } from './IoT/usbscale/index.js';
@@ -619,6 +619,10 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       scales:     uid => `tigertag.scales.${uid}`,     // L3
       friendReqs: uid => `tigertag.friendReqs.${uid}`, // L3
       blocklist:  uid => `tigertag.blocklist.${uid}`,  // L3
+      // The header's last figures { stats: { key: number }, coins: { balance, n } },
+      // painted at launch before the data arrives (renderStats, _paintDealsBadge).
+      header:     uid => `tigertag.header.${uid}`,
+      coinlog:    uid => `tigertag.coinlog.${uid}`,    // the TigerCoins history last read (100 newest)
     },
     read(surface, uid) {
       const k = uid && this._key[surface];
@@ -848,8 +852,13 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       return val[Math.floor(Math.random() * val.length)];
     }
     if (val && typeof val === "object" && ("one" in val || "other" in val)) {
+      // The language's own plural rule (Intl.PluralRules): French says "1 coffre"
+      // and "0 coffre", Polish and Russian also have "few" / "many" forms. A
+      // missing form falls back to one / other.
       const n = params.n ?? 0;
-      const str = n === 1 ? (val.one ?? val.other) : (val.other ?? val.one);
+      let cat = n === 1 ? "one" : "other";
+      try { cat = new Intl.PluralRules(key in lang ? state.lang : "en").select(Number(n)); } catch (_) { /* old engine */ }
+      const str = val[cat] ?? (cat === "one" ? (val.one ?? val.other) : (val.other ?? val.one));
       return (str || "").replace(/\{\{(\w+)\}\}/g, (_, k) => params[k] ?? "");
     }
     if (typeof val === "string") {
@@ -4373,8 +4382,9 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     // A friend for the streak-freeze list: their name and the friends bar's avatar.
     friend: uid => {
       const f = (state.friends || []).find(x => x.uid === uid);
-      return f ? { name: f.displayName || "", avatar: userAvatar(f, "fp-friend-avatar") } : null;
+      return f ? { name: f.displayName || "", avatar: userAvatar(f, "av-fill") } : null;
     },
+    errorTip: (el, msg) => _showErrorTip(el, msg),   // the freeze window's button pressed with something missing
     // Loot ladder: every XP item (the server's ACH_XP, mirrored in XP_ACHIEVEMENTS)
     // + the TigerSquad, owned when the server's split gives it XP.
     loot: () => {
@@ -4386,11 +4396,11 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
                     chipTag: "loot/chip", chipPlus: "loot/chip", chipCert: "loot/chip-cert",   // TigerTag and TigerTag+ share one chip
                     mobileApp: "feats/mobile-app", squad: "tigersquad-gold", updates: "../notifications/update", speedrun: "feats/speedrun",
                     firstRack: "feats/first-rack", firstList: "feats/first-list", friend: "feats/friends", photo: "feats/photo",
-                    social: "feats/social", link: "feats/community" };
+                    social: "feats/social", link: "feats/community", chest: "../tigercoins/chest-open" };
       const artOf = id => ART[id] ? `../assets/img/tigersquad/${ART[id]}.webp` : null;
       const IMG = {};
       const ICON = { usbScale: "scale", rfidReader: "tag", printer: "printer", firstRack: "rack-grid", firstList: "list",
-                     friend: "user", photo: "image", social: "link", link: "community" };
+                     friend: "user", photo: "image", social: "link", link: "community", chest: "gift" };
       // Physical things you own (devices, chips, printers) vs what you do in the
       // app (friends, links, lists…): the Items view shows them in two tables.
       const PHYSICAL = new Set(["chips", "tigerScale", "tigerSpool", "tigerTouch", "tigerPod", "td1s", "usbScale", "rfidReader", "printer"]);
@@ -4416,8 +4426,10 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         { id: "speedrun", physical: false, rarity: "uncommon", n: runN, per: 50, xp: 0, got: runN > 0,
           label: "Speedrun", hint: t("xpSpeedrunHint"), icon: "bolt", art: artOf("speedrun") },
       ];
+      // The legendary devices open their ecosystem sheet (the header icons' slideshow).
+      const ECO = { tigerScale: "scale", tigerSpool: "spool", tigerTouch: "touch", tigerPod: "pod" };
       return [...chips, ...upd, ...[...XP_ACHIEVEMENTS, { id: "squad", xp: SQUAD_XP }].map(a => ({
-        id: a.id, physical: PHYSICAL.has(a.id), xp: a.xp || 0, per: a.per || 0, n: b[a.id]?.n || 0, got: (b[a.id]?.xp || 0) > 0,
+        id: a.id, physical: PHYSICAL.has(a.id), eco: ECO[a.id] || null, xp: a.xp || 0, per: a.per || 0, n: b[a.id]?.n || 0, got: (b[a.id]?.xp || 0) > 0,
         label: t(a.id === "squad" ? "xpPart_squad" : `xpAch_${a.id}`), hint: a.id === "squad" ? "" : t(`xpAchHint_${a.id}`),
         art: artOf(a.id), img: IMG[a.id] ? `${IMG[a.id]}.svg` : null, icon: ICON[a.id] || null,
       }))];
@@ -5360,7 +5372,8 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     state.supportPublicly = on; renderSupporterBadge(); renderFriendBanner(); _enforceSquadGate();
     // Returned so a caller can wait for the real write (the invite's join button).
     return fbDb(uid).collection("users").doc(uid).set({ supportPublicly: on }, { merge: true })
-      .then(() => true)
+      // The header's TigerCoins card follows: shown with the balance on joining, hidden on leaving.
+      .then(() => { if (on) _refreshTopCoins(uid); else _paintDealsBadge(0); return true; })
       .catch(() => { state.supportPublicly = !on; if (input) input.checked = !on; renderSupporterBadge(); renderFriendBanner(); return false; });
   }
   // ── TigerSquad invite — a one-card popup asking a signed-in user who is not
@@ -5503,6 +5516,12 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     $("topCoinsEnvN").textContent = n > 99 ? "99+" : String(n);
     env.classList.toggle("is-empty", !n);
     env.setAttribute("aria-label", n ? `${t("coinsOpen")} — ${t("coinsPile", { n })}` : t("envHelpTitle"));
+    // The last known figures, painted at the next launch before the server answers.
+    if (coins?.balance != null && state.activeAccountId) {
+      const uid = state.activeAccountId;
+      const was = Cache.read("header", uid) || {};
+      Cache.write("header", uid, { ...was, coins: { balance: coins.balance, n, send: coins.send || was.coins?.send || null } });
+    }
     const bal = $("topCoinsBal");
     if (bal) {
       bal.hidden = coins?.balance == null;
@@ -5512,6 +5531,19 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         bal.setAttribute("aria-label", `${t("coinHistTitle")} — ${t("coinsBalance", { n: v })}`);
       }
     }
+  }
+  // The account's coinLog, newest first — the history window's rows. The 100
+  // newest are kept (Cache "coinlog") so the next opening shows them at once.
+  async function _coinLog(uid) {
+    const rows = (await fbDb(uid).collection("users").doc(uid).collection("coinLog").orderBy("at", "desc").limit(300).get())
+      .docs.map(d => ({ ...d.data(), at: d.get("at")?.toMillis?.() || 0 }));
+    Cache.write("coinlog", uid, rows.slice(0, 100));
+    return rows;
+  }
+  // The header's TigerCoins (balance, envelopes): read the status and paint it.
+  // At sign-in, and again when the account joins the TigerSquad.
+  function _refreshTopCoins(uid) {
+    _tigerCoins(uid, "status").then(r => { if (uid === state.activeAccountId) { const c = _coinsOf(r); _paintDealsBadge(_envCount(c), c); } }).catch(() => {});
   }
   // Header envelope: opens the pile (Deals view + opening stage), or at 0 says
   // how to get some. Header gift: the gift-code window; balance: the history.
@@ -5523,8 +5555,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       // and the same loading animation while the log arrives.
       getCoins: () => _deals.coins,
       loadingHTML: () => _loadingHTML(),
-      coinHistory: async () => (await fbDb(uid).collection("users").doc(uid).collection("coinLog").orderBy("at", "desc").limit(300).get())
-        .docs.map(d => ({ ...d.data(), at: d.get("at")?.toMillis?.() || 0 })),
+      coinHistory: () => _coinLog(uid), cachedHistory: () => Cache.read("coinlog", uid),
       friendName: fuid => (state.friends || []).find(f => f.uid === fuid)?.displayName || "",
     // The friend's avatar on an envelope row (history): the Tiger Squad views' sqb-avatar, as is.
     friendAvatar: fuid => { const f = (state.friends || []).find(x => x.uid === fuid); return f ? userAvatar(f, "sqb-avatar") : ""; },
@@ -5553,6 +5584,17 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   const _coinsOf = r => ({ balance: r.balance, earned: r.earned || 0, spent: r.spent || 0, unopened: r.unopened, envelopes: r.envelopes || [], chests: r.chests || [], gifts: r.gifts || null, send: r.send || null, eggs: r.eggs || [] });
   // The ctx bits every opening needs: open a chest (its envelopes drawn server-side).
   const _coinsCtx = (uid, after) => ({ t, esc, lang: state.lang, toast: msg => _flashMessage(msg), hold: setupHoldToConfirm,
+    sendCoins: () => _sendCoinsTo(null),   // the history's "Send" beside the balance
+    // A friend's envelope message reported to the team (TigerMasters); `block`: the
+    // sender is also removed from the friends and blocked (the Friends panel's own actions).
+    reportMessage: async (id, { block, fromUid, fromName } = {}) => {
+      const r = await _tigerCoins(uid, "reportMessage", { id });
+      if (block && fromUid) {
+        if ((state.friends || []).some(f => f.uid === fromUid)) await removeFriend(fromUid);
+        await blockUser(fromUid, fromName);
+      }
+      return r;
+    },
     // Easter eggs (.agents/rules/easter-eggs.md) — the give window hides one (envGive).
     eggFound: egg => (_deals.coins?.eggs || []).includes(egg),
     easterEgg: async (egg, onFound) => {
@@ -5648,9 +5690,9 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     closeOtherSides: () => _closeAllSidePanels({ keepDeals: true }),
     eggFound: egg => (_deals.coins?.eggs || []).includes(egg),
     getCoins: () => _deals.coins,   // the latest balance (earned / spent / balance) for the history's summary
+    sendCoins: () => _sendCoinsTo(null),   // the history's "Send" beside the balance
     // TigerCoins history (squad-deals.js openCoinsHistory): the account's coinLog, newest first.
-    coinHistory: async () => (await fbDb(uid).collection("users").doc(uid).collection("coinLog").orderBy("at", "desc").limit(300).get())
-      .docs.map(d => ({ ...d.data(), at: d.get("at")?.toMillis?.() || 0 })),
+    coinHistory: () => _coinLog(uid), cachedHistory: () => Cache.read("coinlog", uid),
     friendName: fuid => (state.friends || []).find(f => f.uid === fuid)?.displayName || "",
     // The friend's avatar on an envelope row (history): the Tiger Squad views' sqb-avatar, as is.
     friendAvatar: fuid => { const f = (state.friends || []).find(x => x.uid === fuid); return f ? userAvatar(f, "sqb-avatar") : ""; },
@@ -6060,7 +6102,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   const XP_ACHIEVEMENTS = [
     { id: "tigerScale", xp: 1000 }, { id: "tigerSpool", xp: 800 }, { id: "tigerTouch", xp: 800 },
     { id: "tigerPod", xp: 800, once: true }, { id: "mobileApp", xp: 300, once: true }, { id: "td1s", xp: 300, once: true },
-    { id: "usbScale", xp: 100, once: true }, { id: "rfidReader", xp: 100, once: true },
+    { id: "usbScale", xp: 100, once: true }, { id: "rfidReader", xp: 100, once: true }, { id: "chest", per: 200, once: true },
     { id: "printer", per: 20 }, { id: "firstRack", xp: 20, once: true }, { id: "firstList", xp: 20, once: true },
     { id: "friend", per: 10 }, { id: "photo", xp: 10 },
     { id: "social", per: 5 }, { id: "link", per: 5, once: true },
@@ -8173,11 +8215,11 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     // notification for any change — once per sign-in, after the app settles.
     setTimeout(() => { if (uid === state.activeAccountId) syncReports().catch(() => {}); }, 8000);
     // The Deals button's envelope count, read once the app has settled (nothing opens).
-    _paintDealsBadge(0);
-    setTimeout(() => {
-      if (uid !== state.activeAccountId) return;
-      _tigerCoins(uid, "status").then(r => { if (uid === state.activeAccountId) { const c = _coinsOf(r); _paintDealsBadge(_envCount(c), c); } }).catch(() => {});
-    }, 6000);
+    // The header's TigerCoins: the last known balance and envelopes at once (cached
+    // by _paintDealsBadge), the server's read once the app has settled.
+    const cached = Cache.read("header", uid)?.coins || null;
+    _paintDealsBadge(cached?.n || 0, cached?.balance != null ? { balance: cached.balance } : null);
+    setTimeout(() => { if (uid === state.activeAccountId) _refreshTopCoins(uid); }, 6000);
     loadBlacklist();    // populate state.blacklist for the Friends panel
     subscribeRacks(uid);// live-sync the user's storage racks
     subscribeScales(uid);// live-sync the user's TigerScale heartbeats
@@ -8576,7 +8618,14 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     const diy   = active.length - plus.length - cloud.length - cloudPlus.length;
     const totalW = active.reduce((s, r) => s + (Number(r.weightAvailable)||0), 0);
     const el = $("sbStats");
-    if (!all.length) { el.classList.add("hidden"); return; }
+    // An empty inventory still shows its cards (at 0): a new account sees what the
+    // header will count. Hidden only while the first snapshot loads, or for a
+    // friend with nothing to show.
+    // Still loading: the account's last figures (cached below) stand in, if any.
+    const uid = state.activeAccountId;
+    const cachedStats = !state.friendView ? Cache.read("header", uid)?.stats || null : null;
+    const fromCache = !all.length && state.invLoading && !!cachedStats;
+    if (!all.length && !fromCache && (state.invLoading || state.friendView)) { el.classList.add("hidden"); return; }
     // Stock value — each spool worth its product's price (buyPriceHt), prorated by
     // the remaining weight fraction. Shown in the account's currency + HT/TTC mode.
     const vat = _vatInfo();
@@ -8618,6 +8667,17 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       { key: "diy",    label: '<span class="tag-diy">TigerTag</span>',        mini: t("statDiyMini"),   num: diy,          fmt: intFmt, filter: "TigerTag" },
       { key: "plus",   label: '<span class="tag-plus">TigerTag+</span>',      mini: t("statPlusMini"),  num: plus.length,  fmt: intFmt, filter: "TigerTag+" },
     ];
+    if (fromCache) cards.forEach(c => { if (typeof cachedStats[c.key] === "number") c.num = cachedStats[c.key]; });
+    else {
+      // The value needs the prices (products): until they arrive, the last known value stands.
+      const valueCard = cards.find(c => c.key === "value");
+      if (state.productsLoading && typeof cachedStats?.value === "number") valueCard.num = cachedStats.value;
+      // Keep this account's figures for the next launch (not a friend's), when they moved.
+      if (!state.friendView && !state.invLoading && uid) {
+        const stats = Object.fromEntries(cards.map(c => [c.key, c.num]));
+        if (JSON.stringify(stats) !== JSON.stringify(cachedStats)) Cache.write("header", uid, { ...(Cache.read("header", uid) || {}), stats });
+      }
+    }
     el.innerHTML = cards.map(s => {
       const isActive = s.filter !== "reset" && tf === s.filter;
       const infoIco = s.info ? `<span class="sb-stat-info tool-info" data-tip="${esc(s.info)}" aria-label="${esc(s.info)}"><span class="icon icon-info icon-12"></span></span>` : "";
@@ -8630,11 +8690,12 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     // new one (skips the first render — there's no "from" yet — and reduced motion).
     const animate = !_reduceMotion();
     cards.forEach(s => {
-      const prev = _statNums[s.key];
-      _statNums[s.key] = s.num;
-      // First render of the session (prev == null) rolls up FROM ZERO — fun to
-      // watch the stock + value climb on app open. Later changes tween from the
+      // First render of the session starts from the account's last figures
+      // (cached), so the header shows them at once and only moves what changed;
+      // a first-ever launch rolls up from zero. Later changes tween from the
       // previous value.
+      const prev = _statNums[s.key] ?? cachedStats?.[s.key];
+      _statNums[s.key] = s.num;
       const from = (prev == null) ? 0 : prev;
       if (!animate || Math.abs(from - s.num) < 1e-9) return;
       // Tween the number span, not `.value` — the tax suffix sits in `.value`
@@ -12024,6 +12085,9 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     card.dataset.id = r.spoolId;
     if (state.selected === r.spoolId) card.classList.add("selected");
     if (state.selectedSpools.has(r.spoolId)) card.classList.add("row-selected");
+    // Unlinked maker chips on the TigerPOD: a spool that already has its own is
+    // greyed — the chips go to one of the others.
+    if (HAS_NATIVE && presentMakerChips().length && linkedChipsOf(r).length) card.classList.add("gp-member--linked");
     card.innerHTML = _groupMemberCardInnerHTML(r);
     card.addEventListener("click", (e) => {
       if (state.bulkSelect) { _toggleRowSelected(r.spoolId, e.shiftKey); return; }
@@ -20192,6 +20256,12 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   // open views stay as they are. Detail card: only its banner slot is swapped.
   function _refreshChipBanners() {
     _adpRenderFoot();
+    // Grouped spools: grey the ones already linked while maker chips wait.
+    const waiting = HAS_NATIVE && presentMakerChips().length > 0;
+    document.querySelectorAll("#groupPanelBody .gp-member").forEach(c => {
+      const row = state.rows.find(x => x.spoolId === c.dataset.id);
+      c.classList.toggle("gp-member--linked", waiting && !!row && linkedChipsOf(row).length > 0);
+    });
     if ($("productCardPanel")?.classList.contains("open") && _productCardData) _renderProductCard(_productCardData);
     const slot = $("detailPanel")?.classList.contains("open") ? $("panelBody")?.querySelector(".dp-chip-banner") : null;
     const r = slot && state.rows.find(x => x.spoolId === state.selected);
@@ -20828,6 +20898,12 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     _ecoOpen = null;
   }
   function openTigerPodModal() { openEcoSheet("pod"); }
+  // Any element carrying data-eco-open (the loot ladder's legendary devices) opens that sheet.
+  document.addEventListener("click", e => { const el = e.target.closest?.("[data-eco-open]"); if (el) openEcoSheet(el.dataset.ecoOpen); });
+  document.addEventListener("keydown", e => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    const el = e.target.closest?.("[data-eco-open]"); if (el) { e.preventDefault(); openEcoSheet(el.dataset.ecoOpen); }
+  });
   // Called live from the reader plug/unplug + chip handlers: the open TigerPOD
   // sheet follows the readers (state, main action, debug readout).
   function _renderTigerPodDebug() { if (_ecoOpen === "pod") _renderEcoSheet(); }
@@ -23462,9 +23538,10 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       && !$("chipChoicePanel")?.classList.contains("open");
     if (chipBannerHtml) {
       // (wired by wireLinkOffer after render)
-    } else if (r.isCloud && !state.friendView && presentMakerChips().length) {
+    } else if (r.isCloud && !state.friendView && presentMakerChips().length && !linkedChipsOf(r).length) {
       // A maker's chip (Bambu Lab, Creality…) not linked yet sits on the TigerPOD:
-      // link it to this spool — such a chip is never burned.
+      // link it to this spool — such a chip is never burned. A spool that already
+      // has its own maker chips is not offered more.
       chipBannerHtml = makerLinkBannerHtml("makerLinkBanner", presentMakerChips().length);
     } else if (r.isCloud) {
       // Cloud spool — never has a physical chip yet: the persistent burn banner,
@@ -25767,10 +25844,16 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     el.addEventListener("dragend", clear);
   }
 
+  let _friendFreezeAsked = null;   // the account whose friends' freeze slots were asked for
   function renderFriendsList() {
     const list = $("stgFriendsList");
     const count = $("stgFriendsCount");
     if (!list) return;
+    // Each friend's freeze slots come with the streak-freeze status: ask once per account, then redraw.
+    if (_friendFreezeAsked !== state.activeAccountId && state.friends.length) {
+      _friendFreezeAsked = state.activeAccountId;
+      questFreezeStatus().then(ok => { if (ok) renderFriendsList(); });
+    }
     _wireFriendDnd(list);
     if (count) count.textContent = state.friends.length;
     // Keep the companion list card in sync (opens once friends load, closes at 0).
@@ -25801,6 +25884,13 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       const color = friendColor(f);
       const fg = readableTextOn(color);
       const date = f.addedAt ? timeAgo(f.addedAt.seconds ? f.addedAt.seconds * 1000 : f.addedAt) : "";
+      // Their bonus freeze slots: an empty one I can fill is a button (give or buy for them).
+      const fz = questFriendFreeze(f.uid);
+      const ice = n => `../assets/img/quests/freeze/${n}.webp`;
+      const freezeSlots = fz ? `<span class="fp-freeze">${Array.from({ length: fz.bonusMax }, (_, i) => i < fz.bonus
+        ? `<img src="${ice("freeze")}" alt="" aria-hidden="true">`
+        : fz.canSend ? `<button type="button" class="fp-freeze-slot" data-action="freeze" aria-label="${esc(t("questsFreezeSendTo", { name: _shortName(f.displayName, f.uid) }))}"><img src="${ice("freeze-empty")}" alt=""><span class="icon icon-plus icon-10" aria-hidden="true"></span></button>`
+        : `<img src="${ice("freeze-empty")}" alt="" aria-hidden="true">`).join("")}</span>` : "";
       return `<div class="fp-friend" data-uid="${esc(f.uid)}" data-name="${esc(_shortName(f.displayName, f.uid))}" data-color="${esc(color)}" draggable="true">
         <span class="fp-grip" aria-hidden="true"><span class="icon icon-grip icon-16"></span></span>
         ${userAvatar(f, "fp-friend-avatar")}
@@ -25808,6 +25898,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
           <div class="fp-friend-name">${esc(_shortName(f.displayName, f.uid))}</div>
           <div class="fp-friend-date">${date ? t("friendAddedOn", { date }) : ""}</div>
         </div>
+        ${freezeSlots}
         <div class="fp-friend-actions">
           <button class="fp-friend-btn fp-friend-remove" data-action="remove" title="${t('friendRemove')}">
             <span class="icon icon-trash icon-13"></span>
@@ -25823,6 +25914,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     list.querySelectorAll(".fp-friend").forEach(row => {
       row.addEventListener("click", e => {
         if (e.target.closest("[data-action='remove']")) return;
+        if (e.target.closest("[data-action='freeze']")) { openFreezeFor(row.dataset.uid).then(() => renderFriendsList()); return; }
         switchToFriendView(row.dataset.uid, row.dataset.name, row.dataset.color);
       });
     });
@@ -25995,6 +26087,8 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         uid: f.uid, displayName: f.displayName || "",
         color: f.color || null, photoURL: f.photoURL || null,
         sortRank: f.sortRank,   // keep the drag order across restarts (pre-snapshot)
+        // TigerSquad membership (from their profile): the windows listing members open on it at once.
+        ...(f.tigerSquad ? { tigerSquad: true, squadTier: f.squadTier || null } : {}),
       })));
     } catch (_) { /* quota / privacy mode — silent */ }
   }
@@ -26035,6 +26129,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
             if (p.color)       f.color       = p.color;
             if (p.photoURL)    f.photoURL    = p.photoURL;
             if (p.tigerSquad)  { f.tigerSquad = true; f.squadTier = p.squadTier || null; }   // TigerSquad ring — from their public profile
+            if (p._profiled)   f._profiled = true;
           }
           return f;
         });
@@ -26073,6 +26168,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         const dn = pd.displayName || "";
         const col = profileColor(pd);          // "#rrggbb" or null
         const photo = pd.photoURL || null;
+        fr._profiled = true;   // its public profile has been read (TigerSquad membership known)
         let changed = false;
         if (dn && dn !== fr.displayName) { fr.displayName = dn; changed = true; }
         if (col && col !== fr.color)     { fr.color = col;       changed = true; }
@@ -39518,6 +39614,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   // (mirrors the sidebar Shop button).
   $("btnGiveEnvelope")?.addEventListener("click", e => _giveEnvelopeTo(null, e.currentTarget));   // a gift envelope to a friend
   $("btnSendCoins")?.addEventListener("click", e => _sendCoinsTo(null, e.currentTarget));         // my own TigerCoins to a friend
+  $("btnGiveFreeze")?.addEventListener("click", () => openFreezeGift().then(() => renderFriendsList()));   // a streak freeze to a friend
   $("btnGoodiesShop")?.addEventListener("click", () =>
     window.electronAPI?.openExternal("https://shop.tigersystem.io/collections/tigertag-rfid-maker"));
 
@@ -39939,16 +40036,35 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     const todo = (state.notifications || []).filter(n => n.type === "envelope_gift" && !n.read && !shown.includes(n.id));
     if (!todo.length) return;
     _envGiftBusy = true;
-    _tigerCoins(uid, "status").then(r => { if (uid === state.activeAccountId) { const c = _coinsOf(r); _paintDealsBadge(_envCount(c), c); } }).catch(() => {});
+    // The pile, to open each friend's envelope right here (its message, then what it holds).
+    let pile = null;
+    try { pile = _coinsOf(await _tigerCoins(uid, "status")); if (uid === state.activeAccountId) { _deals.coins = pile; _paintDealsBadge(_envCount(pile), pile); } } catch (_) {}
+    const taken = new Set();
     try {
       for (const n of todo.reverse()) {   // oldest first
         if (uid !== state.activeAccountId) break;
         while (document.querySelector(".tc-reveal")) await new Promise(r => setTimeout(r, 800));   // never over another opening
         shown = [...shown, n.id].slice(-50);
         try { localStorage.setItem(key, JSON.stringify(shown)); } catch (_) {}
+        // This friend's envelope still unopened: the envelope window itself — the
+        // friend's avatar on the seal, their message, "Open it" and the coins inside.
+        const env = (pile?.envelopes || []).find(e => e.kind === "friend" && e.fromUid === n.fromUid && !taken.has(e.id));
+        if (env) {
+          taken.add(env.id);
+          await showEnvelope(_coinsCtx(uid), { ...env, from: env.from || _shortName(n.fromName, n.fromUid), sealAvatar: userAvatar({ uid: n.fromUid, displayName: n.fromName, photoURL: n.photoURL || null, color: n.color || null }, "av-fill") }, {
+            open: async () => {
+              const r = await _tigerCoins(uid, "openEnvelope", { id: env.id });
+              _deals.coins = _coinsOf(r); _paintDealsBadge(_envCount(_deals.coins), _deals.coins);
+              return r;
+            },
+          });
+          continue;
+        }
         const how = await showEnvelopeGift({ t, esc }, { name: _shortName(n.fromName, n.fromUid),
           avatar: _giverAvatar(n) });
-        if (how === "see") { setViewMode("squadDeals"); break; }
+        // "Open it": straight to the opening (the gifts first — this envelope, its message,
+        // then the coins), not just the Deals view where the pile waits.
+        if (how === "see") { _openEnvelopesNow(); break; }
       }
     } finally { _envGiftBusy = false; }
   }
@@ -40537,18 +40653,43 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   }
   // Send TigerCoins of my balance to a friend (functions/tigerCoins.js sendCoins):
   // the send window with the week's allowance; only TigerSquad friends can receive.
+  // Friends whose public profile has not been read yet (just after launch, the
+  // per-friend listeners are still coming in): read them now, so a window that
+  // lists TigerSquad members does not open on "none of your friends".
+  async function _ensureFriendProfiles(uid) {
+    const todo = (state.friends || []).filter(f => !f._profiled);
+    if (!todo.length) return;
+    await Promise.all(todo.map(async f => {
+      try {
+        const pd = (await fbDb(uid).collection("userProfiles").doc(f.uid).get()).data();
+        if (!pd) return;
+        f.tigerSquad = !!pd.tigerSquad; f.squadTier = pd.tigerSquad?.tier || null; f._profiled = true;
+      } catch (_) { /* unreadable: left as it was */ }
+    }));
+  }
   async function _sendCoinsTo(friendUid = null, anchor = null) {
     const uid = state.activeAccountId; if (!uid || !_squadOnly()) return;
     const say = msg => { if (!anchor) { _flashMessage(msg); return; } _showErrorTip(anchor, msg); };
     if (!(state.friends || []).length) { say(t("envGiveNoFriends")); return; }
-    let c;
-    try { c = _coinsOf(await _tigerCoins(uid, "status")); } catch (_) { _flashMessage(t("squadDealsErr")); return; }
-    _deals.coins = c;
+    // Opened at once on what is already known (the friends list, the last TigerCoins
+    // status — this session's or the cached one); the server's status and any
+    // friend profile still unread follow and update the window in place.
+    const friendsNow = () => (state.friends || []).map(f => ({ uid: f.uid, name: _shortName(f.displayName, f.uid), avatar: userAvatar(f, "av-fill"), member: !!f.tigerSquad }));
+    const sendOf = c => ({ ...c.send, tierLabel: c.send?.tier ? squadTierLabel(c.send.tier) : "" });
+    const freshP = _tigerCoins(uid, "status").then(_coinsOf)
+      .then(c => { _deals.coins = c; _paintDealsBadge(_envCount(c), c); return c; });
+    const profilesP = _ensureFriendProfiles(uid);
+    const known = (_deals.uid === uid && _deals.coins?.send) ? _deals.coins : Cache.read("header", uid)?.coins;
+    let c = known?.send ? known : null;
+    if (!c) { try { [c] = await Promise.all([freshP, profilesP]); } catch (_) { _flashMessage(t("squadDealsErr")); return; } }
     if (!c.send?.max) { say(t("envGiveNoGift")); return; }
     await showSendCoins(_coinsCtx(uid), {
       balance: c.balance ?? 0, picked: friendUid,
-      send: { ...c.send, tierLabel: c.send.tier ? squadTierLabel(c.send.tier) : "" },
-      friends: (state.friends || []).map(f => ({ uid: f.uid, name: _shortName(f.displayName, f.uid), avatar: userAvatar(f, "sqb-avatar"), member: !!f.tigerSquad })),
+      send: sendOf(c),
+      friends: friendsNow(),
+      // Each arrives on its own: the friends' profiles (fast), the server's status (slow on a cold start).
+      fresh: c === known ? [profilesP.then(() => ({ friends: friendsNow() })), freshP.then(f => ({ balance: f.balance ?? 0, send: sendOf(f) }))].map(p => p.catch(() => null)) : [],
+      errorTip: (el, msg) => _showErrorTip(el, msg),   // "Send" pressed with something missing: a red bubble on it
       go: async (to, amount, message) => { const r = await _tigerCoins(uid, "sendCoins", { to, amount, message }); _deals.coins = _coinsOf(r); _paintDealsBadge(_envCount(_deals.coins)); return r; },
     });
   }
@@ -42317,7 +42458,10 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       // Backed the project (server-set by the payment webhooks) — a thank-you badge, never a feature gate.
       state.supporter  = !!data.supporter;
       // Chose to support the project publicly — TigerSquad if they gave, public supporter otherwise.
+      const joined = data.supportPublicly === true && !state.supportPublicly;
       state.supportPublicly = data.supportPublicly === true;
+      // Just joined the TigerSquad: the header's TigerCoins card appears now.
+      if (joined) _refreshTopCoins(uid);
       state.squadCountry = /^[A-Z]{2}$/.test(data.squadCountry || "") ? data.squadCountry : null;
       // XP from the account's chips + certified TigerTag+ — both counted by the server.
       state.xpPoints = typeof data.xpPoints === "number" ? data.xpPoints : null;

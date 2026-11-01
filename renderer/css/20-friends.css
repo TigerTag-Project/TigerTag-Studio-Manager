@@ -212,6 +212,15 @@
     font-size: 11px; color: var(--muted);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
+  /* The friend's bonus streak-freeze slots; an empty one I can fill is a button ("+" on hover). */
+  .fp-freeze { display: inline-flex; align-items: center; gap: 2px; flex-shrink: 0; }
+  .fp-freeze img { width: 18px; aspect-ratio: 1; object-fit: contain; display: block; }
+  .fp-freeze-slot { position: relative; display: grid; place-items: center; padding: 0; border: 0; background: none; cursor: pointer; border-radius: 4px; transition: transform .15s; }
+  .fp-freeze-slot .icon { position: absolute; background: #8fd3ff; opacity: 0; transition: opacity .15s; }
+  .fp-freeze-slot:hover, .fp-freeze-slot:focus-visible { transform: translateY(-2px); }
+  .fp-freeze-slot:hover img, .fp-freeze-slot:focus-visible img { opacity: .55; filter: drop-shadow(0 0 5px rgba(143, 211, 255, .7)); }
+  .fp-freeze-slot:hover .icon, .fp-freeze-slot:focus-visible .icon { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) { .fp-freeze-slot { transition: none; } }
   .fp-friend-actions {
     display: flex; gap: 4px; flex-shrink: 0;
     opacity: 0; transition: opacity .15s;

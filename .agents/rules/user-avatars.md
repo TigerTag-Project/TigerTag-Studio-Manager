@@ -12,4 +12,6 @@ the friends bar, initials in a modal): one helper guarantees one look everywhere
 record, an account): `userAvatar` takes the freshest record it holds — my own account with my
 TigerSquad level (`_ownSquadTier`), else the friend entry in `state.friends`, else what was given.
 A module outside `inventory.js` receives it through its ctx (e.g. `ctx.avatar`, `meAvatar`). New
-sizes are a CSS class on the avatar, not a new markup.
+sizes are a CSS class on the avatar, not a new markup; `av-fill` (`renderer/css/10-settings.css`)
+fills its container, which sets the size and the initials' font-size — use it rather than borrowing
+another component's size class and overriding it.

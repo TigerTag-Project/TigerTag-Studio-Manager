@@ -26,10 +26,13 @@
  * GitHub account (backend `myReports` actions `thread` / `comment`). A team reply
  * or a new status raises a notice and, once per change, an alert window.
  *
- * TigerMasters (trusted TigerSquad helpers, `roles: "tigermaster"`) and admins
- * get a third tab, "All requests": every request, its conversation, an answer
- * posted as the team, and "done" / "declined" to close it (backend `myReports`
- * actions `all`, `thread`/`comment` with `as: "team"`, `resolve`).
+ * A third tab, "All requests", lists every request for every member: read-only,
+ * except a question ("Ask a question"), which anyone may answer (posted as a
+ * community member with their pseudo). TigerMasters (trusted TigerSquad
+ * helpers, `roles: "tigermaster"`) and admins answer any request as the team
+ * and close it as "done" / "declined"; a reporter can still close their own
+ * (backend `myReports` actions `all`, `thread`/`comment` with `as: "team"`,
+ * `resolve`, `close`).
  */
 
 import { openAnnotator } from "./annotator.js";
@@ -105,6 +108,7 @@ let _thread = null;
 let _all = { list: null, loading: false, error: false, open: true };   // "All requests" (TigerMasters)
 let _resolveAsk = null;  // "done" | "declined" awaiting its confirmation in the open conversation
 const WATCH_MS = 30 * 60e3;   // re-check open requests for news while the app runs
+let _snoozeTimer = 0;         // "Later" on the alert window: it comes back after WATCH_MS
 
 export function initReport(c) {
   ctx = c;
@@ -424,9 +428,19 @@ function _showAlert(news) {
       </div>
     </div>`;
   const close = () => { ov.classList.remove("open"); setTimeout(() => ov.remove(), 250); };
+  // "Later" (or a click outside) snoozes: these requests are no longer counted
+  // as announced, so the window comes back at the next check — in WATCH_MS, or
+  // at the next launch — unless their conversation is opened meanwhile.
+  const later = () => {
+    close();
+    const uid = _mine.uid;
+    if (uid) { const al = _alerted(uid), m = al.load(); news.forEach(n => delete m[n.r.id]); al.save(m); }
+    clearTimeout(_snoozeTimer);
+    _snoozeTimer = setTimeout(() => syncReports().catch(() => {}), WATCH_MS);
+  };
   ov.addEventListener("click", e => {
     const b = e.target.closest("[data-alert]");
-    if (e.target === ov || b?.dataset.alert === "later") close();
+    if (e.target === ov || b?.dataset.alert === "later") later();
     else if (b?.dataset.alert === "open") { close(); openReport({ tab: "mine", thread: news.length === 1 ? news[0].r.id : null }); }
   });
   document.body.appendChild(ov);
@@ -440,7 +454,7 @@ async function openThread(id, { team = false } = {}) {
   _view = team ? "all" : "mine"; _closeAsk = null; _resolveAsk = null;
   if (!team) _markSeen((_mine.list || []).find(r => r.id === id));
   render();
-  try { const j = await authedPost(MINE_ENDPOINT, { action: "thread", reportId: id, ...(team ? { as: "team" } : {}) }); if (_thread?.id === id) _thread.data = j.thread; }
+  try { const j = await authedPost(MINE_ENDPOINT, { action: "thread", reportId: id, ...(team && ctx.isTeam?.() ? { as: "team" } : {}) }); if (_thread?.id === id) _thread.data = j.thread; }
   catch (_) { if (_thread?.id === id) _thread.error = true; }
   if (_thread?.id !== id) return;
   _thread.loading = false;
@@ -448,17 +462,19 @@ async function openThread(id, { team = false } = {}) {
 }
 const _threadToEnd = () => requestAnimationFrame(() => { const b = _body(); if (b) b.scrollTop = b.scrollHeight; });
 const _threadActive = () => !!(_thread && isReportOpen() && (_view === "mine" || _view === "all") && _thread.data?.canReply);
-// ── All requests (TigerMasters / admins) ─────────────────────────────────────
+// ── All requests (every member reads them; the team acts on them) ────────────
 async function syncAll() {
-  if (!ctx.isTeam?.() || _all.loading) return;
+  if (_all.loading) return;
   _all.loading = true; _all.error = false;
   try { _all.list = (await authedPost(MINE_ENDPOINT, { action: "all" })).reports || []; } catch (_) { _all.error = true; }
+  // The team also sees the TigerCoins envelope messages their recipients reported.
+  if (ctx.isTeam?.()) { try { _all.msgReports = (await authedPost(MINE_ENDPOINT, { action: "messageReports" })).reports || []; } catch (_) { _all.msgReports = null; } }
   _all.loading = false;
   if (isReportOpen() && _view === "all" && !_thread) render();
 }
 async function resolveThread(outcome) {
   const th = _thread;
-  if (!th?.team) return;
+  if (!th?.data?.team) return;
   _resolveAsk = null; th.sending = true; th.err = ""; render();
   try {
     await authedPost(MINE_ENDPOINT, { action: "resolve", reportId: th.id, outcome });
@@ -473,10 +489,12 @@ function allHTML() {
   if (_all.loading && !_all.list) return `<div class="rep-mine-empty">${esc(t("reportMineLoading"))}</div>`;
   if (_all.error && !_all.list) return `<div class="rep-mine-empty">${esc(t("reportMineError"))}</div>`;
   const list = (_all.list || []).filter(r => !_all.open || CLOSABLE.has(r.status));
-  const chips = `<div class="rep-all-filter">
+  const chipsHtml = `<div class="rep-all-filter">
     <button type="button" class="rep-chip${_all.open ? " is-on" : ""}" data-rep="allFilter" data-open="1">${esc(t("reportAllOpen"))}</button>
     <button type="button" class="rep-chip${_all.open ? "" : " is-on"}" data-rep="allFilter" data-open="0">${esc(t("reportAllEverything"))}</button></div>`;
-  if (!list.length) return `${chips}<div class="rep-mine-empty">${esc(t("reportAllEmpty"))}</div>`;
+  const hint = ctx.isTeam?.() ? "" : `<div class="rep-hint">${esc(t("reportAllHint"))}</div>`;
+  const chips = chipsHtml + msgReportsHTML();
+  if (!list.length) return `${chips}<div class="rep-mine-empty">${esc(t("reportAllEmpty"))}</div>${hint}`;
   return `${chips}<div class="rep-mine">${list.map(r => {
     const k = kindOf(r.kind) || KINDS[0], sdef = STATUS[r.status] || STATUS.open;
     const sub = [r.number ? `#${r.number}` : null, r.createdAt ? ctx.timeAgo(r.createdAt) : null,
@@ -490,7 +508,32 @@ function allHTML() {
         </button>
         <span class="rep-status" style="--sc:${sdef.c}">${esc(t(sdef.key))}</span>
       </div>`;
-  }).join("")}</div>`;
+  }).join("")}</div>${hint}`;
+}
+/* TigerCoins messages reported by their recipient (team only, backend myReports
+   "messageReports"): the open ones first, each with the text, who sent it to whom,
+   and "Remove the message" / "Dismiss" (resolveMessageReport). */
+function msgReportsHTML() {
+  const list = ctx.isTeam?.() ? (_all.msgReports || []) : [];
+  if (!list.length) return "";
+  const open = list.filter(r => r.status === "open");
+  const row = r => `
+    <li class="rep-msgrep${r.status === "open" ? "" : " is-final"}">
+      <div class="rep-msgrep-txt">“${esc(r.message)}”</div>
+      <div class="rep-msgrep-sub">${esc(t("msgReportFromTo", { from: r.from || "—", to: r.to || "—" }))}${r.at ? ` · ${esc(ctx.timeAgo(r.at))}` : ""}</div>
+      ${r.status === "open" ? `<div class="rep-msgrep-acts">
+          <button type="button" class="rep-back" data-rep="msgRep" data-id="${esc(r.id)}" data-outcome="removed"><span class="icon icon-trash icon-12"></span>${esc(t("msgReportRemove"))}</button>
+          <button type="button" class="rep-back" data-rep="msgRep" data-id="${esc(r.id)}" data-outcome="dismissed"><span class="icon icon-close icon-12"></span>${esc(t("msgReportDismiss"))}</button></div>`
+        : `<span class="rep-status">${esc(t(r.status === "removed" ? "msgReportRemoved" : "msgReportDismissed"))}</span>`}
+    </li>`;
+  return `<details class="rep-msgreps"${open.length ? " open" : ""}><summary><span class="icon icon-flag icon-14"></span>${esc(t("msgReportsTitle"))}${open.length ? `<span class="rep-view-count">${open.length}</span>` : ""}</summary>
+    <ul>${list.map(row).join("")}</ul></details>`;
+}
+async function resolveMsgReport(id, outcome) {
+  const r = (_all.msgReports || []).find(x => x.id === id); if (!r) return;
+  try { await authedPost(MINE_ENDPOINT, { action: "resolveMessageReport", id, outcome }); r.status = outcome; }
+  catch (_) { ctx.toast?.(t("reportErrSend")); }
+  render();
 }
 const _replyReady = th => !!(th.body.trim() || _attachCount(th));
 async function sendReply() {
@@ -499,7 +542,7 @@ async function sendReply() {
   th.sending = true; th.err = ""; render();
   try {
     const j = await authedPost(MINE_ENDPOINT, { action: "comment", reportId: th.id, text: th.body.trim(), images: th.images,
-      pdfs: th.pdfs.map(f => ({ name: f.name, data: f.data })), jsons: th.jsons.map(f => ({ name: f.name, text: f.text })), ...(th.team ? { as: "team" } : {}) });
+      pdfs: th.pdfs.map(f => ({ name: f.name, data: f.data })), jsons: th.jsons.map(f => ({ name: f.name, text: f.text })), ...(th.data?.team ? { as: "team" } : {}) });
     if (_thread === th) Object.assign(th, { data: j.thread, body: "", images: [], pdfs: [], jsons: [], printerPick: false });
     const r = (_mine.list || []).find(x => x.id === th.id);
     if (r) r.comments = (Number(r.comments) || 0) + 1;
@@ -523,7 +566,8 @@ function messageHTML(m) {
   if (m.from === "app") return `<div class="rep-msg-note">${esc(t("reportThreadClosedByYou"))}${m.at ? ` · ${esc(ctx.timeAgo(m.at))}` : ""}</div>`;
   const mine = m.from === "you";
   const who = mine ? t("reportThreadYou") : m.from === "reporter" ? t("reportThreadReporter")
-    : m.from === "team" ? (m.master ? t("reportThreadMaster", { name: m.name }) : t("reportThreadTeam")) : m.name;
+    : m.from === "team" ? (m.master ? t("reportThreadMaster", { name: m.name }) : t("reportThreadTeam"))
+    : m.from === "helper" ? t("reportThreadHelper", { name: m.name || "—" }) : m.name;
   const ava = mine ? "" : m.avatar ? `<img class="rep-msg-ava" src="${esc(m.avatar)}&s=64" alt="">`
     : `<span class="rep-msg-ava rep-msg-ava--none"><span class="icon icon-user icon-14"></span></span>`;
   return `
@@ -555,8 +599,19 @@ function threadHTML() {
     </div>`;
   if (th.loading && !d) return `<div class="rep-card rep-thread">${head}<div class="rep-mine-empty">${esc(t("reportThreadLoading"))}</div></div>`;
   if (th.error && !d) return `<div class="rep-card rep-thread">${head}<div class="rep-mine-empty">${esc(t("reportThreadError"))}</div></div>`;
-  const msgs = [{ from: th.team && !d.mine ? "reporter" : "you", text: d.body, images: d.images, at: d.createdAt }, ...d.comments];
-  const answered = d.comments.some(c => c.from === "team");
+  const msgs = [{ from: d.mine ? "you" : "reporter", text: d.body, images: d.images, at: d.createdAt }, ...d.comments];
+  const answered = d.comments.some(c => c.from === "team" || c.from === "helper");
+  // Who may close: the team (done / declined), the reporter (their own request);
+  // a member reading someone else's request closes nothing.
+  const closeActs = d.team ? `<div class="rep-thread-close rep-team-acts">${_resolveAsk
+      ? `<button type="button" class="rep-mine-confirm" data-rep="resolveYes" data-outcome="${_resolveAsk}">${esc(t("reportTeamConfirm", { what: t(_resolveAsk === "done" ? "reportTeamDone" : "reportTeamDecline") }))}</button>`
+      : `<button type="button" class="rep-back rep-team-done" data-rep="resolve" data-outcome="done"${th.sending ? " disabled" : ""}><span class="icon icon-check icon-12"></span>${esc(t("reportTeamDone"))}</button>
+         <button type="button" class="rep-back" data-rep="resolve" data-outcome="declined"${th.sending ? " disabled" : ""}><span class="icon icon-close icon-12"></span>${esc(t("reportTeamDecline"))}</button>`}</div>`
+    : d.mine ? `<div class="rep-thread-close">${r.closing ? `<span class="rep-mine-closing">…</span>`
+      : _closeAsk === th.id
+      ? `<button type="button" class="rep-mine-confirm" data-rep="mineCloseYes" data-id="${esc(th.id)}">${esc(t("reportMineCloseConfirm"))}</button>`
+      : `<button type="button" class="rep-back" data-rep="mineClose" data-id="${esc(th.id)}"><span class="icon icon-close icon-12"></span>${esc(t("reportMineClose"))}</button>`}</div>` : "";
+  const open = CLOSABLE.has(d.status);
   const composer = d.canReply ? `
     <div class="rep-reply">
       <div class="rep-editor">
@@ -565,19 +620,14 @@ function threadHTML() {
       </div>
       ${attachHTML(th, { printers: ctx.listPrinters?.() || [] })}
       <div class="rep-reply-bar">
-        <span class="rep-reply-public">${esc(t(th.team ? "reportTeamReplyPublic" : "reportReplyPublic"))}</span>
+        <span class="rep-reply-public">${esc(t(d.team ? "reportTeamReplyPublic" : d.helper ? "reportHelperReplyPublic" : "reportReplyPublic"))}</span>
         <button type="button" class="rep-btn rep-btn--blue" data-rep="replySend"${th.sending || !_replyReady(th) ? " disabled" : ""}><span class="icon icon-send icon-14"></span>${esc(t(th.sending ? "reportReplySending" : "reportReplySend"))}</button>
       </div>
       ${th.err ? `<div class="rep-error">${esc(th.err)}</div>` : ""}
     </div>
-    ${th.team ? `<div class="rep-thread-close rep-team-acts">${_resolveAsk
-      ? `<button type="button" class="rep-mine-confirm" data-rep="resolveYes" data-outcome="${_resolveAsk}">${esc(t("reportTeamConfirm", { what: t(_resolveAsk === "done" ? "reportTeamDone" : "reportTeamDecline") }))}</button>`
-      : `<button type="button" class="rep-back rep-team-done" data-rep="resolve" data-outcome="done"${th.sending ? " disabled" : ""}><span class="icon icon-check icon-12"></span>${esc(t("reportTeamDone"))}</button>
-         <button type="button" class="rep-back" data-rep="resolve" data-outcome="declined"${th.sending ? " disabled" : ""}><span class="icon icon-close icon-12"></span>${esc(t("reportTeamDecline"))}</button>`}</div>`
-    : `<div class="rep-thread-close">${r.closing ? `<span class="rep-mine-closing">…</span>`
-      : _closeAsk === th.id
-      ? `<button type="button" class="rep-mine-confirm" data-rep="mineCloseYes" data-id="${esc(th.id)}">${esc(t("reportMineCloseConfirm"))}</button>`
-      : `<button type="button" class="rep-back" data-rep="mineClose" data-id="${esc(th.id)}"><span class="icon icon-close icon-12"></span>${esc(t("reportMineClose"))}</button>`}</div>`}` : `<div class="rep-msg-note rep-msg-note--closed">${esc(t("reportReplyClosed"))}</div>`;
+    ${closeActs}`
+    : open && d.helper ? `<div class="rep-msg-note rep-msg-note--closed">${esc(t("reportReadOnly"))}</div>`
+    : `<div class="rep-msg-note rep-msg-note--closed">${esc(t("reportReplyClosed"))}</div>${open ? closeActs : ""}`;
   return `
     <div class="rep-card rep-thread">
       ${head}
@@ -826,6 +876,7 @@ function onClick(e) {
   else if (act === "mineThread") openThread(a.dataset.id);
   else if (act === "allThread") openThread(a.dataset.id, { team: true });
   else if (act === "allFilter") { _all.open = a.dataset.open === "1"; render(); }
+  else if (act === "msgRep") resolveMsgReport(a.dataset.id, a.dataset.outcome);
   else if (act === "resolve") { _resolveAsk = a.dataset.outcome; render(); setTimeout(() => { if (_resolveAsk === a.dataset.outcome) { _resolveAsk = null; render(); } }, 4000); }
   else if (act === "resolveYes") resolveThread(a.dataset.outcome);
   else if (act === "threadBack") { const team = _thread?.team; _thread = null; render(); team ? syncAll() : syncReports(); }
@@ -1135,7 +1186,6 @@ function render() {
   }
 
   // 1 — Topic list / My requests
-  if (_view === "all" && !ctx.isTeam?.()) _view = "new";   // the role was taken away
   if (!kindOf(st.kind) || _view === "mine" || _view === "all") {
     const openN = (_mine.list || []).filter(r => CLOSABLE.has(r.status)).length;
     const head = `
@@ -1147,7 +1197,7 @@ function render() {
         <div class="rep-views" role="tablist">
           <button type="button" class="rep-view${_view === "new" ? " is-on" : ""}" data-rep="view" data-view="new" role="tab" aria-selected="${_view === "new"}"><span class="icon icon-suggestion icon-14"></span>${esc(t("reportTabNew"))}</button>
           <button type="button" class="rep-view${_view === "mine" ? " is-on" : ""}" data-rep="view" data-view="mine" role="tab" aria-selected="${_view === "mine"}"><span class="icon icon-clock icon-14"></span>${esc(t("reportTabMine"))}${openN ? `<span class="rep-view-count">${openN}</span>` : ""}</button>
-          ${ctx.isTeam?.() ? `<button type="button" class="rep-view${_view === "all" ? " is-on" : ""}" data-rep="view" data-view="all" role="tab" aria-selected="${_view === "all"}"><span class="icon icon-shield-check icon-14"></span>${esc(t("reportTabAll"))}</button>` : ""}
+          <button type="button" class="rep-view${_view === "all" ? " is-on" : ""}" data-rep="view" data-view="all" role="tab" aria-selected="${_view === "all"}"><span class="icon icon-community icon-14"></span>${esc(t("reportTabAll"))}</button>
         </div>`;
     if ((_view === "mine" || _view === "all") && _thread) { paint("form", threadHTML()); return; }
     if (_view === "all") { paint("list", `<div class="rep-card">${head}${allHTML()}</div>`); return; }

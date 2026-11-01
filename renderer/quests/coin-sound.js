@@ -1,6 +1,6 @@
 // TigerCoins pull sounds — synthesised with the Web Audio API (no audio file):
 // hold beeps (faster and higher, with an echo), seal crack, flap, card reveal, one jingle per rarity, coin ticks, a coin flip,
-// and the stage's background music (ambientStart / ambientStop).
+// the stage's background music (ambientStart / ambientStop), the chest's (chestMusicStart) and a fireplace (fireStart).
 // One AudioContext, created on the first sound (a user gesture has happened by
 // then), a master gain at a modest level behind a compressor. Muted state in
 // localStorage `tigertag.coinsSound` ("off" = muted), toggled from the stage.
@@ -156,6 +156,128 @@ export function ambientStart() {
 }
 export function ambientStop() { amb?.stop(); amb = null; }
 
+// The chest's music (squad-deals.js showChest, until the lid bursts): a slow
+// treasure-cave theme at 72 BPM in D minor — a low drone, soft held chords
+// (Dm9 · B♭maj7 · Gm9 · A, two bars each), a plucked harp arpeggio
+// rising in eighths, a muffled heartbeat drum on beats 1 and 3, a music-box
+// sparkle now and then — through a warm low-pass and a long echo. Same slot as
+// ambientStart: it replaces the stage's music, and ambientStop ends it (0.8 s fade).
+export function chestMusicStart() {
+  ambientStop();
+  const a = ctx(); if (!a) return;
+  const out = a.createGain(), lp = a.createBiquadFilter(), echo = a.createDelay(1.5), fb = a.createGain(), wet = a.createGain();
+  out.gain.setValueAtTime(0.0001, a.currentTime);
+  out.gain.exponentialRampToValueAtTime(1, a.currentTime + 2.2);
+  lp.type = "lowpass"; lp.frequency.value = 2000; lp.Q.value = 0.4;
+  echo.delayTime.value = 0.625; fb.gain.value = 0.38; wet.gain.value = 0.4;
+  lp.connect(out); lp.connect(echo); echo.connect(fb).connect(echo); echo.connect(wet).connect(out); out.connect(master);
+  // Root + chord tones (Hz); the last one is the arpeggio's top note.
+  const CHORDS = [
+    [73.4, 146.8, 174.6, 220, 261.6, 329.6],   // Dm9
+    [58.3, 116.5, 146.8, 174.6, 220, 293.7],   // B♭maj7
+    [49, 98, 116.5, 146.8, 174.6, 220],        // Gm9
+    [55, 110, 138.6, 164.8, 220, 277.2],       // A (the dominant, back to Dm)
+  ];
+  const ARP = [1, 2, 3, 4, 5, 4, 3, 2], STEP = 60 / 72 / 2;   // eighth notes at 72 BPM
+  const voice = (type, f, t, dur, vol, att, dest = lp) => {
+    const o = a.createOscillator(), g = a.createGain();
+    o.type = type; o.frequency.value = f;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + att); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(dest); o.start(t); o.stop(t + dur + 0.05);
+  };
+  const drum = (t, vol) => {
+    const o = a.createOscillator(), g = a.createGain();
+    o.type = "sine"; o.frequency.setValueAtTime(78, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.35);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.45);
+    o.connect(g).connect(out); o.start(t); o.stop(t + 0.5);
+  };
+  let next = a.currentTime + 0.15, step = 0;
+  const tick = () => {
+    while (next < a.currentTime + 0.5) {
+      const bar = Math.floor(step / 8), ch = CHORDS[Math.floor(bar / 2) % CHORDS.length], s = step % 16;
+      // Drone + pad, held over the chord's two bars.
+      if (s === 0) {
+        voice("sine", ch[0], next, STEP * 16 + 1.2, 0.05, 1.2);
+        ch.slice(1, 5).forEach(f => { voice("triangle", f, next, STEP * 16 + 1.2, 0.02, 1.4); voice("sine", f * 1.004, next, STEP * 16 + 1.2, 0.012, 1.6); });
+      }
+      // Harp: a plucked rising/falling arpeggio, one octave up.
+      voice("triangle", ch[ARP[step % 8]] * 2, next, 0.9, 0.035, 0.004);
+      // Heartbeat drum on beats 1 and 3, the first one stronger.
+      if (s % 4 === 0) drum(next, s % 8 === 0 ? 0.16 : 0.08);
+      // A music-box sparkle once every two bars, on an off-beat.
+      if (s === 11) voice("sine", ch[5] * 4, next, 0.6, 0.018, 0.003, out);
+      next += STEP; step++;
+    }
+  };
+  tick();
+  const id = setInterval(tick, 100);
+  amb = {
+    stop() {
+      clearInterval(id);
+      const t = a.currentTime;
+      out.gain.cancelScheduledValues(t); out.gain.setValueAtTime(Math.max(0.0001, out.gain.value), t);
+      out.gain.exponentialRampToValueAtTime(0.0001, t + 0.8);
+      setTimeout(() => out.disconnect(), 1200);
+    },
+  };
+}
+
+// A fireplace (freeze-modal.js "Rallumer la flamme", while it is open): a low
+// roar of filtered noise that breathes slowly, wood crackles at random (short
+// band-passed bursts, now and then a louder pop with a few sparks after it) and
+// a faint hiss. Same slot as ambientStart: ambientStop ends it (0.8 s fade).
+export function fireStart() {
+  if (amb?.fire) return;   // already crackling (the hover on the strip, then its window): goes on
+  ambientStop();
+  const a = ctx(); if (!a) return;
+  const out = a.createGain();
+  out.gain.setValueAtTime(0.0001, a.currentTime);
+  out.gain.exponentialRampToValueAtTime(1, a.currentTime + 1.2);
+  out.connect(master);
+  // Two seconds of noise, looped: the roar (low-pass) and the hiss (high-pass).
+  const buf = a.createBuffer(1, a.sampleRate * 2, a.sampleRate), d = buf.getChannelData(0);
+  let last = 0;
+  for (let i = 0; i < d.length; i++) { last = (last + 0.02 * (Math.random() * 2 - 1)) / 1.02; d[i] = last * 3.5; }   // brown-ish noise
+  const bed = a.createBufferSource(), lp = a.createBiquadFilter(), roar = a.createGain(), lfo = a.createOscillator(), lfoG = a.createGain();
+  bed.buffer = buf; bed.loop = true; lp.type = "lowpass"; lp.frequency.value = 420; roar.gain.value = 0.5;
+  lfo.frequency.value = 0.23; lfoG.gain.value = 0.18; lfo.connect(lfoG).connect(roar.gain);
+  bed.connect(lp).connect(roar).connect(out); bed.start(); lfo.start();
+  const white = a.createBuffer(1, a.sampleRate, a.sampleRate), w = white.getChannelData(0);
+  for (let i = 0; i < w.length; i++) w[i] = Math.random() * 2 - 1;
+  const hissSrc = a.createBufferSource(), hp = a.createBiquadFilter(), hiss = a.createGain();
+  hissSrc.buffer = white; hissSrc.loop = true; hp.type = "highpass"; hp.frequency.value = 5000; hiss.gain.value = 0.012;
+  hissSrc.connect(hp).connect(hiss).connect(out); hissSrc.start();
+  const crack = (t, vol, f) => {
+    const len = 0.006 + Math.random() * 0.02;
+    const src = a.createBufferSource(), bp = a.createBiquadFilter(), g = a.createGain();
+    src.buffer = white; bp.type = "bandpass"; bp.frequency.value = f; bp.Q.value = 1.2;
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+    src.connect(bp).connect(g).connect(out); src.start(t, Math.random() * 0.9); src.stop(t + len + 0.01);
+  };
+  let next = a.currentTime + 0.2;
+  const tick = () => {
+    while (next < a.currentTime + 0.4) {
+      if (Math.random() < 0.12) {   // a pop, then a few sparks
+        crack(next, 0.5, 900 + Math.random() * 900);
+        for (let k = 1; k < 2 + Math.random() * 4; k++) crack(next + k * (0.02 + Math.random() * 0.05), 0.15, 2500 + Math.random() * 3000);
+      } else crack(next, 0.06 + Math.random() * 0.14, 1500 + Math.random() * 3500);
+      next += 0.04 + Math.random() * Math.random() * 0.45;
+    }
+  };
+  tick();
+  const id = setInterval(tick, 100);
+  amb = {
+    fire: true,
+    stop() {
+      clearInterval(id);
+      const t = a.currentTime;
+      out.gain.cancelScheduledValues(t); out.gain.setValueAtTime(Math.max(0.0001, out.gain.value), t);
+      out.gain.exponentialRampToValueAtTime(0.0001, t + 0.8);
+      setTimeout(() => { bed.stop(); lfo.stop(); hissSrc.stop(); out.disconnect(); }, 1200);
+    },
+  };
+}
+
 export const sfx = {
   tick() { tone("sine", 520, 520, 0.04, { vol: 0.15 }); },
   // Hovering a Workshop item: a short rising note, higher with the rarity (0 common → 4 legendary);
@@ -182,6 +304,50 @@ export const sfx = {
     noise(0.7 + k * 0.5, { at: at + 0.05, vol: 0.06 + k * 0.05, from: 7000, to: 10000, type: "highpass" });
   },
   coin(i = 0) { tone("sine", 880, 1320, 0.075, { at: i * 0.045, vol: 0.18 }); },
+  // ── The chest (squad-deals.js showChest) ──
+  // It lands: a wooden thud and a little dust.
+  thud() { tone("sine", 120, 55, 0.22, { vol: 0.55, attack: 0.004 }); noise(0.16, { vol: 0.22, from: 900, to: 200, type: "lowpass" }); },
+  // Held: the lid rattles in its frame, harder as the hold goes on (k 0 → 1).
+  rattle(k = 0) {
+    noise(0.05, { vol: 0.12 + k * 0.22, from: 1400 + k * 1600, to: 500, type: "bandpass" });
+    tone("square", 180 + k * 160, 140 + k * 120, 0.04, { vol: 0.04 + k * 0.06 });
+  },
+  // The lock gives: a metallic clack and a spring.
+  unlock() {
+    tone("square", 1200, 900, 0.05, { vol: 0.18 }); noise(0.06, { vol: 0.3, from: 5000, to: 2000, type: "highpass" });
+    tone("triangle", 600, 1500, 0.18, { at: 0.06, vol: 0.12 });
+  },
+  // The lid flies open: a creak, a whoosh of air, a bright golden chord and a shimmer.
+  burst() {
+    tone("sawtooth", 220, 150, 0.22, { vol: 0.07 });
+    noise(0.45, { at: 0.04, vol: 0.3, from: 400, to: 6000, type: "bandpass" });
+    tone("sine", 90, 40, 0.5, { at: 0.08, vol: 0.45, attack: 0.006 });
+    [523, 659, 784, 1047].forEach((f, i) => tone("triangle", f, f, 0.9, { at: 0.12 + i * 0.05, vol: 0.13, attack: 0.02 }));
+    noise(1.2, { at: 0.15, vol: 0.08, from: 6500, to: 9500, type: "highpass" });
+  },
+  // ── A friend's letter (squad-deals.js showEnvelope, a friend's envelope) ──
+  // A friend's letter — short, soft, synchronised beats (designed with a ChatGPT review).
+  // The wax seal: a dry, intimate crack — a band-passed noise burst and a small drop.
+  waxSnap() { noise(0.035, { vol: 0.4, from: 2200, to: 2200, type: "bandpass" }); tone("triangle", 180, 110, 0.055, { vol: 0.3, attack: 0.003 }); },
+  // The flap: filtered air, its brightness sweeping down.
+  flapOpen() { noise(0.18, { vol: 0.14, from: 4000, to: 1500, type: "lowpass" }); },
+  // The parchment unrolls: two overlapping paper swishes, low and high.
+  unroll() {
+    noise(0.55, { vol: 0.1, from: 900, to: 900, type: "bandpass" });
+    noise(0.45, { at: 0.12, vol: 0.08, from: 2800, to: 2800, type: "bandpass" });
+  },
+  // The avatar stamp pressed on the parchment: a soft thump.
+  stamp() { tone("sine", 140, 85, 0.065, { vol: 0.4, attack: 0.003 }); noise(0.012, { vol: 0.2, from: 1200, to: 1200, type: "lowpass" }); },
+  // The gift: a bell (880 / 1760 / 2640 Hz partials) over a quiet C major chord.
+  letterCoins() {
+    [[880, 1, 0.35], [1760, 0.25, 0.18], [2640, 0.08, 0.09]].forEach(([f, g, d]) => tone("sine", f, f, d, { vol: 0.28 * g, attack: 0.003 }));
+    [523, 659, 784].forEach((f, i) => tone("triangle", f, f, 0.45, { at: i * 0.025, vol: 0.09, attack: 0.01 }));
+  },
+  // Cashed in: a delicate tick per coin landing, then C6 + G6.
+  depositTick(i = 0) { tone("sine", 1200 + i * 180, 1200 + i * 180, 0.035, { vol: 0.14, attack: 0.003 }); },
+  deposited() { [1047, 1568].forEach(f => tone("sine", f, f, 0.18, { vol: 0.16, attack: 0.004 })); },
+  // An envelope pops out of the chest.
+  pop(i = 0) { tone("sine", 500 + i * 70, 900 + i * 90, 0.09, { vol: 0.22 }); noise(0.05, { vol: 0.08, from: 3000, to: 1500 }); },
   // A coin flicked into a spin (the history's coin, ~1.1 s): a bright metallic
   // ping (inharmonic partials), then quick ticks slowing down as it turns.
   coinFlip() {

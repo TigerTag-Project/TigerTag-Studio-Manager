@@ -188,13 +188,14 @@ function fxCanvas(cv) {
   };
 }
 
-// Coins fly from a card to the Deals view's TigerCoins bar, behind the stage
-// (which repaints with the new balance).
-async function flyCoins(fromEl) {
-  const target = document.querySelector(".sqd-coins .tcoin--big");
+// Coins fly from a card to the TigerCoins balance — the header's counter when it
+// is on screen, else the Deals view's bar behind the stage (which repaints with
+// the new balance). Also cashing in a friend's envelope (squad-deals.js).
+const _visible = el => { const r = el?.getBoundingClientRect(); return !!r && r.width > 0 && r.bottom > 0 && r.top < innerHeight; };
+export async function flyCoins(fromEl, n = 6) {
+  const target = ["#topCoinsBal .tcoin", ".sqd-coins .tcoin--big"].map(s => document.querySelector(s)).find(_visible);
   if (!fromEl || !target || reduced()) return;
   const a = fromEl.getBoundingClientRect(), b = target.getBoundingClientRect();
-  const n = 6;
   for (let i = 0; i < n; i++) {
     const c = document.createElement("img");
     c.src = `${IMG}coin.webp`; c.alt = ""; c.className = "tpx-fly";
@@ -207,6 +208,16 @@ async function flyCoins(fromEl) {
       { transform: `translate(${x1}px, ${y1}px) scale(.5)`, opacity: 0.9 },
     ], { duration: 620, delay: i * 55, easing: "cubic-bezier(.4,.1,.3,1)", fill: "forwards" }).finished.then(() => { c.remove(); sfx.coin(); });
   }
+}
+
+// A horizontal friends row: scrolls the picked tile (aria-checked="true")
+// into view, centred, when it sits outside the visible part of the row.
+export function showPicked(row, smooth = true) {
+  const on = row?.querySelector('[aria-checked="true"]:not([hidden])');
+  if (!on) return;
+  const r = row.getBoundingClientRect(), b = on.getBoundingClientRect();
+  if (b.left >= r.left && b.right <= r.right) return;
+  row.scrollTo({ left: row.scrollLeft + (b.left - r.left) - (r.width - b.width) / 2, behavior: smooth ? "smooth" : "auto" });
 }
 
 // The envelope (or the card) follows the mouse: it tilts in 3D towards the

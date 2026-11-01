@@ -17,9 +17,9 @@
 // The link is in secret/main, which the rules give only to a member whose XP
 // reaches the deal's minXp: below it a live card is locked with the XP to go.
 
-import { celebrateEgg, guardInput, holdToFire, revealPulls, tilt } from './coin-pull.js';
+import { celebrateEgg, flyCoins, guardInput, holdToFire, revealPulls, showPicked, tilt } from './coin-pull.js';
 import { heroLayersHtml } from './hero-layers.js';
-import { ambientStart, ambientStop, sfx } from './coin-sound.js';
+import { ambientStart, ambientStop, chestMusicStart, sfx } from './coin-sound.js';
 
 // A text field is a plain string or a { lang: text } map (en as fallback).
 const pick = (v, lang) => (v && typeof v === "object" ? v[lang] || v.en || Object.values(v)[0] || "" : v || "");
@@ -375,9 +375,10 @@ export async function openCoinsHistory(ctx) {
       <div class="tcx-main">
         <div class="tcx-plaque"><h3>${esc(t("coinHistTitle"))}</h3></div>
         <div class="tch-sum">
-          <span><small>${esc(t("coinHistEarned"))}</small><b class="is-up">${c.earned ? "+" : ""}${n(c.earned)}</b></span>
-          <span><small>${esc(t("coinHistSpent"))}</small><b class="is-down">${c.spent ? "−" : ""}${n(c.spent)}</b></span>
-          <span><small>${esc(t("coinHistBalance"))}</small><b>${n(c.balance)}<span class="tcoin" aria-hidden="true"></span></b></span>
+          <small>${esc(t("coinHistBalance"))}</small>
+          <b class="tch-bal"><span class="tch-bal-n">${n(c.balance)}</span><img class="tch-bal-coin" src="../assets/img/tigercoins/coin.webp" alt="" aria-hidden="true"></b>
+          <span class="tch-bal-sparks" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+          ${ctx.sendCoins ? `<button type="button" class="tch-send" data-hist-send><img src="../assets/img/tigercoins/envelope.webp" alt="" aria-hidden="true">${esc(t("coinsSendBtn"))}</button>` : ""}
         </div>
         <div class="tch-tabs" role="tablist">${["all", "up", "down", "gift"].map((k, i) =>
           `<button type="button" role="tab" class="tch-tab${i ? "" : " is-on"}" data-hist-tab="${k}">${esc(t(`coinHistTab_${k}`))}</button>`).join("")}</div>
@@ -390,6 +391,8 @@ export async function openCoinsHistory(ctx) {
   const onKey = e => { if (e.key === "Escape") { e.stopPropagation(); close(); } };
   document.addEventListener("keydown", onKey, true);
   el.addEventListener("mousedown", e => { if (e.target === el) close(); });
+  // "Send" beside the balance: the history steps aside for the send window.
+  el.querySelector("[data-hist-send]")?.addEventListener("click", () => { close(); ctx.sendCoins(); });
   // The coin on top flips on a click (several turns, settling back face up),
   // with a burst of little stars around it.
   const coin = el.querySelector(".tch-coin");
@@ -408,9 +411,11 @@ export async function openCoinsHistory(ctx) {
     }
   });
   coin.addEventListener("animationend", e => { if (e.animationName === "tch-coin-flip") coin.classList.remove("is-flipping"); });
-  let rows = [];
-  try { rows = await ctx.coinHistory(); } catch (_) { rows = null; }
-  const ART = { open: "envelope", envelope: "envelope", chest: "envelope", gift: "gift-v2", spend: "coin", envelopeGiven: "envelope", envelopeReceived: "envelope" };
+  // The log last seen (ctx.cachedHistory) is painted at once; the fresh read
+  // replaces it when it arrives, and repaints only if something changed.
+  let rows = ctx.cachedHistory?.() || null, tab = "all";
+  const fresh = ctx.coinHistory().catch(() => null);
+  const ART = { open: "envelope", envelope: "envelope", chest: "chest-open", gift: "gift-v2", spend: "coin", envelopeGiven: "envelope", envelopeReceived: "envelope" };
   const label = r => r.kind === "open" ? t("coinLog_open", { n: r.count || 1 })
     : r.kind === "chest" ? t("coinLog_chest", { n: r.count || 0 })
     : r.kind === "envelope" ? t("coinLog_envelope")
@@ -453,30 +458,41 @@ export async function openCoinsHistory(ctx) {
         <span><b>${esc(label(r))}</b><small>${esc(sub(r))}</small></span>${amt}</div>`;
     }).join("");
   };
-  paint("all");
+  if (rows) paint(tab);
   el.addEventListener("click", e => {
-    const tab = e.target.closest("[data-hist-tab]"); if (!tab) return;
-    el.querySelectorAll(".tch-tab").forEach(b => b.classList.toggle("is-on", b === tab));
-    paint(tab.dataset.histTab);
+    const b = e.target.closest("[data-hist-tab]"); if (!b) return;
+    el.querySelectorAll(".tch-tab").forEach(x => x.classList.toggle("is-on", x === b));
+    tab = b.dataset.histTab;
+    if (rows !== null || el._histDone) paint(tab);
   });
+  const got = await fresh;
+  el._histDone = true;
+  if (got === null && rows) return;   // offline: the last log seen stays
+  const changed = JSON.stringify(got) !== JSON.stringify(rows);
+  rows = got;
+  if (changed || rows === null) paint(tab);
 }
 
-/** "You got an envelope!": a friend gave one (functions/tigerCoins.js
- *  giveEnvelope). Only says so — who, with their avatar — and closes: the
- *  envelope waits in the pile. Resolves "see" (go to the Deals) or "close". */
 /* Send TigerCoins of one's own balance to a friend, in an envelope (functions/
-   tigerCoins.js sendCoins). The envelope window's frame with the coin rising:
-   the friend (members only), the amount (quick picks, ± and typed), a message,
-   then the situation — my balance before → after, the postage fee, what the
-   friend gets, this week's allowance before → after — and a button held 2 s.
+   tigerCoins.js sendCoins) — after the mockup assets-src/img/tigercoins/mockups/
+   coins-send-mockup.png. The eligible friends in a row (members only; the one
+   picked ringed in gold, the window never grows), the AMOUNT as the hero (a big gold number, quick picks,
+   one line with the balance and the week's allowance), a required message on a
+   card, then one held button (a click outside or Escape closes). The fee is
+   said only when there is one.
    `send` = { balance, send: { max, left, feePct, feeMin, minFriendDays, tierLabel },
-   friends: [{ uid, name, avatar, member }], picked?, go(to, amount, message) → status }. */
+   friends: [{ uid, name, avatar, member }], picked?, go(to, amount, message) → status,
+   fresh?: [Promise<{ balance?, send?, friends? }>] }: opened on the last known figures,
+   each `fresh` result updates the balance, the allowance or the friends in place. */
 export function showSendCoins(ctx, send) {
   const { t, esc, lang } = ctx;
   const fmt = n => Number(n).toLocaleString(lang);
+  const MSG_MAX = 140;   // the backend's TRANSFER.messageMax
   let picked = send.picked || null, amount = 0, message = "";
   let balance = send.balance || 0, quota = { ...(send.send || {}) };
   const fee = n => Math.min(n, Math.max(quota.feeMin || 0, Math.floor(n * (quota.feePct || 0) / 100)));
+  let members = send.friends.filter(f => f.member);
+  if (picked && !members.some(f => f.uid === picked)) picked = null;
   const el = document.createElement("div");
   el.className = "tc-reveal tc-envm tcs";
   el.innerHTML = `
@@ -493,56 +509,74 @@ export function showSendCoins(ctx, send) {
   requestAnimationFrame(() => el.classList.add("is-open"));
   tilt(el, el.querySelector(".tch-env"), 18);
   const body = el.querySelector(".tcs-body"), actions = el.querySelector(".tcs-actions"), err = el.querySelector(".tc-code-err");
-  const nameOf = uid => send.friends.find(f => f.uid === uid)?.name || "";
+  const friendOf = uid => members.find(f => f.uid === uid);
   const maxNow = () => Math.max(0, Math.min(balance, quota.left || 0));
-  const row = (label, from, to) => `<div class="qfm-row"><span>${esc(label)}</span><b>${from}${to != null ? ` <span class="qfm-arrow" aria-hidden="true">→</span> ${to}` : ""}</b></div>`;
   let resolveOut;
   const finish = how => { el.classList.remove("is-open"); setTimeout(() => el.remove(), 200); resolveOut?.(how); };
 
-  // Only the amount part re-renders while typing (the input keeps its focus).
-  const recapHtml = () => {
-    const f = fee(amount), got = Math.max(0, amount - f);
-    return `${row(t("questsFreezeBalance"), fmt(balance), amount ? fmt(balance - amount) : null)}
-      ${row(t("coinsSendFee", { pct: quota.feePct || 0 }), fmt(f))}
-      ${picked ? row(t("coinsSendGets", { name: nameOf(picked) }), fmt(got)) : ""}
-      ${row(t("coinsSendWeek"), `${fmt(quota.left || 0)} / ${fmt(quota.max || 0)}`, amount ? fmt((quota.left || 0) - amount) : null)}`;
-  };
+  // What is missing or wrong — "Send" stays pressable and says it in a bubble on
+  // the part to fix (a friend, the amount, the message).
   const why = () => !picked ? t("questsFreezePickFriend") : amount < 1 ? t("coinsSendPickAmount")
-    : amount > (quota.left || 0) ? t("coinsSendErrLimit") : amount > balance ? t("questsFreezeNeedCoins", { n: amount - balance }) : "";
-  const paintAmount = () => {
-    body.querySelector(".tcs-recap").innerHTML = recapHtml();
-    body.querySelector(".tcs-amount-input").value = amount || "";
+    : amount > (quota.left || 0) ? t("coinsSendErrLimit") : amount > balance ? t("questsFreezeNeedCoins", { n: amount - balance })
+    : !message.trim() ? t("coinsSendNeedMessage") : "";
+  const whereToFix = () => !picked ? body.querySelector(".tcs-row") || body
+    : amount < 1 || amount > Math.min(balance, quota.left || 0) ? body.querySelector(".tcs-hero") : body.querySelector(".tcs-msg-paper");
+  const explain = () => {
+    const w = why(); if (!w) return false;
+    const spot = whereToFix();
+    send.errorTip?.(spot, w);
+    spot.classList.remove("tcs-shake"); void spot.offsetWidth; spot.classList.add("tcs-shake");
+    if (spot.matches(".tcs-msg-paper")) body.querySelector(".tcs-msg")?.focus();
+    else if (spot.matches(".tcs-hero")) body.querySelector(".tcs-amount-input")?.focus();
+    return true;
+  };
+
+  // Everything that follows the picked friend, the amount and the message.
+  const paint = () => {
+    const input = body.querySelector(".tcs-amount-input");
+    if (document.activeElement !== input) input.value = amount || "";
+    body.querySelector(".tcs-hero").classList.toggle("is-zero", !amount);
     body.querySelectorAll("[data-q]").forEach(b => b.setAttribute("aria-pressed", String(Number(b.dataset.q) === amount || (b.dataset.q === "max" && amount === maxNow() && amount > 0))));
-    const w = why(), go = actions.querySelector(".tcs-go");
-    actions.querySelector(".qfm-why").textContent = w;
-    go.disabled = !!w;
-    go.querySelector(".tcs-lbl").textContent = picked && amount ? t("coinsSendGo", { n: fmt(amount), name: nameOf(picked) }) : t("coinsSendTitle");
+    const f = picked && amount ? fee(amount) : 0;
+    const feeEl = body.querySelector(".tcs-fee");
+    feeEl.hidden = !f;
+    if (f) feeEl.textContent = `${t("coinsSendFee", { pct: quota.feePct || 0 })} ${fmt(f)} · ${t("coinsSendGets", { name: friendOf(picked)?.name || "" })} ${fmt(amount - f)}`;
+    body.querySelector(".tcs-count").textContent = `${message.length} / ${MSG_MAX}`;
+    const go = actions.querySelector(".tcs-go");
+    go.querySelector(".tcs-lbl").textContent = picked && amount ? t("coinsSendGo", { n: fmt(amount), name: friendOf(picked)?.name || "" }) : t("coinsSendBtn");
   };
   const render = () => {
     err.hidden = true;
-    const members = send.friends.filter(f => f.member), others = send.friends.filter(f => !f.member);
-    const tile = f => `<button type="button" role="radio" aria-checked="${picked === f.uid}" class="tc-give-f" data-to="${esc(f.uid)}" data-name="${esc(f.name)}"${f.member ? "" : " disabled"}>
-        <span class="tc-give-av">${f.avatar}<span class="tc-give-check" aria-hidden="true"><span class="icon icon-check icon-11"></span></span></span>
-        <span class="tc-give-name">${esc(f.name)}</span>${f.member ? "" : `<small class="qfm-f-note">${esc(t("coinsSendNotMember"))}</small>`}</button>`;
+    const tile = f => `<button type="button" role="radio" aria-checked="${picked === f.uid}" class="tcs-f" data-to="${esc(f.uid)}" data-name="${esc(f.name)}">
+        <span class="tcs-f-av">${f.avatar}</span><span class="tcs-f-name">${esc(f.name)}</span></button>`;
     body.innerHTML = `
-      <p class="tc-give-count">${esc(t("coinsSendQuota", { left: fmt(quota.left || 0), max: fmt(quota.max || 0), tier: quota.tierLabel || "" }))}</p>
-      ${send.friends.length > 8 ? `<label class="sqd-search tc-give-search"><span class="icon icon-search icon-13" aria-hidden="true"></span><input type="search" data-tcs-q placeholder="${esc(t("friendsSearch"))}" autocomplete="off"></label>` : ""}
-      ${send.friends.length ? `<div class="tc-give-list tcs-list" role="radiogroup" aria-label="${esc(t("envGivePick"))}">${[...members, ...others].map(tile).join("")}</div>`
-        : `<p class="tc-give-left">${esc(t("envGiveNoFriends"))}</p>`}
-      <div class="tcs-amount">
-        <div class="tcs-quick">${[10, 25, 50, 100].filter(q => q <= maxNow()).map(q => `<button type="button" class="tcs-q" data-q="${q}" aria-pressed="false">${fmt(q)}</button>`).join("")}
-          ${maxNow() ? `<button type="button" class="tcs-q" data-q="max" aria-pressed="false">${esc(t("coinsSendMax"))} · ${fmt(maxNow())}</button>` : ""}</div>
-        <label class="tcs-field"><img src="../assets/img/tigercoins/coin.webp" alt="" aria-hidden="true">
-          <input class="tcs-amount-input" type="number" inputmode="numeric" min="1" max="${maxNow()}" step="1" placeholder="0" aria-label="${esc(t("coinsSendAmount"))}"></label>
-      </div>
-      <input class="tcs-msg" type="text" maxlength="140" placeholder="${esc(t("coinsSendMessage"))}" value="${esc(message)}">
-      <div class="qfm-recap tcs-recap"></div>`;
+      ${members.length > 8 ? `<label class="sqd-search tc-give-search"><span class="icon icon-search icon-13" aria-hidden="true"></span><input type="search" data-tcs-q placeholder="${esc(t("friendsSearch"))}" autocomplete="off"></label>` : ""}
+      ${members.length ? `<div class="tcs-row" role="radiogroup" aria-label="${esc(t("envGivePick"))}">${members.map(tile).join("")}</div>`
+        : `<p class="tc-give-left">${esc(t(send.friends.length ? "coinsSendNoMember" : "envGiveNoFriends"))}</p>`}
+      <label class="tcs-hero is-zero">
+        <input class="tcs-amount-input" type="number" inputmode="numeric" min="1" max="${maxNow()}" step="1" placeholder="0" aria-label="${esc(t("coinsSendAmount"))}">
+        <img class="tcs-hero-coin" src="../assets/img/tigercoins/coin.webp" alt="" aria-hidden="true">
+      </label>
+      <div class="tcs-quick">${[10, 25, 50, 100].filter(q => q <= maxNow()).map(q => `<button type="button" class="tcs-q" data-q="${q}" aria-pressed="false">${fmt(q)}</button>`).join("")}
+        ${maxNow() ? `<button type="button" class="tcs-q" data-q="max" aria-pressed="false">${esc(t("coinsSendMax"))}</button>` : ""}</div>
+      <p class="tcs-avail"><img src="../assets/img/tigercoins/coin.webp" alt="" aria-hidden="true">${esc(t("coinsSendAvail", { balance: fmt(balance), left: fmt(quota.left || 0), max: fmt(quota.max || 0), tier: quota.tierLabel || "" }))}</p>
+      <p class="tcs-fee" hidden></p>
+      <label class="tcs-card-msg">
+        <span class="tcs-msg-lbl"><b>${esc(t("coinsSendMsgLabel"))}</b> ${esc(t("coinsSendRequired"))}</span>
+        <span class="tcs-msg-paper"><textarea class="tcs-msg" rows="1" maxlength="${MSG_MAX}" placeholder="${esc(t("coinsSendMessagePh"))}" required aria-required="true"></textarea>
+          <small class="tcs-count"></small></span>
+      </label>`;
     actions.innerHTML = `
       <p class="qfm-why"></p>
-      <button type="button" class="sqd-open tp-hold tp-ten sqd-wide tcs-go" disabled><span class="tp-fill" aria-hidden="true"></span><span class="tcs-lbl"></span></button>
-      <button type="button" class="tc-code-cancel" data-tcs="cancel">${esc(t("cancelLabel"))}</button>`;
-    holdToFire(actions.querySelector(".tcs-go"), 2000, confirm, t("pullHoldTen"));
-    paintAmount();
+      <button type="button" class="sqd-open tp-hold tp-ten sqd-wide tcs-go"><span class="tp-fill" aria-hidden="true"></span><span class="tcs-go-txt"><span class="tcs-lbl"></span><small>${esc(t("pullHoldTen"))}</small></span></button>`;   // no "Cancel": a click outside or Escape closes
+    // Pressed with something missing: no hold, the bubble says what to do (capture
+    // phase, before the hold's own listeners).
+    const goBtn = actions.querySelector(".tcs-go");
+    const stopIfIncomplete = e => { if (explain()) { e.stopImmediatePropagation(); e.preventDefault(); } };
+    goBtn.addEventListener("pointerdown", stopIfIncomplete, true);
+    goBtn.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") stopIfIncomplete(e); }, true);
+    holdToFire(goBtn, 2000, confirm, t("pullHoldTen"));
+    paint();
   };
   const confirm = async () => {
     const go = actions.querySelector(".tcs-go"); if (why()) return;
@@ -550,14 +584,14 @@ export function showSendCoins(ctx, send) {
     try {
       const r = await send.go(picked, amount, message.trim());
       const got = r?.sent?.received ?? amount;
-      body.innerHTML = `<p class="qfm-ok qfm-ok--big" role="status">${esc(t("coinsSendDone", { n: fmt(got), name: nameOf(picked) }))}</p>`;
+      body.innerHTML = `<p class="qfm-ok qfm-ok--big" role="status">${esc(t("coinsSendDone", { n: fmt(got), name: friendOf(picked)?.name || "" }))}</p>`;
       actions.innerHTML = "";
       el.querySelector(".tcs-card").classList.add("is-given");
       setTimeout(() => finish("done"), 1700);
     } catch (e) {
       const code = e?.message;
       err.textContent = t({ SEND_LIMIT: "coinsSendErrLimit", NOT_ENOUGH_COINS: "questsFreezeErrCoins", FRIENDS_TOO_RECENT: "coinsSendErrRecent",
-        FRIEND_NOT_IN_SQUAD: "coinsSendNotMember", NOT_FRIENDS: "questsFreezeErrFriends" }[code] || "squadDealsErr", { n: quota.minFriendDays ?? 7 });
+        FRIEND_NOT_IN_SQUAD: "coinsSendNotMember", NOT_FRIENDS: "questsFreezeErrFriends", MESSAGE_REQUIRED: "coinsSendNeedMessage" }[code] || "squadDealsErr", { n: quota.minFriendDays ?? 7 });
       err.hidden = false; go.disabled = false;
     }
   };
@@ -566,33 +600,52 @@ export function showSendCoins(ctx, send) {
   el.addEventListener("click", e => {
     if (e.target.closest("[data-tcs=cancel]")) { finish("back"); return; }
     const f = e.target.closest("[data-to]");
-    if (f && !f.disabled) {
+    if (f) {
       picked = f.dataset.to;
       body.querySelectorAll("[data-to]").forEach(b => b.setAttribute("aria-checked", String(b === f)));
-      paintAmount(); return;
+      paint(); showPicked(body.querySelector(".tcs-row")); return;
     }
     const q = e.target.closest("[data-q]");
-    if (q) { amount = q.dataset.q === "max" ? maxNow() : Math.min(maxNow(), Number(q.dataset.q)); paintAmount(); }
+    if (q) { amount = q.dataset.q === "max" ? maxNow() : Math.min(maxNow(), Number(q.dataset.q)); body.querySelector(".tcs-amount-input").value = amount || ""; paint(); }
   });
   el.addEventListener("input", e => {
     if (e.target.matches(".tcs-amount-input")) {
       const v = Math.floor(Number(e.target.value) || 0);
       amount = Math.max(0, Math.min(maxNow(), v));
-      body.querySelector(".tcs-recap").innerHTML = recapHtml();
-      const w = why(), go = actions.querySelector(".tcs-go");
-      actions.querySelector(".qfm-why").textContent = w; go.disabled = !!w;
-      go.querySelector(".tcs-lbl").textContent = picked && amount ? t("coinsSendGo", { n: fmt(amount), name: nameOf(picked) }) : t("coinsSendTitle");
       if (v !== amount && e.target.value !== "") e.target.value = amount || "";
-    } else if (e.target.matches(".tcs-msg")) message = e.target.value;
+      paint();
+    } else if (e.target.matches(".tcs-msg")) { message = e.target.value; paint(); }
     else if (e.target.matches("[data-tcs-q]")) {
       const q = e.target.value.trim().toLowerCase();
       body.querySelectorAll("[data-to]").forEach(b => { b.hidden = !!q && !b.dataset.name.toLowerCase().includes(q); });
     }
   });
   render();
+  requestAnimationFrame(() => showPicked(body.querySelector(".tcs-row"), false));   // opened on a friend: shown
+  // The server's figures (opened on the last known ones): balance, allowance and
+  // friends updated in place — the amount, the message and the pick are kept.
+  (send.fresh || []).forEach(p => p.then(f => {
+    if (!f || !el.isConnected || !body.querySelector(".tcs-msg")) return;   // closed, or already sent
+    const next = f.friends ? f.friends.filter(x => x.member) : members;
+    const nb = f.balance ?? balance, nq = f.send ? { ...f.send } : quota;
+    const same = nb === balance && JSON.stringify(nq) === JSON.stringify(quota)
+      && next.map(x => x.uid).join() === members.map(x => x.uid).join();
+    if (same) return;
+    balance = nb; quota = nq; members = next;
+    if (amount > maxNow()) amount = maxNow();
+    const focusMsg = document.activeElement?.matches?.(".tcs-msg");
+    render();
+    body.querySelector(".tcs-msg").value = message;
+    if (focusMsg) body.querySelector(".tcs-msg").focus();
+    paint();
+    showPicked(body.querySelector(".tcs-row"), false);
+  }));
   return new Promise(r => { resolveOut = r; });
 }
 
+/** "You got an envelope!": a friend gave one (functions/tigerCoins.js
+ *  giveEnvelope). Only says so — who, with their avatar — and closes: the
+ *  envelope waits in the pile. Resolves "see" (go to the Deals) or "close". */
 export function showEnvelopeGift(ctx, { name, avatar }) {
   const { t, esc } = ctx;
   const el = document.createElement("div");
@@ -793,53 +846,119 @@ const revealSurprises = (ctx, r) => revealPulls(ctx, r.opened);
 
 const chestName = (ctx, c) => (c?.name && (c.name[ctx.lang] || c.name.en || c.name.fr)) || "";
 
-/** One chest (users/{uid}/chests): a box in its type's colour; "Open the
- *  chest" calls `open()` (the backend draws its envelopes), the lid lifts, then
- *  its envelopes are revealed with their rarities. `chest` = { id, name, color,
- *  envelopes }. Resolves "next" or "done" (`more` = chests still waiting). */
+/** One chest (users/{uid}/chests) — a moment, not a dialog. The chest drops
+ *  in on a stage lit in its type's colour and floats, light leaking from the
+ *  lid. HOLD "Open" (2 s): it rattles harder and harder, the seam glows. Then
+ *  `open()` (the backend draws its envelopes): the lock pops off, the lid flies
+ *  away, a flash and god rays, a fountain of TigerCoins, and the envelopes rise
+ *  out one by one before their reveal (revealSurprises). Art: assets/img/
+ *  tigercoins/chest/ (closed · base · lid · lock, one sheet in assets-src).
+ *  Sounds: coin-sound.js thud / rattle / unlock / burst / coin / pop.
+ *  `chest` = { id, name, color, envelopes }. Resolves "next" or "done"
+ *  (`more` = chests still waiting). */
+const CHEST_ART = "../assets/img/tigercoins/chest/";
+const reducedMotion = () => !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 export function showChest(ctx, chest, { open, more = 0 } = {}) {
   const { t, esc } = ctx;
   const name = chestName(ctx, chest);
+  const n = chest.envelopes || 0;
   const el = document.createElement("div");
-  el.className = "tc-reveal tc-chestm";
+  el.className = "tc-reveal tcc";
   el.innerHTML = `
-    <div class="tc-reveal-card tc-chest-card" role="dialog" aria-modal="true" aria-label="${esc(name)}" style="--cc:${esc(chest.color || "#ffb21a")}">
-      <h3>${esc(name)}</h3>
-      <p class="tc-env-msg">${esc(t("chestInside", { n: chest.envelopes || 0 }))}</p>
-      <div class="tc-chest" aria-hidden="true">
-        <span class="tc-chest-glow"></span>
-        <span class="tc-chest-body"><span class="tc-chest-lock"></span></span>
-        <span class="tc-chest-lid"></span>
+    <div class="tcc-stage" role="dialog" aria-modal="true" aria-label="${esc(name)}" style="--cc:${esc(chest.color || "#ffb21a")}">
+      <span class="tcc-rays" aria-hidden="true"></span>
+      <span class="tcc-flash" aria-hidden="true"></span>
+      <div class="tcc-plaque">
+        <span class="tcc-kicker">${esc(t("chestKicker"))}</span>
+        <h3>${esc(name)}</h3>
+      </div>
+      <div class="tcc-chest" aria-hidden="true">
+        <span class="tcc-shadow"></span>
+        <span class="tcc-glow"></span>
+        <div class="tcc-box">
+          <img class="tcc-base" src="${CHEST_ART}base.webp" alt="">
+          <span class="tcc-beam"></span>
+          <img class="tcc-lid" src="${CHEST_ART}lid.webp" alt="">
+          <img class="tcc-closed" src="${CHEST_ART}closed.webp" alt="">
+          <span class="tcc-seam"></span>
+          <img class="tcc-lock" src="${CHEST_ART}lock.webp" alt="">
+        </div>
+        <div class="tcc-out"></div>
       </div>
       <p class="tc-code-err" role="alert" hidden></p>
-      <div class="tc-reveal-actions">
-        <button type="button" class="sqd-open" data-chest-go>${esc(t("chestOpen"))}</button>
-      </div>
+      <button type="button" class="tcc-go" data-chest-go><span class="tcc-go-fill"></span><span class="tcc-go-txt">${esc(t("chestOpen"))}</span><small>${esc(t("pullHoldTen"))}</small></button>
+      ${more ? `<p class="tcc-more">${esc(t("chestMore", { n: more }))}</p>` : ""}
     </div>`;
   document.body.appendChild(el);
+  const stage = el.querySelector(".tcc-stage"), go = el.querySelector("[data-chest-go]"), out = el.querySelector(".tcc-out");
   requestAnimationFrame(() => el.classList.add("is-open"));
-  const card = el.querySelector(".tc-chest-card");
+  if (!reducedMotion()) setTimeout(() => sfx.thud(), 380);   // it lands
+  chestMusicStart();   // the chest's theme, faded out when the lid bursts
+  // While held, the chest follows the hold (--k 0 → 1): it shakes, the seam
+  // glows, and the lid rattles faster and louder.
+  let watch = 0, lastRattle = 0;
+  const follow = now => {
+    const k = Number(go.style.getPropertyValue("--hold")) || 0;
+    stage.style.setProperty("--k", k.toFixed(3));
+    stage.classList.toggle("is-charging", k > 0);
+    if (k > 0 && now - lastRattle > 260 - k * 190) { lastRattle = now; sfx.rattle(k); }
+    watch = go.classList.contains("is-holding") || k > 0 ? requestAnimationFrame(follow) : 0;
+  };
+  go.addEventListener("pointerdown", () => { if (!watch) watch = requestAnimationFrame(follow); });
   return new Promise(resolve => {
-    el.addEventListener("click", async e => {
-      const go = e.target.closest("[data-chest-go]");
-      if (!go || go.disabled) return;
+    holdToFire(go, 2000, async () => {
       go.disabled = true;
-      try {
-        const r = await open();
-        card.classList.add("is-opened");
-        // The lid lifts, the light spills out, then the envelopes come out.
-        await new Promise(res => setTimeout(res, 900));
-        el.classList.remove("is-open");
-        setTimeout(() => el.remove(), 200);
-        await revealSurprises(ctx, { ...r, coins: 0 });
-        resolve(more ? "next" : "done");
-      } catch (_) {
+      stage.classList.add("is-charging", "is-waiting");
+      stage.style.setProperty("--k", "1");
+      let r;
+      try { r = await open(); }
+      catch (_) {
+        stage.classList.remove("is-charging", "is-waiting");
+        stage.style.setProperty("--k", "0");
         const er = el.querySelector(".tc-code-err");
         er.textContent = t("squadDealsErr");
         er.hidden = false;
         go.disabled = false;
+        return;
       }
-    });
+      cancelAnimationFrame(watch); watch = 0;
+      stage.classList.remove("is-charging", "is-waiting");
+      const calm = reducedMotion();
+      // The lock gives…
+      stage.classList.add("is-unlocked"); sfx.unlock(); ambientStop();
+      await sleep(calm ? 0 : 320);
+      // …the lid flies off: flash, rays, the light pours out.
+      stage.classList.add("is-burst"); sfx.burst();
+      await sleep(calm ? 0 : 260);
+      // A fountain of TigerCoins…
+      if (!calm) {
+        for (let i = 0; i < 22; i++) {
+          const c = document.createElement("img");
+          c.className = "tcc-coin"; c.src = "../assets/img/tigercoins/coin.webp"; c.alt = "";
+          const ang = (-90 + (Math.random() * 2 - 1) * 70) * Math.PI / 180, dist = 180 + Math.random() * 220;
+          c.style.cssText = `--dx:${(Math.cos(ang) * dist).toFixed(0)}px;--dy:${(Math.sin(ang) * dist).toFixed(0)}px;--rot:${(Math.random() * 720 - 360).toFixed(0)}deg;--d:${(Math.random() * 0.25).toFixed(2)}s;--s:${(0.55 + Math.random() * 0.6).toFixed(2)}`;
+          out.appendChild(c);
+          if (i < 8) setTimeout(() => sfx.coin(i), 60 + i * 55);
+        }
+      }
+      await sleep(calm ? 0 : 700);
+      // …then the envelopes rise out, one by one.
+      const shown = Math.min(n || r?.opened?.length || 1, 6);
+      for (let i = 0; i < shown; i++) {
+        const e = document.createElement("img");
+        e.className = "tcc-env"; e.src = "../assets/img/tigercoins/envelope.webp"; e.alt = "";
+        e.style.cssText = `--i:${i};--x:${((i - (shown - 1) / 2) * 96).toFixed(0)}px;--tilt:${((i - (shown - 1) / 2) * 9).toFixed(0)}deg`;
+        out.appendChild(e);
+        sfx.pop(i);
+        await sleep(calm ? 0 : 260);
+      }
+      await sleep(calm ? 200 : 1100);
+      el.classList.remove("is-open");
+      setTimeout(() => el.remove(), 250);
+      await revealSurprises(ctx, { ...r, coins: 0 });
+      resolve(more ? "next" : "done");
+    }, t("pullHoldTen"));
   });
 }
 
@@ -874,17 +993,42 @@ export function showEnvelope(ctx, env, { open = null, more = 0, give = null, giv
         ${canGive ? `<button type="button" class="tc-code-cancel tc-env-give" data-env-give><img src="../assets/img/tigercoins/gift-v2.webp" alt="" aria-hidden="true">${esc(t("envGive"))}</button>` : ""}`;
   const el = document.createElement("div");
   el.className = "tc-reveal tc-envm";
+  // A friend's message can be reported to the team (TigerMasters), and its sender
+  // blocked and removed from the friends at the same time (ctx.reportMessage).
+  const canReport = !giveOnly && !!msg && env.kind === "friend" && !!env.id && !!env.fromUid && !!ctx.reportMessage;
+  // A friend's envelope with a word is a LETTER: closed, it only says a word waits
+  // inside; opening it snaps the seal, the envelope flies off, a parchment unrolls
+  // with the message in handwriting (signed, the friend's avatar as a stamp), then
+  // the coins burst in and count up — each beat with its sound (coin-sound.js).
+  const isLetter = !giveOnly && !!msg && env.kind === "friend" && !env.result;
   // The gift-code modal's frame: the illustrated envelope rising from behind
   // the card, the title plaque, the message; opening sends the envelope off and
   // the prize pops in with the TigerCoin.
   el.innerHTML = `
     <div class="tc-reveal-card tc-code-card tcx tcx--help tc-env-card" role="dialog" aria-modal="true" aria-label="${esc(title)}">
-      <span class="tch-env-tilt"><img class="tch-env tc-env" src="../assets/img/tigercoins/envelope.webp" alt="" aria-hidden="true"></span>
+      <span class="tch-env-tilt"><img class="tch-env tc-env" src="../assets/img/tigercoins/envelope.webp" alt="" aria-hidden="true">
+        ${env.sealAvatar ? `<span class="tch-env-seal" aria-hidden="true">${env.sealAvatar}</span>` : ""}</span>
+      <img class="tc-env-coin" src="../assets/img/tigercoins/coin.webp" alt="" aria-hidden="true">
       ${giveOnly && !ctx.eggFound?.("envGive") ? `<span class="tch-glints" aria-hidden="true"><i></i><i></i><i></i><i></i></span>` : ""}
       <div class="tcx-main">
         <div class="tcx-plaque"><h3>${esc(title)}</h3></div>
-        <p class="tc-env-msg"${giveOnly ? " hidden" : ""}>${esc(msg || (env.split ? "" : t("envDefaultMsg")))}</p>
-        <div class="tc-env-prize" aria-live="polite"><img src="../assets/img/tigercoins/coin.webp" alt="" aria-hidden="true"><span><b class="tc-env-amount"></b><small class="tc-env-unit"></small></span></div>
+        <p class="tc-env-msg"${giveOnly ? " hidden" : ""}>${esc(isLetter ? t("envLetterTeaser", { name: env.from || "" }) : msg || (env.split ? "" : t("envDefaultMsg")))}</p>
+        ${isLetter ? `<div class="tc-env-scroll" hidden>
+          <span class="tc-env-scroll-roll" aria-hidden="true"></span>
+          <div class="tc-env-scroll-paper"><p class="tc-env-scroll-msg">${esc(msg)}</p>
+            <p class="tc-env-scroll-sign">— ${esc(env.from || "")}${env.sealAvatar ? `<span class="tc-env-scroll-stamp" aria-hidden="true">${env.sealAvatar}</span>` : ""}</p></div>
+          <span class="tc-env-scroll-roll" aria-hidden="true"></span>
+        </div>` : ""}
+        ${canReport ? `<div class="tc-env-report"${isLetter ? " hidden" : ""}>
+          <button type="button" class="tc-env-report-btn" data-env-report><span class="icon icon-flag icon-12" aria-hidden="true"></span>${esc(t("envReportBtn"))}</button>
+          <div class="tc-env-report-ask" hidden>
+            <p>${esc(t("envReportAsk"))}</p>
+            <label class="tc-env-report-block"><input type="checkbox" checked data-env-report-block>${esc(t("envReportBlock", { name: env.from || "" }))}</label>
+            <div class="tc-env-report-acts"><button type="button" class="tc-env-report-go" data-env-report-go>${esc(t("envReportGo"))}</button>
+              <button type="button" class="tc-env-report-back" data-env-report-back>${esc(t("cancelLabel"))}</button></div>
+          </div>
+        </div>` : ""}
+        <div class="tc-env-prize" aria-live="polite"><span class="tc-env-burst" aria-hidden="true"></span><img src="../assets/img/tigercoins/coin.webp" alt="" aria-hidden="true"><span><b class="tc-env-amount"></b><small class="tc-env-unit"></small></span></div>
         <p class="tc-env-rank" hidden></p>
         <p class="tc-code-err" role="alert" hidden></p>
         <div class="tc-reveal-actions">${firstActions}</div>
@@ -896,13 +1040,36 @@ export function showEnvelope(ctx, env, { open = null, more = 0, give = null, giv
   // The envelope turns toward the mouse — the same envelope as the help window
   // (openEnvelopeHelp). Giving, it also hides an easter egg (envGive,
   // .agents/rules/easter-eggs.md): glints until found, three quick clicks.
-  tilt(el, el.querySelector(".tch-env"), 18);
+  // With an avatar on the seal, the tilt drives the whole envelope (its --rx / --ry
+  // reach the art and the seal alike), so the avatar turns with it.
+  tilt(el, env.sealAvatar ? el.querySelector(".tch-env-tilt") : el.querySelector(".tch-env"), 18);
+  if (canReport) {
+    // Pinned to the card's own bottom-right corner (out of the column's flow).
+    el.querySelector(".tc-env-card").appendChild(el.querySelector(".tc-env-report"));
+    const box = el.querySelector(".tc-env-report"), ask = box.querySelector(".tc-env-report-ask"), btn = box.querySelector("[data-env-report]");
+    box.addEventListener("click", async e => {
+      if (e.target.closest("[data-env-report]")) { ask.hidden = false; btn.hidden = true; return; }
+      if (e.target.closest("[data-env-report-back]")) { ask.hidden = true; btn.hidden = false; return; }
+      const go = e.target.closest("[data-env-report-go]"); if (!go) return;
+      go.disabled = true;
+      const block = !!box.querySelector("[data-env-report-block]")?.checked;
+      try {
+        await ctx.reportMessage(env.id, { block, fromUid: env.fromUid, fromName: env.from || "" });
+        box.innerHTML = `<p class="tc-env-report-done">${esc(t(block ? "envReportDoneBlocked" : "envReportDone", { name: env.from || "" }))}</p>`;
+      } catch (err) {
+        go.disabled = false;
+        if (err?.message === "ALREADY_REPORTED") box.innerHTML = `<p class="tc-env-report-done">${esc(t("envReportAlready"))}</p>`;
+        else ctx.toast?.(t("squadDealsErr"));
+      }
+    });
+  }
   return new Promise(resolve => {
     let opened = null;
     const finish = how => { el.classList.remove("is-open"); setTimeout(() => el.remove(), 200); resolve(how); };
     const reveal = r => {
       const coins = r.coins || 0, surprises = r.opened?.length || 0, chests = r.chests?.length || 0;
       el.querySelector(".tc-env-amount").textContent = `+${(chests || surprises || coins).toLocaleString(lang)}`;
+      if (isLetter) playLetter(chests || surprises || coins);
       el.querySelector(".tc-env-unit").textContent = chests ? `${t("envGotChests", { n: chests })} ${chestName(ctx, r.chests[0])}`
         : surprises ? t("envGotSurprises", { n: surprises }) : "TigerCoins";
       opened = r;
@@ -915,7 +1082,56 @@ export function showEnvelope(ctx, env, { open = null, more = 0, give = null, giv
       actions.innerHTML = `
         ${chests || surprises ? `<button type="button" class="tcx-go" data-env="surprises">${esc(t("envOpenSurprises"))}</button>`
           : `${more ? `<button type="button" class="tcx-go" data-env="next">${esc(t("envNext", { n: more }))}</button>` : ""}
-        <button type="button" class="tc-code-cancel" data-env="done">${esc(t("coinsCollect"))}</button>`}`;
+        <button type="button" class="sqd-open tp-hold tp-ten sqd-wide tc-env-collect" data-env-collect><span class="tp-fill" aria-hidden="true"></span><span class="tc-env-collect-txt">${esc(t("coinsCollect"))}<small>${esc(t("pullHoldTen"))}</small></span></button>`}`;
+      // Cashing in is a held press (2 s, like sending): the coins are felt, not just clicked away.
+      const collect = actions.querySelector("[data-env-collect]");
+      // On release the coins fly from the prize to the header's TigerCoins counter (a
+      // tick as each lands), the counter pulses, the button says it is done, then closes.
+      if (collect) holdToFire(collect, 2000, () => {
+        collect.disabled = true;
+        const amount = (opened?.coins || 0).toLocaleString(lang);
+        collect.querySelector(".tc-env-collect-txt").textContent = t("envCollecting");
+        flyCoins(el.querySelector(".tc-env-prize img"), 6);
+        const calm = reducedMotion();
+        setTimeout(() => {
+          sfx.deposited();
+          const bal = document.getElementById("topCoinsBal");
+          if (bal) { bal.classList.remove("is-pulse"); void bal.offsetWidth; bal.classList.add("is-pulse"); }
+          collect.querySelector(".tc-env-collect-txt").textContent = t("envCollected", { n: amount });
+          collect.classList.add("is-done");
+        }, calm ? 0 : 950);
+        setTimeout(() => finish("done"), calm ? 300 : 1700);
+      }, t("pullHoldTen"));
+    };
+    // The letter's beats (see isLetter): seal, envelope, parchment, coins.
+    const playLetter = n => {
+      const calm = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      const at = (ms, fn) => setTimeout(() => { if (el.isConnected) fn(); }, calm ? 0 : ms);
+      // Choreography (after a ChatGPT review): friend → letter → gift → cash-in, ≈ 2.5 s.
+      // 0 seal snaps · 120 flap, the envelope slips down and fades · 430 the parchment
+      // unrolls · 800 the lines appear · 1350 the avatar stamp is pressed · 1620 the coin
+      // and the amount arrive (count-up, a few small coins, a glow pulse).
+      card.classList.add("is-letter");
+      el.querySelector(".tc-env-msg").hidden = true;
+      sfx.waxSnap();
+      at(120, () => sfx.flapOpen());
+      at(430, () => { const sc = el.querySelector(".tc-env-scroll"); sc.hidden = false; requestAnimationFrame(() => sc.classList.add("is-open")); sfx.unroll(); });
+      at(1350, () => { el.querySelector(".tc-env-scroll-stamp")?.classList.add("is-pressed"); sfx.stamp(); });
+      at(1620, () => {
+        sfx.letterCoins();
+        const amt = el.querySelector(".tc-env-amount"), t0 = performance.now();
+        const step = now => { const k = Math.min(1, (now - t0) / 600); amt.textContent = `+${Math.round(n * (1 - Math.pow(1 - k, 3))).toLocaleString(lang)}`; if (k < 1 && el.isConnected) requestAnimationFrame(step); };
+        if (!calm) requestAnimationFrame(step);
+        const burst = el.querySelector(".tc-env-burst");
+        for (let i = 0; !calm && i < 5; i++) {
+          const c = document.createElement("img");
+          c.className = "tcc-coin tc-letter-coin"; c.src = "../assets/img/tigercoins/coin.webp"; c.alt = "";
+          const ang = (-150 + i * 30) * Math.PI / 180, dist = 26 + Math.random() * 14;
+          c.style.cssText = `--dx:${(Math.cos(ang) * dist).toFixed(0)}px;--dy:${(Math.sin(ang) * dist).toFixed(0)}px;--rot:${(Math.random() * 240 - 120).toFixed(0)}deg;--d:${(i * 0.04).toFixed(2)}s;--s:.32`;
+          burst.appendChild(c);
+        }
+      });
+      at(2200, () => { const rb = el.querySelector(".tc-env-report"); if (rb) rb.hidden = false; });
     };
     if (env.result) reveal(env.result);
     // Give to a friend: the friends (today's allowance on top), one picked, a held button sends.

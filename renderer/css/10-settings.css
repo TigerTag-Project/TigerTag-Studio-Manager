@@ -648,6 +648,12 @@
 .sb-squad-pill.fvb-squad { margin-top: 0; align-self: center; height: 20px; box-sizing: border-box; padding: 0 8px; font-size: 10px; gap: 4px; }
 /* TigerSquad heart on a friend's avatar corner (avatarMarkup wraps the avatar). */
 .av-squad-host { position: relative; display: inline-flex; flex-shrink: 0; }
+/* `av-fill`: the friends bar's avatar (userAvatar), filling its container — the
+   container sets the size and the initials' font-size (the send and freeze
+   windows' friends, a friend's envelope seal, the letter's stamp). */
+.av-fill { position: relative; width: 100%; height: 100%; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: inherit; font-weight: 700; color: var(--on-accent); letter-spacing: -.5px; overflow: hidden; }
+.av-squad-host:has(> .av-fill) { display: block; width: 100%; height: 100%; }
 .av-squad-heart {
   position: absolute; right: -2px; bottom: -2px; width: 38%; min-width: 13px; max-width: 18px; aspect-ratio: 1;
   border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; pointer-events: none;
