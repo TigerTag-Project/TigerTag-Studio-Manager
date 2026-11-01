@@ -512,16 +512,21 @@ export function showSendCoins(ctx, send) {
   const body = el.querySelector(".tcs-body"), actions = el.querySelector(".tcs-actions"), err = el.querySelector(".tc-code-err");
   const friendOf = uid => members.find(f => f.uid === uid);
   const maxNow = () => Math.max(0, Math.min(balance, quota.left || 0));
+  // At least minAmount coins per envelope, one envelope a day to the same friend
+  // (the backend's TRANSFER.minAmount / sentToday; 20 when an older server says nothing).
+  const minAmt = () => quota.minAmount ?? 20;
+  const sentToday = uid => (quota.sentToday || []).includes(uid);
   let resolveOut;
   const finish = how => { el.classList.remove("is-open"); setTimeout(() => el.remove(), 200); resolveOut?.(how); };
 
   // What is missing or wrong — "Send" stays pressable and says it in a bubble on
   // the part to fix (a friend, the amount, the message).
-  const why = () => !picked ? t("questsFreezePickFriend") : amount < 1 ? t("coinsSendPickAmount")
+  const why = () => !picked ? t("questsFreezePickFriend") : sentToday(picked) ? t("coinsSendErrToday", { name: friendOf(picked)?.name || "" })
+    : amount < 1 ? t("coinsSendPickAmount") : amount < minAmt() ? t("coinsSendMin", { n: minAmt() })
     : amount > (quota.left || 0) ? t("coinsSendErrLimit") : amount > balance ? t("questsFreezeNeedCoins", { n: amount - balance })
     : !message.trim() ? t("coinsSendNeedMessage") : "";
-  const whereToFix = () => !picked ? body.querySelector(".tcs-row") || body
-    : amount < 1 || amount > Math.min(balance, quota.left || 0) ? body.querySelector(".tcs-hero") : body.querySelector(".tcs-msg-paper");
+  const whereToFix = () => !picked || sentToday(picked) ? body.querySelector(".tcs-row") || body
+    : amount < minAmt() || amount > Math.min(balance, quota.left || 0) ? body.querySelector(".tcs-hero") : body.querySelector(".tcs-msg-paper");
   const explain = () => {
     const w = why(); if (!w) return false;
     const spot = whereToFix();
@@ -548,17 +553,18 @@ export function showSendCoins(ctx, send) {
   };
   const render = () => {
     err.hidden = true;
-    const tile = f => `<button type="button" role="radio" aria-checked="${picked === f.uid}" class="tcs-f" data-to="${esc(f.uid)}" data-name="${esc(f.name)}">
-        <span class="tcs-f-av">${f.avatar}</span><span class="tcs-f-name">${esc(f.name)}</span></button>`;
+    // A friend already sent an envelope today waits until tomorrow (greyed, "Sent today").
+    const tile = f => `<button type="button" role="radio" aria-checked="${picked === f.uid}" class="tcs-f${sentToday(f.uid) ? " is-sent-today" : ""}" data-to="${esc(f.uid)}" data-name="${esc(f.name)}"${sentToday(f.uid) ? " disabled" : ""}>
+        <span class="tcs-f-av">${f.avatar}</span><span class="tcs-f-name">${esc(f.name)}</span>${sentToday(f.uid) ? `<small class="tcs-f-today">${esc(t("coinsSendTodayDone"))}</small>` : ""}</button>`;
     body.innerHTML = `
       ${members.length > 8 ? searchHtml(esc, { attr: "data-tcs-q", placeholder: t("friendsSearch"), cls: "tc-give-search" }) : ""}
       ${members.length ? `<div class="tcs-row" role="radiogroup" aria-label="${esc(t("envGivePick"))}">${members.map(tile).join("")}</div>`
         : `<p class="tc-give-left">${esc(t(send.friends.length ? "coinsSendNoMember" : "envGiveNoFriends"))}</p>`}
       <label class="tcs-hero is-zero">
-        <input class="tcs-amount-input" type="number" inputmode="numeric" min="1" max="${maxNow()}" step="1" placeholder="0" aria-label="${esc(t("coinsSendAmount"))}">
+        <input class="tcs-amount-input" type="number" inputmode="numeric" min="${minAmt()}" max="${maxNow()}" step="1" placeholder="${minAmt()}" aria-label="${esc(t("coinsSendAmount"))}">
         <img class="tcs-hero-coin" src="../assets/img/tigercoins/coin.webp" alt="" aria-hidden="true">
       </label>
-      <div class="tcs-quick">${[10, 25, 50, 100].filter(q => q <= maxNow()).map(q => `<button type="button" class="tcs-q" data-q="${q}" aria-pressed="false">${fmt(q)}</button>`).join("")}
+      <div class="tcs-quick">${[20, 50, 100, 200].filter(q => q >= minAmt() && q <= maxNow()).map(q => `<button type="button" class="tcs-q" data-q="${q}" aria-pressed="false">${fmt(q)}</button>`).join("")}
         ${maxNow() ? `<button type="button" class="tcs-q" data-q="max" aria-pressed="false">${esc(t("coinsSendMax"))}</button>` : ""}</div>
       <p class="tcs-avail"><img src="../assets/img/tigercoins/coin.webp" alt="" aria-hidden="true">${esc(t("coinsSendAvail", { balance: fmt(balance), left: fmt(quota.left || 0), max: fmt(quota.max || 0), tier: quota.tierLabel || "" }))}</p>
       <p class="tcs-fee" hidden></p>
@@ -592,7 +598,9 @@ export function showSendCoins(ctx, send) {
     } catch (e) {
       const code = e?.message;
       err.textContent = t({ SEND_LIMIT: "coinsSendErrLimit", NOT_ENOUGH_COINS: "questsFreezeErrCoins", FRIENDS_TOO_RECENT: "coinsSendErrRecent",
-        FRIEND_NOT_IN_SQUAD: "coinsSendNotMember", NOT_FRIENDS: "questsFreezeErrFriends", MESSAGE_REQUIRED: "coinsSendNeedMessage" }[code] || "squadDealsErr", { n: quota.minFriendDays ?? 7 });
+        FRIEND_NOT_IN_SQUAD: "coinsSendNotMember", NOT_FRIENDS: "questsFreezeErrFriends", MESSAGE_REQUIRED: "coinsSendNeedMessage",
+        SEND_MIN: "coinsSendMin", SENT_TODAY: "coinsSendErrToday" }[code] || "squadDealsErr",
+        { n: code === "SEND_MIN" ? minAmt() : quota.minFriendDays ?? 7, name: friendOf(picked)?.name || "" });
       err.hidden = false; go.disabled = false;
     }
   };

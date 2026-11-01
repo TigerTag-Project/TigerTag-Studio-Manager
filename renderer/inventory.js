@@ -40700,6 +40700,11 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         items.push({ kind: "system", at, html: card({ ...base, kind: "system", accent: NOTIF_ACCENT.report, art: icon("suggestion", ` notif-ic--req notif-ic--req-${esc(st)}`),
           title: t(`notifReq_${st}`, { n: n.data?.number || "" }), text: n.data?.title || "",
           act: { id: "report", arg: n.data?.reportId || "", icon: "chat", label: t("notifActDiscussion") } }) });
+      } else if (n.type === "request_new") {
+        // TigerMasters / admins: a member just sent a request (reportIssue.js).
+        items.push({ kind: "requests", at, html: card({ ...base, kind: "requests", accent: NOTIF_ACCENT.report, art: icon("suggestion", " notif-ic--req notif-ic--req-open"),
+          title: t("notifReqNew", { n: n.data?.number || "" }), text: n.data?.title || "",
+          act: { id: "teamReport", arg: n.data?.reportId || "", icon: "chat", label: t("notifActDiscussion") } }) });
       } else if ((n.action || "") === "lowstock") {
         // Older low-stock notices stored the desktop's local /img-cache/ path — only that desktop can show it.
         const img = !HAS_NATIVE && String(n.data?.img || "").startsWith("/img-cache/") ? "" : n.data?.img;
@@ -40747,8 +40752,10 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       ["envelopes", `<img src="../assets/img/tigercoins/envelope.webp" alt="">`, "notifTabEnvelopes"],
       ["squad", `<span class="icon icon-star-fill icon-12"></span>`, "notifTabSquad"],
       ["system", `<span class="icon icon-settings icon-12"></span>`, "notifTabSystem"],
-      ["stock", `<span class="icon icon-cart icon-12"></span>`, "notifTabStock"]];
-    const tabsHtml = `<div class="nc-tabs" role="tablist">${TABS.map(([k, ic, key]) => { const c = freshOf(k);
+      ["stock", `<span class="icon icon-cart icon-12"></span>`, "notifTabStock"],
+      // The new requests, for the team only (TigerMasters and admins).
+      ...(state.isAdmin || state.isTigerMaster ? [["requests", `<span class="icon icon-suggestion icon-12"></span>`, "notifTabRequests"]] : [])];
+    const tabsHtml = `<div class="nc-tabs${TABS.length > 5 ? " nc-tabs--grid" : ""}" role="tablist">${TABS.map(([k, ic, key]) => { const c = freshOf(k);
       return `<button type="button" role="tab" class="nc-tab${tab === k ? " is-on" : ""}" data-nc-tab="${k}" aria-selected="${tab === k}">${ic}<span>${esc(t(key))}</span>${c ? `<b>${c}</b>` : ""}</button>`; }).join("")}</div>`;
     // Day groups, newest first; the local notices sit in "today".
     const dayStart = d => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x.getTime(); };
@@ -40782,6 +40789,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         case "friend": { const f = (state.friends || []).find(x => x.uid === arg); switchToFriendView(arg, f?.displayName || "", f?.color || null); break; }
         case "whatsnew": openWhatsNew(arg || undefined, { manual: true }); break;
         case "report": openReport({ tab: "mine", thread: arg || null }); break;   // straight into that request's conversation
+        case "teamReport": openReport({ tab: "all", thread: arg || null }); break;   // the team: the new request, answerable
         case "community": _openCommunityLink(arg); break;
         case "order": setViewMode("order"); break;
         case "quests": setViewMode("questsToday"); break;

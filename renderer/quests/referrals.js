@@ -22,7 +22,7 @@
  */
 import { backfire } from "./coin-pull.js";
 import { sfx } from "./coin-sound.js";
-import { heroHtml } from "./ui-kit.js";
+import { heroHtml, infoTipHtml } from "./ui-kit.js";
 
 const URL_BASE = "https://us-central1-tigertag-connect.cloudfunctions.net/referrals";
 const ART = "../assets/img/";
@@ -36,7 +36,7 @@ const NETS = [
 // Validated referrals → the next trophy (trophyRules.js COUNTERS.referrals; 25 and 50 are hidden).
 const STEPS = [1, 5, 10];
 
-let _ctx = null, _uid = null, _status = null, _busy = false, _prefill = "", _celebrating = false, _loading = false;
+let _ctx = null, _uid = null, _status = null, _busy = false, _prefill = "", _celebrating = false, _loading = false, _more = false, _msg = false;
 
 export function initReferrals(ctx) { _ctx = ctx; }
 export const referralStatus = () => _status;
@@ -163,21 +163,31 @@ export function renderInviteView(host) {
   const s = _status;
   // No status yet (the launch call failed or is still out): ask again, once at a time.
   if (!s && _uid && !_loading) { _loading = true; call("status").catch(e => console.warn("[referrals] status", e.message)).finally(() => { _loading = false; }); }
-  const sig = JSON.stringify([_uid, s, _prefill, _busy, t("referralTitle")]);
+  const sig = JSON.stringify([_uid, s, _prefill, _busy, _more, _msg, t("referralTitle")]);
   if (host._rfSig === sig && host.childElementCount) return;
   host._rfSig = sig;
-  const link = shareLink(), validated = s?.validated || 0;
+  const link = shareLink(), validated = s?.validated || 0, envs = s?.cfg?.envelopes || 3;
   const next = STEPS.find(n => n > validated);
-  const side = `<div class="sqr-card rf-hero-card" role="group" aria-label="${esc(t("referralCount", { n: validated }))}">
+  const pct = next ? Math.round((validated / next) * 100) : 100;
+  // Right of the banner: the reward as objects (the envelope picture ×n each), then the progress
+  // card — friends who joined and the bar to the next trophy (the Workshop's .sqr-bar).
+  const side = `<div class="rf-hero-envs" aria-label="${esc(t("referralEnvsEach", { n: envs }))}">
+      ${`<img src="${ART}tigercoins/envelope.webp" alt="" aria-hidden="true">`.repeat(Math.min(envs, 3))}
+      <b>${esc(t("referralEnvsEach", { n: envs }))}</b></div>
+    <div class="sqr-card rf-hero-card" role="group" aria-label="${esc(t("referralCardTitle", { n: validated }))}">
+      <span class="rf-hero-lbl">${esc(t("referralCardTitle", { n: validated }))}${infoTipHtml(esc, t("referralCardHint"), { size: 12 })}</span>
       <b class="trp-hero-n">${validated}</b>
-      <span>${esc(t("referralCountLabel", { n: validated }))}</span>
-      ${next ? `<small>${esc(t("referralNextTrophy", { n: next - validated }))}</small>` : ""}
+      <span class="sqr-bar" aria-hidden="true"><i style="width:${pct}%"></i></span>
+      ${next ? `<small>${esc(t("referralCardNext", { a: validated, b: next }))}</small>` : ""}
     </div>`;
-  // Each network as a labelled button (the list share row's colours): the name says where it goes.
-  const nets = NETS.map(([id, icon, cls, label]) =>
-    `<button type="button" class="rf-net" data-rf-net="${id}"><span class="lv-social lv-social--${cls}" aria-hidden="true"><span class="icon icon-${icon}"></span></span>${esc(label)}</button>`).join("");
-  const qr = link ? _ctx.qr(link, { size: 240, margin: 2 }) : "";
-  const envs = s?.cfg?.envelopes || 3;
+  // The three main ways to share as named buttons; the other networks one row lower, under "Other networks".
+  const net = ([id, icon, cls, label]) =>
+    `<button type="button" class="rf-net" data-rf-net="${id}"><span class="lv-social lv-social--${cls}" aria-hidden="true"><span class="icon icon-${icon}"></span></span>${esc(id === "discord" ? t("referralDiscordCopy") : label)}</button>`;
+  const MAIN = ["whatsapp", "discord", "email"];
+  const mainNets = NETS.filter(n => MAIN.includes(n[0])).map(net).join("");
+  const otherNets = NETS.filter(n => !MAIN.includes(n[0])).map(net).join("");
+  // The QR stays in view: the friend standing next to you scans the screen.
+  const qr = link ? _ctx.qr(link, { size: 280, margin: 2 }) : "";
   // "Who invited you?" — only while this account may still claim: a banner on top, apart from the sharing.
   const claimCard = s?.claim?.canClaim ? `
     <section class="rf-card rf-claim">
@@ -195,38 +205,54 @@ export function renderInviteView(host) {
     </section>` : "";
   const list = s?.invitees?.length
     ? `<ul class="rf-list">${s.invitees.map(stateRow).join("")}</ul>`
-    : `<p class="rf-empty">${esc(t("referralNoInvitees"))}</p>`;
-  // How it works, in three steps — what to do and when the envelopes come.
-  const steps = [["send", 1], ["download", 2], ["mail", 3]].map(([icon, n]) => `
-    <li class="rf-step"><span class="rf-step-ic"><span class="icon icon-${icon} icon-16" aria-hidden="true"></span></span>
-      <span class="rf-row-txt"><b>${esc(t(`referralStep${n}`))}</b><small>${esc(t(`referralStep${n}Sub`, { n: envs }))}</small></span></li>`).join("");
+    : `<p class="rf-empty"><b>${esc(t("referralNoInvitees"))}</b> ${esc(t("referralNoInviteesSub"))}</p>`;
+  // How it works, in three steps — compact, under the sharing.
+  const steps = [["send", 1], ["user", 2], ["mail", 3]].map(([icon, n]) => `
+    <li class="rf-step"><span class="rf-step-ic"><span class="icon icon-${icon} icon-14" aria-hidden="true"></span></span>
+      <span class="rf-row-txt"><b>${n}. ${esc(t(`referralStep${n}`))}</b><small>${esc(t(`referralStep${n}Sub`, { n: envs }))}</small></span></li>`).join("");
   host.innerHTML = `
-    ${heroHtml(esc, { cls: "sqr-hero rf-hero", eyebrow: t("squadBrand"), title: t("referralTitle", { n: envs }), sub: t("referralTagline", { n: envs }), side })}
+    ${heroHtml(esc, { cls: "sqr-hero rf-hero", eyebrow: t("squadBrand"), title: t("referralTitle"), sub: t("referralTagline", { n: envs }), side })}
     ${!s ? `<div class="trp-loading">${esc(t("questsLoading"))}</div>` : `
     ${claimCard}${mine}
-    <ol class="rf-steps">${steps}</ol>
     <section class="rf-card rf-share">
       <div class="rf-share-main">
-        <div class="rf-code-row"><span class="rf-code-lbl">${esc(t("referralYourCode"))}</span>
-          <b class="rf-code-big">${esc(s.code || "—")}</b>
-          <button type="button" class="lv-public-copy" data-rf-copy-code><span class="icon icon-copy icon-13" aria-hidden="true"></span><span>${esc(t("referralCopy"))}</span></button></div>
-        <div class="rf-link-row"><input class="dns-input" readonly value="${esc(link)}" aria-label="${esc(t("referralLinkTitle"))}">
-          <button type="button" class="lv-public-copy" data-rf-copy><span class="icon icon-link icon-13" aria-hidden="true"></span><span>${esc(t("referralCopyLink"))}</span></button></div>
-        <div class="rf-nets">${nets}</div>
-        <p class="rf-msg">${esc(t("referralMsgPreview", { msg: shareText() }))}</p>
+      <h3><span class="icon icon-link icon-16" aria-hidden="true"></span>${esc(t("referralLinkTitle"))}</h3>
+      <div class="rf-link-row"><input class="dns-input" readonly value="${esc(link)}" aria-label="${esc(t("referralLinkTitle"))}">
+        <button type="button" class="sqd-open rf-copy-main" data-rf-copy><span class="icon icon-copy icon-13" aria-hidden="true"></span><span data-rf-copy-lbl>${esc(t("referralCopyMyLink"))}</span></button></div>
+      <div class="rf-nets"><span class="rf-via">${esc(t("referralShareVia"))}</span>${mainNets}
+        <button type="button" class="rf-more" data-rf-more aria-expanded="${_more}">${esc(t(_more ? "referralLess" : "referralMore"))}<span class="icon icon-chevron-r icon-12" aria-hidden="true"></span></button></div>
+      ${_more ? `<div class="rf-nets rf-nets-more">${otherNets}</div>` : ""}
+      <button type="button" class="rf-more rf-msg-tg" data-rf-msg aria-expanded="${_msg}">${esc(t(_msg ? "referralMsgHide" : "referralMsgShow"))}<span class="icon icon-chevron-r icon-12" aria-hidden="true"></span></button>
+      ${_msg ? `<div class="rf-msg-box"><b>${esc(t("referralMsgTitle"))}</b>
+        <p class="rf-msg">${esc(shareText())} ${esc(link)}</p>
+        <button type="button" class="rf-qr-dl" data-rf-msg-copy><span class="icon icon-copy icon-13" aria-hidden="true"></span>${esc(t("referralMsgCopy"))}</button></div>` : ""}
+      <p class="rf-code-row">${esc(t("referralOrCode"))} <b class="rf-code-big">${esc(s.code || "—")}</b>
+        <button type="button" class="rf-qr-dl" data-rf-copy-code><span class="icon icon-copy icon-13" aria-hidden="true"></span>${esc(t("referralCopyCode"))}</button>
+        <small>${esc(t("referralCodeInLink"))}</small></p>
       </div>
-      ${qr ? `<div class="rf-qr">
+      ${qr ? `<div class="rf-qr"><b class="rf-qr-title">${esc(t("referralQrTitle"))}</b>
         <img class="lv-public-qr" src="${esc(qr)}" alt="">
         <small>${esc(t("referralQrHint"))}</small>
-        <button type="button" class="rf-qr-dl" data-rf-qr><span class="icon icon-download icon-13" aria-hidden="true"></span>${esc(t("referralQrDownload"))}</button>
-      </div>` : ""}
+        <span class="rf-qr-acts"><button type="button" class="rf-qr-dl" data-rf-qr-big><span class="icon icon-search icon-13" aria-hidden="true"></span>${esc(t("referralQrBig"))}</button>
+        <button type="button" class="rf-qr-dl rf-qr-dl--soft" data-rf-qr><span class="icon icon-download icon-13" aria-hidden="true"></span>${esc(t("referralQrDownload"))}</button></span></div>` : ""}
     </section>
+    <ol class="rf-steps">${steps}</ol>
     <section class="rf-card">
       <h3><span class="icon icon-user icon-16" aria-hidden="true"></span>${esc(t("referralMyInvitees"))}</h3>
       ${list}
     </section>`}`;
   host.querySelector("[data-rf-copy-code]")?.addEventListener("click", e => _ctx.copy(s.code, e.currentTarget));
-  host.querySelector("[data-rf-copy]")?.addEventListener("click", e => _ctx.copy(link, e.currentTarget));
+  // The main button says it worked, in place ("Link copied!"), then goes back.
+  host.querySelector("[data-rf-copy]")?.addEventListener("click", async e => {
+    const b = e.currentTarget, lbl = b.querySelector("[data-rf-copy-lbl]");
+    await _ctx.copy(link, b);
+    lbl.textContent = t("referralLinkCopied");
+    clearTimeout(b._rfT); b._rfT = setTimeout(() => { lbl.textContent = t("referralCopyMyLink"); }, 1600);
+  });
+  host.querySelector("[data-rf-more]")?.addEventListener("click", () => { _more = !_more; renderInviteView(host); });
+  host.querySelector("[data-rf-msg]")?.addEventListener("click", () => { _msg = !_msg; renderInviteView(host); });
+  host.querySelector("[data-rf-msg-copy]")?.addEventListener("click", e => _ctx.copy(`${shareText()} ${link}`, e.currentTarget));
+  host.querySelector("[data-rf-qr-big]")?.addEventListener("click", () => showQrWindow(link));
   host.querySelectorAll("[data-rf-net]").forEach(b => b.addEventListener("click", () => share(b.dataset.rfNet, b)));
   host.querySelector("[data-rf-qr]")?.addEventListener("click", () => {
     const a = document.createElement("a");
@@ -250,6 +276,29 @@ function share(net, button) {
   if (net === "discord") { _ctx.copy(`${text} ${link}`, button, _ctx.t("referralDiscordCopied")); return; }   // no share URL: paste it in a server
   const url = _ctx.shareUrl(net, link, text);
   if (url) _ctx.openExternal(url);
+}
+
+/* "Enlarge": the QR big enough to scan from across a table, on the ceremony's window frame. */
+function showQrWindow(link) {
+  const { t, esc } = _ctx;
+  const el = document.createElement("div");
+  el.className = "tc-reveal tc-envm qfs rf-win rf-qr-win";
+  el.innerHTML = `
+    <div class="tc-reveal-card tc-code-card tcx tcx--help tc-env-card qfs-card is-done" role="dialog" aria-modal="true" aria-label="${esc(t("referralQrTitle"))}">
+      <div class="tcx-main">
+        <div class="tcx-plaque"><h3>${esc(t("referralQrTitle"))}</h3></div>
+        <img class="lv-public-qr rf-qr-xl" src="${esc(_ctx.qr(link, { size: 640, margin: 3 }))}" alt="">
+        <p class="qfs-line">${esc(t("referralQrHint"))}</p>
+        <div class="tc-reveal-actions"><button type="button" class="sqd-open sqd-wide qfm-go qfs-ok"><span class="qfm-go-txt"><span>${esc(t("tutoClose"))}</span></span></button></div>
+      </div>
+    </div>`;
+  document.body.appendChild(el);
+  requestAnimationFrame(() => el.classList.add("is-open"));
+  const close = () => { el.classList.remove("is-open"); setTimeout(() => el.remove(), 200); };
+  el.addEventListener("mousedown", e => { if (e.target === el) close(); });
+  el.addEventListener("keydown", e => { if (e.key === "Escape") close(); });
+  el.querySelector(".qfs-ok").addEventListener("click", close);
+  setTimeout(() => el.querySelector(".qfs-ok")?.focus({ preventScroll: true }), 200);
 }
 
 /* The ceremony (.agents/rules/ui-ux-defaults.md "Big moments"): a validated

@@ -2353,6 +2353,10 @@ body.progress-view #gridSortWrap { display: none; }
 .tcs-f-name { transition: transform .15s; }
 .tcs-row:has(.tcs-f[aria-checked="true"]) .tcs-f:not([aria-checked="true"]) { opacity: .5; }
 .tcs-row:has(.tcs-f[aria-checked="true"]) .tcs-f:not([aria-checked="true"]):hover { opacity: .85; }
+/* Already sent an envelope today: greyed until tomorrow, with a small "Sent today". */
+.tcs-f.is-sent-today { cursor: default; opacity: .45; filter: grayscale(.8); }
+.tcs-f.is-sent-today .tcs-f-av { transform: none; box-shadow: none; }
+.tcs-f-today { font-size: 10px; font-weight: 700; color: var(--tsq-muted, #8f97b3); }
 .tcs-f.tcs-f { transition: opacity .15s; }
 /* The amount, hero: a big embossed gold number and the tiger coin, a warm glow and a light streak. */
 .tcs-hero { position: relative; display: flex; align-items: center; justify-content: center; gap: 14px; padding: 2px 0 10px; cursor: text;

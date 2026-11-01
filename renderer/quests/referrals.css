@@ -5,8 +5,16 @@
 
 /* Banner: the Deals frame, no scene yet (its art is still to be validated). */
 .sqr-hero.rf-hero { --hero-scene: none; --hero-front: none; --hero-sink: 4px; }
-.sqr-card.rf-hero-card { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 150px; padding: 10px 14px; color: var(--on-dark); }
+.sqr-card.rf-hero-card { display: flex; flex-direction: column; align-items: stretch; gap: 6px; min-width: 170px; padding: 10px 14px; color: var(--on-dark); }
+.rf-hero-lbl { display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; color: var(--on-dark); }
+.rf-hero-lbl .ui-info .icon { background-color: var(--on-dark); opacity: .7; }
 .rf-hero-card small { color: var(--on-dark); opacity: .75; }
+.rf-hero-card .sqr-bar i { display: block; height: 100%; background: var(--tsq-orange); }
+/* The reward as objects, before the card: the envelopes in a small fan + "×3 each". */
+.rf-hero-envs { position: relative; z-index: 1; align-self: center; display: flex; align-items: center; margin: 0 auto; padding: 0 14px; }
+.rf-hero-envs img { width: 54px; aspect-ratio: 1; object-fit: contain; margin-left: -22px; filter: drop-shadow(0 6px 10px rgba(0, 0, 0, .45)); }
+.rf-hero-envs img:nth-child(1) { rotate: -12deg; margin-left: 0; } .rf-hero-envs img:nth-child(3) { rotate: 12deg; }
+.rf-hero-envs b { margin-left: 10px; font: 800 18px var(--qw-mono, monospace); color: var(--on-dark); text-shadow: 0 1px 2px rgba(0, 0, 0, .55); white-space: nowrap; }
 
 .rf-card { border: 1px solid var(--tsq-line); border-radius: 14px; background: var(--tsq-card); padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
 .rf-card h3 { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 15px; color: var(--tsq-text); }
@@ -19,25 +27,44 @@
 
 /* How it works: three steps in a row. */
 .rf-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-.rf-step { display: flex; align-items: center; gap: 10px; border: 1px solid var(--tsq-line); border-radius: 14px; background: var(--tsq-card); padding: 12px 14px; }
-.rf-step-ic { flex: 0 0 auto; width: 34px; aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center; background: color-mix(in srgb, var(--tsq-orange) 18%, transparent); }
+.rf-step { display: flex; align-items: center; gap: 10px; border: 1px solid var(--tsq-line); border-radius: 12px; background: var(--tsq-card); padding: 8px 12px; }
+.rf-step-ic { flex: 0 0 auto; width: 28px; aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center; background: color-mix(in srgb, var(--tsq-orange) 18%, transparent); }
 .rf-step-ic .icon { background-color: var(--tsq-orange); }
 .rf-step .rf-row-txt small { white-space: normal; }
 
 /* Sharing: the code, the link, the networks by name, the message, the QR on the right. */
-.rf-share.rf-card { flex-direction: row; align-items: center; gap: 18px; }
-.rf-share-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
-.rf-code-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.rf-code-lbl { font-size: 13px; color: var(--tsq-muted); }
-.rf-code-big { font: 800 26px var(--qw-mono, monospace); letter-spacing: 3px; color: var(--tsq-text); }
-.rf-nets { display: flex; flex-wrap: wrap; gap: 6px; }
+.rf-copy-main.sqd-open { height: auto; padding: 9px 16px; font-size: 13.5px; white-space: nowrap; }
+.rf-code-row.rf-code-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; color: var(--tsq-muted); }
+.rf-code-big { font: 800 15px var(--qw-mono, monospace); letter-spacing: 2px; color: var(--tsq-text); }
+.rf-code-row small { flex-basis: 100%; font-size: 11px; }
+.rf-nets { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.rf-via { font-size: 13px; color: var(--tsq-muted); margin-right: 2px; }
+.rf-more.rf-more { height: auto; display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border: 0; background: none; color: var(--tsq-muted); font-size: 13px; font-weight: 600; cursor: pointer; }
+.rf-more:hover { color: var(--tsq-text); }
+.rf-more .icon { background-color: currentColor; rotate: 90deg; transition: rotate .2s ease; }
+.rf-more[aria-expanded="true"] .icon { rotate: -90deg; }
+/* The share card: everything on one left edge, the QR in a narrow column on the right. */
+.rf-card.rf-share { flex-direction: row; align-items: stretch; gap: 18px; }
+.rf-share-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+.rf-share-main > .rf-link-row { align-self: stretch; }
+.rf-more.rf-more { margin-left: -10px; }
+.rf-nets .rf-more.rf-more { margin-left: 0; }
+.rf-msg-box { align-self: stretch; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 10px 12px; border-radius: 10px; background: var(--surface-2); }
+.rf-msg-box b { font-size: 12px; color: var(--tsq-muted); }
+@media (prefers-reduced-motion: no-preference) { .rf-nets-more, .rf-msg-box { animation: rf-open .2s ease-out; } }
+@keyframes rf-open { from { opacity: 0; translate: 0 -4px; } }
 .rf-net.rf-net { height: auto; display: inline-flex; align-items: center; gap: 7px; padding: 4px 12px 4px 4px; border-radius: 999px; border: 1px solid var(--tsq-line); background: var(--surface-2); color: var(--tsq-text); font-size: 13px; font-weight: 600; cursor: pointer; }
 .rf-net:hover { border-color: var(--tsq-orange); }
 .rf-net .lv-social { width: 24px; height: 24px; }
 .rf-net .lv-social .icon { width: 12px; height: 12px; }
-.rf-msg.rf-msg { font-size: 12px; font-style: italic; }
-.rf-qr { flex: 0 0 150px; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; }
-.rf-qr .lv-public-qr { width: 130px; border-radius: 8px; }
+.rf-msg.rf-msg { font-size: 13px; line-height: 1.45; color: var(--tsq-text); }
+.rf-qr { flex: 0 0 190px; display: flex; flex-direction: column; align-items: center; gap: 6px; padding-left: 18px; border-left: 1px solid var(--tsq-line); text-align: center; }
+.rf-qr-title { font-size: 14px; color: var(--tsq-text); }
+.rf-qr .lv-public-qr { width: 136px; height: auto; aspect-ratio: 1; border-radius: 8px; }
+.rf-qr-acts { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.rf-qr-dl--soft.rf-qr-dl--soft { color: var(--tsq-muted); font-weight: 500; }
+.rf-qr-dl--soft .icon { background-color: var(--tsq-muted); }
+.rf-qr-xl.rf-qr-xl { width: min(340px, 70vw); height: auto; aspect-ratio: 1; margin: 12px auto 4px; display: block; }
 .rf-qr small { font-size: 11px; color: var(--tsq-muted); }
 .rf-qr-dl.rf-qr-dl { height: auto; display: inline-flex; align-items: center; gap: 5px; padding: 0; border: 0; background: none; color: var(--tsq-orange); font-size: 12px; font-weight: 600; cursor: pointer; }
 .rf-qr-dl .icon { background-color: var(--tsq-orange); }
@@ -67,6 +94,7 @@
 .rf-pill--validated { background: var(--success); color: var(--on-accent); }
 .rf-pill--pending { background: color-mix(in srgb, var(--tsq-orange) 22%, transparent); color: var(--tsq-orange); }
 .rf-empty { margin: 0; font-size: 13px; color: var(--tsq-muted); }
+.rf-empty b { color: var(--tsq-text); }
 
 /* Onboarding step 2: the optional field under the name. */
 .dns-ref { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
@@ -82,7 +110,7 @@
   .rf-win.is-open .rf-win-envs img:nth-child(2) { animation-delay: .12s; }
   .rf-win.is-open .rf-win-envs img:nth-child(3) { animation-delay: .24s; }
 }
-@media (max-width: 760px) { .rf-steps { grid-template-columns: 1fr; } .rf-share.rf-card { flex-direction: column; align-items: stretch; } }
+@media (max-width: 760px) { .rf-steps { grid-template-columns: 1fr; } .rf-card.rf-share { flex-direction: column; } .rf-qr { border-left: 0; padding-left: 0; border-top: 1px solid var(--tsq-line); padding-top: 12px; flex-basis: auto; } .rf-hero-envs { display: none; } }
 
 /* Entry points elsewhere: the sidebar friends list's last chip, the empty friends list. */
 .sb-friend-invite-ic.sb-friend-invite-ic { display: grid; place-items: center; background: transparent; border: 1.5px dashed var(--border); }

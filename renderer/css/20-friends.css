@@ -306,6 +306,8 @@
     background: var(--surface); }
   .nc-tab { flex: 1 0 auto; display: inline-flex; align-items: center; justify-content: center; gap: 5px; height: 32px; padding: 0 6px; border-radius: 10px; cursor: pointer;
     border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font-family: inherit; font-size: 11.5px; font-weight: 600; transition: background .15s, border-color .15s; }
+  /* Six tabs (the team's extra "Requests") do not fit one row: two rows of three. */
+  .nc-tabs.nc-tabs--grid { display: grid; grid-template-columns: repeat(3, 1fr); }
   .nc-tab:hover { border-color: var(--primary); }
   .nc-tab.is-on { background: var(--primary); border-color: var(--primary); color: var(--on-accent); }
   .nc-tab .icon { background: currentColor; }

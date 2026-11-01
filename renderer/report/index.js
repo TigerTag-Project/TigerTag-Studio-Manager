@@ -470,7 +470,8 @@ async function syncAll() {
   // The team also sees the TigerCoins envelope messages their recipients reported.
   if (ctx.isTeam?.()) { try { _all.msgReports = (await authedPost(MINE_ENDPOINT, { action: "messageReports" })).reports || []; } catch (_) { _all.msgReports = null; } }
   _all.loading = false;
-  if (isReportOpen() && _view === "all" && !_thread) render();
+  // The list also feeds the open count on the "All requests" tab: repaint any list view.
+  if (isReportOpen() && !_thread && (_view !== "new" || !kindOf(st?.kind))) render();
 }
 async function resolveThread(outcome) {
   const th = _thread;
@@ -562,7 +563,7 @@ function richText(s) {
     .replace(/(^|[\s(])(https?:\/\/[^\s<)]+)/g, (_, p, u) => p + link(u, u))
     .replace(/\n/g, "<br>");
 }
-function messageHTML(m) {
+function messageHTML(m, i) {
   if (m.from === "app") return `<div class="rep-msg-note">${esc(t("reportThreadClosedByYou"))}${m.at ? ` · ${esc(ctx.timeAgo(m.at))}` : ""}</div>`;
   const mine = m.from === "you";
   const who = mine ? t("reportThreadYou") : m.from === "reporter" ? t("reportThreadReporter")
@@ -574,7 +575,8 @@ function messageHTML(m) {
     <div class="rep-msg rep-msg--${esc(m.from)}">
       ${ava}
       <div class="rep-msg-bubble">
-        <div class="rep-msg-head"><b>${esc(who)}</b>${m.at ? `<span>${esc(ctx.timeAgo(m.at))}</span>` : ""}</div>
+        <div class="rep-msg-head"><b>${esc(who)}</b>${m.at ? `<span>${esc(ctx.timeAgo(m.at))}</span>` : ""}
+          ${m.text ? `<button type="button" class="rep-msg-copy" data-rep="copyMsg" data-i="${i}" aria-label="${esc(t("reportCopyMsg"))}"><span class="icon icon-copy icon-12"></span></button>` : ""}</div>
         ${m.text ? `<div class="rep-msg-text">${richText(m.text)}</div>` : ""}
         ${(m.files || []).length ? `<div class="rep-msg-files">${m.files.map(f => `<button type="button" class="rep-msg-file" data-rep="link" data-url="${esc(f.url)}"><span class="icon icon-${f.json ? "json" : "pdf"} icon-14"></span>${esc(f.name)}</button>`).join("")}</div>` : ""}
         ${(m.images || []).length ? `<div class="rep-msg-imgs">${m.images.map(u => `<button type="button" class="rep-msg-img" data-rep="link" data-url="${esc(u)}" aria-label="${esc(t("reportThreadImage"))}"><img src="${esc(u)}" alt="" loading="lazy"></button>`).join("")}</div>` : ""}
@@ -600,6 +602,7 @@ function threadHTML() {
   if (th.loading && !d) return `<div class="rep-card rep-thread">${head}<div class="rep-mine-empty">${esc(t("reportThreadLoading"))}</div></div>`;
   if (th.error && !d) return `<div class="rep-card rep-thread">${head}<div class="rep-mine-empty">${esc(t("reportThreadError"))}</div></div>`;
   const msgs = [{ from: d.mine ? "you" : "reporter", text: d.body, images: d.images, at: d.createdAt }, ...d.comments];
+  th.msgs = msgs;   // "Copy" reads the text back from here (to paste it into a translator)
   const answered = d.comments.some(c => c.from === "team" || c.from === "helper");
   // Who may close: the team (done / declined), the reporter (their own request);
   // a member reading someone else's request closes nothing.
@@ -707,6 +710,9 @@ export async function openReport(opts = {}) {
   if (!ctx) return;
   if (_mine.uid !== (ctx.getUid?.() || null)) _mine = { list: null, loading: false, error: false, uid: ctx.getUid?.() || null };
   if (opts.tab === "mine") { _view = "mine"; if (!opts.thread) _thread = null; syncReports(); }
+  const asTeam = opts.tab === "all" && !!ctx.isTeam?.();
+  if (asTeam) { _view = "all"; if (!opts.thread) _thread = null; syncAll(); }
+  else if (ctx.isTeam?.()) syncAll();   // the team sees how many are open before opening the tab
   _ensureCard();
   const dz = _overlay.querySelector(".rep-drop");
   dz.innerHTML = `<span class="icon icon-download icon-32"></span><span class="rep-drop-title">${esc(t("reportDropHere"))}</span><span class="rep-drop-sub">${esc(t("reportDropSub", { n: MAX_IMAGES }))}</span>`;
@@ -719,7 +725,7 @@ export async function openReport(opts = {}) {
   // Refreshed on every open: the view and the printers may have changed since.
   try { st.meta = await ctx.getMeta(); } catch (_) { st.meta = st.meta || {}; }
   _pinToSidebar();
-  if (opts.thread) openThread(opts.thread); else render();
+  if (opts.thread) openThread(opts.thread, { team: asTeam }); else render();
   // A card created just now has no computed "closed" position yet: read it
   // first, or the very first open would jump instead of sliding.
   void _overlay.getBoundingClientRect();
@@ -887,6 +893,13 @@ function onClick(e) {
   else if (act === "mineCloseYes") closeMine(a.dataset.id);
   else if (act === "again") { const meta = st.meta; st = freshState(); st.meta = meta; _view = "new"; render(); }
   else if (act === "seeMine") { const meta = st.meta; st = freshState(); st.meta = meta; _view = "mine"; render(); syncReports(); }
+  else if (act === "copyMsg") {
+    const m = _thread?.msgs?.[Number(a.dataset.i)];
+    if (m?.text) navigator.clipboard?.writeText(m.text).catch(() => {});
+    const ic = a.querySelector(".icon");
+    a.classList.add("is-copied"); ic?.classList.replace("icon-copy", "icon-check");
+    setTimeout(() => { a.classList.remove("is-copied"); ic?.classList.replace("icon-check", "icon-copy"); }, 1200);
+  }
   else if (act === "copyNum" && st.done?.number) {
     navigator.clipboard?.writeText(`#${st.done.number}`).catch(() => {});
     a.classList.add("is-copied"); setTimeout(() => a.classList.remove("is-copied"), 1200);
@@ -1188,6 +1201,7 @@ function render() {
   // 1 — Topic list / My requests
   if (!kindOf(st.kind) || _view === "mine" || _view === "all") {
     const openN = (_mine.list || []).filter(r => CLOSABLE.has(r.status)).length;
+    const allOpenN = (_all.list || []).filter(r => CLOSABLE.has(r.status)).length;
     const head = `
         ${closeX()}
         <div class="rep-hero">
@@ -1197,7 +1211,7 @@ function render() {
         <div class="rep-views" role="tablist">
           <button type="button" class="rep-view${_view === "new" ? " is-on" : ""}" data-rep="view" data-view="new" role="tab" aria-selected="${_view === "new"}"><span class="icon icon-suggestion icon-14"></span>${esc(t("reportTabNew"))}</button>
           <button type="button" class="rep-view${_view === "mine" ? " is-on" : ""}" data-rep="view" data-view="mine" role="tab" aria-selected="${_view === "mine"}"><span class="icon icon-clock icon-14"></span>${esc(t("reportTabMine"))}${openN ? `<span class="rep-view-count">${openN}</span>` : ""}</button>
-          <button type="button" class="rep-view${_view === "all" ? " is-on" : ""}" data-rep="view" data-view="all" role="tab" aria-selected="${_view === "all"}"><span class="icon icon-community icon-14"></span>${esc(t("reportTabAll"))}</button>
+          <button type="button" class="rep-view${_view === "all" ? " is-on" : ""}" data-rep="view" data-view="all" role="tab" aria-selected="${_view === "all"}"><span class="icon icon-community icon-14"></span>${esc(t("reportTabAll"))}${allOpenN ? `<span class="rep-view-count">${allOpenN}</span>` : ""}</button>
         </div>`;
     if ((_view === "mine" || _view === "all") && _thread) { paint("form", threadHTML()); return; }
     if (_view === "all") { paint("list", `<div class="rep-card">${head}${allHTML()}</div>`); return; }

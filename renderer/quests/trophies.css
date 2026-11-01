@@ -160,6 +160,21 @@
   animation: trp-gloss-sweep 4.5s cubic-bezier(.45, 0, .55, 1) infinite; }
 .trp-tilt.is-tilted .trp-gloss { opacity: .9; }
 @keyframes trp-gloss-sweep { 0% { background-position: 0 0, 130% 0; } 60%, 100% { background-position: 0 0, -30% 0; } }
+/* The open sticker: the same clear band crossing it as in the album, plus the
+   soft spot that follows the pointer. */
+.trp-sticker .trp-gloss { mix-blend-mode: screen; opacity: 1;
+  background: radial-gradient(circle at var(--gx, 30%) var(--gy, 25%), rgba(255, 255, 255, .35), rgba(255, 255, 255, 0) 40%),
+    linear-gradient(115deg, transparent 38%, rgba(255, 255, 255, .85) 49%, rgba(255, 255, 255, .35) 53%, transparent 62%) 0 0 / 250% 100% no-repeat; }
+/* The same light on every earned sticker of the album: the gloss lies exactly on
+   the art (its size and tilt), the sweeps staggered so the page shimmers. */
+.trp-gloss--tile { inset: auto; left: 50%; top: 50%; width: 108%; aspect-ratio: 1; translate: -50% -50%; transform: rotate(-6deg);
+  opacity: 1; mix-blend-mode: screen; transition: transform .25s cubic-bezier(.2, .8, .2, 1.4);
+  background: linear-gradient(115deg, transparent 38%, rgba(255, 255, 255, .85) 49%, rgba(255, 255, 255, .35) 53%, transparent 62%) 0 0 / 250% 100% no-repeat;
+  animation-name: trp-gloss-tile; }
+@keyframes trp-gloss-tile { 0% { background-position: 130% 0; } 55%, 100% { background-position: -30% 0; } }
+.trp-st:nth-child(3n + 2) .trp-gloss--tile { transform: rotate(5deg); }
+.trp-st:nth-child(3n) .trp-gloss--tile { transform: rotate(-2deg); }
+.trp-st.is-got:hover .trp-gloss--tile { transform: rotate(3deg) scale(1.08); opacity: 1; }
 @media (prefers-reduced-motion: reduce) { .trp-gloss { animation: none; } }
 /* A sticker still to win does not open. */
 .trp-st.is-locked { cursor: default; }

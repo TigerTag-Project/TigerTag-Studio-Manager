@@ -36,7 +36,7 @@ const ROWS = [
   ["comboMax", "flame", "epic", "trophies/stickers/comboMax.webp"],
   ["freezeSaved", "flame", "common", "quests/freeze/freeze.webp"],
   ["freezeSent", "flame", "common", "quests/freeze/freeze-gift.webp"],
-  ["freezeReceived", "flame", "common", "quests/freeze/freeze-gift-empty.webp"],
+  ["freezeReceived", "flame", "common", "quests/freeze/freeze-gift.webp"],
   ["freezeMelted", "flame", "uncommon", "quests/freeze/freeze-melt-5.webp", true],
   ["flameRelit", "flame", "rare", "trophies/stickers/flameRelit.webp"],
   ["freezeSent5", "flame", "uncommon", "trophies/stickers/freezeSent5.webp"],
@@ -226,7 +226,7 @@ function stickerHtml(x) {
   return `<button type="button" class="trp-st trp-t--${x.tier}${got ? " is-got" : " is-locked"}${secret ? " is-secret" : ""}" data-trophy="${esc(x.id)}" data-q="${esc(q)}"
       aria-label="${esc(`${name} — ${t(`trophyTier_${x.tier}`)} — ${got ? `${meta} — ` : ""}${hint}`)}">
     ${infoTipHtml(esc, p ? `${hint} · ${t("trophyOwnedPct", { p })}` : hint, { cls: "trp-st-info", size: 14 })}
-    <span class="trp-st-art" aria-hidden="true">${secret ? `<span class="trp-st-q">?</span>` : `<img src="${esc(x.art)}" alt="" loading="lazy" draggable="false">`}</span>
+    <span class="trp-st-art" aria-hidden="true">${secret ? `<span class="trp-st-q">?</span>` : `<img src="${esc(x.art)}" alt="" loading="lazy" draggable="false">`}${got ? `<span class="trp-gloss trp-gloss--tile" style="--art:url('${esc(artUrl(x.art))}');animation-delay:${((x.id.length * 7) % 9) * 0.5}s"></span>` : ""}</span>
     <b class="trp-st-name">${esc(name)}</b>
     <small class="trp-st-sub">${esc(meta)}</small>
   </button>`;
@@ -299,6 +299,10 @@ function applySearch(host) {
   if (none) none.hidden = !(_loaded && words.length && !shown);
 }
 
+// A url() inside a custom property resolves against the stylesheet that uses it
+// (renderer/quests/), not the page: the gloss's mask gets the art's absolute URL.
+const artUrl = src => { try { return new URL(src, document.baseURI).href; } catch (_) { return src; } };
+
 // ── The detail card ──────────────────────────────────────────────
 function openTrophyCard(id) {
   const x = allTrophies().find(y => y.id === id);
@@ -320,7 +324,7 @@ function openTrophyCard(id) {
     <div class="tcx-main">
       <div class="tcx-plaque"><h3>${esc(nameOf(x))}</h3></div>
       <span class="trp-card-tier">${esc(t(`trophyTier_${x.tier}`))} · ${esc(t(`trophyFamily_${x.family}`))}</span>
-      <span class="trp-card-art"><span class="trp-tilt"><img src="${esc(x.art)}" alt="" draggable="false"><span class="trp-gloss" style="--art:url('${esc(x.art)}')"></span></span></span>
+      <span class="trp-card-art"><span class="trp-tilt"><img src="${esc(x.art)}" alt="" draggable="false"><span class="trp-gloss" style="--art:url('${esc(artUrl(x.art))}')"></span></span></span>
       <p class="trp-sticker-desc">${esc(descOf(x))}</p>
       <p class="trp-card-meta">${esc(t("trophyEarnedOn", { date: fmtDate(got.at) }))}${how ? ` · ${esc(how)}` : ""}${p ? ` · ${esc(t("trophyOwnedPct", { p }))}` : ""}</p>
       <div class="tc-reveal-actions"><button type="button" class="sqd-open sqd-wide qfm-go" data-trp-save><span class="qfm-go-txt"><span>${esc(t("trophyDownload"))}</span></span></button></div>

@@ -777,3 +777,13 @@
 .rep-msgrep-txt { font-size: 13px; color: var(--text); white-space: pre-wrap; word-break: break-word; }
 .rep-msgrep-sub { margin-top: 4px; font-size: 11.5px; color: var(--muted); }
 .rep-msgrep-acts { display: flex; gap: 8px; margin-top: 8px; }
+
+/* Copy a message (to paste it into a translator): quiet until the bubble is hovered. */
+.rep-msg-bubble:has(> .rep-msg-head .rep-msg-copy) { position: relative; }
+.rep-msg-copy { position: absolute; top: 6px; right: 6px; display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; aspect-ratio: 1; border: 0; border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer;
+  opacity: 0; transition: opacity .15s ease, background .15s ease, color .15s ease; }
+.rep-msg-bubble:hover .rep-msg-copy, .rep-msg-copy:focus-visible { opacity: 1; }
+.rep-msg-copy:hover { background: color-mix(in srgb, var(--text) 10%, transparent); color: var(--text); }
+.rep-msg-copy.is-copied { opacity: 1; }
+.rep-msg-copy.is-copied .icon { background: #2f9e44; }
