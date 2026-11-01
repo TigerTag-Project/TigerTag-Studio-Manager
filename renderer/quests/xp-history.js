@@ -7,6 +7,7 @@
  * renders, and wires the controls through the data-xph-* attributes.
  */
 import { heroLayersHtml } from './hero-layers.js';
+import { heroHtml } from './ui-kit.js';
 
 // The log's keys (the xpBreakdown parts) grouped into the categories the user
 // reads. Losses are shown in their category in the log; the breakdown ring
@@ -125,16 +126,13 @@ export function pageHtml(ctx, s) {
     <button type="button" class="xph-pg${n === page ? " is-on" : ""}" data-xph-page="${n}">${n}</button>`).join("");
   const from = rows.length ? (page - 1) * PAGE_SIZE + 1 : 0, to = Math.min(rows.length, page * PAGE_SIZE);
   return `
-    <section class="qm-hero xph-hero">
-      <div class="qm-hero-txt"><span class="qw-eyebrow">${esc(t("squadBrand"))}</span>
-        <h2>${esc(t("xpHistoryTitle"))}</h2><p>${esc(t("xpHistorySub"))}</p></div>
-      <div class="hero-scene" aria-hidden="true">${heroLayersHtml("../assets/img/quests/xph-hero/", {
+    ${heroHtml(esc, { cls: "qm-hero xph-hero", eyebrow: t("squadBrand"), title: t("xpHistoryTitle"), sub: t("xpHistorySub"),
+      scene: heroLayersHtml("../assets/img/quests/xph-hero/", {
         // The tiger (one picture) on the desk, its paw resting on it; still.
         front: ["monitor", { name: "tiger-one", cls: "tiger" }, "coins", "book",
           // Clickable: it turns over (the host toggles .is-flipped, quests.css).
           { html: `<img class="hl hl--hourglass" data-xph-hourglass src="../assets/img/quests/xph-hero/hourglass.webp" alt="" draggable="false">` }, ...[1, 2, 3].map(i => ({ name: "sparkle", cls: `spark hl--spark${i}` }))],
-      })}</div>
-    </section>
+      }) })}
     <div class="xph-board">
     <div class="xph-tiles">
       ${tile("total", { color: "#ffc53d", icon: "star-fill" }, t("xpTotalTitle"), fmt(s.total), "XP", t("xpCurrentBalance"))}

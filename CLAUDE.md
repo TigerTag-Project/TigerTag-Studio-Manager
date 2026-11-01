@@ -50,20 +50,21 @@ missing from this index, the index cites a missing file, or a cited path does no
 - **WORKLOG**: update `WORKLOG.md` right after every change, end state only, files and i18n keys named → `.agents/rules/worklog.md`
 - **Release**: fixed sequence (SemVer, `db_update.py`, three registers, FEATURES/llms/README, validators, tag, reset WORKLOG + bump version uncommitted), generated inline, never fanned out → `.agents/rules/release.md`
 - **Copy registers**: CHANGELOG technical, release note BambuLab-factual, in-app + What's New playful/deadpan Discord-style → `.agents/rules/copy-registers.md`
+- **Trophies**: every release adds trophies (tiers, Workshop items, hidden ones, events); the goal is a collection of ~1,000; backend `trophyRules.js` is the source, ids never renamed → `.agents/rules/trophies.md`
 - **What's New**: one topic per item, benefit-first, icon names, 11 locales, no admin/debug features → `.agents/rules/whats-new.md`
 - **GitHub replies**: English, posted only on order, no personal data → `.agents/rules/github-replies.md`
 - **Code reviews**: every few releases, kept in `docs/reviews/`, findings annotated → `.agents/rules/code-reviews.md`
 - **Token efficiency**: CODEMAP → `grep -n` → sliced `Read`; delegate lookups to `codemap-explorer` / `simple-task`; never fan out; short answers → `.agents/rules/token-efficiency.md`
 - **Verify UI**: check renderer changes yourself with dev-drive; don't ask the founder to test routine tweaks → `.agents/rules/verify-ui.md`
 - **Firestore changes**: backend repo is the source of truth; rules + `hasOnly` first, deploy, then propagate the docs; `userProfiles` only via `setProfile` → `.agents/rules/firestore-changes.md`
-- **Art direction**: every illustration follows `docs/ART-DIRECTION.md` (canon banner attached, prompt block, checklist), shown to the founder before it is integrated → `.agents/rules/art-direction.md`
+- **Art direction**: every illustration follows `docs/ART-DIRECTION.md` (canon banner attached, prompt block, checklist), shown to the founder before it is integrated; a banner's layers are never reused alone elsewhere → `.agents/rules/art-direction.md`
 - **assets-src**: artwork dropped at its root is renamed, optimised into `assets/`, master filed under the shipped name → `.agents/rules/assets-src.md`
 
 ### Code
 - **IDs, not labels**: conditions compare reference-table IDs (`ASPECT_ID` …), never label strings → `.agents/rules/ids-not-labels.md`
 - **Naming**: self-describing names, one state per field, nothing derivable stored → `.agents/rules/naming.md`
 - **CSS**: right section file, theme tokens for new colours, icons on one dimension + `aspect-ratio`, doubled class instead of `!important`, no inline JS in HTML → `.agents/rules/css-placement.md`
-- **UI/UX defaults**: declutter, consistency, smooth motion, real icons, selected state; no `title=` tooltips (use `aria-label`) → `.agents/rules/ui-ux-defaults.md`
+- **UI/UX defaults**: reuse the existing components and CSS (classes, markup) by default, never a new look unless asked; declutter, consistency, smooth motion, real icons, selected state; no `title=` tooltips (use `aria-label`); big rare moments get a ceremony with an animation behind the window → `.agents/rules/ui-ux-defaults.md`
 - **Surgical DOM updates**: signature guard → patch in place → swap one section → full rebuild last → `.agents/rules/surgical-dom-updates.md`
 - **Hold-to-confirm**: `setupHoldToConfirm` with a visible `.hold-progress` fill → `.agents/rules/hold-to-confirm.md`
 - **User avatars**: a person is always drawn by `userAvatar(who, sizeClass)` — the friends bar's look, freshest record (own account / friend entry), only the size changes; never `avatarMarkup()` for a person → `.agents/rules/user-avatars.md`
@@ -172,6 +173,7 @@ ONE `ip` field, `host` or `host:port` (the form Studio and the Tiger Touch firmw
 | `tigertag.theme`, `tigertag.catalog` | theme and catalogue view preferences |
 | `tigertag.nfc.lastUrl` | last link written to a chip by the NFC tools, offered again |
 | `tigertag.nfc.contact` | the NFC tools' contact card as last typed `{name, phone, email, org, url}` |
+| `tigertag.trophies.<id>` | the trophy ids already celebrated on this device for that account (`renderer/quests/trophies.js`) |
 | `tigertag.coinlog.<id>` | the TigerCoins history last read for that account (100 newest rows), shown at once when the history opens, then refreshed |
 | `tigertag.header.<id>` | the header's last figures for that account `{stats: {key: number}, coins: {balance, n}}`, painted at launch before the data arrives, then updated where they differ |
 

@@ -11,8 +11,8 @@
  *     data = { status (streakFreeze status), own, bonus, friends: [{ uid, name, avatar }],
  *              brokenStreak?, preselect? (a friend's uid), forFriend?, send(action, extra) → Promise<status> (throws Error(code)) }
  */
-import { holdToFire, showPicked, tilt } from "./coin-pull.js";
-import { ambientStop, fireStart } from "./coin-sound.js";
+import { backfire, holdToFire, showPicked, tilt } from "./coin-pull.js";
+import { ambientStop, fireStart, sfx } from "./coin-sound.js";
 
 const ART = { buy: "freeze", give: "freeze-gift", repair: "freeze" };
 // A broken streak can be mended for this many days (the backend's quests.js FREEZE.repairDays).
@@ -161,6 +161,7 @@ export function openFreezeWindow(ctx, mode, data) {
         body.insertAdjacentHTML("afterbegin", `<p class="qfm-ok" role="status">${esc(msg)}</p>`);
         return;
       }
+      if (mode === "repair") { await relight(msg); finish("done"); return; }
       body.innerHTML = `<p class="qfm-ok qfm-ok--big" role="status">${esc(msg)}</p>`;
       actions.innerHTML = "";
       el.querySelector(".qfm-card").classList.add("is-given");
@@ -170,6 +171,71 @@ export function openFreezeWindow(ctx, mode, data) {
       err.hidden = false;
       if (go) go.disabled = false;
     }
+  };
+
+  // The streak saved — a moment few members ever see, so it gets a ceremony:
+  // embers are drawn into the small dead flame, it catches with a flash and a
+  // shock ring, the big flame rises while huge translucent flames swell behind
+  // the window (the fire spreading), the days come back one by one on a counter
+  // and embers keep rising; a click (or ~4 s) closes. Reduced motion: the end state.
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+  const relight = async msg => {
+    const n = data.brokenStreak || st.broken?.streak || st.streak || 0;
+    const card = el.querySelector(".qfm-card");
+    actions.innerHTML = ""; err.hidden = true;
+    body.innerHTML = `<div class="qfm-relight" aria-hidden="true">
+        <span class="qfm-rl-glow"></span><span class="qfm-rl-ring"></span><span class="qfm-rl-embers"></span>
+        <img class="qfm-rl-small" src="../assets/img/quests/streak-flame-small.webp" alt="">
+        <img class="qfm-rl-big" src="../assets/img/quests/streak-flame.webp" alt="">
+      </div>
+      <p class="qfm-rl-days" role="status"><b>${esc(t("questsDays", { n: 0 }))}</b><span>${esc(msg)}</span></p>`;
+    const stage = body.querySelector(".qfm-relight"), embers = body.querySelector(".qfm-rl-embers"), days = body.querySelector(".qfm-rl-days b");
+    card.classList.add("is-relighting");
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      stage.classList.add("is-lit"); days.textContent = t("questsDays", { n }); card.classList.add("is-relit");
+      await wait(2200); return;
+    }
+    const ember = (from, to, dur, delay = 0, size = 6 + Math.random() * 7) => {
+      const e = document.createElement("i");
+      e.style.setProperty("--s", `${size.toFixed(1)}px`);
+      embers.appendChild(e);
+      e.animate([
+        { transform: `translate(${from[0]}px, ${from[1]}px) scale(1)`, opacity: 0 },
+        { opacity: 1, offset: 0.2 },
+        { transform: `translate(${to[0]}px, ${to[1]}px) scale(.3)`, opacity: 0 },
+      ], { duration: dur, delay, easing: "cubic-bezier(.3,.1,.4,1)", fill: "forwards" }).finished.then(() => e.remove());
+    };
+    // 1. Drawn in.
+    sfx.relightRise();
+    for (let i = 0; i < 22; i++) {
+      const a = Math.random() * Math.PI * 2, r = 110 + Math.random() * 70;
+      ember([Math.cos(a) * r, Math.sin(a) * r * .7], [0, 6], 650 + Math.random() * 250, Math.random() * 250);
+    }
+    stage.classList.add("is-charging");
+    await wait(900);
+    // 2. It catches.
+    sfx.relightIgnite();
+    stage.classList.remove("is-charging"); stage.classList.add("is-lit");
+    card.classList.add("is-relit");
+    // Behind the window: the same flame, huge and translucent, rising and fading in waves.
+    backfire(el, card, "../assets/img/quests/streak-flame.webp", { at: "bottom" });
+    for (let i = 0; i < 30; i++) {
+      const a = -Math.PI / 2 + (Math.random() - .5) * Math.PI * 1.6, r = 90 + Math.random() * 110;
+      ember([0, 0], [Math.cos(a) * r, Math.sin(a) * r], 900 + Math.random() * 600, Math.random() * 120);
+    }
+    // 3. The days come back, embers keep rising.
+    const rise = setInterval(() => ember([(Math.random() - .5) * 50, 10], [(Math.random() - .5) * 90, -110 - Math.random() * 60], 1400 + Math.random() * 600, 0, 4 + Math.random() * 5), 110);
+    await wait(450);
+    const step = Math.max(70, Math.min(260, 1300 / Math.max(1, n)));
+    for (let k = 1; k <= n; k++) {
+      days.textContent = t("questsDays", { n: k });
+      days.classList.remove("is-tick"); void days.offsetWidth; days.classList.add("is-tick");
+      sfx.relightDay(k);
+      await wait(step);
+    }
+    // 4. Held a moment; a click closes earlier.
+    await Promise.race([wait(2400), new Promise(r => el.addEventListener("pointerdown", r, { once: true }))]);
+    clearInterval(rise);
   };
 
   let resolveOut;

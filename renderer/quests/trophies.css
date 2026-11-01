@@ -1,0 +1,146 @@
+/* Trophies (quests/trophies.js, docs/TROPHIES.md) — the sticker album of
+   the Tiger Squad, the detail card, the unlock window.
+   Tier colours = the TigerCoins rarities (.tc-sum--*), plus a holographic
+   "event" frame. A sticker = the app's own art die-cut: a white outline made
+   of stacked drop-shadows, a slight tilt, a ring in the tier colour; a locked
+   one is the same art as a dark silhouette. */
+.trp-t--common    { --tc: var(--tier-common); }
+.trp-t--uncommon  { --tc: var(--tier-uncommon); }
+.trp-t--rare      { --tc: var(--tier-rare); }
+.trp-t--epic      { --tc: var(--tier-epic); }
+.trp-t--legendary { --tc: var(--tier-legendary); }
+.trp-t--event     { --tc: var(--tier-event); }
+
+
+/* The app's buttons are 40 px tall (70-detail-misc.css `button`): these size themselves. */
+.trp-st.trp-st { height: auto; }
+
+/* ── Banner: the Deals banner's frame (.sqr-hero in quests.css), its own scene ── */
+.sqr-hero.trp-hero { --hero-scene: none; --hero-front: none;
+  --hero-sink: 4px; --hero-art-w: 560px; --hero-art-ratio: 1; --hero-scene-w: 560px; }
+/* Scene objects (TROPHY_SCENE, a 3.4 : 1 box): the tiger behind the desk (only the waist cut
+   goes under it), the rest standing on it. */
+.trp-hero { --hl-ratio: 3.4; }
+.trp-hero .hl--rosette { left: 0; height: 64%; }
+.trp-hero .hl--sticker-sheet { left: 13%; height: 50%; rotate: -8deg; }
+.trp-hero .hl--tiger { left: 29%; height: 90%; translate: 0 6px; bottom: 6%; }
+.trp-hero .hl--cup { left: 58%; height: 78%; }
+.trp-hero .hl--album { left: 73%; height: 52%; }
+.trp-hero .hl--spark { height: 13%; }
+.trp-hero .hl--spark1 { left: 26%; bottom: 74%; } .trp-hero .hl--spark2 { left: 93%; bottom: 70%; }
+@media (prefers-reduced-motion: no-preference) {
+  .trp-hero .hl--cup { transform-origin: 50% 100%; animation: hl-rock 4s ease-in-out infinite; }
+  .trp-hero .hl--rosette { transform-origin: 50% 0; animation: hl-sway 5s ease-in-out infinite; }
+  .trp-hero .hl--spark1 { animation: hl-twinkle 2.4s ease-in-out infinite; }
+  .trp-hero .hl--spark2 { animation: hl-twinkle 2.4s ease-in-out 1.2s infinite; }
+}
+/* The count per tier, on the desk stripe at the banner's foot, right-aligned. */
+.trp-hero-tiers.trp-hero-tiers { position: absolute; left: 28px; right: 28px; bottom: 0; z-index: 2; height: var(--hero-desk-hc);
+  align-items: center; justify-content: flex-end; flex-wrap: nowrap; overflow: hidden; color: var(--on-dark); text-shadow: 0 1px 2px rgba(0, 0, 0, .55); }
+.trp-hero-tiers b { color: var(--on-dark); }
+/* The count card on the right, like the Deals balance card. */
+.sqr-card.trp-hero-card { display: flex; flex-direction: column; align-items: stretch; gap: 8px; min-width: 120px; padding: 10px 14px; }
+.trp-hero-n { display: flex; align-items: baseline; gap: 6px; font: 800 28px var(--qw-mono, monospace); color: var(--tier-legendary); }
+.trp-hero-n small { font-size: 14px; color: var(--muted); }
+
+/* ── Bar under the banner: the Deals bar (quests.css .sqd-bar / .sqd-tab / .sqd-search) ── */
+.trp-toolbar .trp-code { margin-left: auto; }
+.trp-search { flex: 1 1 220px; }
+.trp-st[hidden], .trp-nomatch[hidden] { display: none; }
+.trp-nomatch { margin: 0; padding: 24px 0; text-align: center; color: var(--muted); font-size: 13px; }
+.trp-bar { flex: 1; height: 8px; border-radius: 999px; background: var(--ink-10); overflow: hidden; }
+.trp-bar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--primary-hi), var(--primary)); transition: width .6s cubic-bezier(.2, .8, .2, 1); }
+.trp-tiers { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 0; padding: 0; list-style: none; font-size: 12px; color: var(--muted); }
+.trp-tiers li { display: inline-flex; align-items: center; gap: 6px; }
+.trp-tiers i { width: 10px; aspect-ratio: 1; border-radius: 50%; background: var(--tc); box-shadow: 0 0 8px var(--tc); }
+.trp-tiers b { color: var(--text); font-size: 13px; }
+.trp-loading { padding: 40px; text-align: center; color: var(--muted); }
+
+/* ── Album ── */
+.trp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 14px; }
+.trp-st { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 14px 10px 12px;
+  border-radius: 14px; border: 1px solid var(--ink-06); background: var(--ink-04);
+  color: inherit; font: inherit; text-align: center; cursor: pointer; transition: transform .18s, background .18s, border-color .18s; }
+.trp-st:hover { transform: translateY(-2px); background: var(--surface-hover); border-color: color-mix(in srgb, var(--tc) 40%, transparent); }
+.trp-st-art { position: relative; display: grid; place-items: center; width: 84px; aspect-ratio: 1; margin-bottom: 6px; border-radius: 50%;
+  background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--tc) 22%, transparent), transparent 70%); }
+.trp-st-art::after { content: ""; position: absolute; inset: 0; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--tc) 55%, transparent); }
+.trp-st-art img { width: 72%; height: auto; aspect-ratio: 1; object-fit: contain; transform: rotate(-6deg);
+  filter: drop-shadow(2px 0 0 var(--sticker-edge)) drop-shadow(-2px 0 0 var(--sticker-edge)) drop-shadow(0 2px 0 var(--sticker-edge)) drop-shadow(0 -2px 0 var(--sticker-edge)) drop-shadow(0 4px 6px rgba(0, 0, 0, .45));
+  transition: transform .25s cubic-bezier(.2, .8, .2, 1.4); }
+.trp-st.is-got:hover .trp-st-art img { transform: rotate(3deg) scale(1.08); }
+.trp-st:nth-child(3n + 2) .trp-st-art img { transform: rotate(5deg); }
+.trp-st:nth-child(3n) .trp-st-art img { transform: rotate(-2deg); }
+/* Every sticker the same size: the name on two lines at most, one line under it;
+   the hint is in the app's shared info bubble (#toolInfoPop) on the "i". */
+.trp-st-name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  min-height: 2.5em; font-size: 13px; line-height: 1.25; }
+.trp-st-sub { font-size: 11px; line-height: 1.3; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.trp-st.is-got .trp-st-sub { color: var(--tc); }
+.trp-st-info { position: absolute; top: 8px; right: 8px; z-index: 2; display: grid; place-items: center; width: 22px; aspect-ratio: 1;
+  border-radius: 50%; color: var(--muted); transition: color .15s, background .15s; }
+.trp-st-info .icon { background-color: currentColor; }
+.trp-st-info:hover { color: var(--text); background: var(--ink-10); }
+/* Locked: a silhouette of the same art, no ring glow. */
+.trp-st.is-locked .trp-st-art { background: var(--ink-04); }
+.trp-st.is-locked .trp-st-art::after { border-style: dashed; border-color: var(--ink-15); }
+.trp-st.is-locked .trp-st-art img { filter: brightness(0) opacity(.28); }
+.trp-st.is-locked .trp-st-name { color: var(--muted); }
+.trp-st-q { font-size: 34px; font-weight: 800; color: var(--ink-25); }
+/* Earned: no ring — the whole card takes its rarity colour and the sticker grows
+   (same box, so every card keeps its size). */
+.trp-st.is-got { border-color: color-mix(in srgb, var(--tc) 60%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tc) 26%, var(--surface)), color-mix(in srgb, var(--tc) 9%, var(--surface))); }
+.trp-st.is-got:hover { background: linear-gradient(180deg, color-mix(in srgb, var(--tc) 34%, var(--surface)), color-mix(in srgb, var(--tc) 12%, var(--surface))); }
+.trp-st.is-got .trp-st-art { background: none; }
+.trp-st.is-got .trp-st-art::after { display: none; }
+.trp-st.is-got .trp-st-art img { width: 108%; }
+.trp-st.is-got .trp-st-info { color: var(--text); }
+/* Legendary glows; event: a holographic edge that turns slowly. */
+.trp-st.trp-t--legendary.is-got { box-shadow: 0 0 22px color-mix(in srgb, var(--tc) 30%, transparent); }
+.trp-st.trp-t--event.is-got { border-color: transparent;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tc) 26%, var(--surface)), color-mix(in srgb, var(--tc) 9%, var(--surface))) padding-box,
+    conic-gradient(from var(--trp-a, 0deg), var(--tier-event), var(--tier-legendary), var(--tier-uncommon), var(--tier-rare), var(--tier-epic), var(--tier-event)) border-box;
+  animation: trp-holo 6s linear infinite; }
+@property --trp-a { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+@keyframes trp-holo { to { --trp-a: 360deg; } }
+
+/* ── Detail card ── */
+.trp-card-ov, .trp-unlock { position: fixed; inset: 0; z-index: 9000; display: grid; place-items: center;
+  background: var(--scrim); backdrop-filter: blur(6px); opacity: 0; transition: opacity .2s; }
+.trp-card-ov.is-open, .trp-unlock.is-open { opacity: 1; }
+.trp-card, .trp-unlock-card { position: relative; width: min(360px, calc(100vw - 32px)); display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 28px 24px 24px; border-radius: 20px; text-align: center; background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--tc) 35%, transparent); box-shadow: 0 30px 80px rgba(0, 0, 0, .55);
+  transform: translateY(10px) scale(.96); transition: transform .25s cubic-bezier(.2, .8, .2, 1.2); }
+.is-open > .trp-card, .is-open > .trp-unlock-card { transform: none; }
+.trp-card h3, .trp-unlock-card h3 { margin: 4px 0 0; font-size: 20px; }
+.trp-card p, .trp-unlock-card p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.trp-card .trp-card-meta { color: var(--text); font-size: 12px; }
+.trp-card-art, .trp-unlock-art { display: grid; place-items: center; width: 150px; aspect-ratio: 1; margin-bottom: 6px; border-radius: 50%;
+  background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--tc) 30%, transparent), transparent 70%); }
+.trp-card-art img, .trp-unlock-art img { width: 74%; height: auto; aspect-ratio: 1; object-fit: contain; transform: rotate(-5deg);
+  filter: drop-shadow(3px 0 0 var(--sticker-edge)) drop-shadow(-3px 0 0 var(--sticker-edge)) drop-shadow(0 3px 0 var(--sticker-edge)) drop-shadow(0 -3px 0 var(--sticker-edge)) drop-shadow(0 8px 12px rgba(0, 0, 0, .5)); }
+.trp-card.is-locked .trp-card-art img { filter: brightness(0) opacity(.3); }
+.trp-card-tier { padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--tc); background: color-mix(in srgb, var(--tc) 14%, transparent); }
+
+/* ── Unlock: overlay (epic, legendary, event) ── */
+.trp-unlock-card { overflow: hidden; }
+.trp-unlock-card > small { color: var(--muted); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }
+.trp-unlock-rays { position: absolute; top: -40%; left: 50%; width: 520px; aspect-ratio: 1; margin-left: -260px; pointer-events: none; opacity: .35;
+  background: repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--tc) 60%, transparent) 0 8deg, transparent 8deg 22deg);
+  -webkit-mask: radial-gradient(circle, #000 15%, transparent 62%); mask: radial-gradient(circle, #000 15%, transparent 62%);
+  animation: trp-spin 14s linear infinite; }
+@keyframes trp-spin { to { transform: rotate(360deg); } }
+.trp-unlock-art { position: relative; }
+.is-open .trp-unlock-art img { animation: trp-slap .7s cubic-bezier(.2, .9, .25, 1.3) both; }
+@keyframes trp-slap { 0% { transform: scale(1.9) rotate(-28deg); opacity: 0; } 60% { transform: scale(.92) rotate(-2deg); opacity: 1; } 100% { transform: rotate(-5deg); } }
+.trp-unlock-go { margin-top: 12px; padding: 10px 20px; border-radius: 999px; border: 0; font: inherit; font-weight: 600; cursor: pointer;
+  background: var(--tc); color: var(--on-accent); transition: filter .15s; }
+.trp-unlock-go:hover { filter: brightness(1.1); }
+
+@media (prefers-reduced-motion: reduce) {
+  .trp-unlock-rays, .trp-st.trp-t--event.is-got { animation: none; }
+  .is-open .trp-unlock-art img { animation: none; }
+}

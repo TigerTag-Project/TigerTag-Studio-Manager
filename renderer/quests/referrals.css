@@ -1,0 +1,70 @@
+/* Referrals (quests/referrals.js, docs/REFERRALS.md) — the Invite view, the
+   "Who invited you?" field, the ceremony. Built from the Tiger Squad pieces:
+   the banner (.sqr-hero), the list's share card (.lv-public-card, .lv-social),
+   the add-friend code segments (.adf-seg), the full-set window (.qfs). */
+
+/* Banner: the Deals frame, no scene yet (its art is still to be validated). */
+.sqr-hero.rf-hero { --hero-scene: none; --hero-front: none; --hero-sink: 4px; }
+.sqr-card.rf-hero-card { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 150px; padding: 10px 14px; color: var(--on-dark); }
+.rf-hero-card small { color: var(--on-dark); opacity: .75; }
+
+.rf-grid { display: flex; gap: 14px; align-items: flex-start; }
+.rf-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+.rf-card { border: 1px solid var(--tsq-line); border-radius: 14px; background: var(--tsq-card); padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.rf-card h3 { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 15px; color: var(--tsq-text); }
+.rf-card h3 .icon { background-color: var(--tsq-orange); }
+.rf-card p { margin: 0; font-size: 13px; color: var(--tsq-muted); }
+
+.rf-link-row { display: flex; gap: 8px; align-items: center; }
+.rf-link-row .dns-input { flex: 1 1 auto; min-width: 0; }
+.rf-nets.lv-social-row { justify-content: flex-start; flex-wrap: wrap; }
+.lv-social--reddit { background: #ff4500; }
+.lv-social--telegram { background: #26a5e4; }
+.lv-social--bluesky { background: #1185fe; }
+.lv-social--discord { background: #5865f2; }
+.icon-reddit   { -webkit-mask-image: url('../../assets/svg/logos/logo_reddit.svg');   mask-image: url('../../assets/svg/logos/logo_reddit.svg'); }
+.icon-telegram { -webkit-mask-image: url('../../assets/svg/logos/logo_telegram.svg'); mask-image: url('../../assets/svg/logos/logo_telegram.svg'); }
+.icon-bluesky  { -webkit-mask-image: url('../../assets/svg/logos/logo_bluesky.svg');  mask-image: url('../../assets/svg/logos/logo_bluesky.svg'); }
+
+/* The code field: the add-friend segments + Paste, then the owner's preview. */
+.rf-code.adf-code-group { justify-content: flex-start; }
+.rf-paste.rf-paste { flex: 0 0 auto; width: auto; margin-left: 6px; }
+.rf-preview { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--tsq-text, var(--text)); }
+.rf-preview[hidden] { display: none; }
+.rf-err { margin: 0; min-height: 1em; font-size: 12px; color: var(--danger); }
+.rf-claim-go.rf-claim-go { align-self: flex-start; }
+
+/* Invitees: avatar, name + date, state pill. */
+.rf-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.rf-row, .rf-mine.rf-card { display: flex; flex-direction: row; align-items: center; gap: 10px; }
+.rf-row-txt { flex: 1 1 auto; min-width: 0; display: grid; }
+.rf-row-txt b { font-size: 14px; color: var(--tsq-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rf-row-txt small { font-size: 12px; color: var(--tsq-muted); }
+.rf-pill { flex: 0 0 auto; font-size: 11px; font-weight: 800; padding: 3px 9px; border-radius: 999px; background: var(--surface-2); color: var(--muted); }
+.rf-pill--validated { background: var(--success); color: var(--on-accent); }
+.rf-pill--pending { background: color-mix(in srgb, var(--tsq-orange) 22%, transparent); color: var(--tsq-orange); }
+.rf-empty { margin: 0; font-size: 13px; color: var(--tsq-muted); }
+.rf-qr.lv-public-card { display: flex; flex-direction: column; gap: 10px; align-items: stretch; }
+
+/* Onboarding step 2: the optional field under the name. */
+.dns-ref { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+
+/* Ceremony: the two avatars and the envelopes, on the full-set window. */
+.rf-win-pair { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 14px 0 6px; }
+.rf-win-pair .sb-friend-avatar { width: 64px; height: 64px; font-size: 22px; }
+.rf-win-pair .icon { background-color: var(--tier-legendary); }
+.rf-win-envs { display: flex; justify-content: center; gap: 8px; }
+.rf-win-envs img { width: 64px; aspect-ratio: 1; object-fit: contain; filter: drop-shadow(0 6px 12px rgba(0, 0, 0, .4)); }
+@media (prefers-reduced-motion: no-preference) {
+  .rf-win.is-open .rf-win-envs img { animation: qfs-pop .6s cubic-bezier(.2, 1.6, .4, 1) both; }
+  .rf-win.is-open .rf-win-envs img:nth-child(2) { animation-delay: .12s; }
+  .rf-win.is-open .rf-win-envs img:nth-child(3) { animation-delay: .24s; }
+}
+@media (max-width: 760px) { .rf-grid { flex-direction: column; } .rf-qr.lv-public-card { position: static; } }
+
+/* Entry points elsewhere: the sidebar friends list's last chip, the empty friends list. */
+.sb-friend-invite-ic.sb-friend-invite-ic { display: grid; place-items: center; background: transparent; border: 1.5px dashed var(--border); }
+.sb-friend-invite-ic .icon { background-color: var(--muted); }
+.sb-friend-invite:hover .sb-friend-invite-ic { border-color: var(--primary); }
+.sb-friend-invite:hover .sb-friend-invite-ic .icon { background-color: var(--primary); }
+.fp-empty-invite.fp-empty-invite { margin-top: 10px; }

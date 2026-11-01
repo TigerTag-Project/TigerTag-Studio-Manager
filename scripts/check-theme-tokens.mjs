@@ -33,7 +33,7 @@ const ALLOW = [
 /* A third party's colour is that company's identity — Discord blurple stays
    blurple on a light page. These are exempt, but counted and reported so the
    exemption stays visible rather than quietly growing. */
-const BRAND = /discord|github|makerworld|shopify|coffee|bambu|creality|elegoo|flashforge|snapmaker|anycubic|google|prusa|qidi|klipper|octoprint|fluidd|mainsail/i;
+const BRAND = /discord|reddit|telegram|bluesky|github|makerworld|shopify|coffee|bambu|creality|elegoo|flashforge|snapmaker|anycubic|google|prusa|qidi|klipper|octoprint|fluidd|mainsail/i;
 
 /* Shadows are dark in BOTH themes — a shadow is an absence of light, not a
    surface. --shadow / --shadow-lg cover the common cases; bespoke ones stay

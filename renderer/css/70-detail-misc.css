@@ -45,6 +45,7 @@
   .icon-chevrons-r { -webkit-mask-image: url('../../assets/svg/icons/icon_chevrons_right.svg'); mask-image: url('../../assets/svg/icons/icon_chevrons_right.svg'); }
   .icon-plus      { -webkit-mask-image: url('../../assets/svg/icons/icon_plus.svg');         mask-image: url('../../assets/svg/icons/icon_plus.svg'); }
   .icon-plus-circle { -webkit-mask-image: url('../../assets/svg/icons/icon_plus_circle.svg'); mask-image: url('../../assets/svg/icons/icon_plus_circle.svg'); }
+  .icon-trophy    { -webkit-mask-image: url('../../assets/svg/icons/icon_trophy.svg');       mask-image: url('../../assets/svg/icons/icon_trophy.svg'); }
   .icon-star      { -webkit-mask-image: url('../../assets/svg/icons/icon_star.svg');         mask-image: url('../../assets/svg/icons/icon_star.svg'); }
   .icon-star-fill { -webkit-mask-image: url('../../assets/svg/icons/icon_star_filled.svg');  mask-image: url('../../assets/svg/icons/icon_star_filled.svg'); }
   .icon-heart      { -webkit-mask-image: url('../../assets/svg/icons/icon_heart.svg');        mask-image: url('../../assets/svg/icons/icon_heart.svg'); }

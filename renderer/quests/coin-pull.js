@@ -89,6 +89,26 @@ export function celebrateEgg(ctx, from) {
   });
 }
 
+// Big moments in a modal window — an animation behind the window (.agents/rules/ui-ux-defaults.md;
+// not for a stage with no window, like the chest or a reveal):
+// huge translucent copies of the moment's art swell from the card and fade in
+// staggered waves, drawn on the overlay under everything else (z-index -1 in the
+// overlay's own layer), until the overlay goes. `at`: "bottom" rises from under the
+// card (a flame), "center" radiates from its middle (a chest, a coin, an envelope).
+// Reduced motion: nothing.
+export function backfire(overlayEl, cardEl, src, { at = "center", size = 520, waves = 3 } = {}) {
+  if (!overlayEl || !cardEl || !src || reduced()) return null;
+  const r = cardEl.getBoundingClientRect(), fire = document.createElement("div");
+  fire.className = `bk-fire bk-fire--${at}`;
+  fire.setAttribute("aria-hidden", "true");
+  fire.style.left = `${r.left + r.width / 2}px`;
+  fire.style.top = `${at === "bottom" ? r.bottom - r.height * .15 : r.top + r.height / 2}px`;
+  fire.style.setProperty("--bk-size", `${size}px`);
+  fire.innerHTML = Array.from({ length: waves }, (_, i) => `<img src="${src}" alt="" style="animation-delay:${(i * 2.1 / waves).toFixed(2)}s">`).join("");
+  overlayEl.insertBefore(fire, overlayEl.firstChild);
+  return fire;
+}
+
 export function closePullStages() { document.querySelectorAll(".tc-reveal").forEach(closeOverlay); }
 
 // The stage frame (floating over the dimmed app, no panel): the sound toggle,

@@ -325,6 +325,22 @@ export const sfx = {
     [523, 659, 784, 1047].forEach((f, i) => tone("triangle", f, f, 0.9, { at: 0.12 + i * 0.05, vol: 0.13, attack: 0.02 }));
     noise(1.2, { at: 0.15, vol: 0.08, from: 6500, to: 9500, type: "highpass" });
   },
+  // ── Relight the flame (freeze-modal.js repair, once the hold succeeds) ──
+  // Embers drawn in: a rising rush of air and a low swell.
+  relightRise() {
+    noise(0.9, { vol: 0.22, from: 250, to: 3200, type: "bandpass" });
+    tone("sine", 70, 140, 0.9, { vol: 0.18, attack: 0.3 });
+  },
+  // The flame catches: a deep "fwoomp", a burst of fire and a warm rising chord.
+  relightIgnite() {
+    tone("sine", 95, 38, 0.7, { vol: 0.6, attack: 0.006 });
+    noise(0.6, { vol: 0.4, from: 3000, to: 250, type: "lowpass" });
+    noise(0.35, { at: 0.02, vol: 0.18, from: 600, to: 5000, type: "bandpass" });
+    [262, 330, 392, 523, 659].forEach((f, i) => tone("triangle", f, f, 1.3, { at: 0.1 + i * 0.07, vol: 0.11, attack: 0.03 }));
+    noise(1.4, { at: 0.15, vol: 0.06, from: 6500, to: 9500, type: "highpass" });
+  },
+  // Each day coming back on the counter: a small bright tick, higher each time.
+  relightDay(i = 0) { tone("sine", 660 + Math.min(i, 12) * 45, 990 + Math.min(i, 12) * 60, 0.08, { vol: 0.16 }); },
   // ── A friend's letter (squad-deals.js showEnvelope, a friend's envelope) ──
   // A friend's letter — short, soft, synchronised beats (designed with a ChatGPT review).
   // The wax seal: a dry, intimate crack — a band-passed noise burst and a small drop.

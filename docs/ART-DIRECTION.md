@@ -90,6 +90,11 @@ Use these colours; a new colour is a desaturated or shadow variant of one of the
   components, then placed and lightly animated in CSS — reference: the Deals banner
   (`assets/img/tigersquad/deals-hero/`), assembled by `renderer/quests/hero-layers.js` (`heroLayersHtml`: a back plane behind the desk for a waist-cut character, a front plane for what stands on it) and placed per banner in `quests.css` (`.<hero> .hl--<name>`). An object a character
   holds or leans on stays in the character's layer.
+- **A banner's layers belong to that banner only.** Never take a piece of a banner (a layer, a
+  cropped part of a picture) to use it alone elsewhere — a sticker, an icon, a notification,
+  another view: a waist-cut tiger or its paws read as a broken picture (founder, 2026-11-01,
+  after the Trophies used the Workshop banner's paws as a sticker). Elsewhere, use a whole
+  standalone picture, or generate a new one.
 - **Always a real transparent background** (alpha 0) — check with `sharp(...).stats()`
   (`isOpaque: false`). No checkerboard, no white box, no floor band.
 - **No text** in the art (titles are HTML, translated in 11 locales). Exception: "XP" on the XP badge.

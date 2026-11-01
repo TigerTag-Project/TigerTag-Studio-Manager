@@ -1473,6 +1473,12 @@ body.progress-view #gridSortWrap { display: none; }
 .sqd-search:focus-within { border-color: var(--tsq-orange); }
 .sqd-search .icon { background: var(--tsq-muted); flex-shrink: 0; }
 .sqd-search input { flex: 1; min-width: 0; border: 0; outline: none; background: none; color: var(--tsq-text); font: inherit; font-size: 13px; }
+/* A filter list in the bar (ui-kit selectHtml): the inventory's .inv-brand-filter, at the bar's height, */
+.sqd-bar .inv-brand-filter.inv-brand-filter { height: 34px; border-radius: 10px; font-weight: 600;
+  border-color: var(--tsq-line); background-color: var(--tsq-card); color: var(--tsq-muted); }
+/* …with the tabs' colours: hover like a tab, a choice made like the tab that is on. */
+.sqd-bar .inv-brand-filter.inv-brand-filter:hover { color: var(--tsq-text); border-color: color-mix(in srgb, var(--tsq-orange) 40%, var(--tsq-line)); }
+.sqd-bar .inv-brand-filter.inv-brand-filter.is-active { color: #fff; background-color: var(--tsq-orange); border-color: var(--tsq-orange); }
 .sqd-nomatch { margin: 0; padding: 24px 0; text-align: center; color: var(--tsq-muted); font-size: 13px; }
 .sqd-card[hidden], .sqd-nomatch[hidden] { display: none; }
 .sqd-card--skel { gap: 8px; padding-bottom: 12px; }
@@ -2615,3 +2621,106 @@ body.progress-view #gridSortWrap { display: none; }
 @keyframes qfm-flame { 50% { transform: scale(1.08) rotate(-3deg); } }
 @media (prefers-reduced-motion: reduce) { .qfm-flame img { animation: none; } }
 .qfm-why-perk { margin: 0; font-size: 13px; line-height: 1.45; color: #c9d0e6; }
+
+/* ── Relight the flame: the ceremony once the repair succeeds (freeze-modal.js relight) ── */
+.qfm-relight { position: relative; height: 190px; display: grid; place-items: center; }
+.qfm-relight > * { grid-area: 1 / 1; }
+.qfm-rl-small { width: 64px; filter: saturate(.5) brightness(.8); transform-origin: 50% 90%; transition: transform .25s ease, opacity .2s ease; }
+.qfm-rl-big { width: 150px; opacity: 0; transform: scale(.3); transform-origin: 50% 90%; filter: drop-shadow(0 0 18px rgba(255, 122, 26, .9)); }
+.qfm-rl-glow { width: 220px; aspect-ratio: 1; border-radius: 50%; opacity: .25;
+  background: radial-gradient(circle, rgba(255, 176, 58, .55), rgba(255, 90, 20, .18) 45%, transparent 70%); transition: opacity .3s ease; }
+.qfm-rl-ring { width: 60px; aspect-ratio: 1; border-radius: 50%; border: 3px solid #ffcf3d; opacity: 0; }
+.qfm-rl-embers { position: relative; width: 0; height: 0; }
+.qfm-rl-embers i { position: absolute; left: calc(var(--s) / -2); top: calc(var(--s) / -2); width: var(--s); aspect-ratio: 1; border-radius: 50%;
+  background: #ffe08a; box-shadow: 0 0 8px 3px rgba(255, 122, 26, .9), 0 0 2px 1px #fff3c4; }
+/* Charging: the dead flame trembles and warms up. */
+.qfm-relight.is-charging .qfm-rl-small { animation: qfm-rl-tremble .09s linear infinite; filter: saturate(1) brightness(1.1) drop-shadow(0 0 10px rgba(255, 122, 26, .7)); transition: filter .8s ease; }
+.qfm-relight.is-charging .qfm-rl-glow { opacity: .6; }
+/* Lit: a flash, a shock ring, the big flame bursting up and then breathing. */
+.qfm-relight.is-lit .qfm-rl-small { opacity: 0; transform: scale(1.6); }
+.qfm-relight.is-lit .qfm-rl-big { animation: qfm-rl-burst .7s cubic-bezier(.2, 1.6, .4, 1) forwards, qfm-flame 1.6s ease-in-out .7s infinite; }
+.qfm-relight.is-lit .qfm-rl-glow { opacity: 1; animation: qfm-rl-flash .6s ease-out, qfm-rl-pulse 1.8s ease-in-out .6s infinite; }
+.qfm-relight.is-lit .qfm-rl-ring { animation: qfm-rl-ring .7s ease-out forwards; }
+/* Big moments — the animation behind the window (coin-pull.js backfire): huge translucent
+   copies of the moment's art swell and fade in staggered waves, under everything else in
+   the overlay. --bottom rises from under the card, --center radiates from its middle. */
+.bk-fire { position: fixed; z-index: -1; width: 0; height: 0; pointer-events: none; }
+.bk-fire img { position: absolute; width: var(--bk-size, 520px); opacity: 0; mix-blend-mode: screen; animation: bk-swell 2.1s cubic-bezier(.2, .7, .3, 1) infinite; }
+.bk-fire--bottom img { left: calc(var(--bk-size, 520px) / -2); bottom: 0; transform-origin: 50% 100%; }
+.bk-fire--center img { left: calc(var(--bk-size, 520px) / -2); top: calc(var(--bk-size, 520px) / -2); transform-origin: 50% 50%; }
+@keyframes bk-swell {
+  0% { opacity: 0; transform: scale(.35); filter: blur(4px) saturate(1.3); }
+  15% { opacity: .55; }
+  100% { opacity: 0; transform: scale(1.7) translateY(-30px); filter: blur(22px) saturate(1.6); }
+}
+.bk-fire--center img { animation-name: bk-radiate; }
+@keyframes bk-radiate {
+  0% { opacity: 0; transform: scale(.4) rotate(-4deg); filter: blur(3px) saturate(1.3); }
+  15% { opacity: .5; }
+  100% { opacity: 0; transform: scale(1.8) rotate(4deg); filter: blur(22px) saturate(1.6); }
+}
+.qfm-rl-days { margin: 0; display: grid; justify-items: center; gap: 4px; text-align: center; }
+.qfm-rl-days b { font: 800 30px var(--qw-mono, monospace); color: #ffb03a; text-shadow: 0 0 16px rgba(255, 122, 26, .6); opacity: 0; transition: opacity .3s ease; }
+.qfm-card.is-relit .qfm-rl-days b { opacity: 1; }
+.qfm-rl-days b.is-tick { animation: qfm-rl-tick .22s ease-out; }
+.qfm-rl-days span { font-size: 14px; font-weight: 700; color: var(--tsq-text, #fff); opacity: 0; animation: qfm-rl-in .5s ease 1.3s forwards; }
+.qfm-card.is-relit.is-relit { box-shadow: 0 0 0 2px rgba(255, 176, 58, .8), 0 0 60px rgba(255, 122, 26, .55), 0 0 140px rgba(255, 90, 20, .35); transition: box-shadow .5s ease; }
+.qfm-card.is-relighting .qfm-art { animation: qfm-rl-badge 2.4s ease-in-out infinite; }
+@keyframes qfm-rl-tremble { 0%, 100% { transform: translateX(0) rotate(0); } 25% { transform: translateX(-1.5px) rotate(-2deg); } 75% { transform: translateX(1.5px) rotate(2deg); } }
+@keyframes qfm-rl-burst { 0% { opacity: 0; transform: scale(.3); } 60% { opacity: 1; transform: scale(1.25); } 100% { opacity: 1; transform: scale(1); } }
+@keyframes qfm-rl-flash { 0% { opacity: 1; transform: scale(.4); filter: brightness(3); } 100% { opacity: 1; transform: scale(1); filter: brightness(1); } }
+@keyframes qfm-rl-pulse { 50% { transform: scale(1.08); opacity: .8; } }
+@keyframes qfm-rl-ring { 0% { opacity: .9; transform: scale(.6); } 100% { opacity: 0; transform: scale(4.2); border-width: 1px; } }
+@keyframes qfm-rl-tick { 0% { transform: scale(1.35); color: #fff3c4; } 100% { transform: scale(1); } }
+@keyframes qfm-rl-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes qfm-rl-badge { 50% { transform: translateY(-6px) scale(1.04); filter: drop-shadow(0 0 18px rgba(255, 176, 58, .7)); } }
+@media (prefers-reduced-motion: reduce) {
+  .qfm-relight.is-lit .qfm-rl-big { animation: none; opacity: 1; transform: none; }
+  .qfm-relight.is-lit .qfm-rl-glow, .qfm-relight.is-lit .qfm-rl-ring, .qfm-card.is-relighting .qfm-art, .qfm-rl-days span { animation: none; opacity: 1; }
+  .bk-fire { display: none; }
+}
+
+/* ── "Daily set complete": the window confirming the day's last quest (fullset-modal.js) ── */
+.qfs-card.qfs-card { width: min(440px, 92vw); text-align: center; }
+.qfs-stage { position: relative; height: 170px; display: grid; place-items: center; }
+.qfs-stage > * { grid-area: 1 / 1; }
+.qfs-chest { width: 150px; aspect-ratio: 1; object-fit: contain; filter: drop-shadow(0 10px 18px rgba(0, 0, 0, .45)); transform-origin: 50% 85%; }
+.qfs-chest--open { opacity: 0; transform: scale(.6); }
+.qfs-glow { width: 230px; aspect-ratio: 1; border-radius: 50%; opacity: .3; background: radial-gradient(circle, rgba(255, 207, 61, .55), rgba(255, 140, 20, .15) 45%, transparent 70%); transition: opacity .3s ease; }
+.qfs-ring { width: 70px; aspect-ratio: 1; border-radius: 50%; border: 3px solid #ffcf3d; opacity: 0; }
+.qfs-sparks { position: relative; width: 0; height: 0; }
+.qfs-sparks i { position: absolute; left: calc(var(--s) / -2); top: calc(var(--s) / -2); width: var(--s); aspect-ratio: 1; border-radius: 50%;
+  background: #ffe08a; box-shadow: 0 0 8px 3px rgba(255, 176, 26, .85), 0 0 2px 1px #fff3c4; }
+.qfs-stage.is-shaking .qfs-chest--closed { animation: qfs-shake .11s linear infinite; }
+.qfs-stage.is-shaking .qfs-glow { opacity: .65; }
+.qfs-stage.is-open .qfs-chest--closed { opacity: 0; transform: scale(1.3); transition: opacity .15s ease, transform .2s ease; }
+.qfs-stage.is-open .qfs-chest--open { animation: qfs-pop .6s cubic-bezier(.2, 1.6, .4, 1) forwards, qfs-float 3s ease-in-out .6s infinite; }
+.qfs-stage.is-open .qfs-glow { opacity: 1; animation: qfs-flash .6s ease-out, qfs-pulse 1.8s ease-in-out .6s infinite; }
+.qfs-stage.is-open .qfs-ring { animation: qfs-ring .7s ease-out forwards; }
+.qfs-xp { margin: 0; }
+.qfs-xp b { font: 800 34px var(--qw-mono, monospace); color: #ffd84a; text-shadow: 0 0 18px rgba(255, 200, 40, .55); opacity: 0; transition: opacity .25s ease; }
+.qfs-card.is-xp .qfs-xp b { opacity: 1; }
+.qfs-streak { margin: 4px auto 0; display: inline-flex; align-items: center; gap: 10px; padding: 8px 14px; border-radius: 12px;
+  background: rgba(255, 122, 26, .1); border: 1px solid rgba(255, 122, 26, .35); opacity: 0; transform: translateY(6px); transition: opacity .35s ease, transform .35s ease; }
+.qfs-streak img { width: 34px; aspect-ratio: 1; object-fit: contain; filter: drop-shadow(0 0 8px rgba(255, 122, 26, .7)); }
+.qfs-streak span { display: grid; text-align: left; }
+.qfs-streak small { font-size: 11px; color: var(--tsq-muted, #9aa3c0); }
+.qfs-streak b { font: 800 18px var(--qw-mono, monospace); color: #ffb03a; }
+.qfs-streak b.is-tick { animation: qfm-rl-tick .3s ease-out; }
+.qfs-combo, .qfs-palier { font-style: normal; font-size: 12px; font-weight: 800; padding: 3px 8px; border-radius: 999px; background: #ff7a1a; color: #1a0f04; }
+.qfs-palier { background: #ffcf3d; }
+.qfs-line { margin: 10px 0 0; font-size: 14px; font-weight: 700; color: var(--tsq-text, #fff); opacity: 0; transition: opacity .4s ease .2s; }
+.qfs-card.is-done .qfs-streak { opacity: 1; transform: none; }
+.qfs-card.is-done .qfs-line { opacity: 1; }
+.qfs-card.is-done.is-done { box-shadow: 0 0 0 2px rgba(255, 207, 61, .8), 0 0 60px rgba(255, 176, 26, .45); transition: box-shadow .5s ease; }
+@keyframes qfs-shake { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-5deg) translateX(-2px); } 75% { transform: rotate(5deg) translateX(2px); } }
+@keyframes qfs-pop { 0% { opacity: 0; transform: scale(.6); } 60% { opacity: 1; transform: scale(1.2); } 100% { opacity: 1; transform: scale(1); } }
+@keyframes qfs-float { 50% { transform: translateY(-5px); } }
+@keyframes qfs-flash { 0% { transform: scale(.4); filter: brightness(3); } 100% { transform: scale(1); filter: none; } }
+@keyframes qfs-pulse { 50% { transform: scale(1.08); opacity: .8; } }
+@keyframes qfs-ring { 0% { opacity: .9; transform: scale(.6); } 100% { opacity: 0; transform: scale(4); border-width: 1px; } }
+@media (prefers-reduced-motion: reduce) {
+  .qfs-stage.is-open .qfs-chest--open { animation: none; opacity: 1; transform: none; }
+  .qfs-stage.is-open .qfs-glow, .qfs-stage.is-open .qfs-ring { animation: none; }
+  .qfs-xp b, .qfs-streak, .qfs-line { opacity: 1; transform: none; transition: none; }
+}

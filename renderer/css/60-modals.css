@@ -1087,6 +1087,14 @@
   /* The spinner would eat a third of the field for a value typed, not stepped. */
   .eac-vatc-inp::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 
+  /* Sign-in card: the address and method, the two change forms (the custom-VAT
+     panel's look), a message line that turns red on an error. */
+  .eac-signin-value { min-width: 0; font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .eac-signin-note { margin: 0; font-size: 12px; line-height: 1.45; color: var(--muted); }
+  .eac-signin-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+  .eac-signin-form { display: flex; flex-direction: column; gap: 10px; margin-left: 0; }
+  .eac-signin-msg { margin: 0; font-size: 12px; line-height: 1.45; color: var(--success, var(--text)); }
+  .eac-signin-msg.is-error { color: var(--danger); }
   .eac-row .csel { width: auto; max-width: 62%; margin-left: auto; }
   .eac-row .csel-btn { height: 34px; }
   .eac-row .csel-pop { min-width: 100%; width: max-content; max-width: 260px; right: 0; left: auto; }

@@ -26,6 +26,8 @@ import { pageHtml as xpPageHtml, chartTipHtml as xpChartTipHtml, leagueSeries as
 import { applyDealsFilter, dealsViewHtml, openChests, openCoinsCodeModal, openCoinsHistory, openEnvelopeHelp, showEnvelope, showEnvelopeGift, showSendCoins, sortDeals, tapEgg, wireDeals } from './quests/squad-deals.js';
 import { closePullStages, openPullStage } from './quests/coin-pull.js';
 import { squadHeroHtml, squadItemsHeroHtml, squadRankingsHtml, pulseHtml as squadPulseHtml, toggleLeague, leagueRows, setLeagueRows, rankNo } from './quests/squad-rankings.js';
+import { initTrophies, trophiesSignIn, trophiesSignOut, renderTrophiesView, trophyEarned } from './quests/trophies.js';
+import { initReferrals, referralsSignIn, referralsSignOut, renderInviteView, claimReferral, referralWantsCode, referralPrefill, referralStatus, wireCodeField, codeFieldMarkup, errText as referralErrText } from './quests/referrals.js';
 import { initQuests, questsSignIn, questsSignOut, questBump, questGauge, questPillLabel, questDailyProgress, questCurrentLevel, openQuests, renderQuestsView, questLootHtml, questFreezeStatus, questFriendFreeze, openFreezeFor, openFreezeGift } from './quests/index.js';
 
 // ── USB scale (Dymo M-series) module ──────────────────────────────────────
@@ -2060,12 +2062,14 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     // that we're authenticated (the add-friend lookup needs auth).
     if (_pendingFriendCode) {
       const c = _pendingFriendCode; _pendingFriendCode = null;
-      setTimeout(() => _openAddFriendWithCode(c), 300);
+      setTimeout(() => _friendCodeArrived(c), 300);
     }
   }
   function setDisconnected() {
     state.displayName = null; state.keyValid = null;
     questsSignOut();
+    trophiesSignOut();
+    referralsSignOut();
     linkedChipsSignOut();
     _stopSquadPulse();
     _mcpSyncAccount(null);                    // nobody signed in → MCP server off
@@ -2174,6 +2178,10 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         <span>${t("friendsTitle")}</span>
         <span id="acctDropFriendsBadge" class="acct-drop-badge">${_friendCount > 0 ? _friendCount : "+"}</span>
       </button>
+      <button class="acct-drop-action" data-drop-action="invite-friends">
+        <span class="icon icon-gift icon-13"></span>
+        <span>${esc(t("referralInviteBtn"))}</span>
+      </button>
       ${_ownSquadTier() ? `
       <button class="acct-drop-action acct-drop-squad" data-drop-action="squad-ranking">
         <span class="icon icon-community icon-13"></span>
@@ -2204,6 +2212,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         closeAccountDropdown();
         if (action === "edit-profile") { const a = activeAccount(); if (a) openEditAccountModal(a); }
         else if (action === "open-friends") openFriends();
+        else if (action === "invite-friends") setViewMode("squadInvite");
         else if (action === "squad-ranking") _openSquadView("countries");
         else if (action === "squad-join") _openSquadInvite();
         else if (action === "manage-profiles") openProfilesModal();
@@ -4294,6 +4303,9 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   const _squadGate = open => () => { if (state.activeAccountId && !state.friendView && !state.supportPublicly) { _openSquadInvite(); return; } open(); };
   $("vtgSquadChip")?.addEventListener("click", _squadGate(() => _openSquadView("countries")));
   $("vtgSquadItems")?.addEventListener("click", _squadGate(() => _openSquadView("ach")));
+  // Trophies: every account (docs/TROPHIES.md), member or not — no squad gate.
+  $("vtgSquadTrophies")?.addEventListener("click", () => setViewMode("squadTrophies"));
+  $("vtgSquadInvite")?.addEventListener("click", () => setViewMode("squadInvite"));
   $("vtgSquadHist")?.addEventListener("click", _squadGate(() => openXpHistory()));
   $("vtgSquadDeals")?.addEventListener("click", _squadGate(() => setViewMode("squadDeals")));
   $("notifPanelClose")?.addEventListener("click", closeNotifs);
@@ -4363,6 +4375,35 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     },
   });
 
+  // Trophies — the sticker album in the TigerSquad group and the unlock celebration
+  // (quests/trophies.js, docs/TROPHIES.md). The code window is the TigerCoins one:
+  // a code carrying an event trophy works for every account.
+  initTrophies({
+    t, esc, db: fbDb, uid: () => state.activeAccountId, lang: () => state.lang,
+    onChange: () => { if (state.viewMode === "squadTrophies") renderInventory(); },
+    openView: () => setViewMode("squadTrophies"),
+    openCode: () => { const uid = state.activeAccountId; if (uid) openCoinsCodeModal(_topCoinsCtx(uid)); },
+    // A sticker saved from the album: the server counts it once (hidden download trophies).
+    downloaded: id => { const uid = state.activeAccountId; if (uid) _tigerCoins(uid, "trophyDownload", { id }).catch(() => {}); },
+  });
+  // Referrals — the Invite view, the "Who invited you?" claim and its ceremony
+  // (quests/referrals.js, docs/REFERRALS.md); every rule is server-side.
+  initReferrals({
+    t, esc, uid: () => state.activeAccountId,
+    token: () => state.activeAccountId ? firebase.app(state.activeAccountId).auth().currentUser?.getIdToken() : null,
+    avatar: (who, cls) => userAvatar({ ...who, displayName: who?.displayName ?? who?.name }, cls),
+    qr: (url, opts) => _makeQrDataUrl(url, opts), shareUrl: _socialShareUrl, inviteUrl: code => _friendShareUrl(code),
+    openExternal: url => window.electronAPI?.openExternal?.(url),
+    copy: (text, btn, msg) => navigator.clipboard.writeText(text).then(() => { _flashCopied(btn); if (msg) _flashMessage(msg); }),
+    lookupCode: async code => {
+      const k = await fbDb().collection("publicKeys").doc(code).get();
+      if (!k.exists) return null;
+      const uid = k.data().uid, p = (await fbDb().collection("userProfiles").doc(uid).get()).data() || {};
+      return { uid, displayName: p.displayName || "", photoURL: p.photoURL || null, color: p.color || null };
+    },
+    openEnvelopes: () => _openEnvelopesNow(),
+    onChange: () => { if (state.viewMode === "squadInvite") renderInventory(); _syncOnbReferral(); },
+  });
   // Tiger Quests — counters, daily check-in, the Quests window (quests/index.js).
   initQuests({
     t, esc, db: fbDb, uid: () => state.activeAccountId, lang: () => state.lang,
@@ -4736,8 +4777,96 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     _syncPriceModeSeg();
     _wireSocialsEditor();
     _renderSocialsEditor();
+    _paintSignin();
     $("editAccountModalOverlay").classList.add("open");
   }
+  // ── Sign-in card (in the edit-account modal) ──────────────────────────────
+  // The account's Firebase Auth email and method. An email + password account
+  // changes its address with verifyBeforeUpdateEmail: a link goes to the NEW
+  // address and the change happens only when it is clicked (the old address
+  // keeps working until then); both flows ask for the current password first
+  // (Firebase wants a recent sign-in). A Google account's address is Google's.
+  // The address shown is re-read from Auth on every open, so a confirmed change
+  // shows up (and is saved on the local account) without signing out.
+  const _signinUser = () => (_editingAccount ? fbAuth(_editingAccount.id).currentUser : null);
+  function _signinShowForm(id) {
+    ["eacEmailForm", "eacPassForm"].forEach(f => {
+      const el = $(f); if (!el) return;
+      el.classList.toggle("hidden", f !== id);
+      if (f !== id) { el.reset(); const m = el.querySelector(".eac-signin-msg"); m.classList.add("hidden"); m.classList.remove("is-error"); }
+    });
+    $("eacSigninActions")?.classList.toggle("hidden", !!id || !_signinHasPassword());
+    if (id) setTimeout(() => $(id)?.querySelector("input")?.focus(), 30);
+  }
+  const _signinHasPassword = () => !!_signinUser()?.providerData?.some(p => p.providerId === "password");
+  function _paintSignin() {
+    const user = _signinUser();
+    $("eacSigninGroup")?.classList.toggle("hidden", !user);
+    if (!user) return;
+    const google = user.providerData.some(p => p.providerId === "google.com"), pass = _signinHasPassword();
+    const paint = () => {
+      $("eacSigninEmail").textContent = user.email || "";
+      $("eacSigninMethod").textContent = [google ? "Google" : "", pass ? t("eacSignInPassword") : ""].filter(Boolean).join(" · ");
+      $("eacSigninGoogleNote").classList.toggle("hidden", !google || pass);
+    };
+    paint();
+    _signinShowForm(null);
+    // A change confirmed from the mail: the token still holds the old address
+    // until the user is reloaded.
+    user.reload().then(() => {
+      paint();
+      const accounts = getAccounts(), acc = accounts.find(a => a.id === _editingAccount?.id);
+      if (acc && user.email && acc.email !== user.email) {
+        acc.email = user.email; saveAccounts(accounts);
+        _editingAccount.email = user.email; $("eacEmail").textContent = user.email;
+        renderAccountList?.();
+      }
+    }).catch(() => {});
+  }
+  function _signinMsg(form, text, error = false) {
+    const m = $(form).querySelector(".eac-signin-msg");
+    m.textContent = text; m.classList.toggle("is-error", error); m.classList.remove("hidden");
+  }
+  const _signinErr = e => t({
+    "auth/wrong-password": "eacErrWrongPassword", "auth/invalid-credential": "eacErrWrongPassword", "auth/invalid-login-credentials": "eacErrWrongPassword",
+    "auth/email-already-in-use": "eacErrEmailUsed", "auth/invalid-email": "eacErrEmailInvalid", "auth/weak-password": "eacErrPasswordShort",
+    "auth/too-many-requests": "eacErrTooMany", "auth/network-request-failed": "eacErrNetwork",
+  }[e?.code] || "eacErrGeneric");
+  async function _signinReauth(password) {
+    const user = _signinUser();
+    await user.reauthenticateWithCredential(firebase.auth.EmailAuthProvider.credential(user.email, password));
+    return user;
+  }
+  $("eacChangeEmailBtn")?.addEventListener("click", () => _signinShowForm("eacEmailForm"));
+  $("eacChangePassBtn")?.addEventListener("click", () => _signinShowForm("eacPassForm"));
+  document.querySelectorAll("[data-signin-cancel]").forEach(b => b.addEventListener("click", () => _signinShowForm(null)));
+  $("eacEmailForm")?.addEventListener("submit", async e => {
+    e.preventDefault();
+    const btn = $("eacEmailSave"), to = $("eacNewEmail").value.trim();
+    if (to.toLowerCase() === (_signinUser()?.email || "").toLowerCase()) return _signinMsg("eacEmailForm", t("eacErrSameEmail"), true);
+    btn.disabled = true;
+    try {
+      const user = await _signinReauth($("eacEmailCurPass").value);
+      await user.verifyBeforeUpdateEmail(to);
+      $("eacEmailCurPass").value = "";
+      _signinMsg("eacEmailForm", t("eacEmailSent", { email: to }));
+    } catch (er) { _signinMsg("eacEmailForm", _signinErr(er), true); }
+    btn.disabled = false;
+  });
+  $("eacPassForm")?.addEventListener("submit", async e => {
+    e.preventDefault();
+    const btn = $("eacPassSave"), next = $("eacPassNew").value;
+    if (next.length < 6) return _signinMsg("eacPassForm", t("eacErrPasswordShort"), true);
+    if (next !== $("eacPassNew2").value) return _signinMsg("eacPassForm", t("eacErrPasswordMatch"), true);
+    btn.disabled = true;
+    try {
+      const user = await _signinReauth($("eacPassCur").value);
+      await user.updatePassword(next);
+      $("eacPassForm").reset();
+      _signinMsg("eacPassForm", t("eacPasswordChanged"));
+    } catch (er) { _signinMsg("eacPassForm", _signinErr(er), true); }
+    btn.disabled = false;
+  });
   // ── Social-links editor (in the edit-account modal) ───────────────────────
   let _socialsSaveT = null;
   function _renderSocialsEditor() {
@@ -5219,6 +5348,8 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       const hide = state.friendView ? false : (!own || typeof state.xpPoints !== "number");
       if ($("vtgSquadItems")) $("vtgSquadItems").hidden = !!state.friendView;
       if ($("vtgSquadHist")) $("vtgSquadHist").hidden = !!state.friendView;
+      if ($("vtgSquadTrophies")) $("vtgSquadTrophies").hidden = !!state.friendView;
+      if ($("vtgSquadInvite")) $("vtgSquadInvite").hidden = !!state.friendView;
       if ($("vtgSquadDeals")) $("vtgSquadDeals").hidden = !!state.friendView;
       // Shown later than the rest of the bar (the XP arrives after sign-in): place its selection bubble then.
       if (sWrap.hidden !== hide) { sWrap.hidden = hide; if (!hide) requestAnimationFrame(() => _positionViewIndicators(true)); }
@@ -6352,7 +6483,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   function _renderSquadXp() {
     try { renderSupporterBadge(); } catch (_) {}
   }
-  const XP_COUNT_VERSION = 2;   // matches the server's counting rules (supportWebhooks.js)
+  const XP_COUNT_VERSION = 3;   // matches the server's counting rules (supportWebhooks.js)
   const _xpRecountAsked = new Set();   // per account, once a session
   async function _requestXpRecount() {
     const acc = state.activeAccountId;
@@ -8142,7 +8273,9 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       saveAccounts(accounts);
     }
     // Existing accounts: leave acc.photoURL untouched here. Refresh
-    // happens through syncUserDoc → userProfiles.photoURL only.
+    // happens through syncUserDoc → userProfiles.photoURL only. The email
+    // follows Auth (a confirmed address change).
+    else if (email && acc.email !== email) { acc.email = email; saveAccounts(accounts); }
     setActiveId(uid);
 
     // Save Google real name to Firestore (admin reference, never shown in UI)
@@ -8206,6 +8339,8 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     syncLangFromFirestore(uid);
     syncUserDoc(uid);
     questsSignIn(uid);
+    trophiesSignIn(uid);
+    referralsSignIn(uid);    // invite a friend (quests/referrals.js, docs/REFERRALS.md)
     hydratePodSignal(uid);   // seed state.hasPod + lifetime rfidReadersMax from telemetry/studio
     linkedChipsSignIn(uid);  // third-party chips linked to spools (docs/LINKED-CHIPS.md)
     subscribeFriendRequests(uid);
@@ -9542,6 +9677,10 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     $("invSquadView")?.classList.toggle("hidden", state.viewMode !== "squad" && state.viewMode !== "squadItems");
     $("invXpHistView")?.classList.toggle("hidden", state.viewMode !== "xpHistory");
     $("vtgSquadHist")?.classList.toggle("active", state.viewMode === "xpHistory");
+    $("vtgSquadTrophies")?.classList.toggle("active", state.viewMode === "squadTrophies");
+    $("invTrophiesView")?.classList.toggle("hidden", state.viewMode !== "squadTrophies");
+    $("vtgSquadInvite")?.classList.toggle("active", state.viewMode === "squadInvite");
+    $("invInviteView")?.classList.toggle("hidden", state.viewMode !== "squadInvite");
     $("vtgSquadDeals")?.classList.toggle("active", state.viewMode === "squadDeals");
     $("invDealsView")?.classList.toggle("hidden", state.viewMode !== "squadDeals");
     if (_isProgressMode(state.viewMode)) {
@@ -9550,10 +9689,12 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       for (const id of ["invTableWrap", "invGrid", "invRackView", "invPrinterView", "invProductsView", "invListsView", "invEmpty", "invCatalogView"]) $(id)?.classList.add("hidden");
       $("mainResult").innerHTML = "";
       if (state.viewMode === "xpHistory") _renderXpHistView();
+      else if (state.viewMode === "squadTrophies") renderTrophiesView($("invTrophiesView"));
+      else if (state.viewMode === "squadInvite") renderInviteView($("invInviteView"));
       else if (state.viewMode === "squadDeals") _renderDealsView();
       else if (state.viewMode === "squad" || state.viewMode === "squadItems") _renderSquadView();
       else renderQuestsView($("invQuestsView"), state.viewMode === "questsJourney" ? "journey" : "today");
-      for (const id of ["invQuestsView", "invSquadView", "invXpHistView", "invDealsView"]) _wireHeroFade($(id));
+      for (const id of ["invQuestsView", "invSquadView", "invXpHistView", "invDealsView", "invTrophiesView", "invInviteView"]) _wireHeroFade($(id));
       return;
     }
     if (_isCatalogMode(state.viewMode)) {
@@ -11367,7 +11508,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     }
     return cv.toDataURL("image/png");
   }
-  // Social-network share intent URL for a public list link (opened in the browser).
+  // Social-network share intent URL for a public list link or an invite (opened in the browser).
   function _socialShareUrl(net, url, text) {
     const u = encodeURIComponent(url || ""), x = encodeURIComponent(text || "");
     return ({
@@ -11375,6 +11516,9 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       x:        `https://twitter.com/intent/tweet?url=${u}&text=${x}`,
       linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${u}`,
       whatsapp: `https://wa.me/?text=${x}%20${u}`,
+      reddit:   `https://www.reddit.com/submit?url=${u}&title=${x}`,
+      telegram: `https://t.me/share/url?url=${u}&text=${x}`,
+      bluesky:  `https://bsky.app/intent/compose?text=${x}%20${u}`,
       email:    `mailto:?subject=${x}&body=${x}%0A%0A${u}`,
     })[net] || null;
   }
@@ -13063,7 +13207,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
 
   /* ── view toggle ── */
   // Tiger Quests (Today / Journey) and TigerSquad: progress views of the main area.
-  const _isProgressMode = m => m === "questsToday" || m === "questsJourney" || m === "squad" || m === "squadItems" || m === "xpHistory" || m === "squadDeals";
+  const _isProgressMode = m => m === "questsToday" || m === "questsJourney" || m === "squad" || m === "squadItems" || m === "xpHistory" || m === "squadDeals" || m === "squadTrophies" || m === "squadInvite";
   function setViewMode(mode, opts = {}) {
     // Web build: the printer views need the LAN (not reachable from a browser yet).
     if (!HAS_NATIVE && _isPrinterMode(mode)) mode = "grid";
@@ -25485,8 +25629,12 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         ${userAvatar(f, "sb-friend-avatar")}
         <span class="sb-friend-name">${esc(_shortName(f.displayName, f.uid))}</span>
       </button>`;
-    }).join("");
-    el.querySelectorAll(".sb-friend-chip").forEach(btn => {
+    }).join("") + `<button class="sb-friend-chip sb-friend-invite" data-invite-friends data-tooltip="${esc(t("referralInviteBtn"))}" aria-label="${esc(t("referralInviteBtn"))}">
+        <span class="sb-friend-avatar sb-friend-invite-ic"><span class="icon icon-plus icon-14"></span></span>
+        <span class="sb-friend-name">${esc(t("referralInviteShort"))}</span>
+      </button>`;
+    el.querySelector("[data-invite-friends]")?.addEventListener("click", () => setViewMode("squadInvite"));
+    el.querySelectorAll(".sb-friend-chip[data-friend-uid]").forEach(btn => {
       btn.addEventListener("click", () => {
         const uid = btn.dataset.friendUid;
         const name = btn.dataset.friendName;
@@ -25596,7 +25744,9 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   // Also covers `.eac-info`, the ⓘ in the profile side card: same bubble, same
   // delegation, one selector — an explanation that only shows when asked beats
   // a paragraph of help text sitting under the control forever.
-  const _DOC_TIP_SEL = ".flag-toggle[data-tip], .eac-info[data-tip]";
+  // And `.ui-info`, the ⓘ of the shared UI kit (quests/ui-kit.js infoTipHtml): any view
+  // that needs an explanation bubble uses it, already wired here.
+  const _DOC_TIP_SEL = ".flag-toggle[data-tip], .eac-info[data-tip], .ui-info[data-tip]";
   // "Hold N s to confirm", in the viewer's language and number format.
   function _holdTipText(el) {
     const s = new Intl.NumberFormat(state.lang || "en", { maximumFractionDigits: 1 })
@@ -25865,7 +26015,9 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
           <div class="fp-empty-icon"><span class="icon icon-user icon-14"></span></div>
           <div class="fp-empty-title">${t("friendsEmpty")}</div>
           <div class="fp-empty-sub">${t("friendsEmptySub")}</div>
+          <button class="fp-hero-btn fp-empty-invite" data-invite-friends><span class="icon icon-gift icon-14"></span><span>${esc(t("referralEmptyInvite"))}</span></button>
         </div>`;
+      list.querySelector("[data-invite-friends]")?.addEventListener("click", () => { closeFriends(); setViewMode("squadInvite"); });
       return;
     }
 
@@ -39453,6 +39605,16 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     $("adfB").value = m[2];
     _adfChanged();                  // fires the debounced preview lookup
   }
+  // A new account that may still declare its referrer takes the code as "Who
+  // invited you?" (the onboarding field, else the Invite view); otherwise it is
+  // an ordinary friend link → the add-friend modal.
+  async function _friendCodeArrived(code) {
+    if (await referralWantsCode(code)) {
+      if (!$("displayNameSetupOverlay")?.classList.contains("open")) setViewMode("squadInvite");
+      return;
+    }
+    _openAddFriendWithCode(code);
+  }
   function _handleFriendDeepLink(url) {
     // tigertag://friend/XXX-YYY (also tolerant of tigertag://XXX-YYY).
     const m = String(url || "").toUpperCase().match(/([A-Z0-9]{3})-([A-Z0-9]{3})(?![A-Z0-9])/);
@@ -39461,7 +39623,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     let user = null;
     try { user = fbAuth().currentUser; } catch (_) {}
     if (!user) { _pendingFriendCode = code; return; }   // flushed by setConnected
-    _openAddFriendWithCode(code);
+    _friendCodeArrived(code);
   }
   if (window.electronAPI?.onDeepLink) {
     window.electronAPI.onDeepLink((url) => { try { _handleFriendDeepLink(url); } catch (e) { console.warn("[deep-link]", e); } });
@@ -39623,6 +39785,8 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
 
   // Share a one-click invite LINK (not just the code): opens the recipient's
   // Studio Manager and pre-fills the add-friend search via the cdn landing page.
+  // Friends panel → the Invite view (quests/referrals.js).
+  $("btnInviteFriends")?.addEventListener("click", () => { closeFriends(); setViewMode("squadInvite"); });
   $("btnShareFriendLink")?.addEventListener("click", () => {
     if (!state.publicKey) return;
     const link = _friendShareUrl(state.publicKey);
@@ -39744,7 +39908,21 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   $("dnsNext")?.addEventListener("click", () => _dnsGoto(2));
   $("dnsBack")?.addEventListener("click", () => _dnsGoto(1));
 
+  // Step 2's optional "Who invited you?" (quests/referrals.js): shown while the
+  // account may still declare its referrer, prefilled by a friend link.
+  let _onbRefField = null;
+  function _syncOnbReferral() {
+    const box = $("dnsRef");
+    if (!box) return;
+    const can = !!referralStatus()?.claim?.canClaim;
+    box.hidden = !can;
+    if (!can) return;
+    if (!_onbRefField) { $("dnsRefField").innerHTML = codeFieldMarkup(referralPrefill()); _onbRefField = wireCodeField($("dnsRefField")); }
+    else if (referralPrefill() && !_onbRefField.value()) _onbRefField.setCode(referralPrefill());
+  }
   function openDisplayNameSetup() {
+    _onbRefField = null;
+    _syncOnbReferral();
     // Pre-fill the existing display name (existing accounts re-run onboarding too;
     // they shouldn't have to retype). New accounts start empty.
     const preName = (state.displayName || activeAccount()?.displayName || "").trim();
@@ -39825,6 +40003,13 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       if (!user) throw new Error("not signed in");
       // Validated and published by the server (mirrored into users/{uid} too).
       await setProfile(user.uid, { displayName: name });
+      // The referrer, once the pseudo exists (the friendship it creates carries it).
+      // A typo keeps the window open on the field; anything else lets them in.
+      const refCode = !$("dnsRef")?.hidden ? _onbRefField?.value() : "";
+      if (refCode) {
+        try { await claimReferral(refCode); }
+        catch (e) { if (["UNKNOWN_CODE", "SELF", "LOOP"].includes(e.message)) { _onbRefField.error(referralErrText(e.message)); return; } }
+      }
       // The language shown in step 1 is saved even if it was kept as proposed —
       // otherwise an account with no language would get the setup again.
       saveAccountLang($("dnsLangSelect")?.value || state.lang);
@@ -40078,6 +40263,9 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     if (n.type === "envelope_gift")   return t("notifEnvelopeGift",   { name: _shortName(n.fromName, n.fromUid) });
     if (n.type === "envelope_chip")   return t("notifEnvelopeChip",   { n: Number(n.data?.n) || 1 });
     if (n.type === "freeze_gift")     return t("notifFreezeGift",     { name: _shortName(n.fromName, n.fromUid) });
+    if (n.type === "trophy")          return t("notifTrophy", { n: n.data?.ids?.length || 1 });
+    if (n.type === "referral_joined")    return t("notifReferralJoined",    { name: _shortName(n.fromName, n.fromUid) });
+    if (n.type === "referral_validated") return t("notifReferralValidated", { name: _shortName(n.fromName, n.fromUid) });
     return n.text || "";
   }
 
@@ -40472,6 +40660,18 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         items.push({ kind: "squad", at, html: card({ ...base, kind: "squad", accent: NOTIF_ACCENT.freeze, art: userAvatar(subject, "sb-friend-avatar"),
           title: _notifText(n), text: t("notifFreezeGiftText"),
           act: { id: "quests", icon: "snow", label: t("questsFreezeTitle") } }) });
+      } else if (n.type === "trophy") {
+        // New trophies (functions/trophies.js, one notice per batch) — opens the album.
+        items.push({ kind: "squad", at, html: card({ ...base, kind: "squad", accent: NOTIF_ACCENT.level,
+          art: `<img src="../assets/img/trophies/cup.webp" alt="">`, title: _notifText(n), text: t("notifTrophyText"),
+          act: { id: "trophies", icon: "trophy", label: t("trophiesTitle") } }) });
+      } else if (n.type === "referral_joined" || n.type === "referral_validated") {
+        // A referral (functions/referrals.js): the invitee joined with our link, or it validated (envelopes).
+        const paid = n.type === "referral_validated" && Number(n.data?.envelopes) > 0;
+        items.push({ kind: paid ? "envelopes" : "squad", at, html: card({ ...base, kind: paid ? "envelopes" : "squad", accent: paid ? NOTIF_ACCENT.envelope : NOTIF_ACCENT.friend,
+          art: paid ? `<img src="../assets/img/tigercoins/envelope.webp" alt=""><span class="nc-art-av">${userAvatar(subject, "fp-friend-avatar")}</span>` : userAvatar(subject, "sb-friend-avatar"),
+          title: _notifText(n), text: paid ? t("notifReferralValidatedText", { n: Number(n.data.envelopes) }) : t("notifReferralJoinedText"),
+          act: paid ? { id: "envelopes", icon: "mail", label: t("notifActOpenEnvelopes") } : { id: "invite", icon: "gift", label: t("referralInviteBtn") } }) });
       } else if (n.type === "envelope_chip") {
         // TigerTag+ Certified chips counted today = surprise envelopes (supportWebhooks.js syncChip).
         items.push({ kind: "envelopes", at, html: card({ ...base, kind: "envelopes", accent: NOTIF_ACCENT.envelope, clickable: true,
@@ -40579,6 +40779,8 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         case "community": _openCommunityLink(arg); break;
         case "order": setViewMode("order"); break;
         case "quests": setViewMode("questsToday"); break;
+        case "trophies": setViewMode("squadTrophies"); break;
+        case "invite": setViewMode("squadInvite"); break;
       }
     }));
     list.querySelectorAll(".nc-fold").forEach(b => b.addEventListener("click", e => {
@@ -40831,6 +41033,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     try { await Promise.all([_loadXpLog(uid, true), _loadLeagues(uid)]); } catch (_) {}
     if (state.viewMode === "xpHistory" && uid === state.activeAccountId) _paintXpHistView();
   }
+  let _hourglassTaps = [];   // when the banner's hourglass was turned (ms), the last 30 s
   {
     const host = $("invXpHistView");
     host?.addEventListener("click", e => {
@@ -40844,7 +41047,17 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         return;
       }
       const hg = e.target.closest("[data-xph-hourglass]");
-      if (hg) { hg.classList.toggle("is-flipped"); return; }   // the banner's hourglass turns over
+      if (hg) {
+        hg.classList.toggle("is-flipped");   // the banner's hourglass turns over
+        // Secret trophy "Master of time": 50 turns within 30 s (docs/TROPHIES.md).
+        const now = Date.now(), uid = state.activeAccountId;
+        _hourglassTaps = _hourglassTaps.filter(at => now - at < 30e3).concat(now);
+        if (_hourglassTaps.length >= 50 && uid && !trophyEarned("timeMaster")) {
+          _hourglassTaps = [];
+          _tigerCoins(uid, "secretTrophy", { id: "timeMaster" }).catch(() => {});
+        }
+        return;
+      }
       const p = e.target.closest("[data-xph-page]");
       if (p && !p.disabled) { _xph.page = Number(p.dataset.xphPage) || 1; _paintXpHistView(); host.querySelector(".xph-table-wrap")?.scrollIntoView({ block: "nearest" }); }
     });

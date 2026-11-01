@@ -18,6 +18,23 @@ squadLeagueHistory/
     countries   map         — CC → { xp, n } (summed XP, member count)
                               (Studio's XP history: the "My country" and "Leagues" curves)
 
+trophyStats/
+  {trophyId}/               — { owners }: accounts holding that trophy (signed-in read, server-written
+                              by functions/trophies.js); _accounts { accounts, active, at } = the base
+                              of "owned by n %" (accounts that checked in during the last 90 days)
+
+referrals/
+  {inviteeUid}/             — a referral (docs/REFERRALS.md): { referrerUid, code, claimedAt, expiresAt,
+                              state "pending" | "validated" | "expired", validatedAt?, referrerPaid?,
+                              seenByInvitee?, seenByReferrer? } — read by the invitee or the referrer,
+                              written only by functions/referrals.js
+referralEmails/ · referralStats/ — server-only: one claim per e-mail (sha256), monthly figures (TigerHub)
+
+trophyEvents/
+  {eventId}/                — an event trophy's card { name{locale}, desc{locale}, art, year, date,
+                              kind "season" | "show", active } (signed-in read, TigerHub admin write);
+                              earned only with a gift code carrying `trophy: eventId` (docs/TROPHIES.md)
+
 squadDeals/
   {dealId}/                 — TigerSquad partner deals (Deals view, quests/squad-deals.js).
                               Read: TigerSquad members only (userProfiles/{uid}.tigerSquad set);
@@ -334,12 +351,22 @@ users/
           cloud_session/      — account cloud token (shared across devices)
           {deviceId}/         — LAN dev_access_code + future per-device secrets
 
+    trophies/
+      {trophyId}/             — a trophy earned, kept for good (docs/TROPHIES.md): owner read,
+                              created by the server only (functions/trophies.js; an event
+                              trophy `ev.<eventId>` by tigerCoins.js redeem)
+        earnedAt    timestamp
+        source      string    — what earned it ("state", "open", "repair", "code"…)
+        event       string?   — the event id of an event trophy
+        ctx         map?      — { streak } (a relit flame), { rank } (the podium)
+
     notifications/
       {notifId}/              — notification centre. Owner reads / marks-read / deletes;
                               a FRIEND may CREATE one (field-whitelisted in rules).
         type        string    — whitelisted; 1st value: "friend_accepted". Server-written types
                               also land here, e.g. "envelope_gift" (a friend gave a gift envelope,
-                              functions/tigerCoins.js giveEnvelope; action "coins" → the Deals view)
+                              functions/tigerCoins.js giveEnvelope; action "coins" → the Deals view),
+                              "trophy" (new trophies, data.ids; action "trophies" → the album)
         fromUid     string    — sender uid (anti-spoof: must equal auth.uid)
         fromName    string
         photoURL    string?

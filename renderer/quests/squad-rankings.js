@@ -17,6 +17,7 @@
  */
 import { FLAG_COLORS } from './flag-colors.js';
 import { heroLayersHtml } from './hero-layers.js';
+import { heroHtml } from './ui-kit.js';
 import { sfx } from './coin-sound.js';
 
 // THE rank number ("#4"), one look wherever a rank is written: league rank
@@ -97,11 +98,8 @@ export function squadItemsHeroHtml(ctx, owned = {}, nextCard = "", eggFound = nu
   const n = LEGENDARY.filter(x => owned[x.id]).length;
   const item = x => ({ html: `<img class="hl hl--${x.img} sqi-item${owned[x.id] ? " is-on" : ""}" src="../assets/img/tigersquad/legendary/${x.img}.webp" alt=""
       aria-label="${esc(t(`xpAch_${x.id}`))}${owned[x.id] ? "" : " — " + esc(t("questsLocked2"))}" draggable="false">` });
-  return `
-    <section class="sqr-hero sqi-hero">
-      <div class="qm-hero-txt"><span class="qw-eyebrow">${esc(t("squadBrand"))}</span>
-        <h2>${esc(t("squadGrimoireSub"))}</h2><p>${esc(t("squadLegendaryCount", { n, total: LEGENDARY.length }))}</p></div>
-      <div class="sqi-scene">${heroLayersHtml("../assets/img/tigersquad/", {
+  return heroHtml(esc, { cls: "sqr-hero sqi-hero", eyebrow: t("squadBrand"), title: t("squadGrimoireSub"),
+    sub: t("squadLegendaryCount", { n, total: LEGENDARY.length }), sceneCls: "sqi-scene", scene: heroLayersHtml("../assets/img/tigersquad/", {
         back: [{ name: "workshop-hero/tiger", cls: "ws-tiger" }],
         front: LEGENDARY.flatMap(x => {
           const egg = `ws${x.id[0].toUpperCase()}${x.id.slice(1)}`;
@@ -109,9 +107,8 @@ export function squadItemsHeroHtml(ctx, owned = {}, nextCard = "", eggFound = nu
             ? [{ html: `<img class="hl hl--egg hl--egg-${x.img}" data-egg="${egg}" src="../assets/img/tigercoins/envelope.webp" alt="" draggable="false">` }] : [];
           return [...hidden, item(x)];   // drawn first: the device covers most of it
         }),
-      })}</div>
-      ${nextCard ? `<div class="sqr-card sqi-next">${nextCard}</div>` : ""}
-    </section>`;
+      }),
+    side: nextCard ? `<div class="sqr-card sqi-next">${nextCard}</div>` : "" });
 }
 
 // ── Hero ─────────────────────────────────────────────────────────────────────
@@ -160,13 +157,8 @@ export function squadHeroHtml(ctx, members, eggFound = null) {
           <p class="sqr-muted">${esc(t("squadNotRankedHow"))}</p>
           ${ctx.friend ? "" : `<button type="button" class="sqr-join" data-next="join">${esc(t("squadJoin"))}</button>`}</div>
       </div>`;
-  return `
-    <section class="sqr-hero">
-      <div class="qm-hero-txt"><span class="qw-eyebrow">${esc(t("squadBrand"))}</span>
-        <h2>${esc(t("squadHeroSub"))}</h2><p>${esc(t("squadHeroTagline"))}</p></div>
-      <div class="hero-scene" aria-hidden="true">${leagueScene(eggFound)}</div>
-      ${members.length ? card : ""}
-    </section>`;
+  return heroHtml(esc, { cls: "sqr-hero", eyebrow: t("squadBrand"), title: t("squadHeroSub"), sub: t("squadHeroTagline"),
+    scene: leagueScene(eggFound), side: members.length ? card : "" });
 }
 
 // The League banner scene (hero-layers.js): three tigers with their silver, gold

@@ -50,7 +50,7 @@ real-hardware testing).
   missionsDone, streakBonuses }` (openAt / doneAt = when each part was done, ms). A mission is
   done when its counter exceeds the baseline. Only the `dailyQuest` check-in starts a new day; a day
   the app never reopened just expires.
-- Celebration in the app on every mission done and on the full set.
+- Celebration in the app on every mission done (a toast away from the Quests window, in place on it) and, on the full set, a window wherever the member is (`renderer/quests/fullset-modal.js`): the chest bursts open, the bonus XP counts up, the streak takes its +1 (with the combo and the palier bonus when paid at the same time).
 - `xpBreakdown.daily = { n: days, xp: Σ }` (accumulated, never recomputed from state).
 
 ## 2. Update bonus

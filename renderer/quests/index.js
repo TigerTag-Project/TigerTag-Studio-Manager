@@ -39,7 +39,9 @@ const RANK_IDS = { discovery: 1, explorer: 2 };
 
 import { ambientStop, fireStart, sfx } from "./coin-sound.js";
 import { heroLayersHtml } from "./hero-layers.js";
+import { heroHtml } from "./ui-kit.js";
 import { openFreezeWindow } from "./freeze-modal.js";
+import { showFullSetWindow } from "./fullset-modal.js";
 
 // The Today banner scene (hero-layers.js): the tiger in the TigerTag cap dreaming,
 // one picture standing on the desk with its paw resting on it, its light-bulb thought, the
@@ -237,13 +239,21 @@ function onDaily(d) {
   // The daily screen celebrates in place (rows, chest jackpot): no toast or
   // sound on top of it while it is on screen.
   const inPlace = !!document.querySelector(".qd-chest")?.offsetParent;
+  // The day's set completed: its own window, wherever the member is (fullset-modal.js),
+  // with the palier bonus in it when one was paid at the same time.
+  const setDone = prev && d && prev.day === d.day && d.bonusPaid && !prev.bonusPaid;
+  const palier = prev && d && prev.day === d.day && (d.streakBonuses || 0) > (prev.streakBonuses || 0);
+  if (setDone) {
+    const combo = Math.max(1, d.combo || 1);
+    showFullSetWindow(_ctx, { xp: _rewards?.daily?.fullSet ?? 20, streak: d.streak || 0, combo: d.combo || 0,
+      palierXp: palier ? (_rewards?.daily?.streakBonus ?? 100) * combo : 0 });
+  }
   if (prev && d && prev.day === d.day && !inPlace) {
     (d.missions || []).forEach((id, k) => {
       if (d.done?.[k] && !prev.done?.[k]) celebrate("mission", { label: missionLabel(id), xp: _rewards?.daily?.mission ?? 5 });
     });
-    if (d.bonusPaid && !prev.bonusPaid) celebrate("fullSet", { xp: _rewards?.daily?.fullSet ?? 20 });
-    // A palier: the streak bonus, × the combo.
-    if ((d.streakBonuses || 0) > (prev.streakBonuses || 0)) {
+    // A palier: the streak bonus, × the combo (already in the full-set window when both came together).
+    if (palier && !setDone) {
       const combo = Math.max(1, d.combo || 1);
       celebrate("combo", { label: combo > 1 ? _ctx.t("questsComboBadge", { n: combo }) : _ctx.t("questsStreakTitle"),
         xp: (_rewards?.daily?.streakBonus ?? 100) * combo });
@@ -574,11 +584,7 @@ function todayHtml() {
   const stat = (icon, label, value) => value == null ? "" : `<li><span class="icon icon-${icon} icon-14" aria-hidden="true"></span><span>${esc(label)}</span><b>${esc(String(value))}</b></li>`;
   return `
   <div class="qd">
-    <section class="qm-hero qd-hero">
-      <div class="qm-hero-txt"><span class="qw-eyebrow">${esc(t("questsTitle"))}</span>
-        <h2>${esc(t("questsDailyHeading"))}</h2><p>${esc(t("questsCaption"))}</p></div>
-      <div class="hero-scene" aria-hidden="true">${DAILY_SCENE}</div>
-    </section>
+    ${heroHtml(esc, { cls: "qm-hero qd-hero", eyebrow: t("questsTitle"), title: t("questsDailyHeading"), sub: t("questsCaption"), scene: DAILY_SCENE })}
     <div class="qd-grid">
       <div class="qd-main">
         <div class="qd-top">
@@ -910,16 +916,12 @@ function journeyHtml() {
   }).join("");
   const lv = levelsOf(rank);
   return `
-    <section class="qm-hero">
-      <div class="qm-hero-txt"><span class="qw-eyebrow">${esc(t("questsTitle"))}</span>
-        <h2>${esc(t("questsJourney"))}</h2><p>${esc(t("squadHeroTagline"))}</p></div>
-      <div class="hero-scene" aria-hidden="true">${MISSIONS_SCENE}</div>
-      <div class="qm-hero-card">
+    ${heroHtml(esc, { cls: "qm-hero", eyebrow: t("questsTitle"), title: t("questsJourney"), sub: t("squadHeroTagline"), scene: MISSIONS_SCENE,
+      side: `<div class="qm-hero-card">
         <b>${rankIcon(cur)} ${esc(t(`questRank_${cur}`))} · ${esc(t(`questWorld_${cur}`))}</b>
         <span>${esc(t("questsLevelsDone", { n: wonIn(cur), total: curLv.length }))}</span>
         <span class="qm-bar" aria-hidden="true"><i style="width:${pct(wonIn(cur), curLv.length || 1)}%"></i></span>
-      </div>
-    </section>
+      </div>` })}
     <div class="qm-chapters">
       <button type="button" class="qm-arrow" data-chap="-1" aria-label="${esc(t("questsPrevChapter"))}"><span class="icon icon-chevron-l icon-14" aria-hidden="true"></span></button>
       <div class="qm-chap-track" role="group" aria-label="${esc(t("questsJourney"))}">${chapters}</div>

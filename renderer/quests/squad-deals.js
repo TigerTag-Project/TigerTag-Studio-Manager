@@ -17,8 +17,9 @@
 // The link is in secret/main, which the rules give only to a member whose XP
 // reaches the deal's minXp: below it a live card is locked with the XP to go.
 
-import { celebrateEgg, flyCoins, guardInput, holdToFire, revealPulls, showPicked, tilt } from './coin-pull.js';
+import { backfire, celebrateEgg, flyCoins, guardInput, holdToFire, revealPulls, showPicked, tilt } from './coin-pull.js';
 import { heroLayersHtml } from './hero-layers.js';
+import { filterBarHtml, heroHtml, searchHtml } from './ui-kit.js';
 import { ambientStart, ambientStop, chestMusicStart, sfx } from './coin-sound.js';
 
 // A text field is a plain string or a { lang: text } map (en as fallback).
@@ -550,7 +551,7 @@ export function showSendCoins(ctx, send) {
     const tile = f => `<button type="button" role="radio" aria-checked="${picked === f.uid}" class="tcs-f" data-to="${esc(f.uid)}" data-name="${esc(f.name)}">
         <span class="tcs-f-av">${f.avatar}</span><span class="tcs-f-name">${esc(f.name)}</span></button>`;
     body.innerHTML = `
-      ${members.length > 8 ? `<label class="sqd-search tc-give-search"><span class="icon icon-search icon-13" aria-hidden="true"></span><input type="search" data-tcs-q placeholder="${esc(t("friendsSearch"))}" autocomplete="off"></label>` : ""}
+      ${members.length > 8 ? searchHtml(esc, { attr: "data-tcs-q", placeholder: t("friendsSearch"), cls: "tc-give-search" }) : ""}
       ${members.length ? `<div class="tcs-row" role="radiogroup" aria-label="${esc(t("envGivePick"))}">${members.map(tile).join("")}</div>`
         : `<p class="tc-give-left">${esc(t(send.friends.length ? "coinsSendNoMember" : "envGiveNoFriends"))}</p>`}
       <label class="tcs-hero is-zero">
@@ -742,8 +743,9 @@ export function tapEgg(spot, egg, ctx, store, onFound) {
  *  a title plaque, the key in three boxes of four
  *  (XXXX-XXXX-XXXX). Typing moves to the next box, Backspace on an empty box
  *  goes back, a pasted key (dashes, spaces or not) fills the three. The backend
- *  credits it once per account (coins or surprise envelopes); its error stays in the
- *  modal, a success closes it with a toast. */
+ *  credits it once per account (coins, surprise envelopes, chests or an event
+ *  trophy — the trophy's own celebration follows); its error stays in the modal,
+ *  a success closes it with a toast. */
 export function openCoinsCodeModal(ctx) {
   const { t, esc } = ctx;
   if (document.querySelector(".tc-code")) return;
@@ -828,9 +830,11 @@ export function openCoinsCodeModal(ctx) {
       if (r.split) await showEnvelope(ctx, { split: r.split, result: r });
       else if (r.chests?.length) await openChests(ctx, r.chests);
       else if (r.opened?.length) await revealSurprises(ctx, r);
-      else ctx.toast?.(t("coinsRedeemed", { n: (r.coins || 0).toLocaleString(ctx.lang) }));
+      // An event trophy alone: its unlock celebration says it (quests/trophies.js).
+      else if (!r.trophy || r.coins) ctx.toast?.(t("coinsRedeemed", { n: (r.coins || 0).toLocaleString(ctx.lang) }));
     } catch (er) {
-      const key = { CODE_EXPIRED: "coinsCodeExpired", CODE_EXHAUSTED: "coinsCodeExhausted", CODE_USED: "coinsCodeUsed" }[er?.message] || "coinsCodeInvalid";
+      const key = { CODE_EXPIRED: "coinsCodeExpired", CODE_EXHAUSTED: "coinsCodeExhausted", CODE_USED: "coinsCodeUsed",
+        TROPHY_OWNED: "trophyCodeOwned", NOT_IN_SQUAD: "trophyCodeMembers" }[er?.message] || "coinsCodeInvalid";
       err.textContent = t(key);
       err.hidden = false;
       form.classList.remove("is-wrong"); void form.offsetWidth; form.classList.add("is-wrong");
@@ -1092,6 +1096,7 @@ export function showEnvelope(ctx, env, { open = null, more = 0, give = null, giv
         const amount = (opened?.coins || 0).toLocaleString(lang);
         collect.querySelector(".tc-env-collect-txt").textContent = t("envCollecting");
         flyCoins(el.querySelector(".tc-env-prize img"), 6);
+        backfire(el, el.querySelector(".tc-reveal-card") || el.firstElementChild, "../assets/img/tigercoins/coin.webp", { size: 480 });
         const calm = reducedMotion();
         setTimeout(() => {
           sfx.deposited();
@@ -1144,7 +1149,7 @@ export function showEnvelope(ctx, env, { open = null, more = 0, give = null, giv
           <p class="tc-give-count">${esc(t("envGiveCount", { sent: Math.max(0, max - dayLeft), left: dayLeft }))}</p>
           ${give.none ? `<p class="tc-give-left is-none">${esc(t("envGiveNoGift"))}</p>`
             : left ? "" : `<p class="tc-give-left is-none">${esc(t("envGiveNone"))}</p>`}
-          ${friends.length > 8 ? `<label class="sqd-search tc-give-search"><span class="icon icon-search icon-13" aria-hidden="true"></span><input type="search" data-give-q placeholder="${esc(t("friendsSearch"))}" autocomplete="off"></label>` : ""}
+          ${friends.length > 8 ? searchHtml(esc, { attr: "data-give-q", placeholder: t("friendsSearch"), cls: "tc-give-search" }) : ""}
           ${friends.length ? `<div class="tc-give-list" role="radiogroup" aria-label="${esc(t("envGivePick"))}">${friends.map(f =>
             `<button type="button" role="radio" aria-checked="false" class="tc-give-f" data-give-to="${esc(f.uid)}" data-name="${esc(f.name)}"${left ? "" : " disabled"}><span class="tc-give-av">${f.avatar}<span class="tc-give-check" aria-hidden="true"><span class="icon icon-check icon-11"></span></span></span><span class="tc-give-name">${esc(f.name)}</span></button>`).join("")}</div>`
             : `<p class="tc-give-left">${esc(t("envGiveNoFriends"))}</p>`}
@@ -1240,17 +1245,15 @@ export function dealsViewHtml(ctx, { live, history, ended }) {
   const f = ctx.filter || { tab: "all", q: "" };
   const mineN = live.filter(d => { if (d.kind === "announcement") return false; const p = dealParts(ctx, d, "live"); return p.got && !p.used; }).length;
   const coinN = live.filter(d => d.kind !== "announcement" && d.costCoins > 0).length;
-  const tab = (id, icon, key, n) => `<button type="button" role="tab" class="sqd-tab${f.tab === id ? " is-on" : ""}" data-sqd-tab="${id}" aria-selected="${f.tab === id}">${icon}${esc(t(key))}${n ? `<b>${n}</b>` : ""}</button>`;
+  const tab = (id, icon, key, n) => ({ attr: `data-sqd-tab="${id}"`, icon, label: t(key), n, on: f.tab === id });
   // While loading, the same bar, greyed and inert (the page keeps its final shape).
-  const bar = `
-    <div class="sqd-bar${ctx.loading ? " is-skel" : ""}" role="search"${ctx.loading ? " inert" : ""}>
-      <div class="sqd-tabs" role="tablist">
-        ${tab("all", `<span class="icon icon-grid icon-13" aria-hidden="true"></span>`, "squadDealsFilterAll", 0)}
-        ${coinN || ctx.loading ? tab("exchange", `<span class="tcoin" aria-hidden="true"></span>`, "squadDealsExchange", 0) : ""}
-        ${tab("mine", `<span class="icon icon-tag icon-13" aria-hidden="true"></span>`, "squadDealsFilterMine", mineN)}
-      </div>
-      <label class="sqd-search"><span class="icon icon-search icon-13" aria-hidden="true"></span><input type="search" data-sqd-q value="${esc(f.q)}" placeholder="${esc(t("squadDealsSearch"))}"></label>
-    </div>
+  const bar = `${filterBarHtml(esc, {
+    cls: ctx.loading ? "is-skel" : "", attrs: ctx.loading ? "inert" : "",
+    tabs: [tab("all", `<span class="icon icon-grid icon-13" aria-hidden="true"></span>`, "squadDealsFilterAll", 0),
+      ...(coinN || ctx.loading ? [tab("exchange", `<span class="tcoin" aria-hidden="true"></span>`, "squadDealsExchange", 0)] : []),
+      tab("mine", `<span class="icon icon-tag icon-13" aria-hidden="true"></span>`, "squadDealsFilterMine", mineN)],
+    search: { attr: "data-sqd-q", value: f.q, placeholder: t("squadDealsSearch") },
+  })}
     <p class="sqd-nomatch" hidden>${esc(t("squadDealsNoMatch"))}</p>`;
   const group = (list, section, key) => list.length ? `
     ${section === "live" ? bar : ""}
@@ -1279,12 +1282,8 @@ export function dealsViewHtml(ctx, { live, history, ended }) {
     ${group(history, "history", "squadDealsArchived")}
     ${group(ended, "ended", "squadDealsEndedTitle")}` : soon(false);
   return `
-    <section class="sqr-hero sqd-hero">
-      <div class="qm-hero-txt"><span class="qw-eyebrow">${esc(t("squadBrand"))}</span>
-        <h2>${esc(t("squadDeals"))}</h2><p>${esc(t("squadDealsSub"))}</p></div>
-      <div class="hero-scene" aria-hidden="true">${dealsSceneHtml(ctx)}</div>
-      ${ctx.loading ? "" : coinsBar(ctx)}
-    </section>
+    ${heroHtml(esc, { cls: "sqr-hero sqd-hero", eyebrow: t("squadBrand"), title: t("squadDeals"), sub: t("squadDealsSub"),
+      scene: dealsSceneHtml(ctx), side: ctx.loading ? "" : coinsBar(ctx) })}
     ${body}
     <button type="button" class="pp-close-tab sqd-close-tab${ctx.openId && ctx.openId === findOpen(ctx, live, history, ended) ? " is-open" : ""}" aria-label="${esc(t("squadDealsClose"))}"><span class="cttab-glyph">»</span></button>`;
 }
