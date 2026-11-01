@@ -3035,8 +3035,8 @@
   "loginCheckChange": "Use another address",
   "referralInviteBtn": "Invite friends",
   "referralInviteShort": "Invite",
-  "referralTitle": "Invite your crew",
-  "referralTagline": "They sign up, you both get {{n}} envelopes. Nobody calls it a pyramid scheme.",
+  "referralTitle": "Invite a friend: {{n}} envelopes each",
+  "referralTagline": "As soon as they create their account and confirm their e-mail.",
   "referralLinkTitle": "Your invite link",
   "referralCopy": "Copy",
   "referralShareText": "Join me on Tiger Studio — free filament & printer manager. We both get {{n}} envelopes when you sign up.",
@@ -3044,6 +3044,22 @@
   "referralQrDownload": "Download the QR",
   "referralMyInvitees": "Your recruits",
   "referralNoInvitees": "Nobody yet. Your link is lonely.",
+  "referralStep1": "1. Send your link",
+  "referralStep1Sub": "WhatsApp, Discord, e-mail… or just your code",
+  "referralStep2": "2. They install Tiger Studio",
+  "referralStep2Sub": "and types your code when signing up",
+  "referralStep3": "3. They confirm their e-mail",
+  "referralStep3Sub": "{{n}} envelopes for each of you",
+  "referralYourCode": "Your code",
+  "referralCopyLink": "Copy the link",
+  "referralMsgPreview": "Message sent: “{{msg}}”",
+  "referralQrHint": "Scan with a phone to open the invite",
+  "referralRowValidated": "Validated on {{date}} — {{n}} envelopes each",
+  "referralRowExpired": "The e-mail wasn't confirmed in time — no envelopes this time",
+  "referralRowPending": {
+    "one": "Signed up — waiting for their e-mail confirmation ({{n}} day left)",
+    "other": "Signed up — waiting for their e-mail confirmation ({{n}} days left)"
+  },
   "referralCountLabel": {
     "one": "recruit validated",
     "other": "recruits validated"

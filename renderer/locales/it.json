@@ -3035,8 +3035,8 @@
   "loginCheckChange": "Usa un altro indirizzo",
   "referralInviteBtn": "Invita amici",
   "referralInviteShort": "Invita",
-  "referralTitle": "Recluta la tua crew",
-  "referralTagline": "Si iscrivono e ricevete {{n}} buste a testa. Nessuno lo chiama schema piramidale.",
+  "referralTitle": "Invita un amico: {{n}} buste a testa",
+  "referralTagline": "Appena crea l'account e conferma l'e-mail.",
   "referralLinkTitle": "Il tuo link d'invito",
   "referralCopy": "Copia",
   "referralShareText": "Raggiungimi su Tiger Studio — gestore gratuito di filamenti e stampanti. Riceviamo {{n}} buste a testa quando ti iscrivi.",
@@ -3044,6 +3044,22 @@
   "referralQrDownload": "Scarica il QR",
   "referralMyInvitees": "Le tue reclute",
   "referralNoInvitees": "Ancora nessuno. Il tuo link si sente solo.",
+  "referralStep1": "1. Invia il tuo link",
+  "referralStep1Sub": "WhatsApp, Discord, e-mail… o solo il tuo codice",
+  "referralStep2": "2. Installa Tiger Studio",
+  "referralStep2Sub": "e inserisce il tuo codice all'iscrizione",
+  "referralStep3": "3. Conferma l'e-mail",
+  "referralStep3Sub": "{{n}} buste a testa",
+  "referralYourCode": "Il tuo codice",
+  "referralCopyLink": "Copia il link",
+  "referralMsgPreview": "Messaggio inviato: «{{msg}}»",
+  "referralQrHint": "Scansiona col telefono per aprire l'invito",
+  "referralRowValidated": "Convalidato il {{date}} — {{n}} buste a testa",
+  "referralRowExpired": "L'e-mail non è stata confermata in tempo — niente buste stavolta",
+  "referralRowPending": {
+    "one": "Iscritto — manca la conferma dell'e-mail (resta {{n}} giorno)",
+    "other": "Iscritto — manca la conferma dell'e-mail (restano {{n}} giorni)"
+  },
   "referralCountLabel": {
     "one": "recluta convalidata",
     "other": "reclute convalidate"

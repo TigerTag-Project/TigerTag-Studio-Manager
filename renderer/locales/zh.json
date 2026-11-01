@@ -3025,8 +3025,8 @@
   "loginCheckChange": "使用其他地址",
   "referralInviteBtn": "邀请好友",
   "referralInviteShort": "邀请",
-  "referralTitle": "召集你的伙伴",
-  "referralTagline": "对方注册，你们各得 {{n}} 个红包。没人说这是传销。",
+  "referralTitle": "邀请好友：各得 {{n}} 个红包",
+  "referralTagline": "对方创建账户并确认邮箱后即可到账。",
   "referralLinkTitle": "你的邀请链接",
   "referralCopy": "复制",
   "referralShareText": "来 Tiger Studio 找我吧——免费的耗材与打印机管理器。你注册后我们各得 {{n}} 个红包。",
@@ -3034,6 +3034,22 @@
   "referralQrDownload": "下载二维码",
   "referralMyInvitees": "你邀请的人",
   "referralNoInvitees": "还没有人。你的链接很寂寞。",
+  "referralStep1": "1. 发送你的链接",
+  "referralStep1Sub": "WhatsApp、Discord、邮件……或只发邀请码",
+  "referralStep2": "2. 对方安装 Tiger Studio",
+  "referralStep2Sub": "并在注册时填写你的邀请码",
+  "referralStep3": "3. 对方确认邮箱",
+  "referralStep3Sub": "你们各得 {{n}} 个红包",
+  "referralYourCode": "你的邀请码",
+  "referralCopyLink": "复制链接",
+  "referralMsgPreview": "发送的消息：“{{msg}}”",
+  "referralQrHint": "用手机扫码打开邀请",
+  "referralRowValidated": "{{date}} 已验证——各得 {{n}} 个红包",
+  "referralRowExpired": "邮箱未按时确认——这次没有红包",
+  "referralRowPending": {
+    "one": "已注册——等待确认邮箱（剩 {{n}} 天）",
+    "other": "已注册——等待确认邮箱（剩 {{n}} 天）"
+  },
   "referralCountLabel": {
     "one": "位已验证",
     "other": "位已验证"

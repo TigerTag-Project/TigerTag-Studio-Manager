@@ -3055,8 +3055,8 @@
   "loginCheckChange": "Указать другой адрес",
   "referralInviteBtn": "Пригласить друзей",
   "referralInviteShort": "Пригласить",
-  "referralTitle": "Позови свою команду",
-  "referralTagline": "Они регистрируются — вы оба получаете {{n}} конверта. Никто не называет это пирамидой.",
+  "referralTitle": "Пригласи друга: по {{n}} конверта",
+  "referralTagline": "Как только друг создаст аккаунт и подтвердит e-mail.",
   "referralLinkTitle": "Твоя ссылка-приглашение",
   "referralCopy": "Копировать",
   "referralShareText": "Присоединяйся к Tiger Studio — бесплатный менеджер филамента и принтеров. Мы оба получим {{n}} конверта, когда ты зарегистрируешься.",
@@ -3064,6 +3064,22 @@
   "referralQrDownload": "Скачать QR",
   "referralMyInvitees": "Твои новобранцы",
   "referralNoInvitees": "Пока никого. Твоей ссылке одиноко.",
+  "referralStep1": "1. Отправь ссылку",
+  "referralStep1Sub": "WhatsApp, Discord, e-mail… или просто код",
+  "referralStep2": "2. Друг ставит Tiger Studio",
+  "referralStep2Sub": "и вводит твой код при регистрации",
+  "referralStep3": "3. Друг подтверждает e-mail",
+  "referralStep3Sub": "по {{n}} конверта каждому",
+  "referralYourCode": "Твой код",
+  "referralCopyLink": "Скопировать ссылку",
+  "referralMsgPreview": "Отправляемое сообщение: «{{msg}}»",
+  "referralQrHint": "Отсканируй телефоном, чтобы открыть приглашение",
+  "referralRowValidated": "Подтверждено {{date}} — по {{n}} конверта",
+  "referralRowExpired": "E-mail не подтвердили вовремя — в этот раз без конвертов",
+  "referralRowPending": {
+    "one": "Зарегистрирован — ждём подтверждения e-mail (дней осталось: {{n}})",
+    "other": "Зарегистрирован — ждём подтверждения e-mail (дней осталось: {{n}})"
+  },
   "referralCountLabel": {
     "one": "подтверждённый новобранец",
     "other": "подтверждённых новобранцев"

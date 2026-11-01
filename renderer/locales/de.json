@@ -3035,8 +3035,8 @@
   "loginCheckChange": "Andere Adresse verwenden",
   "referralInviteBtn": "Freunde einladen",
   "referralInviteShort": "Einladen",
-  "referralTitle": "Hol deine Crew",
-  "referralTagline": "Sie melden sich an, ihr bekommt beide {{n}} Umschläge. Niemand nennt das ein Schneeballsystem.",
+  "referralTitle": "Lade einen Freund ein: je {{n}} Umschläge",
+  "referralTagline": "Sobald das Konto erstellt und die E-Mail bestätigt ist.",
   "referralLinkTitle": "Dein Einladungslink",
   "referralCopy": "Kopieren",
   "referralShareText": "Komm zu Tiger Studio — der kostenlose Filament- und Druckermanager. Wir bekommen beide {{n}} Umschläge, wenn du dich anmeldest.",
@@ -3044,6 +3044,22 @@
   "referralQrDownload": "QR herunterladen",
   "referralMyInvitees": "Deine Rekruten",
   "referralNoInvitees": "Noch niemand. Dein Link fühlt sich einsam.",
+  "referralStep1": "1. Schick deinen Link",
+  "referralStep1Sub": "WhatsApp, Discord, E-Mail… oder nur deinen Code",
+  "referralStep2": "2. Installation von Tiger Studio",
+  "referralStep2Sub": "und gibt bei der Anmeldung deinen Code ein",
+  "referralStep3": "3. E-Mail wird bestätigt",
+  "referralStep3Sub": "{{n}} Umschläge für jeden von euch",
+  "referralYourCode": "Dein Code",
+  "referralCopyLink": "Link kopieren",
+  "referralMsgPreview": "Gesendete Nachricht: „{{msg}}“",
+  "referralQrHint": "Mit dem Handy scannen, um die Einladung zu öffnen",
+  "referralRowValidated": "Bestätigt am {{date}} — je {{n}} Umschläge",
+  "referralRowExpired": "Die E-Mail wurde nicht rechtzeitig bestätigt — diesmal keine Umschläge",
+  "referralRowPending": {
+    "one": "Angemeldet — wartet auf die E-Mail-Bestätigung (noch {{n}} Tag)",
+    "other": "Angemeldet — wartet auf die E-Mail-Bestätigung (noch {{n}} Tage)"
+  },
   "referralCountLabel": {
     "one": "Rekrut bestätigt",
     "other": "Rekruten bestätigt"

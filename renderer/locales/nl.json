@@ -3035,8 +3035,8 @@
   "loginCheckChange": "Ander adres gebruiken",
   "referralInviteBtn": "Vrienden uitnodigen",
   "referralInviteShort": "Uitnodigen",
-  "referralTitle": "Haal je crew erbij",
-  "referralTagline": "Zij schrijven zich in, jullie krijgen allebei {{n}} enveloppen. Niemand noemt het een piramidespel.",
+  "referralTitle": "Nodig een vriend uit: {{n}} enveloppen elk",
+  "referralTagline": "Zodra die een account maakt en het e-mailadres bevestigt.",
   "referralLinkTitle": "Je uitnodigingslink",
   "referralCopy": "Kopiëren",
   "referralShareText": "Kom erbij op Tiger Studio — gratis filament- en printerbeheer. We krijgen allebei {{n}} enveloppen als je je inschrijft.",
@@ -3044,6 +3044,22 @@
   "referralQrDownload": "QR downloaden",
   "referralMyInvitees": "Jouw rekruten",
   "referralNoInvitees": "Nog niemand. Je link voelt zich eenzaam.",
+  "referralStep1": "1. Stuur je link",
+  "referralStep1Sub": "WhatsApp, Discord, e-mail… of alleen je code",
+  "referralStep2": "2. Die ander installeert Tiger Studio",
+  "referralStep2Sub": "en typt je code bij het inschrijven",
+  "referralStep3": "3. Die ander bevestigt het e-mailadres",
+  "referralStep3Sub": "{{n}} enveloppen voor jullie allebei",
+  "referralYourCode": "Je code",
+  "referralCopyLink": "Link kopiëren",
+  "referralMsgPreview": "Verzonden bericht: ‘{{msg}}’",
+  "referralQrHint": "Scan met je telefoon om de uitnodiging te openen",
+  "referralRowValidated": "Gevalideerd op {{date}} — {{n}} enveloppen elk",
+  "referralRowExpired": "Het e-mailadres werd niet op tijd bevestigd — deze keer geen enveloppen",
+  "referralRowPending": {
+    "one": "Ingeschreven — wacht op bevestiging van het e-mailadres (nog {{n}} dag)",
+    "other": "Ingeschreven — wacht op bevestiging van het e-mailadres (nog {{n}} dagen)"
+  },
   "referralCountLabel": {
     "one": "rekruut gevalideerd",
     "other": "rekruten gevalideerd"

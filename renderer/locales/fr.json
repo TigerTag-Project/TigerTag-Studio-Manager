@@ -3035,8 +3035,8 @@
   "loginCheckChange": "Utiliser une autre adresse",
   "referralInviteBtn": "Inviter des amis",
   "referralInviteShort": "Inviter",
-  "referralTitle": "Recrute ta team",
-  "referralTagline": "Ils s'inscrivent, vous recevez {{n}} enveloppes chacun. Personne n'appelle ça une pyramide.",
+  "referralTitle": "Invite un ami : {{n}} enveloppes chacun",
+  "referralTagline": "Dès qu'il a créé son compte et confirmé son e-mail.",
   "referralLinkTitle": "Ton lien d'invitation",
   "referralCopy": "Copier",
   "referralShareText": "Rejoins-moi sur Tiger Studio — le gestionnaire gratuit de filaments et d'imprimantes. On reçoit {{n}} enveloppes chacun à ton inscription.",
@@ -3044,6 +3044,22 @@
   "referralQrDownload": "Télécharger le QR",
   "referralMyInvitees": "Tes recrues",
   "referralNoInvitees": "Personne pour l'instant. Ton lien se sent seul.",
+  "referralStep1": "1. Envoie ton lien",
+  "referralStep1Sub": "WhatsApp, Discord, e-mail… ou juste ton code",
+  "referralStep2": "2. Il installe Tiger Studio",
+  "referralStep2Sub": "et tape ton code à l'inscription",
+  "referralStep3": "3. Il confirme son e-mail",
+  "referralStep3Sub": "{{n}} enveloppes pour chacun de vous",
+  "referralYourCode": "Ton code",
+  "referralCopyLink": "Copier le lien",
+  "referralMsgPreview": "Message envoyé : « {{msg}} »",
+  "referralQrHint": "À scanner avec un téléphone pour ouvrir l'invitation",
+  "referralRowValidated": "Validé le {{date}} — {{n}} enveloppes chacun",
+  "referralRowExpired": "L'e-mail n'a pas été confirmé à temps — pas d'enveloppes cette fois",
+  "referralRowPending": {
+    "one": "Inscrit — attend la confirmation de son e-mail ({{n}} jour restant)",
+    "other": "Inscrit — attend la confirmation de son e-mail ({{n}} jours restants)"
+  },
   "referralCountLabel": {
     "one": "recrue validée",
     "other": "recrues validées"

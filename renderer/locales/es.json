@@ -3035,8 +3035,8 @@
   "loginCheckChange": "Usar otra dirección",
   "referralInviteBtn": "Invitar amigos",
   "referralInviteShort": "Invitar",
-  "referralTitle": "Recluta a tu equipo",
-  "referralTagline": "Se registran y los dos recibís {{n}} sobres. Nadie lo llama estafa piramidal.",
+  "referralTitle": "Invita a un amigo: {{n}} sobres cada uno",
+  "referralTagline": "En cuanto cree su cuenta y confirme su correo.",
   "referralLinkTitle": "Tu enlace de invitación",
   "referralCopy": "Copiar",
   "referralShareText": "Únete a Tiger Studio — gestor gratuito de filamentos e impresoras. Los dos recibimos {{n}} sobres cuando te registres.",
@@ -3044,6 +3044,22 @@
   "referralQrDownload": "Descargar el QR",
   "referralMyInvitees": "Tus reclutas",
   "referralNoInvitees": "Nadie todavía. Tu enlace se siente solo.",
+  "referralStep1": "1. Envía tu enlace",
+  "referralStep1Sub": "WhatsApp, Discord, correo… o solo tu código",
+  "referralStep2": "2. Instala Tiger Studio",
+  "referralStep2Sub": "y escribe tu código al registrarse",
+  "referralStep3": "3. Confirma su correo",
+  "referralStep3Sub": "{{n}} sobres para cada uno",
+  "referralYourCode": "Tu código",
+  "referralCopyLink": "Copiar el enlace",
+  "referralMsgPreview": "Mensaje enviado: «{{msg}}»",
+  "referralQrHint": "Escanéalo con el móvil para abrir la invitación",
+  "referralRowValidated": "Validado el {{date}} — {{n}} sobres cada uno",
+  "referralRowExpired": "El correo no se confirmó a tiempo — esta vez no hay sobres",
+  "referralRowPending": {
+    "one": "Registrado — falta confirmar el correo (queda {{n}} día)",
+    "other": "Registrado — falta confirmar el correo (quedan {{n}} días)"
+  },
   "referralCountLabel": {
     "one": "recluta validado",
     "other": "reclutas validados"

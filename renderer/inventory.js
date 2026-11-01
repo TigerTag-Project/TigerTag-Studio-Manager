@@ -4402,7 +4402,13 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       return { uid, displayName: p.displayName || "", photoURL: p.photoURL || null, color: p.color || null };
     },
     openEnvelopes: () => _openEnvelopesNow(),
-    onChange: () => { if (state.viewMode === "squadInvite") renderInventory(); _syncOnbReferral(); },
+    onChange: () => {
+      if (state.viewMode === "squadInvite") renderInventory();
+      _syncOnbReferral();
+      // "+3" on the Tiger Squad Invite button while nobody joined with this account's link yet.
+      const st = referralStatus(), badge = $("viewInviteBadge");
+      if (badge) { badge.textContent = `+${st?.cfg?.envelopes || 3}`; badge.hidden = !st?.cfg?.active || !!st?.invitees?.length; }
+    },
   });
   // Tiger Quests — counters, daily check-in, the Quests window (quests/index.js).
   initQuests({

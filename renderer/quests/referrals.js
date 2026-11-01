@@ -90,9 +90,13 @@ export const errText = code => {
 function stateRow(x) {
   const { t, esc } = _ctx;
   const pill = `<span class="rf-pill rf-pill--${esc(x.state)}">${esc(t(`referralState_${x.state}`))}</span>`;
-  const when = x.state === "validated" && x.validatedAt ? new Date(x.validatedAt).toLocaleDateString() : "";
+  // What the row is waiting for, in words: the e-mail (and the days left), or when it paid.
+  const days = Math.max(0, Math.ceil(((x.expiresAt || 0) - Date.now()) / 86_400_000));
+  const why = x.state === "validated"
+    ? t("referralRowValidated", { date: x.validatedAt ? new Date(x.validatedAt).toLocaleDateString() : "", n: _status?.cfg?.envelopes || 3 })
+    : x.state === "pending" ? t("referralRowPending", { n: days }) : t("referralRowExpired");
   return `<li class="rf-row">${_ctx.avatar(x, "sb-friend-avatar")}
-    <span class="rf-row-txt"><b>${esc(x.name || "?")}</b>${when ? `<small>${esc(when)}</small>` : ""}</span>${pill}</li>`;
+    <span class="rf-row-txt"><b>${esc(x.name || "?")}</b><small>${esc(why)}</small></span>${pill}</li>`;
 }
 
 function codeFieldHtml(id, value = "") {
@@ -169,13 +173,16 @@ export function renderInviteView(host) {
       <span>${esc(t("referralCountLabel", { n: validated }))}</span>
       ${next ? `<small>${esc(t("referralNextTrophy", { n: next - validated }))}</small>` : ""}
     </div>`;
+  // Each network as a labelled button (the list share row's colours): the name says where it goes.
   const nets = NETS.map(([id, icon, cls, label]) =>
-    `<button type="button" class="lv-social lv-social--${cls}" data-rf-net="${id}" aria-label="${esc(label)}"><span class="icon icon-${icon}"></span></button>`).join("");
+    `<button type="button" class="rf-net" data-rf-net="${id}"><span class="lv-social lv-social--${cls}" aria-hidden="true"><span class="icon icon-${icon}"></span></span>${esc(label)}</button>`).join("");
   const qr = link ? _ctx.qr(link, { size: 240, margin: 2 }) : "";
+  const envs = s?.cfg?.envelopes || 3;
+  // "Who invited you?" — only while this account may still claim: a banner on top, apart from the sharing.
   const claimCard = s?.claim?.canClaim ? `
     <section class="rf-card rf-claim">
       <h3><span class="icon icon-gift icon-16" aria-hidden="true"></span>${esc(t("referralWhoTitle"))}</h3>
-      <p>${esc(t("referralWhoSub", { n: s.claim.daysLeft, e: s.cfg?.envelopes || 3 }))}</p>
+      <p>${esc(t("referralWhoSub", { n: s.claim.daysLeft, e: envs }))}</p>
       <div data-rf-claim>${codeFieldHtml("view", _prefill)}</div>
       <button type="button" class="primary rf-claim-go" data-rf-claim-go disabled>${esc(t("referralClaim"))}</button>
     </section>` : "";
@@ -189,28 +196,36 @@ export function renderInviteView(host) {
   const list = s?.invitees?.length
     ? `<ul class="rf-list">${s.invitees.map(stateRow).join("")}</ul>`
     : `<p class="rf-empty">${esc(t("referralNoInvitees"))}</p>`;
+  // How it works, in three steps — what to do and when the envelopes come.
+  const steps = [["send", 1], ["download", 2], ["mail", 3]].map(([icon, n]) => `
+    <li class="rf-step"><span class="rf-step-ic"><span class="icon icon-${icon} icon-16" aria-hidden="true"></span></span>
+      <span class="rf-row-txt"><b>${esc(t(`referralStep${n}`))}</b><small>${esc(t(`referralStep${n}Sub`, { n: envs }))}</small></span></li>`).join("");
   host.innerHTML = `
-    ${heroHtml(esc, { cls: "sqr-hero rf-hero", eyebrow: t("squadBrand"), title: t("referralTitle"), sub: t("referralTagline", { n: s?.cfg?.envelopes || 3 }), side })}
+    ${heroHtml(esc, { cls: "sqr-hero rf-hero", eyebrow: t("squadBrand"), title: t("referralTitle", { n: envs }), sub: t("referralTagline", { n: envs }), side })}
     ${!s ? `<div class="trp-loading">${esc(t("questsLoading"))}</div>` : `
-    <div class="rf-grid">
-      <div class="rf-main">
-        <section class="rf-card rf-link">
-          <h3><span class="icon icon-link icon-16" aria-hidden="true"></span>${esc(t("referralLinkTitle"))}</h3>
-          <div class="rf-link-row"><input class="dns-input" readonly value="${esc(link)}" aria-label="${esc(t("referralLinkTitle"))}">
-            <button type="button" class="lv-public-copy" data-rf-copy><span class="icon icon-copy icon-13" aria-hidden="true"></span><span>${esc(t("referralCopy"))}</span></button></div>
-          <div class="lv-social-row rf-nets">${nets}</div>
-        </section>
-        ${claimCard}${mine}
-        <section class="rf-card">
-          <h3><span class="icon icon-user icon-16" aria-hidden="true"></span>${esc(t("referralMyInvitees"))}</h3>
-          ${list}
-        </section>
+    ${claimCard}${mine}
+    <ol class="rf-steps">${steps}</ol>
+    <section class="rf-card rf-share">
+      <div class="rf-share-main">
+        <div class="rf-code-row"><span class="rf-code-lbl">${esc(t("referralYourCode"))}</span>
+          <b class="rf-code-big">${esc(s.code || "—")}</b>
+          <button type="button" class="lv-public-copy" data-rf-copy-code><span class="icon icon-copy icon-13" aria-hidden="true"></span><span>${esc(t("referralCopy"))}</span></button></div>
+        <div class="rf-link-row"><input class="dns-input" readonly value="${esc(link)}" aria-label="${esc(t("referralLinkTitle"))}">
+          <button type="button" class="lv-public-copy" data-rf-copy><span class="icon icon-link icon-13" aria-hidden="true"></span><span>${esc(t("referralCopyLink"))}</span></button></div>
+        <div class="rf-nets">${nets}</div>
+        <p class="rf-msg">${esc(t("referralMsgPreview", { msg: shareText() }))}</p>
       </div>
-      ${qr ? `<aside class="lv-public-card rf-qr">
-        <div class="lv-qr-wrap"><img class="lv-public-qr" src="${esc(qr)}" alt=""></div>
-        <button type="button" class="lv-public-copy" data-rf-qr><span class="icon icon-download icon-13" aria-hidden="true"></span><span>${esc(t("referralQrDownload"))}</span></button>
-      </aside>` : ""}
-    </div>`}`;
+      ${qr ? `<div class="rf-qr">
+        <img class="lv-public-qr" src="${esc(qr)}" alt="">
+        <small>${esc(t("referralQrHint"))}</small>
+        <button type="button" class="rf-qr-dl" data-rf-qr><span class="icon icon-download icon-13" aria-hidden="true"></span>${esc(t("referralQrDownload"))}</button>
+      </div>` : ""}
+    </section>
+    <section class="rf-card">
+      <h3><span class="icon icon-user icon-16" aria-hidden="true"></span>${esc(t("referralMyInvitees"))}</h3>
+      ${list}
+    </section>`}`;
+  host.querySelector("[data-rf-copy-code]")?.addEventListener("click", e => _ctx.copy(s.code, e.currentTarget));
   host.querySelector("[data-rf-copy]")?.addEventListener("click", e => _ctx.copy(link, e.currentTarget));
   host.querySelectorAll("[data-rf-net]").forEach(b => b.addEventListener("click", () => share(b.dataset.rfNet, b)));
   host.querySelector("[data-rf-qr]")?.addEventListener("click", () => {

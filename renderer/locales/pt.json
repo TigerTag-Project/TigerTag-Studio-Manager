@@ -3035,8 +3035,8 @@
   "loginCheckChange": "Usar outro endereço",
   "referralInviteBtn": "Convidar amigos",
   "referralInviteShort": "Convidar",
-  "referralTitle": "Chame sua galera",
-  "referralTagline": "Eles se cadastram e vocês dois ganham {{n}} envelopes. Ninguém chama isso de pirâmide.",
+  "referralTitle": "Convide um amigo: {{n}} envelopes cada",
+  "referralTagline": "Assim que ele criar a conta e confirmar o e-mail.",
   "referralLinkTitle": "Seu link de convite",
   "referralCopy": "Copiar",
   "referralShareText": "Vem pro Tiger Studio — gerenciador gratuito de filamentos e impressoras. Nós dois ganhamos {{n}} envelopes quando você se cadastrar.",
@@ -3044,6 +3044,22 @@
   "referralQrDownload": "Baixar o QR",
   "referralMyInvitees": "Seus recrutas",
   "referralNoInvitees": "Ninguém ainda. Seu link está se sentindo sozinho.",
+  "referralStep1": "1. Envie seu link",
+  "referralStep1Sub": "WhatsApp, Discord, e-mail… ou só seu código",
+  "referralStep2": "2. Ele instala o Tiger Studio",
+  "referralStep2Sub": "e digita seu código no cadastro",
+  "referralStep3": "3. Ele confirma o e-mail",
+  "referralStep3Sub": "{{n}} envelopes para cada um",
+  "referralYourCode": "Seu código",
+  "referralCopyLink": "Copiar o link",
+  "referralMsgPreview": "Mensagem enviada: “{{msg}}”",
+  "referralQrHint": "Escaneie com o celular para abrir o convite",
+  "referralRowValidated": "Validado em {{date}} — {{n}} envelopes cada",
+  "referralRowExpired": "O e-mail não foi confirmado a tempo — sem envelopes desta vez",
+  "referralRowPending": {
+    "one": "Cadastrado — falta confirmar o e-mail (resta {{n}} dia)",
+    "other": "Cadastrado — falta confirmar o e-mail (restam {{n}} dias)"
+  },
   "referralCountLabel": {
     "one": "recruta validado",
     "other": "recrutas validados"

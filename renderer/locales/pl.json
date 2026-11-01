@@ -3055,8 +3055,8 @@
   "loginCheckChange": "Użyj innego adresu",
   "referralInviteBtn": "Zaproś znajomych",
   "referralInviteShort": "Zaproś",
-  "referralTitle": "Zwerbuj ekipę",
-  "referralTagline": "Oni się rejestrują, wy oboje dostajecie {{n}} koperty. Nikt nie nazywa tego piramidą.",
+  "referralTitle": "Zaproś znajomego: po {{n}} koperty",
+  "referralTagline": "Gdy tylko założy konto i potwierdzi e-mail.",
   "referralLinkTitle": "Twój link z zaproszeniem",
   "referralCopy": "Kopiuj",
   "referralShareText": "Dołącz do mnie w Tiger Studio — darmowy menedżer filamentów i drukarek. Oboje dostaniemy {{n}} koperty, gdy się zarejestrujesz.",
@@ -3064,6 +3064,22 @@
   "referralQrDownload": "Pobierz kod QR",
   "referralMyInvitees": "Twoi rekruci",
   "referralNoInvitees": "Jeszcze nikt. Twój link czuje się samotny.",
+  "referralStep1": "1. Wyślij swój link",
+  "referralStep1Sub": "WhatsApp, Discord, e-mail… albo sam kod",
+  "referralStep2": "2. Instaluje Tiger Studio",
+  "referralStep2Sub": "i wpisuje twój kod przy rejestracji",
+  "referralStep3": "3. Potwierdza e-mail",
+  "referralStep3Sub": "po {{n}} koperty dla każdego",
+  "referralYourCode": "Twój kod",
+  "referralCopyLink": "Kopiuj link",
+  "referralMsgPreview": "Wysyłana wiadomość: „{{msg}}”",
+  "referralQrHint": "Zeskanuj telefonem, aby otworzyć zaproszenie",
+  "referralRowValidated": "Zatwierdzono {{date}} — po {{n}} koperty",
+  "referralRowExpired": "E-mail nie został potwierdzony na czas — tym razem bez kopert",
+  "referralRowPending": {
+    "one": "Zarejestrowany — czeka na potwierdzenie e-maila (został {{n}} dzień)",
+    "other": "Zarejestrowany — czeka na potwierdzenie e-maila (dni do końca: {{n}})"
+  },
   "referralCountLabel": {
     "one": "zatwierdzony rekrut",
     "other": "zatwierdzonych rekrutów"
