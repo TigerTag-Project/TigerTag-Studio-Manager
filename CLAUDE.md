@@ -66,6 +66,7 @@ missing from this index, the index cites a missing file, or a cited path does no
 - **CSS**: right section file, theme tokens for new colours, icons on one dimension + `aspect-ratio`, doubled class instead of `!important`, no inline JS in HTML → `.agents/rules/css-placement.md`
 - **UI/UX defaults**: reuse the existing components and CSS (classes, markup) by default, never a new look unless asked; declutter, consistency, smooth motion, real icons, selected state; no `title=` tooltips (use `aria-label`); big rare moments get a ceremony with an animation behind the window → `.agents/rules/ui-ux-defaults.md`
 - **Surgical DOM updates**: signature guard → patch in place → swap one section → full rebuild last → `.agents/rules/surgical-dom-updates.md`
+- **Dialogs**: every window is `openDialog()` (`renderer/dialog.js`) — "notice" (Tiger Squad look) or "ceremony" (TigerCoins plaque); no new overlay markup; a touched old window moves onto it → `.agents/rules/dialogs.md`
 - **Hold-to-confirm**: `setupHoldToConfirm` with a visible `.hold-progress` fill → `.agents/rules/hold-to-confirm.md`
 - **User avatars**: a person is always drawn by `userAvatar(who, sizeClass)` — the friends bar's look, freshest record (own account / friend entry), only the size changes; never `avatarMarkup()` for a person → `.agents/rules/user-avatars.md`
 - **User doc fields**: pseudo from Firestore `displayName`; `roles` / `tier` server-only; `Debug` is a client-written preference; avatar colour is `color` → `.agents/rules/user-profile-fields.md`

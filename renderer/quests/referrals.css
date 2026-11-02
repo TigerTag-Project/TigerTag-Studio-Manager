@@ -72,9 +72,6 @@
 .rf-qr-acts { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .rf-qr-dl--soft.rf-qr-dl--soft { color: var(--tsq-muted); font-weight: 500; }
 .rf-qr-dl--soft .icon { background-color: var(--tsq-muted); }
-.rf-qr-win .qfs-card { position: relative; }
-.rf-qr-x.modal-close { position: absolute; top: 12px; right: 12px; z-index: 2; display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 50%; background: color-mix(in srgb, var(--surface) 70%, transparent); cursor: pointer; }
-.rf-qr-x .icon { background-color: var(--on-dark); }
 .rf-qr-xl.rf-qr-xl { width: min(340px, 70vw); height: auto; aspect-ratio: 1; margin: 12px auto 4px; display: block; }
 .rf-qr small { font-size: 11px; color: var(--tsq-muted); }
 .rf-qr-dl.rf-qr-dl { height: auto; display: inline-flex; align-items: center; gap: 5px; padding: 0; border: 0; background: none; color: var(--tsq-orange); font-size: 12px; font-weight: 600; cursor: pointer; }

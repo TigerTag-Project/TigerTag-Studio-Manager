@@ -34,6 +34,7 @@ export const WIDTHS = [128, 256, 512, 1024];
 const LADDER_DIRS = [
   "tigersquad/invite-hero",
   "tigersquad/squad-notice",
+  "tigersquad/requests",
 ];
 
 const args = process.argv.slice(2);

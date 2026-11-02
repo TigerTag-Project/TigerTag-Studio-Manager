@@ -27,6 +27,7 @@ import { applyDealsFilter, dealsViewHtml, openChests, openCoinsCodeModal, openCo
 import { closePullStages, openPullStage } from './quests/coin-pull.js';
 import { squadHeroHtml, squadItemsHeroHtml, squadRankingsHtml, pulseHtml as squadPulseHtml, toggleLeague, leagueRows, setLeagueRows, rankNo } from './quests/squad-rankings.js';
 import { artImg } from './art.js';
+import { openDialog, initDialogs } from './dialog.js';
 import { initTrophies, trophiesSignIn, trophiesSignOut, renderTrophiesView, trophyEarned } from './quests/trophies.js';
 import { initReferrals, referralsSignIn, referralsSignOut, renderInviteView, claimReferral, referralWantsCode, referralPrefill, referralStatus, wireCodeField, codeFieldMarkup, errText as referralErrText } from './quests/referrals.js';
 import { initQuests, questsSignIn, questsSignOut, questBump, questGauge, questPillLabel, questDailyProgress, questCurrentLevel, openQuests, renderQuestsView, questLootHtml, questFreezeStatus, questFriendFreeze, openFreezeFor, openFreezeGift } from './quests/index.js';
@@ -4377,6 +4378,8 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     },
   });
 
+  // Every window (renderer/dialog.js, .agents/rules/dialogs.md): the cross's label in the app's language.
+  initDialogs({ t });
   // Trophies — the sticker album in the TigerSquad group and the unlock celebration
   // (quests/trophies.js, docs/TROPHIES.md). The code window is the TigerCoins one:
   // a code carrying an event trophy works for every account.
@@ -5514,56 +5517,23 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     return left > 0 ? Math.ceil(left / 864e5) : 0;
   }
   function _squadActive() { return !!state.supportPublicly && !_squadLockDays(); }
-  // One small window in the squad invite's look (.squad-invite): `body` is its
-  // inner markup, `wire(card, close)` binds its buttons.
-  function _openSquadNotice(cls, labelId, body, wire) {
-    const opener = document.activeElement;
-    const bd = document.createElement("div");
-    bd.className = "support-backdrop";
-    const card = document.createElement("div");
-    card.className = `squad-invite squad-notice ${cls}`;
-    card.setAttribute("role", "dialog");
-    card.setAttribute("aria-modal", "true");
-    card.setAttribute("aria-labelledby", labelId);
-    card.innerHTML = `<button type="button" class="squad-invite-x" data-act="close" aria-label="${esc(t("squadLockOk"))}"><span class="icon icon-close icon-14"></span></button>
-      <div class="tsq-scroll">${body}</div>`;
-    const close = () => {
-      document.removeEventListener("keydown", onKey);
-      const done = () => { card.remove(); bd.remove(); try { opener?.focus?.(); } catch (_) {} };
-      if (matchMedia("(prefers-reduced-motion: reduce)").matches) { done(); return; }
-      card.classList.add("is-closing"); bd.classList.add("is-closing");
-      setTimeout(done, 160);
-    };
-    const onKey = e => { if (e.key === "Escape") close(); };
-    document.addEventListener("keydown", onKey);
-    bd.addEventListener("click", close);
-    card.querySelector('[data-act="close"]').addEventListener("click", close);
-    document.body.append(bd, card);
-    wire?.(card, close);
-    setTimeout(() => card.querySelector(".sqn-focus")?.focus(), 50);
-    return card;
-  }
-  // Leaving: what goes for 30 days, held to confirm.
+  // Leaving: what goes for 30 days, held to confirm (openDialog, renderer/dialog.js).
   function _openSquadLeaveWarning(input) {
     const lost = [["coins", "coins"], ["freeze", "snow"], ["xp", "star-fill"], ["badge", "shield-check"], ["space", "trophy"]];
-    _openSquadNotice("squad-notice--leave", "sqnLeaveTitle", `
-        ${artImg("tigersquad/squad-notice/tiger-leave", { cls: "sqn-art" })}
-        <h2 class="tsq-title" id="sqnLeaveTitle">${esc(t("squadLeaveTitle"))}</h2>
-        <p class="tsq-desc">${esc(t("squadLeaveDesc"))}</p>
-        <section class="sqn-lost">
+    openDialog({
+      cls: "squad-notice--leave", art: "tigersquad/squad-notice/tiger-leave",
+      title: t("squadLeaveTitle"), text: t("squadLeaveDesc"),
+      body: `<section class="sqn-lost">
           <b class="sqn-lost-h">${esc(t("squadLeaveLostTitle"))}</b>
           <ul>${lost.map(([k, ic]) => `<li><span class="sqn-lost-ic"><span class="icon icon-${ic} icon-14"></span></span><span><b>${esc(t("squadLost_" + k))}</b><small>${esc(t("squadLost_" + k + "Sub"))}</small></span></li>`).join("")}</ul>
         </section>
-        <p class="sqn-keep"><span class="sqn-keep-ic"><span class="icon icon-check icon-12"></span></span>${esc(t("squadLeaveKeep"))}</p>
-        <button type="button" class="tsq-join sqn-stay sqn-focus" data-act="stay">${esc(t("squadLeaveStay"))}</button>
-        <button type="button" class="sqn-leave" data-act="leave"><span class="hold-progress" aria-hidden="true"></span><span class="sqn-leave-txt">${esc(t("squadLeaveHold"))}</span></button>`,
-    (card, close) => {
-      card.querySelector('[data-act="stay"]').addEventListener("click", close);
-      setupHoldToConfirm(card.querySelector('[data-act="leave"]'), 1500, () => {
+        <p class="sqn-keep"><span class="sqn-keep-ic"><span class="icon icon-check icon-12"></span></span>${esc(t("squadLeaveKeep"))}</p>`,
+      actions: [{ id: "stay", label: t("squadLeaveStay"), kind: "primary" }, { id: "leave", label: t("squadLeaveHold"), kind: "danger" }],
+      wire: (card, close) => setupHoldToConfirm(card.querySelector('[data-dlg="leave"]'), 1500, () => {
         close();
         if (input) input.checked = false;
         _setSupportPublicly(false, input);
-      });
+      }),
     });
   }
   // Back within the wait: how many days are left, and on which day the perks return.
@@ -5572,21 +5542,19 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     if (document.querySelector(".squad-notice--lock")) return;
     const date = new Intl.DateTimeFormat(state.lang || "en", { day: "numeric", month: "long", year: "numeric" }).format(state.squadLockedUntil);
     const done = Math.min(SQUAD_LOCK_DAYS, Math.max(0, SQUAD_LOCK_DAYS - days));
-    _openSquadNotice("squad-notice--lock", "sqnLockTitle", `
-        ${artImg("tigersquad/squad-notice/tiger-back", { cls: "sqn-art" })}
-        <span class="sqn-kicker">${esc(t("squadLockKicker"))}</span>
-        <h2 class="tsq-title" id="sqnLockTitle">${esc(t("squadLockTitle", { n: days }))}</h2>
-        <p class="tsq-desc">${esc(t("squadLockDesc"))}</p>
-        <section class="sqn-when">
+    openDialog({
+      cls: "squad-notice--lock", art: "tigersquad/squad-notice/tiger-back",
+      kicker: t("squadLockKicker"), title: t("squadLockTitle", { n: days }), text: t("squadLockDesc"),
+      body: `<section class="sqn-when">
           <small>${esc(t("squadLockDateLbl"))}</small>
           <b>${esc(date)}</b>
           <div class="sqn-bar" role="progressbar" aria-valuemin="0" aria-valuemax="${SQUAD_LOCK_DAYS}" aria-valuenow="${done}" aria-label="${esc(t("squadLockProgress", { n: done }))}">
             <span style="--p:${(done / SQUAD_LOCK_DAYS * 100).toFixed(1)}%"></span>
           </div>
           <span class="sqn-bar-label"><span>${esc(t("squadLockProgress", { n: done }))}</span><span>${esc(t("squadLockTotal", { n: SQUAD_LOCK_DAYS }))}</span></span>
-        </section>
-        <button type="button" class="tsq-join sqn-focus" data-act="ok">${esc(t("squadLockOk"))}</button>`,
-    (card, close) => card.querySelector('[data-act="ok"]').addEventListener("click", close));
+        </section>`,
+      actions: [{ id: "ok", label: t("squadLockOk"), kind: "primary" }],
+    });
   }
   function _setSupportPublicly(on, input) {
     const uid = state.activeAccountId; if (!uid) return;

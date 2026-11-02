@@ -784,7 +784,7 @@
 .tsq-foot { margin: -4px 0 0; font-size: 12px; color: #8A93A6; }
 
 /* I — small notices in the same look: leaving (what goes for 30 days, held to
-   confirm) and back within the wait (days left). _openSquadNotice. */
+   confirm) and back within the wait (days left) — openDialog's "notice" look (renderer/dialog.js). */
 .squad-notice { width: min(460px, calc(100vw - 32px)); }
 .squad-notice .tsq-scroll { gap: 14px; padding-top: 30px; }
 /* The tiger on top (assets/img/tigersquad/squad-notice/): leaving, or back with the calendar. */
@@ -809,8 +809,6 @@
   background: transparent; color: #FF8A8A; font-family: inherit; font-size: 13.5px; font-weight: 700; cursor: pointer; transition: background .16s; }
 .sqn-leave:hover { background: rgba(255, 107, 107, .08); }
 .sqn-leave .hold-progress { background: #FF6B6B; opacity: .3; }
-.sqn-leave-txt { position: relative; z-index: 1; }
-.squad-notice .sqn-stay { margin-top: 2px; }
 .sqn-bar { height: 10px; border-radius: 5px; overflow: hidden; background: var(--tsq-bg2); box-shadow: inset 0 0 0 1px var(--tsq-line); }
 .sqn-bar span { display: block; width: var(--p); height: 100%; border-radius: inherit; background: linear-gradient(90deg, #5AB8F0, #8FD3FF); transition: width .4s ease-out; }
 .sqn-bar-label { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; color: var(--tsq-muted); }

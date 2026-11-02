@@ -36,6 +36,8 @@
  */
 
 import { openAnnotator } from "./annotator.js";
+import { openDialog } from "../dialog.js";
+import { isLaddered } from "../art.js";
 import { repliesSince, seenAll, unseenReplies, alertNews } from "./replies.js";
 import { tigerTouchScreensReady, captureTigerTouch } from "../IoT/tigertouch/panel.js";
 import { scalesReady } from "../IoT/tigerscale/index.js";
@@ -404,48 +406,44 @@ function _checkReplies() {
 }
 
 // ── Alert window: "your request moved" ───────────────────────────────────────
+// The request art (TigerSquad look: requests are a squad perk) — the icon tile until it exists.
+const ALERT_ART = isLaddered("tigersquad/requests/tiger-request") ? "tigersquad/requests/tiger-request" : null;
+let _alertDlg = null;
 // A real modal (not just a notice): a team reply or a new status may need the
 // user's answer. One window lists every request that moved; it opens the
 // conversation directly when there is only one.
 function _showAlert(news) {
-  document.getElementById("repAlertOverlay")?.remove();
-  const ov = document.createElement("div");
-  ov.className = "modal-overlay rep-alert-overlay"; ov.id = "repAlertOverlay";
-  ov.innerHTML = `
-    <div class="modal-card rep-alert" role="alertdialog" aria-modal="true" aria-labelledby="repAlertTitle">
-      <span class="rep-alert-ico" aria-hidden="true"><span class="icon icon-chat icon-32"></span></span>
-      <h3 id="repAlertTitle">${esc(t("reportAlertTitle"))}</h3>
-      <p class="rep-alert-text">${esc(t("reportAlertText"))}</p>
-      <ul class="rep-alert-list">${news.map(({ r, reply, status }) => {
-        const sdef = STATUS[r.status] || STATUS.open, k = kindOf(r.kind) || KINDS[0];
-        return `<li style="--kc:${k.c}"><span class="rep-kind-ico"><span class="icon icon-${k.icon} icon-14"></span></span>
-          <div><b>${r.number ? `#${esc(r.number)} · ` : ""}${esc(r.title || r.brand?.name || "—")}</b>
-          <small>${[reply ? esc(t("reportAlertReply")) : "", status ? `<span class="rep-status" style="--sc:${sdef.c}">${esc(t(sdef.key))}</span>` : ""].filter(Boolean).join(" ")}</small></div></li>`;
-      }).join("")}</ul>
-      <div class="rep-alert-acts">
-        <button type="button" class="secondary" data-alert="later">${esc(t("reportAlertLater"))}</button>
-        <button type="button" class="primary" data-alert="open">${esc(t("reportAlertOpen"))}</button>
-      </div>
-    </div>`;
-  const close = () => { ov.classList.remove("open"); setTimeout(() => ov.remove(), 250); };
-  // "Later" (or a click outside) snoozes: these requests are no longer counted
-  // as announced, so the window comes back at the next check — in WATCH_MS, or
-  // at the next launch — unless their conversation is opened meanwhile.
+  if (_alertDlg) return;
+  // "Later" (or the cross, Escape, a click outside) snoozes: these requests are no longer
+  // counted as announced, so the window comes back at the next check — in WATCH_MS, or at
+  // the next launch — unless their conversation is opened meanwhile.
   const later = () => {
-    close();
+    _alertDlg = null;
     const uid = _mine.uid;
     if (uid) { const al = _alerted(uid), m = al.load(); news.forEach(n => delete m[n.r.id]); al.save(m); }
     clearTimeout(_snoozeTimer);
     _snoozeTimer = setTimeout(() => syncReports().catch(() => {}), WATCH_MS);
   };
-  ov.addEventListener("click", e => {
-    const b = e.target.closest("[data-alert]");
-    if (e.target === ov || b?.dataset.alert === "later") later();
-    else if (b?.dataset.alert === "open") { close(); openReport({ tab: "mine", thread: news.length === 1 ? news[0].r.id : null }); }
+  // The requests that moved, as the leave window's cards: the kind's tile, the title, what changed.
+  const rows = news.map(({ r, reply, status }) => {
+    const sdef = STATUS[r.status] || STATUS.open, k = kindOf(r.kind) || KINDS[0];
+    const what = [reply ? t("reportAlertReply") : "", status ? t(sdef.key) : ""].filter(Boolean).join(" · ");
+    return `<li style="--kc:${k.c}"><span class="sqn-lost-ic dlg-tile"><span class="icon icon-${k.icon} icon-14"></span></span>
+      <span><b>${r.number ? `#${esc(r.number)} · ` : ""}${esc(r.title || r.brand?.name || "—")}</b><small class="dlg-accent">${esc(what)}</small></span></li>`;
+  }).join("");
+  _alertDlg = openDialog({
+    cls: "rep-alert", role: "alertdialog", art: ALERT_ART, icon: "chat",
+    title: t("reportAlertTitle"), text: t("reportAlertText"),
+    body: `<section class="sqn-lost rep-alert-list"><ul>${rows}</ul></section>`,
+    actions: [{ id: "open", label: t("reportAlertOpen"), kind: "primary" }, { id: "later", label: t("reportAlertLater") }],
+    onAction: (id, close) => {
+      close();
+      if (id === "later") { later(); return; }
+      _alertDlg = null;
+      openReport({ tab: "mine", thread: news.length === 1 ? news[0].r.id : null });
+    },
+    onDismiss: later,
   });
-  document.body.appendChild(ov);
-  requestAnimationFrame(() => ov.classList.add("open"));
-  setTimeout(() => ov.querySelector('[data-alert="open"]')?.focus(), 50);
 }
 
 // ── Conversation ─────────────────────────────────────────────────────────────

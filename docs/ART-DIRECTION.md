@@ -64,6 +64,13 @@ hard-edged shadow tone, tiny white glints — chunky, rounded, friendly, readabl
 Use these colours; a new colour is a desaturated or shadow variant of one of them.
 
 ### Recurring objects — draw them like this
+- **The tiger mascot**: blue hoodie with orange drawstrings and ALWAYS the **merch cap** — black
+  baseball cap, white TigerTag logo on the front panel (line-art tiger head in a rounded badge with
+  circuit lines left and right), no text. Reference: `assets-src/img/tigersquad/deals-hero/tiger.png`.
+  A plain cap is a drift (founder, 2026-11-02).
+- **The theme of the space**: an asset belongs to its space. A TigerSquad-only feature (squad windows,
+  requests/tickets, which only squad members can file) uses the Tiger Squad look: navy, orange,
+  the tiger mascot.
 - **Filament spool**: grey plastic flanges with **hexagonal honeycomb holes** and a solid central
   band across the flange with the hub hole (pokéball-like), filament wound in the spool's colour,
   three-quarter view. Empty/low = only a thin band of filament left.

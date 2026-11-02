@@ -7,6 +7,7 @@ export default {
   "tigersquad/invite-hero/spool": [1166, 1181],
   "tigersquad/invite-hero/tiger-give": [1213, 1045],
   "tigersquad/invite-hero/tiger-take": [1203, 1109],
+  "tigersquad/requests/tiger-request": [1192, 1167],
   "tigersquad/squad-notice/tiger-back": [1247, 1048],
   "tigersquad/squad-notice/tiger-leave": [1253, 1081],
 };

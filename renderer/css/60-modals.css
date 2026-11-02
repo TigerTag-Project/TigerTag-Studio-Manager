@@ -5398,3 +5398,22 @@ body.ttag-dragging .ttag-drop-hint { display: flex; }
 .eac-ident-edit { display: inline-grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 6px; background: none; cursor: pointer; }
 .eac-ident-edit .icon { background: var(--muted); }
 .eac-ident-edit:hover { background: var(--surface-2); } .eac-ident-edit:hover .icon { background: var(--primary); }
+
+/* ── openDialog() (renderer/dialog.js, .agents/rules/dialogs.md) ─────────────
+   The two looks reuse the Tiger Squad window (.squad-invite.squad-notice, 10-settings.css)
+   and the TigerCoins window (.tc-reveal + .tcx, quests.css); only the shared bits are here. */
+.dlg-acts { display: flex; flex-direction: column; gap: 8px; margin-top: 2px; }
+.dlg-act-txt { position: relative; z-index: 1; }
+/* No picture yet: the icon in a tinted tile (the old notice look). */
+.dlg-ico { align-self: center; width: 64px; aspect-ratio: 1; border-radius: 20px; display: grid; place-items: center;
+  background: color-mix(in srgb, var(--tsq-orange) 16%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tsq-orange) 40%, transparent); }
+.dlg-ico .icon { width: 28px; height: 28px; background: var(--tsq-orange); }
+/* The ceremony's cross, top right of the framed card. */
+.dlg--ceremony .qfs-card { position: relative; }
+.dlg-x.dlg-x { position: absolute; top: 12px; right: 12px; z-index: 2; display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 50%;
+  background: color-mix(in srgb, var(--surface) 70%, transparent); cursor: pointer; }
+.dlg-x .icon { background-color: var(--on-dark); }
+/* Cards inside a notice (a list of items): the "what you lose" card of the leave window, any tint. */
+.dlg .sqn-lost-ic.dlg-tile { background: linear-gradient(135deg, var(--kc), color-mix(in srgb, var(--kc) 62%, #000)); }
+.dlg .sqn-lost-ic.dlg-tile .icon { background: #fff; }
+.dlg .sqn-lost li small.dlg-accent { color: var(--tsq-orange); font-weight: 700; }

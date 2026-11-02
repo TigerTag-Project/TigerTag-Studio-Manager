@@ -697,49 +697,29 @@
   display: inline-flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, .6); cursor: pointer; }
 .rep-reply-img button .icon { background: #fff; }
 
-/* ── Alert window: "your request moved" ── */
-.rep-alert-overlay { z-index: 3000; }
-.rep-alert { max-width: 420px; background: var(--surface); border: 1px solid var(--border); border-radius: 18px; box-shadow: 0 24px 60px rgba(0, 0, 0, .45); display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; padding: 26px 24px 20px; }
-.rep-alert-ico { width: 64px; height: 64px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
-  background: color-mix(in srgb, #2563eb 18%, transparent); animation: rep-alert-pop .5s cubic-bezier(.2, 1.4, .4, 1); }
-.rep-alert-ico .icon { background: #3b82f6; }
-.rep-alert h3 { margin: 0; font-size: 18px; color: var(--text); }
-.rep-alert-text { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.5; }
-.rep-alert-list { list-style: none; margin: 4px 0 0; padding: 0; width: 100%; display: flex; flex-direction: column; gap: 6px; text-align: left; max-height: 240px; overflow-y: auto; }
-.rep-alert-list li { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; }
-.rep-alert-list .rep-kind-ico { width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
-  background: color-mix(in srgb, var(--kc) 16%, transparent); }
-.rep-alert-list .rep-kind-ico .icon { background: var(--kc); }
-.rep-alert-list div { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-.rep-alert-list b { font-size: 13px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rep-alert-list small { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #3b82f6; font-weight: 700; }
-.rep-alert-acts { display: flex; gap: 8px; justify-content: flex-end; width: 100%; margin-top: 6px; }
-@keyframes rep-alert-pop { from { transform: scale(.4); opacity: 0; } to { transform: none; opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { .rep-alert-ico { animation: none; } }
+/* "Your request moved" is an openDialog() notice (report/index.js _showAlert, renderer/dialog.js). */
 /* The user closes their own request from its conversation too (asks once, like in the list). */
 .rep-thread-close { display: flex; justify-content: center; }
 .rep-thread-close .rep-back { color: var(--muted); }
 
 /* ── Requests as pills, like the spool cards: the kind's illustration fills the
    left edge, full height, its icon drawn large. ── */
-.rep-mine-row, .rep-alert-list li, .rep-thread-head { padding: 0 10px 0 0; gap: 12px; overflow: hidden; min-height: 58px; border-radius: 14px; }
-.rep-mine-row .rep-kind-ico, .rep-alert-list .rep-kind-ico, .rep-thread-head .rep-kind-ico {
+.rep-mine-row, .rep-thread-head { padding: 0 10px 0 0; gap: 12px; overflow: hidden; min-height: 58px; border-radius: 14px; }
+.rep-mine-row .rep-kind-ico, .rep-thread-head .rep-kind-ico {
   width: 58px; height: auto; align-self: stretch; border-radius: 0; flex-shrink: 0;
   background: linear-gradient(135deg, color-mix(in srgb, var(--kc) 34%, var(--surface)), color-mix(in srgb, var(--kc) 14%, var(--surface)));
   border-right: 1px solid color-mix(in srgb, var(--kc) 30%, var(--border)); }
-.rep-mine-row .rep-kind-ico .icon, .rep-alert-list .rep-kind-ico .icon, .rep-thread-head .rep-kind-ico .icon {
+.rep-mine-row .rep-kind-ico .icon, .rep-thread-head .rep-kind-ico .icon {
   width: 28px; height: 28px; background: var(--kc); filter: drop-shadow(0 2px 6px color-mix(in srgb, var(--kc) 45%, transparent)); }
 .rep-mine-row .rep-mine-main, .rep-thread-head .rep-mine-main { padding: 9px 0; }
-.rep-alert-list li { padding-top: 0; padding-bottom: 0; }
-.rep-alert-list li > div { padding: 9px 0; }
 
 /* Coloured tiles carry a WHITE icon: the kind's colour fills the tile, the
    artwork reads on top of it — topic cards, request pills and the product chip. */
 .rep-kind-card .rep-kind-ico { background: linear-gradient(135deg, var(--ki), color-mix(in srgb, var(--ki) 62%, #000)); }
 .rep-kind-card .rep-kind-ico .icon { background: #fff; }
-.rep-mine-row .rep-kind-ico, .rep-alert-list .rep-kind-ico, .rep-thread-head .rep-kind-ico {
+.rep-mine-row .rep-kind-ico, .rep-thread-head .rep-kind-ico {
   background: linear-gradient(135deg, var(--kc), color-mix(in srgb, var(--kc) 62%, #000)); border-right: 0; }
-.rep-mine-row .rep-kind-ico .icon, .rep-alert-list .rep-kind-ico .icon, .rep-thread-head .rep-kind-ico .icon { background: #fff; filter: none; }
+.rep-mine-row .rep-kind-ico .icon, .rep-thread-head .rep-kind-ico .icon { background: #fff; filter: none; }
 .rep-picked .rep-target-ico.rep-target-ico { background-color: #fff; }
 .rep-kind-card:not(.rep-kind-card--product) .rep-kind-ico .icon { width: 26px; height: 26px; }
 

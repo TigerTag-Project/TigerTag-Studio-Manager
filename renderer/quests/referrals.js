@@ -25,6 +25,7 @@ import { sfx } from "./coin-sound.js";
 import { heroHtml, infoTipHtml } from "./ui-kit.js";
 import { heroLayersHtml } from "./hero-layers.js";
 import { artImg } from "../art.js";
+import { openDialog } from "../dialog.js";
 
 const URL_BASE = "https://us-central1-tigertag-connect.cloudfunctions.net/referrals";
 const ART = "../assets/img/";
@@ -292,29 +293,14 @@ function share(net, button) {
   if (url) _ctx.openExternal(url);
 }
 
-/* "Enlarge": the QR big enough to scan from across a table, on the ceremony's window frame. */
+/* "Enlarge": the QR big enough to scan from across a table — openDialog's ceremony look. */
 function showQrWindow(link) {
   const { t, esc } = _ctx;
-  const el = document.createElement("div");
-  el.className = "tc-reveal tc-envm qfs rf-win rf-qr-win";
-  el.innerHTML = `
-    <div class="tc-reveal-card tc-code-card tcx tcx--help tc-env-card qfs-card is-done" role="dialog" aria-modal="true" aria-label="${esc(t("referralQrTitle"))}">
-      <button type="button" class="modal-close rf-qr-x" aria-label="${esc(t("tutoClose"))}"><span class="icon icon-close icon-14" aria-hidden="true"></span></button>
-      <div class="tcx-main">
-        <div class="tcx-plaque"><h3>${esc(t("referralQrTitle"))}</h3></div>
-        <img class="lv-public-qr rf-qr-xl" src="${esc(_ctx.qr(link, { size: 640, margin: 3 }))}" alt="">
-        <p class="qfs-line">${esc(t("referralQrHint"))}</p>
-        <div class="tc-reveal-actions"><button type="button" class="sqd-open sqd-wide qfm-go qfs-ok"><span class="qfm-go-txt"><span>${esc(t("tutoClose"))}</span></span></button></div>
-      </div>
-    </div>`;
-  document.body.appendChild(el);
-  requestAnimationFrame(() => el.classList.add("is-open"));
-  const close = () => { el.classList.remove("is-open"); setTimeout(() => el.remove(), 200); };
-  el.addEventListener("mousedown", e => { if (e.target === el) close(); });
-  el.addEventListener("keydown", e => { if (e.key === "Escape") close(); });
-  el.querySelector(".qfs-ok").addEventListener("click", close);
-  el.querySelector(".rf-qr-x").addEventListener("click", close);
-  setTimeout(() => el.querySelector(".qfs-ok")?.focus({ preventScroll: true }), 200);
+  openDialog({
+    look: "ceremony", cls: "rf-qr-win", title: t("referralQrTitle"), text: t("referralQrHint"),
+    body: `<img class="lv-public-qr rf-qr-xl" src="${esc(_ctx.qr(link, { size: 640, margin: 3 }))}" alt="">`,
+    actions: [{ id: "ok", label: t("tutoClose"), kind: "primary" }],
+  });
 }
 
 /* The ceremony (.agents/rules/ui-ux-defaults.md "Big moments"): a validated
