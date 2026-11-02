@@ -1,0 +1,75 @@
+/* ── 72-hero-scene.css — the ecosystem scene (iMac, TigerPOD ⇄ TigerScale ⇄ TigerSpool,
+   Tiger Touch, iPhone), drawn by renderer/hero-scene.js into every [data-hero-scene]: the
+   welcome page, the sign-in dialog, the account setup — and the launch splash
+   (renderer/splash/), which loads this file on its own. Its only token is --scrim (the floor
+   shadows); a page without the app's tokens sets it. ── */
+/* The stage of the ecosystem scene, wherever it is drawn (.hero-scene: the
+   welcome page, the sign-in dialog, the account setup). */
+.hero-scene { position: relative; width: 100%; aspect-ratio: 1120 / 580; user-select: none; pointer-events: none; }
+.sph-item { position: absolute; }
+.sph-item img { display: block; width: 100%; height: auto; -webkit-user-drag: none; }
+.sph-item > img, .sph-flip { position: relative; z-index: 1; }
+.sph-item::after {
+  content: ""; position: absolute; left: 8%; right: 8%; bottom: -3%; height: 7%;
+  background: radial-gradient(closest-side, var(--scrim), transparent);
+}
+.sph-imac  { left: 23%;    top: 9.66%;  width: 53.91%; }
+.sph-imac::after { left: 22%; right: 22%; bottom: -1%; height: 5%; }
+.sph-pod   { left: 12.93%; top: 50.5%;  width: 16.27%; z-index: 2; }
+.sph-phone { left: 72.1%;  top: 58.55%; width: 9.61%;  z-index: 2; }
+/* Tiger Touch (a Panda Touch, ~13.5 cm wide at the stage's 13.1 px/cm), its
+   screen animated (start-up, list, cards — from the TigerTouch repo's media kit). */
+.sph-touch { left: 52.5%;  top: 72%;    width: 15.8%;  z-index: 2; --rise: -7%; }   /* a short device: a bigger share of its height, so it rises as far as the others */
+.sph-touch::after { left: 14%; right: 14%; bottom: 1%; height: 6%; }
+/* The photograph's two stand feet are cut away along the case's bottom edge
+   (measured on the 1000×733 frame: left foot x 186–248, right foot x 684–750). */
+.sph-touch > img { clip-path: polygon(0 0, 100% 0, 100% 100%, 75% 100%, 75% 91.13%, 68.4% 90.86%, 68.4% 100%,
+  24.8% 100%, 24.8% 82.67%, 18.6% 80.49%, 18.6% 100%, 0 100%); }
+@keyframes sphFloat  { from { transform: translateY(0); } to { transform: translateY(var(--rise, -2.2%)); } }
+@keyframes sphShadow { from { transform: scaleX(1); opacity: 1; } to { transform: scaleX(.86); opacity: .7; } }
+.sph-item > img, .sph-flip { animation: sphFloat 3.6s ease-in-out infinite alternate; }
+.sph-item::after { animation: sphShadow 3.6s ease-in-out infinite alternate; }
+.sph-imac > img,  .sph-imac::after  { animation-duration: 4.4s; }
+/* The TigerPOD / TigerScale stands on the desk: no float, no floor shadow — it flips. */
+.sph-pod .sph-flip { animation: none; }
+.sph-pod::after { display: none; }
+.sph-phone > img, .sph-phone::after { animation-duration: 3.9s; animation-delay: -2.3s; }
+.sph-touch > img, .sph-touch::after { animation-duration: 4.1s; animation-delay: -0.8s; }
+/* The reader turns over, one device after the other, each held ~4 s:
+   TigerPOD Mini → TigerScale → TigerSpool → TigerPOD Mini (18 s round, ~6 s each).
+   The three images are laid so their spools coincide (matched on the red
+   filament, against the POD: TigerScale 106.8 % wide and 4.67 % to the left,
+   TigerSpool 107.9 % wide, 1.78 % to the right, 0.75 % up) and each turns
+   around the spool's hub. A face is hidden (opacity 0) while it waits, so
+   the jump from 180° back to -180° never shows. */
+.sph-face { display: block; width: 100%; height: auto; transform-origin: 66.7% 50%;
+  backface-visibility: hidden; animation: sphFace1 18s ease-in-out infinite; }
+.sph-face.sph-face--scale { position: absolute; left: -4.67%; top: 0; width: 106.8%; animation-name: sphFace2;
+  transform: perspective(900px) rotateY(-180deg); opacity: 0; }
+.sph-face.sph-face--spool { position: absolute; left: 1.78%; top: -0.75%; width: 107.9%; animation-name: sphFace3;
+  transform-origin: 60.2% 50%; transform: perspective(900px) rotateY(-180deg); opacity: 0; }
+@keyframes sphFace1 {
+  0%, 29.2% { transform: perspective(900px) rotateY(0); opacity: 1; }
+  33.3% { transform: perspective(900px) rotateY(180deg); opacity: 1; }
+  33.31%, 95.79% { transform: perspective(900px) rotateY(-180deg); opacity: 0; }
+  95.8% { transform: perspective(900px) rotateY(-180deg); opacity: 1; }
+  100% { transform: perspective(900px) rotateY(0); opacity: 1; } }
+@keyframes sphFace2 {
+  0%, 29.19% { transform: perspective(900px) rotateY(-180deg); opacity: 0; }
+  29.2% { transform: perspective(900px) rotateY(-180deg); opacity: 1; }
+  33.3%, 62.5% { transform: perspective(900px) rotateY(0); opacity: 1; }
+  66.7% { transform: perspective(900px) rotateY(180deg); opacity: 1; }
+  66.71%, 100% { transform: perspective(900px) rotateY(-180deg); opacity: 0; } }
+@keyframes sphFace3 {
+  0%, 62.49% { transform: perspective(900px) rotateY(-180deg); opacity: 0; }
+  62.5% { transform: perspective(900px) rotateY(-180deg); opacity: 1; }
+  66.7%, 95.8% { transform: perspective(900px) rotateY(0); opacity: 1; }
+  100% { transform: perspective(900px) rotateY(180deg); opacity: 1; } }
+/* Calm where the user is busy or away: the account setup shows the scene
+   still (the POD at rest), and every scene stops while the window is hidden. */
+.dns-step-art .sph-item > img, .dns-step-art .sph-flip, .dns-step-art .sph-face, .dns-step-art .sph-item::after { animation: none; }
+body.anim-paused .hero-scene *, body.anim-paused .hero-scene *::after { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) {
+  .sph-item > img, .sph-flip, .sph-face, .sph-item::after { animation: none; }
+  .sph-face.sph-face--scale, .sph-face.sph-face--spool { display: none; }
+}

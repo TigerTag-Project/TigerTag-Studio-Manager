@@ -43,7 +43,7 @@ L4054-4114   App lifecycle (whenReady, window-all-closed, activate)
 | L | What | Anchors |
 |---|---|---|
 | 116-235 | Minimal static file server so `location.protocol === 'http:'` (Firebase Auth needs it) | `startRendererServer` |
-| 236-310 | Splash window (data-URL HTML) shown before the main window paints | `createSplash`, `revealMainWindow` |
+| 236-310 | Splash window (`renderer/splash/`: the ecosystem scene, a loading line in the saved language, a bar fed by the real startup steps, a fade into the main window) shown before the main window paints | `createSplash`, `splashStep`, `_splashLang`, `revealMainWindow` |
 | 311-335 | UID hex→decimal + TigerTag SDK payload builder | `normalizeUid`, `_sdkPayload` |
 | 336-442 | `BrowserWindow` creation, preload wiring, CSP, devtools | `createWindow` |
 

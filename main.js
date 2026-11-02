@@ -296,73 +296,52 @@ app.on('before-quit', () => { _isQuitting = true; });
 app.on('before-quit-for-update', () => { _isQuitting = true; });
 
 // ── Splash gate ────────────────────────────────────────────────────────────
-// Discord-style launch: a tiny frameless splash shows INSTANTLY (it's a
-// self-contained data: URL, no server / Firebase needed), while the hidden
-// main window loads + hydrates from cache off-screen. The renderer signals
-// `studio:ready` once its first usable frame is painted; we then swap the
-// main window in for the splash. A hard fallback timer guarantees the main
-// window is always revealed even if the signal never arrives.
-//
-// Inline the TigerTag logo (white fill, transparent bg) so it paints with
-// zero extra requests. Strip the XML prolog so it embeds cleanly in HTML;
-// fall back to a lettermark if the file can't be read.
-let _splashLogo = '';
-try {
-  _splashLogo = fs.readFileSync(path.join(__dirname, 'assets', 'svg', 'logos', 'logo_tigertag_head.svg'), 'utf8')
-    .replace(/<\?xml[^>]*\?>/i, '')
-    .trim();
-} catch (_) { _splashLogo = ''; }
-const _splashMark = _splashLogo
-  ? `<div class="logo">${_splashLogo}</div>`
-  : `<div class="mark">T</div>`;
-function splashDataURL() {
-  return `data:text/html;charset=utf-8,` + encodeURIComponent(`
-<!doctype html><html><head><meta charset="utf-8"><style>
-  html,body{margin:0;height:100%;background:transparent;overflow:hidden;
-    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;-webkit-user-select:none;cursor:default}
-  .card{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
-    background:#0e0e10;border-radius:16px;box-shadow:0 18px 60px rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.06)}
-  .mark{width:120px;height:120px;border-radius:28px;background:linear-gradient(135deg,#ff7a18,#ffb056);
-    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:56px;color:#0e0e10;letter-spacing:-1px;
-    box-shadow:0 8px 28px rgba(255,122,24,.35)}
-  /* The ANIMATED node is the plain wrapper (own GPU layer via will-change +
-     translate3d) while the drop-shadow filter stays STATIC on the svg in its own
-     layer — animating a filtered element re-rasterises the filter every frame on
-     the CPU, which stuttered exactly when startup pegs the processor. This way the
-     bounce is pure compositor work and stays smooth under load. */
-  .logo{display:flex;align-items:center;justify-content:center;
-    transform-origin:50% 100%;will-change:transform,opacity;
-    animation:drop .9s cubic-bezier(.3,.7,.4,1) both, bob 2.4s ease-in-out 1.15s infinite}
-  .logo svg{height:180px;width:auto;display:block;filter:drop-shadow(0 10px 30px rgba(255,122,24,.30))}
-  /* Drop-in bounce: falls from above, squashes on impact, two decaying rebounds… */
-  @keyframes drop{
-    0%{transform:translate3d(0,-150px,0);opacity:0}
-    40%{transform:translate3d(0,0,0) scale(1.07,.93);opacity:1}
-    60%{transform:translate3d(0,-24px,0)}
-    78%{transform:translate3d(0,0,0) scale(1.035,.965)}
-    89%{transform:translate3d(0,-8px,0)}
-    100%{transform:translate3d(0,0,0)}}
-  /* …then a gentle idle float while the app loads. */
-  @keyframes bob{0%,100%{transform:translate3d(0,0,0)}50%{transform:translate3d(0,-7px,0)}}
-  .name{color:#fff;font-size:22px;font-weight:700;letter-spacing:.3px}
-  .ver{color:rgba(255,255,255,.45);font-size:11px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;margin-top:-10px}
-  .sub{color:rgba(255,255,255,.38);font-size:11px}
-  .bar{width:140px;height:3px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden;margin-top:2px}
-  .bar i{display:block;width:40%;height:100%;border-radius:3px;background:linear-gradient(90deg,#ff7a18,#ffb056);
-    animation:slide 1s ease-in-out infinite}
-  @keyframes slide{0%{transform:translateX(-100%)}100%{transform:translateX(320%)}}
-</style></head><body><div class="card">
-  ${_splashMark}
-  <div class="name">Tiger Studio Manager</div>
-  <div class="ver">v${app.getVersion()}</div>
-  <div class="sub">Loading your studio…</div>
-  <div class="bar"><i></i></div>
-</div></body></html>`);
+// Discord-style launch: a small frameless splash shows INSTANTLY (a local page,
+// renderer/splash/: no server, no Firebase), while the hidden main window loads
+// and hydrates from cache off-screen. It draws the welcome page's ecosystem scene
+// (renderer/hero-scene.js), one loading line in the user's language and a bar fed
+// by the real startup steps (splashStep). The renderer signals `studio:ready` once
+// its first usable frame is painted; the splash then fades out while the main
+// window fades in. A hard fallback timer guarantees the main window is always
+// revealed even if the signal never arrives.
+const SPLASH_STEPS = 5;   // shown · reference data · window loading · page loaded · first paint
+const SPLASH_LANGS = ['en', 'fr', 'de', 'es', 'it', 'zh', 'pt', 'pt-pt', 'pl', 'ru', 'nl'];
+// <userData>/splash.json = { lang }: the app's language, written by the renderer at
+// each launch (studio:ready), read here before anything else has loaded.
+const _splashPrefsPath = () => path.join(app.getPath('userData'), 'splash.json');
+function _splashLang() {
+  try {
+    const { lang } = JSON.parse(fs.readFileSync(_splashPrefsPath(), 'utf8'));
+    if (SPLASH_LANGS.includes(lang)) return lang;
+  } catch (_) {}
+  const sys = String(app.getLocale() || 'en').toLowerCase();
+  if (sys === 'pt-pt') return 'pt-pt';
+  const base = sys.split('-')[0];
+  return SPLASH_LANGS.includes(base) ? base : 'en';
+}
+// The loading lines (locale key splashLoading, an array: one is picked at random).
+function _splashLines(lang) {
+  const read = l => { try { return JSON.parse(fs.readFileSync(path.join(__dirname, 'renderer', 'locales', `${l}.json`), 'utf8')).splashLoading; } catch (_) { return null; } };
+  const v = read(lang) || read('en');
+  return Array.isArray(v) ? v : v ? [String(v)] : [];
+}
+function _saveSplashLang(lang) {
+  if (!SPLASH_LANGS.includes(lang)) return;
+  try {
+    let was = null;
+    try { was = JSON.parse(fs.readFileSync(_splashPrefsPath(), 'utf8')).lang; } catch (_) {}
+    if (was !== lang) fs.writeFileSync(_splashPrefsPath(), JSON.stringify({ lang }));
+  } catch (e) { console.warn('[splash] lang save failed:', e.message); }
+}
+let _splashDone = 0;
+function splashStep(n) {
+  _splashDone = Math.max(_splashDone, n);
+  try { splashWindow?.webContents.executeJavaScript(`window.splashStep?.(${_splashDone}, ${SPLASH_STEPS})`).catch(() => {}); } catch (_) {}
 }
 
 function createSplash() {
   splashWindow = new BrowserWindow({
-    width: 480, height: 460,
+    width: 600, height: 470,
     frame: false, transparent: true, resizable: false, movable: true,
     center: true, show: true, hasShadow: false, alwaysOnTop: true,
     skipTaskbar: true, focusable: false,
@@ -371,23 +350,48 @@ function createSplash() {
     // frame rate exactly while startup loads the CPU. Keep it at full rate.
     webPreferences: { contextIsolation: true, nodeIntegration: false, backgroundThrottling: false },
   });
-  splashWindow.loadURL(splashDataURL());
-  splashWindow.on('closed', () => { splashWindow = null; });
+  _splashDone = 0;
+  splashWindow.loadFile(path.join(__dirname, 'renderer', 'splash', 'splash.html'), {
+    query: { v: app.getVersion(), msg: JSON.stringify(_splashLines(_splashLang())) },
+  }).then(() => splashStep(Math.max(1, _splashDone))).catch(() => {});
+  const w = splashWindow;
+  w.on('closed', () => { if (splashWindow === w) splashWindow = null; });
 }
 
+// The swap: the bar full, the splash fades out (splash.css .is-out, 220 ms) while the
+// main window fades in from transparent (setOpacity: macOS / Windows; Linux shows it at once).
+const SPLASH_FADE_MS = 220;
 function revealMainWindow() {
   if (_mainRevealed) return;
   _mainRevealed = true;
-  try { if (splashWindow && !splashWindow.isDestroyed()) splashWindow.close(); } catch (_) {}
+  const splash = splashWindow;
   splashWindow = null;
+  if (splash && !splash.isDestroyed()) {
+    try {
+      splash.webContents.executeJavaScript(`window.splashStep?.(${SPLASH_STEPS}, ${SPLASH_STEPS}); window.splashOut?.()`).catch(() => {});
+    } catch (_) {}
+    setTimeout(() => { try { if (!splash.isDestroyed()) splash.close(); } catch (_) {} }, SPLASH_FADE_MS + 40);
+  }
   if (mainWindow && !mainWindow.isDestroyed()) {
     // Come back the way the user left it: maximized / full screen are applied
     // here, at reveal, because doing it on the hidden window would show it early.
-    const st = mainWindow._restoreState || {};
-    if (st.maximized) mainWindow.maximize();
-    mainWindow.show();
-    if (st.fullScreen) mainWindow.setFullScreen(true);
-    mainWindow.focus();
+    const win = mainWindow;
+    const st = win._restoreState || {};
+    const fade = !st.fullScreen && process.platform !== 'linux';
+    if (fade) win.setOpacity(0);
+    if (st.maximized) win.maximize();
+    win.show();
+    if (st.fullScreen) win.setFullScreen(true);
+    win.focus();
+    if (fade) {
+      const t0 = Date.now();
+      const tick = setInterval(() => {
+        if (win.isDestroyed()) return clearInterval(tick);
+        const k = Math.min(1, (Date.now() - t0) / SPLASH_FADE_MS);
+        win.setOpacity(k);
+        if (k >= 1) clearInterval(tick);
+      }, 16);
+    }
   }
 }
 
@@ -582,7 +586,7 @@ function createWindow() {
   });
 
   // Primary reveal signal — renderer posts this after hydrating from cache.
-  ipcMain.once('studio:ready', revealMainWindow);
+  ipcMain.once('studio:ready', (_e, info) => { _saveSplashLang(info?.lang); revealMainWindow(); });
   // Safety fallback — never leave the app invisible if the signal is missed
   // (renderer crash, blocked script, etc.). 6 s is well past a normal cold
   // start; the studio:ready path almost always wins far sooner.
@@ -6281,8 +6285,11 @@ app.whenReady().then(async () => {
   createSplash();
 
   await db.initTigerTagDB();
+  splashStep(2);
 
   createWindow();
+  splashStep(3);
+  mainWindow.webContents.once('did-finish-load', () => splashStep(4));
   initMcp();   // local read-only MCP server — only if the user turned it on
   initNFC();   // spawns isolated utility process — never blocks the main V8 thread
   initTD1S();

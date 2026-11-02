@@ -2941,5 +2941,6 @@
     "one": "{{n}} envelope is waiting for you.",
     "other": "{{n}} envelopes are waiting for you."
   },
-  "referralWhoSub": "Add their code: {{e}} envelopes each once you confirm your e-mail."
+  "referralWhoSub": "Add their code: {{e}} envelopes each once you confirm your e-mail.",
+  "splashLoading": ["Waking the tiger…","Counting your spools…","Warming up the printers…","Dusting off the RFID chips…"]
 }

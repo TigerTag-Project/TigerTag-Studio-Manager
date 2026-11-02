@@ -2941,5 +2941,6 @@
     "one": "Te espera {{n}} sobre.",
     "other": "Te esperan {{n}} sobres."
   },
-  "referralWhoSub": "Añade su código: {{e}} sobres cada uno al confirmar tu correo."
+  "referralWhoSub": "Añade su código: {{e}} sobres cada uno al confirmar tu correo.",
+  "splashLoading": ["Despertando al tigre…","Contando tus bobinas…","Calentando las impresoras…","Quitando el polvo a los chips RFID…"]
 }

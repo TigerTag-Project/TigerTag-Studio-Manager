@@ -2941,5 +2941,6 @@
     "one": "Er wacht {{n}} envelop op je.",
     "other": "Er wachten {{n}} enveloppen op je."
   },
-  "referralWhoSub": "Voeg de code toe: {{e}} enveloppen elk zodra je je e-mail bevestigt."
+  "referralWhoSub": "Voeg de code toe: {{e}} enveloppen elk zodra je je e-mail bevestigt.",
+  "splashLoading": ["De tijger wordt gewekt…","Je spoelen worden geteld…","De printers warmen op…","De RFID-chips worden afgestoft…"]
 }

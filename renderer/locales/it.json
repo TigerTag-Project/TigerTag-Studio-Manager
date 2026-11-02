@@ -2941,5 +2941,6 @@
     "one": "Ti aspetta {{n}} busta.",
     "other": "Ti aspettano {{n}} buste."
   },
-  "referralWhoSub": "Aggiungi il suo codice: {{e}} buste a testa dopo la conferma della tua e-mail."
+  "referralWhoSub": "Aggiungi il suo codice: {{e}} buste a testa dopo la conferma della tua e-mail.",
+  "splashLoading": ["Svegliamo la tigre…","Contiamo le tue bobine…","Scaldiamo le stampanti…","Spolveriamo i chip RFID…"]
 }

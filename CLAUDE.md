@@ -122,6 +122,9 @@ renderer/
     57-elegoo.css       — Elegoo live block
     60-modals.css       — rack-edit / friend / account / login / alert modals
     70-detail-misc.css  — icons, stats, table/grid, detail panel, debug, toolbox, TD1S …
+    72-hero-scene.css   — the ecosystem scene (iMac + flipping devices), shared with the splash
+  hero-scene.js    — draws that scene into every [data-hero-scene]
+  splash/          — the launch splash page (main.js createSplash), loaded before the main window
   locales/         — en fr de es it zh pt pt-pt pl ru nl (.json, reference: en)
   IoT/             — devices, each with its own CSS
     tigerscale/  tigertouch/  tigerspool/  td1s/  usbscale/

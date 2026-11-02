@@ -2941,5 +2941,6 @@
     "one": "{{n}} Umschlag wartet auf dich.",
     "other": "{{n}} Umschläge warten auf dich."
   },
-  "referralWhoSub": "Gib den Code ein: je {{e}} Umschläge, sobald du deine E-Mail bestätigst."
+  "referralWhoSub": "Gib den Code ein: je {{e}} Umschläge, sobald du deine E-Mail bestätigst.",
+  "splashLoading": ["Der Tiger wird geweckt…","Deine Spulen werden gezählt…","Die Drucker wärmen sich auf…","Die RFID-Chips werden entstaubt…"]
 }

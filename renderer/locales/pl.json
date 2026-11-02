@@ -2961,5 +2961,6 @@
     "one": "Czeka na ciebie {{n}} koperta.",
     "other": "Czekają na ciebie koperty: {{n}}."
   },
-  "referralWhoSub": "Dodaj kod: po {{e}} koperty dla każdego po potwierdzeniu e-maila."
+  "referralWhoSub": "Dodaj kod: po {{e}} koperty dla każdego po potwierdzeniu e-maila.",
+  "splashLoading": ["Budzimy tygrysa…","Liczymy twoje szpule…","Rozgrzewamy drukarki…","Odkurzamy chipy RFID…"]
 }

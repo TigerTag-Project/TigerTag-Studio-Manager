@@ -29,6 +29,7 @@ import { squadHeroHtml, squadItemsHeroHtml, squadRankingsHtml, pulseHtml as squa
 import { artImg } from './art.js';
 import { openDialog, initDialogs } from './dialog.js';
 import { initTrophies, trophiesSignIn, trophiesSignOut, renderTrophiesView, trophyEarned } from './quests/trophies.js';
+import { fillHeroScenes } from './hero-scene.js';
 import { initReferrals, referralsSignIn, referralsSignOut, renderInviteView, claimReferral, referralWantsCode, referralPrefill, referralStatus, wireCodeField, codeFieldMarkup, errText as referralErrText } from './quests/referrals.js';
 import { initQuests, questsSignIn, questsSignOut, questBump, questGauge, questDailyProgress, questCurrentLevel, openQuests, renderQuestsView, questLootHtml, questFreezeStatus, questFriendFreeze, openFreezeFor, openFreezeGift } from './quests/index.js';
 
@@ -775,7 +776,9 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     if (ColdStart._firstPaintDone) return;
     ColdStart._firstPaintDone = true;
     ColdStart.mark("first-paint");
-    try { window.studio?.ready(); } catch {}
+    let lang;
+    try { lang = state.lang; } catch {}   // the next launch's splash speaks it (main.js _saveSplashLang)
+    try { window.studio?.ready(lang); } catch {}
   }
   function _coldStartTrace() {
     const m = ColdStart.marks;
@@ -43450,22 +43453,9 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   }
   // Every scene (and its float / flip) stops while the window is hidden.
   document.addEventListener("visibilitychange", () => document.body.classList.toggle("anim-paused", document.hidden));
-  // The ecosystem scene (iMac, TigerPOD ⇄ TigerScale ⇄ TigerSpool, Tiger Touch,
-  // iPhone — each its own layer, .sph-* in 70-detail-misc.css) drawn into every
+  // The ecosystem scene (hero-scene.js, css/72-hero-scene.css) drawn into every
   // [data-hero-scene]: the welcome page, the sign-in dialog, the account setup.
-  (function _fillHeroScenes() {
-    const M = "../assets/img/mockups/";
-    const html = `
-      <div class="sph-item sph-imac"><img src="${M}imac-studio.webp" alt="" /></div>
-      <div class="sph-item sph-pod"><div class="sph-flip">
-        <img class="sph-face sph-face--pod" src="${M}tigerpod-mini.webp" alt="" />
-        <img class="sph-face sph-face--scale" src="${M}tigerscale.webp" alt="" />
-        <img class="sph-face sph-face--spool" src="${M}tigerspool.webp" alt="" />
-      </div></div>
-      <div class="sph-item sph-touch"><img src="${M}tigertouch-tour.webp" alt="" /></div>
-      <div class="sph-item sph-phone"><img src="${M}iphone-connect.webp" alt="" /></div>`;
-    document.querySelectorAll("[data-hero-scene]").forEach(el => { el.innerHTML = html; });
-  })();
+  fillHeroScenes();
   // Welcome page brands: lit under the mouse, and like a garland — one logo
   // after the other, then a rest, again — while the page is shown. Same
   // .is-lit effect and timings as the chip chooser's column (linked/index.js).

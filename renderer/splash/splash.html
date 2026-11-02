@@ -1,0 +1,24 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <!-- The launch splash (main.js createSplash): a local page, shown before the main window
+       is ready. No network, no Firebase. Its scene is the welcome page's ecosystem scene
+       (hero-scene.js, css/72-hero-scene.css): the iMac, the TigerPOD turning into the
+       TigerScale then the TigerSpool, the Tiger Touch and the iPhone. -->
+  <link rel="stylesheet" href="../css/72-hero-scene.css">
+  <link rel="stylesheet" href="splash.css">
+</head>
+<body>
+  <div class="card">
+    <div class="hero-scene" data-hero-scene aria-hidden="true"></div>
+    <div class="foot">
+      <div class="name">Tiger Studio Manager <span class="name-2">2</span></div>
+      <div class="ver" id="ver"></div>
+      <div class="msg" id="msg"></div>
+      <div class="bar" aria-hidden="true"><i id="bar"></i></div>
+    </div>
+  </div>
+  <script type="module" src="splash.js"></script>
+</body>
+</html>

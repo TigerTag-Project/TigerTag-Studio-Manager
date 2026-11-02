@@ -2941,5 +2941,6 @@
     "one": "{{n}} envelope está à tua espera.",
     "other": "{{n}} envelopes estão à tua espera."
   },
-  "referralWhoSub": "Adiciona o código: {{e}} envelopes para cada um depois de confirmares o e-mail."
+  "referralWhoSub": "Adiciona o código: {{e}} envelopes para cada um depois de confirmares o e-mail.",
+  "splashLoading": ["A acordar o tigre…","A contar as tuas bobinas…","A aquecer as impressoras…","A limpar o pó aos chips RFID…"]
 }

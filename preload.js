@@ -526,5 +526,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
 // swaps the hidden main window in for the splash. Main also has a hard
 // fallback timeout, so a missed signal never leaves the app invisible.
 contextBridge.exposeInMainWorld('studio', {
-  ready: () => ipcRenderer.send('studio:ready'),
+  // `lang`: the app's language, kept for the next launch's splash (main.js _saveSplashLang).
+  ready: (lang) => ipcRenderer.send('studio:ready', { lang }),
 });
