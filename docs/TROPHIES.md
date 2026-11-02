@@ -111,8 +111,8 @@ local title of the reference. Their running totals live in `users/{uid}/trophyCo
 
 | id | Name (en) | Condition | Tier | Art |
 |---|---|---|---|---|
-| `squadJoin` | Welcome to the Squad | Join the TigerSquad | uncommon | `tigersquad/tigersquad-bronze.webp` |
-| `squadSilver` / `squadGold` / `squadPlatinum` | Silver / Gold / Platinum tiger | Reach that tier | rare / epic / legendary | `tigersquad/tigersquad-{silver,gold,platinum}.webp` |
+| `squadJoin` | Welcome to the Squad | Join the TigerSquad | common | `tigersquad/tigersquad-bronze.webp` |
+| `squadSilver` / `squadGold` / `squadPlatinum` | Silver / Gold / Platinum tiger | Reach that tier | uncommon / rare / epic (legendary kept for later) | `tigersquad/tigersquad-{silver,gold,platinum}.webp` |
 | `firstFriend` | Pack animal | First friend | common | `tigersquad/feats/friends.webp` |
 | `friends10` | The whole pack | 10 friends | rare | friends, crowded variant **new** |
 | `allLinks` | Explorer | Open every community link of the sidebar | uncommon | `tigersquad/feats/community.webp` |
@@ -153,7 +153,7 @@ moment. The trio comes with the 5, 10 or 15 million sticker that completes the s
 | id | Name (en) | Condition | Tier | Art |
 |---|---|---|---|---|
 | `firstPrinter` / `firstRack` / `firstList` | Printer tamer / Tidy tiger / List maker | A first printer, rack, list | common | `loot/printer`, `feats/first-rack`, `feats/first-list` |
-| `printer_<brand>` | Bambu Lab / Creality / Elegoo / FlashForge / Snapmaker / Anycubic / Prusa / Klipper / OctoPrint | The first real printer (not a demo) of that brand or plugin connected — `xpRules.PRINTER_BRANDS`, counted in the XP breakdown's `printer.brands`; state trophy, retroactive | uncommon | `trophies/stickers/printer_<brand>.webp` |
+| `printer_<brand>` | Bambu Lab / Creality / Elegoo / FlashForge / Snapmaker / Anycubic / Prusa / Klipper / OctoPrint | The first real printer (not a demo) of that brand or plugin connected — `xpRules.PRINTER_BRANDS`, counted in the XP breakdown's `printer.brands`; state trophy, retroactive | common | `trophies/stickers/printer_<brand>.webp` |
 | `printer_bambulab_lan` | I take control | The first real Bambu Lab printer on the local network (Developer mode): its device doc's `mode` is not `"cloud"` — the XP breakdown's `printer.bambu.lan`; state trophy, retroactive | epic | `trophies/stickers/printer_bambulab_lan.webp` |
 | `printer_bambulab_cloud` | Head in the cloud | The first real Bambu Lab printer through the Bambu Lab account: `mode == "cloud"` — `printer.bambu.cloud`; state trophy, retroactive | common | `trophies/stickers/printer_bambulab_cloud.webp` |
 | `rfidReader` / `usbScale` / `mobileApp` | Mind reader / Heavyweight / Pocket tiger | An RFID reader, a USB scale, Tiger NFC Connect | uncommon | `loot/rfid-reader`, `loot/usb-scale`, `feats/mobile-app` |

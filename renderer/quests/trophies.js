@@ -77,10 +77,10 @@ const ROWS = [
   ["stickerFan", "squad", "uncommon", "trophies/stickers/stickerFan.webp", true],
   ["stickerBook", "squad", "rare", "trophies/stickers/stickerBook.webp", true],
   ["curator", "squad", "epic", "trophies/stickers/curator.webp", true],
-  ["squadJoin", "squad", "rare", "tigersquad/tigersquad-bronze.webp"],
-  ["squadSilver", "squad", "epic", "tigersquad/tigersquad-silver.webp"],
-  ["squadGold", "squad", "epic", "tigersquad/tigersquad-gold.webp"],
-  ["squadPlatinum", "squad", "legendary", "tigersquad/tigersquad-platinum.webp"],
+  ["squadJoin", "squad", "common", "tigersquad/tigersquad-bronze.webp"],
+  ["squadSilver", "squad", "uncommon", "tigersquad/tigersquad-silver.webp"],
+  ["squadGold", "squad", "rare", "tigersquad/tigersquad-gold.webp"],
+  ["squadPlatinum", "squad", "epic", "tigersquad/tigersquad-platinum.webp"],
   ["firstFriend", "squad", "common", "tigersquad/feats/friends.webp"],
   ["friends10", "squad", "rare", "trophies/stickers/friends10.webp"],
   ["photo", "squad", "common", "tigersquad/feats/photo.webp"],
@@ -115,10 +115,10 @@ const ROWS = [
   ["chipPlus", "chips", "common", "trophies/stickers/chipPlus.webp"],
   ["chipCert", "chips", "uncommon", "tigersquad/loot/chip-cert.webp"],
   ["certified50", "chips", "rare", "trophies/stickers/certified50.webp"],
-  ["firstPrinter", "gear", "uncommon", "tigersquad/loot/printer.webp"],
+  ["firstPrinter", "gear", "common", "tigersquad/loot/printer.webp"],
   // The first printer connected of each brand or plugin (backend trophyRules printer_<brand>).
   ...["bambulab", "creality", "elegoo", "flashforge", "snapmaker", "anycubic", "prusa", "klipper", "octoprint"]
-    .map((b) => [`printer_${b}`, "gear", "uncommon", `trophies/stickers/printer_${b}.webp`]),
+    .map((b) => [`printer_${b}`, "gear", "common", `trophies/stickers/printer_${b}.webp`]),
   // Bambu Lab by transport: local network in Developer mode, or Bambu's cloud.
   ["printer_bambulab_lan", "gear", "epic", "trophies/stickers/printer_bambulab_lan.webp"],
   ["printer_bambulab_cloud", "gear", "common", "trophies/stickers/printer_bambulab_cloud.webp"],
