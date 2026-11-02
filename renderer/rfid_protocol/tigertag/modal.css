@@ -93,7 +93,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.rfid-reader.is-card .rfid-reader-state { color: var(--success); }
+.rfid-reader.is-card .rfid-reader-state { color: var(--success-text); }
 
 .rfid-read-btn {
   flex-shrink: 0;
@@ -200,12 +200,12 @@
   padding: 3px 9px;
   border-radius: 99px;
   background: var(--primary-soft);
-  color: var(--primary);
+  color: var(--primary-text);
   font-size: 11px;
   font-weight: 700;
 }
 
-.rfid-version-badge--cert { background: var(--success-soft); color: var(--success); }
+.rfid-version-badge--cert { background: var(--success-soft); color: var(--success-text); }
 
 .rfid-uid-row {
   display: flex;
@@ -241,7 +241,7 @@
   padding: 12px;
   border-radius: 9px;
   background: var(--danger-soft);
-  color: var(--danger);
+  color: var(--danger-text);
   font-size: 13px;
   text-align: center;
 }

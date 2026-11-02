@@ -3,13 +3,18 @@
  *
  * Display only. The host (inventory.js `_openSquadBoard`, inline mode) owns the
  * data and calls these with it:
- *   members  — [{ uid, name, profile, tier, xp, country }] from userProfiles.tigerSquad
- *              (the order and the ties are the host's: XP, highest first, stable)
+ *   board    — the leagues as the server builds them (backend functions/squadBoard.js):
+ *              { world, nat: [member] — the tops, XP highest first; countries:
+ *              [{ cc, xp, n, base }]; me: member + { worldRank, natRank } | null;
+ *              rival: { world, nat } — the nearest member above `me` when they
+ *              rank below a top (null = none, undefined = unknown) }
+ *              member = { uid, name, profile, tier, xp, country, bw, bn } (bw / bn:
+ *              world / national rank 7 days ago, 0 = none; base: same for a country)
  *   pulse    — publicStats/community (xpTotal, accounts, spools {…}, printers {total, byBrand}, updatedAt)
  *   history  — publicStats/community/history/{day}, oldest first ({ day, xpTotal, spools, printers })
  * Nothing here writes, counts XP or ranks differently from the existing board.
  *
- *   squadHeroHtml(ctx, members)       — banner + the account's rank card (every tab)
+ *   squadHeroHtml(ctx, board)         — banner + the account's rank card (every tab)
  *   squadRankingsHtml(ctx, data)      — Community pulse strip, the three leagues
  *   (the account's rank lives in the hero card only)
  *   ctx = { uid, t, esc, fmt, cname, flagOf, avatar(member) → html, tierLabel(tier),
@@ -42,31 +47,21 @@ export function toggleLeague(key) {
   if (_expanded.has(key)) _expanded.delete(key); else _expanded.add(key);
 }
 
-// Ranked world list and the derived ranks the panels share.
-function ranks(ctx, members) {
-  const world = [...members].sort((a, b) => b.xp - a.xp);
-  const me = world.find(m => m.uid === ctx.uid) || null;
+// The ranked lists and the viewer's ranks the panels share. `me` is the row of
+// a top when the viewer is in it (live rank), else the board's own (nightly rank).
+function ranks(ctx, board) {
+  const { world, nat, countries } = board;
+  const me = world.find(m => m.uid === ctx.uid) || nat.find(m => m.uid === ctx.uid) || board.me || null;
   const cc = me?.country || ctx.myCountry || null;
-  const nat = cc ? world.filter(m => m.country === cc) : [];
-  const by = new Map();
-  for (const m of members) if (m.country) { const c = by.get(m.country) || { cc: m.country, xp: 0, n: 0 }; c.xp += m.xp; c.n++; by.set(m.country, c); }
-  const countries = [...by.values()].sort((a, b) => b.xp - a.xp || b.n - a.n);
-  return { world, me, cc, nat, countries,
-    worldRank: me ? world.indexOf(me) + 1 : 0,
-    natRank: me && cc ? nat.indexOf(me) + 1 : 0 };
+  return { world, me, cc, nat: cc ? nat : [], countries, rival: board.rival || {},
+    worldRank: board.me?.worldRank || 0, natRank: board.me?.natRank || 0 };
 }
-
-// Rank movement over 7 rolling days: the server files the leagues' ranks at
-// the first minute of each Paris day and keeps the one taken 7 days ago in
-// squadRanks/current (see the backend's communityStats); the host passes it as
-// ctx.rankBase, and a row that moved shows the difference with its live rank:
-// ▲ / ▼ with the places, the meaning in a hover bubble. Same place, or not in
-// those ranks (joined since, or no baseline at all) → nothing shown.
-function rankMoves(base, ids) {
-  const now = {};
-  ids.forEach((id, i) => { now[id] = i + 1; });
-  return id => (base && base[id] && now[id] ? base[id] - now[id] : null);
-}
+// Rank movement over 7 rolling days: the nightly job files every member's
+// ranks (squadRank/{uid}) and the board rows carry the one held 7 days ago
+// (bw world, bn national, base for a country); a row that moved shows the
+// difference with its live rank: ▲ / ▼ with the places, the meaning in a hover
+// bubble. Same place, or no rank then (joined since) → nothing shown.
+const rankMove = (before, now) => (before && now ? before - now : null);
 const ARROW = up => `<svg viewBox="0 0 10 8" aria-hidden="true"><path d="${up ? "M5 0 10 8H0z" : "M5 8 0 0h10z"}"/></svg>`;
 const moveHtml = (t, d) => !d ? ""
   : `<small class="sqr-move ${d > 0 ? "is-up" : "is-down"}" data-tip="${t(d > 0 ? "squadMoveUp" : "squadMoveDown", { n: Math.abs(d) })}" tabindex="0">${ARROW(d > 0)}${Math.abs(d)}</small>`;
@@ -112,17 +107,21 @@ export function squadItemsHeroHtml(ctx, owned = {}, nextCard = "", eggFound = nu
 }
 
 // ── Hero ─────────────────────────────────────────────────────────────────────
-export function squadHeroHtml(ctx, members, eggFound = null) {
+export function squadHeroHtml(ctx, board, eggFound = null) {
   const { t, esc, fmt } = ctx;
-  const r = ranks(ctx, members);
+  const r = ranks(ctx, board);
   // The account's rank card (the one place the page shows it): who, league, XP,
   // national + world rank, and the next rival with the real XP gap.
-  // The next rival in a list: the nearest member above with MORE XP (ties are not a target).
-  const rivalIn = list => { const i = r.me ? list.indexOf(r.me) : -1; return i > 0 ? list.slice(0, i).reverse().find(m => m.xp > r.me.xp) || null : null; };
-  const above = rivalIn(r.world), aboveNat = r.cc ? rivalIn(r.nat) : null;
+  // The next rival: the nearest member above with MORE XP (ties are not a target) —
+  // from the top when the account is in it, else the board's own pick.
+  const rivalIn = (list, far) => {
+    const i = r.me ? list.findIndex(m => m.uid === r.me.uid) : -1;
+    return i >= 0 ? list.slice(0, i).reverse().find(m => m.xp > r.me.xp) || null : far;
+  };
+  const above = rivalIn(r.world, r.rival.world), aboveNat = r.cc ? rivalIn(r.nat, r.rival.nat) : null;
   const MEDAL1 = `<img class="sqr-rival-medal" src="../assets/img/tigersquad/rank-medal-1.webp" alt="">`;
   // One rival line per league: its badge (flag / globe), then the rival — or the medal when you lead it.
-  const rivalRow = (badge, rival, label) => rival ? `
+  const rivalRow = (badge, rival, label) => rival === undefined ? "" : rival ? `
       <div class="sqr-rival-row" aria-label="${esc(label)}">${badge}${ctx.avatar(rival)}
         <span class="sqr-rival-txt"><b>${esc(rival.name)}</b><small>${esc(t("squadXpToGo", { xp: fmt(rival.xp - r.me.xp) }))}</small></span>
         <span class="sqr-bar" aria-hidden="true"><i style="width:${Math.max(2, Math.min(100, Math.round(r.me.xp / Math.max(1, rival.xp) * 100)))}%"></i></span>
@@ -139,8 +138,9 @@ export function squadHeroHtml(ctx, members, eggFound = null) {
         <div class="sqr-card-ranks">
           ${r.natRank ? `<span class="sqr-card-ic" aria-hidden="true">${flagAv(r.cc, 20)}</span>
             <span class="sqr-card-rank" aria-label="#${r.natRank} ${esc(t("squadInCountry", { country: ctx.cname(r.cc) }))}">${rankNo(r.natRank)}</span>` : ""}
-          <span class="sqr-card-ic" aria-hidden="true">${worldAv(20)}</span>
-          <span class="sqr-card-rank" aria-label="#${r.worldRank} ${esc(t("squadWorldwide"))}">${rankNo(r.worldRank)}</span>
+          ${/* No rank filed yet (joined today, before the nightly run): no number. */""}
+          ${r.worldRank ? `<span class="sqr-card-ic" aria-hidden="true">${worldAv(20)}</span>
+          <span class="sqr-card-rank" aria-label="#${r.worldRank} ${esc(t("squadWorldwide"))}">${rankNo(r.worldRank)}</span>` : ""}
         </div>
         <div class="sqr-card-rival">
           <span class="sqr-me-label">${esc(t("squadNextRival"))}</span>
@@ -158,7 +158,7 @@ export function squadHeroHtml(ctx, members, eggFound = null) {
           ${ctx.friend ? "" : `<button type="button" class="sqr-join" data-next="join">${esc(t("squadJoin"))}</button>`}</div>
       </div>`;
   return heroHtml(esc, { cls: "sqr-hero", eyebrow: t("squadBrand"), title: t("squadHeroSub"), sub: t("squadHeroTagline"),
-    scene: leagueScene(eggFound), side: members.length ? card : "" });
+    scene: leagueScene(eggFound), side: board.world.length || board.me ? card : "" });
 }
 
 // The League banner scene (hero-layers.js): three tigers with their silver, gold
@@ -182,8 +182,8 @@ document.addEventListener("click", e => {
 });
 
 // ── Rankings tab ─────────────────────────────────────────────────────────────
-export function squadRankingsHtml(ctx, { members, loading, pulse, history }) {
-  return `${pulseHtml(ctx, pulse, history)}${leaguesHtml(ctx, members, loading)}`;
+export function squadRankingsHtml(ctx, { board, loading, pulse, history }) {
+  return `${pulseHtml(ctx, pulse, history)}${leaguesHtml(ctx, board, loading)}`;
 }
 
 // ── Community pulse ──────────────────────────────────────────────────────────
@@ -233,15 +233,19 @@ export function pulseHtml(ctx, pulse, history) {
 const noFlag = text => text.replace(/\s+/g, " ").trim();
 function rankCell(i) { return i < 3 ? MEDAL(i + 1) : `<span class="sqr-rank">${rankNo(i + 1)}</span>`; }
 // No subtitle: the account's own ranks are in the hero card.
-function column(ctx, key, title, icon, rows, isMe, rowHtml) {
+// `outside` = [row, index] of the account when it ranks below the top the
+// column holds (the board keeps the first 100), drawn as the last row.
+function column(ctx, key, title, icon, rows, isMe, rowHtml, outside = null) {
   const { t, esc } = ctx;
   const open = _expanded.has(key);
-  const meAt = rows.findIndex(isMe);
+  let meAt = rows.findIndex(isMe);
+  if (meAt < 0 && outside) meAt = outside[1];
   // When the account ranks below the cut, its row takes the last slot, so all
   // three columns keep the same number of rows (and the same height).
-  const far = !open && meAt >= _rows;
+  const far = meAt >= 0 && (open ? meAt >= rows.length : meAt >= _rows);
   const shown = open ? rows.map((r, i) => [r, i]) : rows.slice(0, far ? _rows - 1 : _rows).map((r, i) => [r, i]);
-  const tail = far ? rowHtml(rows[meAt], meAt).replace('class="sqr-row', 'class="sqr-row sqr-row--far') : "";
+  const meRow = meAt < rows.length ? rows[meAt] : outside?.[0];
+  const tail = far && meRow ? rowHtml(meRow, meAt).replace('class="sqr-row', 'class="sqr-row sqr-row--far') : "";
   return `
     <section class="sqr-board">
       <header class="sqr-board-head"><span class="sqr-board-ic" aria-hidden="true">${icon}</span>
@@ -251,23 +255,24 @@ function column(ctx, key, title, icon, rows, isMe, rowHtml) {
       <ol class="sqr-rows">${shown.map(([r, i]) => rowHtml(r, i)).join("")}${tail}</ol>
     </section>`;
 }
-function leaguesHtml(ctx, members, loading) {
+function leaguesHtml(ctx, board, loading) {
   const { t, fmt, esc } = ctx;
   if (loading) return `<div class="sqr-boards">${[0, 1, 2].map(() => `<section class="sqr-board"><div class="sqr-skel sqr-skel--board"></div></section>`).join("")}</div>`;
-  const r = ranks(ctx, members);
-  const base = ctx.rankBase || {};
-  const mvW = rankMoves(base.world, r.world.map(m => m.uid));
-  const mvN = r.cc ? rankMoves(base.national?.[r.cc], r.nat.map(m => m.uid)) : () => null;
-  const mvC = rankMoves(base.countries, r.countries.map(c => c.cc));
+  const r = ranks(ctx, board);
+  const mvW = (m, i) => rankMove(m.bw, i + 1), mvN = (m, i) => rankMove(m.bn, i + 1);
+  // A world row's national rank: everyone with more XP than a member of the
+  // world top is in it too, so it is their place among their country there;
+  // the account's own row below the top takes its filed rank.
+  const natIn = m => { const i = r.world.filter(x => x.country === m.country).indexOf(m); return i >= 0 ? i + 1 : r.natRank; };
   // Each maker's row wears their theme colour (the avatar colour they picked).
   const memberRow = (withFlag, mv) => (m, i) => {
     const mc = ctx.memberColor?.(m);
     return `
     <li class="sqr-row${m.uid === ctx.uid ? " is-me" : ""}${mc ? " has-mc" : ""}"${mc ? ` style="--mc:${mc}"` : ""}>${rankCell(i)}
       <span class="sqr-av">${ctx.avatar(m)}</span>
-      <span class="sqr-name"><b>${esc(m.name)}${withFlag && m.country ? ` <span class="sqr-mini">${flagAv(m.country, 14)}<small>${rankNo(r.world.filter(x => x.country === m.country).indexOf(m) + 1)}</small></span>` : ""}</b>
+      <span class="sqr-name"><b>${esc(m.name)}${withFlag && m.country ? ` <span class="sqr-mini">${flagAv(m.country, 14)}<small>${rankNo(natIn(m))}</small></span>` : ""}</b>
         <small class="sq-${m.tier}">${esc(ctx.tierLabel(m.tier))}</small></span>
-      <span class="sqr-xp">${esc(fmt(m.xp))} XP${moveHtml(t, mv(m.uid))}</span></li>`;
+      <span class="sqr-xp">${esc(fmt(m.xp))} XP${moveHtml(t, mv(m, i))}</span></li>`;
   };
   // A country's row in its flag's colours (FLAG_COLORS, read from the bundled flags).
   const flagVars = cc => {
@@ -279,13 +284,13 @@ function leaguesHtml(ctx, members, loading) {
     <li class="sqr-row${c.cc === r.cc ? " is-me" : ""}${FLAG_COLORS[c.cc] ? " has-flag" : ""}"${flagVars(c.cc)}>${rankCell(i)}
       <span class="sqr-av" aria-hidden="true">${flagAv(c.cc, 34, i + 1)}</span>
       <span class="sqr-name"><b>${esc(ctx.cname(c.cc))}</b><small>${esc(t("squadMembers", { n: c.n }))}</small></span>
-      <span class="sqr-xp">${esc(fmt(c.xp))} XP${moveHtml(t, mvC(c.cc))}</span></li>`;
+      <span class="sqr-xp">${esc(fmt(c.xp))} XP${moveHtml(t, rankMove(c.base, i + 1))}</span></li>`;
   const globe = worldAv(36);
   return `
     <div class="sqr-boards">
       ${column(ctx, "countries", t("squadCountryLabel"), globe, r.countries, c => c.cc === r.cc, countryRow)}
       ${r.cc ? column(ctx, "national", noFlag(t("squadColNational", { flag: "", country: ctx.cname(r.cc) })),
-        flagAv(r.cc, 36), r.nat, m => m.uid === ctx.uid, memberRow(false, mvN)) : ""}
-      ${column(ctx, "world", t("squadColWorld"), globe, r.world, m => m.uid === ctx.uid, memberRow(true, mvW))}
+        flagAv(r.cc, 36), r.nat, m => m.uid === ctx.uid, memberRow(false, mvN), r.natRank > r.nat.length ? [r.me, r.natRank - 1] : null) : ""}
+      ${column(ctx, "world", t("squadColWorld"), globe, r.world, m => m.uid === ctx.uid, memberRow(true, mvW), r.worldRank > r.world.length ? [r.me, r.worldRank - 1] : null)}
     </div>`;
 }

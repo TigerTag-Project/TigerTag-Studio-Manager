@@ -86,7 +86,7 @@
 .cre-fil-head .snap-block-title { margin: 0; }
 .cre-fil-feed { display: flex; align-items: center; gap: 6px; }
 .cre-fil-feed-sel { font-size: 12px; color: var(--muted); white-space: nowrap; }
-.cre-fil-feed-sel b { color: var(--primary); font-weight: 800; margin-left: 2px; }
+.cre-fil-feed-sel b { color: var(--primary-text); font-weight: 800; margin-left: 2px; }
 .cre-fil-feed-btn {
   padding: 4px 11px;
   font-size: 12px;

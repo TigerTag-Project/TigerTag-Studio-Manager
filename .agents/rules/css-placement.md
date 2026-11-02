@@ -10,3 +10,5 @@
 - `input[type="text"]` (0,1,1) is beaten by `.a .b` (0,2,0).
 - Colours: every new colour is a theme token; `npm run theme:check` reports the raw colours still in the CSS (a backlog of ~500, not a gate).
 - No JS inline in `renderer/inventory.html`.
+- Tiger Quests / TigerSquad / Trophies views and their windows paint with the shared `--game-*` tokens of `00-base.css` (a local `--tsq-*` / `--qw-*` palette only aliases them); no local hex, no "always dark" world.
+- Readable in BOTH themes: `--on-accent` / `--on-dark` (white in both themes) only for a label ON a filled accent or ON dark art — never for an icon or text on a card or row (use `--text` / `--qw-ink` / `--game-text`); an accent used as TEXT takes its `-text` twin (`--primary-text`, `--success-text`, `--game-ok-text`…), the plain accent stays for fills and borders. Check every UI change in Light AND Dark before handing it over.

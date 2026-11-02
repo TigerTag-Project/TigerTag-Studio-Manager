@@ -1,657 +1,393 @@
-# Worklog — v2.49.0 (in progress)
+# Worklog — v2.49.1 (in progress)
 
 ## Added
 
-- Referrals (design `docs/REFERRALS.md`, validated 2026-11-01; backend not
-  deployed): an Invite view in the Tiger Squad group (button `#vtgSquadInvite`
-  after Trophies, view mode `squadInvite`, `renderer/quests/referrals.js|css`)
-  — the friend link + Copy, share buttons (WhatsApp, X, Facebook, Reddit,
-  Telegram, Bluesky, Discord = copy, e-mail; logos `assets/svg/logos/
-  logo_{reddit,telegram,bluesky}.svg`), the QR + download, "Who invited you?"
-  while the account is under 7 days old, the recruits with their state; also
-  reached from the Friends panel, the sidebar friends list's "+ Invite" chip,
-  the account dropdown and the empty friends list. Onboarding step 2 gets the
-  optional "Who invited you?" field (prefilled by a friend link, Paste); a
-  friend link opened by an account that can still claim goes there instead of
-  Add friend. Validation = the invitee's verified e-mail within 7 days: 3 gift
-  envelopes each, a ceremony window (backfire) per side, notifications
-  `referral_joined` / `referral_validated`. Trophies `referral1/5/10`,
-  hidden `referral25/50`, `invited` (placeholder art). i18n: `referral*`,
-  `notifReferral*`, `trophy_/trophyHow_` for those ids (54 keys).
-  Backend: `functions/referrals.js` (claim / status / seen), rule
-  `referrals/{inviteeUid}`, `trophyRules.js` COUNTERS.referrals, tests
-  `test/referrals.test.js`. Hub: invite page gift card + code copied on
-  download, admin TigerCoins → Referrals tab (`config/referrals`).
+- Give envelopes: choose which, and several at once. The give window
+  (`showEnvelope` give picker, `renderer/quests/squad-deals.js`) shows up to 10
+  envelopes picked at random from the pile (`_givePile`: gift envelopes by
+  origin — a friend's name, easter egg, milestone, gift — and the chips'
+  "Surprise"), contents never shown, the first one checked; check up to the
+  day's allowance, then a friend, then hold Give. The backend's `tigerCoins`
+  `giveEnvelope` takes `ids` (≤ 10; not deployed — must go out before this
+  build). CSS `.tc-give-envs` / `.tc-give-env` in `renderer/quests/quests.css`.
+  The envelopes are a hand of cards (`--r` / `--y` per envelope: angle and
+  drop), a checked one rises in place, a hovered one lifts a little.
+  Received several at once: the backend sends ONE `envelope_gift` notice
+  with `data.count`; `_announceEnvelopeGifts` then shows `showEnvelopeGift`
+  with `count` — three envelopes fanned behind the card, turning toward
+  the mouse (`.tch-env-pile` / `.tch-env-stack`, coin-pull.js `tilt`, which
+  now also sets the unitless `--tx` / `--ty`), the middle one higher and
+  casting its shadow on the two behind, away from the pointer —
+  and "Open them all" opens the pile; the bell reads `notifEnvelopeGiftMany`.
+  i18n: `envGivePickEnv`, `envGiveSentMany`, `envGiveChip`, `envGiveEgg`,
+  `envGiveGift`, `envGiftTitleMany`, `envGiftTextMany`, `envGiftSeeMany`,
+  `notifEnvelopeGiftMany` (11 locales).
 
-- Trophies (design `docs/TROPHIES.md`, validated 2026-11-01): a sticker album
-  in the Tiger Squad view group (new button after the Workshop, view mode
-  `squadTrophies`, every account) — 55 action trophies in six families (the
-  flame and the freezes, TigerCoins, Squad and friends, the chips — TigerTag,
-  TigerTag+, TigerTag+ Certified —, the workshop — TD1S, RFID reader, USB
-  scale, mobile app, first printer / rack / list, updates —, the Tiger
-  devices — shown in one grid, the family only in the card a sticker opens;
-  every Workshop loot and feat has one; 1st of one's country and 1st
-  in the world at a daily ranking; a secret "Master of time": the XP
-  history banner's hourglass turned 50 times within 30 s) plus
-  the event trophies (`trophyEvents`, newest first); earned stickers die-cut
-  from the app's art with a ring in their tier colour, the date and "owned by
-  n % of tigers", locked ones as silhouettes, hidden ones as "?", missed events
-  dated; a Tiger Squad banner like the Deals one (eyebrow, big title,
-  tagline, its own desk scene generated in the house style — the cheering
-  tiger behind the desk, a rosette, a sticker sheet, a gold cup, an open
-  sticker album, sparkles: `assets/img/trophies/banner/*.webp`, masters in
-  `assets-src/img/trophies/banner/` — and the n / total card on the right), then the Deals
-  bar (same tabs: All / Earned n / Locked n, the search, a family filter —
-  the inventory's filter list, ui-kit `selectHtml` —, "Have a code?"); every sticker the same size (name + date or tier), how to earn it in
-  the app's shared info bubble (above the "i" of the card's top-right corner,
-  its tail on the icon); an earned card takes its rarity colour, no ring,
-  a bigger sticker; an earned card has "Download the sticker" (the picture as
-  shipped; the server counts each one once, 5 / 15 / 30 different = three
-  hidden trophies); a loot / feat trophy has the Workshop item's rarity;
-  tier trophies with pop-culture names for TigerCoins sent / received (100 /
-  1,000 / 10,000), envelopes sent / received (10 / 50 / 100), freezes sent /
-  received (5 / 25 / 100) and a secret 140-character message;
-  brand trophies for the brands selling TigerTag+ Certified spools (Rosa3D,
-  eSun, Sunlu, Jamg He, R3D, Landu, Lotactree, Smart3DPT — 1 / 10 / 50 /
-  100 certified chips, family "Brands"; `XP_COUNT_VERSION` 3 so each
-  account recounts once and its certified chips get their brand); the sticker
-  downloads as a PNG;
-  stickers and the banner use whole pictures only, never a banner layer;
-  37 new stickers generated in the house flat style (no gradients), each
-  checked one by one at full size and at 40 px, so every non-brand trophy has
-  its own picture: `assets/img/trophies/stickers/<trophyId>.webp` (256 px),
-  masters `assets-src/img/trophies/stickers/<trophyId>.png`;
-  the 32 brand stickers (`cert_<brand>_<n>`), one die-cut piece each: level 1
-  the brand's full logo redrawn in the house style (Smart3DPT: its symbol),
-  10 / 50 / 100 a themed object behind it, different per brand and tier (masters
-  in `assets-src/img/trophies/brands/` and `tiers/`, model in docs/TROPHIES.md); TigerTag+ = the TigerTag chip
-  with a green "+" badge; a "TigerMaster" trophy (the role, or admin);
-  110 trophies, 110 different pictures; the flat gold cup
-  `assets/img/trophies/cup.webp` replaces the gradient `trophy.svg` for events
-  and the trophy notification; "Have a code?" opens the TigerCoins code window (open to every account for
-  event codes); a click opens the sticker's card. Every trophy
-  won opens its unlock window once per device (rays, the sticker's art
-  swelling behind the window with `backfire`, stamp or impact sound), several
-  queued one after the other; the sticker card has no X, an earned one gets
-  the same art behind it; a search field filters the stickers in place, the
-  count per rarity sits on the banner's desk; the bell gets a "trophy" notice that opens the album. The code window no
-  longer toasts "0 TigerCoins" for a trophy-only code and explains
-  TROPHY_OWNED / NOT_IN_SQUAD. `renderer/quests/trophies.js`,
-  `renderer/quests/trophies.css`, `renderer/inventory.js` (initTrophies, `_DOC_TIP_SEL` +
-  `.trp-st-info`,
-  sign-in/out, `squadTrophies` view, notification "trophy", `_hourglassTaps`),
-  `renderer/inventory.html` (`#vtgSquadTrophies`, `#invTrophiesView`),
-  `renderer/quests/squad-deals.js` (code window), `renderer/css/00-base.css`
-  (`--tier-*`, `--sticker-edge`), `renderer/css/70-detail-misc.css`
-  (`.icon-trophy`), `assets/svg/icons/icon_trophy.svg`; docs
-  `docs/firestore-schema.md`, `CLAUDE.md` (localStorage key). i18n
-  `trophiesTitle`, `trophiesTagline`, `trophyHaveCode`, `trophyCount`,
-  `trophyFilter_*`, `trophyFamily_*`, `trophyTier_*`, `trophyHidden`,
-  `trophyHiddenHow`, `trophyEventOver`, `trophyOwnedPct`, `trophyEarnedOn`,
-  `trophyCtxStreak`, `trophyCtxRank`, `trophyUnlocked`,
-  `trophySeeAll`, `trophySearch`, `trophyNoMatch`, `trophyByTier`, `trophyCodeOwned`, `trophyCodeMembers`, `notifTrophy`,
-  `notifTrophyText`, `trophyCtxCountry`, `trophyFamily_chips`, `trophyFamily_gear`,
-  `trophy_<id>` and `trophyHow_<id>` for the 110 trophies, `trophyFamily_brands`, `trophyDownload` (258 keys, 11 locales). Needs the backend (TigerTag_Firebase_Backend:
-  `functions/trophyRules.js`, `functions/trophies.js`, rules) deployed.
+- Tiger Quests: the ⓘ of the streak-freeze card and a new ⓘ on the streak
+  card open a "how it works" window (the full-set window's frame): freezes —
+  the rule, the slots by TigerSquad badge, the melt rule; streaks — a day =
+  the full set, a milestone every 5 days × the combo, the combo up to ×5, a
+  missed day without a freeze resets both, the milestone table with the
+  member's combo highlighted, the Gold / Platinum repair
+  (`renderer/quests/rules-modal.js` `showRulesWindow`, `index.js`
+  `streakRulesHtml`, `freezeRuleHtml`, `[data-qrules]`; `quests.css`
+  `.qrules`, `.qsr-*`). i18n: `questsRulesOk`, `questsRulesHow`,
+  `questsStreakRule{Day,Palier,Combo,Miss,Repair}`, `questsStreakTableTitle`,
+  `questsStreakCol{Day,Combo,Bonus}` (11 locales).
 
-- A friend's TigerCoins envelope with a message opens as a LETTER (designed,
-  then refined after a ChatGPT motion / sound review, ≈ 2.5 s): closed, the
-  friend's avatar sits on the seal and "{name} slipped a word inside";
-  opening, the wax seal snaps, the envelope slips down and fades, a parchment
-  unrolls with a warm sheen, the message is written in by a left-to-right
-  wipe, the signature appears and the friend's avatar stamp is pressed, then
-  the coin rises with a glow pulse and the amount counts up, with a few small
-  coins; each beat has its own synthesised sound (seal crack, flap, paper,
-  stamp, bell over a soft chord). "Collect" is held 2 s: the coin lifts while
-  held, then the coins fly to the header's TigerCoins counter (a tick as each
-  lands, the counter pulses, "✓ 50 TigerCoins collected") and the window
-  closes. "Report this message" sits in the card's bottom-right corner; the
-  TigerCoin rises behind the card's top once opened. `renderer/quests/
-  squad-deals.js` (`showEnvelope` isLetter / playLetter, collect hold),
-  `renderer/quests/coin-sound.js` (`waxSnap`, `flapOpen`, `unroll`, `stamp`,
-  `letterCoins`, `depositTick`, `deposited`), `renderer/quests/coin-pull.js`
-  (`flyCoins` exported, to the header counter when visible),
-  `renderer/quests/quests.css` (`.tc-env-scroll*`, `.tc-env-coin`,
-  `.tc-env-collect`, `#topCoinsBal.is-pulse`). i18n `envLetterTeaser`,
-  `envCollecting`, `envCollected` (11 locales).
+- Leaving the TigerSquad now costs 30 days: switching it off opens a window
+  that lists what goes (TigerCoins actions, streak freezes, +150 XP, badge and
+  level, the TigerSquad space) and what stays, "I'm staying" or hold to leave;
+  a member who rejoins within the 30 days is in the squad but its views and
+  actions open "Your access is back in N days" (date + day-of-30 bar) instead
+  (`renderer/inventory.js` `_openSquadLeaveWarning`, `_openSquadLockInfo`,
+  `_openSquadNotice`, `_squadActive`, `_squadLockDays`; `10-settings.css`
+  `.squad-notice`, `.sqn-*`). Backend: `users/{uid}.squadLockedUntil`
+  (server-only, rules), written on leaving by `publishSupporter`, cleared
+  hourly by `squadLockSweep`; `squadActive` (`functions/squadLock.js`) gates
+  the badge, the +150 XP, TigerCoins (`SQUAD_LOCKED`), freezes and tiers.
 
-- Report a friend's TigerCoins message: the envelope window offers "Report
-  this message" under a friend's message; the recipient confirms, and "Also
-  block {name} and remove them from my friends" is ticked by default (the
-  Friends panel's own remove + block). TigerMasters and admins see "Reported
-  messages" at the top of "All requests" (the text, from → to, when) and
-  resolve each one: "Remove the message" (deleted from the recipient's
-  envelope) or "Dismiss". `renderer/quests/squad-deals.js` (`showEnvelope`
-  report box), `renderer/inventory.js` (`_coinsCtx.reportMessage`),
-  `renderer/report/index.js` (`msgReportsHTML`, `resolveMsgReport`, `syncAll`),
-  `renderer/quests/quests.css` (`.tc-env-report*`), `renderer/report/report.css`
-  (`.rep-msgreps`), new icon `assets/svg/icons/icon_flag.svg` (`.icon-flag`).
-  i18n `envReportBtn`, `envReportAsk`, `envReportBlock`, `envReportGo`,
-  `envReportDone`, `envReportDoneBlocked`, `envReportAlready`,
-  `msgReportsTitle`, `msgReportFromTo`, `msgReportRemove`, `msgReportDismiss`,
-  `msgReportRemoved`, `msgReportDismissed` (11 locales). Backend (not
-  deployed): `functions/tigerCoins.js` `reportMessage` (→ server-only
-  `messageReports/{toUid_envelopeId}`; `status` envelopes carry `fromUid`),
-  `functions/reportIssue.js` `myReports` `messageReports` /
-  `resolveMessageReport` (team only), README.
-
-- Friends panel: each friend shows their streak-freeze slots received from
-  friends (filled / free); a free slot I can fill (a freeze to give not yet
-  given to them, or a purchase as a TigerSquad member) is a button ("+" on
-  hover) that opens the freeze window on that friend. New "Give freezes" entry
-  under "Give an envelope" (a freeze to give if I have one, else buy one for a
-  friend). `renderer/inventory.js` (`renderFriendsList`, `#btnGiveFreeze`),
-  `renderer/inventory.html`, `renderer/quests/index.js` (`questFreezeStatus`,
-  `questFriendFreeze`, `openFreezeFor`, `openFreezeGift`),
-  `renderer/quests/freeze-modal.js` (`preselect`, `forFriend`),
-  `renderer/css/20-friends.css` (`.fp-freeze`). i18n `friendGiveFreeze`,
-  `friendGiveFreezeSub`, `questsFreezeSendTo` (11 locales).
-
-- Every member now sees "All requests" in the feedback panel: everyone's
-  requests and their conversations, read-only. A question ("Ask a question")
-  is open to everyone's answers — posted with the member's pseudo as
-  "Community", 10 per hour per question, and it reaches the reporter as a
-  reply. Only TigerMasters and admins close a request (done / declined); a
-  reporter can still close their own. Studio `renderer/report/index.js`
-  (tab for all, `threadHTML` close actions by role, helper messages, read-only
-  note). i18n `reportThreadHelper`, `reportHelperReplyPublic`, `reportReadOnly`,
-  `reportAllHint` (11 locales). Backend (not deployed):
-  `functions/reportIssue.js` `myReports` (`all` open to every member, `thread`
-  read-only for others, `comment` for helpers on questions with
-  `helperCommentBody` / `HELPER_MARK_RE`, helper answers counted as replies),
-  `test/reportThread.test.js`.
-
-- New achievement "Chests opened": +200 XP for each TigerCoins chest opened,
-  kept for good (an opened chest stays opened). Shown in Tiger Squad → My XP,
-  the achievements ladder (the open-chest art) and the XP history (Bonus).
-  Studio `renderer/inventory.js` (`XP_ACHIEVEMENTS`, loot `ART` / `ICON`),
-  `renderer/quests/xp-history.js` (`XP_CATS`), `docs/QUESTS.md` §4. In the
-  achievements list every repeatable action shows its ×N count from ×0
-  (`renderer/quests/index.js` `ladderHtml`). i18n
-  `xpAch_chest`, `xpAchHint_chest` (11 locales). Backend (not deployed):
-  `functions/xpRules.js` `ACH_XP.chest`, `functions/supportWebhooks.js`
-  (`achievementParts` counts opened chests, new trigger `xpChests` on a chest
-  going from unopened to opened), `tool/xp-doc.mjs` + regenerated
-  `docs/XP-SYSTEM.html`.
-- Send TigerCoins to a friend: "Send TigerCoins" in the Friends panel (under
-  "Give an envelope") opens the envelope window's frame — the week's
-  allowance by TigerSquad level (bronze 50 / silver 100 / gold 250 / platinum
-  500), the friends (members first, the others greyed "Not in the
-  TigerSquad"), the amount (10 / 25 / 50 / 100 / Max or typed), an optional
-  message, then the recap: my balance before → after, the postage fee
-  (0 % to start, destroyed), what the friend receives, the week's allowance
-  before → after; a 2 s held button sends. The friend gets an envelope of the
-  coins (opened like any gift envelope) and the usual notification. The coin
-  history shows "Sent to <friend>" in red with the friend's avatar and the
-  fee, and bought streak freezes. Backend `tigerCoins.js` `sendCoins`
-  (friends for 7 days, both members, settings in `config/tigerCoins.transfer`,
-  editable in the TigerHub admin), not deployed yet (`showSendCoins` in
-  `renderer/quests/squad-deals.js`, `_sendCoinsTo` + `#btnSendCoins` in
-  `renderer/inventory.js` / `inventory.html`, `.tcs-*` in `quests.css`).
-  Checked in the app against a patched status (CDP), nothing sent.
-- Lotactree masterspool containers in the container picker — White (150 g) and
-  Transparent (194 g), brand 38533, pictures in `assets/img/spool_filament/`
-  (`data/container_spool/spools_filament.json`, PR 168 by Ptitlouis6012,
-  issue 165).
-- Demo printer "Elegoo Centauri Carbon (OpenCentauri COSMOS)" — a new Klipper
-  model (id 166, `renderer/printers/klipper/models.json`, picture
-  `img/elegoo-centauri-carbon-cosmos.png`) that the demo simulator plays as the
-  machine of issue 167: a CANVAS of four lanes `CANVAS_1`–`4` published under
-  both `AFC_stepper` and `AFC_lane`, chamber as `temperature_sensor chamber`,
-  sensors `mcu_toolhead` / `mcu_bed` / `Mcu_canvas`, `temperature_fan
-  mainboard`, lights `led case` (SET_LED) and `led hotend`
-  (`services/demo/faces/klipper.js`, `services/demo/shapes.js`,
-  `docs/DEMO-MODE.md`).
-
-- My requests: each request opens its conversation — the request and every
-  comment on its GitHub issue (team replies on the left with their avatar, the
-  user's own on the right, the app's notes centred) — and the user answers from
-  the app, text + up to 3 pictures (pasted, dropped or picked), without a GitHub
-  account; the user can close their own request from its conversation too
-  (asks once); closed requests show they take no more replies. Rows flag an unseen
-  team reply ("New reply"). A team reply or a new status opens an alert window
-  once per change ("Your request moved", the requests listed with what changed,
-  "See my requests" goes straight to the conversation when there is one); open
-  requests are re-checked every 30 minutes while the app runs, and a request /
-  reply notification opens its conversation. Backend `myReports` actions
-  `thread` and `comment` (`renderer/report/index.js` `openThread`, `threadHTML`,
-  `sendReply`, `_showAlert`; `replies.js` `unseenReplies`, `alertNews`;
-  `report.css`; `renderer/inventory.js` notification `arg`).
-
-- TigerMasters — trusted TigerSquad members who help with the requests
-  (`users/{uid}.roles: "tigermaster"`, server-only, given by the owner from the
-  TigerHub admin) — and admins get an "All requests" tab in the feedback card:
-  every request (Open / Everything), its conversation with the reporter's
-  messages labelled "Reporter", an answer posted as the team with their pseudo
-  ("Ptitlouis · TigerMaster"), and "Mark as done" / "Decline" (asks once).
-  Backend `myReports` actions `all`, `as: "team"`, `resolve`
-  (`renderer/report/index.js` `allHTML`, `syncAll`, `resolveThread`;
-  `renderer/inventory.js` `state.isTigerMaster`, ctx `isTeam`).
-- The answer box in a conversation is the request form's: formatting toolbar,
-  drop zone (drag & drop, browse, paste), window capture, PDFs, JSON files and
-  "Attach a printer's data" — 5 files per message, shown as chips in the thread
-  (`attachHTML`, `deviceCapturesHTML`, attachment tools fill the open draft).
-
-- Opening a chest is now a moment: the chest (new art, closed · base · lid ·
-  lock layers in `assets/img/tigercoins/chest/`, sheet in
-  `assets-src/img/tigercoins/chest/`) drops in on a stage lit in its type's
-  colour and floats with light leaking from the lid; "Open the chest" is held
-  2 s — it rattles harder and the seam glows; then the lock pops, the lid flies
-  off, flash and god rays, a fountain of TigerCoins, the envelopes rise out one
-  by one before their reveal. The plaque shows only the chest's name — how
-  many envelopes it holds stays a surprise. Its own music plays while it waits
-  (a slow treasure-cave theme in D minor: drone, held chords, harp arpeggio,
-  heartbeat drum, music-box sparkle; `chestMusicStart`, muted with the coins
-  sound) and fades out as the lock gives. New synthesised sounds thud / rattle /
-  unlock / burst / pop (`renderer/quests/squad-deals.js` `showChest`,
-  `coin-sound.js`, `quests.css` `.tcc-*`). i18n `chestKicker`, `chestMore`
-  (11 locales); `chestInside` removed (11 locales).
-
-- My profile has a Sign-in card (issue 176): the account's email and how it
-  signs in (Google, email and password); an email + password account changes
-  its address (a link goes to the new address, the change happens when it is
-  clicked, the old one works until then) or its password, both after the
-  current password; a Google-only account is told its address is Google's. The
-  address is re-read from Auth on each open and the local account follows
-  (`renderer/inventory.html` `#eacSigninGroup`, `renderer/inventory.js`
-  `_paintSignin`, `_signinReauth`, `renderer/css/60-modals.css` `.eac-signin-*`).
-  i18n `eacGroupSignIn`, `eacSignInMethod`, `eacSignInPassword`,
-  `eacSignInGoogleNote`, `eacChangeEmail`, `eacChangePassword`, `eacNewEmail`,
-  `eacCurrentPassword`, `eacNewPassword`, `eacSendLink`, `eacEmailSent`,
-  `eacPasswordChanged`, `eacErrWrongPassword`, `eacErrEmailUsed`,
-  `eacErrEmailInvalid`, `eacErrSameEmail`, `eacErrPasswordShort`,
-  `eacErrPasswordMatch`, `eacErrTooMany`, `eacErrNetwork`, `eacErrGeneric`
-  (11 locales).
+- Requests (issue 181): a Copy button on every message of a conversation (to
+  paste it into a translator), shown on hover (`renderer/report/index.js`
+  `copyMsg`, `report.css` `.rep-msg-copy`); the "All requests" tab counts the
+  open ones, loaded as soon as a TigerMaster / admin opens the window; the
+  team gets a "Requests" tab in the notification centre (six tabs then sit
+  in two rows of three, `.nc-tabs--grid`) with a "New request #n" card that
+  opens it in the team view (`renderer/inventory.js` `request_new`,
+  `teamReport`; `openReport({ tab: "all" })`; backend `reportIssue` notifies
+  every TigerMaster / admin).
 
 ## Changed
 
-- Shared UI kit for the Tiger Quests / Tiger Squad views, so a new view is
-  assembled instead of re-typed: `renderer/quests/ui-kit.js` — `heroHtml`
-  (banner: eyebrow, title, tagline, layered scene, side card), `filterBarHtml`
-  (the Deals bar: tabs with icon and count, search, extras), `searchHtml`,
-  `selectHtml` (the inventory's `.inv-brand-filter`, bar-sized), `infoTipHtml` (an ⓘ on the shared `#toolInfoPop` bubble, wired once in
-  `renderer/inventory.js` on `.ui-info[data-tip]`). The seven banners (Daily
-  quests, Missions, League, Workshop, XP history, Deals, Trophies), the Deals
-  and Trophies bars and the friend-search fields of the send / give windows
-  now use it — same markup and look as before. `renderer/quests/index.js`,
-  `squad-rankings.js`, `xp-history.js`, `squad-deals.js`, `trophies.js`;
-  rule `.agents/rules/ui-ux-defaults.md` ("Reuse what exists").
+- Trophy albums kept on this device, only new stickers read (500k-user
+  audit; a trophy is never lost, an album only grows). Yours
+  (`tigertag.trophyAlbum.<id>`) paints at once and listens only to trophies
+  with `earnedAt` after the last sync (minus 1 h); friends' albums
+  (`tigertag.friendTrophies.<id>`, 50 newest) paint at once on a visit and read
+  only what was earned since; a REST COUNT (1 read) catches a trophy taken back
+  and re-reads the whole album. The owners' percentages read one doc,
+  `trophyStats/_all`, gathered by the backend's `communityStats` every 10 min
+  (not deployed; before it exists the collection is read as before) instead
+  of one doc per trophy. Files: `renderer/quests/trophies.js`, `CLAUDE.md`.
 
-- Agent rule `.agents/rules/trophies.md` (indexed in `CLAUDE.md`, cited by
-  `release.md`): every release adds trophies, the goal is a collection of
-  about 1,000.
+- Cold launch reads only what changed (500k-user audit). A listener started
+  more than 30 min after the last one was billed for the whole inventory and
+  products again (~450 reads for a 225-spool account). `_listenSynced` keeps
+  the local copy (`tigertag.inv.<id>`, new `tigertag.products.<id>`) and its
+  sync time (`tigertag.invSync.<id>` / `tigertag.prodSync.<id>`), and listens
+  only to docs with `syncAt` after it (minus 1 h for clock skew), plus one REST
+  COUNT per collection and launch (a mismatch → full re-read). Studio stamps
+  `syncAt` (client clock) on its own inventory / products writes
+  (DocumentReference / WriteBatch / Transaction set + update wrapped once);
+  the backend's `statsOnInventoryWrite` / `statsOnProductWrite` stamp server
+  time on any other writer's (not deployed — must go out BEFORE this Studio
+  build). Copies older than 30 days, or never saved (full localStorage), are
+  re-read in full. Files: `renderer/inventory.js`, `CLAUDE.md`,
+  `docs/firestore-schema.md`.
 
-- Mending a broken streak becomes "Relight the flame": the account's TigerSquad
-  badge floats above the window, a dead flame lights up again with the days it
-  brings back, and the perk is said plainly ("As a Gold member of the
-  TigerSquad, you can bring back a broken streak within 2 days — once a
-  month"); the button reads "Relight the flame · 1 day back" (real plural)
-  and the streak card's strip "Relight it" (`renderer/quests/freeze-modal.js`
-  repair, `REPAIR_DAYS`; `renderer/quests/quests.css` `.qfm-mend`, `.qfm-flame`).
-  i18n `questsFreezeRepairWhy` added, `questsFreezeRepair` (plural),
-  `questsFreezeRepairTitle`, `questsFreezeRepairShort` reworded,
-  `questsFreezeStreak` removed (11 locales).
+- Fewer backend XP recomputes per session (500k-user audit). Every write to
+  `users/{uid}/telemetry/studio` and every `dailyQuest` check-in runs the
+  backend's `storeTotals` (≈ 60 reads). `_recordUsage` now batches the
+  telemetry fields of 4 s into one write (a field already waiting sends the
+  pile first; blur / unload send at once) and the community-link click,
+  `hasPod` and spool-lifecycle counters go through it; quest counters flush
+  after 8 s (was 1.5 s) and on blur; a window focus re-checks in at most every
+  hour (was 10 min). Files: `renderer/inventory.js`, `renderer/quests/index.js`.
+  Backend (`TigerTag_Firebase_Backend`, not deployed): the TigerScale /
+  TigerSpool XP triggers and the scale stats trigger fire on add / remove only
+  (`xpScaleAdded`/`Removed`, `xpTigerSpoolAdded`/`Removed`,
+  `statsOnScaleAdded`/`Removed` replace `xpScales`, `xpTigerSpools`,
+  `statsOnScaleWrite`: a scale beats every 30 s); `xpTelemetry` recomputes only
+  when a field the XP read moved; a repeat same-day `dailyQuest` answers from
+  the stored quest docs; `tigerCoins` reads only the chip envelopes still in
+  the pile (`countedChips.inPile`, set by `syncChip`, cleared on open / give;
+  `status` COUNTs them) and the easter eggs from `users/{uid}.tigerCoins.eggs`
+  — each account is brought to it once (`tigerCoins.pileV`); `communityStats` publishes the pulse every minute from a full count every
+  10 min (was every minute) + live counters in between (`communityLive.js`:
+  XP, spools and printers as increments on 50 shards, fed by `storeTotals`,
+  `statsOnInventoryWrite`, `statsOnPrinterWrite`), and it now also builds
+  the TigerSquad boards (`refreshBoards` in `squadBoard.js`; the separate
+  `squadBoardRefresh` function is gone), so totals and leagues move together.
 
-- Streak flames drawn as art: a big lively flame and a small weak one
-  (`assets/img/quests/streak-flame.webp`, `streak-flame-small.webp`, masters in
-  `assets-src/img/quests/streak/`). "Current streak" shows the big flame (the
-  small one, dimmed, at 0 days); "Relight the flame" goes from the small flame
-  to the big one with the days on it, while a fireplace crackles (synthesised
-  roar, wood pops and sparks, faded out when the window closes); the "Streak
-  broken · Relight it" strip moved from the freezes card to the foot of the
-  streak card, with the big flame, and the whole strip is one button that
-  glows (a pulsing orange halo, a light sweep, the flame flickering; still
-  under reduced motion) — the one chance to save the streak; its button reads
-  "Relight the flame", and the fireplace starts crackling as soon as the
-  pointer is on the strip, carrying on into the window (i18n
-  `questsFreezeRepairShort` removed, 11 locales) (`renderer/quests/index.js` `.qd-flame`,
-  `repairStripHtml`; `renderer/quests/freeze-modal.js`;
-  `renderer/quests/coin-sound.js` `fireStart`; `renderer/quests/quests.css`
-  `.qd-flame`, `.qf-repair-flame`, `.qfm-flame img`).
+- TigerSquad leagues read the server's board instead of every member (built
+  for 500,000 users). Before: each open read every member's `userProfiles`
+  doc (≈ 350 today, 500k at scale), plus 60 history rows; the XP history page
+  did the same for the live league curves, and the header rank ran a COUNT over
+  the members. Now `_loadSquadBoard` reads `squadBoard/world`,
+  `squadBoard/countries`, `squadBoard/nat_<CC>`, the viewer's profile and
+  `squadRank/{uid}` (+ one read per rival when the viewer ranks below a top):
+  ≈ 6 reads + 20 history rows. Rows below the top 100 show the account's
+  nightly rank as the last row; arrows come from the rows' `bw` / `bn` / `base`
+  (rank 7 days ago) — `squadRanks/current` is no longer read. `_squadRank`
+  takes the live rank from the world top or the nightly file; `_squadMemberCount`
+  reads `publicStats/community.members.count`; `_loadLeagues` takes today's
+  totals from `squadBoard/countries`. Backend (`TigerTag_Firebase_Backend`,
+  not deployed): new `functions/squadBoard.js` (boards every 10
+  min, `squadRanksNightly` 00:05 Paris — ranks, league history and ranking
+  trophies moved out of `communityStats`), rules for `squadBoard` / `squadRank`,
+  two `userProfiles` indexes (`tigerSquad.country` + `tigerSquad.xp` asc/desc).
+  Files: `renderer/inventory.js`, `renderer/quests/squad-rankings.js`,
+  `docs/firestore-schema.md`, `llms.txt`, `renderer/CODEMAP.md`.
 
-- Freezes to give melt as drawn art: five stages of the gift cube melting in
-  place on the ground into its puddle, the orange ribbon always there
-  (`assets/img/quests/freeze/freeze-melt-1.webp` … `-5.webp`, masters and the
-  generated sheet in `assets-src/img/quests/freeze/melt/`), one per day before
-  the next palier, replacing the CSS squash and puddle; stage 4 illustrates
-  the melt rule in the ⓘ bubble, stage 5 the "nothing to give" window
-  (`renderer/quests/index.js` `freezeCardHtml`, `freezeRuleHtml`;
-  `renderer/quests/freeze-modal.js`; `renderer/quests/quests.css` `.qf-gift`).
-  `freeze-melt.webp` is no longer used. With none to give, the row shows the
-  gift cube as a dashed outline (same shape, ribbon and bow) instead of the
-  plain empty cube (`assets/img/quests/freeze/freeze-gift-empty.webp`, master
-  and generated source in `assets-src/img/quests/freeze/`).
+- Navigation draws at once and reads less (stale-while-revalidate). A friend
+  visit no longer tears down the own listeners: the own inventory and racks
+  listeners stay alive and write into `_ownStash`, restored at once on the way
+  back (no re-read; friends / notifications are no longer re-subscribed). The
+  last 5 friends visited stay in memory (`_friendCache`: stock, racks,
+  products, lists, profile; keyed to the reading account, never written to the
+  own caches): a re-visit paints at once and reads nothing for 3 min
+  (`FRIEND_FRESH_MS`), later it paints the last copy and re-reads behind. A
+  first visit reads stock and racks in parallel and paints before the images
+  are warmed. TigerCoins `status`: one call in flight per account, reused 30 s,
+  dropped by any other action / a deal action / a gift (`_coinStatus`). The
+  TigerSquad board is not re-read while under 2 min old
+  (`SQUAD_BOARD_FRESH_MS`, reset when the own XP moves); the community history
+  and the league day curves are read once a day (30 min at most); the XP log
+  is kept 10 min while `xpPoints` has not moved; a friend's sticker album is
+  kept for the last 5 friends (`renderer/quests/trophies.js` `_friendAlbums`);
+  a requests tab opened again within 20 s keeps its list
+  (`renderer/report/index.js` `TAB_FRESH_MS`). Measured on the founder's
+  account (grid → lists → squad → deals → friend → friend's squad → back →
+  friend → friend 2 → friend → back → squad → grid): 4,232 Firestore reads →
+  1,736; friend re-visit ~900 ms → ~200 ms and 927 reads → 0; back home 321
+  reads → 0; a friend's squad view 321 reads → 0 (`renderer/inventory.js`
+  `switchToFriendView`, `switchBackToOwnView`, `_friendCachePut`,
+  `_sortRacks`, `_tigerCoins`, `_openSquadBoard`, `_loadSquadPulse`,
+  `_loadXpLog`, `_loadLeagues`).
 
-- Finishing the day's set opens a "Daily set complete" window wherever you are
-  (it used to be a small toast, or nothing when the Quests window was open):
-  the closed chest trembles, bursts open with a flash, a shock ring and sparks
-  while the open chest swells behind the window, the bonus XP counts up, then
-  the streak flame takes its +1 with the combo and the palier bonus when one
-  came at the same time (then no separate palier toast), the line "Daily set
-  complete. Show-off." and a golden "Nice" button; reduced motion shows the
-  end state (`renderer/quests/fullset-modal.js` new, `renderer/quests/index.js`
-  `onDaily`, `renderer/quests/quests.css` `.qfs-*`, `docs/QUESTS.md`). i18n
-  `questsFullSetOk` added (11 locales).
 
-- Big moments in a modal window get the animation behind the window (one shared
-  helper, `renderer/quests/coin-pull.js` `backfire`; `.bk-fire` in
-  `renderer/quests/quests.css`): huge translucent copies of the moment's art
-  swell and fade in waves on the overlay — the flame rising when the streak is
-  relit, the TigerCoin when a friend's coins are collected, the open chest when
-  the day's set is complete. Not on stages with
-  no window (chest, reveals, secret envelope). Reduced motion: none.
-  `.agents/rules/ui-ux-defaults.md` ("Big moments") points to the helper.
+- View bar: every entry shows at start-up with the last session's figures,
+  then updates — the Tiger Quests group (today + journey bars), the Tiger
+  Squad group, and the Lists, Cart and Invite badges no longer pop in late
+  (`renderer/inventory.js` `_barCache`, `_barCachePatch` → header cache
+  `bar`; `_renderProgressChips`, `_updateListsBadge`, `_updateCartBadge`,
+  referral `onChange`). New rule `.agents/rules/paint-last-known.md`.
 
-- The relight copy says what really happens: "As a Gold member of the
-  TigerSquad, your broken streak comes back in full if you relight it today or
-  tomorrow — once a month", and the button "Relight my 12-day streak" (i18n
-  `questsFreezeRepairWhy` now a plain string, `questsFreezeRepair` reworded,
-  11 locales).
+- Friend view header: a friend's stock weight and stock value are no longer
+  shown (their counts only), and my own TigerCoins, RFID readers, scales,
+  TigerSpool and Tiger Touch icons step aside (`renderer/inventory.js`
+  `FRIEND_HIDDEN_STATS`, `body.is-friend-view` in `renderFriendBanner`;
+  `60-modals.css`).
 
-- Relighting the flame gets a ceremony once the hold succeeds: embers are drawn
-  into the small dead flame, it trembles and warms up, catches with a flash and
-  a shock ring, the big flame bursts up and breathes, the card glows orange,
-  the days come back one by one on a counter with a tick each, and embers keep
-  rising, while huge translucent copies of the flame swell and fade in waves
-  behind the window (the fire spreading); the badge floats; a click or ~4 s closes; reduced motion shows the
-  end state. Sounds: a rising rush, a deep "fwoomp" with a warm chord, a tick
-  per day, over the fireplace (`renderer/quests/freeze-modal.js` `relight`;
-  `renderer/quests/coin-sound.js` `sfx.relightRise`, `relightIgnite`,
-  `relightDay`; `renderer/quests/quests.css` `.qfm-relight`, `.qfm-rl-*`, `.qfm-rl-backfire`).
+- Agent rules: `.agents/rules/token-efficiency.md` now asks for one subject per
+  session, short precise agent briefs, text checks before one screenshot, and
+  names the project agents to use (`theme-fixer`, `i18n-writer`,
+  `release-notes`, `issue-triage` beside `codemap-explorer` / `simple-task`);
+  `release.md` names `release-notes` as the one agent a release may use;
+  `CLAUDE.md` index line updated.
 
-- Streak freezes card: the "0/3" counts after the cube rows are gone (the cubes
-  say it), and "To give" is a plain row like "Mine" / "From friends", no dashed
-  box (`renderer/quests/index.js` `freezeCardHtml`; `renderer/quests/quests.css`
-  `.qf-row`, `.qf-strip--give`).
+- Game UI tokens: the Tiger Quests views, every TigerSquad view and window, the
+  Trophies and the chest/envelope stages now take their colours from one shared
+  set instead of local always-dark palettes, so both themes work from one place.
+  New tokens in `renderer/css/00-base.css` (light in `:root`, dark in the dark
+  block): `--game-bg`, `-bg-2`, `-card`, `-card-2`, `-line`, `-line-2`, `-text`,
+  `-text-2`, `-muted`, `--game-win-bg/-bg-2/-card/-line` (floating windows),
+  accents `--game-gold/-gold-hi/-gold-deep/-orange/-orange-hi/-ok/-ice/-ice-deep/
+  -danger` with `-text` twins for small text on light, `--game-on-gold`, and
+  `-soft` tints; `.tc-reveal` stages keep the dark set in both themes. The local
+  `--tsq-*` / `--qw-*` / `--sqr-*` palettes in `renderer/quests/quests.css` and
+  `renderer/css/10-settings.css` (`.squad-invite`, `.squad-notice`, `.tsq-*`,
+  `.sqn-*`, `.sqb-*`) now alias them and the raw hex/rgba were replaced by
+  tokens; `renderer/quests/xp-history.js` donut track uses `--game-line`.
+  Header note in `00-base.css`, one-line pointer in
+  `.agents/rules/css-placement.md`. Dark unchanged; light visual check pending.
 
-- Freeze and send windows opened on a friend (from the friends panel) scroll
-  the friends row so that friend is in view, and keep the pick in view when the
-  row is refreshed (`renderer/quests/coin-pull.js` `showPicked`,
-  `renderer/quests/freeze-modal.js`, `renderer/quests/squad-deals.js`).
-
-- Streak freezes: with none to give, the card says when the next batch comes
-  as a delivery — "Delivery in 4 days", and on the last day the hours and
-  minutes left before midnight ("Delivery in 20 h 47") — instead of "Next
-  batch: 2 on day 5"; today's set still open counts as the first of the sets
-  left (`renderer/quests/index.js` `freezeCardHtml` `deliveryText`). i18n
-  `questsFreezeDeliveryDays`, `questsFreezeDeliveryHours` added,
-  `questsFreezeNextGift` removed (11 locales).
-
-- Streak-freeze windows (buy / give / repair) redone in the "Send TigerCoins"
-  style: the friends who can receive in one horizontal row (search past 8;
-  their free slots as small cubes; the one picked grows in gold, the others
-  step back; a friend whose slots are all full, or who already got this
-  palier's freeze, is left out and cannot be picked), the cube floating above
-  the card and again right above the button (the gift cube when it goes to a
-  friend), no text under the friends, one big golden button held 2 s — always pressable, a red bubble on what is missing — and no
-  "Cancel" (a click outside or Escape closes). In the send window too, the
-  friend picked now grows and the others dim (`renderer/quests/freeze-modal.js`,
-  `renderer/quests/index.js` `errorTip`, `renderer/inventory.js` quests ctx
-  `errorTip`, `renderer/quests/quests.css` `.qfm-hero`, `.qfm-line`, `.qfm-go`,
-  `.tcs-f[aria-checked]`). i18n `questsFreezeUseHint`, `questsFreezeGiveRule`,
-  `questsFreezeRepairHint`, `questsFreezeTheirReserve`, `questsFreezeOwnReserve`,
-  `questsFreezeRepairsLeft`, `questsFreezePrice`, `questsFreezeBalance` removed
-  (11 locales).
-
-- Tiger Squad loot ladder: the four legendary devices (TigerScale, TigerSpool,
-  Tiger Touch, TigerPOD) are clickable (mouse or keyboard) and open their
-  ecosystem slideshow, like the header's device icons (`renderer/inventory.js`
-  loot `eco` + a `[data-eco-open]` listener; `renderer/quests/index.js` tile;
-  `renderer/quests/quests.css` `.qw-tile.is-eco`).
-
-- A friend's envelope opens right where it is announced: the envelope window
-  itself (the friend's avatar on the gold seal, turning with the envelope as
-  it tilts toward the mouse; their message; "Open it"), and opening it pops
-  the seal off, sends the envelope away and shows the coins received in the
-  same window — instead of a "You got an envelope!" card that only led to the
-  Deals view (that card stays as the fallback when the envelope is not in the
-  pile) (`renderer/inventory.js` `_announceEnvelopeGifts`;
-  `renderer/quests/squad-deals.js` `showEnvelope` `sealAvatar`, tilt on the
-  whole envelope; `renderer/quests/quests.css` `.tch-env-seal`).
-  i18n `envGiftSee`, `notifEnvelopeGiftText` reworded (11 locales).
-
-- TigerCoins windows open at once on what is already known, then update in
-  place: the history shows the log last read (Cache `coinlog` → localStorage
-  `tigertag.coinlog.<id>`, 100 newest) and repaints only if the fresh read
-  differs; the send window opens on the friends list and the last TigerCoins
-  status (this session's or the cached one, `tigertag.header.<id>` now keeps
-  the allowance too), the server's status and any friend profile still unread
-  update it without losing the amount, the pick or the message. The friends
-  cache keeps each friend's TigerSquad membership, so the members are listed
-  from the first second; a friend whose profile was not read yet is read before
-  the list is trusted (`_ensureFriendProfiles`) — opened right after launch the
-  window no longer said "none of your friends is in the TigerSquad"
-  (`renderer/inventory.js` `_coinLog`, `_sendCoinsTo`, `_cacheFriends`,
-  `_paintDealsBadge`; `renderer/quests/squad-deals.js` `openCoinsHistory`,
-  `showSendCoins` `fresh`; CLAUDE.md localStorage table).
-
-- The header shows the account's last figures at once at launch — the stat
-  cards (spools, stock, stock value, tiers) and the TigerCoins balance and
-  envelopes — then moves only what the fresh data changes (the cards tween
-  from the cached figure instead of rolling up from zero each launch; the
-  stock value keeps its last figure until the prices arrive). One cache per
-  account, `Cache` surface `header` → localStorage `tigertag.header.<id>`
-  (listed in CLAUDE.md) (`renderer/inventory.js` `renderStats`,
-  `_paintDealsBadge`, sign-in).
-
-- "Send TigerCoins" window redesigned after a ChatGPT mockup
-  (`assets-src/img/tigercoins/mockups/coins-send-mockup.png`): the friend
-  picked shown big, the eligible friends (TigerSquad members) in one row with a
-  search, the AMOUNT as the hero (a big embossed gold number beside the tiger
-  coin, glow and light streak, quick picks 10 / 25 / 50 / 100 / Max), one line
-  "Balance · left this week · tier", a REQUIRED message written on a paper
-  card (140 characters, counter, centred, growing with the text), the friend
-  picked only ringed in the row (the window never grows), and one big
-  golden button held 2 s right under it — always pressable: pressed with
-  something missing it does not hold, the part to fix shakes and a red bubble
-  says what to do (pick a friend, an amount, a message) — no "Cancel" (a click outside or
-  Escape closes); compact enough to fit the screen (~640 px, ~710 px once a
-  friend is picked) ("Send
-  50 TigerCoins to RP3D"); the fee is said only when there is one; nothing is
-  repeated (`renderer/quests/squad-deals.js` `showSendCoins`,
-  `renderer/quests/quests.css` `.tcs-*`). Backend (not deployed):
-  `functions/tigerCoins.js` `sendCoins` refuses a transfer without a message
-  (MESSAGE_REQUIRED). i18n `coinsSendBtn`, `coinsSendMsgLabel`,
-  `coinsSendRequired`, `coinsSendMessagePh`, `coinsSendNeedMessage`,
-  `coinsSendAvail`, `coinsSendNoMember` added; `coinsSendWeek`,
-  `coinsSendQuota`, `coinsSendMessage`, `coinsSendAddNote` removed (11 locales).
-- TigerCoins history: the "Earned" and "Spent" totals are gone and the
-  balance is the hero of the window — a big embossed gold number beside the
-  tiger coin, a warm glow, a light streak and twinkling sparks (after a
-  ChatGPT mockup, `assets-src/img/tigercoins/mockups/coins-balance-mockup.png`),
-  with a golden "Send" pill and the red envelope beside it that opens the send
-  window (`coins-history-send-mockup.png`; ctx `sendCoins` in `_coinsCtx`)
-  (`renderer/quests/squad-deals.js` `openCoinsHistory`,
-  `renderer/quests/quests.css` `.tch-sum`, `.tch-bal*`).
-  i18n `coinHistEarned`, `coinHistSpent` removed (11 locales).
-
-- Daily Quests: buying a freeze is done by clicking an empty slot of "Mine"
-  (members; a "+" shows on hover and keyboard focus) — it opens the buy window
-  (for me / for a friend); the separate "Buy a freeze…" button is gone
-  (`renderer/quests/index.js` `slotsHtml`, `freezeCardHtml`;
-  `renderer/quests/quests.css` `.qf-slot-buy`).
-
-- Daily Quests: freezes to give are shown as the gift cubes themselves,
-  melting day after day until they are gone at the next palier (they sink,
-  flatten, lose their shine and leave a growing puddle; the last days show the
-  melted art) with "Melts in N d" and the Give button; with none, the tier's
-  empty slots and when the next ones come — no more "0 to give"
-  (`renderer/quests/index.js` `freezeCardHtml` `giveStrip`,
-  `renderer/quests/quests.css` `.qf-strip--give`, `.qf-gift`).
-
-- Daily Quests: once the full set is won, the chest card no longer adds
-  "Earned · 5/5" under its XP (the check says it); the "Finish every quest ·
-  3/5" line stays while it is locked (`renderer/quests/index.js`). i18n
-  `questsChestEarned` removed (11 locales).
-
-- Daily Quests: the streak freezes' rule moves from a paragraph into an ⓘ
-  popover beside the "Streak freezes" title (hover or keyboard focus): the
-  rule, then a table with one row per TigerSquad badge (its art) and the
-  counts drawn as ice cubes — "My slots" (earned · received) and "To give"
-  at each palier (no badge 1 · 1 · 1, Bronze 2 · 2 · 1, Silver 3 · 2 · 1, Gold and
-  Platinum 3 · 3 · 2 — `FREEZE_CAPS`, the backend's FREEZE.caps); the
-  member's own badge is highlighted, and a closing line says a freeze to
-  give melts after 5 days if nobody gets it (`renderer/quests/index.js`
-  `freezeRuleHtml`, `freezeCardHtml`; `renderer/quests/quests.css` `.qfp*`).
-  i18n `questsFreezeCapsTitle`, `questsFreezeNoBadge` ("None"),
-  `questsFreezeBadgeCol`, `questsFreezeSlotsCol`, `questsFreezeEarnedCol`,
-  `questsFreezeReceivedCol`, `questsFreezeGiveCol`, `questsFreezeMeltRule`
-  (11 locales).
-
-- Daily Quests: a finished quest keeps its full progress bar and "1/1"
-  (the row stays compact) — they were hidden (`renderer/quests/quests.css`
-  `.qd-row.is-done`).
-
-- "Later" on the requests' alert window (or a click outside it) now snoozes
-  it: the window comes back 30 minutes later — or at the next launch — unless
-  the conversation was opened meanwhile. The "My requests" hint says so
-  (`renderer/report/index.js` `_showAlert`, `_snoozeTimer`; i18n
-  `reportMineHint` reworded, 11 locales).
-
-- The TigerCoins history shows an opened chest with its own art (open chest
-  spilling coins, same style as the chest stage) instead of the red envelope:
-  `assets/img/tigercoins/chest-open.webp` (master
-  `assets-src/img/tigercoins/chest-open.png`, generated original
-  `chest-open-source.png`), `renderer/quests/squad-deals.js` `ART.chest`.
-- The feedback panel ("Raconte-nous tout !") is wider (470 → 540 px), so its
-  three tabs and the request titles fit (`renderer/report/report.css`
-  `.rep-panel`, `.rep-clip`).
-- Tiger Quests, streak combo and freezes (`docs/QUESTS.md` §7; backend deployed
-  2026-10-31): Daily Quests reworked after a ChatGPT review. Streak pips are
-  full-size flames (the icon's flame fills only half its box: the mask is drawn
-  at twice the pip and anchored at the bottom, the big flame too); the streak
-  card shows "Combo ×n" from the first palier (×1), the next palier's real bonus and
-  "Yesterday protected · Combo ×n kept" when a freeze was used. A "Streak
-  freezes" card with the reserves as ice cubes (new art, 4 states:
-  `assets/img/quests/freeze/freeze{,-empty,-gift,-melt}.webp`, masters and the
-  generated sheet in `assets-src/img/quests/freeze/`, described in
-  `docs/ART-DIRECTION.md`), a "to give · melts in n d" strip, a repair strip
-  (Gold / Platinum), "Buy a freeze…". Buy, Give and Repair open windows on the
-  "Give an envelope" frame (`renderer/quests/freeze-modal.js`): the situation
-  first (reserve before → after, price, balance before → after, each friend's
-  bonus slots, full or already-given friends greyed with why), then a 2 s held
-  button; Give stays open while freezes are left. Quests left to do come
-  first, done ones are shorter; rewards and stats fold under "Rules and
-  stats". With nothing to give, the card still says so: "0 to give · Next
-  batch: 2 on day 10" (the tier's count at the next palier, key
-  `questsFreezeNextGift`). A missed day now takes a friends' bonus freeze
-  first, then an own one, freeing that friend slot (backend `quests.js`,
-  not deployed yet). Toasts for a freeze used (with the ice cube), a broken streak and
-  each palier; a `freeze_gift` notification opening Tiger Quests
-  (`freezeCardHtml`, `openFreeze`, `announceFreeze` in
-  `renderer/quests/index.js`, `.qf-*` / `.qfm-*` / `.qd-frozen` / `.qd-more` in
-  `quests.css`, `friend` in the quests ctx and `freeze_gift` in the
-  notification center in `renderer/inventory.js`). Checked in the app against
-  a faked `streakFreeze` (CDP): card, buy for me / a friend, give with the
-  hold.
-
-- Daily Quests streak card: the current week, Monday to Sunday, as seven pills
-  (lit = full set, icy = bridged by a freeze, dashed = today still to play, dim =
-  days to come) with the day initials, replacing the five flames toward the next
-  palier. Read from the server's new `quests/daily.history` (last 14 days); an
-  older doc is rebuilt from the streak and the last freeze bridge
-  (`renderer/quests/index.js` `streakWeek`, `quests.css` `.qd-pip`). The combo
-  badge now sits above the pills (`.qd-week`).
-
-- Feedback card: requests drawn as pills like the spool cards — the kind's
-  colour fills a full-height tile on the left with its icon large and white;
-  topic tiles and the product chip use white icons too (`report.css`).
-
-- Trophy card and unlock window: the rarity · family chip sits above the
-  sticker, and the sticker is drawn bigger than its halo, spilling over it
-  (`renderer/quests/trophies.js` `openTrophyCard` / unlock, `trophies.css`).
-  In the card the sticker follows the pointer anywhere on the screen (the
-  envelope's `tilt`) with a gloss cut to its shape sliding across it, the art
-  behind the window swells slower and softer (`backfire` options `dur` /
-  `soft`, `.bk-fire--soft` in `quests.css`), the button reads just "Download"
-  (`trophyDownload`, 11 locales), and a trophy still to win no longer opens.
-  The detail card now sits in the envelopes' / TigerCoins history window frame
-  (`tc-reveal` + `tcx` card, the name on the title plaque, the golden button),
-  the sticker centred, with no halo behind it, and a plain "Download" button
-  with no icon (`.trp-sticker`; the old `.trp-card-ov` / `.trp-card` styles
-  removed).
+- Invite view made clearer (founder: "pas clair"): the title states the
+  reward ("Invite a friend: 3 envelopes each"), three steps (send your link →
+  they install and type your code → they confirm their e-mail), one sharing
+  card with the friend code in big + Copy, the link + "Copy the link",
+  networks as named buttons, the message that is sent, the QR "scan with a
+  phone"; "Who invited you?" moved to the top (new accounts only); each
+  recruit says what it waits for (e-mail, days left) or when it paid; a "+3"
+  badge on the Tiger Squad Invite button while nobody joined
+  (`renderer/quests/referrals.js|css`, `#viewInviteBadge`). i18n: new
+  `referralStep1–3(Sub)`, `referralYourCode`, `referralCopyLink`,
+  `referralMsgPreview`, `referralQrHint`, `referralRow{Pending,Validated,Expired}`;
+  `referralTitle` / `referralTagline` reworded.
+- Invite view, second pass (UI/UX review against the other Tiger Squad
+  views): one main action — the orange "Copy my link" (`.sqd-open`, says
+  "Link copied!" in place); WhatsApp / "Copy for Discord" / E-mail, the rest
+  (other networks, the message sent, the QR) under "More"; the code second
+  ("Or share your code", "the code is already in the link"); the banner reads
+  "Invite a friend" with the envelope picture ×3 each, its card "Friends who
+  joined" + a bar to the next trophy (`.sqr-bar`); compact steps under the
+  sharing; "Your invitations" with pills "E-mail to confirm" / "Reward
+  received" and the empty state "The squad is waiting for backup"; the shared
+  message now says the envelopes come with the e-mail confirmation. i18n:
+  new `referralEnvsEach`, `referralCardTitle`, `referralCardNext`,
+  `referralCopyMyLink`, `referralLinkCopied`, `referralShareVia`,
+  `referralDiscordCopy`, `referralMore`, `referralLess`, `referralOrCode`,
+  `referralCopyCode`, `referralCodeInLink`, `referralNoInviteesSub`; reworded
+  steps, states, title and share text; removed `referralYourCode`,
+  `referralCopyLink`, `referralCount`, `referralCountLabel`,
+  `referralNextTrophy`, `referralCopy`.
+- Invite view, third pass: the QR stays in view in a narrow right column of
+  the share card ("Friend right here?", "They scan it: the sign-up page opens
+  on their phone", Enlarge → the QR big on the celebration window frame,
+  Download as a quiet link); "Other networks" only adds a second row of
+  buttons; "See the message" shows "Message to share" in plain text with
+  "Copy the message"; the shared text no longer says "with my code"; the
+  banner card reads "Confirmed friends" with an ⓘ "Counted once they confirm
+  their e-mail"; steps numbered 1-3, step 2 "The code is already filled in";
+  the envelopes centred in the banner. i18n: new `referralCardHint`,
+  `referralQrTitle`, `referralQrBig`, `referralMsgShow`, `referralMsgHide`,
+  `referralMsgTitle`, `referralMsgCopy`; reworded `referralShareText`,
+  `referralMore`, `referralLess`, `referralQrDownload`, `referralQrHint`,
+  `referralStep2Sub`, `referralCardTitle`; removed `referralMsgPreview`.
+- Invite view, fourth pass (mockups): "A friend invited you?" as one card —
+  gift icon, the days left as a pill, ONE dark code field "Your friend's code"
+  (e.g. 4ZS-8AG, accepts the code without the dash or a pasted link, Paste
+  inside the field; also used at onboarding), an orange "Validate the code"
+  enabled once the code is known, "I don't have a code" folding the card to
+  one line that opens it again; the share card then reads "Invite in your
+  turn"; invitation rows separated by a rule; the enlarged QR gets a close
+  cross and "Close". i18n: new `referralCodeLabel`, `referralCodePh`,
+  `referralDaysLeft`, `referralNoCode`, `referralLinkTitleToo`; reworded
+  `referralWhoTitle`, `referralWhoSub`, `referralClaim`.
+- Invite banner scene: one tiger hands a red envelope to the other behind the
+  desk, a spool and a printed tiger between them, three envelopes on each side
+  (`INVITE_SCENE` via `heroLayersHtml` in `referrals.js`, `.rf-hero .hl--*` in
+  `referrals.css`); layers `assets/img/tigersquad/invite-hero/{tiger-give,tiger-take,spool,figurine}.webp`,
+  masters + sheet in `assets-src/img/tigersquad/invite-hero/`; the envelopes
+  reuse `assets/img/tigercoins/envelope.webp`. The "×3 each" label is gone
+  (removed `referralEnvsEach`).
+- Illustrations at the size they are painted: masters ≥ 1024 px (one element per
+  generation) → `npm run art:build` (`scripts/build-art-ladder.mjs`, sharp as a
+  devDependency) writes `<name>-{128,256,512,1024}.webp` and `renderer/art-ladder.js`;
+  `artImg()` (`renderer/art.js`) draws them with srcset + `sizes="auto"` so Chromium
+  loads the rendition that covers the rendered size × screen density (checked in the
+  app: 121 px → 256, 240 px → 512 on a 2× screen); `art:check` in the pre-commit when
+  art is staged; `.hl` gets `width: auto`. First pictures on it: the Invite banner layers
+  and the two TigerSquad window tigers, regenerated one per image at 1254 px (merch cap).
+  Rules: `docs/ART-DIRECTION.md` "Size", `CLAUDE.md` Tools.
+- `docs/ART-DIRECTION.md`: the tiger always wears the merch cap (reference
+  `assets-src/img/tigersquad/deals-hero/tiger.png`); an asset takes the theme of its
+  space (TigerSquad-only features, requests included, use the Tiger Squad look).
+- Every illustration in HD (182 under 1024 px in quests/, tigercoins/, tigersquad/,
+  trophies/): masters in `assets-src/img/` rebuilt (21 from an existing HD master, the
+  rest upscaled ×4 with a local Real-ESRGAN, anime model, dev-only, outside the repo; the
+  smallest ones twice), the app's `.webp` rewritten at up to 1024 px under the same
+  name and proportions (no code change). Checked one by one against HEAD on before/after
+  sheets; fixed via ChatGPT with the reference models: the TigerCoin face on the chest
+  base, closed chest and lock (layers kept aligned: only the coin face pasted back) and
+  on the coinsSent100 and luckiest stickers (`assets-src/img/tigercoins/coin.png`
+  as reference); the TigerSquad coffee cup (text) and the two-tigers friends feat redrawn.
+- The chests50 sticker redrawn whole via ChatGPT (same three chests, clean geometry, the
+  TigerCoin tiger head on every visible coin face): `assets-src/img/trophies/stickers/chests50.png`
+  (1240 px master) → `assets/img/trophies/stickers/chests50.webp` (1024 px).
+- The four TigerSquad rank badges redrawn in the art direction via ChatGPT, each from its
+  original (same silhouette and parts, sharp angles, flat fills and outline instead of 3D
+  metal and faceted gems, navy field): `assets-src/img/tigersquad/tigersquad-{bronze,silver,gold,platinum}.png`
+  (1536 px masters) → `assets/img/tigersquad/tigersquad-*.webp` (1024 px, each badge at its
+  old size in the square so the ranks still grow bronze → platinum).
+- One window helper: `openDialog()` (`renderer/dialog.js`, rule `.agents/rules/dialogs.md`)
+  with two looks — "notice" (the Tiger Squad window: picture, kicker, title, text, cards,
+  orange action first, secondary, held danger action) and "ceremony" (the TigerCoins window
+  with its plaque); it owns the cross, Escape, outside click, focus and motion. Moved onto it:
+  the leave-the-TigerSquad and perks-return windows (`_openSquadNotice` removed), "Your
+  request moved" (`report/index.js _showAlert`, now in the Tiger Squad look with a tiger
+  holding a ticket: `assets-src/img/tigersquad/requests/tiger-request.png`, laddered; the old
+  `.rep-alert*` CSS removed from `report.css`) and the invite's big QR (`.rf-qr-x` removed).
+  Shared CSS in `60-modals.css` (`.dlg-*`).
+- A friend's sticker album: in a friend's view the TigerSquad group keeps its
+  Trophies tab and shows THAT friend's album ("{{name}}'s trophies", read once,
+  kept 2 min, read-only: no code button, no download; an album that cannot be
+  read says so) — `renderTrophiesView(host, friend)` in `renderer/quests/trophies.js`,
+  wired in `inventory.js`. Needs the backend rule `users/{uid}/trophies`
+  readable by an accepted friend (`TigerTag_Firebase_Backend/firestore.rules`,
+  deployed 2026-11-02, not committed yet; checked in the app: a friend's album
+  loads, 23 / 116). i18n: new `trophiesFriendTitle`,
+  `trophiesFriendTagline`, `trophiesFriendLocked`. The four new tigers wear the
+  merch cap (TigerTag logo), regenerated from `assets-src/img/tigersquad/tigers-merch-cap-source.png`.
+- Trophy unlock window: clicks, Escape and "See my trophies" wait 2.2 s
+  (`UNLOCK_LOCK_MS`, `.trp-unlock.is-locked`, the button fades in after) so
+  the unlock is always seen (`renderer/quests/trophies.js`, `trophies.css`).
+- Leave-the-TigerSquad and perks-return windows reworked (`_openSquadLeaveWarning`,
+  `_openSquadLockInfo` in `inventory.js`, `.sqn-*` in `10-settings.css`): the
+  rule first ("perks stop at once, locked 30 days even if you come back"), the
+  bouncer joke gone, "During these 30 days" rows separated by rules without
+  strike-through, "Member bonus — the 150 XP bonus is removed", what stays in
+  its own card, "Hold 1.5 s to leave"; the return window says "Welcome back!",
+  "Your perks return in N days", the 30-day wait unchanged, the return date
+  with its year in a card above the bar, "N days gone / 30 days". A tiger on top
+  of each replaces the lock / clock icon (`.sqn-art`, `.sqn-ico` removed):
+  `assets/img/tigersquad/squad-notice/tiger-{leave,back}.webp` (masters in
+  `assets-src/img/tigersquad/squad-notice/`). i18n: new `squadLockKicker`,
+  `squadLockDateLbl`, `squadLockTotal`; reworded `squadLeaveDesc`,
+  `squadLeaveLostTitle`, `squadLost_freezeSub`, `squadLost_xp`,
+  `squadLost_xpSub`, `squadLost_badgeSub`, `squadLost_spaceSub`,
+  `squadLeaveKeep`, `squadLeaveHold`, `squadLockTitle`, `squadLockDesc`,
+  `squadLockProgress`.
+- Send TigerCoins: at least 20 coins per envelope (`minAmount`, set in the
+  TigerHub admin) and one envelope a day to the same friend — the friend can
+  still send one back; friends already sent to today are greyed with "Sent
+  today", quick amounts start at 20, errors `SEND_MIN` / `SENT_TODAY`
+  (`renderer/quests/squad-deals.js` `showSendCoins`, `quests.css`
+  `.tcs-f.is-sent-today`; backend `functions/tigerCoins.js` `sendCoins`,
+  `sentToday`).
+- Trophies album: a band of light sweeps across every earned sticker,
+  staggered across the page (`renderer/quests/trophies.js`, `trophies.css`
+  `.trp-gloss--tile`, `trp-gloss-tile`).
 
 ## Fixed
 
-- Avatars without a photo keep their initials centred in the send and freeze
-  windows' friends rows, on a friend's envelope seal and on the letter's
-  stamp (they were pushed to the top-left): every one is now `userAvatar(…,
-  "av-fill")` — one size class that fills its container — instead of other
-  components' size classes patched with overrides (`renderer/css/10-settings.css`
-  `.av-fill`, `renderer/inventory.js`, `renderer/quests/quests.css`;
-  `.agents/rules/user-avatars.md` names it).
+- Light theme: the daily-quest icons were white on the light rows (they used
+  the "label on a filled button" white); they now take the text colour; the
+  category badges' words (Quick, Exploration) use the deep "-text" shade; the
+  Combo pills' fills no longer depend on the view's local palette
+  (`renderer/quests/quests.css` `.qd-ic`, `.qd-badge`, `.qd-combo`); the
+  "Open Tiger Studio" quest shows the framed TigerSystem logo
+  (`assets/svg/logos/tigersystem-icon-framed.svg`, `.qd-logo`). Hero banners
+  had a dark frame in Light (their corner ring took the dark page colour of
+  their token scope) — it now uses `--page-bg`, resolved on the view. Rankings
+  rows (countries' flag bands, makers' colours) become pale tints with dark
+  words in Light, level names in a deep shade; the Workshop rarity words, the
+  XP history filters, the deals' "Code available" and "Offered" badge read in
+  Light (`.sqr-row.has-flag` / `.has-mc`, `.qw-rar`, `.xph-filters select`,
+  `.sqd-card-state.is-free`, `.sqd-card-badge.is-free`).
 
-- A new account with nothing in it sees the header's cards (Spools, Stock,
-  Stock value, TigerData… at 0) instead of an empty header; they hide only
-  while the first snapshot loads or for an empty friend view
-  (`renderer/inventory.js` `renderStats`).
-- The header's TigerCoins card (balance, envelopes, gift) appears as soon as
-  the account joins the TigerSquad — it was read only once, 6 s after sign-in —
-  and hides on leaving
-  (`renderer/inventory.js` `_refreshTopCoins`, `_paintDealsBadge`,
-  `_setSupportPublicly`, `syncUserDoc`).
+- Light theme readability pass: new text-twin tokens `--primary-text`, `--success-text`, `--warning-text`, `--danger-text`, `--info-text`, `--neutral-text`, `--buy-text`, `--favorite-text`, `--success-hover-text` (deepened in Light so text in those hues keeps 4.5:1; in Dark each equals its accent) and every `color: var(--accent)` in the CSS now uses the twin; Light-only fixes for white-on-white or pale text: sidebar settings button, cloud stat tile, ticker up/down, account menu (was a hard-coded dark panel), notification tile detail, MCP/settings warn status, byte counter, brand star, RFID copy flash, Elegoo download hover, rack lock hint, TD1S slot tab / ghost / clear hover, toolbox confirm, Prusa MMU tag, requests window links; `.bulk-hidden` ground now `--warning-soft` (`renderer/css/00-base.css`, `10-settings.css`, `20-friends.css`, `30-racks.css`, `40-printers.css`, `50-snapmaker.css`, `55-creality.css`, `57-elegoo.css`, `60-modals.css`, `70-detail-misc.css`, `renderer/report/report.css`, `renderer/IoT/*/*.css`, `renderer/printers/*/*.css`, `renderer/rfid_protocol/*/*.css`).
+- Streak freezes card: the "Give" button no longer squeezes the "To give" row
+  — it sits in the card's head beside the ⓘ; a freeze already given this batch
+  leaves its slot drawn as a dashed gift cube (batch = the tier's `give` cap)
+  (`renderer/quests/index.js` `freezeCardHtml`, `quests.css` `.qf-head-give`,
+  `.qf-gift-given`).
 
-- Daily Quests: the week's pills light up for every day of the current
-  streak even when the server's day history is empty or partial (an account
-  whose streak began before the history was recorded showed every day dim) —
-  the live streak fills the days the history lacks
-  (`renderer/quests/index.js` `streakWeek`).
+- Light theme readability: grey text was too pale — light `--muted`
+  #6b7287 → #4f566b, `--faint` #8b93a7 → #697087, `--neutral` #8b91a3 →
+  #737a8f, `--game-muted` #5a6277 → #4f566b, `--ink-40…85` raised; the hero
+  banners, the game stages and the header banner on the account colour now
+  take the dark token set in both themes (title, "5 / 5 levels done", pseudo)
+  (`renderer/css/00-base.css`, `renderer/quests/quests.css`,
+  `renderer/inventory.js` `has-theme-tint`). Hover names of the view bar are
+  names only ("Daily quests", "Tutorial missions"), never figures
+  (`_renderProgressChips`, `vtgDaily` → `questsDailyHeading`); removed
+  `questPillLabel` and the `questsPillLabel` key (11 locales).
 
-- Singular / plural follow each language's own rule: `t()` picks the form
-  with `Intl.PluralRules` (one / few / many / other — Polish and Russian get
-  their "few" and "many" forms, French says "1 coffre"), falling back to one /
-  other. The TigerCoins history and a few texts now have real plural forms:
-  `coinLog_chest`, `coinLog_surprises`, `coinLog_chests`, `questsStreak`,
-  `squadDealsClaimDays`, `coinsSendErrRecent`, `questsFreezeSlotsFree`
-  ("1 libre", "3 libres" in the freeze window) (11 locales)
-  (`renderer/inventory.js` `t`).
-- A spool already linked to its own maker chips (Bambu Lab, Creality…) is no
-  longer offered "Link the N proprietary third-party Tags" when other maker
-  chips sit on the TigerPOD, and it is greyed in Grouped spools while they
-  wait, so the chips go to one of the others (`renderer/inventory.js` spool
-  card banner, `_createGroupMemberCard`, `_refreshChipBanners`;
-  `renderer/css/70-detail-misc.css` `.gp-member--linked`).
+- Tiger Quests journey: the "Secret mission" card was unreadable in the Light
+  theme (dark ground, dark text); it now has a light purple ground there, same
+  look in Dark (`renderer/quests/quests.css`, `.qm-secret-wrap > .qm-card`);
+  the name on a completed ("legendary") chapter tile was pale gold on light
+  purple, now deep gold-to-purple in Light (`.qm-chap.is-legend b`).
 
-- **Feedback panel topic cards lose the thin colour stripe on their left edge** — left over from the muted-tile design, it showed as a seam beside the now colour-filled tile. `renderer/report/report.css` (`.rep-kind-card`).
-- The "Turn on debug mode" quest only counted at the next launch: the debug
-  switch in the account window now records it the moment it is turned on
-  (`questGauge("debugMode", 1)` in the `eacDebugToggle` handler,
-  `renderer/inventory.js`).
-- Klipper with an AFC unit that lists each lane twice (`AFC_stepper CANVAS_1`
-  and `AFC_lane CANVAS_1` — a CANVAS on an Elegoo CC1 running OpenCentauri
-  COSMOS) showed every filament twice, 8 slots for 4 lanes (issue 167): one
-  slot per lane name now, read from the `AFC_lane` object when there is one
-  (`f.afcLanes` / `f.afcObjs` in `renderer/printers/klipper/core.js`,
-  `PROTOCOL.md` §7d).
+- "All requests" showed requests closed on GitHub as still open (issue 181):
+  their status only refreshed when their author opened "My requests"; the
+  list now re-reads the open ones on GitHub (backend `myReports` `all`,
+  `syncReport`, at most every 2 min per instance).
+- The light across a sticker never showed (album and open sticker): its mask
+  pointed at the art relative to the stylesheet (404); it now gets the art's
+  absolute URL (`renderer/quests/trophies.js` `artUrl`).
+- The "Time master" trophy (`timeMaster`) showed the XP coin; it now shows
+  the hourglass it is earned on (`quests/xph-hero/hourglass.webp`,
+  `renderer/quests/trophies.js`).
+- The "Ice delivery" trophy (`freezeReceived`) showed the empty dashed cube;
+  it now shows the ice cube with the bow (`quests/freeze/freeze-gift.webp`,
+  `renderer/quests/trophies.js`).
 
 ## Removed
 
 ## i18n
-- `coinsSendTitle`, `coinsSendSub`, `coinsSendQuota`, `coinsSendAmount`,
-  `coinsSendMax`, `coinsSendMessage`, `coinsSendFee`, `coinsSendGets`,
-  `coinsSendWeek`, `coinsSendPickAmount`, `coinsSendErrLimit`,
-  `coinsSendErrRecent`, `coinsSendNotMember`, `coinsSendGo`, `coinsSendDone`,
-  `coinLog_sent`, `coinLog_freeze`, `coinLog_freezeFor`, `coinLog_fee`,
-  `questsFreezeNextGift` added (11 locales).
-- `questsComboBadge`, `questsComboDone`, `questsFreezeSaved`,
-  `questsFreezeSavedText`, `questsStreakBroken`, `questsStreakBrokenText`,
-  `questsFreezeTitle`, `questsFreezeOwn`, `questsFreezeBonus`,
-  `questsFreezeHint`, `questsFreezeToGive`, `questsFreezeFriends`,
-  `questsFreezeBuy`, `questsFreezeRepair`, `questsFreezeGiveTo`,
-  `questsFreezeBuyFor`, `questsFreezeFull`, `questsFreezeGiven`,
-  `questsFreezeNoFriends`, `questsFreezeErr*` (8), `notifFreezeGift`,
-  `notifFreezeGiftText` added (11 locales).
-- `reportAttachPrinter`, `reportAttachPrinterNote` added (11 locales).
-- `reportMineOpenThread`, `reportMineNewReply`, `reportThreadYou`,
-  `reportThreadTeam`, `reportThreadLoading`, `reportThreadError`,
-  `reportThreadEmpty`, `reportThreadClosedByYou`, `reportThreadImage`,
-  `reportReplyPh`, `reportReplyAttach`, `reportReplyPublic`, `reportReplySend`,
-  `reportReplySending`, `reportReplyClosed`, `reportReplyErrClosed`,
-  `reportReplyErrTooMany`, `reportReplyMaxImages`, `reportAlertTitle`,
-  `reportAlertText`, `reportAlertReply`, `reportAlertOpen`, `reportAlertLater`
-  added; `reportMineHint` reworded (11 locales).
-- `reportTabAll`, `reportAllOpen`, `reportAllEverything`, `reportAllEmpty`,
-  `reportAllYours`, `reportThreadReporter`, `reportThreadMaster`,
-  `reportTeamReplyPublic`, `reportTeamDone`, `reportTeamDecline`,
-  `reportTeamConfirm` added; `reportReplyAttach`, `reportReplyMaxImages`
-  removed (11 locales).
+- `coinsSendMin`, `coinsSendErrToday`, `coinsSendTodayDone` added (11 locales).
+- `reportCopyMsg`, `notifReqNew`, `notifTabRequests` added (11 locales).
+- `squadLeave*`, `squadLost_*`, `squadLock*` added (11 locales).
+- `trophy_communityXp{1M,5M,10M,15M,Trio}`, `trophy_communityPrinters{5k,10k}` and their `trophyHow_*` added after `trophyHow_worldFirst` (14 keys, 11 locales).

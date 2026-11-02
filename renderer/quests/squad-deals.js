@@ -655,17 +655,23 @@ export function showSendCoins(ctx, send) {
 /** "You got an envelope!": a friend gave one (functions/tigerCoins.js
  *  giveEnvelope). Only says so — who, with their avatar — and closes: the
  *  envelope waits in the pile. Resolves "see" (go to the Deals) or "close". */
-export function showEnvelopeGift(ctx, { name, avatar }) {
+// `count` > 1: several envelopes sent together (tigerCoins giveEnvelopes) — a
+// pile of envelopes behind the card, with how many.
+export function showEnvelopeGift(ctx, { name, avatar, count = 1 }) {
   const { t, esc } = ctx;
+  const many = count > 1;
   const el = document.createElement("div");
   el.className = "tc-reveal tc-gotgift";
+  const env = `<img src="../assets/img/tigercoins/envelope.webp" alt="" aria-hidden="true">`;
+  const title = many ? t("envGiftTitleMany") : t("envGiftTitle");   // the count is said once, in the line below
   el.innerHTML = `
-    <div class="tc-reveal-card tc-code-card tcx tcx--help" role="dialog" aria-modal="true" aria-label="${esc(t("envGiftTitle"))}">
-      <img class="tch-env" src="../assets/img/tigercoins/envelope.webp" alt="" aria-hidden="true">
+    <div class="tc-reveal-card tc-code-card tcx tcx--help" role="dialog" aria-modal="true" aria-label="${esc(title)}">
+      ${many ? `<span class="tch-env-tilt tch-env-pile" aria-hidden="true"><span class="tch-env-stack">${env}${env}${env}</span></span>`
+        : `<img class="tch-env" src="../assets/img/tigercoins/envelope.webp" alt="" aria-hidden="true">`}
       <div class="tcx-main">
-        <div class="tcx-plaque"><h3>${esc(t("envGiftTitle"))}</h3></div>
-        <p class="tcg-from">${avatar || ""}<span><b>${esc(t("notifEnvelopeGift", { name }))}</b><small>${esc(t("notifEnvelopeGiftText"))}</small></span></p>
-        <button type="button" class="tcx-go" data-see>${esc(t("envGiftSee"))}</button>
+        <div class="tcx-plaque"><h3>${esc(title)}</h3></div>
+        <p class="tcg-from">${avatar || ""}<span><b>${esc(many ? t("notifEnvelopeGiftMany", { name, n: count }) : t("notifEnvelopeGift", { name }))}</b><small>${esc(t(many ? "envGiftTextMany" : "notifEnvelopeGiftText"))}</small></span></p>
+        <button type="button" class="tcx-go" data-see>${esc(t(many ? "envGiftSeeMany" : "envGiftSee"))}</button>
       </div>
     </div>`;
   document.body.appendChild(el);
@@ -677,6 +683,8 @@ export function showEnvelopeGift(ctx, { name, avatar }) {
     guardInput(el, 2000);   // it arrives on its own: 2 s before a stray click or key can close it
     el.addEventListener("mousedown", e => { if (e.target === el) close("close"); });   // no × : a click beside it or Esc closes
     el.querySelector("[data-see]").addEventListener("click", () => close("see"));
+    // The envelope (or the pile) turns toward the mouse, like the help window's.
+    tilt(el, el.querySelector(".tch-env-stack") || el.querySelector(".tch-env"), 18);
   });
 }
 
@@ -993,7 +1001,10 @@ export async function openChests(ctx, list) {
    friends: [{ uid, name, avatar }], send(uid) → status } — "Give to a friend"
    lists the friends with today's allowance (by TigerSquad level), a held
    button confirms (functions/tigerCoins.js giveEnvelope). `giveOnly`: straight
-   to the friend picker (from the opening stage); "Back" closes. */
+   to the friend picker (from the opening stage); "Back" closes.
+   `give.pile` ([{ id, label }], up to 10 picked at random from the pile — a
+   chip's envelope is id "chip"): the envelopes are chosen first, one or more
+   up to the day's allowance, never showing what they hold; `send(uid, ids)`. */
 export function showEnvelope(ctx, env, { open = null, more = 0, give = null, giveOnly = false } = {}) {
   const { t, esc, lang } = ctx;
   const msg = env.message ? (env.message[lang] || env.message.en || env.message.fr || "") : "";
@@ -1152,11 +1163,18 @@ export function showEnvelope(ctx, env, { open = null, more = 0, give = null, giv
       // `give.none`: nothing left to give — the window still opens, with the day's
       // count and the reason, the friends greyed.
       const friends = give.friends || [], max = give.max || 0, dayLeft = give.left || 0, left = give.none ? 0 : dayLeft;
+      const pile = give.pile || [];
+      // The envelopes held like a hand of cards: each one turned a little more
+      // from the middle out, the outer ones a bit lower.
+      const fan = (i, n) => { const k = i - (n - 1) / 2; return `--r:${(k * 5).toFixed(1)}deg;--y:${(Math.abs(k) * 2.5).toFixed(1)}px`; };
       actions.innerHTML = `
         <div class="tc-give">
           <p class="tc-give-count">${esc(t("envGiveCount", { sent: Math.max(0, max - dayLeft), left: dayLeft }))}</p>
           ${give.none ? `<p class="tc-give-left is-none">${esc(t("envGiveNoGift"))}</p>`
             : left ? "" : `<p class="tc-give-left is-none">${esc(t("envGiveNone"))}</p>`}
+          ${pile.length && left ? `<p class="tc-give-left">${esc(t("envGivePickEnv", { n: Math.min(left, pile.length) }))}</p>
+          <div class="tc-give-envs" role="group" aria-label="${esc(t("envGivePickEnv", { n: Math.min(left, pile.length) }))}">${pile.map((p, i) =>
+            `<button type="button" role="checkbox" aria-checked="${i === 0}" class="tc-give-f tc-give-env" data-give-env="${esc(p.id)}" aria-label="${esc(p.label)}" style="${fan(i, pile.length)}"><span class="tc-give-av"><img class="tc-give-env-img" src="../assets/img/tigercoins/envelope.webp" alt="" aria-hidden="true"><span class="tc-give-check" aria-hidden="true"><span class="icon icon-check icon-11"></span></span></span><span class="tc-give-name">${esc(p.label)}</span></button>`).join("")}</div>` : ""}
           ${friends.length > 8 ? searchHtml(esc, { attr: "data-give-q", placeholder: t("friendsSearch"), cls: "tc-give-search" }) : ""}
           ${friends.length ? `<div class="tc-give-list" role="radiogroup" aria-label="${esc(t("envGivePick"))}">${friends.map(f =>
             `<button type="button" role="radio" aria-checked="false" class="tc-give-f" data-give-to="${esc(f.uid)}" data-name="${esc(f.name)}"${left ? "" : " disabled"}><span class="tc-give-av">${f.avatar}<span class="tc-give-check" aria-hidden="true"><span class="icon icon-check icon-11"></span></span></span><span class="tc-give-name">${esc(f.name)}</span></button>`).join("")}</div>`
@@ -1166,7 +1184,7 @@ export function showEnvelope(ctx, env, { open = null, more = 0, give = null, giv
       // Many friends: the search filters the grid by name, in place.
       actions.querySelector("[data-give-q]")?.addEventListener("input", e => {
         const q = e.target.value.trim().toLowerCase();
-        actions.querySelectorAll(".tc-give-f").forEach(b => { b.hidden = !!q && !b.dataset.name.toLowerCase().includes(q); });
+        actions.querySelectorAll(".tc-give-f[data-give-to]").forEach(b => { b.hidden = !!q && !b.dataset.name.toLowerCase().includes(q); });
       });
       const go = actions.querySelector(".tc-give-go");
       if (!go) return;
@@ -1177,12 +1195,14 @@ export function showEnvelope(ctx, env, { open = null, more = 0, give = null, giv
       // same gradient, the button strains and grows while held, a click alone
       // shakes "no" with a bubble. A gift cannot be taken back.
       holdToFire(go, 2000, async () => {
-        const pick = actions.querySelector('.tc-give-f[aria-checked="true"]');
-        if (!pick || go.disabled) return;
+        const pick = actions.querySelector('.tc-give-f[data-give-to][aria-checked="true"]');
+        const ids = [...actions.querySelectorAll('[data-give-env][aria-checked="true"]')].map(b => b.dataset.giveEnv);
+        if (!pick || go.disabled || (pile.length && !ids.length)) return;
         go.disabled = true;
         try {
-          await give.send(pick.dataset.giveTo);
-          el.querySelector(".tc-env-msg").textContent = t("envGiveSent", { name: pick.dataset.name });
+          const r = await give.send(pick.dataset.giveTo, pile.length ? ids : null);
+          const n = r?.given?.count || 1;
+          el.querySelector(".tc-env-msg").textContent = n > 1 ? t("envGiveSentMany", { n, name: pick.dataset.name }) : t("envGiveSent", { name: pick.dataset.name });
           card.classList.add("is-given");
           actions.innerHTML = "";
           setTimeout(() => finish(more ? "next" : "done"), 1500);
@@ -1203,11 +1223,22 @@ export function showEnvelope(ctx, env, { open = null, more = 0, give = null, giv
     el.addEventListener("mousedown", e => { if (e.target === el && !card.classList.contains("is-given")) finish("back"); });
     el.addEventListener("click", async e => {
       if (e.target.closest("[data-env-give]")) { showGive(); return; }
+      // An envelope of the pile: on / off, up to the day's allowance.
+      const envBtn = e.target.closest("[data-give-env]");
+      if (envBtn) {
+        const on = envBtn.getAttribute("aria-checked") !== "true";
+        const count = actions.querySelectorAll('[data-give-env][aria-checked="true"]').length;
+        if (on && count >= (give.none ? 0 : give.left || 0)) return;
+        envBtn.setAttribute("aria-checked", String(on));
+        const go = actions.querySelector(".tc-give-go");
+        if (go) go.disabled = !actions.querySelector('[data-give-env][aria-checked="true"]') || !actions.querySelector('.tc-give-f[data-give-to][aria-checked="true"]');
+        return;
+      }
       const f = e.target.closest("[data-give-to]");
       if (f && !f.disabled) {
-        actions.querySelectorAll(".tc-give-f").forEach(x => x.setAttribute("aria-checked", String(x === f)));
+        actions.querySelectorAll(".tc-give-f[data-give-to]").forEach(x => x.setAttribute("aria-checked", String(x === f)));
         const go = actions.querySelector(".tc-give-go");
-        if (go) { go.disabled = false; go.querySelector(".tc-give-lbl").textContent = t("envGiveShort"); }
+        if (go) { go.disabled = !!(give.pile?.length && !actions.querySelector('[data-give-env][aria-checked="true"]')); go.querySelector(".tc-give-lbl").textContent = t("envGiveShort"); }
         return;
       }
       const b = e.target.closest("[data-env]");

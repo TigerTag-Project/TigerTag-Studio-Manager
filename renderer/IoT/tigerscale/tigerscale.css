@@ -105,8 +105,8 @@
   -webkit-mask-size: contain; -webkit-mask-repeat: no-repeat; -webkit-mask-position: center;
   filter: drop-shadow(0 0 1px rgba(0,0,0,.5));
 }
-.scale-health-batt.is-charging { color: var(--success); }
-.scale-health-batt.is-low      { color: var(--danger); }
+.scale-health-batt.is-charging { color: var(--success-text); }
+.scale-health-batt.is-low      { color: var(--danger-text); }
 .scale-health-batt.is-neutral  { color: var(--muted); }
 @keyframes scale-live-ping {
   0%   { transform: scale(1);   opacity: .55; }
@@ -185,7 +185,7 @@
   width: 24px; height: 24px; border-radius: 7px;
   display: flex; align-items: center; justify-content: center;
   background: color-mix(in srgb, var(--primary) 14%, transparent);
-  color: var(--primary);
+  color: var(--primary-text);
 }
 /* Height only — each icon keeps the ratio of its own viewBox. */
 .scales-empty-feats .ic .icon { height: 14px; width: 14px; }
@@ -366,9 +366,9 @@
   font-size: 10.5px; font-weight: 600;
   text-transform: lowercase; letter-spacing: .01em; flex-shrink: 0;
 }
-.scale-card-status-pill.is-online  { background: var(--success-soft); color: var(--success); }  /* active  */
-.scale-card-status-pill.is-standby { background: var(--info-soft);    color: var(--info);    }  /* standby */
-.scale-card-status-pill.is-offline { background: var(--danger-soft);  color: var(--danger);  }  /* offline */
+.scale-card-status-pill.is-online  { background: var(--success-soft); color: var(--success-text); }  /* active  */
+.scale-card-status-pill.is-standby { background: var(--info-soft);    color: var(--info-text);    }  /* standby */
+.scale-card-status-pill.is-offline { background: var(--danger-soft);  color: var(--danger-text);  }  /* offline */
 .scale-card-status-dot {
   width: 6px; height: 6px; border-radius: 50%;
   display: inline-block; background: currentColor;
@@ -448,7 +448,7 @@
 .scale-chip-text { font-weight: 500; }
 /* Bolt overlay shown on the power chip when is_charging == true */
 .scale-chip-bolt {
-  color: var(--warning);
+  color: var(--warning-text);
   margin-left: 1px;
 }
 
@@ -456,14 +456,14 @@
    connected, red/off only when disconnected). Strength shows via the bar count,
    NOT the colour — so a working link is never painted as a red alarm. */
 .scale-chip--wifi     { color: var(--text); }
-.scale-chip--wifi-ok  { color: var(--success); }
+.scale-chip--wifi-ok  { color: var(--success-text); }
 .scale-chip--wifi-off { color: var(--muted); }
 
 /* Battery colour — precedence charging → low → neutral (resolved in JS, one
    class only). Charging OUTRANKS low, so a cell being charged never shows the
    red alert. No chip background tint: the pill itself carries the colour. */
-.scale-chip--bat-charging { color: var(--success); }
-.scale-chip--bat-low      { color: var(--danger); }
+.scale-chip--bat-charging { color: var(--success-text); }
+.scale-chip--bat-low      { color: var(--danger-text); }
 .scale-chip--bat-neutral  { color: var(--text); }
 
 /* Battery — iOS-style pill: coloured outline, proportional fill, value inside,
@@ -484,7 +484,7 @@
   position: relative; z-index: 1;
   font-size: 9px; font-weight: 800; letter-spacing: -.03em; color: var(--text);
 }
-.scale-batt-bolt { color: var(--warning); }                   /* orange charge bolt */
+.scale-batt-bolt { color: var(--warning-text); }                   /* orange charge bolt */
 
 /* Power chip — neutral by default */
 .scale-chip--power { color: var(--muted); }
@@ -664,8 +664,8 @@
   text-align: center;
   margin-right: 3px;
 }
-.swl-dir--rx  { color: var(--success); }
-.swl-dir--tx  { color: var(--info); }
+.swl-dir--rx  { color: var(--success-text); }
+.swl-dir--tx  { color: var(--info-text); }
 .swl-dir--ev  { color: var(--muted); }
 .swl-ts {
   color: var(--muted);

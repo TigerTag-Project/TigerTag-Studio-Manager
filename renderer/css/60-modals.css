@@ -114,7 +114,7 @@
     line-height: 1; cursor: pointer; user-select: none;
     transition: background .12s, color .12s;
   }
-  .rec-step:hover  { background: var(--border); color: var(--primary); }
+  .rec-step:hover  { background: var(--border); color: var(--primary-text); }
   .rec-step:active { background: var(--primary-soft); }
   /* Value sits flush between the buttons — the field's own border/background are
      dropped (the wrapper carries them) and the native spinners are hidden. */
@@ -155,14 +155,14 @@
     font-size: 38px;
     font-weight: 800;
     line-height: 1;
-    color: var(--primary);
+    color: var(--primary-text);
     font-family: var(--mono);
     letter-spacing: -.02em;
   }
   .rec-dim-total-label {
     font-size: 11px;
     font-weight: 700;
-    color: var(--primary);
+    color: var(--primary-text);
     text-transform: uppercase;
     letter-spacing: .1em;
     opacity: .85;
@@ -277,7 +277,7 @@
   .rec-prev-slot .rp-fill-empty-tag { display: none; }
 
   .rec-result {
-    min-height: 16px; font-size: 12px; color: var(--danger);
+    min-height: 16px; font-size: 12px; color: var(--danger-text);
     text-align: center; line-height: 1.4;
   }
 
@@ -337,7 +337,7 @@
   .adf-btn--secondary.is-holding {
     background: var(--primary-soft);
     border-color: var(--primary);
-    color: var(--primary);
+    color: var(--primary-text);
   }
   .adf-btn--secondary.is-holding > .icon { background: var(--primary); }
   .adf-btn--secondary.is-confirming { background: var(--primary); color: var(--on-accent); }
@@ -352,7 +352,7 @@
     padding: 12px 14px;
     background: transparent;
     border: 1.5px solid var(--danger);
-    color: var(--danger);
+    color: var(--danger-text);
     border-radius: 10px;
     font-size: 13px; font-weight: 600;
     font-family: inherit;
@@ -385,7 +385,7 @@
     padding: 9px 12px;
     background: transparent;
     border: 1.5px solid transparent;
-    color: var(--danger);
+    color: var(--danger-text);
     border-radius: var(--radius-sm);
     font-size: 13px; font-weight: 600;
     cursor: pointer;
@@ -424,7 +424,7 @@
   .fi-spool-info    { min-width: 0; flex: 1; }
   .fi-spool-name    { font-size: 11px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .fi-spool-meta    { font-size: 10px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .fi-spool-weight  { font-size: 11px; font-weight: 600; color: var(--primary); margin-top: 2px; }
+  .fi-spool-weight  { font-size: 11px; font-weight: 600; color: var(--primary-text); margin-top: 2px; }
   .stg-friends-actions { display: flex; gap: 8px; margin-top: 10px; }
   .stg-friends-actions .primary { flex: 1; }
   .stg-regen-btn { flex-shrink: 0; color: var(--muted); font-size: 11px; }
@@ -480,7 +480,7 @@
   .frq-name   { font-size: 18px; font-weight: 700; color: var(--text); }
   .frq-sub    { font-size: 13px; color: var(--muted); margin-top: -4px; }
   .frq-actions { display: flex; gap: 8px; margin-top: 8px; width: 100%; }
-  .frq-btn-block  { flex: 1; color: var(--danger) !important; font-size: 11px; }
+  .frq-btn-block  { flex: 1; color: var(--danger-text) !important; font-size: 11px; }
   .frq-btn-refuse { flex: 1; }
   .frq-btn-accept { flex: 2; }
 
@@ -543,7 +543,7 @@
   }
   .adf-preview-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
   .adf-preview-name { font-size: 14px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .adf-preview-status { font-size: 11px; color: var(--success); font-weight: 600; }
+  .adf-preview-status { font-size: 11px; color: var(--success-text); font-weight: 600; }
   /* Social proof — the person's friend count, shown while adding them. */
   .adf-preview-count { display: inline-flex; align-items: center; gap: 4px; align-self: flex-start;
     font-size: 11px; font-weight: 600; color: var(--muted); }
@@ -560,8 +560,8 @@
     min-height: 16px; font-size: 12px; color: var(--muted);
     text-align: center; line-height: 1.4;
   }
-  .adf-result.adf-result--error   { color: var(--danger); }
-  .adf-result.adf-result--success { color: var(--success); }
+  .adf-result.adf-result--error   { color: var(--danger-text); }
+  .adf-result.adf-result--success { color: var(--success-text); }
 
   /* Footer — same pattern as other modals (.ghost / .primary buttons) */
   .adf-footer { display: flex; gap: 8px; }
@@ -605,7 +605,7 @@
     cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;
     transition: border-color .15s, color .15s, background .15s;
   }
-  .stg-add-btn:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-soft); }
+  .stg-add-btn:hover { border-color: var(--primary); color: var(--primary-text); background: var(--primary-soft); }
 
   /* ── modals ── */
   .modal-overlay {
@@ -799,7 +799,7 @@
     font-family: inherit;
   }
   .avatar-menu-item:hover { background: var(--surface-2); }
-  .avatar-menu-item--danger { color: var(--danger); }
+  .avatar-menu-item--danger { color: var(--danger-text); }
   .avatar-menu-item--danger:hover { background: var(--danger-soft); }
   .avatar-menu-item .icon { background: currentColor; }
 
@@ -888,7 +888,7 @@
   }
   .avatar-crop-rotate .icon { background: currentColor; }
   .avatar-crop-rotate { transition: border-color .15s, color .15s, background .15s, transform .1s; }
-  .avatar-crop-rotate:hover { border-color: var(--primary); color: var(--primary); background: var(--surface-2); }
+  .avatar-crop-rotate:hover { border-color: var(--primary); color: var(--primary-text); background: var(--surface-2); }
   .avatar-crop-rotate:active { transform: scale(.94); }
   /* instant custom tooltip — no native `title` delay, appears on hover/focus */
   .crop-tip { position: relative; }
@@ -912,7 +912,7 @@
   }
   .avatar-crop-reset {
     border: none; background: transparent;
-    color: var(--primary); font-weight: 600; font-size: 13px;
+    color: var(--primary-text); font-weight: 600; font-size: 13px;
     cursor: pointer; padding: 6px 4px;
     font-family: inherit;
   }
@@ -1094,7 +1094,7 @@
   .eac-signin-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
   .eac-signin-form { display: flex; flex-direction: column; gap: 10px; margin-left: 0; }
   .eac-signin-msg { margin: 0; font-size: 12px; line-height: 1.45; color: var(--success, var(--text)); }
-  .eac-signin-msg.is-error { color: var(--danger); }
+  .eac-signin-msg.is-error { color: var(--danger-text); }
   .eac-row .csel { width: auto; max-width: 62%; margin-left: auto; }
   .eac-row .csel-btn { height: 34px; }
   .eac-row .csel-pop { min-width: 100%; width: max-content; max-width: 260px; right: 0; left: auto; }
@@ -1229,7 +1229,7 @@
   #editAccountModalOverlay .eac-admin-badge {
     font-size: 10px; font-weight: 600; letter-spacing: 0; text-transform: none;
     padding: 2px 8px; border-radius: 999px;
-    background: var(--primary-soft); color: var(--primary);
+    background: var(--primary-soft); color: var(--primary-text);
   }
 
   #editAccountModalOverlay .eac-body { padding: 0; }
@@ -1302,9 +1302,10 @@
     display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;
   }
   #editAccountModalOverlay .eac-mcp-status { font-size: 11.5px; color: var(--muted); min-width: 0; }
-  #editAccountModalOverlay .eac-mcp-status[data-kind="ok"]   { color: var(--success); }
+  #editAccountModalOverlay .eac-mcp-status[data-kind="ok"]   { color: var(--success-text); }
   #editAccountModalOverlay .eac-mcp-status[data-kind="warn"] { color: rgb(217, 119, 6); }
-  #editAccountModalOverlay .eac-mcp-status[data-kind="err"]  { color: var(--danger); }
+  :root:not([data-theme="dark"]) #editAccountModalOverlay .eac-mcp-status[data-kind="warn"] { color: var(--warning-text); }
+  #editAccountModalOverlay .eac-mcp-status[data-kind="err"]  { color: var(--danger-text); }
   /* Renew the access key — a real (secondary) button: it invalidates every
      assistant already set up, so it should read as an action, not a footnote. */
   #editAccountModalOverlay .eac-mcp-key {
@@ -1352,18 +1353,18 @@
     font-size: 12px; font-weight: 600; color: var(--text);
     transition: border-color .15s, color .15s;
   }
-  #editAccountModalOverlay .eac-mcp-copy:hover { border-color: var(--primary); color: var(--primary); }
-  #editAccountModalOverlay .eac-mcp-copy.is-done { border-color: var(--success); color: var(--success); }
+  #editAccountModalOverlay .eac-mcp-copy:hover { border-color: var(--primary); color: var(--primary-text); }
+  #editAccountModalOverlay .eac-mcp-copy.is-done { border-color: var(--success); color: var(--success-text); }
   #editAccountModalOverlay .eac-mcp-howto {
     height: auto; align-self: flex-start; display: inline-flex; align-items: center; gap: 5px;
     padding: 0; border: 0; background: none; cursor: pointer;
-    font-size: 12px; font-weight: 600; color: var(--primary);
+    font-size: 12px; font-weight: 600; color: var(--primary-text);
   }
   #editAccountModalOverlay .eac-mcp-howto .icon { background: var(--primary); }
   #editAccountModalOverlay .eac-mcp-howto:hover span:first-child { text-decoration: underline; }
   #editAccountModalOverlay .eac-mcp-grants { display: flex; flex-direction: column; gap: 6px; }
   #editAccountModalOverlay .eac-mcp-grants-note { font-size: 11.5px; color: var(--muted); }
-  #editAccountModalOverlay .eac-mcp-grants-note[data-kind="err"] { color: var(--danger); }
+  #editAccountModalOverlay .eac-mcp-grants-note[data-kind="err"] { color: var(--danger-text); }
   #editAccountModalOverlay .eac-mcp-grant {
     display: flex; align-items: center; gap: 8px;
     padding: 7px 7px 7px 10px; border-radius: 8px; border: 1px solid var(--border);
@@ -1374,8 +1375,8 @@
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   #editAccountModalOverlay .eac-mcp-grant-meta { font-size: 11px; color: var(--muted); }
-  #editAccountModalOverlay .eac-mcp-grant[data-kind="err"] .eac-mcp-grant-meta { color: var(--danger); }
-  #editAccountModalOverlay .eac-mcp-cut:hover { border-color: var(--danger); color: var(--danger); }
+  #editAccountModalOverlay .eac-mcp-grant[data-kind="err"] .eac-mcp-grant-meta { color: var(--danger-text); }
+  #editAccountModalOverlay .eac-mcp-cut:hover { border-color: var(--danger); color: var(--danger-text); }
 
   /* The name field spans the section under its own caption — a text input needs
      room to show what you typed, which a right-hand column cannot give it. */
@@ -1505,14 +1506,14 @@
     transition: color .15s, background .15s, border-color .15s;
     user-select: none; -webkit-user-select: none;
   }
-  .eac-disconnect:hover { color: var(--danger); background: var(--danger-soft); border-color: color-mix(in srgb, var(--danger) 15%, transparent); }
+  .eac-disconnect:hover { color: var(--danger-text); background: var(--danger-soft); border-color: color-mix(in srgb, var(--danger) 15%, transparent); }
   /* long-press fill */
   .eac-disconnect::before {
     content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 0%;
     background: color-mix(in srgb, var(--danger) 18%, transparent); pointer-events: none;
     transition: none; border-radius: 8px;
   }
-  .eac-disconnect.holding { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 30%, transparent); }
+  .eac-disconnect.holding { color: var(--danger-text); border-color: color-mix(in srgb, var(--danger) 30%, transparent); }
   .eac-disconnect.holding::before { width: 100%; transition: width 1.5s linear; }
 
   /* ── account dropdown ── */
@@ -1556,7 +1557,7 @@
     overflow: hidden;
   }
   .acct-drop-name { font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; }
-  .acct-drop-check { margin-left: auto; color: var(--primary); font-size: 13px; flex-shrink: 0; }
+  .acct-drop-check { margin-left: auto; color: var(--primary-text); font-size: 13px; flex-shrink: 0; }
   .acct-drop-sep { height: 1px; background: var(--ink-08); margin: 5px 4px; }
   .acct-drop-action {
     display: flex; align-items: center; justify-content: flex-start; text-align: left;
@@ -1593,7 +1594,7 @@
     padding: 8px 10px; border-radius: 9px; color: var(--text);
   }
   .acct-drop-current .acct-drop-name { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; }
-  .acct-drop-current .acct-drop-check { margin-left: auto; color: var(--primary); font-size: 13px; flex-shrink: 0; }
+  .acct-drop-current .acct-drop-check { margin-left: auto; color: var(--primary-text); font-size: 13px; flex-shrink: 0; }
 
   /* "Switch account ›" — chevron at the right; the account list opens as a hover
      fly-out to the RIGHT (it does NOT replace the main menu). */
@@ -1664,7 +1665,7 @@
   .prf-acct-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
   .prf-acct-name { font-size: 14px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .prf-acct-email { font-size: 12px; color: var(--ink-40); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .prf-acct-active { font-size: 12px; font-weight: 600; color: var(--success); }
+  .prf-acct-active { font-size: 12px; font-weight: 600; color: var(--success-text); }
   .prf-acct-switch {
     flex-shrink: 0; height: 32px; padding: 0 15px; border-radius: 8px; border: none;
     background: var(--ink-10); color: var(--text); font-size: 13px; font-weight: 600;
@@ -1684,6 +1685,7 @@
     background: rgba(28,30,40,.99); border: 1px solid var(--ink-10);
     border-radius: 11px; box-shadow: 0 12px 34px rgba(0,0,0,.55);
   }
+  :root:not([data-theme="dark"]) .prf-acct-menu { background: var(--surface-raised); border-color: var(--border); box-shadow: var(--shadow-lg); }
   .prf-acct-menu[hidden] { display: none; }
   .prf-acct-menu-item {
     display: flex; align-items: center; gap: 9px; width: 100%;
@@ -1692,7 +1694,7 @@
   }
   .prf-acct-menu-item:hover { background: var(--ink-08); color: var(--text); }
   .prf-acct-menu-item .icon { background: currentColor; }
-  .prf-acct-menu-item--danger { color: var(--danger); }
+  .prf-acct-menu-item--danger { color: var(--danger-text); }
   .prf-acct-menu-item--danger:hover { background: rgba(255,107,107,.14); color: var(--danger-hover); }
 
   .prf-add-btn {
@@ -1851,7 +1853,7 @@
     border-radius: 50%;
     background: var(--primary-soft);
     display: flex; align-items: center; justify-content: center;
-    color: var(--primary);
+    color: var(--primary-text);
     animation: uidMigrSpin 1.6s linear infinite;
   }
   .uid-migr-icon .icon {
@@ -1860,7 +1862,7 @@
   }
   .uid-migr-card.uid-migr--done .uid-migr-icon {
     background: rgba(16,185,129,.14);
-    color: var(--success);
+    color: var(--success-text);
     animation: none;
   }
   .uid-migr-card.uid-migr--done .uid-migr-icon .icon {
@@ -1931,7 +1933,7 @@
   }
   .uid-migr-card.uid-migr--done .uid-migr-title::after {
     content: " — done";
-    color: var(--success);
+    color: var(--success-text);
   }
 
   /* ── Confirm modal (phase 1) — user consent before migration starts ──
@@ -1958,7 +1960,7 @@
     padding: 10px 14px;
     border-radius: 12px;
     background: var(--warning-soft);
-    color: var(--warning);
+    color: var(--warning-text);
     text-align: left;
   }
   .uid-migr-mobile-warn-icon {
@@ -1968,7 +1970,7 @@
   }
   .uid-migr-mobile-warn-text {
     font-size: 13px; line-height: 1.45;
-    color: var(--warning);
+    color: var(--warning-text);
     font-weight: 500;
   }
 
@@ -1997,7 +1999,7 @@
   }
   .uid-migr-confirm-btn.ghost:hover {
     border-color: var(--primary);
-    color: var(--primary);
+    color: var(--primary-text);
     background: var(--primary-soft);
   }
   .uid-migr-confirm-btn.primary {
@@ -2023,7 +2025,7 @@
     font-size: 36px; margin-bottom: 12px;
   }
   .friend-inv-error-title {
-    font-size: 16px; font-weight: 700; color: var(--danger);
+    font-size: 16px; font-weight: 700; color: var(--danger-text);
     margin-bottom: 6px;
   }
   .friend-inv-error-msg {
@@ -2045,13 +2047,13 @@
     cursor: pointer; font-family: inherit;
     transition: background .15s, border-color .15s, color .15s;
   }
-  .fie-btn:hover { background: var(--surface-2); border-color: var(--primary); color: var(--primary); }
+  .fie-btn:hover { background: var(--surface-2); border-color: var(--primary); color: var(--primary-text); }
   .fie-btn:hover .icon { background: var(--primary); }
   .fie-btn .icon { background: var(--text); }
   .fie-btn:disabled { opacity: .5; cursor: not-allowed; }
-  .fie-btn--danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 30%, transparent); }
+  .fie-btn--danger { color: var(--danger-text); border-color: color-mix(in srgb, var(--danger) 30%, transparent); }
   .fie-btn--danger .icon { background: var(--danger); }
-  .fie-btn--danger:hover { background: var(--danger-soft); border-color: var(--danger); color: var(--danger); }
+  .fie-btn--danger:hover { background: var(--danger-soft); border-color: var(--danger); color: var(--danger-text); }
   .fie-btn--danger:hover .icon { background: var(--danger); }
 
   /* ── color swatches ── */
@@ -2185,7 +2187,7 @@
   #addAccountModalOverlay .lm-input:focus ~ .lm-label,
   #addAccountModalOverlay .lm-input:not(:placeholder-shown) ~ .lm-label {
     top: 0; transform: translateY(-50%) scale(0.82);
-    transform-origin: left center; color: var(--primary);
+    transform-origin: left center; color: var(--primary-text);
   }
   /* eye toggle */
   #addAccountModalOverlay .lm-eye {
@@ -2218,7 +2220,7 @@
   #addAccountModalOverlay .lm-check-hint { margin: 14px 0 0; font-size: 13px; line-height: 1.5; color: var(--muted); }
   #addAccountModalOverlay .lm-check .lm-submit-btn { margin-top: 20px; }
   #addAccountModalOverlay .lm-check-links { display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 14px; color: var(--muted); font-size: 13px; }
-  #addAccountModalOverlay .lm-check-note { min-height: 18px; margin: 10px 0 0; font-size: 13px; color: var(--success); }
+  #addAccountModalOverlay .lm-check-note { min-height: 18px; margin: 10px 0 0; font-size: 13px; color: var(--success-text); }
   @keyframes lm-check-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
   @keyframes lm-env-hop { 0%, 100% { transform: translateY(0); } 12% { transform: translateY(-6px) rotate(-6deg); } 24% { transform: translateY(0) rotate(0); } }
   @keyframes lm-env-ring { 0% { opacity: .9; transform: scale(.9); } 70%, 100% { opacity: 0; transform: scale(1.25); } }
@@ -2251,7 +2253,7 @@
   }
   #addAccountModalOverlay .lm-forgot-btn {
     background: none; border: none; padding: 0;
-    font-size: 12.5px; color: var(--primary); cursor: pointer;
+    font-size: 12.5px; color: var(--primary-text); cursor: pointer;
     transition: opacity .15s;
   }
   #addAccountModalOverlay .lm-forgot-btn:hover { opacity: .7; }
@@ -2270,7 +2272,7 @@
   }
   #addAccountModalOverlay .lm-mode-btn {
     background: none; border: none; padding: 0 0 0 4px;
-    font-size: 12.5px; font-weight: 600; color: var(--primary);
+    font-size: 12.5px; font-weight: 600; color: var(--primary-text);
     cursor: pointer; transition: opacity .15s;
   }
   #addAccountModalOverlay .lm-mode-btn:hover { opacity: .7; }
@@ -2357,13 +2359,19 @@
     display: flex; align-items: center; gap: 12px;
     margin-left: auto;
   }
+  /* In a friend's view the header shows THEIR counts only: my TigerCoins, RFID
+     readers, scales, TigerSpool and Tiger Touch step aside (the app's own
+     network / update icons stay). */
+  body.is-friend-view #topCoins.top-coins,
+  body.is-friend-view #rfidReadersBar,
+  body.is-friend-view .top-status-icons .scale-health { display: none; }
   header.top h1 { margin: 0; font-size: 24px; letter-spacing: -.01em; display: flex; align-items: center; gap: 10px; }
   header.top h1 .dot { width: 12px; height: 12px; border-radius: 4px; background: linear-gradient(135deg, var(--primary), var(--primary-hi)); display: inline-block; }
   header.top .subtitle { color: var(--muted); font-size: 13px; margin-top: 2px; }
   .health { display: flex; align-items: center; cursor: default; position: relative; }
-  .health .icon { color: var(--neutral); transition: color .25s, filter .25s; }
-  .health.ok  .icon { color: var(--success); filter: drop-shadow(0 0 6px var(--success)); }
-  .health.bad .icon { color: var(--danger);  filter: drop-shadow(0 0 6px var(--danger)); }
+  .health .icon { color: var(--neutral-text); transition: color .25s, filter .25s; }
+  .health.ok  .icon { color: var(--success-text); filter: drop-shadow(0 0 6px var(--success)); }
+  .health.bad .icon { color: var(--danger-text);  filter: drop-shadow(0 0 6px var(--danger)); }
   /* header cloud icon: 2× the shared .icon-20 size */
   #health .icon { width: 40px; height: 40px; }
 
@@ -2454,7 +2462,7 @@
   .rfid-pod-row.card-present .rrd-dot { background: var(--surface); }
   .rfid-pod.disconnected .rfid-pod-row .rrd-dot { background: var(--danger); }
   .rfid-pod-row .rrd-name { overflow: hidden; text-overflow: ellipsis; }   /* full text — no fixed max-width */
-  .rfid-pod-uid { margin-left: auto; padding-left: 10px; font-family: ui-monospace, monospace; font-size: 10px; color: var(--success); letter-spacing: .03em; }
+  .rfid-pod-uid { margin-left: auto; padding-left: 10px; font-family: ui-monospace, monospace; font-size: 10px; color: var(--success-text); letter-spacing: .03em; }
 
   /* Unified header status tooltip — a state-coloured dot + the full text, same
      chrome/position/font as the TigerPod popup below. `--tip-dot` is set per
@@ -2932,10 +2940,11 @@
     background: rgba(255,180,91,.08);
   }
   .adp-byte-counter[data-byte-state="full"] {
-    color: var(--danger);
+    color: var(--danger-text);
     border-color: color-mix(in srgb, var(--danger) 45%, transparent);
     background: color-mix(in srgb, var(--danger) 10%, transparent);
   }
+  :root:not([data-theme="dark"]) .adp-byte-counter[data-byte-state="warn"] { color: var(--warning-text); }
   .adp-byte-counter-sep { opacity: .5; margin: 0 1px; }
   .adp-byte-counter-max { opacity: .65; }
 
@@ -3061,6 +3070,7 @@
      clipboard write. Tints the icon green to confirm without needing
      a toast. */
   .adp-rfid-section .adp-rfid-copy.copied { color: #4ade80; }
+  :root:not([data-theme="dark"]) .adp-rfid-section .adp-rfid-copy.copied { color: var(--success-text); }
 
   /* Add-product colour sheets — width syncs to the parent side panel
      so the two surfaces feel like one. Backdrop click closes them
@@ -3401,6 +3411,7 @@
     height: 26px;
   }
   .adp-brand-star.is-fav { color: #ffc400; }
+  :root:not([data-theme="dark"]) .adp-brand-star.is-fav { color: var(--favorite-text); }
   .adp-brand-star.is-fav:hover { background: rgba(255,196,0,.12); }
 
   /* Section divider between favourites and the rest of the list. */
@@ -3654,7 +3665,7 @@
     margin: 4px 0 0;
     padding: 8px 12px;
     background: color-mix(in srgb, var(--danger) 12%, transparent);
-    color: var(--danger);
+    color: var(--danger-text);
     border: 1px solid color-mix(in srgb, var(--danger) 25%, transparent);
     border-radius: 8px;
     font-size: 12px;
@@ -4069,7 +4080,7 @@
   position: absolute; top: 12px; left: 50%; translate: -50% 0; z-index: 2; white-space: nowrap; max-width: calc(100% - 100px);
   overflow: hidden; text-overflow: ellipsis; padding: 4px 11px; border-radius: 999px;
   font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
-  color: var(--primary); background: color-mix(in srgb, var(--surface) 85%, transparent);
+  color: var(--primary-text); background: color-mix(in srgb, var(--surface) 85%, transparent);
   border: 1px solid color-mix(in srgb, var(--primary) 40%, var(--border));
 }
 .eco-shot { position: relative; height: 160px; margin-top: 24px; }
@@ -4104,10 +4115,10 @@
 /* Name + promise (two lines max), live state (reserved, filled only once the
    device is there), three benefits on one line. */
 .eco-promise { min-height: 0; overflow: hidden; }
-.eco-name { margin: 0 0 8px; font-size: 12px; line-height: 16px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--primary); }
+.eco-name { margin: 0 0 8px; font-size: 12px; line-height: 16px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--primary-text); }
 .eco-promise h2 { margin: 0; font-size: 25px; line-height: 30px; max-height: 60px; overflow: hidden; font-weight: 800; letter-spacing: -.02em; color: var(--text); text-wrap: balance; }
 .eco-status { display: flex; align-items: center; justify-content: center; gap: 8px; min-width: 0; font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; }
-.eco-status b { color: var(--success); font-weight: 700; }
+.eco-status b { color: var(--success-text); font-weight: 700; }
 .eco-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--success);
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--success) 22%, transparent); }
 .eco-benefits { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; align-items: center; min-width: 0; width: 100%; }
@@ -4335,7 +4346,7 @@ body.anim-paused #ecoModalOverlay * { animation-play-state: paused; }
 .cem-chip-note {
   position: absolute; left: 8px; right: 8px; bottom: 8px;
   font-size: 11.5px; font-weight: 700; line-height: 1.2; text-align: center;
-  color: var(--warning);
+  color: var(--warning-text);
 }
 
 .cem-chip--none { opacity: .5; }
@@ -4359,8 +4370,8 @@ body.anim-paused #ecoModalOverlay * { animation-play-state: paused; }
 .cem-ow-warn .icon { background: var(--warning-hover); flex-shrink: 0; }
 .cem-ow-toggle { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; color: var(--text); cursor: pointer; }
 .cem-ow-toggle input { width: 16px; height: 16px; accent-color: var(--warning-hover); cursor: pointer; }
-.cem-hint--fail { color: var(--danger); font-weight: 600; }
-.cem-hint--warn { color: var(--warning); font-weight: 600; }
+.cem-hint--fail { color: var(--danger-text); font-weight: 600; }
+.cem-hint--warn { color: var(--warning-text); font-weight: 600; }
 .cem-actions { display: flex; gap: 10px; padding: 14px 22px 20px; }
 /* Hidden but still taking its space — the action row makes way for the
    progress bar during a write without resizing the window. */
@@ -4784,7 +4795,7 @@ body.anim-paused #ecoModalOverlay * { animation-play-state: paused; }
 }
 .attach-modal-field input:focus { outline: none; border-color: var(--primary); background: var(--primary-soft); }
 .attach-modal-hint { font-size: 12px; color: var(--muted); line-height: 1.4; }
-.attach-modal-err { font-size: 12.5px; color: var(--danger); font-weight: 600; }
+.attach-modal-err { font-size: 12.5px; color: var(--danger-text); font-weight: 600; }
 .attach-modal-err[hidden] { display: none; }
 .attach-modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 18px 16px; }
 
@@ -4857,7 +4868,7 @@ body.anim-paused #ecoModalOverlay * { animation-play-state: paused; }
     line-height: 1; cursor: pointer; user-select: none;
     transition: background .12s, color .12s;
   }
-  #cwModalOverlay .cw-step:hover  { background: var(--border); color: var(--primary); }
+  #cwModalOverlay .cw-step:hover  { background: var(--border); color: var(--primary-text); }
   #cwModalOverlay .cw-step:active { background: var(--primary-soft); }
   /* White value well between the two buttons — the wrapper keeps the outer frame,
      side rules separate the number from − / + without giving it its own box. */
@@ -5053,7 +5064,7 @@ body.anim-paused #ecoModalOverlay * { animation-play-state: paused; }
     font-size: 26px; font-weight: 800; font-family: var(--mono);
     letter-spacing: -.02em; color: var(--muted);
   }
-  #cwModalOverlay .cw-cmp-val--mine { color: var(--primary); }
+  #cwModalOverlay .cw-cmp-val--mine { color: var(--primary-text); }
   /* The arrow rides in a white disc, centred between the two columns. */
   #cwModalOverlay .cw-cmp-arrow {
     flex: none; align-self: center;
@@ -5067,7 +5078,7 @@ body.anim-paused #ecoModalOverlay * { animation-play-state: paused; }
     align-self: center;
     font-size: 9.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
     font-family: inherit;
-    color: var(--primary); background: var(--surface);
+    color: var(--primary-text); background: var(--surface);
     border: 1px solid var(--primary);
     padding: 3px 8px; border-radius: 999px;
   }
@@ -5112,7 +5123,7 @@ body.anim-paused #ecoModalOverlay * { animation-play-state: paused; }
 }
 /* No shield icon. The "drop here" hint shows ONLY while a file hovers. */
 #ttagImportOverlay .ttag-dropzone-title { display: none; font-size: 14px; color: var(--muted); }
-#ttagImportOverlay .ttag-dropzone.is-over .ttag-dropzone-title { display: block; color: var(--primary); }
+#ttagImportOverlay .ttag-dropzone.is-over .ttag-dropzone-title { display: block; color: var(--primary-text); }
 /* During a hover-drag the zone reads purely as a drop target — the source
    buttons, the web-link row and any staged chips step aside, leaving only the
    centred hint (even in the staged, top-anchored layout). */
@@ -5131,7 +5142,7 @@ body.anim-paused #ecoModalOverlay * { animation-play-state: paused; }
 
 #ttagImportOverlay .ttag-src-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 #ttagImportOverlay .ttag-src-actions .adf-btn { display: inline-flex; align-items: center; gap: 7px; padding: 9px 16px; }
-#ttagImportOverlay .ttag-src-actions .adf-btn.is-active { border-color: var(--primary); color: var(--primary); }
+#ttagImportOverlay .ttag-src-actions .adf-btn.is-active { border-color: var(--primary); color: var(--primary-text); }
 #ttagImportOverlay .ttag-src-actions .icon { background-color: currentColor; }
 
 /* Web-link row — space RESERVED from the start (visibility, not display), so
@@ -5169,7 +5180,7 @@ body.anim-paused #ecoModalOverlay * { animation-play-state: paused; }
 #ttagImportOverlay .ttag-mode--restore { border-color: color-mix(in srgb, var(--primary) 40%, transparent); color: var(--text); }
 #ttagImportOverlay .ttag-mode--mixed { border-color: color-mix(in srgb, var(--primary) 30%, var(--border)); color: var(--text); }
 #ttagImportOverlay .ttag-summary { font-size: 12px; color: var(--muted); padding: 0 2px; }
-#ttagImportOverlay .ttag-summary--warn { color: var(--danger); }
+#ttagImportOverlay .ttag-summary--warn { color: var(--danger-text); }
 #ttagImportOverlay .ttag-list { max-height: 46vh; overflow-y: auto; scrollbar-width: none; }
 #ttagImportOverlay .ttag-list::-webkit-scrollbar { width: 0; height: 0; display: none; }
 /* Frame the whole table like the inventory data table (outer grey border +
@@ -5220,7 +5231,7 @@ body.anim-paused #ecoModalOverlay * { animation-play-state: paused; }
 #ttagImportOverlay .ttag-prev-weight { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
 #ttagImportOverlay .ttag-prev-w-val { font-size: 12px; font-weight: 600; color: var(--text); white-space: nowrap; }
 #ttagImportOverlay .ttag-prev-weight .bar { width: 100%; margin-left: 0; margin-top: 0; }
-#ttagImportOverlay .ttag-error { font-size: 13px; color: var(--danger); line-height: 1.5; margin: 6px 2px; }
+#ttagImportOverlay .ttag-error { font-size: 13px; color: var(--danger-text); line-height: 1.5; margin: 6px 2px; }
 #ttagImportOverlay .ttag-success { font-size: 13.5px; color: var(--text); line-height: 1.5; margin: 10px 2px; text-align: center; }
 
 /* ── Full-window drag-drop hint (drop anywhere while the modal is closed) ──── */
@@ -5331,7 +5342,7 @@ body.ttag-dragging .ttag-drop-hint { display: flex; }
 #identityOverlay .idm-btn--change { padding: 0 12px; border: 1px solid color-mix(in srgb, var(--primary) 70%, transparent); color: var(--text); }
 #identityOverlay .idm-btn--change .icon { background: var(--text); }
 #identityOverlay .idm-btn--change:hover { background: color-mix(in srgb, var(--primary) 14%, transparent); }
-#identityOverlay .idm-btn--danger { color: var(--danger); } #identityOverlay .idm-btn--danger .icon { background: var(--danger); }
+#identityOverlay .idm-btn--danger { color: var(--danger-text); } #identityOverlay .idm-btn--danger .icon { background: var(--danger); }
 /* Remove photo: the trash icon alone, square, held 1.5 s (hold fill inside). */
 #identityOverlay .idm-btn--icon { position: relative; overflow: hidden; justify-content: center; width: 34px; padding: 0; border: 1px solid var(--border); }
 #identityOverlay .idm-btn--icon .icon { position: relative; z-index: 1; }
@@ -5391,7 +5402,7 @@ body.ttag-dragging .ttag-drop-hint { display: flex; }
 #identityOverlay .idm-mini-tiger-back { z-index: 0; }
 #identityOverlay .idm-mini-tiger-front { z-index: 2; }
 #identityOverlay .idm-mini-title { position: relative; z-index: 1; font: 800 20px/1 "Avenir Next Condensed", "Arial Narrow", "Roboto Condensed", system-ui, sans-serif; color: #fff; text-shadow: 0 2px 4px #000; letter-spacing: .02em; }
-#identityOverlay .idm-mini-orange { color: var(--primary); }
+#identityOverlay .idm-mini-orange { color: var(--primary-text); }
 #identityOverlay .idm-foot { display: flex; justify-content: flex-end; padding: 14px 24px; border-top: 1px solid var(--border); }
 #identityOverlay .idm-done { min-width: 104px; height: 36px; }
 /* The pen beside the name in My profile. */

@@ -30,7 +30,7 @@ import { artImg } from './art.js';
 import { openDialog, initDialogs } from './dialog.js';
 import { initTrophies, trophiesSignIn, trophiesSignOut, renderTrophiesView, trophyEarned } from './quests/trophies.js';
 import { initReferrals, referralsSignIn, referralsSignOut, renderInviteView, claimReferral, referralWantsCode, referralPrefill, referralStatus, wireCodeField, codeFieldMarkup, errText as referralErrText } from './quests/referrals.js';
-import { initQuests, questsSignIn, questsSignOut, questBump, questGauge, questPillLabel, questDailyProgress, questCurrentLevel, openQuests, renderQuestsView, questLootHtml, questFreezeStatus, questFriendFreeze, openFreezeFor, openFreezeGift } from './quests/index.js';
+import { initQuests, questsSignIn, questsSignOut, questBump, questGauge, questDailyProgress, questCurrentLevel, openQuests, renderQuestsView, questLootHtml, questFreezeStatus, questFriendFreeze, openFreezeFor, openFreezeGift } from './quests/index.js';
 
 // ── USB scale (Dymo M-series) module ──────────────────────────────────────
 import { initUsbScale, usbScaleRefreshDock } from './IoT/usbscale/index.js';
@@ -181,6 +181,108 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     if (appId) { try { return firebase.app(appId).storage(); } catch (_) {} }
     return firebase.storage();
   };
+  // ── Delta sync of the big per-account collections (inventory, products) ──
+  // A listener started cold (the app closed more than 30 min) is billed for
+  // every document again, however few changed: ~200 reads a launch for an
+  // average account. Instead the last copy is kept locally (Cache) and only the
+  // documents changed since are listened to: every write carries `syncAt` —
+  // stamped here on this app's own writes (client clock, so the local query
+  // sees them at once), and by the backend on any other writer's (mobile,
+  // scale, functions: statsOnInventoryWrite / statsOnProductWrite) or when a
+  // client clock is off. A COUNT checks the result once per launch (1 read):
+  // a mismatch (a hard delete, a lost cache) falls back to a full listen.
+  const SYNC_PATH = /^users\/[^/]+\/(inventory|products)\/[^/]+$/;
+  const SYNC_MARGIN_MS = 60 * 60e3;        // re-read the last hour before the last sync (client clock skew)
+  const SYNC_MAX_AGE_MS = 30 * 864e5;      // a copy older than this is re-read in full
+  (function _stampSyncedWrites() {
+    const fs = window.firebase?.firestore;
+    if (!fs?.DocumentReference) return;
+    const now = () => fs.Timestamp.now();
+    const withStamp = (ref, data) => (SYNC_PATH.test(ref?.path || "") && data && typeof data === "object" && !Array.isArray(data)
+      ? { ...data, syncAt: now() } : data);
+    // update(ref?, data) or update(ref?, "field", value, …): the stamp joins either form.
+    const updArgs = (ref, args) => (!SYNC_PATH.test(ref?.path || "") ? args
+      : typeof args[0] === "string" || args[0] instanceof fs.FieldPath ? [...args, "syncAt", now()] : [withStamp(ref, args[0]), ...args.slice(1)]);
+    const D = fs.DocumentReference.prototype, dSet = D.set, dUpd = D.update;
+    D.set = function (data, opts) { return dSet.call(this, withStamp(this, data), opts); };
+    D.update = function (...a) { return dUpd.apply(this, updArgs(this, a)); };
+    for (const C of [fs.WriteBatch, fs.Transaction]) {
+      const P = C?.prototype; if (!P) continue;
+      const pSet = P.set, pUpd = P.update;
+      P.set = function (ref, data, opts) { return pSet.call(this, ref, withStamp(ref, data), opts); };
+      P.update = function (ref, ...a) { return pUpd.call(this, ref, ...updArgs(ref, a)); };
+    }
+  })();
+  // Firestore Timestamps come back from the local JSON copy as { seconds,
+  // nanoseconds }: made Timestamps again, so a field copied into a write stays one.
+  function _reviveTimestamps(v) {
+    if (!v || typeof v !== "object") return v;
+    if (Array.isArray(v)) return v.map(_reviveTimestamps);
+    const k = Object.keys(v);
+    if (k.length === 2 && Number.isFinite(v.seconds) && Number.isFinite(v.nanoseconds)) return new firebase.firestore.Timestamp(v.seconds, v.nanoseconds);
+    const out = {};
+    for (const key of k) out[key] = _reviveTimestamps(v[key]);
+    return out;
+  }
+  // How many documents the server holds in users/{uid}/<name> (one REST COUNT
+  // aggregation, billed 1 read per 1,000) — null when unknown.
+  async function _serverCount(uid, name) {
+    try {
+      const app = firebase.app(uid), token = await app.auth().currentUser?.getIdToken();
+      if (!token) return null;
+      const res = await fetch(`https://firestore.googleapis.com/v1/projects/${app.options.projectId}/databases/(default)/documents/users/${uid}:runAggregationQuery`, {
+        method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ structuredAggregationQuery: { structuredQuery: { from: [{ collectionId: name }] }, aggregations: [{ alias: "n", count: {} }] } }),
+      });
+      const n = Number((await res.json())?.[0]?.result?.aggregateFields?.n?.integerValue);
+      return Number.isFinite(n) ? n : null;
+    } catch (_) { return null; }
+  }
+  // Listens to users/{uid}/<name>: in full, or — with a local copy (`base`,
+  // id → data) synced at `syncedAt` — only to what changed since. `onSnap`
+  // gets a snapshot-shaped object either way ({ metadata, size, docs, forEach,
+  // docChanges }), the whole collection; `onSynced(ms)` after each server
+  // snapshot (to keep the copy and its time). Returns the unsubscribe.
+  // The metadata changes are always listened to (the cache → server flip is
+  // what tells the copy is in step) but reach `onSnap` only with `metadata`.
+  function _listenSynced(uid, name, { base, syncedAt, onSnap, onError, onSynced, metadata = false }) {
+    const col = fbDb(uid).collection("users").doc(uid).collection(name);
+    let unsub = null, stopped = false, delivered = false;
+    const pass = snap => { const go = metadata || !delivered || snap.docChanges().length > 0; delivered = true; return go; };
+    const full = () => {
+      delivered = false;
+      unsub = col.onSnapshot({ includeMetadataChanges: true }, snap => {
+        if (pass(snap)) onSnap(snap);
+        if (!snap.metadata.fromCache && !snap.metadata.hasPendingWrites) onSynced?.(Date.now());
+      }, onError);
+    };
+    const fresh = base && Object.keys(base).length && syncedAt && Date.now() - syncedAt < SYNC_MAX_AGE_MS;
+    if (!fresh) { full(); return () => { stopped = true; unsub?.(); }; }
+    const docs = new Map(Object.entries(base).map(([id, d]) => [id, _reviveTimestamps(d)]));
+    const since = firebase.firestore.Timestamp.fromMillis(syncedAt - SYNC_MARGIN_MS);
+    let checked = false;
+    const view = (snap, changes) => {
+      const list = [...docs].map(([id, d]) => ({ id, data: () => d, exists: true }));
+      return { metadata: snap.metadata, size: list.length, docs: list, empty: !list.length,
+        forEach: fn => list.forEach(fn), docChanges: () => changes };
+    };
+    unsub = col.where("syncAt", ">", since).onSnapshot({ includeMetadataChanges: true }, snap => {
+      const changes = snap.docChanges();
+      // A document leaving the query was deleted (syncAt only moves forward).
+      for (const c of changes) if (c.type === "removed") docs.delete(c.doc.id); else docs.set(c.doc.id, c.doc.data());
+      if (pass(snap)) onSnap(view(snap, changes));
+      if (snap.metadata.fromCache || snap.metadata.hasPendingWrites) return;
+      onSynced?.(Date.now());
+      if (checked) return;
+      checked = true;
+      _serverCount(uid, name).then(n => {
+        if (stopped || n == null || n === docs.size) return;
+        console.warn(`[sync] ${name}: ${docs.size} kept, ${n} on the server — full re-read`);
+        unsub?.(); full();
+      });
+    }, onError);
+    return () => { stopped = true; unsub?.(); };
+  }
   let _unsubInventory  = null; // active Firestore onSnapshot unsubscribe handle
   let _sliderDebounce  = null; // pending auto-save timer for weight slider
   // A scanned spool to auto-open in the detail card as soon as it appears in the
@@ -503,6 +605,8 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   function _applyThemeColor() {
     const c = _themeColorHex();
     const root = document.documentElement.style;
+    // The tint is always a dark navy mix: the header banner then reads in the dark token set (00-base.css).
+    document.documentElement.classList.toggle("has-theme-tint", !!c);
     if (!c) { root.removeProperty("--hero-wall"); root.removeProperty("--theme-tint"); return; }
     const mix = pct => `color-mix(in srgb, ${c} ${pct}%, #0f1830)`;
     // ONE tone everywhere: the header glow is the banners' own wall, so the
@@ -627,6 +731,11 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       // painted at launch before the data arrives (renderStats, _paintDealsBadge).
       header:     uid => `tigertag.header.${uid}`,
       coinlog:    uid => `tigertag.coinlog.${uid}`,    // the TigerCoins history last read (100 newest)
+      // Delta sync (_listenSynced): when the inventory / products copies were last
+      // in step with the server { at: ms }, and the products copy itself (id → data).
+      invSync:    uid => `tigertag.invSync.${uid}`,
+      products:   uid => `tigertag.products.${uid}`,
+      prodSync:   uid => `tigertag.prodSync.${uid}`,
     },
     read(surface, uid) {
       const k = uid && this._key[surface];
@@ -4412,7 +4521,10 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       _syncOnbReferral();
       // "+3" on the Tiger Squad Invite button while nobody joined with this account's link yet.
       const st = referralStatus(), badge = $("viewInviteBadge");
-      if (badge) { badge.textContent = `+${st?.cfg?.envelopes || 3}`; badge.hidden = !st?.cfg?.active || !!st?.invitees?.length; }
+      if (badge) {
+        badge.textContent = `+${st?.cfg?.envelopes || 3}`; badge.hidden = !st?.cfg?.active || !!st?.invitees?.length;
+        if (st) _barCachePatch({ invite: badge.hidden ? 0 : st.cfg?.envelopes || 3 });
+      }
     },
   });
   // Tiger Quests — counters, daily check-in, the Quests window (quests/index.js).
@@ -5153,9 +5265,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     fbDb(uid).collection("users").doc(uid).set({ [c.seen]: true }, { merge: true }).catch(() => {});
     const cached = Cache.read("userdoc", uid);
     if (cached) Cache.write("userdoc", uid, { ...cached, [c.seen]: true });
-    fbDb(uid).collection("users").doc(uid).collection("telemetry").doc("studio")
-      .set({ [c.clickedAt]: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true })
-      .catch(() => {});
+    _recordUsage({ [c.clickedAt]: firebase.firestore.FieldValue.serverTimestamp() });
   }
   // Clicking the notification → open the link AND mark it done.
   function _openCommunityLink(k) {
@@ -5253,7 +5363,11 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       if (uid !== state.activeAccountId) return;
       const tier = ps.exists ? (ps.get("tigerSquad")?.tier || null) : null;
       const pubXp = ps.exists ? (ps.get("tigerSquad")?.xp ?? null) : null;
-      if (pubXp !== state.squadXpPublic) { state.squadXpPublic = pubXp; _squadRankCache = null; _renderSquadXp(); }
+      if (pubXp !== state.squadXpPublic) {
+        state.squadXpPublic = pubXp; _squadRankCache = null;
+        if (_squadBoardCache) _squadBoardCache.at = 0;   // my XP moved: the board's next open reloads
+        _renderSquadXp();
+      }
       if (ps.metadata?.fromCache === false) _checkSquadLevelUp(uid, tier);   // server truth only
       if (tier === state.squadTier) return;
       state.squadTier = tier;
@@ -5320,28 +5434,53 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   let _squadCountCache = null;   // { n, at } — the TigerSquad head count (_squadMemberCount)
   let _squadRankCache = null;   // { xp, rank, total, at } — the member's world rank (_squadRank)
   // View bar, after the Printers group: Tiger Quests (today · journey, icons with a
-  // progress line under each, the figures in the hover name) and TigerSquad.
+  // progress line under each) and TigerSquad. The hover name is the view's name
+  // only — never a figure (the bar shows the progress).
   const _setBar = (el, pct, label) => {
     if (!el) return;
     const w = `${Math.round(pct)}%`, bar = el.querySelector(".vtg-btn-bar i");
     if (bar && bar.style.width !== w) bar.style.width = w;
     el.setAttribute("aria-label", label);
   };
+  // ── The view bar's last known state (header cache `.bar`) ──
+  // Every entry of the view bar shows at once with the figures of the last
+  // session, then updates when the live data lands — nothing pops in late.
+  // Own account only (a friend's view never writes it).
+  function _barCache() {
+    const uid = state.activeAccountId;
+    return uid && !state.friendView ? (Cache.read("header", uid)?.bar || {}) : null;
+  }
+  function _barCachePatch(patch) {
+    const uid = state.activeAccountId;
+    if (!uid || state.friendView) return;
+    const was = Cache.read("header", uid) || {}, bar = { ...(was.bar || {}), ...patch };
+    if (JSON.stringify(bar) !== JSON.stringify(was.bar || {})) Cache.write("header", uid, { ...was, bar });
+  }
   function _renderProgressChips(p = questDailyProgress()) {
     const own = !state.friendView && !!state.activeAccountId;
-    const lv = questCurrentLevel();
+    let lv = questCurrentLevel();
+    // Not read yet this session: the last known figures stand in (a new day starts at 0).
+    const bar = own ? _barCache() : null;
+    if (own) {
+      const today = new Date().toDateString();
+      if (p) _barCachePatch({ daily: { day: today, done: p.done, total: p.total, complete: !!p.complete } });
+      else if (bar?.daily) p = bar.daily.day === today ? bar.daily : { done: 0, total: bar.daily.total, complete: false };
+      if (lv) _barCachePatch({ level: { name: lv.name, done: lv.done, total: lv.total } });
+      else if (bar?.level) lv = bar.level;
+      if (typeof state.xpPoints === "number") _barCachePatch({ squad: true });
+    }
     const qWrap = $("vtgQuests");
     if (qWrap) qWrap.hidden = !own || (!p && !lv);
     const qWasHidden = qWrap?.dataset.shown !== "1";
     const daily = $("vtgDaily");
     if (daily) {
       daily.hidden = !p;
-      if (p) { daily.classList.toggle("is-done", p.complete); _setBar(daily, p.done / p.total * 100, questPillLabel()); }
+      if (p) { daily.classList.toggle("is-done", p.complete); _setBar(daily, p.done / p.total * 100, t("questsDailyHeading")); }
     }
     const level = $("vtgLevel");
     if (level) {
       level.hidden = !lv;
-      if (lv) _setBar(level, lv.done / lv.total * 100, `${lv.name} · ${t("questsProgress", { n: lv.done, total: lv.total })}`);
+      if (lv) _setBar(level, lv.done / lv.total * 100, t("questsJourney"));
     }
     if (qWrap && !qWrap.hidden && qWasHidden) { qWrap.dataset.shown = "1"; requestAnimationFrame(() => _positionViewIndicators(true)); }
     // TigerSquad group: Rankings · Items · History. Items carries the progress to the
@@ -5356,7 +5495,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     if (sWrap) {
       // A friend's view keeps the group with Rankings and Trophies, seen as the friend
       // sees them (their board, their sticker album); Items and History are about your own account.
-      const hide = state.friendView ? false : (!own || typeof state.xpPoints !== "number");
+      const hide = state.friendView ? false : (!own || (typeof state.xpPoints !== "number" && !bar?.squad));
       if ($("vtgSquadItems")) $("vtgSquadItems").hidden = !!state.friendView;
       if ($("vtgSquadHist")) $("vtgSquadHist").hidden = !!state.friendView;
       if ($("vtgSquadTrophies")) $("vtgSquadTrophies").hidden = false;
@@ -5407,7 +5546,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     const p = questDailyProgress(), left = p ? p.total - p.done : 0;
     const qb = $("questsBadge");
     if (qb) { qb.textContent = String(left); qb.classList.toggle("hidden", !left); }
-    $("btnOpenQuests")?.setAttribute("aria-label", questPillLabel());
+    $("btnOpenQuests")?.setAttribute("aria-label", t("questsTitle"));   // a name, not a figure
     _renderProgressChips(p);
   }
   function renderSupporterBadge() {
@@ -5690,7 +5829,21 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   const SQUAD_DEAL_URL = "https://us-central1-tigertag-connect.cloudfunctions.net/squadDeal";
   // TigerCoins — balance, envelopes to open, opening (functions/tigerCoins.js).
   const TIGER_COINS_URL = "https://us-central1-tigertag-connect.cloudfunctions.net/tigerCoins";
-  async function _tigerCoins(uid, action, extra = {}) {
+  // `status` is asked from many places (header, Deals, Items, bell…): one call in
+  // flight per account, its answer reused for STATUS_TTL_MS. Any other action
+  // changes the pile, so it drops the reused answer.
+  const _coinStatus = new Map();   // uid → { at, promise }
+  const STATUS_TTL_MS = 30e3;
+  function _tigerCoins(uid, action, extra = {}) {
+    if (action !== "status") { _coinStatus.delete(uid); return _tigerCoinsCall(uid, action, extra); }
+    const hit = _coinStatus.get(uid);
+    if (hit && Date.now() - hit.at < STATUS_TTL_MS) return hit.promise;
+    const promise = _tigerCoinsCall(uid, action, extra);
+    _coinStatus.set(uid, { at: Date.now(), promise });
+    promise.catch(() => { if (_coinStatus.get(uid)?.promise === promise) _coinStatus.delete(uid); });
+    return promise;
+  }
+  async function _tigerCoinsCall(uid, action, extra) {
     const user = fbAuth(uid).currentUser;
     const res = await fetch(TIGER_COINS_URL, { method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${await user.getIdToken()}` },
@@ -5872,6 +6025,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         body: JSON.stringify({ action, dealId }) });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP_${res.status}`);
       _deals.at = 0;   // reload: the claim (code / used), the pool counters and the coins changed
+      _coinStatus.delete(uid);
       await _renderDealsView();
     }, onExpire: () => { host._sqdSig = null; _renderDealsView(); },   // time-based: same data, a different view
     // The partner's site opened from a deal: counted server-side (raw total), never awaited.
@@ -6000,11 +6154,12 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   }
   // Community pulse for the Rankings view: the public totals the TigerHub page
   // reads (publicStats/community, recomputed by the communityStats function
-  // every minute). The totals are FOLLOWED live (onSnapshot) while the view is
+  // every minute: a full count every 10 min, in the same run as the leagues'
+  // boards, plus the live counters in between). The totals are FOLLOWED live (onSnapshot) while the view is
   // open — each new value lands as soon as the backend writes it, like the
   // TigerHub page's 20 s poll but without reads in between; the daily history
-  // (the sparklines) is read when the view opens, at most once a minute.
-  const _squadPulse = { at: 0, pulse: undefined, history: [], ranks: null, unsub: null, onChange: null };
+  // (the sparklines) is read when the view opens, once a day (30 min at most).
+  const _squadPulse = { at: 0, day: "", pulse: undefined, history: [], unsub: null, onChange: null };
   async function _loadSquadPulse(uid) {
     const ref = fbDb(uid).collection("publicStats").doc("community");
     if (!_squadPulse.unsub) {
@@ -6016,17 +6171,19 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         first = false;
       }, e => { console.warn("[squad] community pulse:", e.code || e.message); _squadPulse.pulse = null; });
     }
-    if (Date.now() - _squadPulse.at < 60e3) return;
-    _squadPulse.at = Date.now();
+    // The history moves once a day: re-read when the day changed, else at most
+    // every 30 min (90 documents a time). The live totals
+    // come from the listener above; read once only while it has not answered.
+    const day = new Date().toDateString();
+    if (_squadPulse.day === day && Date.now() - _squadPulse.at < 30 * 60e3) return;
+    _squadPulse.at = Date.now(); _squadPulse.day = day;
     try {
-      const [doc, hist, ranks] = await Promise.all([ref.get(), ref.collection("history").orderBy("day", "desc").limit(90).get(),
-        // The leagues' ranks at the start of the day (server-written) — the up / down arrows.
-        fbDb(uid).collection("squadRanks").doc("current").get().catch(() => null)]);
-      const d = doc.data();
-      _squadPulse.pulse = d ? { ...d, updatedAt: d.updatedAt?.toMillis?.() || null } : null;
+      const [doc, hist] = await Promise.all([_squadPulse.pulse === undefined ? ref.get() : null,
+        ref.collection("history").orderBy("day", "desc").limit(90).get()]);
+      const d = doc?.data();
+      if (doc) _squadPulse.pulse = d ? { ...d, updatedAt: d.updatedAt?.toMillis?.() || null } : null;
       _squadPulse.history = hist.docs.map(x => x.data()).reverse();
-      _squadPulse.ranks = ranks?.data() || null;
-    } catch (e) { console.warn("[squad] community pulse:", e.code || e.message); _squadPulse.pulse = null; }
+    } catch (e) { console.warn("[squad] community pulse:", e.code || e.message); _squadPulse.at = 0; if (_squadPulse.pulse === undefined) _squadPulse.pulse = null; }
   }
   try { localStorage.removeItem("tigertag.squadRanks"); } catch (_) {}   // the old local baseline (the server keeps it now)
   function _stopSquadPulse() {
@@ -6067,7 +6224,6 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       uid, t, esc, fmt, cname, flagOf: _flagOf, myCountry, lang: state.lang,
       // A friend's view: their rankings, never your XP nor a "Join" button on their card.
       friend: uid !== state.activeAccountId, squadXp: uid === state.activeAccountId ? state.xpPoints : null,
-      rankBase: _squadPulse.ranks,
       tierLabel: squadTierLabel, brandLabel: b => _PT_BRAND_LABEL[b] || b,
       avatar: m => userAvatar({ ...m.profile, uid: m.uid, tigerSquad: true, squadTier: m.tier }, "sqb-avatar"),
       memberColor: m => profileColor(m.profile),   // the maker's theme colour, tints their league row
@@ -6130,10 +6286,12 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         <button type="button" class="sqb-wall" data-act="wall">${esc(t("squadLevelsWall"))}</button>
       </div>`;
     // Last load reused at once (the window opens full), refreshed underneath.
-    if (_squadBoardCache && _squadBoardCache.uid !== uid) _squadBoardCache = null;
-    let members = _squadBoardCache?.members || [];
+    if (_squadBoardCache && (_squadBoardCache.uid !== uid || _squadBoardCache.viewer !== viewer)) _squadBoardCache = null;
+    // The leagues as the server builds them (functions/squadBoard.js): the tops,
+    // the countries and the viewer's own ranks — a few documents, never the members.
+    let board = _squadBoardCache?.board || _SQUAD_BOARD_EMPTY;
     let loading = !_squadBoardCache;
-    const myCountry = () => members.find(m => m.uid === viewer)?.country || (viewer === uid ? state.squadCountry : null) || null;
+    const myCountry = () => board.me?.country || (viewer === uid ? state.squadCountry : null) || null;
     let mine = _squadBoardCache?.mine || null;   // { breakdown, unlocked, history[] } — loaded with the board
     // Skeleton rows while the first load runs: the window has its final shape at
     // once instead of popping open when the data lands.
@@ -6160,12 +6318,12 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
               // The next squad level rides in the banner's right card, like the other heroes' cards.
               mine ? _squadNextLevelHTML(mine.breakdown, fmt).trim().replace(/^<li/, "<div").replace(/<\/li>$/, "</div>") : "",
               eggFound)
-          : squadHeroHtml(rctx, members, eggFound);
+          : squadHeroHtml(rctx, board, eggFound);
         const rk = card.querySelector(".sqr-host"), ranked = which === "countries", legendary = which === "ach";
         rk.hidden = !(ranked || legendary); card.querySelector(".sqb-cols").hidden = ranked || legendary;
         card.querySelector(".sqb-wall").hidden = !ranked;   // the wall-of-fame link: League only, not the Workshop
         if (ranked) {
-          rk.innerHTML = squadRankingsHtml(rctx, { members, loading, pulse: _squadPulse.pulse, history: _squadPulse.history });
+          rk.innerHTML = squadRankingsHtml(rctx, { board, loading, pulse: _squadPulse.pulse, history: _squadPulse.history });
           _rollPulse(rk, fmt);
           // A new total from the backend swaps the pulse strip only, then rolls.
           _squadPulse.onChange = () => {
@@ -6191,9 +6349,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       if (own) { _renderMyXp(list, you, mine, fmt, which); return; }
       const medal = i => i < 3 ? ` sqb-medal-${i + 1}` : "";
       if (which === "countries") {
-        const by = new Map();
-        for (const m of members) if (m.country) { const c = by.get(m.country) || { cc: m.country, xp: 0, n: 0 }; c.xp += m.xp; c.n++; by.set(m.country, c); }
-        const rows = [...by.values()].sort((a, b) => b.xp - a.xp || b.n - a.n);
+        const rows = board.countries;
         const mine = myCountry(), idx = rows.findIndex(r => r.cc === mine);
         you.hidden = idx < 0;
         if (idx >= 0) you.textContent = t("squadBoardYourCountry", { flag: `${_flagOf(mine)} ${cname(mine)}`, rank: idx + 1, total: rows.length });
@@ -6270,30 +6426,77 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     }
     render(tab);
     if (host) _loadSquadPulse(uid).then(() => { if (card.isConnected) render(card.querySelector(".sqb-tab.is-on")?.dataset.tab || tab); });
-    try {
-      const snap = await fbDb(uid).collection("userProfiles").orderBy("tigerSquad.since").get();
-      members = snap.docs.map(d => {
-        const p = d.data() || {}, sq = p.tigerSquad || {};
-        const tier = SQUAD_TIERS.includes(sq.tier) ? sq.tier : "gold";
-        return { uid: d.id, name: p.displayName || "—", profile: p, tier, xp: Number(sq.xp) || 0,
-                 country: /^[A-Z]{2}$/.test(sq.country || "") ? sq.country : null };
-      });
-    } catch (_) { members = []; }
+    // The last load is under SQUAD_BOARD_FRESH_MS old (a friend's board, a rebuilt
+    // view): shown as is — every member's profile is one read each.
+    if (!loading && Date.now() - (_squadBoardCache?.at || 0) < SQUAD_BOARD_FRESH_MS) return;
+    try { board = await _loadSquadBoard(uid, viewer); } catch (e) { console.warn("[squad] board:", e.code || e.message); if (loading) board = _SQUAD_BOARD_EMPTY; }
     // My XP: the server's split (users/{uid}.xpBreakdown / xpUnlocked) + the
     // latest gains and losses (users/{uid}/xpHistory, server-written).
     try {
       const me = fbDb(uid).collection("users").doc(uid);
-      const [doc, hist] = await Promise.all([me.get(), me.collection("xpHistory").orderBy("at", "desc").limit(60).get()]);
+      const [doc, hist] = await Promise.all([me.get(), me.collection("xpHistory").orderBy("at", "desc").limit(20).get()]);
       const d = doc.data() || {};
       mine = { breakdown: d.xpBreakdown || {}, unlocked: d.xpUnlocked || {}, total: d.xpPoints || 0,
                history: hist.docs.map(h => h.data()) };
     } catch (_) { mine = { breakdown: {}, unlocked: {}, total: state.xpPoints || 0, history: [] }; }
     loading = false;
     if (loader) { loader.remove(); card.hidden = false; }
-    _squadBoardCache = { uid, members, mine };
+    _squadBoardCache = { uid, viewer, board, mine, at: Date.now() };
     if (card.isConnected) render(card.querySelector(".sqb-tab.is-on")?.dataset.tab || tab);
   }
-  let _squadBoardCache = null;   // { uid, members, mine } — last rankings load (instant reopen)
+  let _squadBoardCache = null;   // { uid, viewer, board, mine, at } — last rankings load (instant reopen)
+  // board = { world: [member], nat: [member], countries: [{ cc, xp, n, base }],
+  //   me: member + { worldRank, natRank } | null, rival: { world, nat } (member | null,
+  //   undefined = not known) }; member = { uid, name, profile, tier, xp, country, bw, bn }.
+  const _SQUAD_BOARD_EMPTY = { world: [], nat: [], countries: [], me: null, rival: {} };
+  // A league member from a board row or a public profile (the avatar reads `profile`).
+  function _squadMemberOf(uid, r) {
+    const sq = r.tigerSquad || r;
+    const name = r.displayName ?? r.name ?? "";
+    return { uid, name: _shortName(name), profile: { displayName: name, color: r.color, customColor: r.customColor, photoURL: r.photoURL || null },
+      tier: SQUAD_TIERS.includes(sq.tier) ? sq.tier : "gold", xp: Number(sq.xp) || 0,
+      country: /^[A-Z]{2}$/.test(sq.country || "") ? sq.country : null, bw: r.bw || 0, bn: r.bn || 0 };
+  }
+  // The rank a member held 7 days ago from their nightly file (squadRank/{uid}.days):
+  // the oldest kept day at most 7 days old — the same pick as the server's.
+  function _squadRankBase(days) {
+    const day = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Paris" });
+    const weekAgo = new Date(Date.parse(`${day}T12:00:00Z`) - 7 * 864e5).toISOString().slice(0, 10);
+    const d = Object.keys(days || {}).filter(k => k >= weekAgo && k < day).sort()[0];
+    return d ? days[d] : null;
+  }
+  // The leagues for `viewer` (you, or the friend whose view is open): the world
+  // top, the countries, the viewer's country top, the viewer's profile + nightly
+  // ranks, and — when they rank below a top — the nearest member above them.
+  // About 6 reads, whatever the number of members.
+  async function _loadSquadBoard(uid, viewer) {
+    const db = fbDb(uid), boards = db.collection("squadBoard");
+    const [w, c, prof, rk] = await Promise.all([boards.doc("world").get(), boards.doc("countries").get(),
+      db.collection("userProfiles").doc(viewer).get(), db.collection("squadRank").doc(viewer).get().catch(() => null)]);
+    const world = (w.data()?.rows || []).map(r => _squadMemberOf(r.uid, r));
+    const countries = c.data()?.rows || [];
+    const p = prof.data() || {}, ranked = typeof p.tigerSquad?.xp === "number";
+    const filed = rk?.data() || null;
+    let me = ranked ? _squadMemberOf(viewer, p) : null;
+    const cc = me?.country || (viewer === uid ? state.squadCountry : null) || null;
+    const nat = cc ? ((await boards.doc(`nat_${cc}`).get()).data()?.rows || []).map(r => _squadMemberOf(r.uid, r)) : [];
+    const rival = {};
+    if (me) {
+      const base = _squadRankBase(filed?.days);
+      const wi = world.findIndex(m => m.uid === viewer), ni = nat.findIndex(m => m.uid === viewer);
+      me = { ...me, bw: base?.[0] || 0, bn: base?.[1] || 0,
+        worldRank: wi >= 0 ? wi + 1 : filed?.world || 0,
+        natRank: !me.country ? 0 : ni >= 0 ? ni + 1 : filed?.nat || 0 };
+      // Below a top: the nearest member with MORE XP (one read each).
+      const above = q => q.where("tigerSquad.xp", ">", me.xp).orderBy("tigerSquad.xp").limit(1).get()
+        .then(s => s.empty ? null : _squadMemberOf(s.docs[0].id, s.docs[0].data())).catch(() => undefined);
+      const profiles = db.collection("userProfiles");
+      [rival.world, rival.nat] = await Promise.all([wi < 0 ? above(profiles) : null,
+        me.country && ni < 0 ? above(profiles.where("tigerSquad.country", "==", me.country)) : null]);
+    }
+    return { world, nat, countries, me, rival };
+  }
+  const SQUAD_BOARD_FRESH_MS = 120e3;
   // The achievements the server counts (functions/supportWebhooks.js ACH_XP) —
   // `per` = XP per item (lost when removed), `once` = a discovery kept for good.
   const SQUAD_XP = 150;   // the TigerSquad's XP part (backend SQUAD_BONUS)
@@ -6503,45 +6706,30 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     document.body.append(bd, card);
     card.querySelector(".tsq-join")?.focus();
   }
-  // How many accounts are in the TigerSquad — a COUNT aggregation over
-  // userProfiles (public read) through Firestore REST: ordering on
-  // tigerSquad.since also filters to the profiles that have it. Cached 10 min.
-  // The member's world rank: 1 + how many members have MORE published XP
-  // (COUNT over userProfiles where tigerSquad.xp > mine), out of all members.
-  // Uses the PUBLISHED xp on both sides so it matches the Hub's ranking.
+  // The member's world rank: live from the world top when the last board load
+  // has them in it, else the nightly one (squadRank/{uid}, functions/squadBoard.js)
+  // — one read, never a count over the members. Cached 10 min.
   async function _squadRank() {
-    const xp = state.squadXpPublic;
+    const xp = state.squadXpPublic, uid = state.activeAccountId;
     if (!_ownSquadTier() || typeof xp !== "number") return null;
     if (_squadRankCache && _squadRankCache.xp === xp && Date.now() - _squadRankCache.at < 600000) return _squadRankCache;
     try {
-      const project = firebase.app(state.activeAccountId).options.projectId;
-      const res = await fetch(`https://firestore.googleapis.com/v1/projects/${project}/databases/(default)/documents:runAggregationQuery`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ structuredAggregationQuery: {
-          structuredQuery: { from: [{ collectionId: "userProfiles" }],
-            where: { fieldFilter: { field: { fieldPath: "tigerSquad.xp" }, op: "GREATER_THAN", value: { integerValue: String(xp) } } } },
-          aggregations: [{ alias: "n", count: {} }],
-        } }),
-      });
-      const above = Number((await res.json())?.[0]?.result?.aggregateFields?.n?.integerValue);
+      const top = _squadBoardCache?.uid === uid ? _squadBoardCache.board.world.findIndex(m => m.uid === uid) : -1;
+      const rank = top >= 0 ? top + 1 : (await fbDb(uid).collection("squadRank").doc(uid).get()).data()?.world;
       const total = await _squadMemberCount();
-      if (!Number.isFinite(above) || !Number.isFinite(total)) return null;
-      _squadRankCache = { xp, rank: above + 1, total: Math.max(total, above + 1), at: Date.now() };
+      if (!(rank >= 1) || !Number.isFinite(total)) return null;
+      _squadRankCache = { xp, rank, total: Math.max(total, rank), at: Date.now() };
       return _squadRankCache;
     } catch (_) { return null; }
   }
+  // How many accounts are in the TigerSquad: publicStats/community.members.count
+  // (communityStats, every minute) — the pulse listener's copy when it runs, else
+  // one read. Cached 10 min.
   async function _squadMemberCount() {
     if (_squadCountCache && Date.now() - _squadCountCache.at < 600000) return _squadCountCache.n;
     try {
-      const project = firebase.app(state.activeAccountId).options.projectId;
-      const res = await fetch(`https://firestore.googleapis.com/v1/projects/${project}/databases/(default)/documents:runAggregationQuery`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ structuredAggregationQuery: {
-          structuredQuery: { from: [{ collectionId: "userProfiles" }], orderBy: [{ field: { fieldPath: "tigerSquad.since" }, direction: "ASCENDING" }] },
-          aggregations: [{ alias: "n", count: {} }],
-        } }),
-      });
-      const n = Number((await res.json())?.[0]?.result?.aggregateFields?.n?.integerValue);
+      const n = Number(_squadPulse.pulse?.members?.count
+        ?? (await fbDb(state.activeAccountId).collection("publicStats").doc("community").get()).data()?.members?.count);
       if (Number.isFinite(n)) _squadCountCache = { n, at: Date.now() };
       return n;
     } catch (_) { return NaN; }
@@ -7369,9 +7557,12 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   function activeAccount() { const id = getActiveId(); return getAccounts().find(a => a.id === id) || null; }
 
   /* ── persistence ── */
+  // `_invCopyOk`: the last copy was written (a full localStorage refuses it) —
+  // the delta sync only trusts a copy that was.
+  let _invCopyOk = false;
   function saveInventory(raw) {
     if (!state.activeAccountId) return;
-    try { localStorage.setItem(invKey(state.activeAccountId), JSON.stringify(raw)); } catch {}
+    try { localStorage.setItem(invKey(state.activeAccountId), JSON.stringify(raw)); _invCopyOk = true; } catch { _invCopyOk = false; }
   }
 
   /* ── forced migration: wipe pre-Firebase accounts (those that have apiKey field) ── */
@@ -8100,10 +8291,12 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     // clears invLoading early (cache already painted), so we need an
     // explicit flag — reset on every (re)subscribe (e.g. account switch).
     let _firstSnapDone = false;
-    _unsubInventory = fbDb()
-      .collection("users").doc(uid)
-      .collection("inventory")
-      .onSnapshot({ includeMetadataChanges: true }, snapshot => {
+    // Only what changed since the last launch is read (_listenSynced); the local
+    // copy is the one saveInventory keeps, its time `invSync`.
+    _unsubInventory = _listenSynced(uid, "inventory", {
+      base: Cache.read("inventory", uid), syncedAt: Cache.read("invSync", uid)?.at, metadata: true,
+      onSynced: at => { if (uid !== state.activeAccountId) return; if (_invCopyOk) Cache.write("invSync", uid, { at }); else Cache.clear("invSync", uid); },
+      onSnap: snapshot => {
         // ── Defense-in-depth — ignore any owner-inventory snapshot that
         // arrives WHILE we're previewing a friend's inventory. Without this
         // guard, a snapshot buffered before the user clicked a friend chip
@@ -8113,7 +8306,20 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         // protection is unsubscribing in switchToFriendView, but Firestore
         // can deliver one last in-flight callback before the unsub takes
         // effect, hence this belt-and-braces check.
-        if (state.friendView) return;
+        // The listener itself stays alive during the visit (re-listening would
+        // re-read the whole inventory on the way back): its snapshots go to the
+        // own-data stash that switchBackToOwnView restores.
+        if (state.friendView) {
+          if (uid === state.activeAccountId && _ownStash?.uid === uid && (snapshot.docChanges().length || !_ownStash.inventory)) {
+            const raw = {};
+            snapshot.forEach(doc => { raw[doc.id] = doc.data(); });
+            _ownStash.inventory = raw;
+            _ownStash.rows = snapshot.docs.map(doc => normalizeRow(doc.id, doc.data()));
+            _markTwinPairs(_ownStash.rows);
+            saveInventory(raw);
+          }
+          return;
+        }
         // ── Account-identity guard. After an account switch Firestore can still
         // deliver ONE buffered callback from the PREVIOUS account's listener
         // (the unsub hasn't propagated yet). Its closure `uid` no longer matches
@@ -8279,12 +8485,13 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
           scheduleStudioStateRecord();
         });
         setLoading($("btnSbReload"), false);
-      }, err => {
+      },
+      onError: err => {
         console.error("[Firestore] onSnapshot error:", err.code, err.message);
         state.invLoading = false;
         setHealthOffline();
         setLoading($("btnSbReload"), false);
-      });
+      } });
   }
   function unsubscribeInventory() {
     if (_unsubInventory) { _unsubInventory(); _unsubInventory = null; }
@@ -8425,6 +8632,11 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     // by _paintDealsBadge), the server's read once the app has settled.
     const cached = Cache.read("header", uid)?.coins || null;
     _paintDealsBadge(cached?.n || 0, cached?.balance != null ? { balance: cached.balance } : null);
+    // The rest of the view bar from the last session too: the quests and squad
+    // groups, the lists and cart counts — then each updates when its data lands.
+    _renderProgressChips(); _updateListsBadge(); _updateCartBadge();
+    { const inv = _barCache()?.invite, badge = $("viewInviteBadge");
+      if (badge && inv) { badge.textContent = `+${inv}`; badge.hidden = false; } }
     setTimeout(() => { if (uid === state.activeAccountId) _refreshTopCoins(uid); }, 6000);
     loadBlacklist();    // populate state.blacklist for the Friends panel
     subscribeRacks(uid);// live-sync the user's storage racks
@@ -8738,6 +8950,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     accounts = accounts.filter(a => a.id !== id);
     saveAccounts(accounts);
     localStorage.removeItem(invKey(id));
+    for (const k of ["invSync", "products", "prodSync"]) Cache.clear(k, id);
     _namedAuthSetup.delete(id);
     // Sign out the named instance so its IndexedDB session is cleared
     try { firebase.app(id).auth().signOut(); } catch (_) {}
@@ -8813,6 +9026,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     };
     _statTweens[key] = requestAnimationFrame(step);
   }
+  const FRIEND_HIDDEN_STATS = new Set(["kg", "value"]);
   function renderStats() {
     const all = deduplicateTwins(state.rows.slice()); const active = all.filter(r => !r.deleted);
     const plus  = active.filter(r => r.isPlus);
@@ -8872,7 +9086,8 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       { key: "cloudplus", label: '<span class="tag-cloud tag-cloud-plus">TigerData+</span>', mini: t("statCloudPlusMini"), num: cloudPlus.length, fmt: intFmt, filter: "TigerData+", cloud: true },
       { key: "diy",    label: '<span class="tag-diy">TigerTag</span>',        mini: t("statDiyMini"),   num: diy,          fmt: intFmt, filter: "TigerTag" },
       { key: "plus",   label: '<span class="tag-plus">TigerTag+</span>',      mini: t("statPlusMini"),  num: plus.length,  fmt: intFmt, filter: "TigerTag+" },
-    ];
+    // A friend's stock weight and money value are theirs alone: their counts only.
+    ].filter(c => !state.friendView || !FRIEND_HIDDEN_STATS.has(c.key));
     if (fromCache) cards.forEach(c => { if (typeof cachedStats[c.key] === "number") c.num = cachedStats[c.key]; });
     else {
       // The value needs the prices (products): until they arrive, the last known value stands.
@@ -8928,7 +9143,10 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   function _updateCartBadge() {
     const el = $("viewOrderBadge");
     if (!el) return;
-    const n = _cartCount();
+    // Until the stock and prices are read, the last known count stands (_barCache).
+    const loading = !state.friendView && (state.invLoading || state.productsLoading);
+    const n = loading ? (_barCache()?.order || 0) : _cartCount();
+    if (!loading) _barCachePatch({ order: n });
     el.textContent = n > 99 ? "99+" : String(n);
     el.hidden = n === 0;
   }
@@ -8937,7 +9155,9 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   function _updateListsBadge() {
     const el = $("viewListsBadge");
     if (!el) return;
-    const n = _listsArray().length;
+    const loading = !state.friendView && state.listsLoading;
+    const n = loading ? (_barCache()?.lists || 0) : _listsArray().length;
+    if (!loading) _barCachePatch({ lists: n });
     el.textContent = n > 99 ? "99+" : String(n);
     el.hidden = n === 0;
   }
@@ -11272,14 +11492,18 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   function subscribeProducts(uid) {
     unsubscribeProducts();
     state.productsLoading = true;
-    state.unsubProducts = fbDb(uid)
-      .collection("users").doc(uid)
-      .collection("products")
-      .onSnapshot(snap => {
+    // Delta sync like the inventory (_listenSynced): the local copy is
+    // Cache "products", its time "prodSync".
+    let copyOk = false;
+    state.unsubProducts = _listenSynced(uid, "products", {
+      base: Cache.read("products", uid), syncedAt: Cache.read("prodSync", uid)?.at,
+      onSynced: at => { if (uid !== state.activeAccountId) return; if (copyOk) Cache.write("prodSync", uid, { at }); else Cache.clear("prodSync", uid); },
+      onSnap: snap => {
         if (uid !== state.activeAccountId) return;
         if (!state.friendView) state.productsLoading = false;   // our own sub stays live in friend view — don't clear the friend's loading flag
-        const map = {};
-        snap.docs.forEach(d => { map[d.id] = { id: d.id, ...d.data() }; });
+        const map = {}, raw = {};
+        snap.docs.forEach(d => { const x = d.data(); raw[d.id] = x; map[d.id] = { id: d.id, ...x }; });
+        try { localStorage.setItem(Cache._key.products(uid), JSON.stringify(raw)); copyOk = true; } catch { copyOk = false; }
         state.products = map;
         _healProductReorderState(uid);   // one-time repair of docs corrupted by the old reorder bug
         _healGhostProducts(uid).catch(e => console.warn("[heal ghosts]", e?.message));   // needs rows too — retried from the inventory snapshot
@@ -11295,11 +11519,12 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         _refreshGroupPanelIfOpen();   // flips the deck's "Reorder" button live
         _checkLowStockNotifs();       // min changed → raise / clear low-stock alerts
         if ($("productCardPanel")?.classList.contains("open") && _productCardData) _renderProductCard(_productCardData);   // reflect my ★/❤ on the open product card
-      }, err => {
+      },
+      onError: err => {
         console.warn("[products]", err.code, err.message);
         state.productsLoading = false;
         if (_isProductsMode(state.viewMode)) renderProductsView();
-      });
+      } });
   }
 
   // Per-account container weight corrections, keyed by catalogue container id.
@@ -20736,15 +20961,34 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   let _telTd1s    = false;  // have we already recorded TD1s usage this session?
   let _telRfidMax = 0;      // highest RFID reader count recorded for the active account (reset by hydratePodSignal)
 
+  // Every write to telemetry/studio fires the backend's XP recompute (about 60
+  // reads), so the writes of a few seconds go out as ONE: fields pile up for
+  // TELEMETRY_BATCH_MS, a field already waiting sends the pile first (two
+  // increments of one counter never merge), and leaving the window, signing
+  // out or switching account sends it at once.
+  const TELEMETRY_BATCH_MS = 4000;
+  const _telemetry = { uid: null, fields: {}, timer: null };
   function _recordUsage(fields) {
     const uid = state.activeAccountId;
     if (!uid) return;
+    if (_telemetry.uid !== uid || Object.keys(fields).some(k => k in _telemetry.fields)) _flushUsage();
+    _telemetry.uid = uid;
+    Object.assign(_telemetry.fields, fields);
+    if (!_telemetry.timer) _telemetry.timer = setTimeout(_flushUsage, TELEMETRY_BATCH_MS);
+  }
+  function _flushUsage() {
+    clearTimeout(_telemetry.timer); _telemetry.timer = null;
+    const { uid, fields } = _telemetry;
+    _telemetry.fields = {};
+    if (!uid || !Object.keys(fields).length) return;
     // Write into the dedicated telemetry sub-document, never into the user profile.
     fbDb(uid).collection("users").doc(uid)
       .collection("telemetry").doc("studio")
       .set(fields, { merge: true })
-      .catch(() => {});
+      .catch(e => console.warn("[telemetry] write failed:", e.code || e.message));
   }
+  window.addEventListener("blur", _flushUsage);
+  window.addEventListener("beforeunload", _flushUsage);
 
   /* USB scale (DYMO M-series) on the account — telemetry/studio:
        usbScaleModel    the scale's USB product name ("M25 25 lb Digital Scale")
@@ -26415,6 +26659,15 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   }
 
   /* ── Racks (storage shelves) ───────────────────────────────────────────── */
+  // By `order`, then creation time (no orderBy in the query — Firestore would
+  // drop the docs without the field).
+  function _sortRacks(racks) {
+    return racks.sort((a, b) => {
+      const oa = a.order ?? 999, ob = b.order ?? 999;
+      if (oa !== ob) return oa - ob;
+      return (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0);
+    });
+  }
   function subscribeRacks(uid) {
     unsubscribeRacks();
     state.racksLoading = true;   // spinner until the first snapshot lands (own view)
@@ -26427,22 +26680,18 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         // Same defense-in-depth as the inventory listener: an in-flight
         // snapshot can land after we've entered friend-view; ignoring it
         // keeps the friend's (one-shot) racks visible without the owner's
-        // racks bleeding back in.
-        if (state.friendView) return;
+        // racks bleeding back in. Kept alive, it feeds the own-data stash.
+        if (state.friendView) {
+          if (_ownStash?.uid === uid) _ownStash.racks = _sortRacks(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+          return;
+        }
         state.racksLoading = false;   // first (or any) snapshot arrived → drop the spinner
         /* Cached or authoritative? A cold start serves the local cache first,
            and a cache that is stale or partial names fewer racks than really
            exist. Anything DESTRUCTIVE keyed on "this rack does not exist" has
            to wait for the server's word — see the orphan sweep. */
         if (!snap.metadata.fromCache) _racksFromServer = true;
-        const racks = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        racks.sort((a, b) => {
-          const oa = a.order ?? 999, ob = b.order ?? 999;
-          if (oa !== ob) return oa - ob;
-          const ta = a.createdAt?.seconds || 0;
-          const tb = b.createdAt?.seconds || 0;
-          return ta - tb;
-        });
+        const racks = _sortRacks(snap.docs.map(d => ({ id: d.id, ...d.data() })));
         state.racks = racks;
         // Racks for the active account are now loaded — lift the readiness
         // barrier and run a pass: any spool scanned before the racks arrived
@@ -39227,6 +39476,8 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     // click handler reads the same state to decide whether to act as a
     // dropdown trigger or as a one-click "return home" button.
     $("sbUser")?.classList.toggle("sb-user--viewing-friend", !!state.friendView);
+    // The header's own things (TigerCoins, my readers, scales, Tiger Touch…) step aside in a friend's view.
+    document.body.classList.toggle("is-friend-view", !!state.friendView);
     _positionActiveViewPill();   // slide the active-view pill to the current view
     requestAnimationFrame(_positionActiveViewPill);   // re-aim once layout settles
     // A friend's inventory is read-only — hide the write action (Add product /
@@ -39387,9 +39638,36 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     }
   }
 
+  // The own account's data while a friend's view is open: the own inventory and
+  // racks listeners stay alive and write here instead of into state, and
+  // switchBackToOwnView restores it at once — no re-read on the way back.
+  let _ownStash = null;   // { uid, inventory, rows, racks }
+  // The friends visited lately (memory only, never written to the own account's
+  // caches, keyed to the account that read them): a re-visit paints at once from
+  // here, and reads nothing at all while the entry is fresh.
+  const _friendCache = new Map();   // friendUid → { owner, at, inventory, rows, racks, products, lists, profile }
+  const FRIEND_FRESH_MS = 3 * 60e3, FRIEND_CACHE_MAX = 5;
+  function _friendCacheGet(fuid) {
+    const e = _friendCache.get(fuid);
+    return e && e.owner === state.activeAccountId ? e : null;
+  }
+  function _friendCachePut(fuid, patch) {
+    const owner = state.activeAccountId; if (!owner || !fuid) return;
+    const prev = _friendCacheGet(fuid) || {};
+    _friendCache.delete(fuid);   // re-insert = most recent (Map keeps insertion order)
+    _friendCache.set(fuid, { ...prev, ...patch, owner });
+    while (_friendCache.size > FRIEND_CACHE_MAX) _friendCache.delete(_friendCache.keys().next().value);
+  }
+  // The open friend's live products / lists, kept with their entry on leaving.
+  function _stashFriendLive() {
+    const fv = state.friendView; if (!fv || fv.error) return;
+    _friendCachePut(fv.uid, { products: state.friendProducts || {}, lists: state.friendLists || {} });
+  }
+
   async function switchToFriendView(friendUid, friendName, avatarColor) {
     // Already viewing this friend → no-op (don't re-subscribe or replay the sound).
     if (state.friendView?.uid === friendUid) { closeProfilesModal(); closeFriends(); return; }
+    _stashFriendLive();   // friend → friend: keep the one we leave
     _closeAllSideCards();   // unified: clear any open spool/group card (esp. friend→friend)
     _soundFriendView();
     closeProfilesModal(); closeFriends();
@@ -39401,33 +39679,36 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     const _friendIsPublic = !!state.friends?.find(f => f.uid === friendUid)?.isPublic;
     setViewMode(_friendIsPublic ? "rack" : "grid", { persist: false });
     const ownerUid = state.activeAccountId;  // capture so async errors land on the right account
-    // ── Tear down ALL live subscriptions on the OWNER's data BEFORE mutating
-    // state. If we don't, a buffered onSnapshot can fire mid-switch and write
-    // the owner's inventory back into state.* / re-render the owner's racks,
-    // leaving the previous user's content visible while we wait for the
-    // friend's read to complete. (The onSnapshot callbacks also have a
-    // `state.friendView` guard as defence-in-depth — see subscribeInventory.)
-    unsubscribeInventory();
-    unsubscribeRacks();
+    // ── Park the OWNER's data BEFORE mutating state. The own inventory and
+    // racks listeners stay alive: from here on their callbacks see
+    // `state.friendView` and write into _ownStash instead of state.* (see
+    // subscribeInventory / subscribeRacks), so the owner's content never bleeds
+    // into the friend's view, and the way back needs no re-read.
+    if (!state.friendView) _ownStash = { uid: ownerUid, inventory: state.inventory, rows: state.rows, racks: state.racks };
+    const cached = _friendCacheGet(friendUid);
+    const fresh = !!cached && Date.now() - cached.at < FRIEND_FRESH_MS;
     // Look up the friend's photoURL from state.friends (already populated
     // by loadFriendsList from userProfiles). Falls through to null →
     // friend banner renders the colour-circle + initials fallback.
     const _friendRec = state.friends?.find(f => f.uid === friendUid);
     const friendPhoto = _friendRec?.photoURL || null;
     questBump("friendVisit");
-    state.friendView = { uid: friendUid, displayName: friendName, avatarColor, photoURL: friendPhoto, isPublic: _friendIsPublic, publicKey: _friendRec?.publicKey || null, friendsCount: null, tigerSquad: !!_friendRec?.tigerSquad, squadTier: _friendRec?.squadTier || null, error: null };
+    state.friendView = { uid: friendUid, displayName: friendName, avatarColor, photoURL: friendPhoto, isPublic: _friendIsPublic, publicKey: _friendRec?.publicKey || null, friendsCount: null, tigerSquad: !!_friendRec?.tigerSquad, squadTier: _friendRec?.squadTier || null, error: null, ...(cached?.profile || {}) };
     _renderProgressChips();
     // Read the friend's public profile for the invite code (share link) + their
     // friends count ("X friends" in the banner). userProfiles is auth-readable.
-    fbDb().collection("userProfiles").doc(friendUid).get()
+    // A fresh visit's copy (cached.profile above) stands in for it.
+    (fresh && cached.profile ? Promise.resolve(null) : fbDb().collection("userProfiles").doc(friendUid).get())
       .then(s => {
-        if (state.friendView?.uid !== friendUid || !s.exists) return;
+        if (state.friendView?.uid !== friendUid || !s?.exists) return;
         const d = s.data();
         if (d.publicKey) state.friendView.publicKey = d.publicKey;
         if (typeof d.friendsCount === "number") state.friendView.friendsCount = d.friendsCount;
         state.friendView.tigerSquad = !!d.tigerSquad;
         state.friendView.squadTier = d.tigerSquad?.tier || null;
         state.friendView.socials = _cleanSocials(d.socials);
+        const fv = state.friendView;
+        _friendCachePut(friendUid, { profile: { publicKey: fv.publicKey, friendsCount: fv.friendsCount, tigerSquad: fv.tigerSquad, squadTier: fv.squadTier, socials: fv.socials, isPublic: !!d.isPublic } });
         // AUTHORITATIVE public/friend state. The initial guess above comes from
         // state.friends[].isPublic, which is populated asynchronously at startup —
         // on a cold-start quick-click it's still empty, so the banner would wrongly
@@ -39447,55 +39728,63 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         renderFriendBanner();
       })
       .catch(() => {});
-    subscribeFriendProducts(friendUid);   // live price / buy link / manual SKU-EAN of the friend's products
-    subscribeFriendLists(friendUid);      // live-read the friend's lists (read-only)
-    state.inventory = null; state.rows = [];
-    state.racks = [];
-    state.invLoading = true;
+    // Fresh visit: the products / lists kept on leaving, no listener (no read).
+    // Otherwise live-read them, the last visit's copy painted meanwhile.
+    if (fresh && cached.products && cached.lists) {
+      unsubscribeFriendProducts(); unsubscribeFriendLists();
+      state.friendProducts = cached.products; state.friendLists = cached.lists;
+      state.productsLoading = false; state.listsLoading = false;
+      _updateListsBadge();
+    } else {
+      subscribeFriendProducts(friendUid);   // live price / buy link / manual SKU-EAN of the friend's products
+      subscribeFriendLists(friendUid);      // live-read the friend's lists (read-only)
+      if (cached?.products) { state.friendProducts = cached.products; state.productsLoading = false; }
+      if (cached?.lists) { state.friendLists = cached.lists; state.listsLoading = false; _updateListsBadge(); }
+    }
+    // The last visit's stock painted at once (stale-while-revalidate), else the loader.
+    state.inventory = cached?.inventory || null; state.rows = cached?.rows || [];
+    state.racks = cached?.racks || [];
+    state.invLoading = !cached?.inventory;
     renderFriendBanner();
-    renderStats(); renderInventory();
+    sortStateRows(); renderStats(); renderInventory();
+    if (fresh && cached.inventory) return;   // seen less than FRIEND_FRESH_MS ago: nothing re-read
     // Pre-warm the auth token ONCE on entering a friend view (throttled to
     // 30 min between actual refreshes). Avoids the "permission-denied → retry
     // succeeds" flash when the local ID token is close to expiry.
     await prewarmAuthToken(ownerUid);
     try {
       console.log(`[FriendView] reading users/${friendUid}/inventory as ${ownerUid}`);
+      // Racks read alongside the stock (one-shot, read-only view). Denied →
+      // an empty rack list, the Storage tab just shows "no racks yet".
+      const racksP = readFriendCollectionWithRetry(ownerUid, friendUid, "racks")
+        .then(rs => _sortRacks(rs.docs.map(d => ({ id: d.id, ...d.data() }))))
+        .catch(re => { console.warn("[FriendView] racks read failed:", re.code, re.message); return []; });
       const snap = await readFriendCollectionWithRetry(ownerUid, friendUid, "inventory");
       console.log(`[FriendView] received ${snap.docs.length} docs`);
-      const raw = {};
-      snap.forEach(doc => { raw[doc.id] = doc.data(); });
-      state.inventory = raw;
-      state.rows = snap.docs.map(doc => normalizeRow(doc.id, doc.data()));
-      _markTwinPairs(state.rows); // symmetric hasTwinPair so the link badge shows on either half
-      await preCacheImages(state.rows);
       // Guard: user might have switched away during the await
       if (state.friendView?.uid !== friendUid) return;
-      // Read the friend's racks (one-shot — no live subscription needed,
-      // read-only view).  If permissions deny, we silently fall back to an
-      // empty rack list — the Storage tab will just show "no racks yet".
-      try {
-        const racksSnap = await readFriendCollectionWithRetry(ownerUid, friendUid, "racks");
-        if (state.friendView?.uid !== friendUid) return;
-        const racks = racksSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        racks.sort((a, b) => {
-          const oa = a.order ?? 999, ob = b.order ?? 999;
-          if (oa !== ob) return oa - ob;
-          const ta = a.createdAt?.seconds || 0;
-          const tb = b.createdAt?.seconds || 0;
-          return ta - tb;
-        });
-        state.racks = racks;
-        console.log(`[FriendView] received ${racks.length} rack(s)`);
-      } catch (re) {
-        console.warn("[FriendView] racks read failed:", re.code, re.message);
-        state.racks = [];
-      }
+      const raw = {};
+      snap.forEach(doc => { raw[doc.id] = doc.data(); });
+      const rows = snap.docs.map(doc => normalizeRow(doc.id, doc.data()));
+      _markTwinPairs(rows); // symmetric hasTwinPair so the link badge shows on either half
+      // Painted without waiting for the images (the cards draw their colour,
+      // then the photo); the local copies swap in once warmed.
+      preCacheImages(rows).then(changed => {
+        if (changed && state.friendView?.uid === friendUid) scheduleRender("inventory", renderInventory);
+      });
+      state.inventory = raw;
+      state.rows = rows;
+      const racks = await racksP;
+      if (state.friendView?.uid !== friendUid) return;
+      state.racks = racks;
       state.invLoading = false;
+      _friendCachePut(friendUid, { at: Date.now(), inventory: state.inventory, rows: state.rows, racks: state.racks });
       sortStateRows(); renderStats(); renderInventory();
     } catch (e) {
       console.error("[FriendView] read failed:", e.code, e.message, e);
       if (state.friendView?.uid !== friendUid) return;
       state.invLoading = false;
+      if (cached?.inventory) return;   // the last visit's stock stays on screen
       state.inventory = {}; state.rows = [];
       // Surface the error in the banner + empty state
       state.friendView.error = e.code === "permission-denied"
@@ -39511,6 +39800,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     _soundReturnHome();     // "back home" cue, mirror of the friend-view sound
     _closeAllSideCards();   // unified: clear the friend's open spool/group card
     _clearSearchFilters();
+    _stashFriendLive();            // their products / lists, for an instant re-visit
     unsubscribeFriendProducts();   // stop reading the friend's shared price/link
     unsubscribeFriendLists();      // stop reading the friend's lists (clears friendLists)
     state.friendView = null;
@@ -39525,24 +39815,26 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     // so without this it would keep showing the friend's count (or stay hidden if the
     // friend had none) on our own interface.
     _updateListsBadge();
-    state.inventory = null; state.rows = [];
-    state.racks = [];                                   // wipe the friend's racks
-    renderFriendBanner();
-    // Clear the visible artefacts of the friend's view IMMEDIATELY (stats,
-    // table/grid/rack rendering, detail panel). Without this, the friend's
-    // numbers would linger in the header KPI cards and their racks would
-    // remain rendered until the first own-snapshot arrives a few hundred
-    // milliseconds later — exactly the "previous user's data still visible"
-    // glitch we want to avoid.
+    // Replace the friend's data IMMEDIATELY (stats, table/grid/rack rendering)
+    // so their numbers never linger in the header cards. The own inventory and
+    // racks listeners stayed alive during the visit and kept _ownStash current:
+    // restored at once, nothing re-read. A listener that is gone (an error, an
+    // old session) is re-attached instead, behind the loader.
     const uid = state.activeAccountId;
-    if (uid) state.invLoading = true;
+    const stash = _ownStash?.uid === uid && _unsubInventory && state.unsubRacks ? _ownStash : null;
+    _ownStash = null;
+    state.inventory = stash?.inventory || null; state.rows = stash?.rows || [];
+    state.racks = stash?.racks || [];
+    renderFriendBanner();
+    if (uid) state.invLoading = !state.inventory;
+    sortStateRows();
     renderStats();
     renderInventory();
     if (uid) {
-      subscribeInventory(uid);
-      subscribeRacks(uid);                              // re-attach own racks live-sync
-      subscribeFriends(uid);                            // re-attach own friends live-sync
-      subscribeNotifications(uid);                      // re-attach notification center
+      if (!stash) { subscribeInventory(uid); subscribeRacks(uid); }
+      if (!state.unsubFriends) subscribeFriends(uid);        // never torn down by a visit
+      if (!state.unsubNotifs) subscribeNotifications(uid);   // idem
+      if (stash) _consumeScanOpen();   // a chip scanned during the visit opens its spool now
     }
     // Restore the owner's own saved view (friend view had forced "grid").
     // Done AFTER the re-subscribe so setViewMode's guarded subscribe is a no-op.
@@ -40280,7 +40572,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     const n = (state.notifications || []).find(x => x.id === id);
     if (!n) { setViewMode("squadDeals"); return; }
     showEnvelopeGift({ t, esc }, { name: _shortName(n.fromName, n.fromUid),
-      avatar: _giverAvatar(n) })
+      avatar: _giverAvatar(n), count: Number(n.data?.count) || 1 })
       .then(how => { if (how === "see") setViewMode("squadDeals"); });
   }
   let _envGiftBusy = false;
@@ -40294,6 +40586,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     _envGiftBusy = true;
     // The pile, to open each friend's envelope right here (its message, then what it holds).
     let pile = null;
+    _coinStatus.delete(uid);   // a gift just landed: the reused status predates it
     try { pile = _coinsOf(await _tigerCoins(uid, "status")); if (uid === state.activeAccountId) { _deals.coins = pile; _paintDealsBadge(_envCount(pile), pile); } } catch (_) {}
     const taken = new Set();
     try {
@@ -40304,6 +40597,14 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         try { localStorage.setItem(key, JSON.stringify(shown)); } catch (_) {}
         // This friend's envelope still unopened: the envelope window itself — the
         // friend's avatar on the seal, their message, "Open it" and the coins inside.
+        // Several at once (data.count): the pile window, then the opening of them all.
+        const count = Number(n.data?.count) || 1;
+        if (count > 1) {
+          (pile?.envelopes || []).filter(e => e.kind === "friend" && e.fromUid === n.fromUid && !taken.has(e.id)).slice(0, count).forEach(e => taken.add(e.id));
+          const how = await showEnvelopeGift({ t, esc }, { name: _shortName(n.fromName, n.fromUid), avatar: _giverAvatar(n), count });
+          if (how === "see") { _openEnvelopesNow(); break; }
+          continue;
+        }
         const env = (pile?.envelopes || []).find(e => e.kind === "friend" && e.fromUid === n.fromUid && !taken.has(e.id));
         if (env) {
           taken.add(env.id);
@@ -40331,7 +40632,8 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   function _notifText(n) {
     if (n.type === "friend_accepted") return t("notifAcceptedFriend", { name: _shortName(n.fromName, n.fromUid) });
     if (n.type === "friend_added")    return t("notifAddedFriend",    { name: _shortName(n.fromName, n.fromUid) });
-    if (n.type === "envelope_gift")   return t("notifEnvelopeGift",   { name: _shortName(n.fromName, n.fromUid) });
+    if (n.type === "envelope_gift")   return n.data?.count > 1 ? t("notifEnvelopeGiftMany", { name: _shortName(n.fromName, n.fromUid), n: n.data.count })
+      : t("notifEnvelopeGift",   { name: _shortName(n.fromName, n.fromUid) });
     if (n.type === "envelope_chip")   return t("notifEnvelopeChip",   { n: Number(n.data?.n) || 1 });
     if (n.type === "freeze_gift")     return t("notifFreezeGift",     { name: _shortName(n.fromName, n.fromUid) });
     if (n.type === "trophy")          return t("notifTrophy", { n: n.data?.ids?.length || 1 });
@@ -40908,6 +41210,12 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   // From the Friends panel ("Give an envelope"): the oldest gift envelope, the
   // give picker over every friend — or one already picked when `friendUid` is
   // given (functions/tigerCoins.js giveEnvelope; a held button sends).
+  function _givePile(c) {
+    const all = [...(c.envelopes || []).map(e => ({ id: e.id, label: e.kind === "egg" ? t("envGiveEgg") : e.from ? _shortName(e.from, e.fromUid) : e.kind === "milestone" ? t("envMilestone") : t("envGiveGift") })),
+      ...Array.from({ length: Math.min(c.unopened || 0, 10) }, () => ({ id: "chip", label: t("envGiveChip") }))];
+    for (let i = all.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [all[i], all[j]] = [all[j], all[i]]; }
+    return all.slice(0, 10);
+  }
   async function _giveEnvelopeTo(friendUid = null, anchor = null) {
     const uid = state.activeAccountId; if (!uid || !_squadOnly()) return;
     const pool = friendUid ? (state.friends || []).filter(x => x.uid === friendUid) : (state.friends || []);
@@ -40929,7 +41237,13 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     await showEnvelope(_coinsCtx(uid), env || { id: null }, { giveOnly: true, give: {
       none: !env, left: g.left, max: g.max, tierLabel: g.tier ? squadTierLabel(g.tier) : "", picked: friendUid,
       friends: pool.map(f => ({ uid: f.uid, name: _shortName(f.displayName, f.uid), avatar: userAvatar(f, "sqb-avatar") })),
-      send: async to => { const r = await _tigerCoins(uid, "giveEnvelope", { id: env.id, to }); _deals.coins = _coinsOf(r); _paintDealsBadge(_envCount(_deals.coins)); return r; },
+      // The envelopes to choose from: up to 10 picked at random in the pile (the
+      // gift envelopes and the chips', contents never shown), several at once.
+      pile: _givePile(c),
+      send: async (to, ids) => {
+        const r = await _tigerCoins(uid, "giveEnvelope", ids ? { ids, to } : { id: env.id, to });
+        _deals.coins = _coinsOf(r); _paintDealsBadge(_envCount(_deals.coins)); return r;
+      },
     } });
   }
   // Send TigerCoins of my balance to a friend (functions/tigerCoins.js sendCoins):
@@ -41031,7 +41345,10 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   // the server's log users/{uid}/xpHistory ({ key, delta, total, n, at }).
   const _xpLog = { uid: null, at: 0, log: [], total: 0, full: false };
   async function _loadXpLog(uid, full = false) {
-    if (_xpLog.uid === uid && Date.now() - _xpLog.at < 60e3 && (_xpLog.full || !full)) return _xpLog;
+    // Reused for a minute — or for 10 while the live total (users/{uid}.xpPoints)
+    // still matches the log's: no gain or loss since, nothing new to read.
+    const age = Date.now() - _xpLog.at;
+    if (_xpLog.uid === uid && (_xpLog.full || !full) && (age < 60e3 || (age < 10 * 60e3 && _xpLog.total === state.xpPoints))) return _xpLog;
     const me = fbDb(uid).collection("users").doc(uid);
     const [doc, hist] = await Promise.all([me.get(), me.collection("xpHistory").orderBy("at", "desc").limit(full ? 2000 : 300).get()]);
     Object.assign(_xpLog, { uid, at: Date.now(), full, total: doc.data()?.xpPoints || 0, log: hist.docs.map(h => h.data()) });
@@ -41067,23 +41384,23 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   // `scope`: whose curve — "me", "country" (my league) or "leagues" (the best ones).
   const _xph = { range: "30d", page: 1, scope: "me", filter: { cat: "", dir: "", q: "" } };
   // The league curves: squadLeagueHistory/{day} (each country's totals at the end
-  // of a Paris day, server-written) + today's live totals summed from the members'
-  // profiles (the rankings' own read, reused when fresh). Reloaded at most once a minute.
-  const _league = { uid: null, at: 0, days: [], live: null, country: null };
+  // of a Paris day, server-written) + today's live totals from squadBoard/countries
+  // (functions/squadBoard.js, every 10 min — the rankings' own read, reused when
+  // fresh). Reloaded at most once a minute; the day curves (400 documents) once a day.
+  const _league = { uid: null, at: 0, day: "", days: [], live: null, country: null };
   async function _loadLeagues(uid) {
     if (_league.uid === uid && Date.now() - _league.at < 60e3) return;
-    const db = fbDb(uid);
-    const cache = _squadBoardCache?.uid === uid ? _squadBoardCache.members : null;
-    const [hist, members] = await Promise.all([
-      db.collection("squadLeagueHistory").orderBy("day", "desc").limit(400).get().then(q => q.docs.map(d => d.data()).reverse()).catch(() => []),
-      cache || db.collection("userProfiles").orderBy("tigerSquad.since").get().then(q => q.docs.map(d => {
-        const sq = d.get("tigerSquad") || {};
-        return { uid: d.id, xp: Number(sq.xp) || 0, country: /^[A-Z]{2}$/.test(sq.country || "") ? sq.country : null };
-      })).catch(() => []),
+    const db = fbDb(uid), today = new Date().toDateString();
+    const cache = _squadBoardCache?.uid === uid && Date.now() - _squadBoardCache.at < SQUAD_BOARD_FRESH_MS ? _squadBoardCache.board.countries : null;
+    const [hist, countries] = await Promise.all([
+      _league.day === today && _league.days.length ? _league.days
+        : db.collection("squadLeagueHistory").orderBy("day", "desc").limit(400).get().then(q => q.docs.map(d => d.data()).reverse()).catch(() => []),
+      cache || db.collection("squadBoard").doc("countries").get().then(d => d.data()?.rows || []).catch(() => []),
     ]);
     const live = {};
-    for (const m of members) if (m.country) { const c = (live[m.country] ||= { xp: 0, n: 0 }); c.xp += m.xp; c.n++; }
-    Object.assign(_league, { uid, at: Date.now(), days: hist, live, country: members.find(m => m.uid === uid)?.country || null });
+    for (const c of countries) live[c.cc] = { xp: c.xp, n: c.n };
+    Object.assign(_league, { uid, at: Date.now(), day: hist.length ? today : "", days: hist, live,
+      country: (_squadBoardCache?.uid === uid && _squadBoardCache.viewer === uid ? _squadBoardCache.board.me?.country : null) || state.squadCountry || null });
   }
   function _xphState() {
     const host = $("invXpHistView");
@@ -42136,10 +42453,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     state.hasPod = hasPod;
     const uid = state.activeAccountId;
     if (!uid) return;
-    fbDb(uid).collection("users").doc(uid)
-      .collection("telemetry").doc("studio")
-      .set({ hasPod }, { merge: true })
-      .catch(e => console.warn("[telemetry] hasPod write failed:", e.code || e.message));
+    _recordUsage({ hasPod });
   }
 
   // ── Lifetime spool-lifecycle counters (telemetry/studio) ────────────────
@@ -42165,10 +42479,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       if (deltas[k]) payload[k] = FV.increment(deltas[k]);
     }
     if (!Object.keys(payload).length) return;
-    fbDb(uid).collection("users").doc(uid)
-      .collection("telemetry").doc("studio")
-      .set(payload, { merge: true })
-      .catch(e => console.warn("[telemetry] counter bump failed:", e.code || e.message));
+    _recordUsage(payload);
   }
 
   // ── RFID physical-chip list + TigerTag+ backup (users/{uid}/rfidList) ──

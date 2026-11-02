@@ -199,17 +199,17 @@
 
   .badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 500; background: var(--surface-2); color: var(--muted); }
   .badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
-  .badge.ok { background: var(--success-soft); color: var(--success); }
-  .badge.bad { background: var(--danger-soft); color: var(--danger); }
-  .badge.info { background: var(--primary-soft); color: var(--primary); }
+  .badge.ok { background: var(--success-soft); color: var(--success-text); }
+  .badge.bad { background: var(--danger-soft); color: var(--danger-text); }
+  .badge.info { background: var(--primary-soft); color: var(--primary-text); }
 
   .alert { padding: 10px 12px; border-radius: var(--radius-sm); font-size: 13px; border: 1px solid var(--border); margin-top: 10px; }
   /* Border and text are derived from the same token as the fill, so the whole
      alert re-tints as one when the theme lifts the hue. Hand-picked pale
      borders (#f1d989 &co) only worked against a white page. */
-  .alert.warn { background: var(--warning-soft); border-color: color-mix(in srgb, var(--warning) 35%, transparent); color: var(--warning); }
-  .alert.bad { background: var(--danger-soft); border-color: color-mix(in srgb, var(--danger) 35%, transparent); color: var(--danger); }
-  .alert.ok { background: var(--success-soft); border-color: color-mix(in srgb, var(--success) 35%, transparent); color: var(--success); }
+  .alert.warn { background: var(--warning-soft); border-color: color-mix(in srgb, var(--warning) 35%, transparent); color: var(--warning-text); }
+  .alert.bad { background: var(--danger-soft); border-color: color-mix(in srgb, var(--danger) 35%, transparent); color: var(--danger-text); }
+  .alert.ok { background: var(--success-soft); border-color: color-mix(in srgb, var(--success) 35%, transparent); color: var(--success-text); }
   .alert.muted { background: var(--surface-2); color: var(--muted); }
 
   /* ── stats ── */
@@ -231,7 +231,7 @@
   }
   .signin-ph-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
   .signin-ph-brand { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 700; color: var(--text); letter-spacing: -.01em; }
-  .signin-ph-two { color: var(--primary); font-weight: 800; }
+  .signin-ph-two { color: var(--primary-text); font-weight: 800; }
   .signin-ph-lang {
     position: relative; display: flex; align-items: center; gap: 6px;
     height: 32px; padding: 0 10px; border-radius: 8px;
@@ -254,7 +254,7 @@
     display: inline-flex; align-items: center; gap: 6px;
     padding: 5px 10px; border-radius: 999px;
     font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
-    color: var(--primary); background: color-mix(in srgb, var(--primary) 12%, transparent);
+    color: var(--primary-text); background: color-mix(in srgb, var(--primary) 12%, transparent);
     border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
   }
   .signin-ph-badge .icon { background-color: currentColor; }
@@ -430,7 +430,7 @@
      .inv-loading-spin slot; brand-orange (the original's white would be invisible on
      our light background). The cam-wall keeps its own small border spinner. */
   .inv-loading-spin {
-    color: var(--primary);   /* the box-shadow dots inherit currentColor */
+    color: var(--primary-text);   /* the box-shadow dots inherit currentColor */
     font-size: 52px; width: 1em; height: 1em;
     border: none; border-radius: 50%; background: transparent;
     -webkit-mask: none; mask: none;
@@ -487,7 +487,7 @@
     flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
     gap: 10px; padding: 32px 24px; text-align: center; min-height: min(560px, 62vh);
   }
-  .inv-start-kicker { margin: 0; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--primary); }
+  .inv-start-kicker { margin: 0; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--primary-text); }
   .inv-start-h1 { margin: 0; font-size: clamp(24px, 2.6vw, 32px); font-weight: 800; letter-spacing: -.02em; color: var(--text); }
   .inv-start-sub { margin: 0 0 14px; font-size: 14px; color: var(--muted); }
   .inv-start-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; width: min(860px, 100%); }
@@ -520,16 +520,16 @@
   .inv-start-card:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
   .inv-start-tile {
     width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center;
-    background: color-mix(in srgb, var(--primary) 14%, transparent); color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 14%, transparent); color: var(--primary-text);
   }
   .inv-start-tile .icon { background-color: currentColor; }
   .inv-start-title { font-size: 15px; font-weight: 700; }
   .inv-start-text { font-size: 13px; line-height: 1.45; color: var(--muted); }
-  .inv-start-go { margin-top: auto; display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; font-weight: 600; color: var(--primary); }
+  .inv-start-go { margin-top: auto; display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; font-weight: 600; color: var(--primary-text); }
   .inv-start-go .icon { background-color: currentColor; transition: transform .15s; }
   .inv-start-card:hover .inv-start-go .icon { transform: translateX(2px); }
   /* TigerPOD card, reader plugged in: the status turns green and says so. */
-  .inv-start-status { display: none; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--success); }
+  .inv-start-status { display: none; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--success-text); }
   .inv-start-status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor;
     box-shadow: 0 0 0 4px color-mix(in srgb, currentColor 22%, transparent); }
   .inv-start-card .when-ready { display: none; }
@@ -537,12 +537,12 @@
   .inv-start-card.is-ready .when-idle { display: none; }
   .inv-start-card.is-ready { border-color: color-mix(in srgb, var(--success) 55%, var(--border)); cursor: default; }
   .inv-start-card.is-ready:hover { transform: none; box-shadow: none; border-color: color-mix(in srgb, var(--success) 55%, var(--border)); }
-  .inv-start-card.is-ready .inv-start-tile { background: color-mix(in srgb, var(--success) 16%, transparent); color: var(--success); }
+  .inv-start-card.is-ready .inv-start-tile { background: color-mix(in srgb, var(--success) 16%, transparent); color: var(--success-text); }
   .inv-start-card.is-ready .inv-start-status { display: inline-flex; }
   .inv-start-card.is-ready .inv-start-go { display: none; }
   .inv-start-phone { margin-top: 12px; display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); }
   .inv-start-phone .inv-start-app { height: auto; padding: 0; border: 0; background: none; font: inherit; font-weight: 600; color: var(--text); cursor: pointer; }
-  .inv-start-phone .inv-start-app:hover { color: var(--primary); }
+  .inv-start-phone .inv-start-app:hover { color: var(--primary-text); }
   .inv-start-phone .icon { background-color: currentColor; }
   /* "Next up" strip — above the spool list until the three first steps are done. */
   .first-steps {
@@ -560,9 +560,9 @@
     border: 1px solid var(--border); background: var(--surface); color: var(--text);
     transition: border-color .15s, color .15s;
   }
-  .first-steps .first-steps-step:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
+  .first-steps .first-steps-step:hover:not(:disabled) { border-color: var(--primary); color: var(--primary-text); }
   .first-steps .first-steps-step .icon { background-color: currentColor; }
-  .first-steps .first-steps-step.is-done { color: var(--success); border-color: transparent; background: transparent; cursor: default; opacity: 1; }
+  .first-steps .first-steps-step.is-done { color: var(--success-text); border-color: transparent; background: transparent; cursor: default; opacity: 1; }
   .first-steps-item { display: inline-flex; align-items: center; gap: 2px; }
   .first-steps .first-steps-skip {
     height: 28px; padding: 0 8px; border: 0; background: transparent;
@@ -627,7 +627,7 @@
   }
   body.sel-btn-view .inv-select-btn { display: inline-flex; }   /* materials grid + printer grid/table */
   .inv-select-btn:hover  { border-color: var(--primary); }
-  .inv-select-btn.active { background: var(--primary-soft); border-color: var(--primary); color: var(--primary); }
+  .inv-select-btn.active { background: var(--primary-soft); border-color: var(--primary); color: var(--primary-text); }
   .inv-select-btn .icon  { background: currentColor; }
   .inv-select-btn.hidden { display: none !important; }   /* friend view */
 
@@ -708,7 +708,7 @@
   .bulk-hidden {
     display: inline-flex; align-items: center;
     font-size: 11px; font-weight: 600; line-height: 1.2;
-    color: var(--warning-hover); background: #fff7e0; border: 1px solid var(--warning);
+    color: var(--warning-hover); background: var(--warning-soft); border: 1px solid var(--warning);
     border-radius: 8px; padding: 4px 8px; max-width: 260px;
   }
   .bulk-hidden.hidden { display: none; }
@@ -1249,7 +1249,7 @@
     color: var(--text); font-size: 16px; line-height: 1; cursor: pointer;
     transition: border-color .15s, background-color .15s, color .15s;
   }
-  .inv-sort-dir:hover { background-color: var(--surface); border-color: var(--primary); color: var(--primary); }
+  .inv-sort-dir:hover { background-color: var(--surface); border-color: var(--primary); color: var(--primary-text); }
   /* Brand / material / type quick-filters — dropdowns right of the search bar.
      Same height + background + border as the stat tiles so the whole toolbar
      row reads as one cohesive set of pills. */
@@ -1287,7 +1287,7 @@
   .inv-brand-filter.is-active {
     border-color: var(--primary);
     background-color: var(--primary-soft);
-    color: var(--primary);
+    color: var(--primary-text);
     font-weight: 600;
   }
   /* ── Custom select dropdown (replaces the OS-native one) — see _enhanceSelect.
@@ -1351,7 +1351,7 @@
     transition: background .1s;
   }
   .csel-opt:hover { background: var(--surface-2); }
-  .csel-opt.is-sel { color: var(--primary); font-weight: 600; }
+  .csel-opt.is-sel { color: var(--primary-text); font-weight: 600; }
   /* Where the arrow keys have landed. Distinct from `.is-sel`, which is what is
      actually chosen — you can be looking at one row while another is still the
      current value. */
@@ -1454,7 +1454,7 @@
   .pv-sku-hint { flex-shrink: 0; opacity: 0; background-color: currentColor; transition: opacity .15s; }
   .pv-sku:hover { color: var(--text); background: var(--surface-2); }
   .pv-sku:hover .pv-sku-hint { opacity: .65; }
-  .pv-sku.is-copied { color: var(--success); }
+  .pv-sku.is-copied { color: var(--success-text); }
   .pv-sku.is-copied .pv-sku-hint { opacity: 0; }
   /* Floating "Copied!" pill — rises and fades once over the SKU. */
   .copy-flash {
@@ -1471,7 +1471,7 @@
     100% { opacity: 0; transform: translateY(-9px); }
   }
   /* Shopify-style order columns: unit price · qty · line total. */
-  .pv-unit-col { flex-shrink: 0; width: 90px; text-align: right; font-size: 13px; color: var(--primary); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .pv-unit-col { flex-shrink: 0; width: 90px; text-align: right; font-size: 13px; color: var(--primary-text); font-weight: 600; font-variant-numeric: tabular-nums; }
   .pv-qty-col { flex-shrink: 0; width: 92px; display: flex; justify-content: center; }
   .pv-total-col { flex-shrink: 0; width: 90px; text-align: right; font-size: 14px; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }
   /* Payment summary (Subtotal / Tax / Total), like a Shopify order footer. */
@@ -1586,7 +1586,7 @@
   .pv-cart-note:hover { background: color-mix(in srgb, var(--favorite-deep) 14%, var(--surface)); }
   .pv-cart-note--add { background: var(--surface-2); color: var(--muted); font-weight: 500; align-items: center; }
   .pv-cart-note--add .icon { background-color: var(--muted); margin-top: 0; }
-  .pv-cart-note--add:hover { background: var(--surface-2); color: var(--primary); }
+  .pv-cart-note--add:hover { background: var(--surface-2); color: var(--primary-text); }
   .pv-cart-note--add:hover .icon { background-color: var(--primary); }
   .pv-cart-note--editing { display: block; padding: 8px 12px; background: var(--surface); cursor: default; }
   .pv-cart-note-input { width: 100%; box-sizing: border-box; resize: vertical; min-height: 44px;
@@ -1609,14 +1609,14 @@
   }
   .pv-move-link:hover { color: var(--text); text-decoration: underline; }
   /* "Move to cart" is the primary action on the shelf → accent-coloured. */
-  .pv-move-link--cart { color: var(--primary); }
-  .pv-move-link--cart:hover { color: var(--primary); filter: brightness(1.1); }
+  .pv-move-link--cart { color: var(--primary-text); }
+  .pv-move-link--cart:hover { color: var(--primary-text); filter: brightness(1.1); }
   /* "Stop tracking" is a press-and-hold button (1 s): a red fill sweeps left→right
      while held; the label sits above it. */
   .pv-move-link--stop { position: relative; overflow: hidden; padding: 2px 7px; border-radius: 5px; }
   .pv-move-link--stop > :not(.hold-progress) { position: relative; z-index: 1; }
   .pv-move-link--stop .hold-progress { opacity: 1; background: color-mix(in srgb, var(--danger) 28%, transparent); }
-  .pv-move-link--stop:hover { color: var(--danger); }
+  .pv-move-link--stop:hover { color: var(--danger-text); }
 
   /* ── Reorder drag-and-drop ──────────────────────────────────────────────── */
   /* Grip handle: fades in on row hover, grabs to drag. Only it starts a drag, so
@@ -1667,7 +1667,7 @@
   .pv-td-name { color: var(--muted); white-space: nowrap; }
   .pv-td-colorname { color: var(--text); white-space: nowrap; }
   .pv-td-stock { color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .pv-td-stock--low { color: var(--favorite-deep); font-weight: 700; }   /* below the minimum */
+  .pv-td-stock--low { color: var(--favorite-text); font-weight: 700; }   /* below the minimum */
   /* Fixed width so the column never shifts between the value and the inline
      editor (both fit within it). */
   .pv-th-min, .pv-td-min { width: 96px; }
@@ -1689,16 +1689,16 @@
   .pv-min-ok .icon { background-color: var(--on-accent); }
   /* To order: read-only recommendation = max(0, Min qty − Stock). */
   .pv-td-toorder { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .pv-td-toorder--need { color: var(--primary); font-weight: 800; }
-  .pv-td-price { color: var(--primary); font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .pv-td-toorder--need { color: var(--primary-text); font-weight: 800; }
+  .pv-td-price { color: var(--primary-text); font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
   /* "Add a price" link (empty price) → opens the card straight into price edit. */
   .pv-addprice { background: none; border: none; padding: 0; cursor: pointer; font-family: inherit;
     font-size: 12px; font-weight: 600; color: var(--muted); transition: color .12s; }
-  .pv-addprice:hover { color: var(--primary); }
+  .pv-addprice:hover { color: var(--primary-text); }
   /* "Add price" in the inventory Table Price column — same subtle look as the reorder one. */
   .tbl-addprice { background: none; border: none; padding: 0; cursor: pointer; font-family: inherit;
     font-size: 12px; font-weight: 600; color: var(--muted); text-decoration: underline; text-underline-offset: 2px; text-decoration-style: dotted; }
-  .tbl-addprice:hover { color: var(--primary); text-decoration-style: solid; }
+  .tbl-addprice:hover { color: var(--primary-text); text-decoration-style: solid; }
   /* Cart count badge on the "To order" view button — red bubble, top-right. */
   #btnViewOrder { position: relative; overflow: visible; }
   #btnViewLists { position: relative; overflow: visible; }
@@ -2030,11 +2030,11 @@
   .spool-card .card-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
   .spool-card .card-weight { font-size: 12px; font-variant-numeric: tabular-nums; }
   /* Products grid: price replaces the weight slot (no weight notion for a product). */
-  .spool-card .card-price { font-size: 12px; font-weight: 700; color: var(--primary); font-variant-numeric: tabular-nums; }
+  .spool-card .card-price { font-size: 12px; font-weight: 700; color: var(--primary-text); font-variant-numeric: tabular-nums; }
   .spool-card .card-price--none { font-weight: 500; color: var(--muted); }
   /* clickable plain-text "Add price" (no button chrome) — hint via cursor + hover */
   .spool-card .card-price--none[data-addprice] { cursor: pointer; transition: color .12s; }
-  .spool-card .card-price--none[data-addprice]:hover { color: var(--primary); }
+  .spool-card .card-price--none[data-addprice]:hover { color: var(--primary-text); }
   .spool-card .card-bar { height: 3px; background: var(--surface-2); border-radius: 2px; overflow: hidden; margin-top: 6px; }
   .spool-card .card-bar > span { display: block; height: 100%; background: var(--primary); border-radius: 2px; }
 
@@ -2272,7 +2272,7 @@
     flex-shrink: 0;
     transition: background .12s, color .12s, transform .05s;
   }
-  .panel-action:hover { background: var(--border); color: var(--primary); }
+  .panel-action:hover { background: var(--border); color: var(--primary-text); }
   .panel-action:active { transform: scale(.95); }
   .panel-action .icon { background: currentColor; }
   .panel-body { flex: 1; overflow-y: auto; padding: 0 0 24px; }
@@ -2426,7 +2426,7 @@
     height: 52px; aspect-ratio: 1 / 1;
     border-radius: 8px; flex-shrink: 0; object-fit: cover;
   }
-  .chip-update-text { font-size: 12px; color: var(--warning); flex: 1; }
+  .chip-update-text { font-size: 12px; color: var(--warning-text); flex: 1; }
   /* ── Cloud encode banner (replaces chip-update banner for Cloud spools) ── */
   .cloud-encode-banner { background: color-mix(in srgb, var(--violet) 7%, transparent); cursor: pointer; }
   .cloud-encode-icon   { background: var(--violet) !important; animation: cloud-nfc-pulse 2s ease-in-out infinite; }
@@ -2524,10 +2524,10 @@
   /* Badge-valued row (e.g. "Type de tag" → tier badge + backup shield) — align
      the pill to the right, vertically centred with the key. */
   .panel-row .pv-badge { display: inline-flex; align-items: center; justify-content: flex-end; gap: 4px; }
-  .panel-row .pv a { color: var(--primary); text-decoration: none; }
+  .panel-row .pv a { color: var(--primary-text); text-decoration: none; }
   .panel-row .pv a:hover { text-decoration: underline; }
   /* Value cell that is itself a link (e.g. Product ID → tigertag.io). */
-  .panel-row a.pv-link { color: var(--primary); text-decoration: none; cursor: pointer;
+  .panel-row a.pv-link { color: var(--primary-text); text-decoration: none; cursor: pointer;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .panel-row a.pv-link:hover { text-decoration: underline; }
   .color-dots { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
@@ -2587,7 +2587,7 @@
     background: transparent; color: var(--text); font-size: 13px; font-weight: 500; text-align: left; cursor: pointer;
   }
   .tags-dd-create:hover, .tags-dd-opt:hover { background: var(--surface-2); }
-  .tags-dd-create { color: var(--primary); font-weight: 600; }
+  .tags-dd-create { color: var(--primary-text); font-weight: 600; }
   .tags-dd-create .icon { background: var(--primary); }
   .tags-dd-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tags-dd-check {
@@ -2635,7 +2635,7 @@
     color: var(--text); font-size: 14px; font-weight: 500; text-align: left; cursor: pointer;
   }
   .tags-modal-create:hover, .tags-modal-opt:hover { background: var(--surface-2); }
-  .tags-modal-create { color: var(--primary); font-weight: 600; }
+  .tags-modal-create { color: var(--primary-text); font-weight: 600; }
   .tags-modal-create .icon { background: var(--primary); }
   .tags-modal-check {
     flex-shrink: 0; width: 18px; height: 18px; border-radius: 4px; position: relative;
@@ -2680,7 +2680,7 @@
     color: var(--text); display: inline-flex; align-items: center; gap: 6px;
     font-family: inherit; font-weight: 500; transition: background .13s, border-color .13s, color .13s;
   }
-  .link-btn:hover { background: var(--primary-soft); border-color: var(--primary); color: var(--primary); }
+  .link-btn:hover { background: var(--primary-soft); border-color: var(--primary); color: var(--primary-text); }
   .link-btn svg { flex-shrink: 0; opacity: .7; }
   .link-btn:hover svg { opacity: 1; }
   .weight-mode-hint { font-size: 11px; color: var(--muted); margin: 6px 0 8px; line-height: 1.5; }
@@ -2820,7 +2820,7 @@
     transition: color .2s;
   }
   .wb-mode-btn:hover { color: var(--text); }
-  .wb-mode-btn.active { color: var(--primary); }
+  .wb-mode-btn.active { color: var(--primary-text); }
   /* The calculation, where the max ("1000 g") sits at rest; the result reads first. */
   .wb-mode-hint {
     flex: 1; min-width: 0; text-align: right;
@@ -2891,7 +2891,7 @@
     transition: color .15s;
   }
   .pass-copy:hover { color: var(--text) !important; background: transparent !important; }
-  .pass-copy.copied { color: var(--success) !important; }
+  .pass-copy.copied { color: var(--success-text) !important; }
   /* dark-context eye (sidebar / add-modal when inheriting dark styles) */
   .eac-eye.pass-eye, .eac-eye.pass-copy { color: var(--muted); }
   .eac-eye.pass-eye:hover, .eac-eye.pass-copy:hover { color: var(--text) !important; }
@@ -2955,7 +2955,7 @@
     color: var(--muted); cursor: pointer; transition: color .15s, border-color .15s;
     margin-bottom: -1px;
   }
-  .dbg-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+  .dbg-tab.active { color: var(--primary-text); border-bottom-color: var(--primary); }
   .dbg-tab:hover:not(.active) { color: var(--text); }
   .dbg-pane { min-height: 0; }
 
@@ -2982,7 +2982,7 @@
     border-radius: 20px; color: var(--muted); cursor: pointer;
     transition: border-color .12s, color .12s;
   }
-  .fse-chip:hover { border-color: var(--primary); color: var(--primary); }
+  .fse-chip:hover { border-color: var(--primary); color: var(--primary-text); }
 
   /* ── Firebase Explorer — dedicated side card, optimised for browsing ── */
   /* Dark dev-tool theme — force BOTH cards dark regardless of the app theme by
@@ -3016,7 +3016,7 @@
   .fse-head-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
   /* accent the card titles */
   .fse-title-icon { background-color: var(--primary); }
-  .fse-title-braces { font-family: var(--mono); font-size: 13px; font-weight: 800; color: var(--primary); letter-spacing: -1px; }
+  .fse-title-braces { font-family: var(--mono); font-size: 13px; font-weight: 800; color: var(--primary-text); letter-spacing: -1px; }
 
   #fseExplorerPanel { width: 400px; }  /* roomier default than the 300px base (still user-resizable) */
   .fse-wrap { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; flex: 1; min-height: 0; overflow: hidden; }
@@ -3029,8 +3029,8 @@
     background: var(--surface-2); border: 1px solid var(--border); color: var(--muted); cursor: pointer;
     transition: color .12s, border-color .12s;
   }
-  .fse-iconbtn:hover { color: var(--primary); border-color: var(--primary); }
-  .fse-iconbtn.is-on { color: var(--primary); border-color: var(--primary); }
+  .fse-iconbtn:hover { color: var(--primary-text); border-color: var(--primary); }
+  .fse-iconbtn.is-on { color: var(--primary-text); border-color: var(--primary); }
   .fse-iconbtn--text { font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: -.5px; }
   .fse-iconbtn.is-spinning .icon { animation: fse-spin .7s linear infinite; }
 
@@ -3060,7 +3060,7 @@
     color: var(--muted); cursor: pointer; font-family: inherit; font-size: inherit; white-space: nowrap;
     transition: background .12s, color .12s;
   }
-  .fse-crumb:hover { background: var(--surface-2); color: var(--primary); }
+  .fse-crumb:hover { background: var(--surface-2); color: var(--primary-text); }
   .fse-crumb--last { color: var(--text); font-weight: 600; }
   .fse-crumb-sep { flex-shrink: 0; color: var(--muted); opacity: .5; }
 
@@ -3069,7 +3069,7 @@
   .fse-meta:empty { display: none; }
   .fse-badge { padding: 2px 7px; border-radius: 5px; font-size: 9.5px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
   .fse-badge--doc { background: color-mix(in srgb, #7fb6ff 22%, transparent); color: #7fb6ff; }
-  .fse-badge--col { background: color-mix(in srgb, var(--primary) 22%, transparent); color: var(--primary); }
+  .fse-badge--col { background: color-mix(in srgb, var(--primary) 22%, transparent); color: var(--primary-text); }
   .fse-spacer { flex: 1; }
   .fse-filter {
     width: 120px; padding: 3px 8px; background: var(--surface-2); border: 1px solid var(--border);
@@ -3080,7 +3080,7 @@
     padding: 3px 8px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px;
     color: var(--muted); font-family: var(--mono); font-size: 10.5px; cursor: pointer; transition: color .12s, border-color .12s;
   }
-  .fse-rawtoggle:hover, .fse-rawtoggle.is-on { color: var(--primary); border-color: var(--primary); }
+  .fse-rawtoggle:hover, .fse-rawtoggle.is-on { color: var(--primary-text); border-color: var(--primary); }
 
   /* result area — fills the panel and scrolls */
   .fse-result { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 5px; }
@@ -3118,16 +3118,16 @@
   }
   .fse-doc-toggle .icon { transition: transform .15s; }
   .fse-doc.is-open .fse-doc-toggle .icon { transform: rotate(90deg); }
-  .fse-doc-toggle:hover { color: var(--primary); }
+  .fse-doc-toggle:hover { color: var(--primary-text); }
   .fse-doc-id {
     flex-shrink: 0; max-width: 55%; padding: 0; background: none; border: none;
     color: var(--text); font-family: var(--mono); font-size: 11.5px; font-weight: 600; cursor: pointer;
     text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: color .12s;
   }
-  .fse-doc-id:hover { color: var(--primary); text-decoration: underline; }
+  .fse-doc-id:hover { color: var(--primary-text); text-decoration: underline; }
   .fse-doc-preview { flex: 1; min-width: 0; font-family: var(--mono); font-size: 10.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   /* virtual brand folders (printers view): folder icon instead of a chevron */
-  .fse-doc-folder { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; flex-shrink: 0; color: var(--primary); }
+  .fse-doc-folder { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; flex-shrink: 0; color: var(--primary-text); }
   .fse-doc--empty { opacity: .45; }
   .fse-doc--empty .fse-doc-folder { color: var(--muted); }
   .fse-doc-body { padding: 2px 10px 8px; border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent); }
@@ -3345,7 +3345,7 @@
     border: none; border-radius: 5px; cursor: pointer; font-size: 12px;
     transition: background .15s, color .15s;
   }
-  .cc-cw-ok     { background: var(--primary-soft); color: var(--primary); }
+  .cc-cw-ok     { background: var(--primary-soft); color: var(--primary-text); }
   .cc-cw-ok:hover { background: var(--primary); color: var(--on-accent); }
   .cc-cw-cancel { background: var(--surface-2); color: var(--muted); }
   .cc-cw-cancel:hover { background: var(--border); color: var(--text); }
@@ -3363,7 +3363,7 @@
   .cc-missing {
     width: 100%; display: flex; align-items: center; gap: 10px;
     padding: 10px 12px; border-radius: 10px; cursor: pointer; text-align: left;
-    border: 1.5px solid var(--primary); background: var(--primary-soft); color: var(--primary);
+    border: 1.5px solid var(--primary); background: var(--primary-soft); color: var(--primary-text);
     transition: background .15s, transform .15s;
   }
   .cc-missing:hover { background: color-mix(in srgb, var(--primary) 22%, transparent); }
@@ -3388,7 +3388,7 @@
     background: none; border: 1px dashed var(--border); border-radius: 6px; padding: 3px 8px;
     cursor: pointer; transition: border-color .15s, color .15s;
   }
-  .cp-trigger:hover { border-color: var(--primary); color: var(--primary); }
+  .cp-trigger:hover { border-color: var(--primary); color: var(--primary-text); }
   /* ── twin-link picker modal ──────────────────────────────────────────
      Reuses the .cp-card frame from the container picker so the two
      pickers feel like the same family. The list inside is a stack of
@@ -3661,6 +3661,7 @@
     background: color-mix(in srgb, var(--danger) 35%, transparent) !important;
     color: #fff;
   }
+  :root:not([data-theme="dark"]) .toolbox-row.is-confirming { color: var(--text); }
   .toolbox-row.is-confirming .toolbox-row-icon,
   .toolbox-row.is-confirming .toolbox-row-chev { background: var(--surface); }
 
@@ -3733,7 +3734,7 @@
     font-size: 11px; font-weight: 600; transition: color .15s, border-color .15s, background .15s;
   }
   .cp-kind:hover { color: var(--text); border-color: var(--muted); }
-  .cp-kind.is-on { color: var(--primary); border-color: var(--primary); background: color-mix(in srgb, var(--primary) 12%, transparent); }
+  .cp-kind.is-on { color: var(--primary-text); border-color: var(--primary); background: color-mix(in srgb, var(--primary) 12%, transparent); }
   .cp-list {
     overflow-y: auto; padding: 8px; flex: 1;
   }
@@ -3776,10 +3777,10 @@
   .cp-cw-btn:hover { background: var(--surface-2); color: var(--text); }
   .cp-cw-badge {
     font-size: 9.5px; font-weight: 700; letter-spacing: .04em;
-    color: var(--primary); background: var(--primary-soft);
+    color: var(--primary-text); background: var(--primary-soft);
     padding: 1px 6px; border-radius: 999px;
   }
-  .cp-check { color: var(--primary); font-size: 14px; flex-shrink: 0; }
+  .cp-check { color: var(--primary-text); font-size: 14px; flex-shrink: 0; }
   .cp-fav { flex-shrink: 0; width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 8px; background: none; cursor: pointer; padding: 0; }
   .cp-fav .icon { background: var(--muted); opacity: .45; transition: opacity .15s, background .15s; }
   .cp-item:hover .cp-fav .icon, .cp-fav:focus-visible .icon { opacity: 1; }
@@ -3799,7 +3800,7 @@
     border: 1px solid var(--border); background: var(--surface); color: var(--text);
     font-size: 11.5px; font-weight: 600;
   }
-  .cp-show-all:hover { border-color: var(--primary); color: var(--primary); }
+  .cp-show-all:hover { border-color: var(--primary); color: var(--primary-text); }
 
   /* ── Reorder / buy-link side card ─────────────────────────────────────────
      Tucks to the LEFT of the spool detail (shares the container picker's slot),
@@ -3834,7 +3835,7 @@
   .pc-cta-btn--primary { background: var(--primary); border-color: var(--primary); color: #fff; }
   .pc-cta-btn--primary:hover { filter: brightness(1.06); }
   .pc-cta-btn--primary.is-busy { opacity: .6; cursor: progress; }
-  .pc-cta-btn.is-on { border-color: color-mix(in srgb, var(--success) 55%, var(--border)); color: var(--success);
+  .pc-cta-btn.is-on { border-color: color-mix(in srgb, var(--success) 55%, var(--border)); color: var(--success-text);
                       background: color-mix(in srgb, var(--success) 10%, var(--surface-2)); }
   /* "Product sheet" — opens the full management card beside this one. */
   .pc-sheet-btn {
@@ -3847,7 +3848,7 @@
   .pc-sheet-btn > span:nth-child(2) { flex: 1; }
   .pc-sheet-btn:hover { border-color: var(--primary); }
   .pc-sheet-btn:hover .icon { background: var(--primary); }
-  .pc-sheet-btn[aria-pressed="true"] { border-color: var(--primary); color: var(--primary); }
+  .pc-sheet-btn[aria-pressed="true"] { border-color: var(--primary); color: var(--primary-text); }
   .pc-sheet-btn[aria-pressed="true"] .icon { background: var(--primary); }
   .pc-owned { display: flex; align-items: center; gap: 7px; margin: 10px 16px 0; font-size: 12.5px; color: var(--muted); }
   .pc-owned .icon { background: var(--muted); }
@@ -3947,8 +3948,8 @@
   .ro-kpi.is-empty .ro-kpi-dot, .ro-kpi.ro-stock--low .ro-kpi-dot { background: var(--danger); box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 20%, transparent); }
   .ro-kpi-k { font-size: 11px; color: var(--muted); white-space: nowrap; }
   .ro-kpi-v { font-size: 13.5px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  #roStock .ro-kpi-v { color: var(--success); }
-  #roStock.is-empty .ro-kpi-v, #roStock.ro-stock--low .ro-kpi-v { color: var(--danger); }
+  #roStock .ro-kpi-v { color: var(--success-text); }
+  #roStock.is-empty .ro-kpi-v, #roStock.ro-stock--low .ro-kpi-v { color: var(--danger-text); }
   /* Buy link / price — two big plain buttons, no labels above them. */
   .ro-commerce .ro-shop-btn { justify-content: center; }
   .ro-commerce .ro-cur--mode { margin-left: 4px; }
@@ -3967,7 +3968,7 @@
     border-radius: 0; padding: 0;
   }
   .ro-tab:hover { color: var(--text); }
-  .ro-tab.is-active { color: var(--primary); border-bottom-color: var(--primary); }
+  .ro-tab.is-active { color: var(--primary-text); border-bottom-color: var(--primary); }
   .ro-tab-count { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; margin-left: 6px; border-radius: 9px; background: var(--primary); color: #fff; font-size: 11px; font-weight: 700; line-height: 1; vertical-align: 1px; }
   .ro-tabpanel { display: flex; flex-direction: column; gap: 12px; }
   .ro-tabpanel[hidden] { display: none; }
@@ -3991,17 +3992,17 @@
   .ro-det-row .icon { background: var(--muted); }
   .ro-det-k { color: var(--muted); }
   .ro-det-v { color: var(--text); font-weight: 600; text-align: right; display: inline-flex; align-items: center; gap: 6px; justify-content: flex-end; min-width: 0; }
-  .ro-det-v.is-low { color: var(--danger); }
+  .ro-det-v.is-low { color: var(--danger-text); }
   /* Colour(s) as plain HEX text, one per line under "Colour" in the details card
      (the colour itself is already shown by the dot on the Colour row). */
   .ro-hex-list { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
   .ro-hex-val { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px; }
-  .ro-det-v .pv-link { color: var(--primary); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ro-det-v .pv-link { color: var(--primary-text); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .ro-det-v .pv-link:hover { text-decoration: underline; }
   .ro-color-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 0 1px rgba(255,255,255,.15); }
   /* The minimum: a light link-style value, pencil once set. */
   .ro-shop--inline { display: inline-flex; align-items: center; gap: 4px; }
-  .ro-shop--inline .ro-shop-btn--link { height: auto; padding: 2px 6px; border: 0; background: none; font-size: 12.5px; font-weight: 600; color: var(--primary); }
+  .ro-shop--inline .ro-shop-btn--link { height: auto; padding: 2px 6px; border: 0; background: none; font-size: 12.5px; font-weight: 600; color: var(--primary-text); }
   .ro-shop--inline .ro-shop-btn--link.ro-shop-btn--active { color: var(--text); }
   .ro-shop--inline .ro-shop-edit { width: 24px; height: 24px; }
   /* Note — one line that grows, counter on the right. */
@@ -4163,7 +4164,7 @@
     max-width: 100%; min-width: 0; color: var(--text); font: inherit; transition: background .15s, color .15s;
   }
   .ro-ref-copyval:hover { background: var(--surface-2); }
-  .ro-ref-copyval.is-copied { color: var(--success); }
+  .ro-ref-copyval.is-copied { color: var(--success-text); }
   .ro-ref-copyval .ro-ref-val { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; word-break: normal; }
   .ro-ref-val--empty { color: var(--muted); }
   .ro-ref-hint { flex-shrink: 0; opacity: 0; background-color: var(--muted); transition: opacity .15s; }
@@ -4265,7 +4266,7 @@
     display: flex; align-items: center; justify-content: center; gap: 7px;
     width: 100%; height: 36px; border-radius: 10px; cursor: pointer;
     background: var(--surface-2); border: 1px solid var(--border);
-    color: var(--danger); font-size: 12.5px; font-weight: 600;
+    color: var(--danger-text); font-size: 12.5px; font-weight: 600;
   }
   .ro-remove .icon { background-color: var(--danger); }
   .ro-remove .hold-progress { background: color-mix(in srgb, var(--danger) 26%, transparent); opacity: 1; }
@@ -4277,7 +4278,7 @@
     transition: background .15s, border-color .15s;
   }
   .temp-chip--editable:hover { background: var(--surface-hover); border-color: var(--primary); }
-  .temp-chip--editable .tc-add { color: var(--primary); font-size: 11px; }
+  .temp-chip--editable .tc-add { color: var(--primary-text); font-size: 11px; }
   .temp-chip--editable::after {
     content: "✎";
     position: absolute; top: 4px; right: 5px;
@@ -4321,7 +4322,7 @@
   /* step 2 only — wide side gutters so the avatar/buttons/field/CTA breathe
      well away from the card edges */
   #dnsStep2 { padding-left: 68px; padding-right: 68px; }
-  .dns-eyebrow    { font-size: 10.5px; font-weight: 800; color: var(--primary); text-transform: uppercase; letter-spacing: .09em; }
+  .dns-eyebrow    { font-size: 10.5px; font-weight: 800; color: var(--primary-text); text-transform: uppercase; letter-spacing: .09em; }
   .dns-step-title { font-size: 26px; font-weight: 800; color: var(--text); letter-spacing: -.02em; line-height: 1.2; margin: 0 auto; max-width: 380px; text-align: center; }
   .dns-step-sub   { font-size: 13.5px; color: var(--muted); line-height: 1.5; margin: 2px auto 4px; max-width: 340px; text-align: center; }
   /* step-1 hero — the product mockup (MacBook + TigerTag phone), full width */
@@ -4435,7 +4436,7 @@
     transition: opacity .15s, transform .15s;
   }
   .dns-input-wrap.ok .dns-input-ok { opacity: 1; transform: translateY(-50%) scale(1); }
-  .dns-result { min-height: 14px; font-size: 11px; color: var(--danger); margin-top: -4px; }
+  .dns-result { min-height: 14px; font-size: 11px; color: var(--danger-text); margin-top: -4px; }
   /* actions — pinned to the bottom so both steps share the same height */
   .dns-actions { display: flex; gap: 10px; margin-top: auto; padding-top: 12px; }
   /* step 1: a single centred CTA at ~60% width (matches the language field) */
@@ -4501,7 +4502,7 @@
     padding: 1px 7px; border-radius: 999px; background: var(--surface-2);
     color: var(--muted); font-size: 10.5px; font-weight: 700; line-height: 1.5;
   }
-  .lv-side-item.is-active .lv-side-n { background: color-mix(in srgb, var(--primary) 22%, transparent); color: var(--primary); }
+  .lv-side-item.is-active .lv-side-n { background: color-mix(in srgb, var(--primary) 22%, transparent); color: var(--primary-text); }
   /* Visibility drop zone — holds a group's rows; always present (even empty) so a
      list can be dragged into any type. Empty = a dashed "drop here" hint. */
   .lv-side-zone { display: flex; flex-direction: column; gap: 2px; min-height: 6px; border-radius: 9px; transition: background-color .12s; }
@@ -4511,7 +4512,7 @@
   }
   /* While dragging, make every group visibly droppable. */
   .lv-side-dragging .lv-side-zone { background: color-mix(in srgb, var(--primary) 5%, transparent); }
-  .lv-side-dragging .lv-side-empty { border-color: color-mix(in srgb, var(--primary) 45%, var(--border)); color: var(--primary); opacity: 1; }
+  .lv-side-dragging .lv-side-empty { border-color: color-mix(in srgb, var(--primary) 45%, var(--border)); color: var(--primary-text); opacity: 1; }
   /* Visibility group header (Private / Friends / Public) — a quiet section label,
      NOT a row: no count, no hover, generous top spacing so it clearly separates
      the buckets. The lists are bucketed by type, so rows drop their own glyph. */
@@ -4539,9 +4540,9 @@
   .lv-vis .icon { width: 12px; height: 12px; }
   .lv-vis--private { color: var(--violet); background: color-mix(in srgb, var(--violet) 12%, transparent); border-color: color-mix(in srgb, var(--violet) 30%, transparent); }
   .lv-vis--private .icon { background-color: var(--violet); }
-  .lv-vis--friends { color: var(--info); background: color-mix(in srgb, var(--info) 12%, transparent); }
+  .lv-vis--friends { color: var(--info-text); background: color-mix(in srgb, var(--info) 12%, transparent); }
   .lv-vis--friends .icon { background-color: var(--info); }
-  .lv-vis--public { color: var(--success); background: color-mix(in srgb, var(--success) 14%, transparent); }
+  .lv-vis--public { color: var(--success-text); background: color-mix(in srgb, var(--success) 14%, transparent); }
   .lv-vis--public .icon { background-color: var(--success); }
   /* Right rail — stacks the payment summary + the public share card. */
   .lv-rail { flex: 0 0 300px; overflow-y: auto; min-height: 0;
@@ -4612,7 +4613,7 @@
   .lv-public-dl { flex: 0 0 auto; width: 40px; height: 36px; display: inline-flex; align-items: center; justify-content: center;
     padding: 0; cursor: pointer; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2);
     color: var(--faint); transition: background .12s, border-color .12s, color .12s; }
-  .lv-public-dl:hover { border-color: var(--primary); color: var(--primary); }
+  .lv-public-dl:hover { border-color: var(--primary); color: var(--primary-text); }
   .lv-public-dl .icon { background-color: currentColor; }
   .lv-public-dl.is-busy { opacity: .5; pointer-events: none; }
   .lv-public-dl.is-done { background: var(--success); border-color: var(--success); color: var(--on-accent); }
@@ -4664,7 +4665,7 @@
   .lv-side-new {
     display: flex; align-items: center; gap: 8px; width: 100%; margin: 2px 0 8px;
     padding: 9px 10px; border-radius: 9px; border: 1px dashed var(--border);
-    background: transparent; color: var(--primary); font-size: 13px; font-weight: 600; cursor: pointer;
+    background: transparent; color: var(--primary-text); font-size: 13px; font-weight: 600; cursor: pointer;
     transition: background-color .12s, border-color .12s;
   }
   .lv-side-new:hover { background: color-mix(in srgb, var(--primary) 8%, transparent); border-color: color-mix(in srgb, var(--primary) 45%, transparent); }
@@ -4760,7 +4761,7 @@
     background: none; border-radius: 5px; cursor: pointer; font-family: inherit; font-size: 13px;
     line-height: 1.2; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; transition: background .1s; }
   .qsel-opt:hover { background: var(--surface-2); }
-  .qsel-opt.is-sel { background: color-mix(in srgb, var(--primary) 12%, transparent); color: var(--primary); font-weight: 800; }
+  .qsel-opt.is-sel { background: color-mix(in srgb, var(--primary) 12%, transparent); color: var(--primary-text); font-weight: 800; }
   .qsel-opt--more { margin-top: 3px; border-top: 1px solid var(--border); border-radius: 0 0 5px 5px; }
   /* Free-entry input — typed by hand, no up/down spinner arrows. Doubled selector
      (0,2,0) so it outranks the global `input[type="text"]` rule (0,1,1) that would
@@ -4794,7 +4795,7 @@
   .lv-addprice {
     align-self: flex-start; margin-top: 2px; padding: 2px 0;
     background: none; border: none; cursor: pointer; font-family: inherit;
-    color: var(--primary); font-size: 13px; font-weight: 600;
+    color: var(--primary-text); font-size: 13px; font-weight: 600;
   }
   .lv-addprice:hover { text-decoration: underline; }
   .lv-addlink {
@@ -4901,7 +4902,7 @@
   .atl-new {
     display: flex; align-items: center; gap: 8px; width: 100%; margin-top: 4px;
     padding: 9px 8px; border-radius: 8px; border: none; cursor: pointer;
-    background: transparent; color: var(--primary); font-size: 13px; font-weight: 600;
+    background: transparent; color: var(--primary-text); font-size: 13px; font-weight: 600;
   }
   .atl-new:hover { background: color-mix(in srgb, var(--primary) 12%, transparent); }
   .atl-new .icon { background-color: var(--primary); }

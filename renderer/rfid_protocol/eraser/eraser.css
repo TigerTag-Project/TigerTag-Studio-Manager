@@ -11,7 +11,7 @@
 .cer-slot .cem-chip-logo { width: 58px; }
 
 .cer-hint { margin: 0; min-height: 18px; text-align: center; font-size: 12.5px; color: var(--muted); }
-.cer-hint--fail { color: var(--danger); font-weight: 600; }
+.cer-hint--fail { color: var(--danger-text); font-weight: 600; }
 
 /* The two banners stack as one block with rounded ends. */
 .cer-actions { display: flex; flex-direction: column; border-radius: 14px; overflow: hidden; border: 1px solid var(--border); }
@@ -53,14 +53,14 @@
   border: 1px solid var(--border); background: var(--surface-2); color: var(--muted);
   transition: border-color .15s, background .15s, color .15s;
 }
-.nfc-auth-opt.is-selected { border-color: var(--success); color: var(--success); background: color-mix(in srgb, var(--success) 12%, var(--surface-2)); }
+.nfc-auth-opt.is-selected { border-color: var(--success); color: var(--success-text); background: color-mix(in srgb, var(--success) 12%, var(--surface-2)); }
 .nfc-size { align-self: flex-end; margin-top: -4px; font-size: 11px; font-variant-numeric: tabular-nums; color: var(--muted); }
 /* The Auto switch, inside a held banner (Format, Write) before its ⓘ. */
 .cloud-encode-banner .nfc-auto { margin-left: auto; display: inline-flex; align-items: center; gap: 7px; cursor: pointer; font-size: 12px; font-weight: 700; color: var(--burn); }
 #chipEraserPanel .cloud-encode-banner .nfc-auto + .tool-info { margin-left: 0; }
 .cloud-encode-banner .nfc-auto .eac-toggle input:checked ~ .eac-toggle-track { background: var(--burn); }
-.nfc-size.is-over { color: var(--danger); font-weight: 700; }
+.nfc-size.is-over { color: var(--danger-text); font-weight: 700; }
 .nfc-form .cloud-encode-banner--hold.cloud-encode-banner--hold { border: 1px solid var(--border); border-radius: 14px; }
-.nfc-auto-count { text-align: center; font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--success); }
+.nfc-auto-count { text-align: center; font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--success-text); }
 .nfc-auto-count:empty { display: none; }
-#fmtAutoCount { color: var(--warning); }
+#fmtAutoCount { color: var(--warning-text); }

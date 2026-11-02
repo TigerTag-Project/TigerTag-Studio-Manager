@@ -11,5 +11,5 @@
 - Trophies: the release adds its batch of trophies (`trophies.md`), listed in the copy.
 - FEATURES.md: new capabilities only, tagged `(vX.Y.Z)`. llms.txt: when the data model, architecture or vocabulary changed. README: when a visitor should know the new capability exists.
 - Validators: `npm run i18n:check`, `whatsnew:check`, `codemap:check`, `docs:check`, `node --check`.
-- Generate inline; if the context is too large, ONE general-purpose agent at most, never a fan-out. The version decision, validators and all git/gh stay on the main loop.
+- Generate inline; if the context is too large, ONE agent at most — the `release-notes` agent (Sonnet) — never a fan-out. The version decision, validators and all git/gh stay on the main loop.
 - After the tag: reset `WORKLOG.md`, bump `package.json` to the next patch, both uncommitted.

@@ -28,7 +28,17 @@
         letterboxed in white would be absurd, so media surfaces keep a fixed
         dark scale in both themes. The sidebar and the TD1S panel deliberately
         do NOT belong here: they are panels inside the app, so they follow the
-        theme like everything else rather than staying black in a light UI. */
+        theme like everything else rather than staying black in a light UI.
+
+   ── Game UI tokens (--game-*) ──
+   The Tiger Quests and TigerSquad views, their windows (invite, notices, chest,
+   envelopes, send-coins) and the Trophies all paint with ONE shared set:
+   --game-bg / -bg-2 / -card / -card-2 / -line / -line-2 / -text / -text-2 /
+   -muted for the grounds and ink, --game-win-* for the floating windows, and the
+   accents gold, orange, ok, ice, danger (a fill/icon hue plus a `-text` twin that
+   deepens on a light ground so small text keeps 4.5:1). New Quest/Squad views
+   MUST use them (a local palette such as --tsq-* / --qw-* only ever aliases
+   them): no local hex, no "always dark" world. */
 
   :root {
     /* Space between the filter rows and whatever view is showing. Each view
@@ -48,8 +58,8 @@
 
     /* ── Text ── */
     --text: #1c2030;            /* primary */
-    --muted: #6b7287;           /* secondary */
-    --faint: #8b93a7;           /* tertiary, disabled, timestamps */
+    --muted: #4f566b;           /* secondary — ≥ 6.5:1 on every light surface (was too pale, founder 2026-11-02) */
+    --faint: #697087;           /* tertiary, disabled, timestamps — ≥ 4.5:1 on white */
 
     /* ── Borders ── */
     --border: #e3e6ef;          /* default hairline */
@@ -69,7 +79,7 @@
     --warning-soft: #fff5dc;
     --info: #386ecf;
     --info-soft: rgba(56,110,207,.10);
-    --neutral: #8b91a3;
+    --neutral: #737a8f;
     --violet: #7c4dff;          /* cloud / premium accent, distinct from brand */
     --violet-hover: #6a3de0;
     --primary-hi: #ffb056;      /* light stop of the brand gradient */
@@ -82,6 +92,18 @@
        stay recognisably the buy colour, so it only lifts for dark contrast. */
     --buy: #5e8e3e;
     --buy-hover: #4d7532;
+    /* Text twins: the accent DEEPENED so small text / icons in that hue keep
+       4.5:1 on white and on the -soft tints. Fills keep the plain accent; every
+       `color: var(--accent)` uses the twin. Dark: the twin IS the accent. */
+    --primary-text: #a84300;
+    --success-text: #14783c;
+    --warning-text: #8a5a00;
+    --danger-text: #b52626;
+    --info-text: #2f62bd;
+    --neutral-text: #5a6176;
+    --buy-text: #4d7532;
+    --favorite-text: #8a5a00;
+    --success-hover-text: #0f6b34;   /* hover/active twin of --success-text */
     /* The starred/favourite gold. A state, not decoration — the same colour has
        to mean "favourite" on the card badge, the filter chip and the bulk bar. */
     --favorite: #f5a623;
@@ -94,6 +116,42 @@
     --tier-epic: #a855f7;
     --tier-legendary: #ffb21a;
     --tier-event: #ff5fa2;
+
+    /* ── Game UI tokens — Tiger Quests, TigerSquad, Trophies, their windows ──
+       One palette for every game view (see the header note). The `-text` twins
+       are the same hue deepened for small text on a light ground; fills and
+       icons use the plain accent. Dark values reproduce the former
+       always-dark world exactly. */
+    --game-bg: var(--bg);           /* the view's ground */
+    --game-bg-2: #eceff7;           /* inset well, tab rail, bar track */
+    --game-card: #ffffff;           /* a card / row */
+    --game-card-2: #f6f7fb;         /* raised card, top stop of a panel gradient */
+    --game-line: #d3d8e6;
+    --game-line-2: #bcc3d6;         /* stronger line, hover edge */
+    --game-text: #1c2030;
+    --game-text-2: #3d4459;         /* secondary body copy */
+    --game-muted: #4f566b;
+    /* Floating windows (invite, notices): their own, slightly lighter ground in dark. */
+    --game-win-bg: #ffffff;
+    --game-win-bg-2: #f3f5fa;
+    --game-win-card: #f7f8fc;
+    --game-win-line: #d3d8e6;
+    --game-gold: #ffcf3d;           --game-gold-text: #8a5a00;
+    --game-gold-hi: #fff3c4;        /* pale highlight stop on a gold fill */
+    --game-gold-deep: #ffb21a;      /* deep stop of a gold gradient */
+    --game-gold-deep-text: #8a5a00;
+    --game-orange: #ff8a2e;         --game-orange-text: #b84a00;
+    --game-orange-hi: #ffb347;
+    --game-ok: #3ddc84;             --game-ok-text: #12803f;
+    --game-ice: #2f93e0;            --game-ice-text: #1b69a8;
+    --game-ice-deep: #1f7fcf;       /* the saturated cyan of the leagues / TigerSquad stats */
+    --game-danger: #ff6b6b;         --game-danger-text: #c42b2b;
+    --game-on-gold: #1a1205;        /* ink ON a gold / orange fill — fixed polarity */
+    --game-gold-soft:   color-mix(in srgb, var(--game-gold)   16%, var(--game-card));
+    --game-orange-soft: color-mix(in srgb, var(--game-orange) 14%, var(--game-card));
+    --game-ok-soft:     color-mix(in srgb, var(--game-ok)     14%, var(--game-card));
+    --game-ice-soft:    color-mix(in srgb, var(--game-ice)    14%, var(--game-card));
+    --game-danger-soft: color-mix(in srgb, var(--game-danger) 12%, var(--game-card));
 
     /* ── 3. Fixed polarity — these do NOT invert ── */
     --on-accent: #ffffff;       /* label/icon ON a filled accent button */
@@ -130,11 +188,12 @@
     --ink-20: rgba(20,24,40,.16);
     --ink-25: rgba(20,24,40,.20);
     --ink-30: rgba(20,24,40,.26);
-    --ink-40: rgba(20,24,40,.36);
-    --ink-50: rgba(20,24,40,.46);
-    --ink-60: rgba(20,24,40,.56);
-    --ink-70: rgba(20,24,40,.66);
-    --ink-85: rgba(20,24,40,.82);
+    /* The upper steps carry TEXT and icons: dark enough to read on white (≥ 4.5:1 from ink-50 up). */
+    --ink-40: rgba(20,24,40,.50);
+    --ink-50: rgba(20,24,40,.64);
+    --ink-60: rgba(20,24,40,.72);
+    --ink-70: rgba(20,24,40,.80);
+    --ink-85: rgba(20,24,40,.90);
 
     /* Scrim laid over photo/video so overlaid controls stay readable. Dark in
        BOTH themes — letterboxing a camera feed in white would be absurd. */
@@ -176,7 +235,14 @@
      gradient, which has always been dark. So in this theme the content area
      and the sidebar finally belong to the same surface, instead of a light
      document sitting inside a dark frame. */
-  :root[data-theme="dark"] {
+  :root[data-theme="dark"],
+  /* Always dark in BOTH themes, so they take this whole token set: the
+     full-screen game stages (.tc-reveal, on a dark scrim), the hero banners
+     (navy wall art) and the header banner when it sits on the account's
+     colour glow (always mixed into a dark navy — _applyThemeColor). */
+  .tc-reveal,
+  .qd-hero, .qm-hero, .sqr-hero, .sqr-hero-host,
+  :root.has-theme-tint #friendViewBanner {
     --sidebar-bg: linear-gradient(180deg, #101018 0%, #15111D 55%, #1A1020 100%);   /* subtle depth, founder's palette */
 
     /* On a dark ground the grid has to be lighter than the surface, not darker. */
@@ -220,6 +286,15 @@
     --buy-hover: #92c06d;
     --favorite: #f7b444;
     --favorite-deep: #e0a33a;
+    --primary-text: var(--primary);
+    --success-text: var(--success);
+    --warning-text: var(--warning);
+    --danger-text: var(--danger);
+    --info-text: var(--info);
+    --neutral-text: var(--neutral);
+    --buy-text: var(--buy);
+    --favorite-text: var(--favorite);
+    --success-hover-text: var(--success-hover);
 
     /* Tints recomputed against the dark surface instead of pale washes. */
     --primary-soft: color-mix(in srgb, var(--primary) 16%, var(--surface));
@@ -252,6 +327,34 @@
     --ink-60: rgba(255,255,255,.60);
     --ink-70: rgba(255,255,255,.70);
     --ink-85: rgba(255,255,255,.85);
+
+    /* Game UI tokens — the former always-dark world, unchanged. */
+    --game-bg: #0b0d14;
+    --game-bg-2: #121624;
+    --game-card: #161b2c;
+    --game-card-2: #1c2238;
+    --game-line: #2a3150;
+    --game-line-2: #3a4260;
+    --game-text: #eef1fb;
+    --game-text-2: #c9d0e6;
+    --game-muted: #8f97b3;
+    --game-win-bg: #151922;
+    --game-win-bg-2: #1c212d;
+    --game-win-card: #1b202b;
+    --game-win-line: #303543;
+    --game-gold-text: var(--game-gold);
+    --game-gold-deep-text: var(--game-gold-deep);
+    --game-orange-text: var(--game-orange);
+    --game-ok-text: var(--game-ok);
+    --game-ice: #8fd3ff;            --game-ice-text: #8fd3ff;
+    --game-ice-deep: #3da4f0;
+    --game-danger-text: #ff8a8a;
+    /* Re-declared so the tints recompute against the dark card (also inside .tc-reveal). */
+    --game-gold-soft:   color-mix(in srgb, var(--game-gold)   16%, var(--game-card));
+    --game-orange-soft: color-mix(in srgb, var(--game-orange) 14%, var(--game-card));
+    --game-ok-soft:     color-mix(in srgb, var(--game-ok)     14%, var(--game-card));
+    --game-ice-soft:    color-mix(in srgb, var(--game-ice)    14%, var(--game-card));
+    --game-danger-soft: color-mix(in srgb, var(--game-danger) 12%, var(--game-card));
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
@@ -353,7 +456,7 @@
   }
   .sb-toggle:hover {
     background: color-mix(in srgb, var(--primary) 18%, transparent) !important; border-color: color-mix(in srgb, var(--primary) 55%, transparent) !important;
-    box-shadow: 0 0 12px color-mix(in srgb, var(--primary) 25%, transparent); color: var(--primary) !important;
+    box-shadow: 0 0 12px color-mix(in srgb, var(--primary) 25%, transparent); color: var(--primary-text) !important;
   }
   .sb-chevron {
     display: block; flex-shrink: 0; pointer-events: none;
@@ -538,7 +641,7 @@
     display: flex; align-items: center; gap: 7px;
     height: 32px; padding: 0 14px; border-radius: 8px; font-size: 12px; font-weight: 600;
     background: color-mix(in srgb, var(--primary) 18%, transparent); border: 1px solid color-mix(in srgb, var(--primary) 35%, transparent);
-    color: var(--primary); cursor: pointer; font-family: inherit;
+    color: var(--primary-text); cursor: pointer; font-family: inherit;
     transition: background .15s, border-color .15s;
   }
   .sb-noacct-btn:hover { background: color-mix(in srgb, var(--primary) 28%, transparent) !important; border-color: color-mix(in srgb, var(--primary) 55%, transparent) !important; }
@@ -640,6 +743,8 @@
   /* Ticker count animation — brief green (up) / red (down) tint while rolling. */
   .sb-stat .value.stat-up   { color: #4ade80; }
   .sb-stat .value.stat-down { color: #f87171; }
+  :root:not([data-theme="dark"]) .sb-stat .value.stat-up   { color: var(--success-text); }
+  :root:not([data-theme="dark"]) .sb-stat .value.stat-down { color: var(--danger-text); }
   .sidebar.collapsed .sb-stats-wrap {
     display: flex; padding: 8px 5px; gap: 4px; overflow-y: auto;
   }
@@ -745,9 +850,13 @@
   }
   .sb-stat--cloud .value { color: #7b879b; }
   .sb-stat--cloud .label { color: rgba(123,135,155,.75); }
+  :root:not([data-theme="dark"]) .sb-stat--cloud .value { color: var(--neutral-text); }
+  :root:not([data-theme="dark"]) .sb-stat--cloud .label { color: var(--neutral-text); }
   /* collapsed sidebar: keep the purple tint on the mini tile */
   .sidebar.collapsed .sb-stat--cloud::before { color: #7b879b; }
   .sidebar.collapsed .sb-stat--cloud::after  { color: rgba(123,135,155,.65); }
+  :root:not([data-theme="dark"]) .sidebar.collapsed .sb-stat--cloud::before,
+  :root:not([data-theme="dark"]) .sidebar.collapsed .sb-stat--cloud::after  { color: var(--neutral-text); }
   /* top-stats (header) cloud variant — identical to other chips; badge handles the colour */
   .top-stats .sb-stat--cloud          { background: var(--surface-2) !important; border-color: var(--border) !important; }
   .top-stats .sb-stat--cloud .value   { color: var(--text); }
@@ -759,8 +868,8 @@
     background: color-mix(in srgb, var(--primary) 12%, transparent) !important;
     border-color: var(--primary) !important;
   }
-  .top-stats .sb-stat.is-active .value { color: var(--primary); }
-  .top-stats .sb-stat.is-active .label { color: var(--primary); opacity: .75; }
+  .top-stats .sb-stat.is-active .value { color: var(--primary-text); }
+  .top-stats .sb-stat.is-active .label { color: var(--primary-text); opacity: .75; }
   /* Cloud active state overrides */
   .top-stats .sb-stat--cloud.is-active {
     background: linear-gradient(135deg, rgba(100,116,139,.20), rgba(148,163,184,.12)) !important;

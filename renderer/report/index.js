@@ -108,6 +108,8 @@ let _lastScreen = null;  // last screen painted — a change slides the new one 
 // The conversation open in "My requests" / "All requests": { id, team, data, loading, error, text, images, sending, err }.
 let _thread = null;
 let _all = { list: null, loading: false, error: false, open: true };   // "All requests" (TigerMasters)
+// A requests tab opened again within this keeps the list it shows (no server call).
+const TAB_FRESH_MS = 20e3;
 let _resolveAsk = null;  // "done" | "declined" awaiting its confirmation in the open conversation
 const WATCH_MS = 30 * 60e3;   // re-check open requests for news while the app runs
 let _snoozeTimer = 0;         // "Later" on the alert window: it comes back after WATCH_MS
@@ -461,10 +463,11 @@ async function openThread(id, { team = false } = {}) {
 const _threadToEnd = () => requestAnimationFrame(() => { const b = _body(); if (b) b.scrollTop = b.scrollHeight; });
 const _threadActive = () => !!(_thread && isReportOpen() && (_view === "mine" || _view === "all") && _thread.data?.canReply);
 // ── All requests (every member reads them; the team acts on them) ────────────
-async function syncAll() {
-  if (_all.loading) return;
+// `maxAge`: a tab opened again within it keeps the list it shows (no call).
+async function syncAll({ maxAge = 0 } = {}) {
+  if (_all.loading || (maxAge && _all.list && Date.now() - (_all.at || 0) < maxAge)) return;
   _all.loading = true; _all.error = false;
-  try { _all.list = (await authedPost(MINE_ENDPOINT, { action: "all" })).reports || []; } catch (_) { _all.error = true; }
+  try { _all.list = (await authedPost(MINE_ENDPOINT, { action: "all" })).reports || []; _all.at = Date.now(); } catch (_) { _all.error = true; }
   // The team also sees the TigerCoins envelope messages their recipients reported.
   if (ctx.isTeam?.()) { try { _all.msgReports = (await authedPost(MINE_ENDPOINT, { action: "messageReports" })).reports || []; } catch (_) { _all.msgReports = null; } }
   _all.loading = false;
@@ -640,14 +643,15 @@ function threadHTML() {
 
 /** Fetch "My requests" — the backend also syncs each with GitHub and raises a
  *  notification for any status change. Called at sign-in and when the tab opens. */
-export async function syncReports() {
+export async function syncReports({ maxAge = 0 } = {}) {
   if (!ctx) return null;
   const uid = ctx.getUid?.() || null;
   if (_mine.uid !== uid) _mine = { list: null, loading: false, error: false, uid };   // account switched
   if (!uid || _mine.loading) return _mine.list;
+  if (maxAge && _mine.list && Date.now() - (_mine.at || 0) < maxAge) return _mine.list;   // just read: kept
   _mine.loading = true; _mine.error = false;
   if (isReportOpen() && _view === "mine" && !_thread) render();
-  try { _mine.list = (await authedPost(MINE_ENDPOINT, { action: "list" })).reports || []; _checkReplies(); }
+  try { _mine.list = (await authedPost(MINE_ENDPOINT, { action: "list" })).reports || []; _mine.at = Date.now(); _checkReplies(); }
   catch (_) { _mine.error = true; }
   _mine.loading = false;
   if (isReportOpen() && !_thread) render();
@@ -707,10 +711,10 @@ export function refreshSquadCard() {
 export async function openReport(opts = {}) {
   if (!ctx) return;
   if (_mine.uid !== (ctx.getUid?.() || null)) _mine = { list: null, loading: false, error: false, uid: ctx.getUid?.() || null };
-  if (opts.tab === "mine") { _view = "mine"; if (!opts.thread) _thread = null; syncReports(); }
+  if (opts.tab === "mine") { _view = "mine"; if (!opts.thread) _thread = null; syncReports({ maxAge: TAB_FRESH_MS }); }
   const asTeam = opts.tab === "all" && !!ctx.isTeam?.();
-  if (asTeam) { _view = "all"; if (!opts.thread) _thread = null; syncAll(); }
-  else if (ctx.isTeam?.()) syncAll();   // the team sees how many are open before opening the tab
+  if (asTeam) { _view = "all"; if (!opts.thread) _thread = null; syncAll({ maxAge: TAB_FRESH_MS }); }
+  else if (ctx.isTeam?.()) syncAll({ maxAge: TAB_FRESH_MS });   // the team sees how many are open before opening the tab
   _ensureCard();
   const dz = _overlay.querySelector(".rep-drop");
   dz.innerHTML = `<span class="icon icon-download icon-32"></span><span class="rep-drop-title">${esc(t("reportDropHere"))}</span><span class="rep-drop-sub">${esc(t("reportDropSub", { n: MAX_IMAGES }))}</span>`;
@@ -876,14 +880,14 @@ function onClick(e) {
   else if (act === "coffee") ctx.openCoffee?.(a);
   else if (act === "squad") ctx.openSquad?.();
   else if (act === "squadWall") (ctx.openSquadBoard ? ctx.openSquadBoard("countries") : ctx.openExternal(a.dataset.url));
-  else if (act === "view") { _view = a.dataset.view; _closeAsk = null; _thread = null; render(); if (_view === "mine") syncReports(); else if (_view === "all") syncAll(); }
+  else if (act === "view") { _view = a.dataset.view; _closeAsk = null; _thread = null; render(); if (_view === "mine") syncReports({ maxAge: TAB_FRESH_MS }); else if (_view === "all") syncAll({ maxAge: TAB_FRESH_MS }); }
   else if (act === "mineThread") openThread(a.dataset.id);
   else if (act === "allThread") openThread(a.dataset.id, { team: true });
   else if (act === "allFilter") { _all.open = a.dataset.open === "1"; render(); }
   else if (act === "msgRep") resolveMsgReport(a.dataset.id, a.dataset.outcome);
   else if (act === "resolve") { _resolveAsk = a.dataset.outcome; render(); setTimeout(() => { if (_resolveAsk === a.dataset.outcome) { _resolveAsk = null; render(); } }, 4000); }
   else if (act === "resolveYes") resolveThread(a.dataset.outcome);
-  else if (act === "threadBack") { const team = _thread?.team; _thread = null; render(); team ? syncAll() : syncReports(); }
+  else if (act === "threadBack") { const team = _thread?.team; _thread = null; render(); team ? syncAll({ maxAge: TAB_FRESH_MS }) : syncReports({ maxAge: TAB_FRESH_MS }); }
   else if (act === "link") { e.preventDefault(); if (/^https:\/\//.test(a.dataset.url || "")) ctx.openExternal(a.dataset.url); }
   else if (act === "replySend") sendReply();
   else if (act === "mineOpen") { const r = (_mine.list || []).find(x => x.id === a.dataset.id); if (r?.url) ctx.openExternal(r.url); }

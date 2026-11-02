@@ -106,18 +106,18 @@
      data-conn="active"   → printer is connected or connecting → danger tint (clicking disconnects)
      data-conn="inactive" → printer is offline / unknown       → accent tint  (clicking connects) */
   #printerConnBtn[data-conn="active"] {
-    color: var(--danger);
+    color: var(--danger-text);
   }
   #printerConnBtn[data-conn="active"]:hover {
     background: color-mix(in srgb, var(--danger) 12%, transparent);
-    color: var(--danger);
+    color: var(--danger-text);
   }
   #printerConnBtn[data-conn="inactive"] {
-    color: var(--primary);
+    color: var(--primary-text);
   }
   #printerConnBtn[data-conn="inactive"]:hover {
     background: color-mix(in srgb, var(--primary) 12%, transparent);
-    color: var(--primary);
+    color: var(--primary-text);
   }
   /* ── The printer plan ──────────────────────────────────────────────────
      Cards placed by hand rather than reflowed by state. Absolute inside a
@@ -503,7 +503,7 @@
   }
   .printer-active-badge {
     font-size: 10px; font-weight: 700;
-    color: var(--primary);
+    color: var(--primary-text);
     background: color-mix(in srgb, var(--info) 12%, transparent);
     padding: 2px 8px; border-radius: 999px;
     text-transform: uppercase; letter-spacing: .3px;
@@ -1029,7 +1029,7 @@
     font-size: 12px; font-weight: 500; color: var(--muted);
   }
   .pba-field-req {
-    color: var(--danger);
+    color: var(--danger-text);
     margin-left: 2px;
   }
   .pba-input {
@@ -1294,7 +1294,7 @@
   }
   .pba-input-eye:hover { background: var(--surface-2); color: var(--text); }
   .pba-input-eye .icon { background: currentColor; }
-  .pba-input-eye--on { color: var(--primary); }
+  .pba-input-eye--on { color: var(--primary-text); }
   /* No :active transform hack needed any more — global press feedback is now
      `filter: brightness` (70-detail-misc.css), which can't disturb the eye's
      centering transform. The icon stays put on click; it just darkens. */
@@ -1375,7 +1375,7 @@
     align-self: flex-start;
     margin: 0 0 4px;
     padding: 6px 14px;
-    background: var(--primary-soft); color: var(--primary);
+    background: var(--primary-soft); color: var(--primary-text);
     border: none; border-radius: 999px;
     font-size: 12px; font-weight: 700; line-height: 1;
     white-space: nowrap;
@@ -1513,7 +1513,7 @@
   .bbl-cloud-sent-addr { color: var(--text); overflow-wrap: anywhere; }
   .bbl-cloud-change {
     background: none; border: none; padding: 0;
-    color: var(--primary); font: inherit; cursor: pointer;
+    color: var(--primary-text); font: inherit; cursor: pointer;
     text-decoration: underline; flex-shrink: 0;
   }
 
@@ -1526,7 +1526,7 @@
     border: 1px solid var(--border);
   }
   .bbl-cloud-form .bbl-cloud-input.is-invalid { border-color: var(--danger); }
-  .bbl-cloud-note.is-error { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, var(--border)); }
+  .bbl-cloud-note.is-error { color: var(--danger-text); border-color: color-mix(in srgb, var(--danger) 40%, var(--border)); }
   .bbl-cloud-pick {
     font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
     color: var(--muted);
@@ -1811,7 +1811,7 @@
   }
   .snap-scan-card--high .snap-scan-card-score {
     background: color-mix(in srgb, var(--success) 14%, transparent);
-    color: var(--success-hover);
+    color: var(--success-hover-text);
   }
   .snap-scan-card--med .snap-scan-card-score {
     background: color-mix(in srgb, var(--warning) 14%, transparent);
@@ -2132,7 +2132,7 @@
   .snap-extra-subnets-add:hover { opacity: .9; }
   .snap-extra-subnets-err {
     font-size: 11px;
-    color: var(--danger);
+    color: var(--danger-text);
     padding: 4px 0;
   }
   .snap-extra-subnets-chips {
@@ -2163,7 +2163,7 @@
   }
   .snap-extra-subnets-chip-x:hover {
     background: color-mix(in srgb, var(--danger) 15%, transparent);
-    color: var(--danger);
+    color: var(--danger-text);
   }
 
   /* Debug-only scan journal — collapsible panel at the bottom of the
@@ -2276,12 +2276,12 @@
   }
   /* Transient feedback states after Export click. */
   .snap-scan-log-btn--ok {
-    color: var(--success-hover) !important;
+    color: var(--success-hover-text) !important;
     border-color: var(--success-hover) !important;
     background: color-mix(in srgb, var(--success) 12%, transparent) !important;
   }
   .snap-scan-log-btn--err {
-    color: var(--danger) !important;
+    color: var(--danger-text) !important;
     border-color: var(--danger) !important;
     background: color-mix(in srgb, var(--danger) 12%, transparent) !important;
   }
@@ -2319,9 +2319,9 @@
     align-self: center;
     color: var(--muted);
   }
-  .snap-scan-log-row--hit       .snap-scan-log-kind { color: var(--success-hover); }
+  .snap-scan-log-row--hit       .snap-scan-log-kind { color: var(--success-hover-text); }
   .snap-scan-log-row--ambiguous .snap-scan-log-kind { color: var(--warning-hover); }
-  .snap-scan-log-row--error     .snap-scan-log-kind { color: var(--danger); }
+  .snap-scan-log-row--error     .snap-scan-log-kind { color: var(--danger-text); }
   .snap-scan-log-summary {
     color: var(--text);
     word-break: break-all;
@@ -2427,7 +2427,7 @@
   .pp-active {
     position: absolute; top: 18px; right: 20px;
     font-size: 10px; font-weight: 700;
-    color: var(--primary);
+    color: var(--primary-text);
     background: color-mix(in srgb, var(--info) 12%, transparent);
     padding: 3px 10px; border-radius: 999px;
     text-transform: uppercase; letter-spacing: .3px;
@@ -2802,7 +2802,7 @@ details[open] .pba-step-chev { transform: rotate(90deg); }
 /* Secondary (outline) variant */
 .pba-step-cta--secondary {
   background: transparent;
-  color: var(--primary);
+  color: var(--primary-text);
   border: 1px solid var(--primary);
 }
 .pba-step-cta--secondary .pba-step-cta-icon {
@@ -3403,7 +3403,7 @@ details[open] .pba-step-chev { transform: rotate(90deg); }
 .pba-beta-tag {
   display: inline-flex; align-items: center; margin-left: 6px; padding: 1px 7px;
   border-radius: 999px; vertical-align: middle;
-  background: color-mix(in srgb, var(--primary) 16%, transparent); color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 16%, transparent); color: var(--primary-text);
   font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
 }
 /* The Beta mark at the top of a beta printer's live block (printers/beta-badge.js):
@@ -3415,7 +3415,7 @@ details[open] .pba-step-chev { transform: rotate(90deg); }
    same shape as the Beta tag, in the info colour so the two never read alike. */
 .printer-demo-tag {
   display: inline-flex; align-items: center; padding: 1px 7px; border-radius: 999px; vertical-align: middle;
-  background: color-mix(in srgb, var(--info) 16%, transparent); color: var(--info);
+  background: color-mix(in srgb, var(--info) 16%, transparent); color: var(--info-text);
   font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; white-space: nowrap;
 }
 .pba-brand-label .printer-demo-tag { margin-left: 6px; }
@@ -3581,10 +3581,10 @@ details[open] .pba-step-chev { transform: rotate(90deg); }
   color: var(--text); font: inherit; font-size: 12px; cursor: pointer; transition: border-color .12s, background .12s;
 }
 .xc-seg button:hover { border-color: var(--info); }
-.xc-seg button[aria-checked="true"] { border-color: var(--primary); background: var(--primary-soft); color: var(--primary); }
+.xc-seg button[aria-checked="true"] { border-color: var(--primary); background: var(--primary-soft); color: var(--primary-text); }
 .xc-test { font-size: 12px; color: var(--muted); }
-.xc-test[data-state="ok"]   { color: var(--success); }
-.xc-test[data-state="fail"] { color: var(--danger); }
+.xc-test[data-state="ok"]   { color: var(--success-text); }
+.xc-test[data-state="fail"] { color: var(--danger-text); }
 /* `hidden` alone loses to .adf-btn's display, so say it again for the two buttons the card swaps. */
 .pba-footer .xc-delete[hidden], .pba-footer #xcBack[hidden] { display: none; }
 .pba-footer .xc-delete { flex: 0 0 auto; }

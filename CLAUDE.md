@@ -54,7 +54,7 @@ missing from this index, the index cites a missing file, or a cited path does no
 - **What's New**: one topic per item, benefit-first, icon names, 11 locales, no admin/debug features → `.agents/rules/whats-new.md`
 - **GitHub replies**: English, posted only on order, no personal data → `.agents/rules/github-replies.md`
 - **Code reviews**: every few releases, kept in `docs/reviews/`, findings annotated → `.agents/rules/code-reviews.md`
-- **Token efficiency**: CODEMAP → `grep -n` → sliced `Read`; delegate lookups to `codemap-explorer` / `simple-task`; never fan out; short answers → `.agents/rules/token-efficiency.md`
+- **Token efficiency**: one subject per session; CODEMAP → `grep -n` → sliced `Read`; repeatable work to the project agents (`codemap-explorer`, `simple-task`, `theme-fixer`, `i18n-writer`, `release-notes`, `issue-triage`) with short precise briefs; never fan out; text checks before one screenshot; short answers → `.agents/rules/token-efficiency.md`
 - **Verify UI**: check renderer changes yourself with dev-drive; don't ask the founder to test routine tweaks → `.agents/rules/verify-ui.md`
 - **Firestore changes**: backend repo is the source of truth; rules + `hasOnly` first, deploy, then propagate the docs; `userProfiles` only via `setProfile` → `.agents/rules/firestore-changes.md`
 - **Art direction**: every illustration follows `docs/ART-DIRECTION.md` (canon banner attached, prompt block, checklist), shown to the founder before it is integrated; a banner's layers are never reused alone elsewhere → `.agents/rules/art-direction.md`
@@ -65,6 +65,7 @@ missing from this index, the index cites a missing file, or a cited path does no
 - **Naming**: self-describing names, one state per field, nothing derivable stored → `.agents/rules/naming.md`
 - **CSS**: right section file, theme tokens for new colours, icons on one dimension + `aspect-ratio`, doubled class instead of `!important`, no inline JS in HTML → `.agents/rules/css-placement.md`
 - **UI/UX defaults**: reuse the existing components and CSS (classes, markup) by default, never a new look unless asked; declutter, consistency, smooth motion, real icons, selected state; no `title=` tooltips (use `aria-label`); big rare moments get a ceremony with an animation behind the window → `.agents/rules/ui-ux-defaults.md`
+- **Paint last known values**: header, view bar, menus and badges draw at once from the last session's values (`Cache` `header`: `stats`, `coins`, `bar`), then update in place; nothing pops in late → `.agents/rules/paint-last-known.md`
 - **Surgical DOM updates**: signature guard → patch in place → swap one section → full rebuild last → `.agents/rules/surgical-dom-updates.md`
 - **Dialogs**: every window is `openDialog()` (`renderer/dialog.js`) — "notice" (Tiger Squad look) or "ceremony" (TigerCoins plaque); no new overlay markup; a touched old window moves onto it → `.agents/rules/dialogs.md`
 - **Hold-to-confirm**: `setupHoldToConfirm` with a visible `.hold-progress` fill → `.agents/rules/hold-to-confirm.md`
@@ -166,6 +167,8 @@ ONE `ip` field, `host` or `host:port` (the form Studio and the Tiger Touch firmw
 | `tigertag.accounts` | `Account[]` JSON array |
 | `tigertag.activeAccount` | active account id |
 | `tigertag.inv.<id>` | cached inventory JSON for that account |
+| `tigertag.products.<id>` | cached products JSON for that account (id → data) |
+| `tigertag.invSync.<id>` / `tigertag.prodSync.<id>` | `{at: ms}` when that copy was last in step with the server: the next launch listens only to docs with a later `syncAt` (`_listenSynced`) |
 | `tigertag.view` | `"table"` \| `"grid"` |
 | `tigertag.lang` | one of the 11 locale codes |
 | `tigertag.sidebar` | `"collapsed"` \| `"expanded"` |
@@ -175,8 +178,10 @@ ONE `ip` field, `host` or `host:port` (the form Studio and the Tiger Touch firmw
 | `tigertag.nfc.lastUrl` | last link written to a chip by the NFC tools, offered again |
 | `tigertag.nfc.contact` | the NFC tools' contact card as last typed `{name, phone, email, org, url}` |
 | `tigertag.trophies.<id>` | the trophy ids already celebrated on this device for that account (`renderer/quests/trophies.js`) |
+| `tigertag.trophyAlbum.<id>` | that account's album `{at, earned: {id: {at, event, ctx}}}`: painted at once, then only trophies with a later `earnedAt` are read (+ a COUNT catches one taken back) |
+| `tigertag.friendTrophies.<id>` | the albums of that account's friends last seen `{friendUid: {at, name, earned}}` (50 newest), same delta reads |
 | `tigertag.coinlog.<id>` | the TigerCoins history last read for that account (100 newest rows), shown at once when the history opens, then refreshed |
-| `tigertag.header.<id>` | the header's last figures for that account `{stats: {key: number}, coins: {balance, n}}`, painted at launch before the data arrives, then updated where they differ |
+| `tigertag.header.<id>` | the header's and view bar's last figures for that account `{stats: {key: number}, coins: {balance, n}, bar: {daily, level, squad, lists, order, invite}}`, painted at launch before the data arrives, then updated where they differ |
 
 ## Account object shape
 ```js

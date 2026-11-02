@@ -208,7 +208,7 @@
 .acu-err-code  { display: block; text-align: right; margin-bottom: 8px; }
 .acu-err-code:empty { display: none; }
 .acu-err-code:not(:empty) {
-  color: var(--danger); font-size: 12px; font-weight: 600;
+  color: var(--danger-text); font-size: 12px; font-weight: 600;
   background: var(--danger-soft); border-radius: 6px; padding: 2px 8px;
 }
 .acu-err-msg   { color: var(--text); font-size: 14px; line-height: 1.4; }
@@ -243,7 +243,7 @@
 }
 .acu-fs-tab:hover { color: var(--text); }
 .acu-fs-tab--active {
-  color: var(--primary);
+  color: var(--primary-text);
   border-bottom-color: var(--primary);
 }
 

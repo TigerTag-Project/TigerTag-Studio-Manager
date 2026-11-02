@@ -68,7 +68,7 @@ export function breakdownHtml(ctx, log, days = 30) {
       stroke-dasharray="${Math.max(0, len - gap)} ${C}" stroke-dashoffset="${-at}" transform="rotate(-90 64 64)"/>`;
     at += len;
     return arc;
-  }).join("") : `<circle r="${R}" cx="64" cy="64" fill="none" stroke="#262c3d" stroke-width="28"/>`;
+  }).join("") : `<circle r="${R}" cx="64" cy="64" fill="none" style="stroke:var(--game-line)" stroke-width="28"/>`;
   const legend = parts.map((p, i) => `
     <li data-i="${i}"><span class="xph-dot" style="--c:${p.c.color}"></span><span>${esc(t("xpCat_" + p.c.id))}</span>
       <b class="${p.v < 0 ? "is-down" : "is-up"}">${signed(ctx, p.v)}</b></li>`).join("");

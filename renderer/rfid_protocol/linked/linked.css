@@ -167,7 +167,7 @@
    link banner (the grid's offer, the product card's and the spool card's
    "Link the proprietary third-party Tag") shares it, by class. */
 .lc-offer-banner.lc-offer-banner { background: color-mix(in srgb, var(--success) 12%, transparent); }
-.lc-offer-banner.lc-offer-banner .chip-update-text { color: var(--success); font-weight: 600; }
+.lc-offer-banner.lc-offer-banner .chip-update-text { color: var(--success-text); font-weight: 600; }
 .lc-offer-banner.lc-offer-banner .lc-offer-ic .icon { background: var(--success); }
 /* Same "burning" feel as the burn banner (70-detail-misc.css, cloud-burn-*): a
    glint sweeps across, the link icon glows, the held fill's leading edge burns

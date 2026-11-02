@@ -104,7 +104,7 @@
   background: color-mix(in srgb, var(--primary) 9%, transparent);
   border: 1px solid color-mix(in srgb, var(--primary) 35%, transparent);
 }
-.rep-error { font-size: 12.5px; color: var(--danger); }
+.rep-error { font-size: 12.5px; color: var(--danger-text); }
 
 .rep-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 2px; }
 .rep-btn.rep-btn--ghost { background: none; border-color: transparent; color: var(--muted); }
@@ -196,7 +196,7 @@
   min-width: 30px; height: 28px; padding: 0 6px; border-radius: 7px; border: 1px solid rgba(255,255,255,.12);
   background: none; color: #c9cbd6; font: 700 11px system-ui, sans-serif; cursor: pointer;
 }
-.rep-anno-size.is-on { border-color: var(--primary); color: var(--primary); background: color-mix(in srgb, var(--primary) 14%, transparent); }
+.rep-anno-size.is-on { border-color: var(--primary); color: var(--primary-text); background: color-mix(in srgb, var(--primary) 14%, transparent); }
 .rep-anno-sep { width: 1px; height: 24px; background: rgba(255,255,255,.12); margin: 0 4px; }
 .rep-anno-grow { flex: 1; }
 .rep-anno-stage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 18px; }
@@ -406,7 +406,7 @@
 .rep-form-title { font-size: 17px; font-weight: 800; color: var(--text); }
 .rep-form-lead { font-size: 12.5px; color: var(--muted); line-height: 1.45; margin-top: 3px; }
 .rep-label { font-size: 13px; font-weight: 700; color: var(--text); margin: 4px 0 -6px; display: flex; align-items: center; gap: 6px; }
-.rep-req { color: var(--danger); }
+.rep-req { color: var(--danger-text); }
 .rep-card .rep-input { padding: 10px 12px; border-radius: 10px; }
 .rep-editor { border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); position: relative; }
 .rep-editor:focus-within { border-color: var(--kc); }
@@ -428,7 +428,7 @@
 .rep-dz-ico .icon { background: var(--muted); }
 .rep-dz-txt { font-size: 12.5px; color: var(--muted); display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
 .rep-dz-txt > div { flex-basis: 100%; }
-.rep-dz-browse { border: 0; background: none; padding: 0; color: #3b82f6; cursor: pointer; font-size: 12.5px; font-family: inherit; }
+.rep-dz-browse { border: 0; background: none; padding: 0; color: var(--info-text); cursor: pointer; font-size: 12.5px; font-family: inherit; }
 .rep-dz-browse:hover { text-decoration: underline; }
 .rep-dz-capture { flex-basis: auto; margin-top: 6px; height: 30px; padding: 0 12px; gap: 6px; display: inline-flex; align-items: center;
   border: 1px solid #3b82f6; border-radius: 8px; background: none; color: var(--text); font-size: 12.5px; font-weight: 600; cursor: pointer; font-family: inherit; }
@@ -674,10 +674,10 @@
 .rep-msg--team .rep-msg-bubble { border-color: color-mix(in srgb, var(--primary) 45%, var(--border)); }
 .rep-msg-head { display: flex; align-items: baseline; gap: 8px; font-size: 11.5px; color: var(--muted); margin-bottom: 3px; }
 .rep-msg-head b { color: var(--text); font-size: 12px; }
-.rep-msg--team .rep-msg-head b { color: var(--primary); }
+.rep-msg--team .rep-msg-head b { color: var(--primary-text); }
 .rep-msg-text { font-size: 13px; line-height: 1.5; color: var(--text); overflow-wrap: anywhere; }
 .rep-msg-text code { font-size: 12px; padding: 0 4px; border-radius: 4px; background: var(--surface); }
-.rep-msg-link { color: #3b82f6; text-decoration: underline; }
+.rep-msg-link { color: var(--info-text); text-decoration: underline; }
 .rep-msg-imgs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .rep-msg-img { width: 84px; aspect-ratio: 4 / 3; padding: 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; cursor: zoom-in; background: var(--surface); }
 .rep-msg-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -740,7 +740,7 @@
   font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
 .rep-all-filter .rep-chip.is-on { color: #fff; background: #2563eb; border-color: #2563eb; }
 .rep-team-acts { gap: 8px; }
-.rep-team-done.rep-team-done { color: #2f9e44; }
+.rep-team-done.rep-team-done { color: var(--success-text); }
 /* The title and sub-line of a pill never shrink away (overflow: hidden makes their min-height 0). */
 .rep-mine-row .rep-mine-main > * { flex-shrink: 0; }
 /* Three tabs (TigerMasters): one line each. */

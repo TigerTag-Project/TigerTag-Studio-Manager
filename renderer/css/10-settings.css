@@ -97,7 +97,7 @@
   .stg-row-actions .stg-link-btn:hover {
     background: var(--surface);
     border-color: var(--primary);
-    color: var(--primary);
+    color: var(--primary-text);
     box-shadow: 0 2px 10px rgba(0,0,0,.06);
   }
   .stg-row-actions .ghost:hover .icon,
@@ -109,7 +109,7 @@
 
   /* About content — flat lines directly inside the card body, no inner box */
   #stgAbout .stg-about-name    { font-size: 13px; font-weight: 600; color: var(--text); }
-  #stgAbout .stg-about-version { font-size: 13px; color: var(--primary); font-family: var(--mono); font-weight: 700; }
+  #stgAbout .stg-about-version { font-size: 13px; color: var(--primary-text); font-family: var(--mono); font-weight: 700; }
   #stgAbout .stg-about-tech    { font-size: 11px; color: var(--muted); user-select: text; font-family: var(--mono); margin-bottom: 4px; }
 
   /* Status line (Checking… / Up to date / Available / Ready / Error) */
@@ -123,9 +123,10 @@
     border-radius: 6px;
     word-break: break-word;
   }
-  .stg-status[data-kind="ok"]   { color: var(--success); border-color: rgba(22,163,74,.3); }
+  .stg-status[data-kind="ok"]   { color: var(--success-text); border-color: rgba(22,163,74,.3); }
   .stg-status[data-kind="warn"] { color: rgb(217, 119, 6); border-color: rgba(217,119,6,.3); }
-  .stg-status[data-kind="err"]  { color: var(--danger); border-color: rgba(220,38,38,.3); }
+  :root:not([data-theme="dark"]) .stg-status[data-kind="warn"] { color: var(--warning-text); }
+  .stg-status[data-kind="err"]  { color: var(--danger-text); border-color: rgba(220,38,38,.3); }
 
   /* Spool detail panel → Storage location row.
      Compact one-liner: package icon · rack name · orange coord badge.
@@ -149,7 +150,7 @@
     flex-shrink: 0;
     font-family: var(--mono);
     font-size: 12px; font-weight: 700;
-    color: var(--primary);
+    color: var(--primary-text);
     background: var(--primary-soft);
     border: 1px solid color-mix(in srgb, var(--primary) 40%, transparent);
     padding: 2px 8px;
@@ -178,7 +179,7 @@
     border-color: var(--primary);
   }
   .panel-storage-loc .storage-loc-row--clickable:hover .icon { background: var(--primary); }
-  .panel-storage-loc .storage-loc-row--clickable:hover .storage-loc-rack { color: var(--primary); }
+  .panel-storage-loc .storage-loc-row--clickable:hover .storage-loc-rack { color: var(--primary-text); }
   .panel-storage-loc .storage-loc-locate {
     background: var(--muted);
     flex-shrink: 0;
@@ -221,7 +222,7 @@
     background: var(--primary-soft);
   }
   .panel-storage-loc .storage-loc-row--empty:has(.storage-loc-autobtn:hover) .storage-loc-rack--empty {
-    color: var(--primary);
+    color: var(--primary-text);
   }
   .panel-storage-loc .storage-loc-row--empty:has(.storage-loc-autobtn:hover) .icon-package {
     background: var(--primary);
@@ -258,7 +259,7 @@
   /* On hover: title TEXT turns orange (no background!), the chevron is an SVG
      mask icon so its `background` IS its fill colour. Setting `background` on the
      title span made an orange box over the text — that was the bug. */
-  .stg-card-head--btn:hover .stg-card-title { color: var(--primary); }
+  .stg-card-head--btn:hover .stg-card-title { color: var(--primary-text); }
   .stg-card-head--btn:hover .stg-card-chev { background: var(--primary); }
   .stg-card-head--btn:focus-visible {
     outline: 2px solid var(--primary);
@@ -356,7 +357,7 @@
   .sb-report-btn {
     display: flex; align-items: center; justify-content: center; gap: 8px;
     background: none; border: 1px solid color-mix(in srgb, var(--primary) 50%, transparent); border-radius: 8px;
-    padding: 8px 12px; color: var(--primary); font-size: 12px; font-weight: 600;
+    padding: 8px 12px; color: var(--primary-text); font-size: 12px; font-weight: 600;
     cursor: pointer; width: 100%; box-sizing: border-box;
     transition: background .15s, color .15s, width .25s cubic-bezier(.4,0,.2,1);
   }
@@ -400,7 +401,7 @@
     cursor: pointer; transition: background .15s, color .15s, border-color .15s, transform .15s;
   }
   .stg-copy-btn:hover { background: var(--border); color: var(--text); transform: scale(1.08); }
-  .stg-copy-btn.copied { background: var(--success-soft); border-color: color-mix(in srgb, var(--success) 30%, transparent); color: var(--success); }
+  .stg-copy-btn.copied { background: var(--success-soft); border-color: color-mix(in srgb, var(--success) 30%, transparent); color: var(--success-text); }
   @keyframes copyPop { 0%{transform:scale(1)} 40%{transform:scale(1.3)} 100%{transform:scale(1)} }
   .stg-copy-btn.pop { animation: copyPop .25s cubic-bezier(.4,0,.2,1); }
 
@@ -496,6 +497,8 @@
   /* Settings: light grey, white on hover. */
   .sb-settings-btn { color: #9299AA; transition: color 180ms ease, background 180ms ease; }
   .sb-settings-btn:hover { color: #fff; }
+  :root:not([data-theme="dark"]) .sb-settings-btn { color: var(--muted); }
+  :root:not([data-theme="dark"]) .sb-settings-btn:hover { color: var(--text); }
   :root:not([data-theme="dark"]) .sb-settings-btn:hover { color: var(--text); }
 
   /* "Support the project" chooser (Buy Me a Coffee / PayPal) — opened by every
@@ -608,6 +611,8 @@
 .support-claim-msg:empty { display: none; }
 .support-claim-msg.is-ok { color: #20E39A; }
 .support-claim-msg.is-ko { color: #FF8A65; }
+:root:not([data-theme="dark"]) .support-claim-msg.is-ok { color: var(--success-text); }
+:root:not([data-theme="dark"]) .support-claim-msg.is-ko { color: var(--danger-text); }
 .support-code-chip.is-loading { opacity: .55; cursor: progress; }
 
 /* TigerSquad — supporters who chose to show it. A golden ring on the avatar
@@ -675,12 +680,12 @@
 /* ══ TigerSquad invite (_openSquadInvite) — dark premium, gamified ══════════
    Palette from the redesign brief; motion 160–300 ms, none under reduced motion. */
 .squad-invite {
-  --tsq-bg: #151922; --tsq-bg2: #1C212D; --tsq-card: #1B202B; --tsq-line: #303543;
-  --tsq-text: #F1F3F8; --tsq-muted: #AAB3C5; --tsq-orange: #FF923F;
+  --tsq-bg: var(--game-win-bg); --tsq-bg2: var(--game-win-bg-2); --tsq-card: var(--game-win-card); --tsq-line: var(--game-win-line);
+  --tsq-text: var(--game-text); --tsq-muted: var(--game-muted); --tsq-orange: var(--game-orange-text);
   position: fixed; z-index: 10061; left: 50%; top: 50%; transform: translate(-50%, -50%);
   width: min(700px, calc(100vw - 32px)); max-height: 90vh; display: flex; flex-direction: column;
   border-radius: 18px; border: 1px solid var(--tsq-line); color: var(--tsq-text); text-align: center;
-  background: radial-gradient(120% 50% at 50% 0%, rgba(255, 146, 63, .10), transparent 60%), var(--tsq-bg);
+  background: radial-gradient(120% 50% at 50% 0%, color-mix(in srgb, var(--game-orange) 10%, transparent), transparent 60%), var(--tsq-bg);
   box-shadow: 0 24px 70px rgba(0, 0, 0, .55);
   animation: tsq-in .24s cubic-bezier(.2, .8, .2, 1);
 }
@@ -693,20 +698,20 @@
   background: transparent; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: background .15s;
 }
 .squad-invite-x .icon { background: var(--tsq-muted); }
-.squad-invite-x:hover { background: rgba(255, 255, 255, .07); }
+.squad-invite-x:hover { background: var(--ink-08); }
 .squad-invite-x:hover .icon { background: var(--tsq-text); }
 .squad-invite button:focus-visible, .tsq-rank:focus-visible { outline: 2px solid var(--tsq-orange); outline-offset: 2px; }
 
 /* B — title */
 .tsq-title { margin: 0; font-size: 27px; font-weight: 800; line-height: 1.15; color: var(--tsq-text); }
-.tsq-grad { background: linear-gradient(90deg, #FF923F, #FFD166); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.tsq-grad { background: linear-gradient(90deg, var(--game-orange), var(--game-gold)); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .tsq-sub { margin: -8px 0 0; font-size: 15px; font-weight: 600; color: var(--tsq-text); }
 .tsq-desc { margin: -10px auto 0; max-width: 440px; font-size: 13px; line-height: 1.5; color: var(--tsq-muted); }
 
 /* C — the three perks (informative: no pointer) */
 .tsq-perks { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .tsq-perk {
-  --acc: #FF923F; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 14px; border-radius: 12px;
+  --acc: var(--game-orange); display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 14px; border-radius: 12px;
   background: var(--tsq-card); border: 1px solid var(--tsq-line); transition: background .16s ease-out, border-color .16s ease-out, transform .16s ease-out;
 }
 .tsq-perk--badges { --acc: #A66BFF; } .tsq-perk--support { --acc: #FF4D5A; }
@@ -714,24 +719,24 @@
 .tsq-perk-ic .icon { width: 18px; height: 18px; background: var(--acc); }
 .tsq-perk b { font-size: 13px; color: var(--tsq-text); }
 .tsq-perk span:last-child { font-size: 11.5px; line-height: 1.4; color: var(--tsq-muted); }
-.tsq-perk:hover { background: #20263A; border-color: color-mix(in srgb, var(--acc) 45%, var(--tsq-line)); transform: translateY(-2px); }
+.tsq-perk:hover { background: var(--game-card-2); border-color: color-mix(in srgb, var(--acc) 45%, var(--tsq-line)); transform: translateY(-2px); }
 .tsq-perk:hover .tsq-perk-ic { transform: scale(1.08); }
 
 /* D — levels (TigerSquadRankBadge) */
 .tsq-adventure { padding: 14px; border-radius: 14px; background: var(--tsq-bg2); border: 1px solid var(--tsq-line); }
 .tsq-adv-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
 .tsq-adv-title { display: inline-flex; align-items: center; gap: 7px; font-size: 13.5px; font-weight: 700; color: var(--tsq-text); }
-.tsq-adv-title .icon { background: #FFD34D; }
+.tsq-adv-title .icon { background: var(--game-gold-text); }
 .tsq-adv-link { border: none; background: none; padding: 2px 0; font-family: inherit; font-size: 12px; color: var(--tsq-muted); cursor: pointer; }
 .tsq-adv-link:hover { color: var(--tsq-orange); }
 .tsq-ranks { list-style: none; margin: 0; padding: 0; display: flex; align-items: flex-start; justify-content: center; gap: 2px; }
 .tsq-rank {
-  --rc: #CD8750; --rb: #35251D; flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  --rc: #CD8750; --rb: color-mix(in srgb, var(--rc) 18%, var(--tsq-card)); flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px;
   padding: 6px 2px; border-radius: 12px; outline: none; transition: transform .16s ease-out;
 }
-.tsq-rank--silver   { --rc: #B9C5D5; --rb: #252C37; }
-.tsq-rank--gold     { --rc: #FFD34D; --rb: #3A301A; }
-.tsq-rank--platinum { --rc: #B9D8F5; --rb: #243444; }
+.tsq-rank--silver   { --rc: #B9C5D5; --rb: color-mix(in srgb, var(--rc) 18%, var(--tsq-card)); }
+.tsq-rank--gold     { --rc: var(--game-gold); --rb: color-mix(in srgb, var(--rc) 18%, var(--tsq-card)); }
+.tsq-rank--platinum { --rc: #B9D8F5; --rb: color-mix(in srgb, var(--rc) 18%, var(--tsq-card)); }
 .tsq-rank-badge { width: 66px; height: 66px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--rb); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--rc) 35%, transparent); transition: box-shadow .16s ease-out; }
 .tsq-rank-badge img, .tsq-rank-badge svg { width: 46px; height: 46px; }
 .tsq-rank-shield { fill: color-mix(in srgb, var(--rc) 22%, transparent); stroke: var(--rc); stroke-width: 2.5; }
@@ -741,7 +746,7 @@
 .tsq-rank:hover, .tsq-rank:focus-visible { transform: translateY(-2px); }
 .tsq-rank:hover .tsq-rank-badge, .tsq-rank:focus-visible .tsq-rank-badge { box-shadow: inset 0 0 0 1px var(--rc), 0 0 16px color-mix(in srgb, var(--rc) 35%, transparent); }
 .tsq-rank-arrow { flex: 0 0 auto; align-self: center; margin-top: -30px; }
-.tsq-rank-arrow .icon { background: #778399; }
+.tsq-rank-arrow .icon { background: var(--game-muted); }
 .tsq-every { margin: 10px 0 0; font-size: 12px; color: var(--tsq-muted); }
 
 /* E — optional support (secondary to the free join) */
@@ -752,36 +757,36 @@
 .tsq-coffee-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .tsq-coffee-txt b { font-size: 13.5px; color: var(--tsq-text); }
 .tsq-coffee-txt span { font-size: 12px; line-height: 1.45; color: var(--tsq-muted); }
-.tsq-coffee-txt small { font-size: 11px; color: #8A93A6; }
-.tsq-coffee-btn { flex-shrink: 0; height: 36px; padding: 0 14px; border: none; border-radius: 9px; background: #FFB22C; color: #17120E; font-family: inherit; font-size: 13px; font-weight: 800; cursor: pointer; white-space: nowrap; transition: background .16s; }
+.tsq-coffee-txt small { font-size: 11px; color: var(--game-muted); }
+.tsq-coffee-btn { flex-shrink: 0; height: 36px; padding: 0 14px; border: none; border-radius: 9px; background: #FFB22C; color: var(--game-on-gold); font-family: inherit; font-size: 13px; font-weight: 800; cursor: pointer; white-space: nowrap; transition: background .16s; }
 .tsq-coffee-btn:hover { background: #FFC14D; }
 
 /* F — the free join (primary) */
 .tsq-join {
   width: 100%; height: 48px; border: none; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  background: linear-gradient(90deg, #FF923F, #FFAA61); color: #17120E; font-family: inherit; font-size: 14.5px; font-weight: 750; cursor: pointer;
+  background: linear-gradient(90deg, var(--game-orange), #FFAA61); color: var(--game-on-gold); font-family: inherit; font-size: 14.5px; font-weight: 750; cursor: pointer;
   transition: filter .18s, box-shadow .18s;
 }
-.tsq-join .icon { background: #17120E; }
+.tsq-join .icon { background: var(--game-on-gold); }
 .tsq-join:hover:not(:disabled) { filter: brightness(1.06); box-shadow: 0 0 18px rgba(255, 146, 63, .20); }
 .tsq-join:disabled { cursor: progress; }
 .tsq-join.is-busy { filter: saturate(.7) brightness(.95); }
 .tsq-join.is-busy .icon { animation: tsq-pulse 1s ease-in-out infinite; }
-.tsq-join.is-done { background: linear-gradient(90deg, #22C55E, #4ADE80); }
+.tsq-join.is-done { background: linear-gradient(90deg, var(--game-ok), var(--game-ok)); }
 @keyframes tsq-pulse { 50% { opacity: .35; } }
 .tsq-join-msg { margin: -12px 0 0; font-size: 12.5px; }
 .tsq-join-msg:empty { display: none; }
-.tsq-join-msg.is-error { color: #FF6B6B; }
-.tsq-reassure { list-style: none; margin: -8px 0 0; padding: 0; display: flex; justify-content: center; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: #B7C1D1; }
+.tsq-join-msg.is-error { color: var(--game-danger-text); }
+.tsq-reassure { list-style: none; margin: -8px 0 0; padding: 0; display: flex; justify-content: center; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--game-text-2); }
 .tsq-reassure li { display: inline-flex; align-items: center; gap: 5px; }
-.tsq-reassure .icon { background: #22C55E; }
+.tsq-reassure .icon { background: var(--game-ok-text); }
 
 /* G — later (keeps the 30-day snooze) */
 .tsq-later { width: 100%; height: 42px; border-radius: 10px; border: 1px solid #394354; background: #1C212D; color: #B9C5D5; font-family: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; transition: background .16s; }
-.tsq-later:hover { background: #272E3C; }
+.tsq-later:hover { background: var(--game-card-2); }
 
 /* H — footer */
-.tsq-foot { margin: -4px 0 0; font-size: 12px; color: #8A93A6; }
+.tsq-foot { margin: -4px 0 0; font-size: 12px; color: var(--game-muted); }
 
 /* I — small notices in the same look: leaving (what goes for 30 days, held to
    confirm) and back within the wait (days left) — openDialog's "notice" look (renderer/dialog.js). */
@@ -792,25 +797,25 @@
 .squad-notice .tsq-title { font-size: 23px; }
 .squad-notice .tsq-desc { margin-top: -6px; }
 .sqn-lost { padding: 12px 14px; border-radius: 12px; text-align: left; background: var(--tsq-bg2); border: 1px solid var(--tsq-line); }
-.sqn-lost-h { display: block; margin-bottom: 8px; font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #FF8A8A; }
+.sqn-lost-h { display: block; margin-bottom: 8px; font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--game-danger-text); }
 .sqn-lost ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .sqn-lost li { display: flex; align-items: center; gap: 10px; padding: 7px 0; }
 .sqn-lost li + li { border-top: 1px solid var(--tsq-line); }
-.sqn-lost-ic { flex-shrink: 0; width: 30px; aspect-ratio: 1; border-radius: 9px; display: grid; place-items: center; background: rgba(255, 107, 107, .12); }
-.sqn-lost-ic .icon { background: #FF8A8A; }
+.sqn-lost-ic { flex-shrink: 0; width: 30px; aspect-ratio: 1; border-radius: 9px; display: grid; place-items: center; background: color-mix(in srgb, var(--game-danger) 12%, transparent); }
+.sqn-lost-ic .icon { background: var(--game-danger-text); }
 .sqn-lost li > span:last-child { display: flex; flex-direction: column; min-width: 0; }
 .sqn-lost li b { font-size: 13px; color: var(--tsq-text); }
 .sqn-lost li small { font-size: 11.5px; line-height: 1.35; color: var(--tsq-muted); }
 /* What stays: its own small card, a green tick in a disc. */
 .sqn-keep { margin: -4px 0 0; display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 12px; border: 1px solid var(--tsq-line); background: var(--tsq-bg2); text-align: left; font-size: 12.5px; color: var(--tsq-text); }
 .sqn-keep-ic { flex-shrink: 0; width: 24px; aspect-ratio: 1; border-radius: 7px; display: grid; place-items: center; background: color-mix(in srgb, var(--success) 16%, transparent); }
-.sqn-keep .icon { background: #22C55E; }
-.sqn-leave { position: relative; overflow: hidden; width: 100%; height: 42px; border-radius: 10px; border: 1px solid rgba(255, 107, 107, .45);
-  background: transparent; color: #FF8A8A; font-family: inherit; font-size: 13.5px; font-weight: 700; cursor: pointer; transition: background .16s; }
-.sqn-leave:hover { background: rgba(255, 107, 107, .08); }
-.sqn-leave .hold-progress { background: #FF6B6B; opacity: .3; }
+.sqn-keep .icon { background: var(--game-ok-text); }
+.sqn-leave { position: relative; overflow: hidden; width: 100%; height: 42px; border-radius: 10px; border: 1px solid color-mix(in srgb, var(--game-danger) 45%, transparent);
+  background: transparent; color: var(--game-danger-text); font-family: inherit; font-size: 13.5px; font-weight: 700; cursor: pointer; transition: background .16s; }
+.sqn-leave:hover { background: color-mix(in srgb, var(--game-danger) 8%, transparent); }
+.sqn-leave .hold-progress { background: var(--game-danger); opacity: .3; }
 .sqn-bar { height: 10px; border-radius: 5px; overflow: hidden; background: var(--tsq-bg2); box-shadow: inset 0 0 0 1px var(--tsq-line); }
-.sqn-bar span { display: block; width: var(--p); height: 100%; border-radius: inherit; background: linear-gradient(90deg, #5AB8F0, #8FD3FF); transition: width .4s ease-out; }
+.sqn-bar span { display: block; width: var(--p); height: 100%; border-radius: inherit; background: linear-gradient(90deg, #5AB8F0, var(--game-ice)); transition: width .4s ease-out; }
 .sqn-bar-label { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; color: var(--tsq-muted); }
 /* Back within the wait: a kicker over the title, the return date in its own card above the bar. */
 .squad-notice .tsq-title { text-wrap: balance; }
@@ -858,7 +863,7 @@
 }
 .tsq-perk::before, .tsq-perk::after {
   content: ""; position: absolute; width: 7px; height: 7px; pointer-events: none;
-  background: color-mix(in srgb, var(--acc) 70%, #fff);
+  background: color-mix(in srgb, var(--acc) 70%, var(--on-dark));
   clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%);
   opacity: .7;
 }
@@ -867,7 +872,7 @@
 .tsq-perk-ic { width: 56px; height: 56px; filter: drop-shadow(0 0 10px color-mix(in srgb, var(--acc) 55%, transparent)); }
 .tsq-perk b { font-size: 14px; }
 .tsq-perk--xp b { color: var(--acc); }
-.tsq-perk span:last-child { color: #C3CAD8; }
+.tsq-perk span:last-child { color: var(--game-text-2); }
 .tsq-perk:hover { background:
     radial-gradient(120% 75% at 50% 0%, color-mix(in srgb, var(--acc) 32%, transparent), transparent 70%),
     linear-gradient(180deg, color-mix(in srgb, var(--acc) 9%, var(--tsq-card)), var(--tsq-card)); }
@@ -876,12 +881,12 @@
 .tsq-explainer {
   position: absolute; z-index: 3; top: 44px; right: 10px; width: min(400px, calc(100% - 20px));
   padding: 14px; border-radius: 12px; text-align: left;
-  background: #20263A; border: 1px solid #3A4357; box-shadow: 0 16px 40px rgba(0, 0, 0, .55);
+  background: var(--game-card-2); border: 1px solid var(--game-line-2); box-shadow: 0 16px 40px rgba(0, 0, 0, .55);
   animation: tsq-bubble .16s ease-out;
 }
 .tsq-explainer::before {
   content: ""; position: absolute; top: -7px; right: 40px; width: 12px; height: 12px; transform: rotate(45deg);
-  background: #20263A; border-left: 1px solid #3A4357; border-top: 1px solid #3A4357;
+  background: var(--game-card-2); border-left: 1px solid var(--game-line-2); border-top: 1px solid var(--game-line-2);
 }
 .tsq-explainer[hidden] { display: none; }
 @keyframes tsq-bubble { from { opacity: 0; transform: translateY(-4px) scale(.98); } to { opacity: 1; transform: none; } }
@@ -904,45 +909,45 @@
 .tsq-adv-title { font-size: 15px; }
 .tsq-adv-title .icon { width: 16px; height: 16px; }
 .tsq-adv-link { font-size: 12.5px; color: var(--tsq-orange); }
-.tsq-adv-link:hover { color: #FFB476; text-decoration: underline; }
+.tsq-adv-link:hover { color: var(--game-orange-text); text-decoration: underline; }
 .tsq-ranks { gap: 0; }
 .tsq-rank { gap: 2px; padding: 4px 0; }
 .tsq-rank-badge:has(img) { width: 96px; height: 96px; }
 .tsq-rank-name { font-size: 14px; }
-.tsq-rank-desc { font-size: 11px; color: #C3CAD8; }
+.tsq-rank-desc { font-size: 11px; color: var(--game-text-2); }
 .tsq-rank-arrow { margin-top: -38px; }
 .tsq-rank-arrow .icon { width: 18px; height: 18px; background: var(--tsq-text); }
 .tsq-every { margin-top: 6px; }
 /* Coffee card — dark with a warm orange rim and glow, bigger cup, orange gradient button with a cup icon. */
 .tsq-coffee {
-  gap: 16px; padding: 14px 18px 14px 14px; border-radius: 14px; border-color: color-mix(in srgb, #FF923F 70%, transparent);
-  background: radial-gradient(90% 140% at 0% 50%, rgba(255, 146, 63, .14), transparent 60%), #1A1C22;
+  gap: 16px; padding: 14px 18px 14px 14px; border-radius: 14px; border-color: color-mix(in srgb, var(--game-orange) 70%, transparent);
+  background: radial-gradient(90% 140% at 0% 50%, color-mix(in srgb, var(--game-orange) 14%, transparent), transparent 60%), #1A1C22;
   box-shadow: 0 0 22px -6px rgba(255, 146, 63, .45), inset 0 1px 0 rgba(255, 180, 110, .18);
 }
 .tsq-coffee-art:has(img) { width: 72px; height: 76px; }
 .tsq-coffee-txt { gap: 4px; }
 .tsq-coffee-txt b { font-size: 15px; }
-.tsq-coffee-txt span { font-size: 12.5px; color: #C3CAD8; }
-.tsq-coffee-txt small { font-size: 11px; color: #8A93A6; margin-top: 2px; }
+.tsq-coffee-txt span { font-size: 12.5px; color: var(--game-text-2); }
+.tsq-coffee-txt small { font-size: 11px; color: var(--game-muted); margin-top: 2px; }
 .tsq-coffee-btn {
   display: inline-flex; align-items: center; gap: 8px; height: 42px; padding: 0 18px; border-radius: 10px;
-  background: linear-gradient(180deg, #FFA54A, #FF8A2A); color: #17120E; font-size: 14px;
+  background: linear-gradient(180deg, var(--game-orange-hi), var(--game-orange)); color: var(--game-on-gold); font-size: 14px;
   box-shadow: 0 4px 16px -4px rgba(255, 138, 42, .6), inset 0 1px 0 rgba(255, 255, 255, .3);
 }
-.tsq-coffee-btn .icon { width: 18px; height: 18px; background: #17120E; }
-.tsq-coffee-btn:hover { background: linear-gradient(180deg, #FFB463, #FF9638); }
+.tsq-coffee-btn .icon { width: 18px; height: 18px; background: var(--game-on-gold); }
+.tsq-coffee-btn:hover { background: linear-gradient(180deg, var(--game-orange-hi), #FF9638); }
 .tsq-join .icon-community { width: 22px; height: 22px; }
 /* Join button — a saturated orange with a soft halo, bigger label + icon; ticks a touch larger. */
 .tsq-join {
   height: 52px; border-radius: 12px; gap: 10px; font-size: 16px; font-weight: 800;
-  background: linear-gradient(180deg, #FF8A2E, #FF6F12);
+  background: linear-gradient(180deg, var(--game-orange), color-mix(in srgb, var(--game-orange) 82%, black));
   box-shadow: 0 6px 22px -6px rgba(255, 111, 18, .65), inset 0 1px 0 rgba(255, 255, 255, .28);
 }
 .tsq-join .icon-community { width: 28px; height: 28px; }
 .tsq-join:hover:not(:disabled) { filter: brightness(1.07); box-shadow: 0 8px 28px -6px rgba(255, 111, 18, .8), inset 0 1px 0 rgba(255, 255, 255, .3); }
-.tsq-reassure { gap: 6px 22px; font-size: 12.5px; color: #C3CAD8; }
+.tsq-reassure { gap: 6px 22px; font-size: 12.5px; color: var(--game-text-2); }
 .tsq-reassure li { gap: 6px; }
-.tsq-reassure .icon { width: 14px; height: 14px; background: #2ED16E; }
+.tsq-reassure .icon { width: 14px; height: 14px; background: var(--game-ok-text); }
 /* Perk artwork — a light idle loop per card (gift hops, badge sways, heart beats), the sparkles twinkle;
    staggered so the three never move at once. Hover plays it livelier. Off under reduced motion. */
 .tsq-perk-ic img { transform-origin: 50% 70%; }
@@ -980,7 +985,7 @@
 /* Footer row — member count bottom-left, the motto bottom-right. */
 .tsq-foot { margin: -4px 0 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .tsq-foot > span:only-child { margin: 0 auto; }
-.tsq-members { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; color: #C3CAD8; }
+.tsq-members { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; color: var(--game-text-2); }
 .tsq-members[hidden] { display: none; }
 .tsq-members .icon { width: 16px; height: 16px; background: var(--tsq-orange); }
 /* Colour trophy in front of "Your TigerSquad adventure". */
@@ -1009,7 +1014,7 @@
 :root[data-theme="dark"] .sb-community .sb-group > .sb-report-btn.is-on.is-on {
   background: var(--primary); border-color: var(--primary); color: var(--on-accent); box-shadow: 0 0 12px color-mix(in srgb, var(--primary) 35%, transparent);
 }
-.sb-community .sb-group > .sb-report-btn.is-on.is-on { --ic: #fff; }
+.sb-community .sb-group > .sb-report-btn.is-on.is-on { --ic: var(--on-accent); }
 .sb-community .sb-group > .sb-report-btn.is-on.is-on > .icon { filter: none; }
 /* TigerSquad rankings window (Countries League + makers) — reuses the invite's dark shell. */
 .squad-board { width: min(560px, calc(100vw - 32px)); }
@@ -1017,13 +1022,13 @@
 .sqb-tabs { display: flex; gap: 6px; padding: 4px; border-radius: 12px; background: var(--tsq-bg2); border: 1px solid var(--tsq-line); }
 .sqb-tab { flex: 1; height: 36px; border: none; border-radius: 9px; background: none; color: var(--tsq-muted); font-family: inherit; font-size: 13.5px; font-weight: 700; cursor: pointer; transition: background .15s, color .15s; }
 .sqb-tab:hover { color: var(--tsq-text); }
-.sqb-tab.is-on { background: linear-gradient(180deg, #FF8A2E, #FF6F12); color: #17120E; }
+.sqb-tab.is-on { background: linear-gradient(180deg, var(--game-orange), color-mix(in srgb, var(--game-orange) 82%, black)); color: var(--game-on-gold); }
 .sqb-you { margin: 0; font-size: 13px; font-weight: 700; color: var(--tsq-orange); text-align: center; }
 .sqb-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .sqb-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px; background: var(--tsq-card); border: 1px solid var(--tsq-line); }
-.sqb-row.is-me { border-color: var(--tsq-orange); background: color-mix(in srgb, #FF923F 10%, var(--tsq-card)); box-shadow: 0 0 14px -6px rgba(255, 146, 63, .6); }
+.sqb-row.is-me { border-color: var(--tsq-orange); background: color-mix(in srgb, var(--game-orange) 10%, var(--tsq-card)); box-shadow: 0 0 14px -6px rgba(255, 146, 63, .6); }
 .sqb-rank { width: 34px; flex-shrink: 0; text-align: center; font-variant-numeric: tabular-nums; font-size: 15px; font-weight: 800; color: var(--tsq-muted); }
-.sqb-medal-1 .sqb-rank { color: #FFD34D; } .sqb-medal-2 .sqb-rank { color: #C9D3E0; } .sqb-medal-3 .sqb-rank { color: #E0965A; }
+.sqb-medal-1 .sqb-rank { color: var(--game-gold-text); } .sqb-medal-2 .sqb-rank { color: var(--game-text-2); } .sqb-medal-3 .sqb-rank { color: var(--game-orange-text); }
 .sqb-flag { font-size: 24px; line-height: 1; }
 .sqb-av { flex-shrink: 0; }
 .sqb-avatar { width: 34px; height: 34px; border-radius: 50%; font-size: 12px; display: inline-flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
@@ -1050,14 +1055,14 @@
 .sqb-section { margin: 8px 2px 0; font-size: 11.5px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; color: var(--tsq-muted); text-align: left; }
 .sqb-ach .sqb-ach-ic { width: 26px; height: 26px; flex-shrink: 0; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: var(--tsq-bg2); border: 1px solid var(--tsq-line); }
 .sqb-ach .sqb-ach-ic .icon { background: var(--tsq-muted); }
-.sqb-ach.is-earned .sqb-ach-ic { background: color-mix(in srgb, #2ED16E 18%, transparent); border-color: color-mix(in srgb, #2ED16E 60%, transparent); }
-.sqb-ach.is-earned .sqb-ach-ic .icon { background: #2ED16E; }
+.sqb-ach.is-earned .sqb-ach-ic { background: color-mix(in srgb, var(--game-ok) 18%, transparent); border-color: color-mix(in srgb, var(--game-ok) 60%, transparent); }
+.sqb-ach.is-earned .sqb-ach-ic .icon { background: var(--game-ok-text); }
 .sqb-ach:not(.is-earned) { opacity: .78; }
 .sqb-ach:not(.is-earned) .sqb-xp { color: var(--tsq-orange); font-size: 13px; }
 .sqb-ach .sqb-name small, .sqb-hist .sqb-name small { white-space: normal; }
 .sqb-delta { width: 54px; flex-shrink: 0; text-align: center; font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; }
-.sqb-delta.is-up { color: #2ED16E; }
-.sqb-delta.is-down { color: #FF6B6B; }
+.sqb-delta.is-up { color: var(--game-ok-text); }
+.sqb-delta.is-down { color: var(--game-danger-text); }
 .sqb-hist .sqb-xp { font-size: 12.5px; font-weight: 700; color: var(--tsq-muted); }
 /* Friends in the sidebar wear the badge at the same size and spot as my own avatar (40 px avatar, 22 px badge). */
 #sbFriendsList .av-squad-heart { width: 22px; min-width: 22px; max-width: 22px; right: -6px; bottom: -6px; }
@@ -1092,7 +1097,7 @@
 .squad-board { height: min(680px, 88vh); }
 .squad-board .tsq-scroll { flex: 1; min-height: 0; }
 .sqb-skel { pointer-events: none; }
-.sqb-skel span, .sqb-skel i { display: block; border-radius: 8px; background: linear-gradient(90deg, rgba(255,255,255,.05) 25%, rgba(255,255,255,.12) 50%, rgba(255,255,255,.05) 75%); background-size: 200% 100%; animation: sqb-shimmer 1.2s ease-in-out infinite; }
+.sqb-skel span, .sqb-skel i { display: block; border-radius: 8px; background: linear-gradient(90deg, var(--ink-06) 25%, var(--ink-12) 50%, var(--ink-06) 75%); background-size: 200% 100%; animation: sqb-shimmer 1.2s ease-in-out infinite; }
 .sqb-skel-a { width: 34px; height: 34px; border-radius: 50% !important; flex-shrink: 0; }
 .sqb-skel-b { flex: 1; display: flex !important; flex-direction: column; gap: 6px; background: none !important; animation: none !important; }
 .sqb-skel-b i:first-child { width: 45%; height: 12px; }
@@ -1115,18 +1120,18 @@
 .sqb-next-badge { width: 40px; height: 40px; object-fit: contain; }
 .sqb-next-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
 .sqb-next-body b { font-size: 14.5px; color: var(--sq-a); }
-.sqb-next-body p { margin: 0; font-size: 12.5px; line-height: 1.45; color: #C3CAD8; }
+.sqb-next-body p { margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--game-text-2); }
 .sqb-next-alt { color: var(--tsq-muted) !important; font-size: 12px !important; }
 .sqb-next-bar { display: block; height: 8px; border-radius: 999px; background: var(--tsq-bg2); overflow: hidden; }
 .sqb-next-bar i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--sq-b), var(--sq-a)); transition: width .4s ease-out; }
 .sqb-next-count { font-size: 12px; font-weight: 800; color: var(--tsq-text); font-variant-numeric: tabular-nums; }
 .sqb-next-cta { align-self: flex-start; height: 32px; padding: 0 14px; border: none; border-radius: 9px; cursor: pointer;
-  background: linear-gradient(180deg, #FF8A2E, #FF6F12); color: #17120E; font-family: inherit; font-size: 13px; font-weight: 800; }
+  background: linear-gradient(180deg, var(--game-orange), color-mix(in srgb, var(--game-orange) 82%, black)); color: var(--game-on-gold); font-family: inherit; font-size: 13px; font-weight: 800; }
 .sqb-next.sq-platinum { align-items: center; }
 /* TigerSquad windows (invite + rankings): a white halo of light so they stand
    out from the app behind — light rim, soft glow, gently breathing. */
 .squad-invite {
-  border-color: color-mix(in srgb, #FFFFFF 35%, var(--tsq-line));
+  border-color: color-mix(in srgb, var(--game-text) 35%, var(--tsq-line));
   box-shadow: 0 0 0 1.5px rgba(255, 255, 255, .45), 0 0 40px 6px rgba(255, 255, 255, .32), 0 0 160px 40px rgba(255, 255, 255, .16), 0 24px 70px rgba(0, 0, 0, .55);
   animation: tsq-in .24s cubic-bezier(.2, .8, .2, 1), tsq-halo 3.2s ease-in-out .3s infinite;
 }
@@ -1139,7 +1144,7 @@
 .tsq-celebrate {
   position: absolute; inset: 0; z-index: 5; border-radius: inherit; overflow: hidden; pointer-events: none;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
-  background: radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--sq-a) 30%, #0b0d12) 0, #0b0d12 58%); backdrop-filter: blur(8px);
+  background: radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--sq-a) 30%, var(--dark-bg)) 0, var(--dark-bg) 58%); backdrop-filter: blur(8px);
   animation: tsq-cel-in .35s ease-out both;
 }
 .tsq-cel-rays { position: absolute; left: 50%; top: 42%; width: 900px; height: 900px; margin: -450px 0 0 -450px;
@@ -1148,8 +1153,8 @@
   animation: tsq-cel-spin 9s linear infinite, tsq-cel-in .6s ease-out both; }
 .tsq-cel-badge { position: relative; width: 190px; height: 190px; object-fit: contain;
   filter: drop-shadow(0 0 28px color-mix(in srgb, var(--sq-a) 80%, transparent)); animation: tsq-cel-badge .9s cubic-bezier(.2, 1.4, .3, 1) .1s both; }
-.tsq-cel-xp { position: relative; font-size: 30px; font-weight: 900; color: #FFD34D; text-shadow: 0 0 18px rgba(255, 200, 61, .7); animation: tsq-cel-xp 1.6s ease-out .5s both; }
-.tsq-cel-title { position: relative; font-size: 22px; font-weight: 800; color: #fff; animation: tsq-cel-up .5s ease-out .7s both; }
+.tsq-cel-xp { position: relative; font-size: 30px; font-weight: 900; color: var(--game-gold); text-shadow: 0 0 18px rgba(255, 200, 61, .7); animation: tsq-cel-xp 1.6s ease-out .5s both; }
+.tsq-cel-title { position: relative; font-size: 22px; font-weight: 800; color: var(--on-dark); animation: tsq-cel-up .5s ease-out .7s both; }
 .tsq-cel-tier { position: relative; font-size: 15px; font-weight: 800; letter-spacing: 3px; text-transform: uppercase; color: var(--sq-a); animation: tsq-cel-up .5s ease-out .85s both; }
 .tsq-cel-sparks { position: absolute; left: 50%; top: 42%; }
 .tsq-cel-sparks i { position: absolute; width: 7px; height: 7px; margin: -3.5px; border-radius: 50%;
@@ -1172,7 +1177,7 @@
 .tsq-levelup-from img { width: 72px; height: 72px; object-fit: contain; }
 .tsq-levelup-from img:last-child { width: 120px; height: 120px; filter: drop-shadow(0 0 22px color-mix(in srgb, var(--sq-a) 70%, transparent)); }
 .tsq-levelup-from .icon { background: var(--tsq-muted); }
-.tsq-levelup-text { margin: 0 0 6px; font-size: 14px; line-height: 1.5; color: #C3CAD8; }
+.tsq-levelup-text { margin: 0 0 6px; font-size: 14px; line-height: 1.5; color: var(--game-text-2); }
 .tsq-celebrate.is-fading { transition: opacity .5s ease; opacity: 0; }
 /* Join button — on hover a light runs round its edge (a conic sweep masked to a 2 px ring). */
 @property --tsq-join-ang { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
@@ -1191,8 +1196,8 @@
    and a ring cut into the face below. Room enough between chips for both. */
 .sb-friends-list { gap: 10px; }
 /* TigerSquad notifications: XP gained (orange star) and level climbed (the badge art itself). */
-.notif-ic.notif-ic--xp { background: linear-gradient(135deg, #FF8A2E, #FFB463); }
-.notif-ic.notif-ic--xp .icon { background: #fff; }
+.notif-ic.notif-ic--xp { background: linear-gradient(135deg, var(--game-orange), var(--game-orange-hi)); }
+.notif-ic.notif-ic--xp .icon { background: var(--on-accent); }
 img.notif-ic.notif-ic--badge { background: none; border: 0; border-radius: 0; object-fit: contain; padding: 0; filter: drop-shadow(0 2px 6px rgba(0, 0, 0, .35)); }
 
 /* Web build: "Install the app" hint (iOS has no install prompt — it is

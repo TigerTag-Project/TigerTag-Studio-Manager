@@ -95,7 +95,7 @@
   }
   .rp-rack-add:hover {
     border-color: var(--primary);
-    color: var(--primary);
+    color: var(--primary-text);
     background: var(--primary-soft);
     transform: translateY(-1px);
   }
@@ -196,7 +196,7 @@
   /* Make sure the hold-progress overlay sits above the bg but below the label */
   .rp-menu-item--hold .hold-progress { z-index: 0; opacity: .55; }
 
-  .rp-menu-item--danger { color: var(--danger); }
+  .rp-menu-item--danger { color: var(--danger-text); }
   .rp-menu-item--danger .icon { background: var(--danger); }
   .rp-menu-item--danger:hover { background: var(--danger-soft); }
   .rp-menu-item--danger:hover .icon { background: var(--danger); }
@@ -270,7 +270,7 @@
   button.rv-stat-add:hover {
     border-color: var(--primary);
     background: var(--primary-soft);
-    color: var(--primary);
+    color: var(--primary-text);
     transform: translateY(-1px);
   }
   /* The "+" plays the role of a number — must occupy EXACTLY the same line
@@ -346,7 +346,7 @@
     border-color: var(--primary);
   }
   .rv-stat--active .rv-stat-lbl,
-  .rv-stat--active .rv-stat-num { color: var(--primary); }
+  .rv-stat--active .rv-stat-num { color: var(--primary-text); }
 
   /* Permanent orange tint for the "not stored" tile — distinguishes it from
      the neutral data tiles (racks/slots/empty/locked) since it represents
@@ -377,7 +377,7 @@
     background: var(--surface);
   }
   .rv-stat--orange .rv-stat-num,
-  .rv-stat--orange .rv-stat-lbl { color: var(--primary); }
+  .rv-stat--orange .rv-stat-lbl { color: var(--primary-text); }
   .rv-stat--orange:hover {
     background: color-mix(in srgb, var(--primary) 18%, transparent);
     border-color: var(--primary);
@@ -509,7 +509,7 @@
     flex-shrink: 0;
     font-family: var(--mono);
     font-size: 11px; font-weight: 700;
-    color: var(--primary);
+    color: var(--primary-text);
     background: var(--primary-soft);
     border: 1px solid color-mix(in srgb, var(--primary) 40%, transparent);
     padding: 2px 6px;
@@ -527,7 +527,7 @@
   #rackHoverTip .rht-weight-pct {
     margin-left: auto;
     font-weight: 600;
-    color: var(--primary);
+    color: var(--primary-text);
   }
   #rackHoverTip .rht-weight-bar {
     height: 4px;
@@ -555,6 +555,8 @@
     font-size: 11px;
   }
   #rackHoverTip .rht-locked .icon { background: rgb(217, 119, 6); }
+  :root:not([data-theme="dark"]) #rackHoverTip .rht-locked { color: var(--warning-text); }
+  :root:not([data-theme="dark"]) #rackHoverTip .rht-locked .icon { background: var(--warning-text); }
 
   /* ── Stat-bar highlight: glow ring around matching slots when a stat tile
      ("empty" / "locked") is selected. Self-fading pulse so it draws the eye
@@ -906,7 +908,7 @@
   /* The native spinners duplicate the − / + already sitting either side. */
   .rv-plan-zoom .val.val::-webkit-outer-spin-button,
   .rv-plan-zoom .val.val::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-  .rv-plan-zoom .val.val:focus { color: var(--primary); box-shadow: none; border: 0; }
+  .rv-plan-zoom .val.val:focus { color: var(--primary-text); box-shadow: none; border: 0; }
   .rv-plan-zoom .pct { font-family: var(--mono); font-size: 11.5px; font-weight: 600; color: var(--muted); padding-right: 4px; }
 
   /* Alignment guides — the thin line that says WHY the rack just clicked into
@@ -1149,7 +1151,7 @@
     cursor: pointer; transition: background .15s, border-color .15s, color .15s;
   }
   .rv-depth-btn:hover { background: var(--surface-hover); color: var(--text); }
-  .rv-depth-btn.open { border-color: var(--primary); color: var(--primary); }
+  .rv-depth-btn.open { border-color: var(--primary); color: var(--primary-text); }
   .rv-depth-btn .icon { background: currentColor; }
   .rv-depth-pop {
     position: absolute; z-index: 60; top: calc(100% + 6px); right: 0;
@@ -1608,7 +1610,7 @@
      explicit opt-out that turns Auto storage OFF), but the note swaps in to warn
      about that side effect — shown instead of the normal hint. */
   body.autostore-on.is-dragging-racked .rp-unranked-empty-hint { display: none; }
-  body.autostore-on.is-dragging-racked .rp-unranked-empty-disabled { display: block; color: var(--primary); }
+  body.autostore-on.is-dragging-racked .rp-unranked-empty-disabled { display: block; color: var(--primary-text); }
   /* Single unranked-spool row — horizontal: puck + name + weight */
   .rp-side-row {
     display: flex; align-items: center; gap: 12px;

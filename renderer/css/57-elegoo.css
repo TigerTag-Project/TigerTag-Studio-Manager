@@ -97,7 +97,7 @@
   padding: 1px 5px;
   border-radius: 4px;
 }
-.elg-hist-status--ok     { color: var(--success);   background: color-mix(in srgb, var(--success) 12%, transparent); }
+.elg-hist-status--ok     { color: var(--success-text);   background: color-mix(in srgb, var(--success) 12%, transparent); }
 .elg-hist-status--cancel { color: var(--muted);          background: var(--surface-2); }
 
 /* ── Mono-extruder filament grid (no Canvas hub) ───────────────────────────
@@ -141,7 +141,7 @@
 }
 .elg-fs-tab:hover { color: var(--text); }
 .elg-fs-tab--active {
-  color: var(--primary);
+  color: var(--primary-text);
   border-bottom-color: var(--primary);
 }
 
@@ -153,7 +153,7 @@
   border-radius: 8px;
   border: 1px solid var(--border);
   background: var(--surface-2);
-  color: var(--primary);
+  color: var(--primary-text);
   font-size: 12px;
   cursor: pointer;
   display: flex;
@@ -224,6 +224,8 @@
 .elg-fs-dl-btn:hover .icon {
   background-color: #63b3ed;
 }
+:root:not([data-theme="dark"]) .elg-fs-dl-btn:hover { border-color: var(--info-text); color: var(--info-text); }
+:root:not([data-theme="dark"]) .elg-fs-dl-btn:hover .icon { background-color: var(--info-text); }
 .elg-fs-dl-btn:active {
   background: rgba(99, 179, 237, .25);
 }
@@ -396,8 +398,8 @@
   user-select: none;
   line-height: 1;
 }
-.elg-jog-z-btn:hover  { color: var(--primary); }
-.elg-jog-z-btn:active { color: var(--primary); font-weight: 900; }
+.elg-jog-z-btn:hover  { color: var(--primary-text); }
+.elg-jog-z-btn:active { color: var(--primary-text); font-weight: 900; }
 
 /* ── Home button (circle with ⌂ glyph) ── */
 .elg-jog-home-btn {
@@ -472,8 +474,8 @@
   white-space: nowrap;
   z-index: 2;
 }
-.elg-jog-xy-btn:hover  { color: var(--primary); background: transparent; }
-.elg-jog-xy-btn:active { color: var(--primary); }  /* pas de font-weight: 900 — ça change la taille et casse le transform */
+.elg-jog-xy-btn:hover  { color: var(--primary-text); background: transparent; }
+.elg-jog-xy-btn:active { color: var(--primary-text); }  /* pas de font-weight: 900 — ça change la taille et casse le transform */
 
 /* Positions + transforms déclarés ensemble pour chaque bouton.
    Le transform est répété sur :active pour qu'il ne soit jamais perdu. */

@@ -3,18 +3,28 @@
 > Extracted from `CLAUDE.md` to keep the always-loaded instructions lean. Read this on demand when touching Firestore reads/writes or the data model. Security rules live in the **backend repo** (`TigerTag_Firebase_Backend/firestore.rules`) — see CLAUDE.md → *Firestore Security Rules*.
 
 ```
-squadRanks/
-  {YYYY-MM-DD}/             — TigerSquad ranks at the start of each of the last 7 Paris days
-                              (signed-in read, written only by the backend's communityStats)
-  current/                  — a copy of the one taken 7 days ago, set on each new day
-    day         string      — YYYY-MM-DD (Europe/Paris) it was set; baseDay: the day of its ranks
-    world       map         — uid → rank; national: CC → { uid → rank }; countries: CC → rank
-                              (Studio compares its live leagues against it: the ▲ / ▼ arrows,
-                              places won or lost over 7 rolling days)
+squadBoard/                 — the TigerSquad leagues, built by the backend's squadBoard.js so the
+                              apps never list the members (signed-in read, server-written only)
+  world/                    — { at, rows: [row] }: the world's top 100, XP highest first (every 10 min)
+  nat_<CC>/                 — { at, cc, rows: [row] }: a country's top 100 (every 30 min, when it moved)
+  countries/                — { at, rows: [{ cc, xp, n, base }] }: every country with members, ranked
+                              (one count + sum per country, every 10 min); base = rank 7 days ago
+  countryRanks/, natState/  — the job's own bookkeeping (countries' nightly ranks, last totals)
+    row         map         — { uid, name, color, photoURL, tier, xp, country, bw, bn }: the public
+                              profile fields a league row draws + world / national rank 7 days ago
+                              (Studio's ▲ / ▼ arrows)
+
+squadRank/
+  {uid}/                    — a member's ranks, filed every night at 00:05 Paris by squadRanksNightly
+                              (signed-in read, server-written only)
+    world, nat  number      — world and national rank (nat 0 = no country); cc; day (YYYY-MM-DD)
+    days        map         — YYYY-MM-DD → [world, nat], the last 8 days (the ▲ / ▼ base)
+
+squadRanks/                 — the former baseline maps (uid → rank), no longer written
 
 squadLeagueHistory/
   {YYYY-MM-DD}/             — each league's totals at the end of that Paris day (signed-in read,
-                              written only by communityStats; days since 2026-10-11 backfilled)
+                              written only by squadRanksNightly; days since 2026-10-11 backfilled)
     countries   map         — CC → { xp, n } (summed XP, member count)
                               (Studio's XP history: the "My country" and "Leagues" curves)
 
@@ -163,6 +173,8 @@ users/
 
     inventory/
       {spoolId}/            — one document per spool
+        syncAt              timestamp — when it last changed (delta sync: Studio stamps its own
+                                        writes, the backend's statsOnInventoryWrite any other's)
         uid                 string   — RFID tag UID
         id_brand            number
         id_material         number
@@ -214,7 +226,7 @@ users/
         linkedAt    timestamp
 
     products/
-      {keyHash}/             — one doc per PRODUCT IDENTITY (keyHash = hash of the
+      {keyHash}/             — one doc per PRODUCT IDENTITY (syncAt as on inventory; keyHash = hash of the
                               product signature, NOT a spoolId), so the info applies
                               to every identical spool and survives a spool's deletion.
                               READ: owner / public inventory / accepted friend (SAME

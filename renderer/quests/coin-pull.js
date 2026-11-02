@@ -256,9 +256,16 @@ export function tilt(area, el, max = 16) {
     el.style.setProperty("--ry", `${(x * max).toFixed(2)}deg`);
     el.style.setProperty("--gx", `${(50 + x * 45).toFixed(1)}%`);
     el.style.setProperty("--gy", `${(50 + y * 45).toFixed(1)}%`);
+    // The pointer's offset itself (-1…1, unitless), for effects in lengths (a cast shadow).
+    el.style.setProperty("--tx", x.toFixed(3));
+    el.style.setProperty("--ty", y.toFixed(3));
     el.classList.add("is-tilted");
   };
-  const rest = () => { ["--rx", "--ry"].forEach(k => el.style.setProperty(k, "0deg")); el.classList.remove("is-tilted"); };
+  const rest = () => {
+    ["--rx", "--ry"].forEach(k => el.style.setProperty(k, "0deg"));
+    ["--tx", "--ty"].forEach(k => el.style.setProperty(k, "0"));
+    el.classList.remove("is-tilted");
+  };
   area.addEventListener("pointermove", move);
   area.addEventListener("pointerleave", rest);
 }

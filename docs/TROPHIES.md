@@ -123,6 +123,16 @@ local title of the reference. Their running totals live in `users/{uid}/trophyCo
 | `referral1` / `referral5` / `referral10` | Plus one / Squad goals / Recruiter | 1 / 5 / 10 validated referrals (`docs/REFERRALS.md`, counter `referrals`) | common / rare / epic | placeholders, stickers **new** |
 | `referral25` / `referral50` (hidden) | Influencer, apparently / Friendly cult leader | 25 / 50 validated referrals | epic / legendary | placeholders, stickers **new** |
 | `invited` | Came with a friend | Joined through a friend's invite, e-mail verified | common | placeholder, sticker **new** |
+| `communityXp1M` / `communityXp5M` | One million roar / Five million roar | In the TigerSquad when the community's XP (`publicStats/community.xpTotal`) passed 1 / 5 million | epic | `trophies/stickers/communityXp{1M,5M}.webp` |
+| `communityXp10M` / `communityXp15M` | Ten million roar / Fifteen million roar | Same at 10 / 15 million | legendary | `trophies/stickers/communityXp{10M,15M}.webp` |
+| `communityXpTrio` (hidden) | 3 × 5 = 15 | Hold the 5, 10 and 15 million stickers | legendary | `trophies/stickers/communityXpTrio.webp` |
+| `communityPrinters5k` / `communityPrinters10k` | 5,000 printers / 10,000 printers | In the TigerSquad when the community's printers (`printers.total`) passed 5,000 / 10,000 | epic / legendary | `trophies/stickers/communityPrinters{5k,10k}.webp` |
+
+**Community milestones** (backend `communityMilestones.js`, run by `communityStats` every minute):
+when a total crosses a mark, the minute is recorded in `statsInternal/communityMilestones`
+(server-only) and every account whose `userProfiles/{uid}.tigerSquad.since` is at or before it gets
+the trophy, 300 members a minute. A member who joins later never gets it: the sticker marks the
+moment. The trio comes with the 5, 10 or 15 million sticker that completes the set.
 
 ### 2.4 The Tiger devices (legendary)
 

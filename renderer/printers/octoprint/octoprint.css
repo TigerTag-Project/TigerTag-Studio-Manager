@@ -16,7 +16,7 @@
   border: 2px solid color-mix(in srgb, var(--primary) 30%, transparent); border-top-color: var(--primary);
   animation: octo-spin .8s linear infinite;
 }
-.octo-approve-state.is-error { color: var(--danger); }
+.octo-approve-state.is-error { color: var(--danger-text); }
 .octo-approve-state.is-error .octo-approve-spin { display: none; }
 @keyframes octo-spin { to { transform: rotate(360deg); } }
 

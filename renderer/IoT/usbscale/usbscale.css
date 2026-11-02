@@ -28,7 +28,7 @@
 }
 .usbscale-unit { font-size: 12px; font-weight: 500; color: var(--muted); margin-left: 3px; }
 .usbscale-state { font-size: 12px; color: var(--muted); min-width: 0; }
-.usbscale-ok .usbscale-state { color: var(--success); }
+.usbscale-ok .usbscale-state { color: var(--success-text); }
 
 /* ── Inline confirmation block ── */
 .usbscale-confirm {

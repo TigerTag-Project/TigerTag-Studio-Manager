@@ -98,6 +98,14 @@ const ROWS = [
   ["podium", "squad", "epic", "tigersquad/rank-medal-3.webp"],
   ["tigerMaster", "squad", "legendary", "trophies/stickers/tigerMaster.webp"],
   ["worldFirst", "squad", "legendary", "trophies/stickers/worldFirst.webp"],
+  // Community milestones: the squad of the minute the community's total crossed the mark.
+  ["communityXp1M", "squad", "epic", "trophies/stickers/communityXp1M.webp"],
+  ["communityXp5M", "squad", "epic", "trophies/stickers/communityXp5M.webp"],
+  ["communityXp10M", "squad", "legendary", "trophies/stickers/communityXp10M.webp"],
+  ["communityXp15M", "squad", "legendary", "trophies/stickers/communityXp15M.webp"],
+  ["communityXpTrio", "squad", "legendary", "trophies/stickers/communityXpTrio.webp", true],
+  ["communityPrinters5k", "squad", "epic", "trophies/stickers/communityPrinters5k.webp"],
+  ["communityPrinters10k", "squad", "legendary", "trophies/stickers/communityPrinters10k.webp"],
   ["tigerScale", "devices", "legendary", "tigersquad/loot/tigerscale.webp"],
   ["tigerSpool", "devices", "legendary", "tigersquad/loot/tigerspool.webp"],
   ["tigerTouch", "devices", "legendary", "tigersquad/loot/tigertouch.webp"],
@@ -137,6 +145,9 @@ let _filter = "all", _loaded = false, _query = "", _family = "";
 // A friend's album being shown: { uid, name, earned (same shape as _earned), loaded, error, at }.
 let _friend = null;
 const FRIEND_TTL = 2 * 60e3;
+// The albums of the last friends seen (re-visit painted at once, re-read after FRIEND_TTL).
+const _friendAlbums = new Map();   // friend uid → { uid, name, earned, loaded, error, at }
+const FRIEND_ALBUMS_MAX = 5;
 // The stickers of the album on screen: yours, or the friend's.
 const held = () => (_friend ? _friend.earned : _earned);
 const toEarned = docs => new Map(docs.map(d => [d.id, { at: ms(d.get("earnedAt")) || Date.now(), event: d.get("event") || null, ctx: d.get("ctx") || null }]));
@@ -149,17 +160,83 @@ function writeSeen(uid, set) { try { localStorage.setItem(seenKey(uid), JSON.str
 
 export function initTrophies(ctx) { _ctx = ctx; }
 
+// ── Albums kept on this device (designed for 500,000 accounts) ──────────────
+// A trophy is never lost — an album only grows — so yours and your friends'
+// are kept locally and only the stickers earned since are read: earnedAt is
+// set once by the server (trophies.js, create), so `earnedAt > last sync` is
+// exactly what is new (minus SYNC_MARGIN for clock skew). A trophy taken back
+// (never planned, but possible) is caught by a COUNT (1 read): a mismatch
+// re-reads the whole album.
+//   tigertag.trophyAlbum.<uid>    { at, earned: { id: { at, event, ctx } } }  — yours
+//   tigertag.friendTrophies.<uid> { <friendUid>: { at, name, earned } }      — your friends' (FRIEND_KEEP newest)
+const SYNC_MARGIN = 60 * 60e3, SYNC_MAX_AGE = 30 * 864e5, FRIEND_KEEP = 50;
+const albumKey = uid => `tigertag.trophyAlbum.${uid}`, friendsKey = uid => `tigertag.friendTrophies.${uid}`;
+const readJson = k => { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch (_) { return null; } };
+const writeJson = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (_) { return false; } };
+const toPlain = earned => Object.fromEntries(earned);
+const fromPlain = o => new Map(Object.entries(o || {}));
+const fresh = at => at && Date.now() - at < SYNC_MAX_AGE;
+const since = at => window.firebase.firestore.Timestamp.fromMillis(at - SYNC_MARGIN);
+// How many trophies users/<owner>/trophies holds (REST COUNT, 1 read) — null when unknown.
+async function countAlbum(db, owner) {
+  try {
+    const app = db.app, token = await app.auth().currentUser?.getIdToken();
+    if (!token) return null;
+    const res = await fetch(`https://firestore.googleapis.com/v1/projects/${app.options.projectId}/databases/(default)/documents/users/${owner}:runAggregationQuery`, {
+      method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ structuredAggregationQuery: { structuredQuery: { from: [{ collectionId: "trophies" }] }, aggregations: [{ alias: "n", count: {} }] } }),
+    });
+    const n = Number((await res.json())?.[0]?.result?.aggregateFields?.n?.integerValue);
+    return Number.isFinite(n) ? n : null;
+  } catch (_) { return null; }
+}
+function saveFriendAlbum(f) {
+  if (!_uid || !f?.loaded || f.error) return;
+  const all = readJson(friendsKey(_uid)) || {};
+  all[f.uid] = { at: f.at, name: f.name, earned: toPlain(f.earned) };
+  const keep = Object.entries(all).sort((a, b) => (b[1].at || 0) - (a[1].at || 0)).slice(0, FRIEND_KEEP);
+  writeJson(friendsKey(_uid), Object.fromEntries(keep));
+}
+
 export function trophiesSignIn(uid) {
   if (!_ctx || uid === _uid) return;
   trophiesSignOut();
   _uid = uid;
-  const db = _ctx.db(uid);
-  _unsub = db.collection("users").doc(uid).collection("trophies").onSnapshot(snap => {
-    _earned = toEarned(snap.docs);
-    _loaded = true;
-    celebrateNew(uid);
-    _ctx.onChange?.();
-  }, () => { _loaded = true; _ctx.onChange?.(); });   // unreadable: the album shows, all locked
+  const db = _ctx.db(uid), col = db.collection("users").doc(uid).collection("trophies");
+  const kept = readJson(albumKey(uid));
+  const save = () => { writeJson(albumKey(uid), { at: Date.now(), earned: toPlain(_earned) }); };
+  const failed = () => { _loaded = true; _ctx.onChange?.(); };   // unreadable: the album shows, all locked
+  const listenAll = () => {
+    _unsub?.();
+    // Metadata changes too: the cache → server flip (no document changed) is
+    // what tells the album is in step and can be kept.
+    _unsub = col.onSnapshot({ includeMetadataChanges: true }, snap => {
+      _earned = toEarned(snap.docs);
+      _loaded = true;
+      if (!snap.metadata.fromCache) save();
+      celebrateNew(uid);
+      _ctx.onChange?.();
+    }, failed);
+  };
+  if (!fresh(kept?.at)) { listenAll(); }
+  else {
+    // The album kept on this device at once, then only what was earned since.
+    _earned = fromPlain(kept.earned); _loaded = true;
+    let checked = false;
+    _unsub = col.where("earnedAt", ">", since(kept.at)).onSnapshot({ includeMetadataChanges: true }, snap => {
+      for (const c of snap.docChanges()) {
+        if (c.type === "removed") _earned.delete(c.doc.id);
+        else _earned.set(c.doc.id, toEarned([c.doc]).get(c.doc.id));
+      }
+      if (snap.metadata.fromCache) { _ctx.onChange?.(); return; }
+      save();
+      celebrateNew(uid);
+      _ctx.onChange?.();
+      if (checked) return;
+      checked = true;
+      countAlbum(db, uid).then(n => { if (_uid === uid && n != null && n !== _earned.size) listenAll(); });
+    }, failed);
+  }
   db.collection("trophyEvents").get().then(s => {
     if (_uid !== uid) return;
     _events = new Map(s.docs.map(d => [d.id, d.data()]));
@@ -170,19 +247,21 @@ export function trophiesSignIn(uid) {
 export function trophiesSignOut() {
   _queue = [];
   _unsub?.(); _unsub = null; _uid = null;
-  _earned = new Map(); _events = new Map(); _stats = { at: 0, owners: {}, accounts: 0 }; _loaded = false; _friend = null;
+  _earned = new Map(); _events = new Map(); _stats = { at: 0, owners: {}, accounts: 0 }; _loaded = false; _friend = null; _friendAlbums.clear();
 }
 
-// The owners counters, read when the album opens (at most every STATS_TTL).
+// The owners counters, read when the album opens (at most every STATS_TTL):
+// trophyStats/_all, one document the backend gathers every 10 min
+// (communityStats) — not one read per trophy. Before it exists: the collection.
 function loadStats() {
   if (!_uid || Date.now() - _stats.at < STATS_TTL) return;
-  const uid = _uid;
+  const uid = _uid, col = _ctx.db(uid).collection("trophyStats");
   _stats.at = Date.now();
-  _ctx.db(uid).collection("trophyStats").get().then(s => {
+  col.doc("_all").get().then(async d => {
     if (_uid !== uid) return;
-    const owners = {};
-    let accounts = 0;
-    for (const d of s.docs) d.id === "_accounts" ? (accounts = Number(d.get("accounts")) || 0) : (owners[d.id] = Number(d.get("owners")) || 0);
+    let owners = {}, accounts = 0;
+    if (d.exists) { owners = d.get("owners") || {}; accounts = Number(d.get("accounts")) || 0; }
+    else for (const x of (await col.get()).docs) x.id === "_accounts" ? (accounts = Number(x.get("accounts")) || 0) : (owners[x.id] = Number(x.get("owners")) || 0);
     _stats = { at: Date.now(), owners, accounts };
     _ctx.onChange?.();
   }).catch(() => { _stats.at = 0; });
@@ -249,15 +328,36 @@ const TROPHY_SCENE = heroLayersHtml(`${ART}trophies/banner/`, {
   front: ["rosette", "sticker-sheet", "cup", "album", { name: "sparkle", cls: "spark hl--spark1" }, { name: "sparkle", cls: "spark hl--spark2" }],
 });
 
-// A friend's stickers, read once and kept FRIEND_TTL (their album changes slowly).
+// A friend's stickers: the album kept on this device paints at once (memory,
+// else localStorage — see "Albums kept on this device"), then after FRIEND_TTL
+// only the stickers earned since the last visit are read, and a COUNT (1 read)
+// catches one taken back (→ the whole album again).
 function loadFriend(friend) {
+  const seen = _friendAlbums.get(friend.uid);
+  if (seen) { _friend = seen; _friendAlbums.delete(friend.uid); _friendAlbums.set(friend.uid, seen); }   // most recent last
   if (_friend?.uid === friend.uid && Date.now() - _friend.at < FRIEND_TTL) return;
   const uid = _uid;
-  _friend = { uid: friend.uid, name: friend.displayName || "", earned: _friend?.uid === friend.uid ? _friend.earned : new Map(),
-    loaded: _friend?.uid === friend.uid && _friend.loaded, error: false, at: Date.now() };
-  _ctx.db(uid).collection("users").doc(friend.uid).collection("trophies").get().then(s => {
-    if (_uid !== uid || _friend?.uid !== friend.uid) return;
-    _friend.earned = toEarned(s.docs); _friend.loaded = true;
+  const kept = _friend?.uid === friend.uid ? { at: _friend.loaded && !_friend.error ? _friend.at : 0, earned: _friend.earned }
+    : (() => { const k = (readJson(friendsKey(uid)) || {})[friend.uid]; return k ? { at: k.at, earned: fromPlain(k.earned) } : null; })();
+  const delta = fresh(kept?.at);
+  _friend = { uid: friend.uid, name: friend.displayName || "", earned: delta ? kept.earned : new Map(), loaded: !!delta, error: false, at: Date.now() };
+  _friendAlbums.delete(friend.uid); _friendAlbums.set(friend.uid, _friend);
+  while (_friendAlbums.size > FRIEND_ALBUMS_MAX) _friendAlbums.delete(_friendAlbums.keys().next().value);
+  const db = _ctx.db(uid), col = db.collection("users").doc(friend.uid).collection("trophies");
+  const mine = () => _uid === uid && _friend?.uid === friend.uid;
+  const readAll = () => col.get().then(s => { if (!mine()) return; _friend.earned = toEarned(s.docs); });
+  (delta
+    ? col.where("earnedAt", ">", since(kept.at)).get().then(async s => {
+        if (!mine()) return;
+        for (const d of s.docs) _friend.earned.set(d.id, toEarned([d]).get(d.id));
+        const n = await countAlbum(db, friend.uid);
+        if (mine() && n != null && n !== _friend.earned.size) await readAll();
+      })
+    : readAll()
+  ).then(() => {
+    if (!mine()) return;
+    _friend.loaded = true;
+    saveFriendAlbum(_friend);
     _ctx.onChange?.();
   }).catch(() => {
     if (_friend?.uid !== friend.uid) return;

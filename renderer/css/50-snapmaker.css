@@ -136,7 +136,7 @@
     padding: 4px 14px;
     border-radius: 999px;
     background: color-mix(in srgb, var(--info) 12%, transparent);
-    color: var(--primary);
+    color: var(--primary-text);
     border: 1px solid color-mix(in srgb, var(--info) 24%, transparent);
   }
   /* Printing — spinner ring before label text */
@@ -238,7 +238,7 @@
     background: var(--surface-2); color: var(--text); font-size: 12px;
     font-weight: 500; cursor: pointer; transition: background .12s, border-color .12s;
   }
-  .snap-fil-act-btn:hover { background: var(--surface-3); border-color: var(--primary); color: var(--primary); }
+  .snap-fil-act-btn:hover { background: var(--surface-3); border-color: var(--primary); color: var(--primary-text); }
   .snap-fil-act-btn--cancel { color: var(--muted); }
   .snap-fil-act-btn--cancel:hover { color: var(--text); border-color: var(--border); }
 
@@ -269,7 +269,7 @@
   }
   .snap-fil-sel-reason--loaded {
     background: color-mix(in srgb, var(--success) 15%, transparent);
-    color: var(--success-hover);
+    color: var(--success-hover-text);
   }
   .snap-fil-sel-empty { font-size: 12px; color: var(--muted); padding: 8px 4px; margin: 0; }
   /* Confirm footer */
@@ -315,7 +315,7 @@
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     letter-spacing: -.02em;
   }
-  .snap-temp--heating { color: var(--danger); }
+  .snap-temp--heating { color: var(--danger-text); }
   .snap-temp--heating .snap-temp-val { color: var(--danger-hover); }
 
   /* Dual-nozzle (H2 series) — active-head highlight (left/right conveyed by
@@ -488,7 +488,7 @@
     font-size: 10px; font-weight: 600; line-height: 1;
     padding: 2px 5px; border-radius: 4px;
   }
-  .snap-fil-loaded--yes { background: color-mix(in srgb, var(--success) 15%, transparent); color: var(--success-hover); }
+  .snap-fil-loaded--yes { background: color-mix(in srgb, var(--success) 15%, transparent); color: var(--success-hover-text); }
   .snap-fil-loaded--no  { background: color-mix(in srgb, var(--muted) 12%, transparent); color: var(--muted); }
 
   /* Creality filament layout:
@@ -751,7 +751,7 @@
   .snap-log-btn--pause.is-paused {
     background: color-mix(in srgb, var(--info) 12%, transparent);
     border-color: var(--primary);
-    color: var(--primary);
+    color: var(--primary-text);
   }
   /* Custom JSON paste zone — collapsible <details>, opens to a
      monospace textarea + Send button so the user can fire
@@ -768,7 +768,7 @@
     transition: color .12s;
   }
   .snap-log-paste > summary::-webkit-details-marker { display: none; }
-  .snap-log-paste > summary::before { content: "+ "; color: var(--primary); font-weight: 700; }
+  .snap-log-paste > summary::before { content: "+ "; color: var(--primary-text); font-weight: 700; }
   .snap-log-paste[open] > summary::before { content: "− "; }
   .snap-log-paste > summary:hover { color: var(--text); }
   .snap-log-paste-input {
@@ -859,7 +859,7 @@
     text-align: center;
     line-height: 1;
   }
-  .snap-log-row--out .snap-log-dir { color: var(--primary); }
+  .snap-log-row--out .snap-log-dir { color: var(--primary-text); }
   .snap-log-row--in  .snap-log-dir { color: #15803d; }
   .snap-log-ts {
     color: var(--muted);
@@ -1455,7 +1455,7 @@
   }
   .sfe-fil-materials .sfe-fil-row.is-selected {
     background: color-mix(in srgb, var(--info) 10%, transparent);
-    color: var(--primary);
+    color: var(--primary-text);
   }
   .sfe-fil-row-text {
     flex: 1; min-width: 0;
@@ -1469,7 +1469,7 @@
     white-space: nowrap;
   }
   .sfe-fil-row-check {
-    color: var(--success-hover);
+    color: var(--success-hover-text);
     font-weight: 800;
     font-size: 18px;
     margin-left: 6px;
@@ -1494,7 +1494,7 @@
     list-style: none;
     user-select: none;
   }
-  .sfe-fil-custom > summary::before { content: "+ "; color: var(--primary); }
+  .sfe-fil-custom > summary::before { content: "+ "; color: var(--primary-text); }
   .sfe-fil-custom[open] > summary::before { content: "− "; }
   .sfe-fil-custom > summary:hover { color: var(--text); }
   .sfe-fil-custom .sfe-input--custom { display: block; width: 100%; }
@@ -1576,7 +1576,7 @@
     position: relative; overflow: hidden;
     background: color-mix(in srgb, var(--info) 8%, transparent);
     border-color: color-mix(in srgb, var(--info) 28%, transparent);
-    color: var(--primary);
+    color: var(--primary-text);
   }
   .cre-action-btn--pause .icon { background-color: var(--primary); position: relative; z-index: 1; }
   .cre-action-btn--pause:hover { background: color-mix(in srgb, var(--info) 16%, transparent); }
@@ -1640,7 +1640,7 @@
     text-align: center;
     font-style: italic;
   }
-  .cre-files-empty--err { color: var(--danger); font-style: normal; }
+  .cre-files-empty--err { color: var(--danger-text); font-style: normal; }
 
   .cre-file-row {
     display: flex; align-items: center; gap: 8px;
@@ -1676,7 +1676,7 @@
     color: var(--text);
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-  .cre-file-row--active .cre-file-name { color: var(--primary); }
+  .cre-file-row--active .cre-file-name { color: var(--primary-text); }
   .cre-file-meta {
     font-size: 10px; color: var(--muted);
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -1870,7 +1870,7 @@
   color: var(--muted);
 }
 .snap-paxx-status--upd {
-  color: var(--info);
+  color: var(--info-text);
   font-weight: 600;
 }
 
@@ -1881,9 +1881,9 @@
   gap: 8px;
   margin-top: 10px;
 }
-.snap-cfg-ok       { font-size: 12px; font-weight: 600; color: var(--success); }
-.snap-cfg-err      { font-size: 12px; color: var(--danger); }
-.snap-cfg-warn     { font-size: 12px; color: var(--warning); }
+.snap-cfg-ok       { font-size: 12px; font-weight: 600; color: var(--success-text); }
+.snap-cfg-err      { font-size: 12px; color: var(--danger-text); }
+.snap-cfg-warn     { font-size: 12px; color: var(--warning-text); }
 .snap-cfg-checking { font-size: 12px; color: var(--muted); font-style: italic; }
 
 /* ── Active extruder highlight ───────────────────────────────────────────── */
@@ -2087,7 +2087,7 @@
   border: 1px solid var(--border); background: var(--surface-2); color: var(--muted);
 }
 .ffg-chip .icon { background-color: currentColor; }
-.ffg-chip--on { color: var(--primary); border-color: var(--primary); }
+.ffg-chip--on { color: var(--primary-text); border-color: var(--primary); }
 .ffg-door-chip.is-open {
   color: var(--warning-hover); border-color: var(--warning); background: rgba(245,158,11,.12);
 }

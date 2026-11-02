@@ -246,7 +246,7 @@
   .fp-reqs-block.hidden { display: none; }
   .fp-list-count--accent {
     background: var(--primary-soft);
-    color: var(--primary); border: 1px solid color-mix(in srgb, var(--primary) 25%, transparent);
+    color: var(--primary-text); border: 1px solid color-mix(in srgb, var(--primary) 25%, transparent);
   }
   .fp-req {
     display: flex; flex-direction: column; gap: 10px;
@@ -255,7 +255,7 @@
   }
   .fp-req-head { display: flex; align-items: center; gap: 11px; }
   .fp-req-actions { display: flex; gap: 8px; }
-  .fp-req-actions .fp-req-block  { flex: 1; color: var(--danger) !important; font-size: 11px; }
+  .fp-req-actions .fp-req-block  { flex: 1; color: var(--danger-text) !important; font-size: 11px; }
   .fp-req-actions .fp-req-refuse { flex: 1; }
   .fp-req-actions .fp-req-accept { flex: 2; }
 
@@ -267,7 +267,7 @@
   .notif-markall {
     margin-left: auto; margin-right: 8px;
     background: none; border: none; padding: 4px 8px; border-radius: 7px; cursor: pointer;
-    font-family: inherit; font-size: 12px; font-weight: 600; color: var(--primary);
+    font-family: inherit; font-size: 12px; font-weight: 600; color: var(--primary-text);
     transition: background .12s;
   }
   .notif-markall:hover { background: var(--surface-2); }
@@ -357,6 +357,7 @@
   /* One line, ellipsised; a name too long scrolls on hover (the grid's marquee). */
   .nc-tile b { display: block; font-size: 12px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .nc-tile small { display: block; font-size: 11px; font-weight: 700; line-height: 1.25; color: #ff8a80; }
+  :root:not([data-theme="dark"]) .nc-tile small { color: var(--danger-text); }
   .notif-empty .nc-empty-tiger { width: 130px; height: auto; margin: 0 auto 6px; display: block; filter: drop-shadow(0 6px 12px rgba(0, 0, 0, .35)); }
   .notif-dismiss { flex-shrink: 0; }
   .notif-dismiss:hover { background: var(--border); }
@@ -405,7 +406,7 @@
   /* ── Blacklist section ─────────────────────────────────────────────── */
   .fp-blacklist-block { margin-top: 10px; flex: 0 0 auto; }
   .fp-blacklist-block.hidden { display: none; }
-  .fp-list-count--danger { background: var(--danger-soft); color: var(--danger); border: 1px solid color-mix(in srgb, var(--danger) 25%, transparent); }
+  .fp-list-count--danger { background: var(--danger-soft); color: var(--danger-text); border: 1px solid color-mix(in srgb, var(--danger) 25%, transparent); }
   .fp-blocked {
     background: var(--danger-soft) !important;
     border-color: color-mix(in srgb, var(--danger) 20%, transparent) !important;
@@ -417,7 +418,7 @@
     width: auto !important; height: auto !important;
     padding: 5px 10px;
     background: transparent; border: 1px solid var(--danger);
-    color: var(--danger); border-radius: 7px;
+    color: var(--danger-text); border-radius: 7px;
     font-size: 11px; font-weight: 600; font-family: inherit;
     cursor: pointer;
     transition: background .15s, color .15s;

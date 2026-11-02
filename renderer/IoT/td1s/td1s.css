@@ -96,7 +96,7 @@
   transition: opacity .3s, color .3s, filter .3s;
 }
 #btnTD1S.td1s-connected .td1s-dev-icon {
-  color: var(--success);
+  color: var(--success-text);
   opacity: 1;
   filter: drop-shadow(0 0 5px var(--success));
 }
@@ -282,6 +282,8 @@
   background: var(--ink-15) !important;
   color: #fff !important;
 }
+:root:not([data-theme="dark"]) #tdEditModalOverlay .td-edit-save-half.btn.ghost:hover,
+:root:not([data-theme="dark"]) #colorEditModalOverlay .td-edit-save-half.btn.ghost:hover { color: var(--text) !important; }
 
 /* Footer "Clear TD value" — subtle destructive action, hold-to-confirm.
    Inset from the card edges (it lives OUTSIDE the padded .td-edit-state, so
@@ -302,6 +304,7 @@
   background: color-mix(in srgb, var(--danger) 14%, transparent) !important;
   border-color: color-mix(in srgb, var(--danger) 40%, transparent) !important;
 }
+:root:not([data-theme="dark"]) #tdEditModalOverlay .td-edit-clear:hover { color: var(--danger-text) !important; }
 #tdEditModalOverlay .td-edit-clear .icon { background: currentColor; width: 13px; height: 13px; }
 #tdEditModalOverlay .td-edit-clear > *:not(.hold-progress) { position: relative; z-index: 1; }
 /* Contrasting red sweep for the hold-to-confirm progress (visible on dark). */
@@ -346,6 +349,7 @@
   background: color-mix(in srgb, var(--primary) 18%, transparent); border-color: var(--primary);
   color: #fff;
 }
+:root:not([data-theme="dark"]) .ce-slot-tab.active { color: var(--text); }
 .ce-slot-dot {
   width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0;
   border: 1.5px solid var(--ink-25);

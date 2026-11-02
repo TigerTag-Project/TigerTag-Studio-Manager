@@ -75,11 +75,13 @@ userProfiles/{uid}         → { publicKey, displayName, isPublic, color, photoU
                                tigerSquad: { since, tier, certified, xp } }   ← SERVER-WRITTEN ONLY: Studio calls
                              the `setProfile` Cloud Function (renderer setProfile()), never writes it; tigerSquad from publishSupporter
 publicStats/community      → world-readable community totals (xpTotal, accounts, members, spools {…},
-                             printers {total, byBrand}) written every minute by the communityStats function
+                             printers {total, byBrand}) published every minute by the communityStats function (a full count every 10 min + live counters in between)
 publicStats/community/history/{YYYY-MM-DD} → one point per day of those totals
                              (both read by the TigerSquad Rankings view, never written by Studio)
-squadRanks/current         → TigerSquad ranks at the start of the Paris day (world, national, countries; uid / country → rank),
-                             signed-in read, server-written — the leagues' up / down arrows
+squadBoard/{world|nat_CC|countries} → the TigerSquad leagues: world and country top 100 rows + every country's totals,
+                             signed-in read, server-written (backend squadBoard.js, built by communityStats every 10 / 30 min) — never a list of all members
+squadRank/{uid}            → a member's world / national rank, filed nightly with the last 8 days (the ▲ / ▼ arrows),
+                             signed-in read, server-written
 squadLeagueHistory/{day}   → each league's XP and member count at the end of a Paris day (countries: CC → { xp, n }),
                              signed-in read, server-written — the XP history's "My country" / "Leagues" curves
 squadDeals/{id}            → TigerSquad partner deals (Deals view), member read, written by the TigerHub admin only;
@@ -405,8 +407,9 @@ The server (`functions/quests.js`) owns everything that pays: today's draw and f
 `quests/daily`, the tutorial-missions journey (Discovery 1–5, Explorer 1–5, five actions per level)
 in `quests/journey`, folded into the XP as the `daily` / `updates` / `journey` breakdown parts.
 Views of the main area: Tiger Quests (Today, Missions), TigerSquad (Rankings, Items) and the XP
-history page (`renderer/quests/xp-history.js`, from `users/{uid}/xpHistory`). Daily rank arrows
-compare the live leagues with `squadRanks/current` (written by `communityStats`).
+history page (`renderer/quests/xp-history.js`, from `users/{uid}/xpHistory`). The leagues read
+`squadBoard/*` and `squadRank/{uid}` (backend `squadBoard.js`): a few documents per open, whatever
+the member count.
 
 ## Optional docs
 
