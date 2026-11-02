@@ -116,6 +116,9 @@ const ROWS = [
   ["chipCert", "chips", "uncommon", "tigersquad/loot/chip-cert.webp"],
   ["certified50", "chips", "rare", "trophies/stickers/certified50.webp"],
   ["firstPrinter", "gear", "uncommon", "tigersquad/loot/printer.webp"],
+  // The first printer connected of each brand or plugin (backend trophyRules printer_<brand>).
+  ...["bambulab", "creality", "elegoo", "flashforge", "snapmaker", "anycubic", "prusa", "klipper", "octoprint"]
+    .map((b) => [`printer_${b}`, "gear", "uncommon", `trophies/stickers/printer_${b}.webp`]),
   ["firstRack", "gear", "uncommon", "tigersquad/feats/first-rack.webp"],
   ["firstList", "gear", "uncommon", "tigersquad/feats/first-list.webp"],
   ["rfidReader", "gear", "rare", "tigersquad/loot/rfid-reader.webp"],

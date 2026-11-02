@@ -210,3 +210,6 @@ Built from ids (dynamic): daily missions `questDaily_<id>` (`findBrand` takes `{
 
 ### Trophies, community milestones (after `trophyHow_worldFirst`)
 Name then how, pairs: `trophy_communityXp1M` / `trophyHow_communityXp1M`, `…Xp5M`, `…Xp10M`, `…Xp15M`, `trophy_communityXpTrio` / `trophyHow_communityXpTrio` (5 + 10 + 15 million stickers), `trophy_communityPrinters5k` / `trophyHow_communityPrinters5k`, `…Printers10k`
+
+### Trophies, printer brands (after `trophyHow_firstPrinter`)
+Name then how, pairs, per brand in this order: `trophy_printer_<brand>` / `trophyHow_printer_<brand>` for `bambulab`, `creality`, `elegoo`, `flashforge`, `snapmaker`, `anycubic`, `prusa`, `klipper`, `octoprint` (Klipper and OctoPrint read "on board" / "through …", they are not printer makers).

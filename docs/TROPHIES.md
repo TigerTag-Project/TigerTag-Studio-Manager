@@ -153,6 +153,7 @@ moment. The trio comes with the 5, 10 or 15 million sticker that completes the s
 | id | Name (en) | Condition | Tier | Art |
 |---|---|---|---|---|
 | `firstPrinter` / `firstRack` / `firstList` | Printer tamer / Tidy tiger / List maker | A first printer, rack, list | common | `loot/printer`, `feats/first-rack`, `feats/first-list` |
+| `printer_<brand>` | Bambu Lab / Creality / Elegoo / FlashForge / Snapmaker / Anycubic / Prusa / Klipper / OctoPrint | The first real printer (not a demo) of that brand or plugin connected — `xpRules.PRINTER_BRANDS`, counted in the XP breakdown's `printer.brands`; state trophy, retroactive | uncommon | `trophies/stickers/printer_<brand>.webp` |
 | `rfidReader` / `usbScale` / `mobileApp` | Mind reader / Heavyweight / Pocket tiger | An RFID reader, a USB scale, Tiger NFC Connect | uncommon | `loot/rfid-reader`, `loot/usb-scale`, `feats/mobile-app` |
 | `td1s` | TD1S | A TD1S sensor | rare | `loot/td1s` |
 | `appUpdate` / `speedrun` | Fresh install / Speedrun | An update installed / within 3 days of its release | common / uncommon | `notifications/update`, `feats/speedrun` |
