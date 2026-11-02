@@ -119,6 +119,9 @@ const ROWS = [
   // The first printer connected of each brand or plugin (backend trophyRules printer_<brand>).
   ...["bambulab", "creality", "elegoo", "flashforge", "snapmaker", "anycubic", "prusa", "klipper", "octoprint"]
     .map((b) => [`printer_${b}`, "gear", "uncommon", `trophies/stickers/printer_${b}.webp`]),
+  // Bambu Lab by transport: local network in Developer mode, or Bambu's cloud.
+  ["printer_bambulab_lan", "gear", "rare", "trophies/stickers/printer_bambulab_lan.webp"],
+  ["printer_bambulab_cloud", "gear", "uncommon", "trophies/stickers/printer_bambulab_cloud.webp"],
   ["firstRack", "gear", "uncommon", "tigersquad/feats/first-rack.webp"],
   ["firstList", "gear", "uncommon", "tigersquad/feats/first-list.webp"],
   ["rfidReader", "gear", "rare", "tigersquad/loot/rfid-reader.webp"],
