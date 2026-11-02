@@ -788,7 +788,7 @@
 .squad-notice { width: min(460px, calc(100vw - 32px)); }
 .squad-notice .tsq-scroll { gap: 14px; padding-top: 30px; }
 /* The tiger on top (assets/img/tigersquad/squad-notice/): leaving, or back with the calendar. */
-.sqn-art { align-self: center; height: 118px; width: auto; aspect-ratio: auto; margin: -10px 0 -10px; }
+.sqn-art { align-self: center; height: 118px; width: auto; margin: -10px 0 -10px; }
 .squad-notice .tsq-title { font-size: 23px; }
 .squad-notice .tsq-desc { margin-top: -6px; }
 .sqn-lost { padding: 12px 14px; border-radius: 12px; text-align: left; background: var(--tsq-bg2); border: 1px solid var(--tsq-line); }

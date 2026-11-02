@@ -26,6 +26,7 @@ import { pageHtml as xpPageHtml, chartTipHtml as xpChartTipHtml, leagueSeries as
 import { applyDealsFilter, dealsViewHtml, openChests, openCoinsCodeModal, openCoinsHistory, openEnvelopeHelp, showEnvelope, showEnvelopeGift, showSendCoins, sortDeals, tapEgg, wireDeals } from './quests/squad-deals.js';
 import { closePullStages, openPullStage } from './quests/coin-pull.js';
 import { squadHeroHtml, squadItemsHeroHtml, squadRankingsHtml, pulseHtml as squadPulseHtml, toggleLeague, leagueRows, setLeagueRows, rankNo } from './quests/squad-rankings.js';
+import { artImg } from './art.js';
 import { initTrophies, trophiesSignIn, trophiesSignOut, renderTrophiesView, trophyEarned } from './quests/trophies.js';
 import { initReferrals, referralsSignIn, referralsSignOut, renderInviteView, claimReferral, referralWantsCode, referralPrefill, referralStatus, wireCodeField, codeFieldMarkup, errText as referralErrText } from './quests/referrals.js';
 import { initQuests, questsSignIn, questsSignOut, questBump, questGauge, questPillLabel, questDailyProgress, questCurrentLevel, openQuests, renderQuestsView, questLootHtml, questFreezeStatus, questFriendFreeze, openFreezeFor, openFreezeGift } from './quests/index.js';
@@ -5546,7 +5547,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   function _openSquadLeaveWarning(input) {
     const lost = [["coins", "coins"], ["freeze", "snow"], ["xp", "star-fill"], ["badge", "shield-check"], ["space", "trophy"]];
     _openSquadNotice("squad-notice--leave", "sqnLeaveTitle", `
-        <img class="sqn-art" src="../assets/img/tigersquad/squad-notice/tiger-leave.webp" alt="" aria-hidden="true">
+        ${artImg("tigersquad/squad-notice/tiger-leave", { cls: "sqn-art" })}
         <h2 class="tsq-title" id="sqnLeaveTitle">${esc(t("squadLeaveTitle"))}</h2>
         <p class="tsq-desc">${esc(t("squadLeaveDesc"))}</p>
         <section class="sqn-lost">
@@ -5572,7 +5573,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     const date = new Intl.DateTimeFormat(state.lang || "en", { day: "numeric", month: "long", year: "numeric" }).format(state.squadLockedUntil);
     const done = Math.min(SQUAD_LOCK_DAYS, Math.max(0, SQUAD_LOCK_DAYS - days));
     _openSquadNotice("squad-notice--lock", "sqnLockTitle", `
-        <img class="sqn-art" src="../assets/img/tigersquad/squad-notice/tiger-back.webp" alt="" aria-hidden="true">
+        ${artImg("tigersquad/squad-notice/tiger-back", { cls: "sqn-art" })}
         <span class="sqn-kicker">${esc(t("squadLockKicker"))}</span>
         <h2 class="tsq-title" id="sqnLockTitle">${esc(t("squadLockTitle", { n: days }))}</h2>
         <p class="tsq-desc">${esc(t("squadLockDesc"))}</p>

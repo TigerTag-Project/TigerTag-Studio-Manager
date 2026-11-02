@@ -1257,7 +1257,7 @@ body.progress-view #gridSortWrap { display: none; }
 .hl-scene.hl-scene--back { z-index: auto; }
 .sqr-hero .hl-scene { right: auto; left: max(0px, calc(50% - var(--hero-art-w) / 2)); width: min(var(--hero-art-w), calc(100% * var(--hero-art-ratio, 1))); }
 .hl-box { position: absolute; left: 0; bottom: 0; width: min(100cqw, calc(100cqh * var(--hl-ratio, 2.7))); aspect-ratio: var(--hl-ratio, 2.7); }
-.hl { position: absolute; bottom: 0; translate: 0 3px; height: auto; transform-origin: 50% 100%; }
+.hl { position: absolute; bottom: 0; translate: 0 3px; height: auto; width: auto; transform-origin: 50% 100%; }   /* width: auto beats the width attribute of a laddered layer (renderer/art.js) */
 .hl--spark { height: 12%; }
 /* Light life (chosen by the founder): characters stay still; objects float,
    sway or rock a little; sparkles twinkle one after the other. */

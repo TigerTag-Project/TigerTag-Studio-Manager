@@ -24,6 +24,7 @@ import { backfire } from "./coin-pull.js";
 import { sfx } from "./coin-sound.js";
 import { heroHtml, infoTipHtml } from "./ui-kit.js";
 import { heroLayersHtml } from "./hero-layers.js";
+import { artImg } from "../art.js";
 
 const URL_BASE = "https://us-central1-tigertag-connect.cloudfunctions.net/referrals";
 const ART = "../assets/img/";
@@ -37,9 +38,11 @@ const NETS = [
 // The banner scene (docs/ART-DIRECTION.md, one layer per object): one tiger hands the envelope to the
 // other behind the desk, a spool and a printed tiger between them, three envelopes on each side.
 const ENVS = side => ({ html: `<span class="hl hl--envs hl--envs-${side}">${`<img src="${ART}tigercoins/envelope.webp" alt="" draggable="false">`.repeat(3)}</span>` });
+// Laddered pictures (renderer/art.js): Chromium loads the rendition that fits the rendered size.
+const LAYER = name => ({ html: artImg(`tigersquad/invite-hero/${name}`, { cls: `hl hl--${name}` }) });
 const INVITE_SCENE = heroLayersHtml(`${ART}tigersquad/invite-hero/`, {
-  back: ["tiger-give", "tiger-take"],
-  front: [ENVS("a"), "spool", "figurine", ENVS("b")],
+  back: [LAYER("tiger-give"), LAYER("tiger-take")],
+  front: [ENVS("a"), LAYER("spool"), LAYER("figurine"), ENVS("b")],
 });
 // Validated referrals → the next trophy (trophyRules.js COUNTERS.referrals; 25 and 50 are hidden).
 const STEPS = [1, 5, 10];

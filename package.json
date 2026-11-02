@@ -28,6 +28,8 @@
     "whatsnew:import": "node scripts/whatsnew-import-changelog.mjs",
     "whatsnew:check": "node scripts/whatsnew-check.mjs",
     "lint": "eslint .",
+    "art:build": "node scripts/build-art-ladder.mjs",
+    "art:check": "node scripts/build-art-ladder.mjs --check",
     "prepare": "git config core.hooksPath .githooks 2>/dev/null || true",
     "oauth:config": "node scripts/gen-oauth-config.mjs",
     "theme:check": "node scripts/check-theme-tokens.mjs",
@@ -62,7 +64,8 @@
     "electron": "^41.3.0",
     "electron-builder": "^26.8.1",
     "eslint": "^10.5.0",
-    "globals": "^17.6.0"
+    "globals": "^17.6.0",
+    "sharp": "^0.33.5"
   },
   "build": {
     "appId": "io.tigertag.inventory",

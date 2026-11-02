@@ -86,8 +86,8 @@ Use these colours; a new colour is a desaturated or shadow variant of one of the
 - **Scenes / banners**: objects grouped on one invisible floor line at the bottom, characters cut
   at the waist behind the desk (see the generate-asset skill for the banner format).
 - **Banners are delivered as separate elements**: one transparent PNG per object (the tiger, the
-  bag, the coins…), generated on one sheet with lots of space between them, cut by connected
-  components, then placed and lightly animated in CSS — reference: the Deals banner
+  bag, the coins…), each generated on its own image at ≥ 1024 px (see "Size"; a first sheet of
+  all the elements is fine to agree on the scene, never as the shipped masters), then placed and lightly animated in CSS — reference: the Deals banner
   (`assets/img/tigersquad/deals-hero/`), assembled by `renderer/quests/hero-layers.js` (`heroLayersHtml`: a back plane behind the desk for a waist-cut character, a front plane for what stands on it) and placed per banner in `quests.css` (`.<hero> .hl--<name>`). An object a character
   holds or leans on stays in the character's layer.
 - **A banner's layers belong to that banner only.** Never take a piece of a banner (a layer, a
@@ -98,6 +98,25 @@ Use these colours; a new colour is a desaturated or shadow variant of one of the
 - **Always a real transparent background** (alpha 0) — check with `sharp(...).stats()`
   (`isOpaque: false`). No checkerboard, no white box, no floor band.
 - **No text** in the art (titles are HTML, translated in 11 locales). Exception: "XP" on the XP badge.
+
+## Size — generate big, ship a ladder
+
+- **One element per generation.** Never a sheet of several elements: on a 2172 px sheet four
+  tigers get ~500 px each, too soft on a 2× screen. Ask for ONE element on a square canvas,
+  filling ~90 % of it (ChatGPT returns 1254 × 1254).
+- **Master ≥ 1024 px wide**, transparent PNG, in `assets-src/img/<area>/<name>.png` (the
+  generated original next to it as `<name>-source.png` when it was cut from a sheet).
+- **The ladder**: list the folder in `scripts/build-art-ladder.mjs` (`LADDER_DIRS`) and run
+  `npm run art:build`. It writes `assets/img/<area>/<name>-{128,256,512,1024}.webp` and indexes
+  the master's size in `renderer/art-ladder.js` (generated). A master under 1024 px is
+  upscaled and reported: regenerate it. `npm run art:check` (pre-commit, when art is staged)
+  fails on a missing rendition.
+- **In the app**: `artImg("<area>/<name>", { cls })` (`renderer/art.js`) writes the `<img>` with
+  every rendition in `srcset` and `sizes="auto"`: Chromium loads the one that covers the
+  rendered width × the screen density (measured: 60 px → 128, 121 px → 256, 240 px → 512 on a
+  2× screen). No size is chosen view by view. A layer in a hero scene goes through
+  `{ html: artImg(...) }`; its CSS must leave `width: auto` (the `<img>` carries the master's
+  width / height for its proportions).
 
 ## Prompt block — paste it into every request
 

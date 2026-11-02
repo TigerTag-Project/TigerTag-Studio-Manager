@@ -311,8 +311,9 @@ is stored as `googleName` / `firstName` / `lastName` for admin reference, never 
 - **CODEMAPs**: `npm run codemap:check` (`scripts/check-codemap.mjs`).
 - **What's New**: `npm run whatsnew:add`, `npm run whatsnew:check`.
 - **Theme**: `npm run theme:check` (raw colours outside tokens).
+- **Art ladder**: `npm run art:build` / `art:check` (`scripts/build-art-ladder.mjs`) — masters ≥ 1024 px → 128/256/512/1024 WebP + `renderer/art-ladder.js`; drawn with `artImg()` (`renderer/art.js`, srcset + `sizes="auto"`). Rules in `docs/ART-DIRECTION.md` "Size".
 - **Agent rules**: `node scripts/check-agent-rules.mjs` (index ↔ rule files, cited paths, plugin
   string tables).
 - **Pre-commit** (`.githooks/pre-commit`, enabled by `npm prepare`): i18n, syntax, ESLint
-  `no-undef`, CODEMAP, docs drift, agent rules.
+  `no-undef`, CODEMAP, docs drift, agent rules, art ladder (when art is staged).
 - **MCP**: local Model Context Protocol server, reference `docs/MCP.md`.

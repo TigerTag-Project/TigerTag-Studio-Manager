@@ -49,6 +49,14 @@ if [ -n "$staged_js" ] && [ -x node_modules/.bin/eslint ]; then
     || { echo "✗ ESLint found undefined identifiers (no-undef) — fix before committing."; exit 1; }
 fi
 
+# ── Illustration size ladder ──────────────────────────────────────────
+# A laddered master (scripts/build-art-ladder.mjs LADDER_DIRS) must have its
+# four WebP renditions and its line in renderer/art-ladder.js. Only runs when
+# a master, a rendition or the index is staged.
+if git diff --cached --name-only | grep -qE '^(assets-src/img/|assets/img/|renderer/art-ladder\.js|scripts/build-art-ladder\.mjs)'; then
+  node scripts/build-art-ladder.mjs --check
+fi
+
 # ── CODEMAP drift ─────────────────────────────────────────────────────
 # Verifies each CODEMAP doc's anchors still fall inside their declared line
 # ranges (±150 lines) and that the map covers the whole file:
