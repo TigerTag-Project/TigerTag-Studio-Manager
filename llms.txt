@@ -10,7 +10,7 @@ It is neutral and agnostic by design: TigerTag takes no side between filament br
 distributors. The protocol is open and anyone can build a different ecosystem on it; nothing in this repo is a
 prerequisite for doing so.
 
-Current version: **2.49.0** — macOS (Intel + Apple Silicon, signed & notarized), Windows, Linux.
+Current version: **2.50.0** — macOS (Intel + Apple Silicon, signed & notarized), Windows, Linux.
 
 ## Architecture
 
@@ -74,6 +74,8 @@ publicKeys/{key}           → { uid, claimedAt }
 userProfiles/{uid}         → { publicKey, displayName, isPublic, color, photoURL, socials, friendsCount,
                                tigerSquad: { since, tier, certified, xp } }   ← SERVER-WRITTEN ONLY: Studio calls
                              the `setProfile` Cloud Function (renderer setProfile()), never writes it; tigerSquad from publishSupporter
+config/studio              → { minSquadVersion } world-readable: the oldest Studio allowed in the TigerSquad
+                             (older builds lock it and show an update window; the endpoints answer 426)
 publicStats/community      → world-readable community totals (xpTotal, accounts, members, spools {…},
                              printers {total, byBrand}) published every minute by the communityStats function (a full count every 10 min + live counters in between)
 publicStats/community/history/{YYYY-MM-DD} → one point per day of those totals
@@ -313,7 +315,7 @@ All brands: printer discovery (mDNS + port scan + manual IP), camera widget; fil
 npm run i18n:add -- myKey --after existingKey en="..." fr="..." de="..." es="..." it="..." zh="..." pt="..." pt-pt="..." pl="..." ru="..." nl="..."
 npm run i18n:check   # validates consistency (also runs as pre-commit hook)
 ```
-2972 keys × 11 locales as of v2.49.0
+2757 keys × 11 locales as of v2.50.0
 
 ## CSS conventions
 

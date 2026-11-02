@@ -60,6 +60,7 @@ body.progress-view #gridSortWrap { display: none; }
   /* The PAGE colour, resolved here: inside the heroes (dark token scope)
      --bg is the dark one, but their corner ring must match the page. */
   --page-bg: var(--bg);
+  container: quests / inline-size;   /* the Quests / Squad layouts follow the view's width (@container quests) */
   margin-top: var(--view-gap); flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;
   /* The local palette only ever aliases the shared Game UI tokens (00-base.css). */
   --tsq-bg: var(--game-bg); --tsq-bg2: var(--game-bg-2); --tsq-card: var(--game-card); --tsq-line: var(--game-line);
@@ -302,7 +303,16 @@ body.progress-view #gridSortWrap { display: none; }
 .qd-side-label { display: block; font-size: 13px; color: var(--qw-muted); }
 .qd-side-big { display: block; font-size: 19px; font-weight: 800; color: var(--qw-ink); }
 .qd-side small { font-size: 12px; color: var(--qw-tiger-text); }
-.qd-streak, .qd-next { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; gap: 12px; align-items: center; }
+.qd-next { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; gap: 12px; align-items: center; }
+/* The streak and freeze cards share one head (.qd-card-head): the card's picture big
+   (the flame's size), the title in the cards' white display face, the ⓘ at the end. */
+.qd-streak { display: flex; flex-direction: column; gap: 9px; }
+.qd-card-head { gap: 10px; }
+.qd-card-head.qd-card-head > img { width: 44px; height: 44px; aspect-ratio: 1; object-fit: contain; flex-shrink: 0; filter: drop-shadow(0 0 8px color-mix(in srgb, var(--game-ice) 45%, transparent)); }
+.qd-card-head.qd-card-head > .qd-flame { filter: drop-shadow(0 0 8px var(--qw-glow)); }
+.qd-card-head > .qd-flame.is-out { padding: 9px; }
+.qd-streak-body { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.qd-streak-body small { display: block; margin-top: 2px; }
 .qd-flame { width: 52px; aspect-ratio: 1; object-fit: contain; filter: drop-shadow(0 0 8px var(--qw-glow)); }
 /* No streak yet: the small flame, smaller and dimmer, in the same 52 px box. */
 .qd-flame.is-out { box-sizing: border-box; padding: 12px; filter: saturate(.6); }
@@ -310,7 +320,7 @@ body.progress-view #gridSortWrap { display: none; }
 .qd-pips { gap: 5px; }
 /* The combo badge sits above the week's pills. */
 .qd-week { display: flex; flex-direction: column; align-items: center; gap: 6px; }
-.qd-week .qd-combo { margin-left: 0; }
+.qd-week .qd-combo { margin-left: 0; order: 1; }   /* under the week's pills */
 /* The current week, Monday to Sunday: a pill per day, lit when the full set was
    won, icy when a freeze bridged it, outlined for today, dim for the days to come. */
 .qd-pip { display: flex; flex-direction: column; align-items: center; gap: 3px; }
@@ -350,9 +360,12 @@ body.progress-view #gridSortWrap { display: none; }
 /* Combo badge next to the streak (×2 … ×5, each a step warmer: orange → violet → gold). */
 .qd-combo { display: inline-block; margin-left: 6px; padding: 2px 8px; vertical-align: middle; border-radius: 999px;
   font: 800 12px var(--qw-mono); letter-spacing: .02em; text-shadow: none; color: var(--game-on-gold); background: var(--game-orange-hi); }   /* fills: shared tokens (the pill also shows in the rules window, outside .qw) */
-.qd-combo--3 { background: var(--tier-epic); }
-.qd-combo--4 { background: var(--game-ice); }
-.qd-combo--5 { background: var(--game-gold-deep); box-shadow: 0 0 12px rgba(255, 178, 26, .55); }
+/* One rarity colour per step, common → legendary (the trophies' tiers): ×1 … ×5. */
+.qd-combo--1 { background: var(--tier-common); color: var(--game-on-gold); }
+.qd-combo--2 { background: var(--tier-uncommon); color: var(--game-on-gold); }
+.qd-combo--3 { background: var(--tier-rare); color: var(--on-accent); }
+.qd-combo--4 { background: var(--tier-epic); color: var(--on-accent); }
+.qd-combo--5 { background: var(--tier-legendary); color: var(--game-on-gold); box-shadow: 0 0 12px color-mix(in srgb, var(--tier-legendary) 55%, transparent); }
 /* Streak protection (freezeCardHtml): the reserves as ice cubes (filled / dashed)
    with their counts, a line on how it works, the freeze to give and the repair as
    strips, "Buy…". Every button opens its window (freeze-modal.js). */
@@ -360,9 +373,6 @@ body.progress-view #gridSortWrap { display: none; }
 .qf-head { display: flex; align-items: center; gap: 8px; }
 .qf-head img { width: 26px; aspect-ratio: 1; object-fit: contain; }
 .qf-head .qf-info { margin-left: auto; position: relative; cursor: help; }
-/* "Give" in the head, right before the ⓘ (which then no longer pushes itself right). */
-.qf-head .qf-head-give { margin-left: auto; min-height: 28px; padding: 4px 12px; }
-.qf-head .qf-head-give + .qf-info { margin-left: 0; }
 /* The ⓘ's popover: the rule, then one row per TigerSquad badge, counts as ice cubes. */
 .qfp { position: absolute; top: calc(100% + 10px); right: -8px; z-index: 30; width: 450px; max-width: calc(100vw - 32px);
   display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 12px; text-align: left; cursor: default;
@@ -412,7 +422,9 @@ body.progress-view #gridSortWrap { display: none; }
 .qf-strip--none .qf-gifts img { width: 32px; opacity: 1; filter: none; }
 /* A slot already given this batch: its dashed cube, same size as the others. */
 .qf-gifts .qf-gift-given { width: 32px; }
-.qf-gift { display: block; }
+/* A cube still to give is the "give" button: lifts on hover, opens the give window. */
+.qf-gift { display: block; padding: 0; border: 0; background: none; cursor: pointer; transition: transform .15s ease, filter .15s ease; }
+.qf-gift:hover, .qf-gift:focus-visible { transform: translateY(-2px) scale(1.08); filter: drop-shadow(0 4px 8px color-mix(in srgb, var(--game-ice) 55%, transparent)); }
 .qf-gift img { display: block; }
 .qf-strip--none img { opacity: .55; filter: grayscale(.6); }
 .qf-strip--repair { position: relative; overflow: hidden; width: 100%; height: auto; margin-top: 4px; grid-column: 1 / -1; grid-template-columns: 34px minmax(0, 1fr) auto; text-align: left; font: inherit; font-size: 13px; font-weight: 700; color: var(--qw-ink); cursor: pointer;
@@ -764,10 +776,13 @@ body.progress-view #gridSortWrap { display: none; }
   padding-bottom: calc(var(--hero-desk-hc) + 6px); }
 .qm-hero-txt { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
 .qm-hero-txt h2 { font-size: 52px; line-height: .95; text-shadow: 0 2px 6px #000, 0 0 30px rgba(255, 122, 26, .35); }
-.qm-hero-txt p { margin: 4px 0 0; font: 700 14px var(--qw-display); letter-spacing: .42em; text-transform: uppercase; color: var(--on-dark); text-shadow: 0 1px 3px #000, 0 0 12px #000; }
+.qm-hero-txt p { margin: 4px 0 0; font: 700 14px var(--qw-display); letter-spacing: .42em; text-transform: uppercase; color: var(--on-dark); text-shadow: 0 1px 3px #000, 0 0 12px #000;
+  white-space: nowrap; }   /* the tagline runs on one line, over the desk if it must */
 .qm-hero-card { display: flex; flex-direction: column; gap: 8px; min-width: 200px; padding: 12px 16px; border-radius: 12px;
   border: 1px solid color-mix(in srgb, var(--qw-tiger) 65%, transparent); background: rgba(10, 12, 20, .84); box-shadow: 0 0 22px rgba(255, 122, 26, .2); }
-.qm-hero-card b { font: 800 15px var(--qw-display); text-transform: uppercase; letter-spacing: .06em; color: var(--qw-tiger-text); }
+.qm-hero-card b { font: 800 15px var(--qw-display); text-transform: uppercase; letter-spacing: .06em; color: var(--qw-tiger-text); white-space: nowrap; }
+/* A narrower view: the banner title and its tagline shrink instead of wrapping. */
+@container quests (max-width: 1300px) { .qm-hero-txt h2 { font-size: 40px; } .qm-hero-txt p { font-size: 12px; letter-spacing: .3em; } }
 .qm-hero-card > span:not(.qm-bar) { font-size: 13px; font-weight: 600; color: var(--qw-ink); }
 
 .qm-bar { display: block; height: 6px; border-radius: 3px; background: var(--game-line); overflow: hidden; }
@@ -800,9 +815,11 @@ body.progress-view #gridSortWrap { display: none; }
 
 /* Level cards. */
 /* Five levels per chapter: five columns on a wide window, fewer when narrower. */
+/* Columns follow the VIEW's width (container .inv-quests-view), not the window's:
+   the sidebar takes its share, and a level card needs ~240 px to read. */
 .qm-cards { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; align-items: stretch; }
-@media (max-width: 1450px) { .qm-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (max-width: 1000px) { .qm-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@container quests (max-width: 1400px) { .qm-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@container quests (max-width: 820px) { .qm-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .qm-card { display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 14px; border: 1px solid var(--qw-line);
   background: linear-gradient(180deg, var(--game-card-2), var(--game-bg-2)); transition: border-color .2s, box-shadow .2s; }
 .qm-card:hover { border-color: color-mix(in srgb, var(--qw-tiger) 50%, var(--qw-line)); box-shadow: 0 0 20px rgba(255, 122, 26, .12); }
@@ -1209,8 +1226,8 @@ body.progress-view #gridSortWrap { display: none; }
    won): the sixth card of the row, purple and gold, with a "Secret mission" tag
    and a soft pulse when it appears. */
 .qm-cards.has-secret { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-@media (max-width: 1450px) { .qm-cards.has-secret { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (max-width: 1000px) { .qm-cards.has-secret { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@container quests (max-width: 1500px) { .qm-cards.has-secret { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@container quests (max-width: 820px) { .qm-cards.has-secret { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .qm-secret-wrap { position: relative; display: flex; }
 .qm-secret-wrap > .qm-card { flex: 1; border-color: color-mix(in srgb, var(--tier-epic) 60%, transparent);
   background: radial-gradient(120% 90% at 50% 0%, rgba(160, 90, 255, .3), transparent 60%), linear-gradient(180deg, #241a3a, #151225);
@@ -2726,6 +2743,8 @@ body.progress-view #gridSortWrap { display: none; }
 .bk-fire img { position: absolute; width: var(--bk-size, 520px); opacity: 0; mix-blend-mode: screen; animation: bk-swell var(--bk-dur, 2.1s) cubic-bezier(.2, .7, .3, 1) infinite; }
 .bk-fire--bottom img { left: calc(var(--bk-size, 520px) / -2); bottom: 0; transform-origin: 50% 100%; }
 .bk-fire--center img { left: calc(var(--bk-size, 520px) / -2); top: calc(var(--bk-size, 520px) / -2); transform-origin: 50% 50%; }
+/* "top": centred on the window's top edge, behind its title plaque. */
+.bk-fire--top img { left: calc(var(--bk-size, 520px) / -2); top: calc(var(--bk-size, 520px) / -2); transform-origin: 50% 50%; animation-name: bk-radiate-soft; }
 @keyframes bk-swell {
   0% { opacity: 0; transform: scale(.35); filter: blur(4px) saturate(1.3); }
   15% { opacity: .55; }
@@ -2811,20 +2830,33 @@ body.progress-view #gridSortWrap { display: none; }
   .qfs-xp b, .qfs-streak, .qfs-line { opacity: 1; transform: none; transition: none; }
 }
 
-/* ── "How it works" window (rules-modal.js, the ⓘ of the streak and freeze cards) ── */
+/* ── "How it works" window (openDialog "ceremony", the ⓘ of the streak and freeze cards, quests/index.js) ── */
 .qd-streak { position: relative; }
-.qd-streak > .qd-streak-info { position: absolute; top: 10px; right: 10px; }
-.qf-info, .qd-streak-info { border: 0; background: none; padding: 2px; cursor: pointer; display: inline-grid; place-items: center; }
-.qf-info .icon, .qd-streak-info .icon { background: var(--qw-muted); transition: background .15s; }
-.qf-info:hover .icon, .qd-streak-info:hover .icon { background: var(--qw-ink); }
-.qrules { --qw-ink: var(--game-text); --qw-text: var(--game-text); --qw-muted: var(--game-muted); --qw-line: var(--game-line); --qw-bg: var(--game-bg); --qf-ice: var(--game-ice); }
-.qrules-art { width: 64px; aspect-ratio: 1; object-fit: contain; filter: drop-shadow(0 4px 10px rgba(0, 0, 0, .35)); }
+.qf-info { border: 0; background: none; padding: 2px; cursor: pointer; display: inline-grid; place-items: center; }
+.qf-info .icon { background: var(--qw-muted); transition: background .15s; }
+.qf-info:hover .icon { background: var(--qw-ink); }
+.qrules { --qw-tiger: var(--game-orange); --qw-glow: color-mix(in srgb, var(--game-orange) 45%, transparent); --qw-ink: var(--game-text); --qw-text: var(--game-text); --qw-muted: var(--game-muted); --qw-line: var(--game-line); --qw-bg: var(--game-bg); --qf-ice: var(--game-ice); }
 .qrules-body { width: 100%; }
 .qfp-static { display: flex; flex-direction: column; gap: 12px; text-align: left; color: var(--game-text); }
 .qfp-static .qfp-rule { font-size: 14px; }
 .qsr-rules { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.qsr-rules li { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; line-height: 1.45; }
-.qsr-rules .icon { flex-shrink: 0; margin-top: 2px; background: var(--game-orange-text); }
-.qsr-rules img { flex-shrink: 0; width: 18px; aspect-ratio: 1; object-fit: contain; }
+.qsr-rules li { display: flex; align-items: center; gap: 10px; font-size: 12.5px; line-height: 1.4; }
+/* Each rule's mark: the real thing (pill, flame, combo badge, freeze cube) in a fixed column. */
+.qsr-mark { flex-shrink: 0; width: 78px; display: inline-flex; justify-content: center; align-items: center; min-height: 22px; }
+.qsr-mark img { width: 34px; aspect-ratio: 1; object-fit: contain; }
+.qsr-mark .qd-pip i { width: 12px; height: 20px; }
+.qsr-mark .qd-combo { margin: 0; font-size: 10.5px; padding: 1px 7px; white-space: nowrap; }
 .qsr-table td b { color: var(--game-orange-text); }
 .qsr-table tr.is-mine th, .qsr-table tr.is-mine td { background: color-mix(in srgb, var(--game-orange) 14%, transparent); }
+
+/* The milestone table: a clean header row — small caps, centred, one line under it, no band. */
+.qsr-table { table-layout: fixed; }
+.qsr-table thead, .qsr-table thead tr { background: none; }
+.qsr-table thead th { padding: 0 6px 8px; text-align: center; background: none; border-bottom: 1px solid var(--game-line); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--game-muted); }
+.qsr-table tbody th, .qsr-table td { text-align: center; }
+.qsr-table tbody th { display: table-cell; }
+/* The freeze table: badge + name on one line, left; the cubes centred like the streak table's cells. */
+.qsr-table .qsr-badge { display: inline-flex; align-items: center; gap: 6px; }
+.qsr-table--freeze tbody th, .qsr-table--freeze thead th:first-child { text-align: left; }
+.qsr-table .qfp-cubes { justify-content: center; }
+.qsr-table .qfp-cubes img { width: 18px; }

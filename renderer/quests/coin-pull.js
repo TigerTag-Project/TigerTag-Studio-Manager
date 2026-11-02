@@ -103,7 +103,7 @@ export function backfire(overlayEl, cardEl, src, { at = "center", size = 520, wa
   fire.className = `bk-fire bk-fire--${at}${soft ? " bk-fire--soft" : ""}`;
   fire.setAttribute("aria-hidden", "true");
   fire.style.left = `${r.left + r.width / 2}px`;
-  fire.style.top = `${at === "bottom" ? r.bottom - r.height * .15 : r.top + r.height / 2}px`;
+  fire.style.top = `${at === "bottom" ? r.bottom - r.height * .15 : at === "top" ? r.top + 40 : r.top + r.height / 2}px`;
   fire.style.setProperty("--bk-size", `${size}px`);
   fire.style.setProperty("--bk-dur", `${dur}s`);
   fire.innerHTML = Array.from({ length: waves }, (_, i) => `<img src="${src}" alt="" style="animation-delay:${(i * dur / waves).toFixed(2)}s">`).join("");

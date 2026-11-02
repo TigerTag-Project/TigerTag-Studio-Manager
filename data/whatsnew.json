@@ -1,4 +1,299 @@
 {
+  "2.50.0": {
+    "date": "2026-11-02",
+    "items": [
+      {
+        "icon": "compass",
+        "title": {
+          "en": "Treasure hunt, now with a flashlight",
+          "fr": "Chasse au trésor, lampe torche en main",
+          "de": "Schatzsuche, jetzt mit Taschenlampe",
+          "es": "Caza del tesoro, linterna en mano",
+          "it": "Caccia al tesoro, torcia alla mano",
+          "zh": "寻宝之旅，手电筒已就位",
+          "pt": "Caça ao tesouro, lanterna na mão",
+          "pt-pt": "Caça ao tesouro, lanterna na mão",
+          "pl": "Poszukiwanie skarbów z latarką",
+          "ru": "Охота за сокровищами — с фонариком",
+          "nl": "Schattenjacht, zaklamp in de hand"
+        },
+        "body": {
+          "en": "The sticker album became a temple, and your tiger explores it. The banner counts the stickers you have collected, nothing more. Some stay veiled until a friend gets them.",
+          "fr": "L’album de stickers est devenu un temple, et ton tigre l’explore. La bannière compte les stickers que tu as collectés, point. Certains restent voilés jusqu’à ce qu’un ami les ait.",
+          "de": "Das Sticker-Album ist jetzt ein Tempel, und dein Tiger erkundet ihn. Das Banner zählt deine gesammelten Sticker, mehr nicht. Manche bleiben verhüllt, bis ein Freund sie hat.",
+          "es": "El álbum de stickers ahora es un templo y tu tigre lo explora. El banner cuenta los stickers que has reunido, nada más. Algunos siguen velados hasta que un amigo los consigue.",
+          "it": "L’album di sticker è diventato un tempio e la tua tigre lo esplora. Il banner conta gli sticker raccolti, punto. Alcuni restano velati finché un amico non li ottiene.",
+          "zh": "贴纸册变成了一座神殿，你的老虎正在探险。横幅只数你已收集的贴纸，仅此而已。有些贴纸会被遮住，直到有朋友拿到。",
+          "pt": "O álbum de stickers virou um templo e o seu tigre o explora. O banner conta os stickers que você coletou, só isso. Alguns ficam velados até um amigo conseguir.",
+          "pt-pt": "O álbum de stickers virou um templo e o teu tigre explora-o. O banner conta os stickers que recolheste, só isso. Alguns ficam velados até um amigo os ter.",
+          "pl": "Album naklejek stał się świątynią, a twój tygrys ją zwiedza. Baner liczy zebrane naklejki i tyle. Niektóre pozostają zasłonięte, dopóki nie zdobędzie ich znajomy.",
+          "ru": "Альбом стикеров стал храмом, и твой тигр его исследует. Баннер считает собранные стикеры, и всё. Некоторые скрыты, пока их не получит друг.",
+          "nl": "Het stickeralbum is een tempel geworden en je tijger verkent hem. De banner telt de stickers die je verzamelde, meer niet. Sommige blijven versluierd tot een vriend ze heeft."
+        }
+      },
+      {
+        "icon": "software-download",
+        "title": {
+          "en": "The TigerSquad has evolved",
+          "fr": "La TigerSquad a évolué",
+          "de": "Die TigerSquad hat sich weiterentwickelt",
+          "es": "La TigerSquad ha evolucionado",
+          "it": "La TigerSquad si è evoluta",
+          "zh": "TigerSquad 进化了",
+          "pt": "A TigerSquad evoluiu",
+          "pt-pt": "A TigerSquad evoluiu",
+          "pl": "TigerSquad wyewoluowała",
+          "ru": "TigerSquad эволюционировал",
+          "nl": "De TigerSquad is geëvolueerd"
+        },
+        "body": {
+          "en": "When the squad needs a newer app, a window politely asks you to update. One click, and your tiger is back with the others.",
+          "fr": "Quand la squad a besoin d’une appli plus récente, une fenêtre te demande poliment de mettre à jour. Un clic, et ton tigre retrouve les autres.",
+          "de": "Wenn die Squad eine neuere App braucht, bittet dich ein Fenster höflich um ein Update. Ein Klick, und dein Tiger ist wieder bei den anderen.",
+          "es": "Cuando la squad necesita una app más reciente, una ventana te pide amablemente que actualices. Un clic y tu tigre vuelve con los demás.",
+          "it": "Quando la squad ha bisogno di un’app più recente, una finestra ti chiede gentilmente di aggiornare. Un clic e la tua tigre torna con gli altri.",
+          "zh": "当小队需要更新的应用时，会弹出窗口礼貌地请你更新。点一下，你的老虎就归队了。",
+          "pt": "Quando a squad precisa de um app mais novo, uma janela pede gentilmente para você atualizar. Um clique e seu tigre volta ao grupo.",
+          "pt-pt": "Quando a squad precisa de uma app mais recente, uma janela pede-te educadamente para atualizar. Um clique e o teu tigre volta ao grupo.",
+          "pl": "Gdy squad potrzebuje nowszej aplikacji, okno grzecznie prosi o aktualizację. Jedno kliknięcie i twój tygrys wraca do reszty.",
+          "ru": "Если отряду нужна версия посвежее, окно вежливо попросит обновиться. Один клик — и твой тигр снова с остальными.",
+          "nl": "Heeft de squad een nieuwere app nodig, dan vraagt een venster netjes om te updaten. Eén klik en je tijger is terug bij de rest."
+        }
+      },
+      {
+        "icon": "clock",
+        "title": {
+          "en": "Leaving the squad takes 30 days to cool off",
+          "fr": "Quitter la squad se mérite : 30 jours de réflexion",
+          "de": "Die Squad verlassen: 30 Tage Bedenkzeit",
+          "es": "Dejar la squad: 30 días para pensarlo",
+          "it": "Lasciare la squad: 30 giorni per pensarci",
+          "zh": "离开小队需要 30 天冷静期",
+          "pt": "Sair da squad: 30 dias para pensar",
+          "pt-pt": "Sair da squad: 30 dias para pensar",
+          "pl": "Odejście ze squadu: 30 dni do namysłu",
+          "ru": "Выход из отряда: 30 дней на раздумья",
+          "nl": "De squad verlaten: 30 dagen bedenktijd"
+        },
+        "body": {
+          "en": "Before you leave, a window lists what goes and what stays. Change your mind within 30 days and the squad tells you the exact day your perks return.",
+          "fr": "Avant de partir, une fenêtre liste ce qui s’en va et ce qui reste. Si tu reviens avant 30 jours, la squad te dit le jour exact où tes avantages reviennent.",
+          "de": "Bevor du gehst, listet ein Fenster auf, was verschwindet und was bleibt. Kommst du innerhalb von 30 Tagen zurück, nennt dir die Squad den genauen Tag, an dem deine Vorteile wiederkehren.",
+          "es": "Antes de irte, una ventana lista lo que se va y lo que se queda. Si vuelves antes de 30 días, la squad te dice el día exacto en que regresan tus ventajas.",
+          "it": "Prima di andartene, una finestra elenca cosa se ne va e cosa resta. Se torni entro 30 giorni, la squad ti dice il giorno esatto in cui tornano i vantaggi.",
+          "zh": "离开前，会有窗口列出哪些会消失、哪些会保留。30 天内回来的话，小队会告诉你福利恢复的确切日期。",
+          "pt": "Antes de sair, uma janela lista o que vai embora e o que fica. Voltando em até 30 dias, a squad diz o dia exato em que suas vantagens voltam.",
+          "pt-pt": "Antes de saíres, uma janela lista o que vai e o que fica. Se voltares em 30 dias, a squad diz-te o dia exato em que as vantagens regressam.",
+          "pl": "Zanim odejdziesz, okno wylicza, co znika, a co zostaje. Wrócisz w 30 dni, a squad poda dokładny dzień powrotu twoich bonusów.",
+          "ru": "Перед уходом окно покажет, что пропадёт, а что останется. Вернёшься в течение 30 дней — отряд назовёт точный день, когда вернутся бонусы.",
+          "nl": "Voor je vertrekt toont een venster wat verdwijnt en wat blijft. Kom je binnen 30 dagen terug, dan noemt de squad de exacte dag waarop je voordelen terugkeren."
+        }
+      },
+      {
+        "icon": "flame",
+        "title": {
+          "en": "Streaks, finally explained",
+          "fr": "Les séries, enfin expliquées",
+          "de": "Serien, endlich erklärt",
+          "es": "Las rachas, por fin explicadas",
+          "it": "Le serie, finalmente spiegate",
+          "zh": "连续天数，终于讲清楚了",
+          "pt": "As sequências, finalmente explicadas",
+          "pt-pt": "As sequências, finalmente explicadas",
+          "pl": "Serie, wreszcie wyjaśnione",
+          "ru": "Серии наконец-то объяснены",
+          "nl": "Reeksen, eindelijk uitgelegd"
+        },
+        "body": {
+          "en": "The streak and freeze cards each get an ⓘ. It opens the rules with pictures of the real things: the day’s pill, the flame, the combo, the cube.",
+          "fr": "Les cartes série et gel ont chacune un ⓘ. Il ouvre les règles avec des images des vraies choses : la pastille du jour, la flamme, le combo, le cube.",
+          "de": "Serien- und Freeze-Karte haben jetzt je ein ⓘ. Es öffnet die Regeln, mit Bildern der echten Dinge: Tagespille, Flamme, Combo, Würfel.",
+          "es": "Las tarjetas de racha y de congelación tienen cada una un ⓘ. Abre las reglas con imágenes de las cosas reales: la píldora del día, la llama, el combo, el cubo.",
+          "it": "Le carte serie e congelamento hanno ciascuna un ⓘ. Apre le regole con le immagini delle cose vere: la pillola del giorno, la fiamma, il combo, il cubo.",
+          "zh": "连续天数卡和冰冻卡各有一个 ⓘ。点开就是规则，配有真实物件的图片：当天的药丸、火焰、连击、冰块。",
+          "pt": "Os cartões de sequência e de congelamento ganharam um ⓘ cada. Ele abre as regras com imagens das coisas reais: a pílula do dia, a chama, o combo, o cubo.",
+          "pt-pt": "Os cartões de sequência e de congelamento têm um ⓘ cada. Abre as regras com imagens das coisas reais: a pílula do dia, a chama, o combo, o cubo.",
+          "pl": "Karty serii i zamrożenia mają po ⓘ. Otwiera zasady z obrazkami prawdziwych rzeczy: pigułką dnia, płomieniem, combo, kostką.",
+          "ru": "У карточек серии и заморозки теперь по ⓘ. Он открывает правила с картинками настоящих вещей: плашка дня, пламя, комбо, кубик.",
+          "nl": "De reeks- en vrieskaart hebben elk een ⓘ. Dat opent de regels met plaatjes van de echte dingen: het dagpilletje, de vlam, de combo, het blokje."
+        }
+      },
+      {
+        "icon": "snow",
+        "title": {
+          "en": "Give a freeze with one click",
+          "fr": "Offrir un gel d’un clic",
+          "de": "Einen Freeze mit einem Klick schenken",
+          "es": "Regala una congelación con un clic",
+          "it": "Regala un congelamento con un clic",
+          "zh": "一键送出冰冻",
+          "pt": "Dê um congelamento com um clique",
+          "pt-pt": "Oferece um congelamento com um clique",
+          "pl": "Podaruj zamrożenie jednym kliknięciem",
+          "ru": "Подари заморозку одним кликом",
+          "nl": "Geef een vrieskaart met één klik"
+        },
+        "body": {
+          "en": "No more Give button: click the cube you want to give. It lifts when you hover it, then a window picks the lucky friend.",
+          "fr": "Plus de bouton Offrir : clique sur le cube que tu veux donner. Il se soulève au survol, puis une fenêtre choisit l’heureux ami.",
+          "de": "Kein Schenken-Knopf mehr: Klick auf den Würfel, den du verschenken willst. Er hebt sich beim Drüberfahren, dann wählt ein Fenster den Glücklichen.",
+          "es": "Se acabó el botón Regalar: haz clic en el cubo que quieras dar. Se levanta al pasar el ratón y una ventana elige al amigo afortunado.",
+          "it": "Niente più pulsante Regala: clicca sul cubo che vuoi dare. Si solleva al passaggio del mouse, poi una finestra sceglie l’amico fortunato.",
+          "zh": "不再有“赠送”按钮：直接点你想送的冰块。悬停时它会浮起，然后在窗口里选出幸运的朋友。",
+          "pt": "Chega do botão Dar: clique no cubo que quer presentear. Ele sobe ao passar o mouse e uma janela escolhe o amigo sortudo.",
+          "pt-pt": "Acabou o botão Oferecer: clica no cubo que queres dar. Sobe ao passar o rato e uma janela escolhe o amigo sortudo.",
+          "pl": "Koniec z przyciskiem Podaruj: kliknij kostkę, którą chcesz dać. Unosi się po najechaniu, a okno wybiera szczęśliwego znajomego.",
+          "ru": "Кнопки «Подарить» больше нет: кликни по кубику, который хочешь отдать. Он приподнимается при наведении, а окно выберет счастливчика.",
+          "nl": "Geen Geven-knop meer: klik op het blokje dat je wilt geven. Het tilt op als je eroverheen gaat, daarna kiest een venster de gelukkige vriend."
+        }
+      },
+      {
+        "icon": "gift",
+        "title": {
+          "en": "Envelopes by the handful",
+          "fr": "Des enveloppes à la poignée",
+          "de": "Umschläge im Dutzend",
+          "es": "Sobres a puñados",
+          "it": "Buste a manciate",
+          "zh": "红包一把一把送",
+          "pt": "Envelopes aos punhados",
+          "pt-pt": "Envelopes às mãos cheias",
+          "pl": "Koperty garściami",
+          "ru": "Конверты горстями",
+          "nl": "Enveloppen bij de hand"
+        },
+        "body": {
+          "en": "Pick which envelopes to give from a fanned hand of up to 10, and send several at once. Your friend gets one notification and opens the whole pile.",
+          "fr": "Choisis les enveloppes à offrir dans une main de 10 maximum, et envoie-en plusieurs d’un coup. Ton ami reçoit une seule notification et ouvre toute la pile.",
+          "de": "Such aus einem Fächer von bis zu 10 Umschlägen aus, welche du verschenkst, und schick gleich mehrere. Dein Freund bekommt eine Benachrichtigung und öffnet den ganzen Stapel.",
+          "es": "Elige qué sobres regalar de un abanico de hasta 10 y envía varios a la vez. Tu amigo recibe un solo aviso y abre toda la pila.",
+          "it": "Scegli quali buste regalare da un ventaglio fino a 10 e mandane diverse in un colpo. Il tuo amico riceve una sola notifica e apre l’intera pila.",
+          "zh": "从最多 10 个红包的扇形中挑出要送的，还能一次送好几个。朋友只收到一条通知，一次打开整叠。",
+          "pt": "Escolha quais envelopes dar numa mão de até 10 e envie vários de uma vez. Seu amigo recebe uma só notificação e abre a pilha toda.",
+          "pt-pt": "Escolhe quais envelopes dar numa mão de até 10 e envia vários de uma vez. O teu amigo recebe uma só notificação e abre a pilha toda.",
+          "pl": "Wybierz, które koperty podarować, z wachlarza do 10, i wyślij kilka naraz. Znajomy dostaje jedno powiadomienie i otwiera cały stos.",
+          "ru": "Выбирай, какие конверты дарить, из веера до 10 штук, и отправляй сразу несколько. Другу придёт одно уведомление, и он откроет всю стопку.",
+          "nl": "Kies uit een waaier van maximaal 10 welke enveloppen je geeft en stuur er meteen meerdere. Je vriend krijgt één melding en opent de hele stapel."
+        }
+      },
+      {
+        "icon": "bolt",
+        "title": {
+          "en": "Views that show up before you blink",
+          "fr": "Des vues là avant que tu clignes des yeux",
+          "de": "Ansichten, bevor du blinzelst",
+          "es": "Vistas que aparecen antes de parpadear",
+          "it": "Viste che appaiono prima che tu sbatta le palpebre",
+          "zh": "眨眼之前，视图已就位",
+          "pt": "Visualizações que aparecem antes de você piscar",
+          "pt-pt": "Vistas que aparecem antes de pestanejares",
+          "pl": "Widoki, zanim mrugniesz",
+          "ru": "Виды появляются раньше, чем моргнёшь",
+          "nl": "Weergaven die er zijn voor je knippert"
+        },
+        "body": {
+          "en": "Launch, friend visits, coming back home, rankings: everything draws from what you saw last, then updates quietly. Your computer reads far less, and so does your patience.",
+          "fr": "Lancement, visites chez un ami, retour à l’accueil, classements : tout s’affiche à partir de ce que tu as vu la dernière fois, puis se met à jour discrètement. Ton ordi lit bien moins, ta patience aussi.",
+          "de": "Start, Freundesbesuche, Rückkehr nach Hause, Ranglisten: Alles erscheint aus dem, was du zuletzt gesehen hast, und aktualisiert sich dann leise. Dein Rechner lädt viel weniger, deine Geduld wird kaum gebraucht.",
+          "es": "Inicio, visitas a amigos, volver a casa, clasificaciones: todo se dibuja con lo que viste la última vez y luego se actualiza en silencio. Tu ordenador lee mucho menos y tu paciencia también.",
+          "it": "Avvio, visite agli amici, ritorno a casa, classifiche: tutto appare da ciò che hai visto l’ultima volta, poi si aggiorna in silenzio. Il computer legge molto meno e la tua pazienza si riposa.",
+          "zh": "启动、拜访好友、返回主页、排行榜：一切先显示你上次看到的内容，再悄悄更新。电脑读取得更少，你也不用等。",
+          "pt": "Abrir o app, visitar amigos, voltar para casa, rankings: tudo aparece com o que você viu da última vez e depois atualiza em silêncio. O computador lê bem menos, e a sua paciência agradece.",
+          "pt-pt": "Arranque, visitas a amigos, voltar a casa, classificações: tudo aparece com o que viste da última vez e depois atualiza em silêncio. O computador lê muito menos, e a tua paciência agradece.",
+          "pl": "Start, wizyty u znajomych, powrót do domu, rankingi: wszystko pojawia się z tego, co widziałeś ostatnio, a potem po cichu się odświeża. Komputer czyta dużo mniej, a ty czekasz mniej.",
+          "ru": "Запуск, визиты к друзьям, возврат домой, рейтинги: всё рисуется из того, что ты видел в прошлый раз, а потом тихо обновляется. Компьютер читает гораздо меньше, а ты ждёшь меньше.",
+          "nl": "Opstart, vriendenbezoeken, terug naar huis, ranglijsten: alles verschijnt uit wat je vorige keer zag en ververst dan stilletjes. Je computer leest veel minder, jouw geduld hoeft minder."
+        }
+      },
+      {
+        "icon": "chat",
+        "title": {
+          "en": "Copy a message, translate it, done",
+          "fr": "Copier un message, le traduire, et voilà",
+          "de": "Nachricht kopieren, übersetzen, fertig",
+          "es": "Copia un mensaje, tradúcelo, listo",
+          "it": "Copia un messaggio, traducilo, fatto",
+          "zh": "复制消息，翻译，搞定",
+          "pt": "Copie uma mensagem, traduza, pronto",
+          "pt-pt": "Copia uma mensagem, traduz, pronto",
+          "pl": "Skopiuj wiadomość, przetłumacz, gotowe",
+          "ru": "Скопируй сообщение, переведи, готово",
+          "nl": "Bericht kopiëren, vertalen, klaar"
+        },
+        "body": {
+          "en": "Every message in a request conversation has a Copy button, handy for a translator. The All requests tab counts the open ones, and the team gets a Requests tab in the notification centre.",
+          "fr": "Chaque message d’une conversation de demande a un bouton Copier, pratique pour un traducteur. L’onglet Toutes les demandes compte les ouvertes, et l’équipe a un onglet Demandes dans les notifications.",
+          "de": "Jede Nachricht in einer Anfrage hat einen Kopieren-Knopf, praktisch für den Übersetzer. Der Tab Alle Anfragen zählt die offenen, und das Team bekommt in den Benachrichtigungen einen Tab Anfragen.",
+          "es": "Cada mensaje de una conversación de solicitud tiene un botón Copiar, útil para un traductor. La pestaña Todas las solicitudes cuenta las abiertas y el equipo tiene una pestaña Solicitudes en las notificaciones.",
+          "it": "Ogni messaggio di una conversazione di richiesta ha un pulsante Copia, comodo per un traduttore. La scheda Tutte le richieste conta quelle aperte e il team ha una scheda Richieste nelle notifiche.",
+          "zh": "请求对话里的每条消息都有“复制”按钮，方便拿去翻译。“所有请求”标签会统计未处理的数量，团队还在通知中心多了“请求”标签。",
+          "pt": "Cada mensagem de uma conversa de solicitação tem um botão Copiar, útil para o tradutor. A aba Todas as solicitações conta as abertas e a equipe ganha uma aba Solicitações nas notificações.",
+          "pt-pt": "Cada mensagem de uma conversa de pedido tem um botão Copiar, útil para o tradutor. O separador Todos os pedidos conta os abertos e a equipa tem um separador Pedidos nas notificações.",
+          "pl": "Każda wiadomość w rozmowie o zgłoszeniu ma przycisk Kopiuj, wygodny dla tłumacza. Karta Wszystkie zgłoszenia liczy otwarte, a zespół ma kartę Zgłoszenia w powiadomieniach.",
+          "ru": "У каждого сообщения в диалоге по обращению есть кнопка «Копировать» — удобно для переводчика. Вкладка «Все обращения» считает открытые, а у команды в уведомлениях появилась вкладка «Обращения».",
+          "nl": "Elk bericht in een verzoekgesprek heeft een Kopieer-knop, handig voor een vertaler. Het tabblad Alle verzoeken telt de openstaande en het team krijgt een tabblad Verzoeken bij de meldingen."
+        }
+      },
+      {
+        "icon": "eye-on",
+        "title": {
+          "en": "Light theme, readable at last",
+          "fr": "Thème clair, enfin lisible",
+          "de": "Helles Design, endlich lesbar",
+          "es": "Tema claro, por fin legible",
+          "it": "Tema chiaro, finalmente leggibile",
+          "zh": "浅色主题，终于看得清了",
+          "pt": "Tema claro, finalmente legível",
+          "pt-pt": "Tema claro, finalmente legível",
+          "pl": "Jasny motyw, wreszcie czytelny",
+          "ru": "Светлая тема наконец читается",
+          "nl": "Licht thema, eindelijk leesbaar"
+        },
+        "body": {
+          "en": "Greys are darker, icons and badges keep their colours, and banners no longer wear a dark frame. Your eyes can stay in Light.",
+          "fr": "Les gris sont plus foncés, les icônes et badges gardent leurs couleurs, et les bannières n’ont plus de cadre sombre. Tes yeux peuvent rester en clair.",
+          "de": "Die Grautöne sind dunkler, Icons und Abzeichen behalten ihre Farben, und Banner tragen keinen dunklen Rahmen mehr. Deine Augen dürfen im hellen Design bleiben.",
+          "es": "Los grises son más oscuros, los iconos e insignias conservan sus colores y los banners ya no llevan marco oscuro. Tus ojos pueden quedarse en claro.",
+          "it": "I grigi sono più scuri, icone e badge mantengono i colori e i banner non hanno più la cornice scura. I tuoi occhi possono restare nel chiaro.",
+          "zh": "灰色更深了，图标和徽章保留自己的颜色，横幅也不再套着深色边框。你可以放心留在浅色主题。",
+          "pt": "Os cinzas estão mais escuros, ícones e emblemas mantêm as cores e os banners não têm mais moldura escura. Seus olhos podem ficar no claro.",
+          "pt-pt": "Os cinzentos estão mais escuros, os ícones e emblemas mantêm as cores e os banners já não têm moldura escura. Os teus olhos podem ficar no claro.",
+          "pl": "Szarości są ciemniejsze, ikony i odznaki zachowują kolory, a banery nie mają już ciemnej ramki. Twoje oczy mogą zostać w jasnym.",
+          "ru": "Серые тона темнее, значки и бейджи сохраняют цвета, а у баннеров больше нет тёмной рамки. Глаза могут остаться в светлой теме.",
+          "nl": "Grijstinten zijn donkerder, pictogrammen en badges houden hun kleur en banners dragen geen donker kader meer. Je ogen mogen in Licht blijven."
+        }
+      },
+      {
+        "icon": "list-check",
+        "title": {
+          "en": "Missions fit your window",
+          "fr": "Les missions s’adaptent à ta fenêtre",
+          "de": "Missionen passen in dein Fenster",
+          "es": "Las misiones caben en tu ventana",
+          "it": "Le missioni si adattano alla finestra",
+          "zh": "任务适配你的窗口",
+          "pt": "As missões cabem na sua janela",
+          "pt-pt": "As missões cabem na tua janela",
+          "pl": "Misje mieszczą się w oknie",
+          "ru": "Миссии вмещаются в окно",
+          "nl": "Missies passen in je venster"
+        },
+        "body": {
+          "en": "On a narrower window, the level cards no longer squeeze six to a row with titles in pieces. They wrap into three or two, and “Tutorial missions” is now just “Missions”.",
+          "fr": "Dans une fenêtre plus étroite, les cartes de niveau ne s’entassent plus à six avec des titres en morceaux. Elles passent à trois ou deux, et « Missions tutoriel » devient simplement « Missions ».",
+          "de": "In einem schmaleren Fenster quetschen sich die Levelkarten nicht mehr zu sechst mit zerbrochenen Titeln. Sie rücken auf drei oder zwei, und aus „Tutorial-Missionen“ wird einfach „Missionen“.",
+          "es": "En una ventana más estrecha, las tarjetas de nivel ya no se apretujan de seis en seis con títulos rotos. Pasan a tres o dos, y «Misiones tutorial» ahora es solo «Misiones».",
+          "it": "In una finestra più stretta, le carte dei livelli non si ammassano più in sei con titoli spezzati. Passano a tre o due e «Missioni tutorial» diventa semplicemente «Missioni».",
+          "zh": "窗口变窄时，等级卡片不再六个挤成一排、标题被拆得七零八落，而是换成三个或两个一排。“教程任务”现在就叫“任务”。",
+          "pt": "Numa janela mais estreita, os cartões de nível não se espremem mais de seis em seis com títulos quebrados. Passam para três ou dois, e “Missões tutorial” agora é só “Missões”.",
+          "pt-pt": "Numa janela mais estreita, os cartões de nível já não se apertam seis a seis com títulos partidos. Passam para três ou dois, e «Missões tutorial» é agora só «Missões».",
+          "pl": "W węższym oknie karty poziomów nie ściskają się już po sześć z połamanymi tytułami. Układają się po trzy lub dwie, a „Misje samouczka” to teraz po prostu „Misje”.",
+          "ru": "В узком окне карточки уровней больше не теснятся по шесть с поломанными заголовками. Они переходят на три или две, а «Учебные миссии» теперь просто «Миссии».",
+          "nl": "In een smaller venster persen de niveaukaarten zich niet meer met zes naast elkaar met kapotte titels. Ze gaan naar drie of twee, en ‘Tutorialmissies’ heet nu gewoon ‘Missies’."
+        }
+      }
+    ]
+  },
   "2.49.0": {
     "date": "2026-11-01",
     "items": [

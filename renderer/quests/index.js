@@ -44,7 +44,8 @@ import { heroLayersHtml } from "./hero-layers.js";
 import { heroHtml } from "./ui-kit.js";
 import { openFreezeWindow } from "./freeze-modal.js";
 import { showFullSetWindow } from "./fullset-modal.js";
-import { showRulesWindow } from "./rules-modal.js";
+import { openDialog } from "../dialog.js";
+import { backfire } from "./coin-pull.js";
 
 // The Today banner scene (hero-layers.js): the tiger in the TigerTag cap dreaming,
 // one picture standing on the desk with its paw resting on it, its light-bulb thought, the
@@ -412,9 +413,14 @@ export function renderQuestsView(host, tab = "today") {
       const rb = e.target.closest("[data-qrules]");
       if (rb) {
         const streakRules = rb.dataset.qrules === "streak";
-        showRulesWindow(_ctx, streakRules
-          ? { title: _ctx.t("questsStreakTitle"), body: streakRulesHtml(), art: "../assets/img/quests/streak-flame.webp" }
-          : { title: _ctx.t("questsFreezeTitle"), body: freezeRuleHtml(_freeze?.tier), art: ICE("freeze") });
+        // The card's own picture swells behind the window, from its top (like the envelopes').
+        openDialog({
+          look: "ceremony", cls: "qrules-card",
+          title: _ctx.t(streakRules ? "questsStreakTitle" : "questsFreezeTitle"),
+          body: `<div class="qrules qrules-body">${streakRules ? streakRulesHtml() : freezeRuleHtml(_freeze?.tier)}</div>`,
+          actions: [{ id: "ok", label: _ctx.t("questsRulesOk"), kind: "primary" }],
+          wire: card => backfire(card.closest(".tc-reveal"), card, streakRules ? FLAME : ICE("freeze"), { at: "top", size: 420, dur: 4, soft: true }),
+        });
         return;
       }
       const fb = e.target.closest("[data-qf]");
@@ -619,12 +625,16 @@ function todayHtml() {
       </div>
       <aside class="qd-side">
         <section class="qd-card qd-streak">
-          <button type="button" class="tool-info qf-info qd-streak-info" data-qrules="streak" aria-label="${esc(t("questsRulesHow", { what: t("questsStreakTitle") }))}"><span class="icon icon-info icon-13"></span></button>
-          <img class="qd-flame${streak > 0 ? "" : " is-out"}" src="../assets/img/quests/streak-flame${streak > 0 ? "" : "-small"}.webp" alt="" aria-hidden="true">
-          <div><span class="qd-side-label">${esc(t("questsStreakTitle"))}</span><b class="qd-side-big">${esc(t("questsDays", { n: streak }))}</b>
-            ${r.streakBonus ? `<small>${esc(t("questsStreakNext", { xp: nextBonusXp, day: nextBonusDay }))}</small>` : ""}</div>
-          <span class="qd-week">${combo >= 1 ? `<span class="qd-combo qd-combo--${Math.min(combo, 5)}">${esc(t("questsComboBadge", { n: combo }))}</span>` : ""}
-          <span class="qd-pips" aria-hidden="true">${streakWeek().map(w => `<span class="qd-pip is-${w.state}${w.today ? " is-now" : ""}"><i></i><small>${esc(w.label)}</small></span>`).join("")}</span></span>
+          <!-- The same head as the freeze card (qf-head): its picture big, the title in white, the ⓘ. -->
+          <div class="qf-head qd-card-head"><img class="qd-flame${streak > 0 ? "" : " is-out"}" src="../assets/img/quests/streak-flame${streak > 0 ? "" : "-small"}.webp" alt="" aria-hidden="true">
+            <h3>${esc(t("questsStreakTitle"))}</h3>
+            <button type="button" class="tool-info qf-info" data-qrules="streak" aria-label="${esc(t("questsRulesHow", { what: t("questsStreakTitle") }))}"><span class="icon icon-info icon-13"></span></button></div>
+          <div class="qd-streak-body">
+            <div><b class="qd-side-big">${esc(t("questsDays", { n: streak }))}</b>
+              ${r.streakBonus ? `<small>${esc(t("questsStreakNext", { xp: nextBonusXp, day: nextBonusDay }))}</small>` : ""}</div>
+            <span class="qd-week">${combo >= 1 ? `<span class="qd-combo qd-combo--${Math.min(combo, 5)}">${esc(t("questsComboBadge", { n: combo }))}</span>` : ""}
+            <span class="qd-pips" aria-hidden="true">${streakWeek().map(w => `<span class="qd-pip is-${w.state}${w.today ? " is-now" : ""}"><i></i><small>${esc(w.label)}</small></span>`).join("")}</span></span>
+          </div>
           ${frozen ? `<p class="qd-frozen"><img src="../assets/img/quests/freeze/freeze.webp" alt="" aria-hidden="true">${esc(t(frozen.n > 1 ? "questsFrozenDays" : "questsFrozenDay", { n: frozen.n, combo: Math.max(1, combo) }))}</p>` : ""}
           ${repairStripHtml()}
         </section>
@@ -679,24 +689,27 @@ const BADGE_ART = tier => `../assets/img/tigersquad/tigersquad-${tier}.webp`;
    hover and keyboard focus (CSS). */
 function freezeRuleHtml(tier) {
   const { t, esc } = _ctx;
-  const cubes = (n, art) => `<span class="qfp-cubes">${Array.from({ length: n }, () => `<img src="${ICE(art)}" alt="">`).join("")}<b>${n}</b></span>`;
+  // The same layout as the streak rules (streakRulesHtml): each rule with the thing it
+  // talks about, then the table — cubes only, their number is plain to see.
+  const cubes = (n, art) => `<span class="qfp-cubes" aria-label="${n}">${Array.from({ length: n }, () => `<img src="${ICE(art)}" alt="">`).join("")}</span>`;
   const rows = FREEZE_CAPS.map(([badge, own, bonus, give]) => `
     <tr${(badge || null) === (tier || null) ? ` class="is-mine"` : ""}>
-      <th scope="row">${badge ? `<img class="qfp-badge" src="${BADGE_ART(badge)}" alt="">` : `<span class="qfp-badge qfp-badge--none"><span class="icon icon-user icon-12"></span></span>`}
-        <span>${esc(badge ? badge[0].toUpperCase() + badge.slice(1) : t("questsFreezeNoBadge"))}</span></th>
+      <th scope="row"><span class="qsr-badge">${badge ? `<img class="qfp-badge" src="${BADGE_ART(badge)}" alt="">` : `<span class="qfp-badge qfp-badge--none"><span class="icon icon-user icon-12"></span></span>`}
+        <span>${esc(badge ? badge[0].toUpperCase() + badge.slice(1) : t("questsFreezeNoBadge"))}</span></span></th>
       <td>${cubes(own, "freeze")}</td><td>${cubes(bonus, "freeze")}</td><td>${cubes(give, "freeze-gift")}</td>
     </tr>`).join("");
   return `
-    <div class="qfp-static">
-      <span class="qfp-rule">${esc(t("questsFreezeHint"))}</span>
+    <div class="qfp-static qsr">
+      <ul class="qsr-rules">
+        <li><span class="qsr-mark"><img src="${ICE("freeze")}" alt="" aria-hidden="true"></span>${esc(t("questsFreezeHint"))}</li>
+        <li><span class="qsr-mark"><img src="${ICE("freeze-melt-2")}" alt="" aria-hidden="true"></span>${esc(t("questsFreezeMeltRule", { n: _rewards?.daily?.streakEvery || 5 }))}</li>
+      </ul>
       <span class="qfp-cap">${esc(t("questsFreezeCapsTitle"))}</span>
-      <table class="qfp-table">
-        <thead><tr><th scope="col" rowspan="2">${esc(t("questsFreezeBadgeCol"))}</th><th scope="colgroup" colspan="2" class="qfp-group">${esc(t("questsFreezeSlotsCol"))}</th>
-            <th scope="col" rowspan="2">${esc(t("questsFreezeGiveCol"))}</th></tr>
-          <tr><th scope="col">${esc(t("questsFreezeEarnedCol"))}</th><th scope="col">${esc(t("questsFreezeReceivedCol"))}</th></tr></thead>
+      <table class="qfp-table qsr-table qsr-table--freeze">
+        <thead><tr><th scope="col">${esc(t("questsFreezeBadgeCol"))}</th><th scope="col">${esc(t("questsFreezeEarnedCol"))}</th>
+          <th scope="col">${esc(t("questsFreezeReceivedCol"))}</th><th scope="col">${esc(t("questsFreezeGiveCol"))}</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
-      <span class="qfp-melt"><img src="${ICE("freeze-melt-4")}" alt="">${esc(t("questsFreezeMeltRule", { n: _rewards?.daily?.streakEvery || 5 }))}</span>
     </div>`;
 }
 // How streaks work (the streak card's ⓘ): a day = the full daily set; every
@@ -714,20 +727,24 @@ function streakRulesHtml() {
   return `
     <div class="qfp-static qsr">
       <ul class="qsr-rules">
-        <li><span class="icon icon-list-check icon-14" aria-hidden="true"></span>${esc(t("questsStreakRuleDay"))}</li>
-        <li><span class="icon icon-flame icon-14" aria-hidden="true"></span>${esc(t("questsStreakRulePalier", { n: every, xp: r.streakBonus }))}</li>
-        <li><span class="icon icon-star-fill icon-14" aria-hidden="true"></span>${esc(t("questsStreakRuleCombo", { max }))}</li>
-        <li><img src="${ICE("freeze")}" alt="" aria-hidden="true">${esc(t("questsStreakRuleMiss"))}</li>
+        <!-- Each rule carries the very thing it talks about: the day's orange pill, the
+             streak flame, the combo badge, the freeze cube, the flame gone out. -->
+        <li><span class="qsr-mark"><span class="qd-pip is-full"><i></i></span></span>${esc(t("questsStreakRuleDay"))}</li>
+        <li><span class="qsr-mark"><img src="${FLAME}" alt="" aria-hidden="true"></span>${esc(t("questsStreakRulePalier", { n: every, xp: r.streakBonus }))}</li>
+        <li><span class="qsr-mark"><span class="qd-combo qd-combo--2">${esc(t("questsComboBadge", { n: 2 }))}</span></span>${esc(t("questsStreakRuleCombo", { max }))}</li>
+        <li><span class="qsr-mark"><img src="${ICE("freeze")}" alt="" aria-hidden="true"></span>${esc(t("questsStreakRuleMiss"))}</li>
+        <li><span class="qsr-mark"><img src="${MATCH}" alt="" aria-hidden="true"></span>${esc(t("questsStreakRuleRepair"))}</li>
       </ul>
       <span class="qfp-cap">${esc(t("questsStreakTableTitle"))}</span>
       <table class="qfp-table qsr-table">
         <thead><tr><th scope="col">${esc(t("questsStreakColDay"))}</th><th scope="col">${esc(t("questsStreakColCombo"))}</th><th scope="col">${esc(t("questsStreakColBonus"))}</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
-      <span class="qfp-melt"><span class="icon icon-flame icon-14" aria-hidden="true"></span>${esc(t("questsStreakRuleRepair"))}</span>
     </div>`;
 }
 const ICE = name => `../assets/img/quests/freeze/${name}.webp`;
+const FLAME = "../assets/img/quests/streak-flame.webp";
+const MATCH = "../assets/img/quests/match.webp";   // the match of the "Relight the flame" trophy (Gold / Platinum repair)
 /* A reserve's slots. `buyLabel` (own reserve, members): every empty slot is a
    button that opens the buy window — fill it for 5 TigerCoins. */
 function slotsHtml(filled, size, buyLabel = "") {
@@ -776,18 +793,17 @@ function freezeCardHtml() {
   // (the batch is the tier's `give` cap; the status only says how many are left)
   const given = gift ? Math.max(0, (caps.give || 0) - gift.n) : 0;
   const giftCubes = gift
-    ? Array.from({ length: gift.n }, () => `<span class="qf-gift"><img src="${ICE(`freeze-melt-${1 + Math.round(melt * 4)}`)}" alt=""></span>`).join("")
+    // Each cube still to give IS the button: a click opens the give window.
+    ? Array.from({ length: gift.n }, () => `<button type="button" class="qf-gift" data-qf="give" aria-label="${esc(t("questsFreezeGiveTitle"))}"><img src="${ICE(`freeze-melt-${1 + Math.round(melt * 4)}`)}" alt=""></button>`).join("")
       + Array.from({ length: given }, () => `<img class="qf-gift-given" src="${ICE("freeze-gift-empty")}" alt="">`).join("")
     : Array.from({ length: caps.give || 1 }, () => `<img src="${ICE("freeze-gift-empty")}" alt="">`).join("");
   const giveStrip = `<div class="qf-strip qf-strip--give${gift ? "" : " qf-strip--none"}">
         <span>${esc(t("questsFreezeGiveCol"))}<small>${esc(gift ? t("questsFreezeMelts", { n: daysLeft }) : deliveryText())}</small></span>
         <span class="qf-gifts" aria-label="${esc(t("questsFreezeToGiveShort", { n: gift?.n || 0 }))}">${giftCubes}</span></div>`;
-  // "Give" sits in the card's head (the strip keeps one line: label + cubes).
-  const giveBtn = gift?.n > 0 ? `<button type="button" class="qf-action qf-action--give qf-head-give" data-qf="give">${esc(t("questsFreezeGiveBtn"))}</button>` : "";
   const reserve = (label, n, size, buyLabel) => `<div class="qf-row" aria-label="${esc(`${label} ${n}/${size}`)}"><span>${esc(label)}</span>${slotsHtml(n, size, buyLabel)}</div>`;
   return `
     <section class="qd-card qd-freeze">
-      <div class="qf-head"><img src="${ICE("freeze")}" alt="" aria-hidden="true"><h3>${esc(t("questsFreezeTitle"))}</h3>${giveBtn}
+      <div class="qf-head qd-card-head"><img src="${ICE("freeze")}" alt="" aria-hidden="true"><h3>${esc(t("questsFreezeTitle"))}</h3>
         <button type="button" class="tool-info qf-info" data-qrules="freeze" aria-label="${esc(t("questsRulesHow", { what: t("questsFreezeTitle") }))}"><span class="icon icon-info icon-13"></span></button></div>
       ${reserve(t("questsFreezeOwn"), own, caps.own, f?.tier ? t("questsFreezeBuyBtn") : "")}
       ${reserve(t("questsFreezeBonus"), bonus, caps.bonus)}

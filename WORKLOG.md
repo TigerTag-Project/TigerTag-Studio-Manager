@@ -2,6 +2,45 @@
 
 ## Added
 
+- Forced update for the TigerSquad: when `config/studio.minSquadVersion` is
+  newer than this build, the TigerSquad and Tiger Quests views and actions are
+  locked and open "The TigerSquad has evolved" (update / restart, or later);
+  every Cloud Functions call carries the build's version as `?v=` (a global
+  `fetch` wrapper, `cloudfunctions.net` only) and a 426 `UPDATE_REQUIRED`
+  locks it too (`renderer/inventory.js` `_squadOutdated`,
+  `_loadSquadMinVersion`, `_squadUpdateRequired`, `_openSquadUpdate`, gates in
+  `_squadGate`, `_squadOnly`, `_enforceSquadGate`, `setViewMode`). Backend
+  (not deployed): `functions/versionGate.js` on tigerCoins, streakFreeze,
+  squadDeal, dailyQuest, referrals; rule `config/studio` public read. i18n:
+  `squadUpdateKicker`, `squadUpdateTitle`, `squadUpdateText`, `squadUpdateBtn`
+  (11 locales). Art: the tiger pointing at a laptop with the update arrow
+  (`assets-src/img/tigersquad/squad-notice/tiger-update.png` →
+  `assets/img/tigersquad/squad-notice/tiger-update-{128,256,512,1024}.webp`).
+- Streak / freeze "how it works" windows moved onto `openDialog` (ceremony)
+  with their picture (flame / freeze cube) swelling behind the window from its
+  top (`backfire` `at: "top"`, `coin-pull.js`, `.bk-fire--top`); each streak
+  rule shows the real thing it talks about — the day's orange pill, the
+  streak flame, the combo badge, the freeze cube, the flame gone out for the
+  Gold / Platinum relight (`questsStreakRuleRepair` reworded, 11 locales).
+  `renderer/quests/rules-modal.js` removed. The relight rule sits in the list
+  with the "Relight the flame" trophy's match
+  (`assets/img/trophies/stickers/flameRelit.webp`), rule text at 12.5 px, the milestone
+  table's header clean and centred (`.qsr-table`). Combo badges take the
+  rarity colours: ×1 common, ×2 uncommon, ×3 rare, ×4 epic, ×5 legendary
+  (`.qd-combo--1…5`, `--tier-*`). The freeze rules window follows the same
+  layout: the rule with its freeze cube, the melt rule with the melting gift,
+  then the slots table with a single centred header and cubes only (no
+  numbers) (`freezeRuleHtml`, `.qsr-table--freeze`); `questsFreezeSlotsCol`
+  removed (11 locales). The freeze card has no "Give" button any more: each
+  cube still to give is the button (lifts on hover, opens the give window,
+  `.qf-gift[data-qf="give"]`); the window is titled "Give a freeze"
+  (`questsFreezeGiveTitle` reworded, `questsFreezeGiveBtn` removed, 11 locales).
+  The streak card's Combo badge sits under the week's pills (`.qd-week`). The
+  streak and freeze cards share one head (`.qd-card-head` on `.qf-head`): the
+  card's picture at 44 px (flame / freeze cube), the title in white display
+  type, the ⓘ at the end; the streak count and the week below it
+  (`.qd-streak-body`).
+
 - Give envelopes: choose which, and several at once. The give window
   (`showEnvelope` give picker, `renderer/quests/squad-deals.js`) shows up to 10
   envelopes picked at random from the pile (`_givePile`: gift envelopes by
@@ -58,6 +97,20 @@
   every TigerMaster / admin).
 
 ## Changed
+
+- Trophies banner: the count card shows only what you have ("51 stickers
+  collected", `trophyStuckLabel`, 11 locales), no total and no progress bar —
+  some stickers are out of reach (hidden, events) (`renderer/quests/trophies.js`,
+  `trophies.css` `.trp-hero-lbl`); `trophyCount` removed (11 locales). The
+  banner becomes an explorer's temple (the founder's pick among album, pirate
+  and explorer concepts): stone blocks drawn in CSS over the account's wall
+  colour (SVG pattern on `.trp-hero`), a torch and two swaying vines on the
+  wall, the tiger with backpack and flashlight over the treasure map, the open
+  stone relic full of stickers (`assets-src/img/trophies/banner-explorer/*.png`
+  → `assets/img/trophies/banner-explorer/*.webp`, `TROPHY_SCENE`,
+  `.trp-hero .hl--*`). The view is renamed "Treasure hunt" ("Chasse au
+  trésor"; `trophiesTitle`, `trophiesFriendTitle`, 11 locales). Locked stickers lose their dashed disc
+  (silhouette only, `.trp-st.is-locked .trp-st-art`).
 
 - Trophy albums kept on this device, only new stickers read (500k-user
   audit; a trophy is never lost, an album only grows). Yours
@@ -280,6 +333,87 @@
   metal and faceted gems, navy field): `assets-src/img/tigersquad/tigersquad-{bronze,silver,gold,platinum}.png`
   (1536 px masters) → `assets/img/tigersquad/tigersquad-*.webp` (1024 px, each badge at its
   old size in the square so the ranks still grow bronze → platinum).
+- Community milestone trophies: `communityXp1M` / `5M` (epic), `10M` / `15M` (legendary),
+  `communityXpTrio` "3 × 5 = 15" (hidden, legendary: the 5, 10 and 15 million together),
+  `communityPrinters5k` (epic) / `10k` (legendary). Given to every account in the TigerSquad at
+  the minute the community total (`publicStats/community.xpTotal`, `printers.total`) crossed the
+  mark (`userProfiles/{uid}.tigerSquad.since` ≤ that minute); later members never get it.
+  Backend (committed, deployed): `functions/communityMilestones.js` (state in
+  `statsInternal/communityMilestones`, 300 members a minute), called by `communityStats`
+  (`supportWebhooks.js`), ids in `trophyRules.js`, unit test in `test/trophies.test.js`.
+  Studio: rows in `renderer/quests/trophies.js` (family squad), spec in `docs/TROPHIES.md` 2.3,
+  stickers generated via ChatGPT in the art direction, then redrawn lighter on the founder's
+  ask (one XP medallion + ribbon, one star on top of 5M / 10M / 15M, three on the trio; one
+  printer + ribbon on 5k and 10k; no paws, no crowds): `assets-src/img/trophies/stickers/community*.png`
+  → `assets/img/trophies/stickers/community*.webp` (768 px, q82: 370 kB for the seven, was 1.05 MB).
+- Printer brand trophies `printer_{bambulab,creality,elegoo,flashforge,snapmaker,anycubic,prusa,klipper,octoprint}`
+  (common like `firstPrinter`, state, retroactive): the first real printer (not a demo) of that brand or plugin
+  connected. Backend (committed, deployed to the 13 XP-recomputing functions): `supportWebhooks.js` `achievementParts` keeps
+  `printer.brands` (per-brand count, > 0 only) in the XP breakdown, `trophyRules.js` builds the ids
+  from `xpRules.PRINTER_BRANDS` and `stateTrophies` gives them, test in `test/trophies.test.js`.
+  Studio: rows after `firstPrinter` in `renderer/quests/trophies.js` (family gear), spec line in
+  `docs/TROPHIES.md`, keys `trophy_printer_*` / `trophyHow_printer_*` (11 locales). Stickers via
+  on the founder's ask: each brand's own logo SVG from the app (`assets/svg/icons/logo_*.svg`, the
+  plugins' `img/logo.svg`) raised in charcoal on one blank off-white plate drawn by ChatGPT in the art
+  direction, no plug badge: `assets-src/img/trophies/stickers/printer_*.png` →
+  `assets/img/trophies/stickers/printer_*.webp` (768 px, 276 kB for the nine). Numbers in the fr / pt-pt / pl / ru
+  strings use a no-break space so "5 000" never splits.
+- Trophies off the open-source app: Studio ships no trophy art and no trophy text any more (the
+  missions, hidden ones included, were readable in the repo). Backend (committed, hosting + trophyCards deployed):
+  `functions/trophyCatalog.json` (family, hidden, key, name + how × 11), `art/trophies/` (sources,
+  parts), `tool/trophy-art.mjs` → `public/trophies/{a,s,catalog}` on the cdn hosting (art under an
+  unguessable name, black silhouettes for visible trophies, catalogue per language with hidden ones
+  as `{hidden, family, tier}` only) + `functions/trophyFiles.json`, function `trophyCards` (art +
+  text of the trophies held), cdn headers in `firebase.json`, check in `tool/check.sh`, tests,
+  full spec moved to backend `docs/TROPHIES.md`. Studio: `renderer/quests/trophies.js` reads the
+  catalogue (`tigertag.trophyCatalog.<lang>`) and the cards (`tigertag.trophyCards.<uid>`), the
+  276 keys `trophy_<id>` / `trophyHow_<id>` removed from the 11 locales, `assets/img/trophies/stickers|badges`
+  and `assets-src/img/trophies/stickers|brands|tiers|badges` removed (pictures the UI shows elsewhere
+  stay), the freeze modal's match now `assets/img/quests/match.webp`, `docs/TROPHIES.md` rewritten
+  (mechanics only), `docs/i18n-keys.md`, `.agents/rules/trophies.md`, CLAUDE.md index line.
+  Hidden trophies no longer described in public texts: `CHANGELOG.md` v2.49.0 (hidden ones and
+  referral tiers left unnamed), `docs/REFERRALS.md` §7 (points to the backend), the hourglass
+  comment in `renderer/inventory.js` (the gesture itself still shows in the code).
+- Veiled trophies, revealed by friends: a hidden trophy and every rare / epic / legendary one show
+  as "?" + tier only, until a friend holds it — then its silhouette, name and mission show with
+  "Seen at <friend>'s" (the art still has to be earned). Backend (committed, deployed: hosting, trophyCards, both triggers):
+  `trophyRules.isVeiled`, `functions/trophyReveals.js` (doc `users/{uid}/trophyCounters/reveals`,
+  triggers `trophyRevealsOnTrophy` / `trophyRevealsOnFriend`, once-per-account `ensureInit`),
+  `trophyCards` `reveals` / `known`, `tool/trophy-art.mjs` (veiled ones out of the catalogue,
+  silhouettes renamed by key), tests. Studio: `renderer/quests/trophies.js` (`_reveals`,
+  `tigertag.trophyReveals.<uid>`, `friendName` ctx in `inventory.js`), keys `trophySeenAt` (new),
+  `trophyHiddenHow` (reworded) in 11 locales, `docs/TROPHIES.md`, CLAUDE.md storage table.
+- Trophy family labels off the app too: backend `functions/trophyFamilies.json` (8 families × 11
+  languages, album order) published in the cdn catalogue as `families: [{id, name}]` by
+  `tool/trophy-art.mjs`; Studio `renderer/quests/trophies.js` `familyName()` and the family filter
+  read it (`TROPHY_FAMILIES` removed); the 8 keys `trophyFamily_<family>` removed from the 11
+  locales (`trophyFamilyAll` stays); `docs/TROPHIES.md`, `docs/i18n-keys.md`, `.agents/rules/trophies.md`. Committed, cdn deployed.
+- Envelope pile trophies (a pile given to one friend in a single go, `giveEnvelopes`):
+  `envPileSent3` (uncommon, "Bulk delivery": give 3 at once), `envPileRecv2` (common, "Double helping"),
+  `envPileRecv4` (uncommon, "Four of a kind"), `envPileRecv5` (rare, "Full hand"); a pile of 5 gives
+  2 and 4 too. Backend: `trophyRules.js` `PILE_SENT` / `PILE_RECV` /
+  `pileTrophies`, awarded in `tigerCoins.js` `giveEnvelopes`, test in `test/trophies.test.js`. Studio:
+  rows after `envRecv100` in `renderer/quests/trophies.js`, `docs/TROPHIES.md`, keys
+  `trophy_envPile*` / `trophyHow_envPile*` (11 locales), stickers in a Chinese New Year
+  series, chibi animals holding fanned red envelopes with the gold tiger seal (Ratome guest star
+  with 2, monkey offering 3, the tiger without cap with 4, a green Chinese dragon with 5)
+  `assets-src/img/trophies/stickers/envPile*.png` (1024) → `assets/img/trophies/stickers/*.webp` (768).
+- Trophy tiers: the first-printer trophies (`firstPrinter` and every `printer_<brand>`) are
+  common; the four TigerSquad badges climb one tier each — `squadJoin` common, `squadSilver`
+  uncommon, `squadGold` rare, `squadPlatinum` epic (legendary kept for later). Backend
+  `trophyRules.js` + Studio `renderer/quests/trophies.js` + `docs/TROPHIES.md` (committed, deployed).
+- Bambu Lab by transport: `printer_bambulab_lan` (epic, "I take control": the first real
+  Bambu Lab on the local network, Developer mode — device doc `mode` not `"cloud"`) and
+  `printer_bambulab_cloud` (common, "Head in the cloud": `mode == "cloud"`), on top of
+  `printer_bambulab`. Backend (committed, deployed): `supportWebhooks.js` `achievementParts`
+  counts the real cloud Bambus and stores `printer.bambu {lan, cloud}`, `trophyRules.js` gives the
+  two, test in `test/trophies.test.js`. Studio: two rows after the brand rows in
+  `renderer/quests/trophies.js`, `docs/TROPHIES.md`, keys `trophy_printer_bambulab_{lan,cloud}` /
+  `trophyHow_printer_bambulab_{lan,cloud}` (11 locales); stickers = one die-cut piece drawn by ChatGPT (the
+  plate and a round green Wi-Fi (LAN) or cloud (Cloud) sticker at the bottom right, one continuous
+  white border) with the app's Bambu Lab logo raised on the plate (`printer_bambulab_{lan,cloud}.png/.webp`);
+  the two round stickers alone are separate assets, `assets-src/img/trophies/badges/{lan,cloud}.png`
+  → `assets/img/trophies/badges/{lan,cloud}.webp` (512 px).
 - One window helper: `openDialog()` (`renderer/dialog.js`, rule `.agents/rules/dialogs.md`)
   with two looks — "notice" (the Tiger Squad window: picture, kicker, title, text, cards,
   orange action first, secondary, held danger action) and "ceremony" (the TigerCoins window
@@ -330,6 +464,16 @@
   `.trp-gloss--tile`, `trp-gloss-tile`).
 
 ## Fixed
+
+- Tutorial missions on a narrower window: the level cards squeezed six to a row
+  (titles, "Done" badges and rows broken word by word) because the columns
+  followed the window, not the view beside the sidebar. `.inv-quests-view` is
+  now a container (`quests`) and the grid follows it: six cards from 1500 px of
+  view, three below, two under 820 px; the banner title shrinks under 1300 px
+  and the banner's level card keeps one line (`renderer/quests/quests.css`
+  `.qm-cards`, `.qm-hero-txt`, `.qm-hero-card b`). The banners' tagline stays
+  on one line (`.qm-hero-txt p` nowrap); "Tutorial missions" is now just
+  "Missions" (`questsJourney`, 11 locales).
 
 - Light theme: the daily-quest icons were white on the light rows (they used
   the "label on a filled button" white); they now take the text colour; the
@@ -391,3 +535,17 @@
 - `reportCopyMsg`, `notifReqNew`, `notifTabRequests` added (11 locales).
 - `squadLeave*`, `squadLost_*`, `squadLock*` added (11 locales).
 - `trophy_communityXp{1M,5M,10M,15M,Trio}`, `trophy_communityPrinters{5k,10k}` and their `trophyHow_*` added after `trophyHow_worldFirst` (14 keys, 11 locales).
+- Launch splash redone: a local page `renderer/splash/` (`splash.html`, `splash.css`, `splash.js`)
+  instead of the data-URL card. It draws the welcome page's ecosystem scene (iMac, the TigerPOD
+  flipping into the TigerScale then the TigerSpool, Tiger Touch, iPhone), now shared: CSS moved
+  from `70-detail-misc.css` to `renderer/css/72-hero-scene.css` (linked in `inventory.html`),
+  markup moved from `inventory.js` to `renderer/hero-scene.js` (`fillHeroScenes`). One loading line
+  picked at random in the user's language (key `splashLoading`, an array, 11 locales); the language
+  is saved by the renderer at each launch (`studio.ready(lang)` in `preload.js` → `main.js`
+  `_saveSplashLang`, `<userData>/splash.json`), else the system language. The bar follows the real
+  steps (`main.js` `splashStep`: shown, reference data, window loading, page loaded, first paint);
+  the reveal fades the splash out (`.is-out`) while the main window fades in (`setOpacity`, not on
+  Linux or full screen). `CLAUDE.md` file map, `llms.txt` CSS count, `CODEMAP-main.md`. The splash
+  reads "Tiger Studio Manager 2" (the 2 in orange); its devices turn as fast as on the welcome page but rest 0.6 s
+  between turns instead of ~5 s (`splash.css` `splFace1-3`, a 4.05 s round).
+

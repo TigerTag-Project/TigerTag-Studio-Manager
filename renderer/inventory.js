@@ -1213,6 +1213,66 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     renderAppVersion(_appInfo);
     return _appInfo;
   }
+  // ── Minimum version for the TigerSquad (backend functions/versionGate.js) ──
+  // Every Cloud Functions call carries this build's version as `?v=` (a query
+  // parameter: a header would need a CORS change on every function). A
+  // TigerSquad endpoint answers 426 UPDATE_REQUIRED to a build older than
+  // config/studio.minSquadVersion; config/studio is also read at sign-in so the
+  // TigerSquad and Tiger Quests lock before anything is asked (_squadOutdated).
+  const _FUNCTIONS_HOST = "cloudfunctions.net";
+  {
+    const nativeFetch = window.fetch.bind(window);
+    window.fetch = async (input, init) => {
+      const url = typeof input === "string" ? input : input?.url || "";
+      if (!url.includes(_FUNCTIONS_HOST)) return nativeFetch(input, init);
+      const v = (await loadAppInfo()).appVersion;
+      const u = new URL(url);
+      if (v && v !== "?") u.searchParams.set("v", v);
+      const res = await nativeFetch(typeof input === "string" ? u.href : new Request(u.href, input), init);
+      if (res.status === 426) res.clone().json().then(j => { if (j?.error === "UPDATE_REQUIRED") _squadUpdateRequired(j.min); }).catch(() => {});
+      return res;
+    };
+  }
+  const _cmpVersion = (a, b) => {
+    const pa = String(a || "0").split(".").map(n => parseInt(n, 10) || 0), pb = String(b || "0").split(".").map(n => parseInt(n, 10) || 0);
+    for (let i = 0; i < Math.max(pa.length, pb.length); i++) { const d = (pa[i] || 0) - (pb[i] || 0); if (d) return d < 0 ? -1 : 1; }
+    return 0;
+  };
+  // This build is older than the TigerSquad's minimum (read at sign-in, or a 426 came back).
+  function _squadOutdated() {
+    const min = state.squadMinVersion, v = _appInfo?.appVersion;
+    return !!min && !!v && v !== "?" && _cmpVersion(v, min) < 0;
+  }
+  async function _loadSquadMinVersion(uid) {
+    try {
+      const doc = await fbDb(uid).collection("config").doc("studio").get();
+      await loadAppInfo();
+      _squadUpdateRequired(doc.get("minSquadVersion") || null, { quiet: true });
+    } catch (_) {}
+  }
+  function _squadUpdateRequired(min, { quiet = false } = {}) {
+    state.squadMinVersion = min || null;
+    if (!_squadOutdated()) return;
+    renderSupporterBadge(); _paintDealsBadge(0); _enforceSquadGate();
+    if (!quiet) _openSquadUpdate();
+  }
+  // "The TigerSquad evolves": this build is too old for it — update to come back.
+  function _openSquadUpdate() {
+    if (document.querySelector(".squad-notice--update")) return;
+    const ready = !!_updateReadyVersion;
+    openDialog({
+      cls: "squad-notice--update", art: "tigersquad/squad-notice/tiger-update",
+      kicker: t("squadUpdateKicker"), title: t("squadUpdateTitle"), text: t("squadUpdateText"),
+      actions: [{ id: "update", label: t(ready ? "btnRestartUpdate" : "squadUpdateBtn"), kind: "primary" },
+        { id: "later", label: t("squadLaterCta"), kind: "secondary" }],
+      onAction: (id, close) => {
+        close();
+        if (id !== "update") return;
+        if (ready) window.electronAPI?.installUpdate?.();
+        else window.electronAPI?.openExternal?.(_downloadPageUrl());
+      },
+    });
+  }
 
   // Populate the sidebar footer version + the Settings → About block.
   function renderAppVersion(info) {
@@ -4415,7 +4475,11 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   // Non-members get the invitation — except in a friend's view, where the
   // rankings show what the FRIEND sees (nothing there is about joining).
   // Back in the squad but still in the 30-day wait after leaving: the countdown instead.
-  const _squadGate = open => () => { if (state.activeAccountId && !state.friendView && !_squadActive()) { state.supportPublicly ? _openSquadLockInfo() : _openSquadInvite(); return; } open(); };
+  const _squadGate = open => () => {
+    if (state.activeAccountId && _squadOutdated()) { _openSquadUpdate(); return; }   // too old a build: update first
+    if (state.activeAccountId && !state.friendView && !_squadActive()) { state.supportPublicly ? _openSquadLockInfo() : _openSquadInvite(); return; }
+    open();
+  };
   $("vtgSquadChip")?.addEventListener("click", _squadGate(() => _openSquadView("countries")));
   $("vtgSquadItems")?.addEventListener("click", _squadGate(() => _openSquadView("ach")));
   // Trophies: every account (docs/TROPHIES.md), member or not — no squad gate.
@@ -5645,13 +5709,15 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   // (left the squad, another account, the user doc landed): a non-member is moved
   // out of the squad views and any envelope stage closes.
   function _enforceSquadGate() {
+    // Too old a build: out of every TigerSquad / Tiger Quests view, even a friend's.
+    if (_squadOutdated()) { closePullStages(); if (_isProgressMode(state.viewMode)) setViewMode("grid"); return; }
     if (state.friendView || _squadActive()) return;
     closePullStages();
     if (["squad", "squadItems", "xpHistory", "squadDeals"].includes(state.viewMode)) setViewMode("questsToday");
   }
   // The squad-only actions (open, give an envelope) offer to join instead — or,
   // back in the squad within 30 days of leaving, say when the perks return.
-  const _squadOnly = () => { if (_squadActive()) return true; state.supportPublicly ? _openSquadLockInfo() : _openSquadInvite(); return false; };
+  const _squadOnly = () => { if (_squadActive()) return true; _squadOutdated() ? _openSquadUpdate() : state.supportPublicly ? _openSquadLockInfo() : _openSquadInvite(); return false; };
   // ── 30-day wait after leaving (backend functions/squadLock.js) ──
   // Leaving writes the server-only users/{uid}.squadLockedUntil; until then a
   // member who rejoined is in the squad but gets none of its perks.
@@ -5660,7 +5726,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     const left = (state.squadLockedUntil || 0) - Date.now();
     return left > 0 ? Math.ceil(left / 864e5) : 0;
   }
-  function _squadActive() { return !!state.supportPublicly && !_squadLockDays(); }
+  function _squadActive() { return !!state.supportPublicly && !_squadLockDays() && !_squadOutdated(); }
   // Leaving: what goes for 30 days, held to confirm (openDialog, renderer/dialog.js).
   function _openSquadLeaveWarning(input) {
     const lost = [["coins", "coins"], ["freeze", "snow"], ["xp", "star-fill"], ["badge", "shield-check"], ["space", "trophy"]];
@@ -8640,6 +8706,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     // The rest of the view bar from the last session too: the quests and squad
     // groups, the lists and cart counts — then each updates when its data lands.
     _renderProgressChips(); _updateListsBadge(); _updateCartBadge();
+    _loadSquadMinVersion(uid);   // the TigerSquad's minimum Studio version (locks it on an old build)
     { const inv = _barCache()?.invite, badge = $("viewInviteBadge");
       if (badge && inv) { badge.textContent = `+${inv}`; badge.hidden = false; } }
     setTimeout(() => { if (uid === state.activeAccountId) _refreshTopCoins(uid); }, 6000);
@@ -13512,6 +13579,8 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   function setViewMode(mode, opts = {}) {
     // Web build: the printer views need the LAN (not reachable from a browser yet).
     if (!HAS_NATIVE && _isPrinterMode(mode)) mode = "grid";
+    // A build older than the TigerSquad's minimum opens none of its views (Quests included).
+    if (_isProgressMode(mode) && _squadOutdated()) { _openSquadUpdate(); if (_isProgressMode(state.viewMode)) mode = "grid"; else return; }
     const prevMode = state.viewMode;
     state.viewMode = mode;
     // Changing the top view SEGMENT (Inventory / Favorites / Lists / Printers) resets

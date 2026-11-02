@@ -378,6 +378,13 @@
     ]
   },
   {
+    "id": 16433,
+    "name": "3DKordo (Everfil)",
+    "type_ids": [
+      142
+    ]
+  },
+  {
     "id": 17095,
     "name": "Sting3D",
     "type_ids": [
@@ -1070,6 +1077,13 @@
     ]
   },
   {
+    "id": 62674,
+    "name": "OVV3D",
+    "type_ids": [
+      142
+    ]
+  },
+  {
     "id": 63024,
     "name": "Multicomp Pro",
     "type_ids": [
@@ -1086,6 +1100,13 @@
   {
     "id": 63757,
     "name": "Copper3D",
+    "type_ids": [
+      142
+    ]
+  },
+  {
+    "id": 64457,
+    "name": "YXPOLYER",
     "type_ids": [
       142
     ]

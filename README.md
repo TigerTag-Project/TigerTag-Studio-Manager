@@ -204,9 +204,10 @@ Organize your filament collection into physical racks — drag spools onto slots
 - Deals: partner offers for squad members — get your code, use it, keep your history
 - TigerCoins and envelopes: each certified TigerTag+ chip hides an envelope; open them, win TigerCoins, trade them for deals, give envelopes to your friends
 - The Maker's Workshop: your loot and feats, from common to legendary
-- Trophies *(new in 2.49.0)*: a sticker album to fill — streaks, coins, chips, gear, brands, hidden ones and event trophies — each sticker downloadable
+- Treasure hunt *(new in 2.50.0, was Trophies)*: a sticker album to fill under an explorer's banner — each sticker downloadable, some veiled until a friend holds them
 - Invite a friend *(new in 2.49.0)*: share your link or QR code; once your friend confirms their e-mail, you both get 3 envelopes
 - Send TigerCoins *(new in 2.49.0)* to a squad friend, with a message that opens as a letter
+- TigerSquad updates *(new in 2.50.0)*: the squad asks for a newer app when it needs one; leaving it has a 30-day wait; give several envelopes at once
 
 ### ⚖ Sensors & Devices
 

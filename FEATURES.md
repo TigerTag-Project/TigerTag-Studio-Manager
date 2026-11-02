@@ -1,6 +1,6 @@
 # Tiger Studio Manager — Feature Catalogue
 
-Tiger Studio Manager is the Electron desktop companion to the TigerTag ecosystem: a filament-inventory manager built around RFID/NFC-tagged spools ("TigerTag" chips), a fully-digital "TigerData" tier (and its catalogue-identified "TigerData+" rung), live 3D-printer integration across seven brands plus Klipper and OctoPrint, physical storage/rack management, a Firebase-backed social layer (friends, shareable wishlists, public profiles), and companion hardware (TD1S color sensor, TigerScale, TigerSpool printer reader, TigerPOD dual-reader stand). This document catalogues every **shipped** feature, grouped by domain, current as of **v2.49.0**. Per-version release detail lives in `CHANGELOG.md`; forward-looking / in-progress work lives in `ROADMAP.md`.
+Tiger Studio Manager is the Electron desktop companion to the TigerTag ecosystem: a filament-inventory manager built around RFID/NFC-tagged spools ("TigerTag" chips), a fully-digital "TigerData" tier (and its catalogue-identified "TigerData+" rung), live 3D-printer integration across seven brands plus Klipper and OctoPrint, physical storage/rack management, a Firebase-backed social layer (friends, shareable wishlists, public profiles), and companion hardware (TD1S color sensor, TigerScale, TigerSpool printer reader, TigerPOD dual-reader stand). This document catalogues every **shipped** feature, grouped by domain, current as of **v2.50.0**. Per-version release detail lives in `CHANGELOG.md`; forward-looking / in-progress work lives in `ROADMAP.md`.
 
 ---
 
@@ -301,7 +301,13 @@ Live integrations across seven brands, each with real-time temperatures, per-slo
 - **Maker's Workshop** — the Items view redrawn: illustrated loot (legendary relics, gear, chips) and feats rows, a banner with the four legendary devices lit once owned (v2.44.0).
 - **XP history scopes** — your curve, your country's league or the top leagues side by side (v2.44.0).
 - **TigerCoins in the top bar** — balance (history), envelopes waiting and the gift-code button always in sight for members, each opening its window over the Deals; the history shows envelopes received (green, +1) and given (red, −1) with the friend's avatar (v2.47.0).
-- **Trophies** — a sticker album in the Tiger Squad group: 116 trophies (action families, one per Workshop item, tier trophies, brand trophies per TigerTag+ Certified seller, hidden ones, event trophies by code), die-cut stickers with date and owner share, downloadable, an unlock celebration and a notification; catalogue in the backend `trophyRules.js` (v2.49.0).
+- **Treasure hunt** (the trophies view) — a sticker album in the Tiger Squad group under an explorer's-temple banner counting the stickers collected; texts, art and rules live in the private backend and are read from the public catalogue, some entries stay veiled until a friend holds them, a friend's album is browsable read-only from their TigerSquad view; kept on the device so only new stickers are read (v2.49.0, redone v2.50.0).
+- **Forced update for the TigerSquad** — the squad's views and actions lock and open "The TigerSquad has evolved" when the build is older than the backend's minimum (`config/studio.minSquadVersion`, HTTP 426) (v2.50.0).
+- **30-day wait to leave the TigerSquad** — a window lists what goes and what stays; a member back within the 30 days sees the date its access returns (v2.50.0).
+- **Streak and freeze rules windows** — an ⓘ on each card opens the rules with the real pictures; a freeze is given by clicking its cube (v2.50.0).
+- **Give envelopes, several at once** — pick from a fanned hand of up to 10; the receiver gets one notice and opens the pile. Send TigerCoins: 20 minimum, one envelope a day per friend (v2.50.0).
+- **Launch splash** — a local page with the ecosystem scene and a bar fed by the real start-up steps (v2.50.0).
+- **Stale-while-revalidate navigation** — inventory, albums, leagues and the last 5 friends visited draw at once from the device and read only what changed (v2.50.0).
 - **Send TigerCoins** to a TigerSquad friend — weekly allowance by level, required message, recap, held send; the friend gets an envelope of the coins (v2.49.0).
 - **Letters** — a friend's envelope with a message opens as a letter, and a held Collect flies the coins to the counter; the message can be reported (with block + remove) and the team resolves reports (v2.49.0).
 - **Chest opening stage** — held open, music, envelopes rising one by one; achievement "Chests opened" +200 XP per chest (v2.49.0).
@@ -316,6 +322,7 @@ Live integrations across seven brands, each with real-time temperatures, per-slo
 - Reports carry the reporter's TigerSquad badge and XP, read server-side (v2.39.0).
 - **Requests by product** — pick Tiger Studio, Tiger Touch, Tiger POD, Tiger Scale, Tiger Spool or TigerTag RFID Connect first; filed on that project's repo; device screen capture in one click, and Tiger Touch / Tiger Spool requests list the printers the device follows (v2.42.0).
 - Requests are sent by TigerSquad members (free to join, checked server-side); Send points at what is missing; the screenshot editor opens as a window over the app (v2.42.0).
+- **Requests tools** — a Copy button on every message, an open count on All requests, a Requests tab and "New request" cards in the team's notification centre (v2.50.0).
 - **Request conversations** — each request in My requests opens its GitHub thread; answer from the app (text, pictures, PDFs, JSON, a printer's data), close it, unseen replies flagged, an alert window when a request moves (snoozed by Later) (v2.49.0).
 - **All requests** — every member reads every request; questions take community answers; TigerMasters (`roles: "tigermaster"`, server-only) and admins answer as the team and mark done / decline (v2.49.0).
 

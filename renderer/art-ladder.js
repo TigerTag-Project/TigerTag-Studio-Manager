@@ -10,4 +10,5 @@ export default {
   "tigersquad/requests/tiger-request": [1192, 1167],
   "tigersquad/squad-notice/tiger-back": [1247, 1048],
   "tigersquad/squad-notice/tiger-leave": [1253, 1081],
+  "tigersquad/squad-notice/tiger-update": [1186, 1237],
 };

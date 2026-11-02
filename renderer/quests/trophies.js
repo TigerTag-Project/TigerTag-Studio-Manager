@@ -314,12 +314,14 @@ function stickerHtml(x) {
   </button>`;
 }
 
-// The banner scene (hero-layers.js), its own layers (assets/img/trophies/banner/, generated
-// 2026-11-01 against docs/ART-DIRECTION.md): BEHIND the desk the cheering tiger (cut at the
-// waist), ON it a rosette, a sticker sheet, the gold cup, the open sticker album, sparkles.
-const TROPHY_SCENE = heroLayersHtml(`${ART}trophies/banner/`, {
-  back: ["tiger"],
-  front: ["rosette", "sticker-sheet", "cup", "album", { name: "sparkle", cls: "spark hl--spark1" }, { name: "sparkle", cls: "spark hl--spark2" }],
+// The banner scene (hero-layers.js): the explorer's temple (assets/img/trophies/banner-explorer/,
+// generated 2026-11-02 against docs/ART-DIRECTION.md, chosen by the founder over the album and
+// pirate concepts). On the wall (behind the desk) a torch and two hanging vines; on the desk the
+// tiger with its backpack and flashlight over the treasure map (its body hidden behind the map),
+// and the open stone relic full of stickers. The stone blocks are CSS (.trp-hero, trophies.css).
+const TROPHY_SCENE = heroLayersHtml(`${ART}trophies/banner-explorer/`, {
+  back: ["torch", { name: "vine", cls: "vine1" }, { name: "vine", cls: "vine2" }],
+  front: ["tiger-map", "relic"],
 });
 
 // A friend's stickers: the album kept on this device paints at once (memory,
@@ -387,7 +389,6 @@ export function renderTrophiesView(host, friend = null) {
   const FILTER_ICON = { all: "grid", got: "check", locked: "lock" };
   const filter = (k, n) => ({ attr: `data-trp-filter="${k}"`, on: _filter === k, n, label: t(`trophyFilter_${k}`),
     icon: `<span class="icon icon-${FILTER_ICON[k]} icon-13" aria-hidden="true"></span>` });
-  const pctGot = all.length ? Math.round((got.length / all.length) * 100) : 0;
   // The banner, built like the Deals one (squad-deals.js dealsViewHtml): the Tiger
   // Squad title block, a scene of layers on the desk, the count card on the right.
   // Laid out like the Deals view: the blocks straight in the host (.sqd-view: column, 14 px gaps).
@@ -396,9 +397,8 @@ export function renderTrophiesView(host, friend = null) {
       title: _friend ? t("trophiesFriendTitle", { name: _friend.name }) : t("trophiesTitle"),
       sub: _friend ? t("trophiesFriendTagline", { name: _friend.name }) : t("trophiesTagline"), scene: TROPHY_SCENE,
       side: `<ul class="trp-tiers trp-hero-tiers" aria-label="${esc(t("trophyByTier"))}">${tiers}</ul>
-      <div class="sqr-card trp-hero-card" role="group" aria-label="${esc(t("trophyCount", { n: got.length, total: all.length }))}">
-        <b class="trp-hero-n">${got.length}<small>/ ${all.length}</small></b>
-        <span class="trp-bar" aria-hidden="true"><i style="width:${pctGot}%"></i></span>
+      <div class="sqr-card trp-hero-card" role="group">
+        <b class="trp-hero-n">${got.length}</b><span class="trp-hero-lbl">${esc(t("trophyStuckLabel", { n: got.length }))}</span>
       </div>` })}
     ${filterBarHtml(esc, { cls: "trp-toolbar",
       tabs: [filter("all"), filter("got", got.length), filter("locked", all.length - got.length)],

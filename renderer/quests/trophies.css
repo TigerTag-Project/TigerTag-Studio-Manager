@@ -18,21 +18,26 @@
 /* ── Banner: the Deals banner's frame (.sqr-hero in quests.css), its own scene ── */
 .sqr-hero.trp-hero { --hero-scene: none; --hero-front: none;
   --hero-sink: 4px; --hero-art-w: 560px; --hero-art-ratio: 1; --hero-scene-w: 560px; }
-/* Scene objects (TROPHY_SCENE, a 3.4 : 1 box): the tiger behind the desk (only the waist cut
-   goes under it), the rest standing on it. */
-.trp-hero { --hl-ratio: 3.4; }
-.trp-hero .hl--rosette { left: 0; height: 64%; }
-.trp-hero .hl--sticker-sheet { left: 13%; height: 50%; rotate: -8deg; }
-.trp-hero .hl--tiger { left: 29%; height: 90%; translate: 0 6px; bottom: 6%; }
-.trp-hero .hl--cup { left: 58%; height: 78%; }
-.trp-hero .hl--album { left: 73%; height: 52%; }
-.trp-hero .hl--spark { height: 13%; }
-.trp-hero .hl--spark1 { left: 26%; bottom: 74%; } .trp-hero .hl--spark2 { left: 93%; bottom: 70%; }
+/* Scene objects (TROPHY_SCENE, a 3.4 : 1 box): on the temple wall a torch and two
+   vines hanging from the top; on the desk the tiger over its map and the relic. */
+.trp-hero { --hl-ratio: 2.5; }
+.trp-hero .hl--torch { left: 0; bottom: 36%; height: 50%; }
+.trp-hero .hl--vine1, .trp-hero .hl--vine2 { top: -4%; bottom: auto; height: 66%; transform-origin: 50% 0; }
+.trp-hero .hl--vine1 { left: 15%; }
+.trp-hero .hl--vine2 { left: 92%; scale: -1 1; }
+.trp-hero .hl--tiger-map { left: 20%; height: 112%; }
+.trp-hero .hl--relic { left: 66%; height: 78%; }
 @media (prefers-reduced-motion: no-preference) {
-  .trp-hero .hl--cup { transform-origin: 50% 100%; animation: hl-rock 4s ease-in-out infinite; }
-  .trp-hero .hl--rosette { transform-origin: 50% 0; animation: hl-sway 5s ease-in-out infinite; }
-  .trp-hero .hl--spark1 { animation: hl-twinkle 2.4s ease-in-out infinite; }
-  .trp-hero .hl--spark2 { animation: hl-twinkle 2.4s ease-in-out 1.2s infinite; }
+  .trp-hero .hl--vine1 { animation: hl-sway 6s ease-in-out infinite; }
+  .trp-hero .hl--vine2 { animation: hl-sway 7s ease-in-out -2s infinite; }
+}
+/* The temple wall: stone blocks drawn over the banner's own wall colour (the account's
+   tint stays), mortar as dark translucent joints, every other row offset by half a block. */
+.trp-hero.trp-hero {
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='70'%3E%3Cpath d='M0 1H120M0 36H120M1 1V36M61 36V70' fill='none' stroke='rgba(0,0,0,0.3)' stroke-width='2'/%3E%3C/svg%3E"),
+    var(--hero-wall-c);
+  background-repeat: repeat, no-repeat;
 }
 /* The count per tier, on the desk stripe at the banner's foot, right-aligned. */
 .trp-hero-tiers.trp-hero-tiers { position: absolute; left: 28px; right: 28px; bottom: 0; z-index: 2; height: var(--hero-desk-hc);
@@ -41,15 +46,13 @@
 /* The count card on the right, like the Deals balance card. */
 .sqr-card.trp-hero-card { display: flex; flex-direction: column; align-items: stretch; gap: 8px; min-width: 120px; padding: 10px 14px; }
 .trp-hero-n { display: flex; align-items: baseline; gap: 6px; font: 800 28px var(--qw-mono, monospace); color: var(--tier-legendary); }
-.trp-hero-n small { font-size: 14px; color: var(--muted); }
+.trp-hero-lbl { font-size: 12px; font-weight: 600; color: var(--game-muted); }   /* "stickers collected": what you have, never "of how many" */
 
 /* ── Bar under the banner: the Deals bar (quests.css .sqd-bar / .sqd-tab / .sqd-search) ── */
 .trp-toolbar .trp-code { margin-left: auto; }
 .trp-search { flex: 1 1 220px; }
 .trp-st[hidden], .trp-nomatch[hidden] { display: none; }
 .trp-nomatch { margin: 0; padding: 24px 0; text-align: center; color: var(--muted); font-size: 13px; }
-.trp-bar { flex: 1; height: 8px; border-radius: 999px; background: var(--ink-10); overflow: hidden; }
-.trp-bar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--primary-hi), var(--primary)); transition: width .6s cubic-bezier(.2, .8, .2, 1); }
 .trp-tiers { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 0; padding: 0; list-style: none; font-size: 12px; color: var(--muted); }
 .trp-tiers li { display: inline-flex; align-items: center; gap: 6px; }
 .trp-tiers i { width: 10px; aspect-ratio: 1; border-radius: 50%; background: var(--tc); box-shadow: 0 0 8px var(--tc); }
@@ -81,9 +84,9 @@
   border-radius: 50%; color: var(--muted); transition: color .15s, background .15s; }
 .trp-st-info .icon { background-color: currentColor; }
 .trp-st-info:hover { color: var(--text); background: var(--ink-10); }
-/* Locked: a silhouette of the same art, no ring glow. */
-.trp-st.is-locked .trp-st-art { background: var(--ink-04); }
-.trp-st.is-locked .trp-st-art::after { border-style: dashed; border-color: var(--ink-15); }
+/* Locked: just a silhouette of the same art — no disc, no ring (they weighed the album down). */
+.trp-st.is-locked .trp-st-art { background: none; }
+.trp-st.is-locked .trp-st-art::after { display: none; }
 .trp-st.is-locked .trp-st-art img { filter: brightness(0) opacity(.28); }
 .trp-st.is-locked .trp-st-name { color: var(--muted); }
 .trp-st-q { font-size: 34px; font-weight: 800; color: var(--ink-25); }
