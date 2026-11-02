@@ -88,6 +88,8 @@ generate (`docs/ART-DIRECTION.md`, shown before integration).
 | `coinsRecv100/1000/10000` | Maneki-neko / Scrooge's dive / Smaug's hoard | TigerCoins received from friends, all told | uncommon / epic / legendary | coin |
 | `envSent10/50/100` | Postman Pat / Hedwig / Santa's sleigh | Envelopes sent (given or coins) | uncommon / rare / epic | gift |
 | `envRecv10/50/100` | Fan mail / Letters from Hogwarts / Message in a Bottle | Envelopes received | uncommon / rare / epic | envelope |
+| `envPileSent3` | Bulk delivery | 3 envelopes given to one friend in a single go (`giveEnvelopes`) | uncommon | `trophies/stickers/envPileSent3.webp` |
+| `envPileRecv2/4/5` | Double helping / Four of a kind / Full hand | A pile of 2 / 4 / 5 envelopes received in a single go; a bigger pile gives every smaller step | common / uncommon / rare | `trophies/stickers/envPileRecv{2,4,5}.webp` |
 | `freezeSent5/25/100` | Let it go / Sub-Zero / Mr. Freeze | Freezes given or bought for friends | uncommon / rare / epic | freeze gift |
 | `freezeRecv5/25/100` | Ice Ice Baby / Winter is coming / Fortress of Solitude | Freezes received | uncommon / rare / epic | freeze |
 | `tweet140` | Old-school tweet | TigerCoins sent with a message of the full 140 characters (hidden) | rare | envelope |

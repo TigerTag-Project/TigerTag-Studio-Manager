@@ -72,6 +72,11 @@ const ROWS = [
   ["envRecv10", "coins", "uncommon", "trophies/stickers/envRecv10.webp"],
   ["envRecv50", "coins", "rare", "trophies/stickers/envRecv50.webp"],
   ["envRecv100", "coins", "epic", "trophies/stickers/envRecv100.webp"],
+  // Envelope piles given in one go (backend trophyRules PILE_SENT / PILE_RECV).
+  ["envPileSent3", "coins", "uncommon", "trophies/stickers/envPileSent3.webp"],
+  ["envPileRecv2", "coins", "common", "trophies/stickers/envPileRecv2.webp"],
+  ["envPileRecv4", "coins", "uncommon", "trophies/stickers/envPileRecv4.webp"],
+  ["envPileRecv5", "coins", "rare", "trophies/stickers/envPileRecv5.webp"],
   ["tweet140", "coins", "rare", "trophies/stickers/tweet140.webp", true],
   ["timeMaster", "squad", "epic", "quests/xph-hero/hourglass.webp", true],
   ["stickerFan", "squad", "uncommon", "trophies/stickers/stickerFan.webp", true],

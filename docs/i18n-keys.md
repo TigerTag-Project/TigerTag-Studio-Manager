@@ -213,3 +213,6 @@ Name then how, pairs: `trophy_communityXp1M` / `trophyHow_communityXp1M`, `…Xp
 
 ### Trophies, printer brands (after `trophyHow_firstPrinter`)
 Name then how, pairs, per brand in this order: `trophy_printer_<brand>` / `trophyHow_printer_<brand>` for `bambulab`, `creality`, `elegoo`, `flashforge`, `snapmaker`, `anycubic`, `prusa`, `klipper`, `octoprint` (Klipper and OctoPrint read "on board" / "through …", they are not printer makers). Then `trophy_printer_bambulab_lan` / `trophyHow_printer_bambulab_lan` (local network, Developer mode) and `trophy_printer_bambulab_cloud` / `trophyHow_printer_bambulab_cloud` (through the Bambu Lab account).
+
+### Trophies, envelope piles (after `trophyHow_envRecv100`)
+`trophy_envPileSent3` / `trophyHow_envPileSent3`, then `trophy_envPileRecv{2,4,5}` / `trophyHow_envPileRecv{2,4,5}` — a pile given or received in a single go.
