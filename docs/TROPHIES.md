@@ -154,8 +154,8 @@ moment. The trio comes with the 5, 10 or 15 million sticker that completes the s
 |---|---|---|---|---|
 | `firstPrinter` / `firstRack` / `firstList` | Printer tamer / Tidy tiger / List maker | A first printer, rack, list | common | `loot/printer`, `feats/first-rack`, `feats/first-list` |
 | `printer_<brand>` | Bambu Lab / Creality / Elegoo / FlashForge / Snapmaker / Anycubic / Prusa / Klipper / OctoPrint | The first real printer (not a demo) of that brand or plugin connected — `xpRules.PRINTER_BRANDS`, counted in the XP breakdown's `printer.brands`; state trophy, retroactive | uncommon | `trophies/stickers/printer_<brand>.webp` |
-| `printer_bambulab_lan` | No cloud, no problem | The first real Bambu Lab printer on the local network (Developer mode): its device doc's `mode` is not `"cloud"` — the XP breakdown's `printer.bambu.lan`; state trophy, retroactive | rare | `trophies/stickers/printer_bambulab_lan.webp` |
-| `printer_bambulab_cloud` | Head in the cloud | The first real Bambu Lab printer through the Bambu Lab account: `mode == "cloud"` — `printer.bambu.cloud`; state trophy, retroactive | uncommon | `trophies/stickers/printer_bambulab_cloud.webp` |
+| `printer_bambulab_lan` | I take control | The first real Bambu Lab printer on the local network (Developer mode): its device doc's `mode` is not `"cloud"` — the XP breakdown's `printer.bambu.lan`; state trophy, retroactive | epic | `trophies/stickers/printer_bambulab_lan.webp` |
+| `printer_bambulab_cloud` | Head in the cloud | The first real Bambu Lab printer through the Bambu Lab account: `mode == "cloud"` — `printer.bambu.cloud`; state trophy, retroactive | common | `trophies/stickers/printer_bambulab_cloud.webp` |
 | `rfidReader` / `usbScale` / `mobileApp` | Mind reader / Heavyweight / Pocket tiger | An RFID reader, a USB scale, Tiger NFC Connect | uncommon | `loot/rfid-reader`, `loot/usb-scale`, `feats/mobile-app` |
 | `td1s` | TD1S | A TD1S sensor | rare | `loot/td1s` |
 | `appUpdate` / `speedrun` | Fresh install / Speedrun | An update installed / within 3 days of its release | common / uncommon | `notifications/update`, `feats/speedrun` |
