@@ -123,6 +123,9 @@
   "questsRarity_common": "普通",
   "trophiesTitle": "奖杯",
   "trophiesTagline": "值得一枚贴纸的时刻，全部收集吧。",
+  "trophiesFriendTitle": "{{name}} 的奖杯",
+  "trophiesFriendTagline": "{{name}} 贴进相册的所有贴纸。有你缺的吗？",
+  "trophiesFriendLocked": "{{name}} 的相册暂时无法打开。",
   "trophyHaveCode": "有兑换码？",
   "trophySearch": "搜索奖杯…",
   "trophyNoMatch": "没有匹配的奖杯。暂时。",
@@ -2525,28 +2528,34 @@
   "squadReassureNoPay": "无需付款",
   "squadLaterCta": "以后再说",
   "squadLeaveTitle": "退出 TigerSquad？",
-  "squadLeaveDesc": "一旦退出，你的福利会立即停止，30 天后才会恢复——即使你明天就重新加入。大门一直敞开，只是门卫记性很好。",
-  "squadLeaveLostTitle": "30 天内你将失去",
+  "squadLeaveDesc": "离开后你的福利立即停止。即使提前回来，也会锁定 30 天。",
+  "squadLeaveLostTitle": "这 30 天内",
   "squadLost_coins": "TigerCoins",
   "squadLost_coinsSub": "宝箱、红包、赠送和礼品码全部暂停。",
   "squadLost_freeze": "连胜冻结",
-  "squadLost_freezeSub": "没有冻结可以保住连胜，也没有可以送出的。",
-  "squadLost_xp": "+150 XP",
-  "squadLost_xpSub": "成员奖励会从你的总数中扣除。",
+  "squadLost_freezeSub": "无法使用或赠送。",
+  "squadLost_xp": "会员加成",
+  "squadLost_xpSub": "150 XP 加成被移除。",
   "squadLost_badge": "徽章和等级",
-  "squadLost_badgeSub": "你的等级会从个人资料和排行榜中消失。",
+  "squadLost_badgeSub": "在你的资料和排行榜中隐藏。",
   "squadLost_space": "TigerSquad 专区",
-  "squadLost_spaceSub": "排行榜、物品、优惠和 XP 记录全部关闭。",
-  "squadLeaveKeep": "你已获得的仍归你所有：TigerCoins、芯片 XP、奖杯。",
-  "squadLeaveHold": "长按退出",
+  "squadLost_spaceSub": "排行榜、道具、优惠和 XP 记录不可用。",
+  "squadLeaveKeep": "你的 TigerCoins、芯片 XP 和奖杯都会保留。",
+  "squadLeaveHold": "按住 1.5 秒退出",
   "squadLeaveStay": "我留下",
-  "squadLockDesc": "你已重新加入 TigerSquad。由于你最近刚退出，福利将于 {{date}} 恢复。别急，Squad 不会跑掉。",
-  "squadLockProgress": "第 {{d}} / 30 天",
+  "squadLockDesc": "你已重新加入 Squad。离开后的 30 天等待期不变。",
+  "squadLockDateLbl": "福利恢复日期",
+  "squadLockProgress": {
+    "one": "已过 {{n}} 天",
+    "other": "已过 {{n}} 天"
+  },
+  "squadLockTotal": "{{n}} 天",
   "squadLockOk": "知道了",
   "squadLockTitle": {
-    "one": "你的权限将在 {{n}} 天后恢复",
-    "other": "你的权限将在 {{n}} 天后恢复"
+    "one": "你的福利将在 {{n}} 天后恢复",
+    "other": "你的福利将在 {{n}} 天后恢复"
   },
+  "squadLockKicker": "欢迎回来！",
   "squadFooter": "携手同行，打印得更远。🐯",
   "squadMembers": {
     "one": "{{n}} 位成员",
@@ -3057,6 +3066,7 @@
   "referralTitle": "邀请好友",
   "referralTagline": "对方确认邮箱后，各得 {{n}} 个红包。",
   "referralLinkTitle": "你的邀请链接",
+  "referralLinkTitleToo": "轮到你邀请了",
   "referralShareText": "来 Tiger Studio 找我吧——免费的耗材与打印机管理器。通过我的链接注册并验证邮箱：我们各得 {{n}} 个红包。",
   "referralDiscordCopied": "已复制——粘贴到你的 Discord 服务器吧。",
   "referralQrDownload": "下载",
@@ -3078,7 +3088,6 @@
     "other": "已确认好友"
   },
   "referralCardHint": "确认邮箱后才计入。",
-  "referralEnvsEach": "各 ×{{n}}",
   "referralStep1": "你分享链接",
   "referralStep1Sub": "或邀请码。",
   "referralStep2": "好友创建账户",
@@ -3101,9 +3110,16 @@
   "referralState_pending": "待确认邮箱",
   "referralState_validated": "奖励已到账",
   "referralState_expired": "已过期",
-  "referralWhoTitle": "谁邀请了你？",
+  "referralWhoTitle": "有朋友邀请你吗？",
+  "referralCodeLabel": "好友的邀请码",
+  "referralCodePh": "例如 4ZS-8AG",
+  "referralDaysLeft": {
+    "one": "还剩 {{n}} 天",
+    "other": "还剩 {{n}} 天"
+  },
+  "referralNoCode": "我没有邀请码",
   "referralPaste": "粘贴",
-  "referralClaim": "就是 TA",
+  "referralClaim": "确认邀请码",
   "referralInvitedBy": "由 {{name}} 邀请",
   "referralVerifyHint": "验证你的邮箱即可解锁双方的礼物。",
   "referralOnbLabel": "谁邀请了你？（可选）",
@@ -3128,8 +3144,5 @@
     "one": "{{n}} 个红包等你打开。",
     "other": "{{n}} 个红包等你打开。"
   },
-  "referralWhoSub": {
-    "one": "输入对方的好友码：你们各得 {{e}} 个红包。还剩 {{n}} 天。",
-    "other": "输入对方的好友码：你们各得 {{e}} 个红包。还剩 {{n}} 天。"
-  }
+  "referralWhoSub": "填入对方的邀请码：确认邮箱后你们各得 {{e}} 个红包。"
 }

@@ -137,6 +137,10 @@
 .trp-unlock-go { margin-top: 12px; padding: 10px 20px; border-radius: 999px; border: 0; font: inherit; font-weight: 600; cursor: pointer;
   background: var(--tc); color: var(--on-accent); transition: filter .15s; }
 .trp-unlock-go:hover { filter: brightness(1.1); }
+/* While the unlock plays (trophies.js UNLOCK_LOCK_MS) the button waits, then fades in. */
+.trp-unlock-go { transition: opacity .35s ease; }
+.trp-unlock.is-locked .trp-unlock-go { opacity: 0; pointer-events: none; }
+.trp-unlock.is-locked { cursor: default; }
 
 @media (prefers-reduced-motion: reduce) {
   .trp-unlock-rays, .trp-st.trp-t--event.is-got { animation: none; }

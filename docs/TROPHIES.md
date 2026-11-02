@@ -156,7 +156,7 @@ later is one row + one award call + its i18n keys.
 ## 3. Data (backend `TigerTag_Firebase_Backend`)
 
 ```
-users/{uid}/trophies/{trophyId}   { earnedAt, source, event?, ctx? }      owner read · server write
+users/{uid}/trophies/{trophyId}   { earnedAt, source, event?, ctx? }      owner + accepted friends read · server write
 trophyStats/{trophyId}            { owners }                              signed-in read · server write
 trophyEvents/{eventId}            { name: {11 locales}, desc: {…}, art,   signed-in read · admin write (Hub)
                                     year, date, kind: "season"|"show",
@@ -175,8 +175,10 @@ trophyStats/_accounts             { accounts, active, at }                 signe
   together or not at all.
 - **Accounts count**: the `communityStats` schedule (daily), which already counts the accounts, also writes `trophyStats/_accounts`
   — **✅ R2** accounts active in the last 90 days (not every account ever, which would flatter the %).
-- **Friends' trophies** (later, §8): readable through the same friend rule as the inventory if we
-  want "compare with a friend".
+- **Friends' trophies** ✅: readable by an accepted friend through the same friend rule as the
+  inventory (`exists(users/{uid}/friends/{reader})`). In a friend's view the TigerSquad group keeps
+  its Trophies tab: the friend's album ("{{name}}'s trophies"), read once and kept 2 min, read-only —
+  no code button, no download (`renderTrophiesView(host, friend)`).
 
 ## 4. How each trophy is awarded
 
@@ -310,7 +312,7 @@ module `renderer/quests/trophies.js` + `renderer/quests/trophies.css`, tier colo
 
 - **Profile showcase**: three trophies chosen by the user, shown on `userProfiles` (via
   `setProfile`) and in the friends bar card.
-- **Compare with a friend**: their album next to yours.
+- **Compare with a friend**: their album next to yours (seeing a friend's album ships; side by side is still to do).
 - **Tiger NFC Connect** (`#mobile`): the same collection, read-only.
 - **Trophy for scanning at a show**: a booth TigerTag chip that awards the event trophy when
   scanned with the mobile app (no code to type).

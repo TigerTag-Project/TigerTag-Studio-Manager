@@ -23,6 +23,7 @@
 import { backfire } from "./coin-pull.js";
 import { sfx } from "./coin-sound.js";
 import { heroHtml, infoTipHtml } from "./ui-kit.js";
+import { heroLayersHtml } from "./hero-layers.js";
 
 const URL_BASE = "https://us-central1-tigertag-connect.cloudfunctions.net/referrals";
 const ART = "../assets/img/";
@@ -33,10 +34,17 @@ const NETS = [
   ["reddit", "reddit", "reddit", "Reddit"], ["telegram", "telegram", "telegram", "Telegram"], ["bluesky", "bluesky", "bluesky", "Bluesky"],
   ["discord", "discord", "discord", "Discord"], ["email", "mail", "mail", "E-mail"],
 ];
+// The banner scene (docs/ART-DIRECTION.md, one layer per object): one tiger hands the envelope to the
+// other behind the desk, a spool and a printed tiger between them, three envelopes on each side.
+const ENVS = side => ({ html: `<span class="hl hl--envs hl--envs-${side}">${`<img src="${ART}tigercoins/envelope.webp" alt="" draggable="false">`.repeat(3)}</span>` });
+const INVITE_SCENE = heroLayersHtml(`${ART}tigersquad/invite-hero/`, {
+  back: ["tiger-give", "tiger-take"],
+  front: [ENVS("a"), "spool", "figurine", ENVS("b")],
+});
 // Validated referrals → the next trophy (trophyRules.js COUNTERS.referrals; 25 and 50 are hidden).
 const STEPS = [1, 5, 10];
 
-let _ctx = null, _uid = null, _status = null, _busy = false, _prefill = "", _celebrating = false, _loading = false, _more = false, _msg = false;
+let _ctx = null, _uid = null, _status = null, _busy = false, _prefill = "", _celebrating = false, _loading = false, _more = false, _msg = false, _noCode = false;
 
 export function initReferrals(ctx) { _ctx = ctx; }
 export const referralStatus = () => _status;
@@ -99,33 +107,31 @@ function stateRow(x) {
     <span class="rf-row-txt"><b>${esc(x.name || "?")}</b><small>${esc(why)}</small></span>${pill}</li>`;
 }
 
-function codeFieldHtml(id, value = "") {
+function codeFieldHtml(id, value = "", label = true) {
   const { t, esc } = _ctx;
-  const [a, b] = (value || "").split("-");
-  // The add-friend modal's two XXX — XXX segments (.adf-seg), reused as is.
-  return `<div class="adf-code-group rf-code" data-rf-code="${id}">
-      <input class="adf-seg" data-rf-seg="a" maxlength="3" value="${esc(a || "")}" aria-label="${esc(t("referralWhoTitle"))}" autocomplete="off" spellcheck="false">
-      <span class="adf-sep">—</span>
-      <input class="adf-seg" data-rf-seg="b" maxlength="3" value="${esc(b || "")}" aria-label="${esc(t("referralWhoTitle"))}" autocomplete="off" spellcheck="false">
-      <button type="button" class="dns-av-act rf-paste" data-rf-paste><span class="icon icon-copy icon-14" aria-hidden="true"></span><span>${esc(t("referralPaste"))}</span></button>
+  // One field for the whole code (pasted or typed, with or without the dash) + Paste inside it.
+  return `${label ? `<label class="rf-code-lbl" for="rfCode-${id}">${esc(t("referralCodeLabel"))}</label>` : ""}
+    <div class="rf-code" data-rf-code="${id}">
+      <input class="dns-input rf-code-in" id="rfCode-${id}" data-rf-in aria-label="${esc(t("referralCodeLabel"))}" value="${esc(value || "")}" placeholder="${esc(t("referralCodePh"))}" autocomplete="off" spellcheck="false">
+      <button type="button" class="rf-paste" data-rf-paste><span class="icon icon-copy icon-14" aria-hidden="true"></span><span>${esc(t("referralPaste"))}</span></button>
     </div>
     <div class="rf-preview" data-rf-preview hidden></div>
     <p class="rf-err" data-rf-err role="alert" aria-live="polite"></p>`;
 }
 
-/* Wires a code field: segments uppercase + auto-advance, Paste, the live preview
-   of the code's owner. Answers () → the code typed ("" when incomplete). */
+/* Wires a code field: uppercase, the dash added after three characters, Paste, the
+   live preview of the code's owner. Answers () → the code typed ("" when incomplete). */
 export function wireCodeField(root, onValid) {
-  const segs = [...root.querySelectorAll("[data-rf-seg]")];
+  const input = root.querySelector("[data-rf-in]");
   const prev = root.querySelector("[data-rf-preview]"), err = root.querySelector("[data-rf-err]");
-  const value = () => segs.map(s => s.value).join("-");
-  const complete = () => /^[A-Z0-9]{3}-[A-Z0-9]{3}$/.test(value());
+  const norm = v => { const c = String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6); return c.length > 3 ? `${c.slice(0, 3)}-${c.slice(3)}` : c; };
+  const complete = () => /^[A-Z0-9]{3}-[A-Z0-9]{3}$/.test(input.value);
   let seq = 0;
   const changed = async () => {
     err.textContent = ""; prev.hidden = true;
     onValid?.(false);
     if (!complete()) return;
-    const mine = ++seq, p = await _ctx.lookupCode(value()).catch(() => null);
+    const mine = ++seq, p = await _ctx.lookupCode(input.value).catch(() => null);
     if (mine !== seq) return;
     if (!p) { err.textContent = errText("UNKNOWN_CODE"); return; }
     if (p.uid === _uid) { err.textContent = errText("SELF"); return; }
@@ -134,28 +140,29 @@ export function wireCodeField(root, onValid) {
     onValid?.(true);
   };
   const setCode = code => {
-    const m = String(code || "").toUpperCase().match(/([A-Z0-9]{3})-?([A-Z0-9]{3})/);
+    // A pasted link ends with the code: the dashed form first, then six characters on their own.
+    const v = String(code || "").toUpperCase().trim();
+    const m = v.match(/([A-Z0-9]{3})-([A-Z0-9]{3})(?![A-Z0-9])/) || v.match(/^([A-Z0-9]{3})([A-Z0-9]{3})$/);
     if (!m) return false;
-    segs[0].value = m[1]; segs[1].value = m[2];
+    input.value = `${m[1]}-${m[2]}`;
     changed();
     return true;
   };
-  segs.forEach((s, i) => s.addEventListener("input", () => {
-    if (s.value.length > 3 || /-/.test(s.value)) { setCode(s.value); return; }
-    s.value = s.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
-    if (i === 0 && s.value.length === 3) segs[1].focus();
+  input.addEventListener("input", () => {
+    if (input.value.length > 7) { if (!setCode(input.value)) input.value = norm(input.value); return; }
+    input.value = norm(input.value);
     changed();
-  }));
-  segs[1].addEventListener("keydown", e => { if (e.key === "Backspace" && !segs[1].value) segs[0].focus(); });
+  });
   root.querySelector("[data-rf-paste]")?.addEventListener("click", async () => {
     // Read only on this tap: the landing page put the code there (docs/REFERRALS.md §2).
     try { if (!setCode(await navigator.clipboard.readText())) err.textContent = errText("UNKNOWN_CODE"); } catch (_) {}
   });
+  input.value = norm(input.value);
   if (complete()) changed();
-  return { value: () => (complete() ? value() : ""), error: text => { err.textContent = text; }, setCode };
+  return { value: () => (complete() ? input.value : ""), error: text => { err.textContent = text; }, setCode };
 }
 
-export function codeFieldMarkup(value) { return codeFieldHtml("onb", value); }
+export function codeFieldMarkup(value) { return codeFieldHtml("onb", value, false); }   // its label is the step's own
 
 export function renderInviteView(host) {
   if (!_ctx || !host) return;
@@ -163,17 +170,14 @@ export function renderInviteView(host) {
   const s = _status;
   // No status yet (the launch call failed or is still out): ask again, once at a time.
   if (!s && _uid && !_loading) { _loading = true; call("status").catch(e => console.warn("[referrals] status", e.message)).finally(() => { _loading = false; }); }
-  const sig = JSON.stringify([_uid, s, _prefill, _busy, _more, _msg, t("referralTitle")]);
+  const sig = JSON.stringify([_uid, s, _prefill, _busy, _more, _msg, _noCode, t("referralTitle")]);
   if (host._rfSig === sig && host.childElementCount) return;
   host._rfSig = sig;
   const link = shareLink(), validated = s?.validated || 0, envs = s?.cfg?.envelopes || 3;
   const next = STEPS.find(n => n > validated);
   const pct = next ? Math.round((validated / next) * 100) : 100;
-  // Right of the banner: the reward as objects (the envelope picture ×n each), then the progress
-  // card — friends who joined and the bar to the next trophy (the Workshop's .sqr-bar).
-  const side = `<div class="rf-hero-envs" aria-label="${esc(t("referralEnvsEach", { n: envs }))}">
-      ${`<img src="${ART}tigercoins/envelope.webp" alt="" aria-hidden="true">`.repeat(Math.min(envs, 3))}
-      <b>${esc(t("referralEnvsEach", { n: envs }))}</b></div>
+  // Right of the banner: the progress card — confirmed friends and the bar to the next trophy (the Workshop's .sqr-bar).
+  const side = `
     <div class="sqr-card rf-hero-card" role="group" aria-label="${esc(t("referralCardTitle", { n: validated }))}">
       <span class="rf-hero-lbl">${esc(t("referralCardTitle", { n: validated }))}${infoTipHtml(esc, t("referralCardHint"), { size: 12 })}</span>
       <b class="trp-hero-n">${validated}</b>
@@ -188,14 +192,20 @@ export function renderInviteView(host) {
   const otherNets = NETS.filter(n => !MAIN.includes(n[0])).map(net).join("");
   // The QR stays in view: the friend standing next to you scans the screen.
   const qr = link ? _ctx.qr(link, { size: 280, margin: 2 }) : "";
-  // "Who invited you?" — only while this account may still claim: a banner on top, apart from the sharing.
-  const claimCard = s?.claim?.canClaim ? `
+  // "A friend invited you?" — only while this account may still claim: a card on top, apart from
+  // the sharing. "I have no code" folds it to one line, which opens it again until the deadline.
+  const canClaim = !!s?.claim?.canClaim;
+  const claimCard = !canClaim ? "" : _noCode ? `
+    <button type="button" class="rf-card rf-claim-fold" data-rf-nocode><span class="icon icon-gift icon-16" aria-hidden="true"></span>${esc(t("referralWhoTitle"))}
+      <span class="rf-days">${esc(t("referralDaysLeft", { n: s.claim.daysLeft }))}</span></button>` : `
     <section class="rf-card rf-claim">
-      <h3><span class="icon icon-gift icon-16" aria-hidden="true"></span>${esc(t("referralWhoTitle"))}</h3>
-      <p>${esc(t("referralWhoSub", { n: s.claim.daysLeft, e: envs }))}</p>
-      <div data-rf-claim>${codeFieldHtml("view", _prefill)}</div>
-      <button type="button" class="primary rf-claim-go" data-rf-claim-go disabled>${esc(t("referralClaim"))}</button>
-    </section>` : "";
+      <div class="rf-claim-head"><span class="rf-claim-ic"><span class="icon icon-gift icon-18" aria-hidden="true"></span></span>
+        <span class="rf-row-txt"><b class="rf-claim-title">${esc(t("referralWhoTitle"))}</b><small>${esc(t("referralWhoSub", { e: envs }))}</small></span>
+        <span class="rf-days"><span class="icon icon-clock icon-12" aria-hidden="true"></span>${esc(t("referralDaysLeft", { n: s.claim.daysLeft }))}</span></div>
+      <div class="rf-claim-row"><div class="rf-claim-field" data-rf-claim>${codeFieldHtml("view", _prefill)}</div>
+        <button type="button" class="sqd-open rf-claim-go" data-rf-claim-go disabled>${esc(t("referralClaim"))}</button>
+        <button type="button" class="rf-nocode" data-rf-nocode>${esc(t("referralNoCode"))}</button></div>
+    </section>`;
   const mine = s?.mine ? `
     <section class="rf-card rf-mine">
       ${_ctx.avatar(s.mine.referrer, "sb-friend-avatar")}
@@ -211,12 +221,12 @@ export function renderInviteView(host) {
     <li class="rf-step"><span class="rf-step-ic"><span class="icon icon-${icon} icon-14" aria-hidden="true"></span></span>
       <span class="rf-row-txt"><b>${n}. ${esc(t(`referralStep${n}`))}</b><small>${esc(t(`referralStep${n}Sub`, { n: envs }))}</small></span></li>`).join("");
   host.innerHTML = `
-    ${heroHtml(esc, { cls: "sqr-hero rf-hero", eyebrow: t("squadBrand"), title: t("referralTitle"), sub: t("referralTagline", { n: envs }), side })}
+    ${heroHtml(esc, { cls: "sqr-hero rf-hero", eyebrow: t("squadBrand"), title: t("referralTitle"), sub: t("referralTagline", { n: envs }), scene: INVITE_SCENE, side })}
     ${!s ? `<div class="trp-loading">${esc(t("questsLoading"))}</div>` : `
     ${claimCard}${mine}
     <section class="rf-card rf-share">
       <div class="rf-share-main">
-      <h3><span class="icon icon-link icon-16" aria-hidden="true"></span>${esc(t("referralLinkTitle"))}</h3>
+      <h3><span class="icon icon-link icon-16" aria-hidden="true"></span>${esc(t(canClaim ? "referralLinkTitleToo" : "referralLinkTitle"))}</h3>
       <div class="rf-link-row"><input class="dns-input" readonly value="${esc(link)}" aria-label="${esc(t("referralLinkTitle"))}">
         <button type="button" class="sqd-open rf-copy-main" data-rf-copy><span class="icon icon-copy icon-13" aria-hidden="true"></span><span data-rf-copy-lbl>${esc(t("referralCopyMyLink"))}</span></button></div>
       <div class="rf-nets"><span class="rf-via">${esc(t("referralShareVia"))}</span>${mainNets}
@@ -250,6 +260,7 @@ export function renderInviteView(host) {
     clearTimeout(b._rfT); b._rfT = setTimeout(() => { lbl.textContent = t("referralCopyMyLink"); }, 1600);
   });
   host.querySelector("[data-rf-more]")?.addEventListener("click", () => { _more = !_more; renderInviteView(host); });
+  host.querySelector("[data-rf-nocode]")?.addEventListener("click", () => { _noCode = !_noCode; renderInviteView(host); });
   host.querySelector("[data-rf-msg]")?.addEventListener("click", () => { _msg = !_msg; renderInviteView(host); });
   host.querySelector("[data-rf-msg-copy]")?.addEventListener("click", e => _ctx.copy(`${shareText()} ${link}`, e.currentTarget));
   host.querySelector("[data-rf-qr-big]")?.addEventListener("click", () => showQrWindow(link));
@@ -285,6 +296,7 @@ function showQrWindow(link) {
   el.className = "tc-reveal tc-envm qfs rf-win rf-qr-win";
   el.innerHTML = `
     <div class="tc-reveal-card tc-code-card tcx tcx--help tc-env-card qfs-card is-done" role="dialog" aria-modal="true" aria-label="${esc(t("referralQrTitle"))}">
+      <button type="button" class="modal-close rf-qr-x" aria-label="${esc(t("tutoClose"))}"><span class="icon icon-close icon-14" aria-hidden="true"></span></button>
       <div class="tcx-main">
         <div class="tcx-plaque"><h3>${esc(t("referralQrTitle"))}</h3></div>
         <img class="lv-public-qr rf-qr-xl" src="${esc(_ctx.qr(link, { size: 640, margin: 3 }))}" alt="">
@@ -298,6 +310,7 @@ function showQrWindow(link) {
   el.addEventListener("mousedown", e => { if (e.target === el) close(); });
   el.addEventListener("keydown", e => { if (e.key === "Escape") close(); });
   el.querySelector(".qfs-ok").addEventListener("click", close);
+  el.querySelector(".rf-qr-x").addEventListener("click", close);
   setTimeout(() => el.querySelector(".qfs-ok")?.focus({ preventScroll: true }), 200);
 }
 

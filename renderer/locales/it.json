@@ -124,6 +124,9 @@
   "questsRarity_common": "Comune",
   "trophiesTitle": "Trofei",
   "trophiesTagline": "Momenti che valgono uno sticker. Collezionali tutti.",
+  "trophiesFriendTitle": "Trofei di {{name}}",
+  "trophiesFriendTagline": "Tutti gli sticker che {{name}} ha attaccato nell'album. Te ne manca uno?",
+  "trophiesFriendLocked": "L'album di {{name}} non si apre al momento.",
   "trophyHaveCode": "Hai un codice?",
   "trophySearch": "Cerca un trofeo…",
   "trophyNoMatch": "Nessun trofeo corrisponde. Per ora.",
@@ -2530,28 +2533,34 @@
   "squadReassureNoPay": "Nessun pagamento richiesto",
   "squadLaterCta": "Magari più tardi",
   "squadLeaveTitle": "Lasciare la TigerSquad?",
-  "squadLeaveDesc": "Se te ne vai, i tuoi vantaggi si fermano subito e tornano solo 30 giorni dopo, anche se rientri domani. La porta resta aperta, il buttafuori ha solo buona memoria.",
-  "squadLeaveLostTitle": "Cosa perdi per 30 giorni",
+  "squadLeaveDesc": "I tuoi vantaggi si fermano appena esci. Anche se torni prima, restano bloccati per 30 giorni.",
+  "squadLeaveLostTitle": "Durante questi 30 giorni",
   "squadLost_coins": "TigerCoins",
   "squadLost_coinsSub": "Forzieri, buste, invii e codici regalo in pausa.",
   "squadLost_freeze": "Congelamenti della serie",
-  "squadLost_freezeSub": "Nessun congelamento per salvare la serie, né da regalare.",
-  "squadLost_xp": "+150 XP",
-  "squadLost_xpSub": "Il bonus da membro lascia il tuo totale.",
+  "squadLost_freezeSub": "Niente uso né regali.",
+  "squadLost_xp": "Bonus membro",
+  "squadLost_xpSub": "Il bonus di 150 XP viene tolto.",
   "squadLost_badge": "Badge e livello",
-  "squadLost_badgeSub": "Il tuo livello sparisce dal profilo e dalle classifiche.",
+  "squadLost_badgeSub": "Nascosti sul tuo profilo e nelle classifiche.",
   "squadLost_space": "Spazio TigerSquad",
-  "squadLost_spaceSub": "Classifiche, oggetti, offerte e storico XP chiusi.",
-  "squadLeaveKeep": "Quello che hai guadagnato resta tuo: TigerCoins, XP dei chip, trofei.",
-  "squadLeaveHold": "Tieni premuto per uscire",
+  "squadLost_spaceSub": "Classifiche, oggetti, offerte e cronologia XP non disponibili.",
+  "squadLeaveKeep": "Tieni i tuoi TigerCoins, gli XP dei chip e i trofei.",
+  "squadLeaveHold": "Tieni premuto 1,5 s per uscire",
   "squadLeaveStay": "Resto",
-  "squadLockDesc": "Sei di nuovo nella TigerSquad. Visto che l'hai lasciata da poco, i vantaggi riprendono il {{date}}. Pazienza, la Squad non scappa.",
-  "squadLockProgress": "Giorno {{d}} di 30",
+  "squadLockDesc": "Sei tornato nella Squad. L'attesa di 30 giorni dalla tua uscita non cambia.",
+  "squadLockDateLbl": "Ritorno dei vantaggi",
+  "squadLockProgress": {
+    "one": "{{n}} giorno trascorso",
+    "other": "{{n}} giorni trascorsi"
+  },
+  "squadLockTotal": "{{n}} giorni",
   "squadLockOk": "Capito",
   "squadLockTitle": {
-    "one": "Il tuo accesso torna tra {{n}} giorno",
-    "other": "Il tuo accesso torna tra {{n}} giorni"
+    "one": "I tuoi vantaggi tornano tra {{n}} giorno",
+    "other": "I tuoi vantaggi tornano tra {{n}} giorni"
   },
+  "squadLockKicker": "Bentornato!",
   "squadFooter": "Insieme stampiamo più lontano. 🐯",
   "squadMembers": {
     "one": "{{n}} membro",
@@ -3067,6 +3076,7 @@
   "referralTitle": "Invita un amico",
   "referralTagline": "{{n}} buste a testa dopo la conferma dell'e-mail.",
   "referralLinkTitle": "Il tuo link d'invito",
+  "referralLinkTitleToo": "Invita anche tu",
   "referralShareText": "Raggiungimi su Tiger Studio — il gestore gratuito di filamenti e stampanti. Iscriviti dal mio link e conferma la tua e-mail: riceviamo {{n}} buste a testa.",
   "referralDiscordCopied": "Copiato — incollalo nel tuo server Discord.",
   "referralQrDownload": "Scarica",
@@ -3088,7 +3098,6 @@
     "other": "Amici confermati"
   },
   "referralCardHint": "Contati dopo la conferma della loro e-mail.",
-  "referralEnvsEach": "×{{n}} a testa",
   "referralStep1": "Condividi il tuo link",
   "referralStep1Sub": "O il tuo codice.",
   "referralStep2": "Il tuo amico crea l'account",
@@ -3111,9 +3120,16 @@
   "referralState_pending": "E-mail da confermare",
   "referralState_validated": "Ricompensa ricevuta",
   "referralState_expired": "Scaduto",
-  "referralWhoTitle": "Chi ti ha invitato?",
+  "referralWhoTitle": "Ti ha invitato un amico?",
+  "referralCodeLabel": "Codice del tuo amico",
+  "referralCodePh": "Es. 4ZS-8AG",
+  "referralDaysLeft": {
+    "one": "Ancora {{n}} giorno",
+    "other": "Ancora {{n}} giorni"
+  },
+  "referralNoCode": "Non ho un codice",
   "referralPaste": "Incolla",
-  "referralClaim": "Confermo",
+  "referralClaim": "Conferma il codice",
   "referralInvitedBy": "Invitato da {{name}}",
   "referralVerifyHint": "Verifica la tua e-mail per sbloccare i due regali.",
   "referralOnbLabel": "Chi ti ha invitato? (facoltativo)",
@@ -3138,8 +3154,5 @@
     "one": "Ti aspetta {{n}} busta.",
     "other": "Ti aspettano {{n}} buste."
   },
-  "referralWhoSub": {
-    "one": "Inserisci il suo codice amico: ricevete {{e}} buste a testa. Ti resta {{n}} giorno.",
-    "other": "Inserisci il suo codice amico: ricevete {{e}} buste a testa. Ti restano {{n}} giorni."
-  }
+  "referralWhoSub": "Aggiungi il suo codice: {{e}} buste a testa dopo la conferma della tua e-mail."
 }

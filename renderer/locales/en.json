@@ -124,6 +124,9 @@
   "questsRarity_common": "Common",
   "trophiesTitle": "Trophies",
   "trophiesTagline": "Moments worth a sticker. Collect them all.",
+  "trophiesFriendTitle": "{{name}}'s trophies",
+  "trophiesFriendTagline": "Every sticker {{name}} has stuck in the album. Spot one you're missing?",
+  "trophiesFriendLocked": "{{name}}'s album can't be opened right now.",
   "trophyHaveCode": "Have a code?",
   "trophySearch": "Search a trophy…",
   "trophyNoMatch": "No trophy matches. Yet.",
@@ -2530,28 +2533,34 @@
   "squadReassureNoPay": "No payment required",
   "squadLaterCta": "Maybe later",
   "squadLeaveTitle": "Leave the TigerSquad?",
-  "squadLeaveDesc": "Leave and your perks stop right away — they only come back 30 days later, even if you rejoin tomorrow. The door stays open; the bouncer just has a good memory.",
-  "squadLeaveLostTitle": "What you lose for 30 days",
+  "squadLeaveDesc": "Your perks stop the moment you leave. Even if you come back sooner, they stay locked for 30 days.",
+  "squadLeaveLostTitle": "During these 30 days",
   "squadLost_coins": "TigerCoins",
   "squadLost_coinsSub": "Chests, envelopes, sending and gift codes on hold.",
   "squadLost_freeze": "Streak freezes",
-  "squadLost_freezeSub": "No freeze to save your streak, none to give.",
-  "squadLost_xp": "+150 XP",
-  "squadLost_xpSub": "The member bonus leaves your total.",
+  "squadLost_freezeSub": "Can't use or gift them.",
+  "squadLost_xp": "Member bonus",
+  "squadLost_xpSub": "The 150 XP bonus is removed.",
   "squadLost_badge": "Badge and level",
-  "squadLost_badgeSub": "Your level leaves your profile and the rankings.",
+  "squadLost_badgeSub": "Hidden on your profile and in the rankings.",
   "squadLost_space": "TigerSquad space",
-  "squadLost_spaceSub": "Rankings, items, deals and XP history closed.",
-  "squadLeaveKeep": "What you earned stays yours: TigerCoins, chip XP, trophies.",
-  "squadLeaveHold": "Hold to leave",
+  "squadLost_spaceSub": "Rankings, items, deals and XP history unavailable.",
+  "squadLeaveKeep": "You keep your TigerCoins, chip XP and trophies.",
+  "squadLeaveHold": "Hold 1.5 s to leave",
   "squadLeaveStay": "I'm staying",
-  "squadLockDesc": "You're back in the TigerSquad. Since you left recently, its perks resume on {{date}}. Patience — the squad isn't going anywhere.",
-  "squadLockProgress": "Day {{d}} of 30",
+  "squadLockDesc": "You're back in the Squad. The 30-day wait since you left doesn't change.",
+  "squadLockDateLbl": "Perks return on",
+  "squadLockProgress": {
+    "one": "{{n}} day gone",
+    "other": "{{n}} days gone"
+  },
+  "squadLockTotal": "{{n}} days",
   "squadLockOk": "Got it",
   "squadLockTitle": {
-    "one": "Your access is back in {{n}} day",
-    "other": "Your access is back in {{n}} days"
+    "one": "Your perks return in {{n}} day",
+    "other": "Your perks return in {{n}} days"
   },
+  "squadLockKicker": "Welcome back!",
   "squadFooter": "Together, we print further. 🐯",
   "squadMembers": {
     "one": "{{n}} member",
@@ -3067,6 +3076,7 @@
   "referralTitle": "Invite a friend",
   "referralTagline": "{{n}} envelopes each once their e-mail is confirmed.",
   "referralLinkTitle": "Your invite link",
+  "referralLinkTitleToo": "Invite in your turn",
   "referralShareText": "Join me on Tiger Studio — the free filament & printer manager. Sign up from my link and confirm your e-mail: we both get {{n}} envelopes.",
   "referralDiscordCopied": "Copied — paste it in your Discord server.",
   "referralQrDownload": "Download",
@@ -3088,7 +3098,6 @@
     "other": "Confirmed friends"
   },
   "referralCardHint": "Counted once they confirm their e-mail.",
-  "referralEnvsEach": "×{{n}} each",
   "referralStep1": "You share your link",
   "referralStep1Sub": "Or your code.",
   "referralStep2": "Your friend creates their account",
@@ -3111,9 +3120,16 @@
   "referralState_pending": "E-mail to confirm",
   "referralState_validated": "Reward received",
   "referralState_expired": "Expired",
-  "referralWhoTitle": "Who invited you?",
+  "referralWhoTitle": "A friend invited you?",
+  "referralCodeLabel": "Your friend's code",
+  "referralCodePh": "E.g. 4ZS-8AG",
+  "referralDaysLeft": {
+    "one": "{{n}} day left",
+    "other": "{{n}} days left"
+  },
+  "referralNoCode": "I don't have a code",
   "referralPaste": "Paste",
-  "referralClaim": "That's them",
+  "referralClaim": "Validate the code",
   "referralInvitedBy": "Invited by {{name}}",
   "referralVerifyHint": "Verify your e-mail to unlock both gifts.",
   "referralOnbLabel": "Who invited you? (optional)",
@@ -3138,8 +3154,5 @@
     "one": "{{n}} envelope is waiting for you.",
     "other": "{{n}} envelopes are waiting for you."
   },
-  "referralWhoSub": {
-    "one": "Type their friend code: you both get {{e}} envelopes. {{n}} day left to do it.",
-    "other": "Type their friend code: you both get {{e}} envelopes. {{n}} days left to do it."
-  }
+  "referralWhoSub": "Add their code: {{e}} envelopes each once you confirm your e-mail."
 }

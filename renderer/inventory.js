@@ -5350,12 +5350,12 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     _setBar($("vtgSquadItems"), Math.min(100, sGoal[0] / sGoal[1] * 100), t("squadGrimoireSub"));
     const sWrap = $("vtgSquad");
     if (sWrap) {
-      // A friend's view keeps the group with Rankings only, seen as the friend
-      // sees it; Items and History are about your own account.
+      // A friend's view keeps the group with Rankings and Trophies, seen as the friend
+      // sees them (their board, their sticker album); Items and History are about your own account.
       const hide = state.friendView ? false : (!own || typeof state.xpPoints !== "number");
       if ($("vtgSquadItems")) $("vtgSquadItems").hidden = !!state.friendView;
       if ($("vtgSquadHist")) $("vtgSquadHist").hidden = !!state.friendView;
-      if ($("vtgSquadTrophies")) $("vtgSquadTrophies").hidden = !!state.friendView;
+      if ($("vtgSquadTrophies")) $("vtgSquadTrophies").hidden = false;
       if ($("vtgSquadInvite")) $("vtgSquadInvite").hidden = !!state.friendView;
       if ($("vtgSquadDeals")) $("vtgSquadDeals").hidden = !!state.friendView;
       // Shown later than the rest of the bar (the XP arrives after sign-in): place its selection bubble then.
@@ -5546,14 +5546,14 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   function _openSquadLeaveWarning(input) {
     const lost = [["coins", "coins"], ["freeze", "snow"], ["xp", "star-fill"], ["badge", "shield-check"], ["space", "trophy"]];
     _openSquadNotice("squad-notice--leave", "sqnLeaveTitle", `
-        <span class="sqn-ico sqn-ico--leave"><span class="icon icon-lock"></span></span>
+        <img class="sqn-art" src="../assets/img/tigersquad/squad-notice/tiger-leave.webp" alt="" aria-hidden="true">
         <h2 class="tsq-title" id="sqnLeaveTitle">${esc(t("squadLeaveTitle"))}</h2>
         <p class="tsq-desc">${esc(t("squadLeaveDesc"))}</p>
         <section class="sqn-lost">
           <b class="sqn-lost-h">${esc(t("squadLeaveLostTitle"))}</b>
           <ul>${lost.map(([k, ic]) => `<li><span class="sqn-lost-ic"><span class="icon icon-${ic} icon-14"></span></span><span><b>${esc(t("squadLost_" + k))}</b><small>${esc(t("squadLost_" + k + "Sub"))}</small></span></li>`).join("")}</ul>
         </section>
-        <p class="sqn-keep"><span class="icon icon-check icon-12"></span>${esc(t("squadLeaveKeep"))}</p>
+        <p class="sqn-keep"><span class="sqn-keep-ic"><span class="icon icon-check icon-12"></span></span>${esc(t("squadLeaveKeep"))}</p>
         <button type="button" class="tsq-join sqn-stay sqn-focus" data-act="stay">${esc(t("squadLeaveStay"))}</button>
         <button type="button" class="sqn-leave" data-act="leave"><span class="hold-progress" aria-hidden="true"></span><span class="sqn-leave-txt">${esc(t("squadLeaveHold"))}</span></button>`,
     (card, close) => {
@@ -5569,16 +5569,21 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   function _openSquadLockInfo() {
     const days = _squadLockDays(); if (!days) return;
     if (document.querySelector(".squad-notice--lock")) return;
-    const date = new Intl.DateTimeFormat(state.lang || "en", { weekday: "long", day: "numeric", month: "long" }).format(state.squadLockedUntil);
+    const date = new Intl.DateTimeFormat(state.lang || "en", { day: "numeric", month: "long", year: "numeric" }).format(state.squadLockedUntil);
     const done = Math.min(SQUAD_LOCK_DAYS, Math.max(0, SQUAD_LOCK_DAYS - days));
     _openSquadNotice("squad-notice--lock", "sqnLockTitle", `
-        <span class="sqn-ico sqn-ico--lock"><span class="icon icon-clock"></span></span>
+        <img class="sqn-art" src="../assets/img/tigersquad/squad-notice/tiger-back.webp" alt="" aria-hidden="true">
+        <span class="sqn-kicker">${esc(t("squadLockKicker"))}</span>
         <h2 class="tsq-title" id="sqnLockTitle">${esc(t("squadLockTitle", { n: days }))}</h2>
-        <p class="tsq-desc">${esc(t("squadLockDesc", { date }))}</p>
-        <div class="sqn-bar" role="progressbar" aria-valuemin="0" aria-valuemax="${SQUAD_LOCK_DAYS}" aria-valuenow="${done}" aria-label="${esc(t("squadLockProgress", { d: done }))}">
-          <span style="--p:${(done / SQUAD_LOCK_DAYS * 100).toFixed(1)}%"></span>
-        </div>
-        <small class="sqn-bar-label">${esc(t("squadLockProgress", { d: done }))}</small>
+        <p class="tsq-desc">${esc(t("squadLockDesc"))}</p>
+        <section class="sqn-when">
+          <small>${esc(t("squadLockDateLbl"))}</small>
+          <b>${esc(date)}</b>
+          <div class="sqn-bar" role="progressbar" aria-valuemin="0" aria-valuemax="${SQUAD_LOCK_DAYS}" aria-valuenow="${done}" aria-label="${esc(t("squadLockProgress", { n: done }))}">
+            <span style="--p:${(done / SQUAD_LOCK_DAYS * 100).toFixed(1)}%"></span>
+          </div>
+          <span class="sqn-bar-label"><span>${esc(t("squadLockProgress", { n: done }))}</span><span>${esc(t("squadLockTotal", { n: SQUAD_LOCK_DAYS }))}</span></span>
+        </section>
         <button type="button" class="tsq-join sqn-focus" data-act="ok">${esc(t("squadLockOk"))}</button>`,
     (card, close) => card.querySelector('[data-act="ok"]').addEventListener("click", close));
   }
@@ -9786,7 +9791,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       for (const id of ["invTableWrap", "invGrid", "invRackView", "invPrinterView", "invProductsView", "invListsView", "invEmpty", "invCatalogView"]) $(id)?.classList.add("hidden");
       $("mainResult").innerHTML = "";
       if (state.viewMode === "xpHistory") _renderXpHistView();
-      else if (state.viewMode === "squadTrophies") renderTrophiesView($("invTrophiesView"));
+      else if (state.viewMode === "squadTrophies") renderTrophiesView($("invTrophiesView"), state.friendView ? { uid: state.friendView.uid, displayName: state.friendView.displayName } : null);
       else if (state.viewMode === "squadInvite") renderInviteView($("invInviteView"));
       else if (state.viewMode === "squadDeals") _renderDealsView();
       else if (state.viewMode === "squad" || state.viewMode === "squadItems") _renderSquadView();

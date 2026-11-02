@@ -14,7 +14,10 @@
  *   initTrophies({ t, esc, lang() → code, db(uid) → firestore, uid() → active uid | null,
  *                  onChange(), openView(), openCode(), downloaded(trophyId) })
  *   trophiesSignIn(uid) / trophiesSignOut()
- *   renderTrophiesView(host) · trophiesProgress() → { got, total } · trophyEarned(id)
+ *   renderTrophiesView(host, friend?) · trophiesProgress() → { got, total } · trophyEarned(id)
+ * With `friend` ({ uid, displayName }, a friend's view) the album shows THAT account's
+ * stickers, read once (Firestore lets an accepted friend read users/{uid}/trophies):
+ * the same album, read-only — no code button, no download.
  */
 import { sfx } from "./coin-sound.js";
 import { backfire, tilt } from "./coin-pull.js";
@@ -70,7 +73,7 @@ const ROWS = [
   ["envRecv50", "coins", "rare", "trophies/stickers/envRecv50.webp"],
   ["envRecv100", "coins", "epic", "trophies/stickers/envRecv100.webp"],
   ["tweet140", "coins", "rare", "trophies/stickers/tweet140.webp", true],
-  ["timeMaster", "squad", "epic", "tigercoins/xp-v2.webp", true],
+  ["timeMaster", "squad", "epic", "quests/xph-hero/hourglass.webp", true],
   ["stickerFan", "squad", "uncommon", "trophies/stickers/stickerFan.webp", true],
   ["stickerBook", "squad", "rare", "trophies/stickers/stickerBook.webp", true],
   ["curator", "squad", "epic", "trophies/stickers/curator.webp", true],
@@ -131,6 +134,12 @@ let _earned = new Map();          // id → { at (ms), event?, ctx? }
 let _events = new Map();          // eventId → trophyEvents doc
 let _stats = { at: 0, owners: {}, accounts: 0 };
 let _filter = "all", _loaded = false, _query = "", _family = "";
+// A friend's album being shown: { uid, name, earned (same shape as _earned), loaded, error, at }.
+let _friend = null;
+const FRIEND_TTL = 2 * 60e3;
+// The stickers of the album on screen: yours, or the friend's.
+const held = () => (_friend ? _friend.earned : _earned);
+const toEarned = docs => new Map(docs.map(d => [d.id, { at: ms(d.get("earnedAt")) || Date.now(), event: d.get("event") || null, ctx: d.get("ctx") || null }]));
 
 const ms = v => v?.toMillis ? v.toMillis() : v?.seconds ? v.seconds * 1000 : Number(v) || 0;
 const loc = (m, lang) => (m && typeof m === "object" ? m[lang] || m.en || Object.values(m)[0] || "" : String(m || ""));
@@ -146,7 +155,7 @@ export function trophiesSignIn(uid) {
   _uid = uid;
   const db = _ctx.db(uid);
   _unsub = db.collection("users").doc(uid).collection("trophies").onSnapshot(snap => {
-    _earned = new Map(snap.docs.map(d => [d.id, { at: ms(d.get("earnedAt")) || Date.now(), event: d.get("event") || null, ctx: d.get("ctx") || null }]));
+    _earned = toEarned(snap.docs);
     _loaded = true;
     celebrateNew(uid);
     _ctx.onChange?.();
@@ -161,7 +170,7 @@ export function trophiesSignIn(uid) {
 export function trophiesSignOut() {
   _queue = [];
   _unsub?.(); _unsub = null; _uid = null;
-  _earned = new Map(); _events = new Map(); _stats = { at: 0, owners: {}, accounts: 0 }; _loaded = false;
+  _earned = new Map(); _events = new Map(); _stats = { at: 0, owners: {}, accounts: 0 }; _loaded = false; _friend = null;
 }
 
 // The owners counters, read when the album opens (at most every STATS_TTL).
@@ -180,11 +189,11 @@ function loadStats() {
 }
 
 // Every trophy the album shows: the catalogue, then the events (newest first).
-function allTrophies() {
+function allTrophies(have = held()) {
   const evs = [..._events.entries()].map(([id, e]) => ({ id: `ev.${id}`, family: "events", tier: "event", art: e.art || ART + "trophies/cup.webp",
     name: e.name, desc: e.desc, year: Number(e.year) || 0, date: ms(e.date), active: e.active !== false }));
   // An event trophy held but whose card is gone still shows (its id as name).
-  for (const [id] of _earned) if (id.startsWith("ev.") && !_events.has(id.slice(3))) evs.push({ id, family: "events", tier: "event", art: ART + "trophies/cup.webp", name: id.slice(3), year: 0, date: 0 });
+  for (const [id] of have) if (id.startsWith("ev.") && !_events.has(id.slice(3))) evs.push({ id, family: "events", tier: "event", art: ART + "trophies/cup.webp", name: id.slice(3), year: 0, date: 0 });
   evs.sort((a, b) => b.date - a.date || b.year - a.year);
   return [...TROPHIES, ...evs];
 }
@@ -195,7 +204,7 @@ const descOf = x => x.family === "events" ? loc(x.desc, _ctx.lang()) : _ctx.t(`t
 export const trophyEarned = id => _earned.has(id);
 
 export function trophiesProgress() {
-  const all = allTrophies();
+  const all = allTrophies(_earned);
   return { got: all.filter(x => _earned.has(x.id)).length, total: all.length };
 }
 
@@ -210,7 +219,7 @@ const fmtDate = d => new Date(d).toLocaleDateString(_ctx.lang(), { day: "numeric
 
 function stickerHtml(x) {
   const { t, esc } = _ctx;
-  const got = _earned.get(x.id);
+  const got = held().get(x.id);
   const secret = !got && x.hidden;
   const missed = !got && x.family === "events" && !x.active;
   const name = secret ? t("trophyHidden") : nameOf(x);
@@ -240,17 +249,36 @@ const TROPHY_SCENE = heroLayersHtml(`${ART}trophies/banner/`, {
   front: ["rosette", "sticker-sheet", "cup", "album", { name: "sparkle", cls: "spark hl--spark1" }, { name: "sparkle", cls: "spark hl--spark2" }],
 });
 
-export function renderTrophiesView(host) {
+// A friend's stickers, read once and kept FRIEND_TTL (their album changes slowly).
+function loadFriend(friend) {
+  if (_friend?.uid === friend.uid && Date.now() - _friend.at < FRIEND_TTL) return;
+  const uid = _uid;
+  _friend = { uid: friend.uid, name: friend.displayName || "", earned: _friend?.uid === friend.uid ? _friend.earned : new Map(),
+    loaded: _friend?.uid === friend.uid && _friend.loaded, error: false, at: Date.now() };
+  _ctx.db(uid).collection("users").doc(friend.uid).collection("trophies").get().then(s => {
+    if (_uid !== uid || _friend?.uid !== friend.uid) return;
+    _friend.earned = toEarned(s.docs); _friend.loaded = true;
+    _ctx.onChange?.();
+  }).catch(() => {
+    if (_friend?.uid !== friend.uid) return;
+    _friend.loaded = true; _friend.error = true; _friend.at = 0;
+    _ctx.onChange?.();
+  });
+}
+
+export function renderTrophiesView(host, friend = null) {
   if (!_ctx || !host) return;
   const { t, esc } = _ctx;
   loadStats();
+  if (friend?.uid) loadFriend(friend); else _friend = null;
+  const mine = held(), loaded = _friend ? _friend.loaded : _loaded;
   const all = allTrophies();
-  const got = all.filter(x => _earned.has(x.id));
+  const got = all.filter(x => mine.has(x.id));
   // Signature guard (.agents/rules/surgical-dom-updates.md): snapshots repaint often.
-  const sig = JSON.stringify([_uid, _filter, _family, [..._earned.keys()], [..._events.keys()], _stats.at, _ctx.lang(), _loaded]);
+  const sig = JSON.stringify([_uid, _friend?.uid, _friend?.error, _filter, _family, [...mine.keys()], [..._events.keys()], _stats.at, _ctx.lang(), loaded]);
   if (host._trpSig === sig && host.childElementCount) return;
   host._trpSig = sig;
-  const keep = x => (!_family || x.family === _family) && (_filter === "all" || (_filter === "got" ? _earned.has(x.id) : !_earned.has(x.id)));
+  const keep = x => (!_family || x.family === _family) && (_filter === "all" || (_filter === "got" ? mine.has(x.id) : !mine.has(x.id)));
   // One album, every sticker together (catalogue order, then the events); the family shows
   // only in the card a sticker opens (founder, 2026-11-01).
   const album = `<div class="trp-grid">${all.filter(keep).map(stickerHtml).join("")}</div>`;
@@ -267,7 +295,9 @@ export function renderTrophiesView(host) {
   // Squad title block, a scene of layers on the desk, the count card on the right.
   // Laid out like the Deals view: the blocks straight in the host (.sqd-view: column, 14 px gaps).
   host.innerHTML = `
-    ${heroHtml(esc, { cls: "sqr-hero trp-hero", eyebrow: t("squadBrand"), title: t("trophiesTitle"), sub: t("trophiesTagline"), scene: TROPHY_SCENE,
+    ${heroHtml(esc, { cls: "sqr-hero trp-hero", eyebrow: t("squadBrand"),
+      title: _friend ? t("trophiesFriendTitle", { name: _friend.name }) : t("trophiesTitle"),
+      sub: _friend ? t("trophiesFriendTagline", { name: _friend.name }) : t("trophiesTagline"), scene: TROPHY_SCENE,
       side: `<ul class="trp-tiers trp-hero-tiers" aria-label="${esc(t("trophyByTier"))}">${tiers}</ul>
       <div class="sqr-card trp-hero-card" role="group" aria-label="${esc(t("trophyCount", { n: got.length, total: all.length }))}">
         <b class="trp-hero-n">${got.length}<small>/ ${all.length}</small></b>
@@ -277,8 +307,9 @@ export function renderTrophiesView(host) {
       tabs: [filter("all"), filter("got", got.length), filter("locked", all.length - got.length)],
       search: { attr: "data-trp-q", value: _query, placeholder: t("trophySearch"), cls: "trp-search" },
       extra: selectHtml(esc, { attr: "data-trp-family", label: t("trophyFamilyAll"), value: _family,
-        options: [{ value: "", label: t("trophyFamilyAll") }, ...[...TROPHY_FAMILIES, "events"].map(f => ({ value: f, label: t(`trophyFamily_${f}`) }))] }) + `<button type="button" class="sqd-tab trp-code" data-trp-code><span class="icon icon-gift icon-14" aria-hidden="true"></span>${esc(t("trophyHaveCode"))}</button>` })}
-    ${_loaded ? album : `<div class="trp-loading">${esc(t("questsLoading"))}</div>`}
+        options: [{ value: "", label: t("trophyFamilyAll") }, ...[...TROPHY_FAMILIES, "events"].map(f => ({ value: f, label: t(`trophyFamily_${f}`) }))] })
+        + (_friend ? "" : `<button type="button" class="sqd-tab trp-code" data-trp-code><span class="icon icon-gift icon-14" aria-hidden="true"></span>${esc(t("trophyHaveCode"))}</button>`) })}
+    ${_friend?.error ? `<p class="trp-loading">${esc(t("trophiesFriendLocked", { name: _friend.name }))}</p>` : loaded ? album : `<div class="trp-loading">${esc(t("questsLoading"))}</div>`}
     <p class="trp-nomatch" hidden>${esc(t("trophyNoMatch"))}</p>`;
   // The search filters in place (no repaint: the field keeps its focus).
   const field = host.querySelector("[data-trp-q]");
@@ -296,7 +327,7 @@ function applySearch(host) {
   let shown = 0;
   host.querySelectorAll(".trp-st").forEach(b => { const ok = words.every(w => b.dataset.q.includes(w)); b.hidden = !ok; shown += ok; });
   const none = host.querySelector(".trp-nomatch");
-  if (none) none.hidden = !(_loaded && words.length && !shown);
+  if (none) none.hidden = !((_friend ? _friend.loaded : _loaded) && words.length && !shown);
 }
 
 // A url() inside a custom property resolves against the stylesheet that uses it
@@ -307,7 +338,7 @@ const artUrl = src => { try { return new URL(src, document.baseURI).href; } catc
 function openTrophyCard(id) {
   const x = allTrophies().find(y => y.id === id);
   // Only an earned sticker opens: one still to win stays a silhouette in the album.
-  const got = x && _earned.get(id);
+  const got = x && held().get(id);
   if (!got) return;
   const { t, esc } = _ctx;
   const p = pct(id);
@@ -327,11 +358,11 @@ function openTrophyCard(id) {
       <span class="trp-card-art"><span class="trp-tilt"><img src="${esc(x.art)}" alt="" draggable="false"><span class="trp-gloss" style="--art:url('${esc(artUrl(x.art))}')"></span></span></span>
       <p class="trp-sticker-desc">${esc(descOf(x))}</p>
       <p class="trp-card-meta">${esc(t("trophyEarnedOn", { date: fmtDate(got.at) }))}${how ? ` · ${esc(how)}` : ""}${p ? ` · ${esc(t("trophyOwnedPct", { p }))}` : ""}</p>
-      <div class="tc-reveal-actions"><button type="button" class="sqd-open sqd-wide qfm-go" data-trp-save><span class="qfm-go-txt"><span>${esc(t("trophyDownload"))}</span></span></button></div>
+      ${_friend ? "" : `<div class="tc-reveal-actions"><button type="button" class="sqd-open sqd-wide qfm-go" data-trp-save><span class="qfm-go-txt"><span>${esc(t("trophyDownload"))}</span></span></button></div>`}
     </div>
   </div>`;
   document.body.appendChild(el);
-  el.querySelector("[data-trp-save]").addEventListener("click", () => downloadSticker(x));
+  el.querySelector("[data-trp-save]")?.addEventListener("click", () => downloadSticker(x));   // your own stickers only
   requestAnimationFrame(() => el.classList.add("is-open"));
   // An earned sticker opens as a moment: its art swells behind the window (a click
   // outside or Escape closes it).
@@ -381,11 +412,14 @@ function celebrateNew(uid) {
   if (!fresh.length) return;
   fresh.forEach(id => seen.add(id));
   writeSeen(uid, seen);
-  const all = allTrophies();
+  const all = allTrophies(_earned);
   _queue.push(...fresh.map(id => all.find(y => y.id === id) || BY_ID.get(id)).filter(Boolean));
   if (!document.querySelector(".trp-unlock")) nextUnlock();
 }
 function nextUnlock() { const x = _queue.shift(); if (x) overlay(x); }
+// The unlock plays out before anything closes it: clicks, Escape and the button wait for the
+// sticker's slap and the first wave behind the window, however fast the user clicks around.
+const UNLOCK_LOCK_MS = 2200;
 
 function overlay(x) {
   const { t, esc } = _ctx;
@@ -407,7 +441,13 @@ function overlay(x) {
   const step = TIER_STEP[x.tier] || 0;
   if (step >= 2) sfx.impact?.(step); else sfx.stamp?.();
   // Closed: the next trophy of the queue, if any.
+  const locked = () => el.classList.contains("is-locked");
+  if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    el.classList.add("is-locked");
+    setTimeout(() => el.classList.remove("is-locked"), UNLOCK_LOCK_MS);
+  }
   const close = (then = nextUnlock) => {
+    if (locked()) return;
     el.classList.remove("is-open"); document.removeEventListener("keydown", onKey, true);
     setTimeout(() => { el.remove(); then(); }, 250);
   };
@@ -415,5 +455,5 @@ function overlay(x) {
   document.addEventListener("keydown", onKey, true);
   el.addEventListener("mousedown", e => { if (e.target === el) close(); });
   // "See my trophies": the album, where the rest of the queue is on show anyway.
-  el.querySelector(".trp-unlock-go").addEventListener("click", () => { _queue = []; close(() => {}); _ctx.openView?.(); });
+  el.querySelector(".trp-unlock-go").addEventListener("click", () => { if (locked()) return; _queue = []; close(() => {}); _ctx.openView?.(); });
 }

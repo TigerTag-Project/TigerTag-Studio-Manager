@@ -1,20 +1,28 @@
 /* Referrals (quests/referrals.js, docs/REFERRALS.md) — the Invite view, the
    "Who invited you?" field, the ceremony. Built from the Tiger Squad pieces:
    the banner (.sqr-hero), the list's share card (.lv-public-card, .lv-social),
-   the add-friend code segments (.adf-seg), the full-set window (.qfs). */
+   the friend-code field, the full-set window (.qfs). */
 
-/* Banner: the Deals frame, no scene yet (its art is still to be validated). */
-.sqr-hero.rf-hero { --hero-scene: none; --hero-front: none; --hero-sink: 4px; }
+/* Banner: the Deals frame and its layered scene (referrals.js INVITE_SCENE, a 3.6 : 1 box):
+   envelopes, the giving tiger (behind the desk), the spool, the receiving tiger, the printed
+   tiger, envelopes — assets/img/tigersquad/invite-hero/. */
+.sqr-hero.rf-hero.rf-hero { --hero-scene: none; --hero-front: none; --hero-sink: 4px;
+  --hero-art-w: 600px; --hero-art-ratio: 1; --hero-scene-w: 440px; --hl-ratio: 3.6; }
+.rf-hero .hl--tiger-give { left: 12%; height: 88%; bottom: 6%; translate: 0 6px; }
+.rf-hero .hl--tiger-take { left: 54%; height: 90%; bottom: 6%; translate: 0 6px; }
+.rf-hero .hl--spool { left: 43%; height: 38%; }
+.rf-hero .hl--figurine { left: 79%; height: 27%; }
+/* Three envelopes in a small fan: a 2 : 1 box, each envelope a square at 0 / 25 / 50 %. */
+.rf-hero .hl--envs { height: 26%; aspect-ratio: 2; }
+.rf-hero .hl--envs img { position: absolute; bottom: 0; height: 100%; width: auto; aspect-ratio: 1; object-fit: contain; }
+.rf-hero .hl--envs img:nth-child(1) { left: 0; rotate: -10deg; } .rf-hero .hl--envs img:nth-child(2) { left: 25%; } .rf-hero .hl--envs img:nth-child(3) { left: 50%; rotate: 10deg; }
+.rf-hero .hl--envs-a { left: 0; } .rf-hero .hl--envs-b { left: 87%; }
+@media (prefers-reduced-motion: no-preference) { .rf-hero .hl--figurine { animation: hl-rock 4s ease-in-out infinite; } }
 .sqr-card.rf-hero-card { display: flex; flex-direction: column; align-items: stretch; gap: 6px; min-width: 170px; padding: 10px 14px; color: var(--on-dark); }
 .rf-hero-lbl { display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; color: var(--on-dark); }
 .rf-hero-lbl .ui-info .icon { background-color: var(--on-dark); opacity: .7; }
 .rf-hero-card small { color: var(--on-dark); opacity: .75; }
 .rf-hero-card .sqr-bar i { display: block; height: 100%; background: var(--tsq-orange); }
-/* The reward as objects, before the card: the envelopes in a small fan + "×3 each". */
-.rf-hero-envs { position: relative; z-index: 1; align-self: center; display: flex; align-items: center; margin: 0 auto; padding: 0 14px; }
-.rf-hero-envs img { width: 54px; aspect-ratio: 1; object-fit: contain; margin-left: -22px; filter: drop-shadow(0 6px 10px rgba(0, 0, 0, .45)); }
-.rf-hero-envs img:nth-child(1) { rotate: -12deg; margin-left: 0; } .rf-hero-envs img:nth-child(3) { rotate: 12deg; }
-.rf-hero-envs b { margin-left: 10px; font: 800 18px var(--qw-mono, monospace); color: var(--on-dark); text-shadow: 0 1px 2px rgba(0, 0, 0, .55); white-space: nowrap; }
 
 .rf-card { border: 1px solid var(--tsq-line); border-radius: 14px; background: var(--tsq-card); padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
 .rf-card h3 { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 15px; color: var(--tsq-text); }
@@ -64,6 +72,9 @@
 .rf-qr-acts { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .rf-qr-dl--soft.rf-qr-dl--soft { color: var(--tsq-muted); font-weight: 500; }
 .rf-qr-dl--soft .icon { background-color: var(--tsq-muted); }
+.rf-qr-win .qfs-card { position: relative; }
+.rf-qr-x.modal-close { position: absolute; top: 12px; right: 12px; z-index: 2; display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 50%; background: color-mix(in srgb, var(--surface) 70%, transparent); cursor: pointer; }
+.rf-qr-x .icon { background-color: var(--on-dark); }
 .rf-qr-xl.rf-qr-xl { width: min(340px, 70vw); height: auto; aspect-ratio: 1; margin: 12px auto 4px; display: block; }
 .rf-qr small { font-size: 11px; color: var(--tsq-muted); }
 .rf-qr-dl.rf-qr-dl { height: auto; display: inline-flex; align-items: center; gap: 5px; padding: 0; border: 0; background: none; color: var(--tsq-orange); font-size: 12px; font-weight: 600; cursor: pointer; }
@@ -76,16 +87,39 @@
 .icon-telegram { -webkit-mask-image: url('../../assets/svg/logos/logo_telegram.svg'); mask-image: url('../../assets/svg/logos/logo_telegram.svg'); }
 .icon-bluesky  { -webkit-mask-image: url('../../assets/svg/logos/logo_bluesky.svg');  mask-image: url('../../assets/svg/logos/logo_bluesky.svg'); }
 
-/* The code field: the add-friend segments + Paste, then the owner's preview. */
-.rf-code.adf-code-group { justify-content: flex-start; }
-.rf-paste.rf-paste { flex: 0 0 auto; width: auto; margin-left: 6px; }
+/* The code field: one dark input with Paste inside it, then the owner's preview. */
+.rf-code-lbl { font-size: 12px; font-weight: 700; color: var(--tsq-muted); }
+.rf-code { position: relative; display: flex; align-items: center; }
+.rf-code .rf-code-in.dns-input { flex: 1 1 auto; min-width: 0; padding-right: 96px; font: 700 15px var(--qw-mono, monospace); letter-spacing: 2px; text-transform: uppercase; }
+.rf-code .rf-code-in::placeholder { font-weight: 500; letter-spacing: 1px; text-transform: none; }
+.rf-paste.rf-paste { position: absolute; right: 5px; top: 50%; translate: 0 -50%; height: auto; display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border: 0; border-left: 1px solid var(--tsq-line); border-radius: 0 8px 8px 0; background: none; color: var(--tsq-text); font-size: 13px; font-weight: 600; cursor: pointer; }
+.rf-paste .icon { background-color: currentColor; }
+.rf-paste:hover { color: var(--tsq-orange); }
 .rf-preview { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--tsq-text, var(--text)); }
 .rf-preview[hidden] { display: none; }
 .rf-err { margin: 0; min-height: 1em; font-size: 12px; color: var(--danger); }
-.rf-claim-go.rf-claim-go { align-self: flex-start; }
+/* "A friend invited you?": icon, title + rule, the days left as a pill; then field, Validate, "I have no code". */
+.rf-claim-head { display: flex; align-items: center; gap: 12px; }
+.rf-claim-ic { flex: 0 0 auto; width: 34px; aspect-ratio: 1; border-radius: 10px; display: grid; place-items: center; background: color-mix(in srgb, var(--tsq-orange) 18%, transparent); }
+.rf-claim-ic .icon { background-color: var(--tsq-orange); }
+.rf-claim-title { font-size: 15px; }
+.rf-days { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 5px; margin-left: auto; padding: 3px 10px; border: 1px solid var(--tsq-line); border-radius: 999px; font-size: 12px; font-weight: 600; color: var(--tsq-muted); white-space: nowrap; }
+.rf-days .icon { background-color: currentColor; }
+.rf-claim-row { display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap; }
+.rf-claim-field { flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.rf-claim-go.sqd-open { height: auto; margin-top: 23px; padding: 9px 18px; font-size: 13.5px; white-space: nowrap; }
+.rf-claim-go.sqd-open:disabled { opacity: .45; cursor: default; filter: grayscale(.6); }
+.rf-nocode.rf-nocode { height: auto; margin-top: 32px; padding: 0; border: 0; background: none; color: var(--tsq-muted); font-size: 12.5px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; white-space: nowrap; }
+.rf-nocode:hover { color: var(--tsq-text); }
+/* Folded: one line that opens it again. */
+.rf-card.rf-claim-fold { flex-direction: row; align-items: center; gap: 8px; width: 100%; font: inherit; font-size: 14px; font-weight: 700; color: var(--tsq-text); text-align: left; cursor: pointer; }
+.rf-claim-fold > .icon { background-color: var(--tsq-orange); }
+.rf-claim-fold:hover { border-color: var(--tsq-orange); }
 
 /* Invitees: avatar, name + date, state pill. */
-.rf-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.rf-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.rf-list .rf-row { padding: 9px 0; border-top: 1px solid var(--tsq-line); }
+.rf-list .rf-row:last-child { padding-bottom: 0; }
 .rf-row, .rf-mine.rf-card { display: flex; flex-direction: row; align-items: center; gap: 10px; }
 .rf-row-txt { flex: 1 1 auto; min-width: 0; display: grid; }
 .rf-row-txt b { font-size: 14px; color: var(--tsq-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -110,7 +144,7 @@
   .rf-win.is-open .rf-win-envs img:nth-child(2) { animation-delay: .12s; }
   .rf-win.is-open .rf-win-envs img:nth-child(3) { animation-delay: .24s; }
 }
-@media (max-width: 760px) { .rf-steps { grid-template-columns: 1fr; } .rf-card.rf-share { flex-direction: column; } .rf-qr { border-left: 0; padding-left: 0; border-top: 1px solid var(--tsq-line); padding-top: 12px; flex-basis: auto; } .rf-hero-envs { display: none; } }
+@media (max-width: 760px) { .rf-steps { grid-template-columns: 1fr; } .rf-card.rf-share { flex-direction: column; } .rf-qr { border-left: 0; padding-left: 0; border-top: 1px solid var(--tsq-line); padding-top: 12px; flex-basis: auto; } }
 
 /* Entry points elsewhere: the sidebar friends list's last chip, the empty friends list. */
 .sb-friend-invite-ic.sb-friend-invite-ic { display: grid; place-items: center; background: transparent; border: 1.5px dashed var(--border); }

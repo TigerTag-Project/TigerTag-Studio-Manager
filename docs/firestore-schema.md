@@ -355,8 +355,8 @@ users/
           {deviceId}/         — LAN dev_access_code + future per-device secrets
 
     trophies/
-      {trophyId}/             — a trophy earned, kept for good (docs/TROPHIES.md): owner read,
-                              created by the server only (functions/trophies.js; an event
+      {trophyId}/             — a trophy earned, kept for good (docs/TROPHIES.md): read by the
+                              owner and accepted friends (a friend's album), created by the server only (functions/trophies.js; an event
                               trophy `ev.<eventId>` by tigerCoins.js redeem)
         earnedAt    timestamp
         source      string    — what earned it ("state", "open", "repair", "code"…)

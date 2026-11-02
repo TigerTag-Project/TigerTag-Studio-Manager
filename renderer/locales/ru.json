@@ -126,6 +126,9 @@
   "questsRarity_common": "Обычный",
   "trophiesTitle": "Трофеи",
   "trophiesTagline": "Моменты, достойные стикера. Собери все.",
+  "trophiesFriendTitle": "Трофеи {{name}}",
+  "trophiesFriendTagline": "Все стикеры, которые {{name}} вклеил(а) в альбом. Какого не хватает тебе?",
+  "trophiesFriendLocked": "Альбом {{name}} сейчас не открывается.",
   "trophyHaveCode": "Есть код?",
   "trophySearch": "Найти трофей…",
   "trophyNoMatch": "Подходящих трофеев нет. Пока.",
@@ -2540,28 +2543,34 @@
   "squadReassureNoPay": "Оплата не нужна",
   "squadLaterCta": "Может, позже",
   "squadLeaveTitle": "Покинуть TigerSquad?",
-  "squadLeaveDesc": "Если уйдёшь, бонусы пропадут сразу и вернутся только через 30 дней, даже если вернёшься завтра. Дверь открыта, просто у вышибалы хорошая память.",
-  "squadLeaveLostTitle": "Что ты теряешь на 30 дней",
+  "squadLeaveDesc": "Твои привилегии отключаются сразу. Даже если вернёшься раньше, они будут заблокированы 30 дней.",
+  "squadLeaveLostTitle": "В эти 30 дней",
   "squadLost_coins": "TigerCoins",
   "squadLost_coinsSub": "Сундуки, конверты, переводы и подарочные коды на паузе.",
   "squadLost_freeze": "Заморозки серии",
-  "squadLost_freezeSub": "Нет заморозок, чтобы спасти серию, и нечего дарить.",
-  "squadLost_xp": "+150 XP",
-  "squadLost_xpSub": "Бонус участника уходит из твоего счёта.",
+  "squadLost_freezeSub": "Нельзя использовать и дарить.",
+  "squadLost_xp": "Бонус участника",
+  "squadLost_xpSub": "Бонус 150 XP снимается.",
   "squadLost_badge": "Значок и уровень",
-  "squadLost_badgeSub": "Твой уровень пропадает из профиля и рейтингов.",
+  "squadLost_badgeSub": "Скрыты в профиле и рейтингах.",
   "squadLost_space": "Раздел TigerSquad",
-  "squadLost_spaceSub": "Рейтинги, предметы, предложения и история XP закрыты.",
-  "squadLeaveKeep": "Заработанное остаётся твоим: TigerCoins, XP за чипы, трофеи.",
-  "squadLeaveHold": "Удерживай, чтобы выйти",
+  "squadLost_spaceSub": "Рейтинги, предметы, скидки и история XP недоступны.",
+  "squadLeaveKeep": "TigerCoins, XP за чипы и трофеи остаются у тебя.",
+  "squadLeaveHold": "Удерживай 1,5 с, чтобы выйти",
   "squadLeaveStay": "Я остаюсь",
-  "squadLockDesc": "Ты снова в TigerSquad. Так как ты недавно ушёл, бонусы вернутся {{date}}. Терпение — Squad никуда не денется.",
-  "squadLockProgress": "День {{d}} из 30",
+  "squadLockDesc": "Ты снова в Squad. Срок 30 дней с момента ухода не меняется.",
+  "squadLockDateLbl": "Привилегии вернутся",
+  "squadLockProgress": {
+    "one": "Прошло дней: {{n}}",
+    "other": "Прошло дней: {{n}}"
+  },
+  "squadLockTotal": "{{n}} дней",
   "squadLockOk": "Понятно",
   "squadLockTitle": {
-    "one": "Доступ вернётся через {{n}} день",
-    "other": "Доступ вернётся через {{n}} дн."
+    "one": "Привилегии вернутся через {{n}} дн.",
+    "other": "Привилегии вернутся через {{n}} дн."
   },
+  "squadLockKicker": "С возвращением!",
   "squadFooter": "Вместе печатаем дальше. 🐯",
   "squadMembers": {
     "one": "{{n}} участник",
@@ -3087,6 +3096,7 @@
   "referralTitle": "Пригласи друга",
   "referralTagline": "По {{n}} конверта после подтверждения e-mail.",
   "referralLinkTitle": "Твоя ссылка-приглашение",
+  "referralLinkTitleToo": "Пригласи и ты",
   "referralShareText": "Присоединяйся к Tiger Studio — бесплатный менеджер филамента и принтеров. Зарегистрируйся по моей ссылке и подтверди e-mail: мы оба получим {{n}} конверта.",
   "referralDiscordCopied": "Скопировано — вставь на свой сервер Discord.",
   "referralQrDownload": "Скачать",
@@ -3108,7 +3118,6 @@
     "other": "Подтверждённые друзья"
   },
   "referralCardHint": "Засчитываются после подтверждения e-mail.",
-  "referralEnvsEach": "×{{n}} каждому",
   "referralStep1": "Ты делишься ссылкой",
   "referralStep1Sub": "Или кодом.",
   "referralStep2": "Друг создаёт аккаунт",
@@ -3131,9 +3140,16 @@
   "referralState_pending": "Ждём подтверждения e-mail",
   "referralState_validated": "Награда получена",
   "referralState_expired": "Истёк",
-  "referralWhoTitle": "Кто тебя пригласил?",
+  "referralWhoTitle": "Тебя пригласил друг?",
+  "referralCodeLabel": "Код друга",
+  "referralCodePh": "Напр. 4ZS-8AG",
+  "referralDaysLeft": {
+    "one": "Осталось дней: {{n}}",
+    "other": "Осталось дней: {{n}}"
+  },
+  "referralNoCode": "У меня нет кода",
   "referralPaste": "Вставить",
-  "referralClaim": "Подтвердить",
+  "referralClaim": "Подтвердить код",
   "referralInvitedBy": "Пригласил(а) {{name}}",
   "referralVerifyHint": "Подтверди e-mail, чтобы открыть оба подарка.",
   "referralOnbLabel": "Кто тебя пригласил? (необязательно)",
@@ -3158,8 +3174,5 @@
     "one": "Тебя ждёт конвертов: {{n}}.",
     "other": "Тебя ждёт конвертов: {{n}}."
   },
-  "referralWhoSub": {
-    "one": "Введи код друга: вы оба получите {{e}} конверта. Осталось дней: {{n}}.",
-    "other": "Введи код друга: вы оба получите {{e}} конверта. Осталось дней: {{n}}."
-  }
+  "referralWhoSub": "Добавь код: по {{e}} конверта каждому после подтверждения e-mail."
 }

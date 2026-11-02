@@ -787,24 +787,24 @@
    confirm) and back within the wait (days left). _openSquadNotice. */
 .squad-notice { width: min(460px, calc(100vw - 32px)); }
 .squad-notice .tsq-scroll { gap: 14px; padding-top: 30px; }
-.sqn-ico { align-self: center; width: 64px; aspect-ratio: 1; border-radius: 20px; display: grid; place-items: center;
-  background: color-mix(in srgb, var(--acc) 16%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--acc) 40%, transparent); }
-.sqn-ico .icon { width: 28px; height: 28px; background: var(--acc); }
-.sqn-ico--leave { --acc: #FF6B6B; }
-.sqn-ico--lock { --acc: #8FD3FF; }
+/* The tiger on top (assets/img/tigersquad/squad-notice/): leaving, or back with the calendar. */
+.sqn-art { align-self: center; height: 118px; width: auto; aspect-ratio: auto; margin: -10px 0 -10px; }
 .squad-notice .tsq-title { font-size: 23px; }
 .squad-notice .tsq-desc { margin-top: -6px; }
 .sqn-lost { padding: 12px 14px; border-radius: 12px; text-align: left; background: var(--tsq-bg2); border: 1px solid var(--tsq-line); }
 .sqn-lost-h { display: block; margin-bottom: 8px; font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #FF8A8A; }
-.sqn-lost ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.sqn-lost li { display: flex; align-items: center; gap: 10px; }
+.sqn-lost ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.sqn-lost li { display: flex; align-items: center; gap: 10px; padding: 7px 0; }
+.sqn-lost li + li { border-top: 1px solid var(--tsq-line); }
 .sqn-lost-ic { flex-shrink: 0; width: 30px; aspect-ratio: 1; border-radius: 9px; display: grid; place-items: center; background: rgba(255, 107, 107, .12); }
 .sqn-lost-ic .icon { background: #FF8A8A; }
 .sqn-lost li > span:last-child { display: flex; flex-direction: column; min-width: 0; }
-.sqn-lost li b { font-size: 13px; color: var(--tsq-text); text-decoration: line-through; text-decoration-color: rgba(255, 107, 107, .7); }
+.sqn-lost li b { font-size: 13px; color: var(--tsq-text); }
 .sqn-lost li small { font-size: 11.5px; line-height: 1.35; color: var(--tsq-muted); }
-.sqn-keep { margin: -2px 0 0; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 12px; color: #B7C1D1; }
-.sqn-keep .icon { flex-shrink: 0; background: #22C55E; }
+/* What stays: its own small card, a green tick in a disc. */
+.sqn-keep { margin: -4px 0 0; display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 12px; border: 1px solid var(--tsq-line); background: var(--tsq-bg2); text-align: left; font-size: 12.5px; color: var(--tsq-text); }
+.sqn-keep-ic { flex-shrink: 0; width: 24px; aspect-ratio: 1; border-radius: 7px; display: grid; place-items: center; background: color-mix(in srgb, var(--success) 16%, transparent); }
+.sqn-keep .icon { background: #22C55E; }
 .sqn-leave { position: relative; overflow: hidden; width: 100%; height: 42px; border-radius: 10px; border: 1px solid rgba(255, 107, 107, .45);
   background: transparent; color: #FF8A8A; font-family: inherit; font-size: 13.5px; font-weight: 700; cursor: pointer; transition: background .16s; }
 .sqn-leave:hover { background: rgba(255, 107, 107, .08); }
@@ -813,7 +813,13 @@
 .squad-notice .sqn-stay { margin-top: 2px; }
 .sqn-bar { height: 10px; border-radius: 5px; overflow: hidden; background: var(--tsq-bg2); box-shadow: inset 0 0 0 1px var(--tsq-line); }
 .sqn-bar span { display: block; width: var(--p); height: 100%; border-radius: inherit; background: linear-gradient(90deg, #5AB8F0, #8FD3FF); transition: width .4s ease-out; }
-.sqn-bar-label { margin-top: -8px; font-size: 12px; color: var(--tsq-muted); }
+.sqn-bar-label { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; color: var(--tsq-muted); }
+/* Back within the wait: a kicker over the title, the return date in its own card above the bar. */
+.squad-notice .tsq-title { text-wrap: balance; }
+.sqn-kicker { margin-bottom: -14px; font-size: 14px; font-weight: 600; color: var(--tsq-muted); }
+.sqn-when { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border-radius: 12px; text-align: left; background: var(--tsq-bg2); border: 1px solid var(--tsq-line); }
+.sqn-when > small { font-size: 12px; color: var(--tsq-muted); }
+.sqn-when > b { margin-top: -6px; font-size: 20px; color: var(--tsq-text); }
 
 @media (max-width: 560px) {
   .tsq-perks { grid-template-columns: 1fr; }

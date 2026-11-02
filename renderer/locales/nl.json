@@ -124,6 +124,9 @@
   "questsRarity_common": "Gewoon",
   "trophiesTitle": "Trofeeën",
   "trophiesTagline": "Momenten die een sticker waard zijn. Verzamel ze allemaal.",
+  "trophiesFriendTitle": "Trofeeën van {{name}}",
+  "trophiesFriendTagline": "Alle stickers die {{name}} in het album plakte. Mis jij er een?",
+  "trophiesFriendLocked": "Het album van {{name}} gaat nu niet open.",
   "trophyHaveCode": "Een code?",
   "trophySearch": "Zoek een trofee…",
   "trophyNoMatch": "Geen trofee gevonden. Nog niet.",
@@ -2530,28 +2533,34 @@
   "squadReassureNoPay": "Geen betaling nodig",
   "squadLaterCta": "Misschien later",
   "squadLeaveTitle": "De TigerSquad verlaten?",
-  "squadLeaveDesc": "Vertrek je, dan stoppen je voordelen meteen en komen ze pas 30 dagen later terug, ook als je morgen weer meedoet. De deur blijft open, de uitsmijter heeft alleen een goed geheugen.",
-  "squadLeaveLostTitle": "Wat je 30 dagen kwijt bent",
+  "squadLeaveDesc": "Je voordelen stoppen meteen. Ook als je eerder terugkomt, blijven ze 30 dagen geblokkeerd.",
+  "squadLeaveLostTitle": "Tijdens deze 30 dagen",
   "squadLost_coins": "TigerCoins",
   "squadLost_coinsSub": "Kisten, enveloppen, versturen en cadeaucodes op pauze.",
   "squadLost_freeze": "Reeksbevriezers",
-  "squadLost_freezeSub": "Geen bevriezer om je reeks te redden, en geen om weg te geven.",
-  "squadLost_xp": "+150 XP",
-  "squadLost_xpSub": "De ledenbonus verdwijnt uit je totaal.",
+  "squadLost_freezeSub": "Niet gebruiken of weggeven.",
+  "squadLost_xp": "Ledenbonus",
+  "squadLost_xpSub": "De bonus van 150 XP vervalt.",
   "squadLost_badge": "Badge en niveau",
-  "squadLost_badgeSub": "Je niveau verdwijnt uit je profiel en de ranglijsten.",
+  "squadLost_badgeSub": "Verborgen op je profiel en in de ranglijsten.",
   "squadLost_space": "TigerSquad-ruimte",
-  "squadLost_spaceSub": "Ranglijsten, items, deals en XP-geschiedenis dicht.",
-  "squadLeaveKeep": "Wat je verdiende blijft van jou: TigerCoins, chip-XP, trofeeën.",
-  "squadLeaveHold": "Ingedrukt houden om te vertrekken",
+  "squadLost_spaceSub": "Ranglijsten, items, deals en XP-geschiedenis niet beschikbaar.",
+  "squadLeaveKeep": "Je houdt je TigerCoins, chip-XP en trofeeën.",
+  "squadLeaveHold": "Houd 1,5 s vast om te vertrekken",
   "squadLeaveStay": "Ik blijf",
-  "squadLockDesc": "Je zit weer in de TigerSquad. Omdat je pas vertrok, gaan de voordelen weer in op {{date}}. Geduld, de Squad loopt niet weg.",
-  "squadLockProgress": "Dag {{d}} van 30",
+  "squadLockDesc": "Je bent terug in de Squad. De 30 dagen sinds je vertrek blijven gelden.",
+  "squadLockDateLbl": "Voordelen terug op",
+  "squadLockProgress": {
+    "one": "{{n}} dag voorbij",
+    "other": "{{n}} dagen voorbij"
+  },
+  "squadLockTotal": "{{n}} dagen",
   "squadLockOk": "Begrepen",
   "squadLockTitle": {
-    "one": "Je toegang komt terug over {{n}} dag",
-    "other": "Je toegang komt terug over {{n}} dagen"
+    "one": "Je voordelen komen terug over {{n}} dag",
+    "other": "Je voordelen komen terug over {{n}} dagen"
   },
+  "squadLockKicker": "Welkom terug!",
   "squadFooter": "Samen printen we verder. 🐯",
   "squadMembers": {
     "one": "{{n}} lid",
@@ -3067,6 +3076,7 @@
   "referralTitle": "Nodig een vriend uit",
   "referralTagline": "{{n}} enveloppen elk zodra het e-mailadres bevestigd is.",
   "referralLinkTitle": "Je uitnodigingslink",
+  "referralLinkTitleToo": "Nodig zelf uit",
   "referralShareText": "Kom erbij op Tiger Studio — gratis filament- en printerbeheer. Schrijf je in via mijn link en bevestig je e-mail: we krijgen allebei {{n}} enveloppen.",
   "referralDiscordCopied": "Gekopieerd — plak het in je Discord-server.",
   "referralQrDownload": "Downloaden",
@@ -3088,7 +3098,6 @@
     "other": "Bevestigde vrienden"
   },
   "referralCardHint": "Geteld zodra ze hun e-mail bevestigen.",
-  "referralEnvsEach": "×{{n}} elk",
   "referralStep1": "Je deelt je link",
   "referralStep1Sub": "Of je code.",
   "referralStep2": "Je vriend maakt een account",
@@ -3111,9 +3120,16 @@
   "referralState_pending": "E-mail te bevestigen",
   "referralState_validated": "Beloning ontvangen",
   "referralState_expired": "Verlopen",
-  "referralWhoTitle": "Wie heeft je uitgenodigd?",
+  "referralWhoTitle": "Heeft een vriend je uitgenodigd?",
+  "referralCodeLabel": "Code van je vriend",
+  "referralCodePh": "Bijv. 4ZS-8AG",
+  "referralDaysLeft": {
+    "one": "Nog {{n}} dag",
+    "other": "Nog {{n}} dagen"
+  },
+  "referralNoCode": "Ik heb geen code",
   "referralPaste": "Plakken",
-  "referralClaim": "Die is het",
+  "referralClaim": "Code bevestigen",
   "referralInvitedBy": "Uitgenodigd door {{name}}",
   "referralVerifyHint": "Bevestig je e-mail om beide cadeaus vrij te spelen.",
   "referralOnbLabel": "Wie heeft je uitgenodigd? (optioneel)",
@@ -3138,8 +3154,5 @@
     "one": "Er wacht {{n}} envelop op je.",
     "other": "Er wachten {{n}} enveloppen op je."
   },
-  "referralWhoSub": {
-    "one": "Typ de vriendcode: jullie krijgen allebei {{e}} enveloppen. Nog {{n}} dag.",
-    "other": "Typ de vriendcode: jullie krijgen allebei {{e}} enveloppen. Nog {{n}} dagen."
-  }
+  "referralWhoSub": "Voeg de code toe: {{e}} enveloppen elk zodra je je e-mail bevestigt."
 }
