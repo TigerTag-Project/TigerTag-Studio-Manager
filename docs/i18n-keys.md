@@ -208,11 +208,5 @@ Window and pill: `questsTitle`, `questsToday`, `questsJourney`, `questsOpenApp`,
 
 Built from ids (dynamic): daily missions `questDaily_<id>` (`findBrand` takes `{{brand}}`, `filterMaterial` takes `{{material}}`), journey actions `questAct_<level>_<action>` (e.g. `questAct_d1_displayName`, 50 keys), level themes `questLevel_d1`…`questLevel_e5`, ranks `questRank_1`…`questRank_20` and their worlds `questWorld_1`…`questWorld_20`. XP history parts: `xpAch_daily`, `xpAch_updates`, `xpAch_journey`.
 
-### Trophies, community milestones (after `trophyHow_worldFirst`)
-Name then how, pairs: `trophy_communityXp1M` / `trophyHow_communityXp1M`, `…Xp5M`, `…Xp10M`, `…Xp15M`, `trophy_communityXpTrio` / `trophyHow_communityXpTrio` (5 + 10 + 15 million stickers), `trophy_communityPrinters5k` / `trophyHow_communityPrinters5k`, `…Printers10k`
-
-### Trophies, printer brands (after `trophyHow_firstPrinter`)
-Name then how, pairs, per brand in this order: `trophy_printer_<brand>` / `trophyHow_printer_<brand>` for `bambulab`, `creality`, `elegoo`, `flashforge`, `snapmaker`, `anycubic`, `prusa`, `klipper`, `octoprint` (Klipper and OctoPrint read "on board" / "through …", they are not printer makers). Then `trophy_printer_bambulab_lan` / `trophyHow_printer_bambulab_lan` (local network, Developer mode) and `trophy_printer_bambulab_cloud` / `trophyHow_printer_bambulab_cloud` (through the Bambu Lab account).
-
-### Trophies, envelope piles (after `trophyHow_envRecv100`)
-`trophy_envPileSent3` / `trophyHow_envPileSent3`, then `trophy_envPileRecv{2,4,5}` / `trophyHow_envPileRecv{2,4,5}` — a pile given or received in a single go.
+### Trophies (renderer/quests/trophies.js)
+Generic labels only: `trophyTier_<tier>`, `trophyFamily_<family>`, `trophyFilter_<all|got|locked>`, `trophyHidden`, `trophyHiddenHow`, `trophyUnlocked`, `trophySeeAll`… No `trophy_<id>` / `trophyHow_<id>` key: each trophy's name and mission come from the backend (`trophyCatalog.json` → cdn catalogue, `trophyCards`), see `docs/TROPHIES.md`.

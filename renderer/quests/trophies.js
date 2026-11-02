@@ -3,8 +3,10 @@
  * Tiger Quests (view mode "questsTrophies") and the unlock celebration.
  *
  * The SERVER awards every trophy (TigerTag_Firebase_Backend functions/trophies.js,
- * catalogue functions/trophyRules.js — mirrored in TROPHIES below, same ids and
- * tiers): this module only reads
+ * catalogue functions/trophyRules.js + trophyCatalog.json) and owns every trophy's art
+ * and text: the app ships none of them (see "Catalogue and cards"). This module reads
+ *   cdn /trophies/catalog/<lang>.json  the public catalogue (visible trophies, hidden slots)
+ *   trophyCards (function)             the art + text of the trophies held
  *   users/{uid}/trophies/{id}  { earnedAt, source, event?, ctx? }  (live)
  *   trophyStats/{id}           { owners } · trophyStats/_accounts { accounts }
  *   trophyEvents/{eventId}     { name, desc, art, year, date, kind, active }
@@ -24,127 +26,24 @@ import { backfire, tilt } from "./coin-pull.js";
 import { heroLayersHtml } from "./hero-layers.js";
 import { filterBarHtml, heroHtml, infoTipHtml, selectHtml } from "./ui-kit.js";
 
+// The app's own pictures (the banner, the event cup). No trophy art or text ships with the
+// app (it is open source: the missions would be one search away) — see "Catalogue and cards".
 const ART = "../assets/img/";
 // Album order: family by family, as the user reads them.
 export const TROPHY_FAMILIES = ["flame", "coins", "squad", "chips", "brands", "gear", "devices"];
-// [id, family, tier, art (under assets/img/), hidden]. A trophy of a Workshop loot or feat
-// has that item's rarity (quests/index.js RARITIES, from its XP). Art = a WHOLE standalone picture,
-// never a layer cut from a banner (docs/ART-DIRECTION.md); a placeholder until its own sticker.
-const ROWS = [
-  ["firstFlame", "flame", "common", "quests/streak-flame-small.webp"],
-  ["streak7", "flame", "uncommon", "quests/streak-flame.webp"],
-  ["streak30", "flame", "rare", "trophies/stickers/streak30.webp"],
-  ["streak100", "flame", "epic", "trophies/stickers/streak100.webp"],
-  ["streak365", "flame", "legendary", "trophies/stickers/streak365.webp"],
-  ["comboMax", "flame", "epic", "trophies/stickers/comboMax.webp"],
-  ["freezeSaved", "flame", "common", "quests/freeze/freeze.webp"],
-  ["freezeSent", "flame", "common", "quests/freeze/freeze-gift.webp"],
-  ["freezeReceived", "flame", "common", "quests/freeze/freeze-gift.webp"],
-  ["freezeMelted", "flame", "uncommon", "quests/freeze/freeze-melt-5.webp", true],
-  ["flameRelit", "flame", "rare", "trophies/stickers/flameRelit.webp"],
-  ["freezeSent5", "flame", "uncommon", "trophies/stickers/freezeSent5.webp"],
-  ["freezeSent25", "flame", "rare", "trophies/stickers/freezeSent25.webp"],
-  ["freezeSent100", "flame", "epic", "trophies/stickers/freezeSent100.webp"],
-  ["freezeRecv5", "flame", "uncommon", "trophies/stickers/freezeRecv5.webp"],
-  ["freezeRecv25", "flame", "rare", "trophies/stickers/freezeRecv25.webp"],
-  ["freezeRecv100", "flame", "epic", "trophies/stickers/freezeRecv100.webp"],
-  ["firstEnvelope", "coins", "common", "tigercoins/envelope.webp"],
-  ["firstChest", "coins", "rare", "tigercoins/chest-open.webp"],
-  ["chests10", "coins", "epic", "tigercoins/chest/closed.webp"],
-  ["chests50", "coins", "legendary", "trophies/stickers/chests50.webp"],
-  ["envelopeSent", "coins", "common", "tigercoins/gift-v2.webp"],
-  ["envelopeReceived", "coins", "common", "trophies/stickers/envelopeReceived.webp"],
-  ["legendaryPull", "coins", "legendary", "tigercoins/crown.webp", true],
-  ["luckiest", "coins", "epic", "trophies/stickers/luckiest.webp", true],
-  ["firstCode", "coins", "common", "tigercoins/code-chest.webp"],
-  ["firstEgg", "coins", "uncommon", "tigercoins/code-tiger.webp", true],
-  ["allEggs", "coins", "epic", "trophies/stickers/allEggs.webp", true],
-  ["firstDeal", "coins", "uncommon", "tigersquad/deals-partner.webp"],
-  ["coinsSent100", "coins", "uncommon", "trophies/stickers/coinsSent100.webp"],
-  ["coinsSent1000", "coins", "epic", "trophies/stickers/coinsSent1000.webp"],
-  ["coinsSent10000", "coins", "legendary", "trophies/stickers/coinsSent10000.webp"],
-  ["coinsRecv100", "coins", "uncommon", "trophies/stickers/coinsRecv100.webp"],
-  ["coinsRecv1000", "coins", "epic", "trophies/stickers/coinsRecv1000.webp"],
-  ["coinsRecv10000", "coins", "legendary", "trophies/stickers/coinsRecv10000.webp"],
-  ["envSent10", "coins", "uncommon", "trophies/stickers/envSent10.webp"],
-  ["envSent50", "coins", "rare", "trophies/stickers/envSent50.webp"],
-  ["envSent100", "coins", "epic", "trophies/stickers/envSent100.webp"],
-  ["envRecv10", "coins", "uncommon", "trophies/stickers/envRecv10.webp"],
-  ["envRecv50", "coins", "rare", "trophies/stickers/envRecv50.webp"],
-  ["envRecv100", "coins", "epic", "trophies/stickers/envRecv100.webp"],
-  // Envelope piles given in one go (backend trophyRules PILE_SENT / PILE_RECV).
-  ["envPileSent3", "coins", "uncommon", "trophies/stickers/envPileSent3.webp"],
-  ["envPileRecv2", "coins", "common", "trophies/stickers/envPileRecv2.webp"],
-  ["envPileRecv4", "coins", "uncommon", "trophies/stickers/envPileRecv4.webp"],
-  ["envPileRecv5", "coins", "rare", "trophies/stickers/envPileRecv5.webp"],
-  ["tweet140", "coins", "rare", "trophies/stickers/tweet140.webp", true],
-  ["timeMaster", "squad", "epic", "quests/xph-hero/hourglass.webp", true],
-  ["stickerFan", "squad", "uncommon", "trophies/stickers/stickerFan.webp", true],
-  ["stickerBook", "squad", "rare", "trophies/stickers/stickerBook.webp", true],
-  ["curator", "squad", "epic", "trophies/stickers/curator.webp", true],
-  ["squadJoin", "squad", "common", "tigersquad/tigersquad-bronze.webp"],
-  ["squadSilver", "squad", "uncommon", "tigersquad/tigersquad-silver.webp"],
-  ["squadGold", "squad", "rare", "tigersquad/tigersquad-gold.webp"],
-  ["squadPlatinum", "squad", "epic", "tigersquad/tigersquad-platinum.webp"],
-  ["firstFriend", "squad", "common", "tigersquad/feats/friends.webp"],
-  ["friends10", "squad", "rare", "trophies/stickers/friends10.webp"],
-  ["photo", "squad", "common", "tigersquad/feats/photo.webp"],
-  ["social", "squad", "common", "tigersquad/feats/social.webp"],
-  ["firstLink", "squad", "common", "trophies/stickers/firstLink.webp"],
-  ["allLinks", "squad", "uncommon", "tigersquad/feats/community.webp"],
-  // Referrals (docs/REFERRALS.md) — placeholders until their own stickers.
-  ["referral1", "squad", "common", "tigersquad/feats/friends.webp"],
-  ["referral5", "squad", "rare", "trophies/stickers/friends10.webp"],
-  ["referral10", "squad", "epic", "tigersquad/feats/community.webp"],
-  ["referral25", "squad", "epic", "tigercoins/gift-v2.webp", true],
-  ["referral50", "squad", "legendary", "tigercoins/crown.webp", true],
-  ["invited", "squad", "common", "tigercoins/envelope.webp"],
-  ["countryFirst", "squad", "rare", "tigersquad/rank-medal-1.webp"],
-  ["podium", "squad", "epic", "tigersquad/rank-medal-3.webp"],
-  ["tigerMaster", "squad", "legendary", "trophies/stickers/tigerMaster.webp"],
-  ["worldFirst", "squad", "legendary", "trophies/stickers/worldFirst.webp"],
-  // Community milestones: the squad of the minute the community's total crossed the mark.
-  ["communityXp1M", "squad", "epic", "trophies/stickers/communityXp1M.webp"],
-  ["communityXp5M", "squad", "epic", "trophies/stickers/communityXp5M.webp"],
-  ["communityXp10M", "squad", "legendary", "trophies/stickers/communityXp10M.webp"],
-  ["communityXp15M", "squad", "legendary", "trophies/stickers/communityXp15M.webp"],
-  ["communityXpTrio", "squad", "legendary", "trophies/stickers/communityXpTrio.webp", true],
-  ["communityPrinters5k", "squad", "epic", "trophies/stickers/communityPrinters5k.webp"],
-  ["communityPrinters10k", "squad", "legendary", "trophies/stickers/communityPrinters10k.webp"],
-  ["tigerScale", "devices", "legendary", "tigersquad/loot/tigerscale.webp"],
-  ["tigerSpool", "devices", "legendary", "tigersquad/loot/tigerspool.webp"],
-  ["tigerTouch", "devices", "legendary", "tigersquad/loot/tigertouch.webp"],
-  ["tigerPod", "devices", "legendary", "tigersquad/loot/tigerpod.webp"],
-  ["fullKit", "devices", "legendary", "trophies/stickers/fullKit.webp"],
-  ["chipTag", "chips", "common", "tigersquad/loot/chip.webp"],
-  ["chipPlus", "chips", "common", "trophies/stickers/chipPlus.webp"],
-  ["chipCert", "chips", "uncommon", "tigersquad/loot/chip-cert.webp"],
-  ["certified50", "chips", "rare", "trophies/stickers/certified50.webp"],
-  ["firstPrinter", "gear", "common", "tigersquad/loot/printer.webp"],
-  // The first printer connected of each brand or plugin (backend trophyRules printer_<brand>).
-  ...["bambulab", "creality", "elegoo", "flashforge", "snapmaker", "anycubic", "prusa", "klipper", "octoprint"]
-    .map((b) => [`printer_${b}`, "gear", "common", `trophies/stickers/printer_${b}.webp`]),
-  // Bambu Lab by transport: local network in Developer mode, or Bambu's cloud.
-  ["printer_bambulab_lan", "gear", "epic", "trophies/stickers/printer_bambulab_lan.webp"],
-  ["printer_bambulab_cloud", "gear", "common", "trophies/stickers/printer_bambulab_cloud.webp"],
-  ["firstRack", "gear", "uncommon", "tigersquad/feats/first-rack.webp"],
-  ["firstList", "gear", "uncommon", "tigersquad/feats/first-list.webp"],
-  ["rfidReader", "gear", "rare", "tigersquad/loot/rfid-reader.webp"],
-  ["usbScale", "gear", "rare", "tigersquad/loot/usb-scale.webp"],
-  ["mobileApp", "gear", "epic", "tigersquad/feats/mobile-app.webp"],
-  ["td1s", "gear", "epic", "tigersquad/loot/td1s.webp"],
-  ["appUpdate", "gear", "uncommon", "notifications/update.webp"],
-  ["speedrun", "gear", "uncommon", "tigersquad/feats/speedrun.webp"],
-];
-// Brands that sell TigerTag+ Certified spools (backend trophyRules BRAND_TROPHIES):
-// certified chips of the brand, 1 / 10 / 50 / 100.
-const BRAND_KEYS = ["rosa3d", "esun", "sunlu", "jamghe", "r3d", "landu", "lotactree", "smart3dpt"];
-const BRAND_STEPS = { 1: "uncommon", 10: "rare", 50: "epic", 100: "legendary" };
-// Each one its own sticker: the brand's logo redrawn in the house style (alone at 1), with a
-// themed object behind it at 10 / 50 / 100, different for every brand.
-for (const key of BRAND_KEYS) for (const [n, tier] of Object.entries(BRAND_STEPS)) ROWS.push([`cert_${key}_${n}`, "brands", tier, `trophies/stickers/cert_${key}_${n}.webp`]);
-export const TROPHIES = ROWS.map(([id, family, tier, art, hidden]) => ({ id, family, tier, art: ART + art, hidden: !!hidden }));
-const BY_ID = new Map(TROPHIES.map(x => [x.id, x]));
+
+// ── Catalogue and cards (backend tool/trophy-art.mjs, functions/trophyCards.js) ──
+// The public catalogue, one file per language on the cdn: every VISIBLE trophy with its
+// name, mission and black silhouette; a hidden one only as { hidden, family, tier }.
+// The art and text of a trophy HELD come from trophyCards (one card per trophy, kept per
+// account: they only change with a new art, which gets a new address).
+//   tigertag.trophyCatalog.<lang>  { v, trophies }
+//   tigertag.trophyCards.<uid>     { id: { art, family, tier, hidden?, name{}, how{} } }
+const CDN = "https://cdn.tigertag.io/trophies/";
+const CARDS_URL = "https://us-central1-tigertag-connect.cloudfunctions.net/trophyCards";
+const CARDS_MAX = 200;
+let _catalog = null, _catalogAsked = null;   // { v, lang, trophies } · the language fetched this session
+let _cards = {}, _cardsAsking = null;
 const TIER_STEP = { common: 0, uncommon: 1, rare: 2, epic: 3, legendary: 4, event: 4 };
 const STATS_TTL = 10 * 60e3;
 
@@ -209,10 +108,51 @@ function saveFriendAlbum(f) {
   writeJson(friendsKey(_uid), Object.fromEntries(keep));
 }
 
+// The catalogue of the app's language: the copy kept on this device at once, then the
+// cdn's (once a session per language; the cdn answers 304 when it has not changed).
+const catalogKey = lang => `tigertag.trophyCatalog.${lang}`;
+function loadCatalog() {
+  const lang = _ctx.lang();
+  if (_catalog?.lang !== lang) { const kept = readJson(catalogKey(lang)); _catalog = kept ? { ...kept, lang } : null; }
+  if (_catalogAsked === lang) return;
+  _catalogAsked = lang;
+  fetch(`${CDN}catalog/${lang}.json`, { cache: "no-cache" }).then(r => (r.ok ? r.json() : Promise.reject(new Error(`HTTP_${r.status}`)))).then(c => {
+    if (_ctx.lang() !== lang || !Array.isArray(c?.trophies)) return;
+    writeJson(catalogKey(lang), c);
+    if (_catalog?.v === c.v) return;
+    _catalog = { ...c, lang };
+    _ctx.onChange?.();
+  }).catch(() => { if (_catalogAsked === lang) _catalogAsked = null; });
+}
+
+// The cards of the trophies held that this device has none for (one call, any number).
+const cardsKey = uid => `tigertag.trophyCards.${uid}`;
+function ensureCards(uid = _uid) {
+  if (!uid) return Promise.resolve();
+  if (_cardsAsking) return _cardsAsking;
+  const missing = [..._earned.keys()].filter(id => !id.startsWith("ev.") && !_cards[id]).slice(0, CARDS_MAX);
+  if (!missing.length) return Promise.resolve();
+  _cardsAsking = (async () => {
+    const token = await _ctx.db(uid).app.auth().currentUser?.getIdToken();
+    if (!token) return;
+    const res = await fetch(CARDS_URL, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ ids: missing }) });
+    if (!res.ok) throw new Error(`HTTP_${res.status}`);
+    const { cards } = await res.json();
+    if (_uid !== uid || !cards || !Object.keys(cards).length) return;
+    Object.assign(_cards, cards);
+    writeJson(cardsKey(uid), _cards);
+    _ctx.onChange?.();
+  })().catch(() => {}).finally(() => { _cardsAsking = null; });
+  return _cardsAsking;
+}
+
 export function trophiesSignIn(uid) {
   if (!_ctx || uid === _uid) return;
   trophiesSignOut();
   _uid = uid;
+  _cards = readJson(cardsKey(uid)) || {};
+  loadCatalog();
   const db = _ctx.db(uid), col = db.collection("users").doc(uid).collection("trophies");
   const kept = readJson(albumKey(uid));
   const save = () => { writeJson(albumKey(uid), { at: Date.now(), earned: toPlain(_earned) }); };
@@ -233,6 +173,7 @@ export function trophiesSignIn(uid) {
   else {
     // The album kept on this device at once, then only what was earned since.
     _earned = fromPlain(kept.earned); _loaded = true;
+    ensureCards(uid);
     let checked = false;
     _unsub = col.where("earnedAt", ">", since(kept.at)).onSnapshot({ includeMetadataChanges: true }, snap => {
       for (const c of snap.docChanges()) {
@@ -258,7 +199,7 @@ export function trophiesSignIn(uid) {
 export function trophiesSignOut() {
   _queue = [];
   _unsub?.(); _unsub = null; _uid = null;
-  _earned = new Map(); _events = new Map(); _stats = { at: 0, owners: {}, accounts: 0 }; _loaded = false; _friend = null; _friendAlbums.clear();
+  _earned = new Map(); _cards = {}; _events = new Map(); _stats = { at: 0, owners: {}, accounts: 0 }; _loaded = false; _friend = null; _friendAlbums.clear();
 }
 
 // The owners counters, read when the album opens (at most every STATS_TTL):
@@ -285,10 +226,31 @@ function allTrophies(have = held()) {
   // An event trophy held but whose card is gone still shows (its id as name).
   for (const [id] of have) if (id.startsWith("ev.") && !_events.has(id.slice(3))) evs.push({ id, family: "events", tier: "event", art: ART + "trophies/cup.webp", name: id.slice(3), year: 0, date: 0 });
   evs.sort((a, b) => b.date - a.date || b.year - a.year);
-  return [...TROPHIES, ...evs];
+  return [...catalogTrophies(have), ...evs];
 }
-const nameOf = x => x.family === "events" ? loc(x.name, _ctx.lang()) : _ctx.t(`trophy_${x.id}`);
-const descOf = x => x.family === "events" ? loc(x.desc, _ctx.lang()) : _ctx.t(`trophyHow_${x.id}`);
+// The catalogue's trophies, each with the picture to show: the art when this account holds
+// it (its card), else the silhouette; a hidden one held takes a hidden slot of its family
+// and tier (the catalogue says no more). Before any catalogue: the cards alone.
+function catalogTrophies(have) {
+  const own = id => _earned.has(id) && _cards[id];
+  const fromCard = id => ({ id, family: _cards[id].family, tier: _cards[id].tier, hidden: !!_cards[id].hidden, art: _cards[id].art });
+  if (!_catalog) return Object.keys(_cards).filter(id => have.has(id) && own(id)).map(fromCard);
+  const slots = new Map();
+  for (const id of Object.keys(_cards)) if (_cards[id].hidden && have.has(id) && own(id)) {
+    const k = `${_cards[id].family}|${_cards[id].tier}`;
+    slots.set(k, [...(slots.get(k) || []), id]);
+  }
+  return _catalog.trophies.map((x, i) => {
+    if (!x.hidden) return { ...x, hidden: false, art: own(x.id) ? _cards[x.id].art : x.sil ? CDN + x.sil : null };
+    const id = slots.get(`${x.family}|${x.tier}`)?.shift();
+    return id ? fromCard(id) : { id: `hidden.${i}`, family: x.family, tier: x.tier, hidden: true, art: null };
+  });
+}
+// A trophy's name and mission: the event's card, the account's own card, else the catalogue's.
+const textOf = (x, key) => x.family === "events" ? loc(key === "name" ? x.name : x.desc, _ctx.lang())
+  : _cards[x.id] && _earned.has(x.id) ? loc(_cards[x.id][key], _ctx.lang()) : String(x[key] || "");
+const nameOf = x => textOf(x, "name");
+const descOf = x => textOf(x, "how");
 
 // Held already? (a secret gesture stops asking the server once it is.)
 export const trophyEarned = id => _earned.has(id);
@@ -310,7 +272,7 @@ const fmtDate = d => new Date(d).toLocaleDateString(_ctx.lang(), { day: "numeric
 function stickerHtml(x) {
   const { t, esc } = _ctx;
   const got = held().get(x.id);
-  const secret = !got && x.hidden;
+  const secret = !got && x.hidden || !x.art;
   const missed = !got && x.family === "events" && !x.active;
   const name = secret ? t("trophyHidden") : nameOf(x);
   const p = got ? pct(x.id) : null;
@@ -381,12 +343,15 @@ export function renderTrophiesView(host, friend = null) {
   if (!_ctx || !host) return;
   const { t, esc } = _ctx;
   loadStats();
+  loadCatalog();
+  ensureCards();
   if (friend?.uid) loadFriend(friend); else _friend = null;
-  const mine = held(), loaded = _friend ? _friend.loaded : _loaded;
+  // Loaded: the album read, and the catalogue known (or out of reach: the cards alone then).
+  const mine = held(), loaded = (_friend ? _friend.loaded : _loaded) && (!!_catalog || _catalogAsked === null);
   const all = allTrophies();
   const got = all.filter(x => mine.has(x.id));
   // Signature guard (.agents/rules/surgical-dom-updates.md): snapshots repaint often.
-  const sig = JSON.stringify([_uid, _friend?.uid, _friend?.error, _filter, _family, [...mine.keys()], [..._events.keys()], _stats.at, _ctx.lang(), loaded]);
+  const sig = JSON.stringify([_uid, _friend?.uid, _friend?.error, _filter, _family, [...mine.keys()], [..._events.keys()], _stats.at, _ctx.lang(), loaded, _catalog?.v, Object.keys(_cards).length]);
   if (host._trpSig === sig && host.childElementCount) return;
   host._trpSig = sig;
   const keep = x => (!_family || x.family === _family) && (_filter === "all" || (_filter === "got" ? mine.has(x.id) : !mine.has(x.id)));
@@ -518,14 +483,18 @@ async function downloadSticker(x) {
 // come one after the other, each when the previous one closes.
 let _queue = [];
 function celebrateNew(uid) {
-  const seen = readSeen(uid);
-  const fresh = [..._earned.keys()].filter(id => !seen.has(id));
-  if (!fresh.length) return;
-  fresh.forEach(id => seen.add(id));
-  writeSeen(uid, seen);
-  const all = allTrophies(_earned);
-  _queue.push(...fresh.map(id => all.find(y => y.id === id) || BY_ID.get(id)).filter(Boolean));
-  if (!document.querySelector(".trp-unlock")) nextUnlock();
+  // Its card first (art + text): a trophy whose card could not be read waits for the next try.
+  ensureCards(uid).then(() => {
+    if (_uid !== uid) return;
+    const seen = readSeen(uid);
+    const all = allTrophies(_earned);
+    const fresh = [..._earned.keys()].filter(id => !seen.has(id)).map(id => all.find(y => y.id === id)).filter(x => x?.art);
+    if (!fresh.length) return;
+    fresh.forEach(x => seen.add(x.id));
+    writeSeen(uid, seen);
+    _queue.push(...fresh);
+    if (!document.querySelector(".trp-unlock")) nextUnlock();
+  });
 }
 function nextUnlock() { const x = _queue.shift(); if (x) overlay(x); }
 // The unlock plays out before anything closes it: clicks, Escape and the button wait for the

@@ -50,7 +50,7 @@ missing from this index, the index cites a missing file, or a cited path does no
 - **WORKLOG**: update `WORKLOG.md` right after every change, end state only, files and i18n keys named → `.agents/rules/worklog.md`
 - **Release**: fixed sequence (SemVer, `db_update.py`, three registers, FEATURES/llms/README, validators, tag, reset WORKLOG + bump version uncommitted), generated inline, never fanned out → `.agents/rules/release.md`
 - **Copy registers**: CHANGELOG technical, release note BambuLab-factual, in-app + What's New playful/deadpan Discord-style → `.agents/rules/copy-registers.md`
-- **Trophies**: every release adds trophies (tiers, Workshop items, hidden ones, events); the goal is a collection of ~1,000; backend `trophyRules.js` is the source, ids never renamed → `.agents/rules/trophies.md`
+- **Trophies**: every release adds trophies (tiers, Workshop items, hidden ones, events); the goal is a collection of ~1,000; rules, texts and art live only in the private backend (Studio ships none), ids never renamed → `.agents/rules/trophies.md`
 - **What's New**: one topic per item, benefit-first, icon names, 11 locales, no admin/debug features → `.agents/rules/whats-new.md`
 - **GitHub replies**: English, posted only on order, no personal data → `.agents/rules/github-replies.md`
 - **Code reviews**: every few releases, kept in `docs/reviews/`, findings annotated → `.agents/rules/code-reviews.md`
