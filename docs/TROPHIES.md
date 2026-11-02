@@ -14,6 +14,7 @@ to anyone who reads the code. The full design lives in the private backend repo
 |---|---|---|
 | Award rules (id, tier, kind) | backend `functions/trophyRules.js` | the functions |
 | Album order, family, hidden flag, name + mission in the 11 languages | backend `functions/trophyCatalog.json` | the functions, `tool/trophy-art.mjs` |
+| Family labels in the 11 languages, in album order | backend `functions/trophyFamilies.json` | `tool/trophy-art.mjs` → the public catalogue |
 | Art sources (masters, parts) | backend `art/trophies/` | `tool/trophy-art.mjs` |
 | Public catalogue | `https://cdn.tigertag.io/trophies/catalog/<lang>.json` | the album (any visitor) |
 | Silhouettes | `https://cdn.tigertag.io/trophies/s/<key>-<hash>.webp` (unguessable) | the catalogue (common, uncommon), `trophyCards` (veiled ones a friend holds) |
@@ -53,8 +54,9 @@ trophies few, or let the server detect the action.
 - Unlock: each new trophy gets its own window once its card is read, one after the other; the
   device remembers what it already celebrated (`tigertag.trophies.<uid>`).
 - A held sticker opens its card (tilt, gloss, download as PNG — the cdn sends CORS headers).
-- Generic labels (tiers, families, filters, "Hidden trophy"…) are ordinary i18n keys; no
-  `trophy_<id>` key exists in the locales.
+- Generic labels (tiers, filters, "Hidden trophy"…) are ordinary i18n keys. No `trophy_<id>` or
+  `trophyFamily_<family>` key exists in the locales: trophy texts and family labels come from the
+  catalogue, so a new trophy or a new family needs no app update.
 
 ## Adding a trophy
 

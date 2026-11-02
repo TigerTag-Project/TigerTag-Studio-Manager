@@ -29,12 +29,11 @@ import { filterBarHtml, heroHtml, infoTipHtml, selectHtml } from "./ui-kit.js";
 // The app's own pictures (the banner, the event cup). No trophy art or text ships with the
 // app (it is open source: the missions would be one search away) — see "Catalogue and cards".
 const ART = "../assets/img/";
-// Album order: family by family, as the user reads them.
-export const TROPHY_FAMILIES = ["flame", "coins", "squad", "chips", "brands", "gear", "devices"];
 
 // ── Catalogue and cards (backend tool/trophy-art.mjs, functions/trophyCards.js) ──
-// The public catalogue, one file per language on the cdn: every VISIBLE trophy with its
-// name, mission and black silhouette; a hidden one only as { hidden, family, tier }.
+// The public catalogue, one file per language on the cdn: the families (id + label, in
+// album order, "events" last) and every VISIBLE trophy with its name, mission and black
+// silhouette; a veiled one only as { hidden, family, tier }.
 // The art and text of a trophy HELD come from trophyCards (one card per trophy, kept per
 // account: they only change with a new art, which gets a new address).
 //   tigertag.trophyCatalog.<lang>  { v, trophies }
@@ -269,6 +268,8 @@ function catalogTrophies(have) {
 const textOf = (x, key) => x.family === "events" ? loc(key === "name" ? x.name : x.desc, _ctx.lang())
   : _cards[x.id] ? loc(_cards[x.id][key], _ctx.lang()) : String(x[key] || "");
 const nameOf = x => textOf(x, "name");
+// A family's label, from the catalogue (Studio ships none); its id until the catalogue is known.
+const familyName = f => _catalog?.families?.find(x => x.id === f)?.name || f;
 const descOf = x => textOf(x, "how");
 
 // Held already? (a secret gesture stops asking the server once it is.)
@@ -302,7 +303,7 @@ function stickerHtml(x) {
   // A trophy a friend revealed says whose album showed it.
   const meta = got ? fmtDate(got.at) : x.revealed ? t("trophySeenAt", { name: _ctx.friendName?.(x.revealed) || "?" }) : t(`trophyTier_${x.tier}`);
   // What the search reads: the name, the hint and the tier (a hidden trophy: its "?" labels only).
-  const fam = t(`trophyFamily_${x.family}`);
+  const fam = familyName(x.family);
   const q = `${name} ${hint} ${t(`trophyTier_${x.tier}`)} ${fam}`.toLowerCase();
   return `<button type="button" class="trp-st trp-t--${x.tier}${got ? " is-got" : " is-locked"}${secret ? " is-secret" : ""}" data-trophy="${esc(x.id)}" data-q="${esc(q)}"
       aria-label="${esc(`${name} — ${t(`trophyTier_${x.tier}`)} — ${got ? `${meta} — ` : ""}${hint}`)}">
@@ -403,7 +404,7 @@ export function renderTrophiesView(host, friend = null) {
       tabs: [filter("all"), filter("got", got.length), filter("locked", all.length - got.length)],
       search: { attr: "data-trp-q", value: _query, placeholder: t("trophySearch"), cls: "trp-search" },
       extra: selectHtml(esc, { attr: "data-trp-family", label: t("trophyFamilyAll"), value: _family,
-        options: [{ value: "", label: t("trophyFamilyAll") }, ...[...TROPHY_FAMILIES, "events"].map(f => ({ value: f, label: t(`trophyFamily_${f}`) }))] })
+        options: [{ value: "", label: t("trophyFamilyAll") }, ...(_catalog?.families || []).map(f => ({ value: f.id, label: f.name }))] })
         + (_friend ? "" : `<button type="button" class="sqd-tab trp-code" data-trp-code><span class="icon icon-gift icon-14" aria-hidden="true"></span>${esc(t("trophyHaveCode"))}</button>`) })}
     ${_friend?.error ? `<p class="trp-loading">${esc(t("trophiesFriendLocked", { name: _friend.name }))}</p>` : loaded ? album : `<div class="trp-loading">${esc(t("questsLoading"))}</div>`}
     <p class="trp-nomatch" hidden>${esc(t("trophyNoMatch"))}</p>`;
@@ -450,7 +451,7 @@ function openTrophyCard(id) {
   el.innerHTML = `<div class="tc-reveal-card tc-code-card tcx tcx--help tc-env-card trp-sticker trp-t--${x.tier}" role="dialog" aria-modal="true" aria-label="${esc(nameOf(x))}">
     <div class="tcx-main">
       <div class="tcx-plaque"><h3>${esc(nameOf(x))}</h3></div>
-      <span class="trp-card-tier">${esc(t(`trophyTier_${x.tier}`))} · ${esc(t(`trophyFamily_${x.family}`))}</span>
+      <span class="trp-card-tier">${esc(t(`trophyTier_${x.tier}`))} · ${esc(familyName(x.family))}</span>
       <span class="trp-card-art"><span class="trp-tilt"><img src="${esc(x.art)}" alt="" draggable="false"><span class="trp-gloss" style="--art:url('${esc(artUrl(x.art))}')"></span></span></span>
       <p class="trp-sticker-desc">${esc(descOf(x))}</p>
       <p class="trp-card-meta">${esc(t("trophyEarnedOn", { date: fmtDate(got.at) }))}${how ? ` · ${esc(how)}` : ""}${p ? ` · ${esc(t("trophyOwnedPct", { p }))}` : ""}</p>
@@ -528,7 +529,7 @@ function overlay(x) {
   el.innerHTML = `<div class="trp-unlock-card" role="dialog" aria-modal="true" aria-label="${esc(nameOf(x))}">
     <span class="trp-unlock-rays" aria-hidden="true"></span>
     <small>${esc(t("trophyUnlocked"))}</small>
-    <span class="trp-card-tier">${esc(t(`trophyTier_${x.tier}`))} · ${esc(t(`trophyFamily_${x.family}`))}</span>
+    <span class="trp-card-tier">${esc(t(`trophyTier_${x.tier}`))} · ${esc(familyName(x.family))}</span>
     <span class="trp-unlock-art"><img src="${esc(x.art)}" alt="" draggable="false"></span>
     <h3>${esc(nameOf(x))}</h3>
     <p>${esc(descOf(x))}</p>
