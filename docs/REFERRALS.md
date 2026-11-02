@@ -181,22 +181,11 @@ On validation, in one transaction:
 
 ## 7. Trophies
 
-Added to the backend `functions/trophyRules.js` (source of truth) and mirrored in
-`renderer/quests/trophies.js`, family **Squad and friends**. Counted by a `COUNTERS` entry on
-`users/{uid}/trophyCounters/main.referrals` (validated referrals). Ids are final.
-
-| Id | When | Tier | Hidden |
-|---|---|---|---|
-| `referral1` | 1st validated referral | common | |
-| `referral5` | 5th | rare | |
-| `referral10` | 10th | epic | |
-| `referral25` | 25th | epic | yes |
-| `referral50` | 50th | legendary | yes |
-| `invited` | invitee: one's referral validated | common | |
-
-Names (pop-culture register, final wording at the i18n step): *"Plus one"*, *"Squad goals"*,
-*"Recruiter"*, *"Influencer, apparently"*, *"Cult leader (friendly)"*, *"Came with a friend"*.
-Each gets `trophy_<id>` + `trophyHow_<id>` in the 11 locales and a standalone sticker picture.
+Tier trophies for the referrer, counted by a `COUNTERS` entry on
+`users/{uid}/trophyCounters/main.referrals` (validated referrals), and one for the invitee whose
+referral is validated. Their ids, steps, names and art live in the private backend
+(`functions/trophyRules.js`, `functions/trophyCatalog.json`, `docs/TROPHIES.md`), like every
+trophy — see `docs/TROPHIES.md` for why Studio ships none.
 
 ---
 

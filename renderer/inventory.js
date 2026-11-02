@@ -4494,6 +4494,8 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   // a code carrying an event trophy works for every account.
   initTrophies({
     t, esc, db: fbDb, uid: () => state.activeAccountId, lang: () => state.lang,
+    // A veiled trophy a friend revealed: "Seen at <friend>'s".
+    friendName: uid => _shortName(state.friends.find(f => f.uid === uid)?.displayName || ""),
     onChange: () => { if (state.viewMode === "squadTrophies") renderInventory(); },
     openView: () => setViewMode("squadTrophies"),
     openCode: () => { const uid = state.activeAccountId; if (uid) openCoinsCodeModal(_topCoinsCtx(uid)); },
@@ -41445,7 +41447,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       const hg = e.target.closest("[data-xph-hourglass]");
       if (hg) {
         hg.classList.toggle("is-flipped");   // the banner's hourglass turns over
-        // Secret trophy "Master of time": 50 turns within 30 s (docs/TROPHIES.md).
+        // A hidden trophy (backend docs/TROPHIES.md).
         const now = Date.now(), uid = state.activeAccountId;
         _hourglassTaps = _hourglassTaps.filter(at => now - at < 30e3).concat(now);
         if (_hourglassTaps.length >= 50 && uid && !trophyEarned("timeMaster")) {

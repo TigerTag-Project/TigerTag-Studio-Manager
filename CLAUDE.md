@@ -179,6 +179,7 @@ ONE `ip` field, `host` or `host:port` (the form Studio and the Tiger Touch firmw
 | `tigertag.nfc.contact` | the NFC tools' contact card as last typed `{name, phone, email, org, url}` |
 | `tigertag.trophies.<id>` | the trophy ids already celebrated on this device for that account (`renderer/quests/trophies.js`) |
 | `tigertag.trophyAlbum.<id>` | that account's album `{at, earned: {id: {at, event, ctx}}}`: painted at once, then only trophies with a later `earnedAt` are read (+ a COUNT catches one taken back) |
+| `tigertag.trophyCatalog.<lang>` / `tigertag.trophyCards.<id>` / `tigertag.trophyReveals.<id>` | the public trophy catalogue of that language, that account's cards (art + text of the trophies held or revealed) and what its friends revealed `{at, ids: {trophyId: friendUid}}` (`renderer/quests/trophies.js`, `docs/TROPHIES.md`) |
 | `tigertag.friendTrophies.<id>` | the albums of that account's friends last seen `{friendUid: {at, name, earned}}` (50 newest), same delta reads |
 | `tigertag.coinlog.<id>` | the TigerCoins history last read for that account (100 newest rows), shown at once when the history opens, then refreshed |
 | `tigertag.header.<id>` | the header's and view bar's last figures for that account `{stats: {key: number}, coins: {balance, n}, bar: {daily, level, squad, lists, order, invite}}`, painted at launch before the data arrives, then updated where they differ |

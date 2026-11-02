@@ -13,7 +13,7 @@
  * and celebrates a trophy the first time THIS device sees it
  * (localStorage tigertag.trophies.<uid> = the ids already celebrated).
  *
- *   initTrophies({ t, esc, lang() → code, db(uid) → firestore, uid() → active uid | null,
+ *   initTrophies({ t, esc, lang() → code, db(uid) → firestore, uid() → active uid | null, friendName(uid),
  *                  onChange(), openView(), openCode(), downloaded(trophyId) })
  *   trophiesSignIn(uid) / trophiesSignOut()
  *   renderTrophiesView(host, friend?) · trophiesProgress() → { got, total } · trophyEarned(id)
@@ -44,6 +44,14 @@ const CARDS_URL = "https://us-central1-tigertag-connect.cloudfunctions.net/troph
 const CARDS_MAX = 200;
 let _catalog = null, _catalogAsked = null;   // { v, lang, trophies } · the language fetched this session
 let _cards = {}, _cardsAsking = null;
+// What friends revealed (backend trophyReveals.js): a VEILED trophy — hidden, or rare and up —
+// is a "?" with its tier until a friend holds it; then its silhouette, name and mission show
+// ("Seen at Léa's"). Re-asked at sign-in and when the album opens, at most every REVEALS_TTL.
+//   tigertag.trophyReveals.<uid>  { at, ids: { id: friendUid } }
+let _reveals = { at: 0, ids: {} };
+const REVEALS_TTL = 10 * 60e3;
+const VEILED_TIERS = new Set(["rare", "epic", "legendary"]);
+const veiled = c => !!c && (!!c.hidden || VEILED_TIERS.has(c.tier));
 const TIER_STEP = { common: 0, uncommon: 1, rare: 2, epic: 3, legendary: 4, event: 4 };
 const STATS_TTL = 10 * 60e3;
 
@@ -125,22 +133,29 @@ function loadCatalog() {
   }).catch(() => { if (_catalogAsked === lang) _catalogAsked = null; });
 }
 
-// The cards of the trophies held that this device has none for (one call, any number).
-const cardsKey = uid => `tigertag.trophyCards.${uid}`;
+// The cards of the trophies held that this device has none for (or only a friend's reveal
+// card, without the art), and — at most every REVEALS_TTL — what friends revealed. One call.
+const cardsKey = uid => `tigertag.trophyCards.${uid}`, revealsKey = uid => `tigertag.trophyReveals.${uid}`;
 function ensureCards(uid = _uid) {
   if (!uid) return Promise.resolve();
   if (_cardsAsking) return _cardsAsking;
-  const missing = [..._earned.keys()].filter(id => !id.startsWith("ev.") && !_cards[id]).slice(0, CARDS_MAX);
-  if (!missing.length) return Promise.resolve();
+  const missing = [..._earned.keys()].filter(id => !id.startsWith("ev.") && !_cards[id]?.art).slice(0, CARDS_MAX);
+  const reveals = Date.now() - _reveals.at > REVEALS_TTL;
+  if (!missing.length && !reveals) return Promise.resolve();
   _cardsAsking = (async () => {
     const token = await _ctx.db(uid).app.auth().currentUser?.getIdToken();
     if (!token) return;
     const res = await fetch(CARDS_URL, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ ids: missing }) });
+      body: JSON.stringify({ ids: missing, ...(reveals ? { reveals: true, known: Object.keys(_cards) } : {}) }) });
     if (!res.ok) throw new Error(`HTTP_${res.status}`);
-    const { cards } = await res.json();
-    if (_uid !== uid || !cards || !Object.keys(cards).length) return;
-    Object.assign(_cards, cards);
+    const out = await res.json();
+    if (_uid !== uid) return;
+    Object.assign(_cards, out.cards || {});
+    if (out.reveals) {
+      _reveals = { at: Date.now(), ids: Object.fromEntries(Object.entries(out.reveals).map(([id, r]) => [id, r.by])) };
+      for (const [id, r] of Object.entries(out.reveals)) if (r.card && !_cards[id]?.art) _cards[id] = r.card;
+      writeJson(revealsKey(uid), _reveals);
+    }
     writeJson(cardsKey(uid), _cards);
     _ctx.onChange?.();
   })().catch(() => {}).finally(() => { _cardsAsking = null; });
@@ -152,6 +167,8 @@ export function trophiesSignIn(uid) {
   trophiesSignOut();
   _uid = uid;
   _cards = readJson(cardsKey(uid)) || {};
+  // The reveals kept on this device paint at once; they are asked again with the cards.
+  _reveals = { ...(readJson(revealsKey(uid)) || { ids: {} }), at: 0 };
   loadCatalog();
   const db = _ctx.db(uid), col = db.collection("users").doc(uid).collection("trophies");
   const kept = readJson(albumKey(uid));
@@ -169,11 +186,11 @@ export function trophiesSignIn(uid) {
       _ctx.onChange?.();
     }, failed);
   };
+  ensureCards(uid);
   if (!fresh(kept?.at)) { listenAll(); }
   else {
     // The album kept on this device at once, then only what was earned since.
     _earned = fromPlain(kept.earned); _loaded = true;
-    ensureCards(uid);
     let checked = false;
     _unsub = col.where("earnedAt", ">", since(kept.at)).onSnapshot({ includeMetadataChanges: true }, snap => {
       for (const c of snap.docChanges()) {
@@ -199,7 +216,7 @@ export function trophiesSignIn(uid) {
 export function trophiesSignOut() {
   _queue = [];
   _unsub?.(); _unsub = null; _uid = null;
-  _earned = new Map(); _cards = {}; _events = new Map(); _stats = { at: 0, owners: {}, accounts: 0 }; _loaded = false; _friend = null; _friendAlbums.clear();
+  _earned = new Map(); _cards = {}; _reveals = { at: 0, ids: {} }; _events = new Map(); _stats = { at: 0, owners: {}, accounts: 0 }; _loaded = false; _friend = null; _friendAlbums.clear();
 }
 
 // The owners counters, read when the album opens (at most every STATS_TTL):
@@ -229,26 +246,28 @@ function allTrophies(have = held()) {
   return [...catalogTrophies(have), ...evs];
 }
 // The catalogue's trophies, each with the picture to show: the art when this account holds
-// it (its card), else the silhouette; a hidden one held takes a hidden slot of its family
-// and tier (the catalogue says no more). Before any catalogue: the cards alone.
+// it (its card), else the silhouette. A veiled trophy is a "?" slot of its family and tier
+// (the catalogue says no more), filled by one the album's owner holds, else by one a friend
+// revealed (its silhouette, `revealed` = that friend's uid). Before any catalogue: the cards alone.
 function catalogTrophies(have) {
-  const own = id => _earned.has(id) && _cards[id];
-  const fromCard = id => ({ id, family: _cards[id].family, tier: _cards[id].tier, hidden: !!_cards[id].hidden, art: _cards[id].art });
-  if (!_catalog) return Object.keys(_cards).filter(id => have.has(id) && own(id)).map(fromCard);
+  const fromCard = id => ({ id, family: _cards[id].family, tier: _cards[id].tier, hidden: veiled(_cards[id]),
+    art: _earned.has(id) && _cards[id].art || _cards[id].sil || null, ...(have.has(id) ? {} : { revealed: _reveals.ids[id] }) });
+  if (!_catalog) return Object.keys(_cards).filter(id => have.has(id)).map(fromCard);
   const slots = new Map();
-  for (const id of Object.keys(_cards)) if (_cards[id].hidden && have.has(id) && own(id)) {
+  const ids = Object.keys(_cards).filter(id => veiled(_cards[id]) && (have.has(id) || _reveals.ids[id]));
+  for (const id of ids.sort((a, b) => have.has(b) - have.has(a))) {
     const k = `${_cards[id].family}|${_cards[id].tier}`;
     slots.set(k, [...(slots.get(k) || []), id]);
   }
   return _catalog.trophies.map((x, i) => {
-    if (!x.hidden) return { ...x, hidden: false, art: own(x.id) ? _cards[x.id].art : x.sil ? CDN + x.sil : null };
+    if (!x.hidden) return { ...x, hidden: false, art: _earned.has(x.id) && _cards[x.id]?.art || (x.sil ? CDN + x.sil : null) };
     const id = slots.get(`${x.family}|${x.tier}`)?.shift();
     return id ? fromCard(id) : { id: `hidden.${i}`, family: x.family, tier: x.tier, hidden: true, art: null };
   });
 }
-// A trophy's name and mission: the event's card, the account's own card, else the catalogue's.
+// A trophy's name and mission: the event's card, a card (held or revealed), else the catalogue's.
 const textOf = (x, key) => x.family === "events" ? loc(key === "name" ? x.name : x.desc, _ctx.lang())
-  : _cards[x.id] && _earned.has(x.id) ? loc(_cards[x.id][key], _ctx.lang()) : String(x[key] || "");
+  : _cards[x.id] ? loc(_cards[x.id][key], _ctx.lang()) : String(x[key] || "");
 const nameOf = x => textOf(x, "name");
 const descOf = x => textOf(x, "how");
 
@@ -272,7 +291,7 @@ const fmtDate = d => new Date(d).toLocaleDateString(_ctx.lang(), { day: "numeric
 function stickerHtml(x) {
   const { t, esc } = _ctx;
   const got = held().get(x.id);
-  const secret = !got && x.hidden || !x.art;
+  const secret = !got && x.hidden && !x.revealed || !x.art;
   const missed = !got && x.family === "events" && !x.active;
   const name = secret ? t("trophyHidden") : nameOf(x);
   const p = got ? pct(x.id) : null;
@@ -280,7 +299,8 @@ function stickerHtml(x) {
   // above the "i" with its tail on it, so every sticker is the
   // same size whatever its length; the card keeps the name and one line: the date, or the tier.
   const hint = missed ? t("trophyEventOver") : secret ? t("trophyHiddenHow") : descOf(x);
-  const meta = got ? fmtDate(got.at) : t(`trophyTier_${x.tier}`);
+  // A trophy a friend revealed says whose album showed it.
+  const meta = got ? fmtDate(got.at) : x.revealed ? t("trophySeenAt", { name: _ctx.friendName?.(x.revealed) || "?" }) : t(`trophyTier_${x.tier}`);
   // What the search reads: the name, the hint and the tier (a hidden trophy: its "?" labels only).
   const fam = t(`trophyFamily_${x.family}`);
   const q = `${name} ${hint} ${t(`trophyTier_${x.tier}`)} ${fam}`.toLowerCase();
@@ -351,7 +371,7 @@ export function renderTrophiesView(host, friend = null) {
   const all = allTrophies();
   const got = all.filter(x => mine.has(x.id));
   // Signature guard (.agents/rules/surgical-dom-updates.md): snapshots repaint often.
-  const sig = JSON.stringify([_uid, _friend?.uid, _friend?.error, _filter, _family, [...mine.keys()], [..._events.keys()], _stats.at, _ctx.lang(), loaded, _catalog?.v, Object.keys(_cards).length]);
+  const sig = JSON.stringify([_uid, _friend?.uid, _friend?.error, _filter, _family, [...mine.keys()], [..._events.keys()], _stats.at, _ctx.lang(), loaded, _catalog?.v, Object.keys(_cards).length, Object.keys(_reveals.ids).length]);
   if (host._trpSig === sig && host.childElementCount) return;
   host._trpSig = sig;
   const keep = x => (!_family || x.family === _family) && (_filter === "all" || (_filter === "got" ? mine.has(x.id) : !mine.has(x.id)));
@@ -488,7 +508,7 @@ function celebrateNew(uid) {
     if (_uid !== uid) return;
     const seen = readSeen(uid);
     const all = allTrophies(_earned);
-    const fresh = [..._earned.keys()].filter(id => !seen.has(id)).map(id => all.find(y => y.id === id)).filter(x => x?.art);
+    const fresh = [..._earned.keys()].filter(id => !seen.has(id)).map(id => all.find(y => y.id === id)).filter(x => x && (x.family === "events" || _cards[x.id]?.art));
     if (!fresh.length) return;
     fresh.forEach(x => seen.add(x.id));
     writeSeen(uid, seen);
