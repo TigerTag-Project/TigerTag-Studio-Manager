@@ -87,6 +87,7 @@ class Machine extends EventEmitter {
     const n = Math.max(0, o.slotCount ?? 4), colors = drawColors(n);
     this.slots = Array.from({ length: n }, (_, i) => ({ material: drawMaterial(), color: colors[i], empty: false }));
     this.activeSlot = this.slots.length ? 0 : -1;
+    this.told = new Set();      // slots a client wrote: no longer redrawn by a new print
     this.position = { x: 0, y: 0, z: 0 };
     this.homed = new Set();
     this._timer = setInterval(() => this.tick(TICK_MS / 1000), TICK_MS);
@@ -191,7 +192,8 @@ class Machine extends EventEmitter {
     // (videoMode "loop") keeps the colours declared for it — the camera shows them;
     // a drawn placeholder gets colours from the palette, so it never looks the same twice.
     const colors = pr.videoMode === 'loop' ? pr.slots.map(s => s.color) : drawColors(pr.slots.length);
-    pr.slots.forEach((s, i) => { if (this.slots[i]) this.slots[i] = { material: s.material, color: colors[i], empty: false }; });
+    // A slot a client has told what it holds (Studio, a TigerSpool…) keeps it, like a real printer.
+    pr.slots.forEach((s, i) => { if (this.slots[i] && !this.told.has(i)) this.slots[i] = { material: s.material, color: colors[i], empty: false }; });
     this.activeSlot = this.slots.length ? 0 : -1;
     // A tool changer heats one nozzle per colour of the print; a single head heats its one.
     this.nozzles().forEach((n, i) => { n.target = i < Math.max(1, pr.slots.length) ? pr.nozzleTemp : 0; });
@@ -232,6 +234,7 @@ class Machine extends EventEmitter {
   setSlot(i, patch) {
     const s = this.slots[i];
     if (!s) return false;
+    if (patch.material != null || patch.color != null) this.told.add(i);   // kept across the next prints
     if (patch.material != null) s.material = String(patch.material);
     if (patch.color != null) s.color = String(patch.color);
     if (patch.empty != null) s.empty = !!patch.empty;

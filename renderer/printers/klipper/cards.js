@@ -148,8 +148,10 @@ export function renderKlipperFilamentCard(p, conn) {
   const cards = fils.map(f => {
     const style = f.color ? `background:${ctx.esc(f.color)};color:${ctx.esc(ctx.snapTextColor(f.color))};` : "";
     const main = f.empty ? "—" : (f.material || (f.unknown ? "?" : "—"));
+    // A Happy Hare gate or an AFC lane keeps its filament: click to edit it (filament-edit.js).
+    const edit = f.gate != null || f.lane ? ` snap-fil--editable" data-klp-fil="${ctx.esc(f.key)}" role="button" tabindex="0` : "";
     return `
-      <div class="snap-fil${f.isActive ? " snap-fil--active" : ""}">
+      <div class="snap-fil${f.isActive ? " snap-fil--active" : ""}${edit}">
         <div class="snap-fil-tag">${ctx.esc(f.label)}</div>
         <div class="snap-fil-square ${f.color ? "snap-fil-square--filled" : "snap-fil-square--empty"}" style="${style}">
           <span class="snap-fil-main">${ctx.esc(main)}</span>

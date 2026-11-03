@@ -46,3 +46,7 @@
 .klipper-sensor .snap-temp-val { flex-shrink: 0; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .klipper-sensor.snap-temp--editable { cursor: pointer; border-radius: 6px; }
 .klipper-sensor.snap-temp--editable:hover { background: var(--surface-2); }
+
+/* Filament editor (filament-edit.js): the materials as wrapping chips, no inner scroll. */
+.klp-fil-edit .sfe-fil-materials { flex-direction: row; flex-wrap: wrap; overflow: visible; padding: 4px 0 12px; }
+.klp-fil-edit .sfe-fil-materials .sfe-fil-row { width: auto; flex: 0 0 auto; }

@@ -73,6 +73,7 @@ function register({ ipcMain, ffmpegPath, log = () => {} }) {
     const shape = { slotCount: face.slotCount, tools: face.tools, chamber: face.chamber,
       ...(face.shape ? face.shape(rec) : {}), ...shapeFor(rec.brand, rec.printerModelId) };
     const machine = new Machine({ id: rec.id, brand: rec.brand, slotCount: shape.slotCount, tools: shape.tools || 1, chamber: !!shape.chamber }, lib());
+    machine.model = { brand: rec.brand, id: String(rec.printerModelId ?? '') };   // its real idle photo (library.js)
     try {
       const handle = await face.start({ machine, address, library: lib(), record: rec, shape, model: modelOf(rec.brand, rec.printerModelId), ffmpegPath });
       running.set(rec.id, { machine, face: handle, address, brand: rec.brand, modelId: String(rec.printerModelId ?? '') });

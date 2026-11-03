@@ -4,9 +4,16 @@ One still per model, taken from the real printer's own camera while it was not
 printing (2026-10-19, from Tiger Studio's camera wall; the Elegoo frame straight
 from its MJPEG stream). Native resolution of each camera.
 
+Clips (`<name>.mp4`, 640×480 letterboxed, 10 fps, ~3 s): recorded 2026-11-04 with
+Studio's own camera recording (from the camera's source), printers at rest, played in
+a loop by the simulator. A model with a clip uses it; the still is the fallback. The
+X1C keeps its still (its light was off for the clip); the A1 camera sends about one
+image a second, so its clip is two frames; the AD5X camera was off.
+
 Uses:
-- the demo simulator's camera when a demo printer of that model is idle (a fixed
-  "stream" instead of the drawn placeholder) — not wired yet;
+- the demo simulator's camera while a demo printer of that model is not printing
+  (idle, heating, leveling: `library.js` `IDLE_PHOTOS`, keyed "brand/catalog id",
+  decoded to 640×480 frames on first use — the size of the print frames);
 - mockups (store pages, docs, slides).
 
 | File | Printer | Camera |

@@ -64,10 +64,15 @@ function cc2Status(m, fans) {
   };
 }
 
+// What a 2003 / 1055 write said per tray beyond material + colour (the Machine keeps those).
+const trayInfo = new WeakMap();   // Machine → [{ brand, name, min, max }]
+const infoOf = (m, i) => (trayInfo.get(m) || [])[i] || {};
+
 function cc2Canvas(m) {
   return { canvas_info: { canvas_list: [{ canvas_id: 0, connected: 1, tray_list: m.slots.map((s, i) => ({
     tray_id: i, filament_color: s.empty ? '' : hex6(s.color), filament_type: s.empty ? '' : s.material,
-    brand: s.empty ? '' : 'ELEGOO', filament_name: s.empty ? '' : `${s.material}`, min_nozzle_temp: 190, max_nozzle_temp: 230,
+    brand: s.empty ? '' : infoOf(m, i).brand || 'ELEGOO', filament_name: s.empty ? '' : infoOf(m, i).name || s.material,
+    min_nozzle_temp: infoOf(m, i).min ?? 190, max_nozzle_temp: infoOf(m, i).max ?? 230,
     status: i === m.activeSlot ? 1 : 0,
   })) }] } };
 }
@@ -103,8 +108,16 @@ function cc2Handle(m, method, params, fans, library, host) {
     case 1026: m.home(String(params.homed_axes || 'xyz')); return { error_code: 0 };
     case 1027: { const e = m.jog(params.axes, Number(params.distance)); return { error_code: e ? 1 : 0 }; }
     case 2003: case 1055:
-      m.setSlot(Number(params.tray_id) || 0, { material: params.filament_type, color: `#${hex6(params.filament_color)}`, empty: false });
+    {
+      const i = Number(params.tray_id) || 0;
+      if (!m.setSlot(i, { material: params.filament_type, color: `#${hex6(params.filament_color)}`, empty: false })) return { error_code: 1 };
+      const list = trayInfo.get(m) || [];
+      list[i] = { brand: params.brand, name: params.filament_name,
+        min: params.filament_min_temp != null ? Number(params.filament_min_temp) : undefined,
+        max: params.filament_max_temp != null ? Number(params.filament_max_temp) : undefined };
+      trayInfo.set(m, list);
       return { error_code: 0 };
+    }
     default: return { error_code: 0 };   // 1001 / 1043 …: acknowledged, nothing to say
   }
 }
@@ -128,6 +141,8 @@ async function startCC2({ machine: m, address: host, library, record }) {
       const result = cc2Handle(m, Number(msg.method), msg.params || {}, fans, library, host);
       if (result !== undefined) pub(resTopic, { id: msg.id, method: Number(msg.method), result });
       if ([2003, 1055].includes(Number(msg.method))) pub(resTopic, { id: 0, method: 2005, result: cc2Canvas(m) });
+      // …and, like the printer when its filament changes, the new canvas in the status push every client hears.
+      if ([2003, 1055].includes(Number(msg.method))) pub(`elegoo/${sn}/api_status`, { method: 6000, result: cc2Canvas(m) });
     }
   });
   const tcp = net.createServer(broker.handle);

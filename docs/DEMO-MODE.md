@@ -1,6 +1,6 @@
 # Demo mode — a printer simulator inside Tiger Studio
 
-**Status: steps 0–4 built (2026-10-15)** — the engine, the print library with its video pipeline, the debug-mode add flow and the Demo badge, and a face for every brand: Klipper, OctoPrint, FlashForge, Prusa, Creality, Snapmaker, Elegoo (CC2 and CC1), Bambu Lab and Anycubic (both LAN only); the Klipper face also plays the Elegoo CC1 on OpenCentauri COSMOS with a CANVAS (Klipper model 166, lanes published as both `AFC_stepper` and `AFC_lane`, as reported in issue 167). Step 5's tooling is built (filmed-loop import, still photos, booth events) and waits for the founder's footage; step 6 (tutorial) is still a plan. Per-brand contracts surveyed from the client code the same day.
+**Status: steps 0–4 built (2026-10-15)** — the engine, the print library with its video pipeline, the debug-mode add flow and the Demo badge, and a face for every brand: Klipper, OctoPrint, FlashForge, Prusa, Creality, Snapmaker, Elegoo (CC2 and CC1), Bambu Lab and Anycubic (both LAN only); the Klipper face also plays the Elegoo CC1 on OpenCentauri COSMOS with a CANVAS (Klipper model 166, lanes published as both `AFC_stepper` and `AFC_lane`, as reported in issue 167), and Klipper + Happy Hare with a 4-gate ERCF as the Voron 2.4, model 2; it also serves Moonraker's WebSocket `/websocket`). Step 5's tooling is built (filmed-loop import, still photos, booth events) and waits for the founder's footage; step 6 (tutorial) is still a plan. Per-brand contracts surveyed from the client code the same day.
 
 Fake printers that look and behave like real ones — for trade-show booths, for
 screenshots, for testing the interface, and later for a first-run tutorial that
@@ -125,6 +125,11 @@ services/demo/prints/<id>/
 - `"progress"` — a timelapse: the frame shown is the one matching the print's
   progress, so the object grows on screen as the print advances.
 
+**Before printing** (idle, heating, leveling), a demo printer of a model we filmed
+(A1, Ender-3 V4, Centauri Carbon 2, U1, Kobra X: a ~3 s clip looped; X1C, AD5X: a
+still — `services/demo/idle/`) shows that real printer's own camera instead of the
+next print's plate. Real printing footage replaces the drawn prints later (§3.2).
+
 Optional stills, for filmed loops (whose last frame is mid-print, not the result):
 `empty.jpg` (shown idle / heating / leveling) and `finished.jpg` (shown when complete).
 
@@ -247,17 +252,19 @@ Read from the client code (2026-10-15 survey; file:line references are the clien
 | **Prusa** | HTTP (PrusaLink `/api/v1/…`), `ip:port` allowed | **HTTP Digest** `maker` / password | `200` on `/api/v1/status` | `/api/v1/cameras/snap` | `ip` (with port), `password` |
 | **Anycubic** | MQTT over **TLS 1.2 only** `:9883` + HTTP `:18910/info` | `username`, `password`, `acuModelId`, `deviceId` in topics (all non-empty) | first message after SUBACK | FLV `:18088/flv` → needs a canned FLV / ffmpeg | `ip`, `port`, `username`, `password`, `acuModelId`, `deviceId` |
 | **Bambu Lab** | MQTT over TLS `:8883` (cert not verified) | `bblp` / access code, serial in topics | first report after `pushall` | **JPEG-over-TLS `:6000`** (80-byte auth, 16-byte header + JPEG) for P1/A1 models; RTSPS `:322` for X1/H2 | `broker`/`ip`, `serialNumber` (prefix picks the model, e.g. `01P` P1S), `password`, `printerModelId` |
-| Klipper / OctoPrint | HTTP (existing mocks) | optional `X-Api-Key` | as the mocks | MJPEG / snapshot | `ip` (with port), `apiKey` |
+| **Klipper** | HTTP + WS `/websocket` JSON-RPC 2.0 (Moonraker), both on the record's `ip:port` | optional `X-Api-Key` (HTTP header; WS: `api_key` in `server.connection.identify`, or the header on the upgrade) | as the mocks | MJPEG / snapshot | `ip` (with port), `apiKey` |
+| OctoPrint | HTTP (existing mocks) | optional `X-Api-Key` | as the mocks | MJPEG / snapshot | `ip` (with port), `apiKey` |
 
 What each face must publish (keys the drivers parse) and accept (commands):
 
-- **Creality** — flat JSON push: `state` (0 idle / 1 printing / 2 finished), `printProgress`, `printLeftTime` (s), `layer`, `TotalLayer`, `printFileName`, `nozzleTemp` / `targetNozzleTemp`, `bedTemp0` / `targetBedTemp0`, `boxTemp`, fan `%`s, `lightSw`; CFS `boxsInfo.materialBoxs[{id, type, materials[{color "#0rrggbb", type, state, selected}]}]` (box `id:0` = external). Accepts `{"method":"set","params":{pause, stop, lightSw, gcodeCmd, feedInOrOut, modifyMaterial}}`.
-- **Elegoo CC2** — `result.print_status{state, progress, current_layer, filename, remaining_time_sec, print_duration}`, `machine_status`, `extruder` / `heater_bed` `{temperature, target}`, fans, `led.status`; Canvas via method 2005 `canvas_info.canvas_list[0].tray_list[]`; total layers from the 1044 file list. Accepts methods 1021 / 1023 / 1022 (pause / resume / cancel), 1026–1031, 2003 / 1055 (filament).
+- **Creality** — `modifyMaterial` keeps type, colour and vendor per CFS slot (`boxId` ≥ 1) and for the external holder (`boxId` 0), read back in `boxsInfo`. flat JSON push: `state` (0 idle / 1 printing / 2 finished), `printProgress`, `printLeftTime` (s), `layer`, `TotalLayer`, `printFileName`, `nozzleTemp` / `targetNozzleTemp`, `bedTemp0` / `targetBedTemp0`, `boxTemp`, fan `%`s, `lightSw`; CFS `boxsInfo.materialBoxs[{id, type, materials[{color "#0rrggbb", type, state, selected}]}]` (box `id:0` = external). Accepts `{"method":"set","params":{pause, stop, lightSw, gcodeCmd, feedInOrOut, modifyMaterial}}`.
+- **Elegoo CC2** — methods 2003 / 1055 keep material, colour, brand, name and temperatures per tray (read back by 2005), and the new canvas is pushed to every client in a 6000 status on `api_status`, as the printer does when its filament changes (Studio refreshes its card from it); an unknown tray → `error_code` 1. `result.print_status{state, progress, current_layer, filename, remaining_time_sec, print_duration}`, `machine_status`, `extruder` / `heater_bed` `{temperature, target}`, fans, `led.status`; Canvas via method 2005 `canvas_info.canvas_list[0].tray_list[]`; total layers from the 1044 file list. Accepts methods 1021 / 1023 / 1022 (pause / resume / cancel), 1026–1031, 2003 / 1055 (filament).
 - **Elegoo CC1** — `Status{CurrentStatus[], PrintInfo{Status, Filename, CurrentLayer, TotalLayer, Progress, CurrentTicks, TotalTicks}, TempOfNozzle…}`; Cmd 129 / 130 / 131 with `Ack: 0`; answers `ping` with `pong`.
-- **FlashForge** — `detail{status, printProgress, printLayer, targetPrintLayer, estimatedTime, printFileName, printFileThumbUrl, rightTemp…, platTemp…, chamberTemp…, fans, matlStationInfo{currentSlot, slotCnt, slotInfos[]}, cameraStreamUrl}`; `/control` `jobCtl_cmd`, `lightControl_cmd`, `msConfig_cmd`. Wrong code → `code:1` with the exact messages.
-- **Snapmaker** — Moonraker objects (`print_stats`, `display_status`, `extruder`…`extruder3`, `heater_bed`, `toolhead`, `fan`, `fan_generic cavity_fan`, `led cavity_led`, `print_task_config{filament_color_rgba[4], filament_type…}`) via `printer.objects.subscribe` + `notify_status_update`; `printer.gcode.script`; `server.webcams.list` empty → still camera.
+- **FlashForge** — `POST /checkCode {serialNumber, checkCode}` logs in first, as on a Creator 5 / AD5X (`code` 0 ok, 5 wrong serial, 1 wrong code; the "SN" prefix is optional). `detail{status, printProgress, printLayer, targetPrintLayer, estimatedTime, printFileName, printFileThumbUrl, rightTemp…, platTemp…, chamberTemp…, fans, matlStationInfo{currentSlot, slotCnt, slotInfos[]}, cameraStreamUrl}`; `/control` `jobCtl_cmd`, `lightControl_cmd`, `msConfig_cmd`. Wrong code → `code:1` with the exact messages.
+- **Klipper** — the Moonraker objects of `objects()` (AFC lanes as `AFC_stepper <lane>`, also `AFC_lane <lane>` on the COSMOS model 166). The model **Voron 2.4 (Klipper catalog id 2)** plays Klipper + **Happy Hare** with a 4-gate ERCF instead of AFC: the `mmu` object (`num_gates`, `gate`, `gate_status` 1 / 0 / -1, `gate_material`, `gate_color` `"RRGGBB"`, `gate_spool_id`, `ttg_map`), written with `MMU_GATE_MAP GATE= MATERIAL= COLOR= [SPOOLID=] [AVAILABLE=]` over HTTP and WebSocket alike; a gate that does not exist → 400. The WebSocket `/websocket` (for the TigerSpool and the Tiger Touch; Studio's plugin uses HTTP) needs no identify when the record has no API key (the TigerSpool then goes straight to `printer.objects.list`, a `query` every 5 s, `printer.gcode.script`), and answers `server.connection.identify` → `{connection_id}` (with an API key, every other method answers `{"error":{"code":401,"message":"Unauthorized"}}` until identify carried it), `printer.objects.list` / `query` / `subscribe` (+ `notify_status_update` every second), `printer.gcode.script` (multi-line, the HTTP commands; unknown lane → `{"error":{"code":400}}`), `printer.print.*`, `server.info`, `printer.info`; unknown method → `-32601`. One `notify_proc_stat_update` a second to every client, like Moonraker. One state for both sides: a write on one shows in the next read on the other. No `Origin` check (devices send none). Test: `node --test scripts/test-demo-klipper-ws.mjs`.
+- **Snapmaker** — `SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER= VENDOR= FILAMENT_TYPE= FILAMENT_SUBTYPE= FILAMENT_COLOR_RGBA=` is kept per head and read back in `print_task_config` (vendor and sub-type included; an unknown extruder → 400). Moonraker objects (`print_stats`, `display_status`, `extruder`…`extruder3`, `heater_bed`, `toolhead`, `fan`, `fan_generic cavity_fan`, `led cavity_led`, `print_task_config{filament_color_rgba[4], filament_type…}`) via `printer.objects.subscribe` + `notify_status_update`; `printer.gcode.script`; `server.webcams.list` empty → still camera.
 - **Prusa** — `/api/v1/status{printer{state, temp_*, target_*, fan_*, speed, flow}, job{id, progress, time_remaining, time_printing}}`, `/api/v1/info`, `/api/version`, `/api/v1/job{file{display_name, refs.thumbnail, meta}}`; `PUT …/pause|resume`, `DELETE /api/v1/job/{id}`.
-- **Anycubic** — topic `…/printer/public/{modelId}/{deviceId}/…`, messages `{type, action, state, data}`: `print` (`progress`, `remain_time` min, `curr_layer`, `total_layers`, temps, `settings`), `multiColorBox` (`slots[{index, type, color:[r,g,b], status}]`), `tempature`, `fan`, `light`; accepts `print` pause / resume / stop, `light/control`, `axis/move`, `fan/setSpeed`, box `setInfo`.
+- **Anycubic** — topic `…/printer/public/{modelId}/{deviceId}/{family}/report` (as a real printer; the TigerSpool listens there), messages `{type, action, state, data}`: `print` (`progress`, `remain_time` min, `curr_layer`, `total_layers`, temps, `settings`), `multiColorBox` (`slots[{index, type, color:[r,g,b], status}]`), `tempature`, `fan`, `light`; accepts `print` pause / resume / stop, `light/control`, `axis/move`, `fan/setSpeed`, box `setInfo`.
 - **Bambu Lab** — `device/{serial}/report` → `print{gcode_state, mc_percent, mc_remaining_time (min), layer_num, total_layer_num, subtask_name, nozzle_temper / bed_temper / chamber_temper (+ targets; or the packed `device.*` form), ams.ams[{tray[{tray_color "RRGGBBAA", tray_type, state}]}], vt_tray, lights_report, spd_lvl, fan speeds (0–15)}` plus `info.module[]` (AMS type); accepts `print.command` pause / resume / stop, `gcode_line`, `system.ledctrl`, `print_speed`, `ams_filament_setting`. Thumbnails over FTPS `:990` are optional (the job card falls back to the model picture).
 
 ### 4.2 Difficulty → order
@@ -294,7 +301,20 @@ computer's IPv4 addresses (`addresses.servable`); clients are not filtered.
   rewritten by Studio to the current one at every printer snapshot
   (`repointLanDemos`, IPC `demo:lan-host`), the port kept. A DHCP reservation for the
   computer avoids the churn on the devices' side.
-- The printers only answer while Studio runs with that account active.
+- The printers only answer while Studio runs with that account active. Reloading Studio's window restarts every demo printer (fresh slot draw, every device link dropped) — avoid it while a device is testing.
+- **macOS firewall.** With the application firewall on (System Settings → Network →
+  Firewall), incoming connections to the packaged Tiger Studio are blocked until it is
+  allowed: accept macOS's "accept incoming network connections?" prompt, or add the app
+  under Firewall → Options and set it to *Allow incoming connections*. "Block all incoming
+  connections" and stealth mode stop it whatever the per-app setting. Check with
+  `/usr/libexec/ApplicationFirewall/socketfilterfw --getglobalstate` and `--listapps`. A
+  dev run (`npm start`) is the Electron binary in `node_modules`, a different app to the
+  firewall.
+- **"Probe says unreachable" on a new printer is not a closed port.** A TigerSpool
+  dials a printer only after its background TCP probe has seen it, so a printer
+  added seconds earlier can report "probe says unreachable, not dialling" once, then
+  connect on the next attempt (seen 2026-11-04 with these demo printers). Before
+  suspecting the network, check from another machine: `nc -vz <mac-ip> <port>`.
 - Firmware that hard-codes each brand's port (Tiger Touch today) can reach one printer
   per brand this way; several printers of one brand need "host:port" support in the
   client.

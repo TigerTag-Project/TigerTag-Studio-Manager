@@ -89,7 +89,8 @@
     ],
     "asarUnpack": [
       "**/node_modules/ffmpeg-static/**",
-      "services/demo/prints/**"
+      "services/demo/prints/**",
+      "services/demo/idle/**"
     ],
     "win": {
       "target": [

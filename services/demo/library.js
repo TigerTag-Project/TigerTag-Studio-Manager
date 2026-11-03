@@ -11,7 +11,9 @@
  *                                             "progress": the frame matching the
  *                                             progress (a timelapse)
  *   paused        stays on the current frame, resumes from there
- *   heating, leveling, idle   empty.jpg if the print has one, else the first frame
+ *   idle, heating, leveling   the model's real camera at rest (idle/<name>.mp4 played
+ *                 in a loop, else idle/<name>.jpg) when there is one; else empty.jpg
+ *                 if the print has one, else the first frame
  *   complete      finished.jpg if the print has one, else the last frame
  *   cancelled     frozen where it stopped
  */
@@ -22,6 +24,15 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const PRINTS_DIR = path.join(__dirname, 'prints');
+const IDLE_DIR = path.join(__dirname, 'idle');
+// "brand/catalog id" → that real printer's own camera while it was not printing
+// (idle/README.md): <name>.mp4, a short clip played in a loop, and <name>.jpg, a still.
+const IDLE_PHOTOS = {
+  'bambulab/5': 'bambulab-x1c', 'bambulab/2': 'bambulab-a1',
+  'creality/10': 'creality-ender-3-v4', 'flashforge/1': 'flashforge-ad5x',
+  'elegoo/1': 'elegoo-centauri-carbon-2', 'snapmaker/1': 'snapmaker-u1',
+  'anycubic/5': 'anycubic-kobra-x',
+};
 const FPS = 10;
 
 function createLibrary({ ffmpegPath, log = () => {} } = {}) {
@@ -70,6 +81,32 @@ function createLibrary({ ffmpegPath, log = () => {} } = {}) {
     return job;
   }
 
+  /**
+   * The resting camera of a model: its clip's frames, else its still, scaled once to
+   * the print frames' 640×480 (letterboxed) so a stream never changes size. An array
+   * of JPEG frames, or null (none, or still decoding).
+   */
+  const idle = new Map();   // name → Buffer[] | null | 'pending'
+  function idleFrames(brand, modelId) {
+    const name = IDLE_PHOTOS[`${brand}/${modelId}`];
+    if (!name) return null;
+    if (!idle.has(name)) {
+      idle.set(name, 'pending');
+      const at = ext => path.join(IDLE_DIR, `${name}.${ext}`).replace(/app\.asar([\\/])/, 'app.asar.unpacked$1');
+      const file = [at('mp4'), at('jpg')].find(f => fs.existsSync(f));
+      if (!ffmpegPath || !file) { idle.set(name, null); return null; }
+      const chunks = [];
+      const ff = spawn(ffmpegPath, ['-hide_banner', '-loglevel', 'error', '-i', file, '-vf',
+        `fps=${FPS},scale=640:480:force_original_aspect_ratio=decrease,pad=640:480:(ow-iw)/2:(oh-ih)/2:color=black`,
+        '-q:v', '5', '-f', 'image2pipe', '-vcodec', 'mjpeg', '-'], { windowsHide: true });
+      ff.stdout.on('data', c => chunks.push(c));
+      ff.on('error', () => idle.set(name, null));
+      ff.on('close', () => { const f = splitJpegs(Buffer.concat(chunks)); idle.set(name, f.length ? f : null); });
+    }
+    const v = idle.get(name);
+    return Array.isArray(v) ? v : null;
+  }
+
   /** prints/<id>/empty.jpg | finished.jpg, read once (null when absent). */
   const stills = new Map();
   function still(print, name) {
@@ -86,6 +123,12 @@ function createLibrary({ ffmpegPath, log = () => {} } = {}) {
    * Synchronous: until a video is decoded the thumbnail stands in.
    */
   function frameFor(m) {
+    // Before printing (idle, heating, leveling), a demo of a model we filmed shows that
+    // printer's own camera at rest, its clip looped by time.
+    if (m.model && ['idle', 'heating', 'leveling'].includes(m.phase)) {
+      const f = idleFrames(m.model.brand, m.model.id);
+      if (f) return { data: f[Math.floor(Date.now() / (1000 / FPS)) % f.length], type: 'image/jpeg' };
+    }
     const print = m.print || prints[m.nextIndex % prints.length];
     if (!print) return null;
     // A filmed loop ends mid-print: its own photos stand in for the empty plate

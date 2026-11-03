@@ -65,6 +65,13 @@ function start({ machine: m, address, library, record = {}, model }) {
       res.writeHead(404, CORS); return res.end();
     }
     const { json: body } = await readBody(req);
+    // The login a Creator 5 / AD5X answers before anything else (the TigerSpool
+    // calls it first): 0 = serial + code match, 5 = wrong serial, 1 = wrong code.
+    if (p === '/checkCode') {
+      if (normSerial(body.serialNumber || '') !== serial) return json(res, { code: 5, message: 'SN is different' });
+      if (String(body.checkCode || '').trim() !== code) return json(res, { code: 1, message: 'access code is different' });
+      return json(res, { code: 0, message: 'Success' });
+    }
     // The printer's own refusals, word for word (the driver matches them).
     if (normSerial(body.serialNumber || '') !== serial) return json(res, { code: 1, message: 'SN is different' });
     if (String(body.checkCode || '').trim() !== code) return json(res, { code: 1, message: 'access code is different' });

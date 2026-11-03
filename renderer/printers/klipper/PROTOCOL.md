@@ -289,7 +289,8 @@ services only — never another brand's files, not even Snapmaker's Moonraker co
 |---|---|
 | `plugin.js` | Entry point: `registerPrinterPlugin({...})` — manifest (`meta`, `schema`, `helper`), lifecycle hooks, UI hooks, strings (11 locales), CSS, model catalogue |
 | `core.js` | Connection core: feature detection, 2 s `objects/query` poll, slot adapters (Happy Hare / AFC / extruders), job control, slot writes (`klipperWriteSlot`), request log |
-| `cards.js` | Job / temperature / status / filament cards (host `snap-*` classes) |
+| `cards.js` | Job / temperature / status / filament cards (host `snap-*` classes); a Happy Hare gate / AFC lane is clickable (`data-klp-fil`) |
+| `filament-edit.js` | The slot editor: the printers' `.sfe-*` bottom sheet (material chips, colour palette, Apply) → `klipperWriteSlot` |
 | `camera.js` | MJPEG `<img>` stream, or 2 s snapshot refresh for other services |
 | `probe.js`, `add-flow.js` | `/server/info` LAN sweep on 7125; choice / scan / manual add |
 | `main.cjs` | Main-process side: allow-listed Moonraker HTTP (`printer:klipper:http`) + `printer:klipper:probe` |
@@ -301,8 +302,10 @@ services only — never another brand's files, not even Snapmaker's Moonraker co
 - Firestore `users/{uid}/printers/klipper/devices/{id}` (the generic
   `printers/{brand}` rule covers it); the API key is a `secret` field.
 - Beta: the brand picker and the live block show the Beta tag + ⓘ bubble (`beta-badge.js`, text `printerBetaNote`).
-- Slot **writes** (`klipperWriteSlot`) are implemented and tested against the
-  mock; the UI to push a spool to a gate/lane is the next step.
+- Slot **writes**: clicking a Happy Hare gate or an AFC lane in the Filament card
+  opens the editor (`filament-edit.js`); Apply runs `klipperWriteSlot` and polls.
+  Checked against the demo printers (Voron 2.4 = Happy Hare, COSMOS = AFC), both
+  ways with the TigerSpool's own writes (`docs/DEMO-MODE.md`).
 - Test bench without hardware: `npm run moonraker:mock -- --profile plain|happyhare|afc [--api-key K] [--auto-print]`
   (`scripts/moonraker-mock.mjs`), then add `127.0.0.1` by hand.
 - Web: no LAN from https — the plugin bridge does not exist there.

@@ -27,6 +27,7 @@ const STATE = {
 const SENSORS = [0, 1, 2, 3].map(i => `filament_motion_sensor e${i}_filament`);
 const rgba = c => `${String(c || '').replace(/^#/, '').slice(0, 6).toUpperCase()}FF`;
 
+/** `cavity.vendor` / `cavity.subtype`: what SET_PRINT_FILAMENT_CONFIG last said per head (the Machine keeps material + colour). */
 function objects(m, cavity) {
   const active = m.print && m.phase !== 'idle';
   const o = {
@@ -46,9 +47,9 @@ function objects(m, cavity) {
     'led cavity_led': { color_data: [[m.light ? 1 : 0, m.light ? 1 : 0, m.light ? 1 : 0, m.light ? 1 : 0]] },
     print_task_config: {
       filament_color_rgba: m.slots.map(s => (s.empty ? '00000000' : rgba(s.color))),
-      filament_vendor: m.slots.map(s => (s.empty ? '' : 'Generic')),
+      filament_vendor: m.slots.map((s, i) => (s.empty ? '' : cavity.vendor[i] || 'Generic')),
       filament_type: m.slots.map(s => (s.empty ? '' : s.material)),
-      filament_sub_type: m.slots.map(() => ''),
+      filament_sub_type: m.slots.map((s, i) => (s.empty ? '' : cavity.subtype[i] || '')),
       filament_official: m.slots.map(() => false),
     },
   };
@@ -69,7 +70,7 @@ function pick(all, want) {
 }
 
 async function start({ machine: m, address: host, library }) {
-  const cavity = { fan: 0 };
+  const cavity = { fan: 0, vendor: [], subtype: [] };
   const mode = { relative: false };
 
   const server = http.createServer((req, res) => {
@@ -137,7 +138,10 @@ async function start({ machine: m, address: host, library }) {
               if (cmd === 'SET_LED' && p.LED === 'cavity_led') { m.setLight(['RED', 'GREEN', 'BLUE', 'WHITE'].some(k => Number(p[k]) > 0)); return true; }
               if (cmd === 'SET_PRINT_FILAMENT_CONFIG') {
                 const c = String(p.FILAMENT_COLOR_RGBA || '').replace(/^#/, '');
-                m.setSlot(Number(p.CONFIG_EXTRUDER), { material: p.FILAMENT_TYPE, ...(c ? { color: `#${c.slice(0, 6)}` } : {}), empty: false });
+                const i = Number(p.CONFIG_EXTRUDER);
+                if (!m.setSlot(i, { material: p.FILAMENT_TYPE, ...(c ? { color: `#${c.slice(0, 6).toUpperCase()}` } : {}), empty: false })) throw new Error(`Unknown extruder ${p.CONFIG_EXTRUDER}`);
+                if (p.VENDOR != null) cavity.vendor[i] = p.VENDOR;
+                if (p.FILAMENT_SUBTYPE != null) cavity.subtype[i] = p.FILAMENT_SUBTYPE;
                 return true;
               }
               if (cmd === 'INNER_FILAMENT_UNLOAD') { m.setSlot(m.activeTool, { empty: true }); return true; }

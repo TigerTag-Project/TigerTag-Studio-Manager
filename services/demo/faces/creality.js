@@ -43,12 +43,13 @@ function status(m, fans) {
   };
 }
 
-function boxsInfo(m) {
+/** `cfs.vendor[i]` and `cfs.ext` hold what modifyMaterial last wrote (the Machine keeps material + colour of the CFS slots). */
+function boxsInfo(m, cfs) {
   return { boxsInfo: { materialBoxs: [
     // The external spool (type 1), then the CFS (type 0) — absent on a model without one.
-    { id: 0, type: 1, materials: [{ id: 0, vendor: 'Generic', type: 'PLA', color: '#0ffffff', state: 1, selected: m.slots.length ? 0 : 1 }] },
+    { id: 0, type: 1, materials: [{ id: 0, vendor: cfs.ext.vendor, type: cfs.ext.type, color: cfs.ext.color, state: 1, selected: m.slots.length ? 0 : 1 }] },
     ...(m.slots.length ? [{ id: 1, type: 0, temp: 27, humidity: 41, materials: m.slots.map((s, i) => ({
-      id: i, vendor: s.empty ? '' : 'Generic', type: s.empty ? '' : s.material, color: s.empty ? '' : cfsColor(s.color),
+      id: i, vendor: s.empty ? '' : cfs.vendor[i] || 'Generic', type: s.empty ? '' : s.material, color: s.empty ? '' : cfsColor(s.color),
       state: s.empty ? 0 : 1, selected: i === m.activeSlot ? 1 : 0,
     })) }] : []),
   ] } };
@@ -67,6 +68,7 @@ async function start({ machine: m, address: host, library, record = {} }) {
   // The camera port is the one the record names (8080 unless told otherwise).
   const camPort = Number(String(record.cameraUrl || '').match(/:(\d+)\//)?.[1]) || 8080;
   const fans = { case: 0, aux: 0 };
+  const cfs = { vendor: [], ext: { vendor: 'Generic', type: 'PLA', color: '#0ffffff' } };
   const mode = { relative: false };
   const closers = [];
   const camStreams = new Set();
@@ -87,7 +89,7 @@ async function start({ machine: m, address: host, library, record = {} }) {
           return;
         }
         ws.send(JSON.stringify(status(m, fans)));
-        if (p.boxsInfo) ws.send(JSON.stringify(boxsInfo(m)));
+        if (p.boxsInfo) ws.send(JSON.stringify(boxsInfo(m, cfs)));
         if (p.getGcodeFileInfo2 || p.reqGcodeList) ws.send(JSON.stringify(fileList(library)));
         return;
       }
@@ -104,10 +106,13 @@ async function start({ machine: m, address: host, library, record = {} }) {
       }
       if (p.modifyMaterial) {
         const mm = p.modifyMaterial;
-        if (Number(mm.boxId) >= 1) m.setSlot(Number(mm.id), { material: mm.type, color: `#${String(mm.color || '').replace(/^#/, '').slice(-6)}` });
+        const color = `#${String(mm.color || '').replace(/^#/, '').slice(-6)}`;
+        if (Number(mm.boxId) >= 1) {
+          if (m.setSlot(Number(mm.id), { material: mm.type, color, empty: false }) && mm.vendor != null) cfs.vendor[Number(mm.id)] = mm.vendor;
+        } else cfs.ext = { vendor: mm.vendor || 'Generic', type: mm.type || '', color: `#0${color.slice(1).toLowerCase()}` };
       }
       ws.send(JSON.stringify(status(m, fans)));
-      if (p.modifyMaterial || p.feedInOrOut) ws.send(JSON.stringify(boxsInfo(m)));
+      if (p.modifyMaterial || p.feedInOrOut) ws.send(JSON.stringify(boxsInfo(m, cfs)));
     });
   });
   // The printer pushes on its own: telemetry every second, the CFS every 5 s, a heart_beat every 10 s.
@@ -115,7 +120,7 @@ async function start({ machine: m, address: host, library, record = {} }) {
   const pushT = setInterval(() => {
     tick++;
     sendAll(status(m, fans));
-    if (tick % 5 === 0) sendAll(boxsInfo(m));
+    if (tick % 5 === 0) sendAll(boxsInfo(m, cfs));
     if (tick % 10 === 0) sendAll({ ModeCode: 'heart_beat' });
   }, 1000);
   await listen(wsHttp, host, 9999);

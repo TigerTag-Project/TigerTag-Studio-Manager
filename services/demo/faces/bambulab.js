@@ -36,13 +36,18 @@ const STATE = { idle: 'IDLE', heating: 'PREPARE', leveling: 'PREPARE', printing:
 // New-firmware temperature: current in the low 16 bits, target in the high 16.
 const packed = h => ((Math.max(0, Math.round(h.target)) & 0xFFFF) << 16) | (Math.max(0, Math.round(h.cur)) & 0xFFFF);
 
-/** The AMS block — an empty one on a model printing from the external spool only. */
-function amsBlock(m) {
+// What ams_filament_setting said beyond type + colour, echoed like the printer does.
+const trayFields = p => Object.fromEntries(['tray_info_idx', 'nozzle_temp_min', 'nozzle_temp_max']
+  .filter(k => p[k] != null).map(k => [k, String(p[k])]));
+
+/** The AMS block — an empty one on a model printing from the external spool only. `info[i]`: trayFields of tray i. */
+function amsBlock(m, info = []) {
   if (!m.slots.length) return { ams_exist_bits: '0', tray_exist_bits: '0', tray_now: '255', ams: [] };
   return { ams_exist_bits: '1', tray_exist_bits: ((1 << m.slots.length) - 1).toString(16), tray_now: String(m.activeSlot), ams: [{
     id: '0', humidity: '4', humidity_raw: '28', temp: '25.1',
     tray: m.slots.map((s, i) => (s.empty ? { id: String(i) } : {
-      id: String(i), tray_color: rgbaHex(s.color), tray_type: s.material, state: i === m.activeSlot && m.isBusy ? 11 : 0,
+      id: String(i), ...info[i],
+      tray_color: rgbaHex(s.color), tray_type: s.material, state: i === m.activeSlot && m.isBusy ? 11 : 0,
     })),
   }] };
 }
@@ -81,9 +86,10 @@ function report(m, extra, full) {
     spd_lvl: speedLvl(m.speedPct), spd_mag: m.speedPct,
     lights_report: [{ node: 'chamber_light', mode: m.light ? 'on' : 'off' }],
     ipcam: { ipcam_dev: '1', rtsp_url: 'disable_rtsp_jpeg_tcp' },
-    ams: amsBlock(m),
+    ams: amsBlock(m, extra.trays),
     ...deviceBlock(m),
-    vt_tray: { id: '254', tray_color: rgbaHex(extra.ext.color), tray_type: extra.ext.material, state: 0 },
+    vt_tray: { id: '254', ...extra.ext.info,
+      tray_color: rgbaHex(extra.ext.color), tray_type: extra.ext.material, state: 0 },
   } };
 }
 
@@ -94,7 +100,7 @@ async function start({ machine: m, address, library, record, model, ffmpegPath }
   const [host, mqttPort = '8883'] = String(address).split(':');
   const customPort = String(address).includes(':');
   const serial = String(record.serialNumber || ''), code = String(record.password || '');
-  const extra = { aux: 0, chamberFan: 0, ext: { material: 'PLA', color: '#00AE42' } };
+  const extra = { aux: 0, chamberFan: 0, ext: { material: 'PLA', color: '#00AE42', info: {} }, trays: [] };
   const mode = { relative: false };
   const closers = [];
 
@@ -135,8 +141,8 @@ async function start({ machine: m, address, library, record, model, ffmpegPath }
         break;
       case 'ams_filament_setting': {
         const patch = { material: p.tray_type, color: `#${String(p.tray_color || '').slice(0, 6)}` };
-        if (Number(p.ams_id) === 255) Object.assign(extra.ext, patch);
-        else m.setSlot(Number(p.tray_id), { ...patch, empty: false });
+        if (Number(p.ams_id) === 255) Object.assign(extra.ext, patch, { info: trayFields(p) });
+        else if (m.setSlot(Number(p.tray_id), { ...patch, empty: false })) extra.trays[Number(p.tray_id)] = trayFields(p);
         break;
       }
       default: return;

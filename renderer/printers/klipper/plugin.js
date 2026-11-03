@@ -17,6 +17,7 @@ import {
   onKlipperChange, remainingSec, klipperSetTemp,
 } from './core.js';
 import { wireTempEdit } from '../temp-edit.js';
+import { openKlipperFilamentEdit } from './filament-edit.js';
 import { morphInner } from '../dom-morph.js';
 import {
   renderKlipperJobCard, renderKlipperTempCard, renderKlipperFilamentCard,
@@ -140,6 +141,15 @@ function wireLive(root, p) {
   wireControl(root, () => ctx.getActivePrinter());
   wireTempEdit(root, (heater, v) => { const ap = ctx.getActivePrinter(); if (ap) klipperSetTemp(ap, heater, v); });
   wireKlipperSensors(root);
+  if (!root.dataset.klpFilWired) {
+    root.dataset.klpFilWired = "1";
+    const open = e => {
+      const el = e.target.closest("[data-klp-fil]"), ap = ctx.getActivePrinter();
+      if (el && ap) openKlipperFilamentEdit(ap, el.dataset.klpFil);
+    };
+    root.addEventListener("click", open);
+    root.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { if (e.target.closest("[data-klp-fil]")) { e.preventDefault(); open(e); } } });
+  }
   root.querySelectorAll("[data-klipper-job]").forEach(btn => {
     if (btn.dataset.wired) return;
     btn.dataset.wired = "1";

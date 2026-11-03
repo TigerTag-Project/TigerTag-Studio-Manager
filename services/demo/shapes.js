@@ -44,7 +44,8 @@ const OVERRIDES = {
   elegoo: { 1: { slotCount: 4 }, 3: { slotCount: 4 }, 4: { slotCount: 4 }, 5: { slotCount: 4 },   // Canvas
             2: { slotCount: 0, chamber: true } },                      // Centauri Carbon (CC1): no Canvas
   flashforge: { 1: { slotCount: 4 } },                                 // AD5X: IFS station
-  klipper: { 166: { slotCount: 4, chamber: true } },                    // CC1 on OpenCentauri COSMOS + CANVAS
+  klipper: { 166: { slotCount: 4, chamber: true },                     // CC1 on OpenCentauri COSMOS + CANVAS
+             2: { slotCount: 4 } },                                    // Voron 2.4: Happy Hare with a 4-gate ERCF
 };
 
 const _catalogs = new Map();

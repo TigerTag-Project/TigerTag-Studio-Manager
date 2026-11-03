@@ -87,7 +87,7 @@ async function start({ machine: m, address: host, library, record, ffmpegPath })
   const pubBase = `anycubic/anycubicCloud/v1/printer/public/${model}/${device}`;
   const closers = [];
   const broker = await Aedes.createBroker();
-  const pub = (endpoint, obj) => broker.publish({ topic: `${pubBase}/${endpoint}`, payload: Buffer.from(JSON.stringify({ msgid: crypto.randomUUID(), timestamp: Date.now(), ...obj })), qos: 0, retain: false }, () => {});
+  const pub = (endpoint, obj) => broker.publish({ topic: `${pubBase}/${endpoint}/report`, payload: Buffer.from(JSON.stringify({ msgid: crypto.randomUUID(), timestamp: Date.now(), ...obj })), qos: 0, retain: false }, () => {});
   broker.authenticate = (_c, user, pw, cb) => cb(null, user === record.username && String(pw || '') === String(record.password || ''));
 
   broker.on('publish', (pkt, client) => {
