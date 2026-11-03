@@ -350,7 +350,7 @@ Captured live by sniffing AnycubicSlicerNext's control panel
 | Cooldown | `tempature` | `set` | same, with the relevant target = `0` (`type` selects nozzle `0` / bed `1` / both `2`) |
 | Set slot filament | `multiColorBox` | `setInfo` | `{ "multi_color_box": [ { "id": <box>, "slots": [ { "index": <0-3>, "type": "<material>", "color": [r,g,b] } ] } ] }` — see §5 for the accepted `type` list |
 | Set fan speed | `fan` | `setSpeed` | `{ "fan_speed_pct": <0-100> }` |
-| Light on/off | `light` | `control` | `{ "type": 3, "status": 0\|1, "brightness": <0-100> }` |
+| Light on/off | `light` | `control` | `{ "type": <lamp type>, "status": 0\|1, "brightness": <0-100> }` — `3` on the Kobra X; the printer names its own lamp, see **Light type** below |
 | Jog an axis | `axis` | `move` | `{ "axis": 1\|2\|3, "move_type": 0\|1, "distance": <mm> }` |
 | Home axis / combos | `axis` | `move` | `{ "axis": 1=X\|2=Y\|3=Z\|4=XY\|5=XYZ, "move_type": 2, "distance": 0 }` |
 | Disable steppers | `axis` | `turnOff` | `null` |
@@ -362,6 +362,20 @@ Captured live by sniffing AnycubicSlicerNext's control panel
 | Resume print | `print` | `resume` | `{ "taskid": "-1" }` |
 | Stop print | `print` | `stop` | `{ "taskid": "-1" }` |
 | Set speed mode | `print` | `update` | `{ "taskid": "-1", "settings": { "print_speed_mode": 1\|2\|3 } }` |
+
+**Light type.** The `type` of a light command picks the lamp: `1` is the camera's
+light, and the chamber lamp is `3` on the Kobra X (captured above) but `2` on a
+**Kobra S1**, which refuses a `3` with `{state:"failed", code:10348, msg:"camera
+light open fail"}` (reported on an S1 Combo, issue TigerSystem-Docs#54). The
+printer names its own lamp in its light report: `light/query` answers
+`{ "lights": [ { "type": 2, "status": 1, "brightness": 100 } ] }` and a `control`
+answers the lamp flat, `{ "type", "status", "brightness" }`. The driver keeps the
+non-camera lamp's `type` as `conn.data.lightType` (queried at connect on LAN, and
+at each cloud refresh until known) and sends it with every light command; until a
+report has come in it sends `3`. ⚠️ The S1 side comes from three community Home
+Assistant projects (their S1 fixtures and code), **not** from a capture on a real
+S1 — to be confirmed by someone who has one. The S1 lamp does not dim: only `0`
+and `100` change anything.
 
 **Axis map** (Kobra X): `axis` `1`=X, `2`=Y, `3`=Z (jog uses 1-3); homing also
 accepts `4`=XY and `5`=XYZ (all). Confirmed live via slicer capture.
@@ -575,7 +589,7 @@ is case-sensitive on header names and undici lowercases them):
 > | Order | id | `project_id` | data |
 > |---|---|---|---|
 > | getInfo / setSlot / feed (ACE) | 1206 / 1211 / 1208 | **none** (omit) | as above — hass hardcodes `project_id:0` for these too |
-> | **SET_LIGHT_STATUS** | **1233** | **none** (omit) | `{type:3, status:0\|1, brightness:0\|100}` — **type:3 = chamber/part LED** (same as LAN). `type:1` is the CAMERA light → printer reports "failed turn on camera light". Works at idle; no project needed. |
+> | **SET_LIGHT_STATUS** | **1233** | **none** (omit) | `{type, status:0\|1, brightness:0\|100}` — **type:3 = chamber/part LED on the Kobra X** (same as LAN; a Kobra S1 wants `2`, see **Light type**). `type:1` is the CAMERA light → printer reports "failed turn on camera light". Works at idle; no project needed. |
 > | MOVE_AXLE / TURN_OFF (jog/home/motors) | 201 / 1213 | **none** (omit) | `{axis, move_type, distance}` — hass marks 201 "Not handled", so the shape is best-effort. |
 > | PAUSE / RESUME / STOP | 2 / 3 / 4 | **active print** | `{}` — acts on the running job (only relevant while printing). |
 >
