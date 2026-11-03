@@ -373,8 +373,13 @@ answers the lamp flat, `{ "type", "status", "brightness" }`. The driver keeps th
 non-camera lamp's `type` as `conn.data.lightType` (queried at connect on LAN) and
 sends it with every light command; until a report has come in it sends `3`. Over
 the cloud nothing asks: the Tiger Touch firmware saw the broker close its session
-on a publish it does not allow, and refuse the light query (bench, 2026-10-14),
-so a cloud printer keeps `3` unless a light report happens to arrive. ⚠️ The S1
+on a publish it does not allow, and refuse the light query (bench, 2026-10-14).
+Instead the printer's record (`getPrinters`) may carry `type_function_ids`, the
+list of what it can do, where `41` is a chamber lamp: with it, and unless the
+model is the Kobra X (`20030`, which has one too and takes `3`), the driver
+sends `2` (`lightTypeHint`); a light report, if one arrives, wins. Without that
+list it keeps `3`. ⚠️ The `type_function_ids` side is read from a Home Assistant
+integration's code and is **not** checked against a real record. ⚠️ The S1
 side comes from three community Home Assistant projects (their S1 fixtures and
 code), **not** from a capture on a real S1 — to be confirmed by someone who has
 one. The S1 lamp does not dim: only `0` and `100` change anything.

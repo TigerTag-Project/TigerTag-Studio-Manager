@@ -6028,6 +6028,9 @@ let _ffmpegBin = null;
         bedCurrent:    num(param.curr_hotbed_temp),
         jobThumb,
         latestProjectId,
+        // What the printer can do, as Anycubic lists it (id 41 = a chamber lamp) —
+        // null when the record carries no such list.
+        typeFunctionIds: Array.isArray(p.type_function_ids) ? p.type_function_ids.map(Number) : null,
       };
     } catch (e) {
       return { ok: false, error: e?.message || String(e) };

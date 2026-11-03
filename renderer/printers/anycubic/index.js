@@ -171,6 +171,7 @@ function _acuDefaultData() {
     printSpeedPct: null,
     workState:     null,  // "free" | "busy" (type:"status" workReport)
     lightType:     null,  // the `type` of the chamber lamp, as the printer names it in its light report (Kobra S1: 2)
+    lightTypeHint: null,  // cloud only, until a report names it: 2 when the printer's capability list says it has a chamber lamp
     // Camera (LAN/FLV only — never used for cloud printers)
     camWanted:     false,
     camLive:       false,
@@ -332,6 +333,11 @@ const ACU_ORD = {
 // against. The printer names its own lamp in its light report (conn.data.lightType);
 // until it has, this default is what those Kobras take.
 const ACU_LIGHT_TYPE_DEFAULT = 3;
+// Over the cloud nothing can ask the printer for its lamp, but Anycubic lists what
+// each printer can do: id 41 is a chamber lamp, which is type 2 — except on the
+// Kobra X (model 20030), which has one too and takes 3.
+const ACU_FUNCTION_BOX_LIGHT = 41;
+const ACU_MODEL_KOBRA_X = "20030";
 
 // File sources (PROTOCOL.md §5e). Each maps a source to its list/delete order
 // pair, the LAN MQTT request action strings (inferred from the response action
@@ -411,6 +417,12 @@ async function _acuCloudGetInfo(conn) {
       // Latest project id — project_id for PRINT_SETTINGS orders (temp/fan/speed)
       // so they work even at idle (against the most recent project).
       if (info.latestProjectId != null) d.latestProjectId = info.latestProjectId;
+      // The lamp's type, guessed from the capability list until a light report names
+      // it (acuLight prefers the report). Nothing is guessed when the list is absent.
+      if (Array.isArray(info.typeFunctionIds)) {
+        const isKobraX = String(p.machineType || p.acuModelId || "") === ACU_MODEL_KOBRA_X;
+        d.lightTypeHint = info.typeFunctionIds.includes(ACU_FUNCTION_BOX_LIGHT) && !isKobraX ? 2 : null;
+      }
       // Active-job preview (signed S3 URL) — null when no print is running.
       // The signature changes on every poll even for the same image, so only
       // swap the URL when the underlying object path changes. Otherwise the
@@ -646,9 +658,10 @@ export function acuSetTemp(conn, which, value) {
 export function acuLight(conn, on) {
   if (!conn) return;
   // The printer names its lamp in its light report (conn.data.lightType). A Kobra
-  // S1 answers 2 and refuses the 3 with "camera light open fail" (code 10348);
-  // until a report has come in, 3 is what every other Kobra takes.
-  const data = { type: conn.data?.lightType ?? ACU_LIGHT_TYPE_DEFAULT, status: on ? 1 : 0, brightness: on ? 100 : 0 };
+  // S1 answers 2 and refuses the 3 with "camera light open fail" (code 10348).
+  // Before a report (always the case over the cloud) the capability list may hint
+  // at it; failing that, 3 is what every other Kobra takes.
+  const data = { type: conn.data?.lightType ?? conn.data?.lightTypeHint ?? ACU_LIGHT_TYPE_DEFAULT, status: on ? 1 : 0, brightness: on ? 100 : 0 };
   if (_acuConnIsCloud(conn)) {
     // type 1 is the CAMERA light, which a Kobra rejects with "failed turn on
     // camera light" — the chamber lamp is another type (see above, PROTOCOL.md).
