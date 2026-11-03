@@ -379,9 +379,6 @@ async function _acuCloudGetInfo(conn) {
   const p = conn.printer;
   if (!p) return;
   _acuLogPush(conn, "→", { type: "multiColorBox", action: "getInfo", via: "cloud" });
-  // The lamp's type is learned from the printer's own light report, and over the
-  // cloud nothing else asks for it — ask until it has answered.
-  if (conn.data.lightType == null) _publish(conn, _acuRequest("query", null, "light"), "light");
   // Also ask for the standalone external spool (Kobra 3 with no ACE reports it
   // here, not in multiColorBox). Fire-and-forget — harmless on ACE printers.
   try {

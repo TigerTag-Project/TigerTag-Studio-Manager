@@ -370,12 +370,14 @@ light open fail"}` (reported on an S1 Combo, issue TigerSystem-Docs#54). The
 printer names its own lamp in its light report: `light/query` answers
 `{ "lights": [ { "type": 2, "status": 1, "brightness": 100 } ] }` and a `control`
 answers the lamp flat, `{ "type", "status", "brightness" }`. The driver keeps the
-non-camera lamp's `type` as `conn.data.lightType` (queried at connect on LAN, and
-at each cloud refresh until known) and sends it with every light command; until a
-report has come in it sends `3`. ⚠️ The S1 side comes from three community Home
-Assistant projects (their S1 fixtures and code), **not** from a capture on a real
-S1 — to be confirmed by someone who has one. The S1 lamp does not dim: only `0`
-and `100` change anything.
+non-camera lamp's `type` as `conn.data.lightType` (queried at connect on LAN) and
+sends it with every light command; until a report has come in it sends `3`. Over
+the cloud nothing asks: the Tiger Touch firmware saw the broker close its session
+on a publish it does not allow, and refuse the light query (bench, 2026-10-14),
+so a cloud printer keeps `3` unless a light report happens to arrive. ⚠️ The S1
+side comes from three community Home Assistant projects (their S1 fixtures and
+code), **not** from a capture on a real S1 — to be confirmed by someone who has
+one. The S1 lamp does not dim: only `0` and `100` change anything.
 
 **Axis map** (Kobra X): `axis` `1`=X, `2`=Y, `3`=Z (jog uses 1-3); homing also
 accepts `4`=XY and `5`=XYZ (all). Confirmed live via slicer capture.
