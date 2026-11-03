@@ -26,9 +26,16 @@
     height: calc(100% - 50px);   /* leave room for header */
     overflow: hidden;
   }
+  /* The Friends panel itself scrolls when the window is too short for all of it
+     (the companion list card keeps its own inner scroll, so only this one opens up). */
+  #friendsPanel .friends-body { overflow-y: auto; }
+  #friendsPanel .friends-body::-webkit-scrollbar { width: 4px; }
+  #friendsPanel .friends-body::-webkit-scrollbar-track { background: transparent; }
+  #friendsPanel .friends-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
   /* HERO — share-your-code card */
   .fp-hero {
+    flex-shrink: 0;   /* never squeezed: its `overflow: hidden` let a short window clip the QR and the buttons */
     margin: 16px 16px 0;
     padding: 22px 18px 18px;
     background: linear-gradient(135deg, var(--primary) 0%, #ff5e3a 100%);
