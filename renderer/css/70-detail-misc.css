@@ -4962,6 +4962,7 @@ body.catalog-filters .cv-count { display: inline-flex; align-items: center; }
 }
 .thumb-zoom.is-on { opacity: 1; transform: none; }
 .thumb-zoom img { display: block; width: 220px; height: 220px; object-fit: cover; border-radius: 11px; background: var(--surface); }
+.thumb-zoom--whole img { object-fit: contain; padding: 10px; box-sizing: border-box; }
 @media (prefers-reduced-motion: reduce) { .thumb-zoom { transition: none; } }
 
 /* ── Touch screens (iPad, phones — Tiger Studio Web) ────────────────────────

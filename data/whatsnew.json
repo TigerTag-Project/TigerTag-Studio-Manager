@@ -1,4 +1,270 @@
 {
+  "2.51.0": {
+    "date": "2026-11-05",
+    "items": [
+      {
+        "icon": "trash",
+        "title": {
+          "en": "Leave properly",
+          "fr": "Partir proprement",
+          "de": "Sauber gehen",
+          "es": "Irse bien",
+          "it": "Andarsene con garbo",
+          "zh": "体面地离开",
+          "pt": "Sair com classe",
+          "pt-pt": "Sair com classe",
+          "pl": "Wyjść z klasą",
+          "ru": "Уйти красиво",
+          "nl": "Netjes vertrekken"
+        },
+        "body": {
+          "en": "You can now delete your account from Studio. The tiger lists what goes, you confirm it is you, type the magic word and hold the button. No e-mail to write, no waiting for a reply.",
+          "fr": "Tu peux maintenant supprimer ton compte depuis Studio. Le tigre liste ce qui part, tu confirmes que c’est bien toi, tu tapes le mot magique et tu maintiens le bouton. Pas de mail à écrire, pas de réponse à attendre.",
+          "de": "Du kannst dein Konto jetzt direkt in Studio löschen. Der Tiger listet auf, was verschwindet, du bestätigst, dass du es bist, tippst das Zauberwort und hältst den Knopf gedrückt. Keine E-Mail, kein Warten auf Antwort.",
+          "es": "Ya puedes borrar tu cuenta desde Studio. El tigre enumera lo que se va, confirmas que eres tú, escribes la palabra mágica y mantienes el botón. Sin correos que escribir, sin esperar respuesta.",
+          "it": "Ora puoi eliminare il tuo account da Studio. La tigre elenca cosa se ne va, confermi che sei tu, scrivi la parola magica e tieni premuto il pulsante. Nessuna e-mail da scrivere, nessuna risposta da aspettare.",
+          "zh": "现在可以直接在 Studio 里删除账号。老虎会列出将被删除的内容，你确认是本人，输入暗号，再长按按钮。不用写邮件，也不用等回复。",
+          "pt": "Agora podes apagar a tua conta direto no Studio. O tigre lista o que vai embora, confirmas que és tu, escreves a palavra mágica e manténs o botão premido. Sem e-mails, sem esperar resposta.",
+          "pt-pt": "Já podes apagar a tua conta diretamente no Studio. O tigre lista o que desaparece, confirmas que és tu, escreves a palavra mágica e manténs o botão premido. Sem e-mails, sem esperar por uma resposta.",
+          "pl": "Konto możesz teraz usunąć prosto ze Studio. Tygrys wypisze, co znika, potwierdzasz, że to ty, wpisujesz magiczne słowo i przytrzymujesz przycisk. Bez maili i czekania na odpowiedź.",
+          "ru": "Теперь аккаунт можно удалить прямо в Studio. Тигр перечислит, что исчезнет, вы подтверждаете, что это вы, вводите волшебное слово и удерживаете кнопку. Без писем и ожидания ответа.",
+          "nl": "Je kunt je account nu direct in Studio verwijderen. De tijger somt op wat verdwijnt, jij bevestigt dat jij het bent, typt het toverwoord en houdt de knop ingedrukt. Geen mail schrijven, niet op antwoord wachten."
+        }
+      },
+      {
+        "icon": "globe",
+        "title": {
+          "en": "Pick your flag, properly",
+          "fr": "Choisis ton drapeau, avec classe",
+          "de": "Flagge wählen, mit Stil",
+          "es": "Elige tu bandera, con estilo",
+          "it": "Scegli la bandiera, con stile",
+          "zh": "体面地选国旗",
+          "pt": "Escolhe a tua bandeira com estilo",
+          "pt-pt": "Escolhe a tua bandeira com estilo",
+          "pl": "Wybierz flagę z klasą",
+          "ru": "Выберите флаг со вкусом",
+          "nl": "Kies je vlag met stijl"
+        },
+        "body": {
+          "en": "The country dropdown is gone. Your current flag now has a Change button that opens a tiger holding a globe, a search and every country as a round flag. Nothing changes until you hold the button.",
+          "fr": "Fini le menu déroulant des pays. Ton drapeau actuel a maintenant un bouton Changer qui ouvre un tigre avec un globe, une recherche et chaque pays en drapeau rond. Rien ne bouge tant que tu ne maintiens pas le bouton.",
+          "de": "Das Länder-Dropdown ist weg. Deine aktuelle Flagge hat jetzt einen Ändern-Knopf: ein Tiger mit Globus, eine Suche und jedes Land als runde Flagge. Nichts ändert sich, bis du den Knopf hältst.",
+          "es": "Adiós al desplegable de países. Tu bandera actual tiene ahora un botón Cambiar que abre un tigre con un globo, un buscador y cada país como bandera redonda. Nada cambia hasta que mantienes el botón.",
+          "it": "Addio al menu a tendina dei paesi. La tua bandiera attuale ha ora un pulsante Cambia che apre una tigre con un globo, una ricerca e ogni paese come bandiera rotonda. Non cambia nulla finché non tieni premuto.",
+          "zh": "国家下拉菜单没了。现在你的当前国旗旁有个“更改”按钮，会打开抱着地球仪的老虎、搜索框和每个国家的圆形国旗。长按按钮之前什么都不会变。",
+          "pt": "O menu de países desapareceu. A tua bandeira atual tem agora um botão Alterar que abre um tigre com um globo, uma pesquisa e cada país como bandeira redonda. Nada muda até manteres o botão premido.",
+          "pt-pt": "O menu de países desapareceu. A tua bandeira atual tem agora um botão Alterar que abre um tigre com um globo, uma pesquisa e cada país como bandeira redonda. Nada muda até manteres o botão premido.",
+          "pl": "Lista rozwijana krajów zniknęła. Obok Twojej flagi jest teraz przycisk Zmień, który otwiera tygrysa z globusem, wyszukiwarkę i każdy kraj jako okrągłą flagę. Nic się nie zmieni, dopóki nie przytrzymasz przycisku.",
+          "ru": "Выпадающий список стран ушёл. Рядом с текущим флагом теперь кнопка «Изменить»: тигр с глобусом, поиск и каждая страна круглым флажком. Пока вы не удержите кнопку, ничего не изменится.",
+          "nl": "De landenlijst is weg. Je huidige vlag heeft nu een Wijzig-knop met een tijger met wereldbol, een zoekbalk en elk land als ronde vlag. Er verandert niets tot je de knop ingedrukt houdt."
+        }
+      },
+      {
+        "icon": "flag",
+        "title": {
+          "en": "Spy on another league",
+          "fr": "Va voir la ligue d’à côté",
+          "de": "Spionier eine andere Liga aus",
+          "es": "Espía otra liga",
+          "it": "Spia un’altra lega",
+          "zh": "偷看别国联赛",
+          "pt": "Espreita outra liga",
+          "pt-pt": "Espreita outra liga",
+          "pl": "Zajrzyj do innej ligi",
+          "ru": "Загляните в чужую лигу",
+          "nl": "Gluur bij een andere competitie"
+        },
+        "body": {
+          "en": "In the TigerSquad League, click any country in the countries ranking and the middle column shows that country’s top. Click your own country to come back.",
+          "fr": "Dans la Ligue du TigerSquad, clique sur un pays du classement des pays et la colonne du milieu affiche son top. Un clic sur ton pays te ramène chez toi.",
+          "de": "Klick in der TigerSquad-Liga ein Land im Länderranking an, und die mittlere Spalte zeigt dessen Top. Ein Klick auf dein eigenes Land bringt dich zurück.",
+          "es": "En la Liga del TigerSquad, pulsa un país del ranking de países y la columna central muestra su top. Pulsa tu país para volver.",
+          "it": "Nella Lega del TigerSquad, clicca un paese della classifica dei paesi e la colonna centrale mostra la sua top. Clicca il tuo paese per tornare.",
+          "zh": "在 TigerSquad 联赛里点击国家排行榜中的任意国家，中间一栏就会显示该国的榜单。再点自己的国家即可返回。",
+          "pt": "Na Liga do TigerSquad, clica num país do ranking de países e a coluna do meio mostra o top dele. Clica no teu país para voltar.",
+          "pt-pt": "Na Liga do TigerSquad, clica num país do ranking de países e a coluna do meio mostra o top dele. Clica no teu país para voltar.",
+          "pl": "W Lidze TigerSquad kliknij dowolny kraj w rankingu krajów, a środkowa kolumna pokaże jego czołówkę. Kliknij własny kraj, żeby wrócić.",
+          "ru": "В лиге TigerSquad нажмите на любую страну в рейтинге стран, и средний столбец покажет её топ. Нажмите на свою страну, чтобы вернуться.",
+          "nl": "Klik in de TigerSquad-competitie op een land in de landenranglijst en de middelste kolom toont de top van dat land. Klik op je eigen land om terug te keren."
+        }
+      },
+      {
+        "icon": "lock",
+        "title": {
+          "en": "No more flag hopping",
+          "fr": "Fini le saut de drapeau en drapeau",
+          "de": "Schluss mit Flaggen-Hopping",
+          "es": "Se acabó saltar de bandera",
+          "it": "Basta saltare di bandiera",
+          "zh": "别再来回换国旗",
+          "pt": "Chega de saltar de bandeira",
+          "pt-pt": "Chega de saltar de bandeira",
+          "pl": "Koniec ze skakaniem po flagach",
+          "ru": "Хватит прыгать по флагам",
+          "nl": "Geen vlaggenhoppen meer"
+        },
+        "body": {
+          "en": "Your Countries League flag now moves at most once every 30 days, so nobody hops to a tiny country just to lead it. The first flag and the first change are free.",
+          "fr": "Ton drapeau de la Ligue des pays ne bouge plus qu’une fois tous les 30 jours : plus personne ne saute dans un petit pays pour y prendre la tête. Le premier drapeau et le premier changement sont gratuits.",
+          "de": "Deine Flagge der Länderliga wechselt jetzt höchstens alle 30 Tage, damit niemand nur zum Anführen in ein winziges Land springt. Die erste Flagge und der erste Wechsel sind frei.",
+          "es": "Tu bandera de la Liga de países ahora solo cambia una vez cada 30 días, así nadie salta a un país pequeño para liderarlo. La primera bandera y el primer cambio son gratis.",
+          "it": "La bandiera della Lega dei paesi ora cambia al massimo una volta ogni 30 giorni, così nessuno salta in un paese minuscolo per comandarlo. La prima bandiera e il primo cambio sono gratis.",
+          "zh": "国家联赛的国旗现在每 30 天最多换一次，没人能再跳到小国去当第一。第一次设置和第一次更换不受限制。",
+          "pt": "A tua bandeira da Liga de países agora só muda uma vez a cada 30 dias, para ninguém saltar para um país minúsculo só para liderar. A primeira bandeira e a primeira troca são livres.",
+          "pt-pt": "A tua bandeira da Liga de países agora só muda uma vez a cada 30 dias, para ninguém saltar para um país minúsculo só para liderar. A primeira bandeira e a primeira troca são livres.",
+          "pl": "Flaga Ligi krajów zmienia się teraz najwyżej raz na 30 dni, żeby nikt nie uciekał do maleńkiego kraju tylko po prowadzenie. Pierwsza flaga i pierwsza zmiana są za darmo.",
+          "ru": "Флаг лиги стран теперь меняется не чаще раза в 30 дней, чтобы никто не перебегал в крошечную страну ради первого места. Первый флаг и первая смена бесплатны.",
+          "nl": "Je vlag in de Landencompetitie verandert nu hooguit eens per 30 dagen, zodat niemand naar een piepklein land hopt om daar te winnen. De eerste vlag en de eerste wissel zijn gratis."
+        }
+      },
+      {
+        "icon": "send",
+        "title": {
+          "en": "Invite on your favourite app",
+          "fr": "Invite sur ton appli préférée",
+          "de": "Einladen in deiner Lieblings-App",
+          "es": "Invita en tu app favorita",
+          "it": "Invita sulla tua app preferita",
+          "zh": "用你常用的应用邀请",
+          "pt": "Convida na tua app favorita",
+          "pt-pt": "Convida na tua app favorita",
+          "pl": "Zaproś w ulubionej aplikacji",
+          "ru": "Приглашайте в любимом приложении",
+          "nl": "Nodig uit in je favoriete app"
+        },
+        "body": {
+          "en": "The Invite view now shows every network at once as one-tap buttons, with WeChat, Messenger, LINE, KakaoTalk, VK and SMS joining the party. The link and its copy button share one bar.",
+          "fr": "La vue Inviter affiche maintenant tous les réseaux d’un coup, en boutons à un clic, avec WeChat, Messenger, LINE, KakaoTalk, VK et les SMS en renfort. Le lien et son bouton copier partagent la même barre.",
+          "de": "Die Einladen-Ansicht zeigt jetzt alle Netzwerke auf einmal als Ein-Klick-Knöpfe, neu dabei: WeChat, Messenger, LINE, KakaoTalk, VK und SMS. Link und Kopieren-Knopf teilen sich eine Leiste.",
+          "es": "La vista Invitar muestra ahora todas las redes de golpe, en botones de un toque, con WeChat, Messenger, LINE, KakaoTalk, VK y SMS de refuerzo. El enlace y su botón de copiar comparten barra.",
+          "it": "La vista Invita mostra ora tutte le reti in un colpo, come pulsanti a un tocco, con WeChat, Messenger, LINE, KakaoTalk, VK e SMS in più. Il link e il suo pulsante copia condividono la stessa barra.",
+          "zh": "邀请页面现在一次列出所有平台，一键即用，新增微信、Messenger、LINE、KakaoTalk、VK 和短信。链接和复制按钮合并成一条栏。",
+          "pt": "A vista Convidar mostra agora todas as redes de uma vez, em botões de um toque, com WeChat, Messenger, LINE, KakaoTalk, VK e SMS a reforçar. O link e o botão de copiar partilham a mesma barra.",
+          "pt-pt": "A vista Convidar mostra agora todas as redes de uma vez, em botões de um toque, com WeChat, Messenger, LINE, KakaoTalk, VK e SMS a reforçar. A ligação e o botão de copiar partilham a mesma barra.",
+          "pl": "Widok Zaproś pokazuje teraz wszystkie sieci naraz jako przyciski na jedno kliknięcie, a do gry weszły WeChat, Messenger, LINE, KakaoTalk, VK i SMS. Link i przycisk kopiowania dzielą jeden pasek.",
+          "ru": "В разделе «Пригласить» теперь все сети сразу, кнопками в одно касание; добавились WeChat, Messenger, LINE, KakaoTalk, VK и SMS. Ссылка и кнопка копирования сидят в одной строке.",
+          "nl": "De Uitnodigen-weergave toont nu alle netwerken in één keer als knoppen van één tik, met WeChat, Messenger, LINE, KakaoTalk, VK en sms erbij. De link en de kopieerknop delen één balk."
+        }
+      },
+      {
+        "icon": "list",
+        "title": {
+          "en": "Who joined, at a glance",
+          "fr": "Qui a rejoint, d’un coup d’œil",
+          "de": "Wer dabei ist, auf einen Blick",
+          "es": "Quién se unió, de un vistazo",
+          "it": "Chi si è unito, a colpo d’occhio",
+          "zh": "谁加入了，一目了然",
+          "pt": "Quem entrou, num relance",
+          "pt-pt": "Quem entrou, num relance",
+          "pl": "Kto dołączył, od razu widać",
+          "ru": "Кто присоединился — с первого взгляда",
+          "nl": "Wie er bij is, in één oogopslag"
+        },
+        "body": {
+          "en": "Your invitations are now a table: friend, joined, account created, e-mail confirmed, envelopes received. A check when done, a dash while waiting, a red cross once expired.",
+          "fr": "Tes invitations deviennent un tableau : ami, arrivée, compte créé, e-mail confirmé, enveloppes reçues. Une coche quand c’est fait, un tiret en attendant, une croix rouge si c’est expiré.",
+          "de": "Deine Einladungen sind jetzt eine Tabelle: Freund, beigetreten, Konto erstellt, E-Mail bestätigt, Umschläge erhalten. Ein Haken, wenn erledigt, ein Strich beim Warten, ein rotes Kreuz bei Ablauf.",
+          "es": "Tus invitaciones son ahora una tabla: amigo, llegada, cuenta creada, correo confirmado, sobres recibidos. Una marca cuando está hecho, un guion mientras espera, una cruz roja si caducó.",
+          "it": "I tuoi inviti diventano una tabella: amico, arrivo, account creato, e-mail confermata, buste ricevute. Una spunta se fatto, un trattino in attesa, una croce rossa se scaduto.",
+          "zh": "你的邀请现在是一张表：好友、加入时间、账号创建、邮箱确认、已收信封。完成打勾，等待显示横线，过期显示红叉。",
+          "pt": "Os teus convites são agora uma tabela: amigo, chegada, conta criada, e-mail confirmado, envelopes recebidos. Uma marca quando está feito, um traço à espera, uma cruz vermelha se expirou.",
+          "pt-pt": "Os teus convites são agora uma tabela: amigo, chegada, conta criada, e-mail confirmado, envelopes recebidos. Uma marca quando está feito, um traço à espera, uma cruz vermelha se expirou.",
+          "pl": "Twoje zaproszenia to teraz tabela: znajomy, dołączenie, konto utworzone, e-mail potwierdzony, otrzymane koperty. Ptaszek, gdy gotowe, kreska w oczekiwaniu, czerwony krzyżyk po wygaśnięciu.",
+          "ru": "Ваши приглашения теперь таблица: друг, вступление, аккаунт создан, почта подтверждена, полученные конверты. Галочка — готово, прочерк — ждём, красный крестик — истекло.",
+          "nl": "Je uitnodigingen zijn nu een tabel: vriend, aangesloten, account gemaakt, e-mail bevestigd, enveloppen ontvangen. Een vinkje als het klaar is, een streepje tijdens het wachten, een rood kruis na verlopen."
+        }
+      },
+      {
+        "icon": "printer",
+        "title": {
+          "en": "Klipper gates, edited in place",
+          "fr": "Les gates Klipper, modifiables sur place",
+          "de": "Klipper-Gates direkt bearbeiten",
+          "es": "Gates de Klipper, editables en el sitio",
+          "it": "Gate Klipper, modificabili sul posto",
+          "zh": "直接编辑 Klipper 通道",
+          "pt": "Gates do Klipper, editáveis no local",
+          "pt-pt": "Gates do Klipper, editáveis no local",
+          "pl": "Bramki Klippera, edycja na miejscu",
+          "ru": "Гейты Klipper — правка на месте",
+          "nl": "Klipper-gates direct aanpassen"
+        },
+        "body": {
+          "en": "On a Klipper printer with Happy Hare or AFC, click a gate or a lane in the Filament card to set its material and colour from the usual filament sheet. Studio writes it to the machine and reads it back.",
+          "fr": "Sur une imprimante Klipper avec Happy Hare ou AFC, clique sur une gate ou une voie dans la carte Filament pour régler matière et couleur depuis la fiche filament habituelle. Studio l’écrit sur la machine et le relit.",
+          "de": "Bei einem Klipper-Drucker mit Happy Hare oder AFC klickst du in der Filament-Karte auf ein Gate oder eine Lane und stellst Material und Farbe im gewohnten Filamentblatt ein. Studio schreibt es auf die Maschine und liest es zurück.",
+          "es": "En una impresora Klipper con Happy Hare o AFC, pulsa una gate o un carril en la tarjeta Filamento para fijar material y color desde la hoja de filamento de siempre. Studio lo escribe en la máquina y lo vuelve a leer.",
+          "it": "Su una stampante Klipper con Happy Hare o AFC, clicca una gate o una corsia nella scheda Filamento per impostare materiale e colore dalla solita scheda filamento. Studio lo scrive sulla macchina e lo rilegge.",
+          "zh": "在装有 Happy Hare 或 AFC 的 Klipper 打印机上，点击耗材卡片里的通道，就能在熟悉的耗材面板里设置材料和颜色。Studio 会写入机器并重新读取确认。",
+          "pt": "Numa impressora Klipper com Happy Hare ou AFC, clica numa gate ou faixa no cartão Filamento para definir material e cor na ficha de filamento do costume. O Studio escreve-o na máquina e volta a ler.",
+          "pt-pt": "Numa impressora Klipper com Happy Hare ou AFC, clica numa gate ou faixa no cartão Filamento para definir material e cor na ficha de filamento do costume. O Studio escreve-o na máquina e volta a ler.",
+          "pl": "Na drukarce Klipper z Happy Hare lub AFC kliknij bramkę lub tor na karcie Filament, by ustawić materiał i kolor w zwykłym arkuszu filamentu. Studio zapisze to w maszynie i odczyta z powrotem.",
+          "ru": "На принтере Klipper с Happy Hare или AFC нажмите на гейт или линию в карточке «Филамент», чтобы задать материал и цвет в привычной панели. Studio запишет это в машину и перечитает.",
+          "nl": "Op een Klipper-printer met Happy Hare of AFC klik je in de Filamentkaart op een gate of lane om materiaal en kleur in het vertrouwde filamentblad in te stellen. Studio schrijft het naar de machine en leest het terug."
+        }
+      },
+      {
+        "icon": "copy",
+        "title": {
+          "en": "Duplicate, but with a container",
+          "fr": "Dupliquer, mais avec un contenant",
+          "de": "Duplizieren, aber mit Behälter",
+          "es": "Duplicar, pero con envase",
+          "it": "Duplica, ma con un contenitore",
+          "zh": "复制，但要带容器",
+          "pt": "Duplicar, mas com recipiente",
+          "pt-pt": "Duplicar, mas com recipiente",
+          "pl": "Duplikuj, ale z pojemnikiem",
+          "ru": "Дублируем, но с контейнером",
+          "nl": "Dupliceren, maar met een houder"
+        },
+        "body": {
+          "en": "Duplicate on a spool without a container now opens the container picker and points at its search, instead of making copies with the wrong tare weight.",
+          "fr": "Dupliquer une bobine sans contenant ouvre maintenant le sélecteur de contenant et pointe sa recherche, au lieu de fabriquer des copies avec une mauvaise tare.",
+          "de": "Duplizieren bei einer Spule ohne Behälter öffnet jetzt die Behälterauswahl und zeigt auf deren Suche, statt Kopien mit falschem Taragewicht zu erzeugen.",
+          "es": "Duplicar una bobina sin envase abre ahora el selector de envase y señala su buscador, en vez de crear copias con una tara equivocada.",
+          "it": "Duplicare una bobina senza contenitore apre ora il selettore del contenitore e indica la sua ricerca, invece di creare copie con la tara sbagliata.",
+          "zh": "对没有容器的线轴点击复制，现在会打开容器选择器并指向搜索框，而不是生成皮重错误的副本。",
+          "pt": "Duplicar uma bobina sem recipiente abre agora o seletor de recipiente e aponta para a pesquisa, em vez de criar cópias com a tara errada.",
+          "pt-pt": "Duplicar uma bobina sem recipiente abre agora o seletor de recipiente e aponta para a pesquisa, em vez de criar cópias com a tara errada.",
+          "pl": "Duplikowanie szpuli bez pojemnika otwiera teraz wybór pojemnika i wskazuje jego wyszukiwarkę, zamiast tworzyć kopie z błędną tarą.",
+          "ru": "Дублирование катушки без контейнера теперь открывает выбор контейнера и указывает на его поиск, а не плодит копии с неверной тарой.",
+          "nl": "Dupliceren van een spoel zonder houder opent nu de houderkiezer en wijst naar de zoekbalk, in plaats van kopieën met een verkeerde tarra te maken."
+        }
+      },
+      {
+        "icon": "trophy",
+        "title": {
+          "en": "A treasure hunt you can sort",
+          "fr": "Une chasse au trésor triable",
+          "de": "Eine Schatzsuche zum Sortieren",
+          "es": "Una caza del tesoro ordenable",
+          "it": "Una caccia al tesoro da ordinare",
+          "zh": "可筛选的寻宝",
+          "pt": "Uma caça ao tesouro filtrável",
+          "pt-pt": "Uma caça ao tesouro filtrável",
+          "pl": "Polowanie na skarby z filtrami",
+          "ru": "Охота за сокровищами с фильтрами",
+          "nl": "Een schattenjacht om te sorteren"
+        },
+        "body": {
+          "en": "The album’s Locked tab splits in two: stickers with a hint, and the mysterious ones. Each sticker also tells you what share of tigers own it, and a sticker with a hint opens its card.",
+          "fr": "L’onglet À gagner de l’album se coupe en deux : les autocollants avec indice et les mystérieux. Chacun dit aussi quelle part des tigres le possède, et un autocollant avec indice ouvre sa fiche.",
+          "de": "Der Reiter Gesperrt im Album teilt sich in zwei: Sticker mit Hinweis und die geheimnisvollen. Jeder Sticker verrät auch, wie viele Tiger ihn haben, und ein Sticker mit Hinweis öffnet seine Karte.",
+          "es": "La pestaña Bloqueados del álbum se divide en dos: cromos con pista y los misteriosos. Cada cromo dice además qué parte de los tigres lo tiene, y uno con pista abre su ficha.",
+          "it": "La scheda Bloccati dell’album si divide in due: figurine con indizio e quelle misteriose. Ognuna dice anche che quota di tigri la possiede, e una con indizio apre la sua scheda.",
+          "zh": "相册的“未解锁”标签页拆成两个：有提示的贴纸和神秘贴纸。每张贴纸还会显示有多少比例的老虎拥有它，有提示的贴纸可以打开详情卡。",
+          "pt": "O separador Por ganhar do álbum divide-se em dois: cromos com pista e os misteriosos. Cada cromo diz também que parte dos tigres o tem, e um com pista abre a sua ficha.",
+          "pt-pt": "O separador Por ganhar do álbum divide-se em dois: cromos com pista e os misteriosos. Cada cromo diz também que parte dos tigres o tem, e um com pista abre a sua ficha.",
+          "pl": "Zakładka Zablokowane w albumie dzieli się na dwie: naklejki z podpowiedzią i tajemnicze. Każda pokazuje też, jaki odsetek tygrysów ją ma, a naklejka z podpowiedzią otwiera swoją kartę.",
+          "ru": "Вкладка «Закрытые» в альбоме делится на две: стикеры с подсказкой и загадочные. Каждый стикер показывает, какая доля тигров им владеет, а стикер с подсказкой открывает свою карточку.",
+          "nl": "Het tabblad Vergrendeld in het album splitst in twee: stickers met een hint en de mysterieuze. Elke sticker toont ook welk deel van de tijgers hem heeft, en een sticker met hint opent zijn kaart."
+        }
+      }
+    ]
+  },
   "2.50.0": {
     "date": "2026-11-02",
     "items": [

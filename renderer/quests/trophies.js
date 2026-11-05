@@ -58,6 +58,23 @@ let _ctx = null, _uid = null, _unsub = null;
 let _earned = new Map();          // id → { at (ms), event?, ctx? }
 let _events = new Map();          // eventId → trophyEvents doc
 let _stats = { at: 0, owners: {}, accounts: 0 };
+// A veiled trophy's catalogue slot carries `o`, an opaque key (sha-256 of "trophy-slot:<id>",
+// 12 hex — backend tool/trophy-art.mjs slotKey). Matched against the ids already held here
+// (the owners counters, the cards): a held or revealed trophy fills ITS slot, and a "?" slot
+// shows its owners % without its name.
+let _slotIds = new Map();         // slot key → trophy id
+async function slotKey(id) {
+  const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`trophy-slot:${id}`));
+  return [...new Uint8Array(b)].slice(0, 6).map(x => x.toString(16).padStart(2, "0")).join("");
+}
+let _slotsFor = "";
+function mapSlots() {
+  const ids = [...new Set([...Object.keys(_stats.owners), ...Object.keys(_cards)])].filter(id => !id.startsWith("_"));
+  const sig = ids.length + "|" + ids.join(",").length;
+  if (!ids.length || sig === _slotsFor) return;
+  _slotsFor = sig;
+  Promise.all(ids.map(async id => [await slotKey(id), id])).then(pairs => { _slotIds = new Map(pairs); _ctx?.onChange?.(); }).catch(() => {});
+}
 let _filter = "all", _loaded = false, _query = "", _family = "";
 // A friend's album being shown: { uid, name, earned (same shape as _earned), loaded, error, at }.
 let _friend = null;
@@ -231,6 +248,7 @@ function loadStats() {
     if (d.exists) { owners = d.get("owners") || {}; accounts = Number(d.get("accounts")) || 0; }
     else for (const x of (await col.get()).docs) x.id === "_accounts" ? (accounts = Number(x.get("accounts")) || 0) : (owners[x.id] = Number(x.get("owners")) || 0);
     _stats = { at: Date.now(), owners, accounts };
+    mapSlots();
     _ctx.onChange?.();
   }).catch(() => { _stats.at = 0; });
 }
@@ -252,14 +270,21 @@ function catalogTrophies(have) {
   const fromCard = id => ({ id, family: _cards[id].family, tier: _cards[id].tier, hidden: veiled(_cards[id]),
     art: _earned.has(id) && _cards[id].art || _cards[id].sil || null, ...(have.has(id) ? {} : { revealed: _reveals.ids[id] }) });
   if (!_catalog) return Object.keys(_cards).filter(id => have.has(id)).map(fromCard);
+  mapSlots();
+  const shown = id => id && _cards[id] && (have.has(id) || _reveals.ids[id]);
   const slots = new Map();
-  const ids = Object.keys(_cards).filter(id => veiled(_cards[id]) && (have.has(id) || _reveals.ids[id]));
+  // Fallback for a catalogue without slot keys: fill the family|tier slots in order.
+  const ids = Object.keys(_cards).filter(id => veiled(_cards[id]) && shown(id));
   for (const id of ids.sort((a, b) => have.has(b) - have.has(a))) {
     const k = `${_cards[id].family}|${_cards[id].tier}`;
     slots.set(k, [...(slots.get(k) || []), id]);
   }
   return _catalog.trophies.map((x, i) => {
     if (!x.hidden) return { ...x, hidden: false, art: _earned.has(x.id) && _cards[x.id]?.art || (x.sil ? CDN + x.sil : null) };
+    if (x.o) {
+      const id = _slotIds.get(x.o);
+      return shown(id) ? fromCard(id) : { id: `hidden.${i}`, family: x.family, tier: x.tier, hidden: true, art: null, statId: id || null };
+    }
     const id = slots.get(`${x.family}|${x.tier}`)?.shift();
     return id ? fromCard(id) : { id: `hidden.${i}`, family: x.family, tier: x.tier, hidden: true, art: null };
   });
@@ -271,6 +296,8 @@ const nameOf = x => textOf(x, "name");
 // A family's label, from the catalogue (Studio ships none); its id until the catalogue is known.
 const familyName = f => _catalog?.families?.find(x => x.id === f)?.name || f;
 const descOf = x => textOf(x, "how");
+// "Seen at <friend>'s": that friend's avatar before the words (the host's userAvatar).
+const seenAvatar = uid => { const a = _ctx.friendAvatar?.(uid); return a ? `<span class="trp-seen-av" aria-hidden="true">${a}</span>` : ""; };
 
 // Held already? (a secret gesture stops asking the server once it is.)
 export const trophyEarned = id => _earned.has(id);
@@ -281,8 +308,9 @@ export function trophiesProgress() {
 }
 
 function pct(id) {
+  if (!id || !_stats.accounts || id.startsWith("ev.") || id.startsWith("hidden.")) return null;
   const n = _stats.owners[id] || 0;
-  if (!_stats.accounts || !n) return null;
+  if (!n) return "0";
   const p = Math.min(100, (n / _stats.accounts) * 100);
   return p < 0.1 ? "<0.1" : p < 10 ? p.toFixed(1) : String(Math.round(p));
 }
@@ -295,13 +323,15 @@ function stickerHtml(x) {
   const secret = !got && x.hidden && !x.revealed || !x.art;
   const missed = !got && x.family === "events" && !x.active;
   const name = secret ? t("trophyHidden") : nameOf(x);
-  const p = got ? pct(x.id) : null;
+  // Every sticker says how many tigers hold it, the ones still to win and the "?" too.
+  // A "?" slot whose key matches no counter: nobody holds it yet.
+  const p = x.statId === null && _slotIds.size && _stats.accounts ? "0" : pct(x.statId || x.id);
   // The hint lives in the app's shared info bubble (ui-kit infoTipHtml → #toolInfoPop),
   // above the "i" with its tail on it, so every sticker is the
   // same size whatever its length; the card keeps the name and one line: the date, or the tier.
   const hint = missed ? t("trophyEventOver") : secret ? t("trophyHiddenHow") : descOf(x);
-  // A trophy a friend revealed says whose album showed it.
-  const meta = got ? fmtDate(got.at) : x.revealed ? t("trophySeenAt", { name: _ctx.friendName?.(x.revealed) || "?" }) : t(`trophyTier_${x.tier}`);
+  // The tile says the date or the tier; whose album revealed it shows only in its card.
+  const meta = got ? fmtDate(got.at) : t(`trophyTier_${x.tier}`);
   // What the search reads: the name, the hint and the tier (a hidden trophy: its "?" labels only).
   const fam = familyName(x.family);
   const q = `${name} ${hint} ${t(`trophyTier_${x.tier}`)} ${fam}`.toLowerCase();
@@ -377,7 +407,11 @@ export function renderTrophiesView(host, friend = null) {
   const sig = JSON.stringify([_uid, _friend?.uid, _friend?.error, _filter, _family, [...mine.keys()], [..._events.keys()], _stats.at, _ctx.lang(), loaded, _catalog?.v, Object.keys(_cards).length, Object.keys(_reveals.ids).length]);
   if (host._trpSig === sig && host.childElementCount) return;
   host._trpSig = sig;
-  const keep = x => (!_family || x.family === _family) && (_filter === "all" || (_filter === "got" ? mine.has(x.id) : !mine.has(x.id)));
+  // Not yet earned, in two kinds: with a hint (silhouette, name, mission) and hidden ("?").
+  const isHidden = x => !mine.has(x.id) && (x.hidden && !x.revealed || !x.art);
+  const hasHint = x => !mine.has(x.id) && !isHidden(x);
+  const keep = x => (!_family || x.family === _family) && (_filter === "all" || (_filter === "got" ? mine.has(x.id)
+    : _filter === "hint" ? hasHint(x) : isHidden(x)));
   // One album, every sticker together (catalogue order, then the events); the family shows
   // only in the card a sticker opens (founder, 2026-11-01).
   const album = `<div class="trp-grid">${all.filter(keep).map(stickerHtml).join("")}</div>`;
@@ -386,7 +420,7 @@ export function renderTrophiesView(host, friend = null) {
     return `<li class="trp-t--${tr}"><i aria-hidden="true"></i><b>${n}</b><span>${esc(t(`trophyTier_${tr}`))}</span></li>`;
   }).join("");
   // The filters are the Deals bar's tabs (quests.css .sqd-tab): icon, label, count.
-  const FILTER_ICON = { all: "grid", got: "check", locked: "lock" };
+  const FILTER_ICON = { all: "grid", got: "check", hint: "eye-on", hidden: "question" };
   const filter = (k, n) => ({ attr: `data-trp-filter="${k}"`, on: _filter === k, n, label: t(`trophyFilter_${k}`),
     icon: `<span class="icon icon-${FILTER_ICON[k]} icon-13" aria-hidden="true"></span>` });
   // The banner, built like the Deals one (squad-deals.js dealsViewHtml): the Tiger
@@ -401,7 +435,7 @@ export function renderTrophiesView(host, friend = null) {
         <b class="trp-hero-n">${got.length}</b><span class="trp-hero-lbl">${esc(t("trophyStuckLabel", { n: got.length }))}</span>
       </div>` })}
     ${filterBarHtml(esc, { cls: "trp-toolbar",
-      tabs: [filter("all"), filter("got", got.length), filter("locked", all.length - got.length)],
+      tabs: [filter("all"), filter("got", got.length), filter("hint", all.filter(hasHint).length), filter("hidden", all.filter(isHidden).length)],
       search: { attr: "data-trp-q", value: _query, placeholder: t("trophySearch"), cls: "trp-search" },
       extra: selectHtml(esc, { attr: "data-trp-family", label: t("trophyFamilyAll"), value: _family,
         options: [{ value: "", label: t("trophyFamilyAll") }, ...(_catalog?.families || []).map(f => ({ value: f.id, label: f.name }))] })
@@ -412,8 +446,10 @@ export function renderTrophiesView(host, friend = null) {
   const field = host.querySelector("[data-trp-q]");
   field?.addEventListener("input", () => { _query = field.value; applySearch(host); });
   applySearch(host);
-  host.querySelector("[data-trp-family]")?.addEventListener("change", e => { _family = e.target.value; renderTrophiesView(host); });
-  host.querySelectorAll("[data-trp-filter]").forEach(b => b.addEventListener("click", () => { _filter = b.dataset.trpFilter; renderTrophiesView(host); }));
+  // A filter re-renders the SAME album: in a friend's view, keep the friend (else it fell back to your own).
+  const again = () => renderTrophiesView(host, friend);
+  host.querySelector("[data-trp-family]")?.addEventListener("change", e => { _family = e.target.value; again(); });
+  host.querySelectorAll("[data-trp-filter]").forEach(b => b.addEventListener("click", () => { _filter = b.dataset.trpFilter; again(); }));
   host.querySelector("[data-trp-code]")?.addEventListener("click", () => _ctx.openCode?.());
   host.querySelectorAll("[data-trophy]").forEach(b => b.addEventListener("click", () => openTrophyCard(b.dataset.trophy)));
 }
@@ -434,15 +470,16 @@ const artUrl = src => { try { return new URL(src, document.baseURI).href; } catc
 // ── The detail card ──────────────────────────────────────────────
 function openTrophyCard(id) {
   const x = allTrophies().find(y => y.id === id);
-  // Only an earned sticker opens: one still to win stays a silhouette in the album.
+  // An earned sticker opens, and so does one still to win that shows a hint (its
+  // silhouette and mission, to know what to do); a hidden "?" one stays shut.
   const got = x && held().get(id);
-  if (!got) return;
+  if (!x || (!got && (x.hidden && !x.revealed || !x.art))) return;
   const { t, esc } = _ctx;
   const p = pct(id);
   // How it was earned, when the server said (a relit 23-day streak, the podium rank).
   const country = cc => { try { return new Intl.DisplayNames([_ctx.lang()], { type: "region" }).of(cc) || cc; } catch (_) { return cc; } };
-  const how = got.ctx?.streak ? t("trophyCtxStreak", { n: got.ctx.streak }) : got.ctx?.country ? t("trophyCtxCountry", { country: country(got.ctx.country) })
-    : got.ctx?.rank ? t("trophyCtxRank", { n: got.ctx.rank }) : "";
+  const how = got?.ctx?.streak ? t("trophyCtxStreak", { n: got.ctx.streak }) : got?.ctx?.country ? t("trophyCtxCountry", { country: country(got.ctx.country) })
+    : got?.ctx?.rank ? t("trophyCtxRank", { n: got.ctx.rank }) : "";
   // The same window frame as the envelopes and the TigerCoins history (tc-reveal +
   // tcx card, title plaque, golden button); the sticker follows the pointer like
   // the envelope (tilt), a gloss cut to its own shape sliding across it.
@@ -452,10 +489,12 @@ function openTrophyCard(id) {
     <div class="tcx-main">
       <div class="tcx-plaque"><h3>${esc(nameOf(x))}</h3></div>
       <span class="trp-card-tier">${esc(t(`trophyTier_${x.tier}`))} · ${esc(familyName(x.family))}</span>
-      <span class="trp-card-art"><span class="trp-tilt"><img src="${esc(x.art)}" alt="" draggable="false"><span class="trp-gloss" style="--art:url('${esc(artUrl(x.art))}')"></span></span></span>
+      <span class="trp-card-art${got ? "" : " is-locked"}"><span class="trp-tilt"><img src="${esc(x.art)}" alt="" draggable="false">${got ? `<span class="trp-gloss" style="--art:url('${esc(artUrl(x.art))}')"></span>` : ""}</span></span>
       <p class="trp-sticker-desc">${esc(descOf(x))}</p>
-      <p class="trp-card-meta">${esc(t("trophyEarnedOn", { date: fmtDate(got.at) }))}${how ? ` · ${esc(how)}` : ""}${p ? ` · ${esc(t("trophyOwnedPct", { p }))}` : ""}</p>
-      ${_friend ? "" : `<div class="tc-reveal-actions"><button type="button" class="sqd-open sqd-wide qfm-go" data-trp-save><span class="qfm-go-txt"><span>${esc(t("trophyDownload"))}</span></span></button></div>`}
+      <p class="trp-card-meta">${got ? `${esc(t("trophyEarnedOn", { date: fmtDate(got.at) }))}${how ? ` · ${esc(how)}` : ""}${p ? ` · ${esc(t("trophyOwnedPct", { p }))}` : ""}`
+        : [x.revealed ? `${seenAvatar(x.revealed)}${esc(t("trophySeenAt", { name: _ctx.friendName?.(x.revealed) || "?" }))}` : "",
+           p ? esc(t("trophyOwnedPct", { p })) : ""].filter(Boolean).join(" · ")}</p>
+      ${_friend || !got ? "" : `<div class="tc-reveal-actions"><button type="button" class="sqd-open sqd-wide qfm-go" data-trp-save><span class="qfm-go-txt"><span>${esc(t("trophyDownload"))}</span></span></button></div>`}
     </div>
   </div>`;
   document.body.appendChild(el);
@@ -463,7 +502,7 @@ function openTrophyCard(id) {
   requestAnimationFrame(() => el.classList.add("is-open"));
   // An earned sticker opens as a moment: its art swells behind the window (a click
   // outside or Escape closes it).
-  backfire(el, el.querySelector(".trp-sticker"), x.art, { at: "center", size: 520, dur: 5, soft: true });
+  if (got) backfire(el, el.querySelector(".trp-sticker"), x.art, { at: "center", size: 520, dur: 5, soft: true });
   tilt(el, el.querySelector(".trp-tilt"), 18);   // the whole overlay: it follows the pointer outside the card too
   const close = () => { el.classList.remove("is-open"); document.removeEventListener("keydown", onKey, true); setTimeout(() => el.remove(), 200); };
   const onKey = e => { if (e.key === "Escape") { e.stopPropagation(); close(); } };

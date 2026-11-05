@@ -22,33 +22,42 @@
  */
 import { backfire } from "./coin-pull.js";
 import { sfx } from "./coin-sound.js";
-import { heroHtml, infoTipHtml } from "./ui-kit.js";
+import { heroHtml, infoTipHtml, myCodeCardHtml } from "./ui-kit.js";
 import { heroLayersHtml } from "./hero-layers.js";
+import { tapEgg } from "./squad-deals.js";
 import { artImg } from "../art.js";
 import { openDialog } from "../dialog.js";
 
 const URL_BASE = "https://us-central1-tigertag-connect.cloudfunctions.net/referrals";
 const ART = "../assets/img/";
-// The networks of the share row: [id, icon, colour class (the list share row's .lv-social--*), aria label].
-// Discord has no share URL: it copies.
+// Every network of the share grid, all shown: [id, icon, colour class (.lv-social--*), brand name].
+// The ones with no share URL on a desktop (Discord, WeChat, Messenger, KakaoTalk) copy the
+// message instead (COPY_NETS), with a snackbar saying where to paste it.
 const NETS = [
-  ["whatsapp", "whatsapp", "wa", "WhatsApp"], ["x", "x", "x", "X"], ["facebook", "facebook", "fb", "Facebook"],
-  ["reddit", "reddit", "reddit", "Reddit"], ["telegram", "telegram", "telegram", "Telegram"], ["bluesky", "bluesky", "bluesky", "Bluesky"],
-  ["discord", "discord", "discord", "Discord"], ["email", "mail", "mail", "E-mail"],
+  ["whatsapp", "whatsapp", "wa", "WhatsApp"], ["wechat", "wechat", "wechat", "WeChat"], ["telegram", "telegram", "telegram", "Telegram"],
+  ["messenger", "messenger", "messenger", "Messenger"], ["discord", "discord", "discord", "Discord"],
+  ["x", "x", "x", "X"], ["facebook", "facebook", "fb", "Facebook"], ["reddit", "reddit", "reddit", "Reddit"],
+  ["bluesky", "bluesky", "bluesky", "Bluesky"], ["line", "line-app", "line", "LINE"],
+  ["kakaotalk", "kakaotalk", "kakao", "KakaoTalk"], ["vk", "vk", "vk", "VK"], ["sms", "chat", "sms", "SMS"], ["email", "mail", "mail", "E-mail"],
 ];
+const COPY_NETS = ["discord", "wechat", "messenger", "kakaotalk"];
 // The banner scene (docs/ART-DIRECTION.md, one layer per object): one tiger hands the envelope to the
 // other behind the desk, a spool and a printed tiger between them, three envelopes on each side.
-const ENVS = side => ({ html: `<span class="hl hl--envs hl--envs-${side}">${`<img src="${ART}tigercoins/envelope.webp" alt="" draggable="false">`.repeat(3)}</span>` });
+// Every envelope wiggles when clicked; the middle one on the right hides the inviteBanner easter egg
+// (tapEgg, .agents/rules/easter-eggs.md) until it is found.
+const EGG = "inviteBanner";
+const ENVS = (side, egg) => ({ html: `<span class="hl hl--envs hl--envs-${side}">${[0, 1, 2].map(i =>
+  `<img src="${ART}tigercoins/envelope.webp"${egg && i === 1 ? ` data-egg="${EGG}"` : ""} alt="" draggable="false">`).join("")}</span>` });
 // Laddered pictures (renderer/art.js): Chromium loads the rendition that fits the rendered size.
 const LAYER = name => ({ html: artImg(`tigersquad/invite-hero/${name}`, { cls: `hl hl--${name}` }) });
-const INVITE_SCENE = heroLayersHtml(`${ART}tigersquad/invite-hero/`, {
+const inviteScene = egg => heroLayersHtml(`${ART}tigersquad/invite-hero/`, {
   back: [LAYER("tiger-give"), LAYER("tiger-take")],
-  front: [ENVS("a"), LAYER("spool"), LAYER("figurine"), ENVS("b")],
+  front: [ENVS("a"), LAYER("spool"), LAYER("figurine"), ENVS("b", egg)],
 });
 // Validated referrals → the next trophy (trophyRules.js COUNTERS.referrals; 25 and 50 are hidden).
 const STEPS = [1, 5, 10];
 
-let _ctx = null, _uid = null, _status = null, _busy = false, _prefill = "", _celebrating = false, _loading = false, _more = false, _msg = false, _noCode = false;
+let _ctx = null, _uid = null, _status = null, _busy = false, _prefill = "", _celebrating = false, _loading = false, _noCode = false;
 
 export function initReferrals(ctx) { _ctx = ctx; }
 export const referralStatus = () => _status;
@@ -73,6 +82,8 @@ export async function referralsSignIn(uid) {
   try { await call("status"); } catch (e) { console.warn("[referrals] status", e.message); }
 }
 export function referralsSignOut() { _uid = null; _status = null; _prefill = ""; }
+/** Read the status again (the friend code changed: the Invite view shows the new one). */
+export const refreshReferrals = () => call("status").catch(e => console.warn("[referrals] status", e.message));
 
 export async function claimReferral(code) {
   const j = await call("claim", { code: String(code || "").toUpperCase() });
@@ -99,16 +110,21 @@ export const errText = code => {
   return s === k ? _ctx.t("referralErr_ERROR") : s;
 };
 
-function stateRow(x) {
+/* One invitee, one table row: the friend, the day they joined, then each stage —
+   account created (always, they are listed once they have one), e-mail confirmed,
+   envelopes received (paid on the confirmation) — as done, waiting or expired. */
+function inviteeRow(x) {
   const { t, esc } = _ctx;
-  const pill = `<span class="rf-pill rf-pill--${esc(x.state)}">${esc(t(`referralState_${x.state}`))}</span>`;
-  // What the row is waiting for, in words: the e-mail (and the days left), or when it paid.
-  const days = Math.max(0, Math.ceil(((x.expiresAt || 0) - Date.now()) / 86_400_000));
-  const why = x.state === "validated"
-    ? t("referralRowValidated", { date: x.validatedAt ? new Date(x.validatedAt).toLocaleDateString() : "", n: _status?.cfg?.envelopes || 3 })
-    : x.state === "pending" ? t("referralRowPending", { n: days }) : t("referralRowExpired");
-  return `<li class="rf-row">${_ctx.avatar(x, "sb-friend-avatar")}
-    <span class="rf-row-txt"><b>${esc(x.name || "?")}</b><small>${esc(why)}</small></span>${pill}</li>`;
+  // An orange check when done, a dash while waiting, a red cross once expired (the words stay for screen readers).
+  const cell = st => st === "yes"
+    ? `<td class="rf-st rf-st--yes"><span class="icon icon-check icon-16" role="img" aria-label="${esc(t("referralCellYes"))}"></span></td>`
+    : st === "expired"
+      ? `<td class="rf-st rf-st--expired"><span class="icon icon-close icon-14" role="img" aria-label="${esc(t("referralState_expired"))}"></span></td>`
+      : `<td class="rf-st rf-st--wait"><span role="img" aria-label="${esc(t("referralCellWaiting"))}">—</span></td>`;
+  const done = x.state === "validated" ? "yes" : x.state === "expired" ? "expired" : "wait";
+  return `<tr><td><span class="rf-who">${_ctx.avatar(x, "sb-friend-avatar")}<b>${esc(x.name || "?")}</b></span></td>
+    <td class="rf-date">${x.claimedAt ? esc(new Date(x.claimedAt).toLocaleDateString(undefined, { day: "numeric", month: "short" })) : "—"}</td>
+    ${cell("yes")}${cell(done)}${cell(done)}</tr>`;
 }
 
 function codeFieldHtml(id, value = "", label = true) {
@@ -174,7 +190,7 @@ export function renderInviteView(host) {
   const s = _status;
   // No status yet (the launch call failed or is still out): ask again, once at a time.
   if (!s && _uid && !_loading) { _loading = true; call("status").catch(e => console.warn("[referrals] status", e.message)).finally(() => { _loading = false; }); }
-  const sig = JSON.stringify([_uid, s, _prefill, _busy, _more, _msg, _noCode, t("referralTitle")]);
+  const sig = JSON.stringify([_uid, s, _prefill, _busy, _noCode, t("referralTitle")]);
   if (host._rfSig === sig && host.childElementCount) return;
   host._rfSig = sig;
   const link = shareLink(), validated = s?.validated || 0, envs = s?.cfg?.envelopes || 3;
@@ -188,12 +204,9 @@ export function renderInviteView(host) {
       <span class="sqr-bar" aria-hidden="true"><i style="width:${pct}%"></i></span>
       ${next ? `<small>${esc(t("referralCardNext", { a: validated, b: next }))}</small>` : ""}
     </div>`;
-  // The three main ways to share as named buttons; the other networks one row lower, under "Other networks".
-  const net = ([id, icon, cls, label]) =>
-    `<button type="button" class="rf-net" data-rf-net="${id}"><span class="lv-social lv-social--${cls}" aria-hidden="true"><span class="icon icon-${icon}"></span></span>${esc(id === "discord" ? t("referralDiscordCopy") : label)}</button>`;
-  const MAIN = ["whatsapp", "discord", "email"];
-  const mainNets = NETS.filter(n => MAIN.includes(n[0])).map(net).join("");
-  const otherNets = NETS.filter(n => !MAIN.includes(n[0])).map(net).join("");
+  // Every network at once, as its logo alone (the name is the aria-label: the logo says it).
+  const nets = NETS.map(([id, icon, cls, label]) =>
+    `<button type="button" class="rf-net" data-rf-net="${id}" aria-label="${esc(label)}"><span class="lv-social lv-social--${cls}" aria-hidden="true"><span class="icon icon-${icon}"></span></span></button>`).join("");
   // The QR stays in view: the friend standing next to you scans the screen.
   const qr = link ? _ctx.qr(link, { size: 280, margin: 2 }) : "";
   // "A friend invited you?" — only while this account may still claim: a card on top, apart from
@@ -217,59 +230,66 @@ export function renderInviteView(host) {
         <small>${esc(s.mine.state === "pending" ? t("referralVerifyHint") : t(`referralState_${s.mine.state}`))}</small></span>
       <span class="rf-pill rf-pill--${esc(s.mine.state)}">${esc(t(`referralState_${s.mine.state}`))}</span>
     </section>` : "";
-  const list = s?.invitees?.length
-    ? `<ul class="rf-list">${s.invitees.map(stateRow).join("")}</ul>`
-    : `<p class="rf-empty"><b>${esc(t("referralNoInvitees"))}</b> ${esc(t("referralNoInviteesSub"))}</p>`;
-  // How it works, in three steps — compact, under the sharing.
+  const cols = ["referralColFriend", "referralColDate", "referralColAccount", "referralColEmail", "referralColEnvelopes"];
+  const list = `${s?.invitees?.length ? `<div class="rf-table-wrap"><table class="rf-table">
+      <thead><tr>${cols.map(k => `<th>${esc(t(k))}</th>`).join("")}</tr></thead>
+      <tbody>${s.invitees.map(inviteeRow).join("")}</tbody></table></div>`
+    : `<p class="rf-empty"><b>${esc(t("referralNoInvitees"))}</b> ${esc(t("referralNoInviteesSub"))}</p>`}`;
+  // How it works, as a metro line: three numbered stations on one line, each step under its stop.
+  // Shown first, under the banner ("How it works": the banner already says what you both get), before the sharing.
   const steps = [["send", 1], ["user", 2], ["mail", 3]].map(([icon, n]) => `
-    <li class="rf-step"><span class="rf-step-ic"><span class="icon icon-${icon} icon-14" aria-hidden="true"></span></span>
-      <span class="rf-row-txt"><b>${n}. ${esc(t(`referralStep${n}`))}</b><small>${esc(t(`referralStep${n}Sub`, { n: envs }))}</small></span></li>`).join("");
+    <li class="rf-stop"><span class="rf-stop-dot" aria-hidden="true">${n}</span>
+      <b><span class="icon icon-${icon} icon-14" aria-hidden="true"></span>${esc(t(`referralStep${n}`))}</b>
+      <small>${esc(t(`referralStep${n}Sub`, { n: envs }))}</small></li>`).join("");
   host.innerHTML = `
-    ${heroHtml(esc, { cls: "sqr-hero rf-hero", eyebrow: t("squadBrand"), title: t("referralTitle"), sub: t("referralTagline", { n: envs }), scene: INVITE_SCENE, side })}
+    ${heroHtml(esc, { cls: "sqr-hero rf-hero", eyebrow: t("squadBrand"), title: t("referralTitle"), sub: t("referralTagline", { n: envs }), scene: inviteScene(!_ctx.eggFound?.(EGG)), side })}
     ${!s ? `<div class="trp-loading">${esc(t("questsLoading"))}</div>` : `
+    <p class="rf-friend-gets"><span class="icon icon-gift icon-16" aria-hidden="true"></span>${esc(t("referralHowTitle"))}</p>
+    <ol class="rf-steps">${steps}</ol>
     ${claimCard}${mine}
     <section class="rf-card rf-share">
-      <div class="rf-share-main">
       <h3><span class="icon icon-link icon-16" aria-hidden="true"></span>${esc(t(canClaim ? "referralLinkTitleToo" : "referralLinkTitle"))}</h3>
-      <div class="rf-link-row"><input class="dns-input" readonly value="${esc(link)}" aria-label="${esc(t("referralLinkTitle"))}">
-        <button type="button" class="sqd-open rf-copy-main" data-rf-copy><span class="icon icon-copy icon-13" aria-hidden="true"></span><span data-rf-copy-lbl>${esc(t("referralCopyMyLink"))}</span></button></div>
-      <div class="rf-nets"><span class="rf-via">${esc(t("referralShareVia"))}</span>${mainNets}
-        <button type="button" class="rf-more" data-rf-more aria-expanded="${_more}">${esc(t(_more ? "referralLess" : "referralMore"))}<span class="icon icon-chevron-r icon-12" aria-hidden="true"></span></button></div>
-      ${_more ? `<div class="rf-nets rf-nets-more">${otherNets}</div>` : ""}
-      <button type="button" class="rf-more rf-msg-tg" data-rf-msg aria-expanded="${_msg}">${esc(t(_msg ? "referralMsgHide" : "referralMsgShow"))}<span class="icon icon-chevron-r icon-12" aria-hidden="true"></span></button>
-      ${_msg ? `<div class="rf-msg-box"><b>${esc(t("referralMsgTitle"))}</b>
+      <div class="rf-share-body">
+      <div class="rf-share-main">
+      <div class="rf-link-bar"><input class="dns-input rf-link" readonly value="${esc(link)}" aria-label="${esc(t("referralLinkTitle"))}">
+        <button type="button" class="rf-link-copy" data-rf-copy><span class="icon icon-copy icon-14" aria-hidden="true"></span><span class="rf-copy-lbls"><span>${esc(t("referralCopyMyLink"))}</span><span aria-hidden="true">${esc(t("referralLinkCopied"))}</span></span></button></div>
+      <div class="rf-net-grid">${nets}</div>
+      <div class="rf-msg-row"><span class="rf-msg-lbl"><span class="icon icon-chat icon-14" aria-hidden="true"></span>${esc(t("referralMsgTitle"))}</span>
         <p class="rf-msg">${esc(shareText())} ${esc(link)}</p>
-        <button type="button" class="rf-qr-dl" data-rf-msg-copy><span class="icon icon-copy icon-13" aria-hidden="true"></span>${esc(t("referralMsgCopy"))}</button></div>` : ""}
-      <p class="rf-code-row">${esc(t("referralOrCode"))} <b class="rf-code-big">${esc(s.code || "—")}</b>
-        <button type="button" class="rf-qr-dl" data-rf-copy-code><span class="icon icon-copy icon-13" aria-hidden="true"></span>${esc(t("referralCopyCode"))}</button>
-        <small>${esc(t("referralCodeInLink"))}</small></p>
+        <button type="button" class="rf-msg-copy" data-rf-msg-copy aria-label="${esc(t("referralMsgCopy"))}"><span class="icon icon-copy icon-14" aria-hidden="true"></span></button></div>
       </div>
-      ${qr ? `<div class="rf-qr"><b class="rf-qr-title">${esc(t("referralQrTitle"))}</b>
-        <img class="lv-public-qr" src="${esc(qr)}" alt="">
-        <small>${esc(t("referralQrHint"))}</small>
-        <span class="rf-qr-acts"><button type="button" class="rf-qr-dl" data-rf-qr-big><span class="icon icon-search icon-13" aria-hidden="true"></span>${esc(t("referralQrBig"))}</button>
-        <button type="button" class="rf-qr-dl rf-qr-dl--soft" data-rf-qr><span class="icon icon-download icon-13" aria-hidden="true"></span>${esc(t("referralQrDownload"))}</button></span></div>` : ""}
+      ${qr ? myCodeCardHtml(esc, { cls: "rf-mycode", label: t("friendsMyCode"), code: s.code, qr,
+        zoomLabel: t("referralQrBig"), regenLabel: t("regenLabel"),
+        actions: [{ act: "share", icon: "link", label: t("friendsShareLink") }, { act: "download", icon: "download", label: t("referralQrDownload") }] }) : ""}
+      </div>
     </section>
-    <ol class="rf-steps">${steps}</ol>
     <section class="rf-card">
       <h3><span class="icon icon-user icon-16" aria-hidden="true"></span>${esc(t("referralMyInvitees"))}</h3>
       ${list}
     </section>`}`;
-  host.querySelector("[data-rf-copy-code]")?.addEventListener("click", e => _ctx.copy(s.code, e.currentTarget));
-  // The main button says it worked, in place ("Link copied!"), then goes back.
+  // The banner's envelopes: each one wiggles; the egg one counts the three quick clicks (tapEgg).
+  host.querySelectorAll(".rf-hero .hl--envs img").forEach(img => img.addEventListener("click", () => {
+    if (img.dataset.egg) return tapEgg(img, img.dataset.egg, _ctx, host, () => img.removeAttribute("data-egg"));
+    img.addEventListener("animationend", () => img.classList.remove("is-tapped"), { once: true });
+    img.classList.remove("is-tapped"); void img.offsetWidth; img.classList.add("is-tapped");
+    sfx.tick();
+  }));
+  host.querySelector('[data-mc-act="share"]')?.addEventListener("click", e => _ctx.copy(link, e.currentTarget));
+  // The main button says it worked, in place ("Link copied!"), then goes back. Both labels
+  // are stacked in the button, so it keeps the width of the longer one: it never resizes.
   host.querySelector("[data-rf-copy]")?.addEventListener("click", async e => {
-    const b = e.currentTarget, lbl = b.querySelector("[data-rf-copy-lbl]");
+    const b = e.currentTarget;
     await _ctx.copy(link, b);
-    lbl.textContent = t("referralLinkCopied");
-    clearTimeout(b._rfT); b._rfT = setTimeout(() => { lbl.textContent = t("referralCopyMyLink"); }, 1600);
+    b.classList.add("is-done");
+    clearTimeout(b._rfT); b._rfT = setTimeout(() => b.classList.remove("is-done"), 1600);
   });
-  host.querySelector("[data-rf-more]")?.addEventListener("click", () => { _more = !_more; renderInviteView(host); });
   host.querySelector("[data-rf-nocode]")?.addEventListener("click", () => { _noCode = !_noCode; renderInviteView(host); });
-  host.querySelector("[data-rf-msg]")?.addEventListener("click", () => { _msg = !_msg; renderInviteView(host); });
   host.querySelector("[data-rf-msg-copy]")?.addEventListener("click", e => _ctx.copy(`${shareText()} ${link}`, e.currentTarget));
-  host.querySelector("[data-rf-qr-big]")?.addEventListener("click", () => showQrWindow(link));
+  // The QR opens it big; the corner icon asks for a new code (confirmed first, host side).
+  host.querySelector("[data-mc-zoom]")?.addEventListener("click", () => showQrWindow(link));
+  host.querySelector("[data-mc-regen]")?.addEventListener("click", () => _ctx.regenCode?.());
   host.querySelectorAll("[data-rf-net]").forEach(b => b.addEventListener("click", () => share(b.dataset.rfNet, b)));
-  host.querySelector("[data-rf-qr]")?.addEventListener("click", () => {
+  host.querySelector('[data-mc-act="download"]')?.addEventListener("click", () => {
     const a = document.createElement("a");
     a.href = _ctx.qr(link, { size: 640, margin: 4 }); a.download = `tigertag-invite-${s.code}.png`; a.click();
   });
@@ -288,12 +308,14 @@ export function renderInviteView(host) {
 function share(net, button) {
   const link = shareLink(), text = shareText();
   if (!link) return;
-  if (net === "discord") { _ctx.copy(`${text} ${link}`, button, _ctx.t("referralDiscordCopied")); return; }   // no share URL: paste it in a server
+  // No share URL on a desktop: the message is copied, to paste in the app.
+  if (COPY_NETS.includes(net)) { _ctx.copy(`${text} ${link}`, button, _ctx.t("referralAppCopied", { app: NETS.find(n => n[0] === net)?.[3] || "" })); return; }
   const url = _ctx.shareUrl(net, link, text);
   if (url) _ctx.openExternal(url);
 }
 
 /* "Enlarge": the QR big enough to scan from across a table — openDialog's ceremony look. */
+export function showInviteQr(link) { showQrWindow(link); }
 function showQrWindow(link) {
   const { t, esc } = _ctx;
   openDialog({

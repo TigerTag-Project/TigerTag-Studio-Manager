@@ -303,9 +303,10 @@ is stored as `googleName` / `firstName` / `lastName` for admin reference, never 
   inventory reads when it matches.
 - `claimPublicKey(uid, oldKey)`: transaction, up to 10 retries, deletes the old key after success.
 - Friendship is bidirectional (batch writes both sides; removal deletes both).
-- Share link `https://tigersystem.io/friend/<code>` → `tigertag://friend/<CODE>` deep link
-  (`setAsDefaultProtocolClient`, `_handleFriendDeepLink`) only PRE-FILLS the add-friend search;
-  the user still sends the request. The landing page is `public/friend.html` in the backend repo.
+- Share link `https://tigersystem.io/join/<code>` (`_joinShareUrl`): the Hub's referral tunnel
+  (sign up with the sharer as referrer; an existing account is sent on to `/friend/<code>`).
+  `tigertag://friend/<CODE>` (`setAsDefaultProtocolClient`, `_handleFriendDeepLink`) only PRE-FILLS
+  the add-friend search; the user still sends the request.
 
 ### Container picker
 `openContainerPicker(r)` lists `data/container_spool/spools_filament.json`; picking writes

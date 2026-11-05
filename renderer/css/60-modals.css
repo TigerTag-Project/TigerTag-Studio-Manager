@@ -1095,8 +1095,32 @@
   .eac-signin-form { display: flex; flex-direction: column; gap: 10px; margin-left: 0; }
   .eac-signin-msg { margin: 0; font-size: 12px; line-height: 1.45; color: var(--success, var(--text)); }
   .eac-signin-msg.is-error { color: var(--danger-text); }
+  /* Delete my account: a quiet red button at the bottom of Sign-in, its window
+     (openDialog notice) with the password field and the status line. */
+  .eac-delete-row { margin-top: 6px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .eac-delete-btn.eac-delete-btn { color: var(--danger-text); border-color: color-mix(in srgb, var(--danger) 45%, transparent); }
+  .eac-delete-dlg .eac-delete-email { margin: -4px 0 12px; font-size: 13px; color: var(--muted); text-align: center; }
+  .eac-delete-dlg .eac-delete-lost { padding: 12px 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2, var(--surface)); text-align: left; }
+  .eac-delete-dlg .eac-delete-lost b { display: block; margin-bottom: 8px; font-size: 13px; color: var(--text); }
+  .eac-delete-dlg .eac-delete-lost ul { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+  .eac-delete-dlg .eac-delete-lost li { display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--text); }
+  .eac-delete-dlg .eac-delete-lost .icon { flex: none; background: var(--muted); }
+  .eac-delete-dlg .eac-delete-note { margin: 8px 0 0; font-size: 12px; color: var(--muted); text-align: center; }
+  .eac-delete-dlg .eac-delete-step { display: grid; gap: 6px; margin: 14px 0 0; text-align: left; }
+  .eac-delete-dlg .eac-delete-step-h { font-size: 13px; color: var(--text); }
+  .eac-delete-dlg .eac-delete-passrow { display: flex; gap: 8px; }
+  .eac-delete-dlg .eac-delete-passrow input { flex: 1; min-width: 0; }
+  .eac-delete-dlg .eac-delete-google { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; height: 40px; font-weight: 600; }
+  .eac-delete-dlg .eac-delete-google img { width: 18px; aspect-ratio: 1; }
+  .eac-delete-dlg .eac-delete-ok { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 13px; font-weight: 600; color: var(--success-text, var(--success)); }
+  .eac-delete-dlg .eac-delete-ok .icon { background: currentColor; }
+  .eac-delete-dlg .eac-delete-ok.hidden { display: none; }
+  .eac-delete-dlg .eac-delete-word { text-transform: uppercase; letter-spacing: .08em; font-weight: 700; }
+  .eac-delete-dlg .eac-signin-msg { margin-top: 8px; text-align: center; }
+  .eac-delete-dlg .sqn-leave:disabled { opacity: .45; cursor: not-allowed; }   /* until the word is typed */
   .eac-row .csel { width: auto; max-width: 62%; margin-left: auto; }
   .eac-row .csel-btn { height: 34px; }
+  .eac-body .csel-btn:disabled { opacity: .55; cursor: not-allowed; }   /* the League flag while locked */
   .eac-row .csel-pop { min-width: 100%; width: max-content; max-width: 260px; right: 0; left: auto; }
   /* The dropdown here is a plain field, not an inventory filter — the orange
      "is-active" treatment those inherit signals a live filter, which means
@@ -1317,6 +1341,56 @@
     transition: border-color .15s, background .15s;
   }
   #editAccountModalOverlay .eac-mcp-key .icon { background: var(--muted); transition: background .15s; }
+  /* Ligue des pays: the current flag, then "Change" (opens the country window). */
+  #editAccountModalOverlay .eac-country { display: inline-flex; align-items: center; gap: 10px; min-width: 0; }
+  #editAccountModalOverlay .eac-country-cur { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #editAccountModalOverlay .eac-mcp-key[hidden] { display: none; }
+  /* The country window (openDialog, notice): the mascot on top, the current country, a
+     search, the countries as flag tiles in two columns (no visible scrollbar), the lock. */
+  /* The mascot holding the globe (squad-notice/tiger-globe, the notice's art slot), a bit taller. */
+  .eac-cpick .sqn-art { height: 132px; margin-top: 6px; }
+  .eac-cpick-cur {
+    display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 12px; text-align: left;
+    background: var(--surface-2); border: 1px solid var(--border);
+  }
+  .eac-cpick-cur > span:not(.sqr-flagav) { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .eac-cpick-cur small { font-size: 11.5px; color: var(--muted); }
+  .eac-cpick-cur b { font-size: 16px; color: var(--text); }
+  .eac-cpick-cur em { font-style: normal; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px;
+    color: var(--primary-text); background: color-mix(in srgb, var(--primary) 14%, transparent); border: 1px solid color-mix(in srgb, var(--primary) 40%, transparent); }
+  .eac-cpick-q { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px; border-radius: 10px;
+    border: 1px solid var(--border); background: var(--surface-2); }
+  .eac-cpick-q:focus-within { border-color: var(--primary); }
+  .eac-cpick-q .icon { background: var(--muted); flex-shrink: 0; }
+  /* The field draws the frame and the focus (orange border): the input inside has none,
+     not even the app's focus ring (doubled class beats the global input:focus rule). */
+  .eac-cpick-q.eac-cpick-q input, .eac-cpick-q.eac-cpick-q input:focus { flex: 1; min-width: 0; height: 100%; padding: 0;
+    border: 0; outline: none; box-shadow: none; background: none; color: var(--text); font: inherit; font-size: 13px; }
+  .eac-cpick-q:focus-within { box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent); }
+  .eac-cpick-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; max-height: 236px; overflow-y: auto;
+    scrollbar-width: none; overscroll-behavior: contain; padding: 2px;
+    /* No scrollbar: a fade at the bottom says the list goes on. */
+    -webkit-mask-image: linear-gradient(#000 calc(100% - 28px), transparent); mask-image: linear-gradient(#000 calc(100% - 28px), transparent); }
+  .eac-cpick-grid::-webkit-scrollbar { width: 0; height: 0; }
+  .eac-cpick-tile {
+    display: flex; align-items: center; gap: 10px; min-width: 0; height: 48px; padding: 0 12px; border-radius: 10px;
+    border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit; font-size: 13px; font-weight: 600;
+    text-align: left; cursor: pointer; transition: border-color .12s, background .12s, transform .1s;
+  }
+  .eac-cpick-tile[hidden] { display: none; }
+  .eac-cpick-tile > span:not(.sqr-flagav):not(.icon) { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .eac-cpick-tile:hover { border-color: color-mix(in srgb, var(--primary) 45%, var(--border)); background: var(--surface-2); }
+  .eac-cpick-tile:active { transform: scale(.98); }
+  .eac-cpick-tile .icon-check { background: var(--primary); opacity: 0; transition: opacity .12s; flex-shrink: 0; }
+  .eac-cpick-tile.is-on { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 14%, var(--surface)); }
+  .eac-cpick-tile.is-on .icon-check { opacity: 1; }
+  .eac-cpick-lock { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 12px; text-align: left;
+    background: color-mix(in srgb, var(--primary) 10%, var(--surface)); border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent); }
+  .eac-cpick-lock .icon { background: var(--primary); flex-shrink: 0; }
+  .eac-cpick-lock > span:not(.icon) { display: flex; flex-direction: column; gap: 1px; }
+  .eac-cpick-lock b { font-size: 13px; color: var(--text); }
+  .eac-cpick-lock small { font-size: 12px; color: var(--muted); }
+  .eac-cpick .dlg-act:disabled { opacity: .45; cursor: not-allowed; }
   #editAccountModalOverlay .eac-mcp-key:hover { border-color: var(--primary); background: var(--surface); }
   #editAccountModalOverlay .eac-mcp-key:hover .icon { background: var(--primary); }
   /* Renewed: the key becomes a green tick and the button pops (same pop as the

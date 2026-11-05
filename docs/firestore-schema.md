@@ -89,7 +89,7 @@ userProfiles/
     photoURL    string?     — custom avatar, from Storage avatars/{uid} (photoFromStorage / photoRemove)
     socials     string[]    — https profile links, max 5, one per site
     friendsCount number     — maintained by the backend
-    tigerSquad  map?        — { since, tier: "bronze"|"silver"|"gold"|"platinum", certified, xp, country? } TigerSquad member (wall of fame; certified = SDK-verified TigerTag+ count, xp = chip points that rank the makers): SERVER-ONLY, set by publishSupporter when users/{uid}.supportPublicly is true (gold if they gave, bronze otherwise); refused from clients
+    tigerSquad  map?        — { since, tier: "bronze"|"silver"|"gold"|"platinum", certified, xp, country?, countryAt? } TigerSquad member (wall of fame; certified = SDK-verified TigerTag+ count, xp = chip points that rank the makers): SERVER-ONLY, set by publishSupporter when users/{uid}.supportPublicly is true (gold if they gave, bronze otherwise); refused from clients
 
 users/
   {uid}/
@@ -103,7 +103,7 @@ users/
     xpPoints      number?  — SERVER-ONLY: XP from the account's chips (certified TigerTag+ 10, TigerTag+ 2, TigerTag 1, per chip, one account per chip) — certifyChip; refused from clients
     certifiedPlusCount number? — SERVER-ONLY: genuine TigerTag+ counted for the account (backups in rfidList verified with the TigerTag SDK by certifyChip; one account per chip); refused from clients
     tigerTagCount      number? — SERVER-ONLY: every TigerTag chip counted for the account (TigerTag, TigerTag+ or certified; one account per chip) — 20+ makes a free member Silver; refused from clients
-    squadCountry       string? — the TigerSquad flag the member picked (ISO 3166-1 alpha-2, client-written); published as userProfiles/{uid}.tigerSquad.country (else the detected country)
+    squadCountry       string? — the TigerSquad flag the member picked (ISO 3166-1 alpha-2, client-written); published as userProfiles/{uid}.tigerSquad.country (else the detected country), at most one move every 30 days (tigerSquad.countryAt; the account window greys the picker until then)
     xpCountVersion     number? — SERVER-ONLY: counting rules of the last full chip recount (2 = inventory spools count too); Studio asks claimSupport { action: "xp" } when it is behind
     supportPublicly boolean? — the user chose to join the TigerSquad (shown on the wall of fame); client-written
     squadLockedUntil timestamp? — set to leave time + 30 days when the user leaves the TigerSquad: until then a

@@ -24,13 +24,14 @@ import { initTigerTouch, subscribeTigerTouchs, unsubscribeTigerTouchs, refreshTi
 import { initCamSnapshot } from './printers/cam-snapshot.js';
 import { pageHtml as xpPageHtml, chartTipHtml as xpChartTipHtml, leagueSeries as xpLeagueSeries } from './quests/xp-history.js';
 import { applyDealsFilter, dealsViewHtml, openChests, openCoinsCodeModal, openCoinsHistory, openEnvelopeHelp, showEnvelope, showEnvelopeGift, showSendCoins, sortDeals, tapEgg, wireDeals } from './quests/squad-deals.js';
-import { closePullStages, openPullStage } from './quests/coin-pull.js';
-import { squadHeroHtml, squadItemsHeroHtml, squadRankingsHtml, pulseHtml as squadPulseHtml, toggleLeague, leagueRows, setLeagueRows, rankNo } from './quests/squad-rankings.js';
+import { closePullStages, holdToFire, openPullStage } from './quests/coin-pull.js';
+import { squadHeroHtml, squadItemsHeroHtml, squadRankingsHtml, pulseHtml as squadPulseHtml, toggleLeague, pickLeague, leagueRows, setLeagueRows, rankNo } from './quests/squad-rankings.js';
 import { artImg } from './art.js';
 import { openDialog, initDialogs } from './dialog.js';
 import { initTrophies, trophiesSignIn, trophiesSignOut, renderTrophiesView, trophyEarned } from './quests/trophies.js';
 import { fillHeroScenes } from './hero-scene.js';
-import { initReferrals, referralsSignIn, referralsSignOut, renderInviteView, claimReferral, referralWantsCode, referralPrefill, referralStatus, wireCodeField, codeFieldMarkup, errText as referralErrText } from './quests/referrals.js';
+import { myCodeCardHtml } from './quests/ui-kit.js';
+import { initReferrals, referralsSignIn, referralsSignOut, refreshReferrals, showInviteQr, renderInviteView, claimReferral, referralWantsCode, referralPrefill, referralStatus, wireCodeField, codeFieldMarkup, errText as referralErrText } from './quests/referrals.js';
 import { initQuests, questsSignIn, questsSignOut, questBump, questGauge, questDailyProgress, questCurrentLevel, openQuests, renderQuestsView, questLootHtml, questFreezeStatus, questFriendFreeze, openFreezeFor, openFreezeGift } from './quests/index.js';
 
 // ── USB scale (Dymo M-series) module ──────────────────────────────────────
@@ -4563,6 +4564,8 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     t, esc, db: fbDb, uid: () => state.activeAccountId, lang: () => state.lang,
     // A veiled trophy a friend revealed: "Seen at <friend>'s".
     friendName: uid => _shortName(state.friends.find(f => f.uid === uid)?.displayName || ""),
+    // …with that friend's avatar, drawn like everywhere else (userAvatar), sized by its box.
+    friendAvatar: uid => { const f = state.friends.find(x => x.uid === uid); return f ? userAvatar(f, "av-fill") : ""; },
     onChange: () => { if (state.viewMode === "squadTrophies") renderInventory(); },
     openView: () => setViewMode("squadTrophies"),
     openCode: () => { const uid = state.activeAccountId; if (uid) openCoinsCodeModal(_topCoinsCtx(uid)); },
@@ -4575,7 +4578,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     t, esc, uid: () => state.activeAccountId,
     token: () => state.activeAccountId ? firebase.app(state.activeAccountId).auth().currentUser?.getIdToken() : null,
     avatar: (who, cls) => userAvatar({ ...who, displayName: who?.displayName ?? who?.name }, cls),
-    qr: (url, opts) => _makeQrDataUrl(url, opts), shareUrl: _socialShareUrl, inviteUrl: code => _friendShareUrl(code),
+    qr: (url, opts) => _makeQrDataUrl(url, opts), shareUrl: _socialShareUrl, inviteUrl: code => _joinShareUrl(code),
     openExternal: url => window.electronAPI?.openExternal?.(url),
     copy: (text, btn, msg) => navigator.clipboard.writeText(text).then(() => { _flashCopied(btn); if (msg) _flashMessage(msg); }),
     lookupCode: async code => {
@@ -4585,6 +4588,17 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       return { uid, displayName: p.displayName || "", photoURL: p.photoURL || null, color: p.color || null };
     },
     openEnvelopes: () => _openEnvelopesNow(),
+    regenCode: () => _confirmRegenPublicKey(),
+    // The banner's easter-egg envelope (inviteBanner, tapEgg): the server adds it to the pile.
+    eggFound: egg => (_deals.coins?.eggs || []).includes(egg),
+    easterEgg: async (egg, onFound) => {
+      const uid = state.activeAccountId;
+      const r = await _tigerCoins(uid, "easterEgg", { egg });
+      _deals.coins = _coinsOf(r); _paintDealsBadge(_envCount(_deals.coins));
+      onFound?.();
+      return r;
+    },
+    toast: msg => _flashMessage(msg),
     onChange: () => {
       if (state.viewMode === "squadInvite") renderInventory();
       _syncOnbReferral();
@@ -5029,6 +5043,104 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     await user.reauthenticateWithCredential(firebase.auth.EmailAuthProvider.credential(user.email, password));
     return user;
   }
+  // Delete my account — for good, every data (backend deleteMyAccount, the same wipe as the
+  // admin's: inventory, profile, both sides of every friendship, lists, files, then the
+  // sign-in). The server wants a sign-in less than 5 minutes old: the password is asked
+  // again (or Google once more), then the button is held to confirm. The server answers at
+  // once (the account is disabled, the wipe runs in the background: accountDeletionRun), so
+  // the account leaves this computer right away.
+  const DELETE_ACCOUNT_URL = "https://us-central1-tigertag-connect.cloudfunctions.net/deleteMyAccount";
+  async function _reauthForDelete(user, password) {
+    if (_signinHasPassword()) return user.reauthenticateWithCredential(firebase.auth.EmailAuthProvider.credential(user.email, password));
+    const r = await window.electronAPI?.signInWithGoogleLoopback?.();
+    if (!r?.ok) throw Object.assign(new Error("google"), { code: "auth/popup-closed-by-user" });
+    return user.reauthenticateWithCredential(firebase.auth.GoogleAuthProvider.credential(r.idToken, r.accessToken));
+  }
+  // Two steps before the red button arms (laid out with ChatGPT, 2026-11-03): 1. confirm it is
+  // you (the password, or Google once more — the server wants a sign-in under 5 minutes),
+  // 2. type the confirm word of the user's language (SUPPRIMER, DELETE…). Then hold 2.5 s.
+  function _openDeleteAccount() {
+    const user = _signinUser(), id = _editingAccount?.id; if (!user || !id) return;
+    const pass = _signinHasPassword();
+    const lost = [["inventory", "package"], ["friends", "user"], ["squad", "coins"], ["lists", "list"], ["login", "lock"]];
+    openDialog({
+      cls: "squad-notice--leave eac-delete-dlg", art: "tigersquad/squad-notice/tiger-goodbye", role: "alertdialog",
+      title: t("eacDeleteTitle"), text: t("eacDeleteDesc"),
+      body: `<p class="eac-delete-email">${esc(user.email || "")}</p>
+        <section class="eac-delete-lost">
+          <b>${esc(t("eacDeleteLostTitle"))}</b>
+          <ul>${lost.map(([k, ic]) => `<li><span class="icon icon-${ic} icon-14" aria-hidden="true"></span>${esc(t("eacDeleteLost_" + k))}</li>`).join("")}</ul>
+        </section>
+        <p class="eac-delete-note">${esc(t("eacDeleteRecreate"))}</p>
+        <div class="eac-delete-step" data-step="verify">
+          <b class="eac-delete-step-h">${esc(t("eacDeleteStepVerify"))}</b>
+          ${pass ? `<div class="eac-delete-passrow"><input type="password" class="eac-vatc-inp" autocomplete="current-password" aria-label="${esc(t("eacCurrentPassword"))}" placeholder="${esc(t("eacCurrentPassword"))}">
+              <button type="button" class="secondary sm eac-delete-verify">${esc(t("eacDeleteVerifyBtn"))}</button></div>`
+            : `<button type="button" class="secondary eac-delete-verify eac-delete-google"><img src="../assets/svg/icons/icon_google.svg" alt="" aria-hidden="true">${esc(t("eacDeleteVerifyGoogle"))}</button>`}
+          <p class="eac-delete-ok hidden"><span class="icon icon-check icon-12" aria-hidden="true"></span>${esc(t("eacDeleteVerified"))}</p>
+        </div>
+        <label class="eac-delete-step">
+          <b class="eac-delete-step-h">${esc(t("eacDeleteTypeWord", { word: t("eacDeleteWord") }))}</b>
+          <input type="text" class="eac-vatc-inp eac-delete-word" autocomplete="off" spellcheck="false" placeholder="${esc(t("eacDeleteWord"))}">
+        </label>
+        <p class="eac-delete-note eac-delete-arm">${esc(t("eacDeleteArmHint"))}</p>
+        <p class="eac-signin-msg hidden" role="status"></p>`,
+      actions: [{ id: "keep", label: t("eacDeleteKeep"), kind: "primary" }, { id: "delete", label: t("eacDeleteHold"), kind: "danger" }],
+      wire: (card, close) => {
+        const msg = card.querySelector(".eac-signin-msg"), pw = card.querySelector('.eac-delete-passrow input');
+        const verifyBtn = card.querySelector(".eac-delete-verify"), ok = card.querySelector(".eac-delete-ok");
+        const word = card.querySelector(".eac-delete-word"), hold = card.querySelector('[data-dlg="delete"]');
+        const say = (text, error = true) => { msg.textContent = text; msg.classList.toggle("is-error", error); msg.classList.remove("hidden"); };
+        const hush = () => msg.classList.add("hidden");
+        let verified = false, busy = false;
+        const typed = () => word.value.trim().toLocaleUpperCase() === t("eacDeleteWord").toLocaleUpperCase();
+        const arm = () => { hold.disabled = !(verified && typed()); card.querySelector(".eac-delete-arm").classList.toggle("hidden", !hold.disabled); };
+        arm();
+        word.addEventListener("input", arm);
+        // Step 1: re-authenticate now, so the hold that follows sends a fresh token.
+        const verify = async () => {
+          if (verified || busy) return;
+          if (pass && !pw.value) { say(t("eacDeleteNeedPassword")); pw.focus(); return; }
+          busy = true; verifyBtn.disabled = true; hush();
+          try {
+            await _reauthForDelete(user, pw?.value);
+            verified = true;
+            card.querySelector(".eac-delete-step[data-step=verify]").classList.add("is-done");
+            verifyBtn.closest(".eac-delete-passrow")?.classList.add("hidden"); verifyBtn.classList.add("hidden");
+            ok.classList.remove("hidden");
+            word.focus();
+          } catch (e) { say(_signinErr(e)); verifyBtn.disabled = false; }
+          busy = false; arm();
+        };
+        verifyBtn.addEventListener("click", verify);
+        pw?.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); verify(); } });
+        setupHoldToConfirm(hold, 2500, async () => {
+          if (busy || !verified || !typed()) return;
+          busy = true; hold.disabled = true; say(t("eacDeleteWorking"), false);
+          try {
+            const token = await user.getIdToken(true);
+            const r = await fetch(DELETE_ACCOUNT_URL, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+              body: JSON.stringify({ confirm: user.email || user.uid }) });
+            const out = await r.json().catch(() => ({}));
+            if (!r.ok || out.ok === false) throw Object.assign(new Error(out.error || "ERROR"), { server: out.error || "ERROR" });
+            close(); closeEditAccountModal?.();
+            deleteAccountUI(id);
+            _flashMessage(t("eacDeleteDone"));
+          } catch (e) {
+            busy = false; arm();
+            // Over 5 minutes since step 1: verify again.
+            if (e.server === "REQUIRES_RECENT_LOGIN") {
+              verified = false; card.querySelector(".eac-delete-step[data-step=verify]").classList.remove("is-done");
+              ok.classList.add("hidden"); verifyBtn.classList.remove("hidden"); verifyBtn.disabled = false;
+              verifyBtn.closest(".eac-delete-passrow")?.classList.remove("hidden"); arm();
+            }
+            say(e.server === "ADMIN_ACCOUNT" ? t("eacDeleteAdmin") : e.server === "REQUIRES_RECENT_LOGIN" ? t("eacDeleteNeedVerify") : e.server ? t("eacDeleteFailed") : _signinErr(e));
+          }
+        });
+      },
+    });
+  }
+  $("eacDeleteAccountBtn")?.addEventListener("click", _openDeleteAccount);
   $("eacChangeEmailBtn")?.addEventListener("click", () => _signinShowForm("eacEmailForm"));
   $("eacChangePassBtn")?.addEventListener("click", () => _signinShowForm("eacPassForm"));
   document.querySelectorAll("[data-signin-cancel]").forEach(b => b.addEventListener("click", () => _signinShowForm(null)));
@@ -5432,6 +5544,9 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       if (uid !== state.activeAccountId) return;
       const tier = ps.exists ? (ps.get("tigerSquad")?.tier || null) : null;
       const pubXp = ps.exists ? (ps.get("tigerSquad")?.xp ?? null) : null;
+      // The flag's last move (server-written, squadLock.js lockedCountry): the picker locks for 30 days.
+      const countryAt = ps.exists ? (ps.get("tigerSquad")?.countryAt?.toMillis?.() || null) : null;
+      if (countryAt !== state.squadCountryAt) { state.squadCountryAt = countryAt; _fillSquadCountry(); }
       if (pubXp !== state.squadXpPublic) {
         state.squadXpPublic = pubXp; _squadRankCache = null;
         if (_squadBoardCache) _squadBoardCache.at = 0;   // my XP moved: the board's next open reloads
@@ -5686,18 +5801,82 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   // countries ranking. users/{uid}.squadCountry (ISO alpha-2) when picked;
   // "auto" = the country this app detects (the server falls back to it).
   const _flagOf = cc => String.fromCodePoint(...[...cc].map(c => 0x1F1A5 + c.charCodeAt(0)));
-  function _fillSquadCountry() {
-    const sel = $("eacSquadCountry"); if (!sel) return;
+  const SQUAD_COUNTRY_LOCK_DAYS = 30;   // backend functions/squadLock.js COUNTRY_LOCK_DAYS
+  // The countries, sorted by their name in the app's language; the first entry ("")
+  // is the detected country (a cleared pick), shown like any other.
+  function _squadCountryOptions() {
     let names; try { names = new Intl.DisplayNames([state.lang || "en"], { type: "region" }); } catch (_) {}
     const name = cc => { try { return names?.of(cc) || cc; } catch (_) { return cc; } };
     const detected = deriveCountry();
-    const opts = COUNTRY_CODES.map(cc => ({ cc, n: name(cc), label: `${_flagOf(cc)}  ${name(cc)}` }))
-      .sort((a, b) => a.n.localeCompare(b.n, state.lang || "en"));
-    // First entry = the detected country (cleared pick), shown like any other.
-    sel.innerHTML = `<option value="">${esc(detected ? `${_flagOf(detected)}  ${name(detected)}` : "—")}</option>`
-      + opts.map(o => `<option value="${o.cc}">${esc(o.label)}</option>`).join("");
-    sel.value = state.squadCountry || "";
-    _enhanceSelect(sel); sel._cselRefresh?.();
+    const opts = COUNTRY_CODES.map(cc => ({ cc, n: name(cc) })).sort((a, b) => a.n.localeCompare(b.n, state.lang || "en"));
+    return { name, detected, opts: [{ cc: "", n: detected ? name(detected) : "—", flag: detected }, ...opts.map(o => ({ ...o, flag: o.cc }))] };
+  }
+  const _squadCountryUntil = () => state.squadCountryAt ? state.squadCountryAt + SQUAD_COUNTRY_LOCK_DAYS * 864e5 : 0;
+  function _fillSquadCountry() {
+    const cur = $("eacSquadCountryCur"); if (!cur) return;
+    const { name, detected } = _squadCountryOptions(), cc = state.squadCountry || detected;
+    cur.textContent = cc ? `${_flagOf(cc)}  ${name(cc)}` : "—";
+    // The flag moves at most once every SQUAD_COUNTRY_LOCK_DAYS (enforced by the server).
+    const until = _squadCountryUntil(), locked = until > Date.now();
+    $("eacSquadCountryBtn").hidden = locked;
+    const hint = $("eacSquadCountryHint");
+    if (hint) hint.textContent = locked
+      ? t("squadCountryLockedUntil", { date: new Date(until).toLocaleDateString(state.lang || "en", { day: "numeric", month: "long" }) })
+      : t("squadCountryLockHint");
+  }
+  // "Change": the countries as flag tiles in a window — the current one pinned on top,
+  // a search, the 30-day lock said before anything is written, and a primary button
+  // naming the country picked (off until another one is), held 1.5 s like giving an
+  // envelope (coin-pull.js holdToFire: it strains, glows and fills). Never one stray click.
+  function _openSquadCountryPicker() {
+    if (_squadCountryUntil() > Date.now()) return;
+    const { name, detected, opts } = _squadCountryOptions();
+    const current = state.squadCountry || detected || "";
+    let picked = null;
+    const flag = (cc, px) => `<span class="sqr-flagav" style="--s:${px}px"><img src="../assets/svg/flags/${cc.toLowerCase()}.svg" alt="" loading="lazy" decoding="async"></span>`;
+    const tiles = opts.filter(o => o.cc && o.cc !== current).map(o => `
+        <button type="button" class="eac-cpick-tile" data-cc="${o.cc}" aria-pressed="false">${flag(o.cc, 26)}<span>${esc(o.n)}</span>
+          <span class="icon icon-check icon-14" aria-hidden="true"></span></button>`).join("");
+    openDialog({
+      cls: "eac-cpick", art: "tigersquad/squad-notice/tiger-globe", title: t("squadCountryPickTitle"), text: t("squadCountryPickSub"),
+      body: `${current ? `<div class="eac-cpick-cur">${flag(current, 40)}
+          <span><small>${esc(t("squadCountryCurrent"))}</small><b>${esc(name(current))}</b></span>
+          ${!state.squadCountry ? `<em>${esc(t("squadCountryDetected"))}</em>` : ""}</div>` : ""}
+        <label class="eac-cpick-q"><span class="icon icon-search icon-14" aria-hidden="true"></span>
+          <input type="search" placeholder="${esc(t("squadCountrySearch"))}" aria-label="${esc(t("squadCountrySearch"))}"></label>
+        <div class="eac-cpick-grid" role="group" aria-label="${esc(t("squadCountryLabel"))}">${tiles}</div>
+        <div class="eac-cpick-lock"><span class="icon icon-lock icon-16" aria-hidden="true"></span>
+          <span><b>${esc(t("squadCountryLockTitle", { n: SQUAD_COUNTRY_LOCK_DAYS }))}</b><small>${esc(t("squadCountryPickWarn"))}</small></span></div>`,
+      actions: [{ id: "ok", label: t("squadCountryPickNone"), kind: "primary" }, { id: "cancel", label: t("squadCountryKeep") }],
+      wire(card, close) {
+        const grid = card.querySelector(".eac-cpick-grid"), ok = card.querySelector('[data-dlg="ok"]');
+        const okTxt = ok.querySelector(".dlg-act-txt") || ok;
+        ok.classList.add("tp-hold", "tp-ten");
+        ok.insertAdjacentHTML("afterbegin", `<span class="tp-fill" aria-hidden="true"></span>`);
+        // Held, not clicked: the dialog's own click on it does nothing (onAction below).
+        holdToFire(ok, 1500, () => {
+          if (!picked || picked === (state.squadCountry || "")) return;
+          _setSquadCountry(picked); _fillSquadCountry();
+          close();
+        }, t("holdToConfirmTip", { s: (1.5).toLocaleString(state.lang || "en") }));
+        const sync = () => {
+          ok.disabled = !picked;
+          okTxt.textContent = picked ? t("squadCountryConfirm", { country: name(picked) }) : t("squadCountryPickNone");
+        };
+        sync();
+        card.querySelector(".eac-cpick-q input").addEventListener("input", e => {
+          const q = e.target.value.trim().toLocaleLowerCase(state.lang || "en");
+          grid.querySelectorAll(".eac-cpick-tile").forEach(b => { b.hidden = !!q && !b.textContent.toLocaleLowerCase(state.lang || "en").includes(q); });
+        });
+        grid.addEventListener("click", e => {
+          const b = e.target.closest(".eac-cpick-tile"); if (!b) return;
+          picked = picked === b.dataset.cc ? null : b.dataset.cc;   // a second click un-picks
+          grid.querySelectorAll(".eac-cpick-tile").forEach(x => { const on = x.dataset.cc === picked; x.classList.toggle("is-on", on); x.setAttribute("aria-pressed", String(on)); });
+          sync();
+        });
+      },
+      onAction(id, close) { if (id !== "ok") close(); },
+    });
   }
   function _setSquadCountry(cc) {
     const uid = state.activeAccountId; if (!uid) return;
@@ -6024,7 +6203,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       _deals.coins = _coinsOf(r); _paintDealsBadge(_envCount(_deals.coins));
       onFound?.();
       after?.();
-      return { ...r, open: () => _openEnvelopesNow() };   // tapEgg opens the pile after the celebration
+      return r;
     },
     openChest: async id => {
       const r = await _tigerCoins(uid, "openChest", { id });
@@ -6073,11 +6252,10 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         if (!env || !g) return null;
         // Over the opening stage: no envGive egg here (finding it would open a second
         // stage on top of this one) — it lives in the Friends panel's give window.
-        await showEnvelope({ ...ctx, hold: setupHoldToConfirm, easterEgg: null, eggFound: () => true }, env, { giveOnly: true, give: {   // the Deals ctx has no hold
-          left: g.left, max: g.max, tierLabel: g.tier ? squadTierLabel(g.tier) : "",
-          friends: (state.friends || []).map(f => ({ uid: f.uid, name: f.displayName || "—", avatar: userAvatar(f, "sqb-avatar") })),
-          send: async to => { const r = await _tigerCoins(uid, "giveEnvelope", { id: env.id, to }); set(r); return r; },
-        } });
+        // The same give window as the Friends panel's (_giveOptions): the fanned
+        // hand of envelopes to pick from, several at once.
+        await showEnvelope({ ...ctx, hold: setupHoldToConfirm, easterEgg: null, eggFound: () => true }, env,   // the Deals ctx has no hold
+          { giveOnly: true, give: _giveOptions(uid, c, env, { onSent: set }) });
         return _pileSize();
       },
     };
@@ -6122,13 +6300,13 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     dealTitle: id => { const d = (_deals.docs || []).find(x => x.id === id); const tt = d?.title; return !tt ? "" : typeof tt === "string" ? tt : tt[state.lang] || tt.en || Object.values(tt)[0] || ""; },
     loadingHTML: () => _loadingHTML(),
     // An easter egg found (squad-deals.js openEnvelopeHelp): the server adds its
-    // envelope to the pile, the help window closes and the pile opens.
+    // envelope to the pile and the help window closes; it is opened later, from the pile.
     easterEgg: async (egg, closeHelp) => {
       const r = await _tigerCoins(uid, "easterEgg", { egg });
       _deals.coins = _coinsOf(r); _paintDealsBadge(_envCount(_deals.coins));
       paint();
       closeHelp?.();
-      return { ...r, open: () => _openAllEnvelopes(uid, ctx, paint, { guard: 1200 }) };   // tapEgg opens it after the celebration
+      return r;
     },
     qr: url => _makeQrDataUrl(url, { size: 264, margin: 2, fg: "#111318", bg: "#ffffff", logo: false }),   // black on white: always scans
     openChest: id => _coinsCtx(uid, paint).openChest(id),
@@ -6376,6 +6554,17 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       // quests/squad-rankings.js layout (My rank, Community pulse, three leagues).
       if (host) {
         const rctx = _squadRankCtx(viewer, cname, fmt, myCountry());
+        // Another country's league (a click in the countries' league): its top, one read, kept.
+        rctx.natOf = cc => {
+          const hit = _squadNatCache.get(cc);
+          if (hit && (hit.loading || Date.now() - hit.at < SQUAD_BOARD_FRESH_MS)) return hit.rows;
+          _squadNatCache.set(cc, { rows: hit?.rows || null, loading: true, at: 0 });
+          fbDb(uid).collection("squadBoard").doc(`nat_${cc}`).get()
+            .then(d => (d.data()?.rows || []).map(x => _squadMemberOf(x.uid, x)))
+            .catch(() => [])
+            .then(rows => { _squadNatCache.set(cc, { rows, at: Date.now() }); if (card.isConnected && _squadViewTab === "countries") render("countries"); });
+          return hit?.rows || null;   // the last copy stays on screen while it refreshes
+        };
         // Items has its own banner: the tiger and the four legendary devices, lit when owned,
         // each owned one hiding an easter-egg envelope (eggFound: the found ones are gone;
         // unknown until the TigerCoins status is loaded once).
@@ -6442,6 +6631,10 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       setTimeout(done, 160);
     };
     const onKey = e => { if (e.key === "Escape" && !_supportMenu && performance.now() - _supportClosedAt > 250) close(); };
+    // A country row of the countries' league is a button: Enter / Space picks it too.
+    card.addEventListener("keydown", e => {
+      if ((e.key === "Enter" || e.key === " ") && e.target.matches?.("[data-sqr-cc]")) { e.preventDefault(); e.target.click(); }
+    });
     card.addEventListener("click", e => {
       // An easter-egg envelope behind a legendary device: three quick clicks (tapEgg).
       const eggSpot = e.target.closest("[data-egg]");
@@ -6459,6 +6652,8 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       }
       const all = e.target.closest("[data-sqr-all]");
       if (all) { toggleLeague(all.dataset.sqrAll); render("countries"); return; }
+      const pick = e.target.closest("[data-sqr-cc]");
+      if (pick) { pickLeague(pick.dataset.sqrCc, myCountry()); render("countries"); return; }
       const tabBtn = e.target.closest(".sqb-tab");
       if (tabBtn && host && tabBtn.dataset.tab === "hist") { openXpHistory(); return; }   // a side card, not a tab, in the view
       if (tabBtn) { render(tabBtn.dataset.tab); return; }
@@ -6516,6 +6711,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     if (card.isConnected) render(card.querySelector(".sqb-tab.is-on")?.dataset.tab || tab);
   }
   let _squadBoardCache = null;   // { uid, viewer, board, mine, at } — last rankings load (instant reopen)
+  const _squadNatCache = new Map();   // cc → { rows, at, loading } another country's top (squadBoard/nat_<CC>)
   // board = { world: [member], nat: [member], countries: [{ cc, xp, n, base }],
   //   me: member + { worldRank, natRank } | null, rival: { world, nat } (member | null,
   //   undefined = not known) }; member = { uid, name, profile, tier, xp, country, bw, bn }.
@@ -7274,7 +7470,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     if (!e.target.checked && state.supportPublicly) { e.target.checked = true; _openSquadLeaveWarning(e.target); return; }
     _setSupportPublicly(e.target.checked, e.target);
   });
-  $("eacSquadCountry")?.addEventListener("change", e => _setSquadCountry(e.target.value));
+  $("eacSquadCountryBtn")?.addEventListener("click", _openSquadCountryPicker);
   $("eacDebugToggle").addEventListener("change", async () => {
     const enabled = $("eacDebugToggle").checked;
     state.debugEnabled = enabled;
@@ -9730,6 +9926,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       const short = sel.dataset.cselShort;
       btn.querySelector(".csel-label").textContent = (!sel.value && short) ? t(short) : (o ? o.text : "");
       btn.classList.toggle("is-active", !!sel.value);
+      btn.disabled = sel.disabled;   // a disabled <select> keeps its dropdown shut
       if (sel.title) btn.title = sel.title;
     };
     const close = () => {
@@ -10928,7 +11125,8 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   }
 
   // Hover a table thumbnail → a larger preview beside it (issue #67), in every
-  // table that uses thumbHTML (inventory, catalogue, lists). One body-level
+  // table that uses thumbHTML (inventory, catalogue, lists), and a container
+  // photo in the container picker and in Spool details. One body-level
   // element, so no table overflow clips it; a short delay so sweeping the mouse
   // down the column doesn't flash a preview per row.
   const THUMB_ZOOM_PX = 220;
@@ -10947,7 +11145,12 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     }
     const img = _thumbZoomEl.firstChild;
     if (img.getAttribute("src") !== wrap.dataset.zoom) img.src = wrap.dataset.zoom;
-    _thumbZoomEl.style.setProperty("--spool-bg", wrap.style.getPropertyValue("--spool-bg") || "transparent");
+    // A container photo (container picker, Spool details) is shown whole on the
+    // card surface; a spool thumbnail fills its spool-colour frame.
+    const whole = wrap.matches(".cp-item img, .cc-body img");
+    _thumbZoomEl.classList.toggle("thumb-zoom--whole", whole);
+    if (whole) _thumbZoomEl.style.removeProperty("--spool-bg");
+    else _thumbZoomEl.style.setProperty("--spool-bg", wrap.style.getPropertyValue("--spool-bg") || "transparent");
     const r = wrap.getBoundingClientRect(), size = THUMB_ZOOM_PX + 12, gap = 12;
     const left = r.right + gap + size < innerWidth ? r.right + gap : Math.max(8, r.left - gap - size);
     const top = Math.min(Math.max(8, r.top + r.height / 2 - size / 2), innerHeight - size - 8);
@@ -10956,7 +11159,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     _thumbZoomEl.classList.add("is-on");
   }
   document.addEventListener("mouseover", e => {
-    const wrap = e.target.closest?.("td .thumb-wrap[data-zoom], td .cv-thumb[data-zoom]");
+    const wrap = e.target.closest?.("td .thumb-wrap[data-zoom], td .cv-thumb[data-zoom], .cp-item img[data-zoom], .cc-body img[data-zoom]");
     if (wrap === _thumbZoomFor) return;
     _hideThumbZoom();
     if (!wrap) return;
@@ -11799,11 +12002,12 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   // (TigerHub / Vercel). The snapshot is DENORMALISED and carries only safe
   // display fields — never the personal `note`. Base URL is a config constant
   // (adjust to the final TigerHub Vercel domain).
-  const PUBLIC_WEB_BASE = "https://tigersystem.io";   // TigerHub public web (Vercel) — /wishlist/<token>, /friend/<code>
+  const PUBLIC_WEB_BASE = "https://tigersystem.io";   // TigerHub public web (Vercel) — /wishlist/<token>, /join/<code>
   const _publicSnapSig = {};   // token → last-written content signature (skip redundant writes)
   function _publicListUrl(token) { return `${PUBLIC_WEB_BASE}/wishlist/${token}`; }
-  // Shareable friend-invite link (TigerHub landing page → app deep link).
-  function _friendShareUrl(code) { return `${PUBLIC_WEB_BASE}/friend/${code}`; }
+  // The one shareable invite link: the referral tunnel (TigerHub /join/<code>). A newcomer signs up
+  // with the inviter as referrer; an existing account is sent on to /friend/<code> to send a request.
+  function _joinShareUrl(code) { return `${PUBLIC_WEB_BASE}/join/${code}`; }
 
   // ── Local QR generation (offline — no external service) ────────────────────
   // Renders the module matrix from the vendored qrcode-generator (window.qrcode)
@@ -11887,6 +12091,9 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       reddit:   `https://www.reddit.com/submit?url=${u}&title=${x}`,
       telegram: `https://t.me/share/url?url=${u}&text=${x}`,
       bluesky:  `https://bsky.app/intent/compose?text=${x}%20${u}`,
+      line:     `https://social-plugins.line.me/lineit/share?url=${u}&text=${x}`,
+      vk:       `https://vk.com/share.php?url=${u}&title=${x}`,
+      sms:      `sms:?&body=${x}%20${u}`,
       email:    `mailto:?subject=${x}&body=${x}%0A%0A${u}`,
     })[net] || null;
   }
@@ -20236,6 +20443,16 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       if (String(n) !== raw) e.target.value = String(n);         // correct AS YOU TYPE, like the add-product floors
       _dupCount = n; _dupSyncUI();
     });
+    // No container → no duplicate: the copies would carry a wrong tare. Refused at the
+    // press (before the hold starts): the container picker opens with a red bubble over its search.
+    // Registered before the hold so it can stop it.
+    $("btnToolDuplicate")?.addEventListener("pointerdown", e => {
+      if (r.containerId || e.target.closest("select, input")) return;
+      e.stopImmediatePropagation();
+      openContainerPicker(r);
+      // Once the card has slid in: the red help bubble over its search (#toolInfoPop).
+      setTimeout(() => _showErrorTip($("containerPickerSearch"), t("toolDuplicateNeedContainer")), 320);
+    });
     setupHoldToConfirm($("btnToolDuplicate"), 1000, async () => {
       try {
         const made = await duplicateSpoolAsCloud(r, _dupCount);
@@ -21526,7 +21743,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       <div class="cp-group-label">${esc(brand)}</div>
       ${items.map(c => `
         <div class="cp-item${c.id === currentId ? " active" : ""}" data-cid="${esc(c.id)}" role="button" tabindex="0">
-          <img src="${esc(c.img)}" alt="${esc(c.label)}" onerror="this.style.display='none'" />
+          <img src="${esc(c.img)}" data-zoom="${esc(c.img)}" alt="${esc(c.label)}" onerror="this.style.display='none'" />
           <div class="cp-item-info">
             <div class="cp-item-name">${esc(c.label)}</div>
             <div class="cp-item-meta">${favs.includes(c) ? `${esc(c.brand)} · ` : ""}${esc(c.type)}</div>
@@ -23936,7 +24153,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     const containerHtml = container ? `
       <div class="panel-section cc-section">
         <div class="cc-body">
-          <img src="${esc(container.img)}" alt="${esc(container.brand)}" onerror="this.style.display='none'" />
+          <img src="${esc(container.img)}" data-zoom="${esc(container.img)}" alt="${esc(container.brand)}" onerror="this.style.display='none'" />
           <div class="cc-meta">
             <div class="cc-head">${esc(container.brand)} · ${esc(container.label)}</div>
             <div class="cc-type">${esc(container.type)}</div>
@@ -39917,19 +40134,22 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
 
   // Show public key and toggle in settings panel
   function renderFriendsSection() {
-    const keyEl = $("stgPublicKey");
-    if (keyEl) keyEl.textContent = state.publicKey || "—";
     const toggle = $("stgPublicToggle");
     if (toggle) toggle.checked = state.isPublic;
-    // QR of the shareable invite link (same URL as the "Share link" button).
-    const qr = $("fpHeroQr");
-    if (qr) {
-      if (state.publicKey) {
-        qr.src = _makeQrDataUrl(_friendShareUrl(state.publicKey), { size: 240, margin: 2 });
-      } else {
-        qr.removeAttribute("src");
-      }
-    }
+    // The "My code" card — the same one as the Invite view (myCodeCardHtml); its QR
+    // is the shareable invite link (same URL as "Share link"). Redrawn only when
+    // the code, the QR look or the language changed.
+    const host = $("fpMyCode");
+    if (!host) return;
+    const code = state.publicKey || "";
+    const qr = code ? _makeQrDataUrl(_joinShareUrl(code), { size: 240, margin: 2 }) : "";
+    const sig = JSON.stringify([code, qr.length, state.lang]);
+    if (host._mcSig === sig) return;
+    host._mcSig = sig;
+    host.innerHTML = myCodeCardHtml(esc, {
+      label: t("friendsMyCode"), code, qr, zoomLabel: t("referralQrBig"), regenLabel: t("regenLabel"),
+      actions: [{ act: "share", icon: "link", label: t("friendsShareLink") }, { act: "invite", icon: "gift", label: t("referralInviteBtn") }],
+    });
   }
 
   // Incoming friend request modal
@@ -40220,18 +40440,21 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   // Live search filter
   $("fpSearch")?.addEventListener("input", () => renderFriendsList());
 
-  // Share a one-click invite LINK (not just the code): opens the recipient's
-  // Studio Manager and pre-fills the add-friend search via the cdn landing page.
-  // Friends panel → the Invite view (quests/referrals.js).
-  $("btnInviteFriends")?.addEventListener("click", () => { closeFriends(); setViewMode("squadInvite"); });
-  $("btnShareFriendLink")?.addEventListener("click", () => {
-    if (!state.publicKey) return;
-    const link = _friendShareUrl(state.publicKey);
+  // The "My code" card of the Friends panel: "Share link" copies a one-click
+  // invite LINK (not just the code: the /join/ referral tunnel), "Invite friends"
+  // opens the Invite view (quests/referrals.js), the QR opens big, the corner
+  // icon asks for a new code.
+  $("fpMyCode")?.addEventListener("click", e => {
+    const b = e.target.closest("[data-mc-act], [data-mc-zoom], [data-mc-regen]");
+    if (!b || !state.publicKey) return;
+    const link = _joinShareUrl(state.publicKey);
+    if (b.matches("[data-mc-regen]")) return _confirmRegenPublicKey();
+    if (b.matches("[data-mc-zoom]")) return showInviteQr(link);
+    if (b.dataset.mcAct === "invite") { closeFriends(); setViewMode("squadInvite"); return; }
     navigator.clipboard.writeText(link).then(() => {
       questBump("friendLinkShare");
-      const btn = $("btnShareFriendLink");
-      btn.classList.add("fp-hero-btn--copied");
-      setTimeout(() => btn.classList.remove("fp-hero-btn--copied"), 1500);
+      b.classList.add("fp-hero-btn--copied");
+      setTimeout(() => b.classList.remove("fp-hero-btn--copied"), 1500);
     });
   });
 
@@ -40240,16 +40463,28 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   $("friendViewBanner")?.addEventListener("click", e => {
     const b = e.target.closest("[data-friend-invite]");
     if (!b) return;
-    const link = _friendShareUrl(b.dataset.friendInvite);
+    const link = _joinShareUrl(b.dataset.friendInvite);
     // Same "Copied!" flash pill as copying a SKU / EAN (rises + fades over the button).
     // Deliberately NOT the "Share your friend link" quest: that one is done from
     // the Friends menu (its "Share link" button), to make people open it.
     navigator.clipboard.writeText(link).then(() => _flashCopied(b));
   });
 
-  $("btnRegenPublicKey").addEventListener("click", async () => {
-    await regeneratePublicKey();
-  });
+  // "New code" (Friends card, Invite view): the old link, code and QR stop
+  // working, so it is confirmed in a window first. Then both cards repaint.
+  function _confirmRegenPublicKey() {
+    openDialog({
+      role: "alertdialog", title: t("regenConfirmTitle"), text: t("regenConfirmText"),
+      actions: [{ id: "go", label: t("regenLabel"), kind: "primary" }, { id: "no", label: t("btnCancel"), focus: true }],
+      onAction: async (id, close) => {
+        close();
+        if (id !== "go") return;
+        try { await regeneratePublicKey(); } catch (_) { return; }
+        renderFriendsSection();
+        await refreshReferrals();
+      },
+    });
+  }
 
   $("stgPublicToggle").addEventListener("change", async () => {
     const isPublic = $("stgPublicToggle").checked;
@@ -41308,7 +41543,13 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     // Not a TigerSquad member: no allowance at all. Otherwise the window always
     // opens — with the day's count, even when nothing is left to give.
     if (!g?.max) { say(t("envGiveNoGift")); return; }
-    await showEnvelope(_coinsCtx(uid), env || { id: null }, { giveOnly: true, give: {
+    await showEnvelope(_coinsCtx(uid), env || { id: null }, { giveOnly: true, give: _giveOptions(uid, c, env, { friendUid, pool }) });
+  }
+  // The ONE give window's options, wherever it opens (Friends panel, the envelopes'
+  // opening stage): the day's allowance, the friends, the fanned pile, the send.
+  function _giveOptions(uid, c, env, { friendUid = null, pool = state.friends || [], onSent = null } = {}) {
+    const g = c.gifts || {};
+    return {
       none: !env, left: g.left, max: g.max, tierLabel: g.tier ? squadTierLabel(g.tier) : "", picked: friendUid,
       friends: pool.map(f => ({ uid: f.uid, name: _shortName(f.displayName, f.uid), avatar: userAvatar(f, "sqb-avatar") })),
       // The envelopes to choose from: up to 10 picked at random in the pile (the
@@ -41316,9 +41557,9 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       pile: _givePile(c),
       send: async (to, ids) => {
         const r = await _tigerCoins(uid, "giveEnvelope", ids ? { ids, to } : { id: env.id, to });
-        _deals.coins = _coinsOf(r); _paintDealsBadge(_envCount(_deals.coins)); return r;
+        _deals.coins = _coinsOf(r); _paintDealsBadge(_envCount(_deals.coins)); onSent?.(r); return r;
       },
-    } });
+    };
   }
   // Send TigerCoins of my balance to a friend (functions/tigerCoins.js sendCoins):
   // the send window with the week's allowance; only TigerSquad friends can receive.
@@ -41784,11 +42025,14 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   async function regeneratePublicKey() {
     const user = fbAuth().currentUser;
     if (!user) return;
-    // Show loading state
-    const el  = $("stgPublicKey");
-    const btn = $("btnRegenPublicKey");
-    if (el)  { el.textContent = ""; el.classList.add("pkey-loading"); }
-    if (btn) btn.disabled = true;
+    // Loading state on every "My code" card on screen (Friends panel, Invite view);
+    // the callers redraw the cards with the new code afterwards.
+    const codes = [...document.querySelectorAll("[data-mc-code]")], btns = [...document.querySelectorAll("[data-mc-regen]")];
+    const busy = on => {
+      codes.forEach(c => { c.classList.toggle("pkey-loading", on); if (on) c.textContent = ""; });
+      btns.forEach(b => { b.disabled = on; });
+    };
+    busy(true);
     try {
       // The code is claimed client-side (transaction on publicKeys/{code}), then
       // published by the server, which checks it is ours and mirrors it into users/{uid}.
@@ -41796,10 +42040,10 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       try { await setProfile(user.uid, { publicKey: newKey }); }
       catch (e) { _flashMessage(profileErrorText(e)); throw e; }
       state.publicKey = newKey;
-      if (el) el.textContent = newKey;
+      codes.forEach(c => { c.textContent = newKey; });
     } finally {
-      if (el)  el.classList.remove("pkey-loading");
-      if (btn) btn.disabled = false;
+      busy(false);
+      if (codes[0] && !codes[0].textContent) codes.forEach(c => { c.textContent = state.publicKey || "—"; });
     }
   }
 

@@ -157,6 +157,7 @@
     --on-accent: #ffffff;       /* label/icon ON a filled accent button */
     --on-dark: #ffffff;         /* label/icon on an always-dark surface */
     --sticker-edge: #ffffff;    /* the die-cut outline of a sticker (Trophies) */
+    --qr-frame: #111318;        /* the black rounded frame around a QR code */
 
     /* ── Effects ── */
     --scrim: rgba(20,24,40,.42);            /* modal backdrop */

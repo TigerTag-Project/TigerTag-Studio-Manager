@@ -354,6 +354,13 @@
     ]
   },
   {
+    "id": 14896,
+    "name": "Figutech",
+    "type_ids": [
+      142
+    ]
+  },
+  {
     "id": 14982,
     "name": "3D-Fuel",
     "type_ids": [
@@ -437,6 +444,13 @@
   {
     "id": 20851,
     "name": "Tronxy",
+    "type_ids": [
+      142
+    ]
+  },
+  {
+    "id": 20922,
+    "name": "Unveil Form",
     "type_ids": [
       142
     ]
@@ -545,6 +559,13 @@
   {
     "id": 29302,
     "name": "IIIDMAX",
+    "type_ids": [
+      142
+    ]
+  },
+  {
+    "id": 31367,
+    "name": "3D Printing Canada",
     "type_ids": [
       142
     ]

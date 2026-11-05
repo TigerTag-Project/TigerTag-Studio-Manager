@@ -1,6 +1,6 @@
 # Tiger Studio Manager — Feature Catalogue
 
-Tiger Studio Manager is the Electron desktop companion to the TigerTag ecosystem: a filament-inventory manager built around RFID/NFC-tagged spools ("TigerTag" chips), a fully-digital "TigerData" tier (and its catalogue-identified "TigerData+" rung), live 3D-printer integration across seven brands plus Klipper and OctoPrint, physical storage/rack management, a Firebase-backed social layer (friends, shareable wishlists, public profiles), and companion hardware (TD1S color sensor, TigerScale, TigerSpool printer reader, TigerPOD dual-reader stand). This document catalogues every **shipped** feature, grouped by domain, current as of **v2.50.0**. Per-version release detail lives in `CHANGELOG.md`; forward-looking / in-progress work lives in `ROADMAP.md`.
+Tiger Studio Manager is the Electron desktop companion to the TigerTag ecosystem: a filament-inventory manager built around RFID/NFC-tagged spools ("TigerTag" chips), a fully-digital "TigerData" tier (and its catalogue-identified "TigerData+" rung), live 3D-printer integration across seven brands plus Klipper and OctoPrint, physical storage/rack management, a Firebase-backed social layer (friends, shareable wishlists, public profiles), and companion hardware (TD1S color sensor, TigerScale, TigerSpool printer reader, TigerPOD dual-reader stand). This document catalogues every **shipped** feature, grouped by domain, current as of **v2.51.0**. Per-version release detail lives in `CHANGELOG.md`; forward-looking / in-progress work lives in `ROADMAP.md`.
 
 ---
 
@@ -322,6 +322,11 @@ Live integrations across seven brands, each with real-time temperatures, per-slo
 - Reports carry the reporter's TigerSquad badge and XP, read server-side (v2.39.0).
 - **Requests by product** — pick Tiger Studio, Tiger Touch, Tiger POD, Tiger Scale, Tiger Spool or TigerTag RFID Connect first; filed on that project's repo; device screen capture in one click, and Tiger Touch / Tiger Spool requests list the printers the device follows (v2.42.0).
 - Requests are sent by TigerSquad members (free to join, checked server-side); Send points at what is missing; the screenshot editor opens as a window over the app (v2.42.0).
+- **Delete my account** — a window in the account's Sign-in section lists what goes, asks for a re-sign-in and a typed confirm word, then a held button; the wipe runs in the background on the backend (v2.51.0).
+- **Countries League flag picker and lock** — a "Change" window with search and round flags, a click on a country shows its league, and the flag moves once every 30 days (v2.51.0).
+- **Klipper filament editing** — Happy Hare gates and AFC lanes are edited from the Filament card through the machine's own macros (v2.51.0).
+- **Invite view networks and invitations table** — WeChat, Messenger, LINE, KakaoTalk, VK and SMS buttons, and a table of invitations with each step's status (v2.51.0).
+- **Treasure hunt ownership share** — each sticker shows the percentage of users holding it; the locked tab splits into "With a hint" and "Hidden" (v2.51.0).
 - **Requests tools** — a Copy button on every message, an open count on All requests, a Requests tab and "New request" cards in the team's notification centre (v2.50.0).
 - **Request conversations** — each request in My requests opens its GitHub thread; answer from the app (text, pictures, PDFs, JSON, a printer's data), close it, unseen replies flagged, an alert window when a request moves (snoozed by Later) (v2.49.0).
 - **All requests** — every member reads every request; questions take community answers; TigerMasters (`roles: "tigermaster"`, server-only) and admins answer as the team and mark done / decline (v2.49.0).

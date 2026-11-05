@@ -42,6 +42,7 @@
 | `toolEraseRfid` / `toolEraseRfid2` / `toolEraseRfidTip` | Toolbox "Recycle to NFC" action — 1 chip / 2 chips label + ⓘ info bubble (writes the SDK blank-NDEF payload → generic NFC tag) |
 | `encErase` / `encRecycle` | Chip modal hold button when erasing a TigerTag or recycling it to NFC (the title reuses `toolFormatRfid` / `toolEraseRfid`) |
 | `toolMeasureColorTip` / `toolMeasureTdTip` / `toolEditImgTip` / `twinLinkActionTip` / `toolRemoveFromRackTip` / `encodeCloudTip` / `burnRfidTip` / `toolRefreshApiTip` / `toolDuplicateTip` / `twinLinkUnlinkHint` | ⓘ info-bubble text for the remaining toolbox actions (one per button) |
+| `toolDuplicateNeedContainer` | Red help bubble over the container picker's search when "Duplicate" is pressed on a spool with no container |
 | `backupBadge` | "Signature backed up" tooltip on the shield-check badge |
 
 ### Account management
@@ -167,6 +168,7 @@
 |-----|---------|
 | `friendsTitle` | Section title / sidebar button label |
 | `friendsMyCode` | "My code" label above publicKey display |
+| `regenConfirmTitle` / `regenConfirmText` | the window confirming "New code" (Friends card, Invite view): the old link, code and QR stop working |
 | `friendsPublicLabel` | Public inventory toggle label |
 | `friendsPublicSub` | Toggle sub-label ("Visible to everyone") |
 | `friendsList` | "My friends" section heading |
@@ -207,6 +209,9 @@ Install as an app (sidebar, web only): `sbInstallBtn`, `installIosHint` (iOS: Sh
 Window and pill: `questsTitle`, `questsToday`, `questsJourney`, `questsOpenApp`, `questsFullSet`, `questsStreak` (`{{n}}`), `questsMissionDone`, `questsFullSetDone`, `questsLevelDone`, `questsWon`, `questsWaiting`, `questsLocked` (`{{xp}}`), `questsProgress` (`{{n}}`, `{{total}}`), `questsComingSoon`, `questsLoading`
 
 Built from ids (dynamic): daily missions `questDaily_<id>` (`findBrand` takes `{{brand}}`, `filterMaterial` takes `{{material}}`), journey actions `questAct_<level>_<action>` (e.g. `questAct_d1_displayName`, 50 keys), level themes `questLevel_d1`…`questLevel_e5`, ranks `questRank_1`…`questRank_20` and their worlds `questWorld_1`…`questWorld_20`. XP history parts: `xpAch_daily`, `xpAch_updates`, `xpAch_journey`.
+
+### TigerSquad country league (account modal → Ligue des pays)
+`squadCountryChange` (the button beside the current flag), and its window: `squadCountryPickTitle`, `squadCountryPickSub`, `squadCountryCurrent`, `squadCountryDetected` (badge when the flag is the auto-detected one), `squadCountrySearch`, `squadCountryLockTitle` (`{{n}}` days), `squadCountryPickWarn` (the lock line), `squadCountryConfirm` (`{{country}}`, the held button), `squadCountryPickNone` (the button before a pick), `squadCountryKeep`
 
 ### Trophies (renderer/quests/trophies.js)
 Generic labels only: `trophyTier_<tier>`, `trophyFamilyAll`, `trophyFilter_<all|got|locked>`, `trophyHidden`, `trophyHiddenHow`, `trophySeenAt` (`{{name}}`: the friend who revealed it), `trophyUnlocked`, `trophySeeAll`… No `trophy_<id>` / `trophyHow_<id>` / `trophyFamily_<family>` key: each trophy's name and mission and each family's label come from the backend (`trophyCatalog.json`, `trophyFamilies.json` → cdn catalogue, `trophyCards`), see `docs/TROPHIES.md`.

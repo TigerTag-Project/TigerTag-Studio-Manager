@@ -18,7 +18,7 @@ user, which releases the rewards).
 ```
 Referrer (Studio)                 Web                               Invitee (Studio)
 ──────────────────                ───                               ────────────────
-Invite view → share  ──link──▶  tigersystem.io/friend/<CODE>
+Invite view → share  ──link──▶  tigersystem.io/join/<CODE>
 (WhatsApp, X, Reddit…)           "Ben invites you · 3 envelopes
                                   waiting" · Download · code
                                   copied on Download
@@ -38,11 +38,11 @@ Invite view → share  ──link──▶  tigersystem.io/friend/<CODE>
 
 ## 2. The invite link
 
-- **Same link as today**: `https://tigersystem.io/friend/<CODE>` (friend code `XXX-XXX`). One code per
-  member, already published, already understood by Studio (`_handleFriendDeepLink`). No second code
-  to learn; a referral is "a friend link opened by someone who has no account yet".
-- The live landing page is the Hub's `app/[locale]/friend/[code]/page.tsx` (+
-  `features/account/FriendInvite`). The backend's `public/friend.html` is the older cdn copy; it gets
+- **One link, the friend code**: `https://tigersystem.io/join/<CODE>` (friend code `XXX-XXX`), the
+  referral tunnel (see "The referral tunnel" below). No second code to learn; a referral is "an invite
+  link opened by someone who has no account yet".
+- `https://tigersystem.io/friend/<CODE>` (the Hub's `app/[locale]/friend/[code]/page.tsx` +
+  `features/account/FriendInvite`) stays for adding a friend who already has an account. The backend's `public/friend.html` is the older cdn copy; it gets
   the same change or a redirect to the Hub page (to decide when building, see §11).
 
 ### Landing page becomes an invitation
@@ -57,6 +57,27 @@ Invite view → share  ──link──▶  tigersystem.io/friend/<CODE>
 - Data: none new — `publicKeys/{code}` and `userProfiles/{uid}` are already world-readable for
   this page (firestore.rules), and the Hub's inviter card already shows the pseudo and avatar.
   Built: a gift card under the title, a "No account yet?" line, the download copies the code.
+
+### Sign up on the page (2026-11-03)
+The landing is now the referral's front door, not only the add-friend page: a signed-out visitor
+creates the account **right on the page** (Google, or e-mail + password with the `authMail`
+verification mail) and the page calls `referrals` `claim` at once (`client=hub`, let through the
+version gate). Both become friends straight away; the envelopes follow the e-mail check as before;
+the page then says "Download Tiger Studio and sign in with this account". A signed-in account that
+may still claim gets one "Accept <name>'s invitation" button; any other account keeps the friend
+request. No `tigertag://` launch on load any more. Studio's "Who invited you?" step stays for
+accounts created in the app — an account referred on the page no longer sees it (`canClaim` false).
+Hub: `features/account/ReferralJoin.tsx`, `lib/data/referrals.ts`.
+
+### The referral tunnel `tigersystem.io/join/<CODE>` (2026-11-03)
+The one link Studio shares (`_joinShareUrl`): the Invite view, the Friends panel's "Share link" and QR
+code, and the friend-view banner's Share button. `/friend/<CODE>` stays the page for adding someone
+who already has an account; the tunnel sends such an account there itself. Four steps with a progress bar, the step in the URL: **Invitation** (the
+referrer's avatar, the gift, three reassurances: free and no card · no ads or spam · delete anytime)
+→ **Account** (Google or e-mail; the claim follows at once) → **E-mail** ("I've confirmed it" re-reads
+the account and calls `status`, which validates the referral; "Send the link again") → **The app**
+(download Tiger Studio, sign in with this account: the friend is there, the envelopes wait). An account
+that cannot be referred goes to the friend page. Hub: `features/join/`.
 
 ---
 
@@ -74,25 +95,31 @@ Deals / Trophies ones (eyebrow, big title, tagline, its own desk scene: the tige
 through a doorway — art per `docs/ART-DIRECTION.md`, shown before integration), the card on the
 right (validated referrals · next trophy at n), then:
 
-1. **The link**: the URL in the input + Copy, the QR code (the existing local QR generator,
-   `inventory.js` ~L11320), "Download the QR".
-2. **Share buttons** — real brand icons, each opens the network's share URL in the browser
-   (`openExternal`) with a prefilled, localised message (`referral_shareMsg`):
+1. **The link and every network at once** — the URL in a read-only field, then a grid of every
+   network, five a row, real brand icons, "Copy my link" as the last tile; each opens the network's
+   share URL (`openExternal`, which allows `http`, `https`, `mailto:` and `sms:`) with a prefilled,
+   localised message, shown as it will be sent under the grid with a copy icon:
 
    | Network | URL |
    |---|---|
    | WhatsApp | `https://wa.me/?text=<msg + url>` |
-   | X | `https://x.com/intent/post?text=<msg>&url=<url>` |
+   | X | `https://twitter.com/intent/tweet?url=<url>&text=<msg>` |
    | Facebook | `https://www.facebook.com/sharer/sharer.php?u=<url>` |
    | Reddit | `https://www.reddit.com/submit?url=<url>&title=<msg>` |
    | Telegram | `https://t.me/share/url?url=<url>&text=<msg>` |
    | Bluesky | `https://bsky.app/intent/compose?text=<msg + url>` |
-   | Discord | no share URL → **copies** the message + link, toast "Paste it in your server" |
+   | LINE | `https://social-plugins.line.me/lineit/share?url=<url>&text=<msg>` |
+   | VK | `https://vk.com/share.php?url=<url>&title=<msg>` |
+   | SMS | `sms:?&body=<msg + url>` |
    | E-mail | `mailto:?subject=<subject>&body=<msg + url>` |
+   | Discord, WeChat, Messenger, KakaoTalk | no share URL on a desktop → **copies** the message + link, snackbar "Paste it in <app>" |
 
-3. **My invitees** — a list in the existing list-row style: avatar, pseudo, state pill
-   (**Signed up** = claimed, waiting for validation · **Validated** + date · **Expired**),
-   plus the counters "n validated · next trophy at 5".
+2. **My code** — on the right, the same orange card as the Friends panel (`myCodeCardHtml`): the QR
+   (click = enlarge), the code, Share link | Download the QR, New code (confirmed in a window).
+   Then the line "Your friend gets 3 envelopes too" and the three steps.
+3. **My invitees** — a table: friend (avatar, pseudo), the day they joined, then one column per
+   stage — account created, e-mail confirmed, envelopes received — each "Yes", "Waiting" or
+   "Expired".
 4. **"Who invited you?"** card — only for an account younger than 7 days with no claim (§4).
 
 Copy register: playful / deadpan (`.agents/rules/copy-registers.md`), e.g. *"Recruit your printing

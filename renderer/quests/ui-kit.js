@@ -16,6 +16,12 @@
  *     the search field (.sqd-search) — `attr` names the input for its handler.
  *   selectHtml(esc, { attr, label, options: [{ value, label }], value })
  *     a filter list — the inventory's (.inv-brand-filter), sized for the bar.
+ *   myCodeCardHtml(esc, { label, code, qr, zoomLabel, regenLabel, actions, cls })
+ *     the orange "My code" card (20-friends.css .fp-hero), the same everywhere
+ *     (Friends panel, Invite view): the QR in its black frame (click = enlarge,
+ *     [data-mc-zoom]), the label + the code ([data-mc-code]), the New code icon in
+ *     the corner ([data-mc-regen]) and two buttons under them
+ *     (actions = [{ act, icon, label }] → [data-mc-act="act"]). The host wires them.
  *   infoTipHtml(esc, text, { cls, size })
  *     an ⓘ that shows `text` in the app's shared bubble (#toolInfoPop, above it,
  *     its tail on the icon) — wired once by the host on `.ui-info[data-tip]`.
@@ -53,4 +59,18 @@ export function selectHtml(esc, { attr, label, options = [], value = "" }) {
 export function infoTipHtml(esc, text, { cls = "", size = 13 } = {}) {
   // .tool-info gives it the app's ⓘ look (70-detail-misc.css).
   return `<span class="tool-info ui-info${cls ? ` ${cls}` : ""}" data-tip="${esc(text)}" aria-label="${esc(text)}"><span class="icon icon-info icon-${size}" aria-hidden="true"></span></span>`;
+}
+
+export function myCodeCardHtml(esc, { label, code, qr, zoomLabel, regenLabel, actions = [], cls = "" }) {
+  return `
+    <div class="fp-hero my-code-card${cls ? ` ${cls}` : ""}">
+      <button type="button" class="fp-hero-regen" data-mc-regen aria-label="${esc(regenLabel)}"><span class="icon icon-refresh icon-14"></span></button>
+      <div class="fp-hero-top">
+        <button type="button" class="fp-hero-qr" data-mc-zoom aria-label="${esc(zoomLabel)}">${qr ? `<img src="${esc(qr)}" alt="">` : ""}</button>
+        <div class="fp-hero-id"><div class="fp-hero-label">${esc(label)}</div><div class="fp-hero-code" data-mc-code>${esc(code || "—")}</div></div>
+      </div>
+      <div class="fp-hero-actions">${actions.map(a => `
+        <button type="button" class="fp-hero-btn" data-mc-act="${esc(a.act)}"><span class="icon icon-${esc(a.icon)} icon-14"></span><span>${esc(a.label)}</span></button>`).join("")}
+      </div>
+    </div>`;
 }

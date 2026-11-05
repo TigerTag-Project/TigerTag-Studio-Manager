@@ -9,6 +9,8 @@ export default {
   "tigersquad/invite-hero/tiger-take": [1203, 1109],
   "tigersquad/requests/tiger-request": [1192, 1167],
   "tigersquad/squad-notice/tiger-back": [1247, 1048],
+  "tigersquad/squad-notice/tiger-globe": [1254, 1254],
+  "tigersquad/squad-notice/tiger-goodbye": [1170, 1163],
   "tigersquad/squad-notice/tiger-leave": [1253, 1081],
   "tigersquad/squad-notice/tiger-update": [1186, 1237],
 };

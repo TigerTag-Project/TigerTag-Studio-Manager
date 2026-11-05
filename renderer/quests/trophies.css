@@ -3,7 +3,7 @@
    Tier colours = the TigerCoins rarities (.tc-sum--*), plus a holographic
    "event" frame. A sticker = the app's own art die-cut: a white outline made
    of stacked drop-shadows, a slight tilt, a ring in the tier colour; a locked
-   one is the same art as a dark silhouette. */
+   one is the catalogue's black silhouette in its white border. */
 .trp-t--common    { --tc: var(--tier-common); }
 .trp-t--uncommon  { --tc: var(--tier-uncommon); }
 .trp-t--rare      { --tc: var(--tier-rare); }
@@ -87,7 +87,8 @@
 /* Locked: just a silhouette of the same art — no disc, no ring (they weighed the album down). */
 .trp-st.is-locked .trp-st-art { background: none; }
 .trp-st.is-locked .trp-st-art::after { display: none; }
-.trp-st.is-locked .trp-st-art img { filter: brightness(0) opacity(.28); }
+/* The catalogue's silhouette is already the black shape in its white sticker
+   border: shown as it is, like a friend's sticker you do not hold. */
 .trp-st.is-locked .trp-st-name { color: var(--muted); }
 .trp-st-q { font-size: 34px; font-weight: 800; color: var(--ink-25); }
 /* Earned: no ring — the whole card takes its rarity colour and the sticker grows
@@ -97,7 +98,7 @@
 .trp-st.is-got:hover { background: linear-gradient(180deg, color-mix(in srgb, var(--tc) 34%, var(--surface)), color-mix(in srgb, var(--tc) 12%, var(--surface))); }
 .trp-st.is-got .trp-st-art { background: none; }
 .trp-st.is-got .trp-st-art::after { display: none; }
-.trp-st.is-got .trp-st-art img { width: 108%; }
+.trp-st.is-got .trp-st-art img, .trp-st.is-locked .trp-st-art img { width: 108%; }   /* a silhouette as big as a sticker held */
 .trp-st.is-got .trp-st-info { color: var(--text); }
 /* Legendary glows; event: a holographic edge that turns slowly. */
 .trp-st.trp-t--legendary.is-got { box-shadow: 0 0 22px color-mix(in srgb, var(--tc) 30%, transparent); }
@@ -198,3 +199,10 @@
 .trp-sticker .trp-tilt { position: absolute; left: 50%; top: 50%; translate: -50% -50%; }
 /* No halo behind the sticker in the card: the window's own art swells behind it. */
 .trp-sticker .trp-card-art { background: none; }
+
+/* A sticker still to win, opened for its mission: its silhouette as it is, no gloss. */
+/* The friend who revealed a sticker: their avatar before "Seen at …" (in its card only). */
+/* The friend's avatar through userAvatar (ring + TigerSquad badge): never clipped,
+   the badge overhangs the corner like in the friends bar. */
+.trp-seen-av { display: inline-block; position: relative; width: 32px; aspect-ratio: 1; margin-right: 10px; vertical-align: middle; }
+.trp-seen-av .av-squad-heart { width: 16px; min-width: 16px; right: -4px; bottom: -4px; }

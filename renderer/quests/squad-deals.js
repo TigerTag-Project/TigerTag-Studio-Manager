@@ -726,14 +726,14 @@ export function openEnvelopeHelp(ctx) {
   el.querySelectorAll(".tch-list li").forEach(li => li.addEventListener("pointerenter", () => sfx.tick()));
   // The envelope turns toward the mouse, like the pile in the opening stage (coin-pull.js tilt).
   tilt(el, el.querySelector(".tch-env"), 18);
-  // Easter egg: three quick clicks on the envelope; found → the window closes and the pile opens.
+  // Easter egg: three quick clicks on the envelope; found → the window closes, the envelope joins the pile.
   const egg = el.querySelector(".tch-env");
   egg.addEventListener("click", () => tapEgg(egg, "envHelp", ctx, el, () => { el.querySelector(".tch-glints")?.remove(); close(); }));
 }
 
 // Easter eggs (tigerCoins.js EGGS): three quick clicks on the hidden spot, each one
 // shaking it with a tick; the third asks the server, which gives one envelope once
-// per account (ctx.easterEgg opens the pile; already found → toast "eggFound").
+// per account, put in the pile unopened (already found → toast "eggFound").
 // `store` keeps the click count across repaints of the spot.
 export function tapEgg(spot, egg, ctx, store, onFound) {
   const s = store._egg ||= { taps: 0, t: null, busy: false };
@@ -745,10 +745,11 @@ export function tapEgg(spot, egg, ctx, store, onFound) {
   if (++s.taps < 3) return;
   s.taps = 0; s.busy = true;
   // Where it was found (taken now: the spot may disappear once found) — the
-  // celebration's envelope flies out from there, then the pile opens.
+  // celebration's envelope flies out from there. The envelope waits in the
+  // pile: nothing offers to open it right away.
   const from = spot.getBoundingClientRect();
   ctx.easterEgg(egg, onFound)
-    .then(async r => { await celebrateEgg(ctx, from); r?.open?.(); })
+    .then(() => celebrateEgg(ctx, from))
     .catch(e => ctx.toast?.(ctx.t(e?.message === "EGG_FOUND" ? "eggFound" : "squadDealsErr")))
     .finally(() => { s.busy = false; });
 }

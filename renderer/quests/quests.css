@@ -676,6 +676,10 @@ body.progress-view #gridSortWrap { display: none; }
 .sqr-all { height: 30px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--tsq-line); background: var(--ink-04); color: var(--tsq-text); font: 700 12px inherit; cursor: pointer; white-space: nowrap; }
 .sqr-all:hover { border-color: var(--tsq-orange); }
 .sqr-rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+/* "View all": the whole list in the same card, which scrolls — the card keeps the
+   height of the other columns (--n rows of 52 px + 6 px gaps). */
+.sqr-board.is-open .sqr-rows { max-height: calc(var(--n, 5) * 58px - 6px); overflow-y: auto; overscroll-behavior: contain;
+  padding-right: 4px; margin-right: -4px; scrollbar-width: thin; scrollbar-color: var(--tsq-line) transparent; }
 .sqr-row { display: grid; grid-template-columns: 38px 38px minmax(0, 1fr) auto; gap: 10px; align-items: center; height: 52px; box-sizing: border-box; padding: 5px 12px 5px 8px; border-radius: 10px;
   border: 1px solid var(--tsq-line); background: var(--ink-04); transition: border-color .2s, background-color .2s; }
 .sqr-row:hover { border-color: color-mix(in srgb, var(--tsq-orange) 40%, var(--tsq-line)); background: var(--ink-04); }
@@ -701,6 +705,11 @@ body.progress-view #gridSortWrap { display: none; }
 /* Your row: an orange frame and glow. It only paints its own orange fill on a
    plain row — a row in a flag's or a maker's colours keeps them. */
 .sqr-row.is-me { border-color: var(--tsq-orange); box-shadow: 0 0 16px rgba(255, 122, 26, .15); }
+/* A country row picks the league the middle column shows. */
+.sqr-row--pick { cursor: pointer; transition: transform .12s ease, filter .12s ease; }
+.sqr-row--pick:hover { filter: brightness(1.08); }
+.sqr-row--pick:active { transform: scale(.99); }
+.sqr-row--pick:focus-visible { outline: 2px solid var(--tsq-orange); outline-offset: 2px; }
 .sqr-row.is-me:not(.has-mc):not(.has-flag) { background: linear-gradient(90deg, color-mix(in srgb, var(--game-orange) 16%, transparent), color-mix(in srgb, var(--game-orange) 4%, transparent)); }
 .sqr-medal { width: 36px; height: 36px; object-fit: contain; filter: drop-shadow(0 2px 6px rgba(0, 0, 0, .5)); }
 .sqr-rank { text-align: center; font: 800 14px var(--sqr-mono); color: var(--tsq-muted); }

@@ -2,11 +2,16 @@
   /* ═══════════════════════════════════════════════════════════════════
      Friends panel — full UI/UX redesign
      ═══════════════════════════════════════════════════════════════════ */
-  .friends-panel { width: min(420px, 92vw); }
+  /* Doubled class: .detail-panel { width: 300px } (70-detail-misc.css, loaded
+     later) otherwise wins and squeezes the card. */
+  .friends-panel.friends-panel { width: min(420px, 92vw); }
   /* Companion friends-list card — tucks to the LEFT of the Friends panel (JS
      pins its `right` to the Friends panel width), so it sits BEHIND it (z 100). */
   #friendsListPanel { z-index: 100; width: min(360px, 88vw); }
   #friendsListCloseTab { z-index: 100; }
+  /* The app stays fully visible behind the Friends cards: their overlay only
+     catches the click outside that closes them, it no longer darkens. */
+  #friendsOverlay { background: transparent; }
   #friendsListPanel .panel-header { gap: 8px; }
   #friendsListPanel .fp-list-count {
     margin-left: 0; font-size: 12px; font-weight: 700;
@@ -26,15 +31,22 @@
     height: calc(100% - 50px);   /* leave room for header */
     overflow: hidden;
   }
+  /* On a short window the Friends card scrolls as one column: its blocks keep
+     their height instead of shrinking (the code card cut its QR and buttons). */
+  #friendsPanel .friends-body { overflow-y: auto; scrollbar-width: none; padding-bottom: 16px; }
+  #friendsPanel .friends-body::-webkit-scrollbar { width: 0; height: 0; }
+  #friendsPanel .friends-body > * { flex-shrink: 0; }
 
   /* HERO — share-your-code card */
+  /* QR on the left, label + code on the right, the two share buttons as one
+     bar under them; the code's size follows the card's width (cqw). */
   .fp-hero {
     margin: 16px 16px 0;
-    padding: 22px 18px 18px;
+    padding: 16px;
+    container-type: inline-size;
     background: linear-gradient(135deg, var(--primary) 0%, #ff5e3a 100%);
     border-radius: 18px;
     color: var(--on-accent);
-    text-align: center;
     box-shadow: 0 10px 30px color-mix(in srgb, var(--primary) 25%, transparent);
     position: relative;
     overflow: hidden;
@@ -44,25 +56,29 @@
     background: radial-gradient(circle at 20% 0%, var(--ink-15), transparent 60%);
     pointer-events: none;
   }
+  .fp-hero-top { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; position: relative; }
+  .fp-hero-id { flex: 1; min-width: 0; padding-right: 30px; }   /* clear of the New code icon */
   .fp-hero-label {
     font-size: 10px; font-weight: 700; letter-spacing: .14em;
-    text-transform: uppercase; opacity: .8; margin-bottom: 8px;
+    text-transform: uppercase; opacity: .8; margin-bottom: 6px;
     position: relative;
   }
   .fp-hero-code {
     font-family: var(--mono);
-    font-size: 32px; font-weight: 800;
-    letter-spacing: .12em;
-    margin: 6px 0 14px;
+    font-size: clamp(18px, 9.5cqw, 32px); font-weight: 800;
+    letter-spacing: .08em; white-space: nowrap;
     text-shadow: 0 2px 12px rgba(0,0,0,.18);
     position: relative;
     user-select: all;
   }
-  /* QR of the shareable invite link — white rounded tile centred in the card. */
-  .fp-hero-qr { display: flex; justify-content: center; margin: 0 0 16px; }
+  /* QR of the shareable invite link — white rounded tile on the card's left. */
+  .fp-hero-qr.fp-hero-qr {   /* a button: click = enlarge */
+    flex-shrink: 0; display: block; height: auto; padding: 0; border: 0; background: none;
+    border-radius: 13px; cursor: zoom-in;
+  }
   .fp-hero-qr img {
-    width: 116px; height: 116px; padding: 7px;
-    background: var(--surface); border-radius: 13px;
+    width: clamp(84px, 32cqw, 116px); aspect-ratio: 1; padding: 6px; box-sizing: border-box;
+    background: var(--qr-frame); border-radius: 13px;
     box-shadow: 0 6px 18px rgba(0,0,0,.18);
     display: block;
   }
@@ -70,31 +86,51 @@
   .fp-hero-code.pkey-loading { color: var(--ink-30); }
   .fp-hero-code.pkey-loading::after {
     content: "• • •";
-    font-family: var(--mono); font-size: 32px; font-weight: 800;
+    font-family: var(--mono); font-size: inherit; font-weight: 800;
     color: var(--on-accent); letter-spacing: .18em;
     animation: pkey-pulse .9s ease-in-out infinite;
   }
   @keyframes pkey-pulse { 0%,100% { opacity:1 } 50% { opacity:.3 } }
+  /* "Share link" and "Invite friends": two equal buttons side by side, one
+     line each; stacked when the card is too narrow for both labels. */
   .fp-hero-actions {
-    display: flex; gap: 8px; justify-content: center;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
     position: relative;
   }
+  @container (max-width: 300px) { .fp-hero-actions { grid-template-columns: 1fr; } }
   .fp-hero-btn {
-    flex: 1; max-width: 140px;
-    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-    padding: 8px 14px; border-radius: 10px;
-    background: var(--ink-20);
-    border: 1px solid var(--ink-25);
-    color: var(--on-accent); font-size: 12px; font-weight: 600;
+    min-width: 0; white-space: nowrap;
+    display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+    height: 38px; padding: 0 12px; border-radius: 10px;
+    background: var(--ink-15); border: 1px solid var(--ink-25);
+    color: var(--on-accent); font-size: 12.5px; font-weight: 700;
     cursor: pointer; font-family: inherit;
-    transition: background .15s, transform .1s, border-color .15s;
-    backdrop-filter: blur(10px);
+    transition: background .15s, border-color .15s, transform .1s;
   }
-  .fp-hero-btn:hover  { background: var(--ink-30); border-color: var(--ink-40); }
-  .fp-hero-btn:active { transform: scale(.96); }
+  .fp-hero-btn > span:last-child { overflow: hidden; text-overflow: ellipsis; }
+  .fp-hero-btn:hover  { background: var(--ink-25); border-color: var(--ink-40); }
+  .fp-hero-btn:active { transform: scale(.97); }
   .fp-hero-btn .icon  { background: var(--on-accent); }
-  .fp-hero-btn--copied { background: color-mix(in srgb, var(--success) 45%, transparent); border-color: var(--ink-50); }
+  .fp-hero-btn--copied { background: color-mix(in srgb, var(--success) 45%, transparent); }
   .fp-hero-btn:disabled { opacity: .5; cursor: not-allowed; }
+  .fp-hero-btn .icon { flex-shrink: 0; }
+  /* The empty friends list reuses the button on its own, outside the bar. */
+  .fp-empty-invite.fp-hero-btn { margin-top: 12px; background: var(--primary); border-color: transparent; }
+  .fp-empty-invite.fp-hero-btn:hover { filter: brightness(1.08); background: var(--primary); }
+  /* "New code": an icon in the card's top-right corner, turns once on hover. */
+  .fp-hero-regen {
+    position: absolute; top: 10px; right: 10px; z-index: 1;
+    width: 30px; height: 30px; padding: 0; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--ink-20); border: 1px solid var(--ink-25);
+    cursor: pointer; transition: background .15s, border-color .15s, transform .1s;
+  }
+  .fp-hero-regen .icon { background: var(--on-accent); transition: transform .4s cubic-bezier(.2, .8, .2, 1); }
+  .fp-hero-regen:hover { background: var(--ink-30); border-color: var(--ink-40); }
+  .fp-hero-regen:hover .icon { transform: rotate(180deg); }
+  .fp-hero-regen:active { transform: scale(.92); }
+  .fp-hero-regen:disabled { opacity: .5; cursor: not-allowed; }
+  @media (prefers-reduced-motion: reduce) { .fp-hero-regen .icon { transition: none; } }
 
   /* Toggle row card */
   .fp-toggle-card {

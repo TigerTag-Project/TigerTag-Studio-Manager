@@ -58,7 +58,7 @@ export function guardInput(el, ms = 2000) {
   document.addEventListener("keydown", key, true);
   setTimeout(() => document.removeEventListener("keydown", key, true), ms + 50);
 }
-// An easter egg found: a secret's own moment before the pile opens — the room
+// An easter egg found: a secret's own moment — the room
 // dims, golden rays turn, the envelope flies out of its hiding place (`from`, a
 // DOMRect) to the centre and swells, sparks burst, "Secret found!" lands with a
 // fanfare; ~2.4 s, every click swallowed, then it fades and resolves.

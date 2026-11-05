@@ -1417,27 +1417,8 @@
   </div>
   <div class="panel-body friends-body">
 
-    <!-- HERO: My code (the share moment) -->
-    <div class="fp-hero">
-      <div class="fp-hero-label" data-i18n="friendsMyCode">My code</div>
-      <div class="fp-hero-code" id="stgPublicKey">—</div>
-      <!-- QR of the shareable invite link (tigersystem.io/friend/<code>) — src set in renderFriendsSection -->
-      <div class="fp-hero-qr"><img id="fpHeroQr" alt="QR" /></div>
-      <div class="fp-hero-actions">
-        <button class="fp-hero-btn" id="btnShareFriendLink" title="Share invite link">
-          <span class="icon icon-link icon-14"></span>
-          <span data-i18n="friendsShareLink">Share link</span>
-        </button>
-        <button class="fp-hero-btn" id="btnInviteFriends">
-          <span class="icon icon-gift icon-14"></span>
-          <span data-i18n="referralInviteBtn">Invite friends</span>
-        </button>
-        <button class="fp-hero-btn" id="btnRegenPublicKey" title="Regenerate code">
-          <span class="icon icon-refresh icon-14"></span>
-          <span data-i18n="regenLabel">New code</span>
-        </button>
-      </div>
-    </div>
+    <!-- HERO: My code (the share moment) — drawn by myCodeCardHtml (quests/ui-kit.js) in renderFriendsSection -->
+    <div id="fpMyCode"></div>
 
     <!-- Public toggle row -->
     <label class="fp-toggle-card">
@@ -2158,8 +2139,13 @@
         <!-- The flag your XP counts for in the TigerSquad countries ranking. -->
         <div class="eac-row">
           <span class="eac-row-label" data-i18n="squadCountryLabel">Your flag</span>
-          <select id="eacSquadCountry"></select>
+          <!-- The current flag + "Change": a window lists the countries and warns about the 30-day lock. -->
+          <span class="eac-country">
+            <span class="eac-country-cur" id="eacSquadCountryCur"></span>
+            <button type="button" class="eac-mcp-key" id="eacSquadCountryBtn"><span class="icon icon-flag icon-12" aria-hidden="true"></span><span data-i18n="squadCountryChange">Change</span></button>
+          </span>
         </div>
+        <p class="eac-field-hint" id="eacSquadCountryHint"></p>
       </section>
       <section class="eac-group">
         <h3 class="eac-card-title"><span class="icon icon-settings icon-14" aria-hidden="true"></span><span data-i18n="eacGroupPrefs">Preferences</span></h3>
@@ -2304,6 +2290,11 @@
             <button type="submit" class="primary sm" id="eacPassSave" data-i18n="btnSave">Save</button>
           </div>
         </form>
+        <!-- Delete the account for good: every data, then the sign-in (deleteMyAccount). -->
+        <div class="eac-row eac-delete-row">
+          <span class="eac-row-label" data-i18n="eacDeleteAccount">Delete my account</span>
+          <button type="button" class="secondary sm eac-delete-btn" id="eacDeleteAccountBtn" data-i18n="eacDeleteAccountBtn">Delete…</button>
+        </div>
       </section>
       <!-- ── Advanced (admin only; the whole section hides with the row) ── -->
       <section class="eac-group eac-debug-row hidden" id="eacDebugRow">

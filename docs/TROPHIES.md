@@ -26,7 +26,10 @@ to anyone who reads the code. The full design lives in the private backend repo
 
 - **Veiled trophies**: a hidden one, or any **rare, epic or legendary** one. The public catalogue
   lists a common or uncommon trophy with its name, mission, tier, family and silhouette; a veiled
-  one only as `{ hidden: true, family, tier }`: no id, no text, no silhouette.
+  one only as `{ hidden: true, family, tier, o }`: no id, no text, no silhouette. `o` is an
+  opaque slot key (first 12 hex of sha-256 of `trophy-slot:<id>`): Studio matches it against the ids
+  it already holds (`trophyStats/_all`, its cards) to put a held or revealed trophy in its own slot
+  and to show how many tigers own a "?" (0 % when no counter matches). Every sticker shows that %.
 - **A friend reveals it**: as soon as one of your friends holds a veiled trophy, its silhouette,
   name and mission show in your album, with "Seen at <friend>'s" — having friends helps to find the
   stickers. Its art still has to be earned. The backend keeps one reveals doc per account, filled

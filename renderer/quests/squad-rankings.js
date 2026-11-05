@@ -18,7 +18,8 @@
  *   squadRankingsHtml(ctx, data)      — Community pulse strip, the three leagues
  *   (the account's rank lives in the hero card only)
  *   ctx = { uid, t, esc, fmt, cname, flagOf, avatar(member) → html, tierLabel(tier),
- *           brandLabel(id), lang, squadXp (number|null), myCountry }
+ *           brandLabel(id), lang, squadXp (number|null), myCountry,
+ *           natOf(cc) → another country's top [member] (squadBoard/nat_<CC>), null while it loads }
  */
 import { FLAG_COLORS } from './flag-colors.js';
 import { heroLayersHtml } from './hero-layers.js';
@@ -42,6 +43,10 @@ export function setLeagueRows(n) {
   return true;
 }
 const _expanded = new Set();      // league columns opened with "View all" (kept across renders)
+// The country whose league the middle column shows when it is not the viewer's own
+// (a click on a row of the countries' league); null = the viewer's country.
+let _pickCc = null;
+export function pickLeague(cc, mine) { _pickCc = !cc || cc === mine || cc === _pickCc ? null : cc; }
 
 export function toggleLeague(key) {
   if (_expanded.has(key)) _expanded.delete(key); else _expanded.add(key);
@@ -228,7 +233,7 @@ export function pulseHtml(ctx, pulse, history) {
 
 // ── Leagues ──────────────────────────────────────────────────────────────────
 // Each column shows its top rows, plus the account's own row when it ranks
-// lower; "View all" opens the full list in place.
+// lower; "View all" puts the full list in the same card, which scrolls (same height).
 // The column icon already shows the flag: drop the {{flag}} slot's leftover space.
 const noFlag = text => text.replace(/\s+/g, " ").trim();
 function rankCell(i) { return i < 3 ? MEDAL(i + 1) : `<span class="sqr-rank">${rankNo(i + 1)}</span>`; }
@@ -247,12 +252,12 @@ function column(ctx, key, title, icon, rows, isMe, rowHtml, outside = null) {
   const meRow = meAt < rows.length ? rows[meAt] : outside?.[0];
   const tail = far && meRow ? rowHtml(meRow, meAt).replace('class="sqr-row', 'class="sqr-row sqr-row--far') : "";
   return `
-    <section class="sqr-board">
+    <section class="sqr-board${open ? " is-open" : ""}">
       <header class="sqr-board-head"><span class="sqr-board-ic" aria-hidden="true">${icon}</span>
         <div><h3>${esc(title)}</h3></div>
         ${rows.length > _rows ? `<button type="button" class="sqr-all" data-sqr-all="${key}" aria-expanded="${open}">${esc(t(open ? "squadShowLess" : "squadViewAll"))}</button>` : ""}
       </header>
-      <ol class="sqr-rows">${shown.map(([r, i]) => rowHtml(r, i)).join("")}${tail}</ol>
+      <ol class="sqr-rows"${open ? ` style="--n:${_rows}"` : ""}>${shown.map(([r, i]) => rowHtml(r, i)).join("")}${tail}</ol>
     </section>`;
 }
 function leaguesHtml(ctx, board, loading) {
@@ -280,17 +285,23 @@ function leaguesHtml(ctx, board, loading) {
     const [a, b = a, c = b] = f;
     return ` style="--f1:${a};--f2:${b};--f3:${c}"`;
   };
+  // The middle column's country: the viewer's, or the one picked in the countries' league
+  // (each country row is a button; the picked one wears the selected look).
+  const view = (_pickCc && ctx.natOf) ? _pickCc : r.cc, other = !!view && view !== r.cc;
+  const viewNat = other ? ctx.natOf(view) : r.nat;
   const countryRow = (c, i) => `
-    <li class="sqr-row${c.cc === r.cc ? " is-me" : ""}${FLAG_COLORS[c.cc] ? " has-flag" : ""}"${flagVars(c.cc)}>${rankCell(i)}
+    <li class="sqr-row sqr-row--pick${c.cc === view ? " is-me" : ""}${FLAG_COLORS[c.cc] ? " has-flag" : ""}"${flagVars(c.cc)}
+      data-sqr-cc="${esc(c.cc)}" role="button" tabindex="0" aria-pressed="${c.cc === view}">${rankCell(i)}
       <span class="sqr-av" aria-hidden="true">${flagAv(c.cc, 34, i + 1)}</span>
       <span class="sqr-name"><b>${esc(ctx.cname(c.cc))}</b><small>${esc(t("squadMembers", { n: c.n }))}</small></span>
       <span class="sqr-xp">${esc(fmt(c.xp))} XP${moveHtml(t, rankMove(c.base, i + 1))}</span></li>`;
   const globe = worldAv(36);
   return `
     <div class="sqr-boards">
-      ${column(ctx, "countries", t("squadCountryLabel"), globe, r.countries, c => c.cc === r.cc, countryRow)}
-      ${r.cc ? column(ctx, "national", noFlag(t("squadColNational", { flag: "", country: ctx.cname(r.cc) })),
-        flagAv(r.cc, 36), r.nat, m => m.uid === ctx.uid, memberRow(false, mvN), r.natRank > r.nat.length ? [r.me, r.natRank - 1] : null) : ""}
+      ${column(ctx, "countries", t("squadCountryLabel"), globe, r.countries, c => c.cc === view, countryRow)}
+      ${!view ? "" : other && !viewNat ? `<section class="sqr-board"><div class="sqr-skel sqr-skel--board"></div></section>`
+        : column(ctx, "national", noFlag(t("squadColNational", { flag: "", country: ctx.cname(view) })),
+          flagAv(view, 36), viewNat, m => m.uid === ctx.uid, memberRow(false, mvN), !other && r.natRank > r.nat.length ? [r.me, r.natRank - 1] : null)}
       ${column(ctx, "world", t("squadColWorld"), globe, r.world, m => m.uid === ctx.uid, memberRow(true, mvW), r.worldRank > r.world.length ? [r.me, r.worldRank - 1] : null)}
     </div>`;
 }

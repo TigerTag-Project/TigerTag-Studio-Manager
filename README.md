@@ -208,6 +208,8 @@ Organize your filament collection into physical racks — drag spools onto slots
 - Invite a friend *(new in 2.49.0)*: share your link or QR code; once your friend confirms their e-mail, you both get 3 envelopes
 - Send TigerCoins *(new in 2.49.0)* to a squad friend, with a message that opens as a letter
 - TigerSquad updates *(new in 2.50.0)*: the squad asks for a newer app when it needs one; leaving it has a 30-day wait; give several envelopes at once
+- Account deletion *(new in 2.51.0)*: delete your account from Studio, with a re-sign-in, a typed word and a held button
+- Countries League *(new in 2.51.0)*: pick your flag from a window, peek at another country's league; the flag moves once every 30 days
 
 ### ⚖ Sensors & Devices
 

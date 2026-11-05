@@ -17,6 +17,9 @@
 .rf-hero .hl--envs img { position: absolute; bottom: 0; height: 100%; width: auto; aspect-ratio: 1; object-fit: contain; }
 .rf-hero .hl--envs img:nth-child(1) { left: 0; rotate: -10deg; } .rf-hero .hl--envs img:nth-child(2) { left: 25%; } .rf-hero .hl--envs img:nth-child(3) { left: 50%; rotate: 10deg; }
 .rf-hero .hl--envs-a { left: 0; } .rf-hero .hl--envs-b { left: 87%; }
+/* Every envelope wiggles on click (one hides the inviteBanner easter egg): no pointer cursor, it stays a secret. */
+.rf-hero .hl--envs img { pointer-events: auto; }
+.rf-hero .hl--envs img.is-tapped { animation: tch-tap .35s ease; }
 @media (prefers-reduced-motion: no-preference) { .rf-hero .hl--figurine { animation: hl-rock 4s ease-in-out infinite; } }
 .sqr-card.rf-hero-card { display: flex; flex-direction: column; align-items: stretch; gap: 6px; min-width: 170px; padding: 10px 14px; color: var(--on-dark); }
 .rf-hero-lbl { display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; color: var(--on-dark); }
@@ -29,51 +32,94 @@
 .rf-card h3 .icon { background-color: var(--tsq-orange); }
 .rf-card p { margin: 0; font-size: 13px; color: var(--tsq-muted); }
 
-.rf-link-row { display: flex; gap: 8px; align-items: center; }
-.rf-link-row .dns-input { flex: 1 1 auto; min-width: 0; }
-.rf-link-row .lv-public-copy, .rf-code-row .lv-public-copy { flex: 0 0 auto; }
 
 /* How it works: three steps in a row. */
-.rf-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-.rf-step { display: flex; align-items: center; gap: 10px; border: 1px solid var(--tsq-line); border-radius: 12px; background: var(--tsq-card); padding: 8px 12px; }
-.rf-step-ic { flex: 0 0 auto; width: 28px; aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center; background: color-mix(in srgb, var(--tsq-orange) 18%, transparent); }
-.rf-step-ic .icon { background-color: var(--tsq-orange); }
-.rf-step .rf-row-txt small { white-space: normal; }
+/* How it works as a metro line: one line through three numbered stations, each
+   step's title and detail under its stop. */
+.rf-steps { position: relative; list-style: none; margin: 0; padding: 16px 16px 14px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px;
+  border: 1px solid var(--tsq-line); border-radius: 14px; background: var(--tsq-card); }
+.rf-steps::before { content: ""; position: absolute; top: 30px; left: calc(16px + (100% - 32px) / 6); right: calc(16px + (100% - 32px) / 6); height: 3px; border-radius: 3px;
+  background: linear-gradient(90deg, var(--tsq-orange), color-mix(in srgb, var(--tsq-orange) 45%, transparent)); }
+.rf-stop { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; min-width: 0; }
+.rf-stop-dot { width: 30px; height: 30px; margin-bottom: 6px; border-radius: 50%; display: grid; place-items: center; background: var(--tsq-orange); color: var(--on-accent); font-size: 13px; font-weight: 800;
+  box-shadow: 0 0 0 4px var(--tsq-card), 0 0 0 6px color-mix(in srgb, var(--tsq-orange) 35%, transparent); }
+.rf-stop b { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; color: var(--tsq-text); }
+.rf-stop b .icon { background-color: var(--tsq-orange); }
+.rf-stop small { font-size: 12px; color: var(--tsq-muted); }
 
 /* Sharing: the code, the link, the networks by name, the message, the QR on the right. */
-.rf-copy-main.sqd-open { height: auto; padding: 9px 16px; font-size: 13.5px; white-space: nowrap; }
-.rf-code-row.rf-code-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; color: var(--tsq-muted); }
-.rf-code-big { font: 800 15px var(--qw-mono, monospace); letter-spacing: 2px; color: var(--tsq-text); }
-.rf-code-row small { flex-basis: 100%; font-size: 11px; }
-.rf-nets { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.rf-via { font-size: 13px; color: var(--tsq-muted); margin-right: 2px; }
-.rf-more.rf-more { height: auto; display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border: 0; background: none; color: var(--tsq-muted); font-size: 13px; font-weight: 600; cursor: pointer; }
-.rf-more:hover { color: var(--tsq-text); }
-.rf-more .icon { background-color: currentColor; rotate: 90deg; transition: rotate .2s ease; }
-.rf-more[aria-expanded="true"] .icon { rotate: -90deg; }
 /* The share card: everything on one left edge, the QR in a narrow column on the right. */
-.rf-card.rf-share { flex-direction: row; align-items: stretch; gap: 18px; }
+/* The title on top, then the link column and the My code card side by side:
+   the card starts level with the link bar, not with the title. */
+.rf-share-body { display: flex; align-items: stretch; gap: 18px; }
 .rf-share-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
-.rf-share-main > .rf-link-row { align-self: stretch; }
-.rf-more.rf-more { margin-left: -10px; }
-.rf-nets .rf-more.rf-more { margin-left: 0; }
-.rf-msg-box { align-self: stretch; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 10px 12px; border-radius: 10px; background: var(--surface-2); }
-.rf-msg-box b { font-size: 12px; color: var(--tsq-muted); }
-@media (prefers-reduced-motion: no-preference) { .rf-nets-more, .rf-msg-box { animation: rf-open .2s ease-out; } }
-@keyframes rf-open { from { opacity: 0; translate: 0 -4px; } }
-.rf-net.rf-net { height: auto; display: inline-flex; align-items: center; gap: 7px; padding: 4px 12px 4px 4px; border-radius: 999px; border: 1px solid var(--tsq-line); background: var(--surface-2); color: var(--tsq-text); font-size: 13px; font-weight: 600; cursor: pointer; }
-.rf-net:hover { border-color: var(--tsq-orange); }
-.rf-net .lv-social { width: 24px; height: 24px; }
-.rf-net .lv-social .icon { width: 12px; height: 12px; }
-.rf-msg.rf-msg { font-size: 13px; line-height: 1.45; color: var(--tsq-text); }
-.rf-qr { flex: 0 0 190px; display: flex; flex-direction: column; align-items: center; gap: 6px; padding-left: 18px; border-left: 1px solid var(--tsq-line); text-align: center; }
-.rf-qr-title { font-size: 14px; color: var(--tsq-text); }
-.rf-qr .lv-public-qr { width: 136px; height: auto; aspect-ratio: 1; border-radius: 8px; }
-.rf-qr-acts { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-.rf-qr-dl--soft.rf-qr-dl--soft { color: var(--tsq-muted); font-weight: 500; }
-.rf-qr-dl--soft .icon { background-color: var(--tsq-muted); }
-.rf-qr-xl.rf-qr-xl { width: min(340px, 70vw); height: auto; aspect-ratio: 1; margin: 12px auto 4px; display: block; }
-.rf-qr small { font-size: 11px; color: var(--tsq-muted); }
+/* The Friends card's orange "My code" card (20-friends.css .fp-hero), on the
+   right of the link: QR (click = enlarge), the code, Share link | Download, and
+   New code as the corner icon (confirmed in a window first). */
+.rf-mycode.fp-hero { flex: 0 0 340px; margin: 0; align-self: stretch; display: flex; flex-direction: column; justify-content: center; }   /* from the link bar down to the message */
+
+/* The share block: the link and "Copy my link" joined in one bar, every network
+   five a row, the message as it will be sent with a copy icon. */
+.rf-link-bar { align-self: stretch; display: flex; }
+.rf-link-bar .rf-link.dns-input { flex: 1 1 auto; min-width: 0; border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.rf-link-copy.rf-link-copy { flex: 0 0 auto; height: auto; display: inline-flex; align-items: center; gap: 7px; padding: 0 16px; border: 0; border-radius: 0 10px 10px 0; background: var(--tsq-orange); color: var(--on-accent); font-size: 13.5px; font-weight: 700; white-space: nowrap; cursor: pointer; }
+.rf-link-copy .icon { background-color: var(--on-accent); }
+.rf-copy-lbls { display: grid; }
+.rf-copy-lbls > span { grid-area: 1 / 1; text-align: center; transition: opacity .15s; }
+.rf-copy-lbls > span + span, .rf-link-copy.is-done .rf-copy-lbls > span:first-child { opacity: 0; }
+.rf-link-copy.is-done .rf-copy-lbls > span + span { opacity: 1; }
+.rf-link-copy:hover { filter: brightness(1.08); }
+.rf-net-grid { align-self: stretch; display: flex; flex-wrap: wrap; gap: 10px; }
+.rf-net.rf-net { width: 52px; height: 52px; padding: 0; display: grid; place-items: center; border-radius: 14px; border: 1px solid var(--tsq-line); background: var(--surface-2); cursor: pointer; transition: border-color .15s, background .15s, transform .1s; }
+.rf-net:hover { border-color: var(--tsq-orange); background: var(--surface-hover); }
+.rf-net:active { transform: scale(.94); }
+.rf-net .lv-social { width: 34px; height: 34px; }
+.rf-net .lv-social .icon { width: 18px; height: 18px; }
+.rf-msg-row { align-self: stretch; display: flex; align-items: center; gap: 12px; }
+.rf-msg-lbl { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--tsq-muted); }
+.rf-msg-lbl .icon { background-color: var(--tsq-muted); }
+.rf-msg.rf-msg { flex: 1 1 auto; min-width: 0; margin: 0; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--tsq-line); background: var(--surface-2); font-size: 13px; line-height: 1.45; color: var(--tsq-text); }
+.rf-msg-copy.rf-msg-copy { flex: 0 0 auto; width: 36px; height: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px; border: 1px solid var(--tsq-line); background: var(--surface-2); cursor: pointer; }
+.rf-msg-copy .icon { background-color: var(--tsq-text); }
+.rf-msg-copy:hover { border-color: var(--tsq-orange); }
+
+/* "Your friend gets 3 envelopes too", above the steps. */
+.rf-friend-gets { display: flex; align-items: center; gap: 8px; margin: 4px 2px -4px; font-size: 16px; font-weight: 800; color: var(--tsq-orange); }
+.rf-friend-gets .icon { background-color: var(--tsq-orange); }
+
+/* Your invitations: one row per friend, a column per stage. */
+.rf-table-wrap { overflow-x: auto; }
+.rf-table { width: 100%; border-collapse: collapse; font-size: 13px; color: var(--tsq-text); }
+.rf-table th { padding: 8px 10px; text-align: left; font-size: 12px; font-weight: 700; color: var(--tsq-muted); background: var(--surface-2); }
+.rf-table th:first-child { border-radius: 8px 0 0 8px; }
+.rf-table th:last-child { border-radius: 0 8px 8px 0; }
+.rf-table td { padding: 8px 10px; border-top: 1px solid var(--tsq-line); white-space: nowrap; }
+.rf-table tr:first-child td { border-top: 0; }
+.rf-who { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.rf-who b { overflow: hidden; text-overflow: ellipsis; }
+.rf-date { color: var(--tsq-muted); }
+.rf-table th:not(:first-child), .rf-table td:not(:first-child) { text-align: center; }
+.rf-st .icon { vertical-align: middle; }
+.rf-st--yes .icon { background-color: var(--tsq-orange); }
+.rf-st--wait { color: var(--tsq-muted); }
+.rf-st--expired .icon { background-color: var(--danger-text); }
+
+/* The networks added for the share grid (brand colours) and their logos. */
+.lv-social--wechat { background: #07c160; }
+.lv-social--messenger { background: #0866ff; }
+.lv-social--line { background: #06c755; }
+.lv-social--kakao { background: #fee500; }
+.lv-social--kakao .icon { background-color: #191919; }
+.lv-social--vk { background: #0077ff; }
+.lv-social--sms { background: #34c759; }
+.icon-wechat    { -webkit-mask-image: url('../../assets/svg/logos/logo_wechat.svg');    mask-image: url('../../assets/svg/logos/logo_wechat.svg'); }
+.icon-messenger { -webkit-mask-image: url('../../assets/svg/logos/logo_messenger.svg'); mask-image: url('../../assets/svg/logos/logo_messenger.svg'); }
+.icon-line-app  { -webkit-mask-image: url('../../assets/svg/logos/logo_line.svg');      mask-image: url('../../assets/svg/logos/logo_line.svg'); }
+.icon-kakaotalk { -webkit-mask-image: url('../../assets/svg/logos/logo_kakaotalk.svg'); mask-image: url('../../assets/svg/logos/logo_kakaotalk.svg'); }
+.icon-vk        { -webkit-mask-image: url('../../assets/svg/logos/logo_vk.svg');        mask-image: url('../../assets/svg/logos/logo_vk.svg'); }
+/* The enlarged QR in the My code card's look: a dark frame, round corners. */
+.rf-qr-xl.rf-qr-xl { width: min(340px, 70vw); height: auto; aspect-ratio: 1; margin: 12px auto 4px; display: block;
+  padding: 12px; box-sizing: border-box; background: var(--qr-frame); border-radius: 22px; box-shadow: 0 10px 28px rgba(0,0,0,.28); }
 .rf-qr-dl.rf-qr-dl { height: auto; display: inline-flex; align-items: center; gap: 5px; padding: 0; border: 0; background: none; color: var(--tsq-orange); font-size: 12px; font-weight: 600; cursor: pointer; }
 .rf-qr-dl .icon { background-color: var(--tsq-orange); }
 .lv-social--reddit { background: #ff4500; }
@@ -114,10 +160,7 @@
 .rf-claim-fold:hover { border-color: var(--tsq-orange); }
 
 /* Invitees: avatar, name + date, state pill. */
-.rf-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
-.rf-list .rf-row { padding: 9px 0; border-top: 1px solid var(--tsq-line); }
-.rf-list .rf-row:last-child { padding-bottom: 0; }
-.rf-row, .rf-mine.rf-card { display: flex; flex-direction: row; align-items: center; gap: 10px; }
+.rf-mine.rf-card { display: flex; flex-direction: row; align-items: center; gap: 10px; }
 .rf-row-txt { flex: 1 1 auto; min-width: 0; display: grid; }
 .rf-row-txt b { font-size: 14px; color: var(--tsq-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rf-row-txt small { font-size: 12px; color: var(--tsq-muted); }
@@ -141,7 +184,7 @@
   .rf-win.is-open .rf-win-envs img:nth-child(2) { animation-delay: .12s; }
   .rf-win.is-open .rf-win-envs img:nth-child(3) { animation-delay: .24s; }
 }
-@media (max-width: 760px) { .rf-steps { grid-template-columns: 1fr; } .rf-card.rf-share { flex-direction: column; } .rf-qr { border-left: 0; padding-left: 0; border-top: 1px solid var(--tsq-line); padding-top: 12px; flex-basis: auto; } }
+@media (max-width: 760px) { .rf-steps { grid-template-columns: 1fr; } .rf-steps::before { display: none; } .rf-share-body { flex-direction: column; } .rf-mycode.fp-hero { flex-basis: auto; align-self: stretch; } }
 
 /* Entry points elsewhere: the sidebar friends list's last chip, the empty friends list. */
 .sb-friend-invite-ic.sb-friend-invite-ic { display: grid; place-items: center; background: transparent; border: 1.5px dashed var(--border); }

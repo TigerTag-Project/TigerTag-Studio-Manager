@@ -469,8 +469,9 @@ async function _sdkPayload(tag, readerName = null) {
 // closed.
 function isSafeExternalUrl(u) {
   try {
+    // The web, plus the two schemes that only open a message to write (share by e-mail / SMS).
     const p = new URL(String(u)).protocol;
-    return p === 'http:' || p === 'https:';
+    return p === 'http:' || p === 'https:' || p === 'mailto:' || p === 'sms:';
   } catch { return false; }
 }
 
