@@ -1311,7 +1311,15 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     });
   }
 
-  function buildDiagnosticReport() {
+  // The session's Xano chip-event outcomes, read fresh (`_appInfo` is cached at launch).
+  async function _analyticsStatus() {
+    try { return (await window.electronAPI?.getAppInfo?.())?.analytics || null; } catch { return null; }
+  }
+  const _analyticsLine = (a) => a && (a.failed || a.overflow)
+    ? `analytics: ${a.failed} failed / ${a.sent} answered / ${a.overflow || 0} overflow · last ${a.lastError?.operation || "?"} → ${a.lastError?.status ?? "-"} ${a.lastError?.code || ""}: ${String(a.lastError?.message || "").slice(0, 160)}`
+    : null;
+
+  function buildDiagnosticReport(analytics) {
     const info = _appInfo || {};
     const acc = (function(){ try { return JSON.parse(localStorage.getItem("tigertag.accounts") || "[]"); } catch { return []; } })();
     const lines = [];
@@ -1324,6 +1332,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     lines.push(`- Locale: ${state.lang}  ·  UA: ${navigator.userAgent}`);
     lines.push(`- Accounts (local): ${acc.length}  ·  Active: ${state.activeAccountId ? state.activeAccountId.slice(0,6)+"…" : "none"}`);
     lines.push(`- Online: ${navigator.onLine ? "yes" : "no"}`);
+    if (analytics) lines.push(`- Chip analytics: ${analytics.sent} answered · ${analytics.failed} failed · ${analytics.queued || 0} queued · ${analytics.overflow || 0} overflow${analytics.lastError ? `  ·  last: ${analytics.lastError.operation} → HTTP ${analytics.lastError.status ?? "-"} ${analytics.lastError.code || ""}: ${analytics.lastError.message || ""} (${analytics.lastError.at})` : ""}`);
     lines.push("");
     lines.push(`## Errors captured (${_errorLog.length})`);
     if (!_errorLog.length) { lines.push("_(none)_"); }
@@ -1341,11 +1350,11 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   }
 
   function openDiagnosticModal() {
-    loadAppInfo().then(() => {
+    Promise.all([loadAppInfo(), _analyticsStatus()]).then(([, analytics]) => {
       const overlay = document.getElementById("diagModalOverlay");
       if (!overlay) return;
       const body = document.getElementById("diagBody");
-      if (body) body.value = buildDiagnosticReport();
+      if (body) body.value = buildDiagnosticReport(analytics);
       overlay.classList.add("open");
     });
   }
@@ -8099,12 +8108,12 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
             level:    Number.isInteger(data.level)    ? data.level    : null,
             position: Number.isInteger(data.position) ? data.position : null
           };
-          await invRef.doc(spoolId).update({
+          await _xanoQuiet(() => invRef.doc(spoolId).update({
             rack,
             rack_id:  FV.delete(),
             level:    FV.delete(),
             position: FV.delete()
-          });
+          }));
           _rackMigrationStats.migrated++;
         } catch (e) {
           console.warn(`[rackMigration] ${spoolId} failed:`, e?.code, e?.message);
@@ -8394,7 +8403,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     // belt. A husk is not data: drop it rather than let it overwrite anything.
     const _identity = ["id_brand", "id_material", "id_type", "id_product", "weight_available"];
     if (!_identity.some(k => snap.data()?.[k] != null)) {
-      await oldRef.delete().catch(() => {});
+      await _xanoQuiet(() => oldRef.delete()).catch(() => {});
       console.warn(`[cloudMigration] ${cloudId} has no identity — husk dropped, NOT propagated`);
       return;
     }
@@ -8421,7 +8430,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     // corruption, and it keeps the query inside the rules' soft limit.
     const reverseTwins = await invRef.where("twin_tag_uid", "==", cloudId).limit(2).get();
 
-    const batch = db.batch();
+    const batch = _xanoQuietBatch(db.batch());
     batch.set(newRef, newData);   // the new doc lands...
     reverseTwins.forEach(twin => {
       if (twin.id === cloudId) return;       // the doc we are about to delete
@@ -8462,7 +8471,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     const invRef = db.collection("users").doc(ownerUid).collection("inventory");
     const FV     = firebase.firestore.FieldValue;
     for (const r of plan.renames) {
-      const batch = db.batch();
+      const batch = _xanoQuietBatch(db.batch());
       if (r.write) batch.set(invRef.doc(r.to), { ...r.write, updatedAt: FV.serverTimestamp() }, { merge: true });
       batch.delete(invRef.doc(r.from));
       await batch.commit();
@@ -8470,7 +8479,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     }
     const commitChunked = async ops => {
       for (let i = 0; i < ops.length; i += 400) {
-        const batch = db.batch();
+        const batch = _xanoQuietBatch(db.batch());
         ops.slice(i, i + 400).forEach(op => op(batch));
         await batch.commit();
       }
@@ -8539,7 +8548,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       .limit(2)
       .get();
 
-    const batch = db.batch();
+    const batch = _xanoQuietBatch(db.batch());
     // merge:true so a partial decimal stub re-written by the mobile app
     // doesn't wipe fields we already migrated to hex. The hex doc keeps
     // the union of fields.
@@ -9567,7 +9576,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
 
     // Single batched write — twin_tag_uid on both sides + lastUpdate timestamp
     const invRef = fbDb().collection("users").doc(user.uid).collection("inventory");
-    const batch  = fbDb().batch();
+    const batch  = _xanoQuietBatch(fbDb().batch());
     const ts     = firebase.firestore.FieldValue.serverTimestamp();
     for (const { a, b, dt, idtt } of pairs) {
       batch.update(invRef.doc(a.spoolId), { twin_tag_uid: b.uid, updatedAt: ts });
@@ -15599,7 +15608,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     const FV     = firebase.firestore.FieldValue;
     const { needUpdateAt: _n, deleted: _d, deleted_at: _da, ...baseFields } = cloudDoc;
     const now = Date.now();
-    const batch = db.batch();
+    const batch = _xanoQuietBatch(db.batch());
     const [c1, c2] = burned;
     // CRITICAL: stamp the doc with the SAME chip-epoch timestamp that was just
     // burned onto the chip (line ~6123). On the next rescan the scan path
@@ -15752,7 +15761,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       update.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
       const uid = fbAuth().currentUser?.uid;
       if (!uid) return;
-      await fbDb().collection("users").doc(uid).collection("inventory").doc(r.spoolId).update(update);
+      await _xanoQuiet(() => fbDb().collection("users").doc(uid).collection("inventory").doc(r.spoolId).update(update));   // catalogue data, not a user edit
       if (!silent) _flashMessage(t("toolRefreshApiSuccess"));
       return true;
     } catch (e) {
@@ -25082,7 +25091,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   });
   $("btnDiagClear")?.addEventListener("click", () => {
     _errorLog.length = 0;
-    $("diagBody").value = buildDiagnosticReport();
+    _analyticsStatus().then(a => { $("diagBody").value = buildDiagnosticReport(a); });
     renderDiagBadge();
   });
   $("btnDiagDownload")?.addEventListener("click", () => {
@@ -25336,7 +25345,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     if (!missing.length) return;
 
     const invRef = fbDb().collection("users").doc(uid).collection("inventory");
-    let batch = fbDb().batch();
+    let batch = _xanoQuietBatch(fbDb().batch());
     let ops = 0;
     let assigned = 0;
     const ts = firebase.firestore.FieldValue.serverTimestamp();
@@ -25353,7 +25362,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         assigned++;
         if (++ops >= 400) {
           await batch.commit();
-          batch = fbDb().batch();
+          batch = _xanoQuietBatch(fbDb().batch());
           ops = 0;
         }
       } else if (choice.ask?.length && !firstPass && _cpIsNew(spoolId)
@@ -25375,7 +25384,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     const chunks = [];
     for (let i = 0; i < toDelete.length; i += 400) chunks.push(toDelete.slice(i, i + 400));
     for (const chunk of chunks) {
-      const batch = fbDb().batch();
+      const batch = _xanoQuietBatch(fbDb().batch());
       chunk.forEach(id => batch.delete(invRef.doc(id)));
       await batch.commit();
     }
@@ -25856,7 +25865,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     // What travels with the report — shown to the user before sending. Never
     // an id, a name, an address or a credential.
     getMeta: async () => {
-      const info = await loadAppInfo();
+      const [info, analytics] = await Promise.all([loadAppInfo(), _analyticsStatus()]);
       const brands = {};
       (state.printers || []).forEach(p => { const b = p.brand || "?"; brands[b] = (brands[b] || 0) + 1; });
       return {
@@ -25878,7 +25887,8 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         // XP itself from the account (it cannot be told a level by the app).
         badge: _ownSquadTier() ? squadTierLabel(_ownSquadTier()) : "",
         xp: typeof state.xpPoints === "number" ? `${state.xpPoints.toLocaleString(state.lang || "en")} XP` : "",
-        errors: _errorLog.slice(0, 10).map(e => `${e.context}${e.code ? " · " + e.code : ""}: ${String(e.message || "").slice(0, 240)}`),
+        // A failing chip analytics rides with the errors: the server keeps no other free field.
+        errors: [_analyticsLine(analytics), ..._errorLog.slice(0, 10).map(e => `${e.context}${e.code ? " · " + e.code : ""}: ${String(e.message || "").slice(0, 240)}`)].filter(Boolean).slice(0, 10),
       };
     },
   });
@@ -35509,7 +35519,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     const user = fbAuth().currentUser;
     if (!user) return;
     const invRef = fbDb().collection("users").doc(user.uid).collection("inventory");
-    const batch = fbDb().batch();
+    const batch = _xanoQuietBatch(fbDb().batch());
     const FV = firebase.firestore.FieldValue;
     orphans.forEach(row => {
       batch.update(invRef.doc(row.spoolId), {
@@ -36028,7 +36038,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       ? state.racks.filter(r => r.id === rackId)
       : state.racks;
     if (!targets.length) return 0;
-    const batch = fbDb().batch();
+    const batch = rackId ? fbDb().batch() : _xanoQuietBatch(fbDb().batch());   // no rack = the automatic store-away
     let placed = 0;
     outer:
     for (const r of targets) {
@@ -36119,7 +36129,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     console.warn(`[racks] self-heal: ${evictIds.length} spool(s) in already-occupied slots → unranked:`, evictIds);
     try {
       const col = fbDb(uid).collection("users").doc(uid).collection("inventory");
-      const batch = fbDb(uid).batch();
+      const batch = _xanoQuietBatch(fbDb(uid).batch());
       evictIds.forEach(id => batch.update(col.doc(id), { rack: null, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }));
       await batch.commit();
     } catch (e) { console.warn("[racks] self-heal failed:", e?.code || e?.message); }
@@ -36211,7 +36221,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       const user = fbAuth().currentUser;
       if (!user) return;
       const invRef = fbDb().collection("users").doc(user.uid).collection("inventory");
-      const batch  = fbDb().batch();
+      const batch  = _xanoQuietBatch(fbDb().batch());
       const clearFields = { rack: null };
       targets.forEach(t => {
         batch.update(invRef.doc(t.spoolId), clearFields);
@@ -42889,12 +42899,13 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
      it has no flow that converts a foreign chip — its format action only ever
      acts on a spool that is already a TigerTag.
 
-     PRIVACY. `Location` is always "0.0,0.0" — Studio collects NO position. A
-     desktop doesn't move, so a precise coordinate would reveal the user's home
-     address while answering no question that `Country` (derived offline from the
-     timezone, no IP lookup, no permission prompt) doesn't already answer. We send
-     `Country` instead, and Xano can resolve the request IP on its side if it
-     wants coarse geography. `Emoji` is deprecated and always sent empty.
+     PRIVACY. `Location` is always "0.0,0.0" — the convention shared with the
+     mobile app for "no position": Studio collects NO position. A desktop doesn't
+     move, so a precise coordinate would reveal the user's home address while
+     answering no question that `Country` (derived offline from the timezone, no
+     IP lookup, no permission prompt) doesn't already answer. Xano then locates
+     the event from the request's IP, to the city, on its own side; Studio sends
+     no IP and must not. `Emoji` is deprecated and always sent empty.
 
      The HTTP itself happens in the MAIN process (CORS — see main.js). */
   const XANO_DEDUP_MS = 60_000;
@@ -42951,12 +42962,24 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   // is a resting reader that can re-read the same chip over and over, which would
   // flood the table. (The mobile app needs no such guard — there every scan is a
   // deliberate tap.) A DIFFERENT operation on the same chip is never suppressed.
+  // With ANALYTICS_SPOOL_EVENTS on, a chip event also carries `Protocol` and
+  // `SpoolId` (the scan passes them in `extra`; the others are looked up from the
+  // spool doc of that UID).
   function _sendTagAnalytics(operation, uidHex, extra) {
     if (!operation || !uidHex) return;
+    if (state.friendView) return;
     const key = operation + ":" + String(uidHex).toUpperCase();
     const now = Date.now();
     if (now - (_xanoLastSent.get(key) || 0) < XANO_DEDUP_MS) return;
     _xanoLastSent.set(key, now);
+    const base = { ...(extra || {}), Uid: _xanoUidDecimal(uidHex) };
+    if (!ANALYTICS_SPOOL_EVENTS) { delete base.Protocol; delete base.SpoolId; _xanoPost(operation, base, now); return; }
+    const id = base.SpoolId || _xanoSpoolIdOfUid(uidHex);
+    const doc = id ? state.inventory?.[id] : null;
+    (base.Protocol ? Promise.resolve(base.Protocol) : doc ? _xanoProtocol(id, doc) : Promise.resolve("unknown"))
+      .then(protocol => _xanoPost(operation, { ...base, Protocol: protocol, SpoolId: id || "" }, now));
+  }
+  function _xanoPost(operation, fields, now = Date.now()) {
     try {
       window.electronAPI?.sendTagAnalytics?.({
         Operation: operation,
@@ -42964,14 +42987,227 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         Timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "",
         Location: "0.0,0.0",                 // no position collected — see above
         Country:  deriveCountry() || "",
-        Uid:      _xanoUidDecimal(uidHex),
         Timestamp: Math.floor(now / 1000),   // Unix epoch seconds
-        ...(extra || {}),
+        ...fields,
       });
     } catch (e) {
       console.warn("[analytics] send failed:", e?.message);   // never blocks the chip action
     }
   }
+
+  /* ── Spool events: create / edit / delete, every format ───────────────────
+     Off until Xano's `operation` column accepts create / edit / delete and has
+     its `protocol` / `spool_id` columns (TigerTag-Project/TigerTag-Manager#112).
+     Off, only the chip events above are sent, exactly as before.
+
+     WHERE THEY COME FROM. Not from each of the ~40 places that write a spool:
+     the Firestore SDK's own write calls are wrapped once (`_xanoWatchWrites`), and
+     a write to `users/{me}/inventory/{id}` made BY THIS INSTANCE becomes an event:
+       • a doc that is not in the inventory yet → `create`
+       • a set / update of a known doc          → `edit` (field names only)
+       • a delete                               → `delete`, with the fields from
+                                                  before (read from state.inventory)
+     Changes made elsewhere (phone, TigerScale) arrive through snapshot listeners,
+     which write nothing, so they are never reported here: each device reports
+     its own actions. Writes the app makes on its own — doc mirrors, migrations,
+     tombstone cleanup, the scan upsert of a known chip, the re-key of a doc after
+     a burn — go through `_xanoQuiet()` and report nothing. A burn stays the chip
+     `write` event above.
+
+     Edits are coalesced per spool over 5 minutes (a rack drag, a weight typed
+     digit by digit): ONE `edit` with the union of the changed fields, sent at the
+     end of the window, before the spool's `delete`, or when the window closes.
+     `create` / `delete` are deduped per spool over 60 s (a transaction may run
+     twice). Bulk actions send one event per spool: the main process paces them.
+     Never while viewing a friend's inventory. */
+  const ANALYTICS_SPOOL_EVENTS = false;
+  const XANO_EDIT_WINDOW_MS = 5 * 60_000;
+  // An edit right after the spool was created is part of its creation.
+  const XANO_AFTER_CREATE_MS = 10_000;
+  // Fields the app maintains itself — a write touching only these is no edit.
+  const _XANO_SILENT_FIELDS = new Set(["syncAt", "updatedAt", "needUpdateAt", "catalogSyncedAt",
+    "productKey", "protocol", "rfidBackup", "rfidListed"]);
+  const _xanoEdits = new Map();      // spoolId → { fields: Set, timer }
+  const _xanoCreatedAt = new Map();  // spoolId → ms
+  const _xanoCertified = new Map();  // chip uid (hex, upper) → true | false | null
+  let _xanoMute = 0;
+
+  // Runs `fn` with spool events muted: wrap the WRITE CALL itself (`ref.set`,
+  // `batch.update`…), which is synchronous, never a whole async function.
+  function _xanoQuiet(fn) {
+    _xanoMute++;
+    try { return fn(); } finally { _xanoMute--; }
+  }
+  // Same for a whole write batch the app builds on its own: flag it once when made.
+  const _xanoQuietBatches = new WeakSet();
+  function _xanoQuietBatch(batch) { _xanoQuietBatches.add(batch); return batch; }
+
+  function _xanoSpoolIdOfUid(uidHex) {
+    const u = String(uidHex).toUpperCase(), inv = state.inventory || {};
+    if (inv[u]) return u;
+    return Object.keys(inv).find(k => String(inv[k]?.uid ?? k).toUpperCase() === u) || null;
+  }
+
+  // Seeded by a scan (the signature was just checked in main); otherwise the
+  // rfidList backup is verified once per chip and session — the very test the
+  // backend certifies a chip with.
+  async function _xanoIsCertified(uidHex) {
+    const u = String(uidHex).toUpperCase();
+    if (_xanoCertified.has(u)) return _xanoCertified.get(u);
+    let v = null;
+    try {
+      const me = state.activeAccountId;
+      const backup = (await _rfidListCol(me).doc(u).get()).get("backup");
+      v = typeof backup === "string" ? await window.electronAPI?.analyticsChipCertified?.(u, backup) ?? null : false;
+    } catch (_) { v = null; }
+    _xanoCertified.set(u, v);
+    return v;
+  }
+
+  // "TigerData" | "TigerData+" | "TigerTag" | "TigerTag+" | "TigerTag+ Certified",
+  // "unknown" when it cannot be told.
+  async function _xanoProtocol(spoolId, doc) {
+    const p = normalizeRow(spoolId, doc || {}).protocol;
+    if (p === "TigerData" || p === "TigerData+" || p === "TigerTag") return p;
+    if (p !== "TigerTag+") return "unknown";
+    const c = await _xanoIsCertified(doc?.uid ?? spoolId);
+    return c === true ? "TigerTag+ Certified" : c === false ? "TigerTag+" : "unknown";
+  }
+
+  async function _xanoSpoolFields(spoolId, doc) {
+    const chipless = _isChiplessId(spoolId);
+    const f = _xanoChipFields(doc || {}, { withBed: true });
+    if (!_hasRealProductId(doc?.id_product)) delete f.IdProduct;
+    return {
+      ...f,
+      Protocol: await _xanoProtocol(spoolId, doc),
+      SpoolId: String(spoolId),
+      ...(chipless ? {} : { Uid: _xanoUidDecimal(doc?.uid ?? spoolId) }),
+    };
+  }
+
+  function _xanoSpoolEvent(operation, spoolId, doc, more) {
+    if (!ANALYTICS_SPOOL_EVENTS || state.friendView) return;
+    const now = Date.now();
+    if (operation !== "edit") {
+      const key = operation + ":" + spoolId;
+      if (now - (_xanoLastSent.get(key) || 0) < XANO_DEDUP_MS) return;
+      _xanoLastSent.set(key, now);
+    }
+    _xanoSpoolFields(spoolId, doc)
+      .then(fields => {
+        if (!fields.Uid) delete fields.Uid;
+        _xanoPost(operation, { ...fields, ...(more || {}) }, now);
+      })
+      .catch(e => console.warn("[analytics] spool event skipped:", e?.message));
+  }
+
+  function _xanoSendEdit(spoolId) {
+    const e = _xanoEdits.get(spoolId);
+    if (!e) return;
+    clearTimeout(e.timer);
+    _xanoEdits.delete(spoolId);
+    const doc = state.inventory?.[spoolId];
+    if (!doc || !e.fields.size) return;
+    const w = Number(doc.weight_available);
+    _xanoSpoolEvent("edit", spoolId, doc, { Changed: [...e.fields].sort(), Weight: Number.isFinite(w) ? w : 0 });
+  }
+  function _xanoFlushEdits() { [..._xanoEdits.keys()].forEach(_xanoSendEdit); }
+  window.addEventListener("pagehide", _xanoFlushEdits);
+
+  function _xanoNoteEdit(spoolId, fieldNames) {
+    if (Date.now() - (_xanoCreatedAt.get(spoolId) || 0) < XANO_AFTER_CREATE_MS) return;
+    const names = fieldNames.map(k => String(k).split(".")[0]).filter(k => k && !_XANO_SILENT_FIELDS.has(k));
+    if (!names.length) return;
+    let e = _xanoEdits.get(spoolId);
+    if (!e) {
+      e = { fields: new Set(), timer: setTimeout(() => _xanoSendEdit(spoolId), XANO_EDIT_WINDOW_MS) };
+      _xanoEdits.set(spoolId, e);
+    }
+    names.forEach(n => e.fields.add(n));
+  }
+
+  // One write call seen by the wrapper. `before` is the doc as the inventory held
+  // it when the call was made (a delete reports it; a set onto an unknown id is a
+  // create).
+  function _xanoOnWrite(kind, spoolId, before, data) {
+    if (kind === "delete") {
+      if (!before) return;
+      _xanoSendEdit(spoolId);
+      _xanoSpoolEvent("delete", spoolId, before);
+      return;
+    }
+    if (kind === "set" && !before) {
+      // A mirror flag landing on a doc the snapshot has not brought yet is no creation.
+      if (Object.keys(data || {}).every(k => _XANO_SILENT_FIELDS.has(k))) return;
+      _xanoCreatedAt.set(spoolId, Date.now());
+      _xanoSpoolEvent("create", spoolId, data);
+      return;
+    }
+    if (!before) return;   // an update of a doc we do not hold: nothing to describe
+    _xanoNoteEdit(spoolId, Object.keys(data || {}));
+  }
+
+  // Wraps DocumentReference / WriteBatch / Transaction once. A direct ref write is
+  // reported when it resolves; a batch, when its commit resolves; a transaction
+  // write, at the call (deduped). The write itself is passed through untouched.
+  function _xanoWatchWrites() {
+    const F = window.firebase?.firestore;
+    if (!F?.DocumentReference || F.__xanoWatched) return;
+    F.__xanoWatched = true;
+    const target = (ref) => {
+      if (!ANALYTICS_SPOOL_EVENTS || _xanoMute || state.friendView) return null;
+      const m = /^users\/([^/]+)\/inventory\/([^/]+)$/.exec(ref?.path || "");
+      return m && m[1] === state.activeAccountId ? m[2] : null;
+    };
+    // update(data) or update(field, value, field, value…)
+    const updData = (args) => (typeof args[0] === "string"
+      ? Object.fromEntries(args.reduce((acc, v, i, a) => (i % 2 ? acc : [...acc, [a[i], a[i + 1]]]), []))
+      : args[0]);
+    const intent = (kind, ref, args) => {
+      const id = target(ref);
+      if (!id) return null;
+      const before = state.inventory?.[id] || null;
+      const data = kind === "update" ? updData(args) : args[0];
+      return () => _xanoOnWrite(kind, id, before, data);
+    };
+    const R = F.DocumentReference.prototype;
+    for (const kind of ["set", "update", "delete"]) {
+      const orig = R[kind];
+      R[kind] = function (...args) {
+        const fire = intent(kind, this, args);
+        const p = orig.apply(this, args);
+        if (fire) p.then(fire, () => {});
+        return p;
+      };
+    }
+    const B = F.WriteBatch.prototype, pending = new WeakMap();
+    for (const kind of ["set", "update", "delete"]) {
+      const orig = B[kind];
+      B[kind] = function (ref, ...args) {
+        const fire = _xanoQuietBatches.has(this) ? null : intent(kind, ref, args);
+        if (fire) { if (!pending.has(this)) pending.set(this, []); pending.get(this).push(fire); }
+        return orig.call(this, ref, ...args);
+      };
+    }
+    const commit = B.commit;
+    B.commit = function (...args) {
+      const fires = pending.get(this);
+      pending.delete(this);
+      const p = commit.apply(this, args);
+      if (fires) p.then(() => fires.forEach(f => f()), () => {});
+      return p;
+    };
+    const T = F.Transaction.prototype;
+    for (const kind of ["set", "update", "delete"]) {
+      const orig = T[kind];
+      T[kind] = function (ref, ...args) {
+        intent(kind, ref, args)?.();
+        return orig.call(this, ref, ...args);
+      };
+    }
+  }
+  _xanoWatchWrites();
 
   // ── Spool mirrors for the server-side stats (productKey + protocol) ──────
   // Both of these are DERIVED from the TigerTag reference DB, which the backend
@@ -43040,7 +43276,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       const fdb = fbDb(uid);
       const col = fdb.collection("users").doc(uid).collection("inventory");
       for (let i = 0; i < stale.length; i += 400) {       // Firestore batch cap is 500
-        const batch = fdb.batch();
+        const batch = _xanoQuietBatch(fdb.batch());
         // `update`, NOT `set(merge)`. This mirrors two fields onto spools that
         // EXIST; it has no business creating one. With `set(merge)` a row whose
         // document was missing — a twin pointer left dangling by the CLOUD_ →
@@ -43186,7 +43422,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     const inv = fbDb(uid).collection("users").doc(uid).collection("inventory");
     const rowById = new Map(rows.map(x => [x.spoolId, x]));
     const FVdel = firebase.firestore.FieldValue.delete();
-    let batch = fbDb(uid).batch(), pending = 0, pairs = 0, filled = 0, unlinked = 0;
+    let batch = _xanoQuietBatch(fbDb(uid).batch()), pending = 0, pairs = 0, filled = 0, unlinked = 0;
     try {
       for (const r of rows) {
         const twinId = twinSpoolIdOf(r);
@@ -43205,7 +43441,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
           batch.update(inv.doc(r.spoolId), { twin_tag_uid: FVdel });
           batch.update(inv.doc(twinId),    { twin_tag_uid: FVdel });
           pending += 2; unlinked++;
-          if (pending >= 400) { await batch.commit(); batch = fbDb(uid).batch(); pending = 0; }
+          if (pending >= 400) { await batch.commit(); batch = _xanoQuietBatch(fbDb(uid).batch()); pending = 0; }
           continue;
         }
         const ua = _twinUpdatedMs(da), ub = _twinUpdatedMs(db);
@@ -43231,7 +43467,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         // "updated just now" or jump in date-sorted views.
         if (Object.keys(patchMaster).length) { batch.update(inv.doc(masterId), patchMaster); pending++; filled++; }
         if (Object.keys(patchOther).length)  { batch.update(inv.doc(otherId),  patchOther);  pending++; filled++; }
-        if (pending >= 400) { await batch.commit(); batch = fbDb(uid).batch(); pending = 0; }
+        if (pending >= 400) { await batch.commit(); batch = _xanoQuietBatch(fbDb(uid).batch()); pending = 0; }
       }
       if (pending) await batch.commit();
       localStorage.setItem(_twinFixKey(uid), "1");
@@ -44127,8 +44363,13 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         const _pid = Number(tagData.id_product);
         const _hasCatalogueProduct = Number.isFinite(_pid) && _pid !== 0 && _pid !== 0xFFFFFFFF;
         const _isPlusChip = versionName(tagData.id_tigertag) === "TigerTag+";
+        // The signature was checked in main: remember it for this chip's spool events.
+        _xanoCertified.set(String(uid).toUpperCase(), _isPlusChip ? !!tagData._certified : false);
         _sendTagAnalytics(_isPlusChip && _hasCatalogueProduct ? "online" : "read",
-          uid, _xanoChipFields(tagData));
+          uid, { ..._xanoChipFields(tagData),
+                 Protocol: _isPlusChip ? (tagData._certified ? "TigerTag+ Certified" : "TigerTag+")
+                         : versionName(tagData.id_tigertag) === "TigerTag" ? "TigerTag" : "unknown",
+                 SpoolId: String(uid) });
         const twinUid = twinMap ? (twinMap[uid] ?? null) : null;
         const docRef  = fbDb().collection('users').doc(user.uid)
           .collection('inventory').doc(uid);
@@ -44151,7 +44392,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
             if (stored.timestamp !== tagData.timestamp) {
               // Chip was fully erased & rewritten — clean slate
               console.log('[RFID] Chip rewritten (ts changed) — delete + recreate:', uid);
-              await docRef.delete();
+              await _xanoQuiet(() => docRef.delete());
             } else {
               console.log('[RFID] Updating chip:', uid);
               preserveDbWeight = true;
@@ -44182,6 +44423,8 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
             console.log('[RFID] New chip — creating:', uid);
           }
           await _writeChipDoc(docRef, tagData, twinUid, { preserveDbWeight, preserveTd });
+          // A chip entering this inventory for the first time is a spool created here.
+          if (!existing.exists) _xanoSpoolEvent("create", String(uid), state.inventory?.[uid] || { ...tagData, uid });
           processedUids.push(uid);
           // Census + tag+ signature backup for this physical chip. Each UID is
           // its own chip — twins are two distinct physical chips, recorded (and
@@ -44340,7 +44583,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       // capacity, custom_message, etc.) that is NOT on the chip. The "chip
       // rewritten" branch above already handles the clean-slate case via
       // an explicit `delete()` followed by this set — merge is a no-op there.
-      await docRef.set(doc, { merge: true });
+      await _xanoQuiet(() => docRef.set(doc, { merge: true }));   // a scan: its create is sent by the caller
     }
 
     // Remaining-time estimate for the update download. Returns "~m:ss" (or

@@ -1433,8 +1433,9 @@ ipcMain.handle('rfid:refresh-api', async (_evt, rawDoc) => {
 });
 
 // ── Xano chip-event analytics ─────────────────────────────────────────────────
-// Reports physical-chip events (read / write / reset / recycle) to the TigerTag
-// Xano analytics table, mirroring what the mobile app (Tiger RFID Connect,
+// Reports physical-chip events (read / write / reset / recycle) and, behind the
+// renderer's ANALYTICS_SPOOL_EVENTS flag, every spool's create / edit / delete
+// (any format, chipless included) to the TigerTag Xano analytics table, mirroring what the mobile app (Tiger RFID Connect,
 // lib/services/analytics_service.dart) already sends — so both apps land in the
 // same table with the same shape.
 //
@@ -1459,14 +1460,24 @@ ipcMain.handle('rfid:refresh-api', async (_evt, rawDoc) => {
 // the main process knows: the platform, the app version, and `App`, which tags
 // the row as coming from Studio rather than mobile.
 //
-// NOTE ON `Location`: the renderer always sends "0.0,0.0". Studio does NOT
-// collect a position. A desktop machine doesn't move, so a precise coordinate
-// would reveal the user's home address and answer no analytical question that
-// `Country` (derived offline from the timezone, no IP lookup) doesn't already
-// answer. Xano can still resolve the request IP on its side if it needs coarse
-// geography.
+// NOTE ON `Location`: the renderer always sends "0.0,0.0" — the convention
+// shared with the mobile app for "no position". Studio does NOT collect a
+// position. A desktop machine doesn't move, so a precise coordinate would reveal
+// the user's home address and answer no analytical question that `Country`
+// (derived offline from the timezone, no IP lookup) doesn't already answer.
+// Seeing "0.0,0.0", Xano locates the event itself from the request's IP, to the
+// city, on its own side. Studio sends no IP and must not.
 const XANO_ANALYTICS_URL = 'https://api.tigertag.io/api:tigertag/analytics/tag';
 const XANO_PRODUCT_URL   = 'https://api.tigertag.io/api:tigertag/product/get';
+// DEV ONLY — contract test. Xano's dry-run copy of analytics/tag computes the row
+// it would store and writes NOTHING; it answers `{ success, dry_run, ip_asked,
+// ip_status, brand, material, record }`. On, EVERY operation goes there (`online`
+// included: product/get is not used) and each `record` is logged at debug level.
+// Forced off in a packaged build, so no release can ship with it; remove it with
+// the endpoint once the spool events are live in production.
+const ANALYTICS_TEST_ENDPOINT = false;
+const XANO_ANALYTICS_TEST_URL = 'https://api.tigertag.io/api:tigertag/analytics/tag_v2_test';
+const _analyticsTestMode = () => ANALYTICS_TEST_ENDPOINT && !app.isPackaged;
 
 // Node's platform names are kernel names, not product names: "darwin" is macOS and
 // "win32" is ALL Windows (64-bit included — it's a legacy name, not a bitness). Next
@@ -1494,19 +1505,47 @@ const XANO_PLATFORM = { darwin: 'macos', win32: 'windows', linux: 'linux' };
 // precondition without it. (The mobile has a second, header-per-field variant for
 // `online` that sends no such header — so that path writes nothing. Worth fixing
 // on the mobile side.)
-ipcMain.on('analytics:tag', (_evt, payload) => {
-  if (!payload || typeof payload !== 'object' || !payload.Operation) return;
+//
+// FAILURES ARE COUNTED, never retried. A rejected event is logged at `warn`
+// with Xano's `{ code, message }`, and `_analyticsStats` keeps the session's
+// outcomes for `app:info` (diagnostic report, in-app report errors), so a
+// support report shows at once when analytics are failing. (From 2026-09-18
+// Xano rejected almost every Studio event with HTTP 400 for 48 days, logged at
+// `info` with the status only, and nobody saw it.)
+// Only analytics/tag failures reach us: `online` is recorded in product/get's
+// Post-Process step, AFTER it answered, so product/get still says 200 when that
+// write fails.
+//
+// ONE QUEUE, PACED. Every event — a single scan or the 500 `create` of a `.ttag`
+// import — goes through `_analyticsQueue`, sent at most 4 a second. It lives in
+// memory and holds 5 000 events at most; past that an event is counted in
+// `overflow` instead of being dropped unseen. Nothing waits on it: the IPC
+// returns at once, the chip action and the UI never see the queue. On quit, what
+// is left gets up to 1.5 s to go (`will-quit`), then the rest is lost — same
+// lower-bound contract as above.
+const ANALYTICS_RATE_MS = 250;        // 4 requests a second
+const ANALYTICS_QUEUE_MAX = 5000;
+const _analyticsQueue = [];
+const _analyticsStats = { sent: 0, failed: 0, queued: 0, overflow: 0, lastError: null };
+function _analyticsFailed(operation, status, code, message) {
+  _analyticsStats.failed++;
+  _analyticsStats.lastError = { at: new Date().toISOString(), operation, status, code, message };
+}
+
+function _analyticsSend(payload) {
   const body = {
     ...payload,
     Platform: XANO_PLATFORM[process.platform] || process.platform,
     AppVersion: app.getVersion(),
     App: 'studio',                     // tells Studio rows apart from mobile ones
   };
-  const url = body.Operation === 'online'
+  const url = _analyticsTestMode() ? XANO_ANALYTICS_TEST_URL
+    : body.Operation === 'online'
     ? `${XANO_PRODUCT_URL}?uid=${encodeURIComponent(body.Uid)}&product_id=${encodeURIComponent(body.IdProduct)}`
     : XANO_ANALYTICS_URL;
   const json = JSON.stringify(body);
   const encoded = Buffer.from(json, 'utf8').toString('base64');
+  const who = body.Uid || body.SpoolId || '';
 
   // Log BOTH forms: the readable payload (what Xano will see once it decodes the
   // header) and the exact base64 that goes on the wire — so a wrong field can be
@@ -1516,13 +1555,80 @@ ipcMain.on('analytics:tag', (_evt, payload) => {
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 5000);
-  fetch(url, {
+  return fetch(url, {
     headers: { 'Content-Type': 'application/json', 'X-TigerTag-Analytics': encoded },
     signal: controller.signal,
   })
-    .then((resp) => log.info(`[analytics] ${body.Operation} ${body.Uid} → HTTP ${resp.status}`))
-    .catch((e) => log.warn(`[analytics] ${body.Operation} dropped: ${e.message}`))
+    .then(async (resp) => {
+      _analyticsStats.sent++;
+      if (resp.ok) {
+        log.info(`[analytics] ${body.Operation} ${who} → HTTP ${resp.status}`);
+        if (_analyticsTestMode()) {
+          const j = await resp.json().catch(() => null);
+          log.debug(`[analytics] dry-run ${body.Operation} ip_asked=${j?.ip_asked} ip_status=${j?.ip_status} record=${JSON.stringify(j?.record)}`);
+        }
+        return;
+      }
+      // Xano answers `{ code, message, payload }`; anything else is kept raw, cut short.
+      const text = await resp.text().catch(() => '');
+      let code = null, message = text.slice(0, 300);
+      try { const j = JSON.parse(text); code = j.code ?? null; message = String(j.message ?? message).slice(0, 300); } catch (_) {}
+      _analyticsFailed(body.Operation, resp.status, code, message);
+      log.warn(`[analytics] ${body.Operation} rejected → HTTP ${resp.status}${code ? ` ${code}` : ''}: ${message}`);
+    })
+    .catch((e) => {
+      _analyticsFailed(body.Operation, null, e.name === 'AbortError' ? 'TIMEOUT' : 'NETWORK', e.message);
+      log.warn(`[analytics] ${body.Operation} dropped: ${e.message}`);
+    })
     .finally(() => clearTimeout(timer));
+}
+
+let _analyticsTimer = null;
+function _analyticsPump() {
+  if (_analyticsTimer) return;
+  const next = () => {
+    const payload = _analyticsQueue.shift();
+    _analyticsStats.queued = _analyticsQueue.length;
+    if (!payload) { _analyticsTimer = null; return; }
+    _analyticsSend(payload);
+    _analyticsTimer = setTimeout(next, ANALYTICS_RATE_MS);
+  };
+  next();
+}
+
+ipcMain.on('analytics:tag', (_evt, payload) => {
+  if (!payload || typeof payload !== 'object' || !payload.Operation) return;
+  if (_analyticsQueue.length >= ANALYTICS_QUEUE_MAX) { _analyticsStats.overflow++; return; }
+  _analyticsQueue.push(payload);
+  _analyticsStats.queued = _analyticsQueue.length;
+  _analyticsPump();
+});
+
+// Quit: the renderer has flushed its pending `edit` events while closing; give
+// what is still queued one short burst, then let the quit go on.
+let _analyticsDrained = false;
+app.on('will-quit', (event) => {
+  if (_analyticsDrained || !_analyticsQueue.length) return;
+  _analyticsDrained = true;
+  event.preventDefault();
+  clearTimeout(_analyticsTimer);
+  const batch = _analyticsQueue.splice(0, 20);
+  _analyticsStats.overflow += _analyticsQueue.splice(0).length;   // not sent this session
+  _analyticsStats.queued = 0;
+  Promise.race([Promise.allSettled(batch.map(_analyticsSend)), new Promise((r) => setTimeout(r, 1500))])
+    .finally(() => app.quit());
+});
+
+// A TigerTag+ is "Certified" when its factory signature checks out — the test the
+// backend applies to the rfidList backup to certify a chip (chipValue in
+// functions/supportWebhooks.js). The renderer hands the backup it read; null when
+// it cannot be parsed (the protocol is then reported "unknown", never guessed).
+ipcMain.handle('analytics:chip-certified', (_evt, uidHex, backupHex) => {
+  try {
+    if (!/^[0-9A-Fa-f]{14}$/.test(String(uidHex)) || typeof backupHex !== 'string') return null;
+    const tag = TigerTag.fromPages(Buffer.from(uidHex, 'hex'), Buffer.from(backupHex, 'hex'));
+    return !!tag.isPlus && tag.verify().ok === true;
+  } catch (_) { return null; }
 });
 
 // ── Lookup a product by id_product — validate it exists in the TigerTag catalogue ──
@@ -3862,6 +3968,7 @@ ipcMain.handle('app:info', () => {
     osRelease:   os.release(),
     osVersion:   os.version(),   // human-readable: "macOS 15.4", "Windows 11 Pro", etc.
     systemVersion: process.getSystemVersion(),   // "26.0.1" on macOS, "10.0.26100" on Windows
+    analytics:   { ..._analyticsStats },   // this session's Xano chip events (see analytics:tag)
   };
 });
 

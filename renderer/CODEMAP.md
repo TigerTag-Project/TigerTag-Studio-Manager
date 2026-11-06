@@ -15,34 +15,34 @@ L1-257          ES-module imports — IoT modules, printer brand registry, RFID 
 L99-1159        Foundation — Firebase helpers, avatar pipeline, state, persistence,
                cold-start trace, rAF coalescer, i18n, helpers, diagnostics, lookups
 L1005-1289      Data layer (tsToMs, normalizeRow, health icon)
-L1133-1536     Account dropdown + connected/disconnected sidebar states
-L1380-3296     Add Product panel (ADP) — color/brand/material sheets, chip schema, save
-L3140-3803     Settings + Friends open/close, TigerScale init, edit-account modal
-L3647-4177     Login modal + localStorage accounts + sign-out + legacy migration
-L4022-4682     Data migrations (decimal UID → hex, flat rack → nested)
-L4526-6023     Firestore inventory subscription + auth orchestration + account list
-L5867-6359     Stats, twin auto-link / manual pairing, sort + quick filters
-L6203-7193     Inventory render — table/grid keyed-diff, view mode, search
-L7034-7608     RFID encode/burn modal (cem)
-L7452-7936     TigerTag+ catalogue refresh / convert / duplicate
-L7760-9792     Spool detail panel (openDetail, buildPanelHTML, weight update)
-L9591-10034     Resizable panels, debug panel, auto-update settings
-L9878-10146     Hard delete + container auto-assign + legacy tombstone purge
-L9989-10264     Firestore explorer + language save + debug mode
-L10107-10562     Friends sidebar quick-list + friends list render
-L10404-11060     Racks + printers Firestore subscriptions (+ live friends/notifs)
-L10904-12151    Printers views — grid / table / cam wall + drag-drop
-L11995-14432   Printer detail side panel (renderPrinterDetail) + inline edit
-L14276-15522   Add-printer flow (brand picker, form, tutorials, submit)
-L15523-16413   Racks CRUD + slots + locking + auto-fill + masonry + tooltip
-L16414-17524   renderRackView + rack drag-drop + rack edit modal
-L17525-18013   Friend view + add-friend modal
-L18014-18741   Display-name setup + friend requests + blacklist
-L18742-19000   Public/private keys + user profile sync
-L19001-19302   Custom avatar upload + Discord-style cropper
-L19303-19826   syncUserDoc + session telemetry + language sync
-L19827-19842   Init bootstrap (loadLocales → loadLookups → runMigration → initAuth)
-L19843-20195   Electron RFID integration (readers, dual-scan, NFC processor, chip write)
+L1133-1545     Account dropdown + connected/disconnected sidebar states
+L1389-3305     Add Product panel (ADP) — color/brand/material sheets, chip schema, save
+L3149-3812     Settings + Friends open/close, TigerScale init, edit-account modal
+L3656-4186     Login modal + localStorage accounts + sign-out + legacy migration
+L4031-4691     Data migrations (decimal UID → hex, flat rack → nested)
+L4535-6032     Firestore inventory subscription + auth orchestration + account list
+L5876-6368     Stats, twin auto-link / manual pairing, sort + quick filters
+L6212-7202     Inventory render — table/grid keyed-diff, view mode, search
+L7043-7617     RFID encode/burn modal (cem)
+L7461-7945     TigerTag+ catalogue refresh / convert / duplicate
+L7769-9801     Spool detail panel (openDetail, buildPanelHTML, weight update)
+L9600-10043     Resizable panels, debug panel, auto-update settings
+L9887-10155     Hard delete + container auto-assign + legacy tombstone purge
+L9998-10273     Firestore explorer + language save + debug mode
+L10116-10571     Friends sidebar quick-list + friends list render
+L10413-11069     Racks + printers Firestore subscriptions (+ live friends/notifs)
+L10913-12160    Printers views — grid / table / cam wall + drag-drop
+L12004-14441   Printer detail side panel (renderPrinterDetail) + inline edit
+L14285-15531   Add-printer flow (brand picker, form, tutorials, submit)
+L15532-16422   Racks CRUD + slots + locking + auto-fill + masonry + tooltip
+L16423-17533   renderRackView + rack drag-drop + rack edit modal
+L17534-18022   Friend view + add-friend modal
+L18023-18750   Display-name setup + friend requests + blacklist
+L18751-19009   Public/private keys + user profile sync
+L19010-19311   Custom avatar upload + Discord-style cropper
+L19312-19835   syncUserDoc + session telemetry + language sync
+L19836-19851   Init bootstrap (loadLocales → loadLookups → runMigration → initAuth)
+L19852-20204   Electron RFID integration (readers, dual-scan, NFC processor, chip write)
 ```
 
 ---
@@ -96,7 +96,7 @@ Wiring (mirrors Bambu): always-on MQTT in `subscribePrinters` (skipCam), auto-co
 
 ---
 
-## Foundation (L167-1941)
+## Foundation (L167-1950)
 | L | What | Anchors |
 |---|---|---|
 | 92 | `API_BASE` constant | |
@@ -114,7 +114,7 @@ Wiring (mirrors Bambu): always-on MQTT in `subscribePrinters` (skipCam), auto-co
 
 ---
 
-## Data layer (L1949-2139)
+## Data layer (L1958-2148)
 | L | What | Anchors |
 |---|---|---|
 | 984-992 | `tsToMs()` — Firestore Timestamp → ms (accepts `number`, `Timestamp`, `{_seconds}`) | `tsToMs` |
@@ -123,7 +123,7 @@ Wiring (mirrors Bambu): always-on MQTT in `subscribePrinters` (skipCam), auto-co
 
 ---
 
-## Account dropdown + sidebar states (L2176-2399)
+## Account dropdown + sidebar states (L2185-2408)
 | L | What | Anchors |
 |---|---|---|
 | 1112-1208 | Connected vs no-account UI states | `setConnected`, `setDisconnected` |
@@ -132,7 +132,7 @@ Wiring (mirrors Bambu): always-on MQTT in `subscribePrinters` (skipCam), auto-co
 
 ---
 
-## Add Product panel — ADP (L2461-3884)
+## Add Product panel — ADP (L2470-3893)
 Manual spool creation: full chip-schema editor with bottom-sheets. All helpers prefixed `_adp`.
 
 | L | What | Anchors |
@@ -148,7 +148,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Settings / Friends / Account modals (L4390-7330)
+## Settings / Friends / Account modals (L4399-7339)
 | L | What | Anchors |
 |---|---|---|
 | 3083-3110 | Settings panel open/close | `openSettings`, `closeSettings` |
@@ -160,7 +160,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Login + accounts persistence (L7423-7764)
+## Login + accounts persistence (L7432-7773)
 | L | What | Anchors |
 |---|---|---|
 | 3540-3759 | **Login modal** (Firebase) — Google sign-in, email/password sign-in + create flow, forgot password | `lmSetMode`, `openAddAccountModal` |
@@ -169,7 +169,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Data migrations (L7857-8395)
+## Data migrations (L7866-8404)
 | L | What | Anchors |
 |---|---|---|
 | 3855-3879 | Decimal spoolId detection + hex conversion — imported from `uid-repair.js` (pure, padded to whole bytes, tested by `scripts/test-uid-repair.mjs`) | `isDecimalSpoolId`, `decimalSpoolIdToHex` |
@@ -179,7 +179,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Inventory subscription + auth + account list (L8469-9130)
+## Inventory subscription + auth + account list (L8478-9139)
 | L | What | Anchors |
 |---|---|---|
 | 4346-4454 | **Firestore inventory subscription** — `onSnapshot` with friend-view defense-in-depth | `subscribeInventory`, `unsubscribeInventory` |
@@ -188,7 +188,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Stats / twins / filters (L9177-9696)
+## Stats / twins / filters (L9186-9705)
 | L | What | Anchors |
 |---|---|---|
 | 4748-4793 | Key status, row sort, load action, **stats** | `renderStats`, `loadInventory` |
@@ -197,7 +197,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Inventory render (L10108-14908)
+## Inventory render (L10117-14917)
 | L | What | Anchors |
 |---|---|---|
 | 5054-5268 | **`renderInventory()`** — welcome card, rack-view priority, table/grid dispatch | `renderInventory` |
@@ -209,7 +209,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## RFID encode / burn modal — cem (L14959-15485)
+## RFID encode / burn modal — cem (L14968-15494)
 | L | What | Anchors |
 |---|---|---|
 | 5880-5970 | **`_burnRfid(r)`** — writes a chip from a row | `_burnRfid` |
@@ -218,7 +218,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## TigerTag+ catalogue (L15559-18344)
+## TigerTag+ catalogue (L15568-18353)
 | L | What | Anchors |
 |---|---|---|
 | 11009-11102 | Refresh API data for a spool | `_refreshApiData` |
@@ -242,7 +242,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Spool detail panel (L18437-24587)
+## Spool detail panel (L18446-24596)
 | L | What | Anchors |
 |---|---|---|
 | 6516-6669 | Structural signature (patch vs rebuild), weight patch, saved check | `_detailStructuralSig`, `_patchDetailWeight` |
@@ -257,7 +257,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Panels / debug / auto-update (L24647-26050)
+## Panels / debug / auto-update (L24656-26060)
 | L | What | Anchors |
 |---|---|---|
 | 8256-8329 | Resizable panels (detail + debug) — drag handle, persisted width | `makePanelResizable`, `openDebug` |
@@ -269,7 +269,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Friends rendering (L26098-26731)
+## Friends rendering (L26108-26741)
 | L | What | Anchors |
 |---|---|---|
 | 8768-8852 | Sidebar friends quick-list + hover tooltip | `renderSidebarFriends`, `showSbFriendTip` |
@@ -278,7 +278,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Racks + printers subscriptions (L26859-27088)
+## Racks + printers subscriptions (L26869-27098)
 | L | What | Anchors |
 |---|---|---|
 | 9064-9106 | Racks subscription | `subscribeRacks`, `unsubscribeRacks` |
@@ -288,7 +288,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Printers views (L27252-31172)
+## Printers views (L27262-31182)
 | L | What | Anchors |
 |---|---|---|
 | 9271-9441 | **Job status helpers** + surgical grid patches (job card, online badge, grid signature) | `_getPrinterJob`, `_patchGridJobs`, `_jobCardHtml`, `_isPrinterOnline`, `_patchGridStatus` |
@@ -304,7 +304,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Printer detail side panel (L31278-34111)
+## Printer detail side panel (L31288-34121)
 | L | What | Anchors |
 |---|---|---|
 | 10196-10758 | Open/close lifecycle (connect/disconnect per brand), conn button, refresh | `openPrinterDetail`, `closePrinterDetail`, `refreshOpenPrinterDetail` |
@@ -314,7 +314,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Add-printer flow (L34235-34908)
+## Add-printer flow (L34245-34918)
 Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.js` owns the shell.
 
 | L | What | Anchors |
@@ -327,7 +327,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Racks CRUD + slots (L35301-37618)
+## Racks CRUD + slots (L35311-37628)
 | L | What | Anchors |
 |---|---|---|
 | 12535-12700 | Rack create / update / delete / empty + orphan ref cleanup | `createRack`, `updateRack`, `deleteRack`, `emptyRack` |
@@ -339,7 +339,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Storage view render + DnD (L37863-39397)
+## Storage view render + DnD (L37873-39407)
 | L | What | Anchors |
 |---|---|---|
 | 13420-14065 | **`renderRackView()`** — biggest function in the file: stats bar + filter chips, two-column layout, masonry, kebab menus, live search, read-only friend mode, rack reorder DnD | `renderRackView` |
@@ -349,7 +349,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Friend view (L39576-40206)
+## Friend view (L39586-40216)
 | L | What | Anchors |
 |---|---|---|
 | 14510-14591 | Friend inventory open/close (one-shot read, no live updates) | `openFriendInventory`, `closeFriendInventory` |
@@ -359,7 +359,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Display name + friend requests (L40628-41996)
+## Display name + friend requests (L40638-42006)
 | L | What | Anchors |
 |---|---|---|
 | 14979-15022 | **Display-name setup modal** (first-login pseudo picker) | `openDisplayNameSetup` |
@@ -368,7 +368,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Keys + profile sync (L42034-42116)
+## Keys + profile sync (L42044-42126)
 | L | What | Anchors |
 |---|---|---|
 | 15176-15220 | **`claimPublicKey(uid, oldKey)`** atomic transaction (10 retries) + regenerate + send friend request | `claimPublicKey`, `sendFriendRequest` |
@@ -376,7 +376,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Custom avatar (L42297-42595)
+## Custom avatar (L42307-42605)
 | L | What | Anchors |
 |---|---|---|
 | 15783-15957 | File pick, image decode, alpha detection, resize to blob, upload, remove | `uploadCustomAvatar`, `removeCustomAvatar` |
@@ -384,7 +384,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## User doc sync + telemetry + bootstrap (L42612-43778)
+## User doc sync + telemetry + bootstrap (L42622-44014)
 | L | What | Anchors |
 |---|---|---|
 | 16436-16851 | **`syncUserDoc(uid)`** — displayName/roles/Debug/keys/isPublic + **client telemetry** (studio* fields + `telemetry/studio` aggregates, fire-and-forget) | `syncUserDoc`, `hydrateUserDocCache` |
@@ -394,7 +394,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Electron RFID integration (L43905-44226)
+## Electron RFID integration (L44141-44469)
 | L | What | Anchors |
 |---|---|---|
 | 30262-30349 | Reader indicator (topbar), reader connect/disconnect, card present/removed badge | `renderRfidReaderBadges` |
@@ -406,7 +406,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Local MCP server — tools + Settings card (L44316-44885)
+## Local MCP server — tools + Settings card (L44559-45128)
 | L | What | Anchors |
 |---|---|---|
 | 37891-38351 | **Read-only MCP tools** + whole-account read (`data_guide` notice, decoder, `firestore_get` / `firestore_query`, friends, wishlists, history, devices; credential masking `MCP_SECRET_FIELD`, scope `_mcpCheckPath`) — definitions (`search_inventory`, `get_spool`, `inventory_summary`, `list_racks`, `list_printers`), row serialiser, handlers, `mcp:call` → `mcp:result` relay. Server itself: `services/mcpServer.js` | `MCP_TOOLS`, `MCP_HANDLERS`, `_mcpRows`, `_mcpSpool` |
@@ -420,29 +420,29 @@ Most common navigation tasks → grep these anchors first:
 | You want to … | Grep / open |
 |---|---|
 | Add or change an i18n key | `function t` L572; *use `npm run i18n:add` for the actual write* |
-| Touch the spool detail panel | `buildPanelHTML` L8559, `openDetail` L7743 |
-| Touch the weight slider / weight save | `doWeightUpdate` L9290, `_patchDetailWeight` L7652 |
-| Touch the Add Product panel | `openAddProductPanel` L2222, `saveAddProduct` L2408 |
-| Touch the RFID encode/burn modal | `openEncodeModal` L6953, `_cemStartBurn` L7098 |
-| Touch a modal | Twin link L8387, Container L8462, Rack edit L15978, Login L3577, Edit account L3292 |
-| Touch the storage view | `renderRackView` L15099 — biggest function in the file |
-| Touch rack drag-drop | `wireDragSources` L15739, `wireDropTargets` L15804, drop-to-void L15891 |
-| Touch the printers grid / table / cam wall | `renderPrintersView` L10492, `_renderPrinterTable` L10661, `_renderPrinterCam` L10826 |
-| Touch the printer detail card | `renderPrinterDetail` L11819, `openPrinterDetail` L11245 |
+| Touch the spool detail panel | `buildPanelHTML` L8568, `openDetail` L7752 |
+| Touch the weight slider / weight save | `doWeightUpdate` L9299, `_patchDetailWeight` L7661 |
+| Touch the Add Product panel | `openAddProductPanel` L2231, `saveAddProduct` L2417 |
+| Touch the RFID encode/burn modal | `openEncodeModal` L6962, `_cemStartBurn` L7107 |
+| Touch a modal | Twin link L8396, Container L8471, Rack edit L15987, Login L3586, Edit account L3301 |
+| Touch the storage view | `renderRackView` L15108 — biggest function in the file |
+| Touch rack drag-drop | `wireDragSources` L15748, `wireDropTargets` L15813, drop-to-void L15900 |
+| Touch the printers grid / table / cam wall | `renderPrintersView` L10501, `_renderPrinterTable` L10670, `_renderPrinterCam` L10835 |
+| Touch the printer detail card | `renderPrinterDetail` L11828, `openPrinterDetail` L11254 |
 | Touch a printer brand integration (WS/MQTT/HTTP, live block, filament edit) | `printers/<brand>/index.js` — NOT in this file |
 | Touch the Anycubic MQTT layer (LAN + cloud) | `acuConnect` in `printers/anycubic/index.js` (+ `anycubic:*` IPC in main.js) |
 | Touch the Anycubic live block / ACE card | `renderAnycubicLiveInner`, `renderAcuFilamentCard` |
-| Touch a printer camera banner | `printers/<brand>/widget_camera.js`; dispatch at `renderCamBanner` L11808 |
-| Touch the Add-printer scan flow | `printers/<brand>/add-flow.js`; shell at `openPrinterBrandPicker` L13024 |
-| Touch the printer tutorials | `openPrinterTutorial` L13351 |
-| Touch the TigerScale panel | `IoT/tigerscale/index.js`; init wiring at L3142 |
+| Touch a printer camera banner | `printers/<brand>/widget_camera.js`; dispatch at `renderCamBanner` L11817 |
+| Touch the Add-printer scan flow | `printers/<brand>/add-flow.js`; shell at `openPrinterBrandPicker` L13033 |
+| Touch the printer tutorials | `openPrinterTutorial` L13360 |
+| Touch the TigerScale panel | `IoT/tigerscale/index.js`; init wiring at L3151 |
 | Touch the TD1S sensor / TD-Color edit modals | `IoT/td1s/index.js` + `edit-modals.js` |
-| Touch the Friends system | lists L9816, friend view L16182, requests L16693 |
-| Touch the custom avatar / cropper | `openAvatarCropper` L17150, `uploadCustomAvatar` L17074 |
-| Touch the auth flow | `handleSignedIn` L4499, `initAuth` L4632, login modal L3577 |
-| Touch the Firestore subscriptions | inventory L4386, racks L10112, printers L10156, friend reqs L16693 |
-| Touch the telemetry | `syncUserDoc` L17350 (studio* fields), `_recordUsage` L8337 |
-| Touch the auto-update banner | L9500 |
+| Touch the Friends system | lists L9825, friend view L16191, requests L16702 |
+| Touch the custom avatar / cropper | `openAvatarCropper` L17159, `uploadCustomAvatar` L17083 |
+| Touch the auth flow | `handleSignedIn` L4508, `initAuth` L4641, login modal L3586 |
+| Touch the Firestore subscriptions | inventory L4395, racks L10121, printers L10165, friend reqs L16702 |
+| Touch the telemetry | `syncUserDoc` L17359 (studio* fields), `_recordUsage` L8346 |
+| Touch the auto-update banner | L9509 |
 | Touch the diagnostic / report-problem modal | `reportError` L721, `openDiagnosticModal` L822 |
 
 ---
@@ -454,5 +454,5 @@ Most common navigation tasks → grep these anchors first:
 - **Selectors**: `$` is `document.getElementById`. Many DOM nodes have IDs matching the section (e.g. `#detailPanel`, `#friendsPanel`).
 - **i18n**: 11 locales (en/fr/de/es/it/zh/pt/pt-pt/pl/ru/nl) under `renderer/locales/`. Never hand-edit — use `npm run i18n:add`. The `npm run i18n:check` pre-commit hook blocks drift.
 - **CSS**: 10 themed files under `renderer/css/` (`00-base.css` → `70-detail-misc.css`, plus `55-creality.css` and `57-elegoo.css`). When this file references a UI section, the styles live in the matching CSS module.
-- **Per-brand camera widgets**: each printer folder has a `widget_camera.js` that owns all camera HTML + lifecycle. `inventory.js` calls `renderCamBanner(p)` (L11808) which dispatches — it never builds camera HTML inline. To add a brand: create `printers/<brand>/widget_camera.js`, export `render<Brand>CamBanner(p)`, add a case in `renderCamBanner`, CSS in `renderer/css/5X-<brand>.css`.
+- **Per-brand camera widgets**: each printer folder has a `widget_camera.js` that owns all camera HTML + lifecycle. `inventory.js` calls `renderCamBanner(p)` (L11817) which dispatches — it never builds camera HTML inline. To add a brand: create `printers/<brand>/widget_camera.js`, export `render<Brand>CamBanner(p)`, add a case in `renderCamBanner`, CSS in `renderer/css/5X-<brand>.css`.
 - **Line numbers drift** — if a range looks wrong, grep the anchor name. `npm run codemap:check` catches major drift at commit time.

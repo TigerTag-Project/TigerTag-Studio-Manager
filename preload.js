@@ -360,6 +360,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // request is made from the main process rather than the renderer).
   sendTagAnalytics: (payload) =>
     ipcRenderer.send('analytics:tag', payload),
+  // Whether a TigerTag+ backup carries a valid factory signature (Certified).
+  analyticsChipCertified: (uidHex, backupHex) =>
+    ipcRenderer.invoke('analytics:chip-certified', uidHex, backupHex),
 
   // Called when an app update is available or ready to install
   onUpdateStatus: (callback) =>
