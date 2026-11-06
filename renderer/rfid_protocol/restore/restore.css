@@ -4,6 +4,16 @@
    backup writes back uses the NFC tag tester's result look (tigertag/modal.css). */
 
 #chipRestorePanel { width: 400px; max-width: 95vw; z-index: 101; display: flex; flex-direction: column; }
+/* The body scrolls: its blocks keep their height. Shrunk, the banner's block
+   (overflow: hidden) was squashed to 2 px once the photo filled the card. */
+#chipRestorePanel .cer-body > * { flex-shrink: 0; }
 .crs-data { display: flex; flex-direction: column; gap: 12px; }
 .crs-data:empty { display: none; }
-.crs-res { padding: 12px; border-radius: 14px; border: 1px solid var(--border); background: var(--surface-2); animation: lc-in .22s ease both; }
+.crs-card { border-radius: 14px; border: 1px solid var(--border); background: var(--surface-2); overflow: hidden; animation: lc-in .22s ease both; }
+.crs-card .panel-identity { padding: 10px 14px 12px; }
+/* Debug mode: the UIDs, the chip's fields and the raw pages written back. */
+.crs-debug, .crs-debug-sheet { display: flex; flex-direction: column; gap: 8px; }
+.crs-debug { gap: 14px; }
+.crs-debug:empty { display: none; }
+.aspect-chip--cert { display: inline-flex; align-items: center; gap: 5px; background: var(--success-soft); color: var(--success-text); }
+.aspect-chip--cert .icon { background-color: currentColor; }

@@ -384,6 +384,7 @@ export function closeChipChoice() {
   el.classList.remove("open");
   closeChipLink();
   ctx.closeEraser?.();
+  ctx.closeRestore?.();
   ctx.clearCreate?.();
   // Hand the borrowed cards back once the card has slid out.
   setTimeout(() => { if (!el.classList.contains("open")) unembedAll(); }, 280);

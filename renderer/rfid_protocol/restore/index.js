@@ -78,7 +78,7 @@ async function probe(readerName, uid) {
   let info = null;
   if (hex) {
     const res = await window.electronAPI.decodeChipBackup?.(uid, hex).catch(() => null);
-    if (res?.ok) info = { ...ctx.describeChip(uid, res.raw), certified: res.certified };
+    if (res?.ok) info = await ctx.describeChip(uid, res.raw, res.certified).catch(() => null);
   }
   if (slots.get(readerName) !== s) return;   // the chip moved meanwhile
   Object.assign(s, hex && info ? { kind: "ready", hex, info } : { kind: "nobackup" });
@@ -103,29 +103,31 @@ function render() {
     </div>`;
   }).join("");
 
-  // What each backup writes back, in the NFC tag tester's look. The two chips of
-  // a twin spool carry the same data: one sheet, both UIDs.
+  // What each backup writes back, as a light product card (photo, names, chips).
+  // The two chips of a twin spool carry the same data: one card. The UIDs, the
+  // chip's fields and the raw pages written back are for Debug mode only.
   const ready = readers.map((name, i) => [i + 1, slots.get(name)]).filter(([, s]) => s?.kind === "ready");
-  const sheets = new Map();   // the data, as text → { info, chips: [[n, uid]] }
+  const sheets = new Map();   // the data → { info, chips: [[n, slot]] }
   for (const [n, s] of ready) {
-    const key = JSON.stringify([s.info.title, s.info.sub, s.info.fields, s.info.certified]);
-    if (!sheets.has(key)) sheets.set(key, { info: s.info, chips: [] });
-    sheets.get(key).chips.push([n, s.uid]);
+    if (!sheets.has(s.info.key)) sheets.set(s.info.key, { info: s.info, chips: [] });
+    sheets.get(s.info.key).chips.push([n, s]);
   }
-  const numbered = readers.length > 1;
-  $("chipRestoreData").innerHTML = [...sheets.values()].map(({ info: f, chips }) => {
-    const badges = `<span class="rfid-version-badge">TigerTag+</span>${f.certified ? `<span class="rfid-version-badge rfid-version-badge--cert">${esc(t("chipRestoreCertified"))}</span>` : ""}`;
-    return `<div class="rfid-res crs-res">
-      <div class="rfid-res-top">
-        <span class="rfid-res-swatch" style="background:${f.bg}" aria-hidden="true"></span>
-        <span class="rfid-res-name"><b>${esc(f.title)}</b><small>${esc(f.sub)}</small></span>
-        ${badges}
-      </div>
-      ${chips.map(([n, uid]) => `<div class="rfid-uid-row"><span class="rfid-uid-lbl">${numbered ? n + " · " : ""}UID</span><code>${esc(uid)}</code></div>`).join("")}
-      <dl class="rfid-fields-grid">${f.fields.map(([label, val]) =>
-        `<div class="rfid-field"><dt>${esc(label)}</dt><dd>${esc(val)}</dd></div>`).join("")}</dl>
-    </div>`;
-  }).join("");
+  const debug = !!ctx.debug?.();
+  const sig = JSON.stringify([debug, ...[...sheets.values()].map(x => [x.info.key, x.chips.map(([n, s]) => n + s.uid)])]);
+  const data = $("chipRestoreData");
+  // Rebuilt only when the cards change: a photo is not reloaded on every chip event.
+  if (data._sig !== sig) {
+    data._sig = sig;
+    data.innerHTML = [...sheets.values()].map(({ info: f, chips }) => `<div class="crs-card">${f.html(chips.length > 1)}</div>`).join("");
+    // Under the banner, so the action stays in reach.
+    $("chipRestoreDebug").innerHTML = debug ? [...sheets.values()].map(({ info: f, chips }) => `
+      <div class="crs-debug-sheet">
+        ${chips.map(([n, s]) => `<div class="rfid-uid-row"><span class="rfid-uid-lbl">${readers.length > 1 ? n + " · " : ""}UID</span><code>${esc(s.uid)}</code></div>`).join("")}
+        <dl class="rfid-fields-grid">${f.fields.map(([label, val]) =>
+          `<div class="rfid-field"><dt>${esc(label)}</dt><dd>${esc(val)}</dd></div>`).join("")}</dl>
+        ${chips.map(([n, s]) => `<details class="rfid-raw-block"><summary>${readers.length > 1 ? n + " · " : ""}Raw pages · ${s.hex.length / 2} bytes</summary><pre class="rfid-raw-hex">${esc(s.hex.match(/.{1,32}/g).join("\n"))}</pre></details>`).join("")}
+      </div>`).join("") : "";
+  }
 
   const list = [...slots.values()];
   const hint = $("chipRestoreHint");

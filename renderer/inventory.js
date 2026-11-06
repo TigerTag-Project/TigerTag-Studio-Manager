@@ -4724,7 +4724,8 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   // Restore TigerTag+ — the new-chip card's "Restore" view (rfid_protocol/restore).
   initChipRestore({ t, esc, state, reportError,
     syncPanels: () => _syncPanels(), showTip: el => _showToolInfoTip(el), hideTip: () => _hideToolInfoTip(),
-    chipBackup: uid => _chipBackup(uid), describeChip: (uid, raw) => _describeChipRaw(uid, raw),
+    chipBackup: uid => _chipBackup(uid), describeChip: (uid, raw, certified) => _describeChipRaw(uid, raw, certified),
+    debug: () => !!state.debugEnabled,
     restoreChip: c => _restorePlusChip(c.readerName, c.uid, c.hex),
     chipBanner: (id, title, info, opts) => _chipBannerHTML(id, title, info, opts),
     wireChipBanner: (el, action, ready) => _wireChipBanner(el, action, "chipRestoreNeedChip", ready) });
@@ -20494,28 +20495,42 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     setLbl(t("toolRepairFailed")); console.warn("[repair] failed:", res);
     return { ok: false, pagesWritten: 0 };
   }
-  // A backup's fields (SDK raw dict) as the Restore card shows them: the swatch
-  // through colorBg like every spool, names from the reference tables.
-  function _describeChipRaw(uid, raw) {
-    const r = normalizeRow(uid, { ...raw, data1: raw.id_diameter, measure_gr: raw.measure_gr ?? raw.measure });
-    const aspects = [r.aspect1, r.aspect2].filter(a => a && a !== "-" && a !== "None").join(", ");
-    const qty = raw.measure_gr != null ? `${raw.measure_gr} g` : raw.measure ? String(raw.measure) : "";
+  // A backup (SDK raw dict) as the Restore card shows it: a light product card —
+  // the catalogue's photo and names when the chip carries a catalogue product,
+  // else the spool colour (colorBg) and the reference-table names — plus, for
+  // Debug mode only, the chip's fields.
+  async function _describeChipRaw(uid, raw, certified) {
+    const base = normalizeRow(uid, { ...raw, data1: raw.id_diameter, measure_gr: raw.measure_gr ?? raw.measure });
+    const cat = _hasRealProductId(raw.id_product) ? await _catResolveRow(raw.id_product).catch(() => null) : null;
+    const r = cat ? { ...cat, capacity: base.capacity || cat.capacity } : base;
+    // The chip's own badges, as on its spool card: TigerTag+, Refill, the twin link
+    // when the chip says it is one of two (tag_info low nibble), the backup shield
+    // (it has one: it is being restored from it), and its TD.
+    // `html(twin)`: the twin link shows when the card holds both chips of a pair
+    // (the Restore card groups them), or when the chip says it is one of two.
+    const chip = { ...r, isCloud: false, isCloudPlus: false, isPlus: true, rfidBackup: true, isRefill: r.isRefill || base.isRefill };
+    const td = raw.td_raw ? `<span class="panel-img-badge panel-img-badge--bl panel-td-badge">TD ${(raw.td_raw / 10).toFixed(1)}</span>` : "";
+    const hero = twin => _productHeroParts({ ...chip, hasTwinPair: twin || (Number(raw.tag_info) & 15) >= 2 }, {}, "chipRestoreData",
+      { overlays: _panelTlBadgesHTML({ ...chip, hasTwinPair: twin || (Number(raw.tag_info) & 15) >= 2 }) + td });
+    const { row1Parts, name2, badgeHtml, weightChip } = hero(false);
+    const cert = certified ? `<span class="aspect-chip aspect-chip--cert"><span class="icon icon-shield-check icon-12" aria-hidden="true"></span>${esc(t("chipRestoreCertified"))}</span>` : "";
+    const html = twin => `${hero(twin).imgSection}
+      <div class="panel-section panel-identity pc-identity">
+        <div class="pi-ident-text">
+          ${row1Parts.length ? `<div class="pi-row1">${row1Parts.join(" · ")}</div>` : ""}
+          ${name2 ? `<div class="pi-row2 pi-row2--name">${esc(name2)}</div>` : ""}
+          <div class="aspect-chips pc-ident-chips">${badgeHtml}${weightChip}${cert}</div>
+        </div>
+      </div>`;
     const range = (a, b) => (a || b ? `${a}–${b} °C` : "—");
-    const colors = (raw.color_list || []).map(c => String(c).slice(0, 7).toUpperCase()).join(" ");
     const fields = [
-      [t("detColor"), colors || r.colorHex || "—"],
-      [t("lbNozzle"), range(raw.nozzle_min, raw.nozzle_max)],
-      [t("lbBed"), range(raw.bed_min, raw.bed_max)],
-      [t("addProductDrying"), raw.dry_temp ? `${raw.dry_temp} °C · ${raw.dry_time} h` : "—"],
-      [t("detMeasure"), qty || "—"],
-      [t("detProductId"), _hasRealProductId(raw.id_product) ? String(raw.id_product) : "—"],
+      ["id_product", String(raw.id_product ?? "—")], ["id_brand", String(raw.id_brand ?? "—")],
+      ["id_material", String(raw.id_material ?? "—")], ["color", (raw.color_list || []).join(" ") || "—"],
+      ["nozzle", range(raw.nozzle_min, raw.nozzle_max)], ["bed", range(raw.bed_min, raw.bed_max)],
+      ["dry", raw.dry_temp ? `${raw.dry_temp} °C · ${raw.dry_time} h` : "—"], ["measure", String(raw.measure_gr ?? raw.measure ?? "—")],
+      ["timestamp", String(raw.timestamp ?? "—")], ["message", raw.message || "—"],
     ];
-    if (raw.message) fields.push([t("listMessageLabel"), raw.message]);
-    return {
-      title: [r.brand !== "-" ? r.brand : "", r.material !== "-" ? r.material : ""].filter(Boolean).join(" ") || t("toolRepairPlus"),
-      sub: [aspects, r.diameter].filter(Boolean).join(" · "),
-      bg: colorBg(r), fields,
-    };
+    return { key: JSON.stringify([raw.id_product, raw.id_brand, raw.id_material, raw.color_list, raw.measure, raw.message, certified]), html, fields };
   }
 
   function _wireToolbox(r) {
@@ -22483,15 +22498,17 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   // What says WHAT the product is — shared by the merged owner card and the
   // read-only friend card: illustration, "Brand · Series · Material", colour name,
   // and the aspect / refill / recycled / filled / weight chips.
-  function _productHeroParts(r, p, panelId = "productCardBody") {
+  // `overlays`: the illustration's badges when the caller has a spool to describe
+  // (the Restore card); by default only Refill, a product has no chip.
+  function _productHeroParts(r, p, panelId = "productCardBody", { overlays = null } = {}) {
     // Illustration — real photo, else the colour placeholder with the RFID logo.
     const imgUrl = r.imgUrl || p.label?.imgUrl || "";
     const _img = imgUrl ? _panelImg(imgUrl, panelId) : null;
     const onerr = `this.outerHTML='<div class=\\'panel-img-color-placeholder\\'style=\\'background:${colorBg(r)}\\'><img src=\\'${logoSrc(colorBg(r))}\\'class=\\'panel-img-logo\\'></div>'`;
     // Refill top-left, like every illustration (see `buildPanelHTML`).
-    const refill = r.isRefill
+    const refill = overlays ?? (r.isRefill
       ? `<div class="panel-img-badge panel-img-badge--tl panel-img-badge-group"><span class="panel-img-badge-item panel-img-icon-badge panel-img-refill-badge"><span class="icon icon-recycle icon-11" aria-hidden="true"></span><span class="refill-txt">Refill</span></span></div>`
-      : "";
+      : "");
     const imgSection = _img
       ? `<div class="panel-img-wrap" style="background:${colorBg(r)}"><img class="panel-img" src="${esc(_img)}" onerror="${esc(onerr)}" />${refill}</div>`
       : `<div class="panel-img-wrap"><div class="panel-img-color-placeholder" style="background:${colorBg(r)}"><img src="${logoSrc(colorBg(r))}" class="panel-img-logo" /></div>${refill}</div>`;
@@ -23891,22 +23908,12 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     else if (!state.friendView) openReorderPanel(r, { editBuyLink: true });
   });
 
-  function buildPanelHTML(r) {
-    const mat = r.materialData;
-
-    // image + badge overlay
-    // Corners, the same on every illustration (grid card, table thumb, panels):
-    // top-left = tier, then Refill, twin, backup stacked below; top-right = the
-    // pending-chip dot; bottom-left = TD; bottom-right = ❤/★/🛍.
+  // The top-left group of a spool illustration: tier, then Refill, twin, backup
+  // stacked below (buildPanelHTML, the Restore card).
+  function _panelTlBadgesHTML(r) {
     const badgeTier = tierBadgeHTML(r, "panel-img-badge-item", { backup: false });
     const badgeTwin = r.hasTwinPair
       ? `<span class="tag-twin panel-img-badge-item panel-img-icon-badge" title="${t("twinBadge")} — ${t("twinTitle")}"><span class="icon icon-link icon-11"></span></span>`
-      : "";
-    const badgeChip = r.needUpdateAt
-      ? `<span class="chip-badge panel-img-badge panel-img-badge--tr panel-img-icon-badge" title="${t("chipPendingHint")}"><span class="icon icon-refresh icon-11"></span></span>`
-      : "";
-    const badgeTd = r.td != null
-      ? `<span class="panel-img-badge panel-img-badge--bl panel-td-badge">TD ${r.td}</span>`
       : "";
     const badgeBackup = (r.isPlus && r.rfidBackup)
       ? `<span class="panel-img-badge-item panel-img-icon-badge panel-img-backup-badge" title="${esc(t("backupBadge"))}"><span class="icon icon-backup icon-11"></span></span>`
@@ -23914,10 +23921,25 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     const badgeRefill = r.isRefill
       ? `<span class="panel-img-badge-item panel-img-icon-badge panel-img-refill-badge"><span class="icon icon-recycle icon-11" aria-hidden="true"></span><span class="refill-txt">Refill</span></span>`
       : "";
-    const badgeTlGroup = (badgeTier || badgeRefill || badgeTwin || badgeBackup)
+    return (badgeTier || badgeRefill || badgeTwin || badgeBackup)
       ? `<div class="panel-img-badge panel-img-badge--tl panel-img-badge-group">${badgeTier}${badgeRefill}${badgeTwin}${badgeBackup}</div>`
       : "";
-    const overlays = badgeTlGroup + badgeChip + badgeTd + _productBadgesHTML(r);
+  }
+
+  function buildPanelHTML(r) {
+    const mat = r.materialData;
+
+    // image + badge overlay
+    // Corners, the same on every illustration (grid card, table thumb, panels):
+    // top-left = tier, then Refill, twin, backup stacked below; top-right = the
+    // pending-chip dot; bottom-left = TD; bottom-right = ❤/★/🛍.
+    const badgeChip = r.needUpdateAt
+      ? `<span class="chip-badge panel-img-badge panel-img-badge--tr panel-img-icon-badge" title="${t("chipPendingHint")}"><span class="icon icon-refresh icon-11"></span></span>`
+      : "";
+    const badgeTd = r.td != null
+      ? `<span class="panel-img-badge panel-img-badge--bl panel-td-badge">TD ${r.td}</span>`
+      : "";
+    const overlays = _panelTlBadgesHTML(r) + badgeChip + badgeTd + _productBadgesHTML(r);
     // The edit bar lives inside panel-img-wrap at the bottom.
     // The trigger (Edit icon) IS the left anchor of the bar — clicking it
     // expands the bar rightward to reveal the input + confirm button.
