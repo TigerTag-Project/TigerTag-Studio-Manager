@@ -12,6 +12,8 @@ prerequisite for doing so.
 
 Current version: **2.52.0** — macOS (Intel + Apple Silicon, signed & notarized), Windows, Linux.
 
+Showcase site (11 languages, built from `site/`, deployed by `.github/workflows/pages.yml`): https://tigertag-project.github.io/TigerTag-Studio-Manager/ — downloads: https://github.com/TigerTag-Project/TigerTag-Studio-Manager/releases/latest
+
 ## Architecture
 
 - **Entry point**: `main.js` (Electron main process)
