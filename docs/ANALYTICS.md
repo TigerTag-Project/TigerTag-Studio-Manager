@@ -17,23 +17,26 @@ the `analytics:tag` queue in `main.js`.
 
 ## Operations
 
-| Operation | When | Sent by |
-|---|---|---|
-| `read` / `online` | a chip scanned (`online` = TigerTag+ with a catalogue product) | always |
-| `write` | a chip burn verified | always |
-| `reset` / `nfc_init` | chip formatted to TigerTag Init / recycled to plain NFC | always |
-| `create` | a spool comes into this account by any path (add form, catalogue, duplicate, mint, `.ttag` import, first scan of a chip) | flag only |
-| `edit` | this instance changes a spool doc; `Changed` = field names; coalesced per spool over 5 minutes | flag only |
-| `delete` | this instance deletes a spool; fields from before the deletion | flag only |
+| Operation | When |
+|---|---|
+| `read` / `online` | a chip scanned (`online` = TigerTag+ with a catalogue product) |
+| `write` | a chip burn verified |
+| `reset` / `nfc_init` | chip formatted to TigerTag Init / recycled to plain NFC |
+| `create` | a spool comes into this account by any path (add form, catalogue, duplicate, mint, `.ttag` import, first scan of a chip) |
+| `edit` | this instance changes a spool doc; `Changed` = field names; coalesced per spool over 5 minutes |
+| `delete` | this instance deletes a spool; fields from before the deletion |
 
-`create` / `edit` / `delete` are behind `ANALYTICS_SPOOL_EVENTS` (renderer, off) until Xano's
-`operation` column accepts them and has its `protocol` / `spool_id` columns
-(TigerTag-Project/TigerTag-Manager#112). With the flag on, every event also carries:
+`create` / `edit` / `delete` are live since 2026-11-06, when Xano production accepted them with
+its `protocol` / `spool_id` columns and started caching the IP lookup per IP for 24 h (a 500-spool
+import costs one lookup; TigerTag-Project/TigerTag-Manager#112). `ANALYTICS_SPOOL_EVENTS`
+(renderer) stays as a kill switch: false sends only the chip events. The contract was checked
+against Xano's dry-run and then on production rows. Every event also carries:
 
 - `Protocol`: `TigerData`, `TigerData+`, `TigerTag`, `TigerTag+`, `TigerTag+ Certified` or `unknown`.
   Certified = the factory signature checks out: known from the scan, otherwise the
   `rfidList/{uid}.backup` is verified once per chip and session (the backend's own test).
-- `SpoolId`: the inventory doc id. `Uid` (decimal) only for chip formats.
+- `SpoolId`: the inventory doc id. `Uid` (decimal) only for chip formats; Xano stores 0 for
+  TigerData / TigerData+ (the column is not nullable).
 - `Weight` is always the capacity (`measure_gr`); `WeightAvailable` is the remaining grams, on every
   spool event and on a chip event when the spool doc is known.
 - `IdTigerTag` is left out for TigerData / TigerData+ (0 means "RFID Empty" in Xano).
@@ -50,14 +53,6 @@ the `analytics:tag` queue in `main.js`.
   `SpoolId` over 60 s; `edit` by the 5-minute coalescing.
 - `Location` is always `"0.0,0.0"` (no position, the convention shared with mobile); Xano locates
   the event from the request's IP, to the city, on its side. Studio sends no IP.
-
-## Contract test (dev only, temporary)
-
-`ANALYTICS_TEST_ENDPOINT = true` in `main.js` sends every operation, `online` included, to Xano's
-dry-run copy `https://api.tigertag.io/api:tigertag/analytics/tag_v2_test`, which computes the row
-and writes nothing, and logs each returned `record` at debug level. It is forced off in a packaged
-build (`app.isPackaged`); a release never ships with it on. It goes away with the endpoint once the
-spool events are live in production.
 
 ## Failures
 

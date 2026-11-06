@@ -1433,8 +1433,8 @@ ipcMain.handle('rfid:refresh-api', async (_evt, rawDoc) => {
 });
 
 // ── Xano chip-event analytics ─────────────────────────────────────────────────
-// Reports physical-chip events (read / write / reset / recycle) and, behind the
-// renderer's ANALYTICS_SPOOL_EVENTS flag, every spool's create / edit / delete
+// Reports physical-chip events (read / write / reset / recycle) and every spool's
+// create / edit / delete
 // (any format, chipless included) to the TigerTag Xano analytics table, mirroring what the mobile app (Tiger RFID Connect,
 // lib/services/analytics_service.dart) already sends — so both apps land in the
 // same table with the same shape.
@@ -1469,15 +1469,6 @@ ipcMain.handle('rfid:refresh-api', async (_evt, rawDoc) => {
 // city, on its own side. Studio sends no IP and must not.
 const XANO_ANALYTICS_URL = 'https://api.tigertag.io/api:tigertag/analytics/tag';
 const XANO_PRODUCT_URL   = 'https://api.tigertag.io/api:tigertag/product/get';
-// DEV ONLY — contract test. Xano's dry-run copy of analytics/tag computes the row
-// it would store and writes NOTHING; it answers `{ success, dry_run, ip_asked,
-// ip_status, brand, material, record }`. On, EVERY operation goes there (`online`
-// included: product/get is not used) and each `record` is logged at debug level.
-// Forced off in a packaged build, so no release can ship with it; remove it with
-// the endpoint once the spool events are live in production.
-const ANALYTICS_TEST_ENDPOINT = false;
-const XANO_ANALYTICS_TEST_URL = 'https://api.tigertag.io/api:tigertag/analytics/tag_v2_test';
-const _analyticsTestMode = () => ANALYTICS_TEST_ENDPOINT && !app.isPackaged;
 
 // Node's platform names are kernel names, not product names: "darwin" is macOS and
 // "win32" is ALL Windows (64-bit included — it's a legacy name, not a bitness). Next
@@ -1539,8 +1530,7 @@ function _analyticsSend(payload) {
     AppVersion: app.getVersion(),
     App: 'studio',                     // tells Studio rows apart from mobile ones
   };
-  const url = _analyticsTestMode() ? XANO_ANALYTICS_TEST_URL
-    : body.Operation === 'online'
+  const url = body.Operation === 'online'
     ? `${XANO_PRODUCT_URL}?uid=${encodeURIComponent(body.Uid)}&product_id=${encodeURIComponent(body.IdProduct)}`
     : XANO_ANALYTICS_URL;
   const json = JSON.stringify(body);
@@ -1561,14 +1551,7 @@ function _analyticsSend(payload) {
   })
     .then(async (resp) => {
       _analyticsStats.sent++;
-      if (resp.ok) {
-        log.info(`[analytics] ${body.Operation} ${who} → HTTP ${resp.status}`);
-        if (_analyticsTestMode()) {
-          const j = await resp.json().catch(() => null);
-          log.debug(`[analytics] dry-run ${body.Operation} ip_asked=${j?.ip_asked} ip_status=${j?.ip_status} record=${JSON.stringify(j?.record)}`);
-        }
-        return;
-      }
+      if (resp.ok) { log.info(`[analytics] ${body.Operation} ${who} → HTTP ${resp.status}`); return; }
       // Xano answers `{ code, message, payload }`; anything else is kept raw, cut short.
       const text = await resp.text().catch(() => '');
       let code = null, message = text.slice(0, 300);

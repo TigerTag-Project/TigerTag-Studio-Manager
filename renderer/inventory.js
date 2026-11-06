@@ -42998,9 +42998,10 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   }
 
   /* ── Spool events: create / edit / delete, every format ───────────────────
-     Off until Xano's `operation` column accepts create / edit / delete and has
-     its `protocol` / `spool_id` columns (TigerTag-Project/TigerTag-Manager#112).
-     Off, only the chip events above are sent, exactly as before.
+     Live since Xano accepts create / edit / delete with its `protocol` /
+     `spool_id` columns and caches the IP lookup per IP for 24 h, so a bulk
+     import costs one lookup (TigerTag-Project/TigerTag-Manager#112). The flag
+     stays as a kill switch: false sends only the chip events above.
 
      WHERE THEY COME FROM. Not from each of the ~40 places that write a spool:
      the Firestore SDK's own write calls are wrapped once (`_xanoWatchWrites`), and
@@ -43022,7 +43023,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
      `create` / `delete` are deduped per spool over 60 s (a transaction may run
      twice). Bulk actions send one event per spool: the main process paces them.
      Never while viewing a friend's inventory. */
-  const ANALYTICS_SPOOL_EVENTS = false;
+  const ANALYTICS_SPOOL_EVENTS = true;
   const XANO_EDIT_WINDOW_MS = 5 * 60_000;
   // An edit right after the spool was created is part of its creation.
   const XANO_AFTER_CREATE_MS = 10_000;
