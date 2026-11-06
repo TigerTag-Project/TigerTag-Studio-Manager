@@ -20554,7 +20554,11 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         if (!hex) { setLbl(t("toolRepairNoBackup")); return; }
         setLbl(t("toolRepairWriting"));
         const res = await window.electronAPI.repairRfidTag({ readerName: reader, uid, hex });
-        if (res?.ok && res.verified !== false) setLbl(res.pagesWritten === 0 ? t("toolRepairAlready") : t("toolRepairDone"));
+        if (res?.ok && res.verified !== false) {
+          setLbl(res.pagesWritten === 0 ? t("toolRepairAlready") : t("toolRepairDone"));
+          // An intact chip (0 pages) or a failed repair reports nothing.
+          if (res.pagesWritten > 0) _sendRepairAnalytics(r.spoolId, uid, res.pagesWritten);
+        }
         else { setLbl(t("toolRepairFailed")); console.warn("[repair] failed:", res); }
       } catch (e) { setLbl(t("toolRepairFailed")); reportError("spool.repairPlus", e); }
     });
@@ -43024,6 +43028,9 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
      twice). Bulk actions send one event per spool: the main process paces them.
      Never while viewing a friend's inventory. */
   const ANALYTICS_SPOOL_EVENTS = true;
+  // `repair` (a TigerTag+ rewritten from its rfidList backup): off until Xano's
+  // `operation` column accepts it.
+  const ANALYTICS_REPAIR_EVENT = false;
   const XANO_EDIT_WINDOW_MS = 5 * 60_000;
   // An edit right after the spool was created is part of its creation.
   const XANO_AFTER_CREATE_MS = 10_000;
@@ -43113,6 +43120,20 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         _xanoPost(operation, { ...fields, ...(more || {}) }, now);
       })
       .catch(e => console.warn("[analytics] spool event skipped:", e?.message));
+  }
+
+  // A repaired TigerTag+: the chip was rewritten from its backup and verified.
+  // Goes through `_sendTagAnalytics` (same queue, 60 s de-duplication per UID).
+  function _sendRepairAnalytics(spoolId, uidHex, pagesWritten) {
+    if (!ANALYTICS_REPAIR_EVENT) return;
+    const doc = state.inventory?.[spoolId] || {};
+    const f = _xanoChipFields(doc, { withBed: true });
+    if (!_hasRealProductId(doc.id_product)) delete f.IdProduct;
+    const left = _xanoWeightAvailable(doc);
+    _sendTagAnalytics("repair", uidHex, {
+      ...f, Protocol: "TigerTag+ Certified", SpoolId: String(spoolId),
+      ...(left != null ? { WeightAvailable: left } : {}), PagesWritten: Number(pagesWritten),
+    });
   }
 
   function _xanoSendEdit(spoolId) {
