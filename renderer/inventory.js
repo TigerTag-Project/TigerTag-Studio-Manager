@@ -43028,9 +43028,9 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
      twice). Bulk actions send one event per spool: the main process paces them.
      Never while viewing a friend's inventory. */
   const ANALYTICS_SPOOL_EVENTS = true;
-  // `repair` (a TigerTag+ rewritten from its rfidList backup): off until Xano's
-  // `operation` column accepts it.
-  const ANALYTICS_REPAIR_EVENT = false;
+  // `repair` (a TigerTag+ rewritten from its rfidList backup), accepted by Xano's
+  // `operation` column since 2026-11-06. A kill switch, like the one above.
+  const ANALYTICS_REPAIR_EVENT = true;
   const XANO_EDIT_WINDOW_MS = 5 * 60_000;
   // An edit right after the spool was created is part of its creation.
   const XANO_AFTER_CREATE_MS = 10_000;

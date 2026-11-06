@@ -25,7 +25,7 @@ the `analytics:tag` queue in `main.js`.
 | `create` | a spool comes into this account by any path (add form, catalogue, duplicate, mint, `.ttag` import, first scan of a chip) |
 | `edit` | this instance changes a spool doc; `Changed` = field names; coalesced per spool over 5 minutes |
 | `delete` | this instance deletes a spool; fields from before the deletion |
-| `repair` | a TigerTag+ rewritten from its `rfidList` backup and verified, `PagesWritten` > 0 (an intact chip or a failed repair sends nothing); `Protocol` "TigerTag+ Certified". Behind `ANALYTICS_REPAIR_EVENT`, off until Xano accepts the operation |
+| `repair` | a TigerTag+ rewritten from its `rfidList` backup and verified, `PagesWritten` > 0 (an intact chip or a failed repair sends nothing); `Protocol` "TigerTag+ Certified". Accepted by Xano since 2026-11-06; `ANALYTICS_REPAIR_EVENT` is its kill switch |
 
 `create` / `edit` / `delete` are live since 2026-11-06, when Xano production accepted them with
 its `protocol` / `spool_id` columns and started caching the IP lookup per IP for 24 h (a 500-spool
