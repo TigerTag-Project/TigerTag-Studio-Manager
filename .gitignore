@@ -161,3 +161,6 @@ oauth-config.json
 
 # Per-architecture ffmpeg binaries staged at build time (see scripts/prepare-ffmpeg.mjs)
 build/ffmpeg/
+
+# Built showcase site (site/build.py)
+_site/

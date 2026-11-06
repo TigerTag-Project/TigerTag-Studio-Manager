@@ -1,0 +1,213 @@
+/* The Tiger Studio Manager showcase site — the look of the TigerTag protocol site
+   (dark by default, light when the system asks for it or when chosen with the button). */
+:root {
+  --bg: #14161a; --card: #1e2128; --line: #2b2f38; --text: #f2f2f2;
+  --muted: #9aa0aa; --accent: #f58220; --link: #f58220; --code: #101216;
+  --shadow: rgba(0, 0, 0, .45);
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f4f5f7; --card: #ffffff; --line: #dde0e6; --text: #16181d;
+    --muted: #5d6470; --accent: #e06d0c; --link: #b04a08; --code: #f0f1f4;
+    --shadow: rgba(0, 0, 0, .12);
+    color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #f4f5f7; --card: #ffffff; --line: #dde0e6; --text: #16181d;
+  --muted: #5d6470; --accent: #e06d0c; --link: #b04a08; --code: #f0f1f4;
+  --shadow: rgba(0, 0, 0, .12);
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; overflow-x: clip; }
+body {
+  margin: 0; min-height: 100vh; background: var(--bg); color: var(--text);
+  font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* The hero picture overflows its column on purpose: never let it scroll the page sideways. */
+  overflow-x: clip;
+}
+a { color: var(--link); }
+img { max-width: 100%; height: auto; }
+.wrap { width: min(1200px, 100% - 48px); margin-left: auto; margin-right: auto; }
+.skip { position: absolute; left: -999px; top: 8px; background: var(--card); padding: 8px 12px; border-radius: 8px; }
+.skip:focus { left: 8px; z-index: 10; }
+.muted, p { color: var(--muted); }
+p { margin: 0 0 14px; }
+b { color: var(--text); }
+h1, h2, h3 { line-height: 1.2; color: var(--text); }
+h2 { font-size: clamp(1.5rem, 1.1rem + 1.4vw, 2.2rem); margin: 0 0 8px; letter-spacing: -.01em; }
+h3 { font-size: 1.08rem; margin: 0 0 8px; }
+.sub { font-size: 1.05rem; max-width: 760px; margin-bottom: 22px; }
+.gap { margin-top: 48px; }
+section { margin-top: 64px; scroll-margin-top: 80px; }
+
+/* Header: the logo, the sections, the theme and the language. */
+header.bar { position: sticky; top: 0; z-index: 5; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+header.bar .wrap { display: flex; align-items: center; gap: 18px; min-height: 64px; }
+.brandmark { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text); font-weight: 800; font-size: 1.2rem; letter-spacing: -.01em; }
+.brandmark b { color: var(--accent); }
+.brandmark img { height: 36px; width: auto; }
+.logo-light { display: none; }
+:root[data-shown="light"] .logo-light { display: block; }
+:root[data-shown="light"] .logo-dark { display: none; }
+.nav { display: flex; gap: 18px; flex: 1; justify-content: center; flex-wrap: wrap; }
+/* Longer words (French, German, Russian…) keep the menu on one line. */
+@media (max-width: 1320px) { .nav { gap: 12px; } .nav a { font-size: .88rem; } }
+.nav a { color: var(--muted); text-decoration: none; font-size: .95rem; }
+.nav a:hover { color: var(--text); }
+.tools { display: flex; gap: 8px; align-items: center; }
+.themebtn, .langbtn {
+  display: flex; align-items: center; gap: 6px; height: 40px; cursor: pointer; color: var(--muted);
+  background: var(--bg); border: 1px solid var(--line); border-radius: 10px; font: inherit; font-size: .9rem;
+}
+.themebtn { width: 40px; justify-content: center; }
+.langbtn { padding: 0 12px; list-style: none; }
+.langbtn::-webkit-details-marker { display: none; }
+.themebtn:hover, .langbtn:hover { border-color: var(--accent); color: var(--text); }
+.themebtn svg, .langbtn svg { width: 17px; height: 17px; flex: none; }
+.themebtn .sun { display: none; }
+:root[data-shown="light"] .themebtn .sun { display: block; }
+:root[data-shown="light"] .themebtn .moon { display: none; }
+.langbox { position: relative; }
+.langlist {
+  position: absolute; right: 0; top: 46px; margin: 0; padding: 6px; list-style: none; min-width: 180px;
+  background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 30px var(--shadow);
+}
+.langlist a { display: block; padding: 7px 10px; border-radius: 8px; color: var(--text); text-decoration: none; }
+.langlist a:hover, .langlist a[aria-current="true"] { background: var(--bg); color: var(--accent); }
+
+/* Hero. */
+.hero { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); gap: 32px; align-items: center; margin-top: 32px; }
+h1 { margin: 0; }
+h1 .kicker, h1 .name { display: block; }
+.kicker { color: var(--accent); font-weight: 650; text-transform: uppercase; letter-spacing: .08em; font-size: .85rem; margin-bottom: 10px; }
+.hero .name { margin: 0; font-size: clamp(2.5rem, 1.5rem + 3.4vw, 4.1rem); font-weight: 800; letter-spacing: -.02em; line-height: 1; }
+.hero .name span { color: var(--accent); }
+.headline { text-wrap: balance; margin: 16px 0 12px; color: var(--text); font-weight: 650; line-height: 1.25; font-size: clamp(1.25rem, 1rem + 1.1vw, 1.8rem); }
+.lead { font-size: 1.08rem; }
+.ctas { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+.btn {
+  display: inline-flex; align-items: center; padding: 12px 20px; border-radius: 999px; text-decoration: none;
+  border: 1px solid var(--line); color: var(--text); background: var(--card); font-weight: 600;
+}
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #1a0f05; }
+.btn.small { padding: 8px 14px; font-size: .9rem; }
+/* The picture is wider than its column: the devices sit on a transparent stage with
+   room around them, so it grows past the column's edges without crowding the text. */
+.show img { display: block; width: 108%; max-width: none; margin: 0 -4% 0 0; filter: drop-shadow(0 30px 40px var(--shadow)); }
+
+/* Four facts. */
+.facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-top: 36px; }
+.fact { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px; }
+.fact b { display: block; font-size: 1.6rem; color: var(--accent); line-height: 1.2; }
+.fact span { color: var(--muted); font-size: .93rem; }
+
+/* Cards and grids. */
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 24px; }
+.card p:last-child { margin-bottom: 0; }
+.card.accent { border-color: var(--accent); }
+.grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-bottom: 16px; }
+.ico { width: 28px; height: 28px; fill: none; stroke: var(--accent); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; margin-bottom: 10px; }
+.pill { display: inline-block; font: 600 .78rem ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--accent); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; margin-bottom: 12px; }
+.more { display: inline-block; font-weight: 600; text-decoration: none; margin-top: 4px; }
+.more:hover { text-decoration: underline; }
+.links { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; }
+pre { margin: 0 0 14px; background: var(--code); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; overflow-x: auto; }
+code { font: .95rem ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--text); }
+
+/* Ecosystem. */
+.eco { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.eco .wide { grid-column: span 3; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 24px; align-items: center; }
+.eco .wide img { border-radius: 12px; }
+.eco .dev img { display: block; height: 170px; width: auto; max-width: 100%; margin: 0 auto 14px; object-fit: contain; }
+.comm { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.comm li { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 18px; }
+.comm a { font-weight: 700; display: block; text-decoration: none; }
+.comm span { color: var(--muted); font-size: .95rem; }
+
+/* FAQ. */
+.faq { display: grid; gap: 10px; }
+.faq details { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 4px 20px; }
+.faq summary { cursor: pointer; font-weight: 650; padding: 12px 0; color: var(--text); }
+.faq details p { padding-bottom: 6px; }
+
+/* The call at the end. */
+.join {
+  display: flex; align-items: center; justify-content: space-between; gap: 24px;
+  padding: 30px 32px; border-radius: 18px; color: #fff;
+  background: linear-gradient(120deg, #c2410c 0%, #b03a12 55%, #9a2f12 100%);
+}
+.join h2, .join p { color: #fff; margin: 0 0 6px; }
+.joinbtn { flex: none; padding: 14px 26px; border-radius: 999px; text-decoration: none; background: #fff; color: #9a2f12; font-weight: 700; white-space: nowrap; }
+footer.foot { margin-top: 48px; padding: 28px 0 48px; border-top: 1px solid var(--line); text-align: center; font-size: .9rem; }
+footer.foot .links { justify-content: center; }
+
+/* Tablet. */
+@media (max-width: 999px) {
+  .nav { display: none; }
+  header.bar .wrap { justify-content: space-between; }
+  .hero { grid-template-columns: minmax(0, 1fr); gap: 18px; text-align: center; }
+  .show img { width: 100%; margin: 0; }
+  .ctas { justify-content: center; }
+  .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grid3, .eco { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .eco .wide { grid-column: span 2; }
+  .split { grid-template-columns: minmax(0, 1fr); }
+}
+/* Phone. */
+@media (max-width: 639px) {
+  .wrap { width: calc(100% - 32px); }
+  section { margin-top: 44px; }
+  .facts, .grid3, .grid2, .eco, .shots { grid-template-columns: minmax(0, 1fr); }
+
+  .card { padding: 20px; border-radius: 14px; }
+  .join { flex-direction: column; align-items: flex-start; padding: 24px 20px; }
+  .joinbtn { align-self: stretch; text-align: center; }
+  .langbtn span { display: none; }
+}
+
+
+/* Tiger Studio Manager additions. */
+.split { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); gap: 16px; align-items: start; }
+.stack { display: grid; gap: 16px; }
+.btn.big { padding: 14px 24px; font-size: 1.05rem; gap: 10px; }
+.btnico { width: 20px; height: 20px; flex: none; }
+.platforms { margin-top: 14px; font-size: .92rem; }
+.factnote { grid-column: 1 / -1; margin: 0; text-align: right; }
+.small { font-size: .85rem; }
+
+/* Screenshots: two per row, the picture first, a line under it. */
+.shots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.shot { margin: 0; padding: 10px; }
+.shot img { display: block; width: 100%; border-radius: 10px; border: 1px solid var(--line); }
+.shot figcaption { color: var(--muted); padding: 12px 6px 4px; font-size: .95rem; }
+
+/* The printer brands. */
+.tablecard { padding: 18px 20px; }
+.scroll { overflow-x: auto; }
+table.brands { width: 100%; border-collapse: collapse; font-size: .95rem; margin-bottom: 12px; }
+.brands th { text-align: left; color: var(--muted); font-weight: 600; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+.brands td { padding: 9px 10px; border-bottom: 1px solid var(--line); color: var(--muted); vertical-align: middle; }
+.brands td:first-child { color: var(--text); font-weight: 650; white-space: nowrap; }
+.brands td:last-child { white-space: nowrap; }
+.st { display: inline-block; font-size: .78rem; font-weight: 700; padding: 2px 9px; border-radius: 999px; border: 1px solid; }
+.st.live { color: #22a55b; border-color: color-mix(in srgb, #22a55b 45%, transparent); background: color-mix(in srgb, #22a55b 12%, transparent); }
+.st.beta { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+
+/* Ecosystem extras. */
+.note { margin-top: 16px; }
+
+/* Download. */
+.dl { margin-bottom: 16px; }
+.dlcard { display: block; text-decoration: none; color: inherit; transition: border-color .15s ease, transform .15s ease; }
+.dlcard:hover { border-color: var(--accent); transform: translateY(-2px); }
+.osico { width: 34px; height: 34px; fill: var(--text); margin-bottom: 10px; }
+.dlcard .more { color: var(--link); }
+@media (prefers-reduced-motion: reduce) { .dlcard { transition: none; } .dlcard:hover { transform: none; } }
+@media (max-width: 999px) { .split { grid-template-columns: minmax(0, 1fr); } .show img { width: 100%; margin: 0; } }
+@media (max-width: 639px) { .factnote { text-align: left; } .btn.big { width: 100%; justify-content: center; } }

@@ -59,6 +59,7 @@ missing from this index, the index cites a missing file, or a cited path does no
 - **Firestore changes**: backend repo is the source of truth; rules + `hasOnly` first, deploy, then propagate the docs; `userProfiles` only via `setProfile` → `.agents/rules/firestore-changes.md`
 - **Art direction**: every illustration follows `docs/ART-DIRECTION.md` (canon banner attached, prompt block, checklist), shown to the founder before it is integrated; a banner's layers are never reused alone elsewhere → `.agents/rules/art-direction.md`
 - **assets-src**: artwork dropped at its root is renamed, optimised into `assets/`, master filed under the shipped name → `.agents/rules/assets-src.md`
+- **Showcase site (SEO / GEO)**: `site/` builds the GitHub Pages page (11 languages, `site/build.py`); verifiable facts from this repo only, no comparison, no price, downloads to the latest release, `site/seo_check.py` passes before a PR → `.agents/rules/seo-geo.md`
 
 ### Code
 - **IDs, not labels**: conditions compare reference-table IDs (`ASPECT_ID` …), never label strings → `.agents/rules/ids-not-labels.md`
