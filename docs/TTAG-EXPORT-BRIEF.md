@@ -254,7 +254,8 @@ fields only, personal state stripped) — out of scope here, noted for later.
   `tierBadgeHTML`) → accept → `_ttagApplyImport`. **Mode auto-picked** by `_ttagDetectMode` from the
   file's `exportedBy`: **Restore** (same account) rewrites verbatim under original ids + restores
   `rfidList` backups; **Import** (other/unknown) mints fresh chipless copies (new `TigerData_` uid,
-  fresh `id_tigertag`, `id_product` unset, `rfidBackup:false`), remaps `twin_tag_uid` old→new, drops
+  no `id_tigertag`, a real `id_product` kept so the copy is a TigerData+ — unset otherwise —,
+  `rfidBackup:false`), remaps `twin_tag_uid` old→new, drops
   backups. Both stamp fresh `updatedAt`, never write `deleted`; writes are batched (chunked <500).
   `productKey`/`_productKeyHash` is **account-independent** (verified — identity-only hash), so no
   recompute is needed in either mode. Entry points: an "Import" button in the inventory toolbar

@@ -359,7 +359,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Display name + friend requests (L40474-41842)
+## Display name + friend requests (L40628-41996)
 | L | What | Anchors |
 |---|---|---|
 | 14979-15022 | **Display-name setup modal** (first-login pseudo picker) | `openDisplayNameSetup` |
@@ -368,7 +368,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Keys + profile sync (L41880-41959)
+## Keys + profile sync (L42034-42116)
 | L | What | Anchors |
 |---|---|---|
 | 15176-15220 | **`claimPublicKey(uid, oldKey)`** atomic transaction (10 retries) + regenerate + send friend request | `claimPublicKey`, `sendFriendRequest` |
@@ -376,7 +376,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Custom avatar (L42143-42438)
+## Custom avatar (L42297-42595)
 | L | What | Anchors |
 |---|---|---|
 | 15783-15957 | File pick, image decode, alpha detection, resize to blob, upload, remove | `uploadCustomAvatar`, `removeCustomAvatar` |
@@ -384,7 +384,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## User doc sync + telemetry + bootstrap (L42458-43613)
+## User doc sync + telemetry + bootstrap (L42612-43778)
 | L | What | Anchors |
 |---|---|---|
 | 16436-16851 | **`syncUserDoc(uid)`** — displayName/roles/Debug/keys/isPublic + **client telemetry** (studio* fields + `telemetry/studio` aggregates, fire-and-forget) | `syncUserDoc`, `hydrateUserDocCache` |
@@ -394,7 +394,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Electron RFID integration (L43751-44061)
+## Electron RFID integration (L43905-44226)
 | L | What | Anchors |
 |---|---|---|
 | 30262-30349 | Reader indicator (topbar), reader connect/disconnect, card present/removed badge | `renderRfidReaderBadges` |

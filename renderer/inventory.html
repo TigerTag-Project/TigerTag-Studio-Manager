@@ -3700,5 +3700,18 @@
   </div>
 </div>
 
+<!-- A trophy sticker's die-cut backing (quests/trophies.css, filter: url(#trpDieCut)): ONE white
+     shape behind the whole art, its loose pieces (stars, whiskers, a cloud) included, instead of an
+     outline around each piece. A blurred alpha cut at a low threshold, sized on the image itself. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <filter id="trpDieCut" x="-10%" y="-10%" width="120%" height="120%" primitiveUnits="objectBoundingBox" color-interpolation-filters="sRGB">
+    <feGaussianBlur in="SourceAlpha" stdDeviation="0.014" result="spread"/>
+    <feComponentTransfer in="spread" result="shape"><feFuncA type="linear" slope="30" intercept="-1"/></feComponentTransfer>
+    <feFlood style="flood-color: var(--sticker-edge)"/>
+    <feComposite in2="shape" operator="in" result="backing"/>
+    <feMerge><feMergeNode in="backing"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+</svg>
+
 </body>
 </html>

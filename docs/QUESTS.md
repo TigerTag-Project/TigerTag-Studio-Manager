@@ -64,13 +64,16 @@ real-hardware testing).
 ## 3. Journey — ranks → levels → actions
 
 - **20 ranks** (exploration theme), each with **5 levels**; each **level = 5 actions**, each action a
-  bar (some with a target count). Shipped first: **Discovery 1–5** and **Explorer 1–5**. Ranks #3–20
-  are shown as "coming soon" (names below); more levels/ranks can be added without touching old ones.
+  bar (some with a target count). Shipped first: **Discovery 1–5** and **Explorer 1–5**, then
+  **Mountaineer 1–5** (v2.52.0). Ranks #4–20 are shown as "coming soon" (names below); more
+  levels/ranks can be added without touching old ones. The server sends a rank only to an app that
+  names it (`dailyQuest` body `ranks: n`, Studio's `RANK_IDS`): an older app would show an unknown
+  rank as Discovery.
 - Actions advance **in parallel, any order**. A level's **bonus** is paid only when (a) its 5 actions
   are done, (b) every lower level is done, (c) the account XP has reached the level's threshold.
   Otherwise the app shows it "waiting" (lower level open) or "locked" (XP threshold).
 - **Discovery needs no RFID chip.** **Explorer uses chips but never TigerTag+ Certified** — Certified
-  actions start at rank #3. A Certified chip counts as TigerTag+ AND Certified.
+  actions start at a later rank (Mountaineer, #3, is the social rank and has none). A Certified chip counts as TigerTag+ AND Certified.
 
 | Level | XP to enter | Bonus | Theme | Actions (target) |
 |---|---|---|---|---|
@@ -86,6 +89,23 @@ real-hardware testing).
 | Explorer 4 | 1600 | 125 | Chip workshop | recycle a chip · initialise a chip (TigerTag Init) · program TigerTag chips (10) · own TigerTag+ chips (3) · read a chip with the NFC tester |
 | Explorer 5 | 2000 | 150 | Collector | brands explored in the catalogue (10) · different materials owned (5) · prints finished at 100 % (10) · spools in racks (50) · daily quest 7 days in a row |
 | Explorer ★ (secret) | — | 200 | Under the hood — revealed once Explorer 1–5 are won | change a friend's place in your list · turn on the AI assistant · turn on debug mode · daily quests 10 days in a row · lock a slot in a rack |
+| Mountaineer 1 | 2500 | 50 | First steps | send an envelope · send a freeze to a friend · share your link on a social network from Invite a friend · find a hidden envelope · visit a friend's sticker collection |
+| Mountaineer 2 | 3100 | 75 | The hut | receive an envelope · open an envelope you received · send at least 20 TigerCoins to a friend · buy a freeze with TigerCoins · stickers held (5) |
+| Mountaineer 3 | 3800 | 100 | Treasure hunt | receive a freeze · open a sticker that holds a hint · hidden envelopes found (3) · see the TigerSquad members of another country · set a purchase price on a spool |
+| Mountaineer 4 | 4600 | 125 | Makers League | receive at least 20 TigerCoins · countries visited in the Makers League (3) · claim a deal · open, in your album, a sticker a friend revealed to you · stickers held (10) |
+| Mountaineer 5 | 5500 | 150 | The summit | hidden envelopes found (5) · stickers held (15) · friends you sent envelopes to (3) · a friend you invited verifies their e-mail · spools with a buy link (3) |
+
+**Mountaineer** is the social rank: envelopes, freezes and TigerCoins between friends, the easter
+eggs, the sticker album, the Makers League, plus the purchase price and buy links. A mirror pair
+never shares a level (send in 1 → receive in 2 or later). Its secret level comes with later
+features. Most of its actions count what the account did **before** the rank existed:
+`functions/questSocial.js` reads them from what the server already keeps — `coinLog` (envelopes
+given / received / opened, TigerCoins sent, freezes bought, recipients), `trophyCounters/main`
+(freezes given / received, TigerCoins received, referrals), the held trophies, the deal claims,
+`tigerCoins.eggs`, the stickers held — and only for actions not complete yet, the TigerCoins ones
+only for a TigerSquad member, so a finished rank reads nothing. The price and buy links are gauges of
+the current products (retroactive too); the other five (social network share, a friend's album, a
+hint sticker, a revealed sticker, another country's league) are client counters, counted from now on.
 
 Ranks (role · world), icons in the app: 1 Discovery · Base camp 🏕️, 2 Explorer · The hills 🌄,
 3 Mountaineer · The mountains 🏔️, 4 Nomad · The deserts 🏜️, 5 Boatman · The rivers 🛶, 6 Navigator ·
@@ -116,8 +136,13 @@ All under `telemetry/studio.quest`. **Counters** (`FieldValue.increment(1)` at t
 `listShare`, `buyLink`, `minStock`, `ttagExport`, `tableSort`, `friendLinkShare`, `friendVisit`,
 `whatsNewRead`, `demoPrinter`, `camAutoStart`, `print100`, `slotAssign`, `chipScanOpen`, `chipRecycle`, `chipInit`,
 `nfcTesterRead`, `brand_<id_brand>` (catalogue searched/filtered by that brand), `material_<id_material>`
-(catalogue filtered by that material). **Gauges** (set to the current value): `spoolsInRacks`,
-`materialsOwned`. Everything else (display name, photo, printers, friends, lists, chips, TigerData
+(catalogue filtered by that material), and for Mountaineer `inviteNetworkShare` (a social network
+button of the Invite view; every Invite view share also counts `friendLinkShare`), `friendAlbumVisit`,
+`stickerHintOpen` (the card of a sticker still to win opened in one's own album), `revealedCardOpen`
+(the same, revealed by a friend), `league_<cc>` (another country's league picked; written only until
+Mountaineer 4 has its 3 — the quest map is capped at 300 keys). **Gauges** (set to the current value):
+`spoolsInRacks`, `materialsOwned`, `pricedProducts`, `buyLinkProducts` (products with a purchase price
+/ a buy link). Everything else (display name, photo, printers, friends, lists, chips, TigerData
 spools, public profile, socials, TigerSquad) is read by the server from state.
 
 ## 4. Rarity rebalance (state-based achievements)

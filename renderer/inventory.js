@@ -32,7 +32,7 @@ import { initTrophies, trophiesSignIn, trophiesSignOut, renderTrophiesView, trop
 import { fillHeroScenes } from './hero-scene.js';
 import { myCodeCardHtml } from './quests/ui-kit.js';
 import { initReferrals, referralsSignIn, referralsSignOut, refreshReferrals, showInviteQr, renderInviteView, claimReferral, referralWantsCode, referralPrefill, referralStatus, wireCodeField, codeFieldMarkup, errText as referralErrText } from './quests/referrals.js';
-import { initQuests, questsSignIn, questsSignOut, questBump, questGauge, questDailyProgress, questCurrentLevel, openQuests, renderQuestsView, questLootHtml, questFreezeStatus, questFriendFreeze, openFreezeFor, openFreezeGift } from './quests/index.js';
+import { initQuests, questsSignIn, questsSignOut, questBump, questActionCount, questGauge, questDailyProgress, questCurrentLevel, openQuests, renderQuestsView, questLootHtml, questFreezeStatus, questFriendFreeze, openFreezeFor, openFreezeGift } from './quests/index.js';
 
 // ── USB scale (Dymo M-series) module ──────────────────────────────────────
 import { initUsbScale, usbScaleRefreshDock } from './IoT/usbscale/index.js';
@@ -4564,6 +4564,10 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     t, esc, db: fbDb, uid: () => state.activeAccountId, lang: () => state.lang,
     // A veiled trophy a friend revealed: "Seen at <friend>'s".
     friendName: uid => _shortName(state.friends.find(f => f.uid === uid)?.displayName || ""),
+    // Tiger Quests, Mountaineer: a friend's album visited; a sticker still to win
+    // opened (it shows its hint), or one a friend revealed.
+    visited: () => questBump("friendAlbumVisit"),
+    opened: revealed => { questBump("stickerHintOpen"); if (revealed) questBump("revealedCardOpen"); },
     // …with that friend's avatar, drawn like everywhere else (userAvatar), sized by its box.
     friendAvatar: uid => { const f = state.friends.find(x => x.uid === uid); return f ? userAvatar(f, "av-fill") : ""; },
     onChange: () => { if (state.viewMode === "squadTrophies") renderInventory(); },
@@ -4589,6 +4593,9 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     },
     openEnvelopes: () => _openEnvelopesNow(),
     regenCode: () => _confirmRegenPublicKey(),
+    // Every share counts for Discovery 5 ("share your friend link"); a social
+    // network button also for Mountaineer 1.
+    shared: how => { questBump("friendLinkShare"); if (how === "network") questBump("inviteNetworkShare"); },
     // The banner's easter-egg envelope (inviteBanner, tapEgg): the server adds it to the pile.
     eggFound: egg => (_deals.coins?.eggs || []).includes(egg),
     easterEgg: async (egg, onFound) => {
@@ -6653,7 +6660,15 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       const all = e.target.closest("[data-sqr-all]");
       if (all) { toggleLeague(all.dataset.sqrAll); render("countries"); return; }
       const pick = e.target.closest("[data-sqr-cc]");
-      if (pick) { pickLeague(pick.dataset.sqrCc, myCountry()); render("countries"); return; }
+      if (pick) {
+        const cc = String(pick.dataset.sqrCc || "").toLowerCase();
+        // Tiger Quests, Mountaineer: another country's league seen (league_<cc>, one key per
+        // country). Only until Mountaineer 4 has its 3: the quest map is capped at 300 keys
+        // (firestore.rules), and one key per country of the world would eat into it.
+        if (/^[a-z]{2}$/.test(cc) && cc !== String(myCountry() || "").toLowerCase()
+            && questActionCount("m4.leagues") < 3) questBump(`league_${cc}`);
+        pickLeague(pick.dataset.sqrCc, myCountry()); render("countries"); return;
+      }
       const tabBtn = e.target.closest(".sqb-tab");
       if (tabBtn && host && tabBtn.dataset.tab === "hist") { openXpHistory(); return; }   // a side card, not a tab, in the view
       if (tabBtn) { render(tabBtn.dataset.tab); return; }
@@ -11101,9 +11116,9 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     // Group header thumbs pass badges:false — a group line represents many
     // spools, so per-spool overlays (twin "linked", TD, pending-chip) are
     // meaningless there.
-    // Table thumb: twin only (round, top-right — like the sidecard). The backup
-    // shield is shown inline next to "TigerTag+" instead, so it's off by default;
-    // callers that want it stacked under the twin badge pass backup:true.
+    // Table thumb: the top-left badges (Refill, twin) as on the cards and panels.
+    // The backup shield is shown inline next to "TigerTag+" instead, so it's off
+    // by default; callers that want it stacked under the twin badge pass backup:true.
     const overlay = badges ? _cardTlBadges(row, { compact: true, backup }) : "";
     const tdBadge = badges && row.td != null ? `<span class="thumb-td-badge">TD ${row.td}</span>` : "";
     const chipBadge = badges && row.needUpdateAt ? `<span class="chip-badge thumb-chip-badge" title="${t("chipPendingHint")}"><span class="icon icon-refresh icon-9"></span></span>` : "";
@@ -11785,6 +11800,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         _syncAllPublicSnapshots();       // price / image / link edits refresh public list snapshots
         _updateCartBadge();   // min-stock / saved-for-later change → refresh the cart badge
         renderStats();        // a price change moves the "Stock value" stat → recompute it live
+        _questGauges();       // products with a price / a buy link (Tiger Quests, Mountaineer)
         // A link change can flip the Shopify badge on visible spools + the
         // "Reorder" toolbox row of the open detail — repaint cheaply.
         if (!_isPrinterMode(state.viewMode)) scheduleRender("inventory", renderInventory);
@@ -16915,6 +16931,9 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       series:   it._series  || "-",
       colorName: it._name   || "-",
       isPlus: true, isCloud: false, rfidBackup: false,
+      // Refill (info1) is in the list itself, so the badge shows on the card and
+      // the row before the side card fetches the product's detail.
+      isRefill: it.info1 === true,
       weightAvailable: null, capacity: null, td: null, needUpdateAt: null,
       tags: [], raw: null,
     };
@@ -16933,7 +16952,8 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   // arrives (the <img> removes itself on error).
   // `fill`: the thumb takes its size from CSS (the catalogue pick list's column
   // flush with the row's left edge); `size` then only picks the rendition.
-  function _catThumbHTML(r, size = 50, { fill = false } = {}) {
+  // `badges`: the top-left badges of the inventory thumbnails (here, Refill).
+  function _catThumbHTML(r, size = 50, { fill = false, badges = false } = {}) {
     const bg  = colorBg(r);
     const src = r.imgUrl ? resolvedImg(cdnImg(r.imgUrl, size)) : null;
     // data-zoom: the hover preview, as on the inventory table (_showThumbZoom).
@@ -16942,6 +16962,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     return `<span class="cv-thumb${fill ? " cv-thumb--fill" : ""}" style="${dims}background:${bg};--spool-bg:${bg}"${zoom}>`
          + `<img class="cv-thumb-logo" src="${logoSrc(bg)}" alt="" />`
          + (src ? `<img class="cv-thumb-img" data-img-src="${esc(src)}" alt="" />` : "")
+         + (badges ? _cardTlBadges(r, { compact: true, backup: false }) : "")
          + `</span>`;
   }
 
@@ -16953,7 +16974,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     return `
       <tr class="cv-row${sel}" data-id="${esc(String(it.id))}" aria-selected="${sel ? "true" : "false"}">
         <td class="sel-cell"><span class="sel-check" aria-hidden="true"></span></td>
-        <td class="thumb-cell">${_catThumbHTML(r, 50)}</td>
+        <td class="thumb-cell">${_catThumbHTML(r, 50, { badges: true })}</td>
         <td>${tierBadgeHTML(r)}</td>
         ${cell(it.material)}
         ${cell(it.brand)}
@@ -19732,10 +19753,10 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
          every record written back VERBATIM under its original id, and each
          TigerTag+ backup restored to rfidList. An exact copy.
        • Import — any other / unknown origin: each record becomes a FRESH
-         chipless material you own (new TigerData_ uid, fresh id_tigertag, no
-         chip claim, id_product unset), twin links remapped, backups dropped (a
-         signed factory dump is bound to a chip you don't hold). Additive —
-         never overwrites your existing docs.
+         chipless material you own (new TigerData_ uid, no id_tigertag, no
+         chip claim, a real id_product KEPT so it lands as a TigerData+), twin
+         links remapped, backups dropped (a signed factory dump is bound to a
+         chip you don't hold). Additive — never overwrites your existing docs.
      ─────────────────────────────────────────────────────────────────────── */
   const TTAG_ID_PRODUCT_UNSET = 4294967295; // 0xFFFFFFFF — mirrors saveAddProduct
   // Every file-supplied URL field. `url_img_user` belongs here too: it is a
@@ -19932,7 +19953,10 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         // doc inside `id_version.json`'s referential. (It used to be re-rolled
         // to a random u32 here, which achieved the first goal and broke the second.)
         id_tigertag: FV.delete(),
-        id_product: TTAG_ID_PRODUCT_UNSET,
+        // The product is not a chip property: a real `id_product` is kept, so a
+        // TigerData+ stays a TigerData+ and a TigerTag+ arrives as the TigerData+
+        // of the same product. Anything else is normalised to "unset".
+        id_product: _hasRealProductId(d.id_product) ? Number(d.id_product) : TTAG_ID_PRODUCT_UNSET,
         rfidBackup: false,
         updatedAt: FV.serverTimestamp(),
         deleted: null, deleted_at: null,
@@ -22385,10 +22409,9 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     const imgUrl = r.imgUrl || p.label?.imgUrl || "";
     const _img = imgUrl ? _panelImg(imgUrl, panelId) : null;
     const onerr = `this.outerHTML='<div class=\\'panel-img-color-placeholder\\'style=\\'background:${colorBg(r)}\\'><img src=\\'${logoSrc(colorBg(r))}\\'class=\\'panel-img-logo\\'></div>'`;
-    // Refill pictogram top-right, as on the spool's detail panel — known once the
-    // product detail (`product/get` → filament.refill → info1) has arrived.
+    // Refill top-left, like every illustration (see `buildPanelHTML`).
     const refill = r.isRefill
-      ? `<div class="panel-img-badge panel-img-badge--tr panel-img-badge-tr-group"><span class="panel-img-badge-tr-item panel-img-icon-badge panel-img-refill-badge"><span class="icon icon-recycle icon-11" aria-hidden="true"></span><span class="refill-txt">Refill</span></span></div>`
+      ? `<div class="panel-img-badge panel-img-badge--tl panel-img-badge-group"><span class="panel-img-badge-item panel-img-icon-badge panel-img-refill-badge"><span class="icon icon-recycle icon-11" aria-hidden="true"></span><span class="refill-txt">Refill</span></span></div>`
       : "";
     const imgSection = _img
       ? `<div class="panel-img-wrap" style="background:${colorBg(r)}"><img class="panel-img" src="${esc(_img)}" onerror="${esc(onerr)}" />${refill}</div>`
@@ -23793,28 +23816,29 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     const mat = r.materialData;
 
     // image + badge overlay
-    const badgeLeft = tierBadgeHTML(r, "panel-img-badge panel-img-badge--tl", { backup: false });
+    // Corners, the same on every illustration (grid card, table thumb, panels):
+    // top-left = tier, then Refill, twin, backup stacked below; top-right = the
+    // pending-chip dot; bottom-left = TD; bottom-right = ❤/★/🛍.
+    const badgeTier = tierBadgeHTML(r, "panel-img-badge-item", { backup: false });
     const badgeTwin = r.hasTwinPair
-      ? `<span class="tag-twin panel-img-badge-tr-item panel-img-icon-badge" title="${t("twinBadge")} — ${t("twinTitle")}"><span class="icon icon-link icon-11"></span></span>`
+      ? `<span class="tag-twin panel-img-badge-item panel-img-icon-badge" title="${t("twinBadge")} — ${t("twinTitle")}"><span class="icon icon-link icon-11"></span></span>`
       : "";
     const badgeChip = r.needUpdateAt
-      ? `<span class="chip-badge panel-img-badge-tr-item panel-img-icon-badge" title="${t("chipPendingHint")}"><span class="icon icon-refresh icon-11"></span></span>`
+      ? `<span class="chip-badge panel-img-badge panel-img-badge--tr panel-img-icon-badge" title="${t("chipPendingHint")}"><span class="icon icon-refresh icon-11"></span></span>`
       : "";
     const badgeTd = r.td != null
       ? `<span class="panel-img-badge panel-img-badge--bl panel-td-badge">TD ${r.td}</span>`
       : "";
-    // "Backed up" badge — to the LEFT of the twin badge in the top-right group.
     const badgeBackup = (r.isPlus && r.rfidBackup)
-      ? `<span class="panel-img-badge-tr-item panel-img-icon-badge panel-img-backup-badge" title="${esc(t("backupBadge"))}"><span class="icon icon-backup icon-11"></span></span>`
+      ? `<span class="panel-img-badge-item panel-img-icon-badge panel-img-backup-badge" title="${esc(t("backupBadge"))}"><span class="icon icon-backup icon-11"></span></span>`
       : "";
     const badgeRefill = r.isRefill
-      ? `<span class="panel-img-badge-tr-item panel-img-icon-badge panel-img-refill-badge"><span class="icon icon-recycle icon-11" aria-hidden="true"></span><span class="refill-txt">Refill</span></span>`
+      ? `<span class="panel-img-badge-item panel-img-icon-badge panel-img-refill-badge"><span class="icon icon-recycle icon-11" aria-hidden="true"></span><span class="refill-txt">Refill</span></span>`
       : "";
-    const badgeTrGroup = (badgeBackup || badgeTwin || badgeChip || badgeRefill)
-      ? `<div class="panel-img-badge panel-img-badge--tr panel-img-badge-tr-group">${badgeRefill}${badgeTwin}${badgeBackup}${badgeChip}</div>`
+    const badgeTlGroup = (badgeTier || badgeRefill || badgeTwin || badgeBackup)
+      ? `<div class="panel-img-badge panel-img-badge--tl panel-img-badge-group">${badgeTier}${badgeRefill}${badgeTwin}${badgeBackup}</div>`
       : "";
-    // Bottom-right ❤/★/🛍 status cluster, same as the grid/table illustrations.
-    const overlays = badgeLeft + badgeTrGroup + badgeTd + _productBadgesHTML(r);
+    const overlays = badgeTlGroup + badgeChip + badgeTd + _productBadgesHTML(r);
     // The edit bar lives inside panel-img-wrap at the bottom.
     // The trigger (Edit icon) IS the left anchor of the bar — clicking it
     // expands the bar rightward to reveal the input + confirm button.
@@ -42663,13 +42687,21 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     _studioStateTimer = setTimeout(() => recordStudioState(uid), 7000);
   }
 
-  // Tiger Quests gauges: spools put away in racks, distinct materials in stock.
-  // Sent at session start and after every inventory snapshot (questGauge skips unchanged values).
+  // Tiger Quests gauges: spools put away in racks, distinct materials in stock,
+  // and the products carrying a purchase price / a buy link (a price and a link
+  // live on the product, shared by its spools — so a product counts once).
+  // Sent at session start and after every inventory or products snapshot
+  // (questGauge skips unchanged values). Gauges read the current state, so what
+  // was set before the missions existed counts too.
   function _questGauges() {
     if (state.friendView || !state.rows) return;
     const active = deduplicateTwins(state.rows.slice()).filter(r => !r.deleted);
     questGauge("spoolsInRacks", active.filter(r => r.rackId).length);
     questGauge("materialsOwned", new Set(active.map(r => r.raw?.id_material).filter(Boolean)).size);
+    if (state.productsLoading) return;
+    const products = Object.values(state.products || {});
+    questGauge("pricedProducts", products.filter(p => +p.buyPriceHt > 0).length);
+    questGauge("buyLinkProducts", products.filter(p => String(p.buyUrl || "").trim()).length);
   }
   async function recordStudioState(uid) {
     if (uid !== state.activeAccountId || state.friendView) return;

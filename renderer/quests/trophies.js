@@ -14,7 +14,10 @@
  * (localStorage tigertag.trophies.<uid> = the ids already celebrated).
  *
  *   initTrophies({ t, esc, lang() → code, db(uid) → firestore, uid() → active uid | null, friendName(uid),
- *                  onChange(), openView(), openCode(), downloaded(trophyId) })
+ *                  onChange(), openView(), openCode(), downloaded(trophyId),
+ *                  visited(friendUid) — a friend's album opened (once per visit),
+ *                  opened(revealed) — the card of a sticker still to win opened in
+ *                  one's own album; `revealed`: a friend revealed it })
  *   trophiesSignIn(uid) / trophiesSignOut()
  *   renderTrophiesView(host, friend?) · trophiesProgress() → { got, total } · trophyEarned(id)
  * With `friend` ({ uid, displayName }, a friend's view) the album shows THAT account's
@@ -48,6 +51,7 @@ let _cards = {}, _cardsAsking = null;
 // ("Seen at Léa's"). Re-asked at sign-in and when the album opens, at most every REVEALS_TTL.
 //   tigertag.trophyReveals.<uid>  { at, ids: { id: friendUid } }
 let _reveals = { at: 0, ids: {} };
+let _visited = null;   // the friend whose album is on screen (renderTrophiesView), to count a visit once
 const REVEALS_TTL = 10 * 60e3;
 const VEILED_TIERS = new Set(["rare", "epic", "legendary"]);
 const veiled = c => !!c && (!!c.hidden || VEILED_TIERS.has(c.tier));
@@ -67,13 +71,16 @@ async function slotKey(id) {
   const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`trophy-slot:${id}`));
   return [...new Uint8Array(b)].slice(0, 6).map(x => x.toString(16).padStart(2, "0")).join("");
 }
-let _slotsFor = "";
+let _slotsFor = "", _slotsReady = Promise.resolve();
+// Resolves once _slotIds covers the ids known now: the unlock waits for it, since a veiled
+// trophy is only found in the album through its slot.
 function mapSlots() {
   const ids = [...new Set([...Object.keys(_stats.owners), ...Object.keys(_cards)])].filter(id => !id.startsWith("_"));
   const sig = ids.length + "|" + ids.join(",").length;
-  if (!ids.length || sig === _slotsFor) return;
+  if (!ids.length || sig === _slotsFor) return _slotsReady;
   _slotsFor = sig;
-  Promise.all(ids.map(async id => [await slotKey(id), id])).then(pairs => { _slotIds = new Map(pairs); _ctx?.onChange?.(); }).catch(() => {});
+  _slotsReady = Promise.all(ids.map(async id => [await slotKey(id), id])).then(pairs => { _slotIds = new Map(pairs); _ctx?.onChange?.(); }).catch(() => {});
+  return _slotsReady;
 }
 let _filter = "all", _loaded = false, _query = "", _family = "";
 // A friend's album being shown: { uid, name, earned (same shape as _earned), loaded, error, at }.
@@ -399,6 +406,7 @@ export function renderTrophiesView(host, friend = null) {
   loadCatalog();
   ensureCards();
   if (friend?.uid) loadFriend(friend); else _friend = null;
+  if ((friend?.uid || null) !== _visited) { _visited = friend?.uid || null; if (_visited) _ctx.visited?.(_visited); }
   // Loaded: the album read, and the catalogue known (or out of reach: the cards alone then).
   const mine = held(), loaded = (_friend ? _friend.loaded : _loaded) && (!!_catalog || _catalogAsked === null);
   const all = allTrophies();
@@ -474,6 +482,7 @@ function openTrophyCard(id) {
   // silhouette and mission, to know what to do); a hidden "?" one stays shut.
   const got = x && held().get(id);
   if (!x || (!got && (x.hidden && !x.revealed || !x.art))) return;
+  if (!got && !_friend) _ctx.opened?.(!!x.revealed);
   const { t, esc } = _ctx;
   const p = pct(id);
   // How it was earned, when the server said (a relit 23-day streak, the podium rank).
@@ -544,7 +553,10 @@ async function downloadSticker(x) {
 let _queue = [];
 function celebrateNew(uid) {
   // Its card first (art + text): a trophy whose card could not be read waits for the next try.
-  ensureCards(uid).then(() => {
+  // Asked twice: a call already in flight was made before this trophy arrived, so it may not
+  // carry its card (the second ask costs nothing when nothing is missing). Then the veiled
+  // slots, mapped from those cards: without them a hidden trophy is not found and never shows.
+  ensureCards(uid).then(() => ensureCards(uid)).then(() => _catalog && mapSlots()).then(() => {
     if (_uid !== uid) return;
     const seen = readSeen(uid);
     const all = allTrophies(_earned);

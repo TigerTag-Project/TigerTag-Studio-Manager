@@ -269,10 +269,9 @@ jobs:
         # package.json so electron-builder (mac/linux) and softprops
         # (windows) agree on the same release type. With a mismatch,
         # the second tool to fire either skips its uploads or creates
-        # a duplicate release. The release stays in draft until manually
-        # promoted via the GitHub UI — that's how we want it: lets us
-        # verify all artifacts are present + spot a broken build
-        # before the auto-updater picks the new version.
+        # a duplicate release. The release stays in draft until the
+        # publish-release job below has checked every platform's files
+        # are attached: a broken build never reaches the auto-updater.
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.ref_name }}
@@ -284,3 +283,27 @@ jobs:
             dist/latest.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Runs LAST, only when every build of the matrix succeeded: checks the draft
+  # holds each platform's installer and update manifest, then publishes it as
+  # the latest release (the auto-updater reads latest*.yml from it). A missing
+  # file fails the job and the release stays in draft.
+  publish-release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the draft's files, then publish it as latest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          names=$(gh release view "$TAG" --json assets -q '.assets[].name')
+          missing=0
+          for want in '^latest\.yml$' '^latest-mac\.yml$' '^latest-linux\.yml$' '\.dmg$' 'Setup-.*\.exe$' 'portable\.exe$' '\.AppImage$'; do
+            if ! grep -Eq "$want" <<<"$names"; then echo "::error::missing release file matching $want"; missing=1; fi
+          done
+          [ "$missing" = 0 ] || exit 1
+          gh release edit "$TAG" --draft=false --latest
+          echo "Published $TAG as the latest release."

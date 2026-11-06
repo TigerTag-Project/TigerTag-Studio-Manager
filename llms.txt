@@ -10,7 +10,7 @@ It is neutral and agnostic by design: TigerTag takes no side between filament br
 distributors. The protocol is open and anyone can build a different ecosystem on it; nothing in this repo is a
 prerequisite for doing so.
 
-Current version: **2.51.0** — macOS (Intel + Apple Silicon, signed & notarized), Windows, Linux.
+Current version: **2.52.0** — macOS (Intel + Apple Silicon, signed & notarized), Windows, Linux.
 
 ## Architecture
 
@@ -315,7 +315,7 @@ All brands: printer discovery (mDNS + port scan + manual IP), camera widget; fil
 npm run i18n:add -- myKey --after existingKey en="..." fr="..." de="..." es="..." it="..." zh="..." pt="..." pt-pt="..." pl="..." ru="..." nl="..."
 npm run i18n:check   # validates consistency (also runs as pre-commit hook)
 ```
-2757 keys × 11 locales as of v2.50.0
+2826 keys × 11 locales as of v2.52.0
 
 ## CSS conventions
 

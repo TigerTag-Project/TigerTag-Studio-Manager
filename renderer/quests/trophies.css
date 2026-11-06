@@ -1,8 +1,9 @@
 /* Trophies (quests/trophies.js, docs/TROPHIES.md) — the sticker album of
    the Tiger Squad, the detail card, the unlock window.
    Tier colours = the TigerCoins rarities (.tc-sum--*), plus a holographic
-   "event" frame. A sticker = the app's own art die-cut: a white outline made
-   of stacked drop-shadows, a slight tilt, a ring in the tier colour; a locked
+   "event" frame. A sticker = the app's own art die-cut: one white backing behind
+   the whole art (the #trpDieCut SVG filter, inventory.html), loose pieces
+   included, a slight tilt, a ring in the tier colour; a locked
    one is the catalogue's black silhouette in its white border. */
 .trp-t--common    { --tc: var(--tier-common); }
 .trp-t--uncommon  { --tc: var(--tier-uncommon); }
@@ -69,7 +70,7 @@
   background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--tc) 22%, transparent), transparent 70%); }
 .trp-st-art::after { content: ""; position: absolute; inset: 0; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--tc) 55%, transparent); }
 .trp-st-art img { width: 72%; height: auto; aspect-ratio: 1; object-fit: contain; transform: rotate(-6deg);
-  filter: drop-shadow(2px 0 0 var(--sticker-edge)) drop-shadow(-2px 0 0 var(--sticker-edge)) drop-shadow(0 2px 0 var(--sticker-edge)) drop-shadow(0 -2px 0 var(--sticker-edge)) drop-shadow(0 4px 6px rgba(0, 0, 0, .45));
+  filter: url(#trpDieCut) drop-shadow(0 4px 6px rgba(0, 0, 0, .45));
   transition: transform .25s cubic-bezier(.2, .8, .2, 1.4); }
 .trp-st.is-got:hover .trp-st-art img { transform: rotate(3deg) scale(1.08); }
 .trp-st:nth-child(3n + 2) .trp-st-art img { transform: rotate(5deg); }
@@ -123,7 +124,7 @@
 .trp-card-art, .trp-unlock-art { display: grid; place-items: center; width: 150px; aspect-ratio: 1; margin-bottom: 6px; border-radius: 50%;
   background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--tc) 30%, transparent), transparent 70%); }
 .trp-card-art img, .trp-unlock-art img { width: 74%; height: auto; aspect-ratio: 1; object-fit: contain; transform: rotate(-5deg);
-  filter: drop-shadow(3px 0 0 var(--sticker-edge)) drop-shadow(-3px 0 0 var(--sticker-edge)) drop-shadow(0 3px 0 var(--sticker-edge)) drop-shadow(0 -3px 0 var(--sticker-edge)) drop-shadow(0 8px 12px rgba(0, 0, 0, .5)); }
+  filter: url(#trpDieCut) drop-shadow(0 8px 12px rgba(0, 0, 0, .5)); }
 .trp-card-tier { padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
   color: var(--tc); background: color-mix(in srgb, var(--tc) 14%, transparent); }
 

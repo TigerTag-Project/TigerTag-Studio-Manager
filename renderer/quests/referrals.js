@@ -15,7 +15,8 @@
  *                   avatar(who, cls) → markup, qr(url, opts) → data URL,
  *                   shareUrl(net, url, text) → URL | null, inviteUrl(code), openExternal(url),
  *                   copy(text, button, message?) — copies, flashes "Copied" on the button (+ a snackbar), lookupCode(code) → Promise<{ uid, displayName, photoURL, color } | null>,
- *                   openEnvelopes(), onChange() })
+ *                   openEnvelopes(), onChange(),
+ *                   shared(how) — the link went out: "copy" (copied) or "network" (a social network button) })
  *   referralsSignIn(uid) / referralsSignOut()
  *   renderInviteView(host) · referralStatus() → the last status | null
  *   claimReferral(code) → status (throws the server's code) · referralWantsCode(code) → Promise<bool>
@@ -274,17 +275,18 @@ export function renderInviteView(host) {
     img.classList.remove("is-tapped"); void img.offsetWidth; img.classList.add("is-tapped");
     sfx.tick();
   }));
-  host.querySelector('[data-mc-act="share"]')?.addEventListener("click", e => _ctx.copy(link, e.currentTarget));
+  host.querySelector('[data-mc-act="share"]')?.addEventListener("click", e => { _ctx.copy(link, e.currentTarget); _ctx.shared?.("copy"); });
   // The main button says it worked, in place ("Link copied!"), then goes back. Both labels
   // are stacked in the button, so it keeps the width of the longer one: it never resizes.
   host.querySelector("[data-rf-copy]")?.addEventListener("click", async e => {
     const b = e.currentTarget;
     await _ctx.copy(link, b);
+    _ctx.shared?.("copy");
     b.classList.add("is-done");
     clearTimeout(b._rfT); b._rfT = setTimeout(() => b.classList.remove("is-done"), 1600);
   });
   host.querySelector("[data-rf-nocode]")?.addEventListener("click", () => { _noCode = !_noCode; renderInviteView(host); });
-  host.querySelector("[data-rf-msg-copy]")?.addEventListener("click", e => _ctx.copy(`${shareText()} ${link}`, e.currentTarget));
+  host.querySelector("[data-rf-msg-copy]")?.addEventListener("click", e => { _ctx.copy(`${shareText()} ${link}`, e.currentTarget); _ctx.shared?.("copy"); });
   // The QR opens it big; the corner icon asks for a new code (confirmed first, host side).
   host.querySelector("[data-mc-zoom]")?.addEventListener("click", () => showQrWindow(link));
   host.querySelector("[data-mc-regen]")?.addEventListener("click", () => _ctx.regenCode?.());
@@ -308,6 +310,7 @@ export function renderInviteView(host) {
 function share(net, button) {
   const link = shareLink(), text = shareText();
   if (!link) return;
+  _ctx.shared?.("network");
   // No share URL on a desktop: the message is copied, to paste in the app.
   if (COPY_NETS.includes(net)) { _ctx.copy(`${text} ${link}`, button, _ctx.t("referralAppCopied", { app: NETS.find(n => n[0] === net)?.[3] || "" })); return; }
   const url = _ctx.shareUrl(net, link, text);

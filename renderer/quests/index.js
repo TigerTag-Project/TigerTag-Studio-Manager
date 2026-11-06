@@ -37,7 +37,7 @@ const RANKS = 20;                      // ranks announced in the app; the server
 // Rank icons: assets/svg/ranks/rank-NN.svg (1 base camp … 20 the universe), drawn as a
 // mask in the current colour — the url() resolves from quests.css (renderer/quests/).
 const rankIcon = n => `<span class="qm-rank-ic" style="--ico:url('../../assets/svg/ranks/rank-${String(n).padStart(2, "0")}.svg')" aria-hidden="true"></span>`;
-const RANK_IDS = { discovery: 1, explorer: 2 };
+const RANK_IDS = { discovery: 1, explorer: 2, mountaineer: 3 };   // the server sends ranks up to `ranks` (checkIn)
 
 import { ambientStop, fireStart, sfx } from "./coin-sound.js";
 import { heroLayersHtml } from "./hero-layers.js";
@@ -81,6 +81,8 @@ export function initQuests(ctx) {
 // ── 1. Counters ──────────────────────────────────────────────────────────────
 // `printer`: the machine the action was done on — a Demo printer (simulator)
 // never feeds a quest, so its actions are dropped here.
+// A journey action's count as the server last wrote it (0 before the first read).
+export function questActionCount(id) { return Number(_journey?.actions?.[id]) || 0; }
 export function questBump(key, n = 1, printer = null) {
   if (!_uid || !key || printer?.demo === true) return;
   _bumps.set(key, (_bumps.get(key) || 0) + n);
@@ -140,8 +142,9 @@ async function checkIn() {
     const r = await fetch(DAILY_QUEST_URL, {
       method: "POST", headers: { "Content-Type": "application/json", "X-Firebase-Id-Token": token },
       // secretLevels: this app knows secret levels (hidden until revealed);
-      // the server leaves them out for older versions.
-      body: JSON.stringify({ tz, secretLevels: true }),
+      // ranks: the highest rank it can name (RANK_IDS). The server leaves the
+      // rest out, so an older version never shows a rank it would mislabel.
+      body: JSON.stringify({ tz, secretLevels: true, ranks: Math.max(...Object.values(RANK_IDS)) }),
     });
     if (!r.ok || uid !== _uid) return;
     const j = await r.json();

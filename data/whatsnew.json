@@ -13567,5 +13567,271 @@
         }
       }
     ]
+  },
+  "2.52.0": {
+    "date": "2026-11-06",
+    "items": [
+      {
+        "icon": "compass",
+        "title": {
+          "en": "Mountaineer, rank 3",
+          "fr": "Alpiniste, rang 3",
+          "de": "Bergsteiger, Rang 3",
+          "es": "Alpinista, rango 3",
+          "it": "Alpinista, grado 3",
+          "zh": "登山者，第 3 级",
+          "pt": "Alpinista, rank 3",
+          "pt-pt": "Alpinista, nível 3",
+          "pl": "Alpinista, ranga 3",
+          "ru": "Альпинист, ранг 3",
+          "nl": "Bergbeklimmer, rang 3"
+        },
+        "body": {
+          "en": "Tiger Quests grow a new rank: five levels of social missions, from envelopes and freezes to the Makers League and your buy links. Bring snacks.",
+          "fr": "Les Tiger Quests s’offrent un nouveau rang : cinq niveaux de missions sociales, des enveloppes et glaçons jusqu’à la Ligue des Makers et tes liens d’achat. Prévois des provisions.",
+          "de": "Die Tiger Quests bekommen einen neuen Rang: fünf Stufen sozialer Missionen, von Umschlägen und Freezes bis zur Makers-Liga und deinen Kauflinks. Proviant nicht vergessen.",
+          "es": "Las Tiger Quests estrenan rango: cinco niveles de misiones sociales, de sobres y congelaciones a la Liga de Makers y tus enlaces de compra. Lleva provisiones.",
+          "it": "Le Tiger Quests ottengono un nuovo grado: cinque livelli di missioni sociali, da buste e congelamenti alla Lega dei Makers e ai tuoi link d’acquisto. Porta degli snack.",
+          "zh": "Tiger Quests 新增一个等级：五个社交任务关卡，从信封、冻结到创客联赛和你的购买链接。记得带干粮。",
+          "pt": "As Tiger Quests ganham um rank novo: cinco níveis de missões sociais, de envelopes e congelamentos à Liga dos Makers e seus links de compra. Leve lanche.",
+          "pt-pt": "As Tiger Quests ganham um nível novo: cinco níveis de missões sociais, de envelopes e congelamentos à Liga dos Makers e aos teus links de compra. Leva lanche.",
+          "pl": "Tiger Quests dostają nową rangę: pięć poziomów misji społecznościowych, od kopert i zamrożeń po Ligę Makerów i twoje linki zakupu. Weź przekąski.",
+          "ru": "В Tiger Quests новый ранг: пять уровней социальных миссий — от конвертов и заморозок до Лиги мейкеров и ваших ссылок на покупку. Берите бутерброды.",
+          "nl": "Tiger Quests krijgen een nieuwe rang: vijf niveaus sociale missies, van enveloppen en freezes tot de Makers League en je kooplinks. Neem snacks mee."
+        }
+      },
+      {
+        "icon": "clock",
+        "title": {
+          "en": "Your past counts",
+          "fr": "Ton passé compte",
+          "de": "Deine Vergangenheit zählt",
+          "es": "Tu pasado cuenta",
+          "it": "Il tuo passato conta",
+          "zh": "你的过去也算数",
+          "pt": "Seu passado conta",
+          "pt-pt": "O teu passado conta",
+          "pl": "Twoja przeszłość się liczy",
+          "ru": "Ваше прошлое засчитывается",
+          "nl": "Je verleden telt mee"
+        },
+        "body": {
+          "en": "Already sent envelopes or gave freezes before this rank existed? Those actions are counted, no need to do them again.",
+          "fr": "Tu as déjà envoyé des enveloppes ou offert des glaçons avant ce rang ? C’est compté, inutile de recommencer.",
+          "de": "Schon Umschläge verschickt oder Freezes verschenkt, bevor es diesen Rang gab? Das zählt, nichts muss wiederholt werden.",
+          "es": "¿Ya enviaste sobres o regalaste congelaciones antes de este rango? Cuentan, no hace falta repetirlo.",
+          "it": "Hai già inviato buste o regalato congelamenti prima di questo grado? Contano già, non serve rifarlo.",
+          "zh": "在这个等级出现之前就寄过信封、送过冻结？都算数，不用重来。",
+          "pt": "Já mandou envelopes ou deu congelamentos antes deste rank? Já contam, não precisa repetir.",
+          "pt-pt": "Já enviaste envelopes ou deste congelamentos antes deste nível? Já contam, não precisas de repetir.",
+          "pl": "Wysłałeś już koperty lub dałeś zamrożenia, zanim ta ranga istniała? Liczą się, nie musisz powtarzać.",
+          "ru": "Уже отправляли конверты или дарили заморозки до появления этого ранга? Они засчитаны, повторять не нужно.",
+          "nl": "Al enveloppen gestuurd of freezes gegeven voordat deze rang bestond? Dat telt mee, niet opnieuw doen."
+        }
+      },
+      {
+        "icon": "recycle",
+        "title": {
+          "en": "Refill, spotted early",
+          "fr": "Refill repéré tout de suite",
+          "de": "Refill sofort erkannt",
+          "es": "Refill a primera vista",
+          "it": "Refill al primo sguardo",
+          "zh": "一眼认出补充装",
+          "pt": "Refill à primeira vista",
+          "pt-pt": "Refill logo à vista",
+          "pl": "Refill widoczny od razu",
+          "ru": "Refill видно сразу",
+          "nl": "Refill in één oogopslag"
+        },
+        "body": {
+          "en": "Refill products wear their badge right in the catalogue grid and list, no need to open the product to find out.",
+          "fr": "Les produits Refill portent leur badge dès la grille et la liste du catalogue, inutile d’ouvrir la fiche pour le savoir.",
+          "de": "Refill-Produkte tragen ihr Abzeichen direkt im Katalograster und in der Liste, ohne dass du das Produkt öffnen musst.",
+          "es": "Los productos Refill llevan su insignia ya en la cuadrícula y la lista del catálogo, sin abrir la ficha.",
+          "it": "I prodotti Refill portano il badge già nella griglia e nell’elenco del catalogo, senza aprire la scheda.",
+          "zh": "补充装产品在目录的网格和列表里就带有徽章，不用点开就知道。",
+          "pt": "Produtos Refill ostentam o selo já na grade e na lista do catálogo, sem abrir a ficha.",
+          "pt-pt": "Os produtos Refill mostram o selo logo na grelha e na lista do catálogo, sem abrir a ficha.",
+          "pl": "Produkty Refill mają odznakę już w siatce i na liście katalogu, bez otwierania karty.",
+          "ru": "Товары Refill получили значок прямо в сетке и списке каталога — открывать карточку не нужно.",
+          "nl": "Refill-producten dragen hun badge al in het raster en de lijst van de catalogus, zonder het product te openen."
+        }
+      },
+      {
+        "icon": "tag",
+        "title": {
+          "en": "The catalogue gets its names back",
+          "fr": "Le catalogue retrouve ses noms",
+          "de": "Der Katalog hat seine Namen zurück",
+          "es": "El catálogo recupera sus nombres",
+          "it": "Il catalogo ritrova i suoi nomi",
+          "zh": "目录找回了名字",
+          "pt": "O catálogo recuperou os nomes",
+          "pt-pt": "O catálogo voltou a ter nomes",
+          "pl": "Katalog odzyskał nazwy",
+          "ru": "Каталог снова с названиями",
+          "nl": "De catalogus heeft zijn namen terug"
+        },
+        "body": {
+          "en": "Series, colour names and aspects are back in the catalogue, and your spools now follow any change a product gets, not just its photo.",
+          "fr": "Séries, noms de couleurs et aspects sont de retour dans le catalogue, et tes bobines suivent désormais tout changement d’un produit, pas seulement sa photo.",
+          "de": "Serien, Farbnamen und Aspekte sind zurück im Katalog, und deine Spulen folgen jetzt jeder Änderung eines Produkts, nicht nur dem Foto.",
+          "es": "Series, nombres de color y aspectos vuelven al catálogo, y tus bobinas siguen ahora cualquier cambio de un producto, no solo la foto.",
+          "it": "Serie, nomi dei colori e aspetti tornano nel catalogo, e le tue bobine seguono ora ogni modifica di un prodotto, non solo la foto.",
+          "zh": "系列、颜色名称和外观回到了目录，你的耗材盘现在会跟随产品的任何变化，而不只是图片。",
+          "pt": "Séries, nomes de cores e aspectos voltaram ao catálogo, e suas bobinas agora seguem qualquer mudança de um produto, não só a foto.",
+          "pt-pt": "Séries, nomes de cores e aspetos voltaram ao catálogo, e as tuas bobines seguem agora qualquer alteração de um produto, não só a foto.",
+          "pl": "Serie, nazwy kolorów i wykończenia wróciły do katalogu, a twoje szpule podążają teraz za każdą zmianą produktu, nie tylko zdjęcia.",
+          "ru": "Серии, названия цветов и типы поверхности вернулись в каталог, а ваши катушки теперь следуют за любым изменением товара, а не только фото.",
+          "nl": "Series, kleurnamen en aspecten zijn terug in de catalogus, en je spoelen volgen nu elke wijziging van een product, niet alleen de foto."
+        }
+      },
+      {
+        "icon": "nfc",
+        "title": {
+          "en": "TigerData+ stays TigerData+",
+          "fr": "Un TigerData+ reste un TigerData+",
+          "de": "TigerData+ bleibt TigerData+",
+          "es": "Un TigerData+ sigue siendo TigerData+",
+          "it": "TigerData+ resta TigerData+",
+          "zh": "TigerData+ 还是 TigerData+",
+          "pt": "TigerData+ continua TigerData+",
+          "pt-pt": "TigerData+ continua TigerData+",
+          "pl": "TigerData+ zostaje TigerData+",
+          "ru": "TigerData+ остаётся TigerData+",
+          "nl": "TigerData+ blijft TigerData+"
+        },
+        "body": {
+          "en": "Importing a .ttag file now keeps the product it points to, instead of turning everything into a plain TigerData.",
+          "fr": "Importer un fichier .ttag garde maintenant le produit visé, au lieu de tout transformer en simple TigerData.",
+          "de": "Ein .ttag-Import behält jetzt das verknüpfte Produkt, statt alles in ein einfaches TigerData zu verwandeln.",
+          "es": "Importar un archivo .ttag conserva ahora el producto al que apunta, en lugar de convertirlo todo en un TigerData simple.",
+          "it": "Importare un file .ttag ora mantiene il prodotto indicato, invece di trasformare tutto in un semplice TigerData.",
+          "zh": "导入 .ttag 文件现在会保留它指向的产品，而不是一律变成普通 TigerData。",
+          "pt": "Importar um arquivo .ttag agora mantém o produto indicado, em vez de transformar tudo em um TigerData simples.",
+          "pt-pt": "Importar um ficheiro .ttag mantém agora o produto indicado, em vez de transformar tudo num TigerData simples.",
+          "pl": "Import pliku .ttag zachowuje teraz wskazany produkt, zamiast zamieniać wszystko w zwykły TigerData.",
+          "ru": "Импорт файла .ttag теперь сохраняет нужный товар, а не превращает всё в обычный TigerData.",
+          "nl": "Een .ttag-bestand importeren behoudt nu het product waar het naar verwijst, in plaats van alles in gewone TigerData te veranderen."
+        }
+      },
+      {
+        "icon": "palette",
+        "title": {
+          "en": "No more grey squares",
+          "fr": "Fini les carrés gris",
+          "de": "Schluss mit grauen Quadraten",
+          "es": "Adiós a los cuadros grises",
+          "it": "Via i quadrati grigi",
+          "zh": "告别灰色方块",
+          "pt": "Chega de quadrados cinzentos",
+          "pt-pt": "Chega de quadrados cinzentos",
+          "pl": "Koniec szarych kwadratów",
+          "ru": "Серых квадратов больше нет",
+          "nl": "Geen grijze vierkantjes meer"
+        },
+        "body": {
+          "en": "While a spool photo loads, its thumbnail shows the spool colour instead of a grey square.",
+          "fr": "Pendant le chargement de la photo d’une bobine, sa vignette affiche la couleur de la bobine au lieu d’un carré gris.",
+          "de": "Während das Spulenfoto lädt, zeigt die Vorschau die Spulenfarbe statt eines grauen Quadrats.",
+          "es": "Mientras carga la foto de una bobina, su miniatura muestra el color de la bobina en vez de un cuadro gris.",
+          "it": "Mentre la foto di una bobina si carica, la miniatura mostra il colore della bobina invece di un quadrato grigio.",
+          "zh": "耗材盘图片加载时，缩略图显示耗材颜色，而不是灰色方块。",
+          "pt": "Enquanto a foto de uma bobina carrega, a miniatura mostra a cor da bobina em vez de um quadrado cinza.",
+          "pt-pt": "Enquanto a foto de uma bobine carrega, a miniatura mostra a cor da bobine em vez de um quadrado cinzento.",
+          "pl": "Gdy zdjęcie szpuli się ładuje, miniatura pokazuje kolor szpuli zamiast szarego kwadratu.",
+          "ru": "Пока загружается фото катушки, миниатюра показывает её цвет, а не серый квадрат.",
+          "nl": "Terwijl de foto van een spoel laadt, toont het miniatuurtje de spoelkleur in plaats van een grijs vierkantje."
+        }
+      },
+      {
+        "icon": "grid",
+        "title": {
+          "en": "Badges, always in their corner",
+          "fr": "Les badges, toujours au même coin",
+          "de": "Abzeichen, immer in ihrer Ecke",
+          "es": "Insignias, siempre en su esquina",
+          "it": "Badge, sempre nel loro angolo",
+          "zh": "徽章，永远在固定角落",
+          "pt": "Selos, sempre no mesmo canto",
+          "pt-pt": "Selos, sempre no mesmo canto",
+          "pl": "Odznaki zawsze w swoim rogu",
+          "ru": "Значки всегда в своём углу",
+          "nl": "Badges, altijd in hun hoek"
+        },
+        "body": {
+          "en": "Refill, twin and backup sit top left on every picture, from grid cards to the spool panel. One glance, same place.",
+          "fr": "Refill, jumeau et sauvegarde sont en haut à gauche sur chaque image, des cartes aux détails de la bobine. Un coup d’œil, toujours au même endroit.",
+          "de": "Refill, Zwilling und Backup sitzen auf jedem Bild oben links, von der Kachel bis zum Spulenpanel. Ein Blick, immer derselbe Platz.",
+          "es": "Refill, gemelo y copia de seguridad van arriba a la izquierda en cada imagen, de las tarjetas al panel de la bobina. Un vistazo, mismo sitio.",
+          "it": "Refill, gemella e backup stanno in alto a sinistra su ogni immagine, dalle schede al pannello della bobina. Un colpo d’occhio, sempre lo stesso posto.",
+          "zh": "补充装、孪生和备份徽章在每张图片的左上角，从网格卡片到耗材盘面板都一样。一眼看到，位置不变。",
+          "pt": "Refill, gêmea e backup ficam no canto superior esquerdo de cada imagem, dos cartões ao painel da bobina. Um olhar, sempre no mesmo lugar.",
+          "pt-pt": "Refill, gémea e cópia de segurança ficam no canto superior esquerdo de cada imagem, dos cartões ao painel da bobine. Um olhar, sempre no mesmo sítio.",
+          "pl": "Refill, bliźniak i kopia zapasowa są w lewym górnym rogu każdego obrazu, od kart po panel szpuli. Rzut oka, to samo miejsce.",
+          "ru": "Refill, близнец и резервная копия — в левом верхнем углу каждой картинки, от карточек до панели катушки. Один взгляд, всегда одно место.",
+          "nl": "Refill, tweeling en back-up staan linksboven op elke afbeelding, van rasterkaarten tot het spoelpaneel. Eén blik, altijd dezelfde plek."
+        }
+      },
+      {
+        "icon": "trophy",
+        "title": {
+          "en": "Hidden trophies celebrate again",
+          "fr": "Les trophées cachés refont la fête",
+          "de": "Versteckte Trophäen feiern wieder",
+          "es": "Los trofeos ocultos vuelven a celebrarse",
+          "it": "I trofei nascosti tornano a festeggiare",
+          "zh": "隐藏奖杯又能庆祝了",
+          "pt": "Troféus ocultos voltam a comemorar",
+          "pt-pt": "Os troféus ocultos voltam a festejar",
+          "pl": "Ukryte trofea znów świętują",
+          "ru": "Скрытые трофеи снова празднуют",
+          "nl": "Verborgen trofeeën vieren weer feest"
+        },
+        "body": {
+          "en": "Winning a hidden trophy shows its “Trophy unlocked” window again. It had gone quiet, we apologise to the trophy.",
+          "fr": "Décrocher un trophée caché rouvre sa fenêtre « Trophée débloqué ». Elle s’était tue, nos excuses au trophée.",
+          "de": "Eine versteckte Trophäe zeigt wieder ihr Fenster „Trophäe freigeschaltet“. Es war still geworden, wir entschuldigen uns bei der Trophäe.",
+          "es": "Ganar un trofeo oculto vuelve a mostrar su ventana «Trofeo desbloqueado». Se había quedado callada, le pedimos perdón al trofeo.",
+          "it": "Vincere un trofeo nascosto mostra di nuovo la finestra «Trofeo sbloccato». Era rimasta in silenzio, scusiamoci col trofeo.",
+          "zh": "获得隐藏奖杯时，“奖杯已解锁”窗口又会弹出来了。它之前不出声，向奖杯道歉。",
+          "pt": "Ganhar um troféu oculto mostra de novo a janela «Troféu desbloqueado». Ela tinha ficado calada, pedimos desculpa ao troféu.",
+          "pt-pt": "Ganhar um troféu oculto volta a mostrar a janela «Troféu desbloqueado». Tinha ficado calada, pedimos desculpa ao troféu.",
+          "pl": "Zdobycie ukrytego trofeum znów pokazuje okno „Trofeum odblokowane”. Zamilkło, przepraszamy trofeum.",
+          "ru": "Скрытый трофей снова открывает окно «Трофей разблокирован». Оно притихло, просим прощения у трофея.",
+          "nl": "Een verborgen trofee winnen toont weer het venster “Trofee ontgrendeld”. Het was stil geworden, onze excuses aan de trofee."
+        }
+      },
+      {
+        "icon": "sparkle",
+        "title": {
+          "en": "One sticker, one piece",
+          "fr": "Un sticker, une seule pièce",
+          "de": "Ein Sticker, ein Stück",
+          "es": "Una pegatina, una pieza",
+          "it": "Uno sticker, un pezzo",
+          "zh": "一张贴纸，一整块",
+          "pt": "Um adesivo, uma peça",
+          "pt-pt": "Um autocolante, uma peça",
+          "pl": "Jedna naklejka, jeden kawałek",
+          "ru": "Одна наклейка — один кусок",
+          "nl": "Eén sticker, één stuk"
+        },
+        "body": {
+          "en": "Trophy stickers now have a single white die-cut edge around the whole art, instead of looking like several stickers piled up.",
+          "fr": "Les stickers de trophées ont maintenant un seul contour blanc découpé autour de tout le dessin, au lieu de ressembler à plusieurs stickers empilés.",
+          "de": "Trophäen-Sticker haben jetzt einen einzigen weißen Stanzrand um das ganze Bild, statt wie mehrere gestapelte Sticker auszusehen.",
+          "es": "Las pegatinas de trofeo tienen ahora un único borde blanco troquelado alrededor de todo el dibujo, en vez de parecer varias apiladas.",
+          "it": "Gli sticker dei trofei hanno ora un unico bordo bianco fustellato attorno a tutto il disegno, invece di sembrare più sticker impilati.",
+          "zh": "奖杯贴纸现在整幅图案只有一圈白色模切边，不再像好几张贴纸叠在一起。",
+          "pt": "Os adesivos de troféu agora têm uma única borda branca recortada em volta de toda a arte, em vez de parecerem vários empilhados.",
+          "pt-pt": "Os autocolantes de troféu têm agora um único rebordo branco recortado à volta de toda a arte, em vez de parecerem vários empilhados.",
+          "pl": "Naklejki trofeów mają teraz jedną białą krawędź wycięcia wokół całego rysunku, zamiast wyglądać jak kilka nałożonych naklejek.",
+          "ru": "У наклеек трофеев теперь один белый контур вырубки вокруг всего рисунка — они больше не похожи на стопку из нескольких наклеек.",
+          "nl": "Trofeestickers hebben nu één witte stansrand rond de hele afbeelding, in plaats van op een stapel stickers te lijken."
+        }
+      }
+    ]
   }
 }

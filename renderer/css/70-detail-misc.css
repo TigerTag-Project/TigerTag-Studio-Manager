@@ -749,11 +749,11 @@
      sets --spool-bg on the wrap; the photo gets a transparent border (border-box,
      so the thumb keeps its size) and a radius — a replaced element's content is
      clipped to its padding edge (outer radius minus border), so the photo
-     itself comes out rounded. background-clip stops .thumb's grey fill from
-     painting under the border and hiding the frame. */
+     itself comes out rounded. The photo has no fill of its own here: while it
+     loads, the thumb is the spool colour, not a grey square inside the frame. */
   .thumb-wrap:has(> img.thumb) { background: var(--spool-bg, var(--surface-2)); }
   .thumb-wrap > img.thumb {
-    box-sizing: border-box; border: 4px solid transparent; border-radius: 10px; background-clip: padding-box;
+    box-sizing: border-box; border: 4px solid transparent; border-radius: 10px; background: transparent;
   }
   .thumb-color { display: inline-flex; align-items: flex-start; justify-content: flex-end; }
   .thumb-color img { width: 42%; margin: 8%; }
@@ -3148,8 +3148,10 @@
   .panel-img-badge--tl { left: 10px; }
   .panel-img-badge--tr { right: 10px; }
   .panel-img-badge--bl { left: 10px; top: auto; bottom: 10px; }
-  .panel-img-badge-tr-group { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; padding: 0; background: none !important; }
-  .panel-img-badge-tr-item { position: static; pointer-events: auto; }
+  /* The top-left stack of a panel illustration: tier, then Refill, twin, backup —
+     the corners every illustration shares (see `buildPanelHTML`). */
+  .panel-img-badge-group { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; padding: 0; background: none !important; }
+  .panel-img-badge-item { position: static; pointer-events: auto; }
   .panel-img-icon-badge {
     display: inline-flex; align-items: center; justify-content: center;
     width: 24px; height: 24px; border-radius: 50%;
@@ -3187,8 +3189,9 @@
     line-height: 1.4;
   }
   /* Product-status badges — bottom-right cluster on a spool illustration: ❤
-     wishlist (red), ★ like (gold), 🛍 buy-link (Shopify green). The other corners:
-     twin/backup top-left, chip top-right, TD bottom-left. */
+     wishlist (red), ★ like (gold), 🛍 buy-link (Shopify green). The other corners,
+     the same on every illustration: Refill/twin/backup top-left (under the tier
+     badge on a panel), chip top-right, TD bottom-left. */
   .prod-badges {
     position: absolute; bottom: 6px; right: 6px; z-index: 2;
     display: flex; gap: 3px; pointer-events: none;
