@@ -132,6 +132,7 @@ renderer/
   rfid_protocol/tigertag/ — RFID tester modal + chip parser
   rfid_protocol/linked/   — linked chips + the new-chip chooser side card
   rfid_protocol/eraser/   — NFC tools view (format to TigerTag Init, recycle to NDEF, write NDEF content)
+  rfid_protocol/restore/  — Restore TigerTag+ view (readers, what the rfidList backup writes back, held banner)
   printers/        — one folder per brand (PROTOCOL.md + index.js + add-flow.js + probe.js …)
                      plus plugins (klipper/, octoprint/: plugin.js + main.cjs) registered via
                      plugins.js, and shared: registry.js, context.js, cam_manager.js,

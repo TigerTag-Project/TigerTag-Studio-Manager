@@ -3,6 +3,7 @@ import { decimalSpoolIdToHex, repairTruncatedNtagUid, isDecimalSpoolId, planTrun
 import { initRfidTester } from './rfid_protocol/tigertag/index.js';
 import { initLinkedChips, linkedChipsSignIn, linkedChipsSignOut, linkedChipsOf, onForeignChip, holdForeignChip, pendingMakerChips, presentMakerChips, makerLinkBannerHtml, linkMakerChipsTo, linkedChipsHtml, wireLinkedChips, linkPendingTo, clearPendingLink, openBlankChipWindow, closeChipChoice, closeChipLink, wireSearchBox, linkOfferHtml, wireLinkOffer, openAddChooser, refreshChipChoice } from './rfid_protocol/linked/index.js';
 import { initChipEraser, openChipEraser, closeChipEraser, chipEraserOpen, eraserCardPresent, eraserForeignChip, eraserReadersChanged } from './rfid_protocol/eraser/index.js';
+import { initChipRestore, openChipRestore, closeChipRestore, chipRestoreOpen, restoreCardPresent, restoreReadersChanged } from './rfid_protocol/restore/index.js';
 
 // ── Offline timezone → country (telemetry, no IP geolocation) ──────────────
 import { tzToCountry, COUNTRY_CODES } from './tz-country.js';
@@ -4713,13 +4714,20 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     clearCreate: () => { closeCatalogPick(); if ($("productCardPanel")?.classList.contains("open")) closeProductCard(); if ($("addProductPanel")?.classList.contains("open")) _adpCloseAllSheetsAndPanel(); },
     openEraser: () => openChipEraser(), closeEraser: () => closeChipEraser(),
     restorableChip: () => _restorableChip(),
-    restoreChip: (c, setLbl) => _restorePlusChip(c.readerName, c.uid, c.hex, setLbl) });
+    openRestore: () => openChipRestore(), closeRestore: () => closeChipRestore() });
   $("chipLinkClose")?.addEventListener("click", () => closeChipLink());
   $("chipLinkCloseTab")?.addEventListener("click", () => closeChipLink());
   $("chipChoiceClose")?.addEventListener("click", () => closeChipChoice());
   $("chipChoiceCloseTab")?.addEventListener("click", () => closeChipChoice());
   // Chip eraser — the new-chip card's "Erase chips" view; while it is up a scan
   // opens nothing (the NFC routing below hands the chips to it).
+  // Restore TigerTag+ — the new-chip card's "Restore" view (rfid_protocol/restore).
+  initChipRestore({ t, esc, state, reportError,
+    syncPanels: () => _syncPanels(), showTip: el => _showToolInfoTip(el), hideTip: () => _hideToolInfoTip(),
+    chipBackup: uid => _chipBackup(uid), describeChip: (uid, raw) => _describeChipRaw(uid, raw),
+    restoreChip: c => _restorePlusChip(c.readerName, c.uid, c.hex),
+    chipBanner: (id, title, info, opts) => _chipBannerHTML(id, title, info, opts),
+    wireChipBanner: (el, action, ready) => _wireChipBanner(el, action, "chipRestoreNeedChip", ready) });
   initChipEraser({ t, esc, state, reportError,
     syncPanels: () => _syncPanels(), showTip: el => _showToolInfoTip(el), hideTip: () => _hideToolInfoTip(),
     errorTip: (el, msg, opts) => _showErrorTip(el, msg, opts),
@@ -20472,18 +20480,42 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     }
     return null;
   }
-  // Writes the backup back, verified. `setLbl` shows each step; true once written.
-  async function _restorePlusChip(readerName, uid, hex, setLbl, spoolId) {
+  // Writes the backup back, verified. `setLbl` (optional) shows each step.
+  // Returns { ok, pagesWritten } — 0 pages: the chip was already intact.
+  async function _restorePlusChip(readerName, uid, hex, setLbl = () => {}, spoolId) {
     setLbl(t("toolRepairWriting"));
     const res = await window.electronAPI.repairRfidTag({ readerName, uid, hex });
     if (res?.ok && res.verified !== false) {
       setLbl(res.pagesWritten === 0 ? t("toolRepairAlready") : t("toolRepairDone"));
       // An intact chip (0 pages) or a failed repair reports nothing.
       if (res.pagesWritten > 0) _sendRepairAnalytics(spoolId || _xanoSpoolIdOfUid(uid) || uid, uid, res.pagesWritten);
-      return true;
+      return { ok: true, pagesWritten: Number(res.pagesWritten) || 0 };
     }
     setLbl(t("toolRepairFailed")); console.warn("[repair] failed:", res);
-    return false;
+    return { ok: false, pagesWritten: 0 };
+  }
+  // A backup's fields (SDK raw dict) as the Restore card shows them: the swatch
+  // through colorBg like every spool, names from the reference tables.
+  function _describeChipRaw(uid, raw) {
+    const r = normalizeRow(uid, { ...raw, data1: raw.id_diameter, measure_gr: raw.measure_gr ?? raw.measure });
+    const aspects = [r.aspect1, r.aspect2].filter(a => a && a !== "-" && a !== "None").join(", ");
+    const qty = raw.measure_gr != null ? `${raw.measure_gr} g` : raw.measure ? String(raw.measure) : "";
+    const range = (a, b) => (a || b ? `${a}–${b} °C` : "—");
+    const colors = (raw.color_list || []).map(c => String(c).slice(0, 7).toUpperCase()).join(" ");
+    const fields = [
+      [t("detColor"), colors || r.colorHex || "—"],
+      [t("lbNozzle"), range(raw.nozzle_min, raw.nozzle_max)],
+      [t("lbBed"), range(raw.bed_min, raw.bed_max)],
+      [t("addProductDrying"), raw.dry_temp ? `${raw.dry_temp} °C · ${raw.dry_time} h` : "—"],
+      [t("detMeasure"), qty || "—"],
+      [t("detProductId"), _hasRealProductId(raw.id_product) ? String(raw.id_product) : "—"],
+    ];
+    if (raw.message) fields.push([t("listMessageLabel"), raw.message]);
+    return {
+      title: [r.brand !== "-" ? r.brand : "", r.material !== "-" ? r.material : ""].filter(Boolean).join(" ") || t("toolRepairPlus"),
+      sub: [aspects, r.diameter].filter(Boolean).join(" · "),
+      bg: colorBg(r), fields,
+    };
   }
 
   function _wireToolbox(r) {
@@ -44276,6 +44308,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       _paintInvStartPod();     // the first-steps TigerPOD card follows the reader
       if (!$("firstSteps")?.classList.contains("hidden")) _renderFirstSteps();
       eraserReadersChanged();
+      restoreReadersChanged();
     });
 
     // ── Card present / removed — badge update ───────────────────────────────
@@ -44289,6 +44322,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       refreshChipChoice();         // "Link" in the add chooser needs a chip to burn onto
       _refreshChipBanners();       // Link / Burn banners follow what sits on the TigerPOD
       eraserCardPresent(readerName, uid); // the chip eraser reads what was placed
+      restoreCardPresent(readerName, uid); // the Restore card looks its backup up
       // TigerPOD signal — a SUCCESSFUL read with N readers proves ownership:
       // auto-select hasPod on first read, then record reader count keeping the max
       // (_telRfidMax was seeded from persisted value so we never write a lower count).
@@ -44311,6 +44345,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     const _testerUp = () => !!$("rfidTestOverlay")?.classList.contains("open");
     window.electronAPI.onRfidForeignChip?.(data => {
       if (chipEraserOpen()) { eraserForeignChip(data); return; }
+      if (chipRestoreOpen()) return;   // a maker's chip has no TigerTag+ backup
       if (_testerUp()) return;
       // The new-chip card is up: the maker's chip waits there to be linked to what
       // the card creates — it opens and adds nothing (linked/index.js holdForeignChip).
@@ -44326,7 +44361,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
 
     // Legacy uid event — open detail if already in inventory
     window.electronAPI.onRfid((uid) => {
-      if (_encodeModalOpen() || chipEraserOpen() || _chipCardUp() || _testerUp()) return;   // don't pop a side-card over the encode modal
+      if (_encodeModalOpen() || chipEraserOpen() || chipRestoreOpen() || _chipCardUp() || _testerUp()) return;   // don't pop a side-card over the encode modal
       // A scan always concerns YOUR inventory. Queue the spool to open, then either
       // leave a friend's read-only view (the own snapshot opens it) or open now.
       _scanOpenUid = uid;
@@ -44351,7 +44386,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     window.electronAPI.onRfidTagScanned((tagData) => {
       // The new-chip card is up (the NFC tools included), or the NFC tag tester:
       // nothing opens, nothing is created or updated from the scan.
-      if (chipEraserOpen() || _chipCardUp() || _testerUp()) return;
+      if (chipEraserOpen() || chipRestoreOpen() || _chipCardUp() || _testerUp()) return;
       // Scanning a spool always acts on the active account → leave any friend's
       // read-only view right away so the user lands back on their own inventory
       // (the write target was already the active account; this fixes the VIEW).
@@ -44373,7 +44408,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       const user = fbAuth().currentUser;
       if (!user) return;
       // A scan buffered just before the new-chip card (or the tester) opened lands here after it.
-      if (chipEraserOpen() || _chipCardUp() || _testerUp()) return;
+      if (chipEraserOpen() || chipRestoreOpen() || _chipCardUp() || _testerUp()) return;
 
       // Blank chips carry no material/brand yet: a TigerTag Init chip
       // (id_tigertag 0x6C41A2E1, id_product 0) or an erased / empty-NDEF NTAG

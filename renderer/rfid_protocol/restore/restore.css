@@ -1,0 +1,9 @@
+/* rfid_protocol/restore — the "Restore TigerTag+" card (#chipRestorePanel), a
+   view of the new-chip card's pane (linked.css lays it out there). The reader
+   plates, hint and banner are the NFC tools' (eraser.css, 60-modals.css); what a
+   backup writes back uses the NFC tag tester's result look (tigertag/modal.css). */
+
+#chipRestorePanel { width: 400px; max-width: 95vw; z-index: 101; display: flex; flex-direction: column; }
+.crs-data { display: flex; flex-direction: column; gap: 12px; }
+.crs-data:empty { display: none; }
+.crs-res { padding: 12px; border-radius: 14px; border: 1px solid var(--border); background: var(--surface-2); animation: lc-in .22s ease both; }

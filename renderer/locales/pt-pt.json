@@ -1980,6 +1980,7 @@
   "toolRepairAlready": "Já intacto ✓",
   "toolRepairFailed": "Falha ao restaurar",
   "chipRestoreNeedChip": "Coloca um TigerTag+ danificado ou apagado no TigerPOD. Se tiver cópia de segurança, volta exatamente como saiu da fábrica.",
+  "chipRestoreCertified": "Certificado",
   "backupBadge": "Assinatura guardada",
   "toolFormatRfid": "Apagar o {{tier}}",
   "toolFormatRfid2": "Apagar os 2 {{tier}}",

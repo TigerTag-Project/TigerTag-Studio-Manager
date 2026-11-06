@@ -1980,6 +1980,7 @@
   "toolRepairAlready": "Already intact ✓",
   "toolRepairFailed": "Restore failed",
   "chipRestoreNeedChip": "Place a worn or wiped TigerTag+ on the TigerPOD. If it has a backup, it comes back exactly as it left the factory.",
+  "chipRestoreCertified": "Certified",
   "backupBadge": "Signature backed up",
   "toolFormatRfid": "Erase the {{tier}}",
   "toolFormatRfid2": "Erase both {{tier}} chips",

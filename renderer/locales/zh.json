@@ -1975,6 +1975,7 @@
   "toolRepairAlready": "已完好 ✓",
   "toolRepairFailed": "恢复失败",
   "chipRestoreNeedChip": "把损坏或被擦除的 TigerTag+ 放到 TigerPOD 上。如果有备份，它会恢复成出厂时的样子。",
+  "chipRestoreCertified": "已认证",
   "backupBadge": "签名已备份",
   "toolFormatRfid": "清除 {{tier}}",
   "toolFormatRfid2": "清除两个 {{tier}} 芯片",

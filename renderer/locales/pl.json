@@ -1990,6 +1990,7 @@
   "toolRepairAlready": "Już nienaruszony ✓",
   "toolRepairFailed": "Przywracanie nie powiodło się",
   "chipRestoreNeedChip": "Połóż uszkodzony lub wyczyszczony TigerTag+ na TigerPOD. Jeśli ma kopię zapasową, wróci dokładnie do stanu fabrycznego.",
+  "chipRestoreCertified": "Certyfikowany",
   "backupBadge": "Podpis zarchiwizowany",
   "toolFormatRfid": "Wymaż {{tier}}",
   "toolFormatRfid2": "Wymaż oba chipy {{tier}}",

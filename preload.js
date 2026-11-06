@@ -360,6 +360,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // request is made from the main process rather than the renderer).
   sendTagAnalytics: (payload) =>
     ipcRenderer.send('analytics:tag', payload),
+  // A TigerTag+ backup decoded: { ok, certified, raw } (the Restore card's preview).
+  decodeChipBackup: (uidHex, backupHex) =>
+    ipcRenderer.invoke('rfid:decode-backup', uidHex, backupHex),
   // Whether a TigerTag+ backup carries a valid factory signature (Certified).
   analyticsChipCertified: (uidHex, backupHex) =>
     ipcRenderer.invoke('analytics:chip-certified', uidHex, backupHex),

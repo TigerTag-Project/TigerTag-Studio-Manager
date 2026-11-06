@@ -1606,6 +1606,19 @@ app.on('will-quit', (event) => {
 // backend applies to the rfidList backup to certify a chip (chipValue in
 // functions/supportWebhooks.js). The renderer hands the backup it read; null when
 // it cannot be parsed (the protocol is then reported "unknown", never guessed).
+// The Restore card shows what a backup will write back: the chip's fields as the
+// SDK reads them from those pages, and whether its signature checks out.
+ipcMain.handle('rfid:decode-backup', (_evt, uidHex, backupHex) => {
+  try {
+    if (!/^[0-9A-Fa-f]{14}$/.test(String(uidHex)) || typeof backupHex !== 'string') return { ok: false };
+    const tag = TigerTag.fromPages(Buffer.from(uidHex, 'hex'), Buffer.from(backupHex, 'hex'));
+    let certified = false;
+    try { certified = !!tag.isPlus && tag.verify().ok === true; } catch (_) {}
+    const { img, api_url, product_page_url, ...raw } = tag.toRawDict();
+    return { ok: true, certified, raw };
+  } catch (e) { return { ok: false, error: e.message }; }
+});
+
 ipcMain.handle('analytics:chip-certified', (_evt, uidHex, backupHex) => {
   try {
     if (!/^[0-9A-Fa-f]{14}$/.test(String(uidHex)) || typeof backupHex !== 'string') return null;

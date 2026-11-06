@@ -24,6 +24,7 @@
 <link rel="stylesheet" href="rfid_protocol/tigertag/modal.css" />
 <link rel="stylesheet" href="rfid_protocol/linked/linked.css" />
 <link rel="stylesheet" href="rfid_protocol/eraser/eraser.css" />
+<link rel="stylesheet" href="rfid_protocol/restore/restore.css" />
 <link rel="stylesheet" href="css/70-detail-misc.css" />
 <link rel="stylesheet" href="css/72-hero-scene.css" />
 <link rel="stylesheet" href="IoT/tigerscale/tigerscale.css" />
@@ -3070,6 +3071,22 @@
     <div class="cer-actions" id="chipEraserActions"></div>
     <div class="nfc-auto-count" id="fmtAutoCount"></div>
     <div class="nfc-form" id="nfcNdefForm" hidden></div>
+  </div>
+</aside>
+
+<!-- Restore TigerTag+ (rfid_protocol/restore): the new-chip card's "Restore"
+     choice, shown in its pane — the readers, what each backup writes back, and
+     the held banner. -->
+<aside class="detail-panel pba-panel cer-panel" id="chipRestorePanel">
+  <div class="pba-header">
+    <div class="pba-header-text"><div class="pba-title" data-i18n="toolRepairPlus">Restore TigerTag+</div></div>
+    <button class="panel-close" id="chipRestoreClose">✕</button>
+  </div>
+  <div class="cer-body">
+    <div class="cem-chips cer-chips" id="chipRestoreChips"></div>
+    <p class="cer-hint" id="chipRestoreHint"></p>
+    <div class="crs-data" id="chipRestoreData"></div>
+    <div class="cer-actions" id="chipRestoreActions"></div>
   </div>
 </aside>
 

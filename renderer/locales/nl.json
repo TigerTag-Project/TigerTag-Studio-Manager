@@ -1980,6 +1980,7 @@
   "toolRepairAlready": "Al intact ✓",
   "toolRepairFailed": "Herstellen mislukt",
   "chipRestoreNeedChip": "Leg een beschadigde of gewiste TigerTag+ op de TigerPOD. Heeft hij een back-up, dan is hij weer precies zoals uit de fabriek.",
+  "chipRestoreCertified": "Gecertificeerd",
   "backupBadge": "Handtekening geback-upt",
   "toolFormatRfid": "{{tier}} wissen",
   "toolFormatRfid2": "Beide {{tier}}-chips wissen",

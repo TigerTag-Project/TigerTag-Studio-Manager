@@ -1980,6 +1980,7 @@
   "toolRepairAlready": "Bereits intakt ✓",
   "toolRepairFailed": "Wiederherstellung fehlgeschlagen",
   "chipRestoreNeedChip": "Leg einen beschädigten oder gelöschten TigerTag+ auf den TigerPOD. Hat er ein Backup, ist er wieder genau wie ab Werk.",
+  "chipRestoreCertified": "Zertifiziert",
   "backupBadge": "Signatur gesichert",
   "toolFormatRfid": "{{tier}} löschen",
   "toolFormatRfid2": "Beide {{tier}}-Chips löschen",
