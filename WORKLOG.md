@@ -26,6 +26,7 @@
 
 ## Changed
 
+- The site's share text (`og_description`) fits link previews: 125 characters at most in the eleven languages (`site/i18n/*.json`).
 - The site's share picture is tigersystem.io's Tiger Studio Manager card in the page's language (`SHARE_CARD` in `site/build.py`, `site/template.html`), with its alt text in the eleven languages (`site/i18n/*.json`); `site/assets/og.jpg` is gone.
 - Catalogue grid and list show the Refill badge before the side card opens: a refill product
   (`info1`, in the catalogue list itself) gets the same top-left badge as an inventory spool —
