@@ -150,7 +150,7 @@ def render(template, lang, words, dicts, site_url, version, date):
                          f'<p>{html.escape(words[f"faq{i}_a"])}</p></details>'
                          for i in range(1, faq_count(words) + 1))
     jsonld = [
-        {"@context": "https://schema.org", "@type": "Organization", "@id": ORG_ID, "name": "TigerTag Corp",
+        {"@context": "https://schema.org", "@type": "Organization", "@id": ORG_ID, "name": "TigerSystem",
          "url": "https://tigersystem.io", "logo": site_url + "assets/apple-touch-icon.png",
          "sameAs": ["https://github.com/TigerTag-Project", "https://wiki.tigersystem.io",
                     "https://tigertag-project.github.io/TigerTag-RFID-Guide/"]},
