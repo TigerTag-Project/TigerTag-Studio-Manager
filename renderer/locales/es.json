@@ -1979,6 +1979,7 @@
   "toolRepairDone": "Restaurado ✓",
   "toolRepairAlready": "Ya intacto ✓",
   "toolRepairFailed": "Error al restaurar",
+  "chipRestoreNeedChip": "Pon un TigerTag+ dañado o borrado en el TigerPOD. Si tiene copia de seguridad, vuelve exactamente como salió de fábrica.",
   "backupBadge": "Firma respaldada",
   "toolFormatRfid": "Borrar el {{tier}}",
   "toolFormatRfid2": "Borrar los 2 {{tier}}",

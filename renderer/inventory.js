@@ -1116,7 +1116,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     let timer = null;
     function start(e) {
       e.preventDefault();
-      if (btn.disabled) return;
+      if (btn.disabled || btn.getAttribute("aria-disabled") === "true") return;
       btn.classList.add("is-holding");
       if (fill) {
         fill.style.transition = "width 0s";
@@ -4711,7 +4711,9 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     openCatalogue: () => openCatalogPick(), openManual: () => openAddProductPanel(), chipPresent: () => state.nfcCardPresent.size > 0, chipsChanged: () => _refreshChipBanners(), syncPanels: () => _syncPanels(), clearSide: () => _clearSideForChip(), closeAllSide: () => _closeAllSidePanels(),
     showTip: el => _showToolInfoTip(el), hideTip: () => _hideToolInfoTip(), errorTip: (el, msg, opts) => _showErrorTip(el, msg, opts),
     clearCreate: () => { closeCatalogPick(); if ($("productCardPanel")?.classList.contains("open")) closeProductCard(); if ($("addProductPanel")?.classList.contains("open")) _adpCloseAllSheetsAndPanel(); },
-    openEraser: () => openChipEraser(), closeEraser: () => closeChipEraser() });
+    openEraser: () => openChipEraser(), closeEraser: () => closeChipEraser(),
+    restorableChip: () => _restorableChip(),
+    restoreChip: (c, setLbl) => _restorePlusChip(c.readerName, c.uid, c.hex, setLbl) });
   $("chipLinkClose")?.addEventListener("click", () => closeChipLink());
   $("chipLinkCloseTab")?.addEventListener("click", () => closeChipLink());
   $("chipChoiceClose")?.addEventListener("click", () => closeChipChoice());
@@ -20444,6 +20446,46 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     }
   }
 
+  // ── Restore a TigerTag+ from its rfidList backup ─────────────────────────
+  // Shared by the spool toolbox and the new-chip card's "Restore" choice. The
+  // backup is read once per chip; a missing one is asked again after a minute (a
+  // scan may have just stored it).
+  const _chipBackups = new Map();   // UID (upper) → { hex | null, at }
+  async function _chipBackup(uidHex) {
+    const u = String(uidHex || "").toUpperCase();
+    if (!u || !state.activeAccountId) return null;
+    const c = _chipBackups.get(u);
+    if (c && (c.hex || Date.now() - c.at < 60_000)) return c.hex;
+    let hex = null;
+    try {
+      const snap = await _rfidListCol(state.activeAccountId).doc(u).get();
+      hex = typeof snap.get("backup") === "string" ? snap.get("backup") : null;
+    } catch (_) {}
+    _chipBackups.set(u, { hex, at: Date.now() });
+    return hex;
+  }
+  // The first chip on a reader that has a backup: what the card's Restore acts on.
+  async function _restorableChip() {
+    for (const [readerName, card] of state.nfcCardPresent.entries()) {
+      const hex = card?.uid ? await _chipBackup(card.uid) : null;
+      if (hex) return { readerName, uid: String(card.uid).toUpperCase(), hex };
+    }
+    return null;
+  }
+  // Writes the backup back, verified. `setLbl` shows each step; true once written.
+  async function _restorePlusChip(readerName, uid, hex, setLbl, spoolId) {
+    setLbl(t("toolRepairWriting"));
+    const res = await window.electronAPI.repairRfidTag({ readerName, uid, hex });
+    if (res?.ok && res.verified !== false) {
+      setLbl(res.pagesWritten === 0 ? t("toolRepairAlready") : t("toolRepairDone"));
+      // An intact chip (0 pages) or a failed repair reports nothing.
+      if (res.pagesWritten > 0) _sendRepairAnalytics(spoolId || _xanoSpoolIdOfUid(uid) || uid, uid, res.pagesWritten);
+      return true;
+    }
+    setLbl(t("toolRepairFailed")); console.warn("[repair] failed:", res);
+    return false;
+  }
+
   function _wireToolbox(r) {
     // Export this material as a .ttag (offline backup; + twin partner).
     $("btnExportTtag")?.addEventListener("click", () => {
@@ -20549,17 +20591,9 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         const reader = [...state.nfcCardPresent.entries()]
           .find(([, c]) => String(c?.uid).toUpperCase() === String(uid).toUpperCase())?.[0];
         if (!reader) { setLbl(t("toolRepairNoChip")); return; }
-        const snap = await _rfidListCol(state.activeAccountId).doc(r.spoolId).get();
-        const hex = snap.exists ? snap.data()?.backup : null;
+        const hex = await _chipBackup(r.spoolId);
         if (!hex) { setLbl(t("toolRepairNoBackup")); return; }
-        setLbl(t("toolRepairWriting"));
-        const res = await window.electronAPI.repairRfidTag({ readerName: reader, uid, hex });
-        if (res?.ok && res.verified !== false) {
-          setLbl(res.pagesWritten === 0 ? t("toolRepairAlready") : t("toolRepairDone"));
-          // An intact chip (0 pages) or a failed repair reports nothing.
-          if (res.pagesWritten > 0) _sendRepairAnalytics(r.spoolId, uid, res.pagesWritten);
-        }
-        else { setLbl(t("toolRepairFailed")); console.warn("[repair] failed:", res); }
+        await _restorePlusChip(reader, uid, hex, setLbl, r.spoolId);
       } catch (e) { setLbl(t("toolRepairFailed")); reportError("spool.repairPlus", e); }
     });
     // Erase (Format) / Recycle — open the guided chip modal: it shows whether this

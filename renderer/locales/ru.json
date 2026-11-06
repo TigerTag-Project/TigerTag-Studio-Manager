@@ -1989,6 +1989,7 @@
   "toolRepairDone": "Восстановлено ✓",
   "toolRepairAlready": "Уже в порядке ✓",
   "toolRepairFailed": "Восстановление не удалось",
+  "chipRestoreNeedChip": "Положи повреждённый или стёртый TigerTag+ на TigerPOD. Если есть резервная копия, он станет точно таким, как с завода.",
   "backupBadge": "Подпись сохранена",
   "toolFormatRfid": "Стереть {{tier}}",
   "toolFormatRfid2": "Стереть оба чипа {{tier}}",

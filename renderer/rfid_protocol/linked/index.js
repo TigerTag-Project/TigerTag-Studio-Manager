@@ -265,15 +265,17 @@ function openChipWindow(chips, kind) {
   const body = el.querySelector("#chipChoiceBody");
   el._lcClick && el.removeEventListener("click", el._lcClick);
   // ⓘ: the same hover bubble as the toolbox and the "+ Material" picker.
-  const tile = (id, icon, label, tip, off = false) => `
-    <button type="button" class="lc-choice${off ? " is-off" : ""}" data-lc-go="${id}"${off ? ' aria-disabled="true"' : ""}>
+  const tile = (id, icon, label, tip, off = false, hold = false) => `
+    <button type="button" class="lc-choice${off ? " is-off" : ""}${hold ? " lc-choice--hold" : ""}" data-lc-go="${id}"${off ? ' aria-disabled="true"' : ""}>
+      ${hold ? '<span class="hold-progress"></span>' : ""}
       <span class="tool-info" data-tip="${esc(tip)}" aria-label="${esc(tip)}"><span class="icon icon-info icon-13"></span></span>
       <span class="lc-choice-ic"><span class="icon icon-${icon} icon-32" aria-hidden="true"></span></span>
       <b>${esc(label)}</b>
     </button>`;
   ctx.hideTip?.();
-  body.innerHTML = `<div class="lc-choices">${tile("catalogue", "search", t("linkedChipAddCatalogue"), t("linkedChipCatalogueTip"))}${tile("manual", "edit", t("linkedChipAddManual"), t("linkedChipManualTip"))}${tile("pick", "link", t("linkedChipExisting"), _pickTip(kind), _pickOff(kind))}${foreign ? "" : tile("erase", "recycle", t("chipEraserTitle"), t("chipEraserTip"))}</div>`;
+  body.innerHTML = `<div class="lc-choices">${tile("catalogue", "search", t("linkedChipAddCatalogue"), t("linkedChipCatalogueTip"))}${tile("manual", "edit", t("linkedChipAddManual"), t("linkedChipManualTip"))}${tile("pick", "link", t("linkedChipExisting"), _pickTip(kind), _pickOff(kind))}${foreign ? "" : tile("erase", "recycle", t("chipEraserTitle"), t("chipEraserTip"))}${tile("restore", "nfc", t("toolRepairPlus"), t("chipRestoreNeedChip"), true, true)}</div>`;
   choiceKind = kind;
+  _wireRestore(body.querySelector('[data-lc-go="restore"]'));
   body.classList.remove("lc-in"); void body.offsetWidth; body.classList.add("lc-in");
 
   const NEXT = { pick: "chipLinkPanel", catalogue: "catalogPickPanel", manual: "addProductPanel", erase: "chipEraserPanel" };
@@ -303,6 +305,11 @@ function openChipWindow(chips, kind) {
   el._lcClick = e => {
     const b = e.target.closest("[data-lc-go]");
     if (!b) return;
+    // Restore opens nothing: it runs on its hold. Greyed, it says why.
+    if (b.dataset.lcGo === "restore") {
+      if (b.getAttribute("aria-disabled") === "true") ctx.errorTip?.(b.querySelector(".lc-choice-ic") || b, ctx.t("chipRestoreNeedChip"), { img: "../assets/img/tigersquad/loot/tigerpod.webp" });
+      return;
+    }
     // Greyed "Link": say why, in the red bubble, right over its link icon.
     if (b.getAttribute("aria-disabled") === "true") {
       ctx.errorTip?.(b.querySelector(".lc-choice-ic") || b, ctx.t("linkedChipLinkNeedPod"), { img: "../assets/img/tigersquad/loot/tigerpod.webp" });
@@ -339,10 +346,41 @@ function _pickTip(kind) {
   if (kind === "foreign") return t("linkedChipLinkTip");
   return t(_pickOff(kind) ? "linkedChipLinkNeedTag" : "linkedChipLinkBlankTip");
 }
-/** A chip was placed on / taken off the TigerPOD: re-grey "Link" in place. */
+// "Restore TigerTag+": always shown, greyed until a chip on the TigerPOD has a
+// backup in rfidList (a worn or wiped TigerTag+ reads as blank or foreign, so its
+// card opens with this choice). Held 1.5 s, it writes the backup back, verified.
+let restoreTarget = null;
+function _wireRestore(b) {
+  if (!b) return;
+  ctx.setupHoldToConfirm?.(b, 1500, async () => {
+    const c = restoreTarget;
+    if (!c) return;
+    const lbl = b.querySelector("b");
+    b.setAttribute("aria-disabled", "true");
+    try { await ctx.restoreChip(c, txt => { if (lbl) lbl.textContent = txt; }); }
+    catch (e) { if (lbl) lbl.textContent = ctx.t("toolRepairFailed"); ctx.reportError?.("chip.restore", e); }
+    setTimeout(() => { if (lbl) lbl.textContent = ctx.t("toolRepairPlus"); _refreshRestore(); }, 2500);
+  }, { hint: true });
+  _refreshRestore();
+}
+async function _refreshRestore() {
+  const c = await ctx.restorableChip?.().catch(() => null);
+  const b = document.querySelector('#chipChoicePanel [data-lc-go="restore"]');
+  if (!b) return;
+  restoreTarget = c || null;
+  const off = !restoreTarget, tip = ctx.t(off ? "chipRestoreNeedChip" : "toolRepairPlusTip");
+  b.classList.toggle("is-off", off);
+  if (off) b.setAttribute("aria-disabled", "true"); else b.removeAttribute("aria-disabled");
+  const i = b.querySelector(".tool-info");
+  if (i) { i.dataset.tip = tip; i.setAttribute("aria-label", tip); }
+}
+
+/** A chip was placed on / taken off the TigerPOD: re-grey "Link" and "Restore" in place. */
 export function refreshChipChoice() {
   const el = document.getElementById("chipChoicePanel");
-  if (!el?.classList.contains("open") || !choiceKind || choiceKind === "foreign") return;
+  if (!el?.classList.contains("open") || !choiceKind) return;
+  _refreshRestore();
+  if (choiceKind === "foreign") return;
   const b = el.querySelector('[data-lc-go="pick"]');
   if (!b) return;
   const off = _pickOff(choiceKind), tip = _pickTip(choiceKind);

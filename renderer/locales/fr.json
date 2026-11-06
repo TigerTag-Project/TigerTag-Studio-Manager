@@ -1979,6 +1979,7 @@
   "toolRepairDone": "Restauré ✓",
   "toolRepairAlready": "Déjà intacte ✓",
   "toolRepairFailed": "Échec de la restauration",
+  "chipRestoreNeedChip": "Pose un TigerTag+ abîmé ou effacé sur le TigerPOD. S'il a une sauvegarde, il revient exactement comme en sortie d'usine.",
   "backupBadge": "Signature sauvegardée",
   "toolFormatRfid": "Effacer le {{tier}}",
   "toolFormatRfid2": "Effacer les 2 {{tier}}",
