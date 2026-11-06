@@ -42976,6 +42976,8 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     if (!ANALYTICS_SPOOL_EVENTS) { delete base.Protocol; delete base.SpoolId; _xanoPost(operation, base, now); return; }
     const id = base.SpoolId || _xanoSpoolIdOfUid(uidHex);
     const doc = id ? state.inventory?.[id] : null;
+    const left = _xanoWeightAvailable(doc);
+    if (left != null) base.WeightAvailable = left;
     (base.Protocol ? Promise.resolve(base.Protocol) : doc ? _xanoProtocol(id, doc) : Promise.resolve("unknown"))
       .then(protocol => _xanoPost(operation, { ...base, Protocol: protocol, SpoolId: id || "" }, now));
   }
@@ -43074,12 +43076,22 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     return c === true ? "TigerTag+ Certified" : c === false ? "TigerTag+" : "unknown";
   }
 
+  // Remaining grams; `Weight` stays the capacity on every event.
+  function _xanoWeightAvailable(doc) {
+    const w = doc?.weight_available;
+    return w != null && Number.isFinite(Number(w)) ? Number(w) : null;
+  }
+
   async function _xanoSpoolFields(spoolId, doc) {
     const chipless = _isChiplessId(spoolId);
     const f = _xanoChipFields(doc || {}, { withBed: true });
     if (!_hasRealProductId(doc?.id_product)) delete f.IdProduct;
+    // No chip: IdTigerTag 0 would read "RFID Empty" in Xano.
+    if (chipless) delete f.IdTigerTag;
+    const left = _xanoWeightAvailable(doc);
     return {
       ...f,
+      ...(left != null ? { WeightAvailable: left } : {}),
       Protocol: await _xanoProtocol(spoolId, doc),
       SpoolId: String(spoolId),
       ...(chipless ? {} : { Uid: _xanoUidDecimal(doc?.uid ?? spoolId) }),
@@ -43109,8 +43121,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     _xanoEdits.delete(spoolId);
     const doc = state.inventory?.[spoolId];
     if (!doc || !e.fields.size) return;
-    const w = Number(doc.weight_available);
-    _xanoSpoolEvent("edit", spoolId, doc, { Changed: [...e.fields].sort(), Weight: Number.isFinite(w) ? w : 0 });
+    _xanoSpoolEvent("edit", spoolId, doc, { Changed: [...e.fields].sort() });
   }
   function _xanoFlushEdits() { [..._xanoEdits.keys()].forEach(_xanoSendEdit); }
   window.addEventListener("pagehide", _xanoFlushEdits);

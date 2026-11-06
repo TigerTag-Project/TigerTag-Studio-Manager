@@ -23,7 +23,7 @@ the `analytics:tag` queue in `main.js`.
 | `write` | a chip burn verified | always |
 | `reset` / `nfc_init` | chip formatted to TigerTag Init / recycled to plain NFC | always |
 | `create` | a spool comes into this account by any path (add form, catalogue, duplicate, mint, `.ttag` import, first scan of a chip) | flag only |
-| `edit` | this instance changes a spool doc; `Changed` = field names, `Weight` = remaining grams; coalesced per spool over 5 minutes | flag only |
+| `edit` | this instance changes a spool doc; `Changed` = field names; coalesced per spool over 5 minutes | flag only |
 | `delete` | this instance deletes a spool; fields from before the deletion | flag only |
 
 `create` / `edit` / `delete` are behind `ANALYTICS_SPOOL_EVENTS` (renderer, off) until Xano's
@@ -34,6 +34,9 @@ the `analytics:tag` queue in `main.js`.
   Certified = the factory signature checks out: known from the scan, otherwise the
   `rfidList/{uid}.backup` is verified once per chip and session (the backend's own test).
 - `SpoolId`: the inventory doc id. `Uid` (decimal) only for chip formats.
+- `Weight` is always the capacity (`measure_gr`); `WeightAvailable` is the remaining grams, on every
+  spool event and on a chip event when the spool doc is known.
+- `IdTigerTag` is left out for TigerData / TigerData+ (0 means "RFID Empty" in Xano).
 
 ## Rules
 
