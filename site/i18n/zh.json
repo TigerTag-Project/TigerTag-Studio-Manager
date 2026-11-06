@@ -7,7 +7,7 @@
   "meta_description": "免费开源的桌面应用，支持 Windows、macOS 和 Linux：用 TigerTag NFC 芯片管理耗材料盘，连接约 380 款 3D 打印机。",
   "og_title": "Tiger Studio Manager – 耗材与 3D 打印机，一个窗口全掌握",
   "og_description": "免费开源（MIT）的桌面应用，支持 Windows、macOS 和 Linux：料盘库存、TigerTag NFC 芯片、3D 打印机实时状态、料架与传感器。",
-  "og_alt": "iMac 上的 Tiger Studio Manager：料盘库存、单个料盘的详情，以及一台拓竹（Bambu Lab）打印机的实时面板",
+  "og_alt": "Mac 上的 Tiger Studio Manager 2、正在读取耗材的 TigerPOD Mini 和 Tiger NFC Connect 应用",
   "nav_features": "功能",
   "nav_screens": "截图",
   "nav_printers": "打印机",
