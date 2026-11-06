@@ -1595,13 +1595,23 @@ async function _fetchCatalogPage(page, perPage) {
 // against ~3.5 min for the 19 API pages, and no load on Xano at all. The last
 // copy and its ETag are kept on disk, so an unchanged catalogue costs one `304`
 // and no download. Any failure falls through to `get/all` below.
+//
+// A copy on disk without `series` was written while the export lacked it
+// (2026-09-01 → 2026-11-06, TigerTag-Manager#98). Its ETag is not trusted: the
+// file is downloaded in full once, whatever the server would answer to it.
 const CATALOG_SNAPSHOT_URL = 'https://raw.githubusercontent.com/TigerTag-Project/TigerTag-RFID-Guide/refs/heads/main/database/id_catalog.json';
-async function _fetchCatalogSnapshot() {
+// How many products carry each field the catalogue lost for two months — logged
+// on every sync, so a regression of the export shows up in the log at once.
+function _catalogFieldCounts(items) {
+  const n = (k) => items.reduce((c, p) => c + (p?.[k] != null && p[k] !== '' ? 1 : 0), 0);
+  return `series ${n('series')}, name ${n('name')}, aspect1 ${n('aspect1')}, aspect2 ${n('aspect2')}, updated_at ${n('updated_at')}`;
+}
+async function _fetchCatalogSnapshot({ ignoreEtag = false } = {}) {
   const dir  = app.getPath('userData');
   const body = path.join(dir, 'catalog-snapshot.json');
   const meta = path.join(dir, 'catalog-snapshot.etag');
   let etag = null;
-  try { if (fs.existsSync(body)) etag = fs.readFileSync(meta, 'utf8').trim() || null; } catch {}
+  try { if (!ignoreEtag && fs.existsSync(body)) etag = fs.readFileSync(meta, 'utf8').trim() || null; } catch {}
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 30000);
   try {
@@ -1616,12 +1626,17 @@ async function _fetchCatalogSnapshot() {
     const items = JSON.parse(text);
     // Shape check before trusting it: a list of products with an id each.
     if (!Array.isArray(items) || !items.length || items[0]?.id == null) throw new Error('bad_snapshot');
+    if (resp.status === 304 && !items.some(p => p?.series)) {
+      clearTimeout(timer);
+      log.info('[catalog] snapshot on disk predates series/name — downloading it again');
+      return _fetchCatalogSnapshot({ ignoreEtag: true });
+    }
     if (resp.status !== 304) {
       fs.writeFileSync(body, text);
       const tag = resp.headers.get('etag');
       if (tag) fs.writeFileSync(meta, tag); else fs.rmSync(meta, { force: true });
     }
-    log.info(`[catalog] snapshot ${resp.status === 304 ? 'unchanged (304)' : 'downloaded'}: ${items.length} products`);
+    log.info(`[catalog] snapshot ${resp.status === 304 ? 'unchanged (304)' : 'downloaded'}: ${items.length} products (${_catalogFieldCounts(items)})`);
     return items;
   } finally {
     clearTimeout(timer);
@@ -1661,7 +1676,7 @@ ipcMain.handle('catalog:fetch-all', async () => {
       if (env.nextPage == null) break;
       page = env.nextPage;
     }
-    log.info(`[catalog] fetched ${items.length}/${itemsTotal || items.length} products`);
+    log.info(`[catalog] fetched ${items.length}/${itemsTotal || items.length} products (${_catalogFieldCounts(items)})`);
     return { ok: true, items, itemsTotal: itemsTotal || items.length };
   } catch (e) {
     log.warn(`[catalog] fetch-all failed: ${e.message}`);

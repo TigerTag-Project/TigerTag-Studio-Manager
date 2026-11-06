@@ -15910,6 +15910,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
      slot semantics, which would be wrong data under the contract.
   */
   const CATALOG_LS_KEY = "tigertag.catalog";
+  const CATALOG_CACHE_V = 3;   // see `_catalogLoadCache`
   // The catalogue gains products every day, so a day-old cache is the most that
   // can go by unnoticed. Settings → Tools has a button to force it sooner.
   const CATALOG_TTL_MS = 24 * 3600 * 1000;
@@ -15945,6 +15946,8 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       if (!r.ok) return false;
       const items = await r.json();
       if (!Array.isArray(items) || !items.length) return false;
+      const n = k => items.reduce((c, p) => c + (p?.[k] != null && p[k] !== "" ? 1 : 0), 0);
+      console.log(`[catalog] bundled: ${items.length} products (series ${n("series")}, name ${n("name")}, aspect1 ${n("aspect1")}, aspect2 ${n("aspect2")}, updated_at ${n("updated_at")})`);
       _catalogBuildIndex(items);
       return _catalogIndex.length > 0;
     } catch (_) { return false; }
@@ -15956,13 +15959,14 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       const raw = localStorage.getItem(CATALOG_LS_KEY);
       if (!raw) return false;
       const c = JSON.parse(raw);
-      // v2 = the payload carries `series` and `name` as their own fields. A v1
-      // cache predates that and has only `title`, which is exactly the case the
-      // title-splitting fallback existed for — rejecting it here is what let
-      // that guesswork be deleted. A rejected cache is not a loss: the bundled
-      // catalogue takes over immediately and a real sync follows, because
+      // v3 = the payload carries `series`, `name`, `aspect1/2` and `updated_at`.
+      // From 2026-09-01 to 2026-11-06 the `get/all` export dropped those fields
+      // (TigerTag-Manager#98), so every v2 cache written in that window holds
+      // products with `title` only. Bumping the version rejects them all ONCE, on
+      // the next launch. A rejected cache is not a loss: the bundled catalogue
+      // takes over immediately and a real sync follows, because
       // `_catalogFetchedAt` stays 0.
-      if (!c || c.v !== 2 || !Array.isArray(c.items)) return false;
+      if (!c || c.v !== CATALOG_CACHE_V || !Array.isArray(c.items)) return false;
       _catalogFetchedAt = Number(c.fetchedAt) || 0;
       _catalogBuildIndex(c.items);
       return _catalogIndex.length > 0;
@@ -15970,7 +15974,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   }
   function _catalogSaveCache(items) {
     try {
-      localStorage.setItem(CATALOG_LS_KEY, JSON.stringify({ v: 2, fetchedAt: Date.now(), items }));
+      localStorage.setItem(CATALOG_LS_KEY, JSON.stringify({ v: CATALOG_CACHE_V, fetchedAt: Date.now(), items }));
     } catch (e) {
       // Quota exceeded / storage disabled. The in-memory index still works for
       // this session and the user simply re-syncs next launch — never fatal.
@@ -15988,8 +15992,8 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         return {
           it: { ...it, ...split },
           // WORDS. Everything a human types by name: brand, the full title, the
-          // series and colour name on their own (a cache written before the API
-          // returned them has neither, hence the split), the material, both
+          // series and colour name on their own (read from the payload, split
+          // from the title only when it lacks them), the material, both
           // aspects — "translucent", "bicolor", "silk" are how people actually
           // look — the product type, and the measure.
           hay: [it.brand, it.title, split._series, split._name, it.material,
@@ -16040,22 +16044,24 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     return String(it?.product_type || CATALOG_CREATABLE_TYPE) === CATALOG_CREATABLE_TYPE;
   }
 
-  // Series and colour name, READ from the list endpoint — never derived.
+  // Series and colour name, READ from the list endpoint.
   //
-  // Both fields are now returned on every product, so the old title-splitting is
-  // gone. It cut `title` on its LAST " - ", which guesses wrong the moment the
-  // colour name itself contains a dash: "PLA Basic - CMYK - Magenta" is series
-  // "PLA Basic" + name "CMYK - Magenta", not series "PLA Basic - CMYK". Measured
-  // against the live 4 922-product catalogue, the split disagreed with the API on
-  // 6 products — Panchroma™ Galaxy PLA, PolyLite™ Version A/B, the CMYK pair —
-  // and `series` / `name` were non-empty on all 4 922.
-  //
-  // Nothing needs a fallback any more: the only payloads without the two fields
-  // were caches written by an older build, and those are rejected outright by the
-  // v2 cache check (see `_catalogLoadCache`).
+  // Both fields are returned on every product (20 348 / 20 348 on 2026-11-06).
+  // The title split is only a FALLBACK for a payload that lacks them — the
+  // `get/all` export dropped them from 2026-09-01 to 2026-11-06, and a snapshot
+  // or bundle of that era could still turn up. It cuts `title` on its FIRST
+  // " - ": a series name practically never holds a dash, a colour name sometimes
+  // does ("PLA Basic - CMYK - Magenta" is series "PLA Basic" + name
+  // "CMYK - Magenta"). Measured on the 20 348 products of 2026-11-06: the first
+  // " - " disagrees with the real fields on 1, the last " - " on 32.
   function _catSeriesName(it) {
     const o = it && typeof it === "object" ? it : { title: it };
-    return { _series: String(o.series || "").trim(), _name: String(o.name || "").trim() };
+    const series = String(o.series || "").trim(), name = String(o.name || "").trim();
+    if (series && name) return { _series: series, _name: name };
+    const title = String(o.title || "").trim(), cut = title.indexOf(" - ");
+    return cut > 0
+      ? { _series: series || title.slice(0, cut).trim(), _name: name || title.slice(cut + 3).trim() }
+      : { _series: series, _name: name || title };
   }
 
   /**
@@ -16092,12 +16098,15 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       if (!_hasRealProductId(pid)) return false;          // nothing to reconcile against
       const prod = byId.get(pid);
       if (!prod) return false;                            // withdrawn from the catalogue → leave alone
-      // A new photo is visible in the list itself: `get/all` carries `img_src` but
-      // NOT `updated_at`, so a re-shot product would otherwise never look stale. A
+      // `updated_at` moves on ANY change (name, temperatures, links, colours,
+      // photo), so it decides whenever the catalogue has it. Without it (1 241 of
+      // 20 348 products on 2026-11-06, TigerTag-Manager#58) the photo is the only
+      // change the list itself shows: a re-shot product has a new `img_src`. A
       // spool showing the user's own photo is not the catalogue's to change.
-      if (!r.userImg && _isRealProductImg(prod.img_src) && r.raw?.url_img !== prod.img_src) return true;
       const changed = _catalogTime(prod.updated_at);
-      if (!Number.isFinite(changed)) return false;        // never changed since creation
+      if (!Number.isFinite(changed)) {
+        return !r.userImg && _isRealProductImg(prod.img_src) && r.raw?.url_img !== prod.img_src;
+      }
       const synced = Number(r.raw?.catalogSyncedAt);
       // No stamp means the spool predates this mechanism, and we genuinely do not
       // know whether it is current — so it IS refreshed. That sweeps every existing
@@ -19811,17 +19820,17 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
    * (set by the encode + reader paths, never by an API refresh), and `updatedAt`
    * is Firestore's own write stamp, which moves every time a weight changes.
    *
-   * Read against the catalogue's per-product `updated_at`, which the API sets only
-   * on a change AFTER creation — so its absence means "never changed since it was
-   * created", i.e. up to date by construction, not "unknown":
+   * Read against the catalogue's per-product `updated_at`, the time of its last
+   * change:
    *
-   *   product.updated_at missing              → up to date
+   *   product.updated_at missing              → only a new photo makes it stale
    *   product.updated_at <= catalogSyncedAt   → up to date
    *   product.updated_at >  catalogSyncedAt   → stale, refresh it
    *
-   * `updated_at` is only on `product/get`, not in the `get/all` list the scan reads,
-   * so a changed photo is caught first by comparing the list's `img_src` with the
-   * spool's `url_img` (skipped when the spool shows the user's own photo).
+   * The scan reads `updated_at` from the `get/all` list (epoch ms; back in it
+   * since 2026-11-06). For a product that has none, a changed photo is still
+   * caught by comparing the list's `img_src` with the spool's `url_img` (skipped
+   * when the spool shows the user's own photo).
    */
   function _catalogStamp() { return Date.now(); }   // hoisted: callers sit above this block
 
