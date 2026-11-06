@@ -65,6 +65,8 @@ AI_AGENTS = ["GPTBot", "OAI-SearchBot", "ChatGPT-User", "ClaudeBot", "Claude-Sea
              "Amazonbot", "Bytespider", "Meta-ExternalAgent", "cohere-ai", "DuckAssistBot", "MistralAI-User"]
 
 ORG_ID = "https://tigersystem.io/#organization"
+# Languages of tigersystem.io; the others get its English download page.
+HUB_LANGS = {"en", "fr", "de", "es", "it", "zh", "pt", "pt-pt", "pl"}
 PLACEHOLDER = re.compile(r"\{\{([a-z0-9_@]+)\}\}")
 
 
@@ -186,6 +188,7 @@ def render(template, lang, words, dicts, site_url, version, date):
         "@version": html.escape(version),
         "@download": DOWNLOAD_URL,
         "@repo": REPO_URL,
+        "@appdownload": f"https://tigersystem.io/{lang if lang in HUB_LANGS else 'en'}/download",
         # Content hashes: a new site.css / site.js gets a new URL, so no browser
         # keeps running the previous one from its cache.
         "@vcss": asset_version("site.css"),
