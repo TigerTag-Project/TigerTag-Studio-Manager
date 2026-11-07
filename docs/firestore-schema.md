@@ -414,9 +414,11 @@ users/
         ip          string?   — last known LAN address
         …                     — heartbeat fields written by the ESP32 (last-seen, etc.)
 
-    uidMigrationMap/          — decimal→hex UID migration table (legacy mobile wrote
-      {decimalUid}/           decimal spool ids; Studio migrates to hex uppercase).
-        …                     — maps the legacy decimal UID → its hex equivalent.
+    uidMigrationMap/          — spool id redirects: a legacy decimal UID → its hex
+      {oldId}/                equivalent, and a chipless TigerData_… id → the chip UID
+        hex_uid, migrated_at, it moved to when a chip was programmed (so a printed QR
+        migrated_by           label keeps opening the spool — TigerSystem-Docs,
+                              spool-ids-and-qr-links.md §2).
                               Read: owner + accepted friend (resolve an old decimal UID).
                               Write: owner only.
 

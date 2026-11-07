@@ -2426,16 +2426,16 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
      bag of int slots used by the firmware mapper) / color_r/g/b /
      online_color_list / TD / message / weight_available.
 
-     Until a physical chip is programmed the doc id uses
-     `CLOUD_<HEX_TIMESTAMP>` so:
+     Until a physical chip is programmed the doc id is chipless,
+     `TigerData_<epoch ms><4 random digits>` (`_adpCloudId`), so:
        1. The underscore makes it impossible to confuse with a real
           7-byte hex RFID UID (the rest of the app expects pure hex)
-       2. The `CLOUD_` prefix is self-documenting: this entry is in
-          Firestore only, not on a chip yet
-       3. When the user later programs a chip, a single uidMigrationMap
-          rename (CLOUD_xxx → 1D895E7C004A80) promotes the doc with
-          its full content — same pattern as the legacy decimal→hex
-          migration that already ships in this app.
+       2. The prefix is self-documenting: this entry is in Firestore
+          only, not on a chip yet (legacy docs keep `CLOUD_…`)
+       3. When the user later programs a chip, the doc moves to the chip
+          UID with its full content and a uidMigrationMap redirect
+          (TigerData_… → 1D895E7C004A80), so a label printed before the
+          burn keeps opening it (`_cemMigrate`).
 
      Auto-prefills nozzle / bed / dry temps from the chosen material's
      `recommended` block in id_material.json, so the user gets sensible
@@ -2467,12 +2467,62 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     const n = Number(v);
     return Number.isFinite(n) && n !== 0 && n !== ID_PRODUCT_UNSET_U32;
   }
-  // Mint a chipless doc id — `TigerData_` + 10 random decimal digits. The
-  // 10-digit nonce gives ~10^10 unique ids per second of clock.
+  // Mint a chipless doc id (TigerSystem-Docs, spool-ids-and-qr-links.md §1):
+  // `TigerData_` + epoch milliseconds (13 digits) + 4 random digits. The local
+  // check — an id the inventory already holds, one the account redirected
+  // (uidMigrationMap), one minted earlier this session — works offline; a
+  // write online also checks the server (`_createChipless`, `_ensureIdsFree`).
+  // Ids minted before (10 random digits) are never rewritten.
+  const _redirectedIds = new Set();   // uidMigrationMap keys, read with the repair sweep
+  const _mintedIds = new Set();
   function _adpCloudId() {
-    let n = "";
-    for (let i = 0; i < 10; i++) n += Math.floor(Math.random() * 10);
-    return CHIPLESS_PREFIX + n;
+    for (;;) {
+      const id = CHIPLESS_PREFIX + Date.now() + String(Math.floor(Math.random() * 10000)).padStart(4, "0");
+      if (state.inventory?.[id] || _redirectedIds.has(id) || _mintedIds.has(id)) continue;
+      _mintedIds.add(id);
+      return id;
+    }
+  }
+  // A plain set() on an id that exists overwrites that spool, silently. Online,
+  // a new spool is written in a transaction that fails when the id is taken,
+  // then another id is minted; offline, a plain write (queued by Firestore):
+  // the local check above is the only guard. `build(id)` returns the doc.
+  // Writes `data` under `id` unless the server already has that id: "written"
+  // or "taken". No server to ask (offline, or unreachable while the network
+  // is up: the transaction fails "unavailable") → a plain write, queued.
+  async function _createIfFree(uid, id, data) {
+    const ref = _invCol(uid).doc(id);
+    if (navigator.onLine) {
+      try {
+        const taken = await fbDb(uid).runTransaction(async tx => {
+          if ((await tx.get(ref)).exists) return true;
+          tx.set(ref, data);
+          return false;
+        });
+        return taken ? "taken" : "written";
+      } catch (e) {
+        if (e?.code !== "unavailable") throw e;
+      }
+    }
+    await ref.set(data);
+    return "written";
+  }
+  async function _createChipless(uid, build, id = _adpCloudId()) {
+    for (let tries = 0; tries < 3; tries++, id = _adpCloudId()) {
+      if (await _createIfFree(uid, id, build(id)) === "written") return id;
+    }
+    throw new Error("could not mint a free spool id");
+  }
+  // Bulk variant (duplicate, mint, .ttag import): one query per 30 ids just
+  // before the batch; an id already taken aborts the whole batch, nothing is
+  // written (the user tries again, with fresh ids). Offline: nothing to ask.
+  async function _ensureIdsFree(uid, ids) {
+    if (!navigator.onLine || !ids.length) return;
+    const col = _invCol(uid), FP = firebase.firestore.FieldPath;
+    for (let i = 0; i < ids.length; i += 30) {
+      const snap = await col.where(FP.documentId(), "in", ids.slice(i, i + 30)).get();
+      if (!snap.empty) throw new Error("spool id already taken: " + snap.docs[0].id);
+    }
   }
 
   // Weight unit conversion — always returns grams regardless of the
@@ -3872,14 +3922,13 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     const btn = $("adpSave");
     if (btn) { btn.disabled = true; btn.textContent = "…"; }
     try {
-      await fbDb()
-        .collection("users").doc(uid)
-        .collection("inventory").doc(cloudId)
-        .set(data);
+      // The id reserved when the panel opened is kept when free (it may already
+      // be linked to the chips waiting on the TigerPOD); taken, another is minted.
+      const newId = await _createChipless(uid, id => ({ ...data, uid: id }), cloudId);
       bumpStudioCounters({ cloudAddedTotal: 1 });
       closeAddProductPanel();
       try { _flashMessage(t("addProductOk")); } catch (_) {}
-      _openCreatedSpool(cloudId, { autoBurn, linkMakers });
+      _openCreatedSpool(newId, { autoBurn, linkMakers });
     } catch (e) {
       console.warn("[addProduct] save failed:", e?.code, e?.message);
       showErr(`${t("addProductErrSave")} ${e?.message || ""}`.trim());
@@ -8501,6 +8550,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       const mapSnap = await db.collection("users").doc(ownerUid).collection("uidMigrationMap").get();
       const fixes = [];
       mapSnap.forEach(d => {
+        _redirectedIds.add(d.id);
         const fixed = repairTruncatedNtagUid(d.data()?.hex_uid);
         if (fixed) fixes.push(b => b.update(d.ref, { hex_uid: fixed }));
       });
@@ -15652,6 +15702,12 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       });
     }
     batch.delete(invRef.doc(r.spoolId));
+    // The redirect keeps a label printed before the burn working: its QR link
+    // names the chipless id, which now opens the chip UID (spool-ids-and-qr-links.md §2).
+    batch.set(db.collection("users").doc(ownerUid).collection("uidMigrationMap").doc(r.spoolId), {
+      hex_uid: c1.uid, migrated_at: FV.serverTimestamp(), migrated_by: "studio-manager",
+    });
+    _redirectedIds.add(r.spoolId);
     await batch.commit();
     // One TigerCloud spool became a physical chip (a twin burn is still ONE
     // cloud converted, hence +1 regardless of burned.length).
@@ -16495,11 +16551,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         toast(res$, "warn", t("catalogTypeUnsupported", { type: String(api.product_type || "—") }));
         return;
       }
-      const cloudId = _adpCloudId();
-      const data = _catalogDocFromApi(api, productId, cloudId);
-
-      await fbDb(uid).collection("users").doc(uid)
-        .collection("inventory").doc(cloudId).set(data);
+      const cloudId = await _createChipless(uid, id => _catalogDocFromApi(api, productId, id));
       // Still a chipless creation, but counted apart from a basic TigerData so
       // the two tiers can be told apart. The `TigerCloud` analytics bucket key
       // (derived server-side from the id prefix) is deliberately untouched.
@@ -17389,6 +17441,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       }
       batch.set(invRef.doc(newId), data);
     }
+    await _ensureIdsFree(user.uid, [...usedIds]);
     await batch.commit();
     if (Array.isArray(opts.ids)) opts.ids.push(...usedIds);   // caller wants the new doc ids
     bumpStudioCounters({ cloudAddedTotal: n });
@@ -17422,6 +17475,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       }
       batch.set(invRef.doc(newId), data);
     }
+    await _ensureIdsFree(user.uid, [...usedIds]);
     await batch.commit();
     if (Array.isArray(opts.ids)) opts.ids.push(...usedIds);   // caller wants the new doc ids
     bumpStudioCounters({ cloudAddedTotal: n });
@@ -20004,7 +20058,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     if (!uid) return 0;
     const skip = excluded || new Set();
     const inv = _invCol(uid), rfid = _rfidListCol(uid);
-    const ops = []; let written = 0;
+    const ops = [], freshIds = []; let written = 0;
     for (const { obj, mode } of files) {
       // Drop the records (and their backups) the user unchecked in the preview.
       const kept = obj.records.filter(d => !skip.has(_ttagRecordId(d)));
@@ -20014,9 +20068,12 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         Object.entries(obj.rfidBackups).filter(([u]) => !skip.has(u)));
       const { writes, backups } = _ttagBuildWrites(filtered, mode);
       written += writes.length;
+      // Import mints new ids, which must be free; Restore writes the originals back on purpose.
+      if (mode === "import") freshIds.push(...writes.map(w => w.id));
       for (const w of writes) ops.push({ ref: inv.doc(w.id), data: w.data });
       for (const b of backups) ops.push({ ref: rfid.doc(b.id), data: b.data });
     }
+    await _ensureIdsFree(uid, freshIds);
     for (let i = 0; i < ops.length; i += 450) {
       const batch = fbDb(uid).batch();
       for (const op of ops.slice(i, i + 450)) batch.set(op.ref, op.data);
