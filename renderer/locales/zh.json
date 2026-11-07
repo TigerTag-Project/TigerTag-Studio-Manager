@@ -1977,6 +1977,7 @@
   "labelTitle": "标签",
   "labelToolbox": "打印标签",
   "labelToolboxTip": "带二维码的标签，扫码即可打开这卷耗材。可贴在耗材盘、色卡或货架上。",
+  "labelProductCta": "打印它的标签",
   "labelKindSpool": "耗材",
   "labelKindProduct": "产品",
   "labelKindSpoolHint": "二维码只为你打开这卷耗材，其他人只能看到它的产品。",

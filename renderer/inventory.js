@@ -22349,6 +22349,8 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     _syncPanels();
   }
   function closeProductCard() {
+    // A product label opened from this card goes with it (a spool's stays with its spool card).
+    if (labelCardOpen() && !$("detailPanel")?.classList.contains("open")) closeLabelCard();
     $("productCardPanel")?.classList.remove("open");
     _syncPanels();
     _productCardData = null;
@@ -22724,6 +22726,9 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       <button type="button" class="pc-sheet-btn" data-pc-cat="sheet" aria-pressed="${_reorderShows(p.id) ? "true" : "false"}">
         <span class="icon icon-info icon-14" aria-hidden="true"></span><span>${esc(t("pcOpenSheet"))}</span>
       </button>
+      ${p.catalogRow ? `<button type="button" class="pc-sheet-btn" data-pc-cat="label" aria-pressed="${labelCardOpen() ? "true" : "false"}">
+        <span class="icon icon-printer icon-14" aria-hidden="true"></span><span>${esc(t("labelProductCta"))}</span>
+      </button>` : ""}
       <div class="panel-section pc-cta">
         ${cta("inv",  "package",    "pcCtaInventory", false, " pc-cta-btn--primary")}
         ${cta("list", "list-check", "pcCtaList",      false)}
@@ -23918,6 +23923,15 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       if (act === "list") { _openAddToListMenu(cat, p.id, p.catalogRow || null); return; }
       if (act === "cart") { _toggleProductCardFlag("liked").catch(err => reportError("catalogCard.cart", err)); return; }
       if (act === "fav")  { _toggleProductCardFlag("favorite").catch(err => reportError("catalogCard.fav", err)); return; }
+      // The product (swatch) label — its QR is the product link, for anyone. A
+      // second press closes it again.
+      if (act === "label") {
+        if (labelCardOpen()) { closeLabelCard(); cat.setAttribute("aria-pressed", "false"); return; }
+        if ($("containerPanel")?.classList.contains("open")) closeContainerPicker();
+        openLabelCard({ ...p.catalogRow, idProduct: Number(p.catalogItem.id) }, { productOnly: true });
+        cat.setAttribute("aria-pressed", "true");
+        return;
+      }
       // The full product sheet (stock, price, link, tabs…) beside this card — a
       // second press closes it again.
       if (act === "sheet") {

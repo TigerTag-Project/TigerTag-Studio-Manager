@@ -1982,6 +1982,7 @@
   "labelTitle": "Etichetta",
   "labelToolbox": "Stampa l'etichetta",
   "labelToolboxTip": "Un'etichetta con un codice QR che apre questa bobina. Da attaccare sulla bobina, su un campione o su uno scaffale.",
+  "labelProductCta": "Stampa la sua etichetta",
   "labelKindSpool": "Bobina",
   "labelKindProduct": "Prodotto",
   "labelKindSpoolHint": "Il QR apre questa bobina per te. Gli altri vedono solo il suo prodotto.",

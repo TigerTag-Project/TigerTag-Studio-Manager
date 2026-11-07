@@ -1982,6 +1982,7 @@
   "labelTitle": "Etiket",
   "labelToolbox": "Etiket afdrukken",
   "labelToolboxTip": "Een etiket met een QR-code die deze spoel opent. Plak het op de spoel, een kleurstaal of een plank.",
+  "labelProductCta": "Etiket afdrukken",
   "labelKindSpool": "Spoel",
   "labelKindProduct": "Product",
   "labelKindSpoolHint": "De QR opent deze spoel voor jou. Anderen zien alleen het product.",

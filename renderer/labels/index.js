@@ -19,7 +19,9 @@
  * resolution), a PDF or a print job; the SVG wraps the same page.
  *
  *   initLabels(ctx)          — t, esc, colorBg, showTip, hideTip, syncPanels, reportError, toast
- *   openLabelCard(row)       — the label card for a spool row (normalizeRow)
+ *   openLabelCard(row, { productOnly }) — the label card for a spool row
+ *                              (normalizeRow); productOnly: a catalogue product,
+ *                              no spool (only its product label)
  *   closeLabelCard() / labelCardOpen()
  */
 
@@ -148,9 +150,9 @@ const SLOT_LABEL = { nozzle: "lbNozzle", bed: "lbBed", dry: "addProductDrying", 
 
 // ── The card ─────────────────────────────────────────────────────────────────
 // `row` is a normalized spool row; ctx.labelInfo(row) gives the printed texts.
-export function openLabelCard(row) {
+export function openLabelCard(row, { productOnly = false } = {}) {
   if (!row) return;
-  current = { row };
+  current = { row, productOnly: productOnly && !!productLink(row.idProduct) };
   $("labelPanel")?.classList.add("open");
   render();
   ctx.syncPanels?.();
@@ -174,7 +176,7 @@ function render() {
   const p = prefs();
   const row = current.row;
   const hasProduct = !!productLink(row.idProduct);
-  const kind = p.kind === "product" && hasProduct ? "product" : "spool";
+  const kind = current.productOnly || (p.kind === "product" && hasProduct) ? "product" : "spool";
   const link = linkFor(row, kind);
   const info = ctx.labelInfo(row);
   const lbl = buildLabel(info, link, p);
@@ -188,7 +190,7 @@ function render() {
       ${["none", ...LABEL_SLOTS].map(s => `<option value="${s}"${p.slots[i] === s ? " selected" : ""}>${esc(s === "none" ? t("labelSlotNone") : t(SLOT_LABEL[s]))}</option>`).join("")}
     </select>`;
   body.innerHTML = `
-    ${hasProduct ? `<div class="lbl-seg" role="group">${seg("spool", kind === "spool", t("labelKindSpool"))}${seg("product", kind === "product", t("labelKindProduct"))}</div>` : ""}
+    ${hasProduct && !current.productOnly ? `<div class="lbl-seg" role="group">${seg("spool", kind === "spool", t("labelKindSpool"))}${seg("product", kind === "product", t("labelKindProduct"))}</div>` : ""}
     <p class="lbl-hint">${esc(t(kind === "product" ? "labelKindProductHint" : link ? "labelKindSpoolHint" : "labelNoQr"))}</p>
     <div class="lbl-preview"><div class="lbl-paper" style="width:${Math.round(lbl.wDots * scale)}px;height:${Math.round(lbl.hDots * scale)}px">
       <iframe class="lbl-frame" title="" tabindex="-1" sandbox="" style="width:${lbl.wDots}px;height:${lbl.hDots}px;transform:scale(${scale})"></iframe>
@@ -224,7 +226,8 @@ function render() {
 async function exportLabel(format, lbl, row, kind) {
   const msg = $("labelMsg");
   if (msg) msg.textContent = "";
-  const fileName = `tigertag-${kind}-${String(row.spoolId).replace(/^TigerData_/, "")}-${lbl.mmW}x${lbl.mmH}`;
+  const id = kind === "product" ? productLink(row.idProduct).split("/").pop() : String(row.spoolId).replace(/^TigerData_/, "");
+  const fileName = `tigertag-${kind}-${id}-${lbl.mmW}x${lbl.mmH}`;
   // The SVG wraps the same page (foreignObject), sized in millimetres.
   const svg = format !== "svg" ? undefined : `<svg xmlns="http://www.w3.org/2000/svg" width="${lbl.mmW}mm" height="${lbl.mmH}mm" viewBox="0 0 ${lbl.wDots} ${lbl.hDots}"><foreignObject width="${lbl.wDots}" height="${lbl.hDots}">${
     lbl.html.replace(/^<!doctype html>/i, "").replace("<html>", '<html xmlns="http://www.w3.org/1999/xhtml">')}</foreignObject></svg>`;

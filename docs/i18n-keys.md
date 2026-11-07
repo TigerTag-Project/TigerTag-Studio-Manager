@@ -40,7 +40,7 @@
 | `toolRepairWriting` / `toolRepairDone` / `toolRepairAlready` / `toolRepairFailed` | Restore progress/result states |
 | `chipRestoreNeedChip` | New-chip card, greyed "Restore TigerTag+" choice and the Restore card's empty state: put a worn or wiped TigerTag+ that has a backup on the TigerPOD |
 | `chipRestoreCertified` | Restore card: badge on a backup whose factory signature checks out |
-| `labelTitle` / `labelToolbox` / `labelToolboxTip` | Label card title; the spool toolbox row that opens it and its ⓘ |
+| `labelTitle` / `labelToolbox` / `labelToolboxTip` / `labelProductCta` | Label card title; the spool toolbox row that opens it and its ⓘ; the catalogue product card's "Print its label" |
 | `labelKindSpool` / `labelKindProduct` / `labelKindSpoolHint` / `labelKindProductHint` / `labelNoQr` | Label card: spool or product label, what its QR opens; a legacy id printed without a QR |
 | `labelTemplate` / `labelTpl_classic` / `labelTpl_expanded` / `labelTpl_compact` / `labelTpl_slim` / `labelTpl_vertical` / `labelTpl_verticalCompact` | Label card: the six templates of the contract |
 | `labelSlots` / `labelSlotNone` / `labelSlotTd` | Label card: the value slots (nozzle, bed, drying reuse `lbNozzle`, `lbBed`, `addProductDrying`; diameter `detDiameter`) |

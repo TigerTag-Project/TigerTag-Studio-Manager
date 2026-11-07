@@ -1992,6 +1992,7 @@
   "labelTitle": "Etykieta",
   "labelToolbox": "Drukuj etykietę",
   "labelToolboxTip": "Etykieta z kodem QR, który otwiera tę szpulę. Naklej ją na szpulę, próbnik albo półkę.",
+  "labelProductCta": "Drukuj jego etykietę",
   "labelKindSpool": "Szpula",
   "labelKindProduct": "Produkt",
   "labelKindSpoolHint": "Kod QR otwiera tę szpulę dla ciebie. Inni widzą tylko jej produkt.",

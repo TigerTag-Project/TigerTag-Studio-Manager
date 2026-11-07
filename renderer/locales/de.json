@@ -1982,6 +1982,7 @@
   "labelTitle": "Etikett",
   "labelToolbox": "Etikett drucken",
   "labelToolboxTip": "Ein Etikett mit QR-Code, der diese Spule öffnet. Auf die Spule, ein Farbmuster oder ein Regal kleben.",
+  "labelProductCta": "Etikett drucken",
   "labelKindSpool": "Spule",
   "labelKindProduct": "Produkt",
   "labelKindSpoolHint": "Der QR-Code öffnet diese Spule für dich. Alle anderen sehen nur ihr Produkt.",

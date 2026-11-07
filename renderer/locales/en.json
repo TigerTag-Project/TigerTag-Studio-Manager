@@ -1982,6 +1982,7 @@
   "labelTitle": "Label",
   "labelToolbox": "Print a label",
   "labelToolboxTip": "A label with a QR code that opens this spool. Stick it on the spool, a swatch or a shelf.",
+  "labelProductCta": "Print its label",
   "labelKindSpool": "Spool",
   "labelKindProduct": "Product",
   "labelKindSpoolHint": "The QR opens this spool for you. Anyone else only gets its product.",
