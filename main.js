@@ -3983,6 +3983,75 @@ ipcMain.handle('db:isUpdateAvailable',       ()           => db.isUpdateAvailabl
 ipcMain.handle('db:updateIfNeeded',          ()           => db.updateIfNeeded());
 ipcMain.handle('db:downloadAndSaveLatestData', ()         => db.downloadAndSaveLatestData());
 
+// ── Printed labels (renderer/labels) ─────────────────────────────────────────
+// The renderer lays a label out in PRINTER DOTS (one CSS px = one dot) so each
+// QR module lands on a whole number of dots. Here a hidden window renders that
+// page and turns it into what the user asked for:
+//   png   — captured at exactly wDots × hDots (the printer's resolution)
+//   pdf   — one page of the label's size, the dots scaled to millimetres
+//   svg   — the page the renderer wrapped (`svg`), written as is
+//   print — the system print dialog, on a page of the label's size
+// png / pdf / svg go through a native Save dialog: { ok, path } or
+// { ok: false, reason: 'cancelled' }.
+// The renderer keeps the page self-contained (inline styles, the QR as inline
+// SVG, no network), so nothing loads from outside.
+const LABEL_FILTERS = {
+  png: { name: 'PNG image', extensions: ['png'] },
+  pdf: { name: 'PDF', extensions: ['pdf'] },
+  svg: { name: 'SVG image', extensions: ['svg'] },
+};
+async function _saveLabelFile(format, fileName, buf) {
+  const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+    defaultPath: path.join(app.getPath('downloads'), `${fileName || 'tigertag-label'}.${format}`),
+    filters: [LABEL_FILTERS[format]],
+  });
+  if (canceled || !filePath) return { ok: false, reason: 'cancelled' };
+  fs.writeFileSync(filePath, buf);
+  return { ok: true, path: filePath };
+}
+ipcMain.handle('label:render', async (_evt, opts = {}) => {
+  const { html, svg, wDots, hDots, mmW, mmH, dpi, format, fileName } = opts || {};
+  if (format === 'svg') return typeof svg === 'string' ? _saveLabelFile('svg', fileName, Buffer.from(svg, 'utf8')) : { ok: false, reason: 'bad label' };
+  if (typeof html !== 'string' || !(wDots > 0 && hDots > 0 && mmW > 0 && mmH > 0)) return { ok: false, reason: 'bad label' };
+  const win = new BrowserWindow({
+    show: false, width: Math.ceil(wDots), height: Math.ceil(hDots), useContentSize: true,
+    webPreferences: { javascript: false, offscreen: format === 'png', sandbox: true },
+  });
+  try {
+    // PDF and print lay the page out at 96 CSS px per inch: scale the dots down to it.
+    const page = format === 'png' ? html
+      : html.replace('<body>', `<body><style>@page{size:${mmW}mm ${mmH}mm;margin:0}html,body{width:${mmW}mm;height:${mmH}mm;overflow:hidden}.lbl{transform:scale(${96 / (dpi || 203)});transform-origin:0 0}</style>`);
+    await win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(page));
+    if (format === 'png') {
+      let img = await win.webContents.capturePage({ x: 0, y: 0, width: Math.ceil(wDots), height: Math.ceil(hDots) });
+      const sz = img.getSize();
+      if (sz.width !== Math.ceil(wDots)) img = img.resize({ width: Math.ceil(wDots), height: Math.ceil(hDots), quality: 'best' });
+      return _saveLabelFile('png', fileName, img.toPNG());
+    }
+    if (format === 'pdf') {
+      const pdf = await win.webContents.printToPDF({
+        pageSize: { width: mmW / 25.4, height: mmH / 25.4 },
+        margins: { top: 0, bottom: 0, left: 0, right: 0 }, printBackground: true,
+      });
+      return _saveLabelFile('pdf', fileName, Buffer.from(pdf));
+    }
+    if (format === 'print') {
+      return await new Promise((resolve) => {
+        win.webContents.print({
+          silent: false, printBackground: true, margins: { marginType: 'none' },
+          pageSize: { width: Math.round(mmW * 1000), height: Math.round(mmH * 1000) },
+        }, (ok, reason) => resolve({ ok, reason: ok ? undefined : reason }));
+      });
+    }
+    return { ok: false, reason: 'unknown format' };
+  } catch (e) {
+    log.warn(`[label] ${format} ${fileName || ''} failed: ${e.message}`);
+    return { ok: false, reason: e.message };
+  } finally {
+    if (!win.isDestroyed()) win.destroy();
+  }
+});
+
 // ── Timelapse download ───────────────────────────────────────────────────────
 // Shows a native Save dialog then streams the video from the printer over HTTP.
 // Save an image to disk via a native Save dialog. Accepts a `data:` URL (locally

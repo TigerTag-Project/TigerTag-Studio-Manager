@@ -133,6 +133,7 @@ renderer/
   rfid_protocol/linked/   — linked chips + the new-chip chooser side card
   rfid_protocol/eraser/   — NFC tools view (format to TigerTag Init, recycle to NDEF, write NDEF content)
   rfid_protocol/restore/  — Restore TigerTag+ view (readers, what the rfidList backup writes back, held banner)
+  labels/          — printed spool / product labels (templates, QR in printer dots, PNG · PDF · SVG · print)
   printers/        — one folder per brand (PROTOCOL.md + index.js + add-flow.js + probe.js …)
                      plus plugins (klipper/, octoprint/: plugin.js + main.cjs) registered via
                      plugins.js, and shared: registry.js, context.js, cam_manager.js,
@@ -181,6 +182,7 @@ ONE `ip` field, `host` or `host:port` (the form Studio and the Tiger Touch firmw
 | `tigertag.theme`, `tigertag.catalog` | theme and catalogue view preferences |
 | `tigertag.nfc.lastUrl` | last link written to a chip by the NFC tools, offered again |
 | `tigertag.nfc.contact` | the NFC tools' contact card as last typed `{name, phone, email, org, url}` |
+| `tigertag.label` | the label card's last choices `{template, slots, dpi, kind}` (`renderer/labels`) |
 | `tigertag.trophies.<id>` | the trophy ids already celebrated on this device for that account (`renderer/quests/trophies.js`) |
 | `tigertag.trophyAlbum.<id>` | that account's album `{at, earned: {id: {at, event, ctx}}}`: painted at once, then only trophies with a later `earnedAt` are read (+ a COUNT catches one taken back) |
 | `tigertag.trophyCatalog.<lang>` / `tigertag.trophyCards.<id>` / `tigertag.trophyReveals.<id>` | the public trophy catalogue of that language, that account's cards (art + text of the trophies held or revealed) and what its friends revealed `{at, ids: {trophyId: friendUid}}` (`renderer/quests/trophies.js`, `docs/TROPHIES.md`) |

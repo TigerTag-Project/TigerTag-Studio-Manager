@@ -360,6 +360,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // request is made from the main process rather than the renderer).
   sendTagAnalytics: (payload) =>
     ipcRenderer.send('analytics:tag', payload),
+  // Printed labels: { html, svg, wDots, hDots, mmW, mmH, dpi, format: 'png'|'pdf'|'svg'|'print', fileName }
+  // → { ok, path } once saved (Save dialog), { ok } once printed. See main.js label:render.
+  renderLabel: (opts) => ipcRenderer.invoke('label:render', opts),
   // A TigerTag+ backup decoded: { ok, certified, raw } (the Restore card's preview).
   decodeChipBackup: (uidHex, backupHex) =>
     ipcRenderer.invoke('rfid:decode-backup', uidHex, backupHex),

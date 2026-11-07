@@ -4,6 +4,7 @@ import { initRfidTester } from './rfid_protocol/tigertag/index.js';
 import { initLinkedChips, linkedChipsSignIn, linkedChipsSignOut, linkedChipsOf, onForeignChip, holdForeignChip, pendingMakerChips, presentMakerChips, makerLinkBannerHtml, linkMakerChipsTo, linkedChipsHtml, wireLinkedChips, linkPendingTo, clearPendingLink, openBlankChipWindow, closeChipChoice, closeChipLink, wireSearchBox, linkOfferHtml, wireLinkOffer, openAddChooser, refreshChipChoice } from './rfid_protocol/linked/index.js';
 import { initChipEraser, openChipEraser, closeChipEraser, chipEraserOpen, eraserCardPresent, eraserForeignChip, eraserReadersChanged } from './rfid_protocol/eraser/index.js';
 import { initChipRestore, openChipRestore, closeChipRestore, chipRestoreOpen, restoreCardPresent, restoreReadersChanged } from './rfid_protocol/restore/index.js';
+import { initLabels, openLabelCard, closeLabelCard, labelCardOpen } from './labels/index.js';
 
 // ── Offline timezone → country (telemetry, no IP geolocation) ──────────────
 import { tzToCountry, COUNTRY_CODES } from './tz-country.js';
@@ -4770,6 +4771,24 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   $("chipChoiceCloseTab")?.addEventListener("click", () => closeChipChoice());
   // Chip eraser — the new-chip card's "Erase chips" view; while it is up a scan
   // opens nothing (the NFC routing below hands the chips to it).
+  // Printed labels — the label card docked to the left of the spool card (renderer/labels).
+  initLabels({ t, esc, reportError, syncPanels: () => _syncPanels(), hideTip: () => _hideToolInfoTip(),
+    enhanceSelect: el => _enhanceSelect(el),
+    // The texts a label prints: never a value that goes stale.
+    labelInfo: r => {
+      const tp = r.temps || {}, rng = (a, b) => (a || b ? `${a || "?"}–${b || "?"} °C` : "");
+      const clean = v => (v && v !== "-" && v !== "None" ? v : "");
+      return {
+        brand: clean(r.brand), line2: [clean(r.material), clean(r.series)].filter(Boolean).join(" · "),
+        name: clean(r.colorName) || clean(r.productName) || [clean(r.aspect1), clean(r.aspect2)].filter(Boolean).join(" "),
+        swatch: colorBg(r),
+        values: {
+          nozzle: rng(tp.nozzleMin, tp.nozzleMax), bed: rng(tp.bedMin, tp.bedMax),
+          dry: tp.dryTemp ? `${tp.dryTemp} °C${tp.dryTime ? " · " + tp.dryTime + " h" : ""}` : "",
+          td: r.td != null ? String(r.td) : "", diameter: clean(r.diameter),
+        },
+      };
+    } });
   // Restore TigerTag+ — the new-chip card's "Restore" view (rfid_protocol/restore).
   initChipRestore({ t, esc, state, reportError,
     syncPanels: () => _syncPanels(), showTip: el => _showToolInfoTip(el), hideTip: () => _hideToolInfoTip(),
@@ -19393,9 +19412,12 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     // Container picker is opened FROM the spool card and tucks to its LEFT.
     const cpp = $("containerPanel");
     const cppOpen = !!cpp?.classList.contains("open");
-    const cppW = (cppOpen && cpp) ? cpp.offsetWidth : 0;
+    // The label card takes the same slot (the two never stay open together).
+    const lbp = $("labelPanel"), lbOpen = !!lbp?.classList.contains("open");
+    const cppW = (cppOpen && cpp) ? cpp.offsetWidth : (lbOpen && lbp) ? lbp.offsetWidth : 0;
     const cppRight = cppOpen ? (baseRight + detailW) : 0;
     if (cpp) cpp.style.right = cppRight ? `${cppRight}px` : "";
+    if (lbp) lbp.style.right = lbOpen ? `${baseRight + detailW}px` : "";
     // Group deck sits LEFT of the printer stack + detail (+ container). Computed
     // BEFORE the reorder card so that card can dock to the LEFT of the group.
     const gp = $("groupPanel");
@@ -20591,6 +20613,10 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   }
 
   function _wireToolbox(r) {
+    $("btnPrintLabel")?.addEventListener("click", () => {
+      if ($("containerPanel")?.classList.contains("open")) closeContainerPicker();
+      openLabelCard({ ...r, idProduct: r.raw?.id_product });
+    });
     // Export this material as a .ttag (offline backup; + twin partner).
     $("btnExportTtag")?.addEventListener("click", () => {
       _exportMaterialTtag(r).catch(e => reportError("ttag.export", e));
@@ -20730,6 +20756,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     // a material change) — a no-op when it's already the same product.
     if (state.selected && state.selected !== spoolId) {
       if ($("containerPanel")?.classList.contains("open")) closeContainerPicker();
+      if (labelCardOpen()) closeLabelCard();
       if ($("reorderPanel")?.classList.contains("open")) {
         const newRow = state.rows.find(x => x.spoolId === spoolId);
         if (newRow && (!_reorderRow || _spoolGroupKey(newRow) !== _spoolGroupKey(_reorderRow))) {
@@ -21194,8 +21221,9 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     // _scanOpenUid that would otherwise pop the card again the moment we close it
     // (state.selected becomes null, so the twin guard no longer suppresses it).
     _scanOpenUid = null;
-    // The container picker is anchored to this spool card — close it too.
+    // The container picker and the label card are anchored to this spool card — close them too.
     if ($("containerPanel")?.classList.contains("open")) closeContainerPicker();
+    if (labelCardOpen()) closeLabelCard();
     // So are the catalogue picker and product card of an upgrade this spool started:
     // the three cards go together.
     if (_cpkUpgradeFor && _cpkUpgradeFor === state.selected && $("catalogPickPanel")?.classList.contains("open")) {
@@ -21872,6 +21900,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   let _cpOnly = null, _cpHint = "", _cpOnClose = null;   // narrowed list (new spool), its reason, after-close hook
   let _cpKind = "";   // material filter chip: "" (all) | CONTAINER_KIND.CARDBOARD / PLASTIC / MASTERSPOOL
   function openContainerPicker(r, opts = {}) {
+    if (labelCardOpen()) closeLabelCard();   // the two share the slot left of the spool card
     _cpRow = r;
     _cpOnly = Array.isArray(opts.only) && opts.only.length ? new Set(opts.only) : null;
     _cpHint = _cpOnly ? (opts.hint || "") : "";
@@ -24777,6 +24806,8 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         //     it lives outside the reader-gated chip-tools block above.
         if (!state.friendView) {
           tools.push({ id: "btnExportTtag", icon: "icon-download", label: t("ttagExport"), variant: "default", info: t("ttagExportTip") });
+          // Printed label: the spool's QR link (and its product's, when it has one).
+          tools.push({ id: "btnPrintLabel", icon: "icon-printer", label: t("labelToolbox"), variant: "default", info: t("labelToolboxTip") });
         }
 
         // 6. Delete — moved out of its own section into the toolbox.

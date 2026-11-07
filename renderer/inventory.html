@@ -25,6 +25,7 @@
 <link rel="stylesheet" href="rfid_protocol/linked/linked.css" />
 <link rel="stylesheet" href="rfid_protocol/eraser/eraser.css" />
 <link rel="stylesheet" href="rfid_protocol/restore/restore.css" />
+<link rel="stylesheet" href="labels/labels.css" />
 <link rel="stylesheet" href="css/70-detail-misc.css" />
 <link rel="stylesheet" href="css/72-hero-scene.css" />
 <link rel="stylesheet" href="IoT/tigerscale/tigerscale.css" />
@@ -2652,6 +2653,16 @@
 <!-- Container picker modal -->
 <!-- Container picker — side card that tucks to the RIGHT of the spool detail card -->
 <button class="pp-close-tab" id="containerCloseTab" title="Close" aria-label="Close" hidden>»</button>
+<!-- Printed label (renderer/labels): docked to the LEFT of the spool card,
+     in the container picker's slot. -->
+<aside class="detail-panel pba-panel" id="labelPanel">
+  <div class="pba-header">
+    <div class="pba-header-text"><div class="pba-title" data-i18n="labelTitle">Label</div></div>
+    <button class="panel-close" id="labelClose">✕</button>
+  </div>
+  <div class="lbl-body" id="labelBody"></div>
+</aside>
+
 <div class="detail-panel cp-panel" id="containerPanel">
   <div class="panel-header">
     <span class="panel-title" data-i18n="containerPickerTitle">Choose a container</span>

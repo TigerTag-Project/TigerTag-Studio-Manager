@@ -40,6 +40,11 @@
 | `toolRepairWriting` / `toolRepairDone` / `toolRepairAlready` / `toolRepairFailed` | Restore progress/result states |
 | `chipRestoreNeedChip` | New-chip card, greyed "Restore TigerTag+" choice and the Restore card's empty state: put a worn or wiped TigerTag+ that has a backup on the TigerPOD |
 | `chipRestoreCertified` | Restore card: badge on a backup whose factory signature checks out |
+| `labelTitle` / `labelToolbox` / `labelToolboxTip` | Label card title; the spool toolbox row that opens it and its ⓘ |
+| `labelKindSpool` / `labelKindProduct` / `labelKindSpoolHint` / `labelKindProductHint` / `labelNoQr` | Label card: spool or product label, what its QR opens; a legacy id printed without a QR |
+| `labelTemplate` / `labelTpl_classic` / `labelTpl_expanded` / `labelTpl_compact` / `labelTpl_slim` / `labelTpl_vertical` / `labelTpl_verticalCompact` | Label card: the six templates of the contract |
+| `labelSlots` / `labelSlotNone` / `labelSlotTd` | Label card: the value slots (nozzle, bed, drying reuse `lbNozzle`, `lbBed`, `addProductDrying`; diameter `detDiameter`) |
+| `labelDpi` / `labelPrint` / `labelExportFailed` | Label card: printer resolution, Print button, export error |
 | `toolFormatRfid` / `toolFormatRfid2` / `toolFormatRfidTip` | Toolbox "Erase the {{tier}}" action — 1 chip / 2 chips label (`{{tier}}` = TigerTag / TigerTag+) + ⓘ info bubble (writes the official TigerTag Init payload → reusable TigerTag) |
 | `toolEraseRfid` / `toolEraseRfid2` / `toolEraseRfidTip` | Toolbox "Recycle to NFC" action — 1 chip / 2 chips label + ⓘ info bubble (writes the SDK blank-NDEF payload → generic NFC tag) |
 | `encErase` / `encRecycle` | Chip modal hold button when erasing a TigerTag or recycling it to NFC (the title reuses `toolFormatRfid` / `toolEraseRfid`) |
