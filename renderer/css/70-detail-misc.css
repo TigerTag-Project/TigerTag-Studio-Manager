@@ -2384,6 +2384,9 @@
      the light theme) — the banner's own colour only glows around it. */
   .chip-banner-logo.chip-banner-logo { width: 46px; height: 36px; aspect-ratio: auto; border-radius: 0; background-color: var(--text); -webkit-mask: var(--logo) center / contain no-repeat; mask: var(--logo) center / contain no-repeat; }
   .chip-banner-logo--nfc.chip-banner-logo--nfc { --logo: url('../../assets/svg/icons/icon_rfid.svg'); }
+  /* The values a spool link proposes (weight, else the note): what the banner saves. */
+  .chip-banner-logo--scale.chip-banner-logo--scale { --logo: url('../../assets/svg/icons/icon_scale.svg'); }
+  .chip-banner-logo--edit.chip-banner-logo--edit { --logo: url('../../assets/svg/icons/icon_edit.svg'); }
   .cloud-encode-banner .cloud-encode-text.cloud-encode-text { color: var(--burn); font-weight: 600; }
   /* Reader present: the banner itself is the (held) button, square like the
      panel's other bands, with a green fill. */

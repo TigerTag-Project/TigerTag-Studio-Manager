@@ -25,6 +25,9 @@
  *   closeLabelCard() / labelCardOpen()
  */
 
+import { spoolLink, productLink } from "../qr-link.js";
+export { spoolLink, productLink };
+
 let ctx = null;
 let current = null;   // { row } — the spool the card is for
 
@@ -63,20 +66,6 @@ function prefs() {
 }
 function savePrefs(p) { try { localStorage.setItem(PREFS_KEY, JSON.stringify(p)); } catch (_) {} }
 
-// ── Links (contract §3 and §5) ───────────────────────────────────────────────
-const HEX14 = /^[0-9A-F]{14}$/i;
-export function spoolLink(spoolId) {
-  const id = String(spoolId || "");
-  const m = /^TigerData_(\d{17}|\d{10})$/.exec(id);
-  if (m) return "https://qr.tigertag.io/" + m[1];
-  if (HEX14.test(id)) return "https://qr.tigertag.io/" + id.toLowerCase();
-  return null;   // CLOUD_…, legacy decimal: printed without a QR code
-}
-export function productLink(idProduct) {
-  const n = Number(idProduct);
-  if (!Number.isFinite(n) || n <= 0 || n >= 0xFFFFFFFF) return null;
-  return "https://qr.tigertag.io/p/" + (n >>> 0).toString(16).padStart(8, "0");
-}
 
 // The QR matrix: one byte-mode segment, ECC M.
 function qrMatrix(text) {
@@ -192,9 +181,10 @@ function render() {
   body.innerHTML = `
     ${hasProduct && !current.productOnly ? `<div class="lbl-seg" role="group">${seg("spool", kind === "spool", t("labelKindSpool"))}${seg("product", kind === "product", t("labelKindProduct"))}</div>` : ""}
     <p class="lbl-hint">${esc(t(kind === "product" ? "labelKindProductHint" : link ? "labelKindSpoolHint" : "labelNoQr"))}</p>
-    <div class="lbl-preview"><div class="lbl-paper" style="width:${Math.round(lbl.wDots * scale)}px;height:${Math.round(lbl.hDots * scale)}px">
+    <div class="lbl-preview">${link ? `<button type="button" class="lbl-paper lbl-paper--link" data-lbl-open aria-label="${esc(t("labelOpenLink"))}"` : `<div class="lbl-paper"`} style="width:${Math.round(lbl.wDots * scale)}px;height:${Math.round(lbl.hDots * scale)}px">
       <iframe class="lbl-frame" title="" tabindex="-1" sandbox="" style="width:${lbl.wDots}px;height:${lbl.hDots}px;transform:scale(${scale})"></iframe>
-    </div></div>
+      ${link ? `<span class="lbl-open-hint"><span class="icon icon-arrow-up-right icon-12" aria-hidden="true"></span>${esc(t("labelOpenLink"))}</span></button>` : "</div>"}
+    </div>
     <div class="panel-label">${esc(t("labelTemplate"))}</div>
     <div class="lbl-tpls">${LABEL_TEMPLATES.map(tplBtn).join("")}</div>
     ${tpl.slots ? `<div class="panel-label">${esc(t("labelSlots"))}</div><div class="lbl-slots">${[0, 1, 2, 3].filter(i => i < tpl.slots).map(slotSel).join("")}</div>` : ""}
@@ -215,6 +205,10 @@ function render() {
     else if (tp) { savePrefs({ ...prefs(), template: tp.dataset.lblTpl }); render(); }
     else if (d) { savePrefs({ ...prefs(), dpi: Number(d.dataset.lblDpi) }); render(); }
     else if (out) exportLabel(out.dataset.lblOut, lbl, row, kind);
+    // The label's QR, followed: the page a scan lands on.
+    else if (e.target.closest("[data-lbl-open]") && link) {
+      if (window.electronAPI?.openExternal) window.electronAPI.openExternal(link); else window.open(link, "_blank", "noopener");
+    }
   };
   body.onchange = e => {
     const s = e.target.closest("[data-lbl-slot]");

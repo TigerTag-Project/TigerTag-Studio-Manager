@@ -44,7 +44,8 @@
 | `labelKindSpool` / `labelKindProduct` / `labelKindSpoolHint` / `labelKindProductHint` / `labelNoQr` | Label card: spool or product label, what its QR opens; a legacy id printed without a QR |
 | `labelTemplate` / `labelTpl_classic` / `labelTpl_expanded` / `labelTpl_compact` / `labelTpl_slim` / `labelTpl_vertical` / `labelTpl_verticalCompact` | Label card: the six templates of the contract |
 | `labelSlots` / `labelSlotNone` / `labelSlotTd` | Label card: the value slots (nozzle, bed, drying reuse `lbNozzle`, `lbBed`, `addProductDrying`; diameter `detDiameter`) |
-| `labelDpi` / `labelPrint` / `labelExportFailed` | Label card: printer resolution, Print button, export error |
+| `labelDpi` / `labelPrint` / `labelOpenLink` / `labelExportFailed` | Label card: printer resolution, Print button, the preview's "see the QR's page" hint, export error |
+| `linkValuesUpdate` / `linkValuesUpdateNote` / `linkValuesInfo` / `linkValuesHoldTip` / `spoolLinkNotMine` | Spool links (QR, `?spool=`, `tigertag://spool/`): the held banner proposing a link's weight / note, its ⓘ and hold tip; a link to a spool not in the inventory |
 | `toolFormatRfid` / `toolFormatRfid2` / `toolFormatRfidTip` | Toolbox "Erase the {{tier}}" action — 1 chip / 2 chips label (`{{tier}}` = TigerTag / TigerTag+) + ⓘ info bubble (writes the official TigerTag Init payload → reusable TigerTag) |
 | `toolEraseRfid` / `toolEraseRfid2` / `toolEraseRfidTip` | Toolbox "Recycle to NFC" action — 1 chip / 2 chips label + ⓘ info bubble (writes the SDK blank-NDEF payload → generic NFC tag) |
 | `encErase` / `encRecycle` | Chip modal hold button when erasing a TigerTag or recycling it to NFC (the title reuses `toolFormatRfid` / `toolEraseRfid`) |

@@ -124,6 +124,8 @@ renderer/
     70-detail-misc.css  — icons, stats, table/grid, detail panel, debug, toolbox, TD1S …
     72-hero-scene.css   — the ecosystem scene (iMac + flipping devices), shared with the splash
   hero-scene.js    — draws that scene into every [data-hero-scene]
+  qr-link.js       — the QR links (qr.tigertag.io): build them, read them back offline (TigerSystem-Docs spool-ids-and-qr-links.md)
+  qr-check.html/.js — Studio Web page the Hub frames hidden to ask "does this device own the scanned spool?" (postMessage to tigersystem.io)
   splash/          — the launch splash page (main.js createSplash), loaded before the main window
   locales/         — en fr de es it zh pt pt-pt pl ru nl (.json, reference: en)
   IoT/             — devices, each with its own CSS

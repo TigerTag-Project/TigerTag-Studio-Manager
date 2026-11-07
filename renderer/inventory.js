@@ -5,6 +5,7 @@ import { initLinkedChips, linkedChipsSignIn, linkedChipsSignOut, linkedChipsOf, 
 import { initChipEraser, openChipEraser, closeChipEraser, chipEraserOpen, eraserCardPresent, eraserForeignChip, eraserReadersChanged } from './rfid_protocol/eraser/index.js';
 import { initChipRestore, openChipRestore, closeChipRestore, chipRestoreOpen, restoreCardPresent, restoreReadersChanged } from './rfid_protocol/restore/index.js';
 import { initLabels, openLabelCard, closeLabelCard, labelCardOpen } from './labels/index.js';
+import { parseQrLink, spoolIdFromPath, linkValues } from './qr-link.js';
 
 // ── Offline timezone → country (telemetry, no IP geolocation) ──────────────
 import { tzToCountry, COUNTRY_CODES } from './tz-country.js';
@@ -2474,6 +2475,10 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   // (uidMigrationMap), one minted earlier this session — works offline; a
   // write online also checks the server (`_createChipless`, `_ensureIdsFree`).
   // Ids minted before (10 random digits) are never rewritten.
+  // Spool links (see "Spool links" near the friend deep links). Declared up here:
+  // the spool card reads the proposal from its first render.
+  let _spoolLinkPending = null;   // { id, weight, note } until a live inventory is there
+  let _linkProposal = null;       // { spoolId, weight, note } shown on that spool's card
   const _redirectedIds = new Set();   // uidMigrationMap keys, read with the repair sweep
   const _mintedIds = new Set();
   function _adpCloudId() {
@@ -8715,6 +8720,8 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         // changes (a cached user's cache→server flip is metadata-only), so the
         // one-shot rfidList census below can run on authoritative server data.
         const censusPending = !snapshot.metadata.fromCache && _rfidCensusDoneFor !== uid;
+        // A spool link waiting for the inventory: opened once it is the server's.
+        if (_spoolLinkPending && !snapshot.metadata.fromCache) setTimeout(_flushSpoolLink, 0);
         if (!isFirstSnap && snapshot.docChanges().length === 0 && !snapshot.metadata.hasPendingWrites && !censusPending) return;
         const raw = {};
         snapshot.forEach(doc => { raw[doc.id] = doc.data(); });
@@ -14961,6 +14968,16 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   });
   $("searchInv").addEventListener("input", e => {
     const v = e.target.value;
+    // A spool's QR link pasted (or typed by a scanner) opens that spool.
+    const link = /qr\.tigertag\.io\//i.test(v) ? parseQrLink(v) : null;
+    if (link?.kind === "spool") {
+      e.target.value = "";
+      state.search = "";
+      _refreshSearchClearVisibility("");
+      _onFilterChange();
+      _spoolLinkArrived(link);
+      return;
+    }
     state.search = v.trim();
     state.locateUid = null;   // typing a real search supersedes a transient locate highlight
     _refreshSearchClearVisibility(v);
@@ -20748,6 +20765,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   }
 
   function openDetail(spoolId, opts = {}) {
+    if (_linkProposal && _linkProposal.spoolId !== spoolId) _linkProposal = null;   // a link's values stay on its own spool
     closeNotifs();   // opening a spool takes over the right side — dismiss notifs
     _closeAddPrinterFlow();
     // Switching to a different spool → close the container picker (it was
@@ -21173,7 +21191,38 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     // writes are twin-mirrored; chips update in place. See _wireTagEditor.
     _wireTagEditor(_spoolTagCtx(r));
   }
+  // The values a spool link proposes (_openSpoolLink): the held banner saves them
+  // in one gesture — weight (net, twin-aware, as the weight editor) and note (the
+  // `message`, as the inline note edit: twin-aware, a chip flagged for re-burn).
+  function _linkValuesBannerHTML(r) {
+    const p = _linkProposal;
+    if (!p || p.spoolId !== r.spoolId || state.friendView) return "";
+    const title = p.weight != null ? t("linkValuesUpdate", { w: p.weight }) : t("linkValuesUpdateNote");
+    const info = [p.weight != null ? `${p.weight} g` : "", p.note != null ? `“${p.note}”` : ""].filter(Boolean).join(" · ");
+    return _chipBannerHTML("linkValuesBanner", title, t("linkValuesInfo", { values: info }), { holdTip: "linkValuesHoldTip", logo: p.weight != null ? "scale" : "edit" });
+  }
+  async function _saveLinkValues(r) {
+    const p = _linkProposal;
+    if (!p || p.spoolId !== r.spoolId) return;
+    _linkProposal = null;
+    if (p.note != null) {
+      const uid = state.activeAccountId;
+      const update = { message: p.note, updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
+      if (!r.isCloud) update.needUpdateAt = Date.now();
+      const invRef = fbDb(uid).collection("users").doc(uid).collection("inventory");
+      const batch = fbDb(uid).batch();
+      batch.update(invRef.doc(r.spoolId), update);
+      const tr = r.twinUid && state.rows.find(x => x.spoolId !== r.spoolId
+        && (String(x.uid) === String(r.twinUid) || String(x.spoolId) === String(r.twinUid)));
+      if (tr) batch.update(invRef.doc(tr.spoolId), { ...update });
+      try { await batch.commit(); questBump("spoolNote"); } catch (e) { reportError("spoolLink.note", e); }
+    }
+    if (p.weight != null) await doWeightUpdate(r, "direct", p.weight);
+    openDetail(r.spoolId, { preserveScroll: true });
+  }
+
   function _wireDetailChipBanner(r) {
+    _wireChipBanner($("linkValuesBanner"), () => _saveLinkValues(r), null);
     wireLinkOffer($("detailPanel"));
     // Cloud encode banner — open the guided encode modal when a reader is
     // connected (it handles the presence gate itself); otherwise guide to POD.
@@ -24551,7 +24600,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
 
     return `
       ${imgSection}
-      <div class="dp-chip-banner">${chipBannerHtml}</div>
+      <div class="dp-chip-banner">${_linkValuesBannerHTML(r)}${chipBannerHtml}</div>
       ${flagsRow}
       ${identityHtml}
       <div class="panel-section">
@@ -40520,7 +40569,9 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     _friendCodeArrived(code);
   }
   if (window.electronAPI?.onDeepLink) {
-    window.electronAPI.onDeepLink((url) => { try { _handleFriendDeepLink(url); } catch (e) { console.warn("[deep-link]", e); } });
+    window.electronAPI.onDeepLink((url) => {
+      try { if (!_handleSpoolDeepLink(url)) _handleFriendDeepLink(url); } catch (e) { console.warn("[deep-link]", e); }
+    });
     window.electronAPI.deepLinkReady();   // tell main to flush any cold-start link
   }
   // Web build: the same link arrives as `?friend=XXX-YYY` (no custom protocol
@@ -40537,6 +40588,81 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         _handleFriendDeepLink(friend);
       }
     } catch (e) { console.warn("[deep-link]", e); }
+  }
+
+  // ── Spool links (TigerSystem-Docs spool-ids-and-qr-links.md §3, §4) ──────
+  // A spool reaches the app three ways: Studio Web's `?spool=<id>[&weight=&note=]`
+  // (where the Hub sends the owner who scanned a label), `tigertag://spool/<id>?…`
+  // on the desktop, and a qr.tigertag.io link pasted into the search. The spool
+  // is looked up in the signed-in inventory, then in its uidMigrationMap (a
+  // chipless id burned since), then in this device's other accounts; it opens
+  // only for its owner, a deleted one included. Values (`weight`, `note`) are
+  // never written by the link: they are proposed on the spool's card, and one
+  // held gesture saves them (_linkValuesBannerHTML). A link that arrives before
+  // any account is known opens the spool after the sign-in, without its values.
+  function _spoolLinkArrived(link) {
+    if (!link?.id) return;
+    _spoolLinkPending = getAccounts().length ? link : { id: link.id, weight: null, note: null };
+    if (state.activeAccountId && !state.invLoading && state.inventory) _flushSpoolLink();
+  }
+  function _flushSpoolLink() {
+    const link = _spoolLinkPending;
+    if (!link) return;
+    _spoolLinkPending = null;
+    _openSpoolLink(link).catch(e => reportError("spoolLink.open", e));
+  }
+  async function _openSpoolLink(link) {
+    const me = state.activeAccountId;
+    if (!me) { _spoolLinkPending = link; return; }
+    if (state.friendView) switchBackToOwnView();
+    let id = state.inventory?.[link.id] ? link.id : null;
+    if (!id) {
+      const hex = (await fbDb(me).collection("users").doc(me).collection("uidMigrationMap").doc(link.id).get().catch(() => null))?.get("hex_uid");
+      if (hex && state.inventory?.[String(hex)]) id = String(hex);
+    }
+    if (!id) {
+      // Another account of this device owns it: switch, the link opens there.
+      for (const acc of getAccounts()) {
+        if (acc.id === me) continue;
+        let user = null;
+        try { user = fbAuth(acc.id).currentUser; } catch (_) {}
+        if (!user) continue;
+        const own = await fbDb(acc.id).collection("users").doc(acc.id).collection("inventory").doc(link.id).get().catch(() => null);
+        if (own?.exists) { _spoolLinkPending = link; await switchAccountUI(acc.id); return; }
+      }
+      _flashMessage(t("spoolLinkNotMine"));
+      return;
+    }
+    const r = state.rows.find(x => x.spoolId === id);
+    if (!r) return;
+    const cap = Number(r.capacity) || 0;
+    const weight = link.weight != null && (!cap || link.weight <= cap) ? link.weight : null;
+    const note = link.note != null && !r.deleted ? link.note : null;
+    _linkProposal = (weight != null && !r.deleted) || note != null ? { spoolId: id, weight: r.deleted ? null : weight, note } : null;
+    if (!$("detailPanel")?.classList.contains("open") || state.selected !== id) _closeAllSideCards();
+    openDetail(id);
+  }
+  function _handleSpoolDeepLink(url) {
+    const m = /^tigertag:\/\/spool\/([^?#]+?)\/?(\?[^#]*)?(?:#.*)?$/i.exec(String(url || ""));
+    if (!m) return false;
+    const id = spoolIdFromPath(decodeURIComponent(m[1]));
+    if (id) _spoolLinkArrived({ id, ...linkValues(new URLSearchParams(m[2] || "")) });
+    return true;
+  }
+  // Studio Web: the same link as `?spool=<id>&weight=…&note=…`, dropped from the
+  // address afterwards so a reload does not propose the values again.
+  if (!HAS_NATIVE) {
+    try {
+      const params = new URLSearchParams(location.search);
+      const spool = params.get("spool");
+      if (spool) {
+        const link = { id: spoolIdFromPath(spool), ...linkValues(params) };
+        for (const k of [...params.keys()]) if (/^(spool|weight|note)$/i.test(k)) params.delete(k);
+        const q = params.toString();
+        history.replaceState(null, "", location.pathname + (q ? "?" + q : "") + location.hash);
+        _spoolLinkArrived(link);
+      }
+    } catch (e) { console.warn("[spool-link]", e); }
   }
 
   $("addFriendClose").addEventListener("click", closeAddFriendModal);
@@ -43477,8 +43603,18 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     // Only ever FILLS a missing value — an existing id_tigertag is never touched.
     const _missingTigertag = r => !r.isCloud && raw[r.spoolId] && raw[r.spoolId].id_tigertag == null;
     const _burnedVersion = r => _burnedChipVersion(raw[r.spoolId]);
+    // `uid` names the doc it sits in: the QR links find a spool across accounts by
+    // that field (a collection-group index), so a doc whose `uid` differs from its
+    // id only by case (a `TIGERDATA_…` doc written as `TigerData_…`) is missed.
+    // Case-only: the other drifts (decimal ids, truncated NTAG UIDs) have their
+    // own repair, which moves the doc instead.
+    const _uidDrift = r => {
+      const u = raw[r.spoolId]?.uid;
+      return u == null || (String(u) !== r.spoolId && String(u).toUpperCase() === r.spoolId.toUpperCase());
+    };
     const want = r => {
       const w = { productKey: _productKeyHash(r), protocol: r.protocol || "unknown" };
+      if (_uidDrift(r)) w.uid = r.spoolId;
       if (_strayTigertag(r)) w.id_tigertag = FV.delete();
       if (_missingTigertag(r)) {
         w.id_tigertag = _burnedVersion(r);
@@ -43492,7 +43628,8 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       return cur.productKey !== _productKeyHash(r)
           || cur.protocol !== (r.protocol || "unknown")
           || _strayTigertag(r)
-          || _missingTigertag(r);
+          || _missingTigertag(r)
+          || _uidDrift(r);
     });
     if (!stale.length) return;
     try {
@@ -43734,8 +43871,10 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
             lastSeenAt:  FV.serverTimestamp(),
             seenCount:   1,
           }, { merge: true });
-          // Listed now; backup can only be captured later on a physical read.
-          batch.set(inv.doc(r.spoolId), { rfidListed: true, rfidBackup: false }, { merge: true });
+          // Listed now; the backup is captured later on a physical read. Never
+          // `rfidBackup: false` here: a chip read at launch (TigerPOD) may have
+          // just set it true, and this batch would land after and undo it.
+          batch.set(inv.doc(r.spoolId), { rfidListed: true }, { merge: true });
         }
         await batch.commit();
       }
@@ -43773,11 +43912,15 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       const ref = _rfidListCol(uid).doc(chipUid);
       const FV  = firebase.firestore.FieldValue;
 
-      // Listed tag+ still missing its backup — write it once when raw is in hand.
+      // Listed tag+ whose doc says "no backup": the entry may hold one all the
+      // same (the marker was lost) — then only the marker is set; otherwise the
+      // backup is written once, when the raw pages are in hand. Never overwrites
+      // a backup already stored.
       if (listed) {
-        if (isPlus && rawHex) {
-          await ref.set({ backup: rawHex, lastSeenAt: FV.serverTimestamp() }, { merge: true });
-          await _invCol(uid).doc(chipUid).set({ rfidBackup: true }, { merge: true });
+        if (isPlus) {
+          const has = !!(await ref.get()).data()?.backup;
+          if (!has && rawHex) await ref.set({ backup: rawHex, lastSeenAt: FV.serverTimestamp() }, { merge: true });
+          if (has || rawHex) await _invCol(uid).doc(chipUid).set({ rfidBackup: true }, { merge: true });
         }
         return;
       }
