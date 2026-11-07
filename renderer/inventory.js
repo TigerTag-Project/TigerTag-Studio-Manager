@@ -43225,7 +43225,10 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
      answering no question that `Country` (derived offline from the timezone, no
      IP lookup, no permission prompt) doesn't already answer. Xano then locates
      the event from the request's IP, to the city, on its own side; Studio sends
-     no IP and must not. `Emoji` is deprecated and always sent empty.
+     no IP and must not. The user's free-text note (`message`) is never sent.
+     `UserId` is the Firebase uid of the signed-in account the event is about
+     (never a friend's: nothing is sent in friend view), so an event can later be
+     joined with that account's own data instead of copying it into the event.
 
      The HTTP itself happens in the MAIN process (CORS — see main.js). */
   const XANO_DEDUP_MS = 60_000;
@@ -43268,8 +43271,6 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       Weight: n(td.measure_gr ?? td.measure), IdUnit: n(td.id_unit),
       TempMin: n(td.nozzle_min ?? td.data2), TempMax: n(td.nozzle_max ?? td.data3),
       DryTemp: n(td.dry_temp ?? td.data4),   DryTime: n(td.dry_time ?? td.data5),
-      Emoji: "",                       // deprecated field — never populated
-      Message: td.message || "",
     };
     if (withBed) {
       f.BedTempMin = n(td.bed_min ?? td.data6);
@@ -43303,6 +43304,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   }
   function _xanoPost(operation, fields, now = Date.now()) {
     try {
+      const uid = fbAuth().currentUser?.uid || "";
       window.electronAPI?.sendTagAnalytics?.({
         Operation: operation,
         Locale:   _xanoLocale(),
@@ -43310,6 +43312,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         Location: "0.0,0.0",                 // no position collected — see above
         Country:  deriveCountry() || "",
         Timestamp: Math.floor(now / 1000),   // Unix epoch seconds
+        ...(uid ? { UserId: uid } : {}),
         ...fields,
       });
     } catch (e) {

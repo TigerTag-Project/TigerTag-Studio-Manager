@@ -41,6 +41,10 @@ against Xano's dry-run and then on production rows. Every event also carries:
 - `Weight` is always the capacity (`measure_gr`); `WeightAvailable` is the remaining grams, on every
   spool event and on a chip event when the spool doc is known.
 - `IdTigerTag` is left out for TigerData / TigerData+ (0 means "RFID Empty" in Xano).
+- `UserId`: the Firebase uid of the signed-in account the event is about, on every operation;
+  left out when no account is signed in. Xano keeps it in the row's `data` JSON for now (`data`
+  is null for `reset` / `nfc_*`), a dedicated `user_id` column is planned under the same key.
+- Never sent: the spool's free-text note (`message`, removed 2026-11-07) and the old `Emoji`.
 
 ## Rules
 
@@ -54,6 +58,9 @@ against Xano's dry-run and then on production rows. Every event also carries:
   `SpoolId` over 60 s; `edit` by the 5-minute coalescing.
 - `Location` is always `"0.0,0.0"` (no position, the convention shared with mobile); Xano locates
   the event from the request's IP, to the city, on its side. Studio sends no IP.
+- Events are linked to the account (`UserId`), so an event can be joined with that account's own
+  Firestore data (printers, prices, stock) instead of copying those data into the event. Nothing
+  is sent in friend view, so it is always the owner's uid. *(Decided 2026-11-07.)*
 
 ## Failures
 
