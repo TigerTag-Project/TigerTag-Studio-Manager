@@ -4842,6 +4842,14 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       .finally(() => { btn.disabled = false; btn.classList.remove("loading"); });
   });
 
+  // Settings → Data → "Export .xlsx": the whole inventory as a spreadsheet Excel opens directly.
+  $("btnStgExportXlsx")?.addEventListener("click", () => {
+    const lbl = $("btnStgExportXlsx").querySelector("[data-i18n]");
+    if (!_exportInventoryXlsx() || !lbl) return;
+    lbl.textContent = t("xlsxExportOk");
+    setTimeout(() => { lbl.textContent = t("settingsExportXlsx"); }, 1800);
+  });
+
   // "Import a .ttag" — three entry points share one flow: the visible inventory
   // toolbar button, Settings → Data, and drag-drop anywhere on the window.
   const _onImportTtagClick = () => openTtagImportPicker();
@@ -19874,6 +19882,145 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     const stamp = new Date(Date.now()).toISOString().slice(0, 10);
     _saveTtagFile(`tigertag-inventory-${stamp}.ttag`, _ttagSerialize(_buildTtag(records, backups, uid)));
     flash("ttagExportOk");
+  }
+
+  /* ── Inventory → .xlsx (a real spreadsheet, columns already the right width) ──
+     A CSV cannot carry column widths, a frozen header or real dates, so Excel opens
+     it as a flat wall of text. The .xlsx is written here with no library: it is a ZIP
+     of a few XML parts, stored uncompressed. One line per physical spool (a twin
+     pair counts once), the table's columns plus colour, buy link, tags, rack and
+     UID; the whole inventory, filters ignored, like the .ttag export. Text goes in
+     as strings (a UID keeps its zero, a name starting with "=" is never run as a
+     formula); weights, capacity and price are numbers; "Updated" is a real date. */
+  const _CRC_TABLE = (() => {
+    const tbl = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; tbl[n] = c >>> 0; }
+    return tbl;
+  })();
+  function _crc32(bytes) {
+    let c = 0xFFFFFFFF;
+    for (let i = 0; i < bytes.length; i++) c = _CRC_TABLE[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+    return (c ^ 0xFFFFFFFF) >>> 0;
+  }
+  // A ZIP of { path: text } parts, each stored as is (no compression), UTF-8 names.
+  function _zipStore(parts) {
+    const enc = new TextEncoder(), chunks = [], central = [];
+    const u16 = n => [n & 255, (n >>> 8) & 255];
+    const u32 = n => [n & 255, (n >>> 8) & 255, (n >>> 16) & 255, (n >>> 24) & 255];
+    let offset = 0;
+    for (const [name, text] of Object.entries(parts)) {
+      const nameB = enc.encode(name), data = enc.encode(text), crc = _crc32(data);
+      // 1980-01-01 00:00 — a ZIP entry has to carry some date.
+      const common = [...u16(0x0800), ...u16(0), ...u16(0), ...u16(0x21), ...u32(crc), ...u32(data.length), ...u32(data.length), ...u16(nameB.length), ...u16(0)];
+      chunks.push(new Uint8Array([0x50, 0x4B, 3, 4, ...u16(20), ...common]), nameB, data);
+      central.push(new Uint8Array([0x50, 0x4B, 1, 2, ...u16(20), ...u16(20), ...common, ...u16(0), ...u16(0), ...u16(0), ...u32(0), ...u32(offset)]), nameB);
+      offset += 30 + nameB.length + data.length;
+    }
+    const centralSize = central.reduce((n, c) => n + c.length, 0);
+    const end = new Uint8Array([0x50, 0x4B, 5, 6, ...u16(0), ...u16(0), ...u16(Object.keys(parts).length), ...u16(Object.keys(parts).length), ...u32(centralSize), ...u32(offset), ...u16(0)]);
+    return new Blob([...chunks, ...central, end], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  }
+  const _xmlEsc = s => String(s).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F￾￿]/g, "")
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  const _XLSX_NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
+  const _XLSX_REL = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+  const _XLSX_HEAD = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
+  // Cell styles: 0 plain · 1 header (bold, grey) · 2 price (two decimals) · 3 date + time.
+  const _XLSX_STYLES = `${_XLSX_HEAD}<styleSheet xmlns="${_XLSX_NS}"><numFmts count="1"><numFmt numFmtId="164" formatCode="yyyy\\-mm\\-dd\\ hh:mm"/></numFmts>`
+    + '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts>'
+    + '<fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF2F2F2"/><bgColor indexed="64"/></patternFill></fill></fills>'
+    + '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>'
+    + '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
+    + '<cellXfs count="4"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'
+    + '<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/>'
+    + '<xf numFmtId="2" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>'
+    + '<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs>'
+    + '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
+  const _XLSX_COL_MIN = 8, _XLSX_COL_MAX = 48;
+  function _xlsxRows() {
+    return sortRows(deduplicateTwins(state.rows.filter(r => !r.deleted)));
+  }
+  // One spool as cells: { k: "s" text | "n" number | "p" price | "d" date, v }.
+  function _xlsxCells(r) {
+    const vat = _vatInfo();
+    const priceHt = _displayProduct(r)?.buyPriceHt;
+    const price = (priceHt != null && Number.isFinite(+priceHt))
+      ? (_reorderMode() === "TTC" ? +priceHt * (1 + (vat.rate || 0) / 100) : +priceHt) : null;
+    const tier = r.isCloud ? (r.isCloudPlus ? "TigerData+" : "TigerData") : (r.isPlus ? "TigerTag+" : "TigerTag");
+    const name = v(r.colorName) !== "-" ? r.colorName
+      : [r.aspect1, r.aspect2].filter(a => a && a !== "-" && a !== "None").join(" ") || "";
+    // The catalogue's colour list when there is one, else the chip's colours — as many
+    // as the aspect says (a mono spool's 2nd and 3rd colour slots are unused filler).
+    const hexOf = c => { const s = String(c || "").trim().replace(/^#/, ""); const h6 = s.length === 8 ? s.slice(0, 6) : s; return /^[0-9a-f]{6}$/i.test(h6) ? "#" + h6.toUpperCase() : null; };
+    const aspIds = [r.aspect1Id, r.aspect2Id].map(Number);
+    const nChip = aspIds.includes(ASPECT_ID.TRICOLOR) ? 3 : aspIds.includes(ASPECT_ID.BICOLOR) ? 2 : 1;
+    const listed = (r.colorList || []).map(hexOf).filter(Boolean);
+    const hex = (listed.length ? listed : [r.colorHex, r.colorHex2, r.colorHex3].slice(0, nChip).map(hexOf).filter(Boolean)).join(" ");
+    const rack = (r.rackId && r.rackLevel != null && r.rackPos != null) ? state.racks.find(x => x.id === r.rackId) : null;
+    const pos = rack
+      ? String.fromCharCode(65 + r.rackLevel) + (r.rackPos + 1) + (r.rackDepth > 0 ? "·" + (r.rackDepth + 1) : "")
+      : "";
+    const num = x => (x != null && x !== "" && Number.isFinite(+x)) ? +x : null;
+    // Excel stores a date as days since 1899-12-30, in the user's local time.
+    const when = r.lastUpdate ? new Date(r.lastUpdate) : null;
+    const date = when && !isNaN(when.getTime()) ? (when.getTime() - when.getTimezoneOffset() * 60000) / 86400000 + 25569 : null;
+    const mat = materialWithSeriesAspect(r);
+    return [
+      { k: "s", v: tier }, { k: "s", v: v(mat) === "-" ? "" : mat },
+      { k: "s", v: v(r.brand) === "-" ? "" : r.brand }, { k: "s", v: name }, { k: "s", v: hex },
+      { k: "n", v: num(r.weightAvailable) }, { k: "n", v: num(r.capacity) },
+      { k: "p", v: price }, { k: "s", v: _normalizeBuyUrl(_displayProduct(r)?.buyUrl) },
+      { k: "s", v: (r.tags || []).join(", ") }, { k: "s", v: rack ? rack.name : "" },
+      { k: "s", v: pos }, { k: "d", v: date }, { k: "s", v: r.uid == null ? "" : String(r.uid) },
+    ];
+  }
+  function _xlsxSheet(head, lines) {
+    const col = i => String.fromCharCode(65 + i);   // 14 columns, A–N
+    const width = head.map(h => String(h).length + 3);   // + room for the filter arrow
+    const cell = (c, ref, style) => {
+      if (c.v == null || c.v === "") return "";
+      if (c.k === "s") return `<c r="${ref}" t="inlineStr"${style ? ` s="${style}"` : ""}><is><t xml:space="preserve">${_xmlEsc(c.v)}</t></is></c>`;
+      return `<c r="${ref}"${c.k === "p" ? ' s="2"' : c.k === "d" ? ' s="3"' : ""}><v>${c.v}</v></c>`;
+    };
+    let rowsXml = `<row r="1">${head.map((h, i) => cell({ k: "s", v: h }, col(i) + 1, 1)).join("")}</row>`;
+    lines.forEach((cells, n) => {
+      cells.forEach((c, i) => {
+        const len = c.k === "d" ? 17 : c.v == null ? 0 : String(c.k === "p" ? (+c.v).toFixed(2) : c.v).length + 2;
+        if (len > width[i]) width[i] = len;
+      });
+      rowsXml += `<row r="${n + 2}">${cells.map((c, i) => cell(c, col(i) + (n + 2))).join("")}</row>`;
+    });
+    const cols = width.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${Math.max(_XLSX_COL_MIN, Math.min(_XLSX_COL_MAX, w))}" customWidth="1"/>`).join("");
+    return `${_XLSX_HEAD}<worksheet xmlns="${_XLSX_NS}"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>`
+      + `<sheetFormatPr defaultRowHeight="15"/><cols>${cols}</cols><sheetData>${rowsXml}</sheetData><autoFilter ref="A1:${col(head.length - 1)}${lines.length + 1}"/></worksheet>`;
+  }
+  function _exportInventoryXlsx() {
+    if (!state.activeAccountId || !state.inventory || state.friendView) return false;
+    const rows = _xlsxRows();
+    if (!rows.length) return false;
+    const head = [
+      t("thType"), t("thMaterial"), t("thBrand"), t("thName"), t("detColor"),
+      `${t("thWeight")} (g)`, `${t("thCapacity")} (g)`, `${t("thPrice")} (${_vatInfo().symbol})`,
+      t("reorderBuyLink"), t("sectionTags"), t("thRack"), t("thPosition"), t("thUpdated"), t("detUid"),
+    ];
+    const sheetName = _xmlEsc(String(t("viewGroupInventory")).replace(/[\\/?*[\]:]/g, " ").slice(0, 31));
+    const blob = _zipStore({
+      "[Content_Types].xml": `${_XLSX_HEAD}<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>`
+        + '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+        + '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+        + '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>',
+      "_rels/.rels": `${_XLSX_HEAD}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${_XLSX_REL}/officeDocument" Target="xl/workbook.xml"/></Relationships>`,
+      "xl/workbook.xml": `${_XLSX_HEAD}<workbook xmlns="${_XLSX_NS}" xmlns:r="${_XLSX_REL}"><sheets><sheet name="${sheetName}" sheetId="1" r:id="rId1"/></sheets></workbook>`,
+      "xl/_rels/workbook.xml.rels": `${_XLSX_HEAD}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${_XLSX_REL}/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="${_XLSX_REL}/styles" Target="styles.xml"/></Relationships>`,
+      "xl/styles.xml": _XLSX_STYLES,
+      "xl/worksheets/sheet1.xml": _xlsxSheet(head, rows.map(_xlsxCells)),
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `tigertag-inventory-${new Date().toISOString().slice(0, 10)}.xlsx`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    return true;
   }
 
 
