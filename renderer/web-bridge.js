@@ -188,5 +188,124 @@
         return { ok: false, reason: e?.message || "error" };
       }
     },
+
+    // Same contract as main.js `label:render`, with browser downloads instead of
+    // the native Save dialog: { ok } or { ok: false, reason }.
+    //   svg   — the millimetre-sized SVG, as is
+    //   png   — the label drawn at exactly wDots × hDots
+    //   pdf   — one page of the label's size holding that same picture
+    //           (lossless), so each QR module stays on whole printer dots
+    //   print — the browser's print dialog, on a page of the label's size
+    async renderLabel(opts = {}) {
+      const { html, svg, wDots, hDots, mmW, mmH, dpi, format, fileName } = opts || {};
+      const name = `${fileName || "tigertag-label"}.${format}`;
+      try {
+        if (format === "svg") {
+          if (typeof svg !== "string") return { ok: false, reason: "bad label" };
+          saveBlob(new Blob([svg], { type: "image/svg+xml" }), name);
+          return { ok: true };
+        }
+        if (typeof html !== "string" || !(wDots > 0 && hDots > 0 && mmW > 0 && mmH > 0)) return { ok: false, reason: "bad label" };
+        if (format === "print") return await printLabel(html, mmW, mmH, dpi);
+        const canvas = await drawLabel(html, Math.ceil(wDots), Math.ceil(hDots));
+        if (format === "png") {
+          saveBlob(await new Promise((res) => canvas.toBlob(res, "image/png")), name);
+          return { ok: true };
+        }
+        if (format === "pdf") {
+          saveBlob(await labelPdf(canvas, mmW, mmH), name);
+          return { ok: true };
+        }
+        return { ok: false, reason: "unknown format" };
+      } catch (e) {
+        return { ok: false, reason: e?.message || "error" };
+      }
+    },
   };
+
+  function saveBlob(blob, filename) {
+    const href = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = href;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(href), 10000);
+  }
+
+  // The label page holds one self-contained SVG sized in dots: draw it on a
+  // canvas of that size.
+  async function drawLabel(html, w, h) {
+    const page = new DOMParser().parseFromString(html, "text/html");
+    const svg = page.querySelector(".lbl svg");
+    if (!svg) throw new Error("bad label");
+    const url = URL.createObjectURL(new Blob([svg.outerHTML], { type: "image/svg+xml" }));
+    try {
+      const img = new Image();
+      img.src = url;
+      await img.decode();
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      const g = canvas.getContext("2d");
+      g.fillStyle = "#fff";
+      g.fillRect(0, 0, w, h);
+      g.drawImage(img, 0, 0, w, h);
+      return canvas;
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+
+  // A one-page PDF of mmW × mmH holding the canvas as an 8-bit grey image
+  // (labels are black and white), Flate-compressed.
+  async function labelPdf(canvas, mmW, mmH) {
+    const { width: w, height: h } = canvas;
+    const rgba = canvas.getContext("2d").getImageData(0, 0, w, h).data;
+    const grey = new Uint8Array(w * h);
+    for (let i = 0; i < grey.length; i++) grey[i] = rgba[i * 4];
+    const pixels = new Uint8Array(await new Response(
+      new Blob([grey]).stream().pipeThrough(new CompressionStream("deflate"))).arrayBuffer());
+    const pt = (mm) => (mm * 72 / 25.4).toFixed(2);
+    const content = `q ${pt(mmW)} 0 0 ${pt(mmH)} 0 0 cm /Im0 Do Q`;
+    const objects = [
+      "<< /Type /Catalog /Pages 2 0 R >>",
+      "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pt(mmW)} ${pt(mmH)}] /Resources << /XObject << /Im0 5 0 R >> >> /Contents 4 0 R >>`,
+      [`<< /Length ${content.length} >>\nstream\n${content}\nendstream`],
+      [`<< /Type /XObject /Subtype /Image /Width ${w} /Height ${h} /ColorSpace /DeviceGray /BitsPerComponent 8 /Filter /FlateDecode /Length ${pixels.length} >>\nstream\n`, pixels, "\nendstream"],
+    ];
+    const enc = new TextEncoder(), parts = [], offsets = [];
+    let size = 0;
+    const put = (x) => { const b = typeof x === "string" ? enc.encode(x) : x; parts.push(b); size += b.length; };
+    put("%PDF-1.4\n");
+    objects.forEach((o, i) => {
+      offsets.push(size);
+      put(`${i + 1} 0 obj\n`);
+      (Array.isArray(o) ? o : [o]).forEach(put);
+      put("\nendobj\n");
+    });
+    const xref = size;
+    put(`xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`);
+    offsets.forEach((o) => put(`${String(o).padStart(10, "0")} 00000 n \n`));
+    put(`trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`);
+    return new Blob(parts, { type: "application/pdf" });
+  }
+
+  // The browser's print dialog on a hidden frame holding the label, scaled from
+  // dots to its size in millimetres (as main.js does for its print window).
+  async function printLabel(html, mmW, mmH, dpi) {
+    const page = html.replace("<body>", `<body><style>@page{size:${mmW}mm ${mmH}mm;margin:0}html,body{width:${mmW}mm;height:${mmH}mm;overflow:hidden}.lbl{transform:scale(${96 / (dpi || 203)});transform-origin:0 0}</style>`);
+    const frame = document.createElement("iframe");
+    frame.setAttribute("aria-hidden", "true");
+    frame.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden";
+    await new Promise((res) => { frame.onload = res; frame.srcdoc = page; document.body.appendChild(frame); });
+    try {
+      frame.contentWindow.focus();
+      frame.contentWindow.print();   // returns once the dialog is closed
+    } finally {
+      setTimeout(() => frame.remove(), 1000);
+    }
+    return { ok: true };
+  }
 })();
