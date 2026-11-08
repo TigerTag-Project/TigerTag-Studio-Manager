@@ -1,0 +1,80 @@
+name: Publish the showcase site
+
+# Builds site/ (one static page per language, see site/build.py) and publishes it
+# on GitHub Pages: https://tigertag-project.github.io/TigerTag-Studio-Manager/
+#
+# Exactly one workflow deploys this site, and this is it.
+# Prerequisite, once: Settings > Pages > Source = "GitHub Actions".
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'site/**'
+      - 'assets/img/**'
+      - 'assets/svg/logos/**'
+      - 'assets/favicon/**'
+      - 'llms.txt'
+      # The version shown on the page and in its JSON-LD comes from package.json.
+      - 'package.json'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The page's dateModified / sitemap lastmod come from the last commit on site/.
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      # Every language must have every key before anything is built.
+      - name: Check the translations
+        run: python site/build.py --check
+
+      - name: Build the site
+        run: python site/build.py --out _site
+
+      # Search / answer-engine essentials (.agents/rules/seo-geo.md).
+      - name: Check the site for search and answer engines
+        run: python site/seo_check.py _site
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deploy
+        uses: actions/deploy-pages@v4
+
+      # The published result, not this workflow's green tick: every language answers.
+      - name: The published site answers in every language
+        run: |
+          set -euo pipefail
+          base="${{ steps.deploy.outputs.page_url }}"
+          for lang in "" fr/ de/ es/ it/ zh/ pt/ pt-pt/ pl/ ru/ nl/; do
+            for i in 1 2 3 4 5 6; do
+              code=$(curl -s -o /dev/null -w '%{http_code}' "${base}${lang}") && [ "$code" = 200 ] && break
+              sleep 10
+            done
+            echo "${base}${lang} -> ${code}"
+            [ "$code" = 200 ]
+          done

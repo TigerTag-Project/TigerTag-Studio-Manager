@@ -9,6 +9,36 @@ Manage your spool inventory, connect your 3D printers, and keep everything in sy
 
 <br>
 
+<p align="center">
+  <a href="https://tigertag-project.github.io/TigerTag-Studio-Manager/">
+    <img src="assets/svg/site-button.svg" alt="Visit the Tiger Studio Manager site" width="420">
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://tigertag-project.github.io/TigerTag-Studio-Manager/" hreflang="en">English</a>
+  &nbsp;&middot;&nbsp;
+  <a href="https://tigertag-project.github.io/TigerTag-Studio-Manager/fr/" hreflang="fr">Français</a>
+  &nbsp;&middot;&nbsp;
+  <a href="https://tigertag-project.github.io/TigerTag-Studio-Manager/de/" hreflang="de">Deutsch</a>
+  &nbsp;&middot;&nbsp;
+  <a href="https://tigertag-project.github.io/TigerTag-Studio-Manager/es/" hreflang="es">Español</a>
+  &nbsp;&middot;&nbsp;
+  <a href="https://tigertag-project.github.io/TigerTag-Studio-Manager/it/" hreflang="it">Italiano</a>
+  &nbsp;&middot;&nbsp;
+  <a href="https://tigertag-project.github.io/TigerTag-Studio-Manager/zh/" hreflang="zh-Hans">中文</a>
+  &nbsp;&middot;&nbsp;
+  <a href="https://tigertag-project.github.io/TigerTag-Studio-Manager/pt/" hreflang="pt-BR">Português (BR)</a>
+  &nbsp;&middot;&nbsp;
+  <a href="https://tigertag-project.github.io/TigerTag-Studio-Manager/pt-pt/" hreflang="pt-PT">Português (PT)</a>
+  &nbsp;&middot;&nbsp;
+  <a href="https://tigertag-project.github.io/TigerTag-Studio-Manager/pl/" hreflang="pl">Polski</a>
+  &nbsp;&middot;&nbsp;
+  <a href="https://tigertag-project.github.io/TigerTag-Studio-Manager/ru/" hreflang="ru">Русский</a>
+  &nbsp;&middot;&nbsp;
+  <a href="https://tigertag-project.github.io/TigerTag-Studio-Manager/nl/" hreflang="nl">Nederlands</a>
+</p>
+
 <a href="https://github.com/TigerTag-Project/TigerTag-Studio-Manager/releases">
   <img src="assets/svg/download_macos.svg" width="420" height="68" alt="Download for macOS">
 </a>
