@@ -4001,19 +4001,25 @@ const LABEL_FILTERS = {
   pdf: { name: 'PDF', extensions: ['pdf'] },
   svg: { name: 'SVG image', extensions: ['svg'] },
 };
-async function _saveLabelFile(format, fileName, buf) {
+// Where to save: asked BEFORE the label is rendered, so the dialog opens at once
+// and the PNG / PDF is drawn while the user picks the place.
+async function _askLabelPath(format, fileName) {
   const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
     defaultPath: path.join(app.getPath('downloads'), `${fileName || 'tigertag-label'}.${format}`),
     filters: [LABEL_FILTERS[format]],
   });
-  if (canceled || !filePath) return { ok: false, reason: 'cancelled' };
-  fs.writeFileSync(filePath, buf);
-  return { ok: true, path: filePath };
+  return canceled || !filePath ? null : filePath;
 }
 ipcMain.handle('label:render', async (_evt, opts = {}) => {
   const { html, svg, wDots, hDots, mmW, mmH, dpi, format, fileName } = opts || {};
-  if (format === 'svg') return typeof svg === 'string' ? _saveLabelFile('svg', fileName, Buffer.from(svg, 'utf8')) : { ok: false, reason: 'bad label' };
-  if (typeof html !== 'string' || !(wDots > 0 && hDots > 0 && mmW > 0 && mmH > 0)) return { ok: false, reason: 'bad label' };
+  if (format === 'svg' && typeof svg !== 'string') return { ok: false, reason: 'bad label' };
+  if (format !== 'svg' && (typeof html !== 'string' || !(wDots > 0 && hDots > 0 && mmW > 0 && mmH > 0))) return { ok: false, reason: 'bad label' };
+  let filePath = null;
+  if (format === 'svg' || format === 'png' || format === 'pdf') {
+    filePath = await _askLabelPath(format, fileName);
+    if (!filePath) return { ok: false, reason: 'cancelled' };
+  }
+  if (format === 'svg') { fs.writeFileSync(filePath, Buffer.from(svg, 'utf8')); return { ok: true, path: filePath }; }
   const win = new BrowserWindow({
     show: false, width: Math.ceil(wDots), height: Math.ceil(hDots), useContentSize: true,
     webPreferences: { javascript: false, offscreen: format === 'png', sandbox: true },
@@ -4027,14 +4033,16 @@ ipcMain.handle('label:render', async (_evt, opts = {}) => {
       let img = await win.webContents.capturePage({ x: 0, y: 0, width: Math.ceil(wDots), height: Math.ceil(hDots) });
       const sz = img.getSize();
       if (sz.width !== Math.ceil(wDots)) img = img.resize({ width: Math.ceil(wDots), height: Math.ceil(hDots), quality: 'best' });
-      return _saveLabelFile('png', fileName, img.toPNG());
+      fs.writeFileSync(filePath, img.toPNG());
+      return { ok: true, path: filePath };
     }
     if (format === 'pdf') {
       const pdf = await win.webContents.printToPDF({
         pageSize: { width: mmW / 25.4, height: mmH / 25.4 },
         margins: { top: 0, bottom: 0, left: 0, right: 0 }, printBackground: true,
       });
-      return _saveLabelFile('pdf', fileName, Buffer.from(pdf));
+      fs.writeFileSync(filePath, Buffer.from(pdf));
+      return { ok: true, path: filePath };
     }
     if (format === 'print') {
       return await new Promise((resolve) => {
