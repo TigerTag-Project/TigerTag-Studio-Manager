@@ -94,7 +94,7 @@ import { renderPrusaCamBanner, renderPrusaCamWallBanner, prusaCamStopAll } from 
 import { openPrusaAddFlow } from './printers/prusa/add-flow.js';
 import { initExtCam, extCamSubscribe, extCamUnsubscribe, openExtCamAddFlow, openExtCamEditor,
          extCamBoardObj, extCamMaxZ, extCamBoardSave, extCamBoardCardsHtml, wireExtCamBoard,
-         EXTCAM_BRAND, extCamWallItems, extCamProtoLabel, extCamWallHtml, wireExtCamWall, extCamWallSave } from './ext-cam/ext-cam.js';
+         EXTCAM_BRAND, extCamWallItems, extCamProtoLabel, extCamWallHtml, wireExtCamWall, extCamWallSave, extCamList, extCamEmbedHtml } from './ext-cam/ext-cam.js';
 // Self-contained printer plugins (renderer/printers/<id>/plugin.js) — see docs/PRINTER-PLUGINS.md.
 import { printerPlugin, printerPlugins, printerPluginIds, mergePluginStrings } from './printers/plugins.js';
 import { betaBadgeInlineHtml } from './printers/beta-badge.js';
@@ -4586,7 +4586,10 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   initCamSnapshot({
     t, toast: msg => _flashMessage(msg),
     printerForHost: host => {
-      const key = host.closest("[data-cam-key]")?.dataset.camKey;
+      // The camera wall and an IP camera shown in a printer carry the printer's key; a machine card on the
+      // board is the printer itself; the side panel falls back to the open printer.
+      const key = host.closest("[data-cam-key]")?.dataset.camKey
+        || host.closest(".printer-card[data-printer-key]")?.dataset.printerKey;
       const [brand, id] = key ? key.split(":") : [_activePrinter?.brand, _activePrinter?.id];
       return state.printers.find(p => p.brand === brand && p.id === id) || null;
     },
@@ -4600,10 +4603,13 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     // Bambu cameras: when main already reads the RTSPS stream for the picture (one
     // connection only), the recording is taken from there instead of opening another.
     // Main knows whether that stream runs and refuses otherwise, so no model test here.
-    liveKey: p => p.brand === "bambulab" ? bambuKey(p) : null,
+    // Not for an IP camera shown inside a printer (its picture is not the printer's own stream).
+    liveKey: (p, host) => host?.closest?.(".xc-embed") ? null : p.brand === "bambulab" ? bambuKey(p) : null,
     // The camera's own stream, when ffmpeg can read it directly: Bambu Lab's RTSPS
     // (X1 / X2D / H2 / P2S), or an http MJPEG the page shows as is (Elegoo).
     sourceUrl: (p, media) => {
+      // An IP camera shown inside a printer: record ITS frames (or stream), never the printer's own.
+      if (media?.closest?.(".xc-embed")) return null;
       if (p.brand === "bambulab" && findPrinterModel("bambulab", p.printerModelId)?.camera_transport === "rtsp"
           && p.broker && (p.password || p.accessCode) && !String(p.broker).includes(":"))
         return `rtsps://bblp:${p.password || p.accessCode}@${p.broker}:322/streaming/live/1`;
@@ -28103,8 +28109,19 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
      by a single upstream connection. The board is a wall too, so it asks the
      same way. (The panel banner also carries a fixed element id, which cannot be
      right on a view that draws one per machine.) */
+  /* A printer can show one of the account's IP cameras in place of its own
+     (`camSource` = that camera's id, set in the printer's settings). It replaces
+     the printer's camera everywhere it is drawn — card, side panel, camera wall —
+     and the camera's own card is hidden. A source whose camera was deleted falls
+     back to the printer's own camera. */
+  function _camSourceId(p) {
+    const id = p?.camSource;
+    return id && extCamList().some(c => c.id === id) ? id : "";
+  }
+  function _linkedCamIds() { return new Set((state.printers || []).map(_camSourceId).filter(Boolean)); }
   const _boardCamHtml = p =>
-    p.brand === "flashforge" ? renderFfgCamWallBanner(p)
+    _camSourceId(p)          ? extCamEmbedHtml(_camSourceId(p), _printerKey(p))
+    : p.brand === "flashforge" ? renderFfgCamWallBanner(p)
     : p.brand === "prusa"    ? renderPrusaCamWallBanner(p)
     : printerPlugin(p)       ? (printerPlugin(p).renderCamBanner?.(p, true) || "") : renderCamBanner(p);
   /* CAN a camera be asked for on this machine, even though none runs yet? The
@@ -28131,6 +28148,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
      Kicking is safe to repeat: every brand's connect returns early when it is
      already up. */
   function _camKick(p) {
+    if (_camSourceId(p)) return;   // another camera is shown: the printer's own feed is not needed
     try {
       if (p.brand === "snapmaker"  && p.ip)               snapConnect(p);
       if (p.brand === "flashforge" && p.ip)               ffgConnect(p);
@@ -28153,7 +28171,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     for (const p of state.printers || []) {
       if (p.camAutoStart !== true) continue;
       const key = _printerKey(p);
-      if (_camPlaying.has(key) || !_isPrinterOnline(p)) continue;
+      if (_camPlaying.has(key) || (!_isPrinterOnline(p) && !_camSourceId(p))) continue;
       if (!_boardCamHtml(p) && !_camStartable(p)) continue;   // no camera on this machine
       _camPlaying.add(key);
       _camKick(p);
@@ -28172,7 +28190,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     let placed = false;
     _camPlaying.forEach(key => {
       const p = state.printers.find(v => _printerKey(v) === key);
-      if (!p || !_isPrinterOnline(p)) return;
+      if (!p || (!_isPrinterOnline(p) && !_camSourceId(p))) return;
       const thumb = root.querySelector(`.printer-card[data-printer-key="${CSS.escape(key)}"] .printer-card-thumb`);
       if (!thumb || thumb.querySelector(".pp-cam-full")) return;
       const html = _boardCamHtml(p);
@@ -28220,6 +28238,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   const _prevPlanImgs = [];
   function _wireCamWidgets(container) {
     if (!container) return;
+    try { wireExtCamWall(container); } catch (e) { console.warn("[ext-cam] embed wiring failed", e); }   // external cameras shown inside a printer
     /* The play key. Marked once so a re-wire after every board render cannot
        stack listeners on a button that survived it. */
     container.querySelectorAll("[data-cam-play]").forEach(btn => {
@@ -28753,7 +28772,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
          brand or a model without one — so a machine that cannot be watched
          simply never shows the key. */
       const _camKey   = `${p.brand}:${p.id}`;
-      const _camHtml  = online ? _boardCamHtml(p) : "";
+      const _camHtml  = (online || _camSourceId(p)) ? _boardCamHtml(p) : "";
       const _camMaybe = !!_camHtml || (online && _camStartable(p));   // a camera can be shown
       const _camLive  = (_camHtml && _camPlaying.has(_camKey)) ? _camHtml : "";
       const _camWait  = online && !_camLive && _camStarting(p);       // asked, not here yet
@@ -29346,8 +29365,8 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     // Compute cam HTML once per printer (filter + cache — avoids double call)
     const _camHtmlMap = new Map();
     const _onlinePrinters = _camOrdered.filter(p => {
-      if (!_isOnline(p)) return false;
-      const html = p.brand === "flashforge" ? renderFfgCamWallBanner(p) : renderCamBanner(p);
+      if (!_isOnline(p) && !_camSourceId(p)) return false;
+      const html = p.brand === "flashforge" && !_camSourceId(p) ? renderFfgCamWallBanner(p) : renderCamBanner(p);
       if (!html) return false;
       _camHtmlMap.set(`${p.brand}:${p.id}`, html);
       return true;
@@ -31748,11 +31767,11 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     // and stays alive in the background; no need to reconnect on sidecard open.
     // Bambu Lab — connect MQTT TLS (and start JPEG camera if applicable).
     if (printer.brand === "bambulab" && (printer.broker || printer.ip)) {
-      bambuConnect(printer);
+      bambuConnect(printer, { skipCam: !!_camSourceId(printer) });
     }
     // Anycubic — connect MQTT TLS to the printer's local broker (idempotent).
     if (printer.brand === "anycubic" && (printer.ip || printer.mode === "cloud")) {
-      acuConnect(printer);
+      acuConnect(printer, { skipCam: !!_camSourceId(printer) });
     }
   }
   function closePrinterDetail() {
@@ -32484,6 +32503,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   initExtCam({
     db: uid => fbDb(uid),
     uid: () => state.activeAccountId,
+    linkedIds: () => _linkedCamIds(),
     // A camera added / edited / deleted redraws the board or the wall, only while one is on screen.
     onChange: () => { if (state.viewMode === "printer" || state.viewMode === "printer-cam") renderPrintersView(); },
   });
@@ -32782,6 +32802,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   // import renderXxxCamBanner here, add a case below. inventory.js
   // itself never builds camera HTML.
   function renderCamBanner(p) {
+    if (_camSourceId(p)) return extCamEmbedHtml(_camSourceId(p), _printerKey(p));
     switch (p?.brand) {
       case "snapmaker":  return renderSnapCamBanner(p);
       case "creality":   return renderCreCamBanner(p);
@@ -32838,8 +32859,13 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     // socket opens, so it has to be able to rebuild the feed on its own.
     const _snapCamSig   = _snapCamIp ? `${_snapCamIp}|${_snapCamConn?.camMode || ""}` : null;
     const _persistEl    = $("ppPersistentCam");
+    const _linkedCamId  = _camSourceId(p);   // an IP camera shown in place of the printer's own
     if (_persistEl) {
-      if (p.brand === "snapmaker") {
+      if (p.brand === "snapmaker" && _linkedCamId) {
+        // Its own camera gives way to the chosen one (drawn with the panel body below).
+        delete _persistEl.dataset.snapCamSig;
+        _persistEl.innerHTML = "";
+      } else if (p.brand === "snapmaker") {
         const _prevSig = _persistEl.dataset.snapCamSig || "";
         if (_snapCamSig && _snapCamSig !== _prevSig) {
           // New connection, IP or camera mode — build a fresh feed.
@@ -32857,7 +32883,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         delete _persistEl.dataset.snapCamSig;
       }
     }
-    const _snapCamVisible = p.brand === "snapmaker" && !!_snapCamIp && _snapCamConn?.camMode !== "none";
+    const _snapCamVisible = p.brand === "snapmaker" && !_linkedCamId && !!_snapCamIp && _snapCamConn?.camMode !== "none";
 
     // Camera banner (non-Snapmaker brands) — delegated to per-brand widget_camera.js.
     // Snapmaker is handled above via #ppPersistentCam, so it returns "" here.
@@ -32866,10 +32892,11 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     // Uses class + data-cre-id (not id="creCamVideo") so the sidecard and the cam wall
     // can coexist without duplicate-ID conflicts; the shared stream is distributed via
     // addCreCamConsumer() after the HTML is injected into the DOM.
-    const camBannerHtml = (p.brand === "snapmaker") ? ""
+    const camBannerHtml = _linkedCamId ? extCamEmbedHtml(_linkedCamId, _printerKey(p))
+      : (p.brand === "snapmaker") ? ""
       : (p.brand === "creality") ? `<div id="creCamContainer" class="pp-cam-full${creConn?.status === "connected" ? "" : " cre-cam-hidden"}"><video class="cre-cam-video" data-cre-id="${esc(p.id)}"${creConn?.ip ? ` data-cre-ip="${esc(creConn.ip)}"` : ""} autoplay muted playsinline></video></div>`
       : renderCamBanner(p);
-    const showCam = _snapCamVisible || (p.brand === "creality" ? creConn?.status === "connected" : camBannerHtml !== "");
+    const showCam = !!_linkedCamId || _snapCamVisible || (p.brand === "creality" ? creConn?.status === "connected" : camBannerHtml !== "");
     // The panel re-renders on every tick: count one camera opening per printer opened.
     if (showCam && _questCamSeen !== _printerKey(p)) { _questCamSeen = _printerKey(p); questBump("cameraOpen", 1, p); }
 
@@ -33269,6 +33296,9 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     if (_ppl?.wireLive) _ppl.wireLive($(`${_ppl.id}Live`), p);
     if (p.brand === "elegoo") sdcpWireLive($("elgLive"), p);   // CC1 (SDCP) job keys; no-op for a CC2
 
+    // An external camera shown in place of the printer's own: attach its stream.
+    try { wireExtCamWall($("printerPanelBody")); } catch (e) { console.warn("[ext-cam] panel embed failed", e); }
+
     // Creality camera — register the sidecard's <video> as a stream consumer,
     // then start (or reuse) the WebRTC connection.  addCreCamConsumer() is
     // safe to call even before the stream arrives — it queues the element and
@@ -33276,7 +33306,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     if (p.brand === "creality") {
       const _creSidecardVideo = $("creCamContainer")?.querySelector(".cre-cam-video");
       if (_creSidecardVideo) addCreCamConsumer(_creSidecardVideo);
-      if (creConn?.status === "connected" && creConn?.ip) startCreCam(creConn.ip);
+      if (creConn?.status === "connected" && creConn?.ip && !_linkedCamId) startCreCam(creConn.ip);
     }
 
     // Wire interactions
@@ -34964,6 +34994,26 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     const _errEl = bodyEl.querySelector("#printerAddError");
     if (_errEl) _errEl.insertAdjacentHTML("beforebegin", _autoCamHtml);
     else bodyEl.insertAdjacentHTML("beforeend", _autoCamHtml);
+    // Which camera this printer shows: its own, or one of the account's IP cameras.
+    // Only offered when there is a camera to choose (or one is already chosen).
+    if (isEdit) {
+      const _cams = extCamList(), _cur = editPrinter?.camSource || "";
+      if (_cams.length || _cur) {
+        const _opts = [{ id: "", name: t("printerCamSourceOwn") }, ..._cams]
+          .map(c => `<option value="${esc(c.id)}"${c.id === _cur ? " selected" : ""}>${esc(c.name || c.id)}</option>`).join("")
+          + (_cur && !_cams.some(c => c.id === _cur) ? `<option value="${esc(_cur)}" selected>—</option>` : "");
+        bodyEl.querySelector("[name=camAutoStart]")?.closest(".pba-section")?.insertAdjacentHTML("beforeend", `
+          <div class="stg-row pba-camsource-row">
+            <span class="stg-row-text">
+              <span class="stg-row-title">${esc(t("printerLblCamSource"))}
+                <span class="eac-info" tabindex="0" role="button" data-tip="${esc(t("printerHintCamSource"))}" aria-label="${esc(t("printerHintCamSource"))}"><span class="icon icon-info icon-13"></span></span>
+              </span>
+            </span>
+            <select name="camSource" class="inv-brand-filter">${_opts}</select>
+          </div>`);
+        _enhanceSelect(bodyEl.querySelector("select[name=camSource]"));   // the app's own dropdown, not the OS one
+      }
+    }
     // The ⓘ sits inside the toggle's <label>: reading it must not flip the switch.
     bodyEl.querySelector(".pba-toggle-row .eac-info")?.addEventListener("click", e => e.preventDefault());
 
@@ -35329,6 +35379,8 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       if (_chosenMode === "cloud") patch.mode = "cloud";
       const _ac = body.querySelector("input[name=camAutoStart]");
       if (_ac) patch.camAutoStart = _ac.checked;
+      const _cs = body.querySelector("select[name=camSource]");
+      if (_cs) patch.camSource = _cs.value || firebase.firestore.FieldValue.delete();
       const _acTurnedOn = !!_ac?.checked && _editingPrinter?.camAutoStart !== true;
       const sb = $("printerAddSave"); sb.classList.add("loading"); sb.disabled = true;
       const _wasName = state.printers.find(p => p.brand === brand && p.id === _printerEditContext.deviceId)?.printerName;
@@ -35372,6 +35424,9 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
 
     // After fromForm, which rebuilds `data` from the schema fields only.
     if (_autoCamEl) data.camAutoStart = _autoCamEl.checked;
+    // The camera this printer shows (edit only): a camera's id, or removed = its own camera.
+    const _camSrcEl = body.querySelector("select[name=camSource]");
+    if (_camSrcEl) data.camSource = _camSrcEl.value || firebase.firestore.FieldValue.delete();
     if (!data.printerName) {
       err.textContent = t("printerAddErrName");
       err.hidden = false;

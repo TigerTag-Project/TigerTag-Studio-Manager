@@ -3537,7 +3537,26 @@ details[open] .pba-step-chev { transform: rotate(90deg); }
 .cam-wall-card[data-state="connecting"] .xc-overlay--connecting,
 .cam-wall-card[data-state="error"] .xc-overlay--error,
 .xc-board-card[data-state="connecting"] .xc-overlay--connecting,
-.xc-board-card[data-state="error"] .xc-overlay--error { display: flex; }
+.xc-board-card[data-state="error"] .xc-overlay--error,
+.xc-embed[data-state="connecting"] .xc-overlay--connecting,
+.xc-embed[data-state="error"] .xc-overlay--error { display: flex; }
+/* An external camera shown in place of a printer's own: it fills the printer's
+   16:9 camera box (`.pp-cam-full`) instead of sizing itself. */
+.xc-embed > .xc-view { position: absolute; inset: 0; aspect-ratio: auto; }
+/* A feed fills a card's 16:9 box like the printer's own. */
+/* The printer settings' "Camera shown" dropdown: the app's styled select (on the right of its title),
+   with the step buttons' corners, height and orange outline. Wide enough for its label — the filter
+   look caps it at 180px, which cut the text. The outline is the same whether a camera is chosen or
+   not (the filled orange look of a chosen filter, .is-active, is not used here). */
+.pba-camsource-row .csel { width: auto; max-width: 62%; margin-left: auto; }
+.pba-camsource-row .csel-btn { height: 35px; max-width: none; border-radius: 8px; }
+.pba-camsource-row .csel-btn,
+.pba-camsource-row .csel-btn.is-active { background-color: transparent; border-color: var(--primary); color: var(--text); font-weight: 400; }
+.pba-camsource-row .csel-btn:hover,
+.pba-camsource-row .csel--open .csel-btn { background-color: var(--primary-soft); border-color: var(--primary); }
+.pba-camsource-row .csel-pop { min-width: 100%; width: max-content; max-width: 280px; right: 0; left: auto; }
+.pba-camsource-row .csel-opt.is-sel { color: var(--text); font-weight: 600; background: var(--ink-10); }
+.printer-card-thumb .xc-embed .xc-media { width: 100%; height: 100%; max-width: none; max-height: none; object-fit: cover; }
 /* An <img> with no address yet is drawn by Chromium as a broken image: a light
    frame round the black picture. Nothing to show until the first picture. */
 .xc-media:not([src]) { visibility: hidden; }

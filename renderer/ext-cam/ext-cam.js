@@ -38,7 +38,9 @@ const PLACEHOLDER = {
 };
 const SCHEMES = { rtsp: /^rtsps?:$/, mjpeg: /^https?:$/, webrtc: /^https?:$/ };
 
-let _api = { db: null, uid: () => null, onChange: () => {} };
+// linkedIds(): the cameras a printer shows in place of its own (printer.camSource).
+// Such a camera is drawn inside that printer, so it gets no card of its own.
+let _api = { db: null, uid: () => null, onChange: () => {}, linkedIds: () => new Set() };
 let _cams = [];
 let _unsub = null;
 
@@ -97,7 +99,8 @@ let _sweeper = 0;
 const camKey = id => `ext:${id}`;
 
 function setState(el, state) {
-  const card = el.closest(".xc-board-card, .cam-wall-card");
+  // Shown inside a printer (`.xc-embed`): that wrapper carries the state, even on the wall.
+  const card = el.closest(".xc-embed") || el.closest(".xc-board-card, .cam-wall-card");
   if (card) card.dataset.state = state;
 }
 
@@ -329,7 +332,7 @@ const protoLabel = p => (p === "rtsp" ? "RTSP" : p === "mjpeg" ? "MJPEG" : "WebR
    code, given an item shaped like a printer — `brand: "extcam"`, so its key is
    `extcam:<id>`. Its place is `camWallPlan` on the camera's own document. */
 export const EXTCAM_BRAND = "extcam";
-export const extCamWallItems = () => _cams.map(c => ({
+export const extCamWallItems = () => _cams.filter(c => !_api.linkedIds().has(c.id)).map(c => ({
   brand: EXTCAM_BRAND, id: c.id, printerName: c.name || "", camWallPlan: c.camWallPlan,
   protocol: c.protocol,
 }));
@@ -356,7 +359,7 @@ export function wireExtCamWall(container) {
     const cam = _cams.find(c => c.id === v.dataset.xcId);
     const el = v.querySelector(".xc-media");
     if (!cam || !el) return;
-    const card = v.closest(".cam-wall-card");
+    const card = v.closest(".xc-embed") ? null : v.closest(".cam-wall-card");
     if (card && !card.dataset.state) card.dataset.state = "connecting";
     watchLive(cam, el);
     attachStream(cam, el);
@@ -427,7 +430,24 @@ function boardCardHtml(c) {
 }
 
 /** The cameras' cards, to be appended to the board's own cards. */
-export const extCamBoardCardsHtml = () => _cams.map(boardCardHtml).join("");
+export const extCamBoardCardsHtml = () => _cams.filter(c => !_api.linkedIds().has(c.id)).map(boardCardHtml).join("");
+
+/** The cameras, for the printer settings to offer one as a printer's picture. */
+export const extCamList = () => _cams.map(c => ({ id: c.id, name: c.name || "", protocol: c.protocol }));
+
+/**
+ * A camera's picture, to be drawn INSIDE a printer's own card / panel / wall card
+ * in place of the printer's camera (printer.camSource = this camera's id). Same
+ * element the wall uses; `wireExtCamWall` attaches the stream afterwards.
+ * "" when the camera no longer exists.
+ */
+export function extCamEmbedHtml(camId, printerKey = "") {
+  const c = _cams.find(x => x.id === camId);
+  if (!c) return "";
+  // data-cam-key: the printer it is drawn in, so the photo / video bar files what it captures under that printer.
+  const key = printerKey ? ` data-cam-key="${ctx.esc(printerKey)}"` : "";
+  return `<div class="pp-cam-full xc-embed"${key} data-state="connecting">${extCamWallHtml({ id: c.id, protocol: c.protocol })}</div>`;
+}
 
 /** After the board is drawn: gear buttons, and the streams (attached, not restarted). */
 export function wireExtCamBoard(container) {
