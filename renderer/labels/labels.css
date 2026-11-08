@@ -1,5 +1,5 @@
-/* renderer/labels — the label card (#labelPanel), a side card docked to the
-   LEFT of the spool card (inventory.js _syncPanels, the container picker's slot).
+/* renderer/labels — the label card (#labelPanel), a side card that opens on the
+   RIGHT of the spool card and pushes it left (inventory.js _syncPanels).
    The label itself is a self-contained page (labels/index.js buildLabel), shown
    here in a scaled iframe: what is previewed is what is printed. */
 
@@ -7,6 +7,8 @@
 .lbl-body { flex: 1; overflow-y: auto; padding: 6px 18px 22px; display: flex; flex-direction: column; gap: 12px; scrollbar-width: none; }
 .lbl-body > * { flex-shrink: 0; }
 .lbl-body .panel-label { margin: 4px 0 -4px; }
+/* The same tools inside the product sheet's "QR label" tab: the tab scrolls, not them. */
+.lbl-body.lbl-body--inline { flex: none; overflow: visible; padding: 4px 0 0; }
 
 .lbl-seg, .lbl-dpi { display: flex; gap: 6px; align-items: center; }
 .lbl-dpi > span { flex: 1; font-size: 12.5px; color: var(--muted); }
@@ -17,7 +19,8 @@
 .lbl-hint { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.4; }
 
 /* The paper: white, whatever the theme — it is the label as printed. */
-.lbl-preview { display: flex; justify-content: center; padding: 14px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--border); }
+/* A fixed box (the tallest preview fits it): switching templates moves nothing below. */
+.lbl-preview { display: flex; justify-content: center; align-items: center; height: 232px; padding: 4px 0 8px; }
 .lbl-paper { position: relative; overflow: hidden; border-radius: 4px; background: var(--on-dark); box-shadow: 0 2px 10px rgba(0, 0, 0, .28); }
 .lbl-frame { position: absolute; left: 0; top: 0; border: 0; transform-origin: 0 0; pointer-events: none; }
 /* With a QR link, the paper is a button: it opens the page a scan lands on. */

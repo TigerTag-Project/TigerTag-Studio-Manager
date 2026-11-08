@@ -99,6 +99,7 @@
   .icon-emoji         { -webkit-mask-image: url('../../assets/svg/icons/icon_emoji.svg'); mask-image: url('../../assets/svg/icons/icon_emoji.svg'); }
   .icon-image     { -webkit-mask-image: url('../../assets/svg/icons/icon_image.svg');        mask-image: url('../../assets/svg/icons/icon_image.svg'); }
   .icon-printer   { -webkit-mask-image: url('../../assets/svg/icons/icon_printer.svg');      mask-image: url('../../assets/svg/icons/icon_printer.svg'); }
+  .icon-qr        { -webkit-mask-image: url('../../assets/svg/icons/icon_qr.svg');           mask-image: url('../../assets/svg/icons/icon_qr.svg'); }
   /* Extra illustration icons (What's New + general use). */
   .icon-mail      { -webkit-mask-image: url('../../assets/svg/icons/icon_mail.svg');         mask-image: url('../../assets/svg/icons/icon_mail.svg'); }
   .icon-tag       { -webkit-mask-image: url('../../assets/svg/icons/icon_tag.svg');          mask-image: url('../../assets/svg/icons/icon_tag.svg'); }

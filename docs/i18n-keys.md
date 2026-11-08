@@ -40,9 +40,9 @@
 | `toolRepairWriting` / `toolRepairDone` / `toolRepairAlready` / `toolRepairFailed` | Restore progress/result states |
 | `chipRestoreNeedChip` | New-chip card, greyed "Restore TigerTag+" choice and the Restore card's empty state: put a worn or wiped TigerTag+ that has a backup on the TigerPOD |
 | `chipRestoreCertified` | Restore card: badge on a backup whose factory signature checks out |
-| `labelTitle` / `labelToolbox` / `labelToolboxTip` / `labelProductCta` | Label card title; the spool toolbox row that opens it and its ⓘ; the catalogue product card's "Print its label" |
-| `labelKindSpool` / `labelKindProduct` / `labelKindSpoolHint` / `labelKindProductHint` / `labelNoQr` | Label card: spool or product label, what its QR opens; a legacy id printed without a QR |
-| `labelTemplate` / `labelTpl_classic` / `labelTpl_expanded` / `labelTpl_compact` / `labelTpl_slim` / `labelTpl_vertical` / `labelTpl_verticalCompact` | Label card: the six templates of the contract |
+| `labelTitle` / `labelToolbox` / `labelToolboxTip` / `labelProductCta` / `roTabLabel` | Label card title; the spool toolbox row that opens it and its ⓘ; the "Print its label" button (catalogue card, QR buttons); the product sheet's "QR label" tab |
+| `labelKindSpool` / `labelKindProduct` / `labelNoQr` | Label card: spool or product label; a legacy id printed without a QR |
+| `labelTemplate` / `labelTpl_classic` / `labelTpl_expanded` / `labelTpl_compact` / `labelTpl_slim` / `labelTpl_slicer` / `labelTpl_vertical` / `labelTpl_verticalBold` / `labelTpl_verticalCompact` | Label card: the eight templates |
 | `labelSlots` / `labelSlotNone` / `labelSlotTd` | Label card: the value slots (nozzle, bed, drying reuse `lbNozzle`, `lbBed`, `addProductDrying`; diameter `detDiameter`) |
 | `labelDpi` / `labelPrint` / `labelOpenLink` / `labelExportFailed` | Label card: printer resolution, Print button, the preview's "see the QR's page" hint, export error |
 | `linkValuesUpdate` / `linkValuesUpdateNote` / `linkValuesInfo` / `linkValuesHoldTip` / `spoolLinkNotMine` | Spool links (QR, `?spool=`, `tigertag://spool/`): the held banner proposing a link's weight / note, its ⓘ and hold tip; a link to a spool not in the inventory |

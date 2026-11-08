@@ -4,7 +4,7 @@ import { initRfidTester } from './rfid_protocol/tigertag/index.js';
 import { initLinkedChips, linkedChipsSignIn, linkedChipsSignOut, linkedChipsOf, onForeignChip, holdForeignChip, pendingMakerChips, presentMakerChips, makerLinkBannerHtml, linkMakerChipsTo, linkedChipsHtml, wireLinkedChips, linkPendingTo, clearPendingLink, openBlankChipWindow, closeChipChoice, closeChipLink, wireSearchBox, linkOfferHtml, wireLinkOffer, openAddChooser, refreshChipChoice } from './rfid_protocol/linked/index.js';
 import { initChipEraser, openChipEraser, closeChipEraser, chipEraserOpen, eraserCardPresent, eraserForeignChip, eraserReadersChanged } from './rfid_protocol/eraser/index.js';
 import { initChipRestore, openChipRestore, closeChipRestore, chipRestoreOpen, restoreCardPresent, restoreReadersChanged } from './rfid_protocol/restore/index.js';
-import { initLabels, openLabelCard, closeLabelCard, labelCardOpen } from './labels/index.js';
+import { initLabels, openLabelCard, closeLabelCard, labelCardOpen, mountLabel } from './labels/index.js';
 import { parseQrLink, spoolIdFromPath, linkValues } from './qr-link.js';
 
 // ── Offline timezone → country (telemetry, no IP geolocation) ──────────────
@@ -4784,9 +4784,13 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       const tp = r.temps || {}, rng = (a, b) => (a || b ? `${a || "?"}–${b || "?"} °C` : "");
       const clean = v => (v && v !== "-" && v !== "None" ? v : "");
       return {
-        brand: clean(r.brand), line2: [clean(r.material), clean(r.series)].filter(Boolean).join(" · "),
+        brand: clean(r.brand),
+        // A spool whose reference is a catalogue (TigerTag+) product prints TigerTag+.
+        protocol: _hasRealProductId(r.raw?.id_product ?? r.idProduct) || r.isPlus ? "TigerTag+"
+          : r.isCloud ? (r.isCloudPlus ? "TigerData+" : "TigerData") : "TigerTag",
+        series: clean(r.series), material: clean(r.material),
+        hexes: _productHexList(r).map(h => h.slice(0, 7)),
         name: clean(r.colorName) || clean(r.productName) || [clean(r.aspect1), clean(r.aspect2)].filter(Boolean).join(" "),
-        swatch: colorBg(r),
         values: {
           nozzle: rng(tp.nozzleMin, tp.nozzleMax), bed: rng(tp.bedMin, tp.bedMax),
           dry: tp.dryTemp ? `${tp.dryTemp} °C${tp.dryTime ? " · " + tp.dryTime + " h" : ""}` : "",
@@ -13047,6 +13051,15 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         favBtn.setAttribute("aria-pressed", fav);
         favBtn.addEventListener("click", async () => { await _toggleProductFlag(g.rep, "favorite"); _renderGroupPanelContents(g); });
         row.appendChild(favBtn);
+        // The product label (QR), right of the star: opens or closes the label card.
+        const gpPid = g.rep.raw?.id_product;
+        if (!state.friendView && _hasRealProductId(gpPid)) {
+          const qrBtn = mkBtn("flag-toggle--list", `<span class="icon icon-qr icon-16"></span>`, t("labelProductCta"), t("labelProductCta"));
+          qrBtn.dataset.labelToggle = "";
+          qrBtn.setAttribute("aria-pressed", String(labelCardOpen()));
+          qrBtn.addEventListener("click", () => _toggleLabelCard({ ...g.rep, idProduct: Number(gpPid) }, { productOnly: true }));
+          row.appendChild(qrBtn);
+        }
         // Add to a list (delegated .js-add-to-list handler — same as the product card).
         const listBtn = mkBtn("flag-toggle--list js-add-to-list", `<span class="icon icon-list-check icon-16"></span>`, t("listAddTo"), t("listAddTo"));
         listBtn.dataset.atlHash = hash;
@@ -19421,7 +19434,14 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     const upMode = !!_cpkUpgradeFor && !!ckpUp?.classList.contains("open");
     const upPickW = upMode ? ckpUp.offsetWidth : 0;
     const upPcW = upMode && pcpUp?.classList.contains("open") ? pcpUp.offsetWidth : 0;
-    const baseRight = edge + upPcW + upPickW;
+    // The label card takes the right of the spool card and pushes it (and
+    // everything after) to the left, like any card opened from it.
+    const lbp = $("labelPanel"), lbOpen = !!lbp?.classList.contains("open");
+    const lbW = lbOpen && lbp ? lbp.offsetWidth : 0;
+    const lbRight = edge + upPcW + upPickW;
+    if (lbp) lbp.style.right = lbOpen && lbRight ? `${lbRight}px` : "";
+    document.querySelectorAll("[data-label-toggle]").forEach(b => b.setAttribute("aria-pressed", String(lbOpen)));
+    const baseRight = lbRight + lbW;
     // Spool card keeps its place on the right (left of printer/config if those open).
     const matRight = dOpen ? baseRight : 0;
     if (dp) dp.style.right = matRight ? `${matRight}px` : "";
@@ -19429,12 +19449,9 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     // Container picker is opened FROM the spool card and tucks to its LEFT.
     const cpp = $("containerPanel");
     const cppOpen = !!cpp?.classList.contains("open");
-    // The label card takes the same slot (the two never stay open together).
-    const lbp = $("labelPanel"), lbOpen = !!lbp?.classList.contains("open");
-    const cppW = (cppOpen && cpp) ? cpp.offsetWidth : (lbOpen && lbp) ? lbp.offsetWidth : 0;
+    const cppW = (cppOpen && cpp) ? cpp.offsetWidth : 0;
     const cppRight = cppOpen ? (baseRight + detailW) : 0;
     if (cpp) cpp.style.right = cppRight ? `${cppRight}px` : "";
-    if (lbp) lbp.style.right = lbOpen ? `${baseRight + detailW}px` : "";
     // Group deck sits LEFT of the printer stack + detail (+ container). Computed
     // BEFORE the reorder card so that card can dock to the LEFT of the group.
     const gp = $("groupPanel");
@@ -19500,6 +19517,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     _setTab($("printerCloseTab"),    pOpen, printerW, pp);
     _setTab($("printerAddCloseTab"), cOpen, configRight + configW, cp);
     _setTab($("containerCloseTab"),  cppOpen, cppRight + cppW, cpp);
+    _setTab($("labelCloseTab"), lbOpen, lbRight + lbW, lbp);
     _setTab($("groupCloseTab"), gOpen, groupRight + gpW, gp);
   }
   // Settings + Debug form their own right-side stack, independent of the
@@ -20630,10 +20648,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   }
 
   function _wireToolbox(r) {
-    $("btnPrintLabel")?.addEventListener("click", () => {
-      if ($("containerPanel")?.classList.contains("open")) closeContainerPicker();
-      openLabelCard({ ...r, idProduct: r.raw?.id_product });
-    });
+    $("btnPrintLabel")?.addEventListener("click", () => _toggleLabelCard({ ...r, idProduct: r.raw?.id_product }));
     // Export this material as a .ttag (offline backup; + twin partner).
     $("btnExportTtag")?.addEventListener("click", () => {
       _exportMaterialTtag(r).catch(e => reportError("ttag.export", e));
@@ -21949,7 +21964,6 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   let _cpOnly = null, _cpHint = "", _cpOnClose = null;   // narrowed list (new spool), its reason, after-close hook
   let _cpKind = "";   // material filter chip: "" (all) | CONTAINER_KIND.CARDBOARD / PLASTIC / MASTERSPOOL
   function openContainerPicker(r, opts = {}) {
-    if (labelCardOpen()) closeLabelCard();   // the two share the slot left of the spool card
     _cpRow = r;
     _cpOnly = Array.isArray(opts.only) && opts.only.length ? new Set(opts.only) : null;
     _cpHint = _cpOnly ? (opts.hint || "") : "";
@@ -22306,6 +22320,8 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     else setTimeout(() => $("roBuyUrl")?.focus(), 120);
   }
   function closeReorderPanel() {
+    // A product label opened from this card goes with it (a spool's stays with its spool card).
+    if (labelCardOpen() && !$("detailPanel")?.classList.contains("open")) closeLabelCard();
     $("reorderPanel")?.classList.remove("open");
     _syncPanels();
     _reorderRow = null;
@@ -22775,8 +22791,8 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       <button type="button" class="pc-sheet-btn" data-pc-cat="sheet" aria-pressed="${_reorderShows(p.id) ? "true" : "false"}">
         <span class="icon icon-info icon-14" aria-hidden="true"></span><span>${esc(t("pcOpenSheet"))}</span>
       </button>
-      ${p.catalogRow ? `<button type="button" class="pc-sheet-btn" data-pc-cat="label" aria-pressed="${labelCardOpen() ? "true" : "false"}">
-        <span class="icon icon-printer icon-14" aria-hidden="true"></span><span>${esc(t("labelProductCta"))}</span>
+      ${p.catalogRow ? `<button type="button" class="pc-sheet-btn" data-pc-cat="label" data-label-toggle aria-pressed="${labelCardOpen() ? "true" : "false"}">
+        <span class="icon icon-qr icon-14" aria-hidden="true"></span><span>${esc(t("labelProductCta"))}</span>
       </button>` : ""}
       <div class="panel-section pc-cta">
         ${cta("inv",  "package",    "pcCtaInventory", false, " pc-cta-btn--primary")}
@@ -22896,6 +22912,11 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   // Paint "In stock: N / min" + the amber below-target state, reading the min
   // from the LIVE input so the two linked figures update as the user types.
   let _reorderTab = "info";   // the product card's open tab — kept across re-renders
+  let _reorderLabelPid = "";  // the catalogue id the "QR label" tab prints ("" = no tab)
+  // The "QR label" tab: the label tools, product label only (its QR is the product link).
+  function _mountReorderLabel(r) {
+    if (_reorderLabelPid) mountLabel($("roLabelBody"), { ...r, idProduct: Number(_reorderLabelPid) }, { productOnly: true });
+  }
   function _reorderUpdateStock() {
     if (!_reorderRow) return;
     const stock = _filamentStockCount(_reorderRow);
@@ -23192,10 +23213,11 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     const pv = _printValues(d);
     const hexList = _productHexList(d);
     if (_reorderTab === "print") _reorderTab = "info";   // the Printing tab is gone — its data now lives in Info
-    const tab = _reorderTab;
+    let tab = _reorderTab;
     // Details only the old Printing tab showed: product id (catalogue link), type,
     // diameter, and what the full catalogue record adds (fan, slicer profiles, site).
     const pid = _hasRealProductId(d.raw?.id_product) ? String(Number(d.raw.id_product)) : "";
+    if (tab === "label" && !pid) tab = _reorderTab = "info";   // no catalogue id, no product label
     const cp = d.catalogProduct || {};
     const fan = cp.fan || {};
     const fanTxt = fan.speed_min != null || fan.speed_max != null
@@ -23287,7 +23309,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       </div>
 
       <div class="ro-tabs" role="tablist">
-        ${tabBtn("info", "roTabInfo")}${tabBtn("docs", "roTabDocs", _pcDocsHTML(d, p, true))}${tabBtn("notes", "roTabNotes")}
+        ${tabBtn("info", "roTabInfo")}${tabBtn("docs", "roTabDocs", _pcDocsHTML(d, p, true))}${tabBtn("notes", "roTabNotes")}${pid ? tabBtn("label", "roTabLabel") : ""}
       </div>
 
       ${panel("info", `
@@ -23406,13 +23428,23 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         </div>` : ""}
       `)}
 
+      ${pid ? panel("label", `<div class="lbl-body lbl-body--inline" id="roLabelBody"></div>`) : ""}
+
       <div id="roSaveResult" class="ro-save-result"></div>`;
     if (_hdr) body.prepend(_hdr);
     // "+ Material" and the ❤/★/list toggles live in the panel HEADER (left of the
     // ✕), not the body head. "+" comes first, like on the spool detail card.
     const addBtn = state.friendView ? ""
       : `<button type="button" class="flag-toggle flag-toggle--addmat" id="roCreateCloud"${p.catalogItem ? ` data-cat-add="${esc(String(p.catalogItem.id))}"` : ""} data-hold-tip="productCreateCloudTip" data-hold-ms="${ADDMAT_HOLD_MS}" aria-label="${esc(t("productCreateCloud"))}">${ADDMAT_INNER}</button>`;
-    const hf = $("roHeaderFlags"); if (hf) hf.innerHTML = addBtn + _flagTogglesHTML(r);
+    // The product (swatch) label, as on the catalogue card: its QR is the product link.
+    // The QR, right of the star, opens the "QR label" tab (and goes back to Info).
+    const labelBtn = state.friendView || !pid ? ""
+      : `<button type="button" class="flag-toggle flag-toggle--list" id="roLabelBtn" data-tip="${esc(t("labelProductCta"))}" aria-label="${esc(t("labelProductCta"))}" aria-pressed="${tab === "label"}"><span class="icon icon-qr icon-16"></span></button>`;
+    const hf = $("roHeaderFlags"); if (hf) hf.innerHTML = addBtn + _flagTogglesHTML(r) + labelBtn;
+    $("roLabelBtn")?.addEventListener("click", () =>
+      body.querySelector(`[data-ro-tab="${_reorderTab === "label" ? "info" : "label"}"]`)?.click());
+    _reorderLabelPid = pid;
+    if (tab === "label") _mountReorderLabel(r);
     _wireReorderPanel(r);
     _reorderUpdateDerived();
     _reorderUpdateStock();
@@ -23494,6 +23526,8 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       const body = $("reorderPanelBody");
       body.querySelectorAll("[data-ro-tab]").forEach(x => { const on = x === b; x.classList.toggle("is-active", on); x.setAttribute("aria-selected", on); });
       body.querySelectorAll("[data-ro-panel]").forEach(pn => { pn.hidden = pn.dataset.roPanel !== _reorderTab; });
+      $("roLabelBtn")?.setAttribute("aria-pressed", String(_reorderTab === "label"));
+      if (_reorderTab === "label") _mountReorderLabel(r);
     }));
     $("roNote")?.addEventListener("input", e => { const c = $("roNoteCount"); if (c) c.textContent = `${e.target.value.length}/500`; });
     $("roMinStock")?.addEventListener("input", _reorderUpdateStock);
@@ -23601,6 +23635,16 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   // Shown in a FRIEND's view too: liking/favoriting there writes to MY own
   // `products` (getActiveId stays mine, `state.products` isn't re-subscribed),
   // effectively IMPORTING the friend's product into my collection with the flag.
+  // The label (QR) button of the flag rows; every [data-label-toggle] shows the
+  // label card's state (_syncPanels).
+  function _labelToggleHTML(label, attr = "") {
+    return `<button type="button" class="flag-toggle flag-toggle--list" data-label-toggle ${attr} data-tip="${esc(label)}" aria-label="${esc(label)}" aria-pressed="${labelCardOpen()}"><span class="icon icon-qr icon-16"></span></button>`;
+  }
+  // Every label button opens the card, or closes it when it is already open.
+  function _toggleLabelCard(row, opts) {
+    if (labelCardOpen()) { closeLabelCard(); return; }
+    openLabelCard(row, opts);
+  }
   function _flagTogglesHTML(r) {
     const p = _getProduct(r) || {};
     const liked = !!p.liked, fav = !!p.favorite;
@@ -23927,6 +23971,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
 
   // container picker events (side card — no overlay backdrop, closed via the chevron tab)
   $("containerCloseTab")?.addEventListener("click", closeContainerPicker);
+  $("labelCloseTab")?.addEventListener("click", closeLabelCard);
   $("containerPickerSearch").addEventListener("input", e => _renderCpList(e.target.value));
   $("containerPickerKinds")?.addEventListener("click", e => {
     const b = e.target.closest("[data-cp-kind]");
@@ -23975,10 +24020,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       // The product (swatch) label — its QR is the product link, for anyone. A
       // second press closes it again.
       if (act === "label") {
-        if (labelCardOpen()) { closeLabelCard(); cat.setAttribute("aria-pressed", "false"); return; }
-        if ($("containerPanel")?.classList.contains("open")) closeContainerPicker();
-        openLabelCard({ ...p.catalogRow, idProduct: Number(p.catalogItem.id) }, { productOnly: true });
-        cat.setAttribute("aria-pressed", "true");
+        _toggleLabelCard({ ...p.catalogRow, idProduct: Number(p.catalogItem.id) }, { productOnly: true });
         return;
       }
       // The full product sheet (stock, price, link, tabs…) beside this card — a
@@ -24018,6 +24060,14 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     if (!e.target.closest(".flag-toggle[data-dp-reorder]")) return;
     const r = (state.rows || []).find(x => x.spoolId === state.selected);
     if (r) _toggleReorderPanel(r);
+  });
+
+  // The label (QR) in the spool detail panel, right of the star: opens or closes
+  // the label card. Delegated like the buttons around it.
+  document.addEventListener("click", e => {
+    if (!e.target.closest(".flag-toggle[data-dp-label]")) return;
+    const r = (state.rows || []).find(x => x.spoolId === state.selected);
+    if (r) _toggleLabelCard({ ...r, idProduct: r.raw?.id_product });
   });
 
   // "+ Material" in the spool detail panel — same action as the product card's and
@@ -24552,7 +24602,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         esc(dpBuyUrl ? _buyHost(dpBuyUrl) : t("reorderAddLink"))
       }" aria-label="${esc(dpBuyUrl ? _buyHost(dpBuyUrl) : t("reorderAddLink"))}"><span class="icon icon-cart icon-16"></span></button>`;
     const flagsRow = !r.deleted
-      ? `<div class="panel-section pi-flags-row"><div class="pi-flags">${infoBtn}${dpAddBtn}${dpBuyBtn}${_flagTogglesHTML(r)}</div></div>` : "";
+      ? `<div class="panel-section pi-flags-row"><div class="pi-flags">${infoBtn}${dpAddBtn}${dpBuyBtn}${_flagTogglesHTML(r)}${state.friendView ? "" : _labelToggleHTML(t("labelToolbox"), "data-dp-label")}</div></div>` : "";
     const identityHtml = `
       <div class="panel-section panel-identity">
         <div class="pi-ident-text">
@@ -24870,7 +24920,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         if (!state.friendView) {
           tools.push({ id: "btnExportTtag", icon: "icon-download", label: t("ttagExport"), variant: "default", info: t("ttagExportTip") });
           // Printed label: the spool's QR link (and its product's, when it has one).
-          tools.push({ id: "btnPrintLabel", icon: "icon-printer", label: t("labelToolbox"), variant: "default", info: t("labelToolboxTip") });
+          tools.push({ id: "btnPrintLabel", icon: "icon-qr", label: t("labelToolbox"), variant: "default", info: t("labelToolboxTip") });
         }
 
         // 6. Delete — moved out of its own section into the toolbox.

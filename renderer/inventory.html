@@ -2653,8 +2653,9 @@
 <!-- Container picker modal -->
 <!-- Container picker — side card that tucks to the RIGHT of the spool detail card -->
 <button class="pp-close-tab" id="containerCloseTab" title="Close" aria-label="Close" hidden>»</button>
-<!-- Printed label (renderer/labels): docked to the LEFT of the spool card,
-     in the container picker's slot. -->
+<!-- Printed label (renderer/labels): opens on the RIGHT of the spool card and
+     pushes it left, with its own » tab. -->
+<button class="pp-close-tab" id="labelCloseTab" aria-label="Close" hidden>»</button>
 <aside class="detail-panel pba-panel" id="labelPanel">
   <div class="pba-header">
     <div class="pba-header-text"><div class="pba-title" data-i18n="labelTitle">Label</div></div>
