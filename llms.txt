@@ -10,7 +10,7 @@ It is neutral and agnostic by design: TigerTag takes no side between filament br
 distributors. The protocol is open and anyone can build a different ecosystem on it; nothing in this repo is a
 prerequisite for doing so.
 
-Current version: **2.52.0** — macOS (Intel + Apple Silicon, signed & notarized), Windows, Linux.
+Current version: **2.53.0** — macOS (Intel + Apple Silicon, signed & notarized), Windows, Linux.
 
 ## Architecture
 
@@ -36,6 +36,9 @@ Current version: **2.52.0** — macOS (Intel + Apple Silicon, signed & notarized
 - `services/nfc-process.js` — NFC utilityProcess: reader lifecycle, NTAG read (READ_START_PAGE=4, READ_LENGTH=144, READ_BLOCK_SIZE=4), card-present events; `read-now` also takes a `start` / `length` (capability container, a NTAG215/216's larger NDEF area)
 - `services/ndef.js` — NDEF encoder (URI / Wi‑Fi / vCard records in a Type 2 TLV, sized to the chip) behind `rfid:write-ndef`, `rfid:ndef-size`, `rfid:ndef-capacity`
 - `renderer/rfid_protocol/eraser/` — the NFC tools view (format, NDEF writing, Auto mode) of the new-chip card
+- `renderer/rfid_protocol/restore/` — the Restore TigerTag+ view (rewrites a chip from its `rfidList` backup)
+- `renderer/labels/` — printed spool and filament labels: eight templates, each one SVG in printer dots (`buildLabel`), Print / PDF / PNG / SVG through `main.js` `label:render`
+- `renderer/qr-link.js` — the QR links of the TigerSystem-Docs contract (`spool-ids-and-qr-links.md`): build them and read them back offline; spool links open a spool from Studio Web `?spool=`, `tigertag://spool/<id>` or a pasted link
 
 ## State object (renderer)
 
@@ -315,7 +318,7 @@ All brands: printer discovery (mDNS + port scan + manual IP), camera widget; fil
 npm run i18n:add -- myKey --after existingKey en="..." fr="..." de="..." es="..." it="..." zh="..." pt="..." pt-pt="..." pl="..." ru="..." nl="..."
 npm run i18n:check   # validates consistency (also runs as pre-commit hook)
 ```
-2826 keys × 11 locales as of v2.52.0
+2857 keys × 11 locales as of v2.53.0
 
 ## CSS conventions
 

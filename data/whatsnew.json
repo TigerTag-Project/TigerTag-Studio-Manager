@@ -1,4 +1,96 @@
 {
+  "2.53.0": {
+    "date": "2026-11-08",
+    "items": [
+      {
+        "icon": "qr",
+        "title": {
+          "en": "Labels worth sticking",
+          "fr": "Des étiquettes qui collent",
+          "de": "Etiketten, die kleben bleiben",
+          "es": "Etiquetas que pegan",
+          "it": "Etichette che fanno presa",
+          "zh": "值得贴上的标签",
+          "pt": "Etiquetas que pegam",
+          "pt-pt": "Etiquetas que pegam",
+          "pl": "Etykiety, które się trzymają",
+          "ru": "Этикетки, которые хочется клеить",
+          "nl": "Labels die blijven plakken"
+        },
+        "body": {
+          "en": "Print a QR label for a spool or for a filament, in eight sizes from tiny to roomy. Brand, colour, settings and a QR code that opens the right page: stick it on the spool, the box or your swatch wall.",
+          "fr": "Imprime une étiquette QR pour une bobine ou pour un filament, en huit formats, du minuscule au généreux. Marque, couleur, réglages et un QR code qui ouvre la bonne page : colle-la sur la bobine, la boîte ou ton mur de nuanciers.",
+          "de": "Drucke ein QR-Etikett für eine Spule oder ein Filament, in acht Größen von winzig bis großzügig. Marke, Farbe, Einstellungen und ein QR-Code, der die richtige Seite öffnet: ab auf die Spule, die Box oder deine Musterwand.",
+          "es": "Imprime una etiqueta QR para una bobina o un filamento, en ocho tamaños, de diminuto a generoso. Marca, color, ajustes y un código QR que abre la página correcta: pégala en la bobina, la caja o tu muro de muestras.",
+          "it": "Stampa un'etichetta QR per una bobina o un filamento, in otto formati, dal minuscolo al generoso. Marca, colore, impostazioni e un codice QR che apre la pagina giusta: attaccala sulla bobina, sulla scatola o sulla parete dei campioni.",
+          "zh": "为线盘或耗材打印二维码标签，八种尺寸任你挑。品牌、颜色、参数，再加一个打开正确页面的二维码：贴在线盘、盒子或色卡墙上都行。",
+          "pt": "Imprima uma etiqueta QR para um carretel ou um filamento, em oito tamanhos, do minúsculo ao folgado. Marca, cor, configurações e um QR code que abre a página certa: cole no carretel, na caixa ou na sua parede de amostras.",
+          "pt-pt": "Imprime uma etiqueta QR para uma bobine ou um filamento, em oito tamanhos, do minúsculo ao folgado. Marca, cor, definições e um código QR que abre a página certa: cola-a na bobine, na caixa ou na tua parede de amostras.",
+          "pl": "Wydrukuj etykietę QR dla szpuli albo filamentu, w ośmiu rozmiarach, od malutkiej po przestronną. Marka, kolor, ustawienia i kod QR, który otwiera właściwą stronę: naklej ją na szpulę, pudełko albo ścianę próbek.",
+          "ru": "Печатай QR-этикетку для катушки или филамента в восьми размерах, от крошечной до просторной. Бренд, цвет, настройки и QR-код, который открывает нужную страницу: клей на катушку, коробку или стену образцов.",
+          "nl": "Print een QR-label voor een spoel of een filament, in acht maten van piepklein tot ruim. Merk, kleur, instellingen en een QR-code die de juiste pagina opent: plak hem op de spoel, de doos of je stalenwand."
+        }
+      },
+      {
+        "icon": "link",
+        "title": {
+          "en": "Scan, land, done",
+          "fr": "Scanne, tu y es",
+          "de": "Scannen, landen, fertig",
+          "es": "Escanea y listo",
+          "it": "Scansiona, atterri, fatto",
+          "zh": "一扫直达",
+          "pt": "Escaneou, chegou",
+          "pt-pt": "Digitalizas e chegas",
+          "pl": "Skan i jesteś",
+          "ru": "Сканируй и ты на месте",
+          "nl": "Scannen, landen, klaar"
+        },
+        "body": {
+          "en": "Scan a spool label and Tiger Studio opens on that very spool, on the web or on your desktop. A new weight sent along waits on the spool card: one long press and it's saved.",
+          "fr": "Scanne l'étiquette d'une bobine et Tiger Studio s'ouvre directement dessus, sur le web ou sur ton ordinateur. Un nouveau poids envoyé avec t'attend sur la fiche : un appui long et c'est enregistré.",
+          "de": "Scanne das Etikett einer Spule und Tiger Studio öffnet sich genau bei ihr, im Web oder auf deinem Rechner. Ein mitgeschicktes neues Gewicht wartet auf der Spulenkarte: einmal lang drücken und es ist gespeichert.",
+          "es": "Escanea la etiqueta de una bobina y Tiger Studio se abre justo en ella, en la web o en tu ordenador. Un nuevo peso enviado con ella te espera en la ficha: una pulsación larga y queda guardado.",
+          "it": "Scansiona l'etichetta di una bobina e Tiger Studio si apre proprio su di lei, sul web o sul computer. Un nuovo peso inviato insieme ti aspetta sulla scheda: una pressione lunga ed è salvato.",
+          "zh": "扫一扫线盘标签，Tiger Studio 就直接打开那一盘，网页版或桌面版都行。随链接带来的新重量会在线盘卡片上等你：长按一下就保存。",
+          "pt": "Escaneie a etiqueta de um carretel e o Tiger Studio abre direto nele, na web ou no computador. Um novo peso enviado junto espera na ficha: um toque longo e está salvo.",
+          "pt-pt": "Digitaliza a etiqueta de uma bobine e o Tiger Studio abre logo nela, na web ou no computador. Um novo peso enviado com ela espera na ficha: um toque longo e fica guardado.",
+          "pl": "Zeskanuj etykietę szpuli, a Tiger Studio otworzy się dokładnie na niej, w przeglądarce albo na komputerze. Przesłana nowa waga czeka na karcie szpuli: jedno długie przytrzymanie i zapisane.",
+          "ru": "Отсканируй этикетку катушки, и Tiger Studio откроется прямо на ней, в браузере или на компьютере. Присланный новый вес ждёт на карточке катушки: одно долгое нажатие, и он сохранён.",
+          "nl": "Scan het label van een spoel en Tiger Studio opent precies op die spoel, op het web of op je computer. Een meegestuurd nieuw gewicht wacht op de spoelkaart: één keer lang drukken en het is bewaard."
+        }
+      },
+      {
+        "icon": "backup",
+        "title": {
+          "en": "Second life for tired chips",
+          "fr": "Une seconde vie pour les puces fatiguées",
+          "de": "Zweites Leben für müde Chips",
+          "es": "Segunda vida para chips cansados",
+          "it": "Seconda vita per chip stanchi",
+          "zh": "给疲惫芯片第二次生命",
+          "pt": "Segunda vida para chips cansados",
+          "pt-pt": "Segunda vida para chips cansados",
+          "pl": "Drugie życie zmęczonych chipów",
+          "ru": "Вторая жизнь уставшим чипам",
+          "nl": "Tweede leven voor moeë chips"
+        },
+        "body": {
+          "en": "A worn or wiped TigerTag+ can be rewritten from its backup. Put it on the TigerPOD, pick Restore, check what comes back and hold the button: good as new.",
+          "fr": "Une TigerTag+ usée ou effacée peut être réécrite depuis sa sauvegarde. Pose-la sur le TigerPOD, choisis Restaurer, vérifie ce qui revient et maintiens le bouton : comme neuve.",
+          "de": "Ein abgenutzter oder gelöschter TigerTag+ lässt sich aus seiner Sicherung neu schreiben. Auf den TigerPOD legen, Wiederherstellen wählen, prüfen, was zurückkommt, und den Knopf halten: wie neu.",
+          "es": "Una TigerTag+ gastada o borrada puede reescribirse desde su copia de seguridad. Ponla en el TigerPOD, elige Restaurar, revisa lo que vuelve y mantén el botón: como nueva.",
+          "it": "Un TigerTag+ consumato o cancellato può essere riscritto dal suo backup. Mettilo sul TigerPOD, scegli Ripristina, controlla cosa torna e tieni premuto il pulsante: come nuovo.",
+          "zh": "磨损或被清空的 TigerTag+ 可以从备份重新写入。放到 TigerPOD 上，选择恢复，确认要写回的内容，再长按按钮：焕然一新。",
+          "pt": "Uma TigerTag+ gasta ou apagada pode ser regravada a partir do backup. Coloque no TigerPOD, escolha Restaurar, confira o que volta e segure o botão: como nova.",
+          "pt-pt": "Uma TigerTag+ gasta ou apagada pode ser regravada a partir da cópia de segurança. Pousa-a no TigerPOD, escolhe Restaurar, confere o que volta e mantém o botão: como nova.",
+          "pl": "Zużyty albo wyczyszczony TigerTag+ można zapisać na nowo z kopii zapasowej. Połóż go na TigerPOD, wybierz Przywróć, sprawdź, co wraca, i przytrzymaj przycisk: jak nowy.",
+          "ru": "Изношенный или стёртый TigerTag+ можно перезаписать из резервной копии. Положи его на TigerPOD, выбери «Восстановить», проверь, что вернётся, и удерживай кнопку: как новый.",
+          "nl": "Een versleten of gewiste TigerTag+ kan opnieuw beschreven worden vanuit zijn back-up. Leg hem op de TigerPOD, kies Herstellen, check wat terugkomt en houd de knop ingedrukt: zo goed als nieuw."
+        }
+      }
+    ]
+  },
   "2.51.0": {
     "date": "2026-11-05",
     "items": [

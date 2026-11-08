@@ -5,6 +5,37 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v2.53.0 — 2026-11-08
+
+### Added
+- **Printed QR labels** (TigerSystem-Docs `spool-ids-and-qr-links.md` §3, §5, §7). New module `renderer/labels/` (`index.js`, `labels.css`), side card `#labelPanel`, choices kept in `tigertag.label`.
+  - Two kinds: the **Spool Label** (its QR is the spool link `https://qr.tigertag.io/<id>`, which opens the spool for its owner and its product for anyone else; a `CLOUD_` / legacy decimal id prints without a QR) and the **Filament Label** (its QR is the product link `https://qr.tigertag.io/p/<8 hex>`, only with a real `id_product`). A sliding switch picks the kind.
+  - Eight templates laid out like the common spool-label sizes: Classic 40×30, Wide 50×30, Compact 40×25, Slim 40×12, Slicer-friendly 40×30, Vertical 30×40, Vertical bold 30×40, Vertical compact 25×40 (`LABEL_TEMPLATES` / `LAYOUTS`). Each is one SVG in tenths of a millimetre scaled to printer dots: the brand, the series on a black bar, the colour name, its hex codes, up to four value slots (nozzle, bed, drying, TD, diameter), the protocol pill top right (TigerTag+ whenever the reference is a catalogue product, and on every Filament Label) and the QR in whole printer dots a module, sized like the common labels' QR. Never a value that goes stale (weight, note, rack, owner).
+  - Every line fits its real room: the QR is placed first, each line stops before it, the pill or the hex codes, a long line shrinks its font before being squeezed, hex codes flow into the free room, the Slicer-friendly name wraps beside the QR, a long brand on a vertical label drops below the pill.
+  - Print (system dialog), PDF, PNG at 203 or 300 dpi, SVG (the label's own SVG): `main.js` `label:render`, preload `renderLabel`. The save dialog opens at once and the PNG / PDF is drawn meanwhile (`_askLabelPath`).
+  - The card opens on the right of the spool card and pushes it, with its own » tab (`labelCloseTab`, `_syncPanels`). A QR button right of the ★ opens or closes it: spool card flags row (`data-dp-label`), grouped spools card, the toolbox "Print the label", the catalogue product card (`_toggleLabelCard`, `_labelToggleHTML`). The product sheet gets a **Swatch Card Label** tab with the same tools for the Filament Label (`mountLabel`, `_mountReorderLabel`).
+  - The preview is the printed page (a sandboxed frame) with a spinner while it loads; a click on it opens the page a scan lands on. Fixed preview height: switching templates moves nothing. An open spool label follows its spool live (`refreshLabelCard`).
+  - New icon `assets/svg/icons/icon_qr.svg` (`.icon-qr`) on every label button.
+- **Spool links** (`spool-ids-and-qr-links.md` §3, §4): a spool opens from Studio Web's `?spool=<id>[&weight=&note=]`, from `tigertag://spool/<id>?…` on the desktop, and from a `qr.tigertag.io` link pasted (or typed by a scanner) into the search.
+  - Looked up in the signed-in inventory, then its `uidMigrationMap` (a chipless id burned since), then this device's other signed-in accounts; a deleted spool opens as deleted; anything else says it is not in the inventory (`_spoolLinkArrived`, `_openSpoolLink`, `_handleSpoolDeepLink`).
+  - Values are never written by the link: a held banner on the spool card proposes them ("Update: 640 g", else "Update the note"), saved in one gesture, twin-aware (`_linkValuesBannerHTML`, `_saveLinkValues`). A weight above the capacity or a note over 28 bytes is refused.
+  - New module `renderer/qr-link.js`: builds the links and reads them back offline (`parseQrLink`, `spoolIdFromPath`, `linkValues`).
+  - New page `renderer/qr-check.html` + `qr-check.js` (Studio Web): framed hidden by the website's spool page, it tells `https://tigersystem.io` only whether one of this device's accounts owns the scanned spool.
+- **Restore TigerTag+**: a choice of the new-chip card and its own card in the pane (`renderer/rfid_protocol/restore/`, `#chipRestorePanel`): reader plates, what each `rfidList` backup writes back as a light product card, Debug-only chip details, a held banner that writes every backup back, verified. `main.js` `rfid:decode-backup`, preload `decodeChipBackup`; `_chipBackup`, `_restorableChip`, `_restorePlusChip`, `_describeChipRaw` shared with the toolbox repair.
+
+### Changed
+- Spool ids follow the ratified contract (`spool-ids-and-qr-links.md` §1–2): new chipless ids are `TigerData_` + epoch milliseconds + 4 random digits (`_adpCloudId`); no silent overwrite (`_createIfFree`, `_createChipless`, `_ensureIdsFree`); programming a chip on a TigerData writes the redirect `uidMigrationMap/{old id}` in the same batch (`_cemMigrate`).
+- New-chip card choices fit a short window (container queries in `linked.css`).
+
+### Fixed
+- The `rfidBackup` marker of a freshly read TigerTag+ could stay `false` although `rfidList` holds its backup: the launch census sets `rfidListed` only, and a listed TigerTag+ whose marker is off checks its entry (`censusRfidListFromInventory`, `recordRfidChipScan`).
+- A spool doc whose `uid` is missing or differs from its id only by case is healed to the doc id (`syncSpoolMirrors`).
+
+### i18n
+- Added `labelTitle`, `labelToolbox`, `labelToolboxTip`, `labelProductCta`, `labelKindSpool`, `labelKindProduct`, `labelNoQr`, `labelTemplate`, `labelTpl_classic`, `labelTpl_expanded`, `labelTpl_compact`, `labelTpl_slim`, `labelTpl_slicer`, `labelTpl_vertical`, `labelTpl_verticalBold`, `labelTpl_verticalCompact`, `labelSlots`, `labelSlotNone`, `labelSlotTd`, `labelDpi`, `labelPrint`, `labelExportFailed`, `labelOpenLink`, `roTabLabel`, `linkValuesUpdate`, `linkValuesUpdateNote`, `linkValuesInfo`, `linkValuesHoldTip`, `spoolLinkNotMine`, `chipRestoreNeedChip`, `chipRestoreCertified` (11 locales).
+
+---
+
 ## v2.52.0 — 2026-11-06
 
 ### Added

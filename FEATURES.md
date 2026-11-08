@@ -1,6 +1,6 @@
 # Tiger Studio Manager — Feature Catalogue
 
-Tiger Studio Manager is the Electron desktop companion to the TigerTag ecosystem: a filament-inventory manager built around RFID/NFC-tagged spools ("TigerTag" chips), a fully-digital "TigerData" tier (and its catalogue-identified "TigerData+" rung), live 3D-printer integration across seven brands plus Klipper and OctoPrint, physical storage/rack management, a Firebase-backed social layer (friends, shareable wishlists, public profiles), and companion hardware (TD1S color sensor, TigerScale, TigerSpool printer reader, TigerPOD dual-reader stand). This document catalogues every **shipped** feature, grouped by domain, current as of **v2.52.0**. Per-version release detail lives in `CHANGELOG.md`; forward-looking / in-progress work lives in `ROADMAP.md`.
+Tiger Studio Manager is the Electron desktop companion to the TigerTag ecosystem: a filament-inventory manager built around RFID/NFC-tagged spools ("TigerTag" chips), a fully-digital "TigerData" tier (and its catalogue-identified "TigerData+" rung), live 3D-printer integration across seven brands plus Klipper and OctoPrint, physical storage/rack management, a Firebase-backed social layer (friends, shareable wishlists, public profiles), and companion hardware (TD1S color sensor, TigerScale, TigerSpool printer reader, TigerPOD dual-reader stand). This document catalogues every **shipped** feature, grouped by domain, current as of **v2.53.0**. Per-version release detail lives in `CHANGELOG.md`; forward-looking / in-progress work lives in `ROADMAP.md`.
 
 ---
 
@@ -178,6 +178,8 @@ Tiger Studio Manager is the Electron desktop companion to the TigerTag ecosystem
 - Customisable QR colour presets, stored per device (v2.9.0).
 - Downloadable high-resolution QR PNG via a native Save dialog (v2.9.0).
 - Social-share intents (Facebook/X/LinkedIn/WhatsApp/Email) for public wishlist and friend-invite links (v2.7.0).
+- **Printed QR labels** — a Spool Label (its QR opens the spool for its owner, its product for anyone else) or a Filament Label (its QR opens the catalogue product) in eight formats (Classic 40×30, Wide 50×30, Compact 40×25, Slim 40×12, Slicer-friendly 40×30, Vertical 30×40, Vertical bold 30×40, Vertical compact 25×40): brand, series, colour name and hex codes, up to four values, protocol badge and QR sized in whole printer dots; Print, PDF, PNG (203 / 300 dpi) or SVG. Opened from a QR button next to the ★ (spool card, grouped spools, toolbox, catalogue card) and a "Swatch Card Label" tab on the product sheet (v2.53.0).
+- **Spool links** — a scanned label opens its spool in Studio Web (`?spool=`), the desktop app (`tigertag://spool/<id>`) or from a link pasted into the search; a weight or note carried by the link is proposed on the spool card and saved with a long press (v2.53.0).
 
 ## Storage / Racks
 
@@ -269,6 +271,7 @@ Live integrations across seven brands, each with real-time temperatures, per-slo
 - Cloud-spool → physical-chip guided encode modal — presence-gated, sequential verified burn, all-or-nothing Firestore migration, dual-reader twin support (v1.8.5).
 - Guided chip-update panel for re-writing an existing chip with live UID-match feedback (v2.0.0).
 - Chip reuse tools — Erase, Recycle to NFC, Restore TigerTag+ from backup (v1.10.29).
+- **Restore TigerTag+ card** — from the new-chip window: reader plates, what each backup writes back shown as a product card, a held button that rewrites and verifies every chip (v2.53.0).
 - Physical-chip backup — TigerTag+ signature saved on first read, enabling later restore; "Backed up" badge (v1.10.28, badge v1.10.29).
 - Product ID surfaced from the chip with a link to the product catalogue page (v1.10.29).
 - Terminology unification: all user-facing "RFID" strings renamed to "NFC" (v2.5.0).
