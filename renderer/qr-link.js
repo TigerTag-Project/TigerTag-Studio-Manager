@@ -2,8 +2,8 @@
  * renderer/qr-link.js — the QR links of TigerSystem-Docs
  * docs/developers/spool-ids-and-qr-links.md: writing them (§3 spool, §5
  * product) and reading them back offline (§3 "Reading a link back", §4 values).
- * No dependency: imported by the app (inventory.js), the labels
- * (labels/index.js) and the owner check the Hub frames (qr-check.js).
+ * No dependency: imported by the app (inventory.js) and the labels
+ * (labels/index.js).
  *
  *   spoolLink(spoolId)        — https://qr.tigertag.io/<id>, lowercase; null when not printable
  *   productLink(idProduct)    — https://qr.tigertag.io/p/<8 hex>; null without a real id
