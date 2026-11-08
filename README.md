@@ -576,5 +576,5 @@ Support goes to the maintainer — never required, always appreciated.
 [MIT](LICENSE) — © TigerTag Project
 
 You are free to use, modify, and distribute Tiger Studio Manager — including commercially.
-The **"TigerTag"** name is a trademark of the TigerTag Project — see [TRADEMARK.md](TRADEMARK.md) for usage conditions.
+**TigerSystem**, **TigerTag**, **Tiger Studio**, **TigerPOD**, **TigerScale** and the other Tiger product names, the tiger logo and mascot are trademarks of the TigerTag Project — see [TRADEMARK.md](TRADEMARK.md) for usage conditions.
 All npm dependencies are permissive (MIT / ISC / BSD / Apache) — see [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
