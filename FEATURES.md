@@ -366,6 +366,7 @@ Live integrations across seven brands, each with real-time temperatures, per-slo
 - Dark native window chrome (`nativeTheme.themeSource = 'dark'`) and shadow-less window edges (v1.4.13).
 - Launch splash screen shown instantly while the app assembles from cache (v1.8.24).
 - **Window state memory** — the window reopens at its last size, position and maximized / full-screen state (only on a display still connected); first launch opens maximized (v2.32.0).
+- **Close to the notification area** (Windows / Linux) — an opt-in setting (*Settings → Window*, off by default): the close button hides the window instead of quitting, like on macOS; a notification-area icon (Open / Quit) brings it back, and printers and cameras keep running meanwhile.
 
 ## Appearance & theming
 

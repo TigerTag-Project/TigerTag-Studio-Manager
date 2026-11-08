@@ -1035,6 +1035,8 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     window.electronAPI?.setContextMenuLabels?.({
       cut: t("ctxCut"), copy: t("ctxCopy"), paste: t("ctxPaste"), selectAll: t("ctxSelectAll"),
     });
+    // Same for the notification-area icon's menu (Windows / Linux, when that option is on).
+    window.electronAPI?.setTrayLabels?.({ open: t("trayOpen"), quit: t("trayQuit") });
   }
   // The search box serves several views — point its placeholder at what the
   // current view actually searches (printers vs materials).
@@ -25444,6 +25446,21 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     try { window.electronAPI?.setAutoUpdate?.(enabled); } catch (_) {}
     _autoUpdateToggle.addEventListener("change", () => {
       writeAutoUpdatePref(_autoUpdateToggle.checked);
+    });
+  }
+
+  // ── Settings → Window → "Close to the notification area" (Windows / Linux) ──
+  // The main process owns and persists it (it must know at launch, before this page
+  // loads). macOS reports "unsupported": its window already hides on close.
+  const _closeToTrayCard = $("stgWindowCard"), _closeToTrayToggle = $("stgCloseToTray");
+  if (_closeToTrayCard && _closeToTrayToggle && window.electronAPI?.getCloseToTray) {
+    window.electronAPI.getCloseToTray().then(info => {
+      if (!info?.supported) return;
+      _closeToTrayCard.hidden = false;
+      _closeToTrayToggle.checked = !!info.enabled;
+    }).catch(() => {});
+    _closeToTrayToggle.addEventListener("change", () => {
+      try { window.electronAPI.setCloseToTray(_closeToTrayToggle.checked); } catch (_) {}
     });
   }
 
