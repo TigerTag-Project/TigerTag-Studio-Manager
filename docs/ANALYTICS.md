@@ -26,6 +26,7 @@ the `analytics:tag` queue in `main.js`.
 | `edit` | this instance changes a spool doc; `Changed` = field names; coalesced per spool over 5 minutes |
 | `delete` | this instance deletes a spool; fields from before the deletion |
 | `repair` | a TigerTag+ rewritten from its `rfidList` backup and verified, `PagesWritten` > 0 (an intact chip or a failed repair sends nothing); `Protocol` "TigerTag+ Certified". Accepted by Xano since 2026-11-06; `ANALYTICS_REPAIR_EVENT` is its kill switch |
+| `print_label` | a label printed or saved (Print / PDF / PNG / SVG; a cancelled dialog sends nothing): `LabelKind` spool \| product, `Template` (classic, expanded, compact, slim, slicer, vertical, verticalBold, verticalCompact), `Output` print \| pdf \| png \| svg, `Dpi`, `Copies` 1, `IdProduct` when real (both kinds), `IdBrand` / `IdMaterial` / `IdType` / `IdDiameter` / `Color`; `SpoolId`, `Protocol` and, for chip formats, `Uid` on a spool label. Deduped per (kind, spool or product, template, output) over 10 s. Xano stores the label fields in `label_kind` / `label_template` / `label_output` / `label_dpi` / `label_copies`. Accepted by Xano since 2026-11-08; `ANALYTICS_LABEL_EVENT` is its kill switch |
 
 `create` / `edit` / `delete` are live since 2026-11-06, when Xano production accepted them with
 its `protocol` / `spool_id` columns and started caching the IP lookup per IP for 24 h (a 500-spool

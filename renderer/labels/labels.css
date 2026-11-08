@@ -13,6 +13,13 @@
 .lbl-seg, .lbl-dpi { display: flex; gap: 6px; align-items: center; }
 .lbl-dpi > span { flex: 1; font-size: 12.5px; color: var(--muted); }
 .lbl-seg .lbl-seg-btn { flex: 1; }
+/* Spool Label / Filament Label: a two-state switch whose pill SLIDES between the
+   two options (the account window's .eac-seg): one ::before placed by :has(). */
+.lbl-seg.lbl-seg--kind { position: relative; gap: 0; padding: 2px; border-radius: 11px; isolation: isolate; background: var(--surface-2); border: 1px solid var(--border); }
+.lbl-seg--kind::before { content: ""; position: absolute; z-index: -1; top: 2px; bottom: 2px; left: 2px; width: calc(50% - 2px); border-radius: 9px; background: var(--primary); transition: transform .22s cubic-bezier(.4, 0, .2, 1); }
+.lbl-seg--kind:has(.lbl-seg-btn:last-child.is-active)::before { transform: translateX(100%); }
+.lbl-seg--kind .lbl-seg-btn.lbl-seg-btn { border: 0; background: transparent; border-radius: 9px; transition: color .18s; }
+.lbl-seg--kind .lbl-seg-btn.is-active { background: transparent; color: var(--on-accent); }
 .lbl-seg-btn.lbl-seg-btn { height: auto; padding: 7px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font-size: 12.5px; font-weight: 600; cursor: pointer; transition: border-color .15s, background .15s; }
 .lbl-seg-btn:hover { border-color: var(--primary); }
 .lbl-seg-btn.is-active { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 12%, var(--surface-2)); }
@@ -22,7 +29,10 @@
 /* A fixed box (the tallest preview fits it): switching templates moves nothing below. */
 .lbl-preview { display: flex; justify-content: center; align-items: center; height: 232px; padding: 4px 0 8px; }
 .lbl-paper { position: relative; overflow: hidden; border-radius: 4px; background: var(--on-dark); box-shadow: 0 2px 10px rgba(0, 0, 0, .28); }
-.lbl-frame { position: absolute; left: 0; top: 0; border: 0; transform-origin: 0 0; pointer-events: none; }
+.lbl-frame { position: absolute; left: 0; top: 0; border: 0; transform-origin: 0 0; pointer-events: none; transition: opacity .15s; }
+/* While the preview loads: the paper is blank and a spinner turns on it (spin: 70-detail-misc.css). */
+.lbl-paper.is-loading .lbl-frame { opacity: 0; }
+.lbl-paper.is-loading::after { content: ""; position: absolute; inset: 0; margin: auto; width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--muted); border-top-color: transparent; animation: spin .8s linear infinite; }
 /* With a QR link, the paper is a button: it opens the page a scan lands on. */
 .lbl-paper--link.lbl-paper--link { padding: 0; border: 0; cursor: pointer; transition: transform .15s, box-shadow .15s; }
 .lbl-paper--link:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0, 0, 0, .35); }
@@ -30,14 +40,12 @@
 .lbl-open-hint .icon { background-color: currentColor; }
 .lbl-paper--link:hover .lbl-open-hint, .lbl-paper--link:focus-visible .lbl-open-hint { opacity: 1; transform: translate(-50%, 0); }
 
-.lbl-tpls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.lbl-tpls { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }   /* eight templates, four rows of two */
 .lbl-tpl.lbl-tpl { height: auto; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 6px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); cursor: pointer; transition: border-color .15s, background .15s; }
 .lbl-tpl:hover { border-color: var(--primary); }
 .lbl-tpl.is-active { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 12%, var(--surface-2)); }
 .lbl-tpl b { font-size: 12px; line-height: 1.2; text-align: center; }
 .lbl-tpl small { font-size: 10.5px; color: var(--muted); }
-.lbl-tpl-shape { height: 22px; max-width: 40px; border-radius: 3px; border: 1.5px solid var(--muted); }
-.lbl-tpl.is-active .lbl-tpl-shape { border-color: var(--primary); }
 
 .lbl-slots { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .lbl-actions { display: flex; flex-wrap: wrap; gap: 8px; }

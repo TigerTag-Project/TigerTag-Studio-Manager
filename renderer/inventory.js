@@ -4,7 +4,7 @@ import { initRfidTester } from './rfid_protocol/tigertag/index.js';
 import { initLinkedChips, linkedChipsSignIn, linkedChipsSignOut, linkedChipsOf, onForeignChip, holdForeignChip, pendingMakerChips, presentMakerChips, makerLinkBannerHtml, linkMakerChipsTo, linkedChipsHtml, wireLinkedChips, linkPendingTo, clearPendingLink, openBlankChipWindow, closeChipChoice, closeChipLink, wireSearchBox, linkOfferHtml, wireLinkOffer, openAddChooser, refreshChipChoice } from './rfid_protocol/linked/index.js';
 import { initChipEraser, openChipEraser, closeChipEraser, chipEraserOpen, eraserCardPresent, eraserForeignChip, eraserReadersChanged } from './rfid_protocol/eraser/index.js';
 import { initChipRestore, openChipRestore, closeChipRestore, chipRestoreOpen, restoreCardPresent, restoreReadersChanged } from './rfid_protocol/restore/index.js';
-import { initLabels, openLabelCard, closeLabelCard, labelCardOpen, mountLabel } from './labels/index.js';
+import { initLabels, openLabelCard, closeLabelCard, labelCardOpen, mountLabel, refreshLabelCard } from './labels/index.js';
 import { parseQrLink, spoolIdFromPath, linkValues } from './qr-link.js';
 
 // ── Offline timezone → country (telemetry, no IP geolocation) ──────────────
@@ -4778,6 +4778,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   // opens nothing (the NFC routing below hands the chips to it).
   // Printed labels — the label card docked to the left of the spool card (renderer/labels).
   initLabels({ t, esc, reportError, syncPanels: () => _syncPanels(), hideTip: () => _hideToolInfoTip(),
+    onLabelOut: o => _sendLabelAnalytics(o).catch(e => console.warn("[analytics] print_label skipped:", e?.message)),
     enhanceSelect: el => _enhanceSelect(el),
     // The texts a label prints: never a value that goes stale.
     labelInfo: r => {
@@ -21399,6 +21400,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     // BOTH signatures — otherwise an auto-store, which writes only `rack` and no
     // timestamp, would slip through and the "Emplacement" section never repaints.
     if (newSig === _lastDetailSig && newStructSig === _lastDetailStructuralSig) return;
+    refreshLabelCard({ ...r, idProduct: r.raw?.id_product });   // its label follows
 
     // path 2: the CORE structure (everything except the rack slot) is unchanged →
     // only the location and/or the weight moved. Patch those in place — never rebuild,
@@ -43400,6 +43402,9 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   // `repair` (a TigerTag+ rewritten from its rfidList backup), accepted by Xano's
   // `operation` column since 2026-11-06. A kill switch, like the one above.
   const ANALYTICS_REPAIR_EVENT = true;
+  // `print_label` (a label printed or saved from the label tools), accepted by Xano's
+  // operation enum and label_* columns since 2026-11-08. A kill switch, like the others.
+  const ANALYTICS_LABEL_EVENT = true;
   const XANO_EDIT_WINDOW_MS = 5 * 60_000;
   // An edit right after the spool was created is part of its creation.
   const XANO_AFTER_CREATE_MS = 10_000;
@@ -43503,6 +43508,30 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       ...f, Protocol: "TigerTag+ Certified", SpoolId: String(spoolId),
       ...(left != null ? { WeightAvailable: left } : {}), PagesWritten: Number(pagesWritten),
     });
+  }
+
+  // A label printed or saved (labels/index.js onLabelOut): which product, which
+  // template, which output. Deduped per (kind, spool or product, template, output)
+  // over 10 s against double clicks. Never the note, weight, rack or link.
+  async function _sendLabelAnalytics({ row, kind, template, output, dpi }) {
+    if (!ANALYTICS_LABEL_EVENT || state.friendView || !row) return;
+    const spool = kind === "spool";
+    const key = `print_label:${kind}:${spool ? row.spoolId : row.idProduct}:${template}:${output}`;
+    const now = Date.now();
+    if (now - (_xanoLastSent.get(key) || 0) < 10_000) return;
+    _xanoLastSent.set(key, now);
+    const doc = spool ? state.inventory?.[row.spoolId] : null;
+    const id = _xanoChipFields(doc || row.raw || {});
+    const f = { IdBrand: id.IdBrand, IdMaterial: id.IdMaterial, IdType: id.IdType, IdDiameter: id.IdDiameter, Color: id.Color,
+                LabelKind: kind, Template: template, Output: output, Dpi: dpi, Copies: 1 };
+    const pid = Number(row.idProduct ?? doc?.id_product);
+    if (_hasRealProductId(pid)) f.IdProduct = pid;
+    if (spool) {
+      f.SpoolId = String(row.spoolId);
+      f.Protocol = doc ? await _xanoProtocol(row.spoolId, doc) : "unknown";
+      if (!_isChiplessId(row.spoolId)) f.Uid = _xanoUidDecimal(doc?.uid ?? row.spoolId);
+    }
+    _xanoPost("print_label", f, now);
   }
 
   function _xanoSendEdit(spoolId) {
