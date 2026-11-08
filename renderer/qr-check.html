@@ -4,12 +4,12 @@
   <meta charset="utf-8">
   <title>Tiger Studio</title>
   <!-- The owner check of a scanned spool link (qr-check.js). Framed, hidden, by
-       the Hub's /qr/spool page on tigersystem.io; it draws nothing. -->
+       the Hub's /qr/spool page on tigersystem.io; it draws nothing. Auth only:
+       the reads go to the Firestore REST API, the Firestore SDK is not loaded. -->
 </head>
 <body>
 <script src="lib/firebase/firebase-app-compat.js"></script>
 <script src="lib/firebase/firebase-auth-compat.js"></script>
-<script src="lib/firebase/firebase-firestore-compat.js"></script>
 <script src="firebase.js"></script>
 <script type="module" src="qr-check.js"></script>
 </body>

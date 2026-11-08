@@ -32,7 +32,9 @@ firebase.initializeApp(FIREBASE_CONFIG);
 // to initializeApp.
 // `failed-precondition` (already enabled) and `unimplemented` (no IDB) are
 // both expected on some platforms and silently ignored.
+// A page that loads Auth only (qr-check.html) has no Firestore to set up.
 function _enablePersistenceQuiet(app, label) {
+  if (typeof firebase.firestore !== "function") return;
   try {
     app.firestore().enablePersistence({ synchronizeTabs: true }).catch(err => {
       console.warn(`[firebase] enablePersistence (${label}) failed:`, err.code, err.message);
