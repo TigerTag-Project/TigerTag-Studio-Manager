@@ -28,6 +28,12 @@ test('an all-digit truncated id is not a decimal id', () => {
   assert.equal(isDecimalSpoolId('04D8593DD42A81'), false);
 });
 
+test('a 14-digit id is a hex chip UID, never a decimal id (issue #227)', () => {
+  assert.equal(isDecimalSpoolId('53250983430001'), false);
+  assert.equal(isDecimalSpoolId('12345678901234'), false);
+  assert.equal(isDecimalSpoolId('123456789012345'), true);
+});
+
 const ts = d => d.updatedAt ?? 0;
 
 test('issue #146 inventory: the truncated doc is re-keyed, the correct one untouched', () => {

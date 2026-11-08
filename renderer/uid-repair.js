@@ -31,10 +31,12 @@ export function repairTruncatedNtagUid(id) {
 
 /** A legacy decimal spool id (the old Android app). Leading zeros are excluded (a BigInt's
  *  toString() never has one), and so is a truncated NTAG id that happens to be all digits —
- *  that one is repaired by planTruncatedUidRepair, never re-converted. */
+ *  that one is repaired by planTruncatedUidRepair, never re-converted. So is a 14-digit id:
+ *  that is a 7-byte chip UID in hex with no letter in it (generic NTAGs, issue #227). A
+ *  decimal 7-byte UID has 14 digits only when its first byte is 0x00, which no chip has. */
 export function isDecimalSpoolId(id) {
   return typeof id === "string" && /^\d+$/.test(id) && (id === "0" || id[0] !== "0")
-    && repairTruncatedNtagUid(id) === null;
+    && id.length !== 14 && repairTruncatedNtagUid(id) === null;
 }
 
 /** `updatedAt`, falling back to `last_update`, in ms — Firestore Timestamp, {seconds}, number

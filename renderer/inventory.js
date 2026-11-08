@@ -8034,6 +8034,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   // a 7-byte NTAG starting with 0x04, and the unpadded `toString(16)` used until v2.44.1 dropped
   // that 0 (issue #146) — "4D8593DD42A81" instead of "04D8593DD42A81". Ids already truncated
   // are re-keyed by maybeRepairTruncatedSpoolIds below; the mobile app does the same.
+  // A 14-digit id is a chip UID in hex with no letter (issue #227), never migrated.
 
   /* ── Rack-shape migration — flat → nested `rack` object ────────────────
      Same UX pattern as the UID migration: consent modal (Update now /
