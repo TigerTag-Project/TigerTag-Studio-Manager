@@ -266,6 +266,17 @@
   .temp-card .temp-card-body .snap-temp { cursor: default; }
   .temp-card .temp-card-body .snap-temp-row,
   .temp-card .temp-card-body .snap-temps { flex-wrap: wrap; gap: 6px; }
+  /* The widget keeps a machine card's width, so every column of the board is one
+     width whatever the machine: it used to grow with its pills and stick out of
+     its column (a Snapmaker's four heads and bed, or a dual-nozzle H2). The row
+     gives its pills the whole width, which is exactly four pills; a row of five
+     (four heads and the bed) shares it between them and reads a size smaller
+     rather than folding onto a second line. Six or more still wrap. */
+  .printers-grid--plan .slots-card.temp-card { width: var(--board-card-w); min-width: 0; max-width: var(--board-card-w); }
+  .temp-card .temp-card-body .snap-temps { padding-inline: 0; gap: 5px; }
+  .temp-card .temp-card-body .snap-temps:has(> .snap-temp:nth-child(5)):not(:has(> .snap-temp:nth-child(6))) { gap: 3px; }
+  .temp-card .temp-card-body .snap-temps:has(> .snap-temp:nth-child(5)):not(:has(> .snap-temp:nth-child(6))) .snap-temp { min-width: 0; padding-inline: 1px; }
+  .temp-card .temp-card-body .snap-temps:has(> .snap-temp:nth-child(5)):not(:has(> .snap-temp:nth-child(6))) .snap-temp-val { font-size: 10px; letter-spacing: -.2px; }
   /* One block per unit — an AMS, a holder pair, the spool arm. They are separate
      objects on the bench, so they are separated here too rather than run into
      one long line. */
