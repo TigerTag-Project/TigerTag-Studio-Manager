@@ -28120,17 +28120,6 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     && !!acuGetConn(acuKey(p))?.data?.camWanted;
   const _camWaitHtml =
     `<div class="pp-cam-loading-overlay pp-cam-loading-overlay--board"><span class="pp-cam-loading-dots"><span></span><span></span><span></span></span></div>`;
-  const _camOfflineHtml = () =>
-    `<div class="cam-card-off"><span class="icon icon-eye-off icon-24"></span></div>`;
-  const _camPlayHtml = key =>
-    `<div class="cam-card-off"><button type="button" class="cam-play" data-cam-play="${esc(key)}"
-       aria-label="${esc(t("boardCamPlay"))}"><span class="icon icon-play icon-24"></span></button></div>`;
-  function _camBodyHtml(p) {
-    if (!_isPrinterOnline(p)) return _camOfflineHtml();
-    const key = _printerKey(p);
-    if (!_camPlaying.has(key)) return _camPlayHtml(key);
-    return _boardCamHtml(p) || _camOfflineHtml();     // brand turns out to have none
-  }
   /* Pressing play — from the widget or from the machine's own card — means the
      same thing, so it lights both. The shared multiplexer keeps that to ONE
      upstream connection: the card and the widget are two consumers of the same
@@ -28204,8 +28193,6 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     if (!p || !root) return;
     _camKick(p);
     questBump("cameraOpen", 1, p);
-    const widget = root.querySelector(`.cam-card[data-printer-key="${CSS.escape(key)}"]`);
-    if (widget) _refreshCamWidget(widget, p);
     const thumb = root.querySelector(`.printer-card[data-printer-key="${CSS.escape(key)}"] .printer-card-thumb`);
     if (thumb) {
       const html = _boardCamHtml(p);
@@ -28223,34 +28210,6 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     _wireCamWidgets(root);
   }
 
-  function _makeCamWidget(p) {
-    const w = SIMPLE_WIDGETS.find(x => x.kind === "cam");
-    if (!widgetOn(p, "cam")) return "";
-    return _widgetFrame(p, w, _camBodyHtml(p), !_isPrinterOnline(p));
-  }
-  /* ITS OWN REFRESH, and the strictest of the three. The body holds a STREAM:
-     replacing it tears the connection down and starts it again, so a feed
-     rebuilt on every tick would stutter forever. Only one thing changes what
-     this widget shows — the machine coming or going — so that alone rebuilds
-     it, and it re-attaches afterwards. Everything else leaves the DOM alone. */
-  /* Three states, and the body is rebuilt ONLY when it moves between them:
-     off (machine gone), idle (here, not asked for), live (streaming). Read from
-     the DOM rather than remembered, so a rebuild elsewhere cannot desynchronise
-     it. Anything short of a state change leaves the element alone — that is what
-     keeps a running stream from being torn down and restarted on every tick. */
-  const _camElState = el =>
-    el.querySelector(".cam-play") ? "idle"
-    : el.querySelector(".cam-card-off") ? "off" : "live";
-  function _refreshCamWidget(el, p) {
-    const want = !_isPrinterOnline(p) ? "off"
-               : _camPlaying.has(_printerKey(p)) ? "live" : "idle";
-    if (_camElState(el) === want) return;
-    const body = el.querySelector(".cam-card-body");
-    if (!body) return;
-    body.innerHTML = _camBodyHtml(p);
-    el.classList.toggle("is-stale", want === "off");
-    _wireCamWidgets(el.parentElement || el);
-  }
   /* Post-render attachment. Two brands need their stream started and their
      element registered as a consumer; the rest carry their source in the markup
      and need nothing. Idempotent by design — a live session is reused rather
@@ -28287,13 +28246,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     state.printers
       .filter(p => _camPlaying.has(_printerKey(p)))
       .forEach(_camKick);
-    if (container.querySelector(".cre-cam-video")) {
-      state.printers
-        .filter(p => p.brand === "creality" && p.ip && widgetOn(p, "cam")
-                  && _isPrinterOnline(p) && _camPlaying.has(_printerKey(p)))
-        .forEach(p => startCreCam(p.ip));
-      reAttachCreCamConsumers();
-    }
+    if (container.querySelector(".cre-cam-video")) reAttachCreCamConsumers();
   }
 
   function _makeTempWidget(p) {
@@ -28949,7 +28902,12 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
        attached here, and without this it would attach once and never again. */
     {
       const _plan = host.querySelector(".printers-grid");
-      if (_plan) SIMPLE_WIDGETS.forEach(w => { try { w.wire?.(_plan); } catch (e) { console.warn("[board] wire failed for", w.kind, e); } });
+      if (_plan) {
+        SIMPLE_WIDGETS.forEach(w => { try { w.wire?.(_plan); } catch (e) { console.warn("[board] wire failed for", w.kind, e); } });
+        // The cameras on the machine cards (play keys, shared streams, an IP camera shown in a printer) are
+        // wired on every render. They used to ride on the camera widget's `wire`, which went with the widget.
+        try { _wireCamWidgets(_plan); } catch (e) { console.warn("[board] camera wiring failed", e); }
+      }
     }
     wirePrinterPlanDrag(host);
     wireExtCamBoard(host.querySelector(".printers-grid"));
@@ -30195,14 +30153,6 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
        table would make the table worse, not the storage better. It has no
        `simple: true`, and every loop below skips it. */
     { kind: "units", labelKey: "boardUnitsTitle" },
-    /* Last, and the only one switched OFF by default: it is the one that costs
-       a connection to the machine. */
-    { kind: "cam", labelKey: "boardCamTitle", simple: true, defaultOff: true,
-      prefix: "cam:", unitTag: "#cam",
-      planField: "camPlan", clusterField: "camPlanCluster",
-      render:  p => _makeCamWidget(p),
-      refresh: (el, p) => _refreshCamWidget(el, p),
-      wire:    container => _wireCamWidgets(container) },
   ];
   const SIMPLE_WIDGETS = BOARD_WIDGETS.filter(w => w.simple);
   const _widgetByTag = tag => SIMPLE_WIDGETS.find(w => w.unitTag === tag) || null;
