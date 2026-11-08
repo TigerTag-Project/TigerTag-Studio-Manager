@@ -170,6 +170,8 @@ function _acuDefaultData() {
     fanSpeedPct:   null,
     printSpeedPct: null,
     workState:     null,  // "free" | "busy" (type:"status" workReport)
+    lightType:     null,  // the `type` of the chamber lamp, as the printer names it in its light report (Kobra S1: 2)
+    lightTypeHint: null,  // cloud only, until a report names it: 2 when the printer's capability list says it has a chamber lamp
     // Camera (LAN/FLV only — never used for cloud printers)
     camWanted:     false,
     camLive:       false,
@@ -326,6 +328,17 @@ const ACU_ORD = {
   QUERY_PERIPHERALS: 1231,        // attached-peripheral query → type:"peripherie" (§5e)
 };
 
+// The `type` of a light command picks the lamp: 1 is the camera's light, and the
+// chamber lamp is 2 on a Kobra S1 but 3 on the Kobras Studio was first written
+// against. The printer names its own lamp in its light report (conn.data.lightType);
+// until it has, this default is what those Kobras take.
+const ACU_LIGHT_TYPE_DEFAULT = 3;
+// Over the cloud nothing can ask the printer for its lamp, but Anycubic lists what
+// each printer can do: id 41 is a chamber lamp, which is type 2 — except on the
+// Kobra X (model 20030), which has one too and takes 3.
+const ACU_FUNCTION_BOX_LIGHT = 41;
+const ACU_MODEL_KOBRA_X = "20030";
+
 // File sources (PROTOCOL.md §5e). Each maps a source to its list/delete order
 // pair, the LAN MQTT request action strings (inferred from the response action
 // names — confirm against real hardware via the debug log), and the START_PRINT
@@ -404,6 +417,12 @@ async function _acuCloudGetInfo(conn) {
       // Latest project id — project_id for PRINT_SETTINGS orders (temp/fan/speed)
       // so they work even at idle (against the most recent project).
       if (info.latestProjectId != null) d.latestProjectId = info.latestProjectId;
+      // The lamp's type, guessed from the capability list until a light report names
+      // it (acuLight prefers the report). Nothing is guessed when the list is absent.
+      if (Array.isArray(info.typeFunctionIds)) {
+        const isKobraX = String(p.machineType || p.acuModelId || "") === ACU_MODEL_KOBRA_X;
+        d.lightTypeHint = info.typeFunctionIds.includes(ACU_FUNCTION_BOX_LIGHT) && !isKobraX ? 2 : null;
+      }
       // Active-job preview (signed S3 URL) — null when no print is running.
       // The signature changes on every poll even for the same image, so only
       // swap the URL when the underlying object path changes. Otherwise the
@@ -635,20 +654,24 @@ export function acuSetTemp(conn, which, value) {
   _publish(conn, _acuRequest("set", data, "tempature"), "tempature");
 }
 
-/** Toggle the chamber/part light (`type:3`). */
+/** Toggle the chamber/part light, with the `type` the printer reported for it. */
 export function acuLight(conn, on) {
   if (!conn) return;
+  // The printer names its lamp in its light report (conn.data.lightType). A Kobra
+  // S1 answers 2 and refuses the 3 with "camera light open fail" (code 10348).
+  // Before a report (always the case over the cloud) the capability list may hint
+  // at it; failing that, 3 is what every other Kobra takes.
+  const data = { type: conn.data?.lightType ?? conn.data?.lightTypeHint ?? ACU_LIGHT_TYPE_DEFAULT, status: on ? 1 : 0, brightness: on ? 100 : 0 };
   if (_acuConnIsCloud(conn)) {
-    // type:3 = the chamber/part LED (same value as LAN — see PROTOCOL.md). The
-    // hass default of type:1 is the CAMERA light, which the Kobra rejects with
-    // "failed turn on camera light". No project_id needed — the cloud routes
-    // and executes this order fine without one (it failed on the type, not the
-    // project), so we send it as a base order, like the slicer does.
-    _acuCloudOrder(conn, ACU_ORD.SET_LIGHT, { type: 3, status: on ? 1 : 0, brightness: on ? 100 : 0 });
+    // type 1 is the CAMERA light, which a Kobra rejects with "failed turn on
+    // camera light" — the chamber lamp is another type (see above, PROTOCOL.md).
+    // No project_id needed — the cloud routes and executes this order fine
+    // without one (it failed on the type, not the project), so we send it as a
+    // base order, like the slicer does.
+    _acuCloudOrder(conn, ACU_ORD.SET_LIGHT, data);
     return;
   }
-  _publish(conn, _acuRequest("control",
-    { type: 3, status: on ? 1 : 0, brightness: on ? 100 : 0 }, "light"), "light");
+  _publish(conn, _acuRequest("control", data, "light"), "light");
 }
 
 /** Jog one axis. axis = "x"|"y"|"z"; signed mm (+ → move_type 1, − → 0). */
@@ -1453,12 +1476,19 @@ function _acuMerge(conn, msg) {
       break;
     }
     case "light": {
-      // Shape not fully reverse-engineered — parse defensively. The control
-      // command is `{type:3, status:0|1, brightness}`; the report likely echoes
-      // a similar shape. Track on/off for the toggle.
+      // Two shapes: a query answers `{ lights: [{type, status, brightness}] }`,
+      // a control answers the lamp flat, `{type, status, brightness}`; an older
+      // flat report may carry no type at all. A type-1 light is the camera's, so
+      // the chamber lamp is the other one. Its type is kept: it is what the next
+      // light command has to name (a Kobra S1 says 2, the others 3).
       if (data && typeof data === "object") {
-        if (data.status     != null) d.lightOn = !!Number(data.status);
-        if (data.brightness != null) d.lightBrightness = Number(data.brightness) || 0;
+        const lights = Array.isArray(data.lights) ? data.lights.filter(l => l && typeof l === "object") : [data];
+        const lamp = lights.find(l => l.type == null) || lights.find(l => Number(l.type) !== 1);
+        if (lamp) {
+          if (lamp.type       != null) d.lightType = Number(lamp.type);
+          if (lamp.status     != null) d.lightOn = !!Number(lamp.status);
+          if (lamp.brightness != null) d.lightBrightness = Number(lamp.brightness) || 0;
+        }
       }
       break;
     }
