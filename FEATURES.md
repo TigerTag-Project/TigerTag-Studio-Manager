@@ -57,6 +57,7 @@ Tiger Studio Manager is the Electron desktop companion to the TigerTag ecosystem
 - Header KPI stats count-animate (odometer-style roll on open and on change) (v2.7.0).
 - Terminology: every user-facing "RFID" renamed to "NFC" across the UI and all 9 locales (internal identifiers untouched) (v2.5.0).
 - **`.ttag` inventory interchange** — export a spool, a selection, or a whole batch to a portable `.ttag` file (keep it, carry it on a USB stick, share it) and import it back anywhere. Works for TigerData, TigerTag and TigerTag+ alike, keeps twins atomic, and imports through a validate → preview table → accept flow with a per-material include picker. Two modes: **Restore** (verbatim, keeps ids/TigerTag+/backups) or **Import** (fresh chipless `TigerData_` spools you own, weight reset to full). Multi-file import via browse, paste-a-link, or drag-and-drop anywhere on the window (v2.14.0). Import enforces the ratified record contract — a material missing any of the 24 chip-payload fields is refused whole (twins all-or-nothing) and counted back to you rather than silently dropped (v2.15.0).
+- **Inventory spreadsheet (`.xlsx`)** — Settings → Data → *Export .xlsx* writes the whole inventory as a real Excel file, ready to read: one line per physical spool (a twin pair counts once) with type, material, brand, name, colour (hex), weight and capacity, price, buy link, tags, rack and position, last update and UID; columns already sized, header bold, frozen and filterable, weights and prices as numbers, the last update as a date, UIDs kept as text. Written in the app with no library (a standard `.xlsx`, checked in Excel). Read-only: nothing in the inventory is touched.
 
 ## Cloud & real-time sync / data layer
 
@@ -236,7 +237,7 @@ Live integrations across seven brands, each with real-time temperatures, per-slo
 - **Per-machine widget switches** in the card's ⋮, each widget appearing in the first free place down its own machine's column (v2.22.0).
 - **Rubber-band selection and group moves on both boards**, plus a move handle on every card that is the only grab point outside Arrange mode (v2.22.0).
 - **Print widget** on the printer board — preview, file, percentage and bar, state, remaining time, finish clock and layer count, from the same normalised job the table and the card read (v2.24.0).
-- **Camera widget and camera on the machine card** — a play key over the printer's photo swaps it for the live feed; off by default and silent until asked, since a camera costs one connection per machine. Board, camera wall and side panel share a single upstream stream (v2.24.0).
+- **Camera on the machine card** — a play key over the printer's photo swaps it for the live feed; off by default and silent until asked, since a camera costs one connection per machine. Board, camera wall and side panel share a single upstream stream (v2.24.0).
 - **Pause and stop on a machine's board card while it prints**, stop guarded by hold-to-confirm. Every brand answers one `controlJob(printer, action)`, so a card acts on the machine it belongs to rather than on whichever side panel is open (v2.24.0).
 
 ## Printer cameras
@@ -366,6 +367,7 @@ Live integrations across seven brands, each with real-time temperatures, per-slo
 - Dark native window chrome (`nativeTheme.themeSource = 'dark'`) and shadow-less window edges (v1.4.13).
 - Launch splash screen shown instantly while the app assembles from cache (v1.8.24).
 - **Window state memory** — the window reopens at its last size, position and maximized / full-screen state (only on a display still connected); first launch opens maximized (v2.32.0).
+- **Close to the notification area** (Windows / Linux) — an opt-in setting (*Settings → Window*, off by default): the close button hides the window instead of quitting, like on macOS; a notification-area icon (Open / Quit) brings it back, and printers and cameras keep running meanwhile.
 
 ## Appearance & theming
 

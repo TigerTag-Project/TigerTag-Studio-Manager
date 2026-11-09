@@ -33,16 +33,16 @@ means shown**, so only a deliberate choice is ever written.
 One entry in `BOARD_WIDGETS`:
 
 ```js
-{ kind: "cam", labelKey: "boardCamTitle", simple: true,
-  prefix: "cam:", unitTag: "#cam",
-  planField: "camPlan", clusterField: "camPlanCluster",
+{ kind: "note", labelKey: "boardNoteTitle", simple: true,
+  prefix: "note:", unitTag: "#note",
+  planField: "notePlan", clusterField: "notePlanCluster",
   render: p => …,            // "" when there is nothing to show
   refresh: (el, p) => …,     // OPTIONAL — see "live media" below
   wire:    container => …,   // OPTIONAL — listeners the widget needs
 }
 ```
 
-Then an i18n key for `labelKey`, and CSS for `.cam-card` / `.cam-card-body`. The
+Then an i18n key for `labelKey`, and CSS for `.note-card` / `.note-card-body`. The
 frame — head, name, owner, move handle, board id — comes from `_widgetFrame`, so
 a widget only ever supplies its **body**.
 

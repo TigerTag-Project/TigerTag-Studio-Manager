@@ -638,6 +638,26 @@
       </div>
     </section>
 
+    <!-- ── Window (Windows / Linux only — shown by the renderer when supported) ── -->
+    <section class="stg-card" id="stgWindowCard" data-desktop-only hidden>
+      <header class="stg-card-head">
+        <span class="icon icon-bell icon-14"></span>
+        <span class="stg-card-title" data-i18n="stgWindowTitle">Window</span>
+      </header>
+      <div class="stg-card-body">
+        <label class="stg-row stg-row--toggle">
+          <span class="stg-row-text">
+            <span class="stg-row-title" data-i18n="stgCloseToTrayTitle">Close to the notification area</span>
+            <span class="stg-row-sub" data-i18n="stgCloseToTraySub">The close button hides the window instead of quitting.</span>
+          </span>
+          <span class="eac-toggle">
+            <input type="checkbox" id="stgCloseToTray" role="switch" aria-label="Close to the notification area" />
+            <span class="eac-toggle-track"><span class="eac-toggle-thumb"></span></span>
+          </span>
+        </label>
+      </div>
+    </section>
+
     <!-- ── Data (collapsible, closed by default) ───────────────── -->
     <section class="stg-card stg-card--collapsible" data-collapsed="true">
       <button class="stg-card-head stg-card-head--btn" type="button" aria-expanded="false">
@@ -669,6 +689,10 @@
           <button class="ghost sm" id="btnStgImportTtag">
             <span class="icon icon-backup icon-13"></span>
             <span data-i18n="ttagImportBtn">Import a .ttag</span>
+          </button>
+          <button class="ghost sm" id="btnStgExportXlsx">
+            <span class="icon icon-download icon-13"></span>
+            <span data-i18n="settingsExportXlsx">Export .xlsx</span>
           </button>
           <button class="ghost sm" id="btnCopyApiUrl" title="Copy export URL">
             <span class="icon icon-link icon-13"></span>

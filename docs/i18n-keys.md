@@ -25,6 +25,7 @@
 | `settingsTitle` | Panel title |
 | `settingsLang` | Language section label |
 | `settingsExport` | Settings → Data: export the whole inventory as .ttag |
+| `settingsExportXlsx` / `xlsxExportOk` | Settings → Data: export the whole inventory as an .xlsx spreadsheet + its confirmation |
 | `settingsCopied` | Copy confirmation |
 | `debugOpenBtn` | Open debug panel button |
 | `fsExplorerOpenBtn` | Open Firestore explorer button (opens debug panel on the Firestore tab) |
@@ -117,7 +118,7 @@
 | `statActiveMini` `statPlusMini` `statDiyMini` `statTotalMini` | Collapsed sidebar labels |
 
 ### Table headers
-`thUid` `thType` `thMaterial` `thBrand` `thName` `thWeight` `thCapacity` `thUpdated`
+`thUid` `thType` `thMaterial` `thBrand` `thName` `thWeight` `thCapacity` `thUpdated` `thRack` `thPosition` (the last two: .xlsx export columns)
 
 ### Debug panel
 | Key | Purpose |

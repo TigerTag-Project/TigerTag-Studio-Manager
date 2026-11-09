@@ -230,6 +230,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // sitting on top of a white UI.
   setNativeTheme: (theme) => ipcRenderer.send('app:native-theme', theme),
 
+  // Close to the notification area (Windows / Linux; macOS already hides the window).
+  // getCloseToTray() → { supported, enabled }; the main process owns and persists it.
+  getCloseToTray: () => ipcRenderer.invoke('app:close-to-tray-info'),
+  setCloseToTray: (on) => ipcRenderer.send('app:set-close-to-tray', !!on),
+  // The tray menu's labels, translated here (the renderer owns the app language).
+  setTrayLabels: (labels) => ipcRenderer.send('app:tray-labels', labels),
+
   // ── Deep links (tigertag://friend/<code>) ──────────────────────────────
   // Main forwards a clicked deep link here. The renderer also calls
   // deepLinkReady() once its handler is wired so main can flush a link that

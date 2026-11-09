@@ -296,6 +296,83 @@ app.on('before-quit', () => { _isQuitting = true; });
 // never actually quits, and the downloaded update is never installed.
 app.on('before-quit-for-update', () => { _isQuitting = true; });
 
+// ── Close to the notification area (Windows / Linux) ───────────────────────
+// OFF by default. When on, the window's close button HIDES the window instead of
+// quitting — what the macOS branch below always does — and a tray icon brings it
+// back. The renderer, the printer links and the camera streams keep running in the
+// background, exactly as on macOS. A real quit (tray "Quit", the updater, an OS
+// shutdown) still goes through. The renderer owns the setting (Settings → Window)
+// and pushes it; <userData>/tray-prefs.json = { closeToTray, labels: { open, quit } }
+// is read at launch so the icon is there before the renderer has loaded.
+const _trayPrefsPath = () => path.join(app.getPath('userData'), 'tray-prefs.json');
+let _trayPrefs = null;
+function _readTrayPrefs() {
+  if (_trayPrefs) return _trayPrefs;
+  let o = {};
+  try { o = JSON.parse(fs.readFileSync(_trayPrefsPath(), 'utf8')) || {}; } catch (_) {}
+  const L = o.labels && typeof o.labels === 'object' ? o.labels : {};
+  _trayPrefs = { closeToTray: o.closeToTray === true, labels: { open: String(L.open || ''), quit: String(L.quit || '') } };
+  return _trayPrefs;
+}
+function _writeTrayPrefs() {
+  try { fs.writeFileSync(_trayPrefsPath(), JSON.stringify(_readTrayPrefs(), null, 2)); }
+  catch (e) { console.warn('[tray] could not save the preference:', e.message); }
+}
+let _tray = null;
+// Hide instead of close ONLY when the icon really exists — without it there would be
+// no way back to a hidden window (a Linux desktop with no tray, say).
+const _canHideToTray = () => process.platform !== 'darwin' && _readTrayPrefs().closeToTray
+  && !!_tray && !_tray.isDestroyed();
+function _showMainWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+}
+function _syncTray() {
+  const want = process.platform !== 'darwin' && _readTrayPrefs().closeToTray;
+  if (!want) {
+    if (_tray) { try { _tray.destroy(); } catch (_) {} _tray = null; console.log('[tray] removed'); }
+    return;
+  }
+  const L = _readTrayPrefs().labels;
+  try {
+    if (!_tray || _tray.isDestroyed()) {
+      const { Tray, nativeImage } = require('electron');
+      const dir = path.join(__dirname, 'assets', 'img');
+      const icon = process.platform === 'win32'
+        ? nativeImage.createFromPath(path.join(dir, 'icon.ico'))
+        : nativeImage.createFromPath(path.join(dir, 'icon.png')).resize({ width: 22, height: 22 });
+      if (icon.isEmpty()) { console.warn('[tray] icon not found — close-to-tray stays off'); return; }
+      _tray = new Tray(icon);
+      _tray.on('click', _showMainWindow);
+      console.log('[tray] created');
+    }
+    _tray.setToolTip('Tiger Studio Manager');
+    _tray.setContextMenu(Menu.buildFromTemplate([
+      { label: L.open || 'Open Tiger Studio Manager', click: _showMainWindow },
+      { type: 'separator' },
+      { label: L.quit || 'Quit', click: () => { _isQuitting = true; app.quit(); } },
+    ]));
+  } catch (e) {
+    console.warn('[tray] could not create the icon:', e.message);
+    _tray = null;
+  }
+}
+ipcMain.handle('app:close-to-tray-info', () => ({ supported: process.platform !== 'darwin', enabled: _readTrayPrefs().closeToTray }));
+ipcMain.on('app:set-close-to-tray', (_e, on) => {
+  if (process.platform === 'darwin') return;
+  _readTrayPrefs().closeToTray = on === true;
+  _writeTrayPrefs();
+  _syncTray();
+});
+ipcMain.on('app:tray-labels', (_e, labels) => {
+  if (!labels || typeof labels !== 'object') return;
+  _readTrayPrefs().labels = { open: String(labels.open || '').slice(0, 80), quit: String(labels.quit || '').slice(0, 80) };
+  _writeTrayPrefs();
+  if (_tray) _syncTray();      // re-title the menu in the new language
+});
+
 // ── Splash gate ────────────────────────────────────────────────────────────
 // Discord-style launch: a small frameless splash shows INSTANTLY (a local page,
 // renderer/splash/: no server, no Firebase), while the hidden main window loads
@@ -554,15 +631,18 @@ function createWindow() {
   // macOS: red-button close hides the window instead of destroying it, so the
   // renderer (auth session, inventory, live cameras) survives and a dock-click
   // brings it straight back. A real quit (Cmd+Q / updater) sets `_isQuitting`
-  // and is let through. Other platforms keep the default close→quit behaviour.
-  if (process.platform === 'darwin') {
-    mainWindow.on('close', (e) => {
-      if (!_isQuitting) {
-        e.preventDefault();
-        mainWindow.hide();
-      }
-    });
-  }
+  // and is let through. Windows / Linux keep the default close→quit behaviour,
+  // unless "close to the notification area" is on (and its icon exists): then the
+  // window is hidden the same way and the tray icon brings it back.
+  mainWindow.on('close', (e) => {
+    if (_isQuitting) return;
+    if (process.platform === 'darwin' || _canHideToTray()) {
+      e.preventDefault();
+      mainWindow.hide();
+    }
+  });
+  // A Windows shutdown / log-off must never be blocked by that hide.
+  mainWindow.on('session-end', () => { _isQuitting = true; });
 
   // Right-click context menu — native Cut/Copy/Paste/Select-all on any editable
   // field (text/number/url inputs, textareas, contenteditable), plus Copy on any
@@ -6241,6 +6321,9 @@ let _ffmpegBin = null;
         bedCurrent:    num(param.curr_hotbed_temp),
         jobThumb,
         latestProjectId,
+        // What the printer can do, as Anycubic lists it (id 41 = a chamber lamp) —
+        // null when the record carries no such list.
+        typeFunctionIds: Array.isArray(p.type_function_ids) ? p.type_function_ids.map(Number) : null,
       };
     } catch (e) {
       return { ok: false, error: e?.message || String(e) };
@@ -6501,6 +6584,7 @@ app.whenReady().then(async () => {
   splashStep(2);
 
   createWindow();
+  _syncTray();       // the notification-area icon, when "close to the notification area" is on
   splashStep(3);
   mainWindow.webContents.once('did-finish-load', () => splashStep(4));
   initMcp();   // local read-only MCP server — only if the user turned it on
