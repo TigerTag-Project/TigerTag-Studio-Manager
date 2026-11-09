@@ -1162,6 +1162,10 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     btn.addEventListener("pointerup",     cancel);
     btn.addEventListener("pointerleave",  cancel);
     btn.addEventListener("pointercancel", cancel);
+    // On a phone a long press is also the browser's own gesture: its menu opened
+    // and cancelled the hold (issue #231). The button keeps the press (`.hold-press`).
+    btn.classList.add("hold-press");
+    btn.addEventListener("contextmenu", e => e.preventDefault());
   }
   // toast(el, kind, msg, opts?) — opts.err + opts.context add a "Details" link that opens the diagnostic panel
   function toast(el, kind, msg, opts) {

@@ -381,6 +381,10 @@
      (rack slots, list/cart reorder, friends) uses a draggable <div>/<span>
      handle, never an <img>, so disabling image-drag here breaks nothing. */
   img { -webkit-user-drag: none; user-drag: none; }
+  /* A button held to confirm (setupHoldToConfirm, holdToFire): on a phone a long
+     press is also the browser's gesture (link / image menu, scroll), which took
+     the press and cancelled the hold. The button keeps it. */
+  .hold-press { -webkit-touch-callout: none; touch-action: none; }
 
   /* ── .circle-center — content optically centred inside a round badge ──────
      Reach for this on ANY circle holding a character, a number or a glyph

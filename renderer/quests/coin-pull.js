@@ -347,6 +347,9 @@ export function holdToFire(btn, ms, done, hint = null) {
     start();
   });
   ["pointerup", "pointercancel", "lostpointercapture"].forEach(ev => btn.addEventListener(ev, () => { if (raf) stop(); }));
+  // A phone's long-press menu must not take the press (issue #231).
+  btn.classList.add("hold-press");
+  btn.addEventListener("contextmenu", e => e.preventDefault());
   btn.addEventListener("keydown", e => { if ((e.key === "Enter" || e.key === " ") && !e.repeat) { e.preventDefault(); start(); } });
   btn.addEventListener("keyup", e => { if ((e.key === "Enter" || e.key === " ") && raf) stop(); });
 }
