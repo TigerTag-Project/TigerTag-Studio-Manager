@@ -514,6 +514,8 @@
       <div id="invSquadView" class="inv-squad-view hidden"></div>
       <div id="invXpHistView" class="inv-squad-view xph-view hidden"></div>
       <div id="invDealsView" class="inv-squad-view sqd-view hidden"></div>
+      <!-- The AI assistant page (renderer/ai/assistant.js renderAiPage). -->
+      <div id="invAiView" class="inv-squad-view aip-view hidden"></div>
 
       <!-- Search — the official TigerTag+ catalogue (grid or table), rendered by
            renderCatalogView() from the LOCAL cache. Picking a product only
@@ -2341,95 +2343,11 @@
       </div>
 
       <div class="eac-col">
-      <!-- ── AI assistants (local MCP server, read-only) — per profile ── -->
-      <section class="eac-group" id="eacMcpGroup">
-        <h3 class="eac-card-title"><span class="icon icon-sparkle icon-14" aria-hidden="true"></span><span data-i18n="stgMcpTitle">AI assistants</span> <span class="eac-info" tabindex="0" role="button" data-i18n-tip="eacMcpWebDiff" data-tip="On this computer: only while Studio is open, but it sees your printers live. Online: works anywhere without Studio, minus the live printer view." data-i18n-aria="stgMcpTitle"><span class="icon icon-info icon-13"></span></span></h3>
-        <div class="eac-row">
-          <span class="eac-row-label">
-            <span data-i18n="eacMcpRow">Let an AI read my inventory</span>
-            <span class="eac-info" tabindex="0" role="button" data-i18n-tip="stgMcpToggleSub"
-                  data-tip="Claude & co. can look up your spools, racks and printers. Look, never touch — and only on this computer."
-                  data-i18n-aria="stgMcpTitle">
-              <span class="icon icon-info icon-13"></span>
-            </span>
-          </span>
-          <label class="eac-toggle">
-            <input type="checkbox" id="eacMcpToggle" role="switch" />
-            <span class="eac-toggle-track"><span class="eac-toggle-thumb"></span></span>
-          </label>
-        </div>
-        <div class="eac-mcp is-off" id="eacMcpOn">
-          <div class="eac-row eac-mcp-write">
-            <span class="eac-row-label">
-              <span data-i18n="eacMcpWriteRow">Let it make changes too</span>
-              <span class="eac-info" tabindex="0" role="button" data-i18n-tip="eacMcpWriteTip"
-                    data-tip="Weights, notes, tags, prices, buy links, racks, new spools from the catalogue. Every change is logged and can be undone. It never deletes a thing."
-                    data-i18n-aria="eacMcpWriteRow">
-                <span class="icon icon-info icon-13"></span>
-              </span>
-            </span>
-            <label class="eac-toggle">
-              <input type="checkbox" id="eacMcpWriteToggle" role="switch" />
-              <span class="eac-toggle-track"><span class="eac-toggle-thumb"></span></span>
-            </label>
-          </div>
-          <div class="eac-mcp-apps">
-            <button type="button" class="eac-mcp-app" data-mcp-target="claude-desktop" data-mcp-app="Claude Desktop" data-i18n-aria="stgMcpAddClaude">
-              <span class="eac-mcp-logo eac-mcp-logo--claude" aria-hidden="true"></span><span class="eac-mcp-name">Claude</span>
-            </button>
-            <button type="button" class="eac-mcp-app" data-mcp-target="cursor" data-mcp-app="Cursor" data-i18n-aria="stgMcpAddCursor">
-              <span class="eac-mcp-logo eac-mcp-logo--cursor" aria-hidden="true"></span><span class="eac-mcp-name">Cursor</span>
-            </button>
-            <button type="button" class="eac-mcp-app" data-mcp-target="vscode" data-mcp-app="VS Code" data-i18n-aria="stgMcpAddVscode">
-              <span class="eac-mcp-logo eac-mcp-logo--vscode" aria-hidden="true"></span><span class="eac-mcp-name">VS Code</span>
-            </button>
-          </div>
-          <div class="eac-mcp-foot">
-            <span class="eac-mcp-status" id="eacMcpStatus"></span>
-            <button type="button" class="eac-mcp-key" id="btnMcpNewKey" data-hold-tip="stgMcpNewKeyTip">
-              <span class="hold-progress"></span>
-              <span class="icon icon-key icon-13" aria-hidden="true"></span>
-              <span data-i18n="stgMcpNewKey">Renew the key</span>
-            </button>
-          </div>
-        </div>
-      </section>
-
-      <!-- Hosted connector (Tiger Hub) — independent of the local toggle above -->
-      <section class="eac-group eac-mcp-web" id="eacMcpWeb">
-        <h3 class="eac-card-title"><span class="icon icon-globe icon-14" aria-hidden="true"></span><span data-i18n="eacMcpWebTitle">From the web and your phone</span> <span class="eac-info" tabindex="0" role="button" data-i18n-tip="eacMcpWebSub" data-tip="On the web or in their phone apps, these assistants can read your stock too — nothing to install: add this address as a custom connector." data-i18n-aria="eacMcpWebTitle"><span class="icon icon-info icon-13"></span></span></h3>
-        <!-- One tile per assistant: copies the address and opens that assistant's section of the guide. -->
-        <div class="eac-mcp-apps eac-mcp-apps--web">
-          <button type="button" class="eac-mcp-app" data-mcp-web="claude" data-mcp-app="Claude">
-            <span class="eac-mcp-logo eac-mcp-logo--claude" aria-hidden="true"></span><span class="eac-mcp-name">Claude</span>
-          </button>
-          <button type="button" class="eac-mcp-app" data-mcp-web="chatgpt" data-mcp-app="ChatGPT">
-            <span class="eac-mcp-logo eac-mcp-logo--chatgpt" aria-hidden="true"></span><span class="eac-mcp-name">ChatGPT</span>
-          </button>
-          <button type="button" class="eac-mcp-app" data-mcp-web="grok" data-mcp-app="Grok">
-            <span class="eac-mcp-logo eac-mcp-logo--grok" aria-hidden="true"></span><span class="eac-mcp-name">Grok</span>
-          </button>
-          <button type="button" class="eac-mcp-app" data-mcp-web="lechat" data-mcp-app="Le Chat">
-            <span class="eac-mcp-logo eac-mcp-logo--mistral" aria-hidden="true"></span><span class="eac-mcp-name">Le Chat</span>
-          </button>
-        </div>
-        <div class="eac-mcp-url">
-            <code id="eacMcpWebUrl">https://mcp.tigersystem.io/mcp</code>
-            <button type="button" class="eac-mcp-copy" id="btnMcpWebCopy" data-i18n="copyLabel">Copy</button>
-          </div>
-        <div class="eac-mcp-howto-row">
-            <button type="button" class="eac-mcp-howto" id="btnMcpWebHowto">
-            <span data-i18n="eacMcpWebHowto">How to connect</span>
-            <span class="icon icon-arrow-r icon-11" aria-hidden="true"></span>
-          </button>
-        </div>
-      </section>
-
-      <!-- Connected online assistants — a card of its own (hidden with the
-           connector when the hosted grants API is not available). -->
-      <section class="eac-group" id="eacMcpGrantsCard">
-        <h3 class="eac-card-title"><span class="icon icon-user icon-14" aria-hidden="true"></span><span data-i18n="eacMcpGrantsTitle">Connected online assistants</span></h3>
-        <div class="eac-mcp-grants" id="eacMcpGrants"></div>
+      <!-- AI assistants: their own page (renderer/ai/assistant.js) — this card leads there. -->
+      <section class="eac-group" id="eacAiLink">
+        <h3 class="eac-card-title"><span class="icon icon-robot icon-14" aria-hidden="true"></span><span data-i18n="aiTitle">AI assistant</span></h3>
+        <p class="eac-ai-text" data-i18n="eacAiLinkText">Plug in your assistant, see what it does and manage its access.</p>
+        <button type="button" class="secondary eac-ai-open" id="btnEacOpenAi"><span class="icon icon-robot icon-14" aria-hidden="true"></span><span data-i18n="eacAiLinkBtn">Open the AI assistant</span></button>
       </section>
 
 

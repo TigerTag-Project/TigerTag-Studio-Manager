@@ -31,75 +31,70 @@ cloud*; they cannot reach `127.0.0.1`. They use the **hosted connector** instead
 
 ---
 
-## 2. For the user — turning it on
+## 2. For the user — the AI assistant page
 
-**My profile** (account menu → *My profile*) → **AI assistants** → *Let an AI read my
-inventory*. It is a **per-profile** choice, off by default: the server serves the account
-that is signed in, so it runs only while THAT account has opted in — switching to a
-profile that has not turns it off, and signing out stops it. The ⓘ next to the toggle
-explains what an assistant can see. Three tiles with each app's logo sit underneath —
-greyed and inert until the toggle is on:
+Everything a user does with an assistant lives on one page, **AI assistant**, opened by the robot
+button under Notifications and Tiger Quests (`renderer/ai/assistant.js` + `ai.css`, view mode
+`aiAssistant`, container `#invAiView`). Desktop only: Studio Web has no `mcpBridge`. My profile keeps
+one card (`#eacAiLink`) that leads there, on the signed-in account's own profile.
 
-| Tile / link | What happens |
+Access is a **per-profile** choice, off by default: the server serves the account that is signed
+in, so it runs only while THAT account has opted in. Switching to a profile that has not turns it
+off, and signing out stops it. Studio must be running and signed in for a local assistant to answer.
+
+### The setup (first connection) — a window, `openDialog`
+
+Welcome → **Assistant** (Claude, ChatGPT, Cursor, VS Code, Le Chat, Grok; "I don't use an assistant
+yet" → download Claude) → **Where** (this computer / web and phone — asked only when the assistant
+does both) → **Access** (this computer only: read only by default, or read and change) →
+**Connection**. The named markers show only the steps of this flow.
+
+- **On this computer**: one button. It turns the local server on with the chosen access, and
+  `mcpBridge.install` opens Claude Desktop's extension install (a `.mcpb` bundle) or Cursor's /
+  VS Code's install link. The screen then says what to do and waits; "Claude didn't open?" offers a
+  retry and the guide.
+- **Online** (the Hub's `https://mcp.tigersystem.io/mcp`, OAuth 2.1, read only, design in
+  `MCP-HOSTED.md` of the `TigerTag_Hub` repo): "Copy the address" and "Open the guide" (the wiki,
+  `wiki.tigersystem.io/guides/connect-an-ai-assistant/`, on that assistant's anchor, `/fr/` in French).
+- The wait ends by itself: locally on the first tool call (every call reaches `aiOnToolCall` through
+  the `mcp:call` relay), online on a grant created or used since (`hostedGrants`, every 5 s, only while
+  that screen is open). "It answered, carry on" ends it by hand.
+- Then a ceremony ("Plugged in!", the robot swelling behind the window) → "Open my assistant".
+
+### The page
+
+- **Head**: status chips (this computer · off / read only / read and change; online · n), "Plug in
+  another assistant" (the setup), "Manage access" (below).
+- **Try these questions**: three questions built from the user's own stock, ticked "worked" when the
+  matching tool is called, always copyable.
+- **Activity on this computer**: this session's tool calls, one line each with its time — what it did
+  · on what, and the result ("2 results for « Powder Pink »", "203 spools, 158.24 kg"); a refusal says
+  why. Online calls run on the Hub and do not show (the page says so).
+- **Latest changes**: the 3 newest journal entries — "spool · field", "before → after", Undo / Undone
+  (`_mcpUndo`: the user's undo needs no write switch) — and "See the full history" (every entry of the
+  30-day journal, by day). A spool the assistant reads or changes glows in the main view (`.ai-glow`).
+
+### Access and security (the page's "Manage access")
+
+The one place for these settings:
+
+| Block | What it holds |
 |---|---|
-| **Claude** | Studio builds a `.mcpb` bundle and opens it → Claude Desktop shows its extension install dialog |
-| **Cursor** | opens Cursor's MCP install link |
-| **VS Code** | opens VS Code's MCP install link |
-| **Let it make changes too** | second switch, per profile, off by default, inert while reading is off: lists the write tools (§5) to the assistant |
-| **Renew the key** (hold 1.5 s) | rotates the token — every assistant must be added again |
+| **On this computer** | Off / Read only / Read and change (`setEnabled` + `setWrite`); under *Advanced options*, **Renew the local key** (hold 1.5 s) — every local assistant must be added again |
+| **Online** | one row per assistant connected to the Hub (`GET https://tigersystem.io/api/account/mcp-grants` with the account's Firebase ID token): name, read only, connected date, last use, **Cut access** (hold 1.5 s → `DELETE …?id=`; 204 or 404 both remove the row) |
 
-The block only appears on the signed-in account's own profile.
+The Hub route sends no CORS headers, so both calls go through the main process (`mcp:hosted-grants`
+IPC → `mcpBridge.hostedGrants(idToken, revokeId?)`, fixed URL, GET/DELETE only).
 
-**Claude Code** (developer tool) has no one-click install and is not offered in the UI:
-run `claude mcp add --transport http tiger-studio http://127.0.0.1:5795/mcp --header "Authorization: Bearer <token>"`
-with the token from `<userData>/mcp.json`. Logos: Simple Icons SVGs in
-`assets/svg/brands/` (`claude.svg`, `cursor.svg`, `vscode.svg`), tinted in CSS.
+**Claude Code** (developer tool) has no one-click install: run
+`claude mcp add --transport http tiger-studio http://127.0.0.1:5795/mcp --header "Authorization: Bearer <token>"`
+with the token from `<userData>/mcp.json`. Logos: Simple Icons SVGs in `assets/svg/brands/`, tinted in
+CSS (`.eac-mcp-logo--*`).
 
-Studio must be running (and signed in) for an assistant to get answers.
-
-### The online connector (hosted by the Tiger Hub)
-
-Below the tiles, a **From the web and your phone** sub-block presents the Hub's
-hosted server — `https://mcp.tigersystem.io/mcp` (OAuth 2.1, same 14 read-only tools,
-credentials masked; design: `MCP-HOSTED.md` in the `TigerTag_Hub` repo). It does **not**
-depend on the local toggle and is never greyed: it works without Studio.
-
-| Element | What happens |
-|---|---|
-| **Claude / ChatGPT / Grok / Le Chat** tiles | copy the address and open that assistant's section of the guide (`#claude-web-desktop-mobile`, `#chatgpt`, `#grok`, `#le-chat-mistral`; French anchors on `/fr/`), with a toast |
-| Address + **Copy** | copies `https://mcp.tigersystem.io/mcp`, to paste as a custom connector in Claude.ai / ChatGPT / Codex / Cursor |
-| **How to connect** | opens the public guide externally — `wiki.tigersystem.io/guides/connect-an-ai-assistant/` (`/fr/` edition when Studio is in French) |
-| Info bubbles | on the online card's title: what it is (`eacMcpWebSub`); on the local "AI assistants" card's title: local = only while Studio is open, sees live printer state; online = anywhere without Studio, no live printer state (`eacMcpWebDiff`) |
-| **Connected online assistants** | `GET https://tigersystem.io/api/account/mcp-grants` with the signed-in account's Firebase ID token → one row per grant (name, connected date, last used) |
-| **Cut access** (hold 1.5 s) | `DELETE …/mcp-grants?id=<id>` — 204 or 404 both remove the row |
-
-The Hub route sends no CORS headers, so both calls go through the main process
-(`mcp:hosted-grants` IPC → `mcpBridge.hostedGrants(idToken, revokeId?)`, fixed URL, GET/DELETE
-only). The list is fetched each time the profile opens; empty → a short "none yet" line,
-failure → one quiet error line (never a dialog). Same visibility rule as the rest of the block:
-the signed-in account's own profile only.
+Per account, `tigertag.ai.<uid>` remembers an assistant is plugged in (the sidebar's "New" pill
+becomes a dot).
 
 ---
-
-### The AI assistant window (sidebar)
-
-`renderer/ai/assistant.js` + `ai.css`, opened by **AI assistant** (robot icon) under Notifications
-and Tiger Quests — desktop only (no `mcpBridge` in Studio Web). A beginner's way in, on `openDialog`:
-
-1. Welcome (three things it can do) → **which assistant** (Claude, ChatGPT, Cursor, VS Code, Le Chat,
-   Grok, or none → download Claude) → **where** (this computer / web and phone — asked only for Claude)
-   → **what it may do** (look / tidy up, this computer only: sets the two switches of My profile)
-   → **plug it in** (local: `mcpBridge.install`; online: the address is copied and the wiki guide
-   opens on that assistant) → **wait**.
-2. The wait ends by itself: on this computer the first tool call (every call is passed to
-   `aiOnToolCall` by the `mcp:call` relay); online a grant created or used since the wait started
-   (`hostedGrants`, every 5 s, only while that screen is open). "It answered, carry on" ends it by hand.
-3. A ceremony ("Plugged in", a robot swelling behind the window), then the **dashboard**: status
-   chips, three questions built from the user's own stock (ticked when the matching tool is called),
-   the live feed of this session's calls in plain words (`aiAct_*`; online calls run on the Hub and
-   do not show), and the journaled changes with **Undo** (`_mcpUndo` — the user's undo needs no write
-   switch). A spool the assistant looked at or changed glows in the main view (`.ai-glow`).
-4. Per account, `tigertag.ai.<uid>` remembers it is plugged in (the sidebar's "New" pill becomes a dot).
 
 ## 3. Architecture
 
@@ -139,7 +134,7 @@ Bundle + bridge copies: `<userData>/mcp/`.
 
 | Rule | How |
 |---|---|
-| **Read by default** | the query tools carry `readOnlyHint: true`; the write tools (`readOnlyHint: false`) exist for the assistant only while the account allows changes, never delete, and are journaled + undoable |
+| **Read by default** | the query tools carry `readOnlyHint: true`; the write tools (`readOnlyHint: false`) exist for the assistant only while the account's access is "read and change" (AI assistant › Manage access), never delete, and are journaled + undoable |
 | **Loopback only** | listens on `127.0.0.1` — never another interface |
 | **Token** | `Authorization: Bearer <48 hex>` required, else **401** — compared in constant time (`crypto.timingSafeEqual`); rotatable (hold 1.5 s) |
 | **Batch cap** | a JSON-RPC batch holds 1–20 messages, else **400** — each `tools/call` is relayed to the app |
@@ -149,12 +144,12 @@ Bundle + bridge copies: `<userData>/mcp/`.
 | **Scope** | the account's own `users/{uid}/…`, an accepted friend's `inventory` / `racks` / `products` / `lists`, and `userProfiles/…` — anything else is refused (`_mcpCheckPath`); Firestore rules apply on top |
 | **No credentials, ever** | `secrets` and `apiKeys` subtrees refused; fields matching `MCP_SECRET_FIELD` masked as `"[redacted]"` — passwords, access / check codes, tokens, keys, certs, cloud logins |
 | **Identity privacy** | e-mail and the Google real name (`googleName`, `firstName`, `lastName`) are masked — the app never displays them either |
-| **Off by default, per profile** | each account opts in from *My profile*; the server runs only while the signed-in account has — another profile's data is never exposed by someone else's choice |
+| **Off by default, per profile** | each account opts in (AI assistant › Manage access, or the setup); the server runs only while the signed-in account has — another profile's data is never exposed by someone else's choice |
 
 Why masking matters: **the server is local, the data is not** — every tool result becomes part
 of the assistant's conversation and is sent to its vendor (Anthropic, Cursor, Microsoft…),
-friends' shared stock included. The ⓘ bubble in *My profile* says so; never word it as
-"stays on this computer".
+friends' shared stock included. AI assistant › Manage access says so (`aiAccessPrivacy`); never
+word it as "stays on this computer".
 
 **Untrusted text.** Names, notes, messages and list text are user data — a friend's included —
 and may carry instructions aimed at the model. The server `instructions` and the notice
@@ -199,8 +194,8 @@ structured values; the tool does the colour and gram arithmetic):
 | `identify_spool` | the spool a QR code (`qr.tigertag.io/<id>`, read with `qr-link.js` `parseQrLink`) or a chip UID / spool id designates — inventory, twin, linked maker chip, then `uidMigrationMap`; a product QR (`/p/…`) gives the product and the user's spools of it; `?weight=` / `?note=` come back as `proposed_values`, never applied |
 | `match_filaments` | for each filament of a print `{slot, color_hex, material, grams}`: ranked spools of the stock (material by ID, colour by ΔE, needed = grams × (1 + margin) + 5 g, a spool never counted twice), the pick, `enough` / `shortfall_g`, location, and catalogue products to buy for what is missing |
 
-Write tools — listed to the assistant only when the signed-in account turned on **Let it make
-changes too** (My profile › AI assistants; `writeFor` in `mcp.json`, filtered in `main.js`
+Write tools — listed to the assistant only when the signed-in account's access is **Read and
+change** (AI assistant › Manage access, or the setup; `writeFor` in `mcp.json`, filtered in `main.js`
 `listTools` and checked again by `_mcpWriteGate`):
 
 | Tool | Does |
@@ -336,7 +331,7 @@ curl -s -H "Content-Type: application/json" -H "Authorization: Bearer $TOK" \
 2. **Writes** — local server built (§5 "Write tools"). Left: the hosted connector (an OAuth
    scope `inventory.write` chosen at consent, the journal moved to Firestore
    `users/{uid}/agentChanges` with its rule, so a change made online can be undone anywhere),
-   colour / TD edits, spools outside the catalogue, a "changes by assistants" list in My profile.
+   colour edits, spools outside the catalogue.
 3. **In-app agent** sharing the same tool registry (local model, Ollama, or the user's key).
 
 ---

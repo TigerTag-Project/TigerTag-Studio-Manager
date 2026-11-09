@@ -31,7 +31,7 @@ import { closePullStages, holdToFire, openPullStage } from './quests/coin-pull.j
 import { squadHeroHtml, squadItemsHeroHtml, squadRankingsHtml, pulseHtml as squadPulseHtml, toggleLeague, pickLeague, leagueRows, setLeagueRows, rankNo } from './quests/squad-rankings.js';
 import { artImg } from './art.js';
 import { openDialog, initDialogs } from './dialog.js';
-import { initAiAssistant, aiOnToolCall, aiAccountChanged } from './ai/assistant.js';
+import { initAiAssistant, aiOnToolCall, aiAccountChanged, renderAiPage } from './ai/assistant.js';
 import { initTrophies, trophiesSignIn, trophiesSignOut, renderTrophiesView, trophyEarned } from './quests/trophies.js';
 import { fillHeroScenes } from './hero-scene.js';
 import { myCodeCardHtml } from './quests/ui-kit.js';
@@ -5074,12 +5074,11 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   }
   function openEditAccountModal(acc) {
     _editingAccount = acc || activeAccount(); if (!_editingAccount) return;
-    // AI-assistant access is the SIGNED-IN account's choice (the server serves
-    // that account) — only offered on its own profile.
-    const mcpGroup = $("eacMcpGroup");
-    if (mcpGroup) mcpGroup.hidden = !window.mcpBridge || _editingAccount.id !== state.activeAccountId;
-    _mcpSettingsRefresh?.();
-    if (mcpGroup && !mcpGroup.hidden) _mcpGrantsRefresh?.();
+    // AI assistants live on their own page now (renderer/ai/assistant.js): the
+    // profile keeps one card that leads there — the signed-in account's own
+    // profile only, desktop only (the server serves that account).
+    const aiCard = $("eacAiLink");
+    if (aiCard) aiCard.hidden = !window.mcpBridge || _editingAccount.id !== state.activeAccountId;
     // Atomic paint via the centralised pipeline — gradient,
     // .av-initials text and the photo overlay all in one shot. No
     // textContent on #eacAvatar itself (that would wipe the hover
@@ -10381,6 +10380,8 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     $("invInviteView")?.classList.toggle("hidden", state.viewMode !== "squadInvite");
     $("vtgSquadDeals")?.classList.toggle("active", state.viewMode === "squadDeals");
     $("invDealsView")?.classList.toggle("hidden", state.viewMode !== "squadDeals");
+    $("invAiView")?.classList.toggle("hidden", state.viewMode !== "aiAssistant");
+    $("btnOpenAi")?.classList.toggle("is-active", state.viewMode === "aiAssistant");
     if (_isProgressMode(state.viewMode)) {
       $("card-welcome").classList.add("hidden");
       $("card-inv").classList.remove("hidden");
@@ -10390,6 +10391,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       else if (state.viewMode === "squadTrophies") renderTrophiesView($("invTrophiesView"), state.friendView ? { uid: state.friendView.uid, displayName: state.friendView.displayName } : null);
       else if (state.viewMode === "squadInvite") renderInviteView($("invInviteView"));
       else if (state.viewMode === "squadDeals") _renderDealsView();
+      else if (state.viewMode === "aiAssistant") renderAiPage($("invAiView"));
       else if (state.viewMode === "squad" || state.viewMode === "squadItems") _renderSquadView();
       else renderQuestsView($("invQuestsView"), state.viewMode === "questsJourney" ? "journey" : "today");
       for (const id of ["invQuestsView", "invSquadView", "invXpHistView", "invDealsView", "invTrophiesView", "invInviteView"]) _wireHeroFade($(id));
@@ -13930,7 +13932,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
 
   /* ── view toggle ── */
   // Tiger Quests (Today / Journey) and TigerSquad: progress views of the main area.
-  const _isProgressMode = m => m === "questsToday" || m === "questsJourney" || m === "squad" || m === "squadItems" || m === "xpHistory" || m === "squadDeals" || m === "squadTrophies" || m === "squadInvite";
+  const _isProgressMode = m => m === "questsToday" || m === "questsJourney" || m === "squad" || m === "squadItems" || m === "xpHistory" || m === "squadDeals" || m === "squadTrophies" || m === "squadInvite" || m === "aiAssistant";
   function setViewMode(mode, opts = {}) {
     // Web build: the printer views need the LAN (not reachable from a browser yet).
     if (!HAS_NATIVE && _isPrinterMode(mode)) mode = "grid";
@@ -45672,7 +45674,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
       photo: "A spool's QR code (a qr.tigertag.io link) or a chip UID: identify_spool gives the spool itself. A maker's label: the EAN barcode is the best key for search_catalog. A picture of a print: colours read from a photo are approximate — use match_filaments with tolerance \"loose\" and let the user confirm.",
     },
     print_planning: "To choose spools for a print, call match_filaments with one need per filament { slot, color_hex, material, grams }. It compares materials by ID, colours by CIEDE2000, adds the safety margin, never gives one spool to two slots beyond its weight, and suggests catalogue products for what is missing. Report the pick per slot with its location and remaining grams.",
-    writing: "Changes are possible only when the user turned on \"Let it make changes too\" (Studio › My profile › AI assistants); otherwise the write tools are not listed. They are: set_spool_weight, update_spool (note, TD, tags, empty-spool model), move_spool (rack slot; find_free_slots lists the free ones), create_rack, rename_rack, update_product (price, buy link, min stock, links / documents), create_spools (from catalogue product_ids), undo_change; list_changes shows what was done. Say what you are about to change and read the result back. Nothing can be deleted: a finished spool is set to 0 g. A spool created by mistake is deleted by the user in Studio. Limits: 20 spools per call, 100 new spools and 500 changes a day. get_label prints or saves a spool's label through Studio's own dialog (always available).",
+    writing: "Changes are possible only when the user set this computer's access to \"Read and change\" (Studio › AI assistant › Manage access); otherwise the write tools are not listed. They are: set_spool_weight, update_spool (note, TD, tags, empty-spool model), move_spool (rack slot; find_free_slots lists the free ones), create_rack, rename_rack, update_product (price, buy link, min stock, links / documents), create_spools (from catalogue product_ids), undo_change; list_changes shows what was done. Say what you are about to change and read the result back. Nothing can be deleted: a finished spool is set to 0 g. A spool created by mistake is deleted by the user in Studio. Limits: 20 spools per call, 100 new spools and 500 changes a day. get_label prints or saves a spool's label through Studio's own dialog (always available).",
   };
 
   MCP_TOOLS.push(
@@ -46103,7 +46105,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
 
   // ── MCP — write tools: the user's assistant manages the stock ─────────────
   // Listed to the assistant only while the account allows changes (main.js
-  // `writeFor`, My profile › AI assistants › "Let it make changes too"), and
+  // `writeFor`, AI assistant › Manage access › "Read and change"), and
   // checked again here. Rules (.agents/rules/mcp.md): a closed list of fields,
   // written like the app writes them (twin mirrored, chip fields flagged for a
   // re-burn); every change goes into a journal with the values before it and
@@ -46135,7 +46137,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   async function _mcpWriteGate(count = 1) {
     _mcpRows();   // signed in, own inventory, loaded
     const cfg = await window.mcpBridge?.getConfig?.().catch(() => null);
-    if (!cfg?.write) throw new Error("Changes are not allowed. The user turns on \"Let it make changes too\" in Studio › My profile › AI assistants.");
+    if (!cfg?.write) throw new Error("Changes are not allowed. The user sets this computer's access to \"Read and change\" in Studio › AI assistant › Manage access.");
     const done = _mcpJournal().filter(c => c.at >= _mcpToday()).reduce((s, c) => s + (c.count || 1), 0);
     if (done + count > MCP_CAPS.changesPerDay) throw new Error(`Daily limit of ${MCP_CAPS.changesPerDay} changes reached — try again tomorrow.`);
   }
@@ -46573,80 +46575,25 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
         if (!fn) throw new Error(`Unknown tool: ${name}`);
         const result = await fn(args || {});
         window.mcpBridge.reply({ id, ok: true, result });
-        aiOnToolCall({ name, args: args || {}, ok: true, result });
+        // The AI window's feed must never turn an answered call into a failure.
+        try { aiOnToolCall({ name, args: args || {}, ok: true, result }); } catch (e) { console.warn("[ai] feed:", e); }
       } catch (e) {
         window.mcpBridge.reply({ id, ok: false, error: String(e?.message || e) });
-        aiOnToolCall({ name, args: args || {}, ok: false, result: null });
+        try { aiOnToolCall({ name, args: args || {}, ok: false, result: null, error: String(e?.message || e) }); } catch (_) {}
       }
     });
   }
 
-  // ── My profile › AI assistants — the MCP server is a PER-PROFILE choice: the
-  // account signed in is told to main (mcp:set-account), which runs the server
-  // only if THAT account opted in. Toggle + ⓘ bubble; once on, one click adds
-  // Studio to Claude Desktop (.mcpb), Cursor or VS Code (install links).
-  let _mcpSettingsRefresh = null;   // re-reads the server state (profile opened, account switched)
+  // The account signed in is told to main (mcp:set-account), which runs the
+  // local MCP server only if THAT account opted in (Access and security).
   function _mcpSyncAccount(uid) {
     const api = window.mcpBridge;
     if (!api) return;
-    api.setAccount(uid || null).then(() => _mcpSettingsRefresh?.()).catch(() => {});
+    api.setAccount(uid || null).catch(() => {});
     aiAccountChanged();
   }
-  (function wireMcpProfile() {
-    const api = window.mcpBridge;
-    const tog = $("eacMcpToggle");
-    if (!api || !tog) { $("eacMcpGroup")?.setAttribute("hidden", ""); return; }
-    let cfg = null, flashT = null;
-    const statusEl = $("eacMcpStatus");
-    const setStatus = (kind, text) => { if (statusEl) { statusEl.dataset.kind = kind || ""; statusEl.textContent = text || ""; } };
-    const paint = () => {
-      const on = !!cfg?.enabled;
-      tog.checked = on;
-      // Tiger Quests (Explorer secret mission): an AI assistant allowed, ever.
-      if (on) questGauge("aiAssistant", 1);
-      // Always shown, greyed and inert while off — you see what turning it on unlocks.
-      const block = $("eacMcpOn");
-      block.classList.toggle("is-off", !on);
-      block.querySelectorAll("button").forEach(b => { b.disabled = !on; });
-      const wr = $("eacMcpWriteToggle");
-      if (wr) { wr.checked = on && !!cfg?.write; wr.disabled = !on; }
-      if (!on) return setStatus("", "");
-      // Running is the normal case — no message. Only a failure says something.
-      if (cfg.running) setStatus("", "");
-      else setStatus("err", t("stgMcpError", { error: cfg.error || "—" }));
-    };
-    // A transient message, then back to the steady state.
-    const flash = (kind, text, ms = 4000) => { setStatus(kind, text); clearTimeout(flashT); flashT = setTimeout(paint, ms); };
-    const refresh = async () => { try { cfg = await api.getConfig(); paint(); } catch (_) {} };
-    tog.addEventListener("change", async () => { cfg = await api.setEnabled(tog.checked); paint(); });
-    // Second choice: the write tools (MCP — write tools). Main lists them to the
-    // assistant only while this is on.
-    $("eacMcpWriteToggle")?.addEventListener("change", async (e) => { cfg = await api.setWrite(e.target.checked); paint(); });
-    document.querySelectorAll("#eacMcpGroup [data-mcp-target]").forEach(btn => {
-      btn.addEventListener("click", async () => {
-        const app = btn.dataset.mcpApp;
-        const res = await api.install(btn.dataset.mcpTarget);
-        flash(res?.ok ? "ok" : "warn", t(res?.ok ? "stgMcpAddOpened" : "stgMcpAddFailed", { app }), 5000);
-      });
-    });
-    // Renewing breaks every assistant already set up — held 1.5 s, like the
-    // other hard-to-undo actions, with a bubble saying what it does and how.
-    // Done = the button itself answers: the key turns into a green tick for a
-    // moment and pops, then settles back. No sentence appears and nothing moves.
-    const keyBtn = $("btnMcpNewKey");
-    let keyDoneT = null;
-    setupHoldToConfirm(keyBtn, 1500, async () => {
-      cfg = await api.newToken();
-      const ico = keyBtn.querySelector(".icon");
-      keyBtn.classList.remove("is-done"); void keyBtn.offsetWidth;   // replay the pop on a second renewal
-      keyBtn.classList.add("is-done");
-      ico?.classList.replace("icon-key", "icon-check");
-      clearTimeout(keyDoneT);
-      keyDoneT = setTimeout(() => { keyBtn.classList.remove("is-done"); ico?.classList.replace("icon-check", "icon-key"); }, 1800);
-    }, { hint: true });
-    _mcpSettingsRefresh = refresh;
-    refresh();
-  })();
+  $("btnEacOpenAi")?.addEventListener("click", () => { closeEditAccountModal(); setViewMode("aiAssistant"); });
+
   // ── The AI assistant window (renderer/ai/assistant.js): sidebar button, guided
   // first connection, live feed of the local tool calls, undo of their changes.
   initAiAssistant({
@@ -46672,6 +46619,18 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     journal: () => { try { return _mcpJournal(); } catch (_) { return []; } },
     undo: (id) => _mcpUndo(id),
     openSettings: () => { const a = activeAccount(); if (a) openEditAccountModal(a); },
+    openPage: () => setViewMode("aiAssistant"),
+    // Words and numbers for the activity lines: a rack and an empty-spool model by
+    // name, a price in the account's currency (prices are stored without VAT).
+    rackName: (id) => (state.racks || []).find(k => k.id === id)?.name || null,
+    containerName: (id) => { const c = containerFind(id); return c ? [c.brand, c.label].filter(Boolean).join(" ") : null; },
+    money: (v) => new Intl.NumberFormat(state.lang, { style: "currency", currency: _vatInfo(_vatCountryCode()).currency }).format(Number(v)),
+    lang: () => state.lang,
+    holdToConfirm: (btn, ms, fn) => setupHoldToConfirm(btn, ms, fn, { hint: true }),
+    timeAgo,
+    // Tiger Quests (Explorer secret mission): an AI assistant allowed, ever.
+    aiEnabled: () => questGauge("aiAssistant", 1),
+    pageShown: () => state.viewMode === "aiAssistant" && !state.friendView,
     glow: (ids) => ids.forEach(id => document.querySelectorAll(`.card[data-id="${CSS.escape(id)}"], tr[data-id="${CSS.escape(id)}"]`).forEach(el => {
       el.classList.remove("ai-glow"); void el.offsetWidth; el.classList.add("ai-glow");
       setTimeout(() => el.classList.remove("ai-glow"), 2400);
@@ -46680,12 +46639,8 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
   });
   aiAccountChanged();
 
-  // ── My profile › AI assistants › online — the Tiger Hub's HOSTED connector
-  // (mcp.tigersystem.io, OAuth). It does not depend on the local toggle: the
-  // address + guide are always there, and the list shows the assistants
-  // connected to THIS account online, each with a hold-to-cut button. The Hub
-  // route has no CORS headers, so the calls go through main (mcp:hosted-grants).
-  // A failure is one quiet line in the list, never a dialog.
+  // The public guide for connecting an assistant to the Hub's hosted connector
+  // (mcp.tigersystem.io), opened by the setup on that assistant's steps.
   const MCP_HOSTED_GUIDE = "https://wiki.tigersystem.io/guides/connect-an-ai-assistant/";
   // The wiki has a French edition; every other language reads the English one.
   // One anchor per assistant's steps (also used by the AI window).
@@ -46695,75 +46650,4 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
     const a = MCP_GUIDE_ANCHOR[client];
     return (state.lang === "fr" ? MCP_HOSTED_GUIDE.replace(".io/", ".io/fr/") : MCP_HOSTED_GUIDE) + (a ? (state.lang === "fr" ? a.fr : a.en) : "");
   };
-  let _mcpGrantsRefresh = null;
-  (function wireMcpHosted() {
-    const api = window.mcpBridge;
-    const list = $("eacMcpGrants");
-    if (!api?.hostedGrants || !list) { $("eacMcpWeb")?.setAttribute("hidden", ""); $("eacMcpGrantsCard")?.setAttribute("hidden", ""); return; }
-    const copyBtn = $("btnMcpWebCopy");
-    let copyT = null;
-    copyBtn.addEventListener("click", async () => {
-      try { await navigator.clipboard.writeText($("eacMcpWebUrl").textContent.trim()); } catch (_) { return; }
-      copyBtn.textContent = t("copiedFlash");
-      copyBtn.classList.add("is-done");
-      clearTimeout(copyT);
-      copyT = setTimeout(() => { copyBtn.textContent = t("copyLabel"); copyBtn.classList.remove("is-done"); }, 1800);
-    });
-    $("btnMcpWebHowto").addEventListener("click", () => window.electronAPI?.openExternal(_mcpGuideUrl()));
-    // An assistant tile: the address is copied, and the guide opens on that assistant's steps.
-    document.querySelectorAll("#eacMcpWeb [data-mcp-web]").forEach(btn => btn.addEventListener("click", async () => {
-      try { await navigator.clipboard.writeText($("eacMcpWebUrl").textContent.trim()); } catch (_) {}
-      window.electronAPI?.openExternal(_mcpGuideUrl(btn.dataset.mcpWeb));
-      _flashMessage(t("eacMcpWebCopiedFor", { app: btn.dataset.mcpApp }));
-    }));
-    const idToken = () => firebase.app(state.activeAccountId).auth().currentUser?.getIdToken();
-    const line = (key, kind) => { list.innerHTML = `<div class="eac-mcp-grants-note"${kind ? ` data-kind="${kind}"` : ""}>${esc(t(key))}</div>`; };
-    const day = (iso) => { const d = iso ? new Date(iso) : null; return d && !isNaN(d) ? d.toLocaleDateString(state.lang) : "—"; };
-    const paint = (grants) => {
-      if (!grants.length) return line("eacMcpGrantsNone");
-      list.innerHTML = grants.map(g => {
-        const used = g.lastUsedAt && !isNaN(Date.parse(g.lastUsedAt))
-          ? ` · ${esc(t("eacMcpGrantUsed", { ago: timeAgo(Date.parse(g.lastUsedAt)) }))}` : "";
-        return `<div class="eac-mcp-grant" data-id="${esc(g.id)}">
-          <div class="eac-mcp-grant-text">
-            <span class="eac-mcp-grant-name">${esc(g.clientName || t("eacMcpGrantUnnamed"))}</span>
-            <span class="eac-mcp-grant-meta">${esc(t("eacMcpGrantSince", { date: day(g.createdAt) }))}${used}</span>
-          </div>
-          <button type="button" class="eac-mcp-key eac-mcp-cut" data-hold-tip="eacMcpGrantCutTip">
-            <span class="hold-progress"></span><span>${esc(t("eacMcpGrantCut"))}</span>
-          </button>
-        </div>`;
-      }).join("");
-      list.querySelectorAll(".eac-mcp-grant").forEach(row => {
-        setupHoldToConfirm(row.querySelector(".eac-mcp-cut"), 1500, () => cut(row), { hint: true });
-      });
-    };
-    let seq = 0;   // a profile reopened mid-request: only the latest answer paints
-    const refresh = async () => {
-      const mine = ++seq;
-      if (!list.querySelector(".eac-mcp-grant")) line("eacMcpGrantsLoading");
-      try {
-        const tok = await idToken();
-        const res = tok ? await api.hostedGrants(tok) : null;
-        if (mine !== seq) return;
-        if (!res?.ok || !Array.isArray(res.json?.grants)) return line("eacMcpGrantsErr", "err");
-        paint(res.json.grants);
-      } catch (_) { if (mine === seq) line("eacMcpGrantsErr", "err"); }
-    };
-    // 204 = cut; 404 = already gone (or not ours) — either way the row leaves.
-    // Only the row is removed: the rest of the list stays put.
-    async function cut(row) {
-      try {
-        const tok = await idToken();
-        const res = tok ? await api.hostedGrants(tok, row.dataset.id) : null;
-        if (!res || (!res.ok && res.status !== 404)) {
-          row.querySelector(".eac-mcp-grant-meta").textContent = t("eacMcpGrantsErr");
-          row.dataset.kind = "err";
-          return;
-        }
-        row.remove();
-        if (!list.querySelector(".eac-mcp-grant")) line("eacMcpGrantsNone");
-      } catch (_) { row.dataset.kind = "err"; }
-    }
-    _mcpGrantsRefresh = refresh;
-  })();
+

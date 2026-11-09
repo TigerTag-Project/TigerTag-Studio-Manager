@@ -1290,25 +1290,8 @@
   .eac-info:hover .icon,
   .eac-info:focus-visible .icon { background: var(--primary); }
 
-  /* AI assistants (MCP) — once the toggle is on: one tile per app, its real
-     logo in its brand colour, one click to add Studio to it. Status + the two
-     secondary actions sit small underneath. */
-  #editAccountModalOverlay .eac-mcp { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
-  /* Off: everything stays in place, greyed and inert (logos lose their colour). */
-  #editAccountModalOverlay .eac-mcp.is-off { opacity: .45; }
-  #editAccountModalOverlay .eac-mcp.is-off button { cursor: default; pointer-events: none; }
-  #editAccountModalOverlay .eac-mcp.is-off .eac-mcp-logo { filter: grayscale(1); }
-  #editAccountModalOverlay .eac-mcp-status:empty { display: none; }
-  #editAccountModalOverlay .eac-mcp-apps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-  #editAccountModalOverlay .eac-mcp-app {
-    height: auto; display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 7px; padding: 12px 6px 10px; border-radius: 10px;
-    border: 1px solid var(--border); background: var(--surface-2); color: var(--text);
-    font-size: 12px; font-weight: 600; cursor: pointer;
-    transition: border-color .15s, transform .1s, background .15s;
-  }
-  #editAccountModalOverlay .eac-mcp-app:hover { border-color: var(--primary); background: var(--surface); transform: translateY(-1px); }
-  #editAccountModalOverlay .eac-mcp-app:active { transform: translateY(0); }
+  /* Assistant logos, each in its brand colour (the AI assistant window's tiles
+     and chips, renderer/ai/assistant.js). */
   .eac-mcp-logo {
     height: 26px; aspect-ratio: 1 / 1;   /* all three SVGs are viewBox 0 0 24 24 */
     -webkit-mask-size: contain; -webkit-mask-repeat: no-repeat; -webkit-mask-position: center;
@@ -1320,31 +1303,9 @@
   .eac-mcp-logo--grok { background-color: var(--text); -webkit-mask-image: url('../../assets/svg/brands/grok.svg'); }
   /* Mistral's logo is multicoloured: drawn as an image, not a tinted mask. */
   .eac-mcp-logo--mistral { background: url('../../assets/svg/brands/mistral.svg') center / contain no-repeat; }
-  /* Online connector card: one tile per web assistant (the explanation is in the title's info bubble). */
-  #editAccountModalOverlay .eac-mcp-apps--web { grid-template-columns: repeat(4, 1fr); margin: 10px 0 8px; }
-  #editAccountModalOverlay .eac-mcp-foot {
-    display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;
-  }
-  #editAccountModalOverlay .eac-mcp-status { font-size: 11.5px; color: var(--muted); min-width: 0; }
-  #editAccountModalOverlay .eac-mcp-status[data-kind="ok"]   { color: var(--success-text); }
-  #editAccountModalOverlay .eac-mcp-status[data-kind="warn"] { color: rgb(217, 119, 6); }
-  :root:not([data-theme="dark"]) #editAccountModalOverlay .eac-mcp-status[data-kind="warn"] { color: var(--warning-text); }
-  #editAccountModalOverlay .eac-mcp-status[data-kind="err"]  { color: var(--danger-text); }
-  /* Renew the access key — a real (secondary) button: it invalidates every
-     assistant already set up, so it should read as an action, not a footnote. */
-  #editAccountModalOverlay .eac-mcp-key {
-    position: relative; overflow: hidden;   /* hosts the hold-to-confirm sweep */
-    height: auto; display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
-    padding: 6px 11px; border-radius: 8px; cursor: pointer;
-    border: 1px solid var(--border); background: var(--surface-2);
-    font-size: 12px; font-weight: 600; color: var(--text);
-    transition: border-color .15s, background .15s;
-  }
-  #editAccountModalOverlay .eac-mcp-key .icon { background: var(--muted); transition: background .15s; }
   /* Ligue des pays: the current flag, then "Change" (opens the country window). */
   #editAccountModalOverlay .eac-country { display: inline-flex; align-items: center; gap: 10px; min-width: 0; }
   #editAccountModalOverlay .eac-country-cur { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  #editAccountModalOverlay .eac-mcp-key[hidden] { display: none; }
   /* The country window (openDialog, notice): the mascot on top, the current country, a
      search, the countries as flag tiles in two columns (no visible scrollbar), the lock. */
   /* The mascot holding the globe (squad-notice/tiger-globe, the notice's art slot), a bit taller. */
@@ -1391,67 +1352,6 @@
   .eac-cpick-lock b { font-size: 13px; color: var(--text); }
   .eac-cpick-lock small { font-size: 12px; color: var(--muted); }
   .eac-cpick .dlg-act:disabled { opacity: .45; cursor: not-allowed; }
-  #editAccountModalOverlay .eac-mcp-key:hover { border-color: var(--primary); background: var(--surface); }
-  #editAccountModalOverlay .eac-mcp-key:hover .icon { background: var(--primary); }
-  /* Renewed: the key becomes a green tick and the button pops (same pop as the
-     name's save button), then it settles back on its own. */
-  #editAccountModalOverlay .eac-mcp-key.is-done {
-    border-color: var(--success); background: color-mix(in srgb, var(--success) 12%, var(--surface));
-    animation: eacSavePop .45s cubic-bezier(.34, 1.56, .64, 1);
-  }
-  #editAccountModalOverlay .eac-mcp-key.is-done .icon { background: var(--success); }
-
-  /* AI assistants › online (hosted connector) — never greyed by the local
-     toggle: it works without Studio. Address + copy, guide link, the
-     local-vs-online line, then the connected assistants, one row each. */
-  #editAccountModalOverlay .eac-mcp-web {
-    display: flex; flex-direction: column; gap: 8px;
-    margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border);
-  }
-  #editAccountModalOverlay .eac-mcp-web-title { font-size: 12.5px; font-weight: 600; color: var(--text); }
-  #editAccountModalOverlay .eac-mcp-web-title:not(:first-child) { margin-top: 4px; }
-  #editAccountModalOverlay .eac-mcp-web-sub,
-  #editAccountModalOverlay .eac-mcp-web-diff { margin: 0; font-size: 11.5px; line-height: 1.45; color: var(--muted); }
-  #editAccountModalOverlay .eac-mcp-url {
-    display: flex; align-items: center; gap: 6px;
-    padding: 4px 4px 4px 10px; border-radius: 8px;
-    border: 1px solid var(--border); background: var(--surface-2);
-  }
-  #editAccountModalOverlay .eac-mcp-url code {
-    flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    font-size: 12px; color: var(--text); user-select: all;
-  }
-  #editAccountModalOverlay .eac-mcp-copy {
-    height: auto; flex-shrink: 0; padding: 5px 11px; border-radius: 6px; cursor: pointer;
-    border: 1px solid var(--border); background: var(--surface);
-    font-size: 12px; font-weight: 600; color: var(--text);
-    transition: border-color .15s, color .15s;
-  }
-  #editAccountModalOverlay .eac-mcp-copy:hover { border-color: var(--primary); color: var(--primary-text); }
-  #editAccountModalOverlay .eac-mcp-copy.is-done { border-color: var(--success); color: var(--success-text); }
-  #editAccountModalOverlay .eac-mcp-howto {
-    height: auto; align-self: flex-start; display: inline-flex; align-items: center; gap: 5px;
-    padding: 0; border: 0; background: none; cursor: pointer;
-    font-size: 12px; font-weight: 600; color: var(--primary-text);
-  }
-  #editAccountModalOverlay .eac-mcp-howto .icon { background: var(--primary); }
-  #editAccountModalOverlay .eac-mcp-howto:hover span:first-child { text-decoration: underline; }
-  #editAccountModalOverlay .eac-mcp-grants { display: flex; flex-direction: column; gap: 6px; }
-  #editAccountModalOverlay .eac-mcp-grants-note { font-size: 11.5px; color: var(--muted); }
-  #editAccountModalOverlay .eac-mcp-grants-note[data-kind="err"] { color: var(--danger-text); }
-  #editAccountModalOverlay .eac-mcp-grant {
-    display: flex; align-items: center; gap: 8px;
-    padding: 7px 7px 7px 10px; border-radius: 8px; border: 1px solid var(--border);
-  }
-  #editAccountModalOverlay .eac-mcp-grant-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-  #editAccountModalOverlay .eac-mcp-grant-name {
-    font-size: 12.5px; font-weight: 600; color: var(--text);
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  }
-  #editAccountModalOverlay .eac-mcp-grant-meta { font-size: 11px; color: var(--muted); }
-  #editAccountModalOverlay .eac-mcp-grant[data-kind="err"] .eac-mcp-grant-meta { color: var(--danger-text); }
-  #editAccountModalOverlay .eac-mcp-cut:hover { border-color: var(--danger); color: var(--danger-text); }
-
   /* The name field spans the section under its own caption — a text input needs
      room to show what you typed, which a right-hand column cannot give it. */
   #editAccountModalOverlay .eac-name-row { gap: 6px; }
@@ -5343,7 +5243,7 @@ body.ttag-dragging .ttag-drop-hint { display: flex; }
 
 /* ── My profile, two columns (redesign) ─────────────────────────────────────
    Double width, cards in two columns: profile / community / preferences on
-   the left, AI assistants / online connector / advanced on the right. One
+   the left, the AI assistant card on the right. One
    column when the window is narrow. The colour strip sits beside the identity
    in the hero. Explanations moved to ⓘ bubbles (.eac-info). */
 #editAccountModalOverlay .modal-card { width: 780px; max-width: calc(100vw - 16px); }
@@ -5366,9 +5266,6 @@ body.ttag-dragging .ttag-drop-hint { display: flex; }
 #editAccountModalOverlay .eac-col .eac-row.eac-row { min-height: 34px; }
 #editAccountModalOverlay .eac-socials-label { margin-top: 12px; }
 #editAccountModalOverlay .eac-socials-count { color: var(--faint); }
-/* The online connector is a card of its own now: no inner divider. */
-#editAccountModalOverlay .eac-col .eac-mcp-web.eac-mcp-web { margin-top: 0; padding-top: 14px; border-top: 1px solid var(--border-soft); }
-#editAccountModalOverlay .eac-mcp-howto-row { display: flex; align-items: center; gap: 8px; }
 /* ⓘ bubbles outside the account section (the base .eac-info rule only sized them). */
 #editAccountModalOverlay .eac-card-title .eac-info .icon { background: var(--faint); }
 @media (max-width: 820px) {
@@ -5387,13 +5284,6 @@ body.ttag-dragging .ttag-drop-hint { display: flex; }
 /* Colour strip a touch quieter: 16 px dots, the custom picker a little larger. */
 #editAccountModalOverlay .eac-hero .eac-swatch { width: 16px; height: 16px; }
 #editAccountModalOverlay .eac-hero .eac-swatch-custom { width: 22px; height: 22px; }
-/* Connected assistant rows: name + revoke on the first line, the date and
-   last use on a full-width second line that never breaks ("il y a 1h"). */
-#editAccountModalOverlay .eac-mcp-grant.eac-mcp-grant { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; row-gap: 2px; padding: 8px 8px 8px 10px; }
-#editAccountModalOverlay .eac-mcp-grant-text { display: contents; }
-#editAccountModalOverlay .eac-mcp-grant-name { grid-column: 1; grid-row: 1; align-self: center; }
-#editAccountModalOverlay .eac-mcp-grant .eac-mcp-cut { grid-column: 2; grid-row: 1; }
-#editAccountModalOverlay .eac-mcp-grant-meta { grid-column: 1 / -1; grid-row: 2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* Edit my profile (#identityOverlay) — layout from a ChatGPT review: four
    cards (photo, display name, theme colour, live preview) and a footer.
    480 px wide; the body scrolls when the window is short. */

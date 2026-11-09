@@ -242,7 +242,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Spool detail panel (L18563-25086)
+## Spool detail panel (L18563-25300)
 | L | What | Anchors |
 |---|---|---|
 | 6583-6736 | Structural signature (patch vs rebuild), weight patch, saved check | `_detailStructuralSig`, `_patchDetailWeight` |
@@ -416,8 +416,8 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 | (inside this block) | **AI assistant window wiring** — the ctx handed to `renderer/ai/assistant.js` (spool names, stock sample for the suggested questions, journal, user undo, glow) | `initAiAssistant`, `_mcpUndo`, `_mcpGuideUrl` |
 | 45815-46099 | **Catalogue + print planning MCP tools** — `search_catalog` (EAN / SKU / words / colour over `_catalogIndex`), `lookup_reference` (reference tables + containers), `match_filaments` (material by ID, CIEDE2000 colour, grams + margin, one pick per slot, catalogue suggestions), `identify_spool` (QR link / UID → spool, `parseQrLink`) |
 | 46149-46606 | **MCP write tools** — `set_spool_weight`, `update_spool`, `move_spool`, `update_product`, `create_spools`, `list_changes`, `undo_change` (+ `find_free_slots`, `create_rack`, `rename_rack` through the racks CRUD writers, and `get_label` through the labels module's labelFor / saveLabel / qrSvg): write gate (`writeFor`), journal in localStorage `tigertag.agentChanges.<uid>`, twin-mirrored batch, `questsMuted` | `_mcpWriteGate`, `_mcpPatchSpool`, `_mcpJournal`, `_mcpLog`, `_mcpRowFor` | `_mcpLab`, `_mcpDeltaE`, `_mcpMaterialRef`, `_mcpCatalogue`, `_mcpCatalogueByColor` |
-| 38619-38659 | My profile › AI assistants — per-profile toggle, ⓘ, Claude / Cursor / VS Code tiles, Claude Code copy, new key; follows the signed-in account | `wireMcpProfile`, `_mcpSyncAccount`, `_mcpSettingsRefresh` |
-| 39082-39161 | My profile › AI assistants › online — hosted connector (Tiger Hub `mcp.tigersystem.io`): address + Copy, guide link, connected online assistants list (`mcp-grants` via main) with hold-to-cut | `wireMcpHosted`, `_mcpGrantsRefresh`, `MCP_HOSTED_GUIDE` |
+| (inside this block) | The account signed in is passed to main (`mcp:set-account`); My profile's card opens the AI assistant page (`#btnEacOpenAi`) | `_mcpSyncAccount` |
+| (inside this block) | The public guide for connecting an assistant to the hosted connector, opened by the setup on that assistant's anchor | `_mcpGuideUrl` |
 
 ## "Find X by feature" cookbook
 

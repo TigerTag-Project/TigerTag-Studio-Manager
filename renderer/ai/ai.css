@@ -12,17 +12,26 @@
 
 .squad-notice.ai-win { width: min(520px, calc(100vw - 32px)); }
 .squad-notice.ai-win--dash { width: min(560px, calc(100vw - 32px)); }
+.ai-win .ai-hero { display: flex; justify-content: center; margin: 2px 0 10px; }
+.ai-win .ai-hero .icon { width: 64px; aspect-ratio: 1 / 1; background-color: var(--text); }
 .ai-win .ai-body { display: flex; flex-direction: column; gap: 10px; text-align: left; }
 .ai-win .ai-body .tsq-title, .ai-win .ai-body .sqn-kicker, .ai-win .ai-body .tsq-desc { text-align: center; }
 .ai-win .ai-wide { width: 100%; justify-content: center; gap: 8px; }
 .ai-win .ai-wide .eac-mcp-logo { height: 18px; background: currentColor; -webkit-mask-size: contain; -webkit-mask-repeat: no-repeat; -webkit-mask-position: center; }
 .ai-win .ai-wide .eac-mcp-logo--mistral { -webkit-mask-image: url('../../assets/svg/brands/mistral.svg'); }
 
-/* Progress: one bar per step of this flow. */
-.ai-steps { display: flex; gap: 6px; justify-content: center; }
-.ai-steps span { width: 24px; height: 4px; border-radius: 2px; background: var(--border-strong); transition: background .3s; }
-.ai-steps span.is-on { background: var(--primary); }
-.ai-stepof { margin: 0; text-align: center; font-size: 12px; color: var(--muted); }
+/* Setup markers: the steps of this flow, by name (done · current · to come). */
+.ai-marks { list-style: none; margin: 0; padding: 0; display: flex; justify-content: center; gap: 4px; flex-wrap: wrap; }
+.ai-marks li {
+  display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px;
+  font-size: 12px; color: var(--muted); border: 1px solid var(--border);
+}
+.ai-marks li.is-on { color: var(--primary); border-color: var(--primary); background: var(--primary-soft); font-weight: 600; }
+.ai-marks li.is-done { color: var(--text); }
+.ai-marks li.is-done::before {
+  content: ""; width: 10px; aspect-ratio: 1 / 1; background-color: var(--success);
+  -webkit-mask: url('../../assets/svg/icons/icon_check.svg') center / contain no-repeat;
+}
 
 .ai-examples { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .ai-examples li {
@@ -33,6 +42,7 @@
 
 /* Assistant tiles: the look of My profile's MCP tiles. */
 .ai-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.ai-tiles.ai-tiles--3 { grid-template-columns: repeat(3, 1fr); }
 .ai-tile {
   height: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px;
   padding: 12px 6px 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface-2);
@@ -59,6 +69,12 @@
   font-size: 13px; color: var(--text); user-select: all;
 }
 .ai-nav { display: flex; justify-content: space-between; gap: 8px; margin-top: 4px; }
+.ai-nav.ai-nav--even > * { flex: 1; justify-content: center; gap: 6px; }
+/* A quiet way out under the main choices (no assistant yet, nothing opened). */
+.ai-link { align-self: center; height: auto; padding: 2px 4px; border: 0; background: none; color: var(--muted); font-size: 12px; text-decoration: underline; cursor: pointer; }
+.ai-link:hover { color: var(--primary); }
+.ai-help { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--border); }
+.ai-chip .eac-mcp-logo { height: 14px; }
 
 /* Waiting: the robot breathes until the first call arrives. */
 .ai-wait { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; }
@@ -94,12 +110,22 @@
 .ai-chip.is-on .icon { background-color: var(--success); }
 
 /* The live feed: the newest line slides in. */
-.ai-feed { display: flex; flex-direction: column; max-height: 220px; overflow-y: auto; }
+.ai-feed { display: flex; flex-direction: column; max-height: 220px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
 .ai-ev { display: flex; align-items: center; gap: 10px; padding: 7px 2px; border-top: 1px solid var(--border-soft); font-size: 13px; color: var(--text); }
 .ai-ev:first-child { border-top: 0; }
 .ai-ev .icon { flex: none; background-color: var(--primary); }
 .ai-ev.is-refused .icon { background-color: var(--muted); }
-.ai-ev-text { flex: 1; min-width: 0; }
+.ai-ev-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ai-ev-text { min-width: 0; overflow-wrap: anywhere; }
+.ai-ev-text b { font-weight: 600; }
+.ai-ev-main small { font-size: 12px; color: var(--muted); }
+.ai-ev time { flex: none; font-size: 11px; color: var(--faint); font-variant-numeric: tabular-nums; }
+.ai-diff { font-variant-numeric: tabular-nums; }
+.ai-arrow { color: var(--primary); font-weight: 700; }
+.aip-more { align-self: flex-start; padding-left: 0; }
+.aip-feed--all { max-height: none; }
+.aip-day { display: block; }
+.aip-day::first-letter { text-transform: uppercase; }
 .ai-ev.is-fresh { animation: ai-in .45s cubic-bezier(.2, .8, .2, 1); }
 @keyframes ai-in { from { opacity: 0; transform: translateY(-6px); background: var(--primary-soft); } }
 .ai-undone { color: var(--muted); }
@@ -121,3 +147,50 @@
 @media (prefers-reduced-motion: reduce) {
   .ai-wait-robot .icon, .ai-waiting::before, .ai-ev.is-fresh, .ai-cere-robot .icon, .ai-cere-bg .icon, .card.ai-glow, tr.ai-glow { animation: none; }
 }
+
+/* ── The AI assistant page (a view of the main window) ─────────────────────
+   Same cards as My profile: soft border, 14 px corners, a faint fill, a small
+   title with a muted icon. */
+.aip { max-width: 1100px; margin: 0 auto; padding: 4px 4px 24px; display: flex; flex-direction: column; gap: 12px; color: var(--text); }
+.aip-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.aip-robot .icon { width: 44px; aspect-ratio: 1 / 1; background-color: var(--text); }
+.aip-robot--big .icon { width: 72px; }
+.aip-head-text { flex: 1; min-width: 200px; }
+.aip-head-text h1 { margin: 0; font-size: 22px; font-weight: 700; color: var(--text); }
+.aip-head-text p { margin: 2px 0 0; font-size: 13px; color: var(--muted); }
+.aip-head-acts { display: flex; gap: 8px; flex-wrap: wrap; }
+.aip-head-acts button { gap: 6px; }
+.aip-status { justify-content: flex-start; }
+.aip-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: start; }
+.aip-card {
+  display: flex; flex-direction: column; gap: 8px; padding: 12px 16px;
+  border: 1px solid var(--border-soft); border-radius: 14px;
+  background: color-mix(in srgb, var(--surface-2) 55%, transparent);
+}
+.aip-title { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 14px; font-weight: 600; color: var(--text); }
+.aip-title > .icon { background-color: var(--muted); }
+.aip-try { display: flex; flex-direction: column; gap: 4px; }
+.aip-try .ai-hint { padding-left: 34px; }
+.aip-feed { max-height: 320px; }
+.aip-empty { align-items: center; text-align: center; padding: 28px 16px; gap: 10px; }
+.aip-empty h2.aip-empty-title { margin: 0; font-size: 18px; font-weight: 700; text-transform: none; letter-spacing: 0; color: var(--text); }
+.aip-empty p { margin: 0; font-size: 13px; color: var(--muted); max-width: 420px; }
+.sb-ai-btn.is-active { color: var(--primary); }
+.sb-ai-btn.is-active .icon { background-color: var(--primary); }
+@media (max-width: 900px) { .aip-grid { grid-template-columns: minmax(0, 1fr); } }
+
+/* Access and security */
+.aip-adv { margin-top: 4px; }
+.aip-adv summary { cursor: pointer; font-size: 12px; color: var(--muted); }
+.aip-adv[open] summary { margin-bottom: 6px; }
+.aip-hold { position: relative; overflow: hidden; gap: 6px; }
+.aip-hold.is-done { color: var(--success); }
+.aip-grants { display: flex; flex-direction: column; }
+.aip-grant { display: flex; align-items: center; gap: 10px; padding: 8px 2px; border-top: 1px solid var(--border-soft); font-size: 13px; color: var(--text); }
+.aip-grant:first-child { border-top: 0; }
+
+/* My profile: the card that leads to the AI assistant page. */
+#editAccountModalOverlay .eac-ai-text { margin: 0 0 10px; font-size: 13px; color: var(--muted); }
+#editAccountModalOverlay .eac-ai-open { gap: 6px; }
+.aip-privacy { display: flex; gap: 8px; align-items: flex-start; margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--border-soft); font-size: 12.5px; color: var(--muted); }
+.aip-privacy .icon { flex: none; margin-top: 1px; background-color: var(--muted); }
