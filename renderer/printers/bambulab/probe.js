@@ -30,6 +30,7 @@ const BBL_CODE_TO_ID = {
   N1: '1',         // A1 Mini
   N2S: '2',        // A1
   N9: '13',        // A2L
+  N10: '14',       // H3C
   C11: '4',        // P1P
   C12: '3',        // P1S
   C13: '6',        // X1E

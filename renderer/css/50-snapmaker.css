@@ -339,8 +339,10 @@
   }
 
   /* Inline number input shown when editing a target temp */
-  .snap-temp-set-input {
-    width: 44px;
+  /* Doubled class (0,2,0) to outrank the global `input[type="number"]` rule (0,1,1), which forces
+     40px tall + width:100% and blew the pill up to the whole row when its target was edited. */
+  .snap-temp-set-input.snap-temp-set-input {
+    width: 44px; height: auto; min-width: 0;
     background: var(--surface);
     border: 1.5px solid var(--primary);
     border-radius: 4px;

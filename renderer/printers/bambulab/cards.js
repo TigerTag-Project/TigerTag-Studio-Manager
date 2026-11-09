@@ -8,6 +8,22 @@
 import { ctx } from '../context.js';
 import { jobBar, jobBarFill } from '../job-bar.js';
 
+/** Bays on one AMS module: 9 on an AMS 3H (H3C), 1 on an AMS HT, otherwise 4. The module's
+ *  own tray list tells an HT apart; the 3H is told by its module name (n10a, see
+ *  _bblParseModules) or by carrying more than four trays. */
+/** A single external spool exists on every Bambu EXCEPT the H3C (catalogue id 14): its nine tools
+ *  are fed by the AMS 3H's nine bays, and extra AMS units hang off tool 1 — there is no spool
+ *  holder. Show an Ext. tile there only if the machine itself reports one (vt_tray / vir_slot). */
+export function bambuHasExt(conn) {
+  return Number(conn?.modelId) !== 14 || !!conn?.data?.externalTray;
+}
+
+export function bambuBayCount(m, d) {
+  const n = (m?.tray || []).length;
+  if (d?.amsType?.[String(m?.id)] === '3h' || n > 4) return 9;
+  return n === 1 ? 1 : 4;
+}
+
 // ── Job card ──────────────────────────────────────────────────────────────
 
 export function renderBambuJobCard(p, conn) {
@@ -104,11 +120,31 @@ export function renderBambuTempCard(conn, heatedChamber = false) {
     ? d.nozzles
     : (d.nozzleCurrent != null || d.nozzleTarget != null)
       ? [{ id: 0, current: d.nozzleCurrent, target: d.nozzleTarget }] : [];
+  // H3C "Swaptek" tool changer: nine PrintTools, one pill each (T1…T9) like every other
+  // tool changer, the mounted one highlighted. They replace the single legacy nozzle pill —
+  // the mounted tool's pill already says the same thing. Each tool takes a setpoint (see below).
+  const tools = Array.isArray(d.tools) ? d.tools : [];
+  if (tools.length) {
+    tools.forEach(t => {
+      const heating = typeof t.target === "number" && t.target > 0
+                   && typeof t.current === "number" && t.current < t.target - 1;
+      // Every tool takes a target, like the two nozzles of an H2C (bambuSetToolTemp).
+      const mounted = d.mountedTool === t.addr;
+      const canSet = !ro;
+      pills.push(`
+      <div class="snap-temp${canSet ? " snap-temp--editable" : ""}${heating ? " snap-temp--heating" : ""}${mounted ? " snap-temp--active" : ""}"
+           ${canSet ? `data-bbl-set-temp="tool" data-bbl-tool="${t.addr}" data-bbl-temp-target="${Math.max(0, Math.round(Number(t.target) || 0))}" data-bbl-temp-max="300"` : ""}>
+        <span class="snap-temp-label">T${t.addr + 1}</span>
+        ${ctx.SNAP_ICON_NOZZLE}
+        <span class="snap-temp-val">${ctx.esc(_bblFmtTempPair(t.current, t.target))}</span>
+      </div>`);
+    });
+  }
   const dual = nozzles.length > 1;
   // Display order = physical layout: left head (id 1) on the LEFT, right head
   // (id 0) on the RIGHT → render descending by id.
   const ordered = dual ? [...nozzles].sort((a, b) => b.id - a.id) : nozzles;
-  ordered.forEach(n => {
+  (tools.length ? [] : ordered).forEach(n => {
     const heating = typeof n.target === "number" && n.target > 0
                  && typeof n.current === "number" && n.current < n.target - 1;
     const active  = dual && n.id === d.activeNozzle;
@@ -128,6 +164,7 @@ export function renderBambuTempCard(conn, heatedChamber = false) {
     pills.push(`
       <div class="snap-temp snap-temp--bed${ro ? "" : " snap-temp--editable"}${heating ? " snap-temp--heating" : ""}"
            ${ro ? "" : `data-bbl-set-temp="bed" data-bbl-temp-target="${Math.max(0, Math.round(Number(d.bedTarget) || 0))}" data-bbl-temp-max="110"`}>
+        ${tools.length ? `<span class="snap-temp-label">BED</span>` : ""}
         ${ctx.SNAP_ICON_BED}
         <span class="snap-temp-val">${ctx.esc(_bblFmtTempPair(d.bedCurrent, d.bedTarget))}</span>
       </div>`);
@@ -143,12 +180,14 @@ export function renderBambuTempCard(conn, heatedChamber = false) {
       pills.push(`
         <div class="snap-temp snap-temp--chamber snap-temp--editable${heating ? " snap-temp--heating" : ""}"
              data-bbl-set-temp="chamber" data-bbl-temp-target="${Math.max(0, Math.round(Number(d.chamberTarget) || 0))}" data-bbl-temp-max="65">
+          ${tools.length ? `<span class="snap-temp-label">CASE</span>` : ""}
           ${ctx.SNAP_ICON_CHAMBER}
           <span class="snap-temp-val">${ctx.esc(_bblFmtTempPair(d.chamberCurrent, d.chamberTarget))}</span>
         </div>`);
     } else {
       pills.push(`
         <div class="snap-temp snap-temp--chamber">
+          ${tools.length ? `<span class="snap-temp-label">CASE</span>` : ""}
           ${ctx.SNAP_ICON_CHAMBER}
           <span class="snap-temp-val">${ctx.esc(_bblFmtTemp(d.chamberCurrent))}°C</span>
         </div>`);
@@ -204,6 +243,7 @@ export function renderBambuFilamentCard(_p, conn) {
       </div>`;
   };
 
+  const hasExt = bambuHasExt(conn);
   // Invisible placeholder that keeps the Ext. column width on rows 2+
   const extSpacer = `<div class="snap-fil cre-fil-spacer" aria-hidden="true"></div>`;
 
@@ -218,30 +258,42 @@ export function renderBambuFilamentCard(_p, conn) {
   // The module's OWN id is what `ams_filament_setting` addresses, never its
   // position in the list: an AMS HT reports id 128, so the third unit of a
   // 0 / 1 / 128 setup would otherwise be written to a nonexistent "ams_id 2".
-  const makeAmsRow = (mod, rowLetter) => {
+  // `from` = first bay of the row. A row holds five tiles: the Ext. tile + four bays, or — on a
+  // machine with no external spool (the H3C) — five bays, so an AMS 3H (9 bays) reads 5 + 4
+  // instead of leaving the Ext. column empty. With an Ext. tile it is A1-A4 / A5-A8 / A9.
+  const perRow = hasExt ? 4 : 5;
+  const makeAmsRow = (mod, rowLetter, from = 0) => {
     const amsId = Number(mod?.id);
     const byId = new Map((mod?.tray || []).map(t => [parseInt(t.id, 10), t]));
+    const bays = bambuBayCount(mod, d);
     const cells = [];
-    for (let i = 0; i < 4; i++) {
+    for (let i = from; i < from + perRow; i++) {
       const t = byId.get(i);
-      cells.push(t ? makeSlot(`${rowLetter}${i + 1}`, t, amsId, i) : filSpacer);
+      cells.push(i < bays && t ? makeSlot(`${rowLetter}${i + 1}`, t, amsId, i) : filSpacer);
     }
     return cells.join("");
   };
+  // Every row of every module: [module index, first bay].
+  const amsRowSpecs = [];
+  amsMods.forEach((m, mi) => {
+    for (let from = 0; from < Math.max(1, bambuBayCount(m, d)); from += perRow) amsRowSpecs.push([mi, from]);
+  });
 
-  // ── Row 1: Ext. + first AMS module (or just Ext. if no AMS) ───────────
+  // ── Row 1: Ext. + first AMS row (or just Ext. if no AMS) ───────────────
   {
-    const row1 = [makeSlot("Ext.", d.externalTray ?? null, 255, 254)];
-    if (amsMods.length > 0) {
-      row1.push(makeAmsRow(amsMods[0], "A"));
+    const row1 = hasExt ? [makeSlot("Ext.", d.externalTray ?? null, 255, 254)] : [];
+    if (amsRowSpecs.length > 0) {
+      const [mi, from] = amsRowSpecs[0];
+      row1.push(makeAmsRow(amsMods[mi], String.fromCharCode(65 + mi), from));
     }
     rows.push(`<div class="cre-fil-row">${row1.join("")}</div>`);
   }
 
-  // ── Rows 2+: extra AMS modules, Ext. column stays empty (spacer) ──────
-  for (let mi = 1; mi < amsMods.length; mi++) {
-    const rowLetter = String.fromCharCode(65 + mi);        // 'B', 'C', …
-    rows.push(`<div class="cre-fil-row">${extSpacer}${makeAmsRow(amsMods[mi], rowLetter)}</div>`);
+  // ── Rows 2+: the rest, Ext. column stays empty (spacer) ────────────────
+  for (let ri = 1; ri < amsRowSpecs.length; ri++) {
+    const [mi, from] = amsRowSpecs[ri];
+    const rowLetter = String.fromCharCode(65 + mi);        // 'A', 'B', …
+    rows.push(`<div class="cre-fil-row">${hasExt ? extSpacer : ""}${makeAmsRow(amsMods[mi], rowLetter, from)}</div>`);
   }
 
   if (!rows.length) return "";
@@ -258,6 +310,18 @@ export function renderBambuFilamentCard(_p, conn) {
     const segs = [];
     amsMods.forEach((m, i) => {
       if (conn?.data?.amsType?.[m.id] === "lite") return; // no sensor
+      // AMS 3H: two drying zones, each with its own humidity / temperature.
+      if (Array.isArray(m.zones) && m.zones.length) {
+        m.zones.forEach((z, zi) => {
+          const zb = [];
+          const zh = parseFloat(z.humidityRaw);
+          if (!isNaN(zh) && zh > 0) zb.push(`<span class="icon icon-humidity icon-11" style="vertical-align:-1px;margin-right:2px"></span>${Math.round(zh)}%`);
+          const zt = parseFloat(z.temp);
+          if (!isNaN(zt) && zt > 0) zb.push(`${Math.round(zt)}°C`);
+          if (zb.length) segs.push(`Z${zi + 1} ` + zb.join(" "));
+        });
+        return;
+      }
       const bits = [];
       const hr = parseFloat(m.humidityRaw);
       if (!isNaN(hr) && hr > 0) bits.push(`<span class="icon icon-humidity icon-11" style="vertical-align:-1px;margin-right:2px"></span>${Math.round(hr)}%`);
