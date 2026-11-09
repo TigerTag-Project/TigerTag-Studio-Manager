@@ -17,7 +17,7 @@ import { questBump } from "../../quests/index.js";
 import { ctx } from '../context.js';
 import { registerBrand } from '../registry.js';
 import { meta, schema, helper } from './settings.js';
-import { renderBambuJobCard, renderBambuTempCard, renderBambuFilamentCard, renderBambuControlCard } from './cards.js';
+import { renderBambuJobCard, renderBambuTempCard, renderBambuFilamentCard, renderBambuControlCard, bambuBayCount, bambuHasExt } from './cards.js';
 import { schemaWidget } from '../modal-helpers.js';
 import { morphInner } from '../dom-morph.js';
 import { bambuModelIdFromCode } from './probe.js';
@@ -391,6 +391,21 @@ export function bambuSetTemp(conn, which, value, nozzleId) {
   _bblGcode(conn, (nozzleId === 0 || nozzleId === 1) ? `M104 T${nozzleId} S${v}` : `M104 S${v}`);
 }
 
+/** Set one PrintTool's target on an H3C. Bambu Studio's own nozzle-rack control sends the structured
+ *  `set_nozzle_temp` (extruder_index = the tool's live id, minus 16 when it is parked; target_temp)
+ *  rather than a g-code line — so a PARKED tool can be heated too, which `M104 S` cannot do. The
+ *  mounted tool has live id 0, i.e. the extruder itself. Optimistic until telemetry confirms. */
+export function bambuSetToolTemp(conn, addr, value) {
+  if (!conn) return;
+  const t = (conn.data?.tools || []).find(x => x.addr === addr);
+  if (!t || !Number.isInteger(t.id)) return;
+  const v = Math.max(0, Math.round(Number(value) || 0));
+  _publish(conn, { print: { sequence_id: _nextSeq(), command: "set_nozzle_temp",
+    extruder_index: t.id >= 0x10 ? t.id - 0x10 : t.id, target_temp: v } });
+  t.target = v;
+  _bblNotify(conn);
+}
+
 /** Set the print-speed level. mode = 1 (Silent) | 2 (Standard) | 3 (Sport) | 4 (Ludicrous). */
 export function bambuSetSpeedMode(conn, mode) {
   if (!conn) return;
@@ -589,6 +604,13 @@ function _bblParseModules(conn, msg) {
   const types = conn.data.amsType || (conn.data.amsType = {});
   let changed = false;
   for (const m of mods) {
+    // AMS 3H (H3C): nine bays, two drying zones. Named "n10a" with the unit id in
+    // `id` (32 on the unit captured by ha-bambulab), not "n10a/<n>".
+    if (m?.name === "n10a" || String(m?.name || "").startsWith("n10a/")) {
+      const id = String(m.id ?? String(m.name).split("/")[1] ?? "");
+      if (id && types[id] !== "3h") { types[id] = "3h"; changed = true; }
+      continue;
+    }
     const mm = String(m?.name || "").match(/^(ams_f1|ams|n3f|n3s)\/(\d+)/);
     if (!mm) continue;
     const type = mm[1] === "ams_f1" ? "lite"
@@ -810,6 +832,38 @@ function _bblMerge(conn, msg) {
         d.nozzleCurrent = act.current; d.nozzleTarget = act.target;
       }
     }
+    // H3C "Swaptek" tool changer: ONE extruder, nine PrintTools in `device.nozzle.info`
+    // (ha-bambulab, PR #2210). `addr_id` (0-8) names a tool for good; its live `id` is
+    // 0 while it is on the carriage and 16 + addr_id when parked, so that is how the
+    // mounted one is told. A delta may carry only the tool that moved, so merge by
+    // addr_id and keep what a message leaves out. `snow` = the bay feeding it
+    // (ams id << 8 | bay); 0xFDFF-ish values mean "none".
+    const nozInfo = dev.nozzle?.info;
+    if (Array.isArray(nozInfo) && nozInfo.some(e => Number.isInteger(e?.addr_id))) {
+      const tools = Array.isArray(d.tools) ? d.tools : (d.tools = []);
+      for (const e of nozInfo) {
+        const addr = e?.addr_id;
+        if (!Number.isInteger(addr) || addr < 0 || addr > 8) continue;
+        let t = tools.find(x => x.addr === addr);
+        if (!t) {
+          t = { addr, id: null, current: null, target: null, diameter: null, type: "", colorM: null, filaId: "", source: null, wear: null };
+          tools.push(t);
+        }
+        if (Number.isInteger(e.id)) {
+          t.id = e.id;
+          if (e.id < 16) d.mountedTool = addr;
+          else if (e.id === 16 + addr && d.mountedTool === addr) d.mountedTool = null;
+        }
+        if (typeof e.temp === "number") { const pt = _decodePackedTemp32(e.temp); t.current = pt.current; t.target = pt.target; }
+        if (typeof e.diameter === "number") t.diameter = e.diameter;
+        if (typeof e.type === "string") t.type = e.type;
+        if (typeof e.color_m === "string") t.colorM = _parseColor(e.color_m);
+        if (typeof e.fila_id === "string") t.filaId = e.fila_id;
+        if (Number.isInteger(e.snow)) t.source = e.snow;
+        if (typeof e.wear === "number") t.wear = e.wear;
+      }
+      tools.sort((a, b) => a.addr - b.addr);
+    }
     // Bed
     if (dev.bed?.info?.temp != null) {
       const t = _decodePackedTemp32(dev.bed.info.temp);
@@ -855,6 +909,23 @@ function _bblMerge(conn, msg) {
       if (mod.humidity     !== undefined) dm.humidity    = String(mod.humidity ?? "");
       if (mod.humidity_raw !== undefined) dm.humidityRaw = String(mod.humidity_raw ?? "");
       if (mod.temp         !== undefined) dm.temp        = String(mod.temp ?? "");
+      // AMS 3H: no unit-level humidity/temperature — each of its two drying zones
+      // reports its own, plus the bays it covers (`zone_slots`). Merge by zone id;
+      // a delta carries only the fields that changed.
+      if (Array.isArray(mod.zone_info)) {
+        if (!Array.isArray(dm.zones)) dm.zones = [];
+        for (const z of mod.zone_info) {
+          if (!z || !Number.isInteger(z.zone_id) || z.zone_id < 0) continue;
+          let dz = dm.zones.find(x => x.id === z.zone_id);
+          if (!dz) { dz = { id: z.zone_id, humidity: "", humidityRaw: "", temp: "", slots: [], dryTime: 0 }; dm.zones.push(dz); }
+          if (z.humidity     !== undefined) dz.humidity    = String(z.humidity ?? "");
+          if (z.humidity_raw !== undefined) dz.humidityRaw = String(z.humidity_raw ?? "");
+          if (z.temp         !== undefined) dz.temp        = String(z.temp ?? "");
+          if (Array.isArray(z.zone_slots))  dz.slots       = z.zone_slots.filter(Number.isInteger);
+          if (Number.isFinite(z.dry_time))  dz.dryTime     = z.dry_time;
+        }
+        dm.zones.sort((a, b) => a.id - b.id);
+      }
       if (Array.isArray(mod.tray)) {
         for (const t of mod.tray) {
           const trayId = String(t.id ?? "");
@@ -1065,9 +1136,9 @@ export function renderBambuLiveInner(p) {
       <span>${ctx.esc(ctx.t("snapNoConnection"))}</span>
     </div>`;
   // Actively-heated chamber (ha-bambulab ACTIVE_CHAMBER_HEATER): X1E 6, H2S 7,
-  // H2D 8, H2D Pro 9, H2C 11, X2D 12 → chamber pill becomes an editable setpoint.
+  // H2D 8, H2D Pro 9, H2C 11, X2D 12, H3C 14 → chamber pill becomes an editable setpoint.
   // Passive-chamber models (X1C…) stay read-only.
-  const heatedChamber = [6, 7, 8, 9, 11, 12].includes(bambuModelId(p));
+  const heatedChamber = [6, 7, 8, 9, 11, 12, 14].includes(bambuModelId(p));
   // The account no longer holds this machine (LAN-only mode unbinds it): say how to fix it.
   const unbound = conn.cloud && bambuCloudUnbound(conn.key)
     ? `<div class="ffg-error-banner"><span class="icon icon-alert icon-14"></span><span>${ctx.esc(ctx.t("bblCloudUnbound", { name: p.printerName || p.name || "Bambu Lab" }))}</span></div>` : "";
@@ -1364,7 +1435,7 @@ export function bambuGetSlots(printer) {
   /* The spool holder on the side of the machine is NOT part of any AMS — it is
      its own object, and reading only the AMS modules dropped it silently. It
      comes first here, exactly as it does on the machine's own panel. */
-  const out = [slot('ext', 'Ext.', d.externalTray ?? null)];
+  const out = bambuHasExt(conn) ? [slot('ext', 'Ext.', d.externalTray ?? null)] : [];
   const mods = [...(d.ams || [])].sort((a, b) => (Number(a.id) || 0) - (Number(b.id) || 0));
   mods.forEach((m, mi) => {
     // Four bays per unit, ONE for an AMS HT — the same count `bambuGetUnits`
@@ -1372,7 +1443,7 @@ export function bambuGetSlots(printer) {
     // draws cannot disagree. A module reports only the trays it has seen, so
     // the loop indexes rather than maps: a short list would renumber the bays
     // after a gap.
-    const bays = (m?.tray || []).length === 1 ? 1 : 4;
+    const bays = bambuBayCount(m, d);
     for (let ti = 0; ti < bays; ti++) {
       const t = (m?.tray || [])[ti] ?? null;
       out.push(slot(`ams${m?.id ?? mi}:${t?.id ?? ti}`, `${'ABCDEFGH'[mi] || mi + 1}${ti + 1}`, t));
@@ -1408,23 +1479,25 @@ export function bambuGetUnits(printer) {
     vendor: t?.vendor || t?.brand || null,
     empty: !t?.color && !t?.type,
   });
-  const units = [{
+  const units = bambuHasExt(conn) ? [{
     kind: 'ext', index: 0, label: '', hwId: null, rows: 1, cols: 1,
     // 255/254 is how Bambu addresses the spool holder on the side.
     slots: [{ ...slot('Ext.', d.externalTray ?? null, { amsId: 255, trayId: 254 }), index: 0 }],
-  }];
+  }] : [];
   const mods = [...(d.ams || [])].sort((a, b) => (Number(a.id) || 0) - (Number(b.id) || 0));
   mods.forEach((m, mi) => {
     // An AMS HT holds one spool; every other unit holds four. The module tells
     // us which by how many trays it carries.
-    const n = (m?.tray || []).length === 1 ? 1 : 4;
+    const n = bambuBayCount(m, d);
     const amsId = Number(m?.id ?? mi);
     units.push({
-      kind: n === 1 ? 'amsHt' : 'ams', index: mi, label: '',
+      kind: n === 1 ? 'amsHt' : n === 9 ? 'ams3h' : 'ams', index: mi, label: '',
       // The AMS's own id — what makes the same physical box recognisable after
       // a reconnect, however the user reorders them.
       hwId: m?.id != null ? String(m.id) : null,
-      rows: 1, cols: n,
+      // An AMS 3H (9 bays) is drawn 4 + 4 + 1, never as one row of nine: the board strip honours
+      // `cols`, and four across is exactly the board's one card width.
+      rows: n === 9 ? 3 : 1, cols: n === 9 ? 4 : n,
       slots: Array.from({ length: n }, (_, ti) => ({
         ...slot(`${'ABCDEFGH'[mi] || mi + 1}${ti + 1}`, (m?.tray || [])[ti] ?? null,
                 { amsId, trayId: ti }),
@@ -1455,7 +1528,7 @@ export function bambuGetTempHtml(printer) {
   if (!conn || conn.status !== 'connected') return "";
   // Same chamber rule the panel applies: only the actively-heated models get an
   // editable setpoint, and passing it keeps the two views telling one story.
-  const heatedChamber = [6, 7, 8, 9, 11, 12].includes(bambuModelId(printer));
+  const heatedChamber = [6, 7, 8, 9, 11, 12, 14].includes(bambuModelId(printer));
   return renderBambuTempCard(conn, heatedChamber);
 }
 

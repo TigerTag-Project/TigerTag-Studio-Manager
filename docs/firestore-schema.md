@@ -295,7 +295,7 @@ users/
                                derived from the machine's own identity for the unit, so
                                the same box is recognised on reconnect and can never be
                                seeded twice.
-                kind      string   — ams | amsHt | cfs | ace | holder | ext
+                kind      string   — ams | amsHt | ams3h | cfs | ace | holder | ext
                 index     number   — the n-th unit of that kind on this machine
                 label     string   — user-renamable; seeded empty
                 rows,cols number   — the unit's shape (2 x 1 for a stacked pair)

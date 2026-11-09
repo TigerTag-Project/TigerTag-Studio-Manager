@@ -1516,6 +1516,27 @@ Confirmed present in a real X1C payload and read by nothing today:
 - [ ] The address is a DHCP lease: re-check it on every report.
 - [ ] `net.info[0].ip` is little-endian, unsigned on the last byte.
 
+### 16.9 H3C — changeur d'outils « Swaptek » (9 outils) + AMS 3H
+
+Source : ha-bambulab (PR #2210, télémétrie capturée sur une vraie H3C) et les profils de Bambu Studio
+(`resources/profiles/BBL/machine/Bambu Lab H3C.json`, `model_id` **`N10`**). **Compilé et rejoué sur des
+données capturées — jamais vu sur une vraie H3C.**
+
+| Point | Ce que la machine envoie | Chez nous |
+|-------|--------------------------|-----------|
+| Identité | module `ota` : `product_name "Bambu Lab H3C"` ; code `N10` ; sa carte `AP05` ressemble à une X1C — ne pas se fier au matériel | catalogue id **14**, `N10` → 14 (`probe.js`) |
+| **9 outils** | `device.nozzle.info[]`, un objet par outil : `addr_id` 0-8 (définitif), `id` = **0 quand monté** sur le chariot, **16 + addr_id** rangé ; `temp` (packé : bas 16 bits = courant, haut = cible), `diameter`, `type` (`HS01`, `HT01`), `color_m`, `fila_id`, `snow` (bac qui l'alimente : `ams_id << 8 \| bac`, valeur « aucun » ≈ `0xFDFF`), `wear` | `conn.data.tools[]` (fusion par `addr_id` : un delta ne porte que l'outil qui bouge) + `mountedTool` ; une pastille `T1…T9` par outil, le monté en surbrillance (carte Température, comme la FlashForge Creator 5 Pro) |
+| **Une seule extrudeuse** | `device.extruder.info` n'a qu'une entrée (`id 0`) | la pastille « buse » héritée est remplacée par les 9 outils |
+| **AMS 3H** | module **`n10a`** (sans « /N » : l'id est dans `module.id`, 32 sur la capture ; matériel `N10A05`) ; **9 bacs** (`tray[].id` 0-8) | `amsType[id] = "3h"`, unité `ams3h` : 9 bacs, dessinée 4 + 4 + 1 |
+| **2 zones de séchage** | pas d'humidité au niveau de l'unité : `ams.ams[].zone_info[]` = `{ zone_id, zone_slots, humidity (note 1-5), humidity_raw (%), temp, dry_time, dry_setting }` | `zones[]` par unité ; le titre « Filament » affiche `Z1 24 % 28 °C · Z2 …` |
+| Pas de bobine extérieure | ni `vt_tray` ni `vir_slot` sur la capture ; les 9 outils sont alimentés par l'AMS 3H, d'autres AMS se branchent sur l'outil 1 | la case « Ext. » n'est montrée que si la machine en annonce une |
+| Chambre | `device.ctc.info.temp` (packé), chambre chauffée active | consigne éditable (id 14 dans la liste des modèles à chambre chauffée) |
+| **Consigne par outil** | commande structurée `{"print":{"command":"set_nozzle_temp","extruder_index":N,"target_temp":T}}` — celle du contrôle du râtelier de Bambu Studio (`DevNozzleRack::SetNozzleTargetTemp` → `command_set_nozzle_new`) : `N` = `id` vivant de l’outil, moins 16 quand il est rangé (0 pour le monté). Home Assistant n’en a pas (capteurs en lecture seule) | `bambuSetToolTemp` ; les 9 pastilles sont des consignes. **Non vue sur une vraie H3C** |
+| Divers | état `stg_cur` 82 = plateau en stabilisation ; carte SD `not_applicable` | non utilisés |
+
+Pas encore fait : commandes de séchage par zone, AMS supplémentaires sur l'outil 1,
+éclairage de la H3C (rubans inconnus).
+
 ---
 
 ## Annexe A — Modèles et IDs
@@ -1534,6 +1555,8 @@ Confirmed present in a real X1C payload and read by nothing today:
 | 10 | P2S | RTSP | `22E` | `N7` |
 | 11 | H2C | RTSP | — | `O1C` |
 | 12 | X2D | RTSP | — | — |
+| 13 | A2L | JPEG TCP | — | `N9` |
+| 14 | H3C | RTSP | — | `N10` |
 
 ---
 

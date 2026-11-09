@@ -27,7 +27,7 @@ A machine has one or more units. A unit has one or more slots. Nothing else.
 
 | Field | Values | Notes |
 |---|---|---|
-| `unitKind` | `ams` · `amsHt` · `cfs` · `ace` · `holder` · `ext` | What sort of object it is. `holder` is a plain spool arm or pair of arms with no brand name of its own; `ext` is the single external spool position many machines have. |
+| `unitKind` | `ams` · `amsHt` · `ams3h` · `cfs` · `ace` · `holder` · `ext` | What sort of object it is. `holder` is a plain spool arm or pair of arms with no brand name of its own; `ext` is the single external spool position many machines have. |
 | `unitIndex` | `0, 1, 2, …` | Which one, when a machine has several of the same kind. Displayed **one-based**: unit index 0 is "AMS 1". |
 | `unitLabel` | `AMS 1`, `ACE 2`, `CFS 1`, `Ext.`, `Left`, `Right` | What the user reads. Follows the brand's own wording, because that is what is printed on the box in front of them. |
 | `slotLabel` | `A1`, `1`, `Ext.` | The slot inside its unit, in the brand's own numbering. |
@@ -132,7 +132,7 @@ anyone reading the printer document, including our own Firestore explorer.
 
 ```jsonc
 "units": { "ams_0": {
-  "kind":  "ams",              // ams | amsHt | cfs | ace | holder | ext
+  "kind":  "ams",              // ams | amsHt | ams3h | cfs | ace | holder | ext
   "index": 0,                  // the n-th of that kind on this machine
   "label": "AMS 1",            // the user may rename it
   "rows": 1, "cols": 4,        // the shape — 2 x 1 for a stacked pair
@@ -195,7 +195,7 @@ the hardware says otherwise.
 
 | Brand | Units seeded |
 |---|---|
-| **Bambu Lab** — every model | `ext` (1 slot) + one `ams` per reported unit (4 slots), or `amsHt` (1 slot). Up to four AMS. **One rule for the whole range**: every Bambu speaks the same MQTT, so an A1, a P2, an X1 or an H2 needs no special case. |
+| **Bambu Lab** — every model | `ext` (1 slot) + one `ams` per reported unit (4 slots), or `amsHt` (1 slot), or `ams3h` (9 slots, the H3C's — and no `ext` there, it has no external spool). Up to four AMS. **One rule for the whole range**: every Bambu speaks the same MQTT, so an A1, a P2, an X1 or an H2 needs no special case. |
 | **Creality** | `ext` (1) + one `cfs` per reported box (4) |
 | **Anycubic** | one unit per reported box: box `-1` is the external box and is itself **multi-slot** (a Kobra X / ACE Pro 2 reports it with **4** slots — collapsing it to one cell loses three), boxes `0..N-1` are `ace` units of 4 |
 | **Snapmaker U1** | one `holder` of 4 — the machine's own interface shows a single row of four, though physically `1`/`2` are on the left and `3`/`4` on the right, stacked. Splittable by the user into two 2 x 1 units. Snapmaker plans one AMS of four **per print head**, so this machine will report four units of four, or more, or a mix — the seeder must take what it is told. |

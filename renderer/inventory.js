@@ -65,7 +65,7 @@ import {
   renderBambuLiveInner, renderBambuLogInner,
   openBambuFilamentEdit, closeBambuFilamentEdit,
   bambuPrintControl, bambuLight, bambuMove, bambuHome,
-  bambuMotorsOff, bambuFan, bambuFanPct, bambuSetTemp, bambuSetSpeedMode,
+  bambuMotorsOff, bambuFan, bambuFanPct, bambuSetTemp, bambuSetToolTemp, bambuSetSpeedMode,
 } from './printers/bambulab/index.js';
 import { renderBambuCamBanner } from './printers/bambulab/widget_camera.js';
 import {
@@ -28487,10 +28487,11 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
      what is printed on the box in front of them — and units that carry no name
      at all (a Snapmaker U1's holders are simply numbered) are labelled by the
      slots they hold rather than by a word invented here. */
-  const _UNIT_WORD = { ams: "AMS", amsHt: "AMS HT", cfs: "CFS", ace: "ACE", ext: "Ext." };
+  const _UNIT_WORD = { ams: "AMS", amsHt: "AMS HT", ams3h: "AMS 3H", cfs: "CFS", ace: "ACE", ext: "Ext." };
   function _unitLabel(u) {
     if (u.label) return u.label;                 // the user renamed it
     if (u.kind === "ext") return "Ext.";
+    if (u.kind === "ams3h") return _UNIT_WORD.ams3h;   // one box per machine: no "1"
     const word = _UNIT_WORD[u.kind];
     if (word) return `${word} ${(u.index || 0) + 1}`;
     const first = u.slots?.[0]?.label, last = u.slots?.[u.slots.length - 1]?.label;
@@ -33873,6 +33874,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
           if (bblTempTrigger.classList.contains("snap-temp--editing")) return;
           const which   = bblTempTrigger.dataset.bblSetTemp;
           const nozId   = bblTempTrigger.dataset.bblNozzle != null ? parseInt(bblTempTrigger.dataset.bblNozzle, 10) : undefined;
+          const toolAddr = bblTempTrigger.dataset.bblTool != null ? parseInt(bblTempTrigger.dataset.bblTool, 10) : undefined;   // H3C PrintTool
           const initVal = parseInt(bblTempTrigger.dataset.bblTempTarget ?? "0", 10);
           const maxVal  = parseInt(bblTempTrigger.dataset.bblTempMax ?? "300", 10);
           const valEl   = bblTempTrigger.querySelector(".snap-temp-val");
@@ -33895,7 +33897,7 @@ import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, re
             const val = parseInt(input.value, 10);
             if (!isNaN(val) && val >= 0 && val <= maxVal) {
               const conn = bambuGetConn(bambuKey(_activePrinter));
-              if (conn) bambuSetTemp(conn, which, val, nozId);
+              if (conn) { if (which === "tool") bambuSetToolTemp(conn, toolAddr, val); else bambuSetTemp(conn, which, val, nozId); }
             }
             restore();
           };
