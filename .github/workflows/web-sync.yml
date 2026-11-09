@@ -9,7 +9,9 @@ name: Web sync
 # exactly the expected build, and fail loudly if it doesn't (a red run here means
 # desktop and web are out of sync):
 #   • a release is PUBLISHED (drafts don't count — that is when desktops start
-#     updating) → expect "X.Y.Z", web build 0;
+#     updating) → expect "X.Y.Z", web build 0. A release published by build.yml's
+#     publish-release job raises no such event (GITHUB_TOKEN), so that job starts
+#     this one by workflow_dispatch instead, which expects the latest release;
 #   • a web hotfix tag `web-vX.Y.Z.N` is pushed (docs/WEB_HOTFIX.md) → expect
 #     "X.Y.Z · web N", with no desktop build at all. X.Y.Z must be the latest
 #     release, or the tag is refused.

@@ -291,6 +291,9 @@ jobs:
   publish-release:
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      contents: write   # publish the draft
+      actions: write    # start Web sync (below)
     steps:
       - name: Check the draft's files, then publish it as latest
         env:
@@ -307,3 +310,14 @@ jobs:
           [ "$missing" = 0 ] || exit 1
           gh release edit "$TAG" --draft=false --latest
           echo "Published $TAG as the latest release."
+
+      # A release published with GITHUB_TOKEN raises no `release: published`
+      # event for other workflows (GitHub's guard against recursive runs), so
+      # Web sync never started on its own (issue #209). A workflow_dispatch is
+      # the exception to that rule: start it here. Its manual path expects the
+      # latest release, which is the one just published.
+      - name: Start Web sync (Tiger Studio Web follows the release)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: gh workflow run web-sync.yml --ref main

@@ -99,7 +99,9 @@ Release** (drafts and pre-releases never count). The desktop auto-updater instal
 it; the Hub builds it into `/studio`. Three guards keep them together:
 
 1. **Release publish → Hub deploy.** `.github/workflows/web-sync.yml` runs on
-   `release: published`, calls the Hub's Vercel deploy hook `studio-release`
+   `release: published` (a release published by hand). The release workflow's
+   `publish-release` job publishes with `GITHUB_TOKEN`, which raises no such event,
+   so that job starts Web sync itself (`gh workflow run web-sync.yml`). It then calls the Hub's Vercel deploy hook `studio-release`
    (secret `HUB_DEPLOY_HOOK_URL`), then waits until
    `https://tigersystem.io/studio/version.json` equals the release — a **red run
    means desktop and web are out of sync**. Re-run it by hand (*Run workflow*).
