@@ -35,6 +35,7 @@
 <link rel="stylesheet" href="IoT/td1s/td1s.css" />
 <link rel="stylesheet" href="report/report.css" />
 <link rel="stylesheet" href="quests/quests.css" />
+<link rel="stylesheet" href="ai/ai.css" />
 <link rel="stylesheet" href="quests/trophies.css" />
 <link rel="stylesheet" href="quests/referrals.css" />
 </head>
@@ -96,6 +97,7 @@
       <div class="sb-actions">
         <button id="btnOpenNotifs" class="ghost sb-notifs-btn"><span class="icon icon-bell icon-13"></span><span class="label" data-i18n="notifsTitle">Notifications</span><span id="notifBadge" class="friends-badge hidden"></span></button>
         <button id="btnOpenQuests" class="ghost sb-notifs-btn sb-quests-btn"><span class="icon icon-list-check icon-13"></span><span class="label" data-i18n="questsTitle">Tiger Quests</span><span id="questsBadge" class="friends-badge hidden"></span></button>
+        <button id="btnOpenAi" class="ghost sb-notifs-btn sb-ai-btn" hidden><span class="icon icon-robot icon-13"></span><span class="label" data-i18n="aiTitle">AI assistant</span><span id="aiNewPill" class="sb-ai-pill" data-i18n="aiNew" hidden>New</span><span id="aiDot" class="sb-ai-dot" hidden></span></button>
         <!-- Quick-access friends list (rendered by JS into this container).
              Each chip switches the inventory view to that friend on click.
              Hidden when state.friends is empty. -->
@@ -2333,6 +2335,20 @@
           </label>
         </div>
         <div class="eac-mcp is-off" id="eacMcpOn">
+          <div class="eac-row eac-mcp-write">
+            <span class="eac-row-label">
+              <span data-i18n="eacMcpWriteRow">Let it make changes too</span>
+              <span class="eac-info" tabindex="0" role="button" data-i18n-tip="eacMcpWriteTip"
+                    data-tip="Weights, notes, tags, prices, buy links, racks, new spools from the catalogue. Every change is logged and can be undone. It never deletes a thing."
+                    data-i18n-aria="eacMcpWriteRow">
+                <span class="icon icon-info icon-13"></span>
+              </span>
+            </span>
+            <label class="eac-toggle">
+              <input type="checkbox" id="eacMcpWriteToggle" role="switch" />
+              <span class="eac-toggle-track"><span class="eac-toggle-thumb"></span></span>
+            </label>
+          </div>
           <div class="eac-mcp-apps">
             <button type="button" class="eac-mcp-app" data-mcp-target="claude-desktop" data-mcp-app="Claude Desktop" data-i18n-aria="stgMcpAddClaude">
               <span class="eac-mcp-logo eac-mcp-logo--claude" aria-hidden="true"></span><span class="eac-mcp-name">Claude</span>

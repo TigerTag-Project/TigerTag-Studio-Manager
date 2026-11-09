@@ -26,6 +26,12 @@
  *   refreshLabelCard(row)    — the open spool label follows its spool's live row
  *   mountLabel(el, row, { productOnly }) — the same label tools drawn inside
  *                              another card (the product sheet's QR label tab)
+ *   labelFor(row, { kind, template, slots, dpi }) — the label the card would draw,
+ *                              without the card (the MCP label tool): { lbl, link, kind }
+ *   saveLabel(format, lbl, row, kind) — print / PDF / PNG / SVG through the same
+ *                              dialogs as the card's buttons
+ *   qrSvg(link)              — the label's QR code alone (same encoding), as an SVG with
+ *                              its 4-module quiet zone; null without a link
  */
 
 import { spoolLink, productLink } from "../qr-link.js";
@@ -270,6 +276,23 @@ export function closeLabelCard() {
 
 function linkFor(row, kind) {
   return kind === "product" ? productLink(row.idProduct) : spoolLink(row.spoolId);
+}
+
+export function labelFor(row, { kind = "spool", template, slots, dpi } = {}) {
+  const p = prefs();
+  const k = kind === "product" && productLink(row.idProduct) ? "product" : "spool";
+  const info = { ...ctx.labelInfo(row), ...(k === "product" ? { protocol: "TigerTag+" } : {}) };
+  const opts = { template: template || p.template, slots: slots || p.slots, dpi: dpi || p.dpi };
+  return { lbl: buildLabel(info, linkFor(row, k), opts), link: linkFor(row, k), kind: k };
+}
+export function saveLabel(format, lbl, row, kind) { return exportLabel(format, lbl, row, kind, null); }
+export function qrSvg(link) {
+  const m = qrMatrix(link);
+  if (!m) return null;
+  const q = 4, size = m.n + 2 * q;
+  let path = "";
+  for (let r = 0; r < m.n; r++) for (let c = 0; c < m.n; c++) if (m.dark(r, c)) path += `M${c + q} ${r + q}h1v1h-1z`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" shape-rendering="crispEdges"><rect width="${size}" height="${size}" fill="#fff"/><path d="${path}" fill="#000"/></svg>`;
 }
 
 export function mountLabel(el, row, { productOnly = false } = {}) {

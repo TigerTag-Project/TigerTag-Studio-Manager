@@ -2089,12 +2089,14 @@ function initTD1S() {
      that reads the sensor opens (`td1s:need`). */
 }
 
-// ── Local MCP server (AI assistants, read-only) ───────────────────────────
+// ── Local MCP server (AI assistants) ─────────────────────────────────────
 // services/mcpServer.js speaks the protocol; the tools run in the renderer,
 // where the inventory lives. Prefs in <userData>/mcp.json: { enabledFor: [uid],
-// port, token }. PER ACCOUNT, off by default — each profile turns it on from
-// "My profile"; the server runs only while the signed-in account opted in, so
-// switching to an account that did not never exposes its data.
+// writeFor: [uid], port, token }. PER ACCOUNT, off by default — each profile
+// turns it on from "My profile"; the server runs only while the signed-in
+// account opted in, so switching to an account that did not never exposes its
+// data. `writeFor` is the second choice, "let it make changes": without it the
+// write tools (readOnlyHint false) are neither listed nor callable.
 const MCP_DEFAULT_PORT = 5795;
 const _mcpPrefsPath  = () => path.join(app.getPath('userData'), 'mcp.json');
 let _mcp = null;
@@ -2107,6 +2109,7 @@ function _mcpReadPrefs() {
   try { p = JSON.parse(fs.readFileSync(_mcpPrefsPath(), 'utf8')); } catch (_) {}
   const prefs = {
     enabledFor: Array.isArray(p.enabledFor) ? p.enabledFor.filter(x => typeof x === 'string') : [],
+    writeFor: Array.isArray(p.writeFor) ? p.writeFor.filter(x => typeof x === 'string') : [],
     port: Number.isInteger(p.port) ? p.port : MCP_DEFAULT_PORT,
     token: typeof p.token === 'string' && p.token.length >= 32 ? p.token : crypto.randomBytes(24).toString('hex'),
   };
@@ -2138,6 +2141,7 @@ function _mcpConfig() {
   const st = _mcp ? _mcp.status() : { running: false, error: null };
   return {
     enabled: !!_mcpActiveUid && prefs.enabledFor.includes(_mcpActiveUid),
+    write: !!_mcpActiveUid && prefs.writeFor.includes(_mcpActiveUid),
     port: prefs.port, token: prefs.token,
     url: `http://127.0.0.1:${prefs.port}/mcp`,
     running: st.running, error: st.error,
@@ -2149,7 +2153,11 @@ async function _mcpApply() {
     const { createMcpServer } = require('./services/mcpServer');
     _mcp = createMcpServer({
       serverVersion: app.getVersion(),
-      listTools: () => _mcpTools,
+      // A write tool exists for the assistant only while this account allows changes.
+      listTools: () => {
+        const write = !!_mcpActiveUid && _mcpReadPrefs().writeFor.includes(_mcpActiveUid);
+        return write ? _mcpTools : _mcpTools.filter(t => t?.annotations?.readOnlyHint !== false);
+      },
       callTool: _mcpCallRenderer,
       log: (m) => console.log(m),
     });
@@ -2173,6 +2181,14 @@ ipcMain.handle('mcp:set-enabled', async (_evt, enabled) => {
   enabled ? set.add(_mcpActiveUid) : set.delete(_mcpActiveUid);
   _mcpWritePrefs({ ...prefs, enabledFor: [...set] });
   await _mcpApply();
+  return _mcpConfig();
+});
+ipcMain.handle('mcp:set-write', async (_evt, on) => {
+  if (!_mcpActiveUid) return _mcpConfig();
+  const prefs = _mcpReadPrefs();
+  const set = new Set(prefs.writeFor);
+  on ? set.add(_mcpActiveUid) : set.delete(_mcpActiveUid);
+  _mcpWritePrefs({ ...prefs, writeFor: [...set] });
   return _mcpConfig();
 });
 // ── One-click install into an AI client ──────────────────────────────────

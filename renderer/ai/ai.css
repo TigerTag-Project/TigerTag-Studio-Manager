@@ -1,0 +1,123 @@
+/* renderer/ai/ai.css — the AI assistant window (renderer/ai/assistant.js) and its
+   sidebar button. Theme tokens only; the window itself is openDialog's "notice". */
+
+/* Sidebar: the "New" pill until an assistant is plugged in, then a green dot. */
+.sb-ai-pill {
+  margin-left: auto; padding: 1px 7px; border-radius: 999px;
+  background: var(--primary-soft); color: var(--primary); font-size: 10px; font-weight: 700;
+}
+.sb-ai-dot { margin-left: auto; width: 7px; aspect-ratio: 1 / 1; border-radius: 50%; background: var(--success); }
+.sidebar.collapsed .sb-ai-pill { display: none; }
+.sidebar.collapsed .sb-ai-dot { position: absolute; top: 4px; right: 4px; }
+
+.squad-notice.ai-win { width: min(520px, calc(100vw - 32px)); }
+.squad-notice.ai-win--dash { width: min(560px, calc(100vw - 32px)); }
+.ai-win .ai-body { display: flex; flex-direction: column; gap: 10px; text-align: left; }
+.ai-win .ai-body .tsq-title, .ai-win .ai-body .sqn-kicker, .ai-win .ai-body .tsq-desc { text-align: center; }
+.ai-win .ai-wide { width: 100%; justify-content: center; gap: 8px; }
+.ai-win .ai-wide .eac-mcp-logo { height: 18px; background: currentColor; -webkit-mask-size: contain; -webkit-mask-repeat: no-repeat; -webkit-mask-position: center; }
+.ai-win .ai-wide .eac-mcp-logo--mistral { -webkit-mask-image: url('../../assets/svg/brands/mistral.svg'); }
+
+/* Progress: one bar per step of this flow. */
+.ai-steps { display: flex; gap: 6px; justify-content: center; }
+.ai-steps span { width: 24px; height: 4px; border-radius: 2px; background: var(--border-strong); transition: background .3s; }
+.ai-steps span.is-on { background: var(--primary); }
+.ai-stepof { margin: 0; text-align: center; font-size: 12px; color: var(--muted); }
+
+.ai-examples { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.ai-examples li {
+  display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px;
+  border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); font-size: 13px; color: var(--text);
+}
+.ai-examples .icon { flex: none; margin-top: 1px; background-color: var(--primary); }
+
+/* Assistant tiles: the look of My profile's MCP tiles. */
+.ai-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.ai-tile {
+  height: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px;
+  padding: 12px 6px 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface-2);
+  color: var(--text); font-size: 12px; font-weight: 600; cursor: pointer; transition: border-color .15s, transform .1s;
+}
+.ai-tile:hover { border-color: var(--primary); transform: translateY(-1px); }
+.ai-tile.ai-tile.is-sel, .ai-choice.ai-choice.is-sel { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); background: var(--primary-soft); }
+.ai-tile .icon { width: 26px; aspect-ratio: 1 / 1; background-color: var(--muted); }
+
+.ai-choices { display: flex; flex-direction: column; gap: 8px; }
+.ai-choice {
+  height: auto; display: flex; gap: 12px; align-items: flex-start; justify-content: flex-start; text-align: left; padding: 12px 14px;
+  border-radius: 10px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); cursor: pointer;
+  transition: border-color .15s;
+}
+.ai-choice:hover { border-color: var(--primary); }
+.ai-choice .icon { flex: none; margin-top: 2px; background-color: var(--primary); }
+.ai-choice-text { display: flex; flex-direction: column; gap: 3px; }
+.ai-choice-text small { color: var(--muted); font-size: 12px; font-weight: 400; line-height: 1.4; }
+
+.ai-hint { margin: 0; font-size: 12px; color: var(--muted); }
+.ai-url code {
+  display: block; padding: 9px 12px; border-radius: 8px; background: var(--surface-2); border: 1px solid var(--border);
+  font-size: 13px; color: var(--text); user-select: all;
+}
+.ai-nav { display: flex; justify-content: space-between; gap: 8px; margin-top: 4px; }
+
+/* Waiting: the robot breathes until the first call arrives. */
+.ai-wait { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; }
+.ai-wait-robot .icon { width: 52px; aspect-ratio: 1 / 1; background-color: var(--primary); animation: ai-breathe 1.8s ease-in-out infinite; }
+@keyframes ai-breathe { 50% { transform: scale(1.08); opacity: .75; } }
+.ai-waiting { margin: 0; font-size: 12px; color: var(--muted); }
+.ai-waiting::before {
+  content: ""; display: inline-block; width: 8px; aspect-ratio: 1 / 1; margin-right: 6px; border-radius: 50%;
+  background: var(--primary); animation: ai-breathe 1s ease-in-out infinite;
+}
+
+/* A question to copy (wait screen and the three suggestions). */
+.ai-prompt {
+  height: auto; width: 100%; display: flex; align-items: center; gap: 10px; padding: 9px 12px; text-align: left;
+  border-radius: 10px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text);
+  font-size: 13px; cursor: pointer; transition: border-color .15s;
+}
+.ai-prompt:hover { border-color: var(--primary); }
+.ai-prompt .ai-prompt-text { flex: 1; }
+.ai-prompt .icon { flex: none; background-color: var(--muted); }
+.ai-prompt.is-copied .icon-copy { background-color: var(--success); }
+.ai-prompt.is-done { border-color: var(--success-soft); }
+.ai-prompt.is-done .icon { background-color: var(--success); }
+.ai-prompt small { color: var(--success); font-weight: 600; }
+
+.ai-status { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.ai-chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px;
+  border: 1px solid var(--border); font-size: 12px; color: var(--muted);
+}
+.ai-chip .icon { background-color: var(--muted); }
+.ai-chip.is-on { color: var(--success); border-color: var(--success-soft); }
+.ai-chip.is-on .icon { background-color: var(--success); }
+
+/* The live feed: the newest line slides in. */
+.ai-feed { display: flex; flex-direction: column; max-height: 220px; overflow-y: auto; }
+.ai-ev { display: flex; align-items: center; gap: 10px; padding: 7px 2px; border-top: 1px solid var(--border-soft); font-size: 13px; color: var(--text); }
+.ai-ev:first-child { border-top: 0; }
+.ai-ev .icon { flex: none; background-color: var(--primary); }
+.ai-ev.is-refused .icon { background-color: var(--muted); }
+.ai-ev-text { flex: 1; min-width: 0; }
+.ai-ev.is-fresh { animation: ai-in .45s cubic-bezier(.2, .8, .2, 1); }
+@keyframes ai-in { from { opacity: 0; transform: translateY(-6px); background: var(--primary-soft); } }
+.ai-undone { color: var(--muted); }
+.ai-empty { margin: 0; padding: 10px 0; font-size: 13px; color: var(--muted); }
+
+/* Ceremony: the robot on the plaque, and a huge one swelling behind the window. */
+.ai-cere-robot { display: flex; justify-content: center; margin: 6px 0 2px; }
+.ai-cere-robot .icon { width: 72px; aspect-ratio: 1 / 1; background-color: var(--primary); animation: ai-pop .6s cubic-bezier(.2, 1.4, .4, 1) both; }
+@keyframes ai-pop { from { transform: scale(.3); opacity: 0; } }
+.ai-cere-bg { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; z-index: 0; }
+.ai-cere-bg .icon { width: min(70vh, 640px); aspect-ratio: 1 / 1; background-color: var(--primary); opacity: 0; animation: ai-swell 2.4s ease-out forwards; }
+@keyframes ai-swell { 0% { transform: scale(.4); opacity: 0; } 35% { opacity: .16; } 100% { transform: scale(1.05); opacity: .1; } }
+.ai-cere-bg + .tc-reveal-card { position: relative; z-index: 1; }
+
+/* A spool the assistant looked at or changed lights up in the main view. */
+.card.ai-glow, tr.ai-glow { animation: ai-glow 2.2s ease-out; }
+@keyframes ai-glow { 0%, 30% { box-shadow: 0 0 0 2px var(--primary), 0 0 18px var(--primary-20); } 100% { box-shadow: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-wait-robot .icon, .ai-waiting::before, .ai-ev.is-fresh, .ai-cere-robot .icon, .ai-cere-bg .icon, .card.ai-glow, tr.ai-glow { animation: none; }
+}

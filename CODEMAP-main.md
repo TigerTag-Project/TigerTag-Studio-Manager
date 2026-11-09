@@ -62,7 +62,7 @@ L4308-4368   App lifecycle (whenReady, window-all-closed, activate)
 |---|---|---|
 | 1505-1813 | Serial-port watcher, TD/color line parse, state replayed to renderer on reload; IPC `td1s:need` / `td1s:release` | `initTD1S` |
 
-## Auto-updater + migration gate (L2146-2284)
+## Auto-updater + migration gate (L2146-2470)
 
 | L | What | Anchors / IPC |
 |---|---|---|
@@ -80,7 +80,7 @@ L4308-4368   App lifecycle (whenReady, window-all-closed, activate)
 
 | L | What | IPC |
 |---|---|---|
-| 1761-1947 | Read-only MCP server for AI assistants: `<userData>/mcp.json` prefs (enabledFor [uid] / port 5795 / token; server follows the signed-in account via `mcp:set-account`), stdio bridge copied to `<userData>/mcp/`, `tools/call` relayed to the renderer, started by `initMcp()` at boot. Protocol: `services/mcpServer.js` | `mcp:get-config`, `mcp:set-account`, `mcp:set-enabled`, `mcp:new-token`, `mcp:register-tools`, `mcp:call` / `mcp:result`, `mcp:hosted-grants` (Hub hosted-connector grants list / revoke, CORS-exempt) |
+| 1761-1947 | MCP server for AI assistants: `<userData>/mcp.json` prefs (enabledFor [uid] / writeFor [uid] — write tools listed only for those / port 5795 / token; server follows the signed-in account via `mcp:set-account`), stdio bridge copied to `<userData>/mcp/`, `tools/call` relayed to the renderer, started by `initMcp()` at boot. Protocol: `services/mcpServer.js` | `mcp:get-config`, `mcp:set-account`, `mcp:set-enabled`, `mcp:set-write`, `mcp:new-token`, `mcp:register-tools`, `mcp:call` / `mcp:result`, `mcp:hosted-grants` (Hub hosted-connector grants list / revoke, CORS-exempt) |
 
 ## Printer discovery probes (L2564-3299)
 

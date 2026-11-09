@@ -206,9 +206,14 @@
 > ⚠️ This table is a snapshot and can drift as keys are added. The authoritative key set is the locale files themselves; `npm run i18n:check` is the source of truth for "do all 11 locales agree". When you add keys via `npm run i18n:add`, append them to the relevant section here too.
 
 ### AI assistants (local MCP server)
-`stgMcpTitle`, `stgMcpToggleSub` (ⓘ bubble), `eacMcpRow`, `stgMcpAddClaude`, `stgMcpAddCursor`, `stgMcpAddVscode` (aria labels), `stgMcpAddOpened` (`{{app}}`), `stgMcpAddFailed` (`{{app}}`), `stgMcpNewKey`, `stgMcpNewKeyTip`, `stgMcpError` (`{{error}}`)
+`stgMcpTitle`, `stgMcpToggleSub` (ⓘ bubble), `eacMcpRow`, `eacMcpWriteRow`, `eacMcpWriteTip` (ⓘ bubble: what a write may change), `stgMcpAddClaude`, `stgMcpAddCursor`, `stgMcpAddVscode` (aria labels), `stgMcpAddOpened` (`{{app}}`), `stgMcpAddFailed` (`{{app}}`), `stgMcpNewKey`, `stgMcpNewKeyTip`, `stgMcpError` (`{{error}}`)
 
 Online (hosted) connector: `eacMcpWebTitle`, `eacMcpWebSub`, `eacMcpWebHowto`, `eacMcpWebDiff`, `eacMcpGrantsTitle`, `eacMcpGrantsNone`, `eacMcpGrantsLoading`, `eacMcpGrantsErr`, `eacMcpGrantSince` (`{{date}}`), `eacMcpGrantUsed` (`{{ago}}`), `eacMcpGrantUnnamed`, `eacMcpGrantCut`, `eacMcpGrantCutTip`
+
+### AI assistant window (guided set-up, live feed, undo)
+`aiTitle`, `aiNew`, `aiWelcomeKicker`, `aiWelcomeTitle`, `aiWelcomeText`, `aiEx3mf`, `aiExQr`, `aiExInvoice`, `aiStart`, `aiStepOf`, `aiBack`, `aiNext`, `aiQWho`, `aiNone`, `aiNoneHint`, `aiGetClaude`, `aiQWhere`, `aiWhereLocal`, `aiWhereLocalSub`, `aiWhereWeb`, `aiWhereWebSub`, `aiQRights`, `aiRightsRead`, `aiRightsReadSub`, `aiRightsWrite`, `aiRightsWriteSub`, `aiQConnect`, `aiConnectLocal`, `aiConnectLocalBtn`, `aiConnectWeb`, `aiConnectWebBtn`, `aiWaitTitle`, `aiWaitText`, `aiWaitPrompt`, `aiWaiting`, `aiWaitDone`, `aiConnectedTitle`, `aiConnectedLocal`, `aiConnectedWeb`, `aiConnectedGo`, `aiStatusLocal`, `aiStatusOff`, `aiStatusRead`, `aiStatusWrite`, `aiStatusWeb`, `aiTryTitle`, `aiTryDone`, `aiTryStock`, `aiTry3mf`, `aiTryLow`, `aiTryWeight`, `aiFeedTitle`, `aiFeedEmpty`, `aiFeedWebNote`, `aiChangesTitle`, `aiUndo`, `aiUndone`, `aiUndoFailed`, `aiAnother`, `aiSettings`
+
+Live captions of what the assistant just did, one per tool (`{{name}}`, `{{n}}`, `{{kg}}`, `{{ok}}`, `{{before}}`, `{{after}}`, `{{q}}`): `aiAct_search`, `aiAct_spool`, `aiAct_summary`, `aiAct_racks`, `aiAct_free`, `aiAct_printers`, `aiAct_catalog`, `aiAct_match`, `aiAct_identify`, `aiAct_weight`, `aiAct_edit`, `aiAct_move`, `aiAct_unstore`, `aiAct_product`, `aiAct_create`, `aiAct_rack`, `aiAct_rename`, `aiAct_undo`, `aiAct_label`, `aiAct_other`, `aiAct_refused`
 
 ### Web build (Tiger Studio Web)
 Install as an app (sidebar, web only): `sbInstallBtn`, `installIosHint` (iOS: Share → Add to Home Screen)

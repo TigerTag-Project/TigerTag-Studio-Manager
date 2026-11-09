@@ -8,4 +8,4 @@
 - Edit `firestore.rules` in the backend repo; add new fields to the `hasOnly([...])` list; deploy `firebase deploy --only firestore:rules --project tigertag-connect`; commit on `main` when asked.
 - Cross-user writes always require an existing relationship (friend, request), mirroring the existing rules.
 - `userProfiles/{uid}` is written only by the `setProfile` Cloud Function; Studio never writes it directly.
-- Propagate: `docs/firestore-schema.md` here, the backend `README.md` (Firestore Data Structure), the integration guide (`TigerTag_Firebase_Integration`, third-party surface only) and TigerHub. Keep `MCP_DATA_GUIDE` true (`mcp-read-only.md`).
+- Propagate: `docs/firestore-schema.md` here, the backend `README.md` (Firestore Data Structure), the integration guide (`TigerTag_Firebase_Integration`, third-party surface only) and TigerHub. Keep `MCP_DATA_GUIDE` true (`mcp.md`).

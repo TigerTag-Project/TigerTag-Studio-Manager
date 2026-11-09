@@ -45,6 +45,7 @@ greyed and inert until the toggle is on:
 | **Claude** | Studio builds a `.mcpb` bundle and opens it → Claude Desktop shows its extension install dialog |
 | **Cursor** | opens Cursor's MCP install link |
 | **VS Code** | opens VS Code's MCP install link |
+| **Let it make changes too** | second switch, per profile, off by default, inert while reading is off: lists the write tools (§5) to the assistant |
 | **Renew the key** (hold 1.5 s) | rotates the token — every assistant must be added again |
 
 The block only appears on the signed-in account's own profile.
@@ -79,6 +80,26 @@ failure → one quiet error line (never a dialog). Same visibility rule as the r
 the signed-in account's own profile only.
 
 ---
+
+### The AI assistant window (sidebar)
+
+`renderer/ai/assistant.js` + `ai.css`, opened by **AI assistant** (robot icon) under Notifications
+and Tiger Quests — desktop only (no `mcpBridge` in Studio Web). A beginner's way in, on `openDialog`:
+
+1. Welcome (three things it can do) → **which assistant** (Claude, ChatGPT, Cursor, VS Code, Le Chat,
+   Grok, or none → download Claude) → **where** (this computer / web and phone — asked only for Claude)
+   → **what it may do** (look / tidy up, this computer only: sets the two switches of My profile)
+   → **plug it in** (local: `mcpBridge.install`; online: the address is copied and the wiki guide
+   opens on that assistant) → **wait**.
+2. The wait ends by itself: on this computer the first tool call (every call is passed to
+   `aiOnToolCall` by the `mcp:call` relay); online a grant created or used since the wait started
+   (`hostedGrants`, every 5 s, only while that screen is open). "It answered, carry on" ends it by hand.
+3. A ceremony ("Plugged in", a robot swelling behind the window), then the **dashboard**: status
+   chips, three questions built from the user's own stock (ticked when the matching tool is called),
+   the live feed of this session's calls in plain words (`aiAct_*`; online calls run on the Hub and
+   do not show), and the journaled changes with **Undo** (`_mcpUndo` — the user's undo needs no write
+   switch). A spool the assistant looked at or changed glows in the main view (`.ai-glow`).
+4. Per account, `tigertag.ai.<uid>` remembers it is plugged in (the sidebar's "New" pill becomes a dot).
 
 ## 3. Architecture
 
@@ -118,7 +139,7 @@ Bundle + bridge copies: `<userData>/mcp/`.
 
 | Rule | How |
 |---|---|
-| **Read-only** | every tool is a query; `annotations.readOnlyHint: true` on each |
+| **Read by default** | the query tools carry `readOnlyHint: true`; the write tools (`readOnlyHint: false`) exist for the assistant only while the account allows changes, never delete, and are journaled + undoable |
 | **Loopback only** | listens on `127.0.0.1` — never another interface |
 | **Token** | `Authorization: Bearer <48 hex>` required, else **401** — compared in constant time (`crypto.timingSafeEqual`); rotatable (hold 1.5 s) |
 | **Batch cap** | a JSON-RPC batch holds 1–20 messages, else **400** — each `tools/call` is relayed to the app |
@@ -160,13 +181,54 @@ High-level (preferred — shaped for questions people ask):
 | `search_inventory` | spools filtered by `query`, `brand`, `material`, `max/min_remaining_g`, `stored`, `limit` |
 | `get_spool` | one spool in full: colours, weights, location, temperatures (own, else the material's recommendation — `temperatures_source` says which), twin |
 | `inventory_summary` | totals, by material, by brand, low stock, not stored |
-| `list_racks` | racks, size, spools stored |
+| `list_racks` | racks, size (levels, positions, depth), printer-feed racks, spools stored |
 | `list_printers` | printers, model name, online now (live, from Studio) |
 | `list_friends` | accepted friends |
 | `friend_inventory` | a friend's spools (same filters) |
 | `list_wishlists` | own or a friend's lists with items |
 | `data_history` | history points (stock value, counts), newest first |
 | `list_devices` | TigerScale scales + printer documents (masked) |
+
+Catalogue and print planning (the assistant reads the invoice / photo / `.3mf` itself and passes
+structured values; the tool does the colour and gram arithmetic):
+
+| Tool | Returns |
+|---|---|
+| `search_catalog` | catalogue products by `ean` / `sku` (exact), words, `brand`, `material` (by ID: same material or family), `color_hex` (CIEDE2000 `delta_e`, ≤ 3 identical · ≤ 8 close · ≤ 15 similar) — `product_id`, colours, measure, EAN, SKU |
+| `lookup_reference` | a reference table (`brand`, `material` with family / density / recommended temps, `aspect`, `type`, `diameter`, `container` with its empty weight), filtered by `text` |
+| `identify_spool` | the spool a QR code (`qr.tigertag.io/<id>`, read with `qr-link.js` `parseQrLink`) or a chip UID / spool id designates — inventory, twin, linked maker chip, then `uidMigrationMap`; a product QR (`/p/…`) gives the product and the user's spools of it; `?weight=` / `?note=` come back as `proposed_values`, never applied |
+| `match_filaments` | for each filament of a print `{slot, color_hex, material, grams}`: ranked spools of the stock (material by ID, colour by ΔE, needed = grams × (1 + margin) + 5 g, a spool never counted twice), the pick, `enough` / `shortfall_g`, location, and catalogue products to buy for what is missing |
+
+Write tools — listed to the assistant only when the signed-in account turned on **Let it make
+changes too** (My profile › AI assistants; `writeFor` in `mcp.json`, filtered in `main.js`
+`listTools` and checked again by `_mcpWriteGate`):
+
+| Tool | Does |
+|---|---|
+| `set_spool_weight` | `weight_available` from grams `remaining` / `gross` (empty-spool weight subtracted) / `consumed`, clamped 0…capacity; 0 = an empty spool |
+| `update_spool` | note (`message`, 28 bytes) and TD (0.1…100, `null` removes it) — both chip data, so `needUpdateAt` is flagged on a chip — tags (replace / add / remove, `_normalizeTag`), empty-spool model (`container_id` + `container_weight`) |
+| `move_spool` | `rack` = a free, unlocked slot (level, position and row within the rack's size and `rackDepthOf` depth; never a swap), or `unstore` |
+| `update_product` | through `_writeProduct`: price (VAT converted, stored HT), `buyUrl`, `minStockSpools`, note, SKU, EAN, `attachments` (plan limit) |
+| `create_spools` | chipless TigerData+ from catalogue `product_id`s (`_catalogDocFromApi` + `_createChipless`), optional weight and note; `idempotency_key` required; 20 per call, 100 a day |
+| `create_rack` / `rename_rack` | a plain shelf (1…15 levels, 1…20 positions, depth 1…4, `createRack`; a name already used is refused; 5 a day), or a new name / subtitle (`updateRack`, undoable) |
+| `list_changes` / `undo_change` | the journal; undo puts the values before back, refused when the spool (or rack) changed again since, and for a creation (spools or rack) |
+
+`get_label` (read-only, always listed): a spool's label or its product's, built by `labels/index.js`
+`labelFor` exactly as the label card draws it (template, up to 4 value slots, 203 / 300 dpi). `print`,
+`pdf`, `png`, `svg` open Studio's print / save dialog through `saveLabel` (the user confirms; the tool
+does not wait), `svg_text` returns the SVG in the answer, `qr_svg` only its QR code (`qrSvg`, same
+encoding, 4-module quiet zone) with its link. `find_free_slots` (read-only) lists the free, unlocked
+slots per rack, depth included — where `move_spool` can store a spool.
+
+Every write is twin-mirrored, journaled in localStorage `tigertag.agentChanges.<uid>` (300 newest,
+30 days) and runs inside `questsMuted()` — no quest, XP or TigerCoins for an assistant's change.
+**Nothing is ever deleted** by an assistant: a finished spool is set to 0 g, a spool created by
+mistake is deleted by the user. 500 changes a day per account. The hosted connector has no write
+tool yet.
+
+`data_guide` → `reading_files` tells the model where a `.3mf` keeps its filaments (Bambu / Orca
+`Metadata/slice_info.config` `used_g`; unsliced = no grams) and how to read an invoice or a photo.
+The hosted connector serves the same four (Hub v1.40.0, `lib/mcp/`).
 
 Raw access (anything else in scope):
 
@@ -217,7 +279,8 @@ same reflex as `docs/firestore-schema.md`.
 
 ## 7. Adding or changing a tool — checklist
 
-1. **Is it read-only?** If it writes, stop: writes need the confirmation flow (§9).
+1. **Is it read-only?** If it writes, stop: writes follow `.agents/rules/mcp.md` (allowlisted fields, journal + undo,
+   opt-in per assistant, never a delete) and the flow of §9.
 2. Add the definition to `MCP_TOOLS` — `name` (snake_case verb), `title`, a
    **description written for the model** (what it returns, when to use it, units),
    `inputSchema` (JSON Schema, describe every property), `annotations: { readOnlyHint: true }`.
@@ -270,9 +333,10 @@ curl -s -H "Content-Type: application/json" -H "Authorization: Bearer $TOK" \
    (Hub `lib/mcp/schemas.ts` + `lib/mcp/guide.ts` mirror `MCP_TOOLS` + `MCP_DATA_GUIDE`).
    Works without Studio running; live printer state stays Studio-only. Users see and revoke
    connected assistants on tigersystem.io → account → Data.
-2. **Writes behind a confirmation** — set a weight, place a spool: each call raises an
-   in-app prompt; nothing is written silently. Mark such tools `readOnlyHint: false`,
-   `destructiveHint` where relevant.
+2. **Writes** — local server built (§5 "Write tools"). Left: the hosted connector (an OAuth
+   scope `inventory.write` chosen at consent, the journal moved to Firestore
+   `users/{uid}/agentChanges` with its rule, so a change made online can be undone anywhere),
+   colour / TD edits, spools outside the catalogue, a "changes by assistants" list in My profile.
 3. **In-app agent** sharing the same tool registry (local model, Ollama, or the user's key).
 
 ---

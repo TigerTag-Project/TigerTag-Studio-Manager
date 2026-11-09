@@ -83,13 +83,20 @@ export function initQuests(ctx) {
 // never feeds a quest, so its actions are dropped here.
 // A journey action's count as the server last wrote it (0 before the first read).
 export function questActionCount(id) { return Number(_journey?.actions?.[id]) || 0; }
+// A change made by the user's AI assistant (MCP write tools) earns nothing:
+// it runs inside questsMuted(), where bumps and gauges are dropped.
+let _muted = 0;
+export async function questsMuted(fn) {
+  _muted++;
+  try { return await fn(); } finally { _muted--; }
+}
 export function questBump(key, n = 1, printer = null) {
-  if (!_uid || !key || printer?.demo === true) return;
+  if (_muted || !_uid || !key || printer?.demo === true) return;
   _bumps.set(key, (_bumps.get(key) || 0) + n);
   scheduleFlush();
 }
 export function questGauge(key, value) {
-  if (!_uid || !key || !Number.isFinite(value)) return;
+  if (_muted || !_uid || !key || !Number.isFinite(value)) return;
   if (_gaugeSent.get(key) === value) return;
   _gauges.set(key, value);
   scheduleFlush();

@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld('mcpBridge', {
   reply:         (msg) => ipcRenderer.send('mcp:result', msg),
   getConfig:     () => ipcRenderer.invoke('mcp:get-config'),
   setEnabled:    (on) => ipcRenderer.invoke('mcp:set-enabled', on),
+  setWrite:      (on) => ipcRenderer.invoke('mcp:set-write', on),
   newToken:      () => ipcRenderer.invoke('mcp:new-token'),
   install:       (target) => ipcRenderer.invoke('mcp:install', target),
   setAccount:    (uid) => ipcRenderer.invoke('mcp:set-account', uid),
