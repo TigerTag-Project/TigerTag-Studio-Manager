@@ -145,7 +145,7 @@ async function startRec(host) {
     : (stream && await probeStream(stream)) ? stream : `poll:${snap}`;
   // A stream main already reads for the picture is recorded from there: a second
   // connection to the same camera is refused or cut by the printer.
-  const liveKey = m && _ctx.liveKey?.(p);
+  const liveKey = m && _ctx.liveKey?.(p, host);
   const tap = liveKey ? await window.camCapture.recTapStart(id, info, liveKey) : null;
   if (tap?.ok) {
     rec.stop = () => window.camCapture.recStop(id);

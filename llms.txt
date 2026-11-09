@@ -301,7 +301,7 @@ Each brand has `renderer/printers/<brand>/PROTOCOL.md` (self-contained spec) and
 
 Plugins (`renderer/printers/<id>/plugin.js`, own `PROTOCOL.md` + `main.cjs`; not counted as brands): **Klipper** — Moonraker HTTP poll, any Klipper printer, Happy Hare / AFC slots (beta, 7125); **OctoPrint** — OctoPrint REST, Marlin printers behind OctoPi, API key via Application Keys, no filament slots (beta, 80). Klipper also shows every extra temperature the printer reports (`temperature_sensor`, `temperature_fan`, `heater_generic`) in a collapsible Sensors card, and the printer's Mainsail theme logo when it has one. Both plugins' add flow lists their models with a search (host service `printers/model-list.js`); their temperatures take a new target on click (host service `printers/temp-edit.js`). Mocks for tests from any device: `npm run moonraker:mock`, `npm run octoprint:mock` (`docs/PRINTER-MOCKS.md`). Bambu Lab cloud printers switch Cloud ⇄ LAN from their settings and fail over automatically (`bambulab/mode-switch.js`, `bambulab/failover.js`).
 
-All brands: printer discovery (mDNS + port scan + manual IP), camera widget; filament edit per slot except Prusa (PrusaLink reports no loaded filament — slots show what the running job expects).
+All brands: printer discovery (mDNS + port scan + manual IP), camera; filament edit per slot except Prusa (PrusaLink reports no loaded filament — slots show what the running job expects).
 
 ## Sensors
 

@@ -346,6 +346,12 @@ users/
                                           choice is ever written. The switches live on
                                           the machine's ⋮ — a hidden widget has no menu
                                           of its own left to bring it back with.
+            camSource        string?   — the id of one of the account's IP cameras
+                                          (`devices/{id}`, type "camera") that the
+                                          printer shows IN PLACE of its own camera, on
+                                          its board card, in its panel and on the camera
+                                          wall. Absent = its own camera; a camera that
+                                          no longer exists falls back to its own.
             tempPlan         map?      — where its TEMPERATURE widget sits on that
                                           board: { x, y, z }. Not storage — the board
                                           addresses every kind through one

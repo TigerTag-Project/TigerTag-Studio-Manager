@@ -3164,28 +3164,7 @@ details[open] .pba-step-chev { transform: rotate(90deg); }
      everywhere on the board. */
   .job-card.is-stale .job-card-body { opacity: .55; filter: saturate(.5); }
 
-  /* ── Camera widget on the board ──────────────────────────────────────────
-     The feed fills the card's width and keeps a 16:9 frame, so a machine that
-     goes offline does not change the widget's size and shuffle the board. The
-     banner's own markup — <img>, <video>, <iframe> depending on the brand — is
-     stretched to fill it rather than restyled per transport. */
-  /* NO percentage width and NO aspect-ratio here. The card sizes itself to its
-     content (`width: max-content`), so a percentage inside it is circular — the
-     browser resolves it as `auto`, the body contributes nothing to the card's
-     width, and an aspect-ratio computed from a zero width gives a zero height:
-     the widget drew its head and an invisible body. The frame is stated
-     outright instead, from the board's own card width. */
-  .cam-card-body {
-    position: relative; align-self: stretch;
-    min-width: var(--board-card-w);
-    overflow: hidden; border-radius: 10px; background: var(--surface-3);
-  }
-  /* Empty or idle, the frame keeps the shape a feed would give it, so the widget
-     does not change size the moment you press play. */
-  .cam-card-off { aspect-ratio: 16 / 9; }
-  /* Offline: the same frame, empty — never a collapsed card. */
-  .cam-card-off { width: 100%; display: flex; align-items: center; justify-content: center; }
-  .cam-card-off .icon { background: var(--muted); opacity: .5; }
+  /* ── The camera's play key, on a machine card ───────────────────────────── */
   /* The play key. Big enough to be the obvious thing in an empty frame, quiet
      enough not to look like an alert on a board full of them. */
   .cam-play {
@@ -3223,13 +3202,7 @@ details[open] .pba-step-chev { transform: rotate(90deg); }
      `.pp-cam-full` carries for the panel, and names each brand's own element,
      because they letterbox by choice — right in the panel, where losing an edge
      would hide part of the bed; wrong on a thumbnail read at a glance. */
-  .cam-card-body .pp-cam-full,
   .printer-card-thumb .pp-cam-full { min-height: 0; }
-  .cam-card-body .pp-cam-full,
-  .cam-card-body .snap-camera-frame,
-  .cam-card-body .cre-cam-video,
-  .cam-card-body .cre-cam-mjpeg,
-  .cam-card-body img[src*="8898"],
   .printer-card-thumb .pp-cam-full,
   .printer-card-thumb .snap-camera-frame,
   .printer-card-thumb .cre-cam-video,
@@ -3240,8 +3213,6 @@ details[open] .pba-step-chev { transform: rotate(90deg); }
      `object-fit: contain`) — right for a product shot, wrong for a camera, which
      sat small and centred inside a correctly-shaped 16:9 frame. The camera wall
      never needed this rule: its cards hold no product photo. */
-  .cam-card-body .pp-cam-full > img,
-  .cam-card-body .pp-cam-full > video,
   .printer-card-thumb .pp-cam-full > img,
   .printer-card-thumb .pp-cam-full > video {
     display: block;
@@ -3249,9 +3220,6 @@ details[open] .pba-step-chev { transform: rotate(90deg); }
     max-width: none; max-height: none;
     object-fit: cover;
   }
-  /* The stale dimming the other widgets get would double up on a frame that is
-     already empty, so the camera says it once. */
-  .printers-grid--plan .cam-card.is-stale { opacity: 1; }
 
   /* ── The camera wall as a PLAN ───────────────────────────────────────────
      Same surface as the storage and printer boards: cards placed by hand, a
@@ -3580,7 +3548,26 @@ details[open] .pba-step-chev { transform: rotate(90deg); }
 .cam-wall-card[data-state="connecting"] .xc-overlay--connecting,
 .cam-wall-card[data-state="error"] .xc-overlay--error,
 .xc-board-card[data-state="connecting"] .xc-overlay--connecting,
-.xc-board-card[data-state="error"] .xc-overlay--error { display: flex; }
+.xc-board-card[data-state="error"] .xc-overlay--error,
+.xc-embed[data-state="connecting"] .xc-overlay--connecting,
+.xc-embed[data-state="error"] .xc-overlay--error { display: flex; }
+/* An external camera shown in place of a printer's own: it fills the printer's
+   16:9 camera box (`.pp-cam-full`) instead of sizing itself. */
+.xc-embed > .xc-view { position: absolute; inset: 0; aspect-ratio: auto; }
+/* A feed fills a card's 16:9 box like the printer's own. */
+/* The printer settings' "Camera shown" dropdown: the app's styled select (on the right of its title),
+   with the step buttons' corners, height and orange outline. Wide enough for its label — the filter
+   look caps it at 180px, which cut the text. The outline is the same whether a camera is chosen or
+   not (the filled orange look of a chosen filter, .is-active, is not used here). */
+.pba-camsource-row .csel { width: auto; max-width: 62%; margin-left: auto; }
+.pba-camsource-row .csel-btn { height: 35px; max-width: none; border-radius: 8px; }
+.pba-camsource-row .csel-btn,
+.pba-camsource-row .csel-btn.is-active { background-color: transparent; border-color: var(--primary); color: var(--text); font-weight: 400; }
+.pba-camsource-row .csel-btn:hover,
+.pba-camsource-row .csel--open .csel-btn { background-color: var(--primary-soft); border-color: var(--primary); }
+.pba-camsource-row .csel-pop { min-width: 100%; width: max-content; max-width: 280px; right: 0; left: auto; }
+.pba-camsource-row .csel-opt.is-sel { color: var(--text); font-weight: 600; background: var(--ink-10); }
+.printer-card-thumb .xc-embed .xc-media { width: 100%; height: 100%; max-width: none; max-height: none; object-fit: cover; }
 /* An <img> with no address yet is drawn by Chromium as a broken image: a light
    frame round the black picture. Nothing to show until the first picture. */
 .xc-media:not([src]) { visibility: hidden; }
