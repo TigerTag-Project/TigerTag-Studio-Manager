@@ -67,6 +67,10 @@
     --border-strong: #d0d4dc;   /* emphasised / focus base */
 
     /* ── 2. Brand + semantic — hue constant across themes ── */
+    /* A phone drawn as a phone (AI assistant demo): the same in both themes. */
+    --device-frame: #3a3a3f;    /* the metal band */
+    --device-frame-hi: #6b6b72; /* its lit edge */
+    --device-glass: #050507;    /* the black border around the screen, the island */
     --primary: #ff7a18;
     --primary-hover: #e96900;
     --primary-soft: #ffe9d6;

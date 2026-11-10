@@ -682,6 +682,11 @@ async function closeMine(id) {
   if (_thread?.id === id) _threadToEnd();
 }
 
+// For the AI assistant's request tools (ai/support-tools.js): the same two
+// endpoints, the same ID token. The assistant prepares; the user sends.
+export const reportSubmit = body => authedPost(ENDPOINT, body);
+export const reportCall = body => authedPost(MINE_ENDPOINT, body);
+export async function reportMeta() { return ctx?.getMeta ? ctx.getMeta() : {}; }
 export function isReportOpen() { return !!_overlay?.classList.contains("open"); }
 // Files dropped anywhere in the window while the card is open land here — the
 // .ttag import stands down meanwhile (inventory.js).

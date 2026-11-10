@@ -798,17 +798,24 @@
 .squad-notice .tsq-desc { margin-top: -6px; }
 .sqn-lost { padding: 12px 14px; border-radius: 12px; text-align: left; background: var(--tsq-bg2); border: 1px solid var(--tsq-line); }
 .sqn-lost-h { display: block; margin-bottom: 8px; font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--game-danger-text); }
-.sqn-lost ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
-.sqn-lost li { display: flex; align-items: center; gap: 10px; padding: 7px 0; }
-.sqn-lost li + li { border-top: 1px solid var(--tsq-line); }
-.sqn-lost-ic { flex-shrink: 0; width: 30px; aspect-ratio: 1; border-radius: 9px; display: grid; place-items: center; background: color-mix(in srgb, var(--game-danger) 12%, transparent); }
+.sqn-lost ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; column-gap: 16px; }   /* two columns */
+.sqn-lost li { display: flex; align-items: center; gap: 10px; padding: 8px 0; min-width: 0; }
+.sqn-lost li:nth-child(n+3) { border-top: 1px solid var(--tsq-line); }
+.sqn-lost-ic { flex-shrink: 0; width: 22px; aspect-ratio: 1; display: grid; place-items: center; }   /* bare icon, no tile */
 .sqn-lost-ic .icon { background: var(--game-danger-text); }
 .sqn-lost li > span:last-child { display: flex; flex-direction: column; min-width: 0; }
 .sqn-lost li b { font-size: 13px; color: var(--tsq-text); }
 .sqn-lost li small { font-size: 11.5px; line-height: 1.35; color: var(--tsq-muted); }
-/* What stays: its own small card, a green tick in a disc. */
+/* What stays: its own small card, a bare green tick. */
 .sqn-keep { margin: -4px 0 0; display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 12px; border: 1px solid var(--tsq-line); background: var(--tsq-bg2); text-align: left; font-size: 12.5px; color: var(--tsq-text); }
-.sqn-keep-ic { flex-shrink: 0; width: 24px; aspect-ratio: 1; border-radius: 7px; display: grid; place-items: center; background: color-mix(in srgb, var(--success) 16%, transparent); }
+.sqn-keep-ic { flex-shrink: 0; width: 20px; aspect-ratio: 1; display: grid; place-items: center; }
+/* Leaving: the word to type before the hold button unlocks. */
+.sqn-confirm { display: flex; flex-direction: column; gap: 6px; text-align: left; font-size: 12px; color: var(--tsq-muted); }
+.sqn-confirm input { height: 38px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--tsq-line); background: var(--tsq-bg2); color: var(--tsq-text);
+  font: 700 13.5px/1 inherit; letter-spacing: .06em; text-transform: uppercase; outline: none; transition: border-color .16s; }
+.sqn-confirm input:focus { border-color: color-mix(in srgb, var(--game-danger) 55%, transparent); }
+.sqn-confirm input.is-ok { border-color: var(--game-danger); }
+.squad-notice--leave [data-dlg="leave"][aria-disabled="true"] { opacity: .45; cursor: not-allowed; }
 .sqn-keep .icon { background: var(--game-ok-text); }
 .sqn-leave { position: relative; overflow: hidden; width: 100%; height: 42px; border-radius: 10px; border: 1px solid color-mix(in srgb, var(--game-danger) 45%, transparent);
   background: transparent; color: var(--game-danger-text); font-family: inherit; font-size: 13.5px; font-weight: 700; cursor: pointer; transition: background .16s; }

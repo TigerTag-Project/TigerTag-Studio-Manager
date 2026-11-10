@@ -1516,7 +1516,7 @@ body.progress-view #gridSortWrap { display: none; }
 .sqd-card-state b { font: 800 11px var(--qw-mono, monospace); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sqd-card-state > i { width: 7px; height: 7px; flex-shrink: 0; border-radius: 50%; background: currentColor; }
 .sqd-card-state.is-free { color: var(--game-ok-text); }
-.sqd-card-state.is-code { color: var(--tsq-orange); }
+.sqd-card-state.is-code { color: var(--game-ok-text); }   /* claimed = done, green like "available" */
 .sqd-card-state.is-locked { color: var(--tsq-orange); }
 .sqd-card-state.is-out { color: var(--tsq-muted); }
 /* Limited deals (a pool of codes): how many are gone, how many are left. */

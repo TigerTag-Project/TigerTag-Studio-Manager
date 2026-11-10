@@ -11,7 +11,14 @@
 .sidebar.collapsed .sb-ai-dot { position: absolute; top: 4px; right: 4px; }
 
 .squad-notice.ai-win { width: min(520px, calc(100vw - 32px)); }
-.squad-notice.ai-win--dash { width: min(560px, calc(100vw - 32px)); }
+/* One size for the whole setup: every step, every assistant, both paths. The
+   height fits the tallest step; the robot, the step line and the title stay
+   in place, the buttons sit at the bottom, and only a step that cannot fit (the
+   smallest window) scrolls inside. */
+.squad-notice.ai-win { height: min(620px, calc(100vh - 40px)); }
+.ai-win .tsq-scroll { flex: 1; min-height: 0; }
+.ai-win .ai-body { flex: 1 0 auto; }
+.ai-win .ai-body > :last-child { margin-top: auto; }
 .ai-win .ai-hero { display: flex; justify-content: center; margin: 2px 0 10px; }
 .ai-win .ai-hero .icon { width: 64px; aspect-ratio: 1 / 1; background-color: var(--text); }
 .ai-win .ai-body { display: flex; flex-direction: column; gap: 10px; text-align: left; }
@@ -20,25 +27,30 @@
 .ai-win .ai-wide .eac-mcp-logo { height: 18px; background: currentColor; -webkit-mask-size: contain; -webkit-mask-repeat: no-repeat; -webkit-mask-position: center; }
 .ai-win .ai-wide .eac-mcp-logo--mistral { -webkit-mask-image: url('../../assets/svg/brands/mistral.svg'); }
 
-/* Setup markers: the steps of this flow, by name (done · current · to come). */
-.ai-marks { list-style: none; margin: 0; padding: 0; display: flex; justify-content: center; gap: 4px; flex-wrap: wrap; }
-.ai-marks li {
-  display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px;
-  font-size: 12px; color: var(--muted); border: 1px solid var(--border);
+/* Setup progress, a metro line: the stations of this path placed along one
+   track, the first at its start, the last at its end, the others evenly between
+   (positions come from assistant.js). The track fills in orange up to the
+   current station; done stations are filled, the current one rings. */
+.ai-metro { position: relative; width: min(100% - 40px, 330px); height: 48px; margin: 0 auto 4px; }
+.ai-metro-track { position: absolute; left: 0; right: 0; top: 10px; height: 3px; background: var(--border-strong); }
+.ai-metro-track span { display: block; height: 100%; background: var(--primary); transition: width .4s ease; }
+.ai-metro ol { list-style: none; margin: 0; padding: 0; }
+.ai-metro li { position: absolute; top: 0; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; transition: left .4s ease; }
+.ai-metro-dot {
+  width: 23px; aspect-ratio: 1 / 1; box-sizing: border-box; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11.5px; font-weight: 700; line-height: 1; color: var(--muted); font-variant-numeric: tabular-nums;
+  background: var(--surface); border: 2px solid var(--border-strong); transition: background .35s, border-color .35s, box-shadow .35s, color .35s;
 }
-.ai-marks li.is-on { color: var(--primary); border-color: var(--primary); background: var(--primary-soft); font-weight: 600; }
-.ai-marks li.is-done { color: var(--text); }
-.ai-marks li.is-done::before {
-  content: ""; width: 10px; aspect-ratio: 1 / 1; background-color: var(--success);
-  -webkit-mask: url('../../assets/svg/icons/icon_check.svg') center / contain no-repeat;
-}
+.ai-metro li.is-done .ai-metro-dot { background: var(--primary); border-color: var(--primary); }
+.ai-metro li.is-done .ai-metro-dot .icon { background-color: var(--on-accent); }
+.ai-metro li.is-on .ai-metro-dot { color: var(--primary); }
+.ai-metro li.is-on .ai-metro-dot { border-color: var(--primary); box-shadow: 0 0 0 4px var(--primary-soft); }
+.ai-metro-label { font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+.ai-metro li.is-done .ai-metro-label { color: var(--text); }
+.ai-metro li.is-on .ai-metro-label { color: var(--primary); font-weight: 700; }
+@media (prefers-reduced-motion: reduce) { .ai-metro-track span, .ai-metro li, .ai-metro-dot { transition: none; } }
 
-.ai-examples { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.ai-examples li {
-  display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px;
-  border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); font-size: 13px; color: var(--text);
-}
-.ai-examples .icon { flex: none; margin-top: 1px; background-color: var(--primary); }
 
 /* Assistant tiles: the look of My profile's MCP tiles. */
 .ai-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
@@ -180,9 +192,7 @@
 @media (max-width: 900px) { .aip-grid { grid-template-columns: minmax(0, 1fr); } }
 
 /* Access and security */
-.aip-adv { margin-top: 4px; }
-.aip-adv summary { cursor: pointer; font-size: 12px; color: var(--muted); }
-.aip-adv[open] summary { margin-bottom: 6px; }
+.aip-renew { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin-top: 4px; padding-top: 12px; border-top: 1px solid var(--border-soft); }
 .aip-hold { position: relative; overflow: hidden; gap: 6px; }
 .aip-hold.is-done { color: var(--success); }
 .aip-grants { display: flex; flex-direction: column; }
@@ -194,3 +204,295 @@
 #editAccountModalOverlay .eac-ai-open { gap: 6px; }
 .aip-privacy { display: flex; gap: 8px; align-items: flex-start; margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--border-soft); font-size: 12.5px; color: var(--muted); }
 .aip-privacy .icon { flex: none; margin-top: 1px; background-color: var(--muted); }
+/* Access: the switch that turns this computer's access on, above its choices. */
+.aip-switch { padding: 4px 0; }
+/* A short window (the app's minimum is 600 px): a smaller robot and tighter
+   gaps, so even the longest step fits the setup window without scrolling. */
+@media (max-height: 760px) {
+  .ai-win .tsq-scroll { padding-top: 20px; gap: 8px; }
+  .ai-win .ai-hero { margin: 0 0 2px; }
+  .ai-win .ai-hero .icon { width: 44px; }
+  .ai-win .ai-body { gap: 7px; }
+  .ai-win .tsq-title { font-size: 20px; }
+}
+
+/* The window that shows a request or a reply an assistant wrote, before it is sent. */
+.squad-notice.ai-ticket-win { width: min(560px, calc(100vw - 32px)); }
+.ai-ticket-text { max-height: 260px; overflow: auto; margin: 4px 0 10px; padding: 12px 14px; border-radius: 10px;
+  background: var(--surface-2); border: 1px solid var(--border-soft); color: var(--text); font-size: 13px; line-height: 1.5;
+  white-space: pre-wrap; overflow-wrap: anywhere; text-align: left; }
+.ai-ticket-win .ai-hint { text-align: left; }
+.ai-ticket-clean { display: flex; gap: 6px; align-items: center; }
+.ai-ticket-clean .icon { background-color: var(--muted); flex: none; }
+.ai-ticket-consent { display: flex; gap: 10px; align-items: flex-start; margin: 10px 0 4px; font-size: 12.5px; color: var(--text); text-align: left; cursor: pointer; }
+.ai-ticket-consent input { margin-top: 2px; flex: none; accent-color: var(--primary); }
+.ai-ticket-err { color: var(--danger); }
+.ai-ticket-win .dlg-act:disabled { opacity: .45; cursor: not-allowed; }
+
+/* The empty state's quiet ways back to what is left (history, access). */
+.aip-empty-links { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; margin: 4px 0 0; }
+.aip-local-on { align-self: flex-start; margin-top: 4px; }
+.ai-rights-on { display: flex; gap: 6px; align-items: center; margin-top: 2px; }
+.ai-rights-on .icon { background-color: var(--muted); flex: none; }
+
+/* History side card (#aiHistoryPanel) and the head button's count. */
+/* As wide as the product card (#reorderPanel), never wider than the window. */
+#aiHistoryPanel { width: 620px; max-width: 95vw; display: flex; flex-direction: column; }
+.ai-hist-body { flex: 1; min-height: 0; overflow: auto; padding: 4px 18px 22px; display: flex; flex-direction: column; gap: 14px; }
+.ai-hist-day .aip-day { margin: 6px 0 8px; text-transform: capitalize; }
+.aip-count { margin-left: 6px; padding: 0 7px; border-radius: 999px; background: var(--surface-2); font-size: 11.5px; font-weight: 700; line-height: 18px; }
+.aip-head-acts .secondary.is-on { border-color: var(--primary); color: var(--primary); }
+
+/* The page's welcome (nothing plugged in yet): the setup's old first screen, on the page. */
+.aip-empty .sqn-kicker { margin: 2px 0 -6px; }
+
+
+/* "Works with" under the welcome: each logo starts the setup with that assistant. */
+.aip-works { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 10px; }
+.aip-works-label { font-size: 11.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.aip-works-logos { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.aip-works-logo { display: flex; flex-direction: column; align-items: center; gap: 5px; height: auto; min-width: 72px; padding: 9px 10px 7px; border-radius: 10px;
+  border: 1px solid var(--border-soft); background: var(--surface-2); color: var(--text); cursor: pointer; transition: border-color .15s, transform .15s; }
+.aip-works-logo:hover { border-color: var(--primary); transform: translateY(-1px); }
+.aip-works-logo .eac-mcp-logo { display: block; flex: none; height: 24px; }
+.aip-works-logo small { font-size: 11px; }
+
+/* "Other assistant": any MCP client, the AI sparkles instead of a brand. */
+.eac-mcp-logo--other { background-color: var(--primary); -webkit-mask-image: url('../../assets/svg/icons/icon_sparkle.svg'); mask-image: url('../../assets/svg/icons/icon_sparkle.svg'); -webkit-mask-size: contain; mask-size: contain; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-position: center; mask-position: center; }
+
+/* "Other assistant" spans the last row of the assistant grid. */
+.ai-tiles .ai-tile[data-ai-client="other"] { grid-column: 1 / -1; flex-direction: row; justify-content: center; gap: 10px; }
+
+/* The welcome, no card around it: what it is on the left, the demo chat as a
+   tall column on the right (one column on a narrow window). */
+.aip-welcome { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 40px; align-items: center; padding: 12px 4px 8px; }
+.aip-welcome-main { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; text-align: left; }
+.aip-welcome-main .sqn-kicker { margin: 4px 0 -6px; }
+.aip-welcome-main h2.aip-empty-title { margin: 0; font-size: 26px; font-weight: 800; line-height: 1.2; color: var(--text); text-transform: none; letter-spacing: 0; }
+.aip-welcome-main > p { margin: 0; max-width: 440px; font-size: 14px; line-height: 1.5; color: var(--muted); }
+.aip-welcome-main > .primary { margin-top: 6px; }
+.aip-welcome-main .aip-works { align-items: flex-start; margin-top: 14px; }
+.aip-welcome-main .aip-works-logos { justify-content: flex-start; }
+@media (max-width: 980px) {
+  .aip-welcome { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+}
+
+
+/* The welcome's demo, drawn like an assistant's own window: case tabs on top,
+   the thread (the user's message in a soft bubble on the right with its file
+   as a thumbnail, the assistant's answer as plain text with the tool it
+   called), and a large composer with +, the typed text and Send. */
+.ai-demo { display: flex; flex-direction: column; gap: 12px; width: 100%; padding: 14px; border-radius: 16px; background: var(--surface-2); border: 1px solid var(--border-soft); text-align: left; }
+.ai-demo-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.ai-demo-tab { display: inline-flex; align-items: center; gap: 6px; height: auto; padding: 5px 11px; border-radius: 999px; border: 1px solid var(--border-soft); background: var(--surface); color: var(--muted); font-size: 12px; font-weight: 600; cursor: pointer; transition: color .15s, border-color .15s, background .15s; }
+.ai-demo-tab .icon { background-color: currentColor; }
+.ai-demo-tab:hover { color: var(--text); }
+.ai-demo-tab.is-on { color: var(--primary); border-color: var(--primary); background: color-mix(in srgb, var(--primary) 10%, var(--surface)); }
+.ai-demo-msgs { height: 400px; overflow-y: auto; scrollbar-width: none; display: flex; flex-direction: column; gap: 14px; padding: 4px 4px 0; scroll-behavior: smooth; }
+.ai-demo-msgs::-webkit-scrollbar { display: none; }
+.ai-demo-user { align-self: flex-end; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; max-width: 82%; }
+.ai-demo-user p { margin: 0; padding: 9px 14px; border-radius: 16px; background: var(--surface); border: 1px solid var(--border-soft); color: var(--text); font-size: 13px; line-height: 1.45; }
+.ai-demo-ai { align-self: stretch; font-size: 13px; line-height: 1.55; color: var(--text); padding-right: 8%; }
+.ai-demo-ai p { margin: 0; }
+.ai-demo-user.is-in, .ai-demo-ai.is-in { animation: aiDemoIn .3s ease-out; }
+@keyframes aiDemoIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.ai-demo-work, .ai-demo-done { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+.ai-demo-done { margin-bottom: 4px; }
+.ai-demo-done .icon { background-color: var(--success); }
+.ai-demo-dots { display: inline-flex; gap: 3px; }
+.ai-demo-dots i { height: 5px; aspect-ratio: 1; border-radius: 50%; background: var(--primary); animation: aiDemoDot 1s infinite; }
+.ai-demo-dots i:nth-child(2) { animation-delay: .15s; } .ai-demo-dots i:nth-child(3) { animation-delay: .3s; }
+@keyframes aiDemoDot { 0%, 60%, 100% { opacity: .35; transform: none; } 30% { opacity: 1; transform: translateY(-2px); } }
+.ai-demo-thumb { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; width: 112px; aspect-ratio: 4 / 3; padding: 8px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border-soft); }
+.ai-demo-thumb .icon { background-color: var(--muted); }
+.ai-demo-thumb small { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10.5px; color: var(--muted); }
+.ai-demo-composer { display: flex; flex-direction: column; gap: 10px; padding: 12px 12px 12px 14px; border-radius: 18px; background: var(--surface); border: 1px solid var(--border-soft); transition: border-color .15s; }
+.ai-demo.is-typing .ai-demo-composer { border-color: color-mix(in srgb, var(--primary) 50%, var(--border-soft)); }
+.ai-demo-attach { display: flex; }
+.ai-demo-attach:empty { display: none; }
+.ai-demo-attach .ai-demo-thumb { width: 92px; animation: aiDemoIn .25s ease-out; }
+.ai-demo-row { display: flex; align-items: center; gap: 10px; }
+.ai-demo-plus { flex: none; background-color: var(--muted); }
+.ai-demo-input { flex: 1; min-width: 0; min-height: 20px; font-size: 13px; line-height: 1.5; color: var(--text); }
+.ai-demo-ph { color: var(--muted); }
+.ai-demo.is-typing .ai-demo-ph { display: none; }
+.ai-demo-caret { display: inline-block; width: 1.5px; height: 1.1em; margin-left: 1px; vertical-align: text-bottom; background: var(--primary); animation: aiDemoCaret 1s steps(1) infinite; }
+@keyframes aiDemoCaret { 50% { opacity: 0; } }
+.ai-demo-send { flex: none; display: grid; place-items: center; height: 30px; aspect-ratio: 1; border-radius: 50%; background: var(--surface-2); transition: background .15s, transform .15s; }
+.ai-demo-send .icon { background-color: var(--muted); }
+.ai-demo.is-typing .ai-demo-send { background: var(--primary); }
+.ai-demo.is-typing .ai-demo-send .icon { background-color: var(--on-accent); }
+.ai-demo-send.is-press { transform: scale(.86); }
+
+/* "Works with": big square tiles, three to a row. */
+.aip-welcome-main .aip-works { width: min(420px, 100%); }
+.aip-welcome-main .aip-works-logos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; width: 100%; }
+.aip-works-logos .aip-works-logo { aspect-ratio: 1; min-width: 0; justify-content: center; gap: 10px; padding: 12px; border-radius: 14px; }
+.aip-works-logos .aip-works-logo .eac-mcp-logo { height: 46px; }
+.aip-works-logos .aip-works-logo small { font-size: 13px; font-weight: 600; }
+/* The tiles are the way in now: their label reads as the call to action. */
+.aip-welcome-main .aip-works-label { font-size: 12.5px; color: var(--text); }
+
+/* The case studies as tabs sitting on top of the chat window: the open one
+   joins the window (same surface, no line between them). */
+.ai-demo-col { display: flex; flex-direction: column; width: 100%; }
+.ai-demo-col .ai-demo-tabs { display: flex; gap: 4px; padding: 0 14px; }
+.ai-demo-col .ai-demo-tab { position: relative; z-index: 1; margin-bottom: -1px; padding: 8px 14px; border-radius: 12px 12px 0 0; border: 1px solid transparent; border-bottom: 0; background: transparent; color: var(--muted); }
+.ai-demo-col .ai-demo-tab:hover { color: var(--text); background: color-mix(in srgb, var(--surface-2) 50%, transparent); }
+.ai-demo-col .ai-demo-tab.is-on { color: var(--primary); background: var(--surface-2); border-color: var(--border-soft); }
+.ai-demo-col .ai-demo { border-top-left-radius: 16px; }
+
+.ai-demo-views { display: flex; gap: 2px; padding: 3px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--border-soft); }
+.ai-demo-view { display: grid; place-items: center; height: 26px; aspect-ratio: 1.3; padding: 0; border: 0; border-radius: 7px; background: transparent; cursor: pointer; }
+.ai-demo-view .icon { background-color: var(--muted); }
+.ai-demo-view:hover .icon { background-color: var(--text); }
+.ai-demo-view.is-on { background: var(--surface); }
+.ai-demo-view.is-on .icon { background-color: var(--primary); }
+/* The Desktop / Phone switch sits above the tabs, on the right; the tabs get the whole width. */
+.ai-demo-col > .ai-demo-views { align-self: flex-end; margin-bottom: 8px; }
+.ai-demo-col > .ai-demo-tabs { display: flex; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: 0; padding: 0 8px; }
+.ai-demo-col > .ai-demo-tabs::-webkit-scrollbar { display: none; }
+.ai-demo-col > .ai-demo-tabs .ai-demo-tab { flex: none; padding: 8px 10px; white-space: nowrap; }
+
+/* Phone: the chat inside a real handset — metal band, side buttons, black
+   border, the island and the status bar, the app's own header, the home bar.
+   On the desktop view the device wrapper adds nothing. */
+.ai-demo-device { display: contents; }
+.ai-dev-btn, .ai-dev-status, .ai-dev-apphead, .ai-dev-home { display: none; }
+.ai-demo-col.is-phone .ai-demo-device { display: block; position: relative; align-self: center; width: 348px; max-width: 100%; padding: 11px; border-radius: 62px;
+  background: linear-gradient(135deg, var(--device-frame-hi) 0%, var(--device-frame) 18%, var(--device-frame) 82%, var(--device-frame-hi) 100%);
+  box-shadow: inset 0 0 0 1px var(--device-frame-hi), inset 0 0 0 3px var(--device-glass), 0 40px 70px -30px var(--device-glass); }
+.ai-demo-col.is-phone .ai-dev-btn { display: block; position: absolute; width: 4px; border-radius: 2px; background: var(--device-frame); box-shadow: inset 1px 0 0 var(--device-frame-hi); }
+.ai-demo-col.is-phone .ai-dev-btn--action { left: -3px; top: 118px; height: 30px; }
+.ai-demo-col.is-phone .ai-dev-btn--up { left: -3px; top: 172px; height: 56px; }
+.ai-demo-col.is-phone .ai-dev-btn--down { left: -3px; top: 240px; height: 56px; }
+.ai-demo-col.is-phone .ai-dev-btn--side { right: -3px; top: 196px; height: 88px; }
+/* The screen keeps a real phone's proportions: 393 × 852 points (iPhone 15/16 Pro). */
+.ai-demo-col.is-phone .ai-demo { position: relative; height: auto; aspect-ratio: 393 / 852; padding: 0 12px 8px; gap: 8px; border: 0; border-radius: 51px; overflow: hidden;
+  background: var(--bg); box-shadow: 0 0 0 6px var(--device-glass); }
+.ai-demo-col.is-phone .ai-dev-status { display: flex; align-items: center; justify-content: space-between; flex: none; height: 50px; padding: 4px 18px 0 26px; font-size: 15px; font-weight: 600; color: var(--text); }
+.ai-demo-col.is-phone .ai-dev-island { position: absolute; top: 12px; left: 50%; width: 112px; height: 33px; transform: translateX(-50%); border-radius: 20px; background: var(--device-glass); }
+.ai-demo-col.is-phone .ai-dev-icons { display: flex; align-items: center; gap: 6px; }
+.ai-demo-col.is-phone .ai-dev-icons svg { height: 11px; fill: currentColor; }
+.ai-demo-col.is-phone .ai-dev-battery { position: relative; display: block; width: 25px; height: 12px; padding: 1.5px; border-radius: 4px; border: 1.5px solid color-mix(in srgb, currentColor 45%, transparent); }
+.ai-demo-col.is-phone .ai-dev-battery::after { content: ""; position: absolute; right: -4px; top: 3px; width: 2px; height: 4px; border-radius: 0 1px 1px 0; background: color-mix(in srgb, currentColor 45%, transparent); }
+.ai-demo-col.is-phone .ai-dev-battery i { display: block; width: 78%; height: 100%; border-radius: 2px; background: currentColor; }
+.ai-demo-col.is-phone .ai-dev-apphead { display: flex; align-items: center; justify-content: space-between; flex: none; padding: 2px 6px 10px; border-bottom: 1px solid var(--border-soft); font-size: 14px; color: var(--text); }
+.ai-demo-col.is-phone .ai-dev-apphead b { display: block; font-weight: 600; }
+.ai-demo-col.is-phone .ai-dev-apphead b::first-letter { text-transform: uppercase; }
+.ai-demo-col.is-phone .ai-dev-apphead .icon { background-color: var(--muted); }
+.ai-demo-col.is-phone .ai-demo-msgs { flex: 1; height: auto; min-height: 0; padding: 4px 2px 0; }
+.ai-demo-col.is-phone .ai-demo-user { max-width: 86%; }
+.ai-demo-col.is-phone .ai-demo-ai { padding-right: 0; }
+.ai-demo-col.is-phone .ai-demo-composer { border-radius: 24px; }
+.ai-demo-col.is-phone .ai-dev-home { display: block; flex: none; align-self: center; width: 128px; height: 5px; margin-top: 2px; border-radius: 3px; background: var(--text); opacity: .85; }
+
+/* Both views: the switch and the cases stacked in a column on the left, the
+   phone or the desktop window on their right — the controls never move. */
+.ai-demo-col.ai-demo-col { display: grid; grid-template-columns: auto auto; grid-template-rows: auto 1fr; justify-content: start; column-gap: 20px; row-gap: 12px; align-items: start; }
+.ai-demo-col.ai-demo-col > .ai-demo-views { grid-column: 1; grid-row: 1; align-self: start; justify-self: start; margin: 0; }
+.ai-demo-col.ai-demo-col > .ai-demo-tabs { grid-column: 1; grid-row: 2; flex-direction: column; align-items: stretch; gap: 4px; padding: 0; overflow: visible; }
+.ai-demo-col.ai-demo-col > .ai-demo-tabs .ai-demo-tab { justify-content: flex-start; text-align: left; margin: 0; padding: 9px 12px; border-radius: 10px; border: 1px solid transparent; }
+.ai-demo-col.ai-demo-col > .ai-demo-tabs .ai-demo-tab.is-on { background: var(--surface-2); border-color: var(--border-soft); }
+.ai-demo-col.ai-demo-col > .ai-demo-device, .ai-demo-col.ai-demo-col > .ai-demo { grid-column: 2; grid-row: 1 / 3; }
+/* Desktop view: the same place as the phone, a wide window instead. */
+.ai-demo-col:not(.is-phone) .ai-demo { grid-column: 2; grid-row: 1 / 3; width: min(620px, 52vw); height: 640px; }
+.ai-demo-col:not(.is-phone) .ai-demo-msgs { flex: 1; height: auto; min-height: 0; }
+.aip-welcome-top { display: flex; align-items: center; gap: 18px; }
+
+/* Guide mode — the banner while the assistant drives the screen, with Stop. */
+.ai-screen-banner { position: fixed; z-index: 400; top: 10px; left: 50%; display: flex; align-items: center; gap: 10px; padding: 7px 8px 7px 14px; border-radius: 999px;
+  background: var(--surface); border: 1px solid var(--primary); color: var(--text); font-size: 12.5px; font-weight: 600;
+  box-shadow: 0 10px 30px -10px var(--primary-20); transform: translate(-50%, -140%); transition: transform .3s cubic-bezier(.34,1.3,.6,1); }
+.ai-screen-banner.is-on { transform: translate(-50%, 0); }
+.ai-screen-banner > .icon { background-color: var(--primary); }
+/* Just before a screenshot: a frosted box with an eye-off badge over every
+   sensitive zone (laid over it, so the badge itself stays sharp). */
+.ai-mask-box { position: fixed; z-index: 2147483000; display: grid; place-items: center; border-radius: 6px; pointer-events: none;
+  -webkit-backdrop-filter: blur(9px); backdrop-filter: blur(9px); background: color-mix(in srgb, var(--surface) 35%, transparent); }
+.ai-mask-box::after { content: ""; height: min(16px, 80%); aspect-ratio: 1; background-color: var(--text);
+  -webkit-mask: url('../../assets/svg/icons/icon_eye_off.svg') center / contain no-repeat; mask: url('../../assets/svg/icons/icon_eye_off.svg') center / contain no-repeat; }
+.aip-screen { padding-top: 6px; }
+
+/* The welcome uses the whole width from the left: what it is, then the cases
+   column and the phone right after it — no centred box leaving the left empty. */
+.aip.aip--welcome { max-width: none; margin: 0; padding-left: 8px; }
+.aip--welcome .aip-welcome { grid-template-columns: fit-content(460px) auto; justify-content: start; align-items: start; gap: 32px; padding-top: 8px; }
+.aip--welcome .ai-demo-col.is-phone { justify-content: start; }
+@media (max-width: 980px) { .aip--welcome .aip-welcome { grid-template-columns: minmax(0, 1fr); } }
+
+/* The robot beside every answer: who is talking, at a glance. */
+.ai-demo-ai { display: flex; align-items: flex-start; gap: 10px; }
+.ai-demo-ai > div { min-width: 0; }
+.ai-demo-ai > .ai-demo-work { align-self: center; }
+.ai-demo-ai .ai-demo-ava { flex: none; display: grid; place-items: center; height: 26px; aspect-ratio: 1; border-radius: 50%; background: var(--surface-2); border: 1px solid var(--border-soft); }
+.ai-demo-ai .ai-demo-ava .icon { height: 15px; aspect-ratio: 1; background-color: var(--primary); }
+.aip--welcome .aip-welcome-main { max-width: 420px; }   /* as wide as the three tiles: no gap before the cases */
+.aip--welcome .aip-welcome-main h2.aip-empty-title { text-wrap: balance; }
+
+/* The open case's progress: a thin bar along the bottom of its tab. */
+.ai-demo-tab { position: relative; overflow: hidden; }
+.ai-demo-tab-bar { position: absolute; left: 10px; right: 10px; bottom: 3px; height: 2px; border-radius: 2px; background: transparent; pointer-events: none; }
+.ai-demo-tab.is-on .ai-demo-tab-bar { background: var(--border-soft); }
+.ai-demo-tab-bar i { display: block; width: 0; height: 100%; border-radius: inherit; background: var(--primary); }
+
+/* A product in an answer, as an assistant shows it from image_url. */
+.ai-demo-card { margin: 8px 0 0; display: flex; flex-direction: column; gap: 6px; }
+.ai-demo-cards { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; }
+.ai-demo-cards .ai-demo-card { margin: 0; max-width: 150px; }
+.ai-demo-swatch { display: block; box-sizing: border-box; width: 128px; padding: 9px; border-radius: 16px; }
+.ai-demo-swatch img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 11px; background: var(--surface); box-shadow: 0 1px 3px color-mix(in srgb, var(--bg) 40%, transparent); }
+.ai-demo-card figcaption { font-size: 12.5px; color: var(--muted); }
+.ai-demo-card figcaption b { color: var(--text); font-weight: 600; }
+
+/* Desktop view: a window's title bar over the chat (its three lights, its title). */
+.ai-dev-titlebar { display: none; }
+.ai-demo-col:not(.is-phone) .ai-dev-titlebar { display: flex; align-items: center; position: relative; flex: none; height: 38px; margin: -14px -14px 0; padding: 0 14px;
+  border-bottom: 1px solid var(--border-soft); border-radius: 16px 16px 0 0; background: var(--surface); }
+.ai-dev-lights { display: flex; gap: 8px; }
+.ai-dev-lights i { height: 12px; aspect-ratio: 1; border-radius: 50%; background: var(--danger); }
+.ai-dev-lights i:nth-child(2) { background: var(--warning); }
+.ai-dev-lights i:nth-child(3) { background: var(--success); }
+.ai-dev-titlebar b { position: absolute; left: 50%; transform: translateX(-50%); font-size: 12.5px; font-weight: 600; color: var(--muted); }
+.ai-dev-titlebar b::first-letter { text-transform: uppercase; }
+.ai-demo-col:not(.is-phone) .ai-dev-titlebar b { display: block; }
+
+/* A link in an answer: clickable, in the accent colour. */
+.ai-demo-link { color: var(--primary); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.ai-demo-link:hover { color: var(--primary-hover); }
+
+/* The chosen assistant's tile, while its setup card is open. */
+.aip-works-logo.is-sel { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 12%, var(--surface-2)); }
+
+/* The setup's side card: wide, its steps scroll inside. */
+.ai-setup-panel.ai-setup-panel { width: 600px; max-width: 95vw; display: flex; flex-direction: column; }
+.ai-setup-body { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 26px 26px; --tsq-text: var(--text); --tsq-muted: var(--muted); }
+.ai-setup-body .tsq-title.tsq-title { margin: 10px 0 4px; font-size: 19px; font-weight: 800; text-transform: none; letter-spacing: 0; color: var(--text); text-align: center; justify-content: center; width: 100%; }
+.ai-setup-body .tsq-desc { text-align: center; }
+.ai-setup-body .ai-body > .ai-nav:last-child { margin-top: 18px; }
+/* A tile's place (this computer / web) under its name. */
+.aip-works-logo em, .ai-tile em { font-style: normal; font-size: 10.5px; font-weight: 600; color: var(--muted); }
+
+/* The assistants in two groups — this computer / web & phone — each under its picture. */
+.aip-works-group { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+.aip-works-group + .aip-works-group { margin-top: 14px; }
+.aip-works-head { display: flex; align-items: center; gap: 12px; }
+.aip-works-head > span:last-child { display: flex; flex-direction: column; gap: 1px; }
+.aip-works-head b { font-size: 14px; font-weight: 700; color: var(--text); }
+.aip-works-head small { font-size: 12px; color: var(--muted); }
+.aip-works-ico { flex: none; display: grid; place-items: center; height: 40px; aspect-ratio: 1; border-radius: 12px; background: color-mix(in srgb, var(--primary) 14%, var(--surface-2)); }
+.aip-works-ico .icon { height: 20px; aspect-ratio: 1; background-color: var(--primary); }
+.aip-works-group .aip-works-logos { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.aip-works-group .aip-works-logo { gap: 7px; padding: 10px 6px; }
+.aip-works-group .aip-works-logo .eac-mcp-logo { height: 34px; }
+.aip-works-group .aip-works-logo small { font-size: 12px; text-align: center; }
+/* The old setup card stays put under the new one while it slides in. */
+.ai-setup-ghost { z-index: 100; pointer-events: none; }
+.aip-works-group .aip-works-logos { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+
+/* The setup card: the chosen assistant's logo, large and centred, above the question. */
+.ai-setup-logo { display: flex; flex-direction: column; align-items: center; gap: 6px; margin: 0 auto 6px; text-align: center; }
+.ai-setup-name { margin-top: 4px; font-size: 18px; font-weight: 800; color: var(--text); }
+.ai-setup-logo small { font-size: 12px; color: var(--muted); }
+.ai-setup-logo .eac-mcp-logo { height: 64px; }
+.ai-setup-body .ai-q + .ai-metro { width: min(420px, 80%); margin: 8px auto 6px; align-self: center; }

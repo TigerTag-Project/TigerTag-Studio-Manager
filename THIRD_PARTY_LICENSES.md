@@ -72,7 +72,11 @@ Tiger Studio uses the **Firebase JavaScript SDK (compat)** loaded from local fil
 ## Fonts & Icons
 
 The UI uses system fonts only — no bundled font files.
-Icons are rendered via CSS (Unicode / emoji) or inline SVG — no icon library bundled.
+Icons are SVG files in `assets/svg/icons/`, drawn as CSS masks — no icon library is bundled.
+A few of them are copies of [Lucide](https://lucide.dev) icons (`icon_robot.svg` = "bot", `icon_fan.svg`,
+`icon_droplets.svg`, `icon_droplets2.svg`, `icon_pipette.svg`, `icon_monitor.svg`, `icon_smartphone.svg`, `icon_briefcase.svg`), under the ISC License:
+Copyright (c) for portions of Lucide are held by Cole Bemis 2013-2022 as part of Feather (MIT);
+all other copyright (c) for Lucide are held by Lucide Contributors 2022.
 
 ---
 

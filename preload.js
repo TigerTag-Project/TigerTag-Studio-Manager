@@ -21,6 +21,7 @@ contextBridge.exposeInMainWorld('mcpBridge', {
   getConfig:     () => ipcRenderer.invoke('mcp:get-config'),
   setEnabled:    (on) => ipcRenderer.invoke('mcp:set-enabled', on),
   setWrite:      (on) => ipcRenderer.invoke('mcp:set-write', on),
+  setScreen:     (on) => ipcRenderer.invoke('mcp:set-screen', on),
   newToken:      () => ipcRenderer.invoke('mcp:new-token'),
   install:       (target) => ipcRenderer.invoke('mcp:install', target),
   setAccount:    (uid) => ipcRenderer.invoke('mcp:set-account', uid),
@@ -360,6 +361,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Returns { ok: true, items, itemsTotal } | { ok: false, error }
   fetchCatalogAll: () =>
     ipcRenderer.invoke('catalog:fetch-all'),
+
+  // The empty-spool (container) catalogue in that language: { ok, items } | { ok: false, error }.
+  fetchContainers: (lang) =>
+    ipcRenderer.invoke('containers:fetch', lang),
 
   // Report a physical-chip event (read / write / reset / recycle) to the TigerTag
   // Xano analytics table — same table and shape as the mobile app. `send`, not

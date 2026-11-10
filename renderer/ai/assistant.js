@@ -1,8 +1,10 @@
 /**
- * renderer/ai/assistant.js — the AI assistant window (sidebar button under the
+ * renderer/ai/assistant.js — the AI assistant page (sidebar button under the
  * notifications). A beginner's way in to the MCP servers (docs/MCP.md):
  *
- *   • a guided first connection, one question per screen: which assistant →
+ *   • a welcome with the assistants it works with (a logo starts the setup on
+ *     that assistant), then a guided first connection in the page itself, one
+ *     question per screen: which assistant →
  *     where (this computer / web and phone, skipped when only one applies) →
  *     what it may do (look / tidy up, local only) → plug it in → wait for it;
  *   • the wait ends by itself: on this computer the first tool call relayed by
@@ -20,7 +22,7 @@
  *                           journal(), undo(changeId), openSettings(),
  *                           glow(spoolIds), flash(msg)
  *   aiOnToolCall(ev)      — { name, args, ok, result } after every local tool call
- *   openAiAssistant()     — opens the window (wizard until plugged in, else dashboard)
+ *   openAiAssistant()     — starts the setup in the page (from its first choice)
  *   aiAccountChanged()    — repaint the sidebar button for the signed-in account
  * Per account, `tigertag.ai.<uid>` = { connectedAt, via: "local" | "online", client }.
  */
@@ -30,17 +32,27 @@ const HOSTED_URL = "https://mcp.tigersystem.io/mcp";
 const CLAUDE_DOWNLOAD = "https://claude.ai/download";
 // Which assistant, where it runs (local = Studio's server, web = the Hub's), its logo class.
 const CLIENTS = [
-  { id: "claude",  name: "Claude",   logo: "claude",  local: "claude-desktop", web: true },
+  // Claude runs in both places: two tiles, so where it is used is picked with it.
+  { id: "claude",  name: "Claude",   logo: "claude",  local: "claude-desktop", tag: "aiTileLocal" },
+  { id: "claudeweb", name: "Claude", logo: "claude",  web: true, tag: "aiTileWeb", guide: "claude" },
   { id: "chatgpt", name: "ChatGPT",  logo: "chatgpt", web: true },
   { id: "cursor",  name: "Cursor",   logo: "cursor",  local: "cursor" },
   { id: "vscode",  name: "VS Code",  logo: "vscode",  local: "vscode" },
   { id: "lechat",  name: "Le Chat",  logo: "mistral", web: true },
   { id: "grok",    name: "Grok",     logo: "grok",    web: true },
+  // Any other MCP client: on this computer by a configuration it pastes in its
+  // own MCP settings (no one-click install), online by the connector address.
+  { id: "other",   name: "",         logo: "other",   local: "manual", tag: "aiTileLocal" },
+  { id: "otherweb", name: "",        logo: "other",   web: true, tag: "aiTileWeb" },
 ];
+// "Other assistant" on its tile, "your assistant" in the sentences.
+const isOther = (x) => x?.id === "other" || x?.id === "otherweb";
+const tileName = (x) => (isOther(x) ? ctx.t("aiOtherTile") : x.name);
+const appName = (x) => (isOther(x) ? ctx.t("aiOtherApp") : x?.name || "");
 // The suggested questions, and the tool call that ticks each one.
 const TRY_TOOLS = { stock: ["search_inventory", "inventory_summary"], print: ["match_filaments"], low: ["inventory_summary"], weight: ["set_spool_weight"] };
 
-let win = null;          // { card, close } of the open window
+let win = null;          // { card, close }: the page card the setup is painted in
 let flow = null;         // the wizard's answers: { step, client, where, rights, since }
 let pollT = null;        // online wait: the grants poll
 const feed = [];         // this session's tool calls, newest first (30)
@@ -51,6 +63,36 @@ const prefsKey = () => `tigertag.ai.${ctx.uid()}`;
 function prefs() { try { return JSON.parse(localStorage.getItem(prefsKey()) || "null") || {}; } catch (_) { return {}; } }
 function savePrefs(p) { try { localStorage.setItem(prefsKey(), JSON.stringify(p)); } catch (_) {} }
 const plugged = () => !!prefs().connectedAt;
+// What can actually answer now: this computer's access, and the online
+// assistants still alive (a Hub grant lives 90 days after its last use —
+// its refresh window). Read when the page opens (at most once a minute); the last one seen is kept in
+// prefs so the page and the sidebar dot paint at once.
+const GRANT_LIFE_MS = 90 * 86400e3;
+let live = null;         // { local, online, listed } of this visit
+const usable = (l) => !!(l && (l.local || l.online > 0));
+const lastLive = () => live || prefs().live || null;
+async function readLive() {
+  const cfg = await ctx.api.getConfig().catch(() => null);
+  let online = 0, listed = 0;
+  try {
+    const token = await ctx.idToken();
+    const res = token ? await ctx.api.hostedGrants(token) : null;
+    const grants = res?.ok && Array.isArray(res.json?.grants) ? res.json.grants : [];
+    listed = grants.length;
+    online = grants.filter(g => Date.now() - (Date.parse(g.lastUsedAt || g.createdAt) || 0) < GRANT_LIFE_MS).length;
+  } catch (_) {}
+  live = { local: !!cfg?.enabled, write: !!cfg?.write, online, listed, at: Date.now() };
+  webCount = online;
+  savePrefs({ ...prefs(), live });
+  paintDot();
+  return live;
+}
+function paintDot() {
+  const l = lastLive(), on = ctx.uid() && (l ? usable(l) : plugged());
+  const pill = document.getElementById("aiNewPill"), dot = document.getElementById("aiDot");
+  if (pill) pill.hidden = !ctx.uid() || plugged() || usable(l);
+  if (dot) dot.hidden = !on;
+}
 
 export function initAiAssistant(c) {
   ctx = c;
@@ -58,33 +100,118 @@ export function initAiAssistant(c) {
   if (!btn || !ctx.api) return;   // no local MCP (Studio Web): no window
   btn.hidden = false;
   btn.addEventListener("click", () => ctx.openPage());
+  wireHistoryCard();
+  wireSetupCard();
+}
+
+// Leaving the TigerSquad ends the perk: this computer's access goes off (read,
+// changes, screen) and every assistant connected online is cut.
+export async function aiDisconnectAll() {
+  if (!ctx?.api) return;
+  await ctx.api.setScreen?.(false).catch(() => {});
+  await ctx.api.setWrite(false).catch(() => {});
+  await ctx.api.setEnabled(false).catch(() => {});
+  try {
+    const token = await ctx.idToken();
+    const res = token ? await ctx.api.hostedGrants(token) : null;
+    for (const g of (res?.ok && Array.isArray(res.json?.grants) ? res.json.grants : [])) await ctx.api.hostedGrants(token, g.id).catch(() => {});
+  } catch (_) {}
+  live = null;
+  closeAiSetup(); pageMode = "main";
+  savePrefs({ ...prefs(), live: { local: false, write: false, online: 0, listed: 0, at: Date.now() } });
+  paintDot();
+  if (pageHost && ctx.pageShown()) renderAiPage(pageHost);
 }
 
 export function aiAccountChanged() {
   if (!ctx) return;
-  const on = ctx.uid() && plugged();
-  const pill = document.getElementById("aiNewPill"), dot = document.getElementById("aiDot");
-  if (pill) pill.hidden = !ctx.uid() || on;
-  if (dot) dot.hidden = !on;
+  live = null;
+  paintDot();
+  closeAiHistory();
   stopPoll();
   flow = null;
   webCount = null;
   pageMode = "main";
-  win?.close(); win = null;
+  closeAiSetup();
 }
 
-// The setup window: the first connection, or another assistant once one is plugged in.
+// The setup in a wide side card on the right (#aiSetupPanel): the first
+// connection, or another assistant. The page (welcome and demo) stays as it
+// is, the chosen assistant's tile marked. `win.card` is the card's body.
+const setupPanel = () => document.getElementById("aiSetupPanel");
+const setupOpen = () => !!setupPanel()?.classList.contains("open");
 export function openAiAssistant() {
   if (!ctx?.uid()) return;
-  win?.close();
-  if (!flow) flow = { step: plugged() ? "who" : "welcome" };
-  win = ctx.openDialog({
-    // The robot alone on top (no tinted tile), then the screen the flow is on.
-    look: "notice", cls: "ai-win", body: `<div class="ai-hero" aria-hidden="true"><span class="icon icon-robot"></span></div><div class="ai-body"></div>`,
-    onDismiss: () => { win = null; stopPoll(); },
-    // openDialog calls wire() before it returns: keep the handle here so paint() finds it.
-    wire: (card, close) => { win = { card, close }; card.addEventListener("click", onClick); paint(); },
+  if (!flow) flow = newFlow("who");
+  const p = setupPanel();
+  if (!p) return;
+  if (!setupOpen()) {
+    const keep = flow; ctx.closeAllSide?.(); flow = keep;
+    p.classList.add("open"); ctx.syncPanels?.();
+  } else {
+    // Another assistant while a card is open: the new card slides in over a
+    // copy of the old one, which is removed once the new one is in place.
+    const old = p.cloneNode(true);
+    old.removeAttribute("id");
+    old.querySelectorAll("[id]").forEach(n => n.removeAttribute("id"));
+    old.classList.add("ai-setup-ghost");
+    p.after(old);
+    p.style.transition = "none";
+    p.classList.remove("open");
+    void p.offsetWidth;
+    p.style.transition = "";
+    requestAnimationFrame(() => p.classList.add("open"));
+    setTimeout(() => old.remove(), 320);
+  }
+  win = { card: document.getElementById("aiSetupBody"), close: closeAiSetup };
+  paint();
+  // The page stays as it is (its demo keeps playing): only the tiles' marks move.
+  if (ctx.pageShown()) markTiles(); else ctx.openPage();
+}
+// The chosen assistant's tile, marked while its card is open.
+function markTiles() {
+  document.querySelectorAll(".aip-works-logo[data-aip-client]").forEach(b => {
+    const on = !!win && flow?.client === b.dataset.aipClient;   // win: the card being shown
+    b.classList.toggle("is-sel", on);
+    b.setAttribute("aria-pressed", String(on));
   });
+}
+export function closeAiSetup() {
+  // Only an open card resets the flow (closing the other cards on the way in must not).
+  const p = setupPanel();
+  if (!p || !setupOpen()) return;
+  stopPoll(); win = null; flow = null;
+  p.classList.remove("open");
+  ctx?.syncPanels?.();
+  markTiles();
+}
+function wireSetupCard() {
+  const p = setupPanel();
+  if (!p || p.dataset.wired) return;
+  p.dataset.wired = "1";
+  document.getElementById("aiSetupClose")?.addEventListener("click", closeAiSetup);
+  document.getElementById("aiSetupCloseTab")?.addEventListener("click", closeAiSetup);
+  document.getElementById("aiSetupBody")?.addEventListener("click", onClick);
+}
+// The welcome's left column: what it is, and one tile per assistant (the one
+// being set up marked) — beside the demo, or beside the setup once one is picked.
+function welcomeMain(l, histBtn) {
+  const { t, esc } = ctx;
+  return `<div class="aip-welcome-main">
+          <div class="aip-welcome-top"><span class="aip-robot aip-robot--big" aria-hidden="true"><span class="icon icon-robot"></span></span>${histBtn}</div>
+          <span class="sqn-kicker">${esc(t("aiWelcomeKicker"))}</span>
+          <h2 class="aip-empty-title">${esc(t("aiWelcomeTitle"))}</h2><p>${esc(t("aiWelcomeText"))}</p>
+          <div class="aip-works">
+            <span class="aip-works-label">${esc(t("aiPickAssistant"))}</span>
+            ${[["local", "monitor", "aiWhereLocal", "aiGroupLocalSub"], ["web", "smartphone", "aiWhereWeb", "aiGroupWebSub"]].map(([where, icon, title, sub]) => `
+            <div class="aip-works-group">
+              <div class="aip-works-head"><span class="aip-works-ico" aria-hidden="true"><span class="icon icon-${icon}"></span></span><span><b>${esc(t(title))}</b><small>${esc(t(sub))}</small></span></div>
+              <div class="aip-works-logos">${CLIENTS.filter(x => (where === "local" ? !!x.local : !!x.web)).map(x => `<button type="button" class="aip-works-logo${setupOpen() && flow?.client === x.id ? " is-sel" : ""}" data-aip-client="${x.id}" aria-pressed="${setupOpen() && flow?.client === x.id}" aria-label="${esc(`${tileName(x)} · ${t(title)}`)}">
+                <span class="eac-mcp-logo eac-mcp-logo--${x.logo}" aria-hidden="true"></span><small>${esc(tileName(x))}</small></button>`).join("")}</div>
+            </div>`).join("")}
+          </div>
+          ${l.listed ? `<p class="aip-empty-links"><button type="button" class="ai-link" data-aip="access">${esc(t("aiManageAccess"))}</button></p>` : ""}
+        </div>`;
 }
 
 // ── The setup (first connection) ──────────────────────────────────────────
@@ -93,6 +220,9 @@ export function openAiAssistant() {
 // read only). The connect screen is also the wait: once the button is pressed
 // it says what to do in the assistant and waits, with a way out if nothing opens.
 const MARKS = { who: "aiMarkWho", where: "aiMarkWhere", rights: "aiMarkRights", connect: "aiMarkConnect" };
+// A new setup starts on Claude on this computer: a real path from the first
+// screen and "Continue" ready at once; any other choice redraws the line.
+const newFlow = (step) => ({ step, client: "claude", where: "local" });
 function steps() {
   const c = CLIENTS.find(x => x.id === flow.client);
   const s = ["who"];
@@ -112,40 +242,38 @@ function paint() {
   if (!body) return;
   const { t, esc } = ctx;
   const c = CLIENTS.find(x => x.id === flow.client);
+  // A metro line: the stations of the selected assistant's path, the first at the start, the last at the end, the others evenly
+  // between — three stations put the second in the middle. Each dot carries its
+  // number in this path (a check once done); the track fills up to the current one.
   const marks = () => {
-    const list = steps(), i = list.indexOf(flow.step);
-    return `<ol class="ai-marks">${list.map((k, n) => `<li class="${n < i ? "is-done" : n === i ? "is-on" : ""}"${n === i ? ` aria-current="step"` : ""}>${esc(t(MARKS[k]))}</li>`).join("")}</ol>`;
+    const list = steps(), cur = list.indexOf(flow.step), last = list.length - 1;
+    const at = (n) => (last ? (n / last) * 100 : 50);
+    return `<div class="ai-metro"><div class="ai-metro-track" aria-hidden="true"><span style="width:${at(Math.max(0, cur))}%"></span></div>
+      <ol>${list.map((k, n) => `<li class="${n === cur ? "is-on" : n < cur ? "is-done" : ""}" style="left:${at(n)}%"${n === cur ? ` aria-current="step"` : ""}>
+        <span class="ai-metro-dot" aria-hidden="true">${n < cur ? `<span class="icon icon-check icon-12"></span>` : n + 1}</span><span class="ai-metro-label">${esc(t(MARKS[k]))}</span></li>`).join("")}</ol></div>`;
   };
-  const title = (text) => marks() + `<h2 class="tsq-title ai-q">${esc(text)}</h2>`;
+  // On top: the chosen assistant's logo, large (the art of its tile), and the question; the step line under them.
+  const title = (text) => (c && flow.step !== "who"
+    ? `<div class="ai-setup-logo"><span class="eac-mcp-logo eac-mcp-logo--${c.logo}" aria-hidden="true"></span>
+        <b class="ai-setup-name">${esc(tileName(c))}</b><small>${esc(t(where() === "local" ? "aiWhereLocal" : "aiWhereWeb"))}</small></div>` : "")
+    + `<h2 class="tsq-title ai-q">${esc(text)}</h2>` + marks();
   const nav = (next = true, nextOk = true) => `<div class="ai-nav">
       <button type="button" class="secondary" data-ai="back">${esc(t("aiBack"))}</button>
       ${next ? `<button type="button" class="primary" data-ai="next"${nextOk ? "" : " disabled"}>${esc(t("aiNext"))}</button>` : ""}
     </div>`;
   const card = (id, sel, head, sub, icon) => `<button type="button" class="ai-choice${sel ? " is-sel" : ""}" data-ai-pick="${id}" aria-pressed="${sel}">
       <span class="icon icon-${icon} icon-18" aria-hidden="true"></span><span class="ai-choice-text"><b>${esc(head)}</b><small>${esc(sub)}</small></span></button>`;
-  // What was chosen so far, said once on the connect screen.
-  const summary = () => `<div class="ai-status">
-      <span class="ai-chip"><span class="eac-mcp-logo eac-mcp-logo--${c.logo}" aria-hidden="true"></span>${esc(c.name)}</span>
-      <span class="ai-chip"><span class="icon icon-${where() === "local" ? "home" : "globe"} icon-12" aria-hidden="true"></span>${esc(t(where() === "local" ? "aiWhereLocal" : "aiWhereWeb"))}</span>
+  // The logo and the title already say which assistant and where: only the
+  // access chosen on this computer is said again on the connect screen.
+  const summary = () => where() === "local" ? `<div class="ai-status">
       <span class="ai-chip"><span class="icon icon-${flow.rights === "write" ? "edit" : "eye-on"} icon-12" aria-hidden="true"></span>${esc(t(flow.rights === "write" ? "aiRightsWrite" : "aiRightsRead"))}</span>
-    </div>`;
+    </div>` : "";
   const s = flow.step;
 
-  if (s === "welcome") {
-    body.innerHTML = `
-      <span class="sqn-kicker">${esc(t("aiWelcomeKicker"))}</span>
-      <h2 class="tsq-title">${esc(t("aiWelcomeTitle"))}</h2>
-      <p class="tsq-desc">${esc(t("aiWelcomeText"))}</p>
-      <ul class="ai-examples">
-        <li><span class="icon icon-printer icon-16" aria-hidden="true"></span>${esc(t("aiEx3mf"))}</li>
-        <li><span class="icon icon-qr icon-16" aria-hidden="true"></span>${esc(t("aiExQr"))}</li>
-        <li><span class="icon icon-pdf icon-16" aria-hidden="true"></span>${esc(t("aiExInvoice"))}</li>
-      </ul>
-      <button type="button" class="primary ai-wide" data-ai="start">${esc(t("aiStart"))}</button>`;
-  } else if (s === "who") {
+  if (s === "who") {
     body.innerHTML = title(t("aiQWho")) + `
       <div class="ai-tiles ai-tiles--3">${CLIENTS.map(x => `<button type="button" class="ai-tile${flow.client === x.id ? " is-sel" : ""}" data-ai-client="${x.id}" aria-pressed="${flow.client === x.id}">
-          <span class="eac-mcp-logo eac-mcp-logo--${x.logo}" aria-hidden="true"></span><span>${esc(x.name)}</span></button>`).join("")}
+          <span class="eac-mcp-logo eac-mcp-logo--${x.logo}" aria-hidden="true"></span><span>${esc(tileName(x))}</span>${x.tag ? `<em>${esc(t(x.tag))}</em>` : ""}</button>`).join("")}
       </div>
       ${flow.client === "none" ? `<div class="ai-help"><p class="ai-hint">${esc(t("aiNoneHint"))}</p>
           <button type="button" class="secondary ai-wide" data-ai="getclaude"><span class="icon icon-download icon-14" aria-hidden="true"></span>${esc(t("aiGetClaude"))}</button></div>`
@@ -158,26 +286,35 @@ function paint() {
   } else if (s === "rights") {
     body.innerHTML = title(t("aiQRights")) + `<div class="ai-choices">
         ${card("read", flow.rights !== "write", t("aiRightsRead"), t("aiRightsReadSub"), "eye-on")}
-        ${card("write", flow.rights === "write", t("aiRightsWrite"), t("aiRightsWriteSub"), "edit")}</div>` + nav();
+        ${card("write", flow.rights === "write", t("aiRightsWrite"), t("aiRightsWriteSub"), "edit")}</div>
+        <p class="ai-hint ai-rights-on"><span class="icon icon-home icon-12" aria-hidden="true"></span>${esc(t("aiRightsTurnsOn"))}</p>` + nav();
   } else if (s === "connect") {
-    const local = where() === "local", app = c.name;
+    const local = where() === "local", app = appName(c), manual = c.local === "manual";
+    const guideLabel = isOther(c) ? t("aiOpenGuideAny") : t("aiOpenGuide", { app });
     const prompt = `<button type="button" class="ai-prompt" data-ai-copy="${esc(t("aiWaitPrompt"))}"><span class="ai-prompt-text">« ${esc(t("aiWaitPrompt"))} »</span><span class="icon icon-copy icon-14" aria-hidden="true"></span></button>`;
     const waiting = `<p class="ai-waiting" role="status">${esc(t("aiWaitingFor", { app }))}</p>`;
     body.innerHTML = title(t(local ? "aiConnectTitleLocal" : "aiConnectTitleWeb", { app })) + summary() + (local
       ? (!flow.waiting
-        ? `<p class="tsq-desc">${esc(t("aiConnectLocal", { app }))}</p>
-           <button type="button" class="primary ai-wide" data-ai="install"><span class="eac-mcp-logo eac-mcp-logo--${c.logo}" aria-hidden="true"></span>${esc(t("aiConnectLocalBtn", { app }))}</button>`
-        : `<p class="tsq-desc">${esc(t("aiWaitLocal", { app }))}</p>${prompt}${waiting}
+        ? (manual
+          ? `<p class="tsq-desc">${esc(t("aiConnectManual"))}</p>
+             <div class="ai-nav ai-nav--even">
+               <button type="button" class="primary" data-ai="localcopy"><span class="icon icon-copy icon-14" aria-hidden="true"></span>${esc(t("aiCopyConfig"))}</button>
+               <button type="button" class="secondary" data-ai="guide"><span class="icon icon-book icon-14" aria-hidden="true"></span>${esc(guideLabel)}</button>
+             </div>
+             <p class="ai-hint">${esc(t("aiConfigSecret"))}</p>`
+          : `<p class="tsq-desc">${esc(t("aiConnectLocal", { app }))}</p>
+           <button type="button" class="primary ai-wide" data-ai="install"><span class="eac-mcp-logo eac-mcp-logo--${c.logo}" aria-hidden="true"></span>${esc(t("aiConnectLocalBtn", { app }))}</button>`)
+        : `<p class="tsq-desc">${esc(t(manual ? "aiWaitManual" : "aiWaitLocal", { app }))}</p>${prompt}${waiting}
            ${flow.trouble
-             ? `<div class="ai-help"><p class="ai-hint">${esc(t("aiTroubleHelp", { app }))}</p>
-                 <div class="ai-nav"><button type="button" class="secondary" data-ai="install">${esc(t("aiRetry"))}</button>
-                   <button type="button" class="secondary" data-ai="guide">${esc(t("aiOpenGuide", { app }))}</button></div></div>`
-             : `<button type="button" class="ai-link" data-ai="trouble">${esc(t("aiTroubleLocal", { app }))}</button>`}`)
+             ? `<div class="ai-help"><p class="ai-hint">${esc(t(manual ? "aiTroubleManualHelp" : "aiTroubleHelp", { app }))}</p>
+                 <div class="ai-nav"><button type="button" class="secondary" data-ai="${manual ? "localcopy" : "install"}">${esc(t("aiRetry"))}</button>
+                   <button type="button" class="secondary" data-ai="guide">${esc(guideLabel)}</button></div></div>`
+             : `<button type="button" class="ai-link" data-ai="trouble">${esc(t(manual ? "aiTroubleManual" : "aiTroubleLocal", { app }))}</button>`}`)
       : `<p class="tsq-desc">${esc(t("aiConnectWeb", { app }))}</p>
          <div class="ai-url"><code>${esc(HOSTED_URL)}</code></div>
          <div class="ai-nav ai-nav--even">
            <button type="button" class="${flow.copied ? "secondary is-done" : "primary"}" data-ai="webcopy"><span class="icon icon-${flow.copied ? "check" : "copy"} icon-14" aria-hidden="true"></span>${esc(t(flow.copied ? "aiAddressCopied" : "aiCopyAddress"))}</button>
-           <button type="button" class="secondary" data-ai="guide"><span class="icon icon-book icon-14" aria-hidden="true"></span>${esc(t("aiOpenGuide", { app }))}</button>
+           <button type="button" class="secondary" data-ai="guide"><span class="icon icon-book icon-14" aria-hidden="true"></span>${esc(guideLabel)}</button>
          </div>
          ${flow.waiting ? `<p class="tsq-desc">${esc(t("aiWaitWeb", { app }))}</p>${prompt}${waiting}` : ""}`)
       + `<div class="ai-nav"><button type="button" class="secondary" data-ai="back">${esc(t("aiBack"))}</button>
@@ -191,46 +328,82 @@ function paint() {
 // that opens the setup window.
 let pageHost = null;
 let webCount = null;     // online assistants, read once per page visit
-let pageMode = "main";   // "main" | "history" (every journaled change, by day) | "access" (access and security)
+let pageMode = "main";   // "main" | "access" (access and security); the setup and the history are side cards
 export async function renderAiPage(host) {
   if (!host || !ctx?.uid()) return;
   pageHost = host;
   if (!host.dataset.wired) { host.dataset.wired = "1"; host.addEventListener("click", onPageClick); }
   const { t, esc } = ctx;
+  const nHist = ctx.journal().length;
+  const histBtn = nHist ? `<button type="button" class="secondary${histOpen() ? " is-on" : ""}" data-aip="history" aria-pressed="${histOpen()}"><span class="icon icon-clock icon-14" aria-hidden="true"></span>${esc(t("aiHistoryBtn"))}<span class="aip-count">${nHist}</span></button>` : "";
   const head = `<header class="aip-head">
       <span class="aip-robot" aria-hidden="true"><span class="icon icon-robot"></span></span>
       <div class="aip-head-text"><h1>${esc(t("aiTitle"))}</h1><p>${esc(t("aiPageSub"))}</p></div>
-      ${plugged() ? `<div class="aip-head-acts">
-        <button type="button" class="secondary" data-aip="another"><span class="icon icon-plus icon-14" aria-hidden="true"></span>${esc(t("aiAnother"))}</button>
-        <button type="button" class="secondary" data-aip="access"><span class="icon icon-shield-check icon-14" aria-hidden="true"></span>${esc(t("aiManageAccess"))}</button>
+      ${usable(lastLive()) || nHist ? `<div class="aip-head-acts">
+        ${usable(lastLive()) && pageMode !== "setup" ? `<button type="button" class="secondary" data-aip="another"><span class="icon icon-plus icon-14" aria-hidden="true"></span>${esc(t("aiAnother"))}</button>
+        <button type="button" class="secondary" data-aip="access"><span class="icon icon-shield-check icon-14" aria-hidden="true"></span>${esc(t("aiManageAccess"))}</button>` : ""}
+        ${histBtn}
       </div>` : ""}
     </header>`;
-  if (pageMode === "history") return paintHistory(host);
+  // Out of the TigerSquad (left it meanwhile): no setup or access screen stays open.
+  if (ctx.squadActive && !ctx.squadActive()) { if (setupOpen()) closeAiSetup(); pageMode = "main"; }
   if (pageMode === "access") return paintAccess(host);
-  if (!plugged()) {
-    host.innerHTML = `<div class="aip">${head}
-      <section class="aip-card aip-empty">
-        <span class="aip-robot aip-robot--big" aria-hidden="true"><span class="icon icon-robot"></span></span>
-        <h2 class="aip-empty-title">${esc(t("aiEmptyTitle"))}</h2><p>${esc(t("aiEmptyText"))}</p>
-        <button type="button" class="primary" data-aip="connect">${esc(t("aiStart"))}</button>
+  // Paint what was last seen, then read the real state once per visit and
+  // repaint if it differs. Nothing usable (this computer off, no online
+  // assistant alive) → only the way to plug the first one in.
+  const l = lastLive() || { local: false, write: false, online: 0, listed: 0 };
+  const same = (x, y) => !!x && !!y && usable(x) === usable(y) && x.local === y.local && x.write === y.write && x.online === y.online && x.listed === y.listed;
+  if (!live || Date.now() - live.at > 60e3) readLive().then(n => { if (pageHost === host && ctx.pageShown() && pageMode === "main" && !same(n, l)) renderAiPage(host); });
+  const journal = ctx.journal();
+  if (!usable(l)) {
+    // The welcome speaks for itself: no page head; History sits beside the robot.
+    host.innerHTML = `<div class="aip aip--welcome">
+      <section class="aip-welcome">
+        ${welcomeMain(l, histBtn)}
+        <div class="ai-demo-col${demoView === "phone" ? " is-phone" : ""}">
+        <div class="ai-demo-views" role="group">
+            <button type="button" class="ai-demo-view" data-demo-view="desktop" aria-label="${esc(t("aiDemoDesktop"))}"><span class="icon icon-monitor icon-14" aria-hidden="true"></span></button>
+            <button type="button" class="ai-demo-view" data-demo-view="phone" aria-label="${esc(t("aiDemoPhone"))}"><span class="icon icon-smartphone icon-14" aria-hidden="true"></span></button>
+        </div>
+        <div class="ai-demo-tabs" role="tablist">${DEMO_CASES.map((c, n) => `<button type="button" class="ai-demo-tab" role="tab" data-demo-case="${n}"><span class="icon icon-${c.icon} icon-12" aria-hidden="true"></span>${esc(t(c.label))}<span class="ai-demo-tab-bar" aria-hidden="true"><i></i></span></button>`).join("")}</div>
+        <div class="ai-demo-device"><span class="ai-dev-btn ai-dev-btn--action" aria-hidden="true"></span><span class="ai-dev-btn ai-dev-btn--up" aria-hidden="true"></span><span class="ai-dev-btn ai-dev-btn--down" aria-hidden="true"></span><span class="ai-dev-btn ai-dev-btn--side" aria-hidden="true"></span>
+        <div class="ai-demo" aria-label="${esc(t("aiDemoLabel"))}">
+          <div class="ai-dev-status" aria-hidden="true"><span class="ai-dev-time">9:41</span><span class="ai-dev-island"></span>
+            <span class="ai-dev-icons"><svg viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5.5" width="3" height="6.5" rx="1"/><rect x="10" y="3" width="3" height="9" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg>
+              <svg viewBox="0 0 16 12"><path d="M8 11.5 5.6 9a3.4 3.4 0 0 1 4.8 0zM3.3 6.8a6.6 6.6 0 0 1 9.4 0l-1.2 1.2a4.9 4.9 0 0 0-7 0zM1 4.5a9.9 9.9 0 0 1 14 0l-1.2 1.2a8.2 8.2 0 0 0-11.6 0z"/></svg>
+              <span class="ai-dev-battery"><i></i></span></span></div>
+          <div class="ai-dev-titlebar" aria-hidden="true"><span class="ai-dev-lights"><i></i><i></i><i></i></span><b>${esc(t("aiOtherApp"))}</b></div>
+          <div class="ai-dev-apphead" aria-hidden="true"><span class="icon icon-chevron-l icon-14"></span><b>${esc(t("aiOtherApp"))}</b><span class="icon icon-plus icon-14"></span></div>
+          <div class="ai-demo-msgs"></div>
+          <div class="ai-demo-composer" aria-hidden="true">
+            <div class="ai-demo-attach"></div>
+            <div class="ai-demo-row">
+              <span class="icon icon-plus icon-16 ai-demo-plus"></span>
+              <div class="ai-demo-input"><span class="ai-demo-typed"></span><span class="ai-demo-caret"></span><span class="ai-demo-ph">${esc(t("aiDemoPlaceholder"))}</span></div>
+              <span class="ai-demo-send"><span class="icon icon-send icon-14"></span></span>
+            </div>
+          </div>
+          <span class="ai-dev-home" aria-hidden="true"></span>
+        </div>
+        </div>
+        </div>
       </section></div>`;
+    playDemo(host.querySelector(".ai-demo-msgs"));
     return;
   }
-  const cfg = await ctx.api.getConfig().catch(() => null);
-  if (pageHost !== host || !ctx.pageShown()) return;
-  const rights = !cfg?.enabled ? t("aiStatusOff") : cfg.write ? t("aiStatusWrite") : t("aiStatusRead");
+  const cfg = { enabled: l.local, write: l.write };
+  const rights = !cfg.enabled ? t("aiStatusOff") : cfg.write ? t("aiStatusWrite") : t("aiStatusRead");
   const sample = ctx.sample();
   const tries = [
     { id: "stock", text: t("aiTryStock", { what: sample.what }) },
     { id: "print", text: t("aiTry3mf"), hint: t("aiTry3mfHint") },
     cfg?.write && sample.spool ? { id: "weight", text: t("aiTryWeight", { name: sample.spool }) } : { id: "low", text: t("aiTryLow") },
   ];
-  const journal = ctx.journal();
   const changes = journal.slice(-3).reverse();
   host.innerHTML = `<div class="aip">${head}
     <div class="ai-status aip-status">
       <span class="ai-chip${cfg?.enabled ? " is-on" : ""}"><span class="icon icon-home icon-12" aria-hidden="true"></span>${esc(t("aiStatusLocal", { rights }))}</span>
-      <span class="ai-chip" id="aipWebChip"><span class="icon icon-globe icon-12" aria-hidden="true"></span>${esc(t("aiStatusWeb", { n: webCount ?? "…" }))}</span>
+      <span class="ai-chip" id="aipWebChip"><span class="icon icon-globe icon-12" aria-hidden="true"></span>${esc(t("aiStatusWeb", { n: l.online }))}</span>
     </div>
     <div class="aip-grid">
       <section class="aip-card">
@@ -243,31 +416,29 @@ export async function renderAiPage(host) {
       </section>
       <section class="aip-card">
         <h3 class="aip-title"><span class="icon icon-bolt icon-14" aria-hidden="true"></span>${esc(t("aiFeedTitle"))}</h3>
-        <p class="ai-hint">${esc(t("aiFeedWebNote"))}</p>
-        <div class="ai-feed aip-feed" id="aiFeed">${feedHtml()}</div>
+        ${cfg.enabled ? `<p class="ai-hint">${esc(t("aiFeedWebNote"))}</p>
+        <div class="ai-feed aip-feed" id="aiFeed">${feedHtml()}</div>`
+        : `<p class="ai-hint">${esc(t("aiFeedLocalOff"))}</p>
+        <button type="button" class="secondary aip-local-on" data-aip="access"><span class="icon icon-home icon-14" aria-hidden="true"></span>${esc(t("aiFeedLocalOn"))}</button>`}
       </section>
     </div>
-    <section class="aip-card">
+    ${cfg.enabled || journal.length ? `<section class="aip-card">
       <h3 class="aip-title"><span class="icon icon-edit icon-14" aria-hidden="true"></span>${esc(t("aiChangesTitle"))}</h3>
       ${changes.length ? `<div class="ai-feed">${changes.map(c => changeHtml(c)).join("")}</div>` : `<p class="ai-empty">${esc(t("aiNoChanges"))}</p>`}
-      ${journal.length > 3 ? `<button type="button" class="ai-link aip-more" data-aip="history">${esc(t("aiSeeHistory", { n: journal.length }))}</button>` : ""}
-    </section>
+    </section>` : ""}
   </div>`;
-  // Online assistants: one call to the Hub's list per visit (the same as My profile).
-  if (webCount == null) {
-    try {
-      const token = await ctx.idToken();
-      const res = token ? await ctx.api.hostedGrants(token) : null;
-      const grants = res?.ok ? res.json?.grants : null;
-      if (Array.isArray(grants)) webCount = grants.length;
-    } catch (_) {}
-  }
-  const chip = document.getElementById("aipWebChip");
-  if (chip && webCount != null) chip.lastChild.textContent = t("aiStatusWeb", { n: webCount });
 }
 async function onPageClick(e) {
-  const el = e.target.closest("[data-aip], [data-aip-level], [data-ai-copy], [data-ai-undo]");
+  const el = e.target.closest("[data-aip], [data-aip-level], [data-aip-client], [data-ai-copy], [data-ai-undo]");
   if (!el) return;
+  // A logo of the welcome: that assistant is chosen, the setup opens on its next step —
+  // for a TigerSquad member; anyone else is offered to join first.
+  if (el.dataset.aipClient) {
+    if (ctx.squadOnly && !ctx.squadOnly()) return;
+    flow = { ...newFlow("who"), client: el.dataset.aipClient };
+    flow.step = flow.entry = steps()[1];
+    return openAiAssistant();
+  }
   if (el.dataset.aipLevel) return setLevel(el.dataset.aipLevel);
   if (el.dataset.aiCopy != null) {
     try { await navigator.clipboard.writeText(el.dataset.aiCopy); el.classList.add("is-copied"); setTimeout(() => el.classList.remove("is-copied"), 1200); } catch (_) {}
@@ -280,15 +451,182 @@ async function onPageClick(e) {
     return;
   }
   switch (el.dataset.aip) {
-    case "connect": flow = { step: "welcome" }; return openAiAssistant();
-    case "another": flow = { step: "who" }; return openAiAssistant();
+    case "another": if (ctx.squadOnly && !ctx.squadOnly()) return; flow = newFlow("who"); return openAiAssistant();
     case "access": pageMode = "access"; return renderAiPage(pageHost);
-    case "history": pageMode = "history"; return renderAiPage(pageHost);
+    case "history": return histOpen() ? closeAiHistory() : openAiHistory();
     case "back": pageMode = "main"; return renderAiPage(pageHost);
   }
 }
-// Every change of the journal (30 days on this computer), newest first, by day.
-function paintHistory(host) {
+// ── The welcome's demo: made-up chats, one per case study ─────────────
+// Five cases (help — first —, at home, family & friends, a business with several sites, fablabs / schools
+// run as friend accounts, help from the wiki and a request). Like an assistant's own window: the user's file
+// lands in the composer as a thumbnail, the question is typed there and sent,
+// the assistant shows what it is calling, then answers as plain text. A case
+// plays through, then the next; a tab starts one. Static when the system asks
+// for reduced motion; it stops by itself once its box leaves the page.
+const DEMO_CASES = [
+  // Help: the wiki first; a request when the wiki has no answer (the user sends it).
+  { id: "help", label: "aiCaseHelp", icon: "question", steps: [
+    { q: "aiDemoHelpQ1", a: "aiDemoHelpA1", tool: "search_wiki → read_wiki_page" },
+    { q: "aiDemoHelpQ2", a: "aiDemoHelpA2", tool: "search_wiki → read_wiki_page", card: { img: "https://wiki.tigersystem.io/assets/ntag-chip.png", line: "wiki.tigersystem.io" } },
+    { q: "aiDemoHelpQ3", a: "aiDemoHelpA3", tool: "search_wiki → list_tickets → open_ticket" },
+  ] },
+  { id: "home", label: "aiCaseHome", icon: "home", steps: [
+    { q: "aiDemoQ1", a: "aiDemoA1", tool: "inventory_summary", card: { img: "https://cdn.tigertag.io/img?id=1178930540&v=1&size=medium", line: "eSun · PETG · Black", grams: 180, colors: ["#101820"] } },
+    { q: "aiDemoQ2", a: "aiDemoA2", tool: "match_filaments", file: "benchy.3mf", kind: "printer", card: { img: "https://cdn.tigertag.io/img?id=2603230677&v=3&size=medium", line: "Rosa3D · PLA Starter · Red", grams: 640, colors: ["#CC0605"] } },
+    { q: "aiDemoQ3", a: "aiDemoA3", tool: "identify_spool", file: "IMG_2041.jpg", kind: "image", card: { img: "https://cdn.tigertag.io/img?id=137927&v=1&size=medium", line: "Polymaker · PolyLite PLA Pro · Metallic Chrome", grams: 1000, colors: ["#CCCCCC"] } },
+    { q: "aiDemoHomeQ4", a: "aiDemoHomeA4", tool: "list_printers" },
+  ] },
+  { id: "friends", label: "aiCaseFriends", icon: "user", steps: [
+    { q: "aiDemoFriendsQ1", a: "aiDemoFriendsA1", tool: "friend_inventory", card: { img: "https://cdn.tigertag.io/img?id=40391303&v=1&size=medium", line: "Rosa3D · PLA-Silk · Gold", grams: 820, colors: ["#EAC866"] } },
+    { q: "aiDemoFriendsQ2", a: "aiDemoFriendsA2", tool: "list_wishlists", cards: [{ img: "https://cdn.tigertag.io/img?id=3107718018&v=2&size=medium", line: "Bambu Lab · PLA Matte · Ivory White", colors: ["#FFFFFF"] }, { img: "https://cdn.tigertag.io/img?id=9945637&v=1&size=medium", line: "Rosa3D · PET-G CarbonLook · Carbon Black", colors: ["#161817"] }] },
+    { q: "aiDemoFriendsQ3", a: "aiDemoFriendsA3", tool: "update_spool" },
+  ] },
+  // Business: several sites run as friend accounts, B2B purchase requests through their wishlists.
+  { id: "pro", label: "aiCasePro", icon: "briefcase", steps: [
+    { q: "aiDemoBizQ1", a: "aiDemoBizA1", tool: "friend_inventory ×3" },
+    { q: "aiDemoBizQ2", a: "aiDemoBizA2", tool: "list_wishlists" },
+    { q: "aiDemoBizQ3", a: "aiDemoBizA3", tool: "friend_inventory ×2" },
+    { q: "aiDemoProQ1", a: "aiDemoProA1", tool: "search_catalog → create_spools", file: "facture-atome3d.pdf", kind: "pdf" },
+    { q: "aiDemoBizQ4", a: "aiDemoBizA4", tool: "update_product ×8" },
+    { q: "aiDemoProQ5", a: "aiDemoProA5", tool: "inventory_summary → search_catalog" },
+    { q: "aiDemoProQ6", a: "aiDemoProA6", tool: "match_filaments", file: "support-moteur.3mf", kind: "printer", card: { img: "https://cdn.tigertag.io/img?id=1178930540&v=1&size=medium", line: "eSun · PETG · Black", grams: 640, colors: ["#101820"] } },
+  ] },
+  { id: "sites", label: "aiCaseSites", icon: "globe", steps: [
+    { q: "aiDemoSitesQ1", a: "aiDemoSitesA1", tool: "friend_inventory ×3" },
+    { q: "aiDemoSitesQ2", a: "aiDemoSitesA2", tool: "list_wishlists" },
+    { q: "aiDemoSitesQ3", a: "aiDemoSitesA3", tool: "search_catalog" },
+  ] },
+];
+let demoRun = 0, demoCase = 0;
+let demoView = "phone";     // "phone" (default: it works from a phone too) | "desktop"
+function demoAdd(box, cls, html) {
+  const el = document.createElement("div");
+  el.className = cls;
+  el.innerHTML = html;
+  box.appendChild(el);
+  box.scrollTop = box.scrollHeight;
+  return el;
+}
+function demoTabs(demo) {
+  demo.querySelectorAll("[data-demo-case]").forEach(b => {
+    const on = Number(b.dataset.demoCase) === demoCase;
+    b.classList.toggle("is-on", on);
+    b.setAttribute("aria-selected", String(on));
+    // Only the tab strip scrolls to show it, never the page.
+    if (on) { const strip = b.parentElement; strip.scrollLeft = Math.max(0, b.offsetLeft - (strip.clientWidth - b.offsetWidth) / 2); }
+  });
+  demo.querySelectorAll("[data-demo-view]").forEach(b => {
+    const on = b.dataset.demoView === demoView;
+    b.classList.toggle("is-on", on);
+    b.setAttribute("aria-pressed", String(on));
+  });
+}
+async function playDemo(box) {
+  if (!box) return;
+  const { t, esc } = ctx;
+  const run = ++demoRun;
+  const demo = box.closest(".ai-demo"), col = box.closest(".ai-demo-col") || demo;
+  const typed = demo.querySelector(".ai-demo-typed"), attach = demo.querySelector(".ai-demo-attach"), send = demo.querySelector(".ai-demo-send");
+  if (!col.dataset.wired) {
+    col.dataset.wired = "1";
+    col.addEventListener("click", (e) => {
+      const link = e.target.closest("[data-demo-link]");
+      if (link) { e.preventDefault(); return ctx.openExternal(link.dataset.demoLink); }
+      const v = e.target.closest("[data-demo-view]");
+      if (v) {
+        demoView = v.dataset.demoView;
+        col.classList.toggle("is-phone", demoView === "phone");
+        demoTabs(col);
+        box.scrollTop = box.scrollHeight;
+        return;
+      }
+      const b = e.target.closest("[data-demo-case]");
+      if (!b) return;
+      demoCase = Number(b.dataset.demoCase);
+      playDemo(box);
+    });
+  }
+  const alive = () => run === demoRun && box.isConnected;
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+  const thumb = (x) => x.file ? `<span class="ai-demo-thumb"><span class="icon icon-${x.kind} icon-18" aria-hidden="true"></span><small>${esc(x.file)}</small></span>` : "";
+  // The robot beside every answer says who is talking.
+  const ava = `<span class="ai-demo-ava" aria-hidden="true"><span class="icon icon-robot"></span></span>`;
+  // The product as an assistant shows it from image_url (data_guide → presenting):
+  // the photo, then brand · material · colour — grams.
+  // The photo framed by its colour, painted the way Studio paints it (ctx.swatchBg → colorBg).
+  const card = (c) => c ? `<figure class="ai-demo-card"><span class="ai-demo-swatch" style="background:${esc(c.colors?.length ? ctx.swatchBg?.(c.colors) || "transparent" : "transparent")}"><img src="${esc(c.img)}" alt="" loading="lazy" /></span><figcaption><b>${esc(c.line)}</b>${c.grams != null ? ` — ${esc(c.grams.toLocaleString(ctx.lang()))} g` : ""}</figcaption></figure>` : "";
+  // One answer can show several products, side by side.
+  const cards = (x) => { const list = [].concat(x.cards || x.card || []); return list.length ? `<div class="ai-demo-cards">${list.map(card).join("")}</div>` : ""; };
+  // Links in an answer are clickable, as the assistant is told to give them (data_guide → presenting).
+  const linkify = (txt) => esc(txt).replace(/\bhttps?:\/\/[^\s<]+[^\s<.,;:!?)»]|\b(?:[Aa]tome3D\.com|wiki\.tigersystem\.io|tigersystem\.io)\b/g,
+    (m) => `<a href="#" class="ai-demo-link" data-demo-link="${/^https?:/.test(m) ? m : `https://${m.toLowerCase()}`}">${m}</a>`);
+  const answer = (x) => `${ava}<div><div class="ai-demo-done"><span class="icon icon-check icon-12" aria-hidden="true"></span>TigerSystem · ${esc(x.tool)}</div><p>${linkify(t(x.a))}</p>${cards(x)}</div>`;
+  const user = (x) => `${thumb(x)}<p>${esc(t(x.q))}</p>`;
+  const setTyped = (txt) => { typed.textContent = txt; demo.classList.toggle("is-typing", !!txt || !!attach.innerHTML); };
+  // The open case's tab fills up as its exchanges play: full when the next case starts.
+  const setBar = (frac, ms = 0) => {
+    col.querySelectorAll("[data-demo-case]").forEach(b => {
+      const i = b.querySelector(".ai-demo-tab-bar i");
+      if (!i) return;
+      const on = Number(b.dataset.demoCase) === demoCase;
+      i.style.transition = on && ms ? `width ${ms}ms linear` : "none";
+      i.style.width = on ? `${Math.round(frac * 100)}%` : "0%";
+    });
+  };
+  demoTabs(col);
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    box.innerHTML = "";
+    DEMO_CASES[demoCase].steps.forEach(x => { demoAdd(box, "ai-demo-user", user(x)); demoAdd(box, "ai-demo-ai", answer(x)); });
+    return;
+  }
+  while (alive()) {
+    box.innerHTML = ""; attach.innerHTML = ""; setTyped("");
+    demoTabs(col);
+    const steps = DEMO_CASES[demoCase].steps;
+    setBar(0);
+    for (const [k, x] of steps.entries()) {
+      // This exchange's share of the bar fills over about the time it takes to play.
+      setBar((k + 1) / steps.length, 600 + (x.file ? 500 : 0) + t(x.q).length * 30 + 320 + 160 + 350 + 1400 + 2600);
+      await sleep(600);
+      if (!alive()) return;
+      // The file first, as a thumbnail in the composer; then the question, typed.
+      if (x.file) { attach.innerHTML = thumb(x); setTyped(""); await sleep(500); }
+      const q = t(x.q);
+      for (let n = 1; n <= q.length && alive(); n++) { setTyped(q.slice(0, n)); await sleep(30); }
+      if (!alive()) return;
+      await sleep(320);
+      send.classList.add("is-press");
+      await sleep(160);
+      send.classList.remove("is-press");
+      attach.innerHTML = ""; setTyped("");
+      demoAdd(box, "ai-demo-user is-in", user(x));
+      await sleep(350);
+      // What it is calling, with the moving dots, then the answer in plain text.
+      const ai = demoAdd(box, "ai-demo-ai", `${ava}<div class="ai-demo-work"><span class="ai-demo-dots"><i></i><i></i><i></i></span>TigerSystem · ${esc(x.tool)}</div>`);
+      await sleep(1400);
+      if (!alive()) return;
+      ai.innerHTML = answer(x);
+      ai.classList.add("is-in");
+      box.scrollTop = box.scrollHeight;
+      // The product photo arrives a moment later: keep the thread at its end.
+      ai.querySelectorAll("img").forEach(img => img.addEventListener("load", () => { box.scrollTop = box.scrollHeight; }, { once: true }));
+      await sleep(2600);
+      if (!alive()) return;
+    }
+    await sleep(2200);
+    demoCase = (demoCase + 1) % DEMO_CASES.length;
+  }
+}
+
+// ── History: a side card on the right (#aiHistoryPanel) ─────────────────
+// Every change of the journal (30 days on this computer), newest first, by
+// day, with Undo — opened from the page head's "History".
+const histPanel = () => document.getElementById("aiHistoryPanel");
+const histOpen = () => !!histPanel()?.classList.contains("open");
+function paintHistoryCard() {
+  const box = document.getElementById("aiHistoryBody");
+  if (!box) return;
   const { t, esc } = ctx;
   const all = ctx.journal().slice().reverse();
   const days = new Map();
@@ -297,27 +635,51 @@ function paintHistory(host) {
     if (!days.has(day)) days.set(day, []);
     days.get(day).push(c);
   }
-  host.innerHTML = `<div class="aip">
-    <header class="aip-head">
-      <button type="button" class="secondary" data-aip="back"><span class="icon icon-chevron-l icon-14" aria-hidden="true"></span>${esc(t("aiBack"))}</button>
-      <div class="aip-head-text"><h1>${esc(t("aiHistoryTitle"))}</h1><p>${esc(t("aiHistorySub"))}</p></div>
-    </header>
-    ${all.length ? [...days].map(([day, list]) => `<section class="aip-card">
-        <h3 class="aip-title aip-day">${esc(day)}</h3>
-        <div class="ai-feed aip-feed--all">${list.map(c => changeHtml(c)).join("")}</div></section>`).join("")
-      : `<section class="aip-card"><p class="ai-empty">${esc(t("aiNoChanges"))}</p></section>`}
-  </div>`;
+  box.innerHTML = all.length ? [...days].map(([day, list]) => `<section class="ai-hist-day">
+      <h3 class="aip-title aip-day">${esc(day)}</h3>
+      <div class="ai-feed aip-feed--all">${list.map(c => changeHtml(c)).join("")}</div></section>`).join("")
+    : `<p class="ai-empty">${esc(t("aiNoChanges"))}</p>`;
+}
+export function openAiHistory() {
+  const p = histPanel();
+  if (!p || histOpen()) return;
+  ctx.closeAllSide?.();
+  paintHistoryCard();
+  p.classList.add("open");
+  ctx.syncPanels?.();
+  if (pageHost) renderAiPage(pageHost);
+}
+export function closeAiHistory() {
+  const p = histPanel();
+  if (!p || !histOpen()) return;
+  p.classList.remove("open");
+  ctx?.syncPanels?.();
+  markTiles();
+}
+function wireHistoryCard() {
+  const p = histPanel();
+  if (!p || p.dataset.wired) return;
+  p.dataset.wired = "1";
+  document.getElementById("aiHistoryClose")?.addEventListener("click", closeAiHistory);
+  document.getElementById("aiHistoryCloseTab")?.addEventListener("click", closeAiHistory);
+  p.addEventListener("click", async (e) => {
+    const el = e.target.closest("[data-ai-undo]");
+    if (!el) return;
+    el.disabled = true;
+    try { await ctx.undo(el.dataset.aiUndo); paintHistoryCard(); repaintPage(); }
+    catch (_) { el.disabled = false; ctx.flash(ctx.t("aiUndoFailed")); }
+  });
 }
 // ── Access and security: the one place for what assistants may do ────────
-// This computer: off / read only / read and change (the two switches of the
-// local server), the key renewal under "Advanced". Online: one row per
-// assistant with its right, when it was connected and last used, and a held
-// "Cut access".
+// This computer: one switch turns the local server on (read only first), then
+// read only / read and change while it is on; the key renewal under "Advanced".
+// Online: one row per assistant with its right, when it was connected and
+// last used, and a held "Cut access".
 async function paintAccess(host) {
   const { t, esc } = ctx;
   const cfg = await ctx.api.getConfig().catch(() => null);
   if (pageHost !== host || pageMode !== "access") return;
-  const level = !cfg?.enabled ? "off" : cfg.write ? "write" : "read";
+  const on = !!cfg?.enabled, level = cfg?.write ? "write" : "read";
   const opt = (id, head, sub, icon) => `<button type="button" class="ai-choice${level === id ? " is-sel" : ""}" data-aip-level="${id}" aria-pressed="${level === id}">
       <span class="icon icon-${icon} icon-18" aria-hidden="true"></span><span class="ai-choice-text"><b>${esc(head)}</b><small>${esc(sub)}</small></span></button>`;
   host.innerHTML = `<div class="aip">
@@ -330,18 +692,24 @@ async function paintAccess(host) {
       <section class="aip-card">
         <h3 class="aip-title"><span class="icon icon-home icon-14" aria-hidden="true"></span>${esc(t("aiWhereLocal"))}</h3>
         <p class="ai-hint">${esc(t("aiWhereLocalSub"))}</p>
-        <div class="ai-choices">
-          ${opt("off", t("aiAccessOff"), t("aiAccessOffSub"), "lock")}
+        <div class="eac-row aip-switch"><span class="eac-row-label">${esc(t("aiToggleRead"))}</span>
+          <label class="eac-toggle"><input type="checkbox" role="switch" id="aipLocalOn"${on ? " checked" : ""} aria-label="${esc(t("aiToggleRead"))}" /><span class="eac-toggle-track"><span class="eac-toggle-thumb"></span></span></label></div>
+        ${on ? `<div class="ai-choices">
           ${opt("read", t("aiRightsRead"), t("aiRightsReadSub"), "eye-on")}
           ${opt("write", t("aiRightsWrite"), t("aiRightsWriteSub"), "edit")}
         </div>
-        <details class="aip-adv">
-          <summary>${esc(t("aiAdvanced"))}</summary>
+        <div class="aip-screen">
+          <div class="eac-row aip-switch"><span class="eac-row-label">${esc(t("aiScreenToggle"))}</span>
+            <label class="eac-toggle"><input type="checkbox" role="switch" id="aipScreenOn"${cfg?.screen ? " checked" : ""} aria-label="${esc(t("aiScreenToggle"))}" /><span class="eac-toggle-track"><span class="eac-toggle-thumb"></span></span></label></div>
+          <p class="ai-hint">${esc(t("aiScreenToggleSub"))}</p>
+        </div>
+        <div class="aip-renew">
           <p class="ai-hint">${esc(t("aiRenewKeyHint"))}</p>
           <button type="button" class="secondary aip-hold" id="aipRenewKey" data-hold-tip="aiRenewKeyHint">
             <span class="hold-progress"></span><span class="icon icon-key icon-14" aria-hidden="true"></span><span>${esc(t("aiRenewKey"))}</span>
           </button>
-        </details>
+        </div>
+        ` : ""}
       </section>
       <section class="aip-card">
         <h3 class="aip-title"><span class="icon icon-globe icon-14" aria-hidden="true"></span>${esc(t("aiWhereWeb"))}</h3>
@@ -350,8 +718,10 @@ async function paintAccess(host) {
       </section>
     </div>
   </div>`;
+  host.querySelector("#aipLocalOn").addEventListener("change", (e) => setAccess(e.target.checked));
+  host.querySelector("#aipScreenOn")?.addEventListener("change", async (e) => { await ctx.api.setScreen(e.target.checked); renderAiPage(pageHost); });
   const renew = host.querySelector("#aipRenewKey");
-  ctx.holdToConfirm(renew, 1500, async () => {
+  if (renew) ctx.holdToConfirm(renew, 1500, async () => {
     await ctx.api.newToken();
     renew.lastElementChild.textContent = t("aiRenewKeyDone");
     renew.classList.add("is-done");
@@ -386,15 +756,24 @@ async function paintGrants(box) {
       const res = token ? await ctx.api.hostedGrants(token, row.dataset.id) : null;
       if (!res || (!res.ok && res.status !== 404)) { row.querySelector("small").textContent = t("eacMcpGrantsErr"); return; }
       row.remove();
+      live = null;
       webCount = box.querySelectorAll(".aip-grant").length;
       if (!webCount) line("eacMcpGrantsNone");
     } catch (_) {}
   }));
 }
+// On starts read only and counts for Tiger Quests; off turns changes off too.
+async function setAccess(on) {
+  live = null;
+  await ctx.api.setEnabled(on);
+  await ctx.api.setWrite(false);
+  if (!on) await ctx.api.setScreen?.(false);
+  if (on) ctx.aiEnabled();
+  renderAiPage(pageHost);
+}
 async function setLevel(level) {
-  await ctx.api.setEnabled(level !== "off");
+  live = null;
   await ctx.api.setWrite(level === "write");
-  if (level !== "off") ctx.aiEnabled();
   renderAiPage(pageHost);
 }
 
@@ -448,6 +827,17 @@ function describe({ name, args = {}, ok, result = {}, error = "" }) {
     case "get_label": return { icon: "qr", action: t("aiEvLabel"), object: nm(result.spool_id) };
     case "create_spools": return { icon: "plus", action: t("aiEvCreated", { n: (result.created || result.spool_ids || []).length }) };
     case "create_rack": return { icon: "plus", action: t("aiEvRackCreated"), object: result.name || "" };
+    case "search_wiki": return { icon: "book", action: t("aiEvWiki"), detail: found((result.pages || []).length) };
+    case "read_wiki_page": return { icon: "book", action: t("aiEvWikiPage"), object: result.title || "" };
+    case "list_tickets": return { icon: "chat", action: t("aiEvTickets"), detail: t("aiEvResults", { n: result.total ?? 0 }) };
+    case "get_ticket": return { icon: "chat", action: t("aiEvTicket"), object: result.number ? `#${result.number} · ${result.title}` : "" };
+    case "open_ticket": return { icon: "send", action: t("aiEvTicketDraft"), object: result.shown_to_user?.title || "" };
+    case "show_view": return { icon: "eye-on", action: t("aiEvShowView") };
+    case "open_spool": case "open_printer": return { icon: "eye-on", action: t("aiEvOpenCard"), object: result.name || "" };
+    case "highlight": return { icon: "eye-on", action: t("aiEvHighlight", { n: result.highlighted ?? 0 }) };
+    case "screenshot": return { icon: "image", action: t("aiEvShot"), detail: result.hidden_zones ? t("aiEvShotHidden", { n: result.hidden_zones }) : "" };
+    case "read_screen": return { icon: "eye-on", action: t("aiEvReadScreen") };
+    case "reply_ticket": return { icon: "send", action: t("aiEvReplyDraft"), object: result.request ? `#${result.request.number} · ${result.request.title}` : "" };
     default: return { icon: "eye-on", action: t("aiEvOther") };
   }
 }
@@ -475,6 +865,8 @@ function changeParts(c) {
   const t = ctx.t;
   if (c.kind === "create") return { icon: "plus", object: t("aiEvCreated", { n: c.count || (c.created || []).length }) };
   if (c.kind === "rack_create") return { icon: "plus", object: t("aiEvRackCreated"), field: c.rack_name };
+  if (c.kind === "ticket") return { icon: "send", object: t("aiEvTicketOpened", { n: c.number }), field: c.title };
+  if (c.kind === "ticket_reply") return { icon: "send", object: t("aiEvTicketReplied", { n: c.number }), field: c.title };
   const doc = c.docs?.[0] || {};
   const before = doc.before || c.before || {}, after = doc.after || c.after || {};
   const fields = Object.keys(after).filter(f => FIELD[f]);
@@ -509,6 +901,7 @@ function undoBtn(id, done = false) {
 // ── A tool call relayed by main (local server) ────────────────────────────
 export function aiOnToolCall(ev) {
   if (!ctx) return;
+  if (histOpen()) setTimeout(paintHistoryCard, 0);   // a change it just made joins the list
   feed.forEach(e => { e.fresh = false; });
   feed.unshift({ ...ev, fresh: true, at: Date.now() });
   feed.length = Math.min(feed.length, 30);
@@ -522,7 +915,7 @@ export function aiOnToolCall(ev) {
   if (ev.ok && ids.length) ctx.glow(ids);
   // Waiting for the first call on this computer: that is the connection.
   if (flow?.step === "connect" && flow.waiting && where() === "local" && ev.ok) return connected("local");
-  if (!plugged() && ev.ok) { savePrefs({ connectedAt: Date.now(), via: "local", client: null }); aiAccountChanged(); return repaintPage(); }
+  if (!plugged() && ev.ok) { savePrefs({ ...prefs(), connectedAt: Date.now(), via: "local", client: null }); aiAccountChanged(); return repaintPage(); }
   if (ctx.pageShown()) {
     // A question newly ticked or a change made repaints the page; otherwise only the feed moves.
     const box = document.getElementById("aiFeed");
@@ -532,8 +925,8 @@ export function aiOnToolCall(ev) {
 
 function connected(via) {
   stopPoll();
-  const app = CLIENTS.find(x => x.id === flow?.client)?.name || "";
-  savePrefs({ connectedAt: Date.now(), via, client: flow?.client || null });
+  const app = appName(CLIENTS.find(x => x.id === flow?.client));
+  savePrefs({ ...prefs(), connectedAt: Date.now(), via, client: flow?.client || null });
   aiAccountChanged();   // also closes the setup window
   webCount = null;
   const { t, esc } = ctx;
@@ -567,13 +960,15 @@ function stopPoll() { clearTimeout(pollT); pollT = null; }
 
 // ── Clicks ────────────────────────────────────────────────────────────────
 async function onClick(e) {
+  // Each step checks the TigerSquad again: leaving it ends the setup on the spot.
+  if (ctx.squadActive && !ctx.squadActive()) { win?.close(); ctx.squadOnly?.(); return; }
   const el = e.target.closest("[data-ai], [data-ai-client], [data-ai-pick], [data-ai-copy], [data-ai-undo]");
   if (!el) return;
   const list = steps(), i = list.indexOf(flow.step);
   // Leaving the connect screen ends its wait; a new screen starts clean.
   const go = (s) => { flow.step = s; flow.waiting = flow.copied = flow.trouble = false; stopPoll(); paint(); };
   const wait = () => { if (!flow.waiting) { flow.waiting = true; flow.since = Date.now(); if (where() === "web") startPoll(); } paint(); };
-  if (el.dataset.aiClient) { flow.client = el.dataset.aiClient; flow.where = null; return paint(); }
+  if (el.dataset.aiClient) { flow.client = el.dataset.aiClient; flow.where = "local"; return paint(); }
   if (el.dataset.aiPick) { if (flow.step === "where") flow.where = el.dataset.aiPick; else flow.rights = el.dataset.aiPick; return paint(); }
   if (el.dataset.aiCopy != null) {
     try { await navigator.clipboard.writeText(el.dataset.aiCopy); el.classList.add("is-copied"); setTimeout(() => el.classList.remove("is-copied"), 1200); } catch (_) {}
@@ -586,20 +981,38 @@ async function onClick(e) {
     return;
   }
   switch (el.dataset.ai) {
-    case "start": return go("who");
     case "getclaude": return ctx.openExternal(CLAUDE_DOWNLOAD);
-    case "back": if (i > 0) return go(list[i - 1]); if (plugged()) { win?.close(); win = null; flow = null; return; } return go("welcome");
-    case "next": return go(list[i + 1]);
+    // Back on the screen the setup started on (the first one, or the one a logo
+    // opened) leaves it: the page is the welcome again — a step back, not a new page.
+    case "back": if (i > 0 && flow.step !== flow.entry) return go(list[i - 1]); return win?.close();
+    case "next":
+      // Picking what it may do on this computer IS turning it on: no access
+      // level ever sits on a switched-off computer.
+      if (flow.step === "rights") {
+        el.disabled = true;
+        await ctx.api.setEnabled(true);
+        await ctx.api.setWrite(flow.rights === "write");
+        live = null;
+        ctx.aiEnabled();
+      }
+      return go(list[i + 1]);
     case "manual": return connected(where() === "web" ? "online" : "local");
     case "trouble": flow.trouble = true; return paint();
-    case "guide": ctx.openExternal(ctx.guideUrl(flow.client)); return where() === "web" ? wait() : undefined;
+    case "guide": ctx.openExternal(ctx.guideUrl(CLIENTS.find(x => x.id === flow.client)?.guide || flow.client)); return where() === "web" ? wait() : undefined;
     case "install": {
       const c = CLIENTS.find(x => x.id === flow.client);
       el.disabled = true;
-      await ctx.api.setEnabled(true);
-      await ctx.api.setWrite(flow.rights === "write");
-      ctx.aiEnabled();
       await ctx.api.install(c.local).catch(() => null);
+      flow.trouble = false;
+      return wait();
+    }
+    case "localcopy": {
+      // The local server's address and key, in the "mcpServers" form most MCP
+      // clients read; copied, never shown on screen.
+      const cfg = await ctx.api.getConfig().catch(() => null);
+      if (!cfg?.url) return;
+      const conf = { mcpServers: { "tiger-studio": { type: "http", url: cfg.url, headers: { Authorization: `Bearer ${cfg.token}` } } } };
+      try { await navigator.clipboard.writeText(JSON.stringify(conf, null, 2)); } catch (_) {}
       flow.trouble = false;
       return wait();
     }

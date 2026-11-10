@@ -1004,8 +1004,10 @@
     /* One height, declared once: the grip is cut to the same value below, so a
        taller bar can never leave a grip that no longer lines up with it. */
     --rv-bar-h: 26px;
+    /* `pointer`: on a bar with no selection a press drops one where it lands.
+       Over a live selection the cursor is set per zone by `hover` in JS. */
     position: relative; min-width: 90px; height: var(--rv-bar-h); border-radius: 8px;
-    cursor: crosshair; touch-action: none;
+    cursor: pointer; touch-action: none;
     box-shadow: inset 0 0 0 1px rgba(0,0,0,.45);
   }
   /* The rainbow gets the lion's share: it spans 360° of hue against a plain
@@ -1058,7 +1060,7 @@
   .rv-hue-bar.is-idle .rv-hue-sel {
     box-shadow: 0 0 0 2px rgba(255,255,255,.7), 0 0 0 3px rgba(0,0,0,.45);
   }
-  .rv-hue-bar.near-l .rv-hue-sel, .rv-hue-bar.near-r .rv-hue-sel {
+  .rv-hue-bar.is-edge-l .rv-hue-sel, .rv-hue-bar.is-edge-r .rv-hue-sel {
     box-shadow: 0 0 0 2px #fff, 0 0 0 3px rgba(0,0,0,.55), 0 3px 10px rgba(0,0,0,.5),
                 0 0 0 6px rgba(255,255,255,.10);
   }
@@ -1072,22 +1074,24 @@
   .rv-hue-bar:not(.rv-hue-bar--off) .rv-hue-handle { display: block; }
   /* The grip DRAWS NOTHING. A white bar laid over the spectrum read as an object
      dropped on top of the picker rather than a part of it — so what signals a
-     grabbable edge is the bubble's OWN edge thickening (below), and this button
-     is left as pure hit area: wider than what it grabs, centred on its edge by
-     its own box rather than by subtracting half a width the stylesheet is free
-     to change. */
+     grabbable edge is the bubble's OWN edge thickening (below). It is not the
+     hit area either: the pointer is routed by ONE zone test in JS (`zoneAt`),
+     the same one that picks the cursor, so what the cursor promises is what a
+     press does. The button stays for the keyboard (focus + arrow keys), sized
+     to the pointer's edge zone so its focus ring outlines that zone. */
   .rv-hue-handle {
-    position: absolute; top: -7px; bottom: -7px; width: 26px; z-index: 3;
-    background: transparent; border: 0; padding: 0; cursor: ew-resize;
+    position: absolute; top: -7px; bottom: -7px; width: 14px; z-index: 3;
+    background: transparent; border: 0; padding: 0; pointer-events: none;
     transform: translateX(-50%);
   }
-  /* Approach either edge and the bubble grows a lip on BOTH sides — its own
-     border getting thicker, clipped by its own corner radius, so nothing new
-     appears on the spectrum. Both, not just the one under the cursor: the pair
-     reads as the bubble becoming grabbable, where a single lip read as a lopsided
-     bubble. Which edge you will actually take is said by the cursor. The hairline
-     on the inner face keeps the white lip readable where the gradient behind it
-     is white too. */
+  /* Approach an edge and the bubble grows a lip — its own border getting
+     thicker, clipped by its own corner radius, so nothing new appears on the
+     spectrum. The edge you will take gets the full lip, the other one a thin
+     one: the pair still reads as the bubble becoming grabbable (a single lip
+     read as a lopsided bubble), and the difference says which edge moves. The
+     hairline on the inner face keeps the white lip readable where the gradient
+     behind it is white too. A piece cut by the bar's end (`no-l` / `no-r`, a
+     window across red) has no edge there and grows no lip. */
   /* Above the gradient, explicitly. `::before` is inserted as the FIRST child,
      so among absolutely-positioned siblings at z-index auto it paints UNDERNEATH
      the gradient copy — the left lip was there at full width and simply buried,
@@ -1099,10 +1103,41 @@
   }
   .rv-hue-sel::before { left: 0;  box-shadow: inset -1px 0 0 rgba(0,0,0,.35); }
   .rv-hue-sel::after  { right: 0; box-shadow: inset  1px 0 0 rgba(0,0,0,.35); }
-  .rv-hue-bar.near-l .rv-hue-sel::before, .rv-hue-bar.near-l .rv-hue-sel::after,
-  .rv-hue-bar.near-r .rv-hue-sel::before, .rv-hue-bar.near-r .rv-hue-sel::after,
+  .rv-hue-bar.is-edge-l .rv-hue-sel::after,
+  .rv-hue-bar.is-edge-r .rv-hue-sel::before { width: 2px; }
+  .rv-hue-bar.is-edge-l .rv-hue-sel::before,
+  .rv-hue-bar.is-edge-r .rv-hue-sel::after,
   .rv-hue-bar:has(.rv-hue-handle:focus-visible) .rv-hue-sel::before,
   .rv-hue-bar:has(.rv-hue-handle:focus-visible) .rv-hue-sel::after { width: 6px; }
+  .rv-hue-sel.no-l::before, .rv-hue-sel.no-r::after { display: none; }
+
+  /* The body's cue: the app's own chevrons around a filled pill, ‹ ▮ › — a
+     mouse wheel between two directions: "scroll or drag this left and right" —
+     shown while the pointer is on the body
+     (grab cursor) and while it is being slid. They step apart a pixel as they
+     appear, the motion they promise. Only on the wider piece of a window cut by
+     red; the minimum width (MIN_PX in JS) keeps room for it between the two
+     lips. White with a dark halo, like the bubble's ring, so they read on a
+     pale yellow as on a deep blue. */
+  .rv-hue-sel-grip {
+    position: absolute; top: 50%; left: 50%; z-index: 2;
+    display: flex; align-items: center; transform: translate(-50%, -50%);
+    filter: drop-shadow(0 0 1px rgba(0,0,0,.8)) drop-shadow(0 0 2px rgba(0,0,0,.35));
+    opacity: 0; transition: opacity .14s ease; pointer-events: none;
+  }
+  .rv-hue-sel-grip .icon {
+    width: min(18px, calc(var(--rv-bar-h) * .7)); aspect-ratio: 1; height: auto;
+    background: #fff; transition: transform .18s cubic-bezier(.4, 0, .2, 1);
+  }
+  .rv-hue-sel-grip .icon-chevron-l { margin-right: -3px; }
+  .rv-hue-sel-grip .icon-chevron-r { margin-left: -3px; }
+  .rv-hue-sel-wheel {
+    width: min(6px, calc(var(--rv-bar-h) * .24)); height: min(12px, calc(var(--rv-bar-h) * .48));
+    border-radius: 999px; background: #fff;
+  }
+  .rv-hue-bar.is-body .rv-hue-sel.is-main .rv-hue-sel-grip { opacity: 1; }
+  .rv-hue-bar.is-body .rv-hue-sel.is-main .rv-hue-sel-grip .icon-chevron-l { transform: translateX(-1px); }
+  .rv-hue-bar.is-body .rv-hue-sel.is-main .rv-hue-sel-grip .icon-chevron-r { transform: translateX(1px); }
   /* A grip reached by the keyboard has no pointer nearby to thicken an edge for
      it, so it outlines itself as well — otherwise the arrow keys would move a
      boundary with nothing to say which one. */

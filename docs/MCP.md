@@ -42,10 +42,13 @@ Access is a **per-profile** choice, off by default: the server serves the accoun
 in, so it runs only while THAT account has opted in. Switching to a profile that has not turns it
 off, and signing out stops it. Studio must be running and signed in for a local assistant to answer.
 
-### The setup (first connection) — a window, `openDialog`
+### The setup (first connection) — a wide side card
 
-Welcome → **Assistant** (Claude, ChatGPT, Cursor, VS Code, Le Chat, Grok; "I don't use an assistant
-yet" → download Claude) → **Where** (this computer / web and phone — asked only when the assistant
+The page shows the welcome: what it can do, "Pick my assistant" with one big tile per assistant (a
+tile starts the setup on that assistant's next step), and on the right a made-up chat playing four
+case studies (help, at home, family & friends, a business with several sites, fablabs & schools). The setup then runs in
+a wide side card on the right (the page keeps its demo); its first screen is **Assistant** (Claude on this computer, Claude on the web & phone — two tiles, so Claude is never asked where —, ChatGPT, Cursor, VS Code, Le Chat, Grok; "I don't use an assistant
+yet" → download Claude; "Other assistant" = any MCP client — this computer: copy a ready `mcpServers` configuration, URL + key; online: the connector address) → **Where** (this computer / web and phone — asked only when the assistant
 does both) → **Access** (this computer only: read only by default, or read and change) →
 **Connection**. The named markers show only the steps of this flow.
 
@@ -63,6 +66,13 @@ does both) → **Access** (this computer only: read only by default, or read and
 
 ### The page
 
+It shows what can actually answer, read when the page opens (at most once a minute): this
+computer's access and the online assistants used in the last 90 days (a Hub grant's refresh window).
+**Nothing usable** → only the welcome (above), with a discreet link to Manage
+access (a grant still listed). **Something usable** → the
+dashboard below; with this computer off, its activity card says so and offers to turn it on, and
+"Latest changes" shows only when the journal has entries.
+
 - **Head**: status chips (this computer · off / read only / read and change; online · n), "Plug in
   another assistant" (the setup), "Manage access" (below).
 - **Try these questions**: three questions built from the user's own stock, ticked "worked" when the
@@ -71,8 +81,10 @@ does both) → **Access** (this computer only: read only by default, or read and
   · on what, and the result ("2 results for « Powder Pink »", "203 spools, 158.24 kg"); a refusal says
   why. Online calls run on the Hub and do not show (the page says so).
 - **Latest changes**: the 3 newest journal entries — "spool · field", "before → after", Undo / Undone
-  (`_mcpUndo`: the user's undo needs no write switch) — and "See the full history" (every entry of the
-  30-day journal, by day). A spool the assistant reads or changes glows in the main view (`.ai-glow`).
+  (`_mcpUndo`: the user's undo needs no write switch).
+- **History** (head button with its count, whenever the journal has entries, connected or not): a side
+  card on the right (`#aiHistoryPanel`, its own » tab) with every entry of the 30-day journal, by day,
+  Undo included. A spool the assistant reads or changes glows in the main view (`.ai-glow`).
 
 ### Access and security (the page's "Manage access")
 
@@ -80,7 +92,7 @@ The one place for these settings:
 
 | Block | What it holds |
 |---|---|
-| **On this computer** | Off / Read only / Read and change (`setEnabled` + `setWrite`); under *Advanced options*, **Renew the local key** (hold 1.5 s) — every local assistant must be added again |
+| **On this computer** | one switch, "Let an AI read my inventory" (`setEnabled`; on starts read only and counts for the `aiAssistant` quest, off turns changes off too), then Read only / Read and change (`setWrite`) and **Renew the local key** shown while it is on (hold 1.5 s) — every local assistant must be added again |
 | **Online** | one row per assistant connected to the Hub (`GET https://tigersystem.io/api/account/mcp-grants` with the account's Firebase ID token): name, read only, connected date, last use, **Cut access** (hold 1.5 s → `DELETE …?id=`; 204 or 404 both remove the row) |
 
 The Hub route sends no CORS headers, so both calls go through the main process (`mcp:hosted-grants`
@@ -177,7 +189,7 @@ High-level (preferred — shaped for questions people ask):
 | `get_spool` | one spool in full: colours, weights, location, temperatures (own, else the material's recommendation — `temperatures_source` says which), twin |
 | `inventory_summary` | totals, by material, by brand, low stock, not stored |
 | `list_racks` | racks, size (levels, positions, depth), printer-feed racks, spools stored |
-| `list_printers` | printers, model name, online now (live, from Studio) |
+| `list_printers` | printers, model name, online now — and, live from Studio's connection to each machine (local server only, null otherwise): `job` (state, progress %, paused, minutes left, file, layer) and `loaded` (per slot: colour hex, material, brand, name, empty) |
 | `list_friends` | accepted friends |
 | `friend_inventory` | a friend's spools (same filters) |
 | `list_wishlists` | own or a friend's lists with items |
@@ -224,6 +236,52 @@ tool yet.
 `data_guide` → `reading_files` tells the model where a `.3mf` keeps its filaments (Bambu / Orca
 `Metadata/slice_info.config` `used_g`; unsliced = no grams) and how to read an invoice or a photo.
 The hosted connector serves the same four (Hub v1.40.0, `lib/mcp/`).
+
+Support — the wiki and the requests (`renderer/ai/support-tools.js`; the server's `instructions`
+tell the assistant to search the wiki before answering a how-to or troubleshooting question):
+
+| Tool | Does |
+|---|---|
+| `search_wiki` | wiki.tigersystem.io pages for the words of a question (title, headings, summary, text), in the user's language — from `/ai-index/<lang>.json` (TigerSystem-Docs `src/pages/ai-index/`), or the wiki's `llms.txt` alone while that index is not online |
+| `read_wiki_page` | one wiki page's text (from the index, else its HTML), `wiki.tigersystem.io` only |
+| `list_tickets` | the user's requests (`myReports` `list`) or every member's (`all`), filtered by words / status; `pending_drafts` = what the assistant prepared this session and what the user did with it |
+| `get_ticket` | one request and its conversation (`thread`), `can_reply` and who the user is in it |
+| `open_ticket` (write) | prepares a request — kind, product, title, summary, steps, expected, already tried, printer (brand + model only) — and shows it in a Studio window: the exact text, personal data removed (e-mails, IP / MAC addresses, keys, serial numbers, home paths), the report's automatic information, "this is public" to tick, Send. The assistant never sends; the tool returns `waiting_for_user` |
+| `reply_ticket` (write) | the same window for an answer in a thread: the user's own request, any member's "question" (as a helper), any request when the user is on the team (as the team) — the backend's rules (`reportIssue.js` `myReports`) |
+
+Both write tools add a line saying an AI assistant wrote the text. A sent request or reply is
+journaled (`kind: "ticket"` / `"ticket_reply"`, shown in the AI page's changes) but not undoable — it
+is public; the user closes their own request from *Bug or idea? › My requests*. The backend's limits
+hold: 5 requests a day per account, 10 replies an hour per request, TigerSquad members only. The
+hosted connector does not have these tools yet.
+
+Guide mode — show, never press (`renderer/ai/screen-tools.js`; local server only). Listed only while
+the account's third switch is on, **"Let the AI drive the screen"** (Access and security; `screenFor` in
+`mcp.json`, tools flagged `screen: true`, filtered in `main.js` `listTools` and checked again on each
+call). While the assistant acts, a banner says so with a **Stop** that turns the switch off:
+
+| Tool | Does |
+|---|---|
+| `show_view` | opens a view from a closed list (inventory, storage, favourites, catalogue, printers, lists, shopping, quests, trophies, AI assistant) |
+| `open_spool` / `open_printer` | opens a spool's or a printer's card |
+| `highlight` | makes up to 20 spools glow in the open view |
+| `screenshot` | the window as an image content block (`_image` → MCP `image`), at most one every 3 s, none while a sign-in or code window is open; just before the capture a frosted box with an eye-off badge is laid over every visible sensitive zone — password and secret-looking fields, `[data-sensitive]`, and the exact text of anything that looks like an IP, an e-mail or a long key — and removed right after |
+| `read_screen` | the text of the view and of the open cards, sensitive values written `[hidden]` |
+
+No click, no typing, nothing in the settings or the account, no hold-to-confirm, no delete: changes
+still go through the write tools.
+
+**A TigerSquad perk.** The AI assistant page (sidebar button, and the robot at the end of the Tiger
+Squad view bar) opens for everyone — the welcome and its demo show what it does — but plugging an
+assistant in is for active TigerSquad members: an assistant tile (or "Plug in another assistant")
+opens the join or lock window instead (`_squadOnly`). Every tool call is refused outside the squad, and leaving the squad turns this
+computer's access off (read, changes, screen) and cuts every online assistant (`aiDisconnectAll`).
+
+Every spool (`search_inventory`, `get_spool`, `friend_inventory`…) and every catalogue product carries
+`image_url`: the product's photo from the CDN, medium rendition (`cdnImg(url, "medium")`), or null —
+never a user's own photo. `data_guide` → `presenting` and the server's instructions ask the assistant to
+show it as a Markdown image when its interface displays images, else the colour as hex. The hosted
+connector does not add it yet.
 
 Raw access (anything else in scope):
 

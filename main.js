@@ -1826,6 +1826,25 @@ async function _fetchCatalogSnapshot({ ignoreEtag = false } = {}) {
   }
 }
 
+// The empty-spool (container) catalogue, managed in the Manager and served by
+// the API in the asked language: `[{ id, brandId, brand, label, labels, type,
+// product_type, container_weight, img, img_version, active, updated_at }]`.
+// Fetched here (no CORS for a file:// page). Returns { ok, items } | { ok: false, error }.
+ipcMain.handle('containers:fetch', async (_evt, lang) => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10_000);
+  try {
+    const l = /^[a-z]{2}(-[a-z]{2})?$/i.test(String(lang || '')) ? lang : 'en';
+    const resp = await fetch(`https://api.tigertag.io/api:tigertag/container/get/all?lang=${l}`, { signal: controller.signal });
+    if (!resp.ok) return { ok: false, error: `HTTP ${resp.status}` };
+    const items = await resp.json();
+    return Array.isArray(items) ? { ok: true, items } : { ok: false, error: 'bad_shape' };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  } finally {
+    clearTimeout(timer);
+  }
+});
 ipcMain.handle('catalog:fetch-all', async () => {
   try {
     const items = await _fetchCatalogSnapshot();
@@ -2176,7 +2195,10 @@ function initTD1S() {
 // turns it on from "My profile"; the server runs only while the signed-in
 // account opted in, so switching to an account that did not never exposes its
 // data. `writeFor` is the second choice, "let it make changes": without it the
-// write tools (readOnlyHint false) are neither listed nor callable.
+// write tools (readOnlyHint false) are neither listed nor callable. `screenFor`
+// is the third, "let it drive the screen" (guide mode: open a view or a card,
+// highlight, screenshot, read the screen): without it the screen tools (the
+// renderer flags them `screen: true`) are neither listed nor callable.
 const MCP_DEFAULT_PORT = 5795;
 const _mcpPrefsPath  = () => path.join(app.getPath('userData'), 'mcp.json');
 let _mcp = null;
@@ -2190,6 +2212,7 @@ function _mcpReadPrefs() {
   const prefs = {
     enabledFor: Array.isArray(p.enabledFor) ? p.enabledFor.filter(x => typeof x === 'string') : [],
     writeFor: Array.isArray(p.writeFor) ? p.writeFor.filter(x => typeof x === 'string') : [],
+    screenFor: Array.isArray(p.screenFor) ? p.screenFor.filter(x => typeof x === 'string') : [],
     port: Number.isInteger(p.port) ? p.port : MCP_DEFAULT_PORT,
     token: typeof p.token === 'string' && p.token.length >= 32 ? p.token : crypto.randomBytes(24).toString('hex'),
   };
@@ -2222,6 +2245,7 @@ function _mcpConfig() {
   return {
     enabled: !!_mcpActiveUid && prefs.enabledFor.includes(_mcpActiveUid),
     write: !!_mcpActiveUid && prefs.writeFor.includes(_mcpActiveUid),
+    screen: !!_mcpActiveUid && prefs.screenFor.includes(_mcpActiveUid),
     port: prefs.port, token: prefs.token,
     url: `http://127.0.0.1:${prefs.port}/mcp`,
     running: st.running, error: st.error,
@@ -2235,8 +2259,12 @@ async function _mcpApply() {
       serverVersion: app.getVersion(),
       // A write tool exists for the assistant only while this account allows changes.
       listTools: () => {
-        const write = !!_mcpActiveUid && _mcpReadPrefs().writeFor.includes(_mcpActiveUid);
-        return write ? _mcpTools : _mcpTools.filter(t => t?.annotations?.readOnlyHint !== false);
+        const prefs = _mcpReadPrefs();
+        const write = !!_mcpActiveUid && prefs.writeFor.includes(_mcpActiveUid);
+        const screen = !!_mcpActiveUid && prefs.screenFor.includes(_mcpActiveUid);
+        return _mcpTools
+          .filter(t => (write || t?.annotations?.readOnlyHint !== false) && (screen || !t?.screen))
+          .map(({ screen: _s, ...t }) => t);
       },
       callTool: _mcpCallRenderer,
       log: (m) => console.log(m),
@@ -2261,6 +2289,14 @@ ipcMain.handle('mcp:set-enabled', async (_evt, enabled) => {
   enabled ? set.add(_mcpActiveUid) : set.delete(_mcpActiveUid);
   _mcpWritePrefs({ ...prefs, enabledFor: [...set] });
   await _mcpApply();
+  return _mcpConfig();
+});
+ipcMain.handle('mcp:set-screen', async (_evt, on) => {
+  if (!_mcpActiveUid) return _mcpConfig();
+  const prefs = _mcpReadPrefs();
+  const set = new Set(prefs.screenFor);
+  on ? set.add(_mcpActiveUid) : set.delete(_mcpActiveUid);
+  _mcpWritePrefs({ ...prefs, screenFor: [...set] });
   return _mcpConfig();
 });
 ipcMain.handle('mcp:set-write', async (_evt, on) => {

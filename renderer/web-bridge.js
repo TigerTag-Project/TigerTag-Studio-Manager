@@ -140,6 +140,14 @@
       return r.ok ? { ok: true, api: r.json } : r;
     },
 
+    // Same contract as main.js `containers:fetch` (the API allows this origin).
+    async fetchContainers(lang) {
+      const l = /^[a-z]{2}(-[a-z]{2})?$/i.test(String(lang || "")) ? lang : "en";
+      const r = await getJson(`${XANO}/container/get/all?lang=${l}`, {}, 10000);
+      if (!r.ok) return r;
+      return Array.isArray(r.json) ? { ok: true, items: r.json } : { ok: false, error: "bad_shape" };
+    },
+
     // Same contract as main.js `catalog:fetch-all` (paged until nextPage is null).
     async fetchCatalogAll() {
       const PAGE_CAP = 100, PER_PAGE = 1000;

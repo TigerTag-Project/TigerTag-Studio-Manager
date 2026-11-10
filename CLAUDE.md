@@ -136,7 +136,7 @@ renderer/
   rfid_protocol/eraser/   — NFC tools view (format to TigerTag Init, recycle to NDEF, write NDEF content)
   rfid_protocol/restore/  — Restore TigerTag+ view (readers, what the rfidList backup writes back, held banner)
   labels/          — printed spool / product labels (templates, QR in printer dots, PNG · PDF · SVG · print)
-  ai/              — the AI assistant window (sidebar button): guided first connection, live feed of the MCP calls, undo
+  ai/              — the AI assistant window (sidebar button): guided first connection, live feed of the MCP calls, undo; support-tools.js = the wiki and support-request tools; screen-tools.js = guide mode (show, highlight, screenshot with blurred secrets)
   printers/        — one folder per brand (PROTOCOL.md + index.js + add-flow.js + probe.js …)
                      plus plugins (klipper/, octoprint/: plugin.js + main.cjs) registered via
                      plugins.js, and shared: registry.js, context.js, cam_manager.js,
@@ -186,11 +186,12 @@ ONE `ip` field, `host` or `host:port` (the form Studio and the Tiger Touch firmw
 | `tigertag.nfc.lastUrl` | last link written to a chip by the NFC tools, offered again |
 | `tigertag.nfc.contact` | the NFC tools' contact card as last typed `{name, phone, email, org, url}` |
 | `tigertag.label` | the label card's last choices `{template, slots, dpi, kind}` (`renderer/labels`) |
+| `tigertag.containers` | `{at, items}`: the empty-spool list last read from the server (GitHub mirror, else the API), merged over the bundled file; used only while `CONTAINERS_FROM_SERVER` is on |
 | `tigertag.trophies.<id>` | the trophy ids already celebrated on this device for that account (`renderer/quests/trophies.js`) |
 | `tigertag.trophyAlbum.<id>` | that account's album `{at, earned: {id: {at, event, ctx}}}`: painted at once, then only trophies with a later `earnedAt` are read (+ a COUNT catches one taken back) |
 | `tigertag.trophyCatalog.<lang>` / `tigertag.trophyCards.<id>` / `tigertag.trophyReveals.<id>` | the public trophy catalogue of that language, that account's cards (art + text of the trophies held or revealed) and what its friends revealed `{at, ids: {trophyId: friendUid}}` (`renderer/quests/trophies.js`, `docs/TROPHIES.md`) |
 | `tigertag.friendTrophies.<id>` | the albums of that account's friends last seen `{friendUid: {at, name, earned}}` (50 newest), same delta reads |
-| `tigertag.ai.<id>` | the AI assistant window's state for that account `{connectedAt, via: "local" \| "online", client}`: plugged in → the dashboard opens and the sidebar shows a dot instead of "New" (`renderer/ai/assistant.js`) |
+| `tigertag.ai.<id>` | the AI assistant window's state for that account `{connectedAt, via: "local" \| "online", client, live: {local, write, online, listed, at}}`: `live` = what could answer when last read (this computer's access, online assistants used in the last 90 days) — something usable → the dashboard and a sidebar dot, nothing → only the first-connection screen; `connectedAt` (set up once) hides "New" (`renderer/ai/assistant.js`) |
 | `tigertag.agentChanges.<id>` | the changes AI assistants made on that account through the local MCP write tools (300 newest, 30 days), with the values before each one — what `undo_change` puts back (`docs/MCP.md` §5) |
 | `tigertag.coinlog.<id>` | the TigerCoins history last read for that account (100 newest rows), shown at once when the history opens, then refreshed |
 | `tigertag.header.<id>` | the header's and view bar's last figures for that account `{stats: {key: number}, coins: {balance, n}, bar: {daily, level, squad, lists, order, invite}}`, painted at launch before the data arrives, then updated where they differ |

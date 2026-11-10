@@ -203,7 +203,7 @@ function dealSide(ctx, d, section) {
         <div class="sqd-card-meta">
           ${!(d.countries || []).length ? `<span><span class="icon icon-globe icon-12" aria-hidden="true"></span>${esc(t("squadDealsWorld"))}</span>` : ""}
           <span><span class="icon icon-tag icon-12" aria-hidden="true"></span>${esc(t("squadDealsOnePer"))}</span>
-          ${p.to && section === "live" ? `<span><span class="icon icon-clock icon-12" aria-hidden="true"></span>${esc(t("squadDealsUntil", { date: new Date(p.to).toLocaleDateString(lang) }))}</span>` : ""}
+          ${p.to && section === "live" ? `<span><span class="icon icon-clock icon-12" aria-hidden="true"></span>${esc(t("squadDealsUntil", { date: new Date(p.to).toLocaleDateString(lang, { timeZone: "UTC" }) }))}</span>` : ""}
         </div>${p.unique && section === "live" ? stockGauge(t, esc, d, lang, true) : ""}${steps}${actions}${foot}
       </div>
     </aside>`;

@@ -95,9 +95,8 @@
         </button>
       </div>
       <div class="sb-actions">
-        <button id="btnOpenNotifs" class="ghost sb-notifs-btn"><span class="icon icon-bell icon-13"></span><span class="label" data-i18n="notifsTitle">Notifications</span><span id="notifBadge" class="friends-badge hidden"></span></button>
-        <button id="btnOpenQuests" class="ghost sb-notifs-btn sb-quests-btn"><span class="icon icon-list-check icon-13"></span><span class="label" data-i18n="questsTitle">Tiger Quests</span><span id="questsBadge" class="friends-badge hidden"></span></button>
         <button id="btnOpenAi" class="ghost sb-notifs-btn sb-ai-btn" hidden><span class="icon icon-robot icon-13"></span><span class="label" data-i18n="aiTitle">AI assistant</span><span id="aiNewPill" class="sb-ai-pill" data-i18n="aiNew" hidden>New</span><span id="aiDot" class="sb-ai-dot" hidden></span></button>
+        <button id="btnOpenNotifs" class="ghost sb-notifs-btn"><span class="icon icon-bell icon-13"></span><span class="label" data-i18n="notifsTitle">Notifications</span><span id="notifBadge" class="friends-badge hidden"></span></button>
         <!-- Quick-access friends list (rendered by JS into this container).
              Each chip switches the inventory view to that friend on click.
              Hidden when state.friends is empty. -->
@@ -350,6 +349,7 @@
               <button id="vtgSquadInvite" data-i18n-aria="referralInviteBtn"><span class="icon icon-gift icon-13"></span><span class="view-order-badge" id="viewInviteBadge" hidden>+3</span></button>
               <button id="vtgSquadHist" data-i18n-aria="xpHistory"><span class="icon icon-clock icon-13"></span></button>
               <button id="vtgSquadDeals" data-i18n-aria="squadDeals"><span class="icon icon-percent icon-13"></span><span class="view-order-badge" id="viewDealsBadge" hidden>0</span></button>
+              <button id="vtgSquadAi" data-i18n-aria="aiTitle"><span class="icon icon-robot icon-13"></span></button>
             </div>
           </div>
         </div>
@@ -2611,6 +2611,29 @@
 <!-- Container picker modal -->
 <!-- Container picker — side card that tucks to the RIGHT of the spool detail card -->
 <button class="pp-close-tab" id="containerCloseTab" title="Close" aria-label="Close" hidden>»</button>
+<!-- AI assistant › plugging an assistant in (renderer/ai/assistant.js): the setup
+     steps in a wide side card on the right; the page behind keeps its demo. -->
+<button class="pp-close-tab" id="aiSetupCloseTab" aria-label="Close" hidden>»</button>
+<aside class="detail-panel pba-panel ai-setup-panel" id="aiSetupPanel">
+  <div class="pba-header">
+    <div class="pba-header-text"></div>
+    <button class="panel-close" id="aiSetupClose" data-i18n-aria="aiTitle" aria-label="Close">✕</button>
+  </div>
+  <div class="ai-win ai-setup-body" id="aiSetupBody"><div class="ai-body"></div></div>
+</aside>
+<!-- AI assistant › History (renderer/ai/assistant.js): the changes assistants
+     made on this computer, by day, with Undo — a side card on the right. -->
+<button class="pp-close-tab" id="aiHistoryCloseTab" aria-label="Close" hidden>»</button>
+<aside class="detail-panel pba-panel ai-hist-panel" id="aiHistoryPanel">
+  <div class="pba-header">
+    <div class="pba-header-text">
+      <div class="pba-title" data-i18n="aiHistoryTitle">History</div>
+      <div class="pba-sub" data-i18n="aiHistorySub"></div>
+    </div>
+    <button class="panel-close" id="aiHistoryClose" aria-label="Close">✕</button>
+  </div>
+  <div class="ai-hist-body" id="aiHistoryBody"></div>
+</aside>
 <!-- Printed label (renderer/labels): opens on the RIGHT of the spool card and
      pushes it left, with its own » tab. -->
 <button class="pp-close-tab" id="labelCloseTab" aria-label="Close" hidden>»</button>
