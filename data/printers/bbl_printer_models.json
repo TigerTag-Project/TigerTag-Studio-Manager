@@ -1,5 +1,13 @@
 [
   {
+    "id": "14",
+    "name": "H3C",
+    "image": "assets/images/bbl_printers/h3c.png",
+    "features": ["AMS", "Camera", "Enclosed"],
+    "camera_transport": "rtsp",
+    "open_firmware": null
+  },
+  {
     "id": "13",
     "name": "A2L",
     "image": "assets/images/bbl_printers/a2l.png",
