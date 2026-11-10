@@ -10,7 +10,7 @@ It is neutral and agnostic by design: TigerTag takes no side between filament br
 distributors. The protocol is open and anyone can build a different ecosystem on it; nothing in this repo is a
 prerequisite for doing so.
 
-Current version: **2.53.0** — macOS (Intel + Apple Silicon, signed & notarized), Windows, Linux.
+Current version: **2.54.0** — macOS (Intel + Apple Silicon, signed & notarized), Windows, Linux.
 
 Showcase site (11 languages, built from `site/`, deployed by `.github/workflows/pages.yml`): https://tigertag-project.github.io/TigerTag-Studio-Manager/ — downloads: https://github.com/TigerTag-Project/TigerTag-Studio-Manager/releases/latest
 
@@ -66,10 +66,16 @@ state = {
 ## AI assistants (local MCP server)
 
 Studio can serve the Model Context Protocol on 127.0.0.1 so Claude Desktop / Claude Code /
-Cursor / VS Code READ the signed-in account (inventory, friends' shared stock, wishlists,
-racks, printers, devices, history). Read-only, credentials masked, documents returned
-decoded. Reference: docs/MCP.md. A HOSTED twin runs on the Tiger Hub
-(`https://mcp.tigersystem.io/mcp`, OAuth, no Studio needed — no live printer state); My profile
+Cursor / VS Code (and any MCP client) work with the signed-in account (inventory, friends' shared
+stock, wishlists, racks, printers with their live job and loaded filament, devices, history).
+Credentials masked, documents returned decoded. The AI assistant page (`renderer/ai/`) is the
+setup, activity feed and history; it is a TigerSquad perk (every call is refused outside the squad).
+Access is read-only by default; "Read and change" (`writeFor` in `mcp.json`) unlocks write tools on
+a field allowlist, each journaled in `tigertag.agentChanges.<uid>` and undoable, never a delete.
+Guide mode (`renderer/ai/screen-tools.js`, own switch, off by default) shows views and takes
+blurred screenshots; support tools (`renderer/ai/support-tools.js`) search the wiki and prepare
+requests the user sends. Reference: docs/MCP.md; rule: .agents/rules/mcp.md. A HOSTED twin runs on the Tiger Hub
+(`https://mcp.tigersystem.io/mcp`, OAuth, no Studio needed — read-only, no live printer state); the AI page
 lists its connected assistants via `mcp:hosted-grants` (main-process IPC → Hub `/api/account/mcp-grants`).
 
 ## Firestore data model

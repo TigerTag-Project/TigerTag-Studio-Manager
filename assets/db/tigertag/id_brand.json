@@ -456,6 +456,13 @@
     ]
   },
   {
+    "id": 21492,
+    "name": "Eolas Prints",
+    "type_ids": [
+      142
+    ]
+  },
+  {
     "id": 22652,
     "name": "Spectrum",
     "type_ids": [
@@ -726,6 +733,13 @@
   {
     "id": 39652,
     "name": "3DXTech",
+    "type_ids": [
+      142
+    ]
+  },
+  {
+    "id": 39851,
+    "name": "3DFILS",
     "type_ids": [
       142
     ]

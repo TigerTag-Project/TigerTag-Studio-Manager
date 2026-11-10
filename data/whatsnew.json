@@ -1,4 +1,415 @@
 {
+  "2.54.0": {
+    "date": "2026-11-10",
+    "items": [
+      {
+        "icon": "robot",
+        "title": {
+          "en": "Your stock, now chatty",
+          "fr": "Ton stock se met à parler",
+          "de": "Dein Bestand wird gesprächig",
+          "es": "Tu stock se pone a hablar",
+          "it": "Il tuo stock si mette a parlare",
+          "zh": "你的库存开口说话了",
+          "pt": "Seu estoque ficou falante",
+          "pt-pt": "O teu stock ficou conversador",
+          "pl": "Twój zapas zaczyna gadać",
+          "ru": "Ваши запасы заговорили",
+          "nl": "Je voorraad krijgt een mond"
+        },
+        "body": {
+          "en": "Plug Claude, ChatGPT, Cursor, VS Code, Le Chat, Grok or any other assistant into Studio and ask about your spools like you'd ask a mate. A TigerSquad perk.",
+          "fr": "Branche Claude, ChatGPT, Cursor, VS Code, Le Chat, Grok ou un autre assistant à Studio et pose-lui tes questions sur tes bobines comme à un pote. Un avantage TigerSquad.",
+          "de": "Schließe Claude, ChatGPT, Cursor, VS Code, Le Chat, Grok oder einen anderen Assistenten an Studio an und frag nach deinen Spulen wie einen Kumpel. Ein TigerSquad-Vorteil.",
+          "es": "Conecta Claude, ChatGPT, Cursor, VS Code, Le Chat, Grok u otro asistente a Studio y pregúntale por tus bobinas como a un colega. Una ventaja de TigerSquad.",
+          "it": "Collega Claude, ChatGPT, Cursor, VS Code, Le Chat, Grok o un altro assistente a Studio e chiedigli delle tue bobine come a un amico. Un vantaggio TigerSquad.",
+          "zh": "把 Claude、ChatGPT、Cursor、VS Code、Le Chat、Grok 或其他助手接入 Studio，像问朋友一样问问你的料盘。TigerSquad 专属福利。",
+          "pt": "Conecte o Claude, ChatGPT, Cursor, VS Code, Le Chat, Grok ou outro assistente ao Studio e pergunte sobre seus carretéis como perguntaria a um amigo. Uma vantagem do TigerSquad.",
+          "pt-pt": "Liga o Claude, ChatGPT, Cursor, VS Code, Le Chat, Grok ou outro assistente ao Studio e pergunta pelas tuas bobines como a um amigo. Uma vantagem do TigerSquad.",
+          "pl": "Podłącz Claude, ChatGPT, Cursor, VS Code, Le Chat, Grok lub innego asystenta do Studio i pytaj o szpule jak kumpla. Przywilej TigerSquad.",
+          "ru": "Подключите Claude, ChatGPT, Cursor, VS Code, Le Chat, Grok или другого ассистента к Studio и спрашивайте про катушки, как у приятеля. Бонус TigerSquad.",
+          "nl": "Koppel Claude, ChatGPT, Cursor, VS Code, Le Chat, Grok of een andere assistent aan Studio en vraag naar je spoelen zoals je het aan een vriend vraagt. Een TigerSquad-voordeel."
+        }
+      },
+      {
+        "icon": "wifi",
+        "title": {
+          "en": "It watches your printers",
+          "fr": "Il surveille tes imprimantes",
+          "de": "Er behält deine Drucker im Blick",
+          "es": "Vigila tus impresoras",
+          "it": "Tiene d'occhio le tue stampanti",
+          "zh": "它帮你盯着打印机",
+          "pt": "Ele vigia suas impressoras",
+          "pt-pt": "Ele vigia as tuas impressoras",
+          "pl": "Pilnuje twoich drukarek",
+          "ru": "Он присматривает за принтерами",
+          "nl": "Hij houdt je printers in de gaten"
+        },
+        "body": {
+          "en": "On this computer, your assistant sees what each printer is printing, how far along it is and which filament sits in each slot. No more walking over to check.",
+          "fr": "Sur cet ordinateur, ton assistant voit ce que chaque imprimante imprime, où elle en est et quel filament est dans chaque emplacement. Plus besoin d'aller vérifier.",
+          "de": "Auf diesem Computer sieht dein Assistent, was jeder Drucker druckt, wie weit er ist und welches Filament in welchem Slot steckt. Nachschauen gehen entfällt.",
+          "es": "En este ordenador, tu asistente ve qué imprime cada impresora, cuánto lleva y qué filamento hay en cada ranura. Adiós a ir a mirar.",
+          "it": "Su questo computer, il tuo assistente vede cosa stampa ogni stampante, a che punto è e quale filamento c'è in ogni slot. Non serve più andare a controllare.",
+          "zh": "在这台电脑上，你的助手能看到每台打印机在打什么、进度多少、每个槽位装的是什么耗材。不用再跑过去看了。",
+          "pt": "Neste computador, seu assistente vê o que cada impressora está imprimindo, em que ponto está e qual filamento está em cada slot. Chega de ir conferir.",
+          "pt-pt": "Neste computador, o teu assistente vê o que cada impressora está a imprimir, em que ponto vai e que filamento está em cada ranhura. Já não precisas de ir ver.",
+          "pl": "Na tym komputerze asystent widzi, co drukuje każda drukarka, jak daleko doszła i jaki filament siedzi w każdym slocie. Koniec z chodzeniem na podgląd.",
+          "ru": "На этом компьютере ассистент видит, что печатает каждый принтер, как далеко он продвинулся и какой филамент в каждом слоте. Бегать проверять больше не надо.",
+          "nl": "Op deze computer ziet je assistent wat elke printer print, hoe ver hij is en welk filament in elk slot zit. Niet meer zelf gaan kijken."
+        }
+      },
+      {
+        "icon": "list-check",
+        "title": {
+          "en": "Stock sorted by asking",
+          "fr": "Du stock rangé sur simple demande",
+          "de": "Bestand sortiert per Zuruf",
+          "es": "Stock ordenado con pedirlo",
+          "it": "Stock in ordine a richiesta",
+          "zh": "开口一问，库存就整理好",
+          "pt": "Estoque arrumado só de pedir",
+          "pt-pt": "Stock arrumado só a pedir",
+          "pl": "Zapas w ładzie na życzenie",
+          "ru": "Запасы в порядке по одной просьбе",
+          "nl": "Voorraad op orde door te vragen"
+        },
+        "body": {
+          "en": "Let your assistant weigh, tag and move spools or fill in prices, when you allow it. Every change shows before and after, and one click undoes it.",
+          "fr": "Laisse ton assistant peser, étiqueter et déplacer des bobines ou remplir des prix, si tu l'autorises. Chaque changement montre l'avant et l'après, et un clic l'annule.",
+          "de": "Lass deinen Assistenten Spulen wiegen, taggen und verschieben oder Preise eintragen, wenn du es erlaubst. Jede Änderung zeigt Vorher und Nachher, ein Klick macht sie rückgängig.",
+          "es": "Deja que tu asistente pese, etiquete y mueva bobinas o rellene precios, si lo permites. Cada cambio muestra el antes y el después, y un clic lo deshace.",
+          "it": "Lascia che il tuo assistente pesi, etichetti e sposti bobine o inserisca prezzi, se lo permetti. Ogni modifica mostra prima e dopo, e un clic la annulla.",
+          "zh": "只要你允许，助手就能称重、打标签、挪动料盘或填写价格。每次修改都显示前后对比，点一下就能撤销。",
+          "pt": "Deixe o assistente pesar, etiquetar e mover carretéis ou preencher preços, se você permitir. Cada mudança mostra o antes e o depois, e um clique desfaz.",
+          "pt-pt": "Deixa o assistente pesar, etiquetar e mover bobines ou preencher preços, se permitires. Cada alteração mostra o antes e o depois, e um clique desfaz.",
+          "pl": "Pozwól asystentowi ważyć, tagować i przenosić szpule albo wpisywać ceny. Każda zmiana pokazuje stan przed i po, a jedno kliknięcie ją cofa.",
+          "ru": "Разрешите ассистенту взвешивать, помечать и переставлять катушки или вписывать цены. Каждое изменение видно «до» и «после», один клик отменяет его.",
+          "nl": "Laat je assistent spoelen wegen, taggen en verplaatsen of prijzen invullen, als jij dat toestaat. Elke wijziging toont voor en na, en met één klik maak je haar ongedaan."
+        }
+      },
+      {
+        "icon": "cloud",
+        "title": {
+          "en": "Same assistant, anywhere",
+          "fr": "Le même assistant, partout",
+          "de": "Derselbe Assistent, überall",
+          "es": "El mismo asistente, en cualquier sitio",
+          "it": "Lo stesso assistente, ovunque",
+          "zh": "同一个助手，随时随地",
+          "pt": "O mesmo assistente, em qualquer lugar",
+          "pt-pt": "O mesmo assistente, em qualquer lado",
+          "pl": "Ten sam asystent, wszędzie",
+          "ru": "Тот же ассистент, где угодно",
+          "nl": "Dezelfde assistent, overal"
+        },
+        "body": {
+          "en": "Online, your assistant reaches your stock from the web or your phone, even with Studio closed. It only reads, so nothing moves while you're on the bus.",
+          "fr": "En ligne, ton assistant accède à ton stock depuis le web ou ton téléphone, même Studio fermé. Il ne fait que lire : rien ne bouge pendant que tu es dans le bus.",
+          "de": "Online erreicht dein Assistent deinen Bestand vom Web oder Handy aus, auch bei geschlossenem Studio. Er liest nur, im Bus ändert sich also nichts.",
+          "es": "En línea, tu asistente llega a tu stock desde la web o el móvil, incluso con Studio cerrado. Solo lee, así que nada se mueve mientras vas en el autobús.",
+          "it": "Online, il tuo assistente raggiunge il tuo stock dal web o dal telefono, anche con Studio chiuso. Legge soltanto, quindi niente si muove mentre sei sull'autobus.",
+          "zh": "在线时，助手可从网页或手机访问你的库存，Studio 关着也行。它只读不改，你在公交上时什么都不会动。",
+          "pt": "Online, seu assistente acessa seu estoque pela web ou pelo celular, mesmo com o Studio fechado. Ele só lê, então nada muda enquanto você está no ônibus.",
+          "pt-pt": "Online, o teu assistente acede ao teu stock pela web ou pelo telemóvel, mesmo com o Studio fechado. Só lê, por isso nada muda enquanto vais no autocarro.",
+          "pl": "Online asystent sięga do twojego zapasu z sieci lub telefonu, nawet gdy Studio jest zamknięte. Tylko czyta, więc nic się nie rusza, gdy jedziesz autobusem.",
+          "ru": "Онлайн ассистент достаёт до ваших запасов из браузера или с телефона, даже при закрытой Studio. Он только читает, так что в автобусе ничего не изменится.",
+          "nl": "Online kan je assistent je voorraad bereiken vanaf het web of je telefoon, ook met Studio dicht. Hij leest alleen, dus er verandert niets terwijl jij in de bus zit."
+        }
+      },
+      {
+        "icon": "eye",
+        "title": {
+          "en": "Show me where",
+          "fr": "Montre-moi où",
+          "de": "Zeig mir, wo",
+          "es": "Enséñame dónde",
+          "it": "Fammi vedere dove",
+          "zh": "指给我看",
+          "pt": "Mostre onde",
+          "pt-pt": "Mostra onde",
+          "pl": "Pokaż, gdzie",
+          "ru": "Покажи, где",
+          "nl": "Wijs maar aan"
+        },
+        "body": {
+          "en": "Your assistant can open a view, make a spool glow or screenshot what you see. Sensitive bits are blurred first, and it stays off until you switch it on.",
+          "fr": "Ton assistant peut ouvrir une vue, faire briller une bobine ou capturer ton écran. Les infos sensibles sont floutées avant, et c'est désactivé tant que tu ne l'actives pas.",
+          "de": "Dein Assistent kann eine Ansicht öffnen, eine Spule leuchten lassen oder einen Screenshot machen. Sensibles wird vorher verpixelt, und alles bleibt aus, bis du es einschaltest.",
+          "es": "Tu asistente puede abrir una vista, hacer brillar una bobina o capturar lo que ves. Lo sensible se difumina antes, y está apagado hasta que lo actives.",
+          "it": "Il tuo assistente può aprire una vista, far brillare una bobina o fare uno screenshot. Le parti sensibili vengono sfocate prima, e resta spento finché non lo attivi.",
+          "zh": "助手可以打开某个视图、让某个料盘发光，或截取你看到的画面。敏感内容会先被模糊，默认关闭，由你决定何时开启。",
+          "pt": "O assistente pode abrir uma tela, fazer um carretel brilhar ou tirar um print do que você vê. O que é sensível é borrado antes, e fica desligado até você ativar.",
+          "pt-pt": "O assistente pode abrir uma vista, fazer uma bobine brilhar ou capturar o que vês. O que é sensível é desfocado antes, e fica desligado até o ativares.",
+          "pl": "Asystent może otworzyć widok, rozświetlić szpulę albo zrobić zrzut ekranu. Wrażliwe dane są wcześniej rozmywane, a całość jest wyłączona, dopóki jej nie włączysz.",
+          "ru": "Ассистент может открыть нужный экран, подсветить катушку или сделать скриншот. Чувствительное сначала размывается, а пока вы не включите функцию, она спит.",
+          "nl": "Je assistent kan een weergave openen, een spoel laten oplichten of een screenshot maken. Gevoelige delen worden eerst vervaagd, en het staat uit tot jij het aanzet."
+        }
+      },
+      {
+        "icon": "info",
+        "title": {
+          "en": "Answers from the wiki",
+          "fr": "Des réponses tirées du wiki",
+          "de": "Antworten aus dem Wiki",
+          "es": "Respuestas sacadas del wiki",
+          "it": "Risposte dal wiki",
+          "zh": "答案出自维基",
+          "pt": "Respostas direto da wiki",
+          "pt-pt": "Respostas direto da wiki",
+          "pl": "Odpowiedzi prosto z wiki",
+          "ru": "Ответы прямо из вики",
+          "nl": "Antwoorden uit de wiki"
+        },
+        "body": {
+          "en": "Ask how something works and your assistant looks it up in the TigerSystem wiki, instead of guessing with great confidence.",
+          "fr": "Demande comment ça marche : ton assistant cherche dans le wiki TigerSystem, au lieu de deviner avec beaucoup d'aplomb.",
+          "de": "Frag, wie etwas funktioniert: Dein Assistent schlägt es im TigerSystem-Wiki nach, statt mit viel Selbstvertrauen zu raten.",
+          "es": "Pregunta cómo funciona algo y tu asistente lo busca en el wiki de TigerSystem, en vez de adivinar con mucha seguridad.",
+          "it": "Chiedi come funziona qualcosa e il tuo assistente lo cerca nel wiki di TigerSystem, invece di indovinare con grande sicurezza.",
+          "zh": "问问某样东西怎么用，助手会去 TigerSystem 维基里查，而不是信心满满地瞎猜。",
+          "pt": "Pergunte como algo funciona e seu assistente consulta a wiki do TigerSystem, em vez de chutar com muita confiança.",
+          "pt-pt": "Pergunta como algo funciona e o teu assistente consulta a wiki do TigerSystem, em vez de adivinhar com muita confiança.",
+          "pl": "Zapytaj, jak coś działa, a asystent zajrzy do wiki TigerSystem zamiast zgadywać z wielką pewnością siebie.",
+          "ru": "Спросите, как что-то работает, и ассистент заглянет в вики TigerSystem, а не будет гадать с большой уверенностью.",
+          "nl": "Vraag hoe iets werkt en je assistent zoekt het op in de TigerSystem-wiki, in plaats van met veel zelfvertrouwen te gokken."
+        }
+      },
+      {
+        "icon": "send",
+        "title": {
+          "en": "Support, drafted for you",
+          "fr": "Le support, rédigé pour toi",
+          "de": "Support-Anfrage, vorgeschrieben",
+          "es": "Soporte, redactado por ti",
+          "it": "Il supporto, già scritto",
+          "zh": "求助信，替你起草",
+          "pt": "Suporte, já redigido",
+          "pt-pt": "Suporte, já redigido",
+          "pl": "Zgłoszenie napisane za ciebie",
+          "ru": "Обращение в поддержку, уже написано",
+          "nl": "Supportverzoek, voor je opgesteld"
+        },
+        "body": {
+          "en": "Stuck on something the wiki doesn't cover? Your assistant writes the request, you read it, and nothing leaves until you press Send.",
+          "fr": "Bloqué sur un sujet que le wiki ne couvre pas ? Ton assistant rédige la demande, tu la relis, et rien ne part avant que tu appuies sur Envoyer.",
+          "de": "Hängst du an etwas, das das Wiki nicht abdeckt? Dein Assistent schreibt die Anfrage, du liest sie, und nichts geht raus, bevor du auf Senden drückst.",
+          "es": "¿Atascado en algo que el wiki no cubre? Tu asistente redacta la solicitud, tú la lees y nada sale hasta que pulsas Enviar.",
+          "it": "Bloccato su qualcosa che il wiki non copre? Il tuo assistente scrive la richiesta, tu la leggi e nulla parte finché non premi Invia.",
+          "zh": "遇到维基没写到的问题？助手来写请求，你来过目，不点“发送”就不会发出去。",
+          "pt": "Travado em algo que a wiki não cobre? Seu assistente escreve o pedido, você lê, e nada sai até você apertar Enviar.",
+          "pt-pt": "Preso em algo que a wiki não cobre? O teu assistente escreve o pedido, tu lês, e nada sai até carregares em Enviar.",
+          "pl": "Utknąłeś na czymś, czego wiki nie opisuje? Asystent pisze zgłoszenie, ty je czytasz, a nic nie wychodzi, dopóki nie klikniesz Wyślij.",
+          "ru": "Застряли на том, чего нет в вики? Ассистент напишет обращение, вы его прочтёте, и ничего не уйдёт, пока вы не нажмёте «Отправить».",
+          "nl": "Loop je vast op iets wat de wiki niet dekt? Je assistent schrijft het verzoek, jij leest het, en er gaat niets weg tot je op Verzenden drukt."
+        }
+      },
+      {
+        "icon": "download",
+        "title": {
+          "en": "Your stock, in Excel",
+          "fr": "Ton stock, dans Excel",
+          "de": "Dein Bestand in Excel",
+          "es": "Tu stock, en Excel",
+          "it": "Il tuo stock, in Excel",
+          "zh": "你的库存，导出到 Excel",
+          "pt": "Seu estoque, no Excel",
+          "pt-pt": "O teu stock, no Excel",
+          "pl": "Twój zapas w Excelu",
+          "ru": "Ваши запасы — в Excel",
+          "nl": "Je voorraad in Excel"
+        },
+        "body": {
+          "en": "Settings → Data: one click exports every spool to a spreadsheet, ready to filter and sort. Accountants rejoice.",
+          "fr": "Réglages → Données : un clic exporte toutes tes bobines dans un tableur, prêt à filtrer et trier. Les comptables jubilent.",
+          "de": "Einstellungen → Daten: Ein Klick exportiert jede Spule in eine Tabelle, bereit zum Filtern und Sortieren. Buchhalter jubeln.",
+          "es": "Ajustes → Datos: un clic exporta todas tus bobinas a una hoja de cálculo, lista para filtrar y ordenar. Los contables aplauden.",
+          "it": "Impostazioni → Dati: un clic esporta tutte le bobine in un foglio di calcolo, pronto da filtrare e ordinare. I contabili esultano.",
+          "zh": "设置 → 数据：一键把所有料盘导出为电子表格，可直接筛选排序。会计们要欢呼了。",
+          "pt": "Ajustes → Dados: um clique exporta todos os carretéis para uma planilha, pronta para filtrar e ordenar. Os contadores comemoram.",
+          "pt-pt": "Definições → Dados: um clique exporta todas as bobines para uma folha de cálculo, pronta a filtrar e ordenar. Os contabilistas rejubilam.",
+          "pl": "Ustawienia → Dane: jedno kliknięcie eksportuje wszystkie szpule do arkusza, gotowego do filtrowania i sortowania. Księgowi się cieszą.",
+          "ru": "Настройки → Данные: один клик выгружает все катушки в таблицу, которую можно фильтровать и сортировать. Бухгалтеры рады.",
+          "nl": "Instellingen → Gegevens: met één klik gaat elke spoel naar een spreadsheet, klaar om te filteren en sorteren. Boekhouders juichen."
+        }
+      },
+      {
+        "icon": "settings",
+        "title": {
+          "en": "Close it, keep it running",
+          "fr": "Ferme-la, elle tourne toujours",
+          "de": "Zu, aber weiter aktiv",
+          "es": "Ciérrala, sigue en marcha",
+          "it": "Chiudila, resta in funzione",
+          "zh": "关掉窗口，照常运行",
+          "pt": "Feche, e ela segue rodando",
+          "pt-pt": "Fecha, e continua a correr",
+          "pl": "Zamknij, a działa dalej",
+          "ru": "Закрыли окно, работа идёт",
+          "nl": "Sluit af, het blijft draaien"
+        },
+        "body": {
+          "en": "On Windows and Linux, closing the window can leave Studio in the notification area, still watching printers and cameras. Off by default, in Settings → Window.",
+          "fr": "Sous Windows et Linux, fermer la fenêtre peut laisser Studio dans la zone de notification, à surveiller imprimantes et caméras. Désactivé par défaut, dans Réglages → Fenêtre.",
+          "de": "Unter Windows und Linux kann Studio beim Schließen des Fensters im Infobereich weiterlaufen und Drucker und Kameras beobachten. Standardmäßig aus, unter Einstellungen → Fenster.",
+          "es": "En Windows y Linux, cerrar la ventana puede dejar Studio en el área de notificaciones, vigilando impresoras y cámaras. Desactivado por defecto, en Ajustes → Ventana.",
+          "it": "Su Windows e Linux, chiudere la finestra può lasciare Studio nell'area di notifica, a sorvegliare stampanti e telecamere. Disattivato di default, in Impostazioni → Finestra.",
+          "zh": "在 Windows 和 Linux 上，关闭窗口后 Studio 可留在通知区域，继续盯着打印机和摄像头。默认关闭，在 设置 → 窗口 中开启。",
+          "pt": "No Windows e no Linux, fechar a janela pode deixar o Studio na área de notificação, de olho nas impressoras e câmeras. Desativado por padrão, em Ajustes → Janela.",
+          "pt-pt": "No Windows e no Linux, fechar a janela pode deixar o Studio na área de notificação, a vigiar impressoras e câmaras. Desativado por predefinição, em Definições → Janela.",
+          "pl": "W Windows i Linuksie zamknięcie okna może zostawić Studio w obszarze powiadomień, wciąż pilnujące drukarek i kamer. Domyślnie wyłączone, w Ustawienia → Okno.",
+          "ru": "В Windows и Linux закрытие окна может оставить Studio в области уведомлений — принтеры и камеры остаются под присмотром. По умолчанию выключено: Настройки → Окно.",
+          "nl": "Op Windows en Linux kan Studio bij het sluiten van het venster in het systeemvak blijven, met printers en camera's nog in het oog. Standaard uit, in Instellingen → Venster."
+        }
+      },
+      {
+        "icon": "camera",
+        "title": {
+          "en": "Borrow an IP camera",
+          "fr": "Emprunte une caméra IP",
+          "de": "Eine IP-Kamera ausleihen",
+          "es": "Pide prestada una cámara IP",
+          "it": "Prendi in prestito una telecamera IP",
+          "zh": "借用一台 IP 摄像头",
+          "pt": "Peça uma câmera IP emprestada",
+          "pt-pt": "Pede emprestada uma câmara IP",
+          "pl": "Pożycz kamerę IP",
+          "ru": "Одолжите IP-камеру",
+          "nl": "Leen een IP-camera"
+        },
+        "body": {
+          "en": "Printer's own camera not great? Show one of your IP cameras on that printer instead, on its card, in its panel and on the camera wall.",
+          "fr": "La caméra de l'imprimante est décevante ? Affiche plutôt une de tes caméras IP sur cette imprimante : sur sa carte, dans son panneau et sur le mur de caméras.",
+          "de": "Die Kamera des Druckers taugt nichts? Zeig stattdessen eine deiner IP-Kameras bei diesem Drucker: auf der Karte, im Panel und an der Kamerawand.",
+          "es": "¿La cámara de la impresora no convence? Muestra en su lugar una de tus cámaras IP para esa impresora: en su tarjeta, en su panel y en el muro de cámaras.",
+          "it": "La telecamera della stampante non convince? Mostra invece una delle tue telecamere IP su quella stampante: sulla sua scheda, nel suo pannello e sul muro delle telecamere.",
+          "zh": "打印机自带的摄像头不够好？换成你的某台 IP 摄像头，显示在这台打印机的卡片、面板和摄像头墙上。",
+          "pt": "A câmera da impressora não agrada? Mostre uma das suas câmeras IP nessa impressora, no cartão, no painel e no mural de câmeras.",
+          "pt-pt": "A câmara da impressora não convence? Mostra antes uma das tuas câmaras IP nessa impressora, no cartão, no painel e no mural de câmaras.",
+          "pl": "Kamera drukarki nie zachwyca? Pokaż zamiast niej jedną ze swoich kamer IP na karcie, w panelu i na ścianie kamer tej drukarki.",
+          "ru": "Родная камера принтера не радует? Покажите вместо неё одну из своих IP-камер — на карточке, в панели и на стене камер.",
+          "nl": "Is de eigen camera van de printer maar zo-zo? Toon in plaats daarvan een van je IP-camera's bij die printer: op de kaart, in het paneel en op de cameramuur."
+        }
+      },
+      {
+        "icon": "printer",
+        "title": {
+          "en": "Bambu Lab H3C joins the fleet",
+          "fr": "La Bambu Lab H3C rejoint la flotte",
+          "de": "Die Bambu Lab H3C kommt an Bord",
+          "es": "La Bambu Lab H3C se une a la flota",
+          "it": "La Bambu Lab H3C entra in flotta",
+          "zh": "Bambu Lab H3C 加入阵容",
+          "pt": "A Bambu Lab H3C entra na frota",
+          "pt-pt": "A Bambu Lab H3C junta-se à frota",
+          "pl": "Bambu Lab H3C dołącza do floty",
+          "ru": "Bambu Lab H3C пополняет флот",
+          "nl": "De Bambu Lab H3C komt erbij"
+        },
+        "body": {
+          "en": "Nine tools, a temperature target for each, and the AMS 3H with its two drying zones. The H3C finally gets a screen that does it justice.",
+          "fr": "Neuf outils, une température cible pour chacun, et l'AMS 3H avec ses deux zones de séchage. La H3C a enfin un écran à sa hauteur.",
+          "de": "Neun Werkzeuge, je eine Zieltemperatur und das AMS 3H mit seinen zwei Trockenzonen. Die H3C bekommt endlich einen Bildschirm, der ihr gerecht wird.",
+          "es": "Nueve herramientas, una temperatura objetivo para cada una y el AMS 3H con sus dos zonas de secado. La H3C por fin tiene una pantalla a su altura.",
+          "it": "Nove strumenti, una temperatura obiettivo per ciascuno e l'AMS 3H con le sue due zone di essiccazione. La H3C ha finalmente una schermata all'altezza.",
+          "zh": "九个工具，各有目标温度，还有带两个烘干区的 AMS 3H。H3C 终于有了配得上它的界面。",
+          "pt": "Nove ferramentas, uma temperatura-alvo para cada e o AMS 3H com suas duas zonas de secagem. A H3C finalmente ganha uma tela à altura.",
+          "pt-pt": "Nove ferramentas, uma temperatura-alvo para cada e o AMS 3H com as suas duas zonas de secagem. A H3C ganha finalmente um ecrã à altura.",
+          "pl": "Dziewięć narzędzi, temperatura docelowa dla każdego i AMS 3H z dwiema strefami suszenia. H3C wreszcie ma ekran na swoim poziomie.",
+          "ru": "Девять инструментов, своя целевая температура для каждого и AMS 3H с двумя зонами сушки. У H3C наконец-то достойный экран.",
+          "nl": "Negen tools, een doeltemperatuur voor elk en de AMS 3H met zijn twee droogzones. De H3C krijgt eindelijk een scherm dat bij hem past."
+        }
+      },
+      {
+        "icon": "qr",
+        "title": {
+          "en": "Labels on the web too",
+          "fr": "Les étiquettes aussi sur le web",
+          "de": "Etiketten auch im Web",
+          "es": "Etiquetas también en la web",
+          "it": "Etichette anche sul web",
+          "zh": "网页版也能打标签",
+          "pt": "Etiquetas também na web",
+          "pt-pt": "Etiquetas também na web",
+          "pl": "Etykiety także w wersji webowej",
+          "ru": "Этикетки и в веб-версии",
+          "nl": "Etiketten ook op het web"
+        },
+        "body": {
+          "en": "Printing a label from Studio Web works now: PDF, PNG, SVG and Print all do their job.",
+          "fr": "Imprimer une étiquette depuis Studio Web fonctionne enfin : PDF, PNG, SVG et Imprimer font leur travail.",
+          "de": "Etiketten aus Studio Web drucken klappt jetzt: PDF, PNG, SVG und Drucken tun ihren Dienst.",
+          "es": "Imprimir una etiqueta desde Studio Web ya funciona: PDF, PNG, SVG e Imprimir cumplen su función.",
+          "it": "Stampare un'etichetta da Studio Web ora funziona: PDF, PNG, SVG e Stampa fanno il loro dovere.",
+          "zh": "现在可以在网页版 Studio 里打印标签了：PDF、PNG、SVG 和打印都能用。",
+          "pt": "Imprimir uma etiqueta pelo Studio Web agora funciona: PDF, PNG, SVG e Imprimir fazem o seu trabalho.",
+          "pt-pt": "Imprimir uma etiqueta no Studio Web já funciona: PDF, PNG, SVG e Imprimir fazem o seu trabalho.",
+          "pl": "Drukowanie etykiet w Studio Web wreszcie działa: PDF, PNG, SVG i Drukuj robią swoje.",
+          "ru": "Печать этикеток из Studio Web теперь работает: PDF, PNG, SVG и «Печать» делают своё дело.",
+          "nl": "Een etiket afdrukken vanuit Studio Web werkt nu: PDF, PNG, SVG en Afdrukken doen hun werk."
+        }
+      },
+      {
+        "icon": "nfc",
+        "title": {
+          "en": "Plain NTAG chips stay calm",
+          "fr": "Les puces NTAG basiques gardent leur calme",
+          "de": "Einfache NTAG-Chips bleiben ruhig",
+          "es": "Los chips NTAG básicos mantienen la calma",
+          "it": "I chip NTAG semplici restano calmi",
+          "zh": "普通 NTAG 芯片不再乱来",
+          "pt": "Chips NTAG comuns mantêm a calma",
+          "pt-pt": "Chips NTAG simples mantêm a calma",
+          "pl": "Zwykłe chipy NTAG zachowują spokój",
+          "ru": "Обычные NTAG-метки больше не буйствуют",
+          "nl": "Gewone NTAG-chips blijven kalm"
+        },
+        "body": {
+          "en": "A generic NTAG chip no longer resets its spool every time you scan it. Your weight stays where you left it.",
+          "fr": "Une puce NTAG générique ne remet plus sa bobine à zéro à chaque scan. Ton poids reste là où tu l'as laissé.",
+          "de": "Ein generischer NTAG-Chip setzt seine Spule nicht mehr bei jedem Scan zurück. Dein Gewicht bleibt, wo du es gelassen hast.",
+          "es": "Un chip NTAG genérico ya no reinicia su bobina en cada escaneo. Tu peso se queda donde lo dejaste.",
+          "it": "Un chip NTAG generico non azzera più la sua bobina a ogni scansione. Il tuo peso resta dove l'hai lasciato.",
+          "zh": "通用 NTAG 芯片不会再在每次扫描时重置料盘。你记录的重量原样保留。",
+          "pt": "Um chip NTAG genérico não zera mais o carretel a cada leitura. O seu peso fica onde você deixou.",
+          "pt-pt": "Um chip NTAG genérico já não repõe a bobine a cada leitura. O teu peso fica onde o deixaste.",
+          "pl": "Zwykły chip NTAG nie resetuje już szpuli przy każdym skanowaniu. Twoja waga zostaje tam, gdzie ją zostawiłeś.",
+          "ru": "Обычная NTAG-метка больше не сбрасывает катушку при каждом сканировании. Вес остаётся там, где вы его оставили.",
+          "nl": "Een generieke NTAG-chip zet zijn spoel niet meer terug bij elke scan. Je gewicht blijft staan waar jij het liet."
+        }
+      },
+      {
+        "icon": "grip",
+        "title": {
+          "en": "Hold on, phone users",
+          "fr": "Accrochez-vous, mobinautes",
+          "de": "Durchhalten, Handy-Nutzer",
+          "es": "Aguantad, usuarios de móvil",
+          "it": "Tenete duro, utenti da telefono",
+          "zh": "手机用户，按住不放",
+          "pt": "Segure firme, pessoal do celular",
+          "pt-pt": "Aguenta, utilizadores de telemóvel",
+          "pl": "Wytrzymaj, użytkowniku telefonu",
+          "ru": "Держитесь, владельцы телефонов",
+          "nl": "Vasthouden, telefoongebruikers"
+        },
+        "body": {
+          "en": "Holding a button to confirm now works on a phone in Studio Web, without the browser's menu butting in.",
+          "fr": "Maintenir un bouton pour confirmer fonctionne maintenant sur téléphone dans Studio Web, sans que le menu du navigateur s'invite.",
+          "de": "Gedrückt halten zum Bestätigen funktioniert jetzt auch auf dem Handy in Studio Web, ohne dass das Browsermenü dazwischenfunkt.",
+          "es": "Mantener pulsado un botón para confirmar ya funciona en el móvil en Studio Web, sin que el menú del navegador se cuele.",
+          "it": "Tenere premuto un pulsante per confermare ora funziona sul telefono in Studio Web, senza che il menu del browser si intrometta.",
+          "zh": "在手机上的网页版 Studio 里，长按按钮确认现在可以正常使用了，浏览器菜单不会再来捣乱。",
+          "pt": "Segurar um botão para confirmar agora funciona no celular no Studio Web, sem o menu do navegador se intrometer.",
+          "pt-pt": "Manter um botão premido para confirmar já funciona no telemóvel no Studio Web, sem o menu do navegador se meter.",
+          "pl": "Przytrzymanie przycisku w celu potwierdzenia działa teraz na telefonie w Studio Web, bez wtrącania się menu przeglądarki.",
+          "ru": "Удержание кнопки для подтверждения теперь работает на телефоне в Studio Web — меню браузера больше не мешает.",
+          "nl": "Een knop ingedrukt houden om te bevestigen werkt nu op een telefoon in Studio Web, zonder dat het browsermenu zich ermee bemoeit."
+        }
+      }
+    ]
+  },
   "2.53.0": {
     "date": "2026-11-08",
     "items": [

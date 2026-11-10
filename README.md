@@ -319,10 +319,12 @@ A QR code to download the mobile app is always accessible in the sidebar.
 - **Request conversations** *(new in 2.49.0)* — read the team's replies and answer from the app, browse everyone's requests and answer the community's questions
 
 ### 🤖 AI assistants
-- Ask **Claude, Cursor or VS Code** about your stock — "what PLA am I low on?", "what does my friend have in black PETG?"
-- One-click install per app, turned on per profile in *My profile*
-- **Read-only** and local: the assistant can look, never change; passwords and keys are never shared
-- **From the web and your phone too**: Claude.ai, ChatGPT and their mobile apps connect online with one address — no Studio running — and *My profile* lists them with a button to cut access
+- A **sidebar page** plugs **Claude, ChatGPT, Cursor, VS Code, Le Chat, Grok** or any other assistant into your stock — "what PLA am I low on?", "can I print this `.3mf` with what I have?" (a TigerSquad perk)
+- **On this computer** it also sees your printers live (job, progress, loaded filament) and, only if you allow it, can **change** the stock — every change is listed with its before and after and **undone in one click**, nothing is ever deleted
+- **Read-only by default**: you pick the access level, cut it any time; passwords and keys are never shared
+- **Guide mode** (off by default): it shows a view or lights up a spool, screenshots blur sensitive zones first, and it never presses for you
+- It answers from the TigerSystem wiki and can **prepare a support request** — you read it and send it yourself
+- **From the web and your phone too**: online assistants connect with one address — no Studio running, read-only
 
 ### 🌐 Tiger Studio Web
 - The same Studio **in your browser** at **[studio.tigersystem.io](https://studio.tigersystem.io)** — computer, tablet, nothing to install
