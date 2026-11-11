@@ -15,5 +15,9 @@
   <!-- Required for some native deps that read DYLD_* env vars at load time -->
   <key>com.apple.security.cs.allow-dyld-environment-variables</key>
   <true/>
+
+  <!-- The camera, to scan a TigerQR label from the search bar (renderer/qr-scan.js) -->
+  <key>com.apple.security.device.camera</key>
+  <true/>
 </dict>
 </plist>

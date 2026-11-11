@@ -31,6 +31,7 @@ import { closePullStages, holdToFire, openPullStage } from './quests/coin-pull.j
 import { squadHeroHtml, squadItemsHeroHtml, squadRankingsHtml, pulseHtml as squadPulseHtml, toggleLeague, pickLeague, leagueRows, setLeagueRows, rankNo } from './quests/squad-rankings.js';
 import { artImg } from './art.js';
 import { openDialog, initDialogs } from './dialog.js';
+import { openQrCameraScan } from './qr-scan.js';
 import { initAiAssistant, aiOnToolCall, aiAccountChanged, aiJournalChanged, renderAiPage, closeAiHistory, closeAiSetup, aiDisconnectAll } from './ai/assistant.js';
 import { initTrophies, trophiesSignIn, trophiesSignOut, renderTrophiesView, trophyEarned } from './quests/trophies.js';
 import { fillHeroScenes } from './hero-scene.js';
@@ -1941,15 +1942,18 @@ import { initScreenTools } from './ai/screen-tools.js';
     return m == null ? "" : `≈ ${m >= 100 ? Math.round(m) : m.toFixed(1)} m`;
   }
   // ── Empty-spool (container) catalogue from the server ────────────────────────
-  // The list is managed in the Manager; its GitHub mirror (TigerTag-RFID-Guide
-  // database/id_container.json, refreshed by the sync job) is read first, the API
-  // (`fetchContainers`, main.js `containers:fetch`) only when GitHub fails. The
+  // The list is managed in the Manager and served two ways, the same 57-entry shape
+  // (with `id_container`, the number product/get names): its GitHub mirror
+  // (TigerTag-RFID-Guide database/id_container.json, refreshed by the sync job) and
+  // the API (`fetchContainers`, main.js `containers:fetch`, Xano container/get/all).
+  // CONTAINERS_PRIMARY picks the one read first; the other is the fallback. The
   // server entries are merged over the bundled file by `id` (the bundled file stays
   // the offline floor); the label shown is the UI language's (`labels`); an entry
   // with `active: false` is no longer offered but still resolves for the spools
   // that use it. The last good answer is kept (`tigertag.containers`) and painted
   // at once; it is fetched again at most once a day.
-  const CONTAINERS_FROM_SERVER = false;   // off until the founder has checked it
+  const CONTAINERS_FROM_SERVER = true;   // on since 2026-11-11 (founder)
+  const CONTAINERS_PRIMARY = "github";   // "api" once the API is validated as the source
   const CONTAINERS_URL = "https://raw.githubusercontent.com/TigerTag-Project/TigerTag-RFID-Guide/refs/heads/main/database/id_container.json";
   const CONTAINERS_CACHE = "tigertag.containers";
   const CONTAINERS_TTL_MS = 864e5;
@@ -1970,16 +1974,20 @@ import { initScreenTools } from './ai/screen-tools.js';
     try { cache = JSON.parse(localStorage.getItem(CONTAINERS_CACHE) || "null"); } catch (_) {}
     if (Array.isArray(cache?.items)) { _containerServer = cache.items; _containersRebuild(); }
     if (cache && Date.now() - (cache.at || 0) < CONTAINERS_TTL_MS) return;
-    let items = null;
-    try {
-      const r = await fetch(CONTAINERS_URL, { cache: "no-cache" });
-      const j = r.ok ? await r.json() : null;
-      if (Array.isArray(j) && j.length) items = j;
-    } catch (e) { console.warn("[containers] GitHub mirror failed:", e?.message); }
-    if (!items) {
+    const fromGithub = async () => {
+      try {
+        const r = await fetch(CONTAINERS_URL, { cache: "no-cache" });
+        const j = r.ok ? await r.json() : null;
+        return Array.isArray(j) && j.length ? j : null;
+      } catch (e) { console.warn("[containers] GitHub mirror failed:", e?.message); return null; }
+    };
+    const fromApi = async () => {
       const r = await window.electronAPI?.fetchContainers?.(state.lang).catch(() => null);
-      if (r?.ok && r.items.length) items = r.items;
-    }
+      if (!(r?.ok && r.items.length)) console.warn("[containers] API failed:", r?.error || "unavailable");
+      return r?.ok && r.items.length ? r.items : null;
+    };
+    const [first, second] = CONTAINERS_PRIMARY === "api" ? [fromApi, fromGithub] : [fromGithub, fromApi];
+    const items = (await first()) || (await second());
     if (!items) return;
     _containerServer = items;
     _containersRebuild();
@@ -2007,6 +2015,18 @@ import { initScreenTools } from './ai/screen-tools.js';
     return containerIsEdited(c) ? { ...c, container_weight: containerWeightOf(c) } : c;
   }
   function containerFind(id) { return containerResolve((state.db.containers || []).find(c => c.id === id)) || null; }
+  // The empty spool a catalogue product is sold on: `product/get` names it by its
+  // number (`id_container`, 1-65535, the entry's `id_container` in id_container.json;
+  // null = the maker named none), a spool stores its text key. → the spool's
+  // { container_id, container_weight } (the account's weight correction applied),
+  // or {} when the product names none or this copy of the list lacks it. Only for a
+  // spool being created: a container already chosen is never replaced.
+  function _productContainerFields(api) {
+    const n = Number(api?.id_container);
+    if (!Number.isInteger(n) || n <= 0) return {};
+    const c = containerResolve((state.db.containers || []).find(x => Number(x.id_container) === n));
+    return c ? { container_id: c.id, container_weight: Number(c.container_weight) || 0 } : {};
+  }
   function brandName(id) { const b = dbFind("brand", id); return b ? b.name : "-"; }
   function materialLabel(id) { const m = dbFind("material", id); return m ? m.label : "-"; }
   function aspectLabel(id) { const a = dbFind("aspect", id); return a ? a.label : null; }
@@ -15041,6 +15061,12 @@ import { initScreenTools } from './ai/screen-tools.js';
     if ($("chipChoicePanel")?.classList.contains("open")) { closeChipChoice(); return; }
     openAddChooser();
   });
+  // The camera button of the search bar: a TigerQR label shown to the computer's
+  // camera opens like a pasted link (reader "camera", renderer/qr-scan.js).
+  $("searchQrScan")?.addEventListener("click", () => {
+    if (!navigator.mediaDevices?.getUserMedia) { _flashMessage(t("qrScanNoCamera")); return; }
+    openQrCameraScan({ t, openDialog, parseQrLink, onLink: link => _qrLinkOpen(link, "camera") });
+  });
   // A qr.tigertag.io link in the search opens what it designates (_qrLinkOpen).
   // Pasted, it arrives whole; typed by a handheld scanner (a keyboard to the app),
   // it is read on the scanner's Enter or after a pause, never halfway through.
@@ -16057,6 +16083,8 @@ import { initScreenTools } from './ai/screen-tools.js';
       // remaining weight, note and chip timestamp.
       const cat = _catalogDocFromApi(api, productId, r.spoolId);
       for (const k of ["uid", "weight_available", "message", "timestamp", "deleted", "deleted_at"]) delete cat[k];
+      // The product's own empty spool only fills a spool that has none.
+      if (r.containerId) { delete cat.container_id; delete cat.container_weight; }
       // A product with fewer colours clears the slots the old spool used.
       if (cat.color_r2 == null) Object.assign(cat, { color_r2: 0, color_g2: 0, color_b2: 0 });
       if (cat.color_r3 == null) Object.assign(cat, { color_r3: 0, color_g3: 0, color_b3: 0 });
@@ -16646,6 +16674,8 @@ import { initScreenTools } from './ai/screen-tools.js';
 
       // ── Catalogue-sourced fields — the shared mapping ─────────────────
       ..._productApiFields(api),
+      // The empty spool the product is sold on, when its maker named one.
+      ..._productContainerFields(api),
     };
 
     // Colours 2 / 3 — written only when the aspect announces them.
@@ -26421,7 +26451,7 @@ import { initScreenTools } from './ai/screen-tools.js';
   $("sbMakerWorldBtn").addEventListener("click", () => _clickCommunityBtn("makerworld"));
   $("sbDiscordBtn").addEventListener("click", () => _clickCommunityBtn("discord"));
   $("sbCoffeeBtn")?.addEventListener("click", _openCoffee);
-  // Bug or idea? → in-app report that becomes a public GitHub issue (report/index.js).
+  // Improvements & suggestions → in-app report that becomes a public GitHub issue (report/index.js).
   initReport({
     t, esc,
     getIdToken: force => state.activeAccountId ? firebase.app(state.activeAccountId).auth().currentUser?.getIdToken(!!force) : null,
@@ -41083,7 +41113,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     openDetail(id);
   }
   // A qr.tigertag.io link pasted or scanned into the search (`reader`: paste |
-  // qr_scanner). A spool goes through _spoolLinkArrived; a product link opens its
+  // qr_scanner), or read by the computer's camera (`camera`, renderer/qr-scan.js). A spool goes through _spoolLinkArrived; a product link opens its
   // catalogue card; every kind is counted once (qr_read).
   function _qrLinkOpen(link, reader) {
     link = { ...link, reader };
@@ -45476,6 +45506,10 @@ import { initScreenTools } from './ai/screen-tools.js';
         if (api.filament?.refill)              doc.info1              = true;
         if (api.filament?.recycled)            doc.info2              = true;
         if (api.filament?.filled)              doc.info3              = true;
+        // A spool entering the inventory (a new chip, or one rewritten: its doc
+        // was just deleted) gets the product's empty spool; a rescan keeps the
+        // container the user chose.
+        if (!preserveDbWeight)                 Object.assign(doc, _productContainerFields(api));
       }
 
       // Merge — only overwrite the chip-sourced + API fields we just rebuilt.
@@ -46767,7 +46801,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     if (c.kind === "create") throw new Error(`A creation is not undone by an assistant (it never deletes). The user deletes these spools in Studio: ${(c.created || []).join(", ")}.`);
     if (c.kind === "rack_create") throw new Error(`A new rack is not undone by an assistant (it never deletes). The user deletes "${c.rack_name}" in Studio.`);
     if (c.kind === "undo") throw new Error("An undo is not undone — make the change again instead.");
-    if (c.kind === "ticket" || c.kind === "ticket_reply") throw new Error(`A request or a reply is public once sent and is not undone. The user can close their own request in Studio › Bug or idea? › My requests${c.url ? ` (${c.url})` : ""}.`);
+    if (c.kind === "ticket" || c.kind === "ticket_reply") throw new Error(`A request or a reply is public once sent and is not undone. The user can close their own request in Studio › Improvements & suggestions › My requests${c.url ? ` (${c.url})` : ""}.`);
     // Firestore hands maps back in its own key order: compare with sorted keys.
     const canon = v => (v && typeof v === "object" && !Array.isArray(v)
       ? Object.fromEntries(Object.keys(v).sort().map(k => [k, canon(v[k])])) : Array.isArray(v) ? v.map(canon) : v ?? null);

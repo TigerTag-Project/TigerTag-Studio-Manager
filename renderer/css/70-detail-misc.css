@@ -23,6 +23,7 @@
   .icon-22 { width: 22px; height: 22px; }
   .icon-edit      { -webkit-mask-image: url('../../assets/svg/icons/icon_edit.svg');         mask-image: url('../../assets/svg/icons/icon_edit.svg'); }
   .icon-check     { -webkit-mask-image: url('../../assets/svg/icons/icon_check.svg');        mask-image: url('../../assets/svg/icons/icon_check.svg'); }
+  .icon-check-bold { -webkit-mask-image: url('../../assets/svg/icons/icon_check_bold.svg'); mask-image: url('../../assets/svg/icons/icon_check_bold.svg'); }
   .icon-search    { -webkit-mask-image: url('../../assets/svg/icons/icon_search.svg');       mask-image: url('../../assets/svg/icons/icon_search.svg'); }
   .icon-trash     { -webkit-mask-image: url('../../assets/svg/icons/icon_trash.svg');        mask-image: url('../../assets/svg/icons/icon_trash.svg'); }
   .icon-flag      { -webkit-mask-image: url('../../assets/svg/icons/icon_flag.svg');         mask-image: url('../../assets/svg/icons/icon_flag.svg'); }
@@ -986,6 +987,22 @@
      renderer toggles the `hidden` attr): one glyph, always in the same spot, so
      nothing shifts as you type and the field keeps a single padding. */
   .inv-search:has(.inv-search-clear:not([hidden])) .icon-search { display: none; }
+  /* The camera scan button, left of the magnifier / clear button (renderer/qr-scan.js). */
+  .inv-search-scan {
+    position: absolute; right: 34px; top: 50%; transform: translateY(-50%);
+    width: 26px; height: 26px; padding: 0; border: none; border-radius: 50%;
+    background: transparent; display: inline-flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: background .12s;
+  }
+  .inv-search-scan .icon { background: var(--muted); transition: background .12s; }
+  .inv-search-scan:hover { background: var(--border); }
+  .inv-search-scan:hover .icon { background: var(--text); }
+  .inv-search-scan:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+  /* The camera window: the live picture under a square aiming frame. */
+  .qr-scan-win .qrs-view { position: relative; margin: 14px auto 0; width: min(420px, 100%); aspect-ratio: 4 / 3; border-radius: 14px; overflow: hidden; background: #000; }
+  .qr-scan-win .qrs-video { width: 100%; height: 100%; object-fit: cover; display: block; transform: scaleX(-1); }
+  .qr-scan-win .qrs-frame { position: absolute; left: 50%; top: 50%; width: 52%; aspect-ratio: 1; transform: translate(-50%, -50%); border: 3px solid var(--primary); border-radius: 16px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, .35); pointer-events: none; }
+  .qr-scan-win .qrs-msg { min-height: 1.4em; margin: 10px 0 0; text-align: center; font-size: 12.5px; color: var(--muted); }
   .inv-search-clear {
     position: absolute;
     /* Centred where the magnifier sat, so the swap reads as one glyph changing */

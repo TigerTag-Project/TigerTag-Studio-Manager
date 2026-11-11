@@ -238,7 +238,7 @@
 /* History side card (#aiHistoryPanel) and the head button's count. */
 /* As wide as the product card (#reorderPanel), never wider than the window. */
 #aiHistoryPanel { width: 620px; max-width: 95vw; display: flex; flex-direction: column; }
-.ai-hist-body { flex: 1; min-height: 0; overflow: auto; padding: 4px 18px 22px; display: flex; flex-direction: column; gap: 14px; }
+.ai-hist-body { flex: 1; min-height: 0; overflow: auto; scrollbar-width: none; padding: 4px 18px 22px; display: flex; flex-direction: column; gap: 14px; }
 .ai-hist-day .aip-day { margin: 6px 0 8px; text-transform: capitalize; }
 .aip-count { margin-left: 6px; padding: 0 7px; border-radius: 999px; background: var(--surface-2); font-size: 11.5px; font-weight: 700; line-height: 18px; }
 .aip-head-acts .secondary.is-on { border-color: var(--primary); color: var(--primary); }
@@ -479,7 +479,36 @@
 .aip-works-head { display: flex; align-items: center; gap: 12px; }
 .aip-works-head > span:last-child { display: flex; flex-direction: column; gap: 1px; }
 .aip-works-head b { font-size: 14px; font-weight: 700; color: var(--text); }
+/* Each group carries the app's pill (.pba-brand-badge, 40-printers.css) on its title row: Recommended (online), More powerful (with Studio). */
+.aip-works-head b:has(.pba-brand-badge) { display: inline-flex; align-items: center; gap: 7px; }
 .aip-works-head small { font-size: 12px; color: var(--muted); }
+/* "Compare the two": a notice window (openDialog) holding the product view's table
+   (.pv-table, 70-detail-misc.css); opened by the link and by both group pills. */
+.squad-notice.ai-cmp-win { width: min(660px, calc(100vw - 32px)); }
+/* Its robot out of the tile: bare, bigger, in the window's text colour. */
+.ai-cmp-win .dlg-ico { width: auto; aspect-ratio: auto; border-radius: 0; background: none; box-shadow: none; }
+.ai-cmp-win .dlg-ico .icon { width: 56px; height: 56px; background: var(--tsq-text); }
+.ai-cmp-win .aip-cmp-wrap.aip-cmp-wrap { flex: none; margin-top: 14px; text-align: left; }
+.ai-cmp-win .aip-cmp-both { margin-top: 12px; text-align: center; }
+/* The window's own icon colour would turn the ticks white: green, like everywhere else. */
+.ai-cmp-win .aip-cmp-table .aip-cmp-yes { background-color: var(--game-ok-text); }
+.aip-cmp-link { align-self: flex-start; margin-top: 12px; }
+/* The pills open it too: buttons in the pill's own look. */
+.pba-brand-badge.aip-cmp-pill { height: auto; border: 0; cursor: pointer; font-family: inherit; transition: filter .15s, transform .15s; }
+.pba-brand-badge.aip-cmp-pill:hover { filter: brightness(1.12); transform: translateY(-1px); }
+.pba-brand-badge.aip-cmp-pill:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.aip-cmp-table { table-layout: fixed; }
+.aip-cmp-table tbody tr { border-bottom: 1px solid var(--border); }
+.aip-cmp-table tbody tr:last-child { border-bottom: none; }
+.aip-cmp-table th:not(:first-child), .aip-cmp-table td:not(:first-child) { width: 19%; text-align: center; white-space: normal; }
+/* Both: set apart by its accent header and a faint accent band; its ticks are a size up. */
+.aip-cmp-table .aip-cmp-all { background: color-mix(in srgb, var(--primary) 8%, transparent); }
+.aip-cmp-table th.aip-cmp-all { color: var(--primary); }
+.aip-cmp-table .aip-cmp-all .aip-cmp-yes { width: 24px; }
+.aip-cmp-table td:first-child { color: var(--text); white-space: normal; line-height: 1.4; }
+/* Ticks green and bold (founder, 2026-11-11; the Hub's /ai-assistant table draws the same). */
+.aip-cmp-table .aip-cmp-yes { width: 20px; aspect-ratio: 1; vertical-align: middle; background-color: var(--success-text); }
+.aip-cmp-no { color: var(--muted); font-weight: 700; }
 .aip-works-ico { flex: none; display: grid; place-items: center; height: 40px; aspect-ratio: 1; border-radius: 12px; background: color-mix(in srgb, var(--primary) 14%, var(--surface-2)); }
 .aip-works-ico .icon { height: 20px; aspect-ratio: 1; background-color: var(--primary); }
 /* Six tiles a row (local: 5, web: 6), names on one line. */

@@ -197,7 +197,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Inventory render (L10220-15090)
+## Inventory render (L10220-15276)
 | L | What | Anchors |
 |---|---|---|
 | 5121-5335 | **`renderInventory()`** — welcome card, rack-view priority, table/grid dispatch | `renderInventory` |
@@ -209,7 +209,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## RFID encode / burn modal — cem (L15081-15667)
+## RFID encode / burn modal — cem (L15081-15900)
 | L | What | Anchors |
 |---|---|---|
 | 5947-6037 | **`_burnRfid(r)`** — writes a chip from a row | `_burnRfid` |
@@ -218,7 +218,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## TigerTag+ catalogue (L15681-18530)
+## TigerTag+ catalogue (L15681-18560)
 | L | What | Anchors |
 |---|---|---|
 | 11076-11169 | Refresh API data for a spool | `_refreshApiData` |

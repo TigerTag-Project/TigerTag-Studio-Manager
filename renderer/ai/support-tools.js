@@ -1,7 +1,7 @@
 /**
  * ai/support-tools.js — the MCP tools that let an AI assistant help like a
  * support agent: read the TigerSystem wiki before answering, look at the
- * requests (the in-app "Bug or idea?" reports, public GitHub issues), open one
+ * requests (the in-app "Improvements & suggestions" reports, public GitHub issues), open one
  * with everything the team needs, and answer in a request's thread.
  *
  *   search_wiki / read_wiki_page  — wiki.tigersystem.io, from its per-language
@@ -145,7 +145,7 @@ function confirmWindow({ title, sub, text, auto, sendLabel, cleaned, onSend }) {
 }
 const newDraft = (d) => { const id = "draft_" + Date.now().toString(36); drafts.set(id, { ...d, status: "waiting_for_user" }); return id; };
 const asError = (e) => {
-  const map = { SQUAD_REQUIRED: "Requests are for TigerSquad members (free): the user joins from Studio › Bug or idea? first.",
+  const map = { SQUAD_REQUIRED: "Requests are for TigerSquad members (free): the user joins in one click from Studio › Improvements & suggestions first.",
     RATE_LIMITED: "Daily limit of requests reached for this account — try again tomorrow.", UNAUTHENTICATED: "The user is not signed in in Studio.",
     NOT_FOUND: "No such request — use list_tickets.", FORBIDDEN: "Only questions (kind \"question\") can be answered on another member's request.",
     CLOSED: "This request is closed: it takes no more replies.", TOO_MANY: "Reply limit for this request reached for the hour — try again later." };

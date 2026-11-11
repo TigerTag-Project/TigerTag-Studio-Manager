@@ -55,6 +55,16 @@ npx license-checker --excludePrivatePackages --csv > licenses.csv
 
 ---
 
+## Vendored in the renderer
+
+### jsQR 1.4.0
+- **License**: Apache-2.0 (`renderer/lib/jsqr/LICENSE`)
+- **Source**: https://github.com/cozmo/jsQR
+- **Use**: decodes a QR code from the camera picture (`renderer/qr-scan.js`) where the
+  browser's own `BarcodeDetector` cannot; loaded only when the camera scan opens.
+
+---
+
 ## Firebase Web SDK
 
 Tiger Studio uses the **Firebase JavaScript SDK (compat)** loaded from local files:

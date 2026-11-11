@@ -1,4 +1,4 @@
-# MCP write tools — golden reference
+# MCP tools — golden reference (write tools, support, labels)
 
 The reference the hosted connector (TigerHub, `lib/mcp/`) ports from, so both servers behave the same.
 Source of truth: `renderer/inventory.js`, block **"MCP — write tools"** (`MCP_TOOLS.push(...)` +
@@ -295,3 +295,47 @@ An array of `{ name, tool, input, before, expect, note? }`.
   cap counts every kind, undone or not.
 - `create_spools` checks every item's note (28 bytes) before anything is created, including a later
   item of a product already looked up (fixed 2026-11-11).
+
+## 8. Support and labels — `support.json`, `labels.json`
+
+The hosted connector's read tools `search_wiki`, `read_wiki_page`, `list_tickets`, `get_ticket` and
+`get_label`. Both files are **generated** from Studio's own modules. Never edit them by hand: run the
+script after a change and commit the result with the change.
+
+- `node scripts/mcp-golden-support.mjs [--check]`: `renderer/ai/support-tools.js` run under Node
+  against a fixed wiki index and fixed request rows. Each case is `{ tool, input, output | error }`,
+  where `output` is Studio's exact answer. `service_error` is the error code the request service
+  (`myReports`) threw for that case.
+- `node scripts/mcp-golden-labels.mjs [--check]`: `renderer/labels/index.js` `buildLabel`, with five
+  label texts × every template (qrOnly included) × 203 / 300 dpi × slot sets. The file gives the SHA-256
+  of each SVG, the full SVG of the classic 203-dpi label, and the SHA-256 of `qrSvg(link)` for each link.
+  Slot words come from the en locale. Checked on 2026-11-11: the Hub's `lib/labels/build.ts` gives the
+  same 150 SVGs, byte for byte.
+
+**Online differences** (`support.json` › `online`, founder 2026-11-11):
+- **No request is sent from the connector.** `open_ticket` and `reply_ticket` are not listed online.
+  The user sends requests and replies in Tiger Studio (Studio Web at
+  [studio.tigersystem.io](https://studio.tigersystem.io/) or the desktop app).
+- Online adds a few fields to Studio's answers:
+  - `search_wiki` › `if_not_solved`;
+  - `list_tickets` › `how_to_send`, the exact steps of the *Improvements & suggestions* card;
+  - `get_ticket` › `how_to_reply`.
+- An assistant that can open a browser itself, where the user is signed in, takes them to Studio Web's
+  form; otherwise it walks them through the steps.
+- `pending_drafts` is always `[]` online.
+- The online tool descriptions and the support part of the server instructions are
+  `online.descriptions` / `online.instructions_support`.
+- `get_label`:
+  - `svg_text` and `qr_svg` answer as locally.
+  - `png`, `pdf` and `svg` answer `status: "waiting_for_user"` and a `download_url` instead of `opened`.
+    The URL is a signed-in page, `https://tigersystem.io/<lang>/labels/spool/<spool_id>?kind=…&template=…&dpi=…&slots=…&format=png|pdf|svg`, that reads the spool as the visitor and draws and rasterises
+    the label in the browser. There is no server-side PNG: `sharp` / librsvg ignores `textLength`.
+    A product label also answers `public_svg_url` (the public `/api/public/v1/label/<id>.svg`). Since Hub v1.75.0 (live 2026-11-11).
+  - `print` is refused with a tool error: printing to a label printer goes through Studio on the computer.
+- The row → label text mapping is Studio's `labelInfo` (`renderer/inventory.js`, `initLabels`):
+  - every text field goes through the "empty when `-` or `None`" rule;
+  - temperature ranges are written `a–b °C`, with `?` for a missing end;
+  - drying is written `T °C · H h`;
+  - `protocol` is `TigerQR+` for a catalogue product or a TigerTag+ spool, else `TigerQR`;
+  - `hexes` are cut to 7 characters;
+  - `name` is the colour name, else the product name, else the aspects.

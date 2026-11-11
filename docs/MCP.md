@@ -47,7 +47,7 @@ off, and signing out stops it. Studio must be running and signed in for a local 
 The page shows the welcome: what it can do, "Pick my assistant" with one big tile per assistant (a
 tile starts the setup on that assistant's next step), and on the right a made-up chat playing four
 case studies (help, at home, family & friends, a business with several sites, fablabs & schools). The setup then runs in
-a wide side card on the right (the page keeps its demo); its first screen is **Assistant**, online first (founder, 2026-11-11: it works anywhere, Studio closed included) — the welcome's groups, the tiles, the Where cards, the dashboard chips and Access and security all put *On the web or my phone* before *On this computer*, and a new setup starts on Claude online (Claude on the web & phone, ChatGPT, Le Chat, Grok, Gemini, then Claude on this computer — two tiles, so Claude is never asked where —, Cursor, VS Code, Gemini CLI; "I don't use an assistant
+a wide side card on the right (the page keeps its demo); its first screen is **Assistant**, online first (founder, 2026-11-11: it works anywhere, Studio closed included) — the welcome's groups, the tiles, the Where cards, the dashboard chips and Access and security all put the online group (*Anywhere, online*, with the app's "Recommended" pill on the welcome) before *With Tiger Studio open* ("More powerful" pill; a line under "Pick my assistant" says both work at once, with one or several assistants; "Compare the two" and both pills open a notice window, *Online or Local?* (`COMPARE`), with ✓ / — per capability and a *Both* column (all ✓)) (the local server: Studio must stay open, in return printers live and guide mode), and a new setup starts on Claude online (Claude on the web & phone, ChatGPT, Le Chat, Grok, Gemini, then Claude on this computer — two tiles, so Claude is never asked where —, Cursor, VS Code, Gemini CLI; "I don't use an assistant
 yet" → download Claude; "Other assistant" = any MCP client — this computer: copy a ready `mcpServers` configuration, URL + key; online: the connector address) → **Where** (web and phone / this computer — asked only when the assistant
 does both) → **Access** (this computer only: read only by default, or read and change) →
 **Connection**. The named markers show only the steps of this flow.
@@ -236,7 +236,12 @@ write** (AI assistant › Manage access, or the setup; `writeFor` in `mcp.json`,
 `labelFor` exactly as the label card draws it (template, up to 4 value slots, 203 / 300 dpi). `print`,
 `pdf`, `png`, `svg` open Studio's print / save dialog through `saveLabel` (the user confirms; the tool
 does not wait), `svg_text` returns the SVG in the answer, `qr_svg` only its QR code (`qrSvg`, same
-encoding, 4-module quiet zone) with its link. `find_free_slots` (read-only) lists the free, unlocked
+encoding, 4-module quiet zone) with its link. Online (Hub v1.75.0, live 2026-11-11): the same
+inputs and labels (the Hub's `lib/labels/build.ts`, byte-identical to Studio's, checked by
+`docs/mcp-golden/labels.json`). `svg_text` / `qr_svg` answer as locally; `pdf` / `png` / `svg` answer a
+`download_url` (`waiting_for_user`) to a signed-in Hub page, `https://tigersystem.io/<lang>/labels/spool/<spool_id>?kind=…&template=…&dpi=…&slots=…&format=png|pdf|svg`, which draws and saves the label
+in the browser; `print` is refused, since printing to a
+label printer goes through Studio on the computer. `find_free_slots` (read-only) lists the free, unlocked
 slots per rack, depth included — where `move_spool` can store a spool.
 
 Every write is twin-mirrored, journaled — in Firestore `users/{uid}/agentChanges/{id}`, the journal
@@ -269,9 +274,23 @@ tell the assistant to search the wiki before answering a how-to or troubleshooti
 
 Both write tools add a line saying an AI assistant wrote the text. A sent request or reply is
 journaled (`kind: "ticket"` / `"ticket_reply"`, shown in the AI page's changes) but not undoable — it
-is public; the user closes their own request from *Bug or idea? › My requests*. The backend's limits
-hold: 5 requests a day per account, 10 replies an hour per request, TigerSquad members only. The
-hosted connector does not have these tools yet.
+is public; the user closes their own request from *Improvements & suggestions › My requests*. The backend's limits
+hold: 5 requests a day per account, 10 replies an hour per request, TigerSquad members only.
+
+**Online** (founder, 2026-11-11; Hub v1.75.0, live): the hosted connector serves `search_wiki`,
+`read_wiki_page`, `list_tickets` and `get_ticket` with Studio's behaviour (`docs/mcp-golden/support.json`),
+but **sends no request**:
+- `open_ticket` and `reply_ticket` are not listed, and no draft is stored.
+- The user sends a request or a reply in Tiger Studio, either Studio Web
+  ([studio.tigersystem.io](https://studio.tigersystem.io/)) or the desktop app, through
+  *Improvements & suggestions*.
+- `list_tickets` › `how_to_send` and `get_ticket` › `how_to_reply` give the exact steps: the product,
+  the kind, title and Description, up to 5 files, the "public on GitHub" box, then Send.
+- An assistant that can open a browser itself, where the user is signed in, takes them to Studio Web's
+  form to finish and send. Otherwise it walks them through it and gives the title and description to paste.
+- `search_wiki` › `if_not_solved` points there when the wiki does not solve it.
+- The server's instructions say the same.
+- Locally nothing changes: Studio's own window still shows the text, and the user ticks and sends.
 
 Guide mode — show, never press (`renderer/ai/screen-tools.js`; local server only). Listed only while
 the account's third switch is on, **"Let the AI drive the screen"** (Access and security; `screenFor` in
@@ -408,7 +427,10 @@ curl -s -H "Content-Type: application/json" -H "Authorization: Bearer $TOK" \
    connector: scope `read write` picked at consent, journal shared in Firestore
    `users/{uid}/agentChanges`, so a change made online is undone from Studio and the other way
    round (`MCP-HOSTED-WRITES.md`). Left: colour edits, spools outside the catalogue.
-3. **In-app agent** sharing the same tool registry (local model, Ollama, or the user's key).
+3. **Support and labels online** — the wiki, the requests (read; sending stays in Studio) and
+   `get_label` on the hosted connector, from `docs/mcp-golden/support.json` + `labels.json`
+   (`MCP-HOSTED-WRITES.md` §"Support and labels"). Live in Hub v1.75.0 (2026-11-11, 181/181 golden checks).
+4. **In-app agent** sharing the same tool registry (local model, Ollama, or the user's key).
 
 ---
 

@@ -203,6 +203,30 @@ function wireSetupCard() {
   document.getElementById("aiSetupCloseTab")?.addEventListener("click", closeAiSetup);
   document.getElementById("aiSetupBody")?.addEventListener("click", onClick);
 }
+// What each way can do, in a window (founder, 2026-11-11). Only what the
+// tools do today — and a third column, Both, all ticks: the two run side by side. Online = Hub lib/mcp (v1.75.0: no request sent, no printing, no screen,
+// no live printers); with Studio = this server, guide mode included. [row key, online, local].
+const COMPARE = [
+  ["aiCmpClosed", 1, 0], ["aiCmpStock", 1, 1], ["aiCmpWrite", 1, 1], ["aiCmpWiki", 1, 1],
+  ["aiCmpTicket", 0, 1], ["aiCmpLabels", 1, 1], ["aiCmpPrint", 0, 1], ["aiCmpGuide", 0, 1], ["aiCmpPrinters", 0, 1],
+];
+function compareTable() {
+  const { t, esc } = ctx;
+  const mark = (on) => on
+    ? `<span class="icon icon-check-bold aip-cmp-yes" role="img" aria-label="${esc(t("aiCmpYes"))}"></span>`
+    : `<span class="aip-cmp-no" role="img" aria-label="${esc(t("aiCmpNo"))}">—</span>`;
+  return `<div class="pv-table-wrap aip-cmp-wrap"><table class="pv-table aip-cmp-table">
+      <thead><tr><th></th><th>${esc(t("aiWhereWeb"))}</th><th>${esc(t("aiWhereLocal"))}</th><th class="aip-cmp-all">${esc(t("aiCmpBoth"))}</th></tr></thead>
+      <tbody>${COMPARE.map(([k, web, local]) => `<tr><td>${esc(t(k))}</td><td>${mark(web)}</td><td>${mark(local)}</td><td class="aip-cmp-all">${mark(1)}</td></tr>`).join("")}</tbody>
+    </table></div>`;
+}
+// Opened by "Compare the two" and by either group's pill (Recommended, More powerful).
+function openCompare() {
+  const { t, esc } = ctx;
+  ctx.openDialog({ look: "notice", cls: "ai-cmp-win", icon: "robot", title: t("aiCmpTitle"),
+    body: `${compareTable()}<p class="ai-hint aip-cmp-both">${esc(t("aiUseBoth"))}</p>` });
+}
+
 // The welcome's left column: what it is, and one tile per assistant (the one
 // being set up marked) — beside the demo, or beside the setup once one is picked.
 function welcomeMain(l, histBtn) {
@@ -216,12 +240,14 @@ function welcomeMain(l, histBtn) {
           <h2 class="aip-empty-title">${esc(t("aiWelcomeTitle"))}</h2><p>${esc(t("aiWelcomeText"))}</p>
           <div class="aip-works">
             <span class="aip-works-label">${esc(t("aiPickAssistant"))}</span>
-            ${[["web", "smartphone", "aiWhereWeb", "aiGroupWebSub"], ["local", "monitor", "aiWhereLocal", "aiGroupLocalSub"]].map(([where, icon, title, sub]) => `
+            <p class="ai-hint aip-works-both">${esc(t("aiUseBoth"))}</p>
+            ${[["web", "smartphone", "aiWhereWeb", "aiGroupWebSub", "recommendedBadge"], ["local", "monitor", "aiWhereLocal", "aiGroupLocalSub", "aiBadgeMorePowerful"]].map(([where, icon, title, sub, badge]) => `
             <div class="aip-works-group">
-              <div class="aip-works-head"><span class="aip-works-ico" aria-hidden="true"><span class="icon icon-${icon}"></span></span><span><b>${esc(t(title))}</b><small>${esc(t(sub))}</small></span></div>
+              <div class="aip-works-head"><span class="aip-works-ico" aria-hidden="true"><span class="icon icon-${icon}"></span></span><span><b>${esc(t(title))}<button type="button" class="pba-brand-badge aip-cmp-pill" data-aip="compare" aria-label="${esc(`${t(badge)} · ${t("aiCmpOpen")}`)}">${esc(t(badge))}</button></b><small>${esc(t(sub))}</small></span></div>
               <div class="aip-works-logos">${CLIENTS.filter(x => (where === "local" ? !!x.local : !!x.web)).map(x => `<button type="button" class="aip-works-logo${setupOpen() && flow?.client === x.id ? " is-sel" : ""}" data-aip-client="${x.id}" aria-pressed="${setupOpen() && flow?.client === x.id}" aria-label="${esc(`${tileName(x)} · ${t(title)}`)}">
                 <span class="eac-mcp-logo eac-mcp-logo--${x.logo}" aria-hidden="true"></span><small>${esc(tileName(x))}</small></button>`).join("")}</div>
             </div>`).join("")}
+            <button type="button" class="ai-link aip-cmp-link" data-aip="compare">${esc(t("aiCmpOpen"))}</button>
           </div>
           ${l.listed ? `<p class="aip-empty-links"><button type="button" class="ai-link" data-aip="access">${esc(t("aiManageAccess"))}</button></p>` : ""}
         </div>`;
@@ -475,6 +501,7 @@ async function onPageClick(e) {
     case "another": if (ctx.squadOnly && !ctx.squadOnly()) return; pageMode = "welcome"; return renderAiPage(pageHost);
     case "access": pageMode = "access"; return renderAiPage(pageHost);
     case "history": return histOpen() ? closeAiHistory() : openAiHistory();
+    case "compare": return openCompare();
     case "back": pageMode = "main"; return renderAiPage(pageHost);
   }
 }
@@ -930,7 +957,7 @@ function changeHtml(c, fresh = false) {
       <div class="ai-ev-text">${undone ? `<b>${esc(t("aiEvUndone"))}</b> · ` : ""}<b>${esc(p.object)}</b>${p.field ? ` · ${esc(p.field)}` : ""}</div>
       ${(p.diffs || []).length && !undone ? `<small class="ai-diff">${p.diffs.map(d => `${esc(d.before)} <span class="ai-arrow">→</span> ${esc(d.after)}`).join(" · ")}</small>` : ""}
     </div>
-    <time>${c.via === "online" ? `<span class="ai-via"><span class="icon icon-globe icon-12" aria-hidden="true"></span>${esc(c.client || t("aiWhereWeb"))}</span> · ` : ""}${esc(clock(c.at))}</time>
+    <time>${c.via === "online" ? `<span class="ai-via"><span class="icon icon-globe icon-12" aria-hidden="true"></span>${esc(c.client || t("aiTileWeb"))}</span> · ` : ""}${esc(clock(c.at))}</time>
     ${undoable ? undoBtn(c.id, !!c.undoneAt) : ""}</div>`;
 }
 function undoBtn(id, done = false) {

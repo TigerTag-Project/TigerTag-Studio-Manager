@@ -77,7 +77,9 @@ export function parseQrLink(text) {
   try { url = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(s) ? s : "https://" + s); } catch (_) { return null; }
   if (!/^https?:$/i.test(url.protocol) || url.hostname.toLowerCase() !== QR_HOST) return null;
   // A `.json` / `.ttag` ending asks for the answer for tools: the same spool or product.
-  const raw = decodeURIComponent(url.pathname).replace(/^\/+|\/+$/g, "");
+  let raw;
+  try { raw = decodeURIComponent(url.pathname).replace(/^\/+|\/+$/g, ""); }
+  catch (_) { return { kind: "newer", format: "page" }; }   // a broken %-escape: no shape we know
   const ext = /\.(json|ttag)$/i.exec(raw);
   const format = ext ? ext[1].toLowerCase() : "page";   // the link's ending, for the analytics
   const path = ext ? raw.slice(0, -ext[0].length) : raw;

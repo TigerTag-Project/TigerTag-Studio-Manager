@@ -68,6 +68,35 @@ instruction, and to confirm with the user before a write.
 6. Caps: the 501st change of the day is refused, online and local together.
 7. Leaving the TigerSquad cuts the grant; a write is refused.
 
+## Support and labels (live in Hub v1.75.0, 2026-11-11)
+
+The local server's `search_wiki`, `read_wiki_page`, `list_tickets`, `get_ticket` and `get_label` come
+online with the same names, inputs and outputs, behind the same TigerSquad gate (all are reads, always
+listed). References: `docs/mcp-golden/support.json` and `labels.json`, both generated from Studio's
+modules (README §8).
+
+- **Wiki**: the same index `https://wiki.tigersystem.io/ai-index/<lang>.json` (`llms.txt` fallback), the
+  same scoring, excerpt and 12,000-character page cap. A page missing from the index is read from its
+  HTML server-side. The default language is the account's `prefs/app.lang`.
+- **Requests**: backend `myReports` (`list` / `all` / `thread`) with `idTokenFor(uid)` in
+  `X-Firebase-Id-Token`, as Studio sends it.
+  - **No request is sent online** (founder): `open_ticket` and `reply_ticket` are not listed, there is
+    no draft and no new collection.
+  - `list_tickets` › `how_to_send`, `get_ticket` › `how_to_reply` and `search_wiki` › `if_not_solved`
+    send the user to Tiger Studio (Studio Web or the desktop app, *Improvements & suggestions*).
+  - An assistant that can open a browser itself takes the user there. Otherwise it walks them through
+    the steps.
+  - `pending_drafts` is always `[]`.
+- **Labels**: `lib/labels/build.ts` (the same 150 SVGs as Studio, checked 2026-11-11), plus a
+  `spoolLabelInfo(row)` that mirrors Studio's `labelInfo` (README §8).
+  - `svg_text` and `qr_svg` answer as locally.
+  - `png`, `pdf` and `svg` answer `status: "waiting_for_user"` and `download_url`, a signed-in page,
+    `https://tigersystem.io/<lang>/labels/spool/<spool_id>?kind=…&template=…&dpi=…&slots=…&format=png|pdf|svg`. The page reads the spool as the visitor (the rules apply), draws it with `lib/labels/build.ts`
+    and saves it in the browser (`labelOut`). There is no server-side render and no token: `sharp` / librsvg
+    ignores `textLength`, so a server PNG would not match Studio.
+  - A product label also answers `public_svg_url` (the public `/api/public/v1/label/<id>.svg`). Since Hub v1.75.0 (live 2026-11-11).
+  - `print` is refused, and its description says printing goes through Studio on the computer.
+
 ## Risks and open points
 
 - **ChatGPT may call write tools only in its developer mode** (custom connectors with actions). Check
