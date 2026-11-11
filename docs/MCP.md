@@ -47,8 +47,8 @@ off, and signing out stops it. Studio must be running and signed in for a local 
 The page shows the welcome: what it can do, "Pick my assistant" with one big tile per assistant (a
 tile starts the setup on that assistant's next step), and on the right a made-up chat playing four
 case studies (help, at home, family & friends, a business with several sites, fablabs & schools). The setup then runs in
-a wide side card on the right (the page keeps its demo); its first screen is **Assistant** (Claude on this computer, Claude on the web & phone — two tiles, so Claude is never asked where —, ChatGPT, Cursor, VS Code, Le Chat, Grok, Gemini CLI on this computer, Gemini on the web & phone; "I don't use an assistant
-yet" → download Claude; "Other assistant" = any MCP client — this computer: copy a ready `mcpServers` configuration, URL + key; online: the connector address) → **Where** (this computer / web and phone — asked only when the assistant
+a wide side card on the right (the page keeps its demo); its first screen is **Assistant**, online first (founder, 2026-11-11: it works anywhere, Studio closed included) — the welcome's groups, the tiles, the Where cards, the dashboard chips and Access and security all put *On the web or my phone* before *On this computer*, and a new setup starts on Claude online (Claude on the web & phone, ChatGPT, Le Chat, Grok, Gemini, then Claude on this computer — two tiles, so Claude is never asked where —, Cursor, VS Code, Gemini CLI; "I don't use an assistant
+yet" → download Claude; "Other assistant" = any MCP client — this computer: copy a ready `mcpServers` configuration, URL + key; online: the connector address) → **Where** (web and phone / this computer — asked only when the assistant
 does both) → **Access** (this computer only: read only by default, or read and change) →
 **Connection**. The named markers show only the steps of this flow.
 

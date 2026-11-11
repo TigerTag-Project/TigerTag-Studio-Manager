@@ -32,22 +32,23 @@ const HOSTED_URL = "https://mcp.tigersystem.io/mcp";
 const CLAUDE_DOWNLOAD = "https://claude.ai/download";
 // Which assistant, where it runs (local = Studio's server, web = the Hub's), its logo class.
 const CLIENTS = [
+  // Online first (founder, 2026-11-11): it works anywhere, Studio closed included.
   // Claude runs in both places: two tiles, so where it is used is picked with it.
-  { id: "claude",  name: "Claude",   logo: "claude",  local: "claude-desktop", tag: "aiTileLocal" },
   { id: "claudeweb", name: "Claude", logo: "claude",  web: true, tag: "aiTileWeb", guide: "claude", open: "https://claude.ai/settings/connectors" },
   { id: "chatgpt", name: "ChatGPT",  logo: "chatgpt", web: true, open: "https://chatgpt.com/#settings/Connectors" },
-  { id: "cursor",  name: "Cursor",   logo: "cursor",  local: "cursor" },
-  { id: "vscode",  name: "VS Code",  logo: "vscode",  local: "vscode" },
   { id: "lechat",  name: "Le Chat",  logo: "mistral", web: true, open: "https://chat.mistral.ai/" },
   { id: "grok",    name: "Grok",     logo: "grok",    web: true, open: "https://grok.com/connectors" },
-  // Gemini: the CLI on this computer (a command it pastes in a terminal), the
-  // app online (custom apps, US-only for now). `doc` = Google's own steps.
-  { id: "geminicli", name: "Gemini CLI", logo: "gemini", local: "gemini-cli", doc: "https://google-gemini.github.io/gemini-cli/docs/tools/mcp-server.html" },
+  // Gemini: the app online (custom apps, US-only for now), the CLI on this
+  // computer (a command it pastes in a terminal). `doc` = Google's own steps.
   { id: "gemini",  name: "Gemini",   logo: "gemini",  web: true, doc: "https://support.google.com/gemini/answer/17209137", open: "https://gemini.google.com/" },
-  // Any other MCP client: on this computer by a configuration it pastes in its
-  // own MCP settings (no one-click install), online by the connector address.
-  { id: "other",   name: "",         logo: "other",   local: "manual", tag: "aiTileLocal" },
+  // Any other MCP client: online by the connector address, on this computer by
+  // a configuration it pastes in its own MCP settings (no one-click install).
   { id: "otherweb", name: "",        logo: "other",   web: true, tag: "aiTileWeb" },
+  { id: "claude",  name: "Claude",   logo: "claude",  local: "claude-desktop", tag: "aiTileLocal" },
+  { id: "cursor",  name: "Cursor",   logo: "cursor",  local: "cursor" },
+  { id: "vscode",  name: "VS Code",  logo: "vscode",  local: "vscode" },
+  { id: "geminicli", name: "Gemini CLI", logo: "gemini", local: "gemini-cli", doc: "https://google-gemini.github.io/gemini-cli/docs/tools/mcp-server.html" },
+  { id: "other",   name: "",         logo: "other",   local: "manual", tag: "aiTileLocal" },
 ];
 // `open` (online): the page where its connectors are added (else its home page).
 // On this computer, the apps Studio can open (main.js `mcp:can-open`), read once.
@@ -215,7 +216,7 @@ function welcomeMain(l, histBtn) {
           <h2 class="aip-empty-title">${esc(t("aiWelcomeTitle"))}</h2><p>${esc(t("aiWelcomeText"))}</p>
           <div class="aip-works">
             <span class="aip-works-label">${esc(t("aiPickAssistant"))}</span>
-            ${[["local", "monitor", "aiWhereLocal", "aiGroupLocalSub"], ["web", "smartphone", "aiWhereWeb", "aiGroupWebSub"]].map(([where, icon, title, sub]) => `
+            ${[["web", "smartphone", "aiWhereWeb", "aiGroupWebSub"], ["local", "monitor", "aiWhereLocal", "aiGroupLocalSub"]].map(([where, icon, title, sub]) => `
             <div class="aip-works-group">
               <div class="aip-works-head"><span class="aip-works-ico" aria-hidden="true"><span class="icon icon-${icon}"></span></span><span><b>${esc(t(title))}</b><small>${esc(t(sub))}</small></span></div>
               <div class="aip-works-logos">${CLIENTS.filter(x => (where === "local" ? !!x.local : !!x.web)).map(x => `<button type="button" class="aip-works-logo${setupOpen() && flow?.client === x.id ? " is-sel" : ""}" data-aip-client="${x.id}" aria-pressed="${setupOpen() && flow?.client === x.id}" aria-label="${esc(`${tileName(x)} · ${t(title)}`)}">
@@ -232,9 +233,9 @@ function welcomeMain(l, histBtn) {
 // or Read & write is picked on tigersystem.io's consent screen). The connect screen is also the wait: once the button is pressed
 // it says what to do in the assistant and waits, with a way out if nothing opens.
 const MARKS = { who: "aiMarkWho", where: "aiMarkWhere", rights: "aiMarkRights", connect: "aiMarkConnect" };
-// A new setup starts on Claude on this computer: a real path from the first
-// screen and "Continue" ready at once; any other choice redraws the line.
-const newFlow = (step) => ({ step, client: "claude", where: "local" });
+// A new setup starts on Claude online: a real path from the first screen and
+// "Continue" ready at once; any other choice redraws the line.
+const newFlow = (step) => ({ step, client: "claudeweb", where: "web" });
 function steps() {
   const c = CLIENTS.find(x => x.id === flow.client);
   const s = ["who"];
@@ -293,8 +294,8 @@ function paint() {
       ${nav(true, !!c)}`;
   } else if (s === "where") {
     body.innerHTML = title(t("aiQWhere")) + `<div class="ai-choices">
-        ${card("local", flow.where === "local", t("aiWhereLocal"), t("aiWhereLocalSub"), "home")}
-        ${card("web", flow.where === "web", t("aiWhereWeb"), t("aiWhereWebSub"), "globe")}</div>` + nav(true, !!flow.where);
+        ${card("web", flow.where === "web", t("aiWhereWeb"), t("aiWhereWebSub"), "globe")}
+        ${card("local", flow.where === "local", t("aiWhereLocal"), t("aiWhereLocalSub"), "home")}</div>` + nav(true, !!flow.where);
   } else if (s === "rights") {
     // Read | Read & write, the app's sliding two-way switch (like Dark | Light); Read by default.
     body.innerHTML = title(t("aiQRights")) + `<div class="eac-seg eac-seg--slide ai-rights-seg" role="radiogroup" aria-label="${esc(t("aiQRights"))}">
@@ -380,8 +381,8 @@ export async function renderAiPage(host) {
         ${welcomeMain(l, histBtn)}
         <div class="ai-demo-col${demoView === "phone" ? " is-phone" : ""}">
         <div class="ai-demo-views" role="group">
-            <button type="button" class="ai-demo-view" data-demo-view="desktop" aria-label="${esc(t("aiDemoDesktop"))}"><span class="icon icon-monitor icon-14" aria-hidden="true"></span></button>
             <button type="button" class="ai-demo-view" data-demo-view="phone" aria-label="${esc(t("aiDemoPhone"))}"><span class="icon icon-smartphone icon-14" aria-hidden="true"></span></button>
+            <button type="button" class="ai-demo-view" data-demo-view="desktop" aria-label="${esc(t("aiDemoDesktop"))}"><span class="icon icon-monitor icon-14" aria-hidden="true"></span></button>
         </div>
         <div class="ai-demo-tabs" role="tablist">${DEMO_CASES.map((c, n) => `<button type="button" class="ai-demo-tab" role="tab" data-demo-case="${n}"><span class="icon icon-${c.icon} icon-12" aria-hidden="true"></span>${esc(t(c.label))}<span class="ai-demo-tab-bar" aria-hidden="true"><i></i></span></button>`).join("")}</div>
         <div class="ai-demo-device"><span class="ai-dev-btn ai-dev-btn--action" aria-hidden="true"></span><span class="ai-dev-btn ai-dev-btn--up" aria-hidden="true"></span><span class="ai-dev-btn ai-dev-btn--down" aria-hidden="true"></span><span class="ai-dev-btn ai-dev-btn--side" aria-hidden="true"></span>
@@ -420,8 +421,8 @@ export async function renderAiPage(host) {
   const changes = journal.slice(-3).reverse();
   host.innerHTML = `<div class="aip">${head}
     <div class="ai-status aip-status">
-      <span class="ai-chip${cfg?.enabled ? " is-on" : ""}"><span class="icon icon-home icon-12" aria-hidden="true"></span>${esc(t("aiStatusLocal", { rights }))}</span>
       <span class="ai-chip" id="aipWebChip"><span class="icon icon-globe icon-12" aria-hidden="true"></span>${esc(t("aiStatusWeb", { n: l.online }))}</span>
+      <span class="ai-chip${cfg?.enabled ? " is-on" : ""}"><span class="icon icon-home icon-12" aria-hidden="true"></span>${esc(t("aiStatusLocal", { rights }))}</span>
     </div>
     <div class="aip-grid">
       <section class="aip-card">
@@ -691,10 +692,10 @@ function wireHistoryCard() {
   });
 }
 // ── Access and security: the one place for what assistants may do ────────
-// This computer: one switch turns the local server on (read only first), then
-// read only / read and change while it is on; the key renewal under "Advanced".
-// Online: one row per assistant with its right, when it was connected and
-// last used, and a held "Cut access".
+// Online first: one row per assistant with its right, when it was connected
+// and last used, and a held "Cut access". This computer: one switch turns the
+// local server on (read only first), then read only / read and change while it
+// is on; the key renewal under "Advanced".
 async function paintAccess(host) {
   const { t, esc } = ctx;
   const cfg = await ctx.api.getConfig().catch(() => null);
@@ -707,6 +708,11 @@ async function paintAccess(host) {
     </header>
     <p class="aip-privacy"><span class="icon icon-info icon-14" aria-hidden="true"></span>${esc(t("aiAccessPrivacy"))}</p>
     <div class="aip-grid">
+      <section class="aip-card">
+        <h3 class="aip-title"><span class="icon icon-globe icon-14" aria-hidden="true"></span>${esc(t("aiWhereWeb"))}</h3>
+        <p class="ai-hint">${esc(t("aiWhereWebSub"))}</p>
+        <div class="aip-grants" id="aipGrants"><p class="ai-empty">${esc(t("eacMcpGrantsLoading"))}</p></div>
+      </section>
       <section class="aip-card">
         <h3 class="aip-title"><span class="icon icon-home icon-14" aria-hidden="true"></span>${esc(t("aiWhereLocal"))}</h3>
         <p class="ai-hint">${esc(t("aiWhereLocalSub"))}</p>
@@ -728,11 +734,6 @@ async function paintAccess(host) {
           </button>
         </div>
         ` : ""}
-      </section>
-      <section class="aip-card">
-        <h3 class="aip-title"><span class="icon icon-globe icon-14" aria-hidden="true"></span>${esc(t("aiWhereWeb"))}</h3>
-        <p class="ai-hint">${esc(t("aiWhereWebSub"))}</p>
-        <div class="aip-grants" id="aipGrants"><p class="ai-empty">${esc(t("eacMcpGrantsLoading"))}</p></div>
       </section>
     </div>
   </div>`;
@@ -1016,7 +1017,7 @@ async function onClick(e) {
   // Leaving the connect screen ends its wait; a new screen starts clean.
   const go = (s) => { flow.step = s; flow.waiting = flow.copied = flow.trouble = false; stopPoll(); paint(); };
   const wait = () => { if (!flow.waiting) { flow.waiting = true; flow.since = Date.now(); if (where() === "web") startPoll(); } paint(); };
-  if (el.dataset.aiClient) { flow.client = el.dataset.aiClient; flow.where = "local"; return paint(); }
+  if (el.dataset.aiClient) { flow.client = el.dataset.aiClient; flow.where = "web"; return paint(); }
   if (el.dataset.aiPick) {
     if (flow.step === "where") { flow.where = el.dataset.aiPick; return paint(); }
     flow.rights = el.dataset.aiPick; return segPick(el);   // in place: the pill slides
