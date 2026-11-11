@@ -76,13 +76,13 @@ L4388-4448   App lifecycle (whenReady, window-all-closed, activate)
 | 1634-1849 | Google OAuth loopback sign-in (`auth:google-loopback`); `shell:open-external` | — |
 | 2040-2086 | Detached camera-wall `BrowserWindow` (`cam:open-detached`); `update:check-now` | — |
 
-## Local MCP server — prefs, renderer relay, IPC (L1943-2129)
+## Local MCP server — prefs, renderer relay, IPC (L1943-2520)
 
 | L | What | IPC |
 |---|---|---|
 | 1841-2027 | MCP server for AI assistants: `<userData>/mcp.json` prefs (enabledFor [uid] / writeFor [uid] — write tools listed only for those / port 5795 / token; server follows the signed-in account via `mcp:set-account`), stdio bridge copied to `<userData>/mcp/`, `tools/call` relayed to the renderer, started by `initMcp()` at boot. Protocol: `services/mcpServer.js` | `mcp:get-config`, `mcp:set-account`, `mcp:set-enabled`, `mcp:set-write`, `mcp:new-token`, `mcp:register-tools`, `mcp:call` / `mcp:result`, `mcp:hosted-grants` (Hub hosted-connector grants list / revoke, CORS-exempt) |
 
-## Printer discovery probes (L2644-3379)
+## Printer discovery probes (L2644-3610)
 
 | L | What | Anchors / IPC |
 |---|---|---|
@@ -126,7 +126,7 @@ Registers `services/demo` (`demo:faces`, `demo:allocate`, `demo:sync`, `demo:sta
 | 3873-3990 | RTSP camera via ffmpeg, port 322 (`bambulab:cam-start-rtsp` / `cam-stop-rtsp`) — 30 fps + low-latency flags; the spawn is guarded (it throws synchronously on a bad CPU type) | — |
 | 4215-4282 | Prusa Buddy3D camera — plain RTSP `rtsp://<camera-ip>/live` via the same ffmpeg pipeline, 15 fps (`prusa:cam-start-rtsp` / `prusa:cam-stop-rtsp`, frames on `prusa:cam-frame`) | — |
 
-## Bambu Lab cloud — REST + shared cloud MQTT (L5042-5622)
+## Bambu Lab cloud — REST + shared cloud MQTT (L5042-5931)
 
 | L | What | Anchors / IPC |
 |---|---|---|

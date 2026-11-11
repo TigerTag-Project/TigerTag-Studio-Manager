@@ -1,4 +1,386 @@
 {
+  "2.55.0": {
+    "date": "2026-11-11",
+    "items": [
+      {
+        "icon": "robot",
+        "title": {
+          "en": "Online assistants roll up their sleeves",
+          "fr": "Les assistants en ligne se retroussent les manches",
+          "de": "Online-Assistenten krempeln die Ärmel hoch",
+          "es": "Los asistentes en línea se arremangan",
+          "it": "Gli assistenti online si rimboccano le maniche",
+          "zh": "在线助手卷起袖子开工了",
+          "pt": "Os assistentes online arregaçam as mangas",
+          "pt-pt": "Os assistentes online arregaçam as mangas",
+          "pl": "Asystenci online podwijają rękawy",
+          "ru": "Онлайн-ассистенты закатывают рукава",
+          "nl": "Online-assistenten stropen hun mouwen op"
+        },
+        "body": {
+          "en": "ChatGPT and friends can now change your stock from the web or your phone, not just read it. You pick Read or Read & write, assistant by assistant.",
+          "fr": "ChatGPT et compagnie peuvent maintenant modifier ton stock depuis le web ou ton téléphone, pas seulement le lire. Tu choisis Lecture ou Lecture et écriture, assistant par assistant.",
+          "de": "ChatGPT und Co. können deinen Bestand jetzt vom Web oder vom Handy aus ändern, nicht nur lesen. Du wählst Lesen oder Lesen & Schreiben, Assistent für Assistent.",
+          "es": "ChatGPT y compañía ya pueden cambiar tu stock desde la web o el móvil, no solo leerlo. Tú eliges Lectura o Lectura y escritura, asistente por asistente.",
+          "it": "ChatGPT e compagnia ora possono modificare il tuo stock dal web o dal telefono, non solo leggerlo. Scegli Lettura o Lettura e scrittura, assistente per assistente.",
+          "zh": "ChatGPT 等在线助手现在不只能读，还能在网页或手机上修改你的库存。“只读”还是“读写”，每个助手单独选。",
+          "pt": "O ChatGPT e companhia agora podem mudar seu estoque pela web ou pelo celular, não só ler. Você escolhe Leitura ou Leitura e escrita, assistente por assistente.",
+          "pt-pt": "O ChatGPT e companhia já podem alterar o teu stock pela web ou pelo telemóvel, não só lê-lo. Tu escolhes Leitura ou Leitura e escrita, assistente a assistente.",
+          "pl": "ChatGPT i spółka mogą teraz zmieniać twój zapas z poziomu przeglądarki lub telefonu, nie tylko go czytać. Wybierasz Odczyt albo Odczyt i zapis, osobno dla każdego asystenta.",
+          "ru": "ChatGPT и компания теперь могут не только читать, но и менять ваши запасы — из браузера или с телефона. «Чтение» или «Чтение и запись» — выбираете для каждого ассистента отдельно.",
+          "nl": "ChatGPT en co kunnen je voorraad nu ook vanaf het web of je telefoon aanpassen, niet alleen lezen. Je kiest Lezen of Lezen en schrijven, per assistent."
+        }
+      },
+      {
+        "icon": "clock",
+        "title": {
+          "en": "Every change wears a name tag",
+          "fr": "Chaque modif porte son badge",
+          "de": "Jede Änderung trägt ein Namensschild",
+          "es": "Cada cambio lleva su etiqueta con nombre",
+          "it": "Ogni modifica ha il suo cartellino",
+          "zh": "每一次改动都挂着名牌",
+          "pt": "Cada mudança usa um crachá",
+          "pt-pt": "Cada alteração usa um crachá",
+          "pl": "Każda zmiana nosi plakietkę",
+          "ru": "У каждого изменения есть бейдж",
+          "nl": "Elke wijziging draagt een naamkaartje"
+        },
+        "body": {
+          "en": "What an online assistant changes lands in Studio's history under its name, next to what happened on this computer. Don't like it? One click and it's undone.",
+          "fr": "Ce qu'un assistant en ligne modifie arrive dans l'historique de Studio sous son nom, à côté de ce qui s'est passé sur cet ordinateur. Pas convaincu ? Un clic et c'est annulé.",
+          "de": "Was ein Online-Assistent ändert, erscheint im Verlauf von Studio unter seinem Namen, neben dem, was auf diesem Computer passiert ist. Gefällt es dir nicht? Ein Klick, und es ist rückgängig.",
+          "es": "Lo que cambia un asistente en línea aparece en el historial de Studio con su nombre, junto a lo que pasó en este ordenador. ¿No te gusta? Un clic y queda deshecho.",
+          "it": "Quello che un assistente online cambia finisce nella cronologia di Studio con il suo nome, accanto a ciò che è successo su questo computer. Non ti piace? Un clic e torna com'era.",
+          "zh": "在线助手改了什么，都会以它的名字出现在 Studio 的历史记录里，和这台电脑上发生的改动并排。不满意？点一下就撤销。",
+          "pt": "O que um assistente online muda cai no histórico do Studio com o nome dele, ao lado do que aconteceu neste computador. Não gostou? Um clique e desfaz.",
+          "pt-pt": "O que um assistente online altera aparece no histórico do Studio com o nome dele, ao lado do que aconteceu neste computador. Não gostaste? Um clique e desfaz.",
+          "pl": "To, co zmieni asystent online, ląduje w historii Studio pod jego nazwą, obok zmian z tego komputera. Nie podoba ci się? Jedno kliknięcie i cofnięte.",
+          "ru": "Всё, что меняет онлайн-ассистент, попадает в историю Studio под его именем — рядом с изменениями на этом компьютере. Не понравилось? Один клик, и всё отменено.",
+          "nl": "Wat een online assistent aanpast, komt in de geschiedenis van Studio onder zijn naam, naast wat er op deze computer gebeurde. Niet blij mee? Eén klik en het is ongedaan."
+        }
+      },
+      {
+        "icon": "send",
+        "title": {
+          "en": "Share a filament in two clicks",
+          "fr": "Partage un filament en deux clics",
+          "de": "Teile ein Filament in zwei Klicks",
+          "es": "Comparte un filamento en dos clics",
+          "it": "Condividi un filamento in due clic",
+          "zh": "两下点击，分享一卷耗材",
+          "pt": "Compartilhe um filamento em dois cliques",
+          "pt-pt": "Partilha um filamento em dois cliques",
+          "pl": "Udostępnij filament w dwóch kliknięciach",
+          "ru": "Поделитесь филаментом в два клика",
+          "nl": "Deel een filament in twee klikken"
+        },
+        "body": {
+          "en": "A new Share button on a catalogue filament, a spool and its label gives you a short link in your language, ready to copy or send to your usual apps.",
+          "fr": "Un nouveau bouton Partager sur un filament du catalogue, une bobine et son étiquette te donne un lien court dans ta langue, prêt à copier ou à envoyer à tes applis habituelles.",
+          "de": "Ein neuer Teilen-Button bei einem Katalog-Filament, einer Spule und ihrem Etikett gibt dir einen kurzen Link in deiner Sprache – zum Kopieren oder für deine üblichen Apps.",
+          "es": "Un nuevo botón Compartir en un filamento del catálogo, una bobina y su etiqueta te da un enlace corto en tu idioma, listo para copiar o enviar a tus apps de siempre.",
+          "it": "Un nuovo pulsante Condividi su un filamento del catalogo, una bobina e la sua etichetta ti dà un link breve nella tua lingua, pronto da copiare o inviare alle tue app di sempre.",
+          "zh": "目录里的耗材、线轴和它的标签上多了“分享”按钮，给你一条你所用语言的短链接，可复制，也可发到常用的应用。",
+          "pt": "Um novo botão Compartilhar num filamento do catálogo, numa bobina e na etiqueta dela dá um link curto no seu idioma, pronto para copiar ou mandar pros seus apps de sempre.",
+          "pt-pt": "Um novo botão Partilhar num filamento do catálogo, numa bobine e na etiqueta dela dá-te uma ligação curta no teu idioma, pronta a copiar ou enviar para as tuas apps do costume.",
+          "pl": "Nowy przycisk Udostępnij przy filamencie z katalogu, szpuli i jej etykiecie daje krótki link w twoim języku — do skopiowania lub wysłania do ulubionych aplikacji.",
+          "ru": "Новая кнопка «Поделиться» у филамента из каталога, катушки и её этикетки даёт короткую ссылку на вашем языке — копируйте или отправляйте в привычные приложения.",
+          "nl": "Een nieuwe Delen-knop bij een catalogusfilament, een spoel en zijn label geeft je een korte link in jouw taal, klaar om te kopiëren of naar je gewone apps te sturen."
+        }
+      },
+      {
+        "icon": "link",
+        "title": {
+          "en": "Paste a link, meet the spool",
+          "fr": "Colle un lien, rencontre la bobine",
+          "de": "Link einfügen, Spule kennenlernen",
+          "es": "Pega un enlace, conoce la bobina",
+          "it": "Incolla un link, conosci la bobina",
+          "zh": "粘贴链接，认识这卷线轴",
+          "pt": "Cole um link, conheça a bobina",
+          "pt-pt": "Cola uma ligação, conhece a bobine",
+          "pl": "Wklej link, poznaj szpulę",
+          "ru": "Вставьте ссылку — познакомьтесь с катушкой",
+          "nl": "Plak een link, ontmoet de spoel"
+        },
+        "body": {
+          "en": "Paste or scan a TigerTag QR link and Studio opens what it points to. A friend's spool shows its product; a private one politely says so.",
+          "fr": "Colle ou scanne un lien QR TigerTag et Studio ouvre ce qu'il désigne. La bobine d'un ami montre son produit ; une bobine privée le dit poliment.",
+          "de": "Füge einen TigerTag-QR-Link ein oder scanne ihn, und Studio öffnet, worauf er zeigt. Die Spule eines Freundes zeigt ihr Produkt, eine private sagt höflich Bescheid.",
+          "es": "Pega o escanea un enlace QR de TigerTag y Studio abre lo que señala. La bobina de un amigo muestra su producto; una privada lo dice con educación.",
+          "it": "Incolla o scansiona un link QR TigerTag e Studio apre ciò a cui punta. La bobina di un amico mostra il suo prodotto; una privata lo dice con garbo.",
+          "zh": "粘贴或扫描 TigerTag 二维码链接，Studio 就会打开它指向的内容。朋友的线轴会显示对应产品；私密的则会客气地告诉你。",
+          "pt": "Cole ou escaneie um link QR da TigerTag e o Studio abre o que ele aponta. A bobina de um amigo mostra o produto; uma privada avisa com educação.",
+          "pt-pt": "Cola ou lê uma ligação QR da TigerTag e o Studio abre aquilo para que aponta. A bobine de um amigo mostra o produto; uma privada avisa com educação.",
+          "pl": "Wklej lub zeskanuj link QR TigerTag, a Studio otworzy to, na co wskazuje. Szpula znajomego pokaże swój produkt, a prywatna grzecznie o tym powie.",
+          "ru": "Вставьте или отсканируйте QR-ссылку TigerTag, и Studio откроет то, на что она указывает. Катушка друга покажет свой продукт, а закрытая вежливо сообщит об этом.",
+          "nl": "Plak of scan een TigerTag-QR-link en Studio opent waar hij naar wijst. De spoel van een vriend toont zijn product; een privé-spoel zegt dat netjes."
+        }
+      },
+      {
+        "icon": "qr",
+        "title": {
+          "en": "TigerQR on your labels",
+          "fr": "TigerQR sur tes étiquettes",
+          "de": "TigerQR auf deinen Etiketten",
+          "es": "TigerQR en tus etiquetas",
+          "it": "TigerQR sulle tue etichette",
+          "zh": "标签上有 TigerQR 了",
+          "pt": "TigerQR nas suas etiquetas",
+          "pt-pt": "TigerQR nas tuas etiquetas",
+          "pl": "TigerQR na twoich etykietach",
+          "ru": "TigerQR на ваших этикетках",
+          "nl": "TigerQR op je labels"
+        },
+        "body": {
+          "en": "The corner pill on printed labels now reads TigerQR+ for catalogue products and TigerQR for the rest, instead of the chip's protocol. Shorter, and it says what the code does.",
+          "fr": "La pastille dans le coin des étiquettes imprimées indique maintenant TigerQR+ pour les produits du catalogue et TigerQR pour les autres, au lieu du protocole de la puce. Plus court, et ça dit ce que fait le code.",
+          "de": "Die Plakette in der Ecke gedruckter Etiketten zeigt jetzt TigerQR+ für Katalogprodukte und TigerQR für alle anderen, statt des Chip-Protokolls. Kürzer, und sie sagt, was der Code tut.",
+          "es": "La pastilla de la esquina de las etiquetas impresas indica ahora TigerQR+ para los productos del catálogo y TigerQR para el resto, en lugar del protocolo del chip. Más corto, y dice lo que hace el código.",
+          "it": "Il bollino nell'angolo delle etichette stampate ora riporta TigerQR+ per i prodotti del catalogo e TigerQR per gli altri, al posto del protocollo del chip. Più corto, e dice cosa fa il codice.",
+          "zh": "打印标签角落的小标识现在对目录产品显示 TigerQR+，其余显示 TigerQR，不再是芯片协议。更简短，也说明了二维码的用途。",
+          "pt": "A etiqueta no canto das etiquetas impressas agora diz TigerQR+ para produtos do catálogo e TigerQR para os demais, em vez do protocolo do chip. Mais curto, e diz o que o código faz.",
+          "pt-pt": "A pastilha no canto das etiquetas impressas diz agora TigerQR+ para os produtos do catálogo e TigerQR para os restantes, em vez do protocolo do chip. Mais curto, e diz o que o código faz.",
+          "pl": "Plakietka w rogu drukowanych etykiet pokazuje teraz TigerQR+ dla produktów z katalogu i TigerQR dla reszty, zamiast protokołu chipa. Krócej, a mówi, co robi kod.",
+          "ru": "Плашка в углу печатных этикеток теперь показывает TigerQR+ для товаров из каталога и TigerQR для остальных вместо протокола чипа. Короче, и сразу ясно, что делает код.",
+          "nl": "Het labeltje in de hoek van geprinte labels toont nu TigerQR+ voor catalogusproducten en TigerQR voor de rest, in plaats van het chipprotocol. Korter, en het zegt wat de code doet."
+        }
+      },
+      {
+        "icon": "tag",
+        "title": {
+          "en": "A label with only the QR",
+          "fr": "Une étiquette avec juste le QR",
+          "de": "Ein Etikett nur mit QR",
+          "es": "Una etiqueta solo con el QR",
+          "it": "Un'etichetta con solo il QR",
+          "zh": "只有二维码的标签",
+          "pt": "Uma etiqueta só com o QR",
+          "pt-pt": "Uma etiqueta só com o QR",
+          "pl": "Etykieta tylko z kodem QR",
+          "ru": "Этикетка только с QR",
+          "nl": "Een label met alleen de QR"
+        },
+        "body": {
+          "en": "New \"QR only\" template, 25 × 30 mm: the code and its pill, nothing else. For spools that prefer to keep it mysterious.",
+          "fr": "Nouveau modèle « QR seul », 25 × 30 mm : le code et sa pastille, rien d'autre. Pour les bobines qui aiment le mystère.",
+          "de": "Neue Vorlage „Nur QR“, 25 × 30 mm: der Code und seine Plakette, sonst nichts. Für Spulen, die es geheimnisvoll mögen.",
+          "es": "Nueva plantilla «Solo QR», 25 × 30 mm: el código y su pastilla, nada más. Para bobinas que prefieren el misterio.",
+          "it": "Nuovo modello «Solo QR», 25 × 30 mm: il codice e il suo bollino, nient'altro. Per le bobine che amano il mistero.",
+          "zh": "新模板“仅二维码”，25 × 30 毫米：只有二维码和它的小标识，别的什么都没有。适合喜欢神秘感的线轴。",
+          "pt": "Novo modelo «Só QR», 25 × 30 mm: o código e a etiqueta dele, mais nada. Para bobinas que gostam de mistério.",
+          "pt-pt": "Novo modelo «Só QR», 25 × 30 mm: o código e a pastilha dele, mais nada. Para bobines que gostam de mistério.",
+          "pl": "Nowy szablon „Tylko QR”, 25 × 30 mm: kod i jego plakietka, nic więcej. Dla szpul, które lubią tajemnicę.",
+          "ru": "Новый шаблон «Только QR», 25 × 30 мм: код и его плашка, ничего лишнего. Для катушек, которые любят загадочность.",
+          "nl": "Nieuw sjabloon „Alleen QR”, 25 × 30 mm: de code en zijn labeltje, verder niets. Voor spoelen die het graag mysterieus houden."
+        }
+      },
+      {
+        "icon": "copy",
+        "title": {
+          "en": "Copy the label's link",
+          "fr": "Copie le lien de l'étiquette",
+          "de": "Den Etikett-Link kopieren",
+          "es": "Copia el enlace de la etiqueta",
+          "it": "Copia il link dell'etichetta",
+          "zh": "复制标签的链接",
+          "pt": "Copie o link da etiqueta",
+          "pt-pt": "Copia a ligação da etiqueta",
+          "pl": "Skopiuj link etykiety",
+          "ru": "Скопируйте ссылку этикетки",
+          "nl": "Kopieer de link van het label"
+        },
+        "body": {
+          "en": "Under the label preview, \"Copy link\" grabs the address the QR opens. Paste it anywhere, no need to scan your own sticker.",
+          "fr": "Sous l'aperçu de l'étiquette, « Copier le lien » récupère l'adresse que le QR ouvre. Colle-la où tu veux, inutile de scanner ton propre autocollant.",
+          "de": "Unter der Etikettenvorschau kopiert „Link kopieren“ die Adresse, die der QR öffnet. Überall einfügbar, du musst deinen eigenen Aufkleber nicht scannen.",
+          "es": "Bajo la vista previa de la etiqueta, «Copiar enlace» toma la dirección que abre el QR. Pégala donde quieras, sin escanear tu propia pegatina.",
+          "it": "Sotto l'anteprima dell'etichetta, «Copia link» prende l'indirizzo che il QR apre. Incollalo dove vuoi, senza scansionare il tuo stesso adesivo.",
+          "zh": "在标签预览下方，“复制链接”会取下二维码打开的地址。随处可粘贴，不用再扫自己的贴纸。",
+          "pt": "Embaixo da prévia da etiqueta, «Copiar link» pega o endereço que o QR abre. Cole onde quiser, sem precisar escanear o próprio adesivo.",
+          "pt-pt": "Por baixo da pré-visualização da etiqueta, «Copiar ligação» apanha o endereço que o QR abre. Cola-o onde quiseres, sem teres de ler o teu próprio autocolante.",
+          "pl": "Pod podglądem etykiety „Kopiuj link” bierze adres, który otwiera kod QR. Wklej go gdzie chcesz, bez skanowania własnej naklejki.",
+          "ru": "Под предпросмотром этикетки «Копировать ссылку» берёт адрес, который открывает QR. Вставляйте куда угодно — свою же наклейку сканировать не нужно.",
+          "nl": "Onder de labelvoorbeeldweergave pakt „Link kopiëren” het adres dat de QR opent. Plak het overal, je hoeft je eigen sticker niet te scannen."
+        }
+      },
+      {
+        "icon": "image",
+        "title": {
+          "en": "iPhone photos make good avatars",
+          "fr": "Les photos d'iPhone font de bons avatars",
+          "de": "iPhone-Fotos geben gute Avatare ab",
+          "es": "Las fotos del iPhone son buenos avatares",
+          "it": "Le foto dell'iPhone sono ottimi avatar",
+          "zh": "iPhone 照片也能当头像",
+          "pt": "Fotos de iPhone viram bons avatares",
+          "pt-pt": "As fotos do iPhone dão bons avatares",
+          "pl": "Zdjęcia z iPhone'a to dobre awatary",
+          "ru": "Фото с iPhone — отличные аватары",
+          "nl": "iPhone-foto's zijn prima avatars"
+        },
+        "body": {
+          "en": "Pick a HEIC photo as your avatar and Studio on macOS converts it for you. And if a picture can't be used, you now get told why.",
+          "fr": "Choisis une photo HEIC comme avatar et Studio sur macOS la convertit pour toi. Et si une image est inutilisable, on te dit enfin pourquoi.",
+          "de": "Wähle ein HEIC-Foto als Avatar, und Studio auf dem Mac wandelt es für dich um. Und wenn ein Bild nicht geht, erfährst du jetzt warum.",
+          "es": "Elige una foto HEIC como avatar y Studio en macOS la convierte por ti. Y si una imagen no sirve, ahora te dice por qué.",
+          "it": "Scegli una foto HEIC come avatar e Studio su macOS la converte per te. E se un'immagine non va bene, ora ti dice perché.",
+          "zh": "选一张 HEIC 照片当头像，macOS 上的 Studio 会替你转换。图片用不了时，现在也会告诉你原因。",
+          "pt": "Escolha uma foto HEIC como avatar e o Studio no macOS converte pra você. E se uma imagem não servir, agora ele diz por quê.",
+          "pt-pt": "Escolhe uma foto HEIC como avatar e o Studio no macOS converte-a por ti. E se uma imagem não servir, agora diz-te porquê.",
+          "pl": "Wybierz zdjęcie HEIC jako awatar, a Studio na macOS samo je przekonwertuje. A gdy obraz się nie nadaje, w końcu dowiesz się dlaczego.",
+          "ru": "Выберите фото HEIC в качестве аватара — Studio на macOS само его конвертирует. А если картинка не подходит, теперь вам скажут почему.",
+          "nl": "Kies een HEIC-foto als avatar en Studio op macOS zet hem voor je om. En als een afbeelding niet bruikbaar is, hoor je nu waarom."
+        }
+      },
+      {
+        "icon": "gift",
+        "title": {
+          "en": "Envelopes, once your friend gets going",
+          "fr": "Les enveloppes, quand ton ami s'y met",
+          "de": "Umschläge, sobald dein Freund loslegt",
+          "es": "Sobres, cuando tu amigo arranca",
+          "it": "Buste, quando il tuo amico parte",
+          "zh": "朋友上手后，信封才到账",
+          "pt": "Envelopes, quando seu amigo engrena",
+          "pt-pt": "Envelopes, quando o teu amigo arranca",
+          "pl": "Koperty, gdy twój znajomy ruszy",
+          "ru": "Конверты — когда друг втянется",
+          "nl": "Enveloppen, zodra je vriend op gang komt"
+        },
+        "body": {
+          "en": "You and the friend you invited both get your envelopes once they've added a first spool, not at e-mail confirmation. Up to 10 a month for you.",
+          "fr": "Toi et l'ami que tu as invité recevez vos enveloppes quand il a ajouté une première bobine, plus à la confirmation de l'e-mail. Jusqu'à 10 par mois pour toi.",
+          "de": "Du und dein eingeladener Freund bekommt eure Umschläge, sobald er eine erste Spule hinzugefügt hat, nicht mehr bei der E-Mail-Bestätigung. Für dich bis zu 10 im Monat.",
+          "es": "Tú y el amigo que invitaste recibís vuestros sobres cuando añade una primera bobina, ya no al confirmar el e-mail. Hasta 10 al mes para ti.",
+          "it": "Tu e l'amico che hai invitato ricevete le vostre buste quando aggiunge una prima bobina, non più alla conferma dell'e-mail. Fino a 10 al mese per te.",
+          "zh": "你和受邀的朋友会在对方添加第一卷线轴后一起收到信封，不再是邮箱确认时。你每月最多 10 次。",
+          "pt": "Você e o amigo que convidou recebem os envelopes quando ele adiciona a primeira bobina, não mais na confirmação do e-mail. Até 10 por mês para você.",
+          "pt-pt": "Tu e o amigo que convidaste recebem os envelopes quando ele adiciona a primeira bobine, já não na confirmação do e-mail. Até 10 por mês para ti.",
+          "pl": "Ty i zaproszony znajomy dostajecie koperty, gdy doda pierwszą szpulę, a nie przy potwierdzeniu e-maila. Dla ciebie do 10 miesięcznie.",
+          "ru": "Вы и приглашённый друг получаете конверты, когда он добавит первую катушку, а не при подтверждении почты. Для вас — до 10 в месяц.",
+          "nl": "Jij en de vriend die je uitnodigde krijgen je enveloppen zodra hij een eerste spoel toevoegt, niet meer bij de e-mailbevestiging. Voor jou maximaal 10 per maand."
+        }
+      },
+      {
+        "icon": "plug",
+        "title": {
+          "en": "Gemini joins the assistants",
+          "fr": "Gemini rejoint les assistants",
+          "de": "Gemini stößt zu den Assistenten",
+          "es": "Gemini se une a los asistentes",
+          "it": "Gemini si unisce agli assistenti",
+          "zh": "Gemini 加入助手阵容",
+          "pt": "Gemini entra para os assistentes",
+          "pt-pt": "O Gemini junta-se aos assistentes",
+          "pl": "Gemini dołącza do asystentów",
+          "ru": "Gemini в списке ассистентов",
+          "nl": "Gemini sluit aan bij de assistenten"
+        },
+        "body": {
+          "en": "Gemini CLI on your computer, Gemini on the web: two new tiles in the AI assistant page. Copy the command, paste it, done.",
+          "fr": "Gemini CLI sur ton ordinateur, Gemini sur le web : deux nouvelles tuiles dans la page de l'assistant IA. Copie la commande, colle-la, c'est fini.",
+          "de": "Gemini CLI auf deinem Computer, Gemini im Web: zwei neue Kacheln auf der KI-Assistenten-Seite. Befehl kopieren, einfügen, fertig.",
+          "es": "Gemini CLI en tu ordenador, Gemini en la web: dos nuevas fichas en la página del asistente de IA. Copia el comando, pégalo y listo.",
+          "it": "Gemini CLI sul tuo computer, Gemini sul web: due nuove tessere nella pagina dell'assistente IA. Copia il comando, incollalo, fatto.",
+          "zh": "电脑上的 Gemini CLI，网页上的 Gemini：AI 助手页面新增两个入口。复制命令、粘贴，搞定。",
+          "pt": "Gemini CLI no computador, Gemini na web: dois novos blocos na página do assistente de IA. Copie o comando, cole, pronto.",
+          "pt-pt": "Gemini CLI no computador, Gemini na web: dois novos cartões na página do assistente de IA. Copia o comando, cola, está feito.",
+          "pl": "Gemini CLI na komputerze, Gemini w sieci: dwa nowe kafelki na stronie asystenta AI. Skopiuj polecenie, wklej, gotowe.",
+          "ru": "Gemini CLI на компьютере, Gemini в вебе: две новые плитки на странице ИИ-ассистента. Скопируйте команду, вставьте — готово.",
+          "nl": "Gemini CLI op je computer, Gemini op het web: twee nieuwe tegels op de AI-assistentpagina. Kopieer de opdracht, plak, klaar."
+        }
+      },
+      {
+        "icon": "play",
+        "title": {
+          "en": "Open your assistant from the setup",
+          "fr": "Ouvre ton assistant depuis la configuration",
+          "de": "Assistent direkt aus der Einrichtung öffnen",
+          "es": "Abre tu asistente desde la configuración",
+          "it": "Apri il tuo assistente dalla configurazione",
+          "zh": "在设置里直接打开助手",
+          "pt": "Abra seu assistente direto da configuração",
+          "pt-pt": "Abre o teu assistente a partir da configuração",
+          "pl": "Otwórz asystenta prosto z konfiguracji",
+          "ru": "Откройте ассистента прямо из настройки",
+          "nl": "Open je assistent vanuit de installatie"
+        },
+        "body": {
+          "en": "On the last setup step, one button opens Claude, Cursor, VS Code, the terminal or the assistant's page. One less tab to hunt for.",
+          "fr": "À la dernière étape, un bouton ouvre Claude, Cursor, VS Code, le terminal ou la page de l'assistant. Un onglet de moins à chercher.",
+          "de": "Im letzten Schritt öffnet ein Button Claude, Cursor, VS Code, das Terminal oder die Seite des Assistenten. Ein Tab weniger zu suchen.",
+          "es": "En el último paso, un botón abre Claude, Cursor, VS Code, el terminal o la página del asistente. Una pestaña menos que buscar.",
+          "it": "All'ultimo passaggio, un pulsante apre Claude, Cursor, VS Code, il terminale o la pagina dell'assistente. Una scheda in meno da cercare.",
+          "zh": "在最后一步，一个按钮就能打开 Claude、Cursor、VS Code、终端或助手的页面。少找一个标签页。",
+          "pt": "No último passo, um botão abre o Claude, o Cursor, o VS Code, o terminal ou a página do assistente. Uma aba a menos pra procurar.",
+          "pt-pt": "No último passo, um botão abre o Claude, o Cursor, o VS Code, o terminal ou a página do assistente. Um separador a menos para procurar.",
+          "pl": "W ostatnim kroku jeden przycisk otwiera Claude, Cursor, VS Code, terminal albo stronę asystenta. Jedna karta mniej do szukania.",
+          "ru": "На последнем шаге одна кнопка открывает Claude, Cursor, VS Code, терминал или страницу ассистента. Одной вкладкой меньше искать.",
+          "nl": "Bij de laatste stap opent één knop Claude, Cursor, VS Code, de terminal of de pagina van de assistent. Eén tabblad minder zoeken."
+        }
+      },
+      {
+        "icon": "swap",
+        "title": {
+          "en": "Read or Read & write, one slide",
+          "fr": "Lecture ou écriture, d'un glissement",
+          "de": "Lesen oder Schreiben, ein Schieber",
+          "es": "Lectura o escritura, con un deslizamiento",
+          "it": "Lettura o scrittura, con uno scorrimento",
+          "zh": "读或读写，滑一下",
+          "pt": "Leitura ou escrita, num deslize",
+          "pt-pt": "Leitura ou escrita, num deslize",
+          "pl": "Odczyt albo zapis, jednym przesunięciem",
+          "ru": "Чтение или запись — одним движением",
+          "nl": "Lezen of schrijven, met één veeg"
+        },
+        "body": {
+          "en": "The AI access choice is now a sliding switch, like Dark | Light. Read by default, so nothing changes unless you say so.",
+          "fr": "Le choix de l'accès IA est maintenant un interrupteur à glissière, comme Sombre | Clair. Lecture par défaut, donc rien ne bouge sans ton accord.",
+          "de": "Die KI-Zugriffswahl ist jetzt ein Schiebeschalter, wie Dunkel | Hell. Standard ist Lesen, also ändert sich nichts ohne dein Okay.",
+          "es": "La elección de acceso de la IA es ahora un interruptor deslizante, como Oscuro | Claro. Lectura por defecto, así que nada cambia sin tu permiso.",
+          "it": "La scelta dell'accesso IA ora è un interruttore a scorrimento, come Scuro | Chiaro. Lettura di default, quindi nulla cambia senza il tuo ok.",
+          "zh": "AI 访问权限现在是一个滑动开关，就像深色 | 浅色。默认只读，所以没有你的同意什么都不会变。",
+          "pt": "A escolha de acesso da IA agora é uma chave deslizante, como Escuro | Claro. Leitura por padrão, então nada muda sem o seu aval.",
+          "pt-pt": "A escolha de acesso da IA é agora um interruptor deslizante, como Escuro | Claro. Leitura por defeito, por isso nada muda sem o teu aval.",
+          "pl": "Wybór dostępu AI to teraz suwak, jak Ciemny | Jasny. Domyślnie odczyt, więc nic się nie zmieni bez twojej zgody.",
+          "ru": "Выбор доступа ИИ теперь — ползунок, как «Тёмная | Светлая». По умолчанию чтение, так что без вашего ведома ничего не изменится.",
+          "nl": "De keuze voor AI-toegang is nu een schuifschakelaar, zoals Donker | Licht. Standaard lezen, dus er verandert niets zonder jouw akkoord."
+        }
+      },
+      {
+        "icon": "chat",
+        "title": {
+          "en": "Instagram, Discord, Messenger: just paste",
+          "fr": "Instagram, Discord, Messenger : il ne reste qu'à coller",
+          "de": "Instagram, Discord, Messenger: nur noch einfügen",
+          "es": "Instagram, Discord, Messenger: solo pegar",
+          "it": "Instagram, Discord, Messenger: ti basta incollare",
+          "zh": "Instagram、Discord、Messenger：粘贴即可",
+          "pt": "Instagram, Discord, Messenger: é só colar",
+          "pt-pt": "Instagram, Discord, Messenger: é só colar",
+          "pl": "Instagram, Discord, Messenger: wystarczy wkleić",
+          "ru": "Instagram, Discord, Messenger: остаётся вставить",
+          "nl": "Instagram, Discord, Messenger: alleen nog plakken"
+        },
+        "body": {
+          "en": "Sharing to these apps now copies the message and opens their web inbox. Your only job left: paste, send, feel generous.",
+          "fr": "Partager vers ces applis copie maintenant le message et ouvre leur messagerie web. Il ne te reste qu'à coller, envoyer, et te sentir généreux.",
+          "de": "Das Teilen in diese Apps kopiert jetzt die Nachricht und öffnet deren Web-Posteingang. Du musst nur noch einfügen, senden und dich großzügig fühlen.",
+          "es": "Compartir en estas apps ahora copia el mensaje y abre su bandeja web. Solo te queda pegar, enviar y sentirte generoso.",
+          "it": "Condividere su queste app ora copia il messaggio e apre la loro casella web. Ti resta solo da incollare, inviare e sentirti generoso.",
+          "zh": "分享到这些应用时，现在会先复制消息，再打开它们的网页收件箱。你只需粘贴、发送，然后享受慷慨的感觉。",
+          "pt": "Compartilhar com esses apps agora copia a mensagem e abre a caixa de entrada web deles. Só falta colar, enviar e se sentir generoso.",
+          "pt-pt": "Partilhar para estas apps copia agora a mensagem e abre a caixa de entrada web delas. Só falta colar, enviar e sentir-te generoso.",
+          "pl": "Udostępnianie do tych aplikacji kopiuje teraz wiadomość i otwiera ich skrzynkę w przeglądarce. Zostaje ci wkleić, wysłać i poczuć się hojnie.",
+          "ru": "Теперь отправка в эти приложения копирует сообщение и открывает их веб-почту. Вам остаётся вставить, отправить и почувствовать себя щедрым.",
+          "nl": "Delen naar deze apps kopieert nu het bericht en opent hun web-inbox. Jij hoeft alleen te plakken, te versturen en je gul te voelen."
+        }
+      }
+    ]
+  },
   "2.54.0": {
     "date": "2026-11-10",
     "items": [

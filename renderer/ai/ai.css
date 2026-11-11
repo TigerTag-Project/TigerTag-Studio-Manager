@@ -325,7 +325,7 @@
 .ai-demo-send.is-press { transform: scale(.86); }
 
 /* "Works with": big square tiles, three to a row. */
-.aip-welcome-main .aip-works { width: min(420px, 100%); }
+.aip-welcome-main .aip-works { width: min(510px, 100%); }
 .aip-welcome-main .aip-works-logos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; width: 100%; }
 .aip-works-logos .aip-works-logo { aspect-ratio: 1; min-width: 0; justify-content: center; gap: 10px; padding: 12px; border-radius: 14px; }
 .aip-works-logos .aip-works-logo .eac-mcp-logo { height: 46px; }
@@ -417,7 +417,7 @@
 /* The welcome uses the whole width from the left: what it is, then the cases
    column and the phone right after it — no centred box leaving the left empty. */
 .aip.aip--welcome { max-width: none; margin: 0; padding-left: 8px; }
-.aip--welcome .aip-welcome { grid-template-columns: fit-content(460px) auto; justify-content: start; align-items: start; gap: 32px; padding-top: 8px; }
+.aip--welcome .aip-welcome { grid-template-columns: fit-content(520px) auto; justify-content: start; align-items: start; gap: 32px; padding-top: 8px; }
 .aip--welcome .ai-demo-col.is-phone { justify-content: start; }
 @media (max-width: 980px) { .aip--welcome .aip-welcome { grid-template-columns: minmax(0, 1fr); } }
 
@@ -427,7 +427,7 @@
 .ai-demo-ai > .ai-demo-work { align-self: center; }
 .ai-demo-ai .ai-demo-ava { flex: none; display: grid; place-items: center; height: 26px; aspect-ratio: 1; border-radius: 50%; background: var(--surface-2); border: 1px solid var(--border-soft); }
 .ai-demo-ai .ai-demo-ava .icon { height: 15px; aspect-ratio: 1; background-color: var(--primary); }
-.aip--welcome .aip-welcome-main { max-width: 420px; }   /* as wide as the three tiles: no gap before the cases */
+.aip--welcome .aip-welcome-main { max-width: 510px; }   /* as wide as a row of tiles: no gap before the cases */
 .aip--welcome .aip-welcome-main h2.aip-empty-title { text-wrap: balance; }
 
 /* The open case's progress: a thin bar along the bottom of its tab. */
@@ -482,13 +482,13 @@
 .aip-works-head small { font-size: 12px; color: var(--muted); }
 .aip-works-ico { flex: none; display: grid; place-items: center; height: 40px; aspect-ratio: 1; border-radius: 12px; background: color-mix(in srgb, var(--primary) 14%, var(--surface-2)); }
 .aip-works-ico .icon { height: 20px; aspect-ratio: 1; background-color: var(--primary); }
-.aip-works-group .aip-works-logos { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+/* Six tiles a row (local: 5, web: 6), names on one line. */
+.aip-works-group .aip-works-logos { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
 .aip-works-group .aip-works-logo { gap: 7px; padding: 10px 6px; }
 .aip-works-group .aip-works-logo .eac-mcp-logo { height: 34px; }
-.aip-works-group .aip-works-logo small { font-size: 12px; text-align: center; }
+.aip-works-group .aip-works-logo small { font-size: 12px; text-align: center; white-space: nowrap; }
 /* The old setup card stays put under the new one while it slides in. */
 .ai-setup-ghost { z-index: 100; pointer-events: none; }
-.aip-works-group .aip-works-logos { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 
 /* The setup card: the chosen assistant's logo, large and centred, above the question. */
 .ai-setup-logo { display: flex; flex-direction: column; align-items: center; gap: 6px; margin: 0 auto 6px; text-align: center; }
@@ -496,3 +496,13 @@
 .ai-setup-logo small { font-size: 12px; color: var(--muted); }
 .ai-setup-logo .eac-mcp-logo { height: 64px; }
 .ai-setup-body .ai-q + .ai-metro { width: min(420px, 80%); margin: 8px auto 6px; align-self: center; }
+.aip-welcome-back { margin-bottom: 4px; }
+/* Read | Read & write: full width in the setup card, a fixed width in Access and security. */
+.ai-setup-body .ai-rights-seg { display: flex; width: 100%; }
+.ai-setup-body .ai-rights-seg .eac-seg-btn { height: 36px; font-size: 13.5px; }
+.aip-switch .ai-rights-seg { min-width: 240px; }
+/* An online assistant's row: its Read | Read & write switch under the name; a change made online names it in the history. */
+.ai-grant-seg { margin-top: 6px; }
+.aip-grant .ai-grant-seg { min-width: 220px; }
+.ai-via { display: inline-flex; align-items: center; gap: 3px; }
+.ai-via .icon { background-color: currentColor; }

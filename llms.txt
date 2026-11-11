@@ -10,7 +10,7 @@ It is neutral and agnostic by design: TigerTag takes no side between filament br
 distributors. The protocol is open and anyone can build a different ecosystem on it; nothing in this repo is a
 prerequisite for doing so.
 
-Current version: **2.54.0** — macOS (Intel + Apple Silicon, signed & notarized), Windows, Linux.
+Current version: **2.55.0** — macOS (Intel + Apple Silicon, signed & notarized), Windows, Linux.
 
 Showcase site (11 languages, built from `site/`, deployed by `.github/workflows/pages.yml`): https://tigertag-project.github.io/TigerTag-Studio-Manager/ — downloads: https://github.com/TigerTag-Project/TigerTag-Studio-Manager/releases/latest
 
@@ -39,8 +39,8 @@ Showcase site (11 languages, built from `site/`, deployed by `.github/workflows/
 - `services/ndef.js` — NDEF encoder (URI / Wi‑Fi / vCard records in a Type 2 TLV, sized to the chip) behind `rfid:write-ndef`, `rfid:ndef-size`, `rfid:ndef-capacity`
 - `renderer/rfid_protocol/eraser/` — the NFC tools view (format, NDEF writing, Auto mode) of the new-chip card
 - `renderer/rfid_protocol/restore/` — the Restore TigerTag+ view (rewrites a chip from its `rfidList` backup)
-- `renderer/labels/` — printed spool and filament labels: eight templates, each one SVG in printer dots (`buildLabel`), Print / PDF / PNG / SVG through `main.js` `label:render`
-- `renderer/qr-link.js` — the QR links of the TigerSystem-Docs contract (`spool-ids-and-qr-links.md`): build them and read them back offline; spool links open a spool from Studio Web `?spool=`, `tigertag://spool/<id>` or a pasted link
+- `renderer/labels/` — printed spool and filament labels: nine templates, each one SVG in printer dots (`buildLabel`), Print / PDF / PNG / SVG through `main.js` `label:render`
+- `renderer/qr-link.js` — the QR links of the TigerSystem-Docs contract (`spool-ids-and-qr-links.md`): build them and read them back offline (`qr.tigertag.io/<lang>/<spool id>`, product links `/p/<10 digit decimal id_product>`, an optional `/<lang>/` prefix); the label pill reads TigerQR (spool, no catalogue product) or TigerQR+ (catalogue product); links open a spool from Studio Web `?spool=`, `tigertag://spool/<id>` or a pasted link, and a pasted link to someone else's spool opens its product
 
 ## State object (renderer)
 
@@ -106,6 +106,8 @@ users/{uid}/envelopes|chests|coinLog|easterEggs → TigerCoins (server-only, tig
 users/{uid}/trophies/{id}  → trophies earned, kept for good (server-only, functions/trophies.js; catalogue
                              functions/trophyRules.js); trophyStats/{id} { owners } + trophyEvents/{id} event cards,
                              signed-in read — the Trophies album (renderer/quests/trophies.js, docs/TROPHIES.md)
+users/{uid}/agentChanges/{id} → the AI assistants' change journal, shared by this computer's server and the online
+                             connector (owner-only, only undoneAt may change, TTL on expireAt) — history + Undo (docs/MCP.md §5)
 referrals/{inviteeUid}     → who invited whom { referrerUid, claimedAt, expiresAt, … }, server-written
                              (functions/referrals.js) — the Invite view (renderer/quests/referrals.js, docs/REFERRALS.md)
 publicLists/{token}        → world-readable snapshot of a list shared by web link (unguessable

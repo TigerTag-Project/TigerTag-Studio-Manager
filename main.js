@@ -1531,15 +1531,16 @@ ipcMain.handle('rfid:refresh-api', async (_evt, rawDoc) => {
 // payload over IPC and we do the request. (Same reason `rfid:refresh-api` and
 // `rfid:lookup-product` live here.)
 //
-// Fire-and-forget by construction (`ipcMain.on`, not `handle`): a failed or
-// offline event is dropped, never retried, and can never block or slow a chip
-// action. Server-side counts are therefore a lower bound — same contract as the
-// mobile app.
+// Fire-and-forget by construction (`ipcMain.on`, not `handle`): nothing ever
+// waits on an event, so it can never block or slow a chip action. One that fails
+// on the network or a 5xx is sent again later (below); server-side counts are
+// still a lower bound.
 //
-// The renderer builds the domain payload (operation, chip fields, UID in DECIMAL
-// — Xano keys on decimal — plus Country / Locale / Timezone). We add only what
-// the main process knows: the platform, the app version, and `App`, which tags
-// the row as coming from Studio rather than mobile.
+// The renderer builds the domain payload (operation, chip fields, the UID twice —
+// `Uid` in DECIMAL, which Xano keys on, and `UidHex`, exact past 2^53, which Xano
+// reads first — plus Country / Locale / Timezone). We add the contract fields and
+// what only the main process knows (below, `stampEvent`): the platform, the app
+// version, `App` (Studio rows apart from mobile ones), the session, the reader.
 //
 // NOTE ON `Location`: the renderer always sends "0.0,0.0" — the convention
 // shared with the mobile app for "no position". Studio does NOT collect a
@@ -1578,45 +1579,70 @@ const XANO_PLATFORM = { darwin: 'macos', win32: 'windows', linux: 'linux' };
 // `online` that sends no such header — so that path writes nothing. Worth fixing
 // on the mobile side.)
 //
-// FAILURES ARE COUNTED, never retried. A rejected event is logged at `warn`
-// with Xano's `{ code, message }`, and `_analyticsStats` keeps the session's
-// outcomes for `app:info` (diagnostic report, in-app report errors), so a
-// support report shows at once when analytics are failing. (From 2026-09-18
-// Xano rejected almost every Studio event with HTTP 400 for 48 days, logged at
-// `info` with the status only, and nobody saw it.)
-// Only analytics/tag failures reach us: `online` is recorded in product/get's
-// Post-Process step, AFTER it answered, so product/get still says 200 when that
-// write fails.
+// CONTRACT v2 (TigerTag-Manager docs/analytics.md, 2026-11-10; services/analytics.js).
+// Every event is stamped when it reaches the main process: `V: 2`, an `EventId`
+// (UUID v4), the `Session` (random per launch, renewed after 30 min in the
+// background — never derived from the account), the platform, app version and
+// `App`; a chip event also gets `Reader: usb_reader` and `Device`, the model of
+// the reader holding that chip (`readerModel`). A stamped event never changes:
+// sent again later, it keeps its EventId and its Timestamp.
+//
+// FAILURES ARE COUNTED. A rejected event is logged at `warn` with Xano's
+// `{ code, message }`, and `_analyticsStats` keeps the session's outcomes for
+// `app:info` (diagnostic report, in-app report errors), so a support report
+// shows at once when analytics are failing. (From 2026-09-18 Xano rejected almost
+// every Studio event with HTTP 400 for 48 days, logged at `info` with the status
+// only, and nobody saw it.) Only analytics/tag failures reach us: `online` is
+// recorded in product/get's Post-Process step, AFTER it answered, so product/get
+// still says 200 when that write fails.
+//
+// SENT AGAIN. An event that got no answer (network, timeout) or a 5xx is kept on
+// disk (`<userData>/analytics-resend.json`, 5 000 at most) and queued again a
+// minute after launch and every 10 minutes, for 7 days after it happened. A 4xx
+// is never sent again (the event itself is wrong), nor is `online`: product/get
+// is a lookup whose row is a side effect.
 //
 // ONE QUEUE, PACED. Every event — a single scan or the 500 `create` of a `.ttag`
 // import — goes through `_analyticsQueue`, sent at most 4 a second. It lives in
 // memory and holds 5 000 events at most; past that an event is counted in
 // `overflow` instead of being dropped unseen. Nothing waits on it: the IPC
 // returns at once, the chip action and the UI never see the queue. On quit, what
-// is left gets up to 1.5 s to go (`will-quit`), then the rest is lost — same
-// lower-bound contract as above.
+// is left gets up to 1.5 s to go (`will-quit`); the rest is kept for next time.
+const analytics = require('./services/analytics');
 const ANALYTICS_RATE_MS = 250;        // 4 requests a second
 const ANALYTICS_QUEUE_MAX = 5000;
+const ANALYTICS_RESEND_EVERY_MS = 10 * 60 * 1000;
 const _analyticsQueue = [];
-const _analyticsStats = { sent: 0, failed: 0, queued: 0, overflow: 0, lastError: null };
-function _analyticsFailed(operation, status, code, message) {
+const _analyticsStats = { sent: 0, failed: 0, queued: 0, overflow: 0, resendPending: 0, lastError: null };
+const _analyticsSession = new analytics.AnalyticsSession();
+let _analyticsResend = null;          // opened on first use: userData is final by then
+function _analyticsResendStore() {
+  if (!_analyticsResend) _analyticsResend = new analytics.ResendStore(path.join(app.getPath('userData'), 'analytics-resend.json'));
+  return _analyticsResend;
+}
+function _analyticsFailed(body, status, code, message) {
   _analyticsStats.failed++;
-  _analyticsStats.lastError = { at: new Date().toISOString(), operation, status, code, message };
+  _analyticsStats.lastError = { at: new Date().toISOString(), operation: body.Operation, status, code, message };
+  if (analytics.shouldResend(body.Operation, status)) {
+    const store = _analyticsResendStore();
+    store.add(body);
+    _analyticsStats.resendPending = store.size;
+  }
 }
 
-function _analyticsSend(payload) {
-  const body = {
-    ...payload,
-    Platform: XANO_PLATFORM[process.platform] || process.platform,
-    AppVersion: app.getVersion(),
-    App: 'studio',                     // tells Studio rows apart from mobile ones
-  };
+// The reader a chip event is about: the one holding that UID, else the only one plugged in.
+function _analyticsReaderName(uidHex) {
+  if (uidHex) for (const [name, card] of _nfcCardPresent) if (normalizeUid(card?.uid || '') === uidHex) return name;
+  return _nfcReaders.size === 1 ? [..._nfcReaders.keys()][0] : '';
+}
+
+function _analyticsSend(body) {
   const url = body.Operation === 'online'
     ? `${XANO_PRODUCT_URL}?uid=${encodeURIComponent(body.Uid)}&product_id=${encodeURIComponent(body.IdProduct)}`
     : XANO_ANALYTICS_URL;
   const json = JSON.stringify(body);
   const encoded = Buffer.from(json, 'utf8').toString('base64');
-  const who = body.Uid || body.SpoolId || '';
+  const who = body.UidHex || body.SpoolId || '';
 
   // Log BOTH forms: the readable payload (what Xano will see once it decodes the
   // header) and the exact base64 that goes on the wire — so a wrong field can be
@@ -1631,17 +1657,16 @@ function _analyticsSend(payload) {
     signal: controller.signal,
   })
     .then(async (resp) => {
-      _analyticsStats.sent++;
-      if (resp.ok) { log.info(`[analytics] ${body.Operation} ${who} → HTTP ${resp.status}`); return; }
+      if (resp.ok) { _analyticsStats.sent++; log.info(`[analytics] ${body.Operation} ${who} → HTTP ${resp.status}`); return; }
       // Xano answers `{ code, message, payload }`; anything else is kept raw, cut short.
       const text = await resp.text().catch(() => '');
       let code = null, message = text.slice(0, 300);
       try { const j = JSON.parse(text); code = j.code ?? null; message = String(j.message ?? message).slice(0, 300); } catch (_) {}
-      _analyticsFailed(body.Operation, resp.status, code, message);
+      _analyticsFailed(body, resp.status, code, message);
       log.warn(`[analytics] ${body.Operation} rejected → HTTP ${resp.status}${code ? ` ${code}` : ''}: ${message}`);
     })
     .catch((e) => {
-      _analyticsFailed(body.Operation, null, e.name === 'AbortError' ? 'TIMEOUT' : 'NETWORK', e.message);
+      _analyticsFailed(body, null, e.name === 'AbortError' ? 'TIMEOUT' : 'NETWORK', e.message);
       log.warn(`[analytics] ${body.Operation} dropped: ${e.message}`);
     })
     .finally(() => clearTimeout(timer));
@@ -1659,28 +1684,77 @@ function _analyticsPump() {
   };
   next();
 }
+function _analyticsEnqueue(body) {
+  if (_analyticsQueue.length >= ANALYTICS_QUEUE_MAX) { _analyticsStats.overflow++; return; }
+  _analyticsQueue.push(body);
+  _analyticsStats.queued = _analyticsQueue.length;
+  _analyticsPump();
+}
 
 ipcMain.on('analytics:tag', (_evt, payload) => {
   if (!payload || typeof payload !== 'object' || !payload.Operation) return;
-  if (_analyticsQueue.length >= ANALYTICS_QUEUE_MAX) { _analyticsStats.overflow++; return; }
-  _analyticsQueue.push(payload);
-  _analyticsStats.queued = _analyticsQueue.length;
-  _analyticsPump();
+  _analyticsEnqueue(analytics.stampEvent(payload, {
+    session: _analyticsSession.id,
+    platform: XANO_PLATFORM[process.platform] || process.platform,
+    appVersion: app.getVersion(),
+    deviceName: analytics.CHIP_OPERATIONS.has(payload.Operation) ? _analyticsReaderName(payload.UidHex) : '',
+  }));
 });
 
+// The events kept after a failure go back into the queue, as they were.
+function _analyticsResendDue() {
+  const store = _analyticsResendStore();
+  if (!store.size) return;
+  const room = ANALYTICS_QUEUE_MAX - _analyticsQueue.length;
+  const batch = store.take(Math.max(0, room));
+  _analyticsStats.resendPending = store.size;
+  if (batch.length) log.info(`[analytics] sending ${batch.length} kept event(s) again`);
+  batch.forEach(_analyticsEnqueue);
+}
+app.whenReady().then(() => {
+  _analyticsStats.resendPending = _analyticsResendStore().size;
+  setTimeout(_analyticsResendDue, 60 * 1000).unref?.();
+  setInterval(_analyticsResendDue, ANALYTICS_RESEND_EVERY_MS).unref?.();
+});
+
+// Session: the app is in the background when none of its windows has the focus,
+// or while the machine sleeps or is locked. Back after 30 min or more → a new
+// Session, and the renderer is told an `app_open` is due. The renderer takes
+// that `app_open` with `analytics:app-open-due` (true once per session), so a
+// reload of the window does not count a second one.
+function _analyticsBackground() { _analyticsSession.background(); }
+function _analyticsForeground() {
+  if (_analyticsSession.foreground()) mainWindow?.webContents.send('analytics:app-open-due');
+}
+app.on('browser-window-blur', () => setTimeout(() => { if (!BrowserWindow.getFocusedWindow()) _analyticsBackground(); }, 100));
+app.on('browser-window-focus', _analyticsForeground);
+app.whenReady().then(() => {
+  const pm = require('electron').powerMonitor;
+  pm.on('suspend', _analyticsBackground);
+  pm.on('lock-screen', _analyticsBackground);
+  pm.on('resume', () => { if (BrowserWindow.getFocusedWindow()) _analyticsForeground(); });
+  pm.on('unlock-screen', () => { if (BrowserWindow.getFocusedWindow()) _analyticsForeground(); });
+});
+ipcMain.handle('analytics:app-open-due', () => _analyticsSession.takeAppOpen());
+
 // Quit: the renderer has flushed its pending `edit` events while closing; give
-// what is still queued one short burst, then let the quit go on.
+// what is still queued one short burst, keep the rest for next time, then let
+// the quit go on.
 let _analyticsDrained = false;
 app.on('will-quit', (event) => {
-  if (_analyticsDrained || !_analyticsQueue.length) return;
+  if (_analyticsDrained) return;
   _analyticsDrained = true;
+  if (!_analyticsQueue.length) { _analyticsResend?.flush(); return; }
   event.preventDefault();
   clearTimeout(_analyticsTimer);
   const batch = _analyticsQueue.splice(0, 20);
-  _analyticsStats.overflow += _analyticsQueue.splice(0).length;   // not sent this session
+  const rest = _analyticsQueue.splice(0);
   _analyticsStats.queued = 0;
+  const keep = rest.filter(e => analytics.shouldResend(e.Operation, null));
+  _analyticsStats.overflow += rest.length - keep.length;          // `online` left unsent
+  if (keep.length) _analyticsResendStore().add(keep);
   Promise.race([Promise.allSettled(batch.map(_analyticsSend)), new Promise((r) => setTimeout(r, 1500))])
-    .finally(() => app.quit());
+    .finally(() => { _analyticsResend?.flush(); app.quit(); });
 });
 
 // A TigerTag+ is "Certified" when its factory signature checks out — the test the
@@ -1825,6 +1899,28 @@ async function _fetchCatalogSnapshot({ ignoreEtag = false } = {}) {
     clearTimeout(timer);
   }
 }
+
+// An iPhone photo (HEIC/HEIF) picked as an avatar: Chromium can't decode it, so on
+// macOS `sips` converts it to JPEG for the cropper (which scales it to 512 px).
+// { ok, data: Uint8Array } | { ok: false, error: "unsupported" | "failed" }.
+ipcMain.handle('avatar:heic-to-jpeg', async (_evt, bytes) => {
+  if (process.platform !== 'darwin') return { ok: false, error: 'unsupported' };
+  if (!(bytes instanceof Uint8Array) || !bytes.length || bytes.length > 60 * 1024 * 1024) return { ok: false, error: 'failed' };
+  const os = require('os'), { execFile } = require('child_process');
+  const base = path.join(os.tmpdir(), `tts-avatar-${process.pid}-${Date.now()}`);
+  const src = base + '.heic', out = base + '.jpg';
+  try {
+    await fs.promises.writeFile(src, bytes);
+    await new Promise((res, rej) => execFile('/usr/bin/sips', ['-s', 'format', 'jpeg', src, '--out', out],
+      { timeout: 20000 }, (err) => (err ? rej(err) : res())));
+    return { ok: true, data: new Uint8Array(await fs.promises.readFile(out)) };
+  } catch (e) {
+    console.warn('[avatar:heic-to-jpeg]', e?.message || e);
+    return { ok: false, error: 'failed' };
+  } finally {
+    fs.promises.unlink(src).catch(() => {}); fs.promises.unlink(out).catch(() => {});
+  }
+});
 
 // The empty-spool (container) catalogue, managed in the Manager and served by
 // the API in the asked language: `[{ id, brandId, brand, label, labels, type,
@@ -2349,11 +2445,11 @@ function _mcpBuildBundle(cfg) {
   const manifest = {
     manifest_version: '0.3',
     name: 'tiger-studio-manager',
-    display_name: 'Tiger Studio Manager',
+    display_name: 'TigerSystem.io',
     version: app.getVersion(),
-    description: 'Ask about your TigerTag filament inventory, storage racks and 3D printers — read-only.',
-    long_description: 'Reads the inventory open in Tiger Studio Manager on this computer: spools, remaining weight, colours, storage location, racks and printers. Read-only. Tiger Studio Manager must be running with AI assistants turned on in Settings.',
-    author: { name: 'TigerTag Project', url: 'https://tigersystem.io' },
+    description: 'Ask about your TigerTag filament inventory, storage racks and 3D printers.',
+    long_description: 'Reads the inventory open in Tiger Studio Manager on this computer: spools, remaining weight, colours, storage location, racks and printers. Read only unless you set it to Read & write in Studio (AI assistant › Manage access): weights, notes, prices, storage and new spools, every change undoable, nothing ever deleted. Tiger Studio Manager must be running.',
+    author: { name: 'TigerSystem.io', url: 'https://tigersystem.io' },
     homepage: 'https://tigersystem.io',
     icon: 'icon.png',
     server: {
@@ -2367,7 +2463,7 @@ function _mcpBuildBundle(cfg) {
     },
     tools: _mcpTools.map(t => ({ name: t.name, description: t.description })),
     keywords: ['tigertag', '3d printing', 'filament', 'inventory'],
-    license: 'Proprietary',
+    license: 'MIT',   // as the app (package.json)
   };
   const files = [
     { name: 'manifest.json', data: Buffer.from(JSON.stringify(manifest, null, 2)) },
@@ -2416,6 +2512,36 @@ ipcMain.handle('mcp:install', async (_evt, target) => {
     return { ok: false, error: e.message };
   }
 });
+// "Open Claude / Cursor / VS Code / the terminal" on the setup's last step.
+// A fixed list: a target name maps to a URL scheme or a system path, never to
+// anything the renderer sends. Only what this computer has is offered.
+function _mcpAppTargets() {
+  const term = process.platform === 'darwin' ? '/System/Applications/Utilities/Terminal.app'
+    : process.platform === 'win32' ? [path.join(process.env.LOCALAPPDATA || '', 'Microsoft', 'WindowsApps', 'wt.exe'),
+        path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'cmd.exe')].find(f => { try { return fs.existsSync(f); } catch (_) { return false; } })
+    : null;
+  return {
+    'claude-desktop': { url: 'claude://' },
+    cursor: { url: 'cursor://' },
+    vscode: { url: 'vscode://' },
+    'gemini-cli': term && fs.existsSync(term) ? { file: term } : null,
+  };
+}
+const _mcpAppAvailable = (t) => !!t && (t.file ? true : !!app.getApplicationNameForProtocol(t.url));
+ipcMain.handle('mcp:can-open', async () => {
+  const out = {};
+  for (const [k, t] of Object.entries(_mcpAppTargets())) { try { out[k] = _mcpAppAvailable(t); } catch (_) { out[k] = false; } }
+  return out;
+});
+ipcMain.handle('mcp:open-app', async (_evt, target) => {
+  const t = _mcpAppTargets()[target];
+  if (!_mcpAppAvailable(t)) return { ok: false, error: 'not-available' };
+  try {
+    if (t.file) { const err = await shell.openPath(t.file); return err ? { ok: false, error: err } : { ok: true }; }
+    await shell.openExternal(t.url);
+    return { ok: true };
+  } catch (e) { return { ok: false, error: e.message }; }
+});
 ipcMain.handle('mcp:new-token', async () => {
   _mcpWritePrefs({ ..._mcpReadPrefs(), token: crypto.randomBytes(24).toString('hex') });
   await _mcpApply();
@@ -2444,6 +2570,29 @@ ipcMain.handle('mcp:hosted-grants', async (_evt, idToken, revokeId) => {
     const res = await fetch(url, {
       method: del ? 'DELETE' : 'GET',
       headers: { Authorization: `Bearer ${idToken}` },
+      signal: ctl.signal,
+    });
+    const json = res.status === 204 ? null : await res.json().catch(() => null);
+    return { ok: res.ok, status: res.status, json };
+  } catch (e) {
+    return { ok: false, status: 0, error: e?.message || String(e) };
+  } finally {
+    clearTimeout(tm);
+  }
+});
+
+// One grant's access: Read or Read & write (`PATCH ?id=` with { write }), the
+// same endpoint and bearer as the list. Fixed URL, a boolean body, nothing else.
+ipcMain.handle('mcp:hosted-grant-write', async (_evt, idToken, grantId, write) => {
+  if (!idToken || typeof idToken !== 'string') return { ok: false, status: 0, error: 'no token' };
+  if (typeof grantId !== 'string' || !/^[\w-]{1,128}$/.test(grantId)) return { ok: false, status: 0, error: 'invalid id' };
+  const ctl = new AbortController();
+  const tm = setTimeout(() => ctl.abort(), 10000);
+  try {
+    const res = await fetch(`${MCP_GRANTS_URL}?id=${encodeURIComponent(grantId)}`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ write: write === true }),
       signal: ctl.signal,
     });
     const json = res.status === 204 ? null : await res.json().catch(() => null);

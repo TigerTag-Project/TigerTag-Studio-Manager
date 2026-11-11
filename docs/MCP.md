@@ -47,7 +47,7 @@ off, and signing out stops it. Studio must be running and signed in for a local 
 The page shows the welcome: what it can do, "Pick my assistant" with one big tile per assistant (a
 tile starts the setup on that assistant's next step), and on the right a made-up chat playing four
 case studies (help, at home, family & friends, a business with several sites, fablabs & schools). The setup then runs in
-a wide side card on the right (the page keeps its demo); its first screen is **Assistant** (Claude on this computer, Claude on the web & phone — two tiles, so Claude is never asked where —, ChatGPT, Cursor, VS Code, Le Chat, Grok; "I don't use an assistant
+a wide side card on the right (the page keeps its demo); its first screen is **Assistant** (Claude on this computer, Claude on the web & phone — two tiles, so Claude is never asked where —, ChatGPT, Cursor, VS Code, Le Chat, Grok, Gemini CLI on this computer, Gemini on the web & phone; "I don't use an assistant
 yet" → download Claude; "Other assistant" = any MCP client — this computer: copy a ready `mcpServers` configuration, URL + key; online: the connector address) → **Where** (this computer / web and phone — asked only when the assistant
 does both) → **Access** (this computer only: read only by default, or read and change) →
 **Connection**. The named markers show only the steps of this flow.
@@ -55,10 +55,22 @@ does both) → **Access** (this computer only: read only by default, or read and
 - **On this computer**: one button. It turns the local server on with the chosen access, and
   `mcpBridge.install` opens Claude Desktop's extension install (a `.mcpb` bundle) or Cursor's /
   VS Code's install link. The screen then says what to do and waits; "Claude didn't open?" offers a
-  retry and the guide.
-- **Online** (the Hub's `https://mcp.tigersystem.io/mcp`, OAuth 2.1, read only, design in
+  retry and the guide. Gemini CLI has no install link: "Copy the command" copies
+  `gemini mcp add -s user --transport http tiger-studio <url> --header "Authorization: Bearer <key>"`
+  (writes `~/.gemini/settings.json`, `httpUrl` + `headers`), pasted in a terminal; `/mcp` in Gemini CLI
+  shows it connected. Its guide button opens Google's own page.
+- **Open the app** (the Connection step's wait): "Open Claude / Cursor / VS Code" (`claude://`, `cursor://`,
+  `vscode://`) or "Open the terminal" (Gemini CLI; macOS Terminal, Windows Terminal or cmd), through main's
+  `mcp:open-app` on a fixed target list, shown only when `mcp:can-open` finds the app
+  (`app.getApplicationNameForProtocol` / the file exists). Online, "Open <assistant>" opens its connectors page
+  (Claude `claude.ai/settings/connectors`, ChatGPT `chatgpt.com/#settings/Connectors`, Grok `grok.com/connectors`)
+  or its home page (Le Chat, Gemini: no direct settings link).
+- **Online** (the Hub's `https://mcp.tigersystem.io/mcp`, OAuth 2.1, Read or Read & write picked on the consent screen, design in
   `MCP-HOSTED.md` of the `TigerTag_Hub` repo): "Copy the address" and "Open the guide" (the wiki,
   `wiki.tigersystem.io/guides/connect-an-ai-assistant/`, on that assistant's anchor, `/fr/` in French).
+  Gemini (the app) has no wiki section yet: its guide button opens Google's help page (custom apps,
+  added in the Gemini web app; Google limits them for now to the US, 18+, a personal account with Keep
+  Activity on — said on the connect screen). The OAuth flow with Gemini is not tested yet.
 - The wait ends by itself: locally on the first tool call (every call reaches `aiOnToolCall` through
   the `mcp:call` relay), online on a grant created or used since (`hostedGrants`, every 5 s, only while
   that screen is open). "It answered, carry on" ends it by hand.
@@ -92,8 +104,8 @@ The one place for these settings:
 
 | Block | What it holds |
 |---|---|
-| **On this computer** | one switch, "Let an AI read my inventory" (`setEnabled`; on starts read only and counts for the `aiAssistant` quest, off turns changes off too), then Read only / Read and change (`setWrite`) and **Renew the local key** shown while it is on (hold 1.5 s) — every local assistant must be added again |
-| **Online** | one row per assistant connected to the Hub (`GET https://tigersystem.io/api/account/mcp-grants` with the account's Firebase ID token): name, read only, connected date, last use, **Cut access** (hold 1.5 s → `DELETE …?id=`; 204 or 404 both remove the row) |
+| **On this computer** | one switch, "Let an AI read my inventory" (`setEnabled`; on starts read only and counts for the `aiAssistant` quest, off turns changes off too), then the Read | Read & write switch (`setWrite`) and **Renew the local key** shown while it is on (hold 1.5 s) — every local assistant must be added again |
+| **Online** | one row per assistant connected to the Hub (`GET https://tigersystem.io/api/account/mcp-grants` with the account's Firebase ID token): name, the Read | Read & write switch (`mcp:hosted-grant-write`; a Hub that sends no `write`/`scope` shows "Read only" instead) with a note that the switch shows in the assistant's next chat, connected date, last use, **Cut access** (hold 1.5 s → `DELETE …?id=`; 204 or 404 both remove the row) |
 
 The Hub route sends no CORS headers, so both calls go through the main process (`mcp:hosted-grants`
 IPC → `mcpBridge.hostedGrants(idToken, revokeId?)`, fixed URL, GET/DELETE only).
@@ -206,8 +218,8 @@ structured values; the tool does the colour and gram arithmetic):
 | `identify_spool` | the spool a QR code (`qr.tigertag.io/<id>`, read with `qr-link.js` `parseQrLink`) or a chip UID / spool id designates — inventory, twin, linked maker chip, then `uidMigrationMap`; a product QR (`/p/…`) gives the product and the user's spools of it; `?weight=` / `?note=` come back as `proposed_values`, never applied |
 | `match_filaments` | for each filament of a print `{slot, color_hex, material, grams}`: ranked spools of the stock (material by ID, colour by ΔE, needed = grams × (1 + margin) + 5 g, a spool never counted twice), the pick, `enough` / `shortfall_g`, location, and catalogue products to buy for what is missing |
 
-Write tools — listed to the assistant only when the signed-in account's access is **Read and
-change** (AI assistant › Manage access, or the setup; `writeFor` in `mcp.json`, filtered in `main.js`
+Write tools — listed to the assistant only when the signed-in account's access is **Read &
+write** (AI assistant › Manage access, or the setup; `writeFor` in `mcp.json`, filtered in `main.js`
 `listTools` and checked again by `_mcpWriteGate`):
 
 | Tool | Does |
@@ -227,11 +239,17 @@ does not wait), `svg_text` returns the SVG in the answer, `qr_svg` only its QR c
 encoding, 4-module quiet zone) with its link. `find_free_slots` (read-only) lists the free, unlocked
 slots per rack, depth included — where `move_spool` can store a spool.
 
-Every write is twin-mirrored, journaled in localStorage `tigertag.agentChanges.<uid>` (300 newest,
-30 days) and runs inside `questsMuted()` — no quest, XP or TigerCoins for an assistant's change.
+Every write is twin-mirrored, journaled — in Firestore `users/{uid}/agentChanges/{id}`, the journal
+shared with the hosted connector (`via: "local" | "online"`, `client`, `grantId`, `expireAt` = 30 days for
+a TTL policy), and in localStorage `tigertag.agentChanges.<uid>` (600 newest, 30 days), which carries on
+alone while the collection's rules are not live — and runs inside `questsMuted()` — no quest, XP or
+TigerCoins for an assistant's change. The history and Undo read both copies merged by id (an online
+change shows its assistant's name), and an undo marks `undoneAt` in both.
 **Nothing is ever deleted** by an assistant: a finished spool is set to 0 g, a spool created by
-mistake is deleted by the user. 500 changes a day per account. The hosted connector has no write
-tool yet.
+mistake is deleted by the user. 500 changes a day per account. The hosted connector's write tools
+(same contract, an OAuth scope `read write` chosen at consent, changed later per assistant by
+`PATCH /api/account/mcp-grants?id=` `{write}` — Studio's Manage access row switch, main
+`mcp:hosted-grant-write`) are live on the Hub since v1.70.0 (2026-11-11).
 
 `data_guide` → `reading_files` tells the model where a `.3mf` keeps its filaments (Bambu / Orca
 `Metadata/slice_info.config` `used_g`; unsliced = no grams) and how to read an invoice or a photo.
@@ -386,10 +404,10 @@ curl -s -H "Content-Type: application/json" -H "Authorization: Bearer $TOK" \
    (Hub `lib/mcp/schemas.ts` + `lib/mcp/guide.ts` mirror `MCP_TOOLS` + `MCP_DATA_GUIDE`).
    Works without Studio running; live printer state stays Studio-only. Users see and revoke
    connected assistants on tigersystem.io → account → Data.
-2. **Writes** — local server built (§5 "Write tools"). Left: the hosted connector (an OAuth
-   scope `inventory.write` chosen at consent, the journal moved to Firestore
-   `users/{uid}/agentChanges` with its rule, so a change made online can be undone anywhere),
-   colour edits, spools outside the catalogue.
+2. **Writes** — local server (§5 "Write tools") and, since Hub v1.70.0 (2026-11-11), the hosted
+   connector: scope `read write` picked at consent, journal shared in Firestore
+   `users/{uid}/agentChanges`, so a change made online is undone from Studio and the other way
+   round (`MCP-HOSTED-WRITES.md`). Left: colour edits, spools outside the catalogue.
 3. **In-app agent** sharing the same tool registry (local model, Ollama, or the user's key).
 
 ---
@@ -402,3 +420,6 @@ curl -s -H "Content-Type: application/json" -H "Authorization: Bearer $TOK" \
   Spec: <https://github.com/modelcontextprotocol/mcpb>.
 - Cursor install link: `cursor://anysphere.cursor-deeplink/mcp/install?name=<n>&config=<base64 JSON>`.
 - VS Code install link: `vscode:mcp/install?<url-encoded JSON {name, type, url, headers}>`.
+- Gemini CLI: `gemini mcp add [-s user] --transport http <name> <url> --header "Authorization: Bearer <key>"`;
+  spec: <https://google-gemini.github.io/gemini-cli/docs/tools/mcp-server.html>.
+- Gemini app custom apps: <https://support.google.com/gemini/answer/17209137>.

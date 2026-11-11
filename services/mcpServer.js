@@ -44,7 +44,7 @@ function createMcpServer({ serverVersion, listTools, callTool, log = () => {} })
         return rpcResult(msg.id, {
           protocolVersion: PROTOCOL_VERSIONS.includes(asked) ? asked : PROTOCOL_VERSIONS[0],
           capabilities: { tools: { listChanged: false } },
-          serverInfo: { name: 'tiger-studio-manager', title: 'Tiger Studio Manager', version: serverVersion },
+          serverInfo: { name: 'tiger-studio-manager', title: 'TigerSystem.io', version: serverVersion },   // the name assistants show (same as the hosted one)
           instructions:
             'Access to the TigerTag account open in Tiger Studio Manager: filament spools, '
             + 'storage racks, 3D printers, scales, wishlists, friends and their shared inventories, data history. '

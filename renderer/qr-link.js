@@ -6,11 +6,16 @@
  * (labels/index.js).
  *
  *   spoolLink(spoolId)        — https://qr.tigertag.io/<id>, lowercase; null when not printable
- *   productLink(idProduct)    — https://qr.tigertag.io/p/<8 hex>; null without a real id
+ *   productLink(idProduct)    — https://qr.tigertag.io/p/<10 digits>; null without a real id
+ *   productShareLink(id, lang) — https://qr.tigertag.io/<lang>/p/<10 digits>: the product page in
+ *                               the sharer's language (shared links, never printed)
+ *   spoolShareLink(id, lang)   — https://qr.tigertag.io/<lang>/<spool id>: a spool shared by its owner
+ *                               (shown to friends / a public inventory, else its product)
  *   spoolIdFromPath(text)     — a spool id in any accepted form → its doc id; null otherwise
  *   parseQrLink(text)         — a qr.tigertag.io link → { kind: "spool", id, weight, note }
- *                               | { kind: "product", idProduct } | { kind: "newer" } ; null
- *                               when the text is not such a link
+ *                               | { kind: "product", idProduct, idProductDecimal? } | { kind: "newer" } ; null
+ *                               when the text is not such a link. Each also carries `format`, the link's
+ *                               ending: "page" | "json" | "ttag"
  *   linkValues(params)        — the §4 values of a query string, each null when absent or refused
  */
 
@@ -29,8 +34,21 @@ export function spoolLink(spoolId) {
 export function productLink(idProduct) {
   const n = Number(idProduct);
   if (!Number.isFinite(n) || n <= 0 || n >= 0xFFFFFFFF) return null;
-  return `https://${QR_HOST}/p/` + (n >>> 0).toString(16).padStart(8, "0");
+  // The decimal id_product on 10 digits (zeros in front), since 2026-11-11: two lengths
+  // (10 digits now, 8 hex on older labels) that a reader never confuses.
+  return `https://${QR_HOST}/p/` + String(n >>> 0).padStart(10, "0");
 }
+
+// A shared product link opens the page in the sharer's language: the UI language as
+// a path prefix. Printed labels keep the language-neutral productLink.
+const LANGS = ["en", "fr", "de", "es", "it", "zh", "pt", "pt-pt", "pl", "ru", "nl"];
+const withLang = (link, lang) => {
+  const l = String(lang || "").toLowerCase();
+  return link && LANGS.includes(l) ? link.replace(`${QR_HOST}/`, `${QR_HOST}/${l}/`) : link;
+};
+export const productShareLink = (idProduct, lang) => withLang(productLink(idProduct), lang);
+export const spoolShareLink = (spoolId, lang) => withLang(spoolLink(spoolId), lang);
+const LANG_PREFIX = /^(?:en|fr|de|es|it|zh|pt|pt-pt|pl|ru|nl)\//i;   // a shared link's /<lang>/
 
 // The short form (17 or 10 digits, 14 hex, a truncated 13-hex NTAG UID) and the
 // long form (`TigerData` in any case, `_` or `-`, the digits). The length always
@@ -59,10 +77,27 @@ export function parseQrLink(text) {
   try { url = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(s) ? s : "https://" + s); } catch (_) { return null; }
   if (!/^https?:$/i.test(url.protocol) || url.hostname.toLowerCase() !== QR_HOST) return null;
   // A `.json` / `.ttag` ending asks for the answer for tools: the same spool or product.
-  const path = decodeURIComponent(url.pathname).replace(/^\/+|\/+$/g, "").replace(/\.(json|ttag)$/i, "");
-  const p = /^p\/([0-9a-f]{8})$/i.exec(path);
-  if (p) return { kind: "product", idProduct: parseInt(p[1], 16) };
-  const id = spoolIdFromPath(path);
-  if (id) return { kind: "spool", id, ...linkValues(url.searchParams) };
-  return { kind: "newer" };   // another shape: a label from a newer version
+  const raw = decodeURIComponent(url.pathname).replace(/^\/+|\/+$/g, "");
+  const ext = /\.(json|ttag)$/i.exec(raw);
+  const format = ext ? ext[1].toLowerCase() : "page";   // the link's ending, for the analytics
+  const path = ext ? raw.slice(0, -ext[0].length) : raw;
+  // A product: 10 digits = the decimal id_product as printed (productLink); 8
+  // characters = the hex form of labels printed before 2026-11-11; any other
+  // length of digits = a decimal typed by hand. 8 plain digits read both ways:
+  // hex first (older labels), the decimal reading as `idProductDecimal`, for the
+  // caller to try when the hex one is no known product (the server does the same).
+  const bare = path.replace(LANG_PREFIX, "");   // a shared link carries the sharer's /<lang>/
+  const p = /^p\/([0-9a-f]{1,10})$/i.exec(bare);
+  if (p) {
+    const x = p[1];
+    if (x.length === 8) {
+      const hex = { kind: "product", idProduct: parseInt(x, 16) };
+      return /^\d{8}$/.test(x) ? { ...hex, idProductDecimal: Number(x), format } : { ...hex, format };
+    }
+    // 0 and 4294967295 mean "no product", read as such like their hex forms.
+    if (/^\d{1,10}$/.test(x) && Number(x) <= 0xFFFFFFFF) return { kind: "product", idProduct: Number(x), format };
+  }
+  const id = spoolIdFromPath(bare);
+  if (id) return { kind: "spool", id, ...linkValues(url.searchParams), format };
+  return { kind: "newer", format };   // another shape: a label from a newer version
 }

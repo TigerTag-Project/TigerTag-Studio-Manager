@@ -1,15 +1,18 @@
 # Referrals — invite a friend, both get a reward
 
-> Status: **validated 2026-11-01 (answers in §12), built, not deployed** — backend function + rule,
+> Status: **validated 2026-11-01 (answers in §12), built; 2026-11-10 rule change (referrer paid for an active invitee, 10 a month, no automatic friendship) deployed 2026-11-10 (backend PR #11 `c8662e4`; invitee paid at the first spool too: `97350aa`, revision referrals-00010)** — backend function + rule,
 > Studio, Hub page and admin tab. Left: deploy on the founder's go, the art (banner scene, ceremony
 > picture, 6 stickers — placeholders until then).
+> The invitee's journey from the link to the first spool (four stations on every surface, screens,
+> strings) is specified in [`REFERRAL-JOURNEY.md`](REFERRAL-JOURNEY.md), validated 2026-11-10.
 > Founder's asks: invite through social networks; a reward for the referrer AND the invitee once the
 > invitee's account is created and validated; the referrer earns a trophy at the 1st, 5th and 10th
 > invite; both get **3 envelopes**.
 
 Words used here: **referrer** (the member who invites), **invitee** (the new account),
-**claim** (the invitee says who invited them), **validation** (the invitee proves to be a real
-user, which releases the rewards).
+**claim** (the invitee says who invited them), **validation** (the invitee verifies their
+e-mail), **active** (validated, signed in to an app and holding a first spool: what releases the
+rewards, both sides at once).
 
 ---
 
@@ -27,10 +30,13 @@ Invite view → share  ──link──▶  tigersystem.io/join/<CODE>
                                                                        (prefilled from the deep link,
                                                                         or Paste)
                                                                      ──▶ referrals "claim"  (server)
-                                  both become friends ◀──────────────     state = pending
+                                  "referral_joined" ◀────────────────     state = pending
+                                  (not friends: a friend request
+                                   stays a separate step)
                                                                      e-mail verified (≤ 7 days) 
-                                                                     ──▶ server validates
-3 envelopes + trophy + ceremony ◀──────────── referral validated ──▶ 3 envelopes + "Invited" trophy
+                                                                     ──▶ server validates (pays nobody)
+                                                                     signs in to an app + 1 spool
+3 envelopes + trophy + ceremony ◀──── both paid (referrer ≤ 10 a month) ──▶ 3 envelopes + "Invited" trophy
                                                                        + ceremony
 ```
 
@@ -62,7 +68,7 @@ Invite view → share  ──link──▶  tigersystem.io/join/<CODE>
 The landing is now the referral's front door, not only the add-friend page: a signed-out visitor
 creates the account **right on the page** (Google, or e-mail + password with the `authMail`
 verification mail) and the page calls `referrals` `claim` at once (`client=hub`, let through the
-version gate). Both become friends straight away; the envelopes follow the e-mail check as before;
+version gate). The claim does not make them friends (since 2026-11-10); the envelopes follow the e-mail check as before;
 the page then says "Download Tiger Studio and sign in with this account". A signed-in account that
 may still claim gets one "Accept <name>'s invitation" button; any other account keeps the friend
 request. No `tigertag://` launch on load any more. Studio's "Who invited you?" step stays for
@@ -76,7 +82,7 @@ who already has an account; the tunnel sends such an account there itself. Four 
 referrer's avatar, the gift, three reassurances: free and no card · no ads or spam · delete anytime)
 → **Account** (Google or e-mail; the claim follows at once) → **E-mail** ("I've confirmed it" re-reads
 the account and calls `status`, which validates the referral; "Send the link again") → **The app**
-(download Tiger Studio, sign in with this account: the friend is there, the envelopes wait). An account
+(download Tiger Studio, sign in with this account: the envelopes wait). An account
 that cannot be referred goes to the friend page. Hub: `features/join/`.
 
 ---
@@ -158,14 +164,14 @@ Checks, in one transaction, else an error code shown in the field's error bubble
 
 Then:
 - writes `referrals/{inviteeUid}` (state `pending`) and `referralEmails/{sha256(email)}`;
-- **makes them friends** at once, same writes as `autoAcceptFriendRequestForPublic` (both
-  `friends` docs, `friendsCount` on both profiles, any pending request between them deleted);
+- does **not** make them friends (since 2026-11-10; before, the claim wrote both `friends` docs).
+  If they want to be friends, one sends a friend request like anyone else;
 - notifies the referrer (`notifications`, type `referral_joined`): *"Léa joined with your link —
-  envelopes as soon as they verify their e-mail."*
+  their envelopes come with the confirmed e-mail, yours once they open an app and add a spool."*
 
 ---
 
-## 5. Validation — what releases the rewards
+## 5. Validation — the e-mail step (rewards wait for the first spool, §6)
 
 A referral is **validated** when the **invitee verifies their e-mail address** (Auth
 `emailVerified`; a Google sign-in is verified from the start, so it validates at the claim).
@@ -175,32 +181,54 @@ Founder's choice: e-mail only, no daily-set condition.
   and from the `status` action, which Studio calls at launch while a claim is pending and right
   after the e-mail verification screen.
 - **7-day window**: the invitee has 7 days after the claim to click the verification link. Past
-  that, the referral turns `expired` — no envelopes, the friendship stays. Without a window an
+  that, the referral turns `expired` — no envelopes. Without a window an
   unverified account would sit "Signed up" in the referrer's list forever.
-- Anti-farming without a cap rests on: one claim per e-mail ever (hash kept after deletion), a
-  verified address, no self / loop, and the Hub's top-referrers list to spot abuse. `monthlyCap`
-  stays in the config at `0` (= none) so a cap can be switched on from the Hub without a deploy.
+- Validation pays nobody: both sides are paid once the invitee is **active** (§6).
+- Anti-farming: one claim per e-mail ever (hash kept after deletion), a verified address, no
+  self / loop, the referrer paid only for an active invitee, and a monthly cap (§6). Added on
+  2026-11-10 after an audit: one referrer had been paid for 24 referrals in a day, 13 of whom never
+  opened an app; of 74 validated referrals, 15 invitees were active.
 
 ---
 
 ## 6. Rewards
 
-On validation, in one transaction:
+| Who | When | Reward |
+|---|---|---|
+| Invitee | once **active** (below), never capped | **3 envelopes** (kind `referral`), trophy `invited`, notification `referral_validated` |
+| Referrer | at the same moment, within the monthly cap | **3 envelopes** (kind `referral`), counter `referrals` +1 → tier trophies (§7), notification `referral_validated { data.envelopes }` |
 
-| Who | Reward |
-|---|---|
-| Invitee | **3 envelopes** (kind `referral`), trophy `invited` |
-| Referrer | **3 envelopes** (kind `referral`), counter `referrals` +1 → tier trophies (§7) |
+**Active** = the invitee's e-mail is verified (validation, §5, which pays nobody since 2026-11-10),
+they signed in once to an app (`users/{uid}.studioLastSeen` or `mobileLastSeen`) **and** hold at
+least `minSpools` (default 1) spool. `tryPayActive` pays both sides in one transaction
+(`inviteeState` waiting | paid, `inviteePaidAt`; a referral without `inviteeState` counts as paid).
+
+- The referrer's payment is checked on every `status` call, by the invitee and by the referrer
+  (up to 25 unpaid referrals per call).
+- **Monthly cap**: at most `monthlyCap` (default **10**) paid referrals per referrer and calendar
+  month (UTC), i.e. 30 envelopes. Over it the referral stays `capped` and is paid in a later month.
+- `status` (backwards compatible): `invitees[].referrerState` = `waiting` (invitee not active yet)
+  | `capped` | `paid`, `referrerPaid` kept; a validated invitee not paid for yet keeps `state:
+  "pending"` in the referrer's list; `validated` counts paid referrals, `waiting` the unpaid ones
+  (waiting + capped); `cfg` gains `monthlyCap` and `minSpools`; `progress { emailVerified,
+  appSignedIn, firstSpool }` (the caller's own journey), `mine.inviteeState` / `mine.inviteePaid`;
+  each side's celebration entry comes only once paid. `referrerState` is null until the e-mail
+  is verified; a verified but unpaid row still reaches the referrer as `state: "pending"` (older
+  builds show it waiting), so Studio reads the e-mail step from `validatedAt`.
+- Studio (`renderer/quests/referrals.js`): the "How it works" line has a 4th stop (the friend adds a
+  first spool → you get yours, `{{cap}}` a month max); an invitee row shows under the name why it
+  is not paid yet (`referralWaitActive`, `referralCapped`); the e-mail column reads
+  `validatedAt`, the envelopes column turns done only once paid; the invitee's own card says
+  "Add your first spool: your envelopes are waiting" while `inviteeState` is `waiting`
+  (`referralMineSpool`).
 
 - Envelopes go through the existing gift envelopes (`users/{uid}/envelopes`, `coinEnvelopes.js`
   `envelopeData`): **three separate envelopes**, each holding **one standard surprise envelope**,
   with a localised message (*"Thanks for bringing Léa!"* / *"Ben's welcome gift"*) and
   `from` = the other person. They show in the pile and open like any gift envelope.
-  Config in `config/referrals { envelopes: 3, surpriseType: "standard", monthlyCap: 0,
-  claimDays: 7, validateDays: 7, active: true }` so the Hub can tune it without a deploy.
-- **No cap** (founder's choice): every validated referral pays both. If `monthlyCap` is ever set
-  above 0 in the Hub, a referrer past it still gets the friend, the trophies and the list row but no
-  envelopes, and the invitee is always paid.
+  Config in `config/referrals { envelopes: 3, surpriseType: "standard", monthlyCap: 10,
+  minSpools: 1, claimDays: 7, validateDays: 7, active: true }` so the Hub can tune it without a
+  deploy.
 - coinLog rows: `{ kind: "referral", envelopeId, from | to }` so the history reads
   *"Referral — Léa"*.
 
@@ -276,7 +304,7 @@ A **Referrals** panel in `features/admin/`: claims / validated / expired per mon
 
 1. **Envelopes**: three separate gift envelopes, one standard surprise each.
 2. **Validation**: verified e-mail only.
-3. **Cap**: none (`monthlyCap: 0`, switchable from the Hub).
+3. **Cap**: none (`monthlyCap: 0`, switchable from the Hub). *Changed 2026-11-10: 10 paid referrals a month, the referrer paid only for an active invitee (§6).*
 4. **Placement**: several entry points (§3).
 5. **Windows**: 7 days after sign-up to declare the referrer; 7 days after the claim to verify the
    e-mail.

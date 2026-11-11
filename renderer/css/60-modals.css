@@ -758,8 +758,8 @@
      doesn't have overflow:hidden anymore. */
   .eac-avatar .eac-avatar-hover-overlay { border-radius: 50%; }
   /* Discord-style hover overlay on the edit-account avatar — pure CSS
-     show/hide on :hover, no JS. Click is wired in the JS to open the
-     avatar-menu popover. */
+     show/hide on :hover, no JS. A click opens the identity window
+     (openIdentityModal). */
   .eac-avatar-editable { cursor: pointer; }
   .eac-avatar-hover-overlay {
     position: absolute; inset: 0;
@@ -771,37 +771,6 @@
   }
   .eac-avatar-hover-overlay .icon { background: var(--on-accent); }
   .eac-avatar-editable:hover .eac-avatar-hover-overlay { opacity: 1; }
-
-  /* Popover menu — anchored to the avatar (.eac-avatar is the relative
-     container). Two items max: Change avatar + (optionally) Remove. */
-  .avatar-menu {
-    position: absolute;
-    top: calc(100% + 8px); left: 0;
-    min-width: 180px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    box-shadow: 0 12px 36px rgba(0,0,0,.18);
-    padding: 6px;
-    display: none;
-    z-index: 30;                 /* above the modal-card stacking context */
-  }
-  .avatar-menu.open { display: block; }
-  .avatar-menu-item {
-    display: flex; align-items: center; gap: 9px;
-    width: 100%;
-    padding: 8px 12px;
-    border: none; background: transparent;
-    color: var(--text); font-size: 13px; font-weight: 500;
-    text-align: left;
-    border-radius: 6px;
-    cursor: pointer;
-    font-family: inherit;
-  }
-  .avatar-menu-item:hover { background: var(--surface-2); }
-  .avatar-menu-item--danger { color: var(--danger-text); }
-  .avatar-menu-item--danger:hover { background: var(--danger-soft); }
-  .avatar-menu-item .icon { background: currentColor; }
 
   /* ─── Avatar cropper modal (Discord-style) ────────────────────── */
   /* The cropper is a TOOL modal opened from other modals (edit-account,
@@ -1301,6 +1270,8 @@
   .eac-mcp-logo--vscode { background-color: #007ACC; -webkit-mask-image: url('../../assets/svg/brands/vscode.svg'); }
   .eac-mcp-logo--chatgpt { background-color: var(--text); -webkit-mask-image: url('../../assets/svg/brands/chatgpt.svg'); }
   .eac-mcp-logo--grok { background-color: var(--text); -webkit-mask-image: url('../../assets/svg/brands/grok.svg'); }
+  /* Gemini's star is a blue → violet gradient: the gradient painted through the mask. */
+  .eac-mcp-logo--gemini { background: linear-gradient(135deg, #3186FF 15%, #7B6CF0 60%, #B46FE0 90%); -webkit-mask-image: url('../../assets/svg/brands/gemini.svg'); }
   /* Mistral's logo is multicoloured: drawn as an image, not a tinted mask. */
   .eac-mcp-logo--mistral { background: url('../../assets/svg/brands/mistral.svg') center / contain no-repeat; }
   /* Ligue des pays: the current flag, then "Change" (opens the country window). */
@@ -1416,40 +1387,40 @@
      the only thing on the row carrying the current choice. */
   /* Two-state segmented control — wide and flat rather than tall and chunky,
      with a pill that SLIDES between the two options instead of the fill
-     teleporting. The moving pill is a single ::before positioned by :has(),
+     teleporting (also `.eac-seg--slide` anywhere else, e.g. the AI access choice). The moving pill is a single ::before positioned by :has(),
      so nothing in the markup or the JS has to know about it: the buttons keep
      toggling `.active` exactly as before.
 
      Both halves are equal width (flex: 1) so the pill's 50% travel is exact
      whatever the labels say — "Sombre"/"Clair" and "HT"/"TTC" both work. */
-  #editAccountModalOverlay .eac-seg {
+  #editAccountModalOverlay .eac-seg, .eac-seg.eac-seg--slide {
     position: relative; padding: 2px; gap: 0; border-radius: 9px;
     min-width: 172px; isolation: isolate;
     background: var(--surface-2); border: 1px solid var(--border);
   }
-  #editAccountModalOverlay .eac-seg::before {
+  #editAccountModalOverlay .eac-seg::before, .eac-seg.eac-seg--slide::before {
     content: ""; position: absolute; z-index: -1;
     top: 2px; bottom: 2px; left: 2px; width: calc(50% - 2px);
     border-radius: 7px; background: var(--primary);
     transition: transform .22s cubic-bezier(.4, 0, .2, 1);
   }
   /* Second option active → the pill travels one full slot to the right. */
-  #editAccountModalOverlay .eac-seg:has(.eac-seg-btn:last-child.active)::before {
+  #editAccountModalOverlay .eac-seg:has(.eac-seg-btn:last-child.active)::before, .eac-seg.eac-seg--slide:has(.eac-seg-btn:last-child.active)::before {
     transform: translateX(100%);
   }
   /* Nothing lit up → no pill (it would otherwise sit under the first option
      and claim a choice the user has not made). */
-  #editAccountModalOverlay .eac-seg:not(:has(.eac-seg-btn.active))::before { opacity: 0; }
+  #editAccountModalOverlay .eac-seg:not(:has(.eac-seg-btn.active))::before, .eac-seg.eac-seg--slide:not(:has(.eac-seg-btn.active))::before { opacity: 0; }
   /* Explicit height: the global `button { height: 40px }` in 70-detail-misc.css
      applies here too and made the control 46px tall — chunky rather than the
      flat, wide switch this wants to be. 28px + 2px padding + 2px border = 34. */
-  #editAccountModalOverlay .eac-seg-btn {
+  #editAccountModalOverlay .eac-seg-btn, .eac-seg.eac-seg--slide .eac-seg-btn {
     flex: 1 1 0; height: 28px; padding: 0 10px; border-radius: 7px;
     font-size: 12.5px; font-weight: 400; background: transparent;
     line-height: 1; transition: color .18s;
   }
   /* The pill paints the fill now — a background here would cover it mid-slide. */
-  #editAccountModalOverlay .eac-seg-btn.active {
+  #editAccountModalOverlay .eac-seg-btn.active, .eac-seg.eac-seg--slide .eac-seg-btn.active {
     background: transparent; color: var(--on-accent); font-weight: 600;
   }
 

@@ -5,7 +5,7 @@
  * Two kinds, one set of templates:
  *   • spool label   — its QR code is the spool link, https://qr.tigertag.io/<id>
  *                     (no QR for a CLOUD_ or legacy decimal id)
- *   • product label — its QR code is the product link, https://qr.tigertag.io/p/<8 hex>
+ *   • product label — its QR code is the product link, https://qr.tigertag.io/p/<10 digits>
  *                     (only with a real catalogue id_product)
  * A label carries the brand, the series on a black bar, the colour name,
  * its hex code(s), up to four value slots, the protocol pill and the QR
@@ -43,8 +43,9 @@ let current = null;   // { row } — the spool the card is for
 const $ = id => document.getElementById(id);
 const PREFS_KEY = "tigertag.label";
 
-// The eight templates (width × height in mm), laid out like the common spool
+// The nine templates (width × height in mm), laid out like the common spool
 // label sizes. `slots`: how many value slots the layout prints (0 = none).
+// "qrOnly" prints the QR and its pill alone (same as the Hub's lib/labels).
 export const LABEL_TEMPLATES = [
   { id: "classic",         w: 40, h: 30, slots: 4 },
   { id: "expanded",        w: 50, h: 30, slots: 4 },
@@ -54,6 +55,7 @@ export const LABEL_TEMPLATES = [
   { id: "vertical",        w: 30, h: 40, slots: 4 },
   { id: "verticalBold",    w: 30, h: 40, slots: 0 },
   { id: "verticalCompact", w: 25, h: 40, slots: 0 },
+  { id: "qrOnly",          w: 25, h: 30, slots: 0 },
 ];
 // The values a slot can show; all are print constants of the filament.
 export const LABEL_SLOTS = ["nozzle", "bed", "dry", "td", "diameter"];
@@ -94,7 +96,8 @@ function qrMatrix(text) {
 // scaled to PRINTER DOTS; the QR code is placed in dots so that every module covers
 // a whole number of dots. The black bar carries the series; the brand sits
 // where a maker logo would; `protocol` is a pill in the top-right corner
-// (TigerTag+ on every Filament Label).
+// (TigerQR+ when linked to a catalogue product, else TigerQR; TigerQR+ on every
+// Filament Label).
 const U = 10;   // layout units per millimetre
 const LAYOUTS = {
   classic:  { brand: [14, 10, 372, 50], bar: [14, 64, 260, 36, 30, 4, 29], name: [14, 129, 30, 600, 372], hex: [285, 90, 24, 24],
@@ -108,6 +111,8 @@ const LAYOUTS = {
               slots: { y: [252, 290, 328, 366], stacked: true, lx: 14, fs: 12, vfs: 15, vw: 130 }, qr: [152, 250, 137] },
   verticalBold:    { brand: [12, 8, 272, 50], bar: [0, 66, 300, 60, 36, 10, 42], name: [12, 170, 42, 600, 276], rule: [12, 225, 288], qr: [81, 242, 139] },
   verticalCompact: { brand: [12, 8, 226, 50], bar: [12, 66, 226, 36, 24, 4, 28], name: [12, 136, 36, 400, 226], hex: [12, 186, 20, 20], rule: [12, 190, 238], qr: [31, 204, 188] },
+  // `pill: [y, fontSize, height]` centres the pill instead of placing it top right.
+  qrOnly:   { pill: [10, 22, 32], qr: [25, 71, 200] },
 };
 
 // Estimated width of a line of Arial (bold runs wider).
@@ -162,11 +167,12 @@ export function buildLabel(info, link, { template = "classic", slots = [], dpi =
     qr = `<svg x="${x0}" y="${y0}" width="${side}" height="${side}" viewBox="0 0 ${m.n} ${m.n}" shape-rendering="crispEdges"><path d="${path}" fill="#000"/></svg>`;
   }
 
-  // The protocol pill, top right.
-  const pfs = slim ? 15 : 18, ph = slim ? 22 : 26;
+  // The protocol pill, top right — or centred where the layout gives it a row (L.pill).
+  const pfs = L.pill ? L.pill[1] : slim ? 15 : 18, ph = L.pill ? L.pill[2] : slim ? 22 : 26;
   const pw = info.protocol ? Math.ceil(info.protocol.length * pfs * 0.62 + 16) : 0;
-  const pill = info.protocol ? `<rect x="${LW - 10 - pw}" y="8" width="${pw}" height="${ph}" rx="${ph / 2}" fill="#fff" stroke="#000" stroke-width="2"/>`
-    + `<text x="${LW - 10 - pw / 2}" y="${8 + ph / 2 + pfs * 0.36}" font-size="${pfs}" font-weight="800" text-anchor="middle">${ctx.esc(info.protocol)}</text>` : "";
+  const px = L.pill ? (LW - pw) / 2 : LW - 10 - pw, py = L.pill ? L.pill[0] : 8;
+  const pill = info.protocol ? `<rect x="${px}" y="${py}" width="${pw}" height="${ph}" rx="${ph / 2}" fill="#fff" stroke="#000" stroke-width="2"/>`
+    + `<text x="${px + pw / 2}" y="${py + ph / 2 + pfs * 0.36}" font-size="${pfs}" font-weight="800" text-anchor="middle">${ctx.esc(info.protocol)}</text>` : "";
   // How far right a line starting at x, with this baseline and size, may run: up to
   // the QR when the line is level with it and the code lies to its right, up to the
   // pill on the pill's row, else to the label's edge.
@@ -182,7 +188,7 @@ export function buildLabel(info, link, { template = "classic", slots = [], dpi =
   if (L.stack) {
     const val = { brand: info.brand, bar: barText, name: info.name };
     L.stack.forEach(([y, size, weight, key, lines]) => { g += svgLines(val[key], 14, y, size, weight, room(14, y, size), size * 1.1, lines || 1); });
-  } else {
+  } else if (L.brand) {   // a layout without text lines (qrOnly) prints nothing here
     const [bx, by, bw, bh] = L.brand;
     const bfs = Math.round(bh * 0.8), bY = by + bh * 0.5 + bfs * 0.36;
     const beside = Math.min(bw, room(bx, bY, bfs));
@@ -281,7 +287,7 @@ function linkFor(row, kind) {
 export function labelFor(row, { kind = "spool", template, slots, dpi } = {}) {
   const p = prefs();
   const k = kind === "product" && productLink(row.idProduct) ? "product" : "spool";
-  const info = { ...ctx.labelInfo(row), ...(k === "product" ? { protocol: "TigerTag+" } : {}) };
+  const info = { ...ctx.labelInfo(row), ...(k === "product" ? { protocol: "TigerQR+" } : {}) };
   const opts = { template: template || p.template, slots: slots || p.slots, dpi: dpi || p.dpi };
   return { lbl: buildLabel(info, linkFor(row, k), opts), link: linkFor(row, k), kind: k };
 }
@@ -309,8 +315,8 @@ function render(body, cur) {
   const hasProduct = !!productLink(row.idProduct);
   const kind = cur.productOnly || (p.kind === "product" && hasProduct) ? "product" : "spool";
   const link = linkFor(row, kind);
-  // A Filament Label is a catalogue product: it always carries the TigerTag+ pill.
-  const info = { ...ctx.labelInfo(row), ...(kind === "product" ? { protocol: "TigerTag+" } : {}) };
+  // A Filament Label is a catalogue product: it always carries the TigerQR+ pill.
+  const info = { ...ctx.labelInfo(row), ...(kind === "product" ? { protocol: "TigerQR+" } : {}) };
   const lbl = buildLabel(info, link, p);
   // Preview: the very page that is printed, scaled to the card.
   const boxW = 340, scale = Math.min(boxW / lbl.wDots, 220 / lbl.hDots);
@@ -330,6 +336,7 @@ function render(body, cur) {
       <iframe class="lbl-frame" title="" tabindex="-1" sandbox="" style="width:${lbl.wDots}px;height:${lbl.hDots}px;transform:scale(${scale})"></iframe>
       ${link ? `<span class="lbl-open-hint"><span class="icon icon-arrow-up-right icon-12" aria-hidden="true"></span>${esc(t("labelOpenLink"))}</span></button>` : "</div>"}
     </div>
+    ${link ? `<div class="lbl-linkrow"><button type="button" class="ghost sm" data-lbl-copy><span class="icon icon-copy icon-14"></span><span>${esc(t("labelCopyLink"))}</span></button>${link ? `<button type="button" class="ghost sm" data-lbl-share><span class="icon icon-send icon-14"></span><span>${esc(t("productShare"))}</span></button>` : ""}</div>` : ""}
     <div class="panel-label">${esc(t("labelSlots"))}</div><div class="lbl-slots">${[0, 1, 2, 3].map(slotSel).join("")}</div>
     <div class="lbl-dpi"><span>${esc(t("labelDpi"))}</span>${[203, 300].map(d => `<button type="button" class="lbl-seg-btn${p.dpi === d ? " is-active" : ""}" data-lbl-dpi="${d}" aria-pressed="${p.dpi === d}">${d} dpi</button>`).join("")}</div>
     <div class="lbl-actions">
@@ -358,6 +365,10 @@ function render(body, cur) {
     else if (tp) { savePrefs({ ...prefs(), template: tp.dataset.lblTpl }); render(body, cur); }
     else if (d) { savePrefs({ ...prefs(), dpi: Number(d.dataset.lblDpi) }); render(body, cur); }
     else if (out) exportLabel(out.dataset.lblOut, lbl, row, kind, body.querySelector(".lbl-msg"));
+    // What the label's QR holds, shared in the sharer's language (ctx.shareProduct).
+    else if (e.target.closest("[data-lbl-share]")) ctx.shareProduct?.(row, kind);
+    // The QR's link, copied (the same link the preview opens).
+    else if (e.target.closest("[data-lbl-copy]") && link) ctx.copy?.(link, e.target.closest("[data-lbl-copy]"));
     // The label's QR, followed: the page a scan lands on.
     else if (e.target.closest("[data-lbl-open]") && link) {
       if (window.electronAPI?.openExternal) window.electronAPI.openExternal(link); else window.open(link, "_blank", "noopener");

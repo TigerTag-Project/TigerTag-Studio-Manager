@@ -32,16 +32,21 @@ import { openDialog } from "../dialog.js";
 const URL_BASE = "https://us-central1-tigertag-connect.cloudfunctions.net/referrals";
 const ART = "../assets/img/";
 // Every network of the share grid, all shown: [id, icon, colour class (.lv-social--*), brand name].
-// The ones with no share URL on a desktop (Discord, WeChat, Messenger, KakaoTalk) copy the
-// message instead (COPY_NETS), with a snackbar saying where to paste it.
+// The ones with no share URL on a desktop (Discord, WeChat, Messenger, KakaoTalk, Instagram) copy the
+// message instead (COPY_NETS), with a snackbar saying where to paste it, and open the web inbox (COPY_OPEN).
 const NETS = [
   ["whatsapp", "whatsapp", "wa", "WhatsApp"], ["wechat", "wechat", "wechat", "WeChat"], ["telegram", "telegram", "telegram", "Telegram"],
   ["messenger", "messenger", "messenger", "Messenger"], ["discord", "discord", "discord", "Discord"],
-  ["x", "x", "x", "X"], ["facebook", "facebook", "fb", "Facebook"], ["reddit", "reddit", "reddit", "Reddit"],
+  ["x", "x", "x", "X"], ["facebook", "facebook", "fb", "Facebook"], ["instagram", "instagram", "ig", "Instagram"], ["reddit", "reddit", "reddit", "Reddit"],
   ["bluesky", "bluesky", "bluesky", "Bluesky"], ["line", "line-app", "line", "LINE"],
   ["kakaotalk", "kakaotalk", "kakao", "KakaoTalk"], ["vk", "vk", "vk", "VK"], ["sms", "chat", "sms", "SMS"], ["email", "mail", "mail", "E-mail"],
 ];
-const COPY_NETS = ["discord", "wechat", "messenger", "kakaotalk"];
+const COPY_NETS = ["discord", "wechat", "messenger", "kakaotalk", "instagram"];
+// After the copy, the app's web inbox opens where there is one, to paste straight
+// into a message; WeChat and KakaoTalk have none and only copy.
+const COPY_OPEN = { instagram: "https://www.instagram.com/direct/inbox/", discord: "https://discord.com/channels/@me", messenger: "https://www.messenger.com/" };
+// The same grid shares a filament (inventory.js _openProductShare).
+export { NETS as SHARE_NETS, COPY_NETS as SHARE_COPY_NETS, COPY_OPEN as SHARE_COPY_OPEN };
 // The banner scene (docs/ART-DIRECTION.md, one layer per object): one tiger hands the envelope to the
 // other behind the desk, a spool and a printed tiger between them, three envelopes on each side.
 // Every envelope wiggles when clicked; the middle one on the right hides the inviteBanner easter egg
@@ -122,10 +127,21 @@ function inviteeRow(x) {
     : st === "expired"
       ? `<td class="rf-st rf-st--expired"><span class="icon icon-close icon-14" role="img" aria-label="${esc(t("referralState_expired"))}"></span></td>`
       : `<td class="rf-st rf-st--wait"><span role="img" aria-label="${esc(t("referralCellWaiting"))}">—</span></td>`;
-  const done = x.state === "validated" ? "yes" : x.state === "expired" ? "expired" : "wait";
-  return `<tr><td><span class="rf-who">${_ctx.avatar(x, "sb-friend-avatar")}<b>${esc(x.name || "?")}</b></span></td>
+  // Both sides are paid once the friend is active (an app opened + a first
+  // spool), the referrer within a monthly cap: `referrerState` waiting | capped |
+  // paid, null until the e-mail is verified. A verified but unpaid row still
+  // comes as "pending" (older builds show it waiting), so the e-mail column reads
+  // `validatedAt`. Older backends send no referrerState: "validated" = paid.
+  const rs = x.referrerState, name = x.name || _ctx.t("friendNoName");
+  const mailed = x.state === "validated" || !!x.validatedAt;
+  const expired = x.state === "expired";
+  const mail = expired ? "expired" : mailed ? "yes" : "wait";
+  const paid = expired ? "expired" : rs ? (rs === "paid" ? "yes" : "wait") : x.state === "validated" ? "yes" : "wait";
+  const hint = !mailed || expired ? "" : rs === "waiting" ? t("referralWaitActive", { name })
+    : rs === "capped" ? t("referralCapped", { n: _status?.cfg?.monthlyCap || 10 }) : "";
+  return `<tr><td><span class="rf-who">${_ctx.avatar(x, "sb-friend-avatar")}<span class="rf-who-txt"><b>${esc(name)}</b>${hint ? `<small class="rf-who-hint">${esc(hint)}</small>` : ""}</span></span></td>
     <td class="rf-date">${x.claimedAt ? esc(new Date(x.claimedAt).toLocaleDateString(undefined, { day: "numeric", month: "short" })) : "—"}</td>
-    ${cell("yes")}${cell(done)}${cell(done)}</tr>`;
+    ${cell("yes")}${cell(mail)}${cell(paid)}</tr>`;
 }
 
 function codeFieldHtml(id, value = "", label = true) {
@@ -224,24 +240,27 @@ export function renderInviteView(host) {
         <button type="button" class="sqd-open rf-claim-go" data-rf-claim-go disabled>${esc(t("referralClaim"))}</button>
         <button type="button" class="rf-nocode" data-rf-nocode>${esc(t("referralNoCode"))}</button></div>
     </section>`;
+  // E-mail confirmed, envelopes not yet: they come with the first spool (inviteeState "waiting").
+  const spoolWait = s?.mine?.state === "validated" && s.mine.inviteeState === "waiting";
   const mine = s?.mine ? `
     <section class="rf-card rf-mine">
       ${_ctx.avatar(s.mine.referrer, "sb-friend-avatar")}
       <span class="rf-row-txt"><b>${esc(t("referralInvitedBy", { name: s.mine.referrer?.name || "?" }))}</b>
-        <small>${esc(s.mine.state === "pending" ? t("referralVerifyHint") : t(`referralState_${s.mine.state}`))}</small></span>
-      <span class="rf-pill rf-pill--${esc(s.mine.state)}">${esc(t(`referralState_${s.mine.state}`))}</span>
+        <small>${esc(s.mine.state === "pending" ? t("referralVerifyHint") : spoolWait ? t("referralMineSpool", { n: envs }) : t(`referralState_${s.mine.state}`))}</small></span>
+      <span class="rf-pill rf-pill--${esc(spoolWait ? "pending" : s.mine.state)}">${esc(spoolWait ? t("referralCellWaiting") : t(`referralState_${s.mine.state}`))}</span>
     </section>` : "";
   const cols = ["referralColFriend", "referralColDate", "referralColAccount", "referralColEmail", "referralColEnvelopes"];
   const list = `${s?.invitees?.length ? `<div class="rf-table-wrap"><table class="rf-table">
       <thead><tr>${cols.map(k => `<th>${esc(t(k))}</th>`).join("")}</tr></thead>
       <tbody>${s.invitees.map(inviteeRow).join("")}</tbody></table></div>`
     : `<p class="rf-empty"><b>${esc(t("referralNoInvitees"))}</b> ${esc(t("referralNoInviteesSub"))}</p>`}`;
-  // How it works, as a metro line: three numbered stations on one line, each step under its stop.
+  // How it works, as a metro line: four numbered stations on one line, each step under its stop.
   // Shown first, under the banner ("How it works": the banner already says what you both get), before the sharing.
-  const steps = [["send", 1], ["user", 2], ["mail", 3]].map(([icon, n]) => `
+  // Step 4: the referrer is paid once the friend is active, within the monthly cap.
+  const steps = [["send", 1], ["user", 2], ["mail", 3], ["package", 4]].map(([icon, n]) => `
     <li class="rf-stop"><span class="rf-stop-dot" aria-hidden="true">${n}</span>
       <b><span class="icon icon-${icon} icon-14" aria-hidden="true"></span>${esc(t(`referralStep${n}`))}</b>
-      <small>${esc(t(`referralStep${n}Sub`, { n: envs }))}</small></li>`).join("");
+      <small>${esc(t(`referralStep${n}Sub`, { n: envs, cap: s?.cfg?.monthlyCap || 10 }))}</small></li>`).join("");
   host.innerHTML = `
     ${heroHtml(esc, { cls: "sqr-hero rf-hero", eyebrow: t("squadBrand"), title: t("referralTitle"), sub: t("referralTagline", { n: envs }), scene: inviteScene(!_ctx.eggFound?.(EGG)), side })}
     ${!s ? `<div class="trp-loading">${esc(t("questsLoading"))}</div>` : `
@@ -312,7 +331,11 @@ function share(net, button) {
   if (!link) return;
   _ctx.shared?.("network");
   // No share URL on a desktop: the message is copied, to paste in the app.
-  if (COPY_NETS.includes(net)) { _ctx.copy(`${text} ${link}`, button, _ctx.t("referralAppCopied", { app: NETS.find(n => n[0] === net)?.[3] || "" })); return; }
+  if (COPY_NETS.includes(net)) {
+    _ctx.copy(`${text} ${link}`, button, _ctx.t("referralAppCopied", { app: NETS.find(n => n[0] === net)?.[3] || "" }));
+    if (COPY_OPEN[net]) _ctx.openExternal(COPY_OPEN[net]);
+    return;
+  }
   const url = _ctx.shareUrl(net, link, text);
   if (url) _ctx.openExternal(url);
 }

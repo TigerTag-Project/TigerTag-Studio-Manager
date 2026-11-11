@@ -156,7 +156,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 | 3175-3216 | **TigerScale module init** — wires panel, health tick, card delegation into `IoT/tigerscale` | `initTigerScale(` |
 | 3217-3324 | API key 6 + eye-toggle / copy-button factories | `getOrCreateApiKey6`, `makeEyeToggle`, `makeCopyBtn` |
 | 3325-3443 | **Edit account modal** + account colour save | `openEditAccountModal`, `saveColorToFirestore` |
-| 3444-3589 | **Custom avatar menu** (Discord-style edit flow entry) + display-name save | `_toggleAvatarMenu`, `saveDisplayName` |
+| 3444-3589 | **Identity window** (photo change / remove) + display-name save | `openIdentityModal`, `saveDisplayName` |
 
 ---
 
@@ -351,7 +351,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Friend view (L39994-40968)
+## Friend view (L39994-41200)
 | L | What | Anchors |
 |---|---|---|
 | 14586-14667 | Friend inventory open/close (one-shot read, no live updates) | `openFriendInventory`, `closeFriendInventory` |
@@ -362,7 +362,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Display name + friend requests (L41123-42590)
+## Display name + friend requests (L41123-42850)
 | L | What | Anchors |
 |---|---|---|
 | 15055-15098 | **Display-name setup modal** (first-login pseudo picker) | `openDisplayNameSetup` |
@@ -371,7 +371,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Keys + profile sync (L42529-42710)
+## Keys + profile sync (L42529-42960)
 | L | What | Anchors |
 |---|---|---|
 | 15252-15296 | **`claimPublicKey(uid, oldKey)`** atomic transaction (10 retries) + regenerate + send friend request | `claimPublicKey`, `sendFriendRequest` |
@@ -379,15 +379,15 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Custom avatar (L42792-43189)
+## Custom avatar (L42792-43400)
 | L | What | Anchors |
 |---|---|---|
-| 15859-16033 | File pick, image decode, alpha detection, resize to blob, upload, remove | `uploadCustomAvatar`, `removeCustomAvatar` |
+| 15859-16033 | File pick, image decode (HEIC via the main process on macOS), alpha detection, error text, remove | `_readAvatarFile`, `removeCustomAvatar` |
 | 16034-16219 | **Discord-style cropper** — crop / zoom / rotate + cropped upload | `openAvatarCropper`, `uploadCroppedAvatar` |
 
 ---
 
-## User doc sync + telemetry + bootstrap (L43107-44642)
+## User doc sync + telemetry + bootstrap (L43107-44990)
 | L | What | Anchors |
 |---|---|---|
 | 16512-16927 | **`syncUserDoc(uid)`** — displayName/roles/Debug/keys/isPublic + **client telemetry** (studio* fields + `telemetry/studio` aggregates, fire-and-forget) | `syncUserDoc`, `hydrateUserDocCache` |
@@ -397,7 +397,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Electron RFID integration (L44643-45101)
+## Electron RFID integration (L44991-45460)
 | L | What | Anchors |
 |---|---|---|
 | 30494-30581 | Reader indicator (topbar), reader connect/disconnect, card present/removed badge | `renderRfidReaderBadges` |
@@ -409,7 +409,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Local MCP server — tools + Settings card (L45064-46819)
+## Local MCP server — tools + Settings card (L45064-47055)
 | L | What | Anchors |
 |---|---|---|
 | 38159-38619 | **Read-only MCP tools** + whole-account read (`data_guide` notice, decoder, `firestore_get` / `firestore_query`, friends, wishlists, history, devices; credential masking `MCP_SECRET_FIELD`, scope `_mcpCheckPath`) — definitions (`search_inventory`, `get_spool`, `inventory_summary`, `list_racks`, `list_printers`), row serialiser, handlers, `mcp:call` → `mcp:result` relay. Server itself: `services/mcpServer.js` | `MCP_TOOLS`, `MCP_HANDLERS`, `_mcpRows`, `_mcpSpool` |
@@ -444,7 +444,7 @@ Most common navigation tasks → grep these anchors first:
 | Touch the TigerScale panel | `IoT/tigerscale/index.js`; init wiring at L3151 |
 | Touch the TD1S sensor / TD-Color edit modals | `IoT/td1s/index.js` + `edit-modals.js` |
 | Touch the Friends system | lists L9825, friend view L16191, requests L16702 |
-| Touch the custom avatar / cropper | `openAvatarCropper` L17159, `uploadCustomAvatar` L17083 |
+| Touch the custom avatar / cropper | `_readAvatarFile`, `openAvatarCropper`, `uploadCroppedAvatar` (grep -n) |
 | Touch the auth flow | `handleSignedIn` L4508, `initAuth` L4641, login modal L3586 |
 | Touch the Firestore subscriptions | inventory L4395, racks L10121, printers L10165, friend reqs L16702 |
 | Touch the telemetry | `syncUserDoc` L17359 (studio* fields), `_recordUsage` L8346 |

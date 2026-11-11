@@ -24,9 +24,12 @@ contextBridge.exposeInMainWorld('mcpBridge', {
   setScreen:     (on) => ipcRenderer.invoke('mcp:set-screen', on),
   newToken:      () => ipcRenderer.invoke('mcp:new-token'),
   install:       (target) => ipcRenderer.invoke('mcp:install', target),
+  canOpen:       ()       => ipcRenderer.invoke('mcp:can-open'),
+  openApp:       (target) => ipcRenderer.invoke('mcp:open-app', target),
   setAccount:    (uid) => ipcRenderer.invoke('mcp:set-account', uid),
   // Hosted connector (Tiger Hub): list the online assistants, or cut one (id).
   hostedGrants:  (idToken, revokeId) => ipcRenderer.invoke('mcp:hosted-grants', idToken, revokeId),
+  hostedGrantWrite: (idToken, grantId, write) => ipcRenderer.invoke('mcp:hosted-grant-write', idToken, grantId, write),
 });
 
 // Prusa — PrusaLink HTTP (digest auth, path-allowlisted in main) + Buddy3D RTSP camera.
@@ -365,14 +368,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // The empty-spool (container) catalogue in that language: { ok, items } | { ok: false, error }.
   fetchContainers: (lang) =>
     ipcRenderer.invoke('containers:fetch', lang),
+  // An iPhone photo (HEIC) as JPEG bytes, macOS only: { ok, data } | { ok: false, error }.
+  heicToJpeg: (bytes) => ipcRenderer.invoke('avatar:heic-to-jpeg', bytes),
 
-  // Report a physical-chip event (read / write / reset / recycle) to the TigerTag
+  // Report an event (chip, spool, label, app_open, catalog_view) to the TigerTag
   // Xano analytics table — same table and shape as the mobile app. `send`, not
   // `invoke`: fire-and-forget by construction, so it can never block or slow a
-  // chip action, and a dropped event is simply lost (see main.js for why the
-  // request is made from the main process rather than the renderer).
+  // chip action (see main.js for why the request is made from the main process,
+  // and how a failed event is sent again).
   sendTagAnalytics: (payload) =>
     ipcRenderer.send('analytics:tag', payload),
+  // Contract v2 `app_open`: true once per analytics session (main renews it after
+  // 30 min in the background and then calls onAnalyticsAppOpenDue).
+  analyticsAppOpenDue: () => ipcRenderer.invoke('analytics:app-open-due'),
+  onAnalyticsAppOpenDue: (callback) => ipcRenderer.on('analytics:app-open-due', () => callback()),
   // Printed labels: { html, svg, wDots, hDots, mmW, mmH, dpi, format: 'png'|'pdf'|'svg'|'print', fileName }
   // → { ok, path } once saved (Save dialog), { ok } once printed. See main.js label:render.
   renderLabel: (opts) => ipcRenderer.invoke('label:render', opts),

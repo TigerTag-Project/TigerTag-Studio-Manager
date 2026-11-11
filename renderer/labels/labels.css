@@ -48,6 +48,9 @@
 .lbl-tpl small { font-size: 10.5px; color: var(--muted); }
 
 .lbl-slots { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+/* The QR's link, copied: under the preview, which opens it on a click. */
+.lbl-linkrow { display: flex; justify-content: center; gap: 8px; margin: -4px 0 8px; }
+.lbl-linkrow .icon { background-color: currentColor; }
 .lbl-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .lbl-actions .primary { flex: 1 1 100%; justify-content: center; }
 .lbl-actions .ghost { flex: 1; justify-content: center; }

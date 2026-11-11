@@ -36,9 +36,9 @@
 /* How it works: three steps in a row. */
 /* How it works as a metro line: one line through three numbered stations, each
    step's title and detail under its stop. */
-.rf-steps { position: relative; list-style: none; margin: 0; padding: 16px 16px 14px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px;
+.rf-steps { position: relative; list-style: none; margin: 0; padding: 16px 16px 14px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px;
   border: 1px solid var(--tsq-line); border-radius: 14px; background: var(--tsq-card); }
-.rf-steps::before { content: ""; position: absolute; top: 30px; left: calc(16px + (100% - 32px) / 6); right: calc(16px + (100% - 32px) / 6); height: 3px; border-radius: 3px;
+.rf-steps::before { content: ""; position: absolute; top: 30px; left: calc(16px + (100% - 32px) / 8); right: calc(16px + (100% - 32px) / 8); height: 3px; border-radius: 3px;
   background: linear-gradient(90deg, var(--tsq-orange), color-mix(in srgb, var(--tsq-orange) 45%, transparent)); }
 .rf-stop { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; min-width: 0; }
 .rf-stop-dot { width: 30px; height: 30px; margin-bottom: 6px; border-radius: 50%; display: grid; place-items: center; background: var(--tsq-orange); color: var(--on-accent); font-size: 13px; font-weight: 800;
@@ -70,11 +70,15 @@
 .rf-link-copy.is-done .rf-copy-lbls > span + span { opacity: 1; }
 .rf-link-copy:hover { filter: brightness(1.08); }
 .rf-net-grid { align-self: stretch; display: flex; flex-wrap: wrap; gap: 10px; }
-.rf-net.rf-net { width: 52px; height: 52px; padding: 0; display: grid; place-items: center; border-radius: 14px; border: 1px solid var(--tsq-line); background: var(--surface-2); cursor: pointer; transition: border-color .15s, background .15s, transform .1s; }
-.rf-net:hover { border-color: var(--tsq-orange); background: var(--surface-hover); }
+/* The same grid in the "Share this filament" window (inventory.js _openProductShare), centred. */
+.product-share .ps-nets { justify-content: center; margin-top: 12px; }
+/* The bare brand discs, no card around them. */
+.rf-net.rf-net { width: 44px; height: 44px; padding: 0; display: grid; place-items: center; border: 0; border-radius: 50%; background: none; cursor: pointer; transition: transform .1s; }
+.rf-net:hover .lv-social { filter: brightness(1.1); transform: translateY(-1px); }
 .rf-net:active { transform: scale(.94); }
-.rf-net .lv-social { width: 34px; height: 34px; }
-.rf-net .lv-social .icon { width: 18px; height: 18px; }
+.rf-net:focus-visible { outline: 2px solid var(--tsq-orange); outline-offset: 2px; }
+.rf-net .lv-social { width: 40px; height: 40px; }
+.rf-net .lv-social .icon { width: 20px; height: 20px; }
 .rf-msg-row { align-self: stretch; display: flex; align-items: center; gap: 12px; }
 .rf-msg-lbl { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--tsq-muted); }
 .rf-msg-lbl .icon { background-color: var(--tsq-muted); }
@@ -97,6 +101,8 @@
 .rf-table tr:first-child td { border-top: 0; }
 .rf-who { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .rf-who b { overflow: hidden; text-overflow: ellipsis; }
+.rf-who-txt { display: flex; flex-direction: column; min-width: 0; }
+.rf-who-hint { font-size: 11.5px; color: var(--tsq-muted); white-space: normal; max-width: 260px; }
 .rf-date { color: var(--tsq-muted); }
 .rf-table th:not(:first-child), .rf-table td:not(:first-child) { text-align: center; }
 .rf-st .icon { vertical-align: middle; }
@@ -126,6 +132,7 @@
 .lv-social--telegram { background: #26a5e4; }
 .lv-social--bluesky { background: #1185fe; }
 .lv-social--discord { background: #5865f2; }
+.lv-social--ig { background: radial-gradient(circle at 30% 107%, #fdf497 0%, #fdf497 5%, #fd5949 45%, #d6249f 60%, #285aeb 90%); }
 .icon-reddit   { -webkit-mask-image: url('../../assets/svg/logos/logo_reddit.svg');   mask-image: url('../../assets/svg/logos/logo_reddit.svg'); }
 .icon-telegram { -webkit-mask-image: url('../../assets/svg/logos/logo_telegram.svg'); mask-image: url('../../assets/svg/logos/logo_telegram.svg'); }
 .icon-bluesky  { -webkit-mask-image: url('../../assets/svg/logos/logo_bluesky.svg');  mask-image: url('../../assets/svg/logos/logo_bluesky.svg'); }

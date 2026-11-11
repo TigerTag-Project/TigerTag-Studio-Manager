@@ -163,7 +163,7 @@ The **TigerTag SDK** is the low-level library that handles all NFC chip operatio
 - **Link the chips already on your spools** *(new in 2.45.0, every brand in 2.46.1)* — any spool with a MIFARE Classic 1K chip (Bambu Lab, Creality, Qidi, Anycubic…) placed on the reader is linked to your material by its chip's ID (nothing written into it); from then on, placing it opens it like a TigerTag — alongside its TigerTag chips or on its own
 - **NFC tools** *(new in 2.46.1)* — format your chips back to blank TigerTags, or write a link, a Wi‑Fi network, a contact, an e‑mail, a phone number or an SMS on any NFC tag (NTAG213 / 215 / 216); an Auto mode writes a whole batch, one chip after another
 - **Guided chip update** — a step-by-step panel to re-write an existing chip: place it on the reader, UID-match check, verified write
-- **Printed QR labels** *(new in 2.53.0)* — print a label for a spool or a filament in eight formats, from a 40 × 12 mm strip to a 50 × 30 mm card: brand, series, colour, the values you pick and a QR code. Scan a spool's label and it opens that very spool in Tiger Studio; save it as PDF, PNG or SVG for any printer
+- **Printed QR labels** *(new in 2.53.0)* — print a label for a spool or a filament in eight formats, from a 40 × 12 mm strip to a 50 × 30 mm card: brand, series, colour, the values you pick and a QR code. Scan a spool's label and it opens that very spool in Tiger Studio; save it as PDF, PNG or SVG for any printer *(share a filament or a spool with a short link in your language, new in 2.55.0)*
 - **Restore a worn TigerTag+** *(new in 2.53.0)* — rewrite a worn or wiped TigerTag+ from its backup, after checking what comes back
 - **Export / import `.ttag` files** — back up a spool or a whole selection to a portable file, keep it, carry it on a USB stick or share it, then import it back anywhere. Works for TigerData, TigerTag and TigerTag+ alike; import through a validate → preview → accept flow and choose **Restore** (put everything back exactly as it was) or **Import** (fresh spools you own). Pull in several files at once by browsing, pasting a link, or dragging them onto the window
 - **Find a colour by pointing at it** — a rainbow bar and a white-to-black bar with a window you drag along them; spools in range stay lit and the rest fade, so you see *where* that orange actually sits. Works in Inventory, Favorites, the Catalogue and Storage alike
@@ -324,7 +324,7 @@ A QR code to download the mobile app is always accessible in the sidebar.
 - **Read-only by default**: you pick the access level, cut it any time; passwords and keys are never shared
 - **Guide mode** (off by default): it shows a view or lights up a spool, screenshots blur sensitive zones first, and it never presses for you
 - It answers from the TigerSystem wiki and can **prepare a support request** — you read it and send it yourself
-- **From the web and your phone too**: online assistants connect with one address — no Studio running, read-only
+- **From the web and your phone too**: online assistants connect with one address — no Studio running; read-only or, if you choose, **read & write** *(new in 2.55.0)*, with their changes in the same history and undoable in one click. Gemini joins the picker
 
 ### 🌐 Tiger Studio Web
 - The same Studio **in your browser** at **[studio.tigersystem.io](https://studio.tigersystem.io)** — computer, tablet, nothing to install

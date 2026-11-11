@@ -34,17 +34,24 @@ const CLAUDE_DOWNLOAD = "https://claude.ai/download";
 const CLIENTS = [
   // Claude runs in both places: two tiles, so where it is used is picked with it.
   { id: "claude",  name: "Claude",   logo: "claude",  local: "claude-desktop", tag: "aiTileLocal" },
-  { id: "claudeweb", name: "Claude", logo: "claude",  web: true, tag: "aiTileWeb", guide: "claude" },
-  { id: "chatgpt", name: "ChatGPT",  logo: "chatgpt", web: true },
+  { id: "claudeweb", name: "Claude", logo: "claude",  web: true, tag: "aiTileWeb", guide: "claude", open: "https://claude.ai/settings/connectors" },
+  { id: "chatgpt", name: "ChatGPT",  logo: "chatgpt", web: true, open: "https://chatgpt.com/#settings/Connectors" },
   { id: "cursor",  name: "Cursor",   logo: "cursor",  local: "cursor" },
   { id: "vscode",  name: "VS Code",  logo: "vscode",  local: "vscode" },
-  { id: "lechat",  name: "Le Chat",  logo: "mistral", web: true },
-  { id: "grok",    name: "Grok",     logo: "grok",    web: true },
+  { id: "lechat",  name: "Le Chat",  logo: "mistral", web: true, open: "https://chat.mistral.ai/" },
+  { id: "grok",    name: "Grok",     logo: "grok",    web: true, open: "https://grok.com/connectors" },
+  // Gemini: the CLI on this computer (a command it pastes in a terminal), the
+  // app online (custom apps, US-only for now). `doc` = Google's own steps.
+  { id: "geminicli", name: "Gemini CLI", logo: "gemini", local: "gemini-cli", doc: "https://google-gemini.github.io/gemini-cli/docs/tools/mcp-server.html" },
+  { id: "gemini",  name: "Gemini",   logo: "gemini",  web: true, doc: "https://support.google.com/gemini/answer/17209137", open: "https://gemini.google.com/" },
   // Any other MCP client: on this computer by a configuration it pastes in its
   // own MCP settings (no one-click install), online by the connector address.
   { id: "other",   name: "",         logo: "other",   local: "manual", tag: "aiTileLocal" },
   { id: "otherweb", name: "",        logo: "other",   web: true, tag: "aiTileWeb" },
 ];
+// `open` (online): the page where its connectors are added (else its home page).
+// On this computer, the apps Studio can open (main.js `mcp:can-open`), read once.
+let openable = null;
 // "Other assistant" on its tile, "your assistant" in the sentences.
 const isOther = (x) => x?.id === "other" || x?.id === "otherweb";
 const tileName = (x) => (isOther(x) ? ctx.t("aiOtherTile") : x.name);
@@ -184,6 +191,8 @@ export function closeAiSetup() {
   p.classList.remove("open");
   ctx?.syncPanels?.();
   markTiles();
+  // Set up from the dashboard's "Plug in another assistant": closing goes back to the dashboard.
+  if (pageMode === "welcome") { pageMode = "main"; if (pageHost && ctx.pageShown()) renderAiPage(pageHost); }
 }
 function wireSetupCard() {
   const p = setupPanel();
@@ -197,8 +206,11 @@ function wireSetupCard() {
 // being set up marked) — beside the demo, or beside the setup once one is picked.
 function welcomeMain(l, histBtn) {
   const { t, esc } = ctx;
+  // Opened from the dashboard ("Plug in another assistant"): a way back to it.
+  const back = pageMode === "welcome" && usable(l)
+    ? `<button type="button" class="secondary aip-welcome-back" data-aip="back"><span class="icon icon-chevron-l icon-14" aria-hidden="true"></span>${esc(t("aiBack"))}</button>` : "";
   return `<div class="aip-welcome-main">
-          <div class="aip-welcome-top"><span class="aip-robot aip-robot--big" aria-hidden="true"><span class="icon icon-robot"></span></span>${histBtn}</div>
+          ${back}<div class="aip-welcome-top"><span class="aip-robot aip-robot--big" aria-hidden="true"><span class="icon icon-robot"></span></span>${histBtn}</div>
           <span class="sqn-kicker">${esc(t("aiWelcomeKicker"))}</span>
           <h2 class="aip-empty-title">${esc(t("aiWelcomeTitle"))}</h2><p>${esc(t("aiWelcomeText"))}</p>
           <div class="aip-works">
@@ -216,8 +228,8 @@ function welcomeMain(l, histBtn) {
 
 // ── The setup (first connection) ──────────────────────────────────────────
 // One question per screen, under named markers. "where" only when the
-// assistant runs in both places; "rights" only on this computer (online is
-// read only). The connect screen is also the wait: once the button is pressed
+// assistant runs in both places; "rights" only on this computer (online, Read
+// or Read & write is picked on tigersystem.io's consent screen). The connect screen is also the wait: once the button is pressed
 // it says what to do in the assistant and waits, with a way out if nothing opens.
 const MARKS = { who: "aiMarkWho", where: "aiMarkWhere", rights: "aiMarkRights", connect: "aiMarkConnect" };
 // A new setup starts on Claude on this computer: a real path from the first
@@ -284,39 +296,45 @@ function paint() {
         ${card("local", flow.where === "local", t("aiWhereLocal"), t("aiWhereLocalSub"), "home")}
         ${card("web", flow.where === "web", t("aiWhereWeb"), t("aiWhereWebSub"), "globe")}</div>` + nav(true, !!flow.where);
   } else if (s === "rights") {
-    body.innerHTML = title(t("aiQRights")) + `<div class="ai-choices">
-        ${card("read", flow.rights !== "write", t("aiRightsRead"), t("aiRightsReadSub"), "eye-on")}
-        ${card("write", flow.rights === "write", t("aiRightsWrite"), t("aiRightsWriteSub"), "edit")}</div>
+    // Read | Read & write, the app's sliding two-way switch (like Dark | Light); Read by default.
+    body.innerHTML = title(t("aiQRights")) + `<div class="eac-seg eac-seg--slide ai-rights-seg" role="radiogroup" aria-label="${esc(t("aiQRights"))}">
+          <button type="button" class="eac-seg-btn${flow.rights === "write" ? "" : " active"}" data-ai-pick="read" role="radio" aria-checked="${!(flow.rights === "write")}">${esc(t("aiSegRead"))}</button>
+          <button type="button" class="eac-seg-btn${flow.rights === "write" ? " active" : ""}" data-ai-pick="write" role="radio" aria-checked="${flow.rights === "write"}">${esc(t("aiRightsWrite"))}</button></div>
         <p class="ai-hint ai-rights-on"><span class="icon icon-home icon-12" aria-hidden="true"></span>${esc(t("aiRightsTurnsOn"))}</p>` + nav();
   } else if (s === "connect") {
-    const local = where() === "local", app = appName(c), manual = c.local === "manual";
+    const local = where() === "local", app = appName(c), cli = c.local === "gemini-cli", manual = c.local === "manual" || cli;
     const guideLabel = isOther(c) ? t("aiOpenGuideAny") : t("aiOpenGuide", { app });
     const prompt = `<button type="button" class="ai-prompt" data-ai-copy="${esc(t("aiWaitPrompt"))}"><span class="ai-prompt-text">« ${esc(t("aiWaitPrompt"))} »</span><span class="icon icon-copy icon-14" aria-hidden="true"></span></button>`;
     const waiting = `<p class="ai-waiting" role="status">${esc(t("aiWaitingFor", { app }))}</p>`;
+    // "Open Cursor" / "Open the terminal" / "Open ChatGPT": only what can really be opened.
+    if (local && !openable) ctx.api.canOpen?.().then(m => { openable = m || {}; if (flow?.step === "connect") paint(); }).catch(() => { openable = {}; });
+    const canOpen = local ? !!openable?.[c.local] : !!c.open;
+    const openBtn = canOpen ? `<button type="button" class="secondary ai-wide" data-ai="openapp"><span class="icon icon-arrow-up-right icon-14" aria-hidden="true"></span>${esc(cli ? t("aiOpenTerminal") : t("aiOpenApp", { app }))}</button>` : "";
     body.innerHTML = title(t(local ? "aiConnectTitleLocal" : "aiConnectTitleWeb", { app })) + summary() + (local
       ? (!flow.waiting
         ? (manual
-          ? `<p class="tsq-desc">${esc(t("aiConnectManual"))}</p>
+          ? `<p class="tsq-desc">${esc(t(cli ? "aiConnectGeminiCli" : "aiConnectManual"))}</p>
              <div class="ai-nav ai-nav--even">
-               <button type="button" class="primary" data-ai="localcopy"><span class="icon icon-copy icon-14" aria-hidden="true"></span>${esc(t("aiCopyConfig"))}</button>
+               <button type="button" class="primary" data-ai="localcopy"><span class="icon icon-copy icon-14" aria-hidden="true"></span>${esc(t(cli ? "aiCopyCommand" : "aiCopyConfig"))}</button>
                <button type="button" class="secondary" data-ai="guide"><span class="icon icon-book icon-14" aria-hidden="true"></span>${esc(guideLabel)}</button>
              </div>
              <p class="ai-hint">${esc(t("aiConfigSecret"))}</p>`
           : `<p class="tsq-desc">${esc(t("aiConnectLocal", { app }))}</p>
            <button type="button" class="primary ai-wide" data-ai="install"><span class="eac-mcp-logo eac-mcp-logo--${c.logo}" aria-hidden="true"></span>${esc(t("aiConnectLocalBtn", { app }))}</button>`)
-        : `<p class="tsq-desc">${esc(t(manual ? "aiWaitManual" : "aiWaitLocal", { app }))}</p>${prompt}${waiting}
+        : `${openBtn}<p class="tsq-desc">${esc(t(cli ? "aiWaitGeminiCli" : manual ? "aiWaitManual" : "aiWaitLocal", { app }))}</p>${prompt}${waiting}
            ${flow.trouble
-             ? `<div class="ai-help"><p class="ai-hint">${esc(t(manual ? "aiTroubleManualHelp" : "aiTroubleHelp", { app }))}</p>
+             ? `<div class="ai-help"><p class="ai-hint">${esc(t(cli ? "aiTroubleGeminiCliHelp" : manual ? "aiTroubleManualHelp" : "aiTroubleHelp", { app }))}</p>
                  <div class="ai-nav"><button type="button" class="secondary" data-ai="${manual ? "localcopy" : "install"}">${esc(t("aiRetry"))}</button>
                    <button type="button" class="secondary" data-ai="guide">${esc(guideLabel)}</button></div></div>`
              : `<button type="button" class="ai-link" data-ai="trouble">${esc(t(manual ? "aiTroubleManual" : "aiTroubleLocal", { app }))}</button>`}`)
       : `<p class="tsq-desc">${esc(t("aiConnectWeb", { app }))}</p>
+         ${c.id === "gemini" ? `<p class="ai-hint">${esc(t("aiGeminiWebLimits"))}</p>` : ""}
          <div class="ai-url"><code>${esc(HOSTED_URL)}</code></div>
          <div class="ai-nav ai-nav--even">
            <button type="button" class="${flow.copied ? "secondary is-done" : "primary"}" data-ai="webcopy"><span class="icon icon-${flow.copied ? "check" : "copy"} icon-14" aria-hidden="true"></span>${esc(t(flow.copied ? "aiAddressCopied" : "aiCopyAddress"))}</button>
            <button type="button" class="secondary" data-ai="guide"><span class="icon icon-book icon-14" aria-hidden="true"></span>${esc(guideLabel)}</button>
          </div>
-         ${flow.waiting ? `<p class="tsq-desc">${esc(t("aiWaitWeb", { app }))}</p>${prompt}${waiting}` : ""}`)
+         ${flow.waiting ? `${openBtn}<p class="tsq-desc">${esc(t("aiWaitWeb", { app }))}</p>${prompt}${waiting}` : ""}`)
       + `<div class="ai-nav"><button type="button" class="secondary" data-ai="back">${esc(t("aiBack"))}</button>
          ${flow.waiting ? `<button type="button" class="secondary" data-ai="manual">${esc(t("aiWaitDone"))}</button>` : ""}</div>`;
   }
@@ -328,7 +346,7 @@ function paint() {
 // that opens the setup window.
 let pageHost = null;
 let webCount = null;     // online assistants, read once per page visit
-let pageMode = "main";   // "main" | "access" (access and security); the setup and the history are side cards
+let pageMode = "main";   // "main" | "access" (access and security) | "welcome" (the first-time page, from "Plug in another assistant"); the setup and the history are side cards
 export async function renderAiPage(host) {
   if (!host || !ctx?.uid()) return;
   pageHost = host;
@@ -355,7 +373,7 @@ export async function renderAiPage(host) {
   const same = (x, y) => !!x && !!y && usable(x) === usable(y) && x.local === y.local && x.write === y.write && x.online === y.online && x.listed === y.listed;
   if (!live || Date.now() - live.at > 60e3) readLive().then(n => { if (pageHost === host && ctx.pageShown() && pageMode === "main" && !same(n, l)) renderAiPage(host); });
   const journal = ctx.journal();
-  if (!usable(l)) {
+  if (!usable(l) || pageMode === "welcome") {
     // The welcome speaks for itself: no page head; History sits beside the robot.
     host.innerHTML = `<div class="aip aip--welcome">
       <section class="aip-welcome">
@@ -429,7 +447,7 @@ export async function renderAiPage(host) {
   </div>`;
 }
 async function onPageClick(e) {
-  const el = e.target.closest("[data-aip], [data-aip-level], [data-aip-client], [data-ai-copy], [data-ai-undo]");
+  const el = e.target.closest("[data-aip], [data-aip-level], [data-grant-write], [data-aip-client], [data-ai-copy], [data-ai-undo]");
   if (!el) return;
   // A logo of the welcome: that assistant is chosen, the setup opens on its next step —
   // for a TigerSquad member; anyone else is offered to join first.
@@ -439,7 +457,6 @@ async function onPageClick(e) {
     flow.step = flow.entry = steps()[1];
     return openAiAssistant();
   }
-  if (el.dataset.aipLevel) return setLevel(el.dataset.aipLevel);
   if (el.dataset.aiCopy != null) {
     try { await navigator.clipboard.writeText(el.dataset.aiCopy); el.classList.add("is-copied"); setTimeout(() => el.classList.remove("is-copied"), 1200); } catch (_) {}
     return;
@@ -450,8 +467,11 @@ async function onPageClick(e) {
     catch (_) { el.disabled = false; ctx.flash(ctx.t("aiUndoFailed")); }
     return;
   }
+  if (el.dataset.aipLevel) { segPick(el); return setLevel(el.dataset.aipLevel); }
+  if (el.dataset.grantWrite) return setGrantWrite(el);
   switch (el.dataset.aip) {
-    case "another": if (ctx.squadOnly && !ctx.squadOnly()) return; flow = newFlow("who"); return openAiAssistant();
+    // Another assistant: back to the first-time page (tiles + demo); a tile opens the setup card.
+    case "another": if (ctx.squadOnly && !ctx.squadOnly()) return; pageMode = "welcome"; return renderAiPage(pageHost);
     case "access": pageMode = "access"; return renderAiPage(pageHost);
     case "history": return histOpen() ? closeAiHistory() : openAiHistory();
     case "back": pageMode = "main"; return renderAiPage(pageHost);
@@ -680,8 +700,6 @@ async function paintAccess(host) {
   const cfg = await ctx.api.getConfig().catch(() => null);
   if (pageHost !== host || pageMode !== "access") return;
   const on = !!cfg?.enabled, level = cfg?.write ? "write" : "read";
-  const opt = (id, head, sub, icon) => `<button type="button" class="ai-choice${level === id ? " is-sel" : ""}" data-aip-level="${id}" aria-pressed="${level === id}">
-      <span class="icon icon-${icon} icon-18" aria-hidden="true"></span><span class="ai-choice-text"><b>${esc(head)}</b><small>${esc(sub)}</small></span></button>`;
   host.innerHTML = `<div class="aip">
     <header class="aip-head">
       <button type="button" class="secondary" data-aip="back"><span class="icon icon-chevron-l icon-14" aria-hidden="true"></span>${esc(t("aiBack"))}</button>
@@ -694,10 +712,10 @@ async function paintAccess(host) {
         <p class="ai-hint">${esc(t("aiWhereLocalSub"))}</p>
         <div class="eac-row aip-switch"><span class="eac-row-label">${esc(t("aiToggleRead"))}</span>
           <label class="eac-toggle"><input type="checkbox" role="switch" id="aipLocalOn"${on ? " checked" : ""} aria-label="${esc(t("aiToggleRead"))}" /><span class="eac-toggle-track"><span class="eac-toggle-thumb"></span></span></label></div>
-        ${on ? `<div class="ai-choices">
-          ${opt("read", t("aiRightsRead"), t("aiRightsReadSub"), "eye-on")}
-          ${opt("write", t("aiRightsWrite"), t("aiRightsWriteSub"), "edit")}
-        </div>
+        ${on ? `<div class="eac-row aip-switch"><span class="eac-row-label">${esc(t("aiMarkRights"))}</span>
+          <div class="eac-seg eac-seg--slide ai-rights-seg" role="radiogroup" aria-label="${esc(t("aiQRights"))}">
+          <button type="button" class="eac-seg-btn${level === "write" ? "" : " active"}" data-aip-level="read" role="radio" aria-checked="${!(level === "write")}">${esc(t("aiSegRead"))}</button>
+          <button type="button" class="eac-seg-btn${level === "write" ? " active" : ""}" data-aip-level="write" role="radio" aria-checked="${level === "write"}">${esc(t("aiRightsWrite"))}</button></div></div>
         <div class="aip-screen">
           <div class="eac-row aip-switch"><span class="eac-row-label">${esc(t("aiScreenToggle"))}</span>
             <label class="eac-toggle"><input type="checkbox" role="switch" id="aipScreenOn"${cfg?.screen ? " checked" : ""} aria-label="${esc(t("aiScreenToggle"))}" /><span class="eac-toggle-track"><span class="eac-toggle-thumb"></span></span></label></div>
@@ -742,13 +760,23 @@ async function paintGrants(box) {
   webCount = grants.length;
   if (!grants.length) return line("eacMcpGrantsNone");
   const day = (iso) => { const d = iso ? new Date(iso) : null; return d && !isNaN(d) ? d.toLocaleDateString(ctx.lang()) : "—"; };
+  // A Hub that knows writes sends each grant's `write` (boolean; `scope` "read" |
+  // "read write" also read): then the row carries the Read | Read & write switch;
+  // an older one stays read only.
+  const canWrite = (g) => typeof g.write === "boolean" || typeof g.scope === "string";
+  const writes = (g) => g.write === true || /\bwrite\b/.test(g.scope || "");
   box.innerHTML = grants.map(g => `<div class="aip-grant" data-id="${esc(g.id)}">
       <div class="ai-ev-main">
-        <div class="ai-ev-text"><b>${esc(g.clientName || t("eacMcpGrantUnnamed"))}</b> · ${esc(t("aiRightsRead"))}</div>
+        <div class="ai-ev-text"><b>${esc(g.clientName || t("eacMcpGrantUnnamed"))}</b>${canWrite(g) ? "" : ` · ${esc(t("aiRightsRead"))}`}</div>
+        ${canWrite(g) ? `<div class="eac-seg eac-seg--slide ai-rights-seg ai-grant-seg" role="radiogroup" aria-label="${esc(t("aiQRights"))}">
+          <button type="button" class="eac-seg-btn${writes(g) ? "" : " active"}" data-grant-write="read" role="radio" aria-checked="${!writes(g)}">${esc(t("aiSegRead"))}</button>
+          <button type="button" class="eac-seg-btn${writes(g) ? " active" : ""}" data-grant-write="write" role="radio" aria-checked="${writes(g)}">${esc(t("aiRightsWrite"))}</button></div>` : ""}
         <small>${esc(t("eacMcpGrantSince", { date: day(g.createdAt) }))}${g.lastUsedAt && !isNaN(Date.parse(g.lastUsedAt)) ? ` · ${esc(t("eacMcpGrantUsed", { ago: ctx.timeAgo(Date.parse(g.lastUsedAt)) }))}` : ""}</small>
       </div>
       <button type="button" class="secondary sm aip-hold" data-hold-tip="eacMcpGrantCutTip"><span class="hold-progress"></span><span>${esc(t("eacMcpGrantCut"))}</span></button>
-    </div>`).join("");
+    </div>`).join("")
+    // The assistant reads its tool list when a chat starts: a switch shows from the next one.
+    + (grants.some(canWrite) ? `<p class="ai-hint">${esc(t("aiGrantSwitchNote"))}</p>` : "");
   box.querySelectorAll(".aip-grant").forEach(row => ctx.holdToConfirm(row.querySelector(".aip-hold"), 1500, async () => {
     // 204 = cut; 404 = already gone — either way the row leaves.
     try {
@@ -771,10 +799,22 @@ async function setAccess(on) {
   if (on) ctx.aiEnabled();
   renderAiPage(pageHost);
 }
+// The sliding Read | Read & write switch: light the picked half in place (no repaint, so the pill slides).
+function segPick(btn) {
+  btn.parentElement.querySelectorAll(".eac-seg-btn").forEach(b => { const on = b === btn; b.classList.toggle("active", on); b.setAttribute("aria-checked", on); });
+}
 async function setLevel(level) {
   live = null;
   await ctx.api.setWrite(level === "write");
-  renderAiPage(pageHost);
+}
+// An online assistant's access, changed on the Hub (its grant's scope); back to what it was if refused.
+async function setGrantWrite(btn) {
+  const row = btn.closest(".aip-grant"), was = row?.querySelector(".eac-seg-btn.active");
+  if (!row || btn === was) return;
+  segPick(btn);
+  let res = null;
+  try { const token = await ctx.idToken(); res = token ? await ctx.api.hostedGrantWrite?.(token, row.dataset.id, btn.dataset.grantWrite === "write") : null; } catch (_) {}
+  if (!res?.ok) { if (was) segPick(was); const s = row.querySelector("small"); if (s) s.textContent = ctx.t("eacMcpGrantsErr"); }
 }
 
 const repaintPage = () => { if (pageHost && ctx.pageShown()) renderAiPage(pageHost); };
@@ -889,13 +929,21 @@ function changeHtml(c, fresh = false) {
       <div class="ai-ev-text">${undone ? `<b>${esc(t("aiEvUndone"))}</b> · ` : ""}<b>${esc(p.object)}</b>${p.field ? ` · ${esc(p.field)}` : ""}</div>
       ${(p.diffs || []).length && !undone ? `<small class="ai-diff">${p.diffs.map(d => `${esc(d.before)} <span class="ai-arrow">→</span> ${esc(d.after)}`).join(" · ")}</small>` : ""}
     </div>
-    <time>${esc(clock(c.at))}</time>
+    <time>${c.via === "online" ? `<span class="ai-via"><span class="icon icon-globe icon-12" aria-hidden="true"></span>${esc(c.client || t("aiWhereWeb"))}</span> · ` : ""}${esc(clock(c.at))}</time>
     ${undoable ? undoBtn(c.id, !!c.undoneAt) : ""}</div>`;
 }
 function undoBtn(id, done = false) {
   const { t, esc } = ctx;
   return done ? `<small class="ai-undone">${esc(t("aiUndone"))}</small>`
     : `<button type="button" class="secondary sm ai-undo" data-ai-undo="${esc(id)}">${esc(t("aiUndo"))}</button>`;
+}
+
+// The shared journal moved (a change made online, an undo on another
+// computer): repaint the history and the page's latest changes.
+export function aiJournalChanged() {
+  if (!ctx) return;
+  if (histOpen()) paintHistoryCard();
+  if (ctx.pageShown() && pageMode === "main") repaintPage();
 }
 
 // ── A tool call relayed by main (local server) ────────────────────────────
@@ -969,7 +1017,10 @@ async function onClick(e) {
   const go = (s) => { flow.step = s; flow.waiting = flow.copied = flow.trouble = false; stopPoll(); paint(); };
   const wait = () => { if (!flow.waiting) { flow.waiting = true; flow.since = Date.now(); if (where() === "web") startPoll(); } paint(); };
   if (el.dataset.aiClient) { flow.client = el.dataset.aiClient; flow.where = "local"; return paint(); }
-  if (el.dataset.aiPick) { if (flow.step === "where") flow.where = el.dataset.aiPick; else flow.rights = el.dataset.aiPick; return paint(); }
+  if (el.dataset.aiPick) {
+    if (flow.step === "where") { flow.where = el.dataset.aiPick; return paint(); }
+    flow.rights = el.dataset.aiPick; return segPick(el);   // in place: the pill slides
+  }
   if (el.dataset.aiCopy != null) {
     try { await navigator.clipboard.writeText(el.dataset.aiCopy); el.classList.add("is-copied"); setTimeout(() => el.classList.remove("is-copied"), 1200); } catch (_) {}
     return;
@@ -998,7 +1049,17 @@ async function onClick(e) {
       return go(list[i + 1]);
     case "manual": return connected(where() === "web" ? "online" : "local");
     case "trouble": flow.trouble = true; return paint();
-    case "guide": ctx.openExternal(ctx.guideUrl(CLIENTS.find(x => x.id === flow.client)?.guide || flow.client)); return where() === "web" ? wait() : undefined;
+    case "guide": {
+      const c = CLIENTS.find(x => x.id === flow.client);
+      ctx.openExternal(c?.doc || ctx.guideUrl(c?.guide || flow.client));
+      return where() === "web" ? wait() : undefined;
+    }
+    case "openapp": {
+      const c = CLIENTS.find(x => x.id === flow.client);
+      if (where() === "web") { if (c?.open) ctx.openExternal(c.open); }
+      else await ctx.api.openApp?.(c.local).catch(() => null);
+      return;
+    }
     case "install": {
       const c = CLIENTS.find(x => x.id === flow.client);
       el.disabled = true;
@@ -1012,7 +1073,12 @@ async function onClick(e) {
       const cfg = await ctx.api.getConfig().catch(() => null);
       if (!cfg?.url) return;
       const conf = { mcpServers: { "tiger-studio": { type: "http", url: cfg.url, headers: { Authorization: `Bearer ${cfg.token}` } } } };
-      try { await navigator.clipboard.writeText(JSON.stringify(conf, null, 2)); } catch (_) {}
+      // Gemini CLI: one terminal command that writes the same server into
+      // ~/.gemini/settings.json (user scope, Streamable HTTP).
+      const text = CLIENTS.find(x => x.id === flow.client)?.local === "gemini-cli"
+        ? `gemini mcp add -s user --transport http tiger-studio ${cfg.url} --header "Authorization: Bearer ${cfg.token}"`
+        : JSON.stringify(conf, null, 2);
+      try { await navigator.clipboard.writeText(text); } catch (_) {}
       flow.trouble = false;
       return wait();
     }

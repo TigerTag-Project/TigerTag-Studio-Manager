@@ -140,6 +140,16 @@ users/
     vatCountry             string? — ISO country code, drives the VAT rate + currency
     priceInputMode         string  — "HT" | "TTC": how the user types prices (the stored value stays HT)
 
+    agentChanges/
+      {changeId}/             — one change an AI assistant made (Studio's local MCP server, via
+                              "local", or the Hub connector as the user, via "online"): id, at,
+                              expireAt (TTL, 30 days), via, client, grantId?, tool, kind, summary,
+                              docs? [{id, before, after}] (touched fields only), spool_id?, product_key?,
+                              rack_id?, rack_name?, before?, after?, created?, count?, undoes?,
+                              idempotency_key?, number? / url? / title? (a request sent), undoneAt?.
+                              Owner creates (field allowlist) and marks undone once; never deleted by
+                              a client. docs/MCP.md §5, docs/MCP-HOSTED-WRITES.md.
+
     telemetry/
       studio/                 — Studio Manager metrics. The field set MUST match the
                               telemetry `hasOnly()` whitelist in firestore.rules

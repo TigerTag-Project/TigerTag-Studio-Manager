@@ -21,6 +21,22 @@ export function decimalSpoolIdToHex(decimal) {
   } catch { return null; }
 }
 
+/** The chip UID of an analytics event: `Uid` in decimal, what Xano has always keyed on, and
+ *  `UidHex`, the UID as printed (uppercase, whole bytes, 1 to 7 of them). Xano stores the UID
+ *  as a 64-bit integer, and a decimal number past 2^53 loses digits on the way (JSON numbers,
+ *  Xano's own header decoding), so Xano reads the exact `UidHex` first. A truncated NTAG id
+ *  gets its 0 back and a legacy decimal spool id is converted, so `UidHex` is the real chip
+ *  even where `Uid` (kept as it always was) is not. `{}` when there is no chip UID: TigerData,
+ *  TigerData+ and anything else that is not 1 to 7 bytes of hex. */
+export function analyticsUid(raw) {
+  const s = String(raw ?? "").replace(/[:\s]/g, "").toUpperCase();
+  if (!/^[0-9A-F]+$/.test(s)) return {};
+  const hex = isDecimalSpoolId(s) ? decimalSpoolIdToHex(s)
+            : repairTruncatedNtagUid(s) ?? (s.length % 2 ? "0" + s : s);
+  if (!hex || hex.length > 14) return {};
+  return { Uid: BigInt("0x" + s).toString(), UidHex: hex };
+}
+
 /** 13 hex chars starting with "4" = a 7-byte NTAG UID that lost the 0 of 0x04. No real chip
  *  has a 13-char hex UID, and no decimal UID has 13 digits (4-byte ≤ 10, 7-byte 0x04… = 16),
  *  so the pattern is unambiguous. Returns the repaired 14-char id, or null. */
