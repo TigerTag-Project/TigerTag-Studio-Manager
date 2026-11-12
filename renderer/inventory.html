@@ -396,7 +396,7 @@
           </button>
           <!-- Scan a TigerQR label with the computer's camera (renderer/qr-scan.js). -->
           <button type="button" id="searchQrScan" class="inv-search-scan" aria-label="Scan a QR code with the camera" data-i18n-aria="qrScanBtn">
-            <span class="icon icon-camera icon-14" aria-hidden="true"></span>
+            <span class="icon icon-qr icon-14" aria-hidden="true"></span>
           </button>
           <span class="icon icon-search icon-13"></span>
         </div>
@@ -3085,6 +3085,24 @@
     <div class="crs-data" id="chipRestoreData"></div>
     <div class="cer-actions" id="chipRestoreActions"></div>
     <div class="crs-debug" id="chipRestoreDebug"></div>
+  </div>
+</aside>
+
+<!-- The QR side card (renderer/qr-scan.js mountQrScanner): the live camera.
+     Opened by the search bar's scan button (at the right edge; what is read
+     opens like a pasted link) and by the new-chip card's "Add from QR code"
+     (in its pane; the product read opens in the catalogue pick, ready to add). -->
+<button class="pp-close-tab" id="qrScanCloseTab" aria-label="Close" hidden>»</button>
+<aside class="detail-panel pba-panel cer-panel" id="qrScanPanel">
+  <div class="pba-header">
+    <div class="pba-header-text">
+      <div class="pba-title qrs-title"><span class="icon icon-qr" aria-hidden="true"></span><span data-i18n="qrScanTitle">Show the QR code</span></div>
+      <div class="pba-sub" data-i18n="qrScanHint">Hold the spool's label in front of the camera.</div>
+    </div>
+    <button class="panel-close" id="qrScanPanelClose">✕</button>
+  </div>
+  <div class="qr-scan-win qrs-side">
+    <div class="qrs-root" id="qrScanPanelRoot"></div>
   </div>
 </aside>
 

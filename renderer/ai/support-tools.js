@@ -11,20 +11,23 @@
  *   list_tickets / get_ticket     — backend `myReports` (`list`, `all`, `thread`).
  *   open_ticket / reply_ticket    — write tools (listed only while the account
  *                                   allows changes). Nothing is sent by the
- *                                   assistant: Studio shows the text in a window,
- *                                   the user ticks "this is public" and sends — or
- *                                   not. A request cannot be undone (it is public),
- *                                   so this confirmation replaces the undo of the
- *                                   other write tools (.agents/rules/mcp.md).
+ *                                   assistant: Studio opens its own request card
+ *                                   (report/index.js, "Improvements & suggestions")
+ *                                   filled with the text, and the user adds
+ *                                   captures (the card hides while it shoots),
+ *                                   annotations, files or a printer's data, ticks
+ *                                   "this is public" and sends — or not. A request
+ *                                   cannot be undone (it is public), so this
+ *                                   replaces the undo of the other write tools
+ *                                   (.agents/rules/mcp.md; founder, issue #238).
  *
- * The text an assistant writes is cleaned before it is shown (e-mails, IP and
- * MAC addresses, keys, serial numbers, home-folder paths), and what Studio adds
- * by itself is the report's own "Automatic information" (version, system,
+ * The text an assistant writes is cleaned before it is put in the card (e-mails,
+ * IP and MAC addresses, keys, serial numbers, home-folder paths), and what Studio
+ * adds by itself is the card's own "Automatic information" (version, system,
  * language, printer brands) — never an id, a name, an address or a credential.
  *
- * initSupportTools(ctx) → { tools, handlers }; ctx = { t, esc, openDialog,
- *   lang, report: { submit, call, meta, isTeam, sync }, printerLine, writeGate,
- *   log, flash, write }.
+ * initSupportTools(ctx) → { tools, handlers }; ctx = { lang, report: { call,
+ *   open, isTeam }, printerLine, writeGate, log }.
  */
 
 const WIKI = "https://wiki.tigersystem.io";
@@ -36,7 +39,7 @@ const AI_MARK = "_Written with an AI assistant from Tiger Studio Manager, read a
 
 let ctx = null;
 const wikiCache = new Map();          // lang → { at, pages, full }
-const drafts = new Map();             // draft id → { kind: "ticket" | "reply", title, status, number?, url? }
+const drafts = new Map();             // draft id → { kind: "ticket" | "reply", title, status: "waiting_for_user" | "sent", number?, url? }
 
 // ── Personal data out ───────────────────────────────────────────────────────
 const SCRUB = [
@@ -106,43 +109,8 @@ async function pageText(url) {
   return { title: doc.querySelector("h1")?.textContent?.trim() || doc.title, images, text: main.textContent.replace(/[ \t]+/g, " ").replace(/\n\s*\n+/g, "\n\n").trim() };
 }
 
-// ── The confirmation window ─────────────────────────────────────────────────
-// The text exactly as it will be posted, "this is public" to tick, then Send.
-function confirmWindow({ title, sub, text, auto, sendLabel, cleaned, onSend }) {
-  const { t, esc } = ctx;
-  return new Promise(resolve => {
-    let done = false, card = null;
-    const end = (v) => { if (!done) { done = true; resolve(v); } };
-    ctx.openDialog({
-      look: "notice", cls: "ai-ticket-win", icon: "robot",
-      kicker: t("aiTicketKicker"), title, text: sub,
-      body: `<div class="ai-ticket-text">${esc(text)}</div>
-        ${cleaned ? `<p class="ai-hint ai-ticket-clean"><span class="icon icon-lock icon-12" aria-hidden="true"></span>${esc(t("aiTicketCleaned"))}</p>` : ""}
-        ${auto ? `<p class="ai-hint">${esc(t("reportAutoInfo"))} · ${esc(auto)}</p>` : ""}
-        <label class="ai-ticket-consent"><input type="checkbox" data-ai-consent /> <span>${esc(t("reportPublicConsent"))}</span></label>
-        <p class="ai-hint ai-ticket-err" hidden></p>`,
-      actions: [{ id: "send", label: sendLabel, kind: "primary" }, { id: "cancel", label: t("aiTicketCancel") }],
-      wire: (c) => {
-        card = c;
-        const send = card.querySelector('[data-dlg="send"]');
-        send.disabled = true;
-        card.querySelector("[data-ai-consent]").addEventListener("change", e => { send.disabled = !e.target.checked; });
-      },
-      onAction: async (id, close) => {
-        if (id !== "send") { close(); return end(false); }
-        const send = card?.querySelector('[data-dlg="send"]'), err = card?.querySelector(".ai-ticket-err");
-        if (send) send.disabled = true;
-        try { await onSend(); close(); end(true); }
-        catch (e) {
-          if (err) { err.hidden = false; err.textContent = t(e.code === "RATE_LIMITED" ? "reportErrLimit" : e.code === "SQUAD_REQUIRED" ? "reportSquadGateTitle"
-            : e.code === "UNAUTHENTICATED" ? "reportNeedLogin" : e.code === "CLOSED" ? "aiTicketClosed" : "reportErrSend"); }
-          if (send) send.disabled = false;
-        }
-      },
-      onDismiss: () => end(false),
-    });
-  });
-}
+// What the assistant prepared and what became of it (list_tickets › pending_drafts).
+// "sent" once the user sends it from the card; until then "waiting_for_user".
 const newDraft = (d) => { const id = "draft_" + Date.now().toString(36); drafts.set(id, { ...d, status: "waiting_for_user" }); return id; };
 const asError = (e) => {
   const map = { SQUAD_REQUIRED: "Requests are for TigerSquad members (free): the user joins in one click from Studio › Improvements & suggestions first.",
@@ -175,7 +143,7 @@ const TOOLS = [
   { name: "list_tickets", title: "List support requests",
     description: "The requests (bug reports, ideas, improvements, questions) members sent from Studio — public GitHub issues. scope \"mine\" = the user's own, \"all\" = every member's (newest 150). "
       + "Look here BEFORE open_ticket: if the same problem is already reported, read it with get_ticket and add to it with reply_ticket instead of opening a duplicate. "
-      + "Also returns pending_drafts: what the assistant prepared this session and what the user did with it (sent → its number, or declined).",
+      + "Also returns pending_drafts: what the assistant prepared this session — waiting_for_user until the user sends it from Studio, then sent with its number.",
     inputSchema: { type: "object", properties: {
       scope: { type: "string", enum: ["mine", "all"], description: "Default \"mine\"" },
       query: { type: "string", description: "Words matched against the titles" },
@@ -189,7 +157,8 @@ const TOOLS = [
     inputSchema: { type: "object", properties: { report_id: { type: "string", description: "id from list_tickets" } }, required: ["report_id"] },
     annotations: READ },
   { name: "open_ticket", title: "Prepare a support request",
-    description: "Prepare a request to the TigerSystem team with everything needed to act on it. Nothing is sent by you: Studio shows the user the exact text, they tick that it is public and send it (or not). "
+    description: "Prepare a request to the TigerSystem team with everything needed to act on it. Nothing is sent by you: Studio opens its request card (Improvements & suggestions) filled with your text; "
+      + "there the user adds screenshots (its capture button hides the card), annotates or blurs them, attaches files or a printer's data, ticks that it is public and sends it (or not) — do not take screenshots for it. "
       + "Use it when the wiki does not solve the problem and list_tickets shows no existing request for it. Write in the user's language. Give real steps and what was already tried; "
       + "never put personal data in it (e-mail, address, IP, serial number, access code, key) — Studio removes what it recognises and adds the app version, system and printer brands itself. "
       + "The result is waiting_for_user; list_tickets › pending_drafts shows the outcome. Limited to 5 requests per account per day; requests are for TigerSquad members (free).",
@@ -206,7 +175,7 @@ const TOOLS = [
     annotations: WRITE },
   { name: "reply_ticket", title: "Prepare a reply in a request",
     description: "Prepare an answer in a request's conversation — the user's own request, any member's \"question\", or any request when the user is on the team (get_ticket › can_reply). "
-      + "Nothing is sent by you: Studio shows the text, the user ticks that it is public and sends it (or not). Be useful and kind, cite the wiki page when it answers, no personal data. "
+      + "Nothing is sent by you: Studio opens the request's conversation with your text in its reply box, where the user can add pictures or files and sends it (or not). Be useful and kind, cite the wiki page when it answers, no personal data. "
       + "The result is waiting_for_user; list_tickets › pending_drafts shows the outcome.",
     inputSchema: { type: "object", properties: {
       report_id: { type: "string", description: "id from list_tickets" },
@@ -300,25 +269,17 @@ const HANDLERS = {
     if (tried.length) parts.push("**Already tried**\n" + tried.map(s => `- ${s}`).join("\n"));
     if (printer) parts.push(`**Printer**\n${printer}`);
     const body = scrub(parts.join("\n\n"));
-    const meta = await ctx.report.meta().catch(() => ({}));
-    const auto = [meta.appVersion && `v${meta.appVersion}`, meta.os, meta.lang, meta.printers].filter(Boolean).join(" · ");
     const draftId = newDraft({ kind: "ticket", title: title.text });
     const finalBody = `${body.text}\n\n${AI_MARK}`;
-    confirmWindow({
-      title: ctx.t("aiTicketTitle"), sub: `${ctx.t(`reportKind${kind[0].toUpperCase()}${kind.slice(1)}`)} · ${title.text}`,
-      text: finalBody, auto, cleaned: title.cleaned || body.cleaned, sendLabel: ctx.t(`reportSend_${kind}`),
-      onSend: async () => {
-        const j = await ctx.report.submit({ kind, target: about, publicConsent: true, title: title.text, body: finalBody,
-          meta: { appVersion: meta.appVersion, os: meta.os, view: meta.view, page: meta.page, screen: meta.screen, lang: meta.lang, printers: meta.printers, errors: [] } });
+    ctx.report.open({ tab: "new", kind, target: about, title: title.text, body: finalBody,
+      onSent: (j) => {
         Object.assign(drafts.get(draftId), { status: "sent", number: j.number, url: j.url });
-        ctx.log({ tool: "open_ticket", kind: "ticket", summary: `Request #${j.number}`, number: j.number, url: j.url, title: title.text });
-        ctx.report.sync();
-        ctx.flash(ctx.t("aiTicketSent", { n: j.number }));
-      },
-    }).then(sent => { const d = drafts.get(draftId); if (!sent && d.status === "waiting_for_user") d.status = "declined"; });
-    return { status: "waiting_for_user", draft_id: draftId, shown_to_user: { kind, about, title: title.text, body: finalBody, automatic_information: auto },
+        ctx.log({ tool: "open_ticket", kind: "ticket", summary: `Request #${j.number}`, number: j.number, url: j.url, title: j.title || title.text });
+      } });
+    return { status: "waiting_for_user", draft_id: draftId, shown_to_user: { kind, about, title: title.text, body: finalBody },
       personal_data_removed: title.cleaned || body.cleaned,
-      next: "The user reads it in Studio, ticks that it is public and sends it — or not. Tell them; list_tickets › pending_drafts gives the number once sent." };
+      next: "Studio opened its request card (Improvements & suggestions) with this text. The user can change it, add screenshots (the card's capture button hides the card), annotate or blur them, "
+        + "attach files or a printer's data, then ticks that it is public and sends it — or not. Tell them; list_tickets › pending_drafts gives the number once sent." };
   },
   async reply_ticket(a) {
     await ctx.writeGate();
@@ -333,19 +294,14 @@ const HANDLERS = {
     const asTeam = !th.mine && ctx.report.isTeam();
     const finalText = `${text.text}\n\n${AI_MARK}`;
     const draftId = newDraft({ kind: "reply", title: th.title, number: th.number, url: th.url });
-    confirmWindow({
-      title: ctx.t("aiReplyTitle"), sub: ctx.t("aiReplyOn", { n: th.number, title: th.title }),
-      text: finalText, cleaned: text.cleaned, sendLabel: ctx.t("aiReplySend"),
-      onSend: async () => {
-        await ctx.report.call({ action: "comment", reportId: id, text: finalText, ...(asTeam ? { as: "team" } : {}) });
+    ctx.report.open({ tab: asTeam ? "all" : "mine", thread: id, reply: finalText,
+      onSent: () => {
         drafts.get(draftId).status = "sent";
         ctx.log({ tool: "reply_ticket", kind: "ticket_reply", summary: `Reply on #${th.number}`, number: th.number, url: th.url, title: th.title });
-        ctx.flash(ctx.t("aiReplySent", { n: th.number }));
-      },
-    }).then(sent => { const d = drafts.get(draftId); if (!sent && d.status === "waiting_for_user") d.status = "declined"; });
+      } });
     return { status: "waiting_for_user", draft_id: draftId, request: { number: th.number, title: th.title }, posted_as: th.mine ? "the reporter" : asTeam ? "the team" : "a member helping",
       shown_to_user: finalText, personal_data_removed: text.cleaned,
-      next: "The user reads it in Studio and sends it — or not. list_tickets › pending_drafts gives the outcome." };
+      next: "Studio opened the request's conversation with this reply in its box. The user can change it, add pictures or files, and sends it — or not. list_tickets › pending_drafts gives the outcome." };
   },
 };
 

@@ -1,7 +1,7 @@
 import { decimalSpoolIdToHex, repairTruncatedNtagUid, isDecimalSpoolId, planTruncatedUidRepair, analyticsUid } from './uid-repair.js';
 // ── RFID TigerTag tester modal ────────────────────────────────────────────
 import { initRfidTester } from './rfid_protocol/tigertag/index.js';
-import { initLinkedChips, linkedChipsSignIn, linkedChipsSignOut, linkedChipsOf, onForeignChip, holdForeignChip, pendingMakerChips, presentMakerChips, makerLinkBannerHtml, linkMakerChipsTo, linkedChipsHtml, wireLinkedChips, linkPendingTo, clearPendingLink, openBlankChipWindow, closeChipChoice, closeChipLink, wireSearchBox, linkOfferHtml, wireLinkOffer, openAddChooser, refreshChipChoice } from './rfid_protocol/linked/index.js';
+import { initLinkedChips, linkedChipsSignIn, linkedChipsSignOut, linkedChipsOf, onForeignChip, holdForeignChip, pendingMakerChips, presentMakerChips, makerLinkBannerHtml, linkMakerChipsTo, linkedChipsHtml, wireLinkedChips, linkPendingTo, clearPendingLink, openBlankChipWindow, closeChipChoice, closeChipLink, wireSearchBox, linkOfferHtml, wireLinkOffer, openAddChooser, refreshChipChoice, chooseChipView } from './rfid_protocol/linked/index.js';
 import { initChipEraser, openChipEraser, closeChipEraser, chipEraserOpen, eraserCardPresent, eraserForeignChip, eraserReadersChanged } from './rfid_protocol/eraser/index.js';
 import { initChipRestore, openChipRestore, closeChipRestore, chipRestoreOpen, restoreCardPresent, restoreReadersChanged } from './rfid_protocol/restore/index.js';
 import { initLabels, openLabelCard, closeLabelCard, labelCardOpen, mountLabel, refreshLabelCard, labelFor, saveLabel, qrSvg, LABEL_TEMPLATES, LABEL_SLOTS } from './labels/index.js';
@@ -31,7 +31,7 @@ import { closePullStages, holdToFire, openPullStage } from './quests/coin-pull.j
 import { squadHeroHtml, squadItemsHeroHtml, squadRankingsHtml, pulseHtml as squadPulseHtml, toggleLeague, pickLeague, leagueRows, setLeagueRows, rankNo } from './quests/squad-rankings.js';
 import { artImg } from './art.js';
 import { openDialog, initDialogs } from './dialog.js';
-import { openQrCameraScan } from './qr-scan.js';
+import { mountQrScanner } from './qr-scan.js';
 import { initAiAssistant, aiOnToolCall, aiAccountChanged, aiJournalChanged, renderAiPage, closeAiHistory, closeAiSetup, aiDisconnectAll } from './ai/assistant.js';
 import { initTrophies, trophiesSignIn, trophiesSignOut, renderTrophiesView, trophyEarned } from './quests/trophies.js';
 import { fillHeroScenes } from './hero-scene.js';
@@ -158,7 +158,7 @@ import { renderElegooCamBanner } from './printers/elegoo/widget_camera.js';
 import { sdcpWireLive } from './printers/elegoo/sdcp.js';
 import { elgFanStep } from './printers/elegoo/widget_control.js';
 import { jobBar, jobBarFill } from './printers/job-bar.js';
-import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, reportDragState, syncReports, refreshSquadCard, reportSubmit, reportCall, reportMeta } from './report/index.js';
+import { initReport, toggleReport, openReport, isReportOpen, reportDropFiles, reportDragState, syncReports, refreshSquadCard, reportCall } from './report/index.js';
 import { initSupportTools } from './ai/support-tools.js';
 import { initScreenTools } from './ai/screen-tools.js';
 
@@ -3523,6 +3523,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     if (e.key === "Escape" && $("matSourcePanel")?.classList.contains("open")) closeMaterialSourcePicker();
     if (e.key === "Escape" && $("catalogPickPanel")?.classList.contains("open")) closeCatalogPick();
     if (e.key === "Escape" && $("chipChoicePanel")?.classList.contains("open")) closeChipChoice();
+    if (e.key === "Escape" && $("qrScanPanel")?.dataset.mode === "find") closeQrScanPanel();
   });
   // Delegated on the container: the rows are re-rendered on every open.
   $("matSourceList")?.addEventListener("click", e => {
@@ -4853,6 +4854,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     showTip: el => _showToolInfoTip(el), hideTip: () => _hideToolInfoTip(), errorTip: (el, msg, opts) => _showErrorTip(el, msg, opts),
     clearCreate: () => { closeCatalogPick(); if ($("productCardPanel")?.classList.contains("open")) closeProductCard(); if ($("addProductPanel")?.classList.contains("open")) _adpCloseAllSheetsAndPanel(); },
     openEraser: () => openChipEraser(), closeEraser: () => closeChipEraser(),
+    openQrScan: () => openQrScanPanel("add"), closeQrScan: () => closeQrScanPanel(),
     restorableChip: () => _restorableChip(),
     openRestore: () => openChipRestore(), closeRestore: () => closeChipRestore() });
   $("chipLinkClose")?.addEventListener("click", () => closeChipLink());
@@ -13257,6 +13259,7 @@ import { initScreenTools } from './ai/screen-tools.js';
   // Called on EVERY view transition — account↔account, own→friend, friend→friend,
   // friend→own — so the previous user's open spool never bleeds into the next view.
   function _closeAllSideCards() {
+    if ($("qrScanPanel")?.dataset.mode === "find") closeQrScanPanel();   // the search bar's QR card
     closeDetail();        // also clears state.selected + any queued scan-open
     _closeGroupPanel();
     closeProductCard();   // light product "business card"
@@ -15063,10 +15066,99 @@ import { initScreenTools } from './ai/screen-tools.js';
   });
   // The camera button of the search bar: a TigerQR label shown to the computer's
   // camera opens like a pasted link (reader "camera", renderer/qr-scan.js).
+  // A scanner's beep on a read, like the Tiger POD's (synthesised, _playTones).
+  const _qrBeep = () => _playTones([{ f: 2400, d: 0.07 }, { f: 3000, t: 0.08, d: 0.09 }], { type: "square", gain: 0.035 });
+  // ONE QR side card (#qrScanPanel, renderer/qr-scan.js mountQrScanner), two places:
+  //   • "find": the search bar's scan button, on its own at the right edge — what
+  //     is read opens like a pasted link (_qrLinkOpen, reader "camera");
+  //   • "add": the add chooser's "Add from QR code", in that card's pane — the
+  //     product read opens in its catalogue view, ready to add (_qrAddFound).
+  let _qrPanelScan = null, _qrPanelMode = null;
   $("searchQrScan")?.addEventListener("click", () => {
-    if (!navigator.mediaDevices?.getUserMedia) { _flashMessage(t("qrScanNoCamera")); return; }
-    openQrCameraScan({ t, openDialog, parseQrLink, onLink: link => _qrLinkOpen(link, "camera") });
+    // Open in the add chooser already: it switches to its QR view.
+    if ($("chipChoicePanel")?.classList.contains("open")) { chooseChipView("qr"); return; }
+    // A second tap closes the card it opened.
+    if (_qrPanelMode === "find") { closeQrScanPanel(); return; }
+    _closeAllSideCards();
+    openQrScanPanel("find");
   });
+  $("qrScanPanelClose")?.addEventListener("click", () => closeQrScanPanel());
+  $("qrScanCloseTab")?.addEventListener("click", () => closeQrScanPanel());
+  function openQrScanPanel(mode = "add") {
+    _qrPanelScan?.stop();
+    _qrPanelMode = mode;
+    const panel = $("qrScanPanel");
+    if (panel) panel.dataset.mode = mode;   // read before this code runs (Escape, _closeAllSideCards)
+    panel?.classList.add("open");
+    const root = $("qrScanPanelRoot");
+    if (!root) return;
+    if (!navigator.mediaDevices?.getUserMedia) { root.innerHTML = `<p class="qrs-msg">${esc(t("qrScanNoCamera"))}</p>`; return; }
+    _qrWatchOthers(mode === "find");
+    _qrPanelScan = mountQrScanner(root, { t, parseQrLink, onFound: _qrBeep, onLink: link => {
+      if (_qrPanelMode === "find") { closeQrScanPanel(); _qrLinkOpen(link, "camera"); return; }
+      _qrAddFound({ ...link, reader: "camera" }).catch(e => reportError("qrScan.add", e));
+    } });
+    _syncPanels();
+  }
+  // On its own, the card gives way to any other side card opened while it is up
+  // (spool, printer, friends, notifications…): the camera stops and it closes.
+  let _qrOthersObs = null;
+  function _qrWatchOthers(on) {
+    _qrOthersObs?.disconnect();
+    _qrOthersObs = null;
+    if (!on) return;
+    _qrOthersObs = new MutationObserver(recs => {
+      if (recs.some(r => r.target.classList.contains("open") && !r.oldValue?.split(" ").includes("open"))) closeQrScanPanel();
+    });
+    document.querySelectorAll(".detail-panel").forEach(el => {
+      if (el.id !== "qrScanPanel") _qrOthersObs.observe(el, { attributes: true, attributeFilter: ["class"], attributeOldValue: true });
+    });
+  }
+  function closeQrScanPanel() {
+    _qrWatchOthers(false);
+    _qrPanelScan?.stop();
+    _qrPanelScan = null;
+    _qrPanelMode = null;
+    if ($("qrScanPanel")) delete $("qrScanPanel").dataset.mode;
+    if (!$("qrScanPanel")?.classList.contains("open")) return;
+    $("qrScanPanel").classList.remove("open");
+    _syncPanels();
+  }
+  // Nothing to add from what was read: say so (toast), then scan again.
+  function _qrRescan() {
+    const mode = _qrPanelMode;
+    setTimeout(() => { if (mode && _qrPanelMode === mode && $("qrScanPanel")?.classList.contains("open")) openQrScanPanel(mode); }, 1500);
+  }
+  // A label read in the add chooser: the product it points to opens in the
+  // catalogue view, selected, with its product card — "+ Inventory" adds it,
+  // as when it is picked by hand. A spool of this inventory simply opens.
+  async function _qrAddFound(link) {
+    let idProduct = null, alt = null, api = null;
+    if (link.kind === "spool") {
+      if (state.inventory?.[link.id]) { closeChipChoice(); _qrLinkOpen(link, "camera"); return; }
+      let res = null;
+      try { res = await fetch(spoolLink(link.id) + ".json", { cache: "no-store" }); } catch (_) {}
+      api = res?.ok ? await res.json().catch(() => null) : null;
+      if (!_hasRealProductId(api?.id)) {
+        _flashMessage(t(res && (res.status === 404 || res.ok) ? "spoolLinkPrivate" : "spoolLinkNotMine"));
+        _sendQrRead(link, "spool");
+        return _qrRescan();
+      }
+      idProduct = Number(api.id);
+    } else if (link.kind === "newer") {
+      _flashMessage(t("qrLinkNewer")); _sendQrRead(link, "newer"); return _qrRescan();
+    } else {
+      if (!_hasRealProductId(link.idProduct)) { _flashMessage(t("qrLinkNoProduct")); _sendQrRead(link, "no_product"); return _qrRescan(); }
+      idProduct = link.idProduct; alt = link.idProductDecimal;
+    }
+    const it = await _resolveLinkedProduct(idProduct, { alt, api });
+    if (!it) { _sendQrRead(link, "no_product"); return _qrRescan(); }
+    _sendQrRead(link, link.kind === "spool" ? "spool" : "product", null, Number(it.id));
+    if (!chooseChipView("catalogue")) return;
+    _cpkSelectedId = String(it.id);
+    $("cpkList")?.querySelectorAll(".cpk-row").forEach(x => x.classList.toggle("is-selected", x.dataset.cpkId === _cpkSelectedId));
+    await _catViewProductCard(it, { fromPick: true });
+  }
   // A qr.tigertag.io link in the search opens what it designates (_qrLinkOpen).
   // Pasted, it arrives whole; typed by a handheld scanner (a keyboard to the app),
   // it is read on the scanner's Enter or after a pause, never halfway through.
@@ -16761,6 +16853,7 @@ import { initScreenTools } from './ai/screen-tools.js';
   function _clearSideForChip() {
     if ($("notifPanel")?.classList.contains("open"))       closeNotifs();
     if ($("matSourcePanel")?.classList.contains("open"))   closeMaterialSourcePicker();
+    if ($("qrScanPanel")?.dataset.mode === "find")         closeQrScanPanel();
     closeCatalogPick();
     closeChipLink();
     if ($("addProductPanel")?.classList.contains("open"))  _adpCloseAllSheetsAndPanel();
@@ -19627,8 +19720,11 @@ import { initScreenTools } from './ai/screen-tools.js';
     const ccRight = ccOpen ? (baseRight + detailW + cppW + gpW + pcW + roW + nextW) : 0;
     if (ccp) ccp.style.right = ccRight ? `${ccRight}px` : "";
     _setTab($("chipChoiceCloseTab"), ccOpen, ccRight + (ccOpen ? ccp.offsetWidth : 0), ccp);
+    // The search bar's QR card, alone at the right edge (in the new-chip card's pane it has none).
+    const qrp = $("qrScanPanel"), qrOpen = !!qrp?.classList.contains("open") && !borrowed(qrp);
+    _setTab($("qrScanCloseTab"), qrOpen, qrOpen ? qrp.offsetWidth : 0, qrp);
     // Only the new-chip card's own » shows while it is up.
-    if (ccOpen) ["catalogPickCloseTab", "chipLinkCloseTab", "addProductCloseTab"].forEach(id => { if ($(id)) $(id).hidden = true; });
+    if (ccOpen) ["catalogPickCloseTab", "chipLinkCloseTab", "addProductCloseTab", "qrScanCloseTab"].forEach(id => { if ($(id)) $(id).hidden = true; });
     _setTab($("productCardCloseTab"), pcOpen, pcRight + (pcW || upPcW), pcp);
     _setTab($("reorderCloseTab"), roOpen, roRight + roW, rop);
     _setTab($("detailCloseTab"),     dOpen, matRight + detailW, dp);
@@ -41147,6 +41243,17 @@ import { initScreenTools } from './ai/screen-tools.js';
   // Returns the id shown, or null when there is no such product.
   async function _openLinkedProduct(idProduct, { alt = null, api = null, foreign = false } = {}) {
     if (state.friendView) switchBackToOwnView();
+    const it = await _resolveLinkedProduct(idProduct, { alt, api });
+    if (!it) return null;
+    _closeAllSideCards();
+    _catViewSelectedId = String(it.id);
+    _pcForeignSpool = foreign ? String(it.id) : null;
+    await _catViewProductCard(it);
+    return Number(it.id);
+  }
+  // The catalogue entry of a product id (see _openLinkedProduct), or null after
+  // saying there is no such product.
+  async function _resolveLinkedProduct(idProduct, { alt = null, api = null } = {}) {
     _catalogLoadCacheIfNeeded();
     if (!_catalogIndex.length) await _catalogLoadBundled().catch(() => false);
     const byId = id => _catalogIndex.find(e => Number(e.it.id) === id)?.it;
@@ -41163,11 +41270,7 @@ import { initScreenTools } from './ai/screen-tools.js';
       material: api.filament?.material, aspect1: api.filament?.aspect1, aspect2: api.filament?.aspect2,
       color: api.color, color_info: api.filament?.color_info, img_src: api.images?.main_src };
     if (api) _catDetailCache.set(String(it.id), api);
-    _closeAllSideCards();
-    _catViewSelectedId = String(it.id);
-    _pcForeignSpool = foreign ? String(it.id) : null;
-    await _catViewProductCard(it);
-    return Number(it.id);
+    return it;
   }
   function _handleSpoolDeepLink(url) {
     const m = /^tigertag:\/\/spool\/([^?#]+?)\/?(\?[^#]*)?(?:#.*)?$/i.exec(String(url || ""));
@@ -46959,9 +47062,9 @@ import { initScreenTools } from './ai/screen-tools.js';
   // after reading them (renderer/ai/support-tools.js).
   {
     const support = initSupportTools({
-      t, esc, openDialog, lang: () => state.lang,
-      report: { submit: reportSubmit, call: reportCall, meta: reportMeta, sync: () => syncReports(),
-        isTeam: () => !!(state.isAdmin || state.isTigerMaster) },
+      lang: () => state.lang,
+      // open: Studio's request card, filled with what the assistant prepared (issue #238).
+      report: { call: reportCall, open: (o) => openReport(o), isTeam: () => !!(state.isAdmin || state.isTigerMaster) },
       // A printer as "Brand Model" — never its name, address or serial.
       printerLine: (ref) => {
         const w = String(ref || "").trim().toLowerCase();
@@ -46969,7 +47072,7 @@ import { initScreenTools } from './ai/screen-tools.js';
           || (state.printers || []).find(x => String(x.brand || "").toLowerCase() === w);
         return p ? [p.brand, printerModelName(p.brand, p.printerModelId)].filter(Boolean).join(" ") : null;
       },
-      writeGate: () => _mcpWriteGate(), log: (c) => _mcpLog(c), flash: _flashMessage,
+      writeGate: () => _mcpWriteGate(), log: (c) => _mcpLog(c),
     });
     MCP_TOOLS.push(...support.tools);
     Object.assign(MCP_HANDLERS, support.handlers);

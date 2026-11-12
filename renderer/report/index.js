@@ -18,6 +18,10 @@
  *   initReport(ctx)  — ctx = { t, esc, getIdToken, getMeta, openExternal, onToggle,
  *                              listPrinters, printerReportData, … }
  *   toggleReport()   — open / close the side card (the draft survives)
+ *   openReport(opts) — open it on { tab, thread, target, kind, images }, and with
+ *                      what an AI assistant prepared: { title, body } for a new
+ *                      request, { thread, reply } for an answer; onSent(info) is
+ *                      called once the user has sent it (never for a cancel)
  *   isReportOpen()   — is it open?
  *
  * "My requests" lists what the user sent; a row opens its CONVERSATION — the
@@ -449,8 +453,10 @@ function _showAlert(news) {
 }
 
 // ── Conversation ─────────────────────────────────────────────────────────────
-async function openThread(id, { team = false } = {}) {
-  _thread = { id, team, data: null, loading: true, error: false, body: "", images: [], pdfs: [], jsons: [], printerPick: false, sending: false, err: "" };
+async function openThread(id, { team = false, reply = "", onSent = null } = {}) {
+  // `reply` / `onSent`: an answer prepared by an AI assistant (reply_ticket), in the reply box.
+  _thread = { id, team, data: null, loading: true, error: false, body: String(reply || ""), images: [], pdfs: [], jsons: [], printerPick: false, sending: false, err: "",
+    onSent: typeof onSent === "function" ? onSent : null };
   _view = team ? "all" : "mine"; _closeAsk = null; _resolveAsk = null;
   if (!team) _markSeen((_mine.list || []).find(r => r.id === id));
   render();
@@ -545,7 +551,8 @@ async function sendReply() {
   try {
     const j = await authedPost(MINE_ENDPOINT, { action: "comment", reportId: th.id, text: th.body.trim(), images: th.images,
       pdfs: th.pdfs.map(f => ({ name: f.name, data: f.data })), jsons: th.jsons.map(f => ({ name: f.name, text: f.text })), ...(th.data?.team ? { as: "team" } : {}) });
-    if (_thread === th) Object.assign(th, { data: j.thread, body: "", images: [], pdfs: [], jsons: [], printerPick: false });
+    try { th.onSent?.({ reportId: th.id }); } catch (_) {}
+    if (_thread === th) Object.assign(th, { data: j.thread, body: "", images: [], pdfs: [], jsons: [], printerPick: false, onSent: null });
     const r = (_mine.list || []).find(x => x.id === th.id);
     if (r) r.comments = (Number(r.comments) || 0) + 1;
   } catch (e) {
@@ -682,11 +689,10 @@ async function closeMine(id) {
   if (_thread?.id === id) _threadToEnd();
 }
 
-// For the AI assistant's request tools (ai/support-tools.js): the same two
-// endpoints, the same ID token. The assistant prepares; the user sends.
-export const reportSubmit = body => authedPost(ENDPOINT, body);
+// For the AI assistant's request tools (ai/support-tools.js): the requests
+// service with the same ID token, to read. They send nothing: openReport fills
+// this card and the user sends from it.
 export const reportCall = body => authedPost(MINE_ENDPOINT, body);
-export async function reportMeta() { return ctx?.getMeta ? ctx.getMeta() : {}; }
 export function isReportOpen() { return !!_overlay?.classList.contains("open"); }
 // Files dropped anywhere in the window while the card is open land here — the
 // .ttag import stands down meanwhile (inventory.js).
@@ -728,11 +734,18 @@ export async function openReport(opts = {}) {
   // kind and a picture already in place.
   if (opts.target && TARGETS.some(x => x.id === opts.target)) { st.target = opts.target; st.targetPicked = true; }
   if (opts.kind && kindOf(opts.kind)) { st.kind = opts.kind; _view = "new"; }
+  // Prepared by an AI assistant (ai/support-tools.js open_ticket): its title and
+  // description replace the draft's text; screenshots already added stay. The
+  // user finishes it with the card's own tools and sends it — or not.
+  if (opts.title != null || opts.body != null) {
+    st.title = String(opts.title ?? ""); st.body = String(opts.body ?? ""); st.consent = false;
+    st.onSent = typeof opts.onSent === "function" ? opts.onSent : null;
+  }
   for (const src of opts.images || []) addImage(src);
   // Refreshed on every open: the view and the printers may have changed since.
   try { st.meta = await ctx.getMeta(); } catch (_) { st.meta = st.meta || {}; }
   _pinToSidebar();
-  if (opts.thread) openThread(opts.thread, { team: asTeam }); else render();
+  if (opts.thread) openThread(opts.thread, { team: asTeam, reply: opts.reply, onSent: opts.onSent }); else render();
   // A card created just now has no computed "closed" position yet: read it
   // first, or the very first open would jump instead of sliding.
   void _overlay.getBoundingClientRect();
@@ -1351,6 +1364,7 @@ async function send() {
     // 4 — wrap up
     await wait(300);
     st.done = { number: j.number, url: j.url };
+    try { st.onSent?.({ number: j.number, url: j.url, title }); } catch (_) {}
     syncReports();   // the new one shows up in "My requests"
   } catch (e) {
     st.error = t(e.code === "RATE_LIMITED" ? "reportErrLimit" : e.code === "UNAUTHENTICATED" ? "reportNeedLogin" : e.code === "SQUAD_REQUIRED" ? "reportSquadGateTitle" : "reportErrSend");

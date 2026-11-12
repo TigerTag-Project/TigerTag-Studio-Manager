@@ -216,19 +216,6 @@
   .ai-win .tsq-title { font-size: 20px; }
 }
 
-/* The window that shows a request or a reply an assistant wrote, before it is sent. */
-.squad-notice.ai-ticket-win { width: min(560px, calc(100vw - 32px)); }
-.ai-ticket-text { max-height: 260px; overflow: auto; margin: 4px 0 10px; padding: 12px 14px; border-radius: 10px;
-  background: var(--surface-2); border: 1px solid var(--border-soft); color: var(--text); font-size: 13px; line-height: 1.5;
-  white-space: pre-wrap; overflow-wrap: anywhere; text-align: left; }
-.ai-ticket-win .ai-hint { text-align: left; }
-.ai-ticket-clean { display: flex; gap: 6px; align-items: center; }
-.ai-ticket-clean .icon { background-color: var(--muted); flex: none; }
-.ai-ticket-consent { display: flex; gap: 10px; align-items: flex-start; margin: 10px 0 4px; font-size: 12.5px; color: var(--text); text-align: left; cursor: pointer; }
-.ai-ticket-consent input { margin-top: 2px; flex: none; accent-color: var(--primary); }
-.ai-ticket-err { color: var(--danger); }
-.ai-ticket-win .dlg-act:disabled { opacity: .45; cursor: not-allowed; }
-
 /* The empty state's quiet ways back to what is left (history, access). */
 .aip-empty-links { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; margin: 4px 0 0; }
 .aip-local-on { align-self: flex-start; margin-top: 4px; }

@@ -10,7 +10,7 @@ It is neutral and agnostic by design: TigerTag takes no side between filament br
 distributors. The protocol is open and anyone can build a different ecosystem on it; nothing in this repo is a
 prerequisite for doing so.
 
-Current version: **2.55.0** — macOS (Intel + Apple Silicon, signed & notarized), Windows, Linux.
+Current version: **2.56.0** — macOS (Intel + Apple Silicon, signed & notarized), Windows, Linux.
 
 Showcase site (11 languages, built from `site/`, deployed by `.github/workflows/pages.yml`): https://tigertag-project.github.io/TigerTag-Studio-Manager/ — downloads: https://github.com/TigerTag-Project/TigerTag-Studio-Manager/releases/latest
 
@@ -41,6 +41,7 @@ Showcase site (11 languages, built from `site/`, deployed by `.github/workflows/
 - `renderer/rfid_protocol/restore/` — the Restore TigerTag+ view (rewrites a chip from its `rfidList` backup)
 - `renderer/labels/` — printed spool and filament labels: nine templates, each one SVG in printer dots (`buildLabel`), Print / PDF / PNG / SVG through `main.js` `label:render`
 - `renderer/qr-link.js` — the QR links of the TigerSystem-Docs contract (`spool-ids-and-qr-links.md`): build them and read them back offline (`qr.tigertag.io/<lang>/<spool id>`, product links `/p/<10 digit decimal id_product>`, an optional `/<lang>/` prefix); the label pill reads TigerQR (spool, no catalogue product) or TigerQR+ (catalogue product); links open a spool from Studio Web `?spool=`, `tigertag://spool/<id>` or a pasted link, and a pasted link to someone else's spool opens its product
+- `renderer/qr-scan.js` — reads a TigerQR label with the computer's camera (search bar QR button, add chooser "Add from QR code" tile): `mountQrScanner`, system `BarcodeDetector` else vendored `renderer/lib/jsqr/`; hosted by `#qrScanPanel` in `renderer/inventory.js`
 
 ## State object (renderer)
 

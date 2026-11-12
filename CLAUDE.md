@@ -126,7 +126,7 @@ renderer/
     72-hero-scene.css   — the ecosystem scene (iMac + flipping devices), shared with the splash
   hero-scene.js    — draws that scene into every [data-hero-scene]
   qr-link.js       — the QR links (qr.tigertag.io): build them, read them back offline (TigerSystem-Docs spool-ids-and-qr-links.md)
-  qr-scan.js       — read a TigerQR label with the computer's camera (search bar button; BarcodeDetector, else lib/jsqr)
+  qr-scan.js       — read a TigerQR label with the computer's camera (one side card #qrScanPanel: search bar button + "Add from QR code"; BarcodeDetector, else lib/jsqr)
   splash/          — the launch splash page (main.js createSplash), loaded before the main window
   locales/         — en fr de es it zh pt pt-pt pl ru nl (.json, reference: en)
   IoT/             — devices, each with its own CSS

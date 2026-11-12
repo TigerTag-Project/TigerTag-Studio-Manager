@@ -218,7 +218,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## TigerTag+ catalogue (L15681-18560)
+## TigerTag+ catalogue (L15681-18800)
 | L | What | Anchors |
 |---|---|---|
 | 11076-11169 | Refresh API data for a spool | `_refreshApiData` |
@@ -259,7 +259,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Panels / debug / auto-update (L25050-26760)
+## Panels / debug / auto-update (L25050-27000)
 | L | What | Anchors |
 |---|---|---|
 | 8323-8396 | Resizable panels (detail + debug) — drag handle, persisted width | `makePanelResizable`, `openDebug` |
@@ -271,7 +271,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Friends rendering (L26517-27440)
+## Friends rendering (L26517-27700)
 | L | What | Anchors |
 |---|---|---|
 | 8835-8919 | Sidebar friends quick-list + hover tooltip | `renderSidebarFriends`, `showSbFriendTip` |
@@ -280,7 +280,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Racks + printers subscriptions (L27278-27800)
+## Racks + printers subscriptions (L27278-28050)
 | L | What | Anchors |
 |---|---|---|
 | 9131-9173 | Racks subscription | `subscribeRacks`, `unsubscribeRacks` |
@@ -290,7 +290,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Printers views (L27671-31850)
+## Printers views (L27671-32100)
 | L | What | Anchors |
 |---|---|---|
 | 9338-9508 | **Job status helpers** + surgical grid patches (job card, online badge, grid signature) | `_getPrinterJob`, `_patchGridJobs`, `_jobCardHtml`, `_isPrinterOnline`, `_patchGridStatus` |
@@ -306,7 +306,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Printer detail side panel (L31660-34800)
+## Printer detail side panel (L31660-35050)
 | L | What | Anchors |
 |---|---|---|
 | 10263-10825 | Open/close lifecycle (connect/disconnect per brand), conn button, refresh | `openPrinterDetail`, `closePrinterDetail`, `refreshOpenPrinterDetail` |
@@ -316,7 +316,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Add-printer flow (L34628-35620)
+## Add-printer flow (L34628-35900)
 Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.js` owns the shell.
 
 | L | What | Anchors |
@@ -329,7 +329,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Racks CRUD + slots (L35719-38400)
+## Racks CRUD + slots (L35719-38700)
 | L | What | Anchors |
 |---|---|---|
 | 12602-12767 | Rack create / update / delete / empty + orphan ref cleanup | `createRack`, `updateRack`, `deleteRack`, `emptyRack` |
@@ -341,7 +341,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Storage view render + DnD (L38281-40180)
+## Storage view render + DnD (L38281-40450)
 | L | What | Anchors |
 |---|---|---|
 | 13496-14141 | **`renderRackView()`** — biggest function in the file: stats bar + filter chips, two-column layout, masonry, kebab menus, live search, read-only friend mode, rack reorder DnD | `renderRackView` |

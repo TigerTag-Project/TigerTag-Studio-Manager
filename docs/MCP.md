@@ -269,11 +269,12 @@ tell the assistant to search the wiki before answering a how-to or troubleshooti
 | `read_wiki_page` | one wiki page's text (from the index, else its HTML), `wiki.tigersystem.io` only |
 | `list_tickets` | the user's requests (`myReports` `list`) or every member's (`all`), filtered by words / status; `pending_drafts` = what the assistant prepared this session and what the user did with it |
 | `get_ticket` | one request and its conversation (`thread`), `can_reply` and who the user is in it |
-| `open_ticket` (write) | prepares a request — kind, product, title, summary, steps, expected, already tried, printer (brand + model only) — and shows it in a Studio window: the exact text, personal data removed (e-mails, IP / MAC addresses, keys, serial numbers, home paths), the report's automatic information, "this is public" to tick, Send. The assistant never sends; the tool returns `waiting_for_user` |
-| `reply_ticket` (write) | the same window for an answer in a thread: the user's own request, any member's "question" (as a helper), any request when the user is on the team (as the team) — the backend's rules (`reportIssue.js` `myReports`) |
+| `open_ticket` (write) | prepares a request (kind, product, title, summary, steps, expected, already tried, printer as brand + model only) with personal data removed (e-mails, IP / MAC addresses, keys, serial numbers, home paths), then opens Studio's own request card (*Improvements & suggestions*, `report/index.js` `openReport({ title, body, kind, target, onSent })`) filled with it. There the user changes it if needed and adds what helps: screenshots (the card's capture button hides the card while it shoots), annotations and blur, files, a printer's data JSON. They tick "this is public" and send it, or not. The assistant never sends and takes no screenshot for it (founder, issue #238); the tool returns `waiting_for_user` |
+| `reply_ticket` (write) | the same for an answer: opens the request's conversation with the text in its reply box (`openReport({ thread, reply, onSent })`). The user can add pictures or files, and sends it. It covers the user's own request, any member's "question" (answered as a helper) and any request when the user is on the team (answered as the team), under the backend's rules (`reportIssue.js` `myReports`) |
 
-Both write tools add a line saying an AI assistant wrote the text. A sent request or reply is
-journaled (`kind: "ticket"` / `"ticket_reply"`, shown in the AI page's changes) but not undoable — it
+Both write tools add a line saying an AI assistant wrote the text. `onSent` fires only when the user
+sends from the card: the draft then shows as `sent` in `list_tickets` › `pending_drafts`, and the request
+or reply is journaled (`kind: "ticket"` / `"ticket_reply"`, shown in the AI page's changes) but not undoable — it
 is public; the user closes their own request from *Improvements & suggestions › My requests*. The backend's limits
 hold: 5 requests a day per account, 10 replies an hour per request, TigerSquad members only.
 

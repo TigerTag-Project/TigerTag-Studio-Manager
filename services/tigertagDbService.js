@@ -233,6 +233,9 @@ async function updateIfNeeded() {
 
   let updated = 0;
   for (const key of Object.keys(remote)) {
+    // The server lists datasets this build does not download (e.g. `containers`,
+    // read by the renderer itself from the GitHub mirror): skip them quietly.
+    if (!DATASETS[key]) continue;
     const remoteTs = remote[key] ?? 0;
     if (remoteTs <= getLastUpdateTimestamp(key)) continue;
 

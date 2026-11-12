@@ -998,10 +998,49 @@
   .inv-search-scan:hover { background: var(--border); }
   .inv-search-scan:hover .icon { background: var(--text); }
   .inv-search-scan:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
-  /* The camera window: the live picture under a square aiming frame. */
+  /* The QR side card (#qrScanPanel): the search bar's scan button opens it at the
+     right edge; the add chooser shows it in its pane (linked.css). The live picture
+     sits under the scanner overlay. */
+  #qrScanPanel { width: 420px; max-width: 95vw; z-index: 101; display: flex; flex-direction: column; }
   .qr-scan-win .qrs-view { position: relative; margin: 14px auto 0; width: min(420px, 100%); aspect-ratio: 4 / 3; border-radius: 14px; overflow: hidden; background: #000; }
   .qr-scan-win .qrs-video { width: 100%; height: 100%; object-fit: cover; display: block; transform: scaleX(-1); }
-  .qr-scan-win .qrs-frame { position: absolute; left: 50%; top: 50%; width: 52%; aspect-ratio: 1; transform: translate(-50%, -50%); border: 3px solid var(--primary); border-radius: 16px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, .35); pointer-events: none; }
+  /* The scanner overlay (renderer/qr-scan.js): a square target, the rest dimmed; four
+     glowing corner brackets, a dot grid and a laser sweeping top to bottom. On a read
+     (.is-found) the brackets snap in and turn green, and the laser stops. */
+  .qr-scan-win { --qrs-on: var(--primary); --qrs-ok: var(--game-ok-text); --qrs-bad: var(--danger); }
+  .qr-scan-win .qrs-target { position: absolute; left: 50%; top: 50%; width: 50%; aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 14px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, .38); pointer-events: none; overflow: hidden; transition: width .35s cubic-bezier(.2, .8, .2, 1); }
+  .qr-scan-win .qrs-grid { position: absolute; inset: 0; background: radial-gradient(color-mix(in srgb, var(--qrs-on) 55%, transparent) 1px, transparent 1.4px) 0 0 / 14px 14px; opacity: .35; }
+  .qr-scan-win .qrs-laser { position: absolute; left: 4%; right: 4%; top: 0; height: 2px; border-radius: 2px; background: var(--qrs-on);
+    box-shadow: 0 0 10px 1px var(--qrs-on), 0 -26px 30px -6px color-mix(in srgb, var(--qrs-on) 35%, transparent); animation: qrs-sweep 2.2s cubic-bezier(.45, 0, .55, 1) infinite alternate; }
+  @keyframes qrs-sweep { from { top: 6%; } to { top: 94%; } }
+  .qr-scan-win .qrs-c { position: absolute; width: 22%; aspect-ratio: 1; border: 3px solid var(--qrs-on); filter: drop-shadow(0 0 6px var(--qrs-on)); transition: border-color .2s, filter .2s; }
+  .qr-scan-win .qrs-c--tl { top: 0; left: 0; border-right: 0; border-bottom: 0; border-top-left-radius: 14px; }
+  .qr-scan-win .qrs-c--tr { top: 0; right: 0; border-left: 0; border-bottom: 0; border-top-right-radius: 14px; }
+  .qr-scan-win .qrs-c--bl { bottom: 0; left: 0; border-right: 0; border-top: 0; border-bottom-left-radius: 14px; }
+  .qr-scan-win .qrs-c--br { bottom: 0; right: 0; border-left: 0; border-top: 0; border-bottom-right-radius: 14px; }
+  .qr-scan-win .qrs-view.is-found .qrs-target { width: 40%; box-shadow: 0 0 0 9999px rgba(0, 0, 0, .5), inset 0 0 40px color-mix(in srgb, var(--qrs-ok) 45%, transparent); }
+  .qr-scan-win .qrs-view.is-found .qrs-c { border-color: var(--qrs-ok); filter: drop-shadow(0 0 8px var(--qrs-ok)); }
+  .qr-scan-win .qrs-view.is-found .qrs-laser, .qr-scan-win .qrs-view.is-found .qrs-grid { opacity: 0; animation: none; transition: opacity .15s; }
+  /* The status pill, over the picture's top right corner: "Scanning…" with a pulsing
+     dot, then "Found!" in green (or red for a code that is not ours). */
+  .qr-scan-win .qrs-status { position: absolute; top: 10px; right: 10px; display: flex; align-items: center; gap: 7px; padding: 5px 12px; border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, .18); background: rgba(10, 14, 22, .62); backdrop-filter: blur(6px); font-size: 12px; font-weight: 600; color: #fff; transition: border-color .2s, color .2s; }
+  .qr-scan-win .qrs-dot { width: 8px; aspect-ratio: 1; border-radius: 50%; background: var(--qrs-on); box-shadow: 0 0 8px var(--qrs-on); animation: qrs-pulse 1.1s ease-in-out infinite; }
+  @keyframes qrs-pulse { 50% { opacity: .35; transform: scale(.75); } }
+  .qr-scan-win .qrs-status.is-found { border-color: color-mix(in srgb, var(--qrs-ok) 50%, transparent); color: var(--qrs-ok); }
+  .qr-scan-win .qrs-status.is-found .qrs-dot { background: var(--qrs-ok); box-shadow: 0 0 8px var(--qrs-ok); animation: none; }
+  /* A QR code that is not ours: red for a second (renderer/qr-scan.js WRONG_MS). */
+  .qr-scan-win .qrs-view.is-wrong .qrs-c { border-color: var(--qrs-bad); filter: drop-shadow(0 0 8px var(--qrs-bad)); }
+  .qr-scan-win .qrs-view.is-wrong .qrs-laser { background: var(--qrs-bad); box-shadow: 0 0 10px 1px var(--qrs-bad); }
+  .qr-scan-win .qrs-view.is-wrong .qrs-grid { opacity: 0; }
+  .qr-scan-win .qrs-status.is-wrong { border-color: color-mix(in srgb, var(--qrs-bad) 50%, transparent); color: var(--qrs-bad); }
+  .qr-scan-win .qrs-status.is-wrong .qrs-dot { background: var(--qrs-bad); box-shadow: 0 0 8px var(--qrs-bad); animation: none; }
+  .qr-scan-win .qrs-msg.is-wrong { color: var(--qrs-bad); }
+  @media (prefers-reduced-motion: reduce) { .qr-scan-win .qrs-laser { animation: none; top: 50%; } .qr-scan-win .qrs-dot { animation: none; } }
+  .qrs-side { padding: 4px 18px 18px; }
+  .qrs-title { display: flex; align-items: center; gap: 9px; }
+  .qrs-title .icon { width: 22px; aspect-ratio: 1; flex: none; background: var(--text); }
+  .qr-scan-win.qrs-side .qrs-view { width: 100%; margin-top: 0; }
   .qr-scan-win .qrs-msg { min-height: 1.4em; margin: 10px 0 0; text-align: center; font-size: 12.5px; color: var(--muted); }
   .inv-search-clear {
     position: absolute;

@@ -14718,5 +14718,242 @@
         }
       }
     ]
+  },
+  "2.56.0": {
+    "date": "2026-11-12",
+    "items": [
+      {
+        "icon": "camera",
+        "title": {
+          "en": "Point the camera, find the spool",
+          "fr": "Pointe la caméra, retrouve la bobine",
+          "de": "Kamera drauf, Spule gefunden",
+          "es": "Apunta la cámara, encuentra la bobina",
+          "it": "Punta la fotocamera, trova la bobina",
+          "zh": "对准摄像头，找到线材盘",
+          "pt": "Aponte a câmera, ache o carretel",
+          "pt-pt": "Aponta a câmara, encontra a bobina",
+          "pl": "Wyceluj kamerę, znajdź szpulę",
+          "ru": "Наведите камеру — катушка найдена",
+          "nl": "Richt de camera, vind de spoel"
+        },
+        "body": {
+          "en": "A new QR button in the search bar opens your computer's camera. Show it a TigerQR label and the spool opens. No typing, no squinting at serial numbers.",
+          "fr": "Un nouveau bouton QR dans la barre de recherche allume la caméra de ton ordinateur. Montre-lui une étiquette TigerQR et la bobine s’ouvre. Zéro saisie, zéro numéro de série à déchiffrer.",
+          "de": "Ein neuer QR-Button in der Suchleiste schaltet die Kamera deines Computers ein. Zeig ihr ein TigerQR-Etikett und die Spule öffnet sich. Kein Tippen, kein Entziffern von Seriennummern.",
+          "es": "Un nuevo botón QR en la barra de búsqueda enciende la cámara de tu ordenador. Enséñale una etiqueta TigerQR y se abre la bobina. Sin teclear, sin descifrar números de serie.",
+          "it": "Un nuovo pulsante QR nella barra di ricerca accende la fotocamera del computer. Mostrale un’etichetta TigerQR e la bobina si apre. Niente digitazione, niente numeri di serie da decifrare.",
+          "zh": "搜索栏里新增了二维码按钮，点一下就打开电脑摄像头。对着 TigerQR 标签一扫，线材盘就打开了。不用打字，也不用费眼睛认序列号。",
+          "pt": "Um botão de QR novo na barra de busca liga a câmera do computador. Mostre uma etiqueta TigerQR e o carretel abre. Sem digitar, sem decifrar número de série.",
+          "pt-pt": "Um botão QR novo na barra de pesquisa liga a câmara do computador. Mostra-lhe uma etiqueta TigerQR e a bobina abre. Sem escrever, sem decifrar números de série.",
+          "pl": "Nowy przycisk QR na pasku wyszukiwania włącza kamerę komputera. Pokaż jej etykietę TigerQR i szpula się otwiera. Bez pisania, bez wpatrywania się w numery seryjne.",
+          "ru": "Новая кнопка QR в строке поиска включает камеру компьютера. Покажите ей этикетку TigerQR — и катушка открыта. Без ввода и без разглядывания серийных номеров.",
+          "nl": "Een nieuwe QR-knop in de zoekbalk zet de camera van je computer aan. Laat hem een TigerQR-label zien en de spoel gaat open. Geen getyp, geen serienummers ontcijferen."
+        }
+      },
+      {
+        "icon": "bell",
+        "title": {
+          "en": "Beep means found",
+          "fr": "Bip, c’est trouvé",
+          "de": "Piep heißt gefunden",
+          "es": "Bip significa encontrado",
+          "it": "Bip vuol dire trovato",
+          "zh": "嘀一声就是扫到了",
+          "pt": "Bip quer dizer achou",
+          "pt-pt": "Bip quer dizer encontrado",
+          "pl": "Pisk znaczy: mam",
+          "ru": "Бип — значит нашлось",
+          "nl": "Piep betekent gevonden"
+        },
+        "body": {
+          "en": "The scanner beeps and turns green when it reads a TigerTag code. Anything else makes it blush red for a second, then it tries again. Very forgiving.",
+          "fr": "Le scanner fait bip et passe au vert quand il lit un code TigerTag. Tout le reste le fait rougir une seconde, puis il réessaie. Très conciliant.",
+          "de": "Der Scanner piept und wird grün, wenn er einen TigerTag-Code liest. Bei allem anderen läuft er eine Sekunde rot an und versucht es erneut. Sehr nachsichtig.",
+          "es": "El escáner pita y se pone verde cuando lee un código TigerTag. Con cualquier otra cosa se pone rojo un segundo y lo vuelve a intentar. Muy comprensivo.",
+          "it": "Lo scanner fa bip e diventa verde quando legge un codice TigerTag. Con tutto il resto arrossisce per un secondo e riprova. Molto paziente.",
+          "zh": "扫到 TigerTag 二维码时，扫描框会嘀一声并变绿。扫到别的东西就红脸一秒，然后继续尝试。脾气很好。",
+          "pt": "O scanner apita e fica verde quando lê um código TigerTag. Com qualquer outra coisa, fica vermelho por um segundo e tenta de novo. Bem tranquilo.",
+          "pt-pt": "O scanner apita e fica verde quando lê um código TigerTag. Com qualquer outra coisa, fica vermelho um segundo e tenta outra vez. Muito compreensivo.",
+          "pl": "Skaner piszczy i zielenieje, gdy odczyta kod TigerTag. Przy czymkolwiek innym czerwieni się na sekundę i próbuje dalej. Bardzo wyrozumiały.",
+          "ru": "Сканер пищит и зеленеет, когда читает код TigerTag. На всё остальное секунду краснеет и пробует снова. Очень терпеливый.",
+          "nl": "De scanner piept en wordt groen als hij een TigerTag-code leest. Bij al het andere wordt hij een seconde rood en probeert hij opnieuw. Erg vergevingsgezind."
+        }
+      },
+      {
+        "icon": "plus-circle",
+        "title": {
+          "en": "Add a filament by scanning it",
+          "fr": "Ajoute un filament en le scannant",
+          "de": "Filament per Scan hinzufügen",
+          "es": "Añade un filamento escaneándolo",
+          "it": "Aggiungi un filamento scansionandolo",
+          "zh": "扫一扫就能添加线材",
+          "pt": "Adicione um filamento escaneando",
+          "pt-pt": "Adiciona um filamento a digitalizá-lo",
+          "pl": "Dodaj filament, skanując go",
+          "ru": "Добавляйте филамент сканированием",
+          "nl": "Voeg een filament toe door te scannen"
+        },
+        "body": {
+          "en": "The add menu gets an \"Add from QR code\" tile. Scan a filament's QR code and its catalogue card opens, one click from your inventory.",
+          "fr": "Le menu d’ajout gagne une tuile « Ajouter par QR code ». Scanne le QR d’un filament et sa fiche catalogue s’ouvre, à un clic de ton inventaire.",
+          "de": "Das Hinzufügen-Menü bekommt eine Kachel „Per QR-Code hinzufügen“. Scanne den QR-Code eines Filaments und seine Katalogkarte öffnet sich, einen Klick von deinem Inventar entfernt.",
+          "es": "El menú de añadir estrena una ficha «Añadir con código QR». Escanea el QR de un filamento y se abre su ficha de catálogo, a un clic de tu inventario.",
+          "it": "Il menu di aggiunta ottiene un riquadro «Aggiungi da codice QR». Scansiona il QR di un filamento e si apre la sua scheda catalogo, a un clic dal tuo inventario.",
+          "zh": "添加菜单新增了“通过二维码添加”。扫一下线材的二维码，它的目录卡片就打开了，离加入库存只差一次点击。",
+          "pt": "O menu de adicionar ganhou um bloco «Adicionar por QR code». Escaneie o QR de um filamento e a ficha do catálogo abre, a um clique do seu inventário.",
+          "pt-pt": "O menu de adicionar ganhou um mosaico «Adicionar por código QR». Digitaliza o QR de um filamento e abre a ficha do catálogo, a um clique do teu inventário.",
+          "pl": "Menu dodawania ma nowy kafelek „Dodaj z kodu QR”. Zeskanuj kod QR filamentu, a otworzy się jego karta z katalogu, jedno kliknięcie od twojego magazynu.",
+          "ru": "В меню добавления появилась плитка «Добавить по QR-коду». Отсканируйте QR филамента — откроется его карточка в каталоге, в одном клике от вашего инвентаря.",
+          "nl": "Het toevoegmenu krijgt een tegel „Toevoegen via QR-code”. Scan de QR-code van een filament en de catalogusfiche opent, één klik van je inventaris."
+        }
+      },
+      {
+        "icon": "package",
+        "title": {
+          "en": "New spools come with their empty spool",
+          "fr": "Les nouvelles bobines arrivent avec leur bobine vide",
+          "de": "Neue Spulen kommen mit ihrer Leerspule",
+          "es": "Las bobinas nuevas llegan con su bobina vacía",
+          "it": "Le nuove bobine arrivano con la loro bobina vuota",
+          "zh": "新线材盘自带对应的空盘",
+          "pt": "Carretéis novos já vêm com o carretel vazio",
+          "pt-pt": "As bobinas novas já vêm com a bobina vazia",
+          "pl": "Nowe szpule przychodzą z pustą szpulą",
+          "ru": "Новые катушки приходят со своей пустой катушкой",
+          "nl": "Nieuwe spoelen komen met hun lege spoel"
+        },
+        "body": {
+          "en": "Add a spool and Studio picks the empty spool its filament is actually sold on, weight correction included. One less thing to look up.",
+          "fr": "Ajoute une bobine et Studio choisit la bobine vide sur laquelle son filament est vraiment vendu, correction de poids comprise. Une chose de moins à chercher.",
+          "de": "Füge eine Spule hinzu und Studio wählt die Leerspule, auf der ihr Filament tatsächlich verkauft wird, samt Gewichtskorrektur. Eine Sache weniger zum Nachschlagen.",
+          "es": "Añade una bobina y Studio elige la bobina vacía en la que se vende de verdad su filamento, con la corrección de peso incluida. Una cosa menos que buscar.",
+          "it": "Aggiungi una bobina e Studio sceglie la bobina vuota su cui il suo filamento è davvero venduto, correzione del peso inclusa. Una cosa in meno da cercare.",
+          "zh": "添加线材盘时，Studio 会自动选好该线材实际使用的空盘，并带上你的重量校正。又少了一件要查的事。",
+          "pt": "Adicione um carretel e o Studio escolhe o carretel vazio em que o filamento realmente é vendido, com a correção de peso incluída. Uma coisa a menos para procurar.",
+          "pt-pt": "Adiciona uma bobina e o Studio escolhe a bobina vazia em que o filamento é mesmo vendido, com a correção de peso incluída. Uma coisa a menos para procurar.",
+          "pl": "Dodaj szpulę, a Studio wybierze pustą szpulę, na której jej filament naprawdę jest sprzedawany, z korektą wagi w komplecie. Jedna rzecz mniej do szukania.",
+          "ru": "Добавьте катушку — и Studio выберет пустую катушку, на которой этот филамент действительно продаётся, с учётом вашей поправки веса. Одной проблемой меньше.",
+          "nl": "Voeg een spoel toe en Studio kiest de lege spoel waarop haar filament echt wordt verkocht, inclusief gewichtscorrectie. Een ding minder om op te zoeken."
+        }
+      },
+      {
+        "icon": "chat",
+        "title": {
+          "en": "Your assistant's requests land in the usual card",
+          "fr": "Les demandes de ton assistant arrivent dans la carte habituelle",
+          "de": "Die Anfragen deines Assistenten landen in der gewohnten Karte",
+          "es": "Las peticiones de tu asistente llegan a la ficha de siempre",
+          "it": "Le richieste del tuo assistente arrivano nella scheda di sempre",
+          "zh": "助手的请求会出现在熟悉的卡片里",
+          "pt": "Os pedidos do seu assistente caem no cartão de sempre",
+          "pt-pt": "Os pedidos do teu assistente chegam ao cartão do costume",
+          "pl": "Zgłoszenia twojego asystenta trafiają na zwykłą kartę",
+          "ru": "Запросы вашего ассистента — в привычной карточке",
+          "nl": "De verzoeken van je assistent landen in de vertrouwde kaart"
+        },
+        "body": {
+          "en": "When your AI assistant writes a support request, it opens in Improvements & suggestions, already filled in. Add screenshots, blur what's private, then send it or don't.",
+          "fr": "Quand ton assistant IA rédige une demande, elle s’ouvre dans Améliorations & suggestions, déjà remplie. Ajoute des captures, floute ce qui est privé, puis envoie ou pas.",
+          "de": "Wenn dein KI-Assistent eine Anfrage schreibt, öffnet sie sich in Verbesserungen & Vorschläge, schon ausgefüllt. Screenshots hinzufügen, Privates verwischen, dann senden oder lassen.",
+          "es": "Cuando tu asistente de IA redacta una petición, se abre en Mejoras y sugerencias, ya rellenada. Añade capturas, difumina lo privado y envía o no.",
+          "it": "Quando il tuo assistente IA scrive una richiesta, si apre in Miglioramenti e suggerimenti, già compilata. Aggiungi screenshot, sfoca ciò che è privato, poi invia o lascia stare.",
+          "zh": "AI 助手写好支持请求后，会在“改进与建议”里打开，内容已经填好。可以加截图、给隐私内容打码，然后发送，或者不发。",
+          "pt": "Quando seu assistente de IA escreve um pedido, ele abre em Melhorias e sugestões, já preenchido. Adicione capturas, desfoque o que for privado e envie ou não.",
+          "pt-pt": "Quando o teu assistente de IA escreve um pedido, abre em Melhorias e sugestões, já preenchido. Junta capturas de ecrã, desfoca o que for privado e envia ou não.",
+          "pl": "Gdy twój asystent AI pisze zgłoszenie, otwiera się ono w Ulepszeniach i sugestiach, już wypełnione. Dodaj zrzuty ekranu, zamaż to, co prywatne, i wyślij albo nie.",
+          "ru": "Когда ваш ИИ-ассистент составляет запрос, он открывается в «Улучшениях и предложениях» уже заполненным. Добавьте скриншоты, замажьте личное — и отправьте или нет.",
+          "nl": "Als je AI-assistent een verzoek opstelt, opent het in Verbeteringen & suggesties, al ingevuld. Voeg screenshots toe, vervaag wat privé is, en verstuur het of niet."
+        }
+      },
+      {
+        "icon": "robot",
+        "title": {
+          "en": "Online first, anywhere",
+          "fr": "D’abord en ligne, partout",
+          "de": "Erst online, überall",
+          "es": "Primero en línea, en cualquier sitio",
+          "it": "Prima online, ovunque",
+          "zh": "优先在线，随处可用",
+          "pt": "Online primeiro, em qualquer lugar",
+          "pt-pt": "Online primeiro, em qualquer lado",
+          "pl": "Najpierw online, wszędzie",
+          "ru": "Сначала онлайн, где угодно",
+          "nl": "Eerst online, overal"
+        },
+        "body": {
+          "en": "On the AI assistant page, \"On the web or my phone\" now comes first, since it works anywhere, even with Studio closed. New setups start on Claude online.",
+          "fr": "Sur la page de l’assistant IA, « Sur le web ou mon téléphone » passe en premier : ça marche partout, même Studio fermé. Les nouvelles installations démarrent sur Claude en ligne.",
+          "de": "Auf der Seite des KI-Assistenten steht „Im Web oder auf meinem Handy“ jetzt vorn, denn es funktioniert überall, auch bei geschlossenem Studio. Neue Einrichtungen starten mit Claude online.",
+          "es": "En la página del asistente de IA, «En la web o en mi móvil» pasa al primer puesto: funciona en cualquier sitio, incluso con Studio cerrado. Las nuevas configuraciones empiezan con Claude en línea.",
+          "it": "Nella pagina dell’assistente IA, «Sul web o sul telefono» passa al primo posto: funziona ovunque, anche con Studio chiuso. Le nuove configurazioni partono da Claude online.",
+          "zh": "AI 助手页面里，“网页或手机”现在排在最前：随处可用，Studio 关着也行。新的设置默认从在线 Claude 开始。",
+          "pt": "Na página do assistente de IA, «Na web ou no celular» agora vem primeiro: funciona em qualquer lugar, até com o Studio fechado. Novas configurações começam pelo Claude online.",
+          "pt-pt": "Na página do assistente de IA, «Na web ou no telemóvel» passa para primeiro: funciona em qualquer lado, mesmo com o Studio fechado. As novas configurações começam no Claude online.",
+          "pl": "Na stronie asystenta AI „W sieci lub na telefonie” jest teraz pierwsze: działa wszędzie, nawet przy zamkniętym Studio. Nowa konfiguracja zaczyna się od Claude online.",
+          "ru": "На странице ИИ-ассистента «В вебе или на телефоне» теперь первым: работает везде, даже при закрытой Studio. Новая настройка начинается с Claude онлайн.",
+          "nl": "Op de pagina van de AI-assistent staat „Op het web of mijn telefoon” nu bovenaan: het werkt overal, ook met Studio dicht. Nieuwe setups beginnen bij Claude online."
+        }
+      },
+      {
+        "icon": "check-bold",
+        "title": {
+          "en": "Online or local? Compare the two",
+          "fr": "En ligne ou en local ? Compare les deux",
+          "de": "Online oder lokal? Vergleich beide",
+          "es": "¿En línea o local? Compáralos",
+          "it": "Online o locale? Confrontale",
+          "zh": "在线还是本地？对比一下",
+          "pt": "Online ou local? Compare os dois",
+          "pt-pt": "Online ou local? Compara os dois",
+          "pl": "Online czy lokalnie? Porównaj oba",
+          "ru": "Онлайн или локально? Сравните",
+          "nl": "Online of lokaal? Vergelijk ze"
+        },
+        "body": {
+          "en": "A new Compare window lines up the two ways to plug in an assistant, tick by green tick: what each can do today, and what only one of them can.",
+          "fr": "Une nouvelle fenêtre Comparer aligne les deux façons de brancher un assistant, coche verte par coche verte : ce que chacune sait faire aujourd’hui, et ce que seule l’une des deux sait faire.",
+          "de": "Ein neues Vergleichsfenster stellt die beiden Wege, einen Assistenten anzuschließen, Haken für grünen Haken nebeneinander: was jeder heute kann und was nur einer von beiden kann.",
+          "es": "Una nueva ventana Comparar alinea las dos formas de conectar un asistente, check verde a check verde: lo que hace cada una hoy y lo que solo hace una de las dos.",
+          "it": "Una nuova finestra Confronta allinea i due modi di collegare un assistente, spunta verde dopo spunta verde: cosa sa fare ciascuno oggi e cosa sa fare solo uno dei due.",
+          "zh": "新的“对比”窗口把接入助手的两种方式并排摆出来，一个绿勾一个绿勾地比：各自今天能做什么，哪些只有其中一种能做。",
+          "pt": "Uma janela Comparar nova alinha as duas formas de conectar um assistente, check verde por check verde: o que cada uma faz hoje e o que só uma das duas faz.",
+          "pt-pt": "Uma janela Comparar nova alinha as duas formas de ligar um assistente, visto verde a visto verde: o que cada uma faz hoje e o que só uma das duas faz.",
+          "pl": "Nowe okno Porównaj zestawia dwa sposoby podłączenia asystenta, zielony ptaszek po zielonym ptaszku: co każdy potrafi dziś i co potrafi tylko jeden z nich.",
+          "ru": "Новое окно «Сравнить» выстраивает два способа подключить ассистента рядом, зелёная галочка за галочкой: что умеет каждый сегодня и что умеет только один из них.",
+          "nl": "Een nieuw Vergelijk-venster zet de twee manieren om een assistent aan te sluiten naast elkaar, groen vinkje na groen vinkje: wat elk vandaag kan en wat maar een van de twee kan."
+        }
+      },
+      {
+        "icon": "grid",
+        "title": {
+          "en": "Label formats, three per row",
+          "fr": "Formats d’étiquettes, trois par ligne",
+          "de": "Etikettenformate, drei pro Zeile",
+          "es": "Formatos de etiqueta, tres por fila",
+          "it": "Formati etichetta, tre per riga",
+          "zh": "标签格式，每行三个",
+          "pt": "Formatos de etiqueta, três por linha",
+          "pt-pt": "Formatos de etiqueta, três por linha",
+          "pl": "Formaty etykiet, po trzy w rzędzie",
+          "ru": "Форматы этикеток по три в ряд",
+          "nl": "Labelformaten, drie per rij"
+        },
+        "body": {
+          "en": "The nine label formats now sit three per row instead of five rows. Less scrolling, same choice.",
+          "fr": "Les neuf formats d’étiquettes se rangent maintenant trois par ligne au lieu de cinq lignes. Moins de défilement, même choix.",
+          "de": "Die neun Etikettenformate stehen jetzt zu dritt in einer Zeile statt in fünf Reihen. Weniger Scrollen, gleiche Auswahl.",
+          "es": "Los nueve formatos de etiqueta ahora van de tres en tres en lugar de cinco filas. Menos scroll, la misma elección.",
+          "it": "I nove formati etichetta ora stanno tre per riga invece di cinque righe. Meno scorrimento, stessa scelta.",
+          "zh": "九种标签格式现在每行三个，不再占五行。少滚动，选择一样多。",
+          "pt": "Os nove formatos de etiqueta agora ficam três por linha, em vez de cinco linhas. Menos rolagem, mesma escolha.",
+          "pt-pt": "Os nove formatos de etiqueta ficam agora três por linha, em vez de cinco linhas. Menos deslocação, a mesma escolha.",
+          "pl": "Dziewięć formatów etykiet układa się teraz po trzy w rzędzie zamiast w pięciu rzędach. Mniej przewijania, ten sam wybór.",
+          "ru": "Девять форматов этикеток теперь лежат по три в ряд вместо пяти рядов. Меньше прокрутки, тот же выбор.",
+          "nl": "De negen labelformaten staan nu met drie per rij in plaats van vijf rijen. Minder scrollen, dezelfde keuze."
+        }
+      }
+    ]
   }
 }

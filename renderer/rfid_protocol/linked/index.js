@@ -7,12 +7,13 @@
  * it then opens that spool. Phase 1: Studio only.
  *
  *   initLinkedChips({ t, esc, state, fbDb, thumbHTML, gridCard, openDetail, setupHoldToConfirm,
- *                     toast, reportError, onChange, openCatalogue, openManual })
+ *                     toast, reportError, onChange, openCatalogue, openManual, openQrScan, closeQrScan })
  *   linkedChipsSignIn(uid) / linkedChipsSignOut()   — follow the account's aliases
  *   onForeignChip({ readerName, uid, chip })        — a scan (buffered 1.5 s)
  *   linkPendingTo(spoolId) / clearPendingLink()     — after a creation started from the window
  *   openBlankChipWindow(n) / closeChipChoice()      — a blank NTAG: catalogue or manual (side card)
  *   openAddChooser()                                — the search bar's "+": the same card, no chip
+ *   chooseChipView(to)                              — switch the open card's view (the QR read → "catalogue")
  *   closeChipLink()                                 — the link grid side card
  *   linkedChipsHtml(row) / wireLinkedChips(root)    — the detail panel's section
  */
@@ -26,6 +27,7 @@ let bufferTimer = null;
 let pending = null;          // { until } — the spool being created links the maker chips on the TigerPOD
 let offer = null;            // {} — the link grid is up: spool cards offer to link the maker chips on the TigerPOD
 let choiceKind = null;       // kind of the open chooser ("foreign" | "blank" | "add")
+let chooseView = null;       // the open chooser's choose(to)
 
 const UID_RE = /^[0-9A-F]{8,20}$/;
 const norm = u => String(u || "").replace(/[^0-9a-f]/gi, "").toUpperCase();
@@ -273,12 +275,12 @@ function openChipWindow(chips, kind) {
       <b>${esc(label)}</b>
     </button>`;
   ctx.hideTip?.();
-  body.innerHTML = `<div class="lc-choices">${tile("catalogue", "search", t("linkedChipAddCatalogue"), t("linkedChipCatalogueTip"))}${tile("manual", "edit", t("linkedChipAddManual"), t("linkedChipManualTip"))}${tile("pick", "link", t("linkedChipExisting"), _pickTip(kind), _pickOff(kind))}${foreign ? "" : tile("erase", "recycle", t("chipEraserTitle"), t("chipEraserTip"))}${tile("restore", "tigertag", t("toolRepairPlus"), t("chipRestoreNeedChip"), true)}</div>`;
+  body.innerHTML = `<div class="lc-choices">${tile("catalogue", "search", t("linkedChipAddCatalogue"), t("linkedChipCatalogueTip"))}${tile("qr", "qr", t("linkedChipAddQr"), t("linkedChipQrTip"))}${tile("manual", "edit", t("linkedChipAddManual"), t("linkedChipManualTip"))}${tile("pick", "link", t("linkedChipExisting"), _pickTip(kind), _pickOff(kind))}${foreign ? "" : tile("erase", "recycle", t("chipEraserTitle"), t("chipEraserTip"))}${tile("restore", "tigertag", t("toolRepairPlus"), t("chipRestoreNeedChip"), true)}</div>`;
   choiceKind = kind;
   _refreshRestore();
   body.classList.remove("lc-in"); void body.offsetWidth; body.classList.add("lc-in");
 
-  const NEXT = { pick: "chipLinkPanel", catalogue: "catalogPickPanel", manual: "addProductPanel", erase: "chipEraserPanel", restore: "chipRestorePanel" };
+  const NEXT = { pick: "chipLinkPanel", catalogue: "catalogPickPanel", qr: "qrScanPanel", manual: "addProductPanel", erase: "chipEraserPanel", restore: "chipRestorePanel" };
   const choose = to => {
     ctx.hideTip?.();
     // Into the pane BEFORE it opens: opened outside it, the card would count as
@@ -286,7 +288,16 @@ function openChipWindow(chips, kind) {
     adopt(document.getElementById(NEXT[to]));
     if (to !== "erase") ctx.closeEraser?.();
     if (to !== "restore") ctx.closeRestore?.();
+    if (to !== "qr") ctx.closeQrScan?.();
     if (to === "pick") openChipLink(chips, kind);
+    else if (to === "qr") {
+      // The camera reads a TigerQR label; the product it points to then opens in
+      // the catalogue view (chooseChipView), so what is created links the chips.
+      closeChipLink();
+      ctx.clearCreate?.();
+      ctx.openQrScan?.();
+      pending = foreign ? { until: Date.now() + 15 * 60e3 } : null;
+    }
     else if (to === "erase" || to === "restore") {
       // Nothing is created here: no chip waits for a spool.
       closeChipLink();
@@ -322,6 +333,7 @@ function openChipWindow(chips, kind) {
     choose(b.dataset.lcGo);
   };
   el.addEventListener("click", el._lcClick);
+  chooseView = choose;
   if (!body._lcTips) {
     body._lcTips = true;
     body.addEventListener("mouseover", e => { const i = e.target.closest?.(".tool-info"); if (i) ctx.showTip?.(i); });
@@ -336,6 +348,13 @@ function openChipWindow(chips, kind) {
   // Nine times out of ten the material is in the catalogue: open it straight
   // away; the other choices stay one tap away.
   choose("catalogue");
+}
+
+/** Switches the open chooser to one of its views ("catalogue" after a QR read). */
+export function chooseChipView(to) {
+  if (!chooseView || !document.getElementById("chipChoicePanel")?.classList.contains("open")) return false;
+  chooseView(to);
+  return true;
 }
 
 // Linking a TigerData / TigerData+ to a blank NTAG means burning it: without a
@@ -385,7 +404,9 @@ export function closeChipChoice() {
   closeChipLink();
   ctx.closeEraser?.();
   ctx.closeRestore?.();
+  ctx.closeQrScan?.();
   ctx.clearCreate?.();
+  chooseView = null;
   // Hand the borrowed cards back once the card has slid out.
   setTimeout(() => { if (!el.classList.contains("open")) unembedAll(); }, 280);
   ctx.syncPanels?.();

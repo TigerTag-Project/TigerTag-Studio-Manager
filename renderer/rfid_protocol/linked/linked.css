@@ -93,7 +93,8 @@
 #chipChoicePane > #catalogPickPanel,
 #chipChoicePane > #addProductPanel,
 #chipChoicePane > #chipEraserPanel,
-#chipChoicePane > #chipRestorePanel {
+#chipChoicePane > #chipRestorePanel,
+#chipChoicePane > #qrScanPanel {
   position: absolute; inset: 0; right: 0; top: 0; bottom: 0;
   width: 100%; max-width: none; height: 100%;
   transform: none; transition: none; box-shadow: none; border-radius: 0; z-index: 2;
@@ -104,7 +105,8 @@
 #chipChoicePane > #catalogPickPanel.lc-leaving,
 #chipChoicePane > #addProductPanel.lc-leaving,
 #chipChoicePane > #chipEraserPanel.lc-leaving,
-#chipChoicePane > #chipRestorePanel.lc-leaving { z-index: 1; pointer-events: none; }
+#chipChoicePane > #chipRestorePanel.lc-leaving,
+#chipChoicePane > #qrScanPanel.lc-leaving { z-index: 1; pointer-events: none; }
 #chipChoicePane > .detail-panel.lc-enter { animation: lc-slide .26s cubic-bezier(.4,0,.2,1) both; box-shadow: -8px 0 24px rgba(0,0,0,.35); }
 #chipChoicePane > .detail-panel.lc-pre { visibility: hidden; }
 @keyframes lc-slide { from { transform: translateX(100%); } to { transform: none; } }
