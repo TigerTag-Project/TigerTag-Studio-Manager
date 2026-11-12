@@ -876,14 +876,21 @@ let _scalePollTimer = null;
 let _scaleInfo      = null;   // { product } while connected (= frames are flowing)
 let _scaleLastFrame = 0;      // ms of the last data report
 let _scaleWatchdog  = null;
+let _scaleStopped   = false;  // the app is quitting: no more polling, reopening or announcing
 const SCALE_SILENCE_MS = 5000; // the scale reports ~1/s while awake
 
 const SCALE_VENDOR_DYMO = 0x0922;
 const SCALE_STATUS = { 1:'fault', 2:'zero', 3:'motion', 4:'stable', 5:'negative', 6:'over' };
 const SCALE_OZ_TO_G = 28.3495;
 
+/* `mainWindow` is never set back to null, so `mainWindow?.` does not protect against a window that
+   is already destroyed: at quit, node-hid reports the closing handle as a read error, that ends in
+   here, and Electron throws "Object has been destroyed" as an uncaught main-process exception
+   (a dialog at every close, issue #240). A destroyed window just has nobody to tell. */
 function _scaleBroadcast(channel, payload) {
-  mainWindow?.webContents.send(channel, payload);
+  const w = mainWindow;
+  if (!w || w.isDestroyed() || w.webContents.isDestroyed()) return;
+  w.webContents.send(channel, payload);
 }
 
 function _scaleDecode(buf) {
@@ -902,6 +909,7 @@ function _scaleDecode(buf) {
 }
 
 function _scaleDisconnected() {
+  if (_scaleStopped) return;
   clearInterval(_scaleWatchdog); _scaleWatchdog = null;
   try { _scaleDev?.close(); } catch (_) { /* already gone */ }
   _scaleDev = null;
@@ -913,6 +921,20 @@ function _scaleDisconnected() {
   if (!_scalePollTimer) _scalePollTimer = setInterval(_tryOpenScale, 5000);
 }
 
+/* At quit: close the HID handle and stop both timers ourselves, before the runtime tears them down
+   under us, and refuse to reopen (a scan already in flight finishes into `_scaleStopped`).
+   Registered on `will-quit`, not `before-quit`: the migration guard can still cancel a quit, and
+   a scale that stopped for a quit that never happened would stay dead until the next launch. */
+function _scaleShutdown() {
+  _scaleStopped = true;
+  clearInterval(_scaleWatchdog);  _scaleWatchdog  = null;
+  clearInterval(_scalePollTimer); _scalePollTimer = null;
+  try { _scaleDev?.close(); } catch (_) { /* already gone */ }
+  _scaleDev = null;
+  _scaleInfo = null;
+}
+app.on('will-quit', _scaleShutdown);
+
 /* The HID enumeration MUST be the async one. `HID.devices()` is synchronous and
    ran every 5 s on the main thread; on some Windows machines (slow HID / Bluetooth
    drivers) one call takes seconds, so the whole app froze — every click, even a
@@ -921,7 +943,7 @@ function _scaleDisconnected() {
 let _scaleScanning = false;
 let _scaleSlowPoll = false;   // polling slowed after a slow HID enumeration
 async function _tryOpenScale() {
-  if (_scaleDev || _scaleScanning) return;
+  if (_scaleStopped || _scaleDev || _scaleScanning) return;
   let HID;
   try { HID = require('node-hid'); } catch (e) {
     console.warn('[Scale] node-hid unavailable:', e.message);
@@ -950,7 +972,7 @@ async function _tryOpenScale() {
       }
     }
   }
-  if (!info || _scaleDev) return;
+  if (!info || _scaleDev || _scaleStopped) return;
   try {
     _scaleDev = new HID.HID(info.path);
   } catch (e) {
