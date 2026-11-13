@@ -89,7 +89,8 @@ Use these colours; a new colour is a desaturated or shadow variant of one of the
 
 ### Composition and output
 - **Icons**: square 1:1, the object centred, about 8 % transparent margin, readable at 40 px
-  (test by shrinking it).
+  (test by shrinking it). The **whole** object, every outline closed: never cropped by the frame nor
+  sliced by a straight line drawn inside it (a trophy spool came back with its flange chopped).
 - **Scenes / banners**: objects grouped on one invisible floor line at the bottom, characters cut
   at the waist behind the desk (see the generate-asset skill for the banner format).
 - **Banners are delivered as separate elements**: one transparent PNG per object (the tiger, the

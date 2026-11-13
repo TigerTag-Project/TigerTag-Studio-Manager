@@ -652,6 +652,15 @@
 .eac-squad-sub { font-size: 11.5px; line-height: 1.35; color: var(--muted); font-weight: 400; }
 .sb-squad-pill.fvb-squad { margin-top: 0; align-self: center; height: 20px; box-sizing: border-box; padding: 0 8px; font-size: 10px; gap: 4px; }
 /* TigerSquad heart on a friend's avatar corner (avatarMarkup wraps the avatar). */
+/* The Platinum "aurora" colour style (inventory.js _colorStyleBg): the avatar's
+   colours drift slowly. The animation sets the size too, since the colours are
+   an inline background shorthand that resets it. Still with reduced motion. */
+.av-fx-aurora { animation: av-aurora 9s ease-in-out infinite alternate; }
+@keyframes av-aurora {
+  from { background-size: 300% 300%; background-position: 0% 50%; }
+  to   { background-size: 300% 300%; background-position: 100% 50%; }
+}
+@media (prefers-reduced-motion: reduce) { .av-fx-aurora { animation: none; } }
 .av-squad-host { position: relative; display: inline-flex; flex-shrink: 0; }
 /* `av-fill`: the friends bar's avatar (userAvatar), filling its container — the
    container sets the size and the initials' font-size (the send and freeze

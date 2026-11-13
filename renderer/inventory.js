@@ -411,6 +411,77 @@ import { initScreenTools } from './ai/screen-tools.js';
     if (acc?.color === "custom" && acc.customColor) return acc.customColor;
     return (ACCOUNT_COLORS[acc?.color] || ACCOUNT_COLORS.orange)[0];
   }
+  /* COLOUR STYLE — a person's avatar and theme drawn like a spool's colours:
+     userProfiles/{uid}.colorStyle { colors: ["#rrggbb", …], aspect }, written only
+     by setProfile, which checks the TigerSquad level (backend functions/
+     setProfile.js STYLE_ASPECTS). The level is checked again when drawing: a
+     member who lost it is drawn in their first colour (`color`). Choosing is
+     optional — solid (one colour) stays the default for everyone. */
+  const COLOR_STYLES = [
+    { aspect: "solid",    tier: null,       min: 1, max: 1 },
+    { aspect: "bicolor",  tier: "bronze",   min: 2, max: 2 },
+    { aspect: "tricolor", tier: "gold",     min: 3, max: 3 },
+    { aspect: "rainbow",  tier: "gold",     min: 1, max: 3 },
+    { aspect: "aurora",   tier: "platinum", min: 1, max: 3 },
+  ];
+  const _styleSpec = aspect => COLOR_STYLES.find(x => x.aspect === aspect) || null;
+  const _tierRank = tier => ["bronze", "silver", "gold", "platinum"].indexOf(tier);
+  function _styleAllowed(aspect, tier) {
+    const spec = _styleSpec(aspect);
+    return !!spec && (!spec.tier || _tierRank(tier) >= _tierRank(spec.tier));
+  }
+  function _validStyle(st) {
+    const spec = _styleSpec(st?.aspect);
+    const c = Array.isArray(st?.colors) ? st.colors : [];
+    return !!spec && c.length >= spec.min && c.length <= spec.max && c.every(x => /^#[0-9a-f]{6}$/i.test(x));
+  }
+  // The style to draw for a person, or null (= their one colour): mine from my
+  // public profile, anyone else's from the record held for them.
+  function _styleFor(src) {
+    const uid = src?.uid || src?.id || null;
+    const own = !!uid && uid === state.activeAccountId;
+    const st = own ? state.ownColorStyle : src?.colorStyle;
+    if (!_validStyle(st) || st.aspect === "solid") return null;
+    // Read only once a style is there: a paint before the TigerSquad block has
+    // run (first frames of the launch) draws the one colour, then repaints.
+    let tier = null;
+    try { tier = own ? _ownSquadTier() : (src?.tigerSquad ? (src.squadTier || "bronze") : null); } catch (_) { return null; }
+    if (!_styleAllowed(st.aspect, tier)) return null;
+    // Mine: the first colour is my account colour as it is now (the palette can be mid-drag).
+    return own ? { ...st, colors: [accPrimaryHex(activeAccount()).toLowerCase(), ...st.colors.slice(1)] } : st;
+  }
+  // A hue turned by `deg` (the aurora's companions when only one colour is set).
+  function _hueTurn(hex, deg) {
+    const n = parseInt(hex.slice(1), 16), r = (n >> 16) / 255, g = (n >> 8 & 255) / 255, b = (n & 255) / 255;
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn;
+    let h = 0, s2 = 0;
+    if (d) {
+      s2 = d / (1 - Math.abs(2 * l - 1));
+      h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    }
+    h = ((h * 60 + deg) % 360 + 360) % 360;
+    const c = (1 - Math.abs(2 * l - 1)) * s2, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = l - c / 2;
+    const [r1, g1, b1] = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x] : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x];
+    return "#" + [r1, g1, b1].map(v => Math.round((v + m) * 255).toString(16).padStart(2, "0")).join("");
+  }
+  const STYLE_RAINBOW = ["#ff4d4d", "#ffb347", "#ffe14d", "#4dd17a", "#4da3ff", "#9b6bff"];
+  // The colours a style shows, in order (a one-colour rainbow is the spectrum,
+  // a one-colour aurora gets two neighbouring hues).
+  function _styleColors(st) {
+    const c = st.colors;
+    if (st.aspect === "rainbow" && c.length < 2) return STYLE_RAINBOW;
+    if (st.aspect === "aurora" && c.length < 3) return [c[0], c[1] || _hueTurn(c[0], 70), _hueTurn(c[0], -70)];
+    return c;
+  }
+  // CSS background of a style — the spool swatch convention: a bicolor is the
+  // 135° split, a tricolor the sweep round the centre, rainbow and aurora ramps.
+  function _colorStyleBg(st) {
+    const c = _styleColors(st);
+    if (st.aspect === "bicolor") return `linear-gradient(135deg, ${c[0]} 0% 46%, ${c[1]} 54% 100%)`;
+    if (st.aspect === "tricolor") return `conic-gradient(from 0deg, ${c[0]}, ${c[1]}, ${c[2]}, ${c[0]})`;
+    if (st.aspect === "aurora") return `linear-gradient(120deg, ${c.join(", ")}, ${c[0]})`;
+    return `linear-gradient(135deg, ${c.join(", ")})`;
+  }
   // ─── Avatar rendering — single source of truth ─────────────────────
   //
   // Every coloured-circle avatar in Studio (sidebar, header chip,
@@ -519,10 +590,12 @@ import { initScreenTools } from './ai/screen-tools.js';
       // any inline styles a previous paint left on the element.
       return { mode, subject, photoURL: null, initials: "", bg: "", fg: "", boxShadow: "" };
     }
-    const gradient = getAccGradient(subject);
+    const style = _styleFor(source);
+    const gradient = style ? _colorStyleBg(style) : getAccGradient(subject);
     const shadowCol = getAccShadow(subject);
     return {
       mode, subject, photoURL, initials,
+      fx:       style?.aspect === "aurora" ? "aurora" : "",
       bg:       gradient,
       fg:       readableTextOn(shadowCol),
       boxShadow: `0 0 0 3px ${shadowCol}40,0 4px 20px ${shadowCol}33`,
@@ -539,6 +612,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     if (!el) return;
     const p = _buildAvatarParts(source);
     el.style.background = p.bg;
+    el.classList.toggle("av-fx-aurora", p.fx === "aurora");   // the Platinum aspect's slow drift (70-detail-misc.css)
     // A TigerSquad member's level ring (CSS .av-squad) wins over the account-colour glow.
     el.style.boxShadow  = el.classList.contains("av-squad") ? "" : p.boxShadow;
     el.style.color      = p.fg;
@@ -580,7 +654,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     const p = _buildAvatarParts(source);
     // TigerSquad members (public supporters) wear a golden ring, wherever drawn.
     const tier = source?.tigerSquad ? (source.squadTier || "gold") : null;
-    const cls = className + (extraClass ? ' ' + extraClass : '') + (tier ? ` av-squad sq-${tier}` : '');
+    const cls = className + (extraClass ? ' ' + extraClass : '') + (tier ? ` av-squad sq-${tier}` : '') + (p.fx === "aurora" ? " av-fx-aurora" : "");
     const style = p.bg || p.fg ? ` style="${p.bg ? `background:${p.bg};` : ""}${p.fg ? `color:${p.fg}` : ""}"` : "";
     const html = `<span class="${cls}" data-av-mode="${p.mode}"${style}>` +
       `<span class="av-initials">${esc(p.initials)}</span>` +
@@ -616,11 +690,18 @@ import { initScreenTools } from './ai/screen-tools.js';
     const root = document.documentElement.style;
     // The tint is always a dark navy mix: the header banner then reads in the dark token set (00-base.css).
     document.documentElement.classList.toggle("has-theme-tint", !!c);
+    // A colour style (2–3 colours, rainbow, aurora) runs its colours across the
+    // wall; the Platinum aurora also drifts slowly (has-theme-aurora, 60-modals.css).
+    const fv = state.friendView;
+    const style = _styleFor(fv ? { ...(state.friends || []).find(f => f.uid === fv.uid), ...fv, uid: fv.uid } : { uid: state.activeAccountId });
+    document.documentElement.classList.toggle("has-theme-aurora", style?.aspect === "aurora");
     if (!c) { root.removeProperty("--hero-wall"); root.removeProperty("--theme-tint"); return; }
-    const mix = pct => `color-mix(in srgb, ${c} ${pct}%, #0f1830)`;
+    const mix = (pct, col = c) => `color-mix(in srgb, ${col} ${pct}%, #0f1830)`;
     // ONE tone everywhere: the header glow is the banners' own wall, so the
     // header and the hero banners read as the same colour.
-    const wall = `linear-gradient(115deg, ${mix(42)} 0%, ${mix(20)} 55%, ${mix(30)} 100%)`;
+    const sc = style ? _styleColors(style) : null;
+    const wall = !sc ? `linear-gradient(115deg, ${mix(42)} 0%, ${mix(20)} 55%, ${mix(30)} 100%)`
+      : `linear-gradient(115deg, ${sc.map((x, i) => `${mix(i ? 32 : 42, x)} ${Math.round(i * 100 / (sc.length - 1))}%`).join(", ")})`;
     root.setProperty("--hero-wall", wall);
     root.setProperty("--theme-tint", wall);
   }
@@ -740,6 +821,7 @@ import { initScreenTools } from './ai/screen-tools.js';
       // painted at launch before the data arrives (renderStats, _paintDealsBadge).
       header:     uid => `tigertag.header.${uid}`,
       coinlog:    uid => `tigertag.coinlog.${uid}`,    // the TigerCoins history last read (100 newest)
+      colorStyle: uid => `tigertag.colorStyle.${uid}`, // my avatar / theme style last read (userProfiles colorStyle), painted at launch
       // Delta sync (_listenSynced): when the inventory / products copies were last
       // in step with the server { at: ms }, and the products copy itself (id → data).
       invSync:    uid => `tigertag.invSync.${uid}`,
@@ -881,6 +963,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     groupInv: localStorage.getItem("tigertag.inv.group") !== "false",
     lang: localStorage.getItem("tigertag.lang") || _systemLang(),
     theme: localStorage.getItem("tigertag.theme") || "dark",
+    ownColorStyle: null,  // my userProfiles colorStyle { colors, aspect } (null = one colour); last copy painted at launch
     sortCol: _invSort.col,       // persisted; default "brand"
     sortDir: _invSort.dir,       // persisted; default "asc"
     favesSortCol: _favesSort.col,       // Favorites table sort — persisted, own column set
@@ -5713,6 +5796,13 @@ import { initScreenTools } from './ai/screen-tools.js';
     badge.querySelector("img").src = `../assets/img/tigersquad/tigersquad-${tier}.webp`;
     el.style.boxShadow = "";   // the ring replaces the account-colour glow
   }
+  // My style or level moved: every place my avatar or theme is drawn.
+  function _repaintOwnStyle() {
+    applyAvatarStyle(activeAccount());   // the sidebar avatar, which also re-themes the space
+    renderAccountDropdown();
+    renderFriendBanner();
+    if ($("identityOverlay")?.classList.contains("open")) _paintIdmAvatar();
+  }
   function _ownSquadTier() {
     if (!_squadActive()) return null;   // no badge during the wait after leaving (the server publishes none)
     return SQUAD_TIERS.includes(state.squadTier) ? state.squadTier : (state.supporter ? "gold" : "bronze");
@@ -5723,6 +5813,8 @@ import { initScreenTools } from './ai/screen-tools.js';
     try { _ownProfileUnsub?.(); } catch (_) {}
     try { _ownXpUnsub?.(); } catch (_) {}
     _ownProfileUnsub = null; _ownXpUnsub = null; _ownProfileUid = uid || null; state.squadTier = null;
+    // My style as last seen, painted at once (the profile snapshot updates it).
+    state.ownColorStyle = uid ? Cache.read("colorStyle", uid) : null;
     if (!uid) return;
     // XP lives on the account doc and the server rewrites it after a scan, a
     // join or a leave — follow it live rather than guessing when to re-read.
@@ -5755,8 +5847,12 @@ import { initScreenTools } from './ai/screen-tools.js';
         _renderSquadXp();
       }
       if (ps.metadata?.fromCache === false) _checkSquadLevelUp(uid, tier);   // server truth only
-      if (tier === state.squadTier) return;
+      const cs = ps.exists ? (ps.get("colorStyle") || null) : null;
+      const styleMoved = JSON.stringify(cs) !== JSON.stringify(state.ownColorStyle);
+      if (styleMoved) { state.ownColorStyle = cs; Cache.write("colorStyle", uid, cs); }
+      if (tier === state.squadTier) { if (styleMoved) _repaintOwnStyle(); return; }
       state.squadTier = tier;
+      _repaintOwnStyle();   // a level gained or lost can show or hide the style
       renderSupporterBadge(); renderFriendBanner();
     }, () => {});
   }
@@ -6927,6 +7023,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     if (card.isConnected) render(card.querySelector(".sqb-tab.is-on")?.dataset.tab || tab);
   }
   let _squadBoardCache = null;   // { uid, viewer, board, mine, at } — last rankings load (instant reopen)
+  const SQUAD_WORLD_SHOWN = 100;   // world rows the league draws (squadBoard/world holds 404)
   const _squadNatCache = new Map();   // cc → { rows, at, loading } another country's top (squadBoard/nat_<CC>)
   // board = { world: [member], nat: [member], countries: [{ cc, xp, n, base }],
   //   me: member + { worldRank, natRank } | null, rival: { world, nat } (member | null,
@@ -6956,7 +7053,10 @@ import { initScreenTools } from './ai/screen-tools.js';
     const db = fbDb(uid), boards = db.collection("squadBoard");
     const [w, c, prof, rk] = await Promise.all([boards.doc("world").get(), boards.doc("countries").get(),
       db.collection("userProfiles").doc(viewer).get(), db.collection("squadRank").doc(viewer).get().catch(() => null)]);
-    const world = (w.data()?.rows || []).map(r => _squadMemberOf(r.uid, r));
+    // The server files the world's top 404 (the Hub's 404 page shows them all):
+    // the league shows the first SQUAD_WORLD_SHOWN, the rest still gives a live rank.
+    const worldAll = (w.data()?.rows || []).map(r => _squadMemberOf(r.uid, r));
+    const world = worldAll.slice(0, SQUAD_WORLD_SHOWN);
     const countries = c.data()?.rows || [];
     const p = prof.data() || {}, ranked = typeof p.tigerSquad?.xp === "number";
     const filed = rk?.data() || null;
@@ -6966,7 +7066,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     const rival = {};
     if (me) {
       const base = _squadRankBase(filed?.days);
-      const wi = world.findIndex(m => m.uid === viewer), ni = nat.findIndex(m => m.uid === viewer);
+      const wi = worldAll.findIndex(m => m.uid === viewer), ni = nat.findIndex(m => m.uid === viewer);
       me = { ...me, bw: base?.[0] || 0, bn: base?.[1] || 0,
         worldRank: wi >= 0 ? wi + 1 : filed?.world || 0,
         natRank: !me.country ? 0 : ni >= 0 ? ni + 1 : filed?.nat || 0 };
@@ -7424,7 +7524,11 @@ import { initScreenTools } from './ai/screen-tools.js';
       const g = parseInt(hex.slice(2,4), 16);
       const b = parseInt(hex.slice(4,6), 16);
       fbDb(user.uid).collection("users").doc(user.uid).set({ color_r: r, color_g: g, color_b: b }, { merge: true });
-      setProfile(user.uid, { avatarColor: primaryHex.toLowerCase() }).catch(e => _flashMessage(profileErrorText(e)));
+      // With a colour style on, its first colour IS this colour: send them together.
+      const st = user.uid === state.activeAccountId && _validStyle(state.ownColorStyle) ? { ...state.ownColorStyle, colors: [primaryHex.toLowerCase(), ...state.ownColorStyle.colors.slice(1)] } : null;
+      if (st) { state.ownColorStyle = st; Cache.write("colorStyle", user.uid, st); }
+      setProfile(user.uid, st ? { colorStyle: st } : { avatarColor: primaryHex.toLowerCase() }).catch(e => _flashMessage(profileErrorText(e)));
+      if (user.uid === state.activeAccountId) _renderStylePicker();
     } catch (e) { /* non-blocking */ }
   }
 
@@ -7432,6 +7536,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     sw.addEventListener("click", () => {
       if (!_editingAccount) return;
       const color = sw.dataset.color;
+      if (_idmSlot > 0 && _editingAccount.id === state.activeAccountId) { _setStyleSlot(_idmSlot, ACCOUNT_COLORS[color][0]); return; }
       $("eacSwatches").querySelectorAll(".eac-swatch").forEach(s => s.classList.remove("active"));
       sw.classList.add("active");
       const accounts = getAccounts();
@@ -7449,6 +7554,7 @@ import { initScreenTools } from './ai/screen-tools.js';
   $("eacCustomColor").addEventListener("input", () => {
     if (!_editingAccount) return;
     const hex = $("eacCustomColor").value;
+    if (_idmSlot > 0 && _editingAccount.id === state.activeAccountId) { _setStyleSlot(_idmSlot, hex); return; }
     const accounts = getAccounts();
     const idx = accounts.findIndex(a => a.id === _editingAccount.id);
     if (idx >= 0) { accounts[idx].color = "custom"; accounts[idx].customColor = hex; saveAccounts(accounts); _editingAccount = accounts[idx]; }
@@ -7493,6 +7599,111 @@ import { initScreenTools } from './ai/screen-tools.js';
     $("identityOverlay")?.style.setProperty("--idm-c", getAccShadow(acc) || "var(--primary)");
     if ($("idmColorDot")) $("idmColorDot").style.background = getAccGradient(acc);
   }
+  /* The colour style picker (identity window, my own account only): the five
+     aspects as swatches — a locked one carries the TigerSquad badge it needs and
+     says so — then the aspect's colour slots; the palette paints the chosen
+     slot. Saved through setProfile (colorStyle; null = one colour), shown at
+     once (state.ownColorStyle), the server checking the level again. */
+  let _idmSlot = 0;
+  let _styleSaveT = null;
+  // The palette's check on the account colour (slot 1).
+  function _syncSwatchActive() {
+    const isCustom = _editingAccount?.color === "custom";
+    $("eacSwatches").querySelectorAll(".eac-swatch[data-color]").forEach(sw =>
+      sw.classList.toggle("active", !isCustom && sw.dataset.color === (_editingAccount?.color || "orange")));
+    $("eacSwatchCustom").classList.toggle("active", isCustom);
+    if (isCustom && _editingAccount.customColor) $("eacCustomColor").value = _editingAccount.customColor;
+  }
+  function _currentStyle() {
+    const st = state.ownColorStyle;
+    const c0 = accPrimaryHex(activeAccount()).toLowerCase();
+    return _validStyle(st) && _styleAllowed(st.aspect, _ownSquadTier()) ? { aspect: st.aspect, colors: [c0, ...st.colors.slice(1)] } : { aspect: "solid", colors: [c0] };
+  }
+  function _renderStylePicker() {
+    const box = $("idmStyle");
+    if (!box) return;
+    const own = _editingAccount?.id === state.activeAccountId;
+    box.hidden = !own;
+    if (!own) { _idmSlot = 0; return; }
+    const cur = _currentStyle(), tier = _ownSquadTier();
+    if (_idmSlot >= cur.colors.length) _idmSlot = 0;
+    $("idmAspects").innerHTML = COLOR_STYLES.map(sp => {
+      const open = _styleAllowed(sp.aspect, tier), on = sp.aspect === cur.aspect;
+      const demo = { aspect: sp.aspect, colors: sp.aspect === "solid" ? [cur.colors[0]] : (sp.min === 1 ? [cur.colors[0]] : Array.from({ length: sp.min }, (_, i) => cur.colors[i] || _hueTurn(cur.colors[0], 120 * i))) };
+      const bg = sp.aspect === "solid" ? cur.colors[0] : _colorStyleBg(demo);
+      const label = t(`themeStyle_${sp.aspect}`);
+      return `<button type="button" class="idm-aspect${on ? " is-on" : ""}${open ? "" : " is-locked"}" role="radio" aria-checked="${on}" data-aspect="${sp.aspect}"
+          aria-label="${esc(open ? label : `${label} — ${t("themeStyleLocked", { tier: squadTierLabel(sp.tier) })}`)}">
+        <span class="idm-aspect-sw${sp.aspect === "aurora" ? " av-fx-aurora" : ""}" style="background:${bg}"></span>
+        <span class="idm-aspect-name">${esc(label)}</span>
+        ${open || !sp.tier ? "" : `<img class="idm-aspect-tier" src="../assets/img/tigersquad/tigersquad-${sp.tier}.webp" alt="">`}
+      </button>`;
+    }).join("");
+    const spec = _styleSpec(cur.aspect);
+    const slots = cur.colors.map((c, i) => `<button type="button" class="idm-slot${i === _idmSlot ? " is-on" : ""}" data-slot="${i}" style="--c:${c}" aria-pressed="${i === _idmSlot}" aria-label="${esc(t("themeStyleSlot", { n: i + 1 }))}">
+        <span class="idm-slot-n">${i + 1}</span>${i >= spec.min ? `<span class="idm-slot-x" data-slot-x="${i}" role="button" aria-label="${esc(t("themeStyleRemove"))}"><span class="icon icon-close icon-10"></span></span>` : ""}</button>`).join("");
+    const add = cur.colors.length < spec.max ? `<button type="button" class="idm-slot idm-slot--add" data-slot-add aria-label="${esc(t("themeStyleAdd"))}"><span class="icon icon-plus icon-14"></span></button>` : "";
+    $("idmSlots").innerHTML = spec.max > 1 ? slots + add : "";
+    // The palette's check follows the chosen slot's colour (a preset, else the custom wheel).
+    if (_idmSlot > 0) {
+      const hex = cur.colors[_idmSlot].toLowerCase();
+      const preset = $("eacSwatches").querySelector(`.eac-swatch[data-color="${Object.keys(ACCOUNT_COLORS).find(k => ACCOUNT_COLORS[k][0].toLowerCase() === hex) || "__none"}"]`);
+      $("eacSwatches").querySelectorAll(".eac-swatch").forEach(x => x.classList.toggle("active", preset ? x === preset : x.id === "eacSwatchCustom"));
+      if (!preset) { $("eacCustomColor").value = hex; }
+    } else _syncSwatchActive();
+  }
+  // Applies a style at once and saves it (debounced: the palette can be dragged).
+  function _setOwnStyle(next) {
+    const solid = next.aspect === "solid";
+    state.ownColorStyle = solid ? null : next;
+    Cache.write("colorStyle", state.activeAccountId, state.ownColorStyle);
+    _repaintOwnStyle();
+    _renderStylePicker();
+    clearTimeout(_styleSaveT);
+    _styleSaveT = setTimeout(() => {
+      const user = fbAuth().currentUser;
+      if (!user || user.uid !== state.activeAccountId) return;
+      setProfile(user.uid, { colorStyle: solid ? null : next }).catch(e => _flashMessage(profileErrorText(e)));
+    }, 600);
+  }
+  // The palette painted a slot other than the first (the first is the account colour, saved as before).
+  function _setStyleSlot(i, hex) {
+    const cur = _currentStyle(), colors = [...cur.colors];
+    colors[i] = hex.toLowerCase();
+    _setOwnStyle({ aspect: cur.aspect, colors });
+  }
+  $("idmAspects")?.addEventListener("click", e => {
+    const b = e.target.closest("[data-aspect]");
+    if (!b) return;
+    const sp = _styleSpec(b.dataset.aspect);
+    if (b.classList.contains("is-locked")) {
+      _showErrorTip(b.querySelector(".idm-aspect-sw") || b, t("themeStyleLocked", { tier: squadTierLabel(sp.tier) }), { img: `../assets/img/tigersquad/tigersquad-${sp.tier}.webp` });
+      return;
+    }
+    const cur = _currentStyle();
+    let colors = cur.colors.slice(0, sp.max);
+    while (colors.length < sp.min) colors.push(_hueTurn(colors[0], 120 * colors.length));
+    _idmSlot = 0;
+    _setOwnStyle({ aspect: sp.aspect, colors });
+  });
+  $("idmSlots")?.addEventListener("click", e => {
+    const cur = _currentStyle();
+    const x = e.target.closest("[data-slot-x]");
+    if (x) {
+      const colors = cur.colors.filter((_, i) => i !== Number(x.dataset.slotX));
+      _idmSlot = 0;
+      _setOwnStyle({ aspect: cur.aspect, colors });
+      return;
+    }
+    if (e.target.closest("[data-slot-add]")) {
+      _idmSlot = cur.colors.length;
+      _setOwnStyle({ aspect: cur.aspect, colors: [...cur.colors, _hueTurn(cur.colors[0], 120 * cur.colors.length)] });
+      return;
+    }
+    const s = e.target.closest("[data-slot]");
+    if (s) { _idmSlot = Number(s.dataset.slot); _renderStylePicker(); }
+  });
+
   function openIdentityModal() {
     // Opened on its own (header avatar, profile panel closed): edit the active
     // account and fill the fields the panel would have filled.
@@ -7501,7 +7712,9 @@ import { initScreenTools } from './ai/screen-tools.js';
       _fillIdentityFields();
     }
     $("avatarMenuRemove").hidden = !state.photoURL;
+    _idmSlot = 0;
     _paintIdmAvatar();
+    _renderStylePicker();
     $("identityOverlay")?.classList.add("open");
   }
   function closeIdentityModal() { $("identityOverlay")?.classList.remove("open"); }
@@ -15155,7 +15368,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     if (!it) { _sendQrRead(link, "no_product"); return _qrRescan(); }
     _sendQrRead(link, link.kind === "spool" ? "spool" : "product", null, Number(it.id));
     if (!chooseChipView("catalogue")) return;
-    _cpkSelectedId = String(it.id);
+    _cpkSelectedId = _qrAddProductId = String(it.id);
     $("cpkList")?.querySelectorAll(".cpk-row").forEach(x => x.classList.toggle("is-selected", x.dataset.cpkId === _cpkSelectedId));
     await _catViewProductCard(it, { fromPick: true });
   }
@@ -16815,6 +17028,8 @@ import { initScreenTools } from './ai/screen-tools.js';
       // the two tiers can be told apart. The `TigerCloud` analytics bucket key
       // (derived server-side from the id prefix) is deliberately untouched.
       bumpStudioCounters({ cloudPlusAddedTotal: 1 });
+      // Added from the TigerQR+ the camera read ("Add from QR code"): a trophy.
+      if (_qrAddProductId === String(productId)) { _qrAddProductId = null; _appTrophy("tigerQrPlusAdd"); }
       // The product card has done its job: close it and open the new spool's
       // own card from the inventory (and, reader plugged in, its TigerTag+ burn).
       if ($("productCardPanel")?.classList.contains("open")) closeProductCard(); else closeReorderPanel();
@@ -16846,6 +17061,7 @@ import { initScreenTools } from './ai/screen-tools.js';
      (`_openCreatedSpool`). */
   const CAT_PICK_MAX = 80;
   let _cpkSelectedId = null;   // the product whose card the pick list opened
+  let _qrAddProductId = null;  // the product a camera read opened there (_qrAddFound), until added or another is picked
   let _cpkUpgradeFor = null;   // spool id the picker was opened to upgrade (TigerTag → TigerTag+)
   let _cpkStackT = 0;          // drops the upgrade stacking once the cards have slid out
   // A chip placed on the reader is a new task: it takes the right edge, like
@@ -16958,6 +17174,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     $("cpkList").querySelectorAll(".cpk-row.is-selected").forEach(x => x.classList.remove("is-selected"));
     b.classList.add("is-selected");
     _cpkSelectedId = String(it.id);
+    _qrAddProductId = null;
     _catViewProductCard(it, { fromPick: true });
   });
 
@@ -27538,6 +27755,7 @@ import { initScreenTools } from './ai/screen-tools.js';
         const pd = ps.data();
         f.tigerSquad = !!pd.tigerSquad;   // public TigerSquad membership (server-set)
         f.squadTier = pd.tigerSquad?.tier || null;
+        f.colorStyle = pd.colorStyle || null;   // their avatar / theme style
         const liveDisplayName = pd.displayName || "";
         const liveColor       = profileColor(pd);   // "#rrggbb" or null
         const updates = {};
@@ -27623,6 +27841,7 @@ import { initScreenTools } from './ai/screen-tools.js';
         sortRank: f.sortRank,   // keep the drag order across restarts (pre-snapshot)
         // TigerSquad membership (from their profile): the windows listing members open on it at once.
         ...(f.tigerSquad ? { tigerSquad: true, squadTier: f.squadTier || null } : {}),
+        ...(f.colorStyle ? { colorStyle: f.colorStyle } : {}),
       })));
     } catch (_) { /* quota / privacy mode — silent */ }
   }
@@ -27663,6 +27882,7 @@ import { initScreenTools } from './ai/screen-tools.js';
             if (p.color)       f.color       = p.color;
             if (p.photoURL)    f.photoURL    = p.photoURL;
             if (p.tigerSquad)  { f.tigerSquad = true; f.squadTier = p.squadTier || null; }   // TigerSquad ring — from their public profile
+            if (p.colorStyle)  f.colorStyle = p.colorStyle;
             if (p._profiled)   f._profiled = true;
           }
           return f;
@@ -27710,6 +27930,7 @@ import { initScreenTools } from './ai/screen-tools.js';
         if (!!pd.isPublic !== !!fr.isPublic) { fr.isPublic = !!pd.isPublic; changed = true; }
         if (!!pd.tigerSquad !== !!fr.tigerSquad) { fr.tigerSquad = !!pd.tigerSquad; changed = true; }
         if ((pd.tigerSquad?.tier || null) !== (fr.squadTier || null)) { fr.squadTier = pd.tigerSquad?.tier || null; changed = true; }
+        if (JSON.stringify(pd.colorStyle || null) !== JSON.stringify(fr.colorStyle || null)) { fr.colorStyle = pd.colorStyle || null; changed = true; }
         if (!changed) return;
         _cacheFriends(uid, state.friends);
         _renderFriendsEverywhere();
@@ -40834,7 +41055,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     const _friendRec = state.friends?.find(f => f.uid === friendUid);
     const friendPhoto = _friendRec?.photoURL || null;
     questBump("friendVisit");
-    state.friendView = { uid: friendUid, displayName: friendName, avatarColor, photoURL: friendPhoto, isPublic: _friendIsPublic, publicKey: _friendRec?.publicKey || null, friendsCount: null, tigerSquad: !!_friendRec?.tigerSquad, squadTier: _friendRec?.squadTier || null, error: null, ...(cached?.profile || {}) };
+    state.friendView = { uid: friendUid, displayName: friendName, avatarColor, photoURL: friendPhoto, isPublic: _friendIsPublic, publicKey: _friendRec?.publicKey || null, friendsCount: null, tigerSquad: !!_friendRec?.tigerSquad, squadTier: _friendRec?.squadTier || null, colorStyle: _friendRec?.colorStyle || null, error: null, ...(cached?.profile || {}) };
     _renderProgressChips();
     // Read the friend's public profile for the invite code (share link) + their
     // friends count ("X friends" in the banner). userProfiles is auth-readable.
@@ -44093,12 +44314,26 @@ import { initScreenTools } from './ai/screen-tools.js';
     _xanoLastSent.set(key, now);
     _xanoPost("catalog_view", { IdProduct: Number(idProduct), Surface: "studio" }, now);
   }
+  // The label's pill rule (the labels' `labelInfo`): TigerQR+ = a real catalogue
+  // product, or a TigerTag+ of this inventory.
+  function _isQrPlus(ownSpoolId, idProduct) {
+    const r = ownSpoolId ? state.rows.find(x => x.spoolId === ownSpoolId) : null;
+    return r ? _hasRealProductId(r.raw?.id_product ?? r.idProduct) || !!r.isPlus : _hasRealProductId(idProduct);
+  }
+  // A trophy only the app sees (backend trophyRules APP_REPORTED), asked once.
+  function _appTrophy(id) {
+    const uid = state.activeAccountId;
+    if (uid && !trophyEarned(id)) _tigerCoins(uid, "appTrophy", { id }).catch(() => {});
+  }
   // `qr_read`: a qr.tigertag.io link pasted or scanned into the search, every kind
   // (spool, product, no_product, newer), once per link over 5 minutes. `Reader`
   // paste | qr_scanner, `Format` the link's ending (page | json | ttag). The
   // user's own spool carries its identity as chip events do (SpoolId, UidHex,
   // Protocol); anyone else's only its product.
   async function _sendQrRead(link, linkKind, ownSpoolId = null, idProduct = null) {
+    // A TigerQR+ read by the computer's camera earns a trophy, whatever the
+    // analytics switches say (backend docs/TROPHIES.md).
+    if (link?.reader === "camera" && (linkKind === "spool" || linkKind === "product") && _isQrPlus(ownSpoolId, idProduct)) _appTrophy("tigerQrPlusScan");
     if (!ANALYTICS_QR_READ || state.friendView || !link?.reader) return;
     const key = ["qr_read", linkKind, link.id || link.idProduct || "", link.format].join(":");
     const now = Date.now();

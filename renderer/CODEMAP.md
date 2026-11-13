@@ -148,7 +148,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Settings / Friends / Account modals (L4457-7490)
+## Settings / Friends / Account modals (L4457-7850)
 | L | What | Anchors |
 |---|---|---|
 | 3133-3160 | Settings panel open/close | `openSettings`, `closeSettings` |
@@ -160,7 +160,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Login + accounts persistence (L7532-7924)
+## Login + accounts persistence (L7532-8250)
 | L | What | Anchors |
 |---|---|---|
 | 3590-3809 | **Login modal** (Firebase) — Google sign-in, email/password sign-in + create flow, forgot password | `lmSetMode`, `openAddAccountModal` |
@@ -169,7 +169,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Data migrations (L7966-8555)
+## Data migrations (L7966-8900)
 | L | What | Anchors |
 |---|---|---|
 | 3905-3929 | Decimal spoolId detection + hex conversion — imported from `uid-repair.js` (pure, padded to whole bytes, tested by `scripts/test-uid-repair.mjs`) | `isDecimalSpoolId`, `decimalSpoolIdToHex` |
@@ -179,7 +179,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Inventory subscription + auth + account list (L8578-9293)
+## Inventory subscription + auth + account list (L8578-9650)
 | L | What | Anchors |
 |---|---|---|
 | 4396-4504 | **Firestore inventory subscription** — `onSnapshot` with friend-view defense-in-depth | `subscribeInventory`, `unsubscribeInventory` |
@@ -188,7 +188,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Stats / twins / filters (L9289-9859)
+## Stats / twins / filters (L9289-10200)
 | L | What | Anchors |
 |---|---|---|
 | 4804-4852 | Key status, row sort, load action, **stats** | `renderStats`, `loadInventory` |
@@ -197,7 +197,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Inventory render (L10220-15276)
+## Inventory render (L10220-15600)
 | L | What | Anchors |
 |---|---|---|
 | 5121-5335 | **`renderInventory()`** — welcome card, rack-view priority, table/grid dispatch | `renderInventory` |
@@ -209,7 +209,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## RFID encode / burn modal — cem (L15081-15900)
+## RFID encode / burn modal — cem (L15081-16150)
 | L | What | Anchors |
 |---|---|---|
 | 5947-6037 | **`_burnRfid(r)`** — writes a chip from a row | `_burnRfid` |
@@ -218,7 +218,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## TigerTag+ catalogue (L15681-18800)
+## TigerTag+ catalogue (L15681-19050)
 | L | What | Anchors |
 |---|---|---|
 | 11076-11169 | Refresh API data for a spool | `_refreshApiData` |
@@ -242,7 +242,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 
 ---
 
-## Spool detail panel (L18563-25300)
+## Spool detail panel (L18563-25600)
 | L | What | Anchors |
 |---|---|---|
 | 6583-6736 | Structural signature (patch vs rebuild), weight patch, saved check | `_detailStructuralSig`, `_patchDetailWeight` |
@@ -351,7 +351,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Friend view (L39994-41200)
+## Friend view (L39994-41550)
 | L | What | Anchors |
 |---|---|---|
 | 14586-14667 | Friend inventory open/close (one-shot read, no live updates) | `openFriendInventory`, `closeFriendInventory` |
@@ -362,7 +362,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Display name + friend requests (L41123-42850)
+## Display name + friend requests (L41123-43200)
 | L | What | Anchors |
 |---|---|---|
 | 15055-15098 | **Display-name setup modal** (first-login pseudo picker) | `openDisplayNameSetup` |
@@ -371,7 +371,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Keys + profile sync (L42529-42960)
+## Keys + profile sync (L42529-43300)
 | L | What | Anchors |
 |---|---|---|
 | 15252-15296 | **`claimPublicKey(uid, oldKey)`** atomic transaction (10 retries) + regenerate + send friend request | `claimPublicKey`, `sendFriendRequest` |
@@ -379,7 +379,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Custom avatar (L42792-43400)
+## Custom avatar (L42792-43750)
 | L | What | Anchors |
 |---|---|---|
 | 15859-16033 | File pick, image decode (HEIC via the main process on macOS), alpha detection, error text, remove | `_readAvatarFile`, `removeCustomAvatar` |
@@ -387,7 +387,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## User doc sync + telemetry + bootstrap (L43107-44990)
+## User doc sync + telemetry + bootstrap (L43107-45300)
 | L | What | Anchors |
 |---|---|---|
 | 16512-16927 | **`syncUserDoc(uid)`** — displayName/roles/Debug/keys/isPublic + **client telemetry** (studio* fields + `telemetry/studio` aggregates, fire-and-forget) | `syncUserDoc`, `hydrateUserDocCache` |
@@ -397,7 +397,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Electron RFID integration (L44991-45460)
+## Electron RFID integration (L44991-45750)
 | L | What | Anchors |
 |---|---|---|
 | 30494-30581 | Reader indicator (topbar), reader connect/disconnect, card present/removed badge | `renderRfidReaderBadges` |
@@ -409,7 +409,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 
 ---
 
-## Local MCP server — tools + Settings card (L45064-47055)
+## Local MCP server — tools + Settings card (L45064-47400)
 | L | What | Anchors |
 |---|---|---|
 | 38159-38619 | **Read-only MCP tools** + whole-account read (`data_guide` notice, decoder, `firestore_get` / `firestore_query`, friends, wishlists, history, devices; credential masking `MCP_SECRET_FIELD`, scope `_mcpCheckPath`) — definitions (`search_inventory`, `get_spool`, `inventory_summary`, `list_racks`, `list_printers`), row serialiser, handlers, `mcp:call` → `mcp:result` relay. Server itself: `services/mcpServer.js` | `MCP_TOOLS`, `MCP_HANDLERS`, `_mcpRows`, `_mcpSpool` |

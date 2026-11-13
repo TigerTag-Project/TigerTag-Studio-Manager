@@ -2422,6 +2422,12 @@
             <span class="eac-info" tabindex="0" role="button" data-i18n-tip="eacThemeColorTip" data-tip="Colours your avatar, your header and your banners — and what friends see when they visit." data-i18n-aria="eacThemeColor"><span class="icon icon-info icon-13"></span></span></h4>
           <span class="idm-color-name"><i id="idmColorDot"></i><span id="idmColorName"></span></span>
         </div>
+        <!-- Colour style (inventory.js _renderStylePicker): the aspect, then 1–3
+             colour slots; the palette below paints the chosen slot. -->
+        <div class="idm-style" id="idmStyle" hidden>
+          <div class="idm-aspects" id="idmAspects" role="radiogroup" data-i18n-aria="eacThemeStyle" aria-label="Style"></div>
+          <div class="idm-slots" id="idmSlots"></div>
+        </div>
         <div class="eac-swatches idm-swatches" id="eacSwatches">
           <button class="eac-swatch" data-color="orange" style="--sw:linear-gradient(135deg,#f97316,#fb923c)" data-i18n-aria="themeColor_orange" aria-label="Orange"></button>
           <button class="eac-swatch" data-color="amber" style="--sw:linear-gradient(135deg,#d97706,#f59e0b)" data-i18n-aria="themeColor_amber" aria-label="Amber"></button>

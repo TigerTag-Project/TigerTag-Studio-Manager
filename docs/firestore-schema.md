@@ -86,6 +86,7 @@ userProfiles/
     displayName string      — user's chosen pseudo (2-40 chars, no link / e-mail, 3 changes / 24 h)
     isPublic    boolean     — whether inventory is publicly visible
     color, customColor      — avatar colour (#rrggbb)
+    colorStyle  map?        — { colors: ["#rrggbb", …] (1–3), aspect: "solid"|"bicolor"|"tricolor"|"rainbow"|"aurora" } avatar + theme look, drawn like a spool's colours; setProfile checks the TigerSquad level (bicolor any member, tricolor / rainbow gold+, aurora platinum) and sets `color` = colors[0]; apps draw it only while the level still allows it
     photoURL    string?     — custom avatar, from Storage avatars/{uid} (photoFromStorage / photoRemove)
     socials     string[]    — https profile links, max 5, one per site
     friendsCount number     — maintained by the backend
