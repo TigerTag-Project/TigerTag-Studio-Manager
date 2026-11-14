@@ -24,6 +24,12 @@
     "features": ["CFS Nano", "Camera", "Enclosed"]
   },
   {
+    "id": "13",
+    "name": "SparkX i8",
+    "image": "assets/images/cre_printers/sparkx_i8.png",
+    "features": ["CFS Lite", "Camera"]
+  },
+  {
     "id": "2",
     "name": "K2 Plus",
     "image": "assets/images/cre_printers/k2plus.png",

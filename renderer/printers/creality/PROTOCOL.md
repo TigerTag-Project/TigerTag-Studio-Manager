@@ -240,7 +240,7 @@ Ceci provoque un snapshot complet côté firmware pour obtenir toutes les clés 
 
 **Condition A** (identité forte, au moins une) :
 - Payload contient `model`, `modelVersion` ou `deviceSn`
-- Hostname contient : `creality`, `k1`, `k2`, `f039`, `ender`, `hi-`, `hi_` (insensible à la casse)
+- Hostname contient : `creality`, `k1`, `k2`, `f039`, `f030`, `i8-`, `ender`, `hi-`, `hi_` (insensible à la casse)
 
 **Condition B** (télémétrie Creality, au moins une des clés) :
 ```
@@ -262,7 +262,7 @@ function isCrealityLike(payload, hostname) {
   if (!payload) return false;
   const keys = new Set(Object.keys(payload));
   const hasStrongId = keys.has('model') || keys.has('modelVersion') || keys.has('deviceSn');
-  const hostnameHit = hostname && /creality|k1|k2|f039|ender|hi-|hi_/i.test(hostname);
+  const hostnameHit = hostname && /creality|k1|k2|f039|f030|i8-|ender|hi-|hi_/i.test(hostname);
   const hasTelemetry = [...keys].some(k => TELEMETRY_KEYS.has(k));
   return (hasStrongId || hostnameHit) && hasTelemetry;
 }
@@ -275,12 +275,13 @@ function isCrealityLike(payload, hostname) {
 | `F009` | Ender-3 V4 | `10` |
 | `F022` | SparkX | `11` |
 | `F039` | K3 (nom d'hôte par défaut `F039-XXXX`, XXXX = fin de l'adresse MAC) | `12` |
+| `F030` | SparkX i8 (nom d'hôte par défaut `i8-XXXX`, XXXX = fin de l'adresse MAC) | `13` |
 
 ### K3 (`F039`) — read from the official firmware image, not yet seen on a real K3
 
 - Same :9999 WebSocket service (`web-server`) and same camera as the K2 (WebRTC on :8000,
   `POST /call/webrtc_local`). Four nozzles (Klipper `extruder` … `extruder3`, named T1A–T1D), fed by
-  CFS Nano modules. **No external spool holder**: box 0 ("Ext.") is hidden for the K3.
+  CFS Nano modules. **No external spool holder**: box 0 ("Ext.") is hidden for the K3 (and for the SparkX i8).
 - Extra query sent to the K3 only: `{"method":"get","params":{"nozzleState":1,"nozzleList":1}}`.
   The firmware's field names for the answer: `nozzleState` → `selected`, `nozzles[]` → `id`,
   `state`, `movement`, `progress`, `temperature` (`targetTemp` …), `filamentSource` (`boxId`,
@@ -291,6 +292,15 @@ function isCrealityLike(payload, hostname) {
   sent: their parameters were not seen on a real machine.
 - A CFS Nano may report a `type` other than 0 in `boxsInfo`; on the K3 any numbered box that holds
   slots is shown as a CFS module.
+
+### SparkX i8 (`F030`) — read from the official firmware image, not yet seen on a real i8
+
+- Same :9999 WebSocket service and same camera as the other Creality models (WebRTC on :8000, `POST /call/webrtc_local`).
+  One nozzle (a single Klipper `extruder`), a four-colour CFS-lite rack, no chamber sensor, hotend fan only: an open-frame
+  machine like the i7, so it gets the part-cooling fan only. Its rack is treated like the K3's: no external spool (box 0 is
+  hidden) and any numbered box that holds slots is shown as a CFS module, whatever its `type` (not seen on a real i8).
+- The default host name is `i8-XXXX` (the word "sparkx" is not in it); the `i8` rule comes before the generic
+  `sparkx` rule so that a machine named "SparkX i8" is not taken for the i7. The i7 is unchanged.
 
 ---
 
