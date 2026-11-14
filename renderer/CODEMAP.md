@@ -154,7 +154,7 @@ Manual spool creation: full chip-schema editor with bottom-sheets. All helpers p
 | 3133-3160 | Settings panel open/close | `openSettings`, `closeSettings` |
 | 3161-3174 | Friends panel open/close (auto-generates publicKey first) | `openFriends`, `closeFriends` |
 | 3175-3216 | **TigerScale module init** — wires panel, health tick, card delegation into `IoT/tigerscale` | `initTigerScale(` |
-| 3217-3324 | API key 6 + eye-toggle / copy-button factories | `getOrCreateApiKey6`, `makeEyeToggle`, `makeCopyBtn` |
+| 3217-3324 | Eye-toggle and "Copied!" flash helpers | `makeEyeToggle` |
 | 3325-3443 | **Edit account modal** + account colour save | `openEditAccountModal`, `saveColorToFirestore` |
 | 3444-3589 | **Identity window** (photo change / remove) + display-name save | `openIdentityModal`, `saveDisplayName` |
 
