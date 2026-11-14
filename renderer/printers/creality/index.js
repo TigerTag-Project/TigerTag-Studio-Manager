@@ -39,8 +39,14 @@ const CRE_QUERY_FILES = JSON.stringify({ method: "get", params: { getGcodeFileIn
 // frames it always got.
 const CRE_K3_MODEL_ID = "12";
 const CRE_K3_QUERY = JSON.stringify({ method: "get", params: { nozzleState: 1, nozzleList: 1 } });
-// Every other Creality has an external spool holder (box 0, "Ext."); the K3 has none.
-const creHasExternalSpool = p => String(p?.printerModelId ?? p?.modelId ?? "") !== CRE_K3_MODEL_ID;
+// Catalog id of the SparkX i8: one nozzle, a four-colour CFS-lite rack, no external spool.
+const CRE_I8_MODEL_ID = "13";
+// Models with a built-in four-slot rack and no external spool holder (box 0, "Ext."). Every other
+// Creality has that holder. For these the rack may report a "type" value never seen on a real
+// machine, so any numbered box that holds slots is shown as a CFS module.
+const CRE_RACK_ONLY_MODEL_IDS = new Set([CRE_K3_MODEL_ID, CRE_I8_MODEL_ID]);
+const creIsRackOnly = id => CRE_RACK_ONLY_MODEL_IDS.has(String(id ?? ""));
+const creHasExternalSpool = p => !creIsRackOnly(p?.printerModelId ?? p?.modelId);
 
 // ── Public helpers ────────────────────────────────────────────────────────
 
@@ -393,7 +399,7 @@ export function creActionFeed(printer, boxId, materialId, isFeed) {
 
 // Catalog model ids (data/printers/cre_printer_models.json) that physically have
 // the enclosed-printer fan trio: part (P0) + case (P1) + side/auxiliary (P2).
-// Everything else — open-frame machines (Hi, Ender-3 V4, SparkX i7) and any
+// Everything else — open-frame machines (Hi, Ender-3 V4, SparkX i7, SparkX i8) and any
 // unrecognized model (id "0") — has only the part-cooling fan. The firmware
 // reports all three *FanPct fields regardless of the hardware (a real Ender-3 V4
 // still pushes caseFanPct/auxiliaryFanPct = 0, see RETRO.md), so field presence
@@ -1341,9 +1347,9 @@ function renderCreFilamentCard(p, conn) {
         vendor: String(m0.vendor || ""),
         state:  m0.state ?? 0
       };
-    } else if (type === 0 || (conn.modelId === CRE_K3_MODEL_ID && Number(id) !== 0 && mats.length > 0)) {
-      // type 0 = CFS module. On the K3 a CFS Nano may report another type value (not seen on a
-      // real K3), so any numbered box that holds slots counts there.
+    } else if (type === 0 || (creIsRackOnly(conn.modelId) && Number(id) !== 0 && mats.length > 0)) {
+      // type 0 = CFS module. On the K3 (CFS Nano) and the i8 (CFS-lite rack) the box may report
+      // another type value (not seen on a real machine), so any numbered box that holds slots counts.
       moduleEntries.push(e);
     }
   }
