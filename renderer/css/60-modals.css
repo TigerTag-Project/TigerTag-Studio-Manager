@@ -2297,17 +2297,15 @@
   }
   /* Platinum "aurora" style: the theme's colours drift slowly across the header
      glow and the identity preview (_applyThemeColor sets has-theme-aurora). */
-  :root.has-theme-aurora header.top::before,
-  :root.has-theme-aurora #identityOverlay .idm-mini-head,
-  :root.has-theme-aurora #identityOverlay .idm-mini-banner { animation: theme-aurora 14s ease-in-out infinite alternate; }
+  :root.has-theme-aurora header.top::before { animation: theme-aurora 9s ease-in-out infinite alternate; }
+  /* The wall is four layers (_auroraBg): three lights drifting their own way, the sky still. */
   @keyframes theme-aurora {
-    from { background-size: 220% 220%; background-position: 0% 50%; }
-    to   { background-size: 220% 220%; background-position: 100% 50%; }
+    0%   { background-size: 60% 140%, 60% 140%, 60% 140%, 100% 100%; background-position: 0% 0%, 100% 10%, 50% 100%, 0 0; }
+    50%  { background-size: 70% 160%, 55% 130%, 65% 150%, 100% 100%; background-position: 60% 60%, 10% 80%, 90% 0%, 0 0; }
+    100% { background-size: 55% 130%, 70% 160%, 60% 140%, 100% 100%; background-position: 25% 100%, 85% 30%, 40% 30%, 0 0; }
   }
   @media (prefers-reduced-motion: reduce) {
-    :root.has-theme-aurora header.top::before,
-    :root.has-theme-aurora #identityOverlay .idm-mini-head,
-    :root.has-theme-aurora #identityOverlay .idm-mini-banner { animation: none; }
+    :root.has-theme-aurora header.top::before { animation: none; }
   }
   /* TD1S / Scale / Cloud (and the optional RFID pill) — always pinned to
      the right edge of the header. `margin-left: auto` makes this work even
@@ -2318,6 +2316,11 @@
     display: flex; align-items: center; gap: 12px;
     margin-left: auto;
   }
+  /* The device icons in a card like the stat cards beside them (.sb-stat), so a
+     vivid theme colour never swallows them; a row, not the stat's column. */
+  .sb-stat.top-devices { flex-direction: row; align-items: center; gap: 12px; padding: 8px 14px;
+    /* the header cards' own look and height (.top-stats .sb-stat, 00-base.css) */
+    box-sizing: border-box; height: var(--top-card-h, 68px); background: var(--surface-2); border: 1px solid var(--border); }
   /* In a friend's view the header shows THEIR counts only: my TigerCoins, RFID
      readers, scales, TigerSpool and Tiger Touch step aside (the app's own
      network / update icons stay). */
@@ -5318,34 +5321,58 @@ body.ttag-dragging .ttag-drop-hint { display: flex; }
 #identityOverlay .idm-color-name { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--muted); }
 #identityOverlay .idm-color-name i { width: 12px; height: 12px; border-radius: 50%; background: var(--idm-c, var(--primary)); }
 #identityOverlay .idm-swatches { margin: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px 8px; justify-items: center; }
-/* Colour style (inventory.js _renderStylePicker): five aspect dots with their
-   name — the chosen one ringed, a locked one dimmed with the TigerSquad badge it
-   needs — then the colour slots the palette below paints. */
+/* The profile photo card wears the theme (founder): the same wall as the hero
+   banners (--hero-wall, _applyThemeColor), so the chosen style shows at once;
+   the text on it reads in white, the theme being a dark navy mix. */
+#identityOverlay .idm-photo-sec { background: var(--hero-wall, var(--surface-2)); background-origin: border-box; border-color: transparent; }
+/* Its top row: the title, then the TigerSquad title and the XP chip on the right. */
+#identityOverlay .idm-photo-top { display: flex; align-items: center; gap: 10px; }
+#identityOverlay .idm-photo-top .idm-mini-title { margin-left: auto; font-size: 16px; }
+#identityOverlay .idm-photo-top .idm-mini-chip { margin-left: 0; }
+/* The display name, editable in place, reads as the card's name on the theme. */
+#identityOverlay .idm-photo-sec .idm-name-group { height: 36px; background: rgba(0, 0, 0, .28); border-color: rgba(255, 255, 255, .18); }
+#identityOverlay .idm-photo-sec .eac-name-input, #identityOverlay .idm-photo-sec .eac-name-input[readonly] { color: #fff; font-weight: 700; font-size: 15px; }
+#identityOverlay .idm-photo-sec .eac-name-save { border-left-color: rgba(255, 255, 255, .18); }
+#identityOverlay .idm-photo-sec .eac-name-save .icon { background: rgba(255, 255, 255, .85); }
+/* The avatar buttons keep a dark backing too: a red trash on a red theme vanished. */
+#identityOverlay .idm-photo-sec .idm-btn.idm-btn { background: rgba(0, 0, 0, .32); color: #fff; }
+/* border-box: under the transparent border the gradient would otherwise repeat, each
+   edge showing the OPPOSITE edge's colour — the thin bands seen down the sides. */
+#identityOverlay .idm-photo-sec .idm-sec-title, #identityOverlay .idm-photo-sec #idmName { color: #fff; }
+:root.has-theme-aurora #identityOverlay .idm-photo-sec { animation: theme-aurora 9s ease-in-out infinite alternate; }
+@media (prefers-reduced-motion: reduce) { :root.has-theme-aurora #identityOverlay .idm-photo-sec { animation: none; } }
+/* Colour style (inventory.js _renderStylePicker): the aspect dots with their
+   name (no tile), the TigerSquad badge each one needs on the dot's corner —
+   the chosen one ringed, a locked one dimmed — then the colour slots the palette below paints. */
 #identityOverlay .idm-style { display: flex; flex-direction: column; gap: 12px; margin-bottom: 14px; }
-#identityOverlay .idm-aspects { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
-#identityOverlay .idm-aspect.idm-aspect { height: auto; min-height: 0; }   /* doubled: the global button height squeezed the tile */
-#identityOverlay .idm-aspect { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 2px 7px; border-radius: 12px;
-  border: 1px solid var(--border); background: var(--surface-2); color: var(--text); cursor: pointer; transition: border-color .15s, background .15s; }
-#identityOverlay .idm-aspect:hover { border-color: var(--primary); }
-#identityOverlay .idm-aspect.is-on { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 12%, var(--surface-2)); }
-#identityOverlay .idm-aspect-sw { width: 30px; aspect-ratio: 1; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .15); }
-#identityOverlay .idm-aspect-name { font-size: 11px; font-weight: 600; line-height: 1.1; text-align: center; }
+#identityOverlay .idm-aspects { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px; }
+#identityOverlay .idm-aspect.idm-aspect { height: auto; min-height: 0; }   /* doubled: the global button height squeezed it */
+/* No tile around a mode (founder): the dot and its name; the chosen one gets the
+   palette's white ring, a locked one is dimmed; the level badge sits on the dot's corner. */
+#identityOverlay .idm-aspect { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 4px 0; border: 0; background: none; color: var(--text); cursor: pointer; }
+#identityOverlay .idm-aspect-dot { position: relative; display: block; }
+#identityOverlay .idm-aspect-sw { display: block; width: 32px; aspect-ratio: 1; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .15); transition: transform .15s, box-shadow .15s; }
+#identityOverlay .idm-aspect:hover .idm-aspect-sw { transform: scale(1.1); }
+#identityOverlay .idm-aspect.is-on .idm-aspect-sw { transform: none; box-shadow: 0 0 0 2px var(--surface-2), 0 0 0 4px #fff; }
+#identityOverlay .idm-aspect-name { font-size: 11px; font-weight: 600; line-height: 1.1; text-align: center; color: var(--muted); }
+#identityOverlay .idm-aspect.is-on .idm-aspect-name { color: var(--text); }
 #identityOverlay .idm-aspect.is-locked .idm-aspect-sw, #identityOverlay .idm-aspect.is-locked .idm-aspect-name { opacity: .45; }
-#identityOverlay .idm-aspect-tier { position: absolute; top: 4px; right: 6px; width: 16px; aspect-ratio: 1; object-fit: contain; }
-#identityOverlay .idm-slots { display: flex; align-items: center; gap: 10px; }
+#identityOverlay .idm-aspect-tier { position: absolute; top: -9px; right: -13px; width: 24px; aspect-ratio: 1; object-fit: contain; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .6)); }
+/* Intensity: how vivid the theme glow is (inventory.js STYLE_INTENSITY), a TigerSquad perk: greyed for anyone else. */
+#identityOverlay .idm-intensity { display: flex; align-items: center; gap: 12px; font-size: 12px; font-weight: 600; color: var(--muted); }
+#identityOverlay .idm-intensity input { flex: 1; accent-color: var(--primary); cursor: pointer; }
+#identityOverlay .idm-intensity.is-off { opacity: .4; }   /* Smoothness in Solid / Aurora: greyed, kept in place */
+#identityOverlay .idm-intensity.is-off input { cursor: default; pointer-events: none; }
+#identityOverlay .idm-intensity > span { min-width: 82px; }   /* Smoothness and Intensity sliders start aligned */
+#identityOverlay .idm-intensity.is-locked { opacity: .45; cursor: not-allowed; }
+#identityOverlay .idm-intensity.is-locked input { cursor: not-allowed; pointer-events: none; }
+#identityOverlay .idm-slots { display: flex; align-items: center; justify-content: center; gap: 10px; }
 #identityOverlay .idm-slots:empty { display: none; }
 #identityOverlay .idm-slot.idm-slot { height: auto; min-height: 0; }
 #identityOverlay .idm-slot { position: relative; display: grid; place-items: center; width: 30px; aspect-ratio: 1; padding: 0; border-radius: 50%; border: 0; cursor: pointer;
   background: var(--c); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .2); transition: box-shadow .15s; }
 #identityOverlay .idm-slot.is-on { box-shadow: 0 0 0 2px var(--surface-2), 0 0 0 4px #fff; }
 #identityOverlay .idm-slot-n { font-size: 11px; font-weight: 800; color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, .7); }
-#identityOverlay .idm-slot-x { position: absolute; top: -5px; right: -5px; display: grid; place-items: center; width: 15px; aspect-ratio: 1; border-radius: 50%;
-  background: var(--surface); box-shadow: 0 0 0 1px var(--border); opacity: 0; transition: opacity .15s; }
-#identityOverlay .idm-slot:hover .idm-slot-x { opacity: 1; }
-#identityOverlay .idm-slot-x .icon { width: 8px; height: 8px; background: var(--text); }
-#identityOverlay .idm-slot--add { background: none; box-shadow: inset 0 0 0 1.5px var(--border); }
-#identityOverlay .idm-slot--add .icon { background: var(--muted); }
-#identityOverlay .idm-slot--add:hover { box-shadow: inset 0 0 0 1.5px var(--primary); }
 /* Plain colour dots (no tile around them); the chosen one gets a white ring and a check. */
 #identityOverlay .idm-swatches .eac-swatch { position: relative; width: 32px; height: 32px; aspect-ratio: auto; border-radius: 50%; border: 0; padding: 0; background: var(--sw); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .15); transform: none; transition: transform .15s, box-shadow .15s; }
 #identityOverlay .idm-swatches .eac-swatch:hover { transform: scale(1.12); }
@@ -5358,26 +5385,8 @@ body.ttag-dragging .ttag-drop-hint { display: flex; }
   background: conic-gradient(#ef4444, #f59e0b, #eab308, #22c55e, #14b8a6, #3b82f6, #8b5cf6, #d946ef, #ef4444) !important; }
 #identityOverlay .idm-swatches .eac-swatch-custom .icon { width: 16px; height: 16px; background: #fff; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .7)); }
 #identityOverlay .idm-swatches .eac-swatch-custom.active { box-shadow: 0 0 0 2px var(--surface-2), 0 0 0 4px #fff !important; }
-/* Live preview: a mini header and a mini Tiger Squad banner in the theme
-   colour (the app's own --theme-tint / --hero-wall, set by _applyThemeColor). */
-#identityOverlay .idm-preview { gap: 8px; }
-#identityOverlay .idm-eyebrow { margin: 0; font-size: 10.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
-#identityOverlay .idm-mini { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--bg); }
-#identityOverlay .idm-mini-head { display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 10px; background: var(--theme-tint, var(--surface)); }
-#identityOverlay .idm-mini-av { width: 24px; height: 24px; font-size: 10px; cursor: default; }
-#identityOverlay .idm-mini-head b { font-size: 12px; color: #fff; }
+/* The profile card's XP chip and TigerSquad title (it is the live preview now). */
 #identityOverlay .idm-mini-chip { margin-left: auto; padding: 2px 8px; border-radius: 99px; font-size: 10px; font-weight: 700; color: #ffb347; background: rgba(0, 0, 0, .3); }
-#identityOverlay .idm-mini-banner { position: relative; height: 70px; margin: 8px; border-radius: 8px; overflow: hidden; display: flex; align-items: center; padding: 0 14px 10px;
-  background: var(--hero-wall, linear-gradient(115deg, #3a1d2a, #1a1d33)); }
-/* The banners' desk and tiger, in miniature: the tiger stands BEHIND the desk
-   (its cut waist hidden by it) and rests its paws ON it — two layers, like
-   the Tiger Squad heroes (tiger.webp behind, tiger-front.webp = paws over). */
-#identityOverlay .idm-mini-desk { position: absolute; left: 0; right: 0; bottom: 0; height: 12px; z-index: 1;
-  background: linear-gradient(180deg, #d27a35 0 3px, #b8662b 3px 7px, #8a4a1e 7px); }
-#identityOverlay .idm-mini-tiger { position: absolute; right: 16px; bottom: 5px; height: 62px; aspect-ratio: 1226 / 802; }
-#identityOverlay .idm-mini-tiger img { position: absolute; inset: 0; width: 100%; height: 100%; }
-#identityOverlay .idm-mini-tiger-back { z-index: 0; }
-#identityOverlay .idm-mini-tiger-front { z-index: 2; }
 #identityOverlay .idm-mini-title { position: relative; z-index: 1; font: 800 20px/1 "Avenir Next Condensed", "Arial Narrow", "Roboto Condensed", system-ui, sans-serif; color: #fff; text-shadow: 0 2px 4px #000; letter-spacing: .02em; }
 #identityOverlay .idm-mini-orange { color: var(--primary-text); }
 #identityOverlay .idm-foot { display: flex; justify-content: flex-end; padding: 14px 24px; border-top: 1px solid var(--border); }
@@ -5405,3 +5414,34 @@ body.ttag-dragging .ttag-drop-hint { display: flex; }
 .dlg .sqn-lost-ic.dlg-tile { background: linear-gradient(135deg, var(--kc), color-mix(in srgb, var(--kc) 62%, #000)); }
 .dlg .sqn-lost-ic.dlg-tile .icon { background: #fff; }
 .dlg .sqn-lost li small.dlg-accent { color: var(--tsq-orange); font-weight: 700; }
+
+/* ── In-app colour picker (renderer/color-pop.js) ─────────────────────────────
+   Opens beside what was clicked (a theme colour slot, the palette swatch) instead
+   of macOS's colour panel: saturation / brightness area, hue strip, HEX field. */
+.color-pop {
+  position: fixed; z-index: 10050; width: 220px; padding: 12px; display: flex; flex-direction: column; gap: 10px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow-lg);
+}
+.color-pop-sv {
+  position: relative; height: 140px; border-radius: 8px; cursor: crosshair; touch-action: none;
+  background: linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, var(--hue, red));
+}
+.color-pop-thumb {
+  position: absolute; width: 14px; aspect-ratio: 1; border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none;
+  border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, .45), 0 1px 4px rgba(0, 0, 0, .4);
+}
+.color-pop-hue {
+  -webkit-appearance: none; appearance: none; width: 100%; height: 12px; margin: 0; border-radius: 999px; cursor: pointer;
+  background: linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00);
+}
+.color-pop-hue::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #fff;
+  border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, .45), 0 1px 4px rgba(0, 0, 0, .4);
+}
+.color-pop-row { display: flex; align-items: center; gap: 8px; }
+.color-pop-swatch { width: 28px; aspect-ratio: 1; border-radius: 50%; flex-shrink: 0; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 18%, transparent); }
+.color-pop-hex {
+  flex: 1; min-width: 0; height: 30px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--surface-2); color: var(--text); font: 600 13px/1 ui-monospace, SFMono-Regular, Menlo, monospace; text-transform: uppercase;
+}
+.color-pop-hex:focus { outline: none; border-color: var(--primary); }

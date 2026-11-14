@@ -5,6 +5,36 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v2.57.0 — 2026-11-14
+
+### Added
+- **Theme colour styles: 1, 2 or 3 colours and an aspect, unlocked by TigerSquad level.** The identity window's Style row offers Solid (everyone), Bicolor (TigerSquad member, 2 colours), Rainbow (Gold+, 3 colours, 45° ramp) and Aurora (Platinum, 3 colours, three soft lights drifting over a dark sky); a stored `tricolor` is drawn as a rainbow, the server still accepts it. Stored in `userProfiles/{uid}.colorStyle { colors, aspect, intensity, smooth }` through `setProfile` (backend `STYLE_ASPECTS`, checks the level, `color` = colors[0]); cached (`Cache` `colorStyle`, `tigertag.colorStyle.<uid>`) and painted at launch; colours per slot remembered on the device (`tigertag.colorMemo.<uid>`). Drawn on every avatar (`_buildAvatarParts` → `_styleFor` / `_colorStyleBg`, `.av-fx-aurora`, `av-aurora`) and on the theme wall (`_applyThemeColor`, `has-theme-aurora`, `theme-aurora`, hero banners and trophies banner drift too); a level lost = first colour. Code: `COLOR_STYLES`, `_styleColors`, `_hueTurn`, `_styleBands` / `_styleBandStops`, `_auroraBg`, `_renderStylePicker`, `_setOwnStyle`, `_setStyleSlot`, `#idmStyle`.
+- **Smoothness and Intensity sliders** in the colour section: `colorStyle.smooth` 0-100 (default 100; 0 = flag-like bands, 100 = one soft ramp; Bicolor, Rainbow and Aurora, greyed in Solid) and `colorStyle.intensity` 15-100 (default 30, TigerSquad members only, `STYLE_INTENSITY`, how much colour goes into the navy of the theme wall, capped at 95 %). i18n `themeSmooth`, `themeIntensity`.
+- **In-app colour picker that opens beside the click** (`renderer/color-pop.js` `openColorPop`, `.color-pop` in `60-modals.css`): saturation / brightness area, hue strip, HEX field; used by the colour slots and the palette swatch (`_openThemeColorPop`) instead of the OS colour panel; Escape or an outside click closes it, not the window.
+- **A product's RAL / Pantone codes** (Xano changes 71 and 73: `color_info.rals` / `.pantones`, else `ral` / `pantone`): chips on the catalogue product card and in the spool card's Color row (`_colorCodesOf`, `_colorCodesChips`, `.color-code-chip`); RAL with its name and an approximate swatch (`renderer/ral-classic.js`, ral-colors 1.0.1, MIT, in `THIRD_PARTY_LICENSES.md`), Pantone as text only (licensed palette).
+- **"Add with TigerTag / TigerTag+" view** (the add chooser's tile and the held banner): reads the chip on the TigerPOD and adds the spool linked to it, twins included (`_processNfcScans`, `_nfcProcess`, `_pcScannedChip` / `_pcScannedChipFor`, `pcTagAddBanner`). Outside that view a scanned chip that is not in the inventory is no longer created: its product's card opens with a toast (`_showUnknownChip`, `tagAddUnknown`), and the card's green banner is "Add with TigerTag / TigerTag+" instead of "Burn the TigerTag+". Offline, `_processNfcScans` falls back to the local copy. Docs: `docs/LINKED-CHIPS.md`. i18n `linkedChipAddTag`, `linkedChipTagTip`, `tagAdd*`, `pcTagAdd*`.
+- **Catalogue product card banners** when nothing of the product is on the TigerPOD: "Burn the TigerTag+" (reader plugged in), "Add from the catalogue" (TigerData+, `linkedChipAddCatalogue`) and "Add with TigerQR+" (the same spool, then its QR label card: `_catalogCreate({ openLabel })` → `_openCreatedSpool` → `openLabelCard`; `pcQrAddBanner` / `pcQrAddInfo`), replacing "+ Inventory"; the CTA grid keeps wishlist / cart / favourite (`.pc-cta--no-inv`).
+- **TigerQR+ trophy hooks**: a TigerQR+ read by the camera and a material added from one are reported through the `tigerCoins` action `appTrophy` (`tigerQrPlusScan`, `tigerQrPlusAdd`; `_isQrPlus`, `_appTrophy`). Rules, texts and art live in the backend.
+- **TigerSquad league rows wear each member's colour style** (`memberStyle` → `_styleRowBg`, `.sqr-row.has-ms`, `.sqr-aurora`), drawn at 45° like the theme wall (`linear-gradient(135deg, …)`); the backend board rows carry `colorStyle` (`rowOf`).
+- **World league draws the top 100** of a board that now holds 404 rows: `_loadSquadBoard` keeps every row for the member's live rank (`worldAll`) and shows `SQUAD_WORLD_SHOWN` = 100.
+- **Backend (no Studio change)**: brand market for the makers' dashboards (`functions/brandMarket.js`, `computeUserStats` `byBrand`, `printersByModel`, `marketCountry`; nightly push from 3:20 Paris to the Manager; history rebuilt from `dataHistory`, grams capped per spool), contract in the backend `README.md`.
+
+### Changed
+- **Identity window is shorter**: the profile photo card is the live preview (TigerSquad title + XP chip on its top row, display name editable in place, wearing the theme wall); the separate Display name and Live preview sections are gone. The header's device icons sit in one card (`.sb-stat.top-devices`). The theme wall's end colours sit past the edges (-25 % … 125 %).
+- **My profile card columns are balanced**: Profile, Community and Sign-in left; AI assistant, Preferences and Advanced right.
+- **Catalogue count**: "20886 products" (what the filters match), moved before Select (`#catalogViewStatus`, `_catViewSyncStatus`); `catalogHits` (plural) replaces `catalogCount`.
+- **Grid cards**: a line between the colour picture and the text (`.spool-card .card-body` border-top).
+
+### Fixed
+- **A deleted spool no longer stays on screen**: the delta sync (`_listenSynced`) heard no delete of an older document; every Firestore delete (ref or batch commit) now drops the document from the delta-synced copy at once (`_watchSyncedDeletes` → `_syncForget`) and the spool card's Delete closes the card before the batch is confirmed (`_wireToolbox`).
+- **A spool added from its chip is written whole**: `_writeChipDoc` writes `productKey` and `protocol` with the doc (`normalizeRow`, `_productKeyHash`), so `syncSpoolMirrors` no longer follows with up to three update batches (2 writes instead of 6).
+
+### i18n
+- New: `themeIntensity`, `themeSmooth`, `eacThemeStyle`, `themeStyle_solid`, `themeStyle_bicolor`, `themeStyle_tricolor`, `themeStyle_rainbow`, `themeStyle_aurora`, `themeStyleLocked`, `themeStyleSlot`, `linkedChipAddTag`, `linkedChipTagTip`, `tagAddHint`, `tagAddUnknown`, `tagAddBlank`, `tagAddReplace`, `tagAddKnown`, `tagAddDone`, `tagAddReading`, `tagAddAlready`, `pcTagAddBanner`, `pcTagAddInfo`, `pcTagAddHoldTip`, `pcTagAddNeedPod`, `pcQrAddBanner`, `pcQrAddInfo`, `catalogHits`.
+- Removed: `catalogCount`.
+
+---
+
 ## v2.56.0 — 2026-11-12
 
 ### Added

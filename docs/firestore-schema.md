@@ -124,6 +124,9 @@ users/
     studioLang      string    — app language setting (e.g. "fr")
     studioLocale    string    — system locale (e.g. "fr-FR")
     studioCountry   string    — country code derived from the locale region (e.g. "FR"); null when the locale has no region. Offline-derived, no IP geolocation
+    geo             map       — { cc, source: "manager", at } — the account's country from the Manager's events (GPS, else
+                                declared, else IP; most frequent over 365 days), written by the nightly rollup when it
+                                changes. Server-written, shown nowhere; first in the brand market's marketCountry
     studioTimezone  string    — IANA timezone (e.g. "Europe/Paris"), from Intl.DateTimeFormat
     studioLastSeen  timestamp — server timestamp of last login (deployment targeting / churn)
 
@@ -509,6 +512,13 @@ users/
         cloudPlusCount  number   — of which TigerData+ (plain TigerData = cloudCount - cloudPlusCount)
         printers        number
         printersByBrand map      — { bambulab: n, creality: n, … }
+        printersByModel map      — { "<brand>|<printerModelId>": n } (stats/current only)
+        byBrand         map      — { "<id_brand>": { s: materials, g: grams left, r: refills (info1),
+                                   m: { "<id_material>": materials }, p: { "<id_product>": materials },
+                                   c: { "<container_id>": materials }, t: { <protocol>: materials } } }
+                                   (stats/current only; p: real catalogue products only; t: the byProtocol buckets)
+        marketCountry   string   — ISO country the brand market counts the account in (geo.cc from the Manager, else studioCountry,
+                                   else the TigerSquad country; null = unknown) (stats/current only)
         favorites       number   — ★ products
         cartItems       number   — ❤ products in the active cart (savedForLater excluded)
         cartUnits       number   — Σ orderQty
@@ -579,7 +589,7 @@ The backend then does plain lookups: no reference DB server-side, no duplicated 
 
 **Retention.** Raw points older than 90 days are downsampled to one point per day (the day's last), pruned lazily per account (at most weekly, only for accounts that are actually writing) — never a global sweep.
 
-**`adminStats/{YYYY-MM-DD}`** (top-level, admin-read-only) — the daily global rollup, summed from the per-account `stats/current` docs (one small doc per account; spools are never re-read). Monetary totals live in `valueHtByCurrency` — different currencies are **never** summed together, that would make the global figure meaningless.
+**`adminStats/{YYYY-MM-DD}`** (top-level, admin-read-only) — the daily global rollup, summed from the per-account `stats/current` docs (one small doc per account; spools are never re-read). The same pass builds the **brand market** (one row per day × brand × country, plus the containers in use and the TigerSquad totals per country; no anonymity threshold, aggregates only) and posts it to the Manager; `brandMarketSpools` keeps the day's cells for the next day's change — contract in the backend `README.md`. The same day is kept in **`brandMarket/{YYYY-MM-DD}`** (squad, market per country, brands) with one doc per row in `brandRows/{id_brand}_{CC}` and per container in `brandContainers/{CC}_{id|key}` — Admin SDK only (no client rule), kept for good. Monetary totals live in `valueHtByCurrency` — different currencies are **never** summed together, that would make the global figure meaningless.
 
 ## RFID chip census + TigerTag+ backup — sync contract
 

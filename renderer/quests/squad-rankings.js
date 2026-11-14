@@ -272,8 +272,11 @@ function leaguesHtml(ctx, board, loading) {
   // Each maker's row wears their theme colour (the avatar colour they picked).
   const memberRow = (withFlag, mv) => (m, i) => {
     const mc = ctx.memberColor?.(m);
+    // Their colour style when they have one (bicolor / rainbow / aurora), else their colour.
+    const ms = ctx.memberStyle?.(m);
+    const vars = [mc ? `--mc:${mc}` : "", ms ? `--ms:${ms.bg}` : ""].filter(Boolean).join(";");
     return `
-    <li class="sqr-row${m.uid === ctx.uid ? " is-me" : ""}${mc ? " has-mc" : ""}"${mc ? ` style="--mc:${mc}"` : ""}>${rankCell(i)}
+    <li class="sqr-row${m.uid === ctx.uid ? " is-me" : ""}${mc ? " has-mc" : ""}${ms ? " has-ms" : ""}${ms?.aurora ? " sqr-aurora" : ""}"${vars ? ` style="${vars}"` : ""}>${rankCell(i)}
       <span class="sqr-av">${ctx.avatar(m)}</span>
       <span class="sqr-name"><b>${esc(m.name)}${withFlag && m.country ? ` <span class="sqr-mini">${flagAv(m.country, 14)}<small>${rankNo(natIn(m))}</small></span>` : ""}</b>
         <small class="sq-${m.tier}">${esc(ctx.tierLabel(m.tier))}</small></span>

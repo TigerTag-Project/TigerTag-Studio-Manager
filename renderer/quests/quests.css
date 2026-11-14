@@ -142,6 +142,9 @@ body.progress-view #gridSortWrap { display: none; }
   --hero-desk-hc: var(--hero-desk-h, 26px);
   /* Every hero banner is the same height, in every view. */
   position: relative; height: 150px; background: var(--hero-wall-c); }
+/* Aurora: the banners' wall drifts like the header glow (theme-aurora, 60-modals.css). */
+:root.has-theme-aurora :is(.qd-hero, .qm-hero, .sqr-hero):not(.trp-hero) { animation: theme-aurora 9s ease-in-out infinite alternate; }
+@media (prefers-reduced-motion: reduce) { :root.has-theme-aurora :is(.qd-hero, .qm-hero, .sqr-hero) { animation: none; } }
 /* The banner stays on screen while its view scrolls (the views are the
    scroll containers): it sticks to the top, the page sliding under it. The
    Squad rankings banner sits in a host of its own, which is what sticks. */
@@ -687,6 +690,12 @@ body.progress-view #gridSortWrap { display: none; }
 .sqr-row.has-mc { border-color: color-mix(in srgb, var(--mc) 38%, var(--tsq-line));
   background: linear-gradient(90deg, color-mix(in srgb, var(--mc) 50%, transparent), color-mix(in srgb, var(--mc) 12%, transparent) 80%); }
 .sqr-row.has-mc:hover { border-color: color-mix(in srgb, var(--mc) 70%, var(--tsq-line)); }
+/* …or in their colour style (--ms, inventory.js _styleRowBg): the bicolor / rainbow
+   bands or the aurora's lights, the Aurora drifting like their theme (theme-aurora, 60-modals.css). */
+.sqr-row.has-ms.has-ms { background: var(--ms); }
+:root:not([data-theme="dark"]) .sqr-row.has-ms.has-ms { background: var(--ms); }   /* beats the light theme's colour row */
+.sqr-row.sqr-aurora { animation: theme-aurora 9s ease-in-out infinite alternate; }
+@media (prefers-reduced-motion: reduce) { .sqr-row.sqr-aurora { animation: none; } }
 /* Countries league: each row in its flag's colours (--f1..--f3); your country
    keeps its orange frame. */
 .sqr-row.has-flag { border-color: color-mix(in srgb, var(--f1) 35%, var(--tsq-line));

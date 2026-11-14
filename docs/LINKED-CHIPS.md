@@ -67,6 +67,19 @@ the chip is next resolved).
    While the new-chip card is up, a scan opens nothing and adds nothing (no spool
    opened, created or updated, no new-chip card reopened on another view): placing
    or removing a chip only updates the card itself (card-present events).
+   The one exception is its "Add with TigerTag" view: a TigerTag placed then is
+   read for it — one already in the inventory is said so on its reader plate, a new
+   one is added at once, linked to the chip, its mini card listed under the readers;
+   the view stays open for the next spool. A spool already lying on the TigerPOD
+   when the view opens is read for it at once (no need to lift it); "already
+   there" is confirmed on the server, so a spool deleted since is added again.
+   That view is the only way a scan adds a TigerTag on its own: outside it, a chip
+   that is not in the inventory opens its product's card, whose banner offers
+   "Add with TigerTag / TigerTag+" (held) instead of the burn while that chip stays
+   on the TigerPOD — it adds the spool linked to the chip, never rewrites it.
+   With nothing of the product on the TigerPOD, the catalogue card offers three
+   held banners instead of "+ Inventory": "Burn the TigerTag+", "Add from the
+   catalogue" (a TigerData+) and "Add with TigerQR+" (the same, opened on its QR label).
 
    The same side card opens for a **blank NTAG** (TigerTag Init or an erased / empty-NDEF
    chip, `_chipIsWritableBlank`) with the same three choices: a created spool is

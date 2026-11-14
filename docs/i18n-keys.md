@@ -68,6 +68,12 @@
 | `accountActive` | "Active" badge |
 | `cancelLabel` | Cancel button in modals |
 | `displayNameLabel` | Display name field label in edit-account modal |
+| `eacThemeStyle` | Profile window: aria label of the colour style row |
+| `themeStyle_solid` / `_bicolor` / `_tricolor` / `_rainbow` / `_aurora` | Colour style mode names (tricolor no longer offered, kept for stored styles) |
+| `themeStyleLocked` | Red bubble on a locked style or on the intensity slider: the TigerSquad level that unlocks it (`{{tier}}`) |
+| `themeStyleSlot` | aria label of a colour slot (`{{n}}`) |
+| `themeIntensity` | Intensity slider label (TigerSquad members) |
+| `themeSmooth` | Smoothness slider label (blend between a Bicolor / Rainbow's colours) |
 
 ### Login modal
 | Key | Purpose |
@@ -108,6 +114,12 @@
 | `noInventory` | Empty state: no inventory |
 | `noMatch` | Empty state: no match |
 | `invLoading` | Loading spinner label |
+| `qrScanScanning` / `qrScanFound` | Camera QR card: status pill while scanning / on a read |
+| `linkedChipAddQr` / `linkedChipQrTip` | Add chooser: the "Add from QR code" tile and its ⓘ tip |
+| `linkedChipAddTag` / `linkedChipTagTip` | Add chooser: the "Add with TigerTag" tile and its ⓘ tip |
+| `tagAddHint` / `tagAddUnknown` / `tagAddBlank` / `tagAddReplace` / `tagAddKnown` / `tagAddDone` / `tagAddReading` / `tagAddAlready` | Add with TigerTag: the waiting hint, the toast for a new chip scanned outside it, a blank chip, a chip placed before the view opened, one already in the inventory, one just added |
+| `pcTagAddBanner` / `pcTagAddInfo` / `pcTagAddHoldTip` / `pcTagAddNeedPod` | Product card opened by scanning a written TigerTag(+) not in the inventory: the held "Add with {{tier}}" banner (replaces the burn while the chip is on the TigerPOD), its ⓘ, its hold tip, the bubble when the chip was lifted |
+| `pcQrAddBanner` / `pcQrAddInfo` | Catalogue product card, nothing on the TigerPOD: "Add with TigerQR+", its ⓘ and hold tip — creates the spool and opens its QR label |
 
 ### Stats
 | Key | Purpose |

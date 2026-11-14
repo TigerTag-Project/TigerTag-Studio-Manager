@@ -1,6 +1,6 @@
 # Tiger Studio Manager — Feature Catalogue
 
-Tiger Studio Manager is the Electron desktop companion to the TigerTag ecosystem: a filament-inventory manager built around RFID/NFC-tagged spools ("TigerTag" chips), a fully-digital "TigerData" tier (and its catalogue-identified "TigerData+" rung), live 3D-printer integration across seven brands plus Klipper and OctoPrint, physical storage/rack management, a Firebase-backed social layer (friends, shareable wishlists, public profiles), and companion hardware (TD1S color sensor, TigerScale, TigerSpool printer reader, TigerPOD dual-reader stand). This document catalogues every **shipped** feature, grouped by domain, current as of **v2.56.0**. Per-version release detail lives in `CHANGELOG.md`; forward-looking / in-progress work lives in `ROADMAP.md`.
+Tiger Studio Manager is the Electron desktop companion to the TigerTag ecosystem: a filament-inventory manager built around RFID/NFC-tagged spools ("TigerTag" chips), a fully-digital "TigerData" tier (and its catalogue-identified "TigerData+" rung), live 3D-printer integration across seven brands plus Klipper and OctoPrint, physical storage/rack management, a Firebase-backed social layer (friends, shareable wishlists, public profiles), and companion hardware (TD1S color sensor, TigerScale, TigerSpool printer reader, TigerPOD dual-reader stand). This document catalogues every **shipped** feature, grouped by domain, current as of **v2.57.0**. Per-version release detail lives in `CHANGELOG.md`; forward-looking / in-progress work lives in `ROADMAP.md`.
 
 ---
 
@@ -278,6 +278,7 @@ Live integrations across seven brands, each with real-time temperatures, per-slo
 
 ## RFID / NFC & tags
 
+- **Add with TigerTag** — a view in the add chooser reads the chip on the TigerPOD and adds its spool; a scanned unknown chip opens its product card (held "Add with TigerTag" banner) instead of being created; catalogue cards offer held "Add from the catalogue" and "Add with TigerQR+" banners (v2.57.0).
 - TigerTag chip reading/writing/verification pipeline (NTAG page-aligned reads, per-reader disambiguation) (v1.8.0).
 - Cloud-spool → physical-chip guided encode modal — presence-gated, sequential verified burn, all-or-nothing Firestore migration, dual-reader twin support (v1.8.5).
 - Guided chip-update panel for re-writing an existing chip with live UID-match feedback (v2.0.0).
@@ -388,6 +389,9 @@ Live integrations across seven brands, each with real-time temperatures, per-slo
 - Design-token layer — ~75 semantic tokens plus a dark override, an "ink ladder" whose polarity flips with the theme, and `--on-accent` for the fixed-polarity case (a label on a filled button stays white in both themes) (v2.18.0).
 - `npm run theme:check` guards it: fails on any raw colour or any `var(--x)` naming an undeclared variable (v2.18.0).
 - **Edit my profile** window (photo, display name, theme colour, live preview); the theme colour tints the header and the hero banners, and a friend's colour in their view (v2.44.0).
+- **Colour styles** — 1 to 3 colours and an aspect on the avatar and the theme: Solid (everyone), Bicolor (TigerSquad member), Rainbow (Gold+), Aurora (Platinum, animated); Smoothness and Intensity sliders, league rows wear each member's style, a friend's style shows in their space (v2.57.0).
+- **In-app colour picker** opening beside the click (saturation / brightness, hue, HEX) (v2.57.0).
+- **RAL and Pantone codes** on the catalogue product card and the spool card, one per colour when the brand gives them (v2.57.0).
 
 ## Internationalization (i18n)
 

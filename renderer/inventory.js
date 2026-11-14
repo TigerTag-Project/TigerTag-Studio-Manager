@@ -1,6 +1,8 @@
 import { decimalSpoolIdToHex, repairTruncatedNtagUid, isDecimalSpoolId, planTruncatedUidRepair, analyticsUid } from './uid-repair.js';
 // ── RFID TigerTag tester modal ────────────────────────────────────────────
 import { initRfidTester } from './rfid_protocol/tigertag/index.js';
+import { RAL_CLASSIC } from './ral-classic.js';
+import { openColorPop } from './color-pop.js';
 import { initLinkedChips, linkedChipsSignIn, linkedChipsSignOut, linkedChipsOf, onForeignChip, holdForeignChip, pendingMakerChips, presentMakerChips, makerLinkBannerHtml, linkMakerChipsTo, linkedChipsHtml, wireLinkedChips, linkPendingTo, clearPendingLink, openBlankChipWindow, closeChipChoice, closeChipLink, wireSearchBox, linkOfferHtml, wireLinkOffer, openAddChooser, refreshChipChoice, chooseChipView } from './rfid_protocol/linked/index.js';
 import { initChipEraser, openChipEraser, closeChipEraser, chipEraserOpen, eraserCardPresent, eraserForeignChip, eraserReadersChanged } from './rfid_protocol/eraser/index.js';
 import { initChipRestore, openChipRestore, closeChipRestore, chipRestoreOpen, restoreCardPresent, restoreReadersChanged } from './rfid_protocol/restore/index.js';
@@ -254,6 +256,11 @@ import { initScreenTools } from './ai/screen-tools.js';
   // snapshot (to keep the copy and its time). Returns the unsubscribe.
   // The metadata changes are always listened to (the cache → server flip is
   // what tells the copy is in step) but reach `onSnap` only with `metadata`.
+  // Delta-synced collections: path → forget(id). A delete made HERE of a document the
+  // delta query never held (its syncAt older than the session) reaches no listener —
+  // the spool stayed on screen after "Delete" until a full reload (founder, 2026-11-13).
+  // _watchSyncedDeletes drops it from the local copy as soon as the delete succeeds.
+  const _syncForget = new Map();
   function _listenSynced(uid, name, { base, syncedAt, onSnap, onError, onSynced, metadata = false }) {
     const col = fbDb(uid).collection("users").doc(uid).collection(name);
     let unsub = null, stopped = false, delivered = false;
@@ -269,13 +276,20 @@ import { initScreenTools } from './ai/screen-tools.js';
     if (!fresh) { full(); return () => { stopped = true; unsub?.(); }; }
     const docs = new Map(Object.entries(base).map(([id, d]) => [id, _reviveTimestamps(d)]));
     const since = firebase.firestore.Timestamp.fromMillis(syncedAt - SYNC_MARGIN_MS);
-    let checked = false;
+    let checked = false, lastSnap = null;
+    _syncForget.set(col.path, id => {
+      if (stopped || !docs.has(id)) return;
+      const d = docs.get(id);
+      docs.delete(id);
+      if (lastSnap) onSnap(view(lastSnap, [{ type: "removed", doc: { id, exists: false, data: () => d } }]));
+    });
     const view = (snap, changes) => {
       const list = [...docs].map(([id, d]) => ({ id, data: () => d, exists: true }));
       return { metadata: snap.metadata, size: list.length, docs: list, empty: !list.length,
         forEach: fn => list.forEach(fn), docChanges: () => changes };
     };
     unsub = col.where("syncAt", ">", since).onSnapshot({ includeMetadataChanges: true }, snap => {
+      lastSnap = snap;
       const changes = snap.docChanges();
       // A document leaving the query was deleted (syncAt only moves forward).
       for (const c of changes) if (c.type === "removed") docs.delete(c.doc.id); else docs.set(c.doc.id, c.doc.data());
@@ -290,7 +304,39 @@ import { initScreenTools } from './ai/screen-tools.js';
         unsub?.(); full();
       });
     }, onError);
-    return () => { stopped = true; unsub?.(); };
+    return () => { stopped = true; unsub?.(); if (_syncForget.get(col.path)) _syncForget.delete(col.path); };
+  }
+  // Every Firestore delete made (a ref, or a batch on commit) tells the delta-synced
+  // collection holding that document to drop it (_syncForget) — at once, like the
+  // local copy Firestore applies before the server confirms: here a confirmation
+  // took 2–3 s a write and up to a minute behind a queue (founder's measures,
+  // 2026-11-13), and the spool stayed on screen all that time.
+  function _watchSyncedDeletes() {
+    const F = window.firebase?.firestore;
+    if (!F?.DocumentReference || F.__syncDeletesWatched) return;
+    F.__syncDeletesWatched = true;
+    const forget = ref => { const path = ref?.parent?.path; if (path && _syncForget.has(path)) _syncForget.get(path)(ref.id); };
+    const del = F.DocumentReference.prototype.delete;
+    F.DocumentReference.prototype.delete = function (...args) {
+      const p = del.apply(this, args);
+      forget(this);
+      return p;
+    };
+    const B = F.WriteBatch.prototype, queued = new WeakMap();
+    const bdel = B.delete;
+    B.delete = function (ref, ...args) {
+      if (!queued.has(this)) queued.set(this, []);
+      queued.get(this).push(ref);
+      return bdel.call(this, ref, ...args);
+    };
+    const commit = B.commit;
+    B.commit = function (...args) {
+      const refs = queued.get(this) || [];
+      queued.delete(this);
+      const p = commit.apply(this, args);
+      refs.forEach(forget);
+      return p;
+    };
   }
   let _unsubInventory  = null; // active Firestore onSnapshot unsubscribe handle
   let _sliderDebounce  = null; // pending auto-save timer for weight slider
@@ -420,11 +466,18 @@ import { initScreenTools } from './ai/screen-tools.js';
   const COLOR_STYLES = [
     { aspect: "solid",    tier: null,       min: 1, max: 1 },
     { aspect: "bicolor",  tier: "bronze",   min: 2, max: 2 },
-    { aspect: "tricolor", tier: "gold",     min: 3, max: 3 },
+    // No longer offered (founder, 2026-11-13: it read like Rainbow): a stored
+    // tricolor is drawn as a rainbow of the same colours.
+    { aspect: "tricolor", tier: "gold",     min: 3, max: 3, hidden: true },
     { aspect: "rainbow",  tier: "gold",     min: 1, max: 3 },
     { aspect: "aurora",   tier: "platinum", min: 1, max: 3 },
   ];
   const _styleSpec = aspect => COLOR_STYLES.find(x => x.aspect === aspect) || null;
+  // How many colours each mode takes in the picker — a fixed count, no add or
+  // remove (founder): Solid 1, Bicolor 2, Rainbow and Aurora 3. A stored style
+  // with another count stays valid (the server accepts 1–3).
+  const _stylePick = aspect => (aspect === "rainbow" || aspect === "aurora") ? 3 : (_styleSpec(aspect)?.min || 1);
+  const _stylePickMin = _stylePick;
   const _tierRank = tier => ["bronze", "silver", "gold", "platinum"].indexOf(tier);
   function _styleAllowed(aspect, tier) {
     const spec = _styleSpec(aspect);
@@ -465,21 +518,66 @@ import { initScreenTools } from './ai/screen-tools.js';
     return "#" + [r1, g1, b1].map(v => Math.round((v + m) * 255).toString(16).padStart(2, "0")).join("");
   }
   const STYLE_RAINBOW = ["#ff4d4d", "#ffb347", "#ffe14d", "#4dd17a", "#4da3ff", "#9b6bff"];
+  // colorStyle.intensity: how vivid the theme glow is (15–100); 30 = the classic mix.
+  const STYLE_INTENSITY = 30;
   // The colours a style shows, in order (a one-colour rainbow is the spectrum,
   // a one-colour aurora gets two neighbouring hues).
   function _styleColors(st) {
     const c = st.colors;
-    if (st.aspect === "rainbow" && c.length < 2) return STYLE_RAINBOW;
+    if (st.aspect === "rainbow" && c.length < 2) return STYLE_RAINBOW;   // one colour = the whole spectrum
     if (st.aspect === "aurora" && c.length < 3) return [c[0], c[1] || _hueTurn(c[0], 70), _hueTurn(c[0], -70)];
     return c;
   }
+  // A Bicolor / Rainbow at 45°: each colour a band, `smooth` (0–100, default
+  // STYLE_SMOOTH) the blend between them — 0 clean bands, 100 one soft ramp.
+  const STYLE_SMOOTH = 100;
+  // Aurora: one radial light per colour on a dark base, their softness set by
+  // `smooth` (0 = crisp patches, 100 = wide haze). Four layers, the order the
+  // drift animations expect (av-aurora, theme-aurora).
+  function _auroraBg(c, smooth, base) {
+    const k = Math.max(0, Math.min(100, Number.isFinite(Number(smooth)) ? Number(smooth) : STYLE_SMOOTH)) / 100;
+    // Each light fades out inside its own box (closest-side), so no layer ever
+    // ends on a hard edge; its solid core shrinks as the smoothness grows.
+    const core = Math.round((1 - k) * 55);
+    const [a, b = a, d = b] = c;
+    const light = (col, pos) => `radial-gradient(closest-side, ${col} ${core}%, transparent) ${pos} / 75% 90% no-repeat`;
+    return `${light(a, "0% 0%")}, ${light(b, "100% 10%")}, ${light(d, "50% 100%")}, linear-gradient(135deg, ${base}, ${base})`;
+  }
+  // A league row in a member's colour style (squad-rankings.js memberStyle): their
+  // colours as 45° bands (the theme's angle), at their intensity;
+  // an Aurora drifts (sqr-aurora). Null when they have no style their level allows.
+  function _styleRowBg(src) {
+    const st = _styleFor(src);
+    if (!st) return null;
+    const own = src.uid === state.activeAccountId;
+    const k = (Number((own ? state.ownColorStyle : src.colorStyle)?.intensity) || STYLE_INTENSITY) / STYLE_INTENSITY;
+    const a = pct => Math.min(90, Math.round(pct * k));
+    const fade = (col, pct) => `color-mix(in srgb, ${col} ${a(pct)}%, transparent)`;
+    const c = _styleColors(st);
+    if (st.aspect === "aurora") return { bg: _auroraBg(c.map(x => fade(x, 60)), st.smooth, fade(c[0], 10)), aurora: true };
+    const stops = st.aspect === "bicolor" || (st.aspect === "rainbow" && c.length === 3)
+      ? _styleBandStops(c.map((x, i) => fade(x, i ? 34 : 50)), st.smooth) : c.map((x, i) => fade(x, i ? 34 : 50));
+    return { bg: `linear-gradient(135deg, ${stops.join(", ")})`, aurora: false };   // 45° bands, like the theme and the countries league
+  }
+  // The stops of those bands (shared with the theme wall, _applyThemeColor).
+  function _styleBandStops(c, smooth) {
+    const k = Math.max(0, Math.min(100, Number.isFinite(Number(smooth)) ? Number(smooth) : STYLE_SMOOTH)) / 100;
+    const seg = 100 / c.length, h = k * seg * 0.75;
+    return c.map((col, i) => `${col} ${+(i ? i * seg + h : 0).toFixed(1)}% ${+(i < c.length - 1 ? (i + 1) * seg - h : 100).toFixed(1)}%`);
+  }
+  function _styleBands(c, smooth) {
+    return `linear-gradient(135deg, ${_styleBandStops(c, smooth).join(", ")})`;
+  }
   // CSS background of a style — the spool swatch convention: a bicolor is the
-  // 135° split, a tricolor the sweep round the centre, rainbow and aurora ramps.
+  // 135° split; rainbow (and a stored tricolor) and aurora are ramps.
   function _colorStyleBg(st) {
     const c = _styleColors(st);
-    if (st.aspect === "bicolor") return `linear-gradient(135deg, ${c[0]} 0% 46%, ${c[1]} 54% 100%)`;
-    if (st.aspect === "tricolor") return `conic-gradient(from 0deg, ${c[0]}, ${c[1]}, ${c[2]}, ${c[0]})`;
-    if (st.aspect === "aurora") return `linear-gradient(120deg, ${c.join(", ")}, ${c[0]})`;
+    // Bicolor: at 45°, the blend between the two colours set by `smooth`.
+    if (st.aspect === "bicolor") return _styleBands(c.slice(0, 2), st.smooth);
+    // Aurora: three soft lights, one per colour, drifting over a dark sky (.av-fx-aurora).
+    if (st.aspect === "aurora") return _auroraBg(c, st.smooth, `color-mix(in srgb, ${c[0]} 35%, #0f1830)`);
+    // Rainbow: at 45° like the countries league, the blend set by `smooth`.
+    if (st.aspect === "rainbow" && c.length === 3) return _styleBands(c, st.smooth);
     return `linear-gradient(135deg, ${c.join(", ")})`;
   }
   // ─── Avatar rendering — single source of truth ─────────────────────
@@ -696,12 +794,26 @@ import { initScreenTools } from './ai/screen-tools.js';
     const style = _styleFor(fv ? { ...(state.friends || []).find(f => f.uid === fv.uid), ...fv, uid: fv.uid } : { uid: state.activeAccountId });
     document.documentElement.classList.toggle("has-theme-aurora", style?.aspect === "aurora");
     if (!c) { root.removeProperty("--hero-wall"); root.removeProperty("--theme-tint"); return; }
-    const mix = (pct, col = c) => `color-mix(in srgb, ${col} ${pct}%, #0f1830)`;
+    // The intensity (any level, solid included) scales how much colour goes into the navy.
+    // TigerSquad members only (founder): anyone else's stored intensity is not applied.
+    const fRec = fv ? ((state.friends || []).find(f => f.uid === fv.uid) || {}) : null;
+    const rawStyle = fv ? (fRec.colorStyle || fv.colorStyle) : state.ownColorStyle;
+    let member = false;
+    try { member = fv ? !!(fRec.tigerSquad || fv.tigerSquad) : !!_ownSquadTier(); } catch (_) {}
+    const k = member ? (Number(rawStyle?.intensity) || STYLE_INTENSITY) / STYLE_INTENSITY : 1;
+    const mix = (pct, col = c) => `color-mix(in srgb, ${col} ${Math.min(95, Math.round(pct * k))}%, #0f1830)`;
     // ONE tone everywhere: the header glow is the banners' own wall, so the
     // header and the hero banners read as the same colour.
     const sc = style ? _styleColors(style) : null;
+    // A Bicolor / Rainbow wall follows its Smoothness too: the same bands, mixed into the navy.
+    const banded = sc && (style.aspect === "bicolor" || (style.aspect === "rainbow" && sc.length === 3));
     const wall = !sc ? `linear-gradient(115deg, ${mix(42)} 0%, ${mix(20)} 55%, ${mix(30)} 100%)`
-      : `linear-gradient(115deg, ${sc.map((x, i) => `${mix(i ? 32 : 42, x)} ${Math.round(i * 100 / (sc.length - 1))}%`).join(", ")})`;
+      // Aurora: its lights at the intensity's strength over the navy, drifting (has-theme-aurora).
+      : style.aspect === "aurora" ? _auroraBg(sc.map(x => mix(70, x)), style.smooth, mix(14, sc[0]))
+      : banded ? `linear-gradient(115deg, ${_styleBandStops(sc.map((x, i) => mix(i ? 32 : 42, x)), style.smooth).join(", ")})`
+      // The end colours sit past the edges (-25 % … 125 %): at 115° on a wide, short
+      // card they would otherwise show as thin bands down the left and right sides.
+      : `linear-gradient(115deg, ${sc.map((x, i) => `${mix(i ? 32 : 42, x)} ${Math.round(-25 + i * 150 / (sc.length - 1))}%`).join(", ")})`;
     root.setProperty("--hero-wall", wall);
     root.setProperty("--theme-tint", wall);
   }
@@ -822,6 +934,7 @@ import { initScreenTools } from './ai/screen-tools.js';
       header:     uid => `tigertag.header.${uid}`,
       coinlog:    uid => `tigertag.coinlog.${uid}`,    // the TigerCoins history last read (100 newest)
       colorStyle: uid => `tigertag.colorStyle.${uid}`, // my avatar / theme style last read (userProfiles colorStyle), painted at launch
+      colorMemo:  uid => `tigertag.colorMemo.${uid}`,  // the 3 style colours last picked, kept across modes (_setOwnStyle)
       // Delta sync (_listenSynced): when the inventory / products copies were last
       // in step with the server { at: ms }, and the products copy itself (id → data).
       invSync:    uid => `tigertag.invSync.${uid}`,
@@ -4938,6 +5051,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     clearCreate: () => { closeCatalogPick(); if ($("productCardPanel")?.classList.contains("open")) closeProductCard(); if ($("addProductPanel")?.classList.contains("open")) _adpCloseAllSheetsAndPanel(); },
     openEraser: () => openChipEraser(), closeEraser: () => closeChipEraser(),
     openQrScan: () => openQrScanPanel("add"), closeQrScan: () => closeQrScanPanel(),
+    openTagAdd: () => openTagAddPanel(), closeTagAdd: opts => closeTagAddPanel(opts),
     restorableChip: () => _restorableChip(),
     openRestore: () => openChipRestore(), closeRestore: () => closeChipRestore() });
   $("chipLinkClose")?.addEventListener("click", () => closeChipLink());
@@ -6780,6 +6894,7 @@ import { initScreenTools } from './ai/screen-tools.js';
       tierLabel: squadTierLabel, brandLabel: b => _PT_BRAND_LABEL[b] || b,
       avatar: m => userAvatar({ ...m.profile, uid: m.uid, tigerSquad: true, squadTier: m.tier }, "sqb-avatar"),
       memberColor: m => profileColor(m.profile),   // the maker's theme colour, tints their league row
+      memberStyle: m => _styleRowBg({ uid: m.uid, colorStyle: m.profile?.colorStyle, tigerSquad: true, squadTier: m.tier }),   // …or their colour style
       ago: ms => { const m = Math.round((Date.now() - ms) / 60e3); return m < 60 ? rtf.format(-m, "minute") : rtf.format(-Math.round(m / 60), "hour"); },
       day: d => { try { return dayFmt.format(new Date(`${d}T12:00:00`)); } catch (_) { return d; } },
     };
@@ -7033,7 +7148,7 @@ import { initScreenTools } from './ai/screen-tools.js';
   function _squadMemberOf(uid, r) {
     const sq = r.tigerSquad || r;
     const name = r.displayName ?? r.name ?? "";
-    return { uid, name: _shortName(name), profile: { displayName: name, color: r.color, customColor: r.customColor, photoURL: r.photoURL || null },
+    return { uid, name: _shortName(name), profile: { displayName: name, color: r.color, customColor: r.customColor, photoURL: r.photoURL || null, colorStyle: r.colorStyle || null },
       tier: SQUAD_TIERS.includes(sq.tier) ? sq.tier : "gold", xp: Number(sq.xp) || 0,
       country: /^[A-Z]{2}$/.test(sq.country || "") ? sq.country : null, bw: r.bw || 0, bn: r.bn || 0 };
   }
@@ -7617,7 +7732,9 @@ import { initScreenTools } from './ai/screen-tools.js';
   function _currentStyle() {
     const st = state.ownColorStyle;
     const c0 = accPrimaryHex(activeAccount()).toLowerCase();
-    return _validStyle(st) && _styleAllowed(st.aspect, _ownSquadTier()) ? { aspect: st.aspect, colors: [c0, ...st.colors.slice(1)] } : { aspect: "solid", colors: [c0] };
+    const intensity = _ownSquadTier() ? (st?.intensity ?? STYLE_INTENSITY) : STYLE_INTENSITY;   // members only
+    const smooth = st?.smooth ?? STYLE_SMOOTH;
+    return _validStyle(st) && _styleAllowed(st.aspect, _ownSquadTier()) ? { aspect: st.aspect, colors: [c0, ...st.colors.slice(1)], intensity, smooth } : { aspect: "solid", colors: [c0], intensity, smooth };
   }
   function _renderStylePicker() {
     const box = $("idmStyle");
@@ -7626,24 +7743,42 @@ import { initScreenTools } from './ai/screen-tools.js';
     box.hidden = !own;
     if (!own) { _idmSlot = 0; return; }
     const cur = _currentStyle(), tier = _ownSquadTier();
+    // The colours on show join the memory too (a style picked before it existed).
+    const memo = [0, 1, 2].map(i => cur.colors[i] || (Cache.read("colorMemo", state.activeAccountId) || [])[i] || null);
+    Cache.write("colorMemo", state.activeAccountId, memo);
     if (_idmSlot >= cur.colors.length) _idmSlot = 0;
-    $("idmAspects").innerHTML = COLOR_STYLES.map(sp => {
+    $("idmAspects").innerHTML = COLOR_STYLES.filter(sp => !sp.hidden || sp.aspect === cur.aspect).map(sp => {
       const open = _styleAllowed(sp.aspect, tier), on = sp.aspect === cur.aspect;
-      const demo = { aspect: sp.aspect, colors: sp.aspect === "solid" ? [cur.colors[0]] : (sp.min === 1 ? [cur.colors[0]] : Array.from({ length: sp.min }, (_, i) => cur.colors[i] || _hueTurn(cur.colors[0], 120 * i))) };
+      // Each mode previewed with the colours it would take: the current ones, then
+      // the remembered ones (colorMemo), so switching mode never changes the dots.
+      const n = _stylePickMin(sp.aspect);
+      const demo = { aspect: sp.aspect, colors: Array.from({ length: n }, (_, i) => cur.colors[i] || memo[i] || _hueTurn(cur.colors[0], 120 * i)), smooth: cur.smooth };
       const bg = sp.aspect === "solid" ? cur.colors[0] : _colorStyleBg(demo);
       const label = t(`themeStyle_${sp.aspect}`);
       return `<button type="button" class="idm-aspect${on ? " is-on" : ""}${open ? "" : " is-locked"}" role="radio" aria-checked="${on}" data-aspect="${sp.aspect}"
           aria-label="${esc(open ? label : `${label} — ${t("themeStyleLocked", { tier: squadTierLabel(sp.tier) })}`)}">
-        <span class="idm-aspect-sw${sp.aspect === "aurora" ? " av-fx-aurora" : ""}" style="background:${bg}"></span>
+        <span class="idm-aspect-dot"><span class="idm-aspect-sw${sp.aspect === "aurora" ? " av-fx-aurora" : ""}" style="background:${bg}"></span>${sp.tier ? `<img class="idm-aspect-tier" src="../assets/img/tigersquad/tigersquad-${sp.tier}.webp" alt="">` : ""}</span>
         <span class="idm-aspect-name">${esc(label)}</span>
-        ${open || !sp.tier ? "" : `<img class="idm-aspect-tier" src="../assets/img/tigersquad/tigersquad-${sp.tier}.webp" alt="">`}
       </button>`;
     }).join("");
     const spec = _styleSpec(cur.aspect);
-    const slots = cur.colors.map((c, i) => `<button type="button" class="idm-slot${i === _idmSlot ? " is-on" : ""}" data-slot="${i}" style="--c:${c}" aria-pressed="${i === _idmSlot}" aria-label="${esc(t("themeStyleSlot", { n: i + 1 }))}">
-        <span class="idm-slot-n">${i + 1}</span>${i >= spec.min ? `<span class="idm-slot-x" data-slot-x="${i}" role="button" aria-label="${esc(t("themeStyleRemove"))}"><span class="icon icon-close icon-10"></span></span>` : ""}</button>`).join("");
-    const add = cur.colors.length < spec.max ? `<button type="button" class="idm-slot idm-slot--add" data-slot-add aria-label="${esc(t("themeStyleAdd"))}"><span class="icon icon-plus icon-14"></span></button>` : "";
-    $("idmSlots").innerHTML = spec.max > 1 ? slots + add : "";
+    const pick = _stylePick(cur.aspect);
+    const slots = cur.colors.slice(0, pick).map((c, i) => `<button type="button" class="idm-slot${i === _idmSlot ? " is-on" : ""}" data-slot="${i}" style="--c:${c}" aria-pressed="${i === _idmSlot}" aria-label="${esc(t("themeStyleSlot", { n: i + 1 }))}">
+        <span class="idm-slot-n">${i + 1}</span></button>`).join("");
+    $("idmSlots").innerHTML = slots;   // a fixed count per mode (Solid shows its one slot too)
+    const inten = $("idmIntensity");
+    if (inten && document.activeElement !== inten) inten.value = String(cur.intensity);
+    // Intensity is a TigerSquad perk: greyed for anyone else, the bubble says how to get it.
+    if (inten) { inten.disabled = !tier; inten.closest(".idm-intensity")?.classList.toggle("is-locked", !tier); }
+    // Smoothness: works where there is a blend to soften (Bicolor, Rainbow); greyed
+    // otherwise but kept in place, so the window never changes height (founder).
+    const smo = $("idmSmooth");
+    if (smo) {
+      const on = cur.aspect !== "solid";   // Bicolor / Rainbow: the blend; Aurora: how soft its lights are
+      smo.disabled = !on;
+      smo.closest(".idm-intensity").classList.toggle("is-off", !on);
+      if (document.activeElement !== smo) smo.value = String(cur.smooth);
+    }
     // The palette's check follows the chosen slot's colour (a preset, else the custom wheel).
     if (_idmSlot > 0) {
       const hex = cur.colors[_idmSlot].toLowerCase();
@@ -7654,7 +7789,15 @@ import { initScreenTools } from './ai/screen-tools.js';
   }
   // Applies a style at once and saves it (debounced: the palette can be dragged).
   function _setOwnStyle(next) {
-    const solid = next.aspect === "solid";
+    // The blend chosen stays with the style whatever is changed elsewhere.
+    if (next.smooth === undefined && state.ownColorStyle?.smooth !== undefined) next = { ...next, smooth: state.ownColorStyle.smooth };
+    if (!_ownSquadTier()) next = { aspect: next.aspect, colors: next.colors };   // intensity and smooth are member perks
+    // Solid at the default intensity is no style at all (null on the profile).
+    const solid = next.aspect === "solid" && (next.intensity ?? STYLE_INTENSITY) === STYLE_INTENSITY;
+    // Remember every colour picked, slot by slot, so a mode with fewer colours
+    // does not lose the others: back to Rainbow, colour 3 is still there (founder).
+    const memo = Cache.read("colorMemo", state.activeAccountId) || [];
+    Cache.write("colorMemo", state.activeAccountId, [0, 1, 2].map(i => next.colors[i] || memo[i] || null));
     state.ownColorStyle = solid ? null : next;
     Cache.write("colorStyle", state.activeAccountId, state.ownColorStyle);
     _repaintOwnStyle();
@@ -7670,7 +7813,7 @@ import { initScreenTools } from './ai/screen-tools.js';
   function _setStyleSlot(i, hex) {
     const cur = _currentStyle(), colors = [...cur.colors];
     colors[i] = hex.toLowerCase();
-    _setOwnStyle({ aspect: cur.aspect, colors });
+    _setOwnStyle({ aspect: cur.aspect, colors, intensity: cur.intensity });
   }
   $("idmAspects")?.addEventListener("click", e => {
     const b = e.target.closest("[data-aspect]");
@@ -7681,27 +7824,51 @@ import { initScreenTools } from './ai/screen-tools.js';
       return;
     }
     const cur = _currentStyle();
-    let colors = cur.colors.slice(0, sp.max);
-    while (colors.length < sp.min) colors.push(_hueTurn(colors[0], 120 * colors.length));
+    const memo = Cache.read("colorMemo", state.activeAccountId) || [];
+    let colors = cur.colors.slice(0, _stylePick(sp.aspect));
+    const want = _stylePickMin(sp.aspect);
+    // Missing slots come back from the remembered colours, else a hue turn of colour 1.
+    while (colors.length < want) colors.push(memo[colors.length] || _hueTurn(colors[0], 120 * colors.length));
     _idmSlot = 0;
-    _setOwnStyle({ aspect: sp.aspect, colors });
+    _setOwnStyle({ aspect: sp.aspect, colors, intensity: cur.intensity });
+  });
+  // Intensity: live while dragging (the theme follows), saved by _setOwnStyle's debounce.
+  document.querySelector("#idmStyle .idm-intensity")?.addEventListener("click", e => {
+    if (!e.currentTarget.classList.contains("is-locked")) return;
+    e.preventDefault();
+    _showErrorTip(e.currentTarget, t("themeStyleLocked", { tier: squadTierLabel("bronze") }), { img: "../assets/img/tigersquad/tigersquad-bronze.webp" });
+  });
+  $("idmSmooth")?.addEventListener("input", e => {
+    const cur = _currentStyle();
+    _setOwnStyle({ aspect: cur.aspect, colors: cur.colors, intensity: cur.intensity, smooth: Number(e.target.value) });
+  });
+  $("idmIntensity")?.addEventListener("input", e => {
+    const cur = _currentStyle();
+    _setOwnStyle({ aspect: cur.aspect, colors: cur.colors, intensity: Number(e.target.value) });
   });
   $("idmSlots")?.addEventListener("click", e => {
     const cur = _currentStyle();
-    const x = e.target.closest("[data-slot-x]");
-    if (x) {
-      const colors = cur.colors.filter((_, i) => i !== Number(x.dataset.slotX));
-      _idmSlot = 0;
-      _setOwnStyle({ aspect: cur.aspect, colors });
-      return;
-    }
-    if (e.target.closest("[data-slot-add]")) {
-      _idmSlot = cur.colors.length;
-      _setOwnStyle({ aspect: cur.aspect, colors: [...cur.colors, _hueTurn(cur.colors[0], 120 * cur.colors.length)] });
-      return;
-    }
     const s = e.target.closest("[data-slot]");
-    if (s) { _idmSlot = Number(s.dataset.slot); _renderStylePicker(); }
+    if (s) {
+      // A slot opens the colour picker on its colour (founder); the palette still paints it too.
+      _idmSlot = Number(s.dataset.slot);
+      _renderStylePicker();
+      // The slots were just drawn again: anchor on the new one (the clicked node is gone).
+      _openThemeColorPop($("idmSlots").querySelector(`[data-slot="${_idmSlot}"]`) || $("idmSlots"), cur.colors[_idmSlot] || cur.colors[0]);
+    }
+  });
+  // The theme's own colour picker opens beside what was clicked (a slot, or the palette
+  // swatch), not macOS's colour panel far from the pointer; it feeds the hidden
+  // #eacCustomColor, whose "input" handler applies and saves the colour.
+  function _openThemeColorPop(anchor, hex) {
+    const inp = $("eacCustomColor");
+    if (!inp) return;
+    inp.value = hex;
+    openColorPop(anchor, hex, { label: t("themeColor_custom"), onInput: v => { inp.value = v; inp.dispatchEvent(new Event("input")); } });
+  }
+  $("eacSwatchCustom")?.addEventListener("click", e => {
+    e.preventDefault();   // the <label> would open the native picker of its <input type="color">
+    _openThemeColorPop(e.currentTarget, $("eacCustomColor")?.value || "#2563eb");
   });
 
   function openIdentityModal() {
@@ -15337,6 +15504,203 @@ import { initScreenTools } from './ai/screen-tools.js';
     $("qrScanPanel").classList.remove("open");
     _syncPanels();
   }
+  /* ── Add with TigerTag (#tagAddPanel, the new-chip card's pane) ───────────────
+     The only way a scanned chip enters the inventory (founder, 2026-11-13). A
+     TigerTag placed on the TigerPOD while it is up: one already in the inventory
+     is said so; a new one is added at once, LINKED TO THE CHIP (_processNfcScans with
+     allowCreate: its UID, weight and data, twins included); a chip with no
+     catalogue product is added at once. */
+  let _tagAddPending = null;   // { scans, pid, it, absent } — the chip read, being added (_tagAddCommit)
+  let _nfcProcess = null;      // _processNfcScans, defined in the HAS_NATIVE block (desktop only)
+  const _tagAddBuffer = new Map();
+  let _tagAddTimer = null;
+  const _tagAddOpen = () => !!$("tagAddPanel")?.classList.contains("open") && !!$("chipChoicePanel")?.classList.contains("open");
+  const _tagAddSeen = new Map();   // chip UID → "known" | "new" | "blank" (what its read gave)
+  // What each reader last read on its own (the scan sent when a chip is placed),
+  // kept while that chip lies there: the view reuses it instead of reading again.
+  const _tagLastRead = new Map();   // reader name → tagData
+  const _tagAddReading = new Set();   // chip UIDs placed in this view, being read / looked up (API)
+  let _tagAddMsg = "";
+  let _tagAddAdded = [];   // [{ uid, it, known }] presented since the view opened, newest first (known = was already there)
+  const _tagAddSay = key => { _tagAddMsg = key || ""; _tagAddRender(); };
+  // The readers as the NFC tools draw them (.cem-chip): the plate's colour says the
+  // state — waiting · reading · ready (new chip) · ok (already here) · red (blank).
+  function _tagAddRender() {
+    const box = $("tagAddChips");
+    if (!box || !$("tagAddPanel")?.classList.contains("open")) return;
+    const readers = [...(state.nfcReaders || [])];
+    const ST = { known: "ok", new: "ready", blank: "mismatch" };
+    box.innerHTML = (readers.length ? readers : ["__none__"]).map((name, i) => {
+      const uid = state.nfcCardPresent?.get(name)?.uid;
+      // A chip already lying there when the view opened was not read for it: waiting.
+      const U = uid ? String(uid).toUpperCase() : "";
+      const st = !uid ? "waiting" : ST[_tagAddSeen.get(U)] || (_tagAddReading.has(U) || _tagAddBuffer.size ? "writing" : "waiting");
+      return `<div class="cer-slot"><div class="cem-chip cem-chip--${st}">
+        ${readers.length ? `<span class="cem-chip-num">${i + 1}</span>` : ""}<div class="cem-chip-logo"></div></div></div>`;
+    }).join("");
+    // The hint is the header's; this line only says what changed (no reader, a chip
+    // placed before the view opened, a blank one).
+    const unread = readers.some(n => { const u = state.nfcCardPresent?.get(n)?.uid; return u && !_tagAddSeen.has(String(u).toUpperCase()); });
+    const reading = _tagAddReading.size > 0;
+    const key = !readers.length ? "encNoReader" : reading ? "tagAddReading" : _tagAddMsg || (unread && !_tagAddBuffer.size ? "tagAddReplace" : "");
+    _tagAddRenderList();
+    if ($("tagAddStatus")) $("tagAddStatus").textContent = key ? t(key) : "";
+  }
+  function openTagAddPanel() {
+    _tagAddBuffer.clear();
+    _tagAddSeen.clear();
+    _tagAddReading.clear();
+    _tagAddAdded = [];
+    _tagAddRenderList();
+    $("tagAddPanel")?.classList.add("open");
+    _tagAddSay("");
+    _tagAddReadPresent();
+  }
+  // A spool already lying on the TigerPOD when the view opens is read for it, as
+  // if it had just been placed (founder: no need to lift it).
+  async function _tagAddReadPresent() {
+    if (!window.electronAPI?.readRfidNow) return;
+    const present = [...(state.nfcCardPresent || new Map())].filter(([, c]) => c?.uid);
+    if (!present.length) return;
+    present.forEach(([, c]) => _tagAddReading.add(String(c.uid).toUpperCase()));
+    _tagAddRender();
+    await Promise.all(present.map(async ([name, c]) => {
+      const last = _tagLastRead.get(name);
+      if (last && String(last.uid).toUpperCase() === String(c.uid).toUpperCase()) { _tagAddBuffer.set(name, last); return; }
+      const res = await window.electronAPI.readRfidNow(name).catch(() => null);
+      if (!_tagAddOpen() || !res?.ok || !res.tagData) return;
+      const td = { ...res.tagData, _readerName: name, _rawPagesHex: res.rawPagesHex };
+      _tagLastRead.set(name, td);
+      _tagAddBuffer.set(name, td);
+    }));
+    if (!_tagAddOpen()) return;
+    if (!_tagAddBuffer.size) { _tagAddReading.clear(); _tagAddRender(); return; }
+    clearTimeout(_tagAddTimer);
+    _tagAddFlush();
+  }
+  function closeTagAddPanel({ dropPending = false } = {}) {
+    clearTimeout(_tagAddTimer); _tagAddBuffer.clear();
+    if (dropPending) _tagAddPending = null;
+    $("tagAddPanel")?.classList.remove("open");
+  }
+  async function _tagAddFlush() {
+    const scans = new Map(_tagAddBuffer);
+    _tagAddBuffer.clear();
+    if (!_tagAddOpen()) return;
+    const chips = [...scans.values()].filter(td => td.uid && (td.id_material || td.id_brand));
+    // Memory answers at once; "already there" is then checked on the server in the
+    // background (_tagAddVerifyKnown) — the copy can still hold a spool deleted since
+    // (founder, 2026-11-13: a deleted twin was said to be there).
+    const known = new Set(chips.filter(td => state.inventory?.[td.uid]).map(td => td.uid));
+    // Read: a known or blank chip stops loading now; a new one when it is in (_tagAddCommit).
+    for (const td of scans.values()) if (td.uid && (!(td.id_material || td.id_brand) || known.has(td.uid))) _tagAddReading.delete(String(td.uid).toUpperCase());
+    // Each chip read colours its plate (known · new · blank).
+    for (const td of scans.values()) if (td.uid) {
+      const u = String(td.uid).toUpperCase();
+      _tagAddSeen.set(u, !(td.id_material || td.id_brand) ? "blank" : known.has(td.uid) ? "known" : "new");
+    }
+    _tagAddRender();
+    if (!chips.length) { _tagAddSay("tagAddBlank"); return; }
+    // Already here: listed like an added one, marked "already there"; the view stays.
+    if (chips.every(td => known.has(td.uid))) {
+      const kpid = Number(chips[0].id_product);
+      const kit = _hasRealProductId(kpid) ? await _resolveLinkedProduct(kpid).catch(() => null) : null;
+      _tagAddList(chips.map(td => td.uid).sort()[0], kit, true, _tagTier(chips[0]));
+      _tagAddSay("tagAddKnown");
+      _tagAddVerifyKnown(scans, chips, kit);
+      return;
+    }
+    // A new chip goes straight in (founder: placing it adds it), linked to the chip;
+    // its product, when it has one, only gives the mini card its photo and names.
+    const pid = Number(chips[0].id_product);
+    const it = _hasRealProductId(pid) ? await _resolveLinkedProduct(pid).catch(() => null) : null;
+    _tagAddPending = { scans, pid: it ? Number(it.id) : null, it, absent: new Set(chips.map(td => td.uid).filter(u => !known.has(u))) };
+    await _tagAddCommit();
+  }
+  // A spool memory said was there and the server no longer has: added after all,
+  // its "already there" card replaced by an added one.
+  async function _tagAddVerifyKnown(scans, chips, it) {
+    const gone = (await Promise.all(chips.map(async td => (await _tagAddInInventory(td.uid)) ? null : td.uid))).filter(Boolean);
+    if (!gone.length || !_tagAddOpen()) return;
+    gone.forEach(u => _tagAddSeen.set(String(u).toUpperCase(), "new"));
+    _tagAddPending = { scans, pid: it ? Number(it.id) : null, it, absent: new Set(gone) };
+    await _tagAddCommit();
+  }
+  // Is this chip's spool in the inventory? Asked of the server only when memory
+  // says yes (one read); a spool the server no longer has leaves the local copy.
+  async function _tagAddInInventory(chipUid) {
+    if (!state.inventory?.[chipUid]) return false;
+    const uid = state.activeAccountId;
+    const col = fbDb(uid).collection("users").doc(uid).collection("inventory");
+    // At most 1.5 s: a slow or lost connection leaves the decision to memory.
+    let snap;
+    try {
+      snap = await Promise.race([col.doc(chipUid).get({ source: "server" }), new Promise((_, no) => setTimeout(no, 1500))]);
+    } catch (_) { return true; }
+    if (snap.exists) return true;
+    const forget = _syncForget.get(col.path);
+    if (forget) forget(chipUid);
+    else { delete state.inventory[chipUid]; state.rows = (state.rows || []).filter(r => String(r.uid) !== chipUid); }
+    return false;
+  }
+  // A spool joins the list on top (presented again: moved up); drawn again once the
+  // inventory has it (its name, colour and TigerTag / TigerTag+ badge).
+  const _tagTier = td => versionName(td?.id_tigertag) === "TigerTag+" ? "TigerTag+" : "TigerTag";
+  function _tagAddList(uid, it, known, tier = null) {
+    _tagAddAdded = [{ uid, it, known, tier }, ..._tagAddAdded.filter(x => x.uid !== uid)];
+    _tagAddRenderList();
+    setTimeout(_tagAddRenderList, 1200);
+    setTimeout(_tagAddRenderList, 3500);
+  }
+  // The spools added in this view, as the catalogue pick's mini cards: the
+  // product's photo and names, else (no catalogue product) the spool as it landed.
+  function _tagAddRenderList() {
+    const box = $("tagAddList");
+    if (!box) return;
+    // While a chip is read and its product looked up: a shimmering card on top.
+    const skel = _tagAddReading.size ? `<div class="cpk-row tag-add-item tag-add-skel sqb-skel" aria-hidden="true"><span class="tag-add-skel-thumb"></span><span class="sqb-skel-b"><i></i><i></i></span></div>` : "";
+    const html = skel + _tagAddAdded.map(({ uid, it, known, tier: chipTier }) => {
+      const row = (state.rows || []).find(r => String(r.uid) === String(uid));
+      const thumb = it ? _catThumbHTML(_catViewAsRow(it), 66, { fill: true }) : row ? thumbHTML(row, 52) : "";
+      const name = it ? (it._name || it.title || "—") : (row?.colorName || row?.name || uid);
+      const sub = it ? [it.brand, it.material, it.measure].filter(Boolean).join(" · ") : [row?.brand, row?.material].filter(Boolean).join(" · ");
+      // The chip's tier as the inventory shows it, once the spool is in.
+      const tier = row ? tierBadgeHTML(row, "tag-add-tier", { backup: false })
+        : chipTier ? tierBadgeHTML({ isPlus: chipTier === "TigerTag+" }, "tag-add-tier", { backup: false }) : "";
+      // A click opens the spool; one that was already there wears a pill saying so.
+      return `<button type="button" class="cpk-row tag-add-item${known ? " is-known" : ""}" data-tag-uid="${esc(String(uid))}">${thumb}<span class="cpk-row-txt"><b>${esc(String(name))}</b><small>${tier}${esc(sub)}</small></span>`
+        + `${known ? `<span class="tag-add-pill">${esc(t("tagAddAlready"))}</span>` : ""}</button>`;
+    }).join("");
+    // Rebuilt only when it changed: a reader event must not replay the cards' entrance.
+    if (box._sig === html) return;
+    box._sig = html;
+    box.innerHTML = html;
+  }
+  // Adds the chip read (and its twin) as the spool linked to it. The view stays
+  // open for the next spool (founder): the plate turns green, the line says it is
+  // in, its mini card joins the list.
+  async function _tagAddCommit() {
+    const p = _tagAddPending;
+    _tagAddPending = null;
+    if (!p) return;
+    if ($("productCardPanel")?.classList.contains("open")) closeProductCard();
+    const uids = [...p.scans.values()].map(td => td.uid).filter(Boolean);
+    // Shown as added as soon as the writes are made: the local copy takes them at
+    // once and the inventory follows, the server confirming in the background
+    // (about a second a chip, ten right after launch, founder's measures 2026-11-13).
+    _nfcProcess?.(p.scans, { allowCreate: true, open: false, absent: p.absent }).catch(e => reportError("tagAdd.commit", e));
+    uids.forEach(u => { _tagAddSeen.set(String(u).toUpperCase(), "known"); _tagAddReading.delete(String(u).toUpperCase()); });
+    _tagAddSay("tagAddDone");
+    // One card per spool (a twin's two chips are one spool), newest on top; drawn
+    // again once the inventory has the spool (its name and colour when no product).
+    if (uids.length) _tagAddList(uids.sort()[0], p.it || null, false, _tagTier([...p.scans.values()][0]));
+  }
+  $("tagAddPanelClose")?.addEventListener("click", () => closeChipChoice());
+  $("tagAddList")?.addEventListener("click", e => {
+    const c = e.target.closest("[data-tag-uid]");
+    if (c && state.inventory?.[c.dataset.tagUid]) openDetail(c.dataset.tagUid, { animateSwap: true });
+  });
+
   // Nothing to add from what was read: say so (toast), then scan again.
   function _qrRescan() {
     const mode = _qrPanelMode;
@@ -15728,7 +16092,7 @@ import { initScreenTools } from './ai/screen-tools.js';
   // confirmation, so the burn starts as soon as the blank chips are checked.
   // linkMakers: created from a held "Link the proprietary Tag(s)" banner — the
   // maker chips on the TigerPOD get linked to it, and nothing is burned.
-  async function _openCreatedSpool(cloudId, { autoBurn = false, linkMakers = false } = {}) {
+  async function _openCreatedSpool(cloudId, { autoBurn = false, linkMakers = false, openLabel = false } = {}) {
     closeChipChoice();   // the spool it was opened for now exists
     const t0 = Date.now();
     while (!state.inventory[cloudId] && Date.now() - t0 < 4000) await new Promise(res => setTimeout(res, 100));
@@ -15743,6 +16107,7 @@ import { initScreenTools } from './ai/screen-tools.js';
       return;
     }
     openDetail(cloudId);
+    if (openLabel) { if (!labelCardOpen()) openLabelCard({ ...row, idProduct: row.raw?.id_product }); return; }
     if (HAS_NATIVE && state.nfcReaderCount > 0 && row.isCloud && !_encodeModalOpen()) openEncodeModal(row, { auto: autoBurn });
   }
 
@@ -17002,7 +17367,9 @@ import { initScreenTools } from './ai/screen-tools.js';
      `id_tigertag` deliberately keeps the chipless nonce — this spool has no
      chip, so it must not carry the TigerTag+ id.
   */
-  async function _catalogCreate(productId, { keepLink = false, autoBurn = false, linkMakers = false } = {}) {
+  // `openLabel`: the new spool's QR label card opens with it (no burn offered) —
+  // "Add from QR code", a spool identified by the label stuck on it.
+  async function _catalogCreate(productId, { keepLink = false, autoBurn = false, linkMakers = false, openLabel = false } = {}) {
     if (_catalogBusy) return;
     const uid = state.activeAccountId;
     if (!uid || state.friendView) return;
@@ -17033,7 +17400,7 @@ import { initScreenTools } from './ai/screen-tools.js';
       // The product card has done its job: close it and open the new spool's
       // own card from the inventory (and, reader plugged in, its TigerTag+ burn).
       if ($("productCardPanel")?.classList.contains("open")) closeProductCard(); else closeReorderPanel();
-      _openCreatedSpool(cloudId, { autoBurn, linkMakers });
+      _openCreatedSpool(cloudId, { autoBurn, linkMakers, openLabel });
     } catch (e) {
       console.error("[catalog] create failed:", e);
       toast(res$, "bad", t("catalogCreateError"));
@@ -17650,7 +18017,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     if (!_catalogIndex.length) { el.textContent = t("catalogSyncing"); return; }
     el.textContent = _catalogSyncing
       ? t("catalogSyncing")
-      : t("catalogCount", { n: _catViewHits.length, total: _catalogIndex.length });
+      : t("catalogHits", { n: _catViewHits.length });   // one figure: what the filters match
   }
 
   /* ── Product card for a catalogue product ──────────────────────────────────
@@ -21231,7 +21598,10 @@ import { initScreenTools } from './ai/screen-tools.js';
     });
     // Delete spool — 1.5s hold, irreversible hard delete (+ twin).
     setupHoldToConfirm($("btnSpoolDelete"), 1500, async () => {
-      try { await markSpoolDeleted(r.spoolId); closeDetail(); }
+      // The card closes at once; the delete is applied locally, the server follows.
+      const done = markSpoolDeleted(r.spoolId);
+      closeDetail();
+      try { await done; }
       catch (e) { reportError("spool.delete", e); }
     }, { hint: true });
     // Duplicate — hold 1s; the dropdown (or the free field behind "10+") picks N.
@@ -23241,6 +23611,35 @@ import { initScreenTools } from './ai/screen-tools.js';
   // and the aspect / refill / recycled / filled / weight chips.
   // `overlays`: the illustration's badges when the caller has a spool to describe
   // (the Restore card); by default only Refill, a product has no chip.
+  // A product's RAL / Pantone codes (Xano `color_info`): `rals` / `pantones`, one per
+  // colour in `colors` order (null for a colour without one; the lists are null on a
+  // product never filled), else the single `ral` / `pantone` (= the first colour's).
+  // The first source that has any, of those given — an API detail, a catalogue item, a
+  // spool's catalogProduct — whichever shape (filament, resin or flat).
+  function _colorCodesOf(...sources) {
+    const clean = (list) => [...new Set((list || []).filter((c) => typeof c === "string" && c.trim()).map((c) => c.trim()))];
+    for (const src of sources) {
+      if (!src || typeof src !== "object") continue;
+      for (const ci of [src.filament?.color_info, src.resin?.color_info, src.color_info]) {
+        if (!ci || typeof ci !== "object") continue;
+        const rals = clean(Array.isArray(ci.rals) ? ci.rals : [ci.ral]);
+        const pantones = clean(Array.isArray(ci.pantones) ? ci.pantones : [ci.pantone]);
+        if (rals.length || pantones.length) return { rals, pantones };
+      }
+    }
+    return { rals: [], pantones: [] };
+  }
+  // The codes as chips, one per code (a multicolour can carry one per colour): RAL with
+  // its name and a swatch (an approximate sRGB, never the reference); Pantone as text
+  // only — its palette is licensed, so no swatch, no HEX. "RAL" / "Pantone" are proper
+  // names (not translated). Nothing when there is none.
+  function _colorCodesChips({ rals, pantones }) {
+    const ral = (code) => {
+      const [name, hex] = RAL_CLASSIC[code] || [];
+      return `<span class="aspect-chip color-code-chip">${hex ? `<span class="color-code-dot" style="background:${hex}"></span>` : ""}${esc(code)}${name ? `<span class="color-code-name">${esc(name)}</span>` : ""}</span>`;
+    };
+    return rals.map(ral).join("") + pantones.map((code) => `<span class="aspect-chip color-code-chip">${esc(code)}</span>`).join("");
+  }
   function _productHeroParts(r, p, panelId = "productCardBody", { overlays = null } = {}) {
     // Illustration — real photo, else the colour placeholder with the RFID logo.
     const imgUrl = r.imgUrl || p.label?.imgUrl || "";
@@ -23269,7 +23668,8 @@ import { initScreenTools } from './ai/screen-tools.js';
         r.isRecycled ? t("badgeRecycled") : null,
         r.isFilled   ? t("badgeFilled")   : null,
       ].filter(Boolean));
-    const badgeHtml = aspectChips.map(a => `<span class="aspect-chip">${esc(a)}</span>`).join("");
+    const badgeHtml = aspectChips.map(a => `<span class="aspect-chip">${esc(a)}</span>`).join("")
+      + _colorCodesChips(_colorCodesOf(p.catalogItem && _catDetailCache.get(String(p.catalogItem.id)), p.catalogItem, r.raw?.catalogProduct, r.raw));
     // POIDS — a product identity has no per-spool weight, so the spool is shown
     // FULL. Its CAPACITY is real though, and must not be invented: the seed
     // carries it (`measure_gr`/`measure` → `r.capacity`), and a catalogue preview
@@ -23370,6 +23770,18 @@ import { initScreenTools } from './ai/screen-tools.js';
        inventory (a TigerData+, like the catalogue's own add), a wishlist, the
        cart, the favourites. Cart / favourite light up once done. */
     const isCat = !!p.catalogItem && !state.friendView;
+    // Opened from a TigerTag's "Upgrade to TigerTag+": the banner upgrades that spool.
+    const upgradeFor = isCat && _cpkUpgradeFor && $("catalogPickPanel")?.classList.contains("open") ? _cpkUpgradeFor : null;
+    // The written TigerTag(+) scanned to open this card, still on the TigerPOD: it is
+    // added as it is (linked to the chip), never burned again.
+    const scanned = isCat && !upgradeFor ? _pcScannedChipFor(p.catalogItem.id) : null;
+    // Waiting in the new-chip card, or simply on the TigerPOD and linked to nothing.
+    const makerN = HAS_NATIVE ? pendingMakerChips() || presentMakerChips().length : 0;
+    // Nothing of this product on the TigerPOD (founder, 2026-11-14): the three ways in —
+    // burn a chip, add from the catalogue, add with a TigerQR+ — and no "+ Inventory".
+    // With its scanned chip there, adding that chip is the only one offered.
+    const plainAdd = isCat && !scanned && !upgradeFor && !makerN;
+    const noInv = !!scanned || plainAdd;
     const owned = isCat && p.catalogRow ? _filamentStockCount(p.catalogRow) : 0;
     const cta = (key, icon, labelKey, on, extra = "") => `
         <button type="button" class="pc-cta-btn${on ? " is-on" : ""}${extra}" data-pc-cat="${key}"${key === "inv" ? ` id="pcCatAdd"` : ""} aria-pressed="${on ? "true" : "false"}">
@@ -23385,8 +23797,8 @@ import { initScreenTools } from './ai/screen-tools.js';
       ${productLink(p.catalogItem?.id) ? `<button type="button" class="pc-sheet-btn" data-product-share="${esc(String(Number(p.catalogItem.id)))}" data-share-name="${esc(_shareName(r))}">
         <span class="icon icon-send icon-14" aria-hidden="true"></span><span>${esc(t("productShare"))}</span>
       </button>` : ""}
-      <div class="panel-section pc-cta">
-        ${cta("inv",  "package",    "pcCtaInventory", false, " pc-cta-btn--primary")}
+      <div class="panel-section pc-cta${noInv ? " pc-cta--no-inv" : ""}">
+        ${noInv ? "" : cta("inv", "package", "pcCtaInventory", false, " pc-cta-btn--primary")}
         ${cta("list", "list-check", "pcCtaList",      false)}
         ${cta("cart", "cart-plus",  liked ? "pcCtaInCart" : "pcCtaCart", liked)}
         ${cta("fav",  "star",       fav ? "pcCtaIsFav" : "pcCtaFav",     fav)}
@@ -23396,11 +23808,8 @@ import { initScreenTools } from './ai/screen-tools.js';
       <div class="pc-cat-msg" id="pcCatMsg"></div>` : "";
     // A catalogue product burns straight onto a blank chip: the banner creates its
     // TigerData+ and opens the burn, so "what do I do with this chip?" has an answer.
-    // Opened from a TigerTag's "Upgrade to TigerTag+": the banner upgrades that spool.
-    const upgradeFor = isCat && _cpkUpgradeFor && $("catalogPickPanel")?.classList.contains("open") ? _cpkUpgradeFor : null;
-    // Waiting in the new-chip card, or simply on the TigerPOD and linked to nothing.
-    const makerN = HAS_NATIVE ? pendingMakerChips() || presentMakerChips().length : 0;
     const burnHTML = !isCat ? ""
+      : scanned ? _chipBannerHTML("pcTagAddBanner", t("pcTagAddBanner", { tier: scanned.tier }), t("pcTagAddInfo", { tier: scanned.tier }), { holdTip: "pcTagAddHoldTip", holdTier: scanned.tier })
       : upgradeFor ? (() => {
           const tier = _upgradeTier(state.rows.find(x => x.spoolId === upgradeFor));
           return _chipBannerHTML("pcBurnBanner", t("upgradeToPlusBanner", { tier }), t("upgradeToPlusPickInfo", { tier }), { plus: true, holdTip: "upgradeToPlusHoldTip", holdTier: tier });
@@ -23410,9 +23819,16 @@ import { initScreenTools } from './ai/screen-tools.js';
       : makerN ? makerLinkBannerHtml("pcLinkBanner", makerN)
       // No reader plugged in, nothing to burn with: the CTAs below stay alone.
       : HAS_NATIVE && state.nfcReaderCount > 0 ? _burnBannerHTML("pcBurnBanner", "TigerTag+") : "";
+    // Under the burn, the other two ways in, drawn like it: the catalogue's add (a
+    // TigerData+, TigerSystem logo) and the same spool opened on its QR label to print
+    // and stick on (TigerQR+).
+    const addCatHTML = plainAdd ? _chipBannerHTML("pcCatAdd", t("linkedChipAddCatalogue"), t("productCreateCloudTip"),
+      { holdTip: "productCreateCloudTip", logo: "studio" })
+      + _chipBannerHTML("pcQrAdd", t("pcQrAddBanner"), t("pcQrAddInfo"), { holdTip: "pcQrAddInfo", logo: "qr" }) : "";
     body.innerHTML = `
       ${imgSection}
       ${burnHTML}
+      ${addCatHTML}
       ${isCat ? "" : `<div class="panel-section pi-flags-row"><div class="pi-flags pc-flags">${flagsHTML}${_productShareBtnHTML(r.raw?.id_product ?? r.idProduct, _shareName(r))}</div></div>`}
       <div class="panel-section panel-identity pc-identity">
         <div class="pi-ident-text">
@@ -23450,6 +23866,16 @@ import { initScreenTools } from './ai/screen-tools.js';
     _wireChipBanner($("pcLinkBanner"), () => {
       if (!_catalogBusy) _catalogCreate(Number(p.catalogItem.id), { keepLink: true, linkMakers: true });
     }, null);
+    if (plainAdd) _wireChipBanner($("pcCatAdd"), () => {
+      if (!_catalogBusy) _catalogCreate(Number(p.catalogItem.id), { keepLink: !!$("chipChoicePanel")?.classList.contains("open") });
+    }, null);
+    if (plainAdd) _wireChipBanner($("pcQrAdd"), () => {
+      if (!_catalogBusy) _catalogCreate(Number(p.catalogItem.id), { openLabel: true });
+    }, null);
+    if (scanned) _wireChipBanner($("pcTagAddBanner"), () => {
+      _pcScannedChip = null;
+      _nfcProcess?.(scanned.scans, { allowCreate: true }).catch(e => reportError("pcTagAdd", e));
+    }, "pcTagAddNeedPod", () => _pcScannedChipFor(p.catalogItem.id) === scanned);
     if (!upgradeFor) _wireChipBanner($("pcBurnBanner"), () => {
       if (!_catalogBusy) _catalogCreate(Number(p.catalogItem.id), { keepLink: !!$("chipChoicePanel")?.classList.contains("open"), autoBurn: true });
     });
@@ -25159,6 +25585,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     const colourInner = `
           <span class="panel-label colour-row-label">${esc(t("detColor"))}</span>
           <span class="colour-row-swatch" style="background:${colorBg(r)}"></span>
+          ${_colorCodesChips(_colorCodesOf(r.raw?.catalogProduct, r.raw))}
           ${colourEditable ? '<span class="icon icon-edit icon-13 colour-row-edit" aria-hidden="true"></span>' : ""}`;
     const colourHtml = `
       <div class="panel-section colour-section">
@@ -41446,6 +41873,15 @@ import { initScreenTools } from './ai/screen-tools.js';
   // with a line saying whose it is not; a 404 = no product to show, a private
   // spool. No answer at all (offline) → the old "not in your inventory" note.
   let _pcForeignSpool = null;   // the catalogue product shown for someone else's spool
+  // The written TigerTag(+) not in the inventory whose scan opened the product card
+  // ({ pid, scans, tier }, _showUnknownChip): offered while one of its chips is on the TigerPOD.
+  let _pcScannedChip = null;
+  function _pcScannedChipFor(pid) {
+    const s = _pcScannedChip;
+    if (!s || s.pid !== Number(pid)) return null;
+    const onPod = new Set([...(state.nfcCardPresent?.values() || [])].map(c => String(c?.uid || "").toUpperCase()));
+    return [...s.scans.values()].some(td => onPod.has(String(td.uid).toUpperCase())) ? s : null;
+  }
   async function _openForeignSpool(link) {
     let res = null;
     try { res = await fetch(spoolLink(link.id) + ".json", { cache: "no-store" }); } catch (_) {}
@@ -44456,6 +44892,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     }
   }
   _xanoWatchWrites();
+  _watchSyncedDeletes();
 
   // ── Spool mirrors for the server-side stats (productKey + protocol) ──────
   // Both of these are DERIVED from the TigerTag reference DB, which the backend
@@ -45482,6 +45919,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     window.electronAPI.onRfidCardPresent(({ readerName, uid }) => {
       if (uid) state.nfcCardPresent.set(readerName, { uid });
       else     state.nfcCardPresent.delete(readerName);
+      if (!uid || String(_tagLastRead.get(readerName)?.uid).toUpperCase() !== String(uid).toUpperCase()) _tagLastRead.delete(readerName);
       renderRfidReaderBadges();
       _cemPresenceChanged();       // live slot status + mid-burn presence watch
       _maybeRefreshPanelForCard(); // reveal/hide chip-dependent toolbox actions live
@@ -45489,6 +45927,15 @@ import { initScreenTools } from './ai/screen-tools.js';
       refreshChipChoice();         // "Link" in the add chooser needs a chip to burn onto
       _refreshChipBanners();       // Link / Burn banners follow what sits on the TigerPOD
       eraserCardPresent(readerName, uid); // the chip eraser reads what was placed
+      // "Add with TigerTag": a chip placed now is being read (plate + shimmering card)
+      // until its scan lands; a chip lifted is forgotten.
+      if (uid && _tagAddOpen() && !_tagAddSeen.has(String(uid).toUpperCase())) _tagAddReading.add(String(uid).toUpperCase());
+      if (!uid) {
+        const here = new Set([...state.nfcCardPresent.values()].map(c => String(c.uid).toUpperCase()));
+        _tagAddSeen.forEach((v, k) => { if (!here.has(k)) _tagAddSeen.delete(k); });
+        _tagAddReading.forEach(k => { if (!here.has(k)) _tagAddReading.delete(k); });
+      }
+      _tagAddRender();             // "Add with TigerTag": its reader plates follow the TigerPOD
       restoreCardPresent(readerName, uid); // the Restore card looks its backup up
       // TigerPOD signal — a SUCCESSFUL read with N readers proves ownership:
       // auto-select hasPod on first read, then record reader count keeping the max
@@ -45551,6 +45998,19 @@ import { initScreenTools } from './ai/screen-tools.js';
     }
 
     window.electronAPI.onRfidTagScanned((tagData) => {
+      _tagLastRead.set(tagData._readerName || "reader", tagData);
+      // "Add with TigerTag" is up: the chip is read for it (both chips of a twin within
+      // 1.5 s; as soon as every chip on the TigerPOD has been read, after a short grace
+      // for a twin's second reader).
+      if (_tagAddOpen()) {
+        _tagAddBuffer.set(tagData._readerName || "reader", tagData);
+        _tagAddRender();   // the plate shows "reading" until the read is used
+        clearTimeout(_tagAddTimer);
+        const read = new Set([..._tagAddBuffer.values()].map(td => String(td.uid).toUpperCase()));
+        const all = [...state.nfcCardPresent.values()].every(c => read.has(String(c.uid).toUpperCase()));
+        _tagAddTimer = setTimeout(_tagAddFlush, all && state.nfcCardPresent.size >= Math.min(2, state.nfcReaderCount || 1) ? 150 : all ? 400 : 1500);
+        return;
+      }
       // The new-chip card is up (the NFC tools included), or the NFC tag tester:
       // nothing opens, nothing is created or updated from the scan.
       if (chipEraserOpen() || chipRestoreOpen() || _chipCardUp() || _testerUp()) return;
@@ -45571,11 +46031,14 @@ import { initScreenTools } from './ai/screen-tools.js';
     //   UID absent            → create
     //   UID present, same ts  → overwrite (data may have changed on chip)
     //   UID present, diff ts  → chip was erased & rewritten → delete + recreate
-    async function _processNfcScans(scans) {
+    // allowCreate: only "Add with TigerTag" adds a chip that is not in the
+    // inventory yet (founder); a plain scan of one opens its product's card.
+    // `absent`: chip UIDs the caller just checked are not in the inventory (no read again).
+    async function _processNfcScans(scans, { allowCreate = false, open = true, absent = null } = {}) {
       const user = fbAuth().currentUser;
       if (!user) return;
       // A scan buffered just before the new-chip card (or the tester) opened lands here after it.
-      if (chipEraserOpen() || chipRestoreOpen() || _chipCardUp() || _testerUp()) return;
+      if (!allowCreate && (chipEraserOpen() || chipRestoreOpen() || _chipCardUp() || _testerUp())) return;
 
       // Blank chips carry no material/brand yet: a TigerTag Init chip
       // (id_tigertag 0x6C41A2E1, id_product 0) or an erased / empty-NDEF NTAG
@@ -45617,9 +46080,11 @@ import { initScreenTools } from './ai/screen-tools.js';
       }
 
       const processedUids = [];
-      for (const tagData of validScans) {
+      const newChips = [];   // read but not in the inventory: shown, not added (allowCreate off)
+      // The chips of a pair go to the server side by side, not one after the other.
+      await Promise.all(validScans.map(async tagData => {
         const uid = tagData.uid;
-        if (!uid) continue;
+        if (!uid) return;
         // Xano: chip decoded. Which OPERATION depends on the chip, mirroring the
         // mobile app — and it matters, because only one of the two routes can
         // record WHICH catalogue product was scanned:
@@ -45643,7 +46108,10 @@ import { initScreenTools } from './ai/screen-tools.js';
         const docRef  = fbDb().collection('users').doc(user.uid)
           .collection('inventory').doc(uid);
         try {
-          const existing = await docRef.get();
+          // Offline, the local copy answers (the write then waits in Firestore's queue).
+          const existing = absent?.has(uid) ? { exists: false, data: () => ({}) }
+            : await docRef.get().catch(() => docRef.get({ source: "cache" })).catch(() => ({ exists: false, data: () => ({}) }));
+          if (!existing.exists && !allowCreate) { newChips.push(tagData); return; }
           // Track whether this rescan is on an EXISTING doc with the SAME
           // chip timestamp — in that case the DB is the source of truth for
           // weight (the user updates it via the slider; nothing ever writes
@@ -45719,17 +46187,29 @@ import { initScreenTools } from './ai/screen-tools.js';
         } catch (e) {
           console.error('[RFID] upsert failed for', uid, ':', e);
         }
-      }
+      }));
 
       // Queue the first chip to open in the detail card. _consumeScanOpen tries
       // now (cache is fast) and is ALSO called from the inventory snapshot, so it
       // reliably opens once the spool lands in the OWN inventory — even after the
       // async friend→own view switch a scan triggers.
-      if (processedUids.length > 0) {
+      if (processedUids.length > 0 && open) {
         _scanOpenUid = processedUids[0];
         _consumeScanOpen();
         setTimeout(_consumeScanOpen, 600); // belt-and-braces if the snapshot lagged
-      }
+      } else if (!processedUids.length && newChips.length) _showUnknownChip(newChips[0], scans);
+    }
+    _nfcProcess = _processNfcScans;   // "Add with TigerTag" adds through it (_tagAddCommit)
+    // A chip not in the inventory, scanned outside "Add with TigerTag": its
+    // product's catalogue card (identified by id_product), and how to add it.
+    // Its card offers "Add with TigerTag(+)" while that chip stays on the TigerPOD
+    // (_pcScannedChip, _renderProductCard) instead of burning a chip already written.
+    function _showUnknownChip(td, scans) {
+      const pid = Number(td.id_product);
+      _flashMessage(t("tagAddUnknown"));
+      if (!_hasRealProductId(pid)) return;
+      _pcScannedChip = { pid, scans, tier: versionName(td.id_tigertag) === "TigerTag+" ? "TigerTag+" : "TigerTag" };
+      _openLinkedProduct(pid).catch(e => reportError("tagAdd.unknown", e));
     }
 
     // ── Build and write one chip document to Firestore ───────────────────────
@@ -45856,6 +46336,13 @@ import { initScreenTools } from './ai/screen-tools.js';
       // capacity, custom_message, etc.) that is NOT on the chip. The "chip
       // rewritten" branch above already handles the clean-slate case via
       // an explicit `delete()` followed by this set — merge is a no-op there.
+      // Born with its mirrors (syncSpoolMirrors): otherwise each new spool costs
+      // follow-up update batches, each waiting its turn in the write queue.
+      if (!preserveDbWeight) {
+        const row = normalizeRow(String(tagData.uid), doc);
+        const key = _productKeyHash(row);
+        if (key) { doc.productKey = key; doc.protocol = row.protocol || "unknown"; }
+      }
       await _xanoQuiet(() => docRef.set(doc, { merge: true }));   // a scan: its create is sent by the caller
     }
 

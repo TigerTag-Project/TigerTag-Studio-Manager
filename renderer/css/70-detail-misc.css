@@ -2000,7 +2000,8 @@
      so hiding the element would blank the whole tile. Push only the photo out
      of the box instead: the tile stays a full colour swatch, like the grid. */
   body.photos-held img.pv-thumb { object-position: -10000px 0; }
-  .spool-card .card-body { padding: 10px 10px 8px; }
+  /* A line between the colour picture and the text, the card's own border colour (founder). */
+  .spool-card .card-body { padding: 10px 10px 8px; border-top: 1px solid var(--border); }
   .spool-card .card-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   /* Hovered card with a name too long to fit: it scrolls to its end and back
      (wired in inventory.js — --mq-dist / --mq-dur are measured per card). */
@@ -2448,6 +2449,10 @@
   /* The values a spool link proposes (weight, else the note): what the banner saves. */
   .chip-banner-logo--scale.chip-banner-logo--scale { --logo: url('../../assets/svg/icons/icon_scale.svg'); }
   .chip-banner-logo--edit.chip-banner-logo--edit { --logo: url('../../assets/svg/icons/icon_edit.svg'); }
+  /* "Add from the catalogue" under "Add with TigerTag(+)": the TigerSystem logo of the add chooser's tiles. */
+  .chip-banner-logo--studio.chip-banner-logo--studio { --logo: url('../../assets/svg/logos/tigersystem-icon-framed-white.svg'); }
+  /* "Add from QR code" under it: the spool is created, then opened on its QR label. */
+  .chip-banner-logo--qr.chip-banner-logo--qr { --logo: url('../../assets/svg/icons/icon_qr.svg'); }
   .cloud-encode-banner .cloud-encode-text.cloud-encode-text { color: var(--burn); font-weight: 600; }
   /* Reader present: the banner itself is the (held) button, square like the
      panel's other bands, with a green fill. */
@@ -2554,6 +2559,13 @@
     width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 18%, transparent);
   }
+  /* A product's RAL / Pantone codes (_colorCodesChips): an aspect chip; RAL with a
+     small swatch (approximate sRGB) and its name in the muted colour, Pantone as text. */
+  .color-code-chip { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .color-code-dot { width: 10px; aspect-ratio: 1; border-radius: 50%; flex-shrink: 0;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 22%, transparent); }
+  .color-code-name { color: var(--muted); font-weight: 500; }
+  .colour-row { flex-wrap: wrap; row-gap: 6px; }
   .colour-row-edit { background: var(--muted); transition: background .15s; }
   .colour-row--edit { cursor: pointer; }
   .colour-row--edit:hover .colour-row-edit { background: var(--text); }
@@ -3853,6 +3865,10 @@
   .pc-sheet-btn:hover .icon { background: var(--primary); }
   .pc-sheet-btn[aria-pressed="true"] { border-color: var(--primary); color: var(--primary-text); }
   .pc-sheet-btn[aria-pressed="true"] .icon { background: var(--primary); }
+  /* The scanned chip on the TigerPOD: "Add from the catalogue" (a banner, #pcCatAdd) is
+     the second way in, so the CTA grid has three buttons — the wishlist spans the row. */
+  #pcCatAdd.is-busy { opacity: .6; cursor: progress; }
+  .pc-cta--no-inv > :first-child { grid-column: 1 / -1; }
   .pc-owned { display: flex; align-items: center; gap: 7px; margin: 10px 16px 0; font-size: 12.5px; color: var(--muted); }
   .pc-owned .icon { background: var(--muted); }
   .pc-cat-msg { margin: 6px 16px 0; font-size: 12.5px; }

@@ -1,4 +1,328 @@
 {
+  "2.57.0": {
+    "date": "2026-11-14",
+    "items": [
+      {
+        "icon": "palette",
+        "title": {
+          "en": "Your profile colour learns new tricks",
+          "fr": "Ta couleur de profil apprend de nouveaux tours",
+          "de": "Deine Profilfarbe lernt neue Tricks",
+          "es": "Tu color de perfil aprende trucos nuevos",
+          "it": "Il colore del tuo profilo impara nuovi trucchi",
+          "zh": "你的资料颜色学会了新把戏",
+          "pt": "A cor do teu perfil aprende truques novos",
+          "pt-pt": "A cor do teu perfil aprende truques novos",
+          "pl": "Kolor twojego profilu uczy się nowych sztuczek",
+          "ru": "Цвет твоего профиля освоил новые трюки",
+          "nl": "Je profielkleur leert nieuwe trucs"
+        },
+        "body": {
+          "en": "Solid, Bicolor, Rainbow or Aurora: pick up to three colours for your avatar and your theme. Bicolor is for TigerSquad members, Rainbow from Gold, Aurora from Platinum.",
+          "fr": "Uni, Bicolore, Arc-en-ciel ou Aurore : choisis jusqu'à trois couleurs pour ton avatar et ton thème. Bicolore pour les membres du TigerSquad, Arc-en-ciel dès Or, Aurore dès Platine.",
+          "de": "Einfarbig, Zweifarbig, Regenbogen oder Aurora: Wähle bis zu drei Farben für Avatar und Theme. Zweifarbig für TigerSquad-Mitglieder, Regenbogen ab Gold, Aurora ab Platin.",
+          "es": "Liso, Bicolor, Arcoíris o Aurora: elige hasta tres colores para tu avatar y tu tema. Bicolor para miembros del TigerSquad, Arcoíris desde Oro, Aurora desde Platino.",
+          "it": "Tinta unita, Bicolore, Arcobaleno o Aurora: scegli fino a tre colori per avatar e tema. Bicolore per i membri del TigerSquad, Arcobaleno da Oro, Aurora da Platino.",
+          "zh": "纯色、双色、彩虹或极光：为头像和主题挑选最多三种颜色。双色面向 TigerSquad 成员，彩虹需金级，极光需铂金级。",
+          "pt": "Sólido, Bicolor, Arco-íris ou Aurora: escolhe até três cores para o teu avatar e o teu tema. Bicolor para membros do TigerSquad, Arco-íris a partir de Ouro, Aurora a partir de Platina.",
+          "pt-pt": "Sólido, Bicolor, Arco-íris ou Aurora: escolhe até três cores para o teu avatar e o teu tema. Bicolor para membros do TigerSquad, Arco-íris a partir de Ouro, Aurora a partir de Platina.",
+          "pl": "Jednolity, Dwukolorowy, Tęcza lub Zorza: wybierz do trzech kolorów dla awatara i motywu. Dwukolorowy dla członków TigerSquad, Tęcza od Złota, Zorza od Platyny.",
+          "ru": "Сплошной, Два цвета, Радуга или Северное сияние: выбери до трёх цветов для аватара и темы. Два цвета для участников TigerSquad, Радуга с Золота, Сияние с Платины.",
+          "nl": "Effen, Tweekleurig, Regenboog of Aurora: kies tot drie kleuren voor je avatar en thema. Tweekleurig voor TigerSquad-leden, Regenboog vanaf Goud, Aurora vanaf Platina."
+        }
+      },
+      {
+        "icon": "settings",
+        "title": {
+          "en": "Two sliders for the colour mood",
+          "fr": "Deux curseurs pour l'ambiance",
+          "de": "Zwei Regler für die Farbstimmung",
+          "es": "Dos deslizadores para el ambiente",
+          "it": "Due cursori per l'atmosfera",
+          "zh": "两个滑块调出氛围",
+          "pt": "Dois controlos para o clima",
+          "pt-pt": "Dois controlos para o clima",
+          "pl": "Dwa suwaki na nastrój kolorów",
+          "ru": "Два ползунка для настроения",
+          "nl": "Twee schuiven voor de sfeer"
+        },
+        "body": {
+          "en": "Smoothness goes from clean flag bands to one soft ramp. Intensity goes from discreet to flashy. Your call.",
+          "fr": "Le lissage va de bandes nettes façon drapeau à un seul dégradé doux. L'intensité va de discret à flashy. À toi de voir.",
+          "de": "Weichheit reicht von klaren Flaggenstreifen bis zu einem sanften Verlauf. Intensität von dezent bis grell. Du entscheidest.",
+          "es": "La suavidad va de franjas nítidas tipo bandera a un solo degradado suave. La intensidad, de discreta a llamativa. Tú decides.",
+          "it": "La morbidezza va da bande nette da bandiera a un'unica sfumatura. L'intensità da discreta a vistosa. Decidi tu.",
+          "zh": "柔和度从旗帜般的清晰色带到一整片柔和渐变；强度从低调到炫目。你说了算。",
+          "pt": "A suavidade vai de faixas nítidas tipo bandeira a um único degradé suave. A intensidade, de discreta a berrante. Tu decides.",
+          "pt-pt": "A suavidade vai de faixas nítidas tipo bandeira a um único degradé suave. A intensidade, de discreta a vistosa. Tu decides.",
+          "pl": "Gładkość działa od ostrych pasów jak na fladze po jeden miękki gradient. Intensywność od dyskretnej po krzykliwą. Ty decydujesz.",
+          "ru": "Плавность: от чётких полос как на флаге до одного мягкого перехода. Интенсивность: от скромной до яркой. Решать тебе.",
+          "nl": "Zachtheid gaat van strakke vlagbanden tot één zachte overgang. Intensiteit van discreet tot opvallend. Jij beslist."
+        }
+      },
+      {
+        "icon": "palette",
+        "title": {
+          "en": "The colour picker shows up next to your click",
+          "fr": "Le sélecteur de couleur apparaît à côté de ton clic",
+          "de": "Die Farbauswahl erscheint direkt neben deinem Klick",
+          "es": "El selector de color aparece junto a tu clic",
+          "it": "Il selettore colore compare accanto al tuo clic",
+          "zh": "取色器就出现在你点击的地方",
+          "pt": "O seletor de cor aparece junto ao teu clique",
+          "pt-pt": "O seletor de cor aparece junto ao teu clique",
+          "pl": "Selektor koloru pojawia się obok kliknięcia",
+          "ru": "Выбор цвета появляется рядом с кликом",
+          "nl": "De kleurkiezer verschijnt naast je klik"
+        },
+        "body": {
+          "en": "No more panel flying in from the other side of the screen. Click a colour, pick it right there.",
+          "fr": "Plus de panneau qui arrive de l'autre bout de l'écran. Tu cliques une couleur, tu la choisis sur place.",
+          "de": "Kein Fenster mehr vom anderen Bildschirmende. Farbe anklicken, genau dort auswählen.",
+          "es": "Se acabó el panel que llega desde el otro lado de la pantalla. Haces clic en un color y lo eliges ahí mismo.",
+          "it": "Basta pannelli che arrivano dall'altra parte dello schermo. Clicchi un colore e lo scegli lì.",
+          "zh": "不用再等面板从屏幕另一头飞来。点一下颜色，就地挑选。",
+          "pt": "Acabou o painel que vem do outro lado do ecrã. Clicas numa cor e escolhes logo ali.",
+          "pt-pt": "Acabou o painel que vem do outro lado do ecrã. Clicas numa cor e escolhes logo ali.",
+          "pl": "Koniec z panelem lecącym z drugiego końca ekranu. Klikasz kolor i wybierasz go na miejscu.",
+          "ru": "Больше никаких панелей с другого края экрана. Кликнул цвет и выбрал прямо там.",
+          "nl": "Geen paneel meer dat van de andere kant van het scherm komt. Klik op een kleur en kies hem meteen."
+        }
+      },
+      {
+        "icon": "star",
+        "title": {
+          "en": "League rows wear their member's colours",
+          "fr": "Les lignes de ligue portent les couleurs de leur membre",
+          "de": "Ligazeilen tragen die Farben ihres Mitglieds",
+          "es": "Las filas de la liga lucen los colores de su miembro",
+          "it": "Le righe della lega indossano i colori del loro membro",
+          "zh": "联赛榜单的每一行都披上成员的颜色",
+          "pt": "As linhas da liga vestem as cores do seu membro",
+          "pt-pt": "As linhas da liga vestem as cores do seu membro",
+          "pl": "Wiersze ligi noszą kolory swojego członka",
+          "ru": "Строки лиги носят цвета своего участника",
+          "nl": "Competitieregels dragen de kleuren van hun lid"
+        },
+        "body": {
+          "en": "In the TigerSquad leagues, each member shows up in their own colour style, at the same 45° angle as the theme.",
+          "fr": "Dans les ligues du TigerSquad, chaque membre s'affiche dans son propre style de couleur, au même angle de 45° que le thème.",
+          "de": "In den TigerSquad-Ligen erscheint jedes Mitglied in seinem eigenen Farbstil, im selben 45°-Winkel wie das Theme.",
+          "es": "En las ligas del TigerSquad, cada miembro aparece con su propio estilo de color, al mismo ángulo de 45° que el tema.",
+          "it": "Nelle leghe del TigerSquad ogni membro appare con il suo stile colore, con lo stesso angolo di 45° del tema.",
+          "zh": "在 TigerSquad 联赛中，每位成员都以自己的配色样式显示，角度与主题一样是 45°。",
+          "pt": "Nas ligas do TigerSquad, cada membro aparece com o seu próprio estilo de cor, no mesmo ângulo de 45° do tema.",
+          "pt-pt": "Nas ligas do TigerSquad, cada membro aparece com o seu próprio estilo de cor, no mesmo ângulo de 45° do tema.",
+          "pl": "W ligach TigerSquad każdy członek pojawia się w swoim stylu kolorów, pod tym samym kątem 45° co motyw.",
+          "ru": "В лигах TigerSquad каждый участник выглядит в своём цветовом стиле под тем же углом 45°, что и тема.",
+          "nl": "In de TigerSquad-competities verschijnt elk lid in zijn eigen kleurstijl, onder dezelfde hoek van 45° als het thema."
+        }
+      },
+      {
+        "icon": "tag",
+        "title": {
+          "en": "RAL and Pantone codes on your filaments",
+          "fr": "Les codes RAL et Pantone sur tes filaments",
+          "de": "RAL- und Pantone-Codes auf deinen Filamenten",
+          "es": "Códigos RAL y Pantone en tus filamentos",
+          "it": "Codici RAL e Pantone sui tuoi filamenti",
+          "zh": "耗材上的 RAL 和 Pantone 色号",
+          "pt": "Códigos RAL e Pantone nos teus filamentos",
+          "pt-pt": "Códigos RAL e Pantone nos teus filamentos",
+          "pl": "Kody RAL i Pantone na filamentach",
+          "ru": "Коды RAL и Pantone на филаментах",
+          "nl": "RAL- en Pantone-codes op je filament"
+        },
+        "body": {
+          "en": "When the brand gives them, product cards and spool cards show the RAL and Pantone codes of each colour. Handy when the colour has to match exactly.",
+          "fr": "Quand la marque les donne, les fiches produit et les fiches bobine affichent les codes RAL et Pantone de chaque couleur. Pratique quand la couleur doit être exacte.",
+          "de": "Wenn die Marke sie angibt, zeigen Produkt- und Spulenkarten die RAL- und Pantone-Codes jeder Farbe. Praktisch, wenn die Farbe exakt passen muss.",
+          "es": "Cuando la marca los da, las fichas de producto y de bobina muestran los códigos RAL y Pantone de cada color. Útil cuando el color tiene que coincidir.",
+          "it": "Quando il marchio li fornisce, le schede prodotto e bobina mostrano i codici RAL e Pantone di ogni colore. Comodo quando il colore deve combaciare.",
+          "zh": "品牌提供时，产品卡和料盘卡会显示每种颜色的 RAL 与 Pantone 色号。颜色需要精确匹配时很方便。",
+          "pt": "Quando a marca os fornece, as fichas de produto e de bobina mostram os códigos RAL e Pantone de cada cor. Útil quando a cor tem de bater certo.",
+          "pt-pt": "Quando a marca os fornece, as fichas de produto e de bobina mostram os códigos RAL e Pantone de cada cor. Útil quando a cor tem de coincidir.",
+          "pl": "Gdy marka je podaje, karty produktu i szpuli pokazują kody RAL i Pantone każdego koloru. Przydatne, gdy kolor musi się zgadzać.",
+          "ru": "Если бренд их указал, карточки продукта и катушки показывают коды RAL и Pantone каждого цвета. Удобно, когда цвет должен совпасть.",
+          "nl": "Als het merk ze geeft, tonen product- en spoelkaarten de RAL- en Pantone-codes van elke kleur. Handig als de kleur exact moet kloppen."
+        }
+      },
+      {
+        "icon": "nfc",
+        "title": {
+          "en": "A chip Studio doesn't know opens its product",
+          "fr": "Une puce inconnue ouvre sa fiche produit",
+          "de": "Ein unbekannter Chip öffnet sein Produkt",
+          "es": "Un chip desconocido abre su producto",
+          "it": "Un chip sconosciuto apre il suo prodotto",
+          "zh": "没见过的芯片会打开对应产品",
+          "pt": "Um chip desconhecido abre o seu produto",
+          "pt-pt": "Um chip desconhecido abre o seu produto",
+          "pl": "Nieznany chip otwiera swój produkt",
+          "ru": "Незнакомый чип открывает свой продукт",
+          "nl": "Een onbekende chip opent zijn product"
+        },
+        "body": {
+          "en": "Scan a TigerTag that isn't in your inventory yet and its product card opens. Hold \"Add with TigerTag\" to add the spool, no surprise spool created behind your back.",
+          "fr": "Scanne une TigerTag absente de ton inventaire : sa fiche produit s'ouvre. Maintiens « Ajouter avec la TigerTag » pour ajouter la bobine, sans bobine créée dans ton dos.",
+          "de": "Scanne einen TigerTag, der noch nicht in deinem Inventar ist, und seine Produktkarte öffnet sich. Halte „Mit TigerTag hinzufügen“ gedrückt, um die Spule hinzuzufügen, ohne heimlich angelegte Spule.",
+          "es": "Escanea una TigerTag que aún no está en tu inventario y se abre su ficha de producto. Mantén «Añadir con TigerTag» para añadir la bobina, sin bobinas creadas a tus espaldas.",
+          "it": "Scansiona una TigerTag non ancora nel tuo inventario e si apre la sua scheda prodotto. Tieni premuto «Aggiungi con TigerTag» per aggiungere la bobina, senza bobine create alle tue spalle.",
+          "zh": "扫描一枚还不在库存里的 TigerTag，会打开它的产品卡。长按“用 TigerTag 添加”即可添加料盘，不会再背着你偷偷建一个。",
+          "pt": "Lê uma TigerTag que ainda não está no teu inventário e abre-se a sua ficha de produto. Mantém «Adicionar com TigerTag» para adicionar a bobine, sem bobines criadas nas tuas costas.",
+          "pt-pt": "Lê uma TigerTag que ainda não está no teu inventário e abre-se a sua ficha de produto. Mantém «Adicionar com TigerTag» para adicionar a bobina, sem bobinas criadas nas tuas costas.",
+          "pl": "Zeskanuj TigerTag, której nie ma jeszcze w inwentarzu, a otworzy się karta jej produktu. Przytrzymaj „Dodaj z TigerTag”, by dodać szpulę, bez szpuli tworzonej za twoimi plecami.",
+          "ru": "Отсканируй TigerTag, которой ещё нет в инвентаре, и откроется карточка её продукта. Удерживай «Добавить с TigerTag», чтобы добавить катушку, без катушек, созданных за твоей спиной.",
+          "nl": "Scan een TigerTag die nog niet in je inventaris staat en de productkaart opent. Houd «Toevoegen met TigerTag» ingedrukt om de spoel toe te voegen, zonder spoel die achter je rug wordt aangemaakt."
+        }
+      },
+      {
+        "icon": "qr",
+        "title": {
+          "en": "Two new ways to add from the catalogue",
+          "fr": "Deux nouvelles façons d'ajouter depuis le catalogue",
+          "de": "Zwei neue Wege, aus dem Katalog hinzuzufügen",
+          "es": "Dos formas nuevas de añadir desde el catálogo",
+          "it": "Due nuovi modi di aggiungere dal catalogo",
+          "zh": "从目录添加的两种新方式",
+          "pt": "Duas novas formas de adicionar a partir do catálogo",
+          "pt-pt": "Duas novas formas de adicionar a partir do catálogo",
+          "pl": "Dwa nowe sposoby dodawania z katalogu",
+          "ru": "Два новых способа добавить из каталога",
+          "nl": "Twee nieuwe manieren om uit de catalogus toe te voegen"
+        },
+        "body": {
+          "en": "On a catalogue card, hold \"Add from the catalogue\" for a spool without a chip, or \"Add with TigerQR+\" to add it and land straight on its QR label.",
+          "fr": "Sur une fiche du catalogue, maintiens « Ajouter depuis le catalogue » pour une bobine sans puce, ou « Ajouter avec TigerQR+ » pour l'ajouter et arriver direct sur son étiquette QR.",
+          "de": "Halte auf einer Katalogkarte „Aus dem Katalog hinzufügen“ für eine Spule ohne Chip gedrückt, oder „Mit TigerQR+ hinzufügen“, um sie anzulegen und direkt bei ihrem QR-Etikett zu landen.",
+          "es": "En una ficha del catálogo, mantén «Añadir desde el catálogo» para una bobina sin chip, o «Añadir con TigerQR+» para añadirla y aterrizar directo en su etiqueta QR.",
+          "it": "Su una scheda del catalogo, tieni premuto «Aggiungi dal catalogo» per una bobina senza chip, o «Aggiungi con TigerQR+» per aggiungerla e arrivare dritto alla sua etichetta QR.",
+          "zh": "在目录卡上，长按“从目录添加”可添加无芯片的料盘，或长按“用 TigerQR+ 添加”，添加后直接进入它的二维码标签。",
+          "pt": "Num cartão do catálogo, mantém «Adicionar do catálogo» para uma bobine sem chip, ou «Adicionar com TigerQR+» para a adicionar e cair direto na etiqueta QR.",
+          "pt-pt": "Num cartão do catálogo, mantém «Adicionar do catálogo» para uma bobina sem chip, ou «Adicionar com TigerQR+» para a adicionar e ir direto à etiqueta QR.",
+          "pl": "Na karcie katalogu przytrzymaj „Dodaj z katalogu”, by dodać szpulę bez chipa, albo „Dodaj z TigerQR+”, by dodać ją i trafić prosto do jej etykiety QR.",
+          "ru": "На карточке каталога удерживай «Добавить из каталога» для катушки без чипа или «Добавить с TigerQR+», чтобы добавить её и сразу попасть на QR-этикетку.",
+          "nl": "Houd op een catalogusfiche «Toevoegen uit de catalogus» ingedrukt voor een spoel zonder chip, of «Toevoegen met TigerQR+» om hem toe te voegen en meteen bij zijn QR-label uit te komen."
+        }
+      },
+      {
+        "icon": "trophy",
+        "title": {
+          "en": "TigerQR+ trophies join the album",
+          "fr": "Des trophées TigerQR+ rejoignent l'album",
+          "de": "TigerQR+-Trophäen kommen ins Album",
+          "es": "Trofeos TigerQR+ entran en el álbum",
+          "it": "I trofei TigerQR+ entrano nell'album",
+          "zh": "TigerQR+ 奖杯加入图鉴",
+          "pt": "Troféus TigerQR+ entram no álbum",
+          "pt-pt": "Troféus TigerQR+ entram no álbum",
+          "pl": "Trofea TigerQR+ trafiają do albumu",
+          "ru": "Трофеи TigerQR+ попадают в альбом",
+          "nl": "TigerQR+-trofeeën komen in het album"
+        },
+        "body": {
+          "en": "Scan a TigerQR+ with your camera, add a material from one, and your trophy collection grows.",
+          "fr": "Scanne un TigerQR+ avec ta caméra, ajoute un filament depuis l'un d'eux, et ta collection de trophées grandit.",
+          "de": "Scanne einen TigerQR+ mit der Kamera, füge ein Material daraus hinzu, und deine Trophäensammlung wächst.",
+          "es": "Escanea un TigerQR+ con tu cámara, añade un material desde uno, y tu colección de trofeos crece.",
+          "it": "Scansiona un TigerQR+ con la fotocamera, aggiungi un materiale da uno, e la tua collezione di trofei cresce.",
+          "zh": "用摄像头扫描 TigerQR+，或从中添加一种耗材，你的奖杯收藏就多一件。",
+          "pt": "Lê um TigerQR+ com a câmara, adiciona um material a partir de um, e a tua coleção de troféus cresce.",
+          "pt-pt": "Lê um TigerQR+ com a câmara, adiciona um material a partir de um, e a tua coleção de troféus cresce.",
+          "pl": "Zeskanuj TigerQR+ kamerą, dodaj z niego materiał, a twoja kolekcja trofeów rośnie.",
+          "ru": "Отсканируй TigerQR+ камерой, добавь из него материал, и твоя коллекция трофеев растёт.",
+          "nl": "Scan een TigerQR+ met je camera, voeg er een materiaal mee toe, en je trofeeënverzameling groeit."
+        }
+      },
+      {
+        "icon": "globe",
+        "title": {
+          "en": "The world league now shows the top 100",
+          "fr": "La ligue mondiale affiche maintenant le top 100",
+          "de": "Die Weltliga zeigt jetzt die Top 100",
+          "es": "La liga mundial muestra ahora el top 100",
+          "it": "La lega mondiale mostra ora la top 100",
+          "zh": "世界联赛现在显示前 100 名",
+          "pt": "A liga mundial mostra agora o top 100",
+          "pt-pt": "A liga mundial mostra agora o top 100",
+          "pl": "Liga światowa pokazuje teraz top 100",
+          "ru": "Мировая лига теперь показывает топ-100",
+          "nl": "De wereldcompetitie toont nu de top 100"
+        },
+        "body": {
+          "en": "Plenty more room to spot yourself, and your friends, in the worldwide TigerSquad ranking.",
+          "fr": "Beaucoup plus de place pour te repérer, toi et tes amis, dans le classement mondial du TigerSquad.",
+          "de": "Viel mehr Platz, um dich und deine Freunde in der weltweiten TigerSquad-Rangliste zu finden.",
+          "es": "Mucho más espacio para encontrarte a ti y a tus amigos en el ranking mundial del TigerSquad.",
+          "it": "Molto più spazio per ritrovare te e i tuoi amici nella classifica mondiale del TigerSquad.",
+          "zh": "在 TigerSquad 全球排名里，有更多位置能找到你和朋友。",
+          "pt": "Muito mais espaço para te encontrares, a ti e aos teus amigos, no ranking mundial do TigerSquad.",
+          "pt-pt": "Muito mais espaço para te encontrares, a ti e aos teus amigos, no ranking mundial do TigerSquad.",
+          "pl": "Dużo więcej miejsca, by znaleźć siebie i znajomych w światowym rankingu TigerSquad.",
+          "ru": "Гораздо больше места, чтобы найти себя и друзей в мировом рейтинге TigerSquad.",
+          "nl": "Veel meer ruimte om jezelf en je vrienden terug te vinden in de wereldranglijst van TigerSquad."
+        }
+      },
+      {
+        "icon": "trash",
+        "title": {
+          "en": "Deleted means gone, right away",
+          "fr": "Supprimé veut dire disparu, tout de suite",
+          "de": "Gelöscht heißt sofort weg",
+          "es": "Borrado significa desaparecido, al instante",
+          "it": "Eliminato vuol dire sparito, subito",
+          "zh": "删除就是立刻消失",
+          "pt": "Eliminado quer dizer desaparecido, logo",
+          "pt-pt": "Eliminado quer dizer desaparecido, logo",
+          "pl": "Usunięte znaczy zniknęło, od razu",
+          "ru": "Удалил, значит исчезло, сразу",
+          "nl": "Verwijderd is meteen weg"
+        },
+        "body": {
+          "en": "A deleted spool used to hang around on screen until a reload. Now its card closes and it leaves the list straight away.",
+          "fr": "Une bobine supprimée traînait à l'écran jusqu'au prochain rechargement. Maintenant sa fiche se ferme et elle quitte la liste aussitôt.",
+          "de": "Eine gelöschte Spule blieb bis zum Neuladen auf dem Bildschirm. Jetzt schließt sich ihre Karte und sie verschwindet sofort aus der Liste.",
+          "es": "Una bobina borrada se quedaba en pantalla hasta recargar. Ahora su ficha se cierra y sale de la lista al instante.",
+          "it": "Una bobina eliminata restava a schermo fino al riavvio. Ora la sua scheda si chiude ed esce subito dall'elenco.",
+          "zh": "以前删除的料盘会在屏幕上赖到重新加载。现在它的卡片会关闭，立刻从列表消失。",
+          "pt": "Uma bobine eliminada ficava no ecrã até recarregares. Agora a ficha fecha-se e sai da lista logo.",
+          "pt-pt": "Uma bobina eliminada ficava no ecrã até recarregares. Agora a ficha fecha-se e sai da lista logo.",
+          "pl": "Usunięta szpula wisiała na ekranie do przeładowania. Teraz jej karta się zamyka, a ona od razu znika z listy.",
+          "ru": "Удалённая катушка висела на экране до перезагрузки. Теперь её карточка закрывается, и она сразу уходит из списка.",
+          "nl": "Een verwijderde spoel bleef op het scherm staan tot je herlaadde. Nu sluit zijn kaart en verdwijnt hij meteen uit de lijst."
+        }
+      },
+      {
+        "icon": "speed",
+        "title": {
+          "en": "Adding from a chip got quicker",
+          "fr": "Ajouter depuis une puce va plus vite",
+          "de": "Hinzufügen per Chip geht schneller",
+          "es": "Añadir desde un chip va más rápido",
+          "it": "Aggiungere da un chip è più veloce",
+          "zh": "从芯片添加更快了",
+          "pt": "Adicionar a partir de um chip ficou mais rápido",
+          "pt-pt": "Adicionar a partir de um chip ficou mais rápido",
+          "pl": "Dodawanie z chipa jest szybsze",
+          "ru": "Добавление с чипа стало быстрее",
+          "nl": "Toevoegen vanaf een chip gaat sneller"
+        },
+        "body": {
+          "en": "A spool added from its chip is now saved in one go instead of a string of small updates. It lands in your inventory in about a second.",
+          "fr": "Une bobine ajoutée depuis sa puce est maintenant enregistrée d'un coup, plutôt qu'en une série de petites mises à jour. Elle arrive dans ton inventaire en environ une seconde.",
+          "de": "Eine per Chip hinzugefügte Spule wird jetzt in einem Rutsch gespeichert statt in vielen kleinen Updates. Sie ist in etwa einer Sekunde im Inventar.",
+          "es": "Una bobina añadida desde su chip ahora se guarda de una vez en lugar de una serie de pequeñas actualizaciones. Llega a tu inventario en cerca de un segundo.",
+          "it": "Una bobina aggiunta dal suo chip ora viene salvata in un colpo solo invece di tanti piccoli aggiornamenti. Arriva nel tuo inventario in circa un secondo.",
+          "zh": "从芯片添加的料盘现在一次写入，而不是一连串小更新。大约一秒就进入你的库存。",
+          "pt": "Uma bobine adicionada a partir do seu chip é agora guardada de uma só vez, em vez de várias pequenas atualizações. Chega ao inventário em cerca de um segundo.",
+          "pt-pt": "Uma bobina adicionada a partir do seu chip é agora guardada de uma só vez, em vez de várias pequenas atualizações. Chega ao inventário em cerca de um segundo.",
+          "pl": "Szpula dodana z chipa zapisuje się teraz za jednym razem, zamiast serii drobnych aktualizacji. W inwentarzu ląduje po około sekundzie.",
+          "ru": "Катушка, добавленная с чипа, теперь сохраняется за один раз, а не серией мелких обновлений. В инвентаре она появляется примерно за секунду.",
+          "nl": "Een spoel die vanaf zijn chip wordt toegevoegd, wordt nu in één keer opgeslagen in plaats van in een reeks kleine updates. Hij staat in ongeveer een seconde in je inventaris."
+        }
+      }
+    ]
+  },
   "2.55.0": {
     "date": "2026-11-11",
     "items": [

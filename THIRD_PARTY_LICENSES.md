@@ -63,6 +63,13 @@ npx license-checker --excludePrivatePackages --csv > licenses.csv
 - **Use**: decodes a QR code from the camera picture (`renderer/qr-scan.js`) where the
   browser's own `BarcodeDetector` cannot; loaded only when the camera scan opens.
 
+### ral-colors 1.0.1 (data only)
+- **License**: MIT — Copyright (c) 2022 Ibon Eskudero (notice in `renderer/ral-classic.js`)
+- **Source**: https://www.npmjs.com/package/ral-colors (`RAL/classic.js`)
+- **Use**: the 215 RAL Classic codes with their English name and an approximate sRGB colour
+  (`renderer/ral-classic.js`), to name a product's RAL code and draw its swatch. No Pantone
+  palette is shipped (it is licensed): a Pantone code is shown as text only.
+
 ---
 
 ## Firebase Web SDK

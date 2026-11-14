@@ -202,6 +202,9 @@
             <button type="button" class="sqd-coins-gift" id="topCoinsGift" data-i18n-aria="coinsHaveCode" aria-label=""><img src="../assets/img/tigercoins/gift-v2.webp" alt="" aria-hidden="true"></button>
           </div>
         </div>
+        <!-- The devices (readers, scales, Tiger Spool / Touch, cloud, update) in one
+             card like the stat cards (sb-stat), readable on any theme colour. -->
+        <div class="sb-stat top-devices">
         <div id="rfidReadersBar" class="rfid-readers-bar" data-desktop-only></div>
         <div class="health scale-health" id="scaleHealth"><span class="scale-glyphs"><span class="scale-glyph"><span class="scale-health-icon"></span></span></span></div>
         <div class="health scale-health tsp-health" id="tigerspoolHealth"></div>
@@ -209,6 +212,7 @@
         <!-- Backend health — hidden while all is well; only shown on a network problem (offline / cache). -->
         <div class="health hidden" id="health" data-tooltip="Backend: idle"><span class="icon icon-cloud-3d icon-20"></span></div>
         <div class="health update-health hidden" id="updateStatusIcon" data-tooltip="" data-desktop-only><span class="update-health-icon"></span></div>
+        </div>
       </div>
     </header>
 
@@ -354,6 +358,11 @@
           </div>
         </div>
         <div class="inv-actions-group">
+          <!-- Search views: how many catalogue PRODUCTS the current filters
+               match (one figure, founder). Sits in the actions row, before Select, so it
+               reads as a headline figure, like the stat tiles above. Shown only
+               in those views, via `body.catalog-filters`. -->
+          <div class="cv-count" id="catalogViewStatus"></div>
           <!-- Multi-select toggle → checkboxes + bulk-delete bar (own inventory only). -->
           <button id="btnSelectMode" class="inv-select-btn js-select-toggle" type="button" title="Select multiple">
             <span class="icon icon-check icon-13"></span>
@@ -362,11 +371,6 @@
           <!-- "From Catalogue" used to be a top-bar button of its own; it is now
                the first choice of the "+ Material" side card (#matSourcePanel),
                so there is one place to add a material instead of two. -->
-          <!-- Search views: how many catalogue PRODUCTS the current filters
-               match. Sits in the actions row (not under the search bar) so it
-               reads as a headline figure, like the stat tiles above. Shown only
-               in those views, via `body.catalog-filters`. -->
-          <div class="cv-count" id="catalogViewStatus"></div>
           <!-- Cam view only: detach the camera wall into its own window. Same
                orange style as Add Device; shown via #card-inv.is-cam-view. -->
           <button id="camWallDetachTop" class="inv-add-btn" type="button" hidden data-desktop-only>
@@ -2181,6 +2185,77 @@
         </div>
         <p class="eac-field-hint" id="eacSquadCountryHint"></p>
       </section>
+      <!-- ── Sign-in: the account's email and password (Firebase Auth). A Google
+           account's address belongs to Google; an email + password account
+           changes its address through a link sent to the NEW one. ── -->
+      <section class="eac-group" id="eacSigninGroup">
+        <h3 class="eac-card-title"><span class="icon icon-lock icon-14" aria-hidden="true"></span><span data-i18n="eacGroupSignIn">Sign-in</span></h3>
+        <div class="eac-row">
+          <span class="eac-row-label" data-i18n="loginEmailPlaceholder">Email address</span>
+          <span class="eac-signin-value" id="eacSigninEmail"></span>
+        </div>
+        <div class="eac-row">
+          <span class="eac-row-label" data-i18n="eacSignInMethod">Signs in with</span>
+          <span class="eac-signin-value" id="eacSigninMethod"></span>
+        </div>
+        <p class="eac-signin-note hidden" id="eacSigninGoogleNote" data-i18n="eacSignInGoogleNote">Your address is your Google account's: change it at Google, Studio follows at your next sign-in.</p>
+        <div class="eac-signin-actions hidden" id="eacSigninActions">
+          <button type="button" class="secondary sm" id="eacChangeEmailBtn" data-i18n="eacChangeEmail">Change email</button>
+          <button type="button" class="secondary sm" id="eacChangePassBtn" data-i18n="eacChangePassword">Change password</button>
+        </div>
+        <form class="eac-vatc eac-signin-form hidden" id="eacEmailForm" autocomplete="off">
+          <div class="eac-vatc-title" data-i18n="eacChangeEmail">Change email</div>
+          <label class="eac-vatc-field">
+            <span class="eac-vatc-label" data-i18n="eacNewEmail">New email address</span>
+            <input type="email" class="eac-vatc-inp" id="eacNewEmail" autocomplete="email" required>
+          </label>
+          <label class="eac-vatc-field">
+            <span class="eac-vatc-label" data-i18n="eacCurrentPassword">Current password</span>
+            <input type="password" class="eac-vatc-inp" id="eacEmailCurPass" autocomplete="current-password" required>
+          </label>
+          <p class="eac-signin-msg hidden" id="eacEmailMsg" role="status"></p>
+          <div class="eac-signin-actions">
+            <button type="button" class="secondary sm" data-signin-cancel data-i18n="btnCancel">Cancel</button>
+            <button type="submit" class="primary sm" id="eacEmailSave" data-i18n="eacSendLink">Send the link</button>
+          </div>
+        </form>
+        <form class="eac-vatc eac-signin-form hidden" id="eacPassForm" autocomplete="off">
+          <div class="eac-vatc-title" data-i18n="eacChangePassword">Change password</div>
+          <label class="eac-vatc-field">
+            <span class="eac-vatc-label" data-i18n="eacCurrentPassword">Current password</span>
+            <input type="password" class="eac-vatc-inp" id="eacPassCur" autocomplete="current-password" required>
+          </label>
+          <label class="eac-vatc-field">
+            <span class="eac-vatc-label" data-i18n="eacNewPassword">New password</span>
+            <input type="password" class="eac-vatc-inp" id="eacPassNew" autocomplete="new-password" minlength="6" required>
+          </label>
+          <label class="eac-vatc-field">
+            <span class="eac-vatc-label" data-i18n="loginConfirmPasswordPlaceholder">Confirm password</span>
+            <input type="password" class="eac-vatc-inp" id="eacPassNew2" autocomplete="new-password" minlength="6" required>
+          </label>
+          <p class="eac-signin-msg hidden" id="eacPassMsg" role="status"></p>
+          <div class="eac-signin-actions">
+            <button type="button" class="secondary sm" data-signin-cancel data-i18n="btnCancel">Cancel</button>
+            <button type="submit" class="primary sm" id="eacPassSave" data-i18n="btnSave">Save</button>
+          </div>
+        </form>
+        <!-- Delete the account for good: every data, then the sign-in (deleteMyAccount). -->
+        <div class="eac-row eac-delete-row">
+          <span class="eac-row-label" data-i18n="eacDeleteAccount">Delete my account</span>
+          <button type="button" class="secondary sm eac-delete-btn" id="eacDeleteAccountBtn" data-i18n="eacDeleteAccountBtn">Delete…</button>
+        </div>
+      </section>
+      </div>
+
+      <div class="eac-col">
+      <!-- AI assistants: their own page (renderer/ai/assistant.js) — this card leads there. -->
+      <section class="eac-group" id="eacAiLink">
+        <h3 class="eac-card-title"><span class="icon icon-robot icon-14" aria-hidden="true"></span><span data-i18n="aiTitle">AI assistant</span></h3>
+        <p class="eac-ai-text" data-i18n="eacAiLinkText">Plug in your assistant, see what it does and manage its access.</p>
+        <button type="button" class="secondary eac-ai-open" id="btnEacOpenAi"><span class="icon icon-robot icon-14" aria-hidden="true"></span><span data-i18n="eacAiLinkBtn">Open the AI assistant</span></button>
+      </section>
+      <!-- Preferences and Advanced sit in this column, Sign-in in the first
+           (founder: the second column was empty below the AI card). -->
       <section class="eac-group">
         <h3 class="eac-card-title"><span class="icon icon-settings icon-14" aria-hidden="true"></span><span data-i18n="eacGroupPrefs">Preferences</span></h3>
         <div class="eac-row">
@@ -2270,66 +2345,6 @@
           </div>
         </div>
       </section>
-      <!-- ── Sign-in: the account's email and password (Firebase Auth). A Google
-           account's address belongs to Google; an email + password account
-           changes its address through a link sent to the NEW one. ── -->
-      <section class="eac-group" id="eacSigninGroup">
-        <h3 class="eac-card-title"><span class="icon icon-lock icon-14" aria-hidden="true"></span><span data-i18n="eacGroupSignIn">Sign-in</span></h3>
-        <div class="eac-row">
-          <span class="eac-row-label" data-i18n="loginEmailPlaceholder">Email address</span>
-          <span class="eac-signin-value" id="eacSigninEmail"></span>
-        </div>
-        <div class="eac-row">
-          <span class="eac-row-label" data-i18n="eacSignInMethod">Signs in with</span>
-          <span class="eac-signin-value" id="eacSigninMethod"></span>
-        </div>
-        <p class="eac-signin-note hidden" id="eacSigninGoogleNote" data-i18n="eacSignInGoogleNote">Your address is your Google account's: change it at Google, Studio follows at your next sign-in.</p>
-        <div class="eac-signin-actions hidden" id="eacSigninActions">
-          <button type="button" class="secondary sm" id="eacChangeEmailBtn" data-i18n="eacChangeEmail">Change email</button>
-          <button type="button" class="secondary sm" id="eacChangePassBtn" data-i18n="eacChangePassword">Change password</button>
-        </div>
-        <form class="eac-vatc eac-signin-form hidden" id="eacEmailForm" autocomplete="off">
-          <div class="eac-vatc-title" data-i18n="eacChangeEmail">Change email</div>
-          <label class="eac-vatc-field">
-            <span class="eac-vatc-label" data-i18n="eacNewEmail">New email address</span>
-            <input type="email" class="eac-vatc-inp" id="eacNewEmail" autocomplete="email" required>
-          </label>
-          <label class="eac-vatc-field">
-            <span class="eac-vatc-label" data-i18n="eacCurrentPassword">Current password</span>
-            <input type="password" class="eac-vatc-inp" id="eacEmailCurPass" autocomplete="current-password" required>
-          </label>
-          <p class="eac-signin-msg hidden" id="eacEmailMsg" role="status"></p>
-          <div class="eac-signin-actions">
-            <button type="button" class="secondary sm" data-signin-cancel data-i18n="btnCancel">Cancel</button>
-            <button type="submit" class="primary sm" id="eacEmailSave" data-i18n="eacSendLink">Send the link</button>
-          </div>
-        </form>
-        <form class="eac-vatc eac-signin-form hidden" id="eacPassForm" autocomplete="off">
-          <div class="eac-vatc-title" data-i18n="eacChangePassword">Change password</div>
-          <label class="eac-vatc-field">
-            <span class="eac-vatc-label" data-i18n="eacCurrentPassword">Current password</span>
-            <input type="password" class="eac-vatc-inp" id="eacPassCur" autocomplete="current-password" required>
-          </label>
-          <label class="eac-vatc-field">
-            <span class="eac-vatc-label" data-i18n="eacNewPassword">New password</span>
-            <input type="password" class="eac-vatc-inp" id="eacPassNew" autocomplete="new-password" minlength="6" required>
-          </label>
-          <label class="eac-vatc-field">
-            <span class="eac-vatc-label" data-i18n="loginConfirmPasswordPlaceholder">Confirm password</span>
-            <input type="password" class="eac-vatc-inp" id="eacPassNew2" autocomplete="new-password" minlength="6" required>
-          </label>
-          <p class="eac-signin-msg hidden" id="eacPassMsg" role="status"></p>
-          <div class="eac-signin-actions">
-            <button type="button" class="secondary sm" data-signin-cancel data-i18n="btnCancel">Cancel</button>
-            <button type="submit" class="primary sm" id="eacPassSave" data-i18n="btnSave">Save</button>
-          </div>
-        </form>
-        <!-- Delete the account for good: every data, then the sign-in (deleteMyAccount). -->
-        <div class="eac-row eac-delete-row">
-          <span class="eac-row-label" data-i18n="eacDeleteAccount">Delete my account</span>
-          <button type="button" class="secondary sm eac-delete-btn" id="eacDeleteAccountBtn" data-i18n="eacDeleteAccountBtn">Delete…</button>
-        </div>
-      </section>
       <!-- ── Advanced (admin only; the whole section hides with the row) ── -->
       <section class="eac-group eac-debug-row hidden" id="eacDebugRow">
         <h3 class="eac-card-title"><span class="icon icon-wrench icon-14" aria-hidden="true"></span><span data-i18n="eacGroupAdvanced">Advanced</span></h3>
@@ -2343,15 +2358,6 @@
             <span class="eac-toggle-track"><span class="eac-toggle-thumb"></span></span>
           </label>
         </div>
-      </section>
-      </div>
-
-      <div class="eac-col">
-      <!-- AI assistants: their own page (renderer/ai/assistant.js) — this card leads there. -->
-      <section class="eac-group" id="eacAiLink">
-        <h3 class="eac-card-title"><span class="icon icon-robot icon-14" aria-hidden="true"></span><span data-i18n="aiTitle">AI assistant</span></h3>
-        <p class="eac-ai-text" data-i18n="eacAiLinkText">Plug in your assistant, see what it does and manage its access.</p>
-        <button type="button" class="secondary eac-ai-open" id="btnEacOpenAi"><span class="icon icon-robot icon-14" aria-hidden="true"></span><span data-i18n="eacAiLinkBtn">Open the AI assistant</span></button>
       </section>
 
 
@@ -2384,12 +2390,23 @@
     <div class="idm-head"><h3 id="idmTitle" data-i18n="eacIdentTitle">Edit my profile</h3>
       <button class="modal-close" id="identityClose" aria-label="Close">✕</button></div>
     <div class="idm-body">
-      <section class="idm-sec">
-        <h4 class="idm-sec-title" data-i18n="idmPhotoTitle">Profile photo</h4>
+      <!-- The profile card IS the preview (founder): it wears the theme, carries the
+           TigerSquad title and XP chip, and holds the editable display name. -->
+      <section class="idm-sec idm-photo-sec">
+        <div class="idm-photo-top">
+          <h4 class="idm-sec-title" data-i18n="idmPhotoTitle">Profile photo</h4>
+          <span class="idm-mini-title" aria-hidden="true"><span>TIGER</span> <span class="idm-mini-orange">SQUAD</span></span>
+          <span class="idm-mini-chip" aria-hidden="true">★ XP</span>
+        </div>
         <div class="idm-photo">
           <div class="eac-avatar idm-avatar" id="idmAvatar"></div>
           <div class="idm-photo-side">
-            <b class="idm-name" id="idmName"></b>
+            <div class="eac-name-row idm-name-group">
+              <input class="eac-name-input" id="eacDisplayNameInput" type="text" maxlength="40" placeholder="—" autocomplete="off" readonly data-i18n-aria="displayNameLabel" aria-label="Display name" />
+              <button class="eac-name-save" id="btnSaveDisplayName" data-i18n-aria="idmNameEdit" aria-label="Edit the display name">
+                <span class="icon icon-edit icon-14" id="idmNameBtnIcon"></span>
+              </button>
+            </div>
             <div class="idm-photo-btns">
               <button class="ghost sm idm-btn idm-btn--change" id="avatarMenuChange">
                 <span class="icon icon-image icon-14"></span>
@@ -2403,16 +2420,6 @@
           </div>
         </div>
         <div id="eacAvatarResult" class="eac-avatar-result"></div>
-      </section>
-
-      <section class="idm-sec">
-        <h4 class="idm-sec-title"><label for="eacDisplayNameInput" data-i18n="displayNameLabel">Display name</label></h4>
-        <div class="eac-name-row idm-name-group">
-          <input class="eac-name-input" id="eacDisplayNameInput" type="text" maxlength="40" placeholder="—" autocomplete="off" readonly />
-          <button class="eac-name-save" id="btnSaveDisplayName" data-i18n-aria="idmNameEdit" aria-label="Edit the display name">
-            <span class="icon icon-edit icon-14" id="idmNameBtnIcon"></span>
-          </button>
-        </div>
         <div id="eacNameResult" class="eac-inline-result"></div>
       </section>
 
@@ -2427,6 +2434,10 @@
         <div class="idm-style" id="idmStyle" hidden>
           <div class="idm-aspects" id="idmAspects" role="radiogroup" data-i18n-aria="eacThemeStyle" aria-label="Style"></div>
           <div class="idm-slots" id="idmSlots"></div>
+          <label class="idm-intensity"><span data-i18n="themeSmooth">Smoothness</span>
+            <input type="range" id="idmSmooth" min="0" max="100" step="5" value="100" /></label>
+          <label class="idm-intensity"><span data-i18n="themeIntensity">Intensity</span>
+            <input type="range" id="idmIntensity" min="15" max="100" step="5" value="30" /></label>
         </div>
         <div class="eac-swatches idm-swatches" id="eacSwatches">
           <button class="eac-swatch" data-color="orange" style="--sw:linear-gradient(135deg,#f97316,#fb923c)" data-i18n-aria="themeColor_orange" aria-label="Orange"></button>
@@ -2449,24 +2460,6 @@
         </div>
       </section>
 
-      <section class="idm-sec idm-preview">
-        <h4 class="idm-eyebrow" data-i18n="idmPreview">Live preview</h4>
-        <div class="idm-mini" aria-hidden="true">
-          <div class="idm-mini-head">
-            <span class="eac-avatar idm-mini-av" id="idmPrevAvatar"></span>
-            <b id="idmPrevName"></b>
-            <span class="idm-mini-chip">★ XP</span>
-          </div>
-          <div class="idm-mini-banner">
-            <span class="idm-mini-title"><span>TIGER</span> <span class="idm-mini-orange">SQUAD</span></span>
-            <span class="idm-mini-tiger">
-              <img class="idm-mini-tiger-back" src="../assets/img/tigersquad/legendary/tiger.webp" alt="">
-              <img class="idm-mini-tiger-front" src="../assets/img/tigersquad/legendary/tiger-front.webp" alt="">
-            </span>
-            <span class="idm-mini-desk"></span>
-          </div>
-        </div>
-      </section>
     </div>
     <div class="idm-foot"><button class="primary idm-done" id="identityDone" data-i18n="idmDone">Done</button></div>
   </div>
@@ -3091,6 +3084,29 @@
     <div class="crs-data" id="chipRestoreData"></div>
     <div class="cer-actions" id="chipRestoreActions"></div>
     <div class="crs-debug" id="chipRestoreDebug"></div>
+  </div>
+</aside>
+
+<!-- Add with TigerTag (inventory.js openTagAddPanel): the new-chip card's
+     "Add with TigerTag" view, in its pane — a chip placed on the TigerPOD opens
+     its product's catalogue card, whose "+ Inventory" adds the spool linked to
+     that chip. The only way a scanned chip enters the inventory. -->
+<aside class="detail-panel pba-panel cer-panel" id="tagAddPanel">
+  <div class="pba-header">
+    <div class="pba-header-text">
+      <div class="pba-title" data-i18n="linkedChipAddTag">Add with TigerTag</div>
+      <div class="pba-sub" data-i18n="tagAddHint">Place the TigerTag on the TigerPOD.</div>
+    </div>
+    <button class="panel-close" id="tagAddPanelClose">✕</button>
+  </div>
+  <div class="cer-body tag-add-body">
+    <!-- The TigerPOD's readers, the NFC tools' plates (.cem-chip): their colour
+         says what was read (inventory.js _tagAddRender). -->
+    <div class="cem-chips cer-chips" id="tagAddChips"></div>
+    <p class="cer-hint tag-add-status" id="tagAddStatus" role="status" aria-live="polite"></p>
+    <!-- The spools added since the view opened, newest first, as the catalogue
+         pick's mini cards (.cpk-list .cpk-row, its thumbnail rules included). -->
+    <div class="cpk-list tag-add-list" id="tagAddList"></div>
   </div>
 </aside>
 

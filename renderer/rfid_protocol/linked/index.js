@@ -275,12 +275,12 @@ function openChipWindow(chips, kind) {
       <b>${esc(label)}</b>
     </button>`;
   ctx.hideTip?.();
-  body.innerHTML = `<div class="lc-choices">${tile("catalogue", "search", t("linkedChipAddCatalogue"), t("linkedChipCatalogueTip"))}${tile("qr", "qr", t("linkedChipAddQr"), t("linkedChipQrTip"))}${tile("manual", "edit", t("linkedChipAddManual"), t("linkedChipManualTip"))}${tile("pick", "link", t("linkedChipExisting"), _pickTip(kind), _pickOff(kind))}${foreign ? "" : tile("erase", "recycle", t("chipEraserTitle"), t("chipEraserTip"))}${tile("restore", "tigertag", t("toolRepairPlus"), t("chipRestoreNeedChip"), true)}</div>`;
+  body.innerHTML = `<div class="lc-choices">${tile("catalogue", "search", t("linkedChipAddCatalogue"), t("linkedChipCatalogueTip"))}${tile("tagadd", "tigertag", t("linkedChipAddTag"), t("linkedChipTagTip"))}${tile("qr", "qr", t("linkedChipAddQr"), t("linkedChipQrTip"))}${tile("manual", "edit", t("linkedChipAddManual"), t("linkedChipManualTip"))}${tile("pick", "link", t("linkedChipExisting"), _pickTip(kind), _pickOff(kind))}${foreign ? "" : tile("erase", "recycle", t("chipEraserTitle"), t("chipEraserTip"))}${tile("restore", "tigertag", t("toolRepairPlus"), t("chipRestoreNeedChip"), true)}</div>`;
   choiceKind = kind;
   _refreshRestore();
   body.classList.remove("lc-in"); void body.offsetWidth; body.classList.add("lc-in");
 
-  const NEXT = { pick: "chipLinkPanel", catalogue: "catalogPickPanel", qr: "qrScanPanel", manual: "addProductPanel", erase: "chipEraserPanel", restore: "chipRestorePanel" };
+  const NEXT = { pick: "chipLinkPanel", catalogue: "catalogPickPanel", qr: "qrScanPanel", tagadd: "tagAddPanel", manual: "addProductPanel", erase: "chipEraserPanel", restore: "chipRestorePanel" };
   const choose = to => {
     ctx.hideTip?.();
     // Into the pane BEFORE it opens: opened outside it, the card would count as
@@ -289,7 +289,16 @@ function openChipWindow(chips, kind) {
     if (to !== "erase") ctx.closeEraser?.();
     if (to !== "restore") ctx.closeRestore?.();
     if (to !== "qr") ctx.closeQrScan?.();
+    if (to !== "tagadd") ctx.closeTagAdd?.();
     if (to === "pick") openChipLink(chips, kind);
+    else if (to === "tagadd") {
+      // A TigerTag placed on the TigerPOD opens its product's card; its "+ Inventory"
+      // adds the spool linked to that chip (inventory.js _tagAddFlush).
+      closeChipLink();
+      ctx.clearCreate?.();
+      ctx.openTagAdd?.();
+      pending = null;
+    }
     else if (to === "qr") {
       // The camera reads a TigerQR label; the product it points to then opens in
       // the catalogue view (chooseChipView), so what is created links the chips.
@@ -405,6 +414,7 @@ export function closeChipChoice() {
   ctx.closeEraser?.();
   ctx.closeRestore?.();
   ctx.closeQrScan?.();
+  ctx.closeTagAdd?.({ dropPending: true });
   ctx.clearCreate?.();
   chooseView = null;
   // Hand the borrowed cards back once the card has slid out.

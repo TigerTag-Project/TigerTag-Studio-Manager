@@ -94,7 +94,8 @@
 #chipChoicePane > #addProductPanel,
 #chipChoicePane > #chipEraserPanel,
 #chipChoicePane > #chipRestorePanel,
-#chipChoicePane > #qrScanPanel {
+#chipChoicePane > #qrScanPanel,
+#chipChoicePane > #tagAddPanel {
   position: absolute; inset: 0; right: 0; top: 0; bottom: 0;
   width: 100%; max-width: none; height: 100%;
   transform: none; transition: none; box-shadow: none; border-radius: 0; z-index: 2;
@@ -106,7 +107,8 @@
 #chipChoicePane > #addProductPanel.lc-leaving,
 #chipChoicePane > #chipEraserPanel.lc-leaving,
 #chipChoicePane > #chipRestorePanel.lc-leaving,
-#chipChoicePane > #qrScanPanel.lc-leaving { z-index: 1; pointer-events: none; }
+#chipChoicePane > #qrScanPanel.lc-leaving,
+#chipChoicePane > #tagAddPanel.lc-leaving { z-index: 1; pointer-events: none; }
 #chipChoicePane > .detail-panel.lc-enter { animation: lc-slide .26s cubic-bezier(.4,0,.2,1) both; box-shadow: -8px 0 24px rgba(0,0,0,.35); }
 #chipChoicePane > .detail-panel.lc-pre { visibility: hidden; }
 @keyframes lc-slide { from { transform: translateX(100%); } to { transform: none; } }
@@ -216,3 +218,24 @@
   .lc-offer-banner.lc-offer-banner::after, .lc-offer-banner.lc-offer-banner .lc-offer-ic .icon { animation: none; }
 }
 .lc-offer-banner.lc-offer-banner .tool-info { margin-left: auto; }
+
+/* Add with TigerTag (#tagAddPanel, inventory.js openTagAddPanel): the reader
+   plates of the NFC tools (eraser.css .cer-chips), the status line under them. */
+#tagAddPanel { display: flex; flex-direction: column; }
+#tagAddPanel .tag-add-status { min-height: 1.4em; }
+#tagAddPanel .tag-add-list { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; padding: 0; overflow-y: auto; min-height: 0; }   /* the catalogue's .cpk-list, without its side padding */
+#tagAddPanel .tag-add-list:empty { display: none; }
+#tagAddPanel .tag-add-item { width: 100%; font: inherit; animation: tag-add-in .3s cubic-bezier(.2, .8, .2, 1); }
+#tagAddPanel .tag-add-item .cpk-row-txt { flex: 1; }
+/* The spool's TigerTag / TigerTag+ badge (tierBadgeHTML) leads the brand line. */
+#tagAddPanel .tag-add-item .tag-add-tier { margin-right: 6px; vertical-align: middle; }
+/* Already in the inventory when presented: a quiet pill on the right. */
+#tagAddPanel .tag-add-pill { flex: none; padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 700;
+  color: var(--game-ok-text); background: color-mix(in srgb, var(--game-ok-text) 14%, transparent); border: 1px solid color-mix(in srgb, var(--game-ok-text) 35%, transparent); }
+@keyframes tag-add-in { from { opacity: 0; transform: translateY(-6px); } }
+@media (prefers-reduced-motion: reduce) { #tagAddPanel .tag-add-item { animation: none; } }
+/* While a chip is read and looked up: a shimmering mini card (the league's
+   skeleton, .sqb-skel / sqb-shimmer in 10-settings.css). */
+#tagAddPanel .tag-add-skel { min-height: 66px; }
+#tagAddPanel .tag-add-skel .tag-add-skel-thumb { align-self: stretch; width: 66px; border-radius: 0; }
+#tagAddPanel .tag-add-skel .sqb-skel-b i:first-child { width: 55%; }

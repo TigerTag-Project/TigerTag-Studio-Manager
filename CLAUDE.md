@@ -126,6 +126,8 @@ renderer/
     72-hero-scene.css   — the ecosystem scene (iMac + flipping devices), shared with the splash
   hero-scene.js    — draws that scene into every [data-hero-scene]
   qr-link.js       — the QR links (qr.tigertag.io): build them, read them back offline (TigerSystem-Docs spool-ids-and-qr-links.md)
+  color-pop.js     — the in-app colour picker that opens beside what was clicked (SV area, hue, HEX) — used for the theme colours instead of the OS colour panel
+  ral-classic.js   — the 215 RAL Classic codes → [name, approximate HEX] (data from ral-colors 1.0.1, MIT): names a product's RAL code
   qr-scan.js       — read a TigerQR label with the computer's camera (one side card #qrScanPanel: search bar button + "Add from QR code"; BarcodeDetector, else lib/jsqr)
   splash/          — the launch splash page (main.js createSplash), loaded before the main window
   locales/         — en fr de es it zh pt pt-pt pl ru nl (.json, reference: en)
@@ -195,6 +197,7 @@ ONE `ip` field, `host` or `host:port` (the form Studio and the Tiger Touch firmw
 | `tigertag.ai.<id>` | the AI assistant window's state for that account `{connectedAt, via: "local" \| "online", client, live: {local, write, online, listed, at}}`: `live` = what could answer when last read (this computer's access, online assistants used in the last 90 days) — something usable → the dashboard and a sidebar dot, nothing → only the first-connection screen; `connectedAt` (set up once) hides "New" (`renderer/ai/assistant.js`) |
 | `tigertag.agentChanges.<id>` | this computer's copy of the changes AI assistants made on that account (600 newest, 30 days), with the values before each one — what `undo_change` puts back; merged with the shared journal Firestore `users/{uid}/agentChanges`, which online assistants write too (`docs/MCP.md` §5) |
 | `tigertag.colorStyle.<id>` | that account's avatar / theme colour style last read from its public profile (`userProfiles` `colorStyle`), painted at launch before the profile arrives (`_styleFor`, `renderer/inventory.js`) |
+| `tigertag.colorMemo.<id>` | the three colour-style colours last picked on this device `[c1, c2, c3]`, so switching to a mode with fewer colours and back restores them (`_setOwnStyle`, `renderer/inventory.js`) |
 | `tigertag.coinlog.<id>` | the TigerCoins history last read for that account (100 newest rows), shown at once when the history opens, then refreshed |
 | `tigertag.header.<id>` | the header's and view bar's last figures for that account `{stats: {key: number}, coins: {balance, n}, bar: {daily, level, squad, lists, order, invite}}`, painted at launch before the data arrives, then updated where they differ |
 

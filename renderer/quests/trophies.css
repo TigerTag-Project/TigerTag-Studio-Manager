@@ -34,12 +34,21 @@
 }
 /* The temple wall: stone blocks drawn over the banner's own wall colour (the account's
    tint stays), mortar as dark translucent joints, every other row offset by half a block. */
+/* The shorthand, not background-image: the wall can be a list of layers carrying
+   their own position and size (the Aurora style, inventory.js _auroraBg). */
 .trp-hero.trp-hero {
-  background-image:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='70'%3E%3Cpath d='M0 1H120M0 36H120M1 1V36M61 36V70' fill='none' stroke='rgba(0,0,0,0.3)' stroke-width='2'/%3E%3C/svg%3E"),
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='70'%3E%3Cpath d='M0 1H120M0 36H120M1 1V36M61 36V70' fill='none' stroke='rgba(0,0,0,0.3)' stroke-width='2'/%3E%3C/svg%3E") 0 0 / 120px 70px repeat,
     var(--hero-wall-c);
-  background-repeat: repeat, no-repeat;
 }
+/* Aurora: the wall's lights drift under the stone (the stone layer first, kept still). */
+:root.has-theme-aurora .trp-hero.trp-hero { animation: trp-aurora 9s ease-in-out infinite alternate; }
+@keyframes trp-aurora {
+  0%   { background-size: 120px 70px, 60% 140%, 60% 140%, 60% 140%, 100% 100%; background-position: 0 0, 0% 0%, 100% 10%, 50% 100%, 0 0; }
+  50%  { background-size: 120px 70px, 70% 160%, 55% 130%, 65% 150%, 100% 100%; background-position: 0 0, 60% 60%, 10% 80%, 90% 0%, 0 0; }
+  100% { background-size: 120px 70px, 55% 130%, 70% 160%, 60% 140%, 100% 100%; background-position: 0 0, 25% 100%, 85% 30%, 40% 30%, 0 0; }
+}
+@media (prefers-reduced-motion: reduce) { :root.has-theme-aurora .trp-hero.trp-hero { animation: none; } }
 /* The count per tier, on the desk stripe at the banner's foot, right-aligned. */
 .trp-hero-tiers.trp-hero-tiers { position: absolute; left: 28px; right: 28px; bottom: 0; z-index: 2; height: var(--hero-desk-hc);
   align-items: center; justify-content: flex-end; flex-wrap: nowrap; overflow: hidden; color: var(--on-dark); text-shadow: 0 1px 2px rgba(0, 0, 0, .55); }
