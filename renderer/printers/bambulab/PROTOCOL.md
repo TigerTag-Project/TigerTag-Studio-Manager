@@ -1333,13 +1333,17 @@ browser's and no impersonation is needed. Validated August 2026: the whole
 sign-in chain succeeds from the main process. Do NOT move these calls to the
 renderer (CORS) or to `fetch` (fingerprint).
 
-Send the slicer's own network-agent headers:
+Send Studio's OWN identity (`_bblHeaders`, `main.js`). Since 2026-11 Bambu's edge
+refuses the OrcaSlicer / `bambu_network_agent` identity that third-party tools used to
+borrow (HTTP 403, a Cloudflare HTML page, on every REST call: task list, bind,
+preferences, version), and Bambu asks third parties to send their own name:
 
 ```
-User-Agent: bambu_network_agent/01.09.05.01
-X-BBL-Client-Name: OrcaSlicer
-X-BBL-Client-Type: slicer
-X-BBL-Client-Version: 01.09.05.51
+User-Agent: tiger-studio-manager/<app version>
+X-BBL-Client-Name: tiger-studio-manager
+X-BBL-Client-Type: desktop
+X-BBL-Client-Version: 01.00.00.00
+X-BBL-Agent-Version: 01.00.00.00
 X-BBL-Language: en-US
 X-BBL-OS-Type: macos|windows|linux
 ```

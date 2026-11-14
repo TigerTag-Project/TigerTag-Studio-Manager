@@ -1123,7 +1123,7 @@ function renderCreTempCard(conn) {
       const heating = tgt > 0 && cur != null && cur < tgt - 1;
       tempPills.push(`
       <div class="snap-temp${isActive ? " snap-temp--editable snap-temp--active" : ""}${heating ? " snap-temp--heating" : ""}"
-           ${isActive ? 'data-cre-set-temp="nozzle" title="' + editTip + '"' : ""}>
+           ${isActive ? 'data-cre-set-temp="nozzle" aria-label="' + editTip + '"' : ""}>
         <span class="snap-temp-label">E${i + 1}</span>
         ${ctx.SNAP_ICON_NOZZLE}
         <span class="snap-temp-val">${ctx.esc(ctx.snapFmtTempPair(cur, tgt))}</span>
@@ -1133,7 +1133,7 @@ function renderCreTempCard(conn) {
     const heating = d.nozzleTarget > 0 && d.nozzleTemp < d.nozzleTarget - 1;
     tempPills.push(`
       <div class="snap-temp snap-temp--editable${heating ? " snap-temp--heating" : ""}"
-           data-cre-set-temp="nozzle" title="${editTip}">
+           data-cre-set-temp="nozzle" aria-label="${editTip}">
         ${ctx.SNAP_ICON_NOZZLE}
         <span class="snap-temp-val">${ctx.esc(ctx.snapFmtTempPair(d.nozzleTemp, d.nozzleTarget))}</span>
       </div>`);
@@ -1142,7 +1142,7 @@ function renderCreTempCard(conn) {
     const heating = d.bedTarget > 0 && d.bedTemp < d.bedTarget - 1;
     tempPills.push(`
       <div class="snap-temp snap-temp--bed snap-temp--editable${heating ? " snap-temp--heating" : ""}"
-           data-cre-set-temp="bed" title="${editTip}">
+           data-cre-set-temp="bed" aria-label="${editTip}">
         ${ctx.SNAP_ICON_BED}
         <span class="snap-temp-val">${ctx.esc(ctx.snapFmtTempPair(d.bedTemp, d.bedTarget))}</span>
       </div>`);
@@ -1151,7 +1151,7 @@ function renderCreTempCard(conn) {
     const heating = d.chamberTarget > 0 && d.chamberTemp < d.chamberTarget - 1;
     tempPills.push(`
       <div class="snap-temp snap-temp--box snap-temp--editable${heating ? " snap-temp--heating" : ""}"
-           data-cre-set-temp="chamber" title="${editTip}">
+           data-cre-set-temp="chamber" aria-label="${editTip}">
         ${ctx.SNAP_ICON_CHAMBER}
         <span class="snap-temp-val">${ctx.esc(ctx.snapFmtTempPair(d.chamberTemp, d.chamberTarget))}</span>
       </div>`);
@@ -1413,7 +1413,7 @@ function renderCreFilamentCard(p, conn) {
   // Row 1: EXT + first CFS module slots (or just EXT if no CFS)
   {
     const row1 = [];
-    // EXT (the K3 has no external spool)
+    // EXT (none on the K3 or the SparkX i8)
     if (creHasExternalSpool(p)) {
       const color = extSlot?.color ?? null;
       const fg    = color ? ctx.snapTextColor(color) : "var(--text)";
@@ -1802,7 +1802,7 @@ export function creGetUnits(printer) {
   if (!conn || conn.status !== 'connected') return [];
   const hasExt = creHasExternalSpool(printer);
   const boxes = (conn.data?.boxsInfoRaw?.boxsInfo?.materialBoxs || []).filter(b => hasExt || (b?.id ?? 0) !== 0);
-  // Box 0 is the external tray (none on the K3); the CFS units number from 1.
+  // Box 0 is the external tray (none on the K3 or the SparkX i8); the CFS units number from 1.
   return boxes.map((b, bi) => {
     const mats = b?.materials || [];
     const boxId = b?.id ?? bi;
