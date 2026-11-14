@@ -18,6 +18,12 @@
     "features": ["CFS Lite", "Camera"]
   },
   {
+    "id": "12",
+    "name": "K3",
+    "image": "assets/images/cre_printers/k3.png",
+    "features": ["CFS Nano", "Camera", "Enclosed"]
+  },
+  {
     "id": "2",
     "name": "K2 Plus",
     "image": "assets/images/cre_printers/k2plus.png",
