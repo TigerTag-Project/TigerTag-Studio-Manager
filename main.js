@@ -5578,19 +5578,20 @@ let _ffmpegBin = null;
     };
   };
 
-  /* The slicer's own network-agent headers: Bambu's edge treats a client that
-     looks like one of theirs far better than an anonymous one, and these are
-     what the maintained Python implementation sends. */
+  /* Studio's OWN identity. Bambu's edge (Cloudflare) now refuses the OrcaSlicer /
+     bambu_network_agent identity that third-party tools used to borrow (403 on every
+     REST call, 2026-11), and its published post-mortem asks third parties to send
+     their own name. The other X-BBL headers keep the shape the API expects. */
   const _bblOsType = process.platform === 'win32' ? 'windows'
                    : process.platform === 'darwin' ? 'macos' : 'linux';
   const _bblHeaders = () => ({
-    'User-Agent': 'bambu_network_agent/01.09.05.01',
-    'X-BBL-Client-Name': 'OrcaSlicer',
-    'X-BBL-Client-Type': 'slicer',
-    'X-BBL-Client-Version': '01.09.05.51',
+    'User-Agent': `tiger-studio-manager/${app.getVersion()}`,
+    'X-BBL-Client-Name': 'tiger-studio-manager',
+    'X-BBL-Client-Type': 'desktop',
+    'X-BBL-Client-Version': '01.00.00.00',
     'X-BBL-Language': 'en-US',
     'X-BBL-OS-Type': _bblOsType,
-    'X-BBL-Agent-Version': '01.09.05.01',
+    'X-BBL-Agent-Version': '01.00.00.00',
     'X-BBL-Executable-info': '{}',
     'X-BBL-Agent-OS-Type': _bblOsType,
     'Accept': 'application/json',
