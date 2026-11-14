@@ -52,7 +52,7 @@ const CRE_TELEMETRY_KEYS = new Set([
 ]);
 
 // Documented Creality model codes → printer-catalog id (PROTOCOL §3).
-const CRE_MODEL_CODE_TO_ID = { "F009": "10", "F022": "11" };
+const CRE_MODEL_CODE_TO_ID = { "F009": "10", "F022": "11", "F039": "12" };
 
 // Module-level scan environment — read by add-flow.js for debug exports.
 let _creScanLastEnv = null;
@@ -77,7 +77,7 @@ export function getLastCreScanEnv() { return _creScanLastEnv; }
  */
 export function isCrealityLike(keys, hostname) {
   const hasStrongId = keys.has("model") || keys.has("modelVersion") || keys.has("deviceSn");
-  const hostnameHit = !!hostname && /creality|k1|k2|ender|hi-|hi_/i.test(hostname);
+  const hostnameHit = !!hostname && /creality|k1|k2|f039|ender|hi-|hi_/i.test(hostname);
   const hasTelemetry = [...keys].some(k => CRE_TELEMETRY_KEYS.has(k));
   return (hasStrongId || hostnameHit) && hasTelemetry;
 }
@@ -108,6 +108,7 @@ export function creModelIdFromModel(model, hostname) {
   if (/k1\s*max/.test(hay))                  return "9";
   if (/k1\s*c|k1c/.test(hay))                return "8";
   if (/k1/.test(hay))                        return "7";
+  if (/f039/.test(hay))                      return "12";
   if (/ender/.test(hay))                     return "10";
   if (/sparkx/.test(hay))                    return "11";
   if (/(^|\s)hi[-_\s]/.test(hay))            return "1";

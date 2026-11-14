@@ -34,6 +34,14 @@ const CRE_INIT_QUERY = JSON.stringify({
 // On-demand queries — sent only when the relevant UI is opened.
 const CRE_QUERY_FILES = JSON.stringify({ method: "get", params: { getGcodeFileInfo2: 1 } });
 
+// Catalog id of the K3 (data/printers/cre_printer_models.json): four nozzles (T1A-T1D) fed by
+// CFS Nano modules. Its extra query is sent only to it, so every other model keeps the exact
+// frames it always got.
+const CRE_K3_MODEL_ID = "12";
+const CRE_K3_QUERY = JSON.stringify({ method: "get", params: { nozzleState: 1, nozzleList: 1 } });
+// Every other Creality has an external spool holder (box 0, "Ext."); the K3 has none.
+const creHasExternalSpool = p => String(p?.printerModelId ?? p?.modelId ?? "") !== CRE_K3_MODEL_ID;
+
 // ── Public helpers ────────────────────────────────────────────────────────
 
 export function creKey(p) { return `${p.brand}:${p.id}`; }
@@ -158,6 +166,8 @@ export function creConnect(printer) {
     logExpanded: false,
     data: {
       nozzleTemp:    null,  nozzleTarget: null,
+      nozzles:       [],    // multi-nozzle models (K3): [{ id, temp, target, state }], sorted by id
+      nozzleSelected: null, // id of the nozzle in use
       bedTemp:       null,  bedTarget:    null,
       chamberTemp:   null,  // boxTemp or chamberTemp field
       chamberTarget: null,  // optimistic: printer rarely reports a chamber setpoint
@@ -267,6 +277,10 @@ function creOpenSocket(conn) {
     // No polling needed.
     creLogPush(conn, "→", CRE_INIT_QUERY);
     ws.send(CRE_INIT_QUERY);
+    if (conn.modelId === CRE_K3_MODEL_ID) {
+      creLogPush(conn, "→", CRE_K3_QUERY);
+      ws.send(CRE_K3_QUERY);
+    }
     creNotifyChange(conn);
   });
 
@@ -673,6 +687,32 @@ function creMergeStatus(conn, obj) {
   if ("boxTemp"          in obj) d.chamberTemp  = asF(obj.boxTemp);
   else if ("chamberTemp" in obj) d.chamberTemp  = asF(obj.chamberTemp);
 
+  // ── Multi-nozzle (K3) ─────────────────────────────────────────────────
+  // Field names are the ones the K3 firmware uses (nozzleState → selected, nozzles[] → id, state,
+  // movement, progress, temperature{ … targetTemp }, filamentSource{ boxId, slotId }). They were
+  // read from the firmware image, not seen on a real K3, so everything is read tolerantly and
+  // merged by id (a push may carry only the nozzles that changed).
+  if (obj.nozzleState && typeof obj.nozzleState === "object") {
+    const ns = obj.nozzleState;
+    if ("selected" in ns) d.nozzleSelected = asNum(ns.selected);
+    if (Array.isArray(ns.nozzles)) {
+      const byId = new Map((d.nozzles || []).map(n => [n.id, n]));
+      ns.nozzles.forEach((n, i) => {
+        if (!n || typeof n !== "object") return;
+        const id   = asNum(n.id) ?? i;
+        const t    = (n.temperature && typeof n.temperature === "object") ? n.temperature : {};
+        const prev = byId.get(id) || { id };
+        byId.set(id, {
+          ...prev, id,
+          temp:   asF(t.temp ?? t.currentTemp ?? t.curTemp ?? t.current ?? n.nozzleTemp) ?? prev.temp ?? null,
+          target: asF(t.targetTemp ?? t.target) ?? prev.target ?? null,
+          state:  asNum(n.state) ?? prev.state ?? null,
+        });
+      });
+      d.nozzles = [...byId.values()].sort((a, b) => a.id - b.id);
+    }
+  }
+
   // ── Print status ──────────────────────────────────────────────────────
   if ("state"       in obj) d.state        = asNum(obj.state)    ?? d.state;
   if ("deviceState" in obj) d.deviceState  = asNum(obj.deviceState);
@@ -1065,7 +1105,25 @@ function renderCreTempCard(conn) {
   const d = conn.data;
   const tempPills = [];
   const editTip = ctx.esc(ctx.t("snapTempEditTip") || "Click to set target temperature");
-  if (typeof d.nozzleTemp === "number") {
+  const nozzles = Array.isArray(d.nozzles) ? d.nozzles : [];
+  if (nozzles.length > 1) {
+    // One pill per nozzle, like the Snapmaker U1. Only the nozzle in use stays editable: it is the
+    // one the existing nozzle set-temperature action (M104 on the active tool) acts on.
+    nozzles.forEach((n, i) => {
+      const isActive = d.nozzleSelected != null && n.id === d.nozzleSelected;
+      // The top-level nozzleTemp / targetNozzleTemp always describe the nozzle in use.
+      const cur = typeof n.temp   === "number" ? n.temp   : (isActive ? d.nozzleTemp   : null);
+      const tgt = typeof n.target === "number" ? n.target : (isActive ? d.nozzleTarget : null);
+      const heating = tgt > 0 && cur != null && cur < tgt - 1;
+      tempPills.push(`
+      <div class="snap-temp${isActive ? " snap-temp--editable snap-temp--active" : ""}${heating ? " snap-temp--heating" : ""}"
+           ${isActive ? 'data-cre-set-temp="nozzle" title="' + editTip + '"' : ""}>
+        <span class="snap-temp-label">E${i + 1}</span>
+        ${ctx.SNAP_ICON_NOZZLE}
+        <span class="snap-temp-val">${ctx.esc(ctx.snapFmtTempPair(cur, tgt))}</span>
+      </div>`);
+    });
+  } else if (typeof d.nozzleTemp === "number") {
     const heating = d.nozzleTarget > 0 && d.nozzleTemp < d.nozzleTarget - 1;
     tempPills.push(`
       <div class="snap-temp snap-temp--editable${heating ? " snap-temp--heating" : ""}"
@@ -1283,7 +1341,9 @@ function renderCreFilamentCard(p, conn) {
         vendor: String(m0.vendor || ""),
         state:  m0.state ?? 0
       };
-    } else if (type === 0) {
+    } else if (type === 0 || (conn.modelId === CRE_K3_MODEL_ID && Number(id) !== 0 && mats.length > 0)) {
+      // type 0 = CFS module. On the K3 a CFS Nano may report another type value (not seen on a
+      // real K3), so any numbered box that holds slots counts there.
       moduleEntries.push(e);
     }
   }
@@ -1347,8 +1407,8 @@ function renderCreFilamentCard(p, conn) {
   // Row 1: EXT + first CFS module slots (or just EXT if no CFS)
   {
     const row1 = [];
-    // EXT
-    {
+    // EXT (the K3 has no external spool)
+    if (creHasExternalSpool(p)) {
       const color = extSlot?.color ?? null;
       const fg    = color ? ctx.snapTextColor(color) : "var(--text)";
       row1.push(makeSlot("Ext.", color, fg, extSlot?.type || "—", extSlot?.vendor || "", extSlot?.state ?? 0, 0, 0));
@@ -1372,7 +1432,7 @@ function renderCreFilamentCard(p, conn) {
 
   // Additional rows: one per extra CFS module (module index ≥ 1).
   // A hidden spacer occupies the EXT column so 2A aligns under 1A, etc.
-  const extSpacer = `<div class="snap-fil cre-fil-spacer" aria-hidden="true"></div>`;
+  const extSpacer = creHasExternalSpool(p) ? `<div class="snap-fil cre-fil-spacer" aria-hidden="true"></div>` : "";
   for (let mi = 1; mi < moduleEntries.length; mi++) {
     const e      = moduleEntries[mi];
     const boxId  = Number(e.id) || (mi + 1);
@@ -1710,7 +1770,8 @@ document.getElementById("creFilEditSave")?.addEventListener("click", async () =>
 export function creGetSlots(printer) {
   const conn = _creConns.get(creKey(printer));
   if (!conn || conn.status !== 'connected') return [];
-  const boxes = conn.data?.boxsInfoRaw?.boxsInfo?.materialBoxs || [];
+  const hasExt = creHasExternalSpool(printer);
+  const boxes = (conn.data?.boxsInfoRaw?.boxsInfo?.materialBoxs || []).filter(b => hasExt || (b?.id ?? 0) !== 0);
   const out = [];
   boxes.forEach(b => {
     (b?.materials || []).forEach((m, i) => {
@@ -1733,8 +1794,9 @@ export function creGetSlots(printer) {
 export function creGetUnits(printer) {
   const conn = _creConns.get(creKey(printer));
   if (!conn || conn.status !== 'connected') return [];
-  const boxes = conn.data?.boxsInfoRaw?.boxsInfo?.materialBoxs || [];
-  // Box 0 is the external tray; the CFS units number from 1.
+  const hasExt = creHasExternalSpool(printer);
+  const boxes = (conn.data?.boxsInfoRaw?.boxsInfo?.materialBoxs || []).filter(b => hasExt || (b?.id ?? 0) !== 0);
+  // Box 0 is the external tray (none on the K3); the CFS units number from 1.
   return boxes.map((b, bi) => {
     const mats = b?.materials || [];
     const boxId = b?.id ?? bi;
