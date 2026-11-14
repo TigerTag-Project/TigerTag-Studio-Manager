@@ -520,6 +520,8 @@
   "catEmptyTitle": "Nic w katalogu dla tej szpuli",
   "catEmptySub": "Spokojnie — utwórz ją sam, jako TigerData w chmurze albo na chipie TigerTag.",
   "catEmptyCta": "Utwórz ręcznie",
+  "catEmptyFilteredTitle": "Jest — to filtry go chowają",
+  "catEmptyFilteredCta": "Wyczyść filtry",
   "addProductTitle": "Dodaj produkt",
   "addProductBrandLbl": "Marka",
   "addProductMaterialLbl": "Materiał",

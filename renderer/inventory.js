@@ -15147,6 +15147,14 @@ import { initScreenTools } from './ai/screen-tools.js';
   // Delegated on the stable container — cards/rows are rebuilt on every query.
   $("catalogViewBody")?.addEventListener("click", e => {
     if (e.target.closest?.("[data-cv-create]")) { openAddProductPanel(); return; }
+    if (e.target.closest?.("[data-cv-clear-filters]")) {
+      ["cvType", "cvBrand", "cvMaterial", "cvSeries"].forEach(id => {
+        const sel = $(id);
+        if (sel) { sel.value = ""; sel.classList.remove("is-active"); sel._cselRefresh?.(); }
+      });
+      _catViewSearch();
+      return;
+    }
     const el = e.target.closest?.(".cv-card, .cv-row");
     if (!el?.dataset.id) return;
     // The tick (card corner / table column) or select mode → multi-select;
@@ -17046,7 +17054,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     /* The colour window narrows the catalogue too — an entry carries a single
        hex, and one that has none simply cannot answer a colour question, so it
        drops out rather than slipping through. */
-    const pass = e => (!fBrand || e.it.brand === fBrand) && (!fMat || e.it.material === fMat)
+    const pass = e => (!fBrand || e.it.brand === fBrand) && (!fMat || _catFamily(e.it) === fMat)
       && (!_hueFilterOn(hue) || _colorsMatchHue(_catColors(e.it), hue));
 
     // A scanned barcode is the whole query and it means ONE product. Match it
@@ -17135,6 +17143,16 @@ import { initScreenTools } from './ai/screen-tools.js';
   // ("PLA"). Exact label wins; otherwise fall back to the family via
   // `material_type`, preferring the canonical grade (the entry whose label IS
   // the family) over an arbitrary filled variant like "PLA-CF".
+  // A catalogue entry's material FAMILY: the `material_type` of its material id
+  // ("PLA Silk", "PLA+ Silk", "PLA" → "PLA"). The Material filter offers families
+  // only — "PLA Silk" is a marketing name for a PLA, and brands file the same kind
+  // of spool under either name, so a grade filter hid half of them (#217). Until
+  // the bundled table is read (`_loadMaterialFamilies`), the entry's own label.
+  function _catFamily(it) {
+    const id = Number(it?.RFID_Data?.id_material ?? it?.id_material);
+    const fam = id ? (_matFamilies?.get(id) || state.db?.material?.find(x => x.id === id)?.material_type) : "";
+    return String(fam || it?.material || "").trim();
+  }
   function _catMaterialId(name) {
     const s = String(name ?? "").trim().toLowerCase();
     if (!s) return 0;
@@ -17538,7 +17556,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     const countBy = (list, key) => {
       const m = new Map();
       for (const it of list) {
-        const v = it[key];
+        const v = typeof key === "function" ? key(it) : it[key];
         if (v) m.set(v, (m.get(v) || 0) + 1);
       }
       return [...m.entries()].sort((a, b) => String(a[0]).localeCompare(String(b[0])));
@@ -17561,7 +17579,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     if (fullRebuild) {
       fill($("cvType"),     t("filterAllVersions"),  countBy(idx, "product_type"));
       fill($("cvBrand"),    t("filterAllBrands"),    countBy(idx, "brand"));
-      fill($("cvMaterial"), t("filterAllMaterials"), countBy(idx, "material"));
+      fill($("cvMaterial"), t("filterAllMaterials"), countBy(idx, _catFamily));
     }
 
     // Series depends on the chosen brand.
@@ -17593,6 +17611,8 @@ import { initScreenTools } from './ai/screen-tools.js';
 
   function _catViewSearch() {
     _syncFilterReset();   // the catalogue's own selectors arm it too
+    // The Material filter lists families: once the table is read, list them again.
+    if (!_matFamiliesP) _loadMaterialFamilies().then(() => { _catFacetsIdx = null; _catViewSearch(); });
     _catViewFillFacets();
     const fType   = $("cvType")?.value || "";
     const fBrand  = $("cvBrand")?.value || "";
@@ -17634,7 +17654,16 @@ import { initScreenTools } from './ai/screen-tools.js';
       // spool by hand instead — the same "Add product" card as "Manually".
       if (!_catViewHits.length && _catalogIndex.length && !_catalogSyncing && !state.friendView) {
         body.className = "cv-body";
-        body.innerHTML = `
+        // The search finds products but the selectors above leave none: say so and
+        // offer to clear them, rather than "make it yourself" (#217).
+        const filtered = (fType || fBrand || fMat || fSeries)
+          && _catalogFilter($("searchInv")?.value, "", "").length > 0;
+        body.innerHTML = filtered ? `
+          <div class="cv-empty">
+            <span class="icon icon-filter" aria-hidden="true"></span>
+            <div class="cv-empty-title">${esc(t("catEmptyFilteredTitle"))}</div>
+            <button type="button" class="cv-empty-cta" data-cv-clear-filters="1"><span class="icon icon-x icon-14" aria-hidden="true"></span>${esc(t("catEmptyFilteredCta"))}</button>
+          </div>` : `
           <div class="cv-empty">
             <span class="icon icon-search" aria-hidden="true"></span>
             <div class="cv-empty-title">${esc(t("catEmptyTitle"))}</div>
@@ -46909,18 +46938,19 @@ import { initScreenTools } from './ai/screen-tools.js';
   // The family (`material_type`) of every material, by ID. The table refreshed
   // from the API carries no `material_type`; the one bundled with the app does,
   // so it fills the gap (read once).
-  let _mcpFamilies = null;
-  async function _mcpLoadFamilies() {
-    if (_mcpFamilies) return _mcpFamilies;
+  // Shared with the catalogue's Material filter (`_catFamily`); read once, by one fetch.
+  let _matFamilies = null, _matFamiliesP = null;
+  function _loadMaterialFamilies() { return (_matFamiliesP ||= _readMaterialFamilies()); }
+  async function _readMaterialFamilies() {
     const m = new Map();
     let bundled = [];
     try { const r = await fetch("../assets/db/tigertag/id_material.json"); if (r.ok) bundled = await r.json(); } catch (_) {}
     for (const e of [...(Array.isArray(bundled) ? bundled : []), ...(state.db.material || [])]) {
       if (e?.id != null && e.material_type) m.set(Number(e.id), e.material_type);
     }
-    return (_mcpFamilies = m);
+    return (_matFamilies = m);
   }
-  const _mcpFamily = e => (e ? e.material_type || _mcpFamilies?.get(Number(e.id)) || null : null);
+  const _mcpFamily = e => (e ? e.material_type || _matFamilies?.get(Number(e.id)) || null : null);
   // How a spool's material compares with the wanted one, BY ID.
   function _mcpMaterialMatch(wantId, haveId) {
     if (wantId == null) return null;
@@ -47019,7 +47049,7 @@ import { initScreenTools } from './ai/screen-tools.js';
   Object.assign(MCP_HANDLERS, {
     async search_catalog(a) {
       _mcpMe();
-      await _mcpLoadFamilies();
+      await _loadMaterialFamilies();
       const idx = await _mcpCatalogue();
       const code = String(a.ean || a.sku || "").trim();
       let items = code ? _catalogFilter(code, "", "", MCP_NO_HUE)
@@ -47042,7 +47072,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     },
     async lookup_reference(a) {
       _mcpMe();
-      await _mcpLoadFamilies();
+      await _loadMaterialFamilies();
       const kind = String(a.kind || "");
       const table = kind === "container" ? (state.db.containers || []) : state.db[kind];
       if (!Array.isArray(table)) throw new Error("kind must be brand, material, aspect, type, diameter or container.");
@@ -47061,7 +47091,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     },
     async match_filaments(a) {
       const rows = _mcpRows();
-      await _mcpLoadFamilies();
+      await _loadMaterialFamilies();
       const needs = Array.isArray(a.needs) ? a.needs.slice(0, 16) : [];
       if (!needs.length) throw new Error("needs is empty — give one entry per filament of the print.");
       const tol = MCP_DELTA_E[a.tolerance] || MCP_DELTA_E.close;

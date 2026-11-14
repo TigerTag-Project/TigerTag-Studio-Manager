@@ -505,6 +505,8 @@
   "catEmptyTitle": "目录里没有找到这一款",
   "catEmptySub": "没关系——自己创建吧：云端的 TigerData，或写入 TigerTag 芯片。",
   "catEmptyCta": "手动创建",
+  "catEmptyFilteredTitle": "有的——被你的筛选条件挡住了",
+  "catEmptyFilteredCta": "清除筛选",
   "addProductTitle": "添加产品",
   "addProductBrandLbl": "品牌",
   "addProductMaterialLbl": "材料",

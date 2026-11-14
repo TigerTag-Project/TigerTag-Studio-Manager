@@ -520,6 +520,8 @@
   "catEmptyTitle": "В каталоге такой нет",
   "catEmptySub": "Не беда — создай сам: TigerData в облаке или на чипе TigerTag.",
   "catEmptyCta": "Создать вручную",
+  "catEmptyFilteredTitle": "Оно есть — его прячут твои фильтры",
+  "catEmptyFilteredCta": "Сбросить фильтры",
   "addProductTitle": "Добавить товар",
   "addProductBrandLbl": "Бренд",
   "addProductMaterialLbl": "Материал",

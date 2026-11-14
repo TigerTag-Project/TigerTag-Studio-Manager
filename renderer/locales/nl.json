@@ -510,6 +510,8 @@
   "catEmptyTitle": "Niets in de catalogus voor deze",
   "catEmptySub": "Geen probleem — maak hem zelf, als TigerData in de cloud of op een TigerTag-chip.",
   "catEmptyCta": "Zelf aanmaken",
+  "catEmptyFilteredTitle": "Het is er — je filters verstoppen het",
+  "catEmptyFilteredCta": "Filters wissen",
   "addProductTitle": "Product toevoegen",
   "addProductBrandLbl": "Merk",
   "addProductMaterialLbl": "Materiaal",

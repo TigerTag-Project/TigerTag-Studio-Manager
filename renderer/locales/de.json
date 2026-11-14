@@ -510,6 +510,8 @@
   "catEmptyTitle": "Dazu steht nichts im Katalog",
   "catEmptySub": "Kein Problem — leg sie selbst an, als TigerData in der Cloud oder auf einem TigerTag-Chip.",
   "catEmptyCta": "Selbst anlegen",
+  "catEmptyFilteredTitle": "Ist da — deine Filter verstecken es",
+  "catEmptyFilteredCta": "Filter entfernen",
   "addProductTitle": "Produkt hinzufügen",
   "addProductBrandLbl": "Marke",
   "addProductMaterialLbl": "Material",

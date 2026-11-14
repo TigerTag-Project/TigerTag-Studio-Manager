@@ -120,6 +120,7 @@
 | `tagAddHint` / `tagAddUnknown` / `tagAddBlank` / `tagAddReplace` / `tagAddKnown` / `tagAddDone` / `tagAddReading` / `tagAddAlready` | Add with TigerTag: the waiting hint, the toast for a new chip scanned outside it, a blank chip, a chip placed before the view opened, one already in the inventory, one just added |
 | `pcTagAddBanner` / `pcTagAddInfo` / `pcTagAddHoldTip` / `pcTagAddNeedPod` | Product card opened by scanning a written TigerTag(+) not in the inventory: the held "Add with {{tier}}" banner (replaces the burn while the chip is on the TigerPOD), its ⓘ, its hold tip, the bubble when the chip was lifted |
 | `pcQrAddBanner` / `pcQrAddInfo` | Catalogue product card, nothing on the TigerPOD: "Add with TigerQR+", its ⓘ and hold tip — creates the spool and opens its QR label |
+| `catEmptyFilteredTitle` / `catEmptyFilteredCta` | Catalogue empty state when the search finds products but the Type / Brand / Material / Series selectors leave none, and its "Clear the filters" button (keeps the search) |
 
 ### Stats
 | Key | Purpose |

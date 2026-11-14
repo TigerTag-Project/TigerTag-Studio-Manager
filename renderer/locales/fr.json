@@ -510,6 +510,8 @@
   "catEmptyTitle": "Rien dans le catalogue pour celle-là",
   "catEmptySub": "Pas grave — crée-la toi-même, en TigerData dans le cloud ou sur une puce TigerTag.",
   "catEmptyCta": "La créer à la main",
+  "catEmptyFilteredTitle": "C'est là — ce sont tes filtres qui le cachent",
+  "catEmptyFilteredCta": "Retirer les filtres",
   "addProductTitle": "Ajouter un produit",
   "addProductBrandLbl": "Marque",
   "addProductMaterialLbl": "Matière",
