@@ -26,3 +26,12 @@ contextBridge.exposeInMainWorld('camAPI', {
   onAcuFrame: (cb) =>
     ipcRenderer.on('anycubic:cam-frame', (_, key, b64) => cb(key, b64)),
 });
+
+// External IP cameras (RTSP / MJPEG): ffmpeg in main, JPEG frames back to THIS window.
+// Same channels as the main window's bridge (preload.js); no `test` here.
+contextBridge.exposeInMainWorld('extCam', {
+  start:    (opts)  => ipcRenderer.send('extcam:start', opts),
+  stop:     (key)   => ipcRenderer.send('extcam:stop', key),
+  onFrame:  (cb)    => ipcRenderer.on('extcam:frame',  (_, key, buf)    => cb(key, buf)),
+  onStatus: (cb)    => ipcRenderer.on('extcam:status', (_, key, status) => cb(key, status)),
+});

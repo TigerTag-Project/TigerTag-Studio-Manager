@@ -435,6 +435,12 @@ export const extCamBoardCardsHtml = () => _cams.filter(c => !_api.linkedIds().ha
 /** The cameras, for the printer settings to offer one as a printer's picture. */
 export const extCamList = () => _cams.map(c => ({ id: c.id, name: c.name || "", protocol: c.protocol }));
 
+/* The same cameras WITH what a reader needs (address and login), for ONE use: the
+   detached camera wall window, which starts its own readers. Sent over IPC, never
+   drawn into a page, an attribute or a log line. */
+export const extCamForDetach = () => _cams.map(c =>
+  ({ id: c.id, name: c.name || "", protocol: c.protocol, url: c.url || "", username: c.username || "", password: c.password || "" }));
+
 /**
  * A camera's picture, to be drawn INSIDE a printer's own card / panel / wall card
  * in place of the printer's camera (printer.camSource = this camera's id). Same
