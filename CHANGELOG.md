@@ -5,6 +5,33 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## v2.58.0 — 2026-11-15
+
+### Added
+- **Brand logos on printed labels** (#242): when the brand table has a `logo_url` (Manager, CDN `img?type=brand&id=…&v=…`, 105 of 162 brands), the label draws the maker's logo in the brand box instead of its name. Read once through the main-process image cache (`img:get`: the CDN's last hop sends no CORS header), made one-colour black with near-white pixels turned to paper, kept in proportion (`_brandLogoFor`, `labelInfo.logo`, `buildLabel`, `redrawLabelCard`). The name stays while the logo loads or when there is none. The bundled `id_brand.json` carries `logo_url`.
+- **A chip flagged to update is rewritten as soon as it lands on the TigerPOD**: a spool with `needUpdateAt` (catalogue reconcile or an edit changed a field the chip carries) gets the same verified page-by-page write as the "Please update NFC" window (`rfid:encode-cloud`: identity, timestamp and signature kept, a TigerTag+ Certified stays certified), then that chip's own flag is cleared and a toast confirms it (`_autoUpdateChip` in `_processNfcScans`). Each chip of a twin clears its own flag. Not while that window is open or in a friend's view. The old bytes just read are no longer written back over the record. Tested on a real twin spool. i18n `chipAutoUpdated`.
+- **Creality K3** (PR #253 by Ptitlouis6012): catalogue entry (id 12, picture), detection by model code `F039` or the default host name `F039-XXXX`, four nozzle pills E1–E4 from `nozzleState` (only the active one editable), CFS Nano boxes, no external spool. Read from the firmware package, not yet seen on a real K3.
+- **Creality SparkX i8** (PR #255 by Ptitlouis6012): catalogue entry (id 13, picture), detection by `F030` or `i8-XXXX` (before the i7 rule), four-slot CFS-lite rack, no external spool. Not yet seen on a real i8.
+- **Snapmaker filament sheet: Polymaker** among the vendors, with its own list from the Snapmaker app (PLA, PETG, ABS, TPU, ASA, PC, PA, PCTG, PE, PHA, PVA, BVOH, HIPS, EVA) (`SNAP_FIL_VENDOR_MATERIALS`).
+
+### Changed
+- **Catalogue Material filter lists material families only** (#217): `material_type` of the product's `id_material` (`_catFamily`, read from the bundled `id_material.json` through `_loadMaterialFamilies` / `_matFamilies`, now shared with the MCP), so "PLA" holds every PLA, silk, marble and Biopolymer included, and a silk spool filed as PLA + aspect Silk is no longer missed by a "PLA Silk" option.
+- **Catalogue empty state when the selectors hide the results**: "It's there — your filters are hiding it" with "Clear the filters" (clears Type / Brand / Material / Series, keeps the search) instead of "create it by hand". i18n `catEmptyFilteredTitle`, `catEmptyFilteredCta`.
+- **Bundled data refreshed**: catalogue 21,512 products, brand logos (`logo_url`), Snapmaker types on materials (`metadata.snapmakerType`).
+
+### Fixed
+- **Bambu Lab cloud**: Studio sends its own client identity (`tiger-studio-manager`, `X-BBL-Client-Type: desktop`) instead of OrcaSlicer's, which Bambu's edge answers with 403 since 2026-11-12, so the print thumbnail shows again (PR #251 by Ptitlouis6012; `_bblHeaders`, `renderer/printers/bambulab/PROTOCOL.md`).
+- **Creality temperature pills** use `aria-label` instead of `title` tooltips.
+
+### Removed
+- **Settings → Data → "Copy API URL"** (#235): the 6-character API key is set aside, data is reached by signing in to the account. `btnCopyApiUrl`, `getOrCreateApiKey6` and their keys removed; the backend `createAccessKey6` / `exportInventory` are untouched.
+
+### i18n
+- New: `chipAutoUpdated`, `catEmptyFilteredTitle`, `catEmptyFilteredCta`.
+- Removed: `stgCopyApiUrl`, `stgCopyApiUrlOk`, `stgCopyApiUrlNoKey`, `stgCopyApiUrlErr`, `stgCopyApiUrlGenerating`.
+
+---
+
 ## v2.57.0 — 2026-11-14
 
 ### Added

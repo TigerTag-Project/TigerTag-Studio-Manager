@@ -1,4 +1,125 @@
 {
+  "2.58.0": {
+    "date": "2026-11-15",
+    "items": [
+      {
+        "icon": "tag",
+        "title": {
+          "en": "Your labels wear the brand's logo",
+          "fr": "Tes étiquettes portent le logo de la marque",
+          "de": "Deine Etiketten tragen das Markenlogo",
+          "es": "Tus etiquetas llevan el logo de la marca",
+          "it": "Le tue etichette portano il logo del marchio",
+          "zh": "标签上印上了品牌标志",
+          "pt": "Suas etiquetas levam o logo da marca",
+          "pt-pt": "As tuas etiquetas levam o logótipo da marca",
+          "pl": "Twoje etykiety noszą logo marki",
+          "ru": "На этикетках теперь логотип бренда",
+          "nl": "Je labels dragen het merklogo"
+        },
+        "body": {
+          "en": "Print a label and the brand's logo shows up instead of its name, in crisp black. Over a hundred brands already have theirs.",
+          "fr": "Imprime une étiquette : le logo de la marque remplace son nom, en noir bien net. Plus d'une centaine de marques ont déjà le leur.",
+          "de": "Druck ein Etikett und das Markenlogo erscheint statt des Namens, in sattem Schwarz. Über hundert Marken haben ihres schon.",
+          "es": "Imprime una etiqueta y aparece el logo de la marca en lugar de su nombre, en negro nítido. Más de cien marcas ya tienen el suyo.",
+          "it": "Stampa un'etichetta e al posto del nome compare il logo del marchio, in nero bello netto. Oltre cento marchi hanno già il loro.",
+          "zh": "打印标签时，品牌名称换成了清晰的黑色品牌标志。已有一百多个品牌上线。",
+          "pt": "Imprima uma etiqueta e o logo da marca aparece no lugar do nome, em preto bem nítido. Mais de cem marcas já têm o seu.",
+          "pt-pt": "Imprime uma etiqueta e o logótipo da marca aparece no lugar do nome, em preto bem nítido. Mais de cem marcas já têm o seu.",
+          "pl": "Wydrukuj etykietę, a zamiast nazwy pojawi się logo marki, w wyraźnej czerni. Ponad sto marek już ma swoje.",
+          "ru": "Печатаешь этикетку — вместо названия появляется логотип бренда, чётким чёрным. Больше сотни брендов уже на месте.",
+          "nl": "Print een label en het merklogo staat er in plaats van de naam, in strak zwart. Meer dan honderd merken hebben het hunne al."
+        }
+      },
+      {
+        "icon": "refresh",
+        "title": {
+          "en": "Chips update themselves on the TigerPOD",
+          "fr": "Les puces se mettent à jour toutes seules sur le TigerPOD",
+          "de": "Chips aktualisieren sich selbst auf dem TigerPOD",
+          "es": "Los chips se actualizan solos en el TigerPOD",
+          "it": "I chip si aggiornano da soli sul TigerPOD",
+          "zh": "芯片在 TigerPOD 上自动更新",
+          "pt": "Os chips se atualizam sozinhos no TigerPOD",
+          "pt-pt": "Os chips atualizam-se sozinhos no TigerPOD",
+          "pl": "Chipy aktualizują się same na TigerPOD",
+          "ru": "Чипы обновляются сами на TigerPOD",
+          "nl": "Chips werken zichzelf bij op de TigerPOD"
+        },
+        "body": {
+          "en": "A spool whose chip is out of date? Pop it on the TigerPOD and the chip is refreshed on the spot. No button, and a Certified chip stays Certified.",
+          "fr": "Une bobine dont la puce n'est plus à jour ? Pose-la sur le TigerPOD, la puce est rafraîchie sur-le-champ. Aucun bouton, et une puce Certified reste Certified.",
+          "de": "Eine Spule mit veraltetem Chip? Leg sie auf den TigerPOD und der Chip wird sofort aufgefrischt. Kein Knopf, und ein Certified-Chip bleibt Certified.",
+          "es": "¿Una bobina con el chip desactualizado? Ponla en el TigerPOD y el chip se refresca al momento. Sin botones, y un chip Certified sigue siendo Certified.",
+          "it": "Una bobina con il chip non aggiornato? Appoggiala sul TigerPOD e il chip si rinfresca all'istante. Nessun pulsante, e un chip Certified resta Certified.",
+          "zh": "线盘芯片过时了？放到 TigerPOD 上，芯片当场刷新。无需按键，Certified 芯片依旧是 Certified。",
+          "pt": "Um carretel com o chip desatualizado? Coloque no TigerPOD e o chip é atualizado na hora. Sem botão, e um chip Certified continua Certified.",
+          "pt-pt": "Uma bobina com o chip desatualizado? Põe-na no TigerPOD e o chip é atualizado na hora. Sem botão, e um chip Certified continua Certified.",
+          "pl": "Szpula z nieaktualnym chipem? Połóż ją na TigerPOD, a chip odświeży się od razu. Bez przycisku, a chip Certified zostaje Certified.",
+          "ru": "Чип катушки устарел? Положи её на TigerPOD — чип обновится на месте. Без кнопок, а Certified-чип останется Certified.",
+          "nl": "Een spoel met een verouderde chip? Leg hem op de TigerPOD en de chip is meteen bijgewerkt. Geen knop, en een Certified-chip blijft Certified."
+        }
+      },
+      {
+        "icon": "printer",
+        "title": {
+          "en": "Creality K3 and SparkX i8 join the crew",
+          "fr": "La Creality K3 et la SparkX i8 rejoignent la bande",
+          "de": "Creality K3 und SparkX i8 sind dabei",
+          "es": "La Creality K3 y la SparkX i8 se unen al grupo",
+          "it": "La Creality K3 e la SparkX i8 entrano in squadra",
+          "zh": "Creality K3 和 SparkX i8 加入阵容",
+          "pt": "A Creality K3 e a SparkX i8 entram na turma",
+          "pt-pt": "A Creality K3 e a SparkX i8 juntam-se à malta",
+          "pl": "Creality K3 i SparkX i8 dołączają do ekipy",
+          "ru": "Creality K3 и SparkX i8 в команде",
+          "nl": "De Creality K3 en SparkX i8 sluiten zich aan"
+        },
+        "body": {
+          "en": "Studio finds them on your network and shows their racks. The K3 shows all four nozzle temperatures too.",
+          "fr": "Studio les trouve sur ton réseau et affiche leurs racks. La K3 montre en plus les températures de ses quatre buses.",
+          "de": "Studio findet sie in deinem Netzwerk und zeigt ihre Racks. Der K3 zeigt dazu alle vier Düsentemperaturen.",
+          "es": "Studio las encuentra en tu red y muestra sus racks. La K3 muestra además la temperatura de sus cuatro boquillas.",
+          "it": "Studio le trova sulla tua rete e mostra i loro rack. La K3 mostra anche le temperature dei suoi quattro ugelli.",
+          "zh": "Studio 会在你的网络中找到它们并显示料架。K3 还会显示四个喷嘴的温度。",
+          "pt": "O Studio encontra as duas na sua rede e mostra os racks. A K3 ainda mostra a temperatura dos quatro bicos.",
+          "pt-pt": "O Studio encontra-as na tua rede e mostra os racks. A K3 mostra ainda a temperatura dos quatro bicos.",
+          "pl": "Studio znajdzie je w twojej sieci i pokaże ich racki. K3 pokazuje też temperatury wszystkich czterech dysz.",
+          "ru": "Studio находит их в твоей сети и показывает их стойки. K3 ещё и показывает температуру всех четырёх сопел.",
+          "nl": "Studio vindt ze op je netwerk en toont hun racks. De K3 laat ook de temperatuur van alle vier de nozzles zien."
+        }
+      },
+      {
+        "icon": "filter",
+        "title": {
+          "en": "Material filter, minus the marketing",
+          "fr": "Le filtre Matière, sans le marketing",
+          "de": "Materialfilter, ohne Marketing",
+          "es": "Filtro de material, sin marketing",
+          "it": "Filtro materiale, senza marketing",
+          "zh": "材料筛选，去掉营销名",
+          "pt": "Filtro de material, sem o marketing",
+          "pt-pt": "Filtro de material, sem o marketing",
+          "pl": "Filtr materiału, bez marketingu",
+          "ru": "Фильтр материалов без маркетинга",
+          "nl": "Materiaalfilter, zonder marketing"
+        },
+        "body": {
+          "en": "In the catalogue, PLA means every PLA: silk, marble, matte and friends. Type silk in the search if that's what you're after.",
+          "fr": "Dans le catalogue, PLA veut dire tous les PLA : silk, marbre, mat et compagnie. Tape silk dans la recherche si c'est ça que tu cherches.",
+          "de": "Im Katalog heißt PLA jetzt jedes PLA: Silk, Marmor, Matt und Co. Tipp silk in die Suche, wenn du genau das willst.",
+          "es": "En el catálogo, PLA significa todos los PLA: silk, mármol, mate y compañía. Escribe silk en la búsqueda si es lo que buscas.",
+          "it": "Nel catalogo, PLA vuol dire tutti i PLA: silk, marmo, opaco e compagnia. Scrivi silk nella ricerca se cerchi proprio quello.",
+          "zh": "在目录里，PLA 就是所有 PLA：丝绸、大理石、哑光等等。想要丝绸就在搜索里输入 silk。",
+          "pt": "No catálogo, PLA quer dizer todo PLA: silk, mármore, fosco e companhia. Digite silk na busca se é isso que você procura.",
+          "pt-pt": "No catálogo, PLA quer dizer todos os PLA: silk, mármore, mate e companhia. Escreve silk na pesquisa se é isso que procuras.",
+          "pl": "W katalogu PLA to teraz każde PLA: silk, marmur, mat i spółka. Wpisz silk w wyszukiwarkę, jeśli tego szukasz.",
+          "ru": "В каталоге PLA теперь значит любой PLA: шёлк, мрамор, матовый и прочие. Нужен шёлк — набери silk в поиске.",
+          "nl": "In de catalogus betekent PLA elke PLA: silk, marmer, mat en co. Typ silk in de zoekbalk als je dat zoekt."
+        }
+      }
+    ]
+  },
   "2.57.0": {
     "date": "2026-11-14",
     "items": [
