@@ -402,7 +402,7 @@ Per-brand scan/manual flows live in `printers/<brand>/add-flow.js`; `inventory.j
 |---|---|---|
 | 30494-30581 | Reader indicator (topbar), reader connect/disconnect, card present/removed badge | `renderRfidReaderBadges` |
 | 30582-30613 | Dual-scan buffer (2 readers / 1.5 s) | `_flushRfidScans` |
-| 30614-30746 | **Main NFC scan processor** | `_processNfcScans` |
+| 30614-30746 | **Main NFC scan processor**; a chip flagged to update (`needUpdateAt`) is rewritten from its record as soon as it is read on the TigerPOD | `_processNfcScans`, `_autoUpdateChip` |
 | 30747-30856 | **Build and write one chip document** to Firestore (API fields only for TigerTag+) | `_writeChipDoc` |
 | 30857-30917 | Auto-update status stream | |
 | 30918-30919 | TD1S engine moved to `IoT/td1s/index.js` (closing comment) | |

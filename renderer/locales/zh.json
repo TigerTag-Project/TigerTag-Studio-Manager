@@ -1050,6 +1050,7 @@
   "colorEditTitle": "颜色 & TD 值",
   "btnSaveAll": "全部",
   "chipPendingHint": "请更新 NFC",
+  "chipAutoUpdated": "芯片已在 TigerPOD 上更新，重新同步了。",
   "chipUpdateTitle": "请更新你的 {{tier}}",
   "chipUpdateInfo": "自写入芯片以来耗材已有变化：这会把当前数据（重量、颜色…）写回芯片。",
   "chipUpdateNeedPod": "请先把耗材放到 TigerPOD 上：更新的是它的芯片。",

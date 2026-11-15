@@ -329,7 +329,7 @@ All brands: printer discovery (mDNS + port scan + manual IP), camera; filament e
 npm run i18n:add -- myKey --after existingKey en="..." fr="..." de="..." es="..." it="..." zh="..." pt="..." pt-pt="..." pl="..." ru="..." nl="..."
 npm run i18n:check   # validates consistency (also runs as pre-commit hook)
 ```
-3136 keys × 11 locales as of v2.57.1
+3137 keys × 11 locales as of v2.57.1
 
 ## CSS conventions
 

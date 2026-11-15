@@ -1055,6 +1055,7 @@
   "colorEditTitle": "Colore & Valore TD",
   "btnSaveAll": "Tutto",
   "chipPendingHint": "Aggiornare NFC",
+  "chipAutoUpdated": "Chip aggiornato sul TigerPOD. Di nuovo in sincrono.",
   "chipUpdateTitle": "Aggiorna il tuo {{tier}}",
   "chipUpdateInfo": "Il materiale è cambiato da quando il suo chip è stato scritto: questo riscrive i dati attuali (peso, colore…) nel chip.",
   "chipUpdateNeedPod": "Prima appoggia il materiale sul TigerPOD: è il suo chip che viene aggiornato.",

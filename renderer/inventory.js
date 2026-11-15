@@ -46063,9 +46063,19 @@ import { initScreenTools } from './ai/screen-tools.js';
           // overwritten by the chip's older value, so that alone is protected —
           // an absent one is filled in from the chip on the very next scan.
           let preserveTd = false;
+          // The record changed in a way the chip carries (needUpdateAt, set by the
+          // catalogue reconcile or an edit): the chip is brought up to date right
+          // here, on the TigerPOD — no button. The record is the truth then, so the
+          // old bytes just read must not be written back over it.
+          let chipUpdated = false;
           if (existing.exists) {
             const stored = existing.data();
-            if (stored.timestamp !== tagData.timestamp) {
+            if (stored.timestamp === tagData.timestamp && stored.needUpdateAt && tagData._readerName) {
+              chipUpdated = await _autoUpdateChip(docRef, stored, uid, tagData._readerName);
+            }
+            if (chipUpdated) {
+              console.log('[RFID] Pending chip brought up to date on the TigerPOD:', uid);
+            } else if (stored.timestamp !== tagData.timestamp) {
               // Chip was fully erased & rewritten — clean slate
               console.log('[RFID] Chip rewritten (ts changed) — delete + recreate:', uid);
               await _xanoQuiet(() => docRef.delete());
@@ -46098,7 +46108,7 @@ import { initScreenTools } from './ai/screen-tools.js';
           } else {
             console.log('[RFID] New chip — creating:', uid);
           }
-          await _writeChipDoc(docRef, tagData, twinUid, { preserveDbWeight, preserveTd });
+          if (!chipUpdated) await _writeChipDoc(docRef, tagData, twinUid, { preserveDbWeight, preserveTd });
           // A chip entering this inventory for the first time is a spool created here.
           if (!existing.exists) _xanoSpoolEvent("create", String(uid), state.inventory?.[uid] || { ...tagData, uid });
           processedUids.push(uid);
@@ -46139,6 +46149,27 @@ import { initScreenTools } from './ai/screen-tools.js';
       } else if (!processedUids.length && newChips.length) _showUnknownChip(newChips[0], scans);
     }
     _nfcProcess = _processNfcScans;   // "Add with TigerTag" adds through it (_tagAddCommit)
+    // A chip flagged "to update" (needUpdateAt) that lands on the TigerPOD is
+    // rewritten from its record at once: the same verified, page-by-page write as
+    // the "Please update NFC" window (rfid:encode-cloud keeps the chip's identity
+    // and timestamp and never touches the signature), so a TigerTag+ Certified
+    // stays certified. Only THIS chip on THIS reader; each chip of a twin clears
+    // its own flag when its own write is verified. Not while that window is up
+    // (it drives the write itself) or in a friend's view.
+    async function _autoUpdateChip(docRef, stored, uid, readerName) {
+      if (_encodeModalOpen() || state.friendView || !window.electronAPI?.encodeCloudSpool) return false;
+      try {
+        const res = await window.electronAPI.encodeCloudSpool({ cloudDoc: stored, targets: [{ readerName, uid }] });
+        const ok = (res?.results || []).some(x => x.ok && x.verified === true);
+        if (!ok) { console.warn('[RFID] auto chip update not verified:', uid, res?.results?.[0]?.error || res?.error); return false; }
+        await docRef.update({ needUpdateAt: null });
+        _flashMessage(t("chipAutoUpdated"));
+        return true;
+      } catch (e) {
+        console.warn('[RFID] auto chip update failed:', uid, e?.message || e);
+        return false;
+      }
+    }
     // A chip not in the inventory, scanned outside "Add with TigerTag": its
     // product's catalogue card (identified by id_product), and how to add it.
     // Its card offers "Add with TigerTag(+)" while that chip stays on the TigerPOD
