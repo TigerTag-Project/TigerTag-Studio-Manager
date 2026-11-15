@@ -639,7 +639,7 @@ export const SNAP_FIL_COLOR_PRESETS = [
 ];
 
 // Vendor → materials map — iso to the mobile companion. The mobile
-// ships with these 8 brands and the Generic 10-material catalogue;
+// ships with these 9 brands and the Generic 10-material catalogue;
 // each brand falls back to the Generic list when it has no specific
 // products (matches the Flutter "vendorToLabels.putIfAbsent + union
 // fallback" pattern).
@@ -647,6 +647,8 @@ const SNAP_FIL_VENDOR_MATERIALS = {
   "Generic":   ["PLA", "PETG", "ABS", "TPU", "ABS-AF", "ABS-CF", "ASA", "ASA-CF", "ASA-GF", "Biopolymer"],
   "JamgHe":    [],
   "Landu":     [],
+  // Polymaker's own list in the Snapmaker app (founder, 2026-11-15).
+  "Polymaker": ["PLA", "PETG", "ABS", "TPU", "ASA", "PC", "PA", "PCTG", "PE", "PHA", "PVA", "BVOH", "HIPS", "EVA"],
   "R3D":       [],
   "Rosa3D":    [],
   "Snapmaker": [],
