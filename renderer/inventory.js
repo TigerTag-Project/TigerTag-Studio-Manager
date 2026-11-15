@@ -9138,6 +9138,7 @@ import { initScreenTools } from './ai/screen-tools.js';
         if (!isFirstSnap && snapshot.docChanges().length === 0 && !snapshot.metadata.hasPendingWrites && !censusPending) return;
         const raw = {};
         snapshot.forEach(doc => { raw[doc.id] = doc.data(); });
+        const _heldBefore = state.inventory;   // what this inventory held before this snapshot (the arrival sound below)
         state.inventory = raw;
         state.rows = snapshot.docs.map(doc => normalizeRow(doc.id, doc.data()));
         _markTwinPairs(state.rows); // symmetric hasTwinPair so the link badge shows on either half
@@ -9148,11 +9149,16 @@ import { initScreenTools } from './ai/screen-tools.js';
            the whole inventory turning up at once. One sound per snapshot, so
            importing fifty spools rings once and not fifty times, and the ids
            already announced are remembered: a local write shows up twice, once
-           pending and once confirmed by the server. */
+           pending and once confirmed by the server.
+           With the delta listener (_listenSynced: where syncAt > …) a spool the
+           inventory ALREADY held shows up as "added" whenever it is rewritten —
+           a catalogue refresh bumps its syncAt and it enters the query. That is
+           not an arrival: only an id this inventory did not hold before counts,
+           or opening the catalogue after an update rang once per refreshed spool. */
         if (!isFirstSnap) {
           const changes = snapshot.docChanges();
           const fresh = changes.some(c =>
-            c.type === "added" && !c.doc.data()?.deleted && !_spoolArrivalHeard.has(c.doc.id));
+            c.type === "added" && !c.doc.data()?.deleted && !_spoolArrivalHeard.has(c.doc.id) && !_heldBefore?.[c.doc.id]);
           changes.forEach(c => { if (c.type === "added") _spoolArrivalHeard.add(c.doc.id); });
           if (fresh) _soundSpoolAdded();
         }
