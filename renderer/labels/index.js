@@ -91,11 +91,11 @@ function qrMatrix(text) {
 }
 
 // ── The label page ───────────────────────────────────────────────────────────
-// `info`: { brand, protocol, material, series, name, hexes: ["#RRGGBB"…], values: { slot: text } }.
+// `info`: { brand, logo?: { uri, aspect }, protocol, material, series, name, hexes: ["#RRGGBB"…], values: { slot: text } }.
 // Each template is drawn as one SVG in tenths of a millimetre (LAYOUTS below), then
 // scaled to PRINTER DOTS; the QR code is placed in dots so that every module covers
-// a whole number of dots. The black bar carries the series; the brand sits
-// where a maker logo would; `protocol` is a pill in the top-right corner
+// a whole number of dots. The black bar carries the series; the brand is its
+// maker's logo when the brand table has one (`info.logo`), else its name; `protocol` is a pill in the top-right corner
 // (TigerQR+ when linked to a catalogue product, else TigerQR; TigerQR+ on every
 // Filament Label).
 const U = 10;   // layout units per millimetre
@@ -197,6 +197,12 @@ export function buildLabel(info, link, { template = "classic", slots = [], dpi =
     if (pw && tpl.h > tpl.w && textW(info.brand, bfs, 700) > beside) {
       const top = 8 + ph + 4, bottom = L.bar[1] - 5;
       g += svgText(info.brand, bx, bottom, Math.min(bfs, Math.round((bottom - top) * 1.3)), 700, Math.min(bw, LW - bx - 10));
+    } else if (info.logo?.uri && info.logo.aspect > 0) {
+      // The maker's logo (Manager `logo_url`, made one-colour by the caller) in
+      // place of the brand text: as tall as the brand box allows, never wider than
+      // the room beside the pill, kept in proportion, centred on the box's height.
+      const lw = Math.min(beside, bh * info.logo.aspect), lh = lw / info.logo.aspect;
+      g += `<image href="${info.logo.uri}" x="${bx}" y="${by + (bh - lh) / 2}" width="${lw}" height="${lh}" preserveAspectRatio="xMinYMid meet"/>`;
     } else g += svgText(info.brand, bx, bY, bfs, 700, beside);
     const [rx, ry, rw, rh, rfs, tdx, tdy] = L.bar;
     if (barText) g += `<rect x="${rx}" y="${ry}" width="${rw}" height="${rh}" fill="#000"/>` + svgText(barText, rx + tdx, ry + tdy, rfs, 700, rw - 2 * tdx, "#fff");
@@ -271,6 +277,10 @@ export function refreshLabelCard(row) {
   if (JSON.stringify(ctx.labelInfo(next)) === JSON.stringify(ctx.labelInfo(current.row))) return;
   current = { ...current, row: next };
   render($("labelBody"), current);
+}
+// Something the label draws arrived later (a brand logo): draw the open card again.
+export function redrawLabelCard() {
+  if (labelCardOpen() && current) render($("labelBody"), current);
 }
 export function closeLabelCard() {
   if (!labelCardOpen()) return;

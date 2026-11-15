@@ -6,7 +6,7 @@ import { openColorPop } from './color-pop.js';
 import { initLinkedChips, linkedChipsSignIn, linkedChipsSignOut, linkedChipsOf, onForeignChip, holdForeignChip, pendingMakerChips, presentMakerChips, makerLinkBannerHtml, linkMakerChipsTo, linkedChipsHtml, wireLinkedChips, linkPendingTo, clearPendingLink, openBlankChipWindow, closeChipChoice, closeChipLink, wireSearchBox, linkOfferHtml, wireLinkOffer, openAddChooser, refreshChipChoice, chooseChipView } from './rfid_protocol/linked/index.js';
 import { initChipEraser, openChipEraser, closeChipEraser, chipEraserOpen, eraserCardPresent, eraserForeignChip, eraserReadersChanged } from './rfid_protocol/eraser/index.js';
 import { initChipRestore, openChipRestore, closeChipRestore, chipRestoreOpen, restoreCardPresent, restoreReadersChanged } from './rfid_protocol/restore/index.js';
-import { initLabels, openLabelCard, closeLabelCard, labelCardOpen, mountLabel, refreshLabelCard, labelFor, saveLabel, qrSvg, LABEL_TEMPLATES, LABEL_SLOTS } from './labels/index.js';
+import { initLabels, openLabelCard, closeLabelCard, labelCardOpen, mountLabel, refreshLabelCard, redrawLabelCard, labelFor, saveLabel, qrSvg, LABEL_TEMPLATES, LABEL_SLOTS } from './labels/index.js';
 import { parseQrLink, spoolIdFromPath, linkValues, productLink, productShareLink, spoolLink, spoolShareLink } from './qr-link.js';
 
 // ── Offline timezone → country (telemetry, no IP geolocation) ──────────────
@@ -5060,6 +5060,46 @@ import { initScreenTools } from './ai/screen-tools.js';
   $("chipChoiceCloseTab")?.addEventListener("click", () => closeChipChoice());
   // Chip eraser — the new-chip card's "Erase chips" view; while it is up a scan
   // opens nothing (the NFC routing below hands the chips to it).
+  // A maker's logo for its labels: the brand table's `logo_url` (Manager, CDN
+  // `img?type=brand`), read once and made one-colour black — labels print
+  // black on white. Until it is in, or when the brand has
+  // none or it cannot be read, the label prints the brand as text.
+  const _brandLogos = new Map();   // id_brand → { uri, aspect } | null | "loading"
+  function _brandLogoFor(r) {
+    const id = Number(r?.raw?.id_brand ?? r?.idBrand);
+    if (!id) return null;
+    const have = _brandLogos.get(id);
+    if (have !== undefined) return have === "loading" ? null : have;
+    const url = (state.db.brand || []).find(b => Number(b.id) === id)?.logo_url;
+    if (!url) return null;
+    _brandLogos.set(id, "loading");
+    (async () => {
+      // Through the main process's image cache (img:get → a same-origin
+      // /img-cache/ file): the CDN's last hop sends no CORS header, and pixels
+      // must be readable here to be recoloured.
+      const local = await window.electronAPI?.imgGet?.(url);
+      if (!local) throw new Error("not fetched");
+      const res = await fetch(local);
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const bmp = await createImageBitmap(await res.blob());
+      const c = document.createElement("canvas");
+      c.width = bmp.width; c.height = bmp.height;
+      const g = c.getContext("2d");
+      g.drawImage(bmp, 0, 0);
+      const px = g.getImageData(0, 0, c.width, c.height);
+      // Every inked pixel black; a near-white one (white letters on a coloured block)
+      // becomes paper, so it still reads as a hole in the black.
+      const d = px.data;
+      for (let i = 0; i < d.length; i += 4) {
+        if (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2] > 220) d[i + 3] = 0;
+        d[i] = d[i + 1] = d[i + 2] = 0;
+      }
+      g.putImageData(px, 0, 0);
+      _brandLogos.set(id, { uri: c.toDataURL("image/png"), aspect: bmp.width / bmp.height });
+      redrawLabelCard();
+    })().catch(e => { _brandLogos.set(id, null); console.warn("[labels] brand logo unavailable:", id, e?.message || e); });
+    return null;
+  }
   // Printed labels — the label card docked to the left of the spool card (renderer/labels).
   initLabels({ t, esc, reportError, syncPanels: () => _syncPanels(), hideTip: () => _hideToolInfoTip(),
     copy: (text, btn) => navigator.clipboard.writeText(text).then(() => _flashCopied(btn)).catch(() => {}),
@@ -5073,6 +5113,7 @@ import { initScreenTools } from './ai/screen-tools.js';
       const clean = v => (v && v !== "-" && v !== "None" ? v : "");
       return {
         brand: clean(r.brand),
+        logo: _brandLogoFor(r),
         // The label's pill (TigerSystem-Docs spool-ids-and-qr-links §7): TigerQR+ when
         // the spool's reference is a catalogue product, else TigerQR (decided 2026-11-10).
         protocol: _hasRealProductId(r.raw?.id_product ?? r.idProduct) || r.isPlus ? "TigerQR+" : "TigerQR",
