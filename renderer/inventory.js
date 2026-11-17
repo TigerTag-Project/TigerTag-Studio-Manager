@@ -17045,6 +17045,9 @@ import { initScreenTools } from './ai/screen-tools.js';
   // fire hundreds at once. The rest are picked up by the next sync — the stamp
   // makes the work resumable, nothing is lost by stopping early.
   const CATALOG_REFRESH_MAX = 40;
+  // The automatic refresh asks again for one spool no sooner than this (_catalogRefreshStale).
+  const CATALOG_RETRY_MS = 30 * 60_000;
+  const _catalogRefreshedAt = new Map();   // spoolId → ms of its last automatic refresh
   let _catalogRefreshing = false;
 
   /**
@@ -17063,13 +17066,19 @@ import { initScreenTools } from './ai/screen-tools.js';
     // friend's inventory, so this can only fire if that ever regresses — cheap, and
     // it is the write that would be unrecoverable.
     if (_catalogRefreshing || state.friendView) return;
-    const stale = _catalogStaleRows();
+    // This runs on every server snapshot of the inventory, and a refresh writes the
+    // spool (→ another snapshot). A spool still counted behind after its refresh
+    // (the API's photo lagging the mirror's, a 503) would be asked and written in a
+    // loop: each spool is refreshed here at most once per CATALOG_RETRY_MS.
+    const now = Date.now();
+    const stale = _catalogStaleRows().filter(r => now - (_catalogRefreshedAt.get(r.spoolId) || 0) > CATALOG_RETRY_MS);
     if (!stale.length) return;
     _catalogRefreshing = true;
     const batch = stale.slice(0, CATALOG_REFRESH_MAX);
     let done = 0;
     try {
       for (const r of batch) {
+        _catalogRefreshedAt.set(r.spoolId, Date.now());
         if (await _refreshApiData(r, { silent: true })) done++;
       }
     } finally {
