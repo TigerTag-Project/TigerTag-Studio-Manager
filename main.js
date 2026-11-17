@@ -793,6 +793,14 @@ async function _onNfcMessage(msg) {
         // renderer may have it linked to a spool (docs/LINKED-CHIPS.md).
         const atr = String(msg.atr || '').toLowerCase();
         const card = atr.length >= 30 ? atr.slice(26, 30) : '';
+        // PC/SC card name 0003 = the Ultralight family (NTAG): the chip a TigerTag is
+        // written on. One without pages is a read that failed (the spool moved while
+        // it was read), not a maker's chip — ignored, the next read takes it, instead
+        // of opening the new-chip card to link it.
+        if (card === '0003') {
+          console.log(`[NFC] NTAG on ${msg.readerName} not read (moved?) — ignored: ${uid}`);
+          break;
+        }
         const chip = card === '0001' ? 'mifare1k' : card === '0002' ? 'mifare4k' : 'unknown';
         mainWindow?.webContents.send('rfid-foreign-chip', { readerName: msg.readerName, uid, chip });
       }

@@ -3,8 +3,9 @@
  * choice of the new-chip card (rfid_protocol/linked), shown in its pane like the
  * NFC tools (rfid_protocol/eraser).
  *
- * A TigerTag+ keeps a backup of its pages in rfidList/{UID}.backup (stored at
- * its first scan). Each reader's chip is looked up there; the card shows the
+ * A TigerTag+ Certified keeps a backup of its pages in rfidList/{UID}.backup
+ * (stored at its first scan, verified by the server, never changed after; a
+ * plain TigerTag+ has none). Each reader's chip is looked up there; the card shows the
  * reader plates and, for each chip that has a backup, what will be written back
  * (decoded by the SDK in main, `rfid:decode-backup`). Held 1.5 s, the banner
  * writes every backup back onto its chip, verified (`rfid:repair`).

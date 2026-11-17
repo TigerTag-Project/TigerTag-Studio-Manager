@@ -121,6 +121,7 @@
 | `pcTagAddBanner` / `pcTagAddInfo` / `pcTagAddHoldTip` / `pcTagAddNeedPod` | Product card opened by scanning a written TigerTag(+) not in the inventory: the held "Add with {{tier}}" banner (replaces the burn while the chip is on the TigerPOD), its ⓘ, its hold tip, the bubble when the chip was lifted |
 | `pcQrAddBanner` / `pcQrAddInfo` | Catalogue product card, nothing on the TigerPOD: "Add with TigerQR+", its ⓘ and hold tip — creates the spool and opens its QR label |
 | `chipAutoUpdated` | Toast when a chip flagged "to update" is rewritten automatically as it lands on the TigerPOD |
+| `chipAutoUpdating` | The spool card's update banner while that automatic rewrite runs ("Update in progress…"), its fill running by itself |
 | `catEmptyFilteredTitle` / `catEmptyFilteredCta` | Catalogue empty state when the search finds products but the Type / Brand / Material / Series selectors leave none, and its "Clear the filters" button (keeps the search) |
 
 ### Stats

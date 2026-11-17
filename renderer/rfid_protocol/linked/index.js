@@ -151,6 +151,15 @@ export function holdForeignChip(data) { onForeignChip(data, { held: true }); }
  *  earlier ones, they are not added to them. */
 export function pendingMakerChips() { return pending && Date.now() <= pending.until ? presentMakerChips().length : 0; }
 
+/** The brands whose spools come with their own RFID chips (id_brand): only their
+ *  materials are offered the link to a maker's chip — Bambu Lab, Snapmaker,
+ *  ELEGOO, Anycubic, Creality, QIDI Tech, Prusament. A brand like R3D ships no
+ *  chip of its own: nothing to link. IDs, never labels (labels change). */
+export const MAKER_CHIP_BRANDS = new Set([35123, 12635, 57632, 15962, 26956, 4011, 46392]);
+export function brandHasMakerChips(idBrand) { return MAKER_CHIP_BRANDS.has(Number(idBrand)); }
+// A spool's brand id: its own id_brand, else (a catalogue row) its brand name resolved.
+const rowBrandOk = r => brandHasMakerChips(Number(r?.raw?.id_brand) || ctx.brandIdOf?.(r) || 0);
+
 /** The maker chips on the TigerPOD right now that no spool is linked to yet. */
 export function presentMakerChips() {
   const on = [...(ctx.state?.nfcCardPresent?.values() || [])].map(c => norm(c?.uid));
@@ -500,7 +509,7 @@ function openChipLink(chips, kind = "foreign") {
       const tw = twinOf(r);
       const key = tw ? [r.spoolId, tw.spoolId].sort().join("|") : r.spoolId;
       if (seen.has(key)) return false;
-      seen.add(key); return kind === "foreign" ? !linkedChipsOf(r).length : !!r.isCloud;
+      seen.add(key); return kind === "foreign" ? !linkedChipsOf(r).length && rowBrandOk(r) : !!r.isCloud;
     });
   };
   const spools = eligible();
@@ -589,7 +598,7 @@ export function linkOfferHtml(row) {
   // The maker chips on the TigerPOD now — none (a blank NTAG put there instead):
   // no Link offer, the card falls back to its own banner (the burn).
   const n = offer ? presentMakerChips().length : 0;
-  if (!n || !row || row.deleted || row.isFriend || linkedChipsOf(row).length) return "";
+  if (!n || !row || row.deleted || row.isFriend || linkedChipsOf(row).length || !rowBrandOk(row)) return "";
   const { t, esc } = ctx;
   return `
     <button type="button" class="chip-update-banner lc-offer-banner" id="lcOfferBanner" data-lc-offer="${esc(row.spoolId)}" data-hold-tip="linkedChipOfferTip">

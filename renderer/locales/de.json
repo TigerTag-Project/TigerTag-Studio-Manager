@@ -1056,6 +1056,7 @@
   "btnSaveAll": "Alles",
   "chipPendingHint": "NFC aktualisieren",
   "chipAutoUpdated": "Chip auf dem TigerPOD aktualisiert. Wieder synchron.",
+  "chipAutoUpdating": "Aktualisierung läuft…",
   "chipUpdateTitle": "Bitte aktualisiere deinen {{tier}}",
   "chipUpdateInfo": "Das Material hat sich seit dem Beschreiben seines Chips geändert: Dies schreibt seine aktuellen Daten (Gewicht, Farbe…) zurück in den Chip.",
   "chipUpdateNeedPod": "Lege das Material zuerst auf den TigerPOD: sein Chip wird aktualisiert.",

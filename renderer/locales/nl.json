@@ -1056,6 +1056,7 @@
   "btnSaveAll": "Alles",
   "chipPendingHint": "NFC bijwerken",
   "chipAutoUpdated": "Chip bijgewerkt op de TigerPOD. Weer in sync.",
+  "chipAutoUpdating": "Bijwerken bezig…",
   "chipUpdateTitle": "Werk je {{tier}} bij",
   "chipUpdateInfo": "Het materiaal is veranderd sinds de chip werd beschreven: dit schrijft de huidige gegevens (gewicht, kleur…) terug in de chip.",
   "chipUpdateNeedPod": "Leg het materiaal eerst op de TigerPOD: de chip ervan wordt bijgewerkt.",

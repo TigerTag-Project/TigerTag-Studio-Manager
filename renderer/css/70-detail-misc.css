@@ -2466,6 +2466,12 @@
     opacity: 1;
     box-shadow: 6px 0 14px color-mix(in srgb, var(--burn) 70%, transparent);
   }
+  /* The chip is being rewritten on the TigerPOD (_autoUpdateChip): the fill runs by
+     itself, as if the banner were held, slowing as it nears the end — the write is
+     a second or two, its end is not known in advance. */
+  .cloud-encode-banner--hold.is-busy { cursor: progress; }
+  .cloud-encode-banner--hold.is-busy .hold-progress { animation: chip-busy-fill 2.4s cubic-bezier(.15, .7, .3, 1) forwards; }
+  @keyframes chip-busy-fill { from { width: 0%; } to { width: 94%; } }
   .cloud-encode-banner--hold::after {
     content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none;
     background: linear-gradient(105deg, transparent 35%, color-mix(in srgb, var(--burn) 22%, transparent) 50%, transparent 65%);

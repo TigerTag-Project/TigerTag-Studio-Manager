@@ -208,26 +208,33 @@ users/
         message             string?  — user note (also the colour name for DIY/Cloud)
         tags                string[]? — user-defined free-form labels (Shopify-style). Studio metadata only, never written to the physical chip. Normalised (trimmed, ≤32 chars, case-insensitive dedup, ≤20/spool). Mirrored onto the twin spool so both chips of one physical spool share the same tags. Owner-write, no rule change needed (inventory has no field whitelist). Cross-app field — mobile ignores it until it implements tags
         rfidListed          boolean? — true once this UID has been recorded in rfidList/ (dedup marker; absent = not yet). Set by Studio's chip census / scan path. See rfidList/ below
-        rfidBackup          boolean? — true once a TigerTag+ signature backup has been stored in rfidList/{UID}.backup. Stays false for maker (standard) tags and for tag+ not yet physically read
+        rfidBackup          boolean? — true once a TigerTag+ Certified backup has been stored in rfidList/{UID}.backup. Stays false for every other chip (TigerTag, plain TigerTag+, maker tags) and for a Certified not yet physically read
 
     rfidList/
       {UID_HEX}/             — one document per PHYSICAL RFID chip the user has
                               used, keyed by its hex UID (CLOUD_* spools are
                               excluded). Auto-dedup: re-using a chip maps to the
                               same doc. Lets the user count unique chips they've
-                              made and back up the repairable TigerTag+ signature.
-                              Owner-only.
+                              made and back up the repairable TigerTag+ Certified
+                              chips. Owner-only. An entry is never deleted (the
+                              UID stays on the account) and a backup never
+                              changes once written — the rules refuse both.
         firstSeenAt timestamp — stamped once, on first sighting; never overwritten
         lastSeenAt  timestamp — last write to the entry (creation / backup)
         seenCount   number     — physical-scan counter (census seeds 1)
-        backup      string?    — TAG+ ONLY: full chip payload, hex of pages
-                                0x04-0x27, signature included. Captured the first
-                                time the tag+ is physically read (the census has
-                                no raw pages). Write-once. Its PRESENCE is the
-                                TigerTag+ indicator — no separate type field is
-                                stored. Safe to store: the signature is over
-                                UID + product id, so a clone is detectable
-                                (invalid signature) — the backup opens no new risk
+        backup      string?    — TIGERTAG+ CERTIFIED ONLY: full chip payload, hex
+                                of pages 0x04-0x27, signature included. Captured
+                                the first time the chip is physically read (the
+                                census has no raw pages). Write-once. A plain
+                                TigerTag / TigerTag+ is the user's own chip,
+                                rewritten at will: never backed up. The server
+                                (certifyChip) checks it against the factory public
+                                key and removes any backup that does not verify.
+                                Safe to store: the signature is over UID + product
+                                id, so a clone is detectable
+        certified   boolean?   — SERVER-ONLY: true once certifyChip verified the
+                                backup's factory signature
+        certifiedAt timestamp? — SERVER-ONLY: when it was verified
 
     rfidAliases/
       {UID_HEX}/             — a THIRD-PARTY RFID chip (Bambu Lab, Creality… MIFARE
@@ -593,21 +600,21 @@ The backend then does plain lookups: no reference DB server-side, no duplicated 
 
 ## RFID chip census + TigerTag+ backup — sync contract
 
-Goal: record every **physical** chip a user has used (UID hex, `!CLOUD_*`) under `users/{uid}/rfidList/{UID_HEX}` to count unique chips, dedup re-uses, and back up the repairable TigerTag+ signature. Both Studio and the **mobile app** must follow the same rules so they stay aligned (any client may run either path; the doc id = the chip's hex UID is the single source of dedup). A chip is a TigerTag+ iff its entry has a `backup` — no type field is stored.
+Goal: record every **physical** chip a user has used (UID hex, `!CLOUD_*`) under `users/{uid}/rfidList/{UID_HEX}` to count unique chips, dedup re-uses, and back up the repairable TigerTag+ signature. Both Studio and the **mobile app** must follow the same rules so they stay aligned (any client may run either path; the doc id = the chip's hex UID is the single source of dedup). Only a TigerTag+ Certified (factory signature verified) gets a `backup`; the server stamps `certified` on it and removes any backup that does not verify. An entry is never deleted and a `backup` never changes once written (rules: create with `firstSeenAt`/`lastSeenAt`/`seenCount`/`backup` only, update of `lastSeenAt`/`seenCount` and a missing `backup` only, no delete).
 
 Two booleans on the **inventory** doc are the dedup signals — read them from the already-loaded inventory, no `rfidList` read needed in the steady state:
 
 - `rfidListed === true` → this UID already has a `rfidList/{UID}` entry.
-- `rfidBackup === true` → its tag+ signature `backup` has been stored.
+- `rfidBackup === true` → its Certified `backup` has been stored.
 
 The markers live on the inventory doc, so they vanish if that doc is deleted; a **delete-then-rescan** therefore re-enters unmarked → always re-verify the `rfidList` entry's existence before creating it, so an existing `firstSeenAt`/`backup` is never overwritten.
 
 **Census** (run once per session, e.g. on the first inventory snapshot): for each physical spool whose inventory doc has no `rfidListed`, create `rfidList/{UID}` with `firstSeenAt`/`lastSeenAt = serverTimestamp` and `seenCount = 1`, and set `{ rfidListed: true, rfidBackup: false }` on the inventory doc. No `backup` here (no raw pages at snapshot time). On the first-ever run the collection is empty so a merge-create can't clobber anything.
 
 **On physical scan** (raw pages 0x04-0x27 in hand):
-- `rfidListed && (rfidBackup || maker)` → fully synced → do nothing.
-- `rfidListed && tag+ && !rfidBackup` → write `backup` to `rfidList/{UID}` (merge), then set `rfidBackup: true`.
-- `!rfidListed` (new or delete-rescan) → `get()` the `rfidList` doc; if absent create it (incl. `backup` when tag+), else only fill a missing `backup` (never touch `firstSeenAt`); then set `{ rfidListed: true, rfidBackup: <tag+ && backup now present> }`.
+- `rfidListed && (rfidBackup || !certified)` → fully synced → do nothing.
+- `rfidListed && certified && !rfidBackup` → write `backup` to `rfidList/{UID}` (merge) if the entry has none, then set `rfidBackup: true`.
+- `!rfidListed` (new or delete-rescan) → `get()` the `rfidList` doc; if absent create it (incl. `backup` when certified), else only fill a missing `backup` (never touch `firstSeenAt`); then set `{ rfidListed: true, rfidBackup: <certified && backup now present> }`.
 
 `firstSeenAt` and `backup` are **write-once**. The lifetime unique-chip counter `telemetry/studio.rfidChipsTotal` is incremented by the number of newly-created entries.
 

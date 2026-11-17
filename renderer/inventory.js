@@ -3,7 +3,7 @@ import { decimalSpoolIdToHex, repairTruncatedNtagUid, isDecimalSpoolId, planTrun
 import { initRfidTester } from './rfid_protocol/tigertag/index.js';
 import { RAL_CLASSIC } from './ral-classic.js';
 import { openColorPop } from './color-pop.js';
-import { initLinkedChips, linkedChipsSignIn, linkedChipsSignOut, linkedChipsOf, onForeignChip, holdForeignChip, pendingMakerChips, presentMakerChips, makerLinkBannerHtml, linkMakerChipsTo, linkedChipsHtml, wireLinkedChips, linkPendingTo, clearPendingLink, openBlankChipWindow, closeChipChoice, closeChipLink, wireSearchBox, linkOfferHtml, wireLinkOffer, openAddChooser, refreshChipChoice, chooseChipView } from './rfid_protocol/linked/index.js';
+import { initLinkedChips, brandHasMakerChips, linkedChipsSignIn, linkedChipsSignOut, linkedChipsOf, onForeignChip, holdForeignChip, pendingMakerChips, presentMakerChips, makerLinkBannerHtml, linkMakerChipsTo, linkedChipsHtml, wireLinkedChips, linkPendingTo, clearPendingLink, openBlankChipWindow, closeChipChoice, closeChipLink, wireSearchBox, linkOfferHtml, wireLinkOffer, openAddChooser, refreshChipChoice, chooseChipView } from './rfid_protocol/linked/index.js';
 import { initChipEraser, openChipEraser, closeChipEraser, chipEraserOpen, eraserCardPresent, eraserForeignChip, eraserReadersChanged } from './rfid_protocol/eraser/index.js';
 import { initChipRestore, openChipRestore, closeChipRestore, chipRestoreOpen, restoreCardPresent, restoreReadersChanged } from './rfid_protocol/restore/index.js';
 import { initLabels, openLabelCard, closeLabelCard, labelCardOpen, mountLabel, refreshLabelCard, redrawLabelCard, labelFor, saveLabel, qrSvg, LABEL_TEMPLATES, LABEL_SLOTS } from './labels/index.js';
@@ -343,6 +343,9 @@ import { initScreenTools } from './ai/screen-tools.js';
   // A scanned spool to auto-open in the detail card as soon as it appears in the
   // OWN inventory — survives the async friend→own view switch a scan triggers.
   let _scanOpenUid     = null;
+  // Spools whose chip is being rewritten on the TigerPOD (spoolId → chips in flight):
+  // their update banner fills by itself and reads "Update in progress…".
+  const _chipAutoUpdating = new Map();
   let _lastScanOpenAt  = 0;   // when a scan last OPENED a card — bounds the twin-burst window
   // Open the pending scanned spool in the detail card once it's in our own
   // inventory. Called from the scan handlers AND from the inventory snapshot, so
@@ -3197,6 +3200,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     const name = (state.db.brand || []).find(b => b.id === id)?.name || "";
     if (lbl) lbl.textContent = name || "—";
     sel.dispatchEvent(new Event("change", { bubbles: true }));
+    _adpRenderFoot();   // a brand with chips of its own offers the link to them, others do not
   }
 
   // ── Material bottom-sheet ─────────────────────────────────────
@@ -3956,7 +3960,8 @@ import { initScreenTools } from './ai/screen-tools.js';
   function _adpRenderFoot() {
     const slot = $("adpFootBanner"), btn = $("adpSave");
     if (!slot || !btn) return;
-    const makers = HAS_NATIVE ? presentMakerChips().length : 0;
+    // Only a brand that ships its own chips (Bambu Lab, Creality…) is offered the link.
+    const makers = HAS_NATIVE && brandHasMakerChips(parseInt($("adpBrand")?.value, 10)) ? presentMakerChips().length : 0;
     const burn = !makers && HAS_NATIVE && state.nfcReaderCount > 0;
     const chip = burn && state.nfcCardPresent.size > 0;
     const mode = makers ? `link:${makers}` : chip ? "burn:chip" : burn ? "burn" : "";
@@ -5046,6 +5051,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     groupItems: rows => groupRows(rows, { force: true }), groupCard: g => _groupGridCardInnerHTML(g),
     openGroup: key => { closeDetail(); _openGroupPanel(key); }, setupHoldToConfirm,
     toast: msg => _flashMessage(msg), reportError, onChange: () => { if (state.selected) refreshOpenDetail?.(); },
+    brandIdOf: r => _catByName("brand", r?.brand, ["name"]),
     openCatalogue: () => openCatalogPick(), openManual: () => openAddProductPanel(), chipPresent: () => state.nfcCardPresent.size > 0, chipsChanged: () => _refreshChipBanners(), syncPanels: () => _syncPanels(), clearSide: () => _clearSideForChip(), closeAllSide: () => _closeAllSidePanels(),
     showTip: el => _showToolInfoTip(el), hideTip: () => _hideToolInfoTip(), errorTip: (el, msg, opts) => _showErrorTip(el, msg, opts),
     clearCreate: () => { closeCatalogPick(); if ($("productCardPanel")?.classList.contains("open")) closeProductCard(); if ($("addProductPanel")?.classList.contains("open")) _adpCloseAllSheetsAndPanel(); },
@@ -9174,6 +9180,7 @@ import { initScreenTools } from './ai/screen-tools.js';
         // tag+ backup is filled later by the scan path when each chip is read.
         if (!snapshot.metadata.fromCache) {
           censusRfidListFromInventory(uid);
+          _catalogAutoSync();   // the spools the catalogue moved on from (photo included)
           // Mirror each spool's product-identity hash + resolved protocol onto its
           // doc, so the backend stats job can join spool → product (price) and
           // split TigerTag / TigerTag+ / TigerCloud — neither is derivable server-
@@ -16533,7 +16540,9 @@ import { initScreenTools } from './ai/screen-tools.js';
     return [r, g, b, a].some(Number.isNaN) ? null : { r, g, b, a };
   }
 
-  async function _refreshApiData(r, { silent = false } = {}) {
+  // `ifNewer`: only write when the live product is ahead of this spool — a later
+  // `updated_at` than its last reconcile, or a photo with a higher version.
+  async function _refreshApiData(r, { silent = false, ifNewer = false } = {}) {
     const rawDoc = state.inventory[r.spoolId];
     if (!rawDoc) return;
     const btn = silent ? null : $("btnRefreshApi");
@@ -16550,6 +16559,13 @@ import { initScreenTools } from './ai/screen-tools.js';
       if (!res) return;
       if (!res.ok) throw new Error(res.error || "unknown");
       const api = res.api;
+      if (ifNewer) {
+        const liveImg = _isRealProductImg(api.images?.main_src) && !rawDoc.url_img_user ? api.images.main_src : null;
+        const imgAhead = !!liveImg && _imgVersion(liveImg) > _imgVersion(rawDoc.url_img);
+        const synced = Number(rawDoc.catalogSyncedAt);
+        const dataAhead = !Number.isFinite(synced) || _catalogTime(api.updated_at) > synced;
+        if (!imgAhead && !dataAhead) return false;
+      }
       const update = {};
       const _full = _catalogFullRecord(api);
       if (_full)                             update.catalogProduct     = _full;   // everything the catalogue knows
@@ -16620,7 +16636,14 @@ import { initScreenTools } from './ai/screen-tools.js';
       update.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
       const uid = fbAuth().currentUser?.uid;
       if (!uid) return;
-      await _xanoQuiet(() => fbDb().collection("users").doc(uid).collection("inventory").doc(r.spoolId).update(update));   // catalogue data, not a user edit
+      // Both chips of a twin spool carry the same product: the twin's doc gets the
+      // same update, so the pair never splits (one chip at 230 °C, the other at 240).
+      const invCol = fbDb().collection("users").doc(uid).collection("inventory");
+      const twinId = rawDoc.twin_tag_uid && state.inventory[rawDoc.twin_tag_uid] ? String(rawDoc.twin_tag_uid) : null;
+      const batch = _xanoQuietBatch(invCol.firestore.batch());   // catalogue data, not a user edit
+      batch.update(invCol.doc(r.spoolId), update);
+      if (twinId) batch.update(invCol.doc(twinId), update);
+      await batch.commit();
       if (!silent) _flashMessage(t("toolRefreshApiSuccess"));
       return true;
     } catch (e) {
@@ -16797,9 +16820,11 @@ import { initScreenTools } from './ai/screen-tools.js';
   */
   const CATALOG_LS_KEY = "tigertag.catalog";
   const CATALOG_CACHE_V = 3;   // see `_catalogLoadCache`
-  // The catalogue gains products every day, so a day-old cache is the most that
-  // can go by unnoticed. Settings → Tools has a button to force it sooner.
-  const CATALOG_TTL_MS = 24 * 3600 * 1000;
+  // The catalogue mirror (id_catalog.json on GitHub) is rebuilt every 6 hours, and
+  // a re-read costs a 304 when nothing moved (ETag), so the copy here is checked as
+  // often: at launch and when the window comes back, once its 6 hours are up.
+  // Settings → Tools has a button to force it sooner.
+  const CATALOG_TTL_MS = 6 * 3600 * 1000;
   let _catalogIndex     = [];    // [{ it, hay }] — hay = precomputed search haystack
   let _catalogFetchedAt = 0;
   let _catalogSyncing   = false;
@@ -16969,6 +16994,12 @@ import { initScreenTools } from './ai/screen-tools.js';
     return typeof v === "number" ? v : Date.parse(v);
   }
 
+  // The `v` of a CDN image address (img?id=…&v=N), -1 when it has none.
+  function _imgVersion(url) {
+    const m = /[?&]v=(\d+)/.exec(String(url || ""));
+    return m ? Number(m[1]) : -1;
+  }
+
   function _catalogStaleRows() {
     // A friend's shelf is READ-ONLY, always — so we do not even look. Their spools
     // being current or not is their business, not this account's, and scanning them
@@ -16984,15 +17015,20 @@ import { initScreenTools } from './ai/screen-tools.js';
       if (!_hasRealProductId(pid)) return false;          // nothing to reconcile against
       const prod = byId.get(pid);
       if (!prod) return false;                            // withdrawn from the catalogue → leave alone
+      // A new photo carries a higher version in its address (img?id=…&v=N): a
+      // spool still pointing at a lower one is behind, whatever `updated_at` says —
+      // its thumbnails would keep the old picture (cached under the old address)
+      // while a size never shown before already comes back with the new one. Only
+      // a HIGHER version counts: the live product/get can be ahead of the mirror.
+      // A spool showing the user's own photo is not the catalogue's to change.
+      const imgNew = !r.userImg && _isRealProductImg(prod.img_src) && r.raw?.url_img !== prod.img_src;
+      if (imgNew && _imgVersion(prod.img_src) > _imgVersion(r.raw?.url_img)) return true;
       // `updated_at` moves on ANY change (name, temperatures, links, colours,
       // photo), so it decides whenever the catalogue has it. Without it (1 241 of
       // 20 348 products on 2026-11-06, TigerTag-Manager#58) the photo is the only
-      // change the list itself shows: a re-shot product has a new `img_src`. A
-      // spool showing the user's own photo is not the catalogue's to change.
+      // change the list itself shows: a re-shot product has a new `img_src`.
       const changed = _catalogTime(prod.updated_at);
-      if (!Number.isFinite(changed)) {
-        return !r.userImg && _isRealProductImg(prod.img_src) && r.raw?.url_img !== prod.img_src;
-      }
+      if (!Number.isFinite(changed)) return imgNew;
       const synced = Number(r.raw?.catalogSyncedAt);
       // No stamp means the spool predates this mechanism, and we genuinely do not
       // know whether it is current — so it IS refreshed. That sweeps every existing
@@ -17043,6 +17079,17 @@ import { initScreenTools } from './ai/screen-tools.js';
     console.log(`[catalog] refreshed ${done}/${batch.length} stale spool(s)`
       + (left ? ` — ${left} left for the next sync` : ""));
   }
+
+  // The spools follow the catalogue without anyone opening it: at launch and when
+  // the window comes back, the local copy is checked (a 304 while the mirror has
+  // not moved, nothing at all inside its 6 hours), then the spools it has moved on
+  // from are brought up to date through the API (_catalogRefreshStale).
+  function _catalogAutoSync() {
+    if (state.friendView || !state.activeAccountId) return;
+    _catalogLoadCacheIfNeeded();
+    _catalogSync().catch(() => {}).finally(() => _catalogRefreshStale());
+  }
+  window.addEventListener("focus", () => _catalogAutoSync());
 
   async function _catalogSync({ force = false } = {}) {
     if (_catalogSyncing) return;
@@ -21050,7 +21097,16 @@ import { initScreenTools } from './ai/screen-tools.js';
       // Import mints new ids, which must be free; Restore writes the originals back on purpose.
       if (mode === "import") freshIds.push(...writes.map(w => w.id));
       for (const w of writes) ops.push({ ref: inv.doc(w.id), data: w.data });
-      for (const b of backups) ops.push({ ref: rfid.doc(b.id), data: b.data });
+      // A chip entry is never deleted and its backup never changes (backend
+      // rules): one already on the account is kept as it is, a missing one is
+      // created with the fields a client may write (the server re-checks the
+      // signature and stamps `certified` itself).
+      for (const b of backups) {
+        const ref = rfid.doc(b.id);
+        if ((await ref.get().catch(() => null))?.exists) continue;
+        const keep = ["firstSeenAt", "lastSeenAt", "seenCount", "backup"];
+        ops.push({ ref, data: Object.fromEntries(keep.filter(k => b.data?.[k] != null).map(k => [k, b.data[k]])) });
+      }
     }
     await _ensureIdsFree(uid, freshIds);
     for (let i = 0; i < ops.length; i += 450) {
@@ -21705,8 +21761,26 @@ import { initScreenTools } from './ai/screen-tools.js';
     });
   }
 
+  // Opening a spool asks the catalogue API for its product, once a session per
+  // product: a spool behind it (new photo version, later `updated_at`) is brought
+  // up to date at once — the mirror the background check reads can lag hours.
+  const _catalogCheckedOnOpen = new Set();
+  function _catalogCheckOnOpen(spoolId) {
+    if (state.friendView) return;
+    const r = state.rows.find(x => x.spoolId === spoolId);
+    const pid = Number(r?.raw?.id_product);
+    if (!r || r.deleted || !_hasRealProductId(pid) || _catalogCheckedOnOpen.has(pid)) return;
+    _catalogCheckedOnOpen.add(pid);
+    // The API answers a 503 or times out now and then: a second try 2 s later, and
+    // if that fails too the next opening asks again. (null = it could not tell.)
+    const ask = () => _refreshApiData(r, { silent: true, ifNewer: true }).catch(() => null);
+    ask().then(ok => ok == null ? new Promise(res => setTimeout(res, 2000)).then(ask) : ok)
+      .then(ok => { if (ok == null) _catalogCheckedOnOpen.delete(pid); });
+  }
+
   function openDetail(spoolId, opts = {}) {
     if (_linkProposal && _linkProposal.spoolId !== spoolId) _linkProposal = null;   // a link's values stay on its own spool
+    _catalogCheckOnOpen(spoolId);
     closeNotifs();   // opening a spool takes over the right side — dismiss notifs
     _closeAddPrinterFlow();
     // Switching to a different spool → close the container picker (it was
@@ -23675,11 +23749,11 @@ import { initScreenTools } from './ai/screen-tools.js';
   // shining (`active`) — the held banner of the card it opened is the one that glows.
   // `logo: "nfc"` draws the NFC logo instead of the RFID-material picture;
   // `danger`: the red tone (resetting a chip to NDEF).
-  function _chipBannerHTML(id, title, info, { update = false, plus = false, danger = false, hold = true, holdTip = null, holdTier = null, active = false, logo = null } = {}) {
+  function _chipBannerHTML(id, title, info, { update = false, plus = false, danger = false, hold = true, holdTip = null, holdTier = null, active = false, logo = null, busy = false } = {}) {
     const tone = update ? " chip-update-banner--hold" : plus ? " chip-update-banner--plus" : danger ? " chip-update-banner--danger" : "";
     const tip = holdTip || (update ? "chipUpdateHoldTip" : "cloudEncodeHoldTip");
     return `
-        <button type="button" class="chip-update-banner cloud-encode-banner cloud-encode-banner--hold${tone}${hold ? "" : " cloud-encode-banner--click"}${active ? " is-active" : ""}" id="${id}"${hold ? ` data-hold-tip="${tip}"` : ""}${hold && holdTier ? ` data-hold-tier="${holdTier}"` : ""}>
+        <button type="button" class="chip-update-banner cloud-encode-banner cloud-encode-banner--hold${tone}${hold ? "" : " cloud-encode-banner--click"}${active ? " is-active" : ""}${busy ? " is-busy" : ""}" id="${id}"${busy ? " disabled" : ""}${hold ? ` data-hold-tip="${tip}"` : ""}${hold && holdTier ? ` data-hold-tier="${holdTier}"` : ""}>
           ${hold ? '<span class="hold-progress" aria-hidden="true"></span>' : ""}
           ${logo ? `<span class="rfid-material-icon chip-banner-logo chip-banner-logo--${logo}" aria-hidden="true"></span>` : '<img class="rfid-material-icon" src="../assets/img/TigerTag_RFID_Material.png" alt="RFID">'}
           <span class="chip-update-text cloud-encode-text">${esc(title)}</span>
@@ -23756,7 +23830,9 @@ import { initScreenTools } from './ai/screen-tools.js';
     // added as it is (linked to the chip), never burned again.
     const scanned = isCat && !upgradeFor ? _pcScannedChipFor(p.catalogItem.id) : null;
     // Waiting in the new-chip card, or simply on the TigerPOD and linked to nothing.
-    const makerN = HAS_NATIVE ? pendingMakerChips() || presentMakerChips().length : 0;
+    // Only a brand that ships its own chips (Bambu Lab, Creality…) is offered the link.
+    const makerN = HAS_NATIVE && brandHasMakerChips(Number(r?.raw?.id_brand) || _catByName("brand", r?.brand, ["name"]))
+      ? pendingMakerChips() || presentMakerChips().length : 0;
     // Nothing of this product on the TigerPOD (founder, 2026-11-14): the three ways in —
     // burn a chip, add from the catalogue, add with a TigerQR+ — and no "+ Inventory".
     // With its scanned chip there, adding that chip is the only one offered.
@@ -25667,7 +25743,8 @@ import { initScreenTools } from './ai/screen-tools.js';
       && !$("chipChoicePanel")?.classList.contains("open");
     if (chipBannerHtml) {
       // (wired by wireLinkOffer after render)
-    } else if (r.isCloud && !state.friendView && presentMakerChips().length && !linkedChipsOf(r).length) {
+    } else if (r.isCloud && !state.friendView && presentMakerChips().length && !linkedChipsOf(r).length
+               && brandHasMakerChips(Number(r.raw?.id_brand) || _catByName("brand", r.brand, ["name"]))) {
       // A maker's chip (Bambu Lab, Creality…) not linked yet sits on the TigerPOD:
       // link it to this spool — such a chip is never burned. A spool that already
       // has its own maker chips is not offered more.
@@ -25678,7 +25755,10 @@ import { initScreenTools } from './ai/screen-tools.js';
       chipBannerHtml = _burnBannerHTML("cloudEncodeBanner", r.isCloudPlus ? "TigerTag+" : "TigerTag")
         + (offerUpgrade ? _upgradeBannerHTML(r) : "");
     } else if (r.needUpdateAt) {
-      chipBannerHtml = _chipBannerHTML("chipUpdateBanner", t("chipUpdateTitle", { tier: r.isPlus ? "TigerTag+" : "TigerTag" }), t("chipUpdateInfo"), { update: true });
+      // Being rewritten on the TigerPOD right now (_autoUpdateChip): the same banner
+      // fills by itself, as if held, and says so.
+      const busy = _chipAutoUpdating.has(r.spoolId);
+      chipBannerHtml = _chipBannerHTML("chipUpdateBanner", busy ? t("chipAutoUpdating") : t("chipUpdateTitle", { tier: r.isPlus ? "TigerTag+" : "TigerTag" }), t("chipUpdateInfo"), { update: true, busy });
     } else if (r.tagCount >= 2 && !r.hasTwinPair && !state.friendView) {
       // The chip says it is one of n (offset 39, protocol v2.2), but its partner
       // has never been scanned — ask for it. Scanning it pairs the two on their
@@ -44394,18 +44474,22 @@ import { initScreenTools } from './ai/screen-tools.js';
     _recordUsage(payload);
   }
 
-  // ── RFID physical-chip list + TigerTag+ backup (users/{uid}/rfidList) ──
+  // ── RFID physical-chip list + Certified backup (users/{uid}/rfidList) ──
   // One doc per PHYSICAL chip the user has used, keyed by its hex UID (auto-dedup
-  // on re-use). Lets us count unique chips and back up the repairable tag+
-  // signature. Cloud-only entries (CLOUD_… ids) are NOT chips and are skipped.
+  // on re-use). Lets us count unique chips and back up the repairable
+  // TigerTag+ Certified chips. Cloud-only entries (CLOUD_… ids) are NOT chips and
+  // are skipped. An entry is never deleted and a backup never changes once
+  // written: the backend rules refuse both.
   //   firstSeenAt : serverTimestamp   — stamped once, on first sighting
   //   lastSeenAt  : serverTimestamp   — last write to the entry (creation/backup)
   //   seenCount   : number            — physical-scan counter (census seeds 1)
-  //   backup      : "<hex pages 4-27>"— TAG+ ONLY, full payload incl. signature,
-  //                                     captured the first time the chip is
-  //                                     physically read (census has no raw pages).
-  //                                     Its mere PRESENCE means the chip is a
-  //                                     TigerTag+ — no separate type field needed.
+  //   backup      : "<hex pages 4-27>"— TIGERTAG+ CERTIFIED ONLY (factory
+  //                                     signature verified in main), full payload
+  //                                     incl. signature, captured the first time
+  //                                     the chip is physically read (census has no
+  //                                     raw pages). A plain TigerTag / TigerTag+ is
+  //                                     the user's own chip, rewritten at will:
+  //                                     only its UID is listed, never backed up.
   // The signature is over UID + product id: a clone is possible but won't
   // validate (it is detectable), so storing the backup opens no new risk.
   //
@@ -44413,8 +44497,8 @@ import { initScreenTools } from './ai/screen-tools.js';
   // plain booleans, read straight from the already-loaded `state.inventory` so a
   // synced chip costs zero rfidList reads:
   //   rfidListed : true once the UID has an entry in rfidList (census or scan)
-  //   rfidBackup : true once a tag+ signature backup has been stored (scan only;
-  //                stays false for makers and for not-yet-read tag+)
+  //   rfidBackup : true once a Certified backup has been stored (scan only;
+  //                stays false for every other chip and a not-yet-read Certified)
   // Both are lost only when the inventory doc itself is deleted; a delete-then-
   // rescan re-enters unmarked, and the scan path then verifies the rfidList entry
   // doesn't already exist before (re)creating it, so an existing entry's
@@ -45218,22 +45302,25 @@ import { initScreenTools } from './ai/screen-tools.js';
     if (!uid || state.friendView || !tagData) return;
     const chipUid = tagData.uid ? String(tagData.uid) : null;
     if (!chipUid) return;
-    const isPlus = versionName(tagData.id_tigertag) === "TigerTag+";
+    // Only a TigerTag+ Certified (factory signature verified in main) is backed
+    // up: a plain TigerTag / TigerTag+ is the user's own chip, erased and
+    // rewritten at will, and only its UID enters the list.
+    const certified = versionName(tagData.id_tigertag) === "TigerTag+" && !!tagData._certified;
     const rawHex = typeof tagData._rawPagesHex === "string" ? tagData._rawPagesHex : null;
 
-    // Fully synced (backed-up tag+, or any listed maker) → skip Firestore.
-    if (listed && (backedUp || !isPlus)) return;
+    // Fully synced (backed-up certified chip, or any other listed chip) → skip Firestore.
+    if (listed && (backedUp || !certified)) return;
 
     try {
       const ref = _rfidListCol(uid).doc(chipUid);
       const FV  = firebase.firestore.FieldValue;
 
-      // Listed tag+ whose doc says "no backup": the entry may hold one all the
-      // same (the marker was lost) — then only the marker is set; otherwise the
-      // backup is written once, when the raw pages are in hand. Never overwrites
-      // a backup already stored.
+      // Listed certified chip whose doc says "no backup": the entry may hold one
+      // all the same (the marker was lost) — then only the marker is set;
+      // otherwise the backup is written once, when the raw pages are in hand.
+      // Never overwrites a backup already stored (the rules refuse it anyway).
       if (listed) {
-        if (isPlus) {
+        if (certified) {
           const has = !!(await ref.get()).data()?.backup;
           if (!has && rawHex) await ref.set({ backup: rawHex, lastSeenAt: FV.serverTimestamp() }, { merge: true });
           if (has || rawHex) await _invCol(uid).doc(chipUid).set({ rfidBackup: true }, { merge: true });
@@ -45251,7 +45338,7 @@ import { initScreenTools } from './ai/screen-tools.js';
         update.firstSeenAt = FV.serverTimestamp();
         update.seenCount   = 1;
       }
-      if (isPlus && rawHex && !hadBackup) update.backup = rawHex;
+      if (certified && rawHex && !hadBackup) update.backup = rawHex;
       if (Object.keys(update).length) {
         update.lastSeenAt = FV.serverTimestamp();
         await ref.set(update, { merge: true });
@@ -45260,7 +45347,7 @@ import { initScreenTools } from './ai/screen-tools.js';
       // for this UID" — true if the chip already had one (even if the current
       // spool was rewritten as a plain TigerTag) or a tag+ backup was just
       // captured. This lets the Repair action reappear on the same UID.
-      const nowBacked = hadBackup || (isPlus && !!rawHex);
+      const nowBacked = hadBackup || (certified && !!rawHex);
       await _invCol(uid).doc(chipUid).set({ rfidListed: true, rfidBackup: nowBacked }, { merge: true });
       if (isNew) bumpStudioCounters({ rfidChipsTotal: 1 });
     } catch (e) {
@@ -46109,13 +46196,29 @@ import { initScreenTools } from './ai/screen-tools.js';
           // here, on the TigerPOD — no button. The record is the truth then, so the
           // old bytes just read must not be written back over it.
           let chipUpdated = false;
+          // The record is ahead of the chip and the chip could not be rewritten
+          // this time (lifted too soon, the update window open, not verified…):
+          // the record stays as it is — the next presentation rewrites the chip.
+          let keepRecord = false;
           if (existing.exists) {
-            const stored = existing.data();
+            let stored = existing.data();
+            // The catalogue moved on since this spool was last reconciled: bring the
+            // record up to date first (it raises needUpdateAt when the change is
+            // carried by the chip), so the chip is rewritten with it just below.
+            if (stored.timestamp === tagData.timestamp && !state.friendView) {
+              const staleRow = _catalogStaleRows().find(x => x.spoolId === String(uid));
+              if (staleRow && await _refreshApiData(staleRow, { silent: true }).catch(() => false)) {
+                stored = (await docRef.get().catch(() => null))?.data() || stored;
+              }
+            }
             if (stored.timestamp === tagData.timestamp && stored.needUpdateAt && tagData._readerName) {
               chipUpdated = await _autoUpdateChip(docRef, stored, uid, tagData._readerName);
             }
             if (chipUpdated) {
               console.log('[RFID] Pending chip brought up to date on the TigerPOD:', uid);
+            } else if (stored.timestamp === tagData.timestamp && stored.needUpdateAt) {
+              console.log('[RFID] Chip still to update — record kept, chip rewritten next time:', uid);
+              keepRecord = true;
             } else if (stored.timestamp !== tagData.timestamp) {
               // Chip was fully erased & rewritten — clean slate
               console.log('[RFID] Chip rewritten (ts changed) — delete + recreate:', uid);
@@ -46149,7 +46252,10 @@ import { initScreenTools } from './ai/screen-tools.js';
           } else {
             console.log('[RFID] New chip — creating:', uid);
           }
-          if (!chipUpdated) await _writeChipDoc(docRef, tagData, twinUid, { preserveDbWeight, preserveTd });
+          if (keepRecord) {
+            // Only what the scan itself learns: a twin partner seen beside it.
+            if (twinUid) await _xanoQuiet(() => docRef.set({ twin_tag_uid: twinUid }, { merge: true }));
+          } else if (!chipUpdated) await _writeChipDoc(docRef, tagData, twinUid, { preserveDbWeight, preserveTd });
           // A chip entering this inventory for the first time is a spool created here.
           if (!existing.exists) _xanoSpoolEvent("create", String(uid), state.inventory?.[uid] || { ...tagData, uid });
           processedUids.push(uid);
@@ -46199,15 +46305,42 @@ import { initScreenTools } from './ai/screen-tools.js';
     // (it drives the write itself) or in a friend's view.
     async function _autoUpdateChip(docRef, stored, uid, readerName) {
       if (_encodeModalOpen() || state.friendView || !window.electronAPI?.encodeCloudSpool) return false;
+      // Shown while it runs: the spool's card opens on it and its update banner fills.
+      const u = String(uid).toUpperCase();
+      const row = state.rows.find(x => String(x.spoolId).toUpperCase() === u || String(x.uid || "").toUpperCase() === u
+        || String(x.twinUid || "").toUpperCase() === u);
+      const busyId = row?.spoolId || null;
+      if (busyId) {
+        _chipAutoUpdating.set(busyId, (_chipAutoUpdating.get(busyId) || 0) + 1);
+        if (state.selected === busyId) refreshOpenDetail(); else openDetail(busyId);
+      }
+      const done = () => {
+        if (!busyId) return;
+        const n = (_chipAutoUpdating.get(busyId) || 1) - 1;
+        if (n > 0) _chipAutoUpdating.set(busyId, n); else _chipAutoUpdating.delete(busyId);
+        if (state.selected === busyId) refreshOpenDetail();
+      };
       try {
         const res = await window.electronAPI.encodeCloudSpool({ cloudDoc: stored, targets: [{ readerName, uid }] });
         const ok = (res?.results || []).some(x => x.ok && x.verified === true);
-        if (!ok) { console.warn('[RFID] auto chip update not verified:', uid, res?.results?.[0]?.error || res?.error); return false; }
-        await docRef.update({ needUpdateAt: null });
+        if (!ok) { console.warn('[RFID] auto chip update not verified:', uid, res?.results?.[0]?.error || res?.error); done(); return false; }
+        // The record may have moved on while the chip was written (a catalogue update
+        // landing at the same moment raises needUpdateAt again): the flag is cleared
+        // only if it is still the one this write answered — otherwise the chip stays
+        // flagged and the next presentation writes the newer record.
+        const cleared = await docRef.firestore.runTransaction(async tx => {
+          const now = await tx.get(docRef);
+          if (now.get("needUpdateAt") !== stored.needUpdateAt) return false;
+          tx.update(docRef, { needUpdateAt: null });
+          return true;
+        });
+        if (!cleared) { console.log('[RFID] record changed during the chip write — kept flagged:', uid); done(); return true; }
+        done();
         _flashMessage(t("chipAutoUpdated"));
         return true;
       } catch (e) {
         console.warn('[RFID] auto chip update failed:', uid, e?.message || e);
+        done();
         return false;
       }
     }
