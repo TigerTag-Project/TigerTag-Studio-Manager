@@ -12011,7 +12011,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     // when the product has no doc yet: attaching a link is the one entry point that
     // can fire on a never-favorited, never-priced product, and without the record the
     // caller's immediate re-render would read back nothing and look like a failed save.
-    const _rec = state.products[hash] || (state.products[hash] = { key: _spoolProductKey(r), label: _productLabel(r) });
+    const _rec = state.products[hash] || (state.products[hash] = { id: hash, key: _spoolProductKey(r), label: _productLabel(r) });
     if (_rec) {
       if ("liked" in patch)    _rec.liked = !!patch.liked;
       if ("favorite" in patch) _rec.favorite = !!patch.favorite;
@@ -18520,7 +18520,12 @@ import { initScreenTools } from './ai/screen-tools.js';
     catch (e) { console.warn("[products] field write failed:", e); }
   }
 
-  // Current stock (non-deleted spool count) per product identity key.
+  // Current stock (non-deleted spool count) per product identity, keyed by the
+  // identity HASH — a product record's id (`p.id`), exactly what the product card
+  // counts with (`_filamentStockCount`). Not by the record's stored `key` string:
+  // `_writeProduct` stores it with the tier ("tt:123|tdplus", from `_spoolGroupKey`)
+  // while a spool's own key has none, so a lookup by `p.key` found nothing and the
+  // To-order cart read 0 in stock for a product that had spools (#285).
   function _stockCountByKey() {
     // Group by product identity, then count PHYSICAL spools per group (twin pairs
     // count once — see _countPhysicalSpools) so favorites / order stock matches
@@ -18528,7 +18533,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     const groups = new Map();
     (state.rows || []).forEach(r => {
       if (r.deleted) return;
-      const k = _spoolProductKey(r);
+      const k = _productKeyHash(r);
       if (!groups.has(k)) groups.set(k, []);
       groups.get(k).push(r);
     });
@@ -18541,7 +18546,7 @@ import { initScreenTools } from './ai/screen-tools.js';
   // override when set, otherwise the recommendation (toOrder).
   function _productOrderInfo(p, stockMap) {
     const required = +p.minStockSpools || 0;
-    const inStock  = stockMap.get(p.key) || 0;
+    const inStock  = stockMap.get(p.id) || 0;
     const onOrder  = +p.onOrder || 0;
     const toOrder  = Math.max(0, required - inStock - onOrder);
     const qty = (p.orderQty != null && Number.isFinite(+p.orderQty)) ? Math.max(0, Math.round(+p.orderQty)) : toOrder;
@@ -19414,7 +19419,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     const sortCol = state.favesSortCol, sdir = state.favesSortDir === "desc" ? -1 : 1;
     const _fval = (p) => {
       const l = p.label || {};
-      const inStock = stockMap.get(p.key) || 0;
+      const inStock = stockMap.get(p.id) || 0;
       const min = (Number.isFinite(+p.minStockSpools) && +p.minStockSpools > 0) ? +p.minStockSpools : 0;
       switch (sortCol) {
         case "material": return (l.material || "").toLowerCase();
@@ -19443,7 +19448,7 @@ import { initScreenTools } from './ai/screen-tools.js';
       const series   = (r.series && r.series !== "-") ? r.series : "";
       const aspect   = [r.aspect1, r.aspect2].filter(a => a && a !== "-" && a !== "None" && String(a).trim() !== "").join(" ");
       const mat      = [material, series || aspect].filter(Boolean).join(" · ") || "—";
-      const inStock  = stockMap.get(p.key) || 0;
+      const inStock  = stockMap.get(p.id) || 0;
       const min      = (Number.isFinite(+p.minStockSpools) && +p.minStockSpools > 0) ? +p.minStockSpools : null;
       const low      = min != null && inStock < min;
       const priceHTML = _favePriceHTML(p.buyPriceHt, sym);   // in the user's HT/TTC mode
@@ -24906,7 +24911,7 @@ import { initScreenTools } from './ai/screen-tools.js';
     const next = !_getProduct(r)?.[field];
     // Optimistic local patch so the toggle buttons AND the illustration badges
     // (grid/table/deck/detail) flip instantly; the write's snapshot reconciles.
-    const cur = state.products[hash] || (state.products[hash] = { key: _spoolProductKey(r) });
+    const cur = state.products[hash] || (state.products[hash] = { id: hash, key: _spoolProductKey(r) });
     // Apply the flag + its interest-hierarchy coupling (❤⇒★, ★off⇒drop ❤+min)
     // to the local record and repaint BOTH toggles so the link shows instantly.
     const coupled = _coupleFlags({ [field]: next }, +(cur.minStockSpools) || 0);
@@ -42997,8 +43002,8 @@ import { initScreenTools } from './ai/screen-tools.js';
     const stockMap = _stockCountByKey();
     Object.values(state.products || {}).forEach(p => {
       const min = +p.minStockSpools || 0;
-      const stock = (p.key && stockMap.get(p.key)) || 0;
-      const belowMin = min > 0 && p.key && stock < min;
+      const stock = (p.id && stockMap.get(p.id)) || 0;
+      const belowMin = min > 0 && p.id && stock < min;
       if (!belowMin) { if (active.delete(p.id)) changed = true; return; }   // above min → re-arm for next dip
       if (active.has(p.id)) return;                                          // already notified this dip
       active.add(p.id); changed = true;
