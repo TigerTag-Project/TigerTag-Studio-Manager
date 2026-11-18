@@ -98,7 +98,7 @@ import { renderPrusaCamBanner, renderPrusaCamWallBanner, prusaCamStopAll } from 
 import { openPrusaAddFlow } from './printers/prusa/add-flow.js';
 import { initExtCam, extCamSubscribe, extCamUnsubscribe, openExtCamAddFlow, openExtCamEditor,
          extCamBoardObj, extCamMaxZ, extCamBoardSave, extCamBoardCardsHtml, wireExtCamBoard,
-         EXTCAM_BRAND, extCamWallItems, extCamProtoLabel, extCamWallHtml, wireExtCamWall, extCamWallSave, extCamList, extCamEmbedHtml } from './ext-cam/ext-cam.js';
+         EXTCAM_BRAND, extCamWallItems, extCamProtoLabel, extCamWallHtml, wireExtCamWall, extCamWallSave, extCamList, extCamForDetach, extCamEmbedHtml } from './ext-cam/ext-cam.js';
 // Self-contained printer plugins (renderer/printers/<id>/plugin.js) — see docs/PRINTER-PLUGINS.md.
 import { printerPlugin, printerPlugins, printerPluginIds, mergePluginStrings } from './printers/plugins.js';
 import { betaBadgeInlineHtml } from './printers/beta-badge.js';
@@ -30422,8 +30422,17 @@ import { initScreenTools } from './ai/screen-tools.js';
   // ── Serialize online cameras for the detached cam window ────────────────
   // Returns an array of CamDescriptor objects understood by renderer/cam/cam.js.
   function _serializeCamerasForDetach() {
-    return state.printers.flatMap(p => {
+    // The cameras of the account WITH what a reader needs (address, login): they reach
+    // the detached window over IPC only, and are never drawn there (renderer/cam/cam.js).
+    const extById = new Map(extCamForDetach().map(c => [c.id, c]));
+    const extDescriptor = (brand, id, name, c) => ({ brand, id, name, camType: "extcam", url: null, ip: null, bblKey: null,
+      ext: { protocol: c.protocol, url: c.url, username: c.username, password: c.password } });
+    const fromPrinters = state.printers.flatMap(p => {
       const name = p.printerName || "(unnamed)";
+      // An IP camera shown in place of the printer's own (printer settings → "Camera shown"):
+      // the wall — this one included — shows IT, whether or not the printer is online.
+      const linked = extById.get(_camSourceId(p));
+      if (linked) return [extDescriptor(p.brand, p.id, name, linked)];
       if (p.brand === "snapmaker") {
         const conn = snapGetConn(snapKey(p));
         if (!conn || conn.status !== "connected" || !conn.ip) return [];
@@ -30485,6 +30494,11 @@ import { initScreenTools } from './ai/screen-tools.js';
       }
       return [];
     });
+    // The IP cameras that belong to no printer have their own card on the wall: here too.
+    const linkedIds = _linkedCamIds();
+    const alone = [...extById.values()].filter(c => !linkedIds.has(c.id))
+      .map(c => extDescriptor("ipcam", c.id, c.name || "(camera)", c));
+    return [...fromPrinters, ...alone];
   }
 
   // ── Printer cam wall sub-view ────────────────────────────────────────────
