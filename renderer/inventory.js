@@ -29309,7 +29309,12 @@ import { initScreenTools } from './ai/screen-tools.js';
       if (p.brand === "flashforge" && p.ip)               ffgConnect(p);
       if (p.brand === "prusa" && p.ip)                    prusaConnect(p);
       printerPlugin(p)?.connect?.(p);
-      if (p.brand === "creality"   && p.ip)               creConnect(p);
+      /* A Creality feed is its own WebRTC session, not something the printer's
+         link carries: connecting is not enough, the session has to be opened
+         too — idempotent, a live one is reused. Without it the play key and the
+         automatic start drew the card's <video> and left it black until the side
+         panel or the camera wall opened the session. */
+      if (p.brand === "creality"   && p.ip)             { creConnect(p); startCreCam(p.ip); }
       if (p.brand === "bambulab"   && (p.broker || p.ip || p.mode === "cloud")) bambuConnect(p);
       if (p.brand === "elegoo" && !_ppForcedOfflineKeys.has(elegooKey(p))) elegooConnect(p);
       if (p.brand === "anycubic" && (p.ip || p.mode === "cloud") && !_ppForcedOfflineKeys.has(acuKey(p))) acuConnect(p);
